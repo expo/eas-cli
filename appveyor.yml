@@ -1,0 +1,17 @@
+environment:
+  nodejs_version: "10"
+cache:
+  - '%LOCALAPPDATA%\Yarn -> appveyor.yml'
+  - node_modules -> yarn.lock
+
+install:
+  - ps: Install-Product node $env:nodejs_version x64
+  - yarn
+test_script:
+  - .\bin\run --version
+  - .\bin\run --help
+  - yarn test
+
+
+build: off
+
