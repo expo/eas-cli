@@ -16,6 +16,7 @@
   "devDependencies": {
     "@oclif/dev-cli": "^1",
     "@types/node": "^10",
+    "@vercel/ncc": "^0.23.0",
     "ts-node": "^8",
     "typescript": "^3.9.7"
   },
@@ -45,9 +46,15 @@
       "@oclif/plugin-help"
     ],
     "topics": {
-      "build": { "description": "build app binaries" },
-      "update": { "description": "roll out changes" },
-      "webhook": { "description":  "manage webhooks" }
+      "build": {
+        "description": "build app binaries"
+      },
+      "update": {
+        "description": "roll out changes"
+      },
+      "webhook": {
+        "description": "manage webhooks"
+      }
     }
   },
   "repository": "expo/eas-cli",
