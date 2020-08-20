@@ -3,5 +3,5 @@
 dist
 lib
 /package-lock.json
-/tmp
+tmp
 node_modules
