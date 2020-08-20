@@ -28,6 +28,7 @@
     "eas-cli-plugin"
   ],
   "license": "MIT",
+  "main": "lib/index.js",
   "oclif": {
     "commands": "./lib/commands",
     "devPlugins": [
