@@ -34,6 +34,7 @@ USAGE
 * [`eas build`](#eas-build)
 * [`eas build:status`](#eas-buildstatus)
 * [`eas help [COMMAND]`](#eas-help-command)
+* [`eas login`](#eas-login)
 * [`eas update`](#eas-update)
 * [`eas update:show`](#eas-updateshow)
 * [`eas webhook:add`](#eas-webhookadd)
@@ -83,6 +84,17 @@ OPTIONS
 ```
 
 _See code: [@oclif/plugin-help](https://github.com/oclif/plugin-help/blob/v3.2.0/src/commands/help.ts)_
+
+## `eas login`
+
+log in with your EAS account
+
+```
+USAGE
+  $ eas login
+```
+
+_See code: [src/commands/login.ts](https://github.com/expo/eas-cli/blob/v0.0.0/src/commands/login.ts)_
 
 ## `eas update`
 

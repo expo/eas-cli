@@ -8,14 +8,19 @@
   },
   "bugs": "https://github.com/expo/eas-cli/issues",
   "dependencies": {
+    "@expo/json-file": "^8.2.22",
     "@oclif/command": "^1",
     "@oclif/config": "^1",
     "@oclif/plugin-help": "^3",
+    "env-paths": "^2.2.0",
+    "got": "^11.5.2",
+    "prompts": "^2.3.2",
     "tslib": "^1"
   },
   "devDependencies": {
     "@oclif/dev-cli": "^1",
     "@types/node": "^10",
+    "@types/prompts": "^2.0.8",
     "@vercel/ncc": "^0.23.0",
     "ts-node": "^8",
     "typescript": "^3.9.7"
@@ -38,6 +43,7 @@
   "main": "lib/index.js",
   "oclif": {
     "bin": "eas",
+    "commands": "./lib/commands",
     "plugins": [
       "@eas/plugin-builds",
       "@eas/plugin-updates",
