@@ -12,16 +12,20 @@
     "@oclif/command": "^1",
     "@oclif/config": "^1",
     "@oclif/plugin-help": "^3",
+    "@urql/core": "^1.13.0",
     "env-paths": "^2.2.0",
     "got": "^11.5.2",
+    "node-fetch": "^2.6.1",
     "prompts": "^2.3.2",
     "tslib": "^1"
   },
   "devDependencies": {
     "@oclif/dev-cli": "^1",
     "@types/node": "^10",
+    "@types/node-fetch": "^2.5.7",
     "@types/prompts": "^2.0.8",
     "@vercel/ncc": "^0.23.0",
+    "graphql": "^15.3.0",
     "ts-node": "^8",
     "typescript": "^3.9.7"
   },

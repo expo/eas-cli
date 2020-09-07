@@ -41,6 +41,7 @@ USAGE
 * [`eas webhook:list`](#eas-webhooklist)
 * [`eas webhook:remove`](#eas-webhookremove)
 * [`eas webhook:update`](#eas-webhookupdate)
+* [`eas whoami`](#eas-whoami)
 
 ## `eas build`
 
@@ -182,4 +183,15 @@ EXAMPLE
 ```
 
 _See code: [@eas/plugin-webhooks](https://github.com/expo/eas-cli/blob/v0.0.0/src/commands/webhook/update.ts)_
+
+## `eas whoami`
+
+show the username you are logged in as
+
+```
+USAGE
+  $ eas whoami
+```
+
+_See code: [src/commands/whoami.ts](https://github.com/expo/eas-cli/blob/v0.0.0/src/commands/whoami.ts)_
 <!-- commandsstop -->
