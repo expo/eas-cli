@@ -1,11 +1,11 @@
-# @eas/plugin-builds
+# @eas-cli/plugin-builds
 
 EAS Builds plugin
 
 [![oclif](https://img.shields.io/badge/cli-oclif-brightgreen.svg)](https://oclif.io)
-[![Version](https://img.shields.io/npm/v/@eas/plugin-builds.svg)](https://npmjs.org/package/@eas/plugin-builds)
-[![Downloads/week](https://img.shields.io/npm/dw/@eas/plugin-builds.svg)](https://npmjs.org/package/@eas/plugin-builds)
-[![License](https://img.shields.io/npm/l/@eas/plugin-builds.svg)](https://github.com/expo/eas-cli/blob/master/package.json)
+[![Version](https://img.shields.io/npm/v/@eas-cli/plugin-builds.svg)](https://npmjs.org/package/@eas-cli/plugin-builds)
+[![Downloads/week](https://img.shields.io/npm/dw/@eas-cli/plugin-builds.svg)](https://npmjs.org/package/@eas-cli/plugin-builds)
+[![License](https://img.shields.io/npm/l/@eas-cli/plugin-builds.svg)](https://github.com/expo/eas-cli/blob/master/package.json)
 
 <!-- toc -->
 
@@ -18,11 +18,11 @@ EAS Builds plugin
 <!-- usage -->
 
 ```sh-session
-$ npm install -g @eas/plugin-builds
+$ npm install -g @eas-cli/plugin-builds
 $ oclif-example COMMAND
 running command...
 $ oclif-example (-v|--version|version)
-@eas/plugin-builds/0.0.0 darwin-x64 node-v12.13.0
+@eas-cli/plugin-builds/0.0.0 darwin-x64 node-v12.13.0
 $ oclif-example --help [COMMAND]
 USAGE
   $ oclif-example COMMAND

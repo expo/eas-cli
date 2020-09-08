@@ -1,5 +1,5 @@
 {
-  "name": "@eas/plugin-updates",
+  "name": "@eas-cli/plugin-updates",
   "description": "Webhooks plugin",
   "version": "0.0.0",
   "author": "Expo <support@expo.io>",
