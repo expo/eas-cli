@@ -35,6 +35,7 @@ USAGE
 * [`eas build:status`](#eas-buildstatus)
 * [`eas help [COMMAND]`](#eas-help-command)
 * [`eas login`](#eas-login)
+* [`eas logout`](#eas-logout)
 * [`eas update`](#eas-update)
 * [`eas update:show`](#eas-updateshow)
 * [`eas webhook:add`](#eas-webhookadd)
@@ -96,6 +97,17 @@ USAGE
 ```
 
 _See code: [src/commands/login.ts](https://github.com/expo/eas-cli/blob/v0.0.0/src/commands/login.ts)_
+
+## `eas logout`
+
+log out
+
+```
+USAGE
+  $ eas logout
+```
+
+_See code: [src/commands/logout.ts](https://github.com/expo/eas-cli/blob/v0.0.0/src/commands/logout.ts)_
 
 ## `eas update`
 
