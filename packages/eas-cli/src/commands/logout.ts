@@ -7,5 +7,6 @@ export default class Logout extends Command {
 
   async run() {
     await logoutAsync();
+    this.log('Logged out.');
   }
 }
