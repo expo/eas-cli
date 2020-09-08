@@ -22,5 +22,6 @@ export default class Login extends Command {
       username,
       password,
     });
+    this.log('Logged in.');
   }
 }
