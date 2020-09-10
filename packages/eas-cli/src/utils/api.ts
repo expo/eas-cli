@@ -1,4 +1,4 @@
-import { createClient } from '@urql/core';
+import { createClient as createUrqlClient } from '@urql/core';
 import got from 'got';
 import fetch from 'node-fetch';
 
@@ -12,30 +12,34 @@ export const apiClient = got.extend({
 type AccessTokenHeaders = { authorization: string };
 type SessionHeaders = { 'expo-session': string };
 
-export const graphqlClient = createClient({
-  url: getExpoApiBaseUrl() + '/--/graphql',
-  // @ts-expect-error Type 'typeof fetch' is not assignable to type '(input: RequestInfo, init?: RequestInit | undefined) => Promise<Response>'.
-  fetch,
-  fetchOptions: (): { headers?: AccessTokenHeaders | SessionHeaders } => {
-    const token = getAccessToken();
-    if (token) {
-      return {
-        headers: {
-          authorization: `Bearer ${token}`,
-        },
-      };
-    }
-    const sessionSecret = getSessionSecret();
-    if (sessionSecret) {
-      return {
-        headers: {
-          'expo-session': sessionSecret.toString(),
-        },
-      };
-    }
-    return {};
-  },
-});
+export const graphqlClient = createClient();
+
+export function createClient() {
+  return createUrqlClient({
+    url: getExpoApiBaseUrl() + '/--/graphql',
+    // @ts-expect-error Type 'typeof fetch' is not assignable to type '(input: RequestInfo, init?: RequestInit | undefined) => Promise<Response>'.
+    fetch,
+    fetchOptions: (): { headers?: AccessTokenHeaders | SessionHeaders } => {
+      const token = getAccessToken();
+      if (token) {
+        return {
+          headers: {
+            authorization: `Bearer ${token}`,
+          },
+        };
+      }
+      const sessionSecret = getSessionSecret();
+      if (sessionSecret) {
+        return {
+          headers: {
+            'expo-session': sessionSecret,
+          },
+        };
+      }
+      return {};
+    },
+  });
+}
 
 export function getExpoApiBaseUrl(): string {
   if (process.env.EXPO_STAGING) {

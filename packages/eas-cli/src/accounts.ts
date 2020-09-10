@@ -1,17 +1,23 @@
 import JsonFile from '@expo/json-file';
-import { mkdirSync, unlinkSync } from 'fs';
-import * as path from 'path';
+import gql from 'graphql-tag';
 
-import { apiClient } from './utils/api';
-import { SESSION_PATH } from './utils/paths';
+import { apiClient, graphqlClient } from './utils/api';
+import { SETTINGS_FILE_PATH } from './utils/paths';
 
-type Session = {
-  sessionSecret: string;
+type UserSettingsData = {
+  auth: {
+    sessionSecret: string;
+
+    // These fields are potentially used by Expo CLI.
+    userId: string;
+    username: string;
+    currentConnection: 'Username-Password-Authentication';
+  };
 };
 
 export function getSessionSecret(): string | null {
   try {
-    return JsonFile.read<Session>(SESSION_PATH)?.sessionSecret ?? null;
+    return JsonFile.read<UserSettingsData>(SETTINGS_FILE_PATH)?.auth?.sessionSecret ?? null;
   } catch (error) {
     if (error.code === 'ENOENT') {
       return null;
@@ -39,12 +45,35 @@ export async function loginAsync({
     })
     .json();
   const { sessionSecret } = (body as any).data;
-  mkdirSync(path.dirname(SESSION_PATH), { recursive: true });
-  await JsonFile.writeAsync(SESSION_PATH, { sessionSecret });
+  const result = await graphqlClient
+    .query(
+      gql`
+        {
+          viewer {
+            id
+            username
+          }
+        }
+      `,
+      {},
+      {
+        fetchOptions: {
+          headers: {
+            'expo-session': sessionSecret,
+          },
+        },
+      }
+    )
+    .toPromise();
+  const { data } = result;
+  await JsonFile.setAsync(SETTINGS_FILE_PATH, 'auth', {
+    sessionSecret,
+    userId: data.viewer.id,
+    username: data.viewer.username,
+    currentConnection: 'Username-Password-Authentication',
+  });
 }
 
 export async function logoutAsync() {
-  if (getSessionSecret()) {
-    unlinkSync(SESSION_PATH);
-  }
+  await JsonFile.setAsync(SETTINGS_FILE_PATH, 'auth', undefined);
 }

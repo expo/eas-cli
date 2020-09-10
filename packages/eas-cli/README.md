@@ -12,6 +12,7 @@ EAS command line tool
 
 <!-- toc -->
 
+- [eas-cli](#eas-cli)
 - [Usage](#usage)
 - [Commands](#commands)
 <!-- tocstop -->

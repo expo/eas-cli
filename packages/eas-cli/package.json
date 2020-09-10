@@ -15,6 +15,7 @@
     "@urql/core": "^1.13.0",
     "env-paths": "^2.2.0",
     "got": "^11.5.2",
+    "graphql-tag": "^2.11.0",
     "node-fetch": "^2.6.1",
     "prompts": "^2.3.2",
     "tslib": "^1"
