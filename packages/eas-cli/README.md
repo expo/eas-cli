@@ -1,5 +1,4 @@
-eas-cli
-=======
+# eas-cli
 
 EAS command line tool
 
@@ -12,11 +11,16 @@ EAS command line tool
 [![License](https://img.shields.io/npm/l/eas-cli.svg)](https://github.com/expo/eas-cli/blob/master/package.json)
 
 <!-- toc -->
-* [Usage](#usage)
-* [Commands](#commands)
+
+- [eas-cli](#eas-cli)
+- [Usage](#usage)
+- [Commands](#commands)
 <!-- tocstop -->
+
 # Usage
+
 <!-- usage -->
+
 ```sh-session
 $ npm install -g eas-cli
 $ eas COMMAND
@@ -28,18 +32,25 @@ USAGE
   $ eas COMMAND
 ...
 ```
+
 <!-- usagestop -->
+
 # Commands
+
 <!-- commands -->
-* [`eas build`](#eas-build)
-* [`eas build:status`](#eas-buildstatus)
-* [`eas help [COMMAND]`](#eas-help-command)
-* [`eas update`](#eas-update)
-* [`eas update:show`](#eas-updateshow)
-* [`eas webhook:add`](#eas-webhookadd)
-* [`eas webhook:list`](#eas-webhooklist)
-* [`eas webhook:remove`](#eas-webhookremove)
-* [`eas webhook:update`](#eas-webhookupdate)
+
+- [`eas build`](#eas-build)
+- [`eas build:status`](#eas-buildstatus)
+- [`eas help [COMMAND]`](#eas-help-command)
+- [`eas login`](#eas-login)
+- [`eas logout`](#eas-logout)
+- [`eas update`](#eas-update)
+- [`eas update:show`](#eas-updateshow)
+- [`eas webhook:add`](#eas-webhookadd)
+- [`eas webhook:list`](#eas-webhooklist)
+- [`eas webhook:remove`](#eas-webhookremove)
+- [`eas webhook:update`](#eas-webhookupdate)
+- [`eas whoami`](#eas-whoami)
 
 ## `eas build`
 
@@ -50,7 +61,7 @@ USAGE
   $ eas build
 ```
 
-_See code: [@eas/plugin-builds](https://github.com/expo/eas-cli/blob/v0.0.0/src/commands/build/index.ts)_
+_See code: [@eas-cli/plugin-builds](https://github.com/expo/eas-cli/blob/v0.0.0/src/commands/build/index.ts)_
 
 ## `eas build:status`
 
@@ -65,7 +76,7 @@ OPTIONS
   --status=(in-queue|in-progress|errored|finished)
 ```
 
-_See code: [@eas/plugin-builds](https://github.com/expo/eas-cli/blob/v0.0.0/src/commands/build/status.ts)_
+_See code: [@eas-cli/plugin-builds](https://github.com/expo/eas-cli/blob/v0.0.0/src/commands/build/status.ts)_
 
 ## `eas help [COMMAND]`
 
@@ -84,6 +95,28 @@ OPTIONS
 
 _See code: [@oclif/plugin-help](https://github.com/oclif/plugin-help/blob/v3.2.0/src/commands/help.ts)_
 
+## `eas login`
+
+log in with your EAS account
+
+```
+USAGE
+  $ eas login
+```
+
+_See code: [src/commands/login.ts](https://github.com/expo/eas-cli/blob/v0.0.0/src/commands/login.ts)_
+
+## `eas logout`
+
+log out
+
+```
+USAGE
+  $ eas logout
+```
+
+_See code: [src/commands/logout.ts](https://github.com/expo/eas-cli/blob/v0.0.0/src/commands/logout.ts)_
+
 ## `eas update`
 
 create a revision for given channel
@@ -96,7 +129,7 @@ ALIASES
   $ eas update:publish
 ```
 
-_See code: [@eas/plugin-updates](https://github.com/expo/eas-cli/blob/v0.0.0/src/commands/update/index.ts)_
+_See code: [@eas-cli/plugin-updates](https://github.com/expo/eas-cli/blob/v0.0.0/src/commands/update/index.ts)_
 
 ## `eas update:show`
 
@@ -107,7 +140,7 @@ USAGE
   $ eas update:show
 ```
 
-_See code: [@eas/plugin-updates](https://github.com/expo/eas-cli/blob/v0.0.0/src/commands/update/show.ts)_
+_See code: [@eas-cli/plugin-updates](https://github.com/expo/eas-cli/blob/v0.0.0/src/commands/update/show.ts)_
 
 ## `eas webhook:add`
 
@@ -126,7 +159,7 @@ EXAMPLE
   ✅ Adding webhook to @expo/example
 ```
 
-_See code: [@eas/plugin-webhooks](https://github.com/expo/eas-cli/blob/v0.0.0/src/commands/webhook/add.ts)_
+_See code: [@eas-cli/plugin-webhooks](https://github.com/expo/eas-cli/blob/v0.0.0/src/commands/webhook/add.ts)_
 
 ## `eas webhook:list`
 
@@ -140,7 +173,7 @@ EXAMPLE
   $ eas webhook:list
 ```
 
-_See code: [@eas/plugin-webhooks](https://github.com/expo/eas-cli/blob/v0.0.0/src/commands/webhook/list.ts)_
+_See code: [@eas-cli/plugin-webhooks](https://github.com/expo/eas-cli/blob/v0.0.0/src/commands/webhook/list.ts)_
 
 ## `eas webhook:remove`
 
@@ -151,7 +184,7 @@ USAGE
   $ eas webhook:remove
 ```
 
-_See code: [@eas/plugin-webhooks](https://github.com/expo/eas-cli/blob/v0.0.0/src/commands/webhook/remove.ts)_
+_See code: [@eas-cli/plugin-webhooks](https://github.com/expo/eas-cli/blob/v0.0.0/src/commands/webhook/remove.ts)_
 
 ## `eas webhook:update`
 
@@ -169,5 +202,17 @@ EXAMPLE
   $ eas webhook:update
 ```
 
-_See code: [@eas/plugin-webhooks](https://github.com/expo/eas-cli/blob/v0.0.0/src/commands/webhook/update.ts)_
+_See code: [@eas-cli/plugin-webhooks](https://github.com/expo/eas-cli/blob/v0.0.0/src/commands/webhook/update.ts)_
+
+## `eas whoami`
+
+show the username you are logged in as
+
+```
+USAGE
+  $ eas whoami
+```
+
+_See code: [src/commands/whoami.ts](https://github.com/expo/eas-cli/blob/v0.0.0/src/commands/whoami.ts)_
+
 <!-- commandsstop -->

@@ -1,11 +1,11 @@
-# @eas/plugin-updates
+# @eas-cli/plugin-updates
 
 Webhooks plugin
 
 [![oclif](https://img.shields.io/badge/cli-oclif-brightgreen.svg)](https://oclif.io)
-[![Version](https://img.shields.io/npm/v/@eas/plugin-updates.svg)](https://npmjs.org/package/@eas/plugin-updates)
-[![Downloads/week](https://img.shields.io/npm/dw/@eas/plugin-updates.svg)](https://npmjs.org/package/@eas/plugin-updates)
-[![License](https://img.shields.io/npm/l/@eas/plugin-updates.svg)](https://github.com/expo/eas-cli/blob/master/package.json)
+[![Version](https://img.shields.io/npm/v/@eas-cli/plugin-updates.svg)](https://npmjs.org/package/@eas-cli/plugin-updates)
+[![Downloads/week](https://img.shields.io/npm/dw/@eas-cli/plugin-updates.svg)](https://npmjs.org/package/@eas-cli/plugin-updates)
+[![License](https://img.shields.io/npm/l/@eas-cli/plugin-updates.svg)](https://github.com/expo/eas-cli/blob/master/package.json)
 
 <!-- toc -->
 
@@ -18,11 +18,11 @@ Webhooks plugin
 <!-- usage -->
 
 ```sh-session
-$ npm install -g @eas/plugin-updates
+$ npm install -g @eas-cli/plugin-updates
 $ oclif-example COMMAND
 running command...
 $ oclif-example (-v|--version|version)
-@eas/plugin-updates/0.0.0 darwin-x64 node-v12.13.0
+@eas-cli/plugin-updates/0.0.0 darwin-x64 node-v12.13.0
 $ oclif-example --help [COMMAND]
 USAGE
   $ oclif-example COMMAND

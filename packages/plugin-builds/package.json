@@ -1,5 +1,5 @@
 {
-  "name": "@eas/plugin-builds",
+  "name": "@eas-cli/plugin-builds",
   "description": "EAS Builds plugin",
   "version": "0.0.0",
   "author": "Expo <support@expo.io>",
