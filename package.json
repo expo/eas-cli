@@ -8,8 +8,11 @@
     "eas": "packages/eas-cli/bin/run"
   },
   "devDependencies": {
+    "@types/jest": "^26.0.13",
     "eslint": "^6.6.0",
     "eslint-config-universe": "^4.0.0",
+    "jest": "^26.4.2",
+    "jest-watch-typeahead": "^0.6.1",
     "lerna": "^3.22.1",
     "prettier": "^2.0.5"
   }

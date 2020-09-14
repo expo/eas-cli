@@ -66,14 +66,19 @@ export async function loginAsync({
     )
     .toPromise();
   const { data } = result;
-  await JsonFile.setAsync(SETTINGS_FILE_PATH, 'auth', {
-    sessionSecret,
-    userId: data.viewer.id,
-    username: data.viewer.username,
-    currentConnection: 'Username-Password-Authentication',
-  });
+  await JsonFile.setAsync(
+    SETTINGS_FILE_PATH,
+    'auth',
+    {
+      sessionSecret,
+      userId: data.viewer.id,
+      username: data.viewer.username,
+      currentConnection: 'Username-Password-Authentication',
+    },
+    { default: {} }
+  );
 }
 
 export async function logoutAsync() {
-  await JsonFile.setAsync(SETTINGS_FILE_PATH, 'auth', undefined);
+  await JsonFile.setAsync(SETTINGS_FILE_PATH, 'auth', undefined, { default: {} });
 }

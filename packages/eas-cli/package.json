@@ -21,14 +21,22 @@
     "tslib": "^1"
   },
   "devDependencies": {
+    "@babel/core": "^7.11.6",
+    "@babel/preset-env": "^7.11.5",
+    "@babel/preset-typescript": "^7.10.4",
+    "@expo/babel-preset-cli": "^0.2.17",
     "@oclif/dev-cli": "^1",
     "@types/node": "^10",
     "@types/node-fetch": "^2.5.7",
     "@types/prompts": "^2.0.8",
     "@vercel/ncc": "^0.23.0",
+    "babel-jest": "^26.3.0",
     "graphql": "^15.3.0",
+    "memfs": "^3.2.0",
+    "tempy": "^0.7.0",
     "ts-node": "^8",
-    "typescript": "^3.9.7"
+    "typescript": "^3.9.7",
+    "wonka": "^4.0.14"
   },
   "engines": {
     "node": ">=8.0.0"
@@ -72,7 +80,7 @@
     "postpack": "rm -f oclif.manifest.json",
     "posttest": "eslint . --ext .ts --config .eslintrc",
     "prepack": "rm -rf lib && tsc -b && oclif-dev manifest && oclif-dev readme",
-    "test": "echo NO TESTS",
+    "test": "jest",
     "version": "oclif-dev readme && git add README.md"
   },
   "types": "lib/index.d.ts"
