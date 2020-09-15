@@ -1,0 +1,46 @@
+name: Run tests
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node: ["12", "14"]
+    name: Build with Node ${{ matrix.node }}
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 1
+      - name: Setup node
+        uses: actions/setup-node@v1
+        with:
+          node-version: ${{ matrix.node }}
+      - run: yarn install --frozen-lockfile --check-files
+      - uses: actions/cache@v1
+        id: cache-build
+        with:
+          path: "."
+          key: ${{ github.sha }}-${{ matrix.node }}
+  test:
+    runs-on: ubuntu-latest
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ["12", "14"]
+        package: [eas-cli]
+    name: Run tests on Node ${{ matrix.node }}
+    steps:
+      - uses: actions/cache@v1
+        id: restore-build
+        with:
+          path: "."
+          key: ${{ github.sha }}-${{ matrix.node }}
+      - name: Set up Node
+        uses: actions/setup-node@v1
+        with:
+          node-version: ${{ matrix.node }}
+      - run: yarn test
+        env:
+          CI: true

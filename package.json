@@ -1,11 +1,11 @@
 {
   "private": true,
-  "name": "eas-cli",
   "workspaces": [
     "packages/*"
   ],
   "scripts": {
-    "eas": "packages/eas-cli/bin/run"
+    "eas": "packages/eas-cli/bin/run",
+    "test": "jest"
   },
   "devDependencies": {
     "@types/jest": "^26.0.13",
