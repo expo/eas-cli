@@ -6,5 +6,5 @@ module.exports = {
     '^.+\\.[jt]sx?$': ['babel-jest', { configFile: require.resolve('./babel.config.js') }],
   },
   watchPlugins: ['jest-watch-typeahead/filename', 'jest-watch-typeahead/testname'],
-  roots: ['__mocks__', 'src'],
+  roots: ['src'],
 };
