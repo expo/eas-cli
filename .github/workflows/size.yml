@@ -1,0 +1,21 @@
+name: 'Size'
+
+on:
+  pull_request:
+    types: [synchronize, opened]
+
+jobs:
+  size:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 1
+      - uses: preactjs/compressed-size-action@v2
+        continue-on-error: true
+        with:
+          repo-token: '${{ secrets.GITHUB_TOKEN }}'
+          # Any JS files anywhere within a lib directory:
+          pattern: '**/lib/*.js'
+          # Always ignore SourceMaps and node_modules:
+          exclude: '{**/*.map,**/node_modules/**}'
