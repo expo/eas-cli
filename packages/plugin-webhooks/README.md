@@ -5,7 +5,7 @@ Webhooks plugin
 [![oclif](https://img.shields.io/badge/cli-oclif-brightgreen.svg)](https://oclif.io)
 [![Version](https://img.shields.io/npm/v/@eas-cli/plugin-webhooks.svg)](https://npmjs.org/package/@eas-cli/plugin-webhooks)
 [![Downloads/week](https://img.shields.io/npm/dw/@eas-cli/plugin-webhooks.svg)](https://npmjs.org/package/@eas-cli/plugin-webhooks)
-[![License](https://img.shields.io/npm/l/@eas-cli/plugin-webhooks.svg)](https://github.com/expo/eas-cli/blob/master/package.json)
+[![License](https://img.shields.io/npm/l/@eas-cli/plugin-webhooks.svg)](https://github.com/expo/eas-cli/blob/main/package.json)
 
 <!-- toc -->
 
