@@ -4,21 +4,20 @@ EAS command line tool
 
 [![oclif](https://img.shields.io/badge/cli-oclif-brightgreen.svg)](https://oclif.io)
 [![Version](https://img.shields.io/npm/v/eas-cli.svg)](https://npmjs.org/package/eas-cli)
-[![CircleCI](https://circleci.com/gh/expo/eas-cli/tree/main.svg?style=shield)](https://circleci.com/gh/expo/eas-cli/tree/main)
-[![Appveyor CI](https://ci.appveyor.com/api/projects/status/github/expo/eas-cli?branch=main&svg=true)](https://ci.appveyor.com/project/expo/eas-cli/branch/main)
-[![Codecov](https://codecov.io/gh/expo/eas-cli/branch/main/graph/badge.svg)](https://codecov.io/gh/expo/eas-cli)
 [![Downloads/week](https://img.shields.io/npm/dw/eas-cli.svg)](https://npmjs.org/package/eas-cli)
 [![License](https://img.shields.io/npm/l/eas-cli.svg)](https://github.com/expo/eas-cli/blob/main/package.json)
 
 <!-- toc -->
-* [eas-cli](#eas-cli)
-* [Usage](#usage)
-* [Commands](#commands)
+
+- [eas-cli](#eas-cli)
+- [Usage](#usage)
+- [Commands](#commands)
 <!-- tocstop -->
 
 # Usage
 
 <!-- usage -->
+
 ```sh-session
 $ npm install -g eas-cli
 $ eas COMMAND
@@ -30,19 +29,21 @@ USAGE
   $ eas COMMAND
 ...
 ```
+
 <!-- usagestop -->
 
 # Commands
 
 <!-- commands -->
-* [`eas build`](#eas-build)
-* [`eas build:status`](#eas-buildstatus)
-* [`eas help [COMMAND]`](#eas-help-command)
-* [`eas login`](#eas-login)
-* [`eas logout`](#eas-logout)
-* [`eas update`](#eas-update)
-* [`eas update:show`](#eas-updateshow)
-* [`eas whoami`](#eas-whoami)
+
+- [`eas build`](#eas-build)
+- [`eas build:status`](#eas-buildstatus)
+- [`eas help [COMMAND]`](#eas-help-command)
+- [`eas login`](#eas-login)
+- [`eas logout`](#eas-logout)
+- [`eas update`](#eas-update)
+- [`eas update:show`](#eas-updateshow)
+- [`eas whoami`](#eas-whoami)
 
 ## `eas build`
 
@@ -144,4 +145,5 @@ USAGE
 ```
 
 _See code: [src/commands/whoami.ts](https://github.com/expo/eas-cli/blob/v0.0.0/src/commands/whoami.ts)_
+
 <!-- commandsstop -->
