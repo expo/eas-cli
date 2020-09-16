@@ -43,7 +43,7 @@
   },
   "files": [
     "/bin",
-    "/lib",
+    "/build",
     "/oclif.manifest.json"
   ],
   "homepage": "https://github.com/expo/eas-cli",
@@ -53,10 +53,10 @@
     "cli"
   ],
   "license": "MIT",
-  "main": "lib/index.js",
+  "main": "build/index.js",
   "oclif": {
     "bin": "eas",
-    "commands": "./lib/commands",
+    "commands": "./build/commands",
     "plugins": [
       "@oclif/plugin-help"
     ],
@@ -75,9 +75,9 @@
   "repository": "expo/eas-cli",
   "scripts": {
     "postpack": "rm -f oclif.manifest.json",
-    "prepack": "rm -rf lib && tsc -b && oclif-dev manifest && oclif-dev readme",
+    "prepack": "rm -rf build && tsc -b && oclif-dev manifest && oclif-dev readme",
     "test": "jest",
     "version": "oclif-dev readme && git add README.md"
   },
-  "types": "lib/index.d.ts"
+  "types": "build/index.d.ts"
 }
