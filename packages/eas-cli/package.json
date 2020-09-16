@@ -9,7 +9,7 @@
   "bugs": "https://github.com/expo/eas-cli/issues",
   "dependencies": {
     "@eas/config": "0.0.1",
-    "@expo/json-file": "^8.2.22",
+    "@expo/json-file": "^8.2.24",
     "@oclif/command": "^1",
     "@oclif/config": "^1",
     "@oclif/plugin-help": "^3",
