@@ -58,9 +58,6 @@
     "bin": "eas",
     "commands": "./lib/commands",
     "plugins": [
-      "@eas-cli/plugin-builds",
-      "@eas-cli/plugin-updates",
-      "@eas-cli/plugin-webhooks",
       "@oclif/plugin-help"
     ],
     "topics": {
