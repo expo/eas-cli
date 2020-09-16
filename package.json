@@ -5,6 +5,7 @@
   ],
   "scripts": {
     "eas": "packages/eas-cli/bin/run",
+    "lint": "eslint . --ext .ts",
     "test": "jest"
   },
   "devDependencies": {
