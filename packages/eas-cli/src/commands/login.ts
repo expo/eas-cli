@@ -1,7 +1,7 @@
 import { Command } from '@oclif/command';
-import { prompt } from 'prompts';
 
 import { loginAsync } from '../accounts';
+import { prompt } from '../prompts';
 
 export default class Login extends Command {
   static description = 'log in with your EAS account';
