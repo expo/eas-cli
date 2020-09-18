@@ -26,7 +26,7 @@
     "@babel/preset-env": "^7.11.5",
     "@babel/preset-typescript": "^7.10.4",
     "@expo/babel-preset-cli": "^0.2.17",
-    "@oclif/dev-cli": "^1",
+    "@expo/oclif-dev-cli": "1.23.0-expo",
     "@types/node": "^10",
     "@types/node-fetch": "^2.5.7",
     "@types/prompts": "^2.0.8",
