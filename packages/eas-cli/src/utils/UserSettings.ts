@@ -1,9 +1,9 @@
 import JsonFile from '@expo/json-file';
 import path from 'path';
 
-import { configDirectory } from './paths';
+import { getConfigDirectory } from './paths';
 
-const SETTINGS_FILE_PATH = path.join(configDirectory(), 'user-settings.json');
+const SETTINGS_FILE_PATH = path.join(getConfigDirectory(), 'user-settings.json');
 
 export type UserSettingsData = {
   appleId?: string;

@@ -2,7 +2,7 @@ import JsonFile from '@expo/json-file';
 import gql from 'graphql-tag';
 
 import { apiClient, graphqlClient } from './utils/api';
-import { settingsDirectory } from './utils/paths';
+import { getSettingsDirectory } from './utils/paths';
 
 type UserSettingsData = {
   auth: {
@@ -17,7 +17,7 @@ type UserSettingsData = {
 
 export function getSessionSecret(): string | null {
   try {
-    return JsonFile.read<UserSettingsData>(settingsDirectory())?.auth?.sessionSecret ?? null;
+    return JsonFile.read<UserSettingsData>(getSettingsDirectory())?.auth?.sessionSecret ?? null;
   } catch (error) {
     if (error.code === 'ENOENT') {
       return null;
@@ -67,7 +67,7 @@ export async function loginAsync({
     .toPromise();
   const { data } = result;
   await JsonFile.setAsync(
-    settingsDirectory(),
+    getSettingsDirectory(),
     'auth',
     {
       sessionSecret,
@@ -80,5 +80,5 @@ export async function loginAsync({
 }
 
 export async function logoutAsync() {
-  await JsonFile.setAsync(settingsDirectory(), 'auth', undefined, { default: {} });
+  await JsonFile.setAsync(getSettingsDirectory(), 'auth', undefined, { default: {} });
 }
