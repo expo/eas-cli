@@ -33,7 +33,7 @@ function dotExpoHomeDirectory() {
   return dirPath;
 }
 
-const SETTINGS_FILE_PATH = path.join(dotExpoHomeDirectory(), 'state.json');
+const getSettingsDirectory = () => path.join(dotExpoHomeDirectory(), 'state.json');
 
 // Paths for storing things like data, config, cache, etc.
 // Should use the correct OS-specific paths (e.g. XDG base directory on Linux)
@@ -45,4 +45,17 @@ const {
   temp: TEMP_PATH,
 } = envPaths('eas-cli');
 
-export { DATA_PATH, CONFIG_PATH, CACHE_PATH, LOG_PATH, TEMP_PATH, SETTINGS_FILE_PATH };
+const getDataDirectory = () => DATA_PATH;
+const getConfigDirectory = () => CONFIG_PATH;
+const getCacheDirectory = () => CACHE_PATH;
+const getLogDirectory = () => LOG_PATH;
+const getTmpDirectory = () => TEMP_PATH;
+
+export {
+  getDataDirectory,
+  getConfigDirectory,
+  getCacheDirectory,
+  getLogDirectory,
+  getTmpDirectory,
+  getSettingsDirectory,
+};
