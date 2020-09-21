@@ -1,39 +1,29 @@
 import envPaths from 'env-paths';
-import { mkdirSync } from 'fs';
 import { homedir } from 'os';
 import * as path from 'path';
 
 // The ~/.expo directory is used to store authentication sessions,
 // which are shared between EAS CLI and Expo CLI.
-let homeCreated = false;
 function dotExpoHomeDirectory() {
-  let dirPath;
-  if (process.env.__UNSAFE_EXPO_HOME_DIRECTORY) {
-    dirPath = process.env.__UNSAFE_EXPO_HOME_DIRECTORY;
-  } else {
-    const home = homedir();
-    if (!home) {
-      throw new Error(
-        "Can't determine your home directory; make sure your $HOME environment variable is set."
-      );
-    }
-
-    if (process.env.EXPO_STAGING) {
-      dirPath = path.join(home, '.expo-staging');
-    } else if (process.env.EXPO_LOCAL) {
-      dirPath = path.join(home, '.expo-local');
-    } else {
-      dirPath = path.join(home, '.expo');
-    }
+  const home = homedir();
+  if (!home) {
+    throw new Error(
+      "Can't determine your home directory; make sure your $HOME environment variable is set."
+    );
   }
-  if (!homeCreated) {
-    mkdirSync(dirPath, { recursive: true });
-    homeCreated = true;
+
+  let dirPath;
+  if (process.env.EXPO_STAGING) {
+    dirPath = path.join(home, '.expo-staging');
+  } else if (process.env.EXPO_LOCAL) {
+    dirPath = path.join(home, '.expo-local');
+  } else {
+    dirPath = path.join(home, '.expo');
   }
   return dirPath;
 }
 
-const getSettingsDirectory = () => path.join(dotExpoHomeDirectory(), 'state.json');
+const getStateJsonPath = () => path.join(dotExpoHomeDirectory(), 'state.json');
 
 // Paths for storing things like data, config, cache, etc.
 // Should use the correct OS-specific paths (e.g. XDG base directory on Linux)
@@ -57,5 +47,5 @@ export {
   getCacheDirectory,
   getLogDirectory,
   getTmpDirectory,
-  getSettingsDirectory,
+  getStateJsonPath,
 };

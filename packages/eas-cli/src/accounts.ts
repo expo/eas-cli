@@ -2,7 +2,7 @@ import JsonFile from '@expo/json-file';
 import gql from 'graphql-tag';
 
 import { apiClient, graphqlClient } from './utils/api';
-import { getSettingsDirectory } from './utils/paths';
+import { getStateJsonPath } from './utils/paths';
 
 type UserSettingsData = {
   auth: {
@@ -17,7 +17,7 @@ type UserSettingsData = {
 
 export function getSessionSecret(): string | null {
   try {
-    return JsonFile.read<UserSettingsData>(getSettingsDirectory())?.auth?.sessionSecret ?? null;
+    return JsonFile.read<UserSettingsData>(getStateJsonPath())?.auth?.sessionSecret ?? null;
   } catch (error) {
     if (error.code === 'ENOENT') {
       return null;
@@ -36,7 +36,7 @@ export async function loginAsync({
 }: {
   username: string;
   password: string;
-}): Promise<any /* FIXME */> {
+}): Promise<void> {
   const body = await apiClient
     .post({
       url: 'auth/loginAsync',
@@ -67,7 +67,7 @@ export async function loginAsync({
     .toPromise();
   const { data } = result;
   await JsonFile.setAsync(
-    getSettingsDirectory(),
+    getStateJsonPath(),
     'auth',
     {
       sessionSecret,
@@ -75,10 +75,10 @@ export async function loginAsync({
       username: data.viewer.username,
       currentConnection: 'Username-Password-Authentication',
     },
-    { default: {} }
+    { default: {}, ensureDir: true }
   );
 }
 
 export async function logoutAsync() {
-  await JsonFile.setAsync(getSettingsDirectory(), 'auth', undefined, { default: {} });
+  await JsonFile.setAsync(getStateJsonPath(), 'auth', undefined, { default: {}, ensureDir: true });
 }
