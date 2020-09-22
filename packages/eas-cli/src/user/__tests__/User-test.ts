@@ -1,11 +1,12 @@
 import fs from 'fs-extra';
 import { vol } from 'memfs';
 
-import { getSessionSecret, loginAsync, logoutAsync } from '../accounts';
-import { getStateJsonPath } from '../utils/paths';
+import { getStateJsonPath } from '../../utils/paths';
+import { loginApiAsync, logoutAsync } from '../User';
+import { getSessionSecret } from '../session';
 
 jest.mock('fs');
-jest.mock('../utils/api', () => ({
+jest.mock('../../api', () => ({
   apiClient: {
     post: jest.fn(() => {
       return {
@@ -29,7 +30,7 @@ beforeEach(() => {
 
 describe('loginAsync', () => {
   it('saves user data to ~/.expo/state.json', async () => {
-    await loginAsync({ username: 'USERNAME', password: 'PASSWORD' });
+    await loginApiAsync({ username: 'USERNAME', password: 'PASSWORD' });
 
     expect(await fs.readFile(getStateJsonPath(), 'utf8')).toMatchInlineSnapshot(`
       "{
@@ -47,7 +48,7 @@ describe('loginAsync', () => {
 
 describe('logoutAsync', () => {
   it('removes the session secret', async () => {
-    await loginAsync({ username: 'USERNAME', password: 'PASSWORD' });
+    await loginApiAsync({ username: 'USERNAME', password: 'PASSWORD' });
     expect(getSessionSecret()).toBe('SESSION_SECRET');
 
     await logoutAsync();
