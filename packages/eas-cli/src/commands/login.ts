@@ -1,15 +1,13 @@
 import { Command } from '@oclif/command';
 
-import { loginAsync } from '../accounts';
-import { prompt } from '../prompts';
-import { loginAsync } from '../user/actions';
+import { showLoginPromptAsync } from '../user/actions';
 
 export default class Login extends Command {
   static description = 'log in with your EAS account';
 
   async run() {
     this.log('Log in to EAS');
-    await loginAsync();
+    await showLoginPromptAsync();
     this.log('Logged in.');
   }
 }

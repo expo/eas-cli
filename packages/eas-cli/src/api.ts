@@ -2,7 +2,7 @@ import { createClient as createUrqlClient } from '@urql/core';
 import got, { NormalizedOptions } from 'got';
 import fetch from 'node-fetch';
 
-import { getAccessToken, getSessionSecret } from './user/session';
+import { getAccessToken, getSessionSecret } from './user/User';
 
 type AccessTokenHeaders = {
   authorization: string;

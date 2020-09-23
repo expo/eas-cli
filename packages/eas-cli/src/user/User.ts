@@ -1,7 +1,7 @@
 import gql from 'graphql-tag';
 
 import { apiClient, graphqlClient } from '../api';
-import { getSessionSecret, invalidateSessionAsync, updateSessionSecretAsync } from './session';
+import { getSession, setSessionAsync } from './sessionStorage';
 
 export interface User {
   userId: string;
@@ -10,12 +10,16 @@ export interface User {
 
 let currentUser: User | undefined;
 
-export function isLoggedIn(): boolean {
-  return !!getSessionSecret();
+export function getAccessToken(): string | null {
+  return process.env.EXPO_TOKEN ?? null;
+}
+
+export function getSessionSecret(): string | null {
+  return getSession()?.sessionSecret ?? null;
 }
 
 export async function getUserAsync(): Promise<User | undefined> {
-  if (!currentUser && isLoggedIn()) {
+  if (!currentUser && getSessionSecret()) {
     const result = await graphqlClient
       .query(
         gql`
@@ -37,7 +41,7 @@ export async function getUserAsync(): Promise<User | undefined> {
   return currentUser;
 }
 
-export async function loginApiAsync({
+export async function loginAsync({
   username,
   password,
 }: {
@@ -73,9 +77,15 @@ export async function loginApiAsync({
     )
     .toPromise();
   const { data } = result;
-  await updateSessionSecretAsync(sessionSecret, data.viewer.id, data.viewer.username);
+  await setSessionAsync({
+    sessionSecret,
+    userId: data.viewer.id,
+    username: data.viewer.username,
+    currentConnection: 'Username-Password-Authentication',
+  });
 }
 
 export async function logoutAsync() {
-  await invalidateSessionAsync();
+  currentUser = undefined;
+  await setSessionAsync(undefined);
 }

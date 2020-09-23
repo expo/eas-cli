@@ -13,6 +13,7 @@ export default class Whoami extends Command {
       log(chalk.green(user.username));
     } else {
       log.warn('Not logged in.');
+      process.exit(1);
     }
   }
 }

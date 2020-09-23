@@ -1,8 +1,8 @@
 import log from '../log';
 import { prompt } from '../prompts';
-import { User, getUserAsync, loginApiAsync } from './User';
+import { User, getUserAsync, loginAsync } from './User';
 
-export async function loginAsync(): Promise<void> {
+export async function showLoginPromptAsync(): Promise<void> {
   const { username, password } = await prompt([
     {
       type: 'text',
@@ -15,7 +15,7 @@ export async function loginAsync(): Promise<void> {
       message: 'Password',
     },
   ]);
-  await loginApiAsync({
+  await loginAsync({
     username,
     password,
   });
@@ -30,7 +30,7 @@ export async function ensureLoggedInAsync(): Promise<User> {
     log.warn('An Expo user account is required to proceed.');
     log.newLine();
     log('Log in to EAS');
-    await loginAsync(); // TODO: login or register
+    await showLoginPromptAsync(); // TODO: login or register
     user = await getUserAsync();
     if (!user) {
       // just to satisfy ts
