@@ -1,13 +1,15 @@
-import { AndroidCredentials as Android } from '@expo/xdl';
+import { CredentialSchema } from '../utils/promptForCredentials';
 
-import { CredentialSchema } from './actions/promptForCredentials';
-
-
-export type FcmCredentials = {
+export interface FcmCredentials {
   fcmApiKey: string;
-};
+}
 
-export type Keystore = Android.Keystore;
+export interface Keystore {
+  keystore: string;
+  keystorePassword: string;
+  keyAlias: string;
+  keyPassword: string;
+}
 
 export type AndroidCredentials = {
   experienceName: string;
@@ -15,7 +17,7 @@ export type AndroidCredentials = {
   pushCredentials: FcmCredentials | null;
 };
 
-export const keystoreSchema: CredentialSchema<Android.Keystore> = {
+export const keystoreSchema: CredentialSchema<Keystore> = {
   id: 'keystore',
   name: 'Android Keystore',
   provideMethodQuestion: {
@@ -44,5 +46,3 @@ export const keystoreSchema: CredentialSchema<Android.Keystore> = {
     },
   },
 };
-
-export const EXPO_WILL_GENERATE = 'EXPO_PLEASE_GENERATE_THIS_FOR_ME';

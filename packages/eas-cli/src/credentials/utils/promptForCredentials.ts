@@ -4,8 +4,7 @@ import path from 'path';
 import untildify from 'untildify';
 
 import log from '../../log';
-import prompts, { Question as PromptQuestion } from '../../prompts';
-import * as validators from '../../validators';
+import { Question as PromptQuestion, prompt } from '../../prompts';
 
 export type Question = {
   question: string;
@@ -13,19 +12,13 @@ export type Question = {
   base64Encode?: boolean;
 };
 
-type Results = {
-  [key: string]: string | undefined;
-};
-
 export type CredentialSchema<T> = {
   id: string;
   canReuse?: boolean;
   dependsOn?: string;
   name: string;
-  required: string[];
-  questions: {
-    [key: string]: Question;
-  };
+  required: (keyof T)[];
+  questions: Record<keyof T, Question>;
   deprecated?: boolean;
   migrationDocs?: string;
   provideMethodQuestion?: {
@@ -46,28 +39,26 @@ upload matches that Team ID and App ID.
 `)
 );
 
-export async function askForUserProvided<T extends Results>(
-  schema: CredentialSchema<T>
-): Promise<T | null> {
-  if (await willUserProvideCredentialsType(schema)) {
+export async function askForUserProvidedAsync<T>(schema: CredentialSchema<T>): Promise<T | null> {
+  if (await willUserProvideCredentialsAsync<T>(schema)) {
     EXPERT_PROMPT();
-    return await getCredentialsFromUser(schema);
+    return await getCredentialsFromUserAsync<T>(schema);
   }
   return null;
 }
 
-export async function getCredentialsFromUser<T extends Results>(
-  credentialType: CredentialSchema<T>
+export async function getCredentialsFromUserAsync<T>(
+  credentialsSchema: CredentialSchema<T>
 ): Promise<T | null> {
-  const results: Results = {};
-  for (const field of credentialType.required) {
-    results[field] = await askQuestionAndProcessAnswer(credentialType?.questions?.[field]);
+  const results: { [key in keyof T]?: string } = {};
+  for (const field of credentialsSchema.required) {
+    results[field] = await askQuestionAndProcessAnswerAsync(credentialsSchema.questions[field]);
   }
   return results as T;
 }
 
-async function willUserProvideCredentialsType<T>(schema: CredentialSchema<T>) {
-  const { answer } = await prompts({
+async function willUserProvideCredentialsAsync<T>(schema: CredentialSchema<T>) {
+  const { answer } = await prompt({
     type: 'select',
     name: 'answer',
     message: schema?.provideMethodQuestion?.question ?? `Will you provide your own ${schema.name}?`,
@@ -85,10 +76,10 @@ async function willUserProvideCredentialsType<T>(schema: CredentialSchema<T>) {
   return answer;
 }
 
-async function askQuestionAndProcessAnswer(definition: Question): Promise<string> {
+async function askQuestionAndProcessAnswerAsync(definition: Question): Promise<string> {
   const questionObject = buildQuestionObject(definition);
-  const { input } = await prompts(questionObject);
-  return await processAnswer(definition, input);
+  const { input } = await prompt(questionObject);
+  return await processAnswerAsync(definition, input);
 }
 
 function buildQuestionObject({ type, question }: Question): PromptQuestion {
@@ -98,6 +89,7 @@ function buildQuestionObject({ type, question }: Question): PromptQuestion {
         type: 'text',
         name: 'input',
         message: question,
+        validate: validateNonEmptyInput,
       };
     case 'file':
       return {
@@ -105,21 +97,24 @@ function buildQuestionObject({ type, question }: Question): PromptQuestion {
         name: 'input',
         message: question,
         format: produceAbsolutePath,
-        validate: validators.promptsExistingFile,
-      } as PromptQuestion;
+        validate: validateExistingFileAsync,
+      };
     case 'password':
       return {
         type: 'password',
         name: 'input',
         message: question,
-        validate: validators.promptsNonEmptyInput,
+        validate: validateNonEmptyInput,
       };
   }
 }
 
-async function processAnswer({ type, base64Encode }: Question, input: string): Promise<string> {
+async function processAnswerAsync(
+  { type, base64Encode }: Question,
+  input: string
+): Promise<string> {
   if (type === 'file') {
-    return fs.readFile(input, base64Encode ? 'base64' : 'utf8');
+    return await fs.readFile(input, base64Encode ? 'base64' : 'utf8');
   } else {
     return input;
   }
@@ -128,4 +123,20 @@ async function processAnswer({ type, base64Encode }: Question, input: string): P
 function produceAbsolutePath(filePath: string): string {
   const untildified = untildify(filePath.trim());
   return !path.isAbsolute(untildified) ? path.resolve(untildified) : untildified;
+}
+
+function validateNonEmptyInput(val: string) {
+  return val !== '';
+}
+
+async function validateExistingFileAsync(filePath: string): Promise<boolean | string> {
+  try {
+    const stats = await fs.stat(filePath);
+    if (stats.isFile()) {
+      return true;
+    }
+    return 'Input is not a file.';
+  } catch {
+    return 'File does not exist.';
+  }
 }

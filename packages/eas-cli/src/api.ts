@@ -7,13 +7,13 @@ import { getAccessToken, getSessionSecret } from './user/User';
 type AccessTokenHeaders = {
   authorization: string;
 };
+
 type SessionHeaders = {
   'expo-session': string;
 };
 
 export const apiClient = got.extend({
   prefixUrl: getExpoApiBaseUrl() + '/--/api/v2/',
-  responseType: 'json',
   hooks: {
     beforeRequest: [
       (options: NormalizedOptions) => {

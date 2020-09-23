@@ -48,13 +48,7 @@ export async function loginAsync({
   username: string;
   password: string;
 }): Promise<void> {
-  const body = await apiClient
-    .post({
-      url: 'auth/loginAsync',
-      json: { username, password },
-      responseType: 'json',
-    })
-    .json();
+  const body = await apiClient.post('auth/loginAsync', { json: { username, password } }).json();
   const { sessionSecret } = (body as any).data;
   const result = await graphqlClient
     .query(
