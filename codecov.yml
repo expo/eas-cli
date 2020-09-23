@@ -1,0 +1,18 @@
+comment: false
+coverage:
+  round: up
+  precision: 2
+  range: 30..100
+  status:
+    patch: false
+    project:
+      default:
+        informational: true
+      config:
+        informational: true
+        paths:
+          - packages/config
+      eas-cli:
+        informational: true
+        paths:
+          - packages/eas-cli
