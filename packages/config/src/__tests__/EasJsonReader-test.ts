@@ -1,21 +1,25 @@
 import fs from 'fs-extra';
+import { vol } from 'memfs';
 
 import { EasJsonReader } from '../EasJsonReader';
 
-jest.mock('fs-extra');
+jest.mock('fs');
+
+beforeEach(async () => {
+  vol.reset();
+  await fs.mkdirp('/project');
+});
 
 test('minimal valid android eas.json', async () => {
-  fs.readFile.mockImplementationOnce(() =>
-    JSON.stringify({
-      builds: {
-        android: {
-          release: { workflow: 'generic' },
-        },
+  await fs.writeJson('/project/eas.json', {
+    builds: {
+      android: {
+        release: { workflow: 'generic' },
       },
-    })
-  );
+    },
+  });
 
-  const reader = new EasJsonReader('./fakedir', 'android');
+  const reader = new EasJsonReader('/project', 'android');
   const easJson = await reader.readAsync('release');
   expect({
     builds: {
@@ -26,18 +30,17 @@ test('minimal valid android eas.json', async () => {
     },
   }).toEqual(easJson);
 });
-test('minimal valid ios eas.json', async () => {
-  fs.readFile.mockImplementationOnce(() =>
-    JSON.stringify({
-      builds: {
-        ios: {
-          release: { workflow: 'generic' },
-        },
-      },
-    })
-  );
 
-  const reader = new EasJsonReader('./fakedir', 'ios');
+test('minimal valid ios eas.json', async () => {
+  await fs.writeJson('/project/eas.json', {
+    builds: {
+      ios: {
+        release: { workflow: 'generic' },
+      },
+    },
+  });
+
+  const reader = new EasJsonReader('/project', 'ios');
   const easJson = await reader.readAsync('release');
   expect({
     builds: {
@@ -48,21 +51,20 @@ test('minimal valid ios eas.json', async () => {
     },
   }).toEqual(easJson);
 });
-test('minimal valid eas.json for both platforms', async () => {
-  fs.readFile.mockImplementationOnce(() =>
-    JSON.stringify({
-      builds: {
-        android: {
-          release: { workflow: 'generic' },
-        },
-        ios: {
-          release: { workflow: 'generic' },
-        },
-      },
-    })
-  );
 
-  const reader = new EasJsonReader('./fakedir', 'all');
+test('minimal valid eas.json for both platforms', async () => {
+  await fs.writeJson('/project/eas.json', {
+    builds: {
+      android: {
+        release: { workflow: 'generic' },
+      },
+      ios: {
+        release: { workflow: 'generic' },
+      },
+    },
+  });
+
+  const reader = new EasJsonReader('/project', 'all');
   const easJson = await reader.readAsync('release');
   expect({
     builds: {
@@ -71,21 +73,20 @@ test('minimal valid eas.json for both platforms', async () => {
     },
   }).toEqual(easJson);
 });
-test('valid eas.json with both platform, but reading only android', async () => {
-  fs.readFile.mockImplementationOnce(() =>
-    JSON.stringify({
-      builds: {
-        ios: {
-          release: { workflow: 'generic' },
-        },
-        android: {
-          release: { workflow: 'generic' },
-        },
-      },
-    })
-  );
 
-  const reader = new EasJsonReader('./fakedir', 'android');
+test('valid eas.json with both platform, but reading only android', async () => {
+  await fs.writeJson('/project/eas.json', {
+    builds: {
+      ios: {
+        release: { workflow: 'generic' },
+      },
+      android: {
+        release: { workflow: 'generic' },
+      },
+    },
+  });
+
+  const reader = new EasJsonReader('/project', 'android');
   const easJson = await reader.readAsync('release');
   expect({
     builds: {
@@ -93,27 +94,26 @@ test('valid eas.json with both platform, but reading only android', async () => 
     },
   }).toEqual(easJson);
 });
+
 test('valid eas.json for debug builds', async () => {
-  fs.readFile.mockImplementationOnce(() =>
-    JSON.stringify({
-      builds: {
-        ios: {
-          release: { workflow: 'managed' },
-          debug: { workflow: 'managed', buildType: 'simulator' },
-        },
-        android: {
-          release: { workflow: 'generic' },
-          debug: {
-            workflow: 'generic',
-            gradleCommand: ':app:assembleDebug',
-            withoutCredentials: true,
-          },
+  await fs.writeJson('/project/eas.json', {
+    builds: {
+      ios: {
+        release: { workflow: 'managed' },
+        debug: { workflow: 'managed', buildType: 'simulator' },
+      },
+      android: {
+        release: { workflow: 'generic' },
+        debug: {
+          workflow: 'generic',
+          gradleCommand: ':app:assembleDebug',
+          withoutCredentials: true,
         },
       },
-    })
-  );
+    },
+  });
 
-  const reader = new EasJsonReader('./fakedir', 'all');
+  const reader = new EasJsonReader('/project', 'all');
   const easJson = await reader.readAsync('debug');
   expect({
     builds: {
@@ -133,61 +133,59 @@ test('valid eas.json for debug builds', async () => {
 });
 
 test('invalid eas.json with missing preset', async () => {
-  fs.readFile.mockImplementationOnce(() =>
-    JSON.stringify({
-      builds: {
-        android: {
-          release: { workflow: 'generic' },
-        },
+  await fs.writeJson('/project/eas.json', {
+    builds: {
+      android: {
+        release: { workflow: 'generic' },
       },
-    })
-  );
+    },
+  });
 
-  const reader = new EasJsonReader('./fakedir', 'android');
+  const reader = new EasJsonReader('/project', 'android');
   const promise = reader.readAsync('debug');
-  expect(promise).rejects.toThrowError('There is no profile named debug for platform android');
+  await expect(promise).rejects.toThrowError(
+    'There is no profile named debug for platform android'
+  );
 });
 
 test('invalid eas.json when using buildType for wrong platform', async () => {
-  fs.readFile.mockImplementationOnce(() =>
-    JSON.stringify({
-      builds: {
-        android: {
-          release: { workflow: 'managed', buildType: 'archive' },
-        },
+  await fs.writeJson('/project/eas.json', {
+    builds: {
+      android: {
+        release: { workflow: 'managed', buildType: 'archive' },
       },
-    })
-  );
+    },
+  });
 
-  const reader = new EasJsonReader('./fakedir', 'android');
+  const reader = new EasJsonReader('/project', 'android');
   const promise = reader.readAsync('release');
-  expect(promise).rejects.toThrowError(
+  await expect(promise).rejects.toThrowError(
     'Object "android.release" in eas.json is not valid [ValidationError: "buildType" must be one of [apk, app-bundle]]'
   );
 });
 
 test('invalid eas.json when missing workflow', async () => {
-  fs.readFile.mockImplementationOnce(() =>
-    JSON.stringify({
-      builds: {
-        android: {
-          release: { buildType: 'apk' },
-        },
+  await fs.writeJson('/project/eas.json', {
+    builds: {
+      android: {
+        release: { buildType: 'apk' },
       },
-    })
-  );
+    },
+  });
 
-  const reader = new EasJsonReader('./fakedir', 'android');
+  const reader = new EasJsonReader('/project', 'android');
   const promise = reader.readAsync('release');
-  expect(promise).rejects.toThrowError(
+  await expect(promise).rejects.toThrowError(
     'eas.json is not valid [ValidationError: "builds.android.release.workflow" is required]'
   );
 });
 
 test('empty json', async () => {
-  fs.readFile.mockImplementationOnce(() => JSON.stringify({}));
+  await fs.writeJson('/project/eas.json', {});
 
-  const reader = new EasJsonReader('./fakedir', 'android');
+  const reader = new EasJsonReader('/project', 'android');
   const promise = reader.readAsync('release');
-  expect(promise).rejects.toThrowError('There is no profile named release for platform android');
+  await expect(promise).rejects.toThrowError(
+    'There is no profile named release for platform android'
+  );
 });
