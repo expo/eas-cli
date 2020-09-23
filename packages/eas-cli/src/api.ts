@@ -20,6 +20,7 @@ export const apiClient = got.extend({
         const token = getAccessToken();
         if (token) {
           options.headers.authorization = `Bearer ${token}`;
+          return;
         }
         const sessionSecret = getSessionSecret();
         if (sessionSecret) {
