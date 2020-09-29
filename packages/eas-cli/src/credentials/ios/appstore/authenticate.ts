@@ -4,7 +4,7 @@ import wordwrap from 'wordwrap';
 
 import log from '../../../log';
 import { prompt } from '../../../prompts';
-import UserSettings from '../../../utils/UserSettings';
+import UserSettings from '../../../user/UserSettings';
 import { runActionAsync, travelingFastlane } from './fastlane';
 import * as Keychain from './keychain';
 
