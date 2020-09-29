@@ -58,10 +58,10 @@ export const graphqlClient = createUrqlClient({
 
 export function getExpoApiBaseUrl(): string {
   if (process.env.EXPO_STAGING) {
-    return `https://staging.expo.io`;
+    return `https://staging.exp.host`;
   } else if (process.env.EXPO_LOCAL) {
-    return `http://expo.test`;
+    return `http://exp.test`;
   } else {
-    return `https://expo.io`;
+    return `https://exp.host`;
   }
 }
