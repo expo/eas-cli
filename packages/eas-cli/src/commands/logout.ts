@@ -1,6 +1,6 @@
 import { Command } from '@oclif/command';
 
-import { logoutAsync } from '../accounts';
+import { logoutAsync } from '../user/User';
 
 export default class Logout extends Command {
   static description = 'log out';
