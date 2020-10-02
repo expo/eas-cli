@@ -1,17 +1,10 @@
-import chalk from 'chalk';
 import ora from 'ora';
 
 import { DistributionCertificate, DistributionCertificateStoreInfo } from './Credentials.types';
 import { AuthCtx } from './authenticate';
 import { runActionAsync, travelingFastlane } from './fastlane';
 
-const APPLE_DIST_CERTS_TOO_MANY_GENERATED_ERROR = `
-You can have only ${chalk.underline(
-  'three'
-)} Apple Distribution Certificates generated on your Apple Developer account.
-Please revoke the old ones or reuse existing from your other apps.
-Please remember that Apple Distribution Certificates are not application specific!
-`;
+export class AppleTooManyCertsError extends Error {}
 
 export async function listDistributionCertificatesAsync(
   ctx: AuthCtx
@@ -51,7 +44,7 @@ export async function createDistributionCertificateAsync(
     spinner.fail('Failed to create Distribution Certificate on Apple Servers');
     const resultString = err.rawDump?.resultString;
     if (resultString && resultString.match(/Maximum number of certificates generated/)) {
-      throw new Error(APPLE_DIST_CERTS_TOO_MANY_GENERATED_ERROR);
+      throw new AppleTooManyCertsError('Maximum number of certificates generated');
     }
     throw err;
   }

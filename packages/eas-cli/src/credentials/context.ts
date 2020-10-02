@@ -1,10 +1,13 @@
 import { ExpoConfig, getConfig } from '@expo/config';
+import chalk from 'chalk';
 import pick from 'lodash/pick';
 
 import log from '../log';
+import { confirmAsync } from '../prompts';
 import { User } from '../user/User';
 import { ensureLoggedInAsync } from '../user/actions';
 import AndroidApi from './android/api/Client';
+import iOSApi from './ios/api/Client';
 import AppStoreApi from './ios/appstore/AppStoreApi';
 
 interface AppleCtxOptions {
@@ -22,10 +25,13 @@ export interface Context {
   readonly user: User;
   readonly nonInteractive: boolean;
   readonly android: AndroidApi;
+  readonly ios: iOSApi;
+  readonly appStore: AppStoreApi;
   readonly hasProjectContext: boolean;
   readonly exp: ExpoConfig;
 
   ensureProjectContext(): void;
+  bestEffortAppStoreAuthenticateAsync(): Promise<void>;
 }
 
 export async function createCredentialsContextAsync(
@@ -47,8 +53,10 @@ export async function createCredentialsContextAsync(
 
 class CredentialsContext implements Context {
   public readonly android = new AndroidApi();
+  public readonly ios = new iOSApi();
   public readonly appStore: AppStoreApi;
   public readonly nonInteractive: boolean;
+  private shouldAskAuthenticateAppStore: boolean = true;
 
   constructor(
     public readonly projectDir: string,
@@ -89,5 +97,40 @@ class CredentialsContext implements Context {
     } else {
       log(`Accessing credentials for ${this.exp.owner ?? this.user.username}`);
     }
+  }
+
+  async bestEffortAppStoreAuthenticateAsync(): Promise<void> {
+    if (this.appStore.authCtx || !this.shouldAskAuthenticateAppStore) {
+      // skip prompts if already have apple ctx or already asked about it
+      return;
+    }
+
+    if (this.nonInteractive) {
+      return;
+    }
+
+    log(
+      chalk.green(
+        'If you provide your Apple account credentials we will be able to generate all necessary build credentials and fully validate them.'
+      )
+    );
+    log(
+      chalk.green(
+        'This is optional, but without Apple account access you will need to provide all the values manually and we can only run minimal validatation on them.'
+      )
+    );
+    const confirm = await confirmAsync({
+      message: `Do you want to log in to your Apple account?`,
+    });
+    if (confirm) {
+      await this.appStore.ensureAuthenticatedAsync();
+    } else {
+      log(
+        chalk.green(
+          'No problem! 👌 If you select an action that requires those credentials we will ask you again about it.'
+        )
+      );
+    }
+    this.shouldAskAuthenticateAppStore = false;
   }
 }

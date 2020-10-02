@@ -9,6 +9,7 @@ import {
 import { AuthCtx, authenticateAsync } from './authenticate';
 import { checkWSLAsync } from './checkWSL';
 import {
+  AppleTooManyCertsError,
   createDistributionCertificateAsync,
   listDistributionCertificatesAsync,
   revokeDistributionCertificateAsync,
@@ -29,17 +30,23 @@ interface Options {
   teamId?: string;
 }
 
+export { AppleTooManyCertsError };
+
 class AppStoreApi {
-  private authCtx?: AuthCtx;
+  private _authCtx?: AuthCtx;
 
   constructor(public readonly options?: Options) {}
 
+  public get authCtx(): AuthCtx | undefined {
+    return this._authCtx;
+  }
+
   public async ensureAuthenticatedAsync(): Promise<AuthCtx> {
-    if (!this.authCtx) {
+    if (!this._authCtx) {
       await checkWSLAsync();
-      this.authCtx = await authenticateAsync(this.options);
+      this._authCtx = await authenticateAsync(this.options);
     }
-    return this.authCtx;
+    return this._authCtx;
   }
 
   public async ensureAppExistsAsync(
@@ -60,7 +67,7 @@ class AppStoreApi {
     return await createDistributionCertificateAsync(ctx);
   }
 
-  public async deleteDistributionCertificateAsync(ids: string[]): Promise<void> {
+  public async revokeDistributionCertificateAsync(ids: string[]): Promise<void> {
     const ctx = await this.ensureAuthenticatedAsync();
     return await revokeDistributionCertificateAsync(ctx, ids);
   }

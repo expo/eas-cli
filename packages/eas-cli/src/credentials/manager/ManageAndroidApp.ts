@@ -9,6 +9,7 @@ import { RemoveKeystore } from '../android/actions/RemoveKeystore';
 import { UpdateKeystore } from '../android/actions/UpdateKeystore';
 import { printAndroidAppCredentials } from '../android/utils/printCredentials';
 import { Context } from '../context';
+import { PressAnyKeyToContinue } from './HelperActions';
 
 export class ManageAndroidApp implements Action {
   constructor(private projectFullName: string) {}
@@ -44,6 +45,7 @@ export class ManageAndroidApp implements Action {
       return;
     }
 
+    manager.pushNextAction(new PressAnyKeyToContinue());
     manager.pushNextAction(this.getAction(ctx, action));
   }
 

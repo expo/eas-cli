@@ -1,5 +1,4 @@
 import chalk from 'chalk';
-import terminalLink from 'terminal-link';
 import wordwrap from 'wordwrap';
 
 import log from '../../../log';
@@ -104,8 +103,6 @@ async function promptForAppleCredentialsAsync({
       )
     );
 
-    // https://docs.expo.io/distribution/security/#apple-developer-account-credentials
-    const here = terminalLink('here', 'https://bit.ly/2VtGWhU');
     log(
       wrap(
         chalk.bold(
@@ -113,7 +110,13 @@ async function promptForAppleCredentialsAsync({
         )
       )
     );
-    log(wrap(chalk.grey(`Learn more ${here}`)));
+    log(
+      wrap(
+        chalk.grey(
+          `Learn more here https://docs.expo.io/distribution/security/#apple-developer-account-credentials`
+        )
+      )
+    );
   }
 
   // Get the email address that was last used and set it as

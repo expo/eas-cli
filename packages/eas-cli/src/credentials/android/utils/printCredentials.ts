@@ -6,7 +6,7 @@ import { keytoolCommandExistsAsync, logKeystoreHashesAsync } from '../utils/keys
 
 export async function printAndroidCredentials(credentialsList: AndroidCredentials[]) {
   log(chalk.bold('Available Android credentials'));
-  log();
+  log.newLine();
   for (const credentials of credentialsList) {
     await printAndroidAppCredentials(credentials);
   }
