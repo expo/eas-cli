@@ -12,14 +12,12 @@ export class UpdateKeystore implements Action {
 
   public async runAsync(manager: CredentialsManager, ctx: Context): Promise<void> {
     if (await ctx.android.fetchKeystoreAsync(this.projectFullName)) {
-      log.newLine();
       this.displayWarning();
-      log.newLine();
     }
     const keystore = await this.provideOrGenerateAsync();
 
     await ctx.android.updateKeystoreAsync(this.projectFullName, keystore);
-    log(chalk.green('Keystore updated successfully'));
+    log(chalk.green('Keystore updated successfully.'));
   }
 
   private async provideOrGenerateAsync(): Promise<Keystore> {
@@ -32,8 +30,9 @@ export class UpdateKeystore implements Action {
   }
 
   private displayWarning() {
+    log.newLine();
     log.warn(
-      `⚠️  Updating your Android build credentials will remove previous version from our servers, this is a ${chalk.red(
+      `Updating your Android build credentials will remove previous version from our servers, this is a ${chalk.bold(
         'PERMANENT and IRREVERSIBLE action.'
       )}`
     );
@@ -42,5 +41,6 @@ export class UpdateKeystore implements Action {
         'Android Keystore must be identical to the one previously used to submit your app to the Google Play Store.'
       )
     );
+    log.newLine();
   }
 }

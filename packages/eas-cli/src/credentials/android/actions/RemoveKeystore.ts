@@ -11,7 +11,7 @@ export class RemoveKeystore implements Action {
 
   async runAsync(manager: CredentialsManager, ctx: Context): Promise<void> {
     if (!(await ctx.android.fetchKeystoreAsync(this.projectFullName))) {
-      log.warn('There is no valid Keystore defined for this app');
+      log.warn('There is no Keystore defined for this app.');
       return;
     }
 
@@ -23,22 +23,22 @@ export class RemoveKeystore implements Action {
       );
     }
 
-    const answers = await confirmAsync({
+    const confirm = await confirmAsync({
       message: 'Permanently delete the Android build credentials from our servers?',
       initial: false,
     });
-    if (answers) {
+    if (confirm) {
       await manager.runActionAsync(new BackupKeystore(this.projectFullName));
 
       await ctx.android.removeKeystoreAsync(this.projectFullName);
-      log(chalk.green('Keystore removed successfully'));
+      log(chalk.green('Keystore removed successfully.'));
     }
   }
 
   displayWarning() {
     log.newLine();
     log.warn(
-      `⚠️  Clearing your Android build credentials from our build servers is a ${chalk.red(
+      `Clearing your Android build credentials from our build servers is a ${chalk.bold(
         'PERMANENT and IRREVERSIBLE action.'
       )}`
     );

@@ -1,7 +1,7 @@
 import keyBy from 'lodash/keyBy';
 
 import { AndroidCredentials, FcmCredentials, Keystore } from '../credentials';
-import ApiClient from './gotWrapper';
+import ApiClient from './ClientWrapper';
 
 export default class AndroidApi {
   private client = new ApiClient();

@@ -45,9 +45,9 @@ export async function createCredentialsContextAsync(
   return new CredentialsContext(projectDir, user, expoConfig, options);
 }
 
-class CredentialsContext {
+class CredentialsContext implements Context {
   public readonly android = new AndroidApi();
-  public readonly appstore: AppStoreApi;
+  public readonly appStore: AppStoreApi;
   public readonly nonInteractive: boolean;
 
   constructor(
@@ -56,7 +56,7 @@ class CredentialsContext {
     private _exp: ExpoConfig | undefined,
     options: Options
   ) {
-    this.appstore = new AppStoreApi(pick(options, ['appleId', 'appleIdPassword', 'teamId']));
+    this.appStore = new AppStoreApi(pick(options, ['appleId', 'appleIdPassword', 'teamId']));
     this.nonInteractive = options.nonInteractive ?? false;
   }
 

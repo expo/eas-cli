@@ -9,7 +9,7 @@ export function createCtxMock(mockOverride: Record<string, any> = {}): Context {
   const defaultMock = {
     ios: jest.fn(),
     android: getAndroidApiMockWithoutCredentials(),
-    appstore: jest.fn(),
+    appStore: jest.fn(),
     ensureAppleCtx: jest.fn(),
     user: {
       username: testUsername,

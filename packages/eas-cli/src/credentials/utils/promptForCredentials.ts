@@ -4,7 +4,7 @@ import path from 'path';
 import untildify from 'untildify';
 
 import log from '../../log';
-import { Question as PromptQuestion, prompt } from '../../prompts';
+import { Question as PromptQuestion, promptAsync } from '../../prompts';
 
 export type Question = {
   question: string;
@@ -30,7 +30,7 @@ export type CredentialSchema<T> = {
 
 const EXPERT_PROMPT = once(() =>
   log.warn(`
-WARNING! In this mode, we won't be able to make sure that your credentials are valid.
+In this mode, we won't be able to make sure that your credentials are valid.
 Please double check that you're uploading valid files for your app otherwise you may encounter strange errors!
 
 When building for IOS make sure you've created your App ID on the Apple Developer Portal, that your App ID
@@ -58,13 +58,13 @@ export async function getCredentialsFromUserAsync<T>(
 }
 
 async function willUserProvideCredentialsAsync<T>(schema: CredentialSchema<T>) {
-  const { answer } = await prompt({
+  const { answer } = await promptAsync({
     type: 'select',
     name: 'answer',
     message: schema?.provideMethodQuestion?.question ?? `Will you provide your own ${schema.name}?`,
     choices: [
       {
-        title: schema?.provideMethodQuestion?.expoGenerated ?? 'Let Expo handle the process',
+        title: schema?.provideMethodQuestion?.expoGenerated ?? 'Let EAS handle the process',
         value: false,
       },
       {
@@ -78,7 +78,7 @@ async function willUserProvideCredentialsAsync<T>(schema: CredentialSchema<T>) {
 
 async function askQuestionAndProcessAnswerAsync(definition: Question): Promise<string> {
   const questionObject = buildQuestionObject(definition);
-  const { input } = await prompt(questionObject);
+  const { input } = await promptAsync(questionObject);
   return await processAnswerAsync(definition, input);
 }
 
@@ -125,7 +125,7 @@ function produceAbsolutePath(filePath: string): string {
   return !path.isAbsolute(untildified) ? path.resolve(untildified) : untildified;
 }
 
-function validateNonEmptyInput(val: string) {
+function validateNonEmptyInput(val: string): boolean {
   return val !== '';
 }
 

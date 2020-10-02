@@ -1,11 +1,11 @@
 import chalk from 'chalk';
 
-import { confirmAsync, prompt } from '../../prompts';
-import { Action, CredentialsManager } from '../CredentialsManager';
+import { confirmAsync, promptAsync } from '../../prompts';
+import { Action, CredentialsManager, QuitError } from '../CredentialsManager';
 import { AndroidCredentials } from '../android/credentials';
 import { printAndroidCredentials } from '../android/utils/printCredentials';
 import { Context } from '../context';
-import { MangeAndroidApp } from './MangeAndroidApp';
+import { ManageAndroidApp } from './ManageAndroidApp';
 
 export class SelectAndroidApp implements Action {
   private firstRun = true;
@@ -25,7 +25,7 @@ export class SelectAndroidApp implements Action {
       });
 
       if (runProjectContext) {
-        manager.pushNextAction(new MangeAndroidApp(projectFullName));
+        manager.pushNextAction(new ManageAndroidApp(projectFullName));
         return;
       }
     }
@@ -37,17 +37,16 @@ export class SelectAndroidApp implements Action {
       title: cred.experienceName,
       value: cred.experienceName,
     }));
-    const { projectFullName } = await prompt({
+    const { projectFullName } = await promptAsync({
       type: 'select',
       name: 'projectFullName',
       message: 'Select application',
-      choices: [...appChoices, { title: 'Go back to platfom selection', value: 'go-back' }],
+      choices: [...appChoices, { title: '[Quit]', value: 'quit' }],
     });
 
-    if (projectFullName === 'go-back') {
-      manager.popAction();
-      return;
+    if (projectFullName === 'quit') {
+      throw new QuitError();
     }
-    manager.pushNextAction(new MangeAndroidApp(projectFullName));
+    manager.pushNextAction(new ManageAndroidApp(projectFullName));
   }
 }

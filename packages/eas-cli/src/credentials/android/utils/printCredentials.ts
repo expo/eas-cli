@@ -29,6 +29,6 @@ export async function printAndroidAppCredentials(credentials: AndroidCredentials
     log('    -----------------------');
   }
   log(chalk.bold('  Push Notifications credentials'));
-  log('    FCM Api Key: ', credentials.pushCredentials?.fcmApiKey ?? '---------------------');
+  log('    FCM API Key: ', credentials.pushCredentials?.fcmApiKey ?? '---------------------');
   log('\n');
 }

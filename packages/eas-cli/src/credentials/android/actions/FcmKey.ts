@@ -1,7 +1,7 @@
 import chalk from 'chalk';
 
 import log from '../../../log';
-import { prompt } from '../../../prompts';
+import { promptAsync } from '../../../prompts';
 import { Action, CredentialsManager } from '../../CredentialsManager';
 import { Context } from '../../context';
 
@@ -9,12 +9,12 @@ export class UpdateFcmKey implements Action {
   constructor(private experienceName: string) {}
 
   async runAsync(manager: CredentialsManager, ctx: Context): Promise<void> {
-    const { fcmApiKey } = await prompt([
+    const { fcmApiKey } = await promptAsync([
       {
         type: 'text',
         name: 'fcmApiKey',
-        message: 'FCM Api Key',
-        validate: (value: string) => value.length > 0 || "FCM Api Key can't be empty",
+        message: 'FCM API Key',
+        validate: (value: string) => value.length > 0 || "FCM API Key can't be empty",
       },
     ]);
 

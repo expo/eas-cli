@@ -1,7 +1,7 @@
 import isEmpty from 'lodash/isEmpty';
 
 import log from '../../log';
-import { prompt } from '../../prompts';
+import { promptAsync } from '../../prompts';
 import { Action, CredentialsManager } from '../CredentialsManager';
 import { DownloadKeystore } from '../android/actions/DownloadKeystore';
 import { UpdateFcmKey } from '../android/actions/FcmKey';
@@ -10,11 +10,11 @@ import { UpdateKeystore } from '../android/actions/UpdateKeystore';
 import { printAndroidAppCredentials } from '../android/utils/printCredentials';
 import { Context } from '../context';
 
-export class MangeAndroidApp implements Action {
+export class ManageAndroidApp implements Action {
   constructor(private projectFullName: string) {}
 
   async runAsync(manager: CredentialsManager, ctx: Context): Promise<void> {
-    await manager.pushNextAction(this);
+    manager.pushNextAction(this);
     const credentials = await ctx.android.fetchCredentialsAsync(this.projectFullName);
 
     if (isEmpty(credentials.keystore) && isEmpty(credentials.pushCredentials)) {
@@ -24,16 +24,16 @@ export class MangeAndroidApp implements Action {
       await printAndroidAppCredentials(credentials);
     }
 
-    const { action } = await prompt([
+    const { action } = await promptAsync([
       {
         type: 'select',
         name: 'action',
         message: 'What do you want to do?',
         choices: [
-          { value: 'update-keystore', title: 'Update upload Keystore' },
-          { value: 'remove-keystore', title: 'Remove keystore' },
-          { value: 'update-fcm-key', title: 'Update FCM Api Key' },
+          { value: 'update-keystore', title: 'Update Keystore' },
+          { value: 'remove-keystore', title: 'Remove Keystore' },
           { value: 'fetch-keystore', title: 'Download Keystore from the Expo servers' },
+          { value: 'update-fcm-key', title: 'Update FCM API Key' },
           { value: 'go-back', title: 'Go back to project list' },
         ],
       },
@@ -44,7 +44,7 @@ export class MangeAndroidApp implements Action {
       return;
     }
 
-    await manager.pushNextAction(this.getAction(ctx, action));
+    manager.pushNextAction(this.getAction(ctx, action));
   }
 
   private getAction(context: Context, selected: string): Action {

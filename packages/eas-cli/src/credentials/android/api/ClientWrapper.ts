@@ -5,7 +5,7 @@ type AllCredentialsApiResponse = AndroidCredentials[];
 
 // This class should not be used directly, use only as part of cached api client from ./Client.ts
 // or mock it in tests (it's easier to mock this class than got directly)
-export default class ApiClient {
+export default class ClientWrapper {
   public async getAllCredentialsApi(): Promise<AllCredentialsApiResponse> {
     return ((await apiClient.get('credentials/android').json()) as any).data?.credentials || [];
   }

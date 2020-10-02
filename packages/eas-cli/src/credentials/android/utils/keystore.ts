@@ -1,5 +1,4 @@
 import spawnAsync from '@expo/spawn-async';
-import commandExists from 'command-exists';
 import crypto from 'crypto';
 import fs from 'fs-extra';
 import path from 'path';
@@ -11,14 +10,17 @@ import { Keystore } from '../credentials';
 
 export async function keytoolCommandExistsAsync(): Promise<boolean> {
   try {
-    await commandExists('keytool');
-    return true;
-  } catch (err) {
-    return false;
+    await spawnAsync('keytool');
+  } catch (error) {
+    if (error.code === 'ENOENT') {
+      return false;
+    }
+    throw error;
   }
+  return true;
 }
 
-async function _ensureKeytoolCommandExistsAsync(): Promise<void> {
+async function ensureKeytoolCommandExistsAsync(): Promise<void> {
   if (!(await keytoolCommandExistsAsync())) {
     log.error('keytool is required to run this command, make sure you have it installed?');
     log.warn('keytool is a part of OpenJDK: https://openjdk.java.net/');
@@ -27,10 +29,9 @@ async function _ensureKeytoolCommandExistsAsync(): Promise<void> {
   }
 }
 
-async function _writeFileToTmpAsync(base64Data: string, nameSuffix: string = ''): Promise<string> {
+async function writeFileToTmpAsync(base64Data: string, nameSuffix: string = ''): Promise<string> {
   await fs.mkdirp(getTmpDirectory());
   const filePath = path.join(getTmpDirectory(), `${uuidv4()}${nameSuffix}`);
-
   await fs.writeFile(filePath, base64Data, 'base64');
   return filePath;
 }
@@ -39,8 +40,8 @@ export async function exportCertificateAsync(
   keystore: Keystore,
   options?: { rfcFormat: boolean }
 ): Promise<string> {
-  await _ensureKeytoolCommandExistsAsync();
-  const keystorePath = await _writeFileToTmpAsync(keystore.keystore, '-keystore.jks');
+  await ensureKeytoolCommandExistsAsync();
+  const keystorePath = await writeFileToTmpAsync(keystore.keystore, '-keystore.jks');
   const certPath = path.join(getTmpDirectory(), `${uuidv4()}.cer`);
   try {
     await spawnAsync('keytool', [
@@ -79,12 +80,12 @@ export async function logKeystoreHashesAsync(keystore: Keystore, linePrefix: str
   log(`${linePrefix}Facebook Key Hash:                  ${fbHash}`);
 }
 
-async function _createKeystoreAsync(credentials: {
+async function createKeystoreAsync(credentials: {
   keystorePassword: string;
   keyAlias: string;
   keyPassword: string;
 }): Promise<Keystore> {
-  await _ensureKeytoolCommandExistsAsync();
+  await ensureKeytoolCommandExistsAsync();
   await fs.mkdirp(getTmpDirectory());
   const keystorePath = path.join(getTmpDirectory(), `${uuidv4()}-keystore.jks`);
   try {
@@ -121,9 +122,9 @@ async function _createKeystoreAsync(credentials: {
 
 export async function generateRandomKeystoreAsync(): Promise<Keystore> {
   const keystoreData = {
-    keystorePassword: uuidv4().replace(/-/g, ''),
-    keyPassword: uuidv4().replace(/-/g, ''),
-    keyAlias: uuidv4().replace(/-/g, ''),
+    keystorePassword: crypto.randomBytes(16).toString('hex'),
+    keyPassword: crypto.randomBytes(16).toString('hex'),
+    keyAlias: crypto.randomBytes(16).toString('hex'),
   };
-  return await _createKeystoreAsync(keystoreData);
+  return await createKeystoreAsync(keystoreData);
 }

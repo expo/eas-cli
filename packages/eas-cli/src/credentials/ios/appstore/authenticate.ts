@@ -3,7 +3,7 @@ import terminalLink from 'terminal-link';
 import wordwrap from 'wordwrap';
 
 import log from '../../../log';
-import { prompt } from '../../../prompts';
+import { promptAsync } from '../../../prompts';
 import UserSettings from '../../../user/UserSettings';
 import { runActionAsync, travelingFastlane } from './fastlane';
 import * as Keychain from './keychain';
@@ -120,7 +120,7 @@ async function promptForAppleCredentialsAsync({
   // the default value for quicker authentication.
   const lastAppleId = await getLastUsedAppleIdAsync();
 
-  const { appleId: promptAppleId } = await prompt({
+  const { appleId: promptAppleId } = await promptAsync({
     type: 'text',
     name: 'appleId',
     message: `Apple ID:`,
@@ -146,7 +146,7 @@ async function promptForAppleCredentialsAsync({
       return { appleId: promptAppleId, appleIdPassword: password };
     }
   }
-  const { appleIdPassword } = await prompt({
+  const { appleIdPassword } = await promptAsync({
     type: 'password',
     name: 'appleIdPassword',
     message: `Password (for ${promptAppleId}):`,
@@ -184,7 +184,7 @@ async function chooseTeamAsync(teams: FastlaneTeam[], userProvidedTeamId?: strin
       title: `${i + 1}) ${team.teamId} "${team.name}" (${team.type})`,
       value: team,
     }));
-    const { team } = await prompt({
+    const { team } = await promptAsync({
       type: 'select',
       name: 'team',
       message: 'Which team would you like to use?',

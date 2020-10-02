@@ -1,5 +1,3 @@
-import merge from 'lodash/merge';
-
 import { AndroidCredentials } from '../android/credentials';
 import { testKeystore2Base64, testKeystoreBase64 } from './fixtures-base64-data';
 import { testExperienceName, testJester2ExperienceName } from './fixtures-constants';
@@ -37,45 +35,36 @@ export const testAllCredentials: { [key: string]: AndroidCredentials } = {
   [testExperienceName]: testAppCredentials,
 };
 
-export function getApiClientWrapperMock(override: object = {}) {
+export function getApiClientWrapperMock() {
   // by default all method throw exceptions to make sure that we only call what is expected
   const getUnexpectedCallMock = () =>
     jest.fn(() => {
       throw new Error('unexpected call');
     });
-  return merge(
-    {
-      getAllCredentialsApi: getUnexpectedCallMock(),
-      getAllCredentialsForAppApi: getUnexpectedCallMock(),
-      updateKeystoreApi: getUnexpectedCallMock(),
-      updateFcmKeyApi: getUnexpectedCallMock(),
-      removeKeystoreApi: getUnexpectedCallMock(),
-      removeFcmKeyApi: getUnexpectedCallMock(),
-    },
-    override
-  );
+  return {
+    getAllCredentialsApi: getUnexpectedCallMock(),
+    getAllCredentialsForAppApi: getUnexpectedCallMock(),
+    updateKeystoreApi: getUnexpectedCallMock(),
+    updateFcmKeyApi: getUnexpectedCallMock(),
+    removeKeystoreApi: getUnexpectedCallMock(),
+    removeFcmKeyApi: getUnexpectedCallMock(),
+  };
 }
 
-export function getAndroidApiMock(override: object = {}) {
-  return merge(
-    {
-      fetchAllAsync: jest.fn(() => testAllCredentials),
-      fetchKeystoreAsync: jest.fn(() => testKeystore),
-      updateKeystoreAsync: jest.fn(),
-      removeKeystoreAsync: jest.fn(),
-    },
-    override
-  );
+export function getAndroidApiMock() {
+  return {
+    fetchAllAsync: jest.fn(() => testAllCredentials),
+    fetchKeystoreAsync: jest.fn(() => testKeystore),
+    updateKeystoreAsync: jest.fn(),
+    removeKeystoreAsync: jest.fn(),
+  };
 }
 
-export function getAndroidApiMockWithoutCredentials(override: object = {}) {
-  return merge(
-    {
-      fetchAllAsync: jest.fn(() => []),
-      fetchKeystoreAsync: jest.fn(() => null),
-      updateKeystoreAsync: jest.fn(),
-      removeKeystoreAsync: jest.fn(),
-    },
-    override
-  );
+export function getAndroidApiMockWithoutCredentials() {
+  return {
+    fetchAllAsync: jest.fn(() => []),
+    fetchKeystoreAsync: jest.fn(() => null),
+    updateKeystoreAsync: jest.fn(),
+    removeKeystoreAsync: jest.fn(),
+  };
 }
