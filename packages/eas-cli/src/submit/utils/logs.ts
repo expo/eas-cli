@@ -1,6 +1,6 @@
 import got from 'got';
 
-import log from '../../../../log';
+import log from '../../log';
 import { Submission, SubmissionStatus } from '../SubmissionService.types';
 import { printSubmissionError } from './errors';
 

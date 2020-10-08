@@ -1,7 +1,7 @@
-import log from '../../../../log';
-import prompt from '../../../../prompt';
 import { existingFile } from '../../../../validators';
 import { learnMore } from '../../../utils/TerminalLink';
+import log from '../../log';
+import { prompt } from '../../prompts';
 
 enum ServiceAccountSourceType {
   path,

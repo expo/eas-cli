@@ -7,8 +7,6 @@ import { jester } from '../../../../../__tests__/user-fixtures';
 import { ensureProjectExistsAsync } from '../../../../../projects';
 import SubmissionService from '../../SubmissionService';
 import { Platform, Submission, SubmissionStatus } from '../../SubmissionService.types';
-import { SubmissionMode } from '../../types';
-import { runTravelingFastlaneAsync } from '../../utils/travelingFastlane';
 import { ArchiveType, ReleaseStatus, ReleaseTrack } from '../AndroidSubmissionConfig';
 import AndroidSubmitCommand from '../AndroidSubmitCommand';
 import { AndroidOnlineSubmissionConfig } from '../AndroidSubmitter';
@@ -19,7 +17,7 @@ jest.mock('../../SubmissionService');
 jest.mock('../../utils/travelingFastlane');
 jest.mock('../../../../../projects');
 jest.mock('@expo/image-utils', () => ({
-  generateImageAsync(input, { src }) {
+  generateImageAsync(input: any, { src }: any) {
     const fs = require('fs');
     return { source: fs.readFileSync(src) };
   },
@@ -93,11 +91,7 @@ describe(AndroidSubmitCommand, () => {
         track: 'internal',
         releaseStatus: 'draft',
       };
-      const ctx = AndroidSubmitCommand.createContext(
-        SubmissionMode.online,
-        testProject.projectRoot,
-        options
-      );
+      const ctx = AndroidSubmitCommand.createContext(testProject.projectRoot, options);
       const command = new AndroidSubmitCommand(ctx);
       await command.runAsync();
 
@@ -115,41 +109,6 @@ describe(AndroidSubmitCommand, () => {
         Platform.ANDROID,
         projectId,
         androidSubmissionConfig
-      );
-    });
-  });
-
-  describe('offline mode', () => {
-    afterEach(() => {
-      (runTravelingFastlaneAsync as jest.Mock).mockClear();
-    });
-
-    it('executes supply_android from traveling-fastlane', async () => {
-      const options: AndroidSubmitCommandOptions = {
-        path: '/apks/fake.apk',
-        type: 'apk',
-        key: '/google-service-account.json',
-        track: 'internal',
-        releaseStatus: 'draft',
-      };
-      const ctx = AndroidSubmitCommand.createContext(
-        SubmissionMode.offline,
-        testProject.projectRoot,
-        options
-      );
-      const command = new AndroidSubmitCommand(ctx);
-      await command.runAsync();
-
-      expect(runTravelingFastlaneAsync).toHaveBeenCalledWith(
-        expect.stringMatching(/supply_android$/),
-        [
-          '/apks/fake.apk',
-          testProject.appJSON.expo.android?.package,
-          '/google-service-account.json',
-          'internal',
-          'apk',
-          'draft',
-        ]
       );
     });
   });

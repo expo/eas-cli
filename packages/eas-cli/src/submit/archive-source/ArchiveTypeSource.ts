@@ -1,5 +1,5 @@
-import log from '../../../../log';
-import prompt from '../../../../prompt';
+import log from '../../log';
+import { prompt } from '../../prompts';
 import { ArchiveType } from '../android/AndroidSubmissionConfig';
 
 enum ArchiveTypeSourceType {
