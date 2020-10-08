@@ -1,9 +1,9 @@
 import log from '../log';
-import { prompt } from '../prompts';
+import { promptAsync } from '../prompts';
 import { User, getUserAsync, loginAsync } from './User';
 
 export async function showLoginPromptAsync(): Promise<void> {
-  const { username, password } = await prompt([
+  const { username, password } = await promptAsync([
     {
       type: 'text',
       name: 'username',
