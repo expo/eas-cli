@@ -1,4 +1,4 @@
-import { prompt } from '../../prompts';
+import { promptAsync } from '../../prompts';
 
 enum AndroidPackageSourceType {
   userDefined,
@@ -24,10 +24,10 @@ async function getAndroidPackageAsync(source: AndroidPackageSource) {
   if (source.sourceType === AndroidPackageSourceType.userDefined) {
     return source.androidPackage;
   } else if (source.sourceType === AndroidPackageSourceType.prompt) {
-    const { androidPackage } = await prompt({
+    const { androidPackage } = await promptAsync({
       name: 'androidPackage',
       message: 'Android package name:',
-      type: 'input',
+      type: 'text',
       validate: (val: string): boolean => val !== '',
     });
     return androidPackage;

@@ -1,18 +1,13 @@
-import { UserManager } from '@expo/xdl';
 import Table from 'cli-table3';
 import fs from 'fs-extra';
 import chunk from 'lodash/chunk';
-import omit from 'lodash/omit';
-import pick from 'lodash/pick';
 import ora from 'ora';
 
-import { ensureProjectExistsAsync } from '../../../../projects';
-import { sleep } from '../../../utils/promise';
 import log from '../../log';
+import { sleep } from '../../utils/promise';
 import SubmissionService, { DEFAULT_CHECK_INTERVAL_MS } from '../SubmissionService';
 import { Platform, Submission, SubmissionStatus } from '../SubmissionService.types';
 import { Archive, ArchiveSource, getArchiveAsync } from '../archive-source';
-import { getExpoConfig } from '../utils/config';
 import { displayLogs } from '../utils/logs';
 import { AndroidPackageSource, getAndroidPackageAsync } from './AndroidPackageSource';
 import {
@@ -25,7 +20,7 @@ import { ServiceAccountSource, getServiceAccountAsync } from './ServiceAccountSo
 import { AndroidSubmissionContext } from './types';
 
 export interface AndroidSubmissionOptions
-  extends Pick<AndroidSubmissionConfig, 'track' | 'releaseStatus'> {
+  extends Pick<AndroidSubmissionConfig, 'track' | 'releaseStatus' | 'projectId'> {
   androidPackageSource: AndroidPackageSource;
   archiveSource: ArchiveSource;
   serviceAccountSource: ServiceAccountSource;
@@ -42,23 +37,14 @@ class AndroidSubmitter {
 
   async submitAsync(): Promise<void> {
     const resolvedSourceOptions = await this.resolveSourceOptions();
-    await this.submitOnlineAsync(resolvedSourceOptions);
-  }
 
-  private async submitOnlineAsync(resolvedSourceOptions: ResolvedSourceOptions): Promise<void> {
-    const user = await UserManager.ensureLoggedInAsync();
-    const exp = getExpoConfig(this.ctx.projectDir);
-    const projectId = await ensureProjectExistsAsync(user, {
-      accountName: exp.owner || user.username,
-      projectName: exp.slug,
-    });
-    const submissionConfig = await AndroidOnlineSubmitter.formatSubmissionConfigAndPrintSummary(
-      { ...this.options, projectId },
+    const submissionConfig = await this.formatSubmissionConfigAndPrintSummary(
+      this.options,
       resolvedSourceOptions
     );
     const onlineSubmitter = new AndroidOnlineSubmitter(
       submissionConfig,
-      this.ctx.commandOptions.verbose ?? false
+      this.ctx.commandFlags.verbose
     );
     await onlineSubmitter.submitAsync();
   }
@@ -73,35 +59,32 @@ class AndroidSubmitter {
       serviceAccountPath,
     };
   }
-}
 
-export type AndroidOnlineSubmissionConfig = AndroidSubmissionConfig & { projectId: string };
-interface AndroidOnlineSubmissionOptions extends AndroidSubmissionOptions {
-  projectId: string;
-}
-
-class AndroidOnlineSubmitter {
-  static async formatSubmissionConfigAndPrintSummary(
-    options: AndroidOnlineSubmissionOptions,
+  private async formatSubmissionConfigAndPrintSummary(
+    options: AndroidSubmissionOptions,
     { archive, androidPackage, serviceAccountPath }: ResolvedSourceOptions
-  ): Promise<AndroidOnlineSubmissionConfig> {
+  ): Promise<AndroidSubmissionConfig> {
     const serviceAccount = await fs.readFile(serviceAccountPath, 'utf-8');
+    const { track, releaseStatus, projectId } = options;
     const submissionConfig = {
       androidPackage,
       archiveUrl: archive.location,
       archiveType: archive.type,
-      serviceAccount,
-      ...pick(options, 'track', 'releaseStatus', 'projectId'),
+      track,
+      releaseStatus,
+      projectId,
     };
     printSummary({
-      ...omit(submissionConfig, 'serviceAccount'),
+      ...submissionConfig,
       serviceAccountPath,
     });
-    return submissionConfig;
+    return { ...submissionConfig, serviceAccount };
   }
+}
 
+class AndroidOnlineSubmitter {
   constructor(
-    private submissionConfig: AndroidOnlineSubmissionConfig,
+    private submissionConfig: AndroidSubmissionConfig,
     private verbose: boolean = false
   ) {}
 
@@ -194,7 +177,7 @@ const SummaryHumanReadableValues: Partial<Record<keyof Summary, Function>> = {
 
 function breakWord(word: string, chars: number): string {
   return chunk(word, chars)
-    .map(arr => arr.join(''))
+    .map((arr: string[]) => arr.join(''))
     .join('\n');
 }
 

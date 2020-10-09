@@ -1,5 +1,5 @@
-import log from '../../../../log';
-import { learnMore } from '../../../utils/TerminalLink';
+import log from '../../log';
+import { learnMore } from '../../utils/terminalLink';
 import { SubmissionError } from '../SubmissionService.types';
 
 enum SubmissionErrorCode {

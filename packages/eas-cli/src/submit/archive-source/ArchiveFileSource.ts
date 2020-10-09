@@ -1,11 +1,9 @@
 import { Platform } from '@expo/config';
-import { StandaloneBuild } from '@expo/xdl';
 import validator from 'validator';
 
-import { existingFile } from '../../../../validators';
 import log from '../../log';
-import { prompt } from '../../prompts';
-import { getAppConfig } from '../utils/config';
+import { promptAsync } from '../../prompts';
+import { existingFile } from '../../validators';
 import {
   downloadAppArchiveAsync,
   extractLocalArchiveAsync,
@@ -104,28 +102,7 @@ async function handleUrlSourceAsync(source: ArchiveFileUrlSource): Promise<strin
 }
 
 async function handleLatestSourceAsync(source: ArchiveFileLatestSource): Promise<string> {
-  const { owner, slug } = getAppConfig(source.projectDir);
-  const builds = await StandaloneBuild.getStandaloneBuilds(
-    {
-      platform: source.platform,
-      owner,
-      slug,
-    },
-    1
-  );
-  if (builds.length === 0) {
-    log.error(
-      log.chalk.bold(
-        "Couldn't find any builds for this project on Expo servers. It looks like you haven't run expo build:android yet."
-      )
-    );
-    return getArchiveFileLocationAsync({
-      sourceType: ArchiveFileSourceType.prompt,
-      platform: source.platform,
-      projectDir: source.projectDir,
-    });
-  }
-  return builds[0].artifacts.url;
+  throw new Error('Not implemented!');
 }
 
 async function handlePathSourceAsync(source: ArchiveFilePathSource): Promise<string> {
@@ -141,49 +118,31 @@ async function handlePathSourceAsync(source: ArchiveFilePathSource): Promise<str
 }
 
 async function handleBuildIdSourceAsync(source: ArchiveFileBuildIdSource): Promise<string> {
-  const { owner, slug } = getAppConfig(source.projectDir);
-  let build: any;
   try {
-    build = await StandaloneBuild.getStandaloneBuildById({
-      platform: source.platform,
-      id: source.id,
-      owner,
-      slug,
-    });
+    throw new Error('Not implemented');
   } catch (err) {
     log.error(err);
     throw err;
   }
-
-  if (!build) {
-    log.error(log.chalk.bold(`Couldn't find build for id ${source.id}`));
-    return getArchiveFileLocationAsync({
-      sourceType: ArchiveFileSourceType.prompt,
-      platform: source.platform,
-      projectDir: source.projectDir,
-    });
-  } else {
-    return build.artifacts.url;
-  }
 }
 
 async function handlePromptSourceAsync(source: ArchiveFilePromptSource): Promise<string> {
-  const { sourceType: sourceTypeRaw } = await prompt({
+  const { sourceType: sourceTypeRaw } = await promptAsync({
     name: 'sourceType',
-    type: 'list',
+    type: 'select',
     message: 'What would you like to submit?',
     choices: [
-      { name: 'I have a url to the app archive', value: ArchiveFileSourceType.url },
+      { title: 'I have a url to the app archive', value: ArchiveFileSourceType.url },
       {
-        name: "I'd like to upload the app archive from my computer",
+        title: "I'd like to upload the app archive from my computer",
         value: ArchiveFileSourceType.path,
       },
       {
-        name: 'The latest build from Expo servers',
+        title: 'The latest build from Expo servers',
         value: ArchiveFileSourceType.latest,
       },
       {
-        name: 'A build identified by a build id',
+        title: 'A build identified by a build id',
         value: ArchiveFileSourceType.buildId,
       },
     ],
@@ -231,11 +190,11 @@ async function handlePromptSourceAsync(source: ArchiveFilePromptSource): Promise
 
 async function askForArchiveUrlAsync(): Promise<string> {
   const defaultArchiveUrl = 'https://url.to/your/archive.aab';
-  const { url } = await prompt({
+  const { url } = await promptAsync({
     name: 'url',
     message: 'URL:',
-    default: defaultArchiveUrl,
-    type: 'input',
+    initial: defaultArchiveUrl,
+    type: 'text',
     validate: (url: string): string | boolean => {
       if (url === defaultArchiveUrl) {
         return 'That was just an example URL, meant to show you the format that we expect for the response.';
@@ -251,11 +210,11 @@ async function askForArchiveUrlAsync(): Promise<string> {
 
 async function askForArchivePathAsync(): Promise<string> {
   const defaultArchivePath = '/path/to/your/archive.aab';
-  const { path } = await prompt({
+  const { path } = await promptAsync({
     name: 'path',
     message: 'Path to the app archive file (aab or apk):',
-    default: defaultArchivePath,
-    type: 'input',
+    initial: defaultArchivePath,
+    type: 'text',
     validate: async (path: string): Promise<boolean | string> => {
       if (path === defaultArchivePath) {
         return 'That was just an example path, meant to show you the format that we expect for the response.';
@@ -270,10 +229,10 @@ async function askForArchivePathAsync(): Promise<string> {
 }
 
 async function askForBuildIdAsync(): Promise<string> {
-  const { id } = await prompt({
+  const { id } = await promptAsync({
     name: 'id',
     message: 'Build ID:',
-    type: 'input',
+    type: 'text',
     validate: (val: string): string | boolean => {
       if (!validator.isUUID(val)) {
         return `${val} is not a valid id`;

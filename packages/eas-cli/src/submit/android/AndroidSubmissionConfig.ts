@@ -1,4 +1,5 @@
 export interface AndroidSubmissionConfig {
+  projectId: string;
   archiveUrl: string;
   archiveType: ArchiveType;
   androidPackage: string;

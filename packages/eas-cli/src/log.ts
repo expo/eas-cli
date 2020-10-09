@@ -64,4 +64,6 @@ log.gray = function (...args: any[]) {
   consoleLog(...withTextColor(args, chalk.gray));
 };
 
+log.chalk = chalk;
+
 export default log;

@@ -1,13 +1,12 @@
-export interface SubmissionContext<T extends SubmitCommandOptions> {
+export interface SubmissionContext<T extends SubmitCommandFlags> {
   projectDir: string;
-  commandOptions: T;
+  commandFlags: T;
 }
 
-export interface SubmitCommandOptions {
-  latest?: boolean;
+export interface SubmitCommandFlags {
+  latest: boolean;
   id?: string;
   path?: string;
   url?: string;
-  verbose?: boolean;
-  useSubmissionService?: boolean;
+  verbose: boolean;
 }

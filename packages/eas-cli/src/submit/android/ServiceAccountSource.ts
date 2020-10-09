@@ -1,7 +1,7 @@
-import { existingFile } from '../../../../validators';
-import { learnMore } from '../../../utils/TerminalLink';
 import log from '../../log';
-import { prompt } from '../../prompts';
+import { promptAsync } from '../../prompts';
+import { learnMore } from '../../utils/terminalLink';
+import { existingFile, promptsExistingFile } from '../../validators';
 
 enum ServiceAccountSourceType {
   path,
@@ -59,18 +59,12 @@ async function askForServiceAccountPathAsync(): Promise<string> {
         learnMore('https://expo.fyi/creating-google-service-account')
       )}.`
   );
-  const { filePath } = await prompt({
+  const { filePath } = await promptAsync({
     name: 'filePath',
     message: 'Path to Google Service Account file:',
-    default: 'api-0000000000000000000-111111-aaaaaabbbbbb.json',
-    type: 'input',
-    validate: async (path: string): Promise<boolean | string> => {
-      if (!(await existingFile(path, false))) {
-        return `File ${path} doesn't exist.`;
-      } else {
-        return true;
-      }
-    },
+    initial: 'api-0000000000000000000-111111-aaaaaabbbbbb.json',
+    type: 'text',
+    validate: promptsExistingFile,
   });
   return filePath;
 }

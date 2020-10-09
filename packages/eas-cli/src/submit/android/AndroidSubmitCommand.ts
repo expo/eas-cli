@@ -15,16 +15,16 @@ import { AndroidPackageSource, AndroidPackageSourceType } from './AndroidPackage
 import { ArchiveType, ReleaseStatus, ReleaseTrack } from './AndroidSubmissionConfig';
 import AndroidSubmitter, { AndroidSubmissionOptions } from './AndroidSubmitter';
 import { ServiceAccountSource, ServiceAccountSourceType } from './ServiceAccountSource';
-import { AndroidSubmissionContext, AndroidSubmitCommandOptions } from './types';
+import { AndroidSubmissionContext, AndroidSubmitCommandFlags } from './types';
 
 class AndroidSubmitCommand {
   static createContext(
     projectDir: string,
-    commandOptions: AndroidSubmitCommandOptions
+    commandFlags: AndroidSubmitCommandFlags
   ): AndroidSubmissionContext {
     return {
       projectDir,
-      commandOptions,
+      commandFlags,
     };
   }
 
@@ -70,10 +70,19 @@ class AndroidSubmitCommand {
     };
   }
 
+  private async getProjectId(): Promise<string> {
+    const user = await UserManager.ensureLoggedInAsync();
+    const exp = getExpoConfig(this.ctx.projectDir);
+    const projectId = await ensureProjectExistsAsync(user, {
+      accountName: exp.owner || user.username,
+      projectName: exp.slug,
+    });
+  }
+
   private resolveAndroidPackageSource(): Result<AndroidPackageSource> {
     let androidPackage: string | undefined;
-    if (this.ctx.commandOptions.androidPackage) {
-      androidPackage = this.ctx.commandOptions.androidPackage;
+    if (this.ctx.commandFlags.androidPackage) {
+      androidPackage = this.ctx.commandFlags.androidPackage;
     }
     const exp = getExpoConfig(this.ctx.projectDir);
     if (exp.android?.package) {
@@ -92,9 +101,9 @@ class AndroidSubmitCommand {
   }
 
   private resolveTrack(): Result<ReleaseTrack> {
-    const { track } = this.ctx.commandOptions;
+    const { track } = this.ctx.commandFlags;
     if (!track) {
-      return result(ReleaseTrack.production);
+      return result(ReleaseTrack.internal);
     }
     if (track in ReleaseTrack) {
       return result(ReleaseTrack[track as keyof typeof ReleaseTrack]);
@@ -108,7 +117,7 @@ class AndroidSubmitCommand {
   }
 
   private resolveReleaseStatus(): Result<ReleaseStatus> {
-    const { releaseStatus } = this.ctx.commandOptions;
+    const { releaseStatus } = this.ctx.commandFlags;
     if (!releaseStatus) {
       return result(ReleaseStatus.completed);
     }
@@ -133,7 +142,7 @@ class AndroidSubmitCommand {
   }
 
   private resolveArchiveFileSource(): ArchiveFileSource {
-    const { url, path, id, latest } = this.ctx.commandOptions;
+    const { url, path, id, latest } = this.ctx.commandFlags;
     const chosenOptions = [url, path, id, latest];
     if (chosenOptions.filter(opt => opt).length > 1) {
       throw new Error(`Pass only one of: --url, --path, --id, --latest`);
@@ -179,7 +188,7 @@ class AndroidSubmitCommand {
   }
 
   private resolveArchiveTypeSource(): ArchiveTypeSource {
-    const { type: rawArchiveType } = this.ctx.commandOptions;
+    const { type: rawArchiveType } = this.ctx.commandFlags;
     if (rawArchiveType) {
       if (!(rawArchiveType in ArchiveType)) {
         throw new Error(
@@ -201,7 +210,7 @@ class AndroidSubmitCommand {
   }
 
   private resolveServiceAccountSource(): Result<ServiceAccountSource> {
-    const { key } = this.ctx.commandOptions;
+    const { key } = this.ctx.commandFlags;
     if (key) {
       return result({
         sourceType: ServiceAccountSourceType.path,

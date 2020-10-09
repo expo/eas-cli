@@ -1,11 +1,11 @@
-import { SubmissionContext, SubmitCommandOptions } from '../types';
+import { SubmissionContext, SubmitCommandFlags } from '../types';
 
-export interface AndroidSubmitCommandOptions extends SubmitCommandOptions {
-  type?: string;
+export interface AndroidSubmitCommandFlags extends SubmitCommandFlags {
+  type?: 'apk' | 'aab';
   key?: string;
   androidPackage?: string;
-  track?: string;
-  releaseStatus?: string;
+  track: string;
+  releaseStatus: string;
 }
 
-export type AndroidSubmissionContext = SubmissionContext<AndroidSubmitCommandOptions>;
+export type AndroidSubmissionContext = SubmissionContext<AndroidSubmitCommandFlags>;

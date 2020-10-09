@@ -10,7 +10,7 @@ import { Platform, Submission, SubmissionStatus } from '../../SubmissionService.
 import { ArchiveType, ReleaseStatus, ReleaseTrack } from '../AndroidSubmissionConfig';
 import AndroidSubmitCommand from '../AndroidSubmitCommand';
 import { AndroidOnlineSubmissionConfig } from '../AndroidSubmitter';
-import { AndroidSubmitCommandOptions } from '../types';
+import { AndroidSubmitCommandFlags } from '../types';
 
 jest.mock('fs');
 jest.mock('../../SubmissionService');
@@ -84,7 +84,7 @@ describe(AndroidSubmitCommand, () => {
       );
       (ensureProjectExistsAsync as jest.Mock).mockImplementationOnce(() => projectId);
 
-      const options: AndroidSubmitCommandOptions = {
+      const options: AndroidSubmitCommandFlags = {
         url: 'http://expo.io/fake.apk',
         type: 'apk',
         key: '/google-service-account.json',
