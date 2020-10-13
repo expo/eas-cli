@@ -7,25 +7,21 @@ import log from '../../log';
 import { Question as PromptQuestion, promptAsync } from '../../prompts';
 
 export type Question = {
+  field: string;
   question: string;
   type: 'file' | 'string' | 'password';
   base64Encode?: boolean;
 };
 
 export type CredentialSchema<T> = {
-  id: string;
-  canReuse?: boolean;
-  dependsOn?: string;
   name: string;
-  required: (keyof T)[];
-  questions: Record<keyof T, Question>;
-  deprecated?: boolean;
-  migrationDocs?: string;
+  questions: Question[];
   provideMethodQuestion?: {
     question?: string;
     expoGenerated?: string;
     userProvided?: string;
   };
+  transformResultAsync?: (answers: Partial<T>) => Promise<T>;
 };
 
 const EXPERT_PROMPT = once(() =>
@@ -39,22 +35,31 @@ upload matches that Team ID and App ID.
 `)
 );
 
-export async function askForUserProvidedAsync<T>(schema: CredentialSchema<T>): Promise<T | null> {
+export async function askForUserProvidedAsync<T>(
+  schema: CredentialSchema<T>,
+  initialValues: Partial<T> = {}
+): Promise<T | null> {
   if (await willUserProvideCredentialsAsync<T>(schema)) {
     EXPERT_PROMPT();
-    return await getCredentialsFromUserAsync<T>(schema);
+    return await getCredentialsFromUserAsync<T>(schema, initialValues);
   }
   return null;
 }
 
 export async function getCredentialsFromUserAsync<T>(
-  credentialsSchema: CredentialSchema<T>
+  credentialsSchema: CredentialSchema<T>,
+  initialValues: Partial<T>
 ): Promise<T | null> {
-  const results: { [key in keyof T]?: string } = {};
-  for (const field of credentialsSchema.required) {
-    results[field] = await askQuestionAndProcessAnswerAsync(credentialsSchema.questions[field]);
+  const results: any = {};
+  for (const question of credentialsSchema.questions) {
+    results[question.field] = await askQuestionAndProcessAnswerAsync(
+      question,
+      (initialValues as any)?.[question.field]
+    );
   }
-  return results as T;
+  return credentialsSchema.transformResultAsync
+    ? await credentialsSchema.transformResultAsync(results as Partial<T>)
+    : (results as T);
 }
 
 async function willUserProvideCredentialsAsync<T>(schema: CredentialSchema<T>) {
@@ -76,18 +81,22 @@ async function willUserProvideCredentialsAsync<T>(schema: CredentialSchema<T>) {
   return answer;
 }
 
-async function askQuestionAndProcessAnswerAsync(definition: Question): Promise<string> {
-  const questionObject = buildQuestionObject(definition);
+async function askQuestionAndProcessAnswerAsync(
+  definition: Question,
+  initialValue?: string
+): Promise<string> {
+  const questionObject = buildQuestionObject(definition, initialValue);
   const { input } = await promptAsync(questionObject);
   return await processAnswerAsync(definition, input);
 }
 
-function buildQuestionObject({ type, question }: Question): PromptQuestion {
+function buildQuestionObject({ type, question }: Question, initialValue?: string): PromptQuestion {
   switch (type) {
     case 'string':
       return {
         type: 'text',
         name: 'input',
+        initial: initialValue,
         message: question,
         validate: validateNonEmptyInput,
       };

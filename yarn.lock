@@ -1181,7 +1181,7 @@
     qqjs "^0.3.10"
     tslib "^1.9.3"
 
-"@expo/plist@0.0.10":
+"@expo/plist@0.0.10", "@expo/plist@^0.0.10":
   version "0.0.10"
   resolved "https://registry.yarnpkg.com/@expo/plist/-/plist-0.0.10.tgz#e126a15543c6c67fd159947ca9e35969657a97f4"
   integrity sha512-uKbi7ANPCNJqeAvxLa+ZcS/Qf0fTPOySMqw5T2L4TrycSAdiAxV1VUZ69IzIbUsWb7GdriUVR2i38M/xa6+BvA==
@@ -10091,7 +10091,7 @@ tempy@^0.7.0:
     type-fest "^0.16.0"
     unique-string "^2.0.0"
 
-terminal-link@^2.0.0, terminal-link@^2.1.1:
+terminal-link@^2.0.0:
   version "2.1.1"
   resolved "https://registry.yarnpkg.com/terminal-link/-/terminal-link-2.1.1.tgz#14a64a27ab3c0df933ea546fba55f2d078edc994"
   integrity sha512-un0FmiRUQNr5PJqy9kP7c40F5BOfpGlYTrxonDChEZB7pzZxRNp/bt+ymiy9/npwXya9KH99nJ/GXFIiUkYGFQ==
