@@ -2,8 +2,8 @@ import { getConfig } from '@expo/config';
 import { vol } from 'memfs';
 
 import { asMock } from '../../__tests__/utils';
+import { findProjectRootAsync, getProjectAccountNameAsync } from '../../project';
 import { User, getUserAsync } from '../../user/User';
-import { findProjectRootAsync, getProjectAccountNameAsync } from '../project';
 
 jest.mock('@expo/config');
 jest.mock('fs');

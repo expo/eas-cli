@@ -58,9 +58,7 @@ export async function ensureProjectExistsAsync({
     spinner.succeed();
     return data.project.byUsernameAndSlug.id;
   } catch (err) {
-    if (
-      err.grapgQLErrors?.every((it: any) => it.extensions?.errorCode === 'EXPERIENCE_NOT_FOUND')
-    ) {
+    if (err.grapgQLErrors?.some((it: any) => it.extensions?.errorCode !== 'EXPERIENCE_NOT_FOUND')) {
       spinner.fail(
         `Something went wrong when looking for project ${chalk.bold(
           projectFullName
