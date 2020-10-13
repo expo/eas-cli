@@ -1,11 +1,13 @@
 import gql from 'graphql-tag';
 
 import { apiClient, graphqlClient } from '../api';
+import { Account } from './Account';
 import { getSession, setSessionAsync } from './sessionStorage';
 
 export interface User {
   userId: string;
   username: string;
+  accounts: Account[];
 }
 
 let currentUser: User | undefined;
@@ -27,6 +29,10 @@ export async function getUserAsync(): Promise<User | undefined> {
             viewer {
               id
               username
+              accounts {
+                id
+                name
+              }
             }
           }
         `
@@ -36,6 +42,7 @@ export async function getUserAsync(): Promise<User | undefined> {
     currentUser = {
       userId: data.viewer.id,
       username: data.viewer.username,
+      accounts: data.viewer.accounts,
     };
   }
   return currentUser;

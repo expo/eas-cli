@@ -3,11 +3,13 @@ import { User } from '../../user/User';
 export const jester: User = {
   username: 'jester',
   userId: 'jester-id',
+  accounts: [{ id: 'jester-account-id', name: 'jester' }],
 };
 
 export const jester2: User = {
   username: 'jester2',
   userId: 'jester2-id',
+  accounts: [{ id: 'jester2-account-id', name: 'jester2' }],
 };
 
 export const testUsername = jester.username;
