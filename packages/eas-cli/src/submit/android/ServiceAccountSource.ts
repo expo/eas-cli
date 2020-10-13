@@ -1,6 +1,5 @@
 import log from '../../log';
 import { promptAsync } from '../../prompts';
-import { learnMore } from '../../utils/terminalLink';
 import { existingFile, promptsExistingFile } from '../../validators';
 
 enum ServiceAccountSourceType {
@@ -56,7 +55,7 @@ async function askForServiceAccountPathAsync(): Promise<string> {
       'A Google Service Account JSON key is required to upload your app to Google Play Store'
     )}.\n` +
       `If you're not sure what this is or how to create one, ${log.chalk.dim(
-        learnMore('https://expo.fyi/creating-google-service-account')
+        'Learn more: https://expo.fyi/creating-google-service-account'
       )}.`
   );
   const { filePath } = await promptAsync({
