@@ -1,5 +1,5 @@
 import AppStoreApi from '../credentials/ios/appstore/AppStoreApi';
-import { findProjectRootAsync } from '../project';
+import { findProjectRootAsync } from '../project/project';
 import { User } from '../user/User';
 
 export interface DeviceManagerContext {

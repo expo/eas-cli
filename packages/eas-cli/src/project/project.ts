@@ -75,7 +75,7 @@ export async function ensureProjectExistsAsync({
         json: {
           accountName,
           projectName,
-          privacy: privacy || ProjectPrivacy.PUBLIC,
+          privacy: privacy ?? ProjectPrivacy.PUBLIC,
         },
       })
       .json();
