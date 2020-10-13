@@ -1,26 +1,18 @@
 import fs from 'fs-extra';
 
-import log from './log';
-
 function nonEmptyInput(val: string) {
   return val !== '';
 }
 
-const existingFile = async (filePath: string, verbose = true) => {
+const existingFile = async (filePath: string) => {
   try {
     const stats = await fs.stat(filePath);
     return stats.isFile();
   } catch (e) {
-    if (verbose) {
-      log('\nFile does not exist.');
-    }
     return false;
   }
 };
 
-// note(cedric): export prompts-compatible validators,
-// refactor when prompt is replaced with prompts
-const promptsNonEmptyInput = nonEmptyInput;
 const promptsExistingFile = async (filePath: string) => {
   try {
     const stats = await fs.stat(filePath);
@@ -33,4 +25,4 @@ const promptsExistingFile = async (filePath: string) => {
   }
 };
 
-export { nonEmptyInput, existingFile, promptsNonEmptyInput, promptsExistingFile };
+export { nonEmptyInput, existingFile, promptsExistingFile };

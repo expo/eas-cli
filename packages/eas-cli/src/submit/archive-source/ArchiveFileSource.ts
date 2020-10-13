@@ -3,7 +3,9 @@ import validator from 'validator';
 
 import log from '../../log';
 import { promptAsync } from '../../prompts';
+import { getStandaloneBuildById, getStandaloneBuilds } from '../../standaloneBuilds';
 import { existingFile } from '../../validators';
+import { getAppConfig } from '../utils/config';
 import {
   downloadAppArchiveAsync,
   extractLocalArchiveAsync,
@@ -102,7 +104,28 @@ async function handleUrlSourceAsync(source: ArchiveFileUrlSource): Promise<strin
 }
 
 async function handleLatestSourceAsync(source: ArchiveFileLatestSource): Promise<string> {
-  throw new Error('Not implemented!');
+  const { owner, slug } = getAppConfig(source.projectDir);
+  const builds = await getStandaloneBuilds(
+    {
+      platform: source.platform,
+      owner,
+      slug,
+    },
+    1
+  );
+  if (builds.length === 0) {
+    log.error(
+      log.chalk.bold(
+        "Couldn't find any builds for this project on Expo servers. It looks like you haven't run expo build:android yet."
+      )
+    );
+    return getArchiveFileLocationAsync({
+      sourceType: ArchiveFileSourceType.prompt,
+      platform: source.platform,
+      projectDir: source.projectDir,
+    });
+  }
+  return builds[0].artifacts.url;
 }
 
 async function handlePathSourceAsync(source: ArchiveFilePathSource): Promise<string> {
@@ -118,11 +141,29 @@ async function handlePathSourceAsync(source: ArchiveFilePathSource): Promise<str
 }
 
 async function handleBuildIdSourceAsync(source: ArchiveFileBuildIdSource): Promise<string> {
+  const { owner, slug } = getAppConfig(source.projectDir);
+  let build: any;
   try {
-    throw new Error('Not implemented');
+    build = await getStandaloneBuildById({
+      platform: source.platform,
+      id: source.id,
+      owner,
+      slug,
+    });
   } catch (err) {
     log.error(err);
     throw err;
+  }
+
+  if (!build) {
+    log.error(log.chalk.bold(`Couldn't find build for id ${source.id}`));
+    return getArchiveFileLocationAsync({
+      sourceType: ArchiveFileSourceType.prompt,
+      platform: source.platform,
+      projectDir: source.projectDir,
+    });
+  } else {
+    return build.artifacts.url;
   }
 }
 
@@ -218,7 +259,7 @@ async function askForArchivePathAsync(): Promise<string> {
     validate: async (path: string): Promise<boolean | string> => {
       if (path === defaultArchivePath) {
         return 'That was just an example path, meant to show you the format that we expect for the response.';
-      } else if (!(await existingFile(path, false))) {
+      } else if (!(await existingFile(path))) {
         return `File ${path} doesn't exist.`;
       } else {
         return true;

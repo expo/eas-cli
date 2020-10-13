@@ -1,14 +1,14 @@
 import { vol } from 'memfs';
 
-import prompt from '../../../../../prompt';
+import { promptAsync } from '../../../prompts';
 import {
-  getServiceAccountAsync,
   ServiceAccountSource,
   ServiceAccountSourceType,
+  getServiceAccountAsync,
 } from '../ServiceAccountSource';
 
 jest.mock('fs');
-jest.mock('../../../../../prompt');
+jest.mock('../../../prompts');
 
 describe(getServiceAccountAsync, () => {
   beforeAll(() => {
@@ -21,12 +21,12 @@ describe(getServiceAccountAsync, () => {
   });
 
   afterEach(() => {
-    ((prompt as unknown) as jest.Mock).mockClear();
+    ((promptAsync as unknown) as jest.Mock).mockClear();
   });
 
   describe('when source is ServiceAccountSourceType.path', () => {
     it("prompts for path if the provided file doesn't exist", async () => {
-      ((prompt as unknown) as jest.Mock).mockImplementationOnce(() => ({
+      ((promptAsync as unknown) as jest.Mock).mockImplementationOnce(() => ({
         filePath: '/google-service-account.json',
       }));
       const source: ServiceAccountSource = {
@@ -34,7 +34,7 @@ describe(getServiceAccountAsync, () => {
         path: '/doesnt-exist.json',
       };
       const serviceAccountPath = await getServiceAccountAsync(source);
-      expect(prompt).toHaveBeenCalled();
+      expect(promptAsync).toHaveBeenCalled();
       expect(serviceAccountPath).toBe('/google-service-account.json');
     });
 
@@ -44,7 +44,7 @@ describe(getServiceAccountAsync, () => {
         path: '/google-service-account.json',
       };
       await getServiceAccountAsync(source);
-      expect(prompt).not.toHaveBeenCalled();
+      expect(promptAsync).not.toHaveBeenCalled();
     });
 
     it('returns the provided file path if the file exists', async () => {
@@ -59,19 +59,19 @@ describe(getServiceAccountAsync, () => {
 
   describe('when source is ServiceAccountSourceType.prompt', () => {
     it('prompts for path', async () => {
-      ((prompt as unknown) as jest.Mock).mockImplementationOnce(() => ({
+      ((promptAsync as unknown) as jest.Mock).mockImplementationOnce(() => ({
         filePath: '/google-service-account.json',
       }));
       const source: ServiceAccountSource = {
         sourceType: ServiceAccountSourceType.prompt,
       };
       const serviceAccountPath = await getServiceAccountAsync(source);
-      expect(prompt).toHaveBeenCalled();
+      expect(promptAsync).toHaveBeenCalled();
       expect(serviceAccountPath).toBe('/google-service-account.json');
     });
 
     it('prompts for path until the user provides an existing file', async () => {
-      ((prompt as unknown) as jest.Mock)
+      ((promptAsync as unknown) as jest.Mock)
         .mockImplementationOnce(() => ({
           filePath: '/doesnt-exist.json',
         }))
@@ -85,7 +85,7 @@ describe(getServiceAccountAsync, () => {
         sourceType: ServiceAccountSourceType.prompt,
       };
       const serviceAccountPath = await getServiceAccountAsync(source);
-      expect(prompt).toHaveBeenCalledTimes(3);
+      expect(promptAsync).toHaveBeenCalledTimes(3);
       expect(serviceAccountPath).toBe('/google-service-account.json');
     });
   });

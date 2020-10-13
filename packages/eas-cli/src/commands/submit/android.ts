@@ -1,5 +1,6 @@
 import { Command, flags } from '@oclif/command';
 
+import { findProjectRootAsync } from '../../projects';
 import AndroidSubmitCommand from '../../submit/android/AndroidSubmitCommand';
 import { AndroidSubmitCommandFlags } from '../../submit/android/types';
 
@@ -61,7 +62,11 @@ export default class SubmitAndroid extends Command {
       flags: { 'android-package': androidPackage, 'release-status': releaseStatus, ...flags },
     } = this.parse(SubmitAndroid);
 
-    const projectDir = 'TODO';
+    const projectDir = await findProjectRootAsync(process.cwd());
+
+    if (!projectDir) {
+      throw new Error('Cannot find project dir');
+    }
 
     const options: AndroidSubmitCommandFlags = {
       androidPackage,
@@ -70,10 +75,7 @@ export default class SubmitAndroid extends Command {
     };
 
     const ctx = AndroidSubmitCommand.createContext(projectDir, options);
-    //const command = new AndroidSubmitCommand(ctx);
-    //await command.runAsync();
-    console.log(ctx);
-
-    throw new Error('Not implemented');
+    const command = new AndroidSubmitCommand(ctx);
+    await command.runAsync();
   }
 }

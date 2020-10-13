@@ -1,8 +1,9 @@
 import { Result, result } from '@expo/results';
-import { UserManager } from '@expo/xdl';
 import validator from 'validator';
 
 import log from '../../log';
+import { ensureProjectExistsAsync } from '../../projects';
+import { ensureLoggedInAsync } from '../../user/actions';
 import {
   ArchiveFileSource,
   ArchiveFileSourceType,
@@ -31,17 +32,15 @@ class AndroidSubmitCommand {
   constructor(private ctx: AndroidSubmissionContext) {}
 
   async runAsync(): Promise<void> {
-    if (!(await UserManager.getCurrentUserAsync())) {
-      await UserManager.ensureLoggedInAsync();
-      log.addNewLineIfNone();
-    }
+    const projectId = await this.getProjectIdAsync();
+    log.addNewLineIfNone();
 
-    const submissionOptions = this.getAndroidSubmissionOptions();
+    const submissionOptions = this.getAndroidSubmissionOptions(projectId);
     const submitter = new AndroidSubmitter(this.ctx, submissionOptions);
     await submitter.submitAsync();
   }
 
-  private getAndroidSubmissionOptions(): AndroidSubmissionOptions {
+  private getAndroidSubmissionOptions(projectId: string): AndroidSubmissionOptions {
     const androidPackageSource = this.resolveAndroidPackageSource();
     const track = this.resolveTrack();
     const releaseStatus = this.resolveReleaseStatus();
@@ -62,6 +61,7 @@ class AndroidSubmitCommand {
     }
 
     return {
+      projectId,
       androidPackageSource: androidPackageSource.enforceValue(),
       track: track.enforceValue(),
       releaseStatus: releaseStatus.enforceValue(),
@@ -70,10 +70,10 @@ class AndroidSubmitCommand {
     };
   }
 
-  private async getProjectId(): Promise<string> {
-    const user = await UserManager.ensureLoggedInAsync();
+  private async getProjectIdAsync(): Promise<string> {
+    const user = await ensureLoggedInAsync();
     const exp = getExpoConfig(this.ctx.projectDir);
-    const projectId = await ensureProjectExistsAsync(user, {
+    return await ensureProjectExistsAsync({
       accountName: exp.owner || user.username,
       projectName: exp.slug,
     });
@@ -164,7 +164,7 @@ class AndroidSubmitCommand {
       };
     } else if (id) {
       if (!validator.isUUID(id)) {
-        throw new Error(`${id} is not a id`);
+        throw new Error(`${id} is not an ID`);
       }
       return {
         sourceType: ArchiveFileSourceType.buildId,

@@ -1,6 +1,6 @@
 import { JSONObject } from '@expo/json-file';
-import { ApiV2, UserManager } from '@expo/xdl';
 
+import { apiClient } from '../api';
 import {
   Platform,
   StartSubmissionResult,
@@ -20,25 +20,22 @@ async function startSubmissionAsync(
   projectId: string,
   config: SubmissionConfig
 ): Promise<StartSubmissionResult> {
-  const api = await getApiClientForUser();
-  const { submissionId } = await api.postAsync(`projects/${projectId}/app-store-submissions`, {
-    platform,
-    config: (config as unknown) as JSONObject,
-  });
-  return submissionId;
+  const { data } = await apiClient
+    .post(`projects/${projectId}/app-store-submissions`, {
+      json: {
+        platform,
+        config: (config as unknown) as JSONObject,
+      },
+    })
+    .json();
+  return data.submissionId;
 }
 
 async function getSubmissionAsync(projectId: string, submissionId: string): Promise<Submission> {
-  const api = await getApiClientForUser();
-  const result: Submission = await api.getAsync(
-    `projects/${projectId}/app-store-submissions/${submissionId}`
-  );
-  return result;
-}
-
-async function getApiClientForUser(): Promise<ApiV2> {
-  const user = await UserManager.ensureLoggedInAsync();
-  return ApiV2.clientForUser(user);
+  const { data } = await apiClient
+    .get(`projects/${projectId}/app-store-submissions/${submissionId}`)
+    .json();
+  return data;
 }
 
 export default SubmissionService;
