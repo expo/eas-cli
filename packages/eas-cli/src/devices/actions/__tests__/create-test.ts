@@ -18,6 +18,14 @@ beforeEach(() => {
 
 describe(DeviceCreateAction, () => {
   describe('#runAsync', () => {
+    let originalConsoleLog: () => void;
+    beforeEach(() => {
+      originalConsoleLog = console.log;
+      console.log = jest.fn();
+    });
+    afterEach(() => {
+      console.log = originalConsoleLog;
+    });
     it('calls generateDeviceRegistrationURL if user chooses the website option', async () => {
       asMock(prompts).mockImplementationOnce(() => ({
         method: RegistrationMethod.WEBSITE,

@@ -9,6 +9,7 @@
     "strict": true,
     "target": "es2017",
     "typeRoots": [
+      "./ts-declarations",
       "../../ts-declarations",
       "./node_modules/@types",
       "../../node_modules/@types"

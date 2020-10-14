@@ -1,11 +1,20 @@
-import chalk from 'chalk';
+import { URL } from 'url';
 
-import log from '../../../log';
+import { getExpoWebsiteBaseUrl } from '../../../api';
 import { Account } from '../../../user/Account';
+import { createAppleDeviceRegistrationRequestAsync } from '../api/AppleDeviceRegistrationRequest';
+import { findAppleTeamAsync } from '../api/AppleTeam';
 
-export async function generateDeviceRegistrationURL(account: Account, appleTeamId: string) {
-  log.error(
-    `this will generate a URL for registering devices under account ${account.name} and apple team id ${appleTeamId}`
-  );
-  log.error(`but it's ${chalk.bold('not implemented yet')}`);
+export async function generateDeviceRegistrationURL(account: Account, appleTeamIdentifier: string) {
+  const { id: accountId } = account;
+  const appleTeam = await findAppleTeamAsync({ accountId, appleTeamIdentifier });
+  const appleDeviceRegistrationRequest = await createAppleDeviceRegistrationRequestAsync({
+    accountId,
+    appleTeamId: appleTeam.id,
+  });
+  return formatRegistrationURL(appleDeviceRegistrationRequest.id);
+}
+
+function formatRegistrationURL(id: string): string {
+  return new URL(`/register-device/${id}`, getExpoWebsiteBaseUrl()).toString();
 }
