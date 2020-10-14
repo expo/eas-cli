@@ -24,7 +24,7 @@ export async function ensureProjectExistsAsync(projectInfo: ProjectInfo): Promis
   ).start();
 
   try {
-    const id = findProjectIdByUsernameAndSlug(accountName, projectFullName);
+    const id = findProjectIdByUsernameAndSlugAsync(accountName, projectFullName);
     spinner.succeed();
     return id;
   } catch (err) {
@@ -40,7 +40,7 @@ export async function ensureProjectExistsAsync(projectInfo: ProjectInfo): Promis
 
   try {
     spinner.text = `Registering project ${chalk.bold(projectFullName)} on Expo servers`;
-    const id = await registerNewProject(projectInfo);
+    const id = await registerNewProjectAsync(projectInfo);
     spinner.succeed();
     return id;
   } catch (err) {
@@ -55,7 +55,10 @@ export async function ensureProjectExistsAsync(projectInfo: ProjectInfo): Promis
  * @param slug project slug
  * @returns A promise resolving to Project ID
  */
-async function findProjectIdByUsernameAndSlugAsync(username: string, slug: string): Promise<string> {
+async function findProjectIdByUsernameAndSlugAsync(
+  username: string,
+  slug: string
+): Promise<string> {
   const { data, error } = await graphqlClient
     .query(
       gql`
