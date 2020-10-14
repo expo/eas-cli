@@ -6,14 +6,14 @@ import { Readable } from 'stream';
 
 import { apiClient } from './api';
 
-enum UploadType {
+export enum UploadType {
   TURTLE_PROJECT_SOURCES = 'turtle-project-sources',
   SUBMISSION_APP_ARCHIVE = 'submission-app-archive',
 }
 
 type ProgressHandler = (progress: Progress) => void;
 
-async function uploadAsync(
+export async function uploadAsync(
   uploadType: UploadType,
   path: string,
   handleProgressEvent?: ProgressHandler
@@ -65,5 +65,3 @@ async function uploadWithPresignedPostAsync(
   const response = await uploadPromise;
   return String(response.headers.location);
 }
-
-export { uploadAsync, UploadType };

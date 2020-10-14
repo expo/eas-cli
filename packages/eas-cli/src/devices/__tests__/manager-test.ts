@@ -6,7 +6,7 @@ import { AccountResolver } from '../manager';
 
 jest.mock('prompts');
 
-jest.mock('../../project/project', () => {
+jest.mock('../../project/projectUtils', () => {
   return {
     getProjectAccountNameAsync: () => 'foo',
   };
