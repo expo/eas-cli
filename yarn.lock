@@ -862,7 +862,7 @@
     "@babel/helper-plugin-utils" "^7.10.4"
     "@babel/plugin-transform-typescript" "^7.10.4"
 
-"@babel/runtime@^7.7.2", "@babel/runtime@^7.8.4":
+"@babel/runtime@^7.5.5", "@babel/runtime@^7.7.2", "@babel/runtime@^7.8.4":
   version "7.11.2"
   resolved "https://registry.yarnpkg.com/@babel/runtime/-/runtime-7.11.2.tgz#f549c13c754cc40b87644b9fa9f09a6a95fe0736"
   integrity sha512-TeWkU52so0mPtDcaCTxNBI/IHiz0pZgr8VEFqXFtZWpYD08ZB6FaSwVAS8MKRQAP3bYKiVjwysOJgMFY28o6Tw==
@@ -1167,6 +1167,26 @@
   resolved "https://registry.yarnpkg.com/@expo/oclif-dev-cli/-/oclif-dev-cli-1.23.0-expo.tgz#413730a4a03a4ba18f079c3cbd67205c01eea72e"
   integrity sha512-N5cnPSxDUmkXrWKJ/lOQtZcOffwgi4HDVB41tQCev80QbXyWZwUUX9LOnk0RyC5G170s5oTcnIeA+th1hcC2UQ==
   dependencies:
+    "@oclif/command" "^1.5.13"
+    "@oclif/config" "^1.12.12"
+    "@oclif/errors" "^1.2.2"
+    "@oclif/plugin-help" "^2.1.6"
+    cli-ux "^5.2.1"
+    debug "^4.1.1"
+    find-yarn-workspace-root "^2.0.0"
+    fs-extra "^9.0.1"
+    github-slugger "^1.2.1"
+    lodash "^4.17.11"
+    normalize-package-data "^2.5.0"
+    qqjs "^0.3.10"
+    tslib "^1.9.3"
+
+"@expo/oclif-dev-cli@1.24.0-expo":
+  version "1.24.0-expo"
+  resolved "https://registry.yarnpkg.com/@expo/oclif-dev-cli/-/oclif-dev-cli-1.24.0-expo.tgz#4e1f766e79b4d99e3da29318a577952793b143bf"
+  integrity sha512-Kgj+IsslMn54b9at6upm25gh39F5wNDi4t4cGcXl+sDLN4aeMKK6eV3Y8gKXMDiGkyGSdp4Hvuf6VeSlQEXmcQ==
+  dependencies:
+    "@manypkg/get-packages" "^1.1.1"
     "@oclif/command" "^1.5.13"
     "@oclif/config" "^1.12.12"
     "@oclif/errors" "^1.2.2"
@@ -2464,6 +2484,27 @@
     npmlog "^4.1.2"
     write-file-atomic "^2.3.0"
 
+"@manypkg/find-root@^1.1.0":
+  version "1.1.0"
+  resolved "https://registry.yarnpkg.com/@manypkg/find-root/-/find-root-1.1.0.tgz#a62d8ed1cd7e7d4c11d9d52a8397460b5d4ad29f"
+  integrity sha512-mki5uBvhHzO8kYYix/WRy2WX8S3B5wdVSc9D6KcU5lQNglP2yt58/VfLuAK49glRXChosY8ap2oJ1qgma3GUVA==
+  dependencies:
+    "@babel/runtime" "^7.5.5"
+    "@types/node" "^12.7.1"
+    find-up "^4.1.0"
+    fs-extra "^8.1.0"
+
+"@manypkg/get-packages@^1.1.1":
+  version "1.1.1"
+  resolved "https://registry.yarnpkg.com/@manypkg/get-packages/-/get-packages-1.1.1.tgz#7c7e72d0061ab2e61d2ce4da58ce91290a60ac8d"
+  integrity sha512-J6VClfQSVgR6958eIDTGjfdCrELy1eT+SHeoSMomnvRQVktZMnEA5edIr5ovRFNw5y+Bk/jyoevPzGYod96mhw==
+  dependencies:
+    "@babel/runtime" "^7.5.5"
+    "@manypkg/find-root" "^1.1.0"
+    fs-extra "^8.1.0"
+    globby "^11.0.0"
+    read-yaml-file "^1.1.0"
+
 "@mrmlnc/readdir-enhanced@^2.2.1":
   version "2.2.1"
   resolved "https://registry.yarnpkg.com/@mrmlnc/readdir-enhanced/-/readdir-enhanced-2.2.1.tgz#524af240d1a360527b730475ecfa1344aa540dde"
@@ -2806,6 +2847,11 @@
   resolved "https://registry.yarnpkg.com/@types/color-name/-/color-name-1.1.1.tgz#1c1261bbeaa10a8055bbc5d8ab84b7b2afc846a0"
   integrity sha512-rr+OQyAjxze7GgWrSaJwydHStIhHq2lvY3BOC2Mj7KnzI7XK0Uw1TOOdI9lDoajEbSWLiYgoo4f1R51erQfhPQ==
 
+"@types/color-string@^1.5.0":
+  version "1.5.0"
+  resolved "https://registry.yarnpkg.com/@types/color-string/-/color-string-1.5.0.tgz#0a9f3ee6bc9bd4f89693fc3f2bc30d47ad68afc3"
+  integrity sha512-17/8LWbkfvoKgfnnBvKbUnPTzPtzBlSELf5FPvVt9dRTQW88igOYZZ78us9dmbY1301VtTBEnuPTKspvmtGDxA==
+
 "@types/dateformat@^3.0.1":
   version "3.0.1"
   resolved "https://registry.yarnpkg.com/@types/dateformat/-/dateformat-3.0.1.tgz#98d747a2e5e9a56070c6bf14e27bff56204e34cc"
@@ -2946,6 +2992,11 @@
   version "12.12.62"
   resolved "https://registry.yarnpkg.com/@types/node/-/node-12.12.62.tgz#733923d73669188d35950253dd18a21570085d2b"
   integrity sha512-qAfo81CsD7yQIM9mVyh6B/U47li5g7cfpVQEDMfQeF8pSZVwzbhwU3crc0qG4DmpsebpJPR49AKOExQyJ05Cpg==
+
+"@types/node@^12.7.1":
+  version "12.12.67"
+  resolved "https://registry.yarnpkg.com/@types/node/-/node-12.12.67.tgz#4f86badb292e822e3b13730a1f9713ed2377f789"
+  integrity sha512-R48tgL2izApf+9rYNH+3RBMbRpPeW3N8f0I9HMhggeq4UXwBDqumJ14SDs4ctTMhG11pIOduZ4z3QWGOiMc9Vg==
 
 "@types/normalize-package-data@^2.4.0":
   version "2.4.0"
@@ -5764,7 +5815,7 @@ globby@^10.0.1:
     merge2 "^1.2.3"
     slash "^3.0.0"
 
-globby@^11.0.1:
+globby@^11.0.0, globby@^11.0.1:
   version "11.0.1"
   resolved "https://registry.yarnpkg.com/globby/-/globby-11.0.1.tgz#9a2bf107a068f3ffeabc49ad702c79ede8cfd357"
   integrity sha512-iH9RmgwCmUJHi2z5o2l3eTtGBtXek1OYlHrbcxOYugyHLmAsZrPj43OtHThd62Buh/Vv6VyCBD2bdyWcGNQqoQ==
@@ -5824,7 +5875,7 @@ got@^11.5.2:
     p-cancelable "^2.0.0"
     responselike "^2.0.0"
 
-graceful-fs@^4.1.11, graceful-fs@^4.1.15, graceful-fs@^4.1.2, graceful-fs@^4.1.6, graceful-fs@^4.2.0, graceful-fs@^4.2.2, graceful-fs@^4.2.4:
+graceful-fs@^4.1.11, graceful-fs@^4.1.15, graceful-fs@^4.1.2, graceful-fs@^4.1.5, graceful-fs@^4.1.6, graceful-fs@^4.2.0, graceful-fs@^4.2.2, graceful-fs@^4.2.4:
   version "4.2.4"
   resolved "https://registry.yarnpkg.com/graceful-fs/-/graceful-fs-4.2.4.tgz#2256bde14d3632958c465ebc96dc467ca07a29fb"
   integrity sha512-WjKPNJF79dtJAVniUlGGWHYGz2jWxT6VhN/4m1NdkbZ2nOsEF+cI1Edgql5zCRhs/VsQYRvrXctxktVXZUkixw==
@@ -7070,7 +7121,7 @@ jpeg-js@^0.3.4:
   resolved "https://registry.yarnpkg.com/js-tokens/-/js-tokens-4.0.0.tgz#19203fb59991df98e3a287050d4647cdeaf32499"
   integrity sha512-RdJUflcE3cUzKiMqQgsCu06FPu9UdIJO0beYbPhHN4k6apgJtifcoCtT9bcxOpYBtpD2kCM6Sbzg4CausW/PKQ==
 
-js-yaml@^3.13.1:
+js-yaml@^3.13.1, js-yaml@^3.6.1:
   version "3.14.0"
   resolved "https://registry.yarnpkg.com/js-yaml/-/js-yaml-3.14.0.tgz#a7a34170f26a21bb162424d8adacb4113a69e482"
   integrity sha512-/4IbIeHcD9VMHFqDR/gQ7EdZdLimOvW2DdcxFjdyyZ9NsbS+ccrXqVWDtab/lRl5AlUqmpBx8EhPaWR+OtY17A==
@@ -9017,6 +9068,16 @@ read-pkg@^5.2.0:
     normalize-package-data "^2.5.0"
     parse-json "^5.0.0"
     type-fest "^0.6.0"
+
+read-yaml-file@^1.1.0:
+  version "1.1.0"
+  resolved "https://registry.yarnpkg.com/read-yaml-file/-/read-yaml-file-1.1.0.tgz#9362bbcbdc77007cc8ea4519fe1c0b821a7ce0d8"
+  integrity sha512-VIMnQi/Z4HT2Fxuwg5KrY174U1VdUIASQVWXXyqtNRtxSr9IYkn1rsI6Tb6HsrHCmB7gVpNwX6JxPTHcH6IoTA==
+  dependencies:
+    graceful-fs "^4.1.5"
+    js-yaml "^3.6.1"
+    pify "^4.0.1"
+    strip-bom "^3.0.0"
 
 read@1, read@~1.0.1:
   version "1.0.7"

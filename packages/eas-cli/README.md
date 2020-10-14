@@ -8,16 +8,14 @@ EAS command line tool
 [![License](https://img.shields.io/npm/l/eas-cli.svg)](https://github.com/expo/eas-cli/blob/main/package.json)
 
 <!-- toc -->
-
-- [eas-cli](#eas-cli)
-- [Usage](#usage)
-- [Commands](#commands)
+* [eas-cli](#eas-cli)
+* [Usage](#usage)
+* [Commands](#commands)
 <!-- tocstop -->
 
 # Usage
 
 <!-- usage -->
-
 ```sh-session
 $ npm install -g eas-cli
 $ eas COMMAND
@@ -29,21 +27,21 @@ USAGE
   $ eas COMMAND
 ...
 ```
-
 <!-- usagestop -->
 
 # Commands
 
 <!-- commands -->
-
-- [`eas build`](#eas-build)
-- [`eas build:status`](#eas-buildstatus)
-- [`eas help [COMMAND]`](#eas-help-command)
-- [`eas login`](#eas-login)
-- [`eas logout`](#eas-logout)
-- [`eas update`](#eas-update)
-- [`eas update:show`](#eas-updateshow)
-- [`eas whoami`](#eas-whoami)
+* [`eas build`](#eas-build)
+* [`eas build:status`](#eas-buildstatus)
+* [`eas credentials`](#eas-credentials)
+* [`eas device:create`](#eas-devicecreate)
+* [`eas help [COMMAND]`](#eas-help-command)
+* [`eas login`](#eas-login)
+* [`eas logout`](#eas-logout)
+* [`eas update`](#eas-update)
+* [`eas update:show`](#eas-updateshow)
+* [`eas whoami`](#eas-whoami)
 
 ## `eas build`
 
@@ -54,7 +52,7 @@ USAGE
   $ eas build
 ```
 
-_See code: [src/commands/build/index.ts](https://github.com/expo/eas-cli/blob/v0.0.0/src/commands/build/index.ts)_
+_See code: [build/commands/build/index.ts](https://github.com/expo/eas-cli/blob/v0.0.0/build/commands/build/index.ts)_
 
 ## `eas build:status`
 
@@ -69,7 +67,29 @@ OPTIONS
   --status=(in-queue|in-progress|errored|finished)
 ```
 
-_See code: [src/commands/build/status.ts](https://github.com/expo/eas-cli/blob/v0.0.0/src/commands/build/status.ts)_
+_See code: [build/commands/build/status.ts](https://github.com/expo/eas-cli/blob/v0.0.0/build/commands/build/status.ts)_
+
+## `eas credentials`
+
+Manage your credentials
+
+```
+USAGE
+  $ eas credentials
+```
+
+_See code: [build/commands/credentials.ts](https://github.com/expo/eas-cli/blob/v0.0.0/build/commands/credentials.ts)_
+
+## `eas device:create`
+
+register new Apple Devices to use for internal distribution
+
+```
+USAGE
+  $ eas device:create
+```
+
+_See code: [build/commands/device/create.ts](https://github.com/expo/eas-cli/blob/v0.0.0/build/commands/device/create.ts)_
 
 ## `eas help [COMMAND]`
 
@@ -97,7 +117,7 @@ USAGE
   $ eas login
 ```
 
-_See code: [src/commands/login.ts](https://github.com/expo/eas-cli/blob/v0.0.0/src/commands/login.ts)_
+_See code: [build/commands/login.ts](https://github.com/expo/eas-cli/blob/v0.0.0/build/commands/login.ts)_
 
 ## `eas logout`
 
@@ -108,7 +128,7 @@ USAGE
   $ eas logout
 ```
 
-_See code: [src/commands/logout.ts](https://github.com/expo/eas-cli/blob/v0.0.0/src/commands/logout.ts)_
+_See code: [build/commands/logout.ts](https://github.com/expo/eas-cli/blob/v0.0.0/build/commands/logout.ts)_
 
 ## `eas update`
 
@@ -122,7 +142,7 @@ ALIASES
   $ eas update:publish
 ```
 
-_See code: [src/commands/update/index.ts](https://github.com/expo/eas-cli/blob/v0.0.0/src/commands/update/index.ts)_
+_See code: [build/commands/update/index.ts](https://github.com/expo/eas-cli/blob/v0.0.0/build/commands/update/index.ts)_
 
 ## `eas update:show`
 
@@ -133,7 +153,7 @@ USAGE
   $ eas update:show
 ```
 
-_See code: [src/commands/update/show.ts](https://github.com/expo/eas-cli/blob/v0.0.0/src/commands/update/show.ts)_
+_See code: [build/commands/update/show.ts](https://github.com/expo/eas-cli/blob/v0.0.0/build/commands/update/show.ts)_
 
 ## `eas whoami`
 
@@ -144,6 +164,5 @@ USAGE
   $ eas whoami
 ```
 
-_See code: [src/commands/whoami.ts](https://github.com/expo/eas-cli/blob/v0.0.0/src/commands/whoami.ts)_
-
+_See code: [build/commands/whoami.ts](https://github.com/expo/eas-cli/blob/v0.0.0/build/commands/whoami.ts)_
 <!-- commandsstop -->
