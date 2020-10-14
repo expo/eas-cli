@@ -55,7 +55,7 @@ export async function ensureProjectExistsAsync(projectInfo: ProjectInfo): Promis
  * @param slug project slug
  * @returns A promise resolving to Project ID
  */
-async function findProjectIdByUsernameAndSlug(username: string, slug: string): Promise<string> {
+async function findProjectIdByUsernameAndSlugAsync(username: string, slug: string): Promise<string> {
   const { data, error } = await graphqlClient
     .query(
       gql`
@@ -79,7 +79,7 @@ async function findProjectIdByUsernameAndSlug(username: string, slug: string): P
  * Registers new project on Expo servers
  * @returns Created project's ID
  */
-async function registerNewProject({
+async function registerNewProjectAsync({
   accountName,
   projectName,
   privacy,
