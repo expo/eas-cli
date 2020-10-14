@@ -1,7 +1,8 @@
 *-debug.log
 *-error.log
+**/build/**
+!**/src/**/build/**
 dist
-build
 /package-lock.json
 tmp
 node_modules

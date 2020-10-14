@@ -1,2 +1,3 @@
-build
+**/build/**
+!**/src/**/build/**
 node_modules
