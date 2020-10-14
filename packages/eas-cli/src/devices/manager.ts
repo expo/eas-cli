@@ -2,10 +2,10 @@ import assert from 'assert';
 import chalk from 'chalk';
 
 import log from '../log';
+import { getProjectAccountNameAsync } from '../project/projectUtils';
 import { Choice, confirmAsync, promptAsync } from '../prompts';
 import { Account, findAccountByName } from '../user/Account';
 import { User } from '../user/User';
-import { getProjectAccountNameAsync } from '../utils/project';
 import DeviceCreateAction from './actions/create';
 import { DeviceManagerContext } from './context';
 
