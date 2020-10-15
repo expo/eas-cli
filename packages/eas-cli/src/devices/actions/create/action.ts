@@ -1,9 +1,11 @@
 import chalk from 'chalk';
+import indentString from 'indent-string';
+import qrcodeTerminal from 'qrcode-terminal';
 
-import { generateDeviceRegistrationURL } from '../../credentials/ios/adhoc/devices';
-import log from '../../log';
-import { promptAsync } from '../../prompts';
-import { Account } from '../../user/Account';
+import log from '../../../log';
+import { promptAsync } from '../../../prompts';
+import { Account } from '../../../user/Account';
+import { generateDeviceRegistrationURL } from './registration-url';
 
 export enum RegistrationMethod {
   WEBSITE,
@@ -18,13 +20,24 @@ export default class DeviceCreateAction {
     const method = await this.askForRegistrationMethodAsync();
 
     if (method === RegistrationMethod.WEBSITE) {
-      await generateDeviceRegistrationURL(this.account, this.appleTeamId);
+      this.generateDeviceRegistrationURLAsync();
     } else if (method === RegistrationMethod.INPUT) {
       throw new Error('not implemented yet');
     } else if (method === RegistrationMethod.EXIT) {
       log('Bye!');
       process.exit(0);
     }
+  }
+
+  private async generateDeviceRegistrationURLAsync() {
+    const registrationURL = await generateDeviceRegistrationURL(this.account, this.appleTeamId);
+    log.newLine();
+    qrcodeTerminal.generate(registrationURL, code => console.log(`${indentString(code, 2)}\n`));
+    log(
+      'Open the following link on your iOS devices (or scan the QR code) and follow the instructions to install the development profile:'
+    );
+    log.newLine();
+    log(chalk.green(`${registrationURL}`));
   }
 
   private async askForRegistrationMethodAsync(): Promise<RegistrationMethod> {
