@@ -1,0 +1,17 @@
+name: Run installer tests
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    name: Run the installer
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 1
+      - run: bash bin/install.sh
+      - run: eas --version
