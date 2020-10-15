@@ -8,10 +8,11 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    name: Run the installer
+    name: Run shellcheck and test the installer
     steps:
       - uses: actions/checkout@v2
         with:
           fetch-depth: 1
+      - run: shellcheck bin/install.sh
       - run: bash bin/install.sh
       - run: eas --version
