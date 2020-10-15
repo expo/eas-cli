@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# This script downloads the latest release version of EAS CLI from GitHub and
+# installs it in /usr/local/bin
+
 {
   # All code is inside a block to ensure the script executes only when
   # downloaded completely.
@@ -67,14 +70,14 @@
   
   echo
   echo "Downloading..."
-  if [ $(command -v curl) ]
+  if [ "$(command -v curl)" ]
   then
     curl --location --progress-bar "$url" | tar xz
   else
     wget -O- "$url" | tar xz
   fi
 
-  rm -f $(command -v eas) || true
+  rm -f "$(command -v eas)" || true
   rm -f /usr/local/bin/eas
   ln -s /usr/local/lib/eas/bin/eas /usr/local/bin/eas
 
