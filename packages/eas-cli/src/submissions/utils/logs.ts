@@ -5,7 +5,7 @@ import log from '../../log';
 import { Submission, SubmissionStatus } from '../SubmissionService.types';
 import { printSubmissionError } from './errors';
 
-async function displayLogs(
+export async function displayLogs(
   submission: Submission | null,
   status: SubmissionStatus | null,
   verbose: boolean
@@ -67,5 +67,3 @@ function parseLogs(logs: string): Log[] {
   }
   return result;
 }
-
-export { displayLogs };

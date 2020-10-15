@@ -3,13 +3,13 @@ import { v4 as uuidv4 } from 'uuid';
 
 import { asMock } from '../../../__tests__/utils';
 import { jester as mockJester } from '../../../credentials/__tests__/fixtures-constants';
-import { createTestProject } from '../../../utils/__tests__/project-utils';
-import { ensureProjectExistsAsync } from '../../../utils/project';
+import { createTestProject } from '../../../project/__tests__/project-utils';
+import { ensureProjectExistsAsync } from '../../../project/ensureProjectExists';
 import SubmissionService from '../../SubmissionService';
 import { Platform, Submission, SubmissionStatus } from '../../SubmissionService.types';
 import {
+  AndroidArchiveType,
   AndroidSubmissionConfig,
-  ArchiveType,
   ReleaseStatus,
   ReleaseTrack,
 } from '../AndroidSubmissionConfig';
@@ -18,7 +18,7 @@ import { AndroidSubmitCommandFlags } from '../types';
 
 jest.mock('fs');
 jest.mock('../../SubmissionService');
-jest.mock('../../../utils/project');
+jest.mock('../../../project/ensureProjectExists');
 jest.mock('@expo/image-utils', () => ({
   generateImageAsync(input: any, { src }: any) {
     const fs = require('fs');
@@ -111,7 +111,7 @@ describe(AndroidSubmitCommand, () => {
 
       const androidSubmissionConfig: AndroidSubmissionConfig = {
         archiveUrl: 'http://expo.io/fake.apk',
-        archiveType: ArchiveType.apk,
+        archiveType: AndroidArchiveType.apk,
         androidPackage: testProject.appJSON.expo.android?.package,
         serviceAccount: fakeFiles['/google-service-account.json'],
         releaseStatus: ReleaseStatus.draft,

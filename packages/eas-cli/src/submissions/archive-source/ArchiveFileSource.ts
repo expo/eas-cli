@@ -1,11 +1,10 @@
-import { Platform } from '@expo/config';
 import chalk from 'chalk';
 import validator from 'validator';
 
 import log from '../../log';
 import { promptAsync } from '../../prompts';
-import { getStandaloneBuildById, getStandaloneBuilds } from '../../standaloneBuilds';
-import { getAppConfig } from '../utils/config';
+import { SubmissionPlatform } from '../types';
+import { getBuildArtifactUrlByIdAsync, getLatestBuildArtifactUrlAsync } from '../utils/builds';
 import {
   downloadAppArchiveAsync,
   extractLocalArchiveAsync,
@@ -25,7 +24,8 @@ enum ArchiveFileSourceType {
 interface ArchiveFileSourceBase {
   sourceType: ArchiveFileSourceType;
   projectDir: string;
-  platform: Platform;
+  platform: SubmissionPlatform;
+  projectId: string;
 }
 
 interface ArchiveFileUrlSource extends ArchiveFileSourceBase {
@@ -89,7 +89,8 @@ async function getArchiveLocationForUrlAsync(url: string): Promise<string> {
     return url;
   } else {
     log('Downloading your app archive');
-    return downloadAppArchiveAsync(url);
+    const localPath = await downloadAppArchiveAsync(url);
+    return await getArchiveLocationForPathAsync(localPath);
   }
 }
 
@@ -105,66 +106,43 @@ async function handleUrlSourceAsync(source: ArchiveFileUrlSource): Promise<strin
 }
 
 async function handleLatestSourceAsync(source: ArchiveFileLatestSource): Promise<string> {
-  const { owner, slug } = getAppConfig(source.projectDir);
-  const builds = await getStandaloneBuilds(
-    {
-      platform: source.platform,
-      owner,
-      slug,
-    },
-    1
-  );
-  if (builds.length === 0) {
+  try {
+    return await getLatestBuildArtifactUrlAsync(source.platform, source.projectId);
+  } catch (err) {
     log.error(
       chalk.bold(
-        "Couldn't find any builds for this project on Expo servers. It looks like you haven't run expo build:android yet."
+        "Couldn't find any builds for this project on Expo servers. It looks like you haven't run eas build yet."
       )
     );
+    log.error(err);
     return getArchiveFileLocationAsync({
+      ...source,
       sourceType: ArchiveFileSourceType.prompt,
-      platform: source.platform,
-      projectDir: source.projectDir,
     });
   }
-  return builds[0].artifacts.url;
 }
 
 async function handlePathSourceAsync(source: ArchiveFilePathSource): Promise<string> {
   if (!(await isExistingFile(source.path))) {
     log.error(chalk.bold(`${source.path} doesn't exist`));
     return getArchiveFileLocationAsync({
+      ...source,
       sourceType: ArchiveFileSourceType.prompt,
-      platform: source.platform,
-      projectDir: source.projectDir,
     });
   }
   return source.path;
 }
 
 async function handleBuildIdSourceAsync(source: ArchiveFileBuildIdSource): Promise<string> {
-  const { owner, slug } = getAppConfig(source.projectDir);
-  let build: any;
   try {
-    build = await getStandaloneBuildById({
-      platform: source.platform,
-      id: source.id,
-      owner,
-      slug,
-    });
+    return await getBuildArtifactUrlByIdAsync(source.platform, source.id);
   } catch (err) {
-    log.error(err);
-    throw err;
-  }
-
-  if (!build) {
     log.error(chalk.bold(`Couldn't find build for id ${source.id}`));
+    log.error(err);
     return getArchiveFileLocationAsync({
+      ...source,
       sourceType: ArchiveFileSourceType.prompt,
-      platform: source.platform,
-      projectDir: source.projectDir,
     });
-  } else {
-    return build.artifacts.url;
   }
 }
 
@@ -194,35 +172,31 @@ async function handlePromptSourceAsync(source: ArchiveFilePromptSource): Promise
     case ArchiveFileSourceType.url: {
       const url = await askForArchiveUrlAsync();
       return getArchiveFileLocationAsync({
+        ...source,
         sourceType: ArchiveFileSourceType.url,
         url,
-        platform: source.platform,
-        projectDir: source.projectDir,
       });
     }
     case ArchiveFileSourceType.path: {
       const path = await askForArchivePathAsync();
       return getArchiveFileLocationAsync({
+        ...source,
         sourceType: ArchiveFileSourceType.path,
         path,
-        platform: source.platform,
-        projectDir: source.projectDir,
       });
     }
     case ArchiveFileSourceType.latest: {
       return getArchiveFileLocationAsync({
+        ...source,
         sourceType: ArchiveFileSourceType.latest,
-        platform: source.platform,
-        projectDir: source.projectDir,
       });
     }
     case ArchiveFileSourceType.buildId: {
       const id = await askForBuildIdAsync();
       return getArchiveFileLocationAsync({
+        ...source,
         sourceType: ArchiveFileSourceType.buildId,
         id,
-        platform: source.platform,
-        projectDir: source.projectDir,
       });
     }
     case ArchiveFileSourceType.prompt:

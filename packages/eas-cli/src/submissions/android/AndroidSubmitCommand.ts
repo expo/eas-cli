@@ -11,6 +11,7 @@ import {
   ArchiveTypeSource,
   ArchiveTypeSourceType,
 } from '../archive-source';
+import { SubmissionPlatform } from '../types';
 import { getExpoConfig } from '../utils/config';
 import { AndroidPackageSource, AndroidPackageSourceType } from './AndroidPackageSource';
 import { AndroidArchiveType, ReleaseStatus, ReleaseTrack } from './AndroidSubmissionConfig';
@@ -44,7 +45,7 @@ class AndroidSubmitCommand {
     const androidPackageSource = this.resolveAndroidPackageSource();
     const track = this.resolveTrack();
     const releaseStatus = this.resolveReleaseStatus();
-    const archiveSource = this.resolveArchiveSource();
+    const archiveSource = this.resolveArchiveSource(projectId);
     const serviceAccountSource = this.resolveServiceAccountSource();
 
     const errored = [
@@ -134,14 +135,14 @@ class AndroidSubmitCommand {
     }
   }
 
-  private resolveArchiveSource(): Result<ArchiveSource> {
+  private resolveArchiveSource(projectId: string): Result<ArchiveSource> {
     return result({
-      archiveFile: this.resolveArchiveFileSource(),
+      archiveFile: this.resolveArchiveFileSource(projectId),
       archiveType: this.resolveArchiveTypeSource(),
     });
   }
 
-  private resolveArchiveFileSource(): ArchiveFileSource {
+  private resolveArchiveFileSource(projectId: string): ArchiveFileSource {
     const { url, path, id, latest } = this.ctx.commandFlags;
     const chosenOptions = [url, path, id, latest];
     if (chosenOptions.filter(opt => opt).length > 1) {
@@ -152,14 +153,16 @@ class AndroidSubmitCommand {
       return {
         sourceType: ArchiveFileSourceType.url,
         url,
-        platform: 'android',
+        projectId,
+        platform: SubmissionPlatform.Android,
         projectDir: this.ctx.projectDir,
       };
     } else if (path) {
       return {
         sourceType: ArchiveFileSourceType.path,
         path,
-        platform: 'android',
+        projectId,
+        platform: SubmissionPlatform.Android,
         projectDir: this.ctx.projectDir,
       };
     } else if (id) {
@@ -169,20 +172,23 @@ class AndroidSubmitCommand {
       return {
         sourceType: ArchiveFileSourceType.buildId,
         id,
-        platform: 'android',
+        projectId,
+        platform: SubmissionPlatform.Android,
         projectDir: this.ctx.projectDir,
       };
     } else if (latest) {
       return {
         sourceType: ArchiveFileSourceType.latest,
-        platform: 'android',
+        platform: SubmissionPlatform.Android,
         projectDir: this.ctx.projectDir,
+        projectId,
       };
     } else {
       return {
         sourceType: ArchiveFileSourceType.prompt,
-        platform: 'android',
+        platform: SubmissionPlatform.Android,
         projectDir: this.ctx.projectDir,
+        projectId,
       };
     }
   }

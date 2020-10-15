@@ -41,7 +41,7 @@ export async function getArchiveTypeAsync(
   location: string
 ): Promise<ArchiveType> {
   // for iOS we have only one archive type
-  if (platform === SubmissionPlatform.Ios) {
+  if (platform === SubmissionPlatform.iOS) {
     return IosArchiveType.ipa;
   }
 

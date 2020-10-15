@@ -13,5 +13,5 @@ export interface SubmitCommandFlags {
 
 export enum SubmissionPlatform {
   Android = 'android',
-  Ios = 'ios',
+  iOS = 'ios',
 }
