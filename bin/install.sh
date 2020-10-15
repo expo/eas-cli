@@ -8,6 +8,9 @@
   # downloaded completely.
 
   set -e
+
+  prefix="${EAS_PREFIX:-/usr/local}"
+  temp_dir="$(mktemp -d)"
   
   if  [ -t 1 ] && [ -z "$NO_COLOR" ]
   then
@@ -29,8 +32,38 @@
     exit 1
   }
 
-  if [[ ! ":$PATH:" == *":/usr/local/bin:"* ]]; then
-    abort "Your path is missing /usr/local/bin, you need to add this to use this installer."
+  install() {
+    needs_sudo=""
+    # Make sure path exists and can be written to by the current user.
+    if ! mkdir -p "$prefix/lib" || [[ ! -w "$prefix/lib" ]]
+    then
+      needs_sudo=true
+    fi
+    if ! mkdir -p "$prefix/bin" || [[ ! -w "$prefix/bin" ]]
+    then
+      needs_sudo=true
+    fi
+    if ! rm -rf "$prefix/lib/eas"
+    then
+      needs_sudo=true
+    fi
+    # Run commands with sudo if necessary.
+    if [ -n "$needs_sudo" ]
+    then
+      echo "Installing requires superuser access."
+      echo "The sudo command will prompt for your password."
+      sudo rm -rf "$prefix/lib/eas"
+      sudo mv "$temp_dir/eas" "$prefix/lib/eas"
+      sudo ln -fs "$prefix/lib/eas/bin/eas" "$prefix/bin/eas"
+    else
+      
+      mv "$temp_dir/eas" "$prefix/lib/eas"
+      ln -fs "$prefix/lib/eas/bin/eas" "$prefix/bin/eas"
+    fi
+  }
+
+  if [[ ! ":$PATH:" == *":$prefix/bin:"* ]]; then
+    abort "Your path is missing $prefix/bin, you need to add this to use this installer."
   fi
   
   hardware="$(uname -m)"
@@ -64,9 +97,8 @@
   url="https://github.com/expo/eas-cli/releases/latest/download/eas-$platform-$arch.tar.gz"
   echo "Installing EAS CLI from $url"
 
-  mkdir -p /usr/local/lib
-  cd /usr/local/lib
-  rm -rf eas
+  mkdir -p "$temp_dir"
+  cd "$temp_dir"
   
   echo
   echo "Downloading..."
@@ -77,20 +109,19 @@
     wget -O- "$url" | tar xz
   fi
 
-  rm -f "$(command -v eas)" || true
-  rm -f /usr/local/bin/eas
-  ln -s /usr/local/lib/eas/bin/eas /usr/local/bin/eas
+  # Move the installation over and link the executable (may require sudo)
+  install
 
   # Test the bundled node binary and if it doesn't work remove it (fall back to
   # node installed in path).
-  /usr/local/lib/eas/bin/node -v > /dev/null || {
-    rm /usr/local/lib/eas/bin/node
+  "$prefix/lib/eas/bin/node" -v > /dev/null || {
+    rm "$prefix/lib/eas/bin/node"
   }
 
   # Test the CLI
   executable=$(command -v eas)
   echo
-  echo -e "EAS CLI installed to ${executable}"
+  echo -e "EAS CLI is installed to ${executable}"
   eas --version
 
   echo
