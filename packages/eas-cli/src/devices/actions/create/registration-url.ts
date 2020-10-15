@@ -1,9 +1,9 @@
 import { URL } from 'url';
 
 import { getExpoWebsiteBaseUrl } from '../../../api';
+import { createAppleDeviceRegistrationRequestAsync } from '../../../credentials/ios/api/AppleDeviceRegistrationRequest';
+import { findAppleTeamAsync } from '../../../credentials/ios/api/AppleTeam';
 import { Account } from '../../../user/Account';
-import { createAppleDeviceRegistrationRequestAsync } from '../api/AppleDeviceRegistrationRequest';
-import { findAppleTeamAsync } from '../api/AppleTeam';
 
 export async function generateDeviceRegistrationURL(account: Account, appleTeamIdentifier: string) {
   const { id: accountId } = account;

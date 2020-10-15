@@ -60,7 +60,7 @@ export function getExpoApiBaseUrl(): string {
   if (process.env.EXPO_STAGING) {
     return `https://staging.exp.host`;
   } else if (process.env.EXPO_LOCAL) {
-    return `http://127.0.0.1:3000`;
+    return `http://exp.test`;
   } else {
     return `https://exp.host`;
   }

@@ -2,10 +2,10 @@ import chalk from 'chalk';
 import indentString from 'indent-string';
 import qrcodeTerminal from 'qrcode-terminal';
 
-import { generateDeviceRegistrationURL } from '../../credentials/ios/adhoc/devices';
-import log from '../../log';
-import { promptAsync } from '../../prompts';
-import { Account } from '../../user/Account';
+import log from '../../../log';
+import { promptAsync } from '../../../prompts';
+import { Account } from '../../../user/Account';
+import { generateDeviceRegistrationURL } from './registration-url';
 
 export enum RegistrationMethod {
   WEBSITE,

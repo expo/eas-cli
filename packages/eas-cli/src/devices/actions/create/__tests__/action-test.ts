@@ -1,12 +1,20 @@
 import prompts from 'prompts';
 
-import { asMock } from '../../../__tests__/utils';
-import { generateDeviceRegistrationURL } from '../../../credentials/ios/adhoc/devices';
-import { Account } from '../../../user/Account';
-import DeviceCreateAction, { RegistrationMethod } from '../create';
+import { asMock } from '../../../../__tests__/utils';
+import { Account } from '../../../../user/Account';
+import DeviceCreateAction, { RegistrationMethod } from '../action';
+import { generateDeviceRegistrationURL } from '../registration-url';
+
+const originalConsoleLog = console.log;
+beforeAll(() => {
+  console.log = jest.fn();
+});
+afterAll(() => {
+  console.log = originalConsoleLog;
+});
 
 jest.mock('prompts');
-jest.mock('../../../credentials/ios/adhoc/devices');
+jest.mock('../registration-url');
 
 beforeEach(() => {
   const promptsMock = asMock(prompts);
@@ -18,14 +26,6 @@ beforeEach(() => {
 
 describe(DeviceCreateAction, () => {
   describe('#runAsync', () => {
-    let originalConsoleLog: () => void;
-    beforeEach(() => {
-      originalConsoleLog = console.log;
-      console.log = jest.fn();
-    });
-    afterEach(() => {
-      console.log = originalConsoleLog;
-    });
     it('calls generateDeviceRegistrationURL if user chooses the website option', async () => {
       asMock(prompts).mockImplementationOnce(() => ({
         method: RegistrationMethod.WEBSITE,

@@ -6,7 +6,7 @@ import { getProjectAccountNameAsync } from '../project/projectUtils';
 import { Choice, confirmAsync, promptAsync } from '../prompts';
 import { Account, findAccountByName } from '../user/Account';
 import { User } from '../user/User';
-import DeviceCreateAction from './actions/create';
+import DeviceCreateAction from './actions/create/action';
 import { DeviceManagerContext } from './context';
 
 const CREATE_COMMAND_DESCRIPTION = `This command lets you register your Apple devices (iPhones and iPads) for internal distribution of your app.
