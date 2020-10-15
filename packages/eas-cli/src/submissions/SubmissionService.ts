@@ -1,22 +1,18 @@
 import { JSONObject } from '@expo/json-file';
 
 import { apiClient } from '../api';
-import {
-  Platform,
-  StartSubmissionResult,
-  Submission,
-  SubmissionConfig,
-} from './SubmissionService.types';
+import { StartSubmissionResult, Submission, SubmissionConfig } from './SubmissionService.types';
+import { SubmissionPlatform } from './types';
 
 const SubmissionService = {
   startSubmissionAsync,
   getSubmissionAsync,
 };
 
-const DEFAULT_CHECK_INTERVAL_MS = 5 * 1000; // 5 secs
+export const DEFAULT_CHECK_INTERVAL_MS = 5 * 1000; // 5 secs
 
 async function startSubmissionAsync(
-  platform: Platform,
+  platform: SubmissionPlatform,
   projectId: string,
   config: SubmissionConfig
 ): Promise<StartSubmissionResult> {
@@ -39,4 +35,3 @@ async function getSubmissionAsync(projectId: string, submissionId: string): Prom
 }
 
 export default SubmissionService;
-export { DEFAULT_CHECK_INTERVAL_MS };

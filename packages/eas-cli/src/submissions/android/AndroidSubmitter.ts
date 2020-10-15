@@ -7,7 +7,7 @@ import ora from 'ora';
 import log from '../../log';
 import { sleep } from '../../utils/promise';
 import SubmissionService, { DEFAULT_CHECK_INTERVAL_MS } from '../SubmissionService';
-import { Platform, Submission, SubmissionStatus } from '../SubmissionService.types';
+import { Submission, SubmissionStatus } from '../SubmissionService.types';
 import { Archive, ArchiveSource, getArchiveAsync } from '../archive-source';
 import { SubmissionPlatform } from '../types';
 import { displayLogs } from '../utils/logs';
@@ -55,7 +55,7 @@ class AndroidSubmitter {
     let submissionId: string;
     try {
       submissionId = await SubmissionService.startSubmissionAsync(
-        Platform.ANDROID,
+        SubmissionPlatform.Android,
         submissionConfig.projectId,
         submissionConfig
       );

@@ -17,7 +17,7 @@ export interface Archive {
   type: ArchiveType;
 }
 
-async function getArchiveAsync(
+export async function getArchiveAsync(
   platform: SubmissionPlatform,
   source: ArchiveSource
 ): Promise<Archive> {
@@ -29,10 +29,4 @@ async function getArchiveAsync(
   };
 }
 
-export {
-  ArchiveFileSource,
-  ArchiveTypeSourceType,
-  ArchiveTypeSource,
-  ArchiveFileSourceType,
-  getArchiveAsync,
-};
+export { ArchiveFileSource, ArchiveTypeSourceType, ArchiveTypeSource, ArchiveFileSourceType };

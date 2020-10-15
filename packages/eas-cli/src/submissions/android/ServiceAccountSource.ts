@@ -5,7 +5,7 @@ import log from '../../log';
 import { promptAsync } from '../../prompts';
 import { isExistingFile } from '../utils/files';
 
-enum ServiceAccountSourceType {
+export enum ServiceAccountSourceType {
   path,
   prompt,
   // credentialsService,
@@ -27,7 +27,7 @@ interface ServiceAccountPromptSource extends ServiceAccountSourceBase {
 
 export type ServiceAccountSource = ServiceAccountPathSource | ServiceAccountPromptSource;
 
-async function getServiceAccountAsync(source: ServiceAccountSource): Promise<string> {
+export async function getServiceAccountAsync(source: ServiceAccountSource): Promise<string> {
   switch (source.sourceType) {
     case ServiceAccountSourceType.path:
       return await handlePathSourceAsync(source);
@@ -80,5 +80,3 @@ async function askForServiceAccountPathAsync(): Promise<string> {
   });
   return filePath;
 }
-
-export { ServiceAccountSourceType, getServiceAccountAsync };

@@ -13,7 +13,7 @@ import {
   uploadAppArchiveAsync,
 } from '../utils/files';
 
-enum ArchiveFileSourceType {
+export enum ArchiveFileSourceType {
   url,
   latest,
   path,
@@ -59,7 +59,7 @@ export type ArchiveFileSource =
   | ArchiveFileBuildIdSource
   | ArchiveFilePromptSource;
 
-async function getArchiveFileLocationAsync(source: ArchiveFileSource): Promise<string> {
+export async function getArchiveFileLocationAsync(source: ArchiveFileSource): Promise<string> {
   switch (source.sourceType) {
     case ArchiveFileSourceType.prompt:
       return await handlePromptSourceAsync(source);
@@ -265,5 +265,3 @@ function validateUrl(url: string): boolean {
     protocols: ['http', 'https'],
   });
 }
-
-export { ArchiveFileSourceType, getArchiveFileLocationAsync };

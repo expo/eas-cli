@@ -32,7 +32,7 @@ const SubmissionErrorMessages: Record<SubmissionErrorCode, string> = {
     `${chalk.dim('Learn more: https://expo.fyi/missing-privacy-policy')}.`,
 };
 
-function printSubmissionError(error: SubmissionError): boolean {
+export function printSubmissionError(error: SubmissionError): boolean {
   if ((Object.values(SubmissionErrorCode) as string[]).includes(error.errorCode)) {
     const errorCode = error.errorCode as SubmissionErrorCode;
     log.addNewLineIfNone();
@@ -43,5 +43,3 @@ function printSubmissionError(error: SubmissionError): boolean {
     return true;
   }
 }
-
-export { printSubmissionError };

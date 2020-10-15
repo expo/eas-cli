@@ -1,6 +1,6 @@
 import { promptAsync } from '../../prompts';
 
-enum AndroidPackageSourceType {
+export enum AndroidPackageSourceType {
   userDefined,
   prompt,
 }
@@ -20,7 +20,7 @@ interface AndroidPackagePromptSource extends AndroidPackageSourceBase {
 
 export type AndroidPackageSource = AndroidPackageUserDefinedSource | AndroidPackagePromptSource;
 
-async function getAndroidPackageAsync(source: AndroidPackageSource) {
+export async function getAndroidPackageAsync(source: AndroidPackageSource) {
   if (source.sourceType === AndroidPackageSourceType.userDefined) {
     return source.androidPackage;
   } else if (source.sourceType === AndroidPackageSourceType.prompt) {
@@ -35,5 +35,3 @@ async function getAndroidPackageAsync(source: AndroidPackageSource) {
     throw new Error('This should never happen');
   }
 }
-
-export { AndroidPackageSourceType, getAndroidPackageAsync };

@@ -12,7 +12,7 @@ import { createProgressTracker } from '../../utils/progress';
 
 const pipeline = promisify(stream.pipeline);
 
-async function isExistingFile(filePath: string) {
+export async function isExistingFile(filePath: string) {
   try {
     const stats = await fs.stat(filePath);
     return stats.isFile();
@@ -53,15 +53,15 @@ async function moveFileOfTypeAsync(
   return dest;
 }
 
-function createDownloadStream(url: string) {
+export function createDownloadStream(url: string) {
   return got.stream(url).on('downloadProgress', createProgressTracker());
 }
 
-function pathIsTar(path: string): boolean {
+export function pathIsTar(path: string): boolean {
   return path.endsWith('tar.gz');
 }
 
-async function downloadAppArchiveAsync(url: string): Promise<string> {
+export async function downloadAppArchiveAsync(url: string): Promise<string> {
   const filename = basename(url);
   // Since we may need to rename the destination path,
   // add everything to a folder which can be nuked to ensure we don't accidentally use an old build with the same name.
@@ -80,7 +80,7 @@ async function downloadAppArchiveAsync(url: string): Promise<string> {
   return destinationPath;
 }
 
-async function uploadAppArchiveAsync(path: string): Promise<string> {
+export async function uploadAppArchiveAsync(path: string): Promise<string> {
   const fileSize = (await fs.stat(path)).size;
   return await uploadAsync(
     UploadType.SUBMISSION_APP_ARCHIVE,
@@ -106,7 +106,7 @@ async function decompressTarAsync(src: string, destination: string): Promise<voi
   await pipeline(fs.createReadStream(src), tar.extract({ cwd: destination }, []));
 }
 
-async function extractLocalArchiveAsync(filePath: string): Promise<string> {
+export async function extractLocalArchiveAsync(filePath: string): Promise<string> {
   if (!pathIsTar(filePath)) {
     // No need to extract, copy, or rename the file.
     // Leave it in place and return the path.
@@ -124,12 +124,3 @@ async function extractLocalArchiveAsync(filePath: string): Promise<string> {
   // Move the folder contents matching .ipa, .apk, or .aab
   return await moveFileOfTypeAsync(destinationFolder, '{ipa,apk,aab}', destinationPath);
 }
-
-export {
-  isExistingFile,
-  createDownloadStream,
-  downloadAppArchiveAsync,
-  extractLocalArchiveAsync,
-  pathIsTar,
-  uploadAppArchiveAsync,
-};

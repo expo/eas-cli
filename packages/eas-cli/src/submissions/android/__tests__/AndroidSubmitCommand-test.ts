@@ -6,7 +6,8 @@ import { jester as mockJester } from '../../../credentials/__tests__/fixtures-co
 import { createTestProject } from '../../../project/__tests__/project-utils';
 import { ensureProjectExistsAsync } from '../../../project/ensureProjectExists';
 import SubmissionService from '../../SubmissionService';
-import { Platform, Submission, SubmissionStatus } from '../../SubmissionService.types';
+import { Submission, SubmissionStatus } from '../../SubmissionService.types';
+import { SubmissionPlatform } from '../../types';
 import {
   AndroidArchiveType,
   AndroidSubmissionConfig,
@@ -120,7 +121,7 @@ describe(AndroidSubmitCommand, () => {
       };
 
       expect(SubmissionService.startSubmissionAsync).toHaveBeenCalledWith(
-        Platform.ANDROID,
+        SubmissionPlatform.Android,
         projectId,
         androidSubmissionConfig
       );

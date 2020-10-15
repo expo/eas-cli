@@ -1,22 +1,18 @@
 import { AndroidSubmissionConfig } from './android/AndroidSubmissionConfig';
+import { SubmissionPlatform } from './types';
 
 export interface Submission {
   id: string;
   accountId: string;
   userId: string;
-  platform: Platform;
+  platform: SubmissionPlatform;
   status: SubmissionStatus;
   submissionInfo?: SubmissionInfo;
   createdAt: Date;
   updatedAt: Date;
 }
 
-enum Platform {
-  IOS = 'ios',
-  ANDROID = 'android',
-}
-
-enum SubmissionStatus {
+export enum SubmissionStatus {
   IN_QUEUE = 'in-queue',
   IN_PROGRESS = 'in-progress',
   FINISHED = 'finished',
@@ -37,5 +33,3 @@ export interface SubmissionError {
 export type SubmissionConfig = AndroidSubmissionConfig;
 
 export type StartSubmissionResult = string;
-
-export { Platform, SubmissionStatus };
