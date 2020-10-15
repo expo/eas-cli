@@ -1,3 +1,4 @@
+import chalk from 'chalk';
 import Table from 'cli-table3';
 import fs from 'fs-extra';
 import chunk from 'lodash/chunk';
@@ -8,6 +9,7 @@ import { sleep } from '../../utils/promise';
 import SubmissionService, { DEFAULT_CHECK_INTERVAL_MS } from '../SubmissionService';
 import { Platform, Submission, SubmissionStatus } from '../SubmissionService.types';
 import { Archive, ArchiveSource, getArchiveAsync } from '../archive-source';
+import { SubmissionPlatform } from '../types';
 import { displayLogs } from '../utils/logs';
 import { AndroidPackageSource, getAndroidPackageAsync } from './AndroidPackageSource';
 import {
@@ -42,16 +44,60 @@ class AndroidSubmitter {
       this.options,
       resolvedSourceOptions
     );
-    const onlineSubmitter = new AndroidOnlineSubmitter(
-      submissionConfig,
-      this.ctx.commandFlags.verbose
-    );
-    await onlineSubmitter.submitAsync();
+    await this.startSubmissionAsync(submissionConfig, this.ctx.commandFlags.verbose);
+  }
+
+  private async startSubmissionAsync(
+    submissionConfig: AndroidSubmissionConfig,
+    verbose: boolean = false
+  ): Promise<void> {
+    const scheduleSpinner = ora('Scheduling submission').start();
+    let submissionId: string;
+    try {
+      submissionId = await SubmissionService.startSubmissionAsync(
+        Platform.ANDROID,
+        submissionConfig.projectId,
+        submissionConfig
+      );
+      scheduleSpinner.succeed();
+    } catch (err) {
+      scheduleSpinner.fail('Failed to schedule submission');
+      throw err;
+    }
+
+    let submissionCompleted = false;
+    let submissionStatus: SubmissionStatus | null = null;
+    let submission: Submission | null = null;
+    const submissionSpinner = ora('Submitting your app to Google Play Store').start();
+    try {
+      while (!submissionCompleted) {
+        await sleep(DEFAULT_CHECK_INTERVAL_MS);
+        submission = await SubmissionService.getSubmissionAsync(
+          submissionConfig.projectId,
+          submissionId
+        );
+        submissionSpinner.text = AndroidSubmitter.getStatusText(submission.status);
+        submissionStatus = submission.status;
+        if (submissionStatus === SubmissionStatus.ERRORED) {
+          submissionCompleted = true;
+          process.exitCode = 1;
+          submissionSpinner.fail();
+        } else if (submissionStatus === SubmissionStatus.FINISHED) {
+          submissionCompleted = true;
+          submissionSpinner.succeed();
+        }
+      }
+    } catch (err) {
+      submissionSpinner.fail(AndroidSubmitter.getStatusText(SubmissionStatus.ERRORED));
+      throw err;
+    }
+
+    await displayLogs(submission, submissionStatus, verbose);
   }
 
   private async resolveSourceOptions(): Promise<ResolvedSourceOptions> {
     const androidPackage = await getAndroidPackageAsync(this.options.androidPackageSource);
-    const archive = await getArchiveAsync(this.options.archiveSource);
+    const archive = await getArchiveAsync(SubmissionPlatform.Android, this.options.archiveSource);
     const serviceAccountPath = await getServiceAccountAsync(this.options.serviceAccountSource);
     return {
       androidPackage,
@@ -79,58 +125,6 @@ class AndroidSubmitter {
       serviceAccountPath,
     });
     return { ...submissionConfig, serviceAccount };
-  }
-}
-
-class AndroidOnlineSubmitter {
-  constructor(
-    private submissionConfig: AndroidSubmissionConfig,
-    private verbose: boolean = false
-  ) {}
-
-  async submitAsync(): Promise<void> {
-    const scheduleSpinner = ora('Scheduling submission').start();
-    let submissionId: string;
-    try {
-      submissionId = await SubmissionService.startSubmissionAsync(
-        Platform.ANDROID,
-        this.submissionConfig.projectId,
-        this.submissionConfig
-      );
-      scheduleSpinner.succeed();
-    } catch (err) {
-      scheduleSpinner.fail('Failed to schedule submission');
-      throw err;
-    }
-
-    let submissionCompleted = false;
-    let submissionStatus: SubmissionStatus | null = null;
-    let submission: Submission | null = null;
-    const submissionSpinner = ora('Submitting your app to Google Play Store').start();
-    try {
-      while (!submissionCompleted) {
-        await sleep(DEFAULT_CHECK_INTERVAL_MS);
-        submission = await SubmissionService.getSubmissionAsync(
-          this.submissionConfig.projectId,
-          submissionId
-        );
-        submissionSpinner.text = AndroidOnlineSubmitter.getStatusText(submission.status);
-        submissionStatus = submission.status;
-        if (submissionStatus === SubmissionStatus.ERRORED) {
-          submissionCompleted = true;
-          process.exitCode = 1;
-          submissionSpinner.fail();
-        } else if (submissionStatus === SubmissionStatus.FINISHED) {
-          submissionCompleted = true;
-          submissionSpinner.succeed();
-        }
-      }
-    } catch (err) {
-      submissionSpinner.fail(AndroidOnlineSubmitter.getStatusText(SubmissionStatus.ERRORED));
-      throw err;
-    }
-
-    await displayLogs(submission, submissionStatus, this.verbose);
   }
 
   private static getStatusText(status: SubmissionStatus): string {
@@ -189,7 +183,7 @@ function printSummary(summary: Summary): void {
   table.push([
     {
       colSpan: 2,
-      content: log.chalk.bold('Android Submission Summary'),
+      content: chalk.bold('Android Submission Summary'),
       hAlign: 'center',
     },
   ]);

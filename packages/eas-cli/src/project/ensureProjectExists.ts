@@ -24,7 +24,7 @@ export async function ensureProjectExistsAsync(projectInfo: ProjectInfo): Promis
   ).start();
 
   try {
-    const id = findProjectIdByUsernameAndSlugAsync(accountName, projectFullName);
+    const id = await findProjectIdByUsernameAndSlugAsync(accountName, projectName);
     spinner.succeed();
     return id;
   } catch (err) {

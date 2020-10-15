@@ -28,7 +28,7 @@ async function getAndroidPackageAsync(source: AndroidPackageSource) {
       name: 'androidPackage',
       message: 'Android package name:',
       type: 'text',
-      validate: (val: string): boolean => val !== '',
+      validate: (val: string) => val !== '' || 'Package name cannot be empty!',
     });
     return androidPackage;
   } else {

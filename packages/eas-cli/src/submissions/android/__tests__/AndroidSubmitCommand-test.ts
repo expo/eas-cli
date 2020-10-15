@@ -1,9 +1,10 @@
 import { vol } from 'memfs';
 import { v4 as uuidv4 } from 'uuid';
 
-import { createTestProject } from '../../../__tests__/project-utils';
+import { asMock } from '../../../__tests__/utils';
 import { jester as mockJester } from '../../../credentials/__tests__/fixtures-constants';
-import { ensureProjectExistsAsync } from '../../../projects';
+import { createTestProject } from '../../../utils/__tests__/project-utils';
+import { ensureProjectExistsAsync } from '../../../utils/project';
 import SubmissionService from '../../SubmissionService';
 import { Platform, Submission, SubmissionStatus } from '../../SubmissionService.types';
 import {
@@ -17,7 +18,7 @@ import { AndroidSubmitCommandFlags } from '../types';
 
 jest.mock('fs');
 jest.mock('../../SubmissionService');
-jest.mock('../../../projects');
+jest.mock('../../../utils/project');
 jest.mock('@expo/image-utils', () => ({
   generateImageAsync(input: any, { src }: any) {
     const fs = require('fs');
@@ -63,7 +64,7 @@ describe(AndroidSubmitCommand, () => {
   });
 
   afterEach(() => {
-    (ensureProjectExistsAsync as jest.Mock).mockClear();
+    asMock(ensureProjectExistsAsync).mockClear();
   });
 
   describe('sending submission', () => {
@@ -78,13 +79,13 @@ describe(AndroidSubmitCommand, () => {
       SubmissionService.getSubmissionAsync = originalGetSubmissionAsync;
     });
     afterEach(() => {
-      (SubmissionService.startSubmissionAsync as jest.Mock).mockClear();
-      (SubmissionService.getSubmissionAsync as jest.Mock).mockClear();
+      asMock(SubmissionService.startSubmissionAsync).mockClear();
+      asMock(SubmissionService.getSubmissionAsync).mockClear();
     });
 
     it('sends a request to Submission Service', async () => {
       const projectId = uuidv4();
-      (SubmissionService.getSubmissionAsync as jest.Mock).mockImplementationOnce(
+      asMock(SubmissionService.getSubmissionAsync).mockImplementationOnce(
         async (projectId: string, submissionId: string): Promise<Submission> => {
           const actualSubmission = await originalGetSubmissionAsync(projectId, submissionId);
           return {
@@ -93,7 +94,7 @@ describe(AndroidSubmitCommand, () => {
           };
         }
       );
-      (ensureProjectExistsAsync as jest.Mock).mockImplementationOnce(() => projectId);
+      asMock(ensureProjectExistsAsync).mockImplementationOnce(() => projectId);
 
       const options: AndroidSubmitCommandFlags = {
         latest: false,

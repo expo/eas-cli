@@ -10,3 +10,8 @@ export interface SubmitCommandFlags {
   url?: string;
   verbose: boolean;
 }
+
+export enum SubmissionPlatform {
+  Android = 'android',
+  Ios = 'ios',
+}

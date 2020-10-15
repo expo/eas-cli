@@ -1,14 +1,15 @@
 import { Platform } from '@expo/config';
+import chalk from 'chalk';
 import validator from 'validator';
 
 import log from '../../log';
 import { promptAsync } from '../../prompts';
 import { getStandaloneBuildById, getStandaloneBuilds } from '../../standaloneBuilds';
-import { existingFile } from '../../validators';
 import { getAppConfig } from '../utils/config';
 import {
   downloadAppArchiveAsync,
   extractLocalArchiveAsync,
+  isExistingFile,
   pathIsTar,
   uploadAppArchiveAsync,
 } from '../utils/files';
@@ -115,7 +116,7 @@ async function handleLatestSourceAsync(source: ArchiveFileLatestSource): Promise
   );
   if (builds.length === 0) {
     log.error(
-      log.chalk.bold(
+      chalk.bold(
         "Couldn't find any builds for this project on Expo servers. It looks like you haven't run expo build:android yet."
       )
     );
@@ -129,8 +130,8 @@ async function handleLatestSourceAsync(source: ArchiveFileLatestSource): Promise
 }
 
 async function handlePathSourceAsync(source: ArchiveFilePathSource): Promise<string> {
-  if (!(await existingFile(source.path))) {
-    log.error(log.chalk.bold(`${source.path} doesn't exist`));
+  if (!(await isExistingFile(source.path))) {
+    log.error(chalk.bold(`${source.path} doesn't exist`));
     return getArchiveFileLocationAsync({
       sourceType: ArchiveFileSourceType.prompt,
       platform: source.platform,
@@ -156,7 +157,7 @@ async function handleBuildIdSourceAsync(source: ArchiveFileBuildIdSource): Promi
   }
 
   if (!build) {
-    log.error(log.chalk.bold(`Couldn't find build for id ${source.id}`));
+    log.error(chalk.bold(`Couldn't find build for id ${source.id}`));
     return getArchiveFileLocationAsync({
       sourceType: ArchiveFileSourceType.prompt,
       platform: source.platform,
@@ -259,7 +260,7 @@ async function askForArchivePathAsync(): Promise<string> {
     validate: async (path: string): Promise<boolean | string> => {
       if (path === defaultArchivePath) {
         return 'That was just an example path, meant to show you the format that we expect for the response.';
-      } else if (!(await existingFile(path))) {
+      } else if (!(await isExistingFile(path))) {
         return `File ${path} doesn't exist.`;
       } else {
         return true;

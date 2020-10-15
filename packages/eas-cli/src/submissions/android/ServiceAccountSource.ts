@@ -1,6 +1,9 @@
+import chalk from 'chalk';
+import fs from 'fs-extra';
+
 import log from '../../log';
 import { promptAsync } from '../../prompts';
-import { existingFile, promptsExistingFile } from '../../validators';
+import { isExistingFile } from '../utils/files';
 
 enum ServiceAccountSourceType {
   path,
@@ -34,7 +37,7 @@ async function getServiceAccountAsync(source: ServiceAccountSource): Promise<str
 }
 
 async function handlePathSourceAsync(source: ServiceAccountPathSource): Promise<string> {
-  if (!(await existingFile(source.path))) {
+  if (!(await isExistingFile(source.path))) {
     log.warn(`File ${source.path} doesn't exist.`);
     return await getServiceAccountAsync({ sourceType: ServiceAccountSourceType.prompt });
   }
@@ -51,10 +54,10 @@ async function handlePromptSourceAsync(_source: ServiceAccountPromptSource): Pro
 
 async function askForServiceAccountPathAsync(): Promise<string> {
   log(
-    `${log.chalk.bold(
+    `${chalk.bold(
       'A Google Service Account JSON key is required to upload your app to Google Play Store'
     )}.\n` +
-      `If you're not sure what this is or how to create one, ${log.chalk.dim(
+      `If you're not sure what this is or how to create one, ${chalk.dim(
         'Learn more: https://expo.fyi/creating-google-service-account'
       )}.`
   );
@@ -63,7 +66,17 @@ async function askForServiceAccountPathAsync(): Promise<string> {
     message: 'Path to Google Service Account file:',
     initial: 'api-0000000000000000000-111111-aaaaaabbbbbb.json',
     type: 'text',
-    validate: promptsExistingFile,
+    validate: async (filePath: string) => {
+      try {
+        const stats = await fs.stat(filePath);
+        if (stats.isFile()) {
+          return true;
+        }
+        return 'Input is not a file.';
+      } catch {
+        return 'File does not exist.';
+      }
+    },
   });
   return filePath;
 }

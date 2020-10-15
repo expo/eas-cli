@@ -2,7 +2,7 @@ import { Result, result } from '@expo/results';
 import validator from 'validator';
 
 import log from '../../log';
-import { ensureProjectExistsAsync } from '../../projects';
+import { ensureProjectExistsAsync } from '../../project/ensureProjectExists';
 import { ensureLoggedInAsync } from '../../user/actions';
 import {
   ArchiveFileSource,
@@ -13,7 +13,7 @@ import {
 } from '../archive-source';
 import { getExpoConfig } from '../utils/config';
 import { AndroidPackageSource, AndroidPackageSourceType } from './AndroidPackageSource';
-import { ArchiveType, ReleaseStatus, ReleaseTrack } from './AndroidSubmissionConfig';
+import { AndroidArchiveType, ReleaseStatus, ReleaseTrack } from './AndroidSubmissionConfig';
 import AndroidSubmitter, { AndroidSubmissionOptions } from './AndroidSubmitter';
 import { ServiceAccountSource, ServiceAccountSourceType } from './ServiceAccountSource';
 import { AndroidSubmissionContext, AndroidSubmitCommandFlags } from './types';
@@ -190,14 +190,14 @@ class AndroidSubmitCommand {
   private resolveArchiveTypeSource(): ArchiveTypeSource {
     const { type: rawArchiveType } = this.ctx.commandFlags;
     if (rawArchiveType) {
-      if (!(rawArchiveType in ArchiveType)) {
+      if (!(rawArchiveType in AndroidArchiveType)) {
         throw new Error(
           `Unsupported archive type: ${rawArchiveType} (valid options: ${Object.keys(
-            ArchiveType
+            AndroidArchiveType
           ).join(', ')})`
         );
       }
-      const archiveType = rawArchiveType as ArchiveType;
+      const archiveType = rawArchiveType as AndroidArchiveType;
       return {
         sourceType: ArchiveTypeSourceType.parameter,
         archiveType,

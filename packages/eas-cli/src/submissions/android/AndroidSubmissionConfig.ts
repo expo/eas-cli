@@ -8,23 +8,26 @@ export interface AndroidSubmissionConfig {
   releaseStatus?: ReleaseStatus;
 }
 
-enum ArchiveType {
+export enum AndroidArchiveType {
   apk = 'apk',
   aab = 'aab',
 }
+export enum IosArchiveType {
+  ipa = 'ipa',
+}
 
-enum ReleaseStatus {
+export type ArchiveType = AndroidArchiveType | IosArchiveType;
+
+export enum ReleaseStatus {
   completed = 'completed',
   draft = 'draft',
   halted = 'halted',
   inProgress = 'inProgress',
 }
 
-enum ReleaseTrack {
+export enum ReleaseTrack {
   production = 'production',
   beta = 'beta',
   alpha = 'alpha',
   internal = 'internal',
 }
-
-export { ArchiveType, ReleaseStatus, ReleaseTrack };

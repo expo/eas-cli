@@ -1,5 +1,6 @@
 import { vol } from 'memfs';
 
+import { asMock } from '../../../__tests__/utils';
 import { promptAsync } from '../../../prompts';
 import {
   ServiceAccountSource,
@@ -21,12 +22,12 @@ describe(getServiceAccountAsync, () => {
   });
 
   afterEach(() => {
-    ((promptAsync as unknown) as jest.Mock).mockClear();
+    asMock(promptAsync).mockClear();
   });
 
   describe('when source is ServiceAccountSourceType.path', () => {
     it("prompts for path if the provided file doesn't exist", async () => {
-      ((promptAsync as unknown) as jest.Mock).mockImplementationOnce(() => ({
+      asMock(promptAsync).mockImplementationOnce(() => ({
         filePath: '/google-service-account.json',
       }));
       const source: ServiceAccountSource = {
@@ -59,7 +60,7 @@ describe(getServiceAccountAsync, () => {
 
   describe('when source is ServiceAccountSourceType.prompt', () => {
     it('prompts for path', async () => {
-      ((promptAsync as unknown) as jest.Mock).mockImplementationOnce(() => ({
+      asMock(promptAsync).mockImplementationOnce(() => ({
         filePath: '/google-service-account.json',
       }));
       const source: ServiceAccountSource = {
@@ -71,7 +72,7 @@ describe(getServiceAccountAsync, () => {
     });
 
     it('prompts for path until the user provides an existing file', async () => {
-      ((promptAsync as unknown) as jest.Mock)
+      asMock(promptAsync)
         .mockImplementationOnce(() => ({
           filePath: '/doesnt-exist.json',
         }))

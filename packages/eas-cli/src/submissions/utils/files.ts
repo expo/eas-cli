@@ -1,7 +1,6 @@
+import { sync as globSync } from 'fast-glob';
 import fs from 'fs-extra';
-import { sync as globSync } from 'glob';
 import got from 'got';
-import Request from 'got/dist/source/core';
 import os from 'os';
 import { basename, extname, join } from 'path';
 import stream from 'stream';
@@ -12,6 +11,15 @@ import { UploadType, uploadAsync } from '../../uploads';
 import { createProgressTracker } from '../../utils/progress';
 
 const pipeline = promisify(stream.pipeline);
+
+async function isExistingFile(filePath: string) {
+  try {
+    const stats = await fs.stat(filePath);
+    return stats.isFile();
+  } catch (e) {
+    return false;
+  }
+}
 
 async function moveFileOfTypeAsync(
   directory: string,
@@ -45,7 +53,7 @@ async function moveFileOfTypeAsync(
   return dest;
 }
 
-function createDownloadStream(url: string): Request {
+function createDownloadStream(url: string) {
   return got.stream(url).on('downloadProgress', createProgressTracker());
 }
 
@@ -118,6 +126,7 @@ async function extractLocalArchiveAsync(filePath: string): Promise<string> {
 }
 
 export {
+  isExistingFile,
   createDownloadStream,
   downloadAppArchiveAsync,
   extractLocalArchiveAsync,

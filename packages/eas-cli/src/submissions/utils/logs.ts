@@ -1,3 +1,4 @@
+import chalk from 'chalk';
 import got from 'got';
 
 import log from '../../log';
@@ -25,7 +26,7 @@ async function downloadAndPrintSubmissionLogs(submission: Submission): Promise<v
   const { body: data } = await got.get(submission.submissionInfo.logsUrl);
   const logs = parseLogs(data);
   log.addNewLineIfNone();
-  const prefix = log.chalk.blueBright('[logs] ');
+  const prefix = chalk.blueBright('[logs] ');
   for (const { level, msg } of logs) {
     const msgWithPrefix = `${prefix}${msg}`;
     if (level === 'error') {
