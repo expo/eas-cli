@@ -1,10 +1,6 @@
 import log from '../../log';
 import { promptAsync } from '../../prompts';
-import {
-  AndroidArchiveType,
-  ArchiveType,
-  IosArchiveType,
-} from '../android/AndroidSubmissionConfig';
+import { ArchiveType } from '../android/AndroidSubmissionConfig';
 import { SubmissionPlatform } from '../types';
 
 export enum ArchiveTypeSourceType {
@@ -40,11 +36,6 @@ export async function getArchiveTypeAsync(
   source: ArchiveTypeSource,
   location: string
 ): Promise<ArchiveType> {
-  // for iOS we have only one archive type
-  if (platform === SubmissionPlatform.iOS) {
-    return IosArchiveType.ipa;
-  }
-
   switch (source.sourceType) {
     case ArchiveTypeSourceType.infer:
       return handleInferSourceAsync(platform, source, location);
@@ -100,8 +91,8 @@ async function handlePromptSourceAsync(
     type: 'select',
     message: "What's the archive type?",
     choices: [
-      { title: 'APK', value: AndroidArchiveType.apk },
-      { title: 'AAB', value: AndroidArchiveType.aab },
+      { title: 'APK', value: ArchiveType.apk },
+      { title: 'AAB', value: ArchiveType.aab },
     ],
     ...(inferredArchiveType && { default: inferredArchiveType }),
   });
@@ -112,11 +103,9 @@ type ArchiveInferredType = ArchiveType | null;
 
 function inferArchiveTypeFromLocation(location: string): ArchiveInferredType {
   if (location.endsWith('.apk')) {
-    return AndroidArchiveType.apk;
+    return ArchiveType.apk;
   } else if (location.endsWith('.aab')) {
-    return AndroidArchiveType.aab;
-  } else if (location.endsWith('.ipa')) {
-    return IosArchiveType.ipa;
+    return ArchiveType.aab;
   } else {
     return null;
   }

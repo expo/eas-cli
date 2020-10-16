@@ -9,8 +9,8 @@ import SubmissionService from '../../SubmissionService';
 import { Submission, SubmissionStatus } from '../../SubmissionService.types';
 import { AndroidSubmitCommandFlags, SubmissionPlatform } from '../../types';
 import {
-  AndroidArchiveType,
   AndroidSubmissionConfig,
+  ArchiveType,
   ReleaseStatus,
   ReleaseTrack,
 } from '../AndroidSubmissionConfig';
@@ -104,7 +104,7 @@ describe(AndroidSubmitCommand, () => {
 
       const androidSubmissionConfig: AndroidSubmissionConfig = {
         archiveUrl: 'http://expo.io/fake.apk',
-        archiveType: AndroidArchiveType.apk,
+        archiveType: ArchiveType.apk,
         androidPackage: testProject.appJSON.expo.android?.package,
         serviceAccount: fakeFiles['/google-service-account.json'],
         releaseStatus: ReleaseStatus.draft,
