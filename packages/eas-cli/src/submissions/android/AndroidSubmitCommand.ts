@@ -1,6 +1,6 @@
 import { getConfig } from '@expo/config';
 import { Result, result } from '@expo/results';
-import { validate as uuidValidate } from 'uuid';
+import * as uuid from 'uuid';
 
 import log from '../../log';
 import { ensureProjectExistsAsync } from '../../project/ensureProjectExists';
@@ -164,7 +164,7 @@ class AndroidSubmitCommand {
         projectDir: this.ctx.projectDir,
       };
     } else if (id) {
-      if (!uuidValidate(id)) {
+      if (!uuid.validate(id)) {
         throw new Error(`${id} is not an ID`);
       }
       return {

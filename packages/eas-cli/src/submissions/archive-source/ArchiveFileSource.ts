@@ -1,6 +1,6 @@
 import chalk from 'chalk';
 import { URL, parse as parseUrl } from 'url';
-import { validate as uuidValidate } from 'uuid';
+import * as uuid from 'uuid';
 
 import log from '../../log';
 import { promptAsync } from '../../prompts';
@@ -257,7 +257,7 @@ async function askForBuildIdAsync(): Promise<string> {
     message: 'Build ID:',
     type: 'text',
     validate: (val: string): string | boolean => {
-      if (!uuidValidate(val)) {
+      if (!uuid.validate(val)) {
         return `${val} is not a valid id`;
       } else {
         return true;
