@@ -65,3 +65,13 @@ export function getExpoApiBaseUrl(): string {
     return `https://exp.host`;
   }
 }
+
+export function getExpoWebsiteBaseUrl(): string {
+  if (process.env.EXPO_STAGING) {
+    return `https://staging.expo.io`;
+  } else if (process.env.EXPO_LOCAL) {
+    return `http://expo.test`;
+  } else {
+    return `https://expo.io`;
+  }
+}
