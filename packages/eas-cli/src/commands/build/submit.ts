@@ -5,7 +5,7 @@ import AndroidSubmitCommand from '../../submissions/android/AndroidSubmitCommand
 import { AndroidSubmitCommandFlags } from '../../submissions/android/types';
 import { findProjectRootAsync } from '../../project/projectUtils';
 
-export default class SubmitAndroid extends Command {
+export default class BuildSubmit extends Command {
   static description = 'Submits built artifact to app store';
 
   static flags = {
@@ -16,6 +16,7 @@ export default class SubmitAndroid extends Command {
       required: true,
     }),
 
+    /* Common flags for both platforms */
     latest: flags.boolean({
       description: 'Submit the latest build',
       exclusive: ['id', 'path', 'url'],
@@ -34,6 +35,12 @@ export default class SubmitAndroid extends Command {
       exclusive: ['latest', 'id', 'path'],
     }),
 
+    verbose: flags.boolean({
+      description: 'Always print logs from Submission Service',
+      default: false,
+    }),
+
+    /* Android specific flags */
     type: flags.enum<'apk' | 'aab'>({
       description: 'Android archive type',
       options: ['apk', 'aab'],
@@ -58,11 +65,6 @@ export default class SubmitAndroid extends Command {
       default: 'completed',
       options: ['completed', 'draft', 'halted', 'inProgress'],
     }),
-
-    verbose: flags.boolean({
-      description: 'Always print logs from Submission Service',
-      default: false,
-    }),
   };
 
   async run() {
@@ -73,7 +75,7 @@ export default class SubmitAndroid extends Command {
         platform,
         ...flags
       },
-    } = this.parse(SubmitAndroid);
+    } = this.parse(BuildSubmit);
 
     // TODO: Remove this when iOS is supported
     if (platform !== SubmissionPlatform.Android) {

@@ -1,4 +1,4 @@
-import { sync as globSync } from 'fast-glob';
+import glob from 'fast-glob';
 import fs from 'fs-extra';
 import got from 'got';
 import os from 'os';
@@ -26,7 +26,7 @@ async function moveFileOfTypeAsync(
   extension: string,
   dest: string
 ): Promise<string> {
-  const [matching] = globSync(`*.${extension}`, {
+  const [matching] = await glob(`*.${extension}`, {
     absolute: true,
     cwd: directory,
   });
