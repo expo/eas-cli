@@ -1,24 +1,24 @@
 import { v4 as uuid } from 'uuid';
 
 import {
-  Platform,
   StartSubmissionResult,
   Submission,
   SubmissionConfig,
   SubmissionStatus,
 } from '../SubmissionService.types';
+import { SubmissionPlatform } from '../types';
 
 const SubmissionService = {
   startSubmissionAsync,
   getSubmissionAsync,
 };
 
-const DEFAULT_CHECK_INTERVAL_MS = 0;
+export const DEFAULT_CHECK_INTERVAL_MS = 0;
 
 const submissionStore: Record<string, Submission> = {};
 
 async function startSubmissionAsync(
-  platform: Platform,
+  platform: SubmissionPlatform,
   _projectId: string,
   _config: SubmissionConfig
 ): Promise<StartSubmissionResult> {
@@ -41,4 +41,3 @@ async function getSubmissionAsync(_projectId: string, submissionId: string): Pro
 }
 
 export default SubmissionService;
-export { DEFAULT_CHECK_INTERVAL_MS };
