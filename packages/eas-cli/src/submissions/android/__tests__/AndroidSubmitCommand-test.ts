@@ -7,7 +7,7 @@ import { createTestProject } from '../../../project/__tests__/project-utils';
 import { ensureProjectExistsAsync } from '../../../project/ensureProjectExists';
 import SubmissionService from '../../SubmissionService';
 import { Submission, SubmissionStatus } from '../../SubmissionService.types';
-import { SubmissionPlatform } from '../../types';
+import { AndroidSubmitCommandFlags, SubmissionPlatform } from '../../types';
 import {
   AndroidArchiveType,
   AndroidSubmissionConfig,
@@ -15,25 +15,17 @@ import {
   ReleaseTrack,
 } from '../AndroidSubmissionConfig';
 import AndroidSubmitCommand from '../AndroidSubmitCommand';
-import { AndroidSubmitCommandFlags } from '../types';
 
 jest.mock('fs');
 jest.mock('../../SubmissionService');
 jest.mock('../../../project/ensureProjectExists');
-jest.mock('@expo/image-utils', () => ({
-  generateImageAsync(input: any, { src }: any) {
-    const fs = require('fs');
-    return { source: fs.readFileSync(src) };
-  },
-}));
-
 jest.mock('../../../user/User', () => ({
   getUserAsync: jest.fn(() => mockJester),
 }));
-
 jest.mock('../../../user/actions', () => ({
   ensureLoggedInAsync: jest.fn(() => mockJester),
 }));
+jest.mock('../../../project/projectUtils');
 
 describe(AndroidSubmitCommand, () => {
   const testProject = createTestProject(mockJester, {
@@ -53,15 +45,15 @@ describe(AndroidSubmitCommand, () => {
       ...fakeFiles,
     });
 
-    const mockManifest = testProject.appJSON.expo;
-    jest.mock('../../utils/config', () => ({
-      getExpoConfig: jest.fn(() => mockManifest),
+    const mockManifest = { exp: testProject.appJSON.expo };
+    jest.mock('@expo/config', () => ({
+      getConfig: jest.fn(() => mockManifest),
     }));
   });
   afterAll(() => {
     vol.reset();
 
-    jest.unmock('../../utils/config');
+    jest.unmock('@expo/config');
   });
 
   afterEach(() => {

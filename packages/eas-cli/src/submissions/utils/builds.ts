@@ -47,7 +47,7 @@ export async function getBuildArtifactUrlByIdAsync(
 export async function getLatestBuildArtifactUrlAsync(
   platform: SubmissionPlatform,
   appId: string
-): Promise<string> {
+): Promise<string | null> {
   const { data, error } = await graphqlClient
     .query(
       gql`
@@ -73,7 +73,7 @@ export async function getLatestBuildArtifactUrlAsync(
   }
 
   if (data.builds.allForApp.length !== 1) {
-    throw new Error(`No builds were found for platform: ${platform}`);
+    return null;
   }
 
   return data.builds.allForApp[0].artifacts.buildUrl;

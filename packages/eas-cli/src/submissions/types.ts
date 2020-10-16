@@ -15,3 +15,14 @@ export enum SubmissionPlatform {
   Android = 'android',
   iOS = 'ios',
 }
+
+// Android specific types
+export interface AndroidSubmitCommandFlags extends SubmitCommandFlags {
+  type?: 'apk' | 'aab';
+  key?: string;
+  androidPackage?: string;
+  track: string;
+  releaseStatus: string;
+}
+
+export type AndroidSubmissionContext = SubmissionContext<AndroidSubmitCommandFlags>;

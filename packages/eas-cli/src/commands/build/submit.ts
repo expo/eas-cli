@@ -1,12 +1,12 @@
 import { Command, flags } from '@oclif/command';
-import { SubmissionPlatform } from '../../submissions/types';
+import { SubmissionPlatform, AndroidSubmitCommandFlags } from '../../submissions/types';
 
 import AndroidSubmitCommand from '../../submissions/android/AndroidSubmitCommand';
-import { AndroidSubmitCommandFlags } from '../../submissions/android/types';
 import { findProjectRootAsync } from '../../project/projectUtils';
+import { ensureLoggedInAsync } from '../../user/actions';
 
 export default class BuildSubmit extends Command {
-  static description = 'Submits built artifact to app store';
+  static description = 'Submits build artifact to app store';
 
   static flags = {
     platform: flags.enum({
@@ -82,6 +82,7 @@ export default class BuildSubmit extends Command {
       throw new Error(`Platform ${platform} is not supported yet!`);
     }
 
+    await ensureLoggedInAsync();
     const projectDir = await findProjectRootAsync(process.cwd());
 
     // TODO: Make this work outside project dir

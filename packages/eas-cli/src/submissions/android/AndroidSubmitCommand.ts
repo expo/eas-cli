@@ -1,9 +1,10 @@
+import { getConfig } from '@expo/config';
 import { Result, result } from '@expo/results';
 import validator from 'validator';
 
 import log from '../../log';
 import { ensureProjectExistsAsync } from '../../project/ensureProjectExists';
-import { ensureLoggedInAsync } from '../../user/actions';
+import { getProjectAccountNameAsync } from '../../project/projectUtils';
 import {
   ArchiveFileSource,
   ArchiveFileSourceType,
@@ -11,13 +12,11 @@ import {
   ArchiveTypeSource,
   ArchiveTypeSourceType,
 } from '../archive-source';
-import { SubmissionPlatform } from '../types';
-import { getExpoConfig } from '../utils/config';
+import { AndroidSubmissionContext, AndroidSubmitCommandFlags, SubmissionPlatform } from '../types';
 import { AndroidPackageSource, AndroidPackageSourceType } from './AndroidPackageSource';
 import { AndroidArchiveType, ReleaseStatus, ReleaseTrack } from './AndroidSubmissionConfig';
 import AndroidSubmitter, { AndroidSubmissionOptions } from './AndroidSubmitter';
 import { ServiceAccountSource, ServiceAccountSourceType } from './ServiceAccountSource';
-import { AndroidSubmissionContext, AndroidSubmitCommandFlags } from './types';
 
 class AndroidSubmitCommand {
   static createContext(
@@ -72,10 +71,9 @@ class AndroidSubmitCommand {
   }
 
   private async getProjectIdAsync(): Promise<string> {
-    const user = await ensureLoggedInAsync();
-    const exp = getExpoConfig(this.ctx.projectDir);
+    const { exp } = getConfig(this.ctx.projectDir, { skipSDKVersionRequirement: true });
     return await ensureProjectExistsAsync({
-      accountName: exp.owner || user.username,
+      accountName: await getProjectAccountNameAsync(this.ctx.projectDir),
       projectName: exp.slug,
     });
   }
@@ -85,7 +83,7 @@ class AndroidSubmitCommand {
     if (this.ctx.commandFlags.androidPackage) {
       androidPackage = this.ctx.commandFlags.androidPackage;
     }
-    const exp = getExpoConfig(this.ctx.projectDir);
+    const { exp } = getConfig(this.ctx.projectDir, { skipSDKVersionRequirement: true });
     if (exp.android?.package) {
       androidPackage = exp.android.package;
     }

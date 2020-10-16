@@ -9,7 +9,7 @@ import { sleep } from '../../utils/promise';
 import SubmissionService, { DEFAULT_CHECK_INTERVAL_MS } from '../SubmissionService';
 import { Submission, SubmissionStatus } from '../SubmissionService.types';
 import { Archive, ArchiveSource, getArchiveAsync } from '../archive-source';
-import { SubmissionPlatform } from '../types';
+import { AndroidSubmissionContext, SubmissionPlatform } from '../types';
 import { displayLogs } from '../utils/logs';
 import { AndroidPackageSource, getAndroidPackageAsync } from './AndroidPackageSource';
 import {
@@ -19,7 +19,6 @@ import {
   ReleaseTrack,
 } from './AndroidSubmissionConfig';
 import { ServiceAccountSource, getServiceAccountAsync } from './ServiceAccountSource';
-import { AndroidSubmissionContext } from './types';
 
 export interface AndroidSubmissionOptions
   extends Pick<AndroidSubmissionConfig, 'track' | 'releaseStatus' | 'projectId'> {
@@ -39,7 +38,6 @@ class AndroidSubmitter {
 
   async submitAsync(): Promise<void> {
     const resolvedSourceOptions = await this.resolveSourceOptions();
-
     const submissionConfig = await this.formatSubmissionConfigAndPrintSummary(
       this.options,
       resolvedSourceOptions

@@ -107,18 +107,24 @@ async function handleUrlSourceAsync(source: ArchiveFileUrlSource): Promise<strin
 
 async function handleLatestSourceAsync(source: ArchiveFileLatestSource): Promise<string> {
   try {
-    return await getLatestBuildArtifactUrlAsync(source.platform, source.projectId);
+    const artifactUrl = await getLatestBuildArtifactUrlAsync(source.platform, source.projectId);
+
+    if (!artifactUrl) {
+      log.error(
+        chalk.bold(
+          "Couldn't find any builds for this project on Expo servers. It looks like you haven't run eas build yet."
+        )
+      );
+      return getArchiveFileLocationAsync({
+        ...source,
+        sourceType: ArchiveFileSourceType.prompt,
+      });
+    }
+
+    return artifactUrl;
   } catch (err) {
-    log.error(
-      chalk.bold(
-        "Couldn't find any builds for this project on Expo servers. It looks like you haven't run eas build yet."
-      )
-    );
     log.error(err);
-    return getArchiveFileLocationAsync({
-      ...source,
-      sourceType: ArchiveFileSourceType.prompt,
-    });
+    throw err;
   }
 }
 
