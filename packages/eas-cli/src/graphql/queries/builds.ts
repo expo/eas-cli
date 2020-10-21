@@ -1,6 +1,6 @@
 import gql from 'graphql-tag';
 
-import { graphqlClient } from '../../graphql/client';
+import { graphqlClient, withErrorHandling } from '../../graphql/client';
 import { Build } from '../types/Build';
 
 type Filters = Partial<Pick<Build, 'platform' | 'status'>> & {
@@ -13,29 +13,23 @@ type PlatformAndArtifactFragmentType = Pick<Build, 'platform' | 'artifacts'>;
 
 export class BuildQuery {
   static async forArtifactByIdAsync(buildId: string): Promise<PlatformAndArtifactFragmentType> {
-    const { data, error } = await graphqlClient
-      .query<{ builds: { byId: PlatformAndArtifactFragmentType } }>(
-        gql`
-      {
-        builds {
-          byId(buildId: "${buildId}") {
-            platform,
-            artifacts {
-              buildUrl
+    const data = await withErrorHandling(
+      graphqlClient
+        .query<{ builds: { byId: PlatformAndArtifactFragmentType } }>(
+          gql`
+          {
+            builds {
+              byId(buildId: "${buildId}") {
+                platform,
+                artifacts {
+                  buildUrl
+                }
+              }
             }
-          }
-        }
-      }`
-      )
-      .toPromise();
-
-    if (error) {
-      throw error;
-    }
-
-    if (!data) {
-      throw new Error('Returned data is empty!');
-    }
+          }`
+        )
+        .toPromise()
+    );
 
     return data.builds.byId;
   }
@@ -62,28 +56,22 @@ export class BuildQuery {
       filterData.push(`status: ${filters.status}`);
     }
 
-    const { data, error } = await graphqlClient
-      .query<{ builds: { allForApp: ArtifactFragmentType[] } }>(
-        gql`
-    {
-      builds {
-        allForApp(${filterData.join(', ')}) {
-          artifacts {
-            buildUrl
-          }
-        }
-      }
-    }`
-      )
-      .toPromise();
-
-    if (error) {
-      throw error;
-    }
-
-    if (!data) {
-      throw new Error('Returned data is empty!');
-    }
+    const data = await withErrorHandling(
+      graphqlClient
+        .query<{ builds: { allForApp: ArtifactFragmentType[] } }>(
+          gql`
+          {
+            builds {
+              allForApp(${filterData.join(', ')}) {
+                artifacts {
+                  buildUrl
+                }
+              }
+            }
+          }`
+        )
+        .toPromise()
+    );
 
     return data.builds.allForApp;
   }
