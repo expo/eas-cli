@@ -1,6 +1,7 @@
 import { AndroidBuildProfile, EasConfig, iOSBuildProfile } from '@eas/config';
 import { ExpoConfig, getConfig } from '@expo/config';
 
+import { getProjectAccountNameAsync } from '../project/projectUtils';
 import { User } from '../user/User';
 import { ensureLoggedInAsync } from '../user/actions';
 import { BuildCommandPlatform, Platform, TrackingContext } from './types';
@@ -41,7 +42,7 @@ export async function createCommandContextAsync({
 }): Promise<CommandContext> {
   const user = await ensureLoggedInAsync();
   const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
-  const accountName = exp.owner || user.username;
+  const accountName = await getProjectAccountNameAsync(projectDir);
   const projectName = exp.slug;
 
   return {

@@ -15,7 +15,7 @@ export default class BuildCreate extends Command {
     platform: flags.enum({ char: 'p', options: ['android', 'ios', 'all'], required: true }),
     'skip-credentials-check': flags.boolean({
       default: false,
-      description: 'Skip validation for build credentials',
+      description: 'Skip validation of build credentials',
     }),
     'skip-project-configuration': flags.boolean({
       default: false,
@@ -23,15 +23,15 @@ export default class BuildCreate extends Command {
     }),
     profile: flags.string({
       default: 'release',
-      description: 'Name of the build profile specified in eas.json',
+      description: 'Name of the build profile from eas.json',
     }),
     'non-interactive': flags.boolean({
       default: false,
-      description: 'Run command wit --non-interactive mode',
+      description: 'Run command in --non-interactive mode',
     }),
     wait: flags.boolean({
       default: true,
-      description: 'Wait for build (or builds) tofinish before exiting from cli',
+      description: 'Wait for build(s) to complete',
     }),
   };
 

@@ -24,7 +24,7 @@ export async function ensureProjectExistsAsync(projectInfo: ProjectInfo): Promis
   ).start();
 
   try {
-    const id = await findProjectIdByUsernameAndSlugAsync(accountName, projectName);
+    const id = await findProjectIdByAccountNameAndSlugAsync(accountName, projectName);
     spinner.succeed();
     return id;
   } catch (err) {
@@ -55,7 +55,7 @@ export async function ensureProjectExistsAsync(projectInfo: ProjectInfo): Promis
  * @param slug project slug
  * @returns A promise resolving to Project ID
  */
-async function findProjectIdByUsernameAndSlugAsync(
+async function findProjectIdByAccountNameAndSlugAsync(
   accountName: string,
   slug: string
 ): Promise<string> {

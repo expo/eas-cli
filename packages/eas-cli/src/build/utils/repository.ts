@@ -3,6 +3,8 @@ import chalk from 'chalk';
 import figures from 'figures';
 import fs from 'fs-extra';
 import ora from 'ora';
+import path from 'path';
+import { v4 as uuidv4 } from 'uuid';
 
 import log from '../../log';
 import { confirmAsync, promptAsync } from '../../prompts';
@@ -13,10 +15,11 @@ import {
   gitStatusAsync,
   isGitInstalledAsync,
 } from '../../utils/git';
+import { getTmpDirectory } from '../../utils/paths';
 
 async function ensureGitRepoExistsAsync(): Promise<void> {
   if (!(await isGitInstalledAsync())) {
-    throw new Error('git command has not been found, install it before proceeding');
+    throw new Error('git command not found, install it before proceeding');
   }
 
   if (await doesGitRepoExistAsync()) {
@@ -60,8 +63,12 @@ async function ensureGitStatusIsCleanAsync(): Promise<void> {
 
 class DirtyGitTreeError extends Error {}
 
-async function makeProjectTarballAsync(tarPath: string): Promise<number> {
+async function makeProjectTarballAsync(): Promise<{ path: string; size: number }> {
   const spinner = ora('Making project tarball').start();
+
+  await fs.mkdirp(getTmpDirectory());
+  const tarPath = path.join(getTmpDirectory(), `${uuidv4()}.tar.gz`);
+
   await spawnAsync(
     'git',
     ['archive', '--format=tar.gz', '--prefix', 'project/', '-o', tarPath, 'HEAD'],
@@ -70,7 +77,7 @@ async function makeProjectTarballAsync(tarPath: string): Promise<number> {
   spinner.succeed('Project tarball created.');
 
   const { size } = await fs.stat(tarPath);
-  return size;
+  return { size, path: tarPath };
 }
 
 async function reviewAndCommitChangesAsync(

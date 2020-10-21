@@ -10,8 +10,8 @@ import { startAndroidBuildAsync } from './android/build';
 import { CommandContext } from './context';
 import { startIosBuildAsync } from './ios/build';
 import { Build, BuildCommandPlatform, BuildStatus } from './types';
-import { ensureGitRepoExistsAsync, ensureGitStatusIsCleanAsync } from './utils/git';
 import { printBuildResults, printLogsUrls } from './utils/printBuildInfo';
+import { ensureGitRepoExistsAsync, ensureGitStatusIsCleanAsync } from './utils/repository';
 
 export async function buildAsync(commandCtx: CommandContext): Promise<void> {
   await ensureGitRepoExistsAsync();

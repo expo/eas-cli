@@ -1,7 +1,10 @@
 *-debug.log
 *-error.log
+
 **/build/**
-!**/src/**/build/**
+!packages/eas-cli/src/commands/build/**
+!packages/eas-cli/src/build/**
+
 dist
 /package-lock.json
 tmp

@@ -1,3 +1,5 @@
 **/build/**
-!**/src/**/build/**
+!packages/eas-cli/src/commands/build/**
+!packages/eas-cli/src/build/**
+
 node_modules

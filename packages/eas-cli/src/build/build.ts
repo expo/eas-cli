@@ -1,21 +1,18 @@
 import { CredentialsSource } from '@eas/config';
 import { Job } from '@expo/eas-build-job';
 import fs from 'fs-extra';
-import path from 'path';
-import { v4 as uuidv4 } from 'uuid';
 
 import { apiClient } from '../api';
 import log from '../log';
 import { UploadType, uploadAsync } from '../uploads';
-import { getTmpDirectory } from '../utils/paths';
 import { createProgressTracker } from '../utils/progress';
 import { platformDisplayNames } from './constants';
 import { BuildContext } from './context';
 import { collectMetadata } from './metadata';
-import { AnalyticsEvent, Platform } from './types';
+import { AnalyticsEvent, Platform, TrackingContext } from './types';
 import Analytics from './utils/analytics';
-import { makeProjectTarballAsync } from './utils/git';
 import { printDeprecationWarnings } from './utils/printBuildInfo';
+import { makeProjectTarballAsync } from './utils/repository';
 
 export interface CredentialsResult<Credentials> {
   source: CredentialsSource.LOCAL | CredentialsSource.REMOTE;
@@ -45,94 +42,111 @@ export async function startBuildForPlatformAsync<
   Credentials,
   ProjectConfiguration
 >(builder: Builder<TPlatform, Credentials, ProjectConfiguration>): Promise<string> {
-  await fs.mkdirp(getTmpDirectory());
-  const tarPath = path.join(getTmpDirectory(), `${uuidv4()}.tar.gz`);
+  const credentialsResult = await withAnalyticsAsync(
+    async () => await builder.ensureCredentialsAsync(builder.ctx),
+    {
+      successEvent: AnalyticsEvent.GATHER_CREDENTIALS_SUCCESS,
+      failureEvent: AnalyticsEvent.GATHER_CREDENTIALS_FAIL,
+      trackingCtx: builder.ctx.trackingCtx,
+    }
+  );
+  if (!builder.ctx.commandCtx.skipProjectConfiguration) {
+    await withAnalyticsAsync(async () => await builder.ensureProjectConfiguredAsync(builder.ctx), {
+      successEvent: AnalyticsEvent.CONFIGURE_PROJECT_SUCCESS,
+      failureEvent: AnalyticsEvent.CONFIGURE_PROJECT_FAIL,
+      trackingCtx: builder.ctx.trackingCtx,
+    });
+  }
+
+  const archiveUrl = await uploadProjectAsync(builder.ctx);
+
+  const metadata = await collectMetadata(builder.ctx, {
+    credentialsSource: credentialsResult?.source,
+  });
+  const job = await builder.prepareJobAsync(builder.ctx, {
+    archiveUrl,
+    credentials: credentialsResult?.credentials,
+    projectConfiguration: builder.projectConfiguration,
+  });
+
   try {
-    let credentialsResult: CredentialsResult<Credentials> | undefined;
-    try {
-      credentialsResult = await builder.ensureCredentialsAsync(builder.ctx);
-      Analytics.logEvent(
-        AnalyticsEvent.GATHER_CREDENTIALS_SUCCESS,
-        builder.ctx.trackingCtx.properties
-      );
-    } catch (error) {
-      Analytics.logEvent(AnalyticsEvent.GATHER_CREDENTIALS_FAIL, {
-        ...builder.ctx.trackingCtx,
-        reason: error.message,
-      });
-      throw error;
+    return await withAnalyticsAsync(
+      async () => {
+        log(`Starting ${platformDisplayNames[job.platform]} build`);
+        const {
+          data: { buildId, deprecationInfo },
+        } = await apiClient
+          .post(`projects/${builder.ctx.projectId}/builds`, {
+            json: {
+              job,
+              metadata,
+            },
+          })
+          .json();
+        printDeprecationWarnings(deprecationInfo);
+        return buildId;
+      },
+      {
+        successEvent: AnalyticsEvent.BUILD_REQUEST_SUCCESS,
+        failureEvent: AnalyticsEvent.BUILD_REQUEST_FAIL,
+        trackingCtx: builder.ctx.trackingCtx,
+      }
+    );
+  } catch (error) {
+    if (error.code === 'TURTLE_DEPRECATED_JOB_FORMAT') {
+      log.error('EAS Build API changed, upgrade to latest expo-cli');
     }
-    if (!builder.ctx.commandCtx.skipProjectConfiguration) {
-      try {
-        await builder.ensureProjectConfiguredAsync(builder.ctx);
+    throw error;
+  }
+}
 
-        Analytics.logEvent(
-          AnalyticsEvent.CONFIGURE_PROJECT_SUCCESS,
-          builder.ctx.trackingCtx.properties
+async function uploadProjectAsync<TPlatform extends Platform>(
+  ctx: BuildContext<TPlatform>
+): Promise<string> {
+  let projectTarballPath;
+  try {
+    return await withAnalyticsAsync(
+      async () => {
+        const projectTarball = await makeProjectTarballAsync();
+        projectTarballPath = projectTarball.path;
+
+        log('Uploading project to AWS S3');
+        return await uploadAsync(
+          UploadType.TURTLE_PROJECT_SOURCES,
+          projectTarball.path,
+          createProgressTracker(projectTarball.size)
         );
-      } catch (error) {
-        Analytics.logEvent(AnalyticsEvent.CONFIGURE_PROJECT_FAIL, {
-          ...builder.ctx.trackingCtx,
-          reason: error.message,
-        });
-        throw error;
+      },
+      {
+        successEvent: AnalyticsEvent.PROJECT_UPLOAD_SUCCESS,
+        failureEvent: AnalyticsEvent.PROJECT_UPLOAD_FAIL,
+        trackingCtx: ctx.trackingCtx,
       }
-    }
-
-    let archiveUrl;
-    try {
-      const fileSize = await makeProjectTarballAsync(tarPath);
-
-      log('Uploading project to AWS S3');
-      archiveUrl = await uploadAsync(
-        UploadType.TURTLE_PROJECT_SOURCES,
-        tarPath,
-        createProgressTracker(fileSize)
-      );
-      Analytics.logEvent(AnalyticsEvent.PROJECT_UPLOAD_SUCCESS, builder.ctx.trackingCtx.properties);
-    } catch (error) {
-      Analytics.logEvent(AnalyticsEvent.PROJECT_UPLOAD_FAIL, {
-        ...builder.ctx.trackingCtx,
-        reason: error.message,
-      });
-      throw error;
-    }
-
-    const metadata = await collectMetadata(builder.ctx, {
-      credentialsSource: credentialsResult?.source,
-    });
-    const job = await builder.prepareJobAsync(builder.ctx, {
-      archiveUrl,
-      credentials: credentialsResult?.credentials,
-      projectConfiguration: builder.projectConfiguration,
-    });
-    log(`Starting ${platformDisplayNames[job.platform]} build`);
-
-    try {
-      const {
-        data: { buildId, deprecationInfo },
-      } = await apiClient
-        .post(`projects/${builder.ctx.projectId}/builds`, {
-          json: {
-            job,
-            metadata,
-          },
-        })
-        .json();
-      printDeprecationWarnings(deprecationInfo);
-      Analytics.logEvent(AnalyticsEvent.BUILD_REQUEST_SUCCESS, builder.ctx.trackingCtx.properties);
-      return buildId;
-    } catch (error) {
-      Analytics.logEvent(AnalyticsEvent.BUILD_REQUEST_FAIL, {
-        ...builder.ctx.trackingCtx,
-        reason: error.message,
-      });
-      if (error.code === 'TURTLE_DEPRECATED_JOB_FORMAT') {
-        log.error('EAS Build API changed, upgrade to latest expo-cli');
-      }
-      throw error;
-    }
+    );
   } finally {
-    await fs.remove(tarPath);
+    if (projectTarballPath) {
+      await fs.remove(projectTarballPath);
+    }
+  }
+}
+
+async function withAnalyticsAsync<Result>(
+  fn: () => Promise<Result>,
+  analytics: {
+    successEvent: AnalyticsEvent;
+    failureEvent: AnalyticsEvent;
+    trackingCtx: TrackingContext;
+  }
+): Promise<Result> {
+  try {
+    const result = await fn();
+    Analytics.logEvent(analytics.successEvent, analytics.trackingCtx);
+    return result;
+  } catch (error) {
+    Analytics.logEvent(analytics.failureEvent, {
+      ...analytics.trackingCtx,
+      reason: error.message,
+    });
+    throw error;
   }
 }
