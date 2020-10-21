@@ -13,6 +13,8 @@ jest.mock('../../api', () => ({
       };
     }),
   },
+}));
+jest.mock('../../graphql/client', () => ({
   graphqlClient: {
     query: () => {
       return {

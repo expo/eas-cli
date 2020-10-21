@@ -1,6 +1,8 @@
 import gql from 'graphql-tag';
 
-import { apiClient, graphqlClient } from '../api';
+import { apiClient } from '../api';
+import { graphqlClient } from '../graphql/client';
+import { UserQuery } from '../graphql/queries/users';
 import { Account } from './Account';
 import { getSession, setSessionAsync } from './sessionStorage';
 
@@ -22,27 +24,11 @@ export function getSessionSecret(): string | null {
 
 export async function getUserAsync(): Promise<User | undefined> {
   if (!currentUser && getSessionSecret()) {
-    const result = await graphqlClient
-      .query(
-        gql`
-          {
-            viewer {
-              id
-              username
-              accounts {
-                id
-                name
-              }
-            }
-          }
-        `
-      )
-      .toPromise();
-    const { data } = result;
+    const user = await UserQuery.currentUserAsync();
     currentUser = {
-      userId: data.viewer.id,
-      username: data.viewer.username,
-      accounts: data.viewer.accounts,
+      userId: user.id,
+      username: user.username,
+      accounts: user.accounts,
     };
   }
   return currentUser;

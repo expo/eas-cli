@@ -1,41 +1,20 @@
-import gql from 'graphql-tag';
-
-import { graphqlClient } from '../../api';
+import { BuildQuery } from '../../graphql/queries/builds';
+import { BuildPlatform, BuildStatus } from '../../graphql/types/Build';
 import { SubmissionPlatform } from '../types';
 
-const graphqlPlatform: Record<SubmissionPlatform, string> = {
-  [SubmissionPlatform.Android]: 'ANDROID',
-  [SubmissionPlatform.iOS]: 'IOS',
+const graphqlPlatform: Record<SubmissionPlatform, BuildPlatform> = {
+  [SubmissionPlatform.Android]: BuildPlatform.Android,
+  [SubmissionPlatform.iOS]: BuildPlatform.iOS,
 };
 
 export async function getBuildArtifactUrlByIdAsync(
   platform: SubmissionPlatform,
   buildId: string
 ): Promise<string> {
-  const { data, error } = await graphqlClient
-    .query(
-      gql`
-    {
-      builds {
-        byId(buildId: "${buildId}") {
-          platform,
-          artifacts {
-            buildUrl
-          }
-        }
-      }
-    }`
-    )
-    .toPromise();
-
-  if (error?.graphQLErrors) {
-    throw error.graphQLErrors[0];
-  }
-
   const {
     platform: buildPlatform,
     artifacts: { buildUrl },
-  } = data.builds.byId;
+  } = await BuildQuery.forArtifactByIdAsync(buildId);
 
   if (buildPlatform !== graphqlPlatform[platform]) {
     throw new Error("Build platform doesn't match!");
@@ -48,33 +27,11 @@ export async function getLatestBuildArtifactUrlAsync(
   platform: SubmissionPlatform,
   appId: string
 ): Promise<string | null> {
-  const { data, error } = await graphqlClient
-    .query(
-      gql`
-    {
-      builds {
-        allForApp(
-          appId: "${appId}",
-          platform: ${graphqlPlatform[platform]},
-          status: FINISHED,
-          limit: 1
-        ) {
-          artifacts {
-            buildUrl
-          }
-        }
-      }
-    }`
-    )
-    .toPromise();
+  const builds = await BuildQuery.allArtifactsForAppAsync(appId, {
+    platform: graphqlPlatform[platform],
+    status: BuildStatus.Finished,
+    limit: 1,
+  });
 
-  if (error?.graphQLErrors) {
-    throw error.graphQLErrors[0];
-  }
-
-  if (data.builds.allForApp.length !== 1) {
-    return null;
-  }
-
-  return data.builds.allForApp[0].artifacts.buildUrl;
+  return builds[0].artifacts.buildUrl;
 }

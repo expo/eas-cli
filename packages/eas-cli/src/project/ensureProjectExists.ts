@@ -1,9 +1,9 @@
 import { ProjectPrivacy } from '@expo/config';
 import chalk from 'chalk';
-import gql from 'graphql-tag';
 import ora from 'ora';
 
-import { apiClient, graphqlClient } from '../api';
+import { apiClient } from '../api';
+import { ProjectQuery } from '../graphql/queries/project';
 
 interface ProjectInfo {
   accountName: string;
@@ -28,6 +28,7 @@ export async function ensureProjectExistsAsync(projectInfo: ProjectInfo): Promis
     spinner.succeed();
     return id;
   } catch (err) {
+    console.log(err);
     if (err.grapgQLErrors?.some((it: any) => it.extensions?.errorCode !== 'EXPERIENCE_NOT_FOUND')) {
       spinner.fail(
         `Something went wrong when looking for project ${chalk.bold(
@@ -59,23 +60,8 @@ async function findProjectIdByUsernameAndSlugAsync(
   username: string,
   slug: string
 ): Promise<string> {
-  const { data, error } = await graphqlClient
-    .query(
-      gql`
-      {
-        project {
-          byUsernameAndSlug(username: "${username}", slug: "${slug}", sdkVersions: []) {
-            id
-          }
-        }
-      }`
-    )
-    .toPromise();
-
-  if (error) {
-    throw error;
-  }
-  return data.project.byUsernameAndSlug.id;
+  const project = await ProjectQuery.idByUsernameAndSlugAsync(username, slug);
+  return project.id;
 }
 
 /**
