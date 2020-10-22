@@ -1,8 +1,8 @@
 import { Command, flags } from '@oclif/command';
-import { SubmissionPlatform, AndroidSubmitCommandFlags } from '../../submissions/types';
 
-import AndroidSubmitCommand from '../../submissions/android/AndroidSubmitCommand';
 import { findProjectRootAsync } from '../../project/projectUtils';
+import AndroidSubmitCommand from '../../submissions/android/AndroidSubmitCommand';
+import { AndroidSubmitCommandFlags, SubmissionPlatform } from '../../submissions/types';
 import { ensureLoggedInAsync } from '../../user/actions';
 
 export default class BuildSubmit extends Command {

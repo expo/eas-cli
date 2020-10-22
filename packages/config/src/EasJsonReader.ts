@@ -1,4 +1,4 @@
-import { Platform } from '@expo/build-tools';
+import { Platform } from '@expo/eas-build-job';
 import fs from 'fs-extra';
 import path from 'path';
 
