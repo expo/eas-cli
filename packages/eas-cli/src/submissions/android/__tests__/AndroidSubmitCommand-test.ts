@@ -17,14 +17,7 @@ import {
 import AndroidSubmitCommand from '../AndroidSubmitCommand';
 
 jest.mock('fs');
-jest.mock('ora', () =>
-  jest.fn().mockReturnValue({
-    start: jest.fn().mockReturnValue({
-      fail: jest.fn(),
-      succeed: jest.fn(),
-    }),
-  })
-);
+jest.mock('ora');
 jest.mock('../../SubmissionService');
 jest.mock('../../../project/ensureProjectExists');
 jest.mock('../../../user/User', () => ({
