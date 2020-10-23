@@ -17,6 +17,7 @@ import {
 import AndroidSubmitCommand from '../AndroidSubmitCommand';
 
 jest.mock('fs');
+jest.mock('ora');
 jest.mock('../../SubmissionService');
 jest.mock('../../../project/ensureProjectExists');
 jest.mock('../../../user/User', () => ({
@@ -39,7 +40,10 @@ describe(AndroidSubmitCommand, () => {
     '/google-service-account.json': JSON.stringify({ service: 'account' }),
   };
 
+  const originalConsoleLog = console.log;
   beforeAll(() => {
+    console.log = jest.fn();
+
     vol.fromJSON({
       ...testProject.projectTree,
       ...fakeFiles,
@@ -54,6 +58,8 @@ describe(AndroidSubmitCommand, () => {
     vol.reset();
 
     jest.unmock('@expo/config');
+
+    console.log = originalConsoleLog;
   });
 
   afterEach(() => {
