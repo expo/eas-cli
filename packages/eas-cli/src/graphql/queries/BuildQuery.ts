@@ -1,6 +1,6 @@
 import gql from 'graphql-tag';
 
-import { graphqlClient, withErrorHandling } from '../../graphql/client';
+import { graphqlClient, withErrorHandlingAsync } from '../client';
 import { Build } from '../types/Build';
 
 type Filters = Partial<Pick<Build, 'platform' | 'status'>> & {
@@ -13,7 +13,7 @@ type PlatformAndArtifactFragmentType = Pick<Build, 'platform' | 'artifacts'>;
 
 export class BuildQuery {
   static async forArtifactByIdAsync(buildId: string): Promise<PlatformAndArtifactFragmentType> {
-    const data = await withErrorHandling(
+    const data = await withErrorHandlingAsync(
       graphqlClient
         .query<{ builds: { byId: PlatformAndArtifactFragmentType } }>(
           gql`
@@ -43,20 +43,17 @@ export class BuildQuery {
     if (filters?.limit) {
       filterData.push(`limit: ${filters.limit}`);
     }
-
     if (filters?.order) {
       filterData.push(`order: ${filters.order}`);
     }
-
     if (filters?.platform) {
       filterData.push(`platform: ${filters.platform}`);
     }
-
     if (filters?.status) {
       filterData.push(`status: ${filters.status}`);
     }
 
-    const data = await withErrorHandling(
+    const data = await withErrorHandlingAsync(
       graphqlClient
         .query<{ builds: { allForApp: ArtifactFragmentType[] } }>(
           gql`

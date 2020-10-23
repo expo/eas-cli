@@ -2,7 +2,7 @@ import gql from 'graphql-tag';
 
 import { apiClient } from '../api';
 import { graphqlClient } from '../graphql/client';
-import { UserQuery } from '../graphql/queries/users';
+import { UserQuery } from '../graphql/queries/UserQuery';
 import { Account } from './Account';
 import { getSession, setSessionAsync } from './sessionStorage';
 

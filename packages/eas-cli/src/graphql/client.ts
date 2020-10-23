@@ -41,13 +41,15 @@ export const graphqlClient = createUrqlClient({
   },
 });
 
-export async function withErrorHandling<T>(promise: Promise<OperationResult<T>>): Promise<T> {
+export async function withErrorHandlingAsync<T>(promise: Promise<OperationResult<T>>): Promise<T> {
   const { data, error } = await promise;
 
   if (error) {
     throw error;
   }
 
+  // Check for malfolmed response. This only checks the root query existence,
+  // It doesn't affect returning responses with empty resultset.
   if (!data) {
     throw new Error('Returned query result data is null!');
   }

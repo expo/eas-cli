@@ -1,4 +1,4 @@
-import { BuildQuery } from '../../graphql/queries/builds';
+import { BuildQuery } from '../../graphql/queries/BuildQuery';
 import { BuildPlatform, BuildStatus } from '../../graphql/types/Build';
 import { SubmissionPlatform } from '../types';
 

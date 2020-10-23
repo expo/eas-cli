@@ -3,7 +3,7 @@ import chalk from 'chalk';
 import ora from 'ora';
 
 import { apiClient } from '../api';
-import { ProjectQuery } from '../graphql/queries/project';
+import { ProjectQuery } from '../graphql/queries/ProjectQuery';
 
 interface ProjectInfo {
   accountName: string;
@@ -28,7 +28,6 @@ export async function ensureProjectExistsAsync(projectInfo: ProjectInfo): Promis
     spinner.succeed();
     return id;
   } catch (err) {
-    console.log(err);
     if (err.grapgQLErrors?.some((it: any) => it.extensions?.errorCode !== 'EXPERIENCE_NOT_FOUND')) {
       spinner.fail(
         `Something went wrong when looking for project ${chalk.bold(
