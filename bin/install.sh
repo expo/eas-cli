@@ -63,7 +63,7 @@
   }
 
   if [[ ! ":$PATH:" == *":$prefix/bin:"* ]]; then
-    abort "Your path is missing $prefix/bin, you need to add this to use this installer."
+    abort "Your path is missing $prefix/bin, you need to add this to \$PATH use this installer."
   fi
   
   hardware="$(uname -m)"
