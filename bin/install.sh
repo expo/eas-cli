@@ -50,13 +50,15 @@
     # Run commands with sudo if necessary.
     if [ -n "$needs_sudo" ]
     then
-      echo "Installing requires superuser access."
-      echo "The sudo command will prompt for your password."
+      if [ "$EUID" -ne 0 ]
+      then
+        echo "Installing requires superuser access."
+        echo "The sudo command will prompt for your password."
+      fi
       sudo rm -rf "$prefix/lib/eas"
       sudo mv "$temp_dir/eas" "$prefix/lib/eas"
       sudo ln -fs "$prefix/lib/eas/bin/eas" "$prefix/bin/eas"
     else
-      
       mv "$temp_dir/eas" "$prefix/lib/eas"
       ln -fs "$prefix/lib/eas/bin/eas" "$prefix/bin/eas"
     fi
