@@ -10,6 +10,7 @@
   "dependencies": {
     "@eas/config": "0.0.1",
     "@expo/config": "^3.3.9",
+    "@expo/eas-build-job": "^0.1.1",
     "@expo/json-file": "^8.2.24",
     "@expo/plist": "^0.0.10",
     "@expo/results": "^1.0.0",
@@ -50,6 +51,7 @@
     "@babel/preset-typescript": "^7.10.4",
     "@expo/babel-preset-cli": "^0.2.17",
     "@expo/oclif-dev-cli": "1.23.0-expo",
+    "@types/color-string": "^1.5.0",
     "@types/dateformat": "^3.0.1",
     "@types/form-data": "^2.5.0",
     "@types/fs-extra": "^9.0.1",
@@ -113,6 +115,7 @@
   "scripts": {
     "postpack": "rm -f oclif.manifest.json",
     "prepack": "rm -rf build && tsc -b && oclif-dev manifest && oclif-dev readme",
+    "build": "tsc",
     "test": "jest",
     "version": "oclif-dev readme && git add README.md"
   },
