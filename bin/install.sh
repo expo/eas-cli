@@ -121,7 +121,7 @@
   }
 
   # Test the CLI
-  executable=$(command -v eas)
+  executable=$(command -v eas) || abort "Could not run eas after installation."
   echo
   echo -e "EAS CLI is installed to ${executable}"
   eas --version
