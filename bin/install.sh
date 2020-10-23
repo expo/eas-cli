@@ -90,7 +90,7 @@
       platform="linux"
       ;;
     *)
-      abort "This installer is only supported on macOS, Linux and Windows Subsystem for Linux."
+      abort "This installer is supported only on macOS, Linux, and Windows Subsystem for Linux."
       ;;
   esac
 
