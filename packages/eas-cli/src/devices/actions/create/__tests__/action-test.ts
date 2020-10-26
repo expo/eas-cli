@@ -4,8 +4,8 @@ import { asMock } from '../../../../__tests__/utils';
 import { Team as AppleTeam } from '../../../../credentials/ios/appstore/authenticate';
 import { Account } from '../../../../user/Account';
 import DeviceCreateAction, { RegistrationMethod } from '../action';
-import { runUrlMethodAsync } from '../urlMethod';
 import { runInputMethodAsync } from '../inputMethod';
+import { runRegistrationUrlMethodAsync } from '../registrationUrlMethod';
 
 const originalConsoleLog = console.log;
 beforeAll(() => {
@@ -16,7 +16,7 @@ afterAll(() => {
 });
 
 jest.mock('prompts');
-jest.mock('../urlMethod');
+jest.mock('../registrationUrlMethod');
 jest.mock('../inputMethod');
 jest.mock('../../../../credentials/ios/api/AppleTeam');
 
@@ -26,13 +26,13 @@ beforeEach(() => {
   promptsMock.mockImplementation(() => {
     throw new Error(`unhandled prompts call - this shouldn't happen - fix tests!`);
   });
-  asMock(runUrlMethodAsync).mockClear();
+  asMock(runRegistrationUrlMethodAsync).mockClear();
   asMock(runInputMethodAsync).mockClear();
 });
 
 describe(DeviceCreateAction, () => {
   describe('#runAsync', () => {
-    it('calls runUrlMethodAsync if user chooses the website method', async () => {
+    it('calls runRegistrationUrlMethodAsync if user chooses the website method', async () => {
       asMock(prompts).mockImplementationOnce(() => ({
         method: RegistrationMethod.WEBSITE,
       }));
@@ -48,7 +48,7 @@ describe(DeviceCreateAction, () => {
       const action = new DeviceCreateAction(account, appleTeam);
       await action.runAsync();
 
-      expect(runUrlMethodAsync).toBeCalled();
+      expect(runRegistrationUrlMethodAsync).toBeCalled();
     });
 
     it('calls runInputMethodAsync if user chooses the input method', async () => {

@@ -8,7 +8,10 @@ import { createAppleDeviceRegistrationRequestAsync } from '../../../credentials/
 import { AppleTeam } from '../../../credentials/ios/api/AppleTeam';
 import log from '../../../log';
 
-export async function runUrlMethodAsync(accountId: string, appleTeam: AppleTeam): Promise<void> {
+export async function runRegistrationUrlMethodAsync(
+  accountId: string,
+  appleTeam: AppleTeam
+): Promise<void> {
   const registrationURL = await generateDeviceRegistrationURLAsync(accountId, appleTeam);
   log.newLine();
   qrcodeTerminal.generate(registrationURL, code => console.log(`${indentString(code, 2)}\n`));

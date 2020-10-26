@@ -10,7 +10,7 @@ import log from '../../../log';
 import { promptAsync } from '../../../prompts';
 import { Account } from '../../../user/Account';
 import { runInputMethodAsync } from './inputMethod';
-import { runUrlMethodAsync } from './urlMethod';
+import { runRegistrationUrlMethodAsync } from './registrationUrlMethod';
 
 export enum RegistrationMethod {
   WEBSITE,
@@ -25,7 +25,7 @@ export default class DeviceCreateAction {
     const appleTeam = await this.ensureAppleTeamExistsAsync();
     const method = await this.askForRegistrationMethodAsync();
     if (method === RegistrationMethod.WEBSITE) {
-      await runUrlMethodAsync(this.account.id, appleTeam);
+      await runRegistrationUrlMethodAsync(this.account.id, appleTeam);
     } else if (method === RegistrationMethod.INPUT) {
       await runInputMethodAsync(this.account.id, appleTeam);
     } else if (method === RegistrationMethod.EXIT) {

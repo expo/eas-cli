@@ -35,13 +35,13 @@ export async function runInputMethodAsync(accountId: string, appleTeam: AppleTea
   log(chalk.yellow('This is an advanced option. Use at your own risk.'));
   log.newLine();
 
-  let finished = false;
-  while (!finished) {
+  let registerNextDevice = true;
+  while (registerNextDevice) {
     await collectDataAndRegisterDeviceAsync({ accountId, appleTeam });
     log.newLine();
-    finished = !(await confirmAsync({
+    registerNextDevice = await confirmAsync({
       message: 'Do you want to register another device?',
-    }));
+    });
   }
 }
 
@@ -72,11 +72,11 @@ async function collectDataAndRegisterDeviceAsync({
 
 async function collectDeviceDataAsync(
   appleTeam: AppleTeam,
-  placeholders: Partial<DeviceData> = {}
+  initialValues: Partial<DeviceData> = {}
 ): Promise<DeviceData> {
-  const udid = await promptForUDIDAsync(placeholders.udid);
-  const name = await promptForNameAsync(placeholders.name);
-  const deviceClass = await promptForDeviceClassAsync(placeholders.deviceClass);
+  const udid = await promptForUDIDAsync(initialValues.udid);
+  const name = await promptForNameAsync(initialValues.name);
+  const deviceClass = await promptForDeviceClassAsync(initialValues.deviceClass);
   const deviceData: DeviceData = {
     udid,
     name,
@@ -104,12 +104,12 @@ This will ${chalk.bold('not')} register the device on the Apple Developer Portal
   }
 }
 
-async function promptForUDIDAsync(placeholder?: string): Promise<string> {
+async function promptForUDIDAsync(initial?: string): Promise<string> {
   const { udid } = await promptAsync({
     type: 'text',
     name: 'udid',
     message: 'UDID:',
-    initial: placeholder,
+    initial,
     validate: val => {
       if (!val || val === '') {
         return 'UDID cannot be empty';
@@ -125,18 +125,18 @@ async function promptForUDIDAsync(placeholder?: string): Promise<string> {
   return udid;
 }
 
-async function promptForNameAsync(placeholder?: string): Promise<string | undefined> {
+async function promptForNameAsync(initial?: string): Promise<string | undefined> {
   const { name } = await promptAsync({
     type: 'text',
     name: 'name',
     message: 'Device name (optional):',
-    initial: placeholder,
+    initial,
   });
   return name;
 }
 
 async function promptForDeviceClassAsync(
-  placeholder?: AppleDeviceClass | null
+  initial?: AppleDeviceClass | null
 ): Promise<AppleDeviceClass | null> {
   const choices = [
     { title: 'iPhone', value: AppleDeviceClass.IPHONE },
@@ -144,14 +144,13 @@ async function promptForDeviceClassAsync(
     { title: 'Not sure (leave empty)', value: null },
   ];
   const values = choices.map(({ value }) => value);
-  const initial = placeholder !== undefined && values.indexOf(placeholder);
 
   const { deviceClass } = await promptAsync({
     type: 'select',
     name: 'deviceClass',
     message: 'Device class (optional):',
     choices,
-    initial,
+    initial: initial !== undefined && values.indexOf(initial),
   });
   return deviceClass;
 }
