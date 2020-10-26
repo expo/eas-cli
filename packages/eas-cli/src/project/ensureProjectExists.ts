@@ -1,9 +1,9 @@
 import { ExpoConfig } from '@expo/config';
 import chalk from 'chalk';
-import gql from 'graphql-tag';
 import ora from 'ora';
 
-import { apiClient, graphqlClient } from '../api';
+import { apiClient } from '../api';
+import { ProjectQuery } from '../graphql/queries/ProjectQuery';
 
 interface ProjectInfo {
   accountName: string;
@@ -59,23 +59,8 @@ async function findProjectIdByAccountNameAndSlugAsync(
   accountName: string,
   slug: string
 ): Promise<string> {
-  const { data, error } = await graphqlClient
-    .query(
-      gql`
-      {
-        project {
-          byUsernameAndSlug(username: "${accountName}", slug: "${slug}", sdkVersions: []) {
-            id
-          }
-        }
-      }`
-    )
-    .toPromise();
-
-  if (error) {
-    throw error;
-  }
-  return data.project.byUsernameAndSlug.id;
+  const project = await ProjectQuery.byUsernameAndSlugAsync(accountName, slug);
+  return project.id;
 }
 
 /**
