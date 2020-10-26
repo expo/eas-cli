@@ -1,11 +1,16 @@
 import chalk from 'chalk';
-import indentString from 'indent-string';
-import qrcodeTerminal from 'qrcode-terminal';
 
+import {
+  AppleTeam as AppleTeamGraphQL,
+  createAppleTeamAsync,
+  findAppleTeamAsync,
+} from '../../../credentials/ios/api/AppleTeam';
+import { Team as AppleTeam } from '../../../credentials/ios/appstore/authenticate';
 import log from '../../../log';
 import { promptAsync } from '../../../prompts';
 import { Account } from '../../../user/Account';
-import { generateDeviceRegistrationURL } from './registration-url';
+import { runInputMethodAsync } from './inputMethod';
+import { runUrlMethodAsync } from './urlMethod';
 
 export enum RegistrationMethod {
   WEBSITE,
@@ -14,30 +19,37 @@ export enum RegistrationMethod {
 }
 
 export default class DeviceCreateAction {
-  constructor(private account: Account, private appleTeamId: string) {}
+  constructor(private account: Account, private appleTeam: AppleTeam) {}
 
   public async runAsync(): Promise<void> {
+    const appleTeam = await this.ensureAppleTeamExistsAsync();
     const method = await this.askForRegistrationMethodAsync();
-
     if (method === RegistrationMethod.WEBSITE) {
-      this.generateDeviceRegistrationURLAsync();
+      await runUrlMethodAsync(this.account.id, appleTeam);
     } else if (method === RegistrationMethod.INPUT) {
-      throw new Error('not implemented yet');
+      await runInputMethodAsync(this.account.id, appleTeam);
     } else if (method === RegistrationMethod.EXIT) {
       log('Bye!');
       process.exit(0);
     }
   }
 
-  private async generateDeviceRegistrationURLAsync() {
-    const registrationURL = await generateDeviceRegistrationURL(this.account, this.appleTeamId);
-    log.newLine();
-    qrcodeTerminal.generate(registrationURL, code => console.log(`${indentString(code, 2)}\n`));
-    log(
-      'Open the following link on your iOS devices (or scan the QR code) and follow the instructions to install the development profile:'
-    );
-    log.newLine();
-    log(chalk.green(`${registrationURL}`));
+  private async ensureAppleTeamExistsAsync(): Promise<AppleTeamGraphQL> {
+    const appleTeam = await findAppleTeamAsync({
+      accountId: this.account.id,
+      appleTeamIdentifier: this.appleTeam.id,
+    });
+    if (appleTeam) {
+      return appleTeam;
+    } else {
+      return await createAppleTeamAsync(
+        {
+          appleTeamIdentifier: this.appleTeam.id,
+          appleTeamName: this.appleTeam.name,
+        },
+        this.account.id
+      );
+    }
   }
 
   private async askForRegistrationMethodAsync(): Promise<RegistrationMethod> {

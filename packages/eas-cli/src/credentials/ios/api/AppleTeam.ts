@@ -17,7 +17,7 @@ export async function findAppleTeamAsync({
 }: {
   accountId: string;
   appleTeamIdentifier: string;
-}): Promise<AppleTeam> {
+}): Promise<AppleTeam | null> {
   const result = await graphqlClient
     .query(
       gql`
@@ -47,6 +47,51 @@ export async function findAppleTeamAsync({
     throw err;
   }
   const appleTeam = data?.appleTeam?.byAppleTeamIdentifier;
-  assert(appleTeam, `Failed to fetch Apple Team with identifier = ${appleTeamIdentifier}`);
+  return appleTeam ?? null;
+}
+
+export async function createAppleTeamAsync(
+  {
+    appleTeamIdentifier,
+    appleTeamName,
+  }: {
+    appleTeamIdentifier: string;
+    appleTeamName: string;
+  },
+  accountId: string
+): Promise<AppleTeam> {
+  const result = await graphqlClient
+    .mutation(
+      gql`
+        mutation AppleTeamMutation($appleTeamInput: AppleTeamInput!, $accountId: ID!) {
+          appleTeam {
+            createAppleTeam(appleTeamInput: $appleTeamInput, accountId: $accountId) {
+              id
+              account {
+                id
+                name
+              }
+              appleTeamIdentifier
+              appleTeamName
+            }
+          }
+        }
+      `,
+      {
+        appleTeamInput: {
+          appleTeamIdentifier,
+          appleTeamName,
+        },
+        accountId,
+      }
+    )
+    .toPromise();
+  const { data, error } = result;
+  if (error?.graphQLErrors) {
+    const err = error?.graphQLErrors[0];
+    throw err;
+  }
+  const appleTeam: AppleTeam = data?.appleTeam?.createAppleTeam;
+  assert(appleTeam, `Failed to create the Apple Team`);
   return appleTeam;
 }
