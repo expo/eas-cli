@@ -3,22 +3,23 @@ import gql from 'graphql-tag';
 import { graphqlClient, withErrorHandlingAsync } from '../client';
 import { Project } from '../types/Project';
 
-type ProjectIdType = Pick<Project, 'id'>;
+type ProjectQueryResult = Pick<Project, 'id'>;
 
 export class ProjectQuery {
-  static async idByUsernameAndSlugAsync(username: string, slug: string): Promise<ProjectIdType> {
+  static async byUsernameAndSlugAsync(username: string, slug: string): Promise<ProjectQueryResult> {
     const data = await withErrorHandlingAsync(
       graphqlClient
-        .query<{ project: { byUsernameAndSlug: ProjectIdType } }>(
+        .query<{ project: { byUsernameAndSlug: ProjectQueryResult } }>(
           gql`
-          {
-            project {
-              byUsernameAndSlug(username: "${username}", slug: "${slug}", sdkVersions: []) {
-                id
+            query($username: String!, $slug: String!) {
+              project {
+                byUsernameAndSlug(username: $username, slug: $slug) {
+                  id
+                }
               }
             }
-          }
-        `
+          `,
+          { username, slug }
         )
         .toPromise()
     );

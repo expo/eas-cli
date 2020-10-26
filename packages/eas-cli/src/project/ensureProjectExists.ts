@@ -59,7 +59,7 @@ async function findProjectIdByAccountNameAndSlugAsync(
   accountName: string,
   slug: string
 ): Promise<string> {
-  const project = await ProjectQuery.idByUsernameAndSlugAsync(accountName, slug);
+  const project = await ProjectQuery.byUsernameAndSlugAsync(accountName, slug);
   return project.id;
 }
 

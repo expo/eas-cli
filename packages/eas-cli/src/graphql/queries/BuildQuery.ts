@@ -4,29 +4,30 @@ import { graphqlClient, withErrorHandlingAsync } from '../client';
 import { Build } from '../types/Build';
 
 type Filters = Partial<Pick<Build, 'platform' | 'status'>> & {
-  order?: number;
+  offset?: number;
   limit?: number;
 };
 
-type ArtifactFragmentType = Pick<Build, 'artifacts'>;
-type PlatformAndArtifactFragmentType = Pick<Build, 'platform' | 'artifacts'>;
+type BuildQueryResult = Pick<Build, 'platform' | 'artifacts'>;
 
 export class BuildQuery {
-  static async forArtifactByIdAsync(buildId: string): Promise<PlatformAndArtifactFragmentType> {
+  static async byIdAsync(buildId: string): Promise<BuildQueryResult> {
     const data = await withErrorHandlingAsync(
       graphqlClient
-        .query<{ builds: { byId: PlatformAndArtifactFragmentType } }>(
+        .query<{ builds: { byId: BuildQueryResult } }>(
           gql`
-          {
-            builds {
-              byId(buildId: "${buildId}") {
-                platform,
-                artifacts {
-                  buildUrl
+            query($buildId: ID!) {
+              builds {
+                byId(buildId: $buildId) {
+                  platform
+                  artifacts {
+                    buildUrl
+                  }
                 }
               }
             }
-          }`
+          `,
+          { buildId }
         )
         .toPromise()
     );
@@ -34,38 +35,36 @@ export class BuildQuery {
     return data.builds.byId;
   }
 
-  static async allArtifactsForAppAsync(
-    appId: string,
-    filters?: Filters
-  ): Promise<ArtifactFragmentType[]> {
-    const filterData = [`appId: "${appId}"`];
-
-    if (filters?.limit) {
-      filterData.push(`limit: ${filters.limit}`);
-    }
-    if (filters?.order) {
-      filterData.push(`order: ${filters.order}`);
-    }
-    if (filters?.platform) {
-      filterData.push(`platform: ${filters.platform}`);
-    }
-    if (filters?.status) {
-      filterData.push(`status: ${filters.status}`);
-    }
-
+  static async allForAppAsync(appId: string, filters?: Filters): Promise<BuildQueryResult[]> {
     const data = await withErrorHandlingAsync(
       graphqlClient
-        .query<{ builds: { allForApp: ArtifactFragmentType[] } }>(
+        .query<{ builds: { allForApp: BuildQueryResult[] } }>(
+          // TODO: Change $appId: String! to ID! when fixed server-side schema
           gql`
-          {
-            builds {
-              allForApp(${filterData.join(', ')}) {
-                artifacts {
-                  buildUrl
+            query(
+              $appId: String!
+              $limit: Int
+              $offset: Int
+              $platform: AppPlatform
+              $status: BuildStatus
+            ) {
+              builds {
+                allForApp(
+                  appId: $appId
+                  limit: $limit
+                  offset: $offset
+                  platform: $platform
+                  status: $status
+                ) {
+                  platform
+                  artifacts {
+                    buildUrl
+                  }
                 }
               }
             }
-          }`
+          `,
+          { ...filters, appId }
         )
         .toPromise()
     );

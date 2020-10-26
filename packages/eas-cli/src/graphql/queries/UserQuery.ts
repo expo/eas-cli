@@ -4,13 +4,15 @@ import { graphqlClient, withErrorHandlingAsync } from '../client';
 import { Account } from '../types/Account';
 import { User } from '../types/User';
 
-type ViewerData = Pick<User, 'id' | 'username'> & { accounts: Pick<Account, 'id' | 'name'>[] };
+type CurrentUserQueryResult = Pick<User, 'id' | 'username'> & {
+  accounts: Pick<Account, 'id' | 'name'>[];
+};
 
 export class UserQuery {
-  static async currentUserAsync(): Promise<ViewerData> {
+  static async currentUserAsync(): Promise<CurrentUserQueryResult> {
     const data = await withErrorHandlingAsync(
       graphqlClient
-        .query<{ viewer: ViewerData }>(
+        .query<{ viewer: CurrentUserQueryResult }>(
           gql`
             {
               viewer {

@@ -14,7 +14,7 @@ export async function getBuildArtifactUrlByIdAsync(
   const {
     platform: buildPlatform,
     artifacts: { buildUrl },
-  } = await BuildQuery.forArtifactByIdAsync(buildId);
+  } = await BuildQuery.byIdAsync(buildId);
 
   if (buildPlatform !== graphqlPlatform[platform]) {
     throw new Error("Build platform doesn't match!");
@@ -27,11 +27,15 @@ export async function getLatestBuildArtifactUrlAsync(
   platform: SubmissionPlatform,
   appId: string
 ): Promise<string | null> {
-  const builds = await BuildQuery.allArtifactsForAppAsync(appId, {
+  const builds = await BuildQuery.allForAppAsync(appId, {
     platform: graphqlPlatform[platform],
     status: BuildStatus.Finished,
     limit: 1,
   });
+
+  if (builds.length < 1) {
+    return null;
+  }
 
   return builds[0].artifacts.buildUrl;
 }
