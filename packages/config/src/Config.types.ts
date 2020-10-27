@@ -18,6 +18,7 @@ export interface AndroidManagedBuildProfile {
   credentialsSource: CredentialsSource;
   buildType?: 'apk' | 'app-bundle';
   releaseChannel?: undefined;
+  internal?: boolean;
 }
 
 export interface AndroidGenericBuildProfile {
@@ -27,6 +28,7 @@ export interface AndroidGenericBuildProfile {
   releaseChannel?: string;
   artifactPath?: string;
   withoutCredentials?: boolean;
+  internal?: boolean;
 }
 
 export interface iOSManagedBuildProfile {
@@ -34,6 +36,7 @@ export interface iOSManagedBuildProfile {
   credentialsSource: CredentialsSource;
   buildType?: 'archive' | 'simulator';
   releaseChannel?: undefined;
+  internal?: boolean;
 }
 
 export interface iOSGenericBuildProfile {
@@ -42,6 +45,7 @@ export interface iOSGenericBuildProfile {
   scheme?: string;
   releaseChannel?: string;
   artifactPath?: string;
+  internal?: boolean;
 }
 
 export type AndroidBuildProfile = AndroidManagedBuildProfile | AndroidGenericBuildProfile;
