@@ -3,8 +3,8 @@ import gql from 'graphql-tag';
 import { graphqlClient, withErrorHandlingAsync } from '../../client';
 import { AppleDevice, AppleDeviceClass } from '../../types/credentials/AppleDevice';
 
-export class AppleDeviceMutation {
-  static async createAppleDeviceAsync(
+const AppleDeviceMutation = {
+  async createAppleDeviceAsync(
     appleDeviceInput: {
       appleTeamId: string;
       identifier: string;
@@ -33,5 +33,7 @@ export class AppleDeviceMutation {
         .toPromise()
     );
     return data.appleDevice.createAppleDevice;
-  }
-}
+  },
+};
+
+export { AppleDeviceMutation };

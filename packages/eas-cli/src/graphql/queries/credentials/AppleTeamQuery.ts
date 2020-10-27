@@ -3,8 +3,8 @@ import gql from 'graphql-tag';
 import { graphqlClient, withErrorHandlingAsync } from '../../client';
 import { AppleTeam } from '../../types/credentials/AppleTeam';
 
-export class AppleTeamQuery {
-  static async byAppleTeamIdentifierAsync(
+const AppleTeamQuery = {
+  async byAppleTeamIdentifierAsync(
     accountId: string,
     appleTeamIdentifier: string
   ): Promise<AppleTeam> {
@@ -30,5 +30,7 @@ export class AppleTeamQuery {
         .toPromise()
     );
     return data.appleTeam.byAppleTeamIdentifier;
-  }
-}
+  },
+};
+
+export { AppleTeamQuery };

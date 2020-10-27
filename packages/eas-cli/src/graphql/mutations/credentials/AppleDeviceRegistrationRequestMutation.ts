@@ -3,8 +3,8 @@ import gql from 'graphql-tag';
 import { graphqlClient, withErrorHandlingAsync } from '../../client';
 import { AppleDeviceRegistrationRequest } from '../../types/credentials/AppleDeviceRegistrationRequest';
 
-export class AppleDeviceRegistrationRequestMutation {
-  static async createAppleDeviceRegistrationRequestAsync(
+const AppleDeviceRegistrationRequestMutation = {
+  async createAppleDeviceRegistrationRequestAsync(
     appleTeamId: string,
     accountId: string
   ): Promise<AppleDeviceRegistrationRequest> {
@@ -35,5 +35,7 @@ export class AppleDeviceRegistrationRequestMutation {
         .toPromise()
     );
     return data.appleDeviceRegistrationRequest.createAppleDeviceRegistrationRequest;
-  }
-}
+  },
+};
+
+export { AppleDeviceRegistrationRequestMutation };
