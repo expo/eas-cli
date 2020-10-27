@@ -8,8 +8,8 @@ type CurrentUserQueryResult = Pick<User, 'id' | 'username'> & {
   accounts: Pick<Account, 'id' | 'name'>[];
 };
 
-export class UserQuery {
-  static async currentUserAsync(): Promise<CurrentUserQueryResult> {
+const UserQuery = {
+  async currentUserAsync(): Promise<CurrentUserQueryResult> {
     const data = await withErrorHandlingAsync(
       graphqlClient
         .query<{ viewer: CurrentUserQueryResult }>(
@@ -30,5 +30,7 @@ export class UserQuery {
     );
 
     return data.viewer;
-  }
-}
+  },
+};
+
+export { UserQuery };

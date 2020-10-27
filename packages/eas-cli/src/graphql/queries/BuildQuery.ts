@@ -10,8 +10,8 @@ type Filters = Partial<Pick<Build, 'platform' | 'status'>> & {
 
 type BuildQueryResult = Pick<Build, 'platform' | 'artifacts'>;
 
-export class BuildQuery {
-  static async byIdAsync(buildId: string): Promise<BuildQueryResult> {
+const BuildQuery = {
+  async byIdAsync(buildId: string): Promise<BuildQueryResult> {
     const data = await withErrorHandlingAsync(
       graphqlClient
         .query<{ builds: { byId: BuildQueryResult } }>(
@@ -33,9 +33,8 @@ export class BuildQuery {
     );
 
     return data.builds.byId;
-  }
-
-  static async allForAppAsync(appId: string, filters?: Filters): Promise<BuildQueryResult[]> {
+  },
+  async allForAppAsync(appId: string, filters?: Filters): Promise<BuildQueryResult[]> {
     const data = await withErrorHandlingAsync(
       graphqlClient
         .query<{ builds: { allForApp: BuildQueryResult[] } }>(
@@ -70,5 +69,7 @@ export class BuildQuery {
     );
 
     return data.builds.allForApp;
-  }
-}
+  },
+};
+
+export { BuildQuery };
