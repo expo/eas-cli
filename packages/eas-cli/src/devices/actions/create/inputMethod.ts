@@ -7,7 +7,7 @@ import { AppleDeviceClass } from '../../../graphql/types/credentials/AppleDevice
 import { AppleTeam } from '../../../graphql/types/credentials/AppleTeam';
 import log from '../../../log';
 import { confirmAsync, promptAsync } from '../../../prompts';
-import { isValidUDID } from '../../udids';
+import { isValidUDID, normalizeUDID } from '../../udids';
 
 interface DeviceData {
   udid: string;
@@ -96,13 +96,14 @@ This will ${chalk.bold('not')} register the device on the Apple Developer Portal
   }
 }
 
-async function promptForUDIDAsync(initial?: string): Promise<string> {
+export async function promptForUDIDAsync(initial?: string): Promise<string> {
   const { udid } = await promptAsync({
     type: 'text',
     name: 'udid',
     message: 'UDID:',
     initial,
-    validate: val => {
+    validate: (rawVal: string) => {
+      const val = normalizeUDID(rawVal);
       if (!val || val === '') {
         return 'UDID cannot be empty';
       } else if (val.length !== 25 && val.length !== 40) {
@@ -113,6 +114,7 @@ async function promptForUDIDAsync(initial?: string): Promise<string> {
         return true;
       }
     },
+    format: (val: string) => normalizeUDID(val),
   });
   return udid;
 }
