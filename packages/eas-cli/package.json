@@ -1,14 +1,14 @@
 {
   "name": "eas-cli",
   "description": "EAS command line tool",
-  "version": "0.0.0",
+  "version": "0.1.0-alpha.0",
   "author": "Expo <support@expo.io>",
   "bin": {
     "eas": "./bin/run"
   },
   "bugs": "https://github.com/expo/eas-cli/issues",
   "dependencies": {
-    "@eas/config": "0.0.1",
+    "@eas/config": "^0.1.0-alpha.0",
     "@expo/config": "^3.3.9",
     "@expo/eas-build-job": "^0.1.1",
     "@expo/json-file": "^8.2.24",
@@ -50,7 +50,6 @@
     "@babel/preset-env": "^7.11.5",
     "@babel/preset-typescript": "^7.10.4",
     "@expo/babel-preset-cli": "^0.2.17",
-    "@expo/oclif-dev-cli": "1.23.0-expo",
     "@types/color-string": "^1.5.0",
     "@types/dateformat": "^3.0.1",
     "@types/form-data": "^2.5.0",
@@ -109,12 +108,22 @@
       "webhook": {
         "description": "manage webhooks"
       }
+    },
+    "update": {
+      "s3": {
+        "templates": {
+          "target": {
+            "unversioned": "<%- bin %>-<%- platform %>-<%- arch %><%- ext %>",
+            "versioned": "<%- bin %>-<%- platform %>-<%- arch %><%- ext %>"
+          }
+        }
+      }
     }
   },
   "repository": "expo/eas-cli",
   "scripts": {
     "postpack": "rm -f oclif.manifest.json",
-    "prepack": "rm -rf build && tsc -b && oclif-dev manifest && oclif-dev readme",
+    "prepack": "rm -rf build && yarn build && oclif-dev manifest && oclif-dev readme",
     "build": "tsc",
     "test": "jest",
     "version": "oclif-dev readme && git add README.md"
