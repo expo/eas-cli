@@ -9,6 +9,7 @@
     "test": "jest"
   },
   "devDependencies": {
+    "@expo/oclif-dev-cli": "1.24.0-expo",
     "@types/jest": "^26.0.13",
     "eslint": "^6.6.0",
     "eslint-config-universe": "^4.0.0",

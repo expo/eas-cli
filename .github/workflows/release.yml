@@ -1,0 +1,52 @@
+on:
+  push
+  # push:
+  #   tags:
+  #     - 'v*' # Push events to matching v*, i.e. v1.0, v20.15.10
+
+name: Create Release
+
+jobs:
+  build:
+    name: Create Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Build tarballs
+        working-directory: packages/eas-cli
+        run: yarn oclif-dev pack --targets linux-x64,linux-arm,darwin-x64
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
+        with:
+          tag_name: ${{ github.ref }}
+      - name: Upload darwin-x64
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: packages/eas-cli/dist/eas-darwin-x64.tar.gz
+          asset_name: eas-darwin-x64.tar.gz
+          asset_content_type: application/gzip
+      - name: Upload linux-x64
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: packages/eas-cli/dist/eas-linux-x64.tar.gz
+          asset_name: eas-linux-x64.tar.gz
+          asset_content_type: application/gzip
+      - name: Upload linux-arm
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: packages/eas-cli/dist/eas-linux-arm.tar.gz
+          asset_name: eas-linux-arm.tar.gz
+          asset_content_type: application/gzip
