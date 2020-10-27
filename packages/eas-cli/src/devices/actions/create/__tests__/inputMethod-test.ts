@@ -1,24 +1,13 @@
 import prompts from 'prompts';
 
 import { asMock } from '../../../../__tests__/utils';
-import { graphqlClient } from '../../../../api';
-import { AppleTeam } from '../../../../credentials/ios/api/AppleTeam';
-import { AppleDeviceClass, runInputMethodAsync } from '../inputMethod';
+import { AppleDeviceMutation } from '../../../../graphql/mutations/credentials/AppleDeviceMutation';
+import { AppleDeviceClass } from '../../../../graphql/types/credentials/AppleDevice';
+import { AppleTeam } from '../../../../graphql/types/credentials/AppleTeam';
+import { runInputMethodAsync } from '../inputMethod';
 
 jest.mock('prompts');
-jest.mock('../../../../api', () => ({
-  graphqlClient: {
-    mutation: jest.fn().mockReturnValue({
-      toPromise: () => ({
-        data: {
-          appleDevice: {
-            createAppleDevice: {},
-          },
-        },
-      }),
-    }),
-  },
-}));
+jest.mock('../../../../graphql/mutations/credentials/AppleDeviceMutation');
 
 const originalConsoleLog = console.log;
 const originalConsoleWarn = console.warn;
@@ -26,18 +15,17 @@ beforeAll(() => {
   console.log = jest.fn();
   console.warn = jest.fn();
 });
-
 afterAll(() => {
   console.log = originalConsoleLog;
   console.warn = originalConsoleWarn;
 });
 
 beforeEach(() => {
-  jest.resetModules();
   asMock(prompts).mockReset();
   asMock(prompts).mockImplementation(() => {
     throw new Error(`unhandled prompts call - this shouldn't happen - fix tests!`);
   });
+  asMock(AppleDeviceMutation.createAppleDeviceAsync).mockClear();
 });
 
 describe(runInputMethodAsync, () => {
@@ -50,18 +38,13 @@ describe(runInputMethodAsync, () => {
     const accountId = 'account-id';
     const appleTeam: AppleTeam = {
       id: 'apple-team-id',
-      account: {
-        id: accountId,
-        name: 'accountname',
-      },
       appleTeamIdentifier: 'ABC123XY',
       appleTeamName: 'John Doe (Individual)',
     };
 
     await runInputMethodAsync(accountId, appleTeam);
 
-    // TODO: refactor this once https://github.com/expo/eas-cli/pull/38 is merged
-    expect(graphqlClient.mutation).toHaveBeenCalledTimes(2);
+    expect(AppleDeviceMutation.createAppleDeviceAsync).toHaveBeenCalledTimes(2);
   });
 });
 

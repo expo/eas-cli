@@ -1,6 +1,9 @@
 import assert from 'assert';
 import chalk from 'chalk';
 
+import { AppleTeamMutation } from '../graphql/mutations/credentials/AppleTeamMutation';
+import { AppleTeamQuery } from '../graphql/queries/credentials/AppleTeamQuery';
+import { AppleTeam } from '../graphql/types/credentials/AppleTeam';
 import log from '../log';
 import { getProjectAccountNameAsync } from '../project/projectUtils';
 import { Choice, confirmAsync, promptAsync } from '../prompts';
@@ -25,7 +28,11 @@ export default class DeviceManager {
     log.addNewLineIfNone();
 
     const account = await this.resolveAccountAsync();
-    const { team: appleTeam } = await this.ctx.appStore.ensureAuthenticatedAsync();
+    const { team } = await this.ctx.appStore.ensureAuthenticatedAsync();
+    const appleTeam = await ensureAppleTeamExistsAsync(account.id, {
+      appleTeamIdentifier: team.id,
+      appleTeamName: team.name,
+    });
     const action = new DeviceCreateAction(account, appleTeam);
     await action.runAsync();
   }
@@ -86,5 +93,23 @@ export class AccountResolver {
       choices,
     });
     return account;
+  }
+}
+
+async function ensureAppleTeamExistsAsync(
+  accountId: string,
+  { appleTeamIdentifier, appleTeamName }: { appleTeamIdentifier: string; appleTeamName: string }
+): Promise<AppleTeam> {
+  const appleTeam = await AppleTeamQuery.byAppleTeamIdentifierAsync(accountId, appleTeamIdentifier);
+  if (appleTeam) {
+    return appleTeam;
+  } else {
+    return await AppleTeamMutation.createAppleTeamAsync(
+      {
+        appleTeamIdentifier,
+        appleTeamName,
+      },
+      accountId
+    );
   }
 }

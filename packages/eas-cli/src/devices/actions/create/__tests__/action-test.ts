@@ -1,7 +1,7 @@
 import prompts from 'prompts';
 
 import { asMock } from '../../../../__tests__/utils';
-import { Team as AppleTeam } from '../../../../credentials/ios/appstore/authenticate';
+import { AppleTeam } from '../../../../graphql/types/credentials/AppleTeam';
 import { Account } from '../../../../user/Account';
 import DeviceCreateAction, { RegistrationMethod } from '../action';
 import { runInputMethodAsync } from '../inputMethod';
@@ -18,7 +18,6 @@ afterAll(() => {
 jest.mock('prompts');
 jest.mock('../registrationUrlMethod');
 jest.mock('../inputMethod');
-jest.mock('../../../../credentials/ios/api/AppleTeam');
 
 beforeEach(() => {
   const promptsMock = asMock(prompts);
@@ -42,8 +41,9 @@ describe(DeviceCreateAction, () => {
         name: 'foobar',
       };
       const appleTeam: AppleTeam = {
-        id: 'ABC123Y',
-        name: 'John Doe (Individual)',
+        id: 'apple-team-id',
+        appleTeamIdentifier: 'ABC123Y',
+        appleTeamName: 'John Doe (Individual)',
       };
       const action = new DeviceCreateAction(account, appleTeam);
       await action.runAsync();
@@ -61,8 +61,9 @@ describe(DeviceCreateAction, () => {
         name: 'foobar',
       };
       const appleTeam: AppleTeam = {
-        id: 'ABC123Y',
-        name: 'John Doe (Individual)',
+        id: 'apple-team-id',
+        appleTeamIdentifier: 'ABC123Y',
+        appleTeamName: 'John Doe (Individual)',
       };
       const action = new DeviceCreateAction(account, appleTeam);
       await action.runAsync();

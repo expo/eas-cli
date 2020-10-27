@@ -1,23 +1,13 @@
-import assert from 'assert';
 import chalk from 'chalk';
 import Table from 'cli-table3';
-import gql from 'graphql-tag';
 import ora from 'ora';
 
-import { graphqlClient } from '../../../api';
-import { AppleTeam } from '../../../credentials/ios/api/AppleTeam';
+import { AppleDeviceMutation } from '../../../graphql/mutations/credentials/AppleDeviceMutation';
+import { AppleDeviceClass } from '../../../graphql/types/credentials/AppleDevice';
+import { AppleTeam } from '../../../graphql/types/credentials/AppleTeam';
 import log from '../../../log';
 import { confirmAsync, promptAsync } from '../../../prompts';
 import { isValidUDID } from '../../udids';
-
-interface AppleDevice {
-  id: string;
-}
-
-export enum AppleDeviceClass {
-  IPHONE = 'IPHONE',
-  IPAD = 'IPAD',
-}
 
 interface DeviceData {
   udid: string;
@@ -56,13 +46,15 @@ async function collectDataAndRegisterDeviceAsync({
 
   const spinner = ora(`Registering Apple Device on the Expo servers`).start();
   try {
-    await registerDeviceAsync({
-      accountId,
-      appleTeamId: appleTeam.id,
-      identifier: udid,
-      name,
-      deviceClass: deviceClass ?? undefined,
-    });
+    await AppleDeviceMutation.createAppleDeviceAsync(
+      {
+        appleTeamId: appleTeam.id,
+        identifier: udid,
+        name,
+        deviceClass: deviceClass ?? undefined,
+      },
+      accountId
+    );
   } catch (err) {
     spinner.fail();
     throw err;
@@ -171,50 +163,4 @@ function printDeviceDataSummary(
     ['Device Class', deviceClass ? DEVICE_CLASS_DISPLAY_NAMES[deviceClass] : '(unknown)']
   );
   log(deviceSummary.toString());
-}
-
-async function registerDeviceAsync({
-  accountId,
-  appleTeamId,
-  identifier,
-  name,
-  deviceClass,
-}: {
-  accountId: string;
-  appleTeamId: string;
-  identifier: string;
-  name?: string;
-  deviceClass?: AppleDeviceClass;
-}): Promise<AppleDevice> {
-  const result = await graphqlClient
-    .mutation(
-      gql`
-        mutation AppleDeviceMutation($appleDeviceInput: AppleDeviceInput!, $accountId: ID!) {
-          appleDevice {
-            createAppleDevice(appleDeviceInput: $appleDeviceInput, accountId: $accountId) {
-              id
-            }
-          }
-        }
-      `,
-      {
-        appleDeviceInput: {
-          appleTeamId,
-          identifier,
-          name,
-          deviceClass,
-        },
-        accountId,
-      }
-    )
-    .toPromise();
-
-  const { data, error } = result;
-  if (error?.graphQLErrors) {
-    const err = error?.graphQLErrors[0];
-    throw err;
-  }
-  const device: AppleDevice = data?.appleDevice?.createAppleDevice;
-  assert(device, `Failed to create the Apple Device`);
-  return device;
 }

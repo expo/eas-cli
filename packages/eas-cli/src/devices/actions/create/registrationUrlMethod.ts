@@ -4,8 +4,8 @@ import qrcodeTerminal from 'qrcode-terminal';
 import { URL } from 'url';
 
 import { getExpoWebsiteBaseUrl } from '../../../api';
-import { createAppleDeviceRegistrationRequestAsync } from '../../../credentials/ios/api/AppleDeviceRegistrationRequest';
-import { AppleTeam } from '../../../credentials/ios/api/AppleTeam';
+import { AppleDeviceRegistrationRequestMutation } from '../../../graphql/mutations/credentials/AppleDeviceRegistrationRequestMutation';
+import { AppleTeam } from '../../../graphql/types/credentials/AppleTeam';
 import log from '../../../log';
 
 export async function runRegistrationUrlMethodAsync(
@@ -23,10 +23,10 @@ export async function runRegistrationUrlMethodAsync(
 }
 
 async function generateDeviceRegistrationURLAsync(accountId: string, appleTeam: AppleTeam) {
-  const appleDeviceRegistrationRequest = await createAppleDeviceRegistrationRequestAsync({
-    accountId,
-    appleTeamId: appleTeam.id,
-  });
+  const appleDeviceRegistrationRequest = await AppleDeviceRegistrationRequestMutation.createAppleDeviceRegistrationRequestAsync(
+    appleTeam.id,
+    accountId
+  );
   return formatRegistrationURL(appleDeviceRegistrationRequest.id);
 }
 

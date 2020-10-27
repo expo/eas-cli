@@ -1,11 +1,6 @@
 import chalk from 'chalk';
 
-import {
-  AppleTeam as AppleTeamGraphQL,
-  createAppleTeamAsync,
-  findAppleTeamAsync,
-} from '../../../credentials/ios/api/AppleTeam';
-import { Team as AppleTeam } from '../../../credentials/ios/appstore/authenticate';
+import { AppleTeam } from '../../../graphql/types/credentials/AppleTeam';
 import log from '../../../log';
 import { promptAsync } from '../../../prompts';
 import { Account } from '../../../user/Account';
@@ -22,33 +17,14 @@ export default class DeviceCreateAction {
   constructor(private account: Account, private appleTeam: AppleTeam) {}
 
   public async runAsync(): Promise<void> {
-    const appleTeam = await this.ensureAppleTeamExistsAsync();
     const method = await this.askForRegistrationMethodAsync();
     if (method === RegistrationMethod.WEBSITE) {
-      await runRegistrationUrlMethodAsync(this.account.id, appleTeam);
+      await runRegistrationUrlMethodAsync(this.account.id, this.appleTeam);
     } else if (method === RegistrationMethod.INPUT) {
-      await runInputMethodAsync(this.account.id, appleTeam);
+      await runInputMethodAsync(this.account.id, this.appleTeam);
     } else if (method === RegistrationMethod.EXIT) {
       log('Bye!');
       process.exit(0);
-    }
-  }
-
-  private async ensureAppleTeamExistsAsync(): Promise<AppleTeamGraphQL> {
-    const appleTeam = await findAppleTeamAsync({
-      accountId: this.account.id,
-      appleTeamIdentifier: this.appleTeam.id,
-    });
-    if (appleTeam) {
-      return appleTeam;
-    } else {
-      return await createAppleTeamAsync(
-        {
-          appleTeamIdentifier: this.appleTeam.id,
-          appleTeamName: this.appleTeam.name,
-        },
-        this.account.id
-      );
     }
   }
 
