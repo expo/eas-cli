@@ -16,6 +16,17 @@ export enum SubmissionPlatform {
   iOS = 'ios',
 }
 
+export enum AndroidArchiveType {
+  apk = 'apk',
+  aab = 'aab',
+}
+
+export enum IosArchiveType {
+  ipa = 'ipa',
+}
+
+export type ArchiveType = AndroidArchiveType | IosArchiveType;
+
 // Android specific types
 export interface AndroidSubmitCommandFlags extends SubmitCommandFlags {
   type?: 'apk' | 'aab';

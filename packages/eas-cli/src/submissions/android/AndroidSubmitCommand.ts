@@ -12,9 +12,14 @@ import {
   ArchiveTypeSource,
   ArchiveTypeSourceType,
 } from '../archive-source';
-import { AndroidSubmissionContext, AndroidSubmitCommandFlags, SubmissionPlatform } from '../types';
+import {
+  AndroidArchiveType,
+  AndroidSubmissionContext,
+  AndroidSubmitCommandFlags,
+  SubmissionPlatform,
+} from '../types';
 import { AndroidPackageSource, AndroidPackageSourceType } from './AndroidPackageSource';
-import { ArchiveType, ReleaseStatus, ReleaseTrack } from './AndroidSubmissionConfig';
+import { ReleaseStatus, ReleaseTrack } from './AndroidSubmissionConfig';
 import AndroidSubmitter, { AndroidSubmissionOptions } from './AndroidSubmitter';
 import { ServiceAccountSource, ServiceAccountSourceType } from './ServiceAccountSource';
 
@@ -194,14 +199,14 @@ class AndroidSubmitCommand {
   private resolveArchiveTypeSource(): ArchiveTypeSource {
     const { type: rawArchiveType } = this.ctx.commandFlags;
     if (rawArchiveType) {
-      if (!(rawArchiveType in ArchiveType)) {
+      if (!(rawArchiveType in AndroidArchiveType)) {
         throw new Error(
           `Unsupported archive type: ${rawArchiveType} (valid options: ${Object.keys(
-            ArchiveType
+            AndroidArchiveType
           ).join(', ')})`
         );
       }
-      const archiveType = rawArchiveType as ArchiveType;
+      const archiveType = rawArchiveType as AndroidArchiveType;
       return {
         sourceType: ArchiveTypeSourceType.parameter,
         archiveType,

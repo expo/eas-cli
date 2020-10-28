@@ -9,15 +9,15 @@ import { sleep } from '../../utils/promise';
 import SubmissionService, { DEFAULT_CHECK_INTERVAL_MS } from '../SubmissionService';
 import { Submission, SubmissionStatus } from '../SubmissionService.types';
 import { Archive, ArchiveSource, getArchiveAsync } from '../archive-source';
-import { AndroidSubmissionContext, SubmissionPlatform } from '../types';
+import {
+  AndroidArchiveType,
+  AndroidSubmissionContext,
+  ArchiveType,
+  SubmissionPlatform,
+} from '../types';
 import { displayLogs } from '../utils/logs';
 import { AndroidPackageSource, getAndroidPackageAsync } from './AndroidPackageSource';
-import {
-  AndroidSubmissionConfig,
-  ArchiveType,
-  ReleaseStatus,
-  ReleaseTrack,
-} from './AndroidSubmissionConfig';
+import { AndroidSubmissionConfig, ReleaseStatus, ReleaseTrack } from './AndroidSubmissionConfig';
 import { ServiceAccountSource, getServiceAccountAsync } from './ServiceAccountSource';
 
 export interface AndroidSubmissionOptions
@@ -113,7 +113,7 @@ class AndroidSubmitter {
     const submissionConfig = {
       androidPackage,
       archiveUrl: archive.location,
-      archiveType: archive.type,
+      archiveType: archive.type as AndroidArchiveType,
       track,
       releaseStatus,
       projectId,
