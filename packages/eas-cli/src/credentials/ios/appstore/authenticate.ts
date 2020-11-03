@@ -90,6 +90,27 @@ function getAppleCredentialsFromParams({ appleId }: Options): AppleCredentials |
   };
 }
 
+export async function promptForAppleIdAsync(): Promise<string> {
+  // Get the email address that was last used and set it as
+  // the default value for quicker authentication.
+  const lastAppleId = await getLastUsedAppleIdAsync();
+
+  const { appleId: promptAppleId } = await promptAsync({
+    type: 'text',
+    name: 'appleId',
+    message: `Apple ID:`,
+    validate: (val: string) => !!val,
+    initial: lastAppleId ?? undefined,
+  });
+
+  // If a new email was used then store it as a suggestion for next time.
+  if (lastAppleId !== promptAppleId) {
+    await UserSettings.setAsync('appleId', promptAppleId);
+  }
+
+  return promptAppleId;
+}
+
 async function promptForAppleCredentialsAsync({
   firstAttempt = true,
 }: { firstAttempt?: boolean } = {}): Promise<AppleCredentials> {
@@ -119,22 +140,7 @@ async function promptForAppleCredentialsAsync({
     );
   }
 
-  // Get the email address that was last used and set it as
-  // the default value for quicker authentication.
-  const lastAppleId = await getLastUsedAppleIdAsync();
-
-  const { appleId: promptAppleId } = await promptAsync({
-    type: 'text',
-    name: 'appleId',
-    message: `Apple ID:`,
-    validate: (val: string) => !!val,
-    initial: lastAppleId ?? undefined,
-  });
-
-  // If a new email was used then store it as a suggestion for next time.
-  if (lastAppleId !== promptAppleId) {
-    await UserSettings.setAsync('appleId', promptAppleId);
-  }
+  const promptAppleId = await promptForAppleIdAsync();
 
   // Only check on the first attempt in case the user changed their password.
   if (firstAttempt) {
