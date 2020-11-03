@@ -37,3 +37,20 @@ export interface AndroidSubmitCommandFlags extends SubmitCommandFlags {
 }
 
 export type AndroidSubmissionContext = SubmissionContext<AndroidSubmitCommandFlags>;
+
+// iOS specific types
+export interface IosSubmitCommandFlags extends SubmitCommandFlags {
+  // common for all flows
+  appleId?: string;
+  appAppleId?: string;
+  appleAppSpecificPassword?: string;
+
+  // used only when running produce
+  appleTeamId?: string;
+  itcTeamId?: string;
+  appName?: string;
+  bundleIdentifier?: string;
+  sku?: string;
+}
+
+export type IosSubmissionContext = SubmissionContext<IosSubmitCommandFlags>;
