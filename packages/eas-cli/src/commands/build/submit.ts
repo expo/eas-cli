@@ -73,11 +73,11 @@ export default class BuildSubmit extends Command {
 
     /* iOS specific flags */
     'apple-id': flags.string({
-      description: 'Your Apple ID username (you can also set EXPO_APPLE_ID env variable).',
+      description: 'Your Apple ID username (you can also set EXPO_APPLE_ID env variable)',
     }),
     'apple-app-specific-password': flags.string({
       description:
-        'Your Apple ID application-specific password. You can also set EXPO_APPLE_APPLICATION_SPECIFIC_PASSWORD env variable.',
+        'Your Apple ID app-specific password. You can also set EXPO_APPLE_APP_SPECIFIC_PASSWORD env variable.',
     }),
     'app-apple-id': flags.string({
       description: 'App Store Connect unique application Apple ID number.',
