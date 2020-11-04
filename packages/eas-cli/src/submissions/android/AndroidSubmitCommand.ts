@@ -1,23 +1,10 @@
 import { getConfig } from '@expo/config';
 import { Result, result } from '@expo/results';
-import * as uuid from 'uuid';
 
 import log from '../../log';
-import { ensureProjectExistsAsync } from '../../project/ensureProjectExists';
-import { getProjectAccountNameAsync } from '../../project/projectUtils';
-import {
-  ArchiveFileSource,
-  ArchiveFileSourceType,
-  ArchiveSource,
-  ArchiveTypeSource,
-  ArchiveTypeSourceType,
-} from '../archive-source';
-import {
-  AndroidArchiveType,
-  AndroidSubmissionContext,
-  AndroidSubmitCommandFlags,
-  SubmissionPlatform,
-} from '../types';
+import { ArchiveSource, ArchiveTypeSource, ArchiveTypeSourceType } from '../archive-source';
+import { getProjectIdAsync, resolveArchiveFileSource } from '../commons';
+import { AndroidArchiveType, AndroidSubmissionContext, AndroidSubmitCommandFlags } from '../types';
 import { AndroidPackageSource, AndroidPackageSourceType } from './AndroidPackageSource';
 import { ReleaseStatus, ReleaseTrack } from './AndroidSubmissionConfig';
 import AndroidSubmitter, { AndroidSubmissionOptions } from './AndroidSubmitter';
@@ -37,7 +24,7 @@ class AndroidSubmitCommand {
   constructor(private ctx: AndroidSubmissionContext) {}
 
   async runAsync(): Promise<void> {
-    const projectId = await this.getProjectIdAsync();
+    const projectId = await getProjectIdAsync(this.ctx.projectDir);
     log.addNewLineIfNone();
 
     const submissionOptions = this.getAndroidSubmissionOptions(projectId);
@@ -73,14 +60,6 @@ class AndroidSubmitCommand {
       archiveSource: archiveSource.enforceValue(),
       serviceAccountSource: serviceAccountSource.enforceValue(),
     };
-  }
-
-  private async getProjectIdAsync(): Promise<string> {
-    const { exp } = getConfig(this.ctx.projectDir, { skipSDKVersionRequirement: true });
-    return await ensureProjectExistsAsync({
-      accountName: await getProjectAccountNameAsync(this.ctx.projectDir),
-      projectName: exp.slug,
-    });
   }
 
   private resolveAndroidPackageSource(): Result<AndroidPackageSource> {
@@ -140,60 +119,9 @@ class AndroidSubmitCommand {
 
   private resolveArchiveSource(projectId: string): Result<ArchiveSource> {
     return result({
-      archiveFile: this.resolveArchiveFileSource(projectId),
+      archiveFile: resolveArchiveFileSource(this.ctx, projectId),
       archiveType: this.resolveArchiveTypeSource(),
     });
-  }
-
-  private resolveArchiveFileSource(projectId: string): ArchiveFileSource {
-    const { url, path, id, latest } = this.ctx.commandFlags;
-    const chosenOptions = [url, path, id, latest];
-    if (chosenOptions.filter(opt => opt).length > 1) {
-      throw new Error(`Pass only one of: --url, --path, --id, --latest`);
-    }
-
-    if (url) {
-      return {
-        sourceType: ArchiveFileSourceType.url,
-        url,
-        projectId,
-        platform: SubmissionPlatform.Android,
-        projectDir: this.ctx.projectDir,
-      };
-    } else if (path) {
-      return {
-        sourceType: ArchiveFileSourceType.path,
-        path,
-        projectId,
-        platform: SubmissionPlatform.Android,
-        projectDir: this.ctx.projectDir,
-      };
-    } else if (id) {
-      if (!uuid.validate(id)) {
-        throw new Error(`${id} is not an ID`);
-      }
-      return {
-        sourceType: ArchiveFileSourceType.buildId,
-        id,
-        projectId,
-        platform: SubmissionPlatform.Android,
-        projectDir: this.ctx.projectDir,
-      };
-    } else if (latest) {
-      return {
-        sourceType: ArchiveFileSourceType.latest,
-        platform: SubmissionPlatform.Android,
-        projectDir: this.ctx.projectDir,
-        projectId,
-      };
-    } else {
-      return {
-        sourceType: ArchiveFileSourceType.prompt,
-        platform: SubmissionPlatform.Android,
-        projectDir: this.ctx.projectDir,
-        projectId,
-      };
-    }
   }
 
   private resolveArchiveTypeSource(): ArchiveTypeSource {
