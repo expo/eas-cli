@@ -1083,7 +1083,7 @@
     xcode "^3.0.0"
     xml-js "^1.6.11"
 
-"@expo/eas-build-job@^0.1.1":
+"@expo/eas-build-job@0.1.1":
   version "0.1.1"
   resolved "https://registry.yarnpkg.com/@expo/eas-build-job/-/eas-build-job-0.1.1.tgz#7b71f87ac57192ba03613e18fb0fd5f639d21b6d"
   integrity sha512-V5zrRdz6qa45Aflh84CmsEyNcNHG95O7dyzQqpzEI73phB+Jr7ffM+AP0f3+POjy6mwNXIKHgbzH8VG3excPpA==

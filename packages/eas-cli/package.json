@@ -10,7 +10,7 @@
   "dependencies": {
     "@eas/config": "0.0.1",
     "@expo/config": "^3.3.9",
-    "@expo/eas-build-job": "^0.1.1",
+    "@expo/eas-build-job": "0.1.1",
     "@expo/json-file": "^8.2.24",
     "@expo/plist": "^0.0.10",
     "@expo/results": "^1.0.0",
