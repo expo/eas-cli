@@ -1,6 +1,9 @@
+import chalk from 'chalk';
+
 import BaseSubmitter from '../BaseSubmitter';
 import { Archive, ArchiveSource, getArchiveAsync } from '../archive-source';
 import { IosSubmissionContext, SubmissionPlatform } from '../types';
+import { breakWord, printSummary } from '../utils/summary';
 import {
   AppSpecificPasswordSource,
   getAppSpecificPasswordAsync,
@@ -31,7 +34,14 @@ class IosSubmitter extends BaseSubmitter<IosSubmissionContext, IosSubmissionOpti
       this.options,
       resolvedSourceOptions
     );
-    await this.startSubmissionAsync(submissionConfig, this.ctx.commandFlags.verbose);
+
+    printSummary(
+      submissionConfig,
+      'iOS Submission Summary',
+      SummaryHumanReadableKeys,
+      SummaryHumanReadableValues
+    );
+    // await this.startSubmissionAsync(submissionConfig, this.ctx.commandFlags.verbose);
   }
 
   private async resolveSourceOptions(): Promise<ResolvedSourceOptions> {
@@ -53,13 +63,26 @@ class IosSubmitter extends BaseSubmitter<IosSubmissionContext, IosSubmissionOpti
     const { projectId, appleId, appAppleId } = options;
     const submissionConfig = {
       archiveUrl: archive.location,
-      projectId,
+      appleId,
       appSpecificPassword,
       appAppleId,
-      appleId,
+      projectId,
     };
     return submissionConfig;
   }
 }
+
+const SummaryHumanReadableKeys: Record<keyof IosSubmissionConfig, string> = {
+  appleId: 'Apple ID',
+  archiveUrl: 'Archive URL',
+  appSpecificPassword: 'Apple app-specific password',
+  appAppleId: ' App Store Connect Apple ID number',
+  projectId: 'Project ID',
+};
+
+const SummaryHumanReadableValues: Partial<Record<keyof IosSubmissionConfig, Function>> = {
+  archiveUrl: (url: string) => breakWord(url, 50),
+  appSpecificPassword: () => chalk.italic('[hidden]'),
+};
 
 export default IosSubmitter;

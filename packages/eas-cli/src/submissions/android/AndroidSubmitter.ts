@@ -1,9 +1,5 @@
-import chalk from 'chalk';
-import Table from 'cli-table3';
 import fs from 'fs-extra';
-import chunk from 'lodash/chunk';
 
-import log from '../../log';
 import BaseSubmitter from '../BaseSubmitter';
 import { Archive, ArchiveSource, getArchiveAsync } from '../archive-source';
 import {
@@ -12,6 +8,7 @@ import {
   ArchiveType,
   SubmissionPlatform,
 } from '../types';
+import { breakWord, printSummary } from '../utils/summary';
 import { AndroidPackageSource, getAndroidPackageAsync } from './AndroidPackageSource';
 import { AndroidSubmissionConfig, ReleaseStatus, ReleaseTrack } from './AndroidSubmissionConfig';
 import { ServiceAccountSource, getServiceAccountAsync } from './ServiceAccountSource';
@@ -70,10 +67,16 @@ class AndroidSubmitter extends BaseSubmitter<AndroidSubmissionContext, AndroidSu
       releaseStatus,
       projectId,
     };
-    printSummary({
-      ...submissionConfig,
-      serviceAccountPath,
-    });
+
+    printSummary(
+      {
+        ...submissionConfig,
+        serviceAccountPath,
+      },
+      'Android Submission Summary',
+      SummaryHumanReadableKeys,
+      SummaryHumanReadableValues
+    );
     return { ...submissionConfig, serviceAccount };
   }
 }
@@ -104,31 +107,5 @@ const SummaryHumanReadableValues: Partial<Record<keyof Summary, Function>> = {
   archivePath: (path: string) => breakWord(path, 50),
   archiveUrl: (url: string) => breakWord(url, 50),
 };
-
-function breakWord(word: string, chars: number): string {
-  return chunk(word, chars)
-    .map((arr: string[]) => arr.join(''))
-    .join('\n');
-}
-
-function printSummary(summary: Summary): void {
-  const table = new Table({
-    colWidths: [25, 55],
-    wordWrap: true,
-  });
-  table.push([
-    {
-      colSpan: 2,
-      content: chalk.bold('Android Submission Summary'),
-      hAlign: 'center',
-    },
-  ]);
-  for (const [key, value] of Object.entries(summary)) {
-    const displayKey = SummaryHumanReadableKeys[key as keyof Summary];
-    const displayValue = SummaryHumanReadableValues[key as keyof Summary]?.(value) ?? value;
-    table.push([displayKey, displayValue]);
-  }
-  log(table.toString());
-}
 
 export default AndroidSubmitter;
