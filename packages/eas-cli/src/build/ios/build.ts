@@ -1,19 +1,15 @@
 import { EasConfig, Workflow } from '@eas/config';
 import { IOSConfig } from '@expo/config';
-import assert from 'assert';
 import chalk from 'chalk';
 import sortBy from 'lodash/sortBy';
 
-import { createCredentialsContextAsync } from '../../credentials/context';
-import IosCredentialsProvider, {
-  IosCredentials,
-} from '../../credentials/ios/IosCredentialsProvider';
 import log from '../../log';
 import { promptAsync } from '../../prompts';
-import { CredentialsResult, startBuildForPlatformAsync } from '../build';
+import { startBuildForPlatformAsync } from '../build';
 import { BuildContext, CommandContext, createBuildContext } from '../context';
-import { ensureCredentialsAsync } from '../credentials';
 import { Platform } from '../types';
+import { syncProjectConfigurationAsync } from './configure';
+import { ensureIosCredentialsAsync } from './credentials';
 import { prepareJobAsync } from './prepareJob';
 
 export async function startIosBuildAsync(
@@ -32,6 +28,9 @@ export async function startIosBuildAsync(
   if (buildCtx.buildProfile.workflow === Workflow.Generic) {
     iosNativeProjectScheme = buildCtx.buildProfile.scheme ?? (await resolveSchemeAsync(buildCtx));
   }
+  if (buildCtx.buildProfile.workflow === Workflow.Generic) {
+    await syncProjectConfigurationAsync(commandCtx.projectDir, commandCtx.exp);
+  }
   return await startBuildForPlatformAsync({
     ctx: buildCtx,
     projectConfiguration: {
@@ -41,14 +40,6 @@ export async function startIosBuildAsync(
     ensureProjectConfiguredAsync: async () => {},
     prepareJobAsync,
   });
-}
-
-function shouldProvideCredentials(ctx: BuildContext<Platform.iOS>): boolean {
-  return (
-    (ctx.buildProfile.workflow === Workflow.Managed &&
-      ctx.buildProfile.buildType !== 'simulator') ||
-    ctx.buildProfile.workflow === Workflow.Generic
-  );
 }
 
 async function resolveSchemeAsync(ctx: BuildContext<Platform.iOS>): Promise<string> {
@@ -83,32 +74,4 @@ async function resolveSchemeAsync(ctx: BuildContext<Platform.iOS>): Promise<stri
     log.newLine();
     return selectedScheme as string;
   }
-}
-
-async function ensureIosCredentialsAsync(
-  ctx: BuildContext<Platform.iOS>
-): Promise<CredentialsResult<IosCredentials> | undefined> {
-  if (!shouldProvideCredentials(ctx)) {
-    return;
-  }
-  assert(ctx.commandCtx.exp?.ios?.bundleIdentifier, 'ios.bundleIdentifier is required');
-  const provider = new IosCredentialsProvider(
-    await createCredentialsContextAsync(ctx.commandCtx.projectDir, {}),
-    {
-      projectName: ctx.commandCtx.projectName,
-      accountName: ctx.commandCtx.accountName,
-      bundleIdentifier: ctx.commandCtx.exp?.ios?.bundleIdentifier,
-    },
-    { nonInteractive: ctx.commandCtx.nonInteractive }
-  );
-  const credentialsSource = await ensureCredentialsAsync(
-    provider,
-    ctx.buildProfile.workflow,
-    ctx.buildProfile.credentialsSource,
-    ctx.commandCtx.nonInteractive
-  );
-  return {
-    credentials: await provider.getCredentialsAsync(credentialsSource),
-    source: credentialsSource,
-  };
 }
