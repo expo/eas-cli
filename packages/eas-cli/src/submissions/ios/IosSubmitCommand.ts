@@ -4,11 +4,11 @@ import chalk from 'chalk';
 import * as uuid from 'uuid';
 import wordwrap from 'wordwrap';
 
-import { promptForAppleIdAsync } from '../../credentials/ios/appstore/authenticate';
 import log from '../../log';
 import { ensureProjectExistsAsync } from '../../project/ensureProjectExists';
 import { getProjectAccountNameAsync } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
+import UserSettings from '../../user/UserSettings';
 import {
   ArchiveFileSource,
   ArchiveFileSourceType,
@@ -173,7 +173,19 @@ class IosSubmitCommand {
       return EXPO_APPLE_ID;
     }
 
-    return promptForAppleIdAsync();
+    // Get the email address that was last used and set it as
+    // the default value for quicker authentication.
+    const lastAppleId = await UserSettings.getAsync('appleId', null);
+
+    const { appleId: promptAppleId } = await promptAsync({
+      type: 'text',
+      name: 'appleId',
+      message: `Enter your Apple ID:`,
+      validate: (val: string) => !!val,
+      initial: lastAppleId ?? undefined,
+    });
+
+    return promptAppleId;
   }
 
   /**
