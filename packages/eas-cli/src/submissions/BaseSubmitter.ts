@@ -7,7 +7,7 @@ import { SubmissionPlatform } from './types';
 import { displayLogs } from './utils/logs';
 
 abstract class BaseSubmitter<SubmissionContext, SubmissionOptions> {
-  protected readonly appStoreName: string = 'app store';
+  protected abstract readonly appStoreName: string;
 
   protected constructor(
     private platform: SubmissionPlatform,
@@ -15,9 +15,7 @@ abstract class BaseSubmitter<SubmissionContext, SubmissionOptions> {
     protected options: SubmissionOptions
   ) {}
 
-  async submitAsync(): Promise<void> {
-    throw new Error('Not implemented!');
-  }
+  public abstract submitAsync(): Promise<void>;
 
   protected async startSubmissionAsync(
     submissionConfig: SubmissionConfig,

@@ -22,7 +22,7 @@ interface ResolvedSourceOptions {
 }
 
 class IosSubmitter extends BaseSubmitter<IosSubmissionContext, IosSubmissionOptions> {
-  protected readonly appStoreName: string = 'Apple TestFlight';
+  protected readonly appStoreName: string = 'Apple App Store';
 
   constructor(ctx: IosSubmissionContext, options: IosSubmissionOptions) {
     super(SubmissionPlatform.iOS, ctx, options);
@@ -41,7 +41,7 @@ class IosSubmitter extends BaseSubmitter<IosSubmissionContext, IosSubmissionOpti
       SummaryHumanReadableKeys,
       SummaryHumanReadableValues
     );
-    // await this.startSubmissionAsync(submissionConfig, this.ctx.commandFlags.verbose);
+    await this.startSubmissionAsync(submissionConfig, this.ctx.commandFlags.verbose);
   }
 
   private async resolveSourceOptions(): Promise<ResolvedSourceOptions> {
