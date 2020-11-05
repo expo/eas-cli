@@ -1,7 +1,3 @@
-import chalk from 'chalk';
-import wordwrap from 'wordwrap';
-
-import log from '../../log';
 import { promptAsync } from '../../prompts';
 
 export enum AppSpecificPasswordSourceType {
@@ -30,16 +26,6 @@ export async function getAppSpecificPasswordAsync(source: AppSpecificPasswordSou
   if (source.sourceType === AppSpecificPasswordSourceType.userDefined) {
     return source.appSpecificPassword;
   } else if (source.sourceType === AppSpecificPasswordSourceType.prompt) {
-    log.addNewLineIfNone();
-    const wrap = wordwrap(process.stdout.columns || 80);
-    log(
-      wrap(
-        chalk.bold(
-          `The password is only used to upload the build to Apple TestFlight and never stored on Expo servers`
-        )
-      )
-    );
-
     const { appSpecificPassword } = await promptAsync({
       name: 'appSpecificPassword',
       message: 'Your Apple app-specific password:',
