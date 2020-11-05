@@ -1,21 +1,13 @@
-import { getConfig } from '@expo/config';
 import { Result, result } from '@expo/results';
 import chalk from 'chalk';
-import * as uuid from 'uuid';
 import wordwrap from 'wordwrap';
 
 import log from '../../log';
-import { ensureProjectExistsAsync } from '../../project/ensureProjectExists';
-import { getProjectAccountNameAsync } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
 import UserSettings from '../../user/UserSettings';
-import {
-  ArchiveFileSource,
-  ArchiveFileSourceType,
-  ArchiveSource,
-  ArchiveTypeSourceType,
-} from '../archive-source';
-import { IosSubmissionContext, IosSubmitCommandFlags, SubmissionPlatform } from '../types';
+import { ArchiveSource, ArchiveTypeSourceType } from '../archive-source';
+import { getProjectIdAsync, resolveArchiveFileSource } from '../commons';
+import { IosSubmissionContext, IosSubmitCommandFlags } from '../types';
 import {
   AppSpecificPasswordSource,
   AppSpecificPasswordSourceType,
@@ -36,7 +28,7 @@ class IosSubmitCommand {
   constructor(private ctx: IosSubmissionContext) {}
 
   async runAsync(): Promise<void> {
-    const projectId = await this.getProjectIdAsync();
+    const projectId = await getProjectIdAsync(this.ctx.projectDir);
     log.addNewLineIfNone();
 
     const options = await this.resolveSubmissionOptionsAsync(projectId);
@@ -69,15 +61,6 @@ class IosSubmitCommand {
     };
   }
 
-  // TODO: common with Android part
-  private async getProjectIdAsync(): Promise<string> {
-    const { exp } = getConfig(this.ctx.projectDir, { skipSDKVersionRequirement: true });
-    return await ensureProjectExistsAsync({
-      accountName: await getProjectAccountNameAsync(this.ctx.projectDir),
-      projectName: exp.slug,
-    });
-  }
-
   private resolveAppSpecificPasswordSource(): Result<AppSpecificPasswordSource> {
     const { appleAppSpecificPassword } = this.ctx.commandFlags;
     const { EXPO_APPLE_APP_SPECIFIC_PASSWORD } = process.env;
@@ -101,61 +84,9 @@ class IosSubmitCommand {
 
   private resolveArchiveSource(projectId: string): Result<ArchiveSource> {
     return result({
-      archiveFile: this.resolveArchiveFileSource(projectId),
+      archiveFile: resolveArchiveFileSource(this.ctx, projectId),
       archiveType: { sourceType: ArchiveTypeSourceType.infer },
     });
-  }
-
-  // TODO: this is common with android part
-  private resolveArchiveFileSource(projectId: string): ArchiveFileSource {
-    const { url, path, id, latest } = this.ctx.commandFlags;
-    const chosenOptions = [url, path, id, latest];
-    if (chosenOptions.filter(opt => opt).length > 1) {
-      throw new Error(`Pass only one of: --url, --path, --id, --latest`);
-    }
-
-    if (url) {
-      return {
-        sourceType: ArchiveFileSourceType.url,
-        url,
-        projectId,
-        platform: SubmissionPlatform.iOS,
-        projectDir: this.ctx.projectDir,
-      };
-    } else if (path) {
-      return {
-        sourceType: ArchiveFileSourceType.path,
-        path,
-        projectId,
-        platform: SubmissionPlatform.iOS,
-        projectDir: this.ctx.projectDir,
-      };
-    } else if (id) {
-      if (!uuid.validate(id)) {
-        throw new Error(`${id} is not an ID`);
-      }
-      return {
-        sourceType: ArchiveFileSourceType.buildId,
-        id,
-        projectId,
-        platform: SubmissionPlatform.iOS,
-        projectDir: this.ctx.projectDir,
-      };
-    } else if (latest) {
-      return {
-        sourceType: ArchiveFileSourceType.latest,
-        platform: SubmissionPlatform.iOS,
-        projectDir: this.ctx.projectDir,
-        projectId,
-      };
-    } else {
-      return {
-        sourceType: ArchiveFileSourceType.prompt,
-        platform: SubmissionPlatform.iOS,
-        projectDir: this.ctx.projectDir,
-        projectId,
-      };
-    }
   }
 
   /**
