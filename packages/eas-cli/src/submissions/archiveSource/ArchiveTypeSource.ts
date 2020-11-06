@@ -111,11 +111,13 @@ function inferArchiveTypeFromLocation(
 ): ArchiveInferredType {
   if (platform === SubmissionPlatform.iOS) {
     return IosArchiveType.ipa;
-  } else if (location.endsWith('.apk')) {
-    return AndroidArchiveType.apk;
-  } else if (location.endsWith('.aab')) {
-    return AndroidArchiveType.aab;
   } else {
-    return null;
+    if (location.endsWith('.apk')) {
+      return AndroidArchiveType.apk;
+    } else if (location.endsWith('.aab')) {
+      return AndroidArchiveType.aab;
+    } else {
+      return null;
+    }
   }
 }

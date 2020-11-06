@@ -3,7 +3,7 @@ import * as uuid from 'uuid';
 
 import { ensureProjectExistsAsync } from '../project/ensureProjectExists';
 import { getProjectAccountNameAsync } from '../project/projectUtils';
-import { ArchiveFileSource, ArchiveFileSourceType } from './archive-source';
+import { ArchiveFileSource, ArchiveFileSourceType } from './archiveSource';
 import { AndroidSubmissionContext, IosSubmissionContext, SubmissionPlatform } from './types';
 
 export async function getProjectIdAsync(projectDir: string): Promise<string> {
@@ -15,6 +15,7 @@ export async function getProjectIdAsync(projectDir: string): Promise<string> {
 }
 
 export function resolveArchiveFileSource(
+  platform: SubmissionPlatform,
   ctx: AndroidSubmissionContext | IosSubmissionContext,
   projectId: string
 ): ArchiveFileSource {
@@ -29,7 +30,7 @@ export function resolveArchiveFileSource(
       sourceType: ArchiveFileSourceType.url,
       url,
       projectId,
-      platform: SubmissionPlatform.iOS,
+      platform,
       projectDir: ctx.projectDir,
     };
   } else if (path) {
@@ -37,7 +38,7 @@ export function resolveArchiveFileSource(
       sourceType: ArchiveFileSourceType.path,
       path,
       projectId,
-      platform: SubmissionPlatform.iOS,
+      platform,
       projectDir: ctx.projectDir,
     };
   } else if (id) {
@@ -48,20 +49,20 @@ export function resolveArchiveFileSource(
       sourceType: ArchiveFileSourceType.buildId,
       id,
       projectId,
-      platform: SubmissionPlatform.iOS,
+      platform,
       projectDir: ctx.projectDir,
     };
   } else if (latest) {
     return {
       sourceType: ArchiveFileSourceType.latest,
-      platform: SubmissionPlatform.iOS,
+      platform,
       projectDir: ctx.projectDir,
       projectId,
     };
   } else {
     return {
       sourceType: ArchiveFileSourceType.prompt,
-      platform: SubmissionPlatform.iOS,
+      platform,
       projectDir: ctx.projectDir,
       projectId,
     };

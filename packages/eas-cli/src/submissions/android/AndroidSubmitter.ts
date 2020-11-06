@@ -1,7 +1,7 @@
 import fs from 'fs-extra';
 
 import BaseSubmitter from '../BaseSubmitter';
-import { Archive, ArchiveSource, getArchiveAsync } from '../archive-source';
+import { Archive, ArchiveSource, getArchiveAsync } from '../archiveSource';
 import {
   AndroidArchiveType,
   AndroidSubmissionContext,

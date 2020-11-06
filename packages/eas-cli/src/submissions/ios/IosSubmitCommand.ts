@@ -5,9 +5,9 @@ import wordwrap from 'wordwrap';
 import log from '../../log';
 import { promptAsync } from '../../prompts';
 import UserSettings from '../../user/UserSettings';
-import { ArchiveSource, ArchiveTypeSourceType } from '../archive-source';
+import { ArchiveSource, ArchiveTypeSourceType } from '../archiveSource';
 import { getProjectIdAsync, resolveArchiveFileSource } from '../commons';
-import { IosSubmissionContext, IosSubmitCommandFlags } from '../types';
+import { IosSubmissionContext, IosSubmitCommandFlags, SubmissionPlatform } from '../types';
 import {
   AppSpecificPasswordSource,
   AppSpecificPasswordSourceType,
@@ -84,7 +84,7 @@ class IosSubmitCommand {
 
   private resolveArchiveSource(projectId: string): Result<ArchiveSource> {
     return result({
-      archiveFile: resolveArchiveFileSource(this.ctx, projectId),
+      archiveFile: resolveArchiveFileSource(SubmissionPlatform.iOS, this.ctx, projectId),
       archiveType: { sourceType: ArchiveTypeSourceType.infer },
     });
   }

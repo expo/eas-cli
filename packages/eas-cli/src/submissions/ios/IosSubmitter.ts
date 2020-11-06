@@ -1,7 +1,7 @@
 import chalk from 'chalk';
 
 import BaseSubmitter from '../BaseSubmitter';
-import { Archive, ArchiveSource, getArchiveAsync } from '../archive-source';
+import { Archive, ArchiveSource, getArchiveAsync } from '../archiveSource';
 import { IosSubmissionContext, SubmissionPlatform } from '../types';
 import { breakWord, printSummary } from '../utils/summary';
 import {

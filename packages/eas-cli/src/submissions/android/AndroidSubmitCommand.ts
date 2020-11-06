@@ -2,9 +2,14 @@ import { getConfig } from '@expo/config';
 import { Result, result } from '@expo/results';
 
 import log from '../../log';
-import { ArchiveSource, ArchiveTypeSource, ArchiveTypeSourceType } from '../archive-source';
+import { ArchiveSource, ArchiveTypeSource, ArchiveTypeSourceType } from '../archiveSource';
 import { getProjectIdAsync, resolveArchiveFileSource } from '../commons';
-import { AndroidArchiveType, AndroidSubmissionContext, AndroidSubmitCommandFlags } from '../types';
+import {
+  AndroidArchiveType,
+  AndroidSubmissionContext,
+  AndroidSubmitCommandFlags,
+  SubmissionPlatform,
+} from '../types';
 import { AndroidPackageSource, AndroidPackageSourceType } from './AndroidPackageSource';
 import { ReleaseStatus, ReleaseTrack } from './AndroidSubmissionConfig';
 import AndroidSubmitter, { AndroidSubmissionOptions } from './AndroidSubmitter';
@@ -119,7 +124,7 @@ class AndroidSubmitCommand {
 
   private resolveArchiveSource(projectId: string): Result<ArchiveSource> {
     return result({
-      archiveFile: resolveArchiveFileSource(this.ctx, projectId),
+      archiveFile: resolveArchiveFileSource(SubmissionPlatform.Android, this.ctx, projectId),
       archiveType: this.resolveArchiveTypeSource(),
     });
   }
