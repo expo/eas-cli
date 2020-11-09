@@ -6,6 +6,7 @@
   "scripts": {
     "eas": "packages/eas-cli/bin/run",
     "lint": "eslint . --ext .ts",
+    "release": "lerna version",
     "test": "jest"
   },
   "devDependencies": {

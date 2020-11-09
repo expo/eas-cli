@@ -862,7 +862,14 @@
     "@babel/helper-plugin-utils" "^7.10.4"
     "@babel/plugin-transform-typescript" "^7.10.4"
 
-"@babel/runtime@^7.5.5", "@babel/runtime@^7.7.2", "@babel/runtime@^7.8.4":
+"@babel/runtime@^7.5.5":
+  version "7.12.1"
+  resolved "https://registry.yarnpkg.com/@babel/runtime/-/runtime-7.12.1.tgz#b4116a6b6711d010b2dad3b7b6e43bf1b9954740"
+  integrity sha512-J5AIf3vPj3UwXaAzb5j1xM4WAQDX3EMgemF8rjCP3SoW09LfRKAXQKt6CoVYl230P6iWdRcBbnLDDdnqWxZSCA==
+  dependencies:
+    regenerator-runtime "^0.13.4"
+
+"@babel/runtime@^7.7.2", "@babel/runtime@^7.8.4":
   version "7.11.2"
   resolved "https://registry.yarnpkg.com/@babel/runtime/-/runtime-7.11.2.tgz#f549c13c754cc40b87644b9fa9f09a6a95fe0736"
   integrity sha512-TeWkU52so0mPtDcaCTxNBI/IHiz0pZgr8VEFqXFtZWpYD08ZB6FaSwVAS8MKRQAP3bYKiVjwysOJgMFY28o6Tw==
@@ -1117,25 +1124,6 @@
     json5 "^1.0.1"
     lodash "^4.17.15"
     write-file-atomic "^2.3.0"
-
-"@expo/oclif-dev-cli@1.23.0-expo":
-  version "1.23.0-expo"
-  resolved "https://registry.yarnpkg.com/@expo/oclif-dev-cli/-/oclif-dev-cli-1.23.0-expo.tgz#413730a4a03a4ba18f079c3cbd67205c01eea72e"
-  integrity sha512-N5cnPSxDUmkXrWKJ/lOQtZcOffwgi4HDVB41tQCev80QbXyWZwUUX9LOnk0RyC5G170s5oTcnIeA+th1hcC2UQ==
-  dependencies:
-    "@oclif/command" "^1.5.13"
-    "@oclif/config" "^1.12.12"
-    "@oclif/errors" "^1.2.2"
-    "@oclif/plugin-help" "^2.1.6"
-    cli-ux "^5.2.1"
-    debug "^4.1.1"
-    find-yarn-workspace-root "^2.0.0"
-    fs-extra "^9.0.1"
-    github-slugger "^1.2.1"
-    lodash "^4.17.11"
-    normalize-package-data "^2.5.0"
-    qqjs "^0.3.10"
-    tslib "^1.9.3"
 
 "@expo/oclif-dev-cli@1.24.0-expo":
   version "1.24.0-expo"
@@ -2946,9 +2934,9 @@
   integrity sha512-qAfo81CsD7yQIM9mVyh6B/U47li5g7cfpVQEDMfQeF8pSZVwzbhwU3crc0qG4DmpsebpJPR49AKOExQyJ05Cpg==
 
 "@types/node@^12.7.1":
-  version "12.12.67"
-  resolved "https://registry.yarnpkg.com/@types/node/-/node-12.12.67.tgz#4f86badb292e822e3b13730a1f9713ed2377f789"
-  integrity sha512-R48tgL2izApf+9rYNH+3RBMbRpPeW3N8f0I9HMhggeq4UXwBDqumJ14SDs4ctTMhG11pIOduZ4z3QWGOiMc9Vg==
+  version "12.19.2"
+  resolved "https://registry.yarnpkg.com/@types/node/-/node-12.19.2.tgz#9565ed5c72ba96038fc3add643edd5e7820598e7"
+  integrity sha512-SRH6QM0IMOBBFmDiJ75vlhcbUEYEquvSuhsVW9ijG20JvdFTfOrB1p6ddZxz5y/JNnbf+9HoHhjhOVSX2hsJyA==
 
 "@types/normalize-package-data@^2.4.0":
   version "2.4.0"
