@@ -1,4 +1,4 @@
-name: Test the installer
+name: Installer tests
 on:
   push:
     branches: [main]
@@ -6,20 +6,13 @@ on:
     types: [opened, synchronize]
 
 jobs:
-  check:
-    name: Run shellcheck
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-        with:
-          fetch-depth: 1
-      - run: shellcheck bin/install.sh
   test:
-    name: Try the installer
+    name: Run the installer
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest]
     steps:
+      - uses: actions/checkout@v2
       - run: bash bin/install.sh
       - run: eas --version
