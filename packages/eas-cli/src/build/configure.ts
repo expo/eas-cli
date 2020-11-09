@@ -1,0 +1,82 @@
+import { getConfig } from '@expo/config';
+import fs from 'fs-extra';
+import path from 'path';
+
+import log from '../log';
+import { ensureLoggedInAsync } from '../user/actions';
+import { gitAddAsync } from '../utils/git';
+import { configureAndroidAsync } from './android/configure';
+import { ConfigureContext } from './context';
+import { configureIosAsync } from './ios/configure';
+import { BuildCommandPlatform } from './types';
+import {
+  ensureGitRepoExistsAsync,
+  ensureGitStatusIsCleanAsync,
+  modifyAndCommitAsync,
+} from './utils/repository';
+
+export async function configureAsync(options: {
+  platform: BuildCommandPlatform;
+  projectDir: string;
+}): Promise<void> {
+  await ensureGitRepoExistsAsync();
+  await ensureGitStatusIsCleanAsync();
+
+  const { exp } = getConfig(options.projectDir, { skipSDKVersionRequirement: true });
+
+  const ctx: ConfigureContext = {
+    user: await ensureLoggedInAsync(),
+    projectDir: options.projectDir,
+    exp,
+    shouldConfigureAndroid: [BuildCommandPlatform.ALL, BuildCommandPlatform.ANDROID].includes(
+      options.platform
+    ),
+    shouldConfigureIos: [BuildCommandPlatform.ALL, BuildCommandPlatform.IOS].includes(
+      options.platform
+    ),
+    // TODO: better detection of native projects
+    hasAndroidNativeProject: await fs.pathExists(path.join(options.projectDir, 'android')),
+    hasIosNativeProject: await fs.pathExists(path.join(options.projectDir, 'ios')),
+  };
+  await modifyAndCommitAsync(
+    async () => {
+      await ensureEasJsonExistsAsync(ctx);
+      if (ctx.shouldConfigureAndroid) {
+        await configureAndroidAsync(ctx);
+      }
+      if (ctx.shouldConfigureIos) {
+        await configureIosAsync(ctx);
+      }
+    },
+    {
+      commitMessage: 'Configure EAS Build',
+      nonInteractive: false,
+    }
+  );
+}
+
+export async function ensureEasJsonExistsAsync(ctx: ConfigureContext): Promise<void> {
+  const easJsonPath = path.join(ctx.projectDir, 'eas.json');
+  if (await fs.pathExists(easJsonPath)) {
+    return;
+  }
+
+  const easJson = {
+    builds: {
+      android: {
+        release: {
+          workflow: ctx.hasAndroidNativeProject ? 'generic' : 'managed',
+        },
+      },
+      ios: {
+        release: {
+          workflow: ctx.hasIosNativeProject ? 'generic' : 'managed',
+        },
+      },
+    },
+  };
+
+  await fs.writeFile(easJsonPath, `${JSON.stringify(easJson, null, 2)}\n`);
+  await gitAddAsync(easJsonPath, { intentToAdd: true });
+  log.withTick('Created eas.json file');
+}

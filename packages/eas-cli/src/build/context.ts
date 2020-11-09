@@ -61,6 +61,16 @@ export async function createCommandContextAsync({
   };
 }
 
+export interface ConfigureContext {
+  user: User;
+  projectDir: string;
+  exp: ExpoConfig;
+  shouldConfigureAndroid: boolean;
+  shouldConfigureIos: boolean;
+  hasAndroidNativeProject: boolean;
+  hasIosNativeProject: boolean;
+}
+
 type PlatformBuildProfile<T extends Platform> = T extends Platform.Android
   ? AndroidBuildProfile
   : iOSBuildProfile;

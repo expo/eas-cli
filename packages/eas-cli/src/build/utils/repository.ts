@@ -1,6 +1,4 @@
 import spawnAsync from '@expo/spawn-async';
-import chalk from 'chalk';
-import figures from 'figures';
 import fs from 'fs-extra';
 import ora from 'ora';
 import path from 'path';
@@ -119,45 +117,31 @@ async function reviewAndCommitChangesAsync(
 async function modifyAndCommitAsync(
   callback: () => Promise<void>,
   {
-    startMessage,
-    successMessage,
     commitMessage,
-    commitSuccessMessage,
     nonInteractive,
   }: {
-    startMessage: string;
-    successMessage: string;
     commitMessage: string;
-    commitSuccessMessage: string;
     nonInteractive: boolean;
   }
 ) {
-  const spinner = ora(startMessage);
-
   try {
     await callback();
 
     await ensureGitStatusIsCleanAsync();
-
-    spinner.succeed();
   } catch (err) {
     if (err instanceof DirtyGitTreeError) {
-      spinner.succeed(successMessage);
       log.newLine();
 
       try {
         await reviewAndCommitChangesAsync(commitMessage, {
           nonInteractive,
         });
-
-        log(`${chalk.green(figures.tick)} ${commitSuccessMessage}.`);
       } catch (e) {
         throw new Error(
           "Aborting, run the command again once you're ready. Make sure to commit any changes you've made."
         );
       }
     } else {
-      spinner.fail();
       throw err;
     }
   }
