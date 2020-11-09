@@ -15,7 +15,6 @@
     "@babel/preset-env": "^7.11.5",
     "@babel/preset-typescript": "^7.10.4",
     "@expo/babel-preset-cli": "^0.2.17",
-    "@types/color-string": "^1.5.0",
     "@types/fs-extra": "^9.0.1",
     "@types/hapi__joi": "^17.1.4",
     "@types/node": "^12",
