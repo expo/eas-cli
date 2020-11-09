@@ -1,4 +1,4 @@
-import { Platform } from '@expo/build-tools';
+import { Platform } from '@expo/eas-build-job';
 import fs from 'fs-extra';
 import path from 'path';
 
@@ -13,8 +13,8 @@ import { EasJsonSchema, schemaBuildProfileMap } from './EasJsonSchema';
 
 interface EasJson {
   builds: {
-    android?: { [key: string]: AndroidBuildProfile };
-    ios?: { [key: string]: iOSBuildProfile };
+    android?: { [key: string]: BuildProfilePreValidation };
+    ios?: { [key: string]: BuildProfilePreValidation };
   };
 }
 
@@ -26,7 +26,7 @@ export class EasJsonReader {
   constructor(private projectDir: string, private platform: 'android' | 'ios' | 'all') {}
 
   public async readAsync(buildProfileName: string): Promise<EasConfig> {
-    const easJson = await this.readFile();
+    const easJson = await this.readRawAsync();
 
     let androidConfig;
     if (['android', 'all'].includes(this.platform)) {
@@ -52,6 +52,20 @@ export class EasJsonReader {
     };
   }
 
+  public async readRawAsync(): Promise<EasJson> {
+    const rawFile = await fs.readFile(path.join(this.projectDir, 'eas.json'), 'utf-8');
+    const json = JSON.parse(rawFile);
+
+    const { value, error } = EasJsonSchema.validate(json, {
+      abortEarly: false,
+    });
+
+    if (error) {
+      throw new Error(`eas.json is not valid [${error.toString()}]`);
+    }
+    return value;
+  }
+
   private validateBuildProfile<T extends BuildProfile>(
     platform: 'android' | 'ios' | 'all',
     buildProfileName: string,
@@ -74,20 +88,6 @@ export class EasJsonReader {
       throw new Error(
         `Object "${platform}.${buildProfileName}" in eas.json is not valid [${error.toString()}]`
       );
-    }
-    return value;
-  }
-
-  private async readFile(): Promise<EasJson> {
-    const rawFile = await fs.readFile(path.join(this.projectDir, 'eas.json'), 'utf-8');
-    const json = JSON.parse(rawFile);
-
-    const { value, error } = EasJsonSchema.validate(json, {
-      abortEarly: false,
-    });
-
-    if (error) {
-      throw new Error(`eas.json is not valid [${error.toString()}]`);
     }
     return value;
   }

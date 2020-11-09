@@ -1,4 +1,5 @@
 import chalk from 'chalk';
+import figures from 'figures';
 
 type Color = (...text: string[]) => string;
 
@@ -62,6 +63,10 @@ log.warn = function warn(...args: any[]) {
 
 log.gray = function (...args: any[]) {
   consoleLog(...withTextColor(args, chalk.gray));
+};
+
+log.withTick = function (...args: any[]) {
+  consoleLog(chalk.green(figures.tick), ...args);
 };
 
 export default log;

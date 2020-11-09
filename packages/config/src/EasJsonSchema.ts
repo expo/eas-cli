@@ -4,6 +4,7 @@ const AndroidGenericSchema = Joi.object({
   workflow: Joi.string().valid('generic').required(),
   credentialsSource: Joi.string().valid('local', 'remote', 'auto').default('auto'),
   gradleCommand: Joi.string(),
+  releaseChannel: Joi.string(),
   artifactPath: Joi.string(),
   withoutCredentials: Joi.boolean(),
 });
@@ -18,6 +19,7 @@ const iOSGenericSchema = Joi.object({
   workflow: Joi.string().valid('generic').required(),
   credentialsSource: Joi.string().valid('local', 'remote', 'auto').default('auto'),
   scheme: Joi.string(),
+  releaseChannel: Joi.string(),
   artifactPath: Joi.string(),
 });
 

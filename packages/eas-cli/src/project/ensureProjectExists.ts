@@ -1,14 +1,14 @@
-import { ProjectPrivacy } from '@expo/config';
+import { ExpoConfig } from '@expo/config';
 import chalk from 'chalk';
-import gql from 'graphql-tag';
 import ora from 'ora';
 
-import { apiClient, graphqlClient } from '../api';
+import { apiClient } from '../api';
+import { ProjectQuery } from '../graphql/queries/ProjectQuery';
 
 interface ProjectInfo {
   accountName: string;
   projectName: string;
-  privacy?: ProjectPrivacy;
+  privacy?: ExpoConfig['privacy'];
 }
 
 /**
@@ -24,7 +24,7 @@ export async function ensureProjectExistsAsync(projectInfo: ProjectInfo): Promis
   ).start();
 
   try {
-    const id = findProjectIdByUsernameAndSlugAsync(accountName, projectFullName);
+    const id = await findProjectIdByAccountNameAndSlugAsync(accountName, projectName);
     spinner.succeed();
     return id;
   } catch (err) {
@@ -50,32 +50,17 @@ export async function ensureProjectExistsAsync(projectInfo: ProjectInfo): Promis
 }
 
 /**
- * Finds project by `@username/slug` and returns its ID
- * @param username user account name
+ * Finds project by `@accountName/slug` and returns its ID
+ * @param accountName account name
  * @param slug project slug
  * @returns A promise resolving to Project ID
  */
-async function findProjectIdByUsernameAndSlugAsync(
-  username: string,
+async function findProjectIdByAccountNameAndSlugAsync(
+  accountName: string,
   slug: string
 ): Promise<string> {
-  const { data, error } = await graphqlClient
-    .query(
-      gql`
-      {
-        project {
-          byUsernameAndSlug(username: "${username}", slug: "${slug}", sdkVersions: []) {
-            id
-          }
-        }
-      }`
-    )
-    .toPromise();
-
-  if (error) {
-    throw error;
-  }
-  return data.project.byUsernameAndSlug.id;
+  const project = await ProjectQuery.byUsernameAndSlugAsync(accountName, slug);
+  return project.id;
 }
 
 /**
@@ -92,7 +77,7 @@ async function registerNewProjectAsync({
       json: {
         accountName,
         projectName,
-        privacy: privacy ?? ProjectPrivacy.PUBLIC,
+        privacy: privacy ?? 'public',
       },
     })
     .json();

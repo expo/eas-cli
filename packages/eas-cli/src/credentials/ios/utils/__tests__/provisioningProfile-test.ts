@@ -6,7 +6,6 @@ const MALFORMED_PROVISIONING_PROFILE = 'aWV5Zmd3eXVlZmdl';
 describe('provisioningProfileUtils', () => {
   describe('readAppleTeam', () => {
     it('returns correct teamId', () => {
-      console.log(provisioningProfileUtils.parse(testProvisioningProfileBase64));
       const team = provisioningProfileUtils.readAppleTeam(testProvisioningProfileBase64);
       expect(team).toEqual({
         teamId: 'QL76XYH73P',

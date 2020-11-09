@@ -1,4 +1,4 @@
-// Workflow is representing different value than BuildType from @expo/build-tools
+// Workflow is representing different value than BuildType from @expo/eas-build-job
 // Each workflow has a set of BuildTypes available
 // - Generic workflow allows to build 'generic' and 'generic-client'
 // - Managed workflow allows to build 'managed' and 'managed-client'
@@ -17,12 +17,14 @@ export interface AndroidManagedBuildProfile {
   workflow: Workflow.Managed;
   credentialsSource: CredentialsSource;
   buildType?: 'apk' | 'app-bundle';
+  releaseChannel?: undefined;
 }
 
 export interface AndroidGenericBuildProfile {
   workflow: Workflow.Generic;
   credentialsSource: CredentialsSource;
   gradleCommand?: string;
+  releaseChannel?: string;
   artifactPath?: string;
   withoutCredentials?: boolean;
 }
@@ -31,12 +33,14 @@ export interface iOSManagedBuildProfile {
   workflow: Workflow.Managed;
   credentialsSource: CredentialsSource;
   buildType?: 'archive' | 'simulator';
+  releaseChannel?: undefined;
 }
 
 export interface iOSGenericBuildProfile {
   workflow: Workflow.Generic;
   credentialsSource: CredentialsSource;
   scheme?: string;
+  releaseChannel?: string;
   artifactPath?: string;
 }
 

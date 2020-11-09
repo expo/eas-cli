@@ -1,9 +1,11 @@
 import chalk from 'chalk';
 
-import { generateDeviceRegistrationURL } from '../../credentials/ios/adhoc/devices';
-import log from '../../log';
-import { promptAsync } from '../../prompts';
-import { Account } from '../../user/Account';
+import { AppleTeam } from '../../../graphql/types/credentials/AppleTeam';
+import log from '../../../log';
+import { promptAsync } from '../../../prompts';
+import { Account } from '../../../user/Account';
+import { runInputMethodAsync } from './inputMethod';
+import { runRegistrationUrlMethodAsync } from './registrationUrlMethod';
 
 export enum RegistrationMethod {
   WEBSITE,
@@ -12,15 +14,14 @@ export enum RegistrationMethod {
 }
 
 export default class DeviceCreateAction {
-  constructor(private account: Account, private appleTeamId: string) {}
+  constructor(private account: Account, private appleTeam: AppleTeam) {}
 
   public async runAsync(): Promise<void> {
     const method = await this.askForRegistrationMethodAsync();
-
     if (method === RegistrationMethod.WEBSITE) {
-      await generateDeviceRegistrationURL(this.account, this.appleTeamId);
+      await runRegistrationUrlMethodAsync(this.account.id, this.appleTeam);
     } else if (method === RegistrationMethod.INPUT) {
-      throw new Error('not implemented yet');
+      await runInputMethodAsync(this.account.id, this.appleTeam);
     } else if (method === RegistrationMethod.EXIT) {
       log('Bye!');
       process.exit(0);
