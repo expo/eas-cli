@@ -7,7 +7,7 @@
   # All code is inside a block to ensure the script executes only when
   # downloaded completely.
 
-  set -e
+  set -euo pipefail
 
   prefix="${EAS_PREFIX:-/usr/local}"
   temp_dir="$(mktemp -d)"
