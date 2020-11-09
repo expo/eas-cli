@@ -14,8 +14,6 @@ jobs:
     name: Test with Node ${{ matrix.node }}
     steps:
       - uses: actions/checkout@v2
-        with:
-          fetch-depth: 1
       - name: Setup node
         uses: actions/setup-node@v1
         with:
@@ -23,3 +21,4 @@ jobs:
       - run: yarn install --frozen-lockfile --check-files
       - run: yarn test
       - run: yarn lint
+      - run: shellcheck bin/*.sh
