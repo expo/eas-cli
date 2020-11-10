@@ -9,4 +9,5 @@ dist
 /package-lock.json
 tmp
 node_modules
+coverage
 .history
