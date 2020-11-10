@@ -1,5 +1,4 @@
-import { ArchiveType } from '../android/AndroidSubmissionConfig';
-import { SubmissionPlatform } from '../types';
+import { ArchiveType, SubmissionPlatform } from '../types';
 import {
   ArchiveFileSource,
   ArchiveFileSourceType,

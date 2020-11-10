@@ -1,16 +1,13 @@
+import { AndroidArchiveType } from '../types';
+
 export interface AndroidSubmissionConfig {
   projectId: string;
   archiveUrl: string;
-  archiveType: ArchiveType;
+  archiveType: AndroidArchiveType;
   androidPackage: string;
   track: ReleaseTrack;
   serviceAccount: string;
   releaseStatus?: ReleaseStatus;
-}
-
-export enum ArchiveType {
-  apk = 'apk',
-  aab = 'aab',
 }
 
 export enum ReleaseStatus {

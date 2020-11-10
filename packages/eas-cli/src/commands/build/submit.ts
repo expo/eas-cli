@@ -2,7 +2,12 @@ import { Command, flags } from '@oclif/command';
 
 import { findProjectRootAsync } from '../../project/projectUtils';
 import AndroidSubmitCommand from '../../submissions/android/AndroidSubmitCommand';
-import { AndroidSubmitCommandFlags, SubmissionPlatform } from '../../submissions/types';
+import IosSubmitCommand from '../../submissions/ios/IosSubmitCommand';
+import {
+  AndroidSubmitCommandFlags,
+  IosSubmitCommandFlags,
+  SubmissionPlatform,
+} from '../../submissions/types';
 import { ensureLoggedInAsync } from '../../user/actions';
 
 export default class BuildSubmit extends Command {
@@ -65,22 +70,37 @@ export default class BuildSubmit extends Command {
       default: 'completed',
       options: ['completed', 'draft', 'halted', 'inProgress'],
     }),
+
+    /* iOS specific flags */
+    'apple-id': flags.string({
+      description: 'Your Apple ID username (you can also set EXPO_APPLE_ID env variable)',
+    }),
+    'apple-app-specific-password': flags.string({
+      description:
+        'Your Apple ID app-specific password. You can also set EXPO_APPLE_APP_SPECIFIC_PASSWORD env variable.',
+    }),
+    'app-apple-id': flags.string({
+      description: 'App Store Connect unique application Apple ID number.',
+    }),
   };
 
   async run() {
     const {
       flags: {
+        // android
         'android-package': androidPackage,
         'release-status': releaseStatus,
+
+        // ios
+        'apple-id': appleId,
+        'apple-app-specific-password': appleAppSpecificPassword,
+        'app-apple-id': appAppleId,
+
+        // common
         platform,
         ...flags
       },
     } = this.parse(BuildSubmit);
-
-    // TODO: Remove this when iOS is supported
-    if (platform !== SubmissionPlatform.Android) {
-      throw new Error(`Platform ${platform} is not supported yet!`);
-    }
 
     await ensureLoggedInAsync();
     const projectDir = await findProjectRootAsync(process.cwd());
@@ -90,14 +110,29 @@ export default class BuildSubmit extends Command {
       throw new Error("Please run this command inside your project's directory");
     }
 
-    const options: AndroidSubmitCommandFlags = {
-      androidPackage,
-      releaseStatus,
-      ...flags,
-    };
+    if (platform === SubmissionPlatform.Android) {
+      const options: AndroidSubmitCommandFlags = {
+        androidPackage,
+        releaseStatus,
+        ...flags,
+      };
 
-    const ctx = AndroidSubmitCommand.createContext(projectDir, options);
-    const command = new AndroidSubmitCommand(ctx);
-    await command.runAsync();
+      const ctx = AndroidSubmitCommand.createContext(projectDir, options);
+      const command = new AndroidSubmitCommand(ctx);
+      await command.runAsync();
+    } else if (platform === SubmissionPlatform.iOS) {
+      const options: IosSubmitCommandFlags = {
+        appleId,
+        appleAppSpecificPassword,
+        appAppleId,
+        ...flags,
+      };
+
+      const ctx = IosSubmitCommand.createContext(projectDir, options);
+      const command = new IosSubmitCommand(ctx);
+      await command.runAsync();
+    } else {
+      throw new Error(`Unsupported platform: ${platform}!`);
+    }
   }
 }

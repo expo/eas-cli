@@ -16,6 +16,17 @@ export enum SubmissionPlatform {
   iOS = 'ios',
 }
 
+export enum AndroidArchiveType {
+  apk = 'apk',
+  aab = 'aab',
+}
+
+export enum IosArchiveType {
+  ipa = 'ipa',
+}
+
+export type ArchiveType = AndroidArchiveType | IosArchiveType;
+
 // Android specific types
 export interface AndroidSubmitCommandFlags extends SubmitCommandFlags {
   type?: 'apk' | 'aab';
@@ -26,3 +37,20 @@ export interface AndroidSubmitCommandFlags extends SubmitCommandFlags {
 }
 
 export type AndroidSubmissionContext = SubmissionContext<AndroidSubmitCommandFlags>;
+
+// iOS specific types
+export interface IosSubmitCommandFlags extends SubmitCommandFlags {
+  // common for all flows
+  appleId?: string;
+  appAppleId?: string;
+  appleAppSpecificPassword?: string;
+
+  // used only when running produce
+  appleTeamId?: string;
+  itcTeamId?: string;
+  appName?: string;
+  bundleIdentifier?: string;
+  sku?: string;
+}
+
+export type IosSubmissionContext = SubmissionContext<IosSubmitCommandFlags>;

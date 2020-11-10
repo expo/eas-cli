@@ -7,9 +7,9 @@ import { createTestProject } from '../../../project/__tests__/project-utils';
 import { ensureProjectExistsAsync } from '../../../project/ensureProjectExists';
 import SubmissionService from '../../SubmissionService';
 import { Submission, SubmissionStatus } from '../../SubmissionService.types';
-import { AndroidArchiveType, AndroidSubmitCommandFlags, SubmissionPlatform } from '../../types';
-import { AndroidSubmissionConfig, ReleaseStatus, ReleaseTrack } from '../AndroidSubmissionConfig';
-import AndroidSubmitCommand from '../AndroidSubmitCommand';
+import { IosSubmitCommandFlags, SubmissionPlatform } from '../../types';
+import { IosSubmissionConfig } from '../IosSubmissionConfig';
+import IosSubmitCommand from '../IosSubmitCommand';
 
 jest.mock('fs');
 jest.mock('ora');
@@ -23,16 +23,11 @@ jest.mock('../../../user/actions', () => ({
 }));
 jest.mock('../../../project/projectUtils');
 
-describe(AndroidSubmitCommand, () => {
-  const testProject = createTestProject(mockJester, {
-    android: {
-      package: 'com.expo.test.project',
-    },
-  });
+describe(IosSubmitCommand, () => {
+  const testProject = createTestProject(mockJester, {});
 
   const fakeFiles: Record<string, string> = {
-    '/apks/fake.apk': 'fake apk',
-    '/google-service-account.json': JSON.stringify({ service: 'account' }),
+    '/artifacts/fake.ipa': 'fake ipa',
   };
 
   const originalConsoleLog = console.log;
@@ -90,33 +85,30 @@ describe(AndroidSubmitCommand, () => {
       );
       asMock(ensureProjectExistsAsync).mockImplementationOnce(() => projectId);
 
-      const options: AndroidSubmitCommandFlags = {
+      const options: IosSubmitCommandFlags = {
         latest: false,
-        url: 'http://expo.io/fake.apk',
-        type: 'apk',
-        key: '/google-service-account.json',
-        track: 'internal',
-        releaseStatus: 'draft',
+        url: 'http://expo.io/fake.ipa',
+        appleId: 'test@example.com',
+        appleAppSpecificPassword: 'supersecret',
+        appAppleId: '12345678',
         verbose: false,
       };
-      const ctx = AndroidSubmitCommand.createContext(testProject.projectRoot, options);
-      const command = new AndroidSubmitCommand(ctx);
+      const ctx = IosSubmitCommand.createContext(testProject.projectRoot, options);
+      const command = new IosSubmitCommand(ctx);
       await command.runAsync();
 
-      const androidSubmissionConfig: AndroidSubmissionConfig = {
-        archiveUrl: 'http://expo.io/fake.apk',
-        archiveType: AndroidArchiveType.apk,
-        androidPackage: testProject.appJSON.expo.android?.package,
-        serviceAccount: fakeFiles['/google-service-account.json'],
-        releaseStatus: ReleaseStatus.draft,
-        track: ReleaseTrack.internal,
+      const iosSubmissionConfig: IosSubmissionConfig = {
+        archiveUrl: 'http://expo.io/fake.ipa',
+        appleId: 'test@example.com',
+        appSpecificPassword: 'supersecret',
+        appAppleId: '12345678',
         projectId,
       };
 
       expect(SubmissionService.startSubmissionAsync).toHaveBeenCalledWith(
-        SubmissionPlatform.Android,
+        SubmissionPlatform.iOS,
         projectId,
-        androidSubmissionConfig
+        iosSubmissionConfig
       );
     });
   });

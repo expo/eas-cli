@@ -1,4 +1,5 @@
 import { AndroidSubmissionConfig } from './android/AndroidSubmissionConfig';
+import { IosSubmissionConfig } from './ios/IosSubmissionConfig';
 import { SubmissionPlatform } from './types';
 
 export interface Submission {
@@ -29,7 +30,6 @@ export interface SubmissionError {
   message: string;
 }
 
-// TODO: add `| iOSSubmissionConfig` when iOS submissions are supported
-export type SubmissionConfig = AndroidSubmissionConfig;
+export type SubmissionConfig = AndroidSubmissionConfig | IosSubmissionConfig;
 
 export type StartSubmissionResult = string;
