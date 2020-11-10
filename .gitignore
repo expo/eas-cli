@@ -1,8 +1,13 @@
 *-debug.log
 *-error.log
+
+**/build/**
+!packages/eas-cli/src/commands/build/**
+!packages/eas-cli/src/build/**
+
 dist
-build
 /package-lock.json
 tmp
 node_modules
 coverage
+.history

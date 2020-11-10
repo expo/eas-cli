@@ -1,11 +1,11 @@
 import fs from 'fs-extra';
 import { vol } from 'memfs';
 
-import { getSessionSecret, loginAsync, logoutAsync } from '../accounts';
-import { getStateJsonPath } from '../utils/paths';
+import { getStateJsonPath } from '../../utils/paths';
+import { getSessionSecret, loginAsync, logoutAsync } from '../User';
 
 jest.mock('fs');
-jest.mock('../utils/api', () => ({
+jest.mock('../../api', () => ({
   apiClient: {
     post: jest.fn(() => {
       return {
@@ -13,6 +13,8 @@ jest.mock('../utils/api', () => ({
       };
     }),
   },
+}));
+jest.mock('../../graphql/client', () => ({
   graphqlClient: {
     query: () => {
       return {
