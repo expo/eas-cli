@@ -59,11 +59,14 @@ _See code: [build/commands/build/index.ts](https://github.com/expo/eas-cli/blob/
 
 ## `eas build:configure`
 
-Start a build
+Configure the project to support EAS Build.
 
 ```
 USAGE
   $ eas build:configure
+
+OPTIONS
+  -p, --platform=(android|ios|all)  [default: all] Platform to configure
 ```
 
 _See code: [build/commands/build/configure.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.0/build/commands/build/configure.ts)_
@@ -111,30 +114,39 @@ USAGE
   $ eas build:submit
 
 OPTIONS
-  -p, --platform=(android|ios)                          (required) For which platform you want to submit a build
+  -p, --platform=(android|ios)                               (required) For which platform you want to submit a build
 
-  --android-package=android-package                     Android package name (using expo.android.package from app.json
-                                                        by default)
+  --android-package=android-package                          Android package name (using expo.android.package from
+                                                             app.json by default)
 
-  --id=id                                               ID of the build to submit
+  --app-apple-id=app-apple-id                                App Store Connect unique application Apple ID number.
 
-  --key=key                                             Path to the JSON key used to authenticate with Google Play
+  --apple-app-specific-password=apple-app-specific-password  Your Apple ID app-specific password. You can also set
+                                                             EXPO_APPLE_APP_SPECIFIC_PASSWORD env variable.
 
-  --latest                                              Submit the latest build
+  --apple-id=apple-id                                        Your Apple ID username (you can also set EXPO_APPLE_ID env
+                                                             variable)
 
-  --path=path                                           Path to the .apk/.aab file
+  --id=id                                                    ID of the build to submit
 
-  --release-status=(completed|draft|halted|inProgress)  [default: completed] Release status (used when uploading new
-                                                        apks/aabs), choose from: completed, draft, halted, inProgress
+  --key=key                                                  Path to the JSON key used to authenticate with Google Play
 
-  --track=(production|beta|alpha|internal|rollout)      [default: internal] The track of the application to use, choose
-                                                        from: production, beta, alpha, internal, rollout
+  --latest                                                   Submit the latest build
 
-  --type=(apk|aab)                                      Android archive type
+  --path=path                                                Path to the .apk/.aab file
 
-  --url=url                                             App archive url
+  --release-status=(completed|draft|halted|inProgress)       [default: completed] Release status (used when uploading
+                                                             new apks/aabs), choose from: completed, draft, halted,
+                                                             inProgress
 
-  --verbose                                             Always print logs from Submission Service
+  --track=(production|beta|alpha|internal|rollout)           [default: internal] The track of the application to use,
+                                                             choose from: production, beta, alpha, internal, rollout
+
+  --type=(apk|aab)                                           Android archive type
+
+  --url=url                                                  App archive url
+
+  --verbose                                                  Always print logs from Submission Service
 ```
 
 _See code: [build/commands/build/submit.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.0/build/commands/build/submit.ts)_
