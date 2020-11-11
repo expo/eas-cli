@@ -1,5 +1,6 @@
 import { Command } from '@oclif/command';
 
+import log from '../../log';
 import { showLoginPromptAsync } from '../../user/actions';
 
 export default class AccountLogin extends Command {
@@ -8,8 +9,8 @@ export default class AccountLogin extends Command {
   static aliases = ['login'];
 
   async run() {
-    this.log('Log in to EAS');
+    log('Log in to EAS');
     await showLoginPromptAsync();
-    this.log('Logged in.');
+    log('Logged in.');
   }
 }
