@@ -73,3 +73,39 @@ jobs:
           asset_path: packages/eas-cli/dist/eas-darwin-x64.tar.gz
           asset_name: eas-darwin-x64.tar.gz
           asset_content_type: application/gzip
+  build-windows:
+    name: Build for Windows
+    runs-on: windows-2019
+    needs: release
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v1
+        with:
+          node-version: '14'
+      - run: yarn install --frozen-lockfile --check-files
+      - run: yarn oclif-dev pack:win
+        working-directory: ${{ github.workspace }}/packages/eas-cli
+      - id: x64
+        run: echo "::set-output name=filename::$(ls eas-*-x64.exe)"
+        working-directory: ${{ github.workspace }}/packages/eas-cli/dist/win
+      - id: x86
+        run: echo "::set-output name=filename::$(ls eas-*-x86.exe)"
+        working-directory: ${{ github.workspace }}/packages/eas-cli/dist/win
+      - name: Upload x64 installer
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.release.outputs.upload_url }}
+          asset_path: packages/eas-cli/dist/win/${{ steps.x64.outputs.filename }}
+          asset_name: ${{ steps.x64.outputs.filename }}
+          asset_content_type: application/gzip
+      - name: Upload x86 installer
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.release.outputs.upload_url }}
+          asset_path: packages/eas-cli/dist/win/${{ steps.x86.outputs.filename }}
+          asset_name: ${{ steps.x86.outputs.filename }}
+          asset_content_type: application/gzip
