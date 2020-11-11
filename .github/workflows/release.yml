@@ -78,7 +78,7 @@ jobs:
           asset_content_type: application/gzip
   build-windows:
     name: Build for Windows
-    runs-on: windows-2019
+    runs-on: ubuntu-latest
     needs: release
     steps:
       - uses: actions/checkout@v2
