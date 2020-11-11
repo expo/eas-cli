@@ -1,5 +1,6 @@
 import { Command } from '@oclif/command';
 
+import log from '../../log';
 import { logoutAsync } from '../../user/User';
 
 export default class AccountLogout extends Command {
@@ -9,6 +10,6 @@ export default class AccountLogout extends Command {
 
   async run() {
     await logoutAsync();
-    this.log('Logged out.');
+    log('Logged out.');
   }
 }
