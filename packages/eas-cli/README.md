@@ -21,7 +21,7 @@ $ npm install -g eas-cli
 $ eas COMMAND
 running command...
 $ eas (-v|--version|version)
-eas-cli/0.1.0-alpha.1 darwin-x64 node-v12.13.0
+eas-cli/0.1.0-alpha.3 darwin-x64 node-v12.13.0
 $ eas --help [COMMAND]
 USAGE
   $ eas COMMAND
@@ -58,6 +58,8 @@ ALIASES
   $ eas login
 ```
 
+_See code: [build/commands/account/login.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.3/build/commands/account/login.ts)_
+
 ## `eas account:logout`
 
 log out
@@ -69,6 +71,8 @@ USAGE
 ALIASES
   $ eas logout
 ```
+
+_See code: [build/commands/account/logout.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.3/build/commands/account/logout.ts)_
 
 ## `eas account:view`
 
@@ -82,6 +86,8 @@ ALIASES
   $ eas whoami
 ```
 
+_See code: [build/commands/account/view.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.3/build/commands/account/view.ts)_
+
 ## `eas build`
 
 build an app binary for your project
@@ -91,7 +97,7 @@ USAGE
   $ eas build
 ```
 
-_See code: [build/commands/build/index.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.1/build/commands/build/index.ts)_
+_See code: [build/commands/build/index.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.3/build/commands/build/index.ts)_
 
 ## `eas build:configure`
 
@@ -105,7 +111,7 @@ OPTIONS
   -p, --platform=(android|ios|all)  [default: all] Platform to configure
 ```
 
-_See code: [build/commands/build/configure.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.1/build/commands/build/configure.ts)_
+_See code: [build/commands/build/configure.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.3/build/commands/build/configure.ts)_
 
 ## `eas build:create`
 
@@ -124,7 +130,7 @@ OPTIONS
   --wait                            Wait for build(s) to complete
 ```
 
-_See code: [build/commands/build/create.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.1/build/commands/build/create.ts)_
+_See code: [build/commands/build/create.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.3/build/commands/build/create.ts)_
 
 ## `eas build:status`
 
@@ -139,7 +145,7 @@ OPTIONS
   --status=(in-queue|in-progress|errored|finished)
 ```
 
-_See code: [build/commands/build/status.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.1/build/commands/build/status.ts)_
+_See code: [build/commands/build/status.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.3/build/commands/build/status.ts)_
 
 ## `eas build:submit`
 
@@ -185,7 +191,7 @@ OPTIONS
   --verbose                                                  Always print logs from Submission Service
 ```
 
-_See code: [build/commands/build/submit.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.1/build/commands/build/submit.ts)_
+_See code: [build/commands/build/submit.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.3/build/commands/build/submit.ts)_
 
 ## `eas credentials`
 
@@ -196,7 +202,7 @@ USAGE
   $ eas credentials
 ```
 
-_See code: [build/commands/credentials.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.1/build/commands/credentials.ts)_
+_See code: [build/commands/credentials.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.3/build/commands/credentials.ts)_
 
 ## `eas device:create`
 
@@ -207,7 +213,7 @@ USAGE
   $ eas device:create
 ```
 
-_See code: [build/commands/device/create.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.1/build/commands/device/create.ts)_
+_See code: [build/commands/device/create.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.3/build/commands/device/create.ts)_
 
 ## `eas help [COMMAND]`
 
@@ -238,7 +244,7 @@ ALIASES
   $ eas update:publish
 ```
 
-_See code: [build/commands/update/index.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.1/build/commands/update/index.ts)_
+_See code: [build/commands/update/index.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.3/build/commands/update/index.ts)_
 
 ## `eas update:show`
 
@@ -249,5 +255,5 @@ USAGE
   $ eas update:show
 ```
 
-_See code: [build/commands/update/show.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.1/build/commands/update/show.ts)_
+_See code: [build/commands/update/show.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.3/build/commands/update/show.ts)_
 <!-- commandsstop -->
