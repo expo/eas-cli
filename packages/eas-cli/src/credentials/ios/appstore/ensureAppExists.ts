@@ -5,11 +5,11 @@ import { AuthCtx, authenticateAsync } from './authenticate';
 import { USE_APPLE_UTILS } from './experimental';
 import { runActionAsync, travelingFastlane } from './fastlane';
 
-type Options = {
+export interface EnsureAppExistsOptions {
   enablePushNotifications?: boolean;
-};
+}
 
-interface BundleIdActionProps {
+export interface AppLookupParams {
   accountName: string;
   projectName: string;
   bundleIdentifier: string;
@@ -30,8 +30,8 @@ export async function ensureAuthenticatedAsync(
 
 async function ensureBundleIdExistsAsync(
   appleCtx: Omit<AuthCtx, 'fastlaneSession'>,
-  { accountName, projectName, bundleIdentifier }: BundleIdActionProps,
-  options: Options = {}
+  { accountName, projectName, bundleIdentifier }: AppLookupParams,
+  options: EnsureAppExistsOptions = {}
 ) {
   let spinner = ora(`Registering Bundle ID "${bundleIdentifier}"`).start();
 
@@ -62,17 +62,13 @@ async function ensureBundleIdExistsAsync(
   spinner.succeed(`Sync'd app capabilities`);
 }
 
-export async function ensureAppExists(
+export async function ensureAppExistsAsync(
   appleCtx: Omit<AuthCtx, 'fastlaneSession'>,
-  { accountName, projectName, bundleIdentifier }: BundleIdActionProps,
-  options: Options = {}
+  app: AppLookupParams,
+  options: EnsureAppExistsOptions = {}
 ) {
   if (USE_APPLE_UTILS) {
-    return await ensureBundleIdExistsAsync(
-      appleCtx,
-      { accountName, projectName, bundleIdentifier },
-      options
-    );
+    return await ensureBundleIdExistsAsync(appleCtx, app, options);
   }
 
   const { appleId, appleIdPassword, team } = appleCtx;
@@ -84,11 +80,11 @@ export async function ensureAppExists(
       appleId,
       appleIdPassword,
       team.id,
-      bundleIdentifier,
-      `@${accountName}/${projectName}`,
+      app.bundleIdentifier,
+      `@${app.accountName}/${app.projectName}`,
     ]);
     if (created) {
-      spinner.succeed(`App ID created with bundle identifier ${bundleIdentifier}.`);
+      spinner.succeed(`App ID created with bundle identifier ${app.bundleIdentifier}.`);
     } else {
       spinner.succeed('App ID found on Apple Developer Portal.');
     }
