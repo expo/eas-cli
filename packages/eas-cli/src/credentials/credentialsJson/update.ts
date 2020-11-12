@@ -6,7 +6,7 @@ import { confirmAsync } from '../../prompts';
 import { gitStatusAsync } from '../../utils/git';
 import { Context } from '../context';
 
-export async function updateAndroidCredentialsAsync(ctx: Context) {
+export async function updateAndroidCredentialsAsync(ctx: Context): Promise<void> {
   const credentialsJsonFilePath = path.join(ctx.projectDir, 'credentials.json');
   let rawCredentialsJsonObject: any = {};
   if (await fs.pathExists(credentialsJsonFilePath)) {
@@ -68,7 +68,10 @@ export async function updateAndroidCredentialsAsync(ctx: Context) {
   displayUntrackedFilesWarning(newFilePaths);
 }
 
-export async function updateIosCredentialsAsync(ctx: Context, bundleIdentifier: string) {
+export async function updateIosCredentialsAsync(
+  ctx: Context,
+  bundleIdentifier: string
+): Promise<void> {
   const credentialsJsonFilePath = path.join(ctx.projectDir, 'credentials.json');
   let rawCredentialsJsonObject: any = {};
   if (await fs.pathExists(credentialsJsonFilePath)) {

@@ -6,10 +6,22 @@ import { Action, CredentialsManager } from '../CredentialsManager';
 import { DownloadKeystore } from '../android/actions/DownloadKeystore';
 import { UpdateFcmKey } from '../android/actions/FcmKey';
 import { RemoveKeystore } from '../android/actions/RemoveKeystore';
+import { SetupBuildCredentialsFromCredentialsJson } from '../android/actions/SetupBuildCredentials';
+import { UpdateCredentialsJson } from '../android/actions/UpdateCredentialsJson';
 import { UpdateKeystore } from '../android/actions/UpdateKeystore';
 import { printAndroidAppCredentials } from '../android/utils/printCredentials';
 import { Context } from '../context';
 import { PressAnyKeyToContinue } from './HelperActions';
+
+enum ActionType {
+  UpdateCredentialsJson,
+  SetupBuildCredentialsFromCredentialsJson,
+  UpdateKeystore,
+  RemoveKeystore,
+  DownloadKeystore,
+  UpdateFcmKey,
+  GoBack,
+}
 
 export class ManageAndroidApp implements Action {
   constructor(private projectFullName: string) {}
@@ -31,16 +43,24 @@ export class ManageAndroidApp implements Action {
         name: 'action',
         message: 'What do you want to do?',
         choices: [
-          { value: 'update-keystore', title: 'Update Keystore' },
-          { value: 'remove-keystore', title: 'Remove Keystore' },
-          { value: 'fetch-keystore', title: 'Download Keystore from the Expo servers' },
-          { value: 'update-fcm-key', title: 'Update FCM API Key' },
-          { value: 'go-back', title: 'Go back to project list' },
+          {
+            value: ActionType.UpdateCredentialsJson,
+            title: 'Update credentials.json with values from Expo servers',
+          },
+          {
+            value: ActionType.SetupBuildCredentialsFromCredentialsJson,
+            title: 'Update credentials on Expo servers with values from credentials.json',
+          },
+          { value: ActionType.UpdateKeystore, title: 'Update Keystore' },
+          { value: ActionType.RemoveKeystore, title: 'Remove Keystore' },
+          { value: ActionType.DownloadKeystore, title: 'Download Keystore from the Expo servers' },
+          { value: ActionType.UpdateFcmKey, title: 'Update FCM API Key' },
+          { value: ActionType.GoBack, title: 'Go back to project list' },
         ],
       },
     ]);
 
-    if (action === 'go-back') {
+    if (action === ActionType.GoBack) {
       manager.popAction();
       return;
     }
@@ -49,16 +69,24 @@ export class ManageAndroidApp implements Action {
     manager.pushNextAction(this.getAction(ctx, action));
   }
 
-  private getAction(context: Context, selected: string): Action {
+  private getAction(context: Context, selected: ActionType): Action {
     switch (selected) {
-      case 'update-keystore':
+      case ActionType.UpdateKeystore:
         return new UpdateKeystore(this.projectFullName);
-      case 'remove-keystore':
+      case ActionType.RemoveKeystore:
         return new RemoveKeystore(this.projectFullName);
-      case 'update-fcm-key':
+      case ActionType.UpdateFcmKey:
         return new UpdateFcmKey(this.projectFullName);
-      case 'fetch-keystore':
+      case ActionType.DownloadKeystore:
         return new DownloadKeystore(this.projectFullName);
+      case ActionType.UpdateCredentialsJson: {
+        return new UpdateCredentialsJson(this.projectFullName);
+      }
+      case ActionType.SetupBuildCredentialsFromCredentialsJson: {
+        return new SetupBuildCredentialsFromCredentialsJson(this.projectFullName, {
+          skipKeystoreValidation: false,
+        });
+      }
       default:
         throw new Error('unknown action');
     }

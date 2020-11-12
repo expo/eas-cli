@@ -1,5 +1,5 @@
-import { Workflow, iOSGenericBuildProfile, iOSManagedBuildProfile } from '@eas/config';
-import { BuildType, Job, iOS, sanitizeJob } from '@expo/eas-build-job';
+import { iOSGenericBuildProfile, iOSManagedBuildProfile } from '@eas/config';
+import { Job, Workflow, iOS, sanitizeJob } from '@expo/eas-build-job';
 import path from 'path';
 
 import { readSecretEnvsAsync } from '../../credentials/credentialsJson/read';
@@ -81,7 +81,7 @@ async function prepareGenericJobAsync(
   const projectRootDirectory = path.relative(await gitRootDirectoryAsync(), process.cwd()) || '.';
   return {
     ...(await prepareJobCommonAsync(ctx, jobData)),
-    type: BuildType.Generic,
+    type: Workflow.Generic,
     scheme: jobData.projectConfiguration.iosNativeProjectScheme,
     artifactPath: buildProfile.artifactPath,
     projectRootDirectory,
@@ -93,10 +93,10 @@ async function prepareManagedJobAsync(
   jobData: JobData,
   _buildProfile: iOSManagedBuildProfile
 ): Promise<Partial<iOS.ManagedJob>> {
+  const projectRootDirectory = path.relative(await gitRootDirectoryAsync(), process.cwd()) || '.';
   return {
     ...(await prepareJobCommonAsync(ctx, jobData)),
-    type: BuildType.Managed,
-    packageJson: { example: 'packageJson' },
-    manifest: { example: 'manifest' },
+    type: Workflow.Managed,
+    projectRootDirectory,
   };
 }

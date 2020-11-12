@@ -1,3 +1,4 @@
+import { EasJsonReader } from '@eas/config';
 import { getConfig } from '@expo/config';
 import fs from 'fs-extra';
 import path from 'path';
@@ -28,6 +29,7 @@ export async function configureAsync(options: {
     user: await ensureLoggedInAsync(),
     projectDir: options.projectDir,
     exp,
+    requestedPlatform: options.platform,
     shouldConfigureAndroid: [BuildCommandPlatform.ALL, BuildCommandPlatform.ANDROID].includes(
       options.platform
     ),
@@ -58,6 +60,8 @@ export async function configureAsync(options: {
 export async function ensureEasJsonExistsAsync(ctx: ConfigureContext): Promise<void> {
   const easJsonPath = path.join(ctx.projectDir, 'eas.json');
   if (await fs.pathExists(easJsonPath)) {
+    await new EasJsonReader(ctx.projectDir, ctx.requestedPlatform).validateAsync();
+    log.withTick('eas.json validated successfully');
     return;
   }
 

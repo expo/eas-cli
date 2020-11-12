@@ -1,5 +1,5 @@
-import { AndroidGenericBuildProfile, AndroidManagedBuildProfile, Workflow } from '@eas/config';
-import { Android, BuildType, Job, sanitizeJob } from '@expo/eas-build-job';
+import { AndroidGenericBuildProfile, AndroidManagedBuildProfile } from '@eas/config';
+import { Android, Job, Workflow, sanitizeJob } from '@expo/eas-build-job';
 import path from 'path';
 
 import { AndroidCredentials } from '../../credentials/android/AndroidCredentialsProvider';
@@ -76,7 +76,7 @@ async function prepareGenericJobAsync(
   const projectRootDirectory = path.relative(await gitRootDirectoryAsync(), process.cwd()) || '.';
   return {
     ...(await prepareJobCommonAsync(ctx, jobData)),
-    type: BuildType.Generic,
+    type: Workflow.Generic,
     gradleCommand: buildProfile.gradleCommand,
     artifactPath: buildProfile.artifactPath,
     projectRootDirectory,
@@ -88,10 +88,10 @@ async function prepareManagedJobAsync(
   jobData: JobData,
   buildProfile: AndroidManagedBuildProfile
 ): Promise<Partial<Android.ManagedJob>> {
+  const projectRootDirectory = path.relative(await gitRootDirectoryAsync(), process.cwd()) || '.';
   return {
     ...(await prepareJobCommonAsync(ctx, jobData)),
-    type: BuildType.Managed,
-    packageJson: { example: 'packageJson' },
-    manifest: { example: 'manifest' },
+    type: Workflow.Managed,
+    projectRootDirectory,
   };
 }
