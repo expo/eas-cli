@@ -86,6 +86,7 @@ jobs:
         with:
           node-version: '14'
       - run: yarn install --frozen-lockfile --check-files
+      - run: apt-get install nsis
       - run: yarn oclif-dev pack:win
         working-directory: ${{ github.workspace }}/packages/eas-cli
       - id: x64
