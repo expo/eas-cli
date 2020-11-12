@@ -43,7 +43,6 @@ export interface IosSubmitCommandFlags extends SubmitCommandFlags {
   // common for all flows
   appleId?: string;
   appAppleId?: string;
-  appleAppSpecificPassword?: string;
 
   // used only when running produce
   appleTeamId?: string;

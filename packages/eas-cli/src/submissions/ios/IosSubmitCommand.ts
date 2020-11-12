@@ -63,15 +63,9 @@ class IosSubmitCommand {
   }
 
   private resolveAppSpecificPasswordSource(): Result<AppSpecificPasswordSource> {
-    const { appleAppSpecificPassword } = this.ctx.commandFlags;
     const { EXPO_APPLE_APP_SPECIFIC_PASSWORD } = process.env;
 
-    if (appleAppSpecificPassword) {
-      return result({
-        sourceType: AppSpecificPasswordSourceType.userDefined,
-        appSpecificPassword: appleAppSpecificPassword,
-      });
-    } else if (EXPO_APPLE_APP_SPECIFIC_PASSWORD) {
+    if (EXPO_APPLE_APP_SPECIFIC_PASSWORD) {
       return result({
         sourceType: AppSpecificPasswordSourceType.userDefined,
         appSpecificPassword: EXPO_APPLE_APP_SPECIFIC_PASSWORD,

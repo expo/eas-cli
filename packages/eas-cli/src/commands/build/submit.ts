@@ -91,11 +91,6 @@ export default class BuildSubmit extends Command {
       description: 'Your Apple ID username (you can also set EXPO_APPLE_ID env variable)',
       helpLabel: IOS_FLAGS,
     }),
-    'apple-app-specific-password': flags.string({
-      description:
-        'Your Apple ID app-specific password. You can also set EXPO_APPLE_APP_SPECIFIC_PASSWORD env variable.',
-      helpLabel: IOS_FLAGS,
-    }),
     'app-apple-id': flags.string({
       description: 'App Store Connect unique application Apple ID number.',
       helpLabel: IOS_FLAGS,
@@ -111,7 +106,6 @@ export default class BuildSubmit extends Command {
 
         // ios
         'apple-id': appleId,
-        'apple-app-specific-password': appleAppSpecificPassword,
         'app-apple-id': appAppleId,
 
         // common
@@ -141,7 +135,6 @@ export default class BuildSubmit extends Command {
     } else if (platform === SubmissionPlatform.iOS) {
       const options: IosSubmitCommandFlags = {
         appleId,
-        appleAppSpecificPassword,
         appAppleId,
         ...flags,
       };
