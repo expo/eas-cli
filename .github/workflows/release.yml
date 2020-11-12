@@ -3,12 +3,26 @@ on:
     tags:
       - 'v*' # Push events to matching v*, i.e. v1.0, v20.15.10
 
-name: Create Release
+name: Release workflow
 
 jobs:
-  build:
-    name: Create Release
+  release:
+    name: Create a release
     runs-on: ubuntu-latest
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+    steps:
+      - id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
+        with:
+          tag_name: ${{ github.ref }}
+          draft: true
+  build-linux:
+    name: Build for Linux
+    runs-on: ubuntu-latest
+    needs: release
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-node@v1
@@ -17,30 +31,13 @@ jobs:
       - run: yarn install --frozen-lockfile --check-files
       - name: Build tarballs
         working-directory: ${{ github.workspace }}/packages/eas-cli
-        run: yarn oclif-dev pack --targets linux-x64,linux-arm,darwin-x64
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
-        with:
-          tag_name: ${{ github.ref }}
-          draft: true
-      - name: Upload darwin-x64 tarball
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: packages/eas-cli/dist/eas-darwin-x64.tar.gz
-          asset_name: eas-darwin-x64.tar.gz
-          asset_content_type: application/gzip
+        run: yarn oclif-dev pack --targets linux-x64,linux-arm
       - name: Upload linux-x64 tarball
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          upload_url: ${{ needs.release.outputs.upload_url }}
           asset_path: packages/eas-cli/dist/eas-linux-x64.tar.gz
           asset_name: eas-linux-x64.tar.gz
           asset_content_type: application/gzip
@@ -49,7 +46,67 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          upload_url: ${{ needs.release.outputs.upload_url }}
           asset_path: packages/eas-cli/dist/eas-linux-arm.tar.gz
           asset_name: eas-linux-arm.tar.gz
+          asset_content_type: application/gzip
+  build-mac:
+    name: Build for macOS
+    # Use macOS to get the platform specific dependencies like traveling-fastlane-darwin
+    runs-on: macos-latest
+    needs: release
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v1
+        with:
+          node-version: '14'
+      - run: yarn install --frozen-lockfile --check-files
+      - name: Build tarballs
+        working-directory: ${{ github.workspace }}/packages/eas-cli
+        run: yarn oclif-dev pack --targets darwin-x64
+      - name: Upload darwin-x64 tarball
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.release.outputs.upload_url }}
+          asset_path: packages/eas-cli/dist/eas-darwin-x64.tar.gz
+          asset_name: eas-darwin-x64.tar.gz
+          asset_content_type: application/gzip
+  build-windows:
+    name: Build for Windows
+    runs-on: ubuntu-latest
+    needs: release
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v1
+        with:
+          node-version: '14'
+      - run: yarn install --frozen-lockfile --check-files
+      - run: sudo apt-get install nsis
+      - run: yarn oclif-dev pack:win
+        working-directory: ${{ github.workspace }}/packages/eas-cli
+      - id: x64
+        run: echo "::set-output name=filename::$(ls eas-*-x64.exe)"
+        working-directory: ${{ github.workspace }}/packages/eas-cli/dist/win
+      - id: x86
+        run: echo "::set-output name=filename::$(ls eas-*-x86.exe)"
+        working-directory: ${{ github.workspace }}/packages/eas-cli/dist/win
+      - name: Upload x64 installer
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.release.outputs.upload_url }}
+          asset_path: packages/eas-cli/dist/win/${{ steps.x64.outputs.filename }}
+          asset_name: ${{ steps.x64.outputs.filename }}
+          asset_content_type: application/gzip
+      - name: Upload x86 installer
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.release.outputs.upload_url }}
+          asset_path: packages/eas-cli/dist/win/${{ steps.x86.outputs.filename }}
+          asset_name: ${{ steps.x86.outputs.filename }}
           asset_content_type: application/gzip

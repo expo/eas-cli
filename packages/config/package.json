@@ -1,7 +1,7 @@
 {
   "name": "@eas/config",
   "description": "A library for interacting with the eas.json",
-  "version": "0.1.0-alpha.0",
+  "version": "0.1.0-alpha.2",
   "author": "Expo <support@expo.io>",
   "bugs": "https://github.com/expo/eas-cli/issues",
   "dependencies": {
