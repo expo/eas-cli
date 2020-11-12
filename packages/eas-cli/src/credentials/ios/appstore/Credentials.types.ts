@@ -20,7 +20,6 @@ export interface DistributionCertificateStoreInfo {
   status: string;
   created: number;
   expires: number;
-  ownerType: string;
   ownerName: string;
   ownerId: string;
   serialNumber: string;

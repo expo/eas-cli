@@ -1,9 +1,12 @@
+import { Auth, InvalidUserCredentialsError, Session, Teams } from '@expo/apple-utils';
 import chalk from 'chalk';
+import { toggleConfirmAsync } from 'utils/prompts';
 import wordwrap from 'wordwrap';
 
 import log from '../../../log';
 import { promptAsync } from '../../../prompts';
 import UserSettings from '../../../user/UserSettings';
+import { USE_APPLE_UTILS } from './experimental';
 import { runActionAsync, travelingFastlane } from './fastlane';
 import * as Keychain from './keychain';
 
@@ -15,7 +18,7 @@ export type Options = {
   teamId?: string;
 };
 
-type AppleCredentials = {
+export type AppleCredentials = {
   appleIdPassword: string;
   appleId: string;
 };
@@ -40,7 +43,46 @@ export type AuthCtx = {
   fastlaneSession: string;
 };
 
+async function authenticateWithExperimentalAsync(options: Options = {}): Promise<AuthCtx> {
+  const { appleId, appleIdPassword } = await requestAppleCredentialsAsync(options);
+  log(`Authenticating to Apple Developer Portal...`); // use log instead of spinner in case we need to prompt user for 2fa
+
+  try {
+    // TODO: The password isn't required for apple-utils. Remove the local prompt when we remove traveling Fastlane.
+    await Auth.loginAsync({ username: appleId, password: appleIdPassword });
+
+    log(chalk.green('Authenticated with Apple Developer Portal successfully!'));
+
+    // Get all of the teams
+    const teams = await Teams.getTeamsAsync();
+    const team = await chooseTeamAsync(teams, options.teamId);
+
+    // Set the selected team ID internally
+    Teams.setSelectedTeamId(team.id);
+
+    // Get the JSON cookies in the custom YAML format used by Fastlane
+    const fastlaneSession = Session.getSessionAsYAML();
+    return { appleId, appleIdPassword, team, fastlaneSession };
+  } catch (error) {
+    if (error instanceof InvalidUserCredentialsError) {
+      log.error(error.message);
+      // Remove the invalid password so it isn't automatically used...
+      await deletePasswordAsync({ appleId });
+
+      if (await toggleConfirmAsync({ message: 'Would you like to try again?' })) {
+        // Don't pass credentials back or the method will throw
+        return authenticateAsync({ teamId: options.teamId });
+      }
+    }
+    log(chalk.red('Authentication with Apple Developer Portal failed!'));
+    throw error;
+  }
+}
+
 export async function authenticateAsync(options: Options = {}): Promise<AuthCtx> {
+  if (USE_APPLE_UTILS) {
+    return await authenticateWithExperimentalAsync(options);
+  }
   const { appleId, appleIdPassword } = await requestAppleCredentialsAsync(options);
   log(`Authenticating to Apple Developer Portal...`); // use log instead of spinner in case we need to prompt user for 2fa
   try {

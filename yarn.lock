@@ -1020,6 +1020,11 @@
     unique-filename "^1.1.1"
     which "^1.3.1"
 
+"@expo/apple-utils@^0.0.0-alpha.2":
+  version "0.0.0-alpha.2"
+  resolved "https://registry.yarnpkg.com/@expo/apple-utils/-/apple-utils-0.0.0-alpha.2.tgz#00cd2109c85a4a244f950d47ac1d0ce8cdd2c22a"
+  integrity sha512-u3EXp3KO14WGGnEy//b96/WGVRYziaV6TYhRkpDvgL4EDhosUZGBXz50ZEcZ6lf4ByO/yq1a+Pca1CiczdgGwg==
+
 "@expo/babel-preset-cli@0.2.18":
   version "0.2.18"
   resolved "https://registry.yarnpkg.com/@expo/babel-preset-cli/-/babel-preset-cli-0.2.18.tgz#136acf8a0efe259e29ebc614b68552e5acb47d86"
@@ -2806,6 +2811,13 @@
   version "9.0.1"
   resolved "https://registry.yarnpkg.com/@types/fs-extra/-/fs-extra-9.0.1.tgz#91c8fc4c51f6d5dbe44c2ca9ab09310bd00c7918"
   integrity sha512-B42Sxuaz09MhC3DDeW5kubRcQ5by4iuVQ0cRRWM2lggLzAa/KVom0Aft/208NgMvNQQZ86s5rVcqDdn/SH0/mg==
+  dependencies:
+    "@types/node" "*"
+
+"@types/getenv@^1.0.0":
+  version "1.0.0"
+  resolved "https://registry.yarnpkg.com/@types/getenv/-/getenv-1.0.0.tgz#fa5e6901e9fb84bfb40205d4952fd06c8afcf006"
+  integrity sha512-w8qs+09o4pfFb/4XkHJzsHEZ2m36s/d9vJhglbOeSiSe9mPu0OmCQbU4iEgGl2DNP9WfOHCVd6fBwIvBd4AZhg==
   dependencies:
     "@types/node" "*"
 
@@ -5639,6 +5651,11 @@ getenv@0.7.0:
   version "0.7.0"
   resolved "https://registry.yarnpkg.com/getenv/-/getenv-0.7.0.tgz#39b91838707e2086fd1cf6ef8777d1c93e14649e"
   integrity sha1-ObkYOHB+IIb9HPbvh3fRyT4UZJ4=
+
+getenv@^1.0.0:
+  version "1.0.0"
+  resolved "https://registry.yarnpkg.com/getenv/-/getenv-1.0.0.tgz#874f2e7544fbca53c7a4738f37de8605c3fcfc31"
+  integrity sha512-7yetJWqbS9sbn0vIfliPsFgoXMKn/YMF+Wuiog97x+urnSRRRZ7xB+uVkwGKzRgq9CDFfMQnE9ruL5DHv9c6Xg==
 
 getpass@^0.1.1:
   version "0.1.7"

@@ -1,3 +1,4 @@
+import { Certificate, Profile, ProfileType } from '@expo/apple-utils';
 import ora from 'ora';
 
 import { findP12CertSerialNumber } from '../utils/p12Certificate';
@@ -7,7 +8,67 @@ import {
   ProvisioningProfileStoreInfo,
 } from './Credentials.types';
 import { AuthCtx } from './authenticate';
+import { transformCertificate } from './distributionCertificate';
+import { USE_APPLE_UTILS, getBundleIdForIdentifier, getProfilesForBundleId } from './experimental';
 import { runActionAsync, travelingFastlane } from './fastlane';
+
+async function transformProfileAsync(
+  cert: Profile,
+  ctx: AuthCtx
+): Promise<ProvisioningProfileStoreInfo> {
+  return {
+    provisioningProfileId: cert.id,
+    name: cert.attributes.name,
+    status: cert.attributes.profileState,
+    expires: new Date(cert.attributes.expirationDate).getTime() / 1000,
+    distributionMethod: cert.attributes.profileType,
+    // @ts-ignore -- this can be null when the profile has expired.
+    provisioningProfile: cert.attributes.profileContent,
+    certificates: (await cert.getCertificatesAsync()).map(transformCertificate),
+    teamId: ctx.team.id,
+    teamName: ctx.team.name,
+  };
+}
+
+async function getCertificateBySerialNumberAsync(
+  distCertSerialNumber: string
+): Promise<Certificate> {
+  const cert = (
+    await Certificate.getAsync({
+      query: { filter: { serialNumber: [distCertSerialNumber] } },
+    })
+  ).find(item => item.attributes.serialNumber === distCertSerialNumber);
+  if (!cert) {
+    throw new Error(
+      'No cert available to make provision profile against. Make sure you were able to make a certificate prior to this step'
+    );
+  }
+  return cert;
+}
+
+async function addCertificateToProfileAsync({
+  serialNumber,
+  profileId,
+  bundleIdentifier,
+}: {
+  serialNumber: string;
+  profileId: string;
+  bundleIdentifier: string;
+}) {
+  const cert = await getCertificateBySerialNumberAsync(serialNumber);
+
+  const profiles = await getProfilesForBundleId(bundleIdentifier);
+  const profile = profiles.find(profile => profile.id === profileId);
+  if (!profile) {
+    throw new Error(
+      `Failed to find profile for bundle identifier "${bundleIdentifier}" with profile id "${profileId}"`
+    );
+  }
+
+  // Assign the new certificate
+  profile.attributes.certificates = [cert];
+  return await profile.regenerateAsync();
+}
 
 export async function useExistingProvisioningProfileAsync(
   ctx: AuthCtx,
@@ -28,17 +89,41 @@ export async function useExistingProvisioningProfileAsync(
       );
     }
 
-    const args = [
-      'use-existing',
-      ctx.appleId,
-      ctx.appleIdPassword,
-      ctx.team.id,
-      String(ctx.team.inHouse),
-      bundleIdentifier,
-      provisioningProfile.provisioningProfileId,
-      distCert.distCertSerialNumber,
-    ];
-    const result = await runActionAsync(travelingFastlane.manageProvisioningProfiles, args);
+    let result: ProvisioningProfile;
+
+    if (USE_APPLE_UTILS) {
+      const profile = await addCertificateToProfileAsync({
+        serialNumber: distCert.distCertSerialNumber,
+        profileId: provisioningProfile.provisioningProfileId,
+        bundleIdentifier,
+      });
+      const content = profile.attributes.profileContent;
+      if (!content) {
+        // this should never happen because of the regen.
+        throw new Error(
+          `Provisioning profile "${profile.attributes.name}" (${profile.id}) is expired!`
+        );
+      }
+      result = {
+        provisioningProfileId: profile.id,
+        provisioningProfile: content,
+        teamId: ctx.team.id,
+        teamName: ctx.team.name,
+      };
+    } else {
+      const args = [
+        'use-existing',
+        ctx.appleId,
+        ctx.appleIdPassword,
+        ctx.team.id,
+        String(ctx.team.inHouse),
+        bundleIdentifier,
+        provisioningProfile.provisioningProfileId,
+        distCert.distCertSerialNumber,
+      ];
+      result = await runActionAsync(travelingFastlane.manageProvisioningProfiles, args);
+    }
+
     spinner.succeed();
     return {
       ...result,
@@ -57,6 +142,15 @@ export async function listProvisioningProfilesAsync(
 ): Promise<ProvisioningProfileStoreInfo[]> {
   const spinner = ora(`Getting Provisioning Profiles from Apple...`).start();
   try {
+    if (USE_APPLE_UTILS) {
+      let profiles = await getProfilesForBundleId(bundleIdentifier);
+      const type = ctx.team.inHouse ? ProfileType.IOS_APP_INHOUSE : ProfileType.IOS_APP_STORE;
+
+      profiles = profiles.filter(profile => profile.attributes.profileType === type);
+
+      return await Promise.all(profiles.map(profile => transformProfileAsync(profile, ctx)));
+    }
+
     const args = [
       'list',
       ctx.appleId,
@@ -93,6 +187,28 @@ export async function createProvisioningProfileAsync(
       );
     }
 
+    if (USE_APPLE_UTILS) {
+      const profileType = ctx.team.inHouse
+        ? ProfileType.IOS_APP_INHOUSE
+        : ProfileType.IOS_APP_STORE;
+
+      const certificate = await Certificate.getAsync({
+        query: { filter: { serialNumber: [distCert.distCertSerialNumber] } },
+      });
+
+      const bundleIdItem = await getBundleIdForIdentifier(bundleIdentifier);
+
+      const profile = await Profile.createAsync({
+        bundleId: bundleIdItem.id,
+        name: profileName,
+        certificates: certificate.map(cert => cert.id),
+        devices: [],
+        profileType,
+      });
+
+      return await transformProfileAsync(profile, ctx);
+    }
+
     const args = [
       'create',
       ctx.appleId,
@@ -122,15 +238,23 @@ export async function revokeProvisioningProfileAsync(
 ): Promise<void> {
   const spinner = ora(`Revoking Provisioning Profile on Apple Servers...`).start();
   try {
-    const args = [
-      'revoke',
-      ctx.appleId,
-      ctx.appleIdPassword,
-      ctx.team.id,
-      String(ctx.team.inHouse),
-      bundleIdentifier,
-    ];
-    await runActionAsync(travelingFastlane.manageProvisioningProfiles, args);
+    if (USE_APPLE_UTILS) {
+      const profiles = await getProfilesForBundleId(bundleIdentifier);
+      for (const profile of profiles) {
+        await Profile.deleteAsync({ id: profile.id });
+      }
+    } else {
+      const args = [
+        'revoke',
+        ctx.appleId,
+        ctx.appleIdPassword,
+        ctx.team.id,
+        String(ctx.team.inHouse),
+        bundleIdentifier,
+      ];
+      await runActionAsync(travelingFastlane.manageProvisioningProfiles, args);
+    }
+
     spinner.succeed();
   } catch (error) {
     spinner.fail('Failed to revoke Provisioning Profile on Apple Servers');
