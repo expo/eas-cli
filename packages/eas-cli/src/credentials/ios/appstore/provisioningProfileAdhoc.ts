@@ -123,7 +123,7 @@ function uniqueItems<T = any>(items: T[]): T[] {
   return [...set];
 }
 
-async function fastlaneActionAsync({
+async function manageAdHocProfilesAsync({
   udids,
   bundleId,
   certSerialNumber,
@@ -229,7 +229,7 @@ export async function createOrReuseAdhocProvisioningProfileAsync(
     let adhocProvisioningProfile: ProfileResults;
 
     if (USE_APPLE_UTILS) {
-      adhocProvisioningProfile = await fastlaneActionAsync({
+      adhocProvisioningProfile = await manageAdHocProfilesAsync({
         udids,
         bundleId: bundleIdentifier,
         certSerialNumber: distCertSerialNumber,
