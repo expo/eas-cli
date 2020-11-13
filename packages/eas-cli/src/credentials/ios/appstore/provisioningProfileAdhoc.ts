@@ -49,7 +49,13 @@ async function findDistCert(serial_number: string, isEnterprise: boolean) {
   return certs.find(c => c.attributes.serialNumber === serial_number) ?? null;
 }
 
-async function findProfileByBundleId(bundleId: string, certSerialNumber: string) {
+async function findProfileByBundleIdAsync(
+  bundleId: string,
+  certSerialNumber: string
+): Promise<{
+  profile: Profile | null;
+  didUpdate: boolean;
+}> {
   let expoProfiles = await getProfilesForBundleIdAsync(bundleId);
   expoProfiles = expoProfiles.filter(
     profile => profile.attributes.profileType === ProfileType.IOS_APP_INHOUSE
@@ -100,7 +106,7 @@ function sortByExpiration(a: Profile, b: Profile): number {
   );
 }
 
-async function findProfileById(profileId: string, bundleId: string) {
+async function findProfileByIdAsync(profileId: string, bundleId: string): Promise<Profile | null> {
   let profiles = await getProfilesForBundleIdAsync(bundleId);
   profiles = profiles.filter(
     profile => profile.attributes.profileType === ProfileType.IOS_APP_ADHOC
@@ -132,7 +138,7 @@ async function fastlaneActionAsync({
   let didUpdate = false;
 
   if (profileId) {
-    existingProfile = await findProfileById(profileId, bundleId);
+    existingProfile = await findProfileByIdAsync(profileId, bundleId);
     // Fail if we cannot find the profile that was specifically requested
     if (!existingProfile)
       throw new Error(
@@ -140,7 +146,7 @@ async function fastlaneActionAsync({
       );
   } else {
     // If no profile id is passed, try to find a suitable provisioning profile for the App ID.
-    const results = await findProfileByBundleId(bundleId, certSerialNumber);
+    const results = await findProfileByBundleIdAsync(bundleId, certSerialNumber);
     existingProfile = results.profile;
     didUpdate = results.didUpdate;
   }
@@ -170,7 +176,7 @@ async function fastlaneActionAsync({
     existingProfile.attributes.devices = devices;
     await existingProfile.regenerateAsync();
 
-    const updatedProfile = (await findProfileByBundleId(bundleId, certSerialNumber)).profile;
+    const updatedProfile = (await findProfileByBundleIdAsync(bundleId, certSerialNumber)).profile;
     if (!updatedProfile) throw new Error('Failed to locate updated profile');
     return {
       provisioningProfileUpdateTimestamp: Date.now(),
