@@ -8,13 +8,10 @@ import {
 } from '@expo/apple-utils';
 import ora from 'ora';
 
-import { AuthCtx } from './authenticate';
 import { ProvisioningProfile } from './Credentials.types';
-import {
-  getBundleIdForIdentifierAsync,
-  getProfilesForBundleIdAsync,
-  USE_APPLE_UTILS,
-} from './experimental';
+import { AuthCtx } from './authenticate';
+import { getBundleIdForIdentifierAsync, getProfilesForBundleIdAsync } from './bundleId';
+import { USE_APPLE_UTILS } from './experimental';
 import { runActionAsync, travelingFastlane } from './fastlane';
 
 interface ProfileResults {

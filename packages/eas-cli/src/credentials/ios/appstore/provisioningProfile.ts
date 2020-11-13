@@ -8,12 +8,9 @@ import {
   ProvisioningProfileStoreInfo,
 } from './Credentials.types';
 import { AuthCtx } from './authenticate';
+import { getBundleIdForIdentifierAsync, getProfilesForBundleIdAsync } from './bundleId';
 import { getCertificateBySerialNumberAsync, transformCertificate } from './distributionCertificate';
-import {
-  USE_APPLE_UTILS,
-  getBundleIdForIdentifierAsync,
-  getProfilesForBundleIdAsync,
-} from './experimental';
+import { USE_APPLE_UTILS } from './experimental';
 import { runActionAsync, travelingFastlane } from './fastlane';
 
 async function transformProfileAsync(
