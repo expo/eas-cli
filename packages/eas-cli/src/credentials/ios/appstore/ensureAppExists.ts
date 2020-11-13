@@ -35,31 +35,44 @@ async function ensureBundleIdExistsAsync(
 ) {
   let spinner = ora(`Registering Bundle ID "${bundleIdentifier}"`).start();
 
-  appleCtx = await ensureAuthenticatedAsync(appleCtx);
+  try {
+    appleCtx = await ensureAuthenticatedAsync(appleCtx);
 
-  // Get the bundle id
-  let bundleId = await BundleId.findAsync({ identifier: bundleIdentifier });
+    // Get the bundle id
+    let bundleId = await BundleId.findAsync({ identifier: bundleIdentifier });
 
-  if (bundleId) {
-    spinner.succeed('Bundle ID already registered');
-  } else {
-    // If it doesn't exist, create it
-    bundleId = await BundleId.createAsync({
-      name: `@${accountName}/${projectName}`,
-      identifier: bundleIdentifier,
+    if (bundleId) {
+      spinner.succeed('Bundle ID already registered');
+    } else {
+      // If it doesn't exist, create it
+      bundleId = await BundleId.createAsync({
+        name: `@${accountName}/${projectName}`,
+        identifier: bundleIdentifier,
+      });
+      spinner.succeed(`Registered Bundle ID "${bundleIdentifier}"`);
+    }
+
+    spinner = ora(`Syncing app capabilities`).start();
+
+    // Update the capabilities
+    await bundleId.updateBundleIdCapabilityAsync({
+      capabilityType: CapabilityType.PUSH_NOTIFICATIONS,
+      option: options.enablePushNotifications ? CapabilityTypeOption.ON : CapabilityTypeOption.OFF,
+      // TODO: Add more capabilities
     });
-    spinner.succeed(`Registered Bundle ID "${bundleIdentifier}"`);
+    spinner.succeed(`Sync'd app capabilities`);
+  } catch (err) {
+    if (err.message.match(/An App ID with Identifier '(.*)' is not available/)) {
+      spinner.fail(
+        `The bundle identifier "${bundleIdentifier}" is not available, please change it in your app config and try again.`
+      );
+    } else {
+      spinner.fail(
+        'Something went wrong when trying to ensure Bundle ID exists on App Store Connect!'
+      );
+    }
+    throw err;
   }
-
-  spinner = ora(`Syncing app capabilities`).start();
-
-  // Update the capabilities
-  await bundleId.updateBundleIdCapabilityAsync({
-    capabilityType: CapabilityType.PUSH_NOTIFICATIONS,
-    option: options.enablePushNotifications ? CapabilityTypeOption.ON : CapabilityTypeOption.OFF,
-    // TODO: Add more capabilities
-  });
-  spinner.succeed(`Sync'd app capabilities`);
 }
 
 export async function ensureAppExistsAsync(

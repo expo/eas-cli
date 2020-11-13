@@ -24,11 +24,12 @@ export async function listPushKeysAsync(ctx: AuthCtx): Promise<PushKeyStoreInfo[
       const keys = await Keys.getKeysAsync();
       spinner.succeed();
       return keys;
+    } else {
+      const args = ['list', ctx.appleId, ctx.appleIdPassword, ctx.team.id];
+      const { keys } = await runActionAsync(travelingFastlane.managePushKeys, args);
+      spinner.succeed();
+      return keys;
     }
-    const args = ['list', ctx.appleId, ctx.appleIdPassword, ctx.team.id];
-    const { keys } = await runActionAsync(travelingFastlane.managePushKeys, args);
-    spinner.succeed();
-    return keys;
   } catch (error) {
     spinner.fail();
     throw error;
@@ -51,16 +52,17 @@ export async function createPushKeyAsync(
         teamId: ctx.team.id,
         teamName: ctx.team.name,
       };
+    } else {
+      const args = ['create', ctx.appleId, ctx.appleIdPassword, ctx.team.id, name];
+      const { apnsKeyId, apnsKeyP8 } = await runActionAsync(travelingFastlane.managePushKeys, args);
+      spinner.succeed();
+      return {
+        apnsKeyId,
+        apnsKeyP8,
+        teamId: ctx.team.id,
+        teamName: ctx.team.name,
+      };
     }
-    const args = ['create', ctx.appleId, ctx.appleIdPassword, ctx.team.id, name];
-    const { apnsKeyId, apnsKeyP8 } = await runActionAsync(travelingFastlane.managePushKeys, args);
-    spinner.succeed();
-    return {
-      apnsKeyId,
-      apnsKeyP8,
-      teamId: ctx.team.id,
-      teamName: ctx.team.name,
-    };
   } catch (err) {
     spinner.fail('Failed to create Push Notifications Key');
     const resultString = err.rawDump?.resultString;

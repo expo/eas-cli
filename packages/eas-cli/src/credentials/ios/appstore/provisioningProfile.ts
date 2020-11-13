@@ -148,24 +148,28 @@ export async function listProvisioningProfilesAsync(
 
       profiles = profiles.filter(profile => profile.attributes.profileType === type);
 
-      return await Promise.all(profiles.map(profile => transformProfileAsync(profile, ctx)));
+      const result = await Promise.all(
+        profiles.map(profile => transformProfileAsync(profile, ctx))
+      );
+      spinner.succeed();
+      return result;
+    } else {
+      const args = [
+        'list',
+        ctx.appleId,
+        ctx.appleIdPassword,
+        ctx.team.id,
+        String(ctx.team.inHouse),
+        bundleIdentifier,
+      ];
+      const { profiles } = await runActionAsync(travelingFastlane.manageProvisioningProfiles, args);
+      spinner.succeed();
+      return profiles.map((profile: Omit<ProvisioningProfileStoreInfo, 'teamId' | 'teamName'>) => ({
+        ...profile,
+        teamId: ctx.team.id,
+        teamName: ctx.team.name,
+      }));
     }
-
-    const args = [
-      'list',
-      ctx.appleId,
-      ctx.appleIdPassword,
-      ctx.team.id,
-      String(ctx.team.inHouse),
-      bundleIdentifier,
-    ];
-    const { profiles } = await runActionAsync(travelingFastlane.manageProvisioningProfiles, args);
-    spinner.succeed();
-    return profiles.map((profile: Omit<ProvisioningProfileStoreInfo, 'teamId' | 'teamName'>) => ({
-      ...profile,
-      teamId: ctx.team.id,
-      teamName: ctx.team.name,
-    }));
   } catch (error) {
     spinner.fail();
     throw error;
@@ -206,26 +210,28 @@ export async function createProvisioningProfileAsync(
         profileType,
       });
 
-      return await transformProfileAsync(profile, ctx);
+      const result = await transformProfileAsync(profile, ctx);
+      spinner.succeed();
+      return result;
+    } else {
+      const args = [
+        'create',
+        ctx.appleId,
+        ctx.appleIdPassword,
+        ctx.team.id,
+        String(ctx.team.inHouse),
+        bundleIdentifier,
+        distCert.distCertSerialNumber,
+        profileName,
+      ];
+      const result = await runActionAsync(travelingFastlane.manageProvisioningProfiles, args);
+      spinner.succeed();
+      return {
+        ...result,
+        teamId: ctx.team.id,
+        teamName: ctx.team.name,
+      };
     }
-
-    const args = [
-      'create',
-      ctx.appleId,
-      ctx.appleIdPassword,
-      ctx.team.id,
-      String(ctx.team.inHouse),
-      bundleIdentifier,
-      distCert.distCertSerialNumber,
-      profileName,
-    ];
-    const result = await runActionAsync(travelingFastlane.manageProvisioningProfiles, args);
-    spinner.succeed();
-    return {
-      ...result,
-      teamId: ctx.team.id,
-      teamName: ctx.team.name,
-    };
   } catch (error) {
     spinner.fail('Failed to create Provisioning Profile on Apple Servers');
     throw error;

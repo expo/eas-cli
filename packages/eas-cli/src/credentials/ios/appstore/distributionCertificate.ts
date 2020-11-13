@@ -73,22 +73,22 @@ export async function createDistributionCertificateAsync(
         teamId: ctx.team.id,
         teamName: ctx.team.name,
       };
+    } else {
+      const args = [
+        'create',
+        ctx.appleId,
+        ctx.appleIdPassword,
+        ctx.team.id,
+        String(ctx.team.inHouse),
+      ];
+      const result = {
+        ...(await runActionAsync(travelingFastlane.manageDistCerts, args)),
+        teamId: ctx.team.id,
+        teamName: ctx.team.name,
+      };
+      spinner.succeed();
+      return result;
     }
-
-    const args = [
-      'create',
-      ctx.appleId,
-      ctx.appleIdPassword,
-      ctx.team.id,
-      String(ctx.team.inHouse),
-    ];
-    const result = {
-      ...(await runActionAsync(travelingFastlane.manageDistCerts, args)),
-      teamId: ctx.team.id,
-      teamName: ctx.team.name,
-    };
-    spinner.succeed();
-    return result;
   } catch (err) {
     spinner.fail('Failed to create Distribution Certificate on Apple Servers');
     // `err.rawDump.resultString` for Fastlane, `err.message` for apple-utils
@@ -112,19 +112,18 @@ export async function revokeDistributionCertificateAsync(
           id,
         });
       }
-      spinner.succeed();
-      return;
+    } else {
+      const args = [
+        'revoke',
+        ctx.appleId,
+        ctx.appleIdPassword,
+        ctx.team.id,
+        String(ctx.team.inHouse),
+        ids.join(','),
+      ];
+      await runActionAsync(travelingFastlane.manageDistCerts, args);
     }
 
-    const args = [
-      'revoke',
-      ctx.appleId,
-      ctx.appleIdPassword,
-      ctx.team.id,
-      String(ctx.team.inHouse),
-      ids.join(','),
-    ];
-    await runActionAsync(travelingFastlane.manageDistCerts, args);
     spinner.succeed();
   } catch (error) {
     spinner.fail('Failed to revoke Distribution Certificate on Apple Servers');

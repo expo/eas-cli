@@ -1,10 +1,9 @@
 import { Auth, InvalidUserCredentialsError, Session, Teams } from '@expo/apple-utils';
 import chalk from 'chalk';
-import { toggleConfirmAsync } from 'utils/prompts';
 import wordwrap from 'wordwrap';
 
 import log from '../../../log';
-import { promptAsync } from '../../../prompts';
+import { promptAsync, toggleConfirmAsync } from '../../../prompts';
 import UserSettings from '../../../user/UserSettings';
 import { USE_APPLE_UTILS } from './experimental';
 import { runActionAsync, travelingFastlane } from './fastlane';
