@@ -5,20 +5,27 @@ import {
   Profile,
   ProfileState,
   ProfileType,
-  Teams,
 } from '@expo/apple-utils';
 import ora from 'ora';
 
-import { ProvisioningProfile } from './Credentials.types';
 import { AuthCtx } from './authenticate';
+import { ProvisioningProfile } from './Credentials.types';
 import {
-  USE_APPLE_UTILS,
   getBundleIdForIdentifierAsync,
   getProfilesForBundleIdAsync,
+  USE_APPLE_UTILS,
 } from './experimental';
 import { runActionAsync, travelingFastlane } from './fastlane';
 
-async function registerMissingDevicesAsync(udids: string[]) {
+interface ProfileResults {
+  provisioningProfileUpdateTimestamp?: number;
+  provisioningProfileCreateTimestamp?: number;
+  provisioningProfileName?: string;
+  provisioningProfileId: string;
+  provisioningProfile: any;
+}
+
+async function registerMissingDevicesAsync(udids: string[]): Promise<Device[]> {
   const allIosProfileDevices = await Device.getAllIOSProfileDevicesAsync();
   const alreadyAdded = allIosProfileDevices.filter(d => udids.includes(d.attributes.udid));
   const alreadyAddedUdids = alreadyAdded.map(i => i.attributes.udid);
@@ -33,7 +40,7 @@ async function registerMissingDevicesAsync(udids: string[]) {
   return alreadyAdded;
 }
 
-async function findDistCert(serial_number: string, isEnterprise: boolean) {
+async function findDistCertAsync(serialNumber: string): Promise<Certificate | null> {
   const certs = await Certificate.getAsync({
     query: {
       filter: {
@@ -42,11 +49,11 @@ async function findDistCert(serial_number: string, isEnterprise: boolean) {
     },
   });
 
-  if (serial_number === '__last__') {
+  if (serialNumber === '__last__') {
     return certs[certs.length - 1];
   }
 
-  return certs.find(c => c.attributes.serialNumber === serial_number) ?? null;
+  return certs.find(c => c.attributes.serialNumber === serialNumber) ?? null;
 }
 
 async function findProfileByBundleIdAsync(
@@ -56,17 +63,14 @@ async function findProfileByBundleIdAsync(
   profile: Profile | null;
   didUpdate: boolean;
 }> {
-  let expoProfiles = await getProfilesForBundleIdAsync(bundleId);
-  expoProfiles = expoProfiles.filter(
-    profile => profile.attributes.profileType === ProfileType.IOS_APP_INHOUSE
-  );
-
-  expoProfiles = expoProfiles.filter(profile => {
-    return (
-      profile.attributes.name.startsWith('*[expo]') &&
-      profile.attributes.profileState !== ProfileState.EXPIRED
-    );
-  });
+  const expoProfiles = (await getProfilesForBundleIdAsync(bundleId))
+    .filter(profile => profile.attributes.profileType === ProfileType.IOS_APP_INHOUSE)
+    .filter(profile => {
+      return (
+        profile.attributes.name.startsWith('*[expo]') &&
+        profile.attributes.profileState !== ProfileState.EXPIRED
+      );
+    });
 
   const expoProfilesWithCert: Profile[] = [];
   // find profiles associated with our development cert
@@ -85,10 +89,9 @@ async function findProfileByBundleIdAsync(
       didUpdate: false,
     };
   } else if (expoProfiles) {
-    // there is an expo managed profile, but it doesnt have our desired certificate
+    // there is an expo managed profile, but it doesn't have our desired certificate
     // append the certificate and update the profile
-    const isInHouse = (await Teams.getTeamInfoAsync()).type.toLowerCase() === 'in-house';
-    const distCert = await findDistCert(certSerialNumber, isInHouse);
+    const distCert = await findDistCertAsync(certSerialNumber);
     if (!distCert) throw new Error('expected cert not found');
     const profile = expoProfiles.sort(sortByExpiration)[expoProfiles.length - 1];
     profile.attributes.certificates = [distCert];
@@ -186,11 +189,10 @@ async function fastlaneActionAsync({
     };
   }
 
-  // No existing profile
-  const isInHouse = (await Teams.getTeamInfoAsync()).type.toLowerCase() === 'in-house';
+  // No existing profile...
 
   // We need to find user's distribution certificate to make a provisioning profile for it.
-  const distCert = await findDistCert(certSerialNumber, isInHouse);
+  const distCert = await findDistCertAsync(certSerialNumber);
 
   if (!distCert) {
     // If the distribution certificate doesn't exist, the user must have deleted it, we can't do anything here :(
@@ -214,14 +216,6 @@ async function fastlaneActionAsync({
     provisioningProfileId: newProfile.id,
     provisioningProfile: newProfile.attributes.profileContent,
   };
-}
-
-interface ProfileResults {
-  provisioningProfileUpdateTimestamp?: number;
-  provisioningProfileCreateTimestamp?: number;
-  provisioningProfileName?: string;
-  provisioningProfileId: string;
-  provisioningProfile: any;
 }
 
 export async function createOrReuseAdhocProvisioningProfileAsync(
