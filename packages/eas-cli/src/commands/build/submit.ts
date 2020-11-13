@@ -95,6 +95,30 @@ export default class BuildSubmit extends Command {
       description: 'App Store Connect unique application Apple ID number.',
       helpLabel: IOS_FLAGS,
     }),
+    //TODO: Flags below are mostly temp, just to mirror expo upload:ios and to test produces
+    'apple-team-id': flags.string(),
+    'itc-team-id': flags.string({
+      description:
+        'App Store Connect Team ID - this option is deprecated, the proper ID is resolved automatically',
+    }),
+    'app-name': flags.string({
+      description:
+        "the name of your app as it will appear on the App Store, this can't be longer than 30 characters (default: expo.name from app.json)",
+    }),
+    'bundle-identifier': flags.string(),
+    sku: flags.string({
+      description:
+        'An unique ID for your app that is not visible on the App Store, will be generated unless provided',
+    }),
+    language: flags.string({
+      description:
+        'Primary language (e.g. English, German; run `expo upload:ios --help` to see the list of available languages)',
+      default: 'English',
+    }),
+    'company-name': flags.string({
+      description:
+        'The name of your company, needed only for the first upload of any app to App Store',
+    }),
   };
 
   async run() {
@@ -107,6 +131,11 @@ export default class BuildSubmit extends Command {
         // ios
         'apple-id': appleId,
         'app-apple-id': appAppleId,
+        'apple-team-id': appleTeamId,
+        'itc-team-id': itcTeamId,
+        'app-name': appName,
+        'bundle-identifier': bundleIdentifier,
+        'company-name': companyName,
 
         // common
         platform,
@@ -136,6 +165,11 @@ export default class BuildSubmit extends Command {
       const options: IosSubmitCommandFlags = {
         appleId,
         appAppleId,
+        appleTeamId,
+        itcTeamId,
+        appName,
+        bundleIdentifier,
+        companyName,
         ...flags,
       };
 

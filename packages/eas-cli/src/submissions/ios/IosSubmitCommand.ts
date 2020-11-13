@@ -9,6 +9,7 @@ import UserSettings from '../../user/UserSettings';
 import { ArchiveSource, ArchiveTypeSourceType } from '../archiveSource';
 import { resolveArchiveFileSource } from '../commons';
 import { IosSubmissionContext, IosSubmitCommandFlags, SubmissionPlatform } from '../types';
+import { runProduceAsync } from './AppProduce';
 import {
   AppSpecificPasswordSource,
   AppSpecificPasswordSourceType,
@@ -48,10 +49,7 @@ class IosSubmitCommand {
       throw new Error('Failed to submit the app');
     }
 
-    // This is gonna be changed to use credentials.authenticateAsync()
-    // when implementing produce
-    const appleId = await this.getAppleIdAsync();
-    const appAppleId = await this.getAppAppleIdAsync();
+    const { appleId, appAppleId } = await this.getAppStoreInfoAsync();
 
     return {
       projectId,
@@ -84,6 +82,79 @@ class IosSubmitCommand {
     });
   }
 
+  ///////////////////////////////////////// WIP //////////////////////
+
+  /**
+   * @returns _App Apple ID_ - **THIS IS NOT** "Apple ID".
+   * It is an unique application number, which can be found in _App Store Connect_
+   * under `General -> App Information -> General information`
+   */
+  private async getAppStoreInfoAsync(): Promise<{
+    appleId: string;
+    appAppleId: string;
+  }> {
+    const { appAppleId } = this.ctx.commandFlags;
+
+    if (appAppleId) {
+      return {
+        appleId: await this.getAppleIdAsync(),
+        appAppleId,
+      };
+    }
+
+    // TODO: Resolve bundleIdentifier from exp.ios.bundleIdentifier
+    // Resolve appName from exp.name
+
+    /*
+  [non-interactive] You have to provide it in non-interactive mode or sth
+
+  You haven't provided your App Store Connect App Apple ID. What would you like to do?
+  - Let EAS handle it! (It will create app if it doesn't exist)
+  - I have already app in App Store Connect (enter the App Apple ID)
+  */
+    const { choice } = await promptAsync({
+      type: 'select',
+      name: 'choice',
+      message:
+        "You haven't provided your App Store Connect App Apple ID. What would you like to do?",
+      choices: [
+        { value: 'produce', title: "Let EAS Handle it! (Create app if it doesn't exist)" },
+        { value: 'prompt', title: 'I have already an App Store Connect app' },
+      ],
+    });
+
+    switch (choice) {
+      case 'prompt':
+        return {
+          appleId: await this.getAppleIdAsync(),
+          appAppleId: await this.promptForAppAppleIdAsync(),
+        };
+      case 'produce':
+      default:
+        return await runProduceAsync(this.ctx.commandFlags);
+    }
+  }
+
+  private async promptForAppAppleIdAsync(): Promise<string> {
+    const wrap = wordwrap(process.stdout.columns || 80);
+    log.addNewLineIfNone();
+    log(
+      wrap(
+        'Enter your App Store Connect application Apple ID number. It can be found in App Store Connect under ' +
+          chalk.italic('General -> App Information -> General Information')
+      )
+    );
+
+    const { appAppleIdAnswer } = await promptAsync({
+      name: 'appAppleIdAnswer',
+      message: 'Application Apple ID number:',
+      type: 'text',
+      validate: (val: string) => val !== '' || 'Application Apple ID cannot be empty!',
+    });
+
+    return appAppleIdAnswer;
+  }
+
   /**
    * This is going to be used only when `produce` is not being run,
    * and we don't need to call full credentials.authenticateAsync()
@@ -112,40 +183,6 @@ class IosSubmitCommand {
     });
 
     return promptAppleId;
-  }
-
-  /**
-   * _App Apple ID_ - **THIS IS NOT** "Apple ID".
-   * It is an unique application number, which can be found in _App Store Connect_
-   * under `General -> App Information -> General information`
-   *
-   * It is also returned from `fastlane produce` and this method is gonna be
-   * reimplemented to support this
-   */
-  private async getAppAppleIdAsync(): Promise<string> {
-    const { appAppleId } = this.ctx.commandFlags;
-
-    if (appAppleId) {
-      return appAppleId;
-    }
-
-    const wrap = wordwrap(process.stdout.columns || 80);
-    log.addNewLineIfNone();
-    log(
-      wrap(
-        'Enter your App Store Connect application Apple ID number. It can be found under ' +
-          chalk.italic('General -> App Information -> General Information')
-      )
-    );
-
-    const { appAppleIdAnswer } = await promptAsync({
-      name: 'appAppleIdAnswer',
-      message: 'Application Apple ID number:',
-      type: 'text',
-      validate: (val: string) => val !== '' || 'Application Apple ID cannot be empty!',
-    });
-
-    return appAppleIdAnswer;
   }
 }
 

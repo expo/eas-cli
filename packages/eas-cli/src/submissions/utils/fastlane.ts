@@ -45,7 +45,13 @@ export async function runFastlaneAsync(
     stdio: ['inherit', pipeToLogger ? 'inherit' : 'pipe', 'pipe'],
   });
 
-  const res = JSON.parse(stderr);
+  /* TODO: Fix handling this message, it causes JSON parse error:
+    "No entry for terminal type "xterm-256color";
+    using dumb terminal settings."
+
+    It works when pipeToLogger = true
+  */
+  const res = JSON.parse(stderr.trim());
   if (res.result !== 'failure') {
     return res;
   } else {

@@ -50,6 +50,8 @@ export interface IosSubmitCommandFlags extends SubmitCommandFlags {
   appName?: string;
   bundleIdentifier?: string;
   sku?: string;
+  language?: string;
+  companyName?: string;
 }
 
 export type IosSubmissionContext = SubmissionContext<IosSubmitCommandFlags>;
