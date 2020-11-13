@@ -147,10 +147,10 @@ export async function listProvisioningProfilesAsync(
   const spinner = ora(`Getting Provisioning Profiles from Apple...`).start();
   try {
     if (USE_APPLE_UTILS) {
-      let profiles = await getProfilesForBundleIdAsync(bundleIdentifier);
       const type = ctx.team.inHouse ? ProfileType.IOS_APP_INHOUSE : ProfileType.IOS_APP_STORE;
-
-      profiles = profiles.filter(profile => profile.attributes.profileType === type);
+      const profiles = (await getProfilesForBundleIdAsync(bundleIdentifier)).filter(
+        profile => profile.attributes.profileType === type
+      );
 
       const result = await Promise.all(
         profiles.map(profile => transformProfileAsync(profile, ctx))
