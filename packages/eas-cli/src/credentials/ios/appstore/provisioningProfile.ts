@@ -8,7 +8,7 @@ import {
   ProvisioningProfileStoreInfo,
 } from './Credentials.types';
 import { AuthCtx } from './authenticate';
-import { transformCertificate } from './distributionCertificate';
+import { getCertificateBySerialNumberAsync, transformCertificate } from './distributionCertificate';
 import {
   USE_APPLE_UTILS,
   getBundleIdForIdentifierAsync,
@@ -32,22 +32,6 @@ async function transformProfileAsync(
     teamId: ctx.team.id,
     teamName: ctx.team.name,
   };
-}
-
-async function getCertificateBySerialNumberAsync(
-  distCertSerialNumber: string
-): Promise<Certificate> {
-  const cert = (
-    await Certificate.getAsync({
-      query: { filter: { serialNumber: [distCertSerialNumber] } },
-    })
-  ).find(item => item.attributes.serialNumber === distCertSerialNumber);
-  if (!cert) {
-    throw new Error(
-      'No cert available to make provision profile against. Make sure you were able to make a certificate prior to this step'
-    );
-  }
-  return cert;
 }
 
 async function addCertificateToProfileAsync({

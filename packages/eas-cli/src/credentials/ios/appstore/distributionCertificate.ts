@@ -8,6 +8,20 @@ import { runActionAsync, travelingFastlane } from './fastlane';
 
 export class AppleTooManyCertsError extends Error {}
 
+export async function getCertificateBySerialNumberAsync(
+  serialNumber: string
+): Promise<Certificate> {
+  const cert = (
+    await Certificate.getAsync({
+      query: { filter: { serialNumber: [serialNumber] } },
+    })
+  ).find(item => item.attributes.serialNumber === serialNumber);
+  if (!cert) {
+    throw new Error(`No certificate exists with serial number "${serialNumber}"`);
+  }
+  return cert;
+}
+
 export function transformCertificate(cert: Certificate): DistributionCertificateStoreInfo {
   return {
     id: cert.id,
