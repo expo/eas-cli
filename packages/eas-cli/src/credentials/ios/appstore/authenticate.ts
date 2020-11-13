@@ -43,8 +43,8 @@ export type AuthCtx = {
 };
 
 export async function ensureAuthenticatedAsync(
-  appleCtx: Omit<AuthCtx, 'fastlaneSession'>
-): Promise<Omit<AuthCtx, 'fastlaneSession'>> {
+  appleCtx: Omit<AuthCtx, 'fastlaneSession'> & { fastlaneSession?: string }
+): Promise<Omit<AuthCtx, 'fastlaneSession'> & { fastlaneSession?: string }> {
   if (!Session.getSessionInfo()) {
     appleCtx = await authenticateAsync({
       appleId: appleCtx.appleId,
