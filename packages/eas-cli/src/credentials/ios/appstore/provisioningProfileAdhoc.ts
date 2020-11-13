@@ -11,7 +11,11 @@ import ora from 'ora';
 
 import { ProvisioningProfile } from './Credentials.types';
 import { AuthCtx } from './authenticate';
-import { USE_APPLE_UTILS, getBundleIdForIdentifier, getProfilesForBundleId } from './experimental';
+import {
+  USE_APPLE_UTILS,
+  getBundleIdForIdentifierAsync,
+  getProfilesForBundleIdAsync,
+} from './experimental';
 import { runActionAsync, travelingFastlane } from './fastlane';
 
 async function registerMissingDevicesAsync(udids: string[]) {
@@ -46,7 +50,7 @@ async function findDistCert(serial_number: string, isEnterprise: boolean) {
 }
 
 async function findProfileByBundleId(bundleId: string, certSerialNumber: string) {
-  let expoProfiles = await getProfilesForBundleId(bundleId);
+  let expoProfiles = await getProfilesForBundleIdAsync(bundleId);
   expoProfiles = expoProfiles.filter(
     profile => profile.attributes.profileType === ProfileType.IOS_APP_INHOUSE
   );
@@ -97,7 +101,7 @@ function sortByExpiration(a: Profile, b: Profile): number {
 }
 
 async function findProfileById(profileId: string, bundleId: string) {
-  let profiles = await getProfilesForBundleId(bundleId);
+  let profiles = await getProfilesForBundleIdAsync(bundleId);
   profiles = profiles.filter(
     profile => profile.attributes.profileType === ProfileType.IOS_APP_ADHOC
   );
@@ -186,7 +190,7 @@ async function fastlaneActionAsync({
     // If the distribution certificate doesn't exist, the user must have deleted it, we can't do anything here :(
     throw new Error('No distribution certificate available to make provisioning profile against');
   }
-  const bundleIdItem = await getBundleIdForIdentifier(bundleId);
+  const bundleIdItem = await getBundleIdForIdentifierAsync(bundleId);
   // If the provisioning profile for the App ID doesn't exist, we just need to create a new one!
   const newProfile = await Profile.createAsync({
     bundleId: bundleIdItem.id,

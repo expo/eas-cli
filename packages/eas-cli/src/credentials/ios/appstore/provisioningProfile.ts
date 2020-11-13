@@ -9,7 +9,11 @@ import {
 } from './Credentials.types';
 import { AuthCtx } from './authenticate';
 import { transformCertificate } from './distributionCertificate';
-import { USE_APPLE_UTILS, getBundleIdForIdentifier, getProfilesForBundleId } from './experimental';
+import {
+  USE_APPLE_UTILS,
+  getBundleIdForIdentifierAsync,
+  getProfilesForBundleIdAsync,
+} from './experimental';
 import { runActionAsync, travelingFastlane } from './fastlane';
 
 async function transformProfileAsync(
@@ -57,7 +61,7 @@ async function addCertificateToProfileAsync({
 }) {
   const cert = await getCertificateBySerialNumberAsync(serialNumber);
 
-  const profiles = await getProfilesForBundleId(bundleIdentifier);
+  const profiles = await getProfilesForBundleIdAsync(bundleIdentifier);
   const profile = profiles.find(profile => profile.id === profileId);
   if (!profile) {
     throw new Error(
@@ -143,7 +147,7 @@ export async function listProvisioningProfilesAsync(
   const spinner = ora(`Getting Provisioning Profiles from Apple...`).start();
   try {
     if (USE_APPLE_UTILS) {
-      let profiles = await getProfilesForBundleId(bundleIdentifier);
+      let profiles = await getProfilesForBundleIdAsync(bundleIdentifier);
       const type = ctx.team.inHouse ? ProfileType.IOS_APP_INHOUSE : ProfileType.IOS_APP_STORE;
 
       profiles = profiles.filter(profile => profile.attributes.profileType === type);
@@ -200,7 +204,7 @@ export async function createProvisioningProfileAsync(
         query: { filter: { serialNumber: [distCert.distCertSerialNumber] } },
       });
 
-      const bundleIdItem = await getBundleIdForIdentifier(bundleIdentifier);
+      const bundleIdItem = await getBundleIdForIdentifierAsync(bundleIdentifier);
 
       const profile = await Profile.createAsync({
         bundleId: bundleIdItem.id,
@@ -245,7 +249,7 @@ export async function revokeProvisioningProfileAsync(
   const spinner = ora(`Revoking Provisioning Profile on Apple Servers...`).start();
   try {
     if (USE_APPLE_UTILS) {
-      const profiles = await getProfilesForBundleId(bundleIdentifier);
+      const profiles = await getProfilesForBundleIdAsync(bundleIdentifier);
       for (const profile of profiles) {
         await Profile.deleteAsync({ id: profile.id });
       }

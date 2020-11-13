@@ -1,7 +1,7 @@
-import { BundleId, CapabilityType, CapabilityTypeOption, Session, Teams } from '@expo/apple-utils';
+import { BundleId, CapabilityType, CapabilityTypeOption } from '@expo/apple-utils';
 import ora from 'ora';
 
-import { AuthCtx, authenticateAsync } from './authenticate';
+import { AuthCtx, ensureAuthenticatedAsync } from './authenticate';
 import { USE_APPLE_UTILS } from './experimental';
 import { runActionAsync, travelingFastlane } from './fastlane';
 
@@ -13,19 +13,6 @@ export interface AppLookupParams {
   accountName: string;
   projectName: string;
   bundleIdentifier: string;
-}
-
-export async function ensureAuthenticatedAsync(
-  appleCtx: Omit<AuthCtx, 'fastlaneSession'>
-): Promise<Omit<AuthCtx, 'fastlaneSession'>> {
-  if (!Session.getSessionInfo()) {
-    appleCtx = await authenticateAsync({
-      appleId: appleCtx.appleId,
-      teamId: appleCtx.team.id,
-    });
-  }
-  Teams.setSelectedTeamId(appleCtx.team.id);
-  return appleCtx;
 }
 
 async function ensureBundleIdExistsAsync(

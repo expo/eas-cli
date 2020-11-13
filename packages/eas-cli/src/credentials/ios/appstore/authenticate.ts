@@ -42,6 +42,19 @@ export type AuthCtx = {
   fastlaneSession: string;
 };
 
+export async function ensureAuthenticatedAsync(
+  appleCtx: Omit<AuthCtx, 'fastlaneSession'>
+): Promise<Omit<AuthCtx, 'fastlaneSession'>> {
+  if (!Session.getSessionInfo()) {
+    appleCtx = await authenticateAsync({
+      appleId: appleCtx.appleId,
+      teamId: appleCtx.team.id,
+    });
+  }
+  Teams.setSelectedTeamId(appleCtx.team.id);
+  return appleCtx;
+}
+
 async function authenticateWithExperimentalAsync(options: Options = {}): Promise<AuthCtx> {
   const { appleId, appleIdPassword } = await requestAppleCredentialsAsync(options);
   log(`Authenticating to Apple Developer Portal...`); // use log instead of spinner in case we need to prompt user for 2fa
