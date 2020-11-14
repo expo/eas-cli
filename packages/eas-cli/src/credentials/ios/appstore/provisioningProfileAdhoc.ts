@@ -1,16 +1,10 @@
-import {
-  Certificate,
-  CertificateType,
-  Device,
-  Profile,
-  ProfileState,
-  ProfileType,
-} from '@expo/apple-utils';
+import { Device, Profile, ProfileState, ProfileType } from '@expo/apple-utils';
 import ora from 'ora';
 
-import { ProvisioningProfile } from './Credentials.types';
 import { AuthCtx } from './authenticate';
 import { getBundleIdForIdentifierAsync, getProfilesForBundleIdAsync } from './bundleId';
+import { ProvisioningProfile } from './Credentials.types';
+import { getDistributionCertificateAync } from './distributionCertificate';
 import { USE_APPLE_UTILS } from './experimental';
 import { runActionAsync, travelingFastlane } from './fastlane';
 
@@ -22,9 +16,16 @@ interface ProfileResults {
   provisioningProfile: any;
 }
 
+function uniqueItems<T = any>(items: T[]): T[] {
+  const set = new Set(items);
+  return [...set];
+}
+
 async function registerMissingDevicesAsync(udids: string[]): Promise<Device[]> {
   const allIosProfileDevices = await Device.getAllIOSProfileDevicesAsync();
-  const alreadyAdded = allIosProfileDevices.filter(d => udids.includes(d.attributes.udid));
+  const alreadyAdded = allIosProfileDevices.filter(device =>
+    udids.includes(device.attributes.udid)
+  );
   const alreadyAddedUdids = alreadyAdded.map(i => i.attributes.udid);
 
   for (const udid of udids) {
@@ -37,22 +38,6 @@ async function registerMissingDevicesAsync(udids: string[]): Promise<Device[]> {
   return alreadyAdded;
 }
 
-async function findDistCertAsync(serialNumber: string): Promise<Certificate | null> {
-  const certs = await Certificate.getAsync({
-    query: {
-      filter: {
-        certificateType: CertificateType.IOS_DISTRIBUTION,
-      },
-    },
-  });
-
-  if (serialNumber === '__last__') {
-    return certs[certs.length - 1];
-  }
-
-  return certs.find(c => c.attributes.serialNumber === serialNumber) ?? null;
-}
-
 async function findProfileByBundleIdAsync(
   bundleId: string,
   certSerialNumber: string
@@ -60,38 +45,41 @@ async function findProfileByBundleIdAsync(
   profile: Profile | null;
   didUpdate: boolean;
 }> {
-  const expoProfiles = (await getProfilesForBundleIdAsync(bundleId))
-    .filter(profile => profile.attributes.profileType === ProfileType.IOS_APP_INHOUSE)
-    .filter(profile => {
-      return (
-        profile.attributes.name.startsWith('*[expo]') &&
-        profile.attributes.profileState !== ProfileState.EXPIRED
-      );
-    });
+  const expoProfiles = (await getProfilesForBundleIdAsync(bundleId)).filter(profile => {
+    return (
+      profile.attributes.profileType === ProfileType.IOS_APP_INHOUSE &&
+      profile.attributes.name.startsWith('*[expo]') &&
+      profile.attributes.profileState !== ProfileState.EXPIRED
+    );
+  });
 
-  const expoProfilesWithCert: Profile[] = [];
+  const expoProfilesWithCertificate: Profile[] = [];
   // find profiles associated with our development cert
   for (const profile of expoProfiles) {
     const certificates = await profile.getCertificatesAsync();
     if (certificates.some(cert => cert.attributes.serialNumber === certSerialNumber)) {
-      expoProfilesWithCert.push(profile);
+      expoProfilesWithCertificate.push(profile);
     }
   }
 
-  if (expoProfilesWithCert) {
+  if (expoProfilesWithCertificate) {
     // there is an expo managed profile with our desired certificate
     // return the profile that will be valid for the longest duration
     return {
-      profile: expoProfilesWithCert.sort(sortByExpiration)[expoProfilesWithCert.length - 1],
+      profile: expoProfilesWithCertificate.sort(sortByExpiration)[
+        expoProfilesWithCertificate.length - 1
+      ],
       didUpdate: false,
     };
   } else if (expoProfiles) {
     // there is an expo managed profile, but it doesn't have our desired certificate
     // append the certificate and update the profile
-    const distCert = await findDistCertAsync(certSerialNumber);
-    if (!distCert) throw new Error('expected cert not found');
+    const distributionCertificate = await getDistributionCertificateAync(certSerialNumber);
+    if (!distributionCertificate) {
+      throw new Error(`Certificate for serial number "${certSerialNumber}" does not exist`);
+    }
     const profile = expoProfiles.sort(sortByExpiration)[expoProfiles.length - 1];
-    profile.attributes.certificates = [distCert];
+    profile.attributes.certificates = [distributionCertificate];
     return { profile: await profile.regenerateAsync(), didUpdate: true };
   }
 
@@ -112,12 +100,6 @@ async function findProfileByIdAsync(profileId: string, bundleId: string): Promis
     profile => profile.attributes.profileType === ProfileType.IOS_APP_ADHOC
   );
   return profiles.find(profile => profile.id === profileId) ?? null;
-}
-
-function uniqueItems<T = any>(items: T[]): T[] {
-  const set = new Set(items);
-  // @ts-ignore: downlevel iteration
-  return [...set];
 }
 
 async function manageAdHocProfilesAsync({
@@ -177,7 +159,11 @@ async function manageAdHocProfilesAsync({
     await existingProfile.regenerateAsync();
 
     const updatedProfile = (await findProfileByBundleIdAsync(bundleId, certSerialNumber)).profile;
-    if (!updatedProfile) throw new Error('Failed to locate updated profile');
+    if (!updatedProfile) {
+      throw new Error(
+        `Failed to locate updated profile for bundle identifier "${bundleId}" and serial number "${certSerialNumber}"`
+      );
+    }
     return {
       provisioningProfileUpdateTimestamp: Date.now(),
       provisioningProfileName: updatedProfile.attributes.name,
@@ -189,11 +175,13 @@ async function manageAdHocProfilesAsync({
   // No existing profile...
 
   // We need to find user's distribution certificate to make a provisioning profile for it.
-  const distCert = await findDistCertAsync(certSerialNumber);
+  const distributionCertificate = await getDistributionCertificateAync(certSerialNumber);
 
-  if (!distCert) {
+  if (!distributionCertificate) {
     // If the distribution certificate doesn't exist, the user must have deleted it, we can't do anything here :(
-    throw new Error('No distribution certificate available to make provisioning profile against');
+    throw new Error(
+      `No distribution certificate for serial number "${certSerialNumber}" is available to make a provisioning profile against`
+    );
   }
   const bundleIdItem = await getBundleIdForIdentifierAsync(bundleId);
   // If the provisioning profile for the App ID doesn't exist, we just need to create a new one!
@@ -201,7 +189,7 @@ async function manageAdHocProfilesAsync({
     bundleId: bundleIdItem.id,
     // apple drops [ if its the first char (!!),
     name: `*[expo] ${bundleId} AdHoc ${Date.now()}`,
-    certificates: [distCert.id],
+    certificates: [distributionCertificate.id],
     devices: devices.map(device => device.id),
     profileType: ProfileType.IOS_APP_ADHOC,
   });
