@@ -68,12 +68,15 @@ export async function listDistributionCertificatesAsync(
   }
 }
 
+/**
+ * Run from `eas credentials` -> iOS -> Add new Distribution Certificate
+ */
 export async function createDistributionCertificateAsync(
   ctx: AuthCtx
 ): Promise<DistributionCertificate> {
   const spinner = ora(`Creating Distribution Certificate on Apple Servers...`).start();
-  try {
-    if (USE_APPLE_UTILS) {
+  if (USE_APPLE_UTILS) {
+    try {
       const results = await createCertificateAndP12Async({
         certificateType: CertificateType.IOS_DISTRIBUTION,
       });
@@ -87,26 +90,39 @@ export async function createDistributionCertificateAsync(
         teamId: ctx.team.id,
         teamName: ctx.team.name,
       };
-    } else {
-      const args = [
-        'create',
-        ctx.appleId,
-        ctx.appleIdPassword,
-        ctx.team.id,
-        String(ctx.team.inHouse),
-      ];
-      const result = {
-        ...(await runActionAsync(travelingFastlane.manageDistCerts, args)),
-        teamId: ctx.team.id,
-        teamName: ctx.team.name,
-      };
-      spinner.succeed();
-      return result;
+    } catch (error) {
+      spinner.fail('Failed to create Distribution Certificate on Apple Servers');
+      // TODO: Move check into apple-utils
+      const resultString = error.message;
+      if (
+        resultString?.match(
+          /You already have a current .* certificate or a pending certificate request./
+        )
+      ) {
+        throw new AppleTooManyCertsError('Maximum number of certificates generated');
+      }
+      throw error;
     }
+  }
+
+  try {
+    const args = [
+      'create',
+      ctx.appleId,
+      ctx.appleIdPassword,
+      ctx.team.id,
+      String(ctx.team.inHouse),
+    ];
+    const result = {
+      ...(await runActionAsync(travelingFastlane.manageDistCerts, args)),
+      teamId: ctx.team.id,
+      teamName: ctx.team.name,
+    };
+    spinner.succeed();
+    return result;
   } catch (err) {
     spinner.fail('Failed to create Distribution Certificate on Apple Servers');
-    // `err.rawDump.resultString` for Fastlane, `err.message` for apple-utils
-    const resultString = err.rawDump?.resultString ?? err.message;
+    const resultString = err.rawDump?.resultString;
     if (resultString && resultString.match(/Maximum number of certificates generated/)) {
       throw new AppleTooManyCertsError('Maximum number of certificates generated');
     }
