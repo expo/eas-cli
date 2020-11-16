@@ -1,4 +1,4 @@
-import { Certificate, Profile, ProfileType } from '@expo/apple-utils';
+import { Profile, ProfileType } from '@expo/apple-utils';
 import ora from 'ora';
 
 import { findP12CertSerialNumber } from '../utils/p12Certificate';
@@ -181,16 +181,14 @@ export async function createProvisioningProfileAsync(
         ? ProfileType.IOS_APP_INHOUSE
         : ProfileType.IOS_APP_STORE;
 
-      const certificate = await Certificate.getAsync({
-        query: { filter: { serialNumber: [distCert.distCertSerialNumber] } },
-      });
+      const certificate = await getCertificateBySerialNumberAsync(distCert.distCertSerialNumber);
 
       const bundleIdItem = await getBundleIdForIdentifierAsync(bundleIdentifier);
 
       const profile = await Profile.createAsync({
         bundleId: bundleIdItem.id,
         name: profileName,
-        certificates: certificate.map(cert => cert.id),
+        certificates: [certificate.id],
         devices: [],
         profileType,
       });
@@ -231,9 +229,7 @@ export async function revokeProvisioningProfileAsync(
   try {
     if (USE_APPLE_UTILS) {
       const profiles = await getProfilesForBundleIdAsync(bundleIdentifier);
-      for (const profile of profiles) {
-        await Profile.deleteAsync({ id: profile.id });
-      }
+      await Promise.all(profiles.map(profile => Profile.deleteAsync({ id: profile.id })));
     } else {
       const args = [
         'revoke',
