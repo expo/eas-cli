@@ -1,4 +1,5 @@
 import { Device, Profile, ProfileState, ProfileType } from '@expo/apple-utils';
+import omit from 'lodash/omit';
 import ora from 'ora';
 
 import { ProvisioningProfile } from './Credentials.types';
@@ -232,10 +233,17 @@ export async function createOrReuseAdhocProvisioningProfileAsync(
         bundleIdentifier,
         distCertSerialNumber,
       ];
-      adhocProvisioningProfile = await runActionAsync(
+      const travelingFastlaneProfile = await runActionAsync(
         travelingFastlane.manageAdHocProvisioningProfile,
         args
       );
+      adhocProvisioningProfile = {
+        provisioningProfile: travelingFastlane.provisioningProfile,
+        provisioningProfileId: travelingFastlane.provisioningProfileId,
+        profileName: travelingFastlaneProfile.provisioningProfileName,
+        didUpdate: !!travelingFastlaneProfile.provisioningProfileUpdateTimestamp,
+        didCreate: !!travelingFastlaneProfile.provisioningProfileCreateTimestamp,
+      };
     }
 
     const { didUpdate, didCreate, profileName } = adhocProvisioningProfile;

@@ -13,7 +13,7 @@ const IosAppCredentialsMutation = {
       pushKeyId?: string;
     },
     appId: string,
-    accountId: string
+    appleAppIdentifierId: string
   ): Promise<IosAppCredentials> {
     const data = await withErrorHandlingAsync(
       graphqlClient
@@ -31,7 +31,7 @@ const IosAppCredentialsMutation = {
           {
             iosAppCredentialsInput,
             appId,
-            accountId,
+            appleAppIdentifierId,
           }
         )
         .toPromise()

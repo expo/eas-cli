@@ -309,8 +309,8 @@ export default class iOSApi {
     }
   }
 
-  // ensures that credentials are fetched from the server if they exists
-  // if there is no credentials on server for specific app this function should still succeed.
+  // ensures that credentials are fetched from the server if they exist
+  // if there are no credentials on server for specific app this function should still succeed
   private async ensureAppCredentialsAsync(appLookupParams: AppLookupParams): Promise<void> {
     const appCredentialsIndex = this.getAppCredentialsCacheIndex(appLookupParams);
     const { accountName } = appLookupParams;

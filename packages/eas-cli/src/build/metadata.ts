@@ -51,6 +51,11 @@ export type BuildMetadata = {
    * It's used to track build process across different Expo services and tools.
    */
   trackingContext: TrackingContext;
+
+  /**
+   * Flag indicating whether the build is for internal distribution.
+   */
+  internalDistribution: boolean;
 };
 
 export function collectMetadata<T extends Platform>(
@@ -68,5 +73,6 @@ export function collectMetadata<T extends Platform>(
     credentialsSource,
     sdkVersion: ctx.commandCtx.exp.sdkVersion,
     trackingContext: ctx.trackingCtx,
+    internalDistribution: ctx.buildProfile.internal ?? false,
   };
 }

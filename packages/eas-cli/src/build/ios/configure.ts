@@ -45,21 +45,17 @@ async function resolveCredentialsAndConfigureXcodeProjectAsync(
   ctx: ConfigureContext,
   bundleIdentifier: string
 ): Promise<void> {
-  const { credentials } = await resolveIosCredentialsAsync(
-    ctx.projectDir,
-    {
-      app: {
-        accountName: await getProjectAccountNameAsync(ctx.projectDir),
-        projectName: ctx.exp.slug,
-        bundleIdentifier,
-      },
-      workflow: Workflow.Generic,
-      credentialsSource: CredentialsSource.AUTO,
+  const { credentials } = await resolveIosCredentialsAsync(ctx.projectDir, {
+    app: {
+      accountName: await getProjectAccountNameAsync(ctx.projectDir),
+      projectName: ctx.exp.slug,
+      bundleIdentifier,
     },
-    {
-      nonInteractive: false,
-    }
-  );
+    workflow: Workflow.Generic,
+    credentialsSource: CredentialsSource.AUTO,
+    internalDistribution: false,
+    nonInteractive: false,
+  });
 
   const profileName = ProvisioningProfileUtils.readProfileName(credentials.provisioningProfile);
   const appleTeam = ProvisioningProfileUtils.readAppleTeam(credentials.provisioningProfile);

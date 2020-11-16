@@ -48,6 +48,11 @@ export interface ProvisioningProfileStoreInfo extends ProvisioningProfile {
   expires: number;
   distributionMethod: string;
   certificates: DistributionCertificateStoreInfo[];
+  devices?: {
+    id: string;
+    udid: string;
+    name?: string;
+  }[];
 }
 
 export interface PushKeyStoreInfo {

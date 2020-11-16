@@ -50,6 +50,9 @@ const IosAppBuildCredentialsQuery = {
             projectFullName,
             appleAppIdentifierId,
             iosDistributionType,
+          },
+          {
+            additionalTypenames: ['IosAppCredentials', 'IosAppBuildCredentials'],
           }
         )
         .toPromise()

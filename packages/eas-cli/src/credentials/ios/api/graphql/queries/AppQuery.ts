@@ -16,7 +16,7 @@ const AppQuery = {
                 }
               }
             }
-            ...${AppFragment.definition}
+            ${AppFragment.definition}
           `,
           { fullName }
         )

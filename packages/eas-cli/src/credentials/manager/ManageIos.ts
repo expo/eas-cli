@@ -118,7 +118,7 @@ export class ManageIos implements Action {
       }
       case ActionType.SetupBuildCredentials: {
         const app = this.getAppLookupParamsFromContext(ctx);
-        return new SetupBuildCredentials(app);
+        return new SetupBuildCredentials(app, /* TODO: figure out if this is fine */ false);
       }
       case ActionType.RemoveSpecificProvisioningProfile: {
         const app = this.getAppLookupParamsFromContext(ctx);

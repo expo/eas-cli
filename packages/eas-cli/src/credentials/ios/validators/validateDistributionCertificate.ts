@@ -7,7 +7,7 @@ export async function validateDistributionCertificateAsync(
   distributionCertificate: DistributionCertificate
 ): Promise<boolean> {
   const certInfoFromApple = await ctx.appStore.listDistributionCertificatesAsync();
-  const validDistributionCerts = await filterRevokedDistributionCerts(
+  const validDistributionCerts = filterRevokedDistributionCerts(
     [distributionCertificate],
     certInfoFromApple
   );

@@ -36,7 +36,8 @@ const AppleDeviceQuery = {
           {
             accountId,
             appleTeamIdentifier,
-          }
+          },
+          { additionalTypenames: ['AppleDevice'] }
         )
         .toPromise()
     );

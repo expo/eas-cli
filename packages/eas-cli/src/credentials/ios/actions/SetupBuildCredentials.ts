@@ -1,17 +1,26 @@
+import assert from 'assert';
 import chalk from 'chalk';
 
+import { IosAppBuildCredentials } from '../../../graphql/types/credentials/IosAppBuildCredentials';
 import log from '../../../log';
 import { promptAsync } from '../../../prompts';
+import { findAccountByName } from '../../../user/Account';
 import { Action, CredentialsManager } from '../../CredentialsManager';
 import { Context } from '../../context';
 import { readIosCredentialsAsync } from '../../credentialsJson/read';
-import { AppLookupParams, IosAppCredentials } from '../credentials';
+import { AppLookupParams, IosAppCredentials, IosDistCredentials } from '../credentials';
 import { displayProjectCredentials } from '../utils/printCredentials';
 import { readAppleTeam } from '../utils/provisioningProfile';
 import { SetupProvisioningProfile } from './SetupProvisioningProfile';
+import { SetupAdhocProvisioningProfile } from './new/SetupAdhocProvisioningProfile';
+
+type AppCredentialsAndDistCert = {
+  appCredentials: IosAppCredentials;
+  distCert: IosDistCredentials | null;
+};
 
 export class SetupBuildCredentials implements Action {
-  constructor(private app: AppLookupParams) {}
+  constructor(private app: AppLookupParams, private internalDistribution: boolean) {}
 
   async runAsync(manager: CredentialsManager, ctx: Context): Promise<void> {
     await ctx.bestEffortAppStoreAuthenticateAsync();
@@ -20,23 +29,79 @@ export class SetupBuildCredentials implements Action {
       await ctx.appStore.ensureAppExistsAsync(this.app, { enablePushNotifications: true });
     }
 
+    let iosAppBuildCredentials: IosAppBuildCredentials | null = null;
     try {
-      await manager.runActionAsync(new SetupProvisioningProfile(this.app));
+      if (this.internalDistribution) {
+        const account = findAccountByName(ctx.user.accounts, this.app.accountName);
+        assert(account, `You do not have access to the ${this.app.accountName} account`);
+        // for now, let's require the user to authenticate with Apple
+        await ctx.appStore.ensureAuthenticatedAsync();
+        const action = new SetupAdhocProvisioningProfile({
+          account,
+          projectName: this.app.projectName,
+          bundleIdentifier: this.app.bundleIdentifier,
+        });
+        await manager.runActionAsync(action);
+        iosAppBuildCredentials = action.iosAppBuildCredentials;
+      } else {
+        await manager.runActionAsync(new SetupProvisioningProfile(this.app));
+      }
     } catch (error) {
-      log.error('Failed to prepare Provisioning Profile.');
+      log.error('Failed to setup the Provisioning Profile.');
       throw error;
     }
 
-    const appInfo = `@${this.app.accountName}/${this.app.projectName} (${this.app.bundleIdentifier})`;
-    displayProjectCredentials(
-      this.app,
-      await ctx.ios.getAppCredentialsAsync(this.app),
-      undefined,
-      await ctx.ios.getDistributionCertificateAsync(this.app)
+    const { appCredentials, distCert } = await this.unifyCredentialsFormatAsync(
+      ctx,
+      iosAppBuildCredentials
     );
+    const appInfo = `@${this.app.accountName}/${this.app.projectName} (${this.app.bundleIdentifier})`;
+    displayProjectCredentials(this.app, appCredentials, /* pushKey */ null, distCert);
     log.newLine();
     log(chalk.green(`All credentials are ready to build ${appInfo}`));
     log.newLine();
+  }
+
+  async unifyCredentialsFormatAsync(
+    ctx: Context,
+    iosAppBuildCredentials: IosAppBuildCredentials | null
+  ): Promise<AppCredentialsAndDistCert> {
+    if (!iosAppBuildCredentials) {
+      const [appCredentials, distCert] = await Promise.all([
+        ctx.ios.getAppCredentialsAsync(this.app),
+        ctx.ios.getDistributionCertificateAsync(this.app),
+      ]);
+      return {
+        appCredentials,
+        distCert,
+      };
+    } else {
+      const { distributionCertificate, provisioningProfile } = iosAppBuildCredentials;
+      assert(distributionCertificate && provisioningProfile);
+      return {
+        appCredentials: {
+          experienceName: `${this.app.accountName}/${this.app.projectName}`,
+          bundleIdentifier: this.app.bundleIdentifier,
+          credentials: {
+            provisioningProfile: provisioningProfile.provisioningProfile,
+            provisioningProfileId: provisioningProfile.developerPortalIdentifier,
+            teamId: provisioningProfile.appleTeam?.appleTeamIdentifier || '',
+            teamName: provisioningProfile.appleTeam?.appleTeamName,
+            devices: provisioningProfile.appleDevices,
+          },
+        },
+        distCert: {
+          // the id doesn't really matter, it's only for displaying credentials
+          id: -1,
+          type: 'dist-cert',
+          certId: distributionCertificate.developerPortalIdentifier,
+          certP12: distributionCertificate.certificateP12,
+          certPassword: distributionCertificate.certificatePassword,
+          teamId: distributionCertificate.appleTeam?.appleTeamIdentifier || '',
+          teamName: distributionCertificate.appleTeam?.appleTeamName,
+        },
+      };
+    }
   }
 }
 

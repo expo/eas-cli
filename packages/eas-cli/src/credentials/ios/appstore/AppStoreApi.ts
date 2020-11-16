@@ -17,6 +17,7 @@ import {
 import { AppLookupParams, EnsureAppExistsOptions, ensureAppExistsAsync } from './ensureAppExists';
 import { USE_APPLE_UTILS } from './experimental';
 import {
+  ProfileClass,
   createProvisioningProfileAsync,
   listProvisioningProfilesAsync,
   revokeProvisioningProfileAsync,
@@ -94,36 +95,49 @@ class AppStoreApi {
   public async useExistingProvisioningProfileAsync(
     bundleIdentifier: string,
     provisioningProfile: ProvisioningProfile,
-    distCert: DistributionCertificate
+    distCert: DistributionCertificate,
+    profileClass?: ProfileClass
   ): Promise<ProvisioningProfile> {
     const ctx = await this.ensureAuthenticatedAsync();
     return await useExistingProvisioningProfileAsync(
       ctx,
       bundleIdentifier,
       provisioningProfile,
-      distCert
+      distCert,
+      profileClass
     );
   }
 
   public async listProvisioningProfilesAsync(
-    bundleIdentifier: string
+    bundleIdentifier: string,
+    profileClass?: ProfileClass
   ): Promise<ProvisioningProfileStoreInfo[]> {
     const ctx = await this.ensureAuthenticatedAsync();
-    return await listProvisioningProfilesAsync(ctx, bundleIdentifier);
+    return await listProvisioningProfilesAsync(ctx, bundleIdentifier, profileClass);
   }
 
   public async createProvisioningProfileAsync(
     bundleIdentifier: string,
     distCert: DistributionCertificate,
-    profileName: string
+    profileName: string,
+    profileClass?: ProfileClass
   ): Promise<ProvisioningProfile> {
     const ctx = await this.ensureAuthenticatedAsync();
-    return await createProvisioningProfileAsync(ctx, bundleIdentifier, distCert, profileName);
+    return await createProvisioningProfileAsync(
+      ctx,
+      bundleIdentifier,
+      distCert,
+      profileName,
+      profileClass
+    );
   }
 
-  public async revokeProvisioningProfileAsync(bundleIdentifier: string): Promise<void> {
+  public async revokeProvisioningProfileAsync(
+    bundleIdentifier: string,
+    profileClass?: ProfileClass
+  ): Promise<void> {
     const ctx = await this.ensureAuthenticatedAsync();
-    return await revokeProvisioningProfileAsync(ctx, bundleIdentifier);
+    return await revokeProvisioningProfileAsync(ctx, bundleIdentifier, profileClass);
   }
 
   public async createOrReuseAdhocProvisioningProfileAsync(
