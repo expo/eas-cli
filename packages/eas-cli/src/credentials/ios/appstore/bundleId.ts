@@ -1,13 +1,7 @@
 import { BundleId, Profile } from '@expo/apple-utils';
 
 export async function getProfilesForBundleIdAsync(bundleIdentifier: string): Promise<Profile[]> {
-  const [bundleId] = await BundleId.getAsync({
-    query: {
-      filter: {
-        identifier: bundleIdentifier,
-      },
-    },
-  });
+  const bundleId = await BundleId.findAsync({ identifier: bundleIdentifier });
   if (bundleId) {
     return bundleId.getProfilesAsync();
   }
