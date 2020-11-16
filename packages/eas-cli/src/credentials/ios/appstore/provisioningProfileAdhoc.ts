@@ -1,17 +1,17 @@
 import { Device, Profile, ProfileState, ProfileType } from '@expo/apple-utils';
 import ora from 'ora';
 
+import { ProvisioningProfile } from './Credentials.types';
 import { AuthCtx } from './authenticate';
 import { getBundleIdForIdentifierAsync, getProfilesForBundleIdAsync } from './bundleId';
-import { ProvisioningProfile } from './Credentials.types';
 import { getDistributionCertificateAync } from './distributionCertificate';
 import { USE_APPLE_UTILS } from './experimental';
 import { runActionAsync, travelingFastlane } from './fastlane';
 
 interface ProfileResults {
-  provisioningProfileUpdateTimestamp?: number;
-  provisioningProfileCreateTimestamp?: number;
-  provisioningProfileName?: string;
+  didUpdate?: boolean;
+  didCreate?: boolean;
+  profileName?: string;
   provisioningProfileId: string;
   provisioningProfile: any;
 }
@@ -146,12 +146,12 @@ async function manageAdHocProfilesAsync({
       deviceUdidsInProfile.every(udid => allDeviceUdids.includes(udid));
     if (hasEqualUdids && existingProfile.isValid()) {
       const result: ProfileResults = {
-        provisioningProfileName: existingProfile?.attributes?.name,
+        profileName: existingProfile?.attributes?.name,
         provisioningProfileId: existingProfile?.id,
         provisioningProfile: existingProfile?.attributes.profileContent,
       };
       if (didUpdate) {
-        result.provisioningProfileUpdateTimestamp = Date.now();
+        result.didUpdate = true;
       }
 
       return result;
@@ -167,8 +167,8 @@ async function manageAdHocProfilesAsync({
       );
     }
     return {
-      provisioningProfileUpdateTimestamp: Date.now(),
-      provisioningProfileName: updatedProfile.attributes.name,
+      didUpdate: true,
+      profileName: updatedProfile.attributes.name,
       provisioningProfileId: updatedProfile.id,
       provisioningProfile: updatedProfile.attributes.profileContent,
     };
@@ -197,9 +197,9 @@ async function manageAdHocProfilesAsync({
   });
 
   return {
-    provisioningProfileUpdateTimestamp: Date.now(),
-    provisioningProfileCreateTimestamp: Date.now(),
-    provisioningProfileName: newProfile.attributes.name,
+    didUpdate: true,
+    didCreate: true,
+    profileName: newProfile.attributes.name,
     provisioningProfileId: newProfile.id,
     provisioningProfile: newProfile.attributes.profileContent,
   };
@@ -238,22 +238,18 @@ export async function createOrReuseAdhocProvisioningProfileAsync(
       );
     }
 
-    const {
-      provisioningProfileUpdateTimestamp,
-      provisioningProfileCreateTimestamp,
-      provisioningProfileName,
-    } = adhocProvisioningProfile;
-    if (provisioningProfileCreateTimestamp) {
-      spinner.succeed(`Created new profile: ${provisioningProfileName}`);
-    } else if (provisioningProfileUpdateTimestamp) {
-      spinner.succeed(`Updated existing profile: ${provisioningProfileName}`);
+    const { didUpdate, didCreate, profileName } = adhocProvisioningProfile;
+    if (didCreate) {
+      spinner.succeed(`Created new profile: ${profileName}`);
+    } else if (didUpdate) {
+      spinner.succeed(`Updated existing profile: ${profileName}`);
     } else {
-      spinner.succeed(`Used existing profile: ${provisioningProfileName}`);
+      spinner.succeed(`Used existing profile: ${profileName}`);
     }
 
-    delete adhocProvisioningProfile.provisioningProfileUpdateTimestamp;
-    delete adhocProvisioningProfile.provisioningProfileCreateTimestamp;
-    delete adhocProvisioningProfile.provisioningProfileName;
+    delete adhocProvisioningProfile.didUpdate;
+    delete adhocProvisioningProfile.didCreate;
+    delete adhocProvisioningProfile.profileName;
 
     return {
       ...adhocProvisioningProfile,
