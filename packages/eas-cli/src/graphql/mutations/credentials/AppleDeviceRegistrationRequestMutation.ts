@@ -1,7 +1,10 @@
 import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../client';
-import { AppleDeviceRegistrationRequest } from '../../types/credentials/AppleDeviceRegistrationRequest';
+import {
+  AppleDeviceRegistrationRequest,
+  AppleDeviceRegistrationRequestFragment,
+} from '../../types/credentials/AppleDeviceRegistrationRequest';
 
 const AppleDeviceRegistrationRequestMutation = {
   async createAppleDeviceRegistrationRequestAsync(
@@ -22,10 +25,11 @@ const AppleDeviceRegistrationRequestMutation = {
                   appleTeamId: $appleTeamId
                   accountId: $accountId
                 ) {
-                  id
+                  ...${AppleDeviceRegistrationRequestFragment.name}
                 }
               }
             }
+            ${AppleDeviceRegistrationRequestFragment.definition}
           `,
           {
             appleTeamId,
