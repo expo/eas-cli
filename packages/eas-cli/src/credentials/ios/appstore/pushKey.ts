@@ -80,9 +80,7 @@ export async function revokePushKeyAsync(ctx: AuthCtx, ids: string[]): Promise<v
   const spinner = ora(`Revoking Push Key on Apple Servers...`).start();
   try {
     if (USE_APPLE_UTILS) {
-      for (const id of ids) {
-        await Keys.revokeKeyAsync({ id });
-      }
+      await Promise.all(ids.map(id => Keys.revokeKeyAsync({ id })));
     } else {
       const args = ['revoke', ctx.appleId, ctx.appleIdPassword, ctx.team.id, ids.join(',')];
       await runActionAsync(travelingFastlane.managePushKeys, args);

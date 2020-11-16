@@ -28,12 +28,14 @@ async function registerMissingDevicesAsync(udids: string[]): Promise<Device[]> {
   );
   const alreadyAddedUdids = alreadyAdded.map(i => i.attributes.udid);
 
-  for (const udid of udids) {
-    if (!alreadyAddedUdids.includes(udid)) {
-      const device = await Device.createAsync({ name: 'iOS Device (added by Expo)', udid });
-      alreadyAdded.push(device);
-    }
-  }
+  await Promise.all(
+    udids.map(async udid => {
+      if (!alreadyAddedUdids.includes(udid)) {
+        const device = await Device.createAsync({ name: 'iOS Device (added by Expo)', udid });
+        alreadyAdded.push(device);
+      }
+    })
+  );
 
   return alreadyAdded;
 }

@@ -164,11 +164,7 @@ export async function revokeDistributionCertificateAsync(
   const spinner = ora(`Revoking Distribution Certificate on Apple Servers...`).start();
   try {
     if (USE_APPLE_UTILS) {
-      for (const id of ids) {
-        await Certificate.deleteAsync({
-          id,
-        });
-      }
+      await Promise.all(ids.map(id => Certificate.deleteAsync({ id })));
     } else {
       const args = [
         'revoke',
