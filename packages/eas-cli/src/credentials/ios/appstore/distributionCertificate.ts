@@ -22,31 +22,37 @@ export async function getCertificateBySerialNumberAsync(
   return cert;
 }
 
+export async function getMostRecentCertificateAsync(): Promise<Certificate | null> {
+  const [certificate] = await Certificate.getAsync({
+    query: {
+      filter: {
+        certificateType: CertificateType.IOS_DISTRIBUTION,
+      },
+      // Only require a single value.
+      limit: 1,
+      // Sort the serial numbers in reverse order to get the last one
+      // also skip specifying a serial number.
+      sort: '-serialNumber',
+    },
+  });
+  return certificate ?? null;
+}
+
 export async function getDistributionCertificateAync(
   serialNumber: string
 ): Promise<Certificate | null> {
-  const query: Record<string, any> = {
-    filter: {
-      certificateType: CertificateType.IOS_DISTRIBUTION,
+  const [certificate] = await Certificate.getAsync({
+    query: {
+      filter: {
+        // Specifying a serial number to query.
+        serialNumber,
+        certificateType: CertificateType.IOS_DISTRIBUTION,
+      },
+      // Only require a single value.
+      limit: 1,
     },
-    // Only require a single value.
-    limit: 1,
-  };
-  if (serialNumber === '__last__') {
-    // Sort the serial numbers in reverse order to get the last one
-    // also skip specifying a serial number.
-    query.sort = '-serialNumber';
-  } else {
-    // Specifying a serial number to query.
-    query.filter!.serialNumber = serialNumber;
-  }
-  return (
-    (
-      await Certificate.getAsync({
-        query,
-      })
-    )[0] ?? null
-  );
+  });
+  return certificate ?? null;
 }
 
 export function transformCertificate(cert: Certificate): DistributionCertificateStoreInfo {
