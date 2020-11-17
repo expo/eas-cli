@@ -1,5 +1,6 @@
 import { Auth, InvalidUserCredentialsError, Session, Teams } from '@expo/apple-utils';
 import chalk from 'chalk';
+import assert from 'assert';
 import wordwrap from 'wordwrap';
 
 import log from '../../../log';
@@ -15,6 +16,7 @@ const IS_MAC = process.platform === 'darwin';
 export type Options = {
   appleId?: string;
   teamId?: string;
+  cookies?: AuthCtx['cookies'];
 };
 
 export type AppleCredentials = {
@@ -39,19 +41,36 @@ export type AuthCtx = {
   appleId: string;
   appleIdPassword: string;
   team: Team;
-  fastlaneSession: string;
+  /**
+   * Defined when using Fastlane
+   */
+  fastlaneSession?: string;
+  /**
+   * Can be used to restore the Apple auth state via apple-utils.
+   */
+  cookies?: Session.AuthState['cookies'];
 };
 
-export async function ensureAuthenticatedAsync(
-  appleCtx: Omit<AuthCtx, 'fastlaneSession'> & { fastlaneSession?: string }
-): Promise<Omit<AuthCtx, 'fastlaneSession'> & { fastlaneSession?: string }> {
+export async function ensureAuthenticatedAsync(appleCtx: AuthCtx): Promise<AuthCtx> {
+  assert(
+    USE_APPLE_UTILS,
+    'ensureAuthenticatedAsync can only be used with the experimental apple auth'
+  );
+
+  // Check if the current session from the server exists.
+  // This check happens without performing a rate-limited network request to Apple.
   if (!Session.getSessionInfo()) {
-    appleCtx = await authenticateAsync({
+    // Attempt to authenticate.
+    appleCtx = await authenticateWithExperimentalAsync({
       appleId: appleCtx.appleId,
       teamId: appleCtx.team.id,
+      cookies: appleCtx.cookies,
     });
+  } else {
+    // Set the team id in the case where the user is authenticated but a new team was selected (shouldn't happen).
+    Teams.setSelectedTeamId(appleCtx.team.id);
   }
-  Teams.setSelectedTeamId(appleCtx.team.id);
+
   return appleCtx;
 }
 
@@ -61,8 +80,11 @@ async function authenticateWithExperimentalAsync(options: Options = {}): Promise
 
   try {
     // TODO: The password isn't required for apple-utils. Remove the local prompt when we remove traveling Fastlane.
-    await Auth.loginAsync({ username: appleId, password: appleIdPassword });
-
+    const authContext = await Auth.loginAsync({
+      username: appleId,
+      password: appleIdPassword,
+      cookies: options.cookies,
+    });
     log(chalk.green('Authenticated with Apple Developer Portal successfully!'));
 
     // Get all of the teams
@@ -74,7 +96,15 @@ async function authenticateWithExperimentalAsync(options: Options = {}): Promise
 
     // Get the JSON cookies in the custom YAML format used by Fastlane
     const fastlaneSession = Session.getSessionAsYAML();
-    return { appleId, appleIdPassword, team, fastlaneSession };
+    return {
+      appleId: authContext.username,
+      appleIdPassword: authContext.password ?? appleIdPassword,
+      team,
+      // Can be used to restore the auth state using apple-utils.
+      cookies: authContext.cookies,
+      // Defined for legacy usage in Turtle V1 or any other places where Fastlane is used in the servers.
+      fastlaneSession,
+    };
   } catch (error) {
     if (error instanceof InvalidUserCredentialsError) {
       log.error(error.message);
