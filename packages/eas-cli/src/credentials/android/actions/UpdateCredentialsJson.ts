@@ -9,11 +9,11 @@ export class UpdateCredentialsJson implements Action {
   constructor(private projectFullName: string) {}
 
   async runAsync(manager: CredentialsManager, ctx: Context): Promise<void> {
-    log('Updating content of credentials.json');
+    log('Updating Android credentials in credentials.json');
     await updateAndroidCredentialsAsync(ctx);
     log(
       chalk.green(
-        'Android part of your local credentials.json is synced with values store on Expo servers.'
+        'Android part of your local credentials.json is synced with values stored on Expo servers.'
       )
     );
   }

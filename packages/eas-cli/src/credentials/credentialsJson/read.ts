@@ -4,7 +4,7 @@ import path from 'path';
 
 import { Keystore } from '../android/credentials';
 
-interface CredentialsJson {
+export interface CredentialsJson {
   android?: {
     keystore: {
       keystorePath: string;

@@ -5,16 +5,22 @@ import log from '../../log';
 import { confirmAsync } from '../../prompts';
 import { gitStatusAsync } from '../../utils/git';
 import { Context } from '../context';
+import { CredentialsJson } from './read';
 
+/**
+ * Update Android credentials.json with values from www, content of credentials.json
+ * is not validated
+ */
 export async function updateAndroidCredentialsAsync(ctx: Context): Promise<void> {
   const credentialsJsonFilePath = path.join(ctx.projectDir, 'credentials.json');
   let rawCredentialsJsonObject: any = {};
   if (await fs.pathExists(credentialsJsonFilePath)) {
     try {
+      // reading raw file without validation (used only to access keystorePath)
       const rawFile = await fs.readFile(credentialsJsonFilePath, 'utf-8');
       rawCredentialsJsonObject = JSON.parse(rawFile);
     } catch (error) {
-      log.error(`There was an error while reading credentials.json [${error}]`);
+      log.error(`Reading credentials.json failed [${error}]`);
       log.error('Make sure that file is correct (or remove it) and rerun this command.');
       throw error;
     }
@@ -45,7 +51,7 @@ export async function updateAndroidCredentialsAsync(ctx: Context): Promise<void>
   await updateFileAsync(ctx.projectDir, keystorePath, keystore.keystore);
   const shouldWarnKeystore = await isFileUntrackedAsync(keystorePath);
 
-  rawCredentialsJsonObject.android = {
+  const androidCredentials: Partial<CredentialsJson['android']> = {
     keystore: {
       keystorePath,
       keystorePassword: keystore.keystorePassword,
@@ -53,6 +59,7 @@ export async function updateAndroidCredentialsAsync(ctx: Context): Promise<void>
       keyPassword: keystore.keyPassword,
     },
   };
+  rawCredentialsJsonObject.android = androidCredentials;
   await fs.writeJson(credentialsJsonFilePath, rawCredentialsJsonObject, {
     spaces: 2,
   });
@@ -68,6 +75,11 @@ export async function updateAndroidCredentialsAsync(ctx: Context): Promise<void>
   displayUntrackedFilesWarning(newFilePaths);
 }
 
+/**
+ * Update iOS credentials in credentials.json with values from www, content
+ * of credentials.json is not validated, if www has incomplete credentials
+ * credentials.json will be updated partially
+ */
 export async function updateIosCredentialsAsync(
   ctx: Context,
   bundleIdentifier: string
@@ -76,6 +88,7 @@ export async function updateIosCredentialsAsync(
   let rawCredentialsJsonObject: any = {};
   if (await fs.pathExists(credentialsJsonFilePath)) {
     try {
+      // reading raw file without validation (used only to access paths)
       const rawFile = await fs.readFile(credentialsJsonFilePath, 'utf-8');
       rawCredentialsJsonObject = JSON.parse(rawFile);
     } catch (error) {
@@ -128,7 +141,7 @@ export async function updateIosCredentialsAsync(
   await updateFileAsync(ctx.projectDir, distCertPath, distCredentials?.certP12);
   const shouldWarnDistCert = await isFileUntrackedAsync(distCertPath);
 
-  rawCredentialsJsonObject.ios = {
+  const iosCredentials: Partial<CredentialsJson['ios']> = {
     ...(appCredentials?.credentials?.provisioningProfile
       ? { provisioningProfilePath: pprofilePath }
       : {}),
@@ -141,6 +154,7 @@ export async function updateIosCredentialsAsync(
         }
       : {}),
   };
+  rawCredentialsJsonObject.ios = iosCredentials;
   await fs.writeJson(credentialsJsonFilePath, rawCredentialsJsonObject, {
     spaces: 2,
   });

@@ -12,11 +12,11 @@ export class UpdateCredentialsJson implements Action {
 
   async runAsync(manager: CredentialsManager, ctx: Context): Promise<void> {
     const bundleIdentifer = await getBundleIdentifier(ctx.projectDir, ctx.exp);
-    log('Updating content of credentials.json');
+    log('Updating iOS credentials in credentials.json');
     await updateIosCredentialsAsync(ctx, bundleIdentifer);
     log(
       chalk.green(
-        'iOS part of your local credentials.json is synced with values store on Expo servers.'
+        'iOS part of your local credentials.json is synced with values stored on Expo servers.'
       )
     );
   }
