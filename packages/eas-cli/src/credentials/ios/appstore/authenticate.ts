@@ -1,6 +1,6 @@
 import { Auth, InvalidUserCredentialsError, Session, Teams } from '@expo/apple-utils';
-import chalk from 'chalk';
 import assert from 'assert';
+import chalk from 'chalk';
 import wordwrap from 'wordwrap';
 
 import log from '../../../log';
