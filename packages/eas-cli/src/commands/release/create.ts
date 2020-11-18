@@ -77,18 +77,18 @@ export default class ReleaseCreate extends Command {
       });
       releaseName = userInput.releaseName;
     }
-
     if (!releaseName) {
       log.error('You must specify a releaseName.');
       return;
     }
 
     try {
-      const res = await createUpdateReleaseOnAppAsync({ appId: projectId, releaseName });
+      const newRelease = await createUpdateReleaseOnAppAsync({ appId: projectId, releaseName });
+
       log.withTick(
-        `️Created a new release: ${chalk.bold(res.releaseName)} on project with id ${chalk.bold(
-          projectId
-        )}.`
+        `️Created a new release: ${chalk.bold(
+          newRelease.releaseName
+        )} on project with id ${chalk.bold(projectId)}.`
       );
     } catch (e) {
       log.error(e);
