@@ -1,6 +1,7 @@
 import { getConfig } from '@expo/config';
 import { Command, flags } from '@oclif/command';
 import chalk from 'chalk';
+import branchName from 'current-git-branch';
 import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
@@ -8,7 +9,6 @@ import log from '../../log';
 import { ensureProjectExistsAsync } from '../../project/ensureProjectExists';
 import { findProjectRootAsync, getProjectAccountNameAsync } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
-
 type UpdateRelease = {
   id: string;
   releaseName: string;
@@ -80,6 +80,7 @@ export default class ReleaseCreate extends Command {
         type: 'text',
         name: 'releaseName',
         message: 'Please name the release:',
+        initial: branchName() || `release-${Math.random().toString(36).substr(2, 4)}`,
         validate: value => (value ? true : 'Release name may not be empty.'),
       }));
     }
