@@ -1,4 +1,3 @@
-import log from '../log';
 import { Context } from './context';
 
 export interface CredentialsManager {
@@ -52,18 +51,11 @@ class CredentialsManagerImpl implements CredentialsManager {
 
   private async doRunManagerAsync(): Promise<void> {
     while (true) {
-      try {
-        const currentAction = this.popAction();
-        if (!currentAction) {
-          return;
-        }
-        await currentAction.runAsync(this, this.ctx);
-      } catch (error) {
-        if (error instanceof QuitError) {
-          throw error;
-        }
-        log.error(error);
+      const currentAction = this.popAction();
+      if (!currentAction) {
+        return;
       }
+      await currentAction.runAsync(this, this.ctx);
     }
   }
 }
