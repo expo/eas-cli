@@ -1,5 +1,6 @@
 **/build/**
 !packages/eas-cli/src/commands/build/**
 !packages/eas-cli/src/build/**
+!packages/eas-cli/src/graphql/generated.tsx
 
 node_modules
