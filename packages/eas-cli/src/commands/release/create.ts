@@ -31,6 +31,7 @@ async function createUpdateReleaseOnAppAsync({
           mutation CreateUpdateReleaseForApp($appId: ID!, $releaseName: String!) {
             updateRelease {
               createUpdateReleaseForApp(appId: $appId, releaseName: $releaseName) {
+                id
                 releaseName
               }
             }
@@ -57,9 +58,17 @@ export default class ReleaseCreate extends Command {
     },
   ];
 
+  static flags = {
+    json: flags.boolean({
+      description: 'return a json with the new release ID and name.',
+      default: false,
+    }),
+  };
+
   async run() {
     let {
       args: { releaseName },
+      flags: { json: jsonFlag },
     } = this.parse(ReleaseCreate);
 
     const projectDir = await findProjectRootAsync(process.cwd());
@@ -76,16 +85,25 @@ export default class ReleaseCreate extends Command {
     });
 
     if (!releaseName) {
+      const validationMessage = 'Release name may not be empty.';
+      if (jsonFlag) {
+        throw new Error(validationMessage);
+      }
       ({ releaseName } = await promptAsync({
         type: 'text',
         name: 'releaseName',
         message: 'Please name the release:',
         initial: branchName() || `release-${Math.random().toString(36).substr(2, 4)}`,
-        validate: value => (value ? true : 'Release name may not be empty.'),
+        validate: value => (value ? true : validationMessage),
       }));
     }
 
     const newRelease = await createUpdateReleaseOnAppAsync({ appId: projectId, releaseName });
+
+    if (jsonFlag) {
+      log(newRelease);
+      return;
+    }
 
     log.withTick(
       `️Created a new release: ${chalk.bold(newRelease.releaseName)} on project ${chalk.bold(
