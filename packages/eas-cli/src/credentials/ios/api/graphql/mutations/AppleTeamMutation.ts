@@ -7,7 +7,7 @@ const AppleTeamMutation = {
   async createAppleTeamAsync(
     appleTeamInput: {
       appleTeamIdentifier: string;
-      appleTeamName: string;
+      appleTeamName?: string;
     },
     accountId: string
   ): Promise<AppleTeam> {

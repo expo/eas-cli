@@ -23,6 +23,11 @@ export const AppleDistributionCertificateFragment: Fragment = {
       developerPortalIdentifier
       validityNotBefore
       validityNotAfter
+      appleTeam {
+        id
+        appleTeamIdentifier
+        appleTeamName
+      }
     }
   `,
 };

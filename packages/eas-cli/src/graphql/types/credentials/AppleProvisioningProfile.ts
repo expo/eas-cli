@@ -21,6 +21,11 @@ export const AppleProvisioningProfileFragment: Fragment = {
       expiration
       developerPortalIdentifier
       provisioningProfile
+      appleTeam {
+        id
+        appleTeamIdentifier
+        appleTeamName
+      }
     }
   `,
 };
