@@ -1,14 +1,14 @@
 {
   "name": "eas-cli",
   "description": "EAS command line tool",
-  "version": "0.1.0-alpha.3",
+  "version": "0.1.0-alpha.4",
   "author": "Expo <support@expo.io>",
   "bin": {
     "eas": "./bin/run"
   },
   "bugs": "https://github.com/expo/eas-cli/issues",
   "dependencies": {
-    "@eas/config": "^0.1.0-alpha.2",
+    "@eas/config": "^0.1.0-alpha.4",
     "@expo/config": "^3.3.12",
     "@expo/eas-build-job": "0.1.2",
     "@expo/json-file": "^8.2.24",
@@ -103,8 +103,11 @@
       "build": {
         "description": "build app binaries"
       },
+      "release": {
+        "description": "manage update releases"
+      },
       "update": {
-        "description": "roll out changes"
+        "description": "manage individual updates"
       },
       "webhook": {
         "description": "manage webhooks"

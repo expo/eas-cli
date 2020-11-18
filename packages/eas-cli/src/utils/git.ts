@@ -45,6 +45,12 @@ async function isGitInstalledAsync(): Promise<boolean> {
   return true;
 }
 
+async function getBranchNameAsync(): Promise<string | undefined> {
+  try {
+    return (await spawnAsync('git', ['rev-parse', '--abbrev-ref', 'HEAD'])).stdout;
+  } catch (e) {}
+}
+
 export {
   gitStatusAsync,
   gitDiffAsync,
@@ -52,4 +58,5 @@ export {
   doesGitRepoExistAsync,
   gitRootDirectoryAsync,
   isGitInstalledAsync,
+  getBranchNameAsync,
 };
