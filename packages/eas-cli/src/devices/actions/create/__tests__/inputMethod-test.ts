@@ -7,7 +7,7 @@ import { AppleTeam } from '../../../../graphql/types/credentials/AppleTeam';
 import { runInputMethodAsync } from '../inputMethod';
 
 jest.mock('prompts');
-jest.mock('../../../../graphql/mutations/credentials/AppleDeviceMutation');
+jest.mock('../../../../credentials/ios/api/graphql/mutations/AppleDeviceMutation');
 
 const originalConsoleLog = console.log;
 const originalConsoleWarn = console.warn;

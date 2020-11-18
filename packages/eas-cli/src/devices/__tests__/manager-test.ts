@@ -11,7 +11,7 @@ jest.mock('../../project/projectUtils', () => {
     getProjectAccountNameAsync: () => 'foo',
   };
 });
-jest.mock('../../graphql/queries/credentials/AppleTeamQuery');
+jest.mock('../../credentials/ios/api/graphql/queries/AppleTeamQuery');
 
 beforeEach(() => {
   asMock(prompts).mockReset();
