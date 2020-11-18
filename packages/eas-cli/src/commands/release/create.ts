@@ -1,12 +1,13 @@
+import { getConfig } from '@expo/config';
 import { Command, flags } from '@oclif/command';
 import chalk from 'chalk';
 import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
 import log from '../../log';
-import { findProjectRootAsync } from '../../project/projectUtils';
+import { ensureProjectExistsAsync } from '../../project/ensureProjectExists';
+import { findProjectRootAsync, getProjectAccountNameAsync } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
-import { getProjectIdAsync } from '../../submissions/commons';
 
 type UpdateRelease = {
   id: string;
@@ -63,30 +64,32 @@ export default class ReleaseCreate extends Command {
 
     const projectDir = await findProjectRootAsync(process.cwd());
     if (!projectDir) {
-      log.error("Please run this command inside a project directory.");
-      return;
+      throw new Error('Please run this command inside a project directory.');
     }
-    const projectId = await getProjectIdAsync(projectDir);
+    const accountName = await getProjectAccountNameAsync(projectDir);
+    const {
+      exp: { slug },
+    } = getConfig(projectDir, { skipSDKVersionRequirement: true });
+    const projectId = await ensureProjectExistsAsync({
+      accountName,
+      projectName: slug,
+    });
 
     if (!releaseName) {
       ({ releaseName } = await promptAsync({
         type: 'text',
         name: 'releaseName',
         message: 'Please name the release:',
-        validate: value => value ? true : 'Release name may not be empty.',
+        validate: value => (value ? true : 'Release name may not be empty.'),
       }));
     }
 
-    try {
-      const newRelease = await createUpdateReleaseOnAppAsync({ appId: projectId, releaseName });
+    const newRelease = await createUpdateReleaseOnAppAsync({ appId: projectId, releaseName });
 
-      log.withTick(
-        `️Created a new release: ${chalk.bold(
-          newRelease.releaseName
-        )} on project with id ${chalk.bold(projectId)}.`
-      );
-    } catch (e) {
-      log.error(e);
-    }
+    log.withTick(
+      `️Created a new release: ${chalk.bold(newRelease.releaseName)} on project ${chalk.bold(
+        `@${accountName}/${slug}`
+      )}.`
+    );
   }
 }
