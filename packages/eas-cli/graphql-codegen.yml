@@ -1,5 +1,5 @@
 overwrite: true
-schema: 'http://localhost:3000/--/graphql'
+schema: 'https://staging.exp.host/--/graphql'
 documents:
   - 'src/graphql/**/!(*.d).{ts,tsx}'
 generates:
@@ -10,6 +10,3 @@ generates:
     hooks:
       afterOneFileWrite:
         - ./annotate-graphql-codegen.sh
-  ./graphql.schema.json:
-    plugins:
-      - 'introspection'

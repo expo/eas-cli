@@ -1,3 +1,10 @@
+/**
+ * This file was generated using GraphQL Codegen
+ * Command: yarn generate-graphql-code
+ * Run this during development for automatic code generation (schema & Apollo types + Apollo hooks & HOCs) when editing GraphQL documents
+ * For more info and docs, visit https://graphql-code-generator.com/
+ */
+
 export type Maybe<T> = T | null;
 export type Exact<T extends { [key: string]: unknown }> = { [K in keyof T]: T[K] };
 /** All built-in and custom scalars, mapped to their actual values */
@@ -375,6 +382,8 @@ export type App = Project & {
   androidAppCredentials: Array<Maybe<AndroidAppCredentials>>;
   /** EAS channels owned by an app */
   updateChannels: Array<UpdateChannel>;
+  /** get an EAS channel owned by the app by channelName */
+  updateChannelByChannelName: UpdateChannel;
   /** EAS releases owned by an app */
   updateReleases: Array<UpdateRelease>;
   /** Coalesced project activity for an app. Use "createdBefore" to offset a query. */
@@ -421,6 +430,12 @@ export type AppAndroidAppCredentialsArgs = {
 export type AppUpdateChannelsArgs = {
   offset: Scalars['Int'];
   limit: Scalars['Int'];
+};
+
+
+/** Represents an Exponent App (or Experience in legacy terms) */
+export type AppUpdateChannelByChannelNameArgs = {
+  channelName: Scalars['String'];
 };
 
 
