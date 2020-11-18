@@ -102,8 +102,11 @@
       "build": {
         "description": "build app binaries"
       },
+      "release": {
+        "description": "manage update releases"
+      },
       "update": {
-        "description": "roll out changes"
+        "description": "manage individual updates"
       },
       "webhook": {
         "description": "manage webhooks"
