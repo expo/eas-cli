@@ -30,7 +30,6 @@ async function createUpdateReleaseOnAppAsync({
           mutation CreateUpdateReleaseForApp($appId: ID!, $releaseName: String!) {
             updateRelease {
               createUpdateReleaseForApp(appId: $appId, releaseName: $releaseName) {
-                id
                 releaseName
               }
             }
@@ -64,7 +63,7 @@ export default class ReleaseCreate extends Command {
 
     const projectDir = await findProjectRootAsync(process.cwd());
     if (!projectDir) {
-      log.error("Please run this command inside your project's directory.");
+      log.error("Please run this command inside a project directory.");
       return;
     }
     const projectId = await getProjectIdAsync(projectDir);
