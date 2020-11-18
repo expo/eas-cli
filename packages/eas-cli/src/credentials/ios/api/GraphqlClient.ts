@@ -1,6 +1,5 @@
 import nullthrows from 'nullthrows';
 
-import { AppQuery } from '../../../graphql/queries/AppQuery';
 import { App } from '../../../graphql/types/App';
 import { AppleAppIdentifier } from '../../../graphql/types/credentials/AppleAppIdentifier';
 import { AppleDevice } from '../../../graphql/types/credentials/AppleDevice';
@@ -20,6 +19,7 @@ import { AppleProvisioningProfileMutation } from './graphql/mutations/AppleProvi
 import { AppleTeamMutation } from './graphql/mutations/AppleTeamMutation';
 import { IosAppBuildCredentialsMutation } from './graphql/mutations/IosAppBuildCredentialsMutation';
 import { IosAppCredentialsMutation } from './graphql/mutations/IosAppCredentialsMutation';
+import { AppQuery } from './graphql/queries/AppQuery';
 import { AppleAppIdentifierQuery } from './graphql/queries/AppleAppIdentifierQuery';
 import { AppleDeviceQuery } from './graphql/queries/AppleDeviceQuery';
 import { AppleDistributionCertificateQuery } from './graphql/queries/AppleDistributionCertificateQuery';
