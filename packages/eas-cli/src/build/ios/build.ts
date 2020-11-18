@@ -8,7 +8,7 @@ import { promptAsync } from '../../prompts';
 import { startBuildForPlatformAsync } from '../build';
 import { BuildContext, CommandContext, createBuildContext } from '../context';
 import { Platform } from '../types';
-import { syncProjectConfigurationAsync } from './configure';
+import { validateAndSyncProjectConfigurationAsync } from './configure';
 import { ensureIosCredentialsAsync } from './credentials';
 import { prepareJobAsync } from './prepareJob';
 
@@ -28,16 +28,17 @@ export async function startIosBuildAsync(
   if (buildCtx.buildProfile.workflow === Workflow.Generic) {
     iosNativeProjectScheme = buildCtx.buildProfile.scheme ?? (await resolveSchemeAsync(buildCtx));
   }
-  if (buildCtx.buildProfile.workflow === Workflow.Generic) {
-    await syncProjectConfigurationAsync(commandCtx.projectDir, commandCtx.exp);
-  }
   return await startBuildForPlatformAsync({
     ctx: buildCtx,
     projectConfiguration: {
       iosNativeProjectScheme,
     },
     ensureCredentialsAsync: ensureIosCredentialsAsync,
-    ensureProjectConfiguredAsync: async () => {},
+    ensureProjectConfiguredAsync: async () => {
+      if (buildCtx.buildProfile.workflow === Workflow.Generic) {
+        await validateAndSyncProjectConfigurationAsync(commandCtx.projectDir, commandCtx.exp);
+      }
+    },
     prepareJobAsync,
   });
 }

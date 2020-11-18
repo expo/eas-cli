@@ -4,10 +4,11 @@ import { CredentialsManager } from '../CredentialsManager';
 import { Context } from '../context';
 import { getAndroidApiMockWithoutCredentials } from './fixtures-android';
 import { testAppJson, testUsername } from './fixtures-constants';
+import { getIosApiMockWithoutCredentials } from './fixtures-ios';
 
 export function createCtxMock(mockOverride: Record<string, any> = {}): Context {
   const defaultMock = {
-    ios: jest.fn(),
+    ios: getIosApiMockWithoutCredentials(),
     android: getAndroidApiMockWithoutCredentials(),
     appStore: jest.fn(),
     ensureAppleCtx: jest.fn(),
@@ -16,7 +17,7 @@ export function createCtxMock(mockOverride: Record<string, any> = {}): Context {
     },
     hasAppleCtx: jest.fn(() => true),
     hasProjectContext: true,
-    manifest: testAppJson,
+    exp: testAppJson,
     projectDir: '.',
   };
   return merge(defaultMock, mockOverride) as any;

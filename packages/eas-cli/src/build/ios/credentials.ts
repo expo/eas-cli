@@ -47,9 +47,9 @@ export async function resolveIosCredentialsAsync(
   options: { nonInteractive: boolean }
 ): Promise<CredentialsResult<IosCredentials>> {
   const provider = new IosCredentialsProvider(
-    await createCredentialsContextAsync(projectDir, {}),
+    await createCredentialsContextAsync(projectDir, { nonInteractive: options.nonInteractive }),
     params.app,
-    { nonInteractive: options.nonInteractive }
+    {}
   );
   const credentialsSource = await ensureCredentialsAsync(
     provider,

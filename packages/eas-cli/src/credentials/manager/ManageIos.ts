@@ -3,16 +3,28 @@ import { Action, CredentialsManager } from '../CredentialsManager';
 import { Context } from '../context';
 import { CreateDistributionCertificateStandaloneManager } from '../ios/actions/CreateDistributionCertificate';
 import { RemoveDistributionCertificate } from '../ios/actions/RemoveDistributionCertificate';
+import { RemoveSpecificProvisioningProfile } from '../ios/actions/RemoveProvisioningProfile';
 import {
-  RemoveProvisioningProfile,
-  RemoveSpecificProvisioningProfile,
-} from '../ios/actions/RemoveProvisioningProfile';
-import { SetupBuildCredentials } from '../ios/actions/SetupBuildCredentials';
+  SetupBuildCredentials,
+  SetupBuildCredentialsFromCredentialsJson,
+} from '../ios/actions/SetupBuildCredentials';
+import { UpdateCredentialsJson } from '../ios/actions/UpdateCredentialsJson';
 import { UpdateDistributionCertificate } from '../ios/actions/UpdateDistributionCertificate';
 import { UseExistingDistributionCertificate } from '../ios/actions/UseDistributionCertificate';
 import { AppLookupParams } from '../ios/credentials';
 import { displayAllIosCredentials } from '../ios/utils/printCredentials';
 import { PressAnyKeyToContinue } from './HelperActions';
+
+enum ActionType {
+  SetupBuildCredentials,
+  SetupBuildCredentialsFromCredentialsJson,
+  UpdateCredentialsJson,
+  UseExistingDistributionCertificate,
+  RemoveSpecificProvisioningProfile,
+  CreateDistributionCertificate,
+  UpdateDistributionCertificate,
+  RemoveDistributionCertificate,
+}
 
 export class ManageIos implements Action {
   async runAsync(manager: CredentialsManager, ctx: Context): Promise<void> {
@@ -24,20 +36,28 @@ export class ManageIos implements Action {
 
     await displayAllIosCredentials(iosCredentials);
 
-    const projectSpecificActions: { value: string; title: string }[] = ctx.hasProjectContext
+    const projectSpecificActions: { value: ActionType; title: string }[] = ctx.hasProjectContext
       ? [
           {
             // This command will be triggered durring build to ensure all credentials are ready
             // I'm leaving it here for now to simplify testing
-            value: 'setup-build-credentials',
+            value: ActionType.SetupBuildCredentials,
             title: 'Ensure all credentials are valid',
           },
           {
-            value: 'use-existing-dist-ios',
+            value: ActionType.UpdateCredentialsJson,
+            title: 'Update credentials.json with values from Expo servers',
+          },
+          {
+            value: ActionType.SetupBuildCredentialsFromCredentialsJson,
+            title: 'Update credentials on Expo servers with values from credentials.json',
+          },
+          {
+            value: ActionType.UseExistingDistributionCertificate,
             title: 'Use existing Distribution Certificate in current project',
           },
           {
-            value: 'remove-provisioning-profile-current-project',
+            value: ActionType.RemoveSpecificProvisioningProfile,
             title: 'Remove Provisioning Profile from current project',
           },
         ]
@@ -49,12 +69,17 @@ export class ManageIos implements Action {
       message: 'What do you want to do?',
       choices: [
         ...projectSpecificActions,
-        { value: 'create-ios-dist', title: 'Add new Distribution Certificate' },
-        { value: 'remove-ios-dist', title: 'Remove Distribution Certificate' },
-        { value: 'update-ios-dist', title: 'Update Distribution Certificate' },
         {
-          value: 'remove-provisioning-profile',
-          title: 'Remove Provisioning Profile',
+          value: ActionType.CreateDistributionCertificate,
+          title: 'Add new Distribution Certificate',
+        },
+        {
+          value: ActionType.UpdateDistributionCertificate,
+          title: 'Remove Distribution Certificate',
+        },
+        {
+          value: ActionType.RemoveDistributionCertificate,
+          title: 'Update Distribution Certificate',
         },
       ],
     });
@@ -78,28 +103,34 @@ export class ManageIos implements Action {
     manager: CredentialsManager,
     ctx: Context,
     accountName: string,
-    action: string
+    action: ActionType
   ): Action {
     switch (action) {
-      case 'create-ios-dist':
+      case ActionType.CreateDistributionCertificate:
         return new CreateDistributionCertificateStandaloneManager(accountName);
-      case 'update-ios-dist':
+      case ActionType.UpdateDistributionCertificate:
         return new UpdateDistributionCertificate(accountName);
-      case 'remove-ios-dist':
+      case ActionType.RemoveDistributionCertificate:
         return new RemoveDistributionCertificate(accountName);
-      case 'remove-provisioning-profile':
-        return new RemoveProvisioningProfile(accountName);
-      case 'use-existing-dist-ios': {
+      case ActionType.UseExistingDistributionCertificate: {
         const app = this.getAppLookupParamsFromContext(ctx);
         return new UseExistingDistributionCertificate(app);
       }
-      case 'setup-build-credentials': {
+      case ActionType.SetupBuildCredentials: {
         const app = this.getAppLookupParamsFromContext(ctx);
         return new SetupBuildCredentials(app);
       }
-      case 'remove-provisioning-profile-current-project': {
+      case ActionType.RemoveSpecificProvisioningProfile: {
         const app = this.getAppLookupParamsFromContext(ctx);
         return new RemoveSpecificProvisioningProfile(app);
+      }
+      case ActionType.UpdateCredentialsJson: {
+        const app = this.getAppLookupParamsFromContext(ctx);
+        return new UpdateCredentialsJson(app);
+      }
+      case ActionType.SetupBuildCredentialsFromCredentialsJson: {
+        const app = this.getAppLookupParamsFromContext(ctx);
+        return new SetupBuildCredentialsFromCredentialsJson(app);
       }
       default:
         throw new Error('Unknown action selected');

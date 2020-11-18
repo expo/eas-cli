@@ -52,6 +52,27 @@ export class EasJsonReader {
     };
   }
 
+  public async validateAsync(): Promise<void> {
+    const easJson = await this.readRawAsync();
+
+    for (const [name, profile] of Object.entries(easJson.builds?.android ?? {})) {
+      try {
+        await this.validateBuildProfile(Platform.Android, name, profile);
+      } catch (err) {
+        err.msg = `Failed to validate Android build profile "${name}"\n${err.msg}`;
+        throw err;
+      }
+    }
+    for (const [name, profile] of Object.entries(easJson.builds?.ios ?? {})) {
+      try {
+        await this.validateBuildProfile(Platform.iOS, name, profile);
+      } catch (err) {
+        err.msg = `Failed to validate iOS build profile "${name}"\n${err.msg}`;
+        throw err;
+      }
+    }
+  }
+
   public async readRawAsync(): Promise<EasJson> {
     const rawFile = await fs.readFile(path.join(this.projectDir, 'eas.json'), 'utf-8');
     const json = JSON.parse(rawFile);
@@ -67,7 +88,7 @@ export class EasJsonReader {
   }
 
   private validateBuildProfile<T extends BuildProfile>(
-    platform: 'android' | 'ios' | 'all',
+    platform: Platform,
     buildProfileName: string,
     buildProfile?: BuildProfilePreValidation
   ): T {
