@@ -1,18 +1,7 @@
-import { getConfig } from '@expo/config';
 import * as uuid from 'uuid';
 
-import { ensureProjectExistsAsync } from '../project/ensureProjectExists';
-import { getProjectAccountNameAsync } from '../project/projectUtils';
 import { ArchiveFileSource, ArchiveFileSourceType } from './archiveSource';
 import { AndroidSubmissionContext, IosSubmissionContext, SubmissionPlatform } from './types';
-
-export async function getProjectIdAsync(projectDir: string): Promise<string> {
-  const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
-  return await ensureProjectExistsAsync({
-    accountName: await getProjectAccountNameAsync(projectDir),
-    projectName: exp.slug,
-  });
-}
 
 export function resolveArchiveFileSource(
   platform: SubmissionPlatform,
