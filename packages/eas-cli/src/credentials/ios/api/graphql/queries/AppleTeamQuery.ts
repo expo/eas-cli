@@ -1,26 +1,25 @@
 import gql from 'graphql-tag';
 
-import { graphqlClient, withErrorHandlingAsync } from '../../client';
-import { AppleTeam } from '../../types/credentials/AppleTeam';
+import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
+import { AppleTeam, AppleTeamFragment } from '../../../../../graphql/types/credentials/AppleTeam';
 
 const AppleTeamQuery = {
   async byAppleTeamIdentifierAsync(
     accountId: string,
     appleTeamIdentifier: string
-  ): Promise<AppleTeam> {
+  ): Promise<AppleTeam | null> {
     const data = await withErrorHandlingAsync(
       graphqlClient
-        .query<{ appleTeam: { byAppleTeamIdentifier: AppleTeam } }>(
+        .query<{ appleTeam: { byAppleTeamIdentifier: AppleTeam | null } }>(
           gql`
             query($accountId: ID!, $appleTeamIdentifier: String!) {
               appleTeam {
                 byAppleTeamIdentifier(accountId: $accountId, identifier: $appleTeamIdentifier) {
-                  id
-                  appleTeamIdentifier
-                  appleTeamName
+                  ...${AppleTeamFragment.name}
                 }
               }
             }
+            ${AppleTeamFragment.definition}
           `,
           {
             accountId,

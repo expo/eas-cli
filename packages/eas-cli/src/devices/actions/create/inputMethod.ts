@@ -2,7 +2,7 @@ import chalk from 'chalk';
 import Table from 'cli-table3';
 import ora from 'ora';
 
-import { AppleDeviceMutation } from '../../../graphql/mutations/credentials/AppleDeviceMutation';
+import { AppleDeviceMutation } from '../../../credentials/ios/api/graphql/mutations/AppleDeviceMutation';
 import { AppleDeviceClass } from '../../../graphql/types/credentials/AppleDevice';
 import { AppleTeam } from '../../../graphql/types/credentials/AppleTeam';
 import log from '../../../log';

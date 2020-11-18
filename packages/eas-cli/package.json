@@ -34,6 +34,7 @@
     "minimatch": "^3.0.4",
     "node-fetch": "^2.6.1",
     "node-forge": "^0.10.0",
+    "nullthrows": "^1.1.1",
     "ora": "^5.1.0",
     "pkg-dir": "^4.2.0",
     "progress": "^2.0.3",
