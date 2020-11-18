@@ -1,7 +1,7 @@
 import { BundleId, CapabilityType, CapabilityTypeOption } from '@expo/apple-utils';
 import ora from 'ora';
 
-import { AuthCtx, ensureAuthenticatedAsync } from './authenticate';
+import { AuthCtx } from './authenticate';
 import { USE_APPLE_UTILS } from './experimental';
 import { runActionAsync, travelingFastlane } from './fastlane';
 
@@ -16,15 +16,12 @@ export interface AppLookupParams {
 }
 
 async function ensureBundleIdExistsAsync(
-  appleCtx: Omit<AuthCtx, 'fastlaneSession'>,
   { accountName, projectName, bundleIdentifier }: AppLookupParams,
   options: EnsureAppExistsOptions = {}
 ) {
   let spinner = ora(`Registering Bundle ID "${bundleIdentifier}"`).start();
 
   try {
-    appleCtx = await ensureAuthenticatedAsync(appleCtx);
-
     // Get the bundle id
     let bundleId = await BundleId.findAsync({ identifier: bundleIdentifier });
 
@@ -63,15 +60,13 @@ async function ensureBundleIdExistsAsync(
 }
 
 export async function ensureAppExistsAsync(
-  appleCtx: Omit<AuthCtx, 'fastlaneSession'>,
+  { appleId, appleIdPassword, team }: Pick<AuthCtx, 'appleId' | 'appleIdPassword' | 'team'>,
   app: AppLookupParams,
   options: EnsureAppExistsOptions = {}
 ) {
   if (USE_APPLE_UTILS) {
-    return await ensureBundleIdExistsAsync(appleCtx, app, options);
+    return await ensureBundleIdExistsAsync(app, options);
   }
-
-  const { appleId, appleIdPassword, team } = appleCtx;
 
   const spinner = ora(`Ensuring App ID exists on Apple Developer Portal...`).start();
   try {

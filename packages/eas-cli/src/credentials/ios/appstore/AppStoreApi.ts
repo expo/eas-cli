@@ -15,6 +15,7 @@ import {
   revokeDistributionCertificateAsync,
 } from './distributionCertificate';
 import { AppLookupParams, EnsureAppExistsOptions, ensureAppExistsAsync } from './ensureAppExists';
+import { USE_APPLE_UTILS } from './experimental';
 import {
   createProvisioningProfileAsync,
   listProvisioningProfilesAsync,
@@ -43,7 +44,10 @@ class AppStoreApi {
 
   public async ensureAuthenticatedAsync(): Promise<AuthCtx> {
     if (!this._authCtx) {
-      await checkWSLAsync();
+      if (!USE_APPLE_UTILS) {
+        // Only check Fastlane compat when using Fastlane (default).
+        await checkWSLAsync();
+      }
       this._authCtx = await authenticateAsync(this.options);
     }
     return this._authCtx;

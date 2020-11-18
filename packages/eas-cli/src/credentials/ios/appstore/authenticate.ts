@@ -1,5 +1,4 @@
 import { Auth, InvalidUserCredentialsError, Session, Teams } from '@expo/apple-utils';
-import assert from 'assert';
 import chalk from 'chalk';
 import wordwrap from 'wordwrap';
 
@@ -50,29 +49,6 @@ export type AuthCtx = {
    */
   cookies?: Session.AuthState['cookies'];
 };
-
-export async function ensureAuthenticatedAsync(appleCtx: AuthCtx): Promise<AuthCtx> {
-  assert(
-    USE_APPLE_UTILS,
-    'ensureAuthenticatedAsync can only be used with the experimental apple auth'
-  );
-
-  // Check if the current session from the server exists.
-  // This check happens without performing a rate-limited network request to Apple.
-  if (!Session.getSessionInfo()) {
-    // Attempt to authenticate.
-    appleCtx = await authenticateWithExperimentalAsync({
-      appleId: appleCtx.appleId,
-      teamId: appleCtx.team.id,
-      cookies: appleCtx.cookies,
-    });
-  } else {
-    // Set the team id in the case where the user is authenticated but a new team was selected (shouldn't happen).
-    Teams.setSelectedTeamId(appleCtx.team.id);
-  }
-
-  return appleCtx;
-}
 
 async function authenticateWithExperimentalAsync(options: Options = {}): Promise<AuthCtx> {
   const { appleId, appleIdPassword } = await requestAppleCredentialsAsync(options);
