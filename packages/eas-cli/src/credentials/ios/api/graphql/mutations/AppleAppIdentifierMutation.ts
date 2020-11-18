@@ -1,10 +1,10 @@
 import gql from 'graphql-tag';
 
-import { graphqlClient, withErrorHandlingAsync } from '../../client';
+import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
 import {
   AppleAppIdentifier,
   AppleAppIdentifierFragment,
-} from '../../types/credentials/AppleAppIdentifier';
+} from '../../../../../graphql/types/credentials/AppleAppIdentifier';
 
 const AppleAppIdentifierMutation = {
   async createAppleAppIdentifierAsync(

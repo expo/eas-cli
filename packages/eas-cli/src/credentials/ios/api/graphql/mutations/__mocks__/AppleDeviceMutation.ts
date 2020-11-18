@@ -1,4 +1,4 @@
-import { AppleDevice } from '../../../types/credentials/AppleDevice';
+import { AppleDevice } from '../../../../../../graphql/types/credentials/AppleDevice';
 
 const AppleDeviceMutation = {
   createAppleDeviceAsync: jest.fn().mockImplementation(() => {

@@ -1,14 +1,14 @@
 import gql from 'graphql-tag';
 
-import { graphqlClient, withErrorHandlingAsync } from '../../client';
-import { AppleAppIdentifierFragment } from '../../types/credentials/AppleAppIdentifier';
-import { AppleDeviceFragment } from '../../types/credentials/AppleDevice';
+import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
+import { AppleAppIdentifierFragment } from '../../../../../graphql/types/credentials/AppleAppIdentifier';
+import { AppleDeviceFragment } from '../../../../../graphql/types/credentials/AppleDevice';
 import {
   AppleProvisioningProfile,
   AppleProvisioningProfileFragment,
-} from '../../types/credentials/AppleProvisioningProfile';
-import { AppleTeamFragment } from '../../types/credentials/AppleTeam';
-import { IosDistributionType } from '../../types/credentials/IosAppBuildCredentials';
+} from '../../../../../graphql/types/credentials/AppleProvisioningProfile';
+import { AppleTeamFragment } from '../../../../../graphql/types/credentials/AppleTeam';
+import { IosDistributionType } from '../../../../../graphql/types/credentials/IosAppBuildCredentials';
 
 const AppleProvisioningProfileQuery = {
   async getForAppAsync(

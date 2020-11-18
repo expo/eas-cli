@@ -1,10 +1,10 @@
 import gql from 'graphql-tag';
 
-import { graphqlClient, withErrorHandlingAsync } from '../../client';
+import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
 import {
   IosAppCredentials,
   IosAppCredentialsFragment,
-} from '../../types/credentials/IosAppCredentials';
+} from '../../../../../graphql/types/credentials/IosAppCredentials';
 
 const IosAppCredentialsMutation = {
   async createIosAppCredentialsAsync(

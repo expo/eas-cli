@@ -1,4 +1,4 @@
-import { AppleTeam } from '../../../types/credentials/AppleTeam';
+import { AppleTeam } from '../../../../../../graphql/types/credentials/AppleTeam';
 
 const AppleTeamQuery = {
   byAppleTeamIdentifierAsync: jest.fn().mockImplementation(() => {

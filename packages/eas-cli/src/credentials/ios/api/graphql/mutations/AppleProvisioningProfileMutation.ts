@@ -1,11 +1,11 @@
 import gql from 'graphql-tag';
 
-import { graphqlClient, withErrorHandlingAsync } from '../../client';
+import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
 import {
   AppleProvisioningProfile,
   AppleProvisioningProfileFragment,
-} from '../../types/credentials/AppleProvisioningProfile';
-import { AppleTeamFragment } from '../../types/credentials/AppleTeam';
+} from '../../../../../graphql/types/credentials/AppleProvisioningProfile';
+import { AppleTeamFragment } from '../../../../../graphql/types/credentials/AppleTeam';
 
 const AppleProvisioningProfileMutation = {
   async createAppleProvisioningProfileAsync(

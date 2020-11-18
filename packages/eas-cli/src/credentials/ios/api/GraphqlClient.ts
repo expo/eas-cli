@@ -1,18 +1,6 @@
 import nullthrows from 'nullthrows';
 
-import { AppleAppIdentifierMutation } from '../../../graphql/mutations/credentials/AppleAppIdentifierMutation';
-import { AppleDistributionCertificateMutation } from '../../../graphql/mutations/credentials/AppleDistributionCertificateMutation';
-import { AppleProvisioningProfileMutation } from '../../../graphql/mutations/credentials/AppleProvisioningProfileMutation';
-import { AppleTeamMutation } from '../../../graphql/mutations/credentials/AppleTeamMutation';
-import { IosAppBuildCredentialsMutation } from '../../../graphql/mutations/credentials/IosAppBuildCredentialsMutation';
-import { IosAppCredentialsMutation } from '../../../graphql/mutations/credentials/IosAppCredentialsMutation';
 import { AppQuery } from '../../../graphql/queries/AppQuery';
-import { AppleAppIdentifierQuery } from '../../../graphql/queries/credentials/AppleAppIdentifierQuery';
-import { AppleDeviceQuery } from '../../../graphql/queries/credentials/AppleDeviceQuery';
-import { AppleDistributionCertificateQuery } from '../../../graphql/queries/credentials/AppleDistributionCertificateQuery';
-import { AppleProvisioningProfileQuery } from '../../../graphql/queries/credentials/AppleProvisioningProfileQuery';
-import { AppleTeamQuery } from '../../../graphql/queries/credentials/AppleTeamQuery';
-import { IosAppCredentialsQuery } from '../../../graphql/queries/credentials/IosAppCredentialsQuery';
 import { App } from '../../../graphql/types/App';
 import { AppleAppIdentifier } from '../../../graphql/types/credentials/AppleAppIdentifier';
 import { AppleDevice } from '../../../graphql/types/credentials/AppleDevice';
@@ -26,6 +14,18 @@ import {
 import { IosAppCredentials } from '../../../graphql/types/credentials/IosAppCredentials';
 import { Account } from '../../../user/Account';
 import { DistributionCertificate } from '../appstore/Credentials.types';
+import { AppleAppIdentifierMutation } from './graphql/mutations/AppleAppIdentifierMutation';
+import { AppleDistributionCertificateMutation } from './graphql/mutations/AppleDistributionCertificateMutation';
+import { AppleProvisioningProfileMutation } from './graphql/mutations/AppleProvisioningProfileMutation';
+import { AppleTeamMutation } from './graphql/mutations/AppleTeamMutation';
+import { IosAppBuildCredentialsMutation } from './graphql/mutations/IosAppBuildCredentialsMutation';
+import { IosAppCredentialsMutation } from './graphql/mutations/IosAppCredentialsMutation';
+import { AppleAppIdentifierQuery } from './graphql/queries/AppleAppIdentifierQuery';
+import { AppleDeviceQuery } from './graphql/queries/AppleDeviceQuery';
+import { AppleDistributionCertificateQuery } from './graphql/queries/AppleDistributionCertificateQuery';
+import { AppleProvisioningProfileQuery } from './graphql/queries/AppleProvisioningProfileQuery';
+import { AppleTeamQuery } from './graphql/queries/AppleTeamQuery';
+import { IosAppCredentialsQuery } from './graphql/queries/IosAppCredentialsQuery';
 
 export interface AppLookupParams {
   account: Account;

@@ -1,8 +1,8 @@
 import assert from 'assert';
 import chalk from 'chalk';
 
-import { AppleTeamMutation } from '../graphql/mutations/credentials/AppleTeamMutation';
-import { AppleTeamQuery } from '../graphql/queries/credentials/AppleTeamQuery';
+import { AppleTeamMutation } from '../credentials/ios/api/graphql/mutations/AppleTeamMutation';
+import { AppleTeamQuery } from '../credentials/ios/api/graphql/queries/AppleTeamQuery';
 import { AppleTeam } from '../graphql/types/credentials/AppleTeam';
 import log from '../log';
 import { getProjectAccountNameAsync } from '../project/projectUtils';

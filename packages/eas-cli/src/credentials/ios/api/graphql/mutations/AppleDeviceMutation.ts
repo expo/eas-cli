@@ -1,11 +1,11 @@
 import gql from 'graphql-tag';
 
-import { graphqlClient, withErrorHandlingAsync } from '../../client';
+import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
 import {
   AppleDevice,
   AppleDeviceClass,
   AppleDeviceFragment,
-} from '../../types/credentials/AppleDevice';
+} from '../../../../../graphql/types/credentials/AppleDevice';
 
 const AppleDeviceMutation = {
   async createAppleDeviceAsync(

@@ -1,7 +1,7 @@
 import prompts from 'prompts';
 
 import { asMock } from '../../../../__tests__/utils';
-import { AppleDeviceMutation } from '../../../../graphql/mutations/credentials/AppleDeviceMutation';
+import { AppleDeviceMutation } from '../../../../credentials/ios/api/graphql/mutations/AppleDeviceMutation';
 import { AppleDeviceClass } from '../../../../graphql/types/credentials/AppleDevice';
 import { AppleTeam } from '../../../../graphql/types/credentials/AppleTeam';
 import { runInputMethodAsync } from '../inputMethod';
