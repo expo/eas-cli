@@ -36,7 +36,7 @@ async function ensureBundleIdExistsAsync(
       spinner.succeed(`Registered Bundle ID "${bundleIdentifier}"`);
     }
 
-    spinner = ora(`Syncing app capabilities`).start();
+    spinner = ora(`Updating app capabilities`).start();
 
     // Update the capabilities
     await bundleId.updateBundleIdCapabilityAsync({
@@ -44,7 +44,7 @@ async function ensureBundleIdExistsAsync(
       option: options.enablePushNotifications ? CapabilityTypeOption.ON : CapabilityTypeOption.OFF,
       // TODO: Add more capabilities
     });
-    spinner.succeed(`Sync'd app capabilities`);
+    spinner.succeed(`Updated app capabilities`);
   } catch (err) {
     if (err.message.match(/An App ID with Identifier '(.*)' is not available/)) {
       spinner.fail(
