@@ -69,16 +69,12 @@ export default class ReleaseCreate extends Command {
     const projectId = await getProjectIdAsync(projectDir);
 
     if (!releaseName) {
-      const userInput = await promptAsync({
+      ({ releaseName } = await promptAsync({
         type: 'text',
         name: 'releaseName',
         message: 'Please name the release:',
-      });
-      releaseName = userInput.releaseName;
-    }
-    if (!releaseName) {
-      log.error('You must specify a releaseName.');
-      return;
+        validate: value => value ? true : 'Release name may not be empty.',
+      }));
     }
 
     try {
