@@ -25,7 +25,7 @@ export async function runStandaloneCredentialsManagerAsync(
 
 export async function runCredentialsManagerAsync(ctx: Context, startAction: Action): Promise<void> {
   const manager = new CredentialsManagerImpl(ctx, startAction);
-  await manager.runManagerAsync(false);
+  await manager.runManagerAsync();
 }
 
 class CredentialsManagerImpl implements CredentialsManager {
@@ -44,10 +44,10 @@ class CredentialsManagerImpl implements CredentialsManager {
   }
 
   public async runActionAsync(action: Action) {
-    await new CredentialsManagerImpl(this.ctx, action).doRunManagerAsync(false);
+    await new CredentialsManagerImpl(this.ctx, action).doRunManagerAsync();
   }
 
-  public async runManagerAsync(isStandaloneManager: boolean): Promise<void> {
+  public async runManagerAsync(isStandaloneManager: boolean = false): Promise<void> {
     try {
       await this.doRunManagerAsync(isStandaloneManager);
     } catch (error) {
@@ -58,7 +58,7 @@ class CredentialsManagerImpl implements CredentialsManager {
     }
   }
 
-  private async doRunManagerAsync(isStandaloneManager: boolean): Promise<void> {
+  private async doRunManagerAsync(isStandaloneManager: boolean = false): Promise<void> {
     while (true) {
       try {
         const currentAction = this.popAction();
