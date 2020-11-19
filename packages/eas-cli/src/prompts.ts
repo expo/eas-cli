@@ -32,3 +32,26 @@ export async function confirmAsync(
   );
   return value;
 }
+
+/**
+ * Create a more dynamic yes/no confirmation that can be cancelled.
+ *
+ * @param questions
+ * @param options
+ */
+export async function toggleConfirmAsync(
+  questions: NamelessQuestion,
+  options?: Options
+): Promise<boolean> {
+  const { value } = await promptAsync(
+    {
+      active: 'yes',
+      inactive: 'no',
+      ...questions,
+      name: 'value',
+      type: 'toggle',
+    },
+    options
+  );
+  return value ?? null;
+}
