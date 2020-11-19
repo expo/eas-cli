@@ -1,5 +1,10 @@
+import chalk from 'chalk';
+
+import log from '../../../log';
 import { Action, CredentialsManager } from '../../CredentialsManager';
 import { Context } from '../../context';
+import { readAndroidCredentialsAsync } from '../../credentialsJson/read';
+import { validateKeystoreAsync } from '../utils/keystore';
 import { UpdateKeystore } from './UpdateKeystore';
 
 export class SetupBuildCredentials implements Action {
@@ -14,5 +19,29 @@ export class SetupBuildCredentials implements Action {
     }
 
     manager.pushNextAction(new UpdateKeystore(this.projectFullName));
+  }
+}
+
+export class SetupBuildCredentialsFromCredentialsJson implements Action {
+  constructor(
+    private projectFullName: string,
+    private options: { skipKeystoreValidation: boolean }
+  ) {}
+
+  async runAsync(manager: CredentialsManager, ctx: Context): Promise<void> {
+    let localCredentials;
+    try {
+      localCredentials = await readAndroidCredentialsAsync(ctx.projectDir);
+    } catch (error) {
+      log.error(
+        'Reading credentials from credentials.json failed. Make sure this file is correct and all credentials are present there.'
+      );
+      throw error;
+    }
+    if (!this.options.skipKeystoreValidation) {
+      await validateKeystoreAsync(localCredentials.keystore);
+    }
+    await ctx.android.updateKeystoreAsync(this.projectFullName, localCredentials.keystore);
+    log(chalk.green('Keystore updated successfully.'));
   }
 }

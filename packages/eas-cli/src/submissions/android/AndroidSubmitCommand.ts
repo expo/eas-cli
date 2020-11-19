@@ -2,8 +2,9 @@ import { getConfig } from '@expo/config';
 import { Result, result } from '@expo/results';
 
 import log from '../../log';
+import { getProjectIdAsync } from '../../project/projectUtils';
 import { ArchiveSource, ArchiveTypeSource, ArchiveTypeSourceType } from '../archiveSource';
-import { getProjectIdAsync, resolveArchiveFileSource } from '../commons';
+import { resolveArchiveFileSource } from '../commons';
 import {
   AndroidArchiveType,
   AndroidSubmissionContext,

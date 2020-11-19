@@ -5,6 +5,7 @@ import log from '../../log';
 import { runCredentialsManagerAsync } from '../CredentialsManager';
 import { CredentialsProvider } from '../CredentialsProvider';
 import { Context } from '../context';
+import * as credentialsJsonReader from '../credentialsJson/read';
 import { SetupBuildCredentials } from './actions/SetupBuildCredentials';
 
 export interface IosCredentials {
@@ -30,7 +31,6 @@ interface AppLookupParams {
 }
 
 interface Options {
-  nonInteractive: boolean;
   skipCredentialsCheck?: boolean;
 }
 
@@ -46,15 +46,26 @@ export default class IosCredentialsProvider implements CredentialsProvider {
   }
 
   public async hasLocalAsync(): Promise<boolean> {
-    return false;
+    if (!(await credentialsJsonReader.fileExistsAsync(this.ctx.projectDir))) {
+      return false;
+    }
+    try {
+      const rawCredentialsJson = await credentialsJsonReader.readRawAsync(this.ctx.projectDir);
+      return !!rawCredentialsJson?.ios;
+    } catch (err) {
+      log.error(err); // malformed json
+      return false;
+    }
   }
 
   public async isLocalSyncedAsync(): Promise<boolean> {
     try {
       const [remote, local] = await Promise.all([this.fetchRemoteAsync(), this.getLocalAsync()]);
       const r = remote;
-      const l = local as IosCredentials; // ts definion can't resolve return type correctly
+      const l = local;
       return !!(
+        r &&
+        l &&
         r.provisioningProfile === l.provisioningProfile &&
         r.distributionCertificate?.certP12 === l.distributionCertificate.certP12 &&
         r.distributionCertificate?.certPassword === l.distributionCertificate.certPassword
@@ -76,7 +87,7 @@ export default class IosCredentialsProvider implements CredentialsProvider {
   }
 
   private async getLocalAsync(): Promise<IosCredentials> {
-    throw new Error('not implemented');
+    return await credentialsJsonReader.readIosCredentialsAsync(this.ctx.projectDir);
   }
 
   private async getRemoteAsync(): Promise<IosCredentials> {

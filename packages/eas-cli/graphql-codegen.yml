@@ -1,0 +1,12 @@
+overwrite: true
+schema: 'https://staging.exp.host/--/graphql'
+documents:
+  - 'src/graphql/**/!(*.d).{ts,tsx}'
+generates:
+  src/graphql/generated.tsx:
+    plugins:
+      - 'typescript'
+      - 'typescript-operations'
+    hooks:
+      afterOneFileWrite:
+        - ./annotate-graphql-codegen.sh

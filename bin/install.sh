@@ -12,7 +12,7 @@
   prefix="${EAS_PREFIX:-/usr/local}"
   temp_dir="$(mktemp -d)"
   
-  if  [ -t 1 ] && [ -z "$NO_COLOR" ]
+  if  [ -t 1 ] && [ -z "${NO_COLOR:-}" ]
   then
     # Use colors when stdout is a terminal and NO_COLOR isn't set.
     text_bold=$'\033[1m'

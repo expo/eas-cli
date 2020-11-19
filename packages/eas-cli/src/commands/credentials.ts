@@ -1,6 +1,6 @@
 import { Command } from '@oclif/command';
 
-import { runCredentialsManagerAsync } from '../credentials/CredentialsManager';
+import { runStandaloneCredentialsManagerAsync } from '../credentials/CredentialsManager';
 import { createCredentialsContextAsync } from '../credentials/context';
 import { SelectPlatform } from '../credentials/manager/SelectPlatform';
 
@@ -9,6 +9,6 @@ export default class Credentials extends Command {
 
   async run() {
     const ctx = await createCredentialsContextAsync(process.cwd(), {});
-    await runCredentialsManagerAsync(ctx, new SelectPlatform());
+    await runStandaloneCredentialsManagerAsync(ctx, new SelectPlatform());
   }
 }

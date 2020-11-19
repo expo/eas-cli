@@ -8,6 +8,7 @@ import { User } from '../user/User';
 import { ensureLoggedInAsync } from '../user/actions';
 import AndroidApi from './android/api/Client';
 import iOSApi from './ios/api/Client';
+import * as IosGraphqlClient from './ios/api/GraphqlClient';
 import AppStoreApi from './ios/appstore/AppStoreApi';
 
 interface AppleCtxOptions {
@@ -26,6 +27,7 @@ export interface Context {
   readonly nonInteractive: boolean;
   readonly android: AndroidApi;
   readonly ios: iOSApi;
+  readonly newIos: typeof IosGraphqlClient;
   readonly appStore: AppStoreApi;
   readonly hasProjectContext: boolean;
   readonly exp: ExpoConfig;
@@ -54,6 +56,7 @@ export async function createCredentialsContextAsync(
 class CredentialsContext implements Context {
   public readonly android = new AndroidApi();
   public readonly ios = new iOSApi();
+  public readonly newIos = IosGraphqlClient;
   public readonly appStore: AppStoreApi;
   public readonly nonInteractive: boolean;
   private shouldAskAuthenticateAppStore: boolean = true;

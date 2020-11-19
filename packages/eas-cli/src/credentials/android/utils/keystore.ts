@@ -2,6 +2,7 @@ import spawnAsync from '@expo/spawn-async';
 import crypto from 'crypto';
 import fs from 'fs-extra';
 import path from 'path';
+import tempy from 'tempy';
 import { v4 as uuidv4 } from 'uuid';
 
 import log from '../../../log';
@@ -127,4 +128,25 @@ export async function generateRandomKeystoreAsync(): Promise<Keystore> {
     keyAlias: crypto.randomBytes(16).toString('hex'),
   };
   return await createKeystoreAsync(keystoreData);
+}
+
+export async function validateKeystoreAsync(keystore: Keystore): Promise<void> {
+  await ensureKeytoolCommandExistsAsync();
+  try {
+    await tempy.write.task(Buffer.from(keystore.keystore, 'base64'), async keystorePath => {
+      await spawnAsync('keytool', [
+        '-list',
+        '-keystore',
+        keystorePath,
+        '-storepass',
+        keystore.keystorePassword,
+        '-alias',
+        keystore.keyAlias,
+      ]);
+    });
+  } catch (e) {
+    throw new Error(
+      `An error occurred when validating the Android keystore: ${e.stdout ?? e.message}`
+    );
+  }
 }

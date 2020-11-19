@@ -1,4 +1,5 @@
 import { User } from './User';
+import { AppleDistributionCertificate } from './credentials/AppleDistributionCertificate';
 
 export interface Account {
   id: string;
@@ -10,5 +11,5 @@ export interface Account {
   createdAt: Date;
   updatedAt: Date;
   owner?: User;
-  //...
+  appleDistributionCertificates?: AppleDistributionCertificate[];
 }

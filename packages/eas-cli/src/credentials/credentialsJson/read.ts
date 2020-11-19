@@ -4,7 +4,7 @@ import path from 'path';
 
 import { Keystore } from '../android/credentials';
 
-interface CredentialsJson {
+export interface CredentialsJson {
   android?: {
     keystore: {
       keystorePath: string;
@@ -32,7 +32,7 @@ const CredentialsJsonSchema = Joi.object({
       keystorePassword: Joi.string().required(),
       keyAlias: Joi.string().required(),
       keyPassword: Joi.string().required(),
-    }),
+    }).required(),
   }),
   ios: Joi.object({
     provisioningProfilePath: Joi.string().required(),

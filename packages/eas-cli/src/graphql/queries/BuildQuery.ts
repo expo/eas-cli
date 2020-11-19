@@ -16,7 +16,7 @@ const BuildQuery = {
       graphqlClient
         .query<{ builds: { byId: BuildQueryResult } }>(
           gql`
-            query($buildId: ID!) {
+            query BuildsByIdQuery($buildId: ID!) {
               builds {
                 byId(buildId: $buildId) {
                   platform
@@ -40,7 +40,7 @@ const BuildQuery = {
         .query<{ builds: { allForApp: BuildQueryResult[] } }>(
           // TODO: Change $appId: String! to ID! when fixed server-side schema
           gql`
-            query(
+            query BuildsForAppQuery(
               $appId: String!
               $limit: Int
               $offset: Int

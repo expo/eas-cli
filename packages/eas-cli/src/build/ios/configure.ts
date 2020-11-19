@@ -31,7 +31,7 @@ export async function configureIosAsync(ctx: ConfigureContext): Promise<void> {
   log.withTick('Configured the Xcode project.');
 }
 
-export async function syncProjectConfigurationAsync(
+export async function validateAndSyncProjectConfigurationAsync(
   projectDir: string,
   exp: ExpoConfig
 ): Promise<void> {

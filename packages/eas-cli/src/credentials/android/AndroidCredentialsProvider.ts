@@ -1,9 +1,11 @@
 import { CredentialsSource } from '@eas/config';
 import { Platform } from '@expo/eas-build-job';
 
+import log from '../../log';
 import { runCredentialsManagerAsync } from '../CredentialsManager';
 import { CredentialsProvider } from '../CredentialsProvider';
 import { Context } from '../context';
+import * as credentialsJsonReader from '../credentialsJson/read';
 import { SetupBuildCredentials } from './actions/SetupBuildCredentials';
 import { Keystore } from './credentials';
 
@@ -16,14 +18,10 @@ interface AppLookupParams {
   accountName: string;
 }
 
-interface Options {
-  nonInteractive: boolean;
-}
-
 export default class AndroidCredentialsProvider implements CredentialsProvider {
   public readonly platform = Platform.Android;
 
-  constructor(private ctx: Context, private app: AppLookupParams, options: Options) {}
+  constructor(private ctx: Context, private app: AppLookupParams) {}
 
   private get projectFullName(): string {
     const { projectName, accountName } = this.app;
@@ -36,11 +34,37 @@ export default class AndroidCredentialsProvider implements CredentialsProvider {
   }
 
   public async hasLocalAsync(): Promise<boolean> {
-    return false; // TODO
+    if (!(await credentialsJsonReader.fileExistsAsync(this.ctx.projectDir))) {
+      return false;
+    }
+    try {
+      const rawCredentialsJson = await credentialsJsonReader.readRawAsync(this.ctx.projectDir);
+      return !!rawCredentialsJson?.android;
+    } catch (err) {
+      log.error(err); // malformed json
+      return false;
+    }
   }
 
   public async isLocalSyncedAsync(): Promise<boolean> {
-    return false;
+    try {
+      const [remote, local] = await Promise.all([
+        this.ctx.android.fetchKeystoreAsync(this.projectFullName),
+        credentialsJsonReader.readAndroidCredentialsAsync(this.ctx.projectDir),
+      ]);
+      const r = remote;
+      const l = local?.keystore;
+      return !!(
+        r &&
+        l &&
+        r.keystore === l.keystore &&
+        r.keystorePassword === l.keystorePassword &&
+        r.keyAlias === l.keyAlias &&
+        r.keyPassword === l.keyPassword
+      );
+    } catch (_) {
+      return false;
+    }
   }
 
   public async getCredentialsAsync(
@@ -59,12 +83,12 @@ export default class AndroidCredentialsProvider implements CredentialsProvider {
     await runCredentialsManagerAsync(this.ctx, new SetupBuildCredentials(this.projectFullName));
     const keystore = await this.ctx.android.fetchKeystoreAsync(this.projectFullName);
     if (!keystore) {
-      throw new Error('Unable to set up credentials');
+      throw new Error('Unable to set up credentials, failed to fetch keystore from Expo servers');
     }
     return { keystore };
   }
 
   private async getLocalAsync(): Promise<AndroidCredentials> {
-    throw new Error('not implemented');
+    return await credentialsJsonReader.readAndroidCredentialsAsync(this.ctx.projectDir);
   }
 }

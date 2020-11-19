@@ -8,6 +8,7 @@ import { CredentialsResult, startBuildForPlatformAsync } from '../build';
 import { BuildContext, CommandContext, createBuildContext } from '../context';
 import { ensureCredentialsAsync } from '../credentials';
 import { Platform } from '../types';
+import { validateAndSyncProjectConfigurationAsync } from './configure';
 import { prepareJobAsync } from './prepareJob';
 
 export async function startAndroidBuildAsync(
@@ -26,7 +27,11 @@ export async function startAndroidBuildAsync(
     ctx: buildCtx,
     projectConfiguration: {},
     ensureCredentialsAsync: ensureAndroidCredentialsAsync,
-    ensureProjectConfiguredAsync: async () => {},
+    ensureProjectConfiguredAsync: async () => {
+      if (buildCtx.buildProfile.workflow === Workflow.Generic) {
+        await validateAndSyncProjectConfigurationAsync(commandCtx.projectDir, commandCtx.exp);
+      }
+    },
     prepareJobAsync,
   });
 }
@@ -45,12 +50,13 @@ async function ensureAndroidCredentialsAsync(
     return;
   }
   const provider = new AndroidCredentialsProvider(
-    await createCredentialsContextAsync(ctx.commandCtx.projectDir, {}),
+    await createCredentialsContextAsync(ctx.commandCtx.projectDir, {
+      nonInteractive: ctx.commandCtx.nonInteractive,
+    }),
     {
       projectName: ctx.commandCtx.projectName,
       accountName: ctx.commandCtx.accountName,
-    },
-    { nonInteractive: ctx.commandCtx.nonInteractive }
+    }
   );
   const credentialsSource = await ensureCredentialsAsync(
     provider,

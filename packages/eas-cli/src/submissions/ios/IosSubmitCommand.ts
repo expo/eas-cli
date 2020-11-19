@@ -3,10 +3,11 @@ import chalk from 'chalk';
 import wordwrap from 'wordwrap';
 
 import log from '../../log';
+import { getProjectIdAsync } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
 import UserSettings from '../../user/UserSettings';
 import { ArchiveSource, ArchiveTypeSourceType } from '../archiveSource';
-import { getProjectIdAsync, resolveArchiveFileSource } from '../commons';
+import { resolveArchiveFileSource } from '../commons';
 import { IosSubmissionContext, IosSubmitCommandFlags, SubmissionPlatform } from '../types';
 import {
   AppSpecificPasswordSource,
