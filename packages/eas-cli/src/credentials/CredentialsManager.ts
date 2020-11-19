@@ -1,3 +1,4 @@
+import log from '../log';
 import { Context } from './context';
 
 export interface CredentialsManager {
@@ -13,6 +14,14 @@ export interface Action {
 }
 
 export class QuitError extends Error {}
+
+export async function runStandaloneCredentialsManagerAsync(
+  ctx: Context,
+  startAction: Action
+): Promise<void> {
+  const manager = new CredentialsManagerImpl(ctx, startAction);
+  await manager.runManagerAsync(true);
+}
 
 export async function runCredentialsManagerAsync(ctx: Context, startAction: Action): Promise<void> {
   const manager = new CredentialsManagerImpl(ctx, startAction);
@@ -38,9 +47,9 @@ class CredentialsManagerImpl implements CredentialsManager {
     await new CredentialsManagerImpl(this.ctx, action).doRunManagerAsync();
   }
 
-  public async runManagerAsync(): Promise<void> {
+  public async runManagerAsync(isStandaloneManager: boolean = false): Promise<void> {
     try {
-      await this.doRunManagerAsync();
+      await this.doRunManagerAsync(isStandaloneManager);
     } catch (error) {
       if (error instanceof QuitError) {
         return;
@@ -49,13 +58,21 @@ class CredentialsManagerImpl implements CredentialsManager {
     }
   }
 
-  private async doRunManagerAsync(): Promise<void> {
+  private async doRunManagerAsync(isStandaloneManager: boolean = false): Promise<void> {
     while (true) {
-      const currentAction = this.popAction();
-      if (!currentAction) {
-        return;
+      try {
+        const currentAction = this.popAction();
+        if (!currentAction) {
+          return;
+        }
+        await currentAction.runAsync(this, this.ctx);
+      } catch (error) {
+        if (!isStandaloneManager || error instanceof QuitError) {
+          throw error;
+        } else {
+          log.error(error);
+        }
       }
-      await currentAction.runAsync(this, this.ctx);
     }
   }
 }
