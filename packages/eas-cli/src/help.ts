@@ -2,11 +2,9 @@ import * as Config from '@oclif/config';
 import Help from '@oclif/plugin-help';
 import CommandHelp from '@oclif/plugin-help/lib/command';
 import { compact, sortBy } from '@oclif/plugin-help/lib/util';
+import chalk from 'chalk';
 import groupBy from 'lodash/groupBy';
-import chalk, { underline } from 'chalk';
 import stripAnsi from 'strip-ansi';
-import Command from './command';
-import { Dictionary } from 'lodash';
 
 export default class CustomHelp extends Help {
   protected formatCommand(command: Config.Command): string {
