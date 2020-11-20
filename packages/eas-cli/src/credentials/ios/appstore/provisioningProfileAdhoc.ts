@@ -49,7 +49,7 @@ async function findProfileByBundleIdAsync(
 }> {
   const expoProfiles = (await getProfilesForBundleIdAsync(bundleId)).filter(profile => {
     return (
-      profile.attributes.profileType === ProfileType.IOS_APP_INHOUSE &&
+      profile.attributes.profileType === ProfileType.IOS_APP_ADHOC &&
       profile.attributes.name.startsWith('*[expo]') &&
       profile.attributes.profileState !== ProfileState.EXPIRED
     );
