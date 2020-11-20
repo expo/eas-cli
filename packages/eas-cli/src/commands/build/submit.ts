@@ -95,12 +95,16 @@ export default class BuildSubmit extends Command {
       description: 'App Store Connect unique application Apple ID number.',
       helpLabel: IOS_FLAGS,
     }),
-    'apple-team-id': flags.string(),
+    'apple-team-id': flags.string({
+      description: 'Your Apple Developer Team ID',
+    }),
     'app-name': flags.string({
       description:
-        "the name of your app as it will appear on the App Store, this can't be longer than 30 characters (default: expo.name from app.json)",
+        "The name of your app as it will appear on the App Store, this can't be longer than 30 characters (default: expo.name from app.json)",
     }),
-    'bundle-identifier': flags.string(),
+    'bundle-identifier': flags.string({
+      description: 'Your iOS Bundle Identifier (default: expo.ios.bundleIdentifier from app.json)',
+    }),
     sku: flags.string({
       description:
         'An unique ID for your app that is not visible on the App Store, will be generated unless provided',
