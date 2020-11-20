@@ -1,8 +1,13 @@
+import { getConfig } from '@expo/config';
+import chalk from 'chalk';
 import wordwrap from 'wordwrap';
 
 import { authenticateAsync } from '../../credentials/ios/appstore/authenticate';
 import log from '../../log';
+import { promptAsync } from '../../prompts';
+import { IosSubmissionContext } from '../types';
 import { runFastlaneAsync, travelingFastlane } from '../utils/fastlane';
+import { validateLanguage } from './utils/language';
 
 /////////////////////////////////////////////////////////
 
@@ -14,6 +19,7 @@ interface ProduceOptions {
   itcTeamId?: string;
   language?: string;
   companyName?: string;
+  sku?: string;
 }
 
 interface ProduceCredentials {
@@ -22,15 +28,32 @@ interface ProduceCredentials {
   appleTeamId?: string;
   itcTeamId?: string;
   companyName?: string;
+  sku?: string;
 }
 
-export async function runProduceAsync(
-  options: ProduceOptions
-): Promise<{
+type AppStoreResult = {
   appleId: string;
   appAppleId: string;
-}> {
-  const { bundleIdentifier, appName, language, companyName } = options;
+};
+
+export async function ensureAppExistsAsync(ctx: IosSubmissionContext): Promise<AppStoreResult> {
+  const { exp } = getConfig(ctx.projectDir, { skipSDKVersionRequirement: true });
+
+  const { bundleIdentifier, appName, language } = ctx.commandFlags;
+
+  const options = {
+    ...ctx.commandFlags,
+    bundleIdentifier:
+      bundleIdentifier ?? exp.ios?.bundleIdentifier ?? (await promptForBundleIdAsync()),
+    appName: appName ?? exp.name ?? (await promptForAppNameAsync()),
+    language: validateLanguage(language) ?? 'English',
+  };
+
+  return await runProduceAsync(options);
+}
+
+async function runProduceAsync(options: ProduceOptions): Promise<AppStoreResult> {
+  const { bundleIdentifier, appName, language, companyName, sku } = options;
 
   const { appleId, appleIdPassword, team } = await authenticateAsync({
     appleId: options.appleId,
@@ -41,12 +64,13 @@ export async function runProduceAsync(
     appleId,
     appleIdPassword,
     appleTeamId: team.id,
-    companyName,
   };
   const itcTeamId = options.itcTeamId ?? (await resolveItcTeamId(appleCreds));
   const updatedAppleCreds = {
     ...appleCreds,
     itcTeamId,
+    companyName,
+    sku,
   };
 
   log('Ensuring the app exists on App Store Connect, this may take a while...');
@@ -67,8 +91,6 @@ export async function runProduceAsync(
           'You haven\'t uploaded any app to App Store yet. Please provide your company name with --company-name "COMPANY NAME"'
         )
       );
-
-      //TODO: Old travelingFastlane throws these errors. New fastlane should just skip in cases below
     } else if (err.message.match(/The Bundle ID you entered has already been used./)) {
       log.warn(
         wrap(
@@ -84,13 +106,37 @@ export async function runProduceAsync(
 }
 
 async function resolveItcTeamId(appleCreds: ProduceCredentials): Promise<string> {
-  log('Resolving the ITC team ID...');
+  log('Resolving your App Store Connect team...');
   const { itc_team_id: itcTeamId } = await runFastlaneAsync(
     travelingFastlane.resolveItcTeamId,
     [],
     appleCreds
   );
-  log(`ITC team ID is ${itcTeamId}`);
-
   return itcTeamId;
+}
+
+async function promptForBundleIdAsync(): Promise<string> {
+  log.addNewLineIfNone();
+  log('Please enter your iOS bundle identifier.');
+  log('You can also specify ' + chalk.italic('ios.bundleIdentifier') + ' in app.json file');
+
+  const { bundleId } = await promptAsync({
+    type: 'text',
+    name: 'bundleId',
+    message: 'Bundle Identifier: ',
+    // TODO: Add proper validation for this
+    validate: (val: string) => val !== '' || 'Bundle Identifier cannot be empty!',
+  });
+
+  return bundleId;
+}
+
+async function promptForAppNameAsync(): Promise<string> {
+  const { appName } = await promptAsync({
+    type: 'text',
+    name: 'appName',
+    message: 'How would you like to name your app?',
+    validate: (val: string) => val !== '' || 'App name cannot be empty!',
+  });
+  return appName;
 }

@@ -14,12 +14,14 @@ export async function runFastlaneAsync(
     appleTeamId,
     itcTeamId,
     companyName,
+    sku,
   }: {
     appleId?: string;
     appleIdPassword?: string;
     appleTeamId?: string;
     itcTeamId?: string;
     companyName?: string;
+    sku?: string;
   },
   pipeToLogger = false
 ): Promise<{ [key: string]: any }> {
@@ -32,6 +34,7 @@ export async function runFastlaneAsync(
           FASTLANE_TEAM_ID: appleTeamId,
           ...(itcTeamId && { FASTLANE_ITC_TEAM_ID: itcTeamId }),
           ...(companyName && { PRODUCE_COMPANY_NAME: companyName }),
+          ...(sku && { PRODUCE_SKU: sku }),
         }
       : {};
 
