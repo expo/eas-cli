@@ -82,12 +82,11 @@ class IosSubmitCommand {
     });
   }
 
-  ///////////////////////////////////////// WIP //////////////////////
-
   /**
-   * @returns _App Apple ID_ - **THIS IS NOT** "Apple ID".
-   * It is an unique application number, which can be found in _App Store Connect_
-   * under `General -> App Information -> General information`
+   * Returns App Store related information required for build submission
+   * It is:
+   * - User Apple ID
+   * - App Store Connect app ID (appAppleId)
    */
   private async getAppStoreInfoAsync(): Promise<{
     appleId: string;
