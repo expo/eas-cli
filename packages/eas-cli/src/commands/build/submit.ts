@@ -28,7 +28,7 @@ export default class BuildSubmit extends Command {
 
     /* Common flags for both platforms */
     latest: flags.boolean({
-      description: '23Submit the latest build',
+      description: 'Submit the latest build',
       exclusive: ['id', 'path', 'url'],
       default: false,
       helpLabel: COMMON_FLAGS,
