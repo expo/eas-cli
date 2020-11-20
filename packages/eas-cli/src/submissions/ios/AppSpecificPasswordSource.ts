@@ -29,7 +29,7 @@ export async function getAppSpecificPasswordAsync(source: AppSpecificPasswordSou
     const { appSpecificPassword } = await promptAsync({
       name: 'appSpecificPassword',
       message: 'Your Apple app-specific password:',
-      type: 'text',
+      type: 'password',
       validate: (val: string) => val !== '' || 'Apple app-specific password cannot be empty!',
     });
     return appSpecificPassword;
