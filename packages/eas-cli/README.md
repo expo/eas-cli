@@ -21,7 +21,7 @@ $ npm install -g eas-cli
 $ eas COMMAND
 running command...
 $ eas (-v|--version|version)
-eas-cli/0.1.0-alpha.4 darwin-x64 node-v12.16.2
+eas-cli/0.1.0-alpha.5 darwin-x64 node-v12.16.2
 $ eas --help [COMMAND]
 USAGE
   $ eas COMMAND
@@ -36,15 +36,11 @@ USAGE
 * [`eas account:logout`](#eas-accountlogout)
 * [`eas account:view`](#eas-accountview)
 * [`eas build`](#eas-build)
-* [`eas build:configure`](#eas-buildconfigure)
-* [`eas build:create`](#eas-buildcreate)
 * [`eas build:status`](#eas-buildstatus)
 * [`eas build:submit`](#eas-buildsubmit)
-* [`eas credentials`](#eas-credentials)
-* [`eas device:create`](#eas-devicecreate)
 * [`eas help [COMMAND]`](#eas-help-command)
 * [`eas release:create [RELEASENAME]`](#eas-releasecreate-releasename)
-* [`eas release:publish`](#eas-releasepublish)
+* [`eas release:edit [RELEASENAME]`](#eas-releaseedit-releasename)
 * [`eas update:show`](#eas-updateshow)
 
 ## `eas account:login`
@@ -59,6 +55,8 @@ ALIASES
   $ eas login
 ```
 
+_See code: [build/commands/account/login.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.5/build/commands/account/login.ts)_
+
 ## `eas account:logout`
 
 log out
@@ -70,6 +68,8 @@ USAGE
 ALIASES
   $ eas logout
 ```
+
+_See code: [build/commands/account/logout.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.5/build/commands/account/logout.ts)_
 
 ## `eas account:view`
 
@@ -83,6 +83,8 @@ ALIASES
   $ eas whoami
 ```
 
+_See code: [build/commands/account/view.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.5/build/commands/account/view.ts)_
+
 ## `eas build`
 
 build an app binary for your project
@@ -92,34 +94,7 @@ USAGE
   $ eas build
 ```
 
-## `eas build:configure`
-
-Configure the project to support EAS Build.
-
-```
-USAGE
-  $ eas build:configure
-
-OPTIONS
-  -p, --platform=(android|ios|all)  [default: all] Platform to configure
-```
-
-## `eas build:create`
-
-Start a build
-
-```
-USAGE
-  $ eas build:create
-
-OPTIONS
-  -p, --platform=(android|ios|all)  (required)
-  --non-interactive                 Run command in --non-interactive mode
-  --profile=profile                 [default: release] Name of the build profile from eas.json
-  --skip-credentials-check          Skip validation of build credentials
-  --skip-project-configuration      Skip project configuration
-  --wait                            Wait for build(s) to complete
-```
+_See code: [build/commands/build/index.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.5/build/commands/build/index.ts)_
 
 ## `eas build:status`
 
@@ -134,6 +109,8 @@ OPTIONS
   --status=(in-queue|in-progress|errored|finished)
 ```
 
+_See code: [build/commands/build/status.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.5/build/commands/build/status.ts)_
+
 ## `eas build:submit`
 
 Submits build artifact to app store
@@ -143,58 +120,46 @@ USAGE
   $ eas build:submit
 
 OPTIONS
-  -p, --platform=(android|ios)                               (required) For which platform you want to submit a build
+  -p, --platform=(android|ios)                                       (required) For which platform you want to submit a
+                                                                     build
 
-  --android-package=android-package                          Android package name (using expo.android.package from
-                                                             app.json by default)
+  Android specific options=android-package                           Android package name (using expo.android.package
+                                                                     from app.json by default)
 
-  --app-apple-id=app-apple-id                                App Store Connect unique application Apple ID number.
+  iOS specific options=app-apple-id                                  App Store Connect unique application Apple ID
+                                                                     number.
 
-  --apple-app-specific-password=apple-app-specific-password  Your Apple ID app-specific password. You can also set
-                                                             EXPO_APPLE_APP_SPECIFIC_PASSWORD env variable.
+  iOS specific options=apple-app-specific-password                   Your Apple ID app-specific password. You can also
+                                                                     set EXPO_APPLE_APP_SPECIFIC_PASSWORD env variable.
 
-  --apple-id=apple-id                                        Your Apple ID username (you can also set EXPO_APPLE_ID env
-                                                             variable)
+  iOS specific options=apple-id                                      Your Apple ID username (you can also set
+                                                                     EXPO_APPLE_ID env variable)
 
-  --id=id                                                    ID of the build to submit
+  --id=id                                                            ID of the build to submit
 
-  --key=key                                                  Path to the JSON key used to authenticate with Google Play
+  Android specific options=key                                       Path to the JSON key used to authenticate with
+                                                                     Google Play
 
-  --latest                                                   Submit the latest build
+  --latest                                                           Submit the latest build
 
-  --path=path                                                Path to the .apk/.aab file
+  --path=path                                                        Path to the .apk/.aab file
 
-  --release-status=(completed|draft|halted|inProgress)       [default: completed] Release status (used when uploading
-                                                             new apks/aabs), choose from: completed, draft, halted,
-                                                             inProgress
+  Android specific options=(completed|draft|halted|inProgress)       [default: completed] Release status (used when
+                                                                     uploading new apks/aabs), choose from: completed,
+                                                                     draft, halted, inProgress
 
-  --track=(production|beta|alpha|internal|rollout)           [default: internal] The track of the application to use,
-                                                             choose from: production, beta, alpha, internal, rollout
+  Android specific options=(production|beta|alpha|internal|rollout)  [default: internal] The track of the application to
+                                                                     use, choose from: production, beta, alpha,
+                                                                     internal, rollout
 
-  --type=(apk|aab)                                           Android archive type
+  Android specific options=(apk|aab)                                 Android archive type
 
-  --url=url                                                  App archive url
+  --url=url                                                          App archive url
 
-  --verbose                                                  Always print logs from Submission Service
+  --verbose                                                          Always print logs from Submission Service
 ```
 
-## `eas credentials`
-
-Manage your credentials
-
-```
-USAGE
-  $ eas credentials
-```
-
-## `eas device:create`
-
-register new Apple Devices to use for internal distribution
-
-```
-USAGE
-  $ eas device:create
-```
+_See code: [build/commands/build/submit.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.5/build/commands/build/submit.ts)_
 
 ## `eas help [COMMAND]`
 
@@ -223,15 +188,27 @@ USAGE
 
 ARGUMENTS
   RELEASENAME  Name of the release to create
+
+OPTIONS
+  --json  return a json with the new release ID and name.
 ```
 
-## `eas release:publish`
+_See code: [build/commands/release/create.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.5/build/commands/release/create.ts)_
 
-Publish an updateGroup on a release.
+## `eas release:edit [RELEASENAME]`
+
+Edit a release.
 
 ```
 USAGE
-  $ eas release:publish
+  $ eas release:edit [RELEASENAME]
+
+ARGUMENTS
+  RELEASENAME  Name of the release to edit
+
+OPTIONS
+  --json           return a json with the edited release's ID and name.
+  --rename=rename  what to rename the release.
 ```
 
 ## `eas update:show`
@@ -242,4 +219,6 @@ details about a particular revision
 USAGE
   $ eas update:show
 ```
+
+_See code: [build/commands/update/show.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.5/build/commands/update/show.ts)_
 <!-- commandsstop -->
