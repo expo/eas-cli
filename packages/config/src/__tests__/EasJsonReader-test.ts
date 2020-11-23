@@ -25,6 +25,7 @@ test('minimal valid android eas.json', async () => {
     builds: {
       android: {
         workflow: 'generic',
+        internal: false,
         credentialsSource: 'auto',
       },
     },
@@ -46,6 +47,7 @@ test('minimal valid ios eas.json', async () => {
     builds: {
       ios: {
         credentialsSource: 'auto',
+        internal: false,
         workflow: 'generic',
       },
     },
@@ -68,8 +70,8 @@ test('minimal valid eas.json for both platforms', async () => {
   const easJson = await reader.readAsync('release');
   expect({
     builds: {
-      android: { workflow: 'generic', credentialsSource: 'auto' },
-      ios: { workflow: 'generic', credentialsSource: 'auto' },
+      android: { workflow: 'generic', internal: false, credentialsSource: 'auto' },
+      ios: { workflow: 'generic', internal: false, credentialsSource: 'auto' },
     },
   }).toEqual(easJson);
 });
@@ -90,7 +92,7 @@ test('valid eas.json with both platform, but reading only android', async () => 
   const easJson = await reader.readAsync('release');
   expect({
     builds: {
-      android: { workflow: 'generic', credentialsSource: 'auto' },
+      android: { workflow: 'generic', internal: false, credentialsSource: 'auto' },
     },
   }).toEqual(easJson);
 });
@@ -122,11 +124,13 @@ test('valid eas.json for debug builds', async () => {
         workflow: 'generic',
         gradleCommand: ':app:assembleDebug',
         withoutCredentials: true,
+        internal: false,
       },
       ios: {
         credentialsSource: 'auto',
         workflow: 'managed',
         buildType: 'simulator',
+        internal: false,
       },
     },
   }).toEqual(easJson);
