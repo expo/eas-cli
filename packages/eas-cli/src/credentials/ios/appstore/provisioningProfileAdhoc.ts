@@ -1,5 +1,4 @@
 import { Device, Profile, ProfileState, ProfileType } from '@expo/apple-utils';
-import omit from 'lodash/omit';
 import ora from 'ora';
 
 import { ProvisioningProfile } from './Credentials.types';
