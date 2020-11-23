@@ -40,6 +40,18 @@ function resolveTravelingFastlaneProfileType(
   }
 }
 
+function resolveProfileType(profileClass: ProfileClass, isEnterprise?: boolean): ProfileType {
+  if (isEnterprise) {
+    return profileClass === ProfileClass.Adhoc
+      ? ProfileType.IOS_APP_ADHOC
+      : ProfileType.IOS_APP_INHOUSE;
+  } else {
+    return profileClass === ProfileClass.Adhoc
+      ? ProfileType.IOS_APP_ADHOC
+      : ProfileType.IOS_APP_STORE;
+  }
+}
+
 async function transformProfileAsync(
   cert: Profile,
   ctx: AuthCtx
@@ -156,9 +168,9 @@ export async function listProvisioningProfilesAsync(
   const spinner = ora(`Getting Provisioning Profiles from Apple...`).start();
   try {
     if (USE_APPLE_UTILS) {
-      const type = ctx.team.inHouse ? ProfileType.IOS_APP_INHOUSE : ProfileType.IOS_APP_STORE;
+      const profileType = resolveProfileType(profileClass, ctx.team.inHouse);
       const profiles = (await getProfilesForBundleIdAsync(bundleIdentifier)).filter(
-        profile => profile.attributes.profileType === type
+        profile => profile.attributes.profileType === profileType
       );
 
       const result = await Promise.all(
@@ -209,9 +221,7 @@ export async function createProvisioningProfileAsync(
     }
 
     if (USE_APPLE_UTILS) {
-      const profileType = ctx.team.inHouse
-        ? ProfileType.IOS_APP_INHOUSE
-        : ProfileType.IOS_APP_STORE;
+      const profileType = resolveProfileType(profileClass, ctx.team.inHouse);
 
       const certificate = await getCertificateBySerialNumberAsync(distCert.distCertSerialNumber);
 
@@ -262,7 +272,12 @@ export async function revokeProvisioningProfileAsync(
   try {
     if (USE_APPLE_UTILS) {
       const profiles = await getProfilesForBundleIdAsync(bundleIdentifier);
-      await Promise.all(profiles.map(profile => Profile.deleteAsync({ id: profile.id })));
+      const profileType = resolveProfileType(profileClass, ctx.team.inHouse);
+      await Promise.all(
+        profiles
+          .filter(profile => profile.attributes.profileType === profileType)
+          .map(profile => Profile.deleteAsync({ id: profile.id }))
+      );
     } else {
       const args = [
         'revoke',
