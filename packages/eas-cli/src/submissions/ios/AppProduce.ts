@@ -7,9 +7,7 @@ import log from '../../log';
 import { promptAsync } from '../../prompts';
 import { IosSubmissionContext } from '../types';
 import { runFastlaneAsync, travelingFastlane } from '../utils/fastlane';
-import { validateLanguage } from './utils/language';
-
-/////////////////////////////////////////////////////////
+import { sanitizeLanguage } from './utils/language';
 
 interface ProduceOptions {
   appleId?: string;
@@ -36,7 +34,9 @@ type AppStoreResult = {
   appAppleId: string;
 };
 
-export async function ensureAppExistsAsync(ctx: IosSubmissionContext): Promise<AppStoreResult> {
+export async function ensureAppStoreConnectAppExistsAsync(
+  ctx: IosSubmissionContext
+): Promise<AppStoreResult> {
   const { exp } = getConfig(ctx.projectDir, { skipSDKVersionRequirement: true });
 
   const { bundleIdentifier, appName, language } = ctx.commandFlags;
@@ -46,7 +46,7 @@ export async function ensureAppExistsAsync(ctx: IosSubmissionContext): Promise<A
     bundleIdentifier:
       bundleIdentifier ?? exp.ios?.bundleIdentifier ?? (await promptForBundleIdAsync()),
     appName: appName ?? exp.name ?? (await promptForAppNameAsync()),
-    language: validateLanguage(language) ?? 'English',
+    language: sanitizeLanguage(language) ?? 'English',
   };
 
   return await runProduceAsync(options);

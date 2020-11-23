@@ -32,12 +32,12 @@ export const LANGUAGES = [
 ];
 
 /**
- * Validates language for `travelingFastlane app_produce` command.
- * @param lang Language to validate
+ * Sanitizes language for `travelingFastlane app_produce` command.
+ * @param lang Language to sanitize
  * @returns Provided language if valid
  * @throws Error if language is invalid.s
  */
-export function validateLanguage(lang?: string): string | undefined | never {
+export function sanitizeLanguage(lang?: string): string | undefined {
   if (lang && !LANGUAGES.includes(lang)) {
     const langList = LANGUAGES.map(lang => `- ${lang}`).join('\n');
 

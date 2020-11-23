@@ -1,5 +1,6 @@
 import { Result, result } from '@expo/results';
 import chalk from 'chalk';
+import getenv from 'getenv';
 import wordwrap from 'wordwrap';
 
 import log from '../../log';
@@ -9,7 +10,7 @@ import UserSettings from '../../user/UserSettings';
 import { ArchiveSource, ArchiveTypeSourceType } from '../archiveSource';
 import { resolveArchiveFileSource } from '../commons';
 import { IosSubmissionContext, IosSubmitCommandFlags, SubmissionPlatform } from '../types';
-import { ensureAppExistsAsync } from './AppProduce';
+import { ensureAppStoreConnectAppExistsAsync } from './AppProduce';
 import {
   AppSpecificPasswordSource,
   AppSpecificPasswordSourceType,
@@ -61,12 +62,12 @@ class IosSubmitCommand {
   }
 
   private resolveAppSpecificPasswordSource(): Result<AppSpecificPasswordSource> {
-    const { EXPO_APPLE_APP_SPECIFIC_PASSWORD } = process.env;
+    const envAppSpecificPassword = getenv.string('EXPO_APPLE_APP_SPECIFIC_PASSWORD', undefined);
 
-    if (EXPO_APPLE_APP_SPECIFIC_PASSWORD) {
+    if (envAppSpecificPassword) {
       return result({
         sourceType: AppSpecificPasswordSourceType.userDefined,
-        appSpecificPassword: EXPO_APPLE_APP_SPECIFIC_PASSWORD,
+        appSpecificPassword: envAppSpecificPassword,
       });
     }
 
@@ -109,7 +110,7 @@ class IosSubmitCommand {
         )
       )
     );
-    return await ensureAppExistsAsync(this.ctx);
+    return await ensureAppStoreConnectAppExistsAsync(this.ctx);
   }
 
   /**
@@ -119,12 +120,12 @@ class IosSubmitCommand {
    */
   private async getAppleIdAsync(): Promise<string> {
     const { appleId } = this.ctx.commandFlags;
-    const { EXPO_APPLE_ID } = process.env;
+    const envAppleId = getenv.string('EXPO_APPLE_ID', undefined);
 
     if (appleId) {
       return appleId;
-    } else if (EXPO_APPLE_ID) {
-      return EXPO_APPLE_ID;
+    } else if (envAppleId) {
+      return envAppleId;
     }
 
     // Get the email address that was last used and set it as
