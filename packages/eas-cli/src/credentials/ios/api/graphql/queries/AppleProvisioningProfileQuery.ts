@@ -69,6 +69,9 @@ const AppleProvisioningProfileQuery = {
             projectFullName,
             appleAppIdentifierId,
             iosDistributionType,
+          },
+          {
+            additionalTypenames: ['IosAppCredentials', 'IosAppBuildCredentials'],
           }
         )
         .toPromise()

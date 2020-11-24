@@ -36,3 +36,14 @@ export function sortCertificatesByExpiryDesc<T extends DistributionCertificate>(
     return certBExpiry - certAExpiry;
   });
 }
+
+export function getValidCertSerialNumbers(
+  certInfoFromApple: DistributionCertificateStoreInfo[]
+): string[] {
+  return certInfoFromApple
+    .filter(
+      // remove expired certs
+      cert => cert.expires > Math.floor(Date.now() / 1000)
+    )
+    .map(cert => cert.serialNumber);
+}

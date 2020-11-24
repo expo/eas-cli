@@ -29,6 +29,9 @@ const AppleAppIdentifierQuery = {
           {
             accountName,
             bundleIdentifier,
+          },
+          {
+            additionalTypenames: ['AppleAppIdentifier'],
           }
         )
         .toPromise()

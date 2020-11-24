@@ -1,3 +1,4 @@
+import { AppleDevice } from '../../graphql/types/credentials/AppleDevice';
 import log from '../../log';
 import { CredentialSchema } from '../utils/promptForCredentials';
 import {
@@ -40,6 +41,9 @@ export interface IosAppCredentials {
   credentials: {
     provisioningProfileId?: string;
     provisioningProfile?: string;
+
+    // for adhoc provisioning profiles
+    devices?: AppleDevice[];
 
     teamId?: string;
     teamName?: string;

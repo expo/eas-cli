@@ -1,3 +1,5 @@
+import { DistributionType } from '@eas/config';
+
 import { promptAsync } from '../../prompts';
 import { Action, CredentialsManager } from '../CredentialsManager';
 import { Context } from '../context';
@@ -118,7 +120,7 @@ export class ManageIos implements Action {
       }
       case ActionType.SetupBuildCredentials: {
         const app = this.getAppLookupParamsFromContext(ctx);
-        return new SetupBuildCredentials(app);
+        return new SetupBuildCredentials(app, DistributionType.STORE);
       }
       case ActionType.RemoveSpecificProvisioningProfile: {
         const app = this.getAppLookupParamsFromContext(ctx);

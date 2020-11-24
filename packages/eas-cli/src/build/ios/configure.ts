@@ -1,4 +1,4 @@
-import { CredentialsSource, Workflow } from '@eas/config';
+import { CredentialsSource, DistributionType, Workflow } from '@eas/config';
 import { ExpoConfig, IOSConfig } from '@expo/config';
 
 import * as ProvisioningProfileUtils from '../../credentials/ios/utils/provisioningProfile';
@@ -45,21 +45,17 @@ async function resolveCredentialsAndConfigureXcodeProjectAsync(
   ctx: ConfigureContext,
   bundleIdentifier: string
 ): Promise<void> {
-  const { credentials } = await resolveIosCredentialsAsync(
-    ctx.projectDir,
-    {
-      app: {
-        accountName: await getProjectAccountNameAsync(ctx.projectDir),
-        projectName: ctx.exp.slug,
-        bundleIdentifier,
-      },
-      workflow: Workflow.Generic,
-      credentialsSource: CredentialsSource.AUTO,
+  const { credentials } = await resolveIosCredentialsAsync(ctx.projectDir, {
+    app: {
+      accountName: await getProjectAccountNameAsync(ctx.projectDir),
+      projectName: ctx.exp.slug,
+      bundleIdentifier,
     },
-    {
-      nonInteractive: false,
-    }
-  );
+    workflow: Workflow.Generic,
+    credentialsSource: CredentialsSource.AUTO,
+    distribution: DistributionType.STORE,
+    nonInteractive: false,
+  });
 
   const profileName = ProvisioningProfileUtils.readProfileName(credentials.provisioningProfile);
   const appleTeam = ProvisioningProfileUtils.readAppleTeam(credentials.provisioningProfile);

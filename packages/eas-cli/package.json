@@ -68,7 +68,7 @@
     "@types/node-fetch": "^2.5.7",
     "@types/node-forge": "^0.9.5",
     "@types/progress": "^2.0.3",
-    "@types/prompts": "^2.0.8",
+    "@types/prompts": "^2.0.9",
     "@types/tar": "^4.0.3",
     "@types/tough-cookie": "^4.0.0",
     "@types/uuid": "^8.3.0",
@@ -84,8 +84,8 @@
     "wonka": "^4.0.14"
   },
   "optionalDependencies": {
-    "@expo/traveling-fastlane-darwin": "1.15.1",
-    "@expo/traveling-fastlane-linux": "1.15.1"
+    "@expo/traveling-fastlane-darwin": "1.15.3",
+    "@expo/traveling-fastlane-linux": "1.15.3"
   },
   "engines": {
     "node": ">=8.0.0"

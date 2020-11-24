@@ -60,7 +60,7 @@ export async function startBuildForPlatformAsync<
 
   const archiveUrl = await uploadProjectAsync(builder.ctx);
 
-  const metadata = await collectMetadata(builder.ctx, {
+  const metadata = collectMetadata(builder.ctx, {
     credentialsSource: credentialsResult?.source,
   });
   const job = await builder.prepareJobAsync(builder.ctx, {

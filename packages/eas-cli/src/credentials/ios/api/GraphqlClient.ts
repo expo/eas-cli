@@ -105,12 +105,14 @@ export async function createOrGetExistingIosAppCredentialsWithBuildCredentialsAs
   if (maybeIosAppCredentials) {
     return maybeIosAppCredentials;
   } else {
-    const { account } = appLookupParams;
-    const app = await getAppAsync(appLookupParams);
+    const [app, appleAppIdentifier] = await Promise.all([
+      getAppAsync(appLookupParams),
+      createOrGetExistingAppleAppIdentifierAsync(appLookupParams, appleTeam),
+    ]);
     await IosAppCredentialsMutation.createIosAppCredentialsAsync(
       { appleTeamId: appleTeam.id },
       app.id,
-      account.id
+      appleAppIdentifier.id
     );
     return nullthrows(
       await IosAppCredentialsQuery.withBuildCredentialsByAppIdentifierIdAsync(projectFullName, {
@@ -244,6 +246,7 @@ export async function createDistributionCertificateAsync(
       certP12: distCert.certP12,
       certPassword: distCert.certPassword,
       certPrivateSigningKey: distCert.certPrivateSigningKey,
+      developerPortalIdentifier: distCert.certId,
       appleTeamId: appleTeam.id,
     },
     account.id

@@ -21,7 +21,6 @@ import {
 } from '../credentials';
 import { findP12CertSerialNumber } from '../utils/p12Certificate';
 import { validateDistributionCertificateAsync } from '../validators/validateDistributionCertificate';
-import { RemoveSpecificDistributionCertificate } from './RemoveDistributionCertificate';
 
 const APPLE_DIST_CERTS_TOO_MANY_GENERATED_ERROR = `
 You can have only ${chalk.underline(
@@ -88,7 +87,7 @@ async function generateDistributionCertificateAsync(
     return await ctx.appStore.createDistributionCertificateAsync();
   } catch (e) {
     if (e instanceof AppleTooManyCertsError) {
-      const certs = await ctx.appStore.listDistributionCertificatesAsync();
+      const distCerts = await ctx.appStore.listDistributionCertificatesAsync();
       log.warn('Maximum number of Distribution Certificates generated on Apple Developer Portal.');
       log.warn(APPLE_DIST_CERTS_TOO_MANY_GENERATED_ERROR);
 
@@ -98,14 +97,6 @@ async function generateDistributionCertificateAsync(
         );
       }
 
-      const credentials = await ctx.ios.getAllCredentialsAsync(accountName);
-      const usedByExpo = credentials.userCredentials
-        .filter((cert): cert is IosDistCredentials => cert.type === 'dist-cert' && !!cert.certId)
-        .reduce<{ [key: string]: IosDistCredentials }>(
-          (acc, cert) => ({ ...acc, [cert.certId || '']: cert }),
-          {}
-        );
-
       log(
         chalk.grey(
           `✅  Distribution Certificates can be revoked with no side effects for App Store builds.`
@@ -114,37 +105,21 @@ async function generateDistributionCertificateAsync(
       log(chalk.grey(`ℹ️  Learn more here https://docs.expo.io/distribution/app-signing/#summary`));
       log.newLine();
 
-      const format = (storeCertInfo: DistributionCertificateStoreInfo) => {
-        const distCert = usedByExpo[storeCertInfo.id];
-        const usedByApps = distCert
-          ? credentials.appCredentials.filter(app => app.distCredentialsId === distCert.id)
-          : [];
-        return formatDistributionCertificateFromApple(storeCertInfo, usedByApps);
-      };
-
-      const { revoke } = await promptAsync({
+      const { distCertsToRevoke } = await promptAsync({
         type: 'multiselect',
-        name: 'revoke',
+        name: 'distCertsToRevoke',
         message: 'Select certificates to revoke.',
         // @ts-expect-error property missing from `@types/prompts`
         optionsPerPage: 20,
-        choices: certs.map((cert, index) => ({
-          value: index,
-          title: format(cert),
+        choices: distCerts.map(distCert => ({
+          value: distCert,
+          title: formatDistributionCertificateFromApple(distCert),
         })),
       });
 
-      for (const index of revoke) {
-        const certInfo = certs[index];
-        if (certInfo && usedByExpo[certInfo.id]) {
-          await manager.runActionAsync(
-            new RemoveSpecificDistributionCertificate(usedByExpo[certInfo.id].id, accountName, {
-              shouldRevoke: true,
-            })
-          );
-        } else {
-          await ctx.appStore.revokeDistributionCertificateAsync([certInfo.id]);
-        }
+      if (distCertsToRevoke.length > 0) {
+        const ids = distCertsToRevoke.map(({ id }: DistributionCertificateStoreInfo) => id);
+        await ctx.appStore.revokeDistributionCertificateAsync(ids);
       }
     } else {
       throw e;
@@ -248,23 +223,13 @@ export function formatDistributionCertificate(
 }
 
 function formatDistributionCertificateFromApple(
-  appleInfo: DistributionCertificateStoreInfo,
-  usedByApps: IosAppCredentials[]
+  appleInfo: DistributionCertificateStoreInfo
 ): string {
-  const joinApps = usedByApps
-    .map(i => `      ${i.experienceName} (${i.bundleIdentifier})`)
-    .join('\n');
-
-  const usedByString = joinApps
-    ? `    ${chalk.gray(`used by\n${joinApps}`)}`
-    : `    ${chalk.gray(`not used by any apps`)}`;
-
   const { name, status, id, expires, created, ownerName, serialNumber } = appleInfo;
   const expiresDate = new Date(expires * 1000).toDateString();
   const createdDate = new Date(created * 1000).toDateString();
   return `${name} (${status}) - Cert ID: ${id}, Serial number: ${serialNumber}, Team ID: ${appleInfo.ownerId}, Team name: ${ownerName}
-    expires: ${expiresDate}, created: ${createdDate}
-  ${usedByString}`;
+    expires: ${expiresDate}, created: ${createdDate}`;
 }
 
 export async function getValidDistCertsAsync(
