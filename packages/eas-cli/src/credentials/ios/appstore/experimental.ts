@@ -1,7 +1,6 @@
 import { BundleId, Profile } from '@expo/apple-utils';
-import { boolish } from 'getenv';
 
-export const USE_APPLE_UTILS = boolish('USE_APPLE_UTILS', false);
+export const USE_APPLE_UTILS = true;
 
 export async function getProfilesForBundleIdAsync(bundleIdentifier: string): Promise<Profile[]> {
   const [bundleId] = await BundleId.getAsync({
