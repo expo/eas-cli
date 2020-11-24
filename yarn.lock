@@ -1413,10 +1413,10 @@
     unique-filename "^1.1.1"
     which "^1.3.1"
 
-"@expo/apple-utils@0.0.0-alpha.8":
-  version "0.0.0-alpha.8"
-  resolved "https://registry.yarnpkg.com/@expo/apple-utils/-/apple-utils-0.0.0-alpha.8.tgz#1397c5f1dc7b6dd6f7813cca4ce82b49b1c91645"
-  integrity sha512-GmgAjnAw+EWR6vflxHhbnzD0ABvY8+gO0K+Q477Dc9hex+PaJf7pvxkuy2ORoEH0DLYdSTztc0u6ah3eM5P7tA==
+"@expo/apple-utils@0.0.0-alpha.9":
+  version "0.0.0-alpha.9"
+  resolved "https://registry.yarnpkg.com/@expo/apple-utils/-/apple-utils-0.0.0-alpha.9.tgz#ebc8be95eeccb4c6fe96b636a60cdfc771ec8a23"
+  integrity sha512-f5t7wFajXyazGiqtMAmrwUEgIhr/TNtil7F+NUIcNuW4V0qq4i8BKHsPk2ebYiy/rJ7bBaJJwAcBO/D2FpC4/w==
 
 "@expo/babel-preset-cli@0.2.18":
   version "0.2.18"
