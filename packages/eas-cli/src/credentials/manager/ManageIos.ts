@@ -1,3 +1,5 @@
+import { DistributionType } from '@eas/config';
+
 import { promptAsync } from '../../prompts';
 import { Action, CredentialsManager } from '../CredentialsManager';
 import { Context } from '../context';
@@ -14,7 +16,6 @@ import { UseExistingDistributionCertificate } from '../ios/actions/UseDistributi
 import { AppLookupParams } from '../ios/credentials';
 import { displayAllIosCredentials } from '../ios/utils/printCredentials';
 import { PressAnyKeyToContinue } from './HelperActions';
-import { DistributionType } from '@eas/config';
 
 enum ActionType {
   SetupBuildCredentials,
