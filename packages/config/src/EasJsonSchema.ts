@@ -7,14 +7,14 @@ const AndroidGenericSchema = Joi.object({
   releaseChannel: Joi.string(),
   artifactPath: Joi.string(),
   withoutCredentials: Joi.boolean(),
-  internal: Joi.boolean().default(false),
+  distribution: Joi.string().valid('store', 'internal').default('store'),
 });
 
 const AndroidManagedSchema = Joi.object({
   workflow: Joi.string().valid('managed').required(),
   credentialsSource: Joi.string().valid('local', 'remote', 'auto').default('auto'),
   buildType: Joi.string().valid('apk', 'app-bundle').default('app-bundle'),
-  internal: Joi.boolean().default(false),
+  distribution: Joi.string().valid('store', 'internal').default('store'),
 });
 
 const iOSGenericSchema = Joi.object({
@@ -23,14 +23,14 @@ const iOSGenericSchema = Joi.object({
   scheme: Joi.string(),
   releaseChannel: Joi.string(),
   artifactPath: Joi.string(),
-  internal: Joi.boolean().default(false),
+  distribution: Joi.string().valid('store', 'internal').default('store'),
 });
 
 const iOSManagedSchema = Joi.object({
   workflow: Joi.string().valid('managed').required(),
   credentialsSource: Joi.string().valid('local', 'remote', 'auto').default('auto'),
   buildType: Joi.string().valid('archive', 'simulator'),
-  internal: Joi.boolean().default(false),
+  distribution: Joi.string().valid('store', 'internal').default('store'),
 });
 
 const schemaBuildProfileMap: Record<string, Record<string, Joi.Schema>> = {

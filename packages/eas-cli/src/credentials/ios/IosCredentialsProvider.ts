@@ -1,6 +1,5 @@
-import { CredentialsSource } from '@eas/config';
+import { CredentialsSource, DistributionType } from '@eas/config';
 import { Platform } from '@expo/eas-build-job';
-import assert from 'assert';
 
 import { IosDistributionType } from '../../graphql/types/credentials/IosAppBuildCredentials';
 import log from '../../log';
@@ -29,7 +28,7 @@ interface PartialIosCredentials {
 
 interface Options {
   app: AppLookupParams;
-  internalDistribution: boolean;
+  distribution: DistributionType;
   nonInteractive: boolean;
   skipCredentialsCheck?: boolean;
 }
@@ -55,7 +54,7 @@ export default class IosCredentialsProvider implements CredentialsProvider {
   }
 
   public async hasLocalAsync(): Promise<boolean> {
-    if (this.options.internalDistribution) {
+    if (this.options.distribution === DistributionType.INTERNAL) {
       // TODO: add support for using credentials.json for internal distribution
       return false;
     }
@@ -100,7 +99,7 @@ export default class IosCredentialsProvider implements CredentialsProvider {
   }
 
   private async getLocalAsync(): Promise<IosCredentials> {
-    if (this.options.internalDistribution) {
+    if (this.options.distribution === DistributionType.INTERNAL) {
       // TODO: add support for using credentials.json for internal distribution
       throw new Error('Using credentials.json for internal distribution is not supported yet.');
     }
@@ -113,7 +112,7 @@ export default class IosCredentialsProvider implements CredentialsProvider {
     } else {
       await runCredentialsManagerAsync(
         this.ctx,
-        new SetupBuildCredentials(this.options.app, this.options.internalDistribution)
+        new SetupBuildCredentials(this.options.app, this.options.distribution)
       );
     }
 
@@ -146,7 +145,7 @@ export default class IosCredentialsProvider implements CredentialsProvider {
   }
 
   private async fetchRemoteAsync(): Promise<PartialIosCredentials> {
-    if (this.options.internalDistribution) {
+    if (this.options.distribution === DistributionType.INTERNAL) {
       const { app } = this.options;
       const account = findAccountByName(this.ctx.user.accounts, app.accountName);
       if (!account) {

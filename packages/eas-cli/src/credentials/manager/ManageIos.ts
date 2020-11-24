@@ -14,6 +14,7 @@ import { UseExistingDistributionCertificate } from '../ios/actions/UseDistributi
 import { AppLookupParams } from '../ios/credentials';
 import { displayAllIosCredentials } from '../ios/utils/printCredentials';
 import { PressAnyKeyToContinue } from './HelperActions';
+import { DistributionType } from '@eas/config';
 
 enum ActionType {
   SetupBuildCredentials,
@@ -118,7 +119,7 @@ export class ManageIos implements Action {
       }
       case ActionType.SetupBuildCredentials: {
         const app = this.getAppLookupParamsFromContext(ctx);
-        return new SetupBuildCredentials(app, false);
+        return new SetupBuildCredentials(app, DistributionType.STORE);
       }
       case ActionType.RemoveSpecificProvisioningProfile: {
         const app = this.getAppLookupParamsFromContext(ctx);

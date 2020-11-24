@@ -1,4 +1,4 @@
-import { CredentialsSource, Workflow } from '@eas/config';
+import { CredentialsSource, DistributionType, Workflow } from '@eas/config';
 import assert from 'assert';
 
 import { createCredentialsContextAsync } from '../../credentials/context';
@@ -26,7 +26,7 @@ export async function ensureIosCredentialsAsync(
     },
     workflow: ctx.buildProfile.workflow,
     credentialsSource: ctx.buildProfile.credentialsSource,
-    internalDistribution: ctx.buildProfile.internal ?? false,
+    distribution: ctx.buildProfile.distribution ?? DistributionType.STORE,
     nonInteractive: ctx.commandCtx.nonInteractive,
   });
 }
@@ -35,7 +35,7 @@ interface ResolveCredentialsParams {
   app: AppLookupParams;
   workflow: Workflow;
   credentialsSource: CredentialsSource;
-  internalDistribution: boolean;
+  distribution: DistributionType;
   nonInteractive: boolean;
 }
 
@@ -46,7 +46,7 @@ export async function resolveIosCredentialsAsync(
   const provider = new IosCredentialsProvider(await createCredentialsContextAsync(projectDir, {}), {
     app: params.app,
     nonInteractive: params.nonInteractive,
-    internalDistribution: params.internalDistribution,
+    distribution: params.distribution,
   });
   const credentialsSource = await ensureCredentialsAsync(
     provider,

@@ -1,4 +1,4 @@
-import { CredentialsSource, Workflow } from '@eas/config';
+import { CredentialsSource, DistributionType, Workflow } from '@eas/config';
 
 import { BuildContext } from './context';
 import { Platform, TrackingContext } from './types';
@@ -53,9 +53,10 @@ export type BuildMetadata = {
   trackingContext: TrackingContext;
 
   /**
-   * Flag indicating whether the build is for internal distribution.
+   * Distribution type
+   * Indicates whether this is a build for store or internal distribution.
    */
-  internalDistribution: boolean;
+  distribution: DistributionType;
 };
 
 export function collectMetadata<T extends Platform>(
@@ -73,6 +74,6 @@ export function collectMetadata<T extends Platform>(
     credentialsSource,
     sdkVersion: ctx.commandCtx.exp.sdkVersion,
     trackingContext: ctx.trackingCtx,
-    internalDistribution: ctx.buildProfile.internal ?? false,
+    distribution: ctx.buildProfile.distribution ?? DistributionType.STORE,
   };
 }

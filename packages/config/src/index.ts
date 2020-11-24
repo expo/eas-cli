@@ -1,6 +1,7 @@
 export {
   Workflow,
   CredentialsSource,
+  DistributionType,
   AndroidManagedBuildProfile,
   AndroidGenericBuildProfile,
   AndroidBuildProfile,

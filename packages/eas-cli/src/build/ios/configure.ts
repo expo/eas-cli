@@ -1,4 +1,4 @@
-import { CredentialsSource, Workflow } from '@eas/config';
+import { CredentialsSource, DistributionType, Workflow } from '@eas/config';
 import { ExpoConfig, IOSConfig } from '@expo/config';
 
 import * as ProvisioningProfileUtils from '../../credentials/ios/utils/provisioningProfile';
@@ -53,7 +53,7 @@ async function resolveCredentialsAndConfigureXcodeProjectAsync(
     },
     workflow: Workflow.Generic,
     credentialsSource: CredentialsSource.AUTO,
-    internalDistribution: false,
+    distribution: DistributionType.STORE,
     nonInteractive: false,
   });
 

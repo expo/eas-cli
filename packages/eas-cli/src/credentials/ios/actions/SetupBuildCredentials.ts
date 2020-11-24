@@ -1,3 +1,4 @@
+import { DistributionType } from '@eas/config';
 import assert from 'assert';
 import chalk from 'chalk';
 
@@ -20,7 +21,7 @@ type AppCredentialsAndDistCert = {
 };
 
 export class SetupBuildCredentials implements Action {
-  constructor(private app: AppLookupParams, private internalDistribution: boolean) {}
+  constructor(private app: AppLookupParams, private distribution: DistributionType) {}
 
   async runAsync(manager: CredentialsManager, ctx: Context): Promise<void> {
     await ctx.bestEffortAppStoreAuthenticateAsync();
@@ -31,7 +32,7 @@ export class SetupBuildCredentials implements Action {
 
     let iosAppBuildCredentials: IosAppBuildCredentials | null = null;
     try {
-      if (this.internalDistribution) {
+      if (this.distribution === DistributionType.INTERNAL) {
         const account = findAccountByName(ctx.user.accounts, this.app.accountName);
         if (!account) {
           throw new Error(`You do not have access to the ${this.app.accountName} account`);
