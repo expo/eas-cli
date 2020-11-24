@@ -106,7 +106,8 @@ class IosSubmitCommand {
     log(
       wrap(
         chalk.italic(
-          'Ensuring your app exists on App Store Connect. This step can be skipped by providing the --app-apple-id flag'
+          'Ensuring your app exists on App Store Connect. ' +
+            'This step can be skipped by providing the --asc-app-id param. Learn more here: https://expo.fyi/asc-app-id'
         )
       )
     );

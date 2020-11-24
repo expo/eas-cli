@@ -1,7 +1,7 @@
 import { getConfig } from '@expo/config';
-import chalk from 'chalk';
 import wordwrap from 'wordwrap';
 
+import { getBundleIdentifier } from '../../build/ios/bundleIdentifer';
 import { authenticateAsync } from '../../credentials/ios/appstore/authenticate';
 import log from '../../log';
 import { promptAsync } from '../../prompts';
@@ -43,8 +43,7 @@ export async function ensureAppStoreConnectAppExistsAsync(
 
   const options = {
     ...ctx.commandFlags,
-    bundleIdentifier:
-      bundleIdentifier ?? exp.ios?.bundleIdentifier ?? (await promptForBundleIdAsync()),
+    bundleIdentifier: bundleIdentifier ?? (await getBundleIdentifier(ctx.projectDir, exp, false)),
     appName: appName ?? exp.name ?? (await promptForAppNameAsync()),
     language: sanitizeLanguage(language) ?? 'English',
   };
@@ -113,22 +112,6 @@ async function resolveItcTeamId(appleCreds: ProduceCredentials): Promise<string>
     appleCreds
   );
   return itcTeamId;
-}
-
-async function promptForBundleIdAsync(): Promise<string> {
-  log.addNewLineIfNone();
-  log('Please enter your iOS bundle identifier.');
-  log('You can also specify ' + chalk.italic('ios.bundleIdentifier') + ' in app.json file');
-
-  const { bundleId } = await promptAsync({
-    type: 'text',
-    name: 'bundleId',
-    message: 'Bundle Identifier: ',
-    // TODO: Add proper validation for this
-    validate: (val: string) => val !== '' || 'Bundle Identifier cannot be empty!',
-  });
-
-  return bundleId;
 }
 
 async function promptForAppNameAsync(): Promise<string> {

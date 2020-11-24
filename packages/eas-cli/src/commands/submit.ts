@@ -1,14 +1,14 @@
 import { Command, flags } from '@oclif/command';
 
-import { findProjectRootAsync } from '../../project/projectUtils';
-import AndroidSubmitCommand from '../../submissions/android/AndroidSubmitCommand';
-import IosSubmitCommand from '../../submissions/ios/IosSubmitCommand';
+import { findProjectRootAsync } from '../project/projectUtils';
+import AndroidSubmitCommand from '../submissions/android/AndroidSubmitCommand';
+import IosSubmitCommand from '../submissions/ios/IosSubmitCommand';
 import {
   AndroidSubmitCommandFlags,
   IosSubmitCommandFlags,
   SubmissionPlatform,
-} from '../../submissions/types';
-import { ensureLoggedInAsync } from '../../user/actions';
+} from '../submissions/types';
+import { ensureLoggedInAsync } from '../user/actions';
 
 const COMMON_FLAGS = '';
 const ANDROID_FLAGS = 'Android specific options';
@@ -16,6 +16,20 @@ const IOS_FLAGS = 'iOS specific options';
 
 export default class BuildSubmit extends Command {
   static description = 'Submits build artifact to app store';
+  static usage = 'submit --platform=(android|ios)';
+  static aliases = ['build:submit'];
+
+  static examples = [
+    `$ eas submit --platform=ios
+    - Fully interactive iOS submission, leads you step by step\n`,
+    `$ eas submit --platform=android 
+    - Fully interactive Android submission\n`,
+    `$ eas submit -pandroid --latest --key=/path/to/google-services.json
+    - Minimal non-interactive Android submission, however it can ask you for other params if not specified\n`,
+    `$ EXPO_APPLE_APP_SPECIFIC_PASSWORD=xxx eas submit -pios --latest --app-apple-id=1234567890,
+    - Minimal non-interactive iOS submission, assuming you already have an app in App Store Connect
+      and provide its App ID`,
+  ];
 
   static flags = {
     platform: flags.enum({
@@ -89,9 +103,9 @@ export default class BuildSubmit extends Command {
       description: 'Your Apple ID username (you can also set EXPO_APPLE_ID env variable)',
       helpLabel: IOS_FLAGS,
     }),
-    'app-apple-id': flags.string({
+    'asc-app-id': flags.string({
       description:
-        'App Store Connect unique application Apple ID number. Providing this param results in skipping app creation step',
+        'App Store Connect unique application Apple ID number. Providing this param results in skipping app creation step.',
       helpLabel: IOS_FLAGS,
     }),
     'apple-team-id': flags.string({
@@ -134,7 +148,7 @@ export default class BuildSubmit extends Command {
 
         // ios
         'apple-id': appleId,
-        'app-apple-id': appAppleId,
+        'asc-app-id': appAppleId,
         'apple-team-id': appleTeamId,
         'app-name': appName,
         'bundle-identifier': bundleIdentifier,
