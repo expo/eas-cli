@@ -1,4 +1,4 @@
-import { Profile, ProfileType } from '@expo/apple-utils';
+import { Profile, ProfileType, RequestContext } from '@expo/apple-utils';
 import ora from 'ora';
 
 import { findP12CertSerialNumber } from '../utils/p12Certificate';
@@ -7,7 +7,7 @@ import {
   ProvisioningProfile,
   ProvisioningProfileStoreInfo,
 } from './Credentials.types';
-import { AuthCtx } from './authenticate';
+import { AuthCtx, getRequestContext } from './authenticate';
 import { getBundleIdForIdentifierAsync, getProfilesForBundleIdAsync } from './bundleId';
 import { getCertificateBySerialNumberAsync, transformCertificate } from './distributionCertificate';
 import { USE_APPLE_UTILS } from './experimental';
@@ -70,18 +70,21 @@ async function transformProfileAsync(
   };
 }
 
-async function addCertificateToProfileAsync({
-  serialNumber,
-  profileId,
-  bundleIdentifier,
-}: {
-  serialNumber: string;
-  profileId: string;
-  bundleIdentifier: string;
-}) {
-  const cert = await getCertificateBySerialNumberAsync(serialNumber);
+async function addCertificateToProfileAsync(
+  context: RequestContext,
+  {
+    serialNumber,
+    profileId,
+    bundleIdentifier,
+  }: {
+    serialNumber: string;
+    profileId: string;
+    bundleIdentifier: string;
+  }
+) {
+  const cert = await getCertificateBySerialNumberAsync(context, serialNumber);
 
-  const profiles = await getProfilesForBundleIdAsync(bundleIdentifier);
+  const profiles = await getProfilesForBundleIdAsync(context, bundleIdentifier);
   const profile = profiles.find(profile => profile.id === profileId);
   if (!profile) {
     throw new Error(
@@ -117,7 +120,8 @@ export async function useExistingProvisioningProfileAsync(
     let result: ProvisioningProfile;
 
     if (USE_APPLE_UTILS) {
-      const profile = await addCertificateToProfileAsync({
+      const context = getRequestContext(ctx);
+      const profile = await addCertificateToProfileAsync(context, {
         serialNumber: distCert.distCertSerialNumber,
         profileId: provisioningProfile.provisioningProfileId,
         bundleIdentifier,
@@ -168,8 +172,9 @@ export async function listProvisioningProfilesAsync(
   const spinner = ora(`Getting Provisioning Profiles from Apple...`).start();
   try {
     if (USE_APPLE_UTILS) {
+      const context = getRequestContext(ctx);
       const profileType = resolveProfileType(profileClass, ctx.team.inHouse);
-      const profiles = (await getProfilesForBundleIdAsync(bundleIdentifier)).filter(
+      const profiles = (await getProfilesForBundleIdAsync(context, bundleIdentifier)).filter(
         profile => profile.attributes.profileType === profileType
       );
 
@@ -221,13 +226,17 @@ export async function createProvisioningProfileAsync(
     }
 
     if (USE_APPLE_UTILS) {
+      const context = getRequestContext(ctx);
       const profileType = resolveProfileType(profileClass, ctx.team.inHouse);
 
-      const certificate = await getCertificateBySerialNumberAsync(distCert.distCertSerialNumber);
+      const certificate = await getCertificateBySerialNumberAsync(
+        context,
+        distCert.distCertSerialNumber
+      );
 
-      const bundleIdItem = await getBundleIdForIdentifierAsync(bundleIdentifier);
+      const bundleIdItem = await getBundleIdForIdentifierAsync(context, bundleIdentifier);
 
-      const profile = await Profile.createAsync({
+      const profile = await Profile.createAsync(context, {
         bundleId: bundleIdItem.id,
         name: profileName,
         certificates: [certificate.id],
@@ -271,12 +280,14 @@ export async function revokeProvisioningProfileAsync(
   const spinner = ora(`Revoking Provisioning Profile on Apple Servers...`).start();
   try {
     if (USE_APPLE_UTILS) {
-      const profiles = await getProfilesForBundleIdAsync(bundleIdentifier);
+      const context = getRequestContext(ctx);
+
+      const profiles = await getProfilesForBundleIdAsync(context, bundleIdentifier);
       const profileType = resolveProfileType(profileClass, ctx.team.inHouse);
       await Promise.all(
         profiles
           .filter(profile => profile.attributes.profileType === profileType)
-          .map(profile => Profile.deleteAsync({ id: profile.id }))
+          .map(profile => Profile.deleteAsync(context, { id: profile.id }))
       );
     } else {
       const args = [

@@ -1,7 +1,7 @@
 import { BundleId, CapabilityType, CapabilityTypeOption } from '@expo/apple-utils';
 import ora from 'ora';
 
-import { AuthCtx } from './authenticate';
+import { AuthCtx, getRequestContext } from './authenticate';
 import { USE_APPLE_UTILS } from './experimental';
 import { runActionAsync, travelingFastlane } from './fastlane';
 
@@ -16,20 +16,22 @@ export interface AppLookupParams {
 }
 
 async function ensureBundleIdExistsAsync(
+  ctx: AuthCtx,
   { accountName, projectName, bundleIdentifier }: AppLookupParams,
   options: EnsureAppExistsOptions = {}
 ) {
+  const context = getRequestContext(ctx);
   let spinner = ora(`Registering Bundle ID "${bundleIdentifier}"`).start();
 
   try {
     // Get the bundle id
-    let bundleId = await BundleId.findAsync({ identifier: bundleIdentifier });
+    let bundleId = await BundleId.findAsync(context, { identifier: bundleIdentifier });
 
     if (bundleId) {
       spinner.succeed('Bundle ID already registered');
     } else {
       // If it doesn't exist, create it
-      bundleId = await BundleId.createAsync({
+      bundleId = await BundleId.createAsync(context, {
         name: `@${accountName}/${projectName}`,
         identifier: bundleIdentifier,
       });
@@ -60,21 +62,21 @@ async function ensureBundleIdExistsAsync(
 }
 
 export async function ensureAppExistsAsync(
-  { appleId, appleIdPassword, team }: Pick<AuthCtx, 'appleId' | 'appleIdPassword' | 'team'>,
+  ctx: AuthCtx,
   app: AppLookupParams,
   options: EnsureAppExistsOptions = {}
 ) {
   if (USE_APPLE_UTILS) {
-    return await ensureBundleIdExistsAsync(app, options);
+    return await ensureBundleIdExistsAsync(ctx, app, options);
   }
 
   const spinner = ora(`Ensuring App ID exists on Apple Developer Portal...`).start();
   try {
     const { created } = await runActionAsync(travelingFastlane.ensureAppExists, [
       ...(options.enablePushNotifications ? ['--push-notifications'] : []),
-      appleId,
-      appleIdPassword,
-      team.id,
+      ctx.appleId,
+      ctx.appleIdPassword,
+      ctx.team.id,
       app.bundleIdentifier,
       `@${app.accountName}/${app.projectName}`,
     ]);

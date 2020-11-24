@@ -5,7 +5,7 @@ import ora from 'ora';
 
 import log from '../../../log';
 import { PushKey, PushKeyStoreInfo } from './Credentials.types';
-import { AuthCtx } from './authenticate';
+import { AuthCtx, getRequestContext } from './authenticate';
 import { USE_APPLE_UTILS } from './experimental';
 import { runActionAsync, travelingFastlane } from './fastlane';
 
@@ -21,7 +21,8 @@ export async function listPushKeysAsync(ctx: AuthCtx): Promise<PushKeyStoreInfo[
   const spinner = ora(`Getting Push Keys from Apple...`).start();
   try {
     if (USE_APPLE_UTILS) {
-      const keys = await Keys.getKeysAsync();
+      const context = getRequestContext(ctx);
+      const keys = await Keys.getKeysAsync(context);
       spinner.succeed();
       return keys;
     } else {
@@ -43,8 +44,9 @@ export async function createPushKeyAsync(
   const spinner = ora(`Creating Push Key on Apple Servers...`).start();
   try {
     if (USE_APPLE_UTILS) {
-      const key = await Keys.createKeyAsync({ name, isApns: true });
-      const apnsKeyP8 = await Keys.downloadKeyAsync({ id: key.id });
+      const context = getRequestContext(ctx);
+      const key = await Keys.createKeyAsync(context, { name, isApns: true });
+      const apnsKeyP8 = await Keys.downloadKeyAsync(context, { id: key.id });
       spinner.succeed();
       return {
         apnsKeyId: key.id,
@@ -80,7 +82,8 @@ export async function revokePushKeyAsync(ctx: AuthCtx, ids: string[]): Promise<v
   const spinner = ora(`Revoking Push Key on Apple Servers...`).start();
   try {
     if (USE_APPLE_UTILS) {
-      await Promise.all(ids.map(id => Keys.revokeKeyAsync({ id })));
+      const context = getRequestContext(ctx);
+      await Promise.all(ids.map(id => Keys.revokeKeyAsync(context, { id })));
     } else {
       const args = ['revoke', ctx.appleId, ctx.appleIdPassword, ctx.team.id, ids.join(',')];
       await runActionAsync(travelingFastlane.managePushKeys, args);

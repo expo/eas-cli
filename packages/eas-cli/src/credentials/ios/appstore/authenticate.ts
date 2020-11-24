@@ -1,4 +1,11 @@
-import { Auth, InvalidUserCredentialsError, Session, Teams } from '@expo/apple-utils';
+import {
+  Auth,
+  InvalidUserCredentialsError,
+  RequestContext,
+  Session,
+  Teams,
+} from '@expo/apple-utils';
+import assert from 'assert';
 import chalk from 'chalk';
 import wordwrap from 'wordwrap';
 
@@ -15,7 +22,10 @@ const IS_MAC = process.platform === 'darwin';
 export type Options = {
   appleId?: string;
   teamId?: string;
-  cookies?: AuthCtx['cookies'];
+  /**
+   * Can be used to restore the Apple auth state via apple-utils.
+   */
+  cookies?: Session.AuthState['cookies'];
 };
 
 export type AppleCredentials = {
@@ -47,8 +57,13 @@ export type AuthCtx = {
   /**
    * Can be used to restore the Apple auth state via apple-utils.
    */
-  cookies?: Session.AuthState['cookies'];
+  authState?: Session.AuthState;
 };
+
+export function getRequestContext(ctx: AuthCtx): RequestContext {
+  assert(ctx.authState?.context, 'Apple request context must be defined');
+  return ctx.authState.context;
+}
 
 async function authenticateWithExperimentalAsync(options: Options = {}): Promise<AuthCtx> {
   const { appleId, appleIdPassword } = await requestAppleCredentialsAsync(options);
@@ -56,10 +71,11 @@ async function authenticateWithExperimentalAsync(options: Options = {}): Promise
 
   try {
     // TODO: The password isn't required for apple-utils. Remove the local prompt when we remove traveling Fastlane.
-    const authContext = await Auth.loginAsync({
+    const authState = await Auth.loginAsync({
       username: appleId,
       password: appleIdPassword,
       cookies: options.cookies,
+      teamId: options.teamId,
     });
     log(chalk.green('Authenticated with Apple Developer Portal successfully!'));
 
@@ -67,17 +83,14 @@ async function authenticateWithExperimentalAsync(options: Options = {}): Promise
     const teams = await Teams.getTeamsAsync();
     const team = await chooseTeamAsync(teams, options.teamId);
 
-    // Set the selected team ID internally
-    Teams.setSelectedTeamId(team.id);
-
     // Get the JSON cookies in the custom YAML format used by Fastlane
     const fastlaneSession = Session.getSessionAsYAML();
     return {
-      appleId: authContext.username,
-      appleIdPassword: authContext.password ?? appleIdPassword,
+      appleId: authState.username,
+      appleIdPassword: authState.password ?? appleIdPassword,
       team,
       // Can be used to restore the auth state using apple-utils.
-      cookies: authContext.cookies,
+      authState,
       // Defined for legacy usage in Turtle V1 or any other places where Fastlane is used in the servers.
       fastlaneSession,
     };

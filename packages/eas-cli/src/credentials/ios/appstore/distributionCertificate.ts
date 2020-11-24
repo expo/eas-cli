@@ -1,18 +1,24 @@
-import { Certificate, CertificateType, createCertificateAndP12Async } from '@expo/apple-utils';
+import {
+  Certificate,
+  CertificateType,
+  RequestContext,
+  createCertificateAndP12Async,
+} from '@expo/apple-utils';
 import ora from 'ora';
 
 import { DistributionCertificate, DistributionCertificateStoreInfo } from './Credentials.types';
-import { AuthCtx } from './authenticate';
+import { AuthCtx, getRequestContext } from './authenticate';
 import { USE_APPLE_UTILS } from './experimental';
 import { runActionAsync, travelingFastlane } from './fastlane';
 
 export class AppleTooManyCertsError extends Error {}
 
 export async function getCertificateBySerialNumberAsync(
+  context: RequestContext,
   serialNumber: string
 ): Promise<Certificate> {
   const cert = (
-    await Certificate.getAsync({
+    await Certificate.getAsync(context, {
       query: { filter: { serialNumber: [serialNumber] } },
     })
   ).find(item => item.attributes.serialNumber === serialNumber);
@@ -22,8 +28,10 @@ export async function getCertificateBySerialNumberAsync(
   return cert;
 }
 
-export async function getMostRecentCertificateAsync(): Promise<Certificate | null> {
-  const [certificate] = await Certificate.getAsync({
+export async function getMostRecentCertificateAsync(
+  context: RequestContext
+): Promise<Certificate | null> {
+  const [certificate] = await Certificate.getAsync(context, {
     query: {
       filter: {
         certificateType: CertificateType.IOS_DISTRIBUTION,
@@ -39,9 +47,10 @@ export async function getMostRecentCertificateAsync(): Promise<Certificate | nul
 }
 
 export async function getDistributionCertificateAync(
+  context: RequestContext,
   serialNumber: string
 ): Promise<Certificate | null> {
-  const [certificate] = await Certificate.getAsync({
+  const [certificate] = await Certificate.getAsync(context, {
     query: {
       filter: {
         // Specifying a serial number to query.
@@ -74,8 +83,9 @@ export async function listDistributionCertificatesAsync(
   const spinner = ora(`Getting Distribution Certificates from Apple...`).start();
   try {
     if (USE_APPLE_UTILS) {
+      const context = getRequestContext(ctx);
       const certs = (
-        await Certificate.getAsync({
+        await Certificate.getAsync(context, {
           query: {
             filter: {
               certificateType: [
@@ -110,7 +120,8 @@ export async function createDistributionCertificateAsync(
   const spinner = ora(`Creating Distribution Certificate on Apple Servers...`).start();
   if (USE_APPLE_UTILS) {
     try {
-      const results = await createCertificateAndP12Async({
+      const context = getRequestContext(ctx);
+      const results = await createCertificateAndP12Async(context, {
         certificateType: CertificateType.IOS_DISTRIBUTION,
       });
       spinner.succeed();
@@ -170,7 +181,8 @@ export async function revokeDistributionCertificateAsync(
   const spinner = ora(`Revoking Distribution Certificate on Apple Servers...`).start();
   try {
     if (USE_APPLE_UTILS) {
-      await Promise.all(ids.map(id => Certificate.deleteAsync({ id })));
+      const context = getRequestContext(ctx);
+      await Promise.all(ids.map(id => Certificate.deleteAsync(context, { id })));
     } else {
       const args = [
         'revoke',
