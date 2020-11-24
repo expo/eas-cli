@@ -62,7 +62,7 @@ class IosSubmitCommand {
   }
 
   private resolveAppSpecificPasswordSource(): Result<AppSpecificPasswordSource> {
-    const envAppSpecificPassword = getenv.string('EXPO_APPLE_APP_SPECIFIC_PASSWORD', undefined);
+    const envAppSpecificPassword = getenv.string('EXPO_APPLE_APP_SPECIFIC_PASSWORD', '');
 
     if (envAppSpecificPassword) {
       return result({
@@ -120,7 +120,7 @@ class IosSubmitCommand {
    */
   private async getAppleIdAsync(): Promise<string> {
     const { appleId } = this.ctx.commandFlags;
-    const envAppleId = getenv.string('EXPO_APPLE_ID', undefined);
+    const envAppleId = getenv.string('EXPO_APPLE_ID', '');
 
     if (appleId) {
       return appleId;
