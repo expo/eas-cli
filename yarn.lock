@@ -1571,16 +1571,6 @@
   dependencies:
     cross-spawn "^6.0.5"
 
-"@expo/traveling-fastlane-darwin@1.15.3":
-  version "1.15.3"
-  resolved "https://registry.yarnpkg.com/@expo/traveling-fastlane-darwin/-/traveling-fastlane-darwin-1.15.3.tgz#9019b1691ab356c6a97384dd63794156c83751f4"
-  integrity sha512-B8x45xV2HpyG6mVN1pUL7s1y2LGWYuK4ls3SU9DHsBJIvQpTbLOTv5jmr5fcNN8v9iLNvxQef3AMUdFEGE9hpg==
-
-"@expo/traveling-fastlane-linux@1.15.3":
-  version "1.15.3"
-  resolved "https://registry.yarnpkg.com/@expo/traveling-fastlane-linux/-/traveling-fastlane-linux-1.15.3.tgz#13a3031b1732234574da0246074d5fae41faf382"
-  integrity sha512-vDw4TT0i3W2AjFUsqyFddcPNyHH1kDPZzcnGbBjSc82Oo33r/YE/KT4yjg248oBokfmzAEIhlPQTL7lfCn51pg==
-
 "@graphql-codegen/cli@^1.19.2":
   version "1.19.2"
   resolved "https://registry.yarnpkg.com/@graphql-codegen/cli/-/cli-1.19.2.tgz#c13f44e144b3d6ff880f3b418b3b3af58917e889"
@@ -3571,13 +3561,6 @@
   version "9.0.1"
   resolved "https://registry.yarnpkg.com/@types/fs-extra/-/fs-extra-9.0.1.tgz#91c8fc4c51f6d5dbe44c2ca9ab09310bd00c7918"
   integrity sha512-B42Sxuaz09MhC3DDeW5kubRcQ5by4iuVQ0cRRWM2lggLzAa/KVom0Aft/208NgMvNQQZ86s5rVcqDdn/SH0/mg==
-  dependencies:
-    "@types/node" "*"
-
-"@types/getenv@^1.0.0":
-  version "1.0.0"
-  resolved "https://registry.yarnpkg.com/@types/getenv/-/getenv-1.0.0.tgz#fa5e6901e9fb84bfb40205d4952fd06c8afcf006"
-  integrity sha512-w8qs+09o4pfFb/4XkHJzsHEZ2m36s/d9vJhglbOeSiSe9mPu0OmCQbU4iEgGl2DNP9WfOHCVd6fBwIvBd4AZhg==
   dependencies:
     "@types/node" "*"
 
@@ -6850,11 +6833,6 @@ getenv@0.7.0:
   version "0.7.0"
   resolved "https://registry.yarnpkg.com/getenv/-/getenv-0.7.0.tgz#39b91838707e2086fd1cf6ef8777d1c93e14649e"
   integrity sha1-ObkYOHB+IIb9HPbvh3fRyT4UZJ4=
-
-getenv@^1.0.0:
-  version "1.0.0"
-  resolved "https://registry.yarnpkg.com/getenv/-/getenv-1.0.0.tgz#874f2e7544fbca53c7a4738f37de8605c3fcfc31"
-  integrity sha512-7yetJWqbS9sbn0vIfliPsFgoXMKn/YMF+Wuiog97x+urnSRRRZ7xB+uVkwGKzRgq9CDFfMQnE9ruL5DHv9c6Xg==
 
 getpass@^0.1.1:
   version "0.1.7"

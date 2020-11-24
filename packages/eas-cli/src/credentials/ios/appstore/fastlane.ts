@@ -1,58 +1,30 @@
-import spawnAsync from '@expo/spawn-async';
-import slash from 'slash';
-
-const travelingFastlane =
-  process.platform === 'darwin'
-    ? require('@expo/traveling-fastlane-darwin')()
-    : require('@expo/traveling-fastlane-linux')();
+const travelingFastlane = {
+  appProduce: 'app_produce',
+  authenticate: 'authenticate',
+  ensureAppExists: 'ensure_app_exists',
+  listDevices: 'list_devices',
+  manageAdHocProvisioningProfile: 'manage_ad_hoc_provisioning_profile',
+  manageDistCerts: 'manage_dist_certs',
+  managePushKeys: 'manage_push_keys',
+  manageProvisioningProfiles: 'manage_provisioning_profiles',
+  newManageProvisioningProfiles: 'new_manage_provisioning_profiles',
+  pilotUpload: 'pilot_upload',
+  resolveItcTeamId: 'resolve_itc_team_id',
+  supplyAndroid: 'supply_android',
+};
 
 const WSL_BASH_PATH = 'C:\\Windows\\system32\\bash.exe';
-const WSL_BASH = 'bash';
-const WSL_ONLY_PATH = 'PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin';
 
 type Options = {
   pipeStdout?: boolean;
 };
 
-async function runActionAsync(fastlaneAction: string, args: string[], options: Options = {}) {
-  const { pipeStdout = false } = options;
-  const { command, commandArgs } = getCommandAndArgsForPlatform(fastlaneAction, args);
-  const { stderr } = await spawnAsync(command, commandArgs, {
-    stdio: ['inherit', pipeStdout ? 'inherit' : 'pipe', 'pipe'],
-  });
-  const { result, ...rest } = JSON.parse(stderr.trim());
-  if (result === 'success') {
-    return rest;
-  } else {
-    const { reason, rawDump } = rest;
-    const err = new Error(`Reason: ${reason}, raw: ${JSON.stringify(rawDump)}`);
-    // @ts-ignore
-    err.rawDump = rawDump;
-    throw err;
-  }
-}
-
-function getCommandAndArgsForPlatform(fastlaneAction: string, args: string[]) {
-  if (process.platform === 'win32') {
-    const command = WSL_BASH;
-    const argsJoined = args.map(i => `"${i}"`).join(' ');
-    const commandArgs = [
-      '-c',
-      `${WSL_ONLY_PATH} ${windowsToWSLPath(fastlaneAction)} ${argsJoined}`,
-    ];
-    return { command, commandArgs };
-  } else {
-    const command = fastlaneAction;
-    const commandArgs = [...args];
-    return { command, commandArgs };
-  }
-}
-
-function windowsToWSLPath(_path: string) {
-  const slashPath = slash(_path);
-  const diskLetter = _path[0].toLowerCase();
-  const pathOnDisk = slashPath.slice(2);
-  return `/mnt/${diskLetter}${pathOnDisk}`;
+async function runActionAsync(
+  fastlaneAction: string,
+  _args: string[],
+  _options: Options = {}
+): Promise<any> {
+  throw new Error(`Fastlane not available. (Action: ${fastlaneAction}`);
 }
 
 export { travelingFastlane, runActionAsync, WSL_BASH_PATH };

@@ -1,14 +1,14 @@
 {
   "name": "eas-cli",
   "description": "EAS command line tool",
-  "version": "0.1.0-alpha.4",
+  "version": "0.1.0-alpha.7",
   "author": "Expo <support@expo.io>",
   "bin": {
     "eas": "./bin/run"
   },
   "bugs": "https://github.com/expo/eas-cli/issues",
   "dependencies": {
-    "@eas/config": "^0.1.0-alpha.4",
+    "@eas/config": "^0.1.0-alpha.6",
     "@expo/apple-utils": "0.0.0-alpha.5",
     "@expo/config": "^3.3.12",
     "@expo/eas-build-job": "0.1.2",
@@ -27,7 +27,6 @@
     "figures": "^3.2.0",
     "form-data": "^3.0.0",
     "fs-extra": "^9.0.1",
-    "getenv": "^1.0.0",
     "got": "^11.5.2",
     "graphql-tag": "^2.11.0",
     "indent-string": "^4.0.0",
@@ -62,7 +61,6 @@
     "@types/dateformat": "^3.0.1",
     "@types/form-data": "^2.5.0",
     "@types/fs-extra": "^9.0.1",
-    "@types/getenv": "^1.0.0",
     "@types/lodash": "^4.14.161",
     "@types/node": "^12",
     "@types/node-fetch": "^2.5.7",
@@ -82,10 +80,6 @@
     "ts-node": "^8",
     "typescript": "^3.9.7",
     "wonka": "^4.0.14"
-  },
-  "optionalDependencies": {
-    "@expo/traveling-fastlane-darwin": "1.15.3",
-    "@expo/traveling-fastlane-linux": "1.15.3"
   },
   "engines": {
     "node": ">=8.0.0"
