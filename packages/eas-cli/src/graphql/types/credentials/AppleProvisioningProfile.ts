@@ -26,6 +26,13 @@ export const AppleProvisioningProfileFragment: Fragment = {
         appleTeamIdentifier
         appleTeamName
       }
+      appleDevices {
+        id
+        identifier
+        name
+        model
+        deviceClass
+      }
     }
   `,
 };

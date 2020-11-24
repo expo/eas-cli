@@ -13,11 +13,17 @@ export enum CredentialsSource {
   AUTO = 'auto',
 }
 
+export enum DistributionType {
+  STORE = 'store',
+  INTERNAL = 'internal',
+}
+
 export interface AndroidManagedBuildProfile {
   workflow: Workflow.Managed;
   credentialsSource: CredentialsSource;
   buildType?: 'apk' | 'app-bundle';
   releaseChannel?: undefined;
+  distribution?: DistributionType;
 }
 
 export interface AndroidGenericBuildProfile {
@@ -27,6 +33,7 @@ export interface AndroidGenericBuildProfile {
   releaseChannel?: string;
   artifactPath?: string;
   withoutCredentials?: boolean;
+  distribution?: DistributionType;
 }
 
 export interface iOSManagedBuildProfile {
@@ -34,6 +41,7 @@ export interface iOSManagedBuildProfile {
   credentialsSource: CredentialsSource;
   buildType?: 'archive' | 'simulator';
   releaseChannel?: undefined;
+  distribution?: DistributionType;
 }
 
 export interface iOSGenericBuildProfile {
@@ -42,6 +50,7 @@ export interface iOSGenericBuildProfile {
   scheme?: string;
   releaseChannel?: string;
   artifactPath?: string;
+  distribution?: DistributionType;
 }
 
 export type AndroidBuildProfile = AndroidManagedBuildProfile | AndroidGenericBuildProfile;

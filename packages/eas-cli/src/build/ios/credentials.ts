@@ -1,4 +1,4 @@
-import { CredentialsSource, Workflow } from '@eas/config';
+import { CredentialsSource, DistributionType, Workflow } from '@eas/config';
 import assert from 'assert';
 
 import { createCredentialsContextAsync } from '../../credentials/context';
@@ -18,44 +18,41 @@ export async function ensureIosCredentialsAsync(
     return;
   }
   assert(ctx.commandCtx.exp?.ios?.bundleIdentifier, 'ios.bundleIdentifier is required');
-  return await resolveIosCredentialsAsync(
-    ctx.commandCtx.projectDir,
-    {
-      app: {
-        accountName: ctx.commandCtx.accountName,
-        projectName: ctx.commandCtx.projectName,
-        bundleIdentifier: ctx.commandCtx.exp.ios.bundleIdentifier,
-      },
-      workflow: ctx.buildProfile.workflow,
-      credentialsSource: ctx.buildProfile.credentialsSource,
+  return await resolveIosCredentialsAsync(ctx.commandCtx.projectDir, {
+    app: {
+      accountName: ctx.commandCtx.accountName,
+      projectName: ctx.commandCtx.projectName,
+      bundleIdentifier: ctx.commandCtx.exp.ios.bundleIdentifier,
     },
-    {
-      nonInteractive: ctx.commandCtx.nonInteractive,
-    }
-  );
+    workflow: ctx.buildProfile.workflow,
+    credentialsSource: ctx.buildProfile.credentialsSource,
+    distribution: ctx.buildProfile.distribution ?? DistributionType.STORE,
+    nonInteractive: ctx.commandCtx.nonInteractive,
+  });
 }
 
 interface ResolveCredentialsParams {
   app: AppLookupParams;
   workflow: Workflow;
   credentialsSource: CredentialsSource;
+  distribution: DistributionType;
+  nonInteractive: boolean;
 }
 
 export async function resolveIosCredentialsAsync(
   projectDir: string,
-  params: ResolveCredentialsParams,
-  options: { nonInteractive: boolean }
+  params: ResolveCredentialsParams
 ): Promise<CredentialsResult<IosCredentials>> {
-  const provider = new IosCredentialsProvider(
-    await createCredentialsContextAsync(projectDir, { nonInteractive: options.nonInteractive }),
-    params.app,
-    {}
-  );
+  const provider = new IosCredentialsProvider(await createCredentialsContextAsync(projectDir, {}), {
+    app: params.app,
+    nonInteractive: params.nonInteractive,
+    distribution: params.distribution,
+  });
   const credentialsSource = await ensureCredentialsAsync(
     provider,
     params.workflow,
     params.credentialsSource,
-    options.nonInteractive
+    params.nonInteractive
   );
   return {
     credentials: await provider.getCredentialsAsync(credentialsSource),

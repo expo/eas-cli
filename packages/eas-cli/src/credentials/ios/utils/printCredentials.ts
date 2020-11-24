@@ -1,5 +1,9 @@
 import chalk from 'chalk';
 
+import {
+  APPLE_DEVICE_CLASS_LABELS,
+  AppleDevice,
+} from '../../../graphql/types/credentials/AppleDevice';
 import log from '../../../log';
 import {
   AppLookupParams,
@@ -74,6 +78,12 @@ export function displayIosAppCredentials(appCredentials: IosAppCredentials) {
   } else {
     log('    Provisioning profile is missing. It will be generated during the next build');
   }
+  if (appCredentials.credentials.devices && appCredentials.credentials.devices.length > 0) {
+    log(`    Provisioned devices:`);
+    for (const device of appCredentials.credentials.devices) {
+      log(`    - ${formatDevice(device)}`);
+    }
+  }
   if (appCredentials.credentials.teamId || appCredentials.credentials.teamName) {
     log(
       `    Apple Team ID: ${chalk.green(
@@ -88,6 +98,33 @@ export function displayIosAppCredentials(appCredentials: IosAppCredentials) {
       )})`
     );
   }
+}
+
+function formatDevice(device: AppleDevice): string {
+  let deviceString = '';
+  if (device.name) {
+    deviceString += device.name;
+  }
+  if (device.deviceClass || device.model) {
+    const deviceDetails = [
+      device.deviceClass && APPLE_DEVICE_CLASS_LABELS[device.deviceClass],
+      device.model,
+    ]
+      .filter(i => i)
+      .join(' ');
+    if (deviceString === '') {
+      deviceString += deviceDetails;
+    } else {
+      deviceString += ` - ${deviceDetails}`;
+    }
+  }
+
+  if (deviceString === '') {
+    deviceString += device.identifier;
+  } else {
+    deviceString += ` (UDID: ${device.identifier})`;
+  }
+  return deviceString;
 }
 
 export function displayIosUserCredentials(

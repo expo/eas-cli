@@ -1571,15 +1571,15 @@
   dependencies:
     cross-spawn "^6.0.5"
 
-"@expo/traveling-fastlane-darwin@1.15.2":
-  version "1.15.2"
-  resolved "https://registry.yarnpkg.com/@expo/traveling-fastlane-darwin/-/traveling-fastlane-darwin-1.15.2.tgz#58b82d4a8fb7484aba8cf988c100310d37dc18d5"
-  integrity sha512-I/QWO5sZNzR5NvnNdoCO8PrhsqijZkfhL31kUuIyEvr2WxTP2tC+64gtjcMx5LGmsFhL93qkJ92wjTkG3PrcMQ==
+"@expo/traveling-fastlane-darwin@1.15.3":
+  version "1.15.3"
+  resolved "https://registry.yarnpkg.com/@expo/traveling-fastlane-darwin/-/traveling-fastlane-darwin-1.15.3.tgz#9019b1691ab356c6a97384dd63794156c83751f4"
+  integrity sha512-B8x45xV2HpyG6mVN1pUL7s1y2LGWYuK4ls3SU9DHsBJIvQpTbLOTv5jmr5fcNN8v9iLNvxQef3AMUdFEGE9hpg==
 
-"@expo/traveling-fastlane-linux@1.15.2":
-  version "1.15.2"
-  resolved "https://registry.yarnpkg.com/@expo/traveling-fastlane-linux/-/traveling-fastlane-linux-1.15.2.tgz#4a76ac34de924ee75b492fa595a387d87c9feedd"
-  integrity sha512-aN8cIvHWr/vIGmEdIYYneUygDlZ+XDl1K4uKOvzs0l9B5yPb9nZ42YGpsX6LtjEi3sudtK1vqEOsTOPKTnZkCA==
+"@expo/traveling-fastlane-linux@1.15.3":
+  version "1.15.3"
+  resolved "https://registry.yarnpkg.com/@expo/traveling-fastlane-linux/-/traveling-fastlane-linux-1.15.3.tgz#13a3031b1732234574da0246074d5fae41faf382"
+  integrity sha512-vDw4TT0i3W2AjFUsqyFddcPNyHH1kDPZzcnGbBjSc82Oo33r/YE/KT4yjg248oBokfmzAEIhlPQTL7lfCn51pg==
 
 "@graphql-codegen/cli@^1.19.2":
   version "1.19.2"
@@ -3756,10 +3756,10 @@
   dependencies:
     "@types/node" "*"
 
-"@types/prompts@^2.0.8":
-  version "2.0.8"
-  resolved "https://registry.yarnpkg.com/@types/prompts/-/prompts-2.0.8.tgz#350fc8341426b2b68a56f874ea3bae399f771800"
-  integrity sha512-lXXAa8c8ASoA61Tj9H5E5V2mRUTvNZ/dpJ5KxghI+O5geWMHt73NLZ9kEBBDK7zUUfMsMY3ZH4Sqeqh3SjSyfg==
+"@types/prompts@^2.0.9":
+  version "2.0.9"
+  resolved "https://registry.yarnpkg.com/@types/prompts/-/prompts-2.0.9.tgz#19f419310eaa224a520476b19d4183f6a2b3bd8f"
+  integrity sha512-TORZP+FSjTYMWwKadftmqEn6bziN5RnfygehByGsjxoK5ydnClddtv6GikGWPvCm24oI+YBwck5WDxIIyNxUrA==
   dependencies:
     "@types/node" "*"
 

@@ -59,6 +59,9 @@ const AppleDistributionCertificateQuery = {
             projectFullName,
             appleAppIdentifierId,
             iosDistributionType,
+          },
+          {
+            additionalTypenames: ['IosAppCredentials', 'IosAppBuildCredentials'],
           }
         )
         .toPromise()

@@ -80,7 +80,7 @@ const IosAppBuildCredentialsMutation = {
           gql`
             mutation IosAppBuildCredentialsMutation($iosAppBuildCredentialsId: ID!, $provisioningProfileId: ID!) {
               iosAppBuildCredentials {
-                setProvisioningProfile(iosAppBuildCredentialsId: $iosAppBuildCredentialsId, distributionCertificateId: $distributionCertificateId) {
+                setProvisioningProfile(id: $iosAppBuildCredentialsId, provisioningProfileId: $provisioningProfileId) {
                   ...${IosAppBuildCredentialsFragment.name}
                 }
               }
