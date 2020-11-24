@@ -237,8 +237,8 @@ export async function createOrReuseAdhocProvisioningProfileAsync(
         args
       );
       adhocProvisioningProfile = {
-        provisioningProfile: travelingFastlane.provisioningProfile,
-        provisioningProfileId: travelingFastlane.provisioningProfileId,
+        provisioningProfile: travelingFastlaneProfile.provisioningProfile,
+        provisioningProfileId: travelingFastlaneProfile.provisioningProfileId,
         profileName: travelingFastlaneProfile.provisioningProfileName,
         didUpdate: !!travelingFastlaneProfile.provisioningProfileUpdateTimestamp,
         didCreate: !!travelingFastlaneProfile.provisioningProfileCreateTimestamp,
