@@ -84,8 +84,8 @@
     "wonka": "^4.0.14"
   },
   "optionalDependencies": {
-    "@expo/traveling-fastlane-darwin": "1.15.1",
-    "@expo/traveling-fastlane-linux": "1.15.1"
+    "@expo/traveling-fastlane-darwin": "1.15.3",
+    "@expo/traveling-fastlane-linux": "1.15.3"
   },
   "engines": {
     "node": ">=8.0.0"
