@@ -149,7 +149,9 @@ export default class IosCredentialsProvider implements CredentialsProvider {
     if (this.options.internalDistribution) {
       const { app } = this.options;
       const account = findAccountByName(this.ctx.user.accounts, app.accountName);
-      assert(account, `You do not have access to the ${app.accountName} account`);
+      if (!account) {
+        throw new Error(`You do not have access to the ${app.accountName} account`);
+      }
 
       const appLookupParams = {
         account,
@@ -158,11 +160,10 @@ export default class IosCredentialsProvider implements CredentialsProvider {
       };
 
       // for now, let's require the user to authenticate with Apple
-      await this.ctx.appStore.ensureAuthenticatedAsync();
-      assert(this.ctx.appStore.authCtx);
+      const { team } = await this.ctx.appStore.ensureAuthenticatedAsync();
       const appleTeam = await this.ctx.newIos.createOrGetExistingAppleTeamAsync(appLookupParams, {
-        appleTeamIdentifier: this.ctx.appStore.authCtx.team.id,
-        appleTeamName: this.ctx.appStore.authCtx.team.name,
+        appleTeamIdentifier: team.id,
+        appleTeamName: team.name,
       });
       const [distCert, provisioningProfile] = await Promise.all([
         this.ctx.newIos.getDistributionCertificateForAppAsync(

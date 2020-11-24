@@ -30,15 +30,12 @@ export class SetupAdhocProvisioningProfile implements Action {
   }
 
   async runAsync(manager: CredentialsManager, ctx: Context): Promise<void> {
-    assert(
-      ctx.appStore.authCtx,
-      'authCtx is defined in this context - enforced by ensureAuthenticatedAsync call in SetupBuildCredentials'
-    );
+    const authCtx = await ctx.appStore.ensureAuthenticatedAsync();
 
     // 0. Fetch apple team object
     const appleTeam = await ctx.newIos.createOrGetExistingAppleTeamAsync(this.app, {
-      appleTeamIdentifier: ctx.appStore.authCtx.team.id,
-      appleTeamName: ctx.appStore.authCtx.team.name,
+      appleTeamIdentifier: authCtx.team.id,
+      appleTeamName: authCtx.team.name,
     });
 
     // 1. Fetch devices registered on Expo servers.

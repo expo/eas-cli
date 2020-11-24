@@ -33,7 +33,9 @@ export class SetupBuildCredentials implements Action {
     try {
       if (this.internalDistribution) {
         const account = findAccountByName(ctx.user.accounts, this.app.accountName);
-        assert(account, `You do not have access to the ${this.app.accountName} account`);
+        if (!account) {
+          throw new Error(`You do not have access to the ${this.app.accountName} account`);
+        }
         // for now, let's require the user to authenticate with Apple
         await ctx.appStore.ensureAuthenticatedAsync();
         const action = new SetupAdhocProvisioningProfile({
@@ -92,7 +94,7 @@ export class SetupBuildCredentials implements Action {
         },
         distCert: {
           // the id doesn't really matter, it's only for displaying credentials
-          id: -1,
+          id: null as any,
           type: 'dist-cert',
           certId: distributionCertificate.developerPortalIdentifier,
           certP12: distributionCertificate.certificateP12,
