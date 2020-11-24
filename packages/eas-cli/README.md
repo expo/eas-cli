@@ -21,7 +21,7 @@ $ npm install -g eas-cli
 $ eas COMMAND
 running command...
 $ eas (-v|--version|version)
-eas-cli/0.1.0-alpha.4 darwin-x64 node-v12.16.2
+eas-cli/0.1.0-alpha.6 darwin-x64 node-v12.13.0
 $ eas --help [COMMAND]
 USAGE
   $ eas COMMAND
@@ -44,7 +44,6 @@ USAGE
 * [`eas device:create`](#eas-devicecreate)
 * [`eas help [COMMAND]`](#eas-help-command)
 * [`eas release:create [RELEASENAME]`](#eas-releasecreate-releasename)
-* [`eas release:publish`](#eas-releasepublish)
 * [`eas update:show`](#eas-updateshow)
 
 ## `eas account:login`
@@ -59,6 +58,8 @@ ALIASES
   $ eas login
 ```
 
+_See code: [build/commands/account/login.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.6/build/commands/account/login.ts)_
+
 ## `eas account:logout`
 
 log out
@@ -70,6 +71,8 @@ USAGE
 ALIASES
   $ eas logout
 ```
+
+_See code: [build/commands/account/logout.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.6/build/commands/account/logout.ts)_
 
 ## `eas account:view`
 
@@ -83,6 +86,8 @@ ALIASES
   $ eas whoami
 ```
 
+_See code: [build/commands/account/view.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.6/build/commands/account/view.ts)_
+
 ## `eas build`
 
 build an app binary for your project
@@ -91,6 +96,8 @@ build an app binary for your project
 USAGE
   $ eas build
 ```
+
+_See code: [build/commands/build/index.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.6/build/commands/build/index.ts)_
 
 ## `eas build:configure`
 
@@ -103,6 +110,8 @@ USAGE
 OPTIONS
   -p, --platform=(android|ios|all)  [default: all] Platform to configure
 ```
+
+_See code: [build/commands/build/configure.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.6/build/commands/build/configure.ts)_
 
 ## `eas build:create`
 
@@ -121,6 +130,8 @@ OPTIONS
   --wait                            Wait for build(s) to complete
 ```
 
+_See code: [build/commands/build/create.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.6/build/commands/build/create.ts)_
+
 ## `eas build:status`
 
 get the status of the latest builds for your project
@@ -134,6 +145,8 @@ OPTIONS
   --status=(in-queue|in-progress|errored|finished)
 ```
 
+_See code: [build/commands/build/status.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.6/build/commands/build/status.ts)_
+
 ## `eas build:submit`
 
 Submits build artifact to app store
@@ -143,40 +156,46 @@ USAGE
   $ eas build:submit
 
 OPTIONS
-  -p, --platform=(android|ios)                               (required) For which platform you want to submit a build
+  -p, --platform=(android|ios)                                       (required) For which platform you want to submit a
+                                                                     build
 
-  --android-package=android-package                          Android package name (using expo.android.package from
-                                                             app.json by default)
+  Android specific options=android-package                           Android package name (using expo.android.package
+                                                                     from app.json by default)
 
-  --app-apple-id=app-apple-id                                App Store Connect unique application Apple ID number.
+  iOS specific options=app-apple-id                                  App Store Connect unique application Apple ID
+                                                                     number.
 
-  --apple-app-specific-password=apple-app-specific-password  Your Apple ID app-specific password. You can also set
-                                                             EXPO_APPLE_APP_SPECIFIC_PASSWORD env variable.
+  iOS specific options=apple-app-specific-password                   Your Apple ID app-specific password. You can also
+                                                                     set EXPO_APPLE_APP_SPECIFIC_PASSWORD env variable.
 
-  --apple-id=apple-id                                        Your Apple ID username (you can also set EXPO_APPLE_ID env
-                                                             variable)
+  iOS specific options=apple-id                                      Your Apple ID username (you can also set
+                                                                     EXPO_APPLE_ID env variable)
 
-  --id=id                                                    ID of the build to submit
+  --id=id                                                            ID of the build to submit
 
-  --key=key                                                  Path to the JSON key used to authenticate with Google Play
+  Android specific options=key                                       Path to the JSON key used to authenticate with
+                                                                     Google Play
 
-  --latest                                                   Submit the latest build
+  --latest                                                           Submit the latest build
 
-  --path=path                                                Path to the .apk/.aab file
+  --path=path                                                        Path to the .apk/.aab file
 
-  --release-status=(completed|draft|halted|inProgress)       [default: completed] Release status (used when uploading
-                                                             new apks/aabs), choose from: completed, draft, halted,
-                                                             inProgress
+  Android specific options=(completed|draft|halted|inProgress)       [default: completed] Release status (used when
+                                                                     uploading new apks/aabs), choose from: completed,
+                                                                     draft, halted, inProgress
 
-  --track=(production|beta|alpha|internal|rollout)           [default: internal] The track of the application to use,
-                                                             choose from: production, beta, alpha, internal, rollout
+  Android specific options=(production|beta|alpha|internal|rollout)  [default: internal] The track of the application to
+                                                                     use, choose from: production, beta, alpha,
+                                                                     internal, rollout
 
-  --type=(apk|aab)                                           Android archive type
+  Android specific options=(apk|aab)                                 Android archive type
 
-  --url=url                                                  App archive url
+  --url=url                                                          App archive url
 
-  --verbose                                                  Always print logs from Submission Service
+  --verbose                                                          Always print logs from Submission Service
 ```
+
+_See code: [build/commands/build/submit.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.6/build/commands/build/submit.ts)_
 
 ## `eas credentials`
 
@@ -187,6 +206,8 @@ USAGE
   $ eas credentials
 ```
 
+_See code: [build/commands/credentials.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.6/build/commands/credentials.ts)_
+
 ## `eas device:create`
 
 register new Apple Devices to use for internal distribution
@@ -195,6 +216,8 @@ register new Apple Devices to use for internal distribution
 USAGE
   $ eas device:create
 ```
+
+_See code: [build/commands/device/create.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.6/build/commands/device/create.ts)_
 
 ## `eas help [COMMAND]`
 
@@ -223,15 +246,9 @@ USAGE
 
 ARGUMENTS
   RELEASENAME  Name of the release to create
-```
 
-## `eas release:publish`
-
-Publish an updateGroup on a release.
-
-```
-USAGE
-  $ eas release:publish
+OPTIONS
+  --json  return a json with the new release ID and name.
 ```
 
 ## `eas update:show`
@@ -242,4 +259,6 @@ details about a particular revision
 USAGE
   $ eas update:show
 ```
+
+_See code: [build/commands/update/show.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.6/build/commands/update/show.ts)_
 <!-- commandsstop -->
