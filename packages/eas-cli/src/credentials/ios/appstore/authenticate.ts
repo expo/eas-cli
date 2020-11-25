@@ -92,7 +92,7 @@ async function authenticateWithExperimentalAsync(options: Options = {}): Promise
     return {
       appleId: authState.username,
       appleIdPassword: authState.password ?? appleIdPassword,
-      team,
+      team: formatTeam(team),
       // Can be used to restore the auth state using apple-utils.
       authState,
       // Defined for legacy usage in Turtle V1 or any other places where Fastlane is used in the servers.
