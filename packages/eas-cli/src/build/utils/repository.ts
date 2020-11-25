@@ -1,4 +1,5 @@
 import spawnAsync from '@expo/spawn-async';
+import chalk from 'chalk';
 import fs from 'fs-extra';
 import ora from 'ora';
 import path from 'path';
@@ -39,23 +40,49 @@ async function ensureGitRepoExistsAsync(): Promise<void> {
 
   log("We're going to make an initial commit for you repository.");
 
-  const { message } = await promptAsync({
-    type: 'text',
-    name: 'message',
-    message: 'Commit message:',
-    initial: 'Initial commit',
-    validate: (input: string) => input !== '',
-  });
   await spawnAsync('git', ['add', '-A']);
-  await spawnAsync('git', ['commit', '-m', message]);
+  await commitPromptAsync('Initial commit');
+}
+
+async function isGitStatusCleanAsync(): Promise<boolean> {
+  const changes = await gitStatusAsync();
+  return changes.length === 0;
+}
+
+async function maybeBailOnGitStatusAsync(): Promise<void> {
+  if (!(await isGitStatusCleanAsync())) {
+    log.warn(`${chalk.bold('Warning!')} Your git working tree is dirty.`);
+    log(
+      `It's recommended to ${chalk.bold(
+        'commit all your changes before proceeding'
+      )}, so you can revert the changes made by this command if necessary.`
+    );
+    const answer = await confirmAsync({
+      message: `Would you like to proceed?`,
+    });
+
+    if (!answer) {
+      throw new Error('Please commit all changes. Aborting...');
+    }
+  }
 }
 
 async function ensureGitStatusIsCleanAsync(): Promise<void> {
-  const changes = await gitStatusAsync();
-  if (changes.length > 0) {
-    throw new DirtyGitTreeError(
-      'Please commit all changes before building your project. Aborting...'
+  if (!(await isGitStatusCleanAsync())) {
+    log.warn(`${chalk.bold('Warning!')} Your git working tree is dirty.`);
+    log(
+      `It's recommended to ${chalk.bold(
+        'commit all your changes before proceeding'
+      )}, so you can revert the changes made by this command if necessary.`
     );
+    const answer = await confirmAsync({
+      message: `Would you like to commit your local changes?`,
+    });
+    if (answer) {
+      await commitPromptAsync();
+    } else {
+      throw new Error('Please commit all changes. Aborting...');
+    }
   }
 }
 
@@ -100,12 +127,15 @@ async function reviewAndCommitChangesAsync(
   if (!confirm) {
     throw new Error('Aborting commit. Please review and commit the changes manually.');
   }
+  await commitPromptAsync(commitMessage);
+}
 
+async function commitPromptAsync(initialCommitMessage?: string): Promise<void> {
   const { message } = await promptAsync({
     type: 'text',
     name: 'message',
     message: 'Commit message:',
-    initial: commitMessage,
+    initial: initialCommitMessage,
     validate: (input: string) => input !== '',
   });
 
@@ -124,25 +154,18 @@ async function modifyAndCommitAsync(
     nonInteractive: boolean;
   }
 ) {
-  try {
-    await callback();
+  await callback();
 
-    await ensureGitStatusIsCleanAsync();
-  } catch (err) {
-    if (err instanceof DirtyGitTreeError) {
-      log.newLine();
-
-      try {
-        await reviewAndCommitChangesAsync(commitMessage, {
-          nonInteractive,
-        });
-      } catch (e) {
-        throw new Error(
-          "Aborting, run the command again once you're ready. Make sure to commit any changes you've made."
-        );
-      }
-    } else {
-      throw err;
+  if (!(await isGitStatusCleanAsync())) {
+    log.newLine();
+    try {
+      await reviewAndCommitChangesAsync(commitMessage, {
+        nonInteractive,
+      });
+    } catch (e) {
+      throw new Error(
+        "Aborting, run the command again once you're ready. Make sure to commit any changes you've made."
+      );
     }
   }
 }
@@ -151,6 +174,7 @@ export {
   DirtyGitTreeError,
   ensureGitRepoExistsAsync,
   ensureGitStatusIsCleanAsync,
+  maybeBailOnGitStatusAsync,
   makeProjectTarballAsync,
   reviewAndCommitChangesAsync,
   modifyAndCommitAsync,

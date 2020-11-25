@@ -13,7 +13,8 @@ const AndroidGenericSchema = Joi.object({
 const AndroidManagedSchema = Joi.object({
   workflow: Joi.string().valid('managed').required(),
   credentialsSource: Joi.string().valid('local', 'remote', 'auto').default('auto'),
-  buildType: Joi.string().valid('apk', 'app-bundle').default('app-bundle'),
+  releaseChannel: Joi.string(),
+  buildType: Joi.string().valid('apk', 'app-bundle', 'development-client').default('app-bundle'),
   distribution: Joi.string().valid('store', 'internal').default('store'),
 });
 
@@ -29,7 +30,7 @@ const iOSGenericSchema = Joi.object({
 const iOSManagedSchema = Joi.object({
   workflow: Joi.string().valid('managed').required(),
   credentialsSource: Joi.string().valid('local', 'remote', 'auto').default('auto'),
-  buildType: Joi.string().valid('archive', 'simulator'),
+  releaseChannel: Joi.string(),
   distribution: Joi.string().valid('store', 'internal').default('store'),
 });
 

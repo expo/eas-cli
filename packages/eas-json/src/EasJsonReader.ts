@@ -1,14 +1,8 @@
-import { Platform } from '@expo/eas-build-job';
+import { Platform, Workflow } from '@expo/eas-build-job';
 import fs from 'fs-extra';
 import path from 'path';
 
-import {
-  AndroidBuildProfile,
-  BuildProfile,
-  EasConfig,
-  Workflow,
-  iOSBuildProfile,
-} from './Config.types';
+import { AndroidBuildProfile, BuildProfile, EasConfig, iOSBuildProfile } from './Config.types';
 import { EasJsonSchema, schemaBuildProfileMap } from './EasJsonSchema';
 
 interface EasJson {
