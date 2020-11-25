@@ -63,9 +63,13 @@ async function authenticateWithExperimentalAsync(options: Options = {}): Promise
     });
     log(chalk.green('Authenticated with Apple Developer Portal successfully!'));
 
-    // Get all of the teams
+    // Currently, this is resolved once, inside the apple-utils package.
+    const teamId = authState.context.teamId!;
+    // Get all of the teams to resolve the rest of the user data.
+    // TODO: optimize this step.
     const teams = await Teams.getTeamsAsync();
-    const team = await chooseTeamAsync(teams, options.teamId);
+    const team = teams.find(team => team.teamId === teamId);
+    assert(team, `Your account is not associated with Apple Team with ID: ${teamId}`);
 
     // Set the selected team ID internally
     Teams.setSelectedTeamId(team.id);
