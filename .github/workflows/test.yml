@@ -22,11 +22,11 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
       - run: yarn install --frozen-lockfile --check-files
+      - run: yarn lerna run build
       - run: yarn test
         if: ${{ !matrix.coverage }}
       - run: yarn test --coverage
         if: ${{ matrix.coverage }}
-      - run: yarn lerna run build
       - run: yarn lint
       - run: shellcheck bin/*.sh
       - uses: codecov/codecov-action@v1
