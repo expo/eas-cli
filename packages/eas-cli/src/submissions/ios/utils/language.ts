@@ -18,10 +18,11 @@ export function sanitizeLanguage(
   lang?: string,
   { defaultLang = 'en-US' }: { defaultLang?: string } = {}
 ): string {
+  console.log(USE_APPLE_UTILS);
   if (!lang) {
     const found = findLanguage(defaultLang);
     if (!found) {
-      throw new Error('Invalid default language provided: ' + found);
+      throw new Error('Invalid default language provided: ' + defaultLang);
     }
     return USE_APPLE_UTILS ? found.itcLocale ?? found.locale : found.name;
   }
@@ -75,6 +76,10 @@ function findLanguage(query: string): Language | null {
   return foundLang ?? null;
 }
 
+/**
+ * This is slightly modified list taken from fastlane: https://github.com/fastlane/fastlane/blob/master/spaceship/lib/assets/languageMapping.json
+ * Currently supported languages can be found here: https://www.ibabbleon.com/iOS-Language-Codes-ISO-639.html
+ */
 const LANGUAGES: Language[] = [
   {
     locale: 'ar-SA',
