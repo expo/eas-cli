@@ -73,6 +73,7 @@ Learn more here: https://expo.fyi/bundle-identifier`
 
 async function isProvisioningAvailableAsync(requestCtx: RequestContext): Promise<boolean> {
   const session = await Session.getAnySessionInfo();
+  // TODO: Investigate if username and email can be different
   const username = session?.user.emailAddress;
   const [user] = await User.getAsync(requestCtx, { query: { filter: { username } } });
   return user.attributes.provisioningAllowed;
@@ -122,15 +123,16 @@ async function runProduceExperimentalAsync(options: ProduceOptions): Promise<App
       });
     } catch (error) {
       if (error.message.match(/An App ID with Identifier '(.*)' is not available/)) {
+        const providerName = authCtx.authState?.session.provider.name;
         throw new Error(
-          `\nThe bundle identifier "${bundleId}" is not available, please change it in your app config and try again.\n`
+          `\nThe bundle identifier "${bundleId}" is not available to provider "${providerName}". Please change it in your app config and try again.\n`
         );
       }
       log.error('Failed to create the app in App Store Connect:');
       throw error;
     }
   } else {
-    // TODO: Maybe update app name
+    // TODO: Update app name when API gives us that possibility
   }
 
   // TODO: Maybe sync capabilities now as well

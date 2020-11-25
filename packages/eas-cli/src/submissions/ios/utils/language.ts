@@ -19,7 +19,11 @@ export function sanitizeLanguage(
   { defaultLang = 'en-US' }: { defaultLang?: string } = {}
 ): string {
   if (!lang) {
-    return defaultLang;
+    const found = findLanguage(defaultLang);
+    if (!found) {
+      throw new Error('Invalid default language provided: ' + found);
+    }
+    return USE_APPLE_UTILS ? found.itcLocale ?? found.locale : found.name;
   }
 
   const foundLang = findLanguage(lang);
