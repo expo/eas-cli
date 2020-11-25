@@ -10,8 +10,9 @@ export const getBundleIdentifier = once(_getBundleIdentifier);
 async function _getBundleIdentifier(
   projectDir: string,
   manifest: ExpoConfig,
-  { displayAutoconfigMessage = true }: { displayAutoconfigMessage?: boolean }
+  options?: { displayAutoconfigMessage?: boolean }
 ): Promise<string> {
+  const displayAutoconfigMessage = options?.displayAutoconfigMessage ?? true;
   const bundleIdentifierFromPbxproj = IOSConfig.BundleIdenitifer.getBundleIdentifierFromPbxproj(
     projectDir
   );
