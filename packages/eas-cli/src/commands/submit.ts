@@ -21,12 +21,12 @@ export default class BuildSubmit extends Command {
 
   static examples = [
     `$ eas submit --platform=ios
-    - Fully interactive iOS submission, leads you step by step\n`,
+    - Fully interactive iOS submission\n`,
     `$ eas submit --platform=android 
     - Fully interactive Android submission\n`,
-    `$ eas submit -pandroid --latest --key=/path/to/google-services.json
+    `$ eas submit -p android --latest --key=/path/to/google-services.json
     - Minimal non-interactive Android submission, however it can ask you for other params if not specified\n`,
-    `$ EXPO_APPLE_APP_SPECIFIC_PASSWORD=xxx eas submit -pios --latest --app-apple-id=1234567890,
+    `$ EXPO_APPLE_APP_SPECIFIC_PASSWORD=xxx eas submit -p ios --latest --app-apple-id=1234567890,
     - Minimal non-interactive iOS submission, assuming you already have an app in App Store Connect
       and provide its App ID`,
   ];
@@ -92,7 +92,7 @@ export default class BuildSubmit extends Command {
       helpLabel: ANDROID_FLAGS,
     }),
     'release-status': flags.enum({
-      description: 'Release status (used when uploading new apks/aabs)',
+      description: 'Release status (used when uploading new APKs/AABs)',
       default: 'completed',
       options: ['completed', 'draft', 'halted', 'inProgress'],
       helpLabel: ANDROID_FLAGS,
@@ -104,8 +104,7 @@ export default class BuildSubmit extends Command {
       helpLabel: IOS_FLAGS,
     }),
     'asc-app-id': flags.string({
-      description:
-        'App Store Connect unique application Apple ID number. Providing this param results in skipping app creation step.',
+      description: `App Store Connect unique application Apple ID number. Providing this param results in skipping app creation step. Learn more here: https://expo.fyi/asc-app-id`,
       helpLabel: IOS_FLAGS,
     }),
     'apple-team-id': flags.string({
@@ -148,7 +147,7 @@ export default class BuildSubmit extends Command {
 
         // ios
         'apple-id': appleId,
-        'asc-app-id': appAppleId,
+        'asc-app-id': ascAppId,
         'apple-team-id': appleTeamId,
         'app-name': appName,
         'bundle-identifier': bundleIdentifier,
@@ -181,7 +180,7 @@ export default class BuildSubmit extends Command {
     } else if (platform === SubmissionPlatform.iOS) {
       const options: IosSubmitCommandFlags = {
         appleId,
-        appAppleId,
+        ascAppId,
         appleTeamId,
         appName,
         bundleIdentifier,

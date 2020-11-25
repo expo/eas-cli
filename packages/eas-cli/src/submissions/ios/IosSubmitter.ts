@@ -10,8 +10,8 @@ import {
 } from './AppSpecificPasswordSource';
 import { IosSubmissionConfig } from './IosSubmissionConfig';
 
-export interface IosSubmissionOptions
-  extends Pick<IosSubmissionConfig, 'projectId' | 'appleId' | 'appAppleId'> {
+export interface IosSubmissionOptions extends Pick<IosSubmissionConfig, 'projectId' | 'appleId'> {
+  ascAppId: string;
   archiveSource: ArchiveSource;
   appSpecificPasswordSource: AppSpecificPasswordSource;
 }
@@ -60,12 +60,12 @@ class IosSubmitter extends BaseSubmitter<IosSubmissionContext, IosSubmissionOpti
     options: IosSubmissionOptions,
     { archive, appSpecificPassword }: ResolvedSourceOptions
   ): Promise<IosSubmissionConfig> {
-    const { projectId, appleId, appAppleId } = options;
+    const { projectId, appleId, ascAppId } = options;
     const submissionConfig = {
       archiveUrl: archive.location,
       appleId,
       appSpecificPassword,
-      appAppleId,
+      appAppleId: ascAppId, //ASC App ID is called "appAppleId" on server side
       projectId,
     };
     return submissionConfig;
@@ -76,7 +76,7 @@ const SummaryHumanReadableKeys: Record<keyof IosSubmissionConfig, string> = {
   appleId: 'Apple ID',
   archiveUrl: 'Archive URL',
   appSpecificPassword: 'Apple app-specific password',
-  appAppleId: ' App Store Connect Apple ID number',
+  appAppleId: ' App Store Connect App ID',
   projectId: 'Project ID',
 };
 

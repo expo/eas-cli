@@ -31,7 +31,7 @@ interface ProduceCredentials {
 
 type AppStoreResult = {
   appleId: string;
-  appAppleId: string;
+  ascAppId: string;
 };
 
 export async function ensureAppStoreConnectAppExistsAsync(
@@ -41,9 +41,23 @@ export async function ensureAppStoreConnectAppExistsAsync(
 
   const { bundleIdentifier, appName, language } = ctx.commandFlags;
 
+  let resolvedBundleId: string;
+  try {
+    resolvedBundleId =
+      bundleIdentifier ??
+      (await getBundleIdentifier(ctx.projectDir, exp, {
+        displayAutoconfigMessage: false,
+      }));
+  } catch (e) {
+    throw new Error(
+      `Please define "expo.ios.bundleIdentifier" in your app config or provide it using --bundle-identifier param.
+Learn more here: https://expo.fyi/bundle-identifier`
+    );
+  }
+
   const options = {
     ...ctx.commandFlags,
-    bundleIdentifier: bundleIdentifier ?? (await getBundleIdentifier(ctx.projectDir, exp, false)),
+    bundleIdentifier: resolvedBundleId,
     appName: appName ?? exp.name ?? (await promptForAppNameAsync()),
     language: sanitizeLanguage(language) ?? 'English',
   };
@@ -74,14 +88,14 @@ async function runProduceAsync(options: ProduceOptions): Promise<AppStoreResult>
 
   log('Ensuring the app exists on App Store Connect, this may take a while...');
   try {
-    const { appleId: appAppleId } = await runFastlaneAsync(
+    const { appleId: ascAppId } = await runFastlaneAsync(
       travelingFastlane.appProduce,
       [bundleIdentifier, appName, appleId, language],
       updatedAppleCreds,
       true
     );
 
-    return { appleId, appAppleId };
+    return { appleId, ascAppId };
   } catch (err) {
     const wrap = wordwrap(process.stdout.columns || 80);
     if (err.message.match(/You must provide a company name to use on the App Store/)) {

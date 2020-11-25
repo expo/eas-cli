@@ -93,7 +93,7 @@ describe(IosSubmitCommand, () => {
         latest: false,
         url: 'http://expo.io/fake.ipa',
         appleId: 'test@example.com',
-        appAppleId: '12345678',
+        ascAppId: '12345678',
         verbose: false,
       };
       const ctx = IosSubmitCommand.createContext(testProject.projectRoot, options);

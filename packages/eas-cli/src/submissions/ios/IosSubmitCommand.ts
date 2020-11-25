@@ -50,12 +50,12 @@ class IosSubmitCommand {
       throw new Error('Failed to submit the app');
     }
 
-    const { appleId, appAppleId } = await this.getAppStoreInfoAsync();
+    const { appleId, ascAppId } = await this.getAppStoreInfoAsync();
 
     return {
       projectId,
       appleId,
-      appAppleId,
+      ascAppId,
       archiveSource: archiveSource.enforceValue(),
       appSpecificPasswordSource: appSpecificPasswordSource.enforceValue(),
     };
@@ -91,14 +91,14 @@ class IosSubmitCommand {
    */
   private async getAppStoreInfoAsync(): Promise<{
     appleId: string;
-    appAppleId: string;
+    ascAppId: string;
   }> {
-    const { appAppleId } = this.ctx.commandFlags;
+    const { ascAppId } = this.ctx.commandFlags;
 
-    if (appAppleId) {
+    if (ascAppId) {
       return {
         appleId: await this.getAppleIdAsync(),
-        appAppleId,
+        ascAppId,
       };
     }
 
