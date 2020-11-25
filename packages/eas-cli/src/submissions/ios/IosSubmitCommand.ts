@@ -111,6 +111,7 @@ class IosSubmitCommand {
         )
       )
     );
+    log.addNewLineIfNone();
     return await ensureAppStoreConnectAppExistsAsync(this.ctx);
   }
 

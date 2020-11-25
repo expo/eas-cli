@@ -61,7 +61,7 @@ Learn more here: https://expo.fyi/bundle-identifier`
     ...ctx.commandFlags,
     bundleIdentifier: resolvedBundleId,
     appName: appName ?? exp.name ?? (await promptForAppNameAsync()),
-    language: sanitizeLanguage(language) ?? 'English',
+    language: sanitizeLanguage(language),
   };
 
   if (USE_APPLE_UTILS) {
@@ -117,7 +117,6 @@ async function runProduceExperimentalAsync(options: ProduceOptions): Promise<App
       app = await App.createAsync(requestCtx, {
         bundleId,
         name: appName,
-        // TODO: Convert values like "English" to "en-US"
         primaryLocale: language,
         companyName,
       });
