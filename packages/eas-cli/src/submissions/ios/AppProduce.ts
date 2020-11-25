@@ -1,8 +1,10 @@
+import { App, RequestContext, Session, User } from '@expo/apple-utils/build';
 import { getConfig } from '@expo/config';
 import wordwrap from 'wordwrap';
 
 import { getBundleIdentifier } from '../../build/ios/bundleIdentifer';
-import { authenticateAsync } from '../../credentials/ios/appstore/authenticate';
+import { authenticateAsync, getRequestContext } from '../../credentials/ios/appstore/authenticate';
+import { USE_APPLE_UTILS } from '../../credentials/ios/appstore/experimental';
 import log from '../../log';
 import { promptAsync } from '../../prompts';
 import { IosSubmissionContext } from '../types';
@@ -11,8 +13,8 @@ import { sanitizeLanguage } from './utils/language';
 
 interface ProduceOptions {
   appleId?: string;
-  appName?: string;
-  bundleIdentifier?: string;
+  appName: string;
+  bundleIdentifier: string;
   appleTeamId?: string;
   itcTeamId?: string;
   language?: string;
@@ -62,7 +64,84 @@ Learn more here: https://expo.fyi/bundle-identifier`
     language: sanitizeLanguage(language) ?? 'English',
   };
 
+  if (USE_APPLE_UTILS) {
+    return await runProduceExperimentalAsync(options);
+  }
+
   return await runProduceAsync(options);
+}
+
+async function isProvisioningAvailableAsync(requestCtx: RequestContext): Promise<boolean> {
+  const session = await Session.getAnySessionInfo();
+  const username = session?.user.emailAddress;
+  const [user] = await User.getAsync(requestCtx, { query: { filter: { username } } });
+  return user.attributes.provisioningAllowed;
+}
+
+async function runProduceExperimentalAsync(options: ProduceOptions): Promise<AppStoreResult> {
+  const {
+    appleId,
+    appleTeamId,
+    bundleIdentifier: bundleId,
+    appName,
+    language,
+    companyName,
+  } = options;
+
+  const authCtx = await authenticateAsync({
+    appleId,
+    team: { id: appleTeamId },
+  } as any);
+  const requestCtx = getRequestContext(authCtx);
+
+  log.addNewLineIfNone();
+
+  if (await isProvisioningAvailableAsync(requestCtx)) {
+    log(`Ensuring that bundle ID "${bundleId}" is registered on Apple Dev Center...`);
+    await App.ensureBundleIdExistsAsync(requestCtx, {
+      name: appName,
+      bundleId,
+    });
+  } else {
+    log.warn(
+      `Provisioning is not available for user "${authCtx.appleId}", skipping bundle identifier check.`
+    );
+  }
+
+  log(`Checking App Store Connect for "${appName}" (${bundleId})...`);
+  let app = await App.findAsync(requestCtx, { bundleId });
+
+  if (!app) {
+    log(`Creating app "${appName}" (${bundleId}) on App Store Connect...`);
+    try {
+      app = await App.createAsync(requestCtx, {
+        bundleId,
+        name: appName,
+        // TODO: Convert values like "English" to "en-US"
+        primaryLocale: language,
+        companyName,
+      });
+    } catch (error) {
+      if (error.message.match(/An App ID with Identifier '(.*)' is not available/)) {
+        log.warn(
+          `\nThe bundle identifier "${bundleId}" is not available, please change it in your app config and try again.\n`
+        );
+        process.exit(0);
+      }
+      log.error('Failed to create the app in App Store Connect:');
+      throw error;
+    }
+  } else {
+    // TODO: Maybe update app name
+  }
+
+  // TODO: Maybe sync capabilities now as well
+  log(`App "${app.attributes.name}" (${bundleId}) on App Store Connect is ready for your binary.`);
+
+  return {
+    appleId: authCtx.appleId,
+    ascAppId: app.id,
+  };
 }
 
 async function runProduceAsync(options: ProduceOptions): Promise<AppStoreResult> {
