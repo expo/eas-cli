@@ -1,5 +1,5 @@
-import { CredentialsSource } from '@expo/eas-json';
 import { Job } from '@expo/eas-build-job';
+import { CredentialsSource } from '@expo/eas-json';
 import fs from 'fs-extra';
 
 import { apiClient } from '../api';
