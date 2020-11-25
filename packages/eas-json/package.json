@@ -1,5 +1,5 @@
 {
-  "name": "@eas/config",
+  "name": "@expo/eas-json",
   "description": "A library for interacting with the eas.json",
   "version": "0.1.0-alpha.4",
   "author": "Expo <support@expo.io>",

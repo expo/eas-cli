@@ -1,4 +1,4 @@
-import { EasJsonReader } from '@eas/config';
+import { EasJsonReader } from '@expo/eas-json';
 import chalk from 'chalk';
 import ora from 'ora';
 

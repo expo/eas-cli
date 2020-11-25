@@ -1,5 +1,5 @@
-import { EasJsonReader } from '@eas/config';
 import { getConfig } from '@expo/config';
+import { EasJsonReader } from '@expo/eas-json';
 import fs from 'fs-extra';
 import path from 'path';
 

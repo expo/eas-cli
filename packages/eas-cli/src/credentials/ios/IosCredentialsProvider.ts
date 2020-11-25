@@ -1,5 +1,5 @@
-import { CredentialsSource, DistributionType } from '@eas/config';
 import { Platform } from '@expo/eas-build-job';
+import { CredentialsSource, DistributionType } from '@expo/eas-json';
 
 import { IosDistributionType } from '../../graphql/types/credentials/IosAppBuildCredentials';
 import log from '../../log';

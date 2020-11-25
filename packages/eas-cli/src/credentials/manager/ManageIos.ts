@@ -1,4 +1,4 @@
-import { DistributionType } from '@eas/config';
+import { DistributionType } from '@expo/eas-json';
 
 import { promptAsync } from '../../prompts';
 import { Action, CredentialsManager } from '../CredentialsManager';

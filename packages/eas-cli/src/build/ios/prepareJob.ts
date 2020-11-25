@@ -1,5 +1,5 @@
-import { iOSGenericBuildProfile, iOSManagedBuildProfile } from '@eas/config';
 import { Job, Workflow, iOS, sanitizeJob } from '@expo/eas-build-job';
+import { iOSGenericBuildProfile, iOSManagedBuildProfile } from '@expo/eas-json';
 import path from 'path';
 
 import { readSecretEnvsAsync } from '../../credentials/credentialsJson/read';
