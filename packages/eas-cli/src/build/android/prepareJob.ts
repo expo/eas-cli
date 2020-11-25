@@ -1,4 +1,4 @@
-import { AndroidGenericBuildProfile, AndroidManagedBuildProfile } from '@eas/config';
+import { AndroidGenericBuildProfile, AndroidManagedBuildProfile } from '@expo/eas-json';
 import { Android, Job, Workflow, sanitizeJob } from '@expo/eas-build-job';
 import path from 'path';
 

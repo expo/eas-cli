@@ -1,4 +1,4 @@
-import { CredentialsSource, DistributionType, Workflow } from '@eas/config';
+import { CredentialsSource, DistributionType, Workflow } from '@expo/eas-json';
 import { ExpoConfig, IOSConfig } from '@expo/config';
 
 import * as ProvisioningProfileUtils from '../../credentials/ios/utils/provisioningProfile';

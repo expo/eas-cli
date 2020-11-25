@@ -1,4 +1,4 @@
-import { iOSGenericBuildProfile, iOSManagedBuildProfile } from '@eas/config';
+import { iOSGenericBuildProfile, iOSManagedBuildProfile } from '@expo/eas-json';
 import { Job, Workflow, iOS, sanitizeJob } from '@expo/eas-build-job';
 import path from 'path';
 

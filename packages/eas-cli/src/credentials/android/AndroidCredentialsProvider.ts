@@ -1,4 +1,4 @@
-import { CredentialsSource } from '@eas/config';
+import { CredentialsSource } from '@expo/eas-json';
 import { Platform } from '@expo/eas-build-job';
 
 import log from '../../log';

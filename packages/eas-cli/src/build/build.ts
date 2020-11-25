@@ -1,4 +1,4 @@
-import { CredentialsSource } from '@eas/config';
+import { CredentialsSource } from '@expo/eas-json';
 import { Job } from '@expo/eas-build-job';
 import fs from 'fs-extra';
 

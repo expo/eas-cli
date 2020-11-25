@@ -1,4 +1,4 @@
-import { CredentialsSource, DistributionType, Workflow } from '@eas/config';
+import { CredentialsSource, DistributionType, Workflow } from '@expo/eas-json';
 import assert from 'assert';
 
 import { createCredentialsContextAsync } from '../../credentials/context';
