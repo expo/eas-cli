@@ -90,8 +90,8 @@ async function runProduceExperimentalAsync(options: ProduceOptions): Promise<App
 
   const authCtx = await authenticateAsync({
     appleId,
-    team: { id: appleTeamId },
-  } as any);
+    teamId: appleTeamId,
+  });
   const requestCtx = getRequestContext(authCtx);
 
   log.addNewLineIfNone();
@@ -123,10 +123,9 @@ async function runProduceExperimentalAsync(options: ProduceOptions): Promise<App
       });
     } catch (error) {
       if (error.message.match(/An App ID with Identifier '(.*)' is not available/)) {
-        log.warn(
+        throw new Error(
           `\nThe bundle identifier "${bundleId}" is not available, please change it in your app config and try again.\n`
         );
-        process.exit(0);
       }
       log.error('Failed to create the app in App Store Connect:');
       throw error;
