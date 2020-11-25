@@ -1,8 +1,8 @@
-import { Device, Profile, ProfileState, ProfileType } from '@expo/apple-utils';
+import { Device, Profile, ProfileState, ProfileType, RequestContext } from '@expo/apple-utils';
 import ora from 'ora';
 
 import { ProvisioningProfile } from './Credentials.types';
-import { AuthCtx } from './authenticate';
+import { AuthCtx, getRequestContext } from './authenticate';
 import { getBundleIdForIdentifierAsync, getProfilesForBundleIdAsync } from './bundleId';
 import { getDistributionCertificateAync } from './distributionCertificate';
 import { USE_APPLE_UTILS } from './experimental';
@@ -21,8 +21,11 @@ function uniqueItems<T = any>(items: T[]): T[] {
   return [...set];
 }
 
-async function registerMissingDevicesAsync(udids: string[]): Promise<Device[]> {
-  const allIosProfileDevices = await Device.getAllIOSProfileDevicesAsync();
+async function registerMissingDevicesAsync(
+  context: RequestContext,
+  udids: string[]
+): Promise<Device[]> {
+  const allIosProfileDevices = await Device.getAllIOSProfileDevicesAsync(context);
   const alreadyAdded = allIosProfileDevices.filter(device =>
     udids.includes(device.attributes.udid)
   );
@@ -31,7 +34,10 @@ async function registerMissingDevicesAsync(udids: string[]): Promise<Device[]> {
   await Promise.all(
     udids.map(async udid => {
       if (!alreadyAddedUdids.includes(udid)) {
-        const device = await Device.createAsync({ name: 'iOS Device (added by Expo)', udid });
+        const device = await Device.createAsync(context, {
+          name: 'iOS Device (added by Expo)',
+          udid,
+        });
         alreadyAdded.push(device);
       }
     })
@@ -41,13 +47,14 @@ async function registerMissingDevicesAsync(udids: string[]): Promise<Device[]> {
 }
 
 async function findProfileByBundleIdAsync(
+  context: RequestContext,
   bundleId: string,
   certSerialNumber: string
 ): Promise<{
   profile: Profile | null;
   didUpdate: boolean;
 }> {
-  const expoProfiles = (await getProfilesForBundleIdAsync(bundleId)).filter(profile => {
+  const expoProfiles = (await getProfilesForBundleIdAsync(context, bundleId)).filter(profile => {
     return (
       profile.attributes.profileType === ProfileType.IOS_APP_ADHOC &&
       profile.attributes.name.startsWith('*[expo]') &&
@@ -76,7 +83,7 @@ async function findProfileByBundleIdAsync(
   } else if (expoProfiles) {
     // there is an expo managed profile, but it doesn't have our desired certificate
     // append the certificate and update the profile
-    const distributionCertificate = await getDistributionCertificateAync(certSerialNumber);
+    const distributionCertificate = await getDistributionCertificateAync(context, certSerialNumber);
     if (!distributionCertificate) {
       throw new Error(`Certificate for serial number "${certSerialNumber}" does not exist`);
     }
@@ -96,33 +103,40 @@ function sortByExpiration(a: Profile, b: Profile): number {
   );
 }
 
-async function findProfileByIdAsync(profileId: string, bundleId: string): Promise<Profile | null> {
-  let profiles = await getProfilesForBundleIdAsync(bundleId);
+async function findProfileByIdAsync(
+  context: RequestContext,
+  profileId: string,
+  bundleId: string
+): Promise<Profile | null> {
+  let profiles = await getProfilesForBundleIdAsync(context, bundleId);
   profiles = profiles.filter(
     profile => profile.attributes.profileType === ProfileType.IOS_APP_ADHOC
   );
   return profiles.find(profile => profile.id === profileId) ?? null;
 }
 
-async function manageAdHocProfilesAsync({
-  udids,
-  bundleId,
-  certSerialNumber,
-  profileId,
-}: {
-  udids: string[];
-  bundleId: string;
-  certSerialNumber: string;
-  profileId?: string;
-}): Promise<ProfileResults> {
+async function manageAdHocProfilesAsync(
+  context: RequestContext,
+  {
+    udids,
+    bundleId,
+    certSerialNumber,
+    profileId,
+  }: {
+    udids: string[];
+    bundleId: string;
+    certSerialNumber: string;
+    profileId?: string;
+  }
+): Promise<ProfileResults> {
   // We register all missing devices on the Apple Developer Portal. They are identified by UDIDs.
-  const devices = await registerMissingDevicesAsync(udids);
+  const devices = await registerMissingDevicesAsync(context, udids);
 
   let existingProfile: Profile | null;
   let didUpdate = false;
 
   if (profileId) {
-    existingProfile = await findProfileByIdAsync(profileId, bundleId);
+    existingProfile = await findProfileByIdAsync(context, profileId, bundleId);
     // Fail if we cannot find the profile that was specifically requested
     if (!existingProfile)
       throw new Error(
@@ -130,7 +144,7 @@ async function manageAdHocProfilesAsync({
       );
   } else {
     // If no profile id is passed, try to find a suitable provisioning profile for the App ID.
-    const results = await findProfileByBundleIdAsync(bundleId, certSerialNumber);
+    const results = await findProfileByBundleIdAsync(context, bundleId, certSerialNumber);
     existingProfile = results.profile;
     didUpdate = results.didUpdate;
   }
@@ -160,7 +174,8 @@ async function manageAdHocProfilesAsync({
     existingProfile.attributes.devices = devices;
     await existingProfile.regenerateAsync();
 
-    const updatedProfile = (await findProfileByBundleIdAsync(bundleId, certSerialNumber)).profile;
+    const updatedProfile = (await findProfileByBundleIdAsync(context, bundleId, certSerialNumber))
+      .profile;
     if (!updatedProfile) {
       throw new Error(
         `Failed to locate updated profile for bundle identifier "${bundleId}" and serial number "${certSerialNumber}"`
@@ -177,7 +192,7 @@ async function manageAdHocProfilesAsync({
   // No existing profile...
 
   // We need to find user's distribution certificate to make a provisioning profile for it.
-  const distributionCertificate = await getDistributionCertificateAync(certSerialNumber);
+  const distributionCertificate = await getDistributionCertificateAync(context, certSerialNumber);
 
   if (!distributionCertificate) {
     // If the distribution certificate doesn't exist, the user must have deleted it, we can't do anything here :(
@@ -185,9 +200,9 @@ async function manageAdHocProfilesAsync({
       `No distribution certificate for serial number "${certSerialNumber}" is available to make a provisioning profile against`
     );
   }
-  const bundleIdItem = await getBundleIdForIdentifierAsync(bundleId);
+  const bundleIdItem = await getBundleIdForIdentifierAsync(context, bundleId);
   // If the provisioning profile for the App ID doesn't exist, we just need to create a new one!
-  const newProfile = await Profile.createAsync({
+  const newProfile = await Profile.createAsync(context, {
     bundleId: bundleIdItem.id,
     // apple drops [ if its the first char (!!),
     name: `*[expo] ${bundleId} AdHoc ${Date.now()}`,
@@ -206,7 +221,7 @@ async function manageAdHocProfilesAsync({
 }
 
 export async function createOrReuseAdhocProvisioningProfileAsync(
-  ctx: AuthCtx,
+  authCtx: AuthCtx,
   udids: string[],
   bundleIdentifier: string,
   distCertSerialNumber: string
@@ -216,7 +231,8 @@ export async function createOrReuseAdhocProvisioningProfileAsync(
     let adhocProvisioningProfile: ProfileResults;
 
     if (USE_APPLE_UTILS) {
-      adhocProvisioningProfile = await manageAdHocProfilesAsync({
+      const context = getRequestContext(authCtx);
+      adhocProvisioningProfile = await manageAdHocProfilesAsync(context, {
         udids,
         bundleId: bundleIdentifier,
         certSerialNumber: distCertSerialNumber,
@@ -224,10 +240,10 @@ export async function createOrReuseAdhocProvisioningProfileAsync(
     } else {
       const args = [
         '--apple-id',
-        ctx.appleId,
+        authCtx.appleId,
         '--apple-password',
-        ctx.appleIdPassword,
-        ctx.team.id,
+        authCtx.appleIdPassword,
+        authCtx.team.id,
         udids.join(','),
         bundleIdentifier,
         distCertSerialNumber,
@@ -260,8 +276,8 @@ export async function createOrReuseAdhocProvisioningProfileAsync(
 
     return {
       ...adhocProvisioningProfile,
-      teamId: ctx.team.id,
-      teamName: ctx.team.name,
+      teamId: authCtx.team.id,
+      teamName: authCtx.team.name,
     };
   } catch (error) {
     spinner.fail();

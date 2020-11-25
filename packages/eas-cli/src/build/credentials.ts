@@ -1,4 +1,4 @@
-import { CredentialsSource, Workflow } from '@eas/config';
+import { CredentialsSource, Workflow } from '@expo/eas-json';
 import chalk from 'chalk';
 
 import { CredentialsProvider } from '../credentials/CredentialsProvider';

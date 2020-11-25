@@ -1,5 +1,5 @@
-import { AndroidGenericBuildProfile, AndroidManagedBuildProfile } from '@eas/config';
 import { Android, Job, Workflow, sanitizeJob } from '@expo/eas-build-job';
+import { AndroidGenericBuildProfile, AndroidManagedBuildProfile } from '@expo/eas-json';
 import path from 'path';
 
 import { AndroidCredentials } from '../../credentials/android/AndroidCredentialsProvider';

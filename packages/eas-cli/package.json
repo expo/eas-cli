@@ -8,10 +8,10 @@
   },
   "bugs": "https://github.com/expo/eas-cli/issues",
   "dependencies": {
-    "@eas/config": "^0.1.0-alpha.4",
-    "@expo/apple-utils": "0.0.0-alpha.5",
+    "@expo/apple-utils": "0.0.0-alpha.10",
     "@expo/config": "^3.3.12",
     "@expo/eas-build-job": "0.1.2",
+    "@expo/eas-json": "^0.1.0-alpha.4",
     "@expo/json-file": "^8.2.24",
     "@expo/plist": "^0.0.10",
     "@expo/results": "^1.0.0",

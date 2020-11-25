@@ -1,5 +1,5 @@
-import { AndroidBuildProfile, iOSBuildProfile } from '@eas/config';
 import { Platform } from '@expo/eas-build-job';
+import { AndroidBuildProfile, iOSBuildProfile } from '@expo/eas-json';
 
 export enum BuildCommandPlatform {
   ANDROID = 'android',

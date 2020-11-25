@@ -1,4 +1,4 @@
-import { DistributionType } from '@eas/config';
+import { DistributionType } from '@expo/eas-json';
 import assert from 'assert';
 import chalk from 'chalk';
 

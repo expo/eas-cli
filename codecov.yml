@@ -8,11 +8,11 @@ coverage:
     project:
       default:
         informational: true
-      config:
-        informational: true
-        paths:
-          - packages/config
       eas-cli:
         informational: true
         paths:
           - packages/eas-cli
+      eas-json:
+        informational: true
+        paths:
+          - packages/eas-json

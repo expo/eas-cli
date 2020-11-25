@@ -1,5 +1,5 @@
-import { AndroidBuildProfile, EasConfig, iOSBuildProfile } from '@eas/config';
 import { ExpoConfig, getConfig } from '@expo/config';
+import { AndroidBuildProfile, EasConfig, iOSBuildProfile } from '@expo/eas-json';
 
 import { getProjectAccountNameAsync } from '../project/projectUtils';
 import { User } from '../user/User';

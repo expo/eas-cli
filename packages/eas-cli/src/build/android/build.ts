@@ -1,4 +1,4 @@
-import { EasConfig, Workflow } from '@eas/config';
+import { EasConfig, Workflow } from '@expo/eas-json';
 
 import AndroidCredentialsProvider, {
   AndroidCredentials,

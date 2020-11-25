@@ -1,5 +1,5 @@
-import { CredentialsSource } from '@eas/config';
 import { Platform } from '@expo/eas-build-job';
+import { CredentialsSource } from '@expo/eas-json';
 
 import log from '../../log';
 import { runCredentialsManagerAsync } from '../CredentialsManager';
