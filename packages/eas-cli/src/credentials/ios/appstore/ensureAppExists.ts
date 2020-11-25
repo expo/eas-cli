@@ -16,11 +16,11 @@ export interface AppLookupParams {
 }
 
 async function ensureBundleIdExistsAsync(
-  ctx: AuthCtx,
+  authCtx: AuthCtx,
   { accountName, projectName, bundleIdentifier }: AppLookupParams,
   options: EnsureAppExistsOptions = {}
 ) {
-  const context = getRequestContext(ctx);
+  const context = getRequestContext(authCtx);
   let spinner = ora(`Registering Bundle ID "${bundleIdentifier}"`).start();
 
   try {
@@ -62,21 +62,21 @@ async function ensureBundleIdExistsAsync(
 }
 
 export async function ensureAppExistsAsync(
-  ctx: AuthCtx,
+  authCtx: AuthCtx,
   app: AppLookupParams,
   options: EnsureAppExistsOptions = {}
 ) {
   if (USE_APPLE_UTILS) {
-    return await ensureBundleIdExistsAsync(ctx, app, options);
+    return await ensureBundleIdExistsAsync(authCtx, app, options);
   }
 
   const spinner = ora(`Ensuring App ID exists on Apple Developer Portal...`).start();
   try {
     const { created } = await runActionAsync(travelingFastlane.ensureAppExists, [
       ...(options.enablePushNotifications ? ['--push-notifications'] : []),
-      ctx.appleId,
-      ctx.appleIdPassword,
-      ctx.team.id,
+      authCtx.appleId,
+      authCtx.appleIdPassword,
+      authCtx.team.id,
       app.bundleIdentifier,
       `@${app.accountName}/${app.projectName}`,
     ]);
