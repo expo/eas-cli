@@ -221,7 +221,7 @@ async function manageAdHocProfilesAsync(
 }
 
 export async function createOrReuseAdhocProvisioningProfileAsync(
-  ctx: AuthCtx,
+  authCtx: AuthCtx,
   udids: string[],
   bundleIdentifier: string,
   distCertSerialNumber: string
@@ -231,7 +231,7 @@ export async function createOrReuseAdhocProvisioningProfileAsync(
     let adhocProvisioningProfile: ProfileResults;
 
     if (USE_APPLE_UTILS) {
-      const context = getRequestContext(ctx);
+      const context = getRequestContext(authCtx);
       adhocProvisioningProfile = await manageAdHocProfilesAsync(context, {
         udids,
         bundleId: bundleIdentifier,
@@ -240,10 +240,10 @@ export async function createOrReuseAdhocProvisioningProfileAsync(
     } else {
       const args = [
         '--apple-id',
-        ctx.appleId,
+        authCtx.appleId,
         '--apple-password',
-        ctx.appleIdPassword,
-        ctx.team.id,
+        authCtx.appleIdPassword,
+        authCtx.team.id,
         udids.join(','),
         bundleIdentifier,
         distCertSerialNumber,
@@ -276,8 +276,8 @@ export async function createOrReuseAdhocProvisioningProfileAsync(
 
     return {
       ...adhocProvisioningProfile,
-      teamId: ctx.team.id,
-      teamName: ctx.team.name,
+      teamId: authCtx.team.id,
+      teamName: authCtx.team.name,
     };
   } catch (error) {
     spinner.fail();

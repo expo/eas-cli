@@ -78,12 +78,12 @@ export function transformCertificate(cert: Certificate): DistributionCertificate
 }
 
 export async function listDistributionCertificatesAsync(
-  ctx: AuthCtx
+  authCtx: AuthCtx
 ): Promise<DistributionCertificateStoreInfo[]> {
   const spinner = ora(`Getting Distribution Certificates from Apple...`).start();
   try {
     if (USE_APPLE_UTILS) {
-      const context = getRequestContext(ctx);
+      const context = getRequestContext(authCtx);
       const certs = (
         await Certificate.getAsync(context, {
           query: {
@@ -101,7 +101,13 @@ export async function listDistributionCertificatesAsync(
       return certs;
     }
 
-    const args = ['list', ctx.appleId, ctx.appleIdPassword, ctx.team.id, String(ctx.team.inHouse)];
+    const args = [
+      'list',
+      authCtx.appleId,
+      authCtx.appleIdPassword,
+      authCtx.team.id,
+      String(authCtx.team.inHouse),
+    ];
     const { certs } = await runActionAsync(travelingFastlane.manageDistCerts, args);
     spinner.succeed();
     return certs;
@@ -115,12 +121,12 @@ export async function listDistributionCertificatesAsync(
  * Run from `eas credentials` -> iOS -> Add new Distribution Certificate
  */
 export async function createDistributionCertificateAsync(
-  ctx: AuthCtx
+  authCtx: AuthCtx
 ): Promise<DistributionCertificate> {
   const spinner = ora(`Creating Distribution Certificate on Apple Servers...`).start();
   if (USE_APPLE_UTILS) {
     try {
-      const context = getRequestContext(ctx);
+      const context = getRequestContext(authCtx);
       const results = await createCertificateAndP12Async(context, {
         certificateType: CertificateType.IOS_DISTRIBUTION,
       });
@@ -131,8 +137,8 @@ export async function createDistributionCertificateAsync(
         certPassword: results.password,
         certPrivateSigningKey: results.privateSigningKey,
         distCertSerialNumber: results.certificate.attributes.serialNumber,
-        teamId: ctx.team.id,
-        teamName: ctx.team.name,
+        teamId: authCtx.team.id,
+        teamName: authCtx.team.name,
       };
     } catch (error) {
       spinner.fail('Failed to create Distribution Certificate on Apple Servers');
@@ -152,15 +158,15 @@ export async function createDistributionCertificateAsync(
   try {
     const args = [
       'create',
-      ctx.appleId,
-      ctx.appleIdPassword,
-      ctx.team.id,
-      String(ctx.team.inHouse),
+      authCtx.appleId,
+      authCtx.appleIdPassword,
+      authCtx.team.id,
+      String(authCtx.team.inHouse),
     ];
     const result = {
       ...(await runActionAsync(travelingFastlane.manageDistCerts, args)),
-      teamId: ctx.team.id,
-      teamName: ctx.team.name,
+      teamId: authCtx.team.id,
+      teamName: authCtx.team.name,
     };
     spinner.succeed();
     return result;
@@ -175,21 +181,21 @@ export async function createDistributionCertificateAsync(
 }
 
 export async function revokeDistributionCertificateAsync(
-  ctx: AuthCtx,
+  authCtx: AuthCtx,
   ids: string[]
 ): Promise<void> {
   const spinner = ora(`Revoking Distribution Certificate on Apple Servers...`).start();
   try {
     if (USE_APPLE_UTILS) {
-      const context = getRequestContext(ctx);
+      const context = getRequestContext(authCtx);
       await Promise.all(ids.map(id => Certificate.deleteAsync(context, { id })));
     } else {
       const args = [
         'revoke',
-        ctx.appleId,
-        ctx.appleIdPassword,
-        ctx.team.id,
-        String(ctx.team.inHouse),
+        authCtx.appleId,
+        authCtx.appleIdPassword,
+        authCtx.team.id,
+        String(authCtx.team.inHouse),
         ids.join(','),
       ];
       await runActionAsync(travelingFastlane.manageDistCerts, args);

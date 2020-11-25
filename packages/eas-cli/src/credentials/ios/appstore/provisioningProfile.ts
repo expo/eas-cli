@@ -54,7 +54,7 @@ function resolveProfileType(profileClass: ProfileClass, isEnterprise?: boolean):
 
 async function transformProfileAsync(
   cert: Profile,
-  ctx: AuthCtx
+  authCtx: AuthCtx
 ): Promise<ProvisioningProfileStoreInfo> {
   return {
     provisioningProfileId: cert.id,
@@ -65,8 +65,8 @@ async function transformProfileAsync(
     // @ts-ignore -- this can be null when the profile has expired.
     provisioningProfile: cert.attributes.profileContent,
     certificates: (await cert.getCertificatesAsync()).map(transformCertificate),
-    teamId: ctx.team.id,
-    teamName: ctx.team.name,
+    teamId: authCtx.team.id,
+    teamName: authCtx.team.name,
   };
 }
 
@@ -98,7 +98,7 @@ async function addCertificateToProfileAsync(
 }
 
 export async function useExistingProvisioningProfileAsync(
-  ctx: AuthCtx,
+  authCtx: AuthCtx,
   bundleIdentifier: string,
   provisioningProfile: ProvisioningProfile,
   distCert: DistributionCertificate,
@@ -120,7 +120,7 @@ export async function useExistingProvisioningProfileAsync(
     let result: ProvisioningProfile;
 
     if (USE_APPLE_UTILS) {
-      const context = getRequestContext(ctx);
+      const context = getRequestContext(authCtx);
       const profile = await addCertificateToProfileAsync(context, {
         serialNumber: distCert.distCertSerialNumber,
         profileId: provisioningProfile.provisioningProfileId,
@@ -136,16 +136,16 @@ export async function useExistingProvisioningProfileAsync(
       result = {
         provisioningProfileId: profile.id,
         provisioningProfile: content,
-        teamId: ctx.team.id,
-        teamName: ctx.team.name,
+        teamId: authCtx.team.id,
+        teamName: authCtx.team.name,
       };
     } else {
       const args = [
         'use-existing',
-        ctx.appleId,
-        ctx.appleIdPassword,
-        ctx.team.id,
-        resolveTravelingFastlaneProfileType(profileClass, ctx.team.inHouse),
+        authCtx.appleId,
+        authCtx.appleIdPassword,
+        authCtx.team.id,
+        resolveTravelingFastlaneProfileType(profileClass, authCtx.team.inHouse),
         bundleIdentifier,
         provisioningProfile.provisioningProfileId,
         distCert.distCertSerialNumber,
@@ -155,8 +155,8 @@ export async function useExistingProvisioningProfileAsync(
     spinner.succeed();
     return {
       ...result,
-      teamId: ctx.team.id,
-      teamName: ctx.team.name,
+      teamId: authCtx.team.id,
+      teamName: authCtx.team.name,
     };
   } catch (error) {
     spinner.fail();
@@ -165,31 +165,31 @@ export async function useExistingProvisioningProfileAsync(
 }
 
 export async function listProvisioningProfilesAsync(
-  ctx: AuthCtx,
+  authCtx: AuthCtx,
   bundleIdentifier: string,
   profileClass: ProfileClass = ProfileClass.General
 ): Promise<ProvisioningProfileStoreInfo[]> {
   const spinner = ora(`Getting Provisioning Profiles from Apple...`).start();
   try {
     if (USE_APPLE_UTILS) {
-      const context = getRequestContext(ctx);
-      const profileType = resolveProfileType(profileClass, ctx.team.inHouse);
+      const context = getRequestContext(authCtx);
+      const profileType = resolveProfileType(profileClass, authCtx.team.inHouse);
       const profiles = (await getProfilesForBundleIdAsync(context, bundleIdentifier)).filter(
         profile => profile.attributes.profileType === profileType
       );
 
       const result = await Promise.all(
-        profiles.map(profile => transformProfileAsync(profile, ctx))
+        profiles.map(profile => transformProfileAsync(profile, authCtx))
       );
       spinner.succeed();
       return result;
     } else {
       const args = [
         'list',
-        ctx.appleId,
-        ctx.appleIdPassword,
-        ctx.team.id,
-        resolveTravelingFastlaneProfileType(profileClass, ctx.team.inHouse),
+        authCtx.appleId,
+        authCtx.appleIdPassword,
+        authCtx.team.id,
+        resolveTravelingFastlaneProfileType(profileClass, authCtx.team.inHouse),
         bundleIdentifier,
       ];
       const { profiles } = await runActionAsync(
@@ -199,8 +199,8 @@ export async function listProvisioningProfilesAsync(
       spinner.succeed();
       return profiles.map((profile: Omit<ProvisioningProfileStoreInfo, 'teamId' | 'teamName'>) => ({
         ...profile,
-        teamId: ctx.team.id,
-        teamName: ctx.team.name,
+        teamId: authCtx.team.id,
+        teamName: authCtx.team.name,
       }));
     }
   } catch (error) {
@@ -210,7 +210,7 @@ export async function listProvisioningProfilesAsync(
 }
 
 export async function createProvisioningProfileAsync(
-  ctx: AuthCtx,
+  authCtx: AuthCtx,
   bundleIdentifier: string,
   distCert: DistributionCertificate,
   profileName: string,
@@ -226,8 +226,8 @@ export async function createProvisioningProfileAsync(
     }
 
     if (USE_APPLE_UTILS) {
-      const context = getRequestContext(ctx);
-      const profileType = resolveProfileType(profileClass, ctx.team.inHouse);
+      const context = getRequestContext(authCtx);
+      const profileType = resolveProfileType(profileClass, authCtx.team.inHouse);
 
       const certificate = await getCertificateBySerialNumberAsync(
         context,
@@ -244,16 +244,16 @@ export async function createProvisioningProfileAsync(
         profileType,
       });
 
-      const result = await transformProfileAsync(profile, ctx);
+      const result = await transformProfileAsync(profile, authCtx);
       spinner.succeed();
       return result;
     } else {
       const args = [
         'create',
-        ctx.appleId,
-        ctx.appleIdPassword,
-        ctx.team.id,
-        resolveTravelingFastlaneProfileType(profileClass, ctx.team.inHouse),
+        authCtx.appleId,
+        authCtx.appleIdPassword,
+        authCtx.team.id,
+        resolveTravelingFastlaneProfileType(profileClass, authCtx.team.inHouse),
         bundleIdentifier,
         distCert.distCertSerialNumber,
         profileName,
@@ -262,8 +262,8 @@ export async function createProvisioningProfileAsync(
       spinner.succeed();
       return {
         ...result,
-        teamId: ctx.team.id,
-        teamName: ctx.team.name,
+        teamId: authCtx.team.id,
+        teamName: authCtx.team.name,
       };
     }
   } catch (error) {
@@ -273,17 +273,17 @@ export async function createProvisioningProfileAsync(
 }
 
 export async function revokeProvisioningProfileAsync(
-  ctx: AuthCtx,
+  authCtx: AuthCtx,
   bundleIdentifier: string,
   profileClass: ProfileClass = ProfileClass.General
 ): Promise<void> {
   const spinner = ora(`Revoking Provisioning Profile on Apple Servers...`).start();
   try {
     if (USE_APPLE_UTILS) {
-      const context = getRequestContext(ctx);
+      const context = getRequestContext(authCtx);
 
       const profiles = await getProfilesForBundleIdAsync(context, bundleIdentifier);
-      const profileType = resolveProfileType(profileClass, ctx.team.inHouse);
+      const profileType = resolveProfileType(profileClass, authCtx.team.inHouse);
       await Promise.all(
         profiles
           .filter(profile => profile.attributes.profileType === profileType)
@@ -292,10 +292,10 @@ export async function revokeProvisioningProfileAsync(
     } else {
       const args = [
         'revoke',
-        ctx.appleId,
-        ctx.appleIdPassword,
-        ctx.team.id,
-        resolveTravelingFastlaneProfileType(profileClass, ctx.team.inHouse),
+        authCtx.appleId,
+        authCtx.appleIdPassword,
+        authCtx.team.id,
+        resolveTravelingFastlaneProfileType(profileClass, authCtx.team.inHouse),
         bundleIdentifier,
       ];
       await runActionAsync(travelingFastlane.newManageProvisioningProfiles, args);

@@ -17,16 +17,16 @@ Please revoke the old ones or reuse existing from your other apps.
 Please remember that Apple Keys are not application specific!
 `;
 
-export async function listPushKeysAsync(ctx: AuthCtx): Promise<PushKeyStoreInfo[]> {
+export async function listPushKeysAsync(authCtx: AuthCtx): Promise<PushKeyStoreInfo[]> {
   const spinner = ora(`Getting Push Keys from Apple...`).start();
   try {
     if (USE_APPLE_UTILS) {
-      const context = getRequestContext(ctx);
+      const context = getRequestContext(authCtx);
       const keys = await Keys.getKeysAsync(context);
       spinner.succeed();
       return keys;
     } else {
-      const args = ['list', ctx.appleId, ctx.appleIdPassword, ctx.team.id];
+      const args = ['list', authCtx.appleId, authCtx.appleIdPassword, authCtx.team.id];
       const { keys } = await runActionAsync(travelingFastlane.managePushKeys, args);
       spinner.succeed();
       return keys;
@@ -38,31 +38,31 @@ export async function listPushKeysAsync(ctx: AuthCtx): Promise<PushKeyStoreInfo[
 }
 
 export async function createPushKeyAsync(
-  ctx: AuthCtx,
+  authCtx: AuthCtx,
   name: string = `Expo Push Notifications Key ${dateformat('yyyymmddHHMMss')}`
 ): Promise<PushKey> {
   const spinner = ora(`Creating Push Key on Apple Servers...`).start();
   try {
     if (USE_APPLE_UTILS) {
-      const context = getRequestContext(ctx);
+      const context = getRequestContext(authCtx);
       const key = await Keys.createKeyAsync(context, { name, isApns: true });
       const apnsKeyP8 = await Keys.downloadKeyAsync(context, { id: key.id });
       spinner.succeed();
       return {
         apnsKeyId: key.id,
         apnsKeyP8,
-        teamId: ctx.team.id,
-        teamName: ctx.team.name,
+        teamId: authCtx.team.id,
+        teamName: authCtx.team.name,
       };
     } else {
-      const args = ['create', ctx.appleId, ctx.appleIdPassword, ctx.team.id, name];
+      const args = ['create', authCtx.appleId, authCtx.appleIdPassword, authCtx.team.id, name];
       const { apnsKeyId, apnsKeyP8 } = await runActionAsync(travelingFastlane.managePushKeys, args);
       spinner.succeed();
       return {
         apnsKeyId,
         apnsKeyP8,
-        teamId: ctx.team.id,
-        teamName: ctx.team.name,
+        teamId: authCtx.team.id,
+        teamName: authCtx.team.name,
       };
     }
   } catch (err) {
@@ -78,14 +78,20 @@ export async function createPushKeyAsync(
   }
 }
 
-export async function revokePushKeyAsync(ctx: AuthCtx, ids: string[]): Promise<void> {
+export async function revokePushKeyAsync(authCtx: AuthCtx, ids: string[]): Promise<void> {
   const spinner = ora(`Revoking Push Key on Apple Servers...`).start();
   try {
     if (USE_APPLE_UTILS) {
-      const context = getRequestContext(ctx);
+      const context = getRequestContext(authCtx);
       await Promise.all(ids.map(id => Keys.revokeKeyAsync(context, { id })));
     } else {
-      const args = ['revoke', ctx.appleId, ctx.appleIdPassword, ctx.team.id, ids.join(',')];
+      const args = [
+        'revoke',
+        authCtx.appleId,
+        authCtx.appleIdPassword,
+        authCtx.team.id,
+        ids.join(','),
+      ];
       await runActionAsync(travelingFastlane.managePushKeys, args);
     }
     spinner.succeed();

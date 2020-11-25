@@ -60,9 +60,9 @@ export type AuthCtx = {
   authState?: Session.AuthState;
 };
 
-export function getRequestContext(ctx: AuthCtx): RequestContext {
-  assert(ctx.authState?.context, 'Apple request context must be defined');
-  return ctx.authState.context;
+export function getRequestContext(authCtx: AuthCtx): RequestContext {
+  assert(authCtx.authState?.context, 'Apple request context must be defined');
+  return authCtx.authState.context;
 }
 
 async function authenticateWithExperimentalAsync(options: Options = {}): Promise<AuthCtx> {
