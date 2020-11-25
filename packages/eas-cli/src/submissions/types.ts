@@ -42,8 +42,7 @@ export type AndroidSubmissionContext = SubmissionContext<AndroidSubmitCommandFla
 export interface IosSubmitCommandFlags extends SubmitCommandFlags {
   // common for all flows
   appleId?: string;
-  appAppleId?: string;
-  appleAppSpecificPassword?: string;
+  ascAppId?: string;
 
   // used only when running produce
   appleTeamId?: string;
@@ -51,6 +50,8 @@ export interface IosSubmitCommandFlags extends SubmitCommandFlags {
   appName?: string;
   bundleIdentifier?: string;
   sku?: string;
+  language?: string;
+  companyName?: string;
 }
 
 export type IosSubmissionContext = SubmissionContext<IosSubmitCommandFlags>;

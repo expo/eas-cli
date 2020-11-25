@@ -1,3 +1,7 @@
+import chalk from 'chalk';
+import wordwrap from 'wordwrap';
+
+import log from '../../log';
 import { promptAsync } from '../../prompts';
 
 export enum AppSpecificPasswordSourceType {
@@ -26,10 +30,21 @@ export async function getAppSpecificPasswordAsync(source: AppSpecificPasswordSou
   if (source.sourceType === AppSpecificPasswordSourceType.userDefined) {
     return source.appSpecificPassword;
   } else if (source.sourceType === AppSpecificPasswordSourceType.prompt) {
+    const wrap = wordwrap(process.stdout.columns || 80);
+    log.addNewLineIfNone();
+    log(
+      wrap(
+        `Please enter your Apple app-specific password. You can also provide it by using ${chalk.italic(
+          'EXPO_APPLE_APP_SPECIFIC_PASSWORD'
+        )} env variable.`
+      )
+    );
+    log('Learn more about app-specific password: https://expo.fyi/apple-app-specific-password');
+
     const { appSpecificPassword } = await promptAsync({
       name: 'appSpecificPassword',
       message: 'Your Apple app-specific password:',
-      type: 'text',
+      type: 'password',
       validate: (val: string) => val !== '' || 'Apple app-specific password cannot be empty!',
     });
     return appSpecificPassword;

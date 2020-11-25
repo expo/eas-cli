@@ -1,14 +1,14 @@
 import { Command, flags } from '@oclif/command';
 
-import { findProjectRootAsync } from '../../project/projectUtils';
-import AndroidSubmitCommand from '../../submissions/android/AndroidSubmitCommand';
-import IosSubmitCommand from '../../submissions/ios/IosSubmitCommand';
+import { findProjectRootAsync } from '../project/projectUtils';
+import AndroidSubmitCommand from '../submissions/android/AndroidSubmitCommand';
+import IosSubmitCommand from '../submissions/ios/IosSubmitCommand';
 import {
   AndroidSubmitCommandFlags,
   IosSubmitCommandFlags,
   SubmissionPlatform,
-} from '../../submissions/types';
-import { ensureLoggedInAsync } from '../../user/actions';
+} from '../submissions/types';
+import { ensureLoggedInAsync } from '../user/actions';
 
 const COMMON_FLAGS = '';
 const ANDROID_FLAGS = 'Android specific options';
@@ -16,6 +16,20 @@ const IOS_FLAGS = 'iOS specific options';
 
 export default class BuildSubmit extends Command {
   static description = 'Submits build artifact to app store';
+  static usage = 'submit --platform=(android|ios)';
+  static aliases = ['build:submit'];
+
+  static examples = [
+    `$ eas submit --platform=ios
+    - Fully interactive iOS submission\n`,
+    `$ eas submit --platform=android 
+    - Fully interactive Android submission\n`,
+    `$ eas submit -p android --latest --key=/path/to/google-services.json
+    - Minimal non-interactive Android submission, however it can ask you for other params if not specified\n`,
+    `$ EXPO_APPLE_APP_SPECIFIC_PASSWORD=xxx eas submit -p ios --latest --app-apple-id=1234567890,
+    - Minimal non-interactive iOS submission, assuming you already have an app in App Store Connect
+      and provide its App ID`,
+  ];
 
   static flags = {
     platform: flags.enum({
@@ -28,7 +42,7 @@ export default class BuildSubmit extends Command {
 
     /* Common flags for both platforms */
     latest: flags.boolean({
-      description: 'Submit the latest build',
+      description: 'Submit the latest build for specified platform',
       exclusive: ['id', 'path', 'url'],
       default: false,
       helpLabel: COMMON_FLAGS,
@@ -67,20 +81,18 @@ export default class BuildSubmit extends Command {
       helpLabel: ANDROID_FLAGS,
     }),
     'android-package': flags.string({
-      description: 'Android package name (using expo.android.package from app.json by default)',
+      description: 'Android package name (default: expo.android.package from app config)',
       helpLabel: ANDROID_FLAGS,
     }),
 
     track: flags.enum({
-      description:
-        'The track of the application to use, choose from: production, beta, alpha, internal, rollout',
+      description: 'The track of the application to use',
       default: 'internal',
       options: ['production', 'beta', 'alpha', 'internal', 'rollout'],
       helpLabel: ANDROID_FLAGS,
     }),
     'release-status': flags.enum({
-      description:
-        'Release status (used when uploading new apks/aabs), choose from: completed, draft, halted, inProgress',
+      description: 'Release status (used when uploading new APKs/AABs)',
       default: 'completed',
       options: ['completed', 'draft', 'halted', 'inProgress'],
       helpLabel: ANDROID_FLAGS,
@@ -91,13 +103,37 @@ export default class BuildSubmit extends Command {
       description: 'Your Apple ID username (you can also set EXPO_APPLE_ID env variable)',
       helpLabel: IOS_FLAGS,
     }),
-    'apple-app-specific-password': flags.string({
-      description:
-        'Your Apple ID app-specific password. You can also set EXPO_APPLE_APP_SPECIFIC_PASSWORD env variable.',
+    'asc-app-id': flags.string({
+      description: `App Store Connect unique application Apple ID number. Providing this param results in skipping app creation step. Learn more here: https://expo.fyi/asc-app-id`,
       helpLabel: IOS_FLAGS,
     }),
-    'app-apple-id': flags.string({
-      description: 'App Store Connect unique application Apple ID number.',
+    'apple-team-id': flags.string({
+      description: 'Your Apple Developer Team ID',
+      helpLabel: IOS_FLAGS,
+    }),
+    'app-name': flags.string({
+      description:
+        'The name of your app as it will appear on the App Store (default: expo.name from app config)',
+      helpLabel: IOS_FLAGS,
+    }),
+    'bundle-identifier': flags.string({
+      description:
+        'Your iOS Bundle Identifier (default: expo.ios.bundleIdentifier from app config)',
+      helpLabel: IOS_FLAGS,
+    }),
+    sku: flags.string({
+      description:
+        'An unique ID for your app that is not visible on the App Store, will be generated unless provided',
+      helpLabel: IOS_FLAGS,
+    }),
+    language: flags.string({
+      description: 'Primary language (e.g. English, German, ...)',
+      default: 'English',
+      helpLabel: IOS_FLAGS,
+    }),
+    'company-name': flags.string({
+      description:
+        'The name of your company, needed only for the first upload of any app to App Store',
       helpLabel: IOS_FLAGS,
     }),
   };
@@ -111,8 +147,11 @@ export default class BuildSubmit extends Command {
 
         // ios
         'apple-id': appleId,
-        'apple-app-specific-password': appleAppSpecificPassword,
-        'app-apple-id': appAppleId,
+        'asc-app-id': ascAppId,
+        'apple-team-id': appleTeamId,
+        'app-name': appName,
+        'bundle-identifier': bundleIdentifier,
+        'company-name': companyName,
 
         // common
         platform,
@@ -141,8 +180,11 @@ export default class BuildSubmit extends Command {
     } else if (platform === SubmissionPlatform.iOS) {
       const options: IosSubmitCommandFlags = {
         appleId,
-        appleAppSpecificPassword,
-        appAppleId,
+        ascAppId,
+        appleTeamId,
+        appName,
+        bundleIdentifier,
+        companyName,
         ...flags,
       };
 

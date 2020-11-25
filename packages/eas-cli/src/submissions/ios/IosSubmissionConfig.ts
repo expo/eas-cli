@@ -3,5 +3,5 @@ export interface IosSubmissionConfig {
   archiveUrl: string;
   appleId: string;
   appSpecificPassword: string;
-  appAppleId: string;
+  appAppleId: string; // the name for ASC App ID
 }

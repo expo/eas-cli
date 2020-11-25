@@ -87,12 +87,13 @@ describe(IosSubmitCommand, () => {
       asMock(ensureProjectExistsAsync).mockImplementationOnce(() => projectId);
       asMock(getProjectIdAsync).mockImplementationOnce(() => projectId);
 
+      process.env.EXPO_APPLE_APP_SPECIFIC_PASSWORD = 'supersecret';
+
       const options: IosSubmitCommandFlags = {
         latest: false,
         url: 'http://expo.io/fake.ipa',
         appleId: 'test@example.com',
-        appleAppSpecificPassword: 'supersecret',
-        appAppleId: '12345678',
+        ascAppId: '12345678',
         verbose: false,
       };
       const ctx = IosSubmitCommand.createContext(testProject.projectRoot, options);
@@ -112,6 +113,8 @@ describe(IosSubmitCommand, () => {
         projectId,
         iosSubmissionConfig
       );
+
+      delete process.env.EXPO_APPLE_APP_SPECIFIC_PASSWORD;
     });
   });
 });

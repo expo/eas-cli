@@ -7,7 +7,11 @@ import { promptAsync } from '../../prompts';
 
 export const getBundleIdentifier = once(_getBundleIdentifier);
 
-async function _getBundleIdentifier(projectDir: string, manifest: ExpoConfig): Promise<string> {
+async function _getBundleIdentifier(
+  projectDir: string,
+  manifest: ExpoConfig,
+  { displayAutoconfigMessage = true }: { displayAutoconfigMessage?: boolean }
+): Promise<string> {
   const bundleIdentifierFromPbxproj = IOSConfig.BundleIdenitifer.getBundleIdentifierFromPbxproj(
     projectDir
   );
@@ -20,9 +24,11 @@ async function _getBundleIdentifier(projectDir: string, manifest: ExpoConfig): P
       log.warn(
         `We detected that your Xcode project is configured with a different bundle identifier than the one defined in app.json/app.config.js.`
       );
-      log(`If you choose the one defined in app.json/app.config.js we'll automatically configure your Xcode project with it.
+      if (displayAutoconfigMessage) {
+        log(`If you choose the one defined in app.json/app.config.js we'll automatically configure your Xcode project with it.
 However, if you choose the one defined in the Xcode project you'll have to update app.json/app.config.js on your own.
 Otherwise, you'll see this prompt again in the future.`);
+      }
       log.newLine();
       const { bundleIdentifier } = await promptAsync({
         type: 'select',

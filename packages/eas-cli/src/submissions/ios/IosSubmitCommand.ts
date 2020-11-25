@@ -1,5 +1,6 @@
 import { Result, result } from '@expo/results';
 import chalk from 'chalk';
+import getenv from 'getenv';
 import wordwrap from 'wordwrap';
 
 import log from '../../log';
@@ -9,6 +10,7 @@ import UserSettings from '../../user/UserSettings';
 import { ArchiveSource, ArchiveTypeSourceType } from '../archiveSource';
 import { resolveArchiveFileSource } from '../commons';
 import { IosSubmissionContext, IosSubmitCommandFlags, SubmissionPlatform } from '../types';
+import { ensureAppStoreConnectAppExistsAsync } from './AppProduce';
 import {
   AppSpecificPasswordSource,
   AppSpecificPasswordSourceType,
@@ -48,33 +50,24 @@ class IosSubmitCommand {
       throw new Error('Failed to submit the app');
     }
 
-    // This is gonna be changed to use credentials.authenticateAsync()
-    // when implementing produce
-    const appleId = await this.getAppleIdAsync();
-    const appAppleId = await this.getAppAppleIdAsync();
+    const { appleId, ascAppId } = await this.getAppStoreInfoAsync();
 
     return {
       projectId,
       appleId,
-      appAppleId,
+      ascAppId,
       archiveSource: archiveSource.enforceValue(),
       appSpecificPasswordSource: appSpecificPasswordSource.enforceValue(),
     };
   }
 
   private resolveAppSpecificPasswordSource(): Result<AppSpecificPasswordSource> {
-    const { appleAppSpecificPassword } = this.ctx.commandFlags;
-    const { EXPO_APPLE_APP_SPECIFIC_PASSWORD } = process.env;
+    const envAppSpecificPassword = getenv.string('EXPO_APPLE_APP_SPECIFIC_PASSWORD', '');
 
-    if (appleAppSpecificPassword) {
+    if (envAppSpecificPassword) {
       return result({
         sourceType: AppSpecificPasswordSourceType.userDefined,
-        appSpecificPassword: appleAppSpecificPassword,
-      });
-    } else if (EXPO_APPLE_APP_SPECIFIC_PASSWORD) {
-      return result({
-        sourceType: AppSpecificPasswordSourceType.userDefined,
-        appSpecificPassword: EXPO_APPLE_APP_SPECIFIC_PASSWORD,
+        appSpecificPassword: envAppSpecificPassword,
       });
     }
 
@@ -91,18 +84,49 @@ class IosSubmitCommand {
   }
 
   /**
+   * Returns App Store related information required for build submission
+   * It is:
+   * - User Apple ID
+   * - App Store Connect app ID (appAppleId)
+   */
+  private async getAppStoreInfoAsync(): Promise<{
+    appleId: string;
+    ascAppId: string;
+  }> {
+    const { ascAppId } = this.ctx.commandFlags;
+
+    if (ascAppId) {
+      return {
+        appleId: await this.getAppleIdAsync(),
+        ascAppId,
+      };
+    }
+
+    const wrap = wordwrap(process.stdout.columns || 80);
+    log(
+      wrap(
+        chalk.italic(
+          'Ensuring your app exists on App Store Connect. ' +
+            'This step can be skipped by providing the --asc-app-id param. Learn more here: https://expo.fyi/asc-app-id'
+        )
+      )
+    );
+    return await ensureAppStoreConnectAppExistsAsync(this.ctx);
+  }
+
+  /**
    * This is going to be used only when `produce` is not being run,
    * and we don't need to call full credentials.authenticateAsync()
    * and we just need apple ID
    */
   private async getAppleIdAsync(): Promise<string> {
     const { appleId } = this.ctx.commandFlags;
-    const { EXPO_APPLE_ID } = process.env;
+    const envAppleId = getenv.string('EXPO_APPLE_ID', '');
 
     if (appleId) {
       return appleId;
-    } else if (EXPO_APPLE_ID) {
-      return EXPO_APPLE_ID;
+    } else if (envAppleId) {
+      return envAppleId;
     }
 
     // Get the email address that was last used and set it as
@@ -118,40 +142,6 @@ class IosSubmitCommand {
     });
 
     return promptAppleId;
-  }
-
-  /**
-   * _App Apple ID_ - **THIS IS NOT** "Apple ID".
-   * It is an unique application number, which can be found in _App Store Connect_
-   * under `General -> App Information -> General information`
-   *
-   * It is also returned from `fastlane produce` and this method is gonna be
-   * reimplemented to support this
-   */
-  private async getAppAppleIdAsync(): Promise<string> {
-    const { appAppleId } = this.ctx.commandFlags;
-
-    if (appAppleId) {
-      return appAppleId;
-    }
-
-    const wrap = wordwrap(process.stdout.columns || 80);
-    log.addNewLineIfNone();
-    log(
-      wrap(
-        'Enter your App Store Connect application Apple ID number. It can be found under ' +
-          chalk.italic('General -> App Information -> General Information')
-      )
-    );
-
-    const { appAppleIdAnswer } = await promptAsync({
-      name: 'appAppleIdAnswer',
-      message: 'Application Apple ID number:',
-      type: 'text',
-      validate: (val: string) => val !== '' || 'Application Apple ID cannot be empty!',
-    });
-
-    return appAppleIdAnswer;
   }
 }
 
