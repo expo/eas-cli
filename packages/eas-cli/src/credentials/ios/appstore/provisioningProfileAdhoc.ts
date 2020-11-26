@@ -5,8 +5,6 @@ import { ProvisioningProfile } from './Credentials.types';
 import { AuthCtx, getRequestContext } from './authenticate';
 import { getBundleIdForIdentifierAsync, getProfilesForBundleIdAsync } from './bundleId';
 import { getDistributionCertificateAync } from './distributionCertificate';
-import { USE_APPLE_UTILS } from './experimental';
-import { runActionAsync, travelingFastlane } from './fastlane';
 
 interface ProfileResults {
   didUpdate?: boolean;
@@ -228,40 +226,18 @@ export async function createOrReuseAdhocProvisioningProfileAsync(
 ): Promise<ProvisioningProfile> {
   const spinner = ora(`Handling Adhoc provisioning profiles on Apple Developer Portal...`).start();
   try {
-    let adhocProvisioningProfile: ProfileResults;
+    const context = getRequestContext(authCtx);
+    const {
+      didUpdate,
+      didCreate,
+      profileName,
+      ...adhocProvisioningProfile
+    } = await manageAdHocProfilesAsync(context, {
+      udids,
+      bundleId: bundleIdentifier,
+      certSerialNumber: distCertSerialNumber,
+    });
 
-    if (USE_APPLE_UTILS) {
-      const context = getRequestContext(authCtx);
-      adhocProvisioningProfile = await manageAdHocProfilesAsync(context, {
-        udids,
-        bundleId: bundleIdentifier,
-        certSerialNumber: distCertSerialNumber,
-      });
-    } else {
-      const args = [
-        '--apple-id',
-        authCtx.appleId,
-        '--apple-password',
-        authCtx.appleIdPassword,
-        authCtx.team.id,
-        udids.join(','),
-        bundleIdentifier,
-        distCertSerialNumber,
-      ];
-      const travelingFastlaneProfile = await runActionAsync(
-        travelingFastlane.manageAdHocProvisioningProfile,
-        args
-      );
-      adhocProvisioningProfile = {
-        provisioningProfile: travelingFastlaneProfile.provisioningProfile,
-        provisioningProfileId: travelingFastlaneProfile.provisioningProfileId,
-        profileName: travelingFastlaneProfile.provisioningProfileName,
-        didUpdate: !!travelingFastlaneProfile.provisioningProfileUpdateTimestamp,
-        didCreate: !!travelingFastlaneProfile.provisioningProfileCreateTimestamp,
-      };
-    }
-
-    const { didUpdate, didCreate, profileName } = adhocProvisioningProfile;
     if (didCreate) {
       spinner.succeed(`Created new profile: ${profileName}`);
     } else if (didUpdate) {
@@ -269,10 +245,6 @@ export async function createOrReuseAdhocProvisioningProfileAsync(
     } else {
       spinner.succeed(`Used existing profile: ${profileName}`);
     }
-
-    delete adhocProvisioningProfile.didUpdate;
-    delete adhocProvisioningProfile.didCreate;
-    delete adhocProvisioningProfile.profileName;
 
     return {
       ...adhocProvisioningProfile,

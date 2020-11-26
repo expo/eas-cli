@@ -1,32 +1,20 @@
 import { App, RequestContext, Session, User } from '@expo/apple-utils/build';
 import { getConfig } from '@expo/config';
-import wordwrap from 'wordwrap';
 
 import { getBundleIdentifier } from '../../build/ios/bundleIdentifer';
 import { authenticateAsync, getRequestContext } from '../../credentials/ios/appstore/authenticate';
-import { USE_APPLE_UTILS } from '../../credentials/ios/appstore/experimental';
 import log from '../../log';
 import { promptAsync } from '../../prompts';
 import { IosSubmissionContext } from '../types';
-import { runFastlaneAsync, travelingFastlane } from '../utils/fastlane';
 import { sanitizeLanguage } from './utils/language';
 
-interface ProduceOptions {
+interface CreateAppOptions {
   appleId?: string;
   appName: string;
   bundleIdentifier: string;
   appleTeamId?: string;
   itcTeamId?: string;
   language?: string;
-  companyName?: string;
-  sku?: string;
-}
-
-interface ProduceCredentials {
-  appleId?: string;
-  appleIdPassword?: string;
-  appleTeamId?: string;
-  itcTeamId?: string;
   companyName?: string;
   sku?: string;
 }
@@ -64,11 +52,7 @@ Learn more here: https://expo.fyi/bundle-identifier`
     language: sanitizeLanguage(language),
   };
 
-  if (USE_APPLE_UTILS) {
-    return await runProduceExperimentalAsync(options);
-  }
-
-  return await runProduceAsync(options);
+  return await createAppStoreConnectAppAsync(options);
 }
 
 async function isProvisioningAvailableAsync(requestCtx: RequestContext): Promise<boolean> {
@@ -79,7 +63,7 @@ async function isProvisioningAvailableAsync(requestCtx: RequestContext): Promise
   return user.attributes.provisioningAllowed;
 }
 
-async function runProduceExperimentalAsync(options: ProduceOptions): Promise<AppStoreResult> {
+async function createAppStoreConnectAppAsync(options: CreateAppOptions): Promise<AppStoreResult> {
   const {
     appleId,
     appleTeamId,
@@ -142,69 +126,6 @@ async function runProduceExperimentalAsync(options: ProduceOptions): Promise<App
     appleId: authCtx.appleId,
     ascAppId: app.id,
   };
-}
-
-async function runProduceAsync(options: ProduceOptions): Promise<AppStoreResult> {
-  const { bundleIdentifier, appName, language, companyName, sku } = options;
-
-  const { appleId, appleIdPassword, team } = await authenticateAsync({
-    appleId: options.appleId,
-    teamId: options.appleTeamId,
-  });
-
-  const appleCreds: ProduceCredentials = {
-    appleId,
-    appleIdPassword,
-    appleTeamId: team.id,
-  };
-  const itcTeamId = options.itcTeamId ?? (await resolveItcTeamId(appleCreds));
-  const updatedAppleCreds = {
-    ...appleCreds,
-    itcTeamId,
-    companyName,
-    sku,
-  };
-
-  log('Ensuring the app exists on App Store Connect, this may take a while...');
-  try {
-    const { appleId: ascAppId } = await runFastlaneAsync(
-      travelingFastlane.appProduce,
-      [bundleIdentifier, appName, appleId, language],
-      updatedAppleCreds,
-      true
-    );
-
-    return { appleId, ascAppId };
-  } catch (err) {
-    const wrap = wordwrap(process.stdout.columns || 80);
-    if (err.message.match(/You must provide a company name to use on the App Store/)) {
-      log.error(
-        wrap(
-          'You haven\'t uploaded any app to App Store yet. Please provide your company name with --company-name "COMPANY NAME"'
-        )
-      );
-    } else if (err.message.match(/The Bundle ID you entered has already been used./)) {
-      log.warn(
-        wrap(
-          'The Bundle ID you entered has already been used. If you already have app on App Store Connect, ' +
-            'please skip this step and provide App Apple ID directly'
-        )
-      );
-    } else if (err.message.match(/The app name you entered is already being used./)) {
-      log.error('The app name you entered is already being used.');
-    }
-    throw err;
-  }
-}
-
-async function resolveItcTeamId(appleCreds: ProduceCredentials): Promise<string> {
-  log('Resolving your App Store Connect team...');
-  const { itc_team_id: itcTeamId } = await runFastlaneAsync(
-    travelingFastlane.resolveItcTeamId,
-    [],
-    appleCreds
-  );
-  return itcTeamId;
 }
 
 async function promptForAppNameAsync(): Promise<string> {

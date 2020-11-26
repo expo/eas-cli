@@ -7,7 +7,6 @@ import {
   PushKeyStoreInfo,
 } from './Credentials.types';
 import { AuthCtx, authenticateAsync } from './authenticate';
-import { checkWSLAsync } from './checkWSL';
 import {
   AppleTooManyCertsError,
   createDistributionCertificateAsync,
@@ -15,7 +14,6 @@ import {
   revokeDistributionCertificateAsync,
 } from './distributionCertificate';
 import { AppLookupParams, EnsureAppExistsOptions, ensureAppExistsAsync } from './ensureAppExists';
-import { USE_APPLE_UTILS } from './experimental';
 import {
   ProfileClass,
   createProvisioningProfileAsync,
@@ -45,10 +43,6 @@ class AppStoreApi {
 
   public async ensureAuthenticatedAsync(): Promise<AuthCtx> {
     if (!this._authCtx) {
-      if (!USE_APPLE_UTILS) {
-        // Only check Fastlane compat when using Fastlane (default).
-        await checkWSLAsync();
-      }
       this._authCtx = await authenticateAsync(this.options);
     }
     return this._authCtx;
