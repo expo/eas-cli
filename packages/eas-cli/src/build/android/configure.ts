@@ -1,4 +1,5 @@
-import { AndroidConfig, ExpoConfig } from '@expo/config';
+import { ExpoConfig } from '@expo/config';
+import { AndroidConfig } from '@expo/config-plugins';
 
 import log from '../../log';
 import { gitAddAsync } from '../../utils/git';

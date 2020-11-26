@@ -1,4 +1,5 @@
-import { AndroidConfig, ExpoConfig } from '@expo/config';
+import { ExpoConfig } from '@expo/config';
+import { AndroidConfig } from '@expo/config-plugins';
 import fs from 'fs-extra';
 
 import log from '../../log';
