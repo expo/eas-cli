@@ -1,11 +1,5 @@
 import { sanitizeLanguage } from '../language';
 
-jest.mock('../../../../credentials/ios/appstore/experimental', () => ({
-  get USE_APPLE_UTILS() {
-    return true;
-  },
-}));
-
 describe(sanitizeLanguage, () => {
   it('throws when language not found', () => {
     expect(() => sanitizeLanguage('Ponglish')).toThrowError();
@@ -19,7 +13,7 @@ describe(sanitizeLanguage, () => {
     expect(sanitizeLanguage(undefined, { defaultLang: 'en-US' })).toBe('en-US');
   });
 
-  it('returns language iTunes code when USE_APPLE_UTILS is true', () => {
+  it('returns language iTunes code', () => {
     expect(sanitizeLanguage('English')).toBe('en-US');
     expect(sanitizeLanguage('pl-PL')).toBe('pl');
   });

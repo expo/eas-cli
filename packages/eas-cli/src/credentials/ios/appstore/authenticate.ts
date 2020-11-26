@@ -12,8 +12,6 @@ import wordwrap from 'wordwrap';
 import log from '../../../log';
 import { promptAsync, toggleConfirmAsync } from '../../../prompts';
 import UserSettings from '../../../user/UserSettings';
-import { USE_APPLE_UTILS } from './experimental';
-import { runActionAsync, travelingFastlane } from './fastlane';
 import * as Keychain from './keychain';
 
 const APPLE_IN_HOUSE_TEAM_TYPE = 'in-house';
@@ -65,7 +63,7 @@ export function getRequestContext(authCtx: AuthCtx): RequestContext {
   return authCtx.authState.context;
 }
 
-async function authenticateWithExperimentalAsync(options: Options = {}): Promise<AuthCtx> {
+export async function authenticateAsync(options: Options = {}): Promise<AuthCtx> {
   const { appleId, appleIdPassword } = await requestAppleCredentialsAsync(options);
   log(`Authenticating to Apple Developer Portal...`); // use log instead of spinner in case we need to prompt user for 2fa
 
@@ -111,36 +109,6 @@ async function authenticateWithExperimentalAsync(options: Options = {}): Promise
     }
     log(chalk.red('Authentication with Apple Developer Portal failed!'));
     throw error;
-  }
-}
-
-export async function authenticateAsync(options: Options = {}): Promise<AuthCtx> {
-  if (USE_APPLE_UTILS) {
-    return await authenticateWithExperimentalAsync(options);
-  }
-  const { appleId, appleIdPassword } = await requestAppleCredentialsAsync(options);
-  log(`Authenticating to Apple Developer Portal...`); // use log instead of spinner in case we need to prompt user for 2fa
-  try {
-    const { teams, fastlaneSession } = await runActionAsync(
-      travelingFastlane.authenticate,
-      [appleId, appleIdPassword],
-      {
-        pipeStdout: true,
-      }
-    );
-    log(chalk.green('Authenticated with Apple Developer Portal successfully!'));
-    const team = await chooseTeamAsync(teams, options.teamId);
-    return { appleId, appleIdPassword, team, fastlaneSession };
-  } catch (err) {
-    if (err.rawDump?.match(/Invalid username and password combination/)) {
-      log(chalk.red('Invalid username and password combination, try again.'));
-      const anotherPromptResult = await promptForAppleCredentialsAsync({
-        firstAttempt: false,
-      });
-      return authenticateAsync({ ...options, ...anotherPromptResult });
-    }
-    log(chalk.red('Authentication with Apple Developer Portal failed!'));
-    throw err;
   }
 }
 
@@ -236,42 +204,6 @@ async function promptForAppleCredentialsAsync({
   await setPasswordAsync({ appleId: promptAppleId, appleIdPassword });
 
   return { appleId: promptAppleId, appleIdPassword };
-}
-
-async function chooseTeamAsync(teams: FastlaneTeam[], userProvidedTeamId?: string): Promise<Team> {
-  if (teams.length === 0) {
-    throw new Error(`You have no team associated with your Apple account, cannot proceed.
-(Do you have a paid Apple Developer account?)`);
-  }
-
-  if (userProvidedTeamId) {
-    const foundTeam = teams.find(({ teamId }) => teamId === userProvidedTeamId);
-    if (foundTeam) {
-      log(`Using Apple Team with ID: ${userProvidedTeamId}`);
-      return formatTeam(foundTeam);
-    } else {
-      log.warn(`Your account is not associated with Apple Team with ID: ${userProvidedTeamId}`);
-    }
-  }
-
-  if (teams.length === 1) {
-    const [team] = teams;
-    log(`Only 1 team associated with your account, using Apple Team with ID: ${team.teamId}`);
-    return formatTeam(team);
-  } else {
-    log(`You have ${teams.length} teams associated with your account`);
-    const choices = teams.map((team, i) => ({
-      title: `${i + 1}) ${team.teamId} "${team.name}" (${team.type})`,
-      value: team,
-    }));
-    const { team } = await promptAsync({
-      type: 'select',
-      name: 'team',
-      message: 'Which team would you like to use?',
-      choices,
-    });
-    return formatTeam(team);
-  }
 }
 
 function formatTeam({ teamId, name, type }: FastlaneTeam): Team {

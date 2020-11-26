@@ -1,4 +1,3 @@
-import { USE_APPLE_UTILS } from '../../../credentials/ios/appstore/experimental';
 import log from '../../../log';
 
 type Language = {
@@ -23,7 +22,7 @@ export function sanitizeLanguage(
     if (!found) {
       throw new Error('Invalid default language provided: ' + defaultLang);
     }
-    return USE_APPLE_UTILS ? found.itcLocale ?? found.locale : found.name;
+    return found.itcLocale ?? found.locale;
   }
 
   const foundLang = findLanguage(lang);
@@ -32,10 +31,6 @@ export function sanitizeLanguage(
     throw new Error(
       `You must specify a supported language. Supported language codes are:\n${languageListToString()}`
     );
-  }
-
-  if (!USE_APPLE_UTILS) {
-    return foundLang.name;
   }
 
   return foundLang.itcLocale ?? foundLang.locale;
@@ -49,10 +44,6 @@ export function sanitizeLanguage(
  * - English
  */
 function languageListToString(): string {
-  if (!USE_APPLE_UTILS) {
-    return LANGUAGES.map(lang => `- ${lang.name}`).join('\n');
-  }
-
   return LANGUAGES.map(lang => {
     const code = lang.itcLocale || lang.locale;
     const name = lang.displayName || lang.name;

@@ -52,7 +52,7 @@ jobs:
           asset_content_type: application/gzip
   build-mac:
     name: Build for macOS
-    # Use macOS to get the platform specific dependencies like traveling-fastlane-darwin
+    # Use macOS to get the correct platform specific dependencies
     runs-on: macos-latest
     needs: release
     steps:
