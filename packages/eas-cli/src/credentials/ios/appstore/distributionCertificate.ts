@@ -127,10 +127,9 @@ export async function createDistributionCertificateAsync(
   } catch (error) {
     spinner.fail('Failed to create Distribution Certificate on Apple Servers');
     // TODO: Move check into apple-utils
-    const resultString = error.message;
     if (
-      resultString?.match(
-        /You already have a current .* certificate or a pending certificate request./
+      /You already have a current .* certificate or a pending certificate request/.test(
+        error.message
       )
     ) {
       throw new AppleTooManyCertsError('Maximum number of certificates generated');
