@@ -1,23 +1,9 @@
 import { Fragment } from '../../fragment';
-import { AppleTeam } from './AppleTeam';
-
-export interface AppleDevice {
-  id: string;
-  identifier: string;
-  name?: string;
-  model?: string;
-  deviceClass?: AppleDeviceClass;
-  appleTeam?: AppleTeam;
-}
-
-export enum AppleDeviceClass {
-  IPHONE = 'IPHONE',
-  IPAD = 'IPAD',
-}
+import { AppleDeviceClass } from '../../generated';
 
 export const APPLE_DEVICE_CLASS_LABELS: Record<AppleDeviceClass, string> = {
-  [AppleDeviceClass.IPAD]: 'iPad',
-  [AppleDeviceClass.IPHONE]: 'iPhone',
+  [AppleDeviceClass.Ipad]: 'iPad',
+  [AppleDeviceClass.Iphone]: 'iPhone',
 };
 
 export const AppleDeviceFragment: Fragment = {

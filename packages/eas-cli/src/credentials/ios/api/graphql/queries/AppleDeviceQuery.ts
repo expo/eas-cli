@@ -2,11 +2,9 @@ import assert from 'assert';
 import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
-import {
-  AppleDevice,
-  AppleDeviceFragment,
-} from '../../../../../graphql/types/credentials/AppleDevice';
-import { AppleTeam, AppleTeamFragment } from '../../../../../graphql/types/credentials/AppleTeam';
+import { AppleDevice, AppleTeam } from '../../../../../graphql/generated';
+import { AppleDeviceFragment } from '../../../../../graphql/types/credentials/AppleDevice';
+import { AppleTeamFragment } from '../../../../../graphql/types/credentials/AppleTeam';
 
 const AppleDeviceQuery = {
   async getAllByAppleTeamIdentifierAsync(

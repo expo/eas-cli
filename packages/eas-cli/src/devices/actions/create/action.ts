@@ -1,6 +1,6 @@
 import chalk from 'chalk';
 
-import { AppleTeam } from '../../../graphql/types/credentials/AppleTeam';
+import { AppleTeam } from '../../../graphql/generated';
 import log from '../../../log';
 import { promptAsync } from '../../../prompts';
 import { Account } from '../../../user/Account';

@@ -5,7 +5,7 @@ import { URL } from 'url';
 
 import { getExpoWebsiteBaseUrl } from '../../../api';
 import { AppleDeviceRegistrationRequestMutation } from '../../../credentials/ios/api/graphql/mutations/AppleDeviceRegistrationRequestMutation';
-import { AppleTeam } from '../../../graphql/types/credentials/AppleTeam';
+import { AppleTeam } from '../../../graphql/generated';
 import log from '../../../log';
 
 export async function runRegistrationUrlMethodAsync(

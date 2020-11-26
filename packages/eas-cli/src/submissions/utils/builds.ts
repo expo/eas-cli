@@ -1,10 +1,10 @@
+import { AppPlatform, BuildStatus } from '../../graphql/generated';
 import { BuildQuery } from '../../graphql/queries/BuildQuery';
-import { BuildPlatform, BuildStatus } from '../../graphql/types/Build';
 import { SubmissionPlatform } from '../types';
 
-const graphqlPlatform: Record<SubmissionPlatform, BuildPlatform> = {
-  [SubmissionPlatform.Android]: BuildPlatform.Android,
-  [SubmissionPlatform.iOS]: BuildPlatform.iOS,
+const graphqlPlatform: Record<SubmissionPlatform, AppPlatform> = {
+  [SubmissionPlatform.Android]: AppPlatform.Android,
+  [SubmissionPlatform.iOS]: AppPlatform.Ios,
 };
 
 export async function getBuildArtifactUrlByIdAsync(

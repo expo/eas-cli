@@ -1,11 +1,11 @@
 import assert from 'assert';
 import nullthrows from 'nullthrows';
 
-import { AppleDevice } from '../../../../graphql/types/credentials/AppleDevice';
 import {
+  AppleDevice,
   IosAppBuildCredentials,
   IosDistributionType,
-} from '../../../../graphql/types/credentials/IosAppBuildCredentials';
+} from '../../../../graphql/generated';
 import { confirmAsync } from '../../../../prompts';
 import { Action, CredentialsManager } from '../../../CredentialsManager';
 import { Context } from '../../../context';
@@ -59,7 +59,7 @@ export class SetupAdhocProvisioningProfile implements Action {
     let currentProfileFromExpoServers = await ctx.newIos.getProvisioningProfileAsync(
       this.app,
       appleTeam,
-      IosDistributionType.AD_HOC
+      IosDistributionType.AdHoc
     );
 
     // 4. Choose devices for internal distribution
@@ -137,7 +137,7 @@ export class SetupAdhocProvisioningProfile implements Action {
         appleAppIdentifierId: appleAppIdentifier.id,
         appleDistributionCertificateId: distCert.id,
         appleProvisioningProfileId: currentProfileFromExpoServers.id,
-        iosDistributionType: IosDistributionType.AD_HOC,
+        iosDistributionType: IosDistributionType.AdHoc,
       }
     );
   }

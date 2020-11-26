@@ -1,9 +1,7 @@
 import chalk from 'chalk';
 
-import {
-  APPLE_DEVICE_CLASS_LABELS,
-  AppleDevice,
-} from '../../../graphql/types/credentials/AppleDevice';
+import { AppleDevice } from '../../../graphql/generated';
+import { APPLE_DEVICE_CLASS_LABELS } from '../../../graphql/types/credentials/AppleDevice';
 import log from '../../../log';
 import {
   AppLookupParams,

@@ -1,7 +1,8 @@
 import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
-import { AppleTeam, AppleTeamFragment } from '../../../../../graphql/types/credentials/AppleTeam';
+import { AppleTeam } from '../../../../../graphql/generated';
+import { AppleTeamFragment } from '../../../../../graphql/types/credentials/AppleTeam';
 
 const AppleTeamMutation = {
   async createAppleTeamAsync(

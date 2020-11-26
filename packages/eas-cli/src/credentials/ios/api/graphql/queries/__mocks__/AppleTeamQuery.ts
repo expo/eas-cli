@@ -1,8 +1,8 @@
-import { AppleTeam } from '../../../../../../graphql/types/credentials/AppleTeam';
+import { AppleTeam } from '../../../../../../graphql/generated';
 
 const AppleTeamQuery = {
   byAppleTeamIdentifierAsync: jest.fn().mockImplementation(() => {
-    const appleTeam: AppleTeam = {
+    const appleTeam: Pick<AppleTeam, 'id' | 'appleTeamIdentifier' | 'appleTeamName'> = {
       id: 'apple-team-id',
       appleTeamIdentifier: 'ABC123XZ',
       appleTeamName: 'John Doe (Individual)',

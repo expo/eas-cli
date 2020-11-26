@@ -1,7 +1,7 @@
 import { Platform } from '@expo/eas-build-job';
 import { CredentialsSource, DistributionType } from '@expo/eas-json';
 
-import { IosDistributionType } from '../../graphql/types/credentials/IosAppBuildCredentials';
+import { IosDistributionType } from '../../graphql/generated';
 import log from '../../log';
 import { findAccountByName } from '../../user/Account';
 import { runCredentialsManagerAsync } from '../CredentialsManager';
@@ -168,12 +168,12 @@ export default class IosCredentialsProvider implements CredentialsProvider {
         this.ctx.newIos.getDistributionCertificateForAppAsync(
           appLookupParams,
           appleTeam,
-          IosDistributionType.AD_HOC
+          IosDistributionType.AdHoc
         ),
         this.ctx.newIos.getProvisioningProfileAsync(
           appLookupParams,
           appleTeam,
-          IosDistributionType.AD_HOC
+          IosDistributionType.AdHoc
         ),
       ]);
       return {

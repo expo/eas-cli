@@ -3,8 +3,7 @@ import Table from 'cli-table3';
 import ora from 'ora';
 
 import { AppleDeviceMutation } from '../../../credentials/ios/api/graphql/mutations/AppleDeviceMutation';
-import { AppleDeviceClass } from '../../../graphql/types/credentials/AppleDevice';
-import { AppleTeam } from '../../../graphql/types/credentials/AppleTeam';
+import { AppleDeviceClass, AppleTeam } from '../../../graphql/generated';
 import log from '../../../log';
 import { confirmAsync, promptAsync } from '../../../prompts';
 import { isValidUDID, normalizeUDID } from '../../udids';
@@ -16,8 +15,8 @@ interface DeviceData {
 }
 
 const DEVICE_CLASS_DISPLAY_NAMES: Record<AppleDeviceClass, string> = {
-  [AppleDeviceClass.IPHONE]: 'iPhone',
-  [AppleDeviceClass.IPAD]: 'iPad',
+  [AppleDeviceClass.Iphone]: 'iPhone',
+  [AppleDeviceClass.Ipad]: 'iPad',
 };
 
 export async function runInputMethodAsync(accountId: string, appleTeam: AppleTeam): Promise<void> {
@@ -133,8 +132,8 @@ async function promptForDeviceClassAsync(
   initial?: AppleDeviceClass | null
 ): Promise<AppleDeviceClass | null> {
   const choices = [
-    { title: 'iPhone', value: AppleDeviceClass.IPHONE },
-    { title: 'iPad', value: AppleDeviceClass.IPAD },
+    { title: 'iPhone', value: AppleDeviceClass.Iphone },
+    { title: 'iPad', value: AppleDeviceClass.Ipad },
     { title: 'Not sure (leave empty)', value: null },
   ];
   const values = choices.map(({ value }) => value);

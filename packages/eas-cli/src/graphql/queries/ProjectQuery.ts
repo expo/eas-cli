@@ -1,7 +1,7 @@
 import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../client';
-import { Project } from '../types/Project';
+import { Project } from '../generated';
 
 type ProjectQueryResult = Pick<Project, 'id'>;
 

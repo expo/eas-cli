@@ -2,7 +2,7 @@ import { DistributionType } from '@expo/eas-json';
 import assert from 'assert';
 import chalk from 'chalk';
 
-import { IosAppBuildCredentials } from '../../../graphql/types/credentials/IosAppBuildCredentials';
+import { AppleDevice, IosAppBuildCredentials } from '../../../graphql/generated';
 import log from '../../../log';
 import { promptAsync } from '../../../prompts';
 import { findAccountByName } from '../../../user/Account';
