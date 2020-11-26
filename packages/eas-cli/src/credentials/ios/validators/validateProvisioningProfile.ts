@@ -41,8 +41,7 @@ async function validateProvisioningProfileWithAppleAsync(
   );
   if (!configuredProfileFromApple) {
     return {
-      error:
-        'Provisioning Profile (id: ${profile.provisioningProfileId}) does not exist on Apple servers',
+      error: `Provisioning Profile (id: ${profile.provisioningProfileId}) does not exist on Apple servers`,
       ok: false,
     };
   }

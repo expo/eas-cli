@@ -10,8 +10,9 @@ export const getBundleIdentifier = once(_getBundleIdentifier);
 async function _getBundleIdentifier(
   projectDir: string,
   manifest: ExpoConfig,
-  options?: { displayAutoconfigMessage?: boolean }
+  options?: { displayAutoconfigMessage?: boolean; configDescription?: string }
 ): Promise<string> {
+  const configDescription = options?.configDescription ?? 'app.config.js/app.json';
   const displayAutoconfigMessage = options?.displayAutoconfigMessage ?? true;
   const bundleIdentifierFromPbxproj = IOSConfig.BundleIdenitifer.getBundleIdentifierFromPbxproj(
     projectDir
@@ -21,13 +22,13 @@ async function _getBundleIdentifier(
     if (bundleIdentifierFromPbxproj === bundleIdentifierFromConfig) {
       return bundleIdentifierFromPbxproj;
     } else {
-      log.newLine();
+      log.addNewLineIfNone();
       log.warn(
-        `We detected that your Xcode project is configured with a different bundle identifier than the one defined in app.json/app.config.js.`
+        `We detected that your Xcode project is configured with a different bundle identifier than the one defined in ${configDescription}.`
       );
       if (displayAutoconfigMessage) {
-        log(`If you choose the one defined in app.json/app.config.js we'll automatically configure your Xcode project with it.
-However, if you choose the one defined in the Xcode project you'll have to update app.json/app.config.js on your own.
+        log(`If you choose the one defined in ${configDescription} we'll automatically configure your Xcode project with it.
+However, if you choose the one defined in the Xcode project you'll have to update ${configDescription} on your own.
 Otherwise, you'll see this prompt again in the future.`);
       }
       log.newLine();
@@ -37,11 +38,11 @@ Otherwise, you'll see this prompt again in the future.`);
         message: 'Which bundle identifier should we use?',
         choices: [
           {
-            title: `Defined in the Xcode project: ${chalk.bold(bundleIdentifierFromPbxproj)}`,
+            title: `${chalk.bold(bundleIdentifierFromPbxproj)} - In Xcode project`,
             value: bundleIdentifierFromPbxproj,
           },
           {
-            title: `Defined in app.json/app.config.js: ${chalk.bold(bundleIdentifierFromConfig)}`,
+            title: `${chalk.bold(bundleIdentifierFromConfig)} - In your ${configDescription}`,
             value: bundleIdentifierFromConfig,
           },
         ],
@@ -49,7 +50,7 @@ Otherwise, you'll see this prompt again in the future.`);
       return bundleIdentifier;
     }
   } else if (bundleIdentifierFromPbxproj === null && bundleIdentifierFromConfig === null) {
-    throw new Error('Please define "expo.ios.bundleIdentifier" in app.json/app.config.js');
+    throw new Error(`Please define "ios.bundleIdentifier" in your ${configDescription}`);
   } else {
     if (bundleIdentifierFromPbxproj !== null) {
       log(
@@ -65,7 +66,7 @@ Otherwise, you'll see this prompt again in the future.`);
       log(
         `Using ${chalk.bold(
           bundleIdentifier
-        )} as the bundle identifier (read from app.json/app.config.js).
+        )} as the bundle identifier (read from ${configDescription}).
 We'll automatically configure your Xcode project using this value.`
       );
       return bundleIdentifier;
