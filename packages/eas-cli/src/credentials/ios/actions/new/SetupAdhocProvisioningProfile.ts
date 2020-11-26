@@ -65,9 +65,8 @@ export class SetupAdhocProvisioningProfile implements Action {
     // 4. Choose devices for internal distribution
     let chosenDevices: AppleDevice[];
     if (currentProfileFromExpoServers) {
-      const appleDeviceIdentifiersFromProfile = (
-        currentProfileFromExpoServers.appleDevices ?? []
-      ).map(({ identifier }) => identifier);
+      const appleDeviceIdentifiersFromProfile = ((currentProfileFromExpoServers.appleDevices ??
+        []) as AppleDevice[]).map(({ identifier }) => identifier);
 
       let shouldAskToChooseDevices = true;
       if (doUDIDsMatch(appleDeviceIdentifiersFromProfile, registeredAppleDeviceIdentifiers)) {

@@ -41,7 +41,7 @@ const AppleDeviceQuery = {
     );
     const { appleDevices } = data.appleTeam.byAppleTeamIdentifier;
     assert(appleDevices, 'Apple Devices should be defined in this context - enforced by GraphQL');
-    return appleDevices;
+    return appleDevices.filter(device => device) as AppleDevice[];
   },
 };
 

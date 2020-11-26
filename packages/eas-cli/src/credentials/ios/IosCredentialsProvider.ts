@@ -177,10 +177,10 @@ export default class IosCredentialsProvider implements CredentialsProvider {
         ),
       ]);
       return {
-        provisioningProfile: provisioningProfile?.provisioningProfile,
+        provisioningProfile: provisioningProfile?.provisioningProfile ?? undefined,
         distributionCertificate: {
-          certP12: distCert?.certificateP12,
-          certPassword: distCert?.certificatePassword,
+          certP12: distCert?.certificateP12 ?? undefined,
+          certPassword: distCert?.certificatePassword ?? undefined,
         },
       };
     } else {

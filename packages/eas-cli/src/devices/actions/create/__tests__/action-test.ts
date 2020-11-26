@@ -40,6 +40,7 @@ describe(DeviceCreateAction, () => {
         id: 'account_id',
         name: 'foobar',
       };
+      // @ts-expect-error appleTeam is missing properties of AppleTeam GraphQL type
       const appleTeam: AppleTeam = {
         id: 'apple-team-id',
         appleTeamIdentifier: 'ABC123Y',
@@ -60,6 +61,7 @@ describe(DeviceCreateAction, () => {
         id: 'account_id',
         name: 'foobar',
       };
+      // @ts-expect-error appleTeam is missing properties of AppleTeam GraphQL type
       const appleTeam: AppleTeam = {
         id: 'apple-team-id',
         appleTeamIdentifier: 'ABC123Y',

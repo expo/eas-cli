@@ -86,22 +86,24 @@ export class SetupBuildCredentials implements Action {
           experienceName: `${this.app.accountName}/${this.app.projectName}`,
           bundleIdentifier: this.app.bundleIdentifier,
           credentials: {
-            provisioningProfile: provisioningProfile.provisioningProfile,
-            provisioningProfileId: provisioningProfile.developerPortalIdentifier,
+            provisioningProfile: provisioningProfile.provisioningProfile ?? undefined,
+            provisioningProfileId: provisioningProfile.developerPortalIdentifier ?? undefined,
             teamId: provisioningProfile.appleTeam?.appleTeamIdentifier || '',
-            teamName: provisioningProfile.appleTeam?.appleTeamName,
-            devices: provisioningProfile.appleDevices,
+            teamName: provisioningProfile.appleTeam?.appleTeamName ?? undefined,
+            devices: provisioningProfile.appleDevices?.filter(device => device) as
+              | AppleDevice[]
+              | undefined,
           },
         },
         distCert: {
           // the id doesn't really matter, it's only for displaying credentials
           id: null as any,
           type: 'dist-cert',
-          certId: distributionCertificate.developerPortalIdentifier,
-          certP12: distributionCertificate.certificateP12,
-          certPassword: distributionCertificate.certificatePassword,
+          certId: distributionCertificate.developerPortalIdentifier ?? undefined,
+          certP12: distributionCertificate.certificateP12 ?? '',
+          certPassword: distributionCertificate.certificatePassword ?? '',
           teamId: distributionCertificate.appleTeam?.appleTeamIdentifier || '',
-          teamName: distributionCertificate.appleTeam?.appleTeamName,
+          teamName: distributionCertificate.appleTeam?.appleTeamName ?? undefined,
         },
       };
     }

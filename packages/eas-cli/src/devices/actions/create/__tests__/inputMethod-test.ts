@@ -35,6 +35,7 @@ describe(runInputMethodAsync, () => {
     asMock(prompts).mockImplementationOnce(() => ({ value: false }));
 
     const accountId = 'account-id';
+    // @ts-expect-error appleTeam is missing properties of AppleTeam GraphQL type
     const appleTeam: AppleTeam = {
       id: 'apple-team-id',
       appleTeamIdentifier: 'ABC123XY',
