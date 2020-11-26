@@ -1,7 +1,7 @@
 {
   "name": "eas-cli",
   "description": "EAS command line tool",
-  "version": "0.1.0-alpha.4",
+  "version": "0.1.0-alpha.8",
   "author": "Expo <support@expo.io>",
   "bin": {
     "eas": "./bin/run"
@@ -11,7 +11,7 @@
     "@expo/apple-utils": "0.0.0-alpha.10",
     "@expo/config": "^3.3.12",
     "@expo/eas-build-job": "0.1.2",
-    "@expo/eas-json": "^0.1.0-alpha.4",
+    "@expo/eas-json": "^0.1.0-alpha.8",
     "@expo/json-file": "^8.2.24",
     "@expo/plist": "^0.0.10",
     "@expo/results": "^1.0.0",

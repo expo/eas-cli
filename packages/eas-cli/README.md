@@ -21,7 +21,7 @@ $ npm install -g eas-cli
 $ eas COMMAND
 running command...
 $ eas (-v|--version|version)
-eas-cli/0.1.0-alpha.4 darwin-x64 node-v12.16.2
+eas-cli/0.1.0-alpha.8 darwin-x64 node-v12.13.0
 $ eas --help [COMMAND]
 USAGE
   $ eas COMMAND
@@ -39,12 +39,11 @@ USAGE
 * [`eas build:configure`](#eas-buildconfigure)
 * [`eas build:create`](#eas-buildcreate)
 * [`eas build:status`](#eas-buildstatus)
-* [`eas build:submit`](#eas-buildsubmit)
 * [`eas credentials`](#eas-credentials)
 * [`eas device:create`](#eas-devicecreate)
 * [`eas help [COMMAND]`](#eas-help-command)
 * [`eas release:create [RELEASENAME]`](#eas-releasecreate-releasename)
-* [`eas release:publish`](#eas-releasepublish)
+* [`eas submit --platform=(android|ios)`](#eas-submit---platformandroidios)
 * [`eas update:show`](#eas-updateshow)
 
 ## `eas account:login`
@@ -59,6 +58,8 @@ ALIASES
   $ eas login
 ```
 
+_See code: [build/commands/account/login.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.8/build/commands/account/login.ts)_
+
 ## `eas account:logout`
 
 log out
@@ -70,6 +71,8 @@ USAGE
 ALIASES
   $ eas logout
 ```
+
+_See code: [build/commands/account/logout.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.8/build/commands/account/logout.ts)_
 
 ## `eas account:view`
 
@@ -83,6 +86,8 @@ ALIASES
   $ eas whoami
 ```
 
+_See code: [build/commands/account/view.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.8/build/commands/account/view.ts)_
+
 ## `eas build`
 
 build an app binary for your project
@@ -91,6 +96,8 @@ build an app binary for your project
 USAGE
   $ eas build
 ```
+
+_See code: [build/commands/build/index.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.8/build/commands/build/index.ts)_
 
 ## `eas build:configure`
 
@@ -103,6 +110,8 @@ USAGE
 OPTIONS
   -p, --platform=(android|ios|all)  [default: all] Platform to configure
 ```
+
+_See code: [build/commands/build/configure.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.8/build/commands/build/configure.ts)_
 
 ## `eas build:create`
 
@@ -121,6 +130,8 @@ OPTIONS
   --wait                            Wait for build(s) to complete
 ```
 
+_See code: [build/commands/build/create.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.8/build/commands/build/create.ts)_
+
 ## `eas build:status`
 
 get the status of the latest builds for your project
@@ -134,49 +145,7 @@ OPTIONS
   --status=(in-queue|in-progress|errored|finished)
 ```
 
-## `eas build:submit`
-
-Submits build artifact to app store
-
-```
-USAGE
-  $ eas build:submit
-
-OPTIONS
-  -p, --platform=(android|ios)                               (required) For which platform you want to submit a build
-
-  --android-package=android-package                          Android package name (using expo.android.package from
-                                                             app.json by default)
-
-  --app-apple-id=app-apple-id                                App Store Connect unique application Apple ID number.
-
-  --apple-app-specific-password=apple-app-specific-password  Your Apple ID app-specific password. You can also set
-                                                             EXPO_APPLE_APP_SPECIFIC_PASSWORD env variable.
-
-  --apple-id=apple-id                                        Your Apple ID username (you can also set EXPO_APPLE_ID env
-                                                             variable)
-
-  --id=id                                                    ID of the build to submit
-
-  --key=key                                                  Path to the JSON key used to authenticate with Google Play
-
-  --latest                                                   Submit the latest build
-
-  --path=path                                                Path to the .apk/.aab file
-
-  --release-status=(completed|draft|halted|inProgress)       [default: completed] Release status (used when uploading
-                                                             new apks/aabs), choose from: completed, draft, halted,
-                                                             inProgress
-
-  --track=(production|beta|alpha|internal|rollout)           [default: internal] The track of the application to use,
-                                                             choose from: production, beta, alpha, internal, rollout
-
-  --type=(apk|aab)                                           Android archive type
-
-  --url=url                                                  App archive url
-
-  --verbose                                                  Always print logs from Submission Service
-```
+_See code: [build/commands/build/status.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.8/build/commands/build/status.ts)_
 
 ## `eas credentials`
 
@@ -187,6 +156,8 @@ USAGE
   $ eas credentials
 ```
 
+_See code: [build/commands/credentials.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.8/build/commands/credentials.ts)_
+
 ## `eas device:create`
 
 register new Apple Devices to use for internal distribution
@@ -195,6 +166,8 @@ register new Apple Devices to use for internal distribution
 USAGE
   $ eas device:create
 ```
+
+_See code: [build/commands/device/create.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.8/build/commands/device/create.ts)_
 
 ## `eas help [COMMAND]`
 
@@ -223,16 +196,93 @@ USAGE
 
 ARGUMENTS
   RELEASENAME  Name of the release to create
+
+OPTIONS
+  --json  return a json with the new release ID and name.
 ```
 
-## `eas release:publish`
+_See code: [build/commands/release/create.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.8/build/commands/release/create.ts)_
 
-Publish an updateGroup on a release.
+## `eas submit --platform=(android|ios)`
+
+Submits build artifact to app store
 
 ```
 USAGE
-  $ eas release:publish
+  $ eas submit --platform=(android|ios)
+
+OPTIONS
+  -p, --platform=(android|ios)                                       (required) For which platform you want to submit a
+                                                                     build
+
+  Android specific options=android-package                           Android package name (default: expo.android.package
+                                                                     from app config)
+
+  iOS specific options=app-name                                      The name of your app as it will appear on the App
+                                                                     Store (default: expo.name from app config)
+
+  iOS specific options=apple-id                                      Your Apple ID username (you can also set
+                                                                     EXPO_APPLE_ID env variable)
+
+  iOS specific options=apple-team-id                                 Your Apple Developer Team ID
+
+  iOS specific options=asc-app-id                                    App Store Connect unique application Apple ID
+                                                                     number. Providing this param results in skipping
+                                                                     app creation step. Learn more here:
+                                                                     https://expo.fyi/asc-app-id
+
+  iOS specific options=bundle-identifier                             Your iOS Bundle Identifier (default:
+                                                                     expo.ios.bundleIdentifier from app config)
+
+  iOS specific options=company-name                                  The name of your company, needed only for the first
+                                                                     upload of any app to App Store
+
+  --id=id                                                            ID of the build to submit
+
+  Android specific options=key                                       Path to the JSON key used to authenticate with
+                                                                     Google Play
+
+  iOS specific options=language                                      [default: en-US] Primary language (e.g. English,
+                                                                     German, ...)
+
+  --latest                                                           Submit the latest build for specified platform
+
+  --path=path                                                        Path to the .apk/.aab file
+
+  Android specific options=(completed|draft|halted|inProgress)       [default: completed] Release status (used when
+                                                                     uploading new APKs/AABs)
+
+  iOS specific options=sku                                           An unique ID for your app that is not visible on
+                                                                     the App Store, will be generated unless provided
+
+  Android specific options=(production|beta|alpha|internal|rollout)  [default: internal] The track of the application to
+                                                                     use
+
+  Android specific options=(apk|aab)                                 Android archive type
+
+  --url=url                                                          App archive url
+
+  --verbose                                                          Always print logs from Submission Service
+
+ALIASES
+  $ eas build:submit
+
+EXAMPLES
+  $ eas submit --platform=ios
+       - Fully interactive iOS submission
+
+  $ eas submit --platform=android 
+       - Fully interactive Android submission
+
+  $ eas submit -p android --latest --key=/path/to/google-services.json
+       - Minimal non-interactive Android submission, however it can ask you for other params if not specified
+
+  $ EXPO_APPLE_APP_SPECIFIC_PASSWORD=xxx eas submit -p ios --latest --app-apple-id=1234567890,
+       - Minimal non-interactive iOS submission, assuming you already have an app in App Store Connect
+         and provide its App ID
 ```
+
+_See code: [build/commands/submit.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.8/build/commands/submit.ts)_
 
 ## `eas update:show`
 
@@ -242,4 +292,6 @@ details about a particular revision
 USAGE
   $ eas update:show
 ```
+
+_See code: [build/commands/update/show.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.8/build/commands/update/show.ts)_
 <!-- commandsstop -->
