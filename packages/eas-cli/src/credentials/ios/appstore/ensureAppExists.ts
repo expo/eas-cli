@@ -13,7 +13,7 @@ export interface AppLookupParams {
   bundleIdentifier: string;
 }
 
-async function ensureBundleIdExistsAsync(
+export async function ensureAppExistsAsync(
   authCtx: AuthCtx,
   { accountName, projectName, bundleIdentifier }: AppLookupParams,
   options: EnsureAppExistsOptions = {}
@@ -57,12 +57,4 @@ async function ensureBundleIdExistsAsync(
     }
     throw err;
   }
-}
-
-export async function ensureAppExistsAsync(
-  authCtx: AuthCtx,
-  app: AppLookupParams,
-  options: EnsureAppExistsOptions = {}
-) {
-  return await ensureBundleIdExistsAsync(authCtx, app, options);
 }
