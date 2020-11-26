@@ -63,7 +63,7 @@ export function getRequestContext(authCtx: AuthCtx): RequestContext {
   return authCtx.authState.context;
 }
 
-async function authenticateWithExperimentalAsync(options: Options = {}): Promise<AuthCtx> {
+export async function authenticateAsync(options: Options = {}): Promise<AuthCtx> {
   const { appleId, appleIdPassword } = await requestAppleCredentialsAsync(options);
   log(`Authenticating to Apple Developer Portal...`); // use log instead of spinner in case we need to prompt user for 2fa
 
@@ -110,10 +110,6 @@ async function authenticateWithExperimentalAsync(options: Options = {}): Promise
     log(chalk.red('Authentication with Apple Developer Portal failed!'));
     throw error;
   }
-}
-
-export async function authenticateAsync(options: Options = {}): Promise<AuthCtx> {
-  return await authenticateWithExperimentalAsync(options);
 }
 
 export async function requestAppleCredentialsAsync(options: Options): Promise<AppleCredentials> {
