@@ -2,8 +2,6 @@ import { BundleId, CapabilityType, CapabilityTypeOption } from '@expo/apple-util
 import ora from 'ora';
 
 import { AuthCtx, getRequestContext } from './authenticate';
-import { USE_APPLE_UTILS } from './experimental';
-import { runActionAsync, travelingFastlane } from './fastlane';
 
 export interface EnsureAppExistsOptions {
   enablePushNotifications?: boolean;
@@ -66,29 +64,5 @@ export async function ensureAppExistsAsync(
   app: AppLookupParams,
   options: EnsureAppExistsOptions = {}
 ) {
-  if (USE_APPLE_UTILS) {
-    return await ensureBundleIdExistsAsync(authCtx, app, options);
-  }
-
-  const spinner = ora(`Ensuring App ID exists on Apple Developer Portal...`).start();
-  try {
-    const { created } = await runActionAsync(travelingFastlane.ensureAppExists, [
-      ...(options.enablePushNotifications ? ['--push-notifications'] : []),
-      authCtx.appleId,
-      authCtx.appleIdPassword,
-      authCtx.team.id,
-      app.bundleIdentifier,
-      `@${app.accountName}/${app.projectName}`,
-    ]);
-    if (created) {
-      spinner.succeed(`App ID created with bundle identifier ${app.bundleIdentifier}.`);
-    } else {
-      spinner.succeed('App ID found on Apple Developer Portal.');
-    }
-  } catch (err) {
-    spinner.fail(
-      'Something went wrong when trying to ensure App ID exists on Apple Developer Portal!'
-    );
-    throw err;
-  }
+  return await ensureBundleIdExistsAsync(authCtx, app, options);
 }

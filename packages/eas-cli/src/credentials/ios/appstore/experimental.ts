@@ -1,7 +1,4 @@
 import { BundleId, Profile, RequestContext } from '@expo/apple-utils';
-import { boolish } from 'getenv';
-
-export const USE_APPLE_UTILS = boolish('USE_APPLE_UTILS', false);
 
 export async function getProfilesForBundleIdAsync(
   context: RequestContext,
