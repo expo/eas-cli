@@ -1,6 +1,8 @@
 import { Command, flags } from '@oclif/command';
 
-import { findProjectRootAsync } from '../project/projectUtils';
+import log from '../log';
+import { isEasEnabledForProjectAsync } from '../project/isEasEnabledForProject';
+import { findProjectRootAsync, getProjectIdAsync } from '../project/projectUtils';
 import AndroidSubmitCommand from '../submissions/android/AndroidSubmitCommand';
 import IosSubmitCommand from '../submissions/ios/IosSubmitCommand';
 import {
@@ -22,7 +24,7 @@ export default class BuildSubmit extends Command {
   static examples = [
     `$ eas submit --platform=ios
     - Fully interactive iOS submission\n`,
-    `$ eas submit --platform=android 
+    `$ eas submit --platform=android
     - Fully interactive Android submission\n`,
     `$ eas submit -p android --latest --key=/path/to/google-services.json
     - Minimal non-interactive Android submission, however it can ask you for other params if not specified\n`,
@@ -138,7 +140,7 @@ export default class BuildSubmit extends Command {
     }),
   };
 
-  async run() {
+  async run(): Promise<void> {
     const {
       flags: {
         // android
@@ -160,7 +162,17 @@ export default class BuildSubmit extends Command {
     } = this.parse(BuildSubmit);
 
     await ensureLoggedInAsync();
-    const projectDir = await findProjectRootAsync(process.cwd());
+
+    const projectDir = (await findProjectRootAsync()) ?? process.cwd();
+    const projectId = await getProjectIdAsync(projectDir);
+
+    if (!(await isEasEnabledForProjectAsync(projectId))) {
+      log.error(
+        'Your account does not have access to Expo Application Services (EAS) features. Please enroll in EAS to give it a try.'
+      );
+      process.exitCode = 1;
+      return;
+    }
 
     // TODO: Make this work outside project dir
     if (!projectDir) {

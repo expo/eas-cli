@@ -4,7 +4,7 @@ import ora from 'ora';
 
 import { apiClient } from '../api';
 import log from '../log';
-import { ensureProjectExistsAsync } from '../project/ensureProjectExists';
+import { getProjectIdAsync } from '../project/projectUtils';
 import { sleep } from '../utils/promise';
 import { startAndroidBuildAsync } from './android/build';
 import { CommandContext } from './context';
@@ -17,15 +17,11 @@ export async function buildAsync(commandCtx: CommandContext): Promise<void> {
   await ensureGitRepoExistsAsync();
   await ensureGitStatusIsCleanAsync();
 
-  const projectId = await ensureProjectExistsAsync({
-    accountName: commandCtx.accountName,
-    projectName: commandCtx.projectName,
-    privacy: commandCtx.exp.privacy,
-  });
+  const projectId = await getProjectIdAsync(commandCtx.projectDir);
 
   const scheduledBuilds = await startBuildsAsync(commandCtx, projectId);
   log.newLine();
-  await printLogsUrls(commandCtx.accountName, scheduledBuilds);
+  printLogsUrls(commandCtx.accountName, scheduledBuilds);
   log.newLine();
 
   if (commandCtx.waitForBuildEnd) {
