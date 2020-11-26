@@ -8,7 +8,7 @@ import { promptAsync } from '../../prompts';
 import { IosSubmissionContext } from '../types';
 import { sanitizeLanguage } from './utils/language';
 
-interface ProduceOptions {
+interface CreateAppOptions {
   appleId?: string;
   appName: string;
   bundleIdentifier: string;
@@ -63,7 +63,7 @@ async function isProvisioningAvailableAsync(requestCtx: RequestContext): Promise
   return user.attributes.provisioningAllowed;
 }
 
-async function createAppStoreConnectAppAsync(options: ProduceOptions): Promise<AppStoreResult> {
+async function createAppStoreConnectAppAsync(options: CreateAppOptions): Promise<AppStoreResult> {
   const {
     appleId,
     appleTeamId,
