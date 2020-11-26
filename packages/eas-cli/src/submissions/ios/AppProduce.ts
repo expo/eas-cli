@@ -1,5 +1,5 @@
 import { App, RequestContext, Session, User } from '@expo/apple-utils/build';
-import { getConfig, ProjectConfig } from '@expo/config';
+import { ProjectConfig, getConfig } from '@expo/config';
 import * as path from 'path';
 import wordwrap from 'wordwrap';
 
