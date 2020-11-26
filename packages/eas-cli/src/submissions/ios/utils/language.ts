@@ -18,7 +18,6 @@ export function sanitizeLanguage(
   lang?: string,
   { defaultLang = 'en-US' }: { defaultLang?: string } = {}
 ): string {
-  console.log(USE_APPLE_UTILS);
   if (!lang) {
     const found = findLanguage(defaultLang);
     if (!found) {
