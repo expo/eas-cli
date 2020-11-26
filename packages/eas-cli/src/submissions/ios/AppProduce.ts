@@ -52,7 +52,7 @@ Learn more here: https://expo.fyi/bundle-identifier`
     language: sanitizeLanguage(language),
   };
 
-  return await runProduceAsync(options);
+  return await createAppStoreConnectAppAsync(options);
 }
 
 async function isProvisioningAvailableAsync(requestCtx: RequestContext): Promise<boolean> {
@@ -63,7 +63,7 @@ async function isProvisioningAvailableAsync(requestCtx: RequestContext): Promise
   return user.attributes.provisioningAllowed;
 }
 
-async function runProduceAsync(options: ProduceOptions): Promise<AppStoreResult> {
+async function createAppStoreConnectAppAsync(options: ProduceOptions): Promise<AppStoreResult> {
   const {
     appleId,
     appleTeamId,
