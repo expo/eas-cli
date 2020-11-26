@@ -128,7 +128,7 @@ export default class BuildSubmit extends Command {
     }),
     language: flags.string({
       description: 'Primary language (e.g. English, German, ...)',
-      default: 'English',
+      default: 'en-US',
       helpLabel: IOS_FLAGS,
     }),
     'company-name': flags.string({
