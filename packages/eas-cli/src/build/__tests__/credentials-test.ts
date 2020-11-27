@@ -1,4 +1,5 @@
-import { CredentialsSource, Workflow } from '@expo/eas-json';
+import { Workflow } from '@expo/eas-build-job';
+import { CredentialsSource } from '@expo/eas-json';
 import prompts from 'prompts';
 
 import { asMock } from '../../__tests__/utils';

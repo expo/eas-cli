@@ -12,7 +12,7 @@ import { configureIosAsync } from './ios/configure';
 import { BuildCommandPlatform } from './types';
 import {
   ensureGitRepoExistsAsync,
-  ensureGitStatusIsCleanAsync,
+  maybeBailOnGitStatusAsync,
   modifyAndCommitAsync,
 } from './utils/repository';
 
@@ -21,7 +21,7 @@ export async function configureAsync(options: {
   projectDir: string;
 }): Promise<void> {
   await ensureGitRepoExistsAsync();
-  await ensureGitStatusIsCleanAsync();
+  await maybeBailOnGitStatusAsync();
 
   const { exp } = getConfig(options.projectDir, { skipSDKVersionRequirement: true });
 
@@ -36,7 +36,6 @@ export async function configureAsync(options: {
     shouldConfigureIos: [BuildCommandPlatform.ALL, BuildCommandPlatform.IOS].includes(
       options.platform
     ),
-    // TODO: better detection of native projects
     hasAndroidNativeProject: await fs.pathExists(path.join(options.projectDir, 'android')),
     hasIosNativeProject: await fs.pathExists(path.join(options.projectDir, 'ios')),
   };
