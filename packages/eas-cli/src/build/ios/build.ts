@@ -5,6 +5,7 @@ import chalk from 'chalk';
 import sortBy from 'lodash/sortBy';
 
 import log from '../../log';
+import { ensureAppIdentifierIsDefinedAsync } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
 import { startBuildForPlatformAsync } from '../build';
 import { BuildContext, CommandContext, createBuildContext } from '../context';
@@ -39,6 +40,7 @@ export async function startIosBuildAsync(
       if (buildCtx.buildProfile.workflow === Workflow.Generic) {
         await validateAndSyncProjectConfigurationAsync(commandCtx.projectDir, commandCtx.exp);
       }
+      await ensureAppIdentifierIsDefinedAsync(commandCtx.projectDir, Platform.iOS);
     },
     prepareJobAsync,
   });

@@ -55,3 +55,18 @@ export async function toggleConfirmAsync(
   );
   return value ?? null;
 }
+
+export async function pressAnyKeyToContinueAsync() {
+  process.stdin.setRawMode(true);
+  process.stdin.resume();
+  process.stdin.setEncoding('utf8');
+
+  await new Promise(res => {
+    process.stdin.on('data', key => {
+      if (String(key) === '\u0003') {
+        process.exit(constants.signals.SIGINT + 128); // ctrl-c
+      }
+      res();
+    });
+  });
+}

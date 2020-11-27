@@ -6,10 +6,11 @@ import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 
 import log from '../../log';
-import { confirmAsync, promptAsync } from '../../prompts';
+import { confirmAsync, pressAnyKeyToContinueAsync, promptAsync } from '../../prompts';
 import {
   doesGitRepoExistAsync,
   gitDiffAsync,
+  gitDiffOutputAsync,
   gitRootDirectoryAsync,
   gitStatusAsync,
   isGitInstalledAsync,
@@ -113,9 +114,15 @@ async function reviewAndCommitChangesAsync(
     );
   }
 
+  const outputTooLarge = (await gitDiffOutputAsync()).split(/\r\n|\r|\n/).length > 100;
   log('Please review the following changes and pass the message to make the commit.');
-  log.newLine();
-  await gitDiffAsync();
+  if (outputTooLarge) {
+    log('Press any key to see the changes...');
+    await pressAnyKeyToContinueAsync();
+  } else {
+    log.newLine();
+  }
+  await gitDiffAsync({ withPager: outputTooLarge });
   log.newLine();
 
   const confirm = await confirmAsync({

@@ -8,8 +8,13 @@ async function gitStatusAsync({ showUntracked }: GitStatusOptions = {}): Promise
   return (await spawnAsync('git', ['status', '-s', showUntracked ? '-uall' : '-uno'])).stdout;
 }
 
-async function gitDiffAsync(): Promise<void> {
-  await spawnAsync('git', ['--no-pager', 'diff'], { stdio: ['ignore', 'inherit', 'inherit'] });
+async function gitDiffAsync({ withPager = false }: { withPager?: boolean } = {}): Promise<void> {
+  const options = withPager ? [] : ['--no-pager'];
+  await spawnAsync('git', [...options, 'diff'], { stdio: ['ignore', 'inherit', 'inherit'] });
+}
+
+async function gitDiffOutputAsync(): Promise<string> {
+  return (await spawnAsync('git', ['--no-pager', 'diff'])).stdout;
 }
 
 async function gitAddAsync(file: string, options?: { intentToAdd?: boolean }): Promise<void> {
@@ -54,6 +59,7 @@ async function getBranchNameAsync(): Promise<string | undefined> {
 export {
   gitStatusAsync,
   gitDiffAsync,
+  gitDiffOutputAsync,
   gitAddAsync,
   doesGitRepoExistAsync,
   gitRootDirectoryAsync,

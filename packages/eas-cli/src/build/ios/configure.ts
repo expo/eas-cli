@@ -5,14 +5,13 @@ import log from '../../log';
 import { ConfigureContext } from '../context';
 import { isExpoUpdatesInstalled } from '../utils/updates';
 import { configureUpdatesAsync, syncUpdatesConfigurationAsync } from './UpdatesModule';
-import { getBundleIdentifier } from './bundleIdentifer';
+import { configureBundleIdentifierAsync } from './bundleIdentifer';
 
 export async function configureIosAsync(ctx: ConfigureContext): Promise<void> {
   if (!ctx.hasIosNativeProject) {
     return;
   }
-  const bundleIdentifier = await getBundleIdentifier(ctx.projectDir, ctx.exp);
-  IOSConfig.BundleIdenitifer.setBundleIdentifierForPbxproj(ctx.projectDir, bundleIdentifier, false);
+  await configureBundleIdentifierAsync(ctx.projectDir, ctx.exp);
 
   if (isExpoUpdatesInstalled(ctx.projectDir)) {
     await configureUpdatesAsync(ctx.projectDir, ctx.exp);
@@ -24,7 +23,14 @@ export async function validateAndSyncProjectConfigurationAsync(
   projectDir: string,
   exp: ExpoConfig
 ): Promise<void> {
-  // TODO: check bundle identifier
+  const bundleIdentifierFromPbxproj = IOSConfig.BundleIdenitifer.getBundleIdentifierFromPbxproj(
+    projectDir
+  );
+  if (!bundleIdentifierFromPbxproj || bundleIdentifierFromPbxproj !== exp.ios?.bundleIdentifier) {
+    throw new Error(
+      'Bundle identifier is not configured correctly in your Xcode project. Please run "eas build:configure" first to configure it.'
+    );
+  }
   if (isExpoUpdatesInstalled(projectDir)) {
     await syncUpdatesConfigurationAsync(projectDir, exp);
   }

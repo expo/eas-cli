@@ -1,5 +1,6 @@
 import { getConfig } from '@expo/config';
 import { EasJsonReader } from '@expo/eas-json';
+import chalk from 'chalk';
 import fs from 'fs-extra';
 import path from 'path';
 
@@ -20,6 +21,7 @@ import {
 export async function configureAsync(options: {
   platform: BuildCommandPlatform;
   projectDir: string;
+  allowExperimental: boolean;
 }): Promise<void> {
   await ensureGitRepoExistsAsync();
   await maybeBailOnGitStatusAsync();
@@ -30,6 +32,7 @@ export async function configureAsync(options: {
     user: await ensureLoggedInAsync(),
     projectDir: options.projectDir,
     exp,
+    allowExperimental: options.allowExperimental,
     requestedPlatform: options.platform,
     shouldConfigureAndroid: [BuildCommandPlatform.ALL, BuildCommandPlatform.ANDROID].includes(
       options.platform
@@ -60,6 +63,11 @@ export async function configureAsync(options: {
         "Aborting, run the command again once you're ready. Make sure to commit any changes you've made."
       );
     }
+    log.newLine();
+    log(chalk.green('Successfully configured the project'));
+  } else {
+    log.newLine();
+    log(chalk.green('No changes were necessary, the project is already configured correctly.'));
   }
 }
 

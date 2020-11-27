@@ -1,4 +1,8 @@
-import { getConfig } from '@expo/config';
+import { getConfig, getConfigFilePaths } from '@expo/config';
+import { AndroidConfig, IOSConfig } from '@expo/config-plugins';
+import { Platform } from '@expo/eas-build-job';
+import fs from 'fs-extra';
+import path from 'path';
 import pkgDir from 'pkg-dir';
 
 import { ensureLoggedInAsync } from '../user/actions';
@@ -21,4 +25,74 @@ export async function getProjectIdAsync(projectDir: string): Promise<string> {
     accountName: await getProjectAccountNameAsync(projectDir),
     projectName: exp.slug,
   });
+}
+
+// TODO move to @expo/config
+export async function getAndroidApplicationIdAsync(projectDir: string): Promise<string | null> {
+  const buildGradlePath = AndroidConfig.Paths.getAppBuildGradle(projectDir);
+  if (!(await fs.pathExists(buildGradlePath))) {
+    return null;
+  }
+  const buildGradle = await fs.readFile(buildGradlePath, 'utf8');
+  const matchResult = buildGradle.match(/applicationId ['"](.*)['"]/);
+  // TODO add fallback for legacy cases to read from AndroidManifest.xml
+  return matchResult?.[1] ?? null;
+}
+
+export async function getAppIdentifierAsync(
+  projectDir: string,
+  platform: Platform
+): Promise<string | null> {
+  const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
+  switch (platform) {
+    case Platform.Android: {
+      const packageNameFromConfig = AndroidConfig.Package.getPackage(exp);
+      if (packageNameFromConfig) {
+        return packageNameFromConfig;
+      }
+      return (await fs.pathExists(path.join(projectDir, 'android')))
+        ? await getAndroidApplicationIdAsync(projectDir)
+        : null;
+    }
+    case Platform.iOS: {
+      return (
+        IOSConfig.BundleIdenitifer.getBundleIdentifier(exp) ??
+        IOSConfig.BundleIdenitifer.getBundleIdentifierFromPbxproj(projectDir)
+      );
+    }
+  }
+}
+
+export async function ensureAppIdentifierIsDefinedAsync(
+  projectDir: string,
+  platform: Platform
+): Promise<string> {
+  const appIdentifier = await getAppIdentifierAsync(projectDir, platform);
+  if (!appIdentifier) {
+    const desc = getProjectConfigDescription(projectDir);
+    const fieldStr = Platform.Android ? 'android.package' : 'ios.bundleIdentifier';
+    throw new Error(`Please define "${fieldStr}" in your ${desc}.`);
+  }
+  return appIdentifier;
+}
+
+/**
+ * Return a useful name describing the project config.
+ * - dynamic: app.config.js
+ * - static: app.json
+ * - custom path app config relative to root folder
+ * - both: app.config.js or app.json
+ */
+export function getProjectConfigDescription(projectDir: string): string {
+  const paths = getConfigFilePaths(projectDir);
+  if (paths.dynamicConfigPath) {
+    const relativeDynamicConfigPath = path.relative(projectDir, paths.dynamicConfigPath);
+    if (paths.staticConfigPath) {
+      return `${relativeDynamicConfigPath} or ${path.relative(projectDir, paths.staticConfigPath)}`;
+    }
+    return relativeDynamicConfigPath;
+  } else if (paths.staticConfigPath) {
+    return path.relative(projectDir, paths.staticConfigPath);
+  }
+  return 'app.config.js/app.json';
 }
