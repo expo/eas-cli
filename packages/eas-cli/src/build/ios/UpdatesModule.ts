@@ -1,4 +1,5 @@
-import { ExpoConfig, IOSConfig } from '@expo/config';
+import { ExpoConfig } from '@expo/config';
+import { IOSConfig } from '@expo/config-plugins';
 import plist from '@expo/plist';
 import fs from 'fs-extra';
 import path from 'path';

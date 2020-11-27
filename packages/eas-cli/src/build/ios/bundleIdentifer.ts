@@ -1,4 +1,5 @@
-import { ExpoConfig, IOSConfig } from '@expo/config';
+import { ExpoConfig } from '@expo/config';
+import { IOSConfig } from '@expo/config-plugins';
 import chalk from 'chalk';
 import once from 'lodash/once';
 

@@ -1,4 +1,4 @@
-import { IOSConfig } from '@expo/config';
+import { IOSConfig } from '@expo/config-plugins';
 import { Workflow } from '@expo/eas-build-job';
 import { EasConfig } from '@expo/eas-json';
 import chalk from 'chalk';
