@@ -1,4 +1,5 @@
-import { CredentialsSource, DistributionType, Workflow } from '@expo/eas-json';
+import { Workflow } from '@expo/eas-build-job';
+import { CredentialsSource, DistributionType } from '@expo/eas-json';
 import assert from 'assert';
 
 import { createCredentialsContextAsync } from '../../credentials/context';
@@ -61,9 +62,5 @@ export async function resolveIosCredentialsAsync(
 }
 
 function shouldProvideCredentials(ctx: BuildContext<Platform.iOS>): boolean {
-  return (
-    (ctx.buildProfile.workflow === Workflow.Managed &&
-      ctx.buildProfile.buildType !== 'simulator') ||
-    ctx.buildProfile.workflow === Workflow.Generic
-  );
+  return true;
 }

@@ -44,7 +44,7 @@ export class ManageIos implements Action {
             // This command will be triggered durring build to ensure all credentials are ready
             // I'm leaving it here for now to simplify testing
             value: ActionType.SetupBuildCredentials,
-            title: 'Ensure all credentials are valid',
+            title: 'Ensure all credentials for project are valid',
           },
           {
             value: ActionType.UpdateCredentialsJson,

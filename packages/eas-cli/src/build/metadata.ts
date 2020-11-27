@@ -1,4 +1,5 @@
-import { CredentialsSource, DistributionType, Workflow } from '@expo/eas-json';
+import { Workflow } from '@expo/eas-build-job';
+import { CredentialsSource, DistributionType } from '@expo/eas-json';
 
 import { BuildContext } from './context';
 import { Platform, TrackingContext } from './types';

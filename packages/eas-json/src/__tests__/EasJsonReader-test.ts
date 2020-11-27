@@ -129,7 +129,6 @@ test('valid eas.json for debug builds', async () => {
       ios: {
         credentialsSource: 'auto',
         workflow: 'managed',
-        buildType: 'simulator',
         distribution: 'store',
       },
     },
@@ -164,7 +163,7 @@ test('invalid eas.json when using buildType for wrong platform', async () => {
   const reader = new EasJsonReader('/project', 'android');
   const promise = reader.readAsync('release');
   await expect(promise).rejects.toThrowError(
-    'Object "android.release" in eas.json is not valid [ValidationError: "buildType" must be one of [apk, app-bundle]]'
+    'Object "android.release" in eas.json is not valid [ValidationError: "buildType" must be one of [apk, app-bundle, development-client]]'
   );
 });
 
