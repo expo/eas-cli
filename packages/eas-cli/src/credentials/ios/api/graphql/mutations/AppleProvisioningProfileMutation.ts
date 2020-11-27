@@ -1,10 +1,8 @@
 import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
-import {
-  AppleProvisioningProfile,
-  AppleProvisioningProfileFragment,
-} from '../../../../../graphql/types/credentials/AppleProvisioningProfile';
+import { AppleProvisioningProfile } from '../../../../../graphql/generated';
+import { AppleProvisioningProfileFragment } from '../../../../../graphql/types/credentials/AppleProvisioningProfile';
 import { AppleTeamFragment } from '../../../../../graphql/types/credentials/AppleTeam';
 
 const AppleProvisioningProfileMutation = {

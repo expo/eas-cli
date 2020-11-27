@@ -1,14 +1,9 @@
 import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
-import {
-  IosAppBuildCredentialsFragment,
-  IosDistributionType,
-} from '../../../../../graphql/types/credentials/IosAppBuildCredentials';
-import {
-  IosAppCredentials,
-  IosAppCredentialsFragment,
-} from '../../../../../graphql/types/credentials/IosAppCredentials';
+import { IosAppCredentials, IosDistributionType } from '../../../../../graphql/generated';
+import { IosAppBuildCredentialsFragment } from '../../../../../graphql/types/credentials/IosAppBuildCredentials';
+import { IosAppCredentialsFragment } from '../../../../../graphql/types/credentials/IosAppCredentials';
 
 const IosAppCredentialsQuery = {
   async byAppIdentifierIdAsync(

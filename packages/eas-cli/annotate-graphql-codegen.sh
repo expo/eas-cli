@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
 
-OUTFILE="src/graphql/generated.tsx"
+OUTFILE="src/graphql/generated.ts"
 
 content="/**
  * This file was generated using GraphQL Codegen

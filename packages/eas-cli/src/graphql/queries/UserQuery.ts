@@ -1,8 +1,7 @@
 import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../client';
-import { Account } from '../types/Account';
-import { User } from '../types/User';
+import { Account, User } from '../generated';
 
 type CurrentUserQueryResult = Pick<User, 'id' | 'username'> & {
   accounts: Pick<Account, 'id' | 'name'>[];

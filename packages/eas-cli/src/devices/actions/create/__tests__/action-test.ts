@@ -1,7 +1,7 @@
 import prompts from 'prompts';
 
 import { asMock } from '../../../../__tests__/utils';
-import { AppleTeam } from '../../../../graphql/types/credentials/AppleTeam';
+import { AppleTeam } from '../../../../graphql/generated';
 import { Account } from '../../../../user/Account';
 import DeviceCreateAction, { RegistrationMethod } from '../action';
 import { runInputMethodAsync } from '../inputMethod';
@@ -40,7 +40,7 @@ describe(DeviceCreateAction, () => {
         id: 'account_id',
         name: 'foobar',
       };
-      const appleTeam: AppleTeam = {
+      const appleTeam = {
         id: 'apple-team-id',
         appleTeamIdentifier: 'ABC123Y',
         appleTeamName: 'John Doe (Individual)',
@@ -60,7 +60,7 @@ describe(DeviceCreateAction, () => {
         id: 'account_id',
         name: 'foobar',
       };
-      const appleTeam: AppleTeam = {
+      const appleTeam = {
         id: 'apple-team-id',
         appleTeamIdentifier: 'ABC123Y',
         appleTeamName: 'John Doe (Individual)',

@@ -1,7 +1,7 @@
 import assert from 'assert';
 import chalk from 'chalk';
 
-import { AppleDistributionCertificate } from '../../../../graphql/types/credentials/AppleDistributionCertificate';
+import { AppleDistributionCertificate } from '../../../../graphql/generated';
 import log from '../../../../log';
 import { Action, CredentialsManager } from '../../../CredentialsManager';
 import { Context } from '../../../context';
