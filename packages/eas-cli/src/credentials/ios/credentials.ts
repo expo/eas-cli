@@ -45,7 +45,7 @@ export interface IosAppCredentials {
     // for adhoc provisioning profiles
     devices?: AppleDevice[];
 
-    teamId: string;
+    teamId?: string;
     teamName?: string;
     // legacy pushCert
     pushId?: string;
