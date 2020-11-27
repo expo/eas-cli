@@ -1,16 +1,16 @@
 import nullthrows from 'nullthrows';
 
-import { App } from '../../../graphql/types/App';
-import { AppleAppIdentifier } from '../../../graphql/types/credentials/AppleAppIdentifier';
-import { AppleDevice } from '../../../graphql/types/credentials/AppleDevice';
-import { AppleDistributionCertificate } from '../../../graphql/types/credentials/AppleDistributionCertificate';
-import { AppleProvisioningProfile } from '../../../graphql/types/credentials/AppleProvisioningProfile';
-import { AppleTeam } from '../../../graphql/types/credentials/AppleTeam';
 import {
+  App,
+  AppleAppIdentifier,
+  AppleDevice,
+  AppleDistributionCertificate,
+  AppleProvisioningProfile,
+  AppleTeam,
   IosAppBuildCredentials,
+  IosAppCredentials,
   IosDistributionType,
-} from '../../../graphql/types/credentials/IosAppBuildCredentials';
-import { IosAppCredentials } from '../../../graphql/types/credentials/IosAppCredentials';
+} from '../../../graphql/generated';
 import { Account } from '../../../user/Account';
 import { DistributionCertificate } from '../appstore/Credentials.types';
 import { AppleAppIdentifierMutation } from './graphql/mutations/AppleAppIdentifierMutation';

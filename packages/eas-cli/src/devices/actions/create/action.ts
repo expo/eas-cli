@@ -1,6 +1,6 @@
 import chalk from 'chalk';
 
-import { AppleTeam } from '../../../graphql/types/credentials/AppleTeam';
+import { AppleTeam } from '../../../graphql/generated';
 import log from '../../../log';
 import { promptAsync } from '../../../prompts';
 import { Account } from '../../../user/Account';
@@ -14,7 +14,10 @@ export enum RegistrationMethod {
 }
 
 export default class DeviceCreateAction {
-  constructor(private account: Account, private appleTeam: AppleTeam) {}
+  constructor(
+    private account: Account,
+    private appleTeam: Pick<AppleTeam, 'appleTeamIdentifier' | 'appleTeamName' | 'id'>
+  ) {}
 
   public async runAsync(): Promise<void> {
     const method = await this.askForRegistrationMethodAsync();

@@ -1,7 +1,6 @@
 import isEqual from 'lodash/isEqual';
 
-import { AppleDevice } from '../../../../graphql/types/credentials/AppleDevice';
-import { AppleDistributionCertificate } from '../../../../graphql/types/credentials/AppleDistributionCertificate';
+import { AppleDevice, AppleDistributionCertificate } from '../../../../graphql/generated';
 import log from '../../../../log';
 import { ProvisioningProfileStoreInfo } from '../../appstore/Credentials.types';
 

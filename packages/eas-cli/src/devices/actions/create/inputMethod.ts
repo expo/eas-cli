@@ -3,8 +3,7 @@ import Table from 'cli-table3';
 import ora from 'ora';
 
 import { AppleDeviceMutation } from '../../../credentials/ios/api/graphql/mutations/AppleDeviceMutation';
-import { AppleDeviceClass } from '../../../graphql/types/credentials/AppleDevice';
-import { AppleTeam } from '../../../graphql/types/credentials/AppleTeam';
+import { AppleDeviceClass, AppleTeam } from '../../../graphql/generated';
 import log from '../../../log';
 import { confirmAsync, promptAsync } from '../../../prompts';
 import { isValidUDID, normalizeUDID } from '../../udids';
@@ -16,11 +15,14 @@ interface DeviceData {
 }
 
 const DEVICE_CLASS_DISPLAY_NAMES: Record<AppleDeviceClass, string> = {
-  [AppleDeviceClass.IPHONE]: 'iPhone',
-  [AppleDeviceClass.IPAD]: 'iPad',
+  [AppleDeviceClass.Iphone]: 'iPhone',
+  [AppleDeviceClass.Ipad]: 'iPad',
 };
 
-export async function runInputMethodAsync(accountId: string, appleTeam: AppleTeam): Promise<void> {
+export async function runInputMethodAsync(
+  accountId: string,
+  appleTeam: Pick<AppleTeam, 'appleTeamIdentifier' | 'appleTeamName' | 'id'>
+): Promise<void> {
   log.newLine();
   log(chalk.yellow('This is an advanced option. Use at your own risk.'));
   log.newLine();
@@ -40,7 +42,7 @@ async function collectDataAndRegisterDeviceAsync({
   appleTeam,
 }: {
   accountId: string;
-  appleTeam: AppleTeam;
+  appleTeam: Pick<AppleTeam, 'appleTeamIdentifier' | 'appleTeamName' | 'id'>;
 }): Promise<void> {
   const { udid, deviceClass, name } = await collectDeviceDataAsync(appleTeam);
 
@@ -63,7 +65,7 @@ async function collectDataAndRegisterDeviceAsync({
 }
 
 async function collectDeviceDataAsync(
-  appleTeam: AppleTeam,
+  appleTeam: Pick<AppleTeam, 'appleTeamIdentifier' | 'appleTeamName'>,
   initialValues: Partial<DeviceData> = {}
 ): Promise<DeviceData> {
   const udid = await promptForUDIDAsync(initialValues.udid);
@@ -133,8 +135,8 @@ async function promptForDeviceClassAsync(
   initial?: AppleDeviceClass | null
 ): Promise<AppleDeviceClass | null> {
   const choices = [
-    { title: 'iPhone', value: AppleDeviceClass.IPHONE },
-    { title: 'iPad', value: AppleDeviceClass.IPAD },
+    { title: 'iPhone', value: AppleDeviceClass.Iphone },
+    { title: 'iPad', value: AppleDeviceClass.Ipad },
     { title: 'Not sure (leave empty)', value: null },
   ];
   const values = choices.map(({ value }) => value);
@@ -151,7 +153,7 @@ async function promptForDeviceClassAsync(
 
 function printDeviceDataSummary(
   { udid, name, deviceClass }: DeviceData,
-  appleTeam: AppleTeam
+  appleTeam: Pick<AppleTeam, 'appleTeamIdentifier' | 'appleTeamName'>
 ): void {
   const deviceSummary = new Table({
     colWidths: [25, 55],

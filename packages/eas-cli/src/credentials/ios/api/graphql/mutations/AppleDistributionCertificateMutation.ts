@@ -1,10 +1,8 @@
 import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
-import {
-  AppleDistributionCertificate,
-  AppleDistributionCertificateFragment,
-} from '../../../../../graphql/types/credentials/AppleDistributionCertificate';
+import { AppleDistributionCertificate } from '../../../../../graphql/generated';
+import { AppleDistributionCertificateFragment } from '../../../../../graphql/types/credentials/AppleDistributionCertificate';
 import { AppleTeamFragment } from '../../../../../graphql/types/credentials/AppleTeam';
 
 const AppleDistributionCertificateMutation = {

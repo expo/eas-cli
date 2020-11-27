@@ -1,10 +1,8 @@
 import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
-import {
-  AppleDeviceRegistrationRequest,
-  AppleDeviceRegistrationRequestFragment,
-} from '../../../../../graphql/types/credentials/AppleDeviceRegistrationRequest';
+import { AppleDeviceRegistrationRequest } from '../../../../../graphql/generated';
+import { AppleDeviceRegistrationRequestFragment } from '../../../../../graphql/types/credentials/AppleDeviceRegistrationRequest';
 
 const AppleDeviceRegistrationRequestMutation = {
   async createAppleDeviceRegistrationRequestAsync(

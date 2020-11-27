@@ -1,4 +1,4 @@
-import { AppleDevice } from '../../graphql/types/credentials/AppleDevice';
+import { AppleDevice } from '../../graphql/generated';
 import log from '../../log';
 import { CredentialSchema } from '../utils/promptForCredentials';
 import {

@@ -1,7 +1,7 @@
 import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../client';
-import { Build } from '../types/Build';
+import { Build } from '../generated';
 
 type Filters = Partial<Pick<Build, 'platform' | 'status'>> & {
   offset?: number;

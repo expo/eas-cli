@@ -1,25 +1,29 @@
+import { AppPlatform, BuildStatus } from '../../graphql/generated';
 import { BuildQuery } from '../../graphql/queries/BuildQuery';
-import { BuildPlatform, BuildStatus } from '../../graphql/types/Build';
 import { SubmissionPlatform } from '../types';
 
-const graphqlPlatform: Record<SubmissionPlatform, BuildPlatform> = {
-  [SubmissionPlatform.Android]: BuildPlatform.Android,
-  [SubmissionPlatform.iOS]: BuildPlatform.iOS,
+const graphqlPlatform: Record<SubmissionPlatform, AppPlatform> = {
+  [SubmissionPlatform.Android]: AppPlatform.Android,
+  [SubmissionPlatform.iOS]: AppPlatform.Ios,
 };
 
 export async function getBuildArtifactUrlByIdAsync(
   platform: SubmissionPlatform,
   buildId: string
 ): Promise<string> {
-  const {
-    platform: buildPlatform,
-    artifacts: { buildUrl },
-  } = await BuildQuery.byIdAsync(buildId);
+  const { platform: buildPlatform, artifacts } = await BuildQuery.byIdAsync(buildId);
 
   if (buildPlatform !== graphqlPlatform[platform]) {
     throw new Error("Build platform doesn't match!");
   }
 
+  if (!artifacts) {
+    throw new Error('Build has no artifacts.');
+  }
+  const buildUrl = artifacts.buildUrl;
+  if (!buildUrl) {
+    throw new Error('Build URL is not defined.');
+  }
   return buildUrl;
 }
 
@@ -37,5 +41,10 @@ export async function getLatestBuildArtifactUrlAsync(
     return null;
   }
 
-  return builds[0].artifacts.buildUrl;
+  const { artifacts } = builds[0];
+  if (!artifacts) {
+    return null;
+  }
+
+  return artifacts.buildUrl ?? null;
 }

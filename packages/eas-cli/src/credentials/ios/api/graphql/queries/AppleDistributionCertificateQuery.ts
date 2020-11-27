@@ -3,10 +3,10 @@ import gql from 'graphql-tag';
 import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
 import {
   AppleDistributionCertificate,
-  AppleDistributionCertificateFragment,
-} from '../../../../../graphql/types/credentials/AppleDistributionCertificate';
+  IosDistributionType,
+} from '../../../../../graphql/generated';
+import { AppleDistributionCertificateFragment } from '../../../../../graphql/types/credentials/AppleDistributionCertificate';
 import { AppleTeamFragment } from '../../../../../graphql/types/credentials/AppleTeam';
-import { IosDistributionType } from '../../../../../graphql/types/credentials/IosAppBuildCredentials';
 
 const AppleDistributionCertificateQuery = {
   async getForAppAsync(

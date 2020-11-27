@@ -1,7 +1,5 @@
-import {
-  APPLE_DEVICE_CLASS_LABELS,
-  AppleDevice,
-} from '../../../../graphql/types/credentials/AppleDevice';
+import { AppleDevice } from '../../../../graphql/generated';
+import { APPLE_DEVICE_CLASS_LABELS } from '../../../../graphql/types/credentials/AppleDevice';
 import { promptAsync } from '../../.././../prompts';
 
 export async function chooseDevices(

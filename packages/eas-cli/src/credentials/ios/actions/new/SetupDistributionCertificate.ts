@@ -1,8 +1,7 @@
 import assert from 'assert';
 import sortBy from 'lodash/sortBy';
 
-import { AppleDistributionCertificate } from '../../../../graphql/types/credentials/AppleDistributionCertificate';
-import { IosDistributionType } from '../../../../graphql/types/credentials/IosAppBuildCredentials';
+import { AppleDistributionCertificate, IosDistributionType } from '../../../../graphql/generated';
 import log from '../../../../log';
 import { confirmAsync, promptAsync } from '../../../../prompts';
 import { Action, CredentialsManager } from '../../../CredentialsManager';
@@ -39,7 +38,7 @@ export class SetupDistributionCertificate implements Action {
     const currentCertificate = await ctx.newIos.getDistributionCertificateForAppAsync(
       this.app,
       appleTeam,
-      IosDistributionType.AD_HOC
+      IosDistributionType.AdHoc
     );
 
     if (await this.isCurrentCertificateValidAsync(ctx, currentCertificate)) {

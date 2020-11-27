@@ -1,5 +1,4 @@
-import { AppleDistributionCertificate } from '../../../../graphql/types/credentials/AppleDistributionCertificate';
-import { AppleTeam } from '../../../../graphql/types/credentials/AppleTeam';
+import { AppleDistributionCertificate, AppleTeam } from '../../../../graphql/generated';
 
 export function formatDistributionCertificate({
   developerPortalIdentifier,
