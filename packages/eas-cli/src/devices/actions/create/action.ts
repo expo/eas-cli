@@ -14,7 +14,10 @@ export enum RegistrationMethod {
 }
 
 export default class DeviceCreateAction {
-  constructor(private account: Account, private appleTeam: AppleTeam) {}
+  constructor(
+    private account: Account,
+    private appleTeam: Pick<AppleTeam, 'appleTeamIdentifier' | 'appleTeamName' | 'id'>
+  ) {}
 
   public async runAsync(): Promise<void> {
     const method = await this.askForRegistrationMethodAsync();

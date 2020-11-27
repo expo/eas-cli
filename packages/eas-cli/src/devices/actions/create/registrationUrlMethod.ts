@@ -10,7 +10,7 @@ import log from '../../../log';
 
 export async function runRegistrationUrlMethodAsync(
   accountId: string,
-  appleTeam: AppleTeam
+  appleTeam: Pick<AppleTeam, 'id'>
 ): Promise<void> {
   const registrationURL = await generateDeviceRegistrationURLAsync(accountId, appleTeam);
   log.newLine();
@@ -22,7 +22,10 @@ export async function runRegistrationUrlMethodAsync(
   log(chalk.green(`${registrationURL}`));
 }
 
-async function generateDeviceRegistrationURLAsync(accountId: string, appleTeam: AppleTeam) {
+async function generateDeviceRegistrationURLAsync(
+  accountId: string,
+  appleTeam: Pick<AppleTeam, 'id'>
+) {
   const appleDeviceRegistrationRequest = await AppleDeviceRegistrationRequestMutation.createAppleDeviceRegistrationRequestAsync(
     appleTeam.id,
     accountId
