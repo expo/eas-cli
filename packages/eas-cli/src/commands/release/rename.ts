@@ -50,7 +50,7 @@ async function renameUpdateReleaseOnAppAsync({
   return data.updateRelease.editUpdateRelease;
 }
 
-export default class ReleaseEdit extends Command {
+export default class ReleaseRename extends Command {
   static description = 'Edit a release.';
 
   static flags = {
