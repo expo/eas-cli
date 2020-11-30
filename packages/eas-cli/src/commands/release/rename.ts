@@ -71,7 +71,7 @@ export default class ReleaseRename extends Command {
   async run() {
     let {
       flags: { json: jsonFlag, from: currentName, to: newName },
-    } = this.parse(ReleaseEdit);
+    } = this.parse(ReleaseRename);
 
     const projectDir = await findProjectRootAsync(process.cwd());
     if (!projectDir) {
