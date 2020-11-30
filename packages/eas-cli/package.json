@@ -113,6 +113,9 @@
       "build": {
         "description": "build app binaries"
       },
+      "channel": {
+        "description": "manage update channels"
+      },
       "release": {
         "description": "manage update releases"
       },

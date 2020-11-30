@@ -4,27 +4,24 @@ import chalk from 'chalk';
 import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
+import { UpdateRelease } from '../../graphql/generated';
 import log from '../../log';
 import { ensureProjectExistsAsync } from '../../project/ensureProjectExists';
 import { findProjectRootAsync, getProjectAccountNameAsync } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
 import { getBranchNameAsync } from '../../utils/git';
-type UpdateRelease = {
-  id: string;
-  releaseName: string;
-};
 
-async function createUpdateReleaseOnAppAsync({
+export async function createUpdateReleaseOnAppAsync({
   appId,
   releaseName,
 }: {
   appId: string;
   releaseName: string;
-}): Promise<UpdateRelease> {
+}): Promise<Pick<UpdateRelease, 'id' | 'releaseName'>> {
   const data = await withErrorHandlingAsync(
     graphqlClient
       .mutation<
-        { updateRelease: { createUpdateReleaseForApp: UpdateRelease } },
+        { updateRelease: { createUpdateReleaseForApp: Pick<UpdateRelease, 'id' | 'releaseName'> } },
         { appId: string; releaseName: string }
       >(
         gql`
@@ -69,7 +66,7 @@ export default class ReleaseCreate extends Command {
   async run() {
     let {
       args: { releaseName },
-      flags: { json: jsonFlag },
+      flags,
     } = this.parse(ReleaseCreate);
 
     const projectDir = await findProjectRootAsync(process.cwd());
@@ -87,7 +84,7 @@ export default class ReleaseCreate extends Command {
 
     if (!releaseName) {
       const validationMessage = 'Release name may not be empty.';
-      if (jsonFlag) {
+      if (flags.json) {
         throw new Error(validationMessage);
       }
       ({ releaseName } = await promptAsync({
@@ -102,7 +99,7 @@ export default class ReleaseCreate extends Command {
 
     const newRelease = await createUpdateReleaseOnAppAsync({ appId: projectId, releaseName });
 
-    if (jsonFlag) {
+    if (flags.json) {
       log(newRelease);
       return;
     }

@@ -2,9 +2,12 @@ import { getConfig, getConfigFilePaths } from '@expo/config';
 import { AndroidConfig, IOSConfig } from '@expo/config-plugins';
 import { Platform } from '@expo/eas-build-job';
 import fs from 'fs-extra';
+import gql from 'graphql-tag';
 import path from 'path';
 import pkgDir from 'pkg-dir';
 
+import { graphqlClient, withErrorHandlingAsync } from '../graphql/client';
+import { UpdateRelease } from '../graphql/generated';
 import { ensureLoggedInAsync } from '../user/actions';
 import { ensureProjectExistsAsync } from './ensureProjectExists';
 
@@ -96,4 +99,48 @@ export function getProjectConfigDescription(projectDir: string): string {
     return path.relative(projectDir, paths.staticConfigPath);
   }
   return 'app.config.js/app.json';
+}
+
+export async function getReleaseByNameAsync({
+  appId,
+  releaseName,
+}: {
+  appId: string;
+  releaseName: string;
+}): Promise<UpdateRelease> {
+  const data = await withErrorHandlingAsync(
+    graphqlClient
+      .mutation<
+        {
+          app: {
+            byId: {
+              updateReleaseByReleaseName: UpdateRelease;
+            };
+          };
+        },
+        {
+          appId: string;
+          releaseName: string;
+        }
+      >(
+        gql`
+          query ViewRelease($appId: String!, $releaseName: String!) {
+            app {
+              byId(appId: $appId) {
+                updateReleaseByReleaseName(releaseName: $releaseName) {
+                  id
+                  releaseName
+                }
+              }
+            }
+          }
+        `,
+        {
+          appId,
+          releaseName,
+        }
+      )
+      .toPromise()
+  );
+  return data.app.byId.updateReleaseByReleaseName;
 }
