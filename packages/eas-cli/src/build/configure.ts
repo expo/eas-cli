@@ -12,8 +12,9 @@ import { configureIosAsync } from './ios/configure';
 import { BuildCommandPlatform } from './types';
 import {
   ensureGitRepoExistsAsync,
+  isGitStatusCleanAsync,
   maybeBailOnGitStatusAsync,
-  modifyAndCommitAsync,
+  reviewAndCommitChangesAsync,
 } from './utils/repository';
 
 export async function configureAsync(options: {
@@ -39,21 +40,27 @@ export async function configureAsync(options: {
     hasAndroidNativeProject: await fs.pathExists(path.join(options.projectDir, 'android')),
     hasIosNativeProject: await fs.pathExists(path.join(options.projectDir, 'ios')),
   };
-  await modifyAndCommitAsync(
-    async () => {
-      await ensureEasJsonExistsAsync(ctx);
-      if (ctx.shouldConfigureAndroid) {
-        await configureAndroidAsync(ctx);
-      }
-      if (ctx.shouldConfigureIos) {
-        await configureIosAsync(ctx);
-      }
-    },
-    {
-      commitMessage: 'Configure EAS Build',
-      nonInteractive: false,
+
+  await ensureEasJsonExistsAsync(ctx);
+  if (ctx.shouldConfigureAndroid) {
+    await configureAndroidAsync(ctx);
+  }
+  if (ctx.shouldConfigureIos) {
+    await configureIosAsync(ctx);
+  }
+
+  if (!(await isGitStatusCleanAsync())) {
+    log.newLine();
+    try {
+      await reviewAndCommitChangesAsync('Configure EAS Build', {
+        nonInteractive: false,
+      });
+    } catch (e) {
+      throw new Error(
+        "Aborting, run the command again once you're ready. Make sure to commit any changes you've made."
+      );
     }
-  );
+  }
 }
 
 export async function ensureEasJsonExistsAsync(ctx: ConfigureContext): Promise<void> {

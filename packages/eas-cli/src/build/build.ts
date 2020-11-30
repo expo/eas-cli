@@ -12,7 +12,11 @@ import { collectMetadata } from './metadata';
 import { AnalyticsEvent, Platform, TrackingContext } from './types';
 import Analytics from './utils/analytics';
 import { printDeprecationWarnings } from './utils/printBuildInfo';
-import { makeProjectTarballAsync } from './utils/repository';
+import {
+  isGitStatusCleanAsync,
+  makeProjectTarballAsync,
+  reviewAndCommitChangesAsync,
+} from './utils/repository';
 
 export interface CredentialsResult<Credentials> {
   source: CredentialsSource.LOCAL | CredentialsSource.REMOTE;
@@ -58,6 +62,9 @@ export async function startBuildForPlatformAsync<
     });
   }
 
+  await commitChangesForBuildAsync(builder.ctx.platform, {
+    nonInteractive: builder.ctx.commandCtx.nonInteractive,
+  });
   const archiveUrl = await uploadProjectAsync(builder.ctx);
 
   const metadata = collectMetadata(builder.ctx, {
@@ -126,6 +133,24 @@ async function uploadProjectAsync<TPlatform extends Platform>(
   } finally {
     if (projectTarballPath) {
       await fs.remove(projectTarballPath);
+    }
+  }
+}
+async function commitChangesForBuildAsync(
+  platform: Platform,
+  { nonInteractive }: { nonInteractive: boolean }
+): Promise<void> {
+  if (!(await isGitStatusCleanAsync())) {
+    log.newLine();
+    try {
+      const projectType = platform === Platform.Android ? 'Android' : 'Xcode';
+      await reviewAndCommitChangesAsync(`Update runtime version in the ${projectType} project`, {
+        nonInteractive,
+      });
+    } catch (e) {
+      throw new Error(
+        "Aborting, run the command again once you're ready. Make sure to commit any changes you've made."
+      );
     }
   }
 }
