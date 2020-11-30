@@ -26,7 +26,7 @@ export default class BuildSubmit extends Command {
     - Fully interactive Android submission\n`,
     `$ eas submit -p android --latest --key=/path/to/google-services.json
     - Minimal non-interactive Android submission, however it can ask you for other params if not specified\n`,
-    `$ EXPO_APPLE_APP_SPECIFIC_PASSWORD=xxx eas submit -p ios --latest --app-apple-id=1234567890,
+    `$ EXPO_APPLE_APP_SPECIFIC_PASSWORD=xxx eas submit -p ios --latest --apple-id=user@example.com --asc-app-id=1234567890,
     - Minimal non-interactive iOS submission, assuming you already have an app in App Store Connect
       and provide its App ID`,
   ];
