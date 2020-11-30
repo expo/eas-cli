@@ -4,11 +4,11 @@ import chalk from 'chalk';
 import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
+import { EditUpdateReleaseInput, UpdateRelease } from '../../graphql/generated';
 import log from '../../log';
 import { ensureProjectExistsAsync } from '../../project/ensureProjectExists';
 import { findProjectRootAsync, getProjectAccountNameAsync } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
-import { EditUpdateReleaseInput, UpdateRelease } from '../../graphql/generated';
 
 async function renameUpdateReleaseOnAppAsync({
   appId,
