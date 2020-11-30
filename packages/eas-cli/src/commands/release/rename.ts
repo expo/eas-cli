@@ -14,14 +14,14 @@ type UpdateRelease = {
   releaseName: string;
 };
 
-async function editUpdateReleaseOnAppAsync({
+async function renameUpdateReleaseOnAppAsync({
   appId,
-  releaseName,
-  newReleaseName,
+  currentName,
+  newName,
 }: {
   appId: string;
-  releaseName: string;
-  newReleaseName: string;
+  currentName: string;
+  newName: string;
 }): Promise<UpdateRelease> {
   const data = await withErrorHandlingAsync(
     graphqlClient
@@ -48,8 +48,8 @@ async function editUpdateReleaseOnAppAsync({
         {
           input: {
             appId,
-            releaseName,
-            newReleaseName,
+            releaseName: currentName,
+            newReleaseName: newName,
           },
         }
       )
@@ -61,17 +61,13 @@ async function editUpdateReleaseOnAppAsync({
 export default class ReleaseEdit extends Command {
   static description = 'Edit a release.';
 
-  static args = [
-    {
-      name: 'releaseName',
-      required: false,
-      description: 'Name of the release to edit',
-    },
-  ];
-
   static flags = {
-    rename: flags.string({
-      description: 'what to rename the release.',
+    from: flags.string({
+      description: 'current name of the release.',
+      required: false,
+    }),
+    to: flags.string({
+      description: 'new name of the release.',
       required: false,
     }),
     json: flags.boolean({
@@ -82,8 +78,7 @@ export default class ReleaseEdit extends Command {
 
   async run() {
     let {
-      args: { releaseName },
-      flags: { json: jsonFlag, rename: renameFlag },
+      flags: { json: jsonFlag, from: currentName, to: newName },
     } = this.parse(ReleaseEdit);
 
     const projectDir = await findProjectRootAsync(process.cwd());
@@ -99,36 +94,36 @@ export default class ReleaseEdit extends Command {
       projectName: slug,
     });
 
-    if (!releaseName) {
-      const validationMessage = 'Release name may not be empty.';
+    if (!currentName) {
+      const validationMessage = 'current name may not be empty.';
       if (jsonFlag) {
         throw new Error(validationMessage);
       }
-      ({ releaseName } = await promptAsync({
+      ({ currentName } = await promptAsync({
         type: 'text',
-        name: 'releaseName',
-        message: 'Please enter the name of the release to edit:',
+        name: 'currentName',
+        message: 'Please enter the current name of the release to rename:',
         validate: value => (value ? true : validationMessage),
       }));
     }
 
-    if (!renameFlag) {
-      const validationMessage = '--rename may not be empty.';
+    if (!newName) {
+      const validationMessage = 'new name may not be empty.';
       if (jsonFlag) {
         throw new Error(validationMessage);
       }
-      ({ renameFlag } = await promptAsync({
+      ({ newName } = await promptAsync({
         type: 'text',
-        name: 'renameFlag',
-        message: `Please rename ${releaseName}`,
+        name: 'newName',
+        message: `Please rename ${currentName}`,
         validate: value => (value ? true : validationMessage),
       }));
     }
 
-    const editedRelease = await editUpdateReleaseOnAppAsync({
+    const editedRelease = await renameUpdateReleaseOnAppAsync({
       appId: projectId,
-      releaseName,
-      newReleaseName: renameFlag!,
+      currentName: currentName!,
+      newName: newName!,
     });
 
     if (jsonFlag) {
@@ -137,9 +132,9 @@ export default class ReleaseEdit extends Command {
     }
 
     log.withTick(
-      `️Edited a release: ${chalk.bold(editedRelease.releaseName)} on project ${chalk.bold(
-        `@${accountName}/${slug}`
-      )}.`
+      `️Renamed release from ${currentName} to ${chalk.bold(
+        editedRelease.releaseName
+      )} on project ${chalk.bold(`@${accountName}/${slug}`)}.`
     );
   }
 }
