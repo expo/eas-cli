@@ -386,6 +386,8 @@ export type App = Project & {
   updateChannelByChannelName: UpdateChannel;
   /** EAS releases owned by an app */
   updateReleases: Array<UpdateRelease>;
+  /** get an EAS release owned by the app by releaseName */
+  updateReleaseByReleaseName: UpdateRelease;
   /** Coalesced project activity for an app. Use "createdBefore" to offset a query. */
   activityTimelineProjectActivities?: Maybe<Array<Maybe<ActivityTimelineProjectActivity>>>;
 };
@@ -443,6 +445,12 @@ export type AppUpdateChannelByChannelNameArgs = {
 export type AppUpdateReleasesArgs = {
   offset: Scalars['Int'];
   limit: Scalars['Int'];
+};
+
+
+/** Represents an Exponent App (or Experience in legacy terms) */
+export type AppUpdateReleaseByReleaseNameArgs = {
+  releaseName: Scalars['String'];
 };
 
 
@@ -2040,12 +2048,12 @@ export type UpdateChannelMutation = {
    */
   createUpdateChannelForApp?: Maybe<UpdateChannel>;
   /**
-   * Update an EAS channel.
+   * Edit an EAS channel.
    * 
    * In order to work with GraphQL formatting, the releaseMapping should be a
    * stringified JSON supplied to the mutation as a variable.
    */
-  updateUpdateChannel?: Maybe<UpdateChannel>;
+  editUpdateChannel?: Maybe<UpdateChannel>;
   /** delete an EAS channel that doesn't point to any releases */
   deleteUpdateChannel: DeleteUpdateChannelResult;
 };
@@ -2058,7 +2066,7 @@ export type UpdateChannelMutationCreateUpdateChannelForAppArgs = {
 };
 
 
-export type UpdateChannelMutationUpdateUpdateChannelArgs = {
+export type UpdateChannelMutationEditUpdateChannelArgs = {
   channelId: Scalars['ID'];
   releaseMapping: Scalars['String'];
 };
@@ -2093,6 +2101,11 @@ export type UpdateReleaseMutation = {
   __typename?: 'UpdateReleaseMutation';
   /** Create an EAS release for an app */
   createUpdateReleaseForApp?: Maybe<UpdateRelease>;
+  /**
+   * Edit an EAS release. The release can be specified either by its ID or
+   * with the combination of (appId, releaseName).
+   */
+  editUpdateRelease: UpdateRelease;
   /** Delete an EAS release and all of its updates as long as the release is not being used by any channels */
   deleteUpdateRelease: DeleteUpdateReleaseResult;
   /** Publish an update group to a release */
@@ -2106,6 +2119,11 @@ export type UpdateReleaseMutationCreateUpdateReleaseForAppArgs = {
 };
 
 
+export type UpdateReleaseMutationEditUpdateReleaseArgs = {
+  input: EditUpdateReleaseInput;
+};
+
+
 export type UpdateReleaseMutationDeleteUpdateReleaseArgs = {
   releaseId: Scalars['ID'];
 };
@@ -2113,6 +2131,13 @@ export type UpdateReleaseMutationDeleteUpdateReleaseArgs = {
 
 export type UpdateReleaseMutationPublishUpdateGroupArgs = {
   publishUpdateGroupInput?: Maybe<PublishUpdateGroupInput>;
+};
+
+export type EditUpdateReleaseInput = {
+  id?: Maybe<Scalars['ID']>;
+  appId?: Maybe<Scalars['ID']>;
+  releaseName?: Maybe<Scalars['String']>;
+  newReleaseName: Scalars['String'];
 };
 
 export type DeleteUpdateReleaseResult = {
@@ -2140,6 +2165,7 @@ export type PartialManifest = {
 
 export type PartialManifestAsset = {
   fileHash: Scalars['String'];
+  bundleKey: Scalars['String'];
   contentType: Scalars['String'];
   storageBucket: Scalars['String'];
   storageKey: Scalars['String'];
@@ -2428,61 +2454,6 @@ export enum CacheControlScope {
 }
 
 
-export type AppleDeviceMutationMutationVariables = Exact<{
-  appleDeviceInput: AppleDeviceInput;
-  accountId: Scalars['ID'];
-}>;
-
-
-export type AppleDeviceMutationMutation = (
-  { __typename?: 'RootMutation' }
-  & { appleDevice: (
-    { __typename?: 'AppleDeviceMutation' }
-    & { createAppleDevice: (
-      { __typename?: 'AppleDevice' }
-      & Pick<AppleDevice, 'id'>
-    ) }
-  ) }
-);
-
-export type AppleDeviceRegistrationRequestMutationMutationVariables = Exact<{
-  appleTeamId: Scalars['ID'];
-  accountId: Scalars['ID'];
-}>;
-
-
-export type AppleDeviceRegistrationRequestMutationMutation = (
-  { __typename?: 'RootMutation' }
-  & { appleDeviceRegistrationRequest: (
-    { __typename?: 'AppleDeviceRegistrationRequestMutation' }
-    & { createAppleDeviceRegistrationRequest: (
-      { __typename?: 'AppleDeviceRegistrationRequest' }
-      & Pick<AppleDeviceRegistrationRequest, 'id'>
-    ) }
-  ) }
-);
-
-export type AppleTeamMutationMutationVariables = Exact<{
-  appleTeamInput: AppleTeamInput;
-  accountId: Scalars['ID'];
-}>;
-
-
-export type AppleTeamMutationMutation = (
-  { __typename?: 'RootMutation' }
-  & { appleTeam: (
-    { __typename?: 'AppleTeamMutation' }
-    & { createAppleTeam: (
-      { __typename?: 'AppleTeam' }
-      & Pick<AppleTeam, 'id' | 'appleTeamIdentifier' | 'appleTeamName'>
-      & { account: (
-        { __typename?: 'Account' }
-        & Pick<Account, 'id' | 'name'>
-      ) }
-    ) }
-  ) }
-);
-
 export type BuildsByIdQueryQueryVariables = Exact<{
   buildId: Scalars['ID'];
 }>;
@@ -2560,21 +2531,4 @@ export type Unnamed_2_Query = (
       & Pick<Account, 'id' | 'name'>
     )>>> }
   )> }
-);
-
-export type Unnamed_3_QueryVariables = Exact<{
-  accountId: Scalars['ID'];
-  appleTeamIdentifier: Scalars['String'];
-}>;
-
-
-export type Unnamed_3_Query = (
-  { __typename?: 'RootQuery' }
-  & { appleTeam: (
-    { __typename?: 'AppleTeamQuery' }
-    & { byAppleTeamIdentifier?: Maybe<(
-      { __typename?: 'AppleTeam' }
-      & Pick<AppleTeam, 'id' | 'appleTeamIdentifier' | 'appleTeamName'>
-    )> }
-  ) }
 );
