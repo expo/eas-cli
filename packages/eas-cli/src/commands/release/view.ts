@@ -5,6 +5,7 @@ import Table from 'cli-table3';
 import gql from 'graphql-tag';
 import _ from 'lodash';
 
+import { PAGE_LIMIT } from '../../config';
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
 import { Update } from '../../graphql/generated';
 import log from '../../log';
@@ -51,7 +52,7 @@ async function viewUpdateReleaseAsync({
                 updateReleaseByReleaseName(releaseName: $releaseName) {
                   id
                   releaseName
-                  updates(offset: 0, limit: 1000) {
+                  updates(offset: 0, limit: ${PAGE_LIMIT}) {
                     updateGroup
                     updateMessage
                     createdAt
