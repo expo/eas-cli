@@ -86,8 +86,6 @@ async function ensureGitStatusIsCleanAsync(): Promise<void> {
   }
 }
 
-class DirtyGitTreeError extends Error {}
-
 async function makeProjectTarballAsync(): Promise<{ path: string; size: number }> {
   const spinner = ora('Making project tarball').start();
 
@@ -144,38 +142,11 @@ async function commitPromptAsync(initialCommitMessage?: string): Promise<void> {
   await spawnAsync('git', ['commit', '-m', message]);
 }
 
-async function modifyAndCommitAsync(
-  callback: () => Promise<void>,
-  {
-    commitMessage,
-    nonInteractive,
-  }: {
-    commitMessage: string;
-    nonInteractive: boolean;
-  }
-) {
-  await callback();
-
-  if (!(await isGitStatusCleanAsync())) {
-    log.newLine();
-    try {
-      await reviewAndCommitChangesAsync(commitMessage, {
-        nonInteractive,
-      });
-    } catch (e) {
-      throw new Error(
-        "Aborting, run the command again once you're ready. Make sure to commit any changes you've made."
-      );
-    }
-  }
-}
-
 export {
-  DirtyGitTreeError,
+  isGitStatusCleanAsync,
   ensureGitRepoExistsAsync,
   ensureGitStatusIsCleanAsync,
   maybeBailOnGitStatusAsync,
   makeProjectTarballAsync,
   reviewAndCommitChangesAsync,
-  modifyAndCommitAsync,
 };
