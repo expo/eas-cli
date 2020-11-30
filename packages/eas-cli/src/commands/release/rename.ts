@@ -8,11 +8,7 @@ import log from '../../log';
 import { ensureProjectExistsAsync } from '../../project/ensureProjectExists';
 import { findProjectRootAsync, getProjectAccountNameAsync } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
-
-type UpdateRelease = {
-  id: string;
-  releaseName: string;
-};
+import { EditUpdateReleaseInput, UpdateRelease } from '../../graphql/generated';
 
 async function renameUpdateReleaseOnAppAsync({
   appId,
@@ -28,11 +24,7 @@ async function renameUpdateReleaseOnAppAsync({
       .mutation<
         { updateRelease: { editUpdateRelease: UpdateRelease } },
         {
-          input: {
-            appId: string;
-            releaseName: string;
-            newReleaseName: string;
-          };
+          input: EditUpdateReleaseInput;
         }
       >(
         gql`
