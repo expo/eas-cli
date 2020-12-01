@@ -39,7 +39,7 @@ export async function validateAndSyncProjectConfigurationAsync(
   );
   if (!isEasBuildGradleConfigured || !isApplicationIdConfigured) {
     throw new Error(
-      'Project is not configured. Please run "eas build:configure" first to configure the project'
+      'Project is not configured. Please run "eas build:configure" to configure the project.'
     );
   }
 

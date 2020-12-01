@@ -9,8 +9,8 @@ import log from '../../log';
 import { confirmAsync, pressAnyKeyToContinueAsync, promptAsync } from '../../prompts';
 import {
   doesGitRepoExistAsync,
+  getGitDiffOutputAsync,
   gitDiffAsync,
-  gitDiffOutputAsync,
   gitRootDirectoryAsync,
   gitStatusAsync,
   isGitInstalledAsync,
@@ -114,7 +114,7 @@ async function reviewAndCommitChangesAsync(
     );
   }
 
-  const outputTooLarge = (await gitDiffOutputAsync()).split(/\r\n|\r|\n/).length > 100;
+  const outputTooLarge = (await getGitDiffOutputAsync()).split(/\r\n|\r|\n/).length > 100;
   log('Please review the following changes and pass the message to make the commit.');
   if (outputTooLarge) {
     log('Press any key to see the changes...');

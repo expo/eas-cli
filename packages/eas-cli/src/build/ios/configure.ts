@@ -28,7 +28,7 @@ export async function validateAndSyncProjectConfigurationAsync(
   );
   if (!bundleIdentifierFromPbxproj || bundleIdentifierFromPbxproj !== exp.ios?.bundleIdentifier) {
     throw new Error(
-      'Bundle identifier is not configured correctly in your Xcode project. Please run "eas build:configure" first to configure it.'
+      'Bundle identifier is not configured correctly in your Xcode project. Please run "eas build:configure" to configure it.'
     );
   }
   if (isExpoUpdatesInstalled(projectDir)) {

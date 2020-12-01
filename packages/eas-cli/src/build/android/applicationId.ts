@@ -33,10 +33,13 @@ export async function configureApplicationIdAsync(
       log.warn(
         `We detected that your Android project is configured with a different application id than the one defined in ${configDescription}.`
       );
-      if (!(await hasApplicationIdInStaticConfigAsync(projectDir, exp))) {
+      const hasApplicationIdInStaticConfig = await hasApplicationIdInStaticConfigAsync(
+        projectDir,
+        exp
+      );
+      if (!hasApplicationIdInStaticConfig) {
         log(`If you choose the one defined in ${configDescription} we'll automatically configure your Android project with it.
-However, if you choose the one defined in the Android project you'll have to update ${configDescription} on your own.
-Otherwise, you'll see this prompt again in the future.`);
+However, if you choose the one defined in the Android project you'll have to update ${configDescription} on your own.`);
       }
       log.newLine();
       const { applicationIdSource } = await promptAsync({
@@ -62,22 +65,22 @@ Otherwise, you'll see this prompt again in the future.`);
           break;
         }
         case ApplicationIdSource.AndroidProject: {
-          await updateAppJsonConfigAsync(projectDir, exp, applicationIdFromAndroidProject);
+          if (hasApplicationIdInStaticConfig) {
+            await updateAppJsonConfigAsync(projectDir, exp, applicationIdFromAndroidProject);
+          } else {
+            throw new Error(missingPackageMessage(configDescription));
+          }
           break;
         }
       }
     }
   } else if (!applicationIdFromAndroidProject && !applicationIdFromConfig) {
-    throw new Error(
-      `Please define "android.package" in ${configDescription} and run "eas build:configure" again.`
-    );
+    throw new Error(missingPackageMessage(configDescription));
   } else if (applicationIdFromAndroidProject && !applicationIdFromConfig) {
     if (getConfigFilePaths(projectDir).staticConfigPath) {
       await updateAppJsonConfigAsync(projectDir, exp, applicationIdFromAndroidProject);
     } else {
-      throw new Error(
-        `Please define "android.package" in ${configDescription} and run "eas build:configure" again.`
-      );
+      throw new Error(missingPackageMessage(configDescription));
     }
   } else if (!applicationIdFromAndroidProject && applicationIdFromConfig) {
     // This should never happen, adding warning just in case
@@ -87,10 +90,15 @@ Otherwise, you'll see this prompt again in the future.`);
     return;
   }
   if (allowExperimental) {
-    // package name does not need to be updated
+    // this step is optional, the Play store is using applicationId value from build.gradle
+    // to identify the app, so package name does not need to be updated
     await updatePackageNameAsync(projectDir, exp);
     await gitAddAsync(path.join(projectDir, 'android'), { intentToAdd: true });
   }
+}
+
+function missingPackageMessage(configDescription: string): string {
+  return `Please define "android.package" in ${configDescription} and run "eas build:configure" again.`;
 }
 
 async function updateAppJsonConfigAsync(
@@ -113,7 +121,7 @@ async function updateAppJsonConfigAsync(
 
 /**
  * Check if static config exists and if expo.android.package is defined there.
- * It will return false if value in static confgi is different than exp.android.package
+ * It will return false if the value in static config is different than "android.package" in ExpoConfig
  */
 async function hasApplicationIdInStaticConfigAsync(
   projectDir: string,
@@ -132,12 +140,17 @@ async function hasApplicationIdInStaticConfigAsync(
 
 async function updateApplicationIdInBuildGradleAsync(projectDir: string, exp: ExpoConfig) {
   const buildGradlePath = AndroidConfig.Paths.getAppBuildGradle(projectDir);
-  let buildGradleContent = await fs.readFile(buildGradlePath, 'utf8');
-  buildGradleContent = AndroidConfig.Package.setPackageInBuildGradle(exp, buildGradleContent);
-  await fs.writeFile(buildGradlePath, buildGradleContent);
+  const buildGradleContents = await fs.readFile(buildGradlePath, 'utf8');
+  const updatedBuildGradleContents = AndroidConfig.Package.setPackageInBuildGradle(
+    exp,
+    buildGradleContents
+  );
+  await fs.writeFile(buildGradlePath, updatedBuildGradleContents);
 }
 
 async function updatePackageNameAsync(projectDir: string, exp: ExpoConfig): Promise<void> {
+  await AndroidConfig.Package.renamePackageOnDisk(exp, projectDir);
+
   const androidManifestPath = await AndroidConfig.Paths.getAndroidManifestAsync(projectDir);
   if (!androidManifestPath) {
     throw new Error(`Could not find AndroidManifest.xml in project directory: "${projectDir}"`);
@@ -153,6 +166,4 @@ async function updatePackageNameAsync(projectDir: string, exp: ExpoConfig): Prom
     androidManifestPath,
     updatedAndroidManifest
   );
-
-  await AndroidConfig.Package.renamePackageOnDisk(exp, projectDir);
 }

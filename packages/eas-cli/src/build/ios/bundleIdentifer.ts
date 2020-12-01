@@ -28,10 +28,13 @@ export async function configureBundleIdentifierAsync(
       log.warn(
         `We detected that your Xcode project is configured with a different bundle identifier than the one defined in ${configDescription}.`
       );
-      if (!(await hasApplicationIdInStaticConfigAsync(projectDir, exp))) {
+      const hasBundleIdentifierInStaticConfig = await hasBundleIdentifierInStaticConfigAsync(
+        projectDir,
+        exp
+      );
+      if (!hasBundleIdentifierInStaticConfig) {
         log(`If you choose the one defined in ${configDescription} we'll automatically configure your Xcode project with it.
-However, if you choose the one defined in the Xcode project you'll have to update ${configDescription} on your own.
-Otherwise, you'll see this prompt again in the future.`);
+However, if you choose the one defined in the Xcode project you'll have to update ${configDescription} on your own.`);
       }
       log.newLine();
       const { bundleIdentifierSource } = await promptAsync({
@@ -58,22 +61,22 @@ Otherwise, you'll see this prompt again in the future.`);
           break;
         }
         case BundleIdenitiferSource.XcodeProject: {
-          await updateAppJsonConfigAsync(projectDir, exp, bundleIdentifierFromPbxproj);
+          if (hasBundleIdentifierInStaticConfig) {
+            await updateAppJsonConfigAsync(projectDir, exp, bundleIdentifierFromPbxproj);
+          } else {
+            throw new Error(missingBundleIdentifierMessage(configDescription));
+          }
           break;
         }
       }
     }
   } else if (!bundleIdentifierFromPbxproj && !bundleIdentifierFromConfig) {
-    throw new Error(
-      `Please define "ios.bundleIdentifier" in your ${configDescription} and run "eas build:configure" again.`
-    );
+    throw new Error(missingBundleIdentifierMessage(configDescription));
   } else if (bundleIdentifierFromPbxproj && !bundleIdentifierFromConfig) {
     if (getConfigFilePaths(projectDir).staticConfigPath) {
       await updateAppJsonConfigAsync(projectDir, exp, bundleIdentifierFromPbxproj);
     } else {
-      throw new Error(
-        `Please define "ios.bundleIdentifier" in ${configDescription} and run "eas build:configure" again.`
-      );
+      throw new Error(missingBundleIdentifierMessage(configDescription));
     }
   } else if (!bundleIdentifierFromPbxproj && bundleIdentifierFromConfig) {
     IOSConfig.BundleIdenitifer.setBundleIdentifierForPbxproj(
@@ -81,6 +84,10 @@ Otherwise, you'll see this prompt again in the future.`);
       bundleIdentifierFromConfig
     );
   }
+}
+
+function missingBundleIdentifierMessage(configDescription: string): string {
+  return `Please define "ios.bundleIdentifier" in ${configDescription} and run "eas build:configure" again.`;
 }
 
 async function updateAppJsonConfigAsync(
@@ -103,9 +110,9 @@ async function updateAppJsonConfigAsync(
 
 /**
  * Check if static config exists and if ios.bundleIdentifier is defined there.
- * It will return false if value in static config is different than exp.ios.bundleIdentifier
+ * It will return false if the value in static config is different than "ios.bundleIdentifier" in ExpoConfig
  */
-async function hasApplicationIdInStaticConfigAsync(
+async function hasBundleIdentifierInStaticConfigAsync(
   projectDir: string,
   exp: ExpoConfig
 ): Promise<boolean> {

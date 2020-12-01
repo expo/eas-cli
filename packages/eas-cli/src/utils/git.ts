@@ -13,7 +13,7 @@ async function gitDiffAsync({ withPager = false }: { withPager?: boolean } = {})
   await spawnAsync('git', [...options, 'diff'], { stdio: ['ignore', 'inherit', 'inherit'] });
 }
 
-async function gitDiffOutputAsync(): Promise<string> {
+async function getGitDiffOutputAsync(): Promise<string> {
   return (await spawnAsync('git', ['--no-pager', 'diff'])).stdout;
 }
 
@@ -59,7 +59,7 @@ async function getBranchNameAsync(): Promise<string | undefined> {
 export {
   gitStatusAsync,
   gitDiffAsync,
-  gitDiffOutputAsync,
+  getGitDiffOutputAsync,
   gitAddAsync,
   doesGitRepoExistAsync,
   gitRootDirectoryAsync,
