@@ -2,7 +2,6 @@ import { getConfig } from '@expo/config';
 import { Result, result } from '@expo/results';
 
 import log from '../../log';
-import { getProjectIdAsync } from '../../project/projectUtils';
 import { ArchiveSource, ArchiveTypeSource, ArchiveTypeSourceType } from '../archiveSource';
 import { resolveArchiveFileSource } from '../commons';
 import {
@@ -19,10 +18,12 @@ import { ServiceAccountSource, ServiceAccountSourceType } from './ServiceAccount
 class AndroidSubmitCommand {
   static createContext(
     projectDir: string,
+    projectId: string,
     commandFlags: AndroidSubmitCommandFlags
   ): AndroidSubmissionContext {
     return {
       projectDir,
+      projectId,
       commandFlags,
     };
   }
@@ -30,19 +31,17 @@ class AndroidSubmitCommand {
   constructor(private ctx: AndroidSubmissionContext) {}
 
   async runAsync(): Promise<void> {
-    const projectId = await getProjectIdAsync(this.ctx.projectDir);
     log.addNewLineIfNone();
-
-    const submissionOptions = this.getAndroidSubmissionOptions(projectId);
+    const submissionOptions = this.getAndroidSubmissionOptions();
     const submitter = new AndroidSubmitter(this.ctx, submissionOptions);
     await submitter.submitAsync();
   }
 
-  private getAndroidSubmissionOptions(projectId: string): AndroidSubmissionOptions {
+  private getAndroidSubmissionOptions(): AndroidSubmissionOptions {
     const androidPackageSource = this.resolveAndroidPackageSource();
     const track = this.resolveTrack();
     const releaseStatus = this.resolveReleaseStatus();
-    const archiveSource = this.resolveArchiveSource(projectId);
+    const archiveSource = this.resolveArchiveSource(this.ctx.projectId);
     const serviceAccountSource = this.resolveServiceAccountSource();
 
     const errored = [
@@ -59,7 +58,7 @@ class AndroidSubmitCommand {
     }
 
     return {
-      projectId,
+      projectId: this.ctx.projectId,
       androidPackageSource: androidPackageSource.enforceValue(),
       track: track.enforceValue(),
       releaseStatus: releaseStatus.enforceValue(),

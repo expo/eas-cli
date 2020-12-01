@@ -189,7 +189,7 @@ export default class BuildSubmit extends Command {
         ...flags,
       };
 
-      const ctx = AndroidSubmitCommand.createContext(projectDir, options);
+      const ctx = AndroidSubmitCommand.createContext(projectDir, projectId, options);
       const command = new AndroidSubmitCommand(ctx);
       await command.runAsync();
     } else if (platform === SubmissionPlatform.iOS) {
@@ -203,7 +203,7 @@ export default class BuildSubmit extends Command {
         ...flags,
       };
 
-      const ctx = IosSubmitCommand.createContext(projectDir, options);
+      const ctx = IosSubmitCommand.createContext(projectDir, projectId, options);
       const command = new IosSubmitCommand(ctx);
       await command.runAsync();
     } else {

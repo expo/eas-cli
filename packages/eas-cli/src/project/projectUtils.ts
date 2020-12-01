@@ -1,5 +1,4 @@
 import { getConfig } from '@expo/config';
-import once from 'lodash/once';
 import pkgDir from 'pkg-dir';
 
 import { ensureLoggedInAsync } from '../user/actions';
@@ -16,9 +15,7 @@ export async function findProjectRootAsync(cwd?: string): Promise<string | null>
   return projectRootDir ?? null;
 }
 
-export const getProjectIdAsync = once(_getProjectIdAsync);
-
-async function _getProjectIdAsync(projectDir: string): Promise<string> {
+export async function getProjectIdAsync(projectDir: string): Promise<string> {
   const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
   return await ensureProjectExistsAsync({
     accountName: await getProjectAccountNameAsync(projectDir),

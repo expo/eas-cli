@@ -83,7 +83,7 @@ export async function startBuildForPlatformAsync<
         const {
           data: { buildId, deprecationInfo },
         } = await apiClient
-          .post(`projects/${builder.ctx.projectId}/builds`, {
+          .post(`projects/${builder.ctx.commandCtx.projectId}/builds`, {
             json: {
               job,
               metadata,

@@ -65,6 +65,7 @@ export default class BuildCreate extends Command {
       requestedPlatform: flags.platform as BuildCommandPlatform,
       profile: flags.profile,
       projectDir,
+      projectId,
       trackingCtx,
       nonInteractive: flags['non-interactive'],
       skipCredentialsCheck: flags['skip-credentials-check'],

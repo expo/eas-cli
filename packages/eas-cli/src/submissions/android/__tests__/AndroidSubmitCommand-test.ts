@@ -5,7 +5,6 @@ import { asMock } from '../../../__tests__/utils';
 import { jester as mockJester } from '../../../credentials/__tests__/fixtures-constants';
 import { createTestProject } from '../../../project/__tests__/project-utils';
 import { ensureProjectExistsAsync } from '../../../project/ensureProjectExists';
-import { getProjectIdAsync } from '../../../project/projectUtils';
 import SubmissionService from '../../SubmissionService';
 import { Submission, SubmissionStatus } from '../../SubmissionService.types';
 import { AndroidArchiveType, AndroidSubmitCommandFlags, SubmissionPlatform } from '../../types';
@@ -90,7 +89,6 @@ describe(AndroidSubmitCommand, () => {
         }
       );
       asMock(ensureProjectExistsAsync).mockImplementationOnce(() => projectId);
-      asMock(getProjectIdAsync).mockImplementationOnce(() => projectId);
 
       const options: AndroidSubmitCommandFlags = {
         latest: false,
@@ -101,7 +99,7 @@ describe(AndroidSubmitCommand, () => {
         releaseStatus: 'draft',
         verbose: false,
       };
-      const ctx = AndroidSubmitCommand.createContext(testProject.projectRoot, options);
+      const ctx = AndroidSubmitCommand.createContext(testProject.projectRoot, projectId, options);
       const command = new AndroidSubmitCommand(ctx);
       await command.runAsync();
 
