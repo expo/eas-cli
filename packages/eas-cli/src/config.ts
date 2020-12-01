@@ -1,1 +1,1 @@
-export const PAGE_LIMIT = 10000; // ten thousand
+export const PAGE_LIMIT = 10_000;
