@@ -27,45 +27,56 @@ async function updateReleaseByReleaseNameAsync({
   fullName: string;
   releaseName: string;
 }): Promise<UpdateRelease[]> {
-  const data = await withErrorHandlingAsync(
-    graphqlClient
-      // TODO: fix return type
-      .query<any, { fullName: string; releaseName: string }>(
-        gql`
-          query UpdateReleaseByReleaseName($fullName: String!, $releaseName: String!) {
-            app {
-              byFullName(fullName: $fullName) {
-                id
-                updateReleases(offset: 0, limit: 10) {
+  try {
+    const data = await withErrorHandlingAsync(
+      graphqlClient
+        .query<
+          {
+            app: {
+              byFullName: {
+                id: string;
+                updateReleaseByReleaseName: {
+                  updates: UpdateRelease[];
+                };
+              };
+            };
+          },
+          { fullName: string; releaseName: string }
+        >(
+          gql`
+            query UpdateReleaseByReleaseName($fullName: String!, $releaseName: String!) {
+              app {
+                byFullName(fullName: $fullName) {
                   id
-                  releaseName
-                }
-                updateReleaseByReleaseName(releaseName: $releaseName) {
-                  id
-                  updates(offset: 0, limit: 100) {
+                  updateReleaseByReleaseName(releaseName: $releaseName) {
                     id
-                    platform
-                    nativeRuntimeVersion
-                    createdAt
-                    updateMessage
-                    updateGroup
-                    actor {
-                      firstName
+                    updates(offset: 0, limit: 1000) {
+                      id
+                      platform
+                      nativeRuntimeVersion
+                      createdAt
+                      updateMessage
+                      updateGroup
+                      actor {
+                        firstName
+                      }
                     }
                   }
                 }
               }
             }
+          `,
+          {
+            fullName,
+            releaseName,
           }
-        `,
-        {
-          fullName,
-          releaseName,
-        }
-      )
-      .toPromise()
-  );
-  return data.app.byFullName.updateReleaseByReleaseName.updates;
+        )
+        .toPromise()
+    );
+    return data.app.byFullName.updateReleaseByReleaseName.updates;
+  } catch (error) {
+    throw new Error(`Unable to fetch updates. \n\n${error}`);
+  }
 }
 
 export default class UpdateList extends Command {
@@ -75,15 +86,22 @@ export default class UpdateList extends Command {
     release: flags.string({
       description: 'Name of the release.',
     }),
+    platform: flags.string({
+      description: 'Update platforms to return: ios, android, web.',
+    }),
     json: flags.boolean({
       description: 'Return list of updates as JSON.',
+      default: false,
+    }),
+    all: flags.boolean({
+      description: 'Return a list of all updates individually',
       default: false,
     }),
   };
 
   async run() {
     const {
-      flags: { json, release },
+      flags: { json, release, platform },
     } = this.parse(UpdateList);
 
     if (!release) {
@@ -131,24 +149,30 @@ export default class UpdateList extends Command {
       return log(Object.values(result));
     }
 
-    cli.table(Object.values(result), {
-      updateGroup: {
-        header: 'ID',
-        minWidth: 10,
-        get: row => row.updateGroup.slice(0, 8),
+    cli.table(
+      Object.values(result),
+      {
+        updateGroup: {
+          header: 'ID',
+          minWidth: 10,
+          get: row => row.updateGroup.slice(0, 8),
+        },
+        createdAt: {
+          header: 'Created At',
+          minWidth: 21,
+        },
+        nativeRuntimeVersion: {
+          header: 'RTV',
+        },
+        platforms: {},
+        updateMessage: {
+          header: 'Message',
+          get: row => `[${row.actor.firstName}] ${row.updateMessage}`,
+        },
       },
-      createdAt: {
-        header: 'Created At',
-        minWidth: 21,
-      },
-      nativeRuntimeVersion: {
-        header: 'RTV',
-      },
-      platforms: {},
-      updateMessage: {
-        header: 'Message',
-        get: row => `[${row.actor.firstName}] ${row.updateMessage}`,
-      },
-    });
+      {
+        filter: `platforms=${platform}`,
+      }
+    );
   }
 }
