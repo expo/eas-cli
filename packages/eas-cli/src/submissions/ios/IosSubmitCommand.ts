@@ -4,7 +4,6 @@ import getenv from 'getenv';
 import wordwrap from 'wordwrap';
 
 import log from '../../log';
-import { getProjectIdAsync } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
 import UserSettings from '../../user/UserSettings';
 import { ArchiveSource, ArchiveTypeSourceType } from '../archiveSource';
@@ -20,10 +19,12 @@ import IosSubmitter, { IosSubmissionOptions } from './IosSubmitter';
 class IosSubmitCommand {
   static createContext(
     projectDir: string,
+    projectId: string,
     commandFlags: IosSubmitCommandFlags
   ): IosSubmissionContext {
     return {
       projectDir,
+      projectId,
       commandFlags,
     };
   }
@@ -31,16 +32,14 @@ class IosSubmitCommand {
   constructor(private ctx: IosSubmissionContext) {}
 
   async runAsync(): Promise<void> {
-    const projectId = await getProjectIdAsync(this.ctx.projectDir);
     log.addNewLineIfNone();
-
-    const options = await this.resolveSubmissionOptionsAsync(projectId);
+    const options = await this.resolveSubmissionOptionsAsync();
     const submitter = new IosSubmitter(this.ctx, options);
     await submitter.submitAsync();
   }
 
-  private async resolveSubmissionOptionsAsync(projectId: string): Promise<IosSubmissionOptions> {
-    const archiveSource = this.resolveArchiveSource(projectId);
+  private async resolveSubmissionOptionsAsync(): Promise<IosSubmissionOptions> {
+    const archiveSource = this.resolveArchiveSource(this.ctx.projectId);
     const appSpecificPasswordSource = this.resolveAppSpecificPasswordSource();
 
     const errored = [archiveSource, appSpecificPasswordSource].filter(r => !r.ok);
@@ -53,7 +52,7 @@ class IosSubmitCommand {
     const { appleId, ascAppId } = await this.getAppStoreInfoAsync();
 
     return {
-      projectId,
+      projectId: this.ctx.projectId,
       appleId,
       ascAppId,
       archiveSource: archiveSource.enforceValue(),

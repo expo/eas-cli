@@ -1,5 +1,6 @@
 export interface SubmissionContext<T extends SubmitCommandFlags> {
   projectDir: string;
+  projectId: string;
   commandFlags: T;
 }
 

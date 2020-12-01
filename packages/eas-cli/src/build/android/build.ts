@@ -14,14 +14,12 @@ import { prepareJobAsync } from './prepareJob';
 
 export async function startAndroidBuildAsync(
   commandCtx: CommandContext,
-  easConfig: EasConfig,
-  projectId: string
+  easConfig: EasConfig
 ): Promise<string> {
   const buildCtx = createBuildContext<Platform.Android>({
     commandCtx,
     platform: Platform.Android,
     easConfig,
-    projectId,
   });
 
   return await startBuildForPlatformAsync({

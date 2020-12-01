@@ -20,5 +20,6 @@ export async function getProjectIdAsync(projectDir: string): Promise<string> {
   return await ensureProjectExistsAsync({
     accountName: await getProjectAccountNameAsync(projectDir),
     projectName: exp.slug,
+    privacy: exp.privacy,
   });
 }

@@ -15,14 +15,12 @@ import { prepareJobAsync } from './prepareJob';
 
 export async function startIosBuildAsync(
   commandCtx: CommandContext,
-  easConfig: EasConfig,
-  projectId: string
+  easConfig: EasConfig
 ): Promise<string> {
   const buildCtx = createBuildContext<Platform.iOS>({
     commandCtx,
     platform: Platform.iOS,
     easConfig,
-    projectId,
   });
 
   let iosNativeProjectScheme: string | undefined;

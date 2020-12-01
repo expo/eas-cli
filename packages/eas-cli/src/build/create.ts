@@ -4,7 +4,6 @@ import ora from 'ora';
 
 import { apiClient } from '../api';
 import log from '../log';
-import { ensureProjectExistsAsync } from '../project/ensureProjectExists';
 import { sleep } from '../utils/promise';
 import { startAndroidBuildAsync } from './android/build';
 import { CommandContext } from './context';
@@ -17,21 +16,14 @@ export async function buildAsync(commandCtx: CommandContext): Promise<void> {
   await ensureGitRepoExistsAsync();
   await ensureGitStatusIsCleanAsync();
 
-  const projectId = await ensureProjectExistsAsync({
-    accountName: commandCtx.accountName,
-    projectName: commandCtx.projectName,
-    privacy: commandCtx.exp.privacy,
-  });
-
-  const scheduledBuilds = await startBuildsAsync(commandCtx, projectId);
+  const scheduledBuilds = await startBuildsAsync(commandCtx);
   log.newLine();
-  await printLogsUrls(commandCtx.accountName, scheduledBuilds);
+  printLogsUrls(commandCtx.accountName, scheduledBuilds);
   log.newLine();
 
   if (commandCtx.waitForBuildEnd) {
     const builds = await waitForBuildEndAsync(
       commandCtx,
-      projectId,
       scheduledBuilds.map(i => i.buildId)
     );
     printBuildResults(builds);
@@ -39,8 +31,7 @@ export async function buildAsync(commandCtx: CommandContext): Promise<void> {
 }
 
 async function startBuildsAsync(
-  commandCtx: CommandContext,
-  projectId: string
+  commandCtx: CommandContext
 ): Promise<
   { platform: BuildCommandPlatform.ANDROID | BuildCommandPlatform.IOS; buildId: string }[]
 > {
@@ -60,11 +51,11 @@ async function startBuildsAsync(
     buildId: string;
   }[] = [];
   if (shouldBuildAndroid) {
-    const buildId = await startAndroidBuildAsync(commandCtx, easConfig, projectId);
+    const buildId = await startAndroidBuildAsync(commandCtx, easConfig);
     scheduledBuilds.push({ platform: BuildCommandPlatform.ANDROID, buildId });
   }
   if (shouldBuildiOS) {
-    const buildId = await startIosBuildAsync(commandCtx, easConfig, projectId);
+    const buildId = await startIosBuildAsync(commandCtx, easConfig);
     scheduledBuilds.push({ platform: BuildCommandPlatform.IOS, buildId });
   }
   return scheduledBuilds;
@@ -72,7 +63,6 @@ async function startBuildsAsync(
 
 async function waitForBuildEndAsync(
   commandCtx: CommandContext,
-  projectId: string,
   buildIds: string[],
   { timeoutSec = 1800, intervalSec = 30 } = {}
 ): Promise<(Build | null)[]> {
@@ -84,7 +74,9 @@ async function waitForBuildEndAsync(
     const builds: (Build | null)[] = await Promise.all(
       buildIds.map(async buildId => {
         try {
-          const { data } = await apiClient.get(`projects/${projectId}/builds/${buildId}`).json();
+          const { data } = await apiClient
+            .get(`projects/${commandCtx.projectId}/builds/${buildId}`)
+            .json();
           return data;
         } catch (err) {
           return null;

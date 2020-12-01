@@ -10,6 +10,7 @@ export interface CommandContext {
   requestedPlatform: BuildCommandPlatform;
   profile: string;
   projectDir: string;
+  projectId: string;
   user: User;
   accountName: string;
   projectName: string;
@@ -25,6 +26,7 @@ export async function createCommandContextAsync({
   requestedPlatform,
   profile,
   projectDir,
+  projectId,
   trackingCtx,
   nonInteractive = false,
   skipCredentialsCheck = false,
@@ -33,6 +35,7 @@ export async function createCommandContextAsync({
 }: {
   requestedPlatform: BuildCommandPlatform;
   profile: string;
+  projectId: string;
   projectDir: string;
   trackingCtx: TrackingContext;
   nonInteractive: boolean;
@@ -49,6 +52,7 @@ export async function createCommandContextAsync({
     requestedPlatform,
     profile,
     projectDir,
+    projectId,
     user,
     accountName,
     projectName,
@@ -80,7 +84,6 @@ export interface BuildContext<T extends Platform> {
   commandCtx: CommandContext;
   trackingCtx: TrackingContext;
   platform: T;
-  projectId: string;
   buildProfile: PlatformBuildProfile<T>;
 }
 
@@ -88,12 +91,10 @@ export function createBuildContext<T extends Platform>({
   platform,
   easConfig,
   commandCtx,
-  projectId,
 }: {
   platform: T;
   easConfig: EasConfig;
   commandCtx: CommandContext;
-  projectId: string;
 }): BuildContext<T> {
   const buildProfile = easConfig.builds[platform] as PlatformBuildProfile<T> | undefined;
   if (!buildProfile) {
@@ -108,6 +109,5 @@ export function createBuildContext<T extends Platform>({
     trackingCtx: builderTrackingCtx,
     platform,
     buildProfile,
-    projectId,
   };
 }

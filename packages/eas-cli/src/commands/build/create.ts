@@ -1,11 +1,14 @@
 import { Command, flags } from '@oclif/command';
+import chalk from 'chalk';
 import { v4 as uuidv4 } from 'uuid';
 
 import { createCommandContextAsync } from '../../build/context';
 import { buildAsync } from '../../build/create';
 import { AnalyticsEvent, BuildCommandPlatform } from '../../build/types';
 import Analytics from '../../build/utils/analytics';
-import { findProjectRootAsync } from '../../project/projectUtils';
+import log from '../../log';
+import { isEasEnabledForProjectAsync } from '../../project/isEasEnabledForProject';
+import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUtils';
 import { ensureLoggedInAsync } from '../../user/actions';
 
 export default class BuildCreate extends Command {
@@ -35,9 +38,23 @@ export default class BuildCreate extends Command {
     }),
   };
 
-  async run() {
+  async run(): Promise<void> {
     const { flags } = this.parse(BuildCreate);
     await ensureLoggedInAsync();
+
+    const projectDir = (await findProjectRootAsync()) ?? process.cwd();
+    const projectId = await getProjectIdAsync(projectDir);
+
+    if (!(await isEasEnabledForProjectAsync(projectId))) {
+      log.error(
+        `Your account does not have access to Expo Application Services (EAS) features. Please enroll in EAS to give it a try. ${chalk.dim(
+          'Learn more: https://expo.io/eas'
+        )}`
+      );
+      process.exitCode = 1;
+      return;
+    }
+
     const trackingCtx = {
       tracking_id: uuidv4(),
       requested_platform: flags.platform,
@@ -47,7 +64,8 @@ export default class BuildCreate extends Command {
     const commandCtx = await createCommandContextAsync({
       requestedPlatform: flags.platform as BuildCommandPlatform,
       profile: flags.profile,
-      projectDir: (await findProjectRootAsync()) ?? process.cwd(),
+      projectDir,
+      projectId,
       trackingCtx,
       nonInteractive: flags['non-interactive'],
       skipCredentialsCheck: flags['skip-credentials-check'],

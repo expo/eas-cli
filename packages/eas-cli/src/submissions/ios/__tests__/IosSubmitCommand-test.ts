@@ -5,7 +5,6 @@ import { asMock } from '../../../__tests__/utils';
 import { jester as mockJester } from '../../../credentials/__tests__/fixtures-constants';
 import { createTestProject } from '../../../project/__tests__/project-utils';
 import { ensureProjectExistsAsync } from '../../../project/ensureProjectExists';
-import { getProjectIdAsync } from '../../../project/projectUtils';
 import SubmissionService from '../../SubmissionService';
 import { Submission, SubmissionStatus } from '../../SubmissionService.types';
 import { IosSubmitCommandFlags, SubmissionPlatform } from '../../types';
@@ -85,7 +84,6 @@ describe(IosSubmitCommand, () => {
         }
       );
       asMock(ensureProjectExistsAsync).mockImplementationOnce(() => projectId);
-      asMock(getProjectIdAsync).mockImplementationOnce(() => projectId);
 
       process.env.EXPO_APPLE_APP_SPECIFIC_PASSWORD = 'supersecret';
 
@@ -96,7 +94,7 @@ describe(IosSubmitCommand, () => {
         ascAppId: '12345678',
         verbose: false,
       };
-      const ctx = IosSubmitCommand.createContext(testProject.projectRoot, options);
+      const ctx = IosSubmitCommand.createContext(testProject.projectRoot, projectId, options);
       const command = new IosSubmitCommand(ctx);
       await command.runAsync();
 
