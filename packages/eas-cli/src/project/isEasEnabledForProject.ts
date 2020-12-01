@@ -11,11 +11,11 @@ export async function isEasEnabledForProjectAsync(projectId: string): Promise<bo
       data: { enabled },
     } = await apiClient.get(`projects/${projectId}/eas-enabled`).json();
     return enabled;
-  } catch (err) {
-    if (err.response.statusCode === 404) {
+  } catch (error) {
+    if (error.response?.statusCode === 404) {
       return true;
     } else {
-      throw err;
+      throw error;
     }
   }
 }
