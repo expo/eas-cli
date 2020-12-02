@@ -1,10 +1,12 @@
 import { Workflow } from '@expo/eas-build-job';
 import { EasConfig } from '@expo/eas-json';
+import chalk from 'chalk';
 
 import AndroidCredentialsProvider, {
   AndroidCredentials,
 } from '../../credentials/android/AndroidCredentialsProvider';
 import { createCredentialsContextAsync } from '../../credentials/context';
+import log from '../../log';
 import { ensureAppIdentifierIsDefinedAsync } from '../../project/projectUtils';
 import { CredentialsResult, startBuildForPlatformAsync } from '../build';
 import { BuildContext, CommandContext, createBuildContext } from '../context';
@@ -22,6 +24,23 @@ export async function startAndroidBuildAsync(
     platform: Platform.Android,
     easConfig,
   });
+
+  const { buildProfile } = buildCtx;
+  if (
+    buildProfile.workflow === Workflow.Generic &&
+    buildProfile.distribution === 'internal' &&
+    buildProfile.gradleCommand &&
+    !buildProfile.gradleCommand.match(/assembleRelease/)
+  ) {
+    log.addNewLineIfNone();
+    log.warn(
+      `You're building your Android app for internal distribution. However, we've detected that the Gradle command you defined (${chalk.underline(
+        buildProfile.gradleCommand
+      )}) does not include string 'assembleRelease'.
+If the Gradle command does not produce an APK, you will not be able to install it on your Android devices straight from the Expo website.`
+    );
+    log.newLine();
+  }
 
   return await startBuildForPlatformAsync({
     ctx: buildCtx,

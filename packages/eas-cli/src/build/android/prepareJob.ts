@@ -79,6 +79,7 @@ async function prepareGenericJobAsync(
     type: Workflow.Generic,
     gradleCommand: buildProfile.gradleCommand,
     artifactPath: buildProfile.artifactPath,
+    releaseChannel: buildProfile.releaseChannel,
     projectRootDirectory,
   };
 }
@@ -92,6 +93,8 @@ async function prepareManagedJobAsync(
   return {
     ...(await prepareJobCommonAsync(ctx, jobData)),
     type: Workflow.Managed,
+    buildType: buildProfile.buildType,
+    releaseChannel: buildProfile.releaseChannel,
     projectRootDirectory,
   };
 }

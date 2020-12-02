@@ -8,21 +8,6 @@ import { gitRootDirectoryAsync } from '../../utils/git';
 import { BuildContext } from '../context';
 import { Platform } from '../types';
 
-interface CommonJobProperties {
-  platform: Platform.iOS;
-  projectUrl: string;
-  secrets: {
-    buildCredentials?: {
-      provisioningProfileBase64: string;
-      distributionCertificate: {
-        dataBase64: string;
-        password: string;
-      };
-    };
-    secretEnvs?: Record<string, string>;
-  };
-}
-
 interface JobData {
   archiveUrl: string;
   credentials?: IosCredentials;
@@ -44,6 +29,22 @@ export async function prepareJobAsync(
   } else {
     throw new Error("Unknown workflow. Shouldn't happen");
   }
+}
+
+interface CommonJobProperties {
+  platform: Platform.iOS;
+  projectUrl: string;
+  releaseChannel: string;
+  secrets: {
+    buildCredentials?: {
+      provisioningProfileBase64: string;
+      distributionCertificate: {
+        dataBase64: string;
+        password: string;
+      };
+    };
+    secretEnvs?: Record<string, string>;
+  };
 }
 
 async function prepareJobCommonAsync(
@@ -84,6 +85,7 @@ async function prepareGenericJobAsync(
     type: Workflow.Generic,
     scheme: jobData.projectConfiguration.iosNativeProjectScheme,
     artifactPath: buildProfile.artifactPath,
+    releaseChannel: buildProfile.releaseChannel,
     projectRootDirectory,
   };
 }
@@ -91,12 +93,13 @@ async function prepareGenericJobAsync(
 async function prepareManagedJobAsync(
   ctx: BuildContext<Platform.iOS>,
   jobData: JobData,
-  _buildProfile: iOSManagedBuildProfile
+  buildProfile: iOSManagedBuildProfile
 ): Promise<Partial<iOS.ManagedJob>> {
   const projectRootDirectory = path.relative(await gitRootDirectoryAsync(), process.cwd()) || '.';
   return {
     ...(await prepareJobCommonAsync(ctx, jobData)),
     type: Workflow.Managed,
+    releaseChannel: buildProfile.releaseChannel,
     projectRootDirectory,
   };
 }

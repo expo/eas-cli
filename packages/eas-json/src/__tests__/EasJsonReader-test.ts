@@ -92,7 +92,11 @@ test('valid eas.json with both platform, but reading only android', async () => 
   const easJson = await reader.readAsync('release');
   expect({
     builds: {
-      android: { workflow: 'generic', distribution: 'store', credentialsSource: 'auto' },
+      android: {
+        workflow: 'generic',
+        distribution: 'store',
+        credentialsSource: 'auto',
+      },
     },
   }).toEqual(easJson);
 });
@@ -133,6 +137,78 @@ test('valid eas.json for debug builds', async () => {
       },
     },
   }).toEqual(easJson);
+});
+
+test('valid generic profile for internal distribution on Android', async () => {
+  await fs.writeJson('/project/eas.json', {
+    builds: {
+      android: {
+        internal: {
+          workflow: 'generic',
+          distribution: 'internal',
+        },
+      },
+    },
+  });
+
+  const reader = new EasJsonReader('/project', 'android');
+  const easJson = await reader.readAsync('internal');
+  expect({
+    builds: {
+      android: {
+        workflow: 'generic',
+        distribution: 'internal',
+        credentialsSource: 'auto',
+        gradleCommand: ':app:assembleRelease',
+      },
+    },
+  }).toEqual(easJson);
+});
+
+test('valid managed profile for internal distribution on Android', async () => {
+  await fs.writeJson('/project/eas.json', {
+    builds: {
+      android: {
+        internal: {
+          workflow: 'managed',
+          distribution: 'internal',
+        },
+      },
+    },
+  });
+
+  const reader = new EasJsonReader('/project', 'android');
+  const easJson = await reader.readAsync('internal');
+  expect({
+    builds: {
+      android: {
+        workflow: 'managed',
+        buildType: 'apk',
+        distribution: 'internal',
+        credentialsSource: 'auto',
+      },
+    },
+  }).toEqual(easJson);
+});
+
+test('invalid managed profile for internal distribution on Android', async () => {
+  await fs.writeJson('/project/eas.json', {
+    builds: {
+      android: {
+        internal: {
+          workflow: 'managed',
+          buildType: 'aab',
+          distribution: 'internal',
+        },
+      },
+    },
+  });
+
+  const reader = new EasJsonReader('/project', 'android');
+  const promise = reader.readAsync('internal');
+  await expect(promise).rejects.toThrowError(
+    'Object "android.internal" in eas.json is not valid [ValidationError: "buildType" must be [apk]]'
+  );
 });
 
 test('invalid eas.json with missing preset', async () => {
