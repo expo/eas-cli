@@ -30,14 +30,14 @@ export async function startAndroidBuildAsync(
     buildProfile.workflow === Workflow.Generic &&
     buildProfile.distribution === 'internal' &&
     buildProfile.gradleCommand &&
-    !buildProfile.gradleCommand.match(/assembleRelease/)
+    buildProfile.gradleCommand.match(/bundle/)
   ) {
     log.addNewLineIfNone();
     log.warn(
       `You're building your Android app for internal distribution. However, we've detected that the Gradle command you defined (${chalk.underline(
         buildProfile.gradleCommand
-      )}) does not include string 'assembleRelease'.
-If the Gradle command does not produce an APK, you will not be able to install it on your Android devices straight from the Expo website.`
+      )}) includes string 'bundle'.
+This means that it will most likely produce an AAB and you will not be able to install it on your Android devices straight from the Expo website.`
     );
     log.newLine();
   }
