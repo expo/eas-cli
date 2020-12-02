@@ -5,13 +5,14 @@ import Table from 'cli-table3';
 import gql from 'graphql-tag';
 import _ from 'lodash';
 
-import { PAGE_LIMIT } from '../../config';
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
 import { Update } from '../../graphql/generated';
 import log from '../../log';
 import { ensureProjectExistsAsync } from '../../project/ensureProjectExists';
 import { findProjectRootAsync, getProjectAccountNameAsync } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
+
+const PAGE_LIMIT = 10_000;
 
 type TruncatedUpdate = Pick<Update, 'updateGroup' | 'updateMessage' | 'createdAt' | 'actor'>;
 
