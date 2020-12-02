@@ -29,8 +29,7 @@ export async function startAndroidBuildAsync(
   if (
     buildProfile.workflow === Workflow.Generic &&
     buildProfile.distribution === 'internal' &&
-    buildProfile.gradleCommand &&
-    buildProfile.gradleCommand.match(/bundle/)
+    buildProfile.gradleCommand?.match(/bundle/)
   ) {
     log.addNewLineIfNone();
     log.warn(
