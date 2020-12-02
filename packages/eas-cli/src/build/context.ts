@@ -69,6 +69,7 @@ export interface ConfigureContext {
   user: User;
   projectDir: string;
   exp: ExpoConfig;
+  allowExperimental: boolean;
   requestedPlatform: BuildCommandPlatform;
   shouldConfigureAndroid: boolean;
   shouldConfigureIos: boolean;

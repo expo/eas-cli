@@ -5,6 +5,7 @@ import AndroidCredentialsProvider, {
   AndroidCredentials,
 } from '../../credentials/android/AndroidCredentialsProvider';
 import { createCredentialsContextAsync } from '../../credentials/context';
+import { ensureAppIdentifierIsDefinedAsync } from '../../project/projectUtils';
 import { CredentialsResult, startBuildForPlatformAsync } from '../build';
 import { BuildContext, CommandContext, createBuildContext } from '../context';
 import { ensureCredentialsAsync } from '../credentials';
@@ -30,6 +31,7 @@ export async function startAndroidBuildAsync(
       if (buildCtx.buildProfile.workflow === Workflow.Generic) {
         await validateAndSyncProjectConfigurationAsync(commandCtx.projectDir, commandCtx.exp);
       }
+      await ensureAppIdentifierIsDefinedAsync(commandCtx.projectDir, Platform.Android);
     },
     prepareJobAsync,
   });

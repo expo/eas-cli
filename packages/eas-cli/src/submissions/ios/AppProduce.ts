@@ -1,10 +1,10 @@
 import { App, RequestContext, Session, User } from '@expo/apple-utils/build';
-import { ProjectConfig, getConfig } from '@expo/config';
-import * as path from 'path';
+import { getConfig } from '@expo/config';
+import { Platform } from '@expo/eas-build-job';
 
-import { getBundleIdentifier } from '../../build/ios/bundleIdentifer';
 import { authenticateAsync, getRequestContext } from '../../credentials/ios/appstore/authenticate';
 import log from '../../log';
+import { getAppIdentifierAsync } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
 import { IosSubmissionContext } from '../types';
 import { sanitizeLanguage } from './utils/language';
@@ -33,16 +33,9 @@ export async function ensureAppStoreConnectAppExistsAsync(
 
   const { bundleIdentifier, appName, language } = ctx.commandFlags;
 
-  let resolvedBundleId: string;
-  try {
-    const description = getProjectConfigDescription(ctx.projectDir, projectConfig);
-    resolvedBundleId =
-      bundleIdentifier ??
-      (await getBundleIdentifier(ctx.projectDir, exp, {
-        displayAutoconfigMessage: false,
-        configDescription: description,
-      }));
-  } catch (e) {
+  const resolvedBundleId =
+    bundleIdentifier ?? (await getAppIdentifierAsync(ctx.projectDir, Platform.iOS));
+  if (!resolvedBundleId) {
     throw new Error(
       `Please define "expo.ios.bundleIdentifier" in your app config or provide it using --bundle-identifier param.
 Learn more here: https://expo.fyi/bundle-identifier`
@@ -140,30 +133,4 @@ async function promptForAppNameAsync(): Promise<string> {
     validate: (val: string) => val !== '' || 'App name cannot be empty!',
   });
   return appName;
-}
-
-/**
- * Return a useful name describing the project config.
- * - dynamic: app.config.js
- * - static: app.json
- * - custom path app config relative to root folder
- * - both: app.config.js or app.json
- */
-function getProjectConfigDescription(
-  projectRoot: string,
-  projectConfig: Partial<ProjectConfig>
-): string {
-  if (projectConfig.dynamicConfigPath) {
-    const relativeDynamicConfigPath = path.relative(projectRoot, projectConfig.dynamicConfigPath);
-    if (projectConfig.staticConfigPath) {
-      return `${relativeDynamicConfigPath} or ${path.relative(
-        projectRoot,
-        projectConfig.staticConfigPath
-      )}`;
-    }
-    return relativeDynamicConfigPath;
-  } else if (projectConfig.staticConfigPath) {
-    return path.relative(projectRoot, projectConfig.staticConfigPath);
-  }
-  return 'app.config.js/app.json';
 }
