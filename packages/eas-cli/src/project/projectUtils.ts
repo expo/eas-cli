@@ -14,6 +14,11 @@ import { ensureProjectExistsAsync } from './ensureProjectExists';
 export async function getProjectAccountNameAsync(projectDir: string): Promise<string> {
   const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
   const user = await ensureLoggedInAsync();
+  if (user.kind === 'robot' && !exp.owner) {
+    throw new Error(
+      'The "owner" manifest property is required when using robot users. See: https://docs.expo.io/versions/latest/config/app/#owner'
+    );
+  }
   return exp.owner || user.username;
 }
 

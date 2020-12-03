@@ -10,21 +10,42 @@ import { getAccessToken, getSessionSecret, setSessionAsync } from './sessionStor
 export { getSessionSecret, getAccessToken };
 
 export interface User {
+  kind: 'user';
   userId: string;
   username: string;
   accounts: Account[];
 }
 
-let currentUser: User | undefined;
+export interface RobotUser {
+  kind: 'robot';
+  userId: string;
+  firstName?: string;
+  accounts: Account[];
+  // Generated username to display as "authenticated user", it's either `robot` or `{firstName} (robot)`
+  username: string;
+}
 
-export async function getUserAsync(): Promise<User | undefined> {
-  if (!currentUser && getSessionSecret()) {
+let currentUser: User | RobotUser | undefined;
+
+export async function getUserAsync(): Promise<User | RobotUser | undefined> {
+  if (!currentUser && (getAccessToken() || getSessionSecret())) {
     const user = await UserQuery.currentUserAsync();
-    currentUser = {
-      userId: user.id,
-      username: user.username,
-      accounts: user.accounts,
-    };
+    if (user?.__typename === 'User') {
+      currentUser = {
+        kind: 'user',
+        userId: user.id,
+        username: user.username,
+        accounts: user.accounts,
+      };
+    } else if (user?.__typename === 'Robot') {
+      currentUser = {
+        kind: 'robot',
+        userId: user.id,
+        firstName: user.firstName ?? undefined,
+        username: user.firstName ? `${user.firstName} (robot)` : 'robot',
+        accounts: user.accounts,
+      }
+    }
   }
   return currentUser;
 }

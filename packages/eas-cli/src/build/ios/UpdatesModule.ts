@@ -5,13 +5,13 @@ import fs from 'fs-extra';
 import path from 'path';
 
 import log from '../../log';
-import { ensureLoggedInAsync } from '../../user/actions';
+import { getProjectAccountNameAsync } from '../../project/projectUtils';
 import { gitAddAsync } from '../../utils/git';
 import { ensureValidVersions } from '../utils/updates';
 
 export async function configureUpdatesAsync(projectDir: string, exp: ExpoConfig): Promise<void> {
   ensureValidVersions(exp);
-  const { username } = await ensureLoggedInAsync();
+  const accountName = await getProjectAccountNameAsync(projectDir);
   let xcodeProject = IOSConfig.XcodeUtils.getPbxproj(projectDir);
 
   if (!IOSConfig.Updates.isShellScriptBuildPhaseConfigured(projectDir, exp, xcodeProject)) {
@@ -24,8 +24,8 @@ export async function configureUpdatesAsync(projectDir: string, exp: ExpoConfig)
   }
 
   let expoPlist = await readExpoPlistAsync(projectDir);
-  if (!IOSConfig.Updates.isPlistConfigurationSynced(exp, expoPlist, username)) {
-    expoPlist = IOSConfig.Updates.setUpdatesConfig(exp, expoPlist, username);
+  if (!IOSConfig.Updates.isPlistConfigurationSynced(exp, expoPlist, accountName)) {
+    expoPlist = IOSConfig.Updates.setUpdatesConfig(exp, expoPlist, accountName);
     await writeExpoPlistAsync(projectDir, expoPlist);
   }
   // TODO: ensure ExpoPlist in pbxproj
@@ -36,7 +36,7 @@ export async function syncUpdatesConfigurationAsync(
   exp: ExpoConfig
 ): Promise<void> {
   ensureValidVersions(exp);
-  const { username } = await ensureLoggedInAsync();
+  const accountName = await getProjectAccountNameAsync(projectDir);
   try {
     await ensureUpdatesConfiguredAsync(projectDir, exp);
   } catch (error) {
@@ -52,7 +52,7 @@ export async function syncUpdatesConfigurationAsync(
     await writeExpoPlistAsync(projectDir, expoPlist);
   }
 
-  if (!IOSConfig.Updates.isPlistConfigurationSynced(exp, expoPlist, username)) {
+  if (!IOSConfig.Updates.isPlistConfigurationSynced(exp, expoPlist, accountName)) {
     log.warn(
       'Native project configuration is not synced with values present in you app.json, run "eas build:configure" to make sure all values are applied in the native project'
     );

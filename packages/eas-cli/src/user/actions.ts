@@ -1,6 +1,6 @@
 import log from '../log';
 import { promptAsync } from '../prompts';
-import { User, getUserAsync, loginAsync } from './User';
+import { RobotUser, User, getUserAsync, loginAsync } from './User';
 
 export async function showLoginPromptAsync(): Promise<void> {
   const { username, password } = await promptAsync([
@@ -21,8 +21,8 @@ export async function showLoginPromptAsync(): Promise<void> {
   });
 }
 
-export async function ensureLoggedInAsync(): Promise<User> {
-  let user: User | undefined;
+export async function ensureLoggedInAsync(): Promise<User | RobotUser> {
+  let user: User | RobotUser | undefined;
   try {
     user = await getUserAsync();
   } catch (_) {}

@@ -8,7 +8,7 @@ import log from '../log';
 import { getProjectAccountNameAsync } from '../project/projectUtils';
 import { Choice, confirmAsync, promptAsync } from '../prompts';
 import { Account, findAccountByName } from '../user/Account';
-import { User } from '../user/User';
+import { RobotUser, User } from '../user/User';
 import DeviceCreateAction from './actions/create/action';
 import { DeviceManagerContext } from './context';
 
@@ -44,7 +44,7 @@ export default class DeviceManager {
 }
 
 export class AccountResolver {
-  constructor(private projectDir: string | null, private user: User) {}
+  constructor(private projectDir: string | null, private user: User | RobotUser) {}
 
   public async resolveAccountAsync(): Promise<Account> {
     if (this.projectDir) {

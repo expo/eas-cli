@@ -3,12 +3,12 @@ import { AndroidConfig } from '@expo/config-plugins';
 import fs from 'fs-extra';
 
 import log from '../../log';
-import { ensureLoggedInAsync } from '../../user/actions';
+import { getProjectAccountNameAsync } from '../../project/projectUtils';
 import { ensureValidVersions } from '../utils/updates';
 
 export async function configureUpdatesAsync(projectDir: string, exp: ExpoConfig): Promise<void> {
   ensureValidVersions(exp);
-  const { username } = await ensureLoggedInAsync();
+  const accountName = await getProjectAccountNameAsync(projectDir);
   const buildGradlePath = AndroidConfig.Paths.getAppBuildGradle(projectDir);
   const buildGradleContent = await fs.readFile(buildGradlePath, 'utf8');
 
@@ -29,8 +29,8 @@ export async function configureUpdatesAsync(projectDir: string, exp: ExpoConfig)
     androidManifestPath
   );
 
-  if (!AndroidConfig.Updates.isMainApplicationMetaDataSynced(exp, androidManifest, username)) {
-    const result = await AndroidConfig.Updates.setUpdatesConfig(exp, androidManifest, username);
+  if (!AndroidConfig.Updates.isMainApplicationMetaDataSynced(exp, androidManifest, accountName)) {
+    const result = await AndroidConfig.Updates.setUpdatesConfig(exp, androidManifest, accountName);
 
     await AndroidConfig.Manifest.writeAndroidManifestAsync(androidManifestPath, result);
   }
@@ -41,7 +41,7 @@ export async function syncUpdatesConfigurationAsync(
   exp: ExpoConfig
 ): Promise<void> {
   ensureValidVersions(exp);
-  const { username } = await ensureLoggedInAsync();
+  const accountName = await getProjectAccountNameAsync(projectDir);
   try {
     await ensureUpdatesConfiguredAsync(projectDir, exp);
   } catch (error) {
@@ -62,7 +62,7 @@ export async function syncUpdatesConfigurationAsync(
     await AndroidConfig.Manifest.writeAndroidManifestAsync(androidManifestPath, androidManifest);
   }
 
-  if (!AndroidConfig.Updates.isMainApplicationMetaDataSynced(exp, androidManifest, username)) {
+  if (!AndroidConfig.Updates.isMainApplicationMetaDataSynced(exp, androidManifest, accountName)) {
     log.warn(
       'Native project configuration is not synced with values present in your app.json, run "eas build:configure" to make sure all values are applied in the native project'
     );

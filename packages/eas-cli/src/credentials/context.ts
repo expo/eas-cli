@@ -4,7 +4,7 @@ import pick from 'lodash/pick';
 
 import log from '../log';
 import { confirmAsync } from '../prompts';
-import { User } from '../user/User';
+import { RobotUser, User } from '../user/User';
 import { ensureLoggedInAsync } from '../user/actions';
 import AndroidApi from './android/api/Client';
 import iOSApi from './ios/api/Client';
@@ -23,7 +23,7 @@ interface Options extends AppleCtxOptions {
 
 export interface Context {
   readonly projectDir: string;
-  readonly user: User;
+  readonly user: User | RobotUser;
   readonly nonInteractive: boolean;
   readonly android: AndroidApi;
   readonly ios: iOSApi;
@@ -63,7 +63,7 @@ class CredentialsContext implements Context {
 
   constructor(
     public readonly projectDir: string,
-    public readonly user: User,
+    public readonly user: User | RobotUser,
     private _exp: ExpoConfig | undefined,
     options: Options
   ) {

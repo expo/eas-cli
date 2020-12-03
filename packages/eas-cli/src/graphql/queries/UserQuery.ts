@@ -1,22 +1,29 @@
 import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../client';
-import { Account, User } from '../generated';
+import { Account, Robot, User } from '../generated';
 
-type CurrentUserQueryResult = Pick<User, 'id' | 'username'> & {
-  accounts: Pick<Account, 'id' | 'name'>[];
-};
+type CurrentUserQueryResult = { accounts: Pick<Account, 'id' | 'name'>[] } & (
+  | Pick<User, '__typename' | 'id' | 'username'>
+  | Pick<Robot, '__typename' | 'id' | 'firstName'>
+);
 
 const UserQuery = {
-  async currentUserAsync(): Promise<CurrentUserQueryResult> {
+  async currentUserAsync(): Promise<CurrentUserQueryResult | null> {
     const data = await withErrorHandlingAsync(
       graphqlClient
-        .query<{ viewer: CurrentUserQueryResult }>(
+        .query<{ meActor: CurrentUserQueryResult | null }>(
           gql`
             {
-              viewer {
+              meActor {
+                __typename
                 id
-                username
+                ... on User {
+                  username
+                }
+                ... on Robot {
+                  firstName
+                }
                 accounts {
                   id
                   name
@@ -28,7 +35,7 @@ const UserQuery = {
         .toPromise()
     );
 
-    return data.viewer;
+    return data.meActor;
   },
 };
 

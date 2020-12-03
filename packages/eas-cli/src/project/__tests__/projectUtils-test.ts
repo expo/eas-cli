@@ -2,7 +2,7 @@ import { getConfig } from '@expo/config';
 import { vol } from 'memfs';
 
 import { asMock } from '../../__tests__/utils';
-import { User, getUserAsync } from '../../user/User';
+import { RobotUser, User, getUserAsync } from '../../user/User';
 import { findProjectRootAsync, getProjectAccountNameAsync } from '../projectUtils';
 
 jest.mock('@expo/config');
@@ -52,7 +52,8 @@ describe(getProjectAccountNameAsync, () => {
         owner: 'dominik',
       },
     }));
-    asMock(getUserAsync).mockImplementation((): User | undefined => ({
+    asMock(getUserAsync).mockImplementation((): User | RobotUser | undefined => ({
+      kind: 'user',
       userId: 'user_id',
       username: 'notnotbrent',
       accounts: [
@@ -70,6 +71,7 @@ describe(getProjectAccountNameAsync, () => {
       exp: {},
     }));
     asMock(getUserAsync).mockImplementation((): User | undefined => ({
+      kind: 'user',
       userId: 'user_id',
       username: 'notnotbrent',
       accounts: [

@@ -23,6 +23,7 @@ beforeEach(() => {
 describe(AccountResolver, () => {
   describe('#resolveAccountAsync', () => {
     const user: User = {
+      kind: 'user',
       userId: 'user_id_666',
       username: 'dominik',
       accounts: [
