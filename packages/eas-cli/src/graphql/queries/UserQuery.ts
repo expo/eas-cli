@@ -13,7 +13,6 @@ const UserQuery = {
               meActor {
                 __typename
                 id
-                isExpoAdmin
                 ... on User {
                   username
                 }

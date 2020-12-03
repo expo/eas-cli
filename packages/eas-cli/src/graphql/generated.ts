@@ -2593,14 +2593,14 @@ export type CurrentUserQuery = (
   { __typename?: 'RootQuery' }
   & { meActor?: Maybe<(
     { __typename: 'User' }
-    & Pick<User, 'username' | 'id' | 'isExpoAdmin'>
+    & Pick<User, 'username' | 'id'>
     & { accounts?: Maybe<Array<Maybe<(
       { __typename?: 'Account' }
       & Pick<Account, 'id' | 'name'>
     )>>> }
   ) | (
     { __typename: 'Robot' }
-    & Pick<Robot, 'firstName' | 'id' | 'isExpoAdmin'>
+    & Pick<Robot, 'firstName' | 'id'>
     & { accounts?: Maybe<Array<Maybe<(
       { __typename?: 'Account' }
       & Pick<Account, 'id' | 'name'>
