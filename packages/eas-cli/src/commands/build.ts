@@ -2,17 +2,18 @@ import { Command, flags } from '@oclif/command';
 import chalk from 'chalk';
 import { v4 as uuidv4 } from 'uuid';
 
-import { createCommandContextAsync } from '../../build/context';
-import { buildAsync } from '../../build/create';
-import { AnalyticsEvent, BuildCommandPlatform } from '../../build/types';
-import Analytics from '../../build/utils/analytics';
-import log from '../../log';
-import { isEasEnabledForProjectAsync } from '../../project/isEasEnabledForProject';
-import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUtils';
-import { ensureLoggedInAsync } from '../../user/actions';
+import { createCommandContextAsync } from '../build/context';
+import { buildAsync } from '../build/create';
+import { AnalyticsEvent, BuildCommandPlatform } from '../build/types';
+import Analytics from '../build/utils/analytics';
+import log from '../log';
+import { isEasEnabledForProjectAsync } from '../project/isEasEnabledForProject';
+import { findProjectRootAsync, getProjectIdAsync } from '../project/projectUtils';
+import { ensureLoggedInAsync } from '../user/actions';
 
-export default class BuildCreate extends Command {
+export default class Build extends Command {
   static description = 'Start a build';
+  static aliases = ['build:submit'];
 
   static flags = {
     platform: flags.enum({ char: 'p', options: ['android', 'ios', 'all'], required: true }),
@@ -39,7 +40,7 @@ export default class BuildCreate extends Command {
   };
 
   async run(): Promise<void> {
-    const { flags } = this.parse(BuildCreate);
+    const { flags } = this.parse(Build);
     await ensureLoggedInAsync();
 
     const projectDir = (await findProjectRootAsync()) ?? process.cwd();
