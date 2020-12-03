@@ -6,7 +6,7 @@ import log from '../log';
 import { getProjectAccountName } from '../project/projectUtils';
 import { confirmAsync } from '../prompts';
 import { Actor } from '../user/User';
-import { ensureLoggedInAsync } from '../user/actions';
+import { ensureLoggedInAsync, getActorDisplayName } from '../user/actions';
 import AndroidApi from './android/api/Client';
 import iOSApi from './ios/api/Client';
 import * as IosGraphqlClient from './ios/api/GraphqlClient';
@@ -90,8 +90,8 @@ class CredentialsContext implements Context {
   }
 
   public logOwnerAndProject() {
-    const owner = getProjectAccountName(this.exp, this.user);
     if (this.hasProjectContext) {
+      const owner = getProjectAccountName(this.exp, this.user);
       // Figure out if User A is configuring credentials as admin for User B's project
       const isProxyUser =
         this.user.__typename === 'Robot' || (owner && owner !== this.user.username);
@@ -102,7 +102,7 @@ class CredentialsContext implements Context {
         }`
       );
     } else {
-      log(`Accessing credentials for ${owner}`);
+      log(`Accessing credentials for ${this.exp.owner ?? getActorDisplayName(this.user)}`);
     }
   }
 
