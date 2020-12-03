@@ -224,7 +224,7 @@ export async function createOrReuseAdhocProvisioningProfileAsync(
   bundleIdentifier: string,
   distCertSerialNumber: string
 ): Promise<ProvisioningProfile> {
-  const spinner = ora(`Handling Apple AdHoc provisioning profiles`).start();
+  const spinner = ora(`Handling Apple ad hoc provisioning profiles`).start();
   try {
     const context = getRequestContext(authCtx);
     const {
