@@ -2,7 +2,7 @@ import fs from 'fs-extra';
 import path from 'path';
 
 import log from '../../log';
-import { getProjectAccountNameAsync } from '../../project/projectUtils';
+import { getProjectAccountName } from '../../project/projectUtils';
 import { confirmAsync } from '../../prompts';
 import { gitStatusAsync } from '../../utils/git';
 import { Context } from '../context';
@@ -26,7 +26,7 @@ export async function updateAndroidCredentialsAsync(ctx: Context): Promise<void>
       throw error;
     }
   }
-  const accountName = await getProjectAccountNameAsync(ctx.projectDir);
+  const accountName = await getProjectAccountName(ctx.exp, ctx.user);
   const experienceName = `@${accountName}/${ctx.exp.slug}`;
   const keystore = await ctx.android.fetchKeystoreAsync(experienceName);
   if (!keystore) {
@@ -100,7 +100,7 @@ export async function updateIosCredentialsAsync(
     }
   }
 
-  const accountName = await getProjectAccountNameAsync(ctx.projectDir);
+  const accountName = await getProjectAccountName(ctx.exp, ctx.user);
   const appLookupParams = {
     accountName,
     projectName: ctx.exp.slug,
