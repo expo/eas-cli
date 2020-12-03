@@ -8,6 +8,7 @@ import AndroidCredentialsProvider, {
 import { createCredentialsContextAsync } from '../../credentials/context';
 import log from '../../log';
 import { ensureAppIdentifierIsDefinedAsync } from '../../project/projectUtils';
+import { toggleConfirmAsync } from '../../prompts';
 import { CredentialsResult, startBuildForPlatformAsync } from '../build';
 import { BuildContext, CommandContext, createBuildContext } from '../context';
 import { ensureCredentialsAsync } from '../credentials';
@@ -39,6 +40,11 @@ export async function startAndroidBuildAsync(
 This means that it will most likely produce an AAB and you will not be able to install it on your Android devices straight from the Expo website.`
     );
     log.newLine();
+    const confirmed = await toggleConfirmAsync({ message: 'Would you like to proceed?' });
+    if (!confirmed) {
+      log.error('Please update eas.json and come back again.');
+      process.exit(1);
+    }
   }
 
   return await startBuildForPlatformAsync({
