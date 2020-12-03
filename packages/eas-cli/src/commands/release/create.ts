@@ -48,6 +48,7 @@ async function createUpdateReleaseOnAppAsync({
 }
 
 export default class ReleaseCreate extends Command {
+  static hidden = true;
   static description = 'Create a release on the current project.';
 
   static args = [

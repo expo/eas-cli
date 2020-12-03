@@ -51,6 +51,7 @@ async function renameUpdateReleaseOnAppAsync({
 }
 
 export default class ReleaseRename extends Command {
+  static hidden = true;
   static description = 'Rename a release.';
 
   static flags = {
