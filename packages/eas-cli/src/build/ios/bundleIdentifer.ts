@@ -5,12 +5,32 @@ import chalk from 'chalk';
 import fs from 'fs-extra';
 
 import log from '../../log';
-import { getProjectConfigDescription } from '../../project/projectUtils';
+import {
+  ensureAppIdentifierIsDefinedAsync,
+  getProjectConfigDescription,
+} from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
+import { Platform } from '../types';
 
 enum BundleIdenitiferSource {
   XcodeProject,
   AppJson,
+}
+
+function isBundleIdentifierValid(bundleIdentifier: string): boolean {
+  return /^[a-zA-Z][a-zA-Z0-9\-.]+$/.test(bundleIdentifier);
+}
+
+export async function ensureBundleIdentifierIsValidAsync(projectDir: string) {
+  const bundleIdentifier = await ensureAppIdentifierIsDefinedAsync(projectDir, Platform.iOS);
+  if (!isBundleIdentifierValid(bundleIdentifier)) {
+    const configDescription = getProjectConfigDescription(projectDir);
+    log.error(
+      `Invalid format of iOS bundleId. Only alphanumeric characters, '.', '-', and '_' are allowed, and each '.' must be followed by a letter.`
+    );
+    log.error(`Update "ios.bundleIdentifier" in ${configDescription} and run this command again.`);
+    throw new Error('Invalid bundleIdentifier');
+  }
 }
 
 export async function configureBundleIdentifierAsync(

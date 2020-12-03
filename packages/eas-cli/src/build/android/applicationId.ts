@@ -7,15 +7,33 @@ import path from 'path';
 
 import log from '../../log';
 import {
+  ensureAppIdentifierIsDefinedAsync,
   getAndroidApplicationIdAsync,
   getProjectConfigDescription,
 } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
 import { gitAddAsync } from '../../utils/git';
+import { Platform } from '../types';
 
 enum ApplicationIdSource {
   AndroidProject,
   AppJson,
+}
+
+function isApplicationIdValid(applicationId: string): boolean {
+  return /^[a-zA-Z][a-zA-Z0-9_]*(\.[a-zA-Z][a-zA-Z0-9_]*)+$/.test(applicationId);
+}
+
+export async function ensureApplicationIdIsValidAsync(projectDir: string) {
+  const applicationId = await ensureAppIdentifierIsDefinedAsync(projectDir, Platform.Android);
+  if (!isApplicationIdValid(applicationId)) {
+    const configDescription = getProjectConfigDescription(projectDir);
+    log.error(
+      `Invalid format of Android applicationId. Only alphanumeric characters, '.' and '_' are allowed, and each '.' must be followed by a letter.`
+    );
+    log.error(`Update "android.package" in ${configDescription} and run this command again.`);
+    throw new Error('Invalid applicationId');
+  }
 }
 
 export async function configureApplicationIdAsync(

@@ -7,12 +7,12 @@ import AndroidCredentialsProvider, {
 } from '../../credentials/android/AndroidCredentialsProvider';
 import { createCredentialsContextAsync } from '../../credentials/context';
 import log from '../../log';
-import { ensureAppIdentifierIsDefinedAsync } from '../../project/projectUtils';
 import { toggleConfirmAsync } from '../../prompts';
 import { CredentialsResult, startBuildForPlatformAsync } from '../build';
 import { BuildContext, CommandContext, createBuildContext } from '../context';
 import { ensureCredentialsAsync } from '../credentials';
 import { Platform } from '../types';
+import { ensureApplicationIdIsValidAsync } from './applicationId';
 import { validateAndSyncProjectConfigurationAsync } from './configure';
 import { prepareJobAsync } from './prepareJob';
 
@@ -47,6 +47,8 @@ This means that it will most likely produce an AAB and you will not be able to i
     }
   }
 
+  await ensureApplicationIdIsValidAsync(commandCtx.projectDir);
+
   return await startBuildForPlatformAsync({
     ctx: buildCtx,
     projectConfiguration: {},
@@ -55,7 +57,6 @@ This means that it will most likely produce an AAB and you will not be able to i
       if (buildCtx.buildProfile.workflow === Workflow.Generic) {
         await validateAndSyncProjectConfigurationAsync(commandCtx.projectDir, commandCtx.exp);
       }
-      await ensureAppIdentifierIsDefinedAsync(commandCtx.projectDir, Platform.Android);
     },
     prepareJobAsync,
   });
