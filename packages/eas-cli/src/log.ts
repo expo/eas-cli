@@ -69,4 +69,14 @@ log.withTick = function (...args: any[]) {
   consoleLog(chalk.green(figures.tick), ...args);
 };
 
+/**
+ * Format links as dim with an underline.
+ *
+ * @example Learn more: https://expo.io
+ * @param url
+ */
+export function learnMore(url: string): string {
+  return chalk.dim(`Learn more: ${chalk.underline(url)}`);
+}
+
 export default log;

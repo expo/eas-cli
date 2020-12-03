@@ -1,7 +1,7 @@
 import chalk from 'chalk';
 import fs from 'fs-extra';
 
-import log from '../../log';
+import log, { learnMore } from '../../log';
 import { promptAsync } from '../../prompts';
 import { isExistingFile } from '../utils/files';
 
@@ -57,8 +57,8 @@ async function askForServiceAccountPathAsync(): Promise<string> {
     `${chalk.bold(
       'A Google Service Account JSON key is required to upload your app to Google Play Store'
     )}.\n` +
-      `If you're not sure what this is or how to create one, ${chalk.dim(
-        'Learn more: https://expo.fyi/creating-google-service-account'
+      `If you're not sure what this is or how to create one, ${learnMore(
+        'https://expo.fyi/creating-google-service-account'
       )}.`
   );
   const { filePath } = await promptAsync({

@@ -1,7 +1,6 @@
 import { Command, flags } from '@oclif/command';
-import chalk from 'chalk';
 
-import log from '../log';
+import log, { learnMore } from '../log';
 import { isEasEnabledForProjectAsync } from '../project/isEasEnabledForProject';
 import { findProjectRootAsync, getProjectIdAsync } from '../project/projectUtils';
 import AndroidSubmitCommand from '../submissions/android/AndroidSubmitCommand';
@@ -107,7 +106,9 @@ export default class BuildSubmit extends Command {
       helpLabel: IOS_FLAGS,
     }),
     'asc-app-id': flags.string({
-      description: `App Store Connect unique application Apple ID number. Providing this param results in skipping app creation step. Learn more here: https://expo.fyi/asc-app-id`,
+      description: `App Store Connect unique application Apple ID number. Providing this param results in skipping app creation step. ${learnMore(
+        'https://expo.fyi/asc-app-id'
+      )}`,
       helpLabel: IOS_FLAGS,
     }),
     'apple-team-id': flags.string({
@@ -169,8 +170,8 @@ export default class BuildSubmit extends Command {
 
     if (!(await isEasEnabledForProjectAsync(projectId))) {
       log.error(
-        `Your account does not have access to Expo Application Services (EAS) features. Please enroll in EAS to give it a try. ${chalk.dim(
-          'Learn more: https://expo.io/eas'
+        `Your account does not have access to Expo Application Services (EAS) features. Please enroll in EAS to give it a try. ${learnMore(
+          'https://expo.io/eas'
         )}`
       );
       process.exitCode = 1;

@@ -3,7 +3,7 @@ import chalk from 'chalk';
 import getenv from 'getenv';
 import wordwrap from 'wordwrap';
 
-import log from '../../log';
+import log, { learnMore } from '../../log';
 import { promptAsync } from '../../prompts';
 import UserSettings from '../../user/UserSettings';
 import { ArchiveSource, ArchiveTypeSourceType } from '../archiveSource';
@@ -106,7 +106,9 @@ class IosSubmitCommand {
       wrap(
         chalk.italic(
           'Ensuring your app exists on App Store Connect. ' +
-            'This step can be skipped by providing the --asc-app-id param. Learn more here: https://expo.fyi/asc-app-id'
+            `This step can be skipped by providing the --asc-app-id param. ${learnMore(
+              'https://expo.fyi/asc-app-id'
+            )}`
         )
       )
     );

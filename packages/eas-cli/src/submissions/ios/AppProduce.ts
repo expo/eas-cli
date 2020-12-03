@@ -38,7 +38,7 @@ export async function ensureAppStoreConnectAppExistsAsync(
   if (!resolvedBundleId) {
     throw new Error(
       `Please define "expo.ios.bundleIdentifier" in your app config or provide it using --bundle-identifier param.
-Learn more here: https://expo.fyi/bundle-identifier`
+Learn more: https://expo.fyi/bundle-identifier`
     );
   }
 
