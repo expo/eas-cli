@@ -59,7 +59,7 @@ async function askForServiceAccountPathAsync(): Promise<string> {
     )}.\n` +
       `If you're not sure what this is or how to create one, ${learnMore(
         'https://expo.fyi/creating-google-service-account'
-      )}.`
+      )}`
   );
   const { filePath } = await promptAsync({
     name: 'filePath',
