@@ -40,7 +40,7 @@ export async function findProjectRootAsync(cwd?: string): Promise<string | null>
 export async function getProjectIdAsync(projectDir: string): Promise<string> {
   const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
   return await ensureProjectExistsAsync({
-    accountName: await getProjectAccountNameAsync(projectDir),
+    accountName: getProjectAccountName(exp, await ensureLoggedInAsync()),
     projectName: exp.slug,
     privacy: exp.privacy,
   });

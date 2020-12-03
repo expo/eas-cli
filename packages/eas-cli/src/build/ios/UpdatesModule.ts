@@ -5,13 +5,14 @@ import fs from 'fs-extra';
 import path from 'path';
 
 import log from '../../log';
-import { getProjectAccountNameAsync } from '../../project/projectUtils';
+import { getProjectAccountName } from '../../project/projectUtils';
+import { ensureLoggedInAsync } from '../../user/actions';
 import { gitAddAsync } from '../../utils/git';
 import { ensureValidVersions } from '../utils/updates';
 
 export async function configureUpdatesAsync(projectDir: string, exp: ExpoConfig): Promise<void> {
   ensureValidVersions(exp);
-  const accountName = await getProjectAccountNameAsync(projectDir);
+  const accountName = getProjectAccountName(exp, await ensureLoggedInAsync());
   let xcodeProject = IOSConfig.XcodeUtils.getPbxproj(projectDir);
 
   if (!IOSConfig.Updates.isShellScriptBuildPhaseConfigured(projectDir, exp, xcodeProject)) {
@@ -36,7 +37,7 @@ export async function syncUpdatesConfigurationAsync(
   exp: ExpoConfig
 ): Promise<void> {
   ensureValidVersions(exp);
-  const accountName = await getProjectAccountNameAsync(projectDir);
+  const accountName = getProjectAccountName(exp, await ensureLoggedInAsync());
   try {
     await ensureUpdatesConfiguredAsync(projectDir, exp);
   } catch (error) {

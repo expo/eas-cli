@@ -7,8 +7,9 @@ import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
 import { UpdateRelease } from '../../graphql/generated';
 import log from '../../log';
 import { ensureProjectExistsAsync } from '../../project/ensureProjectExists';
-import { findProjectRootAsync, getProjectAccountNameAsync } from '../../project/projectUtils';
+import { findProjectRootAsync, getProjectAccountName } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
+import { ensureLoggedInAsync } from '../../user/actions';
 import { getBranchNameAsync } from '../../utils/git';
 
 export async function createUpdateReleaseOnAppAsync({
@@ -73,13 +74,12 @@ export default class ReleaseCreate extends Command {
     if (!projectDir) {
       throw new Error('Please run this command inside a project directory.');
     }
-    const accountName = await getProjectAccountNameAsync(projectDir);
-    const {
-      exp: { slug },
-    } = getConfig(projectDir, { skipSDKVersionRequirement: true });
+
+    const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
+    const accountName = getProjectAccountName(exp, await ensureLoggedInAsync());
     const projectId = await ensureProjectExistsAsync({
       accountName,
-      projectName: slug,
+      projectName: exp.slug,
     });
 
     if (!releaseName) {
@@ -106,7 +106,7 @@ export default class ReleaseCreate extends Command {
 
     log.withTick(
       `️Created a new release: ${chalk.bold(newRelease.releaseName)} on project ${chalk.bold(
-        `@${accountName}/${slug}`
+        `@${accountName}/${exp.slug}`
       )}.`
     );
   }
