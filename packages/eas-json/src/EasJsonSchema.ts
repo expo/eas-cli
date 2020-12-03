@@ -3,7 +3,11 @@ import Joi from '@hapi/joi';
 const AndroidGenericSchema = Joi.object({
   workflow: Joi.string().valid('generic').required(),
   credentialsSource: Joi.string().valid('local', 'remote', 'auto').default('auto'),
-  gradleCommand: Joi.string(),
+  gradleCommand: Joi.alternatives().conditional('distribution', {
+    is: 'internal',
+    then: Joi.string().default(':app:assembleRelease'),
+    otherwise: Joi.string(),
+  }),
   releaseChannel: Joi.string(),
   artifactPath: Joi.string(),
   withoutCredentials: Joi.boolean(),
@@ -14,7 +18,11 @@ const AndroidManagedSchema = Joi.object({
   workflow: Joi.string().valid('managed').required(),
   credentialsSource: Joi.string().valid('local', 'remote', 'auto').default('auto'),
   releaseChannel: Joi.string(),
-  buildType: Joi.string().valid('apk', 'app-bundle', 'development-client').default('app-bundle'),
+  buildType: Joi.alternatives().conditional('distribution', {
+    is: 'internal',
+    then: Joi.string().valid('apk').default('apk'),
+    otherwise: Joi.string().valid('apk', 'app-bundle', 'development-client').default('app-bundle'),
+  }),
   distribution: Joi.string().valid('store', 'internal').default('store'),
 });
 
