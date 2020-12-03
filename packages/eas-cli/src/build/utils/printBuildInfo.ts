@@ -1,3 +1,5 @@
+import chalk from 'chalk';
+
 import log from '../../log';
 import { platformDisplayNames } from '../constants';
 import { Build } from '../types';
@@ -18,14 +20,14 @@ export function printLogsUrls(
       buildId,
       account: accountName,
     });
-    log(`Logs url: ${logsUrl}`);
+    log(`Logs url: ${chalk.underline(logsUrl)}`);
   } else {
     builds.forEach(({ buildId, platform }) => {
       const logsUrl = getBuildLogsUrl({
         buildId,
         account: accountName,
       });
-      log(`Platform: ${platformDisplayNames[platform]}, Logs url: ${logsUrl}`);
+      log(`Platform: ${platformDisplayNames[platform]}, Logs url: ${chalk.underline(logsUrl)}`);
     });
   }
 }
