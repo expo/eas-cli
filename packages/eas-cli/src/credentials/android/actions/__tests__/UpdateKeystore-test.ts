@@ -73,7 +73,7 @@ describe('run UpdateKeystore when keystore exist on www', () => {
   });
 });
 
-describe('run UpdateKeystore when keystore deos not exist on www', () => {
+describe('run UpdateKeystore when keystore does not exist on www', () => {
   it('should fail to fetch credentials and generate new ones', async () => {
     const ctx = createCtxMock({
       android: {

@@ -103,7 +103,7 @@ export async function updateIosCredentialsAsync(
     projectName: ctx.exp.slug,
     bundleIdentifier,
   };
-  const pprofilePath =
+  const profilePath =
     rawCredentialsJsonObject?.ios?.provisioningProfilePath ?? 'ios/certs/profile.mobileprovision';
   const distCertPath =
     rawCredentialsJsonObject?.ios?.distributionCertificate?.path ?? 'ios/certs/dist-cert.p12';
@@ -129,13 +129,13 @@ export async function updateIosCredentialsAsync(
     }
   }
 
-  log(`Writing Provisioning Profile to ${pprofilePath}`);
+  log(`Writing Provisioning Profile to ${profilePath}`);
   await updateFileAsync(
     ctx.projectDir,
-    pprofilePath,
+    profilePath,
     appCredentials?.credentials?.provisioningProfile
   );
-  const shouldWarnPProfile = await isFileUntrackedAsync(pprofilePath);
+  const shouldWarnPProfile = await isFileUntrackedAsync(profilePath);
 
   log(`Writing Distribution Certificate to ${distCertPath}`);
   await updateFileAsync(ctx.projectDir, distCertPath, distCredentials?.certP12);
@@ -143,7 +143,7 @@ export async function updateIosCredentialsAsync(
 
   const iosCredentials: Partial<CredentialsJson['ios']> = {
     ...(appCredentials?.credentials?.provisioningProfile
-      ? { provisioningProfilePath: pprofilePath }
+      ? { provisioningProfilePath: profilePath }
       : {}),
     ...(distCredentials?.certP12 && distCredentials?.certPassword
       ? {
@@ -162,7 +162,7 @@ export async function updateIosCredentialsAsync(
 
   const newFilePaths = [];
   if (shouldWarnPProfile) {
-    newFilePaths.push(pprofilePath);
+    newFilePaths.push(profilePath);
   }
   if (shouldWarnDistCert) {
     newFilePaths.push(distCertPath);

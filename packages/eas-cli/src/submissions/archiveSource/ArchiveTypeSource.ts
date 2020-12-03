@@ -59,7 +59,7 @@ async function handleInferSourceAsync(
   if (inferredArchiveType) {
     return inferredArchiveType;
   } else {
-    log.warn("We couldn't autodetect the archive type");
+    log.warn("We couldn't auto detect the archive type");
     return getArchiveTypeAsync(platform, { sourceType: ArchiveTypeSourceType.prompt }, location);
   }
 }

@@ -10,7 +10,7 @@ function readAppleTeam(dataBase64: string): AppleTeam {
   const teamId = (profilePlist['TeamIdentifier'] as PlistArray)?.[0] as string;
   const teamName = profilePlist['TeamName'] as string;
   if (!teamId) {
-    throw new Error('Team identifier is missing from provisoning profile');
+    throw new Error('Team identifier is missing from provisioning profile');
   }
   return { teamId, teamName };
 }

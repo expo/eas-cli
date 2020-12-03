@@ -14,7 +14,7 @@ export default class AccountView extends Command {
     if (user?.username) {
       log(chalk.green(user.username));
     } else {
-      log.warn('Not logged in.');
+      log.warn('Not logged in');
       process.exit(1);
     }
   }

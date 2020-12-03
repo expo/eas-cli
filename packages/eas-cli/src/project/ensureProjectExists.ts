@@ -19,29 +19,23 @@ export async function ensureProjectExistsAsync(projectInfo: ProjectInfo): Promis
   const { accountName, projectName } = projectInfo;
   const projectFullName = `@${accountName}/${projectName}`;
 
-  const spinner = ora(
-    `Ensuring project ${chalk.bold(projectFullName)} is registered on Expo servers`
-  ).start();
+  const spinner = ora(`Ensuring ${chalk.bold(projectFullName)} is created on Expo`).start();
 
   try {
     const id = await findProjectIdByAccountNameAndSlugAsync(accountName, projectName);
     spinner.succeed();
     return id;
   } catch (err) {
-    if (err.grapgQLErrors?.some((it: any) => it.extensions?.errorCode !== 'EXPERIENCE_NOT_FOUND')) {
-      spinner.fail(
-        `Something went wrong when looking for project ${chalk.bold(
-          projectFullName
-        )} on Expo servers`
-      );
+    if (err.graphQLErrors?.some((it: any) => it.extensions?.errorCode !== 'EXPERIENCE_NOT_FOUND')) {
+      spinner.fail(`Something went wrong while looking for ${chalk.bold(projectFullName)} on Expo`);
       throw err;
     }
   }
 
   try {
-    spinner.text = `Registering project ${chalk.bold(projectFullName)} on Expo servers`;
+    spinner.text = `Creating ${chalk.bold(projectFullName)} on Expo`;
     const id = await registerNewProjectAsync(projectInfo);
-    spinner.succeed();
+    spinner.succeed(`Created ${chalk.bold(projectFullName)} on Expo`);
     return id;
   } catch (err) {
     spinner.fail();

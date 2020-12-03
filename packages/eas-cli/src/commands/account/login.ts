@@ -4,13 +4,13 @@ import log from '../../log';
 import { showLoginPromptAsync } from '../../user/actions';
 
 export default class AccountLogin extends Command {
-  static description = 'log in with your EAS account';
+  static description = 'log in with your Expo account';
 
   static aliases = ['login'];
 
   async run() {
     log('Log in to EAS');
     await showLoginPromptAsync();
-    log('Logged in.');
+    log('Logged in');
   }
 }

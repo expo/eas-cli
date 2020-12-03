@@ -10,6 +10,6 @@ export default class AccountLogout extends Command {
 
   async run() {
     await logoutAsync();
-    log('Logged out.');
+    log('Logged out');
   }
 }

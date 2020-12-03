@@ -119,7 +119,7 @@ class CredentialsContext implements Context {
     );
     log(
       chalk.green(
-        'This is optional, but without Apple account access you will need to provide all the values manually and we can only run minimal validatation on them.'
+        'This is optional, but without Apple account access you will need to provide all the values manually and we can only run minimal validation on them.'
       )
     );
     const confirm = await confirmAsync({

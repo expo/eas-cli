@@ -1,6 +1,6 @@
 import chalk from 'chalk';
 
-import log from '../../../log';
+import log, { learnMore } from '../../../log';
 import { promptAsync } from '../../../prompts';
 import { CredentialsManager } from '../../CredentialsManager';
 import { Context } from '../../context';
@@ -102,7 +102,7 @@ async function generateDistributionCertificateAsync(
           `✅  Distribution Certificates can be revoked with no side effects for App Store builds.`
         )
       );
-      log(chalk.grey(`ℹ️  Learn more here https://docs.expo.io/distribution/app-signing/#summary`));
+      log(learnMore('https://docs.expo.io/distribution/app-signing/#summary'));
       log.newLine();
 
       const { distCertsToRevoke } = await promptAsync({
@@ -151,7 +151,7 @@ export async function selectDistributionCertificateAsync(
     options.filterInvalid && validDistCredentials ? validDistCredentials : distCredentials;
 
   if (distCredentials.length === 0) {
-    log.warn('There are no Distribution Certificates available in your EAS account.');
+    log.warn('There are no Distribution Certificates available in your Expo account.');
     return null;
   }
 

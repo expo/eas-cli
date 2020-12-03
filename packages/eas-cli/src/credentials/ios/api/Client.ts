@@ -24,14 +24,14 @@ type CredentialFields = {
 // appCredentials are identified by `${projectFullName} ${bundleIdentifier}` (see getAppCredentialsCacheIndex method)
 // userCredentials are identified by id (string or numeric depending on API)
 //
-// Expected behaviour of cache (internals)
+// Expected behavior of cache (internals)
 //
 // - when isPrefetched[accountName] true assume everything is synced for that account
 // - when credentials[accountName].appCredentials[experienceNameBundleIdentifier] is truthy assume that user and app credentials for that app are synced
 // - when accessing user or app credentials identified by AppLookupParams fetch all credentials for that app (user and app credentials)
 // - when updating userCredentials refetch only userCredentials
 // - when deleting userCredentials modify prefetched appCredentials without calling api
-// - when updating provisioningProfile refetch all credentials for that app (user and app crednetials)
+// - when updating provisioningProfile refetch all credentials for that app (user and app credentials)
 // - when deleting provisioningProfile modify appCredentials in cache
 // - when deleting pushCert refetch all credentials for app (app + user)
 //
@@ -278,7 +278,7 @@ export default class iOSApi {
     await this.client.deleteProvisioningProfileApi(appLookupParams);
     const appCredentials = this.credentials?.[accountName]?.appCredentials?.[appCredentialsIndex];
     if (appCredentials?.credentials) {
-      // teamId should still be there becaus it might be part of push cert definition
+      // teamId should still be there because it might be part of push cert definition
       appCredentials.credentials = omit(appCredentials.credentials, [
         'provisioningProfile',
         'provisioningProfileId',

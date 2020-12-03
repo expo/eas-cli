@@ -8,14 +8,16 @@ EAS command line tool
 [![License](https://img.shields.io/npm/l/eas-cli.svg)](https://github.com/expo/eas-cli/blob/main/package.json)
 
 <!-- toc -->
-* [eas-cli](#eas-cli)
-* [Usage](#usage)
-* [Commands](#commands)
+
+- [eas-cli](#eas-cli)
+- [Usage](#usage)
+- [Commands](#commands)
 <!-- tocstop -->
 
 # Usage
 
 <!-- usage -->
+
 ```sh-session
 $ npm install -g eas-cli
 $ eas COMMAND
@@ -27,28 +29,30 @@ USAGE
   $ eas COMMAND
 ...
 ```
+
 <!-- usagestop -->
 
 # Commands
 
 <!-- commands -->
-* [`eas account:login`](#eas-accountlogin)
-* [`eas account:logout`](#eas-accountlogout)
-* [`eas account:view`](#eas-accountview)
-* [`eas build`](#eas-build)
-* [`eas build:configure`](#eas-buildconfigure)
-* [`eas build:create`](#eas-buildcreate)
-* [`eas build:status`](#eas-buildstatus)
-* [`eas credentials`](#eas-credentials)
-* [`eas device:create`](#eas-devicecreate)
-* [`eas help [COMMAND]`](#eas-help-command)
-* [`eas release:create [RELEASENAME]`](#eas-releasecreate-releasename)
-* [`eas submit --platform=(android|ios)`](#eas-submit---platformandroidios)
-* [`eas update:show`](#eas-updateshow)
+
+- [`eas account:login`](#eas-accountlogin)
+- [`eas account:logout`](#eas-accountlogout)
+- [`eas account:view`](#eas-accountview)
+- [`eas build`](#eas-build)
+- [`eas build:configure`](#eas-buildconfigure)
+- [`eas build:create`](#eas-buildcreate)
+- [`eas build:status`](#eas-buildstatus)
+- [`eas credentials`](#eas-credentials)
+- [`eas device:create`](#eas-devicecreate)
+- [`eas help [COMMAND]`](#eas-help-command)
+- [`eas release:create [RELEASENAME]`](#eas-releasecreate-releasename)
+- [`eas submit --platform=(android|ios)`](#eas-submit---platformandroidios)
+- [`eas update:show`](#eas-updateshow)
 
 ## `eas account:login`
 
-log in with your EAS account
+log in with your Expo account
 
 ```
 USAGE
@@ -271,7 +275,7 @@ EXAMPLES
   $ eas submit --platform=ios
        - Fully interactive iOS submission
 
-  $ eas submit --platform=android 
+  $ eas submit --platform=android
        - Fully interactive Android submission
 
   $ eas submit -p android --latest --key=/path/to/google-services.json
@@ -294,4 +298,5 @@ USAGE
 ```
 
 _See code: [build/commands/update/show.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.10/build/commands/update/show.ts)_
+
 <!-- commandsstop -->
