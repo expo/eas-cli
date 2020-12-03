@@ -1,13 +1,14 @@
 import { Command, flags } from '@oclif/command';
-import chalk from 'chalk';
 import { v4 as uuidv4 } from 'uuid';
 
 import { createCommandContextAsync } from '../../build/context';
 import { buildAsync } from '../../build/create';
 import { AnalyticsEvent, BuildCommandPlatform } from '../../build/types';
 import Analytics from '../../build/utils/analytics';
-import log from '../../log';
-import { isEasEnabledForProjectAsync } from '../../project/isEasEnabledForProject';
+import {
+  isEasEnabledForProjectAsync,
+  warnEasUnavailable,
+} from '../../project/isEasEnabledForProject';
 import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUtils';
 import { ensureLoggedInAsync } from '../../user/actions';
 
@@ -46,11 +47,7 @@ export default class BuildCreate extends Command {
     const projectId = await getProjectIdAsync(projectDir);
 
     if (!(await isEasEnabledForProjectAsync(projectId))) {
-      log.error(
-        `Your account does not have access to Expo Application Services (EAS) features. Please enroll in EAS to give it a try. ${chalk.dim(
-          'Learn more: https://expo.io/eas'
-        )}`
-      );
+      warnEasUnavailable();
       process.exitCode = 1;
       return;
     }

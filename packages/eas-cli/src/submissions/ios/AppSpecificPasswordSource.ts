@@ -1,7 +1,7 @@
 import chalk from 'chalk';
 import wordwrap from 'wordwrap';
 
-import log from '../../log';
+import log, { learnMore } from '../../log';
 import { promptAsync } from '../../prompts';
 
 export enum AppSpecificPasswordSourceType {
@@ -39,7 +39,7 @@ export async function getAppSpecificPasswordAsync(source: AppSpecificPasswordSou
         )} env variable.`
       )
     );
-    log('Learn more about app-specific password: https://expo.fyi/apple-app-specific-password');
+    log(learnMore('https://expo.fyi/apple-app-specific-password'));
 
     const { appSpecificPassword } = await promptAsync({
       name: 'appSpecificPassword',
@@ -49,6 +49,7 @@ export async function getAppSpecificPasswordAsync(source: AppSpecificPasswordSou
     });
     return appSpecificPassword;
   } else {
-    throw new Error('This should never happen');
+    // exhaustive -- should never happen
+    throw new Error(`Unknown app specific password source type "${(source as any)?.sourceType}"`);
   }
 }
