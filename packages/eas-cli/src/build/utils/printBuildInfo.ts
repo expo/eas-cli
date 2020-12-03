@@ -34,16 +34,14 @@ export function printLogsUrls(
 
 export function printBuildResults(builds: (Build | null)[]): void {
   if (builds.length === 1) {
-    log(`Artifact url: ${builds[0]?.artifacts?.buildUrl ?? ''}`);
+    const url = builds[0]?.artifacts?.buildUrl ?? '';
+    log(`App: ${chalk.underline(url)}`);
   } else {
     (builds.filter(i => i) as Build[])
       .filter(build => build.status === 'finished')
       .forEach(build => {
-        log(
-          `Platform: ${platformDisplayNames[build.platform]}, Artifact url: ${
-            build.artifacts?.buildUrl ?? ''
-          }`
-        );
+        const url = build.artifacts?.buildUrl ?? '';
+        log(`Platform: ${platformDisplayNames[build.platform]}, App: ${chalk.underline(url)}`);
       });
   }
 }
