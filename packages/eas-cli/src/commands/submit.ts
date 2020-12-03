@@ -3,6 +3,7 @@ import { Command, flags } from '@oclif/command';
 import { learnMore } from '../log';
 import { isEasEnabledForProjectAsync, warnEasUnavailable } from '../project/isEasEnabledForProject';
 import { findProjectRootAsync, getProjectIdAsync } from '../project/projectUtils';
+import { promptAsync } from '../prompts';
 import AndroidSubmitCommand from '../submissions/android/AndroidSubmitCommand';
 import IosSubmitCommand from '../submissions/ios/IosSubmitCommand';
 import {
@@ -38,7 +39,6 @@ export default class BuildSubmit extends Command {
       char: 'p',
       description: 'For which platform you want to submit a build',
       options: ['android', 'ios'],
-      required: true,
       helpLabel: COMMON_FLAGS,
     }),
 
@@ -158,12 +158,14 @@ export default class BuildSubmit extends Command {
         'company-name': companyName,
 
         // common
-        platform,
+        platform: platformFromParams,
         ...flags
       },
     } = this.parse(BuildSubmit);
 
     await ensureLoggedInAsync();
+
+    const platform = platformFromParams ?? (await promptForPlatformAsync());
 
     const projectDir = (await findProjectRootAsync()) ?? process.cwd();
     const projectId = await getProjectIdAsync(projectDir);
@@ -207,4 +209,23 @@ export default class BuildSubmit extends Command {
       throw new Error(`Unsupported platform: ${platform}!`);
     }
   }
+}
+
+async function promptForPlatformAsync(): Promise<SubmissionPlatform> {
+  const { platform } = await promptAsync({
+    type: 'select',
+    message: 'Choose a platform to submit to',
+    name: 'platform',
+    choices: [
+      {
+        title: 'iOS',
+        value: SubmissionPlatform.iOS,
+      },
+      {
+        title: 'Android',
+        value: SubmissionPlatform.Android,
+      },
+    ],
+  });
+  return platform;
 }

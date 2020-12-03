@@ -6,7 +6,7 @@ import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 
 import log from '../../log';
-import { confirmAsync, pressAnyKeyToContinueAsync, promptAsync } from '../../prompts';
+import { confirmAsync, promptAsync } from '../../prompts';
 import {
   doesGitRepoExistAsync,
   getGitDiffOutputAsync,
@@ -52,6 +52,7 @@ async function isGitStatusCleanAsync(): Promise<boolean> {
 
 async function maybeBailOnGitStatusAsync(): Promise<void> {
   if (!(await isGitStatusCleanAsync())) {
+    log.addNewLineIfNone();
     log.warn(`${chalk.bold('Warning!')} Your git working tree is dirty.`);
     log(
       `It's recommended to ${chalk.bold(
@@ -70,14 +71,15 @@ async function maybeBailOnGitStatusAsync(): Promise<void> {
 
 async function ensureGitStatusIsCleanAsync(): Promise<void> {
   if (!(await isGitStatusCleanAsync())) {
+    log.addNewLineIfNone();
     log.warn(`${chalk.bold('Warning!')} Your git working tree is dirty.`);
     log(
-      `It's recommended to ${chalk.bold(
+      `This operation needs to be run on a clean working tree, please ${chalk.bold(
         'commit all your changes before proceeding'
-      )}, so you can revert the changes made by this command if necessary.`
+      )}.`
     );
     const answer = await confirmAsync({
-      message: `Would you like to commit your local changes?`,
+      message: `Commit changes to git?`,
     });
     if (answer) {
       await commitPromptAsync();
@@ -104,35 +106,9 @@ async function makeProjectTarballAsync(): Promise<{ path: string; size: number }
   return { size, path: tarPath };
 }
 
-async function reviewAndCommitChangesAsync(
-  commitMessage: string,
-  { nonInteractive }: { nonInteractive: boolean }
-): Promise<void> {
-  if (nonInteractive) {
-    throw new Error(
-      'Cannot commit changes when --non-interactive is specified. Run the command in interactive mode to review and commit changes.'
-    );
-  }
-
+async function showDiffAsync() {
   const outputTooLarge = (await getGitDiffOutputAsync()).split(/\r\n|\r|\n/).length > 100;
-  log('Please review the following changes and pass the message to make the commit.');
-  if (outputTooLarge) {
-    log('Press any key to see the changes...');
-    await pressAnyKeyToContinueAsync();
-  } else {
-    log.newLine();
-  }
   await gitDiffAsync({ withPager: outputTooLarge });
-  log.newLine();
-
-  const confirm = await confirmAsync({
-    message: 'Can we commit these changes for you?',
-  });
-
-  if (!confirm) {
-    throw new Error('Aborting commit. Please review and commit the changes manually.');
-  }
-  await commitPromptAsync(commitMessage);
 }
 
 async function commitPromptAsync(initialCommitMessage?: string): Promise<void> {
@@ -151,9 +127,10 @@ async function commitPromptAsync(initialCommitMessage?: string): Promise<void> {
 
 export {
   isGitStatusCleanAsync,
+  showDiffAsync,
+  commitPromptAsync,
   ensureGitRepoExistsAsync,
   ensureGitStatusIsCleanAsync,
   maybeBailOnGitStatusAsync,
   makeProjectTarballAsync,
-  reviewAndCommitChangesAsync,
 };

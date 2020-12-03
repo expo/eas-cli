@@ -4,6 +4,7 @@ import fs from 'fs-extra';
 
 import { apiClient } from '../api';
 import log from '../log';
+import { promptAsync } from '../prompts';
 import { UploadType, uploadAsync } from '../uploads';
 import { createProgressTracker } from '../utils/progress';
 import { platformDisplayNames } from './constants';
@@ -13,9 +14,10 @@ import { AnalyticsEvent, Platform, TrackingContext } from './types';
 import Analytics from './utils/analytics';
 import { printDeprecationWarnings } from './utils/printBuildInfo';
 import {
+  commitPromptAsync,
   isGitStatusCleanAsync,
   makeProjectTarballAsync,
-  reviewAndCommitChangesAsync,
+  showDiffAsync,
 } from './utils/repository';
 
 export interface CredentialsResult<Credentials> {
@@ -41,11 +43,11 @@ interface Builder<TPlatform extends Platform, Credentials, ProjectConfiguration>
   ): Promise<Job>;
 }
 
-export async function startBuildForPlatformAsync<
+export async function prepareBuildRequestForPlatformAsync<
   TPlatform extends Platform,
   Credentials,
   ProjectConfiguration
->(builder: Builder<TPlatform, Credentials, ProjectConfiguration>): Promise<string> {
+>(builder: Builder<TPlatform, Credentials, ProjectConfiguration>): Promise<() => Promise<string>> {
   const credentialsResult = await withAnalyticsAsync(
     async () => await builder.ensureCredentialsAsync(builder.ctx),
     {
@@ -62,9 +64,16 @@ export async function startBuildForPlatformAsync<
     });
   }
 
-  await commitChangesForBuildAsync(builder.ctx.platform, {
-    nonInteractive: builder.ctx.commandCtx.nonInteractive,
-  });
+  if (!(await isGitStatusCleanAsync())) {
+    log.addNewLineIfNone();
+    const projectType = builder.ctx.platform === Platform.Android ? 'Android' : 'Xcode';
+    // Currently we are only updaing runtime version durring build, but if it changes in a future
+    // this message should also contain more info on that (or be more generic)
+    await reviewAndCommitChangesAsync(`Update runtime version in the ${projectType} project`, {
+      nonInteractive: builder.ctx.commandCtx.nonInteractive,
+    });
+  }
+
   const archiveUrl = await uploadProjectAsync(builder.ctx);
 
   const metadata = collectMetadata(builder.ctx, {
@@ -76,35 +85,37 @@ export async function startBuildForPlatformAsync<
     projectConfiguration: builder.projectConfiguration,
   });
 
-  try {
-    return await withAnalyticsAsync(
-      async () => {
-        log(`Starting ${platformDisplayNames[job.platform]} build`);
-        const {
-          data: { buildId, deprecationInfo },
-        } = await apiClient
-          .post(`projects/${builder.ctx.commandCtx.projectId}/builds`, {
-            json: {
-              job,
-              metadata,
-            },
-          })
-          .json();
-        printDeprecationWarnings(deprecationInfo);
-        return buildId;
-      },
-      {
-        successEvent: AnalyticsEvent.BUILD_REQUEST_SUCCESS,
-        failureEvent: AnalyticsEvent.BUILD_REQUEST_FAIL,
-        trackingCtx: builder.ctx.trackingCtx,
+  return async () => {
+    try {
+      return await withAnalyticsAsync(
+        async () => {
+          log(`Starting ${platformDisplayNames[job.platform]} build`);
+          const {
+            data: { buildId, deprecationInfo },
+          } = await apiClient
+            .post(`projects/${builder.ctx.commandCtx.projectId}/builds`, {
+              json: {
+                job,
+                metadata,
+              },
+            })
+            .json();
+          printDeprecationWarnings(deprecationInfo);
+          return buildId;
+        },
+        {
+          successEvent: AnalyticsEvent.BUILD_REQUEST_SUCCESS,
+          failureEvent: AnalyticsEvent.BUILD_REQUEST_FAIL,
+          trackingCtx: builder.ctx.trackingCtx,
+        }
+      );
+    } catch (error) {
+      if (error.code === 'TURTLE_DEPRECATED_JOB_FORMAT') {
+        log.error('EAS Build API changed, upgrade to latest expo-cli');
       }
-    );
-  } catch (error) {
-    if (error.code === 'TURTLE_DEPRECATED_JOB_FORMAT') {
-      log.error('EAS Build API changed, upgrade to latest expo-cli');
+      throw error;
     }
-    throw error;
-  }
+  };
 }
 
 async function uploadProjectAsync<TPlatform extends Platform>(
@@ -136,24 +147,6 @@ async function uploadProjectAsync<TPlatform extends Platform>(
     }
   }
 }
-async function commitChangesForBuildAsync(
-  platform: Platform,
-  { nonInteractive }: { nonInteractive: boolean }
-): Promise<void> {
-  if (!(await isGitStatusCleanAsync())) {
-    log.newLine();
-    try {
-      const projectType = platform === Platform.Android ? 'Android' : 'Xcode';
-      await reviewAndCommitChangesAsync(`Update runtime version in the ${projectType} project`, {
-        nonInteractive,
-      });
-    } catch (e) {
-      throw new Error(
-        "Aborting, run the command again once you're ready. Make sure to commit any changes you've made."
-      );
-    }
-  }
-}
 
 async function withAnalyticsAsync<Result>(
   fn: () => Promise<Result>,
@@ -173,5 +166,49 @@ async function withAnalyticsAsync<Result>(
       reason: error.message,
     });
     throw error;
+  }
+}
+
+enum ShouldCommitChanges {
+  Yes,
+  ShowDiffFirst,
+  Abort,
+}
+
+async function reviewAndCommitChangesAsync(
+  commitMessage: string,
+  { nonInteractive, askedFirstTime = true }: { nonInteractive: boolean; askedFirstTime?: boolean }
+): Promise<void> {
+  if (nonInteractive) {
+    throw new Error(
+      'Cannot commit changes when --non-interactive is specified. Run the command in interactive mode to review and commit changes.'
+    );
+  }
+  const { selected } = await promptAsync({
+    type: 'select',
+    name: 'selected',
+    message: 'Can we commit these changes to git for you?',
+    choices: [
+      { title: 'Yes', value: ShouldCommitChanges.Yes },
+      ...(askedFirstTime
+        ? [{ title: 'Show the diff and ask me again', value: ShouldCommitChanges.ShowDiffFirst }]
+        : []),
+      {
+        title: 'Abort build process',
+        value: ShouldCommitChanges.Abort,
+      },
+    ],
+  });
+
+  if (selected === ShouldCommitChanges.Abort) {
+    throw new Error(
+      "Aborting, run the command again once you're ready. Make sure to commit any changes you've made."
+    );
+  } else if (selected === ShouldCommitChanges.Yes) {
+    await commitPromptAsync(commitMessage);
+    log.withTick('Successfully committed changes.');
+  } else if (selected === ShouldCommitChanges.ShowDiffFirst) {
+    await showDiffAsync();
+    await reviewAndCommitChangesAsync(commitMessage, { nonInteractive, askedFirstTime: false });
   }
 }

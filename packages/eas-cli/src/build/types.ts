@@ -1,10 +1,10 @@
 import { Platform } from '@expo/eas-build-job';
 import { AndroidBuildProfile, iOSBuildProfile } from '@expo/eas-json';
 
-export enum BuildCommandPlatform {
-  ANDROID = 'android',
-  IOS = 'ios',
-  ALL = 'all',
+export enum RequestedPlatform {
+  Android = 'android',
+  iOS = 'ios',
+  All = 'all',
 }
 
 export { Platform };
