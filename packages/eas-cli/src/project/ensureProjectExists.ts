@@ -35,7 +35,7 @@ export async function ensureProjectExistsAsync(projectInfo: ProjectInfo): Promis
   try {
     spinner.text = `Creating ${chalk.bold(projectFullName)} on Expo`;
     const id = await registerNewProjectAsync(projectInfo);
-    spinner.succeed();
+    spinner.succeed(`Created ${chalk.bold(projectFullName)} on Expo`);
     return id;
   } catch (err) {
     spinner.fail();
