@@ -88,7 +88,7 @@ async function ensureGitStatusIsCleanAsync(): Promise<void> {
 }
 
 async function makeProjectTarballAsync(): Promise<{ path: string; size: number }> {
-  const spinner = ora('Making project tarball').start();
+  const spinner = ora('Preparing project to be uploaded').start();
 
   await fs.mkdirp(getTmpDirectory());
   const tarPath = path.join(getTmpDirectory(), `${uuidv4()}.tar.gz`);
@@ -98,7 +98,7 @@ async function makeProjectTarballAsync(): Promise<{ path: string; size: number }
     ['archive', '--format=tar.gz', '--prefix', 'project/', '-o', tarPath, 'HEAD'],
     { cwd: await gitRootDirectoryAsync() }
   );
-  spinner.succeed('Project tarball created.');
+  spinner.succeed('Project ready to be uploaded');
 
   const { size } = await fs.stat(tarPath);
   return { size, path: tarPath };
