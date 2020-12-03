@@ -82,6 +82,7 @@ async function viewUpdateReleaseAsync({
 }
 
 export default class ReleaseView extends Command {
+  static hidden = true;
   static description = 'View a release.';
 
   static args = [
