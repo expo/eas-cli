@@ -26,7 +26,7 @@ export async function ensureProjectExistsAsync(projectInfo: ProjectInfo): Promis
     spinner.succeed();
     return id;
   } catch (err) {
-    if (err.grapgQLErrors?.some((it: any) => it.extensions?.errorCode !== 'EXPERIENCE_NOT_FOUND')) {
+    if (err.graphQLErrors?.some((it: any) => it.extensions?.errorCode !== 'EXPERIENCE_NOT_FOUND')) {
       spinner.fail(
         `Something went wrong when looking for project ${chalk.bold(
           projectFullName
