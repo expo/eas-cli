@@ -5,13 +5,17 @@ import log from '../../log';
 import { ConfigureContext } from '../context';
 import { isExpoUpdatesInstalled } from '../utils/updates';
 import { configureUpdatesAsync, syncUpdatesConfigurationAsync } from './UpdatesModule';
-import { configureBundleIdentifierAsync } from './bundleIdentifer';
+import {
+  configureBundleIdentifierAsync,
+  ensureBundleIdentifierIsValidAsync,
+} from './bundleIdentifer';
 
 export async function configureIosAsync(ctx: ConfigureContext): Promise<void> {
   if (!ctx.hasIosNativeProject) {
     return;
   }
   await configureBundleIdentifierAsync(ctx.projectDir, ctx.exp);
+  await ensureBundleIdentifierIsValidAsync(ctx.projectDir);
 
   if (isExpoUpdatesInstalled(ctx.projectDir)) {
     await configureUpdatesAsync(ctx.projectDir, ctx.exp);
