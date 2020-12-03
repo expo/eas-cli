@@ -26,7 +26,7 @@ export async function ensureBundleIdentifierIsValidAsync(projectDir: string) {
   if (!isBundleIdentifierValid(bundleIdentifier)) {
     const configDescription = getProjectConfigDescription(projectDir);
     log.error(
-      `Invalid format of iOS bundleId. Only alphanumeric characters, '.', '-', and '_' are allowed, and each '.' must be followed by a letter.`
+      `Invalid format of iOS bundleId. Only alphanumeric characters, '.' and '-' are allowed, and each '.' must be followed by a letter.`
     );
     log.error(`Update "ios.bundleIdentifier" in ${configDescription} and run this command again.`);
     throw new Error('Invalid bundleIdentifier');
