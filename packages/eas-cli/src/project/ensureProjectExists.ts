@@ -27,11 +27,7 @@ export async function ensureProjectExistsAsync(projectInfo: ProjectInfo): Promis
     return id;
   } catch (err) {
     if (err.graphQLErrors?.some((it: any) => it.extensions?.errorCode !== 'EXPERIENCE_NOT_FOUND')) {
-      spinner.fail(
-        `Something went wrong when looking for project ${chalk.bold(
-          projectFullName
-        )} on Expo servers`
-      );
+      spinner.fail(`Something went wrong while looking for ${chalk.bold(projectFullName)} on Expo`);
       throw err;
     }
   }
