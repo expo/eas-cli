@@ -19,23 +19,22 @@ export async function ensureAppExistsAsync(
   options: EnsureAppExistsOptions = {}
 ) {
   const context = getRequestContext(authCtx);
-  let spinner = ora(`Registering bundle identifier "${bundleIdentifier}"`).start();
+  let spinner = ora(`Checking bundle identifier "${bundleIdentifier}"`).start();
 
   let bundleId: BundleId | null;
   try {
     // Get the bundle id
     bundleId = await BundleId.findAsync(context, { identifier: bundleIdentifier });
 
-    if (bundleId) {
-      spinner.succeed(`Already registered bundle identifier "${bundleIdentifier}"`);
-    } else {
+    if (!bundleId) {
+      spinner.text = `Registering bundle identifier "${bundleIdentifier}"`;
       // If it doesn't exist, create it
       bundleId = await BundleId.createAsync(context, {
         name: `@${accountName}/${projectName}`,
         identifier: bundleIdentifier,
       });
-      spinner.succeed(`Registered bundle identifier "${bundleIdentifier}"`);
     }
+    spinner.succeed(`Bundle identifier "${bundleIdentifier}" registered`);
   } catch (err) {
     if (err.message.match(/An App ID with Identifier '(.*)' is not available/)) {
       spinner.fail(
