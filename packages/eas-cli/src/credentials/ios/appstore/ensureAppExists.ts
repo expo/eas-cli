@@ -56,9 +56,9 @@ export async function ensureAppExistsAsync(
       option: options.enablePushNotifications ? CapabilityTypeOption.ON : CapabilityTypeOption.OFF,
       // TODO: Add more capabilities
     });
-    spinner.succeed(`Updated app capabilities for "${bundleIdentifier}"`);
+    spinner.succeed(`Updated capabilities for "${bundleIdentifier}"`);
   } catch (err) {
-    spinner.fail(`Failed to update app capabilities for "${bundleIdentifier}"`);
+    spinner.fail(`Failed to update capabilities for "${bundleIdentifier}"`);
 
     throw err;
   }
