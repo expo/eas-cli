@@ -19,9 +19,7 @@ export async function ensureProjectExistsAsync(projectInfo: ProjectInfo): Promis
   const { accountName, projectName } = projectInfo;
   const projectFullName = `@${accountName}/${projectName}`;
 
-  const spinner = ora(
-    `Ensuring project ${chalk.bold(projectFullName)} is registered on Expo servers`
-  ).start();
+  const spinner = ora(`Ensuring ${chalk.bold(projectFullName)} is created on Expo`).start();
 
   try {
     const id = await findProjectIdByAccountNameAndSlugAsync(accountName, projectName);
@@ -39,7 +37,7 @@ export async function ensureProjectExistsAsync(projectInfo: ProjectInfo): Promis
   }
 
   try {
-    spinner.text = `Registering project ${chalk.bold(projectFullName)} on Expo servers`;
+    spinner.text = `Creating ${chalk.bold(projectFullName)} on Expo`;
     const id = await registerNewProjectAsync(projectInfo);
     spinner.succeed();
     return id;
