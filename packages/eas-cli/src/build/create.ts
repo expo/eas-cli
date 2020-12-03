@@ -86,7 +86,7 @@ async function waitForBuildEndAsync(
     if (builds.length === 1) {
       switch (builds[0]?.status) {
         case BuildStatus.FINISHED:
-          spinner.succeed('Build finished.');
+          spinner.succeed('Build finished');
           return builds;
         case BuildStatus.IN_QUEUE:
           spinner.text = 'Build queued...';
@@ -95,7 +95,7 @@ async function waitForBuildEndAsync(
           spinner.text = 'Build in progress...';
           break;
         case BuildStatus.ERRORED:
-          spinner.fail('Build failed.');
+          spinner.fail('Build failed');
           throw new Error(`Standalone build failed!`);
         default:
           spinner.warn('Unknown status.');
@@ -103,14 +103,14 @@ async function waitForBuildEndAsync(
       }
     } else {
       if (builds.filter(build => build?.status === BuildStatus.FINISHED).length === builds.length) {
-        spinner.succeed('All build have finished.');
+        spinner.succeed('All builds have finished');
         return builds;
       } else if (
         builds.filter(build =>
           build?.status ? [BuildStatus.FINISHED, BuildStatus.ERRORED].includes(build.status) : false
         ).length === builds.length
       ) {
-        spinner.fail('Some of the builds failed.');
+        spinner.fail('Some of the builds failed');
         return builds;
       } else {
         const inQueue = builds.filter(build => build?.status === BuildStatus.IN_QUEUE).length;
@@ -132,7 +132,7 @@ async function waitForBuildEndAsync(
     time = new Date().getTime();
     await sleep(intervalSec * 1000);
   }
-  spinner.warn('Timed out.');
+  spinner.warn('Timed out');
   throw new Error(
     'Timeout reached! It is taking longer than expected to finish the build, aborting...'
   );
