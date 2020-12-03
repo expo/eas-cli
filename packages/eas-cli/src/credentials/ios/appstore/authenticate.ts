@@ -65,8 +65,6 @@ export function getRequestContext(authCtx: AuthCtx): RequestContext {
 
 export async function authenticateAsync(options: Options = {}): Promise<AuthCtx> {
   const { appleId, appleIdPassword } = await requestAppleCredentialsAsync(options);
-  log(`Authenticating to Apple Developer Portal...`); // use log instead of spinner in case we need to prompt user for 2fa
-
   try {
     // TODO: The password isn't required for apple-utils. Remove the local prompt when we remove traveling Fastlane.
     const authState = await Auth.loginAsync({
@@ -75,7 +73,6 @@ export async function authenticateAsync(options: Options = {}): Promise<AuthCtx>
       cookies: options.cookies,
       teamId: options.teamId,
     });
-    log(chalk.green('Authenticated with Apple Developer Portal successfully!'));
 
     // Currently, this is resolved once, inside the apple-utils package.
     const teamId = authState.context.teamId!;

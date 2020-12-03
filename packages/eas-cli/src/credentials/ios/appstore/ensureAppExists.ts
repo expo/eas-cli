@@ -19,24 +19,35 @@ export async function ensureAppExistsAsync(
   options: EnsureAppExistsOptions = {}
 ) {
   const context = getRequestContext(authCtx);
-  let spinner = ora(`Registering Bundle ID "${bundleIdentifier}"`).start();
+  let spinner = ora(`Checking bundle identifier "${bundleIdentifier}"`).start();
 
+  let bundleId: BundleId | null;
   try {
     // Get the bundle id
-    let bundleId = await BundleId.findAsync(context, { identifier: bundleIdentifier });
+    bundleId = await BundleId.findAsync(context, { identifier: bundleIdentifier });
 
-    if (bundleId) {
-      spinner.succeed('Bundle ID already registered');
-    } else {
+    if (!bundleId) {
+      spinner.text = `Registering bundle identifier "${bundleIdentifier}"`;
       // If it doesn't exist, create it
       bundleId = await BundleId.createAsync(context, {
         name: `@${accountName}/${projectName}`,
         identifier: bundleIdentifier,
       });
-      spinner.succeed(`Registered Bundle ID "${bundleIdentifier}"`);
     }
+    spinner.succeed(`Bundle identifier "${bundleIdentifier}" registered`);
+  } catch (err) {
+    if (err.message.match(/An App ID with Identifier '(.*)' is not available/)) {
+      spinner.fail(
+        `The bundle identifier "${bundleIdentifier}" is not available to team "${authCtx.team.name}" (${authCtx.team.id}), please change it in your app config and try again.`
+      );
+    } else {
+      spinner.fail('Failed to register bundle identifier');
+    }
+    throw err;
+  }
 
-    spinner = ora(`Updating app capabilities`).start();
+  try {
+    spinner = ora(`Updating capabilities for "${bundleIdentifier}"`).start();
 
     // Update the capabilities
     await bundleId.updateBundleIdCapabilityAsync({
@@ -44,17 +55,10 @@ export async function ensureAppExistsAsync(
       option: options.enablePushNotifications ? CapabilityTypeOption.ON : CapabilityTypeOption.OFF,
       // TODO: Add more capabilities
     });
-    spinner.succeed(`Updated app capabilities`);
+    spinner.succeed(`Updated capabilities for "${bundleIdentifier}"`);
   } catch (err) {
-    if (err.message.match(/An App ID with Identifier '(.*)' is not available/)) {
-      spinner.fail(
-        `The bundle identifier "${bundleIdentifier}" is not available, please change it in your app config and try again.`
-      );
-    } else {
-      spinner.fail(
-        'Something went wrong when trying to ensure Bundle ID exists on App Store Connect!'
-      );
-    }
+    spinner.fail(`Failed to update capabilities for "${bundleIdentifier}"`);
+
     throw err;
   }
 }

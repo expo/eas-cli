@@ -31,7 +31,7 @@ export class ConfigureProvisioningProfile implements Action {
   public async runAsync(manager: CredentialsManager, ctx: Context): Promise<void> {
     const profile = await ctx.ios.getProvisioningProfileAsync(this.app);
     if (!profile) {
-      throw new Error('No Provisioning Profile to configure.');
+      throw new Error('No provisioning profile to configure');
     }
 
     if (!profile.provisioningProfileId) {
@@ -42,7 +42,7 @@ export class ConfigureProvisioningProfile implements Action {
     if (ctx.appStore.authCtx) {
       const distCert = await ctx.ios.getDistributionCertificateAsync(this.app);
       if (!distCert) {
-        log.warn('There is no Distribution Certificate assigned to this app.');
+        log.warn('There is no distribution certificate for this app.');
         return;
       }
       const profilesFromApple = await ctx.appStore.listProvisioningProfilesAsync(
@@ -58,9 +58,9 @@ export class ConfigureProvisioningProfile implements Action {
       await this.configureAndUpdateAsync(ctx, this.app, distCert, profilesWithMatchingId[0]);
     } else {
       log.warn(
-        "Without access to your Apple account we can't configure Provisioning Profile for you."
+        "Without access to your Apple account we can't configure provisioning profiles for you."
       );
-      log.warn('Make sure to recreate it if you switched to new Distribution Certificate.');
+      log.warn('Make sure to recreate the profile if you selected a new distribution certificate.');
     }
   }
 
@@ -76,11 +76,10 @@ export class ConfigureProvisioningProfile implements Action {
       profileFromApple,
       distCert
     );
+    const certIdTag = distCert.certId ? ` (${distCert.certId})` : '';
     log(
       chalk.green(
-        `Successfully configured Provisioning Profile ${
-          profileFromApple.provisioningProfileId
-        } on Apple Servers with Distribution Certificate ${distCert.certId || ''}`
+        `Updated Apple provisioning profile (${profileFromApple.provisioningProfileId}) with distribution certificate${certIdTag}`
       )
     );
 
@@ -88,7 +87,7 @@ export class ConfigureProvisioningProfile implements Action {
     await ctx.ios.updateProvisioningProfileAsync(app, updatedProfile);
     log(
       chalk.green(
-        `Successfully updated Provisioning Profile for @${app.accountName}/${app.projectName} (${app.bundleIdentifier})`
+        `Updated provisioning profile for @${app.accountName}/${app.projectName} (${app.bundleIdentifier})`
       )
     );
   }
