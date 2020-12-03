@@ -78,7 +78,7 @@ export function transformCertificate(cert: Certificate): DistributionCertificate
 export async function listDistributionCertificatesAsync(
   authCtx: AuthCtx
 ): Promise<DistributionCertificateStoreInfo[]> {
-  const spinner = ora(`Getting Distribution Certificates from Apple...`).start();
+  const spinner = ora(`Fetching Apple distribution certificates`).start();
   try {
     const context = getRequestContext(authCtx);
     const certs = (
@@ -94,10 +94,10 @@ export async function listDistributionCertificatesAsync(
         },
       })
     ).map(transformCertificate);
-    spinner.succeed();
+    spinner.succeed(`Fetched Apple distribution certificates`);
     return certs;
   } catch (error) {
-    spinner.fail();
+    spinner.fail(`Failed to fetch Apple distribution certificates`);
     throw error;
   }
 }
@@ -108,13 +108,13 @@ export async function listDistributionCertificatesAsync(
 export async function createDistributionCertificateAsync(
   authCtx: AuthCtx
 ): Promise<DistributionCertificate> {
-  const spinner = ora(`Creating Distribution Certificate on Apple Servers...`).start();
+  const spinner = ora(`Creating Apple distribution certificate`).start();
   try {
     const context = getRequestContext(authCtx);
     const results = await createCertificateAndP12Async(context, {
       certificateType: CertificateType.IOS_DISTRIBUTION,
     });
-    spinner.succeed();
+    spinner.succeed(`Created Apple distribution certificate`);
     return {
       certId: results.certificate.id,
       certP12: results.certificateP12,
@@ -125,7 +125,7 @@ export async function createDistributionCertificateAsync(
       teamName: authCtx.team.name,
     };
   } catch (error) {
-    spinner.fail('Failed to create Distribution Certificate on Apple Servers');
+    spinner.fail('Failed to create Apple distribution certificate');
     // TODO: Move check into apple-utils
     if (
       /You already have a current .* certificate or a pending certificate request/.test(
@@ -142,14 +142,15 @@ export async function revokeDistributionCertificateAsync(
   authCtx: AuthCtx,
   ids: string[]
 ): Promise<void> {
-  const spinner = ora(`Revoking Distribution Certificate on Apple Servers...`).start();
+  const name = `Apple distribution certificate${ids?.length === 1 ? '' : 's'}`;
+  const spinner = ora(`Revoking ${name}`).start();
   try {
     const context = getRequestContext(authCtx);
     await Promise.all(ids.map(id => Certificate.deleteAsync(context, { id })));
 
-    spinner.succeed();
+    spinner.succeed(`Revoked ${name}`);
   } catch (error) {
-    spinner.fail('Failed to revoke Distribution Certificate on Apple Servers');
+    spinner.fail(`Failed to revoke ${name}`);
     throw error;
   }
 }

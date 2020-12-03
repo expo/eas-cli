@@ -224,7 +224,7 @@ export async function createOrReuseAdhocProvisioningProfileAsync(
   bundleIdentifier: string,
   distCertSerialNumber: string
 ): Promise<ProvisioningProfile> {
-  const spinner = ora(`Handling Adhoc provisioning profiles on Apple Developer Portal...`).start();
+  const spinner = ora(`Handling Apple AdHoc provisioning profiles`).start();
   try {
     const context = getRequestContext(authCtx);
     const {
@@ -252,7 +252,7 @@ export async function createOrReuseAdhocProvisioningProfileAsync(
       teamName: authCtx.team.name,
     };
   } catch (error) {
-    spinner.fail();
+    spinner.fail(`Failed to handle Apple profiles`);
     throw error;
   }
 }

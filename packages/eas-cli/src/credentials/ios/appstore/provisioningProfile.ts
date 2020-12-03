@@ -80,12 +80,13 @@ export async function useExistingProvisioningProfileAsync(
   distCert: DistributionCertificate,
   profileClass: ProfileClass = ProfileClass.General
 ): Promise<ProvisioningProfile> {
-  const spinner = ora(`Configuring existing Provisioning Profiles from Apple...`).start();
+  if (!provisioningProfile.provisioningProfileId) {
+    throw new Error('Provisioning profile: cannot use existing profile, insufficient id');
+  }
+  const spinner = ora(
+    `Updating Apple provisioning profile (${provisioningProfile.provisioningProfileId})`
+  ).start();
   try {
-    if (!provisioningProfile.provisioningProfileId) {
-      throw new Error('Provisioning profile: cannot use existing profile, insufficient id');
-    }
-
     if (!distCert.distCertSerialNumber) {
       distCert.distCertSerialNumber = findP12CertSerialNumber(
         distCert.certP12,
@@ -112,14 +113,16 @@ export async function useExistingProvisioningProfileAsync(
       teamId: authCtx.team.id,
       teamName: authCtx.team.name,
     };
-    spinner.succeed();
+    spinner.succeed(`Updated Apple provisioning profile (${profile.id})`);
     return {
       ...result,
       teamId: authCtx.team.id,
       teamName: authCtx.team.name,
     };
   } catch (error) {
-    spinner.fail();
+    spinner.fail(
+      `Failed to update Apple provisioning profile (${provisioningProfile.provisioningProfileId})`
+    );
     throw error;
   }
 }
@@ -129,7 +132,7 @@ export async function listProvisioningProfilesAsync(
   bundleIdentifier: string,
   profileClass: ProfileClass = ProfileClass.General
 ): Promise<ProvisioningProfileStoreInfo[]> {
-  const spinner = ora(`Getting Provisioning Profiles from Apple...`).start();
+  const spinner = ora(`Fetching Apple provisioning profiles`).start();
   try {
     const context = getRequestContext(authCtx);
     const profileType = resolveProfileType(profileClass, authCtx.team.inHouse);
@@ -141,10 +144,10 @@ export async function listProvisioningProfilesAsync(
       profiles.map(profile => transformProfileAsync(profile, authCtx))
     );
 
-    spinner.succeed();
+    spinner.succeed(`Fetched Apple provisioning profiles`);
     return result;
   } catch (error) {
-    spinner.fail();
+    spinner.fail(`Failed to fetch Apple provisioning profiles`);
     throw error;
   }
 }
@@ -156,7 +159,7 @@ export async function createProvisioningProfileAsync(
   profileName: string,
   profileClass: ProfileClass = ProfileClass.General
 ): Promise<ProvisioningProfile> {
-  const spinner = ora(`Creating Provisioning Profile on Apple Servers...`).start();
+  const spinner = ora(`Creating Apple provisioning profile`).start();
   try {
     if (!distCert.distCertSerialNumber) {
       distCert.distCertSerialNumber = findP12CertSerialNumber(
@@ -185,10 +188,10 @@ export async function createProvisioningProfileAsync(
 
     const result = await transformProfileAsync(profile, authCtx);
 
-    spinner.succeed();
+    spinner.succeed('Created Apple provisioning profile');
     return result;
   } catch (error) {
-    spinner.fail('Failed to create Provisioning Profile on Apple Servers');
+    spinner.fail('Failed to create Apple provisioning profile');
     throw error;
   }
 }
@@ -198,7 +201,7 @@ export async function revokeProvisioningProfileAsync(
   bundleIdentifier: string,
   profileClass: ProfileClass = ProfileClass.General
 ): Promise<void> {
-  const spinner = ora(`Revoking Provisioning Profile on Apple Servers...`).start();
+  const spinner = ora(`Revoking Apple provisioning profile`).start();
   try {
     const context = getRequestContext(authCtx);
 
@@ -209,9 +212,9 @@ export async function revokeProvisioningProfileAsync(
         .filter(profile => profile.attributes.profileType === profileType)
         .map(profile => Profile.deleteAsync(context, { id: profile.id }))
     );
-    spinner.succeed();
+    spinner.succeed('Revoked Apple provisioning profile');
   } catch (error) {
-    spinner.fail('Failed to revoke Provisioning Profile on Apple Servers');
+    spinner.fail('Failed to revoke Apple provisioning profile');
     throw error;
   }
 }
