@@ -1,6 +1,6 @@
 import log from '../log';
 import { promptAsync } from '../prompts';
-import { RobotUser, User, getUserAsync, loginAsync } from './User';
+import { Actor, getUserAsync, loginAsync } from './User';
 
 export async function showLoginPromptAsync(): Promise<void> {
   const { username, password } = await promptAsync([
@@ -21,8 +21,8 @@ export async function showLoginPromptAsync(): Promise<void> {
   });
 }
 
-export async function ensureLoggedInAsync(): Promise<User | RobotUser> {
-  let user: User | RobotUser | undefined;
+export async function ensureLoggedInAsync(): Promise<Actor> {
+  let user: Actor | undefined;
   try {
     user = await getUserAsync();
   } catch (_) {}
@@ -39,4 +39,27 @@ export async function ensureLoggedInAsync(): Promise<User | RobotUser> {
   }
 
   return user;
+}
+
+/**
+ * Resolve the name of the actor, either normal user or robot user.
+ * This should be used whenever the "current user" needs to be displayed.
+ * The display name CANNOT be used as project owner.
+ */
+export function getActorDisplayName(user?: Actor): string {
+  switch (user?.__typename) {
+    case 'User':
+      return user.username;
+    case 'Robot':
+      return user.firstName ? `${user.firstName} (robot)` : 'robot';
+    default:
+      return 'anonymous';
+  }
+}
+
+export function ensureActorHasUsername(user: Actor) {
+  if (user.__typename === 'User') {
+    return user.username;
+  }
+  throw new Error('This action is not supported for robot users.');
 }

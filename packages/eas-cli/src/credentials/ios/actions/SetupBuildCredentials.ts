@@ -33,7 +33,8 @@ export class SetupBuildCredentials implements Action {
     let iosAppBuildCredentials: IosAppBuildCredentials | null = null;
     try {
       if (this.distribution === DistributionType.INTERNAL) {
-        const account = findAccountByName(ctx.user.accounts, this.app.accountName);
+        // todo(cedric): check if we can make `meActor.accounts` a non-nullable array (or always a non-nullable array)
+        const account = findAccountByName(ctx.user.accounts ?? [], this.app.accountName);
         if (!account) {
           throw new Error(`You do not have access to the ${this.app.accountName} account`);
         }

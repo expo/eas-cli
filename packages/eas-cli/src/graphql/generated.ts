@@ -51,6 +51,8 @@ export type RootQuery = {
    */
   allPublicApps?: Maybe<Array<Maybe<App>>>;
   asset: AssetQuery;
+  /** Top-level query object for querying BuildPublicData publicly. */
+  buildPublicData: BuildPublicDataQuery;
   buildJobs: BuildJobQuery;
   builds: BuildQuery;
   clientBuilds: ClientBuildQuery;
@@ -517,6 +519,11 @@ export type User = Actor & {
   hasPendingUserInvitations: Scalars['Boolean'];
   /** Pending UserInvitations for this user. Only resolves for the viewer. */
   pendingUserInvitations: Array<Maybe<UserInvitation>>;
+  /**
+   * Server feature gate values for this actor, optionally filtering by desired gates.
+   * Only resolves for the viewer.
+   */
+  featureGates: Scalars['JSONObject'];
 };
 
 
@@ -540,6 +547,12 @@ export type UserLikesArgs = {
   limit: Scalars['Int'];
 };
 
+
+/** Represents a human (not robot) actor. */
+export type UserFeatureGatesArgs = {
+  filter?: Maybe<Array<Scalars['String']>>;
+};
+
 /** A user or robot that can authenticate with Expo services and be a member of accounts. */
 export type Actor = {
   id: Scalars['ID'];
@@ -550,6 +563,17 @@ export type Actor = {
   accounts?: Maybe<Array<Maybe<Account>>>;
   /** Access Tokens belonging to this actor */
   accessTokens?: Maybe<Array<Maybe<AccessToken>>>;
+  /**
+   * Server feature gate values for this actor, optionally filtering by desired gates.
+   * Only resolves for the viewer.
+   */
+  featureGates: Scalars['JSONObject'];
+};
+
+
+/** A user or robot that can authenticate with Expo services and be a member of accounts. */
+export type ActorFeatureGatesArgs = {
+  filter?: Maybe<Array<Scalars['String']>>;
 };
 
 /** A method of authentication for an Actor */
@@ -564,6 +588,7 @@ export type AccessToken = {
   owner: Actor;
   note?: Maybe<Scalars['String']>;
 };
+
 
 /** A second factor device belonging to a User */
 export type UserSecondFactorDevice = {
@@ -656,12 +681,13 @@ export type Build = ActivityTimelineProjectActivity & {
   logFiles?: Maybe<Array<Maybe<Scalars['String']>>>;
   updatedAt?: Maybe<Scalars['DateTime']>;
   createdAt?: Maybe<Scalars['DateTime']>;
-  status?: Maybe<BuildStatus>;
+  status: BuildStatus;
   expirationDate?: Maybe<Scalars['DateTime']>;
-  platform?: Maybe<AppPlatform>;
+  platform: AppPlatform;
   appVersion?: Maybe<Scalars['String']>;
   sdkVersion?: Maybe<Scalars['String']>;
   releaseChannel?: Maybe<Scalars['String']>;
+  distribution?: Maybe<DistributionType>;
 };
 
 export type ActivityTimelineProjectActivity = {
@@ -675,6 +701,11 @@ export type BuildArtifacts = {
   buildUrl?: Maybe<Scalars['String']>;
   xcodeBuildLogsUrl?: Maybe<Scalars['String']>;
 };
+
+export enum DistributionType {
+  Store = 'STORE',
+  Internal = 'INTERNAL'
+}
 
 export type IosAppCredentialsFilter = {
   appleAppIdentifierId?: Maybe<Scalars['String']>;
@@ -964,7 +995,7 @@ export type BuildJob = ActivityTimelineProjectActivity & {
   fullExperienceName?: Maybe<Scalars['String']>;
   status?: Maybe<BuildJobStatus>;
   expirationDate?: Maybe<Scalars['DateTime']>;
-  platform?: Maybe<AppPlatform>;
+  platform: AppPlatform;
   sdkVersion?: Maybe<Scalars['String']>;
   releaseChannel?: Maybe<Scalars['String']>;
 };
@@ -1153,6 +1184,33 @@ export enum AssetMetadataStatus {
   Exists = 'EXISTS',
   DoesNotExist = 'DOES_NOT_EXIST'
 }
+
+export type BuildPublicDataQuery = {
+  __typename?: 'BuildPublicDataQuery';
+  /** Get BuildPublicData by ID */
+  byId?: Maybe<BuildPublicData>;
+};
+
+
+export type BuildPublicDataQueryByIdArgs = {
+  id: Scalars['ID'];
+};
+
+/** Publicly visible data for a Build. */
+export type BuildPublicData = {
+  __typename?: 'BuildPublicData';
+  id: Scalars['ID'];
+  status: BuildStatus;
+  project: ProjectPublicData;
+  platform: AppPlatform;
+  distribution?: Maybe<DistributionType>;
+};
+
+export type ProjectPublicData = {
+  __typename?: 'ProjectPublicData';
+  id: Scalars['ID'];
+  fullName: Scalars['String'];
+};
 
 export type BuildJobQuery = {
   __typename?: 'BuildJobQuery';
@@ -2031,6 +2089,17 @@ export type Robot = Actor & {
   accounts?: Maybe<Array<Maybe<Account>>>;
   /** Access Tokens belonging to this actor */
   accessTokens?: Maybe<Array<Maybe<AccessToken>>>;
+  /**
+   * Server feature gate values for this actor, optionally filtering by desired gates.
+   * Only resolves for the viewer.
+   */
+  featureGates: Scalars['JSONObject'];
+};
+
+
+/** Represents a robot (not human) actor. */
+export type RobotFeatureGatesArgs = {
+  filter?: Maybe<Array<Scalars['String']>>;
 };
 
 export type DeleteRobotResult = {
@@ -2412,7 +2481,6 @@ export type SecondFactorRegenerateBackupCodesResult = {
   plaintextBackupCodes: Array<Maybe<Scalars['String']>>;
 };
 
-
 export type BaseSearchResult = SearchResult & {
   __typename?: 'BaseSearchResult';
   /** @deprecated Use SearchResult instead */
@@ -2518,14 +2586,21 @@ export type Unnamed_1_Query = (
   ) }
 );
 
-export type Unnamed_2_QueryVariables = Exact<{ [key: string]: never; }>;
+export type CurrentUserQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type Unnamed_2_Query = (
+export type CurrentUserQuery = (
   { __typename?: 'RootQuery' }
-  & { viewer?: Maybe<(
-    { __typename?: 'User' }
-    & Pick<User, 'id' | 'username'>
+  & { meActor?: Maybe<(
+    { __typename: 'User' }
+    & Pick<User, 'username' | 'id' | 'isExpoAdmin'>
+    & { accounts?: Maybe<Array<Maybe<(
+      { __typename?: 'Account' }
+      & Pick<Account, 'id' | 'name'>
+    )>>> }
+  ) | (
+    { __typename: 'Robot' }
+    & Pick<Robot, 'firstName' | 'id' | 'isExpoAdmin'>
     & { accounts?: Maybe<Array<Maybe<(
       { __typename?: 'Account' }
       & Pick<Account, 'id' | 'name'>

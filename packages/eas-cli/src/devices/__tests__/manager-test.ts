@@ -1,7 +1,7 @@
 import prompts from 'prompts';
 
 import { asMock } from '../../__tests__/utils';
-import { User } from '../../user/User';
+import { Actor } from '../../user/User';
 import { AccountResolver } from '../manager';
 
 jest.mock('prompts');
@@ -22,9 +22,9 @@ beforeEach(() => {
 
 describe(AccountResolver, () => {
   describe('#resolveAccountAsync', () => {
-    const user: User = {
-      kind: 'user',
-      userId: 'user_id_666',
+    const user: Actor = {
+      __typename: 'User',
+      id: 'user_id_666',
       username: 'dominik',
       accounts: [
         { id: 'account_id_777', name: 'dominik' },
@@ -42,7 +42,7 @@ describe(AccountResolver, () => {
 
         const resolver = new AccountResolver(projectDir, user);
         const account = await resolver.resolveAccountAsync();
-        expect(account).toEqual(user.accounts[1]);
+        expect(account).toEqual(user.accounts![1]);
       });
 
       it('asks the user to choose the account from his account list if he rejects to use the one defined in app.json / app.config.js', async () => {
@@ -50,22 +50,22 @@ describe(AccountResolver, () => {
           useProjectAccount: false,
         }));
         asMock(prompts).mockImplementationOnce(() => ({
-          account: user.accounts[0],
+          account: user.accounts![0],
         }));
 
         const resolver = new AccountResolver(projectDir, user);
         const account = await resolver.resolveAccountAsync();
-        expect(account).toEqual(user.accounts[0]);
+        expect(account).toEqual(user.accounts![0]);
       });
 
       it(`asks the user to choose the account from his account list if he doesn't have access to the account defined in app.json / app.config.js`, async () => {
         asMock(prompts).mockImplementationOnce(() => ({
-          account: user.accounts[0],
+          account: user.accounts![0],
         }));
 
-        const userWithAccessToProjectAccount: User = {
+        const userWithAccessToProjectAccount: Actor = {
           ...user,
-          accounts: [user.accounts[0]],
+          accounts: [user.accounts![0]],
         };
 
         const originalConsoleWarn = console.warn;
@@ -73,7 +73,7 @@ describe(AccountResolver, () => {
 
         const resolver = new AccountResolver(projectDir, userWithAccessToProjectAccount);
         const account = await resolver.resolveAccountAsync();
-        expect(account).toEqual(user.accounts[0]);
+        expect(account).toEqual(user.accounts![0]);
         expect(console.warn).toBeCalledWith(expect.stringMatching(/doesn't have access to the/));
 
         console.warn = originalConsoleWarn;
@@ -83,12 +83,12 @@ describe(AccountResolver, () => {
     describe('when outside project dir', () => {
       it('asks the user to choose the account from his account list', async () => {
         asMock(prompts).mockImplementationOnce(() => ({
-          account: user.accounts[0],
+          account: user.accounts![0],
         }));
 
         const resolver = new AccountResolver(null, user);
         const account = await resolver.resolveAccountAsync();
-        expect(account).toEqual(user.accounts[0]);
+        expect(account).toEqual(user.accounts![0]);
       });
     });
   });

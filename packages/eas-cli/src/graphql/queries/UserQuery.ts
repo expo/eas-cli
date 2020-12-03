@@ -1,23 +1,19 @@
 import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../client';
-import { Account, Robot, User } from '../generated';
-
-type CurrentUserQueryResult = { accounts: Pick<Account, 'id' | 'name'>[] } & (
-  | Pick<User, '__typename' | 'id' | 'username'>
-  | Pick<Robot, '__typename' | 'id' | 'firstName'>
-);
+import { CurrentUserQuery } from '../generated';
 
 const UserQuery = {
-  async currentUserAsync(): Promise<CurrentUserQueryResult | null> {
+  async currentUserAsync(): Promise<CurrentUserQuery['meActor']> {
     const data = await withErrorHandlingAsync(
       graphqlClient
-        .query<{ meActor: CurrentUserQueryResult | null }>(
+        .query<CurrentUserQuery>(
           gql`
-            {
+            query CurrentUser {
               meActor {
                 __typename
                 id
+                isExpoAdmin
                 ... on User {
                   username
                 }

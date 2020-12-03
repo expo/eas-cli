@@ -2,50 +2,21 @@ import gql from 'graphql-tag';
 
 import { apiClient } from '../api';
 import { graphqlClient } from '../graphql/client';
+import { CurrentUserQuery } from '../graphql/generated';
 import { UserQuery } from '../graphql/queries/UserQuery';
-import { Account } from './Account';
 import { getAccessToken, getSessionSecret, setSessionAsync } from './sessionStorage';
 
 // Re-export, but keep in separate file to avoid dependency cycle
 export { getSessionSecret, getAccessToken };
 
-export interface User {
-  kind: 'user';
-  userId: string;
-  username: string;
-  accounts: Account[];
-}
+export type Actor = NonNullable<CurrentUserQuery['meActor']>;
 
-export interface RobotUser {
-  kind: 'robot';
-  userId: string;
-  firstName?: string;
-  accounts: Account[];
-  // Generated username to display as "authenticated user", it's either `robot` or `{firstName} (robot)`
-  username: string;
-}
+let currentUser: Actor | undefined;
 
-let currentUser: User | RobotUser | undefined;
-
-export async function getUserAsync(): Promise<User | RobotUser | undefined> {
+export async function getUserAsync(): Promise<Actor | undefined> {
   if (!currentUser && (getAccessToken() || getSessionSecret())) {
     const user = await UserQuery.currentUserAsync();
-    if (user?.__typename === 'User') {
-      currentUser = {
-        kind: 'user',
-        userId: user.id,
-        username: user.username,
-        accounts: user.accounts,
-      };
-    } else if (user?.__typename === 'Robot') {
-      currentUser = {
-        kind: 'robot',
-        userId: user.id,
-        firstName: user.firstName ?? undefined,
-        username: user.firstName ? `${user.firstName} (robot)` : 'robot',
-        accounts: user.accounts,
-      }
-    }
+    currentUser = user ?? undefined;
   }
   return currentUser;
 }

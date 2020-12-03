@@ -2,7 +2,7 @@ import { ExpoConfig, getConfig } from '@expo/config';
 import { AndroidBuildProfile, EasConfig, iOSBuildProfile } from '@expo/eas-json';
 
 import { getProjectAccountNameAsync } from '../project/projectUtils';
-import { RobotUser, User } from '../user/User';
+import { Actor } from '../user/User';
 import { ensureLoggedInAsync } from '../user/actions';
 import { Platform, RequestedPlatform, TrackingContext } from './types';
 
@@ -11,7 +11,7 @@ export interface CommandContext {
   profile: string;
   projectDir: string;
   projectId: string;
-  user: User | RobotUser;
+  user: Actor;
   accountName: string;
   projectName: string;
   exp: ExpoConfig;
@@ -66,7 +66,7 @@ export async function createCommandContextAsync({
 }
 
 export interface ConfigureContext {
-  user: User | RobotUser;
+  user: Actor;
   projectDir: string;
   exp: ExpoConfig;
   allowExperimental: boolean;

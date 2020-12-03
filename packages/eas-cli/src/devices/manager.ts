@@ -8,7 +8,8 @@ import log from '../log';
 import { getProjectAccountNameAsync } from '../project/projectUtils';
 import { Choice, confirmAsync, promptAsync } from '../prompts';
 import { Account, findAccountByName } from '../user/Account';
-import { RobotUser, User } from '../user/User';
+import { Actor } from '../user/User';
+import { getActorDisplayName } from '../user/actions';
 import DeviceCreateAction from './actions/create/action';
 import { DeviceManagerContext } from './context';
 
@@ -44,7 +45,7 @@ export default class DeviceManager {
 }
 
 export class AccountResolver {
-  constructor(private projectDir: string | null, private user: User | RobotUser) {}
+  constructor(private projectDir: string | null, private user: Actor) {}
 
   public async resolveAccountAsync(): Promise<Account> {
     if (this.projectDir) {
@@ -60,10 +61,10 @@ export class AccountResolver {
     assert(this.projectDir, 'project directory is not set ');
 
     const projectAccountName = await getProjectAccountNameAsync(this.projectDir);
-    const projectAccount = findAccountByName(this.user.accounts, projectAccountName);
+    const projectAccount = findAccountByName(this.user.accounts ?? [], projectAccountName);
     if (!projectAccount) {
       log.warn(
-        `Your user (${this.user.username}) doesn't have access to the ${chalk.bold(
+        `Your user (${getActorDisplayName(this.user)}) doesn't have access to the ${chalk.bold(
           projectAccountName
         )} account`
       );
@@ -82,8 +83,8 @@ export class AccountResolver {
   }
 
   private async promptForAccountAsync(): Promise<Account> {
-    const choices: Choice[] = this.user.accounts.map(account => ({
-      title: account.name,
+    const choices: Choice[] = (this.user.accounts ?? []).filter(Boolean).map(account => ({
+      title: account!.name,
       value: account,
     }));
     const { account } = await promptAsync({
