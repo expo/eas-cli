@@ -41,7 +41,7 @@ export class ManageIos implements Action {
     const projectSpecificActions: { value: ActionType; title: string }[] = ctx.hasProjectContext
       ? [
           {
-            // This command will be triggered durring build to ensure all credentials are ready
+            // This command will be triggered during build to ensure all credentials are ready
             // I'm leaving it here for now to simplify testing
             value: ActionType.SetupBuildCredentials,
             title: 'Ensure all credentials for project are valid',

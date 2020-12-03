@@ -12,7 +12,7 @@ import {
 import { promptAsync } from '../../prompts';
 import { Platform } from '../types';
 
-enum BundleIdenitiferSource {
+enum BundleIdentiferSource {
   XcodeProject,
   AppJson,
 }
@@ -64,23 +64,23 @@ However, if you choose the one defined in the Xcode project you'll have to updat
         choices: [
           {
             title: `${chalk.bold(bundleIdentifierFromPbxproj)} - In Xcode project`,
-            value: BundleIdenitiferSource.XcodeProject,
+            value: BundleIdentiferSource.XcodeProject,
           },
           {
             title: `${chalk.bold(bundleIdentifierFromConfig)} - In your ${configDescription}`,
-            value: BundleIdenitiferSource.AppJson,
+            value: BundleIdentiferSource.AppJson,
           },
         ],
       });
       switch (bundleIdentifierSource) {
-        case BundleIdenitiferSource.AppJson: {
+        case BundleIdentiferSource.AppJson: {
           IOSConfig.BundleIdenitifer.setBundleIdentifierForPbxproj(
             projectDir,
             bundleIdentifierFromConfig
           );
           break;
         }
-        case BundleIdenitiferSource.XcodeProject: {
+        case BundleIdentiferSource.XcodeProject: {
           if (hasBundleIdentifierInStaticConfig) {
             await updateAppJsonConfigAsync(projectDir, exp, bundleIdentifierFromPbxproj);
           } else {

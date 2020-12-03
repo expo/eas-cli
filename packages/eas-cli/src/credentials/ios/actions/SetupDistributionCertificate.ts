@@ -29,7 +29,7 @@ export class SetupDistributionCertificateForApp implements Action {
       return;
     }
 
-    // autoselect creds if we find valid certs
+    // autoselect credentials if we find valid certs
     const autoselectedCertificate = existingCertificates[0];
 
     if (!ctx.nonInteractive) {

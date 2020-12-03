@@ -103,7 +103,7 @@ However, if you choose the one defined in the Android project you'll have to upd
   } else if (!applicationIdFromAndroidProject && applicationIdFromConfig) {
     // This should never happen, adding warning just in case
     log.warn(
-      'applicationId is not specified in your ./android/app/build.gradle file. Make sure your project is confgured correctly before building.'
+      'applicationId is not specified in your ./android/app/build.gradle file. Make sure your project is configured correctly before building.'
     );
     return;
   }

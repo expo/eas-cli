@@ -11,6 +11,6 @@ export default class AccountLogin extends Command {
   async run() {
     log('Log in to EAS');
     await showLoginPromptAsync();
-    log('Logged in.');
+    log('Logged in');
   }
 }

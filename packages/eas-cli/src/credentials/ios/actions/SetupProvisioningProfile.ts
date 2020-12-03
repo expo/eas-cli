@@ -46,7 +46,7 @@ export class SetupProvisioningProfile implements Action {
     assert(distCert, 'missing Distribution Certificate');
 
     const autoselectedProfile = this.choosePreferred(existingProfiles, distCert);
-    // autoselect creds if we find valid certs
+    // autoselect credentials if we find valid certs
 
     if (!ctx.nonInteractive) {
       const confirm = await confirmAsync({
