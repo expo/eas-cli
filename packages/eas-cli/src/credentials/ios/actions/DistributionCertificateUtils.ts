@@ -151,7 +151,7 @@ export async function selectDistributionCertificateAsync(
     options.filterInvalid && validDistCredentials ? validDistCredentials : distCredentials;
 
   if (distCredentials.length === 0) {
-    log.warn('There are no Distribution Certificates available in your EAS account.');
+    log.warn('There are no Distribution Certificates available in your Expo account.');
     return null;
   }
 

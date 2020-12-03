@@ -53,7 +53,7 @@ export async function selectProvisioningProfileFromExpoAsync(
     ({ credentials }) => !!credentials.provisioningProfile && !!credentials.provisioningProfileId
   );
   if (profiles.length === 0) {
-    log.warn('There are no Provisioning Profiles available in your EAS account.');
+    log.warn('There are no Provisioning Profiles available in your Expo account.');
     return null;
   }
 
