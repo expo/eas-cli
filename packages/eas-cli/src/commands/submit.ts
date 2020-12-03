@@ -1,4 +1,5 @@
 import { Command, flags } from '@oclif/command';
+import chalk from 'chalk';
 
 import log, { learnMore } from '../log';
 import { isEasEnabledForProjectAsync } from '../project/isEasEnabledForProject';
@@ -169,8 +170,8 @@ export default class BuildSubmit extends Command {
     const projectId = await getProjectIdAsync(projectDir);
 
     if (!(await isEasEnabledForProjectAsync(projectId))) {
-      log.error(
-        `Your account does not have access to Expo Application Services (EAS) features. Please enroll in EAS to give it a try. ${learnMore(
+      log.warn(
+        `Your account doesn't have access to Expo Application Services (EAS) features. Enroll in EAS to give it a try: ${chalk.underline(
           'https://expo.io/eas'
         )}`
       );
