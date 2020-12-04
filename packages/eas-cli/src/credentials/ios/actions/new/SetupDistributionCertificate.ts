@@ -66,7 +66,7 @@ export class SetupDistributionCertificate implements Action {
     );
     const isValid = validCertSerialNumbers.includes(currentCertificate.serialNumber);
     if (!isValid) {
-      log.warn("Current Distribution Certificate is no longer valid on Apple's server");
+      log.warn('Current distribution certificate is no longer valid in Apple Dev Portal');
     }
     return isValid;
   }
@@ -79,20 +79,20 @@ export class SetupDistributionCertificate implements Action {
     const autoselectedDistCert = validDistCerts[0];
 
     const useAutoselected = await confirmAsync({
-      message: `Would you to reuse this distribution certificate?\n${formatDistributionCertificate(
+      message: `Reuse this distribution certificate?\n${formatDistributionCertificate(
         autoselectedDistCert
       )}`,
     });
 
     if (useAutoselected) {
-      log(`Using Distribution Certificate with serial number ${autoselectedDistCert.serialNumber}`);
+      log(`Using distribution certificate with serial number ${autoselectedDistCert.serialNumber}`);
       return autoselectedDistCert;
     }
 
     const { action } = await promptAsync({
       type: 'select',
       name: 'action',
-      message: 'Select the iOS Distribution Certificate to use for code signing:',
+      message: 'Select the iOS distribution certificate to use for code signing:',
       choices: [
         {
           title: '[Choose another existing certificate] (Recommended)',
