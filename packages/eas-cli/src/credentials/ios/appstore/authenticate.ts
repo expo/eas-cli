@@ -103,6 +103,9 @@ export async function authenticateAsync(options: Options = {}): Promise<AuthCtx>
         // Don't pass credentials back or the method will throw
         return authenticateAsync({ teamId: options.teamId });
       }
+    } else if (error.message === 'ABORTED') {
+      // User aborted an input, kill the process without an error message.
+      process.exit(1);
     }
     log(chalk.red('Authentication with Apple Developer Portal failed!'));
     throw error;
