@@ -8,7 +8,7 @@ import AndroidCredentialsProvider, {
 import { createCredentialsContextAsync } from '../../credentials/context';
 import log from '../../log';
 import { toggleConfirmAsync } from '../../prompts';
-import { CredentialsResult, startBuildForPlatformAsync } from '../build';
+import { CredentialsResult, prepareBuildRequestForPlatformAsync } from '../build';
 import { BuildContext, CommandContext, createBuildContext } from '../context';
 import { ensureCredentialsAsync } from '../credentials';
 import { Platform } from '../types';
@@ -16,10 +16,10 @@ import { ensureApplicationIdIsValidAsync } from './applicationId';
 import { validateAndSyncProjectConfigurationAsync } from './configure';
 import { prepareJobAsync } from './prepareJob';
 
-export async function startAndroidBuildAsync(
+export async function prepareAndroidBuildAsync(
   commandCtx: CommandContext,
   easConfig: EasConfig
-): Promise<string> {
+): Promise<() => Promise<string>> {
   const buildCtx = createBuildContext<Platform.Android>({
     commandCtx,
     platform: Platform.Android,
@@ -49,7 +49,7 @@ This means that it will most likely produce an AAB and you will not be able to i
 
   await ensureApplicationIdIsValidAsync(commandCtx.projectDir);
 
-  return await startBuildForPlatformAsync({
+  return await prepareBuildRequestForPlatformAsync({
     ctx: buildCtx,
     projectConfiguration: {},
     ensureCredentialsAsync: ensureAndroidCredentialsAsync,

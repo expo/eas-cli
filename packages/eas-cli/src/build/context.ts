@@ -4,10 +4,10 @@ import { AndroidBuildProfile, EasConfig, iOSBuildProfile } from '@expo/eas-json'
 import { getProjectAccountNameAsync } from '../project/projectUtils';
 import { User } from '../user/User';
 import { ensureLoggedInAsync } from '../user/actions';
-import { BuildCommandPlatform, Platform, TrackingContext } from './types';
+import { Platform, RequestedPlatform, TrackingContext } from './types';
 
 export interface CommandContext {
-  requestedPlatform: BuildCommandPlatform;
+  requestedPlatform: RequestedPlatform;
   profile: string;
   projectDir: string;
   projectId: string;
@@ -33,7 +33,7 @@ export async function createCommandContextAsync({
   skipProjectConfiguration = false,
   waitForBuildEnd,
 }: {
-  requestedPlatform: BuildCommandPlatform;
+  requestedPlatform: RequestedPlatform;
   profile: string;
   projectId: string;
   projectDir: string;
@@ -70,7 +70,7 @@ export interface ConfigureContext {
   projectDir: string;
   exp: ExpoConfig;
   allowExperimental: boolean;
-  requestedPlatform: BuildCommandPlatform;
+  requestedPlatform: RequestedPlatform;
   shouldConfigureAndroid: boolean;
   shouldConfigureIos: boolean;
   hasAndroidNativeProject: boolean;

@@ -1,6 +1,7 @@
-import { Platform } from '@expo/eas-build-job';
+import { RequestedPlatform } from './types';
 
 export const platformDisplayNames = {
-  [Platform.iOS]: 'iOS',
-  [Platform.Android]: 'Android',
+  [RequestedPlatform.iOS]: 'iOS',
+  [RequestedPlatform.Android]: 'Android',
+  [RequestedPlatform.All]: 'Android and iOS',
 };
