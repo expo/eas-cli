@@ -8,47 +8,40 @@ EAS command line tool
 [![License](https://img.shields.io/npm/l/eas-cli.svg)](https://github.com/expo/eas-cli/blob/main/package.json)
 
 <!-- toc -->
-
-- [eas-cli](#eas-cli)
-- [Usage](#usage)
-- [Commands](#commands)
+* [eas-cli](#eas-cli)
+* [Usage](#usage)
+* [Commands](#commands)
 <!-- tocstop -->
 
 # Usage
 
 <!-- usage -->
-
 ```sh-session
 $ npm install -g eas-cli
 $ eas COMMAND
 running command...
 $ eas (-v|--version|version)
-eas-cli/0.1.0-alpha.10 darwin-x64 node-v12.13.0
+eas-cli/0.1.0-alpha.11 darwin-x64 node-v14.15.0
 $ eas --help [COMMAND]
 USAGE
   $ eas COMMAND
 ...
 ```
-
 <!-- usagestop -->
 
 # Commands
 
 <!-- commands -->
-
-- [`eas account:login`](#eas-accountlogin)
-- [`eas account:logout`](#eas-accountlogout)
-- [`eas account:view`](#eas-accountview)
-- [`eas build`](#eas-build)
-- [`eas build:configure`](#eas-buildconfigure)
-- [`eas build:create`](#eas-buildcreate)
-- [`eas build:status`](#eas-buildstatus)
-- [`eas credentials`](#eas-credentials)
-- [`eas device:create`](#eas-devicecreate)
-- [`eas help [COMMAND]`](#eas-help-command)
-- [`eas release:create [RELEASENAME]`](#eas-releasecreate-releasename)
-- [`eas submit --platform=(android|ios)`](#eas-submit---platformandroidios)
-- [`eas update:show`](#eas-updateshow)
+* [`eas account:login`](#eas-accountlogin)
+* [`eas account:logout`](#eas-accountlogout)
+* [`eas account:view`](#eas-accountview)
+* [`eas build`](#eas-build)
+* [`eas build:configure`](#eas-buildconfigure)
+* [`eas build:status`](#eas-buildstatus)
+* [`eas credentials`](#eas-credentials)
+* [`eas device:create`](#eas-devicecreate)
+* [`eas help [COMMAND]`](#eas-help-command)
+* [`eas submit --platform=(android|ios)`](#eas-submit---platformandroidios)
 
 ## `eas account:login`
 
@@ -62,7 +55,7 @@ ALIASES
   $ eas login
 ```
 
-_See code: [build/commands/account/login.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.10/build/commands/account/login.ts)_
+_See code: [build/commands/account/login.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.11/build/commands/account/login.ts)_
 
 ## `eas account:logout`
 
@@ -76,7 +69,7 @@ ALIASES
   $ eas logout
 ```
 
-_See code: [build/commands/account/logout.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.10/build/commands/account/logout.ts)_
+_See code: [build/commands/account/logout.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.11/build/commands/account/logout.ts)_
 
 ## `eas account:view`
 
@@ -90,18 +83,26 @@ ALIASES
   $ eas whoami
 ```
 
-_See code: [build/commands/account/view.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.10/build/commands/account/view.ts)_
+_See code: [build/commands/account/view.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.11/build/commands/account/view.ts)_
 
 ## `eas build`
 
-build an app binary for your project
+Start a build
 
 ```
 USAGE
   $ eas build
+
+OPTIONS
+  -p, --platform=(android|ios|all)
+  --non-interactive                 Run command in --non-interactive mode
+  --profile=profile                 [default: release] Name of the build profile from eas.json
+  --skip-credentials-check          Skip validation of build credentials
+  --skip-project-configuration      Skip project configuration
+  --wait                            Wait for build(s) to complete
 ```
 
-_See code: [build/commands/build/index.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.10/build/commands/build/index.ts)_
+_See code: [build/commands/build/index.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.11/build/commands/build/index.ts)_
 
 ## `eas build:configure`
 
@@ -112,29 +113,11 @@ USAGE
   $ eas build:configure
 
 OPTIONS
-  -p, --platform=(android|ios|all)  [default: all] Platform to configure
+  -p, --platform=(android|ios|all)  Platform to configure
+  --allow-experimental              Enable experimental configuration steps.
 ```
 
-_See code: [build/commands/build/configure.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.10/build/commands/build/configure.ts)_
-
-## `eas build:create`
-
-Start a build
-
-```
-USAGE
-  $ eas build:create
-
-OPTIONS
-  -p, --platform=(android|ios|all)  (required)
-  --non-interactive                 Run command in --non-interactive mode
-  --profile=profile                 [default: release] Name of the build profile from eas.json
-  --skip-credentials-check          Skip validation of build credentials
-  --skip-project-configuration      Skip project configuration
-  --wait                            Wait for build(s) to complete
-```
-
-_See code: [build/commands/build/create.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.10/build/commands/build/create.ts)_
+_See code: [build/commands/build/configure.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.11/build/commands/build/configure.ts)_
 
 ## `eas build:status`
 
@@ -149,7 +132,7 @@ OPTIONS
   --status=(in-queue|in-progress|errored|finished)
 ```
 
-_See code: [build/commands/build/status.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.10/build/commands/build/status.ts)_
+_See code: [build/commands/build/status.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.11/build/commands/build/status.ts)_
 
 ## `eas credentials`
 
@@ -160,7 +143,7 @@ USAGE
   $ eas credentials
 ```
 
-_See code: [build/commands/credentials.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.10/build/commands/credentials.ts)_
+_See code: [build/commands/credentials.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.11/build/commands/credentials.ts)_
 
 ## `eas device:create`
 
@@ -171,7 +154,7 @@ USAGE
   $ eas device:create
 ```
 
-_See code: [build/commands/device/create.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.10/build/commands/device/create.ts)_
+_See code: [build/commands/device/create.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.11/build/commands/device/create.ts)_
 
 ## `eas help [COMMAND]`
 
@@ -190,23 +173,6 @@ OPTIONS
 
 _See code: [@oclif/plugin-help](https://github.com/oclif/plugin-help/blob/v3.2.0/src/commands/help.ts)_
 
-## `eas release:create [RELEASENAME]`
-
-Create a release on the current project.
-
-```
-USAGE
-  $ eas release:create [RELEASENAME]
-
-ARGUMENTS
-  RELEASENAME  Name of the release to create
-
-OPTIONS
-  --json  return a json with the new release ID and name.
-```
-
-_See code: [build/commands/release/create.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.10/build/commands/release/create.ts)_
-
 ## `eas submit --platform=(android|ios)`
 
 Submits build artifact to app store
@@ -216,8 +182,7 @@ USAGE
   $ eas submit --platform=(android|ios)
 
 OPTIONS
-  -p, --platform=(android|ios)                                       (required) For which platform you want to submit a
-                                                                     build
+  -p, --platform=(android|ios)                                       For which platform you want to submit a build
 
   Android specific options=android-package                           Android package name (default: expo.android.package
                                                                      from app config)
@@ -232,7 +197,7 @@ OPTIONS
 
   iOS specific options=asc-app-id                                    App Store Connect unique application Apple ID
                                                                      number. Providing this param results in skipping
-                                                                     app creation step. Learn more here:
+                                                                     app creation step. Learn more:
                                                                      https://expo.fyi/asc-app-id
 
   iOS specific options=bundle-identifier                             Your iOS Bundle Identifier (default:
@@ -281,22 +246,8 @@ EXAMPLES
   $ eas submit -p android --latest --key=/path/to/google-services.json
        - Minimal non-interactive Android submission, however it can ask you for other params if not specified
 
-  $ EXPO_APPLE_APP_SPECIFIC_PASSWORD=xxx eas submit -p ios --latest --app-apple-id=1234567890,
+  $ EXPO_APPLE_APP_SPECIFIC_PASSWORD=xxx eas submit -p ios --latest --apple-id=user@example.com --asc-app-id=1234567890,
        - Minimal non-interactive iOS submission, assuming you already have an app in App Store Connect
          and provide its App ID
 ```
-
-_See code: [build/commands/submit.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.10/build/commands/submit.ts)_
-
-## `eas update:show`
-
-details about a particular revision
-
-```
-USAGE
-  $ eas update:show
-```
-
-_See code: [build/commands/update/show.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.10/build/commands/update/show.ts)_
-
 <!-- commandsstop -->
