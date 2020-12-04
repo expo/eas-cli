@@ -250,4 +250,6 @@ EXAMPLES
        - Minimal non-interactive iOS submission, assuming you already have an app in App Store Connect
          and provide its App ID
 ```
+
+_See code: [build/commands/submit.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.11/build/commands/submit.ts)_
 <!-- commandsstop -->
