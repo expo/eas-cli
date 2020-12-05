@@ -1,7 +1,7 @@
 {
   "name": "eas-cli",
   "description": "EAS command line tool",
-  "version": "0.1.0-alpha.12",
+  "version": "0.1.0-alpha.13",
   "author": "Expo <support@expo.io>",
   "bin": {
     "eas": "./bin/run"
@@ -12,7 +12,7 @@
     "@expo/config": "~3.3.16",
     "@expo/config-plugins": "~1.0.1",
     "@expo/eas-build-job": "0.1.3",
-    "@expo/eas-json": "^0.1.0-alpha.12",
+    "@expo/eas-json": "^0.1.0-alpha.13",
     "@expo/json-file": "^8.2.24",
     "@expo/plist": "^0.0.10",
     "@expo/results": "^1.0.0",
@@ -30,8 +30,8 @@
     "fs-extra": "^9.0.1",
     "getenv": "^1.0.0",
     "got": "^11.5.2",
-    "graphql-tag": "^2.11.0",
     "graphql": "^15.3.0",
+    "graphql-tag": "^2.11.0",
     "indent-string": "^4.0.0",
     "keychain": "^1.3.0",
     "lodash": "^4.17.20",
