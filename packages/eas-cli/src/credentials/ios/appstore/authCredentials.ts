@@ -5,7 +5,7 @@ import wordwrap from 'wordwrap';
 
 import log, { learnMore } from '../../../log';
 import { promptAsync } from '../../../prompts';
-import * as Keychain from './Keychain';
+import * as Keychain from './keychain';
 
 export async function resolveCredentialsAsync(
   options: Partial<Auth.UserCredentials>
