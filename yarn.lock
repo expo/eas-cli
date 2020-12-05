@@ -1444,12 +1444,12 @@
     "@babel/preset-env" "^7.4.4"
     "@babel/preset-typescript" "^7.3.3"
 
-"@expo/config-plugins@~1.0.8":
-  version "1.0.8"
-  resolved "https://registry.yarnpkg.com/@expo/config-plugins/-/config-plugins-1.0.8.tgz#975f1e57632f3e8c5baa4130326c4e7801a608b3"
-  integrity sha512-NDNuk4ZKEGDEes+5apmDQLqYVpAoqpCv+VFi2WzsTlkZAkU2w6PFTHAeBcfFfT4Oeq0lOd6U0/0uBaQaqLnCcA==
+"@expo/config-plugins@~1.0.9":
+  version "1.0.9"
+  resolved "https://registry.yarnpkg.com/@expo/config-plugins/-/config-plugins-1.0.9.tgz#b17053338203706f4e08ff48884697b9b683ec1c"
+  integrity sha512-iv3OQYO8njOeoVF7CYsrFQ7rW/4MZjx5XbKrg8aQ4pazE2IRnhD5rPxDqs4dfgMbU2O2gK3W0+Lw/zvV/V0nAw==
   dependencies:
-    "@expo/config-types" "^40.0.0-beta.1"
+    "@expo/config-types" "^40.0.0-beta.2"
     "@expo/configure-splash-screen" "0.2.1"
     "@expo/image-utils" "0.3.9"
     "@expo/json-file" "8.2.25"
@@ -1462,21 +1462,22 @@
     xcode "^2.1.0"
     xml2js "^0.4.23"
 
-"@expo/config-types@^40.0.0-beta.1":
-  version "40.0.0-beta.1"
-  resolved "https://registry.yarnpkg.com/@expo/config-types/-/config-types-40.0.0-beta.1.tgz#4192b120edc9ec235147329a50bd0a7da16ae89c"
-  integrity sha512-hTp+6ZIKK57O8qhVoO+GBCkx0UCdOhwcWxaXfjpsELIR8LfXDGz8OmCxTzGvb7nnadcrGCccHBX5dO1NmPBbmg==
+"@expo/config-types@^40.0.0-beta.2":
+  version "40.0.0-beta.2"
+  resolved "https://registry.yarnpkg.com/@expo/config-types/-/config-types-40.0.0-beta.2.tgz#4fea4ef5654d02218b02b0b3772529a9ce5b0471"
+  integrity sha512-t9pHCQMXOP4nwd7LGXuHkLlFy0JdfknRSCAeVF4Kw2/y+5OBbR9hW9ZVnetpBf0kORrekgiI7K/qDaa3hh5+Qg==
 
-"@expo/config@~3.3.16":
-  version "3.3.16"
-  resolved "https://registry.yarnpkg.com/@expo/config/-/config-3.3.16.tgz#d05cf57623414e2df6815a790c2a3be81ac171fb"
-  integrity sha512-iEjyV8OfaA0fPPsKYkkcod6wCd6sAtWOxAAT+7xriGqJV5aYnpL1hcBxPkPKavYzWMJUEEOwajmqoJy1uVP6ig==
+"@expo/config@~3.3.19":
+  version "3.3.19"
+  resolved "https://registry.yarnpkg.com/@expo/config/-/config-3.3.19.tgz#0233aef8a498569aff1d8740c3272cd717f8fa1d"
+  integrity sha512-CIBPkOAQpz1jcHdopX5GFxn+GymwoLM4Y1c0RzsUfubTjtLTZ5yEPglz/JLvhb6U+heGog+BB1fiQW9SGXl6/Q==
   dependencies:
     "@babel/core" "7.9.0"
     "@expo/babel-preset-cli" "0.2.18"
-    "@expo/config-types" "^40.0.0-beta.1"
+    "@expo/config-types" "^40.0.0-beta.2"
     "@expo/json-file" "8.2.25"
     fs-extra "9.0.0"
+    getenv "0.7.0"
     glob "7.1.6"
     require-from-string "^2.0.2"
     resolve-from "^5.0.0"
