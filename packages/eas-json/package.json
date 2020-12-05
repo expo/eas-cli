@@ -28,7 +28,7 @@
   },
   "homepage": "https://github.com/expo/eas-cli",
   "license": "MIT",
-  "main": "src/index.ts",
+  "main": "build/index.js",
   "repository": "expo/eas-cli",
   "scripts": {
     "build": "tsc",
