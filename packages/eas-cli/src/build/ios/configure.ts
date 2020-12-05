@@ -20,7 +20,7 @@ export async function configureIosAsync(ctx: ConfigureContext): Promise<void> {
   if (isExpoUpdatesInstalled(ctx.projectDir)) {
     await configureUpdatesAsync(ctx.projectDir, ctx.exp);
   }
-  log.withTick('Configured the Xcode project.');
+  log.withTick('Successfully configured the iOS project.');
 }
 
 export async function validateAndSyncProjectConfigurationAsync(

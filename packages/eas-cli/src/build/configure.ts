@@ -1,25 +1,32 @@
 import { getConfig } from '@expo/config';
 import { EasJsonReader } from '@expo/eas-json';
-import chalk from 'chalk';
 import fs from 'fs-extra';
 import path from 'path';
 
 import log from '../log';
+import { promptAsync } from '../prompts';
 import { ensureLoggedInAsync } from '../user/actions';
 import { gitAddAsync } from '../utils/git';
 import { configureAndroidAsync } from './android/configure';
 import { ConfigureContext } from './context';
 import { configureIosAsync } from './ios/configure';
-import { BuildCommandPlatform } from './types';
+import { RequestedPlatform } from './types';
 import {
+  commitPromptAsync,
   ensureGitRepoExistsAsync,
   isGitStatusCleanAsync,
   maybeBailOnGitStatusAsync,
-  reviewAndCommitChangesAsync,
+  showDiffAsync,
 } from './utils/repository';
 
+const configureCommitMessage = {
+  [RequestedPlatform.Android]: 'Configure EAS Build for Android',
+  [RequestedPlatform.iOS]: 'Configure EAS Build for iOS',
+  [RequestedPlatform.All]: 'Configure EAS Build',
+};
+
 export async function configureAsync(options: {
-  platform: BuildCommandPlatform;
+  platform: RequestedPlatform;
   projectDir: string;
   allowExperimental: boolean;
 }): Promise<void> {
@@ -34,16 +41,15 @@ export async function configureAsync(options: {
     exp,
     allowExperimental: options.allowExperimental,
     requestedPlatform: options.platform,
-    shouldConfigureAndroid: [BuildCommandPlatform.ALL, BuildCommandPlatform.ANDROID].includes(
+    shouldConfigureAndroid: [RequestedPlatform.All, RequestedPlatform.Android].includes(
       options.platform
     ),
-    shouldConfigureIos: [BuildCommandPlatform.ALL, BuildCommandPlatform.IOS].includes(
-      options.platform
-    ),
+    shouldConfigureIos: [RequestedPlatform.All, RequestedPlatform.iOS].includes(options.platform),
     hasAndroidNativeProject: await fs.pathExists(path.join(options.projectDir, 'android')),
     hasIosNativeProject: await fs.pathExists(path.join(options.projectDir, 'ios')),
   };
 
+  log.newLine();
   await ensureEasJsonExistsAsync(ctx);
   if (ctx.shouldConfigureAndroid) {
     await configureAndroidAsync(ctx);
@@ -54,20 +60,10 @@ export async function configureAsync(options: {
 
   if (!(await isGitStatusCleanAsync())) {
     log.newLine();
-    try {
-      await reviewAndCommitChangesAsync('Configure EAS Build', {
-        nonInteractive: false,
-      });
-    } catch (e) {
-      throw new Error(
-        "Aborting, run the command again once you're ready. Make sure to commit any changes you've made."
-      );
-    }
-    log.newLine();
-    log(chalk.green('Successfully configured the project'));
+    await reviewAndCommitChangesAsync(configureCommitMessage[options.platform]);
   } else {
     log.newLine();
-    log(chalk.green('No changes were necessary, the project is already configured correctly.'));
+    log.withTick('No changes were necessary, the project is already configured correctly.');
   }
 }
 
@@ -75,7 +71,7 @@ export async function ensureEasJsonExistsAsync(ctx: ConfigureContext): Promise<v
   const easJsonPath = path.join(ctx.projectDir, 'eas.json');
   if (await fs.pathExists(easJsonPath)) {
     await new EasJsonReader(ctx.projectDir, ctx.requestedPlatform).validateAsync();
-    log.withTick('eas.json validated successfully');
+    log.withTick('Validated eas.json.');
     return;
   }
 
@@ -96,5 +92,40 @@ export async function ensureEasJsonExistsAsync(ctx: ConfigureContext): Promise<v
 
   await fs.writeFile(easJsonPath, `${JSON.stringify(easJson, null, 2)}\n`);
   await gitAddAsync(easJsonPath, { intentToAdd: true });
-  log.withTick('Created eas.json file');
+  log.withTick('Generated eas.json.');
+}
+
+enum ShouldCommitChanges {
+  Yes,
+  ShowDiffFirst,
+  Skip,
+}
+
+async function reviewAndCommitChangesAsync(
+  commitMessage: string,
+  askedFirstTime: boolean = true
+): Promise<void> {
+  const { selected } = await promptAsync({
+    type: 'select',
+    name: 'selected',
+    message: 'Can we commit these changes to git for you?',
+    choices: [
+      { title: 'Yes', value: ShouldCommitChanges.Yes },
+      ...(askedFirstTime
+        ? [{ title: 'Show the diff and ask me again', value: ShouldCommitChanges.ShowDiffFirst }]
+        : []),
+      {
+        title: 'Skip committing changes, I will do it later on my own',
+        value: ShouldCommitChanges.Skip,
+      },
+    ],
+  });
+
+  if (selected === ShouldCommitChanges.Yes) {
+    await commitPromptAsync(commitMessage);
+    log.withTick('Committed changes.');
+  } else if (selected === ShouldCommitChanges.ShowDiffFirst) {
+    await showDiffAsync();
+    await reviewAndCommitChangesAsync(commitMessage, false);
+  }
 }

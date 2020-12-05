@@ -5,10 +5,10 @@ import ora from 'ora';
 import { apiClient } from '../api';
 import log from '../log';
 import { sleep } from '../utils/promise';
-import { startAndroidBuildAsync } from './android/build';
+import { prepareAndroidBuildAsync } from './android/build';
 import { CommandContext } from './context';
-import { startIosBuildAsync } from './ios/build';
-import { Build, BuildCommandPlatform, BuildStatus } from './types';
+import { prepareIosBuildAsync } from './ios/build';
+import { Build, BuildStatus, Platform, RequestedPlatform } from './types';
 import { printBuildResults, printLogsUrls } from './utils/printBuildInfo';
 import { ensureGitRepoExistsAsync, ensureGitStatusIsCleanAsync } from './utils/repository';
 
@@ -32,13 +32,11 @@ export async function buildAsync(commandCtx: CommandContext): Promise<void> {
 
 async function startBuildsAsync(
   commandCtx: CommandContext
-): Promise<
-  { platform: BuildCommandPlatform.ANDROID | BuildCommandPlatform.IOS; buildId: string }[]
-> {
-  const shouldBuildAndroid = [BuildCommandPlatform.ANDROID, BuildCommandPlatform.ALL].includes(
+): Promise<{ platform: Platform; buildId: string }[]> {
+  const shouldBuildAndroid = [RequestedPlatform.Android, RequestedPlatform.All].includes(
     commandCtx.requestedPlatform
   );
-  const shouldBuildiOS = [BuildCommandPlatform.IOS, BuildCommandPlatform.ALL].includes(
+  const shouldBuildiOS = [RequestedPlatform.iOS, RequestedPlatform.All].includes(
     commandCtx.requestedPlatform
   );
   const easConfig = await new EasJsonReader(
@@ -46,19 +44,24 @@ async function startBuildsAsync(
     commandCtx.requestedPlatform
   ).readAsync(commandCtx.profile);
 
-  const scheduledBuilds: {
-    platform: BuildCommandPlatform.ANDROID | BuildCommandPlatform.IOS;
-    buildId: string;
+  const builds: {
+    platform: Platform;
+    sendBuildRequestAsync: () => Promise<string>;
   }[] = [];
   if (shouldBuildAndroid) {
-    const buildId = await startAndroidBuildAsync(commandCtx, easConfig);
-    scheduledBuilds.push({ platform: BuildCommandPlatform.ANDROID, buildId });
+    const sendBuildRequestAsync = await prepareAndroidBuildAsync(commandCtx, easConfig);
+    builds.push({ platform: Platform.Android, sendBuildRequestAsync });
   }
   if (shouldBuildiOS) {
-    const buildId = await startIosBuildAsync(commandCtx, easConfig);
-    scheduledBuilds.push({ platform: BuildCommandPlatform.IOS, buildId });
+    const sendBuildRequestAsync = await prepareIosBuildAsync(commandCtx, easConfig);
+    builds.push({ platform: Platform.iOS, sendBuildRequestAsync });
   }
-  return scheduledBuilds;
+  return Promise.all(
+    builds.map(async ({ platform, sendBuildRequestAsync }) => ({
+      platform,
+      buildId: await sendBuildRequestAsync(),
+    }))
+  );
 }
 
 async function waitForBuildEndAsync(

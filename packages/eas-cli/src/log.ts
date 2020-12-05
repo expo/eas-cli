@@ -75,8 +75,8 @@ log.withTick = function (...args: any[]) {
  * @example Learn more: https://expo.io
  * @param url
  */
-export function learnMore(url: string): string {
-  return chalk.dim(`Learn more: ${chalk.underline(url)}`);
+export function learnMore(url: string, learnMoreMessage?: string): string {
+  return chalk.dim(`${learnMoreMessage ?? 'Learn more'}: ${chalk.underline(url)}`);
 }
 
 export default log;

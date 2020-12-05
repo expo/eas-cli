@@ -6,7 +6,7 @@ import sortBy from 'lodash/sortBy';
 
 import log from '../../log';
 import { promptAsync } from '../../prompts';
-import { startBuildForPlatformAsync } from '../build';
+import { prepareBuildRequestForPlatformAsync } from '../build';
 import { BuildContext, CommandContext, createBuildContext } from '../context';
 import { Platform } from '../types';
 import { ensureBundleIdentifierIsValidAsync } from './bundleIdentifer';
@@ -14,10 +14,10 @@ import { validateAndSyncProjectConfigurationAsync } from './configure';
 import { ensureIosCredentialsAsync } from './credentials';
 import { prepareJobAsync } from './prepareJob';
 
-export async function startIosBuildAsync(
+export async function prepareIosBuildAsync(
   commandCtx: CommandContext,
   easConfig: EasConfig
-): Promise<string> {
+): Promise<() => Promise<string>> {
   const buildCtx = createBuildContext<Platform.iOS>({
     commandCtx,
     platform: Platform.iOS,
@@ -30,7 +30,7 @@ export async function startIosBuildAsync(
   }
   await ensureBundleIdentifierIsValidAsync(commandCtx.projectDir);
 
-  return await startBuildForPlatformAsync({
+  return await prepareBuildRequestForPlatformAsync({
     ctx: buildCtx,
     projectConfiguration: {
       iosNativeProjectScheme,
