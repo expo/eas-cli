@@ -32,3 +32,11 @@ export async function setSessionAsync(sessionData?: SessionData): Promise<void> 
     ensureDir: true,
   });
 }
+
+export function getAccessToken(): string | null {
+  return process.env.EXPO_TOKEN ?? null;
+}
+
+export function getSessionSecret(): string | null {
+  return getSession()?.sessionSecret ?? null;
+}
