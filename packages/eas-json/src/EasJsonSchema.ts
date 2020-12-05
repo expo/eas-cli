@@ -1,4 +1,4 @@
-import Joi from '@hapi/joi';
+import Joi from 'joi';
 
 const AndroidGenericSchema = Joi.object({
   workflow: Joi.string().valid('generic').required(),
