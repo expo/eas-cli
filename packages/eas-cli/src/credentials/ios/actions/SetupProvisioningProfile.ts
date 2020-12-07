@@ -28,6 +28,12 @@ export class SetupProvisioningProfile implements Action {
       return;
     }
 
+    if (ctx.nonInteractive) {
+      throw new Error(
+        'Provisioning Profile is not configured correctly. Please run this command againg in interactive mode.'
+      );
+    }
+
     if (!ctx.appStore.authCtx) {
       manager.pushNextAction(new CreateProvisioningProfile(this.app));
       return;

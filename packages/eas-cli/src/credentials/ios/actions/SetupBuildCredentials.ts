@@ -50,7 +50,7 @@ export class SetupBuildCredentials implements Action {
         await manager.runActionAsync(new SetupProvisioningProfile(this.app));
       }
     } catch (error) {
-      log.error('Failed to setup the Provisioning Profile.');
+      log.error('Failed to setup credentials.');
       throw error;
     }
 

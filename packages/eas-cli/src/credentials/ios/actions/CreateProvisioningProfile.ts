@@ -33,13 +33,11 @@ export class CreateProvisioningProfile implements Action {
   }
 
   private async provideOrGenerateAsync(ctx: Context): Promise<ProvisioningProfile> {
-    if (!ctx.nonInteractive) {
-      const userProvided = await askForUserProvidedAsync(provisioningProfileSchema);
-      if (userProvided) {
-        // userProvided profiles don't come with ProvisioningProfileId's (only accessible from Apple Portal API)
-        log.warn('Provisioning profile: Unable to validate specified profile.');
-        return userProvided;
-      }
+    const userProvided = await askForUserProvidedAsync(provisioningProfileSchema);
+    if (userProvided) {
+      // userProvided profiles don't come with ProvisioningProfileId's (only accessible from Apple Portal API)
+      log.warn('Provisioning profile: Unable to validate specified profile.');
+      return userProvided;
     }
     const distCert = await ctx.ios.getDistributionCertificateAsync(this.app);
     assert(distCert, 'missing distribution certificate');

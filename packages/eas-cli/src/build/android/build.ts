@@ -80,8 +80,11 @@ async function ensureAndroidCredentialsAsync(
       nonInteractive: ctx.commandCtx.nonInteractive,
     }),
     {
-      projectName: ctx.commandCtx.projectName,
-      accountName: ctx.commandCtx.accountName,
+      app: {
+        projectName: ctx.commandCtx.projectName,
+        accountName: ctx.commandCtx.accountName,
+      },
+      skipCredentialsCheck: ctx.commandCtx.skipCredentialsCheck,
     }
   );
   const credentialsSource = await ensureCredentialsAsync(

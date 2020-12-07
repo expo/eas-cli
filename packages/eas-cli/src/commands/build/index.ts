@@ -50,6 +50,13 @@ export default class Build extends Command {
     const { flags } = this.parse(Build);
     await ensureLoggedInAsync();
 
+    const nonInteractive = flags['non-interactive'];
+    if (!flags.platform && nonInteractive) {
+      throw new Error('--platform param is required when building in non-interactive mode');
+    }
+    const platform =
+      (flags.platform as RequestedPlatform | undefined) ?? (await promptForPlatformAsync());
+
     const projectDir = (await findProjectRootAsync()) ?? process.cwd();
     const projectId = await getProjectIdAsync(projectDir);
 
@@ -60,9 +67,6 @@ export default class Build extends Command {
     }
 
     await ensureProjectConfiguredAsync(projectDir);
-
-    const platform =
-      (flags.platform as RequestedPlatform | undefined) ?? (await promptForPlatformAsync());
 
     const trackingCtx = {
       tracking_id: uuidv4(),
@@ -76,7 +80,7 @@ export default class Build extends Command {
       projectDir,
       projectId,
       trackingCtx,
-      nonInteractive: flags['non-interactive'],
+      nonInteractive,
       skipCredentialsCheck: flags['skip-credentials-check'],
       skipProjectConfiguration: flags['skip-project-configuration'],
       waitForBuildEnd: flags.wait,
