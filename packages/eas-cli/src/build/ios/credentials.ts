@@ -29,6 +29,7 @@ export async function ensureIosCredentialsAsync(
     credentialsSource: ctx.buildProfile.credentialsSource,
     distribution: ctx.buildProfile.distribution ?? DistributionType.STORE,
     nonInteractive: ctx.commandCtx.nonInteractive,
+    skipCredentialsCheck: ctx.commandCtx.skipCredentialsCheck,
   });
 }
 
@@ -38,17 +39,23 @@ interface ResolveCredentialsParams {
   credentialsSource: CredentialsSource;
   distribution: DistributionType;
   nonInteractive: boolean;
+  skipCredentialsCheck: boolean;
 }
 
 export async function resolveIosCredentialsAsync(
   projectDir: string,
   params: ResolveCredentialsParams
 ): Promise<CredentialsResult<IosCredentials>> {
-  const provider = new IosCredentialsProvider(await createCredentialsContextAsync(projectDir, {}), {
-    app: params.app,
-    nonInteractive: params.nonInteractive,
-    distribution: params.distribution,
-  });
+  const provider = new IosCredentialsProvider(
+    await createCredentialsContextAsync(projectDir, {
+      nonInteractive: params.nonInteractive,
+    }),
+    {
+      app: params.app,
+      distribution: params.distribution,
+      skipCredentialsCheck: params.skipCredentialsCheck,
+    }
+  );
   const credentialsSource = await ensureCredentialsAsync(
     provider,
     params.workflow,

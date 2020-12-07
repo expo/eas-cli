@@ -9,7 +9,7 @@ import { Platform, TrackingContext } from './types';
  * the src directory and would change the directory structure of the emitted files
  * under the build directory
  */
-const packageJSON = require('../../../../package.json');
+const packageJSON = require('../../package.json');
 
 export type BuildMetadata = {
   /**

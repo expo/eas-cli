@@ -7,7 +7,7 @@ export function getBuildLogsUrl({
   buildId: string;
   account: string;
 }): string {
-  return `${getExpoWebsiteBaseUrl()}/accounts/${account}/builds/v2/${buildId}`;
+  return `${getExpoWebsiteBaseUrl()}/accounts/${account}/builds/${buildId}`;
 }
 
 export function getArtifactUrl(artifactId: string): string {

@@ -37,6 +37,9 @@ export class SetupBuildCredentials implements Action {
         if (!account) {
           throw new Error(`You do not have access to the ${this.app.accountName} account`);
         }
+        if (ctx.nonInteractive) {
+          throw new Error('Internal distribution builds are not supported in non-interactive mode');
+        }
         // for now, let's require the user to authenticate with Apple
         await ctx.appStore.ensureAuthenticatedAsync();
         const action = new SetupAdhocProvisioningProfile({
@@ -50,7 +53,7 @@ export class SetupBuildCredentials implements Action {
         await manager.runActionAsync(new SetupProvisioningProfile(this.app));
       }
     } catch (error) {
-      log.error('Failed to setup the Provisioning Profile.');
+      log.error('Failed to setup credentials.');
       throw error;
     }
 

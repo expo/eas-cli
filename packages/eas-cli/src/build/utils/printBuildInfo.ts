@@ -20,14 +20,16 @@ export function printLogsUrls(
       buildId,
       account: accountName,
     });
-    log(`Logs url: ${chalk.underline(logsUrl)}`);
+    log(`Build details: ${chalk.underline(logsUrl)}`);
   } else {
     builds.forEach(({ buildId, platform }) => {
       const logsUrl = getBuildLogsUrl({
         buildId,
         account: accountName,
       });
-      log(`Platform: ${platformDisplayNames[platform]}, Logs url: ${chalk.underline(logsUrl)}`);
+      log(
+        `Platform: ${platformDisplayNames[platform]}, Build details: ${chalk.underline(logsUrl)}`
+      );
     });
   }
 }

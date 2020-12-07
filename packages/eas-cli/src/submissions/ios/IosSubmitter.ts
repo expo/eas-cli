@@ -76,7 +76,7 @@ const SummaryHumanReadableKeys: Record<keyof IosSubmissionConfig, string> = {
   appleId: 'Apple ID',
   archiveUrl: 'Archive URL',
   appSpecificPassword: 'Apple app-specific password',
-  appAppleId: ' App Store Connect App ID',
+  appAppleId: 'App Store Connect App ID',
   projectId: 'Project ID',
 };
 
