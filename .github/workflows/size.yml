@@ -12,7 +12,7 @@ jobs:
           node-version: '14'
       - uses: preactjs/compressed-size-action@v2
         with:
-          build-script: 'lerna run --scope eas-cli oclif-dev pack --targets linux-x64'
+          build-script: 'lerna run --scope eas-cli -- oclif-dev pack --targets linux-x64'
           repo-token: '${{ secrets.GITHUB_TOKEN }}'
           pattern: '${{ github.workspace }}/packages/eas-cli/dist/*.tar.gz'
           compression: 'none'
