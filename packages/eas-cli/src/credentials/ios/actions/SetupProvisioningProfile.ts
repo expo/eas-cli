@@ -64,9 +64,10 @@ export class SetupProvisioningProfile implements Action {
         await this.createOrReuseAsync(manager, ctx);
         return;
       }
+    } else {
+      log(`Using Provisioning Profile: ${autoselectedProfile.provisioningProfileId}`);
     }
 
-    log(`Using Provisioning Profile: ${autoselectedProfile.provisioningProfileId}`);
     await ctx.ios.updateProvisioningProfileAsync(
       this.app,
       pick(autoselectedProfile, [
