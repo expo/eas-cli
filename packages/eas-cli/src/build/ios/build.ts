@@ -31,7 +31,9 @@ export async function prepareIosBuildAsync(
     !(await fs.pathExists(path.join(commandCtx.projectDir, 'ios')))
   ) {
     throw new Error(
-      '"ios" directory not found. If you're trying to build a managed project, set builds.ios.PROFILE_NAME.workflow in "eas.json" to "managed".'
+      `"ios" directory not found. If you're trying to build a managed project, set ${chalk.bold(
+        `builds.ios.${commandCtx.profile}.workflow`
+      )} in "eas.json" to "managed".`
     );
   }
 
@@ -69,7 +71,7 @@ async function resolveSchemeAsync(ctx: BuildContext<Platform.iOS>): Promise<stri
   );
   log(
     `You can specify the scheme you want to build at ${chalk.bold(
-      'builds.ios.PROFILE_NAME.scheme'
+      `builds.ios.${ctx.commandCtx.profile}.scheme`
     )} in eas.json.`
   );
   if (ctx.commandCtx.nonInteractive) {

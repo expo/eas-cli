@@ -34,7 +34,9 @@ export async function prepareAndroidBuildAsync(
     !(await fs.pathExists(path.join(commandCtx.projectDir, 'android')))
   ) {
     throw new Error(
-      '"android" directory not found. If you're trying to build a managed project, set builds.android.PROFILE_NAME.workflow in "eas.json" to "managed".'
+      `"android" directory not found. If you're trying to build a managed project, set ${chalk.bold(
+        `builds.android.${commandCtx.profile}.workflow`
+      )} in "eas.json" to "managed".`
     );
   }
 
