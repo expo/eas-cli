@@ -22,6 +22,12 @@ export class SetupDistributionCertificateForApp implements Action {
       return;
     }
 
+    if (ctx.nonInteractive) {
+      throw new Error(
+        'Distribution Certificate is not configured correctly. Please run this command again in interactive mode.'
+      );
+    }
+
     const existingCertificates = await getValidDistCertsAsync(ctx, this.app.accountName);
 
     if (existingCertificates.length === 0) {
@@ -32,22 +38,20 @@ export class SetupDistributionCertificateForApp implements Action {
     // autoselect credentials if we find valid certs
     const autoselectedCertificate = existingCertificates[0];
 
-    if (!ctx.nonInteractive) {
-      const credentials = await ctx.ios.getAllCredentialsAsync(this.app.accountName);
-      const usedByApps = credentials.appCredentials.filter(
-        cred => cred.distCredentialsId === autoselectedCertificate.id
-      );
-      const confirm = await confirmAsync({
-        message: `${formatDistributionCertificate(
-          autoselectedCertificate,
-          usedByApps,
-          ctx.appStore.authCtx ? 'VALID' : 'UNKNOWN'
-        )} \n Would you like to use this certificate?`,
-      });
-      if (!confirm) {
-        await this.createOrReuseAsync(manager, ctx);
-        return;
-      }
+    const credentials = await ctx.ios.getAllCredentialsAsync(this.app.accountName);
+    const usedByApps = credentials.appCredentials.filter(
+      cred => cred.distCredentialsId === autoselectedCertificate.id
+    );
+    const confirm = await confirmAsync({
+      message: `${formatDistributionCertificate(
+        autoselectedCertificate,
+        usedByApps,
+        ctx.appStore.authCtx ? 'VALID' : 'UNKNOWN'
+      )} \n Would you like to use this certificate?`,
+    });
+    if (!confirm) {
+      await this.createOrReuseAsync(manager, ctx);
+      return;
     }
 
     log(`Using Distribution Certificate: ${autoselectedCertificate.certId || '-----'}`);

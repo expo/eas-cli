@@ -76,11 +76,11 @@ export class ManageIos implements Action {
           title: 'Add new Distribution Certificate',
         },
         {
-          value: ActionType.UpdateDistributionCertificate,
+          value: ActionType.RemoveDistributionCertificate,
           title: 'Remove Distribution Certificate',
         },
         {
-          value: ActionType.RemoveDistributionCertificate,
+          value: ActionType.UpdateDistributionCertificate,
           title: 'Update Distribution Certificate',
         },
       ],

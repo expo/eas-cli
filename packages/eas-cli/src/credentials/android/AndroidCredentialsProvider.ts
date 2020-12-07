@@ -18,13 +18,18 @@ interface AppLookupParams {
   accountName: string;
 }
 
+interface Options {
+  app: AppLookupParams;
+  skipCredentialsCheck?: boolean;
+}
+
 export default class AndroidCredentialsProvider implements CredentialsProvider {
   public readonly platform = Platform.Android;
 
-  constructor(private ctx: Context, private app: AppLookupParams) {}
+  constructor(private ctx: Context, private options: Options) {}
 
   private get projectFullName(): string {
-    const { projectName, accountName } = this.app;
+    const { projectName, accountName } = this.options.app;
     return `@${accountName}/${projectName}`;
   }
 
