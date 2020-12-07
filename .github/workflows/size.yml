@@ -1,0 +1,18 @@
+name: Size
+on:
+  pull_request:
+    types: [synchronize, opened]
+jobs:
+  size:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v1
+        with:
+          node-version: '14'
+      - uses: preactjs/compressed-size-action@v2
+        with:
+          build-script: 'lerna run --scope eas-cli oclif-dev pack --targets linux-x64'
+          repo-token: '${{ secrets.GITHUB_TOKEN }}'
+          pattern: '${{ github.workspace }}/packages/eas-cli/dist/*.tar.gz'
+          compression: 'none'
