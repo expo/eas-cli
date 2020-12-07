@@ -30,7 +30,7 @@ export class SetupProvisioningProfile implements Action {
 
     if (ctx.nonInteractive) {
       throw new Error(
-        'Provisioning Profile is not configured correctly. Please run this command againg in interactive mode.'
+        'Provisioning Profile is not configured correctly. Please run this command again in interactive mode.'
       );
     }
 
