@@ -31,7 +31,7 @@ export async function prepareIosBuildAsync(
     !(await fs.pathExists(path.join(commandCtx.projectDir, 'ios')))
   ) {
     throw new Error(
-      '"ios" directory not found. If you want to build managed project update builds.ios.PROFILE_NAME.workflow in "eas.json".'
+      '"ios" directory not found. If you're trying to build a managed project, set builds.ios.PROFILE_NAME.workflow in "eas.json" to "managed".'
     );
   }
 
