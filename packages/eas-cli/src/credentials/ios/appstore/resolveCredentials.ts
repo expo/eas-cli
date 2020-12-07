@@ -7,6 +7,12 @@ import log, { learnMore } from '../../../log';
 import { promptAsync } from '../../../prompts';
 import * as Keychain from './keychain';
 
+/**
+ * Get the username and possibly the password from the environment variables or the supplied options.
+ * Password is optional because it's only needed for authentication, but not for re-authentication.
+ *
+ * @param options
+ */
 export async function resolveCredentialsAsync(
   options: Partial<Auth.UserCredentials>
 ): Promise<Partial<Auth.UserCredentials>> {
@@ -25,13 +31,10 @@ function getAppleIdFromEnvironmentOrOptions({
   ...userCredentials
 }: Partial<Auth.UserCredentials>): Partial<Auth.UserCredentials> {
   const passedAppleId = username || process.env.EXPO_APPLE_ID;
+  // Only resolve the password if the username was provided.
   const passedAppleIdPassword = passedAppleId
-    ? password || process.env.EXPO_APPLE_PASSWORD || process.env.EXPO_APPLE_ID_PASSWORD
+    ? password || process.env.EXPO_APPLE_PASSWORD
     : undefined;
-
-  if (process.env.EXPO_APPLE_ID_PASSWORD) {
-    log.error('EXPO_APPLE_ID_PASSWORD is deprecated, please use EXPO_APPLE_PASSWORD instead!');
-  }
 
   return {
     ...userCredentials,
@@ -78,11 +81,8 @@ export async function promptPasswordAsync({
   const cachedPassword = await getCachedPasswordAsync({ username });
 
   if (cachedPassword) {
-    log(
-      `\u203A Using password for ${username} from your local Keychain. ${learnMore(
-        'https://docs.expo.io/distribution/security#keychain'
-      )}`
-    );
+    log(`\u203A Using password for ${username} from your local Keychain`);
+    log(`  ${learnMore('https://docs.expo.io/distribution/security#keychain')}`);
     return cachedPassword;
   }
 
@@ -96,7 +96,7 @@ export async function promptPasswordAsync({
       )
     )
   );
-  log(wrap(learnMore('https://bit.ly/2VtGWhU')));
+  log(`  ${learnMore('https://bit.ly/2VtGWhU')}`);
 
   const { password } = await promptAsync({
     type: 'password',
@@ -137,7 +137,7 @@ async function deletePasswordAsync({
   const serviceName = getKeychainServiceName(username);
   const success = await Keychain.deletePasswordAsync({ username, serviceName });
   if (success) {
-    log('Removed Apple ID password from the native Keychain.');
+    log('\u203A Removed Apple ID password from the native Keychain');
   }
   return success;
 }
@@ -157,15 +157,12 @@ export async function getCachedPasswordAsync({
 
 async function cachePasswordAsync({ username, password }: Auth.UserCredentials): Promise<boolean> {
   if (Keychain.EXPO_NO_KEYCHAIN) {
-    log('Skip storing Apple ID password in the local Keychain.');
+    log('\u203A Skip storing Apple ID password in the local Keychain.');
     return false;
   }
 
-  log(
-    `Saving Apple ID password to the local Keychain. ${learnMore(
-      'https://docs.expo.io/distribution/security#keychain'
-    )}`
-  );
+  log(`\u203A Saving Apple ID password to the local Keychain`);
+  log(`  ${learnMore('https://docs.expo.io/distribution/security#keychain')}`);
   const serviceName = getKeychainServiceName(username);
   return Keychain.setPasswordAsync({ username, password, serviceName });
 }

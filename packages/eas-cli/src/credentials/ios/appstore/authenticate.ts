@@ -10,8 +10,8 @@ import chalk from 'chalk';
 
 import log from '../../../log';
 import { toggleConfirmAsync } from '../../../prompts';
-import { promptPasswordAsync, resolveCredentialsAsync } from './authCredentials';
 import * as Keychain from './keychain';
+import { promptPasswordAsync, resolveCredentialsAsync } from './resolveCredentials';
 
 const APPLE_IN_HOUSE_TEAM_TYPE = 'in-house';
 const IS_MAC = process.platform === 'darwin';
@@ -34,13 +34,6 @@ export type Team = {
   id: string;
   name: string;
   inHouse?: boolean;
-};
-
-type FastlaneTeam = {
-  name: string;
-  teamId: string;
-  status: string;
-  type: string;
 };
 
 export type AuthCtx = {
@@ -119,9 +112,10 @@ async function loginAsync(
           },
           options
         );
+      } else {
+        throw new Error('ABORTED');
       }
     }
-    log(chalk.red('Authentication with Apple Developer Portal failed'));
     throw error;
   }
 }
@@ -194,7 +188,7 @@ export async function authenticateAsync(options: Options = {}): Promise<AuthCtx>
   }
 }
 
-function formatTeam({ teamId, name, type }: FastlaneTeam): Team {
+function formatTeam({ teamId, name, type }: Teams.AppStoreTeam): Team {
   return {
     id: teamId,
     name: `${name} (${type})`,
