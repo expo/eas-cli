@@ -47,7 +47,7 @@ export class SetupDistributionCertificateForApp implements Action {
         autoselectedCertificate,
         usedByApps,
         ctx.appStore.authCtx ? 'VALID' : 'UNKNOWN'
-      )} \n Would you like to use this certificate?`,
+      )} \n  Would you like to use this certificate?`,
     });
     if (!confirm) {
       await this.createOrReuseAsync(manager, ctx);

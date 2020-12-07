@@ -47,7 +47,7 @@ export async function ensureAppExistsAsync(
   }
 
   try {
-    spinner = ora(`Updating capabilities for "${bundleIdentifier}"`).start();
+    spinner = ora(`Syncing capabilities`).start();
 
     // Update the capabilities
     await bundleId.updateBundleIdCapabilityAsync({
@@ -55,9 +55,9 @@ export async function ensureAppExistsAsync(
       option: options.enablePushNotifications ? CapabilityTypeOption.ON : CapabilityTypeOption.OFF,
       // TODO: Add more capabilities
     });
-    spinner.succeed(`Updated capabilities for "${bundleIdentifier}"`);
+    spinner.succeed(`Synced capabilities`);
   } catch (err) {
-    spinner.fail(`Failed to update capabilities for "${bundleIdentifier}"`);
+    spinner.fail(`Failed to sync capabilities for "${bundleIdentifier}"`);
 
     throw err;
   }

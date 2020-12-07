@@ -58,15 +58,16 @@ export class SetupProvisioningProfile implements Action {
       const confirm = await confirmAsync({
         message: `${formatProvisioningProfileFromApple(
           autoselectedProfile
-        )} \n Would you like to use this profile?`,
+        )} \n  Would you like to use this profile?`,
       });
       if (!confirm) {
         await this.createOrReuseAsync(manager, ctx);
         return;
       }
+    } else {
+      log(`Using Provisioning Profile: ${autoselectedProfile.provisioningProfileId}`);
     }
 
-    log(`Using Provisioning Profile: ${autoselectedProfile.provisioningProfileId}`);
     await ctx.ios.updateProvisioningProfileAsync(
       this.app,
       pick(autoselectedProfile, [
