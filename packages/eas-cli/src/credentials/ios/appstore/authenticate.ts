@@ -10,11 +10,13 @@ import chalk from 'chalk';
 
 import log from '../../../log';
 import { toggleConfirmAsync } from '../../../prompts';
-import * as Keychain from './keychain';
-import { promptPasswordAsync, resolveCredentialsAsync } from './resolveCredentials';
+import {
+  deletePasswordAsync,
+  promptPasswordAsync,
+  resolveCredentialsAsync,
+} from './resolveCredentials';
 
 const APPLE_IN_HOUSE_TEAM_TYPE = 'in-house';
-const IS_MAC = process.platform === 'darwin';
 
 export type Options = {
   appleId?: string;
@@ -23,11 +25,6 @@ export type Options = {
    * Can be used to restore the Apple auth state via apple-utils.
    */
   cookies?: Session.AuthState['cookies'];
-};
-
-export type AppleCredentials = {
-  appleIdPassword: string;
-  appleId: string;
 };
 
 export type Team = {
@@ -101,7 +98,7 @@ async function loginAsync(
     if (error instanceof InvalidUserCredentialsError) {
       log.error(error.message);
       // Remove the invalid password so it isn't automatically used...
-      await deletePasswordAsync({ appleId: username });
+      await deletePasswordAsync({ username });
 
       if (await toggleConfirmAsync({ message: 'Would you like to try again?' })) {
         // Don't pass credentials back or the method will throw
@@ -148,7 +145,6 @@ async function loginWithUserCredentialsAsync({
 
 export async function authenticateAsync(options: Options = {}): Promise<AuthCtx> {
   try {
-    // TODO: The password isn't required for apple-utils. Remove the local prompt when we remove traveling Fastlane.
     const authState = await loginAsync(
       {
         cookies: options.cookies,
@@ -194,27 +190,4 @@ function formatTeam({ teamId, name, type }: Teams.AppStoreTeam): Team {
     name: `${name} (${type})`,
     inHouse: type.toLowerCase() === APPLE_IN_HOUSE_TEAM_TYPE,
   };
-}
-
-/**
- * Returns the same prefix used by Fastlane in order to potentially share access between services.
- * [Cite. Fastlane](https://github.com/fastlane/fastlane/blob/f831062fa6f4b216b8ee38949adfe28fc11a0a8e/credentials_manager/lib/credentials_manager/account_manager.rb#L8).
- *
- * @param appleId email address
- */
-function getKeychainServiceName(appleId: string): string {
-  return `deliver.${appleId}`;
-}
-
-async function deletePasswordAsync({ appleId }: Pick<AppleCredentials, 'appleId'>): Promise<void> {
-  if (!IS_MAC) {
-    return;
-  }
-  try {
-    const serviceName = getKeychainServiceName(appleId);
-    await Keychain.deletePasswordAsync({ username: appleId, serviceName });
-    log('Removed Apple ID password from the native Keychain.');
-  } catch (error) {
-    log.warn('Failed to remove Apple ID password from the native Keychain');
-  }
 }

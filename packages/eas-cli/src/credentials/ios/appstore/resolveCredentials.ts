@@ -43,7 +43,7 @@ function getAppleIdFromEnvironmentOrOptions({
   };
 }
 
-export async function promptUsernameAsync(): Promise<string> {
+async function promptUsernameAsync(): Promise<string> {
   const wrap = wordwrap(process.stdout.columns || 80);
   log(wrap('Log in to your Apple Developer account to continue'));
 
@@ -66,7 +66,7 @@ export async function promptUsernameAsync(): Promise<string> {
   return username;
 }
 
-export async function cacheUsernameAsync(username: string): Promise<void> {
+async function cacheUsernameAsync(username: string): Promise<void> {
   // If a new email was used then store it as a suggestion for next time.
   // This functionality is disabled using the keychain mechanism.
   if (!Keychain.EXPO_NO_KEYCHAIN && username) {
@@ -110,7 +110,7 @@ export async function promptPasswordAsync({
   return password;
 }
 
-export async function getCachedUsernameAsync(): Promise<string | null> {
+async function getCachedUsernameAsync(): Promise<string | null> {
   if (Keychain.EXPO_NO_KEYCHAIN) {
     // Clear last used apple ID.
     await fs.remove(JsonFileCache.usernameCachePath());
@@ -131,7 +131,7 @@ function getKeychainServiceName(appleId: string): string {
   return `deliver.${appleId}`;
 }
 
-async function deletePasswordAsync({
+export async function deletePasswordAsync({
   username,
 }: Pick<Auth.UserCredentials, 'username'>): Promise<boolean> {
   const serviceName = getKeychainServiceName(username);
@@ -142,7 +142,7 @@ async function deletePasswordAsync({
   return success;
 }
 
-export async function getCachedPasswordAsync({
+async function getCachedPasswordAsync({
   username,
 }: Pick<Auth.UserCredentials, 'username'>): Promise<string | null> {
   // If the user opts out, delete the password.
