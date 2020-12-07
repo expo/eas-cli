@@ -17,14 +17,13 @@ export enum ProfileClass {
 }
 
 function resolveProfileType(profileClass: ProfileClass, isEnterprise?: boolean): ProfileType {
+  if (profileClass === ProfileClass.Adhoc) {
+    return ProfileType.IOS_APP_ADHOC;
+  }
   if (isEnterprise) {
-    return profileClass === ProfileClass.Adhoc
-      ? ProfileType.IOS_APP_ADHOC
-      : ProfileType.IOS_APP_INHOUSE;
+    return ProfileType.IOS_APP_INHOUSE;
   } else {
-    return profileClass === ProfileClass.Adhoc
-      ? ProfileType.IOS_APP_ADHOC
-      : ProfileType.IOS_APP_STORE;
+    return ProfileType.IOS_APP_STORE;
   }
 }
 
@@ -46,6 +45,23 @@ async function transformProfileAsync(
   };
 }
 
+async function findProfileByIdAsync(
+  context: RequestContext,
+  profileId: string,
+  bundleId: string
+): Promise<Profile | null> {
+  const allProfiles = await Profile.getAsync(context, {
+    query: {
+      filter: { id: profileId },
+      includes: ['devices', 'bundleId', 'certificates'],
+    },
+  });
+  return (
+    allProfiles.find(profile => profile.attributes.bundleId?.attributes.identifier === bundleId) ??
+    null
+  );
+}
+
 async function addCertificateToProfileAsync(
   context: RequestContext,
   {
@@ -59,9 +75,7 @@ async function addCertificateToProfileAsync(
   }
 ) {
   const cert = await getCertificateBySerialNumberAsync(context, serialNumber);
-
-  const profiles = await getProfilesForBundleIdAsync(context, bundleIdentifier);
-  const profile = profiles.find(profile => profile.id === profileId);
+  const profile = await findProfileByIdAsync(context, profileId, bundleIdentifier);
   if (!profile) {
     throw new Error(
       `Failed to find profile for bundle identifier "${bundleIdentifier}" with profile id "${profileId}"`
@@ -136,9 +150,7 @@ export async function listProvisioningProfilesAsync(
   try {
     const context = getRequestContext(authCtx);
     const profileType = resolveProfileType(profileClass, authCtx.team.inHouse);
-    const profiles = (await getProfilesForBundleIdAsync(context, bundleIdentifier)).filter(
-      profile => profile.attributes.profileType === profileType
-    );
+    const profiles = await getProfilesForBundleIdAsync(context, bundleIdentifier, profileType);
 
     const result = await Promise.all(
       profiles.map(profile => transformProfileAsync(profile, authCtx))
@@ -205,13 +217,9 @@ export async function revokeProvisioningProfileAsync(
   try {
     const context = getRequestContext(authCtx);
 
-    const profiles = await getProfilesForBundleIdAsync(context, bundleIdentifier);
     const profileType = resolveProfileType(profileClass, authCtx.team.inHouse);
-    await Promise.all(
-      profiles
-        .filter(profile => profile.attributes.profileType === profileType)
-        .map(profile => Profile.deleteAsync(context, { id: profile.id }))
-    );
+    const profiles = await getProfilesForBundleIdAsync(context, bundleIdentifier, profileType);
+    await Promise.all(profiles.map(profile => Profile.deleteAsync(context, { id: profile.id })));
     spinner.succeed('Revoked Apple provisioning profile');
   } catch (error) {
     spinner.fail('Failed to revoke Apple provisioning profile');

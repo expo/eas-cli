@@ -1,14 +1,16 @@
-import { BundleId, Profile, RequestContext } from '@expo/apple-utils';
+import { BundleId, Profile, ProfileType, RequestContext } from '@expo/apple-utils';
 
 export async function getProfilesForBundleIdAsync(
   context: RequestContext,
-  bundleIdentifier: string
+  bundleIdentifier: string,
+  profileType?: ProfileType
 ): Promise<Profile[]> {
-  const bundleId = await BundleId.findAsync(context, { identifier: bundleIdentifier });
-  if (bundleId) {
-    return bundleId.getProfilesAsync();
-  }
-  return [];
+  const allProfiles = await Profile.getAsync(context, {
+    query: { filter: { profileType }, includes: ['devices', 'bundleId', 'certificates'] },
+  });
+  return allProfiles.filter(
+    profile => profile.attributes.bundleId?.attributes.identifier === bundleIdentifier
+  );
 }
 
 export async function getBundleIdForIdentifierAsync(

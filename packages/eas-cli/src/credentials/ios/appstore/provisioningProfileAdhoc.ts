@@ -52,9 +52,10 @@ async function findProfileByBundleIdAsync(
   profile: Profile | null;
   didUpdate: boolean;
 }> {
-  const expoProfiles = (await getProfilesForBundleIdAsync(context, bundleId)).filter(profile => {
+  const expoProfiles = (
+    await getProfilesForBundleIdAsync(context, bundleId, ProfileType.IOS_APP_ADHOC)
+  ).filter(profile => {
     return (
-      profile.attributes.profileType === ProfileType.IOS_APP_ADHOC &&
       profile.attributes.name.startsWith('*[expo]') &&
       profile.attributes.profileState !== ProfileState.EXPIRED
     );
@@ -106,11 +107,16 @@ async function findProfileByIdAsync(
   profileId: string,
   bundleId: string
 ): Promise<Profile | null> {
-  let profiles = await getProfilesForBundleIdAsync(context, bundleId);
-  profiles = profiles.filter(
-    profile => profile.attributes.profileType === ProfileType.IOS_APP_ADHOC
+  const allProfiles = await Profile.getAsync(context, {
+    query: {
+      filter: { profileType: ProfileType.IOS_APP_ADHOC, id: profileId },
+      includes: ['devices', 'bundleId', 'certificates'],
+    },
+  });
+  return (
+    allProfiles.find(profile => profile.attributes.bundleId?.attributes.identifier === bundleId) ??
+    null
   );
-  return profiles.find(profile => profile.id === profileId) ?? null;
 }
 
 async function manageAdHocProfilesAsync(
