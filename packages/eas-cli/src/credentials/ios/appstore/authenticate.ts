@@ -67,12 +67,18 @@ export async function authenticateAsync(options: Options = {}): Promise<AuthCtx>
   const { appleId, appleIdPassword } = await requestAppleCredentialsAsync(options);
   try {
     // TODO: The password isn't required for apple-utils. Remove the local prompt when we remove traveling Fastlane.
-    const authState = await Auth.loginAsync({
-      username: appleId,
-      password: appleIdPassword,
-      cookies: options.cookies,
-      teamId: options.teamId,
-    });
+    const authState = await Auth.loginAsync(
+      {
+        username: appleId,
+        password: appleIdPassword,
+        cookies: options.cookies,
+        teamId: options.teamId,
+      },
+      {
+        // TODO: Provide a way to disable this for users who want to mix and match teams / providers.
+        autoResolveProvider: true,
+      }
+    );
 
     // Currently, this is resolved once, inside the apple-utils package.
     const teamId = authState.context.teamId!;
