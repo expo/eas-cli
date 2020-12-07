@@ -24,7 +24,7 @@ export class SetupDistributionCertificateForApp implements Action {
 
     if (ctx.nonInteractive) {
       throw new Error(
-        'Distribution Certificate is not configured correctly. Please run this command againg in interactive mode.'
+        'Distribution Certificate is not configured correctly. Please run this command again in interactive mode.'
       );
     }
 

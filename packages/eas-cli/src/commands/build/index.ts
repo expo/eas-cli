@@ -52,7 +52,7 @@ export default class Build extends Command {
 
     const nonInteractive = flags['non-interactive'];
     if (!flags.platform && nonInteractive) {
-      throw new Error('--platform param is required when building in non-interactive mode');
+      throw new Error('--platform is required when building in non-interactive mode');
     }
     const platform =
       (flags.platform as RequestedPlatform | undefined) ?? (await promptForPlatformAsync());

@@ -70,7 +70,7 @@ async function maybeBailOnGitStatusAsync(): Promise<void> {
   }
 }
 
-async function ensureGitStatusIsCleanAsync(nonInteractive: boolean): Promise<void> {
+async function ensureGitStatusIsCleanAsync(nonInteractive = false): Promise<void> {
   if (await isGitStatusCleanAsync()) {
     return;
   }
