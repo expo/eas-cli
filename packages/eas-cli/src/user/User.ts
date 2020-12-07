@@ -4,7 +4,10 @@ import { apiClient } from '../api';
 import { graphqlClient } from '../graphql/client';
 import { UserQuery } from '../graphql/queries/UserQuery';
 import { Account } from './Account';
-import { getSession, setSessionAsync } from './sessionStorage';
+import { getAccessToken, getSessionSecret, setSessionAsync } from './sessionStorage';
+
+// Re-export, but keep in separate file to avoid dependency cycle
+export { getSessionSecret, getAccessToken };
 
 export interface User {
   userId: string;
@@ -13,14 +16,6 @@ export interface User {
 }
 
 let currentUser: User | undefined;
-
-export function getAccessToken(): string | null {
-  return process.env.EXPO_TOKEN ?? null;
-}
-
-export function getSessionSecret(): string | null {
-  return getSession()?.sessionSecret ?? null;
-}
 
 export async function getUserAsync(): Promise<User | undefined> {
   if (!currentUser && getSessionSecret()) {

@@ -1,6 +1,6 @@
 import got, { NormalizedOptions } from 'got';
 
-import { getAccessToken, getSessionSecret } from './user/User';
+import { getAccessToken, getSessionSecret } from './user/sessionStorage';
 
 export const apiClient = got.extend({
   prefixUrl: getExpoApiBaseUrl() + '/--/api/v2/',

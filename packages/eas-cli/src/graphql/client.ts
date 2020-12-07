@@ -6,7 +6,7 @@ import {
 import fetch from 'node-fetch';
 
 import { getExpoApiBaseUrl } from '../api';
-import { getAccessToken, getSessionSecret } from '../user/User';
+import { getAccessToken, getSessionSecret } from '../user/sessionStorage';
 
 type AccessTokenHeaders = {
   authorization: string;

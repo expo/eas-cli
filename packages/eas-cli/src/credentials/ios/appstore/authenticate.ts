@@ -63,7 +63,8 @@ export function getRequestContext(authCtx: AuthCtx): RequestContext {
 }
 
 async function loginAsync(
-  userCredentials: Partial<Auth.UserCredentials> = {}
+  userCredentials: Partial<Auth.UserCredentials> = {},
+  options: Auth.LoginOptions
 ): Promise<Session.AuthState> {
   // First try login with cookies JSON
   if (userCredentials.cookies) {
@@ -84,11 +85,14 @@ async function loginAsync(
 
   try {
     // Attempt to rehydrate the session.
-    const restoredSession = await Auth.tryRestoringAuthStateFromUserCredentialsAsync({
-      username,
-      providerId: userCredentials.providerId,
-      teamId: userCredentials.teamId,
-    });
+    const restoredSession = await Auth.tryRestoringAuthStateFromUserCredentialsAsync(
+      {
+        username,
+        providerId: userCredentials.providerId,
+        teamId: userCredentials.teamId,
+      },
+      options
+    );
     if (restoredSession) {
       // Completed authentication!
       return { password, ...restoredSession };
@@ -108,10 +112,13 @@ async function loginAsync(
 
       if (await toggleConfirmAsync({ message: 'Would you like to try again?' })) {
         // Don't pass credentials back or the method will throw
-        return loginAsync({
-          teamId: userCredentials.teamId,
-          providerId: userCredentials.providerId,
-        });
+        return loginAsync(
+          {
+            teamId: userCredentials.teamId,
+            providerId: userCredentials.providerId,
+          },
+          options
+        );
       }
     }
     log(chalk.red('Authentication with Apple Developer Portal failed'));
@@ -148,10 +155,16 @@ async function loginWithUserCredentialsAsync({
 export async function authenticateAsync(options: Options = {}): Promise<AuthCtx> {
   try {
     // TODO: The password isn't required for apple-utils. Remove the local prompt when we remove traveling Fastlane.
-    const authState = await loginAsync({
-      cookies: options.cookies,
-      teamId: options.teamId,
-    });
+    const authState = await loginAsync(
+      {
+        cookies: options.cookies,
+        teamId: options.teamId,
+      },
+      {
+        // TODO: Provide a way to disable this for users who want to mix and match teams / providers.
+        autoResolveProvider: true,
+      }
+    );
 
     // Currently, this is resolved once, inside the apple-utils package.
     const teamId = authState.context.teamId!;

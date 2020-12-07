@@ -29,7 +29,6 @@ interface PartialIosCredentials {
 interface Options {
   app: AppLookupParams;
   distribution: DistributionType;
-  nonInteractive: boolean;
   skipCredentialsCheck?: boolean;
 }
 

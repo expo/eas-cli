@@ -14,7 +14,7 @@ import { ensureGitRepoExistsAsync, ensureGitStatusIsCleanAsync } from './utils/r
 
 export async function buildAsync(commandCtx: CommandContext): Promise<void> {
   await ensureGitRepoExistsAsync();
-  await ensureGitStatusIsCleanAsync();
+  await ensureGitStatusIsCleanAsync(commandCtx.nonInteractive);
 
   const scheduledBuilds = await startBuildsAsync(commandCtx);
   log.newLine();

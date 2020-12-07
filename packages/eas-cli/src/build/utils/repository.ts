@@ -51,41 +51,46 @@ async function isGitStatusCleanAsync(): Promise<boolean> {
 }
 
 async function maybeBailOnGitStatusAsync(): Promise<void> {
-  if (!(await isGitStatusCleanAsync())) {
-    log.addNewLineIfNone();
-    log.warn(`${chalk.bold('Warning!')} Your git working tree is dirty.`);
-    log(
-      `It's recommended to ${chalk.bold(
-        'commit all your changes before proceeding'
-      )}, so you can revert the changes made by this command if necessary.`
-    );
-    const answer = await confirmAsync({
-      message: `Would you like to proceed?`,
-    });
+  if (await isGitStatusCleanAsync()) {
+    return;
+  }
+  log.addNewLineIfNone();
+  log.warn(`${chalk.bold('Warning!')} Your git working tree is dirty.`);
+  log(
+    `It's recommended to ${chalk.bold(
+      'commit all your changes before proceeding'
+    )}, so you can revert the changes made by this command if necessary.`
+  );
+  const answer = await confirmAsync({
+    message: `Would you like to proceed?`,
+  });
 
-    if (!answer) {
-      throw new Error('Please commit all changes. Aborting...');
-    }
+  if (!answer) {
+    throw new Error('Please commit all changes. Aborting...');
   }
 }
 
-async function ensureGitStatusIsCleanAsync(): Promise<void> {
-  if (!(await isGitStatusCleanAsync())) {
-    log.addNewLineIfNone();
-    log.warn(`${chalk.bold('Warning!')} Your git working tree is dirty.`);
-    log(
-      `This operation needs to be run on a clean working tree, please ${chalk.bold(
-        'commit all your changes before proceeding'
-      )}.`
-    );
-    const answer = await confirmAsync({
-      message: `Commit changes to git?`,
-    });
-    if (answer) {
-      await commitPromptAsync();
-    } else {
-      throw new Error('Please commit all changes. Aborting...');
-    }
+async function ensureGitStatusIsCleanAsync(nonInteractive = false): Promise<void> {
+  if (await isGitStatusCleanAsync()) {
+    return;
+  }
+  log.addNewLineIfNone();
+  log.warn(`${chalk.bold('Warning!')} Your git working tree is dirty.`);
+  log(
+    `This operation needs to be run on a clean working tree, please ${chalk.bold(
+      'commit all your changes before proceeding'
+    )}.`
+  );
+  if (nonInteractive) {
+    throw new Error('Please commit all changes. Aborting...');
+  }
+  const answer = await confirmAsync({
+    message: `Commit changes to git?`,
+  });
+  if (answer) {
+    await commitPromptAsync();
+  } else {
+    throw new Error('Please commit all changes. Aborting...');
   }
 }
 

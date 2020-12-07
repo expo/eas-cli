@@ -79,7 +79,7 @@ export async function promptPasswordAsync({
 
   if (cachedPassword) {
     log(
-      `Using password for ${username} from your local Keychain. ${learnMore(
+      `\u203A Using password for ${username} from your local Keychain. ${learnMore(
         'https://docs.expo.io/distribution/security#keychain'
       )}`
     );
@@ -92,7 +92,7 @@ export async function promptPasswordAsync({
   log(
     wrap(
       chalk.bold(
-        `The password is only used to authenticate with Apple and never stored on Expo servers`
+        `\u203A The password is only used to authenticate with Apple and never stored on Expo servers`
       )
     )
   );
