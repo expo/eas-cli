@@ -1,0 +1,18 @@
+name: Size
+on:
+  pull_request:
+    types: [synchronize, opened]
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v1
+        with:
+          node-version: '14'
+      - uses: preactjs/compressed-size-action@v2
+        with:
+          build-script: 'build:tarballs:linux'
+          repo-token: '${{ secrets.GITHUB_TOKEN }}'
+          pattern: './packages/eas-cli/dist/*.tar.gz'
+          compression: 'none'
