@@ -48,18 +48,17 @@ export async function getDistributionCertificateAync(
   context: RequestContext,
   serialNumber: string
 ): Promise<Certificate | null> {
-  const [certificate] = await Certificate.getAsync(context, {
+  // At most, this returns 2 values.
+  const certificates = await Certificate.getAsync(context, {
     query: {
       filter: {
-        // Specifying a serial number to query.
-        serialNumber,
         certificateType: CertificateType.IOS_DISTRIBUTION,
       },
-      // Only require a single value.
-      limit: 1,
     },
   });
-  return certificate ?? null;
+  return (
+    certificates.find(certificate => certificate.attributes.serialNumber === serialNumber) ?? null
+  );
 }
 
 export function transformCertificate(cert: Certificate): DistributionCertificateStoreInfo {
