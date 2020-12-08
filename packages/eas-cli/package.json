@@ -47,6 +47,7 @@
     "qrcode-terminal": "^0.12.0",
     "strip-ansi": "^6.0.0",
     "tar": "^6.0.5",
+    "tempy": "^0.7.0",
     "tslib": "^1",
     "untildify": "^4.0.0",
     "uuid": "^8.3.0",
@@ -79,7 +80,6 @@
     "axios": "^0.21.0",
     "babel-jest": "^26.3.0",
     "memfs": "^3.2.0",
-    "tempy": "^0.7.0",
     "ts-node": "^8",
     "typescript": "^3.9.7",
     "wonka": "^4.0.14"
