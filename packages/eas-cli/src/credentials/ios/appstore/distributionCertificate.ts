@@ -15,51 +15,30 @@ export async function getCertificateBySerialNumberAsync(
   context: RequestContext,
   serialNumber: string
 ): Promise<Certificate> {
-  const cert = (
-    await Certificate.getAsync(context, {
-      query: { filter: { serialNumber: [serialNumber] } },
-    })
-  ).find(item => item.attributes.serialNumber === serialNumber);
+  const cert = (await Certificate.getAsync(context)).find(
+    item => item.attributes.serialNumber === serialNumber
+  );
   if (!cert) {
     throw new Error(`No certificate exists with serial number "${serialNumber}"`);
   }
   return cert;
 }
 
-export async function getMostRecentCertificateAsync(
-  context: RequestContext
-): Promise<Certificate | null> {
-  const [certificate] = await Certificate.getAsync(context, {
-    query: {
-      filter: {
-        certificateType: CertificateType.IOS_DISTRIBUTION,
-      },
-      // Only require a single value.
-      limit: 1,
-      // Sort the serial numbers in reverse order to get the last one
-      // also skip specifying a serial number.
-      sort: '-serialNumber',
-    },
-  });
-  return certificate ?? null;
-}
-
 export async function getDistributionCertificateAync(
   context: RequestContext,
   serialNumber: string
 ): Promise<Certificate | null> {
-  const [certificate] = await Certificate.getAsync(context, {
+  // At most, this returns 2 values.
+  const certificates = await Certificate.getAsync(context, {
     query: {
       filter: {
-        // Specifying a serial number to query.
-        serialNumber,
         certificateType: CertificateType.IOS_DISTRIBUTION,
       },
-      // Only require a single value.
-      limit: 1,
     },
   });
-  return certificate ?? null;
+  return (
+    certificates.find(certificate => certificate.attributes.serialNumber === serialNumber) ?? null
+  );
 }
 
 export function transformCertificate(cert: Certificate): DistributionCertificateStoreInfo {
