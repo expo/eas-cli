@@ -1,5 +1,6 @@
 import assert from 'assert';
 import chalk from 'chalk';
+import ora from 'ora';
 
 import log from '../../../log';
 import { Action, CredentialsManager } from '../../CredentialsManager';
@@ -76,19 +77,19 @@ export class ConfigureProvisioningProfile implements Action {
       profileFromApple,
       distCert
     );
-    const certIdTag = distCert.certId ? ` (${distCert.certId})` : '';
-    log(
-      chalk.green(
-        `Updated Apple provisioning profile (${profileFromApple.provisioningProfileId}) with distribution certificate${certIdTag}`
-      )
-    );
 
-    // Update profile on expo servers
-    await ctx.ios.updateProvisioningProfileAsync(app, updatedProfile);
-    log(
-      chalk.green(
-        `Updated provisioning profile for @${app.accountName}/${app.projectName} (${app.bundleIdentifier})`
-      )
-    );
+    const bundleIdTag = `(${app.bundleIdentifier})`;
+    const slugTag = `@${app.accountName}/${app.projectName}`;
+    const projectTag = `${chalk.bold(slugTag)} ${chalk.dim(bundleIdTag)}`;
+
+    const spinner = ora(`Updating Expo profile for ${projectTag}`).start();
+    try {
+      // Update profile on expo servers
+      await ctx.ios.updateProvisioningProfileAsync(app, updatedProfile);
+      spinner.succeed(`Updated Expo profile for ${projectTag}`);
+    } catch (error) {
+      spinner.fail();
+      throw error;
+    }
   }
 }

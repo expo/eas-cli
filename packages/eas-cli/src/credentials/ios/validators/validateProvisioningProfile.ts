@@ -100,7 +100,7 @@ function validateDeveloperCertificate(
   const devCertBase64 = (plistData?.DeveloperCertificates as PlistArray)?.[0] as string;
   if (!devCertBase64) {
     return {
-      error: 'Missing certificate fingerprint in Provisioning Profile.',
+      error: 'Missing certificate fingerprint in provisioning profile.',
       ok: false,
     };
   }
@@ -113,7 +113,7 @@ function validateDeveloperCertificate(
 
   if (devCertFingerprint !== distCertFingerprint) {
     return {
-      error: 'Provisioning Profile is not associated with uploaded Distribution Certificate.',
+      error: 'Provisioning profile is not associated with uploaded Distribution Certificate.',
       ok: false,
     };
   }
@@ -129,21 +129,21 @@ function validateBundleIdentifier(
   ] as string;
   if (!actualApplicationIdentifier) {
     return {
-      error: 'Missing application-identifier in Provisioning Profile Entitlements',
+      error: 'Missing application-identifier in provisioning profile entitlements',
       ok: false,
     };
   }
   const actualBundleIdentifier = /\.(.+)/.exec(actualApplicationIdentifier)?.[1] as string;
   if (!actualBundleIdentifier) {
     return {
-      error: 'Malformed application-identifier field in Provisioning Profile',
+      error: 'Malformed application-identifier field in provisioning profile',
       ok: false,
     };
   }
 
   if (!minimatch(expectedBundleIdentifier, actualBundleIdentifier)) {
     return {
-      error: `Wrong bundleIdentifier found in Provisioning Profile; expected: ${expectedBundleIdentifier}, found (in Provisioning Profile): ${actualBundleIdentifier}`,
+      error: `Wrong bundleIdentifier found in provisioning profile; expected: ${expectedBundleIdentifier}, found (in provisioning profile): ${actualBundleIdentifier}`,
       ok: false,
     };
   }

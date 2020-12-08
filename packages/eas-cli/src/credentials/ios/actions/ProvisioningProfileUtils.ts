@@ -17,7 +17,7 @@ export async function selectProvisioningProfileFromAppleAsync(
   const profiles = await ctx.appStore.listProvisioningProfilesAsync(bundleIdentifier);
   if (profiles.length === 0) {
     log.warn(
-      `There are no Provisioning Profiles available on Apple Developer Portal for bundle identifier ${bundleIdentifier}.`
+      `There are no provisioning profiles available on Apple Developer Portal for bundle identifier ${bundleIdentifier}.`
     );
     return null;
   }
@@ -25,7 +25,7 @@ export async function selectProvisioningProfileFromAppleAsync(
   const { credentialsIndex } = await promptAsync({
     type: 'select',
     name: 'credentialsIndex',
-    message: 'Select Provisioning Profile from the list.',
+    message: 'Select provisioning profile from the list.',
     choices: profiles.map((entry, index) => ({
       title: formatProvisioningProfileFromApple(entry),
       value: index,
@@ -53,7 +53,7 @@ export async function selectProvisioningProfileFromExpoAsync(
     ({ credentials }) => !!credentials.provisioningProfile && !!credentials.provisioningProfileId
   );
   if (profiles.length === 0) {
-    log.warn('There are no Provisioning Profiles available in your Expo account.');
+    log.warn('There are no provisioning profiles available in your Expo account.');
     return null;
   }
 
@@ -66,7 +66,7 @@ export async function selectProvisioningProfileFromExpoAsync(
   const { credentialsIndex } = await promptAsync({
     type: 'select',
     name: 'credentialsIndex',
-    message: 'Select Provisioning Profile from the list.',
+    message: 'Select provisioning profile from the list.',
     choices: profiles.map((entry, index) => ({
       title: format(entry),
       value: index,
