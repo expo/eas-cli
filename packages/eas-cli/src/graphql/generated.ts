@@ -1201,9 +1201,15 @@ export type BuildPublicData = {
   __typename?: 'BuildPublicData';
   id: Scalars['ID'];
   status: BuildStatus;
+  artifacts: PublicArtifacts;
   project: ProjectPublicData;
   platform: AppPlatform;
   distribution?: Maybe<DistributionType>;
+};
+
+export type PublicArtifacts = {
+  __typename?: 'PublicArtifacts';
+  buildUrl?: Maybe<Scalars['String']>;
 };
 
 export type ProjectPublicData = {
@@ -1423,6 +1429,8 @@ export type RootMutation = {
   userInvitation: UserInvitationMutation;
   /** Mutations that modify the currently authenticated User */
   me?: Maybe<MeMutation>;
+  /** Mutations that modify an EmailSubscription */
+  emailSubscription: EmailSubscriptionMutation;
 };
 
 
@@ -2479,6 +2487,46 @@ export type SecondFactorBooleanResult = {
 export type SecondFactorRegenerateBackupCodesResult = {
   __typename?: 'SecondFactorRegenerateBackupCodesResult';
   plaintextBackupCodes: Array<Maybe<Scalars['String']>>;
+};
+
+export type EmailSubscriptionMutation = {
+  __typename?: 'EmailSubscriptionMutation';
+  addUser?: Maybe<AddUserPayload>;
+};
+
+
+export type EmailSubscriptionMutationAddUserArgs = {
+  addUserInput: AddUserInput;
+};
+
+export type AddUserInput = {
+  email: Scalars['String'];
+  tags?: Maybe<Array<MailchimpTag>>;
+  audience?: Maybe<MailchimpAudience>;
+};
+
+export enum MailchimpTag {
+  EasMasterList = 'EAS_MASTER_LIST'
+}
+
+export enum MailchimpAudience {
+  ExpoDevelopers = 'EXPO_DEVELOPERS'
+}
+
+export type AddUserPayload = {
+  __typename?: 'AddUserPayload';
+  id?: Maybe<Scalars['String']>;
+  email_address?: Maybe<Scalars['String']>;
+  status?: Maybe<Scalars['String']>;
+  timestamp_signup?: Maybe<Scalars['String']>;
+  tags?: Maybe<Array<MailchimpTagPayload>>;
+  list_id?: Maybe<Scalars['String']>;
+};
+
+export type MailchimpTagPayload = {
+  __typename?: 'MailchimpTagPayload';
+  id?: Maybe<Scalars['Int']>;
+  name?: Maybe<Scalars['String']>;
 };
 
 export type BaseSearchResult = SearchResult & {
