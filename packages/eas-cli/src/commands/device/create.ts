@@ -7,6 +7,7 @@ import { ensureLoggedInAsync } from '../../user/actions';
 
 export default class DeviceCreate extends Command {
   static description = 'register new Apple Devices to use for internal distribution';
+  static aliases = ['device'];
 
   async run() {
     const user = await ensureLoggedInAsync();
