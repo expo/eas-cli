@@ -57,13 +57,9 @@ function printBuildResult(accountName: string, build: Build): void {
       account: accountName,
     });
     log(
-      `Open this link on your ${
-        platformDisplayNames[build.platform]
-      } devices (or scan the QR code) to install the app:`
+      `Open this link on your ${platformDisplayNames[build.platform]} devices to install the app:`
     );
     log(`${chalk.underline(logsUrl)}`);
-    log.newLine();
-    qrcodeTerminal.generate(logsUrl, code => console.log(`${indentString(code, 2)}\n`));
   } else {
     const url = build.artifacts?.buildUrl ?? '';
     log(`Platform: ${platformDisplayNames[build.platform]}, App: ${chalk.underline(url)}`);
