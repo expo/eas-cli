@@ -83,8 +83,10 @@ export async function useExistingProvisioningProfileAsync(
   if (!provisioningProfile.provisioningProfileId) {
     throw new Error('Provisioning profile: cannot use existing profile, insufficient id');
   }
+  const certIdTag = distCert.certId ? ` (${distCert.certId})` : '';
+
   const spinner = ora(
-    `Updating Apple provisioning profile (${provisioningProfile.provisioningProfileId})`
+    `Updating provisioning profile (${provisioningProfile.provisioningProfileId}) with distribution certificate${certIdTag}`
   ).start();
   try {
     if (!distCert.distCertSerialNumber) {
@@ -113,7 +115,9 @@ export async function useExistingProvisioningProfileAsync(
       teamId: authCtx.team.id,
       teamName: authCtx.team.name,
     };
-    spinner.succeed(`Updated Apple provisioning profile (${profile.id})`);
+    spinner.succeed(
+      `Updated provisioning profile (${profile.id}) with distribution certificate${certIdTag}`
+    );
     return {
       ...result,
       teamId: authCtx.team.id,
@@ -121,7 +125,7 @@ export async function useExistingProvisioningProfileAsync(
     };
   } catch (error) {
     spinner.fail(
-      `Failed to update Apple provisioning profile (${provisioningProfile.provisioningProfileId})`
+      `Failed to update provisioning profile (${provisioningProfile.provisioningProfileId}) with distribution certificate${certIdTag}`
     );
     throw error;
   }

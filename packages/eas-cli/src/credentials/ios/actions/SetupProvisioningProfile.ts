@@ -30,7 +30,7 @@ export class SetupProvisioningProfile implements Action {
 
     if (ctx.nonInteractive) {
       throw new Error(
-        'Provisioning Profile is not configured correctly. Please run this command again in interactive mode.'
+        'Provisioning profile is not configured correctly. Please run this command again in interactive mode.'
       );
     }
 
@@ -49,7 +49,7 @@ export class SetupProvisioningProfile implements Action {
     }
 
     const distCert = await ctx.ios.getDistributionCertificateAsync(this.app);
-    assert(distCert, 'missing Distribution Certificate');
+    assert(distCert, 'missing distribution certificate');
 
     const autoselectedProfile = this.choosePreferred(existingProfiles, distCert);
     // autoselect credentials if we find valid certs
@@ -65,7 +65,7 @@ export class SetupProvisioningProfile implements Action {
         return;
       }
     } else {
-      log(`Using Provisioning Profile: ${autoselectedProfile.provisioningProfileId}`);
+      log(`Using provisioning profile: ${autoselectedProfile.provisioningProfileId}`);
     }
 
     await ctx.ios.updateProvisioningProfileAsync(
@@ -133,7 +133,7 @@ export class SetupProvisioningProfile implements Action {
     const { action } = await promptAsync({
       type: 'select',
       name: 'action',
-      message: 'Select a Provisioning Profile:',
+      message: 'Select a provisioning profile:',
       choices: [
         {
           title: '[Choose existing provisioning profile] (Recommended)',
