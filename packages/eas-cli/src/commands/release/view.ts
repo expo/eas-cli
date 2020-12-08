@@ -3,7 +3,7 @@ import { Command, flags } from '@oclif/command';
 import chalk from 'chalk';
 import Table from 'cli-table3';
 import gql from 'graphql-tag';
-import _ from 'lodash';
+import { groupBy } from 'lodash';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
 import { Update } from '../../graphql/generated';
@@ -137,7 +137,7 @@ export default class ReleaseView extends Command {
       releaseName,
     });
 
-    const updates = Object.values(_.groupBy(UpdateRelease.updates, u => u.updateGroup)).map(
+    const updates = Object.values(groupBy(UpdateRelease.updates, u => u.updateGroup)).map(
       updateGroup => updateGroup[0]
     );
 
