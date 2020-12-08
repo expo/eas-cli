@@ -1,4 +1,4 @@
-import { App, RequestContext, Session, User } from '@expo/apple-utils/build';
+import { App, RequestContext, Session, User } from '@expo/apple-utils';
 import { getConfig } from '@expo/config';
 import { Platform } from '@expo/eas-build-job';
 import chalk from 'chalk';
