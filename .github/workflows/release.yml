@@ -29,6 +29,7 @@ jobs:
         with:
           node-version: '14'
       - run: yarn install --frozen-lockfile --check-files
+      - run: yarn build
       - name: Build tarballs
         working-directory: ${{ github.workspace }}/packages/eas-cli
         run: yarn oclif-dev pack --targets linux-x64,linux-arm
@@ -61,6 +62,7 @@ jobs:
         with:
           node-version: '14'
       - run: yarn install --frozen-lockfile --check-files
+      - run: yarn build
       - name: Build tarballs
         working-directory: ${{ github.workspace }}/packages/eas-cli
         run: yarn oclif-dev pack --targets darwin-x64
@@ -84,6 +86,7 @@ jobs:
           node-version: '14'
       - run: yarn install --frozen-lockfile --check-files
       - run: sudo apt-get install nsis
+      - run: yarn build
       - run: yarn oclif-dev pack:win
         working-directory: ${{ github.workspace }}/packages/eas-cli
       - id: x64
