@@ -2,7 +2,9 @@ import { IOSConfig } from '@expo/config-plugins';
 import { Workflow } from '@expo/eas-build-job';
 import { EasConfig } from '@expo/eas-json';
 import chalk from 'chalk';
+import fs from 'fs-extra';
 import sortBy from 'lodash/sortBy';
+import path from 'path';
 
 import log from '../../log';
 import { promptAsync } from '../../prompts';
@@ -23,6 +25,17 @@ export async function prepareIosBuildAsync(
     platform: Platform.iOS,
     easConfig,
   });
+
+  if (
+    buildCtx.buildProfile.workflow === Workflow.Generic &&
+    !(await fs.pathExists(path.join(commandCtx.projectDir, 'ios')))
+  ) {
+    throw new Error(
+      `"ios" directory not found. If you're trying to build a managed project, set ${chalk.bold(
+        `builds.ios.${commandCtx.profile}.workflow`
+      )} in "eas.json" to "managed".`
+    );
+  }
 
   let iosNativeProjectScheme: string | undefined;
   if (buildCtx.buildProfile.workflow === Workflow.Generic) {
@@ -58,7 +71,7 @@ async function resolveSchemeAsync(ctx: BuildContext<Platform.iOS>): Promise<stri
   );
   log(
     `You can specify the scheme you want to build at ${chalk.bold(
-      'builds.ios.PROFILE_NAME.scheme'
+      `builds.ios.${ctx.commandCtx.profile}.scheme`
     )} in eas.json.`
   );
   if (ctx.commandCtx.nonInteractive) {

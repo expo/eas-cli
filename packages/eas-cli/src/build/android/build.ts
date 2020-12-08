@@ -1,6 +1,8 @@
 import { Workflow } from '@expo/eas-build-job';
 import { EasConfig } from '@expo/eas-json';
 import chalk from 'chalk';
+import fs from 'fs-extra';
+import path from 'path';
 
 import AndroidCredentialsProvider, {
   AndroidCredentials,
@@ -25,8 +27,19 @@ export async function prepareAndroidBuildAsync(
     platform: Platform.Android,
     easConfig,
   });
-
   const { buildProfile } = buildCtx;
+
+  if (
+    buildProfile.workflow === Workflow.Generic &&
+    !(await fs.pathExists(path.join(commandCtx.projectDir, 'android')))
+  ) {
+    throw new Error(
+      `"android" directory not found. If you're trying to build a managed project, set ${chalk.bold(
+        `builds.android.${commandCtx.profile}.workflow`
+      )} in "eas.json" to "managed".`
+    );
+  }
+
   if (
     buildProfile.workflow === Workflow.Generic &&
     buildProfile.distribution === 'internal' &&
