@@ -26,7 +26,7 @@ export async function buildAsync(commandCtx: CommandContext): Promise<void> {
       commandCtx,
       scheduledBuilds.map(i => i.buildId)
     );
-    printBuildResults(builds);
+    printBuildResults(commandCtx.accountName, builds);
   }
 }
 
