@@ -10,6 +10,7 @@ enum SubmissionErrorCode {
   ANDROID_MISSING_PRIVACY_POLICY = 'SUBMISSION_SERVICE_ANDROID_MISSING_PRIVACY_POLICY',
   IOS_OLD_VERSION_CODE_ERROR = 'SUBMISSION_SERVICE_IOS_OLD_VERSION_CODE_ERROR',
   IOS_UNKNOWN_ERROR = 'SUBMISSION_SERVICE_IOS_UNKNOWN_ERROR',
+  IOS_MISSING_APP_ICON = 'SUBMISSION_SERVICE_IOS_MISSING_APP_ICON',
 }
 
 const SubmissionErrorMessages: Record<SubmissionErrorCode, string> = {
@@ -36,6 +37,10 @@ const SubmissionErrorMessages: Record<SubmissionErrorCode, string> = {
     "If you're submitting an Expo project built with EAS Builds, increment the build number in app.json and build the project again.",
   [SubmissionErrorCode.IOS_UNKNOWN_ERROR]:
     "We couldn't figure out what went wrong. Please see logs to learn more.",
+  [SubmissionErrorCode.IOS_MISSING_APP_ICON]:
+    'Your iOS App Icon is missing or has invalid format. The icon must be a 1024x1024 PNG image.\n' +
+    'Please check your icon image and icon configuration in app.json.\n' +
+    `${learnMore('https://docs.expo.io/guides/app-icons/')}`,
 };
 
 export function printSubmissionError(error: SubmissionError): boolean {
