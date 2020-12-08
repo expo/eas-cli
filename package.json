@@ -4,6 +4,7 @@
     "packages/*"
   ],
   "scripts": {
+    "build": "lerna run build",
     "eas": "packages/eas-cli/bin/run",
     "lint": "eslint . --ext .ts",
     "release": "lerna version",

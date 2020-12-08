@@ -1,7 +1,7 @@
 {
   "name": "@expo/eas-json",
   "description": "A library for interacting with the eas.json",
-  "version": "0.1.0-alpha.13",
+  "version": "0.1.0-alpha.19",
   "author": "Expo <support@expo.io>",
   "bugs": "https://github.com/expo/eas-cli/issues",
   "dependencies": {
@@ -32,6 +32,7 @@
   "repository": "expo/eas-cli",
   "scripts": {
     "build": "tsc",
+    "prepack": "rm -rf build && yarn build",
     "test": "jest"
   },
   "publishConfig": {
