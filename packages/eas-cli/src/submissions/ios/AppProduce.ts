@@ -1,6 +1,7 @@
 import { App, RequestContext, Session, User } from '@expo/apple-utils/build';
 import { getConfig } from '@expo/config';
 import { Platform } from '@expo/eas-build-job';
+import chalk from 'chalk';
 
 import { authenticateAsync, getRequestContext } from '../../credentials/ios/appstore/authenticate';
 import log from '../../log';
@@ -109,7 +110,28 @@ async function createAppStoreConnectAppAsync(options: CreateAppOptions): Promise
           `\nThe bundle identifier "${bundleId}" is not available to provider "${providerName}". Please change it in your app config and try again.\n`
         );
       }
+
       log.error('Failed to create the app in App Store Connect:');
+
+      if (
+        // Name is invalid
+        error.message.match(
+          /App Name contains certain Unicode(.*)characters that are not permitted/
+        ) ||
+        // UnexpectedAppleResponse: An attribute value has invalid characters. - App Name contains certain Unicode symbols, emoticons, diacritics, special characters, or private use characters that are not permitted.
+        // Name is taken
+        error.message.match(/The App Name you entered is already being used/)
+        // UnexpectedAppleResponse: The provided entity includes an attribute with a value that has already been used on a different account. - The App Name you entered is already being used. If you have trademark rights to
+        // this name and would like it released for your use, submit a claim.
+      ) {
+        log.addNewLineIfNone();
+        log.warn(
+          `Change the name in your app config, or use a custom name with the ${chalk.bold(
+            '--app-name'
+          )} flag`
+        );
+        log.newLine();
+      }
       throw error;
     }
   } else {
