@@ -1,8 +1,6 @@
 import { DistributionType } from '@expo/eas-json';
 import assert from 'assert';
 import chalk from 'chalk';
-import indentString from 'indent-string';
-import qrcodeTerminal from 'qrcode-terminal';
 
 import log from '../../log';
 import { platformDisplayNames } from '../constants';
