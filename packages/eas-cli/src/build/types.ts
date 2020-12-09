@@ -28,6 +28,7 @@ export interface Build {
   status: BuildStatus;
   platform: Platform;
   createdAt: string;
+  updatedAt: string;
   artifacts?: BuildArtifacts;
   metadata?: Partial<BuildMetadata>;
 }

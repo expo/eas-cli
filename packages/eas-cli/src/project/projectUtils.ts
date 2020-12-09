@@ -31,6 +31,13 @@ export async function getProjectIdAsync(projectDir: string): Promise<string> {
   });
 }
 
+export async function getProjectFullNameAsync(projectDir: string): Promise<string> {
+  const accountName = await getProjectAccountNameAsync(projectDir);
+  const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
+
+  return `@${accountName}/${exp.slug}`;
+}
+
 // TODO move to @expo/config
 export async function getAndroidApplicationIdAsync(projectDir: string): Promise<string | null> {
   const buildGradlePath = AndroidConfig.Paths.getAppBuildGradle(projectDir);
