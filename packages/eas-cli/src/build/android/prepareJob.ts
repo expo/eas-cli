@@ -1,15 +1,23 @@
-import { Android, Job, Workflow, sanitizeJob } from '@expo/eas-build-job';
+import {
+  Android,
+  ArchiveSource,
+  ArchiveSourceType,
+  Job,
+  Workflow,
+  sanitizeJob,
+} from '@expo/eas-build-job';
 import { AndroidGenericBuildProfile, AndroidManagedBuildProfile } from '@expo/eas-json';
 import path from 'path';
 
 import { AndroidCredentials } from '../../credentials/android/AndroidCredentialsProvider';
 import { readSecretEnvsAsync } from '../../credentials/credentialsJson/read';
+import { ensureLoggedInAsync } from '../../user/actions';
 import { gitRootDirectoryAsync } from '../../utils/git';
 import { BuildContext } from '../context';
 import { Platform } from '../types';
 
 interface JobData {
-  archiveUrl: string;
+  archiveBucketKey: string;
   credentials?: AndroidCredentials;
 }
 
@@ -30,7 +38,7 @@ export async function prepareJobAsync(
 
 interface CommonJobProperties {
   platform: Platform.Android;
-  projectUrl: string;
+  projectArchive: ArchiveSource;
   secrets: {
     buildCredentials?: {
       keystore: Android.Keystore;
@@ -60,7 +68,10 @@ async function prepareJobCommonAsync(
 
   return {
     platform: Platform.Android,
-    projectUrl: jobData.archiveUrl,
+    projectArchive: {
+      type: ArchiveSourceType.S3,
+      bucketKey: jobData.archiveBucketKey,
+    },
     secrets: {
       ...(secretEnvs ? { secretEnvs } : {}),
       ...buildCredentials,
@@ -90,9 +101,11 @@ async function prepareManagedJobAsync(
   buildProfile: AndroidManagedBuildProfile
 ): Promise<Partial<Android.ManagedJob>> {
   const projectRootDirectory = path.relative(await gitRootDirectoryAsync(), process.cwd()) || '.';
+  const { username } = await ensureLoggedInAsync();
   return {
     ...(await prepareJobCommonAsync(ctx, jobData)),
     type: Workflow.Managed,
+    username,
     buildType: buildProfile.buildType,
     releaseChannel: buildProfile.releaseChannel,
     projectRootDirectory,

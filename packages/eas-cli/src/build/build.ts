@@ -36,7 +36,7 @@ interface Builder<TPlatform extends Platform, Credentials, ProjectConfiguration>
   prepareJobAsync(
     ctx: BuildContext<TPlatform>,
     jobData: {
-      archiveUrl: string;
+      archiveBucketKey: string;
       credentials?: Credentials;
       projectConfiguration?: ProjectConfiguration;
     }
@@ -74,13 +74,13 @@ export async function prepareBuildRequestForPlatformAsync<
     });
   }
 
-  const archiveUrl = await uploadProjectAsync(builder.ctx);
+  const archiveBucketKey = await uploadProjectAsync(builder.ctx);
 
   const metadata = await collectMetadata(builder.ctx, {
     credentialsSource: credentialsResult?.source,
   });
   const job = await builder.prepareJobAsync(builder.ctx, {
-    archiveUrl,
+    archiveBucketKey,
     credentials: credentialsResult?.credentials,
     projectConfiguration: builder.projectConfiguration,
   });
@@ -129,11 +129,12 @@ async function uploadProjectAsync<TPlatform extends Platform>(
         projectTarballPath = projectTarball.path;
 
         log('Uploading project to build servers');
-        return await uploadAsync(
+        const { bucketKey } = await uploadAsync(
           UploadType.TURTLE_PROJECT_SOURCES,
           projectTarball.path,
           createProgressTracker(projectTarball.size)
         );
+        return bucketKey;
       },
       {
         successEvent: AnalyticsEvent.PROJECT_UPLOAD_SUCCESS,
