@@ -1,3 +1,5 @@
+import { DistributionType } from '@expo/eas-json';
+import assert from 'assert';
 import chalk from 'chalk';
 
 import log from '../../log';
@@ -34,17 +36,31 @@ export function printLogsUrls(
   }
 }
 
-export function printBuildResults(builds: (Build | null)[]): void {
+export function printBuildResults(accountName: string, builds: (Build | null)[]): void {
   if (builds.length === 1) {
-    const url = builds[0]?.artifacts?.buildUrl ?? '';
-    log(`App: ${chalk.underline(url)}`);
+    const [build] = builds;
+    assert(build, 'Build should be defined');
+    printBuildResult(accountName, build);
   } else {
     (builds.filter(i => i) as Build[])
       .filter(build => build.status === 'finished')
-      .forEach(build => {
-        const url = build.artifacts?.buildUrl ?? '';
-        log(`Platform: ${platformDisplayNames[build.platform]}, App: ${chalk.underline(url)}`);
-      });
+      .forEach(build => printBuildResult(accountName, build));
+  }
+}
+
+function printBuildResult(accountName: string, build: Build): void {
+  if (build.metadata?.distribution === DistributionType.INTERNAL) {
+    const logsUrl = getBuildLogsUrl({
+      buildId: build.id,
+      account: accountName,
+    });
+    log(
+      `Open this link on your ${platformDisplayNames[build.platform]} devices to install the app:`
+    );
+    log(`${chalk.underline(logsUrl)}`);
+  } else {
+    const url = build.artifacts?.buildUrl ?? '';
+    log(`Platform: ${platformDisplayNames[build.platform]}, App: ${chalk.underline(url)}`);
   }
 }
 
