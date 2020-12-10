@@ -11,6 +11,7 @@ enum SubmissionErrorCode {
   IOS_OLD_VERSION_CODE_ERROR = 'SUBMISSION_SERVICE_IOS_OLD_VERSION_CODE_ERROR',
   IOS_UNKNOWN_ERROR = 'SUBMISSION_SERVICE_IOS_UNKNOWN_ERROR',
   IOS_MISSING_APP_ICON = 'SUBMISSION_SERVICE_IOS_MISSING_APP_ICON',
+  IOS_INVALID_SIGNATURE = 'SUBMISSION_SERVICE_IOS_INVALID_SIGNATURE',
 }
 
 const SubmissionErrorMessages: Record<SubmissionErrorCode, string> = {
@@ -41,6 +42,10 @@ const SubmissionErrorMessages: Record<SubmissionErrorCode, string> = {
     'Your iOS App Icon is missing or has invalid format. The icon must be a 1024x1024 PNG image.\n' +
     'Please check your icon image and icon configuration in app.json.\n' +
     `${learnMore('https://docs.expo.io/guides/app-icons/')}`,
+  [SubmissionErrorCode.IOS_INVALID_SIGNATURE]:
+    'Your app signature seems to be invalid.\n' +
+    "Please check your iOS Distribution Certificate and your app's Provisioning Profile.\n" +
+    `${learnMore('https://docs.expo.io/distribution/app-signing')}`,
 };
 
 export function printSubmissionError(error: SubmissionError): boolean {
