@@ -8,7 +8,12 @@ import {
   ArchiveType,
   SubmissionPlatform,
 } from '../types';
-import { printSummary } from '../utils/summary';
+import {
+  ArchiveSourceSummaryFields,
+  breakWord,
+  formatArchiveSourceSummary,
+  printSummary,
+} from '../utils/summary';
 import { AndroidPackageSource, getAndroidPackageAsync } from './AndroidPackageSource';
 import { AndroidSubmissionConfig, ReleaseStatus, ReleaseTrack } from './AndroidSubmissionConfig';
 import { ServiceAccountSource, getServiceAccountAsync } from './ServiceAccountSource';
@@ -35,10 +40,15 @@ class AndroidSubmitter extends BaseSubmitter<AndroidSubmissionContext, AndroidSu
 
   async submitAsync(): Promise<void> {
     const resolvedSourceOptions = await this.resolveSourceOptions();
-    const submissionConfig = await this.formatSubmissionConfigAndPrintSummary(
-      this.options,
-      resolvedSourceOptions
+    const submissionConfig = await this.formatSubmissionConfig(this.options, resolvedSourceOptions);
+
+    printSummary(
+      this.prepareSummaryData(this.options, resolvedSourceOptions),
+      'Android Submission Summary',
+      SummaryHumanReadableKeys,
+      SummaryHumanReadableValues
     );
+
     await this.startSubmissionAsync(submissionConfig, this.ctx.commandFlags.verbose);
   }
 
@@ -53,65 +63,58 @@ class AndroidSubmitter extends BaseSubmitter<AndroidSubmissionContext, AndroidSu
     };
   }
 
-  private async formatSubmissionConfigAndPrintSummary(
+  private async formatSubmissionConfig(
     options: AndroidSubmissionOptions,
     { archive, androidPackage, serviceAccountPath }: ResolvedSourceOptions
   ): Promise<AndroidSubmissionConfig> {
     const serviceAccount = await fs.readFile(serviceAccountPath, 'utf-8');
     const { track, releaseStatus, projectId } = options;
-    const submissionConfig = {
+
+    // structuring order affects table rows order
+    return {
       androidPackage,
       archiveUrl: archive.location,
       archiveType: archive.type as AndroidArchiveType,
       track,
       releaseStatus,
       projectId,
+      serviceAccount,
     };
+  }
 
-    printSummaryAndroid({
-      ...submissionConfig,
+  private prepareSummaryData(
+    options: AndroidSubmissionOptions,
+    { archive, androidPackage, serviceAccountPath }: ResolvedSourceOptions
+  ): Summary {
+    const { projectId, track, releaseStatus } = options;
+
+    return {
+      projectId,
+      androidPackage,
+      track,
+      releaseStatus,
+      archiveType: archive.type as AndroidArchiveType,
+      ...formatArchiveSourceSummary(archive),
       serviceAccountPath,
-    });
-    return { ...submissionConfig, serviceAccount };
+    };
   }
 }
 
-/**
- * Log the summary as a table. Exported for testing locally.
- *
- * @example
- * printSummaryAndroid({
- *   androidPackage: 'com.expo.demoapp',
- *   archivePath: '/Users/example/Documents/863f9337-65d2-40c6-acb3-c1054c5c09f8.apk',
- *   archiveUrl: 'https://turtle-v2-artifacts.s3.amazonaws.com/ios/6420592d-5b5d-439b-aed4-ccd278647138-ca4145d8468947df9ded737248a1a238.aab',
- *   archiveType: 'apk' as any,
- *   serviceAccountPath: '/Users/example/Documents/gsa.json',
- *   track: ReleaseTrack.production,
- *   releaseStatus: ReleaseStatus.completed,
- *   projectId: '863f9337-65d2-40c6-acb3-c1054c5c09f8',
- * });
- * @param submissionConfig
- */
-export function printSummaryAndroid(submissionConfig: Summary) {
-  printSummary(submissionConfig, SummaryHumanReadableKeys, SummaryHumanReadableValues);
-}
-
-interface Summary {
+type Summary = {
   androidPackage: string;
-  archivePath?: string;
-  archiveUrl?: string;
   archiveType: ArchiveType;
   serviceAccountPath: string;
   track: ReleaseTrack;
   releaseStatus?: ReleaseStatus;
   projectId?: string;
-}
+} & ArchiveSourceSummaryFields;
 
 const SummaryHumanReadableKeys: Record<keyof Summary, string> = {
   androidPackage: 'Android package',
   archivePath: 'Archive path',
   archiveUrl: 'Download URL',
   archiveType: 'Archive type',
+  buildId: 'Build ID',
   serviceAccountPath: 'Google Service Account',
   track: 'Release track',
   releaseStatus: 'Release status',

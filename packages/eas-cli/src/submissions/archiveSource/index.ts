@@ -14,17 +14,19 @@ export interface ArchiveSource {
 export interface Archive {
   location: string;
   type: ArchiveType;
+  realFileSource: ArchiveFileSource;
 }
 
 export async function getArchiveAsync(
   platform: SubmissionPlatform,
   source: ArchiveSource
 ): Promise<Archive> {
-  const location = await getArchiveFileLocationAsync(source.archiveFile);
+  const { location, realSource } = await getArchiveFileLocationAsync(source.archiveFile);
   const type = await getArchiveTypeAsync(platform, source.archiveType, location);
   return {
     location,
     type,
+    realFileSource: realSource,
   };
 }
 
