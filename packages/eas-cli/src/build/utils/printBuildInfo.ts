@@ -3,7 +3,7 @@ import assert from 'assert';
 import chalk from 'chalk';
 
 import log from '../../log';
-import { platformDisplayNames } from '../constants';
+import { platformDisplayNames, platformEmojis } from '../constants';
 import { Build } from '../types';
 import { getBuildLogsUrl } from './url';
 
@@ -29,9 +29,7 @@ export function printLogsUrls(
         buildId,
         account: accountName,
       });
-      log(
-        `Platform: ${platformDisplayNames[platform]}, Build details: ${chalk.underline(logsUrl)}`
-      );
+      log(`${platformDisplayNames[platform]} build details: ${chalk.underline(logsUrl)}`);
     });
   }
 }
@@ -55,12 +53,19 @@ function printBuildResult(accountName: string, build: Build): void {
       account: accountName,
     });
     log(
-      `Open this link on your ${platformDisplayNames[build.platform]} devices to install the app:`
+      `${platformEmojis[build.platform]} Open this link on your ${
+        platformDisplayNames[build.platform]
+      } devices to install the app:`
     );
     log(`${chalk.underline(logsUrl)}`);
+    log.newLine();
   } else {
+    // TODO: it looks like buildUrl could possibly be undefined, based on the code below.
+    // we should account for this case better if it is possible
     const url = build.artifacts?.buildUrl ?? '';
-    log(`Platform: ${platformDisplayNames[build.platform]}, App: ${chalk.underline(url)}`);
+    log(`${platformEmojis[build.platform]} ${platformDisplayNames[build.platform]} app:`);
+    log(`${chalk.underline(url)}`);
+    log.newLine();
   }
 }
 
