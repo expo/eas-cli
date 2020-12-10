@@ -266,6 +266,15 @@ export type AccountAppleProvisioningProfilesArgs = {
 };
 
 
+/**
+ * An account is a container owning projects, credentials, billing and other organization
+ * data and settings. Actors may own and be members of accounts.
+ */
+export type AccountAppleDevicesArgs = {
+  identifier?: Maybe<Scalars['String']>;
+};
+
+
 export type Offer = {
   __typename?: 'Offer';
   id: Scalars['ID'];
@@ -2569,6 +2578,87 @@ export enum CacheControlScope {
   Private = 'PRIVATE'
 }
 
+
+export type AccountByNameQueryVariables = Exact<{
+  accountName: Scalars['String'];
+}>;
+
+
+export type AccountByNameQuery = (
+  { __typename?: 'RootQuery' }
+  & { account: (
+    { __typename?: 'AccountQuery' }
+    & { byName: (
+      { __typename?: 'Account' }
+      & Pick<Account, 'id'>
+    ) }
+  ) }
+);
+
+export type AppleDevicesByAccountNameQueryVariables = Exact<{
+  accountId: Scalars['ID'];
+  identifier: Scalars['String'];
+}>;
+
+
+export type AppleDevicesByAccountNameQuery = (
+  { __typename?: 'RootQuery' }
+  & { appleTeam: (
+    { __typename?: 'AppleTeamQuery' }
+    & { byAppleTeamIdentifier?: Maybe<(
+      { __typename?: 'AppleTeam' }
+      & Pick<AppleTeam, 'id' | 'appleTeamName'>
+      & { appleDevices?: Maybe<Array<Maybe<(
+        { __typename?: 'AppleDevice' }
+        & Pick<AppleDevice, 'id' | 'identifier' | 'name' | 'deviceClass' | 'enabled'>
+      )>>> }
+    )> }
+  ) }
+);
+
+export type AppleDevicesByIdentifierQueryVariables = Exact<{
+  accountName: Scalars['String'];
+  identifier: Scalars['String'];
+}>;
+
+
+export type AppleDevicesByIdentifierQuery = (
+  { __typename?: 'RootQuery' }
+  & { account: (
+    { __typename?: 'AccountQuery' }
+    & { byName: (
+      { __typename?: 'Account' }
+      & Pick<Account, 'id'>
+      & { appleDevices?: Maybe<Array<Maybe<(
+        { __typename?: 'AppleDevice' }
+        & Pick<AppleDevice, 'id' | 'identifier' | 'name' | 'deviceClass' | 'enabled'>
+        & { appleTeam: (
+          { __typename?: 'AppleTeam' }
+          & Pick<AppleTeam, 'id' | 'appleTeamIdentifier' | 'appleTeamName'>
+        ) }
+      )>>> }
+    ) }
+  ) }
+);
+
+export type AppleTeamsByAccountNameQueryVariables = Exact<{
+  accountName: Scalars['String'];
+}>;
+
+
+export type AppleTeamsByAccountNameQuery = (
+  { __typename?: 'RootQuery' }
+  & { account: (
+    { __typename?: 'AccountQuery' }
+    & { byName: (
+      { __typename?: 'Account' }
+      & { appleTeams: Array<Maybe<(
+        { __typename?: 'AppleTeam' }
+        & Pick<AppleTeam, 'id' | 'appleTeamName' | 'appleTeamIdentifier'>
+      )>> }
+    ) }
+  ) }
+);
 
 export type BuildsByIdQueryQueryVariables = Exact<{
   buildId: Scalars['ID'];

@@ -100,7 +100,10 @@ async function ensureAppleTeamExistsAsync(
   accountId: string,
   { appleTeamIdentifier, appleTeamName }: { appleTeamIdentifier: string; appleTeamName: string }
 ): Promise<AppleTeam> {
-  const appleTeam = await AppleTeamQuery.byAppleTeamIdentifierAsync(accountId, appleTeamIdentifier);
+  const appleTeam = await AppleTeamQuery.getByAppleTeamIdentifierAsync(
+    accountId,
+    appleTeamIdentifier
+  );
   if (appleTeam) {
     return appleTeam;
   } else {

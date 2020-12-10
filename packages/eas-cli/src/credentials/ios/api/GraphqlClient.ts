@@ -127,7 +127,7 @@ export async function createOrGetExistingAppleTeamAsync(
   { account }: AppLookupParams,
   { appleTeamIdentifier, appleTeamName }: { appleTeamIdentifier: string; appleTeamName?: string }
 ): Promise<AppleTeam> {
-  const appleTeam = await AppleTeamQuery.byAppleTeamIdentifierAsync(
+  const appleTeam = await AppleTeamQuery.getByAppleTeamIdentifierAsync(
     account.id,
     appleTeamIdentifier
   );
