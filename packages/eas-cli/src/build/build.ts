@@ -76,7 +76,7 @@ export async function prepareBuildRequestForPlatformAsync<
 
   const archiveUrl = await uploadProjectAsync(builder.ctx);
 
-  const metadata = collectMetadata(builder.ctx, {
+  const metadata = await collectMetadata(builder.ctx, {
     credentialsSource: credentialsResult?.source,
   });
   const job = await builder.prepareJobAsync(builder.ctx, {
