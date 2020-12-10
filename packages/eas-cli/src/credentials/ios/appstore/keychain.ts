@@ -42,6 +42,10 @@ export async function getPasswordAsync({
   username,
   serviceName,
 }: Pick<Credentials, 'serviceName' | 'username'>): Promise<string | null> {
+  if (!IS_MAC) {
+    return null;
+  }
+
   return await new Promise((resolve, reject) => {
     keychain.getPassword(
       { account: username, service: serviceName, type: KEYCHAIN_TYPE },
