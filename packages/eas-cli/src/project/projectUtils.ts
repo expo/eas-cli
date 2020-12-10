@@ -117,7 +117,7 @@ export async function getReleaseByNameAsync({
 }): Promise<UpdateRelease> {
   const data = await withErrorHandlingAsync(
     graphqlClient
-      .mutation<
+      .query<
         {
           app: {
             byId: {
