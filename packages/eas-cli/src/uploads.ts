@@ -26,7 +26,7 @@ export async function uploadAsync(
   );
 }
 
-interface S3PresignedPost {
+export interface PresignedPost {
   url: string;
   fields: Record<string, string>;
 }
@@ -34,7 +34,7 @@ interface S3PresignedPost {
 async function obtainS3PresignedPostAsync(
   uploadType: UploadType,
   filePath: string
-): Promise<S3PresignedPost> {
+): Promise<PresignedPost> {
   const fileHash = await md5File(filePath);
   const { data } = await apiClient
     .post('upload-sessions', {
@@ -47,9 +47,9 @@ async function obtainS3PresignedPostAsync(
   return data.presignedUrl;
 }
 
-async function uploadWithPresignedPostAsync(
-  stream: Readable,
-  presignedPost: S3PresignedPost,
+export async function uploadWithPresignedPostAsync(
+  stream: Readable | Buffer,
+  presignedPost: PresignedPost,
   handleProgressEvent?: ProgressHandler
 ) {
   const form = new FormData();
