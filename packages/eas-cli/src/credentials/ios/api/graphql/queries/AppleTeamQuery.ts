@@ -4,8 +4,35 @@ import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/cl
 import { AppleTeam } from '../../../../../graphql/generated';
 import { AppleTeamFragment } from '../../../../../graphql/types/credentials/AppleTeam';
 
+type AppleTeamQueryResult = Pick<AppleTeam, 'id' | 'appleTeamIdentifier' | 'appleTeamName'>;
+
 const AppleTeamQuery = {
-  async byAppleTeamIdentifierAsync(
+  async getAllForAccountAsync(accountName: string): Promise<AppleTeamQueryResult[]> {
+    const data = await withErrorHandlingAsync(
+      graphqlClient
+        .query<{ account: { byName: { appleTeams: AppleTeamQueryResult[] } } }>(
+          gql`
+            query AppleTeamsByAccountName($accountName: String!) {
+              account {
+                byName(accountName: $accountName) {
+                  appleTeams {
+                    id
+                    appleTeamName
+                    appleTeamIdentifier
+                  }
+                }
+              }
+            }
+          `,
+          { accountName }
+        )
+        .toPromise()
+    );
+
+    return data.account.byName.appleTeams;
+  },
+
+  async getByAppleTeamIdentifierAsync(
     accountId: string,
     appleTeamIdentifier: string
   ): Promise<AppleTeam | null> {

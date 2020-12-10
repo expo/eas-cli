@@ -1,5 +1,6 @@
 import chalk from 'chalk';
 
+import formatFields from '../../utils/formatFields';
 import { platformDisplayNames } from '../constants';
 import { Build, BuildStatus } from '../types';
 import { getBuildLogsUrl } from './url';
@@ -9,15 +10,15 @@ interface Options {
 }
 
 export default function formatBuild(build: Build, { accountName }: Options) {
-  const fields: { label: string; get: (build: Build) => string }[] = [
-    { label: 'ID', get: build => build.id },
+  const fields: { label: string; value: string }[] = [
+    { label: 'ID', value: build.id },
     {
       label: 'Platform',
-      get: build => platformDisplayNames[build.platform],
+      value: platformDisplayNames[build.platform],
     },
     {
       label: 'Status',
-      get: build => {
+      get value() {
         switch (build.status) {
           case BuildStatus.IN_PROGRESS:
             return chalk.blue('in progress');
@@ -32,11 +33,11 @@ export default function formatBuild(build: Build, { accountName }: Options) {
     },
     {
       label: 'Logs',
-      get: build => getBuildLogsUrl({ buildId: build.id, account: accountName }),
+      value: getBuildLogsUrl({ buildId: build.id, account: accountName }),
     },
     {
       label: 'Artifact',
-      get: build => {
+      get value() {
         if (build.status === BuildStatus.IN_PROGRESS) {
           return '<in progress>';
         }
@@ -50,10 +51,10 @@ export default function formatBuild(build: Build, { accountName }: Options) {
         return url;
       },
     },
-    { label: 'Started at', get: build => new Date(build.createdAt).toLocaleString() },
+    { label: 'Started at', value: new Date(build.createdAt).toLocaleString() },
     {
       label: 'Finished at',
-      get: build =>
+      value:
         build.status === BuildStatus.IN_PROGRESS
           ? '<in progress>'
           : new Date(build.updatedAt).toLocaleString(),
@@ -62,21 +63,5 @@ export default function formatBuild(build: Build, { accountName }: Options) {
     // { label: 'Started by', get: build => 'TODO' },
   ];
 
-  const columnWidth = fields.reduce((a, b) => (a.label.length > b.label.length ? a : b)).label
-    .length;
-
-  return fields
-    .map(({ label, get }) => {
-      let line = '';
-
-      line += chalk.dim(
-        label.length < columnWidth ? `${label}${' '.repeat(columnWidth - label.length)}` : label
-      );
-
-      line += '  ';
-      line += get(build);
-
-      return line;
-    })
-    .join('\n');
+  return formatFields(fields);
 }
