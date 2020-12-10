@@ -130,7 +130,7 @@ async function updateAppJsonConfigAsync(
   const rawStaticConfig = await fs.readJSON(paths.staticConfigPath);
   rawStaticConfig.expo = {
     ...rawStaticConfig.expo,
-    android: { ...rawStaticConfig.expo.android, package: newApplicationId },
+    android: { ...rawStaticConfig.expo?.android, package: newApplicationId },
   };
   await fs.writeJson(paths.staticConfigPath, rawStaticConfig, { spaces: 2 });
 
