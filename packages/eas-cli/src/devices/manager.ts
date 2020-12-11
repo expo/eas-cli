@@ -64,7 +64,7 @@ export class AccountResolver {
     const projectAccount = findAccountByName(this.user.accounts ?? [], projectAccountName);
     if (!projectAccount) {
       log.warn(
-        `Your user (${getActorDisplayName(this.user)}) doesn't have access to the ${chalk.bold(
+        `Your account (${getActorDisplayName(this.user)}) doesn't have access to the ${chalk.bold(
           projectAccountName
         )} account`
       );
