@@ -21,7 +21,7 @@ $ npm install -g eas-cli
 $ eas COMMAND
 running command...
 $ eas (-v|--version|version)
-eas-cli/0.1.0-alpha.21 darwin-x64 node-v14.15.0
+eas-cli/0.1.0-alpha.22 darwin-x64 node-v14.15.0
 $ eas --help [COMMAND]
 USAGE
   $ eas COMMAND
@@ -41,6 +41,8 @@ USAGE
 * [`eas build:view [BUILDID]`](#eas-buildview-buildid)
 * [`eas credentials`](#eas-credentials)
 * [`eas device:create`](#eas-devicecreate)
+* [`eas device:list`](#eas-devicelist)
+* [`eas device:view [UDID]`](#eas-deviceview-udid)
 * [`eas help [COMMAND]`](#eas-help-command)
 * [`eas submit --platform=(android|ios)`](#eas-submit---platformandroidios)
 
@@ -56,7 +58,7 @@ ALIASES
   $ eas login
 ```
 
-_See code: [build/commands/account/login.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.21/build/commands/account/login.ts)_
+_See code: [build/commands/account/login.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.22/build/commands/account/login.ts)_
 
 ## `eas account:logout`
 
@@ -70,7 +72,7 @@ ALIASES
   $ eas logout
 ```
 
-_See code: [build/commands/account/logout.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.21/build/commands/account/logout.ts)_
+_See code: [build/commands/account/logout.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.22/build/commands/account/logout.ts)_
 
 ## `eas account:view`
 
@@ -84,7 +86,7 @@ ALIASES
   $ eas whoami
 ```
 
-_See code: [build/commands/account/view.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.21/build/commands/account/view.ts)_
+_See code: [build/commands/account/view.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.22/build/commands/account/view.ts)_
 
 ## `eas build`
 
@@ -103,7 +105,7 @@ OPTIONS
   --wait                            Wait for build(s) to complete
 ```
 
-_See code: [build/commands/build/index.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.21/build/commands/build/index.ts)_
+_See code: [build/commands/build/index.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.22/build/commands/build/index.ts)_
 
 ## `eas build:configure`
 
@@ -118,7 +120,7 @@ OPTIONS
   --allow-experimental              Enable experimental configuration steps.
 ```
 
-_See code: [build/commands/build/configure.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.21/build/commands/build/configure.ts)_
+_See code: [build/commands/build/configure.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.22/build/commands/build/configure.ts)_
 
 ## `eas build:list`
 
@@ -134,7 +136,7 @@ OPTIONS
   --status=(in-queue|in-progress|errored|finished)
 ```
 
-_See code: [build/commands/build/list.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.21/build/commands/build/list.ts)_
+_See code: [build/commands/build/list.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.22/build/commands/build/list.ts)_
 
 ## `eas build:view [BUILDID]`
 
@@ -145,7 +147,7 @@ USAGE
   $ eas build:view [BUILDID]
 ```
 
-_See code: [build/commands/build/view.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.21/build/commands/build/view.ts)_
+_See code: [build/commands/build/view.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.22/build/commands/build/view.ts)_
 
 ## `eas credentials`
 
@@ -156,7 +158,7 @@ USAGE
   $ eas credentials
 ```
 
-_See code: [build/commands/credentials.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.21/build/commands/credentials.ts)_
+_See code: [build/commands/credentials.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.22/build/commands/credentials.ts)_
 
 ## `eas device:create`
 
@@ -167,7 +169,28 @@ USAGE
   $ eas device:create
 ```
 
-_See code: [build/commands/device/create.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.21/build/commands/device/create.ts)_
+_See code: [build/commands/device/create.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.22/build/commands/device/create.ts)_
+
+## `eas device:list`
+
+list all registered devices for your account
+
+```
+USAGE
+  $ eas device:list
+
+OPTIONS
+  --apple-team-id=apple-team-id
+```
+
+## `eas device:view [UDID]`
+
+view a device for your project
+
+```
+USAGE
+  $ eas device:view [UDID]
+```
 
 ## `eas help [COMMAND]`
 
@@ -264,5 +287,5 @@ EXAMPLES
          and provide its App ID
 ```
 
-_See code: [build/commands/submit.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.21/build/commands/submit.ts)_
+_See code: [build/commands/submit.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.22/build/commands/submit.ts)_
 <!-- commandsstop -->
