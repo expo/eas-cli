@@ -121,7 +121,7 @@ async function updateAppJsonConfigAsync(
   const rawStaticConfig = await fs.readJSON(paths.staticConfigPath);
   rawStaticConfig.expo = {
     ...rawStaticConfig.expo,
-    ios: { ...rawStaticConfig.expo.ios, bundleIdentifier: newBundleIdentifier },
+    ios: { ...rawStaticConfig.expo?.ios, bundleIdentifier: newBundleIdentifier },
   };
   await fs.writeJson(paths.staticConfigPath, rawStaticConfig, { spaces: 2 });
 
