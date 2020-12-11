@@ -56,10 +56,12 @@ async function getBranchNameAsync(): Promise<string | undefined> {
   } catch (e) {}
 }
 
-async function getLastCommitMessageAsync(): Promise<string | undefined> {
+async function getLastCommitMessageAsync(): Promise<string | null> {
   try {
-    return (await spawnAsync('git', ['--no-pager', 'log', '-1', '--pretty=%B'])).stdout;
-  } catch (e) {}
+    return (await spawnAsync('git', ['--no-pager', 'log', '-1', '--pretty=%B'])).stdout.trim();
+  } catch (e) {
+    return null;
+  }
 }
 
 export {
