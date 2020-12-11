@@ -93,8 +93,7 @@ class CredentialsContext implements Context {
     if (this.hasProjectContext) {
       const owner = getProjectAccountName(this.exp, this.user);
       // Figure out if User A is configuring credentials as admin for User B's project
-      const isProxyUser =
-        this.user.__typename === 'Robot' || (owner && owner !== this.user.username);
+      const isProxyUser = this.user.__typename === 'Robot' || owner !== this.user.username;
 
       log(
         `Accessing credentials ${isProxyUser ? 'on behalf of' : 'for'} ${owner} in project ${
