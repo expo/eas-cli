@@ -12,7 +12,7 @@ import { Actor } from '../user/User';
 import { ensureLoggedInAsync } from '../user/actions';
 import { ensureProjectExistsAsync } from './ensureProjectExists';
 
-export function getProjectAccountName(exp: ExpoConfig, user: Actor) {
+export function getProjectAccountName(exp: ExpoConfig, user: Actor): string {
   switch (user.__typename) {
     case 'User':
       return exp.owner || user.username;
