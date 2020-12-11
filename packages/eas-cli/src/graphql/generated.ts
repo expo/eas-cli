@@ -51,6 +51,8 @@ export type RootQuery = {
    */
   allPublicApps?: Maybe<Array<Maybe<App>>>;
   asset: AssetQuery;
+  /** Top-level query object for querying BuildPublicData publicly. */
+  buildPublicData: BuildPublicDataQuery;
   buildJobs: BuildJobQuery;
   builds: BuildQuery;
   clientBuilds: ClientBuildQuery;
@@ -517,6 +519,11 @@ export type User = Actor & {
   hasPendingUserInvitations: Scalars['Boolean'];
   /** Pending UserInvitations for this user. Only resolves for the viewer. */
   pendingUserInvitations: Array<Maybe<UserInvitation>>;
+  /**
+   * Server feature gate values for this actor, optionally filtering by desired gates.
+   * Only resolves for the viewer.
+   */
+  featureGates: Scalars['JSONObject'];
 };
 
 
@@ -540,6 +547,12 @@ export type UserLikesArgs = {
   limit: Scalars['Int'];
 };
 
+
+/** Represents a human (not robot) actor. */
+export type UserFeatureGatesArgs = {
+  filter?: Maybe<Array<Scalars['String']>>;
+};
+
 /** A user or robot that can authenticate with Expo services and be a member of accounts. */
 export type Actor = {
   id: Scalars['ID'];
@@ -550,6 +563,17 @@ export type Actor = {
   accounts?: Maybe<Array<Maybe<Account>>>;
   /** Access Tokens belonging to this actor */
   accessTokens?: Maybe<Array<Maybe<AccessToken>>>;
+  /**
+   * Server feature gate values for this actor, optionally filtering by desired gates.
+   * Only resolves for the viewer.
+   */
+  featureGates: Scalars['JSONObject'];
+};
+
+
+/** A user or robot that can authenticate with Expo services and be a member of accounts. */
+export type ActorFeatureGatesArgs = {
+  filter?: Maybe<Array<Scalars['String']>>;
 };
 
 /** A method of authentication for an Actor */
@@ -564,6 +588,7 @@ export type AccessToken = {
   owner: Actor;
   note?: Maybe<Scalars['String']>;
 };
+
 
 /** A second factor device belonging to a User */
 export type UserSecondFactorDevice = {
@@ -656,12 +681,13 @@ export type Build = ActivityTimelineProjectActivity & {
   logFiles?: Maybe<Array<Maybe<Scalars['String']>>>;
   updatedAt?: Maybe<Scalars['DateTime']>;
   createdAt?: Maybe<Scalars['DateTime']>;
-  status?: Maybe<BuildStatus>;
+  status: BuildStatus;
   expirationDate?: Maybe<Scalars['DateTime']>;
-  platform?: Maybe<AppPlatform>;
+  platform: AppPlatform;
   appVersion?: Maybe<Scalars['String']>;
   sdkVersion?: Maybe<Scalars['String']>;
   releaseChannel?: Maybe<Scalars['String']>;
+  distribution?: Maybe<DistributionType>;
 };
 
 export type ActivityTimelineProjectActivity = {
@@ -675,6 +701,11 @@ export type BuildArtifacts = {
   buildUrl?: Maybe<Scalars['String']>;
   xcodeBuildLogsUrl?: Maybe<Scalars['String']>;
 };
+
+export enum DistributionType {
+  Store = 'STORE',
+  Internal = 'INTERNAL'
+}
 
 export type IosAppCredentialsFilter = {
   appleAppIdentifierId?: Maybe<Scalars['String']>;
@@ -930,7 +961,7 @@ export type Update = ActivityTimelineProjectActivity & {
   releaseId: Scalars['ID'];
   platform: Scalars['String'];
   manifestFragment: Scalars['String'];
-  nativeRuntimeVersion: Scalars['String'];
+  runtimeVersion: Scalars['String'];
   updateGroup: Scalars['String'];
   updatedAt: Scalars['DateTime'];
   createdAt: Scalars['DateTime'];
@@ -964,7 +995,7 @@ export type BuildJob = ActivityTimelineProjectActivity & {
   fullExperienceName?: Maybe<Scalars['String']>;
   status?: Maybe<BuildJobStatus>;
   expirationDate?: Maybe<Scalars['DateTime']>;
-  platform?: Maybe<AppPlatform>;
+  platform: AppPlatform;
   sdkVersion?: Maybe<Scalars['String']>;
   releaseChannel?: Maybe<Scalars['String']>;
 };
@@ -1153,6 +1184,39 @@ export enum AssetMetadataStatus {
   Exists = 'EXISTS',
   DoesNotExist = 'DOES_NOT_EXIST'
 }
+
+export type BuildPublicDataQuery = {
+  __typename?: 'BuildPublicDataQuery';
+  /** Get BuildPublicData by ID */
+  byId?: Maybe<BuildPublicData>;
+};
+
+
+export type BuildPublicDataQueryByIdArgs = {
+  id: Scalars['ID'];
+};
+
+/** Publicly visible data for a Build. */
+export type BuildPublicData = {
+  __typename?: 'BuildPublicData';
+  id: Scalars['ID'];
+  status: BuildStatus;
+  artifacts: PublicArtifacts;
+  project: ProjectPublicData;
+  platform: AppPlatform;
+  distribution?: Maybe<DistributionType>;
+};
+
+export type PublicArtifacts = {
+  __typename?: 'PublicArtifacts';
+  buildUrl?: Maybe<Scalars['String']>;
+};
+
+export type ProjectPublicData = {
+  __typename?: 'ProjectPublicData';
+  id: Scalars['ID'];
+  fullName: Scalars['String'];
+};
 
 export type BuildJobQuery = {
   __typename?: 'BuildJobQuery';
@@ -1365,6 +1429,8 @@ export type RootMutation = {
   userInvitation: UserInvitationMutation;
   /** Mutations that modify the currently authenticated User */
   me?: Maybe<MeMutation>;
+  /** Mutations that modify an EmailSubscription */
+  emailSubscription: EmailSubscriptionMutation;
 };
 
 
@@ -2031,6 +2097,17 @@ export type Robot = Actor & {
   accounts?: Maybe<Array<Maybe<Account>>>;
   /** Access Tokens belonging to this actor */
   accessTokens?: Maybe<Array<Maybe<AccessToken>>>;
+  /**
+   * Server feature gate values for this actor, optionally filtering by desired gates.
+   * Only resolves for the viewer.
+   */
+  featureGates: Scalars['JSONObject'];
+};
+
+
+/** Represents a robot (not human) actor. */
+export type RobotFeatureGatesArgs = {
+  filter?: Maybe<Array<Scalars['String']>>;
 };
 
 export type DeleteRobotResult = {
@@ -2148,7 +2225,7 @@ export type DeleteUpdateReleaseResult = {
 export type PublishUpdateGroupInput = {
   releaseId: Scalars['String'];
   updateInfoGroup: UpdateInfoGroup;
-  nativeRuntimeVersion: Scalars['String'];
+  runtimeVersion: Scalars['String'];
   updateMessage?: Maybe<Scalars['String']>;
 };
 
@@ -2412,6 +2489,45 @@ export type SecondFactorRegenerateBackupCodesResult = {
   plaintextBackupCodes: Array<Maybe<Scalars['String']>>;
 };
 
+export type EmailSubscriptionMutation = {
+  __typename?: 'EmailSubscriptionMutation';
+  addUser?: Maybe<AddUserPayload>;
+};
+
+
+export type EmailSubscriptionMutationAddUserArgs = {
+  addUserInput: AddUserInput;
+};
+
+export type AddUserInput = {
+  email: Scalars['String'];
+  tags?: Maybe<Array<MailchimpTag>>;
+  audience?: Maybe<MailchimpAudience>;
+};
+
+export enum MailchimpTag {
+  EasMasterList = 'EAS_MASTER_LIST'
+}
+
+export enum MailchimpAudience {
+  ExpoDevelopers = 'EXPO_DEVELOPERS'
+}
+
+export type AddUserPayload = {
+  __typename?: 'AddUserPayload';
+  id?: Maybe<Scalars['String']>;
+  email_address?: Maybe<Scalars['String']>;
+  status?: Maybe<Scalars['String']>;
+  timestamp_signup?: Maybe<Scalars['String']>;
+  tags?: Maybe<Array<MailchimpTagPayload>>;
+  list_id?: Maybe<Scalars['String']>;
+};
+
+export type MailchimpTagPayload = {
+  __typename?: 'MailchimpTagPayload';
+  id?: Maybe<Scalars['Int']>;
+  name?: Maybe<Scalars['String']>;
+};
 
 export type BaseSearchResult = SearchResult & {
   __typename?: 'BaseSearchResult';
