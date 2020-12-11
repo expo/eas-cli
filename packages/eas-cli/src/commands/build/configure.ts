@@ -50,17 +50,30 @@ export default class BuildConfigure extends Command {
     });
 
     log.newLine();
-    log(`🎉 Your iOS and Android projects are ready to build.
+    logSuccess(platform);
+  }
+}
+
+function logSuccess(platform: RequestedPlatform) {
+  let platformsText = 'iOS and Android projects are';
+  let storesText = 'the Apple App Store or Google Play Store';
+
+  if (platform === 'android') {
+    platformsText = 'Android project is';
+    storesText = 'the Google Play Store';
+  } else if (platform === 'ios') {
+    platformsText = 'iOS project is';
+    storesText = 'the Apple App Store';
+  }
+
+  log(`🎉 Your ${platformsText} ready to build.
 
 - Run ${chalk.bold('eas build')} when you are ready to create your first build.
-- Once the build is completed, run ${chalk.bold(
-      'eas submit'
-    )} to upload the app to the Apple App Store or Google Play Store.
+- Once the build is completed, run ${chalk.bold('eas submit')} to upload the app to ${storesText}
 - ${learnMore(
-      'https://docs.expo.io/build/introduction',
-      'Learn more about other capabilities of EAS Build'
-    )}`);
-  }
+    'https://docs.expo.io/build/introduction',
+    'Learn more about other capabilities of EAS Build'
+  )}`);
 }
 
 async function promptForPlatformAsync(): Promise<RequestedPlatform> {

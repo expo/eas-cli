@@ -69,30 +69,60 @@ export async function configureAsync(options: {
 
 export async function ensureEasJsonExistsAsync(ctx: ConfigureContext): Promise<void> {
   const easJsonPath = path.join(ctx.projectDir, 'eas.json');
+  let existingEasJson;
+
   if (await fs.pathExists(easJsonPath)) {
-    await new EasJsonReader(ctx.projectDir, ctx.requestedPlatform).validateAsync();
+    const reader = new EasJsonReader(ctx.projectDir, ctx.requestedPlatform);
+    await reader.validateAsync();
+
+    existingEasJson = await reader.readRawAsync();
     log.withTick('Validated eas.json.');
-    return;
+
+    // If we have already populated eas.json with the default fields for the
+    // platform then proceed
+    if (ctx.requestedPlatform !== 'all' && existingEasJson.builds[ctx.requestedPlatform]) {
+      return;
+    } else if (
+      ctx.requestedPlatform === 'all' &&
+      existingEasJson.builds.ios &&
+      existingEasJson.builds.android
+    ) {
+      return;
+    }
   }
+
+  const shouldInitIOS =
+    ['all', 'ios'].includes(ctx.requestedPlatform) && !existingEasJson?.builds.ios;
+  const shouldInitAndroid =
+    ['all', 'android'].includes(ctx.requestedPlatform) && !existingEasJson?.builds.android;
 
   const easJson = {
     builds: {
-      android: {
-        release: {
-          workflow: ctx.hasAndroidNativeProject ? 'generic' : 'managed',
-        },
-      },
-      ios: {
-        release: {
-          workflow: ctx.hasIosNativeProject ? 'generic' : 'managed',
-        },
-      },
+      ...existingEasJson,
+      ...(shouldInitAndroid
+        ? {
+            android: {
+              release: {
+                workflow: ctx.hasAndroidNativeProject ? 'generic' : 'managed',
+              },
+            },
+          }
+        : null),
+      ...(shouldInitIOS
+        ? {
+            ios: {
+              release: {
+                workflow: ctx.hasIosNativeProject ? 'generic' : 'managed',
+              },
+            },
+          }
+        : null),
     },
   };
 
   await fs.writeFile(easJsonPath, `${JSON.stringify(easJson, null, 2)}\n`);
   await gitAddAsync(easJsonPath, { intentToAdd: true });
-  log.withTick('Generated eas.json.');
+  log.withTick(`${existingEasJson ? 'Updated' : 'Generated'} eas.json.`);
 }
 
 enum ShouldCommitChanges {
