@@ -134,6 +134,8 @@ OPTIONS
   --status=(in-queue|in-progress|errored|finished)
 ```
 
+_See code: [build/commands/build/list.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.21/build/commands/build/list.ts)_
+
 ## `eas build:view [BUILDID]`
 
 view a build for your project
@@ -142,6 +144,8 @@ view a build for your project
 USAGE
   $ eas build:view [BUILDID]
 ```
+
+_See code: [build/commands/build/view.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.21/build/commands/build/view.ts)_
 
 ## `eas credentials`
 
