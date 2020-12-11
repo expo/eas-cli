@@ -57,7 +57,7 @@ export function getActorDisplayName(user?: Actor): string {
   }
 }
 
-export function ensureActorHasUsername(user: Actor) {
+export function ensureActorHasUsername(user: Actor): string {
   if (user.__typename === 'User') {
     return user.username;
   }
