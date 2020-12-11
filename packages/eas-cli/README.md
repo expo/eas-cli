@@ -183,6 +183,8 @@ OPTIONS
   --apple-team-id=apple-team-id
 ```
 
+_See code: [build/commands/device/list.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.22/build/commands/device/list.ts)_
+
 ## `eas device:view [UDID]`
 
 view a device for your project
@@ -191,6 +193,8 @@ view a device for your project
 USAGE
   $ eas device:view [UDID]
 ```
+
+_See code: [build/commands/device/view.ts](https://github.com/expo/eas-cli/blob/v0.1.0-alpha.22/build/commands/device/view.ts)_
 
 ## `eas help [COMMAND]`
 
