@@ -3,7 +3,7 @@ import { CredentialsSource, DistributionType } from '@expo/eas-json';
 
 import { IosDistributionType } from '../../graphql/generated';
 import log from '../../log';
-import { findAccountByName } from '../../user/Account';
+import { ensureAccounts, findAccountByName } from '../../user/Account';
 import { runCredentialsManagerAsync } from '../CredentialsManager';
 import { CredentialsProvider } from '../CredentialsProvider';
 import { Context } from '../context';
@@ -146,7 +146,7 @@ export default class IosCredentialsProvider implements CredentialsProvider {
   private async fetchRemoteAsync(): Promise<PartialIosCredentials> {
     if (this.options.distribution === DistributionType.INTERNAL) {
       const { app } = this.options;
-      const account = findAccountByName(this.ctx.user.accounts ?? [], app.accountName);
+      const account = findAccountByName(ensureAccounts(this.ctx.user.accounts), app.accountName);
       if (!account) {
         throw new Error(`You do not have access to the ${app.accountName} account`);
       }
