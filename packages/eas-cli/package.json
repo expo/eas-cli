@@ -15,6 +15,7 @@
     "@expo/eas-json": "^0.1.0-alpha.20",
     "@expo/json-file": "^8.2.24",
     "@expo/plist": "^0.0.10",
+    "@expo/plugin-warn-if-update-available": "^1.7.0",
     "@expo/results": "^1.0.0",
     "@expo/spawn-async": "^1.5.0",
     "@hapi/joi": "^17.1.1",
@@ -106,7 +107,8 @@
     "bin": "eas",
     "commands": "./build/commands",
     "plugins": [
-      "@oclif/plugin-help"
+      "@oclif/plugin-help",
+      "@expo/plugin-warn-if-update-available"
     ],
     "helpClass": "./build/help",
     "topics": {
@@ -125,6 +127,10 @@
       "webhook": {
         "description": "manage webhooks"
       }
+    },
+    "warn-if-update-available": {
+      "timeoutInDays": 0.5,
+      "message": "<%= chalk.bold('★') %> <%= chalk.bold(config.name + '@' + latest) %> <%= chalk.bold('is now available, please upgrade.') %>\n<%= chalk.dim('Proceeding with outdated version') %>\n"
     },
     "update": {
       "node": {
