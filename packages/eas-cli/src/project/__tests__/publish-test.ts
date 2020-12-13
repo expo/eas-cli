@@ -1,21 +1,24 @@
 import fs from 'fs';
+import mockdate from 'mockdate';
+import path from 'path';
+import { v4 as uuidv4 } from 'uuid';
 
 import { PublishMutation } from '../../graphql/mutations/PublishMutation';
 import { PublishQuery } from '../../graphql/queries/PublishQuery';
 import {
+  Platforms,
   TIMEOUT_LIMIT,
   buildUpdateInfoGroup,
+  collectAssets,
   convertAssetToUpdateInfoGroupFormat,
   filterOutAssetsThatAlreadyExistAsync,
   getBase64URLEncoding,
+  getDistRoot,
   getStorageKey,
   getStorageKeyForAsset,
   guessContentTypeFromExtension,
-  organizeAssets,
   uploadAssetsAsync,
 } from '../publish';
-
-const mockdate = require('mockdate');
 
 jest.mock('../../uploads');
 jest.mock('fs');
@@ -122,50 +125,59 @@ describe(buildUpdateInfoGroup, () => {
   });
 });
 
-describe(organizeAssets, () => {
+describe(getDistRoot, () => {
+  it('returns the correct distRoot path', () => {
+    const customDirectoryName = uuidv4();
+    fs.mkdirSync(customDirectoryName);
+    expect(getDistRoot(customDirectoryName)).toBe(path.join(process.cwd(), customDirectoryName));
+  });
+  it('throws an error if the path does not exist', () => {
+    const nonExistentPath = uuidv4();
+    expect(() => {
+      getDistRoot(nonExistentPath);
+    }).toThrow(`/${nonExistentPath} does not exist. Please create it with your desired bundler.`);
+  });
+});
+
+describe(collectAssets, () => {
   it('builds an update info group', () => {
-    const publishBundles = {
-      android: {
-        code: 'android bundle code',
-        assets: [{ files: ['md5-hash-of-file'], type: 'jpg' }],
-        map: 'dummy-string',
-      },
-      ios: {
-        code: 'ios bundle code',
-        assets: [{ files: ['md5-hash-of-file'], type: 'jpg' }],
-        map: 'dummy-string',
-      },
-    };
+    const fakeHash = 'md5-hash-of-jpg';
+    const fakeJson = { bundledAssets: [`asset_${fakeHash}.jpg`] };
+    const bundles = { android: 'android-bundle-code', ios: 'ios-bundle-code' };
     const userDefinedAssets = [
       {
-        type: 'out',
-        contentType: 'application/octet-stream',
-        buffer: Buffer.from('I am an octet stream'),
+        type: 'jpg',
+        contentType: 'image/jpeg',
+        buffer: dummyFileBuffer,
       },
     ];
+    const inputDir = 'dist';
 
-    expect(organizeAssets({ publishBundles, userDefinedAssets })).toEqual({
+    fs.mkdirSync(inputDir);
+    fs.mkdirSync(`${inputDir}/bundles`);
+    fs.mkdirSync(`${inputDir}/assets`);
+    Platforms.forEach(platform => {
+      fs.writeFileSync(`${inputDir}/${platform}-index.json`, JSON.stringify(fakeJson));
+      fs.writeFileSync(`${inputDir}/bundles/${platform}-randomHash.js`, bundles[platform]);
+    });
+    fs.writeFileSync(`${inputDir}/assets/${fakeHash}`, userDefinedAssets[0].buffer);
+
+    expect(collectAssets(inputDir)).toEqual({
       android: {
         launchAsset: {
           type: 'bundle',
           contentType: 'application/javascript',
-          buffer: Buffer.from(publishBundles.android.code),
+          buffer: Buffer.from(bundles['android']),
         },
-        assets: [
-          userDefinedAssets[0],
-          { type: 'jpg', contentType: 'image/jpeg', buffer: dummyFileBuffer },
-        ],
+        assets: userDefinedAssets,
       },
       ios: {
         launchAsset: {
           type: 'bundle',
           contentType: 'application/javascript',
-          buffer: Buffer.from(publishBundles.ios.code),
+          buffer: Buffer.from(bundles['ios']),
         },
-        assets: [
-          userDefinedAssets[0],
-          { type: 'jpg', contentType: 'image/jpeg', buffer: dummyFileBuffer },
-        ],
+        assets: userDefinedAssets,
       },
     });
   });

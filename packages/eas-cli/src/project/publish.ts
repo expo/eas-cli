@@ -1,10 +1,9 @@
-import bunyan from '@expo/bunyan';
-import { Platform, getDefaultTarget } from '@expo/config';
-import { getEntryPoint } from '@expo/config/paths';
-import { BundleOutput, bundleAsync } from '@expo/dev-server';
+import { Platform } from '@expo/config';
 import crypto from 'crypto';
 import fs from 'fs';
 import { uniqBy } from 'lodash';
+import { platform } from 'os';
+import path from 'path';
 
 import { PartialManifestAsset } from '../graphql/generated';
 import { PublishMutation } from '../graphql/mutations/PublishMutation';
@@ -13,6 +12,7 @@ import { PresignedPost, uploadWithPresignedPostAsync } from '../uploads';
 
 export const TIMEOUT_LIMIT = 60_000; // 1 minute
 let STORAGE_BUCKET: string;
+export const Platforms: PublishPlatforms[] = ['android', 'ios']; // TODO-JJ allow users to specify this in app.js
 
 if (process.env.NODE_ENV === 'test') {
   STORAGE_BUCKET = 'update-assets-testing';
@@ -180,37 +180,61 @@ export function buildUpdateInfoGroup(assets: CollectedAssets) {
   return updateInfoGroup;
 }
 
-export function organizeAssets({
-  publishBundles,
-  userDefinedAssets,
-}: {
-  publishBundles: { [key in PublishPlatforms]: BundleOutput };
-  userDefinedAssets: RawAsset[];
-}): CollectedAssets {
-  const assetsFinal: any = {};
+export function getDistRoot(customDist: string): string {
+  const projectRoot = process.cwd();
+  const distRoot = path.join(projectRoot, customDist);
+  if (!fs.existsSync(distRoot)) {
+    throw new Error(`${distRoot} does not exist. Please create it with your desired bundler.`);
+  }
+  return distRoot;
+}
+
+export function collectUserDefinedAssets(distRoot: string): RawAsset[] {
+  const assetRoot = path.join(distRoot, 'assets');
+  const assetPointers = Platforms.map(platform => {
+    const assetJsonPath = path.join(distRoot, `${platform}-index.json`);
+    // load JSON with fs instead of require for easier mocking in tests
+    return JSON.parse(fs.readFileSync(assetJsonPath).toString()).bundledAssets;
+  }).flat();
+
+  return [...new Set(assetPointers)].map(pointer => {
+    const [filename, ext] = pointer.split('_').pop().split('.');
+    return {
+      type: ext ?? '',
+      contentType: guessContentTypeFromExtension(ext),
+      buffer: fs.readFileSync(path.join(assetRoot, filename)),
+    };
+  });
+}
+
+export function collectBundles(distRoot: string): { [key: string]: RawAsset } {
+  const bundleRoot = path.join(distRoot, 'bundles');
+  const bundlePaths = Object.fromEntries(
+    fs.readdirSync(bundleRoot).map(name => [name.split('-')[0], path.join(bundleRoot, name)])
+  );
+
+  const bundleBuffers: { [key: string]: RawAsset } = {};
+  Platforms.forEach(platform => {
+    bundleBuffers[platform] = {
+      type: 'bundle',
+      contentType: 'application/javascript',
+      buffer: fs.readFileSync(bundlePaths[platform]),
+    };
+  });
+  return bundleBuffers;
+}
+
+export function collectAssets(inputDir: string): CollectedAssets {
+  const distRoot = getDistRoot(inputDir);
+  const assets = collectUserDefinedAssets(distRoot);
+  const bundles = collectBundles(distRoot);
+  const assetsFinal: CollectedAssets = {};
 
   let platform: PublishPlatforms;
-  for (platform in publishBundles) {
+  for (platform of Platforms) {
     assetsFinal[platform] = {
-      launchAsset: {
-        type: 'bundle',
-        contentType: 'application/javascript',
-        buffer: Buffer.from(publishBundles[platform].code),
-      },
-      assets: [
-        ...userDefinedAssets,
-        ...publishBundles[platform].assets
-          .map((asset: { files: any[]; type: string }) => {
-            return asset.files.map(file => {
-              return {
-                type: asset.type,
-                contentType: guessContentTypeFromExtension(asset.type),
-                buffer: fs.readFileSync(file),
-              };
-            });
-          })
-          .flat(),
-      ],
+      launchAsset: bundles[platform],
+      assets,
     };
   }
 
@@ -282,25 +306,4 @@ export async function uploadAssetsAsync(assetsForUpdateInfoGroup: CollectedAsset
       throw new Error('Failed to upload all assets. Please try again.');
     }
   }
-}
-
-export async function buildPublishBundles({
-  projectRoot,
-  platforms,
-}: {
-  projectRoot: string;
-  platforms: PublishPlatforms[];
-}): Promise<{ [key in PublishPlatforms]: BundleOutput }> {
-  const entryPoint = getEntryPoint(projectRoot, ['./index.js'], platforms)!;
-  const target = getDefaultTarget(projectRoot);
-
-  const [android, ios] = await bundleAsync(
-    projectRoot,
-    { target, logger: bunyan.createLogger({ name: 'eas-publish', level: 'warn' }) },
-    platforms.map(platform => {
-      return { platform, entryPoint };
-    })
-  );
-
-  return { android, ios };
 }
