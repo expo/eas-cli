@@ -2,7 +2,6 @@ import { Platform } from '@expo/config';
 import crypto from 'crypto';
 import fs from 'fs';
 import { uniqBy } from 'lodash';
-import { platform } from 'os';
 import path from 'path';
 
 import { PartialManifestAsset } from '../graphql/generated';

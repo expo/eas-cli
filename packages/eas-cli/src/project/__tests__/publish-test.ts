@@ -251,7 +251,7 @@ describe(uploadAssetsAsync, () => {
 
   it('throws an error if the upload exceeds TIMEOUT_LIMIT', async () => {
     jest.spyOn(PublishQuery, 'getAssetMetadataAsync').mockImplementation(async () => {
-      const status = 'DOES_NOT EXIST';
+      const status = 'DOES_NOT_EXIST';
       mockdate.set(Date.now() + TIMEOUT_LIMIT + 1);
       return [
         {
@@ -279,7 +279,7 @@ describe(uploadAssetsAsync, () => {
   });
   it('resolves if the assets are already uploaded', async () => {
     jest.spyOn(PublishQuery, 'getAssetMetadataAsync').mockImplementation(async () => {
-      const status = 'EXIST';
+      const status = 'EXISTS';
       return [
         {
           storageKey: 'qbgckgkgfdjnNuf9dQd7FDTWUmlEEzg7l1m1sKzQaq0',
@@ -300,11 +300,11 @@ describe(uploadAssetsAsync, () => {
     });
 
     mockdate.set(0);
-    await expect(uploadAssetsAsync(assetsForUpdateInfoGroup)).resolves;
+    await expect(uploadAssetsAsync(assetsForUpdateInfoGroup)).resolves.toBe(undefined);
   });
   it('resolves if the assets are eventually uploaded', async () => {
     jest.spyOn(PublishQuery, 'getAssetMetadataAsync').mockImplementation(async () => {
-      const status = Date.now() === 0 ? 'DOES_NOT_EXIST' : 'EXIST';
+      const status = Date.now() === 0 ? 'DOES_NOT_EXIST' : 'EXISTS';
       mockdate.set(Date.now() + 1);
       return [
         {
@@ -326,6 +326,6 @@ describe(uploadAssetsAsync, () => {
     });
 
     mockdate.set(0);
-    await expect(uploadAssetsAsync(assetsForUpdateInfoGroup)).resolves;
+    await expect(uploadAssetsAsync(assetsForUpdateInfoGroup)).resolves.toBe(undefined);
   });
 });
