@@ -4,7 +4,7 @@ import path from 'path';
 import untildify from 'untildify';
 
 import log from '../../log';
-import { confirmAsync, promptAsync, Question as PromptQuestion } from '../../prompts';
+import { Question as PromptQuestion, confirmAsync, promptAsync } from '../../prompts';
 
 export type Question = {
   field: string;
