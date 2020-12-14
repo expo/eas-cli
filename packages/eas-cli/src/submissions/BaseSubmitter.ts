@@ -1,5 +1,6 @@
 import ora from 'ora';
 
+import log from '../log';
 import { sleep } from '../utils/promise';
 import SubmissionService, { DEFAULT_CHECK_INTERVAL_MS } from './SubmissionService';
 import { Submission, SubmissionConfig, SubmissionStatus } from './SubmissionService.types';
@@ -21,6 +22,7 @@ abstract class BaseSubmitter<SubmissionContext, SubmissionOptions> {
     submissionConfig: SubmissionConfig,
     verbose: boolean = false
   ) {
+    log.addNewLineIfNone();
     const scheduleSpinner = ora('Scheduling submission').start();
     let submissionId: string;
     try {
