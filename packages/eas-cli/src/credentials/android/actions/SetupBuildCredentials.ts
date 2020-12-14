@@ -1,5 +1,3 @@
-import ora from 'ora';
-
 import log from '../../../log';
 import { Action, CredentialsManager } from '../../CredentialsManager';
 import { Context } from '../../context';

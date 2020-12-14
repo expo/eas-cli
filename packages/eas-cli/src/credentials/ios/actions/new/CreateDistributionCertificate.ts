@@ -1,5 +1,4 @@
 import assert from 'assert';
-import chalk from 'chalk';
 
 import { AppleDistributionCertificate } from '../../../../graphql/generated';
 import log from '../../../../log';

@@ -1,5 +1,3 @@
-import chalk from 'chalk';
-
 import log from '../../../log';
 import { Action, CredentialsManager } from '../../CredentialsManager';
 import { Context } from '../../context';
