@@ -1,5 +1,6 @@
 import ora from 'ora';
 
+import log from '../log';
 import { sleep } from '../utils/promise';
 import SubmissionService, { DEFAULT_CHECK_INTERVAL_MS } from './SubmissionService';
 import { Submission, SubmissionConfig, SubmissionStatus } from './SubmissionService.types';
@@ -21,6 +22,7 @@ abstract class BaseSubmitter<SubmissionContext, SubmissionOptions> {
     submissionConfig: SubmissionConfig,
     verbose: boolean = false
   ) {
+    log.addNewLineIfNone();
     const scheduleSpinner = ora('Scheduling submission').start();
     let submissionId: string;
     try {
@@ -71,7 +73,7 @@ abstract class BaseSubmitter<SubmissionContext, SubmissionOptions> {
     } else if (status === SubmissionStatus.IN_PROGRESS) {
       return `Submitting your app to ${this.appStoreName}: submission in progress`;
     } else if (status === SubmissionStatus.FINISHED) {
-      return `Successfully submitted your app to ${this.appStoreName}!`;
+      return `Submitted your app to ${this.appStoreName}!`;
     } else if (status === SubmissionStatus.ERRORED) {
       return `Something went wrong when submitting your app to ${this.appStoreName}.`;
     } else {

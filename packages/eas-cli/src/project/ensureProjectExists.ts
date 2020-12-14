@@ -19,11 +19,11 @@ export async function ensureProjectExistsAsync(projectInfo: ProjectInfo): Promis
   const { accountName, projectName } = projectInfo;
   const projectFullName = `@${accountName}/${projectName}`;
 
-  const spinner = ora(`Ensuring ${chalk.bold(projectFullName)} is created on Expo`).start();
+  const spinner = ora(`Linking to project ${chalk.bold(projectFullName)}`).start();
 
   try {
     const id = await findProjectIdByAccountNameAndSlugAsync(accountName, projectName);
-    spinner.succeed();
+    spinner.succeed(`Linked to project ${chalk.bold(projectFullName)}`);
     return id;
   } catch (err) {
     if (err.graphQLErrors?.some((it: any) => it.extensions?.errorCode !== 'EXPERIENCE_NOT_FOUND')) {

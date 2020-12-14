@@ -1,5 +1,3 @@
-import chalk from 'chalk';
-
 import log from '../../../log';
 import { Action, CredentialsManager } from '../../CredentialsManager';
 import { Context } from '../../context';
@@ -42,6 +40,6 @@ export class SetupBuildCredentialsFromCredentialsJson implements Action {
       await validateKeystoreAsync(localCredentials.keystore);
     }
     await ctx.android.updateKeystoreAsync(this.projectFullName, localCredentials.keystore);
-    log(chalk.green('Keystore updated successfully.'));
+    log.succeed('Keystore updated');
   }
 }

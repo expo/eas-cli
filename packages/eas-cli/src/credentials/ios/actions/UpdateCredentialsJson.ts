@@ -1,5 +1,4 @@
 import { Platform } from '@expo/eas-build-job';
-import chalk from 'chalk';
 
 import log from '../../../log';
 import { ensureAppIdentifierIsDefinedAsync } from '../../../project/projectUtils';
@@ -15,10 +14,8 @@ export class UpdateCredentialsJson implements Action {
     const bundleIdentifer = await ensureAppIdentifierIsDefinedAsync(ctx.projectDir, Platform.iOS);
     log('Updating iOS credentials in credentials.json');
     await updateIosCredentialsAsync(ctx, bundleIdentifer);
-    log(
-      chalk.green(
-        'iOS part of your local credentials.json is synced with values stored on Expo servers.'
-      )
+    log.succeed(
+      'iOS part of your local credentials.json is synced with values stored on Expo servers.'
     );
   }
 }

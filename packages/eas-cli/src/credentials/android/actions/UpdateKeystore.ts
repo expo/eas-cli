@@ -17,7 +17,7 @@ export class UpdateKeystore implements Action {
     const keystore = await this.provideOrGenerateAsync();
 
     await ctx.android.updateKeystoreAsync(this.projectFullName, keystore);
-    log(chalk.green('Keystore updated successfully.'));
+    log.succeed('Keystore updated');
   }
 
   private async provideOrGenerateAsync(): Promise<Keystore> {

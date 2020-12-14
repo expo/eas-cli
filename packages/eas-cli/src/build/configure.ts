@@ -76,7 +76,7 @@ export async function ensureEasJsonExistsAsync(ctx: ConfigureContext): Promise<v
     await reader.validateAsync();
 
     existingEasJson = await reader.readRawAsync();
-    log.withTick('Validated eas.json.');
+    log.withTick('Validated eas.json');
 
     // If we have already populated eas.json with the default fields for the
     // platform then proceed
@@ -122,7 +122,7 @@ export async function ensureEasJsonExistsAsync(ctx: ConfigureContext): Promise<v
 
   await fs.writeFile(easJsonPath, `${JSON.stringify(easJson, null, 2)}\n`);
   await gitAddAsync(easJsonPath, { intentToAdd: true });
-  log.withTick(`${existingEasJson ? 'Updated' : 'Generated'} eas.json.`);
+  log.withTick(`${existingEasJson ? 'Updated' : 'Generated'} eas.json`);
 }
 
 enum ShouldCommitChanges {
@@ -153,7 +153,7 @@ async function reviewAndCommitChangesAsync(
 
   if (selected === ShouldCommitChanges.Yes) {
     await commitPromptAsync(commitMessage);
-    log.withTick('Committed changes.');
+    log.withTick('Committed changes');
   } else if (selected === ShouldCommitChanges.ShowDiffFirst) {
     await showDiffAsync();
     await reviewAndCommitChangesAsync(commitMessage, false);

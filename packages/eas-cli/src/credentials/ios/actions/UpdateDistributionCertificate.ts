@@ -72,12 +72,12 @@ export class UpdateSpecificDistributionCertificate implements Action {
       this.accountName,
       newDistCert
     );
-    log(chalk.green('Successfully updated Distribution Certificate'));
+    log.succeed('Updated distribution certificate');
     log.newLine();
 
     for (const appCredentials of apps) {
       log(
-        `Removing Provisioning Profile for ${appCredentials.experienceName} (${appCredentials.bundleIdentifier})`
+        `Removing provisioning profile for ${appCredentials.experienceName} (${appCredentials.bundleIdentifier})`
       );
       const appLookupParams = getAppLookupParams(
         appCredentials.experienceName,
