@@ -48,6 +48,7 @@
     "progress": "^2.0.3",
     "prompts": "^2.3.2",
     "qrcode-terminal": "^0.12.0",
+    "spinnies": "^0.5.1",
     "strip-ansi": "^6.0.0",
     "tar": "^6.0.5",
     "tempy": "^0.7.0",
