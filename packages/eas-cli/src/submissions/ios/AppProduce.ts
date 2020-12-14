@@ -4,6 +4,10 @@ import { Platform } from '@expo/eas-build-job';
 import chalk from 'chalk';
 
 import { authenticateAsync, getRequestContext } from '../../credentials/ios/appstore/authenticate';
+import {
+  ensureAppExistsWithNameAsync,
+  ensureBundleIdExistsWithNameAsync,
+} from '../../credentials/ios/appstore/ensureAppExists';
 import log from '../../log';
 import { getAppIdentifierAsync } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
@@ -80,10 +84,9 @@ async function createAppStoreConnectAppAsync(options: CreateAppOptions): Promise
   log.addNewLineIfNone();
 
   if (await isProvisioningAvailableAsync(requestCtx)) {
-    log(`Ensuring that bundle ID "${bundleId}" is registered on Apple Dev Center...`);
-    await App.ensureBundleIdExistsAsync(requestCtx, {
+    await ensureBundleIdExistsWithNameAsync(authCtx, {
       name: appName,
-      bundleId,
+      bundleIdentifier: bundleId,
     });
   } else {
     log.warn(
@@ -91,55 +94,37 @@ async function createAppStoreConnectAppAsync(options: CreateAppOptions): Promise
     );
   }
 
-  log(`Checking App Store Connect for "${appName}" (${bundleId})...`);
-  let app = await App.findAsync(requestCtx, { bundleId });
+  let app: App | null = null;
 
-  if (!app) {
-    log(`Creating app "${appName}" (${bundleId}) on App Store Connect...`);
-    try {
-      app = await App.createAsync(requestCtx, {
-        bundleId,
-        name: appName,
-        primaryLocale: language,
-        companyName,
-      });
-    } catch (error) {
-      if (error.message.match(/An App ID with Identifier '(.*)' is not available/)) {
-        const providerName = authCtx.authState?.session.provider.name;
-        throw new Error(
-          `\nThe bundle identifier "${bundleId}" is not available to provider "${providerName}". Please change it in your app config and try again.\n`
-        );
-      }
-
-      log.error('Failed to create the app in App Store Connect:');
-
-      if (
-        // Name is invalid
-        error.message.match(
-          /App Name contains certain Unicode(.*)characters that are not permitted/
-        ) ||
-        // UnexpectedAppleResponse: An attribute value has invalid characters. - App Name contains certain Unicode symbols, emoticons, diacritics, special characters, or private use characters that are not permitted.
-        // Name is taken
-        error.message.match(/The App Name you entered is already being used/)
-        // UnexpectedAppleResponse: The provided entity includes an attribute with a value that has already been used on a different account. - The App Name you entered is already being used. If you have trademark rights to
-        // this name and would like it released for your use, submit a claim.
-      ) {
-        log.addNewLineIfNone();
-        log.warn(
-          `Change the name in your app config, or use a custom name with the ${chalk.bold(
-            '--app-name'
-          )} flag`
-        );
-        log.newLine();
-      }
-      throw error;
+  try {
+    app = await ensureAppExistsWithNameAsync(authCtx, {
+      name: appName,
+      language,
+      companyName,
+      bundleIdentifier: bundleId,
+    });
+  } catch (error) {
+    if (
+      // Name is invalid
+      error.message.match(
+        /App Name contains certain Unicode(.*)characters that are not permitted/
+      ) ||
+      // UnexpectedAppleResponse: An attribute value has invalid characters. - App Name contains certain Unicode symbols, emoticons, diacritics, special characters, or private use characters that are not permitted.
+      // Name is taken
+      error.message.match(/The App Name you entered is already being used/)
+      // UnexpectedAppleResponse: The provided entity includes an attribute with a value that has already been used on a different account. - The App Name you entered is already being used. If you have trademark rights to
+      // this name and would like it released for your use, submit a claim.
+    ) {
+      log.addNewLineIfNone();
+      log.warn(
+        `Change the name in your app config, or use a custom name with the ${chalk.bold(
+          '--app-name'
+        )} flag`
+      );
+      log.newLine();
     }
-  } else {
-    // TODO: Update app name when API gives us that possibility
+    throw error;
   }
-
-  // TODO: Maybe sync capabilities now as well
-  log(`App "${app.attributes.name}" (${bundleId}) on App Store Connect is ready for your binary.`);
 
   return {
     appleId: authCtx.appleId,
@@ -151,7 +136,7 @@ async function promptForAppNameAsync(): Promise<string> {
   const { appName } = await promptAsync({
     type: 'text',
     name: 'appName',
-    message: 'How would you like to name your app?',
+    message: 'What would you like to name your app?',
     validate: (val: string) => val !== '' || 'App name cannot be empty!',
   });
   return appName;
