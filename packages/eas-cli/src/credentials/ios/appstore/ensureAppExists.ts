@@ -78,7 +78,7 @@ export async function ensureBundleIdExistsWithNameAsync(
       });
       spinner.succeed(`Synced capabilities`);
     } catch (err) {
-      spinner.fail(`Failed to sync capabilities for "${bundleIdentifier}"`);
+      spinner.fail(`Failed to sync capabilities ${chalk.dim(bundleIdentifier)}`);
 
       throw err;
     }
@@ -116,7 +116,7 @@ export async function ensureAppExistsWithNameAsync(
         );
       }
 
-      spinner.fail(`Failed to create App Store app ${chalk.bold(name)}`);
+      spinner.fail(`Failed to create App Store app ${chalk.dim(name)}`);
 
       throw error;
     }
