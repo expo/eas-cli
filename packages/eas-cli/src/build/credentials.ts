@@ -1,7 +1,6 @@
 import { Platform, Workflow } from '@expo/eas-build-job';
 import { CredentialsSource } from '@expo/eas-json';
 import chalk from 'chalk';
-import ora from 'ora';
 
 import { CredentialsProvider } from '../credentials/CredentialsProvider';
 import log from '../log';
@@ -12,7 +11,7 @@ function logCredentials(target: 'local' | 'remote', platform: Platform) {
   let message = `Using ${target} ${platformDisplayNames[platform]} credentials`;
   if (target === 'local') message += ` ${chalk.dim('(credentials.json)')}`;
   if (target === 'remote') message += ` ${chalk.dim('(Expo server)')}`;
-  ora(message).succeed();
+  log.succeed(message);
 }
 
 async function ensureCredentialsAutoAsync(

@@ -1,5 +1,3 @@
-import chalk from 'chalk';
-
 import log from '../../../log';
 import { promptAsync } from '../../../prompts';
 import { Action, CredentialsManager } from '../../CredentialsManager';
@@ -19,6 +17,6 @@ export class UpdateFcmKey implements Action {
     ]);
 
     await ctx.android.updateFcmKeyAsync(this.experienceName, fcmApiKey);
-    log(chalk.green('Updated successfully'));
+    log.succeed('Updated successfully');
   }
 }

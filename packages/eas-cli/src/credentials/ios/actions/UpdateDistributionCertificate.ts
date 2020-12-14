@@ -72,7 +72,7 @@ export class UpdateSpecificDistributionCertificate implements Action {
       this.accountName,
       newDistCert
     );
-    log(chalk.green('Updated distribution certificate'));
+    log.succeed('Updated distribution certificate');
     log.newLine();
 
     for (const appCredentials of apps) {

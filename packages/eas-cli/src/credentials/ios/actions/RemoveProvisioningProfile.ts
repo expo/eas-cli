@@ -1,5 +1,3 @@
-import chalk from 'chalk';
-
 import log from '../../../log';
 import { confirmAsync } from '../../../prompts';
 import { Action, CredentialsManager } from '../../CredentialsManager';
@@ -32,10 +30,8 @@ export class RemoveSpecificProvisioningProfile implements Action {
 
   async runAsync(manager: CredentialsManager, ctx: Context): Promise<void> {
     await ctx.ios.deleteProvisioningProfileAsync(this.app);
-    log(
-      chalk.green(
-        `Removed provisioning profile for @${this.app.accountName}/${this.app.projectName} (${this.app.bundleIdentifier})`
-      )
+    log.succeed(
+      `Removed provisioning profile for @${this.app.accountName}/${this.app.projectName} (${this.app.bundleIdentifier})`
     );
 
     let { shouldRevoke } = this.options;

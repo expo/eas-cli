@@ -1,5 +1,4 @@
 import chalk from 'chalk';
-import ora from 'ora';
 
 import log from '../../../log';
 import { Action, CredentialsManager } from '../../CredentialsManager';
@@ -18,7 +17,7 @@ export class UpdateKeystore implements Action {
     const keystore = await this.provideOrGenerateAsync();
 
     await ctx.android.updateKeystoreAsync(this.projectFullName, keystore);
-    ora('Keystore updated').succeed();
+    log.succeed('Keystore updated');
   }
 
   private async provideOrGenerateAsync(): Promise<Keystore> {

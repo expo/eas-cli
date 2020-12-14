@@ -1,5 +1,4 @@
 import assert from 'assert';
-import chalk from 'chalk';
 
 import log from '../../../log';
 import { Action, CredentialsManager } from '../../CredentialsManager';
@@ -41,6 +40,6 @@ export class CreateDistributionCertificate implements Action {
       this.accountName,
       distCert
     );
-    log(chalk.green('Created distribution certificate'));
+    log.succeed('Created distribution certificate');
   }
 }

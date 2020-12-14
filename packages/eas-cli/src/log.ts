@@ -1,6 +1,7 @@
 import chalk from 'chalk';
 import figures from 'figures';
 import { boolish } from 'getenv';
+import ora from 'ora';
 
 type Color = (...text: string[]) => string;
 
@@ -66,6 +67,10 @@ log.warn = function warn(...args: any[]) {
 
 log.gray = function (...args: any[]) {
   consoleLog(...withTextColor(args, chalk.gray));
+};
+
+log.succeed = function (message: string) {
+  ora().succeed(message);
 };
 
 log.withTick = function (...args: any[]) {

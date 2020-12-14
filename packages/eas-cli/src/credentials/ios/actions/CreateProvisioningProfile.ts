@@ -1,5 +1,4 @@
 import assert from 'assert';
-import chalk from 'chalk';
 
 import log from '../../../log';
 import { Action, CredentialsManager } from '../../CredentialsManager';
@@ -29,7 +28,7 @@ export class CreateProvisioningProfile implements Action {
     const provisioningProfile = await this.provideOrGenerateAsync(ctx);
     await ctx.ios.updateProvisioningProfileAsync(this.app, provisioningProfile);
 
-    log(chalk.green('Created provisioning profile'));
+    log.succeed('Created provisioning profile');
   }
 
   private async provideOrGenerateAsync(ctx: Context): Promise<ProvisioningProfile> {

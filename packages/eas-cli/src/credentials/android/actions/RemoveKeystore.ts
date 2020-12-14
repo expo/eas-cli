@@ -31,7 +31,7 @@ export class RemoveKeystore implements Action {
       await manager.runActionAsync(new BackupKeystore(this.projectFullName));
 
       await ctx.android.removeKeystoreAsync(this.projectFullName);
-      log(chalk.green('Keystore removed'));
+      log.succeed('Keystore removed');
     }
   }
 
