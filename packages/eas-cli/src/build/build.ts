@@ -89,7 +89,7 @@ export async function prepareBuildRequestForPlatformAsync<
     try {
       return await withAnalyticsAsync(
         async () => {
-          log(`Starting ${platformDisplayNames[job.platform]} build`);
+          // log(`Starting ${platformDisplayNames[job.platform]} build`);
           const {
             data: { buildId, deprecationInfo },
           } = await apiClient
@@ -128,11 +128,14 @@ async function uploadProjectAsync<TPlatform extends Platform>(
         const projectTarball = await makeProjectTarballAsync();
         projectTarballPath = projectTarball.path;
 
-        log('Uploading project to build servers');
         const { bucketKey } = await uploadAsync(
           UploadType.TURTLE_PROJECT_SOURCES,
           projectTarball.path,
-          createProgressTracker(projectTarball.size)
+          createProgressTracker({
+            total: projectTarball.size,
+            message: 'Uploading to EAS Build',
+            completedMessage: `Uploaded to EAS`,
+          })
         );
         return bucketKey;
       },
