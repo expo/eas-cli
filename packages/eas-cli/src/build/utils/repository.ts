@@ -105,9 +105,12 @@ async function makeProjectTarballAsync(): Promise<{ path: string; size: number }
   // This can happen when the user has a lot of resources or doesn't ignore their CocoaPods.
   // A basic project on a Mac can compress in roughly ~40ms.
   // A fairly complex project without CocoaPods ignored can take up to 30s.
-  const timer = setTimeout(() => {
-    spinner.start();
-  }, 1000);
+  const timer = setTimeout(
+    () => {
+      spinner.start();
+    },
+    log.isDebug ? 1 : 1000
+  );
   // TODO: Possibly warn after more time about unoptimized assets.
   const compressTimerLabel = 'makeProjectTarballAsync';
   startTimer(compressTimerLabel);
