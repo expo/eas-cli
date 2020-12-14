@@ -89,7 +89,9 @@ export async function prepareBuildRequestForPlatformAsync<
     try {
       return await withAnalyticsAsync(
         async () => {
-          // log(`Starting ${platformDisplayNames[job.platform]} build`);
+          if (log.isDebug) {
+            log(`Starting ${platformDisplayNames[job.platform]} build`);
+          }
           const {
             data: { buildId, deprecationInfo },
           } = await apiClient
