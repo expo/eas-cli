@@ -3,9 +3,10 @@ import chalk from 'chalk';
 import pick from 'lodash/pick';
 
 import log from '../log';
+import { getProjectAccountName } from '../project/projectUtils';
 import { confirmAsync } from '../prompts';
-import { User } from '../user/User';
-import { ensureLoggedInAsync } from '../user/actions';
+import { Actor } from '../user/User';
+import { ensureLoggedInAsync, getActorDisplayName } from '../user/actions';
 import AndroidApi from './android/api/Client';
 import iOSApi from './ios/api/Client';
 import * as IosGraphqlClient from './ios/api/GraphqlClient';
@@ -23,7 +24,7 @@ interface Options extends AppleCtxOptions {
 
 export interface Context {
   readonly projectDir: string;
-  readonly user: User;
+  readonly user: Actor;
   readonly nonInteractive: boolean;
   readonly android: AndroidApi;
   readonly ios: iOSApi;
@@ -63,7 +64,7 @@ class CredentialsContext implements Context {
 
   constructor(
     public readonly projectDir: string,
-    public readonly user: User,
+    public readonly user: Actor,
     private _exp: ExpoConfig | undefined,
     options: Options
   ) {
@@ -90,15 +91,17 @@ class CredentialsContext implements Context {
 
   public logOwnerAndProject() {
     if (this.hasProjectContext) {
+      const owner = getProjectAccountName(this.exp, this.user);
       // Figure out if User A is configuring credentials as admin for User B's project
-      const isProxyUser = this.exp.owner && this.exp.owner !== this.user.username;
+      const isProxyUser = this.user.__typename === 'Robot' || owner !== this.user.username;
+
       log(
-        `Accessing credentials ${isProxyUser ? 'on behalf of' : 'for'} ${
-          this.exp.owner ?? this.user.username
-        } in project ${this.exp.slug}`
+        `Accessing credentials ${isProxyUser ? 'on behalf of' : 'for'} ${owner} in project ${
+          this.exp.slug
+        }`
       );
     } else {
-      log(`Accessing credentials for ${this.exp.owner ?? this.user.username}`);
+      log(`Accessing credentials for ${this.exp.owner ?? getActorDisplayName(this.user)}`);
     }
   }
 

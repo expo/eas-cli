@@ -2,6 +2,7 @@ import fs from 'fs-extra';
 import path from 'path';
 
 import log from '../../log';
+import { getProjectAccountName } from '../../project/projectUtils';
 import { confirmAsync } from '../../prompts';
 import { gitStatusAsync } from '../../utils/git';
 import { Context } from '../context';
@@ -25,7 +26,8 @@ export async function updateAndroidCredentialsAsync(ctx: Context): Promise<void>
       throw error;
     }
   }
-  const experienceName = `@${ctx.exp.owner || ctx.user.username}/${ctx.exp.slug}`;
+  const accountName = await getProjectAccountName(ctx.exp, ctx.user);
+  const experienceName = `@${accountName}/${ctx.exp.slug}`;
   const keystore = await ctx.android.fetchKeystoreAsync(experienceName);
   if (!keystore) {
     throw new Error('There are no credentials configured for this project on Expo servers');
@@ -98,8 +100,9 @@ export async function updateIosCredentialsAsync(
     }
   }
 
+  const accountName = await getProjectAccountName(ctx.exp, ctx.user);
   const appLookupParams = {
-    accountName: ctx.exp.owner ?? ctx.user.username,
+    accountName,
     projectName: ctx.exp.slug,
     bundleIdentifier,
   };

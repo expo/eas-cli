@@ -1,11 +1,11 @@
 import AppStoreApi from '../credentials/ios/appstore/AppStoreApi';
 import { findProjectRootAsync } from '../project/projectUtils';
-import { User } from '../user/User';
+import { Actor } from '../user/User';
 
 export interface DeviceManagerContext {
   appStore: AppStoreApi;
   projectDir: string | null;
-  user: User;
+  user: Actor;
 }
 
 export async function createContext({
@@ -15,7 +15,7 @@ export async function createContext({
 }: {
   appStore: AppStoreApi;
   cwd?: string;
-  user: User;
+  user: Actor;
 }): Promise<DeviceManagerContext> {
   return {
     appStore,
