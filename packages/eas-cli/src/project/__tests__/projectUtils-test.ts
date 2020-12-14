@@ -138,7 +138,7 @@ describe(getProjectAccountNameAsync, () => {
     }));
     asMock(getUserAsync).mockImplementation((): Actor | undefined => undefined);
 
-    expect(getProjectAccountNameAsync('/app')).rejects.toThrow(/logged in/);
+    await expect(getProjectAccountNameAsync('/app')).rejects.toThrow(/logged in/);
   });
 
   it(`throws when project owner is undefined for robot actors`, async () => {
@@ -154,6 +154,8 @@ describe(getProjectAccountNameAsync, () => {
         { id: 'account_id_2', name: 'dominik' },
       ],
     }));
-    expect(getProjectAccountNameAsync('/app')).rejects.toThrow('manifest property is required');
+    await expect(getProjectAccountNameAsync('/app')).rejects.toThrow(
+      'manifest property is required'
+    );
   });
 });
