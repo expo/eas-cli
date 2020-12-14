@@ -207,7 +207,7 @@ async function reviewAndCommitChangesAsync(
     );
   } else if (selected === ShouldCommitChanges.Yes) {
     await commitPromptAsync(commitMessage);
-    log.withTick('Successfully committed changes.');
+    log.withTick('Committed changes.');
   } else if (selected === ShouldCommitChanges.ShowDiffFirst) {
     await showDiffAsync();
     await reviewAndCommitChangesAsync(commitMessage, { nonInteractive, askedFirstTime: false });
