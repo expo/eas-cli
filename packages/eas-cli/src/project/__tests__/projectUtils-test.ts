@@ -138,7 +138,7 @@ describe(getProjectAccountNameAsync, () => {
     }));
     asMock(getUserAsync).mockImplementation((): Actor | undefined => undefined);
 
-    await expect(getProjectAccountNameAsync('/app')).rejects.toThrow(/logged in/);
+    await expect(getProjectAccountNameAsync('/app')).rejects.toThrow(/Failed to access user data/);
   });
 
   it(`throws when project owner is undefined for robot actors`, async () => {
