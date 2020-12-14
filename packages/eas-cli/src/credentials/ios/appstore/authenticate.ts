@@ -144,6 +144,9 @@ async function loginWithUserCredentialsAsync({
 }
 
 export async function authenticateAsync(options: Options = {}): Promise<AuthCtx> {
+  // help keep apple login visually apart from the other operations.
+  log.addNewLineIfNone();
+
   try {
     const authState = await loginAsync(
       {
