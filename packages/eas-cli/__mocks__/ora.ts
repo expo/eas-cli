@@ -3,4 +3,5 @@ export default jest.fn().mockReturnValue({
     fail: jest.fn(),
     succeed: jest.fn(),
   }),
+  succeed: jest.fn(),
 });
