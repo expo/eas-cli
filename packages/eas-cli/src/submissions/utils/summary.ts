@@ -1,36 +1,31 @@
 import chalk from 'chalk';
-import Table from 'cli-table3';
-import chunk from 'lodash/chunk';
 
 import log from '../../log';
 
-export function breakWord(word: string, chars: number): string {
-  return chunk(word, chars)
-    .map((arr: string[]) => arr.join(''))
-    .join('\n');
-}
-
 export function printSummary<T>(
   summary: T,
-  title: string,
   keyMap: Record<keyof T, string>,
   valueRemap: Partial<Record<keyof T, Function>>
 ): void {
-  const table = new Table({
-    colWidths: [25, 55],
-    wordWrap: true,
-  });
-  table.push([
-    {
-      colSpan: 2,
-      content: chalk.bold(title),
-      hAlign: 'center',
-    },
-  ]);
+  const padWidth = longestStringLength(Object.keys(summary).map(key => keyMap[key as keyof T]));
+
+  const tableFormat = (name: string, msg: string) =>
+    `${chalk.bold.cyan(pad(`${name}:`, padWidth + 1))} ${msg}`;
+
+  log.newLine();
   for (const [key, value] of Object.entries(summary)) {
     const displayKey = keyMap[key as keyof T];
     const displayValue = valueRemap[key as keyof T]?.(value) ?? value;
-    table.push([displayKey, displayValue]);
+    log(tableFormat(displayKey, displayValue));
   }
-  log(table.toString());
+  log.addNewLineIfNone();
+}
+
+function pad(str: string, width: number): string {
+  const len = Math.max(0, width - str.length);
+  return str + Array(len + 1).join(' ');
+}
+
+function longestStringLength(values: string[]): number {
+  return values.reduce((max, option) => Math.max(max, option.length), 0);
 }

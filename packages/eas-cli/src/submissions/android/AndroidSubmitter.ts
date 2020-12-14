@@ -8,7 +8,7 @@ import {
   ArchiveType,
   SubmissionPlatform,
 } from '../types';
-import { breakWord, printSummary } from '../utils/summary';
+import { printSummary } from '../utils/summary';
 import { AndroidPackageSource, getAndroidPackageAsync } from './AndroidPackageSource';
 import { AndroidSubmissionConfig, ReleaseStatus, ReleaseTrack } from './AndroidSubmissionConfig';
 import { ServiceAccountSource, getServiceAccountAsync } from './ServiceAccountSource';
@@ -68,17 +68,32 @@ class AndroidSubmitter extends BaseSubmitter<AndroidSubmissionContext, AndroidSu
       projectId,
     };
 
-    printSummary(
-      {
-        ...submissionConfig,
-        serviceAccountPath,
-      },
-      'Android Submission Summary',
-      SummaryHumanReadableKeys,
-      SummaryHumanReadableValues
-    );
+    printSummaryAndroid({
+      ...submissionConfig,
+      serviceAccountPath,
+    });
     return { ...submissionConfig, serviceAccount };
   }
+}
+
+/**
+ * Log the summary as a table. Exported for testing locally.
+ *
+ * @example
+ * printSummaryAndroid({
+ *   androidPackage: 'com.expo.demoapp',
+ *   archivePath: '/Users/example/Documents/863f9337-65d2-40c6-acb3-c1054c5c09f8.apk',
+ *   archiveUrl: 'https://turtle-v2-artifacts.s3.amazonaws.com/ios/6420592d-5b5d-439b-aed4-ccd278647138-ca4145d8468947df9ded737248a1a238.aab',
+ *   archiveType: 'apk' as any,
+ *   serviceAccountPath: '/Users/example/Documents/gsa.json',
+ *   track: ReleaseTrack.production,
+ *   releaseStatus: ReleaseStatus.completed,
+ *   projectId: '863f9337-65d2-40c6-acb3-c1054c5c09f8',
+ * });
+ * @param submissionConfig
+ */
+export function printSummaryAndroid(submissionConfig: Summary) {
+  printSummary(submissionConfig, SummaryHumanReadableKeys, SummaryHumanReadableValues);
 }
 
 interface Summary {
@@ -95,7 +110,7 @@ interface Summary {
 const SummaryHumanReadableKeys: Record<keyof Summary, string> = {
   androidPackage: 'Android package',
   archivePath: 'Archive path',
-  archiveUrl: 'Archive URL',
+  archiveUrl: 'Download URL',
   archiveType: 'Archive type',
   serviceAccountPath: 'Google Service Account',
   track: 'Release track',
@@ -103,9 +118,6 @@ const SummaryHumanReadableKeys: Record<keyof Summary, string> = {
   projectId: 'Project ID',
 };
 
-const SummaryHumanReadableValues: Partial<Record<keyof Summary, Function>> = {
-  archivePath: (path: string) => breakWord(path, 50),
-  archiveUrl: (url: string) => breakWord(url, 50),
-};
+const SummaryHumanReadableValues: Partial<Record<keyof Summary, Function>> = {};
 
 export default AndroidSubmitter;

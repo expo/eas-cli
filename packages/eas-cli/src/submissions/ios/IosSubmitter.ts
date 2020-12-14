@@ -3,7 +3,7 @@ import chalk from 'chalk';
 import BaseSubmitter from '../BaseSubmitter';
 import { Archive, ArchiveSource, getArchiveAsync } from '../archiveSource';
 import { IosSubmissionContext, SubmissionPlatform } from '../types';
-import { breakWord, printSummary } from '../utils/summary';
+import { printSummary } from '../utils/summary';
 import {
   AppSpecificPasswordSource,
   getAppSpecificPasswordAsync,
@@ -35,12 +35,8 @@ class IosSubmitter extends BaseSubmitter<IosSubmissionContext, IosSubmissionOpti
       resolvedSourceOptions
     );
 
-    printSummary(
-      submissionConfig,
-      'iOS Submission Summary',
-      SummaryHumanReadableKeys,
-      SummaryHumanReadableValues
-    );
+    printSummaryIOS(submissionConfig);
+
     await this.startSubmissionAsync(submissionConfig, this.ctx.commandFlags.verbose);
   }
 
@@ -72,16 +68,37 @@ class IosSubmitter extends BaseSubmitter<IosSubmissionContext, IosSubmissionOpti
   }
 }
 
+/**
+ * Log the summary as a table. Exported for testing locally.
+ * @example
+ * printSummaryIOS({
+ *   appleId: 'examplename@expo.io',
+ *   appSpecificPassword: 'Apple Pie^',
+ *   appAppleId: '1234567890',
+ *   projectId: '863f9337-65d2-40c6-acb3-c1054c5c09f8',
+ *   archiveUrl: 'https://turtle-v2-artifacts.s3.amazonaws.com/ios/6420592d-5b5d-439b-aed4-ccd278647138-ca4145d8468947df9ded737248a1a238.ipa',
+ * });
+ * @param submissionConfig
+ */
+export function printSummaryIOS(submissionConfig: IosSubmissionConfig) {
+  const { appSpecificPassword, projectId, archiveUrl, ...logConfig } = submissionConfig;
+
+  printSummary(
+    { ...logConfig, projectId, archiveUrl },
+    SummaryHumanReadableKeys,
+    SummaryHumanReadableValues
+  );
+}
+
 const SummaryHumanReadableKeys: Record<keyof IosSubmissionConfig, string> = {
   appleId: 'Apple ID',
-  archiveUrl: 'Archive URL',
+  archiveUrl: 'Download URL',
   appSpecificPassword: 'Apple app-specific password',
-  appAppleId: 'App Store Connect App ID',
+  appAppleId: 'ASC App ID',
   projectId: 'Project ID',
 };
 
 const SummaryHumanReadableValues: Partial<Record<keyof IosSubmissionConfig, Function>> = {
-  archiveUrl: (url: string) => breakWord(url, 50),
   appSpecificPassword: () => chalk.italic('[hidden]'),
 };
 
