@@ -3,6 +3,7 @@ import chalk from 'chalk';
 // @ts-ignore
 import Spinnies from 'spinnies';
 
+import { apiClient } from '../api';
 import log from '../log';
 import { sleep } from '../utils/promise';
 import { formatMilliseconds } from '../utils/timer';
