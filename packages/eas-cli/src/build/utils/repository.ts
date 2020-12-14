@@ -16,6 +16,7 @@ import {
   isGitInstalledAsync,
 } from '../../utils/git';
 import { getTmpDirectory } from '../../utils/paths';
+import { endTimer, formatMilliseconds, startTimer } from '../../utils/timer';
 
 async function ensureGitRepoExistsAsync(): Promise<void> {
   if (!(await isGitInstalledAsync())) {
@@ -95,17 +96,38 @@ async function ensureGitStatusIsCleanAsync(nonInteractive = false): Promise<void
 }
 
 async function makeProjectTarballAsync(): Promise<{ path: string; size: number }> {
-  const spinner = ora('Preparing project to be uploaded').start();
+  const spinner = ora('Compressing project files');
 
   await fs.mkdirp(getTmpDirectory());
   const tarPath = path.join(getTmpDirectory(), `${uuidv4()}.tar.gz`);
 
-  await spawnAsync(
-    'git',
-    ['archive', '--format=tar.gz', '--prefix', 'project/', '-o', tarPath, 'HEAD'],
-    { cwd: await gitRootDirectoryAsync() }
-  );
-  spinner.succeed('Project ready to be uploaded');
+  // If the compression takes longer then a second, show the spinner.
+  // This can happen when the user has a lot of resources or doesn't ignore their CocoaPods.
+  // A basic project on a Mac can compress in roughly ~40ms.
+  // A fairly complex project without CocoaPods ignored can take up to 30s.
+  const timer = setTimeout(() => {
+    spinner.start();
+  }, 1000);
+  // TODO: Possibly warn after more time about unoptimized assets.
+  const compressTimerLabel = 'makeProjectTarballAsync';
+  startTimer(compressTimerLabel);
+
+  try {
+    await spawnAsync(
+      'git',
+      ['archive', '--format=tar.gz', '--prefix', 'project/', '-o', tarPath, 'HEAD'],
+      { cwd: await gitRootDirectoryAsync() }
+    );
+  } finally {
+    // Stop the timer
+    clearTimeout(timer);
+
+    const duration = endTimer(compressTimerLabel);
+    if (spinner.isSpinning) {
+      const prettyTime = formatMilliseconds(duration);
+      spinner.succeed(`Compressed project files ${chalk.dim(prettyTime)}`);
+    }
+  }
 
   const { size } = await fs.stat(tarPath);
   return { size, path: tarPath };
