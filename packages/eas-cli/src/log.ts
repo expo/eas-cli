@@ -1,7 +1,10 @@
 import chalk from 'chalk';
 import figures from 'figures';
+import { boolish } from 'getenv';
 
 type Color = (...text: string[]) => string;
+
+const IS_DEBUG = boolish('EXPO_DEBUG', false);
 
 let _isLastLineNewLine = false;
 function _updateIsLastLineNewLine(args: any[]) {
@@ -68,6 +71,8 @@ log.gray = function (...args: any[]) {
 log.withTick = function (...args: any[]) {
   consoleLog(chalk.green(figures.tick), ...args);
 };
+
+log.isDebug = IS_DEBUG;
 
 /**
  * Format links as dim with an underline.
