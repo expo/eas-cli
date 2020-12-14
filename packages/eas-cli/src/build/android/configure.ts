@@ -23,7 +23,7 @@ export async function configureAndroidAsync(ctx: ConfigureContext): Promise<void
   if (isExpoUpdatesInstalled(ctx.projectDir)) {
     await configureUpdatesAsync(ctx.projectDir, ctx.exp);
   }
-  log.withTick('Successfully configured the Android project.');
+  log.withTick('Configured the Android project');
 }
 
 export async function validateAndSyncProjectConfigurationAsync(

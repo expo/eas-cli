@@ -31,6 +31,6 @@ export class CreateDistributionCertificate implements Action {
       this.app,
       distCert
     );
-    log(chalk.green('Successfully created Distribution Certificate.'));
+    log(chalk.green('Created distribution certificate'));
   }
 }

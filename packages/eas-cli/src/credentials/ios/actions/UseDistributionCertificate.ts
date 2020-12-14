@@ -31,7 +31,7 @@ export class UseSpecificDistributionCertificate implements Action {
     await ctx.ios.useDistributionCertificateAsync(this.app, this.userCredentialsId);
     log(
       chalk.green(
-        `Successfully assigned Distribution Certificate to @${this.app.accountName}/${this.app.projectName} (${this.app.bundleIdentifier})`
+        `Assigned distribution certificate to @${this.app.accountName}/${this.app.projectName} (${this.app.bundleIdentifier})`
       )
     );
   }

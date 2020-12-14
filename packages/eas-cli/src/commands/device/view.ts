@@ -37,7 +37,7 @@ If you are not sure what is the UDID of the device you are looking for, run:
       const device = await AppleDeviceQuery.getByDeviceIdentifier(accountName, UDID);
 
       if (device) {
-        spinner.succeed('Successfully fetched device details');
+        spinner.succeed('Fetched device details');
         log(`\n${formatDevice(device, device.appleTeam)}`);
       } else {
         spinner.fail(`Couldn't find a device with the UDID ${UDID}`);

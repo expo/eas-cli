@@ -41,6 +41,6 @@ export class CreateDistributionCertificate implements Action {
       this.accountName,
       distCert
     );
-    log(chalk.green('Successfully created Distribution Certificate.'));
+    log(chalk.green('Created distribution certificate'));
   }
 }

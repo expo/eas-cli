@@ -21,7 +21,7 @@ export class RemoveDistributionCertificate implements Action {
       await manager.runActionAsync(
         new RemoveSpecificDistributionCertificate(selected?.id, this.accountName, this.options)
       );
-      log(chalk.green('Successfully removed Distribution Certificate.'));
+      log(chalk.green('Removed distribution certificate'));
       log.newLine();
     }
   }

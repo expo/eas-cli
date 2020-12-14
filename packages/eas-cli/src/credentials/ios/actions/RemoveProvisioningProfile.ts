@@ -34,14 +34,14 @@ export class RemoveSpecificProvisioningProfile implements Action {
     await ctx.ios.deleteProvisioningProfileAsync(this.app);
     log(
       chalk.green(
-        `Successfully removed Provisioning Profile for @${this.app.accountName}/${this.app.projectName} (${this.app.bundleIdentifier})`
+        `Removed provisioning profile for @${this.app.accountName}/${this.app.projectName} (${this.app.bundleIdentifier})`
       )
     );
 
     let { shouldRevoke } = this.options;
     if (!shouldRevoke && !ctx.nonInteractive) {
       shouldRevoke = await confirmAsync({
-        message: 'Do you also want to revoke this Provisioning Profile on Apple Developer Portal?',
+        message: 'Do you also want to revoke this provisioning profile on Apple Developer Portal?',
       });
     }
 

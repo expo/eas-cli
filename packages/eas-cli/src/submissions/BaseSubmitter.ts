@@ -71,7 +71,7 @@ abstract class BaseSubmitter<SubmissionContext, SubmissionOptions> {
     } else if (status === SubmissionStatus.IN_PROGRESS) {
       return `Submitting your app to ${this.appStoreName}: submission in progress`;
     } else if (status === SubmissionStatus.FINISHED) {
-      return `Successfully submitted your app to ${this.appStoreName}!`;
+      return `Submitted your app to ${this.appStoreName}!`;
     } else if (status === SubmissionStatus.ERRORED) {
       return `Something went wrong when submitting your app to ${this.appStoreName}.`;
     } else {

@@ -29,7 +29,7 @@ export class CreateProvisioningProfile implements Action {
     const provisioningProfile = await this.provideOrGenerateAsync(ctx);
     await ctx.ios.updateProvisioningProfileAsync(this.app, provisioningProfile);
 
-    log(chalk.green('Successfully created Provisioning Profile.'));
+    log(chalk.green('Created provisioning profile'));
   }
 
   private async provideOrGenerateAsync(ctx: Context): Promise<ProvisioningProfile> {
