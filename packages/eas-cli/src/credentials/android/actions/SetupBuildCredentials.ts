@@ -1,4 +1,4 @@
-import chalk from 'chalk';
+import ora from 'ora';
 
 import log from '../../../log';
 import { Action, CredentialsManager } from '../../CredentialsManager';
@@ -42,6 +42,6 @@ export class SetupBuildCredentialsFromCredentialsJson implements Action {
       await validateKeystoreAsync(localCredentials.keystore);
     }
     await ctx.android.updateKeystoreAsync(this.projectFullName, localCredentials.keystore);
-    log(chalk.green('Keystore updated successfully.'));
+    ora('Keystore updated').succeed();
   }
 }

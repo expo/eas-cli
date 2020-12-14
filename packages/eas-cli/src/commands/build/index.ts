@@ -92,7 +92,7 @@ export default class Build extends Command {
 async function promptForPlatformAsync(): Promise<RequestedPlatform> {
   const { platform } = await promptAsync({
     type: 'select',
-    message: 'Choose the platforms to build',
+    message: 'Build for platforms',
     name: 'platform',
     choices: [
       {
