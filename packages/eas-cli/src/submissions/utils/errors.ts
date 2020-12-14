@@ -35,11 +35,12 @@ const SubmissionErrorMessages: Record<SubmissionErrorCode, string> = {
   [SubmissionErrorCode.IOS_OLD_VERSION_CODE_ERROR]:
     "You've already submitted this version of the app.\n" +
     'Versions are identified by Build Numbers (expo.ios.buildNumber in app.json).\n' +
-    "If you're submitting an Expo project built with EAS Builds, increment the build number in app.json and build the project again.",
+    "If you're submitting an Expo project built with EAS Build, increment the build number in app.json and build the project again." +
+    `${learnMore('https://expo.fyi/bumping-ios-build-number')}.`,
   [SubmissionErrorCode.IOS_UNKNOWN_ERROR]:
     "We couldn't figure out what went wrong. Please see logs to learn more.",
   [SubmissionErrorCode.IOS_MISSING_APP_ICON]:
-    'Your iOS App Icon is missing or has invalid format. The icon must be a 1024x1024 PNG image.\n' +
+    'Your iOS app icon is missing or is an invalid format. The icon must be a 1024x1024 PNG image with no transparency.\n' +
     'Please check your icon image and icon configuration in app.json.\n' +
     `${learnMore('https://docs.expo.io/guides/app-icons/')}`,
   [SubmissionErrorCode.IOS_INVALID_SIGNATURE]:
