@@ -1,15 +1,23 @@
-import { Job, Workflow, iOS, sanitizeJob } from '@expo/eas-build-job';
+import {
+  ArchiveSource,
+  ArchiveSourceType,
+  Job,
+  Workflow,
+  iOS,
+  sanitizeJob,
+} from '@expo/eas-build-job';
 import { iOSGenericBuildProfile, iOSManagedBuildProfile } from '@expo/eas-json';
 import path from 'path';
 
 import { readSecretEnvsAsync } from '../../credentials/credentialsJson/read';
 import { IosCredentials } from '../../credentials/ios/IosCredentialsProvider';
+import { ensureLoggedInAsync } from '../../user/actions';
 import { gitRootDirectoryAsync } from '../../utils/git';
 import { BuildContext } from '../context';
 import { Platform } from '../types';
 
 interface JobData {
-  archiveUrl: string;
+  archiveBucketKey: string;
   credentials?: IosCredentials;
   projectConfiguration: {
     iosNativeProjectScheme?: string;
@@ -33,7 +41,7 @@ export async function prepareJobAsync(
 
 interface CommonJobProperties {
   platform: Platform.iOS;
-  projectUrl: string;
+  projectArchive: ArchiveSource;
   releaseChannel: string;
   secrets: {
     buildCredentials?: {
@@ -66,7 +74,10 @@ async function prepareJobCommonAsync(
 
   return {
     platform: Platform.iOS,
-    projectUrl: jobData.archiveUrl,
+    projectArchive: {
+      type: ArchiveSourceType.S3,
+      bucketKey: jobData.archiveBucketKey,
+    },
     secrets: {
       ...(secretEnvs ? { secretEnvs } : {}),
       ...buildCredentials,
@@ -96,9 +107,11 @@ async function prepareManagedJobAsync(
   buildProfile: iOSManagedBuildProfile
 ): Promise<Partial<iOS.ManagedJob>> {
   const projectRootDirectory = path.relative(await gitRootDirectoryAsync(), process.cwd()) || '.';
+  const { username } = await ensureLoggedInAsync();
   return {
     ...(await prepareJobCommonAsync(ctx, jobData)),
     type: Workflow.Managed,
+    username,
     releaseChannel: buildProfile.releaseChannel,
     projectRootDirectory,
   };
