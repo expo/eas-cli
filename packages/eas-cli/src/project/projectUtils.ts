@@ -1,4 +1,4 @@
-import { getConfig, getConfigFilePaths } from '@expo/config';
+import { ExpoConfig, getConfig, getConfigFilePaths } from '@expo/config';
 import { AndroidConfig, IOSConfig } from '@expo/config-plugins';
 import { Platform } from '@expo/eas-build-job';
 import fs from 'fs-extra';
@@ -8,13 +8,28 @@ import pkgDir from 'pkg-dir';
 
 import { graphqlClient, withErrorHandlingAsync } from '../graphql/client';
 import { UpdateRelease } from '../graphql/generated';
+import { Actor } from '../user/User';
 import { ensureLoggedInAsync } from '../user/actions';
 import { ensureProjectExistsAsync } from './ensureProjectExists';
+
+export function getProjectAccountName(exp: ExpoConfig, user: Actor): string {
+  switch (user.__typename) {
+    case 'User':
+      return exp.owner || user.username;
+    case 'Robot':
+      if (!exp.owner) {
+        throw new Error(
+          'The "owner" manifest property is required when using robot users. See: https://docs.expo.io/versions/latest/config/app/#owner'
+        );
+      }
+      return exp.owner;
+  }
+}
 
 export async function getProjectAccountNameAsync(projectDir: string): Promise<string> {
   const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
   const user = await ensureLoggedInAsync();
-  return exp.owner || user.username;
+  return getProjectAccountName(exp, user);
 }
 
 export async function findProjectRootAsync(cwd?: string): Promise<string | null> {
@@ -25,7 +40,7 @@ export async function findProjectRootAsync(cwd?: string): Promise<string | null>
 export async function getProjectIdAsync(projectDir: string): Promise<string> {
   const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
   return await ensureProjectExistsAsync({
-    accountName: await getProjectAccountNameAsync(projectDir),
+    accountName: getProjectAccountName(exp, await ensureLoggedInAsync()),
     projectName: exp.slug,
     privacy: exp.privacy,
   });

@@ -2,29 +2,21 @@ import gql from 'graphql-tag';
 
 import { apiClient } from '../api';
 import { graphqlClient } from '../graphql/client';
+import { CurrentUserQuery } from '../graphql/generated';
 import { UserQuery } from '../graphql/queries/UserQuery';
-import { Account } from './Account';
 import { getAccessToken, getSessionSecret, setSessionAsync } from './sessionStorage';
 
 // Re-export, but keep in separate file to avoid dependency cycle
 export { getSessionSecret, getAccessToken };
 
-export interface User {
-  userId: string;
-  username: string;
-  accounts: Account[];
-}
+export type Actor = NonNullable<CurrentUserQuery['meActor']>;
 
-let currentUser: User | undefined;
+let currentUser: Actor | undefined;
 
-export async function getUserAsync(): Promise<User | undefined> {
-  if (!currentUser && getSessionSecret()) {
+export async function getUserAsync(): Promise<Actor | undefined> {
+  if (!currentUser && (getAccessToken() || getSessionSecret())) {
     const user = await UserQuery.currentUserAsync();
-    currentUser = {
-      userId: user.id,
-      username: user.username,
-      accounts: user.accounts,
-    };
+    currentUser = user ?? undefined;
   }
   return currentUser;
 }

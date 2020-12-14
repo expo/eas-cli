@@ -1,3 +1,3 @@
-const getConfig = jest.fn();
+const getConfig = jest.fn(() => ({ exp: {} }));
 
 export { getConfig };

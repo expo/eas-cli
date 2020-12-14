@@ -1,14 +1,16 @@
-import { User } from '../../user/User';
+import { Actor } from '../../user/User';
 
-export const jester: User = {
+export const jester: Actor = {
+  __typename: 'User',
+  id: 'jester-id',
   username: 'jester',
-  userId: 'jester-id',
   accounts: [{ id: 'jester-account-id', name: 'jester' }],
 };
 
-export const jester2: User = {
+export const jester2: Actor = {
+  __typename: 'User',
+  id: 'jester2-id',
   username: 'jester2',
-  userId: 'jester2-id',
   accounts: [{ id: 'jester2-account-id', name: 'jester2' }],
 };
 

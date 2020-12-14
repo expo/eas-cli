@@ -1,7 +1,7 @@
 import prompts from 'prompts';
 
 import { asMock } from '../../__tests__/utils';
-import { User } from '../../user/User';
+import { Actor } from '../../user/User';
 import { AccountResolver } from '../manager';
 
 jest.mock('prompts');
@@ -22,8 +22,9 @@ beforeEach(() => {
 
 describe(AccountResolver, () => {
   describe('#resolveAccountAsync', () => {
-    const user: User = {
-      userId: 'user_id_666',
+    const user: Actor = {
+      __typename: 'User',
+      id: 'user_id_666',
       username: 'dominik',
       accounts: [
         { id: 'account_id_777', name: 'dominik' },
@@ -62,7 +63,7 @@ describe(AccountResolver, () => {
           account: user.accounts[0],
         }));
 
-        const userWithAccessToProjectAccount: User = {
+        const userWithAccessToProjectAccount: Actor = {
           ...user,
           accounts: [user.accounts[0]],
         };

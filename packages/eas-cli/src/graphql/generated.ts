@@ -2724,14 +2724,21 @@ export type Unnamed_1_Query = (
   ) }
 );
 
-export type Unnamed_2_QueryVariables = Exact<{ [key: string]: never; }>;
+export type CurrentUserQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type Unnamed_2_Query = (
+export type CurrentUserQuery = (
   { __typename?: 'RootQuery' }
-  & { viewer?: Maybe<(
-    { __typename?: 'User' }
-    & Pick<User, 'id' | 'username'>
+  & { meActor?: Maybe<(
+    { __typename: 'User' }
+    & Pick<User, 'username' | 'id'>
+    & { accounts?: Maybe<Array<Maybe<(
+      { __typename?: 'Account' }
+      & Pick<Account, 'id' | 'name'>
+    )>>> }
+  ) | (
+    { __typename: 'Robot' }
+    & Pick<Robot, 'firstName' | 'id'>
     & { accounts?: Maybe<Array<Maybe<(
       { __typename?: 'Account' }
       & Pick<Account, 'id' | 'name'>
