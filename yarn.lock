@@ -1508,7 +1508,7 @@
   dependencies:
     "@hapi/joi" "^17.1.1"
 
-"@expo/eas-build-job@^0.1.4":
+"@expo/eas-build-job@0.1.4":
   version "0.1.4"
   resolved "https://registry.yarnpkg.com/@expo/eas-build-job/-/eas-build-job-0.1.4.tgz#71188a68e62ad1ecf1c6d20e4ebcfefa4143a9a2"
   integrity sha512-wibByQQBu7kREeMmOWXBZXVjLuORUTzxKJSxhSk6aQ8iGC5FhcjSUzpCyi+949iOzhumryu4198ZCjGuQD8+4A==
