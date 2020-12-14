@@ -62,7 +62,7 @@ async function ensureCredentialsAutoAsync(
           throw new Error(
             `Credentials for this app are not configured and there is no entry in credentials.json for ${platform}. Either configure credentials.json, or launch the build without "--non-interactive" flag to get a prompt to generate credentials automatically.`
           );
-        } else {
+        } else if (log.isDebug) {
           log.warn(
             `Credentials for this app are not configured and there is no entry in credentials.json for ${platform}`
           );
