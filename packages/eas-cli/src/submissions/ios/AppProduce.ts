@@ -5,7 +5,7 @@ import chalk from 'chalk';
 
 import { authenticateAsync, getRequestContext } from '../../credentials/ios/appstore/authenticate';
 import {
-  ensureAppExistsWithNameAsync,
+  ensureAppExistsAsync,
   ensureBundleIdExistsWithNameAsync,
 } from '../../credentials/ios/appstore/ensureAppExists';
 import log from '../../log';
@@ -97,7 +97,7 @@ async function createAppStoreConnectAppAsync(options: CreateAppOptions): Promise
   let app: App | null = null;
 
   try {
-    app = await ensureAppExistsWithNameAsync(authCtx, {
+    app = await ensureAppExistsAsync(authCtx, {
       name: appName,
       language,
       companyName,

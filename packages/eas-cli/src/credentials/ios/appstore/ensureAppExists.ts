@@ -14,7 +14,7 @@ export interface AppLookupParams {
   bundleIdentifier: string;
 }
 
-export async function ensureAppExistsAsync(
+export async function ensureBundleIdExistsAsync(
   authCtx: AuthCtx,
   { accountName, projectName, bundleIdentifier }: AppLookupParams,
   options?: EnsureAppExistsOptions
@@ -85,7 +85,7 @@ export async function ensureBundleIdExistsWithNameAsync(
   }
 }
 
-export async function ensureAppExistsWithNameAsync(
+export async function ensureAppExistsAsync(
   authCtx: AuthCtx,
   {
     name,
@@ -95,7 +95,7 @@ export async function ensureAppExistsWithNameAsync(
   }: { name: string; language?: string; companyName?: string; bundleIdentifier: string }
 ) {
   const context = getRequestContext(authCtx);
-  const spinner = ora(`Linking to App Store app ${chalk.dim(bundleIdentifier)}`).start();
+  const spinner = ora(`Linking to App Store ${chalk.dim(bundleIdentifier)}`).start();
 
   let app = await App.findAsync(context, { bundleId: bundleIdentifier });
 
@@ -123,6 +123,6 @@ export async function ensureAppExistsWithNameAsync(
   } else {
     // TODO: Update app name when API gives us that possibility
   }
-  spinner.succeed(`Prepped App Store for ${chalk.bold(name)} ${chalk.dim(bundleIdentifier)}`);
+  spinner.succeed(`Prepared App Store for ${chalk.bold(name)} ${chalk.dim(bundleIdentifier)}`);
   return app;
 }

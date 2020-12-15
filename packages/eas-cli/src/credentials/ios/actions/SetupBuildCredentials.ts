@@ -27,7 +27,7 @@ export class SetupBuildCredentials implements Action {
     await ctx.bestEffortAppStoreAuthenticateAsync();
 
     if (ctx.appStore.authCtx) {
-      await ctx.appStore.ensureAppExistsAsync(this.app, { enablePushNotifications: true });
+      await ctx.appStore.ensureBundleIdExistsAsync(this.app, { enablePushNotifications: true });
     }
 
     let iosAppBuildCredentials: IosAppBuildCredentials | null = null;

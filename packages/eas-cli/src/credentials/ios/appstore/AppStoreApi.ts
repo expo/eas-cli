@@ -13,7 +13,11 @@ import {
   listDistributionCertificatesAsync,
   revokeDistributionCertificateAsync,
 } from './distributionCertificate';
-import { AppLookupParams, EnsureAppExistsOptions, ensureAppExistsAsync } from './ensureAppExists';
+import {
+  AppLookupParams,
+  EnsureAppExistsOptions,
+  ensureBundleIdExistsAsync,
+} from './ensureAppExists';
 import {
   ProfileClass,
   createProvisioningProfileAsync,
@@ -48,12 +52,12 @@ class AppStoreApi {
     return this._authCtx;
   }
 
-  public async ensureAppExistsAsync(
+  public async ensureBundleIdExistsAsync(
     app: AppLookupParams,
     options?: EnsureAppExistsOptions
   ): Promise<void> {
     const ctx = await this.ensureAuthenticatedAsync();
-    return await ensureAppExistsAsync(ctx, app, options);
+    return await ensureBundleIdExistsAsync(ctx, app, options);
   }
 
   public async listDistributionCertificatesAsync(): Promise<DistributionCertificateStoreInfo[]> {
