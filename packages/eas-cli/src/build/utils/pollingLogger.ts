@@ -32,7 +32,7 @@ export async function pollBuildsAsync(
   buildIds: string[]
 ) {
   // const builds = getMockBuilds();
-  const builds: (Build | string)[] = await Promise.all(
+  const builds: AnyBuildResponse[] = await Promise.all(
     buildIds.map(async buildId => {
       try {
         const { data } = await apiClient.get(`projects/${projectId}/builds/${buildId}`).json();
@@ -44,6 +44,8 @@ export async function pollBuildsAsync(
   );
   return builds;
 }
+
+const unknownPlatformName = 'Pending';
 
 export async function waitForBuildEndAsync(
   commandCtx: Pick<CommandContext, 'projectId'>,
@@ -57,7 +59,7 @@ export async function waitForBuildEndAsync(
     requestBuildsAsync?: (
       commandCtx: Pick<CommandContext, 'projectId'>,
       buildIds: string[]
-    ) => Promise<(Build | string)[]>;
+    ) => Promise<AnyBuildResponse[]>;
     timeoutSec?: number;
     intervalSec?: number;
   }
@@ -67,24 +69,15 @@ export async function waitForBuildEndAsync(
   const endTime = time + timeoutSec * 1000;
 
   const spinnies = new Spinnies();
-  const unknownName = 'Pending';
   const stateCache: Record<string, BuildStatus> = {};
 
   while (time <= endTime) {
     const builds = await requestBuildsAsync(commandCtx, buildIds);
 
-    const padWidth = longestStringLength(
-      builds.map(build => {
-        if (typeof build === 'string') return unknownName;
-        return build.platform;
-      })
-    );
+    const padWidth = longestStringLength(getBuildPlatforms(builds));
 
     // Remove any spinners which weren't returned on subsequent requests.
-    const latestBuildIds = builds.map(build => {
-      if (typeof build === 'string') return build;
-      return build.id;
-    });
+    const latestBuildIds = getBuildIds(builds);
 
     for (const id of Object.keys(spinnies.spinners)) {
       if (!latestBuildIds.includes(id)) {
@@ -112,7 +105,7 @@ export async function waitForBuildEndAsync(
 
       if (typeof build === 'string') {
         spinnies.update(id, {
-          text: chalk.dim(tableFormat(unknownName, id)),
+          text: chalk.dim(tableFormat(unknownPlatformName, id)),
           spinnerColor: 'gray',
         });
       } else {
@@ -184,9 +177,24 @@ export async function waitForBuildEndAsync(
   );
 }
 
+type AnyBuildResponse = string | Build;
+
 function getBuildDuration(build: Build & { metrics?: any }): number {
   if (build.metrics) {
     return build.metrics.buildEndTimestamp - build.metrics.buildStartTimestamp;
   }
   return 0;
+}
+
+function getBuildPlatforms(builds: AnyBuildResponse[]): string[] {
+  return builds.map(build => {
+    if (typeof build === 'string') return unknownPlatformName;
+    return build.platform;
+  });
+}
+function getBuildIds(builds: AnyBuildResponse[]): string[] {
+  return builds.map(build => {
+    if (typeof build === 'string') return build;
+    return build.id;
+  });
 }
