@@ -7,7 +7,6 @@ import { Archive, ArchiveSource, getArchiveAsync } from '../archiveSource';
 import { IosSubmissionContext, SubmissionPlatform } from '../types';
 import {
   ArchiveSourceSummaryFields,
-  breakWord,
   formatArchiveSourceSummary,
   printSummary,
 } from '../utils/summary';
@@ -118,9 +117,6 @@ const SummaryHumanReadableKeys: Record<keyof SummaryData, string> = {
   buildId: 'Build ID',
 };
 
-const SummaryHumanReadableValues: Partial<Record<keyof SummaryData, Function>> = {
-  archiveUrl: (url: string) => breakWord(url, 50),
-  archivePath: (path: string) => breakWord(path, 50),
-};
+const SummaryHumanReadableValues: Partial<Record<keyof SummaryData, Function>> = {};
 
 export default IosSubmitter;

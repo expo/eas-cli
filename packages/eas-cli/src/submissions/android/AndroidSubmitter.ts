@@ -10,7 +10,6 @@ import {
 } from '../types';
 import {
   ArchiveSourceSummaryFields,
-  breakWord,
   formatArchiveSourceSummary,
   printSummary,
 } from '../utils/summary';
@@ -115,12 +114,14 @@ const SummaryHumanReadableKeys: Record<keyof Summary, string> = {
   archiveUrl: 'Download URL',
   archiveType: 'Archive type',
   buildId: 'Build ID',
-  serviceAccountPath: 'Google Service Account',
+  serviceAccountPath: 'Google Service Key',
   track: 'Release track',
   releaseStatus: 'Release status',
   projectId: 'Project ID',
 };
 
-const SummaryHumanReadableValues: Partial<Record<keyof Summary, Function>> = {};
+const SummaryHumanReadableValues: Partial<Record<keyof Summary, Function>> = {
+  archiveType: (type: string) => type.toUpperCase(),
+};
 
 export default AndroidSubmitter;
