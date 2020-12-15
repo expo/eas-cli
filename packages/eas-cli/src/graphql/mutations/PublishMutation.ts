@@ -11,14 +11,15 @@ const PublishMutation = {
           { asset: { getSignedAssetUploadSpecifications: { specifications: string[] } } },
           { contentTypes: string[] }
         >(
-          gql` 
-        mutation {
-          asset {
-            getSignedAssetUploadSpecifications(assetContentTypes: ${JSON.stringify(contentTypes)}) {
-              specifications
+          gql`
+            mutation GetSignedUploadMutation($contentTypes: [String!]!) {
+              asset {
+                getSignedAssetUploadSpecifications(assetContentTypes: $contentTypes) {
+                  specifications
+                }
+              }
             }
-          }
-        }`,
+          `,
           {
             contentTypes,
           }

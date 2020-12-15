@@ -4,24 +4,26 @@ import { graphqlClient, withErrorHandlingAsync } from '../client';
 
 const PublishQuery = {
   async getAssetMetadataAsync(
-    assetHashes: string[]
+    storageKeys: string[]
   ): Promise<{ storageKey: string; status: string; __typename: string }[]> {
     const data = await withErrorHandlingAsync(
       graphqlClient
         .query<
           { asset: { metadata: { status: string; storageKey: string; __typename: string }[] } },
-          { assetHashes: string[] }
+          { storageKeys: string[] }
         >(
-          gql` query {
-          asset {
-            metadata(storageKeys: ${JSON.stringify(assetHashes)}) {
-              storageKey
-              status
+          gql`
+            query GetAssetMetadataQuery($storageKeys: [String!]!) {
+              asset {
+                metadata(storageKeys: $storageKeys) {
+                  storageKey
+                  status
+                }
+              }
             }
-          }
-        }`,
+          `,
           {
-            assetHashes,
+            storageKeys,
           },
           { requestPolicy: 'network-only' } // Since we reptitively query this to monitor the asset upload, we need to ensure it is not cached.
         )
