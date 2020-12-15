@@ -46,7 +46,8 @@ export function printSummary<T>(
     fields.push({ label, value });
   }
 
-  log.addNewLineIfNone();
+  log.newLine();
   log(chalk.bold(title));
   log(formatFields(fields, { labelFormat: chalk.bold.cyan }));
+  log.addNewLineIfNone();
 }
