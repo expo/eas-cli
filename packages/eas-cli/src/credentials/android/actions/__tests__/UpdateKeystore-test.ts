@@ -38,7 +38,7 @@ describe('run UpdateKeystore when keystore exist on www', () => {
     });
     const manager = createManagerMock();
 
-    (prompts as any).mockImplementationOnce(() => ({ answer: false })); // promptForCredentials: let expo handle
+    (prompts as any).mockImplementationOnce(() => ({ value: true })); // promptForCredentials: let expo handle
 
     await new UpdateKeystore(testExperienceName).runAsync(manager, ctx);
 
@@ -58,7 +58,7 @@ describe('run UpdateKeystore when keystore exist on www', () => {
 
     await fs.writeFile('/keystore.jks', testKeystore.keystore, 'base64');
     (prompts as any)
-      .mockImplementationOnce(() => ({ answer: true })) // promptForCredentials: user specified
+      .mockImplementationOnce(() => ({ value: false })) // promptForCredentials: user specified
       .mockImplementationOnce(() => ({ input: '/keystore.jks' })) // keystore
       .mockImplementationOnce(() => ({ input: 'test' })) // keystore password
       .mockImplementationOnce(() => ({ input: 'test' })) // key alias
@@ -82,7 +82,7 @@ describe('run UpdateKeystore when keystore does not exist on www', () => {
     });
     const manager = createManagerMock();
 
-    (prompts as any).mockImplementationOnce(() => ({ answer: false })); // Let expo handle
+    (prompts as any).mockImplementationOnce(() => ({ value: true })); // Let expo handle
 
     await new UpdateKeystore(testExperienceName).runAsync(manager, ctx);
 
@@ -102,7 +102,7 @@ describe('run UpdateKeystore when keystore does not exist on www', () => {
 
     await fs.writeFile('/keystore.jks', testKeystore.keystore, 'base64');
     (prompts as any)
-      .mockImplementationOnce(() => ({ answer: true })) // promptForCredentials: user specified
+      .mockImplementationOnce(() => ({ value: false })) // promptForCredentials: user specified
       .mockImplementationOnce(() => ({ input: '/keystore.jks' })) // keystore
       .mockImplementationOnce(() => ({ input: 'test' })) // keystore password
       .mockImplementationOnce(() => ({ input: 'test' })) // key alias

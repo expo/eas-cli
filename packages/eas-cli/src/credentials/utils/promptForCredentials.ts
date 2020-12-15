@@ -4,7 +4,7 @@ import path from 'path';
 import untildify from 'untildify';
 
 import log from '../../log';
-import { Question as PromptQuestion, promptAsync } from '../../prompts';
+import { Question as PromptQuestion, confirmAsync, promptAsync } from '../../prompts';
 
 export type Question = {
   field: string;
@@ -18,8 +18,6 @@ export type CredentialSchema<T> = {
   questions: Question[];
   provideMethodQuestion?: {
     question?: string;
-    expoGenerated?: string;
-    userProvided?: string;
   };
   transformResultAsync?: (answers: Partial<T>) => Promise<T>;
 };
@@ -28,7 +26,6 @@ const EXPERT_PROMPT = once(() =>
   log.warn(`
 In this mode, we won't be able to make sure that your credentials are valid.
 Please double check that you're uploading valid files for your app otherwise you may encounter strange errors!
-
 When building for IOS make sure you've created your App ID on the Apple Developer Portal, that your App ID
 is in app.json as \`bundleIdentifier\`, and that the provisioning profile you
 upload matches that Team ID and App ID.
@@ -39,11 +36,11 @@ export async function askForUserProvidedAsync<T>(
   schema: CredentialSchema<T>,
   initialValues: Partial<T> = {}
 ): Promise<T | null> {
-  if (await willUserProvideCredentialsAsync<T>(schema)) {
-    EXPERT_PROMPT();
-    return await getCredentialsFromUserAsync<T>(schema, initialValues);
+  if (await shouldAutoGenerateCredentialsAsync<T>(schema)) {
+    return null;
   }
-  return null;
+  EXPERT_PROMPT();
+  return await getCredentialsFromUserAsync<T>(schema, initialValues);
 }
 
 export async function getCredentialsFromUserAsync<T>(
@@ -62,21 +59,10 @@ export async function getCredentialsFromUserAsync<T>(
     : (results as T);
 }
 
-async function willUserProvideCredentialsAsync<T>(schema: CredentialSchema<T>) {
-  const { answer } = await promptAsync({
-    type: 'select',
-    name: 'answer',
-    message: schema?.provideMethodQuestion?.question ?? `Will you provide your own ${schema.name}?`,
-    choices: [
-      {
-        title: schema?.provideMethodQuestion?.expoGenerated ?? 'Let EAS handle the process',
-        value: false,
-      },
-      {
-        title: schema?.provideMethodQuestion?.userProvided ?? 'I want to upload my own file',
-        value: true,
-      },
-    ],
+async function shouldAutoGenerateCredentialsAsync<T>(schema: CredentialSchema<T>) {
+  const answer = await confirmAsync({
+    message: schema?.provideMethodQuestion?.question ?? `Generate a new ${schema.name}?`,
+    initial: true,
   });
   return answer;
 }
