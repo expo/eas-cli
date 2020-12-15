@@ -1,4 +1,4 @@
-import publishGraphQL from 'graphql-tag';
+import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../client';
 
@@ -12,7 +12,7 @@ const PublishQuery = {
           { asset: { metadata: { status: string; storageKey: string; __typename: string }[] } },
           { assetHashes: string[] }
         >(
-          publishGraphQL` query {
+          gql` query {
           asset {
             metadata(storageKeys: ${JSON.stringify(assetHashes)}) {
               storageKey

@@ -1,4 +1,4 @@
-import publishGraphQL from 'graphql-tag';
+import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../client';
 import { PublishUpdateGroupInput, Update } from '../generated';
@@ -11,7 +11,7 @@ const PublishMutation = {
           { asset: { getSignedAssetUploadSpecifications: { specifications: string[] } } },
           { contentTypes: string[] }
         >(
-          publishGraphQL` 
+          gql` 
         mutation {
           asset {
             getSignedAssetUploadSpecifications(assetContentTypes: ${JSON.stringify(contentTypes)}) {
@@ -37,7 +37,7 @@ const PublishMutation = {
           { updateRelease: { publishUpdateGroup: Pick<Update, 'updateGroup'>[] } },
           { publishUpdateGroupInput: PublishUpdateGroupInput }
         >(
-          publishGraphQL`
+          gql`
           mutation publish($publishUpdateGroupInput: PublishUpdateGroupInput) {
             updateRelease {
               publishUpdateGroup(publishUpdateGroupInput: $publishUpdateGroupInput) {
