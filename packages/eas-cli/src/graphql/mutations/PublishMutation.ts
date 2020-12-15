@@ -38,14 +38,14 @@ const PublishMutation = {
           { publishUpdateGroupInput: PublishUpdateGroupInput }
         >(
           gql`
-          mutation publish($publishUpdateGroupInput: PublishUpdateGroupInput) {
-            updateRelease {
-              publishUpdateGroup(publishUpdateGroupInput: $publishUpdateGroupInput) {
-                updateGroup
+            mutation PublishMutation($publishUpdateGroupInput: PublishUpdateGroupInput) {
+              updateRelease {
+                publishUpdateGroup(publishUpdateGroupInput: $publishUpdateGroupInput) {
+                  updateGroup
+                }
               }
             }
-          }
-        `,
+          `,
           { publishUpdateGroupInput }
         )
         .toPromise()
