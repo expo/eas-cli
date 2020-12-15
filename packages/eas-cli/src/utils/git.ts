@@ -56,12 +56,6 @@ async function getBranchNameAsync(): Promise<string | undefined> {
   } catch (e) {}
 }
 
-async function getLastCommitMessageAsync(): Promise<string | undefined> {
-  try {
-    return (await spawnAsync('git', ['--no-pager', 'log', '-1', '--pretty=%B'])).stdout;
-  } catch (e) {}
-}
-
 export {
   gitStatusAsync,
   gitDiffAsync,
@@ -71,5 +65,4 @@ export {
   gitRootDirectoryAsync,
   isGitInstalledAsync,
   getBranchNameAsync,
-  getLastCommitMessageAsync,
 };
