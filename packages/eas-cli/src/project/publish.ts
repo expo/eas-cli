@@ -76,8 +76,7 @@ export function getStorageKeyForAsset(asset: RawAsset): string {
   const fileHash = getBase64URLEncoding(
     crypto.createHash('sha256').update(asset['buffer']).digest()
   );
-  const contentType = asset['contentType'];
-  return getStorageKey(contentType, fileHash);
+  return getStorageKey(asset.contentType, fileHash);
 }
 
 export function convertAssetToUpdateInfoGroupFormat(asset: RawAsset): PartialManifestAsset {
