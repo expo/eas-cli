@@ -289,7 +289,8 @@ export async function uploadAssetsAsync(assetsForUpdateInfoGroup: CollectedAsset
   await Promise.all(
     missingAssets.map((missingAsset, i) => {
       const presignedPost: PresignedPost = JSON.parse(specifications[i]);
-      return uploadWithPresignedPostAsync(missingAsset.buffer, presignedPost);
+      // TODO-JJ add progress handler
+      return uploadWithPresignedPostAsync(missingAsset.buffer, presignedPost, {} as any);
     })
   );
 
