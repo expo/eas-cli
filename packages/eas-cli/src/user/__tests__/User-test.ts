@@ -2,7 +2,7 @@ import fs from 'fs-extra';
 import { vol } from 'memfs';
 
 import { getStateJsonPath } from '../../utils/paths';
-import { getSessionSecret, loginAsync, logoutAsync } from '../User';
+import { getSessionSecret, getUserAsync, loginAsync, logoutAsync } from '../User';
 
 jest.mock('fs');
 jest.mock('../../api', () => ({
@@ -24,9 +24,30 @@ jest.mock('../../graphql/client', () => ({
     },
   },
 }));
+jest.mock('../../graphql/queries/UserQuery', () => ({
+  UserQuery: {
+    currentUserAsync: async () => ({ __typename: 'User', username: 'USERNAME', id: 'USER_ID' }),
+  },
+}));
 
 beforeEach(() => {
   vol.reset();
+});
+
+describe('getUserAsync', () => {
+  it('skips fetching user without access token or session secret', async () => {
+    expect(await getUserAsync()).toBeUndefined();
+  });
+
+  it('fetches user when access token is defined', async () => {
+    process.env.EXPO_TOKEN = 'accesstoken';
+    expect(await getUserAsync()).toMatchObject({ __typename: 'User' });
+  });
+
+  it('fetches user when session secret is defined', async () => {
+    await loginAsync({ username: 'USERNAME', password: 'PASSWORD' });
+    expect(await getUserAsync()).toMatchObject({ __typename: 'User' });
+  });
 });
 
 describe('loginAsync', () => {

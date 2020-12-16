@@ -1,25 +1,74 @@
+import chalk from 'chalk';
 import { Progress } from 'got';
-import ProgressBar from 'progress';
+import ora from 'ora';
 
-type ProgressTracker = (progress: Progress) => void;
+import { endTimer, formatMilliseconds, startTimer } from './timer';
 
-function createProgressTracker(_total?: number): ProgressTracker {
-  let bar: ProgressBar | null = null;
+type ProgressHandler = (props: {
+  progress?: Progress;
+  isComplete?: boolean;
+  error?: Error;
+}) => void;
+
+function createProgressTracker({
+  total,
+  message,
+  completedMessage,
+}: {
+  total?: number;
+  message: string;
+  completedMessage?: string;
+}): ProgressHandler {
+  let bar: ora.Ora | null = null;
+  let calcTotal: number = total ?? 0;
   let transferredSoFar = 0;
-  return (progress: Progress) => {
-    if (!bar && (progress.total !== undefined || _total !== undefined)) {
-      const total = (_total ?? progress.total) as number;
-      bar = new ProgressBar('[:bar] :percent :etas', {
-        complete: '=',
-        incomplete: ' ',
-        total,
-        width: 64,
-      });
+  let current = 0;
+
+  const timerLabel = String(Date.now());
+
+  const withPercent = (v: number) => {
+    const ratio = Math.min(Math.max(v, 0), 1);
+    const percent = Math.floor(ratio * 100);
+    return `${message} ${percent.toFixed(0)}%`;
+  };
+
+  return ({ progress, isComplete, error }) => {
+    if (progress) {
+      if (!bar && (progress.total !== undefined || total !== undefined)) {
+        calcTotal = (total ?? progress.total) as number;
+        bar = ora(withPercent(0)).start();
+        startTimer(timerLabel);
+      }
+      if (progress.total) {
+        calcTotal = progress.total;
+      }
+      if (bar) {
+        let percentage = 0;
+        if (progress.percent) {
+          percentage = progress.percent;
+        } else {
+          current += progress.transferred - transferredSoFar;
+          percentage = current / calcTotal;
+        }
+
+        bar.text = withPercent(percentage);
+      }
+      transferredSoFar = progress.transferred;
     }
-    if (bar) {
-      bar.tick(progress.transferred - transferredSoFar);
+
+    if (!bar) {
+      return;
     }
-    transferredSoFar = progress.transferred;
+
+    if (isComplete) {
+      const duration = endTimer(timerLabel);
+      const prettyTime = formatMilliseconds(duration);
+      if (error) {
+        bar.fail();
+      } else if (isComplete) {
+        bar.succeed(`${completedMessage ?? message} ${chalk.dim(prettyTime)}`);
+      }
+    }
   };
 }
 

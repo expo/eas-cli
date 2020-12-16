@@ -1,7 +1,7 @@
 {
   "name": "eas-cli",
   "description": "EAS command line tool",
-  "version": "0.1.0-alpha.21",
+  "version": "0.1.1",
   "author": "Expo <support@expo.io>",
   "bin": {
     "eas": "./bin/run"
@@ -11,10 +11,11 @@
     "@expo/apple-utils": "0.0.0-alpha.16",
     "@expo/config": "~3.3.19",
     "@expo/config-plugins": "~1.0.9",
-    "@expo/eas-build-job": "0.1.3",
+    "@expo/eas-build-job": "0.1.4",
     "@expo/eas-json": "^0.1.0-alpha.20",
     "@expo/json-file": "^8.2.24",
     "@expo/plist": "^0.0.10",
+    "@expo/plugin-warn-if-update-available": "^1.7.0",
     "@expo/results": "^1.0.0",
     "@expo/spawn-async": "^1.5.0",
     "@hapi/joi": "^17.1.1",
@@ -106,7 +107,8 @@
     "bin": "eas",
     "commands": "./build/commands",
     "plugins": [
-      "@oclif/plugin-help"
+      "@oclif/plugin-help",
+      "@expo/plugin-warn-if-update-available"
     ],
     "helpClass": "./build/help",
     "topics": {
@@ -125,6 +127,10 @@
       "webhook": {
         "description": "manage webhooks"
       }
+    },
+    "warn-if-update-available": {
+      "timeoutInDays": 0.5,
+      "message": "<%= chalk.bold('★') %> <%= chalk.bold(config.name + '@' + latest) %> <%= chalk.bold('is now available, please upgrade.') %>\n<%= chalk.dim('Proceeding with outdated version') %>\n"
     },
     "update": {
       "node": {

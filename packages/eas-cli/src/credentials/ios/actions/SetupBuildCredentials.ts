@@ -5,7 +5,7 @@ import chalk from 'chalk';
 import { AppleDevice, IosAppBuildCredentials } from '../../../graphql/generated';
 import log from '../../../log';
 import { promptAsync } from '../../../prompts';
-import { findAccountByName } from '../../../user/Account';
+import { ensureAccounts, findAccountByName } from '../../../user/Account';
 import { Action, CredentialsManager } from '../../CredentialsManager';
 import { Context } from '../../context';
 import { readIosCredentialsAsync } from '../../credentialsJson/read';
@@ -27,13 +27,13 @@ export class SetupBuildCredentials implements Action {
     await ctx.bestEffortAppStoreAuthenticateAsync();
 
     if (ctx.appStore.authCtx) {
-      await ctx.appStore.ensureAppExistsAsync(this.app, { enablePushNotifications: true });
+      await ctx.appStore.ensureBundleIdExistsAsync(this.app, { enablePushNotifications: true });
     }
 
     let iosAppBuildCredentials: IosAppBuildCredentials | null = null;
     try {
       if (this.distribution === DistributionType.INTERNAL) {
-        const account = findAccountByName(ctx.user.accounts, this.app.accountName);
+        const account = findAccountByName(ensureAccounts(ctx.user.accounts), this.app.accountName);
         if (!account) {
           throw new Error(`You do not have access to the ${this.app.accountName} account`);
         }

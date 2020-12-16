@@ -36,7 +36,7 @@ interface Builder<TPlatform extends Platform, Credentials, ProjectConfiguration>
   prepareJobAsync(
     ctx: BuildContext<TPlatform>,
     jobData: {
-      archiveUrl: string;
+      archiveBucketKey: string;
       credentials?: Credentials;
       projectConfiguration?: ProjectConfiguration;
     }
@@ -74,13 +74,13 @@ export async function prepareBuildRequestForPlatformAsync<
     });
   }
 
-  const archiveUrl = await uploadProjectAsync(builder.ctx);
+  const archiveBucketKey = await uploadProjectAsync(builder.ctx);
 
   const metadata = await collectMetadata(builder.ctx, {
     credentialsSource: credentialsResult?.source,
   });
   const job = await builder.prepareJobAsync(builder.ctx, {
-    archiveUrl,
+    archiveBucketKey,
     credentials: credentialsResult?.credentials,
     projectConfiguration: builder.projectConfiguration,
   });
@@ -89,7 +89,9 @@ export async function prepareBuildRequestForPlatformAsync<
     try {
       return await withAnalyticsAsync(
         async () => {
-          log(`Starting ${platformDisplayNames[job.platform]} build`);
+          if (log.isDebug) {
+            log(`Starting ${platformDisplayNames[job.platform]} build`);
+          }
           const {
             data: { buildId, deprecationInfo },
           } = await apiClient
@@ -128,12 +130,16 @@ async function uploadProjectAsync<TPlatform extends Platform>(
         const projectTarball = await makeProjectTarballAsync();
         projectTarballPath = projectTarball.path;
 
-        log('Uploading project to build servers');
-        return await uploadAsync(
+        const { bucketKey } = await uploadAsync(
           UploadType.TURTLE_PROJECT_SOURCES,
           projectTarball.path,
-          createProgressTracker(projectTarball.size)
+          createProgressTracker({
+            total: projectTarball.size,
+            message: 'Uploading to EAS Build',
+            completedMessage: `Uploaded to EAS`,
+          })
         );
+        return bucketKey;
       },
       {
         successEvent: AnalyticsEvent.PROJECT_UPLOAD_SUCCESS,
@@ -206,7 +212,7 @@ async function reviewAndCommitChangesAsync(
     );
   } else if (selected === ShouldCommitChanges.Yes) {
     await commitPromptAsync(commitMessage);
-    log.withTick('Successfully committed changes.');
+    log.withTick('Committed changes.');
   } else if (selected === ShouldCommitChanges.ShowDiffFirst) {
     await showDiffAsync();
     await reviewAndCommitChangesAsync(commitMessage, { nonInteractive, askedFirstTime: false });

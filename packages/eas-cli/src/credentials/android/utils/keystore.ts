@@ -13,10 +13,7 @@ export async function keytoolCommandExistsAsync(): Promise<boolean> {
   try {
     await spawnAsync('keytool');
   } catch (error) {
-    if (error.code === 'ENOENT') {
-      return false;
-    }
-    throw error;
+    return false;
   }
   return true;
 }

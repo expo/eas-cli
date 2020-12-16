@@ -1508,6 +1508,13 @@
   dependencies:
     "@hapi/joi" "^17.1.1"
 
+"@expo/eas-build-job@0.1.4":
+  version "0.1.4"
+  resolved "https://registry.yarnpkg.com/@expo/eas-build-job/-/eas-build-job-0.1.4.tgz#71188a68e62ad1ecf1c6d20e4ebcfefa4143a9a2"
+  integrity sha512-wibByQQBu7kREeMmOWXBZXVjLuORUTzxKJSxhSk6aQ8iGC5FhcjSUzpCyi+949iOzhumryu4198ZCjGuQD8+4A==
+  dependencies:
+    "@hapi/joi" "^17.1.1"
+
 "@expo/image-utils@0.3.9":
   version "0.3.9"
   resolved "https://registry.yarnpkg.com/@expo/image-utils/-/image-utils-0.3.9.tgz#10dc8044943c1bd34fe9658f2835a079e4041a0b"
@@ -1575,6 +1582,21 @@
     base64-js "^1.2.3"
     xmlbuilder "^14.0.0"
     xmldom "~0.1.31"
+
+"@expo/plugin-warn-if-update-available@^1.7.0":
+  version "1.7.0"
+  resolved "https://registry.yarnpkg.com/@expo/plugin-warn-if-update-available/-/plugin-warn-if-update-available-1.7.0.tgz#d47fb15c9b0c8af91b20c9472e5f848972b472d8"
+  integrity sha512-cOEVg43RusKOY/14SFmN+HCZllR+UEAr6Nv4kTI80vRpclSqn4WQaAqgSjZx5+i2cdVDfv9FeQwLdDwcmbkIIw==
+  dependencies:
+    "@oclif/command" "^1.6.0"
+    "@oclif/config" "^1.12.8"
+    "@oclif/errors" "^1.2.2"
+    chalk "^2.4.1"
+    debug "^4.1.0"
+    fs-extra "^9.0.1"
+    http-call "^5.2.2"
+    lodash.template "^4.4.0"
+    semver "^7.3.2"
 
 "@expo/results@^1.0.0":
   version "1.0.0"
@@ -3202,7 +3224,7 @@
     debug "^4.1.1"
     semver "^7.3.2"
 
-"@oclif/config@^1", "@oclif/config@^1.12.12", "@oclif/config@^1.15.1":
+"@oclif/config@^1", "@oclif/config@^1.12.12", "@oclif/config@^1.12.8", "@oclif/config@^1.15.1":
   version "1.17.0"
   resolved "https://registry.yarnpkg.com/@oclif/config/-/config-1.17.0.tgz#ba8639118633102a7e481760c50054623d09fcab"
   integrity sha512-Lmfuf6ubjQ4ifC/9bz1fSCHc6F6E653oyaRXxg+lgT4+bYf9bk+nqrUpAbrXyABkCqgIBiFr3J4zR/kiFdE1PA==
@@ -7219,7 +7241,7 @@ http-cache-semantics@^4.0.0:
   resolved "https://registry.yarnpkg.com/http-cache-semantics/-/http-cache-semantics-4.1.0.tgz#49e91c5cbf36c9b94bcfcd71c23d5249ec74e390"
   integrity sha512-carPklcUh7ROWRK7Cv27RPtdhYhUsela/ue5/jKzjegVvXDqM2ILE9Q2BGn9JZJh1g87cp56su/FgQSzcWS8cQ==
 
-http-call@^5.1.2:
+http-call@^5.1.2, http-call@^5.2.2:
   version "5.3.0"
   resolved "https://registry.yarnpkg.com/http-call/-/http-call-5.3.0.tgz#4ded815b13f423de176eb0942d69c43b25b148db"
   integrity sha512-ahwimsC23ICE4kPl9xTBjKB4inbRaeLyZeRunC/1Jy/Z6X8tv22MEAjK+KBOMSVLaqXPTTmd8638waVIKLGx2w==

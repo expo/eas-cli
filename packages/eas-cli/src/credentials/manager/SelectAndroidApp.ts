@@ -1,5 +1,6 @@
 import chalk from 'chalk';
 
+import { getProjectAccountName } from '../../project/projectUtils';
 import { confirmAsync, promptAsync } from '../../prompts';
 import { Action, CredentialsManager, QuitError } from '../CredentialsManager';
 import { AndroidCredentials } from '../android/credentials';
@@ -17,7 +18,7 @@ export class SelectAndroidApp implements Action {
     this.firstRun = false;
 
     if (ctx.hasProjectContext && this.askAboutProjectMode && firstRun) {
-      const projectFullName = `@${ctx.exp.owner || ctx.user.username}/${ctx.exp.slug}`;
+      const projectFullName = `@${getProjectAccountName(ctx.exp, ctx.user)}/${ctx.exp.slug}`;
       const runProjectContext = await confirmAsync({
         message: `You are currently in a directory with project ${chalk.green(
           projectFullName

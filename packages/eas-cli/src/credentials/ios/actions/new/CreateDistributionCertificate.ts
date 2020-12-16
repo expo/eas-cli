@@ -1,5 +1,4 @@
 import assert from 'assert';
-import chalk from 'chalk';
 
 import { AppleDistributionCertificate } from '../../../../graphql/generated';
 import log from '../../../../log';
@@ -31,6 +30,6 @@ export class CreateDistributionCertificate implements Action {
       this.app,
       distCert
     );
-    log(chalk.green('Successfully created Distribution Certificate.'));
+    log.succeed('Created distribution certificate');
   }
 }

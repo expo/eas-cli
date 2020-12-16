@@ -1,6 +1,8 @@
 import { DistributionType } from '@expo/eas-json';
 
+import { getProjectAccountName } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
+import { ensureActorHasUsername } from '../../user/actions';
 import { Action, CredentialsManager } from '../CredentialsManager';
 import { Context } from '../context';
 import { CreateDistributionCertificateStandaloneManager } from '../ios/actions/CreateDistributionCertificate';
@@ -33,7 +35,9 @@ export class ManageIos implements Action {
     manager.pushNextAction(this);
     await ctx.bestEffortAppStoreAuthenticateAsync();
 
-    const accountName = (ctx.hasProjectContext ? ctx.exp.owner : undefined) ?? ctx.user.username;
+    const accountName = ctx.hasProjectContext
+      ? getProjectAccountName(ctx.exp, ctx.user)
+      : ensureActorHasUsername(ctx.user);
     const iosCredentials = await ctx.ios.getAllCredentialsAsync(accountName);
 
     await displayAllIosCredentials(iosCredentials);
@@ -92,7 +96,7 @@ export class ManageIos implements Action {
 
   private getAppLookupParamsFromContext(ctx: Context): AppLookupParams {
     const projectName = ctx.exp.slug;
-    const accountName = ctx.exp.owner || ctx.user.username;
+    const accountName = getProjectAccountName(ctx.exp, ctx.user);
     const bundleIdentifier = ctx.exp.ios?.bundleIdentifier;
     if (!bundleIdentifier) {
       throw new Error(`ios.bundleIdentifier needs to be defined`);

@@ -7,8 +7,9 @@ import { AppleTeam } from '../graphql/generated';
 import log from '../log';
 import { getProjectAccountNameAsync } from '../project/projectUtils';
 import { Choice, confirmAsync, promptAsync } from '../prompts';
-import { Account, findAccountByName } from '../user/Account';
-import { User } from '../user/User';
+import { Account, ensureAccounts, findAccountByName } from '../user/Account';
+import { Actor } from '../user/User';
+import { getActorDisplayName } from '../user/actions';
 import DeviceCreateAction from './actions/create/action';
 import { DeviceManagerContext } from './context';
 
@@ -44,7 +45,7 @@ export default class DeviceManager {
 }
 
 export class AccountResolver {
-  constructor(private projectDir: string | null, private user: User) {}
+  constructor(private projectDir: string | null, private user: Actor) {}
 
   public async resolveAccountAsync(): Promise<Account> {
     if (this.projectDir) {
@@ -60,10 +61,13 @@ export class AccountResolver {
     assert(this.projectDir, 'project directory is not set ');
 
     const projectAccountName = await getProjectAccountNameAsync(this.projectDir);
-    const projectAccount = findAccountByName(this.user.accounts, projectAccountName);
+    const projectAccount = findAccountByName(
+      ensureAccounts(this.user.accounts),
+      projectAccountName
+    );
     if (!projectAccount) {
       log.warn(
-        `Your user (${this.user.username}) doesn't have access to the ${chalk.bold(
+        `Your account (${getActorDisplayName(this.user)}) doesn't have access to the ${chalk.bold(
           projectAccountName
         )} account`
       );
@@ -82,7 +86,7 @@ export class AccountResolver {
   }
 
   private async promptForAccountAsync(): Promise<Account> {
-    const choices: Choice[] = this.user.accounts.map(account => ({
+    const choices: Choice[] = ensureAccounts(this.user.accounts).map(account => ({
       title: account.name,
       value: account,
     }));

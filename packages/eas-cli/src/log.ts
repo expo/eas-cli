@@ -1,7 +1,11 @@
 import chalk from 'chalk';
 import figures from 'figures';
+import { boolish } from 'getenv';
+import ora from 'ora';
 
 type Color = (...text: string[]) => string;
+
+const IS_DEBUG = boolish('EXPO_DEBUG', false);
 
 let _isLastLineNewLine = false;
 function _updateIsLastLineNewLine(args: any[]) {
@@ -65,9 +69,15 @@ log.gray = function (...args: any[]) {
   consoleLog(...withTextColor(args, chalk.gray));
 };
 
+log.succeed = function (message: string) {
+  ora().succeed(message);
+};
+
 log.withTick = function (...args: any[]) {
   consoleLog(chalk.green(figures.tick), ...args);
 };
+
+log.isDebug = IS_DEBUG;
 
 /**
  * Format links as dim with an underline.

@@ -214,7 +214,7 @@ export default class BuildSubmit extends Command {
 async function promptForPlatformAsync(): Promise<SubmissionPlatform> {
   const { platform } = await promptAsync({
     type: 'select',
-    message: 'Choose a platform to submit to',
+    message: 'Submit to platform',
     name: 'platform',
     choices: [
       {

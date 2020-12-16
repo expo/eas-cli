@@ -20,9 +20,7 @@ export type AndroidCredentials = {
 export const keystoreSchema: CredentialSchema<Keystore> = {
   name: 'Android Keystore',
   provideMethodQuestion: {
-    question: `Would you like to upload a Keystore or have us generate one for you?\nIf you don't know what this means, let us generate it! :)`,
-    expoGenerated: 'Generate new keystore',
-    userProvided: 'I want to upload my own file',
+    question: `Generate a new Android Keystore?`,
   },
   questions: [
     {
