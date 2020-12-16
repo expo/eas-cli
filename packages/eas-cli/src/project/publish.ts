@@ -1,24 +1,28 @@
 import { Platform } from '@expo/config';
+import JsonFile from '@expo/json-file';
 import crypto from 'crypto';
 import fs from 'fs';
 import { uniqBy } from 'lodash';
+import mime from 'mime';
 import path from 'path';
 
-import { PartialManifestAsset } from '../graphql/generated';
+import { AssetMetadataResult, PartialManifestAsset } from '../graphql/generated';
 import { PublishMutation } from '../graphql/mutations/PublishMutation';
 import { PublishQuery } from '../graphql/queries/PublishQuery';
 import { PresignedPost, uploadWithPresignedPostAsync } from '../uploads';
 
 export const TIMEOUT_LIMIT = 60_000; // 1 minute
-let STORAGE_BUCKET: string;
+const STORAGE_BUCKET = getStorageBucket();
 export const Platforms: PublishPlatforms[] = ['android', 'ios']; // TODO-JJ allow users to specify this in app.js
 
-if (process.env.NODE_ENV === 'test') {
-  STORAGE_BUCKET = 'update-assets-testing';
-} else if (process.env.EXPO_STAGING || process.env.EXPO_LOCAL) {
-  STORAGE_BUCKET = 'update-assets-staging';
-} else {
-  STORAGE_BUCKET = 'update-assets-production';
+function getStorageBucket(): string {
+  if (process.env.NODE_ENV === 'test') {
+    return 'update-assets-testing';
+  } else if (process.env.EXPO_STAGING || process.env.EXPO_LOCAL) {
+    return 'update-assets-staging';
+  } else {
+    return 'update-assets-production';
+  }
 }
 
 export type PublishPlatforms = Extract<'android' | 'ios', Platform>;
@@ -34,87 +38,16 @@ type CollectedAssets = {
   };
 };
 
-export function guessContentTypeFromExtension(ext?: string): string {
-  // copied from https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/MIME_types/Common_types
-  const CONTENT_TYPE: { [keyof: string]: string } = {
-    aac: 'AACaudioaudio/aac',
-    abw: 'application/x-abiword',
-    arc: 'application/x-freearc',
-    avi: 'video/x-msvideo',
-    azw: 'application/vnd.amazon.ebook',
-    bin: 'application/octet-stream',
-    bmp: 'image/bmp',
-    bz: 'application/x-bzip',
-    bz2: 'application/x-bzip2',
-    csh: 'Shellscriptapplication/x-csh',
-    css: 'text/css',
-    csv: 'text/csv',
-    doc: 'application/msword',
-    docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    eot: 'application/vnd.ms-fontobject',
-    epub: 'application/epub+zip',
-    gz: 'application/gzip',
-    gif: 'image/gif',
-    htm: 'text/html',
-    html: 'text/html',
-    ico: 'image/vnd.microsoft.icon',
-    ics: 'text/calendar',
-    jar: 'application/java-archive',
-    jpeg: 'image/jpeg',
-    jpg: 'image/jpeg',
-    js: 'text/javascript',
-    json: 'application/json',
-    jsonld: 'application/ld+json',
-    mid: 'audio/midi',
-    midi: 'audio/midi',
-    mjs: 'text/javascript',
-    mp3: 'audio/mpeg',
-    mpeg: 'video/mpeg',
-    mpkg: 'application/vnd.apple.installer+xml',
-    odp: 'application/vnd.oasis.opendocument.presentation',
-    ods: 'application/vnd.oasis.opendocument.spreadsheet',
-    odt: 'application/vnd.oasis.opendocument.text',
-    oga: 'audio/ogg',
-    ogv: 'video/ogg',
-    ogx: 'application/ogg',
-    opusaudio: 'audio/opus',
-    otf: 'font/otf',
-    png: 'image/png',
-    pdf: 'application/pdf',
-    php: 'application/x-httpd-php',
-    ppt: 'application/vnd.ms-powerpoint',
-    pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-    rar: 'application/vnd.rar',
-    rtf: 'application/rtf',
-    sh: 'application/x-sh',
-    svg: 'image/svg+xml',
-    swf: 'application/x-shockwave-flash',
-    tar: 'application/x-tar',
-    tif: 'image/tiff',
-    tiff: 'image/tiff',
-    ts: 'video/mp2t',
-    ttf: 'font/ttf',
-    txt: 'text/plain',
-    vsd: 'application/vnd.visio',
-    wav: 'audio/wav',
-    weba: 'audio/webm',
-    webm: 'video/webm',
-    webp: 'image/webp',
-    woff: 'font/woff',
-    woff2: 'font/woff2',
-    xhtml: 'application/xhtml+xml',
-    xls: 'application/vnd.ms-excel',
-    xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    xml: 'application/xml',
-    xul: 'application/vnd.mozilla.xul+xml',
-    zip: 'application/zip',
-    '7z': 'application/x-7z-compressed',
-  };
+type ManifestFragment = {
+  launchAsset: PartialManifestAsset;
+  assets: PartialManifestAsset[];
+};
+type UpdateInfoGroup = {
+  [key in PublishPlatforms]: ManifestFragment;
+};
 
-  if (ext && ext in CONTENT_TYPE) {
-    return CONTENT_TYPE[ext];
-  }
-  return 'application/octet-stream'; // unrecognized extension
+export function guessContentTypeFromExtension(ext?: string): string {
+  return mime.getType(ext ?? '') ?? 'application/octet-stream'; // unrecognized extension
 }
 
 export function getBase64URLEncoding(buffer: Buffer): string {
@@ -167,19 +100,19 @@ export function convertAssetToUpdateInfoGroupFormat(asset: RawAsset): PartialMan
   };
 }
 
-export function buildUpdateInfoGroup(assets: CollectedAssets) {
+export function buildUpdateInfoGroup(assets: CollectedAssets): UpdateInfoGroup {
   let platform: PublishPlatforms;
-  const updateInfoGroup: any = {};
+  const updateInfoGroup: Partial<UpdateInfoGroup> = {};
   for (platform in assets) {
     updateInfoGroup[platform] = {
       launchAsset: convertAssetToUpdateInfoGroupFormat(assets[platform]?.launchAsset!),
-      assets: assets[platform]?.assets!.map(convertAssetToUpdateInfoGroupFormat),
+      assets: (assets[platform]?.assets ?? []).map(convertAssetToUpdateInfoGroupFormat),
     };
   }
-  return updateInfoGroup;
+  return updateInfoGroup as UpdateInfoGroup;
 }
 
-export function getDistRoot(customDist: string): string {
+export function resolveInputDirectory(customDist: string): string {
   const projectRoot = process.cwd();
   const distRoot = path.join(projectRoot, customDist);
   if (!fs.existsSync(distRoot)) {
@@ -192,12 +125,16 @@ export function collectUserDefinedAssets(distRoot: string): RawAsset[] {
   const assetRoot = path.join(distRoot, 'assets');
   const assetPointers = Platforms.map(platform => {
     const assetJsonPath = path.join(distRoot, `${platform}-index.json`);
-    // load JSON with fs instead of require for easier mocking in tests
-    return JSON.parse(fs.readFileSync(assetJsonPath).toString()).bundledAssets;
+    return JsonFile.read(assetJsonPath).bundledAssets;
   }).flat();
 
   return [...new Set(assetPointers)].map(pointer => {
-    const [filename, ext] = pointer.split('_').pop().split('.');
+    const [filename, ext] = new String(pointer ?? '').split('_').pop()?.split('.') ?? [];
+    if (!filename) {
+      throw new Error(
+        'There was an error locating all of the bundler defined assets. Please rerun the bundler and then retry publishing.'
+      );
+    }
     return {
       type: ext ?? '',
       contentType: guessContentTypeFromExtension(ext),
@@ -224,7 +161,7 @@ export function collectBundles(distRoot: string): { [key: string]: RawAsset } {
 }
 
 export function collectAssets(inputDir: string): CollectedAssets {
-  const distRoot = getDistRoot(inputDir);
+  const distRoot = resolveInputDirectory(inputDir);
   const assets = collectUserDefinedAssets(distRoot);
   const bundles = collectBundles(distRoot);
   const assetsFinal: CollectedAssets = {};
@@ -246,12 +183,12 @@ export async function filterOutAssetsThatAlreadyExistAsync(
   const assetMetadata = await PublishQuery.getAssetMetadataAsync(
     uniqueAssetsWithStorageKey.map(asset => asset.storageKey)
   );
-  const missingAssetMetadata = assetMetadata
-    .filter((am: any) => am.status !== 'EXISTS')
-    .map((am: any) => am.storageKey);
+  const missingAssetKeys = assetMetadata
+    .filter(result => result.status !== 'EXISTS')
+    .map(result => result.storageKey);
 
   const missingAssets = uniqueAssetsWithStorageKey.filter(asset => {
-    return missingAssetMetadata.includes(asset.storageKey);
+    return missingAssetKeys.includes(asset.storageKey);
   });
   return missingAssets;
 }
@@ -283,7 +220,7 @@ export async function uploadAssetsAsync(assetsForUpdateInfoGroup: CollectedAsset
 
   let missingAssets = await filterOutAssetsThatAlreadyExistAsync(uniqueAssets);
   const { specifications } = await PublishMutation.getUploadURLsAsync(
-    missingAssets.map((ma: any) => ma.contentType)
+    missingAssets.map(ma => ma.contentType)
   );
 
   await Promise.all(

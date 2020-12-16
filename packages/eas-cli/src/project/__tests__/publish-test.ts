@@ -13,10 +13,10 @@ import {
   convertAssetToUpdateInfoGroupFormat,
   filterOutAssetsThatAlreadyExistAsync,
   getBase64URLEncoding,
-  getDistRoot,
   getStorageKey,
   getStorageKeyForAsset,
   guessContentTypeFromExtension,
+  resolveInputDirectory,
   uploadAssetsAsync,
 } from '../publish';
 
@@ -125,16 +125,18 @@ describe(buildUpdateInfoGroup, () => {
   });
 });
 
-describe(getDistRoot, () => {
+describe(resolveInputDirectory, () => {
   it('returns the correct distRoot path', () => {
     const customDirectoryName = uuidv4();
     fs.mkdirSync(customDirectoryName);
-    expect(getDistRoot(customDirectoryName)).toBe(path.join(process.cwd(), customDirectoryName));
+    expect(resolveInputDirectory(customDirectoryName)).toBe(
+      path.join(process.cwd(), customDirectoryName)
+    );
   });
   it('throws an error if the path does not exist', () => {
     const nonExistentPath = uuidv4();
     expect(() => {
-      getDistRoot(nonExistentPath);
+      resolveInputDirectory(nonExistentPath);
     }).toThrow(`/${nonExistentPath} does not exist. Please create it with your desired bundler.`);
   });
 });
