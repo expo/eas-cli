@@ -233,14 +233,17 @@ export async function uploadAssetsAsync(assetsForUpdateInfoGroup: CollectedAsset
 
   // Wait up to TIMEOUT_LIMIT for assets to be uploaded and processed
   const start = Date.now();
+  let slope = 0;
   while (missingAssets.length > 0) {
     if (process.env.NODE_ENV !== 'test') {
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const timeout = slope * 1000; // linear backoff
+      await new Promise(resolve => setTimeout(resolve, timeout));
+      slope += 1;
     }
     missingAssets = await filterOutAssetsThatAlreadyExistAsync(missingAssets);
 
     if (Date.now() - start > TIMEOUT_LIMIT) {
-      throw new Error('Failed to upload all assets. Please try again.');
+      throw new Error('Asset upload timed out. Please try again.');
     }
   }
 }
