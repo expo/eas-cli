@@ -6,7 +6,7 @@ import { uniqBy } from 'lodash';
 import mime from 'mime';
 import path from 'path';
 
-import { PartialManifestAsset } from '../graphql/generated';
+import { AssetMetadataStatus, PartialManifestAsset } from '../graphql/generated';
 import { PublishMutation } from '../graphql/mutations/PublishMutation';
 import { PublishQuery } from '../graphql/queries/PublishQuery';
 import { PresignedPost, uploadWithPresignedPostAsync } from '../uploads';
@@ -80,15 +80,12 @@ export function getStorageKeyForAsset(asset: RawAsset): string {
 }
 
 export function convertAssetToUpdateInfoGroupFormat(asset: RawAsset): PartialManifestAsset {
-  const fileHash = getBase64URLEncoding(
-    crypto.createHash('sha256').update(asset['buffer']).digest()
-  );
-  const contentType = asset['contentType'];
+  const fileHash = getBase64URLEncoding(crypto.createHash('sha256').update(asset.buffer).digest());
+  const contentType = asset.contentType;
   const storageKey = getStorageKey(contentType, fileHash);
-  const bundleKey = [
-    crypto.createHash('md5').update(asset['buffer']).digest('hex'),
-    asset.type,
-  ].join('.');
+  const bundleKey = [crypto.createHash('md5').update(asset.buffer).digest('hex'), asset.type].join(
+    '.'
+  );
 
   return {
     fileHash,
@@ -111,9 +108,8 @@ export function buildUpdateInfoGroup(assets: CollectedAssets): UpdateInfoGroup {
   return updateInfoGroup as UpdateInfoGroup;
 }
 
-export function resolveInputDirectory(customDist: string): string {
-  const projectRoot = process.cwd();
-  const distRoot = path.join(projectRoot, customDist);
+export function resolveInputDirectory(customInputDirectory: string): string {
+  const distRoot = path.resolve(customInputDirectory);
   if (!fs.existsSync(distRoot)) {
     throw new Error(`${distRoot} does not exist. Please create it with your desired bundler.`);
   }
@@ -183,7 +179,7 @@ export async function filterOutAssetsThatAlreadyExistAsync(
     uniqueAssetsWithStorageKey.map(asset => asset.storageKey)
   );
   const missingAssetKeys = assetMetadata
-    .filter(result => result.status !== 'EXISTS')
+    .filter(result => result.status !== AssetMetadataStatus.Exists)
     .map(result => result.storageKey);
 
   const missingAssets = uniqueAssetsWithStorageKey.filter(asset => {

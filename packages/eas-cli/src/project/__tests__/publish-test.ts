@@ -3,6 +3,7 @@ import mockdate from 'mockdate';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 
+import { AssetMetadataStatus } from '../../graphql/generated';
 import { PublishMutation } from '../../graphql/mutations/PublishMutation';
 import { PublishQuery } from '../../graphql/queries/PublishQuery';
 import {
@@ -22,10 +23,10 @@ import {
 
 jest.mock('../../uploads');
 jest.mock('fs');
-process.cwd = jest.fn().mockImplementation(() => '/');
 
 const dummyFileBuffer = Buffer.from('dummy-file');
-fs.writeFileSync('md5-hash-of-file', dummyFileBuffer);
+fs.mkdirSync(path.resolve(), { recursive: true });
+fs.writeFileSync(path.resolve('md5-hash-of-file'), dummyFileBuffer);
 
 describe(guessContentTypeFromExtension, () => {
   it('returns the correct content type for jpg', () => {
@@ -127,17 +128,15 @@ describe(buildUpdateInfoGroup, () => {
 
 describe(resolveInputDirectory, () => {
   it('returns the correct distRoot path', () => {
-    const customDirectoryName = uuidv4();
-    fs.mkdirSync(customDirectoryName);
-    expect(resolveInputDirectory(customDirectoryName)).toBe(
-      path.join(process.cwd(), customDirectoryName)
-    );
+    const customDirectoryName = path.resolve(uuidv4());
+    fs.mkdirSync(customDirectoryName, { recursive: true });
+    expect(resolveInputDirectory(customDirectoryName)).toBe(customDirectoryName);
   });
   it('throws an error if the path does not exist', () => {
-    const nonExistentPath = uuidv4();
+    const nonExistentPath = path.resolve(uuidv4());
     expect(() => {
       resolveInputDirectory(nonExistentPath);
-    }).toThrow(`/${nonExistentPath} does not exist. Please create it with your desired bundler.`);
+    }).toThrow(`${nonExistentPath} does not exist. Please create it with your desired bundler.`);
   });
 });
 
@@ -155,14 +154,21 @@ describe(collectAssets, () => {
     ];
     const inputDir = 'dist';
 
-    fs.mkdirSync(inputDir);
-    fs.mkdirSync(`${inputDir}/bundles`);
-    fs.mkdirSync(`${inputDir}/assets`);
+    const bundleDir = path.resolve(`${inputDir}/bundles`);
+    const assetDir = path.resolve(`${inputDir}/assets`);
+    fs.mkdirSync(bundleDir, { recursive: true });
+    fs.mkdirSync(assetDir, { recursive: true });
     Platforms.forEach(platform => {
-      fs.writeFileSync(`${inputDir}/${platform}-index.json`, JSON.stringify(fakeJson));
-      fs.writeFileSync(`${inputDir}/bundles/${platform}-randomHash.js`, bundles[platform]);
+      fs.writeFileSync(
+        path.resolve(`${inputDir}/${platform}-index.json`),
+        JSON.stringify(fakeJson)
+      );
+      fs.writeFileSync(
+        path.resolve(`${inputDir}/bundles/${platform}-randomHash.js`),
+        bundles[platform]
+      );
     });
-    fs.writeFileSync(`${inputDir}/assets/${fakeHash}`, userDefinedAssets[0].buffer);
+    fs.writeFileSync(path.resolve(`${inputDir}/assets/${fakeHash}`), userDefinedAssets[0].buffer);
 
     expect(collectAssets(inputDir)).toEqual({
       android: {
@@ -188,7 +194,13 @@ describe(collectAssets, () => {
 describe(filterOutAssetsThatAlreadyExistAsync, () => {
   it('gets a missing asset', async () => {
     jest.spyOn(PublishQuery, 'getAssetMetadataAsync').mockImplementation(async () => {
-      return [{ storageKey: 'blah', status: 'DOES_NOT_EXIST', __typename: 'dummy' }];
+      return [
+        {
+          storageKey: 'blah',
+          status: AssetMetadataStatus.DoesNotExist,
+          __typename: 'AssetMetadataResult',
+        },
+      ];
     });
 
     expect(
@@ -197,7 +209,13 @@ describe(filterOutAssetsThatAlreadyExistAsync, () => {
   });
   it('ignores an asset that exists', async () => {
     jest.spyOn(PublishQuery, 'getAssetMetadataAsync').mockImplementation(async () => {
-      return [{ storageKey: 'blah', status: 'EXISTS', __typename: 'dummy' }];
+      return [
+        {
+          storageKey: 'blah',
+          status: AssetMetadataStatus.Exists,
+          __typename: 'AssetMetadataResult',
+        },
+      ];
     });
     expect(
       await (await filterOutAssetsThatAlreadyExistAsync([{ storageKey: 'blah' } as any])).length
@@ -253,50 +271,50 @@ describe(uploadAssetsAsync, () => {
 
   it('throws an error if the upload exceeds TIMEOUT_LIMIT', async () => {
     jest.spyOn(PublishQuery, 'getAssetMetadataAsync').mockImplementation(async () => {
-      const status = 'DOES_NOT_EXIST';
+      const status = AssetMetadataStatus.DoesNotExist;
       mockdate.set(Date.now() + TIMEOUT_LIMIT + 1);
       return [
         {
           storageKey: 'qbgckgkgfdjnNuf9dQd7FDTWUmlEEzg7l1m1sKzQaq0',
           status,
-          __typename: 'dummy',
+          __typename: 'AssetMetadataResult',
         }, // userDefinedAsset
         {
           storageKey: 'bbjgXFSIXtjviGwkaPFY0HG4dVVIGiXHAboRFQEqVa4',
           status,
-          __typename: 'dummy',
+          __typename: 'AssetMetadataResult',
         }, // android.code
         {
           storageKey: 'dP-nC8EJXKz42XKh_Rc9tYxiGAT-ilpkRltEi6HIKeQ',
           status,
-          __typename: 'dummy',
+          __typename: 'AssetMetadataResult',
         }, // ios.code
       ];
     });
 
     mockdate.set(0);
     await expect(uploadAssetsAsync(assetsForUpdateInfoGroup)).rejects.toThrow(
-      'Failed to upload all assets. Please try again.'
+      'Asset upload timed out. Please try again.'
     );
   });
   it('resolves if the assets are already uploaded', async () => {
     jest.spyOn(PublishQuery, 'getAssetMetadataAsync').mockImplementation(async () => {
-      const status = 'EXISTS';
+      const status = AssetMetadataStatus.Exists;
       return [
         {
           storageKey: 'qbgckgkgfdjnNuf9dQd7FDTWUmlEEzg7l1m1sKzQaq0',
           status,
-          __typename: 'dummy',
+          __typename: 'AssetMetadataResult',
         }, // userDefinedAsset
         {
           storageKey: 'bbjgXFSIXtjviGwkaPFY0HG4dVVIGiXHAboRFQEqVa4',
           status,
-          __typename: 'dummy',
+          __typename: 'AssetMetadataResult',
         }, // android.code
         {
           storageKey: 'dP-nC8EJXKz42XKh_Rc9tYxiGAT-ilpkRltEi6HIKeQ',
           status,
-          __typename: 'dummy',
+          __typename: 'AssetMetadataResult',
         }, // ios.code
       ];
     });
@@ -306,23 +324,24 @@ describe(uploadAssetsAsync, () => {
   });
   it('resolves if the assets are eventually uploaded', async () => {
     jest.spyOn(PublishQuery, 'getAssetMetadataAsync').mockImplementation(async () => {
-      const status = Date.now() === 0 ? 'DOES_NOT_EXIST' : 'EXISTS';
+      const status =
+        Date.now() === 0 ? AssetMetadataStatus.DoesNotExist : AssetMetadataStatus.Exists;
       mockdate.set(Date.now() + 1);
       return [
         {
           storageKey: 'qbgckgkgfdjnNuf9dQd7FDTWUmlEEzg7l1m1sKzQaq0',
           status,
-          __typename: 'dummy',
+          __typename: 'AssetMetadataResult',
         }, // userDefinedAsset
         {
           storageKey: 'bbjgXFSIXtjviGwkaPFY0HG4dVVIGiXHAboRFQEqVa4',
           status,
-          __typename: 'dummy',
+          __typename: 'AssetMetadataResult',
         }, // android.code
         {
           storageKey: 'dP-nC8EJXKz42XKh_Rc9tYxiGAT-ilpkRltEi6HIKeQ',
           status,
-          __typename: 'dummy',
+          __typename: 'AssetMetadataResult',
         }, // ios.code
       ];
     });
