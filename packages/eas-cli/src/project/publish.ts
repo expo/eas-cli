@@ -6,7 +6,7 @@ import { uniqBy } from 'lodash';
 import mime from 'mime';
 import path from 'path';
 
-import { AssetMetadataResult, PartialManifestAsset } from '../graphql/generated';
+import { PartialManifestAsset } from '../graphql/generated';
 import { PublishMutation } from '../graphql/mutations/PublishMutation';
 import { PublishQuery } from '../graphql/queries/PublishQuery';
 import { PresignedPost, uploadWithPresignedPostAsync } from '../uploads';
@@ -226,8 +226,7 @@ export async function uploadAssetsAsync(assetsForUpdateInfoGroup: CollectedAsset
   await Promise.all(
     missingAssets.map((missingAsset, i) => {
       const presignedPost: PresignedPost = JSON.parse(specifications[i]);
-      // TODO-JJ add progress handler
-      return uploadWithPresignedPostAsync(missingAsset.buffer, presignedPost, {} as any);
+      return uploadWithPresignedPostAsync(missingAsset.buffer, presignedPost);
     })
   );
 
