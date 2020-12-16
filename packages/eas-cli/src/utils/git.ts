@@ -50,10 +50,12 @@ async function isGitInstalledAsync(): Promise<boolean> {
   return true;
 }
 
-async function getBranchNameAsync(): Promise<string | undefined> {
+async function getBranchNameAsync(): Promise<string | null> {
   try {
     return (await spawnAsync('git', ['rev-parse', '--abbrev-ref', 'HEAD'])).stdout;
-  } catch (e) {}
+  } catch (e) {
+    return null;
+  }
 }
 
 async function getLastCommitMessageAsync(): Promise<string | null> {
