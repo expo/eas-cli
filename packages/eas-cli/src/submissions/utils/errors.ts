@@ -35,7 +35,7 @@ const SubmissionErrorMessages: Record<SubmissionErrorCode, string> = {
   [SubmissionErrorCode.IOS_OLD_VERSION_CODE_ERROR]:
     "You've already submitted this version of the app.\n" +
     'Versions are identified by Build Numbers (expo.ios.buildNumber in app.json).\n' +
-    "If you're submitting an Expo project built with EAS Build, increment the build number in app.json and build the project again." +
+    "If you're submitting an Expo project built with EAS Build, increment the build number in app.json and build the project again.\n" +
     `${learnMore('https://expo.fyi/bumping-ios-build-number')}.`,
   [SubmissionErrorCode.IOS_UNKNOWN_ERROR]:
     "We couldn't figure out what went wrong. Please see logs to learn more.",
