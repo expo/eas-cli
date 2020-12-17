@@ -29,7 +29,7 @@ export type PublishPlatforms = Extract<'android' | 'ios', Platform>;
 export type RawAsset = {
   type: string;
   contentType: string;
-  buffer: Buffer;
+  path: string;
 };
 type CollectedAssets = {
   [platform in PublishPlatforms]?: {
@@ -69,23 +69,32 @@ export function getStorageKey(contentType: string, contentHash: string): string 
   return getBase64URLEncoding(hash);
 }
 
+async function calculateFileHashAsync(filePath: string, algorithm: string): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    const file = fs.createReadStream(filePath).on('error', reject);
+    const hash = file.pipe(crypto.createHash(algorithm)).on('error', reject);
+    hash.on('finish', () => resolve(hash.read()));
+  });
+}
+
 /**
  * Convenience function that computes an assets storage key starting from its buffer.
  */
-export function getStorageKeyForAsset(asset: RawAsset): string {
-  const fileHash = getBase64URLEncoding(
-    crypto.createHash('sha256').update(asset['buffer']).digest()
-  );
+export async function getStorageKeyForAssetAsync(asset: RawAsset): Promise<string> {
+  const fileHash = getBase64URLEncoding(await calculateFileHashAsync(asset.path, 'sha256'));
   return getStorageKey(asset.contentType, fileHash);
 }
 
-export function convertAssetToUpdateInfoGroupFormat(asset: RawAsset): PartialManifestAsset {
-  const fileHash = getBase64URLEncoding(crypto.createHash('sha256').update(asset.buffer).digest());
+export async function convertAssetToUpdateInfoGroupFormatAsync(
+  asset: RawAsset
+): Promise<PartialManifestAsset> {
+  const fileHash = getBase64URLEncoding(await calculateFileHashAsync(asset.path, 'sha256'));
   const contentType = asset.contentType;
   const storageKey = getStorageKey(contentType, fileHash);
-  const bundleKey = [crypto.createHash('md5').update(asset.buffer).digest('hex'), asset.type].join(
-    '.'
-  );
+  const bundleKey = [
+    (await calculateFileHashAsync(asset.path, 'md5')).toString('hex'),
+    asset.type,
+  ].join('.');
 
   return {
     fileHash,
@@ -96,13 +105,15 @@ export function convertAssetToUpdateInfoGroupFormat(asset: RawAsset): PartialMan
   };
 }
 
-export function buildUpdateInfoGroup(assets: CollectedAssets): UpdateInfoGroup {
+export async function buildUpdateInfoGroupAsync(assets: CollectedAssets): Promise<UpdateInfoGroup> {
   let platform: PublishPlatforms;
   const updateInfoGroup: Partial<UpdateInfoGroup> = {};
   for (platform in assets) {
     updateInfoGroup[platform] = {
-      launchAsset: convertAssetToUpdateInfoGroupFormat(assets[platform]?.launchAsset!),
-      assets: (assets[platform]?.assets ?? []).map(convertAssetToUpdateInfoGroupFormat),
+      launchAsset: await convertAssetToUpdateInfoGroupFormatAsync(assets[platform]?.launchAsset!),
+      assets: await Promise.all(
+        (assets[platform]?.assets ?? []).map(convertAssetToUpdateInfoGroupFormatAsync)
+      ),
     };
   }
   return updateInfoGroup as UpdateInfoGroup;
@@ -133,7 +144,7 @@ export function collectUserDefinedAssets(distRoot: string): RawAsset[] {
     return {
       type: ext ?? '',
       contentType: guessContentTypeFromExtension(ext),
-      buffer: fs.readFileSync(path.join(assetRoot, filename)),
+      path: path.join(assetRoot, filename),
     };
   });
 }
@@ -149,7 +160,7 @@ export function collectBundles(distRoot: string): { [key: string]: RawAsset } {
     bundleBuffers[platform] = {
       type: 'bundle',
       contentType: 'application/javascript',
-      buffer: fs.readFileSync(bundlePaths[platform]),
+      path: bundlePaths[platform],
     };
   });
   return bundleBuffers;
@@ -204,12 +215,14 @@ export async function uploadAssetsAsync(assetsForUpdateInfoGroup: CollectedAsset
       storageKey: string;
     }
   >(
-    assets.map(asset => {
-      return {
-        ...asset,
-        storageKey: getStorageKeyForAsset(asset),
-      };
-    }),
+    await Promise.all(
+      assets.map(async asset => {
+        return {
+          ...asset,
+          storageKey: await getStorageKeyForAssetAsync(asset),
+        };
+      })
+    ),
     'storageKey'
   );
 
@@ -221,18 +234,17 @@ export async function uploadAssetsAsync(assetsForUpdateInfoGroup: CollectedAsset
   await Promise.all(
     missingAssets.map((missingAsset, i) => {
       const presignedPost: PresignedPost = JSON.parse(specifications[i]);
-      return uploadWithPresignedPostAsync(missingAsset.buffer, presignedPost);
+      return uploadWithPresignedPostAsync(fs.createReadStream(missingAsset.path), presignedPost);
     })
   );
 
   // Wait up to TIMEOUT_LIMIT for assets to be uploaded and processed
   const start = Date.now();
-  let slope = 0;
+  let timeout = 0;
   while (missingAssets.length > 0) {
     if (process.env.NODE_ENV !== 'test') {
-      const timeout = slope * 1000; // linear backoff
-      await new Promise(resolve => setTimeout(resolve, timeout));
-      slope += 1;
+      await new Promise(resolve => setTimeout(resolve, timeout * 1000)); // linear backoff
+      timeout += 1;
     }
     missingAssets = await filterOutAssetsThatAlreadyExistAsync(missingAssets);
 

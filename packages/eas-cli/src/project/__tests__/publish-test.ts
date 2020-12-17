@@ -9,13 +9,13 @@ import { PublishQuery } from '../../graphql/queries/PublishQuery';
 import {
   Platforms,
   TIMEOUT_LIMIT,
-  buildUpdateInfoGroup,
+  buildUpdateInfoGroupAsync,
   collectAssets,
-  convertAssetToUpdateInfoGroupFormat,
+  convertAssetToUpdateInfoGroupFormatAsync,
   filterOutAssetsThatAlreadyExistAsync,
   getBase64URLEncoding,
   getStorageKey,
-  getStorageKeyForAsset,
+  getStorageKeyForAssetAsync,
   guessContentTypeFromExtension,
   resolveInputDirectory,
   uploadAssetsAsync,
@@ -58,71 +58,86 @@ describe(getStorageKey, () => {
   });
 });
 
-describe(getStorageKeyForAsset, () => {
-  it('returns the correct key', () => {
+describe(getStorageKeyForAssetAsync, () => {
+  const pathLocation = uuidv4();
+  fs.writeFileSync(pathLocation, Buffer.from('I am pretending to be a jpeg'));
+  it('returns the correct key', async () => {
     const asset = {
       type: 'jpg',
       contentType: 'image/jpeg',
-      buffer: Buffer.from('I am pretending to be a jpeg'),
+      path: pathLocation,
     };
-    expect(getStorageKeyForAsset(asset)).toBe('fo8Y08LktVk6qLtGbn8GRWpOUyD13ABMUnbtRCN1L7Y');
+    expect(await getStorageKeyForAssetAsync(asset)).toBe(
+      'fo8Y08LktVk6qLtGbn8GRWpOUyD13ABMUnbtRCN1L7Y'
+    );
   });
 });
 
-describe(convertAssetToUpdateInfoGroupFormat, () => {
-  const type = 'jpg';
-  const asset = {
-    type,
-    contentType: 'image/jpeg',
-    buffer: Buffer.from('I am pretending to be a jpeg'),
-  };
-  expect(convertAssetToUpdateInfoGroupFormat(asset)).toEqual({
-    bundleKey: `c939e759656f577c058f445bfb19182e.${type}`,
-    contentType: 'image/jpeg',
-    fileHash: 'tzD6J-OQZaHCKnL3GHWV9RbnrpyojnagiOE7r3mSkU4',
-    storageBucket: 'update-assets-testing',
-    storageKey: 'fo8Y08LktVk6qLtGbn8GRWpOUyD13ABMUnbtRCN1L7Y',
+describe(convertAssetToUpdateInfoGroupFormatAsync, () => {
+  it('resolves to the correct value', async () => {
+    const path = uuidv4();
+    fs.writeFileSync(path, 'I am pretending to be a jpeg');
+    const type = 'jpg';
+    const asset = {
+      type,
+      contentType: 'image/jpeg',
+      path,
+    };
+    await expect(convertAssetToUpdateInfoGroupFormatAsync(asset)).resolves.toEqual({
+      bundleKey: `c939e759656f577c058f445bfb19182e.${type}`,
+      contentType: 'image/jpeg',
+      fileHash: 'tzD6J-OQZaHCKnL3GHWV9RbnrpyojnagiOE7r3mSkU4',
+      storageBucket: 'update-assets-testing',
+      storageKey: 'fo8Y08LktVk6qLtGbn8GRWpOUyD13ABMUnbtRCN1L7Y',
+    });
   });
 });
 
-describe(buildUpdateInfoGroup, () => {
-  expect(
-    buildUpdateInfoGroup({
-      android: {
-        launchAsset: {
-          type: 'bundle',
-          contentType: 'bundle/javascript',
-          buffer: Buffer.from('I am a js bundle'),
+describe(buildUpdateInfoGroupAsync, () => {
+  const androidBundlePath = uuidv4();
+  const assetPath = uuidv4();
+  fs.writeFileSync(androidBundlePath, 'I am a js bundle');
+  fs.writeFileSync(assetPath, 'I am pretending to be a jpeg');
+
+  it('returns the correct value', async () => {
+    await expect(
+      buildUpdateInfoGroupAsync({
+        android: {
+          launchAsset: {
+            type: 'bundle',
+            contentType: 'bundle/javascript',
+            path: androidBundlePath,
+          },
+          assets: [
+            {
+              type: 'jpg',
+              contentType: 'image/jpeg',
+              path: assetPath,
+            },
+          ],
         },
+      })
+    ).resolves.toEqual({
+      android: {
         assets: [
           {
-            type: 'jpg',
+            bundleKey: 'c939e759656f577c058f445bfb19182e.jpg',
             contentType: 'image/jpeg',
-            buffer: Buffer.from('I am pretending to be a jpeg'),
+            fileHash: 'tzD6J-OQZaHCKnL3GHWV9RbnrpyojnagiOE7r3mSkU4',
+            storageBucket: 'update-assets-testing',
+            storageKey: 'fo8Y08LktVk6qLtGbn8GRWpOUyD13ABMUnbtRCN1L7Y',
           },
         ],
-      },
-    })
-  ).toEqual({
-    android: {
-      assets: [
-        {
-          bundleKey: 'c939e759656f577c058f445bfb19182e.jpg',
-          contentType: 'image/jpeg',
-          fileHash: 'tzD6J-OQZaHCKnL3GHWV9RbnrpyojnagiOE7r3mSkU4',
-          storageBucket: 'update-assets-testing',
-          storageKey: 'fo8Y08LktVk6qLtGbn8GRWpOUyD13ABMUnbtRCN1L7Y',
-        },
-      ],
 
-      launchAsset: {
-        bundleKey: 'ec0dd14670aae108f99a810df9c1482c.bundle',
-        contentType: 'bundle/javascript',
-        fileHash: 'KEw79FnKTLOyVbRT1SlohSTjPe5e8FpULy2ST-I5BUg',
-        storageBucket: 'update-assets-testing',
-        storageKey: 'aC9N6RZlcHoIYjIsoJd2KUcigBKy98RHvZacDyPNjCQ',
+        launchAsset: {
+          bundleKey: 'ec0dd14670aae108f99a810df9c1482c.bundle',
+          contentType: 'bundle/javascript',
+          fileHash: 'KEw79FnKTLOyVbRT1SlohSTjPe5e8FpULy2ST-I5BUg',
+          storageBucket: 'update-assets-testing',
+          storageKey: 'aC9N6RZlcHoIYjIsoJd2KUcigBKy98RHvZacDyPNjCQ',
+        },
       },
-    },
+    });
   });
 });
 
@@ -145,14 +160,15 @@ describe(collectAssets, () => {
     const fakeHash = 'md5-hash-of-jpg';
     const fakeJson = { bundledAssets: [`asset_${fakeHash}.jpg`] };
     const bundles = { android: 'android-bundle-code', ios: 'ios-bundle-code' };
+    const inputDir = uuidv4();
+
     const userDefinedAssets = [
       {
         type: 'jpg',
         contentType: 'image/jpeg',
-        buffer: dummyFileBuffer,
+        path: path.resolve(`${inputDir}/assets/${fakeHash}`),
       },
     ];
-    const inputDir = 'dist';
 
     const bundleDir = path.resolve(`${inputDir}/bundles`);
     const assetDir = path.resolve(`${inputDir}/assets`);
@@ -168,14 +184,14 @@ describe(collectAssets, () => {
         bundles[platform]
       );
     });
-    fs.writeFileSync(path.resolve(`${inputDir}/assets/${fakeHash}`), userDefinedAssets[0].buffer);
+    fs.writeFileSync(path.resolve(`${inputDir}/assets/${fakeHash}`), dummyFileBuffer);
 
     expect(collectAssets(inputDir)).toEqual({
       android: {
         launchAsset: {
           type: 'bundle',
           contentType: 'application/javascript',
-          buffer: Buffer.from(bundles['android']),
+          path: path.resolve(`${inputDir}/bundles/android-randomHash.js`),
         },
         assets: userDefinedAssets,
       },
@@ -183,7 +199,7 @@ describe(collectAssets, () => {
         launchAsset: {
           type: 'bundle',
           contentType: 'application/javascript',
-          buffer: Buffer.from(bundles['ios']),
+          path: path.resolve(`${inputDir}/bundles/ios-randomHash.js`),
         },
         assets: userDefinedAssets,
       },
@@ -236,33 +252,38 @@ describe(uploadAssetsAsync, () => {
       map: 'dummy-string',
     },
   };
+
+  const androidBundlePath = uuidv4();
+  const iosBundlePath = uuidv4();
+  const dummyFilePath = uuidv4();
+  const userDefinedPath = uuidv4();
+  fs.writeFileSync(androidBundlePath, publishBundles.android.code);
+  fs.writeFileSync(iosBundlePath, publishBundles.ios.code);
+  fs.writeFileSync(dummyFilePath, dummyFileBuffer);
+  fs.writeFileSync(userDefinedPath, 'I am an octet stream');
+
   const userDefinedAsset = {
     type: 'bundle',
     contentType: 'application/octet-stream',
-    buffer: Buffer.from('I am an octet stream'),
+    path: userDefinedPath,
   };
+
   const assetsForUpdateInfoGroup = {
     android: {
       launchAsset: {
         type: 'bundle',
         contentType: 'application/javascript',
-        buffer: Buffer.from(publishBundles.android.code),
+        path: androidBundlePath,
       },
-      assets: [
-        userDefinedAsset,
-        { type: 'jpg', contentType: 'image/jpeg', buffer: dummyFileBuffer },
-      ],
+      assets: [userDefinedAsset, { type: 'jpg', contentType: 'image/jpeg', path: dummyFilePath }],
     },
     ios: {
       launchAsset: {
         type: 'bundle',
         contentType: 'application/javascript',
-        buffer: Buffer.from(publishBundles.ios.code),
+        path: androidBundlePath,
       },
-      assets: [
-        userDefinedAsset,
-        { type: 'jpg', contentType: 'image/jpeg', buffer: dummyFileBuffer },
-      ],
+      assets: [userDefinedAsset, { type: 'jpg', contentType: 'image/jpeg', path: dummyFilePath }],
     },
   };
   jest.spyOn(PublishMutation, 'getUploadURLsAsync').mockImplementation(async () => {
