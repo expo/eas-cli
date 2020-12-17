@@ -87,7 +87,7 @@ describe(convertAssetToUpdateInfoGroupFormatAsync, () => {
       bundleKey: `c939e759656f577c058f445bfb19182e.${type}`,
       contentType: 'image/jpeg',
       fileHash: 'tzD6J-OQZaHCKnL3GHWV9RbnrpyojnagiOE7r3mSkU4',
-      storageBucket: 'update-assets-testing',
+      storageBucket: 'update-assets-production',
       storageKey: 'fo8Y08LktVk6qLtGbn8GRWpOUyD13ABMUnbtRCN1L7Y',
     });
   });
@@ -124,7 +124,7 @@ describe(buildUpdateInfoGroupAsync, () => {
             bundleKey: 'c939e759656f577c058f445bfb19182e.jpg',
             contentType: 'image/jpeg',
             fileHash: 'tzD6J-OQZaHCKnL3GHWV9RbnrpyojnagiOE7r3mSkU4',
-            storageBucket: 'update-assets-testing',
+            storageBucket: 'update-assets-production',
             storageKey: 'fo8Y08LktVk6qLtGbn8GRWpOUyD13ABMUnbtRCN1L7Y',
           },
         ],
@@ -133,7 +133,7 @@ describe(buildUpdateInfoGroupAsync, () => {
           bundleKey: 'ec0dd14670aae108f99a810df9c1482c.bundle',
           contentType: 'bundle/javascript',
           fileHash: 'KEw79FnKTLOyVbRT1SlohSTjPe5e8FpULy2ST-I5BUg',
-          storageBucket: 'update-assets-testing',
+          storageBucket: 'update-assets-production',
           storageKey: 'aC9N6RZlcHoIYjIsoJd2KUcigBKy98RHvZacDyPNjCQ',
         },
       },
@@ -290,10 +290,14 @@ describe(uploadAssetsAsync, () => {
     return { specifications: ['{}', '{}', '{}'] };
   });
 
+  beforeEach(() => {
+    jest.useFakeTimers();
+  });
   it('throws an error if the upload exceeds TIMEOUT_LIMIT', async () => {
     jest.spyOn(PublishQuery, 'getAssetMetadataAsync').mockImplementation(async () => {
       const status = AssetMetadataStatus.DoesNotExist;
       mockdate.set(Date.now() + TIMEOUT_LIMIT + 1);
+      jest.runAllTimers();
       return [
         {
           storageKey: 'qbgckgkgfdjnNuf9dQd7FDTWUmlEEzg7l1m1sKzQaq0',
@@ -321,6 +325,7 @@ describe(uploadAssetsAsync, () => {
   it('resolves if the assets are already uploaded', async () => {
     jest.spyOn(PublishQuery, 'getAssetMetadataAsync').mockImplementation(async () => {
       const status = AssetMetadataStatus.Exists;
+      jest.runAllTimers();
       return [
         {
           storageKey: 'qbgckgkgfdjnNuf9dQd7FDTWUmlEEzg7l1m1sKzQaq0',
@@ -348,6 +353,7 @@ describe(uploadAssetsAsync, () => {
       const status =
         Date.now() === 0 ? AssetMetadataStatus.DoesNotExist : AssetMetadataStatus.Exists;
       mockdate.set(Date.now() + 1);
+      jest.runAllTimers();
       return [
         {
           storageKey: 'qbgckgkgfdjnNuf9dQd7FDTWUmlEEzg7l1m1sKzQaq0',

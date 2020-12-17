@@ -13,26 +13,24 @@ import { PresignedPost, uploadWithPresignedPostAsync } from '../uploads';
 
 export const TIMEOUT_LIMIT = 60_000; // 1 minute
 const STORAGE_BUCKET = getStorageBucket();
-export const Platforms: PublishPlatforms[] = ['android', 'ios']; // TODO-JJ allow users to specify this in app.js
+export const Platforms: PublishPlatform[] = ['android', 'ios']; // TODO-JJ allow users to specify this in app.js
 
 function getStorageBucket(): string {
-  if (process.env.NODE_ENV === 'test') {
-    return 'update-assets-testing';
-  } else if (process.env.EXPO_STAGING || process.env.EXPO_LOCAL) {
+  if (process.env.EXPO_STAGING || process.env.EXPO_LOCAL) {
     return 'update-assets-staging';
   } else {
     return 'update-assets-production';
   }
 }
 
-export type PublishPlatforms = Extract<'android' | 'ios', Platform>;
+export type PublishPlatform = Extract<'android' | 'ios', Platform>;
 export type RawAsset = {
   type: string;
   contentType: string;
   path: string;
 };
 type CollectedAssets = {
-  [platform in PublishPlatforms]?: {
+  [platform in PublishPlatform]?: {
     launchAsset: RawAsset;
     assets: RawAsset[];
   };
@@ -43,7 +41,7 @@ type ManifestFragment = {
   assets: PartialManifestAsset[];
 };
 type UpdateInfoGroup = {
-  [key in PublishPlatforms]: ManifestFragment;
+  [key in PublishPlatform]: ManifestFragment;
 };
 
 export function guessContentTypeFromExtension(ext?: string): string {
@@ -106,7 +104,7 @@ export async function convertAssetToUpdateInfoGroupFormatAsync(
 }
 
 export async function buildUpdateInfoGroupAsync(assets: CollectedAssets): Promise<UpdateInfoGroup> {
-  let platform: PublishPlatforms;
+  let platform: PublishPlatform;
   const updateInfoGroup: Partial<UpdateInfoGroup> = {};
   for (platform in assets) {
     updateInfoGroup[platform] = {
@@ -172,8 +170,7 @@ export function collectAssets(inputDir: string): CollectedAssets {
   const bundles = collectBundles(distRoot);
   const assetsFinal: CollectedAssets = {};
 
-  let platform: PublishPlatforms;
-  for (platform of Platforms) {
+  for (const platform of Platforms) {
     assetsFinal[platform] = {
       launchAsset: bundles[platform],
       assets,
@@ -240,13 +237,12 @@ export async function uploadAssetsAsync(assetsForUpdateInfoGroup: CollectedAsset
 
   // Wait up to TIMEOUT_LIMIT for assets to be uploaded and processed
   const start = Date.now();
-  let timeout = 0;
+  let timeout = 1;
   while (missingAssets.length > 0) {
-    if (process.env.NODE_ENV !== 'test') {
-      await new Promise(resolve => setTimeout(resolve, timeout * 1000)); // linear backoff
-      timeout += 1;
-    }
+    const timeoutPromise = new Promise(resolve => setTimeout(resolve, timeout * 1000)); // linear backoff
     missingAssets = await filterOutAssetsThatAlreadyExistAsync(missingAssets);
+    await timeoutPromise; // await after filterOutAssetsThatAlreadyExistAsync for easy mocking with jest.runAllTimers
+    timeout += 1;
 
     if (Date.now() - start > TIMEOUT_LIMIT) {
       throw new Error('Asset upload timed out. Please try again.');
