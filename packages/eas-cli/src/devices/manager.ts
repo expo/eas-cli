@@ -80,9 +80,7 @@ export class AccountResolver {
       )} account?`,
     });
 
-    if (useProjectAccount) {
-      return projectAccount;
-    }
+    return useProjectAccount ? projectAccount : undefined;
   }
 
   private async promptForAccountAsync(): Promise<Account> {
