@@ -57,7 +57,7 @@ export type RootQuery = {
   builds: BuildQuery;
   clientBuilds: ClientBuildQuery;
   project: ProjectQuery;
-  /** Search for users and apps */
+  /** Search for Snacks */
   search: Array<SearchResult>;
   /** @deprecated Use 'search' root field. */
   searchUsersAndApps: Array<Maybe<SearchResult>>;
@@ -156,6 +156,7 @@ export type Account = {
   /** @deprecated Build packs are no longer supported */
   availableBuilds?: Maybe<Scalars['Int']>;
   unlimitedBuilds?: Maybe<Scalars['Boolean']>;
+  /** @deprecated No longer needed */
   subscriptionChangesPending?: Maybe<Scalars['Boolean']>;
   /** @deprecated Build packs are no longer supported */
   willAutoRenewBuilds?: Maybe<Scalars['Boolean']>;
@@ -170,7 +171,7 @@ export type Account = {
   apps?: Maybe<Array<Maybe<App>>>;
   /** Build Jobs associated with this account */
   buildJobs?: Maybe<Array<Maybe<BuildJob>>>;
-  /** (Turtle v2) Builds associated with this account */
+  /** (EAS Build) Builds associated with this account */
   builds?: Maybe<Array<Maybe<Build>>>;
   /** Owning User of this account if personal account */
   owner?: Maybe<User>;
@@ -236,6 +237,7 @@ export type AccountBuildsArgs = {
   offset: Scalars['Int'];
   limit: Scalars['Int'];
   status?: Maybe<BuildStatus>;
+  platform?: Maybe<AppPlatform>;
 };
 
 
@@ -372,6 +374,7 @@ export type App = Project & {
   /** @deprecated Field no longer supported */
   releases: Array<Maybe<AppRelease>>;
   builds?: Maybe<Array<Maybe<Build>>>;
+  buildJobs: Array<Maybe<BuildJob>>;
   /** @deprecated Field no longer supported */
   users?: Maybe<Array<Maybe<User>>>;
   /** @deprecated Field no longer supported */
@@ -421,6 +424,14 @@ export type AppReleasesArgs = {
 
 /** Represents an Exponent App (or Experience in legacy terms) */
 export type AppBuildsArgs = {
+  offset: Scalars['Int'];
+  limit: Scalars['Int'];
+  status?: Maybe<BuildStatus>;
+};
+
+
+/** Represents an Exponent App (or Experience in legacy terms) */
+export type AppBuildJobsArgs = {
   offset: Scalars['Int'];
   limit: Scalars['Int'];
   status?: Maybe<BuildStatus>;
@@ -676,7 +687,7 @@ export enum BuildStatus {
   Finished = 'FINISHED'
 }
 
-/** Represents a Turtle v2 build */
+/** Represents an EAS Build */
 export type Build = ActivityTimelineProjectActivity & {
   __typename?: 'Build';
   id: Scalars['ID'];
@@ -696,6 +707,7 @@ export type Build = ActivityTimelineProjectActivity & {
   appVersion?: Maybe<Scalars['String']>;
   sdkVersion?: Maybe<Scalars['String']>;
   releaseChannel?: Maybe<Scalars['String']>;
+  metrics?: Maybe<BuildMetrics>;
   distribution?: Maybe<DistributionType>;
 };
 
@@ -711,9 +723,63 @@ export type BuildArtifacts = {
   xcodeBuildLogsUrl?: Maybe<Scalars['String']>;
 };
 
+export type BuildMetrics = {
+  __typename?: 'BuildMetrics';
+  buildQueueTime?: Maybe<Scalars['Int']>;
+  buildDuration?: Maybe<Scalars['Int']>;
+};
+
 export enum DistributionType {
   Store = 'STORE',
   Internal = 'INTERNAL'
+}
+
+/** Represents an Standalone App build job */
+export type BuildJob = ActivityTimelineProjectActivity & {
+  __typename?: 'BuildJob';
+  id: Scalars['ID'];
+  actor?: Maybe<Actor>;
+  activityTimestamp: Scalars['DateTime'];
+  app?: Maybe<App>;
+  user?: Maybe<User>;
+  release?: Maybe<AppRelease>;
+  config?: Maybe<Scalars['JSON']>;
+  artifacts?: Maybe<BuildArtifact>;
+  logs?: Maybe<BuildLogs>;
+  created?: Maybe<Scalars['DateTime']>;
+  updated?: Maybe<Scalars['DateTime']>;
+  fullExperienceName?: Maybe<Scalars['String']>;
+  status?: Maybe<BuildJobStatus>;
+  expirationDate?: Maybe<Scalars['DateTime']>;
+  platform: AppPlatform;
+  sdkVersion?: Maybe<Scalars['String']>;
+  releaseChannel?: Maybe<Scalars['String']>;
+};
+
+export type BuildArtifact = {
+  __typename?: 'BuildArtifact';
+  url: Scalars['String'];
+  manifestPlistUrl?: Maybe<Scalars['String']>;
+};
+
+export type BuildLogs = {
+  __typename?: 'BuildLogs';
+  url?: Maybe<Scalars['String']>;
+  format?: Maybe<BuildJobLogsFormat>;
+};
+
+export enum BuildJobLogsFormat {
+  Raw = 'RAW',
+  Json = 'JSON'
+}
+
+export enum BuildJobStatus {
+  Pending = 'PENDING',
+  Started = 'STARTED',
+  InProgress = 'IN_PROGRESS',
+  Errored = 'ERRORED',
+  Finished = 'FINISHED',
+  SentToQueue = 'SENT_TO_QUEUE'
 }
 
 export type IosAppCredentialsFilter = {
@@ -978,54 +1044,6 @@ export type Update = ActivityTimelineProjectActivity & {
   releaseName: Scalars['String'];
 };
 
-export enum BuildJobStatus {
-  Pending = 'PENDING',
-  Started = 'STARTED',
-  InProgress = 'IN_PROGRESS',
-  Errored = 'ERRORED',
-  Finished = 'FINISHED',
-  SentToQueue = 'SENT_TO_QUEUE'
-}
-
-/** Represents an Standalone App build job */
-export type BuildJob = ActivityTimelineProjectActivity & {
-  __typename?: 'BuildJob';
-  id: Scalars['ID'];
-  actor?: Maybe<Actor>;
-  activityTimestamp: Scalars['DateTime'];
-  app?: Maybe<App>;
-  user?: Maybe<User>;
-  release?: Maybe<AppRelease>;
-  config?: Maybe<Scalars['JSON']>;
-  artifacts?: Maybe<BuildArtifact>;
-  logs?: Maybe<BuildLogs>;
-  created?: Maybe<Scalars['DateTime']>;
-  updated?: Maybe<Scalars['DateTime']>;
-  fullExperienceName?: Maybe<Scalars['String']>;
-  status?: Maybe<BuildJobStatus>;
-  expirationDate?: Maybe<Scalars['DateTime']>;
-  platform: AppPlatform;
-  sdkVersion?: Maybe<Scalars['String']>;
-  releaseChannel?: Maybe<Scalars['String']>;
-};
-
-export type BuildArtifact = {
-  __typename?: 'BuildArtifact';
-  url: Scalars['String'];
-  manifestPlistUrl?: Maybe<Scalars['String']>;
-};
-
-export type BuildLogs = {
-  __typename?: 'BuildLogs';
-  url?: Maybe<Scalars['String']>;
-  format?: Maybe<BuildJobLogsFormat>;
-};
-
-export enum BuildJobLogsFormat {
-  Raw = 'RAW',
-  Json = 'JSON'
-}
-
 export type UserPermission = {
   __typename?: 'UserPermission';
   permissions?: Maybe<Array<Maybe<Permission>>>;
@@ -1229,7 +1247,10 @@ export type ProjectPublicData = {
 
 export type BuildJobQuery = {
   __typename?: 'BuildJobQuery';
-  /** get all build jobs by an optional filter */
+  /**
+   * get all build jobs by an optional filter
+   * @deprecated Prefer Account.buildJobs or App.buildJobs
+   */
   all: Array<Maybe<BuildJob>>;
   byId: BuildJob;
 };
@@ -1251,7 +1272,7 @@ export type BuildJobQueryByIdArgs = {
 
 export type BuildQuery = {
   __typename?: 'BuildQuery';
-  /** Look up Turtle v2 build by build id */
+  /** Look up EAS Build by build ID */
   byId: Build;
   /**
    * Get all builds for a specific app.
@@ -2560,8 +2581,11 @@ export type AppSearchResult = SearchResult & {
 /** Represents a search result for a user */
 export type UserSearchResult = SearchResult & {
   __typename?: 'UserSearchResult';
+  /** @deprecated Field no longer supported */
   id: Scalars['ID'];
+  /** @deprecated Field no longer supported */
   rank?: Maybe<Scalars['Int']>;
+  /** @deprecated Field no longer supported */
   user: User;
 };
 
@@ -2579,84 +2603,35 @@ export enum CacheControlScope {
 }
 
 
-export type AccountByNameQueryVariables = Exact<{
-  accountName: Scalars['String'];
+export type GetSignedUploadMutationMutationVariables = Exact<{
+  contentTypes: Array<Scalars['String']>;
 }>;
 
 
-export type AccountByNameQuery = (
-  { __typename?: 'RootQuery' }
-  & { account: (
-    { __typename?: 'AccountQuery' }
-    & { byName: (
-      { __typename?: 'Account' }
-      & Pick<Account, 'id'>
-    ) }
-  ) }
-);
-
-export type AppleDevicesByAccountNameQueryVariables = Exact<{
-  accountId: Scalars['ID'];
-  identifier: Scalars['String'];
-}>;
-
-
-export type AppleDevicesByAccountNameQuery = (
-  { __typename?: 'RootQuery' }
-  & { appleTeam: (
-    { __typename?: 'AppleTeamQuery' }
-    & { byAppleTeamIdentifier?: Maybe<(
-      { __typename?: 'AppleTeam' }
-      & Pick<AppleTeam, 'id' | 'appleTeamName'>
-      & { appleDevices?: Maybe<Array<Maybe<(
-        { __typename?: 'AppleDevice' }
-        & Pick<AppleDevice, 'id' | 'identifier' | 'name' | 'deviceClass' | 'enabled'>
-      )>>> }
+export type GetSignedUploadMutationMutation = (
+  { __typename?: 'RootMutation' }
+  & { asset: (
+    { __typename?: 'AssetMutation' }
+    & { getSignedAssetUploadSpecifications?: Maybe<(
+      { __typename?: 'GetSignedAssetUploadSpecificationsResult' }
+      & Pick<GetSignedAssetUploadSpecificationsResult, 'specifications'>
     )> }
   ) }
 );
 
-export type AppleDevicesByIdentifierQueryVariables = Exact<{
-  accountName: Scalars['String'];
-  identifier: Scalars['String'];
+export type PublishMutationMutationVariables = Exact<{
+  publishUpdateGroupInput?: Maybe<PublishUpdateGroupInput>;
 }>;
 
 
-export type AppleDevicesByIdentifierQuery = (
-  { __typename?: 'RootQuery' }
-  & { account: (
-    { __typename?: 'AccountQuery' }
-    & { byName: (
-      { __typename?: 'Account' }
-      & Pick<Account, 'id'>
-      & { appleDevices?: Maybe<Array<Maybe<(
-        { __typename?: 'AppleDevice' }
-        & Pick<AppleDevice, 'id' | 'identifier' | 'name' | 'deviceClass' | 'enabled'>
-        & { appleTeam: (
-          { __typename?: 'AppleTeam' }
-          & Pick<AppleTeam, 'id' | 'appleTeamIdentifier' | 'appleTeamName'>
-        ) }
-      )>>> }
-    ) }
-  ) }
-);
-
-export type AppleTeamsByAccountNameQueryVariables = Exact<{
-  accountName: Scalars['String'];
-}>;
-
-
-export type AppleTeamsByAccountNameQuery = (
-  { __typename?: 'RootQuery' }
-  & { account: (
-    { __typename?: 'AccountQuery' }
-    & { byName: (
-      { __typename?: 'Account' }
-      & { appleTeams: Array<Maybe<(
-        { __typename?: 'AppleTeam' }
-        & Pick<AppleTeam, 'id' | 'appleTeamName' | 'appleTeamIdentifier'>
-      )>> }
-    ) }
+export type PublishMutationMutation = (
+  { __typename?: 'RootMutation' }
+  & { updateRelease: (
+    { __typename?: 'UpdateReleaseMutation' }
+    & { publishUpdateGroup: Array<Maybe<(
+      { __typename?: 'Update' }
+      & Pick<Update, 'updateGroup'>
+    )>> }
   ) }
 );
 
@@ -2704,6 +2679,29 @@ export type BuildsForAppQueryQuery = (
   ) }
 );
 
+export type PendingBuildsForAccountAndPlatformQueryVariables = Exact<{
+  accountName: Scalars['String'];
+  platform: AppPlatform;
+}>;
+
+
+export type PendingBuildsForAccountAndPlatformQuery = (
+  { __typename?: 'RootQuery' }
+  & { account: (
+    { __typename?: 'AccountQuery' }
+    & { byName: (
+      { __typename?: 'Account' }
+      & { inQueueBuilds?: Maybe<Array<Maybe<(
+        { __typename?: 'Build' }
+        & Pick<Build, 'id' | 'platform'>
+      )>>>, inProgressBuilds?: Maybe<Array<Maybe<(
+        { __typename?: 'Build' }
+        & Pick<Build, 'id' | 'platform'>
+      )>>> }
+    ) }
+  ) }
+);
+
 export type Unnamed_1_QueryVariables = Exact<{
   username: Scalars['String'];
   slug: Scalars['String'];
@@ -2724,6 +2722,22 @@ export type Unnamed_1_Query = (
   ) }
 );
 
+export type GetAssetMetadataQueryQueryVariables = Exact<{
+  storageKeys: Array<Scalars['String']>;
+}>;
+
+
+export type GetAssetMetadataQueryQuery = (
+  { __typename?: 'RootQuery' }
+  & { asset: (
+    { __typename?: 'AssetQuery' }
+    & { metadata: Array<(
+      { __typename?: 'AssetMetadataResult' }
+      & Pick<AssetMetadataResult, 'storageKey' | 'status'>
+    )> }
+  ) }
+);
+
 export type CurrentUserQueryVariables = Exact<{ [key: string]: never; }>;
 
 
@@ -2731,14 +2745,14 @@ export type CurrentUserQuery = (
   { __typename?: 'RootQuery' }
   & { meActor?: Maybe<(
     { __typename: 'User' }
-    & Pick<User, 'username' | 'id'>
+    & Pick<User, 'username' | 'id' | 'isExpoAdmin'>
     & { accounts?: Maybe<Array<Maybe<(
       { __typename?: 'Account' }
       & Pick<Account, 'id' | 'name'>
     )>>> }
   ) | (
     { __typename: 'Robot' }
-    & Pick<Robot, 'firstName' | 'id'>
+    & Pick<Robot, 'firstName' | 'id' | 'isExpoAdmin'>
     & { accounts?: Maybe<Array<Maybe<(
       { __typename?: 'Account' }
       & Pick<Account, 'id' | 'name'>

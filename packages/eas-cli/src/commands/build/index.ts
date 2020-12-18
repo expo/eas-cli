@@ -4,19 +4,28 @@ import fs from 'fs-extra';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 
+import { apiClient } from '../../api';
 import { configureAsync } from '../../build/configure';
 import { createCommandContextAsync } from '../../build/context';
 import { buildAsync } from '../../build/create';
-import { AnalyticsEvent, RequestedPlatform } from '../../build/types';
+import { AnalyticsEvent, Build as BuildType, RequestedPlatform } from '../../build/types';
 import Analytics from '../../build/utils/analytics';
+import formatBuild from '../../build/utils/formatBuild';
 import { isGitStatusCleanAsync } from '../../build/utils/repository';
-import { learnMore } from '../../log';
+import { AppPlatform } from '../../graphql/generated';
+import { BuildQuery } from '../../graphql/queries/BuildQuery';
+import log, { learnMore } from '../../log';
 import {
   isEasEnabledForProjectAsync,
   warnEasUnavailable,
 } from '../../project/isEasEnabledForProject';
-import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUtils';
+import {
+  findProjectRootAsync,
+  getProjectAccountNameAsync,
+  getProjectIdAsync,
+} from '../../project/projectUtils';
 import { confirmAsync, promptAsync } from '../../prompts';
+import { Actor } from '../../user/User';
 import { ensureLoggedInAsync } from '../../user/actions';
 
 export default class Build extends Command {
@@ -48,7 +57,7 @@ export default class Build extends Command {
 
   async run(): Promise<void> {
     const { flags } = this.parse(Build);
-    await ensureLoggedInAsync();
+    const user = await ensureLoggedInAsync();
 
     const nonInteractive = flags['non-interactive'];
     if (!flags.platform && nonInteractive) {
@@ -65,6 +74,9 @@ export default class Build extends Command {
       process.exitCode = 1;
       return;
     }
+
+    const accountName = await getProjectAccountNameAsync(projectDir);
+    await ensureNoPendingBuildsExistAsync({ accountName, platform, projectId, user });
 
     await ensureProjectConfiguredAsync(projectDir);
 
@@ -86,6 +98,62 @@ export default class Build extends Command {
       waitForBuildEnd: flags.wait,
     });
     await buildAsync(commandCtx);
+  }
+}
+
+async function ensureNoPendingBuildsExistAsync({
+  user,
+  platform,
+  accountName,
+  projectId,
+}: {
+  user: Actor;
+  platform: RequestedPlatform;
+  accountName: string;
+  projectId: string;
+}): Promise<void> {
+  // allow expo admins to run as many builds as they wish
+  if (user.isExpoAdmin) {
+    return;
+  }
+
+  const appPlatforms = toAppPlatforms(platform);
+  const maybePendingBuilds = await Promise.all(
+    appPlatforms.map(appPlatform => BuildQuery.getPendingBuildIdAsync(accountName, appPlatform))
+  );
+  const pendingBuilds = maybePendingBuilds.filter(i => i !== null);
+  if (pendingBuilds.length > 0) {
+    log.newLine();
+    log.error(
+      'Your other builds are still pending. Wait for them to complete before running this command again.'
+    );
+    log.newLine();
+    const results = await Promise.all(
+      pendingBuilds.map(pendingBuild => {
+        return apiClient.get<{ data: BuildType }>(
+          `projects/${projectId}/builds/${pendingBuild?.id}`,
+          {
+            responseType: 'json',
+          }
+        );
+      })
+    );
+
+    for (const result of results) {
+      log(formatBuild(result.body.data, { accountName }));
+    }
+
+    process.exitCode = 1;
+  }
+}
+
+function toAppPlatforms(requestedPlatform: RequestedPlatform): AppPlatform[] {
+  if (requestedPlatform === RequestedPlatform.All) {
+    return [AppPlatform.Android, AppPlatform.Ios];
+  } else if (requestedPlatform === RequestedPlatform.Android) {
+    return [AppPlatform.Android];
+  } else {
+    return [AppPlatform.Ios];
   }
 }
 

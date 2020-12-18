@@ -23,6 +23,7 @@ const UserQuery = {
                   id
                   name
                 }
+                isExpoAdmin
               }
             }
           `
