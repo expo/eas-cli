@@ -57,8 +57,8 @@ async function obtainS3PresignedPostAsync(
 export async function uploadWithPresignedPostAsync(
   stream: Readable | Buffer,
   presignedPost: PresignedPost,
-  handleProgressEvent: ProgressHandler
-) {
+  handleProgressEvent?: ProgressHandler
+): Promise<string> {
   const form = new FormData();
   for (const [fieldKey, fieldValue] of Object.entries(presignedPost.fields)) {
     form.append(fieldKey, fieldValue);
@@ -66,17 +66,21 @@ export async function uploadWithPresignedPostAsync(
   form.append('file', stream);
   const formHeaders = form.getHeaders();
   let uploadPromise = got.post(presignedPost.url, { body: form, headers: { ...formHeaders } });
+
   if (handleProgressEvent) {
     uploadPromise = uploadPromise.on('uploadProgress', progress =>
       handleProgressEvent({ progress })
     );
+    try {
+      const response = await uploadPromise;
+      handleProgressEvent({ isComplete: true });
+      return String(response.headers.location);
+    } catch (error) {
+      handleProgressEvent({ isComplete: true, error });
+      throw error;
+    }
   }
-  try {
-    const response = await uploadPromise;
-    handleProgressEvent({ isComplete: true });
-    return String(response.headers.location);
-  } catch (error) {
-    handleProgressEvent({ isComplete: true, error });
-    throw error;
-  }
+
+  const response = await uploadPromise;
+  return String(response.headers.location);
 }

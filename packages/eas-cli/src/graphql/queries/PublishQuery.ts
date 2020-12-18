@@ -1,17 +1,13 @@
 import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../client';
+import { AssetMetadataResult } from '../generated';
 
 const PublishQuery = {
-  async getAssetMetadataAsync(
-    storageKeys: string[]
-  ): Promise<{ storageKey: string; status: string; __typename: string }[]> {
+  async getAssetMetadataAsync(storageKeys: string[]): Promise<AssetMetadataResult[]> {
     const data = await withErrorHandlingAsync(
       graphqlClient
-        .query<
-          { asset: { metadata: { status: string; storageKey: string; __typename: string }[] } },
-          { storageKeys: string[] }
-        >(
+        .query<{ asset: { metadata: AssetMetadataResult[] } }, { storageKeys: string[] }>(
           gql`
             query GetAssetMetadataQuery($storageKeys: [String!]!) {
               asset {
