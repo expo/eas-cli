@@ -20,6 +20,8 @@ export default function formatBuild(build: Build, { accountName }: Options) {
       label: 'Status',
       get value() {
         switch (build.status) {
+          case BuildStatus.IN_QUEUE:
+            return chalk.blue('in queue');
           case BuildStatus.IN_PROGRESS:
             return chalk.blue('in progress');
           case BuildStatus.FINISHED:
@@ -38,7 +40,7 @@ export default function formatBuild(build: Build, { accountName }: Options) {
     {
       label: 'Artifact',
       get value() {
-        if (build.status === BuildStatus.IN_PROGRESS) {
+        if (build.status === BuildStatus.IN_QUEUE || build.status === BuildStatus.IN_PROGRESS) {
           return '<in progress>';
         }
 
@@ -55,7 +57,7 @@ export default function formatBuild(build: Build, { accountName }: Options) {
     {
       label: 'Finished at',
       value:
-        build.status === BuildStatus.IN_PROGRESS
+        build.status === BuildStatus.IN_QUEUE || build.status === BuildStatus.IN_PROGRESS
           ? '<in progress>'
           : new Date(build.updatedAt).toLocaleString(),
     },

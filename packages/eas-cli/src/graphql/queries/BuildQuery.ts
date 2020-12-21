@@ -1,7 +1,7 @@
 import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../client';
-import { Build } from '../generated';
+import { AppPlatform, Build } from '../generated';
 
 type Filters = Partial<Pick<Build, 'platform' | 'status'>> & {
   offset?: number;
@@ -9,6 +9,7 @@ type Filters = Partial<Pick<Build, 'platform' | 'status'>> & {
 };
 
 type BuildQueryResult = Pick<Build, 'platform' | 'artifacts'>;
+type PendingBuildQueryResult = Pick<Build, 'id' | 'platform'>;
 
 const BuildQuery = {
   async byIdAsync(buildId: string): Promise<BuildQueryResult> {
@@ -69,6 +70,60 @@ const BuildQuery = {
     );
 
     return data.builds.allForApp;
+  },
+
+  async getPendingBuildIdAsync(
+    accountName: string,
+    platform: AppPlatform
+  ): Promise<PendingBuildQueryResult | null> {
+    const data = await withErrorHandlingAsync(
+      graphqlClient
+        .query<{
+          account: {
+            byName: {
+              inQueueBuilds: PendingBuildQueryResult[];
+              inProgressBuilds: PendingBuildQueryResult[];
+            };
+          };
+        }>(
+          gql`
+            query PendingBuildsForAccountAndPlatform(
+              $accountName: String!
+              $platform: AppPlatform!
+            ) {
+              account {
+                byName(accountName: $accountName) {
+                  inQueueBuilds: builds(
+                    offset: 0
+                    limit: 1
+                    platform: $platform
+                    status: IN_QUEUE
+                  ) {
+                    id
+                    platform
+                  }
+                  inProgressBuilds: builds(
+                    offset: 0
+                    limit: 1
+                    platform: $platform
+                    status: IN_PROGRESS
+                  ) {
+                    id
+                    platform
+                  }
+                }
+              }
+            }
+          `,
+          { accountName, platform }
+        )
+        .toPromise()
+    );
+    const pendingBuilds = [
+      ...data.account.byName.inProgressBuilds,
+      ...data.account.byName.inQueueBuilds,
+    ];
+    return pendingBuilds.length > 0 ? pendingBuilds[0] : null;
   },
 };
 
