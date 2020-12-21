@@ -76,7 +76,15 @@ export default class Build extends Command {
     }
 
     const accountName = await getProjectAccountNameAsync(projectDir);
-    await ensureNoPendingBuildsExistAsync({ accountName, platform, projectId, user });
+    const accountHasPendingBuilds = await ensureNoPendingBuildsExistAsync({
+      accountName,
+      platform,
+      projectId,
+      user,
+    });
+    if (accountHasPendingBuilds) {
+      return;
+    }
 
     await ensureProjectConfiguredAsync(projectDir);
 
@@ -111,10 +119,10 @@ async function ensureNoPendingBuildsExistAsync({
   platform: RequestedPlatform;
   accountName: string;
   projectId: string;
-}): Promise<void> {
+}): Promise<boolean> {
   // allow expo admins to run as many builds as they wish
   if (user.isExpoAdmin) {
-    return;
+    return false;
   }
 
   const appPlatforms = toAppPlatforms(platform);
@@ -144,7 +152,9 @@ async function ensureNoPendingBuildsExistAsync({
     }
 
     process.exitCode = 1;
+    return true;
   }
+  return false;
 }
 
 function toAppPlatforms(requestedPlatform: RequestedPlatform): AppPlatform[] {
