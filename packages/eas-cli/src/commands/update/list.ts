@@ -1,14 +1,10 @@
 import { getConfig } from '@expo/config';
 import { Command, flags } from '@oclif/command';
-import chalk from 'chalk';
 import Table from 'cli-table3';
-import { cli } from 'cli-ux';
-import dateformat from 'dateformat';
 import gql from 'graphql-tag';
-import { groupBy } from 'lodash';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
-import { Update } from '../../graphql/generated';
+import { Update, User } from '../../graphql/generated';
 import log from '../../log';
 import { ensureProjectExistsAsync } from '../../project/ensureProjectExists';
 import { findProjectRootAsync, getProjectAccountNameAsync } from '../../project/projectUtils';
@@ -16,8 +12,8 @@ import { promptAsync } from '../../prompts';
 
 type TruncatedUpdate = Pick<
   Update,
-  'updateGroup' | 'updateMessage' | 'createdAt' | 'actor' | 'platform' | 'nativeRuntimeVersion'
->;
+  'updateGroup' | 'updateMessage' | 'createdAt' | 'platform' | 'runtimeVersion' | 'id'
+> & { platforms: string; actor: User };
 const PAGE_LIMIT = 10_000;
 
 async function viewUpdateReleaseAsync({
@@ -58,14 +54,15 @@ async function viewUpdateReleaseAsync({
                   id
                   releaseName
                   updates(offset: 0, limit: ${PAGE_LIMIT}) {
+                    id
                     updateGroup
                     updateMessage
                     createdAt
                     platform
-                    nativeRuntimeVersion
+                    runtimeVersion
                     actor {
                       ... on User {
-                        firstName
+                        username
                       }
                       ... on Robot {
                         firstName
@@ -88,6 +85,7 @@ async function viewUpdateReleaseAsync({
 }
 
 export default class UpdateList extends Command {
+  static hidden = true;
   static description = 'View a list of updates.';
 
   static args = [
@@ -100,17 +98,62 @@ export default class UpdateList extends Command {
 
   static flags = {
     platform: flags.string({
-      description: 'Update platforms to return: ios, android, web.',
-    }),
-    json: flags.boolean({
-      description: 'Return list of updates as JSON.',
-      default: false,
+      description: 'Platform-specifc updates to return: ios, android, web.',
+      default: 'all',
     }),
     all: flags.boolean({
       description: 'Return a list of all updates individually.',
       default: false,
     }),
+    json: flags.boolean({
+      description: 'Return list of updates as JSON.',
+      default: false,
+    }),
   };
+
+  async getUpdates(options: {
+    projectId: string;
+    releaseName: string;
+    platformFlag: string;
+    allFlag: boolean;
+  }) {
+    const { projectId, releaseName, platformFlag, allFlag } = options;
+
+    const UpdateRelease = await viewUpdateReleaseAsync({
+      appId: projectId,
+      releaseName,
+    });
+
+    const filteredUpdates = UpdateRelease.updates.filter(update => {
+      if (!platformFlag) {
+        return update;
+      }
+
+      return platformFlag.split(',').includes(update.platform);
+    });
+
+    if (allFlag) {
+      return filteredUpdates;
+    }
+
+    const updatesByGroup = filteredUpdates.reduce(
+      (acc, update) => ({
+        ...acc,
+        [update.updateGroup]: {
+          ...update,
+          platforms: [acc[update.updateGroup]?.platform, update.platform]
+            .filter(Boolean)
+            .sort()
+            .join(', '),
+        },
+      }),
+      {} as {
+        [i: string]: TruncatedUpdate;
+      }
+    );
+
+    return Object.values(updatesByGroup);
+  }
 
   async run() {
     let {
@@ -144,88 +187,37 @@ export default class UpdateList extends Command {
       }));
     }
 
-    const UpdateRelease = await viewUpdateReleaseAsync({
-      appId: projectId,
+    const updates = await this.getUpdates({
+      projectId,
       releaseName,
+      platformFlag,
+      allFlag,
     });
 
-    // const updates = Object.values(groupBy(UpdateRelease.updates, u => u.updateGroup)).map(
-    //   updateGroup => updateGroup[0]
-    // );
-
-    const updates = UpdateRelease.updates.reduce(
-      (acc, update) => {
-        return {
-          ...acc,
-          [update.updateGroup]: {
-            ...update,
-            createdAt: dateformat(new Date(update.createdAt), 'yyyy-mm-dd HH:MM:ss'),
-            platforms: [acc[update.updateGroup]?.platform, update.platform]
-              .filter(Boolean)
-              .sort()
-              .join(', '),
-          },
-        };
-      },
-      {} as {
-        [i: string]: TruncatedUpdate;
-      }
-    );
-
     if (jsonFlag) {
-      log({ ...UpdateRelease, updates });
+      log(updates);
       return;
     }
 
-    // const updateGroupTable = new Table({
-    //   head: ['Created At', 'Update Group', 'Update message'],
-    //   wordWrap: true,
-    // });
+    const updateGroupTable = new Table({
+      head: [
+        'Created at',
+        'Update message',
+        `${allFlag ? 'Update ID' : 'Update group ID'}`,
+        `Platform${allFlag ? '' : 's'}`,
+      ],
+      wordWrap: true,
+    });
 
-    // for (const update of updates) {
-    //   updateGroupTable.push([
-    //     new Date(update.createdAt).toLocaleString(),
-    //     update.updateGroup,
-    //     `[${update.actor?.firstName}] ${update.updateMessage}`,
-    //   ]);
-    // }
+    for (const update of updates) {
+      updateGroupTable.push([
+        new Date(update.createdAt).toLocaleString(),
+        `[${update.actor?.username}] ${update.updateMessage}`,
+        ...(allFlag ? [update.id] : [update.updateGroup]),
+        ...(allFlag ? [update.platform] : [update.platforms]),
+      ]);
+    }
 
-    log('');
-    cli.table(
-      Object.values(updates),
-      {
-        updateGroup: {
-          header: 'ID',
-          minWidth: 10,
-          get: row => row.updateGroup.slice(0, 8),
-        },
-        createdAt: {
-          header: 'Created At',
-          minWidth: 24,
-        },
-        nativeRuntimeVersion: {
-          header: 'RTV',
-          minWidth: 10,
-        },
-        platforms: {
-          minWidth: 15,
-        },
-        updateMessage: {
-          header: 'Message',
-          get: row => `[${row?.actor?.firstName}] ${row.updateMessage}`,
-        },
-      },
-      {
-        filter: platformFlag && `platforms=${platformFlag}`,
-      }
-    );
-
-    // log.withTick(
-    //   `️Release: ${chalk.bold(UpdateRelease.releaseName)} on project ${chalk.bold(
-    //     `@${accountName}/${slug}`
-    //   )}. Release ID: ${chalk.bold(UpdateRelease.id)}`
-    // );
-    // log(chalk.bold('Recent update groups published on this release:'));
-    // log(updateGroupTable.toString());
+    log(updateGroupTable.toString());
   }
 }

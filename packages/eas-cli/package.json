@@ -25,7 +25,6 @@
     "@urql/core": "^1.13.0",
     "chalk": "^4.1.0",
     "cli-table3": "^0.6.0",
-    "cli-ux": "^5.5.1",
     "dateformat": "^3.0.3",
     "env-paths": "^2.2.0",
     "fast-glob": "^3.2.4",
