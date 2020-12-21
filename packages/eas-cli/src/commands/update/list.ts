@@ -29,7 +29,6 @@ export default class UpdateList extends Command {
   static flags = {
     platform: flags.string({
       description: 'Platform-specifc updates to return: ios, android, web.',
-      default: 'all',
     }),
     all: flags.boolean({
       description: 'Return a list of all updates individually.',
@@ -40,50 +39,6 @@ export default class UpdateList extends Command {
       default: false,
     }),
   };
-
-  async getUpdates(options: {
-    projectId: string;
-    releaseName: string;
-    platformFlag: string;
-    allFlag: boolean;
-  }) {
-    const { projectId, releaseName, platformFlag, allFlag } = options;
-
-    const UpdateRelease = await viewUpdateReleaseAsync({
-      appId: projectId,
-      releaseName,
-    });
-
-    const filteredUpdates = UpdateRelease.updates.filter(update => {
-      if (!platformFlag) {
-        return update;
-      }
-
-      return platformFlag.split(',').includes(update.platform);
-    });
-
-    if (allFlag) {
-      return filteredUpdates;
-    }
-
-    const updatesByGroup = filteredUpdates.reduce(
-      (acc, update) => ({
-        ...acc,
-        [update.updateGroup]: {
-          ...update,
-          platforms: [acc[update.updateGroup]?.platform, update.platform]
-            .filter(Boolean)
-            .sort()
-            .join(', '),
-        },
-      }),
-      {} as {
-        [i: string]: TruncatedUpdate;
-      }
-    );
-
-    return Object.values(updatesByGroup);
-  }
 
   async run() {
     let {
@@ -123,6 +78,8 @@ export default class UpdateList extends Command {
       platformFlag,
       allFlag,
     });
+
+    console.log(updates);
 
     if (jsonFlag) {
       log(updates);

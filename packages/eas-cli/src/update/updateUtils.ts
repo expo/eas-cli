@@ -5,8 +5,8 @@ import { Update, User } from '../graphql/generated';
 
 type TruncatedUpdate = Pick<
   Update,
-  'updateGroup' | 'updateMessage' | 'createdAt' | 'platform' | 'runtimeVersion' | 'id'
-> & { platforms: string; actor: User };
+  'updateGroup' | 'updateMessage' | 'platform' | 'createdAt' | 'runtimeVersion'
+> & { platforms: string; actor: User; id?: string };
 
 const PAGE_LIMIT = 10_000;
 
@@ -23,7 +23,7 @@ export async function viewUpdateReleaseAsync({
 }> {
   const data = await withErrorHandlingAsync(
     graphqlClient
-      .mutation<
+      .query<
         {
           app: {
             byId: {
@@ -75,16 +75,17 @@ export async function viewUpdateReleaseAsync({
       )
       .toPromise()
   );
+
   return data.app.byId.updateReleaseByReleaseName;
 }
 
 export async function getUpdates(options: {
   projectId: string;
   releaseName: string;
-  platformFlag: string;
-  allFlag: boolean;
+  platformFlag?: string;
+  allFlag?: boolean;
 }) {
-  const { projectId, releaseName, platformFlag, allFlag } = options;
+  const { projectId, releaseName, platformFlag, allFlag = false } = options;
 
   const UpdateRelease = await viewUpdateReleaseAsync({
     appId: projectId,
@@ -92,7 +93,7 @@ export async function getUpdates(options: {
   });
 
   const filteredUpdates = UpdateRelease.updates.filter(update => {
-    if (!platformFlag) {
+    if (platformFlag === undefined) {
       return update;
     }
 
@@ -104,18 +105,23 @@ export async function getUpdates(options: {
   }
 
   const updatesByGroup = filteredUpdates.reduce(
-    (acc, update) => ({
-      ...acc,
-      [update.updateGroup]: {
-        ...update,
-        platforms: [acc[update.updateGroup]?.platform, update.platform]
-          .filter(Boolean)
-          .sort()
-          .join(', '),
-      },
-    }),
+    (acc, update) => {
+      const { id, platform, ...rest } = update;
+      const platforms = [...([acc[update.updateGroup]?.platforms] ?? []), platform]
+        .filter(Boolean)
+        .sort()
+        .join(', ');
+
+      return {
+        ...acc,
+        [update.updateGroup]: {
+          ...rest,
+          platforms,
+        },
+      };
+    },
     {} as {
-      [i: string]: TruncatedUpdate;
+      [i: string]: Omit<TruncatedUpdate, 'platform'>;
     }
   );
 
