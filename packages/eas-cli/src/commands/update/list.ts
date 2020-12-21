@@ -1,9 +1,8 @@
 import { getConfig } from '@expo/config';
 import { Command, flags } from '@oclif/command';
 import Table from 'cli-table3';
-import gql from 'graphql-tag';
 
-import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
+import { getUpdates, viewUpdateReleaseAsync } from '../../../src/update/updateUtils';
 import { Update, User } from '../../graphql/generated';
 import log from '../../log';
 import { ensureProjectExistsAsync } from '../../project/ensureProjectExists';
@@ -14,75 +13,6 @@ type TruncatedUpdate = Pick<
   Update,
   'updateGroup' | 'updateMessage' | 'createdAt' | 'platform' | 'runtimeVersion' | 'id'
 > & { platforms: string; actor: User };
-const PAGE_LIMIT = 10_000;
-
-async function viewUpdateReleaseAsync({
-  appId,
-  releaseName,
-}: {
-  appId: string;
-  releaseName: string;
-}): Promise<{
-  id: string;
-  releaseName: string;
-  updates: TruncatedUpdate[];
-}> {
-  const data = await withErrorHandlingAsync(
-    graphqlClient
-      .mutation<
-        {
-          app: {
-            byId: {
-              updateReleaseByReleaseName: {
-                id: string;
-                releaseName: string;
-                updates: TruncatedUpdate[];
-              };
-            };
-          };
-        },
-        {
-          appId: string;
-          releaseName: string;
-        }
-      >(
-        gql`
-          query ViewRelease($appId: String!, $releaseName: String!) {
-            app {
-              byId(appId: $appId) {
-                updateReleaseByReleaseName(releaseName: $releaseName) {
-                  id
-                  releaseName
-                  updates(offset: 0, limit: ${PAGE_LIMIT}) {
-                    id
-                    updateGroup
-                    updateMessage
-                    createdAt
-                    platform
-                    runtimeVersion
-                    actor {
-                      ... on User {
-                        username
-                      }
-                      ... on Robot {
-                        firstName
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        `,
-        {
-          appId,
-          releaseName,
-        }
-      )
-      .toPromise()
-  );
-  return data.app.byId.updateReleaseByReleaseName;
-}
 
 export default class UpdateList extends Command {
   static hidden = true;
@@ -187,7 +117,7 @@ export default class UpdateList extends Command {
       }));
     }
 
-    const updates = await this.getUpdates({
+    const updates = await getUpdates({
       projectId,
       releaseName,
       platformFlag,
