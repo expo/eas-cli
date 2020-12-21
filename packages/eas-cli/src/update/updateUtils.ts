@@ -5,8 +5,8 @@ import { Update, User } from '../graphql/generated';
 
 type TruncatedUpdate = Pick<
   Update,
-  'updateGroup' | 'updateMessage' | 'platform' | 'createdAt' | 'runtimeVersion'
-> & { platforms: string; actor: User; id?: string };
+  'updateGroup' | 'updateMessage' | 'createdAt' | 'runtimeVersion'
+> & { platforms: string; actor: User; id?: string; platform?: string };
 
 const PAGE_LIMIT = 10_000;
 
@@ -97,7 +97,7 @@ export async function getUpdates(options: {
       return update;
     }
 
-    return platformFlag.split(',').includes(update.platform);
+    return platformFlag.split(',').includes(update.platform ?? '');
   });
 
   if (allFlag) {
@@ -121,7 +121,7 @@ export async function getUpdates(options: {
       };
     },
     {} as {
-      [i: string]: Omit<TruncatedUpdate, 'platform'>;
+      [i: string]: TruncatedUpdate;
     }
   );
 

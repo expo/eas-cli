@@ -2,17 +2,11 @@ import { getConfig } from '@expo/config';
 import { Command, flags } from '@oclif/command';
 import Table from 'cli-table3';
 
-import { getUpdates, viewUpdateReleaseAsync } from '../../../src/update/updateUtils';
-import { Update, User } from '../../graphql/generated';
+import { getUpdates } from '../../../src/update/updateUtils';
 import log from '../../log';
 import { ensureProjectExistsAsync } from '../../project/ensureProjectExists';
 import { findProjectRootAsync, getProjectAccountNameAsync } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
-
-type TruncatedUpdate = Pick<
-  Update,
-  'updateGroup' | 'updateMessage' | 'createdAt' | 'platform' | 'runtimeVersion' | 'id'
-> & { platforms: string; actor: User };
 
 export default class UpdateList extends Command {
   static hidden = true;
@@ -78,8 +72,6 @@ export default class UpdateList extends Command {
       platformFlag,
       allFlag,
     });
-
-    console.log(updates);
 
     if (jsonFlag) {
       log(updates);
