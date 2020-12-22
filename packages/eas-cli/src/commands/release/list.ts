@@ -1,6 +1,5 @@
 import { Command, flags } from '@oclif/command';
 import { CLIError } from '@oclif/errors';
-import chalk from 'chalk';
 import CliTable from 'cli-table3';
 import gql from 'graphql-tag';
 import { format } from 'timeago.js';
