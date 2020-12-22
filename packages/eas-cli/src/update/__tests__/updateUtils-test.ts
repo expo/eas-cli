@@ -1,4 +1,4 @@
-import { getUpdates } from '../updateUtils';
+import { getUpdatesAsync } from '../updateUtils';
 
 jest.mock('../../graphql/client', () => {
   const response = {
@@ -61,11 +61,10 @@ jest.mock('../../graphql/client', () => {
 
 describe('update:list', () => {
   it('returns updates group by update group id', async () => {
-    const result = await getUpdates({
+    const result = await getUpdatesAsync({
       projectId: 'project-id',
       releaseName: 'release-name',
       platformFlag: undefined,
-      allFlag: false,
     });
 
     expect(result[0].updateGroup).toBe('update-group-id-1');
@@ -77,41 +76,14 @@ describe('update:list', () => {
   });
 
   it('returns updates group by update group id and filtered by platform', async () => {
-    const result = await getUpdates({
+    const result = await getUpdatesAsync({
       projectId: 'project-id',
       releaseName: 'release-name',
       platformFlag: 'android',
-      allFlag: false,
     });
 
     expect(result[0].updateGroup).toBe('update-group-id-1');
     expect(result[0].platforms).toBe('android');
     expect(result.length).toBe(1);
-  });
-
-  it('returns all updates', async () => {
-    const result = await getUpdates({
-      projectId: 'project-id',
-      releaseName: 'release-name',
-      platformFlag: undefined,
-      allFlag: true,
-    });
-
-    expect(result[0].id).toBe('update-id-1');
-    expect(result[1].id).toBe('update-id-2');
-    expect(result[2].id).toBe('update-id-3');
-    expect(result.length).toBe(3);
-  });
-
-  it('returns all updates filtered by platform', async () => {
-    const result = await getUpdates({
-      projectId: 'project-id',
-      releaseName: 'release-name',
-      platformFlag: 'ios',
-      allFlag: true,
-    });
-
-    expect(result[0].id).toBe('update-id-1');
-    expect(result.length).toBe(2);
   });
 });

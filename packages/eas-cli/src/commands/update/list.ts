@@ -2,7 +2,7 @@ import { getConfig } from '@expo/config';
 import { Command, flags } from '@oclif/command';
 import Table from 'cli-table3';
 
-import { getUpdates } from '../../../src/update/updateUtils';
+import { getUpdatesAsync } from '../../../src/update/updateUtils';
 import log from '../../log';
 import { ensureProjectExistsAsync } from '../../project/ensureProjectExists';
 import { findProjectRootAsync, getProjectAccountNameAsync } from '../../project/projectUtils';
@@ -22,11 +22,7 @@ export default class UpdateList extends Command {
 
   static flags = {
     platform: flags.string({
-      description: 'Platform-specifc updates to return: ios, android or both.',
-    }),
-    all: flags.boolean({
-      description: 'Return a list of all updates individually.',
-      default: false,
+      description: 'Platform-specifc updates to return: ios, android, or both.',
     }),
     json: flags.boolean({
       description: 'Return list of updates as JSON.',
@@ -37,7 +33,7 @@ export default class UpdateList extends Command {
   async run() {
     let {
       args: { releaseName },
-      flags: { json: jsonFlag, platform: platformFlag, all: allFlag },
+      flags: { json: jsonFlag, platform: platformFlag },
     } = this.parse(UpdateList);
 
     const projectDir = await findProjectRootAsync(process.cwd());
@@ -66,11 +62,10 @@ export default class UpdateList extends Command {
       }));
     }
 
-    const updates = await getUpdates({
+    const updates = await getUpdatesAsync({
       projectId,
       releaseName,
       platformFlag,
-      allFlag,
     });
 
     if (jsonFlag) {
@@ -79,12 +74,7 @@ export default class UpdateList extends Command {
     }
 
     const updateGroupTable = new Table({
-      head: [
-        'Created at',
-        'Update message',
-        `${allFlag ? 'Update ID' : 'Update group ID'}`,
-        `Platform${allFlag ? '' : 's'}`,
-      ],
+      head: ['Created at', 'Update message', 'Update group ID', 'Platforms'],
       wordWrap: true,
     });
 
@@ -92,8 +82,8 @@ export default class UpdateList extends Command {
       updateGroupTable.push([
         new Date(update.createdAt).toLocaleString(),
         `[${update.actor?.username}] ${update.updateMessage}`,
-        ...(allFlag ? [update.id] : [update.updateGroup]),
-        ...(allFlag ? [update.platform] : [update.platforms]),
+        update.updateGroup,
+        update.platforms,
       ]);
     }
 

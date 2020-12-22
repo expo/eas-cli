@@ -79,13 +79,12 @@ export async function viewUpdateReleaseAsync({
   return data.app.byId.updateReleaseByReleaseName;
 }
 
-export async function getUpdates(options: {
+export async function getUpdatesAsync(options: {
   projectId: string;
   releaseName: string;
   platformFlag?: string;
-  allFlag?: boolean;
 }) {
-  const { projectId, releaseName, platformFlag, allFlag = false } = options;
+  const { projectId, releaseName, platformFlag } = options;
 
   const UpdateRelease = await viewUpdateReleaseAsync({
     appId: projectId,
@@ -99,10 +98,6 @@ export async function getUpdates(options: {
 
     return platformFlag.split(',').includes(update.platform ?? '');
   });
-
-  if (allFlag) {
-    return filteredUpdates;
-  }
 
   const updatesByGroup = filteredUpdates.reduce(
     (acc, update) => {
