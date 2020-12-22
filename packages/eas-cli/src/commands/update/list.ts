@@ -69,7 +69,7 @@ export default class UpdateList extends Command {
     });
 
     if (jsonFlag) {
-      log(updates);
+      log(JSON.stringify(updates, null, 2));
       return;
     }
 
