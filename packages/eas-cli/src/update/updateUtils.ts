@@ -6,12 +6,12 @@ import { Update, User } from '../graphql/generated';
 type TruncatedUpdate = Pick<
   Update,
   'updateGroup' | 'updateMessage' | 'createdAt' | 'runtimeVersion' | 'platform' | 'id'
-> & { actor: Pick<User, 'username'> };
+> & { actor: Pick<User, 'username' | 'firstName'> };
 
 type UpdateGroup = Pick<
   Update,
   'updateGroup' | 'updateMessage' | 'createdAt' | 'runtimeVersion'
-> & { platforms: string; actor: Pick<User, 'username'> };
+> & { platforms: string; actor: Pick<User, 'username' | 'firstName'> };
 
 const PAGE_LIMIT = 10_000;
 

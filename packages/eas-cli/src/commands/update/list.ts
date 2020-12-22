@@ -81,7 +81,7 @@ export default class UpdateList extends Command {
     for (const update of updates) {
       updateGroupTable.push([
         new Date(update.createdAt).toLocaleString(),
-        `[${update.actor?.username}] ${update.updateMessage}`,
+        `[${update.actor?.username ?? update.actor?.firstName}] ${update.updateMessage}`,
         update.updateGroup,
         update.platforms,
       ]);
