@@ -5,8 +5,13 @@ import { Update, User } from '../graphql/generated';
 
 type TruncatedUpdate = Pick<
   Update,
+  'updateGroup' | 'updateMessage' | 'createdAt' | 'runtimeVersion' | 'platform' | 'id'
+> & { actor: Pick<User, 'username'> };
+
+type UpdateGroup = Pick<
+  Update,
   'updateGroup' | 'updateMessage' | 'createdAt' | 'runtimeVersion'
-> & { platforms: string; actor: User; id?: string; platform?: string };
+> & { platforms: string; actor: Pick<User, 'username'> };
 
 const PAGE_LIMIT = 10_000;
 
@@ -83,7 +88,7 @@ export async function getUpdatesAsync(options: {
   projectId: string;
   releaseName: string;
   platformFlag?: string;
-}) {
+}): Promise<UpdateGroup[]> {
   const { projectId, releaseName, platformFlag } = options;
 
   const UpdateRelease = await viewUpdateReleaseAsync({
@@ -116,7 +121,7 @@ export async function getUpdatesAsync(options: {
       };
     },
     {} as {
-      [i: string]: TruncatedUpdate;
+      [i: string]: UpdateGroup;
     }
   );
 
