@@ -26,10 +26,6 @@ export default class ReleasePublish extends Command {
     release: flags.string({
       description: 'current name of the release.',
     }),
-    'runtime-version': flags.string({
-      description: 'runtime version of the updates',
-      required: false,
-    }),
     message: flags.string({
       description: 'Short message describing the updates.',
       required: false,
@@ -45,7 +41,6 @@ export default class ReleasePublish extends Command {
       flags: {
         json: jsonFlag,
         release: releaseName,
-        'runtime-version': runtimeVersion,
         message: publishMessage,
         'input-dir': inputDir,
       },
@@ -55,10 +50,16 @@ export default class ReleasePublish extends Command {
     if (!projectDir) {
       throw new Error('Please run this command inside a project directory.');
     }
+
     const accountName = await getProjectAccountNameAsync(projectDir);
     const {
-      exp: { slug },
+      exp: { slug, runtimeVersion },
     } = getConfig(projectDir, { skipSDKVersionRequirement: true });
+    if (!runtimeVersion) {
+      throw new Error(
+        "Couldn't find either 'runtimeVersion'. Please specify it under the 'expo' key in 'app.json'"
+      );
+    }
     const projectId = await ensureProjectExistsAsync({
       accountName,
       projectName: slug,
@@ -73,19 +74,6 @@ export default class ReleasePublish extends Command {
         type: 'text',
         name: 'releaseName',
         message: 'Please enter the name of the release to publish on:',
-        validate: value => (value ? true : validationMessage),
-      }));
-    }
-
-    if (!runtimeVersion) {
-      const validationMessage = 'runtimeVersion name may not be empty.';
-      if (jsonFlag) {
-        throw new Error(validationMessage);
-      }
-      ({ runtimeVersion } = await promptAsync({
-        type: 'text',
-        name: 'runtimeVersion',
-        message: 'Please enter the runtime version of the updates',
         validate: value => (value ? true : validationMessage),
       }));
     }
