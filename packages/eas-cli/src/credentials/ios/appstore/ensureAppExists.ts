@@ -3,6 +3,7 @@ import chalk from 'chalk';
 import ora from 'ora';
 
 import { AuthCtx, getRequestContext } from './authenticate';
+import { assertContractMessagesAsync } from './contractMessages';
 
 export interface EnsureAppExistsOptions {
   enablePushNotifications?: boolean;
@@ -95,6 +96,7 @@ export async function ensureAppExistsAsync(
   }: { name: string; language?: string; companyName?: string; bundleIdentifier: string }
 ) {
   const context = getRequestContext(authCtx);
+  await assertContractMessagesAsync(context);
   const spinner = ora(`Linking to App Store ${chalk.dim(bundleIdentifier)}`).start();
 
   let app = await App.findAsync(context, { bundleId: bundleIdentifier });
@@ -117,7 +119,8 @@ export async function ensureAppExistsAsync(
       }
 
       spinner.fail(`Failed to create App Store app ${chalk.dim(name)}`);
-
+      error.message +=
+        '\nPlease visit https://appstoreconnect.apple.com and ensure all warnings are resolved before trying again.';
       throw error;
     }
   } else {

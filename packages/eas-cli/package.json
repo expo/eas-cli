@@ -8,7 +8,7 @@
   },
   "bugs": "https://github.com/expo/eas-cli/issues",
   "dependencies": {
-    "@expo/apple-utils": "0.0.0-alpha.16",
+    "@expo/apple-utils": "0.0.0-alpha.17",
     "@expo/config": "~3.3.19",
     "@expo/config-plugins": "~1.0.9",
     "@expo/eas-build-job": "0.1.4",
@@ -55,6 +55,7 @@
     "tempy": "^0.7.0",
     "timeago.js": "^4.0.2",
     "tslib": "^1",
+    "turndown": "^7.0.0",
     "untildify": "^4.0.0",
     "uuid": "^8.3.0",
     "wordwrap": "^1.0.0"
