@@ -1574,10 +1574,19 @@
     qqjs "^0.3.10"
     tslib "^1.9.3"
 
-"@expo/plist@0.0.10", "@expo/plist@^0.0.10":
+"@expo/plist@0.0.10":
   version "0.0.10"
   resolved "https://registry.yarnpkg.com/@expo/plist/-/plist-0.0.10.tgz#e126a15543c6c67fd159947ca9e35969657a97f4"
   integrity sha512-uKbi7ANPCNJqeAvxLa+ZcS/Qf0fTPOySMqw5T2L4TrycSAdiAxV1VUZ69IzIbUsWb7GdriUVR2i38M/xa6+BvA==
+  dependencies:
+    base64-js "^1.2.3"
+    xmlbuilder "^14.0.0"
+    xmldom "~0.1.31"
+
+"@expo/plist@^0.0.11":
+  version "0.0.11"
+  resolved "https://registry.yarnpkg.com/@expo/plist/-/plist-0.0.11.tgz#5d7900dc31df57d45a3524c061dde34aacc8dabf"
+  integrity sha512-yza93QHDkbdkdwu/PXef0eJSCMkMNdrHujK5G1viZLaZt0Rxw2s+geTyjgJsYpwqQEAoOYVpKlVymOenK+bFQg==
   dependencies:
     base64-js "^1.2.3"
     xmlbuilder "^14.0.0"

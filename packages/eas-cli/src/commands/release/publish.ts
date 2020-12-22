@@ -10,7 +10,7 @@ import {
   getProjectAccountNameAsync,
   getReleaseByNameAsync,
 } from '../../project/projectUtils';
-import { buildUpdateInfoGroup, collectAssets, uploadAssetsAsync } from '../../project/publish';
+import { buildUpdateInfoGroupAsync, collectAssets, uploadAssetsAsync } from '../../project/publish';
 import { promptAsync } from '../../prompts';
 import { getLastCommitMessageAsync } from '../../utils/git';
 
@@ -127,7 +127,7 @@ export default class ReleasePublish extends Command {
 
     log.withTick('Uploading assets...');
     await uploadAssetsAsync(assets);
-    const updateInfoGroup = buildUpdateInfoGroup(assets);
+    const updateInfoGroup = await buildUpdateInfoGroupAsync(assets);
 
     log.withTick('Publishing...');
     const newUpdateGroup = await PublishMutation.publishUpdateGroupAsync({
