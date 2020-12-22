@@ -13,6 +13,8 @@ import { getActorDisplayName } from '../../user/actions';
 const RELEASES_LIMIT = 10_000;
 
 export default class ReleaseList extends Command {
+  static hidden = true;
+
   static description = 'List all releases on this project.';
 
   static flags = {
