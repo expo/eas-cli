@@ -18,18 +18,19 @@ export default class ReleasePublish extends Command {
   static description = 'Publish an update group to a release.';
 
   static flags = {
-    inputDir: flags.string({
+    'input-dir': flags.string({
       description: 'location of the bundle',
+      default: 'dist',
       required: false,
     }),
-    releaseName: flags.string({
+    release: flags.string({
       description: 'current name of the release.',
     }),
-    runtimeVersion: flags.string({
+    'runtime-version': flags.string({
       description: 'runtime version of the updates',
       required: false,
     }),
-    publishMessage: flags.string({
+    message: flags.string({
       description: 'Short message describing the updates.',
       required: false,
     }),
@@ -41,7 +42,13 @@ export default class ReleasePublish extends Command {
 
   async run() {
     let {
-      flags: { json: jsonFlag, releaseName, runtimeVersion, publishMessage, inputDir },
+      flags: {
+        json: jsonFlag,
+        release: releaseName,
+        'runtime-version': runtimeVersion,
+        message: publishMessage,
+        'input-dir': inputDir,
+      },
     } = this.parse(ReleasePublish);
 
     const projectDir = await findProjectRootAsync(process.cwd());
@@ -56,20 +63,6 @@ export default class ReleasePublish extends Command {
       accountName,
       projectName: slug,
     });
-
-    if (!inputDir) {
-      const validationMessage = 'input directory must be specified.';
-      if (jsonFlag) {
-        throw new Error(validationMessage);
-      }
-      ({ inputDir } = await promptAsync({
-        type: 'text',
-        name: 'inputDir',
-        message: 'Please enter the name of the directory created by the bundler:',
-        initial: 'dist',
-        validate: value => (value ? true : validationMessage),
-      }));
-    }
 
     if (!releaseName) {
       const validationMessage = 'release name may not be empty.';
