@@ -51,7 +51,9 @@ const rootUrl = 'https://appstoreconnect.apple.com';
 
 export function formatContractMessage(message: ITCAgreements.ITCContractMessage): string {
   return convertHTMLToASCII({
-    content: [message.subject, message.message].filter(Boolean).join('<br />'),
+    content: [message.subject && `<b>${message.subject}</b>`, message.message]
+      .filter(Boolean)
+      .join('<br />'),
     rootUrl,
   });
 }
