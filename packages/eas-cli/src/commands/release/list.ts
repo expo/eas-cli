@@ -103,5 +103,7 @@ function formatUpdate(update: Update | undefined): string {
     return 'N/A';
   }
   const message = update.updateMessage ? `"${update.updateMessage}" ` : '';
-  return `${message}(${format(update.updatedAt, 'en_US')} by ${getActorDisplayName(update.actor)})`;
+  return `${message}(${format(update.updatedAt, 'en_US')} by ${getActorDisplayName(
+    update.actor as any
+  )})`;
 }
