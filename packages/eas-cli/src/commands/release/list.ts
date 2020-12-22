@@ -11,7 +11,7 @@ import log from '../../log';
 import { findProjectRootAsync, getProjectFullNameAsync } from '../../project/projectUtils';
 import { getActorDisplayName } from '../../user/actions';
 
-const RELEASES_LIMIT = 10000;
+const RELEASES_LIMIT = 10_000;
 
 export default class ReleaseList extends Command {
   static description = 'List all releases on this project.';
