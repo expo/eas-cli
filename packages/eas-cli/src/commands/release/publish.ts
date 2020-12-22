@@ -41,7 +41,7 @@ export default class ReleasePublish extends Command {
       flags: {
         json: jsonFlag,
         release: releaseName,
-        message: publishMessage,
+        message: updateMessage,
         'input-dir': inputDir,
       },
     } = this.parse(ReleasePublish);
@@ -78,12 +78,12 @@ export default class ReleasePublish extends Command {
       }));
     }
 
-    if (!publishMessage) {
+    if (!updateMessage) {
       const validationMessage = 'publish message may not be empty.';
       if (jsonFlag) {
         throw new Error(validationMessage);
       }
-      ({ publishMessage } = await promptAsync({
+      ({ publishMessage: updateMessage } = await promptAsync({
         type: 'text',
         name: 'publishMessage',
         message: `Please enter a publication message.`,
@@ -98,7 +98,7 @@ export default class ReleasePublish extends Command {
     });
 
     log.withTick(
-      `️Publishing "${publishMessage}" to ${releaseName}@${runtimeVersion} to on project ${chalk.bold(
+      `️Publishing "${updateMessage}" to ${releaseName}@${runtimeVersion} to on project ${chalk.bold(
         `@${accountName}/${slug}`
       )}.`
     );
@@ -114,8 +114,8 @@ export default class ReleasePublish extends Command {
     const newUpdateGroup = await PublishMutation.publishUpdateGroupAsync({
       releaseId,
       updateInfoGroup,
-      runtimeVersion: runtimeVersion!,
-      updateMessage: publishMessage,
+      runtimeVersion,
+      updateMessage,
     });
 
     if (jsonFlag) {
