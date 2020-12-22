@@ -22,7 +22,7 @@ export default class UpdateList extends Command {
 
   static flags = {
     platform: flags.string({
-      description: 'Platform-specifc updates to return: ios, android, web.',
+      description: 'Platform-specifc updates to return: ios, android or both.',
     }),
     all: flags.boolean({
       description: 'Return a list of all updates individually.',
