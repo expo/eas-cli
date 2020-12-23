@@ -1,7 +1,7 @@
 import { Result, result } from '@expo/results';
 import chalk from 'chalk';
 import getenv from 'getenv';
-import wordwrap from 'wordwrap';
+import wrapAnsi from 'wrap-ansi';
 
 import log, { learnMore } from '../../log';
 import { promptAsync } from '../../prompts';
@@ -101,15 +101,15 @@ class IosSubmitCommand {
       };
     }
 
-    const wrap = wordwrap(process.stdout.columns || 80);
     log(
-      wrap(
+      wrapAnsi(
         chalk.italic(
           'Ensuring your app exists on App Store Connect. ' +
             `This step can be skipped by providing the --asc-app-id param. ${learnMore(
               'https://expo.fyi/asc-app-id'
             )}`
-        )
+        ),
+        process.stdout.columns || 80
       )
     );
     log.addNewLineIfNone();

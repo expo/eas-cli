@@ -58,7 +58,7 @@
     "tslib": "^1",
     "untildify": "^4.0.0",
     "uuid": "^8.3.0",
-    "wordwrap": "^1.0.0"
+    "wrap-ansi": "^7.0.0"
   },
   "devDependencies": {
     "@babel/core": "^7.11.6",
@@ -83,7 +83,7 @@
     "@types/tar": "^4.0.3",
     "@types/tough-cookie": "^4.0.0",
     "@types/uuid": "^8.3.0",
-    "@types/wordwrap": "^1.0.0",
+    "@types/wrap-ansi": "^3.0.0",
     "@vercel/ncc": "^0.23.0",
     "axios": "^0.21.0",
     "babel-jest": "^26.3.0",
