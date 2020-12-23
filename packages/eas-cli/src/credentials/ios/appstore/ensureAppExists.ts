@@ -128,7 +128,7 @@ export async function ensureAppExistsAsync(
 
       spinner.fail(`Failed to create App Store app ${chalk.dim(name)}`);
       error.message +=
-        '\nPlease visit https://appstoreconnect.apple.com and ensure all warnings are resolved before trying again.';
+        '\nPlease visit https://appstoreconnect.apple.com and resolve any warnings, then try again.';
       throw error;
     }
   } else {
