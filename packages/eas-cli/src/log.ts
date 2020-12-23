@@ -2,6 +2,7 @@ import chalk from 'chalk';
 import figures from 'figures';
 import { boolish } from 'getenv';
 import ora from 'ora';
+import terminalLink from 'terminal-link';
 
 type Color = (...text: string[]) => string;
 
@@ -86,6 +87,10 @@ log.isDebug = IS_DEBUG;
  * @param url
  */
 export function learnMore(url: string, learnMoreMessage?: string): string {
+  // Links can be disabled via env variables https://github.com/jamestalmage/supports-hyperlinks/blob/master/index.js
+  if (terminalLink.isSupported) {
+    return chalk.dim(terminalLink(learnMoreMessage ?? 'Learn more.', url));
+  }
   return chalk.dim(`${learnMoreMessage ?? 'Learn more'}: ${chalk.underline(url)}`);
 }
 

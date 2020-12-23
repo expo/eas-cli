@@ -53,6 +53,7 @@
     "strip-ansi": "^6.0.0",
     "tar": "^6.0.5",
     "tempy": "^0.7.0",
+    "terminal-link": "^2.1.1",
     "timeago.js": "^4.0.2",
     "tslib": "^1",
     "untildify": "^4.0.0",
