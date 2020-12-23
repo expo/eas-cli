@@ -1,6 +1,7 @@
 import { getConfig } from '@expo/config';
 import { Command, flags } from '@oclif/command';
 import chalk from 'chalk';
+import Table from 'cli-table3';
 import ora from 'ora';
 
 import { PublishMutation } from '../../graphql/mutations/PublishMutation';
@@ -98,14 +99,8 @@ export default class ReleasePublish extends Command {
       releaseName: releaseName!,
     });
 
-    log.withTick(
-      `️Publishing "${updateMessage}" to ${releaseName}@${runtimeVersion} to on project ${chalk.bold(
-        `@${accountName}/${slug}`
-      )}.`
-    );
-
     let updateInfoGroup;
-    const assetSpinner = ora('Uploading assets').start();
+    const assetSpinner = ora('Uploading assets...').start();
     try {
       const assets = collectAssets(inputDir!);
       await uploadAssetsAsync(assets);
@@ -117,7 +112,7 @@ export default class ReleasePublish extends Command {
     }
 
     let newUpdateGroup;
-    const publishSpinner = ora('Publishing updates').start();
+    const publishSpinner = ora('Publishing...').start();
     try {
       newUpdateGroup = await PublishMutation.publishUpdateGroupAsync({
         releaseId,
@@ -125,7 +120,7 @@ export default class ReleasePublish extends Command {
         runtimeVersion,
         updateMessage,
       });
-      publishSpinner.succeed('Published updates!');
+      publishSpinner.succeed('Published!');
     } catch (e) {
       publishSpinner.fail('Failed to published updates');
       throw e;
@@ -133,14 +128,36 @@ export default class ReleasePublish extends Command {
 
     if (jsonFlag) {
       log(newUpdateGroup);
-      return;
+    } else {
+      const outputMessage = new Table({
+        wordWrap: true,
+        chars: {
+          top: '',
+          'top-mid': '',
+          'top-left': '',
+          'top-right': '',
+          bottom: '',
+          'bottom-mid': '',
+          'bottom-left': '',
+          'bottom-right': '',
+          left: '',
+          'left-mid': '',
+          mid: '',
+          'mid-mid': '',
+          right: '',
+          'right-mid': '',
+          middle: ' ',
+        },
+        style: { 'padding-left': 0, 'padding-right': 0 },
+      });
+      outputMessage.push(
+        [chalk.dim('project'), `@${accountName}/${slug}`],
+        [chalk.dim('release'), releaseName],
+        [chalk.dim('runtimeVersion'), runtimeVersion],
+        [chalk.dim('updateGroupID'), newUpdateGroup.updateGroup],
+        [chalk.dim('message'), updateMessage]
+      );
+      log(outputMessage.toString());
     }
-    log.withTick(
-      `Published update group ${
-        newUpdateGroup.updateGroup
-      } to release ${releaseName}@${runtimeVersion} on app ${chalk.bold(
-        `@${accountName}/${slug}`
-      )}!`
-    );
   }
 }
