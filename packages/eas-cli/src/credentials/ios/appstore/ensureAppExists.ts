@@ -61,7 +61,13 @@ export async function ensureBundleIdExistsWithNameAsync(
       );
     } else {
       spinner.fail(`Failed to register bundle identifier ${chalk.dim(bundleIdentifier)}`);
+
+      // Assert contract errors for easier resolution when the user has an expired developer account.
+      if (err.message.match(/forbidden for security reasons/)) {
+        await assertContractMessagesAsync(context);
+      }
     }
+
     throw err;
   }
 
@@ -96,7 +102,6 @@ export async function ensureAppExistsAsync(
   }: { name: string; language?: string; companyName?: string; bundleIdentifier: string }
 ) {
   const context = getRequestContext(authCtx);
-  await assertContractMessagesAsync(context);
   const spinner = ora(`Linking to App Store ${chalk.dim(bundleIdentifier)}`).start();
 
   let app = await App.findAsync(context, { bundleId: bundleIdentifier });
@@ -104,6 +109,9 @@ export async function ensureAppExistsAsync(
   if (!app) {
     spinner.text = `Creating App Store app ${chalk.bold(name)} ${chalk.dim(bundleIdentifier)}`;
     try {
+      // Assert contract errors when the user needs to create an app.
+      await assertContractMessagesAsync(context, spinner);
+
       app = await App.createAsync(context, {
         bundleId: bundleIdentifier,
         name,

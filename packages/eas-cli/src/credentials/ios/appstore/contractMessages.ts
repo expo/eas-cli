@@ -1,5 +1,6 @@
 import { ITCAgreements, RequestContext } from '@expo/apple-utils';
 import chalk from 'chalk';
+import { Ora } from 'ora';
 
 import log from '../../../log';
 import { convertHTMLToASCII } from '../utils/convertHTMLToASCII';
@@ -51,18 +52,24 @@ const rootUrl = 'https://appstoreconnect.apple.com';
 
 export function formatContractMessage(message: ITCAgreements.ITCContractMessage): string {
   return convertHTMLToASCII({
-    content: [message.subject && `<b>${message.subject}</b>`, message.message]
-      .filter(Boolean)
-      .join('<br />'),
+    content:
+      '\u203A ' +
+      [message.subject && `<b>${message.subject}</b>`, message.message]
+        .filter(Boolean)
+        .join('<br />'),
     rootUrl,
   });
 }
 
-export async function assertContractMessagesAsync(context: RequestContext) {
+export async function assertContractMessagesAsync(context: RequestContext, spinner?: Ora) {
   const messages = await getRequiredContractMessagesAsync(context);
 
   if (Array.isArray(messages) && messages.length) {
-    log(chalk.bold('Messages from App Store Connect:'));
+    if (spinner) {
+      spinner.stop();
+    }
+    log.newLine();
+    log(chalk.yellow.bold('Contract messages from App Store Connect:'));
     log.newLine();
     for (const message of messages) {
       if (log.isDebug) {
@@ -73,6 +80,8 @@ export async function assertContractMessagesAsync(context: RequestContext) {
       log(formatContractMessage(message));
     }
     log.addNewLineIfNone();
-    throw new Error('App Store Connect has contractual issues that must be resolved first');
+    throw new Error(
+      'App Store Connect has contract issues that must be resolved before apps can be created'
+    );
   }
 }
