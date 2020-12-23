@@ -59,7 +59,7 @@ export default class ReleasePublish extends Command {
     } = getConfig(projectDir, { skipSDKVersionRequirement: true });
     if (!runtimeVersion) {
       throw new Error(
-        "Couldn't find either 'runtimeVersion'. Please specify it under the 'expo' key in 'app.json'"
+        "Couldn't find 'runtimeVersion'. Please specify it under the 'expo' key in 'app.json'"
       );
     }
     const projectId = await ensureProjectExistsAsync({
