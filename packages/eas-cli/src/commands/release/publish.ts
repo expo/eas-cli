@@ -1,6 +1,7 @@
 import { getConfig } from '@expo/config';
 import { Command, flags } from '@oclif/command';
 import chalk from 'chalk';
+import ora from 'ora';
 
 import { PublishMutation } from '../../graphql/mutations/PublishMutation';
 import log from '../../log';
@@ -103,20 +104,32 @@ export default class ReleasePublish extends Command {
       )}.`
     );
 
-    log.withTick('Collecting assets...');
-    const assets = collectAssets(inputDir!);
+    let updateInfoGroup;
+    const assetSpinner = ora('Uploading assets').start();
+    try {
+      const assets = collectAssets(inputDir!);
+      await uploadAssetsAsync(assets);
+      updateInfoGroup = await buildUpdateInfoGroupAsync(assets);
+      assetSpinner.succeed('Uploaded assets!');
+    } catch (e) {
+      assetSpinner.fail('Failed to upload assets');
+      throw e;
+    }
 
-    log.withTick('Uploading assets...');
-    await uploadAssetsAsync(assets);
-    const updateInfoGroup = await buildUpdateInfoGroupAsync(assets);
-
-    log.withTick('Publishing...');
-    const newUpdateGroup = await PublishMutation.publishUpdateGroupAsync({
-      releaseId,
-      updateInfoGroup,
-      runtimeVersion,
-      updateMessage,
-    });
+    let newUpdateGroup;
+    const publishSpinner = ora('Publishing updates').start();
+    try {
+      newUpdateGroup = await PublishMutation.publishUpdateGroupAsync({
+        releaseId,
+        updateInfoGroup,
+        runtimeVersion,
+        updateMessage,
+      });
+      publishSpinner.succeed('Published updates!');
+    } catch (e) {
+      publishSpinner.fail('Failed to published updates');
+      throw e;
+    }
 
     if (jsonFlag) {
       log(newUpdateGroup);
