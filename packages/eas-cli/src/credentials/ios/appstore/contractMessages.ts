@@ -27,25 +27,34 @@ async function getContractMessagesAsync(context: RequestContext) {
 }
 
 async function getRequiredContractMessagesAsync(context: RequestContext) {
+  // This emulates the check that's performed on the ASC website's "apps"
+  // page before presenting the (+) create app button.
   const status = await getContractStatusAsync(context);
 
-  switch (status) {
-    // The user can freely create an app
-    case 'FREE_APP_AGREEMENT_ACTIVE':
-    case 'PAID_APP_AGREEMENT_ACTIVE':
-      return false;
-    // The user cannot create an app until they've resolved contract issues on ASC.
-    case 'FREE_APP_AGREEMENT_OUTDATED':
-    case 'PAID_APP_AGREEMENT_OUTDATED':
-    case 'EXPIRED_MEMBERSHIP':
-      return (await getContractMessagesAsync(context)) ?? [];
-    default:
-      // TODO: Maybe a silent analytic would be better
-      log.warn(
-        `Unknown Apple developer contract status "${status}". Please open an issue on https://github.com/expo/eas-cli`
-      );
-      return (await getContractMessagesAsync(context)) ?? [];
+  if (['FREE_APP_AGREEMENT_ACTIVE', 'PAID_APP_AGREEMENT_ACTIVE'].includes(status)) {
+    // The user can freely create an app, no contracts need to be accepted.
+    // No need to check for messages because afaict no vital messages will be present.
+    return [];
+  } else if (
+    ['FREE_APP_AGREEMENT_OUTDATED', 'PAID_APP_AGREEMENT_OUTDATED', 'EXPIRED_MEMBERSHIP'].includes(
+      status
+    )
+  ) {
+    // The user cannot create an app until they've reviewed, and agreed to the updated agreements
+    // or renewed their membership on ASC.
+    // Get the exact messages from ASC to show the user a useful message.
+    return (await getContractMessagesAsync(context)) ?? [];
   }
+  // The contract messages aren't documented so if a new one is present we cannot be sure if it's fatal or not.
+  // This will check for messages, if none exist, then the process will continue.
+  // Otherwise messages will be present and the process will stop.
+  // There is a small chance that this could result in a false positive if the messages are extraneous, so we'll also
+  // prompt the user to open an issue so we can address the new contract state if it ever appears.
+  // TODO: Maybe a silent analytic would be better
+  log.error(
+    `Unexpected Apple developer contract status "${status}". Please open an issue on https://github.com/expo/eas-cli`
+  );
+  return (await getContractMessagesAsync(context)) ?? [];
 }
 
 const rootUrl = 'https://appstoreconnect.apple.com';
