@@ -69,7 +69,7 @@ export async function assertContractMessagesAsync(context: RequestContext, spinn
       spinner.stop();
     }
     log.newLine();
-    log(chalk.yellow.bold('Contract messages from App Store Connect:'));
+    log(chalk.yellow.bold('Messages from App Store Connect:'));
     log.newLine();
     for (const message of messages) {
       if (log.isDebug) {
@@ -80,8 +80,6 @@ export async function assertContractMessagesAsync(context: RequestContext, spinn
       log(formatContractMessage(message));
     }
     log.addNewLineIfNone();
-    throw new Error(
-      'App Store Connect has contract issues that must be resolved before apps can be created'
-    );
+    throw new Error('App Store Connect has agreement updates that must be resolved');
   }
 }

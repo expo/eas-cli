@@ -1,7 +1,8 @@
 import chalk from 'chalk';
+import terminalLink from 'terminal-link';
 // @ts-ignore
 import TurndownService from 'turndown';
-import wordwrap from 'wordwrap';
+import wrapAnsi from 'wrap-ansi';
 
 const turndownServices: Record<string, any> = {};
 
@@ -41,6 +42,9 @@ function getService(rootUrl: string) {
     replacement(content: string, node: any) {
       let href = node.getAttribute('href');
       if (href.startsWith('/')) href = `${rootUrl}${href}`;
+      if (terminalLink.isSupported) {
+        return chalk.cyan(terminalLink(content, href));
+      }
       return `${chalk.cyan(content)} (${chalk.underline(href)})`;
     },
   });
@@ -57,6 +61,5 @@ export function convertHTMLToASCII({
   rootUrl: string;
 }): string {
   const service = getService(rootUrl);
-  const wrap = wordwrap(process.stdout.columns || 80);
-  return wrap(service.turndown(content));
+  return wrapAnsi(service.turndown(content), process.stdout.columns || 80);
 }

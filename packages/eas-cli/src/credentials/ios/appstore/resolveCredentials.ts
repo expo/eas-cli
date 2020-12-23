@@ -1,7 +1,7 @@
 import { Auth, JsonFileCache } from '@expo/apple-utils';
 import chalk from 'chalk';
 import * as fs from 'fs-extra';
-import wordwrap from 'wordwrap';
+import wrapAnsi from 'wrap-ansi';
 
 import log, { learnMore } from '../../../log';
 import { promptAsync } from '../../../prompts';
@@ -85,14 +85,13 @@ export async function promptPasswordAsync({
     return cachedPassword;
   }
 
-  const wrap = wordwrap(process.stdout.columns || 80);
-
   // https://docs.expo.io/distribution/security/#apple-developer-account-credentials
   log(
-    wrap(
+    wrapAnsi(
       chalk.bold(
         `\u203A The password is only used to authenticate with Apple and never stored on Expo servers`
-      )
+      ),
+      process.stdout.columns || 80
     )
   );
   log(`  ${learnMore('https://bit.ly/2VtGWhU')}`);

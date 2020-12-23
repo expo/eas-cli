@@ -3818,6 +3818,11 @@
   resolved "https://registry.yarnpkg.com/@types/wordwrap/-/wordwrap-1.0.0.tgz#959ffdd318eb8b6915de78c8fc4978681ad2aa4d"
   integrity sha512-XknqsI3sxtVduA/zP475wjMPH/qaZB6teY+AGvZkNUPhwxAac/QuKt6fpJCY9iO6ZpDhBmu9iOHgLXK78hoEDA==
 
+"@types/wrap-ansi@^3.0.0":
+  version "3.0.0"
+  resolved "https://registry.yarnpkg.com/@types/wrap-ansi/-/wrap-ansi-3.0.0.tgz#18b97a972f94f60a679fd5c796d96421b9abb9fd"
+  integrity sha512-ltIpx+kM7g/MLRZfkbL7EsCEjfzCcScLpkg37eXEtx5kmrAKBkTJwd1GIAjDSL8wTpM6Hzn5YO4pSb91BEwu1g==
+
 "@types/yargs-parser@*":
   version "15.0.0"
   resolved "https://registry.yarnpkg.com/@types/yargs-parser/-/yargs-parser-15.0.0.tgz#cb3f9f741869e20cce330ffbeb9271590483882d"
@@ -11955,7 +11960,7 @@ tempy@^0.7.0:
     type-fest "^0.16.0"
     unique-string "^2.0.0"
 
-terminal-link@^2.0.0:
+terminal-link@^2.0.0, terminal-link@^2.1.1:
   version "2.1.1"
   resolved "https://registry.yarnpkg.com/terminal-link/-/terminal-link-2.1.1.tgz#14a64a27ab3c0df933ea546fba55f2d078edc994"
   integrity sha512-un0FmiRUQNr5PJqy9kP7c40F5BOfpGlYTrxonDChEZB7pzZxRNp/bt+ymiy9/npwXya9KH99nJ/GXFIiUkYGFQ==
