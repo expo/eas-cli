@@ -120,7 +120,9 @@ export async function buildUpdateInfoGroupAsync(assets: CollectedAssets): Promis
 export function resolveInputDirectory(customInputDirectory: string): string {
   const distRoot = path.resolve(customInputDirectory);
   if (!fs.existsSync(distRoot)) {
-    throw new Error(`${distRoot} does not exist. Please create it with your desired bundler.`);
+    throw new Error(`The input directory "${customInputDirectory}" does not exist.
+    You'll need to run a command to build the JS bundle first (e.g. 'expo export').
+    You can use '--input-dir' to specify a different input directory.`);
   }
   return distRoot;
 }

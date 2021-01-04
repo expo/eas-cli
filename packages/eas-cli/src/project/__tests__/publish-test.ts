@@ -151,7 +151,9 @@ describe(resolveInputDirectory, () => {
     const nonExistentPath = path.resolve(uuidv4());
     expect(() => {
       resolveInputDirectory(nonExistentPath);
-    }).toThrow(`${nonExistentPath} does not exist. Please create it with your desired bundler.`);
+    }).toThrow(`The input directory "${nonExistentPath}" does not exist.
+    You'll need to run a command to build the JS bundle first (e.g. 'expo export').
+    You can use '--input-dir' to specify a different input directory.`);
   });
 });
 
