@@ -792,7 +792,7 @@ export type IosAppCredentials = {
   app: App;
   appleTeam?: Maybe<AppleTeam>;
   appleAppIdentifier: AppleAppIdentifier;
-  iosAppBuildCredentialsArray: Array<Maybe<IosAppBuildCredentials>>;
+  iosAppBuildCredentialsArray: Array<IosAppBuildCredentials>;
   pushKey?: Maybe<ApplePushKey>;
 };
 
@@ -807,11 +807,11 @@ export type AppleTeam = {
   account: Account;
   appleTeamIdentifier: Scalars['String'];
   appleTeamName?: Maybe<Scalars['String']>;
-  appleAppIdentifiers: Array<Maybe<AppleAppIdentifier>>;
-  appleDistributionCertificates: Array<Maybe<AppleDistributionCertificate>>;
-  applePushKeys: Array<Maybe<ApplePushKey>>;
-  appleProvisioningProfiles: Array<Maybe<AppleProvisioningProfile>>;
-  appleDevices?: Maybe<Array<Maybe<AppleDevice>>>;
+  appleAppIdentifiers: Array<AppleAppIdentifier>;
+  appleDistributionCertificates: Array<AppleDistributionCertificate>;
+  applePushKeys: Array<ApplePushKey>;
+  appleProvisioningProfiles: Array<AppleProvisioningProfile>;
+  appleDevices?: Maybe<Array<AppleDevice>>;
 };
 
 
@@ -869,8 +869,8 @@ export type AppleProvisioningProfile = {
   developerPortalIdentifier?: Maybe<Scalars['String']>;
   provisioningProfile?: Maybe<Scalars['String']>;
   appleUUID: Scalars['String'];
-  status?: Maybe<Scalars['String']>;
-  appleDevices?: Maybe<Array<Maybe<AppleDevice>>>;
+  status: Scalars['String'];
+  appleDevices?: Maybe<Array<AppleDevice>>;
   createdAt: Scalars['DateTime'];
   updatedAt: Scalars['DateTime'];
 };
@@ -910,6 +910,7 @@ export type IosAppBuildCredentials = {
   distributionCertificate?: Maybe<AppleDistributionCertificate>;
   provisioningProfile?: Maybe<AppleProvisioningProfile>;
   iosDistributionType: IosDistributionType;
+  /** @deprecated Get Apple Devices from AppleProvisioningProfile instead */
   appleDevices?: Maybe<Array<Maybe<AppleDevice>>>;
 };
 
@@ -924,7 +925,7 @@ export type AndroidAppCredentials = {
   app: App;
   applicationIdentifier?: Maybe<Scalars['String']>;
   androidFcm?: Maybe<AndroidFcm>;
-  androidAppBuildCredentialsArray: Array<Maybe<AndroidAppBuildCredentials>>;
+  androidAppBuildCredentialsArray: Array<AndroidAppBuildCredentials>;
   isLegacy: Scalars['Boolean'];
 };
 
