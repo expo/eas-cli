@@ -166,19 +166,19 @@ export type Account = {
   /** short lived property for test */
   offers?: Maybe<Array<Maybe<Offer>>>;
   /** Snacks associated with this account */
-  snacks?: Maybe<Array<Maybe<Snack>>>;
+  snacks: Array<Snack>;
   /** Apps associated with this account */
-  apps?: Maybe<Array<Maybe<App>>>;
+  apps: Array<App>;
   /** Build Jobs associated with this account */
-  buildJobs?: Maybe<Array<Maybe<BuildJob>>>;
+  buildJobs: Array<BuildJob>;
   /** (EAS Build) Builds associated with this account */
-  builds?: Maybe<Array<Maybe<Build>>>;
+  builds: Array<Build>;
   /** Owning User of this account if personal account */
   owner?: Maybe<User>;
   /** Actors associated with this account and permissions they hold */
-  users?: Maybe<Array<Maybe<UserPermission>>>;
+  users: Array<UserPermission>;
   /** Pending user invitations for this account */
-  userInvitations?: Maybe<Array<Maybe<UserInvitation>>>;
+  userInvitations: Array<UserInvitation>;
   /** Billing information */
   billing?: Maybe<Billing>;
   /**
@@ -189,12 +189,12 @@ export type Account = {
   /** @deprecated Legacy access tokens are deprecated */
   requiresAccessTokenForPushSecurity: Scalars['Boolean'];
   /** iOS credentials for account */
-  appleTeams: Array<Maybe<AppleTeam>>;
-  appleAppIdentifiers: Array<Maybe<AppleAppIdentifier>>;
-  appleDistributionCertificates: Array<Maybe<AppleDistributionCertificate>>;
-  applePushKeys: Array<Maybe<ApplePushKey>>;
-  appleProvisioningProfiles: Array<Maybe<AppleProvisioningProfile>>;
-  appleDevices?: Maybe<Array<Maybe<AppleDevice>>>;
+  appleTeams: Array<AppleTeam>;
+  appleAppIdentifiers: Array<AppleAppIdentifier>;
+  appleDistributionCertificates: Array<AppleDistributionCertificate>;
+  applePushKeys: Array<ApplePushKey>;
+  appleProvisioningProfiles: Array<AppleProvisioningProfile>;
+  appleDevices: Array<AppleDevice>;
 };
 
 
@@ -373,8 +373,8 @@ export type App = Project & {
   likedBy: Array<Maybe<User>>;
   /** @deprecated Field no longer supported */
   releases: Array<Maybe<AppRelease>>;
-  builds?: Maybe<Array<Maybe<Build>>>;
-  buildJobs: Array<Maybe<BuildJob>>;
+  builds: Array<Build>;
+  buildJobs: Array<BuildJob>;
   /** @deprecated Field no longer supported */
   users?: Maybe<Array<Maybe<User>>>;
   /** @deprecated Field no longer supported */
@@ -391,9 +391,9 @@ export type App = Project & {
   /** @deprecated Legacy access tokens are deprecated */
   requiresAccessTokenForPushSecurity: Scalars['Boolean'];
   /** iOS app credentials for the project */
-  iosAppCredentials: Array<Maybe<IosAppCredentials>>;
+  iosAppCredentials: Array<IosAppCredentials>;
   /** Android app credentials for the project */
-  androidAppCredentials: Array<Maybe<AndroidAppCredentials>>;
+  androidAppCredentials: Array<AndroidAppCredentials>;
   /** EAS channels owned by an app */
   updateChannels: Array<UpdateChannel>;
   /** get an EAS channel owned by the app by channelName */
@@ -403,7 +403,7 @@ export type App = Project & {
   /** get an EAS release owned by the app by releaseName */
   updateReleaseByReleaseName: UpdateRelease;
   /** Coalesced project activity for an app. Use "createdBefore" to offset a query. */
-  activityTimelineProjectActivities?: Maybe<Array<Maybe<ActivityTimelineProjectActivity>>>;
+  activityTimelineProjectActivities: Array<ActivityTimelineProjectActivity>;
 };
 
 
@@ -521,15 +521,15 @@ export type User = Actor & {
   isExpoAdmin?: Maybe<Scalars['Boolean']>;
   isSecondFactorAuthenticationEnabled: Scalars['Boolean'];
   /** Get all certified second factor authentication methods */
-  secondFactorDevices: Array<Maybe<UserSecondFactorDevice>>;
+  secondFactorDevices: Array<UserSecondFactorDevice>;
   /** Associated accounts */
-  accounts?: Maybe<Array<Maybe<Account>>>;
+  accounts: Array<Account>;
   /** Access Tokens belonging to this actor */
-  accessTokens?: Maybe<Array<Maybe<AccessToken>>>;
+  accessTokens: Array<AccessToken>;
   /** Snacks associated with this account */
-  snacks?: Maybe<Array<Maybe<Snack>>>;
+  snacks: Array<Snack>;
   /** Apps this user has published */
-  apps?: Maybe<Array<Maybe<App>>>;
+  apps: Array<App>;
   /**
    * Likes this user has made
    * @deprecated 'likes' have been deprecated.
@@ -538,7 +538,7 @@ export type User = Actor & {
   /** Whether this user has any pending user invitations. Only resolves for the viewer. */
   hasPendingUserInvitations: Scalars['Boolean'];
   /** Pending UserInvitations for this user. Only resolves for the viewer. */
-  pendingUserInvitations: Array<Maybe<UserInvitation>>;
+  pendingUserInvitations: Array<UserInvitation>;
   /**
    * Server feature gate values for this actor, optionally filtering by desired gates.
    * Only resolves for the viewer.
@@ -580,9 +580,9 @@ export type Actor = {
   created?: Maybe<Scalars['DateTime']>;
   isExpoAdmin?: Maybe<Scalars['Boolean']>;
   /** Associated accounts */
-  accounts?: Maybe<Array<Maybe<Account>>>;
+  accounts: Array<Account>;
   /** Access Tokens belonging to this actor */
-  accessTokens?: Maybe<Array<Maybe<AccessToken>>>;
+  accessTokens: Array<AccessToken>;
   /**
    * Server feature gate values for this actor, optionally filtering by desired gates.
    * Only resolves for the viewer.
@@ -640,7 +640,7 @@ export type UserInvitation = {
   created: Scalars['DateTime'];
   accountName: Scalars['String'];
   /** Account permissions to be granted upon acceptance of this invitation */
-  permissions: Array<Maybe<Permission>>;
+  permissions: Array<Permission>;
   /** Role to be granted upon acceptance of this invitation */
   role: Role;
 };
@@ -698,7 +698,7 @@ export type Build = ActivityTimelineProjectActivity & {
   initiatingUser?: Maybe<User>;
   initiatingActor?: Maybe<Actor>;
   artifacts?: Maybe<BuildArtifacts>;
-  logFiles?: Maybe<Array<Maybe<Scalars['String']>>>;
+  logFiles: Array<Scalars['String']>;
   updatedAt?: Maybe<Scalars['DateTime']>;
   createdAt?: Maybe<Scalars['DateTime']>;
   status: BuildStatus;
@@ -870,7 +870,7 @@ export type AppleProvisioningProfile = {
   provisioningProfile?: Maybe<Scalars['String']>;
   appleUUID: Scalars['String'];
   status: Scalars['String'];
-  appleDevices?: Maybe<Array<AppleDevice>>;
+  appleDevices: Array<AppleDevice>;
   createdAt: Scalars['DateTime'];
   updatedAt: Scalars['DateTime'];
 };
@@ -1047,7 +1047,7 @@ export type Update = ActivityTimelineProjectActivity & {
 
 export type UserPermission = {
   __typename?: 'UserPermission';
-  permissions?: Maybe<Array<Maybe<Permission>>>;
+  permissions: Array<Permission>;
   role?: Maybe<Role>;
   /** @deprecated User type is deprecated */
   user?: Maybe<User>;
@@ -2125,9 +2125,9 @@ export type Robot = Actor & {
   created?: Maybe<Scalars['DateTime']>;
   isExpoAdmin?: Maybe<Scalars['Boolean']>;
   /** Associated accounts */
-  accounts?: Maybe<Array<Maybe<Account>>>;
+  accounts: Array<Account>;
   /** Access Tokens belonging to this actor */
-  accessTokens?: Maybe<Array<Maybe<AccessToken>>>;
+  accessTokens: Array<AccessToken>;
   /**
    * Server feature gate values for this actor, optionally filtering by desired gates.
    * Only resolves for the viewer.
@@ -2692,13 +2692,13 @@ export type PendingBuildsForAccountAndPlatformQuery = (
     { __typename?: 'AccountQuery' }
     & { byName: (
       { __typename?: 'Account' }
-      & { inQueueBuilds?: Maybe<Array<Maybe<(
+      & { inQueueBuilds: Array<(
         { __typename?: 'Build' }
         & Pick<Build, 'id' | 'platform'>
-      )>>>, inProgressBuilds?: Maybe<Array<Maybe<(
+      )>, inProgressBuilds: Array<(
         { __typename?: 'Build' }
         & Pick<Build, 'id' | 'platform'>
-      )>>> }
+      )> }
     ) }
   ) }
 );
@@ -2747,16 +2747,16 @@ export type CurrentUserQuery = (
   & { meActor?: Maybe<(
     { __typename: 'User' }
     & Pick<User, 'username' | 'id' | 'isExpoAdmin'>
-    & { accounts?: Maybe<Array<Maybe<(
+    & { accounts: Array<(
       { __typename?: 'Account' }
       & Pick<Account, 'id' | 'name'>
-    )>>> }
+    )> }
   ) | (
     { __typename: 'Robot' }
     & Pick<Robot, 'firstName' | 'id' | 'isExpoAdmin'>
-    & { accounts?: Maybe<Array<Maybe<(
+    & { accounts: Array<(
       { __typename?: 'Account' }
       & Pick<Account, 'id' | 'name'>
-    )>>> }
+    )> }
   )> }
 );
