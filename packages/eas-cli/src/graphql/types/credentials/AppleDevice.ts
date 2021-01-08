@@ -1,6 +1,5 @@
 import gql from 'graphql-tag';
 
-import { Fragment } from '../../fragment';
 import { AppleDeviceClass } from '../../generated';
 
 export const APPLE_DEVICE_CLASS_LABELS: Record<AppleDeviceClass, string> = {
@@ -8,15 +7,12 @@ export const APPLE_DEVICE_CLASS_LABELS: Record<AppleDeviceClass, string> = {
   [AppleDeviceClass.Iphone]: 'iPhone',
 };
 
-export const AppleDeviceFragment: Fragment = {
-  name: 'appleDevice',
-  definition: gql`
-    fragment appleDevice on AppleDevice {
-      id
-      identifier
-      name
-      model
-      deviceClass
-    }
-  `,
-};
+export const AppleDeviceFragmentDoc = gql`
+  fragment AppleDeviceFragment on AppleDevice {
+    id
+    identifier
+    name
+    model
+    deviceClass
+  }
+`;

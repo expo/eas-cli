@@ -3,7 +3,7 @@ import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
 import { AppleAppIdentifier } from '../../../../../graphql/generated';
-import { AppleAppIdentifierFragment } from '../../../../../graphql/types/credentials/AppleAppIdentifier';
+import { AppleAppIdentifierFragmentDoc } from '../../../../../graphql/types/credentials/AppleAppIdentifier';
 
 const AppleAppIdentifierMutation = {
   async createAppleAppIdentifierAsync(
@@ -17,14 +17,20 @@ const AppleAppIdentifierMutation = {
       graphqlClient
         .mutation<{ appleAppIdentifier: { createAppleAppIdentifier: AppleAppIdentifier } }>(
           gql`
-            mutation AppleAppIdentifierMutation($appleAppIdentifierInput: AppleAppIdentifierInput!, $accountId: ID!) {
+            mutation AppleAppIdentifierMutation(
+              $appleAppIdentifierInput: AppleAppIdentifierInput!
+              $accountId: ID!
+            ) {
               appleAppIdentifier {
-                createAppleAppIdentifier(appleAppIdentifierInput: $appleAppIdentifierInput, accountId: $accountId) {
-                  ...${AppleAppIdentifierFragment.name}
+                createAppleAppIdentifier(
+                  appleAppIdentifierInput: $appleAppIdentifierInput
+                  accountId: $accountId
+                ) {
+                  ...AppleAppIdentifierFragment
                 }
               }
             }
-            ${print(AppleAppIdentifierFragment.definition)}
+            ${print(AppleAppIdentifierFragmentDoc)}
           `,
           {
             appleAppIdentifierInput,

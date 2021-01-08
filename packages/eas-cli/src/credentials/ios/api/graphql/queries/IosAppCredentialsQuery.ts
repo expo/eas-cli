@@ -3,8 +3,8 @@ import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
 import { IosAppCredentials, IosDistributionType } from '../../../../../graphql/generated';
-import { IosAppBuildCredentialsFragment } from '../../../../../graphql/types/credentials/IosAppBuildCredentials';
-import { IosAppCredentialsFragment } from '../../../../../graphql/types/credentials/IosAppCredentials';
+import { IosAppBuildCredentialsFragmentDoc } from '../../../../../graphql/types/credentials/IosAppBuildCredentials';
+import { IosAppCredentialsFragmentDoc } from '../../../../../graphql/types/credentials/IosAppCredentials';
 
 const IosAppCredentialsQuery = {
   async byAppIdentifierIdAsync(
@@ -19,12 +19,12 @@ const IosAppCredentialsQuery = {
               app {
                 byFullName(fullName: $projectFullName) {
                   iosAppCredentials(filter: { appleAppIdentifierId: $appleAppIdentifierId }) {
-                    ...${IosAppCredentialsFragment.name}
+                    ...IosAppCredentialsFragment
                   }
                 }
               }
             }
-            ${print(IosAppCredentialsFragment.definition)}
+            ${print(IosAppCredentialsFragmentDoc)}
           `,
           {
             projectFullName,
@@ -52,23 +52,27 @@ const IosAppCredentialsQuery = {
       graphqlClient
         .query<{ app: { byFullName: { iosAppCredentials: IosAppCredentials[] } } }>(
           gql`
-              query($projectFullName: String!, $appleAppIdentifierId: String!, $iosDistributionType: IosDistributionType!) {
-                app {
-                  byFullName(fullName: $projectFullName) {
-                    iosAppCredentials(filter: { appleAppIdentifierId: $appleAppIdentifierId }) {
-                      ...${IosAppCredentialsFragment.name}
-                      iosAppBuildCredentialsArray(
-                        filter: { iosDistributionType: $iosDistributionType }
-                      ) {
-                        ...${IosAppBuildCredentialsFragment.name}
-                      }
+            query(
+              $projectFullName: String!
+              $appleAppIdentifierId: String!
+              $iosDistributionType: IosDistributionType!
+            ) {
+              app {
+                byFullName(fullName: $projectFullName) {
+                  iosAppCredentials(filter: { appleAppIdentifierId: $appleAppIdentifierId }) {
+                    ...IosAppCredentialsFragment
+                    iosAppBuildCredentialsArray(
+                      filter: { iosDistributionType: $iosDistributionType }
+                    ) {
+                      ...IosAppBuildCredentialsFragment
                     }
                   }
                 }
               }
-              ${print(IosAppCredentialsFragment.definition)}
-              ${print(IosAppBuildCredentialsFragment.definition)}
-            `,
+            }
+            ${print(IosAppCredentialsFragmentDoc)}
+            ${print(IosAppBuildCredentialsFragmentDoc)}
+          `,
           {
             projectFullName,
             appleAppIdentifierId,

@@ -44,16 +44,17 @@ async function viewUpdateReleaseAsync({
         {
           appId: string;
           releaseName: string;
+          limit: number;
         }
       >(
         gql`
-          query ViewRelease($appId: String!, $releaseName: String!) {
+          query ViewRelease($appId: String!, $releaseName: String!, $limit: Int!) {
             app {
               byId(appId: $appId) {
                 updateReleaseByReleaseName(releaseName: $releaseName) {
                   id
                   releaseName
-                  updates(offset: 0, limit: ${PAGE_LIMIT}) {
+                  updates(offset: 0, limit: $limit) {
                     updateGroup
                     updateMessage
                     createdAt
@@ -74,6 +75,7 @@ async function viewUpdateReleaseAsync({
         {
           appId,
           releaseName,
+          limit: PAGE_LIMIT,
         }
       )
       .toPromise()

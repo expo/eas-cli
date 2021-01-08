@@ -3,7 +3,7 @@ import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
 import { IosAppCredentials } from '../../../../../graphql/generated';
-import { IosAppCredentialsFragment } from '../../../../../graphql/types/credentials/IosAppCredentials';
+import { IosAppCredentialsFragmentDoc } from '../../../../../graphql/types/credentials/IosAppCredentials';
 
 const IosAppCredentialsMutation = {
   async createIosAppCredentialsAsync(
@@ -18,14 +18,22 @@ const IosAppCredentialsMutation = {
       graphqlClient
         .mutation<{ iosAppCredentials: { createIosAppCredentials: IosAppCredentials } }>(
           gql`
-            mutation IosAppCredentialsMutation($iosAppCredentialsInput: IosAppCredentialsInput!, $appId: ID!, $appleAppIdentifierId: ID!) {
+            mutation IosAppCredentialsMutation(
+              $iosAppCredentialsInput: IosAppCredentialsInput!
+              $appId: ID!
+              $appleAppIdentifierId: ID!
+            ) {
               iosAppCredentials {
-                createIosAppCredentials(iosAppCredentialsInput: $iosAppCredentialsInput, appId: $appId, appleAppIdentifierId: $appleAppIdentifierId) {
-                  ...${IosAppCredentialsFragment.name}
+                createIosAppCredentials(
+                  iosAppCredentialsInput: $iosAppCredentialsInput
+                  appId: $appId
+                  appleAppIdentifierId: $appleAppIdentifierId
+                ) {
+                  ...IosAppCredentialsFragment
                 }
               }
             }
-            ${print(IosAppCredentialsFragment.definition)}
+            ${print(IosAppCredentialsFragmentDoc)}
           `,
           {
             iosAppCredentialsInput,
