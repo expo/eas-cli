@@ -31,7 +31,7 @@ const AppleDistributionCertificateQuery = {
           };
         }>(
           gql`
-            query(
+            query AppleDistributionCertificateByAppQuery(
               $projectFullName: String!
               $appleAppIdentifierId: String!
               $iosDistributionType: IosDistributionType!
@@ -83,7 +83,7 @@ const AppleDistributionCertificateQuery = {
           };
         }>(
           gql`
-            query($accountName: String!) {
+            query AppleDistributionCertificateByAccountQuery($accountName: String!) {
               account {
                 byName(accountName: $accountName) {
                   appleDistributionCertificates {
