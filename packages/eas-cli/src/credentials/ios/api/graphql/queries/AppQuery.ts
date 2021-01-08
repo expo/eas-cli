@@ -14,11 +14,11 @@ const AppQuery = {
             query($fullName: String!) {
               app {
                 byFullName(fullName: $fullName) {
-                  ...${AppFragment.name}
+                  ...AppFragment
                 }
               }
             }
-            ${print(AppFragment.definition)}
+            ${print(AppFragment)}
           `,
           { fullName }
         )

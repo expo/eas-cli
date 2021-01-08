@@ -1,14 +1,9 @@
 import gql from 'graphql-tag';
 
-import { Fragment } from '../../fragment';
-
-export const AppleTeamFragment: Fragment = {
-  name: 'appleTeam',
-  definition: gql`
-    fragment appleTeam on AppleTeam {
-      id
-      appleTeamIdentifier
-      appleTeamName
-    }
-  `,
-};
+export const AppleTeamFragmentDoc = gql`
+  fragment AppleTeamFragment on AppleTeam {
+    id
+    appleTeamIdentifier
+    appleTeamName
+  }
+`;

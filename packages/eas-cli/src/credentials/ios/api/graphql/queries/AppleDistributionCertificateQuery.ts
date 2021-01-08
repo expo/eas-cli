@@ -6,8 +6,8 @@ import {
   AppleDistributionCertificate,
   IosDistributionType,
 } from '../../../../../graphql/generated';
-import { AppleDistributionCertificateFragment } from '../../../../../graphql/types/credentials/AppleDistributionCertificate';
-import { AppleTeamFragment } from '../../../../../graphql/types/credentials/AppleTeam';
+import { AppleDistributionCertificateFragmentDoc } from '../../../../../graphql/types/credentials/AppleDistributionCertificate';
+import { AppleTeamFragmentDoc } from '../../../../../graphql/types/credentials/AppleTeam';
 
 const AppleDistributionCertificateQuery = {
   async getForAppAsync(
@@ -43,9 +43,9 @@ const AppleDistributionCertificateQuery = {
                       filter: { iosDistributionType: $iosDistributionType }
                     ) {
                       distributionCertificate {
-                        ...${AppleDistributionCertificateFragment.name}
+                        ...AppleDistributionCertificateFragment
                         appleTeam {
-                          ...${AppleTeamFragment.name}
+                          ...AppleTeamFragment
                         }
                       }
                     }
@@ -53,8 +53,8 @@ const AppleDistributionCertificateQuery = {
                 }
               }
             }
-            ${print(AppleDistributionCertificateFragment.definition)}
-            ${print(AppleTeamFragment.definition)}
+            ${print(AppleDistributionCertificateFragmentDoc)}
+            ${print(AppleTeamFragmentDoc)}
           `,
           {
             projectFullName,
@@ -87,16 +87,16 @@ const AppleDistributionCertificateQuery = {
               account {
                 byName(accountName: $accountName) {
                   appleDistributionCertificates {
-                    ...${AppleDistributionCertificateFragment.name}
+                    ...AppleDistributionCertificateFragment
                     appleTeam {
-                      ...${AppleTeamFragment.name}
+                      ...AppleTeamFragment
                     }
                   }
                 }
               }
             }
-            ${print(AppleDistributionCertificateFragment.definition)}
-            ${print(AppleTeamFragment.definition)}
+            ${print(AppleDistributionCertificateFragmentDoc)}
+            ${print(AppleTeamFragmentDoc)}
           `,
           {
             accountName,

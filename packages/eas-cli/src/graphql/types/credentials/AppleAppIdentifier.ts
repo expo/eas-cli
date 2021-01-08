@@ -1,13 +1,8 @@
 import gql from 'graphql-tag';
 
-import { Fragment } from '../../fragment';
-
-export const AppleAppIdentifierFragment: Fragment = {
-  name: 'appleAppIdentifier',
-  definition: gql`
-    fragment appleAppIdentifier on AppleAppIdentifier {
-      id
-      bundleIdentifier
-    }
-  `,
-};
+export const AppleAppIdentifierFragmentDoc = gql`
+  fragment AppleAppIdentifierFragment on AppleAppIdentifier {
+    id
+    bundleIdentifier
+  }
+`;

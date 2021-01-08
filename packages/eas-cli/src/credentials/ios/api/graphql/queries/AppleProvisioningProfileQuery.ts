@@ -3,10 +3,10 @@ import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
 import { AppleProvisioningProfile, IosDistributionType } from '../../../../../graphql/generated';
-import { AppleAppIdentifierFragment } from '../../../../../graphql/types/credentials/AppleAppIdentifier';
-import { AppleDeviceFragment } from '../../../../../graphql/types/credentials/AppleDevice';
-import { AppleProvisioningProfileFragment } from '../../../../../graphql/types/credentials/AppleProvisioningProfile';
-import { AppleTeamFragment } from '../../../../../graphql/types/credentials/AppleTeam';
+import { AppleAppIdentifierFragmentDoc } from '../../../../../graphql/types/credentials/AppleAppIdentifier';
+import { AppleDeviceFragmentDoc } from '../../../../../graphql/types/credentials/AppleDevice';
+import { AppleProvisioningProfileFragmentDoc } from '../../../../../graphql/types/credentials/AppleProvisioningProfile';
+import { AppleTeamFragmentDoc } from '../../../../../graphql/types/credentials/AppleTeam';
 
 const AppleProvisioningProfileQuery = {
   async getForAppAsync(
@@ -42,15 +42,15 @@ const AppleProvisioningProfileQuery = {
                       filter: { iosDistributionType: $iosDistributionType }
                     ) {
                       provisioningProfile {
-                        ...${AppleProvisioningProfileFragment.name}
+                        ...AppleProvisioningProfileFragment
                         appleTeam {
-                          ...${AppleTeamFragment.name}
+                          ...AppleTeamFragment
                         }
                         appleDevices {
-                          ...${AppleDeviceFragment.name}
+                          ...AppleDeviceFragment
                         }
                         appleAppIdentifier {
-                          ...${AppleAppIdentifierFragment.name}
+                          ...AppleAppIdentifierFragment
                         }
                       }
                     }
@@ -58,10 +58,10 @@ const AppleProvisioningProfileQuery = {
                 }
               }
             }
-            ${print(AppleProvisioningProfileFragment.definition)}
-            ${print(AppleTeamFragment.definition)}
-            ${print(AppleDeviceFragment.definition)}
-            ${print(AppleAppIdentifierFragment.definition)}
+            ${print(AppleProvisioningProfileFragmentDoc)}
+            ${print(AppleTeamFragmentDoc)}
+            ${print(AppleDeviceFragmentDoc)}
+            ${print(AppleAppIdentifierFragmentDoc)}
           `,
           {
             projectFullName,

@@ -3,7 +3,7 @@ import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
 import { AppleTeam } from '../../../../../graphql/generated';
-import { AppleTeamFragment } from '../../../../../graphql/types/credentials/AppleTeam';
+import { AppleTeamFragmentDoc } from '../../../../../graphql/types/credentials/AppleTeam';
 
 const AppleTeamMutation = {
   async createAppleTeamAsync(
@@ -20,7 +20,7 @@ const AppleTeamMutation = {
             mutation AppleTeamMutation($appleTeamInput: AppleTeamInput!, $accountId: ID!) {
               appleTeam {
                 createAppleTeam(appleTeamInput: $appleTeamInput, accountId: $accountId) {
-                  ...${AppleTeamFragment.name}
+                  ...AppleTeamFragment
                   account {
                     id
                     name
@@ -28,7 +28,7 @@ const AppleTeamMutation = {
                 }
               }
             }
-            ${print(AppleTeamFragment.definition)}
+            ${print(AppleTeamFragmentDoc)}
           `,
           {
             appleTeamInput,
