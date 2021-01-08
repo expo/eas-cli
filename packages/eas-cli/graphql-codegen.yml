@@ -10,3 +10,6 @@ generates:
     hooks:
       afterOneFileWrite:
         - ./annotate-graphql-codegen.sh
+  ./graphql.schema.json:
+    plugins:
+      - 'introspection'
