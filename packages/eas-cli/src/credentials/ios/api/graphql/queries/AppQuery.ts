@@ -1,3 +1,4 @@
+import { print } from 'graphql';
 import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
@@ -17,7 +18,7 @@ const AppQuery = {
                 }
               }
             }
-            ${AppFragment.definition}
+            ${print(AppFragment.definition)}
           `,
           { fullName }
         )

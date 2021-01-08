@@ -1,3 +1,4 @@
+import { print } from 'graphql';
 import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
@@ -52,8 +53,8 @@ const AppleDistributionCertificateQuery = {
                 }
               }
             }
-            ${AppleDistributionCertificateFragment.definition}
-            ${AppleTeamFragment.definition}
+            ${print(AppleDistributionCertificateFragment.definition)}
+            ${print(AppleTeamFragment.definition)}
           `,
           {
             projectFullName,
@@ -94,8 +95,8 @@ const AppleDistributionCertificateQuery = {
                 }
               }
             }
-            ${AppleDistributionCertificateFragment.definition}
-            ${AppleTeamFragment.definition}
+            ${print(AppleDistributionCertificateFragment.definition)}
+            ${print(AppleTeamFragment.definition)}
           `,
           {
             accountName,

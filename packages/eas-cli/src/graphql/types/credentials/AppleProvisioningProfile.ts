@@ -1,8 +1,10 @@
+import gql from 'graphql-tag';
+
 import { Fragment } from '../../fragment';
 
 export const AppleProvisioningProfileFragment: Fragment = {
   name: 'appleProvisioningProfile',
-  definition: /* GraphQL*/ `
+  definition: gql`
     fragment appleProvisioningProfile on AppleProvisioningProfile {
       id
       expiration

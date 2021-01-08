@@ -1,3 +1,4 @@
+import { print } from 'graphql';
 import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
@@ -47,7 +48,7 @@ const AppleTeamQuery = {
                 }
               }
             }
-            ${AppleTeamFragment.definition}
+            ${print(AppleTeamFragment.definition)}
           `,
           {
             accountId,

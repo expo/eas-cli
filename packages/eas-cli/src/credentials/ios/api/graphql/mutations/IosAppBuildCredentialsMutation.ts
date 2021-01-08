@@ -1,3 +1,4 @@
+import { print } from 'graphql';
 import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
@@ -26,7 +27,7 @@ const IosAppBuildCredentialsMutation = {
                 }
               }
             }
-            ${IosAppBuildCredentialsFragment.definition}
+            ${print(IosAppBuildCredentialsFragment.definition)}
           `,
           {
             iosAppBuildCredentialsInput,
@@ -54,7 +55,7 @@ const IosAppBuildCredentialsMutation = {
                 }
               }
             }
-            ${IosAppBuildCredentialsFragment.definition}
+            ${print(IosAppBuildCredentialsFragment.definition)}
           `,
           {
             iosAppBuildCredentialsId,
@@ -82,7 +83,7 @@ const IosAppBuildCredentialsMutation = {
                 }
               }
             }
-            ${IosAppBuildCredentialsFragment.definition}
+            ${print(IosAppBuildCredentialsFragment.definition)}
           `,
           {
             iosAppBuildCredentialsId,

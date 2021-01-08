@@ -1,3 +1,4 @@
+import { print } from 'graphql';
 import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
@@ -38,8 +39,8 @@ const AppleProvisioningProfileMutation = {
                 }
               }
             }
-            ${AppleProvisioningProfileFragment.definition}
-            ${AppleTeamFragment.definition}
+            ${print(AppleProvisioningProfileFragment.definition)}
+            ${print(AppleTeamFragment.definition)}
           `,
           {
             appleProvisioningProfileInput,
@@ -80,8 +81,8 @@ const AppleProvisioningProfileMutation = {
                 }
               }
             }
-            ${AppleProvisioningProfileFragment.definition}
-            ${AppleTeamFragment.definition}
+            ${print(AppleProvisioningProfileFragment.definition)}
+            ${print(AppleTeamFragment.definition)}
           `,
           {
             appleProvisioningProfileId,

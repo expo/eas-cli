@@ -1,3 +1,4 @@
+import { print } from 'graphql';
 import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
@@ -23,7 +24,7 @@ const IosAppCredentialsQuery = {
                 }
               }
             }
-            ${IosAppCredentialsFragment.definition}
+            ${print(IosAppCredentialsFragment.definition)}
           `,
           {
             projectFullName,
@@ -65,8 +66,8 @@ const IosAppCredentialsQuery = {
                   }
                 }
               }
-              ${IosAppCredentialsFragment.definition}
-              ${IosAppBuildCredentialsFragment.definition}
+              ${print(IosAppCredentialsFragment.definition)}
+              ${print(IosAppBuildCredentialsFragment.definition)}
             `,
           {
             projectFullName,
