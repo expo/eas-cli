@@ -2604,12 +2604,12 @@ export enum CacheControlScope {
 }
 
 
-export type GetSignedUploadMutationMutationVariables = Exact<{
+export type GetSignedUploadMutationVariables = Exact<{
   contentTypes: Array<Scalars['String']>;
 }>;
 
 
-export type GetSignedUploadMutationMutation = (
+export type GetSignedUploadMutation = (
   { __typename?: 'RootMutation' }
   & { asset: (
     { __typename?: 'AssetMutation' }
@@ -2620,12 +2620,12 @@ export type GetSignedUploadMutationMutation = (
   ) }
 );
 
-export type PublishMutationMutationVariables = Exact<{
+export type PublishMutationVariables = Exact<{
   publishUpdateGroupInput?: Maybe<PublishUpdateGroupInput>;
 }>;
 
 
-export type PublishMutationMutation = (
+export type PublishMutation = (
   { __typename?: 'RootMutation' }
   & { updateRelease: (
     { __typename?: 'UpdateReleaseMutation' }
@@ -2636,12 +2636,12 @@ export type PublishMutationMutation = (
   ) }
 );
 
-export type BuildsByIdQueryQueryVariables = Exact<{
+export type BuildsByIdQueryVariables = Exact<{
   buildId: Scalars['ID'];
 }>;
 
 
-export type BuildsByIdQueryQuery = (
+export type BuildsByIdQuery = (
   { __typename?: 'RootQuery' }
   & { builds: (
     { __typename?: 'BuildQuery' }
@@ -2656,7 +2656,7 @@ export type BuildsByIdQueryQuery = (
   ) }
 );
 
-export type BuildsForAppQueryQueryVariables = Exact<{
+export type BuildsForAppQueryVariables = Exact<{
   appId: Scalars['String'];
   limit?: Maybe<Scalars['Int']>;
   offset?: Maybe<Scalars['Int']>;
@@ -2665,7 +2665,7 @@ export type BuildsForAppQueryQueryVariables = Exact<{
 }>;
 
 
-export type BuildsForAppQueryQuery = (
+export type BuildsForAppQuery = (
   { __typename?: 'RootQuery' }
   & { builds: (
     { __typename?: 'BuildQuery' }
@@ -2723,12 +2723,12 @@ export type ProjectByUsernameAndSlugQueryQuery = (
   ) }
 );
 
-export type GetAssetMetadataQueryQueryVariables = Exact<{
+export type GetAssetMetadataQueryVariables = Exact<{
   storageKeys: Array<Scalars['String']>;
 }>;
 
 
-export type GetAssetMetadataQueryQuery = (
+export type GetAssetMetadataQuery = (
   { __typename?: 'RootQuery' }
   & { asset: (
     { __typename?: 'AssetQuery' }
@@ -2840,4 +2840,20 @@ export type IosAppBuildCredentialsFragment = (
 export type IosAppCredentialsFragment = (
   { __typename?: 'IosAppCredentials' }
   & Pick<IosAppCredentials, 'id'>
+);
+
+export type AppByFullNameQueryVariables = Exact<{
+  fullName: Scalars['String'];
+}>;
+
+
+export type AppByFullNameQuery = (
+  { __typename?: 'RootQuery' }
+  & { app?: Maybe<(
+    { __typename?: 'AppQuery' }
+    & { byFullName: (
+      { __typename?: 'App' }
+      & AppFragment
+    ) }
+  )> }
 );
