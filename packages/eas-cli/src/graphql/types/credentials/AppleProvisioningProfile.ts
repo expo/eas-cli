@@ -2,7 +2,7 @@ import { Fragment } from '../../fragment';
 
 export const AppleProvisioningProfileFragment: Fragment = {
   name: 'appleProvisioningProfile',
-  definition: `
+  definition: /* GraphQL*/ `
     fragment appleProvisioningProfile on AppleProvisioningProfile {
       id
       expiration

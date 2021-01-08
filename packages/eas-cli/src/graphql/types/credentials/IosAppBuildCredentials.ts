@@ -2,7 +2,7 @@ import { Fragment } from '../../fragment';
 
 export const IosAppBuildCredentialsFragment: Fragment = {
   name: 'iosAppBuildCredentials',
-  definition: `
+  definition: /* GraphQL*/ `
     fragment iosAppBuildCredentials on IosAppBuildCredentials {
       id
       iosDistributionType

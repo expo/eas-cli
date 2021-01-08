@@ -8,7 +8,7 @@ export const APPLE_DEVICE_CLASS_LABELS: Record<AppleDeviceClass, string> = {
 
 export const AppleDeviceFragment: Fragment = {
   name: 'appleDevice',
-  definition: `
+  definition: /* GraphQL*/ `
     fragment appleDevice on AppleDevice {
       id
       identifier
