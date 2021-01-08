@@ -2760,3 +2760,84 @@ export type CurrentUserQuery = (
     )> }
   )> }
 );
+
+export type AppFragment = (
+  { __typename?: 'App' }
+  & Pick<App, 'id'>
+);
+
+export type AppleAppIdentifierFragment = (
+  { __typename?: 'AppleAppIdentifier' }
+  & Pick<AppleAppIdentifier, 'id' | 'bundleIdentifier'>
+);
+
+export type AppleDeviceFragment = (
+  { __typename?: 'AppleDevice' }
+  & Pick<AppleDevice, 'id' | 'identifier' | 'name' | 'model' | 'deviceClass'>
+);
+
+export type AppleDeviceRegistrationRequestFragment = (
+  { __typename?: 'AppleDeviceRegistrationRequest' }
+  & Pick<AppleDeviceRegistrationRequest, 'id'>
+);
+
+export type AppleDistCertFragment = (
+  { __typename?: 'AppleDistributionCertificate' }
+  & Pick<AppleDistributionCertificate, 'id' | 'certificateP12' | 'certificatePassword' | 'serialNumber' | 'developerPortalIdentifier' | 'validityNotBefore' | 'validityNotAfter'>
+  & { appleTeam?: Maybe<(
+    { __typename?: 'AppleTeam' }
+    & Pick<AppleTeam, 'id' | 'appleTeamIdentifier' | 'appleTeamName'>
+  )> }
+);
+
+export type AppleProvisioningProfileFragment = (
+  { __typename?: 'AppleProvisioningProfile' }
+  & Pick<AppleProvisioningProfile, 'id' | 'expiration' | 'developerPortalIdentifier' | 'provisioningProfile'>
+  & { appleTeam?: Maybe<(
+    { __typename?: 'AppleTeam' }
+    & Pick<AppleTeam, 'id' | 'appleTeamIdentifier' | 'appleTeamName'>
+  )>, appleDevices: Array<(
+    { __typename?: 'AppleDevice' }
+    & Pick<AppleDevice, 'id' | 'identifier' | 'name' | 'model' | 'deviceClass'>
+  )> }
+);
+
+export type AppleTeamFragment = (
+  { __typename?: 'AppleTeam' }
+  & Pick<AppleTeam, 'id' | 'appleTeamIdentifier' | 'appleTeamName'>
+);
+
+export type IosAppBuildCredentialsFragment = (
+  { __typename?: 'IosAppBuildCredentials' }
+  & Pick<IosAppBuildCredentials, 'id' | 'iosDistributionType'>
+  & { distributionCertificate?: Maybe<(
+    { __typename?: 'AppleDistributionCertificate' }
+    & Pick<AppleDistributionCertificate, 'id' | 'certificateP12' | 'certificatePassword' | 'serialNumber' | 'developerPortalIdentifier' | 'validityNotBefore' | 'validityNotAfter'>
+    & { appleTeam?: Maybe<(
+      { __typename?: 'AppleTeam' }
+      & Pick<AppleTeam, 'id' | 'appleTeamIdentifier' | 'appleTeamName'>
+    )> }
+  )>, provisioningProfile?: Maybe<(
+    { __typename?: 'AppleProvisioningProfile' }
+    & Pick<AppleProvisioningProfile, 'id' | 'expiration' | 'developerPortalIdentifier' | 'provisioningProfile'>
+    & { appleDevices: Array<(
+      { __typename?: 'AppleDevice' }
+      & Pick<AppleDevice, 'id' | 'identifier' | 'name' | 'model' | 'deviceClass'>
+    )>, appleTeam?: Maybe<(
+      { __typename?: 'AppleTeam' }
+      & Pick<AppleTeam, 'id' | 'appleTeamIdentifier' | 'appleTeamName'>
+    )> }
+  )>, appleDevices?: Maybe<Array<Maybe<(
+    { __typename?: 'AppleDevice' }
+    & Pick<AppleDevice, 'id' | 'identifier' | 'name' | 'model' | 'deviceClass'>
+    & { appleTeam: (
+      { __typename?: 'AppleTeam' }
+      & Pick<AppleTeam, 'id' | 'appleTeamIdentifier' | 'appleTeamName'>
+    ) }
+  )>>> }
+);
+
+export type IosAppCredentialsFragment = (
+  { __typename?: 'IosAppCredentials' }
+  & Pick<IosAppCredentials, 'id'>
+);

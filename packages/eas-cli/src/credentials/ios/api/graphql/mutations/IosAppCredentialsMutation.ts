@@ -1,3 +1,4 @@
+import { print } from 'graphql';
 import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
@@ -24,7 +25,7 @@ const IosAppCredentialsMutation = {
                 }
               }
             }
-            ${IosAppCredentialsFragment.definition}
+            ${print(IosAppCredentialsFragment.definition)}
           `,
           {
             iosAppCredentialsInput,

@@ -1,3 +1,4 @@
+import { print } from 'graphql';
 import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
@@ -25,7 +26,7 @@ const AppleDeviceMutation = {
                 }
               }
             }
-            ${AppleDeviceFragment.definition}
+            ${print(AppleDeviceFragment.definition)}
           `,
           {
             appleDeviceInput,

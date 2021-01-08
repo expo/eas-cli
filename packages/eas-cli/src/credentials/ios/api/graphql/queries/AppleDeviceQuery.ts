@@ -1,4 +1,5 @@
 import assert from 'assert';
+import { print } from 'graphql';
 import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
@@ -43,8 +44,8 @@ const AppleDeviceQuery = {
                 }
               }
             }
-            ${AppleTeamFragment.definition}
-            ${AppleDeviceFragment.definition}
+            ${print(AppleTeamFragment.definition)}
+            ${print(AppleDeviceFragment.definition)}
           `,
           {
             accountId,

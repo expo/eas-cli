@@ -1,3 +1,4 @@
+import { print } from 'graphql';
 import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
@@ -40,8 +41,8 @@ const AppleDistributionCertificateMutation = {
                 }
               }
             }
-            ${AppleDistributionCertificateFragment.definition}
-            ${AppleTeamFragment.definition}
+            ${print(AppleDistributionCertificateFragment.definition)}
+            ${print(AppleTeamFragment.definition)}
           `,
           {
             appleDistributionCertificateInput,

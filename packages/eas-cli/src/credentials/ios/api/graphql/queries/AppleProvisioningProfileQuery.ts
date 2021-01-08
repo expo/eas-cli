@@ -1,3 +1,4 @@
+import { print } from 'graphql';
 import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
@@ -57,10 +58,10 @@ const AppleProvisioningProfileQuery = {
                 }
               }
             }
-            ${AppleProvisioningProfileFragment.definition}
-            ${AppleTeamFragment.definition}
-            ${AppleDeviceFragment.definition}
-            ${AppleAppIdentifierFragment.definition}
+            ${print(AppleProvisioningProfileFragment.definition)}
+            ${print(AppleTeamFragment.definition)}
+            ${print(AppleDeviceFragment.definition)}
+            ${print(AppleAppIdentifierFragment.definition)}
           `,
           {
             projectFullName,

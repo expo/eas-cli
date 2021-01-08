@@ -1,3 +1,4 @@
+import { print } from 'graphql';
 import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
@@ -22,7 +23,7 @@ const AppleAppIdentifierQuery = {
                 }
               }
             }
-            ${AppleAppIdentifierFragment.definition}
+            ${print(AppleAppIdentifierFragment.definition)}
           `,
           {
             accountName,
