@@ -11,7 +11,7 @@ const ProjectQuery = {
       graphqlClient
         .query<{ project: { byUsernameAndSlug: ProjectQueryResult } }>(
           gql`
-            query($username: String!, $slug: String!) {
+            query ProjectByUsernameAndSlugQuery($username: String!, $slug: String!) {
               project {
                 byUsernameAndSlug(username: $username, slug: $slug) {
                   id
