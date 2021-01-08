@@ -41,7 +41,7 @@ const AppleTeamQuery = {
       graphqlClient
         .query<{ appleTeam: { byAppleTeamIdentifier: AppleTeam | null } }>(
           gql`
-            query($accountId: ID!, $appleTeamIdentifier: String!) {
+            query AppleTeamByIdentifierQuery($accountId: ID!, $appleTeamIdentifier: String!) {
               appleTeam {
                 byAppleTeamIdentifier(accountId: $accountId, identifier: $appleTeamIdentifier) {
                   ...AppleTeamFragment

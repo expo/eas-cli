@@ -25,7 +25,7 @@ const IosAppBuildCredentialsQuery = {
           };
         }>(
           gql`
-            query(
+            query IosAppBuildCredentialsByAppleAppIdentiferAndDistributionQuery(
               $projectFullName: String!
               $appleAppIdentifierId: String!
               $iosDistributionType: IosDistributionType!

@@ -30,7 +30,7 @@ const AppleProvisioningProfileQuery = {
           };
         }>(
           gql`
-            query(
+            query AppleProvisioningProfilesByAppQuery(
               $projectFullName: String!
               $appleAppIdentifierId: String!
               $iosDistributionType: IosDistributionType!

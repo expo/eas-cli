@@ -14,7 +14,10 @@ const AppleAppIdentifierQuery = {
       graphqlClient
         .query<{ account: { byName: { appleAppIdentifiers: AppleAppIdentifier[] } } }>(
           gql`
-            query($accountName: String!, $bundleIdentifier: String!) {
+            query AppleAppIdentifierByBundleIdQuery(
+              $accountName: String!
+              $bundleIdentifier: String!
+            ) {
               account {
                 byName(accountName: $accountName) {
                   appleAppIdentifiers(bundleIdentifier: $bundleIdentifier) {

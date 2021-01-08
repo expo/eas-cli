@@ -12,6 +12,12 @@ module.exports = {
         schemaJson: require('./graphql.schema.json'),
       },
     ],
+    'graphql/named-operations': [
+      'error',
+      {
+        schemaJson: require('./graphql.schema.json'),
+      },
+    ],
   },
   plugins: ['graphql'],
 };
