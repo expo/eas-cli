@@ -2703,13 +2703,13 @@ export type PendingBuildsForAccountAndPlatformQuery = (
   ) }
 );
 
-export type Unnamed_1_QueryVariables = Exact<{
+export type ProjectByUsernameAndSlugQueryQueryVariables = Exact<{
   username: Scalars['String'];
   slug: Scalars['String'];
 }>;
 
 
-export type Unnamed_1_Query = (
+export type ProjectByUsernameAndSlugQueryQuery = (
   { __typename?: 'RootQuery' }
   & { project: (
     { __typename?: 'ProjectQuery' }
