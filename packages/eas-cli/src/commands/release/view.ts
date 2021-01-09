@@ -51,14 +51,17 @@ async function viewUpdateReleaseAsync({
           query ViewRelease($appId: String!, $releaseName: String!, $limit: Int!) {
             app {
               byId(appId: $appId) {
+                id
                 updateReleaseByReleaseName(releaseName: $releaseName) {
                   id
                   releaseName
                   updates(offset: 0, limit: $limit) {
+                    id
                     updateGroup
                     updateMessage
                     createdAt
                     actor {
+                      id
                       ... on User {
                         firstName
                       }

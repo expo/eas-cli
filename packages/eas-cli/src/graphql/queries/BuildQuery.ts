@@ -20,6 +20,7 @@ const BuildQuery = {
             query BuildsByIdQuery($buildId: ID!) {
               builds {
                 byId(buildId: $buildId) {
+                  id
                   platform
                   artifacts {
                     buildUrl
@@ -56,6 +57,7 @@ const BuildQuery = {
                   platform: $platform
                   status: $status
                 ) {
+                  id
                   platform
                   artifacts {
                     buildUrl
@@ -93,6 +95,7 @@ const BuildQuery = {
             ) {
               account {
                 byName(accountName: $accountName) {
+                  id
                   inQueueBuilds: builds(
                     offset: 0
                     limit: 1

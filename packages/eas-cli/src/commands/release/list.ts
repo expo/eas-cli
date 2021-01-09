@@ -63,8 +63,10 @@ export default class ReleaseList extends Command {
                   id
                   releaseName
                   updates(offset: 0, limit: 1) {
+                    id
                     actor {
                       __typename
+                      id
                       ... on User {
                         username
                       }

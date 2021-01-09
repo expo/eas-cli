@@ -21,7 +21,9 @@ const IosAppCredentialsQuery = {
             ) {
               app {
                 byFullName(fullName: $projectFullName) {
+                  id
                   iosAppCredentials(filter: { appleAppIdentifierId: $appleAppIdentifierId }) {
+                    id
                     ...IosAppCredentialsFragment
                   }
                 }
@@ -62,11 +64,14 @@ const IosAppCredentialsQuery = {
             ) {
               app {
                 byFullName(fullName: $projectFullName) {
+                  id
                   iosAppCredentials(filter: { appleAppIdentifierId: $appleAppIdentifierId }) {
+                    id
                     ...IosAppCredentialsFragment
                     iosAppBuildCredentialsArray(
                       filter: { iosDistributionType: $iosDistributionType }
                     ) {
+                      id
                       ...IosAppBuildCredentialsFragment
                     }
                   }
