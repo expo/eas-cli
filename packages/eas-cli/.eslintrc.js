@@ -26,6 +26,12 @@ module.exports = {
         requiredFields: ['id'],
       },
     ],
+    'graphql/capitalized-type-name': [
+      'error',
+      {
+        schemaJson: require('./graphql.schema.json'),
+      },
+    ],
   },
   plugins: ['graphql'],
 };
