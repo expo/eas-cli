@@ -32,8 +32,10 @@ const AppleProvisioningProfileMutation = {
                   accountId: $accountId
                   appleAppIdentifierId: $appleAppIdentifierId
                 ) {
+                  id
                   ...AppleProvisioningProfileFragment
                   appleTeam {
+                    id
                     ...AppleTeamFragment
                   }
                 }
@@ -74,8 +76,10 @@ const AppleProvisioningProfileMutation = {
                   id: $appleProvisioningProfileId
                   appleProvisioningProfileInput: $appleProvisioningProfileInput
                 ) {
+                  id
                   ...AppleProvisioningProfileFragment
                   appleTeam {
+                    id
                     ...AppleTeamFragment
                   }
                 }

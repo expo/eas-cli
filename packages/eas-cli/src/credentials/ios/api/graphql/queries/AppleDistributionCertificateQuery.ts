@@ -38,13 +38,18 @@ const AppleDistributionCertificateQuery = {
             ) {
               app {
                 byFullName(fullName: $projectFullName) {
+                  id
                   iosAppCredentials(filter: { appleAppIdentifierId: $appleAppIdentifierId }) {
+                    id
                     iosAppBuildCredentialsArray(
                       filter: { iosDistributionType: $iosDistributionType }
                     ) {
+                      id
                       distributionCertificate {
+                        id
                         ...AppleDistributionCertificateFragment
                         appleTeam {
+                          id
                           ...AppleTeamFragment
                         }
                       }
@@ -86,9 +91,12 @@ const AppleDistributionCertificateQuery = {
             query AppleDistributionCertificateByAccountQuery($accountName: String!) {
               account {
                 byName(accountName: $accountName) {
+                  id
                   appleDistributionCertificates {
+                    id
                     ...AppleDistributionCertificateFragment
                     appleTeam {
+                      id
                       ...AppleTeamFragment
                     }
                   }

@@ -29,6 +29,7 @@ const IosAppCredentialsMutation = {
                   appId: $appId
                   appleAppIdentifierId: $appleAppIdentifierId
                 ) {
+                  id
                   ...IosAppCredentialsFragment
                 }
               }

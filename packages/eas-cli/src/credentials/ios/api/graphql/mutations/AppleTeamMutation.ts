@@ -20,6 +20,7 @@ const AppleTeamMutation = {
             mutation AppleTeamMutation($appleTeamInput: AppleTeamInput!, $accountId: ID!) {
               appleTeam {
                 createAppleTeam(appleTeamInput: $appleTeamInput, accountId: $accountId) {
+                  id
                   ...AppleTeamFragment
                   account {
                     id

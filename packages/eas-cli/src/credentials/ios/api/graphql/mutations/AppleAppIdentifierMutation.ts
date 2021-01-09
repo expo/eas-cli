@@ -26,6 +26,7 @@ const AppleAppIdentifierMutation = {
                   appleAppIdentifierInput: $appleAppIdentifierInput
                   accountId: $accountId
                 ) {
+                  id
                   ...AppleAppIdentifierFragment
                 }
               }

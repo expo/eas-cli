@@ -20,7 +20,9 @@ const AppleAppIdentifierQuery = {
             ) {
               account {
                 byName(accountName: $accountName) {
+                  id
                   appleAppIdentifiers(bundleIdentifier: $bundleIdentifier) {
+                    id
                     ...AppleAppIdentifierFragment
                   }
                 }

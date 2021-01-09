@@ -14,6 +14,7 @@ const AppQuery = {
             query AppByFullNameQuery($fullName: String!) {
               app {
                 byFullName(fullName: $fullName) {
+                  id
                   ...AppFragment
                 }
               }

@@ -29,6 +29,7 @@ const IosAppBuildCredentialsMutation = {
                   iosAppBuildCredentialsInput: $iosAppBuildCredentialsInput
                   iosAppCredentialsId: $iosAppCredentialsId
                 ) {
+                  id
                   ...IosAppBuildCredentialsFragment
                 }
               }
@@ -63,6 +64,7 @@ const IosAppBuildCredentialsMutation = {
                   id: $iosAppBuildCredentialsId
                   distributionCertificateId: $distributionCertificateId
                 ) {
+                  id
                   ...IosAppBuildCredentialsFragment
                 }
               }
@@ -97,6 +99,7 @@ const IosAppBuildCredentialsMutation = {
                   id: $iosAppBuildCredentialsId
                   provisioningProfileId: $provisioningProfileId
                 ) {
+                  id
                   ...IosAppBuildCredentialsFragment
                 }
               }
