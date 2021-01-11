@@ -1,6 +1,6 @@
 import gql from 'graphql-tag';
 
-export const AppleDeviceRegistrationRequestFragmentDoc = gql`
+export const AppleDeviceRegistrationRequestFragmentNode = gql`
   fragment AppleDeviceRegistrationRequestFragment on AppleDeviceRegistrationRequest {
     id
   }

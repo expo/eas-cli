@@ -3,7 +3,7 @@ import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
 import { AppleDevice, AppleDeviceClass } from '../../../../../graphql/generated';
-import { AppleDeviceFragmentDoc } from '../../../../../graphql/types/credentials/AppleDevice';
+import { AppleDeviceFragmentNode } from '../../../../../graphql/types/credentials/AppleDevice';
 
 const AppleDeviceMutation = {
   async createAppleDeviceAsync(
@@ -26,7 +26,7 @@ const AppleDeviceMutation = {
                 }
               }
             }
-            ${print(AppleDeviceFragmentDoc)}
+            ${print(AppleDeviceFragmentNode)}
           `,
           {
             appleDeviceInput,

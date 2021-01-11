@@ -3,10 +3,10 @@ import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
 import { AppleProvisioningProfile, IosDistributionType } from '../../../../../graphql/generated';
-import { AppleAppIdentifierFragmentDoc } from '../../../../../graphql/types/credentials/AppleAppIdentifier';
-import { AppleDeviceFragmentDoc } from '../../../../../graphql/types/credentials/AppleDevice';
-import { AppleProvisioningProfileFragmentDoc } from '../../../../../graphql/types/credentials/AppleProvisioningProfile';
-import { AppleTeamFragmentDoc } from '../../../../../graphql/types/credentials/AppleTeam';
+import { AppleAppIdentifierFragmentNode } from '../../../../../graphql/types/credentials/AppleAppIdentifier';
+import { AppleDeviceFragmentNode } from '../../../../../graphql/types/credentials/AppleDevice';
+import { AppleProvisioningProfileFragmentNode } from '../../../../../graphql/types/credentials/AppleProvisioningProfile';
+import { AppleTeamFragmentNode } from '../../../../../graphql/types/credentials/AppleTeam';
 
 const AppleProvisioningProfileQuery = {
   async getForAppAsync(
@@ -58,10 +58,10 @@ const AppleProvisioningProfileQuery = {
                 }
               }
             }
-            ${print(AppleProvisioningProfileFragmentDoc)}
-            ${print(AppleTeamFragmentDoc)}
-            ${print(AppleDeviceFragmentDoc)}
-            ${print(AppleAppIdentifierFragmentDoc)}
+            ${print(AppleProvisioningProfileFragmentNode)}
+            ${print(AppleTeamFragmentNode)}
+            ${print(AppleDeviceFragmentNode)}
+            ${print(AppleAppIdentifierFragmentNode)}
           `,
           {
             projectFullName,

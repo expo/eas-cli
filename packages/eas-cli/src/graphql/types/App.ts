@@ -1,6 +1,6 @@
 import gql from 'graphql-tag';
 
-export const AppFragment = gql`
+export const AppFragmentNode = gql`
   fragment AppFragment on App {
     id
   }

@@ -1,6 +1,6 @@
 import gql from 'graphql-tag';
 
-export const AppleDistributionCertificateFragmentDoc = gql`
+export const AppleDistributionCertificateFragmentNode = gql`
   fragment AppleDistributionCertificateFragment on AppleDistributionCertificate {
     id
     certificateP12

@@ -6,8 +6,8 @@ import {
   AppleDistributionCertificate,
   IosDistributionType,
 } from '../../../../../graphql/generated';
-import { AppleDistributionCertificateFragmentDoc } from '../../../../../graphql/types/credentials/AppleDistributionCertificate';
-import { AppleTeamFragmentDoc } from '../../../../../graphql/types/credentials/AppleTeam';
+import { AppleDistributionCertificateFragmentNode } from '../../../../../graphql/types/credentials/AppleDistributionCertificate';
+import { AppleTeamFragmentNode } from '../../../../../graphql/types/credentials/AppleTeam';
 
 const AppleDistributionCertificateQuery = {
   async getForAppAsync(
@@ -53,8 +53,8 @@ const AppleDistributionCertificateQuery = {
                 }
               }
             }
-            ${print(AppleDistributionCertificateFragmentDoc)}
-            ${print(AppleTeamFragmentDoc)}
+            ${print(AppleDistributionCertificateFragmentNode)}
+            ${print(AppleTeamFragmentNode)}
           `,
           {
             projectFullName,
@@ -95,8 +95,8 @@ const AppleDistributionCertificateQuery = {
                 }
               }
             }
-            ${print(AppleDistributionCertificateFragmentDoc)}
-            ${print(AppleTeamFragmentDoc)}
+            ${print(AppleDistributionCertificateFragmentNode)}
+            ${print(AppleTeamFragmentNode)}
           `,
           {
             accountName,

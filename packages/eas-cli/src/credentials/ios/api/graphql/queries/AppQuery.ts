@@ -3,7 +3,7 @@ import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
 import { App } from '../../../../../graphql/generated';
-import { AppFragment } from '../../../../../graphql/types/App';
+import { AppFragmentNode } from '../../../../../graphql/types/App';
 
 const AppQuery = {
   async byFullNameAsync(fullName: string): Promise<App> {
@@ -18,7 +18,7 @@ const AppQuery = {
                 }
               }
             }
-            ${print(AppFragment)}
+            ${print(AppFragmentNode)}
           `,
           { fullName }
         )

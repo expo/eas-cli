@@ -4,8 +4,8 @@ import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
 import { AppleDevice, AppleTeam } from '../../../../../graphql/generated';
-import { AppleDeviceFragmentDoc } from '../../../../../graphql/types/credentials/AppleDevice';
-import { AppleTeamFragmentDoc } from '../../../../../graphql/types/credentials/AppleTeam';
+import { AppleDeviceFragmentNode } from '../../../../../graphql/types/credentials/AppleDevice';
+import { AppleTeamFragmentNode } from '../../../../../graphql/types/credentials/AppleTeam';
 
 export type AppleTeamQueryResult = Pick<AppleTeam, 'id' | 'appleTeamIdentifier' | 'appleTeamName'>;
 
@@ -44,8 +44,8 @@ const AppleDeviceQuery = {
                 }
               }
             }
-            ${print(AppleTeamFragmentDoc)}
-            ${print(AppleDeviceFragmentDoc)}
+            ${print(AppleTeamFragmentNode)}
+            ${print(AppleDeviceFragmentNode)}
           `,
           {
             accountId,

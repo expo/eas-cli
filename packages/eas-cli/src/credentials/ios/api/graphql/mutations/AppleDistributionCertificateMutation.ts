@@ -3,8 +3,8 @@ import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
 import { AppleDistributionCertificate } from '../../../../../graphql/generated';
-import { AppleDistributionCertificateFragmentDoc } from '../../../../../graphql/types/credentials/AppleDistributionCertificate';
-import { AppleTeamFragmentDoc } from '../../../../../graphql/types/credentials/AppleTeam';
+import { AppleDistributionCertificateFragmentNode } from '../../../../../graphql/types/credentials/AppleDistributionCertificate';
+import { AppleTeamFragmentNode } from '../../../../../graphql/types/credentials/AppleTeam';
 
 const AppleDistributionCertificateMutation = {
   async createAppleDistributionCertificate(
@@ -41,8 +41,8 @@ const AppleDistributionCertificateMutation = {
                 }
               }
             }
-            ${print(AppleDistributionCertificateFragmentDoc)}
-            ${print(AppleTeamFragmentDoc)}
+            ${print(AppleDistributionCertificateFragmentNode)}
+            ${print(AppleTeamFragmentNode)}
           `,
           {
             appleDistributionCertificateInput,

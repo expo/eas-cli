@@ -1,6 +1,6 @@
 import gql from 'graphql-tag';
 
-export const IosAppCredentialsFragmentDoc = gql`
+export const IosAppCredentialsFragmentNode = gql`
   fragment IosAppCredentialsFragment on IosAppCredentials {
     id
   }

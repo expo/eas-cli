@@ -1,6 +1,6 @@
 import gql from 'graphql-tag';
 
-export const AppleProvisioningProfileFragmentDoc = gql`
+export const AppleProvisioningProfileFragmentNode = gql`
   fragment AppleProvisioningProfileFragment on AppleProvisioningProfile {
     id
     expiration

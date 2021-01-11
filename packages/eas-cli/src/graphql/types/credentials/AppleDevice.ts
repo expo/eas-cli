@@ -7,7 +7,7 @@ export const APPLE_DEVICE_CLASS_LABELS: Record<AppleDeviceClass, string> = {
   [AppleDeviceClass.Iphone]: 'iPhone',
 };
 
-export const AppleDeviceFragmentDoc = gql`
+export const AppleDeviceFragmentNode = gql`
   fragment AppleDeviceFragment on AppleDevice {
     id
     identifier

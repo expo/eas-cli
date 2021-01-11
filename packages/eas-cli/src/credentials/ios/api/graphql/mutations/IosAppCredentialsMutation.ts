@@ -3,7 +3,7 @@ import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
 import { IosAppCredentials } from '../../../../../graphql/generated';
-import { IosAppCredentialsFragmentDoc } from '../../../../../graphql/types/credentials/IosAppCredentials';
+import { IosAppCredentialsFragmentNode } from '../../../../../graphql/types/credentials/IosAppCredentials';
 
 const IosAppCredentialsMutation = {
   async createIosAppCredentialsAsync(
@@ -33,7 +33,7 @@ const IosAppCredentialsMutation = {
                 }
               }
             }
-            ${print(IosAppCredentialsFragmentDoc)}
+            ${print(IosAppCredentialsFragmentNode)}
           `,
           {
             iosAppCredentialsInput,

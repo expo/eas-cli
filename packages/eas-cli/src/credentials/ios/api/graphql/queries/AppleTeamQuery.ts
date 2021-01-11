@@ -3,7 +3,7 @@ import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
 import { AppleTeam } from '../../../../../graphql/generated';
-import { AppleTeamFragmentDoc } from '../../../../../graphql/types/credentials/AppleTeam';
+import { AppleTeamFragmentNode } from '../../../../../graphql/types/credentials/AppleTeam';
 
 type AppleTeamQueryResult = Pick<AppleTeam, 'id' | 'appleTeamIdentifier' | 'appleTeamName'>;
 
@@ -48,7 +48,7 @@ const AppleTeamQuery = {
                 }
               }
             }
-            ${print(AppleTeamFragmentDoc)}
+            ${print(AppleTeamFragmentNode)}
           `,
           {
             accountId,

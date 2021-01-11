@@ -3,7 +3,7 @@ import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
 import { AppleAppIdentifier } from '../../../../../graphql/generated';
-import { AppleAppIdentifierFragmentDoc } from '../../../../../graphql/types/credentials/AppleAppIdentifier';
+import { AppleAppIdentifierFragmentNode } from '../../../../../graphql/types/credentials/AppleAppIdentifier';
 
 const AppleAppIdentifierMutation = {
   async createAppleAppIdentifierAsync(
@@ -30,7 +30,7 @@ const AppleAppIdentifierMutation = {
                 }
               }
             }
-            ${print(AppleAppIdentifierFragmentDoc)}
+            ${print(AppleAppIdentifierFragmentNode)}
           `,
           {
             appleAppIdentifierInput,

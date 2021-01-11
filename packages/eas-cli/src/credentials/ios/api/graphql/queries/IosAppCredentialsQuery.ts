@@ -3,8 +3,8 @@ import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
 import { IosAppCredentials, IosDistributionType } from '../../../../../graphql/generated';
-import { IosAppBuildCredentialsFragmentDoc } from '../../../../../graphql/types/credentials/IosAppBuildCredentials';
-import { IosAppCredentialsFragmentDoc } from '../../../../../graphql/types/credentials/IosAppCredentials';
+import { IosAppBuildCredentialsFragmentNode } from '../../../../../graphql/types/credentials/IosAppBuildCredentials';
+import { IosAppCredentialsFragmentNode } from '../../../../../graphql/types/credentials/IosAppCredentials';
 
 const IosAppCredentialsQuery = {
   async byAppIdentifierIdAsync(
@@ -24,7 +24,7 @@ const IosAppCredentialsQuery = {
                 }
               }
             }
-            ${print(IosAppCredentialsFragmentDoc)}
+            ${print(IosAppCredentialsFragmentNode)}
           `,
           {
             projectFullName,
@@ -70,8 +70,8 @@ const IosAppCredentialsQuery = {
                 }
               }
             }
-            ${print(IosAppCredentialsFragmentDoc)}
-            ${print(IosAppBuildCredentialsFragmentDoc)}
+            ${print(IosAppCredentialsFragmentNode)}
+            ${print(IosAppBuildCredentialsFragmentNode)}
           `,
           {
             projectFullName,
