@@ -2631,7 +2631,7 @@ export type PublishMutation = (
     { __typename?: 'UpdateReleaseMutation' }
     & { publishUpdateGroup: Array<Maybe<(
       { __typename?: 'Update' }
-      & Pick<Update, 'updateGroup'>
+      & Pick<Update, 'id' | 'updateGroup'>
     )>> }
   ) }
 );
@@ -2647,7 +2647,7 @@ export type BuildsByIdQuery = (
     { __typename?: 'BuildQuery' }
     & { byId: (
       { __typename?: 'Build' }
-      & Pick<Build, 'platform'>
+      & Pick<Build, 'id' | 'platform'>
       & { artifacts?: Maybe<(
         { __typename?: 'BuildArtifacts' }
         & Pick<BuildArtifacts, 'buildUrl'>
@@ -2671,7 +2671,7 @@ export type BuildsForAppQuery = (
     { __typename?: 'BuildQuery' }
     & { allForApp: Array<Maybe<(
       { __typename?: 'Build' }
-      & Pick<Build, 'platform'>
+      & Pick<Build, 'id' | 'platform'>
       & { artifacts?: Maybe<(
         { __typename?: 'BuildArtifacts' }
         & Pick<BuildArtifacts, 'buildUrl'>
@@ -2692,6 +2692,7 @@ export type PendingBuildsForAccountAndPlatformQuery = (
     { __typename?: 'AccountQuery' }
     & { byName: (
       { __typename?: 'Account' }
+      & Pick<Account, 'id'>
       & { inQueueBuilds: Array<(
         { __typename?: 'Build' }
         & Pick<Build, 'id' | 'platform'>
@@ -2703,13 +2704,13 @@ export type PendingBuildsForAccountAndPlatformQuery = (
   ) }
 );
 
-export type ProjectByUsernameAndSlugQueryQueryVariables = Exact<{
+export type ProjectByUsernameAndSlugQueryVariables = Exact<{
   username: Scalars['String'];
   slug: Scalars['String'];
 }>;
 
 
-export type ProjectByUsernameAndSlugQueryQuery = (
+export type ProjectByUsernameAndSlugQuery = (
   { __typename?: 'RootQuery' }
   & { project: (
     { __typename?: 'ProjectQuery' }
@@ -2781,7 +2782,7 @@ export type AppleDeviceRegistrationRequestFragment = (
   & Pick<AppleDeviceRegistrationRequest, 'id'>
 );
 
-export type AppleDistCertFragment = (
+export type AppleDistributionCertificateFragment = (
   { __typename?: 'AppleDistributionCertificate' }
   & Pick<AppleDistributionCertificate, 'id' | 'certificateP12' | 'certificatePassword' | 'serialNumber' | 'developerPortalIdentifier' | 'validityNotBefore' | 'validityNotAfter'>
   & { appleTeam?: Maybe<(
@@ -2853,6 +2854,7 @@ export type AppByFullNameQuery = (
     { __typename?: 'AppQuery' }
     & { byFullName: (
       { __typename?: 'App' }
+      & Pick<App, 'id'>
       & AppFragment
     ) }
   )> }

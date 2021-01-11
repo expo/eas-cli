@@ -1,7 +1,7 @@
 import nullthrows from 'nullthrows';
 
 import {
-  App,
+  AppFragment,
   AppleAppIdentifier,
   AppleDevice,
   AppleDistributionCertificate,
@@ -33,7 +33,7 @@ export interface AppLookupParams {
   bundleIdentifier: string;
 }
 
-export async function getAppAsync(appLookupParams: AppLookupParams): Promise<App> {
+export async function getAppAsync(appLookupParams: AppLookupParams): Promise<AppFragment> {
   const projectFullName = formatProjectFullName(appLookupParams);
   return await AppQuery.byFullNameAsync(projectFullName);
 }
