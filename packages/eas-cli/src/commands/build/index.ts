@@ -195,7 +195,7 @@ async function ensureProjectConfiguredAsync(projectDir: string): Promise<void> {
     return;
   }
   const confirm = await confirmAsync({
-    message: "This app isn't setup for building with EAS. Set it up now?",
+    message: 'This app is not set up for building with EAS. Set it up now?',
   });
   if (confirm) {
     await configureAsync({
