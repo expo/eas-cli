@@ -3,7 +3,7 @@ import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
 import { IosAppBuildCredentials, IosDistributionType } from '../../../../../graphql/generated';
-import { IosAppBuildCredentialsFragment } from '../../../../../graphql/types/credentials/IosAppBuildCredentials';
+import { IosAppBuildCredentialsFragmentNode } from '../../../../../graphql/types/credentials/IosAppBuildCredentials';
 
 const IosAppBuildCredentialsMutation = {
   async createIosAppBuildCredentialsAsync(
@@ -20,14 +20,20 @@ const IosAppBuildCredentialsMutation = {
           iosAppBuildCredentials: { createIosAppBuildCredentials: IosAppBuildCredentials };
         }>(
           gql`
-            mutation IosAppBuildCredentialsMutation($iosAppBuildCredentialsInput: IosAppBuildCredentialsInput!, $iosAppCredentialsId: ID!) {
+            mutation IosAppBuildCredentialsMutation(
+              $iosAppBuildCredentialsInput: IosAppBuildCredentialsInput!
+              $iosAppCredentialsId: ID!
+            ) {
               iosAppBuildCredentials {
-                createIosAppBuildCredentials(iosAppBuildCredentialsInput: $iosAppBuildCredentialsInput, iosAppCredentialsId: $iosAppCredentialsId) {
-                  ...${IosAppBuildCredentialsFragment.name}
+                createIosAppBuildCredentials(
+                  iosAppBuildCredentialsInput: $iosAppBuildCredentialsInput
+                  iosAppCredentialsId: $iosAppCredentialsId
+                ) {
+                  ...IosAppBuildCredentialsFragment
                 }
               }
             }
-            ${print(IosAppBuildCredentialsFragment.definition)}
+            ${print(IosAppBuildCredentialsFragmentNode)}
           `,
           {
             iosAppBuildCredentialsInput,
@@ -48,14 +54,20 @@ const IosAppBuildCredentialsMutation = {
           iosAppBuildCredentials: { setDistributionCertificate: IosAppBuildCredentials };
         }>(
           gql`
-            mutation IosAppBuildCredentialsMutation($iosAppBuildCredentialsId: ID!, $distributionCertificateId: ID!) {
+            mutation IosAppBuildCredentialsMutation(
+              $iosAppBuildCredentialsId: ID!
+              $distributionCertificateId: ID!
+            ) {
               iosAppBuildCredentials {
-                setDistributionCertificate(id: $iosAppBuildCredentialsId, distributionCertificateId: $distributionCertificateId) {
-                  ...${IosAppBuildCredentialsFragment.name}
+                setDistributionCertificate(
+                  id: $iosAppBuildCredentialsId
+                  distributionCertificateId: $distributionCertificateId
+                ) {
+                  ...IosAppBuildCredentialsFragment
                 }
               }
             }
-            ${print(IosAppBuildCredentialsFragment.definition)}
+            ${print(IosAppBuildCredentialsFragmentNode)}
           `,
           {
             iosAppBuildCredentialsId,
@@ -76,14 +88,20 @@ const IosAppBuildCredentialsMutation = {
           iosAppBuildCredentials: { setProvisioningProfile: IosAppBuildCredentials };
         }>(
           gql`
-            mutation IosAppBuildCredentialsMutation($iosAppBuildCredentialsId: ID!, $provisioningProfileId: ID!) {
+            mutation IosAppBuildCredentialsMutation(
+              $iosAppBuildCredentialsId: ID!
+              $provisioningProfileId: ID!
+            ) {
               iosAppBuildCredentials {
-                setProvisioningProfile(id: $iosAppBuildCredentialsId, provisioningProfileId: $provisioningProfileId) {
-                  ...${IosAppBuildCredentialsFragment.name}
+                setProvisioningProfile(
+                  id: $iosAppBuildCredentialsId
+                  provisioningProfileId: $provisioningProfileId
+                ) {
+                  ...IosAppBuildCredentialsFragment
                 }
               }
             }
-            ${print(IosAppBuildCredentialsFragment.definition)}
+            ${print(IosAppBuildCredentialsFragmentNode)}
           `,
           {
             iosAppBuildCredentialsId,

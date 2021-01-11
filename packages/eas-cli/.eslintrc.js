@@ -5,6 +5,13 @@ module.exports = {
       'error',
       { devDependencies: ['**/__tests__/**/*', '**/__mocks__/**/*'] },
     ],
+    'graphql/template-strings': [
+      'error',
+      {
+        env: 'apollo',
+        schemaJson: require('./graphql.schema.json'),
+      },
+    ],
   },
   plugins: ['graphql'],
 };

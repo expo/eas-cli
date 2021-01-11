@@ -3,7 +3,7 @@ import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
 import { AppleDevice, AppleDeviceClass } from '../../../../../graphql/generated';
-import { AppleDeviceFragment } from '../../../../../graphql/types/credentials/AppleDevice';
+import { AppleDeviceFragmentNode } from '../../../../../graphql/types/credentials/AppleDevice';
 
 const AppleDeviceMutation = {
   async createAppleDeviceAsync(
@@ -22,11 +22,11 @@ const AppleDeviceMutation = {
             mutation AppleDeviceMutation($appleDeviceInput: AppleDeviceInput!, $accountId: ID!) {
               appleDevice {
                 createAppleDevice(appleDeviceInput: $appleDeviceInput, accountId: $accountId) {
-                  ...${AppleDeviceFragment.name}
+                  ...AppleDeviceFragment
                 }
               }
             }
-            ${print(AppleDeviceFragment.definition)}
+            ${print(AppleDeviceFragmentNode)}
           `,
           {
             appleDeviceInput,

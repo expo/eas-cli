@@ -3,7 +3,7 @@ import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
 import { IosAppBuildCredentials, IosDistributionType } from '../../../../../graphql/generated';
-import { IosAppBuildCredentialsFragment } from '../../../../../graphql/types/credentials/IosAppBuildCredentials';
+import { IosAppBuildCredentialsFragmentNode } from '../../../../../graphql/types/credentials/IosAppBuildCredentials';
 
 const IosAppBuildCredentialsQuery = {
   async byAppIdentifierIdAndDistributionTypeAsync(
@@ -25,24 +25,24 @@ const IosAppBuildCredentialsQuery = {
           };
         }>(
           gql`
-          query(
-            $projectFullName: String!
-            $appleAppIdentifierId: String!
-            $iosDistributionType: IosDistributionType!
-          ) {
+            query(
+              $projectFullName: String!
+              $appleAppIdentifierId: String!
+              $iosDistributionType: IosDistributionType!
+            ) {
               app {
                 byFullName(fullName: $projectFullName) {
                   iosAppCredentials(filter: { appleAppIdentifierId: $appleAppIdentifierId }) {
                     iosAppBuildCredentialsArray(
                       filter: { iosDistributionType: $iosDistributionType }
                     ) {
-                      ...${IosAppBuildCredentialsFragment.name}
+                      ...IosAppBuildCredentialsFragment
                     }
                   }
                 }
               }
             }
-            ${print(IosAppBuildCredentialsFragment.definition)}
+            ${print(IosAppBuildCredentialsFragmentNode)}
           `,
           {
             projectFullName,

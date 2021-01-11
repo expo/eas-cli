@@ -3,8 +3,8 @@ import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
 import { AppleProvisioningProfile } from '../../../../../graphql/generated';
-import { AppleProvisioningProfileFragment } from '../../../../../graphql/types/credentials/AppleProvisioningProfile';
-import { AppleTeamFragment } from '../../../../../graphql/types/credentials/AppleTeam';
+import { AppleProvisioningProfileFragmentNode } from '../../../../../graphql/types/credentials/AppleProvisioningProfile';
+import { AppleTeamFragmentNode } from '../../../../../graphql/types/credentials/AppleTeam';
 
 const AppleProvisioningProfileMutation = {
   async createAppleProvisioningProfileAsync(
@@ -32,15 +32,15 @@ const AppleProvisioningProfileMutation = {
                   accountId: $accountId
                   appleAppIdentifierId: $appleAppIdentifierId
                 ) {
-                  ...${AppleProvisioningProfileFragment.name}
+                  ...AppleProvisioningProfileFragment
                   appleTeam {
-                    ...${AppleTeamFragment.name}
+                    ...AppleTeamFragment
                   }
                 }
               }
             }
-            ${print(AppleProvisioningProfileFragment.definition)}
-            ${print(AppleTeamFragment.definition)}
+            ${print(AppleProvisioningProfileFragmentNode)}
+            ${print(AppleTeamFragmentNode)}
           `,
           {
             appleProvisioningProfileInput,
@@ -74,15 +74,15 @@ const AppleProvisioningProfileMutation = {
                   id: $appleProvisioningProfileId
                   appleProvisioningProfileInput: $appleProvisioningProfileInput
                 ) {
-                  ...${AppleProvisioningProfileFragment.name}
+                  ...AppleProvisioningProfileFragment
                   appleTeam {
-                    ...${AppleTeamFragment.name}
+                    ...AppleTeamFragment
                   }
                 }
               }
             }
-            ${print(AppleProvisioningProfileFragment.definition)}
-            ${print(AppleTeamFragment.definition)}
+            ${print(AppleProvisioningProfileFragmentNode)}
+            ${print(AppleTeamFragmentNode)}
           `,
           {
             appleProvisioningProfileId,

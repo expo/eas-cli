@@ -4,8 +4,8 @@ import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
 import { AppleDevice, AppleTeam } from '../../../../../graphql/generated';
-import { AppleDeviceFragment } from '../../../../../graphql/types/credentials/AppleDevice';
-import { AppleTeamFragment } from '../../../../../graphql/types/credentials/AppleTeam';
+import { AppleDeviceFragmentNode } from '../../../../../graphql/types/credentials/AppleDevice';
+import { AppleTeamFragmentNode } from '../../../../../graphql/types/credentials/AppleTeam';
 
 export type AppleTeamQueryResult = Pick<AppleTeam, 'id' | 'appleTeamIdentifier' | 'appleTeamName'>;
 
@@ -34,18 +34,18 @@ const AppleDeviceQuery = {
             query($accountId: ID!, $appleTeamIdentifier: String!) {
               appleTeam {
                 byAppleTeamIdentifier(accountId: $accountId, identifier: $appleTeamIdentifier) {
-                  ...${AppleTeamFragment.name}
+                  ...AppleTeamFragment
                   appleDevices {
-                    ...${AppleDeviceFragment.name}
+                    ...AppleDeviceFragment
                     appleTeam {
-                      ...${AppleTeamFragment.name}
+                      ...AppleTeamFragment
                     }
                   }
                 }
               }
             }
-            ${print(AppleTeamFragment.definition)}
-            ${print(AppleDeviceFragment.definition)}
+            ${print(AppleTeamFragmentNode)}
+            ${print(AppleDeviceFragmentNode)}
           `,
           {
             accountId,

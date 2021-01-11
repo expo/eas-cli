@@ -1,23 +1,18 @@
 import gql from 'graphql-tag';
 
-import { Fragment } from '../../fragment';
-
-export const AppleDistributionCertificateFragment: Fragment = {
-  name: 'appleDistCert',
-  definition: gql`
-    fragment appleDistCert on AppleDistributionCertificate {
+export const AppleDistributionCertificateFragmentNode = gql`
+  fragment AppleDistributionCertificateFragment on AppleDistributionCertificate {
+    id
+    certificateP12
+    certificatePassword
+    serialNumber
+    developerPortalIdentifier
+    validityNotBefore
+    validityNotAfter
+    appleTeam {
       id
-      certificateP12
-      certificatePassword
-      serialNumber
-      developerPortalIdentifier
-      validityNotBefore
-      validityNotAfter
-      appleTeam {
-        id
-        appleTeamIdentifier
-        appleTeamName
-      }
+      appleTeamIdentifier
+      appleTeamName
     }
-  `,
-};
+  }
+`;
