@@ -137,7 +137,7 @@ export function resolveInputDirectory(customInputDirectory: string): string {
 export function loadMetadata(distRoot: string): Metadata {
   const metadata: Metadata = JsonFile.read(path.join(distRoot, 'metadata.json'));
   if (metadata.version !== 0) {
-    throw new Error('Only bundles with storage version 0 are supported');
+    throw new Error('Only bundles with metadata version 0 are supported');
   }
   if (metadata.bundler !== 'metro') {
     throw new Error('Only bundles created by metro are supported');
