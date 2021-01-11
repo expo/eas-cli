@@ -1,9 +1,10 @@
 module.exports = {
   rules: {
     'import/no-cycle': 'error',
-    'import/no-extraneous-dependencies': ['error', { devDependencies: [
-      '**/__tests__/**/*',
-      '**/__mocks__/**/*'
-    ] }],
+    'import/no-extraneous-dependencies': [
+      'error',
+      { devDependencies: ['**/__tests__/**/*', '**/__mocks__/**/*'] },
+    ],
   },
+  plugins: ['graphql'],
 };
