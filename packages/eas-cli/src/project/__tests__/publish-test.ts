@@ -160,7 +160,6 @@ describe(resolveInputDirectory, () => {
 describe(collectAssets, () => {
   it('builds an update info group', () => {
     const fakeHash = 'md5-hash-of-jpg';
-    const fakeJson = { bundledAssets: [`asset_${fakeHash}.jpg`] };
     const bundles = { android: 'android-bundle-code', ios: 'ios-bundle-code' };
     const inputDir = uuidv4();
 
@@ -177,23 +176,33 @@ describe(collectAssets, () => {
     fs.mkdirSync(bundleDir, { recursive: true });
     fs.mkdirSync(assetDir, { recursive: true });
     Platforms.forEach(platform => {
-      fs.writeFileSync(
-        path.resolve(`${inputDir}/${platform}-index.json`),
-        JSON.stringify(fakeJson)
-      );
-      fs.writeFileSync(
-        path.resolve(`${inputDir}/bundles/${platform}-randomHash.js`),
-        bundles[platform]
-      );
+      fs.writeFileSync(path.resolve(`${inputDir}/bundles/${platform}.js`), bundles[platform]);
     });
     fs.writeFileSync(path.resolve(`${inputDir}/assets/${fakeHash}`), dummyFileBuffer);
+    fs.writeFileSync(
+      path.resolve(`${inputDir}/metadata.json`),
+      JSON.stringify({
+        version: 0,
+        bundler: 'metro',
+        fileMetadata: {
+          android: {
+            assets: [{ path: `assets/${fakeHash}`, ext: 'jpg' }],
+            bundle: 'bundles/android.js',
+          },
+          ios: {
+            assets: [{ path: `assets/${fakeHash}`, ext: 'jpg' }],
+            bundle: 'bundles/ios.js',
+          },
+        },
+      })
+    );
 
     expect(collectAssets(inputDir)).toEqual({
       android: {
         launchAsset: {
           type: 'bundle',
           contentType: 'application/javascript',
-          path: path.resolve(`${inputDir}/bundles/android-randomHash.js`),
+          path: path.resolve(`${inputDir}/bundles/android.js`),
         },
         assets: userDefinedAssets,
       },
@@ -201,7 +210,7 @@ describe(collectAssets, () => {
         launchAsset: {
           type: 'bundle',
           contentType: 'application/javascript',
-          path: path.resolve(`${inputDir}/bundles/ios-randomHash.js`),
+          path: path.resolve(`${inputDir}/bundles/ios.js`),
         },
         assets: userDefinedAssets,
       },
