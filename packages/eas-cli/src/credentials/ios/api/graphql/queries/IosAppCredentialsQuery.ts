@@ -15,7 +15,10 @@ const IosAppCredentialsQuery = {
       graphqlClient
         .query<{ app: { byFullName: { iosAppCredentials: IosAppCredentials[] } } }>(
           gql`
-            query($projectFullName: String!, $appleAppIdentifierId: String!) {
+            query IosAppCredentialsByAppIdentifierIdQuery(
+              $projectFullName: String!
+              $appleAppIdentifierId: String!
+            ) {
               app {
                 byFullName(fullName: $projectFullName) {
                   iosAppCredentials(filter: { appleAppIdentifierId: $appleAppIdentifierId }) {
@@ -52,7 +55,7 @@ const IosAppCredentialsQuery = {
       graphqlClient
         .query<{ app: { byFullName: { iosAppCredentials: IosAppCredentials[] } } }>(
           gql`
-            query(
+            query IosAppCredentialsWithBuildCredentialsByAppIdentifierIdQuery(
               $projectFullName: String!
               $appleAppIdentifierId: String!
               $iosDistributionType: IosDistributionType!

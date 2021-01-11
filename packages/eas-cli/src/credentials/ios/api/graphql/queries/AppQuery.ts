@@ -11,7 +11,7 @@ const AppQuery = {
       graphqlClient
         .query<{ app: { byFullName: App } }>(
           gql`
-            query($fullName: String!) {
+            query AppByFullNameQuery($fullName: String!) {
               app {
                 byFullName(fullName: $fullName) {
                   ...AppFragment

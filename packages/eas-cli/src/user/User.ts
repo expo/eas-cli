@@ -33,7 +33,7 @@ export async function loginAsync({
   const result = await graphqlClient
     .query(
       gql`
-        {
+        query UserQuery {
           viewer {
             id
             username
