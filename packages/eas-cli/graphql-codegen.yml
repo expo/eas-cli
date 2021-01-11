@@ -2,11 +2,14 @@ overwrite: true
 schema: 'https://staging.exp.host/--/graphql'
 documents:
   - 'src/graphql/**/!(*.d).{ts,tsx}'
+  - 'src/credentials/ios/api/graphql/queries/AppQuery.ts'
 generates:
   src/graphql/generated.ts:
     plugins:
       - 'typescript'
       - 'typescript-operations'
+    config:
+      dedupeOperationSuffix: true
     hooks:
       afterOneFileWrite:
         - ./annotate-graphql-codegen.sh
