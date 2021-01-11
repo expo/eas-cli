@@ -24,6 +24,7 @@ const AppleDeviceRegistrationRequestMutation = {
                   appleTeamId: $appleTeamId
                   accountId: $accountId
                 ) {
+                  id
                   ...AppleDeviceRegistrationRequestFragment
                 }
               }

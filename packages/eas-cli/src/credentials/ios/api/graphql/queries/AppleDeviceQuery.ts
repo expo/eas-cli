@@ -34,10 +34,13 @@ const AppleDeviceQuery = {
             query AppleDevicesByAppleTeamQuery($accountId: ID!, $appleTeamIdentifier: String!) {
               appleTeam {
                 byAppleTeamIdentifier(accountId: $accountId, identifier: $appleTeamIdentifier) {
+                  id
                   ...AppleTeamFragment
                   appleDevices {
+                    id
                     ...AppleDeviceFragment
                     appleTeam {
+                      id
                       ...AppleTeamFragment
                     }
                   }
@@ -74,6 +77,7 @@ const AppleDeviceQuery = {
             ) {
               account {
                 byName(accountName: $accountName) {
+                  id
                   appleTeams(appleTeamIdentifier: $appleTeamIdentifier) {
                     id
                     appleTeamIdentifier

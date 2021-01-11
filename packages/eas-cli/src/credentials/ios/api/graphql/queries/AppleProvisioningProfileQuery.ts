@@ -37,19 +37,26 @@ const AppleProvisioningProfileQuery = {
             ) {
               app {
                 byFullName(fullName: $projectFullName) {
+                  id
                   iosAppCredentials(filter: { appleAppIdentifierId: $appleAppIdentifierId }) {
+                    id
                     iosAppBuildCredentialsArray(
                       filter: { iosDistributionType: $iosDistributionType }
                     ) {
+                      id
                       provisioningProfile {
+                        id
                         ...AppleProvisioningProfileFragment
                         appleTeam {
+                          id
                           ...AppleTeamFragment
                         }
                         appleDevices {
+                          id
                           ...AppleDeviceFragment
                         }
                         appleAppIdentifier {
+                          id
                           ...AppleAppIdentifierFragment
                         }
                       }

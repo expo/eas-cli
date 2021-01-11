@@ -42,6 +42,7 @@ const PublishMutation = {
             mutation PublishMutation($publishUpdateGroupInput: PublishUpdateGroupInput) {
               updateRelease {
                 publishUpdateGroup(publishUpdateGroupInput: $publishUpdateGroupInput) {
+                  id
                   updateGroup
                 }
               }

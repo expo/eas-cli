@@ -22,6 +22,7 @@ const AppleDeviceMutation = {
             mutation AppleDeviceMutation($appleDeviceInput: AppleDeviceInput!, $accountId: ID!) {
               appleDevice {
                 createAppleDevice(appleDeviceInput: $appleDeviceInput, accountId: $accountId) {
+                  id
                   ...AppleDeviceFragment
                 }
               }

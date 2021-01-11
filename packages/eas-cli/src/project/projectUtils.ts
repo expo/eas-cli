@@ -149,6 +149,7 @@ export async function getReleaseByNameAsync({
           query ViewRelease($appId: String!, $releaseName: String!) {
             app {
               byId(appId: $appId) {
+                id
                 updateReleaseByReleaseName(releaseName: $releaseName) {
                   id
                   releaseName

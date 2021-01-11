@@ -34,8 +34,10 @@ const AppleDistributionCertificateMutation = {
                   appleDistributionCertificateInput: $appleDistributionCertificateInput
                   accountId: $accountId
                 ) {
+                  id
                   ...AppleDistributionCertificateFragment
                   appleTeam {
+                    id
                     ...AppleTeamFragment
                   }
                 }
