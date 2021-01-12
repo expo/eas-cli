@@ -7,6 +7,7 @@ import { AssetMetadataStatus } from '../../graphql/generated';
 import { PublishMutation } from '../../graphql/mutations/PublishMutation';
 import { PublishQuery } from '../../graphql/queries/PublishQuery';
 import {
+  MetadataJoi,
   Platforms,
   TIMEOUT_LIMIT,
   buildUpdateInfoGroupAsync,
@@ -28,6 +29,59 @@ const dummyFileBuffer = Buffer.from('dummy-file');
 fs.mkdirSync(path.resolve(), { recursive: true });
 fs.writeFileSync(path.resolve('md5-hash-of-file'), dummyFileBuffer);
 
+describe('MetadataJoi', () => {
+  it('passes correctly structured metadata', () => {
+    const { error } = MetadataJoi.validate({
+      version: 0,
+      bundler: 'metro',
+      fileMetadata: {
+        android: {
+          assets: [{ path: 'assets/3261e570d51777be1e99116562280926', ext: 'png' }],
+          bundle: 'bundles/android.js',
+        },
+        ios: {
+          assets: [{ path: 'assets/3261e570d51777be1e99116562280926', ext: 'png' }],
+          bundle: 'bundles/ios.js',
+        },
+      },
+    });
+    expect(error).toBe(undefined);
+  });
+  it('fails if a bundle is missing', () => {
+    const { error } = MetadataJoi.validate({
+      version: 0,
+      bundler: 'metro',
+      fileMetadata: {
+        android: {
+          assets: [{ path: 'assets/3261e570d51777be1e99116562280926', ext: 'png' }],
+          bundle: 'bundles/android.js',
+        },
+        ios: {
+          assets: [{ path: 'assets/3261e570d51777be1e99116562280926', ext: 'png' }],
+          bundle: undefined,
+        },
+      },
+    });
+    expect(error).toBeDefined();
+  });
+  it('passes metadata with no assets', () => {
+    const { error } = MetadataJoi.validate({
+      version: 0,
+      bundler: 'metro',
+      fileMetadata: {
+        android: {
+          assets: [],
+          bundle: 'bundles/android.js',
+        },
+        ios: {
+          assets: [],
+          bundle: 'bundles/ios.js',
+        },
+      },
+    });
+    expect(error).toBe(undefined);
+  });
+});
 describe(guessContentTypeFromExtension, () => {
   it('returns the correct content type for jpg', () => {
     expect(guessContentTypeFromExtension('jpg')).toBe('image/jpeg');

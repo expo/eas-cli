@@ -1,5 +1,6 @@
 import { Platform } from '@expo/config';
 import JsonFile from '@expo/json-file';
+import Joi from '@hapi/joi';
 import crypto from 'crypto';
 import fs from 'fs';
 import { uniqBy } from 'lodash';
@@ -50,6 +51,21 @@ type ManifestFragment = {
 type UpdateInfoGroup = {
   [key in PublishPlatform]: ManifestFragment;
 };
+
+const fileMetadataJoi = Joi.object({
+  assets: Joi.array()
+    .required()
+    .items(Joi.object({ path: Joi.string().required(), ext: Joi.string().required() })),
+  bundle: Joi.string().required(),
+}).required();
+export const MetadataJoi = Joi.object({
+  version: Joi.number().required(),
+  bundler: Joi.string().required(),
+  fileMetadata: Joi.object({
+    android: fileMetadataJoi,
+    ios: fileMetadataJoi,
+  }).required(),
+}).required();
 
 export function guessContentTypeFromExtension(ext?: string): string {
   return mime.getType(ext ?? '') ?? 'application/octet-stream'; // unrecognized extension
@@ -136,6 +152,12 @@ export function resolveInputDirectory(customInputDirectory: string): string {
 
 export function loadMetadata(distRoot: string): Metadata {
   const metadata: Metadata = JsonFile.read(path.join(distRoot, 'metadata.json'));
+  const { error } = MetadataJoi.validate(metadata);
+  if (error) {
+    throw error;
+  }
+  // Check version and bundler by hand (instead of with Joi) so
+  // more informative error messages can be returned.
   if (metadata.version !== 0) {
     throw new Error('Only bundles with metadata version 0 are supported');
   }
