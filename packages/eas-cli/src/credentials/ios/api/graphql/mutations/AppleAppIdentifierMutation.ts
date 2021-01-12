@@ -1,3 +1,4 @@
+import assert from 'assert';
 import { print } from 'graphql';
 import gql from 'graphql-tag';
 
@@ -43,7 +44,11 @@ const AppleAppIdentifierMutation = {
         )
         .toPromise()
     );
-    return data.appleAppIdentifier.createAppleAppIdentifier!;
+    assert(
+      data.appleAppIdentifier.createAppleAppIdentifier,
+      'GraphQL: `createAppleAppIdentifier` not defined in server response'
+    );
+    return data.appleAppIdentifier.createAppleAppIdentifier;
   },
 };
 

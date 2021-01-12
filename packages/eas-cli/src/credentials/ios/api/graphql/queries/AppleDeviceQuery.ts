@@ -67,7 +67,11 @@ const AppleDeviceQuery = {
         )
         .toPromise()
     );
-    const { appleDevices } = data.appleTeam.byAppleTeamIdentifier!;
+    assert(
+      data.appleTeam.byAppleTeamIdentifier,
+      'byAppleTeamIdentifier should be defined in this context - enforced by GraphQL'
+    );
+    const { appleDevices } = data.appleTeam.byAppleTeamIdentifier;
     assert(appleDevices, 'Apple Devices should be defined in this context - enforced by GraphQL');
     return appleDevices;
   },

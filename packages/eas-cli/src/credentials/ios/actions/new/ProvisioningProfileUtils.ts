@@ -1,6 +1,5 @@
 import isEqual from 'lodash/isEqual';
 
-import { AppleDevice } from '../../../../graphql/generated';
 import log from '../../../../log';
 import { AppleDeviceFragmentWithAppleTeam } from '../../api/graphql/queries/AppleDeviceQuery';
 import { AppleDistributionCertificateQueryResult } from '../../api/graphql/queries/AppleDistributionCertificateQuery';

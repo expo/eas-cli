@@ -1,3 +1,4 @@
+import assert from 'assert';
 import { print } from 'graphql';
 import gql from 'graphql-tag';
 
@@ -68,8 +69,9 @@ const AppleDistributionCertificateQuery = {
         )
         .toPromise()
     );
+    assert(data.app, 'GraphQL: `app` not defined in server response');
     return (
-      data.app!.byFullName.iosAppCredentials[0]?.iosAppBuildCredentialsArray[0]
+      data.app.byFullName.iosAppCredentials[0]?.iosAppBuildCredentialsArray[0]
         ?.distributionCertificate ?? null
     );
   },

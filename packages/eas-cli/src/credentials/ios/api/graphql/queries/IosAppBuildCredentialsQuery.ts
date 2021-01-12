@@ -1,3 +1,4 @@
+import assert from 'assert';
 import { print } from 'graphql';
 import gql from 'graphql-tag';
 
@@ -54,7 +55,8 @@ const IosAppBuildCredentialsQuery = {
         )
         .toPromise()
     );
-    return data.app!.byFullName.iosAppCredentials[0]?.iosAppBuildCredentialsArray[0] ?? null;
+    assert(data.app, 'GraphQL: `app` not defined in server response');
+    return data.app.byFullName.iosAppCredentials[0]?.iosAppBuildCredentialsArray[0] ?? null;
   },
 };
 

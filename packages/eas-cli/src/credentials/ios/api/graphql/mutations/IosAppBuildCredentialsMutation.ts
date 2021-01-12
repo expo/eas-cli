@@ -1,3 +1,4 @@
+import assert from 'assert';
 import { print } from 'graphql';
 import gql from 'graphql-tag';
 
@@ -116,7 +117,11 @@ const IosAppBuildCredentialsMutation = {
         )
         .toPromise()
     );
-    return data.iosAppBuildCredentials.setProvisioningProfile!;
+    assert(
+      data.iosAppBuildCredentials.setProvisioningProfile,
+      'GraphQL: `setProvisioningProfile` not defined in server response'
+    );
+    return data.iosAppBuildCredentials.setProvisioningProfile;
   },
 };
 

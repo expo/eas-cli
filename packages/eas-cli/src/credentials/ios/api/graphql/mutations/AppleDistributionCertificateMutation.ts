@@ -1,3 +1,4 @@
+import assert from 'assert';
 import { print } from 'graphql';
 import gql from 'graphql-tag';
 
@@ -57,7 +58,11 @@ const AppleDistributionCertificateMutation = {
         )
         .toPromise()
     );
-    return data.appleDistributionCertificate.createAppleDistributionCertificate!;
+    assert(
+      data.appleDistributionCertificate.createAppleDistributionCertificate,
+      'GraphQL: `createAppleDistributionCertificate` not defined in server response'
+    );
+    return data.appleDistributionCertificate.createAppleDistributionCertificate;
   },
 };
 

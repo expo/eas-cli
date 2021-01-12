@@ -1,3 +1,4 @@
+import assert from 'assert';
 import { print } from 'graphql';
 import gql from 'graphql-tag';
 
@@ -47,7 +48,11 @@ const IosAppCredentialsMutation = {
         )
         .toPromise()
     );
-    return data.iosAppCredentials.createIosAppCredentials!;
+    assert(
+      data.iosAppCredentials.createIosAppCredentials,
+      'GraphQL: `createIosAppCredentials` not defined in server response'
+    );
+    return data.iosAppCredentials.createIosAppCredentials;
   },
 };
 
