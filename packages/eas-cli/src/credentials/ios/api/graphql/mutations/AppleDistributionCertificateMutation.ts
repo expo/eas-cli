@@ -2,9 +2,17 @@ import { print } from 'graphql';
 import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
-import { AppleDistributionCertificate } from '../../../../../graphql/generated';
+import {
+  AppleDistributionCertificateFragment,
+  AppleTeamFragment,
+  CreateAppleDistributionCertificateMutation,
+} from '../../../../../graphql/generated';
 import { AppleDistributionCertificateFragmentNode } from '../../../../../graphql/types/credentials/AppleDistributionCertificate';
 import { AppleTeamFragmentNode } from '../../../../../graphql/types/credentials/AppleTeam';
+
+export type AppleDistributionCertificateMutationResult = AppleDistributionCertificateFragment & {
+  appleTeam?: AppleTeamFragment | null;
+};
 
 const AppleDistributionCertificateMutation = {
   async createAppleDistributionCertificate(
@@ -16,14 +24,10 @@ const AppleDistributionCertificateMutation = {
       appleTeamId?: string;
     },
     accountId: string
-  ): Promise<AppleDistributionCertificate> {
+  ): Promise<AppleDistributionCertificateMutationResult> {
     const data = await withErrorHandlingAsync(
       graphqlClient
-        .mutation<{
-          appleDistributionCertificate: {
-            createAppleDistributionCertificate: AppleDistributionCertificate;
-          };
-        }>(
+        .mutation<CreateAppleDistributionCertificateMutation>(
           gql`
             mutation CreateAppleDistributionCertificateMutation(
               $appleDistributionCertificateInput: AppleDistributionCertificateInput!
@@ -53,7 +57,7 @@ const AppleDistributionCertificateMutation = {
         )
         .toPromise()
     );
-    return data.appleDistributionCertificate.createAppleDistributionCertificate;
+    return data.appleDistributionCertificate.createAppleDistributionCertificate!;
   },
 };
 

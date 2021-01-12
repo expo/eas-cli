@@ -3,7 +3,7 @@ import chalk from 'chalk';
 
 import { AppleTeamMutation } from '../credentials/ios/api/graphql/mutations/AppleTeamMutation';
 import { AppleTeamQuery } from '../credentials/ios/api/graphql/queries/AppleTeamQuery';
-import { AppleTeam } from '../graphql/generated';
+import { AppleTeamFragment } from '../graphql/generated';
 import log from '../log';
 import { getProjectAccountNameAsync } from '../project/projectUtils';
 import { Choice, confirmAsync, promptAsync } from '../prompts';
@@ -98,7 +98,7 @@ export class AccountResolver {
 async function ensureAppleTeamExistsAsync(
   accountId: string,
   { appleTeamIdentifier, appleTeamName }: { appleTeamIdentifier: string; appleTeamName: string }
-): Promise<AppleTeam> {
+): Promise<AppleTeamFragment> {
   const appleTeam = await AppleTeamQuery.getByAppleTeamIdentifierAsync(
     accountId,
     appleTeamIdentifier

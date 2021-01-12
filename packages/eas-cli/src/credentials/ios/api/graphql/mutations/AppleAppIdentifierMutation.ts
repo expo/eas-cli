@@ -2,7 +2,10 @@ import { print } from 'graphql';
 import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
-import { AppleAppIdentifier } from '../../../../../graphql/generated';
+import {
+  AppleAppIdentifierFragment,
+  CreateAppleAppIdentifierMutation,
+} from '../../../../../graphql/generated';
 import { AppleAppIdentifierFragmentNode } from '../../../../../graphql/types/credentials/AppleAppIdentifier';
 
 const AppleAppIdentifierMutation = {
@@ -12,10 +15,10 @@ const AppleAppIdentifierMutation = {
       appleTeamId?: string;
     },
     accountId: string
-  ): Promise<AppleAppIdentifier> {
+  ): Promise<AppleAppIdentifierFragment> {
     const data = await withErrorHandlingAsync(
       graphqlClient
-        .mutation<{ appleAppIdentifier: { createAppleAppIdentifier: AppleAppIdentifier } }>(
+        .mutation<CreateAppleAppIdentifierMutation>(
           gql`
             mutation CreateAppleAppIdentifierMutation(
               $appleAppIdentifierInput: AppleAppIdentifierInput!
@@ -40,7 +43,7 @@ const AppleAppIdentifierMutation = {
         )
         .toPromise()
     );
-    return data.appleAppIdentifier.createAppleAppIdentifier;
+    return data.appleAppIdentifier.createAppleAppIdentifier!;
   },
 };
 

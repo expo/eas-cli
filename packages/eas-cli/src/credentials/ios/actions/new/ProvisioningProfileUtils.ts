@@ -1,13 +1,15 @@
 import isEqual from 'lodash/isEqual';
 
-import { AppleDevice, AppleDistributionCertificate } from '../../../../graphql/generated';
+import { AppleDevice } from '../../../../graphql/generated';
 import log from '../../../../log';
+import { AppleDeviceFragmentWithAppleTeam } from '../../api/graphql/queries/AppleDeviceQuery';
+import { AppleDistributionCertificateQueryResult } from '../../api/graphql/queries/AppleDistributionCertificateQuery';
 import { ProvisioningProfileStoreInfo } from '../../appstore/Credentials.types';
 
 export function isDevPortalAdhocProfileValid(
   profileFromDevPortal: ProvisioningProfileStoreInfo | null,
-  distCert: AppleDistributionCertificate,
-  expectedDevices: AppleDevice[]
+  distCert: AppleDistributionCertificateQueryResult,
+  expectedDevices: AppleDeviceFragmentWithAppleTeam[]
 ): boolean {
   if (!profileFromDevPortal) {
     return false;

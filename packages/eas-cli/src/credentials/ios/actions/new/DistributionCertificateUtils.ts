@@ -1,4 +1,5 @@
-import { AppleDistributionCertificate, AppleTeam } from '../../../../graphql/generated';
+import { AppleTeamFragment } from '../../../../graphql/generated';
+import { AppleDistributionCertificateQueryResult } from '../../api/graphql/queries/AppleDistributionCertificateQuery';
 
 export function formatDistributionCertificate({
   developerPortalIdentifier,
@@ -6,7 +7,7 @@ export function formatDistributionCertificate({
   appleTeam,
   validityNotBefore,
   validityNotAfter,
-}: AppleDistributionCertificate): string {
+}: AppleDistributionCertificateQueryResult): string {
   let line: string = '';
   if (developerPortalIdentifier) {
     line += `Cert ID: ${developerPortalIdentifier}`;
@@ -17,6 +18,6 @@ export function formatDistributionCertificate({
   return line;
 }
 
-function formatAppleTeam({ appleTeamIdentifier, appleTeamName }: AppleTeam): string {
+function formatAppleTeam({ appleTeamIdentifier, appleTeamName }: AppleTeamFragment): string {
   return `Team ID: ${appleTeamIdentifier}${appleTeamName ? `, Team name: ${appleTeamName}` : ''}`;
 }

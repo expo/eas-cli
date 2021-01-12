@@ -1,13 +1,14 @@
 import { AppleDevice } from '../../../../graphql/generated';
 import { APPLE_DEVICE_CLASS_LABELS } from '../../../../graphql/types/credentials/AppleDevice';
 import { promptAsync } from '../../.././../prompts';
+import { AppleDeviceFragmentWithAppleTeam } from '../../api/graphql/queries/AppleDeviceQuery';
 
 export async function chooseDevices(
-  allDevices: AppleDevice[],
+  allDevices: AppleDeviceFragmentWithAppleTeam[],
   preselectedDeviceIdentifiers: string[] = []
 ): Promise<AppleDevice[]> {
   const preselectedDeviceIdentifierSet = new Set(preselectedDeviceIdentifiers);
-  const isSelected = (device: AppleDevice) =>
+  const isSelected = (device: AppleDeviceFragmentWithAppleTeam) =>
     preselectedDeviceIdentifierSet.size === 0 ||
     preselectedDeviceIdentifierSet.has(device.identifier);
   const { devices } = await promptAsync({
@@ -26,12 +27,12 @@ export async function chooseDevices(
   return devices;
 }
 
-function formatDeviceLabel(device: AppleDevice): string {
+function formatDeviceLabel(device: AppleDeviceFragmentWithAppleTeam): string {
   const deviceDetails = formatDeviceDetails(device);
   return `${device.name ?? device.identifier}${deviceDetails !== '' ? ` ${deviceDetails}` : ''}`;
 }
 
-function formatDeviceDetails(device: AppleDevice): string {
+function formatDeviceDetails(device: AppleDeviceFragmentWithAppleTeam): string {
   let details = '';
   if (device.deviceClass) {
     details += APPLE_DEVICE_CLASS_LABELS[device.deviceClass];

@@ -3,13 +3,16 @@ import nullthrows from 'nullthrows';
 
 import {
   AppleDevice,
-  IosAppBuildCredentials,
+  IosAppBuildCredentialsFragment,
   IosDistributionType,
 } from '../../../../graphql/generated';
 import { confirmAsync } from '../../../../prompts';
 import { Action, CredentialsManager } from '../../../CredentialsManager';
 import { Context } from '../../../context';
 import { AppLookupParams } from '../../api/GraphqlClient';
+import { AppleProvisioningProfileMutationResult } from '../../api/graphql/mutations/AppleProvisioningProfileMutation';
+import { AppleDeviceFragmentWithAppleTeam } from '../../api/graphql/queries/AppleDeviceQuery';
+import { AppleProvisioningProfileQueryResult } from '../../api/graphql/queries/AppleProvisioningProfileQuery';
 import { ProvisioningProfileStoreInfo } from '../../appstore/Credentials.types';
 import { ProfileClass } from '../../appstore/provisioningProfile';
 import { chooseDevices } from './DeviceUtils';
@@ -17,11 +20,11 @@ import { doUDIDsMatch, isDevPortalAdhocProfileValid } from './ProvisioningProfil
 import { SetupDistributionCertificate } from './SetupDistributionCertificate';
 
 export class SetupAdhocProvisioningProfile implements Action {
-  private _iosAppBuildCredentials?: IosAppBuildCredentials;
+  private _iosAppBuildCredentials?: IosAppBuildCredentialsFragment;
 
   constructor(private app: AppLookupParams) {}
 
-  public get iosAppBuildCredentials(): IosAppBuildCredentials {
+  public get iosAppBuildCredentials(): IosAppBuildCredentialsFragment {
     assert(
       this._iosAppBuildCredentials,
       'iosAppBuildCredentials can be accessed only after calling .runAsync()'
@@ -56,14 +59,14 @@ export class SetupAdhocProvisioningProfile implements Action {
     const distCert = distCertAction.distributionCertificate;
 
     // 3. Fetch profile from Expo servers
-    let currentProfileFromExpoServers = await ctx.newIos.getProvisioningProfileAsync(
+    let currentProfileFromExpoServers = (await ctx.newIos.getProvisioningProfileAsync(
       this.app,
       appleTeam,
       IosDistributionType.AdHoc
-    );
+    )) as AppleProvisioningProfileQueryResult | AppleProvisioningProfileMutationResult | null;
 
     // 4. Choose devices for internal distribution
-    let chosenDevices: AppleDevice[];
+    let chosenDevices: AppleDeviceFragmentWithAppleTeam[];
     if (currentProfileFromExpoServers) {
       const appleDeviceIdentifiersFromProfile = ((currentProfileFromExpoServers.appleDevices ??
         []) as AppleDevice[]).map(({ identifier }) => identifier);

@@ -2,17 +2,20 @@ import { print } from 'graphql';
 import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
-import { AppleAppIdentifier } from '../../../../../graphql/generated';
+import {
+  AppleAppIdentifierByBundleIdQuery,
+  AppleAppIdentifierFragment,
+} from '../../../../../graphql/generated';
 import { AppleAppIdentifierFragmentNode } from '../../../../../graphql/types/credentials/AppleAppIdentifier';
 
 const AppleAppIdentifierQuery = {
   async byBundleIdentifierAsync(
     accountName: string,
     bundleIdentifier: string
-  ): Promise<AppleAppIdentifier | null> {
+  ): Promise<AppleAppIdentifierFragment | null> {
     const data = await withErrorHandlingAsync(
       graphqlClient
-        .query<{ account: { byName: { appleAppIdentifiers: AppleAppIdentifier[] } } }>(
+        .query<AppleAppIdentifierByBundleIdQuery>(
           gql`
             query AppleAppIdentifierByBundleIdQuery(
               $accountName: String!

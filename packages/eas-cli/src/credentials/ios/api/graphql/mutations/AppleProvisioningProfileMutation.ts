@@ -2,9 +2,18 @@ import { print } from 'graphql';
 import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
-import { AppleProvisioningProfile } from '../../../../../graphql/generated';
+import {
+  AppleProvisioningProfileFragment,
+  AppleTeamFragment,
+  CreateAppleProvisioningProfileMutation,
+  UpdateAppleProvisioningProfileMutation,
+} from '../../../../../graphql/generated';
 import { AppleProvisioningProfileFragmentNode } from '../../../../../graphql/types/credentials/AppleProvisioningProfile';
 import { AppleTeamFragmentNode } from '../../../../../graphql/types/credentials/AppleTeam';
+
+export type AppleProvisioningProfileMutationResult = AppleProvisioningProfileFragment & {
+  appleTeam?: AppleTeamFragment | null;
+};
 
 const AppleProvisioningProfileMutation = {
   async createAppleProvisioningProfileAsync(
@@ -14,12 +23,10 @@ const AppleProvisioningProfileMutation = {
     },
     accountId: string,
     appleAppIdentifierId: string
-  ): Promise<AppleProvisioningProfile> {
+  ): Promise<AppleProvisioningProfileMutationResult> {
     const data = await withErrorHandlingAsync(
       graphqlClient
-        .mutation<{
-          appleProvisioningProfile: { createAppleProvisioningProfile: AppleProvisioningProfile };
-        }>(
+        .mutation<CreateAppleProvisioningProfileMutation>(
           gql`
             mutation CreateAppleProvisioningProfileMutation(
               $appleProvisioningProfileInput: AppleProvisioningProfileInput!
@@ -60,12 +67,10 @@ const AppleProvisioningProfileMutation = {
       appleProvisioningProfile: string;
       developerPortalIdentifier?: string;
     }
-  ): Promise<AppleProvisioningProfile> {
+  ): Promise<AppleProvisioningProfileMutationResult> {
     const data = await withErrorHandlingAsync(
       graphqlClient
-        .mutation<{
-          appleProvisioningProfile: { updateAppleProvisioningProfile: AppleProvisioningProfile };
-        }>(
+        .mutation<UpdateAppleProvisioningProfileMutation>(
           gql`
             mutation UpdateAppleProvisioningProfileMutation(
               $appleProvisioningProfileId: ID!

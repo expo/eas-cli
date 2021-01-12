@@ -2,16 +2,18 @@ import { print } from 'graphql';
 import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
-import { AppleTeam } from '../../../../../graphql/generated';
+import {
+  AppleTeamByIdentifierQuery,
+  AppleTeamFragment,
+  AppleTeamsByAccountNameQuery,
+} from '../../../../../graphql/generated';
 import { AppleTeamFragmentNode } from '../../../../../graphql/types/credentials/AppleTeam';
 
-type AppleTeamQueryResult = Pick<AppleTeam, 'id' | 'appleTeamIdentifier' | 'appleTeamName'>;
-
 const AppleTeamQuery = {
-  async getAllForAccountAsync(accountName: string): Promise<AppleTeamQueryResult[]> {
+  async getAllForAccountAsync(accountName: string): Promise<AppleTeamFragment[]> {
     const data = await withErrorHandlingAsync(
       graphqlClient
-        .query<{ account: { byName: { appleTeams: AppleTeamQueryResult[] } } }>(
+        .query<AppleTeamsByAccountNameQuery>(
           gql`
             query AppleTeamsByAccountName($accountName: String!) {
               account {
@@ -37,10 +39,10 @@ const AppleTeamQuery = {
   async getByAppleTeamIdentifierAsync(
     accountId: string,
     appleTeamIdentifier: string
-  ): Promise<AppleTeam | null> {
+  ): Promise<AppleTeamFragment | null> {
     const data = await withErrorHandlingAsync(
       graphqlClient
-        .query<{ appleTeam: { byAppleTeamIdentifier: AppleTeam | null } }>(
+        .query<AppleTeamByIdentifierQuery>(
           gql`
             query AppleTeamByIdentifierQuery($accountId: ID!, $appleTeamIdentifier: String!) {
               appleTeam {
@@ -59,7 +61,7 @@ const AppleTeamQuery = {
         )
         .toPromise()
     );
-    return data.appleTeam.byAppleTeamIdentifier;
+    return data.appleTeam.byAppleTeamIdentifier ?? null;
   },
 };
 

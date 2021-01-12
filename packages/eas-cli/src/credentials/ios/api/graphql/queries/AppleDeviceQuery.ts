@@ -3,33 +3,42 @@ import { print } from 'graphql';
 import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
-import { AppleDevice, AppleTeam } from '../../../../../graphql/generated';
+import {
+  AppleDevice,
+  AppleDeviceFragment,
+  AppleDevicesByAppleTeamQuery,
+  AppleDevicesByIdentifierQuery,
+  AppleDevicesByTeamIdentifierQuery,
+  AppleTeamFragment,
+} from '../../../../../graphql/generated';
 import { AppleDeviceFragmentNode } from '../../../../../graphql/types/credentials/AppleDevice';
 import { AppleTeamFragmentNode } from '../../../../../graphql/types/credentials/AppleTeam';
 
-export type AppleTeamQueryResult = Pick<AppleTeam, 'id' | 'appleTeamIdentifier' | 'appleTeamName'>;
+export type AppleDeviceFragmentWithAppleTeam = AppleDeviceFragment & {
+  appleTeam: AppleTeamFragment;
+};
 
 export type AppleDeviceQueryResult = Pick<
   AppleDevice,
   'id' | 'identifier' | 'name' | 'deviceClass' | 'enabled'
 >;
 
-export type AppleDevicesByTeamIdentifierQueryResult = AppleTeamQueryResult & {
+export type AppleDevicesByTeamIdentifierQueryResult = AppleTeamFragment & {
   appleDevices: AppleDeviceQueryResult[];
 };
 
 export type AppleDevicesByIdentifierQueryResult = AppleDeviceQueryResult & {
-  appleTeam: AppleTeamQueryResult;
+  appleTeam: AppleTeamFragment;
 };
 
 const AppleDeviceQuery = {
   async getAllByAppleTeamIdentifierAsync(
     accountId: string,
     appleTeamIdentifier: string
-  ): Promise<AppleDevice[]> {
+  ): Promise<AppleDeviceFragmentWithAppleTeam[]> {
     const data = await withErrorHandlingAsync(
       graphqlClient
-        .query<{ appleTeam: { byAppleTeamIdentifier: AppleTeam } }>(
+        .query<AppleDevicesByAppleTeamQuery>(
           gql`
             query AppleDevicesByAppleTeamQuery($accountId: ID!, $appleTeamIdentifier: String!) {
               appleTeam {
@@ -58,9 +67,9 @@ const AppleDeviceQuery = {
         )
         .toPromise()
     );
-    const { appleDevices } = data.appleTeam.byAppleTeamIdentifier;
+    const { appleDevices } = data.appleTeam.byAppleTeamIdentifier!;
     assert(appleDevices, 'Apple Devices should be defined in this context - enforced by GraphQL');
-    return appleDevices.filter(device => device) as AppleDevice[];
+    return appleDevices;
   },
 
   async getAllForAppleTeamAsync(
@@ -69,7 +78,7 @@ const AppleDeviceQuery = {
   ): Promise<AppleDevicesByTeamIdentifierQueryResult | null> {
     const data = await withErrorHandlingAsync(
       graphqlClient
-        .query<{ account: { byName: { appleTeams: AppleDevicesByTeamIdentifierQueryResult[] } } }>(
+        .query<AppleDevicesByTeamIdentifierQuery>(
           gql`
             query AppleDevicesByTeamIdentifier(
               $accountName: String!
@@ -108,7 +117,7 @@ const AppleDeviceQuery = {
   ): Promise<AppleDevicesByIdentifierQueryResult | null> {
     const data = await withErrorHandlingAsync(
       graphqlClient
-        .query<{ account: { byName: { appleDevices: AppleDevicesByIdentifierQueryResult[] } } }>(
+        .query<AppleDevicesByIdentifierQuery>(
           gql`
             query AppleDevicesByIdentifier($accountName: String!, $identifier: String!) {
               account {
