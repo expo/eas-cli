@@ -1,21 +1,27 @@
 import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../client';
-import { AppPlatform, Build } from '../generated';
+import {
+  AppPlatform,
+  Build,
+  BuildsByIdQuery,
+  BuildsForAppQuery,
+  PendingBuildsForAccountAndPlatformQuery,
+} from '../generated';
 
 type Filters = Partial<Pick<Build, 'platform' | 'status'>> & {
   offset?: number;
   limit?: number;
 };
 
-type BuildQueryResult = Pick<Build, 'platform' | 'artifacts'>;
+type BuildQueryResult = Pick<Build, 'id' | 'platform' | 'artifacts'>;
 type PendingBuildQueryResult = Pick<Build, 'id' | 'platform'>;
 
 const BuildQuery = {
   async byIdAsync(buildId: string): Promise<BuildQueryResult> {
     const data = await withErrorHandlingAsync(
       graphqlClient
-        .query<{ builds: { byId: BuildQueryResult } }>(
+        .query<BuildsByIdQuery>(
           gql`
             query BuildsByIdQuery($buildId: ID!) {
               builds {
@@ -39,7 +45,7 @@ const BuildQuery = {
   async allForAppAsync(appId: string, filters?: Filters): Promise<BuildQueryResult[]> {
     const data = await withErrorHandlingAsync(
       graphqlClient
-        .query<{ builds: { allForApp: BuildQueryResult[] } }>(
+        .query<BuildsForAppQuery>(
           // TODO: Change $appId: String! to ID! when fixed server-side schema
           gql`
             query BuildsForAppQuery(
@@ -71,7 +77,7 @@ const BuildQuery = {
         .toPromise()
     );
 
-    return data.builds.allForApp;
+    return data.builds.allForApp as BuildQueryResult[];
   },
 
   async getPendingBuildIdAsync(
@@ -80,14 +86,7 @@ const BuildQuery = {
   ): Promise<PendingBuildQueryResult | null> {
     const data = await withErrorHandlingAsync(
       graphqlClient
-        .query<{
-          account: {
-            byName: {
-              inQueueBuilds: PendingBuildQueryResult[];
-              inProgressBuilds: PendingBuildQueryResult[];
-            };
-          };
-        }>(
+        .query<PendingBuildsForAccountAndPlatformQuery>(
           gql`
             query PendingBuildsForAccountAndPlatform(
               $accountName: String!

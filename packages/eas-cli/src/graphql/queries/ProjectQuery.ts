@@ -1,7 +1,7 @@
 import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../client';
-import { Project } from '../generated';
+import { Project, ProjectByUsernameAndSlugQuery } from '../generated';
 
 type ProjectQueryResult = Pick<Project, 'id'>;
 
@@ -9,7 +9,7 @@ const ProjectQuery = {
   async byUsernameAndSlugAsync(username: string, slug: string): Promise<ProjectQueryResult> {
     const data = await withErrorHandlingAsync(
       graphqlClient
-        .query<{ project: { byUsernameAndSlug: ProjectQueryResult } }>(
+        .query<ProjectByUsernameAndSlugQuery>(
           gql`
             query ProjectByUsernameAndSlugQuery($username: String!, $slug: String!) {
               project {

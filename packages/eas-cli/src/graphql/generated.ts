@@ -3177,12 +3177,12 @@ export type GetSignedUploadMutation = (
   ) }
 );
 
-export type PublishMutationVariables = Exact<{
+export type UpdatePublishMutationVariables = Exact<{
   publishUpdateGroupInput?: Maybe<PublishUpdateGroupInput>;
 }>;
 
 
-export type PublishMutation = (
+export type UpdatePublishMutation = (
   { __typename?: 'RootMutation' }
   & { updateRelease: (
     { __typename?: 'UpdateReleaseMutation' }
