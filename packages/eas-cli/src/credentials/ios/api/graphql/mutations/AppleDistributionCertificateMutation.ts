@@ -25,7 +25,7 @@ const AppleDistributionCertificateMutation = {
           };
         }>(
           gql`
-            mutation AppleDistributionCertificateMutation(
+            mutation CreateAppleDistributionCertificateMutation(
               $appleDistributionCertificateInput: AppleDistributionCertificateInput!
               $accountId: ID!
             ) {

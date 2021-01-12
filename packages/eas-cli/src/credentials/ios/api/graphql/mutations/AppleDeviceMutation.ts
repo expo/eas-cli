@@ -19,7 +19,10 @@ const AppleDeviceMutation = {
       graphqlClient
         .mutation<{ appleDevice: { createAppleDevice: AppleDevice } }>(
           gql`
-            mutation AppleDeviceMutation($appleDeviceInput: AppleDeviceInput!, $accountId: ID!) {
+            mutation CreateAppleDeviceMutation(
+              $appleDeviceInput: AppleDeviceInput!
+              $accountId: ID!
+            ) {
               appleDevice {
                 createAppleDevice(appleDeviceInput: $appleDeviceInput, accountId: $accountId) {
                   id

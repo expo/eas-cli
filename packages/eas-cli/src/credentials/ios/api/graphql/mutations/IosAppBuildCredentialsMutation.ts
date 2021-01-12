@@ -20,7 +20,7 @@ const IosAppBuildCredentialsMutation = {
           iosAppBuildCredentials: { createIosAppBuildCredentials: IosAppBuildCredentials };
         }>(
           gql`
-            mutation IosAppBuildCredentialsMutation(
+            mutation CreateIosAppBuildCredentialsMutation(
               $iosAppBuildCredentialsInput: IosAppBuildCredentialsInput!
               $iosAppCredentialsId: ID!
             ) {
@@ -55,7 +55,7 @@ const IosAppBuildCredentialsMutation = {
           iosAppBuildCredentials: { setDistributionCertificate: IosAppBuildCredentials };
         }>(
           gql`
-            mutation IosAppBuildCredentialsMutation(
+            mutation SetDistributionCertificateMutation(
               $iosAppBuildCredentialsId: ID!
               $distributionCertificateId: ID!
             ) {
@@ -90,7 +90,7 @@ const IosAppBuildCredentialsMutation = {
           iosAppBuildCredentials: { setProvisioningProfile: IosAppBuildCredentials };
         }>(
           gql`
-            mutation IosAppBuildCredentialsMutation(
+            mutation SetProvisioningProfileMutation(
               $iosAppBuildCredentialsId: ID!
               $provisioningProfileId: ID!
             ) {

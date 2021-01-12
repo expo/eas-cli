@@ -17,7 +17,7 @@ const AppleAppIdentifierMutation = {
       graphqlClient
         .mutation<{ appleAppIdentifier: { createAppleAppIdentifier: AppleAppIdentifier } }>(
           gql`
-            mutation AppleAppIdentifierMutation(
+            mutation CreateAppleAppIdentifierMutation(
               $appleAppIdentifierInput: AppleAppIdentifierInput!
               $accountId: ID!
             ) {

@@ -2604,6 +2604,563 @@ export enum CacheControlScope {
 }
 
 
+export type CreateAppleAppIdentifierMutationVariables = Exact<{
+  appleAppIdentifierInput: AppleAppIdentifierInput;
+  accountId: Scalars['ID'];
+}>;
+
+
+export type CreateAppleAppIdentifierMutation = (
+  { __typename?: 'RootMutation' }
+  & { appleAppIdentifier: (
+    { __typename?: 'AppleAppIdentifierMutation' }
+    & { createAppleAppIdentifier?: Maybe<(
+      { __typename?: 'AppleAppIdentifier' }
+      & Pick<AppleAppIdentifier, 'id'>
+      & AppleAppIdentifierFragment
+    )> }
+  ) }
+);
+
+export type CreateAppleDeviceMutationVariables = Exact<{
+  appleDeviceInput: AppleDeviceInput;
+  accountId: Scalars['ID'];
+}>;
+
+
+export type CreateAppleDeviceMutation = (
+  { __typename?: 'RootMutation' }
+  & { appleDevice: (
+    { __typename?: 'AppleDeviceMutation' }
+    & { createAppleDevice: (
+      { __typename?: 'AppleDevice' }
+      & Pick<AppleDevice, 'id'>
+      & AppleDeviceFragment
+    ) }
+  ) }
+);
+
+export type CreateAppleDeviceRegistrationRequestMutationVariables = Exact<{
+  appleTeamId: Scalars['ID'];
+  accountId: Scalars['ID'];
+}>;
+
+
+export type CreateAppleDeviceRegistrationRequestMutation = (
+  { __typename?: 'RootMutation' }
+  & { appleDeviceRegistrationRequest: (
+    { __typename?: 'AppleDeviceRegistrationRequestMutation' }
+    & { createAppleDeviceRegistrationRequest: (
+      { __typename?: 'AppleDeviceRegistrationRequest' }
+      & Pick<AppleDeviceRegistrationRequest, 'id'>
+      & AppleDeviceRegistrationRequestFragment
+    ) }
+  ) }
+);
+
+export type CreateAppleDistributionCertificateMutationVariables = Exact<{
+  appleDistributionCertificateInput: AppleDistributionCertificateInput;
+  accountId: Scalars['ID'];
+}>;
+
+
+export type CreateAppleDistributionCertificateMutation = (
+  { __typename?: 'RootMutation' }
+  & { appleDistributionCertificate: (
+    { __typename?: 'AppleDistributionCertificateMutation' }
+    & { createAppleDistributionCertificate?: Maybe<(
+      { __typename?: 'AppleDistributionCertificate' }
+      & Pick<AppleDistributionCertificate, 'id'>
+      & { appleTeam?: Maybe<(
+        { __typename?: 'AppleTeam' }
+        & Pick<AppleTeam, 'id'>
+        & AppleTeamFragment
+      )> }
+      & AppleDistributionCertificateFragment
+    )> }
+  ) }
+);
+
+export type CreateAppleProvisioningProfileMutationVariables = Exact<{
+  appleProvisioningProfileInput: AppleProvisioningProfileInput;
+  accountId: Scalars['ID'];
+  appleAppIdentifierId: Scalars['ID'];
+}>;
+
+
+export type CreateAppleProvisioningProfileMutation = (
+  { __typename?: 'RootMutation' }
+  & { appleProvisioningProfile: (
+    { __typename?: 'AppleProvisioningProfileMutation' }
+    & { createAppleProvisioningProfile: (
+      { __typename?: 'AppleProvisioningProfile' }
+      & Pick<AppleProvisioningProfile, 'id'>
+      & { appleTeam?: Maybe<(
+        { __typename?: 'AppleTeam' }
+        & Pick<AppleTeam, 'id'>
+        & AppleTeamFragment
+      )> }
+      & AppleProvisioningProfileFragment
+    ) }
+  ) }
+);
+
+export type UpdateAppleProvisioningProfileMutationVariables = Exact<{
+  appleProvisioningProfileId: Scalars['ID'];
+  appleProvisioningProfileInput: AppleProvisioningProfileInput;
+}>;
+
+
+export type UpdateAppleProvisioningProfileMutation = (
+  { __typename?: 'RootMutation' }
+  & { appleProvisioningProfile: (
+    { __typename?: 'AppleProvisioningProfileMutation' }
+    & { updateAppleProvisioningProfile: (
+      { __typename?: 'AppleProvisioningProfile' }
+      & Pick<AppleProvisioningProfile, 'id'>
+      & { appleTeam?: Maybe<(
+        { __typename?: 'AppleTeam' }
+        & Pick<AppleTeam, 'id'>
+        & AppleTeamFragment
+      )> }
+      & AppleProvisioningProfileFragment
+    ) }
+  ) }
+);
+
+export type CreateAppleTeamMutationVariables = Exact<{
+  appleTeamInput: AppleTeamInput;
+  accountId: Scalars['ID'];
+}>;
+
+
+export type CreateAppleTeamMutation = (
+  { __typename?: 'RootMutation' }
+  & { appleTeam: (
+    { __typename?: 'AppleTeamMutation' }
+    & { createAppleTeam: (
+      { __typename?: 'AppleTeam' }
+      & Pick<AppleTeam, 'id'>
+      & { account: (
+        { __typename?: 'Account' }
+        & Pick<Account, 'id' | 'name'>
+      ) }
+      & AppleTeamFragment
+    ) }
+  ) }
+);
+
+export type CreateIosAppBuildCredentialsMutationVariables = Exact<{
+  iosAppBuildCredentialsInput: IosAppBuildCredentialsInput;
+  iosAppCredentialsId: Scalars['ID'];
+}>;
+
+
+export type CreateIosAppBuildCredentialsMutation = (
+  { __typename?: 'RootMutation' }
+  & { iosAppBuildCredentials: (
+    { __typename?: 'IosAppBuildCredentialsMutation' }
+    & { createIosAppBuildCredentials?: Maybe<(
+      { __typename?: 'IosAppBuildCredentials' }
+      & Pick<IosAppBuildCredentials, 'id'>
+      & IosAppBuildCredentialsFragment
+    )> }
+  ) }
+);
+
+export type SetDistributionCertificateMutationVariables = Exact<{
+  iosAppBuildCredentialsId: Scalars['ID'];
+  distributionCertificateId: Scalars['ID'];
+}>;
+
+
+export type SetDistributionCertificateMutation = (
+  { __typename?: 'RootMutation' }
+  & { iosAppBuildCredentials: (
+    { __typename?: 'IosAppBuildCredentialsMutation' }
+    & { setDistributionCertificate?: Maybe<(
+      { __typename?: 'IosAppBuildCredentials' }
+      & Pick<IosAppBuildCredentials, 'id'>
+      & IosAppBuildCredentialsFragment
+    )> }
+  ) }
+);
+
+export type SetProvisioningProfileMutationVariables = Exact<{
+  iosAppBuildCredentialsId: Scalars['ID'];
+  provisioningProfileId: Scalars['ID'];
+}>;
+
+
+export type SetProvisioningProfileMutation = (
+  { __typename?: 'RootMutation' }
+  & { iosAppBuildCredentials: (
+    { __typename?: 'IosAppBuildCredentialsMutation' }
+    & { setProvisioningProfile?: Maybe<(
+      { __typename?: 'IosAppBuildCredentials' }
+      & Pick<IosAppBuildCredentials, 'id'>
+      & IosAppBuildCredentialsFragment
+    )> }
+  ) }
+);
+
+export type CreateIosAppCredentialsMutationVariables = Exact<{
+  iosAppCredentialsInput: IosAppCredentialsInput;
+  appId: Scalars['ID'];
+  appleAppIdentifierId: Scalars['ID'];
+}>;
+
+
+export type CreateIosAppCredentialsMutation = (
+  { __typename?: 'RootMutation' }
+  & { iosAppCredentials: (
+    { __typename?: 'IosAppCredentialsMutation' }
+    & { createIosAppCredentials?: Maybe<(
+      { __typename?: 'IosAppCredentials' }
+      & Pick<IosAppCredentials, 'id'>
+      & IosAppCredentialsFragment
+    )> }
+  ) }
+);
+
+export type AppByFullNameQueryVariables = Exact<{
+  fullName: Scalars['String'];
+}>;
+
+
+export type AppByFullNameQuery = (
+  { __typename?: 'RootQuery' }
+  & { app?: Maybe<(
+    { __typename?: 'AppQuery' }
+    & { byFullName: (
+      { __typename?: 'App' }
+      & Pick<App, 'id'>
+      & AppFragment
+    ) }
+  )> }
+);
+
+export type AppleAppIdentifierByBundleIdQueryVariables = Exact<{
+  accountName: Scalars['String'];
+  bundleIdentifier: Scalars['String'];
+}>;
+
+
+export type AppleAppIdentifierByBundleIdQuery = (
+  { __typename?: 'RootQuery' }
+  & { account: (
+    { __typename?: 'AccountQuery' }
+    & { byName: (
+      { __typename?: 'Account' }
+      & Pick<Account, 'id'>
+      & { appleAppIdentifiers: Array<(
+        { __typename?: 'AppleAppIdentifier' }
+        & Pick<AppleAppIdentifier, 'id'>
+        & AppleAppIdentifierFragment
+      )> }
+    ) }
+  ) }
+);
+
+export type AppleDevicesByAppleTeamQueryVariables = Exact<{
+  accountId: Scalars['ID'];
+  appleTeamIdentifier: Scalars['String'];
+}>;
+
+
+export type AppleDevicesByAppleTeamQuery = (
+  { __typename?: 'RootQuery' }
+  & { appleTeam: (
+    { __typename?: 'AppleTeamQuery' }
+    & { byAppleTeamIdentifier?: Maybe<(
+      { __typename?: 'AppleTeam' }
+      & Pick<AppleTeam, 'id'>
+      & { appleDevices?: Maybe<Array<(
+        { __typename?: 'AppleDevice' }
+        & Pick<AppleDevice, 'id'>
+        & { appleTeam: (
+          { __typename?: 'AppleTeam' }
+          & Pick<AppleTeam, 'id'>
+          & AppleTeamFragment
+        ) }
+        & AppleDeviceFragment
+      )>> }
+      & AppleTeamFragment
+    )> }
+  ) }
+);
+
+export type AppleDevicesByTeamIdentifierQueryVariables = Exact<{
+  accountName: Scalars['String'];
+  appleTeamIdentifier: Scalars['String'];
+}>;
+
+
+export type AppleDevicesByTeamIdentifierQuery = (
+  { __typename?: 'RootQuery' }
+  & { account: (
+    { __typename?: 'AccountQuery' }
+    & { byName: (
+      { __typename?: 'Account' }
+      & Pick<Account, 'id'>
+      & { appleTeams: Array<(
+        { __typename?: 'AppleTeam' }
+        & Pick<AppleTeam, 'id' | 'appleTeamIdentifier' | 'appleTeamName'>
+        & { appleDevices?: Maybe<Array<(
+          { __typename?: 'AppleDevice' }
+          & Pick<AppleDevice, 'id' | 'identifier' | 'name' | 'deviceClass' | 'enabled'>
+        )>> }
+      )> }
+    ) }
+  ) }
+);
+
+export type AppleDevicesByIdentifierQueryVariables = Exact<{
+  accountName: Scalars['String'];
+  identifier: Scalars['String'];
+}>;
+
+
+export type AppleDevicesByIdentifierQuery = (
+  { __typename?: 'RootQuery' }
+  & { account: (
+    { __typename?: 'AccountQuery' }
+    & { byName: (
+      { __typename?: 'Account' }
+      & Pick<Account, 'id'>
+      & { appleDevices: Array<(
+        { __typename?: 'AppleDevice' }
+        & Pick<AppleDevice, 'id' | 'identifier' | 'name' | 'deviceClass' | 'enabled'>
+        & { appleTeam: (
+          { __typename?: 'AppleTeam' }
+          & Pick<AppleTeam, 'id' | 'appleTeamIdentifier' | 'appleTeamName'>
+        ) }
+      )> }
+    ) }
+  ) }
+);
+
+export type AppleDistributionCertificateByAppQueryVariables = Exact<{
+  projectFullName: Scalars['String'];
+  appleAppIdentifierId: Scalars['String'];
+  iosDistributionType: IosDistributionType;
+}>;
+
+
+export type AppleDistributionCertificateByAppQuery = (
+  { __typename?: 'RootQuery' }
+  & { app?: Maybe<(
+    { __typename?: 'AppQuery' }
+    & { byFullName: (
+      { __typename?: 'App' }
+      & Pick<App, 'id'>
+      & { iosAppCredentials: Array<(
+        { __typename?: 'IosAppCredentials' }
+        & Pick<IosAppCredentials, 'id'>
+        & { iosAppBuildCredentialsArray: Array<(
+          { __typename?: 'IosAppBuildCredentials' }
+          & Pick<IosAppBuildCredentials, 'id'>
+          & { distributionCertificate?: Maybe<(
+            { __typename?: 'AppleDistributionCertificate' }
+            & Pick<AppleDistributionCertificate, 'id'>
+            & { appleTeam?: Maybe<(
+              { __typename?: 'AppleTeam' }
+              & Pick<AppleTeam, 'id'>
+              & AppleTeamFragment
+            )> }
+            & AppleDistributionCertificateFragment
+          )> }
+        )> }
+      )> }
+    ) }
+  )> }
+);
+
+export type AppleDistributionCertificateByAccountQueryVariables = Exact<{
+  accountName: Scalars['String'];
+}>;
+
+
+export type AppleDistributionCertificateByAccountQuery = (
+  { __typename?: 'RootQuery' }
+  & { account: (
+    { __typename?: 'AccountQuery' }
+    & { byName: (
+      { __typename?: 'Account' }
+      & Pick<Account, 'id'>
+      & { appleDistributionCertificates: Array<(
+        { __typename?: 'AppleDistributionCertificate' }
+        & Pick<AppleDistributionCertificate, 'id'>
+        & { appleTeam?: Maybe<(
+          { __typename?: 'AppleTeam' }
+          & Pick<AppleTeam, 'id'>
+          & AppleTeamFragment
+        )> }
+        & AppleDistributionCertificateFragment
+      )> }
+    ) }
+  ) }
+);
+
+export type AppleProvisioningProfilesByAppQueryVariables = Exact<{
+  projectFullName: Scalars['String'];
+  appleAppIdentifierId: Scalars['String'];
+  iosDistributionType: IosDistributionType;
+}>;
+
+
+export type AppleProvisioningProfilesByAppQuery = (
+  { __typename?: 'RootQuery' }
+  & { app?: Maybe<(
+    { __typename?: 'AppQuery' }
+    & { byFullName: (
+      { __typename?: 'App' }
+      & Pick<App, 'id'>
+      & { iosAppCredentials: Array<(
+        { __typename?: 'IosAppCredentials' }
+        & Pick<IosAppCredentials, 'id'>
+        & { iosAppBuildCredentialsArray: Array<(
+          { __typename?: 'IosAppBuildCredentials' }
+          & Pick<IosAppBuildCredentials, 'id'>
+          & { provisioningProfile?: Maybe<(
+            { __typename?: 'AppleProvisioningProfile' }
+            & Pick<AppleProvisioningProfile, 'id'>
+            & { appleTeam?: Maybe<(
+              { __typename?: 'AppleTeam' }
+              & Pick<AppleTeam, 'id'>
+              & AppleTeamFragment
+            )>, appleDevices: Array<(
+              { __typename?: 'AppleDevice' }
+              & Pick<AppleDevice, 'id'>
+              & AppleDeviceFragment
+            )>, appleAppIdentifier: (
+              { __typename?: 'AppleAppIdentifier' }
+              & Pick<AppleAppIdentifier, 'id'>
+              & AppleAppIdentifierFragment
+            ) }
+            & AppleProvisioningProfileFragment
+          )> }
+        )> }
+      )> }
+    ) }
+  )> }
+);
+
+export type AppleTeamsByAccountNameQueryVariables = Exact<{
+  accountName: Scalars['String'];
+}>;
+
+
+export type AppleTeamsByAccountNameQuery = (
+  { __typename?: 'RootQuery' }
+  & { account: (
+    { __typename?: 'AccountQuery' }
+    & { byName: (
+      { __typename?: 'Account' }
+      & Pick<Account, 'id'>
+      & { appleTeams: Array<(
+        { __typename?: 'AppleTeam' }
+        & Pick<AppleTeam, 'id' | 'appleTeamName' | 'appleTeamIdentifier'>
+      )> }
+    ) }
+  ) }
+);
+
+export type AppleTeamByIdentifierQueryVariables = Exact<{
+  accountId: Scalars['ID'];
+  appleTeamIdentifier: Scalars['String'];
+}>;
+
+
+export type AppleTeamByIdentifierQuery = (
+  { __typename?: 'RootQuery' }
+  & { appleTeam: (
+    { __typename?: 'AppleTeamQuery' }
+    & { byAppleTeamIdentifier?: Maybe<(
+      { __typename?: 'AppleTeam' }
+      & Pick<AppleTeam, 'id'>
+      & AppleTeamFragment
+    )> }
+  ) }
+);
+
+export type IosAppBuildCredentialsByAppleAppIdentiferAndDistributionQueryVariables = Exact<{
+  projectFullName: Scalars['String'];
+  appleAppIdentifierId: Scalars['String'];
+  iosDistributionType: IosDistributionType;
+}>;
+
+
+export type IosAppBuildCredentialsByAppleAppIdentiferAndDistributionQuery = (
+  { __typename?: 'RootQuery' }
+  & { app?: Maybe<(
+    { __typename?: 'AppQuery' }
+    & { byFullName: (
+      { __typename?: 'App' }
+      & Pick<App, 'id'>
+      & { iosAppCredentials: Array<(
+        { __typename?: 'IosAppCredentials' }
+        & Pick<IosAppCredentials, 'id'>
+        & { iosAppBuildCredentialsArray: Array<(
+          { __typename?: 'IosAppBuildCredentials' }
+          & Pick<IosAppBuildCredentials, 'id'>
+          & IosAppBuildCredentialsFragment
+        )> }
+      )> }
+    ) }
+  )> }
+);
+
+export type IosAppCredentialsByAppIdentifierIdQueryVariables = Exact<{
+  projectFullName: Scalars['String'];
+  appleAppIdentifierId: Scalars['String'];
+}>;
+
+
+export type IosAppCredentialsByAppIdentifierIdQuery = (
+  { __typename?: 'RootQuery' }
+  & { app?: Maybe<(
+    { __typename?: 'AppQuery' }
+    & { byFullName: (
+      { __typename?: 'App' }
+      & Pick<App, 'id'>
+      & { iosAppCredentials: Array<(
+        { __typename?: 'IosAppCredentials' }
+        & Pick<IosAppCredentials, 'id'>
+        & IosAppCredentialsFragment
+      )> }
+    ) }
+  )> }
+);
+
+export type IosAppCredentialsWithBuildCredentialsByAppIdentifierIdQueryVariables = Exact<{
+  projectFullName: Scalars['String'];
+  appleAppIdentifierId: Scalars['String'];
+  iosDistributionType: IosDistributionType;
+}>;
+
+
+export type IosAppCredentialsWithBuildCredentialsByAppIdentifierIdQuery = (
+  { __typename?: 'RootQuery' }
+  & { app?: Maybe<(
+    { __typename?: 'AppQuery' }
+    & { byFullName: (
+      { __typename?: 'App' }
+      & Pick<App, 'id'>
+      & { iosAppCredentials: Array<(
+        { __typename?: 'IosAppCredentials' }
+        & Pick<IosAppCredentials, 'id'>
+        & { iosAppBuildCredentialsArray: Array<(
+          { __typename?: 'IosAppBuildCredentials' }
+          & Pick<IosAppBuildCredentials, 'id'>
+          & IosAppBuildCredentialsFragment
+        )> }
+        & IosAppCredentialsFragment
+      )> }
+    ) }
+  )> }
+);
+
 export type GetSignedUploadMutationVariables = Exact<{
   contentTypes: Array<Scalars['String']>;
 }>;
@@ -2841,21 +3398,4 @@ export type IosAppBuildCredentialsFragment = (
 export type IosAppCredentialsFragment = (
   { __typename?: 'IosAppCredentials' }
   & Pick<IosAppCredentials, 'id'>
-);
-
-export type AppByFullNameQueryVariables = Exact<{
-  fullName: Scalars['String'];
-}>;
-
-
-export type AppByFullNameQuery = (
-  { __typename?: 'RootQuery' }
-  & { app?: Maybe<(
-    { __typename?: 'AppQuery' }
-    & { byFullName: (
-      { __typename?: 'App' }
-      & Pick<App, 'id'>
-      & AppFragment
-    ) }
-  )> }
 );

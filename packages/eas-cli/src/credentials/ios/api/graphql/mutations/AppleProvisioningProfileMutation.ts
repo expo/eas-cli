@@ -21,7 +21,7 @@ const AppleProvisioningProfileMutation = {
           appleProvisioningProfile: { createAppleProvisioningProfile: AppleProvisioningProfile };
         }>(
           gql`
-            mutation AppleProvisioningProfileMutation(
+            mutation CreateAppleProvisioningProfileMutation(
               $appleProvisioningProfileInput: AppleProvisioningProfileInput!
               $accountId: ID!
               $appleAppIdentifierId: ID!
@@ -67,7 +67,7 @@ const AppleProvisioningProfileMutation = {
           appleProvisioningProfile: { updateAppleProvisioningProfile: AppleProvisioningProfile };
         }>(
           gql`
-            mutation AppleProvisioningProfileMutation(
+            mutation UpdateAppleProvisioningProfileMutation(
               $appleProvisioningProfileId: ID!
               $appleProvisioningProfileInput: AppleProvisioningProfileInput!
             ) {

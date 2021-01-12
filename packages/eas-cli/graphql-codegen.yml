@@ -2,7 +2,7 @@ overwrite: true
 schema: 'https://staging.exp.host/--/graphql'
 documents:
   - 'src/graphql/**/!(*.d).{ts,tsx}'
-  - 'src/credentials/ios/api/graphql/queries/AppQuery.ts'
+  - 'src/credentials/ios/api/graphql/**/!(*.d).{ts,tsx}'
 generates:
   src/graphql/generated.ts:
     plugins:

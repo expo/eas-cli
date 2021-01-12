@@ -18,7 +18,10 @@ const AppleDeviceRegistrationRequestMutation = {
           };
         }>(
           gql`
-            mutation AppleDeviceRegistrationRequestMutation($appleTeamId: ID!, $accountId: ID!) {
+            mutation CreateAppleDeviceRegistrationRequestMutation(
+              $appleTeamId: ID!
+              $accountId: ID!
+            ) {
               appleDeviceRegistrationRequest {
                 createAppleDeviceRegistrationRequest(
                   appleTeamId: $appleTeamId

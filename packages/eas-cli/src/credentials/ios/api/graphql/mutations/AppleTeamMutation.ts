@@ -17,7 +17,7 @@ const AppleTeamMutation = {
       graphqlClient
         .mutation<{ appleTeam: { createAppleTeam: AppleTeam } }>(
           gql`
-            mutation AppleTeamMutation($appleTeamInput: AppleTeamInput!, $accountId: ID!) {
+            mutation CreateAppleTeamMutation($appleTeamInput: AppleTeamInput!, $accountId: ID!) {
               appleTeam {
                 createAppleTeam(appleTeamInput: $appleTeamInput, accountId: $accountId) {
                   id

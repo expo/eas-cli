@@ -18,7 +18,7 @@ const IosAppCredentialsMutation = {
       graphqlClient
         .mutation<{ iosAppCredentials: { createIosAppCredentials: IosAppCredentials } }>(
           gql`
-            mutation IosAppCredentialsMutation(
+            mutation CreateIosAppCredentialsMutation(
               $iosAppCredentialsInput: IosAppCredentialsInput!
               $appId: ID!
               $appleAppIdentifierId: ID!
