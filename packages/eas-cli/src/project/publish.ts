@@ -140,7 +140,7 @@ export function loadMetadata(distRoot: string): Metadata {
     throw new Error('Only bundles with metadata version 0 are supported');
   }
   if (metadata.bundler !== 'metro') {
-    throw new Error('Only bundles created by metro are supported');
+    throw new Error('Only bundles created with Metro are currently supported');
   }
   return metadata;
 }

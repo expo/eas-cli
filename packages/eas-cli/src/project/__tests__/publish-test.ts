@@ -176,11 +176,11 @@ describe(collectAssets, () => {
     fs.mkdirSync(bundleDir, { recursive: true });
     fs.mkdirSync(assetDir, { recursive: true });
     Platforms.forEach(platform => {
-      fs.writeFileSync(path.resolve(`${inputDir}/bundles/${platform}.js`), bundles[platform]);
+      fs.writeFileSync(path.resolve(inputDir, `bundles/${platform}.js`), bundles[platform]);
     });
     fs.writeFileSync(path.resolve(`${inputDir}/assets/${fakeHash}`), dummyFileBuffer);
     fs.writeFileSync(
-      path.resolve(`${inputDir}/metadata.json`),
+      path.resolve(inputDir, 'metadata.json'),
       JSON.stringify({
         version: 0,
         bundler: 'metro',
