@@ -1,3 +1,4 @@
+import assert from 'assert';
 import { print } from 'graphql';
 import gql from 'graphql-tag';
 
@@ -26,7 +27,8 @@ const AppQuery = {
         .toPromise()
     );
 
-    return data.app!.byFullName;
+    assert(data.app, 'GraphQL: `app` not defined in server response');
+    return data.app.byFullName;
   },
 };
 

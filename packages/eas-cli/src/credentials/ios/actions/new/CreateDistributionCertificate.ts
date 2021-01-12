@@ -1,18 +1,18 @@
 import assert from 'assert';
 
-import { AppleDistributionCertificate } from '../../../../graphql/generated';
 import log from '../../../../log';
 import { Action, CredentialsManager } from '../../../CredentialsManager';
 import { Context } from '../../../context';
 import { AppLookupParams } from '../../api/GraphqlClient';
+import { AppleDistributionCertificateMutationResult } from '../../api/graphql/mutations/AppleDistributionCertificateMutation';
 import { provideOrGenerateDistributionCertificateAsync } from '../DistributionCertificateUtils';
 
 export class CreateDistributionCertificate implements Action {
-  private _distributionCertificate?: AppleDistributionCertificate;
+  private _distributionCertificate?: AppleDistributionCertificateMutationResult;
 
   constructor(private app: AppLookupParams) {}
 
-  public get distributionCertificate(): AppleDistributionCertificate {
+  public get distributionCertificate(): AppleDistributionCertificateMutationResult {
     assert(
       this._distributionCertificate,
       'distributionCertificate can be accessed only after calling .runAsync()'

@@ -1,8 +1,13 @@
+import assert from 'assert';
 import { print } from 'graphql';
 import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
-import { IosAppBuildCredentials, IosDistributionType } from '../../../../../graphql/generated';
+import {
+  IosAppBuildCredentialsByAppleAppIdentiferAndDistributionQuery,
+  IosAppBuildCredentialsFragment,
+  IosDistributionType,
+} from '../../../../../graphql/generated';
 import { IosAppBuildCredentialsFragmentNode } from '../../../../../graphql/types/credentials/IosAppBuildCredentials';
 
 const IosAppBuildCredentialsQuery = {
@@ -12,18 +17,10 @@ const IosAppBuildCredentialsQuery = {
       appleAppIdentifierId,
       iosDistributionType,
     }: { appleAppIdentifierId: string; iosDistributionType: IosDistributionType }
-  ): Promise<IosAppBuildCredentials | null> {
+  ): Promise<IosAppBuildCredentialsFragment | null> {
     const data = await withErrorHandlingAsync(
       graphqlClient
-        .query<{
-          app: {
-            byFullName: {
-              iosAppCredentials: {
-                iosAppBuildCredentialsArray: IosAppBuildCredentials[];
-              }[];
-            };
-          };
-        }>(
+        .query<IosAppBuildCredentialsByAppleAppIdentiferAndDistributionQuery>(
           gql`
             query IosAppBuildCredentialsByAppleAppIdentiferAndDistributionQuery(
               $projectFullName: String!
@@ -58,6 +55,7 @@ const IosAppBuildCredentialsQuery = {
         )
         .toPromise()
     );
+    assert(data.app, 'GraphQL: `app` not defined in server response');
     return data.app.byFullName.iosAppCredentials[0]?.iosAppBuildCredentialsArray[0] ?? null;
   },
 };

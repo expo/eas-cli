@@ -811,7 +811,7 @@ export type AppleTeam = {
   appleDistributionCertificates: Array<AppleDistributionCertificate>;
   applePushKeys: Array<ApplePushKey>;
   appleProvisioningProfiles: Array<AppleProvisioningProfile>;
-  appleDevices?: Maybe<Array<AppleDevice>>;
+  appleDevices: Array<AppleDevice>;
 };
 
 
@@ -2875,7 +2875,7 @@ export type AppleDevicesByAppleTeamQuery = (
     & { byAppleTeamIdentifier?: Maybe<(
       { __typename?: 'AppleTeam' }
       & Pick<AppleTeam, 'id'>
-      & { appleDevices?: Maybe<Array<(
+      & { appleDevices: Array<(
         { __typename?: 'AppleDevice' }
         & Pick<AppleDevice, 'id'>
         & { appleTeam: (
@@ -2884,7 +2884,7 @@ export type AppleDevicesByAppleTeamQuery = (
           & AppleTeamFragment
         ) }
         & AppleDeviceFragment
-      )>> }
+      )> }
       & AppleTeamFragment
     )> }
   ) }
@@ -2906,10 +2906,10 @@ export type AppleDevicesByTeamIdentifierQuery = (
       & { appleTeams: Array<(
         { __typename?: 'AppleTeam' }
         & Pick<AppleTeam, 'id' | 'appleTeamIdentifier' | 'appleTeamName'>
-        & { appleDevices?: Maybe<Array<(
+        & { appleDevices: Array<(
           { __typename?: 'AppleDevice' }
           & Pick<AppleDevice, 'id' | 'identifier' | 'name' | 'deviceClass' | 'enabled'>
-        )>> }
+        )> }
       )> }
     ) }
   ) }

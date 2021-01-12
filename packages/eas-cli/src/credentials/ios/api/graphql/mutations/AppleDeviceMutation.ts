@@ -2,7 +2,11 @@ import { print } from 'graphql';
 import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
-import { AppleDevice, AppleDeviceClass } from '../../../../../graphql/generated';
+import {
+  AppleDeviceClass,
+  AppleDeviceFragment,
+  CreateAppleDeviceMutation,
+} from '../../../../../graphql/generated';
 import { AppleDeviceFragmentNode } from '../../../../../graphql/types/credentials/AppleDevice';
 
 const AppleDeviceMutation = {
@@ -14,10 +18,10 @@ const AppleDeviceMutation = {
       deviceClass?: AppleDeviceClass;
     },
     accountId: string
-  ): Promise<AppleDevice> {
+  ): Promise<AppleDeviceFragment> {
     const data = await withErrorHandlingAsync(
       graphqlClient
-        .mutation<{ appleDevice: { createAppleDevice: AppleDevice } }>(
+        .mutation<CreateAppleDeviceMutation>(
           gql`
             mutation CreateAppleDeviceMutation(
               $appleDeviceInput: AppleDeviceInput!

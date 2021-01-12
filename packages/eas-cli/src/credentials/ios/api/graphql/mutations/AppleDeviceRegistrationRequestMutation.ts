@@ -2,21 +2,20 @@ import { print } from 'graphql';
 import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
-import { AppleDeviceRegistrationRequest } from '../../../../../graphql/generated';
+import {
+  AppleDeviceRegistrationRequestFragment,
+  CreateAppleDeviceRegistrationRequestMutation,
+} from '../../../../../graphql/generated';
 import { AppleDeviceRegistrationRequestFragmentNode } from '../../../../../graphql/types/credentials/AppleDeviceRegistrationRequest';
 
 const AppleDeviceRegistrationRequestMutation = {
   async createAppleDeviceRegistrationRequestAsync(
     appleTeamId: string,
     accountId: string
-  ): Promise<AppleDeviceRegistrationRequest> {
+  ): Promise<AppleDeviceRegistrationRequestFragment> {
     const data = await withErrorHandlingAsync(
       graphqlClient
-        .mutation<{
-          appleDeviceRegistrationRequest: {
-            createAppleDeviceRegistrationRequest: AppleDeviceRegistrationRequest;
-          };
-        }>(
+        .mutation<CreateAppleDeviceRegistrationRequestMutation>(
           gql`
             mutation CreateAppleDeviceRegistrationRequestMutation(
               $appleTeamId: ID!

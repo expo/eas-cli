@@ -2,7 +2,7 @@ import { DistributionType } from '@expo/eas-json';
 import assert from 'assert';
 import chalk from 'chalk';
 
-import { AppleDevice, IosAppBuildCredentials } from '../../../graphql/generated';
+import { AppleDevice, IosAppBuildCredentialsFragment } from '../../../graphql/generated';
 import log from '../../../log';
 import { promptAsync } from '../../../prompts';
 import { findAccountByName } from '../../../user/Account';
@@ -30,7 +30,7 @@ export class SetupBuildCredentials implements Action {
       await ctx.appStore.ensureBundleIdExistsAsync(this.app, { enablePushNotifications: true });
     }
 
-    let iosAppBuildCredentials: IosAppBuildCredentials | null = null;
+    let iosAppBuildCredentials: IosAppBuildCredentialsFragment | null = null;
     try {
       if (this.distribution === DistributionType.INTERNAL) {
         const account = findAccountByName(ctx.user.accounts, this.app.accountName);
@@ -70,7 +70,7 @@ export class SetupBuildCredentials implements Action {
 
   async unifyCredentialsFormatAsync(
     ctx: Context,
-    iosAppBuildCredentials: IosAppBuildCredentials | null
+    iosAppBuildCredentials: IosAppBuildCredentialsFragment | null
   ): Promise<AppCredentialsAndDistCert> {
     if (!iosAppBuildCredentials) {
       const [appCredentials, distCert] = await Promise.all([

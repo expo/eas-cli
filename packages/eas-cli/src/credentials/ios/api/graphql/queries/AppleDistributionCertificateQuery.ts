@@ -1,14 +1,21 @@
+import assert from 'assert';
 import { print } from 'graphql';
 import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
 import {
-  AppleDistributionCertificate,
+  AppleDistributionCertificateByAccountQuery,
+  AppleDistributionCertificateByAppQuery,
+  AppleDistributionCertificateFragment,
+  AppleTeamFragment,
   IosDistributionType,
 } from '../../../../../graphql/generated';
 import { AppleDistributionCertificateFragmentNode } from '../../../../../graphql/types/credentials/AppleDistributionCertificate';
 import { AppleTeamFragmentNode } from '../../../../../graphql/types/credentials/AppleTeam';
 
+export type AppleDistributionCertificateQueryResult = AppleDistributionCertificateFragment & {
+  appleTeam?: AppleTeamFragment | null;
+};
 const AppleDistributionCertificateQuery = {
   async getForAppAsync(
     projectFullName: string,
@@ -16,20 +23,10 @@ const AppleDistributionCertificateQuery = {
       appleAppIdentifierId,
       iosDistributionType,
     }: { appleAppIdentifierId: string; iosDistributionType: IosDistributionType }
-  ): Promise<AppleDistributionCertificate | null> {
+  ): Promise<AppleDistributionCertificateQueryResult | null> {
     const data = await withErrorHandlingAsync(
       graphqlClient
-        .query<{
-          app: {
-            byFullName: {
-              iosAppCredentials: {
-                iosAppBuildCredentialsArray: {
-                  distributionCertificate?: AppleDistributionCertificate;
-                }[];
-              }[];
-            };
-          };
-        }>(
+        .query<AppleDistributionCertificateByAppQuery>(
           gql`
             query AppleDistributionCertificateByAppQuery(
               $projectFullName: String!
@@ -72,21 +69,16 @@ const AppleDistributionCertificateQuery = {
         )
         .toPromise()
     );
+    assert(data.app, 'GraphQL: `app` not defined in server response');
     return (
       data.app.byFullName.iosAppCredentials[0]?.iosAppBuildCredentialsArray[0]
         ?.distributionCertificate ?? null
     );
   },
-  async getAllForAccount(accountName: string): Promise<AppleDistributionCertificate[]> {
+  async getAllForAccount(accountName: string): Promise<AppleDistributionCertificateQueryResult[]> {
     const data = await withErrorHandlingAsync(
       graphqlClient
-        .query<{
-          account: {
-            byName: {
-              appleDistributionCertificates: AppleDistributionCertificate[];
-            };
-          };
-        }>(
+        .query<AppleDistributionCertificateByAccountQuery>(
           gql`
             query AppleDistributionCertificateByAccountQuery($accountName: String!) {
               account {

@@ -1,13 +1,24 @@
+import assert from 'assert';
 import { print } from 'graphql';
 import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
-import { AppleProvisioningProfile, IosDistributionType } from '../../../../../graphql/generated';
+import {
+  AppleAppIdentifierFragment,
+  AppleDeviceFragment,
+  AppleProvisioningProfileFragment,
+  AppleProvisioningProfilesByAppQuery,
+  AppleTeamFragment,
+  IosDistributionType,
+} from '../../../../../graphql/generated';
 import { AppleAppIdentifierFragmentNode } from '../../../../../graphql/types/credentials/AppleAppIdentifier';
 import { AppleDeviceFragmentNode } from '../../../../../graphql/types/credentials/AppleDevice';
 import { AppleProvisioningProfileFragmentNode } from '../../../../../graphql/types/credentials/AppleProvisioningProfile';
 import { AppleTeamFragmentNode } from '../../../../../graphql/types/credentials/AppleTeam';
 
+export type AppleProvisioningProfileQueryResult = AppleProvisioningProfileFragment & {
+  appleTeam?: AppleTeamFragment | null;
+} & { appleDevices: AppleDeviceFragment[] } & { appleAppIdentifier: AppleAppIdentifierFragment };
 const AppleProvisioningProfileQuery = {
   async getForAppAsync(
     projectFullName: string,
@@ -15,20 +26,10 @@ const AppleProvisioningProfileQuery = {
       appleAppIdentifierId,
       iosDistributionType,
     }: { appleAppIdentifierId: string; iosDistributionType: IosDistributionType }
-  ): Promise<AppleProvisioningProfile | null> {
+  ): Promise<AppleProvisioningProfileQueryResult | null> {
     const data = await withErrorHandlingAsync(
       graphqlClient
-        .query<{
-          app: {
-            byFullName: {
-              iosAppCredentials: {
-                iosAppBuildCredentialsArray: {
-                  provisioningProfile?: AppleProvisioningProfile;
-                }[];
-              }[];
-            };
-          };
-        }>(
+        .query<AppleProvisioningProfilesByAppQuery>(
           gql`
             query AppleProvisioningProfilesByAppQuery(
               $projectFullName: String!
@@ -81,6 +82,7 @@ const AppleProvisioningProfileQuery = {
         )
         .toPromise()
     );
+    assert(data.app, 'GraphQL: `app` not defined in server response');
     return (
       data.app.byFullName.iosAppCredentials[0]?.iosAppBuildCredentialsArray[0]
         ?.provisioningProfile ?? null

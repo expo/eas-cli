@@ -1,8 +1,12 @@
+import assert from 'assert';
 import { print } from 'graphql';
 import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
-import { IosAppCredentials } from '../../../../../graphql/generated';
+import {
+  CreateIosAppCredentialsMutation,
+  IosAppCredentialsFragment,
+} from '../../../../../graphql/generated';
 import { IosAppCredentialsFragmentNode } from '../../../../../graphql/types/credentials/IosAppCredentials';
 
 const IosAppCredentialsMutation = {
@@ -13,10 +17,10 @@ const IosAppCredentialsMutation = {
     },
     appId: string,
     appleAppIdentifierId: string
-  ): Promise<IosAppCredentials> {
+  ): Promise<IosAppCredentialsFragment> {
     const data = await withErrorHandlingAsync(
       graphqlClient
-        .mutation<{ iosAppCredentials: { createIosAppCredentials: IosAppCredentials } }>(
+        .mutation<CreateIosAppCredentialsMutation>(
           gql`
             mutation CreateIosAppCredentialsMutation(
               $iosAppCredentialsInput: IosAppCredentialsInput!
@@ -43,6 +47,10 @@ const IosAppCredentialsMutation = {
           }
         )
         .toPromise()
+    );
+    assert(
+      data.iosAppCredentials.createIosAppCredentials,
+      'GraphQL: `createIosAppCredentials` not defined in server response'
     );
     return data.iosAppCredentials.createIosAppCredentials;
   },

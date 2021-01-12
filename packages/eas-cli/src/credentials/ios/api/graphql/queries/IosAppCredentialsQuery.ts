@@ -1,16 +1,26 @@
+import assert from 'assert';
 import { print } from 'graphql';
 import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
-import { IosAppCredentials, IosDistributionType } from '../../../../../graphql/generated';
+import {
+  IosAppBuildCredentialsFragment,
+  IosAppCredentials,
+  IosAppCredentialsFragment,
+  IosAppCredentialsWithBuildCredentialsByAppIdentifierIdQuery,
+  IosDistributionType,
+} from '../../../../../graphql/generated';
 import { IosAppBuildCredentialsFragmentNode } from '../../../../../graphql/types/credentials/IosAppBuildCredentials';
 import { IosAppCredentialsFragmentNode } from '../../../../../graphql/types/credentials/IosAppCredentials';
 
+export type IosAppCredentialsWithBuildCredentialsQueryResult = IosAppCredentialsFragment & {
+  iosAppBuildCredentialsArray: IosAppBuildCredentialsFragment[];
+};
 const IosAppCredentialsQuery = {
   async byAppIdentifierIdAsync(
     projectFullName: string,
     appleAppIdentifierId: string
-  ): Promise<IosAppCredentials | null> {
+  ): Promise<IosAppCredentialsFragment | null> {
     const data = await withErrorHandlingAsync(
       graphqlClient
         .query<{ app: { byFullName: { iosAppCredentials: IosAppCredentials[] } } }>(
@@ -52,10 +62,10 @@ const IosAppCredentialsQuery = {
       appleAppIdentifierId: string;
       iosDistributionType: IosDistributionType;
     }
-  ): Promise<IosAppCredentials | null> {
+  ): Promise<IosAppCredentialsWithBuildCredentialsQueryResult | null> {
     const data = await withErrorHandlingAsync(
       graphqlClient
-        .query<{ app: { byFullName: { iosAppCredentials: IosAppCredentials[] } } }>(
+        .query<IosAppCredentialsWithBuildCredentialsByAppIdentifierIdQuery>(
           gql`
             query IosAppCredentialsWithBuildCredentialsByAppIdentifierIdQuery(
               $projectFullName: String!
@@ -92,6 +102,7 @@ const IosAppCredentialsQuery = {
         )
         .toPromise()
     );
+    assert(data.app, 'GraphQL: `app` not defined in server response');
     return data.app.byFullName.iosAppCredentials[0] ?? null;
   },
 };

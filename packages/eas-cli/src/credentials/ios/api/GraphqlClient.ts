@@ -2,30 +2,44 @@ import nullthrows from 'nullthrows';
 
 import {
   AppFragment,
-  AppleAppIdentifier,
-  AppleDevice,
-  AppleDistributionCertificate,
-  AppleProvisioningProfile,
-  AppleTeam,
-  IosAppBuildCredentials,
-  IosAppCredentials,
+  AppleAppIdentifierFragment,
+  AppleTeamFragment,
+  IosAppBuildCredentialsFragment,
   IosDistributionType,
 } from '../../../graphql/generated';
 import { Account } from '../../../user/Account';
 import { DistributionCertificate } from '../appstore/Credentials.types';
 import { AppleAppIdentifierMutation } from './graphql/mutations/AppleAppIdentifierMutation';
-import { AppleDistributionCertificateMutation } from './graphql/mutations/AppleDistributionCertificateMutation';
-import { AppleProvisioningProfileMutation } from './graphql/mutations/AppleProvisioningProfileMutation';
+import {
+  AppleDistributionCertificateMutation,
+  AppleDistributionCertificateMutationResult,
+} from './graphql/mutations/AppleDistributionCertificateMutation';
+import {
+  AppleProvisioningProfileMutation,
+  AppleProvisioningProfileMutationResult,
+} from './graphql/mutations/AppleProvisioningProfileMutation';
 import { AppleTeamMutation } from './graphql/mutations/AppleTeamMutation';
 import { IosAppBuildCredentialsMutation } from './graphql/mutations/IosAppBuildCredentialsMutation';
 import { IosAppCredentialsMutation } from './graphql/mutations/IosAppCredentialsMutation';
 import { AppQuery } from './graphql/queries/AppQuery';
 import { AppleAppIdentifierQuery } from './graphql/queries/AppleAppIdentifierQuery';
-import { AppleDeviceQuery } from './graphql/queries/AppleDeviceQuery';
-import { AppleDistributionCertificateQuery } from './graphql/queries/AppleDistributionCertificateQuery';
-import { AppleProvisioningProfileQuery } from './graphql/queries/AppleProvisioningProfileQuery';
+import {
+  AppleDeviceFragmentWithAppleTeam,
+  AppleDeviceQuery,
+} from './graphql/queries/AppleDeviceQuery';
+import {
+  AppleDistributionCertificateQuery,
+  AppleDistributionCertificateQueryResult,
+} from './graphql/queries/AppleDistributionCertificateQuery';
+import {
+  AppleProvisioningProfileQuery,
+  AppleProvisioningProfileQueryResult,
+} from './graphql/queries/AppleProvisioningProfileQuery';
 import { AppleTeamQuery } from './graphql/queries/AppleTeamQuery';
-import { IosAppCredentialsQuery } from './graphql/queries/IosAppCredentialsQuery';
+import {
+  IosAppCredentialsQuery,
+  IosAppCredentialsWithBuildCredentialsQueryResult,
+} from './graphql/queries/IosAppCredentialsQuery';
 
 export interface AppLookupParams {
   account: Account;
@@ -47,13 +61,13 @@ export async function createOrUpdateIosAppBuildCredentialsAsync(
     appleProvisioningProfileId,
     appleDistributionCertificateId,
   }: {
-    appleTeam: AppleTeam;
+    appleTeam: AppleTeamFragment;
     appleAppIdentifierId: string;
     iosDistributionType: IosDistributionType;
     appleProvisioningProfileId: string;
     appleDistributionCertificateId: string;
   }
-): Promise<IosAppBuildCredentials> {
+): Promise<IosAppBuildCredentialsFragment> {
   const iosAppCredentials = await createOrGetExistingIosAppCredentialsWithBuildCredentialsAsync(
     appLookupParams,
     {
@@ -91,11 +105,11 @@ export async function createOrGetExistingIosAppCredentialsWithBuildCredentialsAs
     appleAppIdentifierId,
     iosDistributionType,
   }: {
-    appleTeam: AppleTeam;
+    appleTeam: AppleTeamFragment;
     appleAppIdentifierId: string;
     iosDistributionType: IosDistributionType;
   }
-): Promise<IosAppCredentials> {
+): Promise<IosAppCredentialsWithBuildCredentialsQueryResult> {
   const projectFullName = formatProjectFullName(appLookupParams);
   const maybeIosAppCredentials = await IosAppCredentialsQuery.withBuildCredentialsByAppIdentifierIdAsync(
     projectFullName,
@@ -126,7 +140,7 @@ export async function createOrGetExistingIosAppCredentialsWithBuildCredentialsAs
 export async function createOrGetExistingAppleTeamAsync(
   { account }: AppLookupParams,
   { appleTeamIdentifier, appleTeamName }: { appleTeamIdentifier: string; appleTeamName?: string }
-): Promise<AppleTeam> {
+): Promise<AppleTeamFragment> {
   const appleTeam = await AppleTeamQuery.getByAppleTeamIdentifierAsync(
     account.id,
     appleTeamIdentifier
@@ -143,8 +157,8 @@ export async function createOrGetExistingAppleTeamAsync(
 
 export async function createOrGetExistingAppleAppIdentifierAsync(
   { account, bundleIdentifier }: AppLookupParams,
-  appleTeam: AppleTeam
-): Promise<AppleAppIdentifier> {
+  appleTeam: AppleTeamFragment
+): Promise<AppleAppIdentifierFragment> {
   const appleAppIdentifier = await AppleAppIdentifierQuery.byBundleIdentifierAsync(
     account.name,
     bundleIdentifier
@@ -161,19 +175,19 @@ export async function createOrGetExistingAppleAppIdentifierAsync(
 
 export async function getDevicesForAppleTeamAsync(
   { account }: AppLookupParams,
-  { appleTeamIdentifier }: AppleTeam
-): Promise<AppleDevice[]> {
+  { appleTeamIdentifier }: AppleTeamFragment
+): Promise<AppleDeviceFragmentWithAppleTeam[]> {
   return await AppleDeviceQuery.getAllByAppleTeamIdentifierAsync(account.id, appleTeamIdentifier);
 }
 
 export async function createProvisioningProfileAsync(
   { account }: AppLookupParams,
-  appleAppIdentifier: AppleAppIdentifier,
+  appleAppIdentifier: AppleAppIdentifierFragment,
   appleProvisioningProfileInput: {
     appleProvisioningProfile: string;
     developerPortalIdentifier?: string;
   }
-): Promise<AppleProvisioningProfile> {
+): Promise<AppleProvisioningProfileMutationResult> {
   return await AppleProvisioningProfileMutation.createAppleProvisioningProfileAsync(
     appleProvisioningProfileInput,
     account.id,
@@ -183,9 +197,9 @@ export async function createProvisioningProfileAsync(
 
 export async function getProvisioningProfileAsync(
   appLookupParams: AppLookupParams,
-  appleTeam: AppleTeam,
+  appleTeam: AppleTeamFragment,
   iosDistributionType: IosDistributionType
-): Promise<AppleProvisioningProfile | null> {
+): Promise<AppleProvisioningProfileQueryResult | null> {
   const projectFullName = formatProjectFullName(appLookupParams);
   const appleAppIdentifier = await createOrGetExistingAppleAppIdentifierAsync(
     appLookupParams,
@@ -203,7 +217,7 @@ export async function updateProvisioningProfileAsync(
     appleProvisioningProfile: string;
     developerPortalIdentifier?: string;
   }
-): Promise<AppleProvisioningProfile> {
+): Promise<AppleProvisioningProfileMutationResult> {
   return await AppleProvisioningProfileMutation.updateAppleProvisioningProfileAsync(
     appleProvisioningProfileId,
     appleProvisioningProfileInput
@@ -212,9 +226,9 @@ export async function updateProvisioningProfileAsync(
 
 export async function getDistributionCertificateForAppAsync(
   appLookupParams: AppLookupParams,
-  appleTeam: AppleTeam,
+  appleTeam: AppleTeamFragment,
   iosDistributionType: IosDistributionType
-): Promise<AppleDistributionCertificate | null> {
+): Promise<AppleDistributionCertificateQueryResult | null> {
   const projectFullName = formatProjectFullName(appLookupParams);
   const appleAppIdentifier = await createOrGetExistingAppleAppIdentifierAsync(
     appLookupParams,
@@ -228,14 +242,14 @@ export async function getDistributionCertificateForAppAsync(
 
 export async function getDistributionCertificatesForAccountAsync({
   account,
-}: AppLookupParams): Promise<AppleDistributionCertificate[]> {
+}: AppLookupParams): Promise<AppleDistributionCertificateQueryResult[]> {
   return await AppleDistributionCertificateQuery.getAllForAccount(account.name);
 }
 
 export async function createDistributionCertificateAsync(
   appLookupParams: AppLookupParams,
   distCert: DistributionCertificate
-): Promise<AppleDistributionCertificate> {
+): Promise<AppleDistributionCertificateMutationResult> {
   const appleTeam = await createOrGetExistingAppleTeamAsync(appLookupParams, {
     appleTeamIdentifier: distCert.teamId,
     appleTeamName: distCert.teamName,

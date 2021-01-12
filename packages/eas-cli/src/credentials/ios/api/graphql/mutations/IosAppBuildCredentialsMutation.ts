@@ -1,8 +1,14 @@
+import assert from 'assert';
 import { print } from 'graphql';
 import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
-import { IosAppBuildCredentials, IosDistributionType } from '../../../../../graphql/generated';
+import {
+  IosAppBuildCredentials,
+  IosAppBuildCredentialsFragment,
+  IosDistributionType,
+  SetProvisioningProfileMutation,
+} from '../../../../../graphql/generated';
 import { IosAppBuildCredentialsFragmentNode } from '../../../../../graphql/types/credentials/IosAppBuildCredentials';
 
 const IosAppBuildCredentialsMutation = {
@@ -83,12 +89,10 @@ const IosAppBuildCredentialsMutation = {
   async setProvisioningProfileAsync(
     iosAppBuildCredentialsId: string,
     provisioningProfileId: string
-  ): Promise<IosAppBuildCredentials> {
+  ): Promise<IosAppBuildCredentialsFragment> {
     const data = await withErrorHandlingAsync(
       graphqlClient
-        .mutation<{
-          iosAppBuildCredentials: { setProvisioningProfile: IosAppBuildCredentials };
-        }>(
+        .mutation<SetProvisioningProfileMutation>(
           gql`
             mutation SetProvisioningProfileMutation(
               $iosAppBuildCredentialsId: ID!
@@ -112,6 +116,10 @@ const IosAppBuildCredentialsMutation = {
           }
         )
         .toPromise()
+    );
+    assert(
+      data.iosAppBuildCredentials.setProvisioningProfile,
+      'GraphQL: `setProvisioningProfile` not defined in server response'
     );
     return data.iosAppBuildCredentials.setProvisioningProfile;
   },
