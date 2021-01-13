@@ -4,14 +4,19 @@ import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
 import {
+  CommonIosAppCredentialsFragment,
+  CommonIosAppCredentialsWithBuildCredentialsByAppIdentifierIdQuery,
   IosAppBuildCredentialsFragment,
-  IosAppCredentials,
+  IosAppCredentialsByAppIdentifierIdQuery,
   IosAppCredentialsFragment,
   IosAppCredentialsWithBuildCredentialsByAppIdentifierIdQuery,
   IosDistributionType,
 } from '../../../../../graphql/generated';
 import { IosAppBuildCredentialsFragmentNode } from '../../../../../graphql/types/credentials/IosAppBuildCredentials';
-import { IosAppCredentialsFragmentNode } from '../../../../../graphql/types/credentials/IosAppCredentials';
+import {
+  CommonIosAppCredentialsFragmentNode,
+  IosAppCredentialsFragmentNode,
+} from '../../../../../graphql/types/credentials/IosAppCredentials';
 
 export type IosAppCredentialsWithBuildCredentialsQueryResult = IosAppCredentialsFragment & {
   iosAppBuildCredentialsArray: IosAppBuildCredentialsFragment[];
@@ -23,7 +28,7 @@ const IosAppCredentialsQuery = {
   ): Promise<IosAppCredentialsFragment | null> {
     const data = await withErrorHandlingAsync(
       graphqlClient
-        .query<{ app: { byFullName: { iosAppCredentials: IosAppCredentials[] } } }>(
+        .query<IosAppCredentialsByAppIdentifierIdQuery>(
           gql`
             query IosAppCredentialsByAppIdentifierIdQuery(
               $projectFullName: String!
@@ -51,6 +56,7 @@ const IosAppCredentialsQuery = {
         )
         .toPromise()
     );
+    assert(data.app, 'GraphQL: `app` not defined in server response');
     return data.app.byFullName.iosAppCredentials[0] ?? null;
   },
   async withBuildCredentialsByAppIdentifierIdAsync(
@@ -98,6 +104,47 @@ const IosAppCredentialsQuery = {
           },
           {
             additionalTypenames: ['IosAppCredentials', 'IosAppBuildCredentials'],
+          }
+        )
+        .toPromise()
+    );
+    assert(data.app, 'GraphQL: `app` not defined in server response');
+    return data.app.byFullName.iosAppCredentials[0] ?? null;
+  },
+  async withCommonFieldsByAppIdentifierIdAsync(
+    projectFullName: string,
+    {
+      appleAppIdentifierId,
+    }: {
+      appleAppIdentifierId: string;
+    }
+  ): Promise<CommonIosAppCredentialsFragment | null> {
+    const data = await withErrorHandlingAsync(
+      graphqlClient
+        .query<CommonIosAppCredentialsWithBuildCredentialsByAppIdentifierIdQuery>(
+          gql`
+            query CommonIosAppCredentialsWithBuildCredentialsByAppIdentifierIdQuery(
+              $projectFullName: String!
+              $appleAppIdentifierId: String!
+            ) {
+              app {
+                byFullName(fullName: $projectFullName) {
+                  id
+                  iosAppCredentials(filter: { appleAppIdentifierId: $appleAppIdentifierId }) {
+                    id
+                    ...CommonIosAppCredentialsFragment
+                  }
+                }
+              }
+            }
+            ${CommonIosAppCredentialsFragmentNode}
+          `,
+          {
+            projectFullName,
+            appleAppIdentifierId,
+          },
+          {
+            additionalTypenames: ['IosAppCredentials', 'IosAppBuildCredentials', 'App'],
           }
         )
         .toPromise()
