@@ -1,4 +1,3 @@
-import { CommonIosAppCredentialsFragment, IosDistributionType } from '../../graphql/generated';
 import { getProjectAccountName, getProjectConfigDescription } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
 import { findAccountByName } from '../../user/Account';
@@ -8,7 +7,6 @@ import { Context } from '../context';
 //import { RemoveDistributionCertificateBeta } from '../ios/actions/RemoveDistributionCertificateBeta';
 import { AppLookupParams } from '../ios/api/GraphqlClient';
 import {
-  displayAllIosCredentials,
   displayEmptyIosCredentials,
   displayIosAppCredentials,
 } from '../ios/utils/printCredentialsBeta';
