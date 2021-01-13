@@ -39,23 +39,5 @@ export const IosAppBuildCredentialsFragmentNode = gql`
         appleTeamName
       }
     }
-    provisioningProfile {
-      id
-      expiration
-      developerPortalIdentifier
-      provisioningProfile
-      appleDevices {
-        id
-        identifier
-        name
-        model
-        deviceClass
-      }
-      appleTeam {
-        id
-        appleTeamIdentifier
-        appleTeamName
-      }
-    }
   }
 `;
