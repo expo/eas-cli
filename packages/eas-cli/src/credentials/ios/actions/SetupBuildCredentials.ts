@@ -8,7 +8,7 @@ import { promptAsync } from '../../../prompts';
 import { findAccountByName } from '../../../user/Account';
 import { Action, CredentialsManager } from '../../CredentialsManager';
 import { Context } from '../../context';
-import { readIosCredentialsAsync } from '../../credentialsJson/read';
+import { isCredentialsMap, readIosCredentialsAsync } from '../../credentialsJson/read';
 import { AppLookupParams, IosAppCredentials, IosDistCredentials } from '../credentials';
 import { displayProjectCredentials } from '../utils/printCredentials';
 import { readAppleTeam } from '../utils/provisioningProfile';
@@ -125,6 +125,12 @@ export class SetupBuildCredentialsFromCredentialsJson implements Action {
         'Reading credentials from credentials.json failed. Make sure this file is correct and all credentials are present there.'
       );
       throw error;
+    }
+
+    if (isCredentialsMap(localCredentials)) {
+      throw new Error(
+        'Storing multi-target iOS credentials from credentials.json on Expo servers is not yet supported.'
+      );
     }
 
     const team = readAppleTeam(localCredentials.provisioningProfile);
