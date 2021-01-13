@@ -42,7 +42,7 @@ describe('run UpdateKeystore when keystore exist on www', () => {
 
     await new UpdateKeystore(testExperienceName).runAsync(manager, ctx);
 
-    expect(manager.pushNextAction).not.toHaveBeenCalled();
+    expect(manager.runActionAsync).not.toHaveBeenCalled();
     expect(prompts).toHaveBeenCalledTimes(1);
     expect(ctx.android.fetchKeystoreAsync).toHaveBeenCalledTimes(1);
     expect(ctx.android.updateKeystoreAsync).toHaveBeenCalledTimes(1);
@@ -66,7 +66,7 @@ describe('run UpdateKeystore when keystore exist on www', () => {
 
     await new UpdateKeystore(testExperienceName).runAsync(manager, ctx);
 
-    expect(manager.pushNextAction).not.toHaveBeenCalled();
+    expect(manager.runActionAsync).not.toHaveBeenCalled();
     expect(prompts).toHaveBeenCalledTimes(5);
     expect(ctx.android.fetchKeystoreAsync).toHaveBeenCalledTimes(1);
     expect(ctx.android.updateKeystoreAsync).toHaveBeenCalledTimes(1);
@@ -86,7 +86,7 @@ describe('run UpdateKeystore when keystore does not exist on www', () => {
 
     await new UpdateKeystore(testExperienceName).runAsync(manager, ctx);
 
-    expect(manager.pushNextAction).not.toHaveBeenCalled();
+    expect(manager.runActionAsync).not.toHaveBeenCalled();
     expect(prompts).toHaveBeenCalledTimes(1);
     expect(ctx.android.fetchKeystoreAsync).toHaveBeenCalledTimes(1);
     expect(ctx.android.updateKeystoreAsync).toHaveBeenCalledTimes(1);
@@ -110,7 +110,7 @@ describe('run UpdateKeystore when keystore does not exist on www', () => {
 
     await new UpdateKeystore(testExperienceName).runAsync(manager, ctx);
 
-    expect(manager.pushNextAction).not.toHaveBeenCalled();
+    expect(manager.runActionAsync).not.toHaveBeenCalled();
     expect(prompts).toHaveBeenCalledTimes(5);
     expect(ctx.android.fetchKeystoreAsync).toHaveBeenCalledTimes(1);
     expect(ctx.android.updateKeystoreAsync).toHaveBeenCalledTimes(1);

@@ -38,7 +38,7 @@ describe('run RemoveKeystore when keystore does exist', () => {
 
     await new RemoveKeystore(testExperienceName).runAsync(manager, ctx);
 
-    expect(manager.pushNextAction).not.toHaveBeenCalled();
+    expect(manager.runActionAsync).not.toHaveBeenCalled();
     expect(prompts).toHaveBeenCalledTimes(1);
     expect(ctx.android.fetchKeystoreAsync).toHaveBeenCalledTimes(1);
     expect(ctx.android.removeKeystoreAsync).not.toHaveBeenCalled();
@@ -59,7 +59,6 @@ describe('run RemoveKeystore when keystore does exist', () => {
 
     await new RemoveKeystore(testExperienceName).runAsync(manager, ctx);
 
-    expect(manager.pushNextAction).not.toHaveBeenCalled();
     expect(manager.runActionAsync).toHaveBeenCalledTimes(1);
     expect(prompts).toHaveBeenCalledTimes(1);
     expect(ctx.android.fetchKeystoreAsync).toHaveBeenCalledTimes(1);
@@ -83,7 +82,7 @@ describe('run RemoveKeystore when keystore does exist', () => {
     }
 
     expect(prompts).not.toHaveBeenCalled();
-    expect(manager.pushNextAction).not.toHaveBeenCalled();
+    expect(manager.runActionAsync).not.toHaveBeenCalled();
     expect(ctx.android.fetchKeystoreAsync).toHaveBeenCalledTimes(1);
     expect(ctx.android.removeKeystoreAsync).not.toHaveBeenCalled();
   });
@@ -100,7 +99,7 @@ describe('run RemoveKeystore when keystore does not exist', () => {
 
     await new RemoveKeystore(testExperienceName).runAsync(manager, ctx);
 
-    expect(manager.pushNextAction).not.toHaveBeenCalled();
+    expect(manager.runActionAsync).not.toHaveBeenCalled();
     expect(prompts).not.toHaveBeenCalled();
     expect(ctx.android.fetchKeystoreAsync).toHaveBeenCalledTimes(1);
     expect(ctx.android.removeKeystoreAsync).not.toHaveBeenCalled();
@@ -115,7 +114,7 @@ describe('run RemoveKeystore when keystore does not exist', () => {
 
     await new RemoveKeystore(testExperienceName).runAsync(manager, ctx);
 
-    expect(manager.pushNextAction).not.toHaveBeenCalled();
+    expect(manager.runActionAsync).not.toHaveBeenCalled();
     expect(prompts).not.toHaveBeenCalled();
     expect(ctx.android.fetchKeystoreAsync).toHaveBeenCalledTimes(1);
     expect(ctx.android.removeKeystoreAsync).not.toHaveBeenCalled();

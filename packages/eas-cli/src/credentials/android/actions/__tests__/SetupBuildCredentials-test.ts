@@ -38,7 +38,7 @@ describe('run SetupBuildCredentials when www has valid credentials', () => {
 
     await new SetupBuildCredentials(testExperienceName).runAsync(manager, ctx);
 
-    expect(manager.pushNextAction).not.toHaveBeenCalled();
+    expect(manager.runActionAsync).not.toHaveBeenCalled();
     expect(ctx.android.fetchKeystoreAsync).toHaveBeenCalledTimes(1);
     expect(ctx.android.updateKeystoreAsync).not.toHaveBeenCalled();
   });
@@ -54,7 +54,7 @@ describe('run SetupBuildCredentials when www has valid credentials', () => {
 
     await new SetupBuildCredentials(testExperienceName).runAsync(manager, ctx);
 
-    expect(manager.pushNextAction).not.toHaveBeenCalled();
+    expect(manager.runActionAsync).not.toHaveBeenCalled();
     expect(ctx.android.fetchKeystoreAsync).toHaveBeenCalledTimes(1);
     expect(ctx.android.updateKeystoreAsync).not.toHaveBeenCalled();
   });
@@ -69,12 +69,12 @@ describe('run SetupBuildCredentials when www has no credentials', () => {
     });
     const manager = createManagerMock();
 
-    (manager.pushNextAction as any).mockImplementationOnce((action: Action) => {
+    (manager.runActionAsync as any).mockImplementationOnce((action: Action) => {
       expect(action).toBeInstanceOf(UpdateKeystore);
     });
     await new SetupBuildCredentials(testExperienceName).runAsync(manager, ctx);
 
-    expect(manager.pushNextAction).toHaveBeenCalledTimes(1);
+    expect(manager.runActionAsync).toHaveBeenCalledTimes(1);
     expect(ctx.android.fetchKeystoreAsync).toHaveBeenCalledTimes(1);
     expect(ctx.android.updateKeystoreAsync).toHaveBeenCalledTimes(0); // will be called in UpdateKeystore
   });

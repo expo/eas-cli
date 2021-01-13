@@ -35,7 +35,7 @@ export class SetupProvisioningProfile implements Action {
     }
 
     if (!ctx.appStore.authCtx) {
-      manager.pushNextAction(new CreateProvisioningProfile(this.app));
+      await manager.runActionAsync(new CreateProvisioningProfile(this.app));
       return;
     }
 
@@ -44,7 +44,7 @@ export class SetupProvisioningProfile implements Action {
     );
 
     if (existingProfiles.length === 0) {
-      manager.pushNextAction(new CreateProvisioningProfile(this.app));
+      await manager.runActionAsync(new CreateProvisioningProfile(this.app));
       return;
     }
 
@@ -144,9 +144,9 @@ export class SetupProvisioningProfile implements Action {
     });
 
     if (action === 'GENERATE') {
-      manager.pushNextAction(new CreateProvisioningProfile(this.app));
+      await manager.runActionAsync(new CreateProvisioningProfile(this.app));
     } else if (action === 'CHOOSE_EXISTING') {
-      manager.pushNextAction(new UseExistingProvisioningProfile(this.app));
+      await manager.runActionAsync(new UseExistingProvisioningProfile(this.app));
     }
   }
 }

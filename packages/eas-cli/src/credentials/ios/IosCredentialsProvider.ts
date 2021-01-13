@@ -4,7 +4,7 @@ import { CredentialsSource, DistributionType } from '@expo/eas-json';
 import { IosDistributionType } from '../../graphql/generated';
 import log from '../../log';
 import { findAccountByName } from '../../user/Account';
-import { runCredentialsManagerAsync } from '../CredentialsManager';
+import { CredentialsManager } from '../CredentialsManager';
 import { CredentialsProvider } from '../CredentialsProvider';
 import { Context } from '../context';
 import * as credentialsJsonReader from '../credentialsJson/read';
@@ -109,8 +109,7 @@ export default class IosCredentialsProvider implements CredentialsProvider {
     if (this.options.skipCredentialsCheck) {
       log('Skipping credentials check');
     } else {
-      await runCredentialsManagerAsync(
-        this.ctx,
+      await new CredentialsManager(this.ctx).runActionAsync(
         new SetupBuildCredentials(this.options.app, this.options.distribution)
       );
     }

@@ -27,46 +27,58 @@ export class ManageAndroidApp implements Action {
   constructor(private projectFullName: string) {}
 
   async runAsync(manager: CredentialsManager, ctx: Context): Promise<void> {
-    manager.pushNextAction(this);
-    const credentials = await ctx.android.fetchCredentialsAsync(this.projectFullName);
+    while (true) {
+      try {
+        const credentials = await ctx.android.fetchCredentialsAsync(this.projectFullName);
 
-    if (isEmpty(credentials.keystore) && isEmpty(credentials.pushCredentials)) {
-      log(`No credentials available for ${this.projectFullName}.\n`);
-    } else {
-      log.newLine();
-      await printAndroidAppCredentials(credentials);
-    }
+        if (isEmpty(credentials.keystore) && isEmpty(credentials.pushCredentials)) {
+          log(`No credentials available for ${this.projectFullName}.\n`);
+        } else {
+          log.newLine();
+          await printAndroidAppCredentials(credentials);
+        }
 
-    const { action } = await promptAsync([
-      {
-        type: 'select',
-        name: 'action',
-        message: 'What do you want to do?',
-        choices: [
+        const { action } = await promptAsync([
           {
-            value: ActionType.UpdateCredentialsJson,
-            title: 'Update credentials.json with values from Expo servers',
+            type: 'select',
+            name: 'action',
+            message: 'What do you want to do?',
+            choices: [
+              {
+                value: ActionType.UpdateCredentialsJson,
+                title: 'Update credentials.json with values from Expo servers',
+              },
+              {
+                value: ActionType.SetupBuildCredentialsFromCredentialsJson,
+                title: 'Update credentials on Expo servers with values from credentials.json',
+              },
+              { value: ActionType.UpdateKeystore, title: 'Update Keystore' },
+              { value: ActionType.RemoveKeystore, title: 'Remove Keystore' },
+              {
+                value: ActionType.DownloadKeystore,
+                title: 'Download Keystore from the Expo servers',
+              },
+              { value: ActionType.UpdateFcmKey, title: 'Update FCM API Key' },
+              { value: ActionType.GoBack, title: 'Go back to project list' },
+            ],
           },
-          {
-            value: ActionType.SetupBuildCredentialsFromCredentialsJson,
-            title: 'Update credentials on Expo servers with values from credentials.json',
-          },
-          { value: ActionType.UpdateKeystore, title: 'Update Keystore' },
-          { value: ActionType.RemoveKeystore, title: 'Remove Keystore' },
-          { value: ActionType.DownloadKeystore, title: 'Download Keystore from the Expo servers' },
-          { value: ActionType.UpdateFcmKey, title: 'Update FCM API Key' },
-          { value: ActionType.GoBack, title: 'Go back to project list' },
-        ],
-      },
-    ]);
+        ]);
 
-    if (action === ActionType.GoBack) {
-      manager.popAction();
-      return;
+        if (action === ActionType.GoBack) {
+          return;
+        }
+
+        try {
+          await manager.runActionAsync(this.getAction(ctx, action));
+        } catch (err) {
+          log.error(err);
+        }
+        await manager.runActionAsync(new PressAnyKeyToContinue());
+      } catch (err) {
+        log.error(err);
+        await manager.runActionAsync(new PressAnyKeyToContinue());
+      }
     }
-
-    manager.pushNextAction(new PressAnyKeyToContinue());
-    manager.pushNextAction(this.getAction(ctx, action));
   }
 
   private getAction(context: Context, selected: ActionType): Action {

@@ -2,7 +2,7 @@ import { Platform } from '@expo/eas-build-job';
 import { CredentialsSource } from '@expo/eas-json';
 
 import log from '../../log';
-import { runCredentialsManagerAsync } from '../CredentialsManager';
+import { CredentialsManager } from '../CredentialsManager';
 import { CredentialsProvider } from '../CredentialsProvider';
 import { Context } from '../context';
 import * as credentialsJsonReader from '../credentialsJson/read';
@@ -85,7 +85,9 @@ export default class AndroidCredentialsProvider implements CredentialsProvider {
   }
 
   private async getRemoteAsync(): Promise<AndroidCredentials> {
-    await runCredentialsManagerAsync(this.ctx, new SetupBuildCredentials(this.projectFullName));
+    await new CredentialsManager(this.ctx).runActionAsync(
+      new SetupBuildCredentials(this.projectFullName)
+    );
     const keystore = await this.ctx.android.fetchKeystoreAsync(this.projectFullName);
     if (!keystore) {
       throw new Error('Unable to set up credentials, failed to fetch keystore from Expo servers');

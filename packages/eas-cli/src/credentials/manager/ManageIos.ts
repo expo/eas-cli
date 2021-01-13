@@ -1,5 +1,6 @@
 import { DistributionType } from '@expo/eas-json';
 
+import log from '../../log';
 import { getProjectAccountName } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
 import { ensureActorHasUsername } from '../../user/actions';
@@ -32,66 +33,76 @@ enum ActionType {
 
 export class ManageIos implements Action {
   async runAsync(manager: CredentialsManager, ctx: Context): Promise<void> {
-    manager.pushNextAction(this);
-    await ctx.bestEffortAppStoreAuthenticateAsync();
+    while (true) {
+      try {
+        await ctx.bestEffortAppStoreAuthenticateAsync();
 
-    const accountName = ctx.hasProjectContext
-      ? getProjectAccountName(ctx.exp, ctx.user)
-      : ensureActorHasUsername(ctx.user);
-    const iosCredentials = await ctx.ios.getAllCredentialsAsync(accountName);
+        const accountName = ctx.hasProjectContext
+          ? getProjectAccountName(ctx.exp, ctx.user)
+          : ensureActorHasUsername(ctx.user);
+        const iosCredentials = await ctx.ios.getAllCredentialsAsync(accountName);
 
-    await displayAllIosCredentials(iosCredentials);
+        await displayAllIosCredentials(iosCredentials);
 
-    const projectSpecificActions: { value: ActionType; title: string }[] = ctx.hasProjectContext
-      ? [
-          {
-            // This command will be triggered during build to ensure all credentials are ready
-            // I'm leaving it here for now to simplify testing
-            value: ActionType.SetupBuildCredentials,
-            title: 'Ensure all credentials for project are valid',
-          },
-          {
-            value: ActionType.UpdateCredentialsJson,
-            title: 'Update credentials.json with values from Expo servers',
-          },
-          {
-            value: ActionType.SetupBuildCredentialsFromCredentialsJson,
-            title: 'Update credentials on Expo servers with values from credentials.json',
-          },
-          {
-            value: ActionType.UseExistingDistributionCertificate,
-            title: 'Use existing Distribution Certificate in current project',
-          },
-          {
-            value: ActionType.RemoveSpecificProvisioningProfile,
-            title: 'Remove Provisioning Profile from current project',
-          },
-        ]
-      : [];
+        const projectSpecificActions: { value: ActionType; title: string }[] = ctx.hasProjectContext
+          ? [
+              {
+                // This command will be triggered during build to ensure all credentials are ready
+                // I'm leaving it here for now to simplify testing
+                value: ActionType.SetupBuildCredentials,
+                title: 'Ensure all credentials for project are valid',
+              },
+              {
+                value: ActionType.UpdateCredentialsJson,
+                title: 'Update credentials.json with values from Expo servers',
+              },
+              {
+                value: ActionType.SetupBuildCredentialsFromCredentialsJson,
+                title: 'Update credentials on Expo servers with values from credentials.json',
+              },
+              {
+                value: ActionType.UseExistingDistributionCertificate,
+                title: 'Use existing Distribution Certificate in current project',
+              },
+              {
+                value: ActionType.RemoveSpecificProvisioningProfile,
+                title: 'Remove Provisioning Profile from current project',
+              },
+            ]
+          : [];
 
-    const { action } = await promptAsync({
-      type: 'select',
-      name: 'action',
-      message: 'What do you want to do?',
-      choices: [
-        ...projectSpecificActions,
-        {
-          value: ActionType.CreateDistributionCertificate,
-          title: 'Add new Distribution Certificate',
-        },
-        {
-          value: ActionType.RemoveDistributionCertificate,
-          title: 'Remove Distribution Certificate',
-        },
-        {
-          value: ActionType.UpdateDistributionCertificate,
-          title: 'Update Distribution Certificate',
-        },
-      ],
-    });
+        const { action } = await promptAsync({
+          type: 'select',
+          name: 'action',
+          message: 'What do you want to do?',
+          choices: [
+            ...projectSpecificActions,
+            {
+              value: ActionType.CreateDistributionCertificate,
+              title: 'Add new Distribution Certificate',
+            },
+            {
+              value: ActionType.RemoveDistributionCertificate,
+              title: 'Remove Distribution Certificate',
+            },
+            {
+              value: ActionType.UpdateDistributionCertificate,
+              title: 'Update Distribution Certificate',
+            },
+          ],
+        });
 
-    manager.pushNextAction(new PressAnyKeyToContinue());
-    manager.pushNextAction(this.getAction(manager, ctx, accountName, action));
+        try {
+          await manager.runActionAsync(this.getAction(manager, ctx, accountName, action));
+        } catch (err) {
+          log.error(err);
+        }
+        await manager.runActionAsync(new PressAnyKeyToContinue());
+      } catch (err) {
+        log.error(err);
+        await manager.runActionAsync(new PressAnyKeyToContinue());
+      }
+    }
   }
 
   private getAppLookupParamsFromContext(ctx: Context): AppLookupParams {

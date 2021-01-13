@@ -29,10 +29,6 @@ export function createManagerMock(mockOverride: Record<string, any> = {}): Crede
       runActionAsync: jest.fn(() => {
         throw new Error('unexpected call'); // should be implemented in test directly
       }),
-      pushNextAction: jest.fn(() => {
-        throw new Error('unexpected call'); // should be implemented in test directly
-      }),
-      popAction: jest.fn(),
     },
     mockOverride
   );
