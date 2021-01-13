@@ -112,8 +112,9 @@ export async function prepareBuildRequestForPlatformAsync<
         }
       );
     } catch (error) {
-      if (error.code === 'TURTLE_DEPRECATED_JOB_FORMAT') {
-        log.error('EAS Build API changed, upgrade to latest expo-cli');
+      const body = error?.response?.body;
+      if (body && JSON.parse(body)?.errors?.[0]?.code === 'TURTLE_DEPRECATED_JOB_FORMAT') {
+        log.error('EAS Build API changed, upgrade to latest eas-cli');
       }
       throw error;
     }
