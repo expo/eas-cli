@@ -3161,6 +3161,28 @@ export type IosAppCredentialsWithBuildCredentialsByAppIdentifierIdQuery = (
   )> }
 );
 
+export type CommonIosAppCredentialsWithBuildCredentialsByAppIdentifierIdQueryVariables = Exact<{
+  projectFullName: Scalars['String'];
+  appleAppIdentifierId: Scalars['String'];
+}>;
+
+
+export type CommonIosAppCredentialsWithBuildCredentialsByAppIdentifierIdQuery = (
+  { __typename?: 'RootQuery' }
+  & { app?: Maybe<(
+    { __typename?: 'AppQuery' }
+    & { byFullName: (
+      { __typename?: 'App' }
+      & Pick<App, 'id'>
+      & { iosAppCredentials: Array<(
+        { __typename?: 'IosAppCredentials' }
+        & Pick<IosAppCredentials, 'id'>
+        & CommonIosAppCredentialsFragment
+      )> }
+    ) }
+  )> }
+);
+
 export type GetSignedUploadMutationVariables = Exact<{
   contentTypes: Array<Scalars['String']>;
 }>;
@@ -3321,7 +3343,7 @@ export type CurrentUserQuery = (
 
 export type AppFragment = (
   { __typename?: 'App' }
-  & Pick<App, 'id'>
+  & Pick<App, 'id' | 'fullName'>
 );
 
 export type AppleAppIdentifierFragment = (
@@ -3370,14 +3392,14 @@ export type IosAppBuildCredentialsFragment = (
   & Pick<IosAppBuildCredentials, 'id' | 'iosDistributionType'>
   & { distributionCertificate?: Maybe<(
     { __typename?: 'AppleDistributionCertificate' }
-    & Pick<AppleDistributionCertificate, 'id' | 'certificateP12' | 'certificatePassword' | 'serialNumber' | 'developerPortalIdentifier' | 'validityNotBefore' | 'validityNotAfter'>
+    & Pick<AppleDistributionCertificate, 'id' | 'certificateP12' | 'certificatePassword' | 'serialNumber' | 'developerPortalIdentifier' | 'validityNotBefore' | 'validityNotAfter' | 'updatedAt'>
     & { appleTeam?: Maybe<(
       { __typename?: 'AppleTeam' }
       & Pick<AppleTeam, 'id' | 'appleTeamIdentifier' | 'appleTeamName'>
     )> }
   )>, provisioningProfile?: Maybe<(
     { __typename?: 'AppleProvisioningProfile' }
-    & Pick<AppleProvisioningProfile, 'id' | 'expiration' | 'developerPortalIdentifier' | 'provisioningProfile'>
+    & Pick<AppleProvisioningProfile, 'id' | 'expiration' | 'developerPortalIdentifier' | 'provisioningProfile' | 'updatedAt' | 'status'>
     & { appleDevices: Array<(
       { __typename?: 'AppleDevice' }
       & Pick<AppleDevice, 'id' | 'identifier' | 'name' | 'model' | 'deviceClass'>
@@ -3385,17 +3407,32 @@ export type IosAppBuildCredentialsFragment = (
       { __typename?: 'AppleTeam' }
       & Pick<AppleTeam, 'id' | 'appleTeamIdentifier' | 'appleTeamName'>
     )> }
-  )>, appleDevices?: Maybe<Array<Maybe<(
-    { __typename?: 'AppleDevice' }
-    & Pick<AppleDevice, 'id' | 'identifier' | 'name' | 'model' | 'deviceClass'>
-    & { appleTeam: (
-      { __typename?: 'AppleTeam' }
-      & Pick<AppleTeam, 'id' | 'appleTeamIdentifier' | 'appleTeamName'>
-    ) }
-  )>>> }
+  )> }
 );
 
 export type IosAppCredentialsFragment = (
   { __typename?: 'IosAppCredentials' }
   & Pick<IosAppCredentials, 'id'>
+);
+
+export type CommonIosAppCredentialsFragment = (
+  { __typename?: 'IosAppCredentials' }
+  & Pick<IosAppCredentials, 'id'>
+  & { app: (
+    { __typename?: 'App' }
+    & Pick<App, 'id'>
+    & AppFragment
+  ), appleTeam?: Maybe<(
+    { __typename?: 'AppleTeam' }
+    & Pick<AppleTeam, 'id'>
+    & AppleTeamFragment
+  )>, appleAppIdentifier: (
+    { __typename?: 'AppleAppIdentifier' }
+    & Pick<AppleAppIdentifier, 'id'>
+    & AppleAppIdentifierFragment
+  ), iosAppBuildCredentialsArray: Array<(
+    { __typename?: 'IosAppBuildCredentials' }
+    & Pick<IosAppBuildCredentials, 'id'>
+    & IosAppBuildCredentialsFragment
+  )> }
 );

@@ -4,6 +4,7 @@ import {
   AppFragment,
   AppleAppIdentifierFragment,
   AppleTeamFragment,
+  CommonIosAppCredentialsFragment,
   IosAppBuildCredentialsFragment,
   IosDistributionType,
 } from '../../../graphql/generated';
@@ -96,6 +97,23 @@ export async function createOrUpdateIosAppBuildCredentialsAsync(
       appleProvisioningProfileId
     );
   }
+}
+
+export async function getIosAppCredentialsWithBuildCredentialsAsync(
+  appLookupParams: AppLookupParams
+): Promise<CommonIosAppCredentialsFragment | null> {
+  const { account, bundleIdentifier } = appLookupParams;
+  const appleAppIdentifier = await AppleAppIdentifierQuery.byBundleIdentifierAsync(
+    account.name,
+    bundleIdentifier
+  );
+  if (!appleAppIdentifier) {
+    return null;
+  }
+  const projectFullName = formatProjectFullName(appLookupParams);
+  return await IosAppCredentialsQuery.withCommonFieldsByAppIdentifierIdAsync(projectFullName, {
+    appleAppIdentifierId: appleAppIdentifier.id,
+  });
 }
 
 export async function createOrGetExistingIosAppCredentialsWithBuildCredentialsAsync(

@@ -12,6 +12,27 @@ export const IosAppBuildCredentialsFragmentNode = gql`
       developerPortalIdentifier
       validityNotBefore
       validityNotAfter
+      updatedAt
+      appleTeam {
+        id
+        appleTeamIdentifier
+        appleTeamName
+      }
+    }
+    provisioningProfile {
+      id
+      expiration
+      developerPortalIdentifier
+      provisioningProfile
+      updatedAt
+      status
+      appleDevices {
+        id
+        identifier
+        name
+        model
+        deviceClass
+      }
       appleTeam {
         id
         appleTeamIdentifier
@@ -30,18 +51,6 @@ export const IosAppBuildCredentialsFragmentNode = gql`
         model
         deviceClass
       }
-      appleTeam {
-        id
-        appleTeamIdentifier
-        appleTeamName
-      }
-    }
-    appleDevices {
-      id
-      identifier
-      name
-      model
-      deviceClass
       appleTeam {
         id
         appleTeamIdentifier
