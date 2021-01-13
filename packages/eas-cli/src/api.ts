@@ -1,4 +1,5 @@
-import got, { NormalizedOptions } from 'got';
+import { JSONValue } from '@expo/json-file';
+import got, { HTTPError, NormalizedOptions } from 'got';
 
 import { getAccessToken, getSessionSecret } from './user/sessionStorage';
 
@@ -20,6 +21,53 @@ export const apiClient = got.extend({
     ],
   },
 });
+
+export class ApiV2Error extends Error {
+  readonly name = 'ApiV2Error';
+  readonly code: string;
+  readonly details?: JSONValue;
+  readonly serverStack?: string;
+  readonly metadata?: object;
+
+  constructor(response: {
+    message: string;
+    code: string;
+    stack?: string;
+    details?: JSONValue;
+    metadata?: object;
+  }) {
+    super(response.message);
+    this.code = response.code;
+    this.serverStack = response.stack;
+    this.details = response.details;
+    this.metadata = response.metadata;
+  }
+}
+
+export async function apiV2PostAsync<T>(
+  path: string,
+  params: {
+    [key: string]: any;
+  }
+): Promise<T> {
+  try {
+    return await apiClient.post(path, { json: params }).json<T>();
+  } catch (e) {
+    if (e instanceof HTTPError) {
+      let result: { [key: string]: any };
+      try {
+        result = JSON.parse(e.response.body as string);
+      } catch (e2) {
+        throw e;
+      }
+      if (result.errors && result.errors.length) {
+        throw new ApiV2Error(result.errors[0]);
+      }
+    }
+
+    throw e;
+  }
+}
 
 export function getExpoApiBaseUrl(): string {
   if (process.env.EXPO_STAGING) {
