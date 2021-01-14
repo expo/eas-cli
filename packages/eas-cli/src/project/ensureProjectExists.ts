@@ -12,7 +12,7 @@ interface ProjectInfo {
 }
 
 /**
- * Ensures project exists on Expo servers. Registers it when it doesn't
+ * Ensures project exists on EAS servers. Registers it when it doesn't
  * @returns The project ID
  */
 export async function ensureProjectExistsAsync(projectInfo: ProjectInfo): Promise<string> {
@@ -58,7 +58,7 @@ async function findProjectIdByAccountNameAndSlugAsync(
 }
 
 /**
- * Registers new project on Expo servers
+ * Registers new project on EAS servers
  * @returns Created project's ID
  */
 async function registerNewProjectAsync({

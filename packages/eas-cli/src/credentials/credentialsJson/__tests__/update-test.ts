@@ -114,7 +114,7 @@ describe('update credentials.json', () => {
         throw new Error('updateAndroidCredentialsAsync should throw an error');
       } catch (e) {
         expect(e.message).toMatch(
-          'There are no credentials configured for this project on Expo servers'
+          'There are no credentials configured for this project on EAS servers'
         );
       }
       const keystore = await fs.readFile('./keystore.jks', 'base64');
@@ -277,7 +277,7 @@ describe('update credentials.json', () => {
         throw new Error('updateIosCredentialsAsync should throw na error');
       } catch (e) {
         expect(e.message).toMatch(
-          'There are no credentials configured for this project on Expo servers'
+          'There are no credentials configured for this project on EAS servers'
         );
       }
       const certP12 = await fs.readFile('./cert.p12', 'base64');

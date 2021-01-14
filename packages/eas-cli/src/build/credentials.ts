@@ -34,11 +34,11 @@ async function ensureCredentialsAutoAsync(
         if (!(await provider.isLocalSyncedAsync())) {
           if (nonInteractive) {
             throw new Error(
-              `Contents of your local credentials.json for ${platform} are not the same as credentials on Expo servers. To use the desired credentials, set the "builds.${platform}.{profile}.credentialsSource" field in the credentials.json file to one of the following: "local", "remote".`
+              `Contents of your local credentials.json for ${platform} are not the same as credentials on EAS servers. To use the desired credentials, set the "builds.${platform}.{profile}.credentialsSource" field in the credentials.json file to one of the following: "local", "remote".`
             );
           } else {
             log(
-              `Contents of your local credentials.json for ${platform} are not the same as credentials on Expo servers`
+              `Contents of your local credentials.json for ${platform} are not the same as credentials on EAS servers`
             );
           }
 
@@ -48,7 +48,7 @@ async function ensureCredentialsAutoAsync(
             message: 'Which credentials do you want to use for this build?',
             choices: [
               { title: 'Local credentials.json', value: CredentialsSource.LOCAL },
-              { title: 'Credentials stored on Expo servers.', value: CredentialsSource.REMOTE },
+              { title: 'Credentials stored on EAS servers.', value: CredentialsSource.REMOTE },
             ],
           });
           return select;

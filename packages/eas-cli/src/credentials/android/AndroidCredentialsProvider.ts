@@ -90,7 +90,7 @@ export default class AndroidCredentialsProvider implements CredentialsProvider {
     );
     const keystore = await this.ctx.android.fetchKeystoreAsync(this.projectFullName);
     if (!keystore) {
-      throw new Error('Unable to set up credentials, failed to fetch keystore from Expo servers');
+      throw new Error('Unable to set up credentials, failed to fetch keystore from EAS servers');
     }
     return { keystore };
   }

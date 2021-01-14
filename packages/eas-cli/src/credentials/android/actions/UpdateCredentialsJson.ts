@@ -10,7 +10,7 @@ export class UpdateCredentialsJson implements Action {
     log('Updating Android credentials in credentials.json');
     await updateAndroidCredentialsAsync(ctx);
     log.succeed(
-      'Android part of your local credentials.json is synced with values stored on Expo servers.'
+      'Android part of your local credentials.json is synced with values stored on EAS servers.'
     );
   }
 }

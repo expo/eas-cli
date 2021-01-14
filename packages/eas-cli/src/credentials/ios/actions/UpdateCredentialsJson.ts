@@ -15,7 +15,7 @@ export class UpdateCredentialsJson implements Action {
     log('Updating iOS credentials in credentials.json');
     await updateIosCredentialsAsync(ctx, bundleIdentifer);
     log.succeed(
-      'iOS part of your local credentials.json is synced with values stored on Expo servers.'
+      'iOS part of your local credentials.json is synced with values stored on EAS servers.'
     );
   }
 }
