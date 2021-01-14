@@ -25,7 +25,7 @@ export async function showLoginPromptAsync(): Promise<void> {
       password,
     });
   } catch (e) {
-    if (e instanceof ApiV2Error && e.code === 'ONE_TIME_PASSWORD_REQUIRED') {
+    if (e instanceof ApiV2Error && e.expoApiV2ErrorCode === 'ONE_TIME_PASSWORD_REQUIRED') {
       await retryUsernamePasswordAuthWithOTPAsync(
         username,
         password,
