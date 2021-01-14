@@ -98,9 +98,27 @@ export async function updateIosCredentialsAsync(
       log.error('Make sure that file is correct (or remove it) and rerun this command.');
       throw error;
     }
+
+    // TODO: implement updating credentials.json with multi-target credentials from EAS servers
+    if (rawCredentialsJsonObject?.ios) {
+      const keys = Object.keys(rawCredentialsJsonObject.ios);
+      const maybeUnknownKey = keys.find(
+        key => key !== 'provisioningProfilePath' && key !== 'distributionCertificate'
+      );
+      if (maybeUnknownKey) {
+        log.error(
+          `It looks like your credentials.json either contains multi-target credentials or you've made a typo.`
+        );
+        log.error(`- The key in 'ios' object that EAS CLI encountered is: ${maybeUnknownKey}`);
+        log.error(
+          `- Updating credentials.json (for multi-target iOS projects) with credentials stored on EAS servers is not supported at the moment, sorry!`
+        );
+        throw new Error('Updating credentials.json failed');
+      }
+    }
   }
 
-  const accountName = await getProjectAccountName(ctx.exp, ctx.user);
+  const accountName = getProjectAccountName(ctx.exp, ctx.user);
   const appLookupParams = {
     accountName,
     projectName: ctx.exp.slug,

@@ -127,9 +127,10 @@ export class SetupBuildCredentialsFromCredentialsJson implements Action {
       throw error;
     }
 
+    // TODO: implement storing multi-target credentials on EAS servers
     if (isCredentialsMap(localCredentials)) {
       throw new Error(
-        'Storing multi-target iOS credentials from credentials.json on Expo servers is not yet supported.'
+        'Storing multi-target iOS credentials from credentials.json on EAS servers is not yet supported.'
       );
     }
 
