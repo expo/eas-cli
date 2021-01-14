@@ -38,12 +38,10 @@ export function formatDistributionCertificate(
     )}`
   );
 
-  if (!validSerialNumbers) {
-    line += '';
-  } else if (validSerialNumbers.includes(serialNumber)) {
+  if (validSerialNumbers?.includes(serialNumber)) {
     line += chalk.gray("\n    ✅ Currently valid on Apple's servers.");
   } else {
-    line += chalk.gray("\n    ❓ Validity of this certificate on Apple's servers is unknown.");
+    line += '';
   }
   return line;
 }
