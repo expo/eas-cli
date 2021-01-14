@@ -48,11 +48,6 @@ function log(...args: any[]) {
   consoleLog(...args);
 }
 
-// for testability since default exports cannot be spied upon
-log.log = function log(...args: any[]) {
-  consoleLog(...args);
-};
-
 log.newLine = function newLine() {
   consoleLog();
 };

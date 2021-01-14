@@ -13,9 +13,6 @@ jest.mock('../../api', () => ({
       };
     }),
   },
-  apiV2PostAsync: jest.fn(() => {
-    return { data: { sessionSecret: 'SESSION_SECRET' } };
-  }),
 }));
 jest.mock('../../graphql/client', () => ({
   graphqlClient: {

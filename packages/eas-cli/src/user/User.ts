@@ -1,6 +1,6 @@
 import gql from 'graphql-tag';
 
-import { apiV2PostAsync } from '../api';
+import { apiClient } from '../api';
 import { graphqlClient } from '../graphql/client';
 import { CurrentUserQuery } from '../graphql/generated';
 import { UserQuery } from '../graphql/queries/UserQuery';
@@ -30,7 +30,9 @@ export async function loginAsync({
   password: string;
   otp?: string;
 }): Promise<void> {
-  const body = await apiV2PostAsync('auth/loginAsync', { username, password, otp });
+  const body = await apiClient
+    .post('auth/loginAsync', { json: { username, password, otp } })
+    .json();
   const { sessionSecret } = (body as any).data;
   const result = await graphqlClient
     .query(

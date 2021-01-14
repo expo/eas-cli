@@ -1,5 +1,4 @@
-import { apiV2PostAsync } from '../../api';
-import log from '../../log';
+import { apiClient } from '../../api';
 import { promptAsync, selectAsync } from '../../prompts';
 import { Actor, loginAsync } from '../User';
 import {
@@ -15,6 +14,13 @@ jest.mock('../User', () => ({
   loginAsync: jest.fn(),
 }));
 
+const logFn = jest.fn();
+const mockLog = {
+  __esModule: true, // this property makes it work
+  default: logFn,
+};
+jest.mock('../../log', () => mockLog);
+
 beforeEach(() => {
   (promptAsync as jest.Mock).mockReset();
   (promptAsync as jest.Mock).mockImplementation(() => {
@@ -27,6 +33,8 @@ beforeEach(() => {
   });
 
   (loginAsync as jest.Mock).mockReset();
+
+  logFn.mockReset();
 });
 
 const userStub: Actor = {
@@ -73,8 +81,6 @@ describe('ensureActorHasUsername', () => {
 
 describe(retryUsernamePasswordAuthWithOTPAsync, () => {
   it('shows SMS OTP prompt when SMS is primary and code was automatically sent', async () => {
-    const logSpy = jest.spyOn(log, 'log').mockImplementation(() => {});
-
     (promptAsync as any)
       .mockImplementationOnce(() => ({ otp: 'hello' }))
       .mockImplementation(() => {
@@ -93,18 +99,14 @@ describe(retryUsernamePasswordAuthWithOTPAsync, () => {
       smsAutomaticallySent: true,
     });
 
-    expect(logSpy.mock.calls[0][0]).toContain(
-      'One-time password was sent to the phone number ending'
+    expect(logFn).toHaveBeenCalledWith(
+      'One-time password was sent to the phone number ending in testphone.'
     );
 
     expect(loginAsync as jest.Mock).toHaveBeenCalledTimes(1);
-
-    logSpy.mockRestore();
   });
 
   it('shows authenticator OTP prompt when authenticator is primary', async () => {
-    const logSpy = jest.spyOn(log, 'log').mockImplementation(() => {});
-
     (promptAsync as any)
       .mockImplementationOnce(() => ({ otp: 'hello' }))
       .mockImplementation(() => {
@@ -123,7 +125,7 @@ describe(retryUsernamePasswordAuthWithOTPAsync, () => {
       smsAutomaticallySent: false,
     });
 
-    expect(logSpy.mock.calls[0][0]).toEqual('One-time password from authenticator required.');
+    expect(logFn).toHaveBeenCalledWith('One-time password from authenticator required.');
     expect(loginAsync as jest.Mock).toHaveBeenCalledTimes(1);
   });
 
@@ -236,9 +238,8 @@ describe(retryUsernamePasswordAuthWithOTPAsync, () => {
         throw new Error("shouldn't happen");
       });
 
-    const postAsyncFn = jest.fn();
-    (apiV2PostAsync as any).mockImplementationOnce(postAsyncFn).mockImplementation(() => {
-      throw new Error("shouldn't happen");
+    (apiClient.post as jest.Mock).mockReturnValueOnce({
+      json: () => Promise.resolve({ data: { sessionSecret: 'SESSION_SECRET' } }),
     });
 
     await retryUsernamePasswordAuthWithOTPAsync('blah', 'blah', {
@@ -260,12 +261,14 @@ describe(retryUsernamePasswordAuthWithOTPAsync, () => {
     });
 
     expect((promptAsync as any).mock.calls.length).toBe(2); // first OTP, second OTP
-    expect(postAsyncFn.mock.calls[0]).toEqual([
+    expect((apiClient.post as jest.Mock).mock.calls[0]).toEqual([
       'auth/send-sms-otp',
       {
-        username: 'blah',
-        password: 'blah',
-        secondFactorDeviceID: 'p2',
+        json: {
+          username: 'blah',
+          password: 'blah',
+          secondFactorDeviceID: 'p2',
+        },
       },
     ]);
   });

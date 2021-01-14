@@ -1,7 +1,7 @@
 import assert from 'assert';
 import chalk from 'chalk';
 
-import { ApiV2Error, apiV2PostAsync } from '../api';
+import { ApiV2Error, apiClient } from '../api';
 import log from '../log';
 import { promptAsync, selectAsync } from '../prompts';
 import { Actor, getUserAsync, loginAsync } from './User';
@@ -26,7 +26,11 @@ export async function showLoginPromptAsync(): Promise<void> {
     });
   } catch (e) {
     if (e instanceof ApiV2Error && e.code === 'ONE_TIME_PASSWORD_REQUIRED') {
-      await retryUsernamePasswordAuthWithOTPAsync(username, password, e.metadata as any);
+      await retryUsernamePasswordAuthWithOTPAsync(
+        username,
+        password,
+        e.expoApiV2ErrorMetadata as any
+      );
     } else {
       throw e;
     }
@@ -119,11 +123,15 @@ async function promptForBackupOTPAsync(
 
   const device = smsNonPrimarySecondFactorDevices[selectedValue];
 
-  await apiV2PostAsync('auth/send-sms-otp', {
-    username,
-    password,
-    secondFactorDeviceID: device.id,
-  });
+  await apiClient
+    .post('auth/send-sms-otp', {
+      json: {
+        username,
+        password,
+        secondFactorDeviceID: device.id,
+      },
+    })
+    .json();
 
   return await promptForOTPAsync('cancel');
 }
@@ -162,14 +170,14 @@ export async function retryUsernamePasswordAuthWithOTPAsync(
 
   if (smsAutomaticallySent) {
     assert(primaryDevice, 'OTP should only automatically be sent when there is a primary device');
-    log.log(
+    log(
       `One-time password was sent to the phone number ending in ${primaryDevice.sms_phone_number}.`
     );
     otp = await promptForOTPAsync('menu');
   }
 
   if (primaryDevice?.method === UserSecondFactorDeviceMethod.AUTHENTICATOR) {
-    log.log('One-time password from authenticator required.');
+    log('One-time password from authenticator required.');
     otp = await promptForOTPAsync('menu');
   }
 

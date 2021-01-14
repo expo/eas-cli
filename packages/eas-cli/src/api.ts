@@ -1,5 +1,5 @@
 import { JSONValue } from '@expo/json-file';
-import got, { HTTPError, NormalizedOptions } from 'got';
+import got, { HTTPError, NormalizedOptions, RequestError } from 'got';
 
 import { getAccessToken, getSessionSecret } from './user/sessionStorage';
 
@@ -19,53 +19,47 @@ export const apiClient = got.extend({
         }
       },
     ],
+    beforeError: [
+      (error: RequestError): RequestError => {
+        if (error instanceof HTTPError) {
+          let result: { [key: string]: any };
+          try {
+            result = JSON.parse(error.response.body as string);
+          } catch (e2) {
+            return error;
+          }
+          if (result.errors && result.errors.length) {
+            return new ApiV2Error(error, result.errors[0]);
+          }
+        }
+        return error;
+      },
+    ],
   },
 });
 
-export class ApiV2Error extends Error {
+export class ApiV2Error extends RequestError {
   readonly name = 'ApiV2Error';
-  readonly code: string;
-  readonly details?: JSONValue;
-  readonly serverStack?: string;
-  readonly metadata?: object;
+  readonly expoApiV2ErrorCode: string;
+  readonly expoApiV2ErrorDetails?: JSONValue;
+  readonly expoApiV2ErrorServerStack?: string;
+  readonly expoApiV2ErrorMetadata?: object;
 
-  constructor(response: {
-    message: string;
-    code: string;
-    stack?: string;
-    details?: JSONValue;
-    metadata?: object;
-  }) {
-    super(response.message);
-    this.code = response.code;
-    this.serverStack = response.stack;
-    this.details = response.details;
-    this.metadata = response.metadata;
-  }
-}
-
-export async function apiV2PostAsync<T>(
-  path: string,
-  params: {
-    [key: string]: any;
-  }
-): Promise<T> {
-  try {
-    return await apiClient.post(path, { json: params }).json<T>();
-  } catch (e) {
-    if (e instanceof HTTPError) {
-      let result: { [key: string]: any };
-      try {
-        result = JSON.parse(e.response.body as string);
-      } catch (e2) {
-        throw e;
-      }
-      if (result.errors && result.errors.length) {
-        throw new ApiV2Error(result.errors[0]);
-      }
+  constructor(
+    originalError: HTTPError,
+    response: {
+      message: string;
+      code: string;
+      stack?: string;
+      details?: JSONValue;
+      metadata?: object;
     }
-
-    throw e;
+  ) {
+    super(response.message, originalError, originalError.request);
+    this.expoApiV2ErrorCode = response.code;
+    this.expoApiV2ErrorDetails = response.details;
+    this.expoApiV2ErrorServerStack = response.stack;
+    this.expoApiV2ErrorMetadata = response.metadata;
   }
 }
 
