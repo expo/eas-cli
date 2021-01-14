@@ -2,7 +2,8 @@ import assert from 'assert';
 import { RequestError } from 'got/dist/source';
 import nock from 'nock';
 
-import { ApiV2Error, apiClient, getExpoApiBaseUrl } from '../api';
+import ApiV2Error from '../ApiV2Error';
+import { apiClient, getExpoApiBaseUrl } from '../api';
 
 describe('apiClient', () => {
   it('converts Expo APIv2 error to ApiV2Error', async () => {
