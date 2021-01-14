@@ -3,6 +3,7 @@ import chalk from 'chalk';
 import fs from 'fs-extra';
 import ora from 'ora';
 import path from 'path';
+import tar from 'tar';
 import { v4 as uuidv4 } from 'uuid';
 
 import log from '../../log';
@@ -99,6 +100,7 @@ async function makeProjectTarballAsync(): Promise<{ path: string; size: number }
   const spinner = ora('Compressing project files');
 
   await fs.mkdirp(getTmpDirectory());
+  const shallowClonePath = path.join(getTmpDirectory(), `${uuidv4()}-shallow-clone`);
   const tarPath = path.join(getTmpDirectory(), `${uuidv4()}.tar.gz`);
 
   // If the compression takes longer then a second, show the spinner.
@@ -116,14 +118,22 @@ async function makeProjectTarballAsync(): Promise<{ path: string; size: number }
   startTimer(compressTimerLabel);
 
   try {
-    await spawnAsync(
-      'git',
-      ['archive', '--format=tar.gz', '--prefix', 'project/', '-o', tarPath, 'HEAD'],
-      { cwd: await gitRootDirectoryAsync() }
-    );
+    await spawnAsync('git', [
+      'clone',
+      '--local',
+      '--no-hardlinks',
+      '--depth',
+      '1',
+      `file://${await gitRootDirectoryAsync()}`,
+      shallowClonePath,
+    ]);
+    await tar.create({ cwd: shallowClonePath, file: tarPath, prefix: 'project', gzip: true }, [
+      '.',
+    ]);
   } finally {
     // Stop the timer
     clearTimeout(timer);
+    await fs.remove(shallowClonePath);
 
     const duration = endTimer(compressTimerLabel);
     if (spinner.isSpinning) {
