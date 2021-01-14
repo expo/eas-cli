@@ -16,7 +16,7 @@ export class SetupBuildCredentials implements Action {
       throw new Error('Generating a new Keystore is not supported in --non-interactive mode');
     }
 
-    manager.pushNextAction(new UpdateKeystore(this.projectFullName));
+    await manager.runActionAsync(new UpdateKeystore(this.projectFullName));
   }
 }
 
