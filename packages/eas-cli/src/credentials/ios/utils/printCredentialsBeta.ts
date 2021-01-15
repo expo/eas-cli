@@ -10,7 +10,7 @@ import log from '../../../log';
 import { fromNow } from '../../../utils/date';
 import { AppLookupParams } from '../api/GraphqlClient';
 
-export function prettyIosDistributionType(distributionType: IosDistributionType): string {
+function prettyIosDistributionType(distributionType: IosDistributionType): string {
   switch (distributionType) {
     case IosDistributionType.AppStore:
       return 'App Store';
@@ -79,9 +79,7 @@ export function displayIosAppCredentials(credentials: CommonIosAppCredentialsFra
   }
 }
 
-export function displayIosAppBuildCredentials(
-  buildCredentials: IosAppBuildCredentialsFragment
-): void {
+function displayIosAppBuildCredentials(buildCredentials: IosAppBuildCredentialsFragment): void {
   log(
     chalk.bold(
       `  Configuration: ${prettyIosDistributionType(buildCredentials.iosDistributionType)}`
