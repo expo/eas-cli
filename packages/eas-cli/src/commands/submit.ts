@@ -112,7 +112,8 @@ export default class BuildSubmit extends Command {
       helpLabel: IOS_FLAGS,
     }),
     'apple-team-id': flags.string({
-      description: 'Your Apple Developer Team ID',
+      description:
+        'Your Apple Developer Team ID (you can also set EXPO_APPLE_TEAM_ID env variable)',
       helpLabel: IOS_FLAGS,
     }),
     'app-name': flags.string({

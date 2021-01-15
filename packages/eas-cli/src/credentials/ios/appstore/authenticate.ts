@@ -67,7 +67,7 @@ async function loginAsync(
   }
 
   // Resolve the user credentials, optimizing for password-less login.
-  const { username, password } = await resolveCredentialsAsync(userCredentials);
+  const { username, password, teamId } = await resolveCredentialsAsync(userCredentials);
   assert(username);
 
   // Clear data
@@ -79,7 +79,7 @@ async function loginAsync(
       {
         username,
         providerId: userCredentials.providerId,
-        teamId: userCredentials.teamId,
+        teamId,
       },
       options
     );
@@ -92,7 +92,7 @@ async function loginAsync(
       username,
       password,
       providerId: userCredentials.providerId,
-      teamId: userCredentials.teamId,
+      teamId,
     });
   } catch (error) {
     if (error instanceof InvalidUserCredentialsError) {
@@ -104,7 +104,7 @@ async function loginAsync(
         // Don't pass credentials back or the method will throw
         return loginAsync(
           {
-            teamId: userCredentials.teamId,
+            teamId,
             providerId: userCredentials.providerId,
           },
           options

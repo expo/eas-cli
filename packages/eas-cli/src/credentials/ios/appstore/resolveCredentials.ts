@@ -28,16 +28,18 @@ export async function resolveCredentialsAsync(
 function getAppleIdFromEnvironmentOrOptions({
   username,
   password,
+  teamId,
   ...userCredentials
 }: Partial<Auth.UserCredentials>): Partial<Auth.UserCredentials> {
+  const passedAppleTeamId = teamId || process.env.EXPO_APPLE_TEAM_ID;
   const passedAppleId = username || process.env.EXPO_APPLE_ID;
   // Only resolve the password if the username was provided.
   const passedAppleIdPassword = passedAppleId
     ? password || process.env.EXPO_APPLE_PASSWORD
     : undefined;
-
   return {
     ...userCredentials,
+    teamId: passedAppleTeamId,
     username: passedAppleId,
     password: passedAppleIdPassword,
   };
