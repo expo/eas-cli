@@ -4,6 +4,13 @@ import path from 'path';
 
 import { Keystore } from '../android/credentials';
 
+interface CredentialsJsonIosCredentials {
+  provisioningProfilePath: string;
+  distributionCertificate: {
+    path: string;
+    password: string;
+  };
+}
 export interface CredentialsJson {
   android?: {
     keystore: {
@@ -13,17 +20,19 @@ export interface CredentialsJson {
       keyPassword: string;
     };
   };
-  ios?: {
-    provisioningProfilePath: string;
-    distributionCertificate: {
-      path: string;
-      password: string;
-    };
-  };
+  ios?: CredentialsJsonIosCredentials | Record<string, CredentialsJsonIosCredentials>;
   experimental?: {
     npmToken?: string;
   };
 }
+
+const IosTargetCredentials = Joi.object({
+  provisioningProfilePath: Joi.string().required(),
+  distributionCertificate: Joi.object({
+    path: Joi.string().required(),
+    password: Joi.string().required(),
+  }).required(),
+});
 
 const CredentialsJsonSchema = Joi.object({
   android: Joi.object({
@@ -34,13 +43,10 @@ const CredentialsJsonSchema = Joi.object({
       keyPassword: Joi.string().required(),
     }).required(),
   }),
-  ios: Joi.object({
-    provisioningProfilePath: Joi.string().required(),
-    distributionCertificate: Joi.object({
-      path: Joi.string().required(),
-      password: Joi.string().required(),
-    }).required(),
-  }),
+  ios: [
+    IosTargetCredentials,
+    Joi.object().pattern(Joi.string().required(), IosTargetCredentials.required()),
+  ],
   experimental: Joi.object({
     npmToken: Joi.string(),
   }),
@@ -50,13 +56,15 @@ interface AndroidCredentials {
   keystore: Keystore;
 }
 
-interface iOSCredentials {
+export interface IosTargetCredentials {
   provisioningProfile: string;
   distributionCertificate: {
     certP12: string;
     certPassword: string;
   };
 }
+export type IosTargetCredentialsMap = Record<string, IosTargetCredentials>;
+export type IosCredentials = IosTargetCredentials | IosTargetCredentialsMap;
 
 export async function fileExistsAsync(projectDir: string): Promise<boolean> {
   return await fs.pathExists(path.join(projectDir, 'credentials.json'));
@@ -78,22 +86,52 @@ export async function readAndroidCredentialsAsync(projectDir: string): Promise<A
   };
 }
 
-export async function readIosCredentialsAsync(projectDir: string): Promise<iOSCredentials> {
+export async function readIosCredentialsAsync(projectDir: string): Promise<IosCredentials> {
   const credentialsJson = await readAsync(projectDir);
   if (!credentialsJson.ios) {
     throw new Error('iOS credentials are missing from credentials.json');
   }
+
+  if (!isInternalCredentialsMap(credentialsJson.ios)) {
+    return await readCredentialsForTargetAsync(projectDir, credentialsJson.ios);
+  } else {
+    const targets = Object.keys(credentialsJson.ios);
+    const targetCredentialsMap: IosTargetCredentialsMap = {};
+    for (const target of targets) {
+      targetCredentialsMap[target] = await readCredentialsForTargetAsync(
+        projectDir,
+        credentialsJson.ios[target]
+      );
+    }
+    return targetCredentialsMap;
+  }
+}
+
+function isInternalCredentialsMap(
+  ios: CredentialsJsonIosCredentials | Record<string, CredentialsJsonIosCredentials>
+): ios is Record<string, CredentialsJsonIosCredentials> {
+  return typeof ios.provisioningProfilePath !== 'string';
+}
+
+export function isCredentialsMap(ios: IosCredentials): ios is IosTargetCredentialsMap {
+  return typeof ios.provisioningProfile !== 'string';
+}
+
+async function readCredentialsForTargetAsync(
+  projectDir: string,
+  targetCredentials: CredentialsJsonIosCredentials
+): Promise<IosTargetCredentials> {
   return {
     provisioningProfile: await fs.readFile(
-      getAbsolutePath(projectDir, credentialsJson.ios.provisioningProfilePath),
+      getAbsolutePath(projectDir, targetCredentials.provisioningProfilePath),
       'base64'
     ),
     distributionCertificate: {
       certP12: await fs.readFile(
-        getAbsolutePath(projectDir, credentialsJson.ios.distributionCertificate.path),
+        getAbsolutePath(projectDir, targetCredentials.distributionCertificate.path),
         'base64'
       ),
-      certPassword: credentialsJson.ios.distributionCertificate.password,
+      certPassword: targetCredentials.distributionCertificate.password,
     },
   };
 }

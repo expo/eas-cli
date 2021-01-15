@@ -8,15 +8,10 @@ import { CredentialsManager } from '../CredentialsManager';
 import { CredentialsProvider } from '../CredentialsProvider';
 import { Context } from '../context';
 import * as credentialsJsonReader from '../credentialsJson/read';
+import type { IosCredentials } from '../credentialsJson/read';
 import { SetupBuildCredentials } from './actions/SetupBuildCredentials';
 
-export interface IosCredentials {
-  provisioningProfile: string;
-  distributionCertificate: {
-    certP12: string;
-    certPassword: string;
-  };
-}
+export { IosCredentials };
 
 interface PartialIosCredentials {
   provisioningProfile?: string;
@@ -74,6 +69,15 @@ export default class IosCredentialsProvider implements CredentialsProvider {
       const [remote, local] = await Promise.all([this.fetchRemoteAsync(), this.getLocalAsync()]);
       const r = remote;
       const l = local;
+
+      // TODO
+      // For now, when credentials.json contains credentials for multi-target project
+      // assume they are synced with the Expo servers.
+      // Change this behavior when we figure out how to store multi-target project credentials in the db.
+      if (credentialsJsonReader.isCredentialsMap(l)) {
+        return true;
+      }
+
       return !!(
         r &&
         l &&

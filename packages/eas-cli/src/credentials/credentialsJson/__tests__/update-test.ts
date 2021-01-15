@@ -17,15 +17,18 @@ jest.mock('prompts');
 
 const originalConsoleLog = console.log;
 const originalConsoleWarn = console.warn;
+const originalConsoleError = console.error;
 
 beforeAll(() => {
   console.log = jest.fn();
   console.warn = jest.fn();
+  console.error = jest.fn();
 });
 
 afterAll(() => {
   console.log = originalConsoleLog;
   console.warn = originalConsoleWarn;
+  console.error = originalConsoleError;
 });
 
 beforeEach(() => {
@@ -330,6 +333,68 @@ describe('update credentials.json', () => {
           provisioningProfilePath: 'pprofile',
         },
       });
+    });
+    it('should throw an error if credentials.json contains credentials for multi-target projects', async () => {
+      const ctx = createCtxMock({
+        ios: {
+          getAppCredentialsAsync: jest.fn(() => testAllCredentialsForApp),
+          getDistributionCertificateAsync: jest.fn(() => testIosDistCredential),
+          getProvisioningProfileAsync: jest.fn(() => testProvisioningProfile),
+        },
+      });
+      vol.fromJSON({
+        './credentials.json': JSON.stringify({
+          ios: {
+            target1: {
+              provisioningProfilePath: 'pprofile-1.mobileprovision',
+              distributionCertificate: {
+                path: 'dist-cert-1.p12',
+                password: 'cert-pass-1',
+              },
+            },
+            target2: {
+              provisioningProfilePath: 'pprofile-2.mobileprovision',
+              distributionCertificate: {
+                path: 'dist-cert-2.p12',
+                password: 'cert-pass-2',
+              },
+            },
+          },
+        }),
+        './pprofile-1.mobileprovision': 'pprofile-1-somebinarycontent',
+        './pprofile-2.mobileprovision': 'pprofile-2-somebinarycontent',
+        './dist-cert-1.p12': 'cert-1-somebinarycontent',
+        './dist-cert-2.p12': 'cert-2-somebinarycontent',
+      });
+      await expect(() => updateIosCredentialsAsync(ctx, 'bundleIdentifier')).rejects.toThrow(
+        /Updating credentials.json failed/
+      );
+    });
+    it(`should throw an error if there is a typo in credentials.json (because we can't tell if this is a target name or not)`, async () => {
+      const ctx = createCtxMock({
+        ios: {
+          getAppCredentialsAsync: jest.fn(() => testAllCredentialsForApp),
+          getDistributionCertificateAsync: jest.fn(() => testIosDistCredential),
+          getProvisioningProfileAsync: jest.fn(() => testProvisioningProfile),
+        },
+      });
+      vol.fromJSON({
+        './credentials.json': JSON.stringify({
+          ios: {
+            // typo!!!
+            xprovisioningProfilePath: 'pprofile-1.mobileprovision',
+            distributionCertificate: {
+              path: 'dist-cert-1.p12',
+              password: 'cert-pass-1',
+            },
+          },
+        }),
+        './pprofile-1.mobileprovision': 'pprofile-1-somebinarycontent',
+        './dist-cert-1.p12': 'cert-1-somebinarycontent',
+      });
+      await expect(() => updateIosCredentialsAsync(ctx, 'bundleIdentifier')).rejects.toThrow(
+        /Updating credentials.json failed/
+      );
     });
   });
 });
