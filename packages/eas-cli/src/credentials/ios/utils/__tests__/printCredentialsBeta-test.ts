@@ -1,6 +1,7 @@
+import mockdate from 'mockdate';
+
 import { IosAppCredentialsQuery } from '../../api/graphql/queries/IosAppCredentialsQuery';
 import { displayIosAppCredentials } from '../printCredentialsBeta';
-
 const mockLog = {
   __esModule: true, // this property makes it work
   default: jest.fn(toLog => toLog),
@@ -9,6 +10,7 @@ const mockLog = {
 jest.mock('../../../../log', () => mockLog);
 jest.mock('../../api/graphql/queries/IosAppCredentialsQuery');
 
+mockdate.set(new Date('4/20/2021'));
 describe('print credentials', () => {
   it('prints the IosAppCredentials fragment', async () => {
     const testIosAppCredentialsData = await IosAppCredentialsQuery.withCommonFieldsByAppIdentifierIdAsync(
