@@ -54,11 +54,11 @@ export class ManageIos implements Action {
               },
               {
                 value: ActionType.UpdateCredentialsJson,
-                title: 'Update credentials.json with values from Expo servers',
+                title: 'Update credentials.json with values from EAS servers',
               },
               {
                 value: ActionType.SetupBuildCredentialsFromCredentialsJson,
-                title: 'Update credentials on Expo servers with values from credentials.json',
+                title: 'Update credentials on EAS servers with values from credentials.json',
               },
               {
                 value: ActionType.UseExistingDistributionCertificate,

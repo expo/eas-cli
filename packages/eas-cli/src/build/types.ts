@@ -57,7 +57,7 @@ export type BuildMetadata = {
 
   /**
    * Credentials source
-   * Credentials could be obtained either from credential.json or Expo servers.
+   * Credentials could be obtained either from credential.json or EAS servers.
    */
   credentialsSource?: CredentialsSource.LOCAL | CredentialsSource.REMOTE;
 

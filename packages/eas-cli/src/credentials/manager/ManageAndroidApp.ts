@@ -46,17 +46,17 @@ export class ManageAndroidApp implements Action {
             choices: [
               {
                 value: ActionType.UpdateCredentialsJson,
-                title: 'Update credentials.json with values from Expo servers',
+                title: 'Update credentials.json with values from EAS servers',
               },
               {
                 value: ActionType.SetupBuildCredentialsFromCredentialsJson,
-                title: 'Update credentials on Expo servers with values from credentials.json',
+                title: 'Update credentials on EAS servers with values from credentials.json',
               },
               { value: ActionType.UpdateKeystore, title: 'Update Keystore' },
               { value: ActionType.RemoveKeystore, title: 'Remove Keystore' },
               {
                 value: ActionType.DownloadKeystore,
-                title: 'Download Keystore from the Expo servers',
+                title: 'Download Keystore from the EAS servers',
               },
               { value: ActionType.UpdateFcmKey, title: 'Update FCM API Key' },
               { value: ActionType.GoBack, title: 'Go back to project list' },

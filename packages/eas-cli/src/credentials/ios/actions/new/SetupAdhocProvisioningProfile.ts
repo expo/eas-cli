@@ -41,7 +41,7 @@ export class SetupAdhocProvisioningProfile implements Action {
       appleTeamName: authCtx.team.name,
     });
 
-    // 1. Fetch devices registered on Expo servers.
+    // 1. Fetch devices registered on EAS servers.
     const registeredAppleDevices = await ctx.newIos.getDevicesForAppleTeamAsync(
       this.app,
       appleTeam
@@ -58,7 +58,7 @@ export class SetupAdhocProvisioningProfile implements Action {
     await manager.runActionAsync(distCertAction);
     const distCert = distCertAction.distributionCertificate;
 
-    // 3. Fetch profile from Expo servers
+    // 3. Fetch profile from EAS servers
     let currentProfileFromExpoServers = (await ctx.newIos.getProvisioningProfileAsync(
       this.app,
       appleTeam,

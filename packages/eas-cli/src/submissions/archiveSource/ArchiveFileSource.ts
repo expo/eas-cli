@@ -113,7 +113,7 @@ async function handleLatestSourceAsync(source: ArchiveFileLatestSource): Promise
     if (!artifactUrl) {
       log.error(
         chalk.bold(
-          "Couldn't find any builds for this project on Expo servers. It looks like you haven't run eas build yet."
+          "Couldn't find any builds for this project on EAS servers. It looks like you haven't run 'eas build' yet."
         )
       );
       return getArchiveFileLocationAsync({

@@ -30,7 +30,7 @@ export async function updateAndroidCredentialsAsync(ctx: Context): Promise<void>
   const experienceName = `@${accountName}/${ctx.exp.slug}`;
   const keystore = await ctx.android.fetchKeystoreAsync(experienceName);
   if (!keystore) {
-    throw new Error('There are no credentials configured for this project on Expo servers');
+    throw new Error('There are no credentials configured for this project on EAS servers');
   }
 
   const isKeystoreComplete =
@@ -39,7 +39,7 @@ export async function updateAndroidCredentialsAsync(ctx: Context): Promise<void>
   if (!isKeystoreComplete) {
     const confirm = await confirmAsync({
       message:
-        'Credentials on Expo servers might be invalid or incomplete. Are you sure you want to continue?',
+        'Credentials on EAS servers might be invalid or incomplete. Are you sure you want to continue?',
     });
     if (!confirm) {
       log.warn('Aborting...');
@@ -113,7 +113,7 @@ export async function updateIosCredentialsAsync(
   const appCredentials = await ctx.ios.getAppCredentialsAsync(appLookupParams);
   const distCredentials = await ctx.ios.getDistributionCertificateAsync(appLookupParams);
   if (!appCredentials?.credentials?.provisioningProfile && !distCredentials) {
-    throw new Error('There are no credentials configured for this project on Expo servers');
+    throw new Error('There are no credentials configured for this project on EAS servers');
   }
 
   const areCredentialsComplete =
@@ -124,7 +124,7 @@ export async function updateIosCredentialsAsync(
   if (!areCredentialsComplete) {
     const confirm = await confirmAsync({
       message:
-        'Credentials on Expo servers might be invalid or incomplete. Are you sure you want to continue?',
+        'Credentials on EAS servers might be invalid or incomplete. Are you sure you want to continue?',
     });
     if (!confirm) {
       log.warn('Aborting...');

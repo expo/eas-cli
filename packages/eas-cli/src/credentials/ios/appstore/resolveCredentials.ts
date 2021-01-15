@@ -89,7 +89,7 @@ export async function promptPasswordAsync({
   log(
     wrapAnsi(
       chalk.bold(
-        `\u203A The password is only used to authenticate with Apple and never stored on Expo servers`
+        `\u203A The password is only used to authenticate with Apple and never stored on EAS servers`
       ),
       process.stdout.columns || 80
     )

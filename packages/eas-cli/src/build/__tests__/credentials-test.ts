@@ -130,7 +130,7 @@ describe(ensureCredentialsAsync, () => {
         throw new Error('ensureCredentialsAsync should throw an Error');
       } catch (e) {
         expect(e.message).toMatch(
-          'Contents of your local credentials.json for Android are not the same as credentials on Expo servers'
+          'Contents of your local credentials.json for Android are not the same as credentials on EAS servers'
         );
       }
 

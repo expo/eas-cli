@@ -84,7 +84,7 @@ export class ConfigureProvisioningProfile implements Action {
 
     const spinner = ora(`Updating Expo profile for ${projectTag}`).start();
     try {
-      // Update profile on expo servers
+      // Update profile on EAS servers
       await ctx.ios.updateProvisioningProfileAsync(app, updatedProfile);
       spinner.succeed(`Updated Expo profile for ${projectTag}`);
     } catch (error) {
