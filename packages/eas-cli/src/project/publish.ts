@@ -1,5 +1,6 @@
 import { Platform } from '@expo/config';
 import JsonFile from '@expo/json-file';
+import Joi from '@hapi/joi';
 import crypto from 'crypto';
 import fs from 'fs';
 import { uniqBy } from 'lodash';
@@ -24,6 +25,13 @@ function getStorageBucket(): string {
 }
 
 export type PublishPlatform = Extract<'android' | 'ios', Platform>;
+type Metadata = {
+  version: number;
+  bundler: 'metro';
+  fileMetadata: {
+    [key in 'android' | 'ios']: { assets: { path: string; ext: string }[]; bundle: string };
+  };
+};
 export type RawAsset = {
   type: string;
   contentType: string;
@@ -43,6 +51,21 @@ type ManifestFragment = {
 type UpdateInfoGroup = {
   [key in PublishPlatform]: ManifestFragment;
 };
+
+const fileMetadataJoi = Joi.object({
+  assets: Joi.array()
+    .required()
+    .items(Joi.object({ path: Joi.string().required(), ext: Joi.string().required() })),
+  bundle: Joi.string().required(),
+}).required();
+export const MetadataJoi = Joi.object({
+  version: Joi.number().required(),
+  bundler: Joi.string().required(),
+  fileMetadata: Joi.object({
+    android: fileMetadataJoi,
+    ios: fileMetadataJoi,
+  }).required(),
+}).required();
 
 export function guessContentTypeFromExtension(ext?: string): string {
   return mime.getType(ext ?? '') ?? 'application/octet-stream'; // unrecognized extension
@@ -127,55 +150,42 @@ export function resolveInputDirectory(customInputDirectory: string): string {
   return distRoot;
 }
 
-export function collectUserDefinedAssets(distRoot: string): RawAsset[] {
-  const assetRoot = path.join(distRoot, 'assets');
-  const assetPointers = Platforms.map(platform => {
-    const assetJsonPath = path.join(distRoot, `${platform}-index.json`);
-    return JsonFile.read(assetJsonPath).bundledAssets;
-  }).flat();
-
-  return [...new Set(assetPointers)].map(pointer => {
-    const [filename, ext] = new String(pointer ?? '').split('_').pop()?.split('.') ?? [];
-    if (!filename) {
-      throw new Error(
-        'There was an error locating all of the bundler defined assets. Please rerun the bundler and then retry publishing.'
-      );
-    }
-    return {
-      type: ext ?? '',
-      contentType: guessContentTypeFromExtension(ext),
-      path: path.join(assetRoot, filename),
-    };
-  });
-}
-
-export function collectBundles(distRoot: string): { [key: string]: RawAsset } {
-  const bundleRoot = path.join(distRoot, 'bundles');
-  const bundlePaths = Object.fromEntries(
-    fs.readdirSync(bundleRoot).map(name => [name.split('-')[0], path.join(bundleRoot, name)])
-  );
-
-  const bundleBuffers: { [key: string]: RawAsset } = {};
-  Platforms.forEach(platform => {
-    bundleBuffers[platform] = {
-      type: 'bundle',
-      contentType: 'application/javascript',
-      path: bundlePaths[platform],
-    };
-  });
-  return bundleBuffers;
+export function loadMetadata(distRoot: string): Metadata {
+  const metadata: Metadata = JsonFile.read(path.join(distRoot, 'metadata.json'));
+  const { error } = MetadataJoi.validate(metadata);
+  if (error) {
+    throw error;
+  }
+  // Check version and bundler by hand (instead of with Joi) so
+  // more informative error messages can be returned.
+  if (metadata.version !== 0) {
+    throw new Error('Only bundles with metadata version 0 are supported');
+  }
+  if (metadata.bundler !== 'metro') {
+    throw new Error('Only bundles created with Metro are currently supported');
+  }
+  return metadata;
 }
 
 export function collectAssets(inputDir: string): CollectedAssets {
   const distRoot = resolveInputDirectory(inputDir);
-  const assets = collectUserDefinedAssets(distRoot);
-  const bundles = collectBundles(distRoot);
-  const assetsFinal: CollectedAssets = {};
+  const metadata = loadMetadata(distRoot);
 
+  const assetsFinal: CollectedAssets = {};
   for (const platform of Platforms) {
     assetsFinal[platform] = {
-      launchAsset: bundles[platform],
-      assets,
+      launchAsset: {
+        type: 'bundle',
+        contentType: 'application/javascript',
+        path: path.resolve(distRoot, metadata.fileMetadata[platform].bundle),
+      },
+      assets: metadata.fileMetadata[platform].assets.map(asset => {
+        return {
+          type: asset.ext,
+          contentType: guessContentTypeFromExtension(asset.ext),
+          path: path.join(distRoot, asset.path),
+        };
+      }),
     };
   }
 
