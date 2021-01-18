@@ -1,3 +1,4 @@
+import assert from 'assert';
 import chalk from 'chalk';
 import dateformat from 'dateformat';
 
@@ -54,19 +55,19 @@ async function _selectDistributionCertificateAsync(
   distCerts: AppleDistributionCertificateFragment[],
   validDistributionCertificates?: AppleDistributionCertificateFragment[]
 ): Promise<AppleDistributionCertificateFragment | null> {
-  const { credentialsIndex } = await promptAsync({
+  const validDistCertSerialNumbers = validDistributionCertificates?.map(
+    distCert => distCert.serialNumber
+  );
+  const { chosenDistCert } = await promptAsync({
     type: 'select',
-    name: 'credentialsIndex',
+    name: 'chosenDistCert',
     message: 'Select certificate from the list.',
-    choices: distCerts.map((entry, index) => ({
-      title: formatDistributionCertificate(
-        entry,
-        validDistributionCertificates?.map(distCert => distCert.serialNumber)
-      ),
-      value: index,
+    choices: distCerts.map(distCert => ({
+      title: formatDistributionCertificate(distCert, validDistCertSerialNumbers),
+      value: distCert,
     })),
   });
-  return distCerts[credentialsIndex];
+  return chosenDistCert;
 }
 
 /**
@@ -78,7 +79,7 @@ export async function selectDistributionCertificateAsync(
 ): Promise<AppleDistributionCertificateFragment | null> {
   const distCertsForAccount = await ctx.newIos.getDistributionCertificatesForAccountAsync(account);
   if (distCertsForAccount.length === 0) {
-    log.warn(`There are no Distribution Certificates available in your Expo account.`);
+    log.warn(`There are no Distribution Certificates available in your EAS account.`);
     return null;
   }
   if (!ctx.appStore.authCtx) {
@@ -106,7 +107,7 @@ export async function selectValidDistributionCertificateAsync(
     appLookupParams.account
   );
   if (distCertsForAccount.length === 0) {
-    log.warn(`There are no Distribution Certificates available in your Expo account.`);
+    log.warn(`There are no Distribution Certificates available in your EAS account.`);
     return null;
   }
   if (!ctx.appStore.authCtx) {
@@ -114,11 +115,10 @@ export async function selectValidDistributionCertificateAsync(
   }
 
   // filter by apple team
+  assert(ctx.appStore.authCtx, 'authentication to the Apple App Store is required');
+  const appleTeamIdentifier = ctx.appStore.authCtx.team.id;
   const distCertsForAppleTeam = distCertsForAccount.filter(distCert => {
-    return (
-      !distCert.appleTeam ||
-      distCert.appleTeam.appleTeamIdentifier === ctx.appStore.authCtx?.team.id
-    );
+    return !distCert.appleTeam || distCert.appleTeam.appleTeamIdentifier === appleTeamIdentifier;
   });
 
   // filter by valid certs on the developer portal
