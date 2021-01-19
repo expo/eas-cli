@@ -1,6 +1,8 @@
+import ApiV2Error from '../ApiV2Error';
 import log from '../log';
 import { promptAsync } from '../prompts';
 import { Actor, getUserAsync, loginAsync } from './User';
+import { retryUsernamePasswordAuthWithOTPAsync } from './otp';
 
 export async function showLoginPromptAsync(): Promise<void> {
   const { username, password } = await promptAsync([
@@ -15,10 +17,22 @@ export async function showLoginPromptAsync(): Promise<void> {
       message: 'Password',
     },
   ]);
-  await loginAsync({
-    username,
-    password,
-  });
+  try {
+    await loginAsync({
+      username,
+      password,
+    });
+  } catch (e) {
+    if (e instanceof ApiV2Error && e.expoApiV2ErrorCode === 'ONE_TIME_PASSWORD_REQUIRED') {
+      await retryUsernamePasswordAuthWithOTPAsync(
+        username,
+        password,
+        e.expoApiV2ErrorMetadata as any
+      );
+    } else {
+      throw e;
+    }
+  }
 }
 
 export async function ensureLoggedInAsync(): Promise<Actor> {

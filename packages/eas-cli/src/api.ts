@@ -1,5 +1,6 @@
-import got, { NormalizedOptions } from 'got';
+import got, { HTTPError, NormalizedOptions, RequestError } from 'got';
 
+import ApiV2Error from './ApiV2Error';
 import { getAccessToken, getSessionSecret } from './user/sessionStorage';
 
 export const apiClient = got.extend({
@@ -16,6 +17,22 @@ export const apiClient = got.extend({
         if (sessionSecret) {
           options.headers['expo-session'] = sessionSecret;
         }
+      },
+    ],
+    beforeError: [
+      (error: RequestError): RequestError => {
+        if (error instanceof HTTPError) {
+          let result: { [key: string]: any };
+          try {
+            result = JSON.parse(error.response.body as string);
+          } catch (e2) {
+            return error;
+          }
+          if (result.errors?.length) {
+            return new ApiV2Error(error, result.errors[0]);
+          }
+        }
+        return error;
       },
     ],
   },

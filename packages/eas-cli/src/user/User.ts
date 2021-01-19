@@ -24,11 +24,15 @@ export async function getUserAsync(): Promise<Actor | undefined> {
 export async function loginAsync({
   username,
   password,
+  otp,
 }: {
   username: string;
   password: string;
+  otp?: string;
 }): Promise<void> {
-  const body = await apiClient.post('auth/loginAsync', { json: { username, password } }).json();
+  const body = await apiClient
+    .post('auth/loginAsync', { json: { username, password, otp } })
+    .json();
   const { sessionSecret } = (body as any).data;
   const result = await graphqlClient
     .query(

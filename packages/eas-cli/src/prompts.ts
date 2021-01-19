@@ -33,6 +33,27 @@ export async function confirmAsync(
   return value;
 }
 
+interface ExpoChoice<T> extends Choice {
+  value: T;
+}
+
+export async function selectAsync<T>(
+  message: string,
+  choices: ExpoChoice<T>[],
+  options?: Options
+): Promise<T> {
+  const { value } = await promptAsync(
+    {
+      message,
+      choices,
+      name: 'value',
+      type: 'select',
+    },
+    options
+  );
+  return value ?? null;
+}
+
 /**
  * Create a more dynamic yes/no confirmation that can be cancelled.
  *
