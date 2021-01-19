@@ -21,7 +21,7 @@ $ npm install -g eas-cli
 $ eas COMMAND
 running command...
 $ eas (-v|--version|version)
-eas-cli/0.2.0 darwin-x64 node-v12.18.4
+eas-cli/0.2.1 darwin-x64 node-v12.18.4
 $ eas --help [COMMAND]
 USAGE
   $ eas COMMAND
@@ -44,7 +44,6 @@ USAGE
 * [`eas device:list`](#eas-devicelist)
 * [`eas device:view [UDID]`](#eas-deviceview-udid)
 * [`eas help [COMMAND]`](#eas-help-command)
-* [`eas release:publish`](#eas-releasepublish)
 * [`eas submit --platform=(android|ios)`](#eas-submit---platformandroidios)
 
 ## `eas account:login`
@@ -59,7 +58,7 @@ ALIASES
   $ eas login
 ```
 
-_See code: [build/commands/account/login.ts](https://github.com/expo/eas-cli/blob/v0.2.0/build/commands/account/login.ts)_
+_See code: [build/commands/account/login.ts](https://github.com/expo/eas-cli/blob/v0.2.1/build/commands/account/login.ts)_
 
 ## `eas account:logout`
 
@@ -73,7 +72,7 @@ ALIASES
   $ eas logout
 ```
 
-_See code: [build/commands/account/logout.ts](https://github.com/expo/eas-cli/blob/v0.2.0/build/commands/account/logout.ts)_
+_See code: [build/commands/account/logout.ts](https://github.com/expo/eas-cli/blob/v0.2.1/build/commands/account/logout.ts)_
 
 ## `eas account:view`
 
@@ -87,7 +86,7 @@ ALIASES
   $ eas whoami
 ```
 
-_See code: [build/commands/account/view.ts](https://github.com/expo/eas-cli/blob/v0.2.0/build/commands/account/view.ts)_
+_See code: [build/commands/account/view.ts](https://github.com/expo/eas-cli/blob/v0.2.1/build/commands/account/view.ts)_
 
 ## `eas build`
 
@@ -106,7 +105,7 @@ OPTIONS
   --wait                            Wait for build(s) to complete
 ```
 
-_See code: [build/commands/build/index.ts](https://github.com/expo/eas-cli/blob/v0.2.0/build/commands/build/index.ts)_
+_See code: [build/commands/build/index.ts](https://github.com/expo/eas-cli/blob/v0.2.1/build/commands/build/index.ts)_
 
 ## `eas build:configure`
 
@@ -121,7 +120,7 @@ OPTIONS
   --allow-experimental              Enable experimental configuration steps.
 ```
 
-_See code: [build/commands/build/configure.ts](https://github.com/expo/eas-cli/blob/v0.2.0/build/commands/build/configure.ts)_
+_See code: [build/commands/build/configure.ts](https://github.com/expo/eas-cli/blob/v0.2.1/build/commands/build/configure.ts)_
 
 ## `eas build:list`
 
@@ -137,7 +136,7 @@ OPTIONS
   --status=(in-queue|in-progress|errored|finished)
 ```
 
-_See code: [build/commands/build/list.ts](https://github.com/expo/eas-cli/blob/v0.2.0/build/commands/build/list.ts)_
+_See code: [build/commands/build/list.ts](https://github.com/expo/eas-cli/blob/v0.2.1/build/commands/build/list.ts)_
 
 ## `eas build:view [BUILDID]`
 
@@ -148,7 +147,7 @@ USAGE
   $ eas build:view [BUILDID]
 ```
 
-_See code: [build/commands/build/view.ts](https://github.com/expo/eas-cli/blob/v0.2.0/build/commands/build/view.ts)_
+_See code: [build/commands/build/view.ts](https://github.com/expo/eas-cli/blob/v0.2.1/build/commands/build/view.ts)_
 
 ## `eas credentials`
 
@@ -159,7 +158,7 @@ USAGE
   $ eas credentials
 ```
 
-_See code: [build/commands/credentials.ts](https://github.com/expo/eas-cli/blob/v0.2.0/build/commands/credentials.ts)_
+_See code: [build/commands/credentials.ts](https://github.com/expo/eas-cli/blob/v0.2.1/build/commands/credentials.ts)_
 
 ## `eas device:create`
 
@@ -170,7 +169,7 @@ USAGE
   $ eas device:create
 ```
 
-_See code: [build/commands/device/create.ts](https://github.com/expo/eas-cli/blob/v0.2.0/build/commands/device/create.ts)_
+_See code: [build/commands/device/create.ts](https://github.com/expo/eas-cli/blob/v0.2.1/build/commands/device/create.ts)_
 
 ## `eas device:list`
 
@@ -184,7 +183,7 @@ OPTIONS
   --apple-team-id=apple-team-id
 ```
 
-_See code: [build/commands/device/list.ts](https://github.com/expo/eas-cli/blob/v0.2.0/build/commands/device/list.ts)_
+_See code: [build/commands/device/list.ts](https://github.com/expo/eas-cli/blob/v0.2.1/build/commands/device/list.ts)_
 
 ## `eas device:view [UDID]`
 
@@ -195,7 +194,7 @@ USAGE
   $ eas device:view [UDID]
 ```
 
-_See code: [build/commands/device/view.ts](https://github.com/expo/eas-cli/blob/v0.2.0/build/commands/device/view.ts)_
+_See code: [build/commands/device/view.ts](https://github.com/expo/eas-cli/blob/v0.2.1/build/commands/device/view.ts)_
 
 ## `eas help [COMMAND]`
 
@@ -213,23 +212,6 @@ OPTIONS
 ```
 
 _See code: [@oclif/plugin-help](https://github.com/oclif/plugin-help/blob/v3.2.0/src/commands/help.ts)_
-
-## `eas release:publish`
-
-Publish an update group to a release.
-
-```
-USAGE
-  $ eas release:publish
-
-OPTIONS
-  --input-dir=input-dir  [default: dist] location of the bundle
-  --json                 return a json with the edited release's ID and name.
-  --message=message      Short message describing the updates.
-  --release=release      current name of the release.
-```
-
-_See code: [build/commands/release/publish.ts](https://github.com/expo/eas-cli/blob/v0.2.0/build/commands/release/publish.ts)_
 
 ## `eas submit --platform=(android|ios)`
 
@@ -309,5 +291,5 @@ EXAMPLES
          and provide its App ID
 ```
 
-_See code: [build/commands/submit.ts](https://github.com/expo/eas-cli/blob/v0.2.0/build/commands/submit.ts)_
+_See code: [build/commands/submit.ts](https://github.com/expo/eas-cli/blob/v0.2.1/build/commands/submit.ts)_
 <!-- commandsstop -->
