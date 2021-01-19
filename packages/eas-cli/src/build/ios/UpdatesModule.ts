@@ -55,7 +55,7 @@ export async function syncUpdatesConfigurationAsync(
 
   if (!IOSConfig.Updates.isPlistConfigurationSynced(exp, expoPlist, accountName)) {
     log.warn(
-      'Native project configuration is not synced with values present in you app.json, run "eas build:configure" to make sure all values are applied in the native project'
+      'Native project configuration is not synced with values present in your app.json, run "eas build:configure" to make sure all values are applied in the native project'
     );
   }
 }
