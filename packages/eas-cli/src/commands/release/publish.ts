@@ -17,6 +17,7 @@ import { promptAsync } from '../../prompts';
 import { getLastCommitMessageAsync } from '../../utils/git';
 
 export default class ReleasePublish extends Command {
+  static hidden = true;
   static description = 'Publish an update group to a release.';
 
   static flags = {
