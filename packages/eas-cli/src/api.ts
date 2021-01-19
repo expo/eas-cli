@@ -28,7 +28,7 @@ export const apiClient = got.extend({
           } catch (e2) {
             return error;
           }
-          if (result.errors && result.errors.length) {
+          if (result.errors?.length) {
             return new ApiV2Error(error, result.errors[0]);
           }
         }

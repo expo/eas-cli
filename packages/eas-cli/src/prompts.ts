@@ -44,7 +44,6 @@ export async function selectAsync<T>(
 ): Promise<T> {
   const { value } = await promptAsync(
     {
-      limit: 11,
       message,
       choices,
       name: 'value',
