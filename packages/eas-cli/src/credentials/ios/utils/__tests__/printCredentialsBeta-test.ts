@@ -8,6 +8,12 @@ const mockLog = {
 };
 (mockLog.default as any).newLine = jest.fn();
 jest.mock('../../../../log', () => mockLog);
+jest.mock('chalk', () => {
+  return {
+    __esModule: true, // this property makes it work
+    default: { bold: jest.fn(log => log) },
+  };
+});
 jest.mock('../../api/graphql/queries/IosAppCredentialsQuery');
 
 mockdate.set(new Date('4/20/2021'));
