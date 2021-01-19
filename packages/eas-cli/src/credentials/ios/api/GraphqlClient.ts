@@ -258,9 +258,9 @@ export async function getDistributionCertificateForAppAsync(
   });
 }
 
-export async function getDistributionCertificatesForAccountAsync({
-  account,
-}: AppLookupParams): Promise<AppleDistributionCertificateQueryResult[]> {
+export async function getDistributionCertificatesForAccountAsync(
+  account: Account
+): Promise<AppleDistributionCertificateQueryResult[]> {
   return await AppleDistributionCertificateQuery.getAllForAccount(account.name);
 }
 

@@ -146,7 +146,7 @@ export class SetupDistributionCertificate implements Action {
     const validDistCertSerialNumberSet = new Set(validDistCertSerialNumbers);
 
     const distCertsForAccount = await ctx.newIos.getDistributionCertificatesForAccountAsync(
-      this.app
+      this.app.account
     );
     const distCertsForAppleTeam = distCertsForAccount.filter(distCert => {
       return (
