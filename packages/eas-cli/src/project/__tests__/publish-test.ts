@@ -103,7 +103,7 @@ describe(getBase64URLEncoding, () => {
 describe(getStorageKey, () => {
   it('computes the correct key', () => {
     const key = getStorageKey('image/jpeg', 'blibblab');
-    expect(key).toBe('j0iiW9hDbR2HKoH1nCxsKRM6QIZVtZ__2ssOiOcxlAs');
+    expect(key).toBe('asset_j0iiW9hDbR2HKoH1nCxsKRM6QIZVtZ__2ssOiOcxlAs.jpeg');
   });
   it('uses the null separator to distinguish unequal keys', () => {
     const keyOne = getStorageKey('image/jpeg', 'blibblab');
@@ -122,7 +122,7 @@ describe(getStorageKeyForAssetAsync, () => {
       path: pathLocation,
     };
     expect(await getStorageKeyForAssetAsync(asset)).toBe(
-      'fo8Y08LktVk6qLtGbn8GRWpOUyD13ABMUnbtRCN1L7Y'
+      'asset_fo8Y08LktVk6qLtGbn8GRWpOUyD13ABMUnbtRCN1L7Y.jpeg'
     );
   });
 });
@@ -142,7 +142,7 @@ describe(convertAssetToUpdateInfoGroupFormatAsync, () => {
       contentType: 'image/jpeg',
       fileHash: 'tzD6J-OQZaHCKnL3GHWV9RbnrpyojnagiOE7r3mSkU4',
       storageBucket: 'update-assets-production',
-      storageKey: 'fo8Y08LktVk6qLtGbn8GRWpOUyD13ABMUnbtRCN1L7Y',
+      storageKey: 'asset_fo8Y08LktVk6qLtGbn8GRWpOUyD13ABMUnbtRCN1L7Y.jpeg',
     });
   });
 });
@@ -158,8 +158,8 @@ describe(buildUpdateInfoGroupAsync, () => {
       buildUpdateInfoGroupAsync({
         android: {
           launchAsset: {
-            type: 'bundle',
-            contentType: 'bundle/javascript',
+            type: 'js',
+            contentType: 'application/javascript',
             path: androidBundlePath,
           },
           assets: [
@@ -179,16 +179,16 @@ describe(buildUpdateInfoGroupAsync, () => {
             contentType: 'image/jpeg',
             fileHash: 'tzD6J-OQZaHCKnL3GHWV9RbnrpyojnagiOE7r3mSkU4',
             storageBucket: 'update-assets-production',
-            storageKey: 'fo8Y08LktVk6qLtGbn8GRWpOUyD13ABMUnbtRCN1L7Y',
+            storageKey: 'asset_fo8Y08LktVk6qLtGbn8GRWpOUyD13ABMUnbtRCN1L7Y.jpeg',
           },
         ],
 
         launchAsset: {
-          bundleKey: 'ec0dd14670aae108f99a810df9c1482c.bundle',
-          contentType: 'bundle/javascript',
+          bundleKey: 'ec0dd14670aae108f99a810df9c1482c.js',
+          contentType: 'application/javascript',
           fileHash: 'KEw79FnKTLOyVbRT1SlohSTjPe5e8FpULy2ST-I5BUg',
           storageBucket: 'update-assets-production',
-          storageKey: 'aC9N6RZlcHoIYjIsoJd2KUcigBKy98RHvZacDyPNjCQ',
+          storageKey: 'asset_9ZIUfbfQ4GuBU4cy0U7gg4t0QY8ZBGYcK65mDhhaFgU.js',
         },
       },
     });
@@ -254,7 +254,7 @@ describe(collectAssets, () => {
     expect(collectAssets(inputDir)).toEqual({
       android: {
         launchAsset: {
-          type: 'bundle',
+          type: 'js',
           contentType: 'application/javascript',
           path: path.resolve(`${inputDir}/bundles/android.js`),
         },
@@ -262,7 +262,7 @@ describe(collectAssets, () => {
       },
       ios: {
         launchAsset: {
-          type: 'bundle',
+          type: 'js',
           contentType: 'application/javascript',
           path: path.resolve(`${inputDir}/bundles/ios.js`),
         },
@@ -328,7 +328,7 @@ describe(uploadAssetsAsync, () => {
   fs.writeFileSync(userDefinedPath, 'I am an octet stream');
 
   const userDefinedAsset = {
-    type: 'bundle',
+    type: 'js',
     contentType: 'application/octet-stream',
     path: userDefinedPath,
   };
@@ -336,7 +336,7 @@ describe(uploadAssetsAsync, () => {
   const assetsForUpdateInfoGroup = {
     android: {
       launchAsset: {
-        type: 'bundle',
+        type: 'js',
         contentType: 'application/javascript',
         path: androidBundlePath,
       },
@@ -344,7 +344,7 @@ describe(uploadAssetsAsync, () => {
     },
     ios: {
       launchAsset: {
-        type: 'bundle',
+        type: 'js',
         contentType: 'application/javascript',
         path: androidBundlePath,
       },
@@ -365,17 +365,17 @@ describe(uploadAssetsAsync, () => {
       jest.runAllTimers();
       return [
         {
-          storageKey: 'qbgckgkgfdjnNuf9dQd7FDTWUmlEEzg7l1m1sKzQaq0',
+          storageKey: 'asset_qbgckgkgfdjnNuf9dQd7FDTWUmlEEzg7l1m1sKzQaq0.bin',
           status,
           __typename: 'AssetMetadataResult',
         }, // userDefinedAsset
         {
-          storageKey: 'bbjgXFSIXtjviGwkaPFY0HG4dVVIGiXHAboRFQEqVa4',
+          storageKey: 'asset_bbjgXFSIXtjviGwkaPFY0HG4dVVIGiXHAboRFQEqVa4.js',
           status,
           __typename: 'AssetMetadataResult',
         }, // android.code
         {
-          storageKey: 'dP-nC8EJXKz42XKh_Rc9tYxiGAT-ilpkRltEi6HIKeQ',
+          storageKey: 'asset_dP-nC8EJXKz42XKh_Rc9tYxiGAT-ilpkRltEi6HIKeQ.js',
           status,
           __typename: 'AssetMetadataResult',
         }, // ios.code
@@ -393,17 +393,17 @@ describe(uploadAssetsAsync, () => {
       jest.runAllTimers();
       return [
         {
-          storageKey: 'qbgckgkgfdjnNuf9dQd7FDTWUmlEEzg7l1m1sKzQaq0',
+          storageKey: 'asset_qbgckgkgfdjnNuf9dQd7FDTWUmlEEzg7l1m1sKzQaq0.bin',
           status,
           __typename: 'AssetMetadataResult',
         }, // userDefinedAsset
         {
-          storageKey: 'bbjgXFSIXtjviGwkaPFY0HG4dVVIGiXHAboRFQEqVa4',
+          storageKey: 'asset_bbjgXFSIXtjviGwkaPFY0HG4dVVIGiXHAboRFQEqVa4.js',
           status,
           __typename: 'AssetMetadataResult',
         }, // android.code
         {
-          storageKey: 'dP-nC8EJXKz42XKh_Rc9tYxiGAT-ilpkRltEi6HIKeQ',
+          storageKey: 'asset_dP-nC8EJXKz42XKh_Rc9tYxiGAT-ilpkRltEi6HIKeQ.js',
           status,
           __typename: 'AssetMetadataResult',
         }, // ios.code
@@ -421,17 +421,17 @@ describe(uploadAssetsAsync, () => {
       jest.runAllTimers();
       return [
         {
-          storageKey: 'qbgckgkgfdjnNuf9dQd7FDTWUmlEEzg7l1m1sKzQaq0',
+          storageKey: 'asset_qbgckgkgfdjnNuf9dQd7FDTWUmlEEzg7l1m1sKzQaq0.bin',
           status,
           __typename: 'AssetMetadataResult',
         }, // userDefinedAsset
         {
-          storageKey: 'bbjgXFSIXtjviGwkaPFY0HG4dVVIGiXHAboRFQEqVa4',
+          storageKey: 'asset_bbjgXFSIXtjviGwkaPFY0HG4dVVIGiXHAboRFQEqVa4.js',
           status,
           __typename: 'AssetMetadataResult',
         }, // android.code
         {
-          storageKey: 'dP-nC8EJXKz42XKh_Rc9tYxiGAT-ilpkRltEi6HIKeQ',
+          storageKey: 'asset_dP-nC8EJXKz42XKh_Rc9tYxiGAT-ilpkRltEi6HIKeQ.js',
           status,
           __typename: 'AssetMetadataResult',
         }, // ios.code

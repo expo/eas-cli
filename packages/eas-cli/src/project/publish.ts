@@ -177,7 +177,7 @@ export function collectAssets(inputDir: string): CollectedAssets {
   for (const platform of Platforms) {
     assetsFinal[platform] = {
       launchAsset: {
-        type: 'bundle',
+        type: 'js',
         contentType: 'application/javascript',
         path: path.resolve(distRoot, metadata.fileMetadata[platform].bundle),
       },
