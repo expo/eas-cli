@@ -88,7 +88,7 @@ export function getStorageKey(contentType: string, contentHash: string): string 
     .update(contentHash)
     .digest();
   // the conversion between contentType and extension must be kept in sync with its analog in finalize-eas-update-asset
-  const ext = mime.getExtension(contentType)
+  const ext = mime.getExtension(contentType);
   return `asset_${getBase64URLEncoding(hash)}.${ext}`;
 }
 
