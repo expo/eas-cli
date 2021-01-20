@@ -30,6 +30,7 @@ export async function getProfilesForBundleIdAsync(
           e.name === 'UnexpectedAppleResponse' &&
           e.message.includes('The specified resource does not exist - There is no resource of type')
         ) {
+          // TODO: add tracking analytics here
           return;
         }
         throw e;
