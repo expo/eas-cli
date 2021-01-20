@@ -9,6 +9,9 @@ export async function promptAsync<T extends string = string>(
   questions: Question<T> | Question<T>[],
   options: Options = {}
 ): Promise<Answers<T>> {
+  if (process.stdin.readableFlowing === null && !global.test) {
+    throw new Error('Input is required, but stdin is not readable.');
+  }
   return await prompts<T>(questions, {
     onCancel() {
       process.exit(constants.signals.SIGINT + 128); // Exit code 130 used when process is interrupted with ctrl+c.
