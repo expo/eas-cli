@@ -11,15 +11,15 @@ export async function configureUpdatesAsync(projectDir: string, exp: ExpoConfig)
   ensureValidVersions(exp);
   const accountName = getProjectAccountName(exp, await ensureLoggedInAsync());
   const buildGradlePath = AndroidConfig.Paths.getAppBuildGradle(projectDir);
-  const buildGradleContent = await fs.readFile(buildGradlePath, 'utf8');
+  const buildGradleContents = await fs.readFile(buildGradlePath, 'utf8');
 
-  if (!AndroidConfig.Updates.isBuildGradleConfigured(buildGradleContent, projectDir, exp)) {
-    const gradleScriptApply = AndroidConfig.Updates.formatApplyLineForBuildGradle(projectDir, exp);
-
-    await fs.writeFile(
-      buildGradlePath,
-      `${buildGradleContent}\n// Integration with Expo updates\n${gradleScriptApply}\n`
+  if (!AndroidConfig.Updates.isBuildGradleConfigured(projectDir, exp, buildGradleContents)) {
+    const updatedBuildGradleContents = AndroidConfig.Updates.ensureBuildGradleContainsConfigurationScript(
+      projectDir,
+      exp,
+      buildGradleContents
     );
+    await fs.writeFile(buildGradlePath, updatedBuildGradleContents);
   }
 
   const androidManifestPath = await AndroidConfig.Paths.getAndroidManifestAsync(projectDir);
@@ -31,7 +31,7 @@ export async function configureUpdatesAsync(projectDir: string, exp: ExpoConfig)
   );
 
   if (!AndroidConfig.Updates.isMainApplicationMetaDataSynced(exp, androidManifest, accountName)) {
-    const result = await AndroidConfig.Updates.setUpdatesConfig(exp, androidManifest, accountName);
+    const result = AndroidConfig.Updates.setUpdatesConfig(exp, androidManifest, accountName);
 
     await AndroidConfig.Manifest.writeAndroidManifestAsync(androidManifestPath, result);
   }
@@ -72,9 +72,9 @@ export async function syncUpdatesConfigurationAsync(
 
 async function ensureUpdatesConfiguredAsync(projectDir: string, exp: ExpoConfig): Promise<void> {
   const buildGradlePath = AndroidConfig.Paths.getAppBuildGradle(projectDir);
-  const buildGradleContent = await fs.readFile(buildGradlePath, 'utf8');
+  const buildGradleContents = await fs.readFile(buildGradlePath, 'utf8');
 
-  if (!AndroidConfig.Updates.isBuildGradleConfigured(buildGradleContent, projectDir, exp)) {
+  if (!AndroidConfig.Updates.isBuildGradleConfigured(projectDir, exp, buildGradleContents)) {
     const gradleScriptApply = AndroidConfig.Updates.formatApplyLineForBuildGradle(projectDir, exp);
     throw new Error(`Missing ${gradleScriptApply} in ${buildGradlePath}`);
   }
