@@ -1,5 +1,8 @@
 import { BundleId, Profile, RequestContext } from '@expo/apple-utils';
 
+import { AnalyticsEvent } from '../../../build/types';
+import Analytics from '../../../build/utils/analytics';
+
 async function getProfilesForBundleIdDangerousAsync(
   context: RequestContext,
   bundleIdentifier: string
@@ -30,7 +33,7 @@ export async function getProfilesForBundleIdAsync(
           e.name === 'UnexpectedAppleResponse' &&
           e.message.includes('The specified resource does not exist - There is no resource of type')
         ) {
-          // TODO: add tracking analytics here
+          Analytics.logEvent(AnalyticsEvent.GATHER_CREDENTIALS_FAIL, { reason: e.message });
           return;
         }
         throw e;
