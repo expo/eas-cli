@@ -10,7 +10,7 @@
   "dependencies": {
     "@expo/apple-utils": "0.0.0-alpha.17",
     "@expo/config": "~3.3.19",
-    "@expo/config-plugins": "^1.0.14",
+    "@expo/config-plugins": "1.0.15-alpha.0",
     "@expo/eas-build-job": "^0.2.0",
     "@expo/eas-json": "^0.3.0",
     "@expo/json-file": "^8.2.24",
