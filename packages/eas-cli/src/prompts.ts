@@ -9,7 +9,7 @@ export async function promptAsync<T extends string = string>(
   questions: Question<T> | Question<T>[],
   options: Options = {}
 ): Promise<Answers<T>> {
-  if (process.stdin.readableFlowing === null && !global.test) {
+  if (!process.stdin.isTTY && !global.test) {
     throw new Error('Input is required, but stdin is not readable.');
   }
   return await prompts<T>(questions, {
