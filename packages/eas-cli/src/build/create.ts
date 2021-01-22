@@ -96,7 +96,7 @@ async function waitForBuildEndAsync(
           spinner.text = 'Build queued...';
           break;
         case BuildStatus.CANCELED:
-          spinner.text = 'Build was canceled';
+          spinner.text = 'Build canceled';
           spinner.stopAndPersist();
           break;
         case BuildStatus.IN_PROGRESS:
