@@ -18,7 +18,7 @@ export default class BuildList extends Command {
 
   static flags = {
     platform: flags.enum({ options: ['all', 'android', 'ios'] }),
-    status: flags.enum({ options: ['in-queue', 'in-progress', 'errored', 'finished'] }),
+    status: flags.enum({ options: ['in-queue', 'in-progress', 'errored', 'finished', 'canceled'] }),
     limit: flags.integer(),
   };
 

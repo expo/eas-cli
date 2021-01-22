@@ -19,6 +19,7 @@ export enum BuildStatus {
   IN_PROGRESS = 'in-progress',
   ERRORED = 'errored',
   FINISHED = 'finished',
+  CANCELED = 'canceled',
 }
 
 export type TrackingContext = Record<string, string | number>;

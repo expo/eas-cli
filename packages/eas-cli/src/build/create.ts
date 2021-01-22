@@ -95,6 +95,10 @@ async function waitForBuildEndAsync(
         case BuildStatus.IN_QUEUE:
           spinner.text = 'Build queued...';
           break;
+        case BuildStatus.CANCELED:
+          spinner.text = 'Build canceled';
+          spinner.stopAndPersist();
+          break;
         case BuildStatus.IN_PROGRESS:
           spinner.text = 'Build in progress...';
           break;
@@ -111,20 +115,26 @@ async function waitForBuildEndAsync(
         return builds;
       } else if (
         builds.filter(build =>
-          build?.status ? [BuildStatus.FINISHED, BuildStatus.ERRORED].includes(build.status) : false
+          build?.status
+            ? [BuildStatus.FINISHED, BuildStatus.ERRORED, BuildStatus.CANCELED].includes(
+                build.status
+              )
+            : false
         ).length === builds.length
       ) {
-        spinner.fail('Some of the builds failed');
+        spinner.fail('Some of the builds were canceled or failed.');
         return builds;
       } else {
         const inQueue = builds.filter(build => build?.status === BuildStatus.IN_QUEUE).length;
         const inProgress = builds.filter(build => build?.status === BuildStatus.IN_PROGRESS).length;
         const errored = builds.filter(build => build?.status === BuildStatus.ERRORED).length;
         const finished = builds.filter(build => build?.status === BuildStatus.FINISHED).length;
+        const canceled = builds.filter(build => build?.status === BuildStatus.CANCELED).length;
         const unknownState = builds.length - inQueue - inProgress - errored - finished;
         spinner.text = [
           inQueue && `Builds in queue: ${inQueue}`,
           inProgress && `Builds in progress: ${inProgress}`,
+          canceled && `Builds canceled: ${canceled}`,
           errored && chalk.red(`Builds failed: ${errored}`),
           finished && chalk.green(`Builds finished: ${finished}`),
           unknownState && chalk.red(`Builds in unknown state: ${unknownState}`),
