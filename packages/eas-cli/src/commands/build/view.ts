@@ -16,7 +16,7 @@ import {
 export default class BuildView extends Command {
   static description = 'view a build for your project';
 
-  static args = [{ name: 'buildId' }];
+  static args = [{ name: 'BUILD_ID' }];
 
   async run() {
     const { buildId } = this.parse(BuildView).args;
