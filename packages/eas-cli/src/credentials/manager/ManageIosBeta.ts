@@ -1,11 +1,11 @@
 import Log from '../../log';
 import { getProjectAccountName, getProjectConfigDescription } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
-import { findAccountByName } from '../../user/Account';
+import { Account, findAccountByName } from '../../user/Account';
 import { ensureActorHasUsername } from '../../user/actions';
 import { Action, CredentialsManager } from '../CredentialsManager';
 import { Context } from '../context';
-//import { RemoveDistributionCertificateBeta } from '../ios/actions/RemoveDistributionCertificateBeta';
+import { SelectAndRemoveDistributionCertificate } from '../ios/actions/new/RemoveDistributionCertificate';
 import { AppLookupParams } from '../ios/api/GraphqlClient';
 import {
   displayEmptyIosCredentials,
@@ -67,7 +67,7 @@ export class ManageIosBeta implements Action {
           ],
         });
         try {
-          await manager.runActionAsync(this.getAction(ctx, accountName, action));
+          await manager.runActionAsync(this.getAction(ctx, account, action));
         } catch (err) {
           Log.error(err);
         }
@@ -104,10 +104,10 @@ export class ManageIosBeta implements Action {
     return { account, projectName, bundleIdentifier };
   }
 
-  private getAction(ctx: Context, accountName: string, action: ActionType): Action {
+  private getAction(ctx: Context, account: Account, action: ActionType): Action {
     switch (action) {
-      /*       case ActionType.RemoveDistributionCertificate:
-        return new RemoveDistributionCertificateBeta(accountName); */
+      case ActionType.RemoveDistributionCertificate:
+        return new SelectAndRemoveDistributionCertificate(account);
       default:
         throw new Error('Unknown action selected');
     }

@@ -836,6 +836,7 @@ export type AppleAppIdentifier = {
   account: Account;
   appleTeam?: Maybe<AppleTeam>;
   bundleIdentifier: Scalars['String'];
+  parentAppleAppIdentifier?: Maybe<AppleAppIdentifier>;
 };
 
 export type AppleDistributionCertificate = {
@@ -1831,6 +1832,7 @@ export type AppleAppIdentifierMutationCreateAppleAppIdentifierArgs = {
 export type AppleAppIdentifierInput = {
   bundleIdentifier: Scalars['String'];
   appleTeamId?: Maybe<Scalars['ID']>;
+  parentAppleAppId?: Maybe<Scalars['ID']>;
 };
 
 export type AppleDeviceMutation = {
@@ -2717,6 +2719,22 @@ export type CreateAppleDistributionCertificateMutation = (
   ) }
 );
 
+export type DeleteAppleDistributionCertificateMutationVariables = Exact<{
+  appleDistributionCertificateId: Scalars['ID'];
+}>;
+
+
+export type DeleteAppleDistributionCertificateMutation = (
+  { __typename?: 'RootMutation' }
+  & { appleDistributionCertificate: (
+    { __typename?: 'AppleDistributionCertificateMutation' }
+    & { deleteAppleDistributionCertificate: (
+      { __typename?: 'DeleteAppleDistributionCertificateResult' }
+      & Pick<DeleteAppleDistributionCertificateResult, 'id'>
+    ) }
+  ) }
+);
+
 export type CreateAppleProvisioningProfileMutationVariables = Exact<{
   appleProvisioningProfileInput: AppleProvisioningProfileInput;
   accountId: Scalars['ID'];
@@ -2761,6 +2779,22 @@ export type UpdateAppleProvisioningProfileMutation = (
       )> }
       & AppleProvisioningProfileFragment
     ) }
+  ) }
+);
+
+export type DeleteAppleProvisioningProfilesMutationVariables = Exact<{
+  appleProvisioningProfileIds: Array<Scalars['ID']>;
+}>;
+
+
+export type DeleteAppleProvisioningProfilesMutation = (
+  { __typename?: 'RootMutation' }
+  & { appleProvisioningProfile: (
+    { __typename?: 'AppleProvisioningProfileMutation' }
+    & { deleteAppleProvisioningProfiles: Array<(
+      { __typename?: 'DeleteAppleProvisioningProfileResult' }
+      & Pick<DeleteAppleProvisioningProfileResult, 'id'>
+    )> }
   ) }
 );
 
@@ -3027,11 +3061,6 @@ export type AppleDistributionCertificateByAccountQuery = (
       & { appleDistributionCertificates: Array<(
         { __typename?: 'AppleDistributionCertificate' }
         & Pick<AppleDistributionCertificate, 'id'>
-        & { appleTeam?: Maybe<(
-          { __typename?: 'AppleTeam' }
-          & Pick<AppleTeam, 'id'>
-          & AppleTeamFragment
-        )> }
         & AppleDistributionCertificateFragment
       )> }
     ) }
@@ -3379,7 +3408,7 @@ export type CurrentUserQuery = (
 
 export type AppFragment = (
   { __typename?: 'App' }
-  & Pick<App, 'id' | 'fullName'>
+  & Pick<App, 'id' | 'fullName' | 'slug'>
 );
 
 export type AppleAppIdentifierFragment = (
@@ -3399,10 +3428,31 @@ export type AppleDeviceRegistrationRequestFragment = (
 
 export type AppleDistributionCertificateFragment = (
   { __typename?: 'AppleDistributionCertificate' }
-  & Pick<AppleDistributionCertificate, 'id' | 'certificateP12' | 'certificatePassword' | 'serialNumber' | 'developerPortalIdentifier' | 'validityNotBefore' | 'validityNotAfter'>
+  & Pick<AppleDistributionCertificate, 'id' | 'certificateP12' | 'certificatePassword' | 'serialNumber' | 'developerPortalIdentifier' | 'validityNotBefore' | 'validityNotAfter' | 'updatedAt'>
   & { appleTeam?: Maybe<(
     { __typename?: 'AppleTeam' }
-    & Pick<AppleTeam, 'id' | 'appleTeamIdentifier' | 'appleTeamName'>
+    & Pick<AppleTeam, 'id'>
+    & AppleTeamFragment
+  )>, iosAppBuildCredentialsList: Array<(
+    { __typename?: 'IosAppBuildCredentials' }
+    & Pick<IosAppBuildCredentials, 'id'>
+    & { iosAppCredentials: (
+      { __typename?: 'IosAppCredentials' }
+      & Pick<IosAppCredentials, 'id'>
+      & { app: (
+        { __typename?: 'App' }
+        & Pick<App, 'id'>
+        & AppFragment
+      ), appleAppIdentifier: (
+        { __typename?: 'AppleAppIdentifier' }
+        & Pick<AppleAppIdentifier, 'id'>
+        & AppleAppIdentifierFragment
+      ) }
+    ), provisioningProfile?: Maybe<(
+      { __typename?: 'AppleProvisioningProfile' }
+      & Pick<AppleProvisioningProfile, 'id'>
+      & AppleProvisioningProfileIdentifiersFragment
+    )> }
   )> }
 );
 
@@ -3416,6 +3466,11 @@ export type AppleProvisioningProfileFragment = (
     { __typename?: 'AppleDevice' }
     & Pick<AppleDevice, 'id' | 'identifier' | 'name' | 'model' | 'deviceClass'>
   )> }
+);
+
+export type AppleProvisioningProfileIdentifiersFragment = (
+  { __typename?: 'AppleProvisioningProfile' }
+  & Pick<AppleProvisioningProfile, 'id' | 'developerPortalIdentifier'>
 );
 
 export type AppleTeamFragment = (

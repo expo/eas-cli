@@ -7,6 +7,7 @@ import {
   AppleDistributionCertificateFragment,
   AppleTeamFragment,
   CreateAppleDistributionCertificateMutation,
+  DeleteAppleDistributionCertificateMutation,
 } from '../../../../../graphql/generated';
 import { AppleDistributionCertificateFragmentNode } from '../../../../../graphql/types/credentials/AppleDistributionCertificate';
 import { AppleTeamFragmentNode } from '../../../../../graphql/types/credentials/AppleTeam';
@@ -63,6 +64,28 @@ const AppleDistributionCertificateMutation = {
       'GraphQL: `createAppleDistributionCertificate` not defined in server response'
     );
     return data.appleDistributionCertificate.createAppleDistributionCertificate;
+  },
+  async deleteAppleDistributionCertificate(appleDistributionCertificateId: string): Promise<void> {
+    await withErrorHandlingAsync(
+      graphqlClient
+        .mutation<DeleteAppleDistributionCertificateMutation>(
+          gql`
+            mutation DeleteAppleDistributionCertificateMutation(
+              $appleDistributionCertificateId: ID!
+            ) {
+              appleDistributionCertificate {
+                deleteAppleDistributionCertificate(id: $appleDistributionCertificateId) {
+                  id
+                }
+              }
+            }
+          `,
+          {
+            appleDistributionCertificateId,
+          }
+        )
+        .toPromise()
+    );
   },
 };
 

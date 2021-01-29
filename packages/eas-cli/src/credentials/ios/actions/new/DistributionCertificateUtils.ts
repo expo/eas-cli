@@ -24,6 +24,7 @@ export function formatDistributionCertificate(
     appleTeam,
     validityNotBefore,
     validityNotAfter,
+    updatedAt,
   } = distributionCertificate;
   let line: string = '';
   if (developerPortalIdentifier) {
@@ -33,11 +34,18 @@ export function formatDistributionCertificate(
     appleTeam ? `, ${formatAppleTeam(appleTeam)}` : ''
   }`;
   line += chalk.gray(
-    `\n    Created: ${fromNow(new Date(validityNotBefore))} ago, Expires: ${dateformat(
-      validityNotAfter,
-      'expiresHeaderFormat'
-    )}`
+    `\n    Created: ${fromNow(new Date(validityNotBefore))} ago, Updated: ${fromNow(
+      new Date(updatedAt)
+    )} ago,`
   );
+  line += chalk.gray(`\n    Expires: ${dateformat(validityNotAfter, 'expiresHeaderFormat')}`);
+  const apps = distributionCertificate.iosAppBuildCredentialsList.map(
+    buildCredentials => buildCredentials.iosAppCredentials.app
+  );
+  if (apps.length) {
+    const appFullNames = apps.map(app => app.fullName).join(',');
+    line += chalk.gray(`\n    📲 Used by: ${appFullNames}`);
+  }
 
   if (validSerialNumbers?.includes(serialNumber)) {
     line += chalk.gray("\n    ✅ Currently valid on Apple's servers.");
@@ -73,7 +81,7 @@ async function _selectDistributionCertificateAsync(
 /**
  * select a distribution certificate from an account (validity status shown on a best effort basis)
  * */
-export async function selectDistributionCertificateAsync(
+export async function selectDistributionCertificateWithDependenciesAsync(
   ctx: Context,
   account: Account
 ): Promise<AppleDistributionCertificateFragment | null> {

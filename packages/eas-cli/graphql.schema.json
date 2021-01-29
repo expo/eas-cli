@@ -5662,6 +5662,18 @@
             },
             "isDeprecated": false,
             "deprecationReason": null
+          },
+          {
+            "name": "parentAppleAppIdentifier",
+            "description": "",
+            "args": [],
+            "type": {
+              "kind": "OBJECT",
+              "name": "AppleAppIdentifier",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
           }
         ],
         "inputFields": null,
@@ -11998,6 +12010,16 @@
           },
           {
             "name": "appleTeamId",
+            "description": "",
+            "type": {
+              "kind": "SCALAR",
+              "name": "ID",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "parentAppleAppId",
             "description": "",
             "type": {
               "kind": "SCALAR",

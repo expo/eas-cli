@@ -102,6 +102,26 @@ const AppleProvisioningProfileMutation = {
     );
     return data.appleProvisioningProfile.updateAppleProvisioningProfile;
   },
+  async deleteAppleProvisioningProfilesAsync(appleProvisioningProfileIds: string[]): Promise<void> {
+    await withErrorHandlingAsync(
+      graphqlClient
+        .mutation<UpdateAppleProvisioningProfileMutation>(
+          gql`
+            mutation DeleteAppleProvisioningProfilesMutation($appleProvisioningProfileIds: [ID!]!) {
+              appleProvisioningProfile {
+                deleteAppleProvisioningProfiles(ids: $appleProvisioningProfileIds) {
+                  id
+                }
+              }
+            }
+          `,
+          {
+            appleProvisioningProfileIds,
+          }
+        )
+        .toPromise()
+    );
+  },
 };
 
 export { AppleProvisioningProfileMutation };
