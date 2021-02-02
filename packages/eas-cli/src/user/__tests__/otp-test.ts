@@ -1,4 +1,5 @@
 import { apiClient } from '../../api';
+import Log from '../../log';
 import { promptAsync, selectAsync } from '../../prompts';
 import { loginAsync } from '../User';
 import { UserSecondFactorDeviceMethod, retryUsernamePasswordAuthWithOTPAsync } from '../otp';
@@ -8,13 +9,7 @@ jest.mock('../../api');
 jest.mock('../User', () => ({
   loginAsync: jest.fn(),
 }));
-
-const logFn = jest.fn();
-const mockLog = {
-  __esModule: true, // this property makes it work
-  default: logFn,
-};
-jest.mock('../../log', () => mockLog);
+jest.mock('../../log');
 
 beforeEach(() => {
   (promptAsync as jest.Mock).mockReset();
@@ -28,8 +23,7 @@ beforeEach(() => {
   });
 
   (loginAsync as jest.Mock).mockReset();
-
-  logFn.mockReset();
+  (Log.log as jest.Mock).mockReset();
 });
 
 describe(retryUsernamePasswordAuthWithOTPAsync, () => {
@@ -52,7 +46,7 @@ describe(retryUsernamePasswordAuthWithOTPAsync, () => {
       smsAutomaticallySent: true,
     });
 
-    expect(logFn).toHaveBeenCalledWith(
+    expect(Log.log).toHaveBeenCalledWith(
       'One-time password was sent to the phone number ending in testphone.'
     );
 
@@ -78,7 +72,7 @@ describe(retryUsernamePasswordAuthWithOTPAsync, () => {
       smsAutomaticallySent: false,
     });
 
-    expect(logFn).toHaveBeenCalledWith('One-time password from authenticator required.');
+    expect(Log.log).toHaveBeenCalledWith('One-time password from authenticator required.');
     expect(loginAsync as jest.Mock).toHaveBeenCalledTimes(1);
   });
 
