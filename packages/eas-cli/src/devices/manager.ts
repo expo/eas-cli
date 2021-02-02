@@ -4,7 +4,7 @@ import chalk from 'chalk';
 import { AppleTeamMutation } from '../credentials/ios/api/graphql/mutations/AppleTeamMutation';
 import { AppleTeamQuery } from '../credentials/ios/api/graphql/queries/AppleTeamQuery';
 import { AppleTeamFragment } from '../graphql/generated';
-import log from '../log';
+import Log from '../log';
 import { getProjectAccountNameAsync } from '../project/projectUtils';
 import { Choice, confirmAsync, promptAsync } from '../prompts';
 import { Account, findAccountByName } from '../user/Account';
@@ -25,8 +25,8 @@ export default class DeviceManager {
   constructor(private ctx: DeviceManagerContext) {}
 
   public async createAsync(): Promise<void> {
-    log(chalk.green(CREATE_COMMAND_DESCRIPTION));
-    log.addNewLineIfNone();
+    Log.log(chalk.green(CREATE_COMMAND_DESCRIPTION));
+    Log.addNewLineIfNone();
 
     const account = await this.resolveAccountAsync();
     const { team } = await this.ctx.appStore.ensureAuthenticatedAsync();
@@ -63,7 +63,7 @@ export class AccountResolver {
     const projectAccountName = await getProjectAccountNameAsync(this.projectDir);
     const projectAccount = findAccountByName(this.user.accounts, projectAccountName);
     if (!projectAccount) {
-      log.warn(
+      Log.warn(
         `Your account (${getActorDisplayName(this.user)}) doesn't have access to the ${chalk.bold(
           projectAccountName
         )} account`

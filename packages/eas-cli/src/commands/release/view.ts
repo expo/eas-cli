@@ -7,7 +7,7 @@ import { groupBy } from 'lodash';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
 import { Update } from '../../graphql/generated';
-import log from '../../log';
+import Log from '../../log';
 import { ensureProjectExistsAsync } from '../../project/ensureProjectExists';
 import { findProjectRootAsync, getProjectAccountNameAsync } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
@@ -147,7 +147,7 @@ export default class ReleaseView extends Command {
     );
 
     if (jsonFlag) {
-      log({ ...UpdateRelease, updates });
+      Log.log({ ...UpdateRelease, updates });
       return;
     }
 
@@ -165,12 +165,12 @@ export default class ReleaseView extends Command {
       ]);
     }
 
-    log.withTick(
+    Log.withTick(
       `️Release: ${chalk.bold(UpdateRelease.releaseName)} on project ${chalk.bold(
         `@${accountName}/${slug}`
       )}. Release ID: ${chalk.bold(UpdateRelease.id)}`
     );
-    log(chalk.bold('Recent update groups published on this release:'));
-    log(updateGroupTable.toString());
+    Log.log(chalk.bold('Recent update groups published on this release:'));
+    Log.log(updateGroupTable.toString());
   }
 }

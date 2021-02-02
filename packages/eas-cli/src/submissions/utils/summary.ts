@@ -1,6 +1,6 @@
 import chalk from 'chalk';
 
-import log from '../../log';
+import Log from '../../log';
 
 export function printSummary<T>(
   summary: T,
@@ -12,13 +12,13 @@ export function printSummary<T>(
   const tableFormat = (name: string, msg: string) =>
     `${chalk.bold.cyan(pad(`${name}:`, padWidth + 1))} ${msg}`;
 
-  log.newLine();
+  Log.newLine();
   for (const [key, value] of Object.entries(summary)) {
     const displayKey = keyMap[key as keyof T];
     const displayValue = valueRemap[key as keyof T]?.(value) ?? value;
-    log(tableFormat(displayKey, displayValue));
+    Log.log(tableFormat(displayKey, displayValue));
   }
-  log.addNewLineIfNone();
+  Log.addNewLineIfNone();
 }
 
 function pad(str: string, width: number): string {

@@ -6,7 +6,7 @@ import path from 'path';
 import tar from 'tar';
 import { v4 as uuidv4 } from 'uuid';
 
-import log from '../../log';
+import Log from '../../log';
 import { confirmAsync, promptAsync } from '../../prompts';
 import {
   doesGitRepoExistAsync,
@@ -28,8 +28,8 @@ async function ensureGitRepoExistsAsync(): Promise<void> {
     return;
   }
 
-  log.warn("It looks like you haven't initialized the git repository yet.");
-  log.warn('EAS Build requires you to use a git repository for your project.');
+  Log.warn("It looks like you haven't initialized the git repository yet.");
+  Log.warn('EAS Build requires you to use a git repository for your project.');
 
   const confirmInit = await confirmAsync({
     message: `Would you like to run 'git init' in the current directory?`,
@@ -41,7 +41,7 @@ async function ensureGitRepoExistsAsync(): Promise<void> {
   }
   await spawnAsync('git', ['init']);
 
-  log("We're going to make an initial commit for you repository.");
+  Log.log("We're going to make an initial commit for you repository.");
 
   await spawnAsync('git', ['add', '-A']);
   await commitPromptAsync('Initial commit');
@@ -56,9 +56,9 @@ async function maybeBailOnGitStatusAsync(): Promise<void> {
   if (await isGitStatusCleanAsync()) {
     return;
   }
-  log.addNewLineIfNone();
-  log.warn(`${chalk.bold('Warning!')} Your git working tree is dirty.`);
-  log(
+  Log.addNewLineIfNone();
+  Log.warn(`${chalk.bold('Warning!')} Your git working tree is dirty.`);
+  Log.log(
     `It's recommended to ${chalk.bold(
       'commit all your changes before proceeding'
     )}, so you can revert the changes made by this command if necessary.`
@@ -76,9 +76,9 @@ async function ensureGitStatusIsCleanAsync(nonInteractive = false): Promise<void
   if (await isGitStatusCleanAsync()) {
     return;
   }
-  log.addNewLineIfNone();
-  log.warn(`${chalk.bold('Warning!')} Your git working tree is dirty.`);
-  log(
+  Log.addNewLineIfNone();
+  Log.warn(`${chalk.bold('Warning!')} Your git working tree is dirty.`);
+  Log.log(
     `This operation needs to be run on a clean working tree, please ${chalk.bold(
       'commit all your changes before proceeding'
     )}.`
@@ -111,7 +111,7 @@ async function makeProjectTarballAsync(): Promise<{ path: string; size: number }
     () => {
       spinner.start();
     },
-    log.isDebug ? 1 : 1000
+    Log.isDebug ? 1 : 1000
   );
   // TODO: Possibly warn after more time about unoptimized assets.
   const compressTimerLabel = 'makeProjectTarballAsync';

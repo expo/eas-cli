@@ -3,7 +3,7 @@ import chalk from 'chalk';
 import dateformat from 'dateformat';
 import ora from 'ora';
 
-import log from '../../../log';
+import Log from '../../../log';
 import { PushKey, PushKeyStoreInfo } from './Credentials.types';
 import { AuthCtx, getRequestContext } from './authenticate';
 
@@ -67,7 +67,7 @@ export async function revokePushKeyAsync(authCtx: AuthCtx, ids: string[]): Promi
 
     spinner.succeed(`Revoked ${name}`);
   } catch (error) {
-    log.error(error);
+    Log.error(error);
     spinner.fail(`Failed to revoke ${name}`);
     throw error;
   }

@@ -1,7 +1,7 @@
 import chalk from 'chalk';
 
 import { AppleTeam } from '../../../graphql/generated';
-import log from '../../../log';
+import Log from '../../../log';
 import { promptAsync } from '../../../prompts';
 import { Account } from '../../../user/Account';
 import { runInputMethodAsync } from './inputMethod';
@@ -26,7 +26,7 @@ export default class DeviceCreateAction {
     } else if (method === RegistrationMethod.INPUT) {
       await runInputMethodAsync(this.account.id, this.appleTeam);
     } else if (method === RegistrationMethod.EXIT) {
-      log('Bye!');
+      Log.log('Bye!');
       process.exit(0);
     }
   }

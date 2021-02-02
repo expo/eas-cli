@@ -3,7 +3,7 @@ import chalk from 'chalk';
 import getenv from 'getenv';
 import wrapAnsi from 'wrap-ansi';
 
-import log, { learnMore } from '../../log';
+import Log, { learnMore } from '../../log';
 import { promptAsync } from '../../prompts';
 import UserSettings from '../../user/UserSettings';
 import { ArchiveSource, ArchiveTypeSourceType } from '../archiveSource';
@@ -32,7 +32,7 @@ class IosSubmitCommand {
   constructor(private ctx: IosSubmissionContext) {}
 
   async runAsync(): Promise<void> {
-    log.addNewLineIfNone();
+    Log.addNewLineIfNone();
     const options = await this.resolveSubmissionOptionsAsync();
     const submitter = new IosSubmitter(this.ctx, options);
     await submitter.submitAsync();
@@ -45,7 +45,7 @@ class IosSubmitCommand {
     const errored = [archiveSource, appSpecificPasswordSource].filter(r => !r.ok);
     if (errored.length > 0) {
       const message = errored.map(err => err.reason?.message).join('\n');
-      log.error(message);
+      Log.error(message);
       throw new Error('Failed to submit the app');
     }
 
@@ -101,7 +101,7 @@ class IosSubmitCommand {
       };
     }
 
-    log(
+    Log.log(
       wrapAnsi(
         chalk.italic(
           'Ensuring your app exists on App Store Connect. ' +
@@ -112,7 +112,7 @@ class IosSubmitCommand {
         process.stdout.columns || 80
       )
     );
-    log.addNewLineIfNone();
+    Log.addNewLineIfNone();
     return await ensureAppStoreConnectAppExistsAsync(this.ctx);
   }
 

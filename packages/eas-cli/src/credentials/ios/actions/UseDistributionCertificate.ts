@@ -1,4 +1,4 @@
-import log from '../../../log';
+import Log from '../../../log';
 import { Action, CredentialsManager } from '../../CredentialsManager';
 import { Context } from '../../context';
 import { AppLookupParams } from '../credentials';
@@ -27,7 +27,7 @@ export class UseSpecificDistributionCertificate implements Action {
 
   public async runAsync(manager: CredentialsManager, ctx: Context): Promise<void> {
     await ctx.ios.useDistributionCertificateAsync(this.app, this.userCredentialsId);
-    log.succeed(
+    Log.succeed(
       `Assigned distribution certificate to @${this.app.accountName}/${this.app.projectName} (${this.app.bundleIdentifier})`
     );
   }

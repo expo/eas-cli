@@ -2,7 +2,7 @@ import assert from 'assert';
 import sortBy from 'lodash/sortBy';
 
 import { AppleDistributionCertificate, IosDistributionType } from '../../../../graphql/generated';
-import log from '../../../../log';
+import Log from '../../../../log';
 import { confirmAsync, promptAsync } from '../../../../prompts';
 import { Action, CredentialsManager } from '../../../CredentialsManager';
 import { Context } from '../../../context';
@@ -68,7 +68,7 @@ export class SetupDistributionCertificate implements Action {
     );
     const isValid = validCertSerialNumbers.includes(currentCertificate.serialNumber);
     if (!isValid) {
-      log.warn('Current distribution certificate is no longer valid in Apple Dev Portal');
+      Log.warn('Current distribution certificate is no longer valid in Apple Dev Portal');
     }
     return isValid;
   }
@@ -87,7 +87,9 @@ export class SetupDistributionCertificate implements Action {
     });
 
     if (useAutoselected) {
-      log(`Using distribution certificate with serial number ${autoselectedDistCert.serialNumber}`);
+      Log.log(
+        `Using distribution certificate with serial number ${autoselectedDistCert.serialNumber}`
+      );
       return autoselectedDistCert;
     }
 

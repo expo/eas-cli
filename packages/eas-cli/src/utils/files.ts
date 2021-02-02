@@ -1,7 +1,7 @@
 import fs from 'fs-extra';
 import path from 'path';
 
-import log from '../log';
+import Log from '../log';
 
 function getRenamedFilename(filename: string, num: number): string {
   const ext = path.extname(filename);
@@ -17,7 +17,7 @@ export async function maybeRenameExistingFileAsync(projectDir: string, filename:
     while (await fs.pathExists(path.resolve(projectDir, getRenamedFilename(filename, num)))) {
       num++;
     }
-    log(
+    Log.log(
       `\nA file already exists at "${desiredFilePath}"\n  Renaming the existing file to ${getRenamedFilename(
         filename,
         num

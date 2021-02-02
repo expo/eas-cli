@@ -6,7 +6,7 @@ import {
   AppleDistributionCertificateFragment,
   AppleTeamFragment,
 } from '../../../../graphql/generated';
-import log from '../../../../log';
+import Log from '../../../../log';
 import { promptAsync } from '../../../../prompts';
 import { Account } from '../../../../user/Account';
 import { fromNow } from '../../../../utils/date';
@@ -79,7 +79,7 @@ export async function selectDistributionCertificateAsync(
 ): Promise<AppleDistributionCertificateFragment | null> {
   const distCertsForAccount = await ctx.newIos.getDistributionCertificatesForAccountAsync(account);
   if (distCertsForAccount.length === 0) {
-    log.warn(`There are no Distribution Certificates available in your EAS account.`);
+    Log.warn(`There are no Distribution Certificates available in your EAS account.`);
     return null;
   }
   if (!ctx.appStore.authCtx) {
@@ -107,7 +107,7 @@ export async function selectValidDistributionCertificateAsync(
     appLookupParams.account
   );
   if (distCertsForAccount.length === 0) {
-    log.warn(`There are no Distribution Certificates available in your EAS account.`);
+    Log.warn(`There are no Distribution Certificates available in your EAS account.`);
     return null;
   }
   if (!ctx.appStore.authCtx) {
@@ -127,7 +127,7 @@ export async function selectValidDistributionCertificateAsync(
     distCertsForAppleTeam,
     certInfoFromApple
   );
-  log(
+  Log.log(
     `${validDistCerts.length}/${distCertsForAccount.length} Distribution Certificates are currently valid for Apple Team ${ctx.appStore.authCtx?.team.id}.`
   );
   return _selectDistributionCertificateAsync(validDistCerts);

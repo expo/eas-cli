@@ -1,4 +1,4 @@
-import log from '../../../log';
+import Log from '../../../log';
 import { promptAsync } from '../../../prompts';
 import { Action, CredentialsManager } from '../../CredentialsManager';
 import { Context } from '../../context';
@@ -17,6 +17,6 @@ export class UpdateFcmKey implements Action {
     ]);
 
     await ctx.android.updateFcmKeyAsync(this.experienceName, fcmApiKey);
-    log.succeed('Updated successfully');
+    Log.succeed('Updated successfully');
   }
 }

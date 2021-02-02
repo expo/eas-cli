@@ -5,7 +5,7 @@ import ora from 'ora';
 import { apiClient } from '../../api';
 import { Build } from '../../build/types';
 import formatBuild from '../../build/utils/formatBuild';
-import log from '../../log';
+import Log from '../../log';
 import {
   findProjectRootAsync,
   getProjectAccountNameAsync,
@@ -56,7 +56,7 @@ export default class BuildList extends Command {
           .map(build => formatBuild(build, { accountName }))
           .join(`\n\n${chalk.dim('———')}\n\n`);
 
-        log(`\n${list}`);
+        Log.log(`\n${list}`);
       } else {
         spinner.fail(`Couldn't find any builds for the project ${projectName}`);
       }

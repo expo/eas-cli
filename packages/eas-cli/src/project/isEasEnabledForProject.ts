@@ -1,7 +1,7 @@
 import chalk from 'chalk';
 
 import { apiClient } from '../api';
-import log from '../log';
+import Log from '../log';
 
 /**
  * Checks if the project is allowed for using EAS services.
@@ -24,7 +24,7 @@ export async function isEasEnabledForProjectAsync(projectId: string): Promise<bo
 }
 
 export function warnEasUnavailable() {
-  log.warn(
+  Log.warn(
     `Your account doesn't have access to Expo Application Services (EAS) features. Enroll in EAS to give it a try: ${chalk.underline(
       'https://expo.io/eas'
     )}`

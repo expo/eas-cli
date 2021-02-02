@@ -3,7 +3,7 @@ import assert from 'assert';
 import chalk from 'chalk';
 
 import { AppleDevice, IosAppBuildCredentialsFragment } from '../../../graphql/generated';
-import log from '../../../log';
+import Log from '../../../log';
 import { promptAsync } from '../../../prompts';
 import { findAccountByName } from '../../../user/Account';
 import { Action, CredentialsManager } from '../../CredentialsManager';
@@ -53,7 +53,7 @@ export class SetupBuildCredentials implements Action {
         await manager.runActionAsync(new SetupProvisioningProfile(this.app));
       }
     } catch (error) {
-      log.error('Failed to setup credentials.');
+      Log.error('Failed to setup credentials.');
       throw error;
     }
 
@@ -63,9 +63,9 @@ export class SetupBuildCredentials implements Action {
     );
     const appInfo = `@${this.app.accountName}/${this.app.projectName} (${this.app.bundleIdentifier})`;
     displayProjectCredentials(this.app, appCredentials, /* pushKey */ null, distCert);
-    log.newLine();
-    log(chalk.green(`All credentials are ready to build ${appInfo}`));
-    log.newLine();
+    Log.newLine();
+    Log.log(chalk.green(`All credentials are ready to build ${appInfo}`));
+    Log.newLine();
   }
 
   async unifyCredentialsFormatAsync(
@@ -121,7 +121,7 @@ export class SetupBuildCredentialsFromCredentialsJson implements Action {
     try {
       localCredentials = await readIosCredentialsAsync(ctx.projectDir);
     } catch (error) {
-      log.error(
+      Log.error(
         'Reading credentials from credentials.json failed. Make sure this file is correct and all credentials are present there.'
       );
       throw error;
@@ -198,8 +198,8 @@ export class SetupBuildCredentialsFromCredentialsJson implements Action {
       undefined,
       await ctx.ios.getDistributionCertificateAsync(this.app)
     );
-    log.newLine();
-    log(chalk.green(`All credentials are ready to build ${appInfo}`));
-    log.newLine();
+    Log.newLine();
+    Log.log(chalk.green(`All credentials are ready to build ${appInfo}`));
+    Log.newLine();
   }
 }

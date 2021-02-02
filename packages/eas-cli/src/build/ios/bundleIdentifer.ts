@@ -4,7 +4,7 @@ import assert from 'assert';
 import chalk from 'chalk';
 import fs from 'fs-extra';
 
-import log from '../../log';
+import Log from '../../log';
 import {
   ensureAppIdentifierIsDefinedAsync,
   getProjectConfigDescription,
@@ -25,10 +25,10 @@ export async function ensureBundleIdentifierIsValidAsync(projectDir: string) {
   const bundleIdentifier = await ensureAppIdentifierIsDefinedAsync(projectDir, Platform.iOS);
   if (!isBundleIdentifierValid(bundleIdentifier)) {
     const configDescription = getProjectConfigDescription(projectDir);
-    log.error(
+    Log.error(
       `Invalid format of iOS bundleId. Only alphanumeric characters, '.' and '-' are allowed, and each '.' must be followed by a letter.`
     );
-    log.error(`Update "ios.bundleIdentifier" in ${configDescription} and run this command again.`);
+    Log.error(`Update "ios.bundleIdentifier" in ${configDescription} and run this command again.`);
     throw new Error('Invalid bundleIdentifier');
   }
 }
@@ -44,8 +44,8 @@ export async function configureBundleIdentifierAsync(
   const bundleIdentifierFromConfig = IOSConfig.BundleIdenitifer.getBundleIdentifier(exp);
   if (bundleIdentifierFromPbxproj && bundleIdentifierFromConfig) {
     if (bundleIdentifierFromPbxproj !== bundleIdentifierFromConfig) {
-      log.addNewLineIfNone();
-      log.warn(
+      Log.addNewLineIfNone();
+      Log.warn(
         `We detected that your Xcode project is configured with a different bundle identifier than the one defined in ${configDescription}.`
       );
       const hasBundleIdentifierInStaticConfig = await hasBundleIdentifierInStaticConfigAsync(
@@ -53,10 +53,10 @@ export async function configureBundleIdentifierAsync(
         exp
       );
       if (!hasBundleIdentifierInStaticConfig) {
-        log(`If you choose the one defined in ${configDescription} we'll automatically configure your Xcode project with it.
+        Log.log(`If you choose the one defined in ${configDescription} we'll automatically configure your Xcode project with it.
 However, if you choose the one defined in the Xcode project you'll have to update ${configDescription} on your own.`);
       }
-      log.newLine();
+      Log.newLine();
       const { bundleIdentifierSource } = await promptAsync({
         type: 'select',
         name: 'bundleIdentifierSource',

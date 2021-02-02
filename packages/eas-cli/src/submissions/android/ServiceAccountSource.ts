@@ -1,7 +1,7 @@
 import chalk from 'chalk';
 import fs from 'fs-extra';
 
-import log, { learnMore } from '../../log';
+import Log, { learnMore } from '../../log';
 import { promptAsync } from '../../prompts';
 import { isExistingFile } from '../utils/files';
 
@@ -38,7 +38,7 @@ export async function getServiceAccountAsync(source: ServiceAccountSource): Prom
 
 async function handlePathSourceAsync(source: ServiceAccountPathSource): Promise<string> {
   if (!(await isExistingFile(source.path))) {
-    log.warn(`File ${source.path} doesn't exist.`);
+    Log.warn(`File ${source.path} doesn't exist.`);
     return await getServiceAccountAsync({ sourceType: ServiceAccountSourceType.prompt });
   }
   return source.path;
@@ -53,7 +53,7 @@ async function handlePromptSourceAsync(_source: ServiceAccountPromptSource): Pro
 }
 
 async function askForServiceAccountPathAsync(): Promise<string> {
-  log(
+  Log.log(
     `${chalk.bold(
       'A Google Service Account JSON key is required to upload your app to Google Play Store'
     )}.\n` +

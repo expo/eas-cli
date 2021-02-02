@@ -8,7 +8,7 @@ import {
 import assert from 'assert';
 import chalk from 'chalk';
 
-import log from '../../../log';
+import Log from '../../../log';
 import { toggleConfirmAsync } from '../../../prompts';
 import {
   deletePasswordAsync,
@@ -96,7 +96,7 @@ async function loginAsync(
     });
   } catch (error) {
     if (error instanceof InvalidUserCredentialsError) {
-      log.error(error.message);
+      Log.error(error.message);
       // Remove the invalid password so it isn't automatically used...
       await deletePasswordAsync({ username });
 
@@ -145,7 +145,7 @@ async function loginWithUserCredentialsAsync({
 
 export async function authenticateAsync(options: Options = {}): Promise<AuthCtx> {
   // help keep apple login visually apart from the other operations.
-  log.addNewLineIfNone();
+  Log.addNewLineIfNone();
 
   try {
     const authState = await loginAsync(
@@ -182,7 +182,7 @@ export async function authenticateAsync(options: Options = {}): Promise<AuthCtx>
     if (error.message === 'ABORTED') {
       process.exit(1);
     }
-    log(chalk.red('Authentication with Apple Developer Portal failed!'));
+    Log.log(chalk.red('Authentication with Apple Developer Portal failed!'));
     throw error;
   }
 }

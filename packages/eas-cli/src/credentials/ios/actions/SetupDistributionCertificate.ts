@@ -1,4 +1,4 @@
-import log from '../../../log';
+import Log from '../../../log';
 import { confirmAsync, promptAsync } from '../../../prompts';
 import { Action, CredentialsManager } from '../../CredentialsManager';
 import { Context } from '../../context';
@@ -54,7 +54,7 @@ export class SetupDistributionCertificateForApp implements Action {
       return;
     }
 
-    log(`Using Distribution Certificate: ${autoselectedCertificate.certId || '-----'}`);
+    Log.log(`Using Distribution Certificate: ${autoselectedCertificate.certId || '-----'}`);
     await manager.runActionAsync(
       new UseSpecificDistributionCertificate(this.app, autoselectedCertificate.id)
     );
@@ -68,7 +68,7 @@ export class SetupDistributionCertificateForApp implements Action {
     if (ctx.appStore.authCtx) {
       const isValid = await validateDistributionCertificateAsync(ctx, currentCertificate);
       if (!isValid) {
-        log.warn("Current Distribution Certificate is no longer valid on Apple's server");
+        Log.warn("Current Distribution Certificate is no longer valid on Apple's server");
       }
       return isValid;
     }

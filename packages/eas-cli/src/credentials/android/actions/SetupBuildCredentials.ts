@@ -1,4 +1,4 @@
-import log from '../../../log';
+import Log from '../../../log';
 import { Action, CredentialsManager } from '../../CredentialsManager';
 import { Context } from '../../context';
 import { readAndroidCredentialsAsync } from '../../credentialsJson/read';
@@ -31,7 +31,7 @@ export class SetupBuildCredentialsFromCredentialsJson implements Action {
     try {
       localCredentials = await readAndroidCredentialsAsync(ctx.projectDir);
     } catch (error) {
-      log.error(
+      Log.error(
         'Reading credentials from credentials.json failed. Make sure this file is correct and all credentials are present there.'
       );
       throw error;
@@ -40,6 +40,6 @@ export class SetupBuildCredentialsFromCredentialsJson implements Action {
       await validateKeystoreAsync(localCredentials.keystore);
     }
     await ctx.android.updateKeystoreAsync(this.projectFullName, localCredentials.keystore);
-    log.succeed('Keystore updated');
+    Log.succeed('Keystore updated');
   }
 }

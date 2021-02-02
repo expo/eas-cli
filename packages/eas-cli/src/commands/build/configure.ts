@@ -3,7 +3,7 @@ import chalk from 'chalk';
 
 import { configureAsync } from '../../build/configure';
 import { RequestedPlatform } from '../../build/types';
-import log, { learnMore } from '../../log';
+import Log, { learnMore } from '../../log';
 import { findProjectRootAsync } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
 import { ensureLoggedInAsync } from '../../user/actions';
@@ -25,17 +25,17 @@ export default class BuildConfigure extends Command {
 
   async run() {
     const { flags } = this.parse(BuildConfigure);
-    log(
+    Log.log(
       '💡 The following process will configure your iOS and/or Android project to be compatible with EAS Build. These changes only apply to your local project files and you can safely revert them at any time.'
     );
-    log.newLine();
+    Log.newLine();
 
     const platform =
       (flags.platform as RequestedPlatform | undefined) ?? (await promptForPlatformAsync());
     const allowExperimental = flags['allow-experimental'];
 
     if (allowExperimental) {
-      log.warn(
+      Log.warn(
         `Project configuration will execute some additional steps that might fail if structure of your native project is significantly different from ${chalk.bold(
           'expo eject'
         )} or ${chalk.bold('expo init')}`
@@ -49,7 +49,7 @@ export default class BuildConfigure extends Command {
       projectDir: (await findProjectRootAsync()) ?? process.cwd(),
     });
 
-    log.newLine();
+    Log.newLine();
     logSuccess(platform);
   }
 }
@@ -66,7 +66,7 @@ function logSuccess(platform: RequestedPlatform) {
     storesText = 'the Apple App Store';
   }
 
-  log(`🎉 Your ${platformsText} ready to build.
+  Log.log(`🎉 Your ${platformsText} ready to build.
 
 - Run ${chalk.bold('eas build')} when you are ready to create your first build.
 - Once the build is completed, run ${chalk.bold('eas submit')} to upload the app to ${storesText}

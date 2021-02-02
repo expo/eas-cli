@@ -3,7 +3,7 @@ import once from 'lodash/once';
 import path from 'path';
 import untildify from 'untildify';
 
-import log from '../../log';
+import Log from '../../log';
 import { Question as PromptQuestion, confirmAsync, promptAsync } from '../../prompts';
 
 export type Question = {
@@ -23,7 +23,7 @@ export type CredentialSchema<T> = {
 };
 
 const EXPERT_PROMPT = once(() =>
-  log.warn(`
+  Log.warn(`
 In this mode, we won't be able to make sure that your credentials are valid.
 Please double check that you're uploading valid files for your app otherwise you may encounter strange errors!
 When building for IOS make sure you've created your App ID on the Apple Developer Portal, that your App ID

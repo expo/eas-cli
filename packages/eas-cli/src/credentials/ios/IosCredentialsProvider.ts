@@ -2,7 +2,7 @@ import { Platform } from '@expo/eas-build-job';
 import { CredentialsSource, DistributionType } from '@expo/eas-json';
 
 import { IosDistributionType } from '../../graphql/generated';
-import log from '../../log';
+import Log from '../../log';
 import { findAccountByName } from '../../user/Account';
 import { CredentialsManager } from '../CredentialsManager';
 import { CredentialsProvider } from '../CredentialsProvider';
@@ -59,7 +59,7 @@ export default class IosCredentialsProvider implements CredentialsProvider {
       const rawCredentialsJson = await credentialsJsonReader.readRawAsync(this.ctx.projectDir);
       return !!rawCredentialsJson?.ios;
     } catch (err) {
-      log.error(err); // malformed json
+      Log.error(err); // malformed json
       return false;
     }
   }
@@ -111,7 +111,7 @@ export default class IosCredentialsProvider implements CredentialsProvider {
 
   private async getRemoteAsync(): Promise<IosCredentials> {
     if (this.options.skipCredentialsCheck) {
-      log('Skipping credentials check');
+      Log.log('Skipping credentials check');
     } else {
       await new CredentialsManager(this.ctx).runActionAsync(
         new SetupBuildCredentials(this.options.app, this.options.distribution)

@@ -1,4 +1,4 @@
-import log, { learnMore } from '../../log';
+import Log, { learnMore } from '../../log';
 import { SubmissionError } from '../SubmissionService.types';
 
 enum SubmissionErrorCode {
@@ -52,13 +52,13 @@ const SubmissionErrorMessages: Record<SubmissionErrorCode, string> = {
 export function printSubmissionError(error: SubmissionError): boolean {
   if ((Object.values(SubmissionErrorCode) as string[]).includes(error.errorCode)) {
     const errorCode = error.errorCode as SubmissionErrorCode;
-    log.addNewLineIfNone();
-    log.error(SubmissionErrorMessages[errorCode]);
+    Log.addNewLineIfNone();
+    Log.error(SubmissionErrorMessages[errorCode]);
     return [SubmissionErrorCode.ANDROID_UNKNOWN_ERROR, SubmissionErrorCode.IOS_UNKNOWN_ERROR].some(
       code => code === errorCode
     );
   } else {
-    log(error.message);
+    Log.log(error.message);
     return true;
   }
 }

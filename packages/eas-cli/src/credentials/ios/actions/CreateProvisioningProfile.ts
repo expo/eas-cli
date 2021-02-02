@@ -1,6 +1,6 @@
 import assert from 'assert';
 
-import log from '../../../log';
+import Log from '../../../log';
 import { Action, CredentialsManager } from '../../CredentialsManager';
 import { Context } from '../../context';
 import { askForUserProvidedAsync } from '../../utils/promptForCredentials';
@@ -17,7 +17,7 @@ export class CreateProvisioningProfileStandaloneManager implements Action {
 
     const appCredentials = await ctx.ios.getAppCredentialsAsync(this.app);
     displayIosAppCredentials(appCredentials);
-    log.newLine();
+    Log.newLine();
   }
 }
 
@@ -28,14 +28,14 @@ export class CreateProvisioningProfile implements Action {
     const provisioningProfile = await this.provideOrGenerateAsync(ctx);
     await ctx.ios.updateProvisioningProfileAsync(this.app, provisioningProfile);
 
-    log.succeed('Created provisioning profile');
+    Log.succeed('Created provisioning profile');
   }
 
   private async provideOrGenerateAsync(ctx: Context): Promise<ProvisioningProfile> {
     const userProvided = await askForUserProvidedAsync(provisioningProfileSchema);
     if (userProvided) {
       // userProvided profiles don't come with ProvisioningProfileId's (only accessible from Apple Portal API)
-      log.warn('Provisioning profile: Unable to validate specified profile.');
+      Log.warn('Provisioning profile: Unable to validate specified profile.');
       return userProvided;
     }
     const distCert = await ctx.ios.getDistributionCertificateAsync(this.app);

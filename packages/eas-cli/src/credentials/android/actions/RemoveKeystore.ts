@@ -1,6 +1,6 @@
 import chalk from 'chalk';
 
-import log from '../../../log';
+import Log from '../../../log';
 import { confirmAsync } from '../../../prompts';
 import { Action, CredentialsManager } from '../../CredentialsManager';
 import { Context } from '../../context';
@@ -11,7 +11,7 @@ export class RemoveKeystore implements Action {
 
   async runAsync(manager: CredentialsManager, ctx: Context): Promise<void> {
     if (!(await ctx.android.fetchKeystoreAsync(this.projectFullName))) {
-      log.warn('There is no Keystore defined for this app.');
+      Log.warn('There is no Keystore defined for this app.');
       return;
     }
 
@@ -31,29 +31,29 @@ export class RemoveKeystore implements Action {
       await manager.runActionAsync(new BackupKeystore(this.projectFullName));
 
       await ctx.android.removeKeystoreAsync(this.projectFullName);
-      log.succeed('Keystore removed');
+      Log.succeed('Keystore removed');
     }
   }
 
   displayWarning() {
-    log.newLine();
-    log.warn(
+    Log.newLine();
+    Log.warn(
       `Clearing your Android build credentials from our build servers is a ${chalk.bold(
         'PERMANENT and IRREVERSIBLE action.'
       )}`
     );
-    log.warn(
+    Log.warn(
       chalk.bold(
         'Android Keystore must be identical to the one previously used to submit your app to the Google Play Store.'
       )
     );
-    log.warn(
+    Log.warn(
       'Please read https://docs.expo.io/distribution/building-standalone-apps/#if-you-choose-to-build-for-android for more info before proceeding.'
     );
-    log.newLine();
-    log.warn(
+    Log.newLine();
+    Log.warn(
       chalk.bold('Your Keystore will be backed up to your current directory if you continue.')
     );
-    log.newLine();
+    Log.newLine();
   }
 }

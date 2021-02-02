@@ -6,79 +6,76 @@ import terminalLink from 'terminal-link';
 
 type Color = (...text: string[]) => string;
 
-const IS_DEBUG = boolish('EXPO_DEBUG', false);
+class Log {
+  public static readonly isDebug = boolish('EXPO_DEBUG', false);
 
-let _isLastLineNewLine = false;
-function _updateIsLastLineNewLine(args: any[]) {
-  if (args.length === 0) {
-    _isLastLineNewLine = true;
-  } else {
-    const lastArg = args[args.length - 1];
-    if (typeof lastArg === 'string' && (lastArg === '' || lastArg.match(/[\r\n]$/))) {
-      _isLastLineNewLine = true;
+  public static log(...args: any[]) {
+    this.consoleLog(...args);
+  }
+
+  public static newLine() {
+    this.consoleLog();
+  }
+
+  public static addNewLineIfNone() {
+    if (!this.isLastLineNewLine) {
+      this.newLine();
+    }
+  }
+
+  public static error(...args: any[]) {
+    this.consoleError(...this.withTextColor(args, chalk.red));
+  }
+
+  public static warn(...args: any[]) {
+    this.consoleWarn(...this.withTextColor(args, chalk.yellow));
+  }
+
+  public static gray(...args: any[]) {
+    this.consoleLog(...this.withTextColor(args, chalk.gray));
+  }
+
+  public static succeed(message: string) {
+    ora().succeed(message);
+  }
+
+  public static withTick(...args: any[]) {
+    this.consoleLog(chalk.green(figures.tick), ...args);
+  }
+
+  private static consoleLog(...args: any[]) {
+    this.updateIsLastLineNewLine(args);
+    console.log(...args);
+  }
+
+  private static consoleWarn(...args: any[]) {
+    this.updateIsLastLineNewLine(args);
+    console.warn(...args);
+  }
+
+  private static consoleError(...args: any[]) {
+    this.updateIsLastLineNewLine(args);
+    console.error(...args);
+  }
+
+  private static withTextColor(args: any[], chalkColor: Color) {
+    return args.map(arg => chalkColor(arg));
+  }
+
+  private static isLastLineNewLine = false;
+  private static updateIsLastLineNewLine(args: any[]) {
+    if (args.length === 0) {
+      this.isLastLineNewLine = true;
     } else {
-      _isLastLineNewLine = false;
+      const lastArg = args[args.length - 1];
+      if (typeof lastArg === 'string' && (lastArg === '' || lastArg.match(/[\r\n]$/))) {
+        this.isLastLineNewLine = true;
+      } else {
+        this.isLastLineNewLine = false;
+      }
     }
   }
 }
-
-function consoleLog(...args: any[]) {
-  _updateIsLastLineNewLine(args);
-
-  console.log(...args);
-}
-
-function consoleWarn(...args: any[]) {
-  _updateIsLastLineNewLine(args);
-
-  console.warn(...args);
-}
-
-function consoleError(...args: any[]) {
-  _updateIsLastLineNewLine(args);
-
-  console.error(...args);
-}
-
-function withTextColor(args: any[], chalkColor: Color) {
-  return args.map(arg => chalkColor(arg));
-}
-
-function log(...args: any[]) {
-  consoleLog(...args);
-}
-
-log.newLine = function newLine() {
-  consoleLog();
-};
-
-log.addNewLineIfNone = function addNewLineIfNone() {
-  if (!_isLastLineNewLine) {
-    log.newLine();
-  }
-};
-
-log.error = function error(...args: any[]) {
-  consoleError(...withTextColor(args, chalk.red));
-};
-
-log.warn = function warn(...args: any[]) {
-  consoleWarn(...withTextColor(args, chalk.yellow));
-};
-
-log.gray = function (...args: any[]) {
-  consoleLog(...withTextColor(args, chalk.gray));
-};
-
-log.succeed = function (message: string) {
-  ora().succeed(message);
-};
-
-log.withTick = function (...args: any[]) {
-  consoleLog(chalk.green(figures.tick), ...args);
-};
-
-log.isDebug = IS_DEBUG;
 
 /**
  * Format links as dim with an underline.
@@ -94,4 +91,4 @@ export function learnMore(url: string, learnMoreMessage?: string): string {
   return chalk.dim(`${learnMoreMessage ?? 'Learn more'}: ${chalk.underline(url)}`);
 }
 
-export default log;
+export default Log;

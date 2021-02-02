@@ -3,7 +3,7 @@ import chalk from 'chalk';
 import ora from 'ora';
 
 import { apiClient } from '../api';
-import log from '../log';
+import Log from '../log';
 import { sleep } from '../utils/promise';
 import { prepareAndroidBuildAsync } from './android/build';
 import { CommandContext } from './context';
@@ -17,16 +17,16 @@ export async function buildAsync(commandCtx: CommandContext): Promise<void> {
   await ensureGitStatusIsCleanAsync(commandCtx.nonInteractive);
 
   const scheduledBuilds = await startBuildsAsync(commandCtx);
-  log.newLine();
+  Log.newLine();
   printLogsUrls(commandCtx.accountName, scheduledBuilds);
-  log.newLine();
+  Log.newLine();
 
   if (commandCtx.waitForBuildEnd) {
     const builds = await waitForBuildEndAsync(
       commandCtx,
       scheduledBuilds.map(i => i.buildId)
     );
-    log.newLine();
+    Log.newLine();
     printBuildResults(commandCtx.accountName, builds);
   }
 }
@@ -70,7 +70,7 @@ async function waitForBuildEndAsync(
   buildIds: string[],
   { timeoutSec = 1800, intervalSec = 30 } = {}
 ): Promise<(Build | null)[]> {
-  log('Waiting for build to complete. You can press Ctrl+C to exit.');
+  Log.log('Waiting for build to complete. You can press Ctrl+C to exit.');
   const spinner = ora().start();
   let time = new Date().getTime();
   const endTime = time + timeoutSec * 1000;

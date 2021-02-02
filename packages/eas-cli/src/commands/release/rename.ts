@@ -5,7 +5,7 @@ import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
 import { EditUpdateReleaseInput, UpdateRelease } from '../../graphql/generated';
-import log from '../../log';
+import Log from '../../log';
 import { ensureProjectExistsAsync } from '../../project/ensureProjectExists';
 import { findProjectRootAsync, getProjectAccountName } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
@@ -119,11 +119,11 @@ export default class ReleaseRename extends Command {
     });
 
     if (jsonFlag) {
-      log(editedRelease);
+      Log.log(editedRelease);
       return;
     }
 
-    log.withTick(
+    Log.withTick(
       `️Renamed release from ${currentName} to ${chalk.bold(
         editedRelease.releaseName
       )} on project ${chalk.bold(`@${accountName}/${exp.slug}`)}.`

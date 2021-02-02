@@ -1,6 +1,6 @@
 import chalk from 'chalk';
 
-import log from '../../log';
+import Log from '../../log';
 import { getProjectAccountName } from '../../project/projectUtils';
 import { confirmAsync, promptAsync } from '../../prompts';
 import { Action, CredentialsManager } from '../CredentialsManager';
@@ -52,7 +52,7 @@ export class SelectAndroidApp implements Action {
         }
         await manager.runActionAsync(new ManageAndroidApp(projectFullName));
       } catch (err) {
-        log.error(err);
+        Log.error(err);
       }
     }
   }

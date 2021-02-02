@@ -1,7 +1,7 @@
 import { Platform } from '@expo/eas-build-job';
 import { CredentialsSource } from '@expo/eas-json';
 
-import log from '../../log';
+import Log from '../../log';
 import { CredentialsManager } from '../CredentialsManager';
 import { CredentialsProvider } from '../CredentialsProvider';
 import { Context } from '../context';
@@ -46,7 +46,7 @@ export default class AndroidCredentialsProvider implements CredentialsProvider {
       const rawCredentialsJson = await credentialsJsonReader.readRawAsync(this.ctx.projectDir);
       return !!rawCredentialsJson?.android;
     } catch (err) {
-      log.error(err); // malformed json
+      Log.error(err); // malformed json
       return false;
     }
   }

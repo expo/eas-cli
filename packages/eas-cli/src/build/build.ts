@@ -3,7 +3,7 @@ import { CredentialsSource } from '@expo/eas-json';
 import fs from 'fs-extra';
 
 import { apiClient } from '../api';
-import log from '../log';
+import Log from '../log';
 import { promptAsync } from '../prompts';
 import { UploadType, uploadAsync } from '../uploads';
 import { createProgressTracker } from '../utils/progress';
@@ -65,7 +65,7 @@ export async function prepareBuildRequestForPlatformAsync<
   }
 
   if (!(await isGitStatusCleanAsync())) {
-    log.addNewLineIfNone();
+    Log.addNewLineIfNone();
     const projectType = builder.ctx.platform === Platform.Android ? 'Android' : 'Xcode';
     // Currently we are only updaing runtime version durring build, but if it changes in a future
     // this message should also contain more info on that (or be more generic)
@@ -89,8 +89,8 @@ export async function prepareBuildRequestForPlatformAsync<
     try {
       return await withAnalyticsAsync(
         async () => {
-          if (log.isDebug) {
-            log(`Starting ${platformDisplayNames[job.platform]} build`);
+          if (Log.isDebug) {
+            Log.log(`Starting ${platformDisplayNames[job.platform]} build`);
           }
           const {
             data: { buildId, deprecationInfo },
@@ -114,7 +114,7 @@ export async function prepareBuildRequestForPlatformAsync<
     } catch (error) {
       const body = error?.response?.body;
       if (body && JSON.parse(body)?.errors?.[0]?.code === 'TURTLE_DEPRECATED_JOB_FORMAT') {
-        log.error('EAS Build API has changed, please upgrade to the latest eas-cli');
+        Log.error('EAS Build API has changed, please upgrade to the latest eas-cli');
       }
       throw error;
     }
@@ -213,7 +213,7 @@ async function reviewAndCommitChangesAsync(
     );
   } else if (selected === ShouldCommitChanges.Yes) {
     await commitPromptAsync(commitMessage);
-    log.withTick('Committed changes.');
+    Log.withTick('Committed changes.');
   } else if (selected === ShouldCommitChanges.ShowDiffFirst) {
     await showDiffAsync();
     await reviewAndCommitChangesAsync(commitMessage, { nonInteractive, askedFirstTime: false });

@@ -2,7 +2,7 @@ import assert from 'assert';
 import chalk from 'chalk';
 import ora from 'ora';
 
-import log from '../../../log';
+import Log from '../../../log';
 import { Action, CredentialsManager } from '../../CredentialsManager';
 import { Context } from '../../context';
 import {
@@ -36,14 +36,14 @@ export class ConfigureProvisioningProfile implements Action {
     }
 
     if (!profile.provisioningProfileId) {
-      log.warn("The provisioning profile we have on file cannot be validated on Apple's servers.");
+      Log.warn("The provisioning profile we have on file cannot be validated on Apple's servers.");
       return;
     }
 
     if (ctx.appStore.authCtx) {
       const distCert = await ctx.ios.getDistributionCertificateAsync(this.app);
       if (!distCert) {
-        log.warn('There is no distribution certificate for this app.');
+        Log.warn('There is no distribution certificate for this app.');
         return;
       }
       const profilesFromApple = await ctx.appStore.listProvisioningProfilesAsync(
@@ -53,15 +53,15 @@ export class ConfigureProvisioningProfile implements Action {
         appleInfo => appleInfo.provisioningProfileId === profile.provisioningProfileId
       );
       if (!profilesWithMatchingId || profilesWithMatchingId.length < 1) {
-        log.warn('This profile is no longer valid on Apple Developer Portal.');
+        Log.warn('This profile is no longer valid on Apple Developer Portal.');
       }
 
       await this.configureAndUpdateAsync(ctx, this.app, distCert, profilesWithMatchingId[0]);
     } else {
-      log.warn(
+      Log.warn(
         "Without access to your Apple account we can't configure provisioning profiles for you."
       );
-      log.warn('Make sure to recreate the profile if you selected a new distribution certificate.');
+      Log.warn('Make sure to recreate the profile if you selected a new distribution certificate.');
     }
   }
 

@@ -2,7 +2,7 @@ import chalk from 'chalk';
 
 import { AppleDevice } from '../../../graphql/generated';
 import { APPLE_DEVICE_CLASS_LABELS } from '../../../graphql/types/credentials/AppleDevice';
-import log from '../../../log';
+import Log from '../../../log';
 import {
   AppLookupParams,
   IosAppCredentials,
@@ -20,7 +20,7 @@ export function displayProjectCredentials(
   const experienceName = `@${appLookupParams.accountName}/${appLookupParams.projectName}`;
   const bundleIdentifier = appLookupParams.bundleIdentifier;
   if (!appCredentials) {
-    log(
+    Log.log(
       chalk.bold(
         `No credentials configured for app ${experienceName} with bundle identifier ${bundleIdentifier}\n`
       )
@@ -28,10 +28,10 @@ export function displayProjectCredentials(
     return;
   }
 
-  log();
-  log(chalk.bold('Project Credentials Configuration:'));
+  Log.log();
+  Log.log(chalk.bold('Project Credentials Configuration:'));
   displayIosAppCredentials(appCredentials);
-  log();
+  Log.log();
 
   if (distCert) {
     displayIosUserCredentials(distCert);
@@ -43,54 +43,54 @@ export function displayProjectCredentials(
 }
 
 export async function displayAllIosCredentials(credentials: IosCredentials) {
-  log(chalk.bold('Available credentials for iOS apps'));
-  log.newLine();
+  Log.log(chalk.bold('Available credentials for iOS apps'));
+  Log.newLine();
 
-  log(chalk.bold('Application credentials'));
-  log.newLine();
+  Log.log(chalk.bold('Application credentials'));
+  Log.newLine();
   for (const cred of credentials.appCredentials) {
     displayIosAppCredentials(cred);
-    log();
+    Log.log();
   }
 
-  log(chalk.bold('User credentials\n'));
+  Log.log(chalk.bold('User credentials\n'));
   for (const cred of credentials.userCredentials) {
     displayIosUserCredentials(cred, credentials);
-    log.newLine();
+    Log.newLine();
   }
-  log.newLine();
+  Log.newLine();
 }
 
 export function displayIosAppCredentials(appCredentials: IosAppCredentials) {
-  log(
+  Log.log(
     `  Project: ${chalk.bold(appCredentials.experienceName)}, bundle identifier: ${
       appCredentials.bundleIdentifier
     }`
   );
   if (appCredentials.credentials.provisioningProfile) {
-    log(
+    Log.log(
       `    Provisioning profile (ID: ${chalk.green(
         appCredentials.credentials.provisioningProfileId || '---------'
       )})`
     );
   } else {
-    log('    Provisioning profile is missing. It will be generated during the next build');
+    Log.log('    Provisioning profile is missing. It will be generated during the next build');
   }
   if (appCredentials.credentials.devices && appCredentials.credentials.devices.length > 0) {
-    log(`    Provisioned devices:`);
+    Log.log(`    Provisioned devices:`);
     for (const device of appCredentials.credentials.devices) {
-      log(`    - ${formatDevice(device)}`);
+      Log.log(`    - ${formatDevice(device)}`);
     }
   }
   if (appCredentials.credentials.teamId || appCredentials.credentials.teamName) {
-    log(
+    Log.log(
       `    Apple Team ID: ${chalk.green(
         appCredentials.credentials.teamId || '---------'
       )},  Apple Team Name: ${chalk.green(appCredentials.credentials.teamName || '---------')}`
     );
   }
   if (appCredentials.credentials.pushP12 && appCredentials.credentials.pushPassword) {
-    log(
+    Log.log(
       `    (deprecated) Push Certificate (Push ID: ${chalk.green(
         appCredentials.credentials.pushId || '-----'
       )})`
@@ -130,17 +130,17 @@ export function displayIosUserCredentials(
   credentials?: IosCredentials
 ) {
   if (userCredentials.type === 'push-key') {
-    log(`  Push Notifications Key - Key ID: ${chalk.green(userCredentials.apnsKeyId)}`);
+    Log.log(`  Push Notifications Key - Key ID: ${chalk.green(userCredentials.apnsKeyId)}`);
   } else if (userCredentials.type === 'dist-cert') {
-    log(
+    Log.log(
       `  Distribution Certificate - Certificate ID: ${chalk.green(
         userCredentials.certId || '-----'
       )}`
     );
   } else {
-    log.warn(`  Unknown key type ${(userCredentials as any).type}`);
+    Log.warn(`  Unknown key type ${(userCredentials as any).type}`);
   }
-  log(
+  Log.log(
     `    Apple Team ID: ${chalk.green(
       userCredentials.teamId || '---------'
     )},  Apple Team Name: ${chalk.green(userCredentials.teamName || '---------')}`
@@ -156,6 +156,6 @@ export function displayIosUserCredentials(
       ),
     ].join(',\n      ');
     const usedByAppsText = usedByApps ? `used by\n      ${usedByApps}` : 'not used by any apps';
-    log(`    ${chalk.gray(usedByAppsText)}`);
+    Log.log(`    ${chalk.gray(usedByAppsText)}`);
   }
 }

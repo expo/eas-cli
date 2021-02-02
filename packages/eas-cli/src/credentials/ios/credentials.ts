@@ -1,5 +1,5 @@
 import { AppleDevice } from '../../graphql/generated';
-import log from '../../log';
+import Log from '../../log';
 import { CredentialSchema } from '../utils/promptForCredentials';
 import {
   DistributionCertificate,
@@ -89,9 +89,9 @@ export const distributionCertificateSchema: CredentialSchema<DistributionCertifi
       const distCertSerialNumber = findP12CertSerialNumber(answers.certP12!, answers.certPassword!);
       return { ...answers, distCertSerialNumber } as DistributionCertificate;
     } catch (error) {
-      log.warn('Unable to access certificate serial number.');
-      log.warn('Make sure that certificate and password are correct.');
-      log.warn(error);
+      Log.warn('Unable to access certificate serial number.');
+      Log.warn('Make sure that certificate and password are correct.');
+      Log.warn(error);
     }
     return answers as DistributionCertificate;
   },

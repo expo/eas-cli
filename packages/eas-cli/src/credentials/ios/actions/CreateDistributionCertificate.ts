@@ -1,6 +1,6 @@
 import assert from 'assert';
 
-import log from '../../../log';
+import Log from '../../../log';
 import { Action, CredentialsManager } from '../../CredentialsManager';
 import { Context } from '../../context';
 import { IosDistCredentials } from '../credentials';
@@ -14,9 +14,9 @@ export class CreateDistributionCertificateStandaloneManager implements Action {
     const action = new CreateDistributionCertificate(this.accountName);
     await manager.runActionAsync(action);
 
-    log.newLine();
+    Log.newLine();
     displayIosUserCredentials(action.distCredentials);
-    log.newLine();
+    Log.newLine();
   }
 }
 
@@ -40,6 +40,6 @@ export class CreateDistributionCertificate implements Action {
       this.accountName,
       distCert
     );
-    log.succeed('Created distribution certificate');
+    Log.succeed('Created distribution certificate');
   }
 }
