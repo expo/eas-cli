@@ -96,7 +96,7 @@ export async function ensureAppIdentifierIsDefinedAsync(
   const appIdentifier = await getAppIdentifierAsync(projectDir, platform);
   if (!appIdentifier) {
     const desc = getProjectConfigDescription(projectDir);
-    const fieldStr = Platform.Android ? 'android.package' : 'ios.bundleIdentifier';
+    const fieldStr = platform === Platform.Android ? 'android.package' : 'ios.bundleIdentifier';
     throw new Error(`Please define "${fieldStr}" in your ${desc}.`);
   }
   return appIdentifier;
