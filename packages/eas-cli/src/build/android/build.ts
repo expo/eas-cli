@@ -8,7 +8,7 @@ import AndroidCredentialsProvider, {
   AndroidCredentials,
 } from '../../credentials/android/AndroidCredentialsProvider';
 import { createCredentialsContextAsync } from '../../credentials/context';
-import log from '../../log';
+import Log from '../../log';
 import { toggleConfirmAsync } from '../../prompts';
 import { CredentialsResult, prepareBuildRequestForPlatformAsync } from '../build';
 import { BuildContext, CommandContext, createBuildContext } from '../context';
@@ -45,17 +45,17 @@ export async function prepareAndroidBuildAsync(
     buildProfile.distribution === 'internal' &&
     buildProfile.gradleCommand?.match(/bundle/)
   ) {
-    log.addNewLineIfNone();
-    log.warn(
+    Log.addNewLineIfNone();
+    Log.warn(
       `You're building your Android app for internal distribution. However, we've detected that the Gradle command you defined (${chalk.underline(
         buildProfile.gradleCommand
       )}) includes string 'bundle'.
 This means that it will most likely produce an AAB and you will not be able to install it on your Android devices straight from the Expo website.`
     );
-    log.newLine();
+    Log.newLine();
     const confirmed = await toggleConfirmAsync({ message: 'Would you like to proceed?' });
     if (!confirmed) {
-      log.error('Please update eas.json and come back again.');
+      Log.error('Please update eas.json and come back again.');
       process.exit(1);
     }
   }

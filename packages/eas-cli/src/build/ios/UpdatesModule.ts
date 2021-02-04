@@ -4,7 +4,7 @@ import plist from '@expo/plist';
 import fs from 'fs-extra';
 import path from 'path';
 
-import log from '../../log';
+import Log from '../../log';
 import { getProjectAccountName } from '../../project/projectUtils';
 import { ensureLoggedInAsync } from '../../user/actions';
 import { gitAddAsync } from '../../utils/git';
@@ -41,7 +41,7 @@ export async function syncUpdatesConfigurationAsync(
   try {
     await ensureUpdatesConfiguredAsync(projectDir, exp);
   } catch (error) {
-    log.error(
+    Log.error(
       'expo-updates module is not configured. Please run "eas build:configure" first to configure the project'
     );
     throw error;
@@ -54,7 +54,7 @@ export async function syncUpdatesConfigurationAsync(
   }
 
   if (!IOSConfig.Updates.isPlistConfigurationSynced(exp, expoPlist, accountName)) {
-    log.warn(
+    Log.warn(
       'Native project configuration is not synced with values present in your app.json, run "eas build:configure" to make sure all values are applied in the native project'
     );
   }
