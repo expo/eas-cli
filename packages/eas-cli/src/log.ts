@@ -6,33 +6,33 @@ import terminalLink from 'terminal-link';
 
 type Color = (...text: string[]) => string;
 
-class Log {
+export default class Log {
   public static readonly isDebug = boolish('EXPO_DEBUG', false);
 
   public static log(...args: any[]) {
-    this.consoleLog(...args);
+    Log.consoleLog(...args);
   }
 
   public static newLine() {
-    this.consoleLog();
+    Log.consoleLog();
   }
 
   public static addNewLineIfNone() {
-    if (!this.isLastLineNewLine) {
-      this.newLine();
+    if (!Log.isLastLineNewLine) {
+      Log.newLine();
     }
   }
 
   public static error(...args: any[]) {
-    this.consoleError(...this.withTextColor(args, chalk.red));
+    Log.consoleError(...Log.withTextColor(args, chalk.red));
   }
 
   public static warn(...args: any[]) {
-    this.consoleWarn(...this.withTextColor(args, chalk.yellow));
+    Log.consoleWarn(...Log.withTextColor(args, chalk.yellow));
   }
 
   public static gray(...args: any[]) {
-    this.consoleLog(...this.withTextColor(args, chalk.gray));
+    Log.consoleLog(...Log.withTextColor(args, chalk.gray));
   }
 
   public static succeed(message: string) {
@@ -40,21 +40,21 @@ class Log {
   }
 
   public static withTick(...args: any[]) {
-    this.consoleLog(chalk.green(figures.tick), ...args);
+    Log.consoleLog(chalk.green(figures.tick), ...args);
   }
 
   private static consoleLog(...args: any[]) {
-    this.updateIsLastLineNewLine(args);
+    Log.updateIsLastLineNewLine(args);
     console.log(...args);
   }
 
   private static consoleWarn(...args: any[]) {
-    this.updateIsLastLineNewLine(args);
+    Log.updateIsLastLineNewLine(args);
     console.warn(...args);
   }
 
   private static consoleError(...args: any[]) {
-    this.updateIsLastLineNewLine(args);
+    Log.updateIsLastLineNewLine(args);
     console.error(...args);
   }
 
@@ -65,13 +65,13 @@ class Log {
   private static isLastLineNewLine = false;
   private static updateIsLastLineNewLine(args: any[]) {
     if (args.length === 0) {
-      this.isLastLineNewLine = true;
+      Log.isLastLineNewLine = true;
     } else {
       const lastArg = args[args.length - 1];
       if (typeof lastArg === 'string' && (lastArg === '' || lastArg.match(/[\r\n]$/))) {
-        this.isLastLineNewLine = true;
+        Log.isLastLineNewLine = true;
       } else {
-        this.isLastLineNewLine = false;
+        Log.isLastLineNewLine = false;
       }
     }
   }
@@ -90,5 +90,3 @@ export function learnMore(url: string, learnMoreMessage?: string): string {
   }
   return chalk.dim(`${learnMoreMessage ?? 'Learn more'}: ${chalk.underline(url)}`);
 }
-
-export default Log;

@@ -1,7 +1,7 @@
 import { ExpoConfig } from '@expo/config';
 import { AndroidConfig } from '@expo/config-plugins';
 
-import log from '../../log';
+import Log from '../../log';
 import { getAndroidApplicationIdAsync } from '../../project/projectUtils';
 import { gitAddAsync } from '../../utils/git';
 import { ConfigureContext } from '../context';
@@ -23,7 +23,7 @@ export async function configureAndroidAsync(ctx: ConfigureContext): Promise<void
   if (isExpoUpdatesInstalled(ctx.projectDir)) {
     await configureUpdatesAsync(ctx.projectDir, ctx.exp);
   }
-  log.withTick('Android project configured');
+  Log.withTick('Android project configured');
 }
 
 export async function validateAndSyncProjectConfigurationAsync(

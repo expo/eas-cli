@@ -1,7 +1,7 @@
 import { ExpoConfig } from '@expo/config';
 import { IOSConfig } from '@expo/config-plugins';
 
-import log from '../../log';
+import Log from '../../log';
 import { ConfigureContext } from '../context';
 import { isExpoUpdatesInstalled } from '../utils/updates';
 import { configureUpdatesAsync, syncUpdatesConfigurationAsync } from './UpdatesModule';
@@ -20,7 +20,7 @@ export async function configureIosAsync(ctx: ConfigureContext): Promise<void> {
   if (isExpoUpdatesInstalled(ctx.projectDir)) {
     await configureUpdatesAsync(ctx.projectDir, ctx.exp);
   }
-  log.withTick('iOS project configured');
+  Log.withTick('iOS project configured');
 }
 
 export async function validateAndSyncProjectConfigurationAsync(

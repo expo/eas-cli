@@ -3,7 +3,7 @@ import { EasJsonReader } from '@expo/eas-json';
 import fs from 'fs-extra';
 import path from 'path';
 
-import log from '../log';
+import Log from '../log';
 import { promptAsync } from '../prompts';
 import { ensureLoggedInAsync } from '../user/actions';
 import { gitAddAsync } from '../utils/git';
@@ -49,7 +49,7 @@ export async function configureAsync(options: {
     hasIosNativeProject: await fs.pathExists(path.join(options.projectDir, 'ios')),
   };
 
-  log.newLine();
+  Log.newLine();
   await ensureEasJsonExistsAsync(ctx);
   if (ctx.shouldConfigureAndroid) {
     await configureAndroidAsync(ctx);
@@ -59,11 +59,11 @@ export async function configureAsync(options: {
   }
 
   if (!(await isGitStatusCleanAsync())) {
-    log.newLine();
+    Log.newLine();
     await reviewAndCommitChangesAsync(configureCommitMessage[options.platform]);
   } else {
-    log.newLine();
-    log.withTick('No changes were necessary, the project is already configured correctly.');
+    Log.newLine();
+    Log.withTick('No changes were necessary, the project is already configured correctly.');
   }
 }
 
@@ -76,7 +76,7 @@ export async function ensureEasJsonExistsAsync(ctx: ConfigureContext): Promise<v
     await reader.validateAsync();
 
     existingEasJson = await reader.readRawAsync();
-    log.withTick('Validated eas.json');
+    Log.withTick('Validated eas.json');
 
     // If we have already populated eas.json with the default fields for the
     // platform then proceed
@@ -122,7 +122,7 @@ export async function ensureEasJsonExistsAsync(ctx: ConfigureContext): Promise<v
 
   await fs.writeFile(easJsonPath, `${JSON.stringify(easJson, null, 2)}\n`);
   await gitAddAsync(easJsonPath, { intentToAdd: true });
-  log.withTick(`${existingEasJson ? 'Updated' : 'Generated'} eas.json`);
+  Log.withTick(`${existingEasJson ? 'Updated' : 'Generated'} eas.json`);
 }
 
 enum ShouldCommitChanges {
@@ -153,7 +153,7 @@ async function reviewAndCommitChangesAsync(
 
   if (selected === ShouldCommitChanges.Yes) {
     await commitPromptAsync(commitMessage);
-    log.withTick('Committed changes');
+    Log.withTick('Committed changes');
   } else if (selected === ShouldCommitChanges.ShowDiffFirst) {
     await showDiffAsync();
     await reviewAndCommitChangesAsync(commitMessage, false);
