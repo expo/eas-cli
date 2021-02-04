@@ -2,7 +2,7 @@ import assert from 'assert';
 import chalk from 'chalk';
 
 import { apiClient } from '../api';
-import log from '../log';
+import Log from '../log';
 import { promptAsync, selectAsync } from '../prompts';
 import { loginAsync } from './User';
 
@@ -139,14 +139,14 @@ export async function retryUsernamePasswordAuthWithOTPAsync(
 
   if (smsAutomaticallySent) {
     assert(primaryDevice, 'OTP should only automatically be sent when there is a primary device');
-    log(
+    Log.log(
       `One-time password was sent to the phone number ending in ${primaryDevice.sms_phone_number}.`
     );
     otp = await promptForOTPAsync('menu');
   }
 
   if (primaryDevice?.method === UserSecondFactorDeviceMethod.AUTHENTICATOR) {
-    log('One-time password from authenticator required.');
+    Log.log('One-time password from authenticator required.');
     otp = await promptForOTPAsync('menu');
   }
 

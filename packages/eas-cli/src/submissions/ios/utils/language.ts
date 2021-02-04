@@ -1,4 +1,4 @@
-import log from '../../../log';
+import Log from '../../../log';
 
 type Language = {
   locale: string;
@@ -27,7 +27,7 @@ export function sanitizeLanguage(
 
   const foundLang = findLanguage(lang);
   if (!foundLang) {
-    log.addNewLineIfNone();
+    Log.addNewLineIfNone();
     throw new Error(
       `You must specify a supported language. Supported language codes are:\n${languageListToString()}`
     );

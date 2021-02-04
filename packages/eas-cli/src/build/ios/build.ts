@@ -6,7 +6,7 @@ import fs from 'fs-extra';
 import sortBy from 'lodash/sortBy';
 import path from 'path';
 
-import log from '../../log';
+import Log from '../../log';
 import { promptAsync } from '../../prompts';
 import { prepareBuildRequestForPlatformAsync } from '../build';
 import { BuildContext, CommandContext, createBuildContext } from '../context';
@@ -72,11 +72,11 @@ async function resolveSchemeAsync(ctx: BuildContext<Platform.iOS>): Promise<stri
   }
 
   const sortedSchemes = sortBy(schemes);
-  log.newLine();
-  log(
+  Log.newLine();
+  Log.log(
     `We've found multiple schemes in your Xcode project: ${chalk.bold(sortedSchemes.join(', '))}`
   );
-  log(
+  Log.log(
     `You can specify the scheme you want to build at ${chalk.bold(
       `builds.ios.${ctx.commandCtx.profile}.scheme`
     )} in eas.json.`
@@ -84,8 +84,10 @@ async function resolveSchemeAsync(ctx: BuildContext<Platform.iOS>): Promise<stri
   if (ctx.commandCtx.nonInteractive) {
     const withoutTvOS = sortedSchemes.filter(i => !i.includes('tvOS'));
     const scheme = withoutTvOS.length > 0 ? withoutTvOS[0] : sortedSchemes[0];
-    log(`You've run Expo CLI in non-interactive mode, choosing the ${chalk.bold(scheme)} scheme.`);
-    log.newLine();
+    Log.log(
+      `You've run Expo CLI in non-interactive mode, choosing the ${chalk.bold(scheme)} scheme.`
+    );
+    Log.newLine();
     return scheme;
   } else {
     const { selectedScheme } = await promptAsync({
@@ -94,7 +96,7 @@ async function resolveSchemeAsync(ctx: BuildContext<Platform.iOS>): Promise<stri
       message: 'Which scheme would you like to build now?',
       choices: sortedSchemes.map(scheme => ({ title: scheme, value: scheme })),
     });
-    log.newLine();
+    Log.newLine();
     return selectedScheme as string;
   }
 }

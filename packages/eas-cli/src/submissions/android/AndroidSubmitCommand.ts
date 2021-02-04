@@ -1,7 +1,7 @@
 import { getConfig } from '@expo/config';
 import { Result, result } from '@expo/results';
 
-import log from '../../log';
+import Log from '../../log';
 import { ArchiveSource, ArchiveTypeSource, ArchiveTypeSourceType } from '../archiveSource';
 import { resolveArchiveFileSource } from '../commons';
 import {
@@ -31,7 +31,7 @@ class AndroidSubmitCommand {
   constructor(private ctx: AndroidSubmissionContext) {}
 
   async runAsync(): Promise<void> {
-    log.addNewLineIfNone();
+    Log.addNewLineIfNone();
     const submissionOptions = this.getAndroidSubmissionOptions();
     const submitter = new AndroidSubmitter(this.ctx, submissionOptions);
     await submitter.submitAsync();
@@ -53,7 +53,7 @@ class AndroidSubmitCommand {
     ].filter(r => !r.ok);
     if (errored.length > 0) {
       const message = errored.map(err => err.reason?.message).join('\n');
-      log.error(message);
+      Log.error(message);
       throw new Error('Failed to submit the app');
     }
 

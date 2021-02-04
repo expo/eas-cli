@@ -2,7 +2,7 @@ import { DistributionType } from '@expo/eas-json';
 import assert from 'assert';
 import chalk from 'chalk';
 
-import log from '../../log';
+import Log from '../../log';
 import { platformDisplayNames, platformEmojis } from '../constants';
 import { Build } from '../types';
 import { getBuildLogsUrl } from './url';
@@ -22,14 +22,14 @@ export function printLogsUrls(
       buildId,
       account: accountName,
     });
-    log(`Build details: ${chalk.underline(logsUrl)}`);
+    Log.log(`Build details: ${chalk.underline(logsUrl)}`);
   } else {
     builds.forEach(({ buildId, platform }) => {
       const logsUrl = getBuildLogsUrl({
         buildId,
         account: accountName,
       });
-      log(`${platformDisplayNames[platform]} build details: ${chalk.underline(logsUrl)}`);
+      Log.log(`${platformDisplayNames[platform]} build details: ${chalk.underline(logsUrl)}`);
     });
   }
 }
@@ -52,20 +52,20 @@ function printBuildResult(accountName: string, build: Build): void {
       buildId: build.id,
       account: accountName,
     });
-    log(
+    Log.log(
       `${platformEmojis[build.platform]} Open this link on your ${
         platformDisplayNames[build.platform]
       } devices to install the app:`
     );
-    log(`${chalk.underline(logsUrl)}`);
-    log.newLine();
+    Log.log(`${chalk.underline(logsUrl)}`);
+    Log.newLine();
   } else {
     // TODO: it looks like buildUrl could possibly be undefined, based on the code below.
     // we should account for this case better if it is possible
     const url = build.artifacts?.buildUrl ?? '';
-    log(`${platformEmojis[build.platform]} ${platformDisplayNames[build.platform]} app:`);
-    log(`${chalk.underline(url)}`);
-    log.newLine();
+    Log.log(`${platformEmojis[build.platform]} ${platformDisplayNames[build.platform]} app:`);
+    Log.log(`${chalk.underline(url)}`);
+    Log.newLine();
   }
 }
 
@@ -74,17 +74,17 @@ export function printDeprecationWarnings(deprecationInfo?: DeprecationInfo): voi
     return;
   }
   if (deprecationInfo.type === 'internal') {
-    log.warn('This command is using API that soon will be deprecated, please update eas-cli.');
-    log.warn("Changes won't affect your project config.");
-    log.warn(deprecationInfo.message);
+    Log.warn('This command is using API that soon will be deprecated, please update eas-cli.');
+    Log.warn("Changes won't affect your project config.");
+    Log.warn(deprecationInfo.message);
   } else if (deprecationInfo.type === 'user-facing') {
-    log.warn('This command is using API that soon will be deprecated, please update eas-cli.');
-    log.warn(
+    Log.warn('This command is using API that soon will be deprecated, please update eas-cli.');
+    Log.warn(
       'There might be some changes necessary to your project config, latest eas-cli will provide more specific error messages.'
     );
-    log.warn(deprecationInfo.message);
+    Log.warn(deprecationInfo.message);
   } else {
-    log.warn('An unexpected warning was encountered. Please report it as a bug:');
-    log.warn(deprecationInfo);
+    Log.warn('An unexpected warning was encountered. Please report it as a bug:');
+    Log.warn(deprecationInfo);
   }
 }

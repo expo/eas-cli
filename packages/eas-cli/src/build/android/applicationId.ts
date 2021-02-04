@@ -5,7 +5,7 @@ import chalk from 'chalk';
 import fs from 'fs-extra';
 import path from 'path';
 
-import log from '../../log';
+import Log from '../../log';
 import {
   ensureAppIdentifierIsDefinedAsync,
   getAndroidApplicationIdAsync,
@@ -28,10 +28,10 @@ export async function ensureApplicationIdIsValidAsync(projectDir: string) {
   const applicationId = await ensureAppIdentifierIsDefinedAsync(projectDir, Platform.Android);
   if (!isApplicationIdValid(applicationId)) {
     const configDescription = getProjectConfigDescription(projectDir);
-    log.error(
+    Log.error(
       `Invalid format of Android applicationId. Only alphanumeric characters, '.' and '_' are allowed, and each '.' must be followed by a letter.`
     );
-    log.error(`Update "android.package" in ${configDescription} and run this command again.`);
+    Log.error(`Update "android.package" in ${configDescription} and run this command again.`);
     throw new Error('Invalid applicationId');
   }
 }
@@ -47,8 +47,8 @@ export async function configureApplicationIdAsync(
 
   if (applicationIdFromAndroidProject && applicationIdFromConfig) {
     if (applicationIdFromConfig !== applicationIdFromAndroidProject) {
-      log.newLine();
-      log.warn(
+      Log.newLine();
+      Log.warn(
         `We detected that your Android project is configured with a different application id than the one defined in ${configDescription}.`
       );
       const hasApplicationIdInStaticConfig = await hasApplicationIdInStaticConfigAsync(
@@ -56,10 +56,10 @@ export async function configureApplicationIdAsync(
         exp
       );
       if (!hasApplicationIdInStaticConfig) {
-        log(`If you choose the one defined in ${configDescription} we'll automatically configure your Android project with it.
+        Log.log(`If you choose the one defined in ${configDescription} we'll automatically configure your Android project with it.
 However, if you choose the one defined in the Android project you'll have to update ${configDescription} on your own.`);
       }
-      log.newLine();
+      Log.newLine();
       const { applicationIdSource } = await promptAsync({
         type: 'select',
         name: 'applicationIdSource',
@@ -102,7 +102,7 @@ However, if you choose the one defined in the Android project you'll have to upd
     }
   } else if (!applicationIdFromAndroidProject && applicationIdFromConfig) {
     // This should never happen, adding warning just in case
-    log.warn(
+    Log.warn(
       'applicationId is not specified in your ./android/app/build.gradle file. Make sure your project is configured correctly before building.'
     );
     return;

@@ -14,7 +14,7 @@ import formatBuild from '../../build/utils/formatBuild';
 import { isGitStatusCleanAsync } from '../../build/utils/repository';
 import { AppPlatform } from '../../graphql/generated';
 import { BuildQuery } from '../../graphql/queries/BuildQuery';
-import log, { learnMore } from '../../log';
+import Log, { learnMore } from '../../log';
 import {
   isEasEnabledForProjectAsync,
   warnEasUnavailable,
@@ -131,11 +131,11 @@ async function ensureNoPendingBuildsExistAsync({
   );
   const pendingBuilds = maybePendingBuilds.filter(i => i !== null);
   if (pendingBuilds.length > 0) {
-    log.newLine();
-    log.error(
+    Log.newLine();
+    Log.error(
       'Your other builds are still pending. Wait for them to complete before running this command again.'
     );
-    log.newLine();
+    Log.newLine();
     const results = await Promise.all(
       pendingBuilds.map(pendingBuild => {
         return apiClient.get<{ data: BuildType }>(
@@ -148,7 +148,7 @@ async function ensureNoPendingBuildsExistAsync({
     );
 
     for (const result of results) {
-      log(formatBuild(result.body.data, { accountName }));
+      Log.log(formatBuild(result.body.data, { accountName }));
     }
 
     process.exitCode = 1;

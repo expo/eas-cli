@@ -1,7 +1,7 @@
 import chalk from 'chalk';
 import got from 'got';
 
-import log from '../../log';
+import { default as LogModule } from '../../log';
 import { Submission, SubmissionStatus } from '../SubmissionService.types';
 import { printSubmissionError } from './errors';
 
@@ -25,16 +25,16 @@ async function downloadAndPrintSubmissionLogs(submission: Submission): Promise<v
   }
   const { body: data } = await got.get(submission.submissionInfo.logsUrl);
   const logs = parseLogs(data);
-  log.addNewLineIfNone();
+  LogModule.addNewLineIfNone();
   const prefix = chalk.blueBright('[logs] ');
   for (const { level, msg } of logs) {
     const msgWithPrefix = `${prefix}${msg}`;
     if (level === 'error') {
-      log.error(msgWithPrefix);
+      LogModule.error(msgWithPrefix);
     } else if (level === 'warn') {
-      log.warn(msgWithPrefix);
+      LogModule.warn(msgWithPrefix);
     } else {
-      log(msgWithPrefix);
+      LogModule.log(msgWithPrefix);
     }
   }
 }

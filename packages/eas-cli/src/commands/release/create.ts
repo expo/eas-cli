@@ -5,7 +5,7 @@ import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
 import { UpdateRelease } from '../../graphql/generated';
-import log from '../../log';
+import Log from '../../log';
 import { ensureProjectExistsAsync } from '../../project/ensureProjectExists';
 import { findProjectRootAsync, getProjectAccountName } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
@@ -100,11 +100,11 @@ export default class ReleaseCreate extends Command {
     const newRelease = await createUpdateReleaseOnAppAsync({ appId: projectId, releaseName });
 
     if (flags.json) {
-      log(newRelease);
+      Log.log(newRelease);
       return;
     }
 
-    log.withTick(
+    Log.withTick(
       `️Created a new release: ${chalk.bold(newRelease.releaseName)} on project ${chalk.bold(
         `@${accountName}/${exp.slug}`
       )}.`

@@ -2,7 +2,7 @@ import { ExpoConfig, getConfig } from '@expo/config';
 import chalk from 'chalk';
 import pick from 'lodash/pick';
 
-import log from '../log';
+import Log from '../log';
 import { getProjectAccountName } from '../project/projectUtils';
 import { confirmAsync } from '../prompts';
 import { Actor } from '../user/User';
@@ -95,13 +95,13 @@ class CredentialsContext implements Context {
       // Figure out if User A is configuring credentials as admin for User B's project
       const isProxyUser = this.user.__typename === 'Robot' || owner !== this.user.username;
 
-      log(
+      Log.log(
         `Accessing credentials ${isProxyUser ? 'on behalf of' : 'for'} ${owner} in project ${
           this.exp.slug
         }`
       );
     } else {
-      log(`Accessing credentials for ${this.exp.owner ?? getActorDisplayName(this.user)}`);
+      Log.log(`Accessing credentials for ${this.exp.owner ?? getActorDisplayName(this.user)}`);
     }
   }
 
@@ -115,12 +115,12 @@ class CredentialsContext implements Context {
       return;
     }
 
-    log(
+    Log.log(
       chalk.green(
         'If you provide your Apple account credentials we will be able to generate all necessary build credentials and fully validate them.'
       )
     );
-    log(
+    Log.log(
       chalk.green(
         'This is optional, but without Apple account access you will need to provide all the values manually and we can only run minimal validation on them.'
       )
@@ -131,7 +131,7 @@ class CredentialsContext implements Context {
     if (confirm) {
       await this.appStore.ensureAuthenticatedAsync();
     } else {
-      log(
+      Log.log(
         chalk.green(
           'No problem! 👌 If you select an action that requires those credentials we will ask you again about it.'
         )

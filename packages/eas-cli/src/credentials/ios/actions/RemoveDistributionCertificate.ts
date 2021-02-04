@@ -1,6 +1,6 @@
 import chalk from 'chalk';
 
-import log from '../../../log';
+import Log from '../../../log';
 import { confirmAsync } from '../../../prompts';
 import { Action, CredentialsManager } from '../../CredentialsManager';
 import { Context } from '../../context';
@@ -21,8 +21,8 @@ export class RemoveDistributionCertificate implements Action {
       await manager.runActionAsync(
         new RemoveSpecificDistributionCertificate(selected?.id, this.accountName, this.options)
       );
-      log.succeed('Removed distribution certificate');
-      log.newLine();
+      Log.succeed('Removed distribution certificate');
+      Log.newLine();
     }
   }
 }
@@ -54,12 +54,12 @@ export class RemoveSpecificDistributionCertificate implements Action {
         message: `You are removing certificate used by ${appList}. Do you want to continue?`,
       });
       if (!confirm) {
-        log('Aborting');
+        Log.log('Aborting');
         return;
       }
     }
 
-    log('Removing Distribution Certificate');
+    Log.log('Removing Distribution Certificate');
     await ctx.ios.deleteDistributionCertificateAsync(this.userCredentialsId, this.accountName);
 
     let shouldRevoke = this.options.shouldRevoke;
@@ -91,7 +91,7 @@ export class RemoveSpecificDistributionCertificate implements Action {
       if (!(await ctx.ios.getProvisioningProfileAsync(appLookupParams))) {
         continue;
       }
-      log(
+      Log.log(
         `Removing Provisioning Profile for ${appCredentials.experienceName} (${appCredentials.bundleIdentifier})`
       );
       await manager.runActionAsync(

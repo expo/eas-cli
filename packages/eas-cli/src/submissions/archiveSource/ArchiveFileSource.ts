@@ -2,7 +2,7 @@ import chalk from 'chalk';
 import { URL, parse as parseUrl } from 'url';
 import * as uuid from 'uuid';
 
-import log from '../../log';
+import Log from '../../log';
 import { promptAsync } from '../../prompts';
 import { SubmissionPlatform } from '../types';
 import { getBuildArtifactUrlByIdAsync, getLatestBuildArtifactUrlAsync } from '../utils/builds';
@@ -89,7 +89,7 @@ async function getArchiveLocationForUrlAsync(url: string): Promise<string> {
   if (!pathIsTar(url)) {
     return url;
   } else {
-    log('Downloading your app archive');
+    Log.log('Downloading your app archive');
     const localPath = await downloadAppArchiveAsync(url);
     return await getArchiveLocationForPathAsync(localPath);
   }
@@ -98,7 +98,7 @@ async function getArchiveLocationForUrlAsync(url: string): Promise<string> {
 async function getArchiveLocationForPathAsync(path: string): Promise<string> {
   const resolvedPath = await extractLocalArchiveAsync(path);
 
-  log('Uploading your app archive to the Expo Submission Service');
+  Log.log('Uploading your app archive to the Expo Submission Service');
   return await uploadAppArchiveAsync(resolvedPath);
 }
 
@@ -111,7 +111,7 @@ async function handleLatestSourceAsync(source: ArchiveFileLatestSource): Promise
     const artifactUrl = await getLatestBuildArtifactUrlAsync(source.platform, source.projectId);
 
     if (!artifactUrl) {
-      log.error(
+      Log.error(
         chalk.bold(
           "Couldn't find any builds for this project on EAS servers. It looks like you haven't run 'eas build' yet."
         )
@@ -124,14 +124,14 @@ async function handleLatestSourceAsync(source: ArchiveFileLatestSource): Promise
 
     return artifactUrl;
   } catch (err) {
-    log.error(err);
+    Log.error(err);
     throw err;
   }
 }
 
 async function handlePathSourceAsync(source: ArchiveFilePathSource): Promise<string> {
   if (!(await isExistingFile(source.path))) {
-    log.error(chalk.bold(`${source.path} doesn't exist`));
+    Log.error(chalk.bold(`${source.path} doesn't exist`));
     return getArchiveFileLocationAsync({
       ...source,
       sourceType: ArchiveFileSourceType.prompt,
@@ -144,8 +144,8 @@ async function handleBuildIdSourceAsync(source: ArchiveFileBuildIdSource): Promi
   try {
     return await getBuildArtifactUrlByIdAsync(source.platform, source.id);
   } catch (err) {
-    log.error(chalk.bold(`Couldn't find build for id ${source.id}`));
-    log.error(err);
+    Log.error(chalk.bold(`Couldn't find build for id ${source.id}`));
+    Log.error(err);
     return getArchiveFileLocationAsync({
       ...source,
       sourceType: ArchiveFileSourceType.prompt,

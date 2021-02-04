@@ -4,7 +4,7 @@ import ora from 'ora';
 
 import { AppleDeviceMutation } from '../../../credentials/ios/api/graphql/mutations/AppleDeviceMutation';
 import { AppleDeviceClass, AppleTeam } from '../../../graphql/generated';
-import log from '../../../log';
+import Log from '../../../log';
 import { confirmAsync, promptAsync } from '../../../prompts';
 import { isValidUDID, normalizeUDID } from '../../udids';
 
@@ -23,14 +23,14 @@ export async function runInputMethodAsync(
   accountId: string,
   appleTeam: Pick<AppleTeam, 'appleTeamIdentifier' | 'appleTeamName' | 'id'>
 ): Promise<void> {
-  log.newLine();
-  log(chalk.yellow('This is an advanced option. Use at your own risk.'));
-  log.newLine();
+  Log.newLine();
+  Log.log(chalk.yellow('This is an advanced option. Use at your own risk.'));
+  Log.newLine();
 
   let registerNextDevice = true;
   while (registerNextDevice) {
     await collectDataAndRegisterDeviceAsync({ accountId, appleTeam });
-    log.newLine();
+    Log.newLine();
     registerNextDevice = await confirmAsync({
       message: 'Do you want to register another device?',
     });
@@ -77,21 +77,21 @@ async function collectDeviceDataAsync(
     deviceClass,
   };
 
-  log.newLine();
-  log(
+  Log.newLine();
+  Log.log(
     `We are going to register the following device in our database.
 This will ${chalk.bold('not')} register the device on the Apple Developer Portal yet.`
   );
-  log.newLine();
+  Log.newLine();
   printDeviceDataSummary(deviceData, appleTeam);
-  log.newLine();
+  Log.newLine();
 
   const registrationConfirmed = await confirmAsync({
     message: 'Is this what you want to register?',
   });
   if (!registrationConfirmed) {
-    log('No worries, just try again.');
-    log.newLine();
+    Log.log('No worries, just try again.');
+    Log.newLine();
     return await collectDeviceDataAsync(appleTeam, deviceData);
   } else {
     return deviceData;
@@ -166,5 +166,5 @@ function printDeviceDataSummary(
     ['Device Name', name ?? '(empty)'],
     ['Device Class', deviceClass ? DEVICE_CLASS_DISPLAY_NAMES[deviceClass] : '(unknown)']
   );
-  log(deviceSummary.toString());
+  Log.log(deviceSummary.toString());
 }

@@ -1,6 +1,6 @@
 import isEmpty from 'lodash/isEmpty';
 
-import log from '../../log';
+import Log from '../../log';
 import { promptAsync } from '../../prompts';
 import { Action, CredentialsManager } from '../CredentialsManager';
 import { DownloadKeystore } from '../android/actions/DownloadKeystore';
@@ -32,9 +32,9 @@ export class ManageAndroidApp implements Action {
         const credentials = await ctx.android.fetchCredentialsAsync(this.projectFullName);
 
         if (isEmpty(credentials.keystore) && isEmpty(credentials.pushCredentials)) {
-          log(`No credentials available for ${this.projectFullName}.\n`);
+          Log.log(`No credentials available for ${this.projectFullName}.\n`);
         } else {
-          log.newLine();
+          Log.newLine();
           await printAndroidAppCredentials(credentials);
         }
 
@@ -71,11 +71,11 @@ export class ManageAndroidApp implements Action {
         try {
           await manager.runActionAsync(this.getAction(ctx, action));
         } catch (err) {
-          log.error(err);
+          Log.error(err);
         }
         await manager.runActionAsync(new PressAnyKeyToContinue());
       } catch (err) {
-        log.error(err);
+        Log.error(err);
         await manager.runActionAsync(new PressAnyKeyToContinue());
       }
     }

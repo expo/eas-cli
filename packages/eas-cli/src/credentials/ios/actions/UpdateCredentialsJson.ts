@@ -1,6 +1,6 @@
 import { Platform } from '@expo/eas-build-job';
 
-import log from '../../../log';
+import Log from '../../../log';
 import { ensureAppIdentifierIsDefinedAsync } from '../../../project/projectUtils';
 import { Action, CredentialsManager } from '../../CredentialsManager';
 import { Context } from '../../context';
@@ -12,9 +12,9 @@ export class UpdateCredentialsJson implements Action {
 
   async runAsync(manager: CredentialsManager, ctx: Context): Promise<void> {
     const bundleIdentifer = await ensureAppIdentifierIsDefinedAsync(ctx.projectDir, Platform.iOS);
-    log('Updating iOS credentials in credentials.json');
+    Log.log('Updating iOS credentials in credentials.json');
     await updateIosCredentialsAsync(ctx, bundleIdentifer);
-    log.succeed(
+    Log.succeed(
       'iOS part of your local credentials.json is synced with values stored on EAS servers.'
     );
   }

@@ -1,5 +1,5 @@
 import ApiV2Error from '../ApiV2Error';
-import log from '../log';
+import Log from '../log';
 import { promptAsync } from '../prompts';
 import { Actor, getUserAsync, loginAsync } from './User';
 import { retryUsernamePasswordAuthWithOTPAsync } from './otp';
@@ -41,9 +41,9 @@ export async function ensureLoggedInAsync(): Promise<Actor> {
     user = await getUserAsync();
   } catch (_) {}
   if (!user) {
-    log.warn('An Expo user account is required to proceed.');
-    log.newLine();
-    log('Log in to EAS');
+    Log.warn('An Expo user account is required to proceed.');
+    Log.newLine();
+    Log.log('Log in to EAS');
     await showLoginPromptAsync(); // TODO: login or register
     user = await getUserAsync();
     if (!user) {

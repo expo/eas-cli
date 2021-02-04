@@ -1,6 +1,6 @@
 import chalk from 'chalk';
 
-import log from '../../../log';
+import Log from '../../../log';
 import { confirmAsync } from '../../../prompts';
 import { Action, CredentialsManager } from '../../CredentialsManager';
 import { Context } from '../../context';
@@ -35,7 +35,7 @@ export class UpdateDistributionCertificate implements Action {
         message: `You are updating certificate used by ${appList}. Do you want to continue?`,
       });
       if (!confirm) {
-        log('Aborting update process');
+        Log.log('Aborting update process');
         return;
       }
     }
@@ -49,7 +49,7 @@ export class UpdateDistributionCertificate implements Action {
       this.accountName
     );
     displayIosUserCredentials(newDistCert);
-    log.newLine();
+    Log.newLine();
   }
 }
 
@@ -72,11 +72,11 @@ export class UpdateSpecificDistributionCertificate implements Action {
       this.accountName,
       newDistCert
     );
-    log.succeed('Updated distribution certificate');
-    log.newLine();
+    Log.succeed('Updated distribution certificate');
+    Log.newLine();
 
     for (const appCredentials of apps) {
-      log(
+      Log.log(
         `Removing provisioning profile for ${appCredentials.experienceName} (${appCredentials.bundleIdentifier})`
       );
       const appLookupParams = getAppLookupParams(

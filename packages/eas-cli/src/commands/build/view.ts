@@ -5,7 +5,7 @@ import ora from 'ora';
 import { apiClient } from '../../api';
 import { Build } from '../../build/types';
 import formatBuild from '../../build/utils/formatBuild';
-import log from '../../log';
+import Log from '../../log';
 import {
   findProjectRootAsync,
   getProjectAccountNameAsync,
@@ -58,7 +58,7 @@ export default class BuildView extends Command {
         spinner.succeed(`Showing the last build for the project ${projectName}`);
       }
 
-      log(`\n${formatBuild(build, { accountName })}`);
+      Log.log(`\n${formatBuild(build, { accountName })}`);
     } catch (e) {
       const error = e as HTTPError;
 

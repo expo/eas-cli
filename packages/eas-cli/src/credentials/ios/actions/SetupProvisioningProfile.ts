@@ -1,7 +1,7 @@
 import assert from 'assert';
 import pick from 'lodash/pick';
 
-import log from '../../../log';
+import Log from '../../../log';
 import { confirmAsync, promptAsync } from '../../../prompts';
 import { Action, CredentialsManager } from '../../CredentialsManager';
 import { Context } from '../../context';
@@ -65,7 +65,7 @@ export class SetupProvisioningProfile implements Action {
         return;
       }
     } else {
-      log(`Using provisioning profile: ${autoselectedProfile.provisioningProfileId}`);
+      Log.log(`Using provisioning profile: ${autoselectedProfile.provisioningProfileId}`);
     }
 
     await ctx.ios.updateProvisioningProfileAsync(
@@ -88,7 +88,7 @@ export class SetupProvisioningProfile implements Action {
     }
     if (!ctx.appStore.authCtx || !currentProfile.provisioningProfileId) {
       if (!currentProfile.provisioningProfileId) {
-        log.warn(
+        Log.warn(
           "The provisioning profile we have on file cannot be validated on Apple's servers."
         );
       }
@@ -98,7 +98,7 @@ export class SetupProvisioningProfile implements Action {
         this.app.bundleIdentifier
       );
       if (!validationResult.ok) {
-        log.warn(validationResult.error);
+        Log.warn(validationResult.error);
         return false;
       }
       return true;
@@ -110,7 +110,7 @@ export class SetupProvisioningProfile implements Action {
       this.app.bundleIdentifier
     );
     if (!validationResult.ok) {
-      log.warn(validationResult.error);
+      Log.warn(validationResult.error);
       return false;
     }
     return true;

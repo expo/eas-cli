@@ -1,6 +1,6 @@
 import assert from 'assert';
 
-import log from '../../../../log';
+import Log from '../../../../log';
 import { Action, CredentialsManager } from '../../../CredentialsManager';
 import { Context } from '../../../context';
 import { AppLookupParams } from '../../api/GraphqlClient';
@@ -30,6 +30,6 @@ export class CreateDistributionCertificate implements Action {
       this.app,
       distCert
     );
-    log.succeed('Created distribution certificate');
+    Log.succeed('Created distribution certificate');
   }
 }

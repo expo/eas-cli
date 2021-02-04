@@ -1,6 +1,6 @@
 import chalk from 'chalk';
 
-import log from '../../../log';
+import Log from '../../../log';
 import { Action, CredentialsManager } from '../../CredentialsManager';
 import { Context } from '../../context';
 import { askForUserProvidedAsync } from '../../utils/promptForCredentials';
@@ -17,7 +17,7 @@ export class UpdateKeystore implements Action {
     const keystore = await this.provideOrGenerateAsync();
 
     await ctx.android.updateKeystoreAsync(this.projectFullName, keystore);
-    log.succeed('Keystore updated');
+    Log.succeed('Keystore updated');
   }
 
   private async provideOrGenerateAsync(): Promise<Keystore> {
@@ -30,17 +30,17 @@ export class UpdateKeystore implements Action {
   }
 
   private displayWarning() {
-    log.newLine();
-    log.warn(
+    Log.newLine();
+    Log.warn(
       `Updating your Android build credentials will remove previous version from our servers, this is a ${chalk.bold(
         'PERMANENT and IRREVERSIBLE action.'
       )}`
     );
-    log.warn(
+    Log.warn(
       chalk.bold(
         'Android Keystore must be identical to the one previously used to submit your app to the Google Play Store.'
       )
     );
-    log.newLine();
+    Log.newLine();
   }
 }

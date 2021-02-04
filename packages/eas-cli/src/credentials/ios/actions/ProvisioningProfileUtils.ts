@@ -1,6 +1,6 @@
 import chalk from 'chalk';
 
-import log from '../../../log';
+import Log from '../../../log';
 import { promptAsync } from '../../../prompts';
 import { Context } from '../../context';
 import {
@@ -16,7 +16,7 @@ export async function selectProvisioningProfileFromAppleAsync(
 ): Promise<ProvisioningProfileStoreInfo | null> {
   const profiles = await ctx.appStore.listProvisioningProfilesAsync(bundleIdentifier);
   if (profiles.length === 0) {
-    log.warn(
+    Log.warn(
       `There are no provisioning profiles available on Apple Developer Portal for bundle identifier ${bundleIdentifier}.`
     );
     return null;
@@ -53,7 +53,7 @@ export async function selectProvisioningProfileFromExpoAsync(
     ({ credentials }) => !!credentials.provisioningProfile && !!credentials.provisioningProfileId
   );
   if (profiles.length === 0) {
-    log.warn('There are no provisioning profiles available in your Expo account.');
+    Log.warn('There are no provisioning profiles available in your Expo account.');
     return null;
   }
 

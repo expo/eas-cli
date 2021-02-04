@@ -1,6 +1,6 @@
 import { DistributionType } from '@expo/eas-json';
 
-import log from '../../log';
+import Log from '../../log';
 import { getProjectAccountName } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
 import { ensureActorHasUsername } from '../../user/actions';
@@ -95,11 +95,11 @@ export class ManageIos implements Action {
         try {
           await manager.runActionAsync(this.getAction(manager, ctx, accountName, action));
         } catch (err) {
-          log.error(err);
+          Log.error(err);
         }
         await manager.runActionAsync(new PressAnyKeyToContinue());
       } catch (err) {
-        log.error(err);
+        Log.error(err);
         await manager.runActionAsync(new PressAnyKeyToContinue());
       }
     }

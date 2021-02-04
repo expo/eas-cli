@@ -1,6 +1,6 @@
 import chalk from 'chalk';
 
-import log, { learnMore } from '../../../log';
+import Log, { learnMore } from '../../../log';
 import { promptAsync } from '../../../prompts';
 import { CredentialsManager } from '../../CredentialsManager';
 import { Context } from '../../context';
@@ -39,14 +39,14 @@ export async function provideOrGenerateDistributionCertificateAsync(
     const userProvided = await promptForDistCertAsync(ctx);
     if (userProvided) {
       if (!ctx.appStore.authCtx) {
-        log.warn(
+        Log.warn(
           'Unable to validate distribution certificate due to insufficient Apple Credentials'
         );
         return userProvided;
       } else {
         const isValid = await validateDistributionCertificateAsync(ctx, userProvided);
         if (!isValid) {
-          log.warn("Provided Distribution Certificate is no longer valid on Apple's server");
+          Log.warn("Provided Distribution Certificate is no longer valid on Apple's server");
         }
         return isValid
           ? userProvided
@@ -88,8 +88,8 @@ async function generateDistributionCertificateAsync(
   } catch (e) {
     if (e instanceof AppleTooManyCertsError) {
       const distCerts = await ctx.appStore.listDistributionCertificatesAsync();
-      log.warn('Maximum number of Distribution Certificates generated on Apple Developer Portal.');
-      log.warn(APPLE_DIST_CERTS_TOO_MANY_GENERATED_ERROR);
+      Log.warn('Maximum number of Distribution Certificates generated on Apple Developer Portal.');
+      Log.warn(APPLE_DIST_CERTS_TOO_MANY_GENERATED_ERROR);
 
       if (ctx.nonInteractive) {
         throw new Error(
@@ -97,13 +97,13 @@ async function generateDistributionCertificateAsync(
         );
       }
 
-      log(
+      Log.log(
         chalk.grey(
           `✅  Distribution Certificates can be revoked with no side effects for App Store builds.`
         )
       );
-      log(learnMore('https://docs.expo.io/distribution/app-signing/#summary'));
-      log.newLine();
+      Log.log(learnMore('https://docs.expo.io/distribution/app-signing/#summary'));
+      Log.newLine();
 
       const { distCertsToRevoke } = await promptAsync({
         type: 'multiselect',
@@ -151,7 +151,7 @@ export async function selectDistributionCertificateAsync(
     options.filterInvalid && validDistCredentials ? validDistCredentials : distCredentials;
 
   if (distCredentials.length === 0) {
-    log.warn('There are no Distribution Certificates available in your Expo account.');
+    Log.warn('There are no Distribution Certificates available in your Expo account.');
     return null;
   }
 
@@ -241,7 +241,7 @@ export async function getValidDistCertsAsync(
     (cred): cred is IosDistCredentials => cred.type === 'dist-cert'
   );
   if (!ctx.appStore.authCtx) {
-    log(chalk.yellow(`Unable to determine validity of Distribution Certificates.`));
+    Log.log(chalk.yellow(`Unable to determine validity of Distribution Certificates.`));
     return distCredentials;
   }
   const certInfoFromApple = await ctx.appStore.listDistributionCertificatesAsync();

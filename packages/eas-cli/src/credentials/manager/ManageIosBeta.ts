@@ -1,4 +1,4 @@
-import log from '../../log';
+import Log from '../../log';
 import { getProjectAccountName, getProjectConfigDescription } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
 import { findAccountByName } from '../../user/Account';
@@ -69,11 +69,11 @@ export class ManageIosBeta implements Action {
         try {
           await manager.runActionAsync(this.getAction(ctx, accountName, action));
         } catch (err) {
-          log.error(err);
+          Log.error(err);
         }
         await manager.runActionAsync(new PressAnyKeyToContinue());
       } catch (err) {
-        log.error(err);
+        Log.error(err);
         await manager.runActionAsync(new PressAnyKeyToContinue());
       } finally {
         // TODO remove finally block before committing!

@@ -1,7 +1,7 @@
 import { Command } from '@oclif/command';
 import chalk from 'chalk';
 
-import log from '../../log';
+import Log from '../../log';
 import { getUserAsync } from '../../user/User';
 import { getActorDisplayName } from '../../user/actions';
 
@@ -13,9 +13,9 @@ export default class AccountView extends Command {
   async run() {
     const user = await getUserAsync();
     if (user) {
-      log(chalk.green(getActorDisplayName(user)));
+      Log.log(chalk.green(getActorDisplayName(user)));
     } else {
-      log.warn('Not logged in');
+      Log.warn('Not logged in');
       process.exit(1);
     }
   }

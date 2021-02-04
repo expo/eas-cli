@@ -3,7 +3,7 @@ import chalk from 'chalk';
 import * as fs from 'fs-extra';
 import wrapAnsi from 'wrap-ansi';
 
-import log, { learnMore } from '../../../log';
+import Log, { learnMore } from '../../../log';
 import { promptAsync } from '../../../prompts';
 import * as Keychain from './keychain';
 
@@ -44,7 +44,7 @@ function getAppleIdFromEnvironmentOrOptions({
 }
 
 async function promptUsernameAsync(): Promise<string> {
-  log('\u203A Log in to your Apple Developer account to continue');
+  Log.log('\u203A Log in to your Apple Developer account to continue');
 
   // Get the email address that was last used and set it as
   // the default value for quicker authentication.
@@ -80,13 +80,13 @@ export async function promptPasswordAsync({
   const cachedPassword = await getCachedPasswordAsync({ username });
 
   if (cachedPassword) {
-    log(`\u203A Using password for ${username} from your local Keychain`);
-    log(`  ${learnMore('https://docs.expo.io/distribution/security#keychain')}`);
+    Log.log(`\u203A Using password for ${username} from your local Keychain`);
+    Log.log(`  ${learnMore('https://docs.expo.io/distribution/security#keychain')}`);
     return cachedPassword;
   }
 
   // https://docs.expo.io/distribution/security/#apple-developer-account-credentials
-  log(
+  Log.log(
     wrapAnsi(
       chalk.bold(
         `\u203A The password is only used to authenticate with Apple and never stored on EAS servers`
@@ -94,7 +94,7 @@ export async function promptPasswordAsync({
       process.stdout.columns || 80
     )
   );
-  log(`  ${learnMore('https://bit.ly/2VtGWhU')}`);
+  Log.log(`  ${learnMore('https://bit.ly/2VtGWhU')}`);
 
   const { password } = await promptAsync({
     type: 'password',
@@ -135,7 +135,7 @@ export async function deletePasswordAsync({
   const serviceName = getKeychainServiceName(username);
   const success = await Keychain.deletePasswordAsync({ username, serviceName });
   if (success) {
-    log('\u203A Removed Apple ID password from the native Keychain');
+    Log.log('\u203A Removed Apple ID password from the native Keychain');
   }
   return success;
 }
@@ -155,12 +155,12 @@ async function getCachedPasswordAsync({
 
 async function cachePasswordAsync({ username, password }: Auth.UserCredentials): Promise<boolean> {
   if (Keychain.EXPO_NO_KEYCHAIN) {
-    log('\u203A Skip storing Apple ID password in the local Keychain.');
+    Log.log('\u203A Skip storing Apple ID password in the local Keychain.');
     return false;
   }
 
-  log(`\u203A Saving Apple ID password to the local Keychain`);
-  log(`  ${learnMore('https://docs.expo.io/distribution/security#keychain')}`);
+  Log.log(`\u203A Saving Apple ID password to the local Keychain`);
+  Log.log(`  ${learnMore('https://docs.expo.io/distribution/security#keychain')}`);
   const serviceName = getKeychainServiceName(username);
   return Keychain.setPasswordAsync({ username, password, serviceName });
 }

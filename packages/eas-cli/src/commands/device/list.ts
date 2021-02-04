@@ -6,7 +6,7 @@ import ora from 'ora';
 import { AppleDeviceQuery } from '../../credentials/ios/api/graphql/queries/AppleDeviceQuery';
 import { AppleTeamQuery } from '../../credentials/ios/api/graphql/queries/AppleTeamQuery';
 import formatDevice from '../../devices/utils/formatDevice';
-import log from '../../log';
+import Log from '../../log';
 import { findProjectRootAsync, getProjectAccountNameAsync } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
 
@@ -79,7 +79,7 @@ export default class BuildList extends Command {
           )
           .join(`\n\n${chalk.dim('———')}\n\n`);
 
-        log(`\n${list}`);
+        Log.log(`\n${list}`);
       } else {
         spinner.fail(`Couldn't find any devices for the team ${appleTeamIdentifier}`);
       }

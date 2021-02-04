@@ -6,7 +6,7 @@ import {
   IosAppBuildCredentialsFragment,
   IosDistributionType,
 } from '../../../graphql/generated';
-import log from '../../../log';
+import Log from '../../../log';
 import { fromNow } from '../../../utils/date';
 import { AppLookupParams } from '../api/GraphqlClient';
 
@@ -27,10 +27,10 @@ function prettyIosDistributionType(distributionType: IosDistributionType): strin
 
 export function displayEmptyIosCredentials(appLookupParams: AppLookupParams): void {
   const { projectName, bundleIdentifier } = appLookupParams;
-  log(chalk.bold(`iOS Credentials`));
-  log(`  Project: ${projectName}`);
-  log(`  Bundle Identifier: ${bundleIdentifier}`);
-  log(`  No credentials set up yet!`);
+  Log.log(chalk.bold(`iOS Credentials`));
+  Log.log(`  Project: ${projectName}`);
+  Log.log(`  Bundle Identifier: ${bundleIdentifier}`);
+  Log.log(`  No credentials set up yet!`);
 }
 
 /**
@@ -56,19 +56,19 @@ function sortBuildCredentialsByDistributionType(
 }
 
 export function displayIosAppCredentials(credentials: CommonIosAppCredentialsFragment): void {
-  log(chalk.bold(`iOS Credentials`));
-  log(`  Project: ${credentials.app.fullName}`);
-  log(`  Bundle Identifier: ${credentials.appleAppIdentifier.bundleIdentifier}`);
+  Log.log(chalk.bold(`iOS Credentials`));
+  Log.log(`  Project: ${credentials.app.fullName}`);
+  Log.log(`  Bundle Identifier: ${credentials.appleAppIdentifier.bundleIdentifier}`);
   const appleTeam = credentials.appleTeam;
   if (appleTeam) {
     const { appleTeamIdentifier, appleTeamName } = appleTeam;
-    log(`  Apple Team: ${appleTeamIdentifier} ${appleTeamName ? `(${appleTeamName})` : ''}`);
+    Log.log(`  Apple Team: ${appleTeamIdentifier} ${appleTeamName ? `(${appleTeamName})` : ''}`);
   }
-  log.newLine();
+  Log.newLine();
 
   if (credentials.iosAppBuildCredentialsArray.length === 0) {
-    log(`  Configuration: None setup yet`);
-    log.newLine();
+    Log.log(`  Configuration: None setup yet`);
+    Log.newLine();
     return;
   }
   const sortedIosAppBuildCredentialsArray = sortBuildCredentialsByDistributionType(
@@ -80,43 +80,47 @@ export function displayIosAppCredentials(credentials: CommonIosAppCredentialsFra
 }
 
 function displayIosAppBuildCredentials(buildCredentials: IosAppBuildCredentialsFragment): void {
-  log(
+  Log.log(
     chalk.bold(
       `  Configuration: ${prettyIosDistributionType(buildCredentials.iosDistributionType)}`
     )
   );
   const maybeDistCert = buildCredentials.distributionCertificate;
-  log(`  Distribution Certificate:`);
+  Log.log(`  Distribution Certificate:`);
   if (maybeDistCert) {
     const { serialNumber, updatedAt, validityNotAfter, appleTeam } = maybeDistCert;
-    log(`    Serial Number: ${serialNumber}`);
-    log(`    Expiration Date: ${dateformat(validityNotAfter, 'expiresHeaderFormat')}`);
+    Log.log(`    Serial Number: ${serialNumber}`);
+    Log.log(`    Expiration Date: ${dateformat(validityNotAfter, 'expiresHeaderFormat')}`);
     if (appleTeam) {
       const { appleTeamIdentifier, appleTeamName } = appleTeam;
-      log(`    Apple Team: ${appleTeamIdentifier} ${appleTeamName ? `(${appleTeamName})` : ''}`);
+      Log.log(
+        `    Apple Team: ${appleTeamIdentifier} ${appleTeamName ? `(${appleTeamName})` : ''}`
+      );
     }
-    log(`    Updated ${fromNow(new Date(updatedAt))} ago`);
+    Log.log(`    Updated ${fromNow(new Date(updatedAt))} ago`);
   } else {
-    log(`    None assigned yet`);
+    Log.log(`    None assigned yet`);
   }
-  log.newLine();
+  Log.newLine();
 
   const maybeProvProf = buildCredentials.provisioningProfile;
-  log(`  Provisioning Profile:`);
+  Log.log(`  Provisioning Profile:`);
   if (maybeProvProf) {
     const { expiration, updatedAt, status, developerPortalIdentifier, appleTeam } = maybeProvProf;
     if (developerPortalIdentifier) {
-      log(`    Developer Portal ID: ${developerPortalIdentifier}`);
+      Log.log(`    Developer Portal ID: ${developerPortalIdentifier}`);
     }
-    log(`    Status: ${status}`);
-    log(`    Expiration Date: ${dateformat(expiration, 'expiresHeaderFormat')}`);
+    Log.log(`    Status: ${status}`);
+    Log.log(`    Expiration Date: ${dateformat(expiration, 'expiresHeaderFormat')}`);
     if (appleTeam) {
       const { appleTeamIdentifier, appleTeamName } = appleTeam;
-      log(`    Apple Team: ${appleTeamIdentifier} ${appleTeamName ? `(${appleTeamName})` : ''}`);
+      Log.log(
+        `    Apple Team: ${appleTeamIdentifier} ${appleTeamName ? `(${appleTeamName})` : ''}`
+      );
     }
-    log(`    Updated ${fromNow(new Date(updatedAt))} ago`);
+    Log.log(`    Updated ${fromNow(new Date(updatedAt))} ago`);
   } else {
-    log(`    None assigned yet`);
+    Log.log(`    None assigned yet`);
   }
-  log.newLine();
+  Log.newLine();
 }

@@ -5,7 +5,7 @@ import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
 import { UpdateChannel } from '../../graphql/generated';
-import log from '../../log';
+import Log from '../../log';
 import { ensureProjectExistsAsync } from '../../project/ensureProjectExists';
 import {
   findProjectRootAsync,
@@ -142,11 +142,11 @@ export default class ChannelCreate extends Command {
     });
 
     if (jsonFlag) {
-      log(newChannel);
+      Log.log(newChannel);
       return;
     }
 
-    log.withTick(
+    Log.withTick(
       `️Created a new channel ${chalk.bold(newChannel.channelName)} on project ${chalk.bold(
         `@${accountName}/${slug}`
       )}. ${releaseMessage} and have pointed the channel at it. You can now update your app by publishing!`

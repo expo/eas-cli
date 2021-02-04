@@ -6,7 +6,7 @@ import { format } from 'timeago.js';
 
 import { graphqlClient } from '../../graphql/client';
 import { RootQuery, Update, UpdateRelease } from '../../graphql/generated';
-import log from '../../log';
+import Log from '../../log';
 import { findProjectRootAsync, getProjectFullNameAsync } from '../../project/projectUtils';
 import { getActorDisplayName } from '../../user/actions';
 
@@ -34,7 +34,7 @@ export default class ReleaseList extends Command {
     const fullName = await getProjectFullNameAsync(projectDir);
     const releases = await this.listReleasesAsync({ fullName });
     if (flags.json) {
-      log(JSON.stringify(releases, null, 2));
+      Log.log(JSON.stringify(releases, null, 2));
     } else {
       const table = new CliTable({ head: ['Release', 'Latest update'] });
       table.push(
@@ -43,9 +43,9 @@ export default class ReleaseList extends Command {
           formatUpdate(release.updates[0]),
         ])
       );
-      log(table.toString());
+      Log.log(table.toString());
       if (releases.length >= RELEASES_LIMIT) {
-        log.warn(`Showing first ${RELEASES_LIMIT} releases, some results might be omitted.`);
+        Log.warn(`Showing first ${RELEASES_LIMIT} releases, some results might be omitted.`);
       }
     }
   }

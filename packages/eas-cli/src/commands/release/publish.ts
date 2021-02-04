@@ -5,7 +5,7 @@ import Table from 'cli-table3';
 import ora from 'ora';
 
 import { PublishMutation } from '../../graphql/mutations/PublishMutation';
-import log from '../../log';
+import Log from '../../log';
 import { ensureProjectExistsAsync } from '../../project/ensureProjectExists';
 import {
   findProjectRootAsync,
@@ -128,7 +128,7 @@ export default class ReleasePublish extends Command {
     }
 
     if (jsonFlag) {
-      log(newUpdateGroup);
+      Log.log(newUpdateGroup);
     } else {
       const outputMessage = new Table({
         wordWrap: true,
@@ -158,7 +158,7 @@ export default class ReleasePublish extends Command {
         [chalk.dim('updateGroupID'), newUpdateGroup.updateGroup],
         [chalk.dim('message'), updateMessage]
       );
-      log(outputMessage.toString());
+      Log.log(outputMessage.toString());
     }
   }
 }

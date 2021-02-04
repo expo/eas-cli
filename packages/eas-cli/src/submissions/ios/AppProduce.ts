@@ -8,7 +8,7 @@ import {
   ensureAppExistsAsync,
   ensureBundleIdExistsWithNameAsync,
 } from '../../credentials/ios/appstore/ensureAppExists';
-import log from '../../log';
+import Log from '../../log';
 import { getAppIdentifierAsync } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
 import { IosSubmissionContext } from '../types';
@@ -81,7 +81,7 @@ async function createAppStoreConnectAppAsync(options: CreateAppOptions): Promise
   });
   const requestCtx = getRequestContext(authCtx);
 
-  log.addNewLineIfNone();
+  Log.addNewLineIfNone();
 
   if (await isProvisioningAvailableAsync(requestCtx)) {
     await ensureBundleIdExistsWithNameAsync(authCtx, {
@@ -89,7 +89,7 @@ async function createAppStoreConnectAppAsync(options: CreateAppOptions): Promise
       bundleIdentifier: bundleId,
     });
   } else {
-    log.warn(
+    Log.warn(
       `Provisioning is not available for user "${authCtx.appleId}", skipping bundle identifier check.`
     );
   }
@@ -115,13 +115,13 @@ async function createAppStoreConnectAppAsync(options: CreateAppOptions): Promise
       // UnexpectedAppleResponse: The provided entity includes an attribute with a value that has already been used on a different account. - The App Name you entered is already being used. If you have trademark rights to
       // this name and would like it released for your use, submit a claim.
     ) {
-      log.addNewLineIfNone();
-      log.warn(
+      Log.addNewLineIfNone();
+      Log.warn(
         `Change the name in your app config, or use a custom name with the ${chalk.bold(
           '--app-name'
         )} flag`
       );
-      log.newLine();
+      Log.newLine();
     }
     throw error;
   }

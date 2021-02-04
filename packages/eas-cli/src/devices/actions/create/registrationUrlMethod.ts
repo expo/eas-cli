@@ -6,20 +6,20 @@ import { URL } from 'url';
 import { getExpoWebsiteBaseUrl } from '../../../api';
 import { AppleDeviceRegistrationRequestMutation } from '../../../credentials/ios/api/graphql/mutations/AppleDeviceRegistrationRequestMutation';
 import { AppleTeam } from '../../../graphql/generated';
-import log from '../../../log';
+import Log from '../../../log';
 
 export async function runRegistrationUrlMethodAsync(
   accountId: string,
   appleTeam: Pick<AppleTeam, 'id'>
 ): Promise<void> {
   const registrationURL = await generateDeviceRegistrationURLAsync(accountId, appleTeam);
-  log.newLine();
+  Log.newLine();
   qrcodeTerminal.generate(registrationURL, code => console.log(`${indentString(code, 2)}\n`));
-  log(
+  Log.log(
     'Open the following link on your iOS devices (or scan the QR code) and follow the instructions to install the development profile:'
   );
-  log.newLine();
-  log(chalk.green(`${registrationURL}`));
+  Log.newLine();
+  Log.log(chalk.green(`${registrationURL}`));
 }
 
 async function generateDeviceRegistrationURLAsync(

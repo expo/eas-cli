@@ -3,7 +3,7 @@ import { CredentialsSource } from '@expo/eas-json';
 import chalk from 'chalk';
 
 import { CredentialsProvider } from '../credentials/CredentialsProvider';
-import log from '../log';
+import Log from '../log';
 import { confirmAsync, promptAsync } from '../prompts';
 import { platformDisplayNames } from './constants';
 
@@ -11,7 +11,7 @@ function logCredentials(target: 'local' | 'remote', platform: Platform) {
   let message = `Using ${target} ${platformDisplayNames[platform]} credentials`;
   if (target === 'local') message += ` ${chalk.dim('(credentials.json)')}`;
   if (target === 'remote') message += ` ${chalk.dim('(Expo server)')}`;
-  log.succeed(message);
+  Log.succeed(message);
 }
 
 async function ensureCredentialsAutoAsync(
@@ -37,7 +37,7 @@ async function ensureCredentialsAutoAsync(
               `Contents of your local credentials.json for ${platform} are not the same as credentials on EAS servers. To use the desired credentials, set the "builds.${platform}.{profile}.credentialsSource" field in the credentials.json file to one of the following: "local", "remote".`
             );
           } else {
-            log(
+            Log.log(
               `Contents of your local credentials.json for ${platform} are not the same as credentials on EAS servers`
             );
           }
@@ -66,8 +66,8 @@ async function ensureCredentialsAutoAsync(
           throw new Error(
             `Credentials for this app are not configured and there is no entry in credentials.json for ${platform}. Either configure credentials.json, or launch the build without "--non-interactive" flag to get a prompt to generate credentials automatically.`
           );
-        } else if (log.isDebug) {
-          log.warn(
+        } else if (Log.isDebug) {
+          Log.warn(
             `Credentials for this app are not configured and there is no entry in credentials.json for ${platform}`
           );
         }
