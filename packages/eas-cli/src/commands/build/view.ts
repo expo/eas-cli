@@ -19,7 +19,7 @@ export default class BuildView extends Command {
   static args = [{ name: 'BUILD_ID' }];
 
   async run() {
-    const { buildId } = this.parse(BuildView).args;
+    const { BUILD_ID: buildId } = this.parse(BuildView).args;
 
     const projectDir = (await findProjectRootAsync()) ?? process.cwd();
     const projectId = await getProjectIdAsync(projectDir);

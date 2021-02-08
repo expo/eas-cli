@@ -8,7 +8,7 @@ import { Platform } from '../../build/types';
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
 import { AppPlatform, Build, BuildStatus } from '../../graphql/generated';
 import { BuildQuery } from '../../graphql/queries/BuildQuery';
-import log from '../../log';
+import Log from '../../log';
 import {
   findProjectRootAsync,
   getProjectFullNameAsync,
@@ -53,9 +53,9 @@ function formatUnfinishedBuild(
 
 async function selectBuildToCancelAsync(
   projectId: string,
-  fullProjectName: string
+  projectFullName: string
 ): Promise<string | null> {
-  const spinner = ora().start('Fetching the unfinished builds…');
+  const spinner = ora().start('Fetching the uncompleted builds…');
   let builds;
   try {
     const [inQueueBuilds, inProgressBuilds] = await Promise.all([
@@ -66,16 +66,16 @@ async function selectBuildToCancelAsync(
     builds = [...inQueueBuilds, ...inProgressBuilds];
   } catch (error) {
     spinner.fail(
-      `Something went wrong and we couldn't fetch the builds for the project ${fullProjectName}.`
+      `Something went wrong and we couldn't fetch the builds for the project ${projectFullName}.`
     );
     throw error;
   }
   if (builds.length === 0) {
-    log.warn(`There are no unfinished builds for the project ${fullProjectName}.`);
+    Log.warn(`There aren't any uncompleted builds for the project ${projectFullName}.`);
     return null;
   } else if (builds.length === 1) {
-    log('Found one build');
-    log(formatUnfinishedBuild(builds[0]));
+    Log.log('Found one build');
+    Log.log(formatUnfinishedBuild(builds[0]));
     await confirmAsync({
       message: 'Do you want to cancel it?',
     });
@@ -88,24 +88,35 @@ async function selectBuildToCancelAsync(
         value: build.id,
       }))
     );
-    log(buildId);
     return buildId;
   }
 }
 
+async function ensureBuildExistsAsync(buildId: string): Promise<void> {
+  try {
+    await BuildQuery.byIdAsync(buildId);
+  } catch (err) {
+    throw new Error(`Couldn't find a build matching the id ${buildId}`);
+  }
+}
+
 export default class BuildCancel extends Command {
-  static description = 'cancel an unfinished build';
+  static description = 'Cancel a build.';
 
   static args = [{ name: 'BUILD_ID' }];
 
   async run() {
-    const { buildId: buildIdFromArg } = this.parse(BuildCancel).args;
+    const { BUILD_ID: buildIdFromArg } = this.parse(BuildCancel).args;
 
     const projectDir = (await findProjectRootAsync()) ?? process.cwd();
     const projectId = await getProjectIdAsync(projectDir);
-    const fullProjectName = await getProjectFullNameAsync(projectDir);
+    const projectFullName = await getProjectFullNameAsync(projectDir);
 
-    const buildId = buildIdFromArg || (await selectBuildToCancelAsync(projectId, fullProjectName));
+    if (buildIdFromArg) {
+      await ensureBuildExistsAsync(buildIdFromArg);
+    }
+
+    const buildId = buildIdFromArg || (await selectBuildToCancelAsync(projectId, projectFullName));
     if (!buildId) {
       return;
     }
@@ -116,13 +127,11 @@ export default class BuildCancel extends Command {
       if (status === BuildStatus.Canceled) {
         spinner.succeed('Build canceled');
       } else {
-        spinner.text = 'Build already finished';
+        spinner.text = 'Build is already completed';
         spinner.stopAndPersist();
       }
     } catch (error) {
-      spinner.fail(
-        `Something went wrong and we couldn't fetch the last build for the project ${fullProjectName}`
-      );
+      spinner.fail(`Something went wrong and we couldn't cancel your build ${buildId}`);
       throw error;
     }
   }
