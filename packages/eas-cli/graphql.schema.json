@@ -3078,18 +3078,6 @@
             "deprecationReason": null
           },
           {
-            "name": "bio",
-            "description": "",
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
             "name": "industry",
             "description": "",
             "args": [],
@@ -3139,18 +3127,6 @@
           },
           {
             "name": "twitterUsername",
-            "description": "",
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "personalLink",
             "description": "",
             "args": [],
             "type": {
@@ -4419,6 +4395,12 @@
             "description": "",
             "isDeprecated": false,
             "deprecationReason": null
+          },
+          {
+            "name": "CANCELED",
+            "description": "",
+            "isDeprecated": false,
+            "deprecationReason": null
           }
         ],
         "possibleTypes": null
@@ -5316,7 +5298,7 @@
             "deprecationReason": null
           },
           {
-            "name": "iosAppBuildCredentialsArray",
+            "name": "iosAppBuildCredentialsList",
             "description": "",
             "args": [
               {
@@ -5361,6 +5343,41 @@
             },
             "isDeprecated": false,
             "deprecationReason": null
+          },
+          {
+            "name": "iosAppBuildCredentialsArray",
+            "description": "",
+            "args": [
+              {
+                "name": "filter",
+                "description": null,
+                "type": {
+                  "kind": "INPUT_OBJECT",
+                  "name": "IosAppBuildCredentialsFilter",
+                  "ofType": null
+                },
+                "defaultValue": null
+              }
+            ],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "LIST",
+                "name": null,
+                "ofType": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "OBJECT",
+                    "name": "IosAppBuildCredentials",
+                    "ofType": null
+                  }
+                }
+              }
+            },
+            "isDeprecated": true,
+            "deprecationReason": "use iosAppBuildCredentialsList instead"
           }
         ],
         "inputFields": null,
@@ -5828,6 +5845,30 @@
             },
             "isDeprecated": false,
             "deprecationReason": null
+          },
+          {
+            "name": "iosAppBuildCredentialsList",
+            "description": "",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "LIST",
+                "name": null,
+                "ofType": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "OBJECT",
+                    "name": "IosAppBuildCredentials",
+                    "ofType": null
+                  }
+                }
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
           }
         ],
         "inputFields": null,
@@ -5837,7 +5878,7 @@
       },
       {
         "kind": "OBJECT",
-        "name": "ApplePushKey",
+        "name": "IosAppBuildCredentials",
         "description": "",
         "fields": [
           {
@@ -5857,7 +5898,47 @@
             "deprecationReason": null
           },
           {
-            "name": "account",
+            "name": "distributionCertificate",
+            "description": "",
+            "args": [],
+            "type": {
+              "kind": "OBJECT",
+              "name": "AppleDistributionCertificate",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "provisioningProfile",
+            "description": "",
+            "args": [],
+            "type": {
+              "kind": "OBJECT",
+              "name": "AppleProvisioningProfile",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "iosDistributionType",
+            "description": "",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "ENUM",
+                "name": "IosDistributionType",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "iosAppCredentials",
             "description": "",
             "args": [],
             "type": {
@@ -5865,7 +5946,7 @@
               "name": null,
               "ofType": {
                 "kind": "OBJECT",
-                "name": "Account",
+                "name": "IosAppCredentials",
                 "ofType": null
               }
             },
@@ -5873,80 +5954,20 @@
             "deprecationReason": null
           },
           {
-            "name": "appleTeam",
+            "name": "appleDevices",
             "description": "",
             "args": [],
             "type": {
-              "kind": "OBJECT",
-              "name": "AppleTeam",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "keyIdentifier",
-            "description": "",
-            "args": [],
-            "type": {
-              "kind": "NON_NULL",
+              "kind": "LIST",
               "name": null,
               "ofType": {
-                "kind": "SCALAR",
-                "name": "String",
+                "kind": "OBJECT",
+                "name": "AppleDevice",
                 "ofType": null
               }
             },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "keyP8",
-            "description": "",
-            "args": [],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "SCALAR",
-                "name": "String",
-                "ofType": null
-              }
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "createdAt",
-            "description": "",
-            "args": [],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "SCALAR",
-                "name": "DateTime",
-                "ofType": null
-              }
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "updatedAt",
-            "description": "",
-            "args": [],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "SCALAR",
-                "name": "DateTime",
-                "ofType": null
-              }
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
+            "isDeprecated": true,
+            "deprecationReason": "Get Apple Devices from AppleProvisioningProfile instead"
           }
         ],
         "inputFields": null,
@@ -6312,27 +6333,6 @@
         "possibleTypes": null
       },
       {
-        "kind": "INPUT_OBJECT",
-        "name": "IosAppBuildCredentialsFilter",
-        "description": "",
-        "fields": null,
-        "inputFields": [
-          {
-            "name": "iosDistributionType",
-            "description": "",
-            "type": {
-              "kind": "ENUM",
-              "name": "IosDistributionType",
-              "ofType": null
-            },
-            "defaultValue": null
-          }
-        ],
-        "interfaces": null,
-        "enumValues": null,
-        "possibleTypes": null
-      },
-      {
         "kind": "ENUM",
         "name": "IosDistributionType",
         "description": "",
@@ -6369,7 +6369,7 @@
       },
       {
         "kind": "OBJECT",
-        "name": "IosAppBuildCredentials",
+        "name": "ApplePushKey",
         "description": "",
         "fields": [
           {
@@ -6389,39 +6389,15 @@
             "deprecationReason": null
           },
           {
-            "name": "distributionCertificate",
-            "description": "",
-            "args": [],
-            "type": {
-              "kind": "OBJECT",
-              "name": "AppleDistributionCertificate",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "provisioningProfile",
-            "description": "",
-            "args": [],
-            "type": {
-              "kind": "OBJECT",
-              "name": "AppleProvisioningProfile",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "iosDistributionType",
+            "name": "account",
             "description": "",
             "args": [],
             "type": {
               "kind": "NON_NULL",
               "name": null,
               "ofType": {
-                "kind": "ENUM",
-                "name": "IosDistributionType",
+                "kind": "OBJECT",
+                "name": "Account",
                 "ofType": null
               }
             },
@@ -6429,24 +6405,105 @@
             "deprecationReason": null
           },
           {
-            "name": "appleDevices",
+            "name": "appleTeam",
             "description": "",
             "args": [],
             "type": {
-              "kind": "LIST",
+              "kind": "OBJECT",
+              "name": "AppleTeam",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "keyIdentifier",
+            "description": "",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
               "name": null,
               "ofType": {
-                "kind": "OBJECT",
-                "name": "AppleDevice",
+                "kind": "SCALAR",
+                "name": "String",
                 "ofType": null
               }
             },
-            "isDeprecated": true,
-            "deprecationReason": "Get Apple Devices from AppleProvisioningProfile instead"
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "keyP8",
+            "description": "",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "createdAt",
+            "description": "",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "DateTime",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "updatedAt",
+            "description": "",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "DateTime",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
           }
         ],
         "inputFields": null,
         "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "INPUT_OBJECT",
+        "name": "IosAppBuildCredentialsFilter",
+        "description": "",
+        "fields": null,
+        "inputFields": [
+          {
+            "name": "iosDistributionType",
+            "description": "",
+            "type": {
+              "kind": "ENUM",
+              "name": "IosDistributionType",
+              "ofType": null
+            },
+            "defaultValue": null
+          }
+        ],
+        "interfaces": null,
         "enumValues": null,
         "possibleTypes": null
       },
@@ -6543,7 +6600,7 @@
             "deprecationReason": null
           },
           {
-            "name": "androidAppBuildCredentialsArray",
+            "name": "androidAppBuildCredentialsList",
             "description": "",
             "args": [],
             "type": {
@@ -6581,6 +6638,30 @@
             },
             "isDeprecated": false,
             "deprecationReason": null
+          },
+          {
+            "name": "androidAppBuildCredentialsArray",
+            "description": "",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "LIST",
+                "name": null,
+                "ofType": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "OBJECT",
+                    "name": "AndroidAppBuildCredentials",
+                    "ofType": null
+                  }
+                }
+              }
+            },
+            "isDeprecated": true,
+            "deprecationReason": "use androidAppBuildCredentialsList instead"
           }
         ],
         "inputFields": null,
@@ -10069,6 +10150,33 @@
             "deprecationReason": null
           },
           {
+            "name": "build",
+            "description": "Mutations that modify an EAS Build",
+            "args": [
+              {
+                "name": "buildId",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "ID",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null
+              }
+            ],
+            "type": {
+              "kind": "OBJECT",
+              "name": "BuildMutation",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "iosAppBuildCredentials",
             "description": "Mutations that modify the build credentials for an iOS app",
             "args": [],
@@ -12480,6 +12588,53 @@
             },
             "isDeprecated": false,
             "deprecationReason": null
+          },
+          {
+            "name": "deleteAppleProvisioningProfiles",
+            "description": "Delete Provisioning Profiles",
+            "args": [
+              {
+                "name": "ids",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "LIST",
+                    "name": null,
+                    "ofType": {
+                      "kind": "NON_NULL",
+                      "name": null,
+                      "ofType": {
+                        "kind": "SCALAR",
+                        "name": "ID",
+                        "ofType": null
+                      }
+                    }
+                  }
+                },
+                "defaultValue": null
+              }
+            ],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "LIST",
+                "name": null,
+                "ofType": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "OBJECT",
+                    "name": "DeleteAppleProvisioningProfileResult",
+                    "ofType": null
+                  }
+                }
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
           }
         ],
         "inputFields": null,
@@ -13006,6 +13161,33 @@
               "kind": "OBJECT",
               "name": "BuildJob",
               "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
+        "name": "BuildMutation",
+        "description": "",
+        "fields": [
+          {
+            "name": "cancel",
+            "description": "Cancel an EAS Build\"",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "OBJECT",
+                "name": "Build",
+                "ofType": null
+              }
             },
             "isDeprecated": false,
             "deprecationReason": null
@@ -14711,6 +14893,51 @@
             "deprecationReason": null
           },
           {
+            "name": "transferApp",
+            "description": "Transfer project to a different Account",
+            "args": [
+              {
+                "name": "appId",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "ID",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null
+              },
+              {
+                "name": "destinationAccountId",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "ID",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null
+              }
+            ],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "OBJECT",
+                "name": "App",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "deleteSnack",
             "description": "Delete a Snack that the current user owns",
             "args": [
@@ -15155,16 +15382,6 @@
             "defaultValue": null
           },
           {
-            "name": "bio",
-            "description": "",
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
             "name": "industry",
             "description": "",
             "type": {
@@ -15196,16 +15413,6 @@
           },
           {
             "name": "twitterUsername",
-            "description": "",
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
-            "name": "personalLink",
             "description": "",
             "type": {
               "kind": "SCALAR",

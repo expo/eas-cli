@@ -14,7 +14,7 @@ type Filters = Partial<Pick<Build, 'platform' | 'status'>> & {
   limit?: number;
 };
 
-type BuildQueryResult = Pick<Build, 'id' | 'platform' | 'artifacts'>;
+type BuildQueryResult = Pick<Build, 'id' | 'platform' | 'artifacts' | 'status' | 'createdAt'>;
 type PendingBuildQueryResult = Pick<Build, 'id' | 'platform'>;
 
 const BuildQuery = {
@@ -28,6 +28,8 @@ const BuildQuery = {
                 byId(buildId: $buildId) {
                   id
                   platform
+                  status
+                  createdAt
                   artifacts {
                     buildUrl
                   }
@@ -42,6 +44,7 @@ const BuildQuery = {
 
     return data.builds.byId;
   },
+
   async allForAppAsync(appId: string, filters?: Filters): Promise<BuildQueryResult[]> {
     const data = await withErrorHandlingAsync(
       graphqlClient
@@ -65,6 +68,8 @@ const BuildQuery = {
                 ) {
                   id
                   platform
+                  status
+                  createdAt
                   artifacts {
                     buildUrl
                   }

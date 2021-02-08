@@ -505,13 +505,11 @@ export type User = Actor & {
   created?: Maybe<Scalars['DateTime']>;
   lastLogin?: Maybe<Scalars['DateTime']>;
   lastPasswordReset?: Maybe<Scalars['DateTime']>;
-  bio?: Maybe<Scalars['String']>;
   industry?: Maybe<Scalars['String']>;
   location?: Maybe<Scalars['String']>;
   appCount?: Maybe<Scalars['Int']>;
   githubUsername?: Maybe<Scalars['String']>;
   twitterUsername?: Maybe<Scalars['String']>;
-  personalLink?: Maybe<Scalars['String']>;
   appetizeCode?: Maybe<Scalars['String']>;
   emailVerified?: Maybe<Scalars['Boolean']>;
   isOnboarded?: Maybe<Scalars['Boolean']>;
@@ -684,7 +682,8 @@ export enum BuildStatus {
   InQueue = 'IN_QUEUE',
   InProgress = 'IN_PROGRESS',
   Errored = 'ERRORED',
-  Finished = 'FINISHED'
+  Finished = 'FINISHED',
+  Canceled = 'CANCELED'
 }
 
 /** Represents an EAS Build */
@@ -792,8 +791,15 @@ export type IosAppCredentials = {
   app: App;
   appleTeam?: Maybe<AppleTeam>;
   appleAppIdentifier: AppleAppIdentifier;
-  iosAppBuildCredentialsArray: Array<IosAppBuildCredentials>;
+  iosAppBuildCredentialsList: Array<IosAppBuildCredentials>;
   pushKey?: Maybe<ApplePushKey>;
+  /** @deprecated use iosAppBuildCredentialsList instead */
+  iosAppBuildCredentialsArray: Array<IosAppBuildCredentials>;
+};
+
+
+export type IosAppCredentialsIosAppBuildCredentialsListArgs = {
+  filter?: Maybe<IosAppBuildCredentialsFilter>;
 };
 
 
@@ -846,17 +852,18 @@ export type AppleDistributionCertificate = {
   certificatePrivateSigningKey?: Maybe<Scalars['String']>;
   createdAt: Scalars['DateTime'];
   updatedAt: Scalars['DateTime'];
+  iosAppBuildCredentialsList: Array<IosAppBuildCredentials>;
 };
 
-export type ApplePushKey = {
-  __typename?: 'ApplePushKey';
+export type IosAppBuildCredentials = {
+  __typename?: 'IosAppBuildCredentials';
   id: Scalars['ID'];
-  account: Account;
-  appleTeam?: Maybe<AppleTeam>;
-  keyIdentifier: Scalars['String'];
-  keyP8: Scalars['String'];
-  createdAt: Scalars['DateTime'];
-  updatedAt: Scalars['DateTime'];
+  distributionCertificate?: Maybe<AppleDistributionCertificate>;
+  provisioningProfile?: Maybe<AppleProvisioningProfile>;
+  iosDistributionType: IosDistributionType;
+  iosAppCredentials: IosAppCredentials;
+  /** @deprecated Get Apple Devices from AppleProvisioningProfile instead */
+  appleDevices?: Maybe<Array<Maybe<AppleDevice>>>;
 };
 
 export type AppleProvisioningProfile = {
@@ -893,10 +900,6 @@ export enum AppleDeviceClass {
   Iphone = 'IPHONE'
 }
 
-export type IosAppBuildCredentialsFilter = {
-  iosDistributionType?: Maybe<IosDistributionType>;
-};
-
 export enum IosDistributionType {
   AppStore = 'APP_STORE',
   Enterprise = 'ENTERPRISE',
@@ -904,14 +907,19 @@ export enum IosDistributionType {
   Development = 'DEVELOPMENT'
 }
 
-export type IosAppBuildCredentials = {
-  __typename?: 'IosAppBuildCredentials';
+export type ApplePushKey = {
+  __typename?: 'ApplePushKey';
   id: Scalars['ID'];
-  distributionCertificate?: Maybe<AppleDistributionCertificate>;
-  provisioningProfile?: Maybe<AppleProvisioningProfile>;
-  iosDistributionType: IosDistributionType;
-  /** @deprecated Get Apple Devices from AppleProvisioningProfile instead */
-  appleDevices?: Maybe<Array<Maybe<AppleDevice>>>;
+  account: Account;
+  appleTeam?: Maybe<AppleTeam>;
+  keyIdentifier: Scalars['String'];
+  keyP8: Scalars['String'];
+  createdAt: Scalars['DateTime'];
+  updatedAt: Scalars['DateTime'];
+};
+
+export type IosAppBuildCredentialsFilter = {
+  iosDistributionType?: Maybe<IosDistributionType>;
 };
 
 export type AndroidAppCredentialsFilter = {
@@ -925,8 +933,10 @@ export type AndroidAppCredentials = {
   app: App;
   applicationIdentifier?: Maybe<Scalars['String']>;
   androidFcm?: Maybe<AndroidFcm>;
-  androidAppBuildCredentialsArray: Array<AndroidAppBuildCredentials>;
+  androidAppBuildCredentialsList: Array<AndroidAppBuildCredentials>;
   isLegacy: Scalars['Boolean'];
+  /** @deprecated use androidAppBuildCredentialsList instead */
+  androidAppBuildCredentialsArray: Array<AndroidAppBuildCredentials>;
 };
 
 export type AndroidFcm = {
@@ -1447,6 +1457,8 @@ export type RootMutation = {
   asset: AssetMutation;
   /** Mutations that modify an BuildJob */
   buildJob?: Maybe<BuildJobMutation>;
+  /** Mutations that modify an EAS Build */
+  build?: Maybe<BuildMutation>;
   /** Mutations that modify the build credentials for an iOS app */
   iosAppBuildCredentials: IosAppBuildCredentialsMutation;
   /** Mutations that modify the credentials for an iOS app */
@@ -1476,6 +1488,11 @@ export type RootMutationAppArgs = {
 
 
 export type RootMutationBuildJobArgs = {
+  buildId: Scalars['ID'];
+};
+
+
+export type RootMutationBuildArgs = {
   buildId: Scalars['ID'];
 };
 
@@ -1902,6 +1919,8 @@ export type AppleProvisioningProfileMutation = {
   updateAppleProvisioningProfile: AppleProvisioningProfile;
   /** Delete a Provisioning Profile */
   deleteAppleProvisioningProfile: DeleteAppleProvisioningProfileResult;
+  /** Delete Provisioning Profiles */
+  deleteAppleProvisioningProfiles: Array<DeleteAppleProvisioningProfileResult>;
 };
 
 
@@ -1920,6 +1939,11 @@ export type AppleProvisioningProfileMutationUpdateAppleProvisioningProfileArgs =
 
 export type AppleProvisioningProfileMutationDeleteAppleProvisioningProfileArgs = {
   id: Scalars['ID'];
+};
+
+
+export type AppleProvisioningProfileMutationDeleteAppleProvisioningProfilesArgs = {
+  ids: Array<Scalars['ID']>;
 };
 
 export type AppleProvisioningProfileInput = {
@@ -2023,6 +2047,12 @@ export type BuildJobMutation = {
   cancel?: Maybe<BuildJob>;
   del?: Maybe<BuildJob>;
   restart?: Maybe<BuildJob>;
+};
+
+export type BuildMutation = {
+  __typename?: 'BuildMutation';
+  /** Cancel an EAS Build" */
+  cancel: Build;
 };
 
 export type IosAppBuildCredentialsMutation = {
@@ -2345,6 +2375,8 @@ export type MeMutation = {
   updateApp?: Maybe<App>;
   /** Unpublish an App that the current user owns */
   unpublishApp?: Maybe<App>;
+  /** Transfer project to a different Account */
+  transferApp: App;
   /** Delete a Snack that the current user owns */
   deleteSnack?: Maybe<Snack>;
   /** Create a new Account and grant this User the owner Role */
@@ -2386,6 +2418,12 @@ export type MeMutationUpdateAppArgs = {
 
 export type MeMutationUnpublishAppArgs = {
   appId: Scalars['ID'];
+};
+
+
+export type MeMutationTransferAppArgs = {
+  appId: Scalars['ID'];
+  destinationAccountId: Scalars['ID'];
 };
 
 
@@ -2453,12 +2491,10 @@ export type MeMutationDisableSecondFactorAuthenticationArgs = {
 export type UserDataInput = {
   id?: Maybe<Scalars['ID']>;
   username?: Maybe<Scalars['String']>;
-  bio?: Maybe<Scalars['String']>;
   industry?: Maybe<Scalars['String']>;
   location?: Maybe<Scalars['String']>;
   githubUsername?: Maybe<Scalars['String']>;
   twitterUsername?: Maybe<Scalars['String']>;
-  personalLink?: Maybe<Scalars['String']>;
   email?: Maybe<Scalars['String']>;
   firstName?: Maybe<Scalars['String']>;
   lastName?: Maybe<Scalars['String']>;
@@ -3226,7 +3262,7 @@ export type BuildsByIdQuery = (
     { __typename?: 'BuildQuery' }
     & { byId: (
       { __typename?: 'Build' }
-      & Pick<Build, 'id' | 'platform'>
+      & Pick<Build, 'id' | 'platform' | 'status' | 'createdAt'>
       & { artifacts?: Maybe<(
         { __typename?: 'BuildArtifacts' }
         & Pick<BuildArtifacts, 'buildUrl'>
@@ -3250,7 +3286,7 @@ export type BuildsForAppQuery = (
     { __typename?: 'BuildQuery' }
     & { allForApp: Array<Maybe<(
       { __typename?: 'Build' }
-      & Pick<Build, 'id' | 'platform'>
+      & Pick<Build, 'id' | 'platform' | 'status' | 'createdAt'>
       & { artifacts?: Maybe<(
         { __typename?: 'BuildArtifacts' }
         & Pick<BuildArtifacts, 'buildUrl'>
