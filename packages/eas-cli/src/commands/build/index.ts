@@ -51,6 +51,7 @@ export default class Build extends Command {
     }),
     wait: flags.boolean({
       default: true,
+      allowNo: true,
       description: 'Wait for build(s) to complete',
     }),
   };
