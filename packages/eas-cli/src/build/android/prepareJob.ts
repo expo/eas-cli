@@ -84,7 +84,8 @@ async function prepareGenericJobAsync(
   jobData: JobData,
   buildProfile: AndroidGenericBuildProfile
 ): Promise<Partial<Android.GenericJob>> {
-  const projectRootDirectory = path.relative(await gitRootDirectoryAsync(), process.cwd()) || '.';
+  const projectRootDirectory =
+    path.relative(await gitRootDirectoryAsync(), ctx.commandCtx.projectDir) || '.';
   return {
     ...(await prepareJobCommonAsync(ctx, jobData)),
     type: Workflow.Generic,
@@ -100,7 +101,8 @@ async function prepareManagedJobAsync(
   jobData: JobData,
   buildProfile: AndroidManagedBuildProfile
 ): Promise<Partial<Android.ManagedJob>> {
-  const projectRootDirectory = path.relative(await gitRootDirectoryAsync(), process.cwd()) || '.';
+  const projectRootDirectory =
+    path.relative(await gitRootDirectoryAsync(), ctx.commandCtx.projectDir) || '.';
   const accountName = await getProjectAccountNameAsync(ctx.commandCtx.projectDir);
   return {
     ...(await prepareJobCommonAsync(ctx, jobData)),
