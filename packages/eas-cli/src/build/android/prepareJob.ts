@@ -39,6 +39,7 @@ export async function prepareJobAsync(
 interface CommonJobProperties {
   platform: Platform.Android;
   projectArchive: ArchiveSource;
+  builderEnvironment: Android.BuilderEnvironment;
   secrets: {
     buildCredentials?: {
       keystore: Android.Keystore;
@@ -71,6 +72,13 @@ async function prepareJobCommonAsync(
     projectArchive: {
       type: ArchiveSourceType.S3,
       bucketKey: jobData.archiveBucketKey,
+    },
+    builderEnvironment: {
+      image: ctx.buildProfile.image,
+      node: ctx.buildProfile.node,
+      yarn: ctx.buildProfile.yarn,
+      ndk: ctx.buildProfile.ndk,
+      env: ctx.buildProfile.env,
     },
     secrets: {
       ...(secretEnvs ? { secretEnvs } : {}),

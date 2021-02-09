@@ -1,4 +1,34 @@
-import Joi from '@hapi/joi';
+import { Android, iOS } from '@expo/eas-build-job';
+import Joi, { CustomHelpers } from '@hapi/joi';
+
+const semverSchemaCheck = (value: any, helpers: CustomHelpers) => {
+  if (/^[0-9]+\.[0-9]+\.[0-9]+$/.test(value)) {
+    return value;
+  } else {
+    throw new Error(`${value} is not a valid version`);
+  }
+};
+
+const AndroidBuilderEnvironmentSchema = Joi.object({
+  image: Joi.string()
+    .valid(...Android.builderBaseImages)
+    .default('default'),
+  node: Joi.string().custom(semverSchemaCheck),
+  yarn: Joi.string().custom(semverSchemaCheck),
+  ndk: Joi.string(),
+  env: Joi.object().pattern(Joi.string(), Joi.string()).default({}),
+});
+
+const IosBuilderEnvironmentSchema = Joi.object({
+  image: Joi.string()
+    .valid(...iOS.builderBaseImages)
+    .default('default'),
+  node: Joi.string().custom(semverSchemaCheck),
+  yarn: Joi.string().custom(semverSchemaCheck),
+  fastlane: Joi.string().custom(semverSchemaCheck),
+  cocoapods: Joi.string().custom(semverSchemaCheck),
+  env: Joi.object().pattern(Joi.string(), Joi.string()).default({}),
+});
 
 const AndroidGenericSchema = Joi.object({
   workflow: Joi.string().valid('generic').required(),
@@ -12,7 +42,7 @@ const AndroidGenericSchema = Joi.object({
   artifactPath: Joi.string(),
   withoutCredentials: Joi.boolean(),
   distribution: Joi.string().valid('store', 'internal').default('store'),
-});
+}).concat(AndroidBuilderEnvironmentSchema);
 
 const AndroidManagedSchema = Joi.object({
   workflow: Joi.string().valid('managed').required(),
@@ -24,7 +54,7 @@ const AndroidManagedSchema = Joi.object({
     otherwise: Joi.string().valid('apk', 'app-bundle', 'development-client').default('app-bundle'),
   }),
   distribution: Joi.string().valid('store', 'internal').default('store'),
-});
+}).concat(AndroidBuilderEnvironmentSchema);
 
 const iOSGenericSchema = Joi.object({
   workflow: Joi.string().valid('generic').required(),
@@ -36,7 +66,7 @@ const iOSGenericSchema = Joi.object({
   autoIncrement: Joi.alternatives()
     .try(Joi.boolean(), Joi.string().valid('version', 'buildNumber'))
     .default(false),
-});
+}).concat(IosBuilderEnvironmentSchema);
 
 const iOSManagedSchema = Joi.object({
   workflow: Joi.string().valid('managed').required(),
@@ -46,7 +76,7 @@ const iOSManagedSchema = Joi.object({
   autoIncrement: Joi.alternatives()
     .try(Joi.boolean(), Joi.string().valid('version', 'buildNumber'))
     .default(false),
-});
+}).concat(IosBuilderEnvironmentSchema);
 
 const schemaBuildProfileMap: Record<string, Record<string, Joi.Schema>> = {
   android: {
@@ -64,13 +94,13 @@ const EasJsonSchema = Joi.object({
     android: Joi.object().pattern(
       Joi.string(),
       Joi.object({
-        workflow: Joi.string().valid('generic', 'managed').required(),
+        workflow: Joi.string().valid('generic', 'managed'),
       }).unknown(true) // profile is validated further only if build is for that platform
     ),
     ios: Joi.object().pattern(
       Joi.string(),
       Joi.object({
-        workflow: Joi.string().valid('generic', 'managed').required(),
+        workflow: Joi.string().valid('generic', 'managed'),
       }).unknown(true) // profile is validated further only if build is for that platform
     ),
   }),

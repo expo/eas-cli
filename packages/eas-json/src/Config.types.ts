@@ -1,4 +1,4 @@
-import { Android, Workflow } from '@expo/eas-build-job';
+import { Android, Workflow, iOS } from '@expo/eas-build-job';
 
 export enum CredentialsSource {
   LOCAL = 'local',
@@ -13,7 +13,7 @@ export enum DistributionType {
 
 export type VersionAutoIncrement = boolean | 'version' | 'buildNumber';
 
-export interface AndroidManagedBuildProfile {
+export interface AndroidManagedBuildProfile extends Android.BuilderEnvironment {
   workflow: Workflow.Managed;
   credentialsSource: CredentialsSource;
   buildType?: Android.ManagedBuildType;
@@ -21,7 +21,7 @@ export interface AndroidManagedBuildProfile {
   distribution?: DistributionType;
 }
 
-export interface AndroidGenericBuildProfile {
+export interface AndroidGenericBuildProfile extends Android.BuilderEnvironment {
   workflow: Workflow.Generic;
   credentialsSource: CredentialsSource;
   gradleCommand?: string;
@@ -31,7 +31,7 @@ export interface AndroidGenericBuildProfile {
   distribution?: DistributionType;
 }
 
-export interface iOSManagedBuildProfile {
+export interface iOSManagedBuildProfile extends iOS.BuilderEnvironment {
   workflow: Workflow.Managed;
   credentialsSource: CredentialsSource;
   releaseChannel?: string;
@@ -39,7 +39,7 @@ export interface iOSManagedBuildProfile {
   autoIncrement: VersionAutoIncrement;
 }
 
-export interface iOSGenericBuildProfile {
+export interface iOSGenericBuildProfile extends iOS.BuilderEnvironment {
   workflow: Workflow.Generic;
   credentialsSource: CredentialsSource;
   scheme?: string;

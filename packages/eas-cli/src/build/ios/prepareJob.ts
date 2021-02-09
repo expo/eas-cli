@@ -48,6 +48,7 @@ export async function prepareJobAsync(
 interface CommonJobProperties {
   platform: Platform.iOS;
   projectArchive: ArchiveSource;
+  builderEnvironment: iOS.BuilderEnvironment;
   releaseChannel: string;
   secrets: {
     buildCredentials: iOS.BuildCredentials;
@@ -86,6 +87,14 @@ async function prepareJobCommonAsync(
     projectArchive: {
       type: ArchiveSourceType.S3,
       bucketKey: archiveBucketKey,
+    },
+    builderEnvironment: {
+      image: ctx.buildProfile.image,
+      node: ctx.buildProfile.node,
+      yarn: ctx.buildProfile.yarn,
+      cocoapods: ctx.buildProfile.cocoapods,
+      fastlane: ctx.buildProfile.fastlane,
+      env: ctx.buildProfile.env,
     },
     secrets: {
       ...(secretEnvs ? { secretEnvs } : {}),

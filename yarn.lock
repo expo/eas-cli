@@ -1151,17 +1151,10 @@
     xcode "^3.0.0"
     xml-js "^1.6.11"
 
-"@expo/eas-build-job@0.1.3":
-  version "0.1.3"
-  resolved "https://registry.yarnpkg.com/@expo/eas-build-job/-/eas-build-job-0.1.3.tgz#a3d3da6da553dfa07a1e8fe9038146a7b84705db"
-  integrity sha512-c4M5wytogfipBo7cuZRHe/pSf0muwEI+gsNkfOj8onNaGhHWH4HD5daUQ76SpH59l1NqYks1sjKDRNNe0C7Z2g==
-  dependencies:
-    "@hapi/joi" "^17.1.1"
-
-"@expo/eas-build-job@^0.2.0":
-  version "0.2.0"
-  resolved "https://registry.yarnpkg.com/@expo/eas-build-job/-/eas-build-job-0.2.0.tgz#991b0844835f2f21139026bd5ddded8fa6bf88ed"
-  integrity sha512-B1f74lT1NXfwQAyvZ4yQXCyLGFIehO7klbpARdOro4IGiMectHFHR4b9gDdADMLiQ3kt/OA/L4bYoRM6wbt7hw==
+"@expo/eas-build-job@0.2.9":
+  version "0.2.9"
+  resolved "https://registry.yarnpkg.com/@expo/eas-build-job/-/eas-build-job-0.2.9.tgz#e635904da2deb65c4912b5241a20da98879a7aaa"
+  integrity sha512-WkoQ7ZBgoNVuBywNv36R6ixjqyV8P4fNKRWXC/WgSl1H42pZ31Uc8tK2XO6zddc+PxeGmrXXTjSQyW6XAZ5B3g==
   dependencies:
     "@hapi/joi" "^17.1.1"
 

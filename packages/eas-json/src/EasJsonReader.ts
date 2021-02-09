@@ -13,7 +13,8 @@ interface EasJson {
 }
 
 interface BuildProfilePreValidation {
-  workflow: Workflow;
+  workflow?: Workflow;
+  extends?: string;
 }
 
 export class EasJsonReader {
@@ -27,7 +28,7 @@ export class EasJsonReader {
       androidConfig = this.validateBuildProfile<AndroidBuildProfile>(
         Platform.Android,
         buildProfileName,
-        easJson.builds?.android?.[buildProfileName]
+        easJson.builds?.android || {}
       );
     }
     let iosConfig;
@@ -35,7 +36,7 @@ export class EasJsonReader {
       iosConfig = this.validateBuildProfile<iOSBuildProfile>(
         Platform.iOS,
         buildProfileName,
-        easJson.builds?.ios?.[buildProfileName]
+        easJson.builds?.ios || {}
       );
     }
     return {
@@ -49,17 +50,23 @@ export class EasJsonReader {
   public async validateAsync(): Promise<void> {
     const easJson = await this.readRawAsync();
 
-    for (const [name, profile] of Object.entries(easJson.builds?.android ?? {})) {
+    const androidProfiles = easJson.builds?.android ?? {};
+    for (const name of Object.keys(androidProfiles)) {
       try {
-        await this.validateBuildProfile(Platform.Android, name, profile);
+        if (this.isWorkflowKeySpecified(Platform.Android, name, androidProfiles)) {
+          await this.validateBuildProfile(Platform.Android, name, androidProfiles);
+        }
       } catch (err) {
         err.msg = `Failed to validate Android build profile "${name}"\n${err.msg}`;
         throw err;
       }
     }
-    for (const [name, profile] of Object.entries(easJson.builds?.ios ?? {})) {
+    const iosProfiles = easJson.builds?.ios ?? {};
+    for (const name of Object.keys(iosProfiles)) {
       try {
-        await this.validateBuildProfile(Platform.iOS, name, profile);
+        if (this.isWorkflowKeySpecified(Platform.iOS, name, iosProfiles)) {
+          await this.validateBuildProfile(Platform.iOS, name, iosProfiles);
+        }
       } catch (err) {
         err.msg = `Failed to validate iOS build profile "${name}"\n${err.msg}`;
         throw err;
@@ -68,7 +75,7 @@ export class EasJsonReader {
   }
 
   public async readRawAsync(): Promise<EasJson> {
-    const rawFile = await fs.readFile(path.join(this.projectDir, 'eas.json'), 'utf-8');
+    const rawFile = await fs.readFile(path.join(this.projectDir, 'eas.json'), 'utf8');
     const json = JSON.parse(rawFile);
 
     const { value, error } = EasJsonSchema.validate(json, {
@@ -84,12 +91,15 @@ export class EasJsonReader {
   private validateBuildProfile<T extends BuildProfile>(
     platform: Platform,
     buildProfileName: string,
-    buildProfile?: BuildProfilePreValidation
+    buildProfiles: Record<string, BuildProfilePreValidation>
   ): T {
-    if (!buildProfile) {
-      throw new Error(`There is no profile named ${buildProfileName} for platform ${platform}`);
+    const buildProfile = this.resolveBuildProfile(platform, buildProfileName, buildProfiles);
+    if (![Workflow.Generic, Workflow.Managed].includes(buildProfile.workflow)) {
+      throw new Error(
+        '"workflow" key is required in a build profile and has to be one of ["generic", "managed"].'
+      );
     }
-    const schema = schemaBuildProfileMap[platform][buildProfile?.workflow];
+    const schema = schemaBuildProfileMap[platform][buildProfile.workflow];
     if (!schema) {
       throw new Error('invalid workflow'); // this should be validated earlier
     }
@@ -106,4 +116,69 @@ export class EasJsonReader {
     }
     return value;
   }
+
+  private isWorkflowKeySpecified<T extends BuildProfile>(
+    platform: Platform,
+    buildProfileName: string,
+    buildProfiles: Record<string, BuildProfilePreValidation>
+  ): boolean {
+    const buildProfile = this.resolveBuildProfile(platform, buildProfileName, buildProfiles);
+    return !!buildProfile.workflow;
+  }
+
+  private resolveBuildProfile(
+    platform: Platform,
+    buildProfileName: string,
+    buildProfiles: Record<string, BuildProfilePreValidation>,
+    depth: number = 0
+  ): Record<string, any> {
+    if (depth >= 2) {
+      throw new Error(
+        'Too long chain of build profile extensions, make sure "extends" keys do not make a cycle'
+      );
+    }
+    const buildProfile = buildProfiles[buildProfileName];
+    if (!buildProfile) {
+      throw new Error(`There is no profile named ${buildProfileName} for platform ${platform}`);
+    }
+    const baseProfileName = buildProfile.extends;
+    delete buildProfile.extends;
+    if (baseProfileName) {
+      return deepMerge(
+        this.resolveBuildProfile(platform, baseProfileName, buildProfiles, depth + 1),
+        buildProfile
+      );
+    } else {
+      return buildProfile;
+    }
+  }
+}
+
+function isObject(value: any): boolean {
+  return typeof value === 'object' && value !== null;
+}
+
+export function deepMerge(
+  base: Record<string, any>,
+  update: Record<string, any>
+): Record<string, any> {
+  const result: Record<string, any> = {};
+  Object.keys(base).forEach(key => {
+    const oldValue = base[key];
+    const newValue = update[key];
+    if (isObject(newValue) && isObject(oldValue)) {
+      result[key] = deepMerge(oldValue, newValue);
+    } else if (newValue !== undefined) {
+      result[key] = isObject(newValue) ? deepMerge({}, newValue) : newValue;
+    } else {
+      result[key] = isObject(oldValue) ? deepMerge({}, oldValue) : oldValue;
+    }
+  });
+  Object.keys(update).forEach(key => {
+    const newValue = update[key];
+    if (result[key] === undefined) {
+      result[key] = isObject(newValue) ? deepMerge({}, newValue) : newValue;
+    }
+  });
+  return result;
 }
