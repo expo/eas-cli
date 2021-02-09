@@ -109,7 +109,8 @@ async function prepareGenericJobAsync(
   jobData: JobData,
   buildProfile: iOSGenericBuildProfile
 ): Promise<Partial<iOS.GenericJob>> {
-  const projectRootDirectory = path.relative(await gitRootDirectoryAsync(), process.cwd()) || '.';
+  const projectRootDirectory =
+    path.relative(await gitRootDirectoryAsync(), ctx.commandCtx.projectDir) || '.';
   return {
     ...(await prepareJobCommonAsync(ctx, {
       archiveBucketKey: jobData.archiveBucketKey,
@@ -129,7 +130,8 @@ async function prepareManagedJobAsync(
   jobData: JobData,
   buildProfile: iOSManagedBuildProfile
 ): Promise<Partial<iOS.ManagedJob>> {
-  const projectRootDirectory = path.relative(await gitRootDirectoryAsync(), process.cwd()) || '.';
+  const projectRootDirectory =
+    path.relative(await gitRootDirectoryAsync(), ctx.commandCtx.projectDir) || '.';
   const accountName = await getProjectAccountNameAsync(ctx.commandCtx.projectDir);
   const targetName = sanitizedName(ctx.commandCtx.exp.name);
   return {
