@@ -159,8 +159,10 @@ async function commitPromptAsync(initialCommitMessage?: string): Promise<void> {
     initial: initialCommitMessage,
     validate: (input: string) => input !== '',
   });
+  await commitChangedFilesAsync(message);
+}
 
-  // Add changed files only
+async function commitChangedFilesAsync(message: string): Promise<void> {
   await spawnAsync('git', ['add', '-u']);
   await spawnAsync('git', ['commit', '-m', message]);
 }
@@ -169,6 +171,7 @@ export {
   isGitStatusCleanAsync,
   showDiffAsync,
   commitPromptAsync,
+  commitChangedFilesAsync,
   ensureGitRepoExistsAsync,
   ensureGitStatusIsCleanAsync,
   maybeBailOnGitStatusAsync,

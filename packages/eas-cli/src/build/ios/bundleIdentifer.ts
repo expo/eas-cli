@@ -1,6 +1,5 @@
 import { ExpoConfig, getConfigFilePaths } from '@expo/config';
 import { IOSConfig } from '@expo/config-plugins';
-import assert from 'assert';
 import chalk from 'chalk';
 import fs from 'fs-extra';
 
@@ -11,6 +10,7 @@ import {
 } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
 import { Platform } from '../types';
+import { updateAppJsonConfigAsync } from '../utils/appJson';
 
 enum BundleIdentiferSource {
   XcodeProject,
@@ -82,7 +82,9 @@ However, if you choose the one defined in the Xcode project you'll have to updat
         }
         case BundleIdentiferSource.XcodeProject: {
           if (hasBundleIdentifierInStaticConfig) {
-            await updateAppJsonConfigAsync(projectDir, exp, bundleIdentifierFromPbxproj);
+            await updateAppJsonConfigAsync({ projectDir, exp }, config => {
+              config.ios = { ...config.ios, bundleIdentifier: bundleIdentifierFromPbxproj };
+            });
           } else {
             throw new Error(missingBundleIdentifierMessage(configDescription));
           }
@@ -94,7 +96,9 @@ However, if you choose the one defined in the Xcode project you'll have to updat
     throw new Error(missingBundleIdentifierMessage(configDescription));
   } else if (bundleIdentifierFromPbxproj && !bundleIdentifierFromConfig) {
     if (getConfigFilePaths(projectDir).staticConfigPath) {
-      await updateAppJsonConfigAsync(projectDir, exp, bundleIdentifierFromPbxproj);
+      await updateAppJsonConfigAsync({ projectDir, exp }, config => {
+        config.ios = { ...config.ios, bundleIdentifier: bundleIdentifierFromPbxproj };
+      });
     } else {
       throw new Error(missingBundleIdentifierMessage(configDescription));
     }
@@ -108,24 +112,6 @@ However, if you choose the one defined in the Xcode project you'll have to updat
 
 function missingBundleIdentifierMessage(configDescription: string): string {
   return `Please define "ios.bundleIdentifier" in ${configDescription} and run "eas build:configure" again.`;
-}
-
-async function updateAppJsonConfigAsync(
-  projectDir: string,
-  exp: ExpoConfig,
-  newBundleIdentifier: string
-): Promise<void> {
-  const paths = getConfigFilePaths(projectDir);
-  assert(paths.staticConfigPath, "can't update dynamic configs");
-
-  const rawStaticConfig = await fs.readJSON(paths.staticConfigPath);
-  rawStaticConfig.expo = {
-    ...rawStaticConfig.expo,
-    ios: { ...rawStaticConfig.expo?.ios, bundleIdentifier: newBundleIdentifier },
-  };
-  await fs.writeJson(paths.staticConfigPath, rawStaticConfig, { spaces: 2 });
-
-  exp.ios = { ...exp.ios, bundleIdentifier: newBundleIdentifier };
 }
 
 /**
