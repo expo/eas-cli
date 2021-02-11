@@ -5,17 +5,17 @@ import gql from 'graphql-tag';
 import { format } from 'timeago.js';
 
 import { graphqlClient } from '../../graphql/client';
-import { RootQuery, Update, UpdateRelease } from '../../graphql/generated';
+import { RootQuery, Update, UpdateBranch } from '../../graphql/generated';
 import Log from '../../log';
 import { findProjectRootAsync, getProjectFullNameAsync } from '../../project/projectUtils';
 import { getActorDisplayName } from '../../user/actions';
 
-const RELEASES_LIMIT = 10_000;
+const BRANCHES_LIMIT = 10_000;
 
-export default class ReleaseList extends Command {
+export default class BranchList extends Command {
   static hidden = true;
 
-  static description = 'List all releases on this project.';
+  static description = 'List all branches on this project.';
 
   static flags = {
     json: flags.boolean({
@@ -25,43 +25,43 @@ export default class ReleaseList extends Command {
   };
 
   async run() {
-    const { flags } = this.parse(ReleaseList);
+    const { flags } = this.parse(BranchList);
 
     const projectDir = await findProjectRootAsync(process.cwd());
     if (!projectDir) {
       throw new Error('Please run this command inside a project directory.');
     }
     const fullName = await getProjectFullNameAsync(projectDir);
-    const releases = await this.listReleasesAsync({ fullName });
+    const branches = await this.listBranchesAsync({ fullName });
     if (flags.json) {
-      Log.log(JSON.stringify(releases, null, 2));
+      Log.log(JSON.stringify(branches, null, 2));
     } else {
-      const table = new CliTable({ head: ['Release', 'Latest update'] });
+      const table = new CliTable({ head: ['Branch', 'Latest update'] });
       table.push(
-        ...releases.map((release: UpdateRelease) => [
-          release.releaseName,
-          formatUpdate(release.updates[0]),
+        ...branches.map((branch: UpdateBranch) => [
+          branch.branchName,
+          formatUpdate(branch.updates[0]),
         ])
       );
       Log.log(table.toString());
-      if (releases.length >= RELEASES_LIMIT) {
-        Log.warn(`Showing first ${RELEASES_LIMIT} releases, some results might be omitted.`);
+      if (branches.length >= BRANCHES_LIMIT) {
+        Log.warn(`Showing first ${BRANCHES_LIMIT} branches, some results might be omitted.`);
       }
     }
   }
 
-  async listReleasesAsync({ fullName }: { fullName: string }): Promise<UpdateRelease[]> {
+  async listBranchesAsync({ fullName }: { fullName: string }): Promise<UpdateBranch[]> {
     const { data, error } = await graphqlClient
       .query<RootQuery>(
         gql`
-          query ReleasesByAppQuery($fullName: String!, $limit: Int!) {
+          query BranchesByAppQuery($fullName: String!, $limit: Int!) {
             app {
               byFullName(fullName: $fullName) {
                 id
                 fullName
-                updateReleases(offset: 0, limit: $limit) {
+                updateBranches(offset: 0, limit: $limit) {
                   id
-                  releaseName
+                  branchName
                   updates(offset: 0, limit: 1) {
                     id
                     actor {
@@ -84,20 +84,20 @@ export default class ReleaseList extends Command {
         `,
         {
           fullName,
-          limit: RELEASES_LIMIT,
+          limit: BRANCHES_LIMIT,
         }
       )
       .toPromise();
 
     if (error) {
       if (error.networkError) {
-        throw new CLIError(`Fetching releases failed: ${error.networkError.message}`);
+        throw new CLIError(`Fetching branches failed: ${error.networkError.message}`);
       } else {
         throw new CLIError(error.graphQLErrors.map(e => e.message).join('\n'));
       }
     }
 
-    return data?.app?.byFullName.updateReleases ?? [];
+    return data?.app?.byFullName.updateBranches ?? [];
   }
 }
 

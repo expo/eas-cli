@@ -398,10 +398,10 @@ export type App = Project & {
   updateChannels: Array<UpdateChannel>;
   /** get an EAS channel owned by the app by channelName */
   updateChannelByChannelName: UpdateChannel;
-  /** EAS releases owned by an app */
-  updateReleases: Array<UpdateRelease>;
-  /** get an EAS release owned by the app by releaseName */
-  updateReleaseByReleaseName: UpdateRelease;
+  /** EAS branches owned by an app */
+  updateBranches: Array<UpdateBranch>;
+  /** get an EAS branch owned by the app by branchName */
+  updateBranchByBranchName: UpdateBranch;
   /** Coalesced project activity for an app. Use "createdBefore" to offset a query. */
   activityTimelineProjectActivities: Array<ActivityTimelineProjectActivity>;
 };
@@ -464,15 +464,15 @@ export type AppUpdateChannelByChannelNameArgs = {
 
 
 /** Represents an Exponent App (or Experience in legacy terms) */
-export type AppUpdateReleasesArgs = {
+export type AppUpdateBranchesArgs = {
   offset: Scalars['Int'];
   limit: Scalars['Int'];
 };
 
 
 /** Represents an Exponent App (or Experience in legacy terms) */
-export type AppUpdateReleaseByReleaseNameArgs = {
-  releaseName: Scalars['String'];
+export type AppUpdateBranchByBranchNameArgs = {
+  branchName: Scalars['String'];
 };
 
 
@@ -836,6 +836,7 @@ export type AppleAppIdentifier = {
   account: Account;
   appleTeam?: Maybe<AppleTeam>;
   bundleIdentifier: Scalars['String'];
+  parentAppleAppIdentifier?: Maybe<AppleAppIdentifier>;
 };
 
 export type AppleDistributionCertificate = {
@@ -1011,30 +1012,30 @@ export type UpdateChannel = {
   id: Scalars['ID'];
   appId: Scalars['ID'];
   channelName: Scalars['String'];
-  releaseMapping: Scalars['String'];
+  branchMapping: Scalars['String'];
   createdAt: Scalars['DateTime'];
   updatedAt: Scalars['DateTime'];
-  updateReleases: Array<UpdateRelease>;
+  updateBranches: Array<UpdateBranch>;
 };
 
 
-export type UpdateChannelUpdateReleasesArgs = {
+export type UpdateChannelUpdateBranchesArgs = {
   offset: Scalars['Int'];
   limit: Scalars['Int'];
 };
 
-export type UpdateRelease = {
-  __typename?: 'UpdateRelease';
+export type UpdateBranch = {
+  __typename?: 'UpdateBranch';
   id: Scalars['ID'];
   appId: Scalars['ID'];
-  releaseName: Scalars['String'];
+  branchName: Scalars['String'];
   createdAt: Scalars['DateTime'];
   updatedAt: Scalars['DateTime'];
   updates: Array<Update>;
 };
 
 
-export type UpdateReleaseUpdatesArgs = {
+export type UpdateBranchUpdatesArgs = {
   offset: Scalars['Int'];
   limit: Scalars['Int'];
 };
@@ -1044,7 +1045,7 @@ export type Update = ActivityTimelineProjectActivity & {
   id: Scalars['ID'];
   actor?: Maybe<Actor>;
   activityTimestamp: Scalars['DateTime'];
-  releaseId: Scalars['ID'];
+  branchId: Scalars['ID'];
   platform: Scalars['String'];
   manifestFragment: Scalars['String'];
   runtimeVersion: Scalars['String'];
@@ -1052,7 +1053,7 @@ export type Update = ActivityTimelineProjectActivity & {
   updatedAt: Scalars['DateTime'];
   createdAt: Scalars['DateTime'];
   updateMessage?: Maybe<Scalars['String']>;
-  releaseName: Scalars['String'];
+  branchName: Scalars['String'];
 };
 
 export type UserPermission = {
@@ -1467,7 +1468,7 @@ export type RootMutation = {
   robot: RobotMutation;
   updateChannel: UpdateChannelMutation;
   update: UpdateMutation;
-  updateRelease: UpdateReleaseMutation;
+  updateBranch: UpdateBranchMutation;
   /** Mutations that create, delete, and accept UserInvitations */
   userInvitation: UserInvitationMutation;
   /** Mutations that modify the currently authenticated User */
@@ -1831,6 +1832,7 @@ export type AppleAppIdentifierMutationCreateAppleAppIdentifierArgs = {
 export type AppleAppIdentifierInput = {
   bundleIdentifier: Scalars['String'];
   appleTeamId?: Maybe<Scalars['ID']>;
+  parentAppleAppId?: Maybe<Scalars['ID']>;
 };
 
 export type AppleDeviceMutation = {
@@ -2181,18 +2183,18 @@ export type UpdateChannelMutation = {
   /**
    * Create an EAS channel for an app.
    * 
-   * In order to work with GraphQL formatting, the releaseMapping should be a
+   * In order to work with GraphQL formatting, the branchMapping should be a
    * stringified JSON supplied to the mutation as a variable.
    */
   createUpdateChannelForApp?: Maybe<UpdateChannel>;
   /**
    * Edit an EAS channel.
    * 
-   * In order to work with GraphQL formatting, the releaseMapping should be a
+   * In order to work with GraphQL formatting, the branchMapping should be a
    * stringified JSON supplied to the mutation as a variable.
    */
   editUpdateChannel?: Maybe<UpdateChannel>;
-  /** delete an EAS channel that doesn't point to any releases */
+  /** delete an EAS channel that doesn't point to any branches */
   deleteUpdateChannel: DeleteUpdateChannelResult;
 };
 
@@ -2200,13 +2202,13 @@ export type UpdateChannelMutation = {
 export type UpdateChannelMutationCreateUpdateChannelForAppArgs = {
   appId: Scalars['ID'];
   channelName: Scalars['String'];
-  releaseMapping?: Maybe<Scalars['String']>;
+  branchMapping?: Maybe<Scalars['String']>;
 };
 
 
 export type UpdateChannelMutationEditUpdateChannelArgs = {
   channelId: Scalars['ID'];
-  releaseMapping: Scalars['String'];
+  branchMapping: Scalars['String'];
 };
 
 
@@ -2235,56 +2237,56 @@ export type DeleteUpdateResult = {
   id: Scalars['ID'];
 };
 
-export type UpdateReleaseMutation = {
-  __typename?: 'UpdateReleaseMutation';
-  /** Create an EAS release for an app */
-  createUpdateReleaseForApp?: Maybe<UpdateRelease>;
+export type UpdateBranchMutation = {
+  __typename?: 'UpdateBranchMutation';
+  /** Create an EAS branch for an app */
+  createUpdateBranchForApp?: Maybe<UpdateBranch>;
   /**
-   * Edit an EAS release. The release can be specified either by its ID or
-   * with the combination of (appId, releaseName).
+   * Edit an EAS branch. The branch can be specified either by its ID or
+   * with the combination of (appId, branchName).
    */
-  editUpdateRelease: UpdateRelease;
-  /** Delete an EAS release and all of its updates as long as the release is not being used by any channels */
-  deleteUpdateRelease: DeleteUpdateReleaseResult;
-  /** Publish an update group to a release */
+  editUpdateBranch: UpdateBranch;
+  /** Delete an EAS branch and all of its updates as long as the branch is not being used by any channels */
+  deleteUpdateBranch: DeleteUpdateBranchResult;
+  /** Publish an update group to a branch */
   publishUpdateGroup: Array<Maybe<Update>>;
 };
 
 
-export type UpdateReleaseMutationCreateUpdateReleaseForAppArgs = {
+export type UpdateBranchMutationCreateUpdateBranchForAppArgs = {
   appId: Scalars['ID'];
-  releaseName: Scalars['String'];
+  branchName: Scalars['String'];
 };
 
 
-export type UpdateReleaseMutationEditUpdateReleaseArgs = {
-  input: EditUpdateReleaseInput;
+export type UpdateBranchMutationEditUpdateBranchArgs = {
+  input: EditUpdateBranchInput;
 };
 
 
-export type UpdateReleaseMutationDeleteUpdateReleaseArgs = {
-  releaseId: Scalars['ID'];
+export type UpdateBranchMutationDeleteUpdateBranchArgs = {
+  branchId: Scalars['ID'];
 };
 
 
-export type UpdateReleaseMutationPublishUpdateGroupArgs = {
+export type UpdateBranchMutationPublishUpdateGroupArgs = {
   publishUpdateGroupInput?: Maybe<PublishUpdateGroupInput>;
 };
 
-export type EditUpdateReleaseInput = {
+export type EditUpdateBranchInput = {
   id?: Maybe<Scalars['ID']>;
   appId?: Maybe<Scalars['ID']>;
-  releaseName?: Maybe<Scalars['String']>;
-  newReleaseName: Scalars['String'];
+  branchName?: Maybe<Scalars['String']>;
+  newBranchName: Scalars['String'];
 };
 
-export type DeleteUpdateReleaseResult = {
-  __typename?: 'DeleteUpdateReleaseResult';
+export type DeleteUpdateBranchResult = {
+  __typename?: 'DeleteUpdateBranchResult';
   id: Scalars['ID'];
 };
 
 export type PublishUpdateGroupInput = {
-  releaseId: Scalars['String'];
+  branchId: Scalars['String'];
   updateInfoGroup: UpdateInfoGroup;
   runtimeVersion: Scalars['String'];
   updateMessage?: Maybe<Scalars['String']>;
@@ -3242,8 +3244,8 @@ export type UpdatePublishMutationVariables = Exact<{
 
 export type UpdatePublishMutation = (
   { __typename?: 'RootMutation' }
-  & { updateRelease: (
-    { __typename?: 'UpdateReleaseMutation' }
+  & { updateBranch: (
+    { __typename?: 'UpdateBranchMutation' }
     & { publishUpdateGroup: Array<Maybe<(
       { __typename?: 'Update' }
       & Pick<Update, 'id' | 'updateGroup'>

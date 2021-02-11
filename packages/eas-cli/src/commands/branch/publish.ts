@@ -9,16 +9,16 @@ import Log from '../../log';
 import { ensureProjectExistsAsync } from '../../project/ensureProjectExists';
 import {
   findProjectRootAsync,
+  getBranchByNameAsync,
   getProjectAccountNameAsync,
-  getReleaseByNameAsync,
 } from '../../project/projectUtils';
 import { buildUpdateInfoGroupAsync, collectAssets, uploadAssetsAsync } from '../../project/publish';
 import { promptAsync } from '../../prompts';
 import { getLastCommitMessageAsync } from '../../utils/git';
 
-export default class ReleasePublish extends Command {
+export default class BranchPublish extends Command {
   static hidden = true;
-  static description = 'Publish an update group to a release.';
+  static description = 'Publish an update group to a branch.';
 
   static flags = {
     'input-dir': flags.string({
@@ -26,28 +26,23 @@ export default class ReleasePublish extends Command {
       default: 'dist',
       required: false,
     }),
-    release: flags.string({
-      description: 'current name of the release.',
+    branch: flags.string({
+      description: 'current name of the branch.',
     }),
     message: flags.string({
       description: 'Short message describing the updates.',
       required: false,
     }),
     json: flags.boolean({
-      description: `return a json with the edited release's ID and name.`,
+      description: `return a json with the edited branch's ID and name.`,
       default: false,
     }),
   };
 
   async run() {
     let {
-      flags: {
-        json: jsonFlag,
-        release: releaseName,
-        message: updateMessage,
-        'input-dir': inputDir,
-      },
-    } = this.parse(ReleasePublish);
+      flags: { json: jsonFlag, branch: branchName, message: updateMessage, 'input-dir': inputDir },
+    } = this.parse(BranchPublish);
 
     const projectDir = await findProjectRootAsync(process.cwd());
     if (!projectDir) {
@@ -68,15 +63,15 @@ export default class ReleasePublish extends Command {
       projectName: slug,
     });
 
-    if (!releaseName) {
-      const validationMessage = 'release name may not be empty.';
+    if (!branchName) {
+      const validationMessage = 'branch name may not be empty.';
       if (jsonFlag) {
         throw new Error(validationMessage);
       }
-      ({ releaseName } = await promptAsync({
+      ({ branchName } = await promptAsync({
         type: 'text',
-        name: 'releaseName',
-        message: 'Please enter the name of the release to publish on:',
+        name: 'branchName',
+        message: 'Please enter the name of the branch to publish on:',
         validate: value => (value ? true : validationMessage),
       }));
     }
@@ -95,9 +90,9 @@ export default class ReleasePublish extends Command {
       }));
     }
 
-    const { id: releaseId } = await getReleaseByNameAsync({
+    const { id: branchId } = await getBranchByNameAsync({
       appId: projectId,
-      releaseName: releaseName!,
+      branchName: branchName!,
     });
 
     let updateInfoGroup;
@@ -116,7 +111,7 @@ export default class ReleasePublish extends Command {
     const publishSpinner = ora('Publishing...').start();
     try {
       newUpdateGroup = await PublishMutation.publishUpdateGroupAsync({
-        releaseId,
+        branchId,
         updateInfoGroup,
         runtimeVersion,
         updateMessage,
@@ -153,7 +148,7 @@ export default class ReleasePublish extends Command {
       });
       outputMessage.push(
         [chalk.dim('project'), `@${accountName}/${slug}`],
-        [chalk.dim('release'), releaseName],
+        [chalk.dim('branch'), branchName],
         [chalk.dim('runtimeVersion'), runtimeVersion],
         [chalk.dim('updateGroupID'), newUpdateGroup.updateGroup],
         [chalk.dim('message'), updateMessage]

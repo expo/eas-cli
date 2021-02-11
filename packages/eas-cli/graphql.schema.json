@@ -2713,8 +2713,8 @@
             "deprecationReason": null
           },
           {
-            "name": "updateReleases",
-            "description": "EAS releases owned by an app",
+            "name": "updateBranches",
+            "description": "EAS branches owned by an app",
             "args": [
               {
                 "name": "offset",
@@ -2756,7 +2756,7 @@
                   "name": null,
                   "ofType": {
                     "kind": "OBJECT",
-                    "name": "UpdateRelease",
+                    "name": "UpdateBranch",
                     "ofType": null
                   }
                 }
@@ -2766,11 +2766,11 @@
             "deprecationReason": null
           },
           {
-            "name": "updateReleaseByReleaseName",
-            "description": "get an EAS release owned by the app by releaseName",
+            "name": "updateBranchByBranchName",
+            "description": "get an EAS branch owned by the app by branchName",
             "args": [
               {
-                "name": "releaseName",
+                "name": "branchName",
                 "description": null,
                 "type": {
                   "kind": "NON_NULL",
@@ -2789,7 +2789,7 @@
               "name": null,
               "ofType": {
                 "kind": "OBJECT",
-                "name": "UpdateRelease",
+                "name": "UpdateBranch",
                 "ofType": null
               }
             },
@@ -5662,6 +5662,18 @@
             },
             "isDeprecated": false,
             "deprecationReason": null
+          },
+          {
+            "name": "parentAppleAppIdentifier",
+            "description": "",
+            "args": [],
+            "type": {
+              "kind": "OBJECT",
+              "name": "AppleAppIdentifier",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
           }
         ],
         "inputFields": null,
@@ -7303,7 +7315,7 @@
             "deprecationReason": null
           },
           {
-            "name": "releaseMapping",
+            "name": "branchMapping",
             "description": "",
             "args": [],
             "type": {
@@ -7351,7 +7363,7 @@
             "deprecationReason": null
           },
           {
-            "name": "updateReleases",
+            "name": "updateBranches",
             "description": "",
             "args": [
               {
@@ -7394,7 +7406,7 @@
                   "name": null,
                   "ofType": {
                     "kind": "OBJECT",
-                    "name": "UpdateRelease",
+                    "name": "UpdateBranch",
                     "ofType": null
                   }
                 }
@@ -7411,7 +7423,7 @@
       },
       {
         "kind": "OBJECT",
-        "name": "UpdateRelease",
+        "name": "UpdateBranch",
         "description": "",
         "fields": [
           {
@@ -7447,7 +7459,7 @@
             "deprecationReason": null
           },
           {
-            "name": "releaseName",
+            "name": "branchName",
             "description": "",
             "args": [],
             "type": {
@@ -7603,7 +7615,7 @@
             "deprecationReason": null
           },
           {
-            "name": "releaseId",
+            "name": "branchId",
             "description": "",
             "args": [],
             "type": {
@@ -7727,7 +7739,7 @@
             "deprecationReason": null
           },
           {
-            "name": "releaseName",
+            "name": "branchName",
             "description": "",
             "args": [],
             "type": {
@@ -10257,7 +10269,7 @@
             "deprecationReason": null
           },
           {
-            "name": "updateRelease",
+            "name": "updateBranch",
             "description": "",
             "args": [],
             "type": {
@@ -10265,7 +10277,7 @@
               "name": null,
               "ofType": {
                 "kind": "OBJECT",
-                "name": "UpdateReleaseMutation",
+                "name": "UpdateBranchMutation",
                 "ofType": null
               }
             },
@@ -11998,6 +12010,16 @@
           },
           {
             "name": "appleTeamId",
+            "description": "",
+            "type": {
+              "kind": "SCALAR",
+              "name": "ID",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "parentAppleAppId",
             "description": "",
             "type": {
               "kind": "SCALAR",
@@ -13880,7 +13902,7 @@
         "fields": [
           {
             "name": "createUpdateChannelForApp",
-            "description": "Create an EAS channel for an app.\n\nIn order to work with GraphQL formatting, the releaseMapping should be a\nstringified JSON supplied to the mutation as a variable.",
+            "description": "Create an EAS channel for an app.\n\nIn order to work with GraphQL formatting, the branchMapping should be a\nstringified JSON supplied to the mutation as a variable.",
             "args": [
               {
                 "name": "appId",
@@ -13911,7 +13933,7 @@
                 "defaultValue": null
               },
               {
-                "name": "releaseMapping",
+                "name": "branchMapping",
                 "description": null,
                 "type": {
                   "kind": "SCALAR",
@@ -13931,7 +13953,7 @@
           },
           {
             "name": "editUpdateChannel",
-            "description": "Edit an EAS channel.\n\nIn order to work with GraphQL formatting, the releaseMapping should be a\nstringified JSON supplied to the mutation as a variable.",
+            "description": "Edit an EAS channel.\n\nIn order to work with GraphQL formatting, the branchMapping should be a\nstringified JSON supplied to the mutation as a variable.",
             "args": [
               {
                 "name": "channelId",
@@ -13948,7 +13970,7 @@
                 "defaultValue": null
               },
               {
-                "name": "releaseMapping",
+                "name": "branchMapping",
                 "description": null,
                 "type": {
                   "kind": "NON_NULL",
@@ -13972,7 +13994,7 @@
           },
           {
             "name": "deleteUpdateChannel",
-            "description": "delete an EAS channel that doesn't point to any releases",
+            "description": "delete an EAS channel that doesn't point to any branches",
             "args": [
               {
                 "name": "channelId",
@@ -14105,12 +14127,12 @@
       },
       {
         "kind": "OBJECT",
-        "name": "UpdateReleaseMutation",
+        "name": "UpdateBranchMutation",
         "description": "",
         "fields": [
           {
-            "name": "createUpdateReleaseForApp",
-            "description": "Create an EAS release for an app",
+            "name": "createUpdateBranchForApp",
+            "description": "Create an EAS branch for an app",
             "args": [
               {
                 "name": "appId",
@@ -14127,7 +14149,7 @@
                 "defaultValue": null
               },
               {
-                "name": "releaseName",
+                "name": "branchName",
                 "description": null,
                 "type": {
                   "kind": "NON_NULL",
@@ -14143,15 +14165,15 @@
             ],
             "type": {
               "kind": "OBJECT",
-              "name": "UpdateRelease",
+              "name": "UpdateBranch",
               "ofType": null
             },
             "isDeprecated": false,
             "deprecationReason": null
           },
           {
-            "name": "editUpdateRelease",
-            "description": "Edit an EAS release. The release can be specified either by its ID or\nwith the combination of (appId, releaseName).",
+            "name": "editUpdateBranch",
+            "description": "Edit an EAS branch. The branch can be specified either by its ID or\nwith the combination of (appId, branchName).",
             "args": [
               {
                 "name": "input",
@@ -14161,7 +14183,7 @@
                   "name": null,
                   "ofType": {
                     "kind": "INPUT_OBJECT",
-                    "name": "EditUpdateReleaseInput",
+                    "name": "EditUpdateBranchInput",
                     "ofType": null
                   }
                 },
@@ -14173,7 +14195,7 @@
               "name": null,
               "ofType": {
                 "kind": "OBJECT",
-                "name": "UpdateRelease",
+                "name": "UpdateBranch",
                 "ofType": null
               }
             },
@@ -14181,11 +14203,11 @@
             "deprecationReason": null
           },
           {
-            "name": "deleteUpdateRelease",
-            "description": "Delete an EAS release and all of its updates as long as the release is not being used by any channels",
+            "name": "deleteUpdateBranch",
+            "description": "Delete an EAS branch and all of its updates as long as the branch is not being used by any channels",
             "args": [
               {
-                "name": "releaseId",
+                "name": "branchId",
                 "description": null,
                 "type": {
                   "kind": "NON_NULL",
@@ -14204,7 +14226,7 @@
               "name": null,
               "ofType": {
                 "kind": "OBJECT",
-                "name": "DeleteUpdateReleaseResult",
+                "name": "DeleteUpdateBranchResult",
                 "ofType": null
               }
             },
@@ -14213,7 +14235,7 @@
           },
           {
             "name": "publishUpdateGroup",
-            "description": "Publish an update group to a release",
+            "description": "Publish an update group to a branch",
             "args": [
               {
                 "name": "publishUpdateGroupInput",
@@ -14250,7 +14272,7 @@
       },
       {
         "kind": "INPUT_OBJECT",
-        "name": "EditUpdateReleaseInput",
+        "name": "EditUpdateBranchInput",
         "description": "",
         "fields": null,
         "inputFields": [
@@ -14275,7 +14297,7 @@
             "defaultValue": null
           },
           {
-            "name": "releaseName",
+            "name": "branchName",
             "description": "",
             "type": {
               "kind": "SCALAR",
@@ -14285,7 +14307,7 @@
             "defaultValue": null
           },
           {
-            "name": "newReleaseName",
+            "name": "newBranchName",
             "description": "",
             "type": {
               "kind": "NON_NULL",
@@ -14305,7 +14327,7 @@
       },
       {
         "kind": "OBJECT",
-        "name": "DeleteUpdateReleaseResult",
+        "name": "DeleteUpdateBranchResult",
         "description": "",
         "fields": [
           {
@@ -14337,7 +14359,7 @@
         "fields": null,
         "inputFields": [
           {
-            "name": "releaseId",
+            "name": "branchId",
             "description": "",
             "type": {
               "kind": "NON_NULL",

@@ -37,7 +37,7 @@ const PublishMutation = {
         .mutation<UpdatePublishMutation>(
           gql`
             mutation UpdatePublishMutation($publishUpdateGroupInput: PublishUpdateGroupInput) {
-              updateRelease {
+              updateBranch {
                 publishUpdateGroup(publishUpdateGroupInput: $publishUpdateGroupInput) {
                   id
                   updateGroup
@@ -49,7 +49,7 @@ const PublishMutation = {
         )
         .toPromise()
     );
-    return data.updateRelease.publishUpdateGroup[0]!;
+    return data.updateBranch.publishUpdateGroup[0]!;
   },
 };
 
