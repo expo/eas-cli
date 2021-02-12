@@ -10,9 +10,9 @@ import { updateAppJsonConfigAsync } from '../utils/appJson';
 import { readPlistAsync, writePlistAsync } from './plist';
 
 export enum BumpStrategy {
-  ShortVersion,
-  BuildNumber,
-  Noop,
+  SHORT_VERSION,
+  BUILD_NUMBER,
+  NOOP,
 }
 
 export async function bumpVersionAsync({
@@ -24,7 +24,7 @@ export async function bumpVersionAsync({
   exp: ExpoConfig;
   bumpStrategy: BumpStrategy;
 }): Promise<void> {
-  if (bumpStrategy === BumpStrategy.Noop) {
+  if (bumpStrategy === BumpStrategy.NOOP) {
     return;
   }
   const infoPlist = await readInfoPlistAsync(projectDir);
@@ -43,11 +43,11 @@ export async function bumpVersionInAppJsonAsync({
   projectDir: string;
   exp: ExpoConfig;
 }): Promise<void> {
-  if (bumpStrategy === BumpStrategy.Noop) {
+  if (bumpStrategy === BumpStrategy.NOOP) {
     return;
   }
   Log.addNewLineIfNone();
-  if (bumpStrategy === BumpStrategy.ShortVersion) {
+  if (bumpStrategy === BumpStrategy.SHORT_VERSION) {
     const shortVersion = IOSConfig.Version.getVersion(exp);
     if (semver.valid(shortVersion)) {
       const bumpedShortVersion = nullthrows(semver.inc(shortVersion, 'patch'));

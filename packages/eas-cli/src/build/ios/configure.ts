@@ -58,12 +58,12 @@ export async function validateAndSyncProjectConfigurationAsync({
 
 function resolveVersionBumpStrategy(autoIncrement: VersionAutoIncrement): BumpStrategy {
   if (autoIncrement === true) {
-    return BumpStrategy.BuildNumber;
+    return BumpStrategy.BUILD_NUMBER;
   } else if (autoIncrement === false) {
-    return BumpStrategy.Noop;
+    return BumpStrategy.NOOP;
   } else if (autoIncrement === 'buildNumber') {
-    return BumpStrategy.BuildNumber;
+    return BumpStrategy.BUILD_NUMBER;
   } else {
-    return BumpStrategy.ShortVersion;
+    return BumpStrategy.SHORT_VERSION;
   }
 }

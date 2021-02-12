@@ -28,11 +28,11 @@ beforeEach(() => {
 
 // generic workflow
 describe(bumpVersionAsync, () => {
-  it('bumps expo.ios.buildNumber and CFBundleVersion when strategy = BumpStrategy.BuildNumber', async () => {
+  it('bumps expo.ios.buildNumber and CFBundleVersion when strategy = BumpStrategy.BUILD_NUMBER', async () => {
     const fakeExp = initGenericProject();
 
     await bumpVersionAsync({
-      bumpStrategy: BumpStrategy.BuildNumber,
+      bumpStrategy: BumpStrategy.BUILD_NUMBER,
       projectDir: '/repo',
       exp: fakeExp,
     });
@@ -47,11 +47,11 @@ describe(bumpVersionAsync, () => {
     expect(infoPlist['CFBundleVersion']).toBe('2');
   });
 
-  it('bumps expo.version and CFBundleShortVersionString when strategy = BumpStrategy.ShortVersion', async () => {
+  it('bumps expo.version and CFBundleShortVersionString when strategy = BumpStrategy.SHORT_VERSION', async () => {
     const fakeExp = initGenericProject();
 
     await bumpVersionAsync({
-      bumpStrategy: BumpStrategy.ShortVersion,
+      bumpStrategy: BumpStrategy.SHORT_VERSION,
       projectDir: '/repo',
       exp: fakeExp,
     });
@@ -66,11 +66,11 @@ describe(bumpVersionAsync, () => {
     expect(infoPlist['CFBundleVersion']).toBe('1');
   });
 
-  it('does not bump any version when strategy = BumpStrategy.Noop', async () => {
+  it('does not bump any version when strategy = BumpStrategy.NOOP', async () => {
     const fakeExp = initGenericProject();
 
     await bumpVersionAsync({
-      bumpStrategy: BumpStrategy.Noop,
+      bumpStrategy: BumpStrategy.NOOP,
       projectDir: '/repo',
       exp: fakeExp,
     });
@@ -88,11 +88,11 @@ describe(bumpVersionAsync, () => {
 
 // managed workflow
 describe(bumpVersionInAppJsonAsync, () => {
-  it('bumps expo.ios.buildNumber when strategy = BumpStrategy.BuildNumber', async () => {
+  it('bumps expo.ios.buildNumber when strategy = BumpStrategy.BUILD_NUMBER', async () => {
     const fakeExp = initManagedProject();
 
     await bumpVersionInAppJsonAsync({
-      bumpStrategy: BumpStrategy.BuildNumber,
+      bumpStrategy: BumpStrategy.BUILD_NUMBER,
       projectDir: '/repo',
       exp: fakeExp,
     });
@@ -104,11 +104,11 @@ describe(bumpVersionInAppJsonAsync, () => {
     expect(appJSON.expo.ios.buildNumber).toBe('2');
   });
 
-  it('bumps expo.version when strategy = BumpStrategy.ShortVersion', async () => {
+  it('bumps expo.version when strategy = BumpStrategy.SHORT_VERSION', async () => {
     const fakeExp = initManagedProject();
 
     await bumpVersionInAppJsonAsync({
-      bumpStrategy: BumpStrategy.ShortVersion,
+      bumpStrategy: BumpStrategy.SHORT_VERSION,
       projectDir: '/repo',
       exp: fakeExp,
     });
@@ -120,11 +120,11 @@ describe(bumpVersionInAppJsonAsync, () => {
     expect(appJSON.expo.ios.buildNumber).toBe('1');
   });
 
-  it('does not bump any version when strategy = BumpStrategy.Noop', async () => {
+  it('does not bump any version when strategy = BumpStrategy.NOOP', async () => {
     const fakeExp = initManagedProject();
 
     await bumpVersionInAppJsonAsync({
-      bumpStrategy: BumpStrategy.Noop,
+      bumpStrategy: BumpStrategy.NOOP,
       projectDir: '/repo',
       exp: fakeExp,
     });
