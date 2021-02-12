@@ -33,7 +33,7 @@ const iOSGenericSchema = Joi.object({
   releaseChannel: Joi.string(),
   artifactPath: Joi.string(),
   distribution: Joi.string().valid('store', 'internal').default('store'),
-  autoincrement: Joi.alternatives()
+  autoIncrement: Joi.alternatives()
     .try(Joi.boolean(), Joi.string().valid('version', 'buildNumber'))
     .default('buildNumber'),
 });
@@ -43,7 +43,7 @@ const iOSManagedSchema = Joi.object({
   credentialsSource: Joi.string().valid('local', 'remote', 'auto').default('auto'),
   releaseChannel: Joi.string(),
   distribution: Joi.string().valid('store', 'internal').default('store'),
-  autoincrement: Joi.alternatives()
+  autoIncrement: Joi.alternatives()
     .try(Joi.boolean(), Joi.string().valid('version', 'buildNumber'))
     .default('buildNumber'),
 });

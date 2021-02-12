@@ -11,7 +11,7 @@ export enum DistributionType {
   INTERNAL = 'internal',
 }
 
-export type VersionAutoincrement = boolean | 'version' | 'buildNumber';
+export type VersionAutoIncrement = boolean | 'version' | 'buildNumber';
 
 export interface AndroidManagedBuildProfile {
   workflow: Workflow.Managed;
@@ -36,7 +36,7 @@ export interface iOSManagedBuildProfile {
   credentialsSource: CredentialsSource;
   releaseChannel?: string;
   distribution?: DistributionType;
-  autoincrement: VersionAutoincrement;
+  autoIncrement: VersionAutoIncrement;
 }
 
 export interface iOSGenericBuildProfile {
@@ -46,7 +46,7 @@ export interface iOSGenericBuildProfile {
   releaseChannel?: string;
   artifactPath?: string;
   distribution?: DistributionType;
-  autoincrement: VersionAutoincrement;
+  autoIncrement: VersionAutoIncrement;
 }
 
 export type AndroidBuildProfile = AndroidManagedBuildProfile | AndroidGenericBuildProfile;

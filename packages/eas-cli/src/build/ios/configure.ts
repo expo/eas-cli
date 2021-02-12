@@ -1,7 +1,7 @@
 import { ExpoConfig } from '@expo/config';
 import { IOSConfig } from '@expo/config-plugins';
 import { Workflow } from '@expo/eas-build-job';
-import { VersionAutoincrement, iOSBuildProfile } from '@expo/eas-json';
+import { VersionAutoIncrement, iOSBuildProfile } from '@expo/eas-json';
 
 import Log from '../../log';
 import { ConfigureContext } from '../context';
@@ -35,8 +35,8 @@ export async function validateAndSyncProjectConfigurationAsync({
   exp: ExpoConfig;
   buildProfile: iOSBuildProfile;
 }): Promise<void> {
-  const { workflow, autoincrement } = buildProfile;
-  const versionBumpStrategy = resolveVersionBumpStrategy(autoincrement);
+  const { workflow, autoIncrement } = buildProfile;
+  const versionBumpStrategy = resolveVersionBumpStrategy(autoIncrement);
 
   if (workflow === Workflow.Generic) {
     const bundleIdentifierFromPbxproj = IOSConfig.BundleIdenitifer.getBundleIdentifierFromPbxproj(
@@ -56,12 +56,12 @@ export async function validateAndSyncProjectConfigurationAsync({
   }
 }
 
-function resolveVersionBumpStrategy(autoincrement: VersionAutoincrement): BumpStrategy {
-  if (autoincrement === true) {
+function resolveVersionBumpStrategy(autoIncrement: VersionAutoIncrement): BumpStrategy {
+  if (autoIncrement === true) {
     return BumpStrategy.BuildNumber;
-  } else if (autoincrement === false) {
+  } else if (autoIncrement === false) {
     return BumpStrategy.Noop;
-  } else if (autoincrement === 'buildNumber') {
+  } else if (autoIncrement === 'buildNumber') {
     return BumpStrategy.BuildNumber;
   } else {
     return BumpStrategy.ShortVersion;
