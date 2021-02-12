@@ -66,9 +66,12 @@ export async function prepareBuildRequestForPlatformAsync<
 
   if (!(await isGitStatusCleanAsync())) {
     Log.addNewLineIfNone();
-    await reviewAndCommitChangesAsync(`[EAS Build] Configure project`, {
-      nonInteractive: builder.ctx.commandCtx.nonInteractive,
-    });
+    await reviewAndCommitChangesAsync(
+      `[EAS Build] Run EAS Build for ${platformDisplayNames[builder.ctx.platform as Platform]}`,
+      {
+        nonInteractive: builder.ctx.commandCtx.nonInteractive,
+      }
+    );
   }
 
   const archiveBucketKey = await uploadProjectAsync(builder.ctx);

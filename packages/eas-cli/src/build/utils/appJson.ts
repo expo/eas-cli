@@ -14,7 +14,7 @@ export async function updateAppJsonConfigAsync(
   modifyConfig: (config: any) => void
 ): Promise<void> {
   const paths = ExpoConfig.getConfigFilePaths(projectDir);
-  assert(paths.staticConfigPath, "can't update dynamic configs");
+  assert(paths.staticConfigPath, "can't update dynamic config");
 
   const rawStaticConfig = await fs.readJSON(paths.staticConfigPath);
   rawStaticConfig.expo = rawStaticConfig.expo ?? {};

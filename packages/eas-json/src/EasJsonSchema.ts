@@ -35,7 +35,7 @@ const iOSGenericSchema = Joi.object({
   distribution: Joi.string().valid('store', 'internal').default('store'),
   autoIncrement: Joi.alternatives()
     .try(Joi.boolean(), Joi.string().valid('version', 'buildNumber'))
-    .default('buildNumber'),
+    .default(false),
 });
 
 const iOSManagedSchema = Joi.object({
@@ -45,7 +45,7 @@ const iOSManagedSchema = Joi.object({
   distribution: Joi.string().valid('store', 'internal').default('store'),
   autoIncrement: Joi.alternatives()
     .try(Joi.boolean(), Joi.string().valid('version', 'buildNumber'))
-    .default('buildNumber'),
+    .default(false),
 });
 
 const schemaBuildProfileMap: Record<string, Record<string, Joi.Schema>> = {

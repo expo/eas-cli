@@ -1,4 +1,4 @@
-import { ExpoConfig } from '@expo/config';
+import { ExpoConfig, getConfigFilePaths } from '@expo/config';
 import { IOSConfig } from '@expo/config-plugins';
 import chalk from 'chalk';
 import nullthrows from 'nullthrows';
@@ -27,6 +27,7 @@ export async function bumpVersionAsync({
   if (bumpStrategy === BumpStrategy.NOOP) {
     return;
   }
+  ensureDynamicConfigDoesNotExist(projectDir);
   const infoPlist = await readInfoPlistAsync(projectDir);
   await bumpVersionInAppJsonAsync({ bumpStrategy, projectDir, exp });
   Log.log('Updated versions in app.json');
@@ -46,6 +47,7 @@ export async function bumpVersionInAppJsonAsync({
   if (bumpStrategy === BumpStrategy.NOOP) {
     return;
   }
+  ensureDynamicConfigDoesNotExist(projectDir);
   Log.addNewLineIfNone();
   if (bumpStrategy === BumpStrategy.SHORT_VERSION) {
     const shortVersion = IOSConfig.Version.getVersion(exp);
@@ -72,8 +74,10 @@ export async function bumpVersionInAppJsonAsync({
     }
   } else {
     const buildNumber = IOSConfig.Version.getBuildNumber(exp);
-    if (buildNumber.match(/^\d+$/)) {
-      const bumpedBuildNumber = Number(buildNumber) + 1;
+    if (buildNumber.match(/^\d+(\.\d+)*$/)) {
+      const comps = buildNumber.split('.');
+      comps[comps.length - 1] = String(Number(comps[comps.length - 1]) + 1);
+      const bumpedBuildNumber = comps.join('.');
       Log.log(
         `Bumping ${chalk.bold('expo.ios.buildNumber')} from ${chalk.bold(
           buildNumber
@@ -125,4 +129,11 @@ async function writeInfoPlistAsync({
 }): Promise<void> {
   const infoPlistPath = IOSConfig.Paths.getInfoPlistPath(projectDir);
   await writePlistAsync(infoPlistPath, infoPlist);
+}
+
+function ensureDynamicConfigDoesNotExist(projectDir: string): void {
+  const paths = getConfigFilePaths(projectDir);
+  if (!paths.staticConfigPath) {
+    throw new Error('autoIncrement option is not supported when using app.config.js');
+  }
 }
