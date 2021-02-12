@@ -1,4 +1,5 @@
 export {
+  BuildConfiguration,
   CredentialsSource,
   DistributionType,
   AndroidManagedBuildProfile,
