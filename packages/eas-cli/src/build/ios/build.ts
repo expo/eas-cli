@@ -41,7 +41,7 @@ export async function prepareIosBuildAsync(
   let iosApplicationNativeTarget: string | undefined;
   if (buildCtx.buildProfile.workflow === Workflow.Generic) {
     iosNativeProjectScheme = buildCtx.buildProfile.scheme ?? (await resolveSchemeAsync(buildCtx));
-    iosApplicationNativeTarget = await IOSConfig.Target.getApplicationTargetForSchemeAsync(
+    iosApplicationNativeTarget = await IOSConfig.BuildScheme.getApplicationTargetForSchemeAsync(
       buildCtx.commandCtx.projectDir,
       iosNativeProjectScheme
     );
@@ -68,7 +68,7 @@ export async function prepareIosBuildAsync(
 }
 
 async function resolveSchemeAsync(ctx: BuildContext<Platform.iOS>): Promise<string> {
-  const schemes = IOSConfig.Scheme.getSchemesFromXcodeproj(ctx.commandCtx.projectDir);
+  const schemes = IOSConfig.BuildScheme.getBuildSchemesFromXcodeproj(ctx.commandCtx.projectDir);
   if (schemes.length === 1) {
     return schemes[0];
   }
