@@ -8,5 +8,6 @@ export {
   iOSGenericBuildProfile,
   iOSBuildProfile,
   EasConfig,
+  VersionAutoIncrement,
 } from './Config.types';
 export { EasJsonReader } from './EasJsonReader';

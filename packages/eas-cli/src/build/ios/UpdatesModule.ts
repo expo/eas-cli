@@ -1,14 +1,13 @@
 import { ExpoConfig } from '@expo/config';
 import { IOSConfig } from '@expo/config-plugins';
-import plist from '@expo/plist';
 import fs from 'fs-extra';
-import path from 'path';
 
 import Log from '../../log';
 import { getProjectAccountName } from '../../project/projectUtils';
 import { ensureLoggedInAsync } from '../../user/actions';
 import { gitAddAsync } from '../../utils/git';
 import { ensureValidVersions } from '../utils/updates';
+import { readPlistAsync, writePlistAsync } from './plist';
 
 export async function configureUpdatesAsync(projectDir: string, exp: ExpoConfig): Promise<void> {
   ensureValidVersions(exp);
@@ -77,13 +76,7 @@ async function ensureUpdatesConfiguredAsync(projectDir: string, exp: ExpoConfig)
 
 async function readExpoPlistAsync(projectDir: string): Promise<IOSConfig.ExpoPlist> {
   const expoPlistPath = IOSConfig.Paths.getExpoPlistPath(projectDir);
-
-  let expoPlist = {};
-  if (await fs.pathExists(expoPlistPath)) {
-    const expoPlistContent = await fs.readFile(expoPlistPath, 'utf8');
-    expoPlist = plist.parse(expoPlistContent);
-  }
-  return expoPlist;
+  return await readPlistAsync(expoPlistPath);
 }
 
 async function writeExpoPlistAsync(
@@ -91,9 +84,6 @@ async function writeExpoPlistAsync(
   expoPlist: IOSConfig.ExpoPlist
 ): Promise<void> {
   const expoPlistPath = IOSConfig.Paths.getExpoPlistPath(projectDir);
-  const expoPlistContent = plist.build(expoPlist);
-
-  await fs.mkdirp(path.dirname(expoPlistPath));
-  await fs.writeFile(expoPlistPath, expoPlistContent);
+  await writePlistAsync(expoPlistPath, expoPlist);
   await gitAddAsync(expoPlistPath, { intentToAdd: true });
 }

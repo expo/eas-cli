@@ -66,12 +66,12 @@ export async function prepareBuildRequestForPlatformAsync<
 
   if (!(await isGitStatusCleanAsync())) {
     Log.addNewLineIfNone();
-    const projectType = builder.ctx.platform === Platform.Android ? 'Android' : 'Xcode';
-    // Currently we are only updaing runtime version durring build, but if it changes in a future
-    // this message should also contain more info on that (or be more generic)
-    await reviewAndCommitChangesAsync(`Update runtime version in the ${projectType} project`, {
-      nonInteractive: builder.ctx.commandCtx.nonInteractive,
-    });
+    await reviewAndCommitChangesAsync(
+      `[EAS Build] Run EAS Build for ${platformDisplayNames[builder.ctx.platform as Platform]}`,
+      {
+        nonInteractive: builder.ctx.commandCtx.nonInteractive,
+      }
+    );
   }
 
   const archiveBucketKey = await uploadProjectAsync(builder.ctx);

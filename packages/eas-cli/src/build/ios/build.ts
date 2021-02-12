@@ -57,9 +57,11 @@ export async function prepareIosBuildAsync(
     },
     ensureCredentialsAsync: ensureIosCredentialsAsync,
     ensureProjectConfiguredAsync: async () => {
-      if (buildCtx.buildProfile.workflow === Workflow.Generic) {
-        await validateAndSyncProjectConfigurationAsync(commandCtx.projectDir, commandCtx.exp);
-      }
+      await validateAndSyncProjectConfigurationAsync({
+        projectDir: commandCtx.projectDir,
+        exp: commandCtx.exp,
+        buildProfile: buildCtx.buildProfile,
+      });
     },
     prepareJobAsync,
   });

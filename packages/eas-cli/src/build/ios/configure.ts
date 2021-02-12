@@ -1,5 +1,7 @@
 import { ExpoConfig } from '@expo/config';
 import { IOSConfig } from '@expo/config-plugins';
+import { Workflow } from '@expo/eas-build-job';
+import { VersionAutoIncrement, iOSBuildProfile } from '@expo/eas-json';
 
 import Log from '../../log';
 import { ConfigureContext } from '../context';
@@ -9,6 +11,7 @@ import {
   configureBundleIdentifierAsync,
   ensureBundleIdentifierIsValidAsync,
 } from './bundleIdentifer';
+import { BumpStrategy, bumpVersionAsync, bumpVersionInAppJsonAsync } from './version';
 
 export async function configureIosAsync(ctx: ConfigureContext): Promise<void> {
   if (!ctx.hasIosNativeProject) {
@@ -23,19 +26,44 @@ export async function configureIosAsync(ctx: ConfigureContext): Promise<void> {
   Log.withTick('iOS project configured');
 }
 
-export async function validateAndSyncProjectConfigurationAsync(
-  projectDir: string,
-  exp: ExpoConfig
-): Promise<void> {
-  const bundleIdentifierFromPbxproj = IOSConfig.BundleIdenitifer.getBundleIdentifierFromPbxproj(
-    projectDir
-  );
-  if (!bundleIdentifierFromPbxproj || bundleIdentifierFromPbxproj !== exp.ios?.bundleIdentifier) {
-    throw new Error(
-      'Bundle identifier is not configured correctly in your Xcode project. Please run "eas build:configure" to configure it.'
+export async function validateAndSyncProjectConfigurationAsync({
+  projectDir,
+  exp,
+  buildProfile,
+}: {
+  projectDir: string;
+  exp: ExpoConfig;
+  buildProfile: iOSBuildProfile;
+}): Promise<void> {
+  const { workflow, autoIncrement } = buildProfile;
+  const versionBumpStrategy = resolveVersionBumpStrategy(autoIncrement);
+
+  if (workflow === Workflow.Generic) {
+    const bundleIdentifierFromPbxproj = IOSConfig.BundleIdenitifer.getBundleIdentifierFromPbxproj(
+      projectDir
     );
+    if (!bundleIdentifierFromPbxproj || bundleIdentifierFromPbxproj !== exp.ios?.bundleIdentifier) {
+      throw new Error(
+        'Bundle identifier is not configured correctly in your Xcode project. Please run "eas build:configure" to configure it.'
+      );
+    }
+    if (isExpoUpdatesInstalled(projectDir)) {
+      await syncUpdatesConfigurationAsync(projectDir, exp);
+    }
+    await bumpVersionAsync({ projectDir, exp, bumpStrategy: versionBumpStrategy });
+  } else {
+    await bumpVersionInAppJsonAsync({ projectDir, exp, bumpStrategy: versionBumpStrategy });
   }
-  if (isExpoUpdatesInstalled(projectDir)) {
-    await syncUpdatesConfigurationAsync(projectDir, exp);
+}
+
+function resolveVersionBumpStrategy(autoIncrement: VersionAutoIncrement): BumpStrategy {
+  if (autoIncrement === true) {
+    return BumpStrategy.BUILD_NUMBER;
+  } else if (autoIncrement === false) {
+    return BumpStrategy.NOOP;
+  } else if (autoIncrement === 'buildNumber') {
+    return BumpStrategy.BUILD_NUMBER;
+  } else {
+    return BumpStrategy.SHORT_VERSION;
   }
 }

@@ -49,6 +49,7 @@ test('minimal valid ios eas.json', async () => {
         credentialsSource: 'auto',
         distribution: 'store',
         workflow: 'generic',
+        autoIncrement: false,
       },
     },
   }).toEqual(easJson);
@@ -71,7 +72,12 @@ test('minimal valid eas.json for both platforms', async () => {
   expect({
     builds: {
       android: { workflow: 'generic', distribution: 'store', credentialsSource: 'auto' },
-      ios: { workflow: 'generic', distribution: 'store', credentialsSource: 'auto' },
+      ios: {
+        workflow: 'generic',
+        distribution: 'store',
+        credentialsSource: 'auto',
+        autoIncrement: false,
+      },
     },
   }).toEqual(easJson);
 });
@@ -134,6 +140,7 @@ test('valid eas.json for debug builds', async () => {
         credentialsSource: 'auto',
         workflow: 'managed',
         distribution: 'store',
+        autoIncrement: false,
       },
     },
   }).toEqual(easJson);
