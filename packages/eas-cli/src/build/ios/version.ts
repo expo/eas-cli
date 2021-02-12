@@ -27,7 +27,7 @@ export async function bumpVersionAsync({
   if (bumpStrategy === BumpStrategy.NOOP) {
     return;
   }
-  ensureDynamicConfigDoesNotExist(projectDir);
+  ensureStaticConfigExists(projectDir);
   const infoPlist = await readInfoPlistAsync(projectDir);
   await bumpVersionInAppJsonAsync({ bumpStrategy, projectDir, exp });
   Log.log('Updated versions in app.json');
@@ -47,7 +47,7 @@ export async function bumpVersionInAppJsonAsync({
   if (bumpStrategy === BumpStrategy.NOOP) {
     return;
   }
-  ensureDynamicConfigDoesNotExist(projectDir);
+  ensureStaticConfigExists(projectDir);
   Log.addNewLineIfNone();
   if (bumpStrategy === BumpStrategy.SHORT_VERSION) {
     const shortVersion = IOSConfig.Version.getVersion(exp);
@@ -131,7 +131,7 @@ async function writeInfoPlistAsync({
   await writePlistAsync(infoPlistPath, infoPlist);
 }
 
-function ensureDynamicConfigDoesNotExist(projectDir: string): void {
+function ensureStaticConfigExists(projectDir: string): void {
   const paths = getConfigFilePaths(projectDir);
   if (!paths.staticConfigPath) {
     throw new Error('autoIncrement option is not supported when using app.config.js');
