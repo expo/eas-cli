@@ -52,7 +52,7 @@ async function isGitInstalledAsync(): Promise<boolean> {
 
 async function getBranchNameAsync(): Promise<string | null> {
   try {
-    return (await spawnAsync('git', ['rev-parse', '--abbrev-ref', 'HEAD'])).stdout;
+    return (await spawnAsync('git', ['rev-parse', '--abbrev-ref', 'HEAD'])).stdout.trim();
   } catch (e) {
     return null;
   }
