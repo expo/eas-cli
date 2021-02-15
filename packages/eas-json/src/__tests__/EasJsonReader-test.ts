@@ -27,6 +27,8 @@ test('minimal valid android eas.json', async () => {
         workflow: 'generic',
         distribution: 'store',
         credentialsSource: 'auto',
+        env: {},
+        image: 'default',
       },
     },
   }).toEqual(easJson);
@@ -50,6 +52,8 @@ test('minimal valid ios eas.json', async () => {
         distribution: 'store',
         workflow: 'generic',
         autoIncrement: false,
+        env: {},
+        image: 'default',
       },
     },
   }).toEqual(easJson);
@@ -71,12 +75,20 @@ test('minimal valid eas.json for both platforms', async () => {
   const easJson = await reader.readAsync('release');
   expect({
     builds: {
-      android: { workflow: 'generic', distribution: 'store', credentialsSource: 'auto' },
+      android: {
+        workflow: 'generic',
+        distribution: 'store',
+        credentialsSource: 'auto',
+        env: {},
+        image: 'default',
+      },
       ios: {
         workflow: 'generic',
         distribution: 'store',
         credentialsSource: 'auto',
         autoIncrement: false,
+        env: {},
+        image: 'default',
       },
     },
   }).toEqual(easJson);
@@ -102,6 +114,8 @@ test('valid eas.json with both platform, but reading only android', async () => 
         workflow: 'generic',
         distribution: 'store',
         credentialsSource: 'auto',
+        env: {},
+        image: 'default',
       },
     },
   }).toEqual(easJson);
@@ -135,12 +149,16 @@ test('valid eas.json for debug builds', async () => {
         gradleCommand: ':app:assembleDebug',
         withoutCredentials: true,
         distribution: 'store',
+        env: {},
+        image: 'default',
       },
       ios: {
         credentialsSource: 'auto',
         workflow: 'managed',
         distribution: 'store',
         autoIncrement: false,
+        env: {},
+        image: 'default',
       },
     },
   }).toEqual(easJson);
@@ -167,6 +185,8 @@ test('valid generic profile for internal distribution on Android', async () => {
         distribution: 'internal',
         credentialsSource: 'auto',
         gradleCommand: ':app:assembleRelease',
+        env: {},
+        image: 'default',
       },
     },
   }).toEqual(easJson);
@@ -193,6 +213,8 @@ test('valid managed profile for internal distribution on Android', async () => {
         buildType: 'apk',
         distribution: 'internal',
         credentialsSource: 'auto',
+        env: {},
+        image: 'default',
       },
     },
   }).toEqual(easJson);
@@ -222,7 +244,9 @@ test('invalid eas.json with missing preset', async () => {
   await fs.writeJson('/project/eas.json', {
     builds: {
       android: {
-        release: { workflow: 'generic' },
+        release: {
+          workflow: 'generic',
+        },
       },
     },
   });
@@ -262,7 +286,7 @@ test('invalid eas.json when missing workflow', async () => {
   const reader = new EasJsonReader('/project', 'android');
   const promise = reader.readAsync('release');
   await expect(promise).rejects.toThrowError(
-    'eas.json is not valid [ValidationError: "builds.android.release.workflow" is required]'
+    '"workflow" key is required in a build profile and has to be one of ["generic", "managed"].'
   );
 });
 
@@ -273,5 +297,21 @@ test('empty json', async () => {
   const promise = reader.readAsync('release');
   await expect(promise).rejects.toThrowError(
     'There is no profile named release for platform android'
+  );
+});
+
+test('invalid semver value', async () => {
+  await fs.writeJson('/project/eas.json', {
+    builds: {
+      android: {
+        release: { workflow: 'generic', node: '12.0.0-alpha' },
+      },
+    },
+  });
+
+  const reader = new EasJsonReader('/project', 'android');
+  const promise = reader.readAsync('release');
+  await expect(promise).rejects.toThrowError(
+    'Object "android.release" in eas.json is not valid [ValidationError: "node" failed custom validation because 12.0.0-alpha is not a valid version]'
   );
 });
