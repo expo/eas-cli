@@ -9,47 +9,47 @@ import Log from '../../log';
 import { ensureProjectExistsAsync } from '../../project/ensureProjectExists';
 import {
   findProjectRootAsync,
+  getBranchByNameAsync,
   getProjectAccountNameAsync,
-  getReleaseByNameAsync,
 } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
-import { createUpdateReleaseOnAppAsync } from '../release/create';
+import { createUpdateBranchOnAppAsync } from '../branch/create';
 
 async function createUpdateChannelOnAppAsync({
   appId,
   channelName,
-  releaseId,
+  branchId,
 }: {
   appId: string;
   channelName: string;
-  releaseId: string;
+  branchId: string;
 }): Promise<UpdateChannel> {
-  // Point the new channel at a release with its same name.
-  const releaseMapping = JSON.stringify({
-    data: [{ releaseId, releaseMappingLogic: 'true' }],
+  // Point the new channel at a branch with its same name.
+  const branchMapping = JSON.stringify({
+    data: [{ branchId, branchMappingLogic: 'true' }],
     version: 0,
   });
   const data = await withErrorHandlingAsync(
     graphqlClient
       .mutation<
         { updateChannel: { createUpdateChannelForApp: UpdateChannel } },
-        { appId: string; channelName: string; releaseMapping: string }
+        { appId: string; channelName: string; branchMapping: string }
       >(
         gql`
           mutation CreateUpdateChannelForApp(
             $appId: ID!
             $channelName: String!
-            $releaseMapping: String!
+            $branchMapping: String!
           ) {
             updateChannel {
               createUpdateChannelForApp(
                 appId: $appId
                 channelName: $channelName
-                releaseMapping: $releaseMapping
+                branchMapping: $branchMapping
               ) {
                 id
                 channelName
-                releaseMapping
+                branchMapping
               }
             }
           }
@@ -57,7 +57,7 @@ async function createUpdateChannelOnAppAsync({
         {
           appId,
           channelName,
-          releaseMapping,
+          branchMapping,
         }
       )
       .toPromise()
@@ -80,7 +80,7 @@ export default class ChannelCreate extends Command {
   static flags = {
     json: flags.boolean({
       description:
-        'print output as a JSON object with the new channel ID, name and release mapping.',
+        'print output as a JSON object with the new channel ID, name and branch mapping.',
       default: false,
     }),
   };
@@ -117,28 +117,28 @@ export default class ChannelCreate extends Command {
       }));
     }
 
-    let releaseId: string;
-    let releaseMessage: string;
+    let branchId: string;
+    let branchMessage: string;
     try {
-      const existingRelease = await getReleaseByNameAsync({
+      const existingBranch = await getBranchByNameAsync({
         appId: projectId,
-        releaseName: channelName,
+        branchName: channelName,
       });
-      releaseId = existingRelease.id;
-      releaseMessage = `We found a release with the same name`;
+      branchId = existingBranch.id;
+      branchMessage = `We found a branch with the same name`;
     } catch (e) {
-      const newRelease = await createUpdateReleaseOnAppAsync({
+      const newBranch = await createUpdateBranchOnAppAsync({
         appId: projectId,
-        releaseName: channelName,
+        branchName: channelName,
       });
-      releaseId = newRelease.id;
-      releaseMessage = `We also went ahead and made a release with the same name`;
+      branchId = newBranch.id;
+      branchMessage = `We also went ahead and made a branch with the same name`;
     }
 
     const newChannel = await createUpdateChannelOnAppAsync({
       appId: projectId,
       channelName,
-      releaseId,
+      branchId,
     });
 
     if (jsonFlag) {
@@ -149,7 +149,7 @@ export default class ChannelCreate extends Command {
     Log.withTick(
       `️Created a new channel ${chalk.bold(newChannel.channelName)} on project ${chalk.bold(
         `@${accountName}/${slug}`
-      )}. ${releaseMessage} and have pointed the channel at it. You can now update your app by publishing!`
+      )}. ${branchMessage} and have pointed the channel at it. You can now update your app by publishing!`
     );
   }
 }

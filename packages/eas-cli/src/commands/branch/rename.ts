@@ -4,14 +4,14 @@ import chalk from 'chalk';
 import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
-import { EditUpdateReleaseInput, UpdateRelease } from '../../graphql/generated';
+import { EditUpdateBranchInput, UpdateBranch } from '../../graphql/generated';
 import Log from '../../log';
 import { ensureProjectExistsAsync } from '../../project/ensureProjectExists';
 import { findProjectRootAsync, getProjectAccountName } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
 import { ensureLoggedInAsync } from '../../user/actions';
 
-async function renameUpdateReleaseOnAppAsync({
+async function renameUpdateBranchOnAppAsync({
   appId,
   currentName,
   newName,
@@ -19,21 +19,21 @@ async function renameUpdateReleaseOnAppAsync({
   appId: string;
   currentName: string;
   newName: string;
-}): Promise<UpdateRelease> {
+}): Promise<UpdateBranch> {
   const data = await withErrorHandlingAsync(
     graphqlClient
       .mutation<
-        { updateRelease: { editUpdateRelease: UpdateRelease } },
+        { updateBranch: { editUpdateBranch: UpdateBranch } },
         {
-          input: EditUpdateReleaseInput;
+          input: EditUpdateBranchInput;
         }
       >(
         gql`
-          mutation EditUpdateRelease($input: EditUpdateReleaseInput!) {
-            updateRelease {
-              editUpdateRelease(input: $input) {
+          mutation EditUpdateBranch($input: EditUpdateBranchInput!) {
+            updateBranch {
+              editUpdateBranch(input: $input) {
                 id
-                releaseName
+                branchName
               }
             }
           }
@@ -41,31 +41,31 @@ async function renameUpdateReleaseOnAppAsync({
         {
           input: {
             appId,
-            releaseName: currentName,
-            newReleaseName: newName,
+            branchName: currentName,
+            newBranchName: newName,
           },
         }
       )
       .toPromise()
   );
-  return data.updateRelease.editUpdateRelease;
+  return data.updateBranch.editUpdateBranch;
 }
 
-export default class ReleaseRename extends Command {
+export default class BranchRename extends Command {
   static hidden = true;
-  static description = 'Rename a release.';
+  static description = 'Rename a branch.';
 
   static flags = {
     from: flags.string({
-      description: 'current name of the release.',
+      description: 'current name of the branch.',
       required: false,
     }),
     to: flags.string({
-      description: 'new name of the release.',
+      description: 'new name of the branch.',
       required: false,
     }),
     json: flags.boolean({
-      description: `return a json with the edited release's ID and name.`,
+      description: `return a json with the edited branch's ID and name.`,
       default: false,
     }),
   };
@@ -73,7 +73,7 @@ export default class ReleaseRename extends Command {
   async run() {
     let {
       flags: { json: jsonFlag, from: currentName, to: newName },
-    } = this.parse(ReleaseRename);
+    } = this.parse(BranchRename);
 
     const projectDir = await findProjectRootAsync(process.cwd());
     if (!projectDir) {
@@ -94,7 +94,7 @@ export default class ReleaseRename extends Command {
       ({ currentName } = await promptAsync({
         type: 'text',
         name: 'currentName',
-        message: 'Please enter the current name of the release to rename:',
+        message: 'Please enter the current name of the branch to rename:',
         validate: value => (value ? true : validationMessage),
       }));
     }
@@ -112,20 +112,20 @@ export default class ReleaseRename extends Command {
       }));
     }
 
-    const editedRelease = await renameUpdateReleaseOnAppAsync({
+    const editedBranch = await renameUpdateBranchOnAppAsync({
       appId: projectId,
       currentName: currentName!,
       newName: newName!,
     });
 
     if (jsonFlag) {
-      Log.log(editedRelease);
+      Log.log(editedBranch);
       return;
     }
 
     Log.withTick(
-      `️Renamed release from ${currentName} to ${chalk.bold(
-        editedRelease.releaseName
+      `️Renamed branch from ${currentName} to ${chalk.bold(
+        editedBranch.branchName
       )} on project ${chalk.bold(`@${accountName}/${exp.slug}`)}.`
     );
   }

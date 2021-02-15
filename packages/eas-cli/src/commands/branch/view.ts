@@ -16,15 +16,15 @@ const PAGE_LIMIT = 10_000;
 
 type TruncatedUpdate = Pick<Update, 'updateGroup' | 'updateMessage' | 'createdAt' | 'actor'>;
 
-async function viewUpdateReleaseAsync({
+async function viewUpdateBranchAsync({
   appId,
-  releaseName,
+  branchName,
 }: {
   appId: string;
-  releaseName: string;
+  branchName: string;
 }): Promise<{
   id: string;
-  releaseName: string;
+  branchName: string;
   updates: TruncatedUpdate[];
 }> {
   const data = await withErrorHandlingAsync(
@@ -33,9 +33,9 @@ async function viewUpdateReleaseAsync({
         {
           app: {
             byId: {
-              updateReleaseByReleaseName: {
+              updateBranchByBranchName: {
                 id: string;
-                releaseName: string;
+                branchName: string;
                 updates: TruncatedUpdate[];
               };
             };
@@ -43,18 +43,18 @@ async function viewUpdateReleaseAsync({
         },
         {
           appId: string;
-          releaseName: string;
+          branchName: string;
           limit: number;
         }
       >(
         gql`
-          query ViewRelease($appId: String!, $releaseName: String!, $limit: Int!) {
+          query ViewBranch($appId: String!, $branchName: String!, $limit: Int!) {
             app {
               byId(appId: $appId) {
                 id
-                updateReleaseByReleaseName(releaseName: $releaseName) {
+                updateBranchByBranchName(branchName: $branchName) {
                   id
-                  releaseName
+                  branchName
                   updates(offset: 0, limit: $limit) {
                     id
                     updateGroup
@@ -77,39 +77,39 @@ async function viewUpdateReleaseAsync({
         `,
         {
           appId,
-          releaseName,
+          branchName,
           limit: PAGE_LIMIT,
         }
       )
       .toPromise()
   );
-  return data.app.byId.updateReleaseByReleaseName;
+  return data.app.byId.updateBranchByBranchName;
 }
 
-export default class ReleaseView extends Command {
+export default class BranchView extends Command {
   static hidden = true;
-  static description = 'View a release.';
+  static description = 'View a branch.';
 
   static args = [
     {
-      name: 'releaseName',
+      name: 'branchName',
       required: false,
-      description: 'Name of the release to view',
+      description: 'Name of the branch to view',
     },
   ];
 
   static flags = {
     json: flags.boolean({
-      description: `return a json with the release's ID name and recent update groups.`,
+      description: `return a json with the branch's ID name and recent update groups.`,
       default: false,
     }),
   };
 
   async run() {
     let {
-      args: { releaseName },
+      args: { branchName },
       flags: { json: jsonFlag },
-    } = this.parse(ReleaseView);
+    } = this.parse(BranchView);
 
     const projectDir = await findProjectRootAsync(process.cwd());
     if (!projectDir) {
@@ -124,30 +124,30 @@ export default class ReleaseView extends Command {
       projectName: slug,
     });
 
-    if (!releaseName) {
-      const validationMessage = 'Release name may not be empty.';
+    if (!branchName) {
+      const validationMessage = 'Branch name may not be empty.';
       if (jsonFlag) {
         throw new Error(validationMessage);
       }
-      ({ releaseName } = await promptAsync({
+      ({ branchName } = await promptAsync({
         type: 'text',
-        name: 'releaseName',
-        message: 'Please enter the name of the release to view:',
+        name: 'branchName',
+        message: 'Please enter the name of the branch to view:',
         validate: value => (value ? true : validationMessage),
       }));
     }
 
-    const UpdateRelease = await viewUpdateReleaseAsync({
+    const UpdateBranch = await viewUpdateBranchAsync({
       appId: projectId,
-      releaseName,
+      branchName,
     });
 
-    const updates = Object.values(groupBy(UpdateRelease.updates, u => u.updateGroup)).map(
+    const updates = Object.values(groupBy(UpdateBranch.updates, u => u.updateGroup)).map(
       updateGroup => updateGroup[0]
     );
 
     if (jsonFlag) {
-      Log.log({ ...UpdateRelease, updates });
+      Log.log({ ...UpdateBranch, updates });
       return;
     }
 
@@ -166,11 +166,11 @@ export default class ReleaseView extends Command {
     }
 
     Log.withTick(
-      `️Release: ${chalk.bold(UpdateRelease.releaseName)} on project ${chalk.bold(
+      `️Branch: ${chalk.bold(UpdateBranch.branchName)} on project ${chalk.bold(
         `@${accountName}/${slug}`
-      )}. Release ID: ${chalk.bold(UpdateRelease.id)}`
+      )}. Branch ID: ${chalk.bold(UpdateBranch.id)}`
     );
-    Log.log(chalk.bold('Recent update groups published on this release:'));
+    Log.log(chalk.bold('Recent update groups published on this branch:'));
     Log.log(updateGroupTable.toString());
   }
 }

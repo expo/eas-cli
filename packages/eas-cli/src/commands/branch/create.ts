@@ -4,7 +4,7 @@ import chalk from 'chalk';
 import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
-import { UpdateRelease } from '../../graphql/generated';
+import { UpdateBranch } from '../../graphql/generated';
 import Log from '../../log';
 import { ensureProjectExistsAsync } from '../../project/ensureProjectExists';
 import { findProjectRootAsync, getProjectAccountName } from '../../project/projectUtils';
@@ -12,63 +12,63 @@ import { promptAsync } from '../../prompts';
 import { ensureLoggedInAsync } from '../../user/actions';
 import { getBranchNameAsync } from '../../utils/git';
 
-export async function createUpdateReleaseOnAppAsync({
+export async function createUpdateBranchOnAppAsync({
   appId,
-  releaseName,
+  branchName,
 }: {
   appId: string;
-  releaseName: string;
-}): Promise<Pick<UpdateRelease, 'id' | 'releaseName'>> {
+  branchName: string;
+}): Promise<Pick<UpdateBranch, 'id' | 'branchName'>> {
   const data = await withErrorHandlingAsync(
     graphqlClient
       .mutation<
-        { updateRelease: { createUpdateReleaseForApp: Pick<UpdateRelease, 'id' | 'releaseName'> } },
-        { appId: string; releaseName: string }
+        { updateBranch: { createUpdateBranchForApp: Pick<UpdateBranch, 'id' | 'branchName'> } },
+        { appId: string; branchName: string }
       >(
         gql`
-          mutation CreateUpdateReleaseForApp($appId: ID!, $releaseName: String!) {
-            updateRelease {
-              createUpdateReleaseForApp(appId: $appId, releaseName: $releaseName) {
+          mutation createUpdateBranchForApp($appId: ID!, $branchName: String!) {
+            updateBranch {
+              createUpdateBranchForApp(appId: $appId, branchName: $branchName) {
                 id
-                releaseName
+                branchName
               }
             }
           }
         `,
         {
           appId,
-          releaseName,
+          branchName,
         }
       )
       .toPromise()
   );
-  return data.updateRelease.createUpdateReleaseForApp;
+  return data.updateBranch.createUpdateBranchForApp;
 }
 
-export default class ReleaseCreate extends Command {
+export default class BranchCreate extends Command {
   static hidden = true;
-  static description = 'Create a release on the current project.';
+  static description = 'Create a branch on the current project.';
 
   static args = [
     {
-      name: 'releaseName',
+      name: 'branchName',
       required: false,
-      description: 'Name of the release to create',
+      description: 'Name of the branch to create',
     },
   ];
 
   static flags = {
     json: flags.boolean({
-      description: 'return a json with the new release ID and name.',
+      description: 'return a json with the new branch ID and name.',
       default: false,
     }),
   };
 
   async run() {
     let {
-      args: { releaseName },
+      args: { branchName },
       flags,
-    } = this.parse(ReleaseCreate);
+    } = this.parse(BranchCreate);
 
     const projectDir = await findProjectRootAsync(process.cwd());
     if (!projectDir) {
@@ -82,30 +82,30 @@ export default class ReleaseCreate extends Command {
       projectName: exp.slug,
     });
 
-    if (!releaseName) {
-      const validationMessage = 'Release name may not be empty.';
+    if (!branchName) {
+      const validationMessage = 'Branch name may not be empty.';
       if (flags.json) {
         throw new Error(validationMessage);
       }
-      ({ releaseName } = await promptAsync({
+      ({ branchName } = await promptAsync({
         type: 'text',
-        name: 'releaseName',
-        message: 'Please name the release:',
+        name: 'branchName',
+        message: 'Please name the branch:',
         initial:
-          (await getBranchNameAsync()) || `release-${Math.random().toString(36).substr(2, 4)}`,
+          (await getBranchNameAsync()) || `branch-${Math.random().toString(36).substr(2, 4)}`,
         validate: value => (value ? true : validationMessage),
       }));
     }
 
-    const newRelease = await createUpdateReleaseOnAppAsync({ appId: projectId, releaseName });
+    const newBranch = await createUpdateBranchOnAppAsync({ appId: projectId, branchName });
 
     if (flags.json) {
-      Log.log(newRelease);
+      Log.log(newBranch);
       return;
     }
 
     Log.withTick(
-      `️Created a new release: ${chalk.bold(newRelease.releaseName)} on project ${chalk.bold(
+      `️Created a new branch: ${chalk.bold(newBranch.branchName)} on project ${chalk.bold(
         `@${accountName}/${exp.slug}`
       )}.`
     );

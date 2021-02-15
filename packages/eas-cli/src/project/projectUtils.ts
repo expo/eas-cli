@@ -7,7 +7,7 @@ import path from 'path';
 import pkgDir from 'pkg-dir';
 
 import { graphqlClient, withErrorHandlingAsync } from '../graphql/client';
-import { UpdateRelease } from '../graphql/generated';
+import { UpdateBranch } from '../graphql/generated';
 import { Actor } from '../user/User';
 import { ensureLoggedInAsync } from '../user/actions';
 import { ensureProjectExistsAsync } from './ensureProjectExists';
@@ -123,36 +123,36 @@ export function getProjectConfigDescription(projectDir: string): string {
   return 'app.config.js/app.json';
 }
 
-export async function getReleaseByNameAsync({
+export async function getBranchByNameAsync({
   appId,
-  releaseName,
+  branchName,
 }: {
   appId: string;
-  releaseName: string;
-}): Promise<UpdateRelease> {
+  branchName: string;
+}): Promise<UpdateBranch> {
   const data = await withErrorHandlingAsync(
     graphqlClient
       .query<
         {
           app: {
             byId: {
-              updateReleaseByReleaseName: UpdateRelease;
+              updateBranchByBranchName: UpdateBranch;
             };
           };
         },
         {
           appId: string;
-          releaseName: string;
+          branchName: string;
         }
       >(
         gql`
-          query ViewRelease($appId: String!, $releaseName: String!) {
+          query ViewBranch($appId: String!, $branchName: String!) {
             app {
               byId(appId: $appId) {
                 id
-                updateReleaseByReleaseName(releaseName: $releaseName) {
+                updateBranchByBranchName(branchName: $branchName) {
                   id
-                  releaseName
+                  branchName
                 }
               }
             }
@@ -160,10 +160,10 @@ export async function getReleaseByNameAsync({
         `,
         {
           appId,
-          releaseName,
+          branchName,
         }
       )
       .toPromise()
   );
-  return data.app.byId.updateReleaseByReleaseName;
+  return data.app.byId.updateBranchByBranchName;
 }
