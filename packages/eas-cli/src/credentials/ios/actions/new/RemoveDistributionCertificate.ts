@@ -1,9 +1,13 @@
-import { AppleDistributionCertificateFragment } from '../../../../graphql/generated';
-import log from '../../../../log';
+import Log from '../../../../Log';
+import {
+  AppleDistributionCertificateFragment,
+  AppleProvisioningProfileIdentifiersFragment,
+} from '../../../../graphql/generated';
 import { confirmAsync } from '../../../../prompts';
 import { Account } from '../../../../user/Account';
 import { Action, CredentialsManager } from '../../../CredentialsManager';
 import { Context } from '../../../context';
+import { AppLookupParams } from '../../api/GraphqlClient';
 import { selectDistributionCertificateWithDependenciesAsync } from './DistributionCertificateUtils';
 import { RemoveProvisioningProfiles } from './RemoveProvisioningProfile';
 
@@ -14,8 +18,8 @@ export class SelectAndRemoveDistributionCertificate implements Action {
     const selected = await selectDistributionCertificateWithDependenciesAsync(ctx, this.account);
     if (selected) {
       await new RemoveDistributionCertificate(this.account, selected).runAsync(ctx);
-      log.succeed('Removed distribution certificate');
-      log.newLine();
+      Log.succeed('Removed distribution certificate');
+      Log.newLine();
     }
   }
 }
@@ -30,18 +34,23 @@ export class RemoveDistributionCertificate {
     const apps = this.distributionCertificate.iosAppBuildCredentialsList.map(
       buildCredentials => buildCredentials.iosAppCredentials.app
     );
-    if (apps.length !== 0 && !ctx.nonInteractive) {
+    if (apps.length !== 0) {
       const appFullNames = apps.map(app => app.fullName).join(',');
+      if (ctx.nonInteractive) {
+        throw new Error(
+          `Certificate is currently used by ${appFullNames} and cannot be deleted in non-interactive mode.`
+        );
+      }
       const confirm = await confirmAsync({
         message: `You are removing certificate used by ${appFullNames}. Do you want to continue?`,
       });
       if (!confirm) {
-        log('Aborting');
+        Log.log('Aborting');
         return;
       }
     }
 
-    log('Removing Distribution Certificate');
+    Log.log('Removing Distribution Certificate');
     await ctx.newIos.deleteDistributionCertificateAsync(this.distributionCertificate.id);
 
     if (this.distributionCertificate.developerPortalIdentifier) {
@@ -50,6 +59,8 @@ export class RemoveDistributionCertificate {
         shouldRevoke = await confirmAsync({
           message: `Do you also want to revoke this Distribution Certificate on Apple Developer Portal?`,
         });
+      } else if (ctx.nonInteractive) {
+        Log.log('Skipping certificate revocation on the Apple Developer Portal.');
       }
       if (shouldRevoke) {
         await ctx.appStore.revokeDistributionCertificateAsync([
@@ -63,13 +74,12 @@ export class RemoveDistributionCertificate {
 
   private async removeInvalidProvisioningProfilesAsync(ctx: Context): Promise<void> {
     const buildCredentialsList = this.distributionCertificate.iosAppBuildCredentialsList;
-    const appsWithProfilesToRemove = [];
-    const profilesToRemove = [];
+    const appsWithProfilesToRemove: AppLookupParams[] = [];
+    const profilesToRemove: AppleProvisioningProfileIdentifiersFragment[] = [];
     for (const buildCredentials of buildCredentialsList) {
-      const projectSlug = buildCredentials.iosAppCredentials.app.slug;
-      const bundleIdentifier =
-        buildCredentials.iosAppCredentials.appleAppIdentifier.bundleIdentifier;
-      const appLookupParams = { account: this.account, projectName: projectSlug, bundleIdentifier };
+      const projectName = buildCredentials.iosAppCredentials.app.slug;
+      const { bundleIdentifier } = buildCredentials.iosAppCredentials.appleAppIdentifier;
+      const appLookupParams = { account: this.account, projectName, bundleIdentifier };
       const maybeProvisioningProfile = buildCredentials.provisioningProfile;
       if (maybeProvisioningProfile) {
         appsWithProfilesToRemove.push(appLookupParams);
