@@ -1093,7 +1093,7 @@
     "@babel/preset-env" "^7.4.4"
     "@babel/preset-typescript" "^7.3.3"
 
-"@expo/config-plugins@^1.0.18":
+"@expo/config-plugins@1.0.18":
   version "1.0.18"
   resolved "https://registry.yarnpkg.com/@expo/config-plugins/-/config-plugins-1.0.18.tgz#f0f7d36316d60ea67b4cc6394bffef6d6904345d"
   integrity sha512-8Ey+22cEAOxK+SBJY+OazaLsPyL5FXdsykfBg/QQJE2Y/DTFebUVlr5bQyeqavbASDvmDxg3Fd71A8Se8+qT1g==
@@ -1151,10 +1151,10 @@
     xcode "^3.0.0"
     xml-js "^1.6.11"
 
-"@expo/eas-build-job@0.2.9":
-  version "0.2.9"
-  resolved "https://registry.yarnpkg.com/@expo/eas-build-job/-/eas-build-job-0.2.9.tgz#e635904da2deb65c4912b5241a20da98879a7aaa"
-  integrity sha512-WkoQ7ZBgoNVuBywNv36R6ixjqyV8P4fNKRWXC/WgSl1H42pZ31Uc8tK2XO6zddc+PxeGmrXXTjSQyW6XAZ5B3g==
+"@expo/eas-build-job@0.2.10":
+  version "0.2.10"
+  resolved "https://registry.yarnpkg.com/@expo/eas-build-job/-/eas-build-job-0.2.10.tgz#ed6ac5e094e62167c0afeaae929aab6be68b48b4"
+  integrity sha512-AEbMlvbF/ugZFHDuMY9Bpojm8LgZIL7IIES+jevkG1ftzoPpRXP+q1Ioch+KPFdG6SyPrqvGa2NBK5Oyq/MtTA==
   dependencies:
     "@hapi/joi" "^17.1.1"
 
