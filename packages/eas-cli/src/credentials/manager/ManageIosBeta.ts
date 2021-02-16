@@ -1,6 +1,6 @@
-import { promptAsync } from '../../Prompts';
 import Log from '../../log';
 import { getProjectAccountName, getProjectConfigDescription } from '../../project/projectUtils';
+import { promptAsync } from '../../prompts';
 import { Account, findAccountByName } from '../../user/Account';
 import { ensureActorHasUsername } from '../../user/actions';
 import { Action, CredentialsManager } from '../CredentialsManager';
@@ -39,7 +39,7 @@ export class ManageIosBeta implements Action {
           throw new Error(`You do not have access to account: ${accountName}`);
         }
         if (ctx.hasProjectContext) {
-          const appLookupParams = this.getAppLookupParamsFromContext(ctx);
+          const appLookupParams = ManageIosBeta.getAppLookupParamsFromContext(ctx);
           const iosAppCredentials = await ctx.newIos.getIosAppCredentialsWithBuildCredentialsAsync(
             appLookupParams
           );
