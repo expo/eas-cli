@@ -1,4 +1,10 @@
 import {
+  AppFragment,
+  AppleAppIdentifierFragment,
+  AppleDistributionCertificateFragment,
+  AppleTeamFragment,
+} from '../../graphql/generated';
+import {
   DistributionCertificate,
   DistributionCertificateStoreInfo,
   ProvisioningProfile,
@@ -33,6 +39,61 @@ export const testProvisioningProfileFromApple: ProvisioningProfileStoreInfo = {
   teamId: 'id',
 };
 export const testProvisioningProfilesFromApple = [testProvisioningProfileFromApple];
+
+export const testAppleTeamFragment: AppleTeamFragment = {
+  id: 'test-apple-team-id-1',
+  appleTeamIdentifier: 'test-apple-team-identifier',
+};
+
+export const testAppleAppIdentifierFragment: AppleAppIdentifierFragment = {
+  id: 'test-apple-app-identifier-id-1',
+  bundleIdentifier: 'foo.bar.com',
+};
+
+export const testAppFragment: AppFragment = {
+  id: 'test-app-id',
+  fullName: '@testuser/testapp',
+  slug: 'testapp',
+};
+
+export const testDistCertFragmentNoDependencies: AppleDistributionCertificateFragment = {
+  id: 'test-dist-cert-id-1',
+  certificateP12: 'Y2VydHAxMg==',
+  certificatePassword: 'test-password',
+  serialNumber: 'test-serial',
+  developerPortalIdentifier: 'test-developer-identifier',
+  validityNotAfter: new Date(),
+  validityNotBefore: new Date(),
+  updatedAt: new Date(),
+  appleTeam: { ...testAppleTeamFragment },
+  iosAppBuildCredentialsList: [],
+};
+
+export const testDistCertFragmentOneDependency: AppleDistributionCertificateFragment = {
+  id: 'test-dist-cert-id-1',
+  certificateP12: 'Y2VydHAxMg==',
+  certificatePassword: 'test-password',
+  serialNumber: 'test-serial',
+  developerPortalIdentifier: 'test-developer-identifier',
+  validityNotAfter: new Date(),
+  validityNotBefore: new Date(),
+  updatedAt: new Date(),
+  appleTeam: { ...testAppleTeamFragment },
+  iosAppBuildCredentialsList: [
+    {
+      id: 'test-build-credentials-id',
+      iosAppCredentials: {
+        id: 'test-app-credentials-id',
+        appleAppIdentifier: { ...testAppleAppIdentifierFragment },
+        app: { ...testAppFragment },
+      },
+      provisioningProfile: {
+        id: 'test-provisioning-profile-id',
+        developerPortalIdentifier: 'test-developer-identifier',
+      },
+    },
+  ],
+};
 
 export const testDistCert: DistributionCertificate = {
   certP12: 'Y2VydHAxMg==',
