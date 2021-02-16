@@ -12,7 +12,12 @@ import {
   getBranchByNameAsync,
   getProjectAccountNameAsync,
 } from '../../project/projectUtils';
-import { buildUpdateInfoGroupAsync, collectAssets, uploadAssetsAsync } from '../../project/publish';
+import {
+  buildBundlesAsync,
+  buildUpdateInfoGroupAsync,
+  collectAssets,
+  uploadAssetsAsync,
+} from '../../project/publish';
 import { promptAsync } from '../../prompts';
 import { getLastCommitMessageAsync } from '../../utils/git';
 
@@ -37,11 +42,21 @@ export default class BranchPublish extends Command {
       description: `return a json with the edited branch's ID and name.`,
       default: false,
     }),
+    'skip-bundler': flags.boolean({
+      description: `skip running Expo CLI to bundle the app before publishing`,
+      default: false,
+    }),
   };
 
   async run() {
     let {
-      flags: { json: jsonFlag, branch: name, message, 'input-dir': inputDir },
+      flags: {
+        json: jsonFlag,
+        branch: name,
+        message,
+        'input-dir': inputDir,
+        'skip-bundler': skipBundler,
+      },
     } = this.parse(BranchPublish);
 
     const projectDir = await findProjectRootAsync(process.cwd());
@@ -94,6 +109,10 @@ export default class BranchPublish extends Command {
       appId: projectId,
       name: name!,
     });
+
+    if (!skipBundler) {
+      await buildBundlesAsync({ projectDir, inputDir });
+    }
 
     let updateInfoGroup;
     const assetSpinner = ora('Uploading assets...').start();
