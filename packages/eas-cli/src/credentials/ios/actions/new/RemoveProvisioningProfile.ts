@@ -1,25 +1,9 @@
 import { assert } from '@expo/config';
 
+import Log from '../../../../Log';
 import { AppleProvisioningProfileIdentifiersFragment } from '../../../../graphql/generated';
-import log from '../../../../log';
 import { Context } from '../../../context';
 import { AppLookupParams } from '../../api/GraphqlClient';
-
-/* interface RemoveOptions {
-  shouldRevoke?: boolean;
-}
-
-export class RemoveProvisioningProfile implements Action {
-  constructor(private accountName: string, private options: RemoveOptions = {}) {}
-
-  async runAsync(manager: CredentialsManager, ctx: Context): Promise<void> {
-    const selected = await selectProvisioningProfileFromExpoAsync(ctx, this.accountName);
-    if (selected) {
-      const app = getAppLookupParams(selected.experienceName, selected.bundleIdentifier);
-      await manager.runActionAsync(new RemoveSpecificProvisioningProfile(app, this.options));
-    }
-  }
-} */
 
 export class RemoveProvisioningProfiles {
   constructor(
@@ -33,12 +17,16 @@ export class RemoveProvisioningProfiles {
   }
 
   async runAsync(ctx: Context): Promise<void> {
+    if (this.provisioningProfiles.length === 0) {
+      Log.log(`Skipping deletion of Provisioning Profiles`);
+      return;
+    }
     await ctx.newIos.deleteProvisioningProfilesAsync(
       this.provisioningProfiles.map(profile => profile.id)
     );
     const appAndBundles = this.apps
       .map(app => `@${app.account.name}/${app.projectName} (${app.bundleIdentifier})`)
       .join(',');
-    log.succeed(`Successfully removed provisioning profiles for ${appAndBundles}`);
+    Log.succeed(`Successfully removed provisioning profiles for ${appAndBundles}`);
   }
 }
