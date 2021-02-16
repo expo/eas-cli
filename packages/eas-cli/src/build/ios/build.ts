@@ -1,6 +1,6 @@
 import { IOSConfig } from '@expo/config-plugins';
 import { Workflow } from '@expo/eas-build-job';
-import { BuildConfiguration, EasConfig } from '@expo/eas-json';
+import { EasConfig } from '@expo/eas-json';
 import chalk from 'chalk';
 import fs from 'fs-extra';
 import sortBy from 'lodash/sortBy';
@@ -39,21 +39,12 @@ export async function prepareIosBuildAsync(
 
   let iosBuildScheme: string | undefined;
   let iosApplicationTarget: string | undefined;
-  let iosBuildConfiguration: BuildConfiguration | undefined;
   if (buildCtx.buildProfile.workflow === Workflow.Generic) {
     iosBuildScheme = buildCtx.buildProfile.scheme ?? (await resolveSchemeAsync(buildCtx));
-    iosApplicationTarget = await IOSConfig.BuildScheme.getApplicationTargetForSchemeAsync(
+    iosApplicationTarget = await IOSConfig.Target.getApplicationTargetForSchemeAsync(
       buildCtx.commandCtx.projectDir,
       iosBuildScheme
     );
-    iosBuildConfiguration =
-      buildCtx.buildProfile.buildConfiguration ??
-      (await IOSConfig.BuildScheme.getBuildConfigurationForSchemeAsync(
-        buildCtx.commandCtx.projectDir,
-        iosBuildScheme
-      ));
-  } else {
-    iosBuildConfiguration = buildCtx.buildProfile.buildConfiguration ?? BuildConfiguration.RELEASE;
   }
 
   await ensureBundleIdentifierIsValidAsync(commandCtx.projectDir);
@@ -63,7 +54,6 @@ export async function prepareIosBuildAsync(
     projectConfiguration: {
       iosBuildScheme,
       iosApplicationTarget,
-      iosBuildConfiguration,
     },
     ensureCredentialsAsync: ensureIosCredentialsAsync,
     ensureProjectConfiguredAsync: async () => {
@@ -78,7 +68,7 @@ export async function prepareIosBuildAsync(
 }
 
 async function resolveSchemeAsync(ctx: BuildContext<Platform.iOS>): Promise<string> {
-  const schemes = IOSConfig.BuildScheme.getBuildSchemesFromXcodeproj(ctx.commandCtx.projectDir);
+  const schemes = IOSConfig.Scheme.getSchemesFromXcodeproj(ctx.commandCtx.projectDir);
   if (schemes.length === 1) {
     return schemes[0];
   }

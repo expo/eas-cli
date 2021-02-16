@@ -27,7 +27,6 @@ interface JobData {
   projectConfiguration: {
     iosBuildScheme?: string;
     iosApplicationTarget?: string;
-    iosBuildConfiguration: iOS.BuildConfiguration;
   };
 }
 
@@ -129,7 +128,7 @@ async function prepareGenericJobAsync(
     })),
     type: Workflow.Generic,
     scheme: jobData.projectConfiguration.iosBuildScheme,
-    buildConfiguration: jobData.projectConfiguration.iosBuildConfiguration,
+    schemeBuildConfiguration: buildProfile.schemeBuildConfiguration,
     artifactPath: buildProfile.artifactPath,
     releaseChannel: buildProfile.releaseChannel,
     projectRootDirectory,
@@ -152,7 +151,7 @@ async function prepareManagedJobAsync(
       targetName,
     })),
     type: Workflow.Managed,
-    buildConfiguration: jobData.projectConfiguration.iosBuildConfiguration,
+    buildType: buildProfile.buildType,
     username: accountName,
     releaseChannel: buildProfile.releaseChannel,
     projectRootDirectory,

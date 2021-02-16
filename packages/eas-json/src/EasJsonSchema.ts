@@ -60,24 +60,24 @@ const iOSGenericSchema = Joi.object({
   workflow: Joi.string().valid('generic').required(),
   credentialsSource: Joi.string().valid('local', 'remote', 'auto').default('auto'),
   scheme: Joi.string(),
+  schemeBuildConfiguration: Joi.string().valid('Debug', 'Release'),
   releaseChannel: Joi.string(),
   artifactPath: Joi.string(),
   distribution: Joi.string().valid('store', 'internal').default('store'),
   autoIncrement: Joi.alternatives()
     .try(Joi.boolean(), Joi.string().valid('version', 'buildNumber'))
     .default(false),
-  buildConfiguration: Joi.string().valid('Debug', 'Release'),
 }).concat(IosBuilderEnvironmentSchema);
 
 const iOSManagedSchema = Joi.object({
   workflow: Joi.string().valid('managed').required(),
   credentialsSource: Joi.string().valid('local', 'remote', 'auto').default('auto'),
+  buildType: Joi.string().valid('release', 'development-client'),
   releaseChannel: Joi.string(),
   distribution: Joi.string().valid('store', 'internal').default('store'),
   autoIncrement: Joi.alternatives()
     .try(Joi.boolean(), Joi.string().valid('version', 'buildNumber'))
     .default(false),
-  buildConfiguration: Joi.string().valid('Debug', 'Release'),
 }).concat(IosBuilderEnvironmentSchema);
 
 const schemaBuildProfileMap: Record<string, Record<string, Joi.Schema>> = {

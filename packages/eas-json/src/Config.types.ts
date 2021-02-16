@@ -13,7 +13,7 @@ export enum DistributionType {
 
 export type VersionAutoIncrement = boolean | 'version' | 'buildNumber';
 
-export enum BuildConfiguration {
+export enum SchemeBuildConfiguration {
   RELEASE = 'Release',
   DEBUG = 'Debug',
 }
@@ -39,21 +39,21 @@ export interface AndroidGenericBuildProfile extends Android.BuilderEnvironment {
 export interface iOSManagedBuildProfile extends iOS.BuilderEnvironment {
   workflow: Workflow.Managed;
   credentialsSource: CredentialsSource;
+  buildType?: iOS.ManagedBuildType;
   releaseChannel?: string;
   distribution?: DistributionType;
   autoIncrement: VersionAutoIncrement;
-  buildConfiguration?: BuildConfiguration;
 }
 
 export interface iOSGenericBuildProfile extends iOS.BuilderEnvironment {
   workflow: Workflow.Generic;
   credentialsSource: CredentialsSource;
   scheme?: string;
+  schemeBuildConfiguration?: SchemeBuildConfiguration;
   releaseChannel?: string;
   artifactPath?: string;
   distribution?: DistributionType;
   autoIncrement: VersionAutoIncrement;
-  buildConfiguration?: BuildConfiguration;
 }
 
 export type AndroidBuildProfile = AndroidManagedBuildProfile | AndroidGenericBuildProfile;
