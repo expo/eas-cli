@@ -1,8 +1,8 @@
-import Log from '../../../../Log';
 import {
   AppleDistributionCertificateFragment,
   AppleProvisioningProfileIdentifiersFragment,
 } from '../../../../graphql/generated';
+import Log from '../../../../log';
 import { confirmAsync } from '../../../../prompts';
 import { Account } from '../../../../user/Account';
 import { Action, CredentialsManager } from '../../../CredentialsManager';

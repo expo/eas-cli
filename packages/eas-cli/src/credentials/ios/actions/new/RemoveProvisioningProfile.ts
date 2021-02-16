@@ -1,7 +1,7 @@
 import { assert } from '@expo/config';
 
-import Log from '../../../../Log';
 import { AppleProvisioningProfileIdentifiersFragment } from '../../../../graphql/generated';
+import Log from '../../../../log';
 import { Context } from '../../../context';
 import { AppLookupParams } from '../../api/GraphqlClient';
 
