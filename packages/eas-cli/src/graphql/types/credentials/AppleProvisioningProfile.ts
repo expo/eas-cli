@@ -20,3 +20,9 @@ export const AppleProvisioningProfileFragmentNode = gql`
     }
   }
 `;
+export const AppleProvisioningProfileIdentifiersFragmentNode = gql`
+  fragment AppleProvisioningProfileIdentifiersFragment on AppleProvisioningProfile {
+    id
+    developerPortalIdentifier
+  }
+`;

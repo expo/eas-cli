@@ -3,6 +3,7 @@ import nullthrows from 'nullthrows';
 import {
   AppFragment,
   AppleAppIdentifierFragment,
+  AppleDistributionCertificateFragment,
   AppleTeamFragment,
   CommonIosAppCredentialsFragment,
   IosAppBuildCredentialsFragment,
@@ -28,10 +29,7 @@ import {
   AppleDeviceFragmentWithAppleTeam,
   AppleDeviceQuery,
 } from './graphql/queries/AppleDeviceQuery';
-import {
-  AppleDistributionCertificateQuery,
-  AppleDistributionCertificateQueryResult,
-} from './graphql/queries/AppleDistributionCertificateQuery';
+import { AppleDistributionCertificateQuery } from './graphql/queries/AppleDistributionCertificateQuery';
 import {
   AppleProvisioningProfileQuery,
   AppleProvisioningProfileQueryResult,
@@ -242,11 +240,19 @@ export async function updateProvisioningProfileAsync(
   );
 }
 
+export async function deleteProvisioningProfilesAsync(
+  appleProvisioningProfileIds: string[]
+): Promise<void> {
+  return await AppleProvisioningProfileMutation.deleteAppleProvisioningProfilesAsync(
+    appleProvisioningProfileIds
+  );
+}
+
 export async function getDistributionCertificateForAppAsync(
   appLookupParams: AppLookupParams,
   appleTeam: AppleTeamFragment,
   iosDistributionType: IosDistributionType
-): Promise<AppleDistributionCertificateQueryResult | null> {
+): Promise<AppleDistributionCertificateFragment | null> {
   const projectFullName = formatProjectFullName(appLookupParams);
   const appleAppIdentifier = await createOrGetExistingAppleAppIdentifierAsync(
     appLookupParams,
@@ -260,7 +266,7 @@ export async function getDistributionCertificateForAppAsync(
 
 export async function getDistributionCertificatesForAccountAsync(
   account: Account
-): Promise<AppleDistributionCertificateQueryResult[]> {
+): Promise<AppleDistributionCertificateFragment[]> {
   return await AppleDistributionCertificateQuery.getAllForAccount(account.name);
 }
 
@@ -282,6 +288,14 @@ export async function createDistributionCertificateAsync(
       appleTeamId: appleTeam.id,
     },
     account.id
+  );
+}
+
+export async function deleteDistributionCertificateAsync(
+  distributionCertificateId: string
+): Promise<void> {
+  return await AppleDistributionCertificateMutation.deleteAppleDistributionCertificate(
+    distributionCertificateId
   );
 }
 

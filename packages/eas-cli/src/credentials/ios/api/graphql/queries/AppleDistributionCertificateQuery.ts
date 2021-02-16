@@ -7,15 +7,11 @@ import {
   AppleDistributionCertificateByAccountQuery,
   AppleDistributionCertificateByAppQuery,
   AppleDistributionCertificateFragment,
-  AppleTeamFragment,
   IosDistributionType,
 } from '../../../../../graphql/generated';
 import { AppleDistributionCertificateFragmentNode } from '../../../../../graphql/types/credentials/AppleDistributionCertificate';
 import { AppleTeamFragmentNode } from '../../../../../graphql/types/credentials/AppleTeam';
 
-export type AppleDistributionCertificateQueryResult = AppleDistributionCertificateFragment & {
-  appleTeam?: AppleTeamFragment | null;
-};
 const AppleDistributionCertificateQuery = {
   async getForAppAsync(
     projectFullName: string,
@@ -23,7 +19,7 @@ const AppleDistributionCertificateQuery = {
       appleAppIdentifierId,
       iosDistributionType,
     }: { appleAppIdentifierId: string; iosDistributionType: IosDistributionType }
-  ): Promise<AppleDistributionCertificateQueryResult | null> {
+  ): Promise<AppleDistributionCertificateFragment | null> {
     const data = await withErrorHandlingAsync(
       graphqlClient
         .query<AppleDistributionCertificateByAppQuery>(
@@ -75,7 +71,7 @@ const AppleDistributionCertificateQuery = {
         ?.distributionCertificate ?? null
     );
   },
-  async getAllForAccount(accountName: string): Promise<AppleDistributionCertificateQueryResult[]> {
+  async getAllForAccount(accountName: string): Promise<AppleDistributionCertificateFragment[]> {
     const data = await withErrorHandlingAsync(
       graphqlClient
         .query<AppleDistributionCertificateByAccountQuery>(
@@ -87,16 +83,11 @@ const AppleDistributionCertificateQuery = {
                   appleDistributionCertificates {
                     id
                     ...AppleDistributionCertificateFragment
-                    appleTeam {
-                      id
-                      ...AppleTeamFragment
-                    }
                   }
                 }
               }
             }
             ${print(AppleDistributionCertificateFragmentNode)}
-            ${print(AppleTeamFragmentNode)}
           `,
           {
             accountName,

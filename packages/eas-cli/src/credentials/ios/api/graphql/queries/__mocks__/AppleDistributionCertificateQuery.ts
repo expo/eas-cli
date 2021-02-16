@@ -15,6 +15,8 @@ const AppleDistributionCertificateQuery = {
           appleTeamName: null,
           __typename: 'AppleTeam',
         },
+        iosAppBuildCredentialsList: [],
+        updatedAt: '2020-06-22T20:46:07.000Z',
         __typename: 'AppleDistributionCertificate',
       },
       {
@@ -31,6 +33,8 @@ const AppleDistributionCertificateQuery = {
           appleTeamName: null,
           __typename: 'AppleTeam',
         },
+        iosAppBuildCredentialsList: [],
+        updatedAt: '2020-06-22T20:46:07.000Z',
         __typename: 'AppleDistributionCertificate',
       },
     ];

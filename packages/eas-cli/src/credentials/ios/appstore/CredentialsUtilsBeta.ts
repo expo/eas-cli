@@ -1,10 +1,10 @@
-import { AppleDistributionCertificateQueryResult } from '../api/graphql/queries/AppleDistributionCertificateQuery';
+import { AppleDistributionCertificateFragment } from '../../../graphql/generated';
 import { DistributionCertificateStoreInfo } from './Credentials.types';
 
 export function filterRevokedDistributionCerts(
-  distributionCerts: AppleDistributionCertificateQueryResult[],
+  distributionCerts: AppleDistributionCertificateFragment[],
   certInfoFromApple: DistributionCertificateStoreInfo[]
-): AppleDistributionCertificateQueryResult[] {
+): AppleDistributionCertificateFragment[] {
   if (distributionCerts.length === 0) {
     return [];
   }

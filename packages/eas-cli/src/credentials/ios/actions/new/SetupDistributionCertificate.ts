@@ -1,25 +1,28 @@
 import assert from 'assert';
 import sortBy from 'lodash/sortBy';
 
-import { AppleDistributionCertificate, IosDistributionType } from '../../../../graphql/generated';
+import {
+  AppleDistributionCertificate,
+  AppleDistributionCertificateFragment,
+  IosDistributionType,
+} from '../../../../graphql/generated';
 import Log from '../../../../log';
 import { confirmAsync, promptAsync } from '../../../../prompts';
 import { Action, CredentialsManager } from '../../../CredentialsManager';
 import { Context } from '../../../context';
 import { AppLookupParams } from '../../api/GraphqlClient';
 import { AppleDistributionCertificateMutationResult } from '../../api/graphql/mutations/AppleDistributionCertificateMutation';
-import { AppleDistributionCertificateQueryResult } from '../../api/graphql/queries/AppleDistributionCertificateQuery';
 import { getValidCertSerialNumbers } from '../../appstore/CredentialsUtils';
 import { CreateDistributionCertificate } from './CreateDistributionCertificate';
 import { formatDistributionCertificate } from './DistributionCertificateUtils';
 
 export class SetupDistributionCertificate implements Action {
-  private validDistCerts?: AppleDistributionCertificateQueryResult[];
-  private _distributionCertificate?: AppleDistributionCertificateQueryResult;
+  private validDistCerts?: AppleDistributionCertificateFragment[];
+  private _distributionCertificate?: AppleDistributionCertificateFragment;
 
   constructor(private app: AppLookupParams) {}
 
-  public get distributionCertificate(): AppleDistributionCertificateQueryResult {
+  public get distributionCertificate(): AppleDistributionCertificateFragment {
     assert(
       this._distributionCertificate,
       'distributionCertificate can be accessed only after calling .runAsync()'
@@ -58,7 +61,7 @@ export class SetupDistributionCertificate implements Action {
 
   private async isCurrentCertificateValidAsync(
     ctx: Context,
-    currentCertificate: AppleDistributionCertificateQueryResult | null
+    currentCertificate: AppleDistributionCertificateFragment | null
   ): Promise<boolean> {
     if (!currentCertificate) {
       return false;
@@ -76,7 +79,7 @@ export class SetupDistributionCertificate implements Action {
   private async createOrReuseDistCert(
     manager: CredentialsManager,
     ctx: Context
-  ): Promise<AppleDistributionCertificateQueryResult> {
+  ): Promise<AppleDistributionCertificateFragment> {
     const validDistCerts = await this.getValidDistCertsAsync(ctx);
     const autoselectedDistCert = validDistCerts[0];
 
@@ -137,7 +140,7 @@ export class SetupDistributionCertificate implements Action {
 
   private async getValidDistCertsAsync(
     ctx: Context
-  ): Promise<AppleDistributionCertificateQueryResult[]> {
+  ): Promise<AppleDistributionCertificateFragment[]> {
     if (this.validDistCerts) {
       return this.validDistCerts;
     }
