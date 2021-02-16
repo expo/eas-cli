@@ -121,19 +121,18 @@ test('valid eas.json with both platform, but reading only android', async () => 
   }).toEqual(easJson);
 });
 
-test('valid eas.json for debug builds', async () => {
+test('valid eas.json for development client builds', async () => {
   await fs.writeJson('/project/eas.json', {
     builds: {
       ios: {
         release: { workflow: 'managed' },
-        debug: { workflow: 'managed', buildType: 'simulator' },
+        debug: { workflow: 'managed', buildType: 'development-client' },
       },
       android: {
-        release: { workflow: 'generic' },
+        release: { workflow: 'managed' },
         debug: {
-          workflow: 'generic',
-          gradleCommand: ':app:assembleDebug',
-          withoutCredentials: true,
+          workflow: 'managed',
+          buildType: 'development-client',
         },
       },
     },
@@ -145,12 +144,11 @@ test('valid eas.json for debug builds', async () => {
     builds: {
       android: {
         credentialsSource: 'auto',
-        workflow: 'generic',
-        gradleCommand: ':app:assembleDebug',
-        withoutCredentials: true,
+        workflow: 'managed',
         distribution: 'store',
         env: {},
         image: 'default',
+        buildType: 'development-client',
       },
       ios: {
         credentialsSource: 'auto',
@@ -159,6 +157,7 @@ test('valid eas.json for debug builds', async () => {
         autoIncrement: false,
         env: {},
         image: 'default',
+        buildType: 'development-client',
       },
     },
   }).toEqual(easJson);

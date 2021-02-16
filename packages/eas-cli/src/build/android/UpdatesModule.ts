@@ -13,10 +13,9 @@ export async function configureUpdatesAsync(projectDir: string, exp: ExpoConfig)
   const buildGradlePath = AndroidConfig.Paths.getAppBuildGradle(projectDir);
   const buildGradleContents = await fs.readFile(buildGradlePath, 'utf8');
 
-  if (!AndroidConfig.Updates.isBuildGradleConfigured(projectDir, exp, buildGradleContents)) {
+  if (!AndroidConfig.Updates.isBuildGradleConfigured(projectDir, buildGradleContents)) {
     const updatedBuildGradleContents = AndroidConfig.Updates.ensureBuildGradleContainsConfigurationScript(
       projectDir,
-      exp,
       buildGradleContents
     );
     await fs.writeFile(buildGradlePath, updatedBuildGradleContents);
@@ -74,8 +73,8 @@ async function ensureUpdatesConfiguredAsync(projectDir: string, exp: ExpoConfig)
   const buildGradlePath = AndroidConfig.Paths.getAppBuildGradle(projectDir);
   const buildGradleContents = await fs.readFile(buildGradlePath, 'utf8');
 
-  if (!AndroidConfig.Updates.isBuildGradleConfigured(projectDir, exp, buildGradleContents)) {
-    const gradleScriptApply = AndroidConfig.Updates.formatApplyLineForBuildGradle(projectDir, exp);
+  if (!AndroidConfig.Updates.isBuildGradleConfigured(projectDir, buildGradleContents)) {
+    const gradleScriptApply = AndroidConfig.Updates.formatApplyLineForBuildGradle(projectDir);
     throw new Error(`Missing ${gradleScriptApply} in ${buildGradlePath}`);
   }
 

@@ -34,6 +34,7 @@ export interface AndroidGenericBuildProfile extends Android.BuilderEnvironment {
 export interface iOSManagedBuildProfile extends iOS.BuilderEnvironment {
   workflow: Workflow.Managed;
   credentialsSource: CredentialsSource;
+  buildType?: iOS.ManagedBuildType;
   releaseChannel?: string;
   distribution?: DistributionType;
   autoIncrement: VersionAutoIncrement;
@@ -43,6 +44,7 @@ export interface iOSGenericBuildProfile extends iOS.BuilderEnvironment {
   workflow: Workflow.Generic;
   credentialsSource: CredentialsSource;
   scheme?: string;
+  schemeBuildConfiguration?: iOS.GenericSchemeBuildConfiguration;
   releaseChannel?: string;
   artifactPath?: string;
   distribution?: DistributionType;

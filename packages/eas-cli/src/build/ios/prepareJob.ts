@@ -25,8 +25,8 @@ interface JobData {
   archiveBucketKey: string;
   credentials?: IosCredentials;
   projectConfiguration: {
-    iosNativeProjectScheme?: string;
-    iosApplicationNativeTarget?: string;
+    iosBuildScheme?: string;
+    iosApplicationTarget?: string;
   };
 }
 
@@ -75,7 +75,7 @@ async function prepareJobCommonAsync(
   } else if (credentials) {
     // targetName
     // - for managed projects: sanitized .name from the app config
-    // - for generic projects: name of the main application target
+    // - for generic projects: name of the application target
     assert(targetName, 'target name should be defined');
     buildCredentials = {
       [targetName]: prepareTargetCredentials(credentials),
@@ -124,10 +124,11 @@ async function prepareGenericJobAsync(
     ...(await prepareJobCommonAsync(ctx, {
       archiveBucketKey: jobData.archiveBucketKey,
       credentials: jobData.credentials,
-      targetName: jobData.projectConfiguration.iosApplicationNativeTarget,
+      targetName: jobData.projectConfiguration.iosApplicationTarget,
     })),
     type: Workflow.Generic,
-    scheme: jobData.projectConfiguration.iosNativeProjectScheme,
+    scheme: jobData.projectConfiguration.iosBuildScheme,
+    schemeBuildConfiguration: buildProfile.schemeBuildConfiguration,
     artifactPath: buildProfile.artifactPath,
     releaseChannel: buildProfile.releaseChannel,
     projectRootDirectory,
@@ -150,6 +151,7 @@ async function prepareManagedJobAsync(
       targetName,
     })),
     type: Workflow.Managed,
+    buildType: buildProfile.buildType,
     username: accountName,
     releaseChannel: buildProfile.releaseChannel,
     projectRootDirectory,

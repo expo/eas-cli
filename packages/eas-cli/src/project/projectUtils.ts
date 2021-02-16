@@ -82,8 +82,8 @@ export async function getAppIdentifierAsync(
     }
     case Platform.iOS: {
       return (
-        IOSConfig.BundleIdenitifer.getBundleIdentifier(exp) ??
-        IOSConfig.BundleIdenitifer.getBundleIdentifierFromPbxproj(projectDir)
+        IOSConfig.BundleIdentifier.getBundleIdentifier(exp) ??
+        IOSConfig.BundleIdentifier.getBundleIdentifierFromPbxproj(projectDir)
       );
     }
   }
