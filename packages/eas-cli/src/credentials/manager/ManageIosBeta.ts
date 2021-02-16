@@ -39,7 +39,7 @@ export class ManageIosBeta implements Action {
           throw new Error(`You do not have access to account: ${accountName}`);
         }
         if (ctx.hasProjectContext) {
-          const appLookupParams = this.getAppLookupParamsFromContext(ctx);
+          const appLookupParams = ManageIosBeta.getAppLookupParamsFromContext(ctx);
           const iosAppCredentials = await ctx.newIos.getIosAppCredentialsWithBuildCredentialsAsync(
             appLookupParams
           );
@@ -82,11 +82,10 @@ export class ManageIosBeta implements Action {
     }
   }
 
-  private getAppLookupParamsFromContext(ctx: Context): AppLookupParams {
+  public static getAppLookupParamsFromContext(ctx: Context): AppLookupParams {
     ctx.ensureProjectContext();
     const projectName = ctx.exp.slug;
     const accountName = getProjectAccountName(ctx.exp, ctx.user);
-
     const account = findAccountByName(ctx.user.accounts, accountName);
     if (!account) {
       throw new Error(`You do not have access to account: ${accountName}`);
