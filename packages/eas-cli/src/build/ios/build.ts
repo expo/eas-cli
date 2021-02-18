@@ -41,7 +41,7 @@ export async function prepareIosBuildAsync(
   let iosApplicationTarget: string | undefined;
   if (buildCtx.buildProfile.workflow === Workflow.Generic) {
     iosBuildScheme = buildCtx.buildProfile.scheme ?? (await resolveSchemeAsync(buildCtx));
-    iosApplicationTarget = await IOSConfig.Target.getApplicationTargetForSchemeAsync(
+    iosApplicationTarget = await IOSConfig.BuildScheme.getApplicationTargetForSchemeAsync(
       buildCtx.commandCtx.projectDir,
       iosBuildScheme
     );
@@ -68,7 +68,7 @@ export async function prepareIosBuildAsync(
 }
 
 async function resolveSchemeAsync(ctx: BuildContext<Platform.iOS>): Promise<string> {
-  const schemes = IOSConfig.Scheme.getSchemesFromXcodeproj(ctx.commandCtx.projectDir);
+  const schemes = IOSConfig.BuildScheme.getSchemesFromXcodeproj(ctx.commandCtx.projectDir);
   if (schemes.length === 1) {
     return schemes[0];
   }
