@@ -1,5 +1,3 @@
-import { iOSDistributionType } from '@expo/eas-json';
-
 import Log from '../../log';
 import { getProjectAccountName } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
