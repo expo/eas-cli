@@ -1,4 +1,4 @@
-import { CredentialsSource, DistributionType } from '@expo/eas-json';
+import { CredentialsSource } from '@expo/eas-json';
 
 import { getAppIdentifierAsync } from '../project/projectUtils';
 import { BuildContext } from './context';
@@ -26,7 +26,7 @@ export async function collectMetadata<T extends Platform>(
     credentialsSource,
     sdkVersion: ctx.commandCtx.exp.sdkVersion,
     trackingContext: ctx.trackingCtx,
-    distribution: ctx.buildProfile.distribution ?? DistributionType.STORE,
+    distribution: ctx.buildProfile.distribution ?? 'store',
     appName: ctx.commandCtx.exp.name,
     appIdentifier:
       (await getAppIdentifierAsync(ctx.commandCtx.projectDir, ctx.platform)) ?? undefined,

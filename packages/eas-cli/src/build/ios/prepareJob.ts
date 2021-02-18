@@ -50,6 +50,7 @@ interface CommonJobProperties {
   projectArchive: ArchiveSource;
   builderEnvironment: iOS.BuilderEnvironment;
   releaseChannel: string;
+  distribution?: iOS.DistributionType;
   secrets: {
     buildCredentials: iOS.BuildCredentials;
     secretEnvs?: Record<string, string>;
@@ -88,6 +89,7 @@ async function prepareJobCommonAsync(
       type: ArchiveSourceType.S3,
       bucketKey: archiveBucketKey,
     },
+    distribution: ctx.buildProfile.distribution,
     builderEnvironment: {
       image: ctx.buildProfile.image,
       node: ctx.buildProfile.node,

@@ -6,10 +6,9 @@ export enum CredentialsSource {
   AUTO = 'auto',
 }
 
-export enum DistributionType {
-  STORE = 'store',
-  INTERNAL = 'internal',
-}
+export type AndroidDistributionType = 'store' | 'internal';
+export type iOSDistributionType = 'store' | 'internal' | 'simulator';
+export type DistributionType = AndroidDistributionType | iOSDistributionType;
 
 export type VersionAutoIncrement = boolean | 'version' | 'buildNumber';
 
@@ -18,7 +17,7 @@ export interface AndroidManagedBuildProfile extends Android.BuilderEnvironment {
   credentialsSource: CredentialsSource;
   buildType?: Android.ManagedBuildType;
   releaseChannel?: string;
-  distribution?: DistributionType;
+  distribution?: AndroidDistributionType;
 }
 
 export interface AndroidGenericBuildProfile extends Android.BuilderEnvironment {
@@ -28,7 +27,7 @@ export interface AndroidGenericBuildProfile extends Android.BuilderEnvironment {
   releaseChannel?: string;
   artifactPath?: string;
   withoutCredentials?: boolean;
-  distribution?: DistributionType;
+  distribution?: AndroidDistributionType;
 }
 
 export interface iOSManagedBuildProfile extends iOS.BuilderEnvironment {
@@ -36,7 +35,7 @@ export interface iOSManagedBuildProfile extends iOS.BuilderEnvironment {
   credentialsSource: CredentialsSource;
   buildType?: iOS.ManagedBuildType;
   releaseChannel?: string;
-  distribution?: DistributionType;
+  distribution?: iOSDistributionType;
   autoIncrement: VersionAutoIncrement;
 }
 
@@ -47,7 +46,7 @@ export interface iOSGenericBuildProfile extends iOS.BuilderEnvironment {
   schemeBuildConfiguration?: iOS.GenericSchemeBuildConfiguration;
   releaseChannel?: string;
   artifactPath?: string;
-  distribution?: DistributionType;
+  distribution?: iOSDistributionType;
   autoIncrement: VersionAutoIncrement;
 }
 

@@ -47,7 +47,7 @@ export function printBuildResults(accountName: string, builds: (Build | null)[])
 }
 
 function printBuildResult(accountName: string, build: Build): void {
-  if (build.metadata?.distribution === DistributionType.INTERNAL) {
+  if (build.metadata?.distribution === 'internal') {
     const logsUrl = getBuildLogsUrl({
       buildId: build.id,
       account: accountName,

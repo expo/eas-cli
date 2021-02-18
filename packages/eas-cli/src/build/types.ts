@@ -83,7 +83,7 @@ export type BuildMetadata = {
 
   /**
    * Distribution type
-   * Indicates whether this is a build for store or internal distribution.
+   * Indicates whether this is a build for store, internal distribution, or simulator (iOS).
    */
   distribution: DistributionType;
 

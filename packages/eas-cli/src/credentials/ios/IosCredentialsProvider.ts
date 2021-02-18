@@ -1,5 +1,5 @@
 import { Platform } from '@expo/eas-build-job';
-import { CredentialsSource, DistributionType } from '@expo/eas-json';
+import { CredentialsSource, iOSDistributionType } from '@expo/eas-json';
 
 import { IosDistributionType } from '../../graphql/generated';
 import Log from '../../log';
@@ -23,7 +23,7 @@ interface PartialIosCredentials {
 
 interface Options {
   app: AppLookupParams;
-  distribution: DistributionType;
+  distribution: iOSDistributionType;
   skipCredentialsCheck?: boolean;
 }
 
@@ -48,7 +48,7 @@ export default class IosCredentialsProvider implements CredentialsProvider {
   }
 
   public async hasLocalAsync(): Promise<boolean> {
-    if (this.options.distribution === DistributionType.INTERNAL) {
+    if (this.options.distribution === 'internal') {
       // TODO: add support for using credentials.json for internal distribution
       return false;
     }
@@ -102,7 +102,7 @@ export default class IosCredentialsProvider implements CredentialsProvider {
   }
 
   private async getLocalAsync(): Promise<IosCredentials> {
-    if (this.options.distribution === DistributionType.INTERNAL) {
+    if (this.options.distribution === 'internal') {
       // TODO: add support for using credentials.json for internal distribution
       throw new Error('Using credentials.json for internal distribution is not supported yet.');
     }
@@ -147,7 +147,7 @@ export default class IosCredentialsProvider implements CredentialsProvider {
   }
 
   private async fetchRemoteAsync(): Promise<PartialIosCredentials> {
-    if (this.options.distribution === DistributionType.INTERNAL) {
+    if (this.options.distribution === 'internal') {
       const { app } = this.options;
       const account = findAccountByName(this.ctx.user.accounts, app.accountName);
       if (!account) {
