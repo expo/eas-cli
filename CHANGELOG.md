@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Add support for iOS simulator builds. ([#240](https://github.com/expo/eas-cli/pull/240) by [@dsokal](https://github.com/dsokal))
+
 ### 🐛 Bug fixes
 
 ## [0.4.2](https://github.com/expo/eas-cli/releases/tag/v0.4.1) - 2021-02-18
