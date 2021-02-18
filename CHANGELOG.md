@@ -10,7 +10,11 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
-- Fix detecting application target (iOS builds). ([#238](https://github.com/expo/eas-cli/pull/2238) by [@dsokal](https://github.com/dsokal))
+## [0.4.2](https://github.com/expo/eas-cli/releases/tag/v0.4.1) - 2021-02-18
+
+### 🐛 Bug fixes
+
+- Fix detecting application target (iOS builds). ([#238](https://github.com/expo/eas-cli/pull/238) by [@dsokal](https://github.com/dsokal))
 
 ## [0.4.1](https://github.com/expo/eas-cli/releases/tag/v0.4.1) - 2021-02-16
 
@@ -29,5 +33,5 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
-- Fix `--no-wait` flag for `eas build`. ([#226](https://github.com/expo/eas-cli/pull/226) by [paul-ridgway](https://github.com/paul-ridgway))
+- Fix `--no-wait` flag for `eas build`. ([#226](https://github.com/expo/eas-cli/pull/226) by [@paul-ridgway](https://github.com/paul-ridgway))
 - Fix running builds from project subdirectories. ([#229](https://github.com/expo/eas-cli/pull/229) by [@wkozyra95](https://github.com/wkozyra95))
