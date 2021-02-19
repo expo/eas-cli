@@ -79,7 +79,7 @@ export default class ChannelCreate extends Command {
 
   async run() {
     let {
-      args: { name },
+      args: { name: channelName },
       flags: { json: jsonFlag },
     } = this.parse(ChannelCreate);
 
@@ -96,12 +96,12 @@ export default class ChannelCreate extends Command {
       projectName: slug,
     });
 
-    if (!name) {
+    if (!channelName) {
       const validationMessage = 'Channel name may not be empty.';
       if (jsonFlag) {
         throw new Error(validationMessage);
       }
-      ({ name } = await promptAsync({
+      ({ name: channelName } = await promptAsync({
         type: 'text',
         name: 'name',
         message: 'Please name the channel:',
@@ -114,14 +114,14 @@ export default class ChannelCreate extends Command {
     try {
       const existingBranch = await getBranchByNameAsync({
         appId: projectId,
-        name,
+        name: channelName,
       });
       branchId = existingBranch.id;
       branchMessage = `We found a branch with the same name`;
     } catch (e) {
       const newBranch = await createUpdateBranchOnAppAsync({
         appId: projectId,
-        name,
+        name: channelName,
       });
       branchId = newBranch.id;
       branchMessage = `We also went ahead and made a branch with the same name`;
@@ -129,7 +129,7 @@ export default class ChannelCreate extends Command {
 
     const newChannel = await createUpdateChannelOnAppAsync({
       appId: projectId,
-      name,
+      name: channelName,
       branchId,
     });
 
