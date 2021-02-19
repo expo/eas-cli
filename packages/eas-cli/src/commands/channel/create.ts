@@ -17,11 +17,11 @@ import { createUpdateBranchOnAppAsync } from '../branch/create';
 
 async function createUpdateChannelOnAppAsync({
   appId,
-  name,
+  channelName,
   branchId,
 }: {
   appId: string;
-  name: string;
+  channelName: string;
   branchId: string;
 }): Promise<UpdateChannel> {
   // Point the new channel at a branch with its same name.
@@ -48,7 +48,7 @@ async function createUpdateChannelOnAppAsync({
         `,
         {
           appId,
-          name,
+          name: channelName,
           branchMapping,
         }
       )
@@ -129,7 +129,7 @@ export default class ChannelCreate extends Command {
 
     const newChannel = await createUpdateChannelOnAppAsync({
       appId: projectId,
-      name: channelName,
+      channelName,
       branchId,
     });
 
