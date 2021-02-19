@@ -37,7 +37,7 @@ export async function createUpdateBranchOnAppAsync({
         `,
         {
           appId,
-          name: name,
+          name,
         }
       )
       .toPromise()
@@ -97,7 +97,7 @@ export default class BranchCreate extends Command {
       }));
     }
 
-    const newBranch = await createUpdateBranchOnAppAsync({ appId: projectId, name: name });
+    const newBranch = await createUpdateBranchOnAppAsync({ appId: projectId, name });
 
     if (flags.json) {
       Log.log(newBranch);

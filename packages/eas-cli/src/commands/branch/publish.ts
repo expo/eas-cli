@@ -41,7 +41,7 @@ export default class BranchPublish extends Command {
 
   async run() {
     let {
-      flags: { json: jsonFlag, branch: name, message: message, 'input-dir': inputDir },
+      flags: { json: jsonFlag, branch: name, message, 'input-dir': inputDir },
     } = this.parse(BranchPublish);
 
     const projectDir = await findProjectRootAsync(process.cwd());

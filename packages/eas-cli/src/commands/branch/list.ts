@@ -38,10 +38,7 @@ export default class BranchList extends Command {
     } else {
       const table = new CliTable({ head: ['Branch', 'Latest update'] });
       table.push(
-        ...branches.map((branch: UpdateBranch) => [
-          branch.name,
-          formatUpdate(branch.updates[0]),
-        ])
+        ...branches.map((branch: UpdateBranch) => [branch.name, formatUpdate(branch.updates[0])])
       );
       Log.log(table.toString());
       if (branches.length >= BRANCHES_LIMIT) {
