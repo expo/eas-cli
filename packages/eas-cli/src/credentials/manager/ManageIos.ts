@@ -1,5 +1,3 @@
-import { DistributionType } from '@expo/eas-json';
-
 import Log from '../../log';
 import { getProjectAccountName } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
@@ -135,7 +133,7 @@ export class ManageIos implements Action {
       }
       case ActionType.SetupBuildCredentials: {
         const app = this.getAppLookupParamsFromContext(ctx);
-        return new SetupBuildCredentials(app, DistributionType.STORE);
+        return new SetupBuildCredentials(app, 'store');
       }
       case ActionType.RemoveSpecificProvisioningProfile: {
         const app = this.getAppLookupParamsFromContext(ctx);

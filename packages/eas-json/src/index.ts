@@ -1,12 +1,14 @@
 export {
   CredentialsSource,
-  DistributionType,
+  AndroidDistributionType,
   AndroidManagedBuildProfile,
   AndroidGenericBuildProfile,
   AndroidBuildProfile,
+  iOSDistributionType,
   iOSManagedBuildProfile,
   iOSGenericBuildProfile,
   iOSBuildProfile,
+  DistributionType,
   EasConfig,
   VersionAutoIncrement,
 } from './Config.types';

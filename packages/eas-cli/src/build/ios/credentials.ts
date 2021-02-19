@@ -1,5 +1,5 @@
 import { Workflow } from '@expo/eas-build-job';
-import { CredentialsSource, DistributionType } from '@expo/eas-json';
+import { CredentialsSource, iOSDistributionType } from '@expo/eas-json';
 import assert from 'assert';
 
 import { createCredentialsContextAsync } from '../../credentials/context';
@@ -27,7 +27,7 @@ export async function ensureIosCredentialsAsync(
     },
     workflow: ctx.buildProfile.workflow,
     credentialsSource: ctx.buildProfile.credentialsSource,
-    distribution: ctx.buildProfile.distribution ?? DistributionType.STORE,
+    distribution: ctx.buildProfile.distribution ?? 'store',
     nonInteractive: ctx.commandCtx.nonInteractive,
     skipCredentialsCheck: ctx.commandCtx.skipCredentialsCheck,
   });
@@ -37,7 +37,7 @@ interface ResolveCredentialsParams {
   app: AppLookupParams;
   workflow: Workflow;
   credentialsSource: CredentialsSource;
-  distribution: DistributionType;
+  distribution: iOSDistributionType;
   nonInteractive: boolean;
   skipCredentialsCheck: boolean;
 }
@@ -69,5 +69,5 @@ export async function resolveIosCredentialsAsync(
 }
 
 function shouldProvideCredentials(ctx: BuildContext<Platform.iOS>): boolean {
-  return true;
+  return ctx.buildProfile.distribution !== 'simulator';
 }
