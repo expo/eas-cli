@@ -38,10 +38,7 @@ export default class BranchList extends Command {
     } else {
       const table = new CliTable({ head: ['Branch', 'Latest update'] });
       table.push(
-        ...branches.map((branch: UpdateBranch) => [
-          branch.branchName,
-          formatUpdate(branch.updates[0]),
-        ])
+        ...branches.map((branch: UpdateBranch) => [branch.name, formatUpdate(branch.updates[0])])
       );
       Log.log(table.toString());
       if (branches.length >= BRANCHES_LIMIT) {
@@ -61,7 +58,7 @@ export default class BranchList extends Command {
                 fullName
                 updateBranches(offset: 0, limit: $limit) {
                   id
-                  branchName
+                  name
                   updates(offset: 0, limit: 1) {
                     id
                     actor {
@@ -75,7 +72,7 @@ export default class BranchList extends Command {
                       }
                     }
                     updatedAt
-                    updateMessage
+                    message
                   }
                 }
               }
@@ -105,7 +102,7 @@ function formatUpdate(update: Update | undefined): string {
   if (!update) {
     return 'N/A';
   }
-  const message = update.updateMessage ? `"${update.updateMessage}" ` : '';
+  const message = update.message ? `"${update.message}" ` : '';
   return `${message}(${format(update.updatedAt, 'en_US')} by ${getActorDisplayName(
     update.actor as any
   )})`;

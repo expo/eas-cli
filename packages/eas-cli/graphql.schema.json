@@ -1378,6 +1378,49 @@
             },
             "isDeprecated": false,
             "deprecationReason": null
+          },
+          {
+            "name": "environmentSecrets",
+            "description": "Environment secrets for an account",
+            "args": [
+              {
+                "name": "filterNames",
+                "description": null,
+                "type": {
+                  "kind": "LIST",
+                  "name": null,
+                  "ofType": {
+                    "kind": "NON_NULL",
+                    "name": null,
+                    "ofType": {
+                      "kind": "SCALAR",
+                      "name": "String",
+                      "ofType": null
+                    }
+                  }
+                },
+                "defaultValue": null
+              }
+            ],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "LIST",
+                "name": null,
+                "ofType": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "OBJECT",
+                    "name": "EnvironmentSecret",
+                    "ofType": null
+                  }
+                }
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
           }
         ],
         "inputFields": null,
@@ -2682,11 +2725,11 @@
             "deprecationReason": null
           },
           {
-            "name": "updateChannelByChannelName",
-            "description": "get an EAS channel owned by the app by channelName",
+            "name": "updateChannelByName",
+            "description": "get an EAS channel owned by the app by name",
             "args": [
               {
-                "name": "channelName",
+                "name": "name",
                 "description": null,
                 "type": {
                   "kind": "NON_NULL",
@@ -2766,11 +2809,11 @@
             "deprecationReason": null
           },
           {
-            "name": "updateBranchByBranchName",
-            "description": "get an EAS branch owned by the app by branchName",
+            "name": "updateBranchByName",
+            "description": "get an EAS branch owned by the app by name",
             "args": [
               {
-                "name": "branchName",
+                "name": "name",
                 "description": null,
                 "type": {
                   "kind": "NON_NULL",
@@ -2837,6 +2880,49 @@
                   "ofType": {
                     "kind": "INTERFACE",
                     "name": "ActivityTimelineProjectActivity",
+                    "ofType": null
+                  }
+                }
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "environmentSecrets",
+            "description": "Environment secrets for an app",
+            "args": [
+              {
+                "name": "filterNames",
+                "description": null,
+                "type": {
+                  "kind": "LIST",
+                  "name": null,
+                  "ofType": {
+                    "kind": "NON_NULL",
+                    "name": null,
+                    "ofType": {
+                      "kind": "SCALAR",
+                      "name": "String",
+                      "ofType": null
+                    }
+                  }
+                },
+                "defaultValue": null
+              }
+            ],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "LIST",
+                "name": null,
+                "ofType": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "OBJECT",
+                    "name": "EnvironmentSecret",
                     "ofType": null
                   }
                 }
@@ -4827,6 +4913,12 @@
           },
           {
             "name": "INTERNAL",
+            "description": "",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "SIMULATOR",
             "description": "",
             "isDeprecated": false,
             "deprecationReason": null
@@ -7299,7 +7391,7 @@
             "deprecationReason": null
           },
           {
-            "name": "channelName",
+            "name": "name",
             "description": "",
             "args": [],
             "type": {
@@ -7459,7 +7551,7 @@
             "deprecationReason": null
           },
           {
-            "name": "branchName",
+            "name": "name",
             "description": "",
             "args": [],
             "type": {
@@ -7679,7 +7771,7 @@
             "deprecationReason": null
           },
           {
-            "name": "updateGroup",
+            "name": "group",
             "description": "",
             "args": [],
             "type": {
@@ -7727,7 +7819,7 @@
             "deprecationReason": null
           },
           {
-            "name": "updateMessage",
+            "name": "message",
             "description": "",
             "args": [],
             "type": {
@@ -7739,15 +7831,15 @@
             "deprecationReason": null
           },
           {
-            "name": "branchName",
+            "name": "branch",
             "description": "",
             "args": [],
             "type": {
               "kind": "NON_NULL",
               "name": null,
               "ofType": {
-                "kind": "SCALAR",
-                "name": "String",
+                "kind": "OBJECT",
+                "name": "UpdateBranch",
                 "ofType": null
               }
             },
@@ -7763,6 +7855,81 @@
             "ofType": null
           }
         ],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
+        "name": "EnvironmentSecret",
+        "description": "",
+        "fields": [
+          {
+            "name": "id",
+            "description": "",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "ID",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "name",
+            "description": "",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "createdAt",
+            "description": "",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "DateTime",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "updatedAt",
+            "description": "",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "DateTime",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
         "enumValues": null,
         "possibleTypes": null
       },
@@ -10322,6 +10489,22 @@
               "ofType": {
                 "kind": "OBJECT",
                 "name": "EmailSubscriptionMutation",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "environmentSecret",
+            "description": "Mutations that create and delete EnvironmentSecrets",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "OBJECT",
+                "name": "EnvironmentSecretMutation",
                 "ofType": null
               }
             },
@@ -13919,7 +14102,7 @@
                 "defaultValue": null
               },
               {
-                "name": "channelName",
+                "name": "name",
                 "description": null,
                 "type": {
                   "kind": "NON_NULL",
@@ -14149,7 +14332,7 @@
                 "defaultValue": null
               },
               {
-                "name": "branchName",
+                "name": "name",
                 "description": null,
                 "type": {
                   "kind": "NON_NULL",
@@ -14173,7 +14356,7 @@
           },
           {
             "name": "editUpdateBranch",
-            "description": "Edit an EAS branch. The branch can be specified either by its ID or\nwith the combination of (appId, branchName).",
+            "description": "Edit an EAS branch. The branch can be specified either by its ID or\nwith the combination of (appId, name).",
             "args": [
               {
                 "name": "input",
@@ -14297,7 +14480,7 @@
             "defaultValue": null
           },
           {
-            "name": "branchName",
+            "name": "name",
             "description": "",
             "type": {
               "kind": "SCALAR",
@@ -14307,7 +14490,7 @@
             "defaultValue": null
           },
           {
-            "name": "newBranchName",
+            "name": "newName",
             "description": "",
             "type": {
               "kind": "NON_NULL",
@@ -14401,7 +14584,7 @@
             "defaultValue": null
           },
           {
-            "name": "updateMessage",
+            "name": "message",
             "description": "",
             "type": {
               "kind": "SCALAR",
@@ -16134,6 +16317,196 @@
               "kind": "SCALAR",
               "name": "String",
               "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
+        "name": "EnvironmentSecretMutation",
+        "description": "",
+        "fields": [
+          {
+            "name": "createEnvironmentSecretForAccount",
+            "description": "Create an environment secret for an Account",
+            "args": [
+              {
+                "name": "environmentSecretData",
+                "description": null,
+                "type": {
+                  "kind": "INPUT_OBJECT",
+                  "name": "CreateEnvironmentSecretInput",
+                  "ofType": null
+                },
+                "defaultValue": null
+              },
+              {
+                "name": "accountId",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "String",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null
+              }
+            ],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "OBJECT",
+                "name": "EnvironmentSecret",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "createEnvironmentSecretForApp",
+            "description": "Create an environment secret for an App",
+            "args": [
+              {
+                "name": "environmentSecretData",
+                "description": null,
+                "type": {
+                  "kind": "INPUT_OBJECT",
+                  "name": "CreateEnvironmentSecretInput",
+                  "ofType": null
+                },
+                "defaultValue": null
+              },
+              {
+                "name": "appId",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "String",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null
+              }
+            ],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "OBJECT",
+                "name": "EnvironmentSecret",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "deleteEnvironmentSecret",
+            "description": "Delete an environment secret",
+            "args": [
+              {
+                "name": "id",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "String",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null
+              }
+            ],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "OBJECT",
+                "name": "DeleteEnvironmentSecretResult",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "INPUT_OBJECT",
+        "name": "CreateEnvironmentSecretInput",
+        "description": "",
+        "fields": null,
+        "inputFields": [
+          {
+            "name": "name",
+            "description": "",
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              }
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "value",
+            "description": "",
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              }
+            },
+            "defaultValue": null
+          }
+        ],
+        "interfaces": null,
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
+        "name": "DeleteEnvironmentSecretResult",
+        "description": "",
+        "fields": [
+          {
+            "name": "id",
+            "description": "",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "ID",
+                "ofType": null
+              }
             },
             "isDeprecated": false,
             "deprecationReason": null

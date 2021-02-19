@@ -33,22 +33,14 @@ async function createUpdateChannelOnAppAsync({
     graphqlClient
       .mutation<
         { updateChannel: { createUpdateChannelForApp: UpdateChannel } },
-        { appId: string; channelName: string; branchMapping: string }
+        { appId: string; name: string; branchMapping: string }
       >(
         gql`
-          mutation CreateUpdateChannelForApp(
-            $appId: ID!
-            $channelName: String!
-            $branchMapping: String!
-          ) {
+          mutation CreateUpdateChannelForApp($appId: ID!, $name: String!, $branchMapping: String!) {
             updateChannel {
-              createUpdateChannelForApp(
-                appId: $appId
-                channelName: $channelName
-                branchMapping: $branchMapping
-              ) {
+              createUpdateChannelForApp(appId: $appId, name: $name, branchMapping: $branchMapping) {
                 id
-                channelName
+                name
                 branchMapping
               }
             }
@@ -56,7 +48,7 @@ async function createUpdateChannelOnAppAsync({
         `,
         {
           appId,
-          channelName,
+          name: channelName,
           branchMapping,
         }
       )
@@ -71,7 +63,7 @@ export default class ChannelCreate extends Command {
 
   static args = [
     {
-      name: 'channelName',
+      name: 'name',
       required: false,
       description: 'Name of the channel to create',
     },
@@ -87,7 +79,7 @@ export default class ChannelCreate extends Command {
 
   async run() {
     let {
-      args: { channelName },
+      args: { name: channelName },
       flags: { json: jsonFlag },
     } = this.parse(ChannelCreate);
 
@@ -109,9 +101,9 @@ export default class ChannelCreate extends Command {
       if (jsonFlag) {
         throw new Error(validationMessage);
       }
-      ({ channelName } = await promptAsync({
+      ({ name: channelName } = await promptAsync({
         type: 'text',
-        name: 'channelName',
+        name: 'name',
         message: 'Please name the channel:',
         validate: value => (value ? true : validationMessage),
       }));
@@ -122,14 +114,14 @@ export default class ChannelCreate extends Command {
     try {
       const existingBranch = await getBranchByNameAsync({
         appId: projectId,
-        branchName: channelName,
+        name: channelName,
       });
       branchId = existingBranch.id;
       branchMessage = `We found a branch with the same name`;
     } catch (e) {
       const newBranch = await createUpdateBranchOnAppAsync({
         appId: projectId,
-        branchName: channelName,
+        name: channelName,
       });
       branchId = newBranch.id;
       branchMessage = `We also went ahead and made a branch with the same name`;
@@ -147,7 +139,7 @@ export default class ChannelCreate extends Command {
     }
 
     Log.withTick(
-      `️Created a new channel ${chalk.bold(newChannel.channelName)} on project ${chalk.bold(
+      `️Created a new channel ${chalk.bold(newChannel.name)} on project ${chalk.bold(
         `@${accountName}/${slug}`
       )}. ${branchMessage} and have pointed the channel at it. You can now update your app by publishing!`
     );

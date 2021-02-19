@@ -41,7 +41,7 @@ export default class BranchPublish extends Command {
 
   async run() {
     let {
-      flags: { json: jsonFlag, branch: branchName, message: updateMessage, 'input-dir': inputDir },
+      flags: { json: jsonFlag, branch: name, message, 'input-dir': inputDir },
     } = this.parse(BranchPublish);
 
     const projectDir = await findProjectRootAsync(process.cwd());
@@ -63,25 +63,25 @@ export default class BranchPublish extends Command {
       projectName: slug,
     });
 
-    if (!branchName) {
+    if (!name) {
       const validationMessage = 'branch name may not be empty.';
       if (jsonFlag) {
         throw new Error(validationMessage);
       }
-      ({ branchName } = await promptAsync({
+      ({ name } = await promptAsync({
         type: 'text',
-        name: 'branchName',
+        name: 'name',
         message: 'Please enter the name of the branch to publish on:',
         validate: value => (value ? true : validationMessage),
       }));
     }
 
-    if (!updateMessage) {
+    if (!message) {
       const validationMessage = 'publish message may not be empty.';
       if (jsonFlag) {
         throw new Error(validationMessage);
       }
-      ({ publishMessage: updateMessage } = await promptAsync({
+      ({ publishMessage: message } = await promptAsync({
         type: 'text',
         name: 'publishMessage',
         message: `Please enter a publication message.`,
@@ -92,7 +92,7 @@ export default class BranchPublish extends Command {
 
     const { id: branchId } = await getBranchByNameAsync({
       appId: projectId,
-      branchName: branchName!,
+      name: name!,
     });
 
     let updateInfoGroup;
@@ -114,7 +114,7 @@ export default class BranchPublish extends Command {
         branchId,
         updateInfoGroup,
         runtimeVersion,
-        updateMessage,
+        message,
       });
       publishSpinner.succeed('Published!');
     } catch (e) {
@@ -148,10 +148,10 @@ export default class BranchPublish extends Command {
       });
       outputMessage.push(
         [chalk.dim('project'), `@${accountName}/${slug}`],
-        [chalk.dim('branch'), branchName],
+        [chalk.dim('branch'), name],
         [chalk.dim('runtimeVersion'), runtimeVersion],
-        [chalk.dim('updateGroupID'), newUpdateGroup.updateGroup],
-        [chalk.dim('message'), updateMessage]
+        [chalk.dim('groupID'), newUpdateGroup.group],
+        [chalk.dim('message'), message]
       );
       Log.log(outputMessage.toString());
     }
