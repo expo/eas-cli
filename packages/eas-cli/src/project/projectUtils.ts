@@ -125,10 +125,10 @@ export function getProjectConfigDescription(projectDir: string): string {
 
 export async function getBranchByNameAsync({
   appId,
-  branchName,
+  name,
 }: {
   appId: string;
-  branchName: string;
+  name: string;
 }): Promise<UpdateBranch> {
   const data = await withErrorHandlingAsync(
     graphqlClient
@@ -136,23 +136,23 @@ export async function getBranchByNameAsync({
         {
           app: {
             byId: {
-              updateBranchByBranchName: UpdateBranch;
+              updateBranchByName: UpdateBranch;
             };
           };
         },
         {
           appId: string;
-          branchName: string;
+          name: string;
         }
       >(
         gql`
-          query ViewBranch($appId: String!, $branchName: String!) {
+          query ViewBranch($appId: String!, $name: String!) {
             app {
               byId(appId: $appId) {
                 id
-                updateBranchByBranchName(branchName: $branchName) {
+                updateBranchByName(name: $name) {
                   id
-                  branchName
+                  name
                 }
               }
             }
@@ -160,10 +160,10 @@ export async function getBranchByNameAsync({
         `,
         {
           appId,
-          branchName,
+          name,
         }
       )
       .toPromise()
   );
-  return data.app.byId.updateBranchByBranchName;
+  return data.app.byId.updateBranchByName;
 }

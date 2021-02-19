@@ -195,6 +195,8 @@ export type Account = {
   applePushKeys: Array<ApplePushKey>;
   appleProvisioningProfiles: Array<AppleProvisioningProfile>;
   appleDevices: Array<AppleDevice>;
+  /** Environment secrets for an account */
+  environmentSecrets: Array<EnvironmentSecret>;
 };
 
 
@@ -274,6 +276,15 @@ export type AccountAppleProvisioningProfilesArgs = {
  */
 export type AccountAppleDevicesArgs = {
   identifier?: Maybe<Scalars['String']>;
+};
+
+
+/**
+ * An account is a container owning projects, credentials, billing and other organization
+ * data and settings. Actors may own and be members of accounts.
+ */
+export type AccountEnvironmentSecretsArgs = {
+  filterNames?: Maybe<Array<Scalars['String']>>;
 };
 
 
@@ -396,14 +407,16 @@ export type App = Project & {
   androidAppCredentials: Array<AndroidAppCredentials>;
   /** EAS channels owned by an app */
   updateChannels: Array<UpdateChannel>;
-  /** get an EAS channel owned by the app by channelName */
-  updateChannelByChannelName: UpdateChannel;
+  /** get an EAS channel owned by the app by name */
+  updateChannelByName: UpdateChannel;
   /** EAS branches owned by an app */
   updateBranches: Array<UpdateBranch>;
-  /** get an EAS branch owned by the app by branchName */
-  updateBranchByBranchName: UpdateBranch;
+  /** get an EAS branch owned by the app by name */
+  updateBranchByName: UpdateBranch;
   /** Coalesced project activity for an app. Use "createdBefore" to offset a query. */
   activityTimelineProjectActivities: Array<ActivityTimelineProjectActivity>;
+  /** Environment secrets for an app */
+  environmentSecrets: Array<EnvironmentSecret>;
 };
 
 
@@ -458,8 +471,8 @@ export type AppUpdateChannelsArgs = {
 
 
 /** Represents an Exponent App (or Experience in legacy terms) */
-export type AppUpdateChannelByChannelNameArgs = {
-  channelName: Scalars['String'];
+export type AppUpdateChannelByNameArgs = {
+  name: Scalars['String'];
 };
 
 
@@ -471,8 +484,8 @@ export type AppUpdateBranchesArgs = {
 
 
 /** Represents an Exponent App (or Experience in legacy terms) */
-export type AppUpdateBranchByBranchNameArgs = {
-  branchName: Scalars['String'];
+export type AppUpdateBranchByNameArgs = {
+  name: Scalars['String'];
 };
 
 
@@ -480,6 +493,12 @@ export type AppUpdateBranchByBranchNameArgs = {
 export type AppActivityTimelineProjectActivitiesArgs = {
   limit: Scalars['Int'];
   createdBefore?: Maybe<Scalars['DateTime']>;
+};
+
+
+/** Represents an Exponent App (or Experience in legacy terms) */
+export type AppEnvironmentSecretsArgs = {
+  filterNames?: Maybe<Array<Scalars['String']>>;
 };
 
 export type AppIcon = {
@@ -730,7 +749,8 @@ export type BuildMetrics = {
 
 export enum DistributionType {
   Store = 'STORE',
-  Internal = 'INTERNAL'
+  Internal = 'INTERNAL',
+  Simulator = 'SIMULATOR'
 }
 
 /** Represents an Standalone App build job */
@@ -1011,7 +1031,7 @@ export type UpdateChannel = {
   __typename?: 'UpdateChannel';
   id: Scalars['ID'];
   appId: Scalars['ID'];
-  channelName: Scalars['String'];
+  name: Scalars['String'];
   branchMapping: Scalars['String'];
   createdAt: Scalars['DateTime'];
   updatedAt: Scalars['DateTime'];
@@ -1028,7 +1048,7 @@ export type UpdateBranch = {
   __typename?: 'UpdateBranch';
   id: Scalars['ID'];
   appId: Scalars['ID'];
-  branchName: Scalars['String'];
+  name: Scalars['String'];
   createdAt: Scalars['DateTime'];
   updatedAt: Scalars['DateTime'];
   updates: Array<Update>;
@@ -1049,11 +1069,19 @@ export type Update = ActivityTimelineProjectActivity & {
   platform: Scalars['String'];
   manifestFragment: Scalars['String'];
   runtimeVersion: Scalars['String'];
-  updateGroup: Scalars['String'];
+  group: Scalars['String'];
   updatedAt: Scalars['DateTime'];
   createdAt: Scalars['DateTime'];
-  updateMessage?: Maybe<Scalars['String']>;
-  branchName: Scalars['String'];
+  message?: Maybe<Scalars['String']>;
+  branch: UpdateBranch;
+};
+
+export type EnvironmentSecret = {
+  __typename?: 'EnvironmentSecret';
+  id: Scalars['ID'];
+  name: Scalars['String'];
+  createdAt: Scalars['DateTime'];
+  updatedAt: Scalars['DateTime'];
 };
 
 export type UserPermission = {
@@ -1475,6 +1503,8 @@ export type RootMutation = {
   me?: Maybe<MeMutation>;
   /** Mutations that modify an EmailSubscription */
   emailSubscription: EmailSubscriptionMutation;
+  /** Mutations that create and delete EnvironmentSecrets */
+  environmentSecret: EnvironmentSecretMutation;
 };
 
 
@@ -2201,7 +2231,7 @@ export type UpdateChannelMutation = {
 
 export type UpdateChannelMutationCreateUpdateChannelForAppArgs = {
   appId: Scalars['ID'];
-  channelName: Scalars['String'];
+  name: Scalars['String'];
   branchMapping?: Maybe<Scalars['String']>;
 };
 
@@ -2243,7 +2273,7 @@ export type UpdateBranchMutation = {
   createUpdateBranchForApp?: Maybe<UpdateBranch>;
   /**
    * Edit an EAS branch. The branch can be specified either by its ID or
-   * with the combination of (appId, branchName).
+   * with the combination of (appId, name).
    */
   editUpdateBranch: UpdateBranch;
   /** Delete an EAS branch and all of its updates as long as the branch is not being used by any channels */
@@ -2255,7 +2285,7 @@ export type UpdateBranchMutation = {
 
 export type UpdateBranchMutationCreateUpdateBranchForAppArgs = {
   appId: Scalars['ID'];
-  branchName: Scalars['String'];
+  name: Scalars['String'];
 };
 
 
@@ -2276,8 +2306,8 @@ export type UpdateBranchMutationPublishUpdateGroupArgs = {
 export type EditUpdateBranchInput = {
   id?: Maybe<Scalars['ID']>;
   appId?: Maybe<Scalars['ID']>;
-  branchName?: Maybe<Scalars['String']>;
-  newBranchName: Scalars['String'];
+  name?: Maybe<Scalars['String']>;
+  newName: Scalars['String'];
 };
 
 export type DeleteUpdateBranchResult = {
@@ -2289,7 +2319,7 @@ export type PublishUpdateGroupInput = {
   branchId: Scalars['String'];
   updateInfoGroup: UpdateInfoGroup;
   runtimeVersion: Scalars['String'];
-  updateMessage?: Maybe<Scalars['String']>;
+  message?: Maybe<Scalars['String']>;
 };
 
 export type UpdateInfoGroup = {
@@ -2596,6 +2626,43 @@ export type MailchimpTagPayload = {
   __typename?: 'MailchimpTagPayload';
   id?: Maybe<Scalars['Int']>;
   name?: Maybe<Scalars['String']>;
+};
+
+export type EnvironmentSecretMutation = {
+  __typename?: 'EnvironmentSecretMutation';
+  /** Create an environment secret for an Account */
+  createEnvironmentSecretForAccount: EnvironmentSecret;
+  /** Create an environment secret for an App */
+  createEnvironmentSecretForApp: EnvironmentSecret;
+  /** Delete an environment secret */
+  deleteEnvironmentSecret: DeleteEnvironmentSecretResult;
+};
+
+
+export type EnvironmentSecretMutationCreateEnvironmentSecretForAccountArgs = {
+  environmentSecretData?: Maybe<CreateEnvironmentSecretInput>;
+  accountId: Scalars['String'];
+};
+
+
+export type EnvironmentSecretMutationCreateEnvironmentSecretForAppArgs = {
+  environmentSecretData?: Maybe<CreateEnvironmentSecretInput>;
+  appId: Scalars['String'];
+};
+
+
+export type EnvironmentSecretMutationDeleteEnvironmentSecretArgs = {
+  id: Scalars['String'];
+};
+
+export type CreateEnvironmentSecretInput = {
+  name: Scalars['String'];
+  value: Scalars['String'];
+};
+
+export type DeleteEnvironmentSecretResult = {
+  __typename?: 'DeleteEnvironmentSecretResult';
+  id: Scalars['ID'];
 };
 
 export type BaseSearchResult = SearchResult & {
@@ -3275,7 +3342,7 @@ export type UpdatePublishMutation = (
     { __typename?: 'UpdateBranchMutation' }
     & { publishUpdateGroup: Array<Maybe<(
       { __typename?: 'Update' }
-      & Pick<Update, 'id' | 'updateGroup'>
+      & Pick<Update, 'id' | 'group'>
     )>> }
   ) }
 );

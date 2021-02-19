@@ -14,30 +14,30 @@ import { getBranchNameAsync } from '../../utils/git';
 
 export async function createUpdateBranchOnAppAsync({
   appId,
-  branchName,
+  name,
 }: {
   appId: string;
-  branchName: string;
-}): Promise<Pick<UpdateBranch, 'id' | 'branchName'>> {
+  name: string;
+}): Promise<Pick<UpdateBranch, 'id' | 'name'>> {
   const data = await withErrorHandlingAsync(
     graphqlClient
       .mutation<
-        { updateBranch: { createUpdateBranchForApp: Pick<UpdateBranch, 'id' | 'branchName'> } },
-        { appId: string; branchName: string }
+        { updateBranch: { createUpdateBranchForApp: Pick<UpdateBranch, 'id' | 'name'> } },
+        { appId: string; name: string }
       >(
         gql`
-          mutation createUpdateBranchForApp($appId: ID!, $branchName: String!) {
+          mutation createUpdateBranchForApp($appId: ID!, $name: String!) {
             updateBranch {
-              createUpdateBranchForApp(appId: $appId, branchName: $branchName) {
+              createUpdateBranchForApp(appId: $appId, name: $name) {
                 id
-                branchName
+                name
               }
             }
           }
         `,
         {
           appId,
-          branchName,
+          name: name,
         }
       )
       .toPromise()
@@ -51,7 +51,7 @@ export default class BranchCreate extends Command {
 
   static args = [
     {
-      name: 'branchName',
+      name: 'name',
       required: false,
       description: 'Name of the branch to create',
     },
@@ -66,7 +66,7 @@ export default class BranchCreate extends Command {
 
   async run() {
     let {
-      args: { branchName },
+      args: { name },
       flags,
     } = this.parse(BranchCreate);
 
@@ -82,14 +82,14 @@ export default class BranchCreate extends Command {
       projectName: exp.slug,
     });
 
-    if (!branchName) {
+    if (!name) {
       const validationMessage = 'Branch name may not be empty.';
       if (flags.json) {
         throw new Error(validationMessage);
       }
-      ({ branchName } = await promptAsync({
+      ({ name } = await promptAsync({
         type: 'text',
-        name: 'branchName',
+        name: 'name',
         message: 'Please name the branch:',
         initial:
           (await getBranchNameAsync()) || `branch-${Math.random().toString(36).substr(2, 4)}`,
@@ -97,7 +97,7 @@ export default class BranchCreate extends Command {
       }));
     }
 
-    const newBranch = await createUpdateBranchOnAppAsync({ appId: projectId, branchName });
+    const newBranch = await createUpdateBranchOnAppAsync({ appId: projectId, name: name });
 
     if (flags.json) {
       Log.log(newBranch);
@@ -105,7 +105,7 @@ export default class BranchCreate extends Command {
     }
 
     Log.withTick(
-      `️Created a new branch: ${chalk.bold(newBranch.branchName)} on project ${chalk.bold(
+      `️Created a new branch: ${chalk.bold(newBranch.name)} on project ${chalk.bold(
         `@${accountName}/${exp.slug}`
       )}.`
     );

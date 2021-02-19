@@ -33,7 +33,7 @@ async function renameUpdateBranchOnAppAsync({
             updateBranch {
               editUpdateBranch(input: $input) {
                 id
-                branchName
+                name
               }
             }
           }
@@ -41,8 +41,8 @@ async function renameUpdateBranchOnAppAsync({
         {
           input: {
             appId,
-            branchName: currentName,
-            newBranchName: newName,
+            name: currentName,
+            newName,
           },
         }
       )
@@ -125,7 +125,7 @@ export default class BranchRename extends Command {
 
     Log.withTick(
       `️Renamed branch from ${currentName} to ${chalk.bold(
-        editedBranch.branchName
+        editedBranch.name
       )} on project ${chalk.bold(`@${accountName}/${exp.slug}`)}.`
     );
   }

@@ -14,17 +14,17 @@ import { promptAsync } from '../../prompts';
 
 const PAGE_LIMIT = 10_000;
 
-type TruncatedUpdate = Pick<Update, 'updateGroup' | 'updateMessage' | 'createdAt' | 'actor'>;
+type TruncatedUpdate = Pick<Update, 'group' | 'message' | 'createdAt' | 'actor'>;
 
 async function viewUpdateBranchAsync({
   appId,
-  branchName,
+  name,
 }: {
   appId: string;
-  branchName: string;
+  name: string;
 }): Promise<{
   id: string;
-  branchName: string;
+  name: string;
   updates: TruncatedUpdate[];
 }> {
   const data = await withErrorHandlingAsync(
@@ -33,9 +33,9 @@ async function viewUpdateBranchAsync({
         {
           app: {
             byId: {
-              updateBranchByBranchName: {
+              updateBranchByName: {
                 id: string;
-                branchName: string;
+                name: string;
                 updates: TruncatedUpdate[];
               };
             };
@@ -43,22 +43,22 @@ async function viewUpdateBranchAsync({
         },
         {
           appId: string;
-          branchName: string;
+          name: string;
           limit: number;
         }
       >(
         gql`
-          query ViewBranch($appId: String!, $branchName: String!, $limit: Int!) {
+          query ViewBranch($appId: String!, $name: String!, $limit: Int!) {
             app {
               byId(appId: $appId) {
                 id
-                updateBranchByBranchName(branchName: $branchName) {
+                updateBranchByName(name: $name) {
                   id
-                  branchName
+                  name
                   updates(offset: 0, limit: $limit) {
                     id
-                    updateGroup
-                    updateMessage
+                    group
+                    message
                     createdAt
                     actor {
                       id
@@ -77,13 +77,13 @@ async function viewUpdateBranchAsync({
         `,
         {
           appId,
-          branchName,
+          name,
           limit: PAGE_LIMIT,
         }
       )
       .toPromise()
   );
-  return data.app.byId.updateBranchByBranchName;
+  return data.app.byId.updateBranchByName;
 }
 
 export default class BranchView extends Command {
@@ -92,7 +92,7 @@ export default class BranchView extends Command {
 
   static args = [
     {
-      name: 'branchName',
+      name: 'name',
       required: false,
       description: 'Name of the branch to view',
     },
@@ -107,7 +107,7 @@ export default class BranchView extends Command {
 
   async run() {
     let {
-      args: { branchName },
+      args: { name },
       flags: { json: jsonFlag },
     } = this.parse(BranchView);
 
@@ -124,14 +124,14 @@ export default class BranchView extends Command {
       projectName: slug,
     });
 
-    if (!branchName) {
+    if (!name) {
       const validationMessage = 'Branch name may not be empty.';
       if (jsonFlag) {
         throw new Error(validationMessage);
       }
-      ({ branchName } = await promptAsync({
+      ({ name } = await promptAsync({
         type: 'text',
-        name: 'branchName',
+        name: 'name',
         message: 'Please enter the name of the branch to view:',
         validate: value => (value ? true : validationMessage),
       }));
@@ -139,11 +139,11 @@ export default class BranchView extends Command {
 
     const UpdateBranch = await viewUpdateBranchAsync({
       appId: projectId,
-      branchName,
+      name,
     });
 
-    const updates = Object.values(groupBy(UpdateBranch.updates, u => u.updateGroup)).map(
-      updateGroup => updateGroup[0]
+    const updates = Object.values(groupBy(UpdateBranch.updates, u => u.group)).map(
+      group => group[0]
     );
 
     if (jsonFlag) {
@@ -151,26 +151,26 @@ export default class BranchView extends Command {
       return;
     }
 
-    const updateGroupTable = new Table({
-      head: ['createdAt', 'updateMessage', 'updateGroup', 'actor'],
+    const groupTable = new Table({
+      head: ['createdAt', 'message', 'group', 'actor'],
       wordWrap: true,
     });
 
     for (const update of updates) {
-      updateGroupTable.push([
+      groupTable.push([
         new Date(update.createdAt).toLocaleString(),
-        update.updateMessage,
-        update.updateGroup,
+        update.message,
+        update.group,
         update.actor?.firstName,
       ]);
     }
 
     Log.withTick(
-      `️Branch: ${chalk.bold(UpdateBranch.branchName)} on project ${chalk.bold(
+      `️Branch: ${chalk.bold(UpdateBranch.name)} on project ${chalk.bold(
         `@${accountName}/${slug}`
       )}. Branch ID: ${chalk.bold(UpdateBranch.id)}`
     );
     Log.log(chalk.bold('Recent update groups published on this branch:'));
-    Log.log(updateGroupTable.toString());
+    Log.log(groupTable.toString());
   }
 }
