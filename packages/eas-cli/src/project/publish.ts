@@ -1,5 +1,5 @@
 import { Platform } from '@expo/config';
-import JsonFile, { JSONObject } from '@expo/json-file';
+import JsonFile from '@expo/json-file';
 import spawnAsync from '@expo/spawn-async';
 import Joi from '@hapi/joi';
 import crypto from 'crypto';
@@ -153,24 +153,13 @@ export async function buildBundlesAsync({
   if (!packageJSON) {
     throw new Error('Could not locate package.json');
   }
-  const isCLIInstalled =
-    !!(packageJSON.dependencies as JSONObject)['expo-cli'] ||
-    !!(packageJSON.devDependencies as JSONObject)['expo-cli'];
-  if (!isCLIInstalled) {
-    throw new Error(
-      'expo-cli is not installed. To bundle your app, install expo-cli, or skip bundling with --skip-bundle'
-    );
-  }
 
   Log.withTick(`Building bundle with expo-cli...`);
-  const spawnPromise = spawnAsync('yarn', [
-    'expo',
-    'export',
-    '--output-dir',
-    inputDir,
-    '--experimental-bundle',
-    '--force',
-  ]);
+  const spawnPromise = spawnAsync(
+    'yarn',
+    ['expo', 'export', '--output-dir', inputDir, '--experimental-bundle', '--force'],
+    { stdio: ['inherit', 'pipe', 'pipe'] } // inherit stdin so user can install a missing expo-cli from inside this command
+  );
   const {
     child: { stdout, stderr },
   } = spawnPromise;
