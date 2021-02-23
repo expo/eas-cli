@@ -1,5 +1,6 @@
 import { Platform } from '@expo/config';
 import JsonFile from '@expo/json-file';
+import spawnAsync from '@expo/spawn-async';
 import Joi from '@hapi/joi';
 import crypto from 'crypto';
 import fs from 'fs';
@@ -10,6 +11,7 @@ import path from 'path';
 import { AssetMetadataStatus, PartialManifestAsset } from '../graphql/generated';
 import { PublishMutation } from '../graphql/mutations/PublishMutation';
 import { PublishQuery } from '../graphql/queries/PublishQuery';
+import Log from '../log';
 import { PresignedPost, uploadWithPresignedPostAsync } from '../uploads';
 
 export const TIMEOUT_LIMIT = 60_000; // 1 minute
@@ -140,11 +142,50 @@ export async function buildUpdateInfoGroupAsync(assets: CollectedAssets): Promis
   return updateInfoGroup as UpdateInfoGroup;
 }
 
+export async function buildBundlesAsync({
+  projectDir,
+  inputDir,
+}: {
+  projectDir: string;
+  inputDir: string;
+}) {
+  const packageJSON = JsonFile.read(path.resolve(projectDir, 'package.json'));
+  if (!packageJSON) {
+    throw new Error('Could not locate package.json');
+  }
+
+  Log.withTick(`Building bundle with expo-cli...`);
+  const spawnPromise = spawnAsync(
+    'yarn',
+    ['expo', 'export', '--output-dir', inputDir, '--experimental-bundle', '--force'],
+    { stdio: ['inherit', 'pipe', 'pipe'] } // inherit stdin so user can install a missing expo-cli from inside this command
+  );
+  const {
+    child: { stdout, stderr },
+  } = spawnPromise;
+  if (!(stdout && stderr)) {
+    throw new Error('Failed to spawn expo-cli');
+  }
+  stdout.on('data', data => {
+    for (const line of data.toString().trim().split('\n')) {
+      Log.log(`[expo-cli]${line}`);
+    }
+  });
+  stderr.on('data', data => {
+    for (const line of data.toString().trim().split('\n')) {
+      Log.warn(`[expo-cli]${line}`);
+    }
+  });
+  await spawnPromise;
+}
+
 export function resolveInputDirectory(customInputDirectory: string): string {
   const distRoot = path.resolve(customInputDirectory);
   if (!fs.existsSync(distRoot)) {
     throw new Error(`The input directory "${customInputDirectory}" does not exist.
-    You'll need to run a command to build the JS bundle first (e.g. 'expo export').
+    You can allow us to build it for you by not setting the --skip-bundler flag.
+    If you chose to build it yourself you'll need to run a command to build the JS
+    bundle first.
     You can use '--input-dir' to specify a different input directory.`);
   }
   return distRoot;

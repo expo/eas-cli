@@ -206,7 +206,9 @@ describe(resolveInputDirectory, () => {
     expect(() => {
       resolveInputDirectory(nonExistentPath);
     }).toThrow(`The input directory "${nonExistentPath}" does not exist.
-    You'll need to run a command to build the JS bundle first (e.g. 'expo export').
+    You can allow us to build it for you by not setting the --skip-bundler flag.
+    If you chose to build it yourself you'll need to run a command to build the JS
+    bundle first.
     You can use '--input-dir' to specify a different input directory.`);
   });
 });
