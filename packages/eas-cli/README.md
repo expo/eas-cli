@@ -35,7 +35,9 @@ USAGE
 * [`eas account:login`](#eas-accountlogin)
 * [`eas account:logout`](#eas-accountlogout)
 * [`eas account:view`](#eas-accountview)
+* [`eas build`](#eas-build)
 * [`eas build:cancel [BUILD_ID]`](#eas-buildcancel-build_id)
+* [`eas build:configure`](#eas-buildconfigure)
 * [`eas build:list`](#eas-buildlist)
 * [`eas build:view [BUILD_ID]`](#eas-buildview-build_id)
 * [`eas credentials`](#eas-credentials)
@@ -87,6 +89,25 @@ ALIASES
 
 _See code: [build/commands/account/view.ts](https://github.com/expo/eas-cli/blob/v0.4.3/build/commands/account/view.ts)_
 
+## `eas build`
+
+Start a build
+
+```
+USAGE
+  $ eas build
+
+OPTIONS
+  -p, --platform=(android|ios|all)
+  --non-interactive                 Run command in --non-interactive mode
+  --profile=profile                 [default: release] Name of the build profile from eas.json
+  --skip-credentials-check          Skip validation of build credentials
+  --skip-project-configuration      Skip project configuration
+  --[no-]wait                       Wait for build(s) to complete
+```
+
+_See code: [build/commands/build/index.ts](https://github.com/expo/eas-cli/blob/v0.4.3/build/commands/build/index.ts)_
+
 ## `eas build:cancel [BUILD_ID]`
 
 Cancel a build.
@@ -97,6 +118,21 @@ USAGE
 ```
 
 _See code: [build/commands/build/cancel.ts](https://github.com/expo/eas-cli/blob/v0.4.3/build/commands/build/cancel.ts)_
+
+## `eas build:configure`
+
+Configure the project to support EAS Build.
+
+```
+USAGE
+  $ eas build:configure
+
+OPTIONS
+  -p, --platform=(android|ios|all)  Platform to configure
+  --allow-experimental              Enable experimental configuration steps.
+```
+
+_See code: [build/commands/build/configure.ts](https://github.com/expo/eas-cli/blob/v0.4.3/build/commands/build/configure.ts)_
 
 ## `eas build:list`
 
