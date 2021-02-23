@@ -10,6 +10,10 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+### 🧹 Chores
+
+- Upgrade `@expo/eas-build-job` from `0.2.12` to `0.2.13`. ([#245](https://github.com/expo/eas-cli/pull/245) by [@dsokal](https://github.com/dsokal))
+
 ## [0.4.3](https://github.com/expo/eas-cli/releases/tag/v0.4.3) - 2021-02-23
 
 ### 🎉 New features
