@@ -13,7 +13,7 @@ import { ensureCredentialsAsync } from '../credentials';
 import { Platform } from '../types';
 
 export async function ensureIosCredentialsAsync(
-  ctx: BuildContext<Platform.iOS>
+  ctx: BuildContext<Platform.IOS>
 ): Promise<CredentialsResult<IosCredentials> | undefined> {
   if (!shouldProvideCredentials(ctx)) {
     return;
@@ -68,6 +68,6 @@ export async function resolveIosCredentialsAsync(
   };
 }
 
-function shouldProvideCredentials(ctx: BuildContext<Platform.iOS>): boolean {
+function shouldProvideCredentials(ctx: BuildContext<Platform.IOS>): boolean {
   return ctx.buildProfile.distribution !== 'simulator';
 }

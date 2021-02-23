@@ -1,4 +1,4 @@
-import { Android, iOS } from '@expo/eas-build-job';
+import { Android, Ios } from '@expo/eas-build-job';
 import Joi, { CustomHelpers } from '@hapi/joi';
 
 const semverSchemaCheck = (value: any, helpers: CustomHelpers) => {
@@ -21,7 +21,7 @@ const AndroidBuilderEnvironmentSchema = Joi.object({
 
 const IosBuilderEnvironmentSchema = Joi.object({
   image: Joi.string()
-    .valid(...iOS.builderBaseImages)
+    .valid(...Ios.builderBaseImages)
     .default('default'),
   node: Joi.string().custom(semverSchemaCheck),
   yarn: Joi.string().custom(semverSchemaCheck),

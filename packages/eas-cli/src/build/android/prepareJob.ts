@@ -22,13 +22,13 @@ interface JobData {
 }
 
 export async function prepareJobAsync(
-  ctx: BuildContext<Platform.Android>,
+  ctx: BuildContext<Platform.ANDROID>,
   jobData: JobData
 ): Promise<Job> {
-  if (ctx.buildProfile.workflow === Workflow.Generic) {
+  if (ctx.buildProfile.workflow === Workflow.GENERIC) {
     const partialJob = await prepareGenericJobAsync(ctx, jobData, ctx.buildProfile);
     return sanitizeJob(partialJob);
-  } else if (ctx.buildProfile.workflow === Workflow.Managed) {
+  } else if (ctx.buildProfile.workflow === Workflow.MANAGED) {
     const partialJob = await prepareManagedJobAsync(ctx, jobData, ctx.buildProfile);
     return sanitizeJob(partialJob);
   } else {
@@ -37,7 +37,7 @@ export async function prepareJobAsync(
 }
 
 interface CommonJobProperties {
-  platform: Platform.Android;
+  platform: Platform.ANDROID;
   projectArchive: ArchiveSource;
   builderEnvironment: Android.BuilderEnvironment;
   secrets: {
@@ -49,7 +49,7 @@ interface CommonJobProperties {
 }
 
 async function prepareJobCommonAsync(
-  ctx: BuildContext<Platform.Android>,
+  ctx: BuildContext<Platform.ANDROID>,
   jobData: JobData
 ): Promise<Partial<CommonJobProperties>> {
   const secretEnvs = await readSecretEnvsAsync(ctx.commandCtx.projectDir);
@@ -68,7 +68,7 @@ async function prepareJobCommonAsync(
     : {};
 
   return {
-    platform: Platform.Android,
+    platform: Platform.ANDROID,
     projectArchive: {
       type: ArchiveSourceType.S3,
       bucketKey: jobData.archiveBucketKey,
@@ -88,7 +88,7 @@ async function prepareJobCommonAsync(
 }
 
 async function prepareGenericJobAsync(
-  ctx: BuildContext<Platform.Android>,
+  ctx: BuildContext<Platform.ANDROID>,
   jobData: JobData,
   buildProfile: AndroidGenericBuildProfile
 ): Promise<Partial<Android.GenericJob>> {
@@ -96,7 +96,7 @@ async function prepareGenericJobAsync(
     path.relative(await gitRootDirectoryAsync(), ctx.commandCtx.projectDir) || '.';
   return {
     ...(await prepareJobCommonAsync(ctx, jobData)),
-    type: Workflow.Generic,
+    type: Workflow.GENERIC,
     gradleCommand: buildProfile.gradleCommand,
     artifactPath: buildProfile.artifactPath,
     releaseChannel: buildProfile.releaseChannel,
@@ -105,7 +105,7 @@ async function prepareGenericJobAsync(
 }
 
 async function prepareManagedJobAsync(
-  ctx: BuildContext<Platform.Android>,
+  ctx: BuildContext<Platform.ANDROID>,
   jobData: JobData,
   buildProfile: AndroidManagedBuildProfile
 ): Promise<Partial<Android.ManagedJob>> {
@@ -114,7 +114,7 @@ async function prepareManagedJobAsync(
   const accountName = await getProjectAccountNameAsync(ctx.commandCtx.projectDir);
   return {
     ...(await prepareJobCommonAsync(ctx, jobData)),
-    type: Workflow.Managed,
+    type: Workflow.MANAGED,
     username: accountName,
     buildType: buildProfile.buildType,
     releaseChannel: buildProfile.releaseChannel,

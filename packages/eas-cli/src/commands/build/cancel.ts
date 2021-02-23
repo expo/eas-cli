@@ -38,8 +38,8 @@ async function cancelBuildAsync(buildId: string): Promise<Pick<Build, 'id' | 'st
 }
 
 const appPlatformMap = {
-  [AppPlatform.Android]: Platform.Android,
-  [AppPlatform.Ios]: Platform.iOS,
+  [AppPlatform.Android]: Platform.ANDROID,
+  [AppPlatform.Ios]: Platform.IOS,
 };
 
 function formatUnfinishedBuild(

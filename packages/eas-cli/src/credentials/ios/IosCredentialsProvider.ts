@@ -34,7 +34,7 @@ interface AppLookupParams {
 }
 
 export default class IosCredentialsProvider implements CredentialsProvider {
-  public readonly platform = Platform.iOS;
+  public readonly platform = Platform.IOS;
 
   constructor(private ctx: Context, private options: Options) {}
 

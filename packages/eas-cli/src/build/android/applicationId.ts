@@ -25,7 +25,7 @@ function isApplicationIdValid(applicationId: string): boolean {
 }
 
 export async function ensureApplicationIdIsValidAsync(projectDir: string) {
-  const applicationId = await ensureAppIdentifierIsDefinedAsync(projectDir, Platform.Android);
+  const applicationId = await ensureAppIdentifierIsDefinedAsync(projectDir, Platform.ANDROID);
   if (!isApplicationIdValid(applicationId)) {
     const configDescription = getProjectConfigDescription(projectDir);
     Log.error(

@@ -38,7 +38,7 @@ export async function validateAndSyncProjectConfigurationAsync({
   const { workflow, autoIncrement } = buildProfile;
   const versionBumpStrategy = resolveVersionBumpStrategy(autoIncrement);
 
-  if (workflow === Workflow.Generic) {
+  if (workflow === Workflow.GENERIC) {
     const bundleIdentifierFromPbxproj = IOSConfig.BundleIdentifier.getBundleIdentifierFromPbxproj(
       projectDir
     );

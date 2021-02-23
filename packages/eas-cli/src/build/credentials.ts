@@ -21,13 +21,13 @@ async function ensureCredentialsAutoAsync(
 ): Promise<CredentialsSource.LOCAL | CredentialsSource.REMOTE> {
   const platform = platformDisplayNames[provider.platform];
   switch (workflow) {
-    case Workflow.Managed:
+    case Workflow.MANAGED:
       if (await provider.hasLocalAsync()) {
         return CredentialsSource.LOCAL;
       } else {
         return CredentialsSource.REMOTE;
       }
-    case Workflow.Generic: {
+    case Workflow.GENERIC: {
       const hasLocal = await provider.hasLocalAsync();
       const hasRemote = await provider.hasRemoteAsync();
       if (hasRemote && hasLocal) {

@@ -24,7 +24,7 @@ interface Options {
 }
 
 export default class AndroidCredentialsProvider implements CredentialsProvider {
-  public readonly platform = Platform.Android;
+  public readonly platform = Platform.ANDROID;
 
   constructor(private ctx: Context, private options: Options) {}
 

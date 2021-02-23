@@ -26,7 +26,7 @@ export class EasJsonReader {
     let androidConfig;
     if (['android', 'all'].includes(this.platform)) {
       androidConfig = this.validateBuildProfile<AndroidBuildProfile>(
-        Platform.Android,
+        Platform.ANDROID,
         buildProfileName,
         easJson.builds?.android || {}
       );
@@ -34,7 +34,7 @@ export class EasJsonReader {
     let iosConfig;
     if (['ios', 'all'].includes(this.platform)) {
       iosConfig = this.validateBuildProfile<iOSBuildProfile>(
-        Platform.iOS,
+        Platform.IOS,
         buildProfileName,
         easJson.builds?.ios || {}
       );
@@ -53,8 +53,8 @@ export class EasJsonReader {
     const androidProfiles = easJson.builds?.android ?? {};
     for (const name of Object.keys(androidProfiles)) {
       try {
-        if (this.isWorkflowKeySpecified(Platform.Android, name, androidProfiles)) {
-          await this.validateBuildProfile(Platform.Android, name, androidProfiles);
+        if (this.isWorkflowKeySpecified(Platform.ANDROID, name, androidProfiles)) {
+          await this.validateBuildProfile(Platform.ANDROID, name, androidProfiles);
         }
       } catch (err) {
         err.msg = `Failed to validate Android build profile "${name}"\n${err.msg}`;
@@ -64,8 +64,8 @@ export class EasJsonReader {
     const iosProfiles = easJson.builds?.ios ?? {};
     for (const name of Object.keys(iosProfiles)) {
       try {
-        if (this.isWorkflowKeySpecified(Platform.iOS, name, iosProfiles)) {
-          await this.validateBuildProfile(Platform.iOS, name, iosProfiles);
+        if (this.isWorkflowKeySpecified(Platform.IOS, name, iosProfiles)) {
+          await this.validateBuildProfile(Platform.IOS, name, iosProfiles);
         }
       } catch (err) {
         err.msg = `Failed to validate iOS build profile "${name}"\n${err.msg}`;
@@ -94,7 +94,7 @@ export class EasJsonReader {
     buildProfiles: Record<string, BuildProfilePreValidation>
   ): T {
     const buildProfile = this.resolveBuildProfile(platform, buildProfileName, buildProfiles);
-    if (![Workflow.Generic, Workflow.Managed].includes(buildProfile.workflow)) {
+    if (![Workflow.GENERIC, Workflow.MANAGED].includes(buildProfile.workflow)) {
       throw new Error(
         '"workflow" key is required in a build profile and has to be one of ["generic", "managed"].'
       );

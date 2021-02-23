@@ -20,14 +20,14 @@ export async function prepareIosBuildAsync(
   commandCtx: CommandContext,
   easConfig: EasConfig
 ): Promise<() => Promise<string>> {
-  const buildCtx = createBuildContext<Platform.iOS>({
+  const buildCtx = createBuildContext<Platform.IOS>({
     commandCtx,
-    platform: Platform.iOS,
+    platform: Platform.IOS,
     easConfig,
   });
 
   if (
-    buildCtx.buildProfile.workflow === Workflow.Generic &&
+    buildCtx.buildProfile.workflow === Workflow.GENERIC &&
     !(await fs.pathExists(path.join(commandCtx.projectDir, 'ios')))
   ) {
     throw new Error(
@@ -39,7 +39,7 @@ export async function prepareIosBuildAsync(
 
   let iosBuildScheme: string | undefined;
   let iosApplicationTarget: string | undefined;
-  if (buildCtx.buildProfile.workflow === Workflow.Generic) {
+  if (buildCtx.buildProfile.workflow === Workflow.GENERIC) {
     iosBuildScheme = buildCtx.buildProfile.scheme ?? (await resolveSchemeAsync(buildCtx));
     iosApplicationTarget = await IOSConfig.BuildScheme.getApplicationTargetForSchemeAsync(
       buildCtx.commandCtx.projectDir,
@@ -67,7 +67,7 @@ export async function prepareIosBuildAsync(
   });
 }
 
-async function resolveSchemeAsync(ctx: BuildContext<Platform.iOS>): Promise<string> {
+async function resolveSchemeAsync(ctx: BuildContext<Platform.IOS>): Promise<string> {
   const schemes = IOSConfig.BuildScheme.getSchemesFromXcodeproj(ctx.commandCtx.projectDir);
   if (schemes.length === 1) {
     return schemes[0];

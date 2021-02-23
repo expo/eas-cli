@@ -71,7 +71,7 @@ export async function getAppIdentifierAsync(
 ): Promise<string | null> {
   const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
   switch (platform) {
-    case Platform.Android: {
+    case Platform.ANDROID: {
       const packageNameFromConfig = AndroidConfig.Package.getPackage(exp);
       if (packageNameFromConfig) {
         return packageNameFromConfig;
@@ -80,7 +80,7 @@ export async function getAppIdentifierAsync(
         ? await getAndroidApplicationIdAsync(projectDir)
         : null;
     }
-    case Platform.iOS: {
+    case Platform.IOS: {
       return (
         IOSConfig.BundleIdentifier.getBundleIdentifier(exp) ??
         IOSConfig.BundleIdentifier.getBundleIdentifierFromPbxproj(projectDir)
@@ -96,7 +96,7 @@ export async function ensureAppIdentifierIsDefinedAsync(
   const appIdentifier = await getAppIdentifierAsync(projectDir, platform);
   if (!appIdentifier) {
     const desc = getProjectConfigDescription(projectDir);
-    const fieldStr = platform === Platform.Android ? 'android.package' : 'ios.bundleIdentifier';
+    const fieldStr = platform === Platform.ANDROID ? 'android.package' : 'ios.bundleIdentifier';
     throw new Error(`Please define "${fieldStr}" in your ${desc}.`);
   }
   return appIdentifier;

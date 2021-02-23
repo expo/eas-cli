@@ -51,11 +51,11 @@ async function startBuildsAsync(
   }[] = [];
   if (shouldBuildAndroid) {
     const sendBuildRequestAsync = await prepareAndroidBuildAsync(commandCtx, easConfig);
-    builds.push({ platform: Platform.Android, sendBuildRequestAsync });
+    builds.push({ platform: Platform.ANDROID, sendBuildRequestAsync });
   }
   if (shouldBuildiOS) {
     const sendBuildRequestAsync = await prepareIosBuildAsync(commandCtx, easConfig);
-    builds.push({ platform: Platform.iOS, sendBuildRequestAsync });
+    builds.push({ platform: Platform.IOS, sendBuildRequestAsync });
   }
   return Promise.all(
     builds.map(async ({ platform, sendBuildRequestAsync }) => ({

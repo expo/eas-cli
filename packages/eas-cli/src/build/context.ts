@@ -77,7 +77,7 @@ export interface ConfigureContext {
   hasIosNativeProject: boolean;
 }
 
-type PlatformBuildProfile<T extends Platform> = T extends Platform.Android
+type PlatformBuildProfile<T extends Platform> = T extends Platform.ANDROID
   ? AndroidBuildProfile
   : iOSBuildProfile;
 
