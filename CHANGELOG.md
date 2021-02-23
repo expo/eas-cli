@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Use fixed version of `@expo/eas-json`. ([#243](https://github.com/expo/eas-cli/pull/243) by [@wkozyra95](https://github.com/wkozyra95))
+
 ## [0.4.2](https://github.com/expo/eas-cli/releases/tag/v0.4.1) - 2021-02-18
 
 ### 🐛 Bug fixes
