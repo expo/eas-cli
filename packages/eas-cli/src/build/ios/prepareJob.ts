@@ -1,9 +1,9 @@
 import {
   ArchiveSource,
   ArchiveSourceType,
+  Ios,
   Job,
   Workflow,
-  iOS,
   sanitizeJob,
 } from '@expo/eas-build-job';
 import { iOSGenericBuildProfile, iOSManagedBuildProfile } from '@expo/eas-json';
@@ -31,13 +31,13 @@ interface JobData {
 }
 
 export async function prepareJobAsync(
-  ctx: BuildContext<Platform.iOS>,
+  ctx: BuildContext<Platform.IOS>,
   jobData: JobData
 ): Promise<Job> {
-  if (ctx.buildProfile.workflow === Workflow.Generic) {
+  if (ctx.buildProfile.workflow === Workflow.GENERIC) {
     const partialJob = await prepareGenericJobAsync(ctx, jobData, ctx.buildProfile);
     return sanitizeJob(partialJob);
-  } else if (ctx.buildProfile.workflow === Workflow.Managed) {
+  } else if (ctx.buildProfile.workflow === Workflow.MANAGED) {
     const partialJob = await prepareManagedJobAsync(ctx, jobData, ctx.buildProfile);
     return sanitizeJob(partialJob);
   } else {
@@ -46,19 +46,19 @@ export async function prepareJobAsync(
 }
 
 interface CommonJobProperties {
-  platform: Platform.iOS;
+  platform: Platform.IOS;
   projectArchive: ArchiveSource;
-  builderEnvironment: iOS.BuilderEnvironment;
+  builderEnvironment: Ios.BuilderEnvironment;
   releaseChannel: string;
-  distribution?: iOS.DistributionType;
+  distribution?: Ios.DistributionType;
   secrets: {
-    buildCredentials: iOS.BuildCredentials;
+    buildCredentials: Ios.BuildCredentials;
     secretEnvs?: Record<string, string>;
   };
 }
 
 async function prepareJobCommonAsync(
-  ctx: BuildContext<Platform.iOS>,
+  ctx: BuildContext<Platform.IOS>,
   {
     archiveBucketKey,
     credentials,
@@ -84,7 +84,7 @@ async function prepareJobCommonAsync(
   }
 
   return {
-    platform: Platform.iOS,
+    platform: Platform.IOS,
     projectArchive: {
       type: ArchiveSourceType.S3,
       bucketKey: archiveBucketKey,
@@ -105,7 +105,7 @@ async function prepareJobCommonAsync(
   };
 }
 
-function prepareTargetCredentials(targetCredentials: IosTargetCredentials): iOS.TargetCredentials {
+function prepareTargetCredentials(targetCredentials: IosTargetCredentials): Ios.TargetCredentials {
   return {
     provisioningProfileBase64: targetCredentials.provisioningProfile,
     distributionCertificate: {
@@ -116,10 +116,10 @@ function prepareTargetCredentials(targetCredentials: IosTargetCredentials): iOS.
 }
 
 async function prepareGenericJobAsync(
-  ctx: BuildContext<Platform.iOS>,
+  ctx: BuildContext<Platform.IOS>,
   jobData: JobData,
   buildProfile: iOSGenericBuildProfile
-): Promise<Partial<iOS.GenericJob>> {
+): Promise<Partial<Ios.GenericJob>> {
   const projectRootDirectory =
     path.relative(await gitRootDirectoryAsync(), ctx.commandCtx.projectDir) || '.';
   return {
@@ -128,7 +128,7 @@ async function prepareGenericJobAsync(
       credentials: jobData.credentials,
       targetName: jobData.projectConfiguration.iosApplicationTarget,
     })),
-    type: Workflow.Generic,
+    type: Workflow.GENERIC,
     scheme: jobData.projectConfiguration.iosBuildScheme,
     schemeBuildConfiguration: buildProfile.schemeBuildConfiguration,
     artifactPath: buildProfile.artifactPath,
@@ -138,10 +138,10 @@ async function prepareGenericJobAsync(
 }
 
 async function prepareManagedJobAsync(
-  ctx: BuildContext<Platform.iOS>,
+  ctx: BuildContext<Platform.IOS>,
   jobData: JobData,
   buildProfile: iOSManagedBuildProfile
-): Promise<Partial<iOS.ManagedJob>> {
+): Promise<Partial<Ios.ManagedJob>> {
   const projectRootDirectory =
     path.relative(await gitRootDirectoryAsync(), ctx.commandCtx.projectDir) || '.';
   const accountName = await getProjectAccountNameAsync(ctx.commandCtx.projectDir);
@@ -152,7 +152,7 @@ async function prepareManagedJobAsync(
       credentials: jobData.credentials,
       targetName,
     })),
-    type: Workflow.Managed,
+    type: Workflow.MANAGED,
     buildType: buildProfile.buildType,
     username: accountName,
     releaseChannel: buildProfile.releaseChannel,

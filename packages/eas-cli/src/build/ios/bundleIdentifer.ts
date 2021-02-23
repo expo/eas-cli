@@ -22,7 +22,7 @@ function isBundleIdentifierValid(bundleIdentifier: string): boolean {
 }
 
 export async function ensureBundleIdentifierIsValidAsync(projectDir: string) {
-  const bundleIdentifier = await ensureAppIdentifierIsDefinedAsync(projectDir, Platform.iOS);
+  const bundleIdentifier = await ensureAppIdentifierIsDefinedAsync(projectDir, Platform.IOS);
   if (!isBundleIdentifierValid(bundleIdentifier)) {
     const configDescription = getProjectConfigDescription(projectDir);
     Log.error(

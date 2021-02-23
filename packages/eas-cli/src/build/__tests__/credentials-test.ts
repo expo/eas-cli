@@ -48,7 +48,7 @@ describe(ensureCredentialsAsync, () => {
       });
       const src = await ensureCredentialsAsync(
         provider,
-        Workflow.Generic,
+        Workflow.GENERIC,
         CredentialsSource.AUTO,
         false
       );
@@ -61,7 +61,7 @@ describe(ensureCredentialsAsync, () => {
       });
       const src = await ensureCredentialsAsync(
         provider,
-        Workflow.Generic,
+        Workflow.GENERIC,
         CredentialsSource.AUTO,
         false
       );
@@ -75,7 +75,7 @@ describe(ensureCredentialsAsync, () => {
       });
       const src = await ensureCredentialsAsync(
         provider,
-        Workflow.Generic,
+        Workflow.GENERIC,
         CredentialsSource.AUTO,
         false
       );
@@ -93,7 +93,7 @@ describe(ensureCredentialsAsync, () => {
       });
       const src = await ensureCredentialsAsync(
         provider,
-        Workflow.Generic,
+        Workflow.GENERIC,
         CredentialsSource.AUTO,
         false
       );
@@ -111,7 +111,7 @@ describe(ensureCredentialsAsync, () => {
       });
       const src = await ensureCredentialsAsync(
         provider,
-        Workflow.Generic,
+        Workflow.GENERIC,
         CredentialsSource.AUTO,
         false
       );
@@ -126,7 +126,7 @@ describe(ensureCredentialsAsync, () => {
       });
 
       try {
-        await ensureCredentialsAsync(provider, Workflow.Generic, CredentialsSource.AUTO, true);
+        await ensureCredentialsAsync(provider, Workflow.GENERIC, CredentialsSource.AUTO, true);
         throw new Error('ensureCredentialsAsync should throw an Error');
       } catch (e) {
         expect(e.message).toMatch(
@@ -147,7 +147,7 @@ describe(ensureCredentialsAsync, () => {
       });
       const src = await ensureCredentialsAsync(
         provider,
-        Workflow.Generic,
+        Workflow.GENERIC,
         CredentialsSource.AUTO,
         false
       );
@@ -165,7 +165,7 @@ describe(ensureCredentialsAsync, () => {
       });
 
       try {
-        await ensureCredentialsAsync(provider, Workflow.Generic, CredentialsSource.AUTO, false);
+        await ensureCredentialsAsync(provider, Workflow.GENERIC, CredentialsSource.AUTO, false);
         throw new Error('ensureCredentialsAsync should throw an Error');
       } catch (e) {
         expect(e.message).toMatch(
@@ -186,7 +186,7 @@ describe(ensureCredentialsAsync, () => {
       });
 
       try {
-        await ensureCredentialsAsync(provider, Workflow.Generic, CredentialsSource.AUTO, true);
+        await ensureCredentialsAsync(provider, Workflow.GENERIC, CredentialsSource.AUTO, true);
         throw new Error('ensureCredentialsAsync should throw an Error');
       } catch (e) {
         expect(e.message).toMatch('Credentials for this app are not configured');
@@ -204,7 +204,7 @@ describe(ensureCredentialsAsync, () => {
       });
       const src = await ensureCredentialsAsync(
         provider,
-        Workflow.Managed,
+        Workflow.MANAGED,
         CredentialsSource.AUTO,
         false
       );
@@ -217,7 +217,7 @@ describe(ensureCredentialsAsync, () => {
       });
       const src = await ensureCredentialsAsync(
         provider,
-        Workflow.Managed,
+        Workflow.MANAGED,
         CredentialsSource.AUTO,
         false
       );
@@ -231,7 +231,7 @@ describe(ensureCredentialsAsync, () => {
       });
       const src = await ensureCredentialsAsync(
         provider,
-        Workflow.Managed,
+        Workflow.MANAGED,
         CredentialsSource.AUTO,
         false
       );
@@ -247,7 +247,7 @@ describe(ensureCredentialsAsync, () => {
       });
       const src = await ensureCredentialsAsync(
         provider,
-        Workflow.Managed,
+        Workflow.MANAGED,
         CredentialsSource.AUTO,
         false
       );
@@ -265,7 +265,7 @@ describe(ensureCredentialsAsync, () => {
       });
       const src = await ensureCredentialsAsync(
         provider,
-        Workflow.Generic,
+        Workflow.GENERIC,
         CredentialsSource.LOCAL,
         false
       );
@@ -283,7 +283,7 @@ describe(ensureCredentialsAsync, () => {
       });
       const src = await ensureCredentialsAsync(
         provider,
-        Workflow.Generic,
+        Workflow.GENERIC,
         CredentialsSource.REMOTE,
         false
       );

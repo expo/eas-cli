@@ -7,6 +7,6 @@ export const platformDisplayNames = {
 };
 
 export const platformEmojis = {
-  [Platform.iOS]: '🍎',
-  [Platform.Android]: '🤖',
+  [Platform.IOS]: '🍎',
+  [Platform.ANDROID]: '🤖',
 };

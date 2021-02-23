@@ -22,15 +22,15 @@ export async function prepareAndroidBuildAsync(
   commandCtx: CommandContext,
   easConfig: EasConfig
 ): Promise<() => Promise<string>> {
-  const buildCtx = createBuildContext<Platform.Android>({
+  const buildCtx = createBuildContext<Platform.ANDROID>({
     commandCtx,
-    platform: Platform.Android,
+    platform: Platform.ANDROID,
     easConfig,
   });
   const { buildProfile } = buildCtx;
 
   if (
-    buildProfile.workflow === Workflow.Generic &&
+    buildProfile.workflow === Workflow.GENERIC &&
     !(await fs.pathExists(path.join(commandCtx.projectDir, 'android')))
   ) {
     throw new Error(
@@ -41,7 +41,7 @@ export async function prepareAndroidBuildAsync(
   }
 
   if (
-    buildProfile.workflow === Workflow.Generic &&
+    buildProfile.workflow === Workflow.GENERIC &&
     buildProfile.distribution === 'internal' &&
     buildProfile.gradleCommand?.match(/bundle/)
   ) {
@@ -67,7 +67,7 @@ This means that it will most likely produce an AAB and you will not be able to i
     projectConfiguration: {},
     ensureCredentialsAsync: ensureAndroidCredentialsAsync,
     ensureProjectConfiguredAsync: async () => {
-      if (buildCtx.buildProfile.workflow === Workflow.Generic) {
+      if (buildCtx.buildProfile.workflow === Workflow.GENERIC) {
         await validateAndSyncProjectConfigurationAsync(commandCtx.projectDir, commandCtx.exp);
       }
     },
@@ -75,15 +75,15 @@ This means that it will most likely produce an AAB and you will not be able to i
   });
 }
 
-function shouldProvideCredentials(ctx: BuildContext<Platform.Android>): boolean {
+function shouldProvideCredentials(ctx: BuildContext<Platform.ANDROID>): boolean {
   return (
-    ctx.buildProfile.workflow === Workflow.Managed ||
-    (ctx.buildProfile.workflow === Workflow.Generic && !ctx.buildProfile.withoutCredentials)
+    ctx.buildProfile.workflow === Workflow.MANAGED ||
+    (ctx.buildProfile.workflow === Workflow.GENERIC && !ctx.buildProfile.withoutCredentials)
   );
 }
 
 async function ensureAndroidCredentialsAsync(
-  ctx: BuildContext<Platform.Android>
+  ctx: BuildContext<Platform.ANDROID>
 ): Promise<CredentialsResult<AndroidCredentials> | undefined> {
   if (!shouldProvideCredentials(ctx)) {
     return;

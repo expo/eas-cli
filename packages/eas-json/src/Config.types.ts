@@ -1,4 +1,4 @@
-import { Android, Workflow, iOS } from '@expo/eas-build-job';
+import { Android, Ios, Workflow } from '@expo/eas-build-job';
 
 export enum CredentialsSource {
   LOCAL = 'local',
@@ -13,7 +13,7 @@ export type DistributionType = AndroidDistributionType | iOSDistributionType;
 export type VersionAutoIncrement = boolean | 'version' | 'buildNumber';
 
 export interface AndroidManagedBuildProfile extends Android.BuilderEnvironment {
-  workflow: Workflow.Managed;
+  workflow: Workflow.MANAGED;
   credentialsSource: CredentialsSource;
   buildType?: Android.ManagedBuildType;
   releaseChannel?: string;
@@ -21,7 +21,7 @@ export interface AndroidManagedBuildProfile extends Android.BuilderEnvironment {
 }
 
 export interface AndroidGenericBuildProfile extends Android.BuilderEnvironment {
-  workflow: Workflow.Generic;
+  workflow: Workflow.GENERIC;
   credentialsSource: CredentialsSource;
   gradleCommand?: string;
   releaseChannel?: string;
@@ -30,20 +30,20 @@ export interface AndroidGenericBuildProfile extends Android.BuilderEnvironment {
   distribution?: AndroidDistributionType;
 }
 
-export interface iOSManagedBuildProfile extends iOS.BuilderEnvironment {
-  workflow: Workflow.Managed;
+export interface iOSManagedBuildProfile extends Ios.BuilderEnvironment {
+  workflow: Workflow.MANAGED;
   credentialsSource: CredentialsSource;
-  buildType?: iOS.ManagedBuildType;
+  buildType?: Ios.ManagedBuildType;
   releaseChannel?: string;
   distribution?: iOSDistributionType;
   autoIncrement: VersionAutoIncrement;
 }
 
-export interface iOSGenericBuildProfile extends iOS.BuilderEnvironment {
-  workflow: Workflow.Generic;
+export interface iOSGenericBuildProfile extends Ios.BuilderEnvironment {
+  workflow: Workflow.GENERIC;
   credentialsSource: CredentialsSource;
   scheme?: string;
-  schemeBuildConfiguration?: iOS.SchemeBuildConfiguration;
+  schemeBuildConfiguration?: Ios.SchemeBuildConfiguration;
   releaseChannel?: string;
   artifactPath?: string;
   distribution?: iOSDistributionType;

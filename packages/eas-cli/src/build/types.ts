@@ -100,7 +100,7 @@ export type BuildMetadata = {
   appIdentifier?: string;
 };
 
-export type PlatformBuildProfile<T extends Platform> = T extends Platform.Android
+export type PlatformBuildProfile<T extends Platform> = T extends Platform.ANDROID
   ? AndroidBuildProfile
   : iOSBuildProfile;
 
