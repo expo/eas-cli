@@ -2334,7 +2334,7 @@ export type PartialManifest = {
 };
 
 export type PartialManifestAsset = {
-  fileHash: Scalars['String'];
+  fileSHA256: Scalars['String'];
   bundleKey: Scalars['String'];
   contentType: Scalars['String'];
   storageBucket: Scalars['String'];

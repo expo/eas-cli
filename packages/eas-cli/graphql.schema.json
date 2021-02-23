@@ -14689,7 +14689,7 @@
         "fields": null,
         "inputFields": [
           {
-            "name": "fileHash",
+            "name": "fileSHA256",
             "description": "",
             "type": {
               "kind": "NON_NULL",
