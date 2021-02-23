@@ -102,23 +102,23 @@ async function calculateFileHashAsync(filePath: string, algorithm: string): Prom
  * Convenience function that computes an assets storage key starting from its buffer.
  */
 export async function getStorageKeyForAssetAsync(asset: RawAsset): Promise<string> {
-  const fileHash = getBase64URLEncoding(await calculateFileHashAsync(asset.path, 'sha256'));
-  return getStorageKey(asset.contentType, fileHash);
+  const fileSHA256 = getBase64URLEncoding(await calculateFileHashAsync(asset.path, 'sha256'));
+  return getStorageKey(asset.contentType, fileSHA256);
 }
 
 export async function convertAssetToUpdateInfoGroupFormatAsync(
   asset: RawAsset
 ): Promise<PartialManifestAsset> {
-  const fileHash = getBase64URLEncoding(await calculateFileHashAsync(asset.path, 'sha256'));
+  const fileSHA256 = getBase64URLEncoding(await calculateFileHashAsync(asset.path, 'sha256'));
   const contentType = asset.contentType;
-  const storageKey = getStorageKey(contentType, fileHash);
+  const storageKey = getStorageKey(contentType, fileSHA256);
   const bundleKey = [
     (await calculateFileHashAsync(asset.path, 'md5')).toString('hex'),
     asset.type,
   ].join('.');
 
   return {
-    fileHash,
+    fileSHA256,
     contentType,
     storageBucket: STORAGE_BUCKET,
     storageKey,
