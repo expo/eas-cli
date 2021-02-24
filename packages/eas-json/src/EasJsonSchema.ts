@@ -13,21 +13,27 @@ const AndroidBuilderEnvironmentSchema = Joi.object({
   image: Joi.string()
     .valid(...Android.builderBaseImages)
     .default('default'),
-  node: Joi.string().custom(semverSchemaCheck),
-  yarn: Joi.string().custom(semverSchemaCheck),
-  ndk: Joi.string(),
-  env: Joi.object().pattern(Joi.string(), Joi.string()).default({}),
+  node: Joi.string().empty(null).custom(semverSchemaCheck),
+  yarn: Joi.string().empty(null).custom(semverSchemaCheck),
+  ndk: Joi.string().empty(null).custom(semverSchemaCheck),
+  env: Joi.object().pattern(Joi.string(), Joi.string().empty(null)).default({}),
 });
 
 const IosBuilderEnvironmentSchema = Joi.object({
   image: Joi.string()
     .valid(...Ios.builderBaseImages)
     .default('default'),
-  node: Joi.string().custom(semverSchemaCheck),
-  yarn: Joi.string().custom(semverSchemaCheck),
-  fastlane: Joi.string().custom(semverSchemaCheck),
-  cocoapods: Joi.string().custom(semverSchemaCheck),
-  env: Joi.object().pattern(Joi.string(), Joi.string()).default({}),
+  node: Joi.string().empty(null).custom(semverSchemaCheck),
+  yarn: Joi.string().empty(null).custom(semverSchemaCheck),
+  fastlane: Joi.string().empty(null).custom(semverSchemaCheck),
+  cocoapods: Joi.string().empty(null).custom(semverSchemaCheck),
+  env: Joi.object().pattern(Joi.string(), Joi.string().empty(null)).default({}),
+});
+
+const CacheSchema = Joi.object({
+  key: Joi.string().allow('').default('').max(128),
+  cacheDefaultPaths: Joi.boolean().default(true),
+  customPaths: Joi.array().items(Joi.string()).default([]),
 });
 
 const AndroidGenericSchema = Joi.object({
@@ -40,8 +46,9 @@ const AndroidGenericSchema = Joi.object({
   }),
   releaseChannel: Joi.string(),
   artifactPath: Joi.string(),
-  withoutCredentials: Joi.boolean(),
+  withoutCredentials: Joi.boolean().default(false),
   distribution: Joi.string().valid('store', 'internal').default('store'),
+  cache: CacheSchema.allow(null).default({ key: '', cacheDefaultPaths: true, customPaths: [] }),
 }).concat(AndroidBuilderEnvironmentSchema);
 
 const AndroidManagedSchema = Joi.object({
@@ -54,6 +61,7 @@ const AndroidManagedSchema = Joi.object({
     otherwise: Joi.string().valid('apk', 'app-bundle', 'development-client').default('app-bundle'),
   }),
   distribution: Joi.string().valid('store', 'internal').default('store'),
+  cache: CacheSchema.allow(null).default({ key: '', cacheDefaultPaths: true, customPaths: [] }),
 }).concat(AndroidBuilderEnvironmentSchema);
 
 const iOSGenericSchema = Joi.object({
@@ -67,17 +75,19 @@ const iOSGenericSchema = Joi.object({
   autoIncrement: Joi.alternatives()
     .try(Joi.boolean(), Joi.string().valid('version', 'buildNumber'))
     .default(false),
+  cache: CacheSchema.allow(null).default({ key: '', cacheDefaultPaths: true, customPaths: [] }),
 }).concat(IosBuilderEnvironmentSchema);
 
 const iOSManagedSchema = Joi.object({
   workflow: Joi.string().valid('managed').required(),
   credentialsSource: Joi.string().valid('local', 'remote', 'auto').default('auto'),
-  buildType: Joi.string().valid('release', 'development-client'),
+  buildType: Joi.string().valid('release', 'development-client').default('release'),
   releaseChannel: Joi.string(),
   distribution: Joi.string().valid('store', 'internal', 'simulator').default('store'),
   autoIncrement: Joi.alternatives()
     .try(Joi.boolean(), Joi.string().valid('version', 'buildNumber'))
     .default(false),
+  cache: CacheSchema.allow(null).default({ key: '', cacheDefaultPaths: true, customPaths: [] }),
 }).concat(IosBuilderEnvironmentSchema);
 
 const schemaBuildProfileMap: Record<string, Record<string, Joi.Schema>> = {

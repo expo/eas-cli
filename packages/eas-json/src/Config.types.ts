@@ -1,4 +1,4 @@
-import { Android, Ios, Workflow } from '@expo/eas-build-job';
+import { Android, Cache, Ios, Workflow } from '@expo/eas-build-job';
 
 export enum CredentialsSource {
   LOCAL = 'local',
@@ -18,6 +18,7 @@ export interface AndroidManagedBuildProfile extends Android.BuilderEnvironment {
   buildType?: Android.ManagedBuildType;
   releaseChannel?: string;
   distribution?: AndroidDistributionType;
+  cache: Cache | null;
 }
 
 export interface AndroidGenericBuildProfile extends Android.BuilderEnvironment {
@@ -28,6 +29,7 @@ export interface AndroidGenericBuildProfile extends Android.BuilderEnvironment {
   artifactPath?: string;
   withoutCredentials?: boolean;
   distribution?: AndroidDistributionType;
+  cache: Cache | null;
 }
 
 export interface iOSManagedBuildProfile extends Ios.BuilderEnvironment {
@@ -37,6 +39,7 @@ export interface iOSManagedBuildProfile extends Ios.BuilderEnvironment {
   releaseChannel?: string;
   distribution?: iOSDistributionType;
   autoIncrement: VersionAutoIncrement;
+  cache: Cache | null;
 }
 
 export interface iOSGenericBuildProfile extends Ios.BuilderEnvironment {
@@ -48,6 +51,7 @@ export interface iOSGenericBuildProfile extends Ios.BuilderEnvironment {
   artifactPath?: string;
   distribution?: iOSDistributionType;
   autoIncrement: VersionAutoIncrement;
+  cache: Cache | null;
 }
 
 export type AndroidBuildProfile = AndroidManagedBuildProfile | AndroidGenericBuildProfile;
