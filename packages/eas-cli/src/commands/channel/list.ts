@@ -2,11 +2,58 @@ import { getConfig } from '@expo/config';
 import { Command, flags } from '@oclif/command';
 import chalk from 'chalk';
 import Table from 'cli-table3';
+import gql from 'graphql-tag';
 
-import { ChannelQuery } from '../../graphql/queries/ChannelQuery';
+import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
+import { UpdateChannel } from '../../graphql/generated';
 import Log from '../../log';
 import { ensureProjectExistsAsync } from '../../project/ensureProjectExists';
 import { findProjectRootAsync, getProjectAccountNameAsync } from '../../project/projectUtils';
+
+async function getAllUpdateChannelForAppAsync(variables: {
+  appId: string;
+}): Promise<UpdateChannel[]> {
+  const data = await withErrorHandlingAsync(
+    graphqlClient
+      .query(
+        gql`
+          query GetAllChannelsForApp($appId: String!, $offset: Int!, $limit: Int!) {
+            app {
+              byId(appId: $appId) {
+                id
+                updateChannels(offset: $offset, limit: $limit) {
+                  id
+                  name
+                  updateBranches(offset: 0, limit: 25) {
+                    id
+                    name
+                    updates(offset: 0, limit: 25) {
+                      id
+                      group
+                      message
+                      createdAt
+                      actor {
+                        id
+                        ... on User {
+                          firstName
+                        }
+                        ... on Robot {
+                          firstName
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        `,
+        variables
+      )
+      .toPromise()
+  );
+  return data.app.byId.updateChannels;
+}
 
 export default class ChannelList extends Command {
   static hidden = true;
@@ -37,7 +84,7 @@ export default class ChannelList extends Command {
       projectName: slug,
     });
 
-    const channels = await ChannelQuery.allForAppAsync({ appId: projectId });
+    const channels = await getAllUpdateChannelForAppAsync({ appId: projectId });
 
     if (jsonFlag) {
       Log.log(JSON.stringify(channels));

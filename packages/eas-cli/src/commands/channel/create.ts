@@ -1,8 +1,10 @@
 import { getConfig } from '@expo/config';
 import { Command, flags } from '@oclif/command';
 import chalk from 'chalk';
+import gql from 'graphql-tag';
 
-import { ChannelMutation } from '../../graphql/mutations/ChannelMutation';
+import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
+import { UpdateChannel } from '../../graphql/generated';
 import Log from '../../log';
 import { ensureProjectExistsAsync } from '../../project/ensureProjectExists';
 import {
@@ -12,6 +14,48 @@ import {
 } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
 import { createUpdateBranchOnAppAsync } from '../branch/create';
+
+async function createUpdateChannelOnAppAsync({
+  appId,
+  channelName,
+  branchId,
+}: {
+  appId: string;
+  channelName: string;
+  branchId: string;
+}): Promise<UpdateChannel> {
+  // Point the new channel at a branch with its same name.
+  const branchMapping = JSON.stringify({
+    data: [{ branchId, branchMappingLogic: 'true' }],
+    version: 0,
+  });
+  const data = await withErrorHandlingAsync(
+    graphqlClient
+      .mutation<
+        { updateChannel: { createUpdateChannelForApp: UpdateChannel } },
+        { appId: string; name: string; branchMapping: string }
+      >(
+        gql`
+          mutation CreateUpdateChannelForApp($appId: ID!, $name: String!, $branchMapping: String!) {
+            updateChannel {
+              createUpdateChannelForApp(appId: $appId, name: $name, branchMapping: $branchMapping) {
+                id
+                name
+                branchMapping
+              }
+            }
+          }
+        `,
+        {
+          appId,
+          name: channelName,
+          branchMapping,
+        }
+      )
+      .toPromise()
+  );
+  return data.updateChannel.createUpdateChannelForApp;
+}
 
 export default class ChannelCreate extends Command {
   static hidden = true;
@@ -83,14 +127,10 @@ export default class ChannelCreate extends Command {
       branchMessage = `We also went ahead and made a branch with the same name`;
     }
 
-    const newChannel = await ChannelMutation.createForAppAsync({
+    const newChannel = await createUpdateChannelOnAppAsync({
       appId: projectId,
-      name: channelName,
-      // Point the new channel at a branch with its same name.
-      branchMapping: JSON.stringify({
-        data: [{ branchId, branchMappingLogic: 'true' }],
-        version: 0,
-      }),
+      channelName,
+      branchId,
     });
 
     if (jsonFlag) {

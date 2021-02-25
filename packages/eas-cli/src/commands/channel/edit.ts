@@ -1,17 +1,86 @@
 import { getConfig } from '@expo/config';
 import { Command, flags } from '@oclif/command';
 import chalk from 'chalk';
+import gql from 'graphql-tag';
 
-import { ChannelMutation } from '../../graphql/mutations/ChannelMutation';
-import { ChannelQuery } from '../../graphql/queries/ChannelQuery';
+import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
+import { UpdateBranch, UpdateChannel } from '../../graphql/generated';
 import Log from '../../log';
 import { ensureProjectExistsAsync } from '../../project/ensureProjectExists';
-import {
-  findProjectRootAsync,
-  getBranchByNameAsync,
-  getProjectAccountNameAsync,
-} from '../../project/projectUtils';
+import { findProjectRootAsync, getProjectAccountNameAsync } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
+
+async function getChannelAndBranchByNameForAppAsync(variables: {
+  appId: string;
+  channelName: string;
+  branchName: string;
+}): Promise<{
+  channel: UpdateChannel;
+  branch: UpdateBranch;
+}> {
+  const data = await withErrorHandlingAsync(
+    graphqlClient
+      .query(
+        gql`
+          query GetChannelByNameForApp(
+            $appId: String!
+            $channelName: String!
+            $branchName: String!
+          ) {
+            app {
+              byId(appId: $appId) {
+                id
+                updateChannelByName(name: $channelName) {
+                  id
+                  name
+                }
+                updateBranchByName(name: $branchName) {
+                  id
+                  name
+                }
+              }
+            }
+          }
+        `,
+        variables
+      )
+      .toPromise()
+  );
+  return {
+    channel: data.app.byId.updateChannelByName,
+    branch: data.app.byId.updateBranchByName,
+  };
+}
+
+async function updateChannelBranchMappingAsync(variables: {
+  channelId: string;
+  branchMapping: string;
+}): Promise<UpdateChannel> {
+  const data = await withErrorHandlingAsync(
+    graphqlClient
+      .mutation(
+        gql`
+          mutation UpdateChannelBranchMapping($channelId: ID!, $branchMapping: String!) {
+            updateChannel {
+              editUpdateChannel(channelId: $channelId, branchMapping: $branchMapping) {
+                id
+                name
+                createdAt
+                branchMapping
+                updateBranches(offset: 0, limit: 25) {
+                  id
+                  name
+                }
+              }
+            }
+          }
+        `,
+        variables
+      )
+      .toPromise()
+  );
+  return data.updateChannel.editUpdateChannel;
+}
 
 export default class ChannelEdit extends Command {
   static hidden = true;
@@ -80,18 +149,18 @@ export default class ChannelEdit extends Command {
       }));
     }
 
-    const branch = await getBranchByNameAsync({
+    const {
+      branch,
+      channel: { id: channelId },
+    } = await getChannelAndBranchByNameForAppAsync({
       appId: projectId,
-      name: branchName!,
+      branchName: branchName!,
+      channelName,
     });
 
-    const { id: channelId } = await ChannelQuery.byNameForAppAsync({
-      appId: projectId,
-      name: channelName,
-    });
-
-    const channel = await ChannelMutation.updateBranchMappingAsync({
+    const channel = await updateChannelBranchMappingAsync({
       channelId,
+      // todo: move branch mapping logic to utility
       branchMapping: JSON.stringify({
         data: [{ branchId: branch.id, branchMappingLogic: 'true' }],
         version: 0,

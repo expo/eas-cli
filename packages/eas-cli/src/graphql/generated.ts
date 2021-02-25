@@ -3454,13 +3454,13 @@ export type PendingBuildsForAccountAndPlatformQuery = (
   ) }
 );
 
-export type GetChannelByNameForAppQueryVariables = Exact<{
+export type GetChannelByNameForApp123213QueryVariables = Exact<{
   appId: Scalars['String'];
   name: Scalars['String'];
 }>;
 
 
-export type GetChannelByNameForAppQuery = (
+export type GetChannelByNameForApp123213Query = (
   { __typename?: 'RootQuery' }
   & { app?: Maybe<(
     { __typename?: 'AppQuery' }
