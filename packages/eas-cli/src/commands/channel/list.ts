@@ -1,0 +1,72 @@
+import { getConfig } from '@expo/config';
+import { Command, flags } from '@oclif/command';
+import chalk from 'chalk';
+import Table from 'cli-table3';
+
+import { ChannelQuery } from '../../graphql/queries/ChannelQuery';
+import Log from '../../log';
+import { ensureProjectExistsAsync } from '../../project/ensureProjectExists';
+import { findProjectRootAsync, getProjectAccountNameAsync } from '../../project/projectUtils';
+
+export default class ChannelList extends Command {
+  static hidden = true;
+  static description = 'List all channels on the current project.';
+
+  static flags = {
+    json: flags.boolean({
+      description: 'print output as a JSON object with the channel ID, name and branch mapping.',
+      default: false,
+    }),
+  };
+
+  async run() {
+    const {
+      flags: { json: jsonFlag },
+    } = this.parse(ChannelList);
+
+    const projectDir = await findProjectRootAsync(process.cwd());
+    if (!projectDir) {
+      throw new Error('Please run this command inside a project directory.');
+    }
+    const accountName = await getProjectAccountNameAsync(projectDir);
+    const {
+      exp: { slug },
+    } = getConfig(projectDir, { skipSDKVersionRequirement: true });
+    const projectId = await ensureProjectExistsAsync({
+      accountName,
+      projectName: slug,
+    });
+
+    const channels = await ChannelQuery.allForAppAsync({ appId: projectId });
+
+    if (jsonFlag) {
+      Log.log(JSON.stringify(channels));
+      return;
+    }
+
+    const table = new Table({
+      head: ['channel', 'branch', 'update', 'created-at', 'actor'],
+      wordWrap: true,
+    });
+
+    for (const channel of channels) {
+      const branches = channel.updateBranches;
+      const update = branches
+        .map(branch => branch.updates)
+        .flat()
+        .sort((a, z) => z.createdAt - a.createdAt)[0];
+
+      table.push([
+        channel.name,
+        // todo: replace with branch mapping
+        branches.map(branch => branch.name).join(', '),
+        update?.group,
+        update?.createdAt && new Date(update.createdAt).toLocaleString(),
+        update?.actor?.firstName,
+      ]);
+    }
+
+    Log.log(chalk`{bold Channels for this app:}`);
+    Log.log(table.toString());
+  }
+}

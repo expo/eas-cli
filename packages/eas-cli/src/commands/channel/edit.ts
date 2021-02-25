@@ -3,6 +3,7 @@ import { Command, flags } from '@oclif/command';
 import chalk from 'chalk';
 
 import { ChannelMutation } from '../../graphql/mutations/ChannelMutation';
+import { ChannelQuery } from '../../graphql/queries/ChannelQuery';
 import Log from '../../log';
 import { ensureProjectExistsAsync } from '../../project/ensureProjectExists';
 import {
@@ -11,24 +12,25 @@ import {
   getProjectAccountNameAsync,
 } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
-import { createUpdateBranchOnAppAsync } from '../branch/create';
 
-export default class ChannelCreate extends Command {
+export default class ChannelEdit extends Command {
   static hidden = true;
-  static description = 'Create a channel on the current project.';
+  static description = 'Edit a channel on the current project.';
 
   static args = [
     {
       name: 'name',
       required: false,
-      description: 'Name of the channel to create',
+      description: 'Name of the channel to edit',
     },
   ];
 
   static flags = {
+    branch: flags.string({
+      description: 'Name of the branch to point to',
+    }),
     json: flags.boolean({
-      description:
-        'print output as a JSON object with the new channel ID, name and branch mapping.',
+      description: 'print output as a JSON object with the channel ID, name and branch mapping.',
       default: false,
     }),
   };
@@ -36,8 +38,8 @@ export default class ChannelCreate extends Command {
   async run() {
     let {
       args: { name: channelName },
-      flags: { json: jsonFlag },
-    } = this.parse(ChannelCreate);
+      flags: { branch: branchName, json: jsonFlag },
+    } = this.parse(ChannelEdit);
 
     const projectDir = await findProjectRootAsync(process.cwd());
     if (!projectDir) {
@@ -53,7 +55,7 @@ export default class ChannelCreate extends Command {
     });
 
     if (!channelName) {
-      const validationMessage = 'Channel name may not be empty.';
+      const validationMessage = 'A channel name is required to edit a specific channel.';
       if (jsonFlag) {
         throw new Error(validationMessage);
       }
@@ -65,43 +67,47 @@ export default class ChannelCreate extends Command {
       }));
     }
 
-    let branchId: string;
-    let branchMessage: string;
-    try {
-      const existingBranch = await getBranchByNameAsync({
-        appId: projectId,
-        name: channelName,
-      });
-      branchId = existingBranch.id;
-      branchMessage = `We found a branch with the same name`;
-    } catch (e) {
-      const newBranch = await createUpdateBranchOnAppAsync({
-        appId: projectId,
-        name: channelName,
-      });
-      branchId = newBranch.id;
-      branchMessage = `We also went ahead and made a branch with the same name`;
+    if (!branchName) {
+      const validationMessage = 'branch name may not be empty.';
+      if (jsonFlag) {
+        throw new Error(validationMessage);
+      }
+      ({ name: branchName } = await promptAsync({
+        type: 'text',
+        name: 'name',
+        message: 'What branch should it change to?',
+        validate: value => (value ? true : validationMessage),
+      }));
     }
 
-    const newChannel = await ChannelMutation.createForAppAsync({
+    const branch = await getBranchByNameAsync({
+      appId: projectId,
+      name: branchName!,
+    });
+
+    const { id: channelId } = await ChannelQuery.byNameForAppAsync({
       appId: projectId,
       name: channelName,
-      // Point the new channel at a branch with its same name.
+    });
+
+    const channel = await ChannelMutation.updateBranchMappingAsync({
+      channelId,
       branchMapping: JSON.stringify({
-        data: [{ branchId, branchMappingLogic: 'true' }],
+        data: [{ branchId: branch.id, branchMappingLogic: 'true' }],
         version: 0,
       }),
     });
 
     if (jsonFlag) {
-      Log.log(newChannel);
+      Log.log(JSON.stringify(channel));
       return;
     }
 
     Log.withTick(
-      `️Created a new channel ${chalk.bold(newChannel.name)} on project ${chalk.bold(
-        `@${accountName}/${slug}`
-      )}. ${branchMessage} and have pointed the channel at it. You can now update your app by publishing!`
+      chalk`Channel {bold ${channel.name}} is now set to branch {bold ${branch.name}}.\n`,
+    );
+    Log.log(
+      chalk`Users with builds on channel {bold ${channel.name}} will now receive the active update on {bold ${branch.name}}.`
     );
   }
 }

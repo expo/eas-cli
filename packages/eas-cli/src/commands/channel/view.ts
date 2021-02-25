@@ -2,86 +2,12 @@ import { getConfig } from '@expo/config';
 import { Command, flags } from '@oclif/command';
 import chalk from 'chalk';
 import Table from 'cli-table3';
-import gql from 'graphql-tag';
 
-import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
-import { UpdateChannel } from '../../graphql/generated';
+import { ChannelQuery } from '../../graphql/queries/ChannelQuery';
 import Log from '../../log';
 import { ensureProjectExistsAsync } from '../../project/ensureProjectExists';
 import { findProjectRootAsync, getProjectAccountNameAsync } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
-
-const PAGE_LIMIT = 25;
-
-async function getUpdateChannelOnAppAsync({
-  appId,
-  channelName,
-}: {
-  appId: string;
-  channelName: string;
-}): Promise<UpdateChannel> {
-  const data = await withErrorHandlingAsync(
-    graphqlClient
-      .query<
-        {
-          app: {
-            byId: {
-              updateChannelByName: {
-                id: string;
-                name: string;
-              };
-            };
-          };
-        },
-        {
-          appId: string;
-          name: string;
-          limit: number;
-        }
-      >(
-        gql`
-          query ViewChannelForApp($appId: String!, $name: String!, $limit: Int!) {
-            app {
-              byId(appId: $appId) {
-                name
-                updateChannelByName(name: $name) {
-                  id
-                  name
-                  createdAt
-                  updateBranches(offset: 0, limit: $limit) {
-                    id
-                    name
-                    updates(offset: 0, limit: $limit) {
-                      id
-                      group
-                      message
-                      createdAt
-                      actor {
-                        ... on User {
-                          firstName
-                        }
-                        ... on Robot {
-                          firstName
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        `,
-        {
-          appId,
-          name: channelName,
-          limit: PAGE_LIMIT,
-        }
-      )
-      .toPromise()
-  );
-  // todo: fix any typing
-  return data.app.byId.updateChannelByName as any;
-}
 
 export default class ChannelView extends Command {
   static hidden = true;
@@ -134,7 +60,10 @@ export default class ChannelView extends Command {
       }));
     }
 
-    const channel = await getUpdateChannelOnAppAsync({ channelName, appId: projectId });
+    const channel = await ChannelQuery.byNameForAppAsync({
+      appId: projectId,
+      name: channelName,
+    });
 
     if (jsonFlag) {
       Log.log(JSON.stringify(channel));
