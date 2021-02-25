@@ -104,7 +104,7 @@ export default class ChannelEdit extends Command {
     }
 
     Log.withTick(
-      chalk`Channel {bold ${channel.name}} is now set to branch {bold ${branch.name}}.\n`,
+      chalk`Channel {bold ${channel.name}} is now set to branch {bold ${branch.name}}.\n`
     );
     Log.log(
       chalk`Users with builds on channel {bold ${channel.name}} will now receive the active update on {bold ${branch.name}}.`
