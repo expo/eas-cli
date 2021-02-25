@@ -119,7 +119,7 @@ export default class BranchRename extends Command {
     });
 
     if (jsonFlag) {
-      Log.log(editedBranch);
+      Log.log(JSON.stringify(editedBranch));
       return;
     }
 
