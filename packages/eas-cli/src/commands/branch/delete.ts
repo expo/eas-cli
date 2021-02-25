@@ -163,12 +163,12 @@ export default class BranchDelete extends Command {
       }
     }
 
-    const { id: deletedBranchId } = await deleteBranchOnAppAsync({
+    const deletionResult = await deleteBranchOnAppAsync({
       branchId,
     });
 
     if (jsonFlag) {
-      Log.log(deletedBranchId);
+      Log.log(JSON.stringify(deletionResult));
     }
 
     Log.withTick(
