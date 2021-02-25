@@ -50,16 +50,13 @@ export default class ChannelList extends Command {
     });
 
     for (const channel of channels) {
-      const branches = channel.updateBranches;
-      const update = branches
-        .map(branch => branch.updates)
-        .flat()
-        .sort((a, z) => z.createdAt - a.createdAt)[0];
+      // todo: refactor when multiple branches per channel are available
+      const branch = channel.updateBranches[0];
+      const update = branch.updates[0];
 
       table.push([
         channel.name,
-        // todo: replace with branch mapping
-        branches.map(branch => branch.name).join(', '),
+        branch.name,
         update?.group,
         update?.createdAt && new Date(update.createdAt).toLocaleString(),
         update?.actor?.firstName,

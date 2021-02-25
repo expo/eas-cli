@@ -76,14 +76,16 @@ export default class ChannelView extends Command {
     });
 
     for (const branch of channel.updateBranches) {
-      const update = branch.updates[0] || {};
+      // todo: refactor when multiple branches per channel are available
+      const update = branch.updates[0];
+
       table.push([
         channel.name,
         branch.name,
-        update.group,
-        update.message,
-        update.createdAt && new Date(update.createdAt).toLocaleString(),
-        update.actor?.firstName,
+        update?.group,
+        update?.message,
+        update?.createdAt && new Date(update.createdAt).toLocaleString(),
+        update?.actor?.firstName,
       ]);
     }
 
