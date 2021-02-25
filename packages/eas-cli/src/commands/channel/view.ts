@@ -27,10 +27,10 @@ async function getUpdateChannelByNameForAppAsync(variables: {
                   id
                   name
                   createdAt
-                  updateBranches(offset: 0, limit: 25) {
+                  updateBranches(offset: 0, limit: 1) {
                     id
                     name
-                    updates(offset: 0, limit: 25) {
+                    updates(offset: 0, limit: 1) {
                       id
                       group
                       message

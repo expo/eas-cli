@@ -10,8 +10,14 @@ import Log from '../../log';
 import { ensureProjectExistsAsync } from '../../project/ensureProjectExists';
 import { findProjectRootAsync, getProjectAccountNameAsync } from '../../project/projectUtils';
 
-async function getAllUpdateChannelForAppAsync(variables: {
+const CHANNEL_LIMIT = 10_000;
+
+async function getAllUpdateChannelForAppAsync({
+  appId,
+  limit = CHANNEL_LIMIT,
+}: {
   appId: string;
+  limit?: number;
 }): Promise<UpdateChannel[]> {
   const data = await withErrorHandlingAsync(
     graphqlClient
@@ -24,10 +30,10 @@ async function getAllUpdateChannelForAppAsync(variables: {
                 updateChannels(offset: $offset, limit: $limit) {
                   id
                   name
-                  updateBranches(offset: 0, limit: 25) {
+                  updateBranches(offset: 0, limit: 1) {
                     id
                     name
-                    updates(offset: 0, limit: 25) {
+                    updates(offset: 0, limit: 1) {
                       id
                       group
                       message
@@ -48,7 +54,7 @@ async function getAllUpdateChannelForAppAsync(variables: {
             }
           }
         `,
-        variables
+        { appId, limit }
       )
       .toPromise()
   );
