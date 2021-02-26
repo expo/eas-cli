@@ -43,8 +43,7 @@ async function ensureGitRepoExistsAsync(): Promise<void> {
 
   Log.log("We're going to make an initial commit for you repository.");
 
-  await spawnAsync('git', ['add', '-A']);
-  await commitPromptAsync('Initial commit');
+  await commitPromptAsync({ initialCommitMessage: 'Initial commit', commitAllFiles: true });
 }
 
 async function isGitStatusCleanAsync(): Promise<boolean> {
@@ -90,7 +89,7 @@ async function ensureGitStatusIsCleanAsync(nonInteractive = false): Promise<void
     message: `Commit changes to git?`,
   });
   if (answer) {
-    await commitPromptAsync();
+    await commitPromptAsync({ commitAllFiles: true });
   } else {
     throw new Error('Please commit all changes. Aborting...');
   }
@@ -151,7 +150,13 @@ async function showDiffAsync() {
   await gitDiffAsync({ withPager: outputTooLarge });
 }
 
-async function commitPromptAsync(initialCommitMessage?: string): Promise<void> {
+async function commitPromptAsync({
+  initialCommitMessage,
+  commitAllFiles,
+}: {
+  initialCommitMessage?: string;
+  commitAllFiles?: boolean;
+} = {}): Promise<void> {
   const { message } = await promptAsync({
     type: 'text',
     name: 'message',
@@ -159,6 +164,9 @@ async function commitPromptAsync(initialCommitMessage?: string): Promise<void> {
     initial: initialCommitMessage,
     validate: (input: string) => input !== '',
   });
+  if (commitAllFiles) {
+    await spawnAsync('git', ['add', '-A']);
+  }
   await commitChangedFilesAsync(message);
 }
 
