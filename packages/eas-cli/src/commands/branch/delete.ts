@@ -20,7 +20,7 @@ async function getBranchInfoAsync({
 }): Promise<{ branchId: string }> {
   const data = await withErrorHandlingAsync(
     graphqlClient
-      .mutation<
+      .query<
         {
           app: {
             byId: {
@@ -58,14 +58,7 @@ async function getBranchInfoAsync({
       .toPromise()
   );
 
-  const {
-    app: {
-      byId: {
-        updateBranchByName: { id: branchId },
-      },
-    },
-  } = data;
-  return { branchId };
+  return { branchId: data.app.byId.updateBranchByName.id };
 }
 
 async function deleteBranchOnAppAsync({
@@ -112,7 +105,7 @@ export default class BranchDelete extends Command {
   ];
   static flags = {
     json: flags.boolean({
-      description: `return a json with the edited branch's ID and name.`,
+      description: `return JSON with the edited branch's ID and name.`,
       default: false,
     }),
   };
