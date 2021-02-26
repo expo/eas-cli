@@ -77,7 +77,7 @@ async function updateChannelBranchMappingAsync(variables: {
 
 export default class ChannelEdit extends Command {
   static hidden = true;
-  static description = 'Edit a channel on the current project.';
+  static description = 'Point a channel at a new branch.';
 
   static args = [
     {
