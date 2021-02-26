@@ -4,39 +4,35 @@ import chalk from 'chalk';
 import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
-import { UpdateBranch, UpdateChannel } from '../../graphql/generated';
+import { UpdateChannel } from '../../graphql/generated';
 import Log from '../../log';
 import { ensureProjectExistsAsync } from '../../project/ensureProjectExists';
-import { findProjectRootAsync, getProjectAccountNameAsync } from '../../project/projectUtils';
+import {
+  findProjectRootAsync,
+  getBranchByNameAsync,
+  getProjectAccountNameAsync,
+} from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
 
-async function getChannelAndBranchByNameForAppAsync(variables: {
+async function getChannelByNameForAppAsync(variables: {
   appId: string;
   channelName: string;
-  branchName: string;
-}): Promise<{
-  channel: UpdateChannel;
-  branch: UpdateBranch;
-}> {
+}): Promise<UpdateChannel> {
   const data = await withErrorHandlingAsync(
     graphqlClient
       .query(
         gql`
-          query GetChannelByNameForApp(
-            $appId: String!
-            $channelName: String!
-            $branchName: String!
-          ) {
+          query GetChannelByNameForApp($appId: String!, $channelName: String!) {
             app {
               byId(appId: $appId) {
                 id
                 updateChannelByName(name: $channelName) {
                   id
                   name
-                }
-                updateBranchByName(name: $branchName) {
-                  id
-                  name
+                  updateBranches(offset: 0, limit: 1) {
+                    id
+                    name
+                  }
                 }
               }
             }
@@ -46,10 +42,7 @@ async function getChannelAndBranchByNameForAppAsync(variables: {
       )
       .toPromise()
   );
-  return {
-    channel: data.app.byId.updateChannelByName,
-    branch: data.app.byId.updateBranchByName,
-  };
+  return data.app.byId.updateChannelByName;
 }
 
 async function updateChannelBranchMappingAsync(variables: {
@@ -67,7 +60,7 @@ async function updateChannelBranchMappingAsync(variables: {
                 name
                 createdAt
                 branchMapping
-                updateBranches(offset: 0, limit: 25) {
+                updateBranches(offset: 0, limit: 1) {
                   id
                   name
                 }
@@ -136,6 +129,16 @@ export default class ChannelEdit extends Command {
       }));
     }
 
+    const existingChannel = await getChannelByNameForAppAsync({ appId: projectId, channelName });
+    // todo: refactor when multiple branches per channel are available
+    const existingBranch = existingChannel.updateBranches[0];
+
+    Log.addNewLineIfNone();
+    Log.log(
+      chalk`Channel {bold ${existingChannel.name}} is currently set to branch {bold ${existingBranch.name}}`
+    );
+    Log.addNewLineIfNone();
+
     if (!branchName) {
       const validationMessage = 'branch name may not be empty.';
       if (jsonFlag) {
@@ -144,22 +147,18 @@ export default class ChannelEdit extends Command {
       ({ name: branchName } = await promptAsync({
         type: 'text',
         name: 'name',
-        message: 'What branch should it change to?',
+        message: chalk`What branch should it change to?`,
         validate: value => (value ? true : validationMessage),
       }));
     }
 
-    const {
-      branch,
-      channel: { id: channelId },
-    } = await getChannelAndBranchByNameForAppAsync({
+    const branch = await getBranchByNameAsync({
       appId: projectId,
-      branchName: branchName!,
-      channelName,
+      name: branchName!,
     });
 
     const channel = await updateChannelBranchMappingAsync({
-      channelId,
+      channelId: existingChannel.id,
       // todo: move branch mapping logic to utility
       branchMapping: JSON.stringify({
         data: [{ branchId: branch.id, branchMappingLogic: 'true' }],
