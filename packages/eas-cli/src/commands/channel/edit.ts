@@ -124,7 +124,7 @@ export default class ChannelEdit extends Command {
       ({ name: channelName } = await promptAsync({
         type: 'text',
         name: 'name',
-        message: 'Please name the channel:',
+        message: 'Please enter the name of the channel to edit:',
         validate: value => (value ? true : validationMessage),
       }));
     }
