@@ -85,7 +85,7 @@ export async function pressAnyKeyToContinueAsync() {
   process.stdin.resume();
   process.stdin.setEncoding('utf8');
 
-  await new Promise(res => {
+  await new Promise<void>(res => {
     process.stdin.on('data', key => {
       if (String(key) === '\u0003') {
         process.exit(constants.signals.SIGINT + 128); // ctrl-c
