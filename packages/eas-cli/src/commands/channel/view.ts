@@ -117,7 +117,7 @@ export default class ChannelView extends Command {
     }
 
     const table = new Table({
-      head: ['channel', 'branch', 'update', 'message', 'created-at', 'actor'],
+      head: ['branch', 'update', 'message', 'created-at', 'actor'],
       wordWrap: true,
     });
 
@@ -126,7 +126,6 @@ export default class ChannelView extends Command {
       const update = branch.updates[0];
 
       table.push([
-        channel.name,
         branch.name,
         update?.group,
         update?.message,

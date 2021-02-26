@@ -98,7 +98,7 @@ export default class ChannelList extends Command {
     }
 
     const table = new Table({
-      head: ['channel', 'branch', 'update', 'created-at', 'actor'],
+      head: ['channel', 'branch', 'update', 'message', 'created-at', 'actor'],
       wordWrap: true,
     });
 
@@ -111,6 +111,7 @@ export default class ChannelList extends Command {
         channel.name,
         branch.name,
         update?.group,
+        update?.message,
         update?.createdAt && new Date(update.createdAt).toLocaleString(),
         update?.actor?.firstName,
       ]);
