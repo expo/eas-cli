@@ -31,7 +31,7 @@ const PublishMutation = {
 
   async publishUpdateGroupAsync(
     publishUpdateGroupInput: PublishUpdateGroupInput
-  ): Promise<Pick<Update, 'id' | 'group'>> {
+  ): Promise<Pick<Update, 'group'>> {
     const data = await withErrorHandlingAsync(
       graphqlClient
         .mutation<UpdatePublishMutation>(
@@ -49,7 +49,8 @@ const PublishMutation = {
         )
         .toPromise()
     );
-    return data.updateBranch.publishUpdateGroup[0]!;
+    const { group } = data.updateBranch.publishUpdateGroup[0]!;
+    return { group };
   },
 };
 

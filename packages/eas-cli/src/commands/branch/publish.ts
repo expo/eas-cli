@@ -32,14 +32,14 @@ export default class BranchPublish extends Command {
       required: false,
     }),
     branch: flags.string({
-      description: 'current name of the branch.',
+      description: 'name of the branch to publish on.',
     }),
     message: flags.string({
       description: 'Short message describing the updates.',
       required: false,
     }),
     json: flags.boolean({
-      description: `return a json with the edited branch's ID and name.`,
+      description: `return a json with the new update group.`,
       default: false,
     }),
     'skip-bundler': flags.boolean({
