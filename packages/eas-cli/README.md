@@ -8,16 +8,23 @@ EAS command line tool
 [![License](https://img.shields.io/npm/l/eas-cli.svg)](https://github.com/expo/eas-cli/blob/main/package.json)
 
 <!-- toc -->
-* [eas-cli](#eas-cli)
+* [Installation](#installation)
 * [Usage](#usage)
 * [Commands](#commands)
 <!-- tocstop -->
+
+# Installation
+
+```sh
+npm install -g eas-cli
+# or
+yarn global add eas-cli
+```
 
 # Usage
 
 <!-- usage -->
 ```sh-session
-$ npm install -g eas-cli
 $ eas COMMAND
 running command...
 $ eas (-v|--version|version)
