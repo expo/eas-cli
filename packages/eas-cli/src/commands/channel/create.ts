@@ -134,7 +134,7 @@ export default class ChannelCreate extends Command {
     });
 
     if (jsonFlag) {
-      Log.log(newChannel);
+      Log.log(JSON.stringify(newChannel));
       return;
     }
 

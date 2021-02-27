@@ -147,7 +147,7 @@ export default class BranchView extends Command {
     );
 
     if (jsonFlag) {
-      Log.log({ ...UpdateBranch, updates });
+      Log.log(JSON.stringify({ ...UpdateBranch, updates }));
       return;
     }
 
