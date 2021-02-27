@@ -17,7 +17,6 @@ async function getAllUpdateChannelForAppAsync({
   limit = CHANNEL_LIMIT,
 }: {
   appId: string;
-  limit?: number;
 }): Promise<UpdateChannel[]> {
   const data = await withErrorHandlingAsync(
     graphqlClient
@@ -54,7 +53,7 @@ async function getAllUpdateChannelForAppAsync({
             }
           }
         `,
-        { appId, limit }
+        { appId, limit: CHANNEL_LIMIT }
       )
       .toPromise()
   );
