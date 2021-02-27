@@ -102,7 +102,7 @@ export default class ChannelList extends Command {
     });
 
     for (const channel of channels) {
-      // todo: refactor when multiple branches per channel are available
+      // TODO (cedric): refactor when multiple branches per channel are available
       const branch = channel.updateBranches[0];
       const update = branch.updates[0];
 

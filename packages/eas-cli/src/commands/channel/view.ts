@@ -122,7 +122,7 @@ export default class ChannelView extends Command {
     });
 
     for (const branch of channel.updateBranches) {
-      // todo: refactor when multiple branches per channel are available
+      // TODO (cedric): refactor when multiple branches per channel are available
       const update = branch.updates[0];
 
       table.push([
