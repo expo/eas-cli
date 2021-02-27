@@ -14,7 +14,6 @@ const CHANNEL_LIMIT = 10_000;
 
 async function getAllUpdateChannelForAppAsync({
   appId,
-  limit = CHANNEL_LIMIT,
 }: {
   appId: string;
 }): Promise<UpdateChannel[]> {
