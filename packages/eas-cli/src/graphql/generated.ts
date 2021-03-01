@@ -2860,14 +2860,14 @@ export type CancelBuildMutation = (
   )> }
 );
 
-export type CreateUpdateChannelForAppMutationVariables = Exact<{
+export type CreateUpdateChannelOnAppMutationVariables = Exact<{
   appId: Scalars['ID'];
   name: Scalars['String'];
   branchMapping: Scalars['String'];
 }>;
 
 
-export type CreateUpdateChannelForAppMutation = (
+export type CreateUpdateChannelOnAppMutation = (
   { __typename?: 'RootMutation' }
   & { updateChannel: (
     { __typename?: 'UpdateChannelMutation' }
