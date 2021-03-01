@@ -3878,3 +3878,36 @@ export type CommonIosAppCredentialsFragment = (
     & IosAppBuildCredentialsFragment
   )> }
 );
+
+export type ViewBranchQueryVariables = Exact<{
+  appId: Scalars['String'];
+  name: Scalars['String'];
+  limit: Scalars['Int'];
+}>;
+
+
+export type ViewBranchQuery = (
+  { __typename?: 'RootQuery' }
+  & { app?: Maybe<(
+    { __typename?: 'AppQuery' }
+    & { byId: (
+      { __typename?: 'App' }
+      & Pick<App, 'id'>
+      & { updateBranchByName: (
+        { __typename?: 'UpdateBranch' }
+        & Pick<UpdateBranch, 'id' | 'name'>
+        & { updates: Array<(
+          { __typename?: 'Update' }
+          & Pick<Update, 'id' | 'group' | 'message' | 'createdAt' | 'runtimeVersion' | 'platform' | 'manifestFragment'>
+          & { actor?: Maybe<(
+            { __typename?: 'User' }
+            & Pick<User, 'firstName' | 'id'>
+          ) | (
+            { __typename?: 'Robot' }
+            & Pick<Robot, 'firstName' | 'id'>
+          )> }
+        )> }
+      ) }
+    ) }
+  )> }
+);

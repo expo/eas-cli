@@ -24,19 +24,22 @@ const PAGE_LIMIT = 10_000;
 
 type TruncatedUpdate = Pick<Update, 'group' | 'message' | 'createdAt' | 'actor'>;
 
-async function viewUpdateBranchAsync({
+export async function viewUpdateBranchAsync({
   appId,
   name,
 }: Pick<ViewBranchQueryVariables, 'appId' | 'name'>): Promise<
   Pick<UpdateBranch, 'id' | 'name'> & {
-    updates: (Pick<Update, 'id' | 'group' | 'message' | 'createdAt'> & {
+    updates: (Pick<
+      Update,
+      'id' | 'group' | 'message' | 'createdAt' | 'runtimeVersion' | 'platform' | 'manifestFragment'
+    > & {
       actor?: Maybe<Pick<User, 'firstName' | 'id'> | Pick<Robot, 'firstName' | 'id'>>;
     })[];
   }
 > {
   const data = await withErrorHandlingAsync(
     graphqlClient
-      .query<ViewBranchQuery, ViewBranchQueryVariables>(
+      .mutation<ViewBranchQuery, ViewBranchQueryVariables>(
         gql`
           query ViewBranch($appId: String!, $name: String!, $limit: Int!) {
             app {
@@ -50,6 +53,9 @@ async function viewUpdateBranchAsync({
                     group
                     message
                     createdAt
+                    runtimeVersion
+                    platform
+                    manifestFragment
                     actor {
                       id
                       ... on User {
@@ -73,11 +79,12 @@ async function viewUpdateBranchAsync({
       )
       .toPromise()
   );
-  const updateBranch = data.app?.byId.updateBranchByName;
-  if (!updateBranch) {
-    throw new Error(`Could not find branch "${name}"`);
+  const id = data.app?.byId.updateBranchByName.id;
+  const updates = data.app?.byId.updateBranchByName.updates;
+  if (!id || !updates) {
+    throw new Error(`Could not find branch ${name}.`);
   }
-  return updateBranch;
+  return { id, name, updates };
 }
 
 export default class BranchView extends Command {

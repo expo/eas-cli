@@ -1,107 +1,20 @@
 import { getConfig } from '@expo/config';
-import { getRuntimeVersion } from '@expo/config-plugins/build/android/Updates';
 import { Command, flags } from '@oclif/command';
 import assert from 'assert';
 import chalk from 'chalk';
 import Table from 'cli-table3';
 import dateFormat from 'dateformat';
-import gql from 'graphql-tag';
 import uniqBy from 'lodash/uniqBy';
 import ora from 'ora';
 
-import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
-import { Update, UpdateInfoGroup } from '../../graphql/generated';
+import { Maybe, Robot, Update, UpdateInfoGroup, User } from '../../graphql/generated';
 import { PublishMutation } from '../../graphql/mutations/PublishMutation';
 import Log from '../../log';
 import { ensureProjectExistsAsync } from '../../project/ensureProjectExists';
-import {
-  findProjectRootAsync,
-  getBranchByNameAsync,
-  getProjectAccountNameAsync,
-} from '../../project/projectUtils';
-import {
-  buildBundlesAsync,
-  buildUpdateInfoGroupAsync,
-  collectAssets,
-  uploadAssetsAsync,
-} from '../../project/publish';
+import { findProjectRootAsync, getProjectAccountNameAsync } from '../../project/projectUtils';
 import { promptAsync, selectAsync } from '../../prompts';
-import { getLastCommitMessageAsync } from '../../utils/git';
+import { viewUpdateBranchAsync } from './view';
 
-const PAGE_LIMIT = 10_000;
-
-async function viewUpdateBranchAsync({
-  appId,
-  name,
-}: {
-  appId: string;
-  name: string;
-}): Promise<{
-  id: string;
-  name: string;
-  updates: Update[];
-}> {
-  const data = await withErrorHandlingAsync(
-    graphqlClient
-      .mutation<
-        {
-          app: {
-            byId: {
-              updateBranchByName: {
-                id: string;
-                name: string;
-                updates: Update[];
-              };
-            };
-          };
-        },
-        {
-          appId: string;
-          name: string;
-          limit: number;
-        }
-      >(
-        gql`
-          query ViewBranch($appId: String!, $name: String!, $limit: Int!) {
-            app {
-              byId(appId: $appId) {
-                id
-                updateBranchByName(name: $name) {
-                  id
-                  name
-                  updates(offset: 0, limit: $limit) {
-                    id
-                    group
-                    message
-                    createdAt
-                    runtimeVersion
-                    platform
-                    manifestFragment
-                    actor {
-                      id
-                      ... on User {
-                        firstName
-                      }
-                      ... on Robot {
-                        firstName
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        `,
-        {
-          appId,
-          name,
-          limit: PAGE_LIMIT,
-        }
-      )
-      .toPromise()
-  );
-  return data.app.byId.updateBranchByName;
-}
 export default class BranchRepublish extends Command {
   static hidden = true;
   static description = 'Republish an update group to a branch.';
@@ -231,7 +144,11 @@ export default class BranchRepublish extends Command {
   }
 }
 
-function formatUpdateTitle(update: Update): string {
+function formatUpdateTitle(
+  update: Pick<Update, 'message' | 'createdAt' | 'runtimeVersion'> & {
+    actor?: Maybe<Pick<User, 'firstName' | 'id'> | Pick<Robot, 'firstName' | 'id'>>;
+  }
+): string {
   const { message, createdAt, actor, runtimeVersion } = update;
   return `[${dateFormat(createdAt, 'mmm dd HH:MM')} by ${
     actor?.firstName ?? 'unknown'
