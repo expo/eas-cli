@@ -10,6 +10,7 @@ import { Context } from '../context';
 import * as credentialsJsonReader from '../credentialsJson/read';
 import type { IosCredentials } from '../credentialsJson/read';
 import { SetupBuildCredentials } from './actions/SetupBuildCredentials';
+import { isAdHocProfile } from './utils/provisioningProfile';
 
 export { IosCredentials };
 
@@ -103,7 +104,32 @@ export default class IosCredentialsProvider implements CredentialsProvider {
   }
 
   private async getLocalAsync(): Promise<IosCredentials> {
-    return await credentialsJsonReader.readIosCredentialsAsync(this.ctx.projectDir);
+    const credentials = await credentialsJsonReader.readIosCredentialsAsync(this.ctx.projectDir);
+    if (credentialsJsonReader.isCredentialsMap(credentials)) {
+      for (const targetName of Object.keys(credentials)) {
+        this.assertProvioningProfileType(credentials[targetName].provisioningProfile, targetName);
+      }
+    } else {
+      this.assertProvioningProfileType(credentials.provisioningProfile);
+    }
+    return credentials;
+  }
+
+  private assertProvioningProfileType(provisionigProfile: string, targetName?: string) {
+    const isAdHoc = isAdHocProfile(provisionigProfile);
+    if (this.options.distribution === 'internal' && !isAdHoc) {
+      throw new Error(
+        `You must use an adhoc provisioning profile${
+          targetName && ` (target '${targetName})'`
+        } for internal distribution`
+      );
+    } else if (this.options.distribution !== 'internal' && isAdHoc) {
+      throw new Error(
+        `You can't use an adhoc provisioning profile${
+          targetName && ` (target '${targetName})'`
+        } for app store distribution`
+      );
+    }
   }
 
   private async getRemoteAsync(): Promise<IosCredentials> {
