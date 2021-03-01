@@ -1,6 +1,7 @@
 import {
   ArchiveSource,
   ArchiveSourceType,
+  Cache,
   Ios,
   Job,
   Workflow,
@@ -49,8 +50,9 @@ interface CommonJobProperties {
   platform: Platform.IOS;
   projectArchive: ArchiveSource;
   builderEnvironment: Ios.BuilderEnvironment;
-  releaseChannel: string;
+  releaseChannel?: string;
   distribution?: Ios.DistributionType;
+  cache: Cache | null;
   secrets: {
     buildCredentials: Ios.BuildCredentials;
     secretEnvs?: Record<string, string>;
@@ -98,6 +100,7 @@ async function prepareJobCommonAsync(
       fastlane: ctx.buildProfile.fastlane,
       env: ctx.buildProfile.env,
     },
+    cache: ctx.buildProfile.cache,
     secrets: {
       ...(secretEnvs ? { secretEnvs } : {}),
       buildCredentials,
