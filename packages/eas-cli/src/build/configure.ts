@@ -132,7 +132,7 @@ enum ShouldCommitChanges {
 }
 
 async function reviewAndCommitChangesAsync(
-  commitMessage: string,
+  initialCommitMessage: string,
   askedFirstTime: boolean = true
 ): Promise<void> {
   const { selected } = await promptAsync({
@@ -152,10 +152,10 @@ async function reviewAndCommitChangesAsync(
   });
 
   if (selected === ShouldCommitChanges.Yes) {
-    await commitPromptAsync(commitMessage);
+    await commitPromptAsync({ initialCommitMessage });
     Log.withTick('Committed changes');
   } else if (selected === ShouldCommitChanges.ShowDiffFirst) {
     await showDiffAsync();
-    await reviewAndCommitChangesAsync(commitMessage, false);
+    await reviewAndCommitChangesAsync(initialCommitMessage, false);
   }
 }

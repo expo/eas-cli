@@ -182,7 +182,7 @@ enum ShouldCommitChanges {
 }
 
 async function reviewAndCommitChangesAsync(
-  commitMessage: string,
+  initialCommitMessage: string,
   { nonInteractive, askedFirstTime = true }: { nonInteractive: boolean; askedFirstTime?: boolean }
 ): Promise<void> {
   if (nonInteractive) {
@@ -211,10 +211,13 @@ async function reviewAndCommitChangesAsync(
       "Aborting, run the command again once you're ready. Make sure to commit any changes you've made."
     );
   } else if (selected === ShouldCommitChanges.Yes) {
-    await commitPromptAsync(commitMessage);
+    await commitPromptAsync({ initialCommitMessage });
     Log.withTick('Committed changes.');
   } else if (selected === ShouldCommitChanges.ShowDiffFirst) {
     await showDiffAsync();
-    await reviewAndCommitChangesAsync(commitMessage, { nonInteractive, askedFirstTime: false });
+    await reviewAndCommitChangesAsync(initialCommitMessage, {
+      nonInteractive,
+      askedFirstTime: false,
+    });
   }
 }
