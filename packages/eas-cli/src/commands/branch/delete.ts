@@ -4,7 +4,13 @@ import chalk from 'chalk';
 import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
-import { DeleteUpdateBranchResult, Update } from '../../graphql/generated';
+import {
+  DeleteUpdateBranchMutation,
+  DeleteUpdateBranchMutationVariables,
+  DeleteUpdateBranchResult,
+  GetBranchInfoQuery,
+  GetBranchInfoQueryVariables,
+} from '../../graphql/generated';
 import Log from '../../log';
 import { ensureProjectExistsAsync } from '../../project/ensureProjectExists';
 import { findProjectRootAsync, getProjectAccountName } from '../../project/projectUtils';
@@ -14,31 +20,12 @@ import { ensureLoggedInAsync } from '../../user/actions';
 async function getBranchInfoAsync({
   appId,
   name,
-}: {
-  appId: string;
-  name: string;
-}): Promise<{ branchId: string }> {
+}: GetBranchInfoQueryVariables): Promise<{ branchId: string }> {
   const data = await withErrorHandlingAsync(
     graphqlClient
-      .query<
-        {
-          app: {
-            byId: {
-              updateBranchByName: {
-                id: string;
-                name: string;
-                updates: Pick<Update, 'id'>[];
-              };
-            };
-          };
-        },
-        {
-          appId: string;
-          name: string;
-        }
-      >(
+      .query<GetBranchInfoQuery, GetBranchInfoQueryVariables>(
         gql`
-          query ViewBranch($appId: String!, $name: String!) {
+          query GetBranchInfo($appId: String!, $name: String!) {
             app {
               byId(appId: $appId) {
                 id
@@ -57,23 +44,19 @@ async function getBranchInfoAsync({
       )
       .toPromise()
   );
-
-  return { branchId: data.app.byId.updateBranchByName.id };
+  const branchId = data.app?.byId.updateBranchByName.id;
+  if (!branchId) {
+    throw new Error(`Could not find branch ${name} on ${appId}`);
+  }
+  return { branchId };
 }
 
 async function deleteBranchOnAppAsync({
   branchId,
-}: {
-  branchId: string;
-}): Promise<DeleteUpdateBranchResult> {
+}: DeleteUpdateBranchMutationVariables): Promise<DeleteUpdateBranchResult> {
   const data = await withErrorHandlingAsync(
     graphqlClient
-      .mutation<
-        { updateBranch: { deleteUpdateBranch: DeleteUpdateBranchResult } },
-        {
-          branchId: string;
-        }
-      >(
+      .mutation<DeleteUpdateBranchMutation, DeleteUpdateBranchMutationVariables>(
         gql`
           mutation DeleteUpdateBranch($branchId: ID!) {
             updateBranch {

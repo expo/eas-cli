@@ -3,6 +3,7 @@ schema: 'https://staging.exp.host/--/graphql'
 documents:
   - 'src/graphql/**/!(*.d).{ts,tsx}'
   - 'src/credentials/ios/api/graphql/**/!(*.d).{ts,tsx}'
+  - 'src/commands/**/*.ts'
 generates:
   src/graphql/generated.ts:
     plugins:
