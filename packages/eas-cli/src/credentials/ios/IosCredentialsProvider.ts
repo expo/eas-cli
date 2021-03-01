@@ -39,6 +39,11 @@ export default class IosCredentialsProvider implements CredentialsProvider {
   constructor(private ctx: Context, private options: Options) {}
 
   public async hasRemoteAsync(): Promise<boolean> {
+    // TODO: this is temporary
+    // remove this check when we implement syncing local credentials for internal distribution
+    if (this.options.distribution === 'internal' && (await this.hasLocalAsync())) {
+      return false;
+    }
     const { distributionCertificate, provisioningProfile } = await this.fetchRemoteAsync();
     return !!(
       distributionCertificate?.certP12 ||
@@ -48,10 +53,6 @@ export default class IosCredentialsProvider implements CredentialsProvider {
   }
 
   public async hasLocalAsync(): Promise<boolean> {
-    if (this.options.distribution === 'internal') {
-      // TODO: add support for using credentials.json for internal distribution
-      return false;
-    }
     if (!(await credentialsJsonReader.fileExistsAsync(this.ctx.projectDir))) {
       return false;
     }
@@ -102,10 +103,6 @@ export default class IosCredentialsProvider implements CredentialsProvider {
   }
 
   private async getLocalAsync(): Promise<IosCredentials> {
-    if (this.options.distribution === 'internal') {
-      // TODO: add support for using credentials.json for internal distribution
-      throw new Error('Using credentials.json for internal distribution is not supported yet.');
-    }
     return await credentialsJsonReader.readIosCredentialsAsync(this.ctx.projectDir);
   }
 
