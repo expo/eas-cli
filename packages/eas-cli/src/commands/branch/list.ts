@@ -5,7 +5,15 @@ import gql from 'graphql-tag';
 import { format } from 'timeago.js';
 
 import { graphqlClient } from '../../graphql/client';
-import { RootQuery, Update, UpdateBranch } from '../../graphql/generated';
+import {
+  BranchesByAppQuery,
+  BranchesByAppQueryVariables,
+  Maybe,
+  Robot,
+  Update,
+  UpdateBranch,
+  User,
+} from '../../graphql/generated';
 import Log from '../../log';
 import { findProjectRootAsync, getProjectFullNameAsync } from '../../project/projectUtils';
 import { getActorDisplayName } from '../../user/actions';
@@ -37,9 +45,7 @@ export default class BranchList extends Command {
       Log.log(JSON.stringify(branches, null, 2));
     } else {
       const table = new CliTable({ head: ['Branch', 'Latest update'] });
-      table.push(
-        ...branches.map((branch: UpdateBranch) => [branch.name, formatUpdate(branch.updates[0])])
-      );
+      table.push(...branches.map(branch => [branch.name, formatUpdate(branch.updates[0])]));
       Log.log(table.toString());
       if (branches.length >= BRANCHES_LIMIT) {
         Log.warn(`Showing first ${BRANCHES_LIMIT} branches, some results might be omitted.`);
@@ -47,9 +53,19 @@ export default class BranchList extends Command {
     }
   }
 
-  async listBranchesAsync({ fullName }: { fullName: string }): Promise<UpdateBranch[]> {
+  async listBranchesAsync({
+    fullName,
+  }: {
+    fullName: string;
+  }): Promise<
+    (Pick<UpdateBranch, 'id' | 'name'> & {
+      updates: (Pick<Update, 'id' | 'updatedAt' | 'message'> & {
+        actor?: Maybe<Pick<User, 'username' | 'id'> | Pick<Robot, 'firstName' | 'id'>>;
+      })[];
+    })[]
+  > {
     const { data, error } = await graphqlClient
-      .query<RootQuery>(
+      .query<BranchesByAppQuery, BranchesByAppQueryVariables>(
         gql`
           query BranchesByAppQuery($fullName: String!, $limit: Int!) {
             app {
@@ -98,7 +114,11 @@ export default class BranchList extends Command {
   }
 }
 
-function formatUpdate(update: Update | undefined): string {
+function formatUpdate(
+  update: Pick<Update, 'id' | 'updatedAt' | 'message'> & {
+    actor?: Maybe<Pick<User, 'username' | 'id'> | Pick<Robot, 'firstName' | 'id'>>;
+  }
+): string {
   if (!update) {
     return 'N/A';
   }

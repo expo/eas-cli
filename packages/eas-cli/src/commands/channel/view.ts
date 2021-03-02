@@ -5,19 +5,22 @@ import Table from 'cli-table3';
 import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
-import { UpdateChannel } from '../../graphql/generated';
+import {
+  GetChannelByNameForAppQuery,
+  GetChannelByNameForAppQueryVariables,
+} from '../../graphql/generated';
 import Log from '../../log';
 import { ensureProjectExistsAsync } from '../../project/ensureProjectExists';
 import { findProjectRootAsync, getProjectAccountNameAsync } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
 
-async function getUpdateChannelByNameForAppAsync(variables: {
-  appId: string;
-  channelName: string;
-}): Promise<UpdateChannel> {
-  const data = await withErrorHandlingAsync(
+async function getUpdateChannelByNameForAppAsync({
+  appId,
+  channelName,
+}: GetChannelByNameForAppQueryVariables): Promise<GetChannelByNameForAppQuery> {
+  return await withErrorHandlingAsync(
     graphqlClient
-      .query(
+      .query<GetChannelByNameForAppQuery, GetChannelByNameForAppQueryVariables>(
         gql`
           query GetChannelByNameForApp($appId: String!, $channelName: String!) {
             app {
@@ -51,11 +54,10 @@ async function getUpdateChannelByNameForAppAsync(variables: {
             }
           }
         `,
-        variables
+        { appId, channelName }
       )
       .toPromise()
   );
-  return data.app.byId.updateChannelByName;
 }
 
 export default class ChannelView extends Command {
@@ -109,7 +111,14 @@ export default class ChannelView extends Command {
       }));
     }
 
-    const channel = await getUpdateChannelByNameForAppAsync({ appId: projectId, channelName });
+    const getUpdateChannelByNameForAppresult = await getUpdateChannelByNameForAppAsync({
+      appId: projectId,
+      channelName,
+    });
+    const channel = getUpdateChannelByNameForAppresult.app?.byId.updateChannelByName;
+    if (!channel) {
+      throw new Error(`Could not fine channel with name ${channelName}`);
+    }
 
     if (jsonFlag) {
       Log.log(JSON.stringify(channel));

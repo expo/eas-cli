@@ -5,7 +5,10 @@ import Table from 'cli-table3';
 import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
-import { UpdateChannel } from '../../graphql/generated';
+import {
+  GetAllChannelsForAppQuery,
+  GetAllChannelsForAppQueryVariables,
+} from '../../graphql/generated';
 import Log from '../../log';
 import { ensureProjectExistsAsync } from '../../project/ensureProjectExists';
 import { findProjectRootAsync, getProjectAccountNameAsync } from '../../project/projectUtils';
@@ -16,10 +19,10 @@ async function getAllUpdateChannelForAppAsync({
   appId,
 }: {
   appId: string;
-}): Promise<UpdateChannel[]> {
-  const data = await withErrorHandlingAsync(
+}): Promise<GetAllChannelsForAppQuery> {
+  return await withErrorHandlingAsync(
     graphqlClient
-      .query(
+      .query<GetAllChannelsForAppQuery, GetAllChannelsForAppQueryVariables>(
         gql`
           query GetAllChannelsForApp($appId: String!, $offset: Int!, $limit: Int!) {
             app {
@@ -52,11 +55,10 @@ async function getAllUpdateChannelForAppAsync({
             }
           }
         `,
-        { appId, limit: CHANNEL_LIMIT }
+        { appId, offset: 0, limit: CHANNEL_LIMIT }
       )
       .toPromise()
   );
-  return data.app.byId.updateChannels;
 }
 
 export default class ChannelList extends Command {
@@ -88,7 +90,13 @@ export default class ChannelList extends Command {
       projectName: slug,
     });
 
-    const channels = await getAllUpdateChannelForAppAsync({ appId: projectId });
+    const getAllUpdateChannelForAppResult = await getAllUpdateChannelForAppAsync({
+      appId: projectId,
+    });
+    const channels = getAllUpdateChannelForAppResult.app?.byId.updateChannels;
+    if (!channels) {
+      throw new Error(`Could not find channels on project with id ${projectId}`);
+    }
 
     if (jsonFlag) {
       Log.log(JSON.stringify(channels));

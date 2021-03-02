@@ -4,7 +4,11 @@ import chalk from 'chalk';
 import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
-import { UpdateBranch } from '../../graphql/generated';
+import {
+  CreateUpdateBranchForAppMutation,
+  CreateUpdateBranchForAppMutationVariables,
+  UpdateBranch,
+} from '../../graphql/generated';
 import Log from '../../log';
 import { ensureProjectExistsAsync } from '../../project/ensureProjectExists';
 import { findProjectRootAsync, getProjectAccountName } from '../../project/projectUtils';
@@ -15,16 +19,10 @@ import { getBranchNameAsync } from '../../utils/git';
 export async function createUpdateBranchOnAppAsync({
   appId,
   name,
-}: {
-  appId: string;
-  name: string;
-}): Promise<Pick<UpdateBranch, 'id' | 'name'>> {
-  const data = await withErrorHandlingAsync(
+}: CreateUpdateBranchForAppMutationVariables): Promise<Pick<UpdateBranch, 'id' | 'name'>> {
+  const result = await withErrorHandlingAsync(
     graphqlClient
-      .mutation<
-        { updateBranch: { createUpdateBranchForApp: Pick<UpdateBranch, 'id' | 'name'> } },
-        { appId: string; name: string }
-      >(
+      .mutation<CreateUpdateBranchForAppMutation, CreateUpdateBranchForAppMutationVariables>(
         gql`
           mutation createUpdateBranchForApp($appId: ID!, $name: String!) {
             updateBranch {
@@ -42,7 +40,11 @@ export async function createUpdateBranchOnAppAsync({
       )
       .toPromise()
   );
-  return data.updateBranch.createUpdateBranchForApp;
+  const newBranch = result.updateBranch.createUpdateBranchForApp;
+  if (!newBranch) {
+    throw new Error(`Could not create branch ${name}.`);
+  }
+  return newBranch;
 }
 
 export default class BranchCreate extends Command {
