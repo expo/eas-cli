@@ -107,15 +107,15 @@ export default class IosCredentialsProvider implements CredentialsProvider {
     const credentials = await credentialsJsonReader.readIosCredentialsAsync(this.ctx.projectDir);
     if (credentialsJsonReader.isCredentialsMap(credentials)) {
       for (const targetName of Object.keys(credentials)) {
-        this.assertProvioningProfileType(credentials[targetName].provisioningProfile, targetName);
+        this.assertProvisioningProfileType(credentials[targetName].provisioningProfile, targetName);
       }
     } else {
-      this.assertProvioningProfileType(credentials.provisioningProfile);
+      this.assertProvisioningProfileType(credentials.provisioningProfile);
     }
     return credentials;
   }
 
-  private assertProvioningProfileType(provisionigProfile: string, targetName?: string) {
+  private assertProvisioningProfileType(provisionigProfile: string, targetName?: string) {
     const isAdHoc = isAdHocProfile(provisionigProfile);
     if (this.options.distribution === 'internal' && !isAdHoc) {
       throw new Error(
