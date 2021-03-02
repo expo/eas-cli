@@ -10,6 +10,7 @@ import { Context } from '../context';
 import * as credentialsJsonReader from '../credentialsJson/read';
 import type { IosCredentials } from '../credentialsJson/read';
 import { SetupBuildCredentials } from './actions/SetupBuildCredentials';
+import { isAdHocProfile } from './utils/provisioningProfile';
 
 export { IosCredentials };
 
@@ -39,6 +40,11 @@ export default class IosCredentialsProvider implements CredentialsProvider {
   constructor(private ctx: Context, private options: Options) {}
 
   public async hasRemoteAsync(): Promise<boolean> {
+    // TODO: this is temporary
+    // remove this check when we implement syncing local credentials for internal distribution
+    if (this.options.distribution === 'internal' && (await this.hasLocalAsync())) {
+      return false;
+    }
     const { distributionCertificate, provisioningProfile } = await this.fetchRemoteAsync();
     return !!(
       distributionCertificate?.certP12 ||
@@ -48,10 +54,6 @@ export default class IosCredentialsProvider implements CredentialsProvider {
   }
 
   public async hasLocalAsync(): Promise<boolean> {
-    if (this.options.distribution === 'internal') {
-      // TODO: add support for using credentials.json for internal distribution
-      return false;
-    }
     if (!(await credentialsJsonReader.fileExistsAsync(this.ctx.projectDir))) {
       return false;
     }
@@ -102,11 +104,32 @@ export default class IosCredentialsProvider implements CredentialsProvider {
   }
 
   private async getLocalAsync(): Promise<IosCredentials> {
-    if (this.options.distribution === 'internal') {
-      // TODO: add support for using credentials.json for internal distribution
-      throw new Error('Using credentials.json for internal distribution is not supported yet.');
+    const credentials = await credentialsJsonReader.readIosCredentialsAsync(this.ctx.projectDir);
+    if (credentialsJsonReader.isCredentialsMap(credentials)) {
+      for (const targetName of Object.keys(credentials)) {
+        this.assertProvisioningProfileType(credentials[targetName].provisioningProfile, targetName);
+      }
+    } else {
+      this.assertProvisioningProfileType(credentials.provisioningProfile);
     }
-    return await credentialsJsonReader.readIosCredentialsAsync(this.ctx.projectDir);
+    return credentials;
+  }
+
+  private assertProvisioningProfileType(provisionigProfile: string, targetName?: string) {
+    const isAdHoc = isAdHocProfile(provisionigProfile);
+    if (this.options.distribution === 'internal' && !isAdHoc) {
+      throw new Error(
+        `You must use an adhoc provisioning profile${
+          targetName && ` (target '${targetName})'`
+        } for internal distribution`
+      );
+    } else if (this.options.distribution !== 'internal' && isAdHoc) {
+      throw new Error(
+        `You can't use an adhoc provisioning profile${
+          targetName && ` (target '${targetName})'`
+        } for app store distribution`
+      );
+    }
   }
 
   private async getRemoteAsync(): Promise<IosCredentials> {
