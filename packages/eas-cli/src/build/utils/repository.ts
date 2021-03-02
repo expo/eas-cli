@@ -47,7 +47,7 @@ async function ensureGitRepoExistsAsync(): Promise<void> {
 }
 
 async function isGitStatusCleanAsync(): Promise<boolean> {
-  const changes = await gitStatusAsync();
+  const changes = await gitStatusAsync({ showUntracked: true });
   return changes.length === 0;
 }
 
