@@ -1,6 +1,6 @@
 import chalk from 'chalk';
 
-import log from '../../log';
+import Log, { learnMore } from '../../log';
 import BaseSubmitter from '../BaseSubmitter';
 import { SubmissionStatus } from '../SubmissionService.types';
 import { Archive, ArchiveSource, getArchiveAsync } from '../archiveSource';
@@ -46,20 +46,20 @@ class IosSubmitter extends BaseSubmitter<IosSubmissionContext, IosSubmissionOpti
 
     printSummary(
       this.prepareSummaryData(this.options, resolvedSourceOptions),
-      'iOS Submission Summary',
       SummaryHumanReadableKeys,
       SummaryHumanReadableValues
     );
     const result = await this.startSubmissionAsync(submissionConfig, this.ctx.commandFlags.verbose);
 
     if (result === SubmissionStatus.FINISHED) {
-      log(
-        'Your binary has been successfully uploaded to App Store Connect!\n' +
-          'It is now being processed by Apple - you will receive an e-mail when the processing finishes.\n' +
-          'It usually takes about 5-10 minutes depending on how busy Apple servers are.\n' +
-          'When it’s done, you can see your build here: ' +
-          chalk.dim.underline(
-            `https://appstoreconnect.apple.com/apps/${this.options.ascAppId}/appstore/ios`
+      Log.log(
+        chalk.bold('Your binary has been successfully uploaded to App Store Connect!\n') +
+          '- It is now being processed by Apple - you will receive an e-mail when the processing finishes.\n' +
+          '- It usually takes about 5-10 minutes depending on how busy Apple servers are.\n' +
+          '- When it’s done, you can see your build here: ' +
+          learnMore(
+            `https://appstoreconnect.apple.com/apps/${this.options.ascAppId}/appstore/ios`,
+            ''
           )
       );
     }

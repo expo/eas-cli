@@ -35,7 +35,6 @@ export function formatArchiveSourceSummary({
 
 export function printSummary<T>(
   summary: T,
-  title: string,
   keyMap: Record<keyof T, string>,
   valueRemap: Partial<Record<keyof T, Function>>
 ): void {
@@ -46,8 +45,7 @@ export function printSummary<T>(
     fields.push({ label, value });
   }
 
-  log.newLine();
-  log(chalk.bold(title));
-  log(formatFields(fields, { labelFormat: chalk.bold.cyan }));
-  log.addNewLineIfNone();
+  Log.newLine();
+  Log.log(formatFields(fields, { labelFormat: chalk.bold.cyan }));
+  Log.addNewLineIfNone();
 }

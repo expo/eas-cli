@@ -43,7 +43,6 @@ class AndroidSubmitter extends BaseSubmitter<AndroidSubmissionContext, AndroidSu
 
     printSummary(
       this.prepareSummaryData(this.options, resolvedSourceOptions),
-      'Android Submission Summary',
       SummaryHumanReadableKeys,
       SummaryHumanReadableValues
     );
