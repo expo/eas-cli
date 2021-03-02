@@ -93,7 +93,7 @@ export default class UpdateDelete extends Command {
       chalk`⚠️  This will delete all assets from the update, {red this action is IRREVERSIBLE}.`
     );
     Log.log(
-      chalk`Users with this update installed will still use this update, {bold branch:republish} is likely what you want.`
+      chalk`Users with the update installed will continue to use this update, {bold branch:republish} is likely what you want.`
     );
 
     if (!forceFlag) {
