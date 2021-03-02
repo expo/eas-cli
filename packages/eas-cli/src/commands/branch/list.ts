@@ -1,10 +1,9 @@
 import { Command, flags } from '@oclif/command';
-import { CLIError } from '@oclif/errors';
 import CliTable from 'cli-table3';
 import gql from 'graphql-tag';
 import { format } from 'timeago.js';
 
-import { graphqlClient } from '../../graphql/client';
+import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
 import {
   BranchesByAppQuery,
   BranchesByAppQueryVariables,
@@ -64,51 +63,45 @@ export default class BranchList extends Command {
       })[];
     })[]
   > {
-    const { data, error } = await graphqlClient
-      .query<BranchesByAppQuery, BranchesByAppQueryVariables>(
-        gql`
-          query BranchesByAppQuery($fullName: String!, $limit: Int!) {
-            app {
-              byFullName(fullName: $fullName) {
-                id
-                fullName
-                updateBranches(offset: 0, limit: $limit) {
+    const data = await withErrorHandlingAsync(
+      graphqlClient
+        .query<BranchesByAppQuery, BranchesByAppQueryVariables>(
+          gql`
+            query BranchesByAppQuery($fullName: String!, $limit: Int!) {
+              app {
+                byFullName(fullName: $fullName) {
                   id
-                  name
-                  updates(offset: 0, limit: 1) {
+                  fullName
+                  updateBranches(offset: 0, limit: $limit) {
                     id
-                    actor {
-                      __typename
+                    name
+                    updates(offset: 0, limit: 1) {
                       id
-                      ... on User {
-                        username
+                      actor {
+                        __typename
+                        id
+                        ... on User {
+                          username
+                        }
+                        ... on Robot {
+                          firstName
+                        }
                       }
-                      ... on Robot {
-                        firstName
-                      }
+                      updatedAt
+                      message
                     }
-                    updatedAt
-                    message
                   }
                 }
               }
             }
+          `,
+          {
+            fullName,
+            limit: BRANCHES_LIMIT,
           }
-        `,
-        {
-          fullName,
-          limit: BRANCHES_LIMIT,
-        }
-      )
-      .toPromise();
-
-    if (error) {
-      if (error.networkError) {
-        throw new CLIError(`Fetching branches failed: ${error.networkError.message}`);
-      } else {
-        throw new CLIError(error.graphQLErrors.map(e => e.message).join('\n'));
-      }
-    }
+        )
+        .toPromise()
+    );
 
     return data?.app?.byFullName.updateBranches ?? [];
   }
