@@ -52,11 +52,12 @@ class IosSubmitter extends BaseSubmitter<IosSubmissionContext, IosSubmissionOpti
     const result = await this.startSubmissionAsync(submissionConfig, this.ctx.commandFlags.verbose);
 
     if (result === SubmissionStatus.FINISHED) {
+      Log.addNewLineIfNone();
       Log.log(
         chalk.bold('Your binary has been successfully uploaded to App Store Connect!\n') +
           '- It is now being processed by Apple - you will receive an e-mail when the processing finishes.\n' +
           '- It usually takes about 5-10 minutes depending on how busy Apple servers are.\n' +
-          '- When it’s done, you can see your build here: ' +
+          '- When it’s done, you can see your build here' +
           learnMore(
             `https://appstoreconnect.apple.com/apps/${this.options.ascAppId}/appstore/ios`,
             ''
