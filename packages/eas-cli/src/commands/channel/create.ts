@@ -36,7 +36,7 @@ async function createUpdateChannelOnAppAsync({
         { appId: string; name: string; branchMapping: string }
       >(
         gql`
-          mutation CreateUpdateChannelForApp($appId: ID!, $name: String!, $branchMapping: String!) {
+          mutation CreateUpdateChannelOnApp($appId: ID!, $name: String!, $branchMapping: String!) {
             updateChannel {
               createUpdateChannelForApp(appId: $appId, name: $name, branchMapping: $branchMapping) {
                 id
