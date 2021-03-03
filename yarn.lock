@@ -1093,10 +1093,10 @@
     "@babel/preset-env" "^7.4.4"
     "@babel/preset-typescript" "^7.3.3"
 
-"@expo/config-plugins@1.0.19-alpha.0":
-  version "1.0.19-alpha.0"
-  resolved "https://registry.yarnpkg.com/@expo/config-plugins/-/config-plugins-1.0.19-alpha.0.tgz#3d57c266bfae0c7b310ac99e9949c9d03120c103"
-  integrity sha512-mOPIvi1tanMftgeEjDB4vckLKY5dKdJ80R2cg27YyaP4IS1pYGaHtJKBKb6Pr1w5xvyRxd2AlX6C7L8lEzTBaw==
+"@expo/config-plugins@1.0.21-alpha.0":
+  version "1.0.21-alpha.0"
+  resolved "https://registry.yarnpkg.com/@expo/config-plugins/-/config-plugins-1.0.21-alpha.0.tgz#cc6d428809a8b1f483de1f4ca6b8219308bb3680"
+  integrity sha512-npi9sttSQOxl/NWc/FSlIy+ws9HgUoX3vsbu+rgTmD2ARtF5D8x5NR5upnWWpwoq6ZXaYXwDXNcKZHWLGrCfjA==
   dependencies:
     "@expo/config-types" "^40.0.0-beta.2"
     "@expo/configure-splash-screen" "0.3.4"
