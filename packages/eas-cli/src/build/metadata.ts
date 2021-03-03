@@ -1,8 +1,12 @@
 import { CredentialsSource } from '@expo/eas-json';
 
 import { getAppIdentifierAsync } from '../project/projectUtils';
+import { gitCommitHashAsync } from '../utils/git';
+import { readReleaseChannelSafelyAsync as readAndroidReleaseChannelSafelyAsync } from './android/UpdatesModule';
 import { BuildContext } from './context';
+import { readReleaseChannelSafelyAsync as readIosReleaseChannelSafelyAsync } from './ios/UpdatesModule';
 import { BuildMetadata, Platform } from './types';
+import { isExpoUpdatesInstalled } from './utils/updates';
 
 /**
  * We use require() to exclude package.json from TypeScript's analysis since it lives outside
@@ -20,15 +24,38 @@ export async function collectMetadata<T extends Platform>(
   }
 ): Promise<BuildMetadata> {
   return {
+    trackingContext: ctx.trackingCtx,
     appVersion: ctx.commandCtx.exp.version!,
     cliVersion: packageJSON.version,
     workflow: ctx.buildProfile.workflow,
     credentialsSource,
     sdkVersion: ctx.commandCtx.exp.sdkVersion,
-    trackingContext: ctx.trackingCtx,
+    releaseChannel: await resolveReleaseChannel(ctx),
     distribution: ctx.buildProfile.distribution ?? 'store',
     appName: ctx.commandCtx.exp.name,
     appIdentifier:
       (await getAppIdentifierAsync(ctx.commandCtx.projectDir, ctx.platform)) ?? undefined,
+    buildProfile: ctx.commandCtx.profile,
+    gitCommitHash: await gitCommitHashAsync(),
   };
+}
+
+async function resolveReleaseChannel<T extends Platform>(
+  ctx: BuildContext<T>
+): Promise<string | undefined> {
+  if (!isExpoUpdatesInstalled(ctx.commandCtx.projectDir)) {
+    return undefined;
+  }
+
+  if (ctx.buildProfile.releaseChannel) {
+    return ctx.buildProfile.releaseChannel;
+  }
+
+  let maybeReleaseChannel: string | null;
+  if (ctx.platform === Platform.ANDROID) {
+    maybeReleaseChannel = await readAndroidReleaseChannelSafelyAsync(ctx.commandCtx.projectDir);
+  } else {
+    maybeReleaseChannel = await readIosReleaseChannelSafelyAsync(ctx.commandCtx.projectDir);
+  }
+  return maybeReleaseChannel ?? 'default';
 }

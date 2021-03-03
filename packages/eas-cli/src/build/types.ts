@@ -98,6 +98,16 @@ export type BuildMetadata = {
    * - Android builds: the application id (expo.android.package in app.json/app.config.js)
    */
   appIdentifier?: string;
+
+  /**
+   * Build profile name (e.g. release)
+   */
+  buildProfile?: string;
+
+  /**
+   * Git commit hash (e.g. aab03fbdabb6e536ea78b28df91575ad488f5f21)
+   */
+  gitCommitHash?: string;
 };
 
 export type PlatformBuildProfile<T extends Platform> = T extends Platform.ANDROID
