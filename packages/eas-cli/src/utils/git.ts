@@ -4,20 +4,25 @@ interface GitStatusOptions {
   showUntracked?: boolean;
 }
 
-async function gitStatusAsync({ showUntracked }: GitStatusOptions = {}): Promise<string> {
+export async function gitStatusAsync({ showUntracked }: GitStatusOptions = {}): Promise<string> {
   return (await spawnAsync('git', ['status', '-s', showUntracked ? '-uall' : '-uno'])).stdout;
 }
 
-async function gitDiffAsync({ withPager = false }: { withPager?: boolean } = {}): Promise<void> {
+export async function gitDiffAsync({ withPager = false }: { withPager?: boolean } = {}): Promise<
+  void
+> {
   const options = withPager ? [] : ['--no-pager'];
   await spawnAsync('git', [...options, 'diff'], { stdio: ['ignore', 'inherit', 'inherit'] });
 }
 
-async function getGitDiffOutputAsync(): Promise<string> {
+export async function getGitDiffOutputAsync(): Promise<string> {
   return (await spawnAsync('git', ['--no-pager', 'diff'])).stdout;
 }
 
-async function gitAddAsync(file: string, options?: { intentToAdd?: boolean }): Promise<void> {
+export async function gitAddAsync(
+  file: string,
+  options?: { intentToAdd?: boolean }
+): Promise<void> {
   if (options?.intentToAdd) {
     await spawnAsync('git', ['add', '--intent-to-add', file]);
   } else {
@@ -25,11 +30,11 @@ async function gitAddAsync(file: string, options?: { intentToAdd?: boolean }): P
   }
 }
 
-async function gitRootDirectoryAsync(): Promise<string> {
+export async function gitRootDirectoryAsync(): Promise<string> {
   return (await spawnAsync('git', ['rev-parse', '--show-toplevel'])).stdout.trim();
 }
 
-async function doesGitRepoExistAsync(): Promise<boolean> {
+export async function doesGitRepoExistAsync(): Promise<boolean> {
   try {
     await spawnAsync('git', ['rev-parse', '--git-dir']);
     return true;
@@ -38,7 +43,15 @@ async function doesGitRepoExistAsync(): Promise<boolean> {
   }
 }
 
-async function isGitInstalledAsync(): Promise<boolean> {
+export async function gitCommitHashAsync(): Promise<string | undefined> {
+  try {
+    return (await spawnAsync('git', ['rev-parse', 'HEAD'])).stdout.trim();
+  } catch (err) {
+    return undefined;
+  }
+}
+
+export async function isGitInstalledAsync(): Promise<boolean> {
   try {
     await spawnAsync('git', ['--help']);
   } catch (error) {
@@ -50,7 +63,7 @@ async function isGitInstalledAsync(): Promise<boolean> {
   return true;
 }
 
-async function getBranchNameAsync(): Promise<string | null> {
+export async function getBranchNameAsync(): Promise<string | null> {
   try {
     return (await spawnAsync('git', ['rev-parse', '--abbrev-ref', 'HEAD'])).stdout.trim();
   } catch (e) {
@@ -58,22 +71,10 @@ async function getBranchNameAsync(): Promise<string | null> {
   }
 }
 
-async function getLastCommitMessageAsync(): Promise<string | null> {
+export async function getLastCommitMessageAsync(): Promise<string | null> {
   try {
     return (await spawnAsync('git', ['--no-pager', 'log', '-1', '--pretty=%B'])).stdout.trim();
   } catch (e) {
     return null;
   }
 }
-
-export {
-  gitStatusAsync,
-  gitDiffAsync,
-  getGitDiffOutputAsync,
-  gitAddAsync,
-  doesGitRepoExistAsync,
-  gitRootDirectoryAsync,
-  isGitInstalledAsync,
-  getBranchNameAsync,
-  getLastCommitMessageAsync,
-};

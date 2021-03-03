@@ -1,3 +1,9 @@
+<!-- Thanks for contributing to _EAS CLI_! Before you submit your pull request, please make sure to check the following boxes by putting an x in the [ ] (don't: [x ], [ x], do: [x]) -->
+
+# Checklist
+
+- [ ] I've added an entry to [CHANGELOG.md](https://github.com/expo/eas-cli/blob/main/CHANGELOG.md#main) if necessary.
+
 # Why
 
 Please describe the motivation for this PR, and link to relevant GitHub issues, forums posts, or feature requests.

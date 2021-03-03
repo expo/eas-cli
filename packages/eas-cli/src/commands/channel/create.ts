@@ -4,7 +4,10 @@ import chalk from 'chalk';
 import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
-import { UpdateChannel } from '../../graphql/generated';
+import {
+  CreateUpdateChannelOnAppMutation,
+  CreateUpdateChannelOnAppMutationVariables,
+} from '../../graphql/generated';
 import Log from '../../log';
 import { ensureProjectExistsAsync } from '../../project/ensureProjectExists';
 import {
@@ -23,20 +26,17 @@ async function createUpdateChannelOnAppAsync({
   appId: string;
   channelName: string;
   branchId: string;
-}): Promise<UpdateChannel> {
+}): Promise<CreateUpdateChannelOnAppMutation> {
   // Point the new channel at a branch with its same name.
   const branchMapping = JSON.stringify({
     data: [{ branchId, branchMappingLogic: 'true' }],
     version: 0,
   });
-  const data = await withErrorHandlingAsync(
+  return await withErrorHandlingAsync(
     graphqlClient
-      .mutation<
-        { updateChannel: { createUpdateChannelForApp: UpdateChannel } },
-        { appId: string; name: string; branchMapping: string }
-      >(
+      .mutation<CreateUpdateChannelOnAppMutation, CreateUpdateChannelOnAppMutationVariables>(
         gql`
-          mutation CreateUpdateChannelForApp($appId: ID!, $name: String!, $branchMapping: String!) {
+          mutation CreateUpdateChannelOnApp($appId: ID!, $name: String!, $branchMapping: String!) {
             updateChannel {
               createUpdateChannelForApp(appId: $appId, name: $name, branchMapping: $branchMapping) {
                 id
@@ -54,7 +54,6 @@ async function createUpdateChannelOnAppAsync({
       )
       .toPromise()
   );
-  return data.updateChannel.createUpdateChannelForApp;
 }
 
 export default class ChannelCreate extends Command {
@@ -127,11 +126,19 @@ export default class ChannelCreate extends Command {
       branchMessage = `We also went ahead and made a branch with the same name`;
     }
 
-    const newChannel = await createUpdateChannelOnAppAsync({
+    const {
+      updateChannel: { createUpdateChannelForApp: newChannel },
+    } = await createUpdateChannelOnAppAsync({
       appId: projectId,
       channelName,
       branchId,
     });
+
+    if (!newChannel) {
+      throw new Error(
+        `Could not create channel with name ${channelName} on app with id ${projectId}`
+      );
+    }
 
     if (jsonFlag) {
       Log.log(JSON.stringify(newChannel));

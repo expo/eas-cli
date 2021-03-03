@@ -4,7 +4,12 @@ import chalk from 'chalk';
 import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
-import { EditUpdateBranchInput, UpdateBranch } from '../../graphql/generated';
+import {
+  EditUpdateBranchInput,
+  EditUpdateBranchMutation,
+  EditUpdateBranchMutationVariables,
+  UpdateBranch,
+} from '../../graphql/generated';
 import Log from '../../log';
 import { ensureProjectExistsAsync } from '../../project/ensureProjectExists';
 import { findProjectRootAsync, getProjectAccountName } from '../../project/projectUtils';
@@ -13,21 +18,12 @@ import { ensureLoggedInAsync } from '../../user/actions';
 
 async function renameUpdateBranchOnAppAsync({
   appId,
-  currentName,
+  name,
   newName,
-}: {
-  appId: string;
-  currentName: string;
-  newName: string;
-}): Promise<UpdateBranch> {
+}: EditUpdateBranchInput): Promise<Pick<UpdateBranch, 'id' | 'name'>> {
   const data = await withErrorHandlingAsync(
     graphqlClient
-      .mutation<
-        { updateBranch: { editUpdateBranch: UpdateBranch } },
-        {
-          input: EditUpdateBranchInput;
-        }
-      >(
+      .mutation<EditUpdateBranchMutation, EditUpdateBranchMutationVariables>(
         gql`
           mutation EditUpdateBranch($input: EditUpdateBranchInput!) {
             updateBranch {
@@ -41,7 +37,7 @@ async function renameUpdateBranchOnAppAsync({
         {
           input: {
             appId,
-            name: currentName,
+            name,
             newName,
           },
         }
@@ -114,7 +110,7 @@ export default class BranchRename extends Command {
 
     const editedBranch = await renameUpdateBranchOnAppAsync({
       appId: projectId,
-      currentName: currentName!,
+      name: currentName!,
       newName: newName!,
     });
 

@@ -1,11 +1,18 @@
 import { Command, flags } from '@oclif/command';
-import { CLIError } from '@oclif/errors';
 import CliTable from 'cli-table3';
 import gql from 'graphql-tag';
 import { format } from 'timeago.js';
 
-import { graphqlClient } from '../../graphql/client';
-import { RootQuery, Update, UpdateBranch } from '../../graphql/generated';
+import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
+import {
+  BranchesByAppQuery,
+  BranchesByAppQueryVariables,
+  Maybe,
+  Robot,
+  Update,
+  UpdateBranch,
+  User,
+} from '../../graphql/generated';
 import Log from '../../log';
 import { findProjectRootAsync, getProjectFullNameAsync } from '../../project/projectUtils';
 import { getActorDisplayName } from '../../user/actions';
@@ -37,9 +44,7 @@ export default class BranchList extends Command {
       Log.log(JSON.stringify(branches, null, 2));
     } else {
       const table = new CliTable({ head: ['Branch', 'Latest update'] });
-      table.push(
-        ...branches.map((branch: UpdateBranch) => [branch.name, formatUpdate(branch.updates[0])])
-      );
+      table.push(...branches.map(branch => [branch.name, formatUpdate(branch.updates[0])]));
       Log.log(table.toString());
       if (branches.length >= BRANCHES_LIMIT) {
         Log.warn(`Showing first ${BRANCHES_LIMIT} branches, some results might be omitted.`);
@@ -47,58 +52,66 @@ export default class BranchList extends Command {
     }
   }
 
-  async listBranchesAsync({ fullName }: { fullName: string }): Promise<UpdateBranch[]> {
-    const { data, error } = await graphqlClient
-      .query<RootQuery>(
-        gql`
-          query BranchesByAppQuery($fullName: String!, $limit: Int!) {
-            app {
-              byFullName(fullName: $fullName) {
-                id
-                fullName
-                updateBranches(offset: 0, limit: $limit) {
+  async listBranchesAsync({
+    fullName,
+  }: {
+    fullName: string;
+  }): Promise<
+    (Pick<UpdateBranch, 'id' | 'name'> & {
+      updates: (Pick<Update, 'id' | 'updatedAt' | 'message'> & {
+        actor?: Maybe<Pick<User, 'username' | 'id'> | Pick<Robot, 'firstName' | 'id'>>;
+      })[];
+    })[]
+  > {
+    const data = await withErrorHandlingAsync(
+      graphqlClient
+        .query<BranchesByAppQuery, BranchesByAppQueryVariables>(
+          gql`
+            query BranchesByAppQuery($fullName: String!, $limit: Int!) {
+              app {
+                byFullName(fullName: $fullName) {
                   id
-                  name
-                  updates(offset: 0, limit: 1) {
+                  fullName
+                  updateBranches(offset: 0, limit: $limit) {
                     id
-                    actor {
-                      __typename
+                    name
+                    updates(offset: 0, limit: 1) {
                       id
-                      ... on User {
-                        username
+                      actor {
+                        __typename
+                        id
+                        ... on User {
+                          username
+                        }
+                        ... on Robot {
+                          firstName
+                        }
                       }
-                      ... on Robot {
-                        firstName
-                      }
+                      updatedAt
+                      message
                     }
-                    updatedAt
-                    message
                   }
                 }
               }
             }
+          `,
+          {
+            fullName,
+            limit: BRANCHES_LIMIT,
           }
-        `,
-        {
-          fullName,
-          limit: BRANCHES_LIMIT,
-        }
-      )
-      .toPromise();
-
-    if (error) {
-      if (error.networkError) {
-        throw new CLIError(`Fetching branches failed: ${error.networkError.message}`);
-      } else {
-        throw new CLIError(error.graphQLErrors.map(e => e.message).join('\n'));
-      }
-    }
+        )
+        .toPromise()
+    );
 
     return data?.app?.byFullName.updateBranches ?? [];
   }
 }
 
-function formatUpdate(update: Update | undefined): string {
+function formatUpdate(
+  update: Pick<Update, 'id' | 'updatedAt' | 'message'> & {
+    actor?: Maybe<Pick<User, 'username' | 'id'> | Pick<Robot, 'firstName' | 'id'>>;
+  }
+): string {
   if (!update) {
     return 'N/A';
   }

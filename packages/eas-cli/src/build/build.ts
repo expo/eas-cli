@@ -6,6 +6,7 @@ import { apiClient } from '../api';
 import Log from '../log';
 import { promptAsync } from '../prompts';
 import { UploadType, uploadAsync } from '../uploads';
+import { formatBytes } from '../utils/files';
 import { createProgressTracker } from '../utils/progress';
 import { platformDisplayNames } from './constants';
 import { BuildContext } from './context';
@@ -135,7 +136,10 @@ async function uploadProjectAsync<TPlatform extends Platform>(
           projectTarball.path,
           createProgressTracker({
             total: projectTarball.size,
-            message: 'Uploading to EAS Build',
+            message: ratio =>
+              `Uploading to EAS Build (${formatBytes(projectTarball.size * ratio)} / ${formatBytes(
+                projectTarball.size
+              )})`,
             completedMessage: `Uploaded to EAS`,
           })
         );

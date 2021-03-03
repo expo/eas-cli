@@ -86,3 +86,12 @@ async function writeExpoPlistAsync(
   await writePlistAsync(expoPlistPath, expoPlist);
   await gitAddAsync(expoPlistPath, { intentToAdd: true });
 }
+
+export async function readReleaseChannelSafelyAsync(projectDir: string): Promise<string | null> {
+  try {
+    const expoPlist = await readExpoPlistAsync(projectDir);
+    return expoPlist[IOSConfig.Updates.Config.RELEASE_CHANNEL] ?? null;
+  } catch (err) {
+    return null;
+  }
+}
