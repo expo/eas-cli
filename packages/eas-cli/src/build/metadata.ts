@@ -1,4 +1,3 @@
-import { Workflow } from '@expo/eas-build-job';
 import { CredentialsSource } from '@expo/eas-json';
 
 import { getAppIdentifierAsync } from '../project/projectUtils';
@@ -44,6 +43,10 @@ export async function collectMetadata<T extends Platform>(
 async function resolveReleaseChannel<T extends Platform>(
   ctx: BuildContext<T>
 ): Promise<string | undefined> {
+  if (!isExpoUpdatesInstalled(ctx.commandCtx.projectDir)) {
+    return undefined;
+  }
+
   if (ctx.buildProfile.releaseChannel) {
     return ctx.buildProfile.releaseChannel;
   }
@@ -54,17 +57,5 @@ async function resolveReleaseChannel<T extends Platform>(
   } else {
     maybeReleaseChannel = await readIosReleaseChannelSafelyAsync(ctx.commandCtx.projectDir);
   }
-  if (maybeReleaseChannel) {
-    return maybeReleaseChannel;
-  }
-
-  if (ctx.buildProfile.workflow === Workflow.GENERIC) {
-    if (isExpoUpdatesInstalled(ctx.commandCtx.projectDir)) {
-      return 'default';
-    } else {
-      return undefined;
-    }
-  } else {
-    return 'default';
-  }
+  return maybeReleaseChannel ?? 'default';
 }
