@@ -133,7 +133,10 @@ async function prepareGenericJobAsync(
     })),
     type: Workflow.GENERIC,
     scheme: jobData.projectConfiguration.iosBuildScheme,
-    schemeBuildConfiguration: buildProfile.schemeBuildConfiguration,
+    schemeBuildConfiguration:
+      buildProfile.schemeBuildConfiguration === 'Auto'
+        ? undefined
+        : buildProfile.schemeBuildConfiguration,
     artifactPath: buildProfile.artifactPath,
     releaseChannel: buildProfile.releaseChannel,
     projectRootDirectory,
