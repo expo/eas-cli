@@ -36,7 +36,7 @@ async function viewUpdateBranchAsync({
 > {
   const data = await withErrorHandlingAsync(
     graphqlClient
-      .mutation<ViewBranchQuery, ViewBranchQueryVariables>(
+      .query<ViewBranchQuery, ViewBranchQueryVariables>(
         gql`
           query ViewBranch($appId: String!, $name: String!, $limit: Int!) {
             app {
