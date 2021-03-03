@@ -29,17 +29,14 @@ export async function viewUpdateBranchAsync({
   name,
 }: Pick<ViewBranchQueryVariables, 'appId' | 'name'>): Promise<
   Pick<UpdateBranch, 'id' | 'name'> & {
-    updates: (Pick<
-      Update,
-      'id' | 'group' | 'message' | 'createdAt' | 'runtimeVersion' | 'platform' | 'manifestFragment'
-    > & {
+    updates: (Pick<Update, 'id' | 'group' | 'message' | 'createdAt'> & {
       actor?: Maybe<Pick<User, 'firstName' | 'id'> | Pick<Robot, 'firstName' | 'id'>>;
     })[];
   }
 > {
   const data = await withErrorHandlingAsync(
     graphqlClient
-      .mutation<ViewBranchQuery, ViewBranchQueryVariables>(
+      .query<ViewBranchQuery, ViewBranchQueryVariables>(
         gql`
           query ViewBranch($appId: String!, $name: String!, $limit: Int!) {
             app {
@@ -79,12 +76,11 @@ export async function viewUpdateBranchAsync({
       )
       .toPromise()
   );
-  const id = data.app?.byId.updateBranchByName.id;
-  const updates = data.app?.byId.updateBranchByName.updates;
-  if (!id || !updates) {
-    throw new Error(`Could not find branch ${name}.`);
+  const updateBranch = data.app?.byId.updateBranchByName;
+  if (!updateBranch) {
+    throw new Error(`Could not find branch "${name}"`);
   }
-  return { id, name, updates };
+  return updateBranch;
 }
 
 export default class BranchView extends Command {
