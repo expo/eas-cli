@@ -6,7 +6,15 @@ import gql from 'graphql-tag';
 import { groupBy } from 'lodash';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
-import { Update } from '../../graphql/generated';
+import {
+  Maybe,
+  Robot,
+  Update,
+  UpdateBranch,
+  User,
+  ViewBranchQuery,
+  ViewBranchQueryVariables,
+} from '../../graphql/generated';
 import Log from '../../log';
 import { ensureProjectExistsAsync } from '../../project/ensureProjectExists';
 import { findProjectRootAsync, getProjectAccountNameAsync } from '../../project/projectUtils';
@@ -19,34 +27,16 @@ type TruncatedUpdate = Pick<Update, 'group' | 'message' | 'createdAt' | 'actor'>
 async function viewUpdateBranchAsync({
   appId,
   name,
-}: {
-  appId: string;
-  name: string;
-}): Promise<{
-  id: string;
-  name: string;
-  updates: TruncatedUpdate[];
-}> {
+}: Pick<ViewBranchQueryVariables, 'appId' | 'name'>): Promise<
+  Pick<UpdateBranch, 'id' | 'name'> & {
+    updates: (Pick<Update, 'id' | 'group' | 'message' | 'createdAt'> & {
+      actor?: Maybe<Pick<User, 'firstName' | 'id'> | Pick<Robot, 'firstName' | 'id'>>;
+    })[];
+  }
+> {
   const data = await withErrorHandlingAsync(
     graphqlClient
-      .mutation<
-        {
-          app: {
-            byId: {
-              updateBranchByName: {
-                id: string;
-                name: string;
-                updates: TruncatedUpdate[];
-              };
-            };
-          };
-        },
-        {
-          appId: string;
-          name: string;
-          limit: number;
-        }
-      >(
+      .query<ViewBranchQuery, ViewBranchQueryVariables>(
         gql`
           query ViewBranch($appId: String!, $name: String!, $limit: Int!) {
             app {
@@ -83,7 +73,11 @@ async function viewUpdateBranchAsync({
       )
       .toPromise()
   );
-  return data.app.byId.updateBranchByName;
+  const updateBranch = data.app?.byId.updateBranchByName;
+  if (!updateBranch) {
+    throw new Error(`Could not find branch "${name}"`);
+  }
+  return updateBranch;
 }
 
 export default class BranchView extends Command {

@@ -6,7 +6,13 @@ import ora from 'ora';
 import { platformEmojis } from '../../build/constants';
 import { Platform } from '../../build/types';
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
-import { AppPlatform, Build, BuildStatus } from '../../graphql/generated';
+import {
+  AppPlatform,
+  Build,
+  BuildStatus,
+  CancelBuildMutation,
+  CancelBuildMutationVariables,
+} from '../../graphql/generated';
 import { BuildQuery } from '../../graphql/queries/BuildQuery';
 import Log from '../../log';
 import {
@@ -19,7 +25,7 @@ import { confirmAsync, selectAsync } from '../../prompts';
 async function cancelBuildAsync(buildId: string): Promise<Pick<Build, 'id' | 'status'>> {
   const data = await withErrorHandlingAsync(
     graphqlClient
-      .mutation<{ build: { cancel: { id: string; status: BuildStatus } } }>(
+      .mutation<CancelBuildMutation, CancelBuildMutationVariables>(
         gql`
           mutation CancelBuildMutation($buildId: ID!) {
             build(buildId: $buildId) {
