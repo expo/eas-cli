@@ -20,6 +20,12 @@ function readProfileName(dataBase64: string): string {
   return profilePlist['Name'] as string;
 }
 
+function isAdHocProfile(dataBase64: string): boolean {
+  const profilePlist = parse(dataBase64);
+  const provisionedDevices = profilePlist['ProvisionedDevices'] as string[] | undefined;
+  return Array.isArray(provisionedDevices);
+}
+
 function parse(dataBase64: string): PlistObject {
   try {
     const buffer = Buffer.from(dataBase64, 'base64');
@@ -30,4 +36,4 @@ function parse(dataBase64: string): PlistObject {
   }
 }
 
-export { readAppleTeam, readProfileName, parse };
+export { readAppleTeam, readProfileName, isAdHocProfile, parse };

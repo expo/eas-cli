@@ -1093,10 +1093,10 @@
     "@babel/preset-env" "^7.4.4"
     "@babel/preset-typescript" "^7.3.3"
 
-"@expo/config-plugins@1.0.19-alpha.0":
-  version "1.0.19-alpha.0"
-  resolved "https://registry.yarnpkg.com/@expo/config-plugins/-/config-plugins-1.0.19-alpha.0.tgz#3d57c266bfae0c7b310ac99e9949c9d03120c103"
-  integrity sha512-mOPIvi1tanMftgeEjDB4vckLKY5dKdJ80R2cg27YyaP4IS1pYGaHtJKBKb6Pr1w5xvyRxd2AlX6C7L8lEzTBaw==
+"@expo/config-plugins@1.0.21-alpha.0":
+  version "1.0.21-alpha.0"
+  resolved "https://registry.yarnpkg.com/@expo/config-plugins/-/config-plugins-1.0.21-alpha.0.tgz#cc6d428809a8b1f483de1f4ca6b8219308bb3680"
+  integrity sha512-npi9sttSQOxl/NWc/FSlIy+ws9HgUoX3vsbu+rgTmD2ARtF5D8x5NR5upnWWpwoq6ZXaYXwDXNcKZHWLGrCfjA==
   dependencies:
     "@expo/config-types" "^40.0.0-beta.2"
     "@expo/configure-splash-screen" "0.3.4"
@@ -1151,10 +1151,10 @@
     xcode "^3.0.0"
     xml-js "^1.6.11"
 
-"@expo/eas-build-job@0.2.13":
-  version "0.2.13"
-  resolved "https://registry.yarnpkg.com/@expo/eas-build-job/-/eas-build-job-0.2.13.tgz#fc77e26c93748ee689df310e12e80efe5cf45dbd"
-  integrity sha512-Xxdb02rqX+cSWi/k0vxzGpK94avrsbopuy+fmB8jdj2hr/0SvanU6KpQtBaqtt4DSJCCQGaGtw5kOvzr4QrOjg==
+"@expo/eas-build-job@0.2.14":
+  version "0.2.14"
+  resolved "https://registry.yarnpkg.com/@expo/eas-build-job/-/eas-build-job-0.2.14.tgz#10402f8c2cdd3e8c7ebc6f8773270295e7993771"
+  integrity sha512-+msVy5CgyQwZrUJeiV6hvg3Sjx4Fc1CHDF0jY0LxXSsRDGQDM7qde6ukHRyPvGuGxv/+PzwlWolv2kOP6GFcFQ==
   dependencies:
     "@hapi/joi" "^17.1.1"
 

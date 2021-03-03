@@ -90,3 +90,21 @@ async function ensureUpdatesConfiguredAsync(projectDir: string, exp: ExpoConfig)
     throw new Error('Missing values in AndroidManifest.xml');
   }
 }
+
+export async function readReleaseChannelSafelyAsync(projectDir: string): Promise<string | null> {
+  try {
+    const androidManifestPath = await AndroidConfig.Paths.getAndroidManifestAsync(projectDir);
+    if (!androidManifestPath) {
+      throw new Error(`Could not find AndroidManifest.xml in project directory: "${projectDir}"`);
+    }
+    const androidManifest = await AndroidConfig.Manifest.readAndroidManifestAsync(
+      androidManifestPath
+    );
+    return AndroidConfig.Manifest.getMainApplicationMetaDataValue(
+      androidManifest,
+      AndroidConfig.Updates.Config.RELEASE_CHANNEL
+    );
+  } catch (err) {
+    return null;
+  }
+}

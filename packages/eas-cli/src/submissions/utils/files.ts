@@ -26,7 +26,7 @@ async function moveFileOfTypeAsync(
   extension: string,
   dest: string
 ): Promise<string> {
-  const [matching] = await glob(`*.${extension}`, {
+  const [matching] = await glob(`**/*.${extension}`, {
     absolute: true,
     cwd: directory,
   });

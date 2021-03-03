@@ -8,6 +8,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 import Log from '../../log';
 import { confirmAsync, promptAsync } from '../../prompts';
+import { formatBytes } from '../../utils/files';
 import {
   doesGitRepoExistAsync,
   getGitDiffOutputAsync,
@@ -43,12 +44,11 @@ async function ensureGitRepoExistsAsync(): Promise<void> {
 
   Log.log("We're going to make an initial commit for you repository.");
 
-  await spawnAsync('git', ['add', '-A']);
-  await commitPromptAsync('Initial commit');
+  await commitPromptAsync({ initialCommitMessage: 'Initial commit', commitAllFiles: true });
 }
 
 async function isGitStatusCleanAsync(): Promise<boolean> {
-  const changes = await gitStatusAsync();
+  const changes = await gitStatusAsync({ showUntracked: true });
   return changes.length === 0;
 }
 
@@ -90,7 +90,7 @@ async function ensureGitStatusIsCleanAsync(nonInteractive = false): Promise<void
     message: `Commit changes to git?`,
   });
   if (answer) {
-    await commitPromptAsync();
+    await commitPromptAsync({ commitAllFiles: true });
   } else {
     throw new Error('Please commit all changes. Aborting...');
   }
@@ -120,7 +120,6 @@ async function makeProjectTarballAsync(): Promise<{ path: string; size: number }
   try {
     await spawnAsync('git', [
       'clone',
-      '--local',
       '--no-hardlinks',
       '--depth',
       '1',
@@ -130,19 +129,26 @@ async function makeProjectTarballAsync(): Promise<{ path: string; size: number }
     await tar.create({ cwd: shallowClonePath, file: tarPath, prefix: 'project', gzip: true }, [
       '.',
     ]);
-  } finally {
-    // Stop the timer
+  } catch (err) {
     clearTimeout(timer);
-    await fs.remove(shallowClonePath);
-
-    const duration = endTimer(compressTimerLabel);
     if (spinner.isSpinning) {
-      const prettyTime = formatMilliseconds(duration);
-      spinner.succeed(`Compressed project files ${chalk.dim(prettyTime)}`);
+      spinner.fail();
     }
+    throw err;
+  } finally {
+    await fs.remove(shallowClonePath);
   }
+  clearTimeout(timer);
 
   const { size } = await fs.stat(tarPath);
+  const duration = endTimer(compressTimerLabel);
+  if (spinner.isSpinning) {
+    const prettyTime = formatMilliseconds(duration);
+    spinner.succeed(
+      `Compressed project files ${chalk.dim(`${prettyTime} (${formatBytes(size)})`)}`
+    );
+  }
+
   return { size, path: tarPath };
 }
 
@@ -151,7 +157,13 @@ async function showDiffAsync() {
   await gitDiffAsync({ withPager: outputTooLarge });
 }
 
-async function commitPromptAsync(initialCommitMessage?: string): Promise<void> {
+async function commitPromptAsync({
+  initialCommitMessage,
+  commitAllFiles,
+}: {
+  initialCommitMessage?: string;
+  commitAllFiles?: boolean;
+} = {}): Promise<void> {
   const { message } = await promptAsync({
     type: 'text',
     name: 'message',
@@ -159,6 +171,9 @@ async function commitPromptAsync(initialCommitMessage?: string): Promise<void> {
     initial: initialCommitMessage,
     validate: (input: string) => input !== '',
   });
+  if (commitAllFiles) {
+    await spawnAsync('git', ['add', '-A']);
+  }
   await commitChangedFilesAsync(message);
 }
 

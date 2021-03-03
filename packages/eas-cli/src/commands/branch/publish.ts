@@ -142,7 +142,7 @@ export default class BranchPublish extends Command {
     }
 
     if (jsonFlag) {
-      Log.log(newUpdateGroup);
+      Log.log(JSON.stringify(newUpdateGroup));
     } else {
       const outputMessage = new Table({
         wordWrap: true,

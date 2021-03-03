@@ -21,7 +21,7 @@ abstract class BaseSubmitter<SubmissionContext, SubmissionOptions> {
   protected async startSubmissionAsync(
     submissionConfig: SubmissionConfig,
     verbose: boolean = false
-  ) {
+  ): Promise<SubmissionStatus> {
     Log.addNewLineIfNone();
     const scheduleSpinner = ora('Scheduling submission').start();
     let submissionId: string;
@@ -65,6 +65,7 @@ abstract class BaseSubmitter<SubmissionContext, SubmissionOptions> {
     }
 
     await displayLogs(submission, submissionStatus, verbose);
+    return submissionStatus ?? SubmissionStatus.ERRORED;
   }
 
   private getStatusText(status: SubmissionStatus): string {

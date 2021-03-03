@@ -2,6 +2,7 @@ import {
   Android,
   ArchiveSource,
   ArchiveSourceType,
+  Cache,
   Job,
   Workflow,
   sanitizeJob,
@@ -40,6 +41,7 @@ interface CommonJobProperties {
   platform: Platform.ANDROID;
   projectArchive: ArchiveSource;
   builderEnvironment: Android.BuilderEnvironment;
+  cache: Cache | null;
   secrets: {
     buildCredentials?: {
       keystore: Android.Keystore;
@@ -80,6 +82,7 @@ async function prepareJobCommonAsync(
       ndk: ctx.buildProfile.ndk,
       env: ctx.buildProfile.env,
     },
+    cache: ctx.buildProfile.cache,
     secrets: {
       ...(secretEnvs ? { secretEnvs } : {}),
       ...buildCredentials,

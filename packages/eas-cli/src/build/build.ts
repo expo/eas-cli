@@ -6,6 +6,7 @@ import { apiClient } from '../api';
 import Log from '../log';
 import { promptAsync } from '../prompts';
 import { UploadType, uploadAsync } from '../uploads';
+import { formatBytes } from '../utils/files';
 import { createProgressTracker } from '../utils/progress';
 import { platformDisplayNames } from './constants';
 import { BuildContext } from './context';
@@ -112,8 +113,7 @@ export async function prepareBuildRequestForPlatformAsync<
         }
       );
     } catch (error) {
-      const body = error?.response?.body;
-      if (body && JSON.parse(body)?.errors?.[0]?.code === 'TURTLE_DEPRECATED_JOB_FORMAT') {
+      if (error?.expoApiV2ErrorCode === 'TURTLE_DEPRECATED_JOB_FORMAT') {
         Log.error('EAS Build API has changed, please upgrade to the latest eas-cli');
       }
       throw error;
@@ -136,7 +136,10 @@ async function uploadProjectAsync<TPlatform extends Platform>(
           projectTarball.path,
           createProgressTracker({
             total: projectTarball.size,
-            message: 'Uploading to EAS Build',
+            message: ratio =>
+              `Uploading to EAS Build (${formatBytes(projectTarball.size * ratio)} / ${formatBytes(
+                projectTarball.size
+              )})`,
             completedMessage: `Uploaded to EAS`,
           })
         );
@@ -183,7 +186,7 @@ enum ShouldCommitChanges {
 }
 
 async function reviewAndCommitChangesAsync(
-  commitMessage: string,
+  initialCommitMessage: string,
   { nonInteractive, askedFirstTime = true }: { nonInteractive: boolean; askedFirstTime?: boolean }
 ): Promise<void> {
   if (nonInteractive) {
@@ -212,10 +215,13 @@ async function reviewAndCommitChangesAsync(
       "Aborting, run the command again once you're ready. Make sure to commit any changes you've made."
     );
   } else if (selected === ShouldCommitChanges.Yes) {
-    await commitPromptAsync(commitMessage);
+    await commitPromptAsync({ initialCommitMessage });
     Log.withTick('Committed changes.');
   } else if (selected === ShouldCommitChanges.ShowDiffFirst) {
     await showDiffAsync();
-    await reviewAndCommitChangesAsync(commitMessage, { nonInteractive, askedFirstTime: false });
+    await reviewAndCommitChangesAsync(initialCommitMessage, {
+      nonInteractive,
+      askedFirstTime: false,
+    });
   }
 }

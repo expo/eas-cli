@@ -2709,6 +2709,290 @@ export enum CacheControlScope {
 }
 
 
+export type CreateUpdateBranchForAppMutationVariables = Exact<{
+  appId: Scalars['ID'];
+  name: Scalars['String'];
+}>;
+
+
+export type CreateUpdateBranchForAppMutation = (
+  { __typename?: 'RootMutation' }
+  & { updateBranch: (
+    { __typename?: 'UpdateBranchMutation' }
+    & { createUpdateBranchForApp?: Maybe<(
+      { __typename?: 'UpdateBranch' }
+      & Pick<UpdateBranch, 'id' | 'name'>
+    )> }
+  ) }
+);
+
+export type GetBranchInfoQueryVariables = Exact<{
+  appId: Scalars['String'];
+  name: Scalars['String'];
+}>;
+
+
+export type GetBranchInfoQuery = (
+  { __typename?: 'RootQuery' }
+  & { app?: Maybe<(
+    { __typename?: 'AppQuery' }
+    & { byId: (
+      { __typename?: 'App' }
+      & Pick<App, 'id'>
+      & { updateBranchByName: (
+        { __typename?: 'UpdateBranch' }
+        & Pick<UpdateBranch, 'id' | 'name'>
+      ) }
+    ) }
+  )> }
+);
+
+export type DeleteUpdateBranchMutationVariables = Exact<{
+  branchId: Scalars['ID'];
+}>;
+
+
+export type DeleteUpdateBranchMutation = (
+  { __typename?: 'RootMutation' }
+  & { updateBranch: (
+    { __typename?: 'UpdateBranchMutation' }
+    & { deleteUpdateBranch: (
+      { __typename?: 'DeleteUpdateBranchResult' }
+      & Pick<DeleteUpdateBranchResult, 'id'>
+    ) }
+  ) }
+);
+
+export type BranchesByAppQueryVariables = Exact<{
+  fullName: Scalars['String'];
+  limit: Scalars['Int'];
+}>;
+
+
+export type BranchesByAppQuery = (
+  { __typename?: 'RootQuery' }
+  & { app?: Maybe<(
+    { __typename?: 'AppQuery' }
+    & { byFullName: (
+      { __typename?: 'App' }
+      & Pick<App, 'id' | 'fullName'>
+      & { updateBranches: Array<(
+        { __typename?: 'UpdateBranch' }
+        & Pick<UpdateBranch, 'id' | 'name'>
+        & { updates: Array<(
+          { __typename?: 'Update' }
+          & Pick<Update, 'id' | 'updatedAt' | 'message'>
+          & { actor?: Maybe<(
+            { __typename: 'User' }
+            & Pick<User, 'username' | 'id'>
+          ) | (
+            { __typename: 'Robot' }
+            & Pick<Robot, 'firstName' | 'id'>
+          )> }
+        )> }
+      )> }
+    ) }
+  )> }
+);
+
+export type EditUpdateBranchMutationVariables = Exact<{
+  input: EditUpdateBranchInput;
+}>;
+
+
+export type EditUpdateBranchMutation = (
+  { __typename?: 'RootMutation' }
+  & { updateBranch: (
+    { __typename?: 'UpdateBranchMutation' }
+    & { editUpdateBranch: (
+      { __typename?: 'UpdateBranch' }
+      & Pick<UpdateBranch, 'id' | 'name'>
+    ) }
+  ) }
+);
+
+export type ViewBranchQueryVariables = Exact<{
+  appId: Scalars['String'];
+  name: Scalars['String'];
+  limit: Scalars['Int'];
+}>;
+
+
+export type ViewBranchQuery = (
+  { __typename?: 'RootQuery' }
+  & { app?: Maybe<(
+    { __typename?: 'AppQuery' }
+    & { byId: (
+      { __typename?: 'App' }
+      & Pick<App, 'id'>
+      & { updateBranchByName: (
+        { __typename?: 'UpdateBranch' }
+        & Pick<UpdateBranch, 'id' | 'name'>
+        & { updates: Array<(
+          { __typename?: 'Update' }
+          & Pick<Update, 'id' | 'group' | 'message' | 'createdAt'>
+          & { actor?: Maybe<(
+            { __typename?: 'User' }
+            & Pick<User, 'firstName' | 'id'>
+          ) | (
+            { __typename?: 'Robot' }
+            & Pick<Robot, 'firstName' | 'id'>
+          )> }
+        )> }
+      ) }
+    ) }
+  )> }
+);
+
+export type CancelBuildMutationVariables = Exact<{
+  buildId: Scalars['ID'];
+}>;
+
+
+export type CancelBuildMutation = (
+  { __typename?: 'RootMutation' }
+  & { build?: Maybe<(
+    { __typename?: 'BuildMutation' }
+    & { cancel: (
+      { __typename?: 'Build' }
+      & Pick<Build, 'id' | 'status'>
+    ) }
+  )> }
+);
+
+export type CreateUpdateChannelOnAppMutationVariables = Exact<{
+  appId: Scalars['ID'];
+  name: Scalars['String'];
+  branchMapping: Scalars['String'];
+}>;
+
+
+export type CreateUpdateChannelOnAppMutation = (
+  { __typename?: 'RootMutation' }
+  & { updateChannel: (
+    { __typename?: 'UpdateChannelMutation' }
+    & { createUpdateChannelForApp?: Maybe<(
+      { __typename?: 'UpdateChannel' }
+      & Pick<UpdateChannel, 'id' | 'name' | 'branchMapping'>
+    )> }
+  ) }
+);
+
+export type GetChannelByNameToEditQueryVariables = Exact<{
+  appId: Scalars['String'];
+  channelName: Scalars['String'];
+}>;
+
+
+export type GetChannelByNameToEditQuery = (
+  { __typename?: 'RootQuery' }
+  & { app?: Maybe<(
+    { __typename?: 'AppQuery' }
+    & { byId: (
+      { __typename?: 'App' }
+      & Pick<App, 'id'>
+      & { updateChannelByName: (
+        { __typename?: 'UpdateChannel' }
+        & Pick<UpdateChannel, 'id' | 'name'>
+        & { updateBranches: Array<(
+          { __typename?: 'UpdateBranch' }
+          & Pick<UpdateBranch, 'id' | 'name'>
+        )> }
+      ) }
+    ) }
+  )> }
+);
+
+export type UpdateChannelBranchMappingMutationVariables = Exact<{
+  channelId: Scalars['ID'];
+  branchMapping: Scalars['String'];
+}>;
+
+
+export type UpdateChannelBranchMappingMutation = (
+  { __typename?: 'RootMutation' }
+  & { updateChannel: (
+    { __typename?: 'UpdateChannelMutation' }
+    & { editUpdateChannel?: Maybe<(
+      { __typename?: 'UpdateChannel' }
+      & Pick<UpdateChannel, 'id' | 'name' | 'branchMapping'>
+    )> }
+  ) }
+);
+
+export type GetAllChannelsForAppQueryVariables = Exact<{
+  appId: Scalars['String'];
+  offset: Scalars['Int'];
+  limit: Scalars['Int'];
+}>;
+
+
+export type GetAllChannelsForAppQuery = (
+  { __typename?: 'RootQuery' }
+  & { app?: Maybe<(
+    { __typename?: 'AppQuery' }
+    & { byId: (
+      { __typename?: 'App' }
+      & Pick<App, 'id'>
+      & { updateChannels: Array<(
+        { __typename?: 'UpdateChannel' }
+        & Pick<UpdateChannel, 'id' | 'name'>
+        & { updateBranches: Array<(
+          { __typename?: 'UpdateBranch' }
+          & Pick<UpdateBranch, 'id' | 'name'>
+          & { updates: Array<(
+            { __typename?: 'Update' }
+            & Pick<Update, 'id' | 'group' | 'message' | 'createdAt'>
+            & { actor?: Maybe<(
+              { __typename?: 'User' }
+              & Pick<User, 'firstName' | 'id'>
+            ) | (
+              { __typename?: 'Robot' }
+              & Pick<Robot, 'firstName' | 'id'>
+            )> }
+          )> }
+        )> }
+      )> }
+    ) }
+  )> }
+);
+
+export type GetChannelByNameForAppQueryVariables = Exact<{
+  appId: Scalars['String'];
+  channelName: Scalars['String'];
+}>;
+
+
+export type GetChannelByNameForAppQuery = (
+  { __typename?: 'RootQuery' }
+  & { app?: Maybe<(
+    { __typename?: 'AppQuery' }
+    & { byId: (
+      { __typename?: 'App' }
+      & Pick<App, 'id'>
+      & { updateChannelByName: (
+        { __typename?: 'UpdateChannel' }
+        & Pick<UpdateChannel, 'id' | 'name' | 'createdAt'>
+        & { updateBranches: Array<(
+          { __typename?: 'UpdateBranch' }
+          & Pick<UpdateBranch, 'id' | 'name'>
+          & { updates: Array<(
+            { __typename?: 'Update' }
+            & Pick<Update, 'id' | 'group' | 'message' | 'createdAt'>
+            & { actor?: Maybe<(
+              { __typename?: 'User' }
+              & Pick<User, 'firstName' | 'id'>
+            ) | (
+              { __typename?: 'Robot' }
+              & Pick<Robot, 'firstName' | 'id'>
+            )> }
+          )> }
+        )> }
+      ) }
+    ) }
+  )> }
+);
+
 export type CreateAppleAppIdentifierMutationVariables = Exact<{
   appleAppIdentifierInput: AppleAppIdentifierInput;
   accountId: Scalars['ID'];
