@@ -45,7 +45,7 @@ export async function doesGitRepoExistAsync(): Promise<boolean> {
 
 export async function gitCommitHashAsync(): Promise<string | undefined> {
   try {
-    return await (await spawnAsync('git', ['rev-parse', 'HEAD'])).stdout.trim();
+    return (await spawnAsync('git', ['rev-parse', 'HEAD'])).stdout.trim();
   } catch (err) {
     return undefined;
   }
