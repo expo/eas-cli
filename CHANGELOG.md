@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Log the size of the archived project when uploading. ([#264](https://github.com/expo/eas-cli/pull/264) by [@wkozyra95](https://github.com/wkozyra95))
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores

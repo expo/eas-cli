@@ -8,6 +8,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 import Log from '../../log';
 import { confirmAsync, promptAsync } from '../../prompts';
+import { formatBytes } from '../../utils/files';
 import {
   doesGitRepoExistAsync,
   getGitDiffOutputAsync,
@@ -119,7 +120,6 @@ async function makeProjectTarballAsync(): Promise<{ path: string; size: number }
   try {
     await spawnAsync('git', [
       'clone',
-      '--local',
       '--no-hardlinks',
       '--depth',
       '1',
@@ -129,19 +129,26 @@ async function makeProjectTarballAsync(): Promise<{ path: string; size: number }
     await tar.create({ cwd: shallowClonePath, file: tarPath, prefix: 'project', gzip: true }, [
       '.',
     ]);
-  } finally {
-    // Stop the timer
+  } catch (err) {
     clearTimeout(timer);
-    await fs.remove(shallowClonePath);
-
-    const duration = endTimer(compressTimerLabel);
     if (spinner.isSpinning) {
-      const prettyTime = formatMilliseconds(duration);
-      spinner.succeed(`Compressed project files ${chalk.dim(prettyTime)}`);
+      spinner.fail();
     }
+    throw err;
+  } finally {
+    await fs.remove(shallowClonePath);
   }
+  clearTimeout(timer);
 
   const { size } = await fs.stat(tarPath);
+  const duration = endTimer(compressTimerLabel);
+  if (spinner.isSpinning) {
+    const prettyTime = formatMilliseconds(duration);
+    spinner.succeed(
+      `Compressed project files ${chalk.dim(`${prettyTime} (${formatBytes(size)})`)}`
+    );
+  }
+
   return { size, path: tarPath };
 }
 
