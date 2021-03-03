@@ -7,11 +7,9 @@ EAS command line tool
 [![Downloads/week](https://img.shields.io/npm/dw/eas-cli.svg)](https://npmjs.org/package/eas-cli)
 [![License](https://img.shields.io/npm/l/eas-cli.svg)](https://github.com/expo/eas-cli/blob/main/package.json)
 
-<!-- toc -->
 * [Installation](#installation)
 * [Usage](#usage)
 * [Commands](#commands)
-<!-- tocstop -->
 
 # Installation
 
@@ -23,18 +21,14 @@ yarn global add eas-cli
 
 # Usage
 
-<!-- usage -->
-```sh-session
-$ eas COMMAND
-running command...
-$ eas (-v|--version|version)
-eas-cli/0.4.3 darwin-x64 node-v14.15.4
-$ eas --help [COMMAND]
-USAGE
-  $ eas COMMAND
-...
+```sh
+eas COMMAND
+# runs the command
+eas (-v|--version|version)
+# prints the version (ex. eas-cli/0.4.3 darwin-x64 node-v14.15.4)
+eas --help COMMAND
+# outputs help for specific command
 ```
-<!-- usagestop -->
 
 # Commands
 
