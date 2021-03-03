@@ -1,9 +1,15 @@
 import chalk from 'chalk';
 
+import Log, { learnMore } from '../../log';
 import BaseSubmitter from '../BaseSubmitter';
+import { SubmissionStatus } from '../SubmissionService.types';
 import { Archive, ArchiveSource, getArchiveAsync } from '../archiveSource';
 import { IosSubmissionContext, SubmissionPlatform } from '../types';
-import { printSummary } from '../utils/summary';
+import {
+  ArchiveSourceSummaryFields,
+  formatArchiveSourceSummary,
+  printSummary,
+} from '../utils/summary';
 import {
   AppSpecificPasswordSource,
   getAppSpecificPasswordAsync,
@@ -21,6 +27,9 @@ interface ResolvedSourceOptions {
   appSpecificPassword: string;
 }
 
+type SummaryData = Pick<IosSubmissionOptions, 'ascAppId' | 'appleId' | 'projectId'> &
+  ArchiveSourceSummaryFields;
+
 class IosSubmitter extends BaseSubmitter<IosSubmissionContext, IosSubmissionOptions> {
   protected readonly appStoreName: string = 'Apple App Store';
 
@@ -35,9 +44,26 @@ class IosSubmitter extends BaseSubmitter<IosSubmissionContext, IosSubmissionOpti
       resolvedSourceOptions
     );
 
-    printSummaryIOS(submissionConfig);
+    printSummary(
+      this.prepareSummaryData(this.options, resolvedSourceOptions),
+      SummaryHumanReadableKeys,
+      SummaryHumanReadableValues
+    );
+    const result = await this.startSubmissionAsync(submissionConfig, this.ctx.commandFlags.verbose);
 
-    await this.startSubmissionAsync(submissionConfig, this.ctx.commandFlags.verbose);
+    if (result === SubmissionStatus.FINISHED) {
+      Log.addNewLineIfNone();
+      Log.log(
+        chalk.bold('Your binary has been successfully uploaded to App Store Connect!\n') +
+          '- It is now being processed by Apple - you will receive an e-mail when the processing finishes.\n' +
+          '- It usually takes about 5-10 minutes depending on how busy Apple servers are.\n' +
+          '- When it’s done, you can see your build here' +
+          learnMore(
+            `https://appstoreconnect.apple.com/apps/${this.options.ascAppId}/appstore/ios`,
+            ''
+          )
+      );
+    }
   }
 
   private async resolveSourceOptions(): Promise<ResolvedSourceOptions> {
@@ -58,48 +84,40 @@ class IosSubmitter extends BaseSubmitter<IosSubmissionContext, IosSubmissionOpti
   ): Promise<IosSubmissionConfig> {
     const { projectId, appleId, ascAppId } = options;
     const submissionConfig = {
-      archiveUrl: archive.location,
-      appleId,
-      appSpecificPassword,
       appAppleId: ascAppId, //ASC App ID is called "appAppleId" on server side
+      appleId,
       projectId,
+      archiveUrl: archive.location,
+      appSpecificPassword,
     };
     return submissionConfig;
   }
+
+  private prepareSummaryData(
+    options: IosSubmissionOptions,
+    { archive }: ResolvedSourceOptions
+  ): SummaryData {
+    const { appleId, ascAppId, projectId } = options;
+
+    // structuring order affects table rows order
+    return {
+      ascAppId,
+      appleId,
+      projectId,
+      ...formatArchiveSourceSummary(archive),
+    };
+  }
 }
 
-/**
- * Log the summary as a table. Exported for testing locally.
- * @example
- * printSummaryIOS({
- *   appleId: 'examplename@expo.io',
- *   appSpecificPassword: 'Apple Pie^',
- *   appAppleId: '1234567890',
- *   projectId: '863f9337-65d2-40c6-acb3-c1054c5c09f8',
- *   archiveUrl: 'https://turtle-v2-artifacts.s3.amazonaws.com/ios/6420592d-5b5d-439b-aed4-ccd278647138-ca4145d8468947df9ded737248a1a238.ipa',
- * });
- * @param submissionConfig
- */
-export function printSummaryIOS(submissionConfig: IosSubmissionConfig) {
-  const { appSpecificPassword, projectId, archiveUrl, ...logConfig } = submissionConfig;
-
-  printSummary(
-    { ...logConfig, projectId, archiveUrl },
-    SummaryHumanReadableKeys,
-    SummaryHumanReadableValues
-  );
-}
-
-const SummaryHumanReadableKeys: Record<keyof IosSubmissionConfig, string> = {
+const SummaryHumanReadableKeys: Record<keyof SummaryData, string> = {
+  ascAppId: 'ASC App ID',
   appleId: 'Apple ID',
-  archiveUrl: 'Download URL',
-  appSpecificPassword: 'Apple app-specific password',
-  appAppleId: 'ASC App ID',
   projectId: 'Project ID',
+  archiveUrl: 'Archive URL',
+  archivePath: 'Archive Path',
+  buildId: 'Build ID',
 };
 
-const SummaryHumanReadableValues: Partial<Record<keyof IosSubmissionConfig, Function>> = {
-  appSpecificPassword: () => chalk.italic('[hidden]'),
-};
+const SummaryHumanReadableValues: Partial<Record<keyof SummaryData, Function>> = {};
 
 export default IosSubmitter;
