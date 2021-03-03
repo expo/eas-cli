@@ -16,8 +16,8 @@ function createProgressTracker({
   completedMessage,
 }: {
   total?: number;
-  message: string;
-  completedMessage?: string;
+  message: string | ((ratio: number) => string);
+  completedMessage: string;
 }): ProgressHandler {
   let bar: ora.Ora | null = null;
   let calcTotal: number = total ?? 0;
@@ -26,17 +26,17 @@ function createProgressTracker({
 
   const timerLabel = String(Date.now());
 
-  const withPercent = (v: number) => {
+  const getMessage = (v: number) => {
     const ratio = Math.min(Math.max(v, 0), 1);
     const percent = Math.floor(ratio * 100);
-    return `${message} ${percent.toFixed(0)}%`;
+    return typeof message === 'string' ? `${message} ${percent.toFixed(0)}%` : message(ratio);
   };
 
   return ({ progress, isComplete, error }) => {
     if (progress) {
       if (!bar && (progress.total !== undefined || total !== undefined)) {
         calcTotal = (total ?? progress.total) as number;
-        bar = ora(withPercent(0)).start();
+        bar = ora(getMessage(0)).start();
         startTimer(timerLabel);
       }
       if (progress.total) {
@@ -51,7 +51,7 @@ function createProgressTracker({
           percentage = current / calcTotal;
         }
 
-        bar.text = withPercent(percentage);
+        bar.text = getMessage(percentage);
       }
       transferredSoFar = progress.transferred;
     }
@@ -66,7 +66,7 @@ function createProgressTracker({
       if (error) {
         bar.fail();
       } else if (isComplete) {
-        bar.succeed(`${completedMessage ?? message} ${chalk.dim(prettyTime)}`);
+        bar.succeed(`${completedMessage} ${chalk.dim(prettyTime)}`);
       }
     }
   };
