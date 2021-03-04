@@ -52,6 +52,7 @@ export interface iOSGenericBuildProfile extends Ios.BuilderEnvironment {
   distribution?: iOSDistributionType;
   autoIncrement: VersionAutoIncrement;
   cache: Cache | null;
+  disableIosBundleIdentifierValidation?: boolean;
 }
 
 export type AndroidBuildProfile = AndroidManagedBuildProfile | AndroidGenericBuildProfile;
