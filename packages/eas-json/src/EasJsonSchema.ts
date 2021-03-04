@@ -68,7 +68,7 @@ const iOSGenericSchema = Joi.object({
   workflow: Joi.string().valid('generic').required(),
   credentialsSource: Joi.string().valid('local', 'remote', 'auto').default('auto'),
   scheme: Joi.string(),
-  schemeBuildConfiguration: Joi.string().valid('Debug', 'Release'),
+  schemeBuildConfiguration: Joi.string().valid('Debug', 'Release', 'Auto').default('Release'),
   releaseChannel: Joi.string(),
   artifactPath: Joi.string(),
   distribution: Joi.string().valid('store', 'internal', 'simulator').default('store'),

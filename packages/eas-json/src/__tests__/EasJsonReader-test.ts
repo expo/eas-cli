@@ -57,6 +57,7 @@ test('minimal valid ios eas.json', async () => {
         env: {},
         cache: { key: '', cacheDefaultPaths: true, customPaths: [] },
         image: 'default',
+        schemeBuildConfiguration: 'Release',
       },
     },
   }).toEqual(easJson);
@@ -95,6 +96,7 @@ test('minimal valid eas.json for both platforms', async () => {
         env: {},
         cache: { key: '', cacheDefaultPaths: true, customPaths: [] },
         image: 'default',
+        schemeBuildConfiguration: 'Release',
       },
     },
   }).toEqual(easJson);
