@@ -1,3 +1,4 @@
+import { Metadata } from '@expo/eas-build-job';
 import { CredentialsSource } from '@expo/eas-json';
 
 import { getAppIdentifierAsync } from '../project/projectUtils';
@@ -5,7 +6,7 @@ import { gitCommitHashAsync } from '../utils/git';
 import { readReleaseChannelSafelyAsync as readAndroidReleaseChannelSafelyAsync } from './android/UpdatesModule';
 import { BuildContext } from './context';
 import { readReleaseChannelSafelyAsync as readIosReleaseChannelSafelyAsync } from './ios/UpdatesModule';
-import { BuildMetadata, Platform } from './types';
+import { Platform } from './types';
 import { isExpoUpdatesInstalled } from './utils/updates';
 
 /**
@@ -22,7 +23,7 @@ export async function collectMetadata<T extends Platform>(
   }: {
     credentialsSource?: CredentialsSource.LOCAL | CredentialsSource.REMOTE;
   }
-): Promise<BuildMetadata> {
+): Promise<Metadata> {
   return {
     trackingContext: ctx.trackingCtx,
     appVersion: ctx.commandCtx.exp.version!,
