@@ -25,7 +25,7 @@ yarn global add eas-cli
 eas COMMAND
 # runs the command
 eas (-v|--version|version)
-# prints the version (ex. eas-cli/0.5.0 darwin-x64 node-v14.15.4)
+# prints the version
 eas --help COMMAND
 # outputs help for specific command
 ```
