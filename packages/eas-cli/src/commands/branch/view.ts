@@ -29,7 +29,10 @@ export async function viewUpdateBranchAsync({
   name,
 }: Pick<ViewBranchQueryVariables, 'appId' | 'name'>): Promise<
   Pick<UpdateBranch, 'id' | 'name'> & {
-    updates: (Pick<Update, 'id' | 'group' | 'message' | 'createdAt'> & {
+    updates: (Pick<
+      Update,
+      'id' | 'group' | 'message' | 'createdAt' | 'runtimeVersion' | 'platform' | 'manifestFragment'
+    > & {
       actor?: Maybe<Pick<User, 'firstName' | 'id'> | Pick<Robot, 'firstName' | 'id'>>;
     })[];
   }

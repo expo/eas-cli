@@ -13,6 +13,7 @@ import Log from '../../log';
 import { ensureProjectExistsAsync } from '../../project/ensureProjectExists';
 import { findProjectRootAsync, getProjectAccountNameAsync } from '../../project/projectUtils';
 import { promptAsync, selectAsync } from '../../prompts';
+import { listBranchesAsync } from './list';
 import { viewUpdateBranchAsync } from './view';
 
 export default class BranchRepublish extends Command {
@@ -35,10 +36,10 @@ export default class BranchRepublish extends Command {
 
   async run() {
     const {
-      flags: { json: jsonFlag, branch: name },
+      flags: { json: jsonFlag },
     } = this.parse(BranchRepublish);
     let {
-      flags: { message },
+      flags: { branch: branchName, message },
     } = this.parse(BranchRepublish);
 
     const projectDir = await findProjectRootAsync(process.cwd());
@@ -55,9 +56,20 @@ export default class BranchRepublish extends Command {
       projectName: slug,
     });
 
+    if (!branchName) {
+      const branches = await listBranchesAsync({ fullName: `@${accountName}/${slug}` });
+
+      branchName = await selectAsync<string>(
+        'which branch would you like to publish on?',
+        branches.map(branch => {
+          return { title: branch.name, value: branch.name };
+        })
+      );
+    }
+
     const { id: branchId, updates } = await viewUpdateBranchAsync({
       appId: projectId,
-      name: name!,
+      name: branchName,
     });
 
     const updateGroups = uniqBy(updates, u => u.group).map(update => ({
@@ -134,7 +146,7 @@ export default class BranchRepublish extends Command {
       });
       outputMessage.push(
         [chalk.dim('project'), `@${accountName}/${slug}`],
-        [chalk.dim('branch'), name],
+        [chalk.dim('branch'), branchName],
         [chalk.dim('runtimeVersion'), oldRuntimeVersion],
         [chalk.dim('groupID'), newUpdateGroup.group],
         [chalk.dim('message'), message]

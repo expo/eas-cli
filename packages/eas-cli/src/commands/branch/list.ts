@@ -18,6 +18,59 @@ import { findProjectRootAsync, getProjectFullNameAsync } from '../../project/pro
 import { getActorDisplayName } from '../../user/actions';
 
 const BRANCHES_LIMIT = 10_000;
+export async function listBranchesAsync({
+  fullName,
+}: {
+  fullName: string;
+}): Promise<
+  (Pick<UpdateBranch, 'id' | 'name'> & {
+    updates: (Pick<Update, 'id' | 'updatedAt' | 'message'> & {
+      actor?: Maybe<Pick<User, 'username' | 'id'> | Pick<Robot, 'firstName' | 'id'>>;
+    })[];
+  })[]
+> {
+  const data = await withErrorHandlingAsync(
+    graphqlClient
+      .query<BranchesByAppQuery, BranchesByAppQueryVariables>(
+        gql`
+          query BranchesByAppQuery($fullName: String!, $limit: Int!) {
+            app {
+              byFullName(fullName: $fullName) {
+                id
+                fullName
+                updateBranches(offset: 0, limit: $limit) {
+                  id
+                  name
+                  updates(offset: 0, limit: 1) {
+                    id
+                    actor {
+                      __typename
+                      id
+                      ... on User {
+                        username
+                      }
+                      ... on Robot {
+                        firstName
+                      }
+                    }
+                    updatedAt
+                    message
+                  }
+                }
+              }
+            }
+          }
+        `,
+        {
+          fullName,
+          limit: BRANCHES_LIMIT,
+        }
+      )
+      .toPromise()
+  );
+
+  return data?.app?.byFullName.updateBranches ?? [];
+}
 
 export default class BranchList extends Command {
   static hidden = true;
@@ -39,7 +92,7 @@ export default class BranchList extends Command {
       throw new Error('Please run this command inside a project directory.');
     }
     const fullName = await getProjectFullNameAsync(projectDir);
-    const branches = await this.listBranchesAsync({ fullName });
+    const branches = await listBranchesAsync({ fullName });
     if (flags.json) {
       Log.log(JSON.stringify(branches, null, 2));
     } else {
@@ -50,60 +103,6 @@ export default class BranchList extends Command {
         Log.warn(`Showing first ${BRANCHES_LIMIT} branches, some results might be omitted.`);
       }
     }
-  }
-
-  async listBranchesAsync({
-    fullName,
-  }: {
-    fullName: string;
-  }): Promise<
-    (Pick<UpdateBranch, 'id' | 'name'> & {
-      updates: (Pick<Update, 'id' | 'updatedAt' | 'message'> & {
-        actor?: Maybe<Pick<User, 'username' | 'id'> | Pick<Robot, 'firstName' | 'id'>>;
-      })[];
-    })[]
-  > {
-    const data = await withErrorHandlingAsync(
-      graphqlClient
-        .query<BranchesByAppQuery, BranchesByAppQueryVariables>(
-          gql`
-            query BranchesByAppQuery($fullName: String!, $limit: Int!) {
-              app {
-                byFullName(fullName: $fullName) {
-                  id
-                  fullName
-                  updateBranches(offset: 0, limit: $limit) {
-                    id
-                    name
-                    updates(offset: 0, limit: 1) {
-                      id
-                      actor {
-                        __typename
-                        id
-                        ... on User {
-                          username
-                        }
-                        ... on Robot {
-                          firstName
-                        }
-                      }
-                      updatedAt
-                      message
-                    }
-                  }
-                }
-              }
-            }
-          `,
-          {
-            fullName,
-            limit: BRANCHES_LIMIT,
-          }
-        )
-        .toPromise()
-    );
-
-    return data?.app?.byFullName.updateBranches ?? [];
   }
 }
 
