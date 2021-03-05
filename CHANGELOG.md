@@ -17,6 +17,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Print team id in the `device:list` when the team name is unknown. ([#268](https://github.com/expo/eas-cli/pull/268) by [@wkozyra95](https://github.com/wkozyra95))
+
 ### 🧹 Chores
 
 ## [0.5.0](https://github.com/expo/eas-cli/releases/tag/v0.5.0) - 2021-03-02
