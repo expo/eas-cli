@@ -42,7 +42,9 @@ export default class BuildList extends Command {
               name: 'appleTeamIdentifier',
               message: 'What Apple Team would you like to list devices for?',
               choices: teams.map(team => ({
-                title: `${team.appleTeamName} (ID: ${team.appleTeamIdentifier})`,
+                title: team.appleTeamName
+                  ? `${team.appleTeamName} (ID: ${team.appleTeamIdentifier})`
+                  : team.appleTeamIdentifier,
                 value: team.appleTeamIdentifier,
               })),
             });
@@ -71,7 +73,9 @@ export default class BuildList extends Command {
       if (result?.appleDevices.length) {
         const { appleTeamName, appleDevices } = result;
 
-        spinner.succeed(`Found ${appleDevices.length} devices for team ${appleTeamName}`);
+        spinner.succeed(
+          `Found ${appleDevices.length} devices for team ${appleTeamName ?? appleTeamIdentifier}`
+        );
 
         const list = appleDevices
           .map(device =>
