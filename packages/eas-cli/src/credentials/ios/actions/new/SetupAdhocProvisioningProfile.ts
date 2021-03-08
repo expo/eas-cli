@@ -6,6 +6,7 @@ import {
   IosAppBuildCredentialsFragment,
   IosDistributionType,
 } from '../../../../graphql/generated';
+import Log from '../../../../log';
 import { confirmAsync } from '../../../../prompts';
 import { Action, CredentialsManager } from '../../../CredentialsManager';
 import { Context } from '../../../context';
@@ -15,6 +16,8 @@ import { AppleDeviceFragmentWithAppleTeam } from '../../api/graphql/queries/Appl
 import { AppleProvisioningProfileQueryResult } from '../../api/graphql/queries/AppleProvisioningProfileQuery';
 import { ProvisioningProfileStoreInfo } from '../../appstore/Credentials.types';
 import { ProfileClass } from '../../appstore/provisioningProfile';
+import { AppleUnauthenticatedError, MissingCredentialsNonInteractiveError } from '../../errors';
+import { resolveAppleTeamIfAuthenticatedAsync } from './AppleTeamUtils';
 import { chooseDevices } from './DeviceUtils';
 import { doUDIDsMatch, isDevPortalAdhocProfileValid } from './ProvisioningProfileUtils';
 import { SetupDistributionCertificate } from './SetupDistributionCertificate';
@@ -33,15 +36,56 @@ export class SetupAdhocProvisioningProfile implements Action {
   }
 
   async runAsync(manager: CredentialsManager, ctx: Context): Promise<void> {
-    const authCtx = await ctx.appStore.ensureAuthenticatedAsync();
+    if (ctx.nonInteractive) {
+      await this.runNonInteractive(manager, ctx);
+    } else {
+      try {
+        await this.runInteractive(manager, ctx);
+      } catch (err) {
+        if (err instanceof AppleUnauthenticatedError && ctx.nonInteractive) {
+          throw new MissingCredentialsNonInteractiveError();
+        }
+        throw err;
+      }
+    }
+  }
 
-    // 0. Fetch apple team object
-    const appleTeam = await ctx.newIos.createOrGetExistingAppleTeamAsync(this.app, {
-      appleTeamIdentifier: authCtx.team.id,
-      appleTeamName: authCtx.team.name,
-    });
+  private async runNonInteractive(manager: CredentialsManager, ctx: Context): Promise<void> {
+    // 1. Setup Distribution Certificate
+    const distCertAction = new SetupDistributionCertificate(this.app);
+    await manager.runActionAsync(distCertAction);
 
-    // 1. Fetch devices registered on EAS servers.
+    // 2. Fetch profile from EAS servers
+    const currentProfile = await ctx.newIos.getProvisioningProfileAsync(
+      this.app,
+      IosDistributionType.AdHoc
+    );
+
+    if (!currentProfile) {
+      throw new MissingCredentialsNonInteractiveError();
+    }
+
+    // TODO: implement validation
+    Log.warn(
+      'Provisioning Profile is not validated for non-interactive internal distribution builds.'
+    );
+    Log.warn('The build on EAS servers might fail.');
+
+    // app credentials should exist here because the profile exists
+    const appCredentials = nullthrows(
+      await ctx.newIos.getIosAppCredentialsWithBuildCredentialsAsync(this.app, {
+        iosDistributionType: IosDistributionType.AdHoc,
+      })
+    );
+    this._iosAppBuildCredentials = appCredentials.iosAppBuildCredentialsArray[0];
+  }
+
+  private async runInteractive(manager: CredentialsManager, ctx: Context): Promise<void> {
+    // 0. Ensure the user is authenticated with Apple and resolve the Apple team object
+    await ctx.appStore.ensureAuthenticatedAsync();
+    const appleTeam = nullthrows(await resolveAppleTeamIfAuthenticatedAsync(ctx, this.app));
+
+    // 1. Fetch devices registered on EAS servers
     const registeredAppleDevices = await ctx.newIos.getDevicesForAppleTeamAsync(
       this.app,
       appleTeam
@@ -58,17 +102,17 @@ export class SetupAdhocProvisioningProfile implements Action {
     await manager.runActionAsync(distCertAction);
     const distCert = distCertAction.distributionCertificate;
 
-    // 3. Fetch profile from EAS servers
-    let currentProfileFromExpoServers = (await ctx.newIos.getProvisioningProfileAsync(
-      this.app,
+    let profileFromExpoServersToUse:
+      | AppleProvisioningProfileQueryResult
+      | AppleProvisioningProfileMutationResult
+      | null = await ctx.newIos.getProvisioningProfileAsync(this.app, IosDistributionType.AdHoc, {
       appleTeam,
-      IosDistributionType.AdHoc
-    )) as AppleProvisioningProfileQueryResult | AppleProvisioningProfileMutationResult | null;
+    });
 
     // 4. Choose devices for internal distribution
     let chosenDevices: AppleDeviceFragmentWithAppleTeam[];
-    if (currentProfileFromExpoServers) {
-      const appleDeviceIdentifiersFromProfile = ((currentProfileFromExpoServers.appleDevices ??
+    if (profileFromExpoServersToUse) {
+      const appleDeviceIdentifiersFromProfile = ((profileFromExpoServersToUse.appleDevices ??
         []) as AppleDevice[]).map(({ identifier }) => identifier);
 
       let shouldAskToChooseDevices = true;
@@ -110,10 +154,10 @@ export class SetupAdhocProvisioningProfile implements Action {
       this.app,
       appleTeam
     );
-    if (currentProfileFromExpoServers) {
+    if (profileFromExpoServersToUse) {
       if (profileWasRecreated) {
-        currentProfileFromExpoServers = await ctx.newIos.updateProvisioningProfileAsync(
-          currentProfileFromExpoServers.id,
+        profileFromExpoServersToUse = await ctx.newIos.updateProvisioningProfileAsync(
+          profileFromExpoServersToUse.id,
           {
             appleProvisioningProfile: profileToUse.provisioningProfile,
             developerPortalIdentifier: profileToUse.provisioningProfileId,
@@ -121,7 +165,7 @@ export class SetupAdhocProvisioningProfile implements Action {
         );
       }
     } else {
-      currentProfileFromExpoServers = await ctx.newIos.createProvisioningProfileAsync(
+      profileFromExpoServersToUse = await ctx.newIos.createProvisioningProfileAsync(
         this.app,
         appleAppIdentifier,
         {
@@ -138,7 +182,7 @@ export class SetupAdhocProvisioningProfile implements Action {
         appleTeam,
         appleAppIdentifierId: appleAppIdentifier.id,
         appleDistributionCertificateId: distCert.id,
-        appleProvisioningProfileId: currentProfileFromExpoServers.id,
+        appleProvisioningProfileId: profileFromExpoServersToUse.id,
         iosDistributionType: IosDistributionType.AdHoc,
       }
     );

@@ -13,6 +13,8 @@ import { Context } from '../../../context';
 import { AppLookupParams } from '../../api/GraphqlClient';
 import { AppleDistributionCertificateMutationResult } from '../../api/graphql/mutations/AppleDistributionCertificateMutation';
 import { getValidCertSerialNumbers } from '../../appstore/CredentialsUtils';
+import { AppleUnauthenticatedError, MissingCredentialsNonInteractiveError } from '../../errors';
+import { resolveAppleTeamIfAuthenticatedAsync } from './AppleTeamUtils';
 import { CreateDistributionCertificate } from './CreateDistributionCertificate';
 import { formatDistributionCertificate } from './DistributionCertificateUtils';
 
@@ -31,32 +33,45 @@ export class SetupDistributionCertificate implements Action {
   }
 
   public async runAsync(manager: CredentialsManager, ctx: Context): Promise<void> {
-    assert(
-      ctx.appStore.authCtx,
-      'authCtx is defined in this context - enforced by ensureAuthenticatedAsync call in SetupBuildCredentials'
-    );
-    const appleTeam = await ctx.newIos.createOrGetExistingAppleTeamAsync(this.app, {
-      appleTeamIdentifier: ctx.appStore.authCtx.team.id,
-      appleTeamName: ctx.appStore.authCtx.team.name,
-    });
+    const appleTeam = await resolveAppleTeamIfAuthenticatedAsync(ctx, this.app);
 
-    const currentCertificate = await ctx.newIos.getDistributionCertificateForAppAsync(
-      this.app,
-      appleTeam,
-      IosDistributionType.AdHoc
-    );
+    try {
+      const currentCertificate = await ctx.newIos.getDistributionCertificateForAppAsync(
+        this.app,
+        IosDistributionType.AdHoc,
+        { appleTeam }
+      );
 
-    if (await this.isCurrentCertificateValidAsync(ctx, currentCertificate)) {
-      assert(currentCertificate, 'currentCertificate is defined here');
-      this._distributionCertificate = currentCertificate;
-      return;
+      if (ctx.nonInteractive) {
+        // TODO: implement validation
+        Log.addNewLineIfNone();
+        Log.warn(
+          'Distribution Certificate is not validated for non-interactive internal distribution builds.'
+        );
+        if (!currentCertificate) {
+          throw new MissingCredentialsNonInteractiveError();
+        }
+        this._distributionCertificate = currentCertificate;
+        return;
+      } else {
+        if (await this.isCurrentCertificateValidAsync(ctx, currentCertificate)) {
+          assert(currentCertificate, 'currentCertificate is defined here');
+          this._distributionCertificate = currentCertificate;
+          return;
+        }
+      }
+
+      const validDistCertsOnFile = await this.getValidDistCertsAsync(ctx);
+      this._distributionCertificate =
+        validDistCertsOnFile.length === 0
+          ? await this.createNewDistCertAsync(manager)
+          : await this.createOrReuseDistCert(manager, ctx);
+    } catch (err) {
+      if (err instanceof AppleUnauthenticatedError && ctx.nonInteractive) {
+        throw new MissingCredentialsNonInteractiveError();
+      }
+      throw err;
     }
-
-    const validDistCertsOnFile = await this.getValidDistCertsAsync(ctx);
-    this._distributionCertificate =
-      validDistCertsOnFile.length === 0
-        ? await this.createNewDistCertAsync(manager)
-        : await this.createOrReuseDistCert(manager, ctx);
   }
 
   private async isCurrentCertificateValidAsync(
