@@ -9,8 +9,7 @@ import Log from '../log';
 import { getProjectAccountNameAsync } from '../project/projectUtils';
 import { Choice, confirmAsync, promptAsync } from '../prompts';
 import { Account, findAccountByName } from '../user/Account';
-import { Actor } from '../user/User';
-import { getActorDisplayName } from '../user/actions';
+import { Actor, getActorDisplayName } from '../user/User';
 import DeviceCreateAction from './actions/create/action';
 import { DeviceManagerContext } from './context';
 

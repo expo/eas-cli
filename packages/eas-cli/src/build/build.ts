@@ -11,8 +11,8 @@ import { createProgressTracker } from '../utils/progress';
 import { requestedPlatformDisplayNames } from './constants';
 import { BuildContext } from './context';
 import { collectMetadata } from './metadata';
-import { AnalyticsEvent, Platform, TrackingContext } from './types';
-import Analytics from './utils/analytics';
+import { Platform, TrackingContext } from './types';
+import Analytics, { Event } from './utils/analytics';
 import { printDeprecationWarnings } from './utils/printBuildInfo';
 import {
   commitChangedFilesAsync,
@@ -53,15 +53,15 @@ export async function prepareBuildRequestForPlatformAsync<
   const credentialsResult = await withAnalyticsAsync(
     async () => await builder.ensureCredentialsAsync(builder.ctx),
     {
-      successEvent: AnalyticsEvent.GATHER_CREDENTIALS_SUCCESS,
-      failureEvent: AnalyticsEvent.GATHER_CREDENTIALS_FAIL,
+      successEvent: Event.GATHER_CREDENTIALS_SUCCESS,
+      failureEvent: Event.GATHER_CREDENTIALS_FAIL,
       trackingCtx: builder.ctx.trackingCtx,
     }
   );
   if (!builder.ctx.commandCtx.skipProjectConfiguration) {
     await withAnalyticsAsync(async () => await builder.ensureProjectConfiguredAsync(builder.ctx), {
-      successEvent: AnalyticsEvent.CONFIGURE_PROJECT_SUCCESS,
-      failureEvent: AnalyticsEvent.CONFIGURE_PROJECT_FAIL,
+      successEvent: Event.CONFIGURE_PROJECT_SUCCESS,
+      failureEvent: Event.CONFIGURE_PROJECT_FAIL,
       trackingCtx: builder.ctx.trackingCtx,
     });
   }
@@ -110,8 +110,8 @@ export async function prepareBuildRequestForPlatformAsync<
           return buildId;
         },
         {
-          successEvent: AnalyticsEvent.BUILD_REQUEST_SUCCESS,
-          failureEvent: AnalyticsEvent.BUILD_REQUEST_FAIL,
+          successEvent: Event.BUILD_REQUEST_SUCCESS,
+          failureEvent: Event.BUILD_REQUEST_FAIL,
           trackingCtx: builder.ctx.trackingCtx,
         }
       );
@@ -149,8 +149,8 @@ async function uploadProjectAsync<TPlatform extends Platform>(
         return bucketKey;
       },
       {
-        successEvent: AnalyticsEvent.PROJECT_UPLOAD_SUCCESS,
-        failureEvent: AnalyticsEvent.PROJECT_UPLOAD_FAIL,
+        successEvent: Event.PROJECT_UPLOAD_SUCCESS,
+        failureEvent: Event.PROJECT_UPLOAD_FAIL,
         trackingCtx: ctx.trackingCtx,
       }
     );
@@ -164,8 +164,8 @@ async function uploadProjectAsync<TPlatform extends Platform>(
 async function withAnalyticsAsync<Result>(
   fn: () => Promise<Result>,
   analytics: {
-    successEvent: AnalyticsEvent;
-    failureEvent: AnalyticsEvent;
+    successEvent: Event;
+    failureEvent: Event;
     trackingCtx: TrackingContext;
   }
 ): Promise<Result> {

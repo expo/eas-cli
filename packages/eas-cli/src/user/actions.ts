@@ -55,22 +55,6 @@ export async function ensureLoggedInAsync(): Promise<Actor> {
   return user;
 }
 
-/**
- * Resolve the name of the actor, either normal user or robot user.
- * This should be used whenever the "current user" needs to be displayed.
- * The display name CANNOT be used as project owner.
- */
-export function getActorDisplayName(user?: Actor): string {
-  switch (user?.__typename) {
-    case 'User':
-      return user.username;
-    case 'Robot':
-      return user.firstName ? `${user.firstName} (robot)` : 'robot';
-    default:
-      return 'anonymous';
-  }
-}
-
 export function ensureActorHasUsername(user: Actor): string {
   if (user.__typename === 'User') {
     return user.username;

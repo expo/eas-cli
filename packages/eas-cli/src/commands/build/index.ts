@@ -3,14 +3,16 @@ import { Command, flags } from '@oclif/command';
 import chalk from 'chalk';
 import fs from 'fs-extra';
 import path from 'path';
-import { v4 as uuidv4 } from 'uuid';
 
+import {
+  flushAsync as flushAnalyticsAsync,
+  initAsync as initAnalyticsAsync,
+} from '../../analytics';
 import { apiClient } from '../../api';
 import { configureAsync } from '../../build/configure';
 import { createCommandContextAsync } from '../../build/context';
 import { buildAsync } from '../../build/create';
-import { AnalyticsEvent, Build as BuildType, RequestedPlatform } from '../../build/types';
-import Analytics from '../../build/utils/analytics';
+import { Build as BuildType, RequestedPlatform } from '../../build/types';
 import { formatBuild } from '../../build/utils/formatBuild';
 import { isGitStatusCleanAsync } from '../../build/utils/repository';
 import { AppPlatform } from '../../graphql/generated';
@@ -59,57 +61,55 @@ export default class Build extends Command {
 
   async run(): Promise<void> {
     const { flags } = this.parse(Build);
-    const user = await ensureLoggedInAsync();
+    await initAnalyticsAsync(); // TODO: run in oclif hook for every command
+    try {
+      const user = await ensureLoggedInAsync();
 
-    const nonInteractive = flags['non-interactive'];
-    if (!flags.platform && nonInteractive) {
-      throw new Error('--platform is required when building in non-interactive mode');
+      const nonInteractive = flags['non-interactive'];
+      if (!flags.platform && nonInteractive) {
+        throw new Error('--platform is required when building in non-interactive mode');
+      }
+      const platform =
+        (flags.platform as RequestedPlatform | undefined) ?? (await promptForPlatformAsync());
+
+      const projectDir = (await findProjectRootAsync()) ?? process.cwd();
+      const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
+      const projectId = await getProjectIdAsync(exp);
+
+      if (!(await isEasEnabledForProjectAsync(projectId))) {
+        warnEasUnavailable();
+        process.exitCode = 1;
+        return;
+      }
+
+      const accountName = await getProjectAccountNameAsync(exp);
+      const accountHasPendingBuilds = await ensureNoPendingBuildsExistAsync({
+        accountName,
+        platform,
+        projectId,
+        user,
+      });
+      if (accountHasPendingBuilds) {
+        return;
+      }
+
+      await ensureProjectConfiguredAsync(projectDir);
+
+      const commandCtx = await createCommandContextAsync({
+        requestedPlatform: platform,
+        profile: flags.profile,
+        exp,
+        projectDir,
+        projectId,
+        nonInteractive,
+        skipCredentialsCheck: flags['skip-credentials-check'],
+        skipProjectConfiguration: flags['skip-project-configuration'],
+        waitForBuildEnd: flags.wait,
+      });
+      await buildAsync(commandCtx);
+    } finally {
+      await flushAnalyticsAsync(); // TODO: run in oclif hook for every command
     }
-    const platform =
-      (flags.platform as RequestedPlatform | undefined) ?? (await promptForPlatformAsync());
-
-    const projectDir = (await findProjectRootAsync()) ?? process.cwd();
-    const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
-    const projectId = await getProjectIdAsync(exp);
-
-    if (!(await isEasEnabledForProjectAsync(projectId))) {
-      warnEasUnavailable();
-      process.exitCode = 1;
-      return;
-    }
-
-    const accountName = await getProjectAccountNameAsync(exp);
-    const accountHasPendingBuilds = await ensureNoPendingBuildsExistAsync({
-      accountName,
-      platform,
-      projectId,
-      user,
-    });
-    if (accountHasPendingBuilds) {
-      return;
-    }
-
-    await ensureProjectConfiguredAsync(projectDir);
-
-    const trackingCtx = {
-      tracking_id: uuidv4(),
-      requested_platform: flags.platform,
-    };
-    Analytics.logEvent(AnalyticsEvent.BUILD_COMMAND, trackingCtx);
-
-    const commandCtx = await createCommandContextAsync({
-      requestedPlatform: platform,
-      profile: flags.profile,
-      exp,
-      projectDir,
-      projectId,
-      trackingCtx,
-      nonInteractive,
-      skipCredentialsCheck: flags['skip-credentials-check'],
-      skipProjectConfiguration: flags['skip-project-configuration'],
-      waitForBuildEnd: flags.wait,
-    });
-    await buildAsync(commandCtx);
   }
 }
 

@@ -12,7 +12,8 @@ import {
 import { findProjectRootAsync, getProjectAccountNameAsync } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
 import { findAccountByName } from '../../user/Account';
-import { ensureLoggedInAsync, getActorDisplayName } from '../../user/actions';
+import { getActorDisplayName } from '../../user/User';
+import { ensureLoggedInAsync } from '../../user/actions';
 
 export enum EnvironmentSecretTargetLocation {
   ACCOUNT = 'account',

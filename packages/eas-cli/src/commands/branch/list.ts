@@ -15,7 +15,7 @@ import {
 } from '../../graphql/generated';
 import Log from '../../log';
 import { findProjectRootAsync, getProjectFullNameAsync } from '../../project/projectUtils';
-import { getActorDisplayName } from '../../user/actions';
+import { getActorDisplayName } from '../../user/User';
 
 const BRANCHES_LIMIT = 10_000;
 export async function listBranchesAsync({ fullName }: { fullName: string }) {
