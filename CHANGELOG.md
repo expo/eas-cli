@@ -6,6 +6,16 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🛠 Breaking changes
 
+### 🎉 New features
+
+### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [0.6.0](https://github.com/expo/eas-cli/releases/tag/v0.6.0) - 2021-03-09
+
+### 🛠 Breaking changes
+
 - Generic iOS projects: build release builds by default. ([#266](https://github.com/expo/eas-cli/pull/266) by [@dsokal](https://github.com/dsokal))
 
 ### 🎉 New features
@@ -19,8 +29,6 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 - Print Apple Team ID in the output of `device:list` when the team name is unknown. ([#268](https://github.com/expo/eas-cli/pull/268) by [@wkozyra95](https://github.com/wkozyra95))
-
-### 🧹 Chores
 
 ## [0.5.0](https://github.com/expo/eas-cli/releases/tag/v0.5.0) - 2021-03-02
 
