@@ -43,35 +43,49 @@ export class SetupDistributionCertificate implements Action {
       );
 
       if (ctx.nonInteractive) {
-        // TODO: implement validation
-        Log.addNewLineIfNone();
-        Log.warn(
-          'Distribution Certificate is not validated for non-interactive internal distribution builds.'
-        );
-        if (!currentCertificate) {
-          throw new MissingCredentialsNonInteractiveError();
-        }
-        this._distributionCertificate = currentCertificate;
-        return;
+        await this.runNonInteractiveAsync(ctx, currentCertificate);
       } else {
-        if (await this.isCurrentCertificateValidAsync(ctx, currentCertificate)) {
-          assert(currentCertificate, 'currentCertificate is defined here');
-          this._distributionCertificate = currentCertificate;
-          return;
-        }
+        await this.runInteractiveAsync(ctx, manager, currentCertificate);
       }
-
-      const validDistCertsOnFile = await this.getValidDistCertsAsync(ctx);
-      this._distributionCertificate =
-        validDistCertsOnFile.length === 0
-          ? await this.createNewDistCertAsync(manager)
-          : await this.createOrReuseDistCert(manager, ctx);
     } catch (err) {
       if (err instanceof AppleUnauthenticatedError && ctx.nonInteractive) {
         throw new MissingCredentialsNonInteractiveError();
       }
       throw err;
     }
+  }
+
+  private async runNonInteractiveAsync(
+    ctx: Context,
+    currentCertificate: AppleDistributionCertificateFragment | null
+  ): Promise<void> {
+    // TODO: implement validation
+    Log.addNewLineIfNone();
+    Log.warn(
+      'Distribution Certificate is not validated for non-interactive internal distribution builds.'
+    );
+    if (!currentCertificate) {
+      throw new MissingCredentialsNonInteractiveError();
+    }
+    this._distributionCertificate = currentCertificate;
+  }
+
+  private async runInteractiveAsync(
+    ctx: Context,
+    manager: CredentialsManager,
+    currentCertificate: AppleDistributionCertificateFragment | null
+  ): Promise<void> {
+    if (await this.isCurrentCertificateValidAsync(ctx, currentCertificate)) {
+      assert(currentCertificate, 'currentCertificate is defined here');
+      this._distributionCertificate = currentCertificate;
+      return;
+    }
+
+    const validDistCertsOnFile = await this.getValidDistCertsAsync(ctx);
+    this._distributionCertificate =
+      validDistCertsOnFile.length === 0
+        ? await this.createNewDistCertAsync(manager)
+        : await this.createOrReuseDistCert(manager, ctx);
   }
 
   private async isCurrentCertificateValidAsync(

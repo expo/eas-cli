@@ -37,20 +37,20 @@ export class SetupAdhocProvisioningProfile implements Action {
 
   async runAsync(manager: CredentialsManager, ctx: Context): Promise<void> {
     if (ctx.nonInteractive) {
-      await this.runNonInteractive(manager, ctx);
-    } else {
       try {
-        await this.runInteractive(manager, ctx);
+        await this.runNonInteractiveAsync(manager, ctx);
       } catch (err) {
-        if (err instanceof AppleUnauthenticatedError && ctx.nonInteractive) {
+        if (err instanceof AppleUnauthenticatedError) {
           throw new MissingCredentialsNonInteractiveError();
         }
         throw err;
       }
+    } else {
+      await this.runInteractiveAsync(manager, ctx);
     }
   }
 
-  private async runNonInteractive(manager: CredentialsManager, ctx: Context): Promise<void> {
+  private async runNonInteractiveAsync(manager: CredentialsManager, ctx: Context): Promise<void> {
     // 1. Setup Distribution Certificate
     const distCertAction = new SetupDistributionCertificate(this.app);
     await manager.runActionAsync(distCertAction);
@@ -80,7 +80,7 @@ export class SetupAdhocProvisioningProfile implements Action {
     this._iosAppBuildCredentials = appCredentials.iosAppBuildCredentialsArray[0];
   }
 
-  private async runInteractive(manager: CredentialsManager, ctx: Context): Promise<void> {
+  private async runInteractiveAsync(manager: CredentialsManager, ctx: Context): Promise<void> {
     // 0. Ensure the user is authenticated with Apple and resolve the Apple team object
     await ctx.appStore.ensureAuthenticatedAsync();
     const appleTeam = nullthrows(await resolveAppleTeamIfAuthenticatedAsync(ctx, this.app));
