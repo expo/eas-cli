@@ -34,11 +34,10 @@ import { viewUpdateBranchAsync } from './view';
 
 type PublishPlatforms = 'android' | 'ios';
 
-export async function getUpdateGroupAsync({
+async function getUpdateGroupAsync({
   group,
-}: RootQueryUpdatesByGroupArgs): Promise<
-  Pick<Update, 'group' | 'runtimeVersion' | 'manifestFragment' | 'platform' | 'message'>[]
-> {
+}: RootQueryUpdatesByGroupArgs): GetUpdateGroupAsyncQuery
+['updatesByGroup'] {
   const data = await withErrorHandlingAsync(
     graphqlClient
       .query<GetUpdateGroupAsyncQuery, RootQueryUpdatesByGroupArgs>(
@@ -273,7 +272,7 @@ export default class BranchPublish extends Command {
 
 function formatUpdateTitle(
   update: Pick<Update, 'message' | 'createdAt' | 'runtimeVersion'> & {
-    actor?: Maybe<Pick<User, 'firstName' | 'id'> | Pick<Robot, 'firstName' | 'id'>>;
+    actor?: { firstName: string | null };
   }
 ): string {
   const { message, createdAt, actor, runtimeVersion } = update;
