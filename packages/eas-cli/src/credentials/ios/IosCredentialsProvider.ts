@@ -1,7 +1,7 @@
 import { Platform } from '@expo/eas-build-job';
 import { CredentialsSource, iOSDistributionType } from '@expo/eas-json';
 
-import { IosDistributionType } from '../../graphql/generated';
+import { AppleTeamFragment, IosDistributionType } from '../../graphql/generated';
 import Log from '../../log';
 import { findAccountByName } from '../../user/Account';
 import { CredentialsManager } from '../CredentialsManager';
@@ -10,6 +10,8 @@ import { Context } from '../context';
 import * as credentialsJsonReader from '../credentialsJson/read';
 import type { IosCredentials } from '../credentialsJson/read';
 import { SetupBuildCredentials } from './actions/SetupBuildCredentials';
+import { resolveAppleTeamIfAuthenticatedAsync } from './actions/new/AppleTeamUtils';
+import { AppleTeamMissingError, MissingCredentialsNonInteractiveError } from './errors';
 import { isAdHocProfile } from './utils/provisioningProfile';
 
 export { IosCredentials };
@@ -183,31 +185,36 @@ export default class IosCredentialsProvider implements CredentialsProvider {
         projectName: this.options.app.projectName,
       };
 
-      // for now, let's require the user to authenticate with Apple
-      const { team } = await this.ctx.appStore.ensureAuthenticatedAsync();
-      const appleTeam = await this.ctx.newIos.createOrGetExistingAppleTeamAsync(appLookupParams, {
-        appleTeamIdentifier: team.id,
-        appleTeamName: team.name,
-      });
-      const [distCert, provisioningProfile] = await Promise.all([
-        this.ctx.newIos.getDistributionCertificateForAppAsync(
-          appLookupParams,
-          appleTeam,
-          IosDistributionType.AdHoc
-        ),
-        this.ctx.newIos.getProvisioningProfileAsync(
-          appLookupParams,
-          appleTeam,
-          IosDistributionType.AdHoc
-        ),
-      ]);
-      return {
-        provisioningProfile: provisioningProfile?.provisioningProfile ?? undefined,
-        distributionCertificate: {
-          certP12: distCert?.certificateP12 ?? undefined,
-          certPassword: distCert?.certificatePassword ?? undefined,
-        },
-      };
+      let appleTeam: AppleTeamFragment | null = null;
+      if (!this.ctx.nonInteractive) {
+        await this.ctx.appStore.ensureAuthenticatedAsync();
+        appleTeam = await resolveAppleTeamIfAuthenticatedAsync(this.ctx, appLookupParams);
+      }
+
+      try {
+        const [distCert, provisioningProfile] = await Promise.all([
+          this.ctx.newIos.getDistributionCertificateForAppAsync(
+            appLookupParams,
+            IosDistributionType.AdHoc,
+            { appleTeam }
+          ),
+          this.ctx.newIos.getProvisioningProfileAsync(appLookupParams, IosDistributionType.AdHoc, {
+            appleTeam,
+          }),
+        ]);
+        return {
+          provisioningProfile: provisioningProfile?.provisioningProfile ?? undefined,
+          distributionCertificate: {
+            certP12: distCert?.certificateP12 ?? undefined,
+            certPassword: distCert?.certificatePassword ?? undefined,
+          },
+        };
+      } catch (err) {
+        if (err instanceof AppleTeamMissingError && this.ctx.nonInteractive) {
+          throw new MissingCredentialsNonInteractiveError();
+        }
+        throw err;
+      }
     } else {
       const [distCert, provisioningProfile] = await Promise.all([
         this.ctx.ios.getDistributionCertificateAsync(this.options.app),

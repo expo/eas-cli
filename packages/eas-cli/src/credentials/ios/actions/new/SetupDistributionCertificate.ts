@@ -13,6 +13,8 @@ import { Context } from '../../../context';
 import { AppLookupParams } from '../../api/GraphqlClient';
 import { AppleDistributionCertificateMutationResult } from '../../api/graphql/mutations/AppleDistributionCertificateMutation';
 import { getValidCertSerialNumbers } from '../../appstore/CredentialsUtils';
+import { AppleTeamMissingError, MissingCredentialsNonInteractiveError } from '../../errors';
+import { resolveAppleTeamIfAuthenticatedAsync } from './AppleTeamUtils';
 import { CreateDistributionCertificate } from './CreateDistributionCertificate';
 import { formatDistributionCertificate } from './DistributionCertificateUtils';
 
@@ -31,21 +33,48 @@ export class SetupDistributionCertificate implements Action {
   }
 
   public async runAsync(manager: CredentialsManager, ctx: Context): Promise<void> {
-    assert(
-      ctx.appStore.authCtx,
-      'authCtx is defined in this context - enforced by ensureAuthenticatedAsync call in SetupBuildCredentials'
-    );
-    const appleTeam = await ctx.newIos.createOrGetExistingAppleTeamAsync(this.app, {
-      appleTeamIdentifier: ctx.appStore.authCtx.team.id,
-      appleTeamName: ctx.appStore.authCtx.team.name,
-    });
+    const appleTeam = await resolveAppleTeamIfAuthenticatedAsync(ctx, this.app);
 
-    const currentCertificate = await ctx.newIos.getDistributionCertificateForAppAsync(
-      this.app,
-      appleTeam,
-      IosDistributionType.AdHoc
-    );
+    try {
+      const currentCertificate = await ctx.newIos.getDistributionCertificateForAppAsync(
+        this.app,
+        IosDistributionType.AdHoc,
+        { appleTeam }
+      );
 
+      if (ctx.nonInteractive) {
+        await this.runNonInteractiveAsync(ctx, currentCertificate);
+      } else {
+        await this.runInteractiveAsync(ctx, manager, currentCertificate);
+      }
+    } catch (err) {
+      if (err instanceof AppleTeamMissingError && ctx.nonInteractive) {
+        throw new MissingCredentialsNonInteractiveError();
+      }
+      throw err;
+    }
+  }
+
+  private async runNonInteractiveAsync(
+    ctx: Context,
+    currentCertificate: AppleDistributionCertificateFragment | null
+  ): Promise<void> {
+    // TODO: implement validation
+    Log.addNewLineIfNone();
+    Log.warn(
+      'Distribution Certificate is not validated for non-interactive internal distribution builds.'
+    );
+    if (!currentCertificate) {
+      throw new MissingCredentialsNonInteractiveError();
+    }
+    this._distributionCertificate = currentCertificate;
+  }
+
+  private async runInteractiveAsync(
+    ctx: Context,
+    manager: CredentialsManager,
+    currentCertificate: AppleDistributionCertificateFragment | null
+  ): Promise<void> {
     if (await this.isCurrentCertificateValidAsync(ctx, currentCertificate)) {
       assert(currentCertificate, 'currentCertificate is defined here');
       this._distributionCertificate = currentCertificate;

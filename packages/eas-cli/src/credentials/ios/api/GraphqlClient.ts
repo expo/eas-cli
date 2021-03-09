@@ -11,6 +11,7 @@ import {
 } from '../../../graphql/generated';
 import { Account } from '../../../user/Account';
 import { DistributionCertificate } from '../appstore/Credentials.types';
+import { AppleTeamMissingError } from '../errors';
 import { AppleAppIdentifierMutation } from './graphql/mutations/AppleAppIdentifierMutation';
 import {
   AppleDistributionCertificateMutation,
@@ -98,6 +99,25 @@ export async function createOrUpdateIosAppBuildCredentialsAsync(
 }
 
 export async function getIosAppCredentialsWithBuildCredentialsAsync(
+  appLookupParams: AppLookupParams,
+  { iosDistributionType }: { iosDistributionType: IosDistributionType }
+): Promise<IosAppCredentialsWithBuildCredentialsQueryResult | null> {
+  const { account, bundleIdentifier } = appLookupParams;
+  const appleAppIdentifier = await AppleAppIdentifierQuery.byBundleIdentifierAsync(
+    account.name,
+    bundleIdentifier
+  );
+  if (!appleAppIdentifier) {
+    return null;
+  }
+  const projectFullName = formatProjectFullName(appLookupParams);
+  return await IosAppCredentialsQuery.withBuildCredentialsByAppIdentifierIdAsync(projectFullName, {
+    appleAppIdentifierId: appleAppIdentifier.id,
+    iosDistributionType,
+  });
+}
+
+export async function getIosAppCredentialsWithCommonFieldsAsync(
   appLookupParams: AppLookupParams
 ): Promise<CommonIosAppCredentialsFragment | null> {
   const { account, bundleIdentifier } = appLookupParams;
@@ -126,12 +146,12 @@ export async function createOrGetExistingIosAppCredentialsWithBuildCredentialsAs
     iosDistributionType: IosDistributionType;
   }
 ): Promise<IosAppCredentialsWithBuildCredentialsQueryResult> {
-  const projectFullName = formatProjectFullName(appLookupParams);
-  const maybeIosAppCredentials = await IosAppCredentialsQuery.withBuildCredentialsByAppIdentifierIdAsync(
-    projectFullName,
-    { appleAppIdentifierId, iosDistributionType }
+  const maybeIosAppCredentials = await getIosAppCredentialsWithBuildCredentialsAsync(
+    appLookupParams,
+    {
+      iosDistributionType,
+    }
   );
-
   if (maybeIosAppCredentials) {
     return maybeIosAppCredentials;
   } else {
@@ -144,6 +164,7 @@ export async function createOrGetExistingIosAppCredentialsWithBuildCredentialsAs
       app.id,
       appleAppIdentifier.id
     );
+    const projectFullName = formatProjectFullName(appLookupParams);
     return nullthrows(
       await IosAppCredentialsQuery.withBuildCredentialsByAppIdentifierIdAsync(projectFullName, {
         appleAppIdentifierId,
@@ -173,7 +194,7 @@ export async function createOrGetExistingAppleTeamAsync(
 
 export async function createOrGetExistingAppleAppIdentifierAsync(
   { account, bundleIdentifier }: AppLookupParams,
-  appleTeam: AppleTeamFragment
+  appleTeam: AppleTeamFragment | null
 ): Promise<AppleAppIdentifierFragment> {
   const appleAppIdentifier = await AppleAppIdentifierQuery.byBundleIdentifierAsync(
     account.name,
@@ -182,6 +203,9 @@ export async function createOrGetExistingAppleAppIdentifierAsync(
   if (appleAppIdentifier) {
     return appleAppIdentifier;
   } else {
+    if (!appleTeam) {
+      throw new AppleTeamMissingError();
+    }
     return await AppleAppIdentifierMutation.createAppleAppIdentifierAsync(
       { bundleIdentifier, appleTeamId: appleTeam.id },
       account.id
@@ -213,8 +237,8 @@ export async function createProvisioningProfileAsync(
 
 export async function getProvisioningProfileAsync(
   appLookupParams: AppLookupParams,
-  appleTeam: AppleTeamFragment,
-  iosDistributionType: IosDistributionType
+  iosDistributionType: IosDistributionType,
+  { appleTeam }: { appleTeam: AppleTeamFragment | null } = { appleTeam: null }
 ): Promise<AppleProvisioningProfileQueryResult | null> {
   const projectFullName = formatProjectFullName(appLookupParams);
   const appleAppIdentifier = await createOrGetExistingAppleAppIdentifierAsync(
@@ -222,7 +246,7 @@ export async function getProvisioningProfileAsync(
     appleTeam
   );
   return await AppleProvisioningProfileQuery.getForAppAsync(projectFullName, {
-    appleAppIdentifierId: appleAppIdentifier?.id,
+    appleAppIdentifierId: appleAppIdentifier.id,
     iosDistributionType,
   });
 }
@@ -250,8 +274,8 @@ export async function deleteProvisioningProfilesAsync(
 
 export async function getDistributionCertificateForAppAsync(
   appLookupParams: AppLookupParams,
-  appleTeam: AppleTeamFragment,
-  iosDistributionType: IosDistributionType
+  iosDistributionType: IosDistributionType,
+  { appleTeam }: { appleTeam: AppleTeamFragment | null } = { appleTeam: null }
 ): Promise<AppleDistributionCertificateFragment | null> {
   const projectFullName = formatProjectFullName(appLookupParams);
   const appleAppIdentifier = await createOrGetExistingAppleAppIdentifierAsync(
@@ -259,7 +283,7 @@ export async function getDistributionCertificateForAppAsync(
     appleTeam
   );
   return await AppleDistributionCertificateQuery.getForAppAsync(projectFullName, {
-    appleAppIdentifierId: appleAppIdentifier?.id,
+    appleAppIdentifierId: appleAppIdentifier.id,
     iosDistributionType,
   });
 }

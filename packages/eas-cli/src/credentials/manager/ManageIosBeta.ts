@@ -40,7 +40,7 @@ export class ManageIosBeta implements Action {
         }
         if (ctx.hasProjectContext) {
           const appLookupParams = ManageIosBeta.getAppLookupParamsFromContext(ctx);
-          const iosAppCredentials = await ctx.newIos.getIosAppCredentialsWithBuildCredentialsAsync(
+          const iosAppCredentials = await ctx.newIos.getIosAppCredentialsWithCommonFieldsAsync(
             appLookupParams
           );
           if (!iosAppCredentials) {

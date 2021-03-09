@@ -37,11 +37,6 @@ export class SetupBuildCredentials implements Action {
         if (!account) {
           throw new Error(`You do not have access to the ${this.app.accountName} account`);
         }
-        if (ctx.nonInteractive) {
-          throw new Error('Internal distribution builds are not supported in non-interactive mode');
-        }
-        // for now, let's require the user to authenticate with Apple
-        await ctx.appStore.ensureAuthenticatedAsync();
         const action = new SetupAdhocProvisioningProfile({
           account,
           projectName: this.app.projectName,
