@@ -69,7 +69,6 @@ export class SetupAdhocProvisioningProfile implements Action {
     Log.warn(
       'Provisioning Profile is not validated for non-interactive internal distribution builds.'
     );
-    Log.warn('The build on EAS servers might fail.');
 
     // app credentials should exist here because the profile exists
     const appCredentials = nullthrows(
