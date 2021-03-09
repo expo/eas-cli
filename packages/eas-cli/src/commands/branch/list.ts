@@ -10,7 +10,6 @@ import {
   Maybe,
   Robot,
   Update,
-  UpdateBranch,
   User,
 } from '../../graphql/generated';
 import Log from '../../log';
@@ -18,17 +17,7 @@ import { findProjectRootAsync, getProjectFullNameAsync } from '../../project/pro
 import { getActorDisplayName } from '../../user/actions';
 
 const BRANCHES_LIMIT = 10_000;
-export async function listBranchesAsync({
-  fullName,
-}: {
-  fullName: string;
-}): Promise<
-  (Pick<UpdateBranch, 'id' | 'name'> & {
-    updates: (Pick<Update, 'id' | 'updatedAt' | 'message'> & {
-      actor?: Maybe<Pick<User, 'username' | 'id'> | Pick<Robot, 'firstName' | 'id'>>;
-    })[];
-  })[]
-> {
+export async function listBranchesAsync({ fullName }: { fullName: string }) {
   const data = await withErrorHandlingAsync(
     graphqlClient
       .query<BranchesByAppQuery, BranchesByAppQueryVariables>(
@@ -106,7 +95,7 @@ export default class BranchList extends Command {
   }
 }
 
-function formatUpdate(
+export function formatUpdate(
   update: Pick<Update, 'id' | 'updatedAt' | 'message'> & {
     actor?: Maybe<Pick<User, 'username' | 'id'> | Pick<Robot, 'firstName' | 'id'>>;
   }

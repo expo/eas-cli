@@ -1,22 +1,20 @@
 import { getConfig } from '@expo/config';
 import { Command, flags } from '@oclif/command';
-import { uniqBy } from '@oclif/plugin-help/lib/util';
 import assert from 'assert';
 import chalk from 'chalk';
 import Table from 'cli-table3';
 import dateFormat from 'dateformat';
 import gql from 'graphql-tag';
+import { uniqBy } from 'lodash';
 import ora from 'ora';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
 import {
+  Actor,
   GetUpdateGroupAsyncQuery,
-  Maybe,
-  Robot,
   RootQueryUpdatesByGroupArgs,
   Update,
   UpdateInfoGroup,
-  User,
 } from '../../graphql/generated';
 import { PublishMutation } from '../../graphql/mutations/PublishMutation';
 import Log from '../../log';
@@ -30,15 +28,15 @@ import {
 } from '../../project/publish';
 import { promptAsync, selectAsync } from '../../prompts';
 import { getLastCommitMessageAsync } from '../../utils/git';
+import { formatUpdate, listBranchesAsync } from './list';
 import { viewUpdateBranchAsync } from './view';
 
 type PublishPlatforms = 'android' | 'ios';
 
 async function getUpdateGroupAsync({
   group,
-}: RootQueryUpdatesByGroupArgs): GetUpdateGroupAsyncQuery
-['updatesByGroup'] {
-  const data = await withErrorHandlingAsync(
+}: RootQueryUpdatesByGroupArgs): Promise<GetUpdateGroupAsyncQuery['updatesByGroup']> {
+  const { updatesByGroup } = await withErrorHandlingAsync(
     graphqlClient
       .query<GetUpdateGroupAsyncQuery, RootQueryUpdatesByGroupArgs>(
         gql`
@@ -59,8 +57,9 @@ async function getUpdateGroupAsync({
       )
       .toPromise()
   );
-  return data.updatesByGroup;
+  return updatesByGroup;
 }
+
 export default class BranchPublish extends Command {
   static hidden = true;
   static description = 'Publish an update group to a branch.';
@@ -135,12 +134,19 @@ export default class BranchPublish extends Command {
       if (jsonFlag) {
         throw new Error(validationMessage);
       }
-      ({ name } = await promptAsync({
-        type: 'text',
-        name: 'name',
-        message: 'Please enter the name of the branch to publish on:',
-        validate: value => (value ? true : validationMessage),
-      }));
+
+      const branches = await listBranchesAsync({ fullName: `@${accountName}/${slug}` });
+      name = await selectAsync<string>(
+        'which branch would you like to publish on?',
+        branches.map(branch => {
+          return {
+            title: `${branch.name} ${chalk.grey(
+              `- current update: ${formatUpdate(branch.updates[0])}`
+            )}`,
+            value: branch.name,
+          };
+        })
+      );
     }
     assert(name, 'branch name must be specified.');
 
@@ -272,7 +278,7 @@ export default class BranchPublish extends Command {
 
 function formatUpdateTitle(
   update: Pick<Update, 'message' | 'createdAt' | 'runtimeVersion'> & {
-    actor?: { firstName: string | null };
+    actor?: Pick<Actor, 'firstName'> | null;
   }
 ): string {
   const { message, createdAt, actor, runtimeVersion } = update;
