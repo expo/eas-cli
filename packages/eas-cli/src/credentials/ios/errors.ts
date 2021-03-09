@@ -1,6 +1,6 @@
 export class AppleTeamMissingError extends Error {
   constructor(message?: string) {
-    super(message ?? 'You need to be authenticated with Apple to set up credentials');
+    super(message ?? 'Apple Team is necessary to create Apple App Identifier');
   }
 }
 
