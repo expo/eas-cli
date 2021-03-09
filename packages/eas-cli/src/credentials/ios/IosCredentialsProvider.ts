@@ -11,7 +11,7 @@ import * as credentialsJsonReader from '../credentialsJson/read';
 import type { IosCredentials } from '../credentialsJson/read';
 import { SetupBuildCredentials } from './actions/SetupBuildCredentials';
 import { resolveAppleTeamIfAuthenticatedAsync } from './actions/new/AppleTeamUtils';
-import { AppleUnauthenticatedError, MissingCredentialsNonInteractiveError } from './errors';
+import { AppleTeamMissingError, MissingCredentialsNonInteractiveError } from './errors';
 import { isAdHocProfile } from './utils/provisioningProfile';
 
 export { IosCredentials };
@@ -210,7 +210,7 @@ export default class IosCredentialsProvider implements CredentialsProvider {
           },
         };
       } catch (err) {
-        if (err instanceof AppleUnauthenticatedError && this.ctx.nonInteractive) {
+        if (err instanceof AppleTeamMissingError && this.ctx.nonInteractive) {
           throw new MissingCredentialsNonInteractiveError();
         }
         throw err;

@@ -16,7 +16,7 @@ import { AppleDeviceFragmentWithAppleTeam } from '../../api/graphql/queries/Appl
 import { AppleProvisioningProfileQueryResult } from '../../api/graphql/queries/AppleProvisioningProfileQuery';
 import { ProvisioningProfileStoreInfo } from '../../appstore/Credentials.types';
 import { ProfileClass } from '../../appstore/provisioningProfile';
-import { AppleUnauthenticatedError, MissingCredentialsNonInteractiveError } from '../../errors';
+import { AppleTeamMissingError, MissingCredentialsNonInteractiveError } from '../../errors';
 import { resolveAppleTeamIfAuthenticatedAsync } from './AppleTeamUtils';
 import { chooseDevices } from './DeviceUtils';
 import { doUDIDsMatch, isDevPortalAdhocProfileValid } from './ProvisioningProfileUtils';
@@ -40,7 +40,7 @@ export class SetupAdhocProvisioningProfile implements Action {
       try {
         await this.runNonInteractiveAsync(manager, ctx);
       } catch (err) {
-        if (err instanceof AppleUnauthenticatedError) {
+        if (err instanceof AppleTeamMissingError) {
           throw new MissingCredentialsNonInteractiveError();
         }
         throw err;

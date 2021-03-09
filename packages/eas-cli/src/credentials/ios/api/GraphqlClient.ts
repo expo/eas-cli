@@ -11,7 +11,7 @@ import {
 } from '../../../graphql/generated';
 import { Account } from '../../../user/Account';
 import { DistributionCertificate } from '../appstore/Credentials.types';
-import { AppleUnauthenticatedError } from '../errors';
+import { AppleTeamMissingError } from '../errors';
 import { AppleAppIdentifierMutation } from './graphql/mutations/AppleAppIdentifierMutation';
 import {
   AppleDistributionCertificateMutation,
@@ -204,7 +204,7 @@ export async function createOrGetExistingAppleAppIdentifierAsync(
     return appleAppIdentifier;
   } else {
     if (!appleTeam) {
-      throw new AppleUnauthenticatedError();
+      throw new AppleTeamMissingError();
     }
     return await AppleAppIdentifierMutation.createAppleAppIdentifierAsync(
       { bundleIdentifier, appleTeamId: appleTeam.id },

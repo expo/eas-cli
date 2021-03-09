@@ -13,7 +13,7 @@ import { Context } from '../../../context';
 import { AppLookupParams } from '../../api/GraphqlClient';
 import { AppleDistributionCertificateMutationResult } from '../../api/graphql/mutations/AppleDistributionCertificateMutation';
 import { getValidCertSerialNumbers } from '../../appstore/CredentialsUtils';
-import { AppleUnauthenticatedError, MissingCredentialsNonInteractiveError } from '../../errors';
+import { AppleTeamMissingError, MissingCredentialsNonInteractiveError } from '../../errors';
 import { resolveAppleTeamIfAuthenticatedAsync } from './AppleTeamUtils';
 import { CreateDistributionCertificate } from './CreateDistributionCertificate';
 import { formatDistributionCertificate } from './DistributionCertificateUtils';
@@ -48,7 +48,7 @@ export class SetupDistributionCertificate implements Action {
         await this.runInteractiveAsync(ctx, manager, currentCertificate);
       }
     } catch (err) {
-      if (err instanceof AppleUnauthenticatedError && ctx.nonInteractive) {
+      if (err instanceof AppleTeamMissingError && ctx.nonInteractive) {
         throw new MissingCredentialsNonInteractiveError();
       }
       throw err;
