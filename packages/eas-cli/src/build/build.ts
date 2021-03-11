@@ -15,6 +15,7 @@ import { AnalyticsEvent, Platform, TrackingContext } from './types';
 import Analytics from './utils/analytics';
 import { printDeprecationWarnings } from './utils/printBuildInfo';
 import {
+  commitChangedFilesAsync,
   commitPromptAsync,
   isGitStatusCleanAsync,
   makeProjectTarballAsync,
@@ -189,9 +190,14 @@ async function reviewAndCommitChangesAsync(
   initialCommitMessage: string,
   { nonInteractive, askedFirstTime = true }: { nonInteractive: boolean; askedFirstTime?: boolean }
 ): Promise<void> {
+  if (process.env.EAS_BUILD_AUTOCOMMIT) {
+    await commitChangedFilesAsync(initialCommitMessage);
+    Log.withTick('Committed changes.');
+    return;
+  }
   if (nonInteractive) {
     throw new Error(
-      'Cannot commit changes when --non-interactive is specified. Run the command in interactive mode to review and commit changes.'
+      'Cannot commit changes when --non-interactive is specified. Run the command in interactive mode or set EAS_BUILD_AUTOCOMMIT=1 in your environment.'
     );
   }
   const { selected } = await promptAsync({
