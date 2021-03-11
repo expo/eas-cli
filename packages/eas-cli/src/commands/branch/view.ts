@@ -24,12 +24,15 @@ const PAGE_LIMIT = 10_000;
 
 type TruncatedUpdate = Pick<Update, 'group' | 'message' | 'createdAt' | 'actor'>;
 
-async function viewUpdateBranchAsync({
+export async function viewUpdateBranchAsync({
   appId,
   name,
 }: Pick<ViewBranchQueryVariables, 'appId' | 'name'>): Promise<
   Pick<UpdateBranch, 'id' | 'name'> & {
-    updates: (Pick<Update, 'id' | 'group' | 'message' | 'createdAt'> & {
+    updates: (Pick<
+      Update,
+      'id' | 'group' | 'message' | 'createdAt' | 'runtimeVersion' | 'platform' | 'manifestFragment'
+    > & {
       actor?: Maybe<Pick<User, 'firstName' | 'id'> | Pick<Robot, 'firstName' | 'id'>>;
     })[];
   }
@@ -50,6 +53,9 @@ async function viewUpdateBranchAsync({
                     group
                     message
                     createdAt
+                    runtimeVersion
+                    platform
+                    manifestFragment
                     actor {
                       id
                       ... on User {

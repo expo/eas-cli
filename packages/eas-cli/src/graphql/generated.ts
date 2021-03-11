@@ -31,6 +31,8 @@ export type RootQuery = {
    * @deprecated Not used.
    */
   _doNotUse?: Maybe<Scalars['String']>;
+  /** fetch all updates in a group */
+  updatesByGroup: Array<Update>;
   /** Top-level query object for querying Accounts. */
   account: AccountQuery;
   /** Top-level query object for querying Actors. */
@@ -88,6 +90,11 @@ export type RootQuery = {
 };
 
 
+export type RootQueryUpdatesByGroupArgs = {
+  group: Scalars['ID'];
+};
+
+
 export type RootQueryAppByAppIdArgs = {
   appId: Scalars['String'];
 };
@@ -126,23 +133,51 @@ export type RootQueryUserByUsernameArgs = {
   username: Scalars['String'];
 };
 
-export type AccountQuery = {
-  __typename?: 'AccountQuery';
-  /** Query an Account by ID */
-  byId: Account;
-  /** Query an Account by name */
-  byName: Account;
+export type Update = ActivityTimelineProjectActivity & {
+  __typename?: 'Update';
+  id: Scalars['ID'];
+  actor?: Maybe<Actor>;
+  activityTimestamp: Scalars['DateTime'];
+  branchId: Scalars['ID'];
+  platform: Scalars['String'];
+  manifestFragment: Scalars['String'];
+  runtimeVersion: Scalars['String'];
+  group: Scalars['String'];
+  updatedAt: Scalars['DateTime'];
+  createdAt: Scalars['DateTime'];
+  message?: Maybe<Scalars['String']>;
+  branch: UpdateBranch;
+};
+
+export type ActivityTimelineProjectActivity = {
+  id: Scalars['ID'];
+  actor?: Maybe<Actor>;
+  activityTimestamp: Scalars['DateTime'];
+};
+
+/** A user or robot that can authenticate with Expo services and be a member of accounts. */
+export type Actor = {
+  id: Scalars['ID'];
+  firstName?: Maybe<Scalars['String']>;
+  created?: Maybe<Scalars['DateTime']>;
+  isExpoAdmin?: Maybe<Scalars['Boolean']>;
+  /** Associated accounts */
+  accounts: Array<Account>;
+  /** Access Tokens belonging to this actor */
+  accessTokens: Array<AccessToken>;
+  /**
+   * Server feature gate values for this actor, optionally filtering by desired gates.
+   * Only resolves for the viewer.
+   */
+  featureGates: Scalars['JSONObject'];
 };
 
 
-export type AccountQueryByIdArgs = {
-  accountId: Scalars['String'];
+/** A user or robot that can authenticate with Expo services and be a member of accounts. */
+export type ActorFeatureGatesArgs = {
+  filter?: Maybe<Array<Scalars['String']>>;
 };
 
-
-export type AccountQueryByNameArgs = {
-  accountName: Scalars['String'];
-};
 
 /**
  * An account is a container owning projects, credentials, billing and other organization
@@ -217,6 +252,7 @@ export type AccountSnacksArgs = {
 export type AccountAppsArgs = {
   offset: Scalars['Int'];
   limit: Scalars['Int'];
+  includeUnpublished?: Maybe<Scalars['Boolean']>;
 };
 
 
@@ -286,7 +322,6 @@ export type AccountAppleDevicesArgs = {
 export type AccountEnvironmentSecretsArgs = {
   filterNames?: Maybe<Array<Scalars['String']>>;
 };
-
 
 export type Offer = {
   __typename?: 'Offer';
@@ -575,6 +610,7 @@ export type UserSnacksArgs = {
 export type UserAppsArgs = {
   offset: Scalars['Int'];
   limit: Scalars['Int'];
+  includeUnpublished?: Maybe<Scalars['Boolean']>;
 };
 
 
@@ -589,43 +625,6 @@ export type UserLikesArgs = {
 export type UserFeatureGatesArgs = {
   filter?: Maybe<Array<Scalars['String']>>;
 };
-
-/** A user or robot that can authenticate with Expo services and be a member of accounts. */
-export type Actor = {
-  id: Scalars['ID'];
-  firstName?: Maybe<Scalars['String']>;
-  created?: Maybe<Scalars['DateTime']>;
-  isExpoAdmin?: Maybe<Scalars['Boolean']>;
-  /** Associated accounts */
-  accounts: Array<Account>;
-  /** Access Tokens belonging to this actor */
-  accessTokens: Array<AccessToken>;
-  /**
-   * Server feature gate values for this actor, optionally filtering by desired gates.
-   * Only resolves for the viewer.
-   */
-  featureGates: Scalars['JSONObject'];
-};
-
-
-/** A user or robot that can authenticate with Expo services and be a member of accounts. */
-export type ActorFeatureGatesArgs = {
-  filter?: Maybe<Array<Scalars['String']>>;
-};
-
-/** A method of authentication for an Actor */
-export type AccessToken = {
-  __typename?: 'AccessToken';
-  id: Scalars['ID'];
-  visibleTokenPrefix: Scalars['String'];
-  createdAt: Scalars['DateTime'];
-  updatedAt: Scalars['DateTime'];
-  revokedAt?: Maybe<Scalars['DateTime']>;
-  lastUsedAt?: Maybe<Scalars['DateTime']>;
-  owner: Actor;
-  note?: Maybe<Scalars['String']>;
-};
-
 
 /** A second factor device belonging to a User */
 export type UserSecondFactorDevice = {
@@ -647,6 +646,19 @@ export enum SecondFactorMethod {
   /** SMS */
   Sms = 'SMS'
 }
+
+/** A method of authentication for an Actor */
+export type AccessToken = {
+  __typename?: 'AccessToken';
+  id: Scalars['ID'];
+  visibleTokenPrefix: Scalars['String'];
+  createdAt: Scalars['DateTime'];
+  updatedAt: Scalars['DateTime'];
+  revokedAt?: Maybe<Scalars['DateTime']>;
+  lastUsedAt?: Maybe<Scalars['DateTime']>;
+  owner: Actor;
+  note?: Maybe<Scalars['String']>;
+};
 
 /** An pending invitation sent to an email granting membership on an Account. */
 export type UserInvitation = {
@@ -678,6 +690,7 @@ export enum Role {
   HasAdmin = 'HAS_ADMIN',
   NotAdmin = 'NOT_ADMIN'
 }
+
 
 export enum AppPlatform {
   Ios = 'IOS',
@@ -727,12 +740,8 @@ export type Build = ActivityTimelineProjectActivity & {
   releaseChannel?: Maybe<Scalars['String']>;
   metrics?: Maybe<BuildMetrics>;
   distribution?: Maybe<DistributionType>;
-};
-
-export type ActivityTimelineProjectActivity = {
-  id: Scalars['ID'];
-  actor?: Maybe<Actor>;
-  activityTimestamp: Scalars['DateTime'];
+  buildProfile?: Maybe<Scalars['String']>;
+  gitCommitHash?: Maybe<Scalars['String']>;
 };
 
 export type BuildArtifacts = {
@@ -1060,22 +1069,6 @@ export type UpdateBranchUpdatesArgs = {
   limit: Scalars['Int'];
 };
 
-export type Update = ActivityTimelineProjectActivity & {
-  __typename?: 'Update';
-  id: Scalars['ID'];
-  actor?: Maybe<Actor>;
-  activityTimestamp: Scalars['DateTime'];
-  branchId: Scalars['ID'];
-  platform: Scalars['String'];
-  manifestFragment: Scalars['String'];
-  runtimeVersion: Scalars['String'];
-  group: Scalars['String'];
-  updatedAt: Scalars['DateTime'];
-  createdAt: Scalars['DateTime'];
-  message?: Maybe<Scalars['String']>;
-  branch: UpdateBranch;
-};
-
 export type EnvironmentSecret = {
   __typename?: 'EnvironmentSecret';
   id: Scalars['ID'];
@@ -1147,6 +1140,24 @@ export type Charge = {
   amount?: Maybe<Scalars['Int']>;
   wasRefunded?: Maybe<Scalars['Boolean']>;
   receiptUrl?: Maybe<Scalars['String']>;
+};
+
+export type AccountQuery = {
+  __typename?: 'AccountQuery';
+  /** Query an Account by ID */
+  byId: Account;
+  /** Query an Account by name */
+  byName: Account;
+};
+
+
+export type AccountQueryByIdArgs = {
+  accountId: Scalars['String'];
+};
+
+
+export type AccountQueryByNameArgs = {
+  accountName: Scalars['String'];
 };
 
 export type ActorQuery = {
@@ -2795,6 +2806,19 @@ export type BranchesByAppQuery = (
   )> }
 );
 
+export type GetUpdateGroupAsyncQueryVariables = Exact<{
+  group: Scalars['ID'];
+}>;
+
+
+export type GetUpdateGroupAsyncQuery = (
+  { __typename?: 'RootQuery' }
+  & { updatesByGroup: Array<(
+    { __typename?: 'Update' }
+    & Pick<Update, 'id' | 'group' | 'runtimeVersion' | 'manifestFragment' | 'platform' | 'message'>
+  )> }
+);
+
 export type EditUpdateBranchMutationVariables = Exact<{
   input: EditUpdateBranchInput;
 }>;
@@ -2830,7 +2854,7 @@ export type ViewBranchQuery = (
         & Pick<UpdateBranch, 'id' | 'name'>
         & { updates: Array<(
           { __typename?: 'Update' }
-          & Pick<Update, 'id' | 'group' | 'message' | 'createdAt'>
+          & Pick<Update, 'id' | 'group' | 'message' | 'createdAt' | 'runtimeVersion' | 'platform' | 'manifestFragment'>
           & { actor?: Maybe<(
             { __typename?: 'User' }
             & Pick<User, 'firstName' | 'id'>

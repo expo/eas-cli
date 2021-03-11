@@ -1,49 +1,96 @@
 import { getConfig } from '@expo/config';
 import { Command, flags } from '@oclif/command';
+import assert from 'assert';
 import chalk from 'chalk';
 import Table from 'cli-table3';
+import dateFormat from 'dateformat';
+import gql from 'graphql-tag';
+import { uniqBy } from 'lodash';
 import ora from 'ora';
 
+import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
+import {
+  Actor,
+  GetUpdateGroupAsyncQuery,
+  RootQueryUpdatesByGroupArgs,
+  Update,
+  UpdateInfoGroup,
+} from '../../graphql/generated';
 import { PublishMutation } from '../../graphql/mutations/PublishMutation';
 import Log from '../../log';
 import { ensureProjectExistsAsync } from '../../project/ensureProjectExists';
-import {
-  findProjectRootAsync,
-  getBranchByNameAsync,
-  getProjectAccountNameAsync,
-} from '../../project/projectUtils';
+import { findProjectRootAsync, getProjectAccountNameAsync } from '../../project/projectUtils';
 import {
   buildBundlesAsync,
   buildUpdateInfoGroupAsync,
   collectAssets,
   uploadAssetsAsync,
 } from '../../project/publish';
-import { promptAsync } from '../../prompts';
+import { promptAsync, selectAsync } from '../../prompts';
 import { getLastCommitMessageAsync } from '../../utils/git';
+import { formatUpdate, listBranchesAsync } from './list';
+import { viewUpdateBranchAsync } from './view';
+
+type PublishPlatforms = 'android' | 'ios';
+
+async function getUpdateGroupAsync({
+  group,
+}: RootQueryUpdatesByGroupArgs): Promise<GetUpdateGroupAsyncQuery['updatesByGroup']> {
+  const { updatesByGroup } = await withErrorHandlingAsync(
+    graphqlClient
+      .query<GetUpdateGroupAsyncQuery, RootQueryUpdatesByGroupArgs>(
+        gql`
+          query getUpdateGroupAsync($group: ID!) {
+            updatesByGroup(group: $group) {
+              id
+              group
+              runtimeVersion
+              manifestFragment
+              platform
+              message
+            }
+          }
+        `,
+        {
+          group,
+        }
+      )
+      .toPromise()
+  );
+  return updatesByGroup;
+}
 
 export default class BranchPublish extends Command {
   static hidden = true;
   static description = 'Publish an update group to a branch.';
 
   static flags = {
-    'input-dir': flags.string({
-      description: 'location of the bundle',
-      default: 'dist',
-      required: false,
-    }),
     branch: flags.string({
-      description: 'current name of the branch.',
+      description: 'name of the branch to publish on.',
     }),
     message: flags.string({
       description: 'Short message describing the updates.',
       required: false,
     }),
-    json: flags.boolean({
-      description: `return a json with the edited branch's ID and name.`,
-      default: false,
+    republish: flags.boolean({
+      description: 'republish an update group',
+      exclusive: ['input-dir', 'skip-bundler'],
+    }),
+    group: flags.string({
+      description: 'update group to republish',
+      exclusive: ['input-dir', 'skip-bundler'],
+    }),
+    'input-dir': flags.string({
+      description: 'location of the bundle',
+      default: 'dist',
+      required: false,
     }),
     'skip-bundler': flags.boolean({
       description: `skip running Expo CLI to bundle the app before publishing`,
+      default: false,
+    }),
+    json: flags.boolean({
+      description: `return a json with the new update group.`,
       default: false,
     }),
   };
@@ -54,10 +101,14 @@ export default class BranchPublish extends Command {
         json: jsonFlag,
         branch: name,
         message,
+        republish,
+        group,
         'input-dir': inputDir,
         'skip-bundler': skipBundler,
       },
     } = this.parse(BranchPublish);
+    // If a group was specified, that means we are republishing it.
+    republish = group ? true : republish;
 
     const projectDir = await findProjectRootAsync(process.cwd());
     if (!projectDir) {
@@ -83,12 +134,79 @@ export default class BranchPublish extends Command {
       if (jsonFlag) {
         throw new Error(validationMessage);
       }
-      ({ name } = await promptAsync({
-        type: 'text',
-        name: 'name',
-        message: 'Please enter the name of the branch to publish on:',
-        validate: value => (value ? true : validationMessage),
-      }));
+
+      const branches = await listBranchesAsync({ fullName: `@${accountName}/${slug}` });
+      name = await selectAsync<string>(
+        'which branch would you like to publish on?',
+        branches.map(branch => {
+          return {
+            title: `${branch.name} ${chalk.grey(
+              `- current update: ${formatUpdate(branch.updates[0])}`
+            )}`,
+            value: branch.name,
+          };
+        })
+      );
+    }
+    assert(name, 'branch name must be specified.');
+
+    const { id: branchId, updates } = await viewUpdateBranchAsync({
+      appId: projectId,
+      name,
+    });
+
+    let updateInfoGroup: UpdateInfoGroup = {};
+    let oldMessage: string, oldRuntimeVersion: string;
+    if (republish) {
+      // If we are republishing, we don't need to worry about building the bundle or uploading the assets.
+      // Instead we get the `updateInfoGroup` from the update we wish to republish.
+      let updatesToRepublish: Pick<
+        Update,
+        'group' | 'message' | 'runtimeVersion' | 'manifestFragment' | 'platform'
+      >[];
+      if (group) {
+        updatesToRepublish = await getUpdateGroupAsync({ group });
+      } else {
+        const updateGroups = uniqBy(updates, u => u.group).map(update => ({
+          title: formatUpdateTitle(update),
+          value: update.group,
+        }));
+        if (updateGroups.length === 0) {
+          throw new Error(
+            `There are no updates on branch "${name}". Did you mean to do a regular publish?`
+          );
+        }
+        const updateGroup = await selectAsync<string>(
+          'which update would you like to republish?',
+          updateGroups
+        );
+        updatesToRepublish = updates.filter(update => update.group === updateGroup);
+      }
+
+      for (const update of updatesToRepublish) {
+        const { platform, manifestFragment } = update;
+        updateInfoGroup[platform as PublishPlatforms] = JSON.parse(manifestFragment);
+      }
+      // These are the same for each member of an update group
+      group = updatesToRepublish[0].group;
+      oldMessage = updatesToRepublish[0].message ?? '';
+      oldRuntimeVersion = updatesToRepublish[0].runtimeVersion;
+    } else {
+      // build bundle and upload assets for a new publish
+      if (!skipBundler) {
+        await buildBundlesAsync({ projectDir, inputDir });
+      }
+
+      const assetSpinner = ora('Uploading assets...').start();
+      try {
+        const assets = collectAssets(inputDir!);
+        await uploadAssetsAsync(assets);
+        updateInfoGroup = await buildUpdateInfoGroupAsync(assets);
+        assetSpinner.succeed('Uploaded assets!');
+      } catch (e) {
+        assetSpinner.fail('Failed to upload assets');
+        throw e;
+      }
     }
 
     if (!message) {
@@ -100,30 +218,11 @@ export default class BranchPublish extends Command {
         type: 'text',
         name: 'publishMessage',
         message: `Please enter a publication message.`,
-        initial: (await getLastCommitMessageAsync())?.trim(),
+        initial: republish
+          ? `Republish "${oldMessage!}" - group: ${group}`
+          : (await getLastCommitMessageAsync())?.trim(),
         validate: value => (value ? true : validationMessage),
       }));
-    }
-
-    const { id: branchId } = await getBranchByNameAsync({
-      appId: projectId,
-      name: name!,
-    });
-
-    if (!skipBundler) {
-      await buildBundlesAsync({ projectDir, inputDir });
-    }
-
-    let updateInfoGroup;
-    const assetSpinner = ora('Uploading assets...').start();
-    try {
-      const assets = collectAssets(inputDir!);
-      await uploadAssetsAsync(assets);
-      updateInfoGroup = await buildUpdateInfoGroupAsync(assets);
-      assetSpinner.succeed('Uploaded assets!');
-    } catch (e) {
-      assetSpinner.fail('Failed to upload assets');
-      throw e;
     }
 
     let newUpdateGroup;
@@ -132,7 +231,7 @@ export default class BranchPublish extends Command {
       newUpdateGroup = await PublishMutation.publishUpdateGroupAsync({
         branchId,
         updateInfoGroup,
-        runtimeVersion,
+        runtimeVersion: republish ? oldRuntimeVersion! : runtimeVersion,
         message,
       });
       publishSpinner.succeed('Published!');
@@ -175,4 +274,15 @@ export default class BranchPublish extends Command {
       Log.log(outputMessage.toString());
     }
   }
+}
+
+function formatUpdateTitle(
+  update: Pick<Update, 'message' | 'createdAt' | 'runtimeVersion'> & {
+    actor?: Pick<Actor, 'firstName'> | null;
+  }
+): string {
+  const { message, createdAt, actor, runtimeVersion } = update;
+  return `[${dateFormat(createdAt, 'mmm dd HH:MM')} by ${
+    actor?.firstName ?? 'unknown'
+  }, runtimeVersion: ${runtimeVersion}] ${message}`;
 }
