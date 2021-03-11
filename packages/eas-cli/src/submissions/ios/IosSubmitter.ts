@@ -60,7 +60,7 @@ class IosSubmitter extends BaseSubmitter<IosSubmissionContext, IosSubmissionOpti
           '- When it’s done, you can see your build here' +
           learnMore(
             `https://appstoreconnect.apple.com/apps/${this.options.ascAppId}/appstore/ios`,
-            ''
+            { learnMoreMessage: '' }
           )
       );
     }

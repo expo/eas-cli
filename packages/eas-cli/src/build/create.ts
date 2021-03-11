@@ -1,3 +1,4 @@
+import { errors } from '@expo/eas-build-job';
 import { EasJsonReader } from '@expo/eas-json';
 import chalk from 'chalk';
 import ora from 'ora';
@@ -9,7 +10,7 @@ import { prepareAndroidBuildAsync } from './android/build';
 import { CommandContext } from './context';
 import { prepareIosBuildAsync } from './ios/build';
 import { Build, BuildStatus, Platform, RequestedPlatform } from './types';
-import { printBuildResults, printLogsUrls } from './utils/printBuildInfo';
+import { printBuildResults, printLogsUrls, printUserError } from './utils/printBuildInfo';
 import { ensureGitRepoExistsAsync, ensureGitStatusIsCleanAsync } from './utils/repository';
 
 export async function buildAsync(commandCtx: CommandContext): Promise<void> {
@@ -22,12 +23,21 @@ export async function buildAsync(commandCtx: CommandContext): Promise<void> {
   Log.newLine();
 
   if (commandCtx.waitForBuildEnd) {
-    const builds = await waitForBuildEndAsync(
-      commandCtx,
-      scheduledBuilds.map(i => i.buildId)
-    );
-    Log.newLine();
-    printBuildResults(commandCtx.accountName, builds);
+    try {
+      const builds = await waitForBuildEndAsync(
+        commandCtx,
+        scheduledBuilds.map(i => i.buildId)
+      );
+      printBuildResults(commandCtx.accountName, builds);
+      exitWithNonZeroCodeIfSomeBuildsFailed(builds);
+    } catch (err) {
+      if (err instanceof errors.UserError) {
+        printUserError(err);
+        process.exit(1);
+      } else {
+        throw err;
+      }
+    }
   }
 }
 
@@ -88,7 +98,8 @@ async function waitForBuildEndAsync(
       })
     );
     if (builds.length === 1) {
-      switch (builds[0]?.status) {
+      const build = builds[0] as Build;
+      switch (build.status) {
         case BuildStatus.FINISHED:
           spinner.succeed('Build finished');
           return builds;
@@ -104,7 +115,11 @@ async function waitForBuildEndAsync(
           break;
         case BuildStatus.ERRORED:
           spinner.fail('Build failed');
-          throw new Error(`Standalone build failed!`);
+          if (build.error) {
+            throw errors.fromExternalError(build.error);
+          } else {
+            throw new Error(`Standalone build failed!`);
+          }
         default:
           spinner.warn('Unknown status.');
           throw new Error(`Unknown status: ${builds} - aborting!`);
@@ -150,4 +165,11 @@ async function waitForBuildEndAsync(
   throw new Error(
     'Timeout reached! It is taking longer than expected to finish the build, aborting...'
   );
+}
+
+function exitWithNonZeroCodeIfSomeBuildsFailed(maybeBuilds: (Build | null)[]): void {
+  const failedBuilds = (maybeBuilds.filter(i => i) as Build[]).filter(i => i.status === 'errored');
+  if (failedBuilds.length > 0) {
+    process.exit(1);
+  }
 }

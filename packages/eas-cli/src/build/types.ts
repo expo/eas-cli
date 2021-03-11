@@ -27,11 +27,17 @@ export interface Build {
   updatedAt: string;
   artifacts?: BuildArtifacts;
   metadata?: Partial<Metadata>;
+  error?: BuildError;
 }
 
 interface BuildArtifacts {
   buildUrl?: string;
   logsUrl: string;
+}
+
+interface BuildError {
+  errorCode: string;
+  message: string;
 }
 
 export type PlatformBuildProfile<T extends Platform> = T extends Platform.ANDROID
