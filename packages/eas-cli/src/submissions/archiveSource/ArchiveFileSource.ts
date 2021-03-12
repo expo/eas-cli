@@ -210,7 +210,7 @@ async function handlePromptSourceAsync(source: ArchiveFilePromptSource): Promise
       });
     }
     case ArchiveFileSourceType.path: {
-      const path = await askForArchivePathAsync();
+      const path = await askForArchivePathAsync(source.platform);
       return getArchiveFileLocationAsync({
         ...source,
         sourceType: ArchiveFileSourceType.path,
@@ -258,11 +258,12 @@ async function askForArchiveUrlAsync(): Promise<string> {
   return url;
 }
 
-async function askForArchivePathAsync(): Promise<string> {
-  const defaultArchivePath = '/path/to/your/archive.aab';
+async function askForArchivePathAsync(platform: SubmissionPlatform): Promise<string> {
+  const isIos = platform === SubmissionPlatform.iOS;
+  const defaultArchivePath = `/path/to/your/archive.${isIos ? 'ipa' : 'aab'}`;
   const { path } = await promptAsync({
     name: 'path',
-    message: 'Path to the app archive file (aab or apk):',
+    message: `Path to the app archive file (${isIos ? 'ipa' : 'aab or apk'}):`,
     initial: defaultArchivePath,
     type: 'text',
     validate: async (path: string): Promise<boolean | string> => {

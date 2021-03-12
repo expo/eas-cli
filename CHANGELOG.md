@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Fix `eas submit` local archive prompt for `.aab` files when submitting for iOS. ([#273](https://github.com/expo/eas-cli/pull/144) by [@barthap](https://github.com/barthap))
+
 ### 🧹 Chores
 
 ## [0.6.0](https://github.com/expo/eas-cli/releases/tag/v0.6.0) - 2021-03-09
