@@ -55,7 +55,7 @@ function printBuildResult(accountName: string, build: Build): void {
       }`
     );
     if (userError) {
-      printUserError(userError, { printNewLine: false });
+      printUserError(userError);
     }
     return;
   }
@@ -100,10 +100,7 @@ export function printDeprecationWarnings(deprecationInfo?: DeprecationInfo): voi
   }
 }
 
-export function printUserError(error: errors.UserError, { printNewLine = true } = {}): void {
-  if (printNewLine) {
-    Log.addNewLineIfNone();
-  }
+export function printUserError(error: errors.UserError): void {
   Log.error(error.message);
   if (error.fyiURL) {
     Log.error(learnMore(error.fyiURL, { dim: false }));

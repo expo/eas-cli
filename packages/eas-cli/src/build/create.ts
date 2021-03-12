@@ -32,6 +32,7 @@ export async function buildAsync(commandCtx: CommandContext): Promise<void> {
       exitWithNonZeroCodeIfSomeBuildsFailed(builds);
     } catch (err) {
       if (err instanceof errors.UserError) {
+        Log.addNewLineIfNone();
         printUserError(err);
         process.exit(1);
       } else {
