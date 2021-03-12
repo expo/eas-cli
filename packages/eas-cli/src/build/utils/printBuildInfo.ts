@@ -59,6 +59,12 @@ function printBuildResult(accountName: string, build: Build): void {
     }
     return;
   }
+  if (build.status === 'canceled') {
+    Log.error(
+      `${platformEmojis[build.platform]} ${platformDisplayNames[build.platform]} was canceled`
+    );
+    return;
+  }
 
   if (build.metadata?.distribution === 'internal') {
     const logsUrl = getBuildLogsUrl({

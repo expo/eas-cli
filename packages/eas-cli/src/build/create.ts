@@ -1,4 +1,3 @@
-import { errors } from '@expo/eas-build-job';
 import { EasJsonReader } from '@expo/eas-json';
 import chalk from 'chalk';
 import ora from 'ora';
@@ -10,7 +9,7 @@ import { prepareAndroidBuildAsync } from './android/build';
 import { CommandContext } from './context';
 import { prepareIosBuildAsync } from './ios/build';
 import { Build, BuildStatus, Platform, RequestedPlatform } from './types';
-import { printBuildResults, printLogsUrls, printUserError } from './utils/printBuildInfo';
+import { printBuildResults, printLogsUrls } from './utils/printBuildInfo';
 import { ensureGitRepoExistsAsync, ensureGitStatusIsCleanAsync } from './utils/repository';
 
 export async function buildAsync(commandCtx: CommandContext): Promise<void> {
@@ -23,22 +22,12 @@ export async function buildAsync(commandCtx: CommandContext): Promise<void> {
   Log.newLine();
 
   if (commandCtx.waitForBuildEnd) {
-    try {
-      const builds = await waitForBuildEndAsync(
-        commandCtx,
-        scheduledBuilds.map(i => i.buildId)
-      );
-      printBuildResults(commandCtx.accountName, builds);
-      exitWithNonZeroCodeIfSomeBuildsFailed(builds);
-    } catch (err) {
-      if (err instanceof errors.UserError) {
-        Log.addNewLineIfNone();
-        printUserError(err);
-        process.exit(1);
-      } else {
-        throw err;
-      }
-    }
+    const builds = await waitForBuildEndAsync(
+      commandCtx,
+      scheduledBuilds.map(i => i.buildId)
+    );
+    printBuildResults(commandCtx.accountName, builds);
+    exitWithNonZeroCodeIfSomeBuildsFailed(builds);
   }
 }
 
@@ -117,7 +106,7 @@ async function waitForBuildEndAsync(
         case BuildStatus.ERRORED:
           spinner.fail('Build failed');
           if (build.error) {
-            throw errors.fromExternalError(build.error);
+            return builds;
           } else {
             throw new Error(`Standalone build failed!`);
           }
