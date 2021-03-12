@@ -1,7 +1,8 @@
+import { errors } from '@expo/eas-build-job';
 import assert from 'assert';
 import chalk from 'chalk';
 
-import Log from '../../log';
+import Log, { learnMore } from '../../log';
 import { platformDisplayNames, platformEmojis } from '../constants';
 import { Build } from '../types';
 import { getBuildLogsUrl } from './url';
@@ -34,18 +35,37 @@ export function printLogsUrls(
 }
 
 export function printBuildResults(accountName: string, builds: (Build | null)[]): void {
+  Log.newLine();
   if (builds.length === 1) {
     const [build] = builds;
     assert(build, 'Build should be defined');
     printBuildResult(accountName, build);
   } else {
-    (builds.filter(i => i) as Build[])
-      .filter(build => build.status === 'finished')
-      .forEach(build => printBuildResult(accountName, build));
+    (builds.filter(i => i) as Build[]).forEach(build => printBuildResult(accountName, build));
   }
 }
 
 function printBuildResult(accountName: string, build: Build): void {
+  Log.addNewLineIfNone();
+  if (build.status === 'errored') {
+    const userError = build.error && errors.fromExternalError(build.error);
+    Log.error(
+      `${platformEmojis[build.platform]} ${platformDisplayNames[build.platform]} build failed${
+        userError ? ':' : ''
+      }`
+    );
+    if (userError) {
+      printUserError(userError);
+    }
+    return;
+  }
+  if (build.status === 'canceled') {
+    Log.error(
+      `${platformEmojis[build.platform]} ${platformDisplayNames[build.platform]} was canceled`
+    );
+    return;
+  }
+
   if (build.metadata?.distribution === 'internal') {
     const logsUrl = getBuildLogsUrl({
       buildId: build.id,
@@ -57,14 +77,12 @@ function printBuildResult(accountName: string, build: Build): void {
       } devices to install the app:`
     );
     Log.log(`${chalk.underline(logsUrl)}`);
-    Log.newLine();
   } else {
     // TODO: it looks like buildUrl could possibly be undefined, based on the code below.
     // we should account for this case better if it is possible
     const url = build.artifacts?.buildUrl ?? '';
     Log.log(`${platformEmojis[build.platform]} ${platformDisplayNames[build.platform]} app:`);
     Log.log(`${chalk.underline(url)}`);
-    Log.newLine();
   }
 }
 
@@ -85,5 +103,12 @@ export function printDeprecationWarnings(deprecationInfo?: DeprecationInfo): voi
   } else {
     Log.warn('An unexpected warning was encountered. Please report it as a bug:');
     Log.warn(deprecationInfo);
+  }
+}
+
+export function printUserError(error: errors.UserError): void {
+  Log.error(error.message);
+  if (error.fyiURL) {
+    Log.error(learnMore(error.fyiURL, { dim: false }));
   }
 }

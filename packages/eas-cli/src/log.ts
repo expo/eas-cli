@@ -78,15 +78,20 @@ export default class Log {
 }
 
 /**
- * Format links as dim with an underline.
+ * Format links as dim (unless disabled) with an underline.
  *
  * @example Learn more: https://expo.io
  * @param url
  */
-export function learnMore(url: string, learnMoreMessage?: string): string {
+export function learnMore(
+  url: string,
+  { learnMoreMessage, dim = true }: { learnMoreMessage?: string; dim?: boolean } = {}
+): string {
   // Links can be disabled via env variables https://github.com/jamestalmage/supports-hyperlinks/blob/master/index.js
   if (terminalLink.isSupported) {
-    return chalk.dim(terminalLink(learnMoreMessage ?? 'Learn more.', url));
+    const text = terminalLink(learnMoreMessage ?? 'Learn more.', url);
+    return dim ? chalk.dim(text) : text;
   }
-  return chalk.dim(`${learnMoreMessage ?? 'Learn more'}: ${chalk.underline(url)}`);
+  const text = `${learnMoreMessage ?? 'Learn more'}: ${chalk.underline(url)}`;
+  return dim ? chalk.dim(text) : text;
 }

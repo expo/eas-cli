@@ -26,8 +26,8 @@ export async function buildAsync(commandCtx: CommandContext): Promise<void> {
       commandCtx,
       scheduledBuilds.map(i => i.buildId)
     );
-    Log.newLine();
     printBuildResults(commandCtx.accountName, builds);
+    exitWithNonZeroCodeIfSomeBuildsFailed(builds);
   }
 }
 
@@ -88,7 +88,8 @@ async function waitForBuildEndAsync(
       })
     );
     if (builds.length === 1) {
-      switch (builds[0]?.status) {
+      const build = builds[0] as Build;
+      switch (build.status) {
         case BuildStatus.FINISHED:
           spinner.succeed('Build finished');
           return builds;
@@ -104,7 +105,11 @@ async function waitForBuildEndAsync(
           break;
         case BuildStatus.ERRORED:
           spinner.fail('Build failed');
-          throw new Error(`Standalone build failed!`);
+          if (build.error) {
+            return builds;
+          } else {
+            throw new Error(`Standalone build failed!`);
+          }
         default:
           spinner.warn('Unknown status.');
           throw new Error(`Unknown status: ${builds} - aborting!`);
@@ -150,4 +155,11 @@ async function waitForBuildEndAsync(
   throw new Error(
     'Timeout reached! It is taking longer than expected to finish the build, aborting...'
   );
+}
+
+function exitWithNonZeroCodeIfSomeBuildsFailed(maybeBuilds: (Build | null)[]): void {
+  const failedBuilds = (maybeBuilds.filter(i => i) as Build[]).filter(i => i.status === 'errored');
+  if (failedBuilds.length > 0) {
+    process.exit(1);
+  }
 }
