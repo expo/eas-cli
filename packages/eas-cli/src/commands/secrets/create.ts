@@ -6,6 +6,10 @@ import { AccountResolver } from '../../devices/manager';
 import { EnvironmentSecretMutation } from '../../graphql/mutations/EnvironmentSecretMutation';
 import Log from '../../log';
 import { ensureProjectExistsAsync } from '../../project/ensureProjectExists';
+import {
+  isEasEnabledForProjectAsync,
+  warnEasUnavailable,
+} from '../../project/isEasEnabledForProject';
 import { findProjectRootAsync, getProjectAccountNameAsync } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
 import { ensureLoggedInAsync } from '../../user/actions';
@@ -38,6 +42,24 @@ export default class EnvironmentSecretCreate extends Command {
     let {
       args: { name, value: secretValue, target },
     } = this.parse(EnvironmentSecretCreate);
+
+    const projectDir = (await findProjectRootAsync()) ?? process.cwd();
+    const accountName = await getProjectAccountNameAsync(projectDir);
+
+    const {
+      exp: { slug },
+    } = getConfig(projectDir, { skipSDKVersionRequirement: true });
+
+    const projectId = await ensureProjectExistsAsync({
+      accountName,
+      projectName: slug,
+    });
+
+    if (!(await isEasEnabledForProjectAsync(projectId))) {
+      warnEasUnavailable();
+      process.exitCode = 1;
+      return;
+    }
 
     if (!target) {
       const validationMessage = 'Secret target may not be empty.';
@@ -84,25 +106,12 @@ export default class EnvironmentSecretCreate extends Command {
       }));
     }
 
-    const projectDir = await findProjectRootAsync(process.cwd());
-
     let secret;
 
     if (target === 'project') {
       if (!projectDir) {
         throw new Error('Please run this command inside a project directory.');
       }
-
-      const accountName = await getProjectAccountNameAsync(projectDir);
-
-      const {
-        exp: { slug },
-      } = getConfig(projectDir, { skipSDKVersionRequirement: true });
-
-      const projectId = await ensureProjectExistsAsync({
-        accountName,
-        projectName: slug,
-      });
 
       secret = await EnvironmentSecretMutation.createForApp(
         { name, value: secretValue },

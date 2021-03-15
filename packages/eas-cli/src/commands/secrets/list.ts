@@ -50,16 +50,16 @@ export default class EnvironmentSecretsList extends Command {
     ] as (EnvironmentSecretFragment & { type: 'app-specific' | 'account-wide' })[];
 
     const table = new Table({
-      head: ['name', 'type', 'updated-at'],
+      head: ['name', 'type', 'updated-at', 'id'],
       wordWrap: true,
     });
 
     for (const secret of secrets) {
-      const { name, createdAt: updatedAt, type } = secret;
-      table.push([name, type, updatedAt]);
+      const { name, createdAt: updatedAt, type, id } = secret;
+      table.push([name, type, updatedAt, id]);
     }
 
-    Log.log(chalk`{bold Secrets for this app:}`);
+    Log.log(chalk`{bold Secrets for this account and project:}`);
     Log.log(table.toString());
   }
 }
