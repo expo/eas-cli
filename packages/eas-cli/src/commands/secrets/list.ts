@@ -44,14 +44,9 @@ export default class EnvironmentSecretsList extends Command {
       EnvironmentSecretsQuery.byAppFullNameAsync(projectFullName),
     ]);
 
-    const appSecretNames = new Set(appSecrets.map(appSecret => appSecret.name));
-    const filteredAccountSecrets = accountSecrets.filter(
-      accountSecret => !appSecretNames.has(accountSecret.name)
-    );
-
     const secrets = [
       ...appSecrets.map(s => ({ ...s, type: 'app-specific' })),
-      ...filteredAccountSecrets.map(s => ({ ...s, type: 'account-wide' })),
+      ...accountSecrets.map(s => ({ ...s, type: 'account-wide' })),
     ] as (EnvironmentSecretFragment & { type: 'app-specific' | 'account-wide' })[];
 
     const table = new Table({
