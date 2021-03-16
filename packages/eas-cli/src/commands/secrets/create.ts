@@ -2,7 +2,7 @@ import { getConfig } from '@expo/config';
 import { Command } from '@oclif/command';
 import chalk from 'chalk';
 
-import { AccountResolver } from '../../user/Account';
+import { findAccountByName } from '../../user/Account';
 import { EnvironmentSecretMutation } from '../../graphql/mutations/EnvironmentSecretMutation';
 import Log from '../../log';
 import { ensureProjectExistsAsync } from '../../project/ensureProjectExists';
@@ -12,7 +12,7 @@ import {
 } from '../../project/isEasEnabledForProject';
 import { findProjectRootAsync, getProjectAccountNameAsync } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
-import { ensureLoggedInAsync } from '../../user/actions';
+import { ensureLoggedInAsync, getActorDisplayName } from '../../user/actions';
 
 export enum EnvironmentSecretTargetLocation {
   ACCOUNT = 'account',
@@ -127,8 +127,15 @@ export default class EnvironmentSecretCreate extends Command {
         )}.`
       );
     } else if (target === EnvironmentSecretTargetLocation.ACCOUNT) {
-      const resolver = new AccountResolver(projectDir, user);
-      const ownerAccount = await resolver.resolveAccountAsync();
+      const ownerAccount = findAccountByName(user.accounts, accountName);
+      if (!ownerAccount) {
+        Log.warn(
+          `Your account (${getActorDisplayName(user)}) doesn't have access to the ${chalk.bold(
+            accountName
+          )} account`
+        );
+        return;
+      }
 
       const secret = await EnvironmentSecretMutation.createForAccount(
         { name, value: secretValue },
