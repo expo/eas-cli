@@ -34,7 +34,7 @@ Unsure where to find the secret's ID? Run ${'`eas secrets:list`'}
     Log.newLine();
     const confirmed = await toggleConfirmAsync({ message: 'Are you sure you wish to proceed?' });
     if (!confirmed) {
-      Log.error(`Cancelled deletion of secret with id: "${id}".`);
+      Log.error(`Canceled deletion of secret with id: "${id}".`);
       process.exit(1);
     }
 
