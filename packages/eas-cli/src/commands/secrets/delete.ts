@@ -2,6 +2,11 @@ import { Command } from '@oclif/command';
 
 import { EnvironmentSecretMutation } from '../../graphql/mutations/EnvironmentSecretMutation';
 import Log from '../../log';
+import {
+  isEasEnabledForProjectAsync,
+  warnEasUnavailable,
+} from '../../project/isEasEnabledForProject';
+import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUtils';
 import { toggleConfirmAsync } from '../../prompts';
 import { ensureLoggedInAsync } from '../../user/actions';
 
@@ -22,6 +27,15 @@ Unsure where to find the secret's ID? Run ${'`eas secrets:list`'}
 
   async run() {
     await ensureLoggedInAsync();
+
+    const projectDir = (await findProjectRootAsync()) ?? process.cwd();
+    const projectId = await getProjectIdAsync(projectDir);
+
+    if (!(await isEasEnabledForProjectAsync(projectId))) {
+      warnEasUnavailable();
+      process.exitCode = 1;
+      return;
+    }
 
     const {
       args: { id },
