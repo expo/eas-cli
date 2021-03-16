@@ -14,6 +14,10 @@ import { findProjectRootAsync, getProjectAccountNameAsync } from '../../project/
 import { promptAsync } from '../../prompts';
 import { ensureLoggedInAsync } from '../../user/actions';
 
+export enum EnvironmentSecretTargetLocation {
+  ACCOUNT = 'account',
+  PROJECT = 'project',
+}
 export default class EnvironmentSecretCreate extends Command {
   static hidden = true;
   static description = 'Create an environment secret on the current project or owner account.';
@@ -23,7 +27,7 @@ export default class EnvironmentSecretCreate extends Command {
       name: 'target',
       required: false,
       description: 'Target location for the secret',
-      options: ['account', 'project'],
+      options: [EnvironmentSecretTargetLocation.ACCOUNT, EnvironmentSecretTargetLocation.PROJECT],
     },
     {
       name: 'name',
@@ -69,8 +73,8 @@ export default class EnvironmentSecretCreate extends Command {
         name: 'target',
         message: 'Where should this secret be used:',
         choices: [
-          { title: 'Account-wide', value: 'account' },
-          { title: 'Project-specific', value: 'project' },
+          { title: 'Account-wide', value: EnvironmentSecretTargetLocation.ACCOUNT },
+          { title: 'Project-specific', value: EnvironmentSecretTargetLocation.PROJECT },
         ],
         validate: value => (value ? true : validationMessage),
       }));
@@ -108,11 +112,7 @@ export default class EnvironmentSecretCreate extends Command {
 
     let secret;
 
-    if (target === 'project') {
-      if (!projectDir) {
-        throw new Error('Please run this command inside a project directory.');
-      }
-
+    if (target === EnvironmentSecretTargetLocation.PROJECT) {
       secret = await EnvironmentSecretMutation.createForApp(
         { name, value: secretValue },
         projectId
@@ -128,9 +128,7 @@ export default class EnvironmentSecretCreate extends Command {
           `@${accountName}/${slug}`
         )}.`
       );
-    }
-
-    if (target === 'account') {
+    } else if (target === EnvironmentSecretTargetLocation.ACCOUNT) {
       const resolver = new AccountResolver(projectDir, user);
       const ownerAccount = await resolver.resolveAccountAsync();
 
