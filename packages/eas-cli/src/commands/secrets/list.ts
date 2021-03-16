@@ -1,6 +1,7 @@
 import { Command } from '@oclif/command';
 import chalk from 'chalk';
 import Table from 'cli-table3';
+import dateFormat from 'dateformat';
 
 import { EnvironmentSecretFragment } from '../../graphql/generated';
 import { EnvironmentSecretsQuery } from '../../graphql/queries/EnvironmentSecretsQuery';
@@ -16,6 +17,7 @@ import {
   getProjectIdAsync,
 } from '../../project/projectUtils';
 import { ensureLoggedInAsync } from '../../user/actions';
+import { EnvironmentSecretTargetLocation } from './create';
 
 export default class EnvironmentSecretsList extends Command {
   static description = 'Lists environment secrets available for your current app';
@@ -45,18 +47,18 @@ export default class EnvironmentSecretsList extends Command {
     ]);
 
     const secrets = [
-      ...appSecrets.map(s => ({ ...s, type: 'app-specific' })),
-      ...accountSecrets.map(s => ({ ...s, type: 'account-wide' })),
-    ] as (EnvironmentSecretFragment & { type: 'app-specific' | 'account-wide' })[];
+      ...appSecrets.map(s => ({ ...s, target: EnvironmentSecretTargetLocation.PROJECT })),
+      ...accountSecrets.map(s => ({ ...s, target: EnvironmentSecretTargetLocation.ACCOUNT })),
+    ] as (EnvironmentSecretFragment & { target: EnvironmentSecretTargetLocation })[];
 
     const table = new Table({
-      head: ['name', 'type', 'updated-at', 'id'],
+      head: ['Name', 'Target', 'Updated at', 'ID'],
       wordWrap: true,
     });
 
     for (const secret of secrets) {
-      const { name, createdAt: updatedAt, type, id } = secret;
-      table.push([name, type, updatedAt, id]);
+      const { name, createdAt: updatedAt, target, id } = secret;
+      table.push([name, target, dateFormat(updatedAt, 'mmm dd HH:MM:ss'), id]);
     }
 
     Log.log(chalk`{bold Secrets for this account and project:}`);
