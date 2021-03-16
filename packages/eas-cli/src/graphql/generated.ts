@@ -2328,6 +2328,11 @@ export type UserInvitationMutation = {
   resendUserInvitation: UserInvitation;
   /** Rescind UserInvitation by ID */
   deleteUserInvitation: RescindUserInvitationResult;
+  /**
+   * Delete UserInvitation by token. Note that the viewer's email is not required to match
+   * the email on the invitation.
+   */
+  deleteUserInvitationByToken: RescindUserInvitationResult;
   /** Accept UserInvitation by ID. Viewer must have matching email and email must be verified. */
   acceptUserInvitationAsViewer: AcceptUserInvitationResult;
   /**
@@ -2353,6 +2358,11 @@ export type UserInvitationMutationResendUserInvitationArgs = {
 
 export type UserInvitationMutationDeleteUserInvitationArgs = {
   id: Scalars['ID'];
+};
+
+
+export type UserInvitationMutationDeleteUserInvitationByTokenArgs = {
+  token: Scalars['ID'];
 };
 
 
@@ -3598,7 +3608,7 @@ export type CommonIosAppCredentialsWithBuildCredentialsByAppIdentifierIdQuery = 
 );
 
 export type CreateEnvironmentSecretForAccountMutationVariables = Exact<{
-  input?: Maybe<CreateEnvironmentSecretInput>;
+  input: CreateEnvironmentSecretInput;
   accountId: Scalars['String'];
 }>;
 
@@ -3615,7 +3625,7 @@ export type CreateEnvironmentSecretForAccountMutation = (
 );
 
 export type CreateEnvironmentSecretForAppMutationVariables = Exact<{
-  input?: Maybe<CreateEnvironmentSecretInput>;
+  input: CreateEnvironmentSecretInput;
   appId: Scalars['String'];
 }>;
 
