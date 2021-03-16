@@ -1,12 +1,17 @@
 import chalk from 'chalk';
+import assert from 'assert';
 
 import { AppleTeamMutation } from '../credentials/ios/api/graphql/mutations/AppleTeamMutation';
 import { AppleTeamQuery } from '../credentials/ios/api/graphql/queries/AppleTeamQuery';
 import { AppleTeamFragment } from '../graphql/generated';
 import Log from '../log';
-import { Account, AccountResolver } from '../user/Account';
+import { Account, findAccountByName } from '../user/Account';
 import DeviceCreateAction from './actions/create/action';
 import { DeviceManagerContext } from './context';
+import { getProjectAccountNameAsync } from '../project/projectUtils';
+import { Choice, confirmAsync, promptAsync } from '../prompts';
+import { Actor } from '../user/User';
+import { getActorDisplayName } from '../user/actions';
 
 const CREATE_COMMAND_DESCRIPTION = `This command lets you register your Apple devices (iPhones and iPads) for internal distribution of your app.
 Internal distribution means that you won't need upload your app archive to App Store / Testflight.
@@ -36,6 +41,57 @@ export default class DeviceManager {
   private async resolveAccountAsync(): Promise<Account> {
     const resolver = new AccountResolver(this.ctx.projectDir, this.ctx.user);
     return await resolver.resolveAccountAsync();
+  }
+}
+
+class AccountResolver {
+  constructor(private projectDir: string | null, private user: Actor) {}
+
+  public async resolveAccountAsync(): Promise<Account> {
+    if (this.projectDir) {
+      const account = await this.resolveProjectAccountAsync();
+      if (account) {
+        return account;
+      }
+    }
+    return await this.promptForAccountAsync();
+  }
+
+  private async resolveProjectAccountAsync(): Promise<Account | undefined> {
+    assert(this.projectDir, 'project directory is not set ');
+
+    const projectAccountName = await getProjectAccountNameAsync(this.projectDir);
+    const projectAccount = findAccountByName(this.user.accounts, projectAccountName);
+    if (!projectAccount) {
+      Log.warn(
+        `Your account (${getActorDisplayName(this.user)}) doesn't have access to the ${chalk.bold(
+          projectAccountName
+        )} account`
+      );
+      return;
+    }
+
+    const useProjectAccount = await confirmAsync({
+      message: `You're inside the project directory. Would you like to use ${chalk.underline(
+        projectAccountName
+      )} account?`,
+    });
+
+    return useProjectAccount ? projectAccount : undefined;
+  }
+
+  private async promptForAccountAsync(): Promise<Account> {
+    const choices: Choice[] = this.user.accounts.map(account => ({
+      title: account.name,
+      value: account,
+    }));
+    const { account } = await promptAsync({
+      type: 'select',
+      name: 'account',
+      message: 'Which account to use?',
+      choices,
+    });
+    return account;
   }
 }
 
