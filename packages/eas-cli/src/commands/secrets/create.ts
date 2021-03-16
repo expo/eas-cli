@@ -2,7 +2,7 @@ import { getConfig } from '@expo/config';
 import { Command } from '@oclif/command';
 import chalk from 'chalk';
 
-import { AccountResolver } from '../../devices/manager';
+import { AccountResolver } from '../../user/Account';
 import { EnvironmentSecretMutation } from '../../graphql/mutations/EnvironmentSecretMutation';
 import Log from '../../log';
 import { ensureProjectExistsAsync } from '../../project/ensureProjectExists';
