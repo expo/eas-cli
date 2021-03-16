@@ -1,4 +1,4 @@
-import { Metadata, Platform } from '@expo/eas-build-job';
+import { Metadata, Platform, errors } from '@expo/eas-build-job';
 import { AndroidBuildProfile, iOSBuildProfile } from '@expo/eas-json';
 
 export enum RequestedPlatform {
@@ -27,17 +27,12 @@ export interface Build {
   updatedAt: string;
   artifacts?: BuildArtifacts;
   metadata?: Partial<Metadata>;
-  error?: BuildError;
+  error?: errors.ExternalUserError;
 }
 
 interface BuildArtifacts {
   buildUrl?: string;
   logsUrl: string;
-}
-
-interface BuildError {
-  errorCode: string;
-  message: string;
 }
 
 export type PlatformBuildProfile<T extends Platform> = T extends Platform.ANDROID
