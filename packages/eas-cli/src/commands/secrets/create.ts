@@ -16,7 +16,7 @@ import { ensureLoggedInAsync } from '../../user/actions';
 
 export default class EnvironmentSecretCreate extends Command {
   static hidden = true;
-  static description = 'Create an environment secret for on the current project or owner account.';
+  static description = 'Create an environment secret on the current project or owner account.';
 
   static args = [
     {
