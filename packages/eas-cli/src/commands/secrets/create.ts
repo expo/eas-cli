@@ -110,10 +110,8 @@ export default class EnvironmentSecretCreate extends Command {
       }));
     }
 
-    let secret;
-
     if (target === EnvironmentSecretTargetLocation.PROJECT) {
-      secret = await EnvironmentSecretMutation.createForApp(
+      const secret = await EnvironmentSecretMutation.createForApp(
         { name, value: secretValue },
         projectId
       );
@@ -132,7 +130,7 @@ export default class EnvironmentSecretCreate extends Command {
       const resolver = new AccountResolver(projectDir, user);
       const ownerAccount = await resolver.resolveAccountAsync();
 
-      secret = await EnvironmentSecretMutation.createForAccount(
+      const secret = await EnvironmentSecretMutation.createForAccount(
         { name, value: secretValue },
         ownerAccount.id
       );
