@@ -20,7 +20,7 @@ export const EnvironmentSecretMutation = {
         .mutation<CreateEnvironmentSecretForAccountMutation>(
           gql`
             mutation CreateEnvironmentSecretForAccount(
-              $input: CreateEnvironmentSecretInput
+              $input: CreateEnvironmentSecretInput!
               $accountId: String!
             ) {
               environmentSecret {
@@ -50,7 +50,7 @@ export const EnvironmentSecretMutation = {
         .query<CreateEnvironmentSecretForAppMutation>(
           gql`
             mutation CreateEnvironmentSecretForApp(
-              $input: CreateEnvironmentSecretInput
+              $input: CreateEnvironmentSecretInput!
               $appId: String!
             ) {
               environmentSecret {
