@@ -48,7 +48,7 @@ export function printBuildResults(accountName: string, builds: (Build | null)[])
 function printBuildResult(accountName: string, build: Build): void {
   Log.addNewLineIfNone();
   if (build.status === 'errored') {
-    const userError = build.error && errors.fromExternalError(build.error);
+    const userError = build.error;
     Log.error(
       `${platformEmojis[build.platform]} ${platformDisplayNames[build.platform]} build failed${
         userError ? ':' : ''
@@ -106,9 +106,9 @@ export function printDeprecationWarnings(deprecationInfo?: DeprecationInfo): voi
   }
 }
 
-export function printUserError(error: errors.UserError): void {
+export function printUserError(error: errors.ExternalUserError): void {
   Log.error(error.message);
-  if (error.fyiURL) {
-    Log.error(learnMore(error.fyiURL, { dim: false }));
+  if (error.docsURL) {
+    Log.error(learnMore(error.docsURL, { dim: false }));
   }
 }
