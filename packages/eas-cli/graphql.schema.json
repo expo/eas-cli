@@ -5025,6 +5025,18 @@
             },
             "isDeprecated": false,
             "deprecationReason": null
+          },
+          {
+            "name": "error",
+            "description": "",
+            "args": [],
+            "type": {
+              "kind": "OBJECT",
+              "name": "BuildError",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
           }
         ],
         "inputFields": null,
@@ -5135,6 +5147,41 @@
             "deprecationReason": null
           }
         ],
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
+        "name": "BuildError",
+        "description": "",
+        "fields": [
+          {
+            "name": "errorCode",
+            "description": "",
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "message",
+            "description": "",
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
         "possibleTypes": null
       },
       {
@@ -10817,118 +10864,8 @@
         "description": "",
         "fields": [
           {
-            "name": "grantAccess",
-            "description": "Add user to an account",
-            "args": [
-              {
-                "name": "accountName",
-                "description": null,
-                "type": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "SCALAR",
-                    "name": "ID",
-                    "ofType": null
-                  }
-                },
-                "defaultValue": null
-              },
-              {
-                "name": "toUser",
-                "description": null,
-                "type": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "SCALAR",
-                    "name": "ID",
-                    "ofType": null
-                  }
-                },
-                "defaultValue": null
-              },
-              {
-                "name": "accessLevels",
-                "description": null,
-                "type": {
-                  "kind": "LIST",
-                  "name": null,
-                  "ofType": {
-                    "kind": "ENUM",
-                    "name": "Permission",
-                    "ofType": null
-                  }
-                },
-                "defaultValue": null
-              }
-            ],
-            "type": {
-              "kind": "OBJECT",
-              "name": "Account",
-              "ofType": null
-            },
-            "isDeprecated": true,
-            "deprecationReason": "Use 'grantActorPermissions' mutation."
-          },
-          {
-            "name": "revokeAccess",
-            "description": "Revoke permissions for a given user",
-            "args": [
-              {
-                "name": "accountName",
-                "description": null,
-                "type": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "SCALAR",
-                    "name": "ID",
-                    "ofType": null
-                  }
-                },
-                "defaultValue": null
-              },
-              {
-                "name": "fromUser",
-                "description": null,
-                "type": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "SCALAR",
-                    "name": "ID",
-                    "ofType": null
-                  }
-                },
-                "defaultValue": null
-              },
-              {
-                "name": "accessLevels",
-                "description": null,
-                "type": {
-                  "kind": "LIST",
-                  "name": null,
-                  "ofType": {
-                    "kind": "ENUM",
-                    "name": "Permission",
-                    "ofType": null
-                  }
-                },
-                "defaultValue": null
-              }
-            ],
-            "type": {
-              "kind": "OBJECT",
-              "name": "Account",
-              "ofType": null
-            },
-            "isDeprecated": true,
-            "deprecationReason": "Use 'revokeActorPermissions' mutation."
-          },
-          {
             "name": "grantActorPermissions",
-            "description": "Add specified account Permissions for Actor",
+            "description": "Add specified account Permissions for Actor. Actor must already have at least one permission on the account.",
             "args": [
               {
                 "name": "accountID",
@@ -10983,7 +10920,7 @@
           },
           {
             "name": "revokeActorPermissions",
-            "description": "Revoke specified Permissions for Actor",
+            "description": "Revoke specified Permissions for Actor. Actor must already have at least one permission on the account.",
             "args": [
               {
                 "name": "accountID",
@@ -11258,57 +11195,6 @@
             "deprecationReason": null
           },
           {
-            "name": "extendOffer",
-            "description": "Extend offer to account",
-            "args": [
-              {
-                "name": "accountName",
-                "description": null,
-                "type": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "SCALAR",
-                    "name": "ID",
-                    "ofType": null
-                  }
-                },
-                "defaultValue": null
-              },
-              {
-                "name": "offer",
-                "description": null,
-                "type": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "ENUM",
-                    "name": "StandardOffer",
-                    "ofType": null
-                  }
-                },
-                "defaultValue": null
-              },
-              {
-                "name": "suppressMessage",
-                "description": null,
-                "type": {
-                  "kind": "SCALAR",
-                  "name": "Boolean",
-                  "ofType": null
-                },
-                "defaultValue": null
-              }
-            ],
-            "type": {
-              "kind": "OBJECT",
-              "name": "Account",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
             "name": "sendEmail",
             "description": "Send an email to primary account email",
             "args": [
@@ -11394,35 +11280,6 @@
         "inputFields": null,
         "interfaces": [],
         "enumValues": null,
-        "possibleTypes": null
-      },
-      {
-        "kind": "ENUM",
-        "name": "StandardOffer",
-        "description": "",
-        "fields": null,
-        "inputFields": null,
-        "interfaces": null,
-        "enumValues": [
-          {
-            "name": "DEFAULT",
-            "description": "$29 USD per month, 30 day trial",
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "YC_DEALS",
-            "description": "$29 USD per month, 1 year trial",
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "SUPPORT",
-            "description": "$800 USD per month",
-            "isDeprecated": false,
-            "deprecationReason": null
-          }
-        ],
         "possibleTypes": null
       },
       {
@@ -14977,6 +14834,37 @@
             "deprecationReason": null
           },
           {
+            "name": "deleteUserInvitationByToken",
+            "description": "Delete UserInvitation by token. Note that the viewer's email is not required to match\nthe email on the invitation.",
+            "args": [
+              {
+                "name": "token",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "ID",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null
+              }
+            ],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "OBJECT",
+                "name": "RescindUserInvitationResult",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "acceptUserInvitationAsViewer",
             "description": "Accept UserInvitation by ID. Viewer must have matching email and email must be verified.",
             "args": [
@@ -16598,6 +16486,35 @@
         "inputFields": null,
         "interfaces": [],
         "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "ENUM",
+        "name": "StandardOffer",
+        "description": "",
+        "fields": null,
+        "inputFields": null,
+        "interfaces": null,
+        "enumValues": [
+          {
+            "name": "DEFAULT",
+            "description": "$29 USD per month, 30 day trial",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "YC_DEALS",
+            "description": "$29 USD per month, 1 year trial",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "SUPPORT",
+            "description": "$800 USD per month",
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
         "possibleTypes": null
       },
       {

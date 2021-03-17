@@ -742,6 +742,7 @@ export type Build = ActivityTimelineProjectActivity & {
   distribution?: Maybe<DistributionType>;
   buildProfile?: Maybe<Scalars['String']>;
   gitCommitHash?: Maybe<Scalars['String']>;
+  error?: Maybe<BuildError>;
 };
 
 export type BuildArtifacts = {
@@ -761,6 +762,12 @@ export enum DistributionType {
   Internal = 'INTERNAL',
   Simulator = 'SIMULATOR'
 }
+
+export type BuildError = {
+  __typename?: 'BuildError';
+  errorCode?: Maybe<Scalars['String']>;
+  message?: Maybe<Scalars['String']>;
+};
 
 /** Represents an Standalone App build job */
 export type BuildJob = ActivityTimelineProjectActivity & {
@@ -1584,19 +1591,9 @@ export type DeleteAccessTokenResult = {
 
 export type AccountMutation = {
   __typename?: 'AccountMutation';
-  /**
-   * Add user to an account
-   * @deprecated Use 'grantActorPermissions' mutation.
-   */
-  grantAccess?: Maybe<Account>;
-  /**
-   * Revoke permissions for a given user
-   * @deprecated Use 'revokeActorPermissions' mutation.
-   */
-  revokeAccess?: Maybe<Account>;
-  /** Add specified account Permissions for Actor */
+  /** Add specified account Permissions for Actor. Actor must already have at least one permission on the account. */
   grantActorPermissions?: Maybe<Account>;
-  /** Revoke specified Permissions for Actor */
+  /** Revoke specified Permissions for Actor. Actor must already have at least one permission on the account. */
   revokeActorPermissions?: Maybe<Account>;
   /** Add a subscription */
   subscribeToProduct?: Maybe<Account>;
@@ -1614,26 +1611,10 @@ export type AccountMutation = {
   setBuildAutoRenew?: Maybe<Account>;
   /** Set payment details */
   setPaymentSource?: Maybe<Account>;
-  /** Extend offer to account */
-  extendOffer?: Maybe<Account>;
   /** Send an email to primary account email */
   sendEmail?: Maybe<Account>;
   /** Require authorization to send push notifications for experiences owned by this account */
   setPushSecurityEnabled?: Maybe<Account>;
-};
-
-
-export type AccountMutationGrantAccessArgs = {
-  accountName: Scalars['ID'];
-  toUser: Scalars['ID'];
-  accessLevels?: Maybe<Array<Maybe<Permission>>>;
-};
-
-
-export type AccountMutationRevokeAccessArgs = {
-  accountName: Scalars['ID'];
-  fromUser: Scalars['ID'];
-  accessLevels?: Maybe<Array<Maybe<Permission>>>;
 };
 
 
@@ -1683,13 +1664,6 @@ export type AccountMutationSetPaymentSourceArgs = {
 };
 
 
-export type AccountMutationExtendOfferArgs = {
-  accountName: Scalars['ID'];
-  offer: StandardOffer;
-  suppressMessage?: Maybe<Scalars['Boolean']>;
-};
-
-
 export type AccountMutationSendEmailArgs = {
   accountName: Scalars['ID'];
   emailTemplate: EmailTemplate;
@@ -1700,15 +1674,6 @@ export type AccountMutationSetPushSecurityEnabledArgs = {
   accountID: Scalars['ID'];
   pushSecurityEnabled: Scalars['Boolean'];
 };
-
-export enum StandardOffer {
-  /** $29 USD per month, 30 day trial */
-  Default = 'DEFAULT',
-  /** $29 USD per month, 1 year trial */
-  YcDeals = 'YC_DEALS',
-  /** $800 USD per month */
-  Support = 'SUPPORT'
-}
 
 export enum EmailTemplate {
   /** Able to purchase Developer Services */
@@ -2363,6 +2328,11 @@ export type UserInvitationMutation = {
   resendUserInvitation: UserInvitation;
   /** Rescind UserInvitation by ID */
   deleteUserInvitation: RescindUserInvitationResult;
+  /**
+   * Delete UserInvitation by token. Note that the viewer's email is not required to match
+   * the email on the invitation.
+   */
+  deleteUserInvitationByToken: RescindUserInvitationResult;
   /** Accept UserInvitation by ID. Viewer must have matching email and email must be verified. */
   acceptUserInvitationAsViewer: AcceptUserInvitationResult;
   /**
@@ -2388,6 +2358,11 @@ export type UserInvitationMutationResendUserInvitationArgs = {
 
 export type UserInvitationMutationDeleteUserInvitationArgs = {
   id: Scalars['ID'];
+};
+
+
+export type UserInvitationMutationDeleteUserInvitationByTokenArgs = {
+  token: Scalars['ID'];
 };
 
 
@@ -2675,6 +2650,15 @@ export type DeleteEnvironmentSecretResult = {
   __typename?: 'DeleteEnvironmentSecretResult';
   id: Scalars['ID'];
 };
+
+export enum StandardOffer {
+  /** $29 USD per month, 30 day trial */
+  Default = 'DEFAULT',
+  /** $29 USD per month, 1 year trial */
+  YcDeals = 'YC_DEALS',
+  /** $800 USD per month */
+  Support = 'SUPPORT'
+}
 
 export type BaseSearchResult = SearchResult & {
   __typename?: 'BaseSearchResult';
@@ -3623,6 +3607,56 @@ export type CommonIosAppCredentialsWithBuildCredentialsByAppIdentifierIdQuery = 
   )> }
 );
 
+export type CreateEnvironmentSecretForAccountMutationVariables = Exact<{
+  input: CreateEnvironmentSecretInput;
+  accountId: Scalars['String'];
+}>;
+
+
+export type CreateEnvironmentSecretForAccountMutation = (
+  { __typename?: 'RootMutation' }
+  & { environmentSecret: (
+    { __typename?: 'EnvironmentSecretMutation' }
+    & { createEnvironmentSecretForAccount: (
+      { __typename?: 'EnvironmentSecret' }
+      & EnvironmentSecretFragment
+    ) }
+  ) }
+);
+
+export type CreateEnvironmentSecretForAppMutationVariables = Exact<{
+  input: CreateEnvironmentSecretInput;
+  appId: Scalars['String'];
+}>;
+
+
+export type CreateEnvironmentSecretForAppMutation = (
+  { __typename?: 'RootMutation' }
+  & { environmentSecret: (
+    { __typename?: 'EnvironmentSecretMutation' }
+    & { createEnvironmentSecretForApp: (
+      { __typename?: 'EnvironmentSecret' }
+      & EnvironmentSecretFragment
+    ) }
+  ) }
+);
+
+export type DeleteEnvironmentSecretMutationVariables = Exact<{
+  id: Scalars['String'];
+}>;
+
+
+export type DeleteEnvironmentSecretMutation = (
+  { __typename?: 'RootMutation' }
+  & { environmentSecret: (
+    { __typename?: 'EnvironmentSecretMutation' }
+    & { deleteEnvironmentSecret: (
+      { __typename?: 'DeleteEnvironmentSecretResult' }
+      & Pick<DeleteEnvironmentSecretResult, 'id'>
+    ) }
+  ) }
+);
+
 export type GetSignedUploadMutationVariables = Exact<{
   contentTypes: Array<Scalars['String']>;
 }>;
@@ -3723,6 +3757,46 @@ export type PendingBuildsForAccountAndPlatformQuery = (
   ) }
 );
 
+export type EnvironmentSecretsByAccountNameQueryVariables = Exact<{
+  accountName: Scalars['String'];
+}>;
+
+
+export type EnvironmentSecretsByAccountNameQuery = (
+  { __typename?: 'RootQuery' }
+  & { account: (
+    { __typename?: 'AccountQuery' }
+    & { byName: (
+      { __typename?: 'Account' }
+      & Pick<Account, 'id'>
+      & { environmentSecrets: Array<(
+        { __typename?: 'EnvironmentSecret' }
+        & EnvironmentSecretFragment
+      )> }
+    ) }
+  ) }
+);
+
+export type EnvironmentSecretsByAppFullNameQueryVariables = Exact<{
+  fullName: Scalars['String'];
+}>;
+
+
+export type EnvironmentSecretsByAppFullNameQuery = (
+  { __typename?: 'RootQuery' }
+  & { app?: Maybe<(
+    { __typename?: 'AppQuery' }
+    & { byFullName: (
+      { __typename?: 'App' }
+      & Pick<App, 'id'>
+      & { environmentSecrets: Array<(
+        { __typename?: 'EnvironmentSecret' }
+        & EnvironmentSecretFragment
+      )> }
+    ) }
+  )> }
+);
+
 export type ProjectByUsernameAndSlugQueryVariables = Exact<{
   username: Scalars['String'];
   slug: Scalars['String'];
@@ -3784,6 +3858,11 @@ export type CurrentUserQuery = (
 export type AppFragment = (
   { __typename?: 'App' }
   & Pick<App, 'id' | 'fullName' | 'slug'>
+);
+
+export type EnvironmentSecretFragment = (
+  { __typename?: 'EnvironmentSecret' }
+  & Pick<EnvironmentSecret, 'id' | 'name' | 'createdAt'>
 );
 
 export type AppleAppIdentifierFragment = (
