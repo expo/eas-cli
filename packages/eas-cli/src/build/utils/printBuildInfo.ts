@@ -108,7 +108,7 @@ export function printDeprecationWarnings(deprecationInfo?: DeprecationInfo): voi
 
 export function printUserError(error: errors.ExternalUserError): void {
   Log.error(error.message);
-  if (error.docsURL) {
-    Log.error(learnMore(error.docsURL, { dim: false }));
+  if (error.docsUrl) {
+    Log.error(learnMore(error.docsUrl, { dim: false }));
   }
 }
