@@ -1,17 +1,17 @@
-import chalk from 'chalk';
 import assert from 'assert';
+import chalk from 'chalk';
 
 import { AppleTeamMutation } from '../credentials/ios/api/graphql/mutations/AppleTeamMutation';
 import { AppleTeamQuery } from '../credentials/ios/api/graphql/queries/AppleTeamQuery';
 import { AppleTeamFragment } from '../graphql/generated';
 import Log from '../log';
-import { Account, findAccountByName } from '../user/Account';
-import DeviceCreateAction from './actions/create/action';
-import { DeviceManagerContext } from './context';
 import { getProjectAccountNameAsync } from '../project/projectUtils';
 import { Choice, confirmAsync, promptAsync } from '../prompts';
+import { Account, findAccountByName } from '../user/Account';
 import { Actor } from '../user/User';
 import { getActorDisplayName } from '../user/actions';
+import DeviceCreateAction from './actions/create/action';
+import { DeviceManagerContext } from './context';
 
 const CREATE_COMMAND_DESCRIPTION = `This command lets you register your Apple devices (iPhones and iPads) for internal distribution of your app.
 Internal distribution means that you won't need upload your app archive to App Store / Testflight.
@@ -44,7 +44,7 @@ export default class DeviceManager {
   }
 }
 
-class AccountResolver {
+export class AccountResolver {
   constructor(private projectDir: string | null, private user: Actor) {}
 
   public async resolveAccountAsync(): Promise<Account> {
