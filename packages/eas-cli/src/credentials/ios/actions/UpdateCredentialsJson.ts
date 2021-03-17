@@ -11,7 +11,11 @@ export class UpdateCredentialsJson implements Action {
   constructor(private app: AppLookupParams) {}
 
   async runAsync(manager: CredentialsManager, ctx: Context): Promise<void> {
-    const bundleIdentifer = await ensureAppIdentifierIsDefinedAsync(ctx.projectDir, Platform.IOS);
+    const bundleIdentifer = await ensureAppIdentifierIsDefinedAsync({
+      projectDir: ctx.projectDir,
+      platform: Platform.IOS,
+      exp: ctx.exp,
+    });
     Log.log('Updating iOS credentials in credentials.json');
     await updateIosCredentialsAsync(ctx, bundleIdentifer);
     Log.succeed(

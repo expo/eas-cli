@@ -1,3 +1,4 @@
+import { getConfig } from '@expo/config';
 import { Command, flags } from '@oclif/command';
 import assert from 'assert';
 import chalk from 'chalk';
@@ -21,7 +22,8 @@ export default class BuildList extends Command {
     let appleTeamIdentifier = this.parse(BuildList).flags['apple-team-id'];
 
     const projectDir = (await findProjectRootAsync()) ?? process.cwd();
-    const accountName = await getProjectAccountNameAsync(projectDir);
+    const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
+    const accountName = await getProjectAccountNameAsync(exp);
 
     let spinner: ora.Ora;
 

@@ -47,7 +47,7 @@ export async function prepareIosBuildAsync(
     );
   }
 
-  await ensureBundleIdentifierIsValidAsync(commandCtx.projectDir);
+  await ensureBundleIdentifierIsValidAsync(commandCtx.projectDir, commandCtx.exp);
 
   return await prepareBuildRequestForPlatformAsync({
     ctx: buildCtx,

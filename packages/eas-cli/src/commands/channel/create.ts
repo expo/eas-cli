@@ -86,10 +86,9 @@ export default class ChannelCreate extends Command {
     if (!projectDir) {
       throw new Error('Please run this command inside a project directory.');
     }
-    const accountName = await getProjectAccountNameAsync(projectDir);
-    const {
-      exp: { slug },
-    } = getConfig(projectDir, { skipSDKVersionRequirement: true });
+    const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
+    const accountName = await getProjectAccountNameAsync(exp);
+    const { slug } = exp;
     const projectId = await ensureProjectExistsAsync({
       accountName,
       projectName: slug,

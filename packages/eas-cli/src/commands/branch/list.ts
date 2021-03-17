@@ -1,3 +1,4 @@
+import { getConfig } from '@expo/config';
 import { Command, flags } from '@oclif/command';
 import CliTable from 'cli-table3';
 import gql from 'graphql-tag';
@@ -80,7 +81,8 @@ export default class BranchList extends Command {
     if (!projectDir) {
       throw new Error('Please run this command inside a project directory.');
     }
-    const fullName = await getProjectFullNameAsync(projectDir);
+    const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
+    const fullName = await getProjectFullNameAsync(exp);
     const branches = await listBranchesAsync({ fullName });
     if (flags.json) {
       Log.log(JSON.stringify(branches, null, 2));
