@@ -28,6 +28,7 @@ export const EnvironmentSecretMutation = {
                   environmentSecretData: $input
                   accountId: $accountId
                 ) {
+                  id
                   ...EnvironmentSecretFragment
                 }
               }
@@ -55,6 +56,7 @@ export const EnvironmentSecretMutation = {
             ) {
               environmentSecret {
                 createEnvironmentSecretForApp(environmentSecretData: $input, appId: $appId) {
+                  id
                   ...EnvironmentSecretFragment
                 }
               }

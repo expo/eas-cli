@@ -20,6 +20,7 @@ export const EnvironmentSecretsQuery = {
                 byName(accountName: $accountName) {
                   id
                   environmentSecrets {
+                    id
                     ...EnvironmentSecretFragment
                   }
                 }
@@ -44,6 +45,7 @@ export const EnvironmentSecretsQuery = {
                 byFullName(fullName: $fullName) {
                   id
                   environmentSecrets {
+                    id
                     ...EnvironmentSecretFragment
                   }
                 }

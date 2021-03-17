@@ -2,7 +2,6 @@ import { getConfig } from '@expo/config';
 import { Command } from '@oclif/command';
 import chalk from 'chalk';
 
-import { findAccountByName } from '../../user/Account';
 import { EnvironmentSecretMutation } from '../../graphql/mutations/EnvironmentSecretMutation';
 import Log from '../../log';
 import { ensureProjectExistsAsync } from '../../project/ensureProjectExists';
@@ -12,6 +11,7 @@ import {
 } from '../../project/isEasEnabledForProject';
 import { findProjectRootAsync, getProjectAccountNameAsync } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
+import { findAccountByName } from '../../user/Account';
 import { ensureLoggedInAsync, getActorDisplayName } from '../../user/actions';
 
 export enum EnvironmentSecretTargetLocation {
