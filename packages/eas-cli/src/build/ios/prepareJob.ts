@@ -96,6 +96,7 @@ async function prepareJobCommonAsync(
       image: ctx.buildProfile.image,
       node: ctx.buildProfile.node,
       yarn: ctx.buildProfile.yarn,
+      bundler: ctx.buildProfile.bundler,
       cocoapods: ctx.buildProfile.cocoapods,
       fastlane: ctx.buildProfile.fastlane,
       env: ctx.buildProfile.env,
