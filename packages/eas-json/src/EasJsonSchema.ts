@@ -25,6 +25,7 @@ const IosBuilderEnvironmentSchema = Joi.object({
     .default('default'),
   node: Joi.string().empty(null).custom(semverSchemaCheck),
   yarn: Joi.string().empty(null).custom(semverSchemaCheck),
+  bundler: Joi.string().empty(null).custom(semverSchemaCheck),
   fastlane: Joi.string().empty(null).custom(semverSchemaCheck),
   cocoapods: Joi.string().empty(null).custom(semverSchemaCheck),
   env: Joi.object().pattern(Joi.string(), Joi.string().empty(null)).default({}),
