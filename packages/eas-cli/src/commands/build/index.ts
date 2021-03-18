@@ -1,3 +1,4 @@
+import { getConfig } from '@expo/config';
 import { Command, flags } from '@oclif/command';
 import chalk from 'chalk';
 import fs from 'fs-extra';
@@ -68,7 +69,8 @@ export default class Build extends Command {
       (flags.platform as RequestedPlatform | undefined) ?? (await promptForPlatformAsync());
 
     const projectDir = (await findProjectRootAsync()) ?? process.cwd();
-    const projectId = await getProjectIdAsync(projectDir);
+    const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
+    const projectId = await getProjectIdAsync(exp);
 
     if (!(await isEasEnabledForProjectAsync(projectId))) {
       warnEasUnavailable();
@@ -76,7 +78,7 @@ export default class Build extends Command {
       return;
     }
 
-    const accountName = await getProjectAccountNameAsync(projectDir);
+    const accountName = await getProjectAccountNameAsync(exp);
     const accountHasPendingBuilds = await ensureNoPendingBuildsExistAsync({
       accountName,
       platform,
@@ -98,6 +100,7 @@ export default class Build extends Command {
     const commandCtx = await createCommandContextAsync({
       requestedPlatform: platform,
       profile: flags.profile,
+      exp,
       projectDir,
       projectId,
       trackingCtx,

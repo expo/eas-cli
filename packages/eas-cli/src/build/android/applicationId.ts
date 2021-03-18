@@ -24,8 +24,12 @@ function isApplicationIdValid(applicationId: string): boolean {
   return /^[a-zA-Z][a-zA-Z0-9_]*(\.[a-zA-Z][a-zA-Z0-9_]*)+$/.test(applicationId);
 }
 
-export async function ensureApplicationIdIsValidAsync(projectDir: string) {
-  const applicationId = await ensureAppIdentifierIsDefinedAsync(projectDir, Platform.ANDROID);
+export async function ensureApplicationIdIsValidAsync(projectDir: string, exp: ExpoConfig) {
+  const applicationId = await ensureAppIdentifierIsDefinedAsync({
+    projectDir,
+    platform: Platform.ANDROID,
+    exp,
+  });
   if (!isApplicationIdValid(applicationId)) {
     const configDescription = getProjectConfigDescription(projectDir);
     Log.error(

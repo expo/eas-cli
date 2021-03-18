@@ -1,4 +1,4 @@
-import { ExpoConfig, getConfig } from '@expo/config';
+import { ExpoConfig } from '@expo/config';
 import { AndroidBuildProfile, EasConfig, iOSBuildProfile } from '@expo/eas-json';
 
 import { getProjectAccountName } from '../project/projectUtils';
@@ -25,6 +25,7 @@ export interface CommandContext {
 export async function createCommandContextAsync({
   requestedPlatform,
   profile,
+  exp,
   projectDir,
   projectId,
   trackingCtx,
@@ -35,6 +36,7 @@ export async function createCommandContextAsync({
 }: {
   requestedPlatform: RequestedPlatform;
   profile: string;
+  exp: ExpoConfig;
   projectId: string;
   projectDir: string;
   trackingCtx: TrackingContext;
@@ -44,7 +46,6 @@ export async function createCommandContextAsync({
   waitForBuildEnd: boolean;
 }): Promise<CommandContext> {
   const user = await ensureLoggedInAsync();
-  const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
   const accountName = getProjectAccountName(exp, user);
   const projectName = exp.slug;
 

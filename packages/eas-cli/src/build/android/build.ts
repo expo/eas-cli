@@ -60,7 +60,7 @@ This means that it will most likely produce an AAB and you will not be able to i
     }
   }
 
-  await ensureApplicationIdIsValidAsync(commandCtx.projectDir);
+  await ensureApplicationIdIsValidAsync(commandCtx.projectDir, commandCtx.exp);
 
   return await prepareBuildRequestForPlatformAsync({
     ctx: buildCtx,

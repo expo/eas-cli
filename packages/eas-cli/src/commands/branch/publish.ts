@@ -115,10 +115,9 @@ export default class BranchPublish extends Command {
       throw new Error('Please run this command inside a project directory.');
     }
 
-    const accountName = await getProjectAccountNameAsync(projectDir);
-    const {
-      exp: { slug, runtimeVersion },
-    } = getConfig(projectDir, { skipSDKVersionRequirement: true });
+    const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
+    const accountName = await getProjectAccountNameAsync(exp);
+    const { slug, runtimeVersion } = exp;
     if (!runtimeVersion) {
       throw new Error(
         "Couldn't find 'runtimeVersion'. Please specify it under the 'expo' key in 'app.json'"

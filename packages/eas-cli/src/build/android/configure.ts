@@ -15,7 +15,7 @@ export async function configureAndroidAsync(ctx: ConfigureContext): Promise<void
   }
   await AndroidConfig.EasBuild.configureEasBuildAsync(ctx.projectDir);
   await configureApplicationIdAsync(ctx.projectDir, ctx.exp, ctx.allowExperimental);
-  await ensureApplicationIdIsValidAsync(ctx.projectDir);
+  await ensureApplicationIdIsValidAsync(ctx.projectDir, ctx.exp);
 
   const easGradlePath = AndroidConfig.EasBuild.getEasBuildGradlePath(ctx.projectDir);
   await gitAddAsync(easGradlePath, { intentToAdd: true });

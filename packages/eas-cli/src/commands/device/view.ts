@@ -1,3 +1,4 @@
+import { getConfig } from '@expo/config';
 import { Command } from '@oclif/command';
 import ora from 'ora';
 
@@ -29,7 +30,8 @@ If you are not sure what is the UDID of the device you are looking for, run:
     }
 
     const projectDir = (await findProjectRootAsync()) ?? process.cwd();
-    const accountName = await getProjectAccountNameAsync(projectDir);
+    const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
+    const accountName = await getProjectAccountNameAsync(exp);
 
     const spinner = ora().start(`Fetching device details for ${UDID}…`);
 

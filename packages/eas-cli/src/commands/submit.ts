@@ -1,3 +1,4 @@
+import { getConfig } from '@expo/config';
 import { Command, flags } from '@oclif/command';
 
 import { learnMore } from '../log';
@@ -168,7 +169,8 @@ export default class BuildSubmit extends Command {
     const platform = platformFromParams ?? (await promptForPlatformAsync());
 
     const projectDir = (await findProjectRootAsync()) ?? process.cwd();
-    const projectId = await getProjectIdAsync(projectDir);
+    const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
+    const projectId = await getProjectIdAsync(exp);
 
     if (!(await isEasEnabledForProjectAsync(projectId))) {
       warnEasUnavailable();

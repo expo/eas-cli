@@ -28,7 +28,7 @@ export async function configureIosAsync(ctx: ConfigureContext): Promise<void> {
   )?.experimental?.disableIosBundleIdentifierValidation;
   if (!disableIosBundleIdentifierValidation) {
     await configureBundleIdentifierAsync(ctx.projectDir, ctx.exp);
-    await ensureBundleIdentifierIsValidAsync(ctx.projectDir);
+    await ensureBundleIdentifierIsValidAsync(ctx.projectDir, ctx.exp);
   }
 
   if (isExpoUpdatesInstalled(ctx.projectDir)) {

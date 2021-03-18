@@ -1,4 +1,4 @@
-import { ExpoConfig, getConfig, getConfigFilePaths } from '@expo/config';
+import { ExpoConfig, getConfigFilePaths } from '@expo/config';
 import { AndroidConfig, IOSConfig } from '@expo/config-plugins';
 import { Platform } from '@expo/eas-build-job';
 import fs from 'fs-extra';
@@ -26,8 +26,7 @@ export function getProjectAccountName(exp: ExpoConfig, user: Actor): string {
   }
 }
 
-export async function getProjectAccountNameAsync(projectDir: string): Promise<string> {
-  const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
+export async function getProjectAccountNameAsync(exp: ExpoConfig): Promise<string> {
   const user = await ensureLoggedInAsync();
   return getProjectAccountName(exp, user);
 }
@@ -37,8 +36,7 @@ export async function findProjectRootAsync(cwd?: string): Promise<string | null>
   return projectRootDir ?? null;
 }
 
-export async function getProjectIdAsync(projectDir: string): Promise<string> {
-  const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
+export async function getProjectIdAsync(exp: ExpoConfig): Promise<string> {
   return await ensureProjectExistsAsync({
     accountName: getProjectAccountName(exp, await ensureLoggedInAsync()),
     projectName: exp.slug,
@@ -46,10 +44,8 @@ export async function getProjectIdAsync(projectDir: string): Promise<string> {
   });
 }
 
-export async function getProjectFullNameAsync(projectDir: string): Promise<string> {
-  const accountName = await getProjectAccountNameAsync(projectDir);
-  const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
-
+export async function getProjectFullNameAsync(exp: ExpoConfig): Promise<string> {
+  const accountName = await getProjectAccountNameAsync(exp);
   return `@${accountName}/${exp.slug}`;
 }
 
@@ -65,11 +61,15 @@ export async function getAndroidApplicationIdAsync(projectDir: string): Promise<
   return matchResult?.[1] ?? null;
 }
 
-export async function getAppIdentifierAsync(
-  projectDir: string,
-  platform: Platform
-): Promise<string | null> {
-  const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
+export async function getAppIdentifierAsync({
+  projectDir,
+  platform,
+  exp,
+}: {
+  projectDir: string;
+  platform: Platform;
+  exp: ExpoConfig;
+}): Promise<string | null> {
   switch (platform) {
     case Platform.ANDROID: {
       const packageNameFromConfig = AndroidConfig.Package.getPackage(exp);
@@ -89,11 +89,16 @@ export async function getAppIdentifierAsync(
   }
 }
 
-export async function ensureAppIdentifierIsDefinedAsync(
-  projectDir: string,
-  platform: Platform
-): Promise<string> {
-  const appIdentifier = await getAppIdentifierAsync(projectDir, platform);
+export async function ensureAppIdentifierIsDefinedAsync({
+  projectDir,
+  platform,
+  exp,
+}: {
+  projectDir: string;
+  platform: Platform;
+  exp: ExpoConfig;
+}): Promise<string> {
+  const appIdentifier = await getAppIdentifierAsync({ projectDir, platform, exp });
   if (!appIdentifier) {
     const desc = getProjectConfigDescription(projectDir);
     const fieldStr = platform === Platform.ANDROID ? 'android.package' : 'ios.bundleIdentifier';

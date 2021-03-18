@@ -1,3 +1,4 @@
+import { ExpoConfig } from '@expo/config';
 import assert from 'assert';
 import chalk from 'chalk';
 
@@ -39,16 +40,16 @@ export default class DeviceManager {
   }
 
   private async resolveAccountAsync(): Promise<Account> {
-    const resolver = new AccountResolver(this.ctx.projectDir, this.ctx.user);
+    const resolver = new AccountResolver(this.ctx.exp, this.ctx.user);
     return await resolver.resolveAccountAsync();
   }
 }
 
 export class AccountResolver {
-  constructor(private projectDir: string | null, private user: Actor) {}
+  constructor(private exp: ExpoConfig | null, private user: Actor) {}
 
   public async resolveAccountAsync(): Promise<Account> {
-    if (this.projectDir) {
+    if (this.exp) {
       const account = await this.resolveProjectAccountAsync();
       if (account) {
         return account;
@@ -58,9 +59,9 @@ export class AccountResolver {
   }
 
   private async resolveProjectAccountAsync(): Promise<Account | undefined> {
-    assert(this.projectDir, 'project directory is not set ');
+    assert(this.exp, 'expo config is not set');
 
-    const projectAccountName = await getProjectAccountNameAsync(this.projectDir);
+    const projectAccountName = await getProjectAccountNameAsync(this.exp);
     const projectAccount = findAccountByName(this.user.accounts, projectAccountName);
     if (!projectAccount) {
       Log.warn(

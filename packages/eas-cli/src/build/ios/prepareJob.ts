@@ -151,7 +151,7 @@ async function prepareManagedJobAsync(
 ): Promise<Partial<Ios.ManagedJob>> {
   const projectRootDirectory =
     path.relative(await gitRootDirectoryAsync(), ctx.commandCtx.projectDir) || '.';
-  const accountName = await getProjectAccountNameAsync(ctx.commandCtx.projectDir);
+  const accountName = await getProjectAccountNameAsync(ctx.commandCtx.exp);
   const targetName = sanitizedName(ctx.commandCtx.exp.name);
   return {
     ...(await prepareJobCommonAsync(ctx, {

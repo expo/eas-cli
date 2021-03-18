@@ -35,7 +35,11 @@ export async function collectMetadata<T extends Platform>(
     distribution: ctx.buildProfile.distribution ?? 'store',
     appName: ctx.commandCtx.exp.name,
     appIdentifier:
-      (await getAppIdentifierAsync(ctx.commandCtx.projectDir, ctx.platform)) ?? undefined,
+      (await getAppIdentifierAsync({
+        projectDir: ctx.commandCtx.projectDir,
+        platform: ctx.platform,
+        exp: ctx.commandCtx.exp,
+      })) ?? undefined,
     buildProfile: ctx.commandCtx.profile,
     gitCommitHash: await gitCommitHashAsync(),
   };

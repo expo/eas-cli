@@ -1,3 +1,4 @@
+import { getConfig } from '@expo/config';
 import { Command, flags } from '@oclif/command';
 import chalk from 'chalk';
 import ora from 'ora';
@@ -26,9 +27,10 @@ export default class BuildList extends Command {
     const { platform, status, limit = 10 } = this.parse(BuildList).flags;
 
     const projectDir = (await findProjectRootAsync()) ?? process.cwd();
-    const projectId = await getProjectIdAsync(projectDir);
-    const accountName = await getProjectAccountNameAsync(projectDir);
-    const projectName = await getProjectFullNameAsync(projectDir);
+    const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
+    const projectId = await getProjectIdAsync(exp);
+    const accountName = await getProjectAccountNameAsync(exp);
+    const projectName = await getProjectFullNameAsync(exp);
 
     const spinner = ora().start('Fetching the build list for the project…');
 

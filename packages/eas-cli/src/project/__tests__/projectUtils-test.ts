@@ -1,4 +1,3 @@
-import { getConfig } from '@expo/config';
 import { vol } from 'memfs';
 
 import { asMock } from '../../__tests__/utils';
@@ -64,6 +63,7 @@ describe(getProjectAccountName, () => {
       __typename: 'User',
       id: 'userId',
       username: 'notbrent',
+      accounts: [],
     });
     expect(projectAccountName).toBe(expWithOwner.owner);
   });
@@ -73,6 +73,7 @@ describe(getProjectAccountName, () => {
       __typename: 'Robot',
       id: 'userId',
       firstName: 'notauser',
+      accounts: [],
     });
     expect(projectAccountName).toBe(expWithOwner.owner);
   });
@@ -82,6 +83,7 @@ describe(getProjectAccountName, () => {
       __typename: 'User',
       id: 'userId',
       username: 'dominik',
+      accounts: [],
     });
     expect(projectAccountName).toBe('dominik');
   });
@@ -92,23 +94,21 @@ describe(getProjectAccountName, () => {
         __typename: 'Robot',
         id: 'userId',
         firstName: 'notauser',
+        accounts: [],
       });
     expect(resolveProjectAccountName).toThrow('manifest property is required');
   });
 });
 
 describe(getProjectAccountNameAsync, () => {
+  const expWithOwner: any = { owner: 'dominik' };
+  const expWithoutOwner: any = {};
+
   beforeEach(() => {
-    asMock(getConfig).mockReset();
     asMock(getUserAsync).mockReset();
   });
 
   it(`returns the owner field's value from app.json / app.config.js`, async () => {
-    asMock(getConfig).mockImplementation(() => ({
-      exp: {
-        owner: 'dominik',
-      },
-    }));
     asMock(getUserAsync).mockImplementation((): Actor | undefined => ({
       __typename: 'User',
       id: 'user_id',
@@ -119,14 +119,11 @@ describe(getProjectAccountNameAsync, () => {
       ],
     }));
 
-    const projectAccountName = await getProjectAccountNameAsync('/app');
+    const projectAccountName = await getProjectAccountNameAsync(expWithOwner);
     expect(projectAccountName).toBe('dominik');
   });
 
   it(`returns the username if owner field is not set in app.json / app.config.js`, async () => {
-    asMock(getConfig).mockImplementation(() => ({
-      exp: {},
-    }));
     asMock(getUserAsync).mockImplementation((): Actor | undefined => ({
       __typename: 'User',
       id: 'user_id',
@@ -137,25 +134,19 @@ describe(getProjectAccountNameAsync, () => {
       ],
     }));
 
-    const projectAccountName = await getProjectAccountNameAsync('/app');
+    const projectAccountName = await getProjectAccountNameAsync(expWithoutOwner);
     expect(projectAccountName).toBe('notnotbrent');
   });
 
   it(`throws an error if the user is not logged in`, async () => {
-    asMock(getConfig).mockImplementation(() => ({
-      exp: {
-        owner: 'dominik',
-      },
-    }));
     asMock(getUserAsync).mockImplementation((): Actor | undefined => undefined);
 
-    await expect(getProjectAccountNameAsync('/app')).rejects.toThrow(/Failed to access user data/);
+    await expect(getProjectAccountNameAsync(expWithOwner)).rejects.toThrow(
+      /Failed to access user data/
+    );
   });
 
   it(`throws when project owner is undefined for robot actors`, async () => {
-    asMock(getConfig).mockImplementation(() => ({
-      exp: {},
-    }));
     asMock(getUserAsync).mockImplementation((): Actor | undefined => ({
       __typename: 'Robot',
       id: 'user_id',
@@ -165,7 +156,7 @@ describe(getProjectAccountNameAsync, () => {
         { id: 'account_id_2', name: 'dominik' },
       ],
     }));
-    await expect(getProjectAccountNameAsync('/app')).rejects.toThrow(
+    await expect(getProjectAccountNameAsync(expWithoutOwner)).rejects.toThrow(
       'manifest property is required'
     );
   });

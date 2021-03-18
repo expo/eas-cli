@@ -21,8 +21,12 @@ function isBundleIdentifierValid(bundleIdentifier: string): boolean {
   return /^[a-zA-Z][a-zA-Z0-9\-.]+$/.test(bundleIdentifier);
 }
 
-export async function ensureBundleIdentifierIsValidAsync(projectDir: string) {
-  const bundleIdentifier = await ensureAppIdentifierIsDefinedAsync(projectDir, Platform.IOS);
+export async function ensureBundleIdentifierIsValidAsync(projectDir: string, exp: ExpoConfig) {
+  const bundleIdentifier = await ensureAppIdentifierIsDefinedAsync({
+    projectDir,
+    platform: Platform.IOS,
+    exp,
+  });
   if (!isBundleIdentifierValid(bundleIdentifier)) {
     const configDescription = getProjectConfigDescription(projectDir);
     Log.error(

@@ -39,7 +39,8 @@ export async function ensureAppStoreConnectAppExistsAsync(
   const { bundleIdentifier, appName, language } = ctx.commandFlags;
 
   const resolvedBundleId =
-    bundleIdentifier ?? (await getAppIdentifierAsync(ctx.projectDir, Platform.IOS));
+    bundleIdentifier ??
+    (await getAppIdentifierAsync({ projectDir: ctx.projectDir, platform: Platform.IOS, exp }));
   if (!resolvedBundleId) {
     throw new Error(
       `Please define "expo.ios.bundleIdentifier" in your app config or provide it using --bundle-identifier param.
