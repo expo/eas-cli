@@ -14,7 +14,7 @@ import { Platform } from '../types';
 import { ensureBundleIdentifierIsValidAsync } from './bundleIdentifer';
 import { validateAndSyncProjectConfigurationAsync } from './configure';
 import { ensureIosCredentialsAsync } from './credentials';
-import { prepareJobAsync } from './prepareJob';
+import { prepareJobAsync, sanitizedTargetName } from './prepareJob';
 
 export async function prepareIosBuildAsync(
   commandCtx: CommandContext,
@@ -45,6 +45,14 @@ export async function prepareIosBuildAsync(
       buildCtx.commandCtx.projectDir,
       iosBuildScheme
     );
+  } else {
+    if (!commandCtx.exp.name) {
+      throw new Error('"expo.name" is required in your app.json');
+    }
+    iosApplicationTarget = sanitizedTargetName(commandCtx.exp.name);
+    if (!iosApplicationTarget) {
+      throw new Error('"expo.name" needs to contain some alphanumeric characters');
+    }
   }
 
   await ensureBundleIdentifierIsValidAsync(commandCtx.projectDir, commandCtx.exp);

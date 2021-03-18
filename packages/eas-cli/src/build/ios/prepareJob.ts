@@ -152,12 +152,11 @@ async function prepareManagedJobAsync(
   const projectRootDirectory =
     path.relative(await gitRootDirectoryAsync(), ctx.commandCtx.projectDir) || '.';
   const accountName = await getProjectAccountNameAsync(ctx.commandCtx.exp);
-  const targetName = sanitizedName(ctx.commandCtx.exp.name);
   return {
     ...(await prepareJobCommonAsync(ctx, {
       archiveBucketKey: jobData.archiveBucketKey,
       credentials: jobData.credentials,
-      targetName,
+      targetName: jobData.projectConfiguration.iosApplicationTarget,
     })),
     type: Workflow.MANAGED,
     buildType: buildProfile.buildType,
@@ -169,7 +168,7 @@ async function prepareManagedJobAsync(
 
 // copy-pasted from expo-cli/packages/xdl/src/Exp.ts
 // it's used in eject
-function sanitizedName(name: string) {
+export function sanitizedTargetName(name: string) {
   return name
     .replace(/[\W_]+/g, '')
     .normalize('NFD')
