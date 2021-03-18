@@ -61,7 +61,7 @@ function printBuildResult(accountName: string, build: Build): void {
   }
   if (build.status === 'canceled') {
     Log.error(
-      `${platformEmojis[build.platform]} ${platformDisplayNames[build.platform]} was canceled`
+      `${platformEmojis[build.platform]} ${platformDisplayNames[build.platform]} build was canceled`
     );
     return;
   }
