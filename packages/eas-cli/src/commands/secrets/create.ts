@@ -48,12 +48,10 @@ export default class EnvironmentSecretCreate extends Command {
     } = this.parse(EnvironmentSecretCreate);
 
     const projectDir = (await findProjectRootAsync()) ?? process.cwd();
-    const accountName = await getProjectAccountNameAsync(projectDir);
+    const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
+    const accountName = await getProjectAccountNameAsync(exp);
 
-    const {
-      exp: { slug },
-    } = getConfig(projectDir, { skipSDKVersionRequirement: true });
-
+    const { slug } = exp;
     const projectId = await ensureProjectExistsAsync({
       accountName,
       projectName: slug,

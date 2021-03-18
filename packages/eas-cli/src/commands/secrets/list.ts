@@ -1,3 +1,4 @@
+import { getConfig } from '@expo/config';
 import { Command } from '@oclif/command';
 import chalk from 'chalk';
 import Table from 'cli-table3';
@@ -27,9 +28,10 @@ export default class EnvironmentSecretsList extends Command {
     await ensureLoggedInAsync();
 
     const projectDir = (await findProjectRootAsync()) ?? process.cwd();
-    const projectId = await getProjectIdAsync(projectDir);
-    const projectFullName = await getProjectFullNameAsync(projectDir);
-    const projectAccountName = await getProjectAccountNameAsync(projectDir);
+    const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
+    const projectId = await getProjectIdAsync(exp);
+    const projectFullName = await getProjectFullNameAsync(exp);
+    const projectAccountName = await getProjectAccountNameAsync(exp);
 
     if (!(await isEasEnabledForProjectAsync(projectId))) {
       warnEasUnavailable();

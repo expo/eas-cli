@@ -1,3 +1,4 @@
+import { getConfig } from '@expo/config';
 import { Command } from '@oclif/command';
 
 import { EnvironmentSecretMutation } from '../../graphql/mutations/EnvironmentSecretMutation';
@@ -29,7 +30,8 @@ Unsure where to find the secret's ID? Run ${'`eas secrets:list`'}
     await ensureLoggedInAsync();
 
     const projectDir = (await findProjectRootAsync()) ?? process.cwd();
-    const projectId = await getProjectIdAsync(projectDir);
+    const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
+    const projectId = await getProjectIdAsync(exp);
 
     if (!(await isEasEnabledForProjectAsync(projectId))) {
       warnEasUnavailable();
