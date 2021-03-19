@@ -45,7 +45,7 @@ Unsure where to find the secret's ID? Run ${'`eas secrets:list`'}
 
     Log.addNewLineIfNone();
     Log.warn(
-      `You are about to permamently delete secret with id: "${id}".\nThis action is irreversable.`
+      `You are about to permamently delete secret with id: "${id}".\nThis action is irreversible.`
     );
     Log.newLine();
     const confirmed = await toggleConfirmAsync({ message: 'Are you sure you wish to proceed?' });
