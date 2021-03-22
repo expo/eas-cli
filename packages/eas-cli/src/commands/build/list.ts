@@ -3,13 +3,13 @@ import { Command, flags } from '@oclif/command';
 import chalk from 'chalk';
 import ora from 'ora';
 
-import { apiClient } from '../../api';
-import { Build } from '../../build/types';
-import formatBuild from '../../build/utils/formatBuild';
+import { BuildStatus, RequestedPlatform } from '../../build/types';
+import { formatGraphQLBuild } from '../../build/utils/formatBuild';
+import { AppPlatform, BuildStatus as GraphQLBuildStatus } from '../../graphql/generated';
+import { BuildQuery } from '../../graphql/queries/BuildQuery';
 import Log from '../../log';
 import {
   findProjectRootAsync,
-  getProjectAccountNameAsync,
   getProjectFullNameAsync,
   getProjectIdAsync,
 } from '../../project/projectUtils';
@@ -18,35 +18,45 @@ export default class BuildList extends Command {
   static description = 'list all builds for your project';
 
   static flags = {
-    platform: flags.enum({ options: ['all', 'android', 'ios'] }),
-    status: flags.enum({ options: ['in-queue', 'in-progress', 'errored', 'finished', 'canceled'] }),
+    platform: flags.enum({
+      options: [RequestedPlatform.All, RequestedPlatform.Android, RequestedPlatform.iOS],
+    }),
+    status: flags.enum({
+      options: [
+        BuildStatus.IN_QUEUE,
+        BuildStatus.IN_PROGRESS,
+        BuildStatus.ERRORED,
+        BuildStatus.FINISHED,
+        BuildStatus.CANCELED,
+      ],
+    }),
     limit: flags.integer(),
   };
 
   async run() {
-    const { platform, status, limit = 10 } = this.parse(BuildList).flags;
+    const { platform: requestedPlatform, status: buildStatus, limit = 10 } = this.parse(
+      BuildList
+    ).flags;
+
+    const platform = toAppPlatform(requestedPlatform);
+    const graphqlBuildStatus = toGraphQLBuildStatus(buildStatus);
 
     const projectDir = (await findProjectRootAsync()) ?? process.cwd();
     const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
     const projectId = await getProjectIdAsync(exp);
-    const accountName = await getProjectAccountNameAsync(exp);
     const projectName = await getProjectFullNameAsync(exp);
 
     const spinner = ora().start('Fetching the build list for the project…');
 
     try {
-      const response = await apiClient.get<{ data: { builds: Build[] } }>(
-        `projects/${projectId}/builds`,
-        {
-          searchParams: { platform, status, limit },
-          responseType: 'json',
-        }
-      );
-
-      const { builds } = response.body.data;
+      const builds = await BuildQuery.allForAppAsync(projectId, {
+        limit,
+        platform,
+        status: graphqlBuildStatus,
+      });
 
       if (builds.length) {
-        if (platform || status) {
+        if (platform || graphqlBuildStatus) {
           spinner.succeed(
             `Showing ${builds.length} matching builds for the project ${projectName}`
           );
@@ -55,7 +65,7 @@ export default class BuildList extends Command {
         }
 
         const list = builds
-          .map(build => formatBuild(build, { accountName }))
+          .map(build => formatGraphQLBuild(build))
           .join(`\n\n${chalk.dim('———')}\n\n`);
 
         Log.log(`\n${list}`);
@@ -68,3 +78,29 @@ export default class BuildList extends Command {
     }
   }
 }
+
+const toAppPlatform = (requestedPlatform?: RequestedPlatform): AppPlatform | undefined => {
+  if (!requestedPlatform || requestedPlatform === RequestedPlatform.All) {
+    return undefined;
+  } else if (requestedPlatform === RequestedPlatform.Android) {
+    return AppPlatform.Android;
+  } else {
+    return AppPlatform.Ios;
+  }
+};
+
+const toGraphQLBuildStatus = (buildStatus: BuildStatus): GraphQLBuildStatus | undefined => {
+  if (!buildStatus) {
+    return undefined;
+  } else if (buildStatus === BuildStatus.IN_QUEUE) {
+    return GraphQLBuildStatus.InQueue;
+  } else if (buildStatus === BuildStatus.IN_PROGRESS) {
+    return GraphQLBuildStatus.InProgress;
+  } else if (buildStatus === BuildStatus.ERRORED) {
+    return GraphQLBuildStatus.Errored;
+  } else if (buildStatus === BuildStatus.FINISHED) {
+    return GraphQLBuildStatus.Finished;
+  } else {
+    return GraphQLBuildStatus.Canceled;
+  }
+};

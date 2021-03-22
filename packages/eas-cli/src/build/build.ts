@@ -8,7 +8,7 @@ import { promptAsync } from '../prompts';
 import { UploadType, uploadAsync } from '../uploads';
 import { formatBytes } from '../utils/files';
 import { createProgressTracker } from '../utils/progress';
-import { platformDisplayNames } from './constants';
+import { requestedPlatformDisplayNames } from './constants';
 import { BuildContext } from './context';
 import { collectMetadata } from './metadata';
 import { AnalyticsEvent, Platform, TrackingContext } from './types';
@@ -69,7 +69,9 @@ export async function prepareBuildRequestForPlatformAsync<
   if (!(await isGitStatusCleanAsync())) {
     Log.addNewLineIfNone();
     await reviewAndCommitChangesAsync(
-      `[EAS Build] Run EAS Build for ${platformDisplayNames[builder.ctx.platform as Platform]}`,
+      `[EAS Build] Run EAS Build for ${
+        requestedPlatformDisplayNames[builder.ctx.platform as Platform]
+      }`,
       {
         nonInteractive: builder.ctx.commandCtx.nonInteractive,
       }
@@ -92,7 +94,7 @@ export async function prepareBuildRequestForPlatformAsync<
       return await withAnalyticsAsync(
         async () => {
           if (Log.isDebug) {
-            Log.log(`Starting ${platformDisplayNames[job.platform]} build`);
+            Log.log(`Starting ${requestedPlatformDisplayNames[job.platform]} build`);
           }
           const {
             data: { buildId, deprecationInfo },

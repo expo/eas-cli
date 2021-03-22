@@ -58,6 +58,8 @@ export type RootQuery = {
   buildJobs: BuildJobQuery;
   builds: BuildQuery;
   clientBuilds: ClientBuildQuery;
+  /** Top-level query object for querying Experimentation configuration. */
+  experimentation: ExperimentationQuery;
   project: ProjectQuery;
   /** Search for Snacks */
   search: Array<SearchResult>;
@@ -406,6 +408,7 @@ export type App = Project & {
   username: Scalars['String'];
   updated: Scalars['DateTime'];
   pushSecurityEnabled?: Maybe<Scalars['Boolean']>;
+  ownerAccount: Account;
   privacy: Scalars['String'];
   latestReleaseId: Scalars['ID'];
   /** @deprecated 'likes' have been deprecated. */
@@ -419,6 +422,7 @@ export type App = Project & {
   likedBy: Array<Maybe<User>>;
   /** @deprecated Field no longer supported */
   releases: Array<Maybe<AppRelease>>;
+  /** (EAS Build) Builds associated with this app */
   builds: Array<Build>;
   buildJobs: Array<BuildJob>;
   /** @deprecated Field no longer supported */
@@ -475,6 +479,7 @@ export type AppBuildsArgs = {
   offset: Scalars['Int'];
   limit: Scalars['Int'];
   status?: Maybe<BuildStatus>;
+  platform?: Maybe<AppPlatform>;
 };
 
 
@@ -1374,6 +1379,16 @@ export type ClientBuild = {
   userId?: Maybe<Scalars['String']>;
 };
 
+export type ExperimentationQuery = {
+  __typename?: 'ExperimentationQuery';
+  /** Get user experimentation config */
+  userConfig: Scalars['JSONObject'];
+  /** Get device experimentation config */
+  deviceConfig: Scalars['JSONObject'];
+  /** Get experimentation unit to use for device experiments. In this case, it is the IP address. */
+  deviceExperimentationUnit: Scalars['ID'];
+};
+
 export type ProjectQuery = {
   __typename?: 'ProjectQuery';
   byUsernameAndSlug: Project;
@@ -1542,7 +1557,7 @@ export type RootMutationBuildJobArgs = {
 
 
 export type RootMutationBuildArgs = {
-  buildId: Scalars['ID'];
+  buildId?: Maybe<Scalars['ID']>;
 };
 
 export type AccessTokenMutation = {
@@ -1615,6 +1630,8 @@ export type AccountMutation = {
   sendEmail?: Maybe<Account>;
   /** Require authorization to send push notifications for experiences owned by this account */
   setPushSecurityEnabled?: Maybe<Account>;
+  /** Rename this account */
+  rename: Account;
 };
 
 
@@ -1673,6 +1690,12 @@ export type AccountMutationSendEmailArgs = {
 export type AccountMutationSetPushSecurityEnabledArgs = {
   accountID: Scalars['ID'];
   pushSecurityEnabled: Scalars['Boolean'];
+};
+
+
+export type AccountMutationRenameArgs = {
+  accountID: Scalars['ID'];
+  newName: Scalars['String'];
 };
 
 export enum EmailTemplate {
@@ -2059,8 +2082,18 @@ export type BuildJobMutation = {
 
 export type BuildMutation = {
   __typename?: 'BuildMutation';
-  /** Cancel an EAS Build" */
+  /** Cancel an EAS Build build */
+  cancelBuild: Build;
+  /**
+   * Cancel an EAS Build build
+   * @deprecated Use cancelBuild instead
+   */
   cancel: Build;
+};
+
+
+export type BuildMutationCancelBuildArgs = {
+  buildId: Scalars['ID'];
 };
 
 export type IosAppBuildCredentialsMutation = {
@@ -2626,13 +2659,13 @@ export type EnvironmentSecretMutation = {
 
 
 export type EnvironmentSecretMutationCreateEnvironmentSecretForAccountArgs = {
-  environmentSecretData?: Maybe<CreateEnvironmentSecretInput>;
+  environmentSecretData: CreateEnvironmentSecretInput;
   accountId: Scalars['String'];
 };
 
 
 export type EnvironmentSecretMutationCreateEnvironmentSecretForAppArgs = {
-  environmentSecretData?: Maybe<CreateEnvironmentSecretInput>;
+  environmentSecretData: CreateEnvironmentSecretInput;
   appId: Scalars['String'];
 };
 
@@ -3619,6 +3652,7 @@ export type CreateEnvironmentSecretForAccountMutation = (
     { __typename?: 'EnvironmentSecretMutation' }
     & { createEnvironmentSecretForAccount: (
       { __typename?: 'EnvironmentSecret' }
+      & Pick<EnvironmentSecret, 'id'>
       & EnvironmentSecretFragment
     ) }
   ) }
@@ -3636,6 +3670,7 @@ export type CreateEnvironmentSecretForAppMutation = (
     { __typename?: 'EnvironmentSecretMutation' }
     & { createEnvironmentSecretForApp: (
       { __typename?: 'EnvironmentSecret' }
+      & Pick<EnvironmentSecret, 'id'>
       & EnvironmentSecretFragment
     ) }
   ) }
@@ -3700,37 +3735,35 @@ export type BuildsByIdQuery = (
     { __typename?: 'BuildQuery' }
     & { byId: (
       { __typename?: 'Build' }
-      & Pick<Build, 'id' | 'platform' | 'status' | 'createdAt'>
-      & { artifacts?: Maybe<(
-        { __typename?: 'BuildArtifacts' }
-        & Pick<BuildArtifacts, 'buildUrl'>
-      )> }
+      & Pick<Build, 'id'>
+      & BuildFragment
     ) }
   ) }
 );
 
-export type BuildsForAppQueryVariables = Exact<{
+export type GetAllBuildsForAppQueryVariables = Exact<{
   appId: Scalars['String'];
-  limit?: Maybe<Scalars['Int']>;
-  offset?: Maybe<Scalars['Int']>;
-  platform?: Maybe<AppPlatform>;
+  offset: Scalars['Int'];
+  limit: Scalars['Int'];
   status?: Maybe<BuildStatus>;
+  platform?: Maybe<AppPlatform>;
 }>;
 
 
-export type BuildsForAppQuery = (
+export type GetAllBuildsForAppQuery = (
   { __typename?: 'RootQuery' }
-  & { builds: (
-    { __typename?: 'BuildQuery' }
-    & { allForApp: Array<Maybe<(
-      { __typename?: 'Build' }
-      & Pick<Build, 'id' | 'platform' | 'status' | 'createdAt'>
-      & { artifacts?: Maybe<(
-        { __typename?: 'BuildArtifacts' }
-        & Pick<BuildArtifacts, 'buildUrl'>
+  & { app?: Maybe<(
+    { __typename?: 'AppQuery' }
+    & { byId: (
+      { __typename?: 'App' }
+      & Pick<App, 'id'>
+      & { builds: Array<(
+        { __typename?: 'Build' }
+        & Pick<Build, 'id'>
+        & BuildFragment
       )> }
-    )>> }
-  ) }
+    ) }
+  )> }
 );
 
 export type PendingBuildsForAccountAndPlatformQueryVariables = Exact<{
@@ -3771,6 +3804,7 @@ export type EnvironmentSecretsByAccountNameQuery = (
       & Pick<Account, 'id'>
       & { environmentSecrets: Array<(
         { __typename?: 'EnvironmentSecret' }
+        & Pick<EnvironmentSecret, 'id'>
         & EnvironmentSecretFragment
       )> }
     ) }
@@ -3791,6 +3825,7 @@ export type EnvironmentSecretsByAppFullNameQuery = (
       & Pick<App, 'id'>
       & { environmentSecrets: Array<(
         { __typename?: 'EnvironmentSecret' }
+        & Pick<EnvironmentSecret, 'id'>
         & EnvironmentSecretFragment
       )> }
     ) }
@@ -3858,6 +3893,34 @@ export type CurrentUserQuery = (
 export type AppFragment = (
   { __typename?: 'App' }
   & Pick<App, 'id' | 'fullName' | 'slug'>
+);
+
+export type BuildFragment = (
+  { __typename?: 'Build' }
+  & Pick<Build, 'id' | 'status' | 'platform' | 'createdAt' | 'updatedAt'>
+  & { error?: Maybe<(
+    { __typename?: 'BuildError' }
+    & Pick<BuildError, 'errorCode' | 'message'>
+  )>, artifacts?: Maybe<(
+    { __typename?: 'BuildArtifacts' }
+    & Pick<BuildArtifacts, 'buildUrl' | 'xcodeBuildLogsUrl'>
+  )>, initiatingActor?: Maybe<(
+    { __typename: 'User' }
+    & Pick<User, 'username' | 'id'>
+  ) | (
+    { __typename: 'Robot' }
+    & Pick<Robot, 'firstName' | 'id'>
+  )>, project: (
+    { __typename: 'Snack' }
+    & Pick<Snack, 'id'>
+  ) | (
+    { __typename: 'App' }
+    & Pick<App, 'id'>
+    & { ownerAccount: (
+      { __typename?: 'Account' }
+      & Pick<Account, 'id' | 'name'>
+    ) }
+  ) }
 );
 
 export type EnvironmentSecretFragment = (
