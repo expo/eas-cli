@@ -36,6 +36,14 @@ export default function formatBuild(build: Build, { accountName }: Options) {
       },
     },
     {
+      label: 'Distribution',
+      value: build.metadata?.distribution || chalk.gray('unknown'),
+    },
+    {
+      label: 'Release Channel',
+      value: build.metadata?.releaseChannel || chalk.gray('unknown'),
+    },
+    {
       label: 'Logs',
       value: getBuildLogsUrl({ buildId: build.id, account: accountName }),
     },
