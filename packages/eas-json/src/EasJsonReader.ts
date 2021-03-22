@@ -150,15 +150,14 @@ export class EasJsonReader {
     if (!buildProfile) {
       throw new Error(`There is no profile named ${buildProfileName} for platform ${platform}`);
     }
-    const baseProfileName = buildProfile.extends;
-    delete buildProfile.extends;
+    const { extends: baseProfileName, ...overrideBuildProfile } = buildProfile;
     if (baseProfileName) {
       return deepMerge(
         this.resolveBuildProfile(platform, baseProfileName, buildProfiles, depth + 1),
-        buildProfile
+        overrideBuildProfile
       );
     } else {
-      return buildProfile;
+      return overrideBuildProfile;
     }
   }
 }
