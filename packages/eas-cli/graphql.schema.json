@@ -313,6 +313,22 @@
             "deprecationReason": null
           },
           {
+            "name": "experimentation",
+            "description": "Top-level query object for querying Experimentation configuration.",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "OBJECT",
+                "name": "ExperimentationQuery",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "project",
             "description": "",
             "args": [],
@@ -2589,6 +2605,22 @@
             "deprecationReason": null
           },
           {
+            "name": "ownerAccount",
+            "description": "",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "OBJECT",
+                "name": "Account",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "privacy",
             "description": "",
             "args": [],
@@ -2782,7 +2814,7 @@
           },
           {
             "name": "builds",
-            "description": "",
+            "description": "(EAS Build) Builds associated with this app",
             "args": [
               {
                 "name": "offset",
@@ -2818,6 +2850,16 @@
                 "type": {
                   "kind": "ENUM",
                   "name": "BuildStatus",
+                  "ofType": null
+                },
+                "defaultValue": null
+              },
+              {
+                "name": "platform",
+                "description": null,
+                "type": {
+                  "kind": "ENUM",
+                  "name": "AppPlatform",
                   "ofType": null
                 },
                 "defaultValue": null
@@ -9681,6 +9723,65 @@
       },
       {
         "kind": "OBJECT",
+        "name": "ExperimentationQuery",
+        "description": "",
+        "fields": [
+          {
+            "name": "userConfig",
+            "description": "Get user experimentation config",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "JSONObject",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "deviceConfig",
+            "description": "Get device experimentation config",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "JSONObject",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "deviceExperimentationUnit",
+            "description": "Get experimentation unit to use for device experiments. In this case, it is the IP address.",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "ID",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
         "name": "ProjectQuery",
         "description": "",
         "fields": [
@@ -10466,13 +10567,9 @@
                 "name": "buildId",
                 "description": null,
                 "type": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "SCALAR",
-                    "name": "ID",
-                    "ofType": null
-                  }
+                  "kind": "SCALAR",
+                  "name": "ID",
+                  "ofType": null
                 },
                 "defaultValue": null
               }
@@ -11272,6 +11369,51 @@
               "kind": "OBJECT",
               "name": "Account",
               "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "rename",
+            "description": "Rename this account",
+            "args": [
+              {
+                "name": "accountID",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "ID",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null
+              },
+              {
+                "name": "newName",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "String",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null
+              }
+            ],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "OBJECT",
+                "name": "Account",
+                "ofType": null
+              }
             },
             "isDeprecated": false,
             "deprecationReason": null
@@ -13322,9 +13464,24 @@
         "description": "",
         "fields": [
           {
-            "name": "cancel",
-            "description": "Cancel an EAS Build\"",
-            "args": [],
+            "name": "cancelBuild",
+            "description": "Cancel an EAS Build build",
+            "args": [
+              {
+                "name": "buildId",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "ID",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null
+              }
+            ],
             "type": {
               "kind": "NON_NULL",
               "name": null,
@@ -13336,6 +13493,22 @@
             },
             "isDeprecated": false,
             "deprecationReason": null
+          },
+          {
+            "name": "cancel",
+            "description": "Cancel an EAS Build build",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "OBJECT",
+                "name": "Build",
+                "ofType": null
+              }
+            },
+            "isDeprecated": true,
+            "deprecationReason": "Use cancelBuild instead"
           }
         ],
         "inputFields": null,
@@ -16311,9 +16484,13 @@
                 "name": "environmentSecretData",
                 "description": null,
                 "type": {
-                  "kind": "INPUT_OBJECT",
-                  "name": "CreateEnvironmentSecretInput",
-                  "ofType": null
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "INPUT_OBJECT",
+                    "name": "CreateEnvironmentSecretInput",
+                    "ofType": null
+                  }
                 },
                 "defaultValue": null
               },
@@ -16352,9 +16529,13 @@
                 "name": "environmentSecretData",
                 "description": null,
                 "type": {
-                  "kind": "INPUT_OBJECT",
-                  "name": "CreateEnvironmentSecretInput",
-                  "ofType": null
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "INPUT_OBJECT",
+                    "name": "CreateEnvironmentSecretInput",
+                    "ofType": null
+                  }
                 },
                 "defaultValue": null
               },
