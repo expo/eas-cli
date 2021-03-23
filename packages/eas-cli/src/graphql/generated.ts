@@ -409,7 +409,9 @@ export type App = Project & {
   updated: Scalars['DateTime'];
   pushSecurityEnabled?: Maybe<Scalars['Boolean']>;
   ownerAccount: Account;
+  /** @deprecated Use 'privacySetting' instead. */
   privacy: Scalars['String'];
+  privacySetting: AppPrivacy;
   latestReleaseId: Scalars['ID'];
   /** @deprecated 'likes' have been deprecated. */
   isLikedByMe: Scalars['Boolean'];
@@ -550,6 +552,12 @@ export type AppIcon = {
   colorPalette?: Maybe<Scalars['JSON']>;
 };
 
+
+export enum AppPrivacy {
+  Public = 'PUBLIC',
+  Unlisted = 'UNLISTED',
+  Hidden = 'HIDDEN'
+}
 
 /** Represents a human (not robot) actor. */
 export type User = Actor & {
@@ -1547,7 +1555,7 @@ export type RootMutationAccountArgs = {
 
 
 export type RootMutationAppArgs = {
-  appId: Scalars['ID'];
+  appId?: Maybe<Scalars['ID']>;
 };
 
 
@@ -2036,10 +2044,17 @@ export type AppleTeamInput = {
 
 export type AppMutation = {
   __typename?: 'AppMutation';
+  /** Create an unpublished app */
+  createApp: App;
   /** @deprecated Field no longer supported */
   grantAccess?: Maybe<App>;
   /** Require api token to send push notifs for experience */
   setPushSecurityEnabled?: Maybe<App>;
+};
+
+
+export type AppMutationCreateAppArgs = {
+  appInput: AppInput;
 };
 
 
@@ -2052,6 +2067,12 @@ export type AppMutationGrantAccessArgs = {
 export type AppMutationSetPushSecurityEnabledArgs = {
   appId: Scalars['ID'];
   pushSecurityEnabled: Scalars['Boolean'];
+};
+
+export type AppInput = {
+  accountId: Scalars['ID'];
+  projectName: Scalars['String'];
+  privacy: AppPrivacy;
 };
 
 export type AssetMutation = {
@@ -3636,6 +3657,22 @@ export type CommonIosAppCredentialsWithBuildCredentialsByAppIdentifierIdQuery = 
         & Pick<IosAppCredentials, 'id'>
         & CommonIosAppCredentialsFragment
       )> }
+    ) }
+  )> }
+);
+
+export type CreateAppMutationVariables = Exact<{
+  appInput: AppInput;
+}>;
+
+
+export type CreateAppMutation = (
+  { __typename?: 'RootMutation' }
+  & { app?: Maybe<(
+    { __typename?: 'AppMutation' }
+    & { createApp: (
+      { __typename?: 'App' }
+      & Pick<App, 'id'>
     ) }
   )> }
 );

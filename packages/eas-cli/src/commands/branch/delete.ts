@@ -103,7 +103,7 @@ export default class BranchDelete extends Command {
     if (!projectDir) {
       throw new Error('Please run this command inside a project directory.');
     }
-    const { exp } = await getConfig(projectDir, { skipSDKVersionRequirement: true });
+    const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
     const accountName = getProjectAccountName(exp, await ensureLoggedInAsync());
     const projectId = await ensureProjectExistsAsync({
       accountName,

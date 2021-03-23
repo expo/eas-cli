@@ -42,7 +42,7 @@ export default class EnvironmentSecretCreate extends Command {
   ];
 
   async run() {
-    const user = await ensureLoggedInAsync();
+    const actor = await ensureLoggedInAsync();
     let {
       args: { name, value: secretValue, target },
     } = this.parse(EnvironmentSecretCreate);
@@ -125,10 +125,10 @@ export default class EnvironmentSecretCreate extends Command {
         )}.`
       );
     } else if (target === EnvironmentSecretTargetLocation.ACCOUNT) {
-      const ownerAccount = findAccountByName(user.accounts, accountName);
+      const ownerAccount = findAccountByName(actor.accounts, accountName);
       if (!ownerAccount) {
         Log.warn(
-          `Your account (${getActorDisplayName(user)}) doesn't have access to the ${chalk.bold(
+          `Your account (${getActorDisplayName(actor)}) doesn't have access to the ${chalk.bold(
             accountName
           )} account`
         );

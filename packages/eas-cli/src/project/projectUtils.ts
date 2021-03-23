@@ -7,7 +7,7 @@ import path from 'path';
 import pkgDir from 'pkg-dir';
 
 import { graphqlClient, withErrorHandlingAsync } from '../graphql/client';
-import { UpdateBranch } from '../graphql/generated';
+import { AppPrivacy, UpdateBranch } from '../graphql/generated';
 import { Actor } from '../user/User';
 import { ensureLoggedInAsync } from '../user/actions';
 import { ensureProjectExistsAsync } from './ensureProjectExists';
@@ -37,12 +37,23 @@ export async function findProjectRootAsync(cwd?: string): Promise<string | null>
 }
 
 export async function getProjectIdAsync(exp: ExpoConfig): Promise<string> {
+  const privacy = toAppPrivacy(exp.privacy);
   return await ensureProjectExistsAsync({
     accountName: getProjectAccountName(exp, await ensureLoggedInAsync()),
     projectName: exp.slug,
-    privacy: exp.privacy,
+    privacy,
   });
 }
+
+const toAppPrivacy = (privacy: ExpoConfig['privacy']) => {
+  if (privacy === 'public') {
+    return AppPrivacy.Public;
+  } else if (privacy === 'hidden') {
+    return AppPrivacy.Hidden;
+  } else {
+    return AppPrivacy.Unlisted;
+  }
+};
 
 export async function getProjectFullNameAsync(exp: ExpoConfig): Promise<string> {
   const accountName = await getProjectAccountNameAsync(exp);
