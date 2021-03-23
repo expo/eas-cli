@@ -14,8 +14,6 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ## [0.7.0](https://github.com/expo/eas-cli/releases/tag/v0.7.0) - 2021-03-22
 
-### 🛠 Breaking changes
-
 ### 🎉 New features
 
 - Print common error messages when builds fail. ([#272](https://github.com/expo/eas-cli/pull/272) by [@dsokal](https://github.com/dsokal))
@@ -28,8 +26,6 @@ This is the log of notable changes to EAS CLI and related packages.
 - Fix `eas submit` local archive prompt for `.aab` files when submitting for iOS. ([#273](https://github.com/expo/eas-cli/pull/273) by [@barthap](https://github.com/barthap))
 - Verify whether "name" field in app.json contains any alphanumeric characters. ([#280](https://github.com/expo/eas-cli/pull/280) by [@wkozyra95](https://github.com/wkozyra95))
 - Detect dependency cycles in eas.json build profiles. ([#283](https://github.com/expo/eas-cli/pull/283) by [@wkozyra95](https://github.com/wkozyra95))
-
-### 🧹 Chores
 
 ## [0.6.0](https://github.com/expo/eas-cli/releases/tag/v0.6.0) - 2021-03-09
 
