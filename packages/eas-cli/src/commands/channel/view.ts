@@ -14,6 +14,68 @@ import { ensureProjectExistsAsync } from '../../project/ensureProjectExists';
 import { findProjectRootAsync, getProjectAccountNameAsync } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
 
+type BranchMapping = {
+  version: number;
+  data: {
+    branchId: string;
+    branchMappingLogic: {
+      operand: number;
+      clientKey: string;
+      branchMappingOperator: string;
+    } & string;
+  }[];
+};
+
+/**
+ * Get the branch mapping and determine whether it is a rollout.
+ * Ensure that the branch mapping is properly formatted.
+ */
+function getBranchMapping(
+  getChannelByNameForAppQuery: GetChannelByNameForAppQuery
+): { branchMapping: BranchMapping; isRollout: boolean; rolloutPercent?: number } {
+  const branchMappingString =
+    getChannelByNameForAppQuery.app?.byId.updateChannelByName.branchMapping;
+  if (!branchMappingString) {
+    throw new Error('Missing branch mapping.');
+  }
+
+  const branchMapping: BranchMapping = JSON.parse(branchMappingString);
+  if (branchMapping.version !== 0) {
+    throw new Error('Branch mapping must be version 0.');
+  }
+
+  const isRollout = branchMapping.data.length === 2;
+  const rolloutPercent = branchMapping.data[0].branchMappingLogic.operand;
+
+  switch (branchMapping.data.length) {
+    case 0:
+      break;
+    case 1:
+      if (branchMapping.data[0].branchMappingLogic !== 'true') {
+        throw new Error('Branch mapping logic for a single branch must be "true"');
+      }
+      break;
+    case 2:
+      if (branchMapping.data[0].branchMappingLogic.clientKey !== 'rolloutToken') {
+        throw new Error('Client key of initial branch mapping must be "rolloutToken"');
+      }
+      if (branchMapping.data[0].branchMappingLogic.branchMappingOperator !== 'hash_lt') {
+        throw new Error('Branch mapping operator of initial branch mapping must be "hash_lt"');
+      }
+      if (!rolloutPercent) {
+        throw new Error('Branch mapping is missing a "rolloutPercent"');
+      }
+      if (branchMapping.data[1].branchMappingLogic !== 'true') {
+        throw new Error('Branch mapping logic for a the second branch of a rollout must be "true"');
+      }
+      break;
+    default:
+      throw new Error('Branch mapping data must have length less than or equal to 2.');
+  }
+
+  return { branchMapping, isRollout, rolloutPercent };
+}
+
 async function getUpdateChannelByNameForAppAsync({
   appId,
   channelName,
@@ -30,7 +92,8 @@ async function getUpdateChannelByNameForAppAsync({
                   id
                   name
                   createdAt
-                  updateBranches(offset: 0, limit: 1) {
+                  branchMapping
+                  updateBranches(offset: 0, limit: 1000) {
                     id
                     name
                     updates(offset: 0, limit: 1) {
@@ -124,17 +187,42 @@ export default class ChannelView extends Command {
       return;
     }
 
+    const { branchMapping, isRollout, rolloutPercent } = getBranchMapping(
+      getUpdateChannelByNameForAppresult
+    );
+
     const table = new Table({
-      head: ['branch', 'update', 'message', 'created-at', 'actor'],
+      head: [
+        'branch',
+        ...(isRollout ? ['rollout percent'] : []),
+        'active update group',
+        'update message',
+        'last publish',
+        'actor',
+      ],
       wordWrap: true,
     });
 
-    for (const branch of channel.updateBranches) {
-      // TODO (cedric): refactor when multiple branches per channel are available
-      const update = branch.updates[0];
+    for (const index in branchMapping.data) {
+      if (parseInt(index, 10) > 1) {
+        throw new Error('Branch Mapping data must have length less than or equal to 2.');
+      }
 
+      const { branchId } = branchMapping.data[index];
+      const branch = channel.updateBranches.filter(branch => branch.id === branchId)[0];
+      if (!branch) {
+        throw new Error('Branch mapping is pointing at a missing branch.');
+      }
+      const update = branch.updates[0];
       table.push([
         branch.name,
+        ...(isRollout
+          ? [
+              parseInt(index, 10) === 0
+                ? `${rolloutPercent! * 100}%`
+                : `${(1 - rolloutPercent!) * 100}%`,
+            ]
+          : []),
         update?.group,
         update?.message,
         update?.createdAt && new Date(update.createdAt).toLocaleString(),
