@@ -60,7 +60,7 @@ async function getChannelByNameForAppAsync({
   return updateChannelByNameResult;
 }
 
-async function updateChannelBranchMappingAsync({
+export async function updateChannelBranchMappingAsync({
   channelId,
   branchMapping,
 }: UpdateChannelBranchMappingMutationVariables): Promise<{

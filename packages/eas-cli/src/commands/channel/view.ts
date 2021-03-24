@@ -30,7 +30,7 @@ type BranchMapping = {
  * Get the branch mapping and determine whether it is a rollout.
  * Ensure that the branch mapping is properly formatted.
  */
-function getBranchMapping(
+export function getBranchMapping(
   getChannelByNameForAppQuery: GetChannelByNameForAppQuery
 ): { branchMapping: BranchMapping; isRollout: boolean; rolloutPercent?: number } {
   const branchMappingString =
@@ -62,7 +62,7 @@ function getBranchMapping(
       if (branchMapping.data[0].branchMappingLogic.branchMappingOperator !== 'hash_lt') {
         throw new Error('Branch mapping operator of initial branch mapping must be "hash_lt"');
       }
-      if (!rolloutPercent) {
+      if (rolloutPercent === undefined) {
         throw new Error('Branch mapping is missing a "rolloutPercent"');
       }
       if (branchMapping.data[1].branchMappingLogic !== 'true') {
@@ -76,7 +76,7 @@ function getBranchMapping(
   return { branchMapping, isRollout, rolloutPercent };
 }
 
-async function getUpdateChannelByNameForAppAsync({
+export async function getUpdateChannelByNameForAppAsync({
   appId,
   channelName,
 }: GetChannelByNameForAppQueryVariables): Promise<GetChannelByNameForAppQuery> {
