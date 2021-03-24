@@ -63,7 +63,7 @@ function getBranchMapping(
         throw new Error('Branch mapping operator of initial branch mapping must be "hash_lt"');
       }
       if (!rolloutPercent) {
-        throw new Error('"rolloutPercent" must be defined.');
+        throw new Error('Branch mapping is missing a "rolloutPercent"');
       }
       if (branchMapping.data[1].branchMappingLogic !== 'true') {
         throw new Error('Branch mapping logic for a the second branch of a rollout must be "true"');
@@ -205,7 +205,7 @@ export default class ChannelView extends Command {
 
     for (const index in branchMapping.data) {
       if (parseInt(index, 10) > 1) {
-        throw new Error('Branch Mapping data must have lenght less than or equal to 2.');
+        throw new Error('Branch Mapping data must have length less than or equal to 2.');
       }
 
       const { branchId } = branchMapping.data[index];
