@@ -93,7 +93,6 @@ export default class Build extends Command {
 
     const trackingCtx = {
       tracking_id: uuidv4(),
-      requested_platform: flags.platform,
     };
     Analytics.logEvent(AnalyticsEvent.BUILD_COMMAND, trackingCtx);
 
