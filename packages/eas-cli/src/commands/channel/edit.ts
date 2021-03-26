@@ -147,7 +147,11 @@ export default class ChannelEdit extends Command {
     }
 
     const existingChannel = await getChannelByNameForAppAsync({ appId: projectId, channelName });
-    // todo: refactor when multiple branches per channel are available
+    if (existingChannel.updateBranches.length > 1) {
+      throw new Error(
+        'There is a rollout in progress. Please manage it with "channel:rollout" instead.'
+      );
+    }
     const existingBranch = existingChannel.updateBranches[0];
 
     Log.addNewLineIfNone();
@@ -170,7 +174,6 @@ export default class ChannelEdit extends Command {
     }
 
     const branch = await getBranchByNameAsync({ appId: projectId, name: branchName! });
-
     const channel = await updateChannelBranchMappingAsync({
       channelId: existingChannel.id,
       // todo: move branch mapping logic to utility
