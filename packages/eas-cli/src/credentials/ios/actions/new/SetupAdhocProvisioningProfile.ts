@@ -97,7 +97,7 @@ export class SetupAdhocProvisioningProfile implements Action {
     }
 
     // 2. Setup Distribution Certificate
-    const distCertAction = new SetupDistributionCertificate(this.app);
+    const distCertAction = new SetupDistributionCertificate(this.app, IosDistributionType.AdHoc);
     await manager.runActionAsync(distCertAction);
     const distCert = distCertAction.distributionCertificate;
 
