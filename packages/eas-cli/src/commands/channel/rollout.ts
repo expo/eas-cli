@@ -160,6 +160,12 @@ export default class ChannelRollout extends Command {
         }));
       }
       const branch = await getBranchByNameAsync({ appId: projectId, name: branchName! });
+      const oldBranchId = currentBranchMapping.data[0].branchId;
+      if (branch.id === oldBranchId) {
+        throw new Error(
+          `${channelName} is already pointing at ${branchName}. Rollouts must be done with distinct branches.`
+        );
+      }
 
       if (percent === undefined) {
         if (jsonFlag) {
@@ -190,7 +196,6 @@ export default class ChannelRollout extends Command {
         branchMapping: JSON.stringify(newBranchMapping),
       });
 
-      const oldBranchId = currentBranchMapping.data[0].branchId;
       const oldBranch = getUpdateChannelByNameForAppResult.app?.byId.updateChannelByName.updateBranches.filter(
         branch => branch.id === oldBranchId
       )[0];
@@ -206,7 +211,7 @@ export default class ChannelRollout extends Command {
         percent
       )}% of users will be directed to ${chalk.bold(branchName)}, ${chalk.bold(
         100 - percent!
-      )}% to ${oldBranch.name}.`;
+      )}% to ${chalk.bold(oldBranch.name)}.`;
     } else {
       // edit active rollout
       if (!endFlag) {
@@ -242,7 +247,7 @@ export default class ChannelRollout extends Command {
           percent
         )}% of users will be directed to ${chalk.bold(newBranch.name)}, ${chalk.bold(
           100 - percent!
-        )}% to ${oldBranch.name}.`;
+        )}% to ${chalk.bold(oldBranch.name)}.`;
       } else {
         // end rollout
         const { newBranch, oldBranch, currentPercent } = getRolloutInfo(
