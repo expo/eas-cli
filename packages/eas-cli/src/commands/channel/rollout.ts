@@ -1,7 +1,6 @@
 import { getConfig } from '@expo/config';
 import { Command, flags } from '@oclif/command';
 import chalk from 'chalk';
-import { assert } from 'console';
 
 import { GetChannelByNameForAppQuery, UpdateBranch } from '../../graphql/generated';
 import Log from '../../log';
@@ -16,10 +15,8 @@ import { updateChannelBranchMappingAsync } from './edit';
 import { getBranchMapping, getUpdateChannelByNameForAppAsync } from './view';
 
 async function promptForRolloutPercentAsync({
-  validationMessage,
   promptMessage,
 }: {
-  validationMessage: string;
   promptMessage: string;
 }): Promise<number> {
   const { name: rolloutPercent } = await promptAsync({
@@ -31,17 +28,10 @@ async function promptForRolloutPercentAsync({
     message: promptMessage,
     initial: 0,
     validate: (rolloutPercent: string): true | string => {
-      /**
-       * Don't allow 100 to emphasise to the developer that rollouts have an open right hand endpoint: [0,N)
-       *
-       * This is unavoidable since the comparision must either be a strict inequality or a weak one. A weak
-       * comparison would result in (0,100]. Assuming the new branch is more dangerous, we choose [0,N) to allow
-       * '0 percent' rollouts.
-       */
       const floatValue = parseFloat(rolloutPercent);
-      return Number.isInteger(floatValue) && floatValue >= 0 && floatValue <= 99
+      return Number.isInteger(floatValue) && floatValue >= 0 && floatValue <= 100
         ? true
-        : validationMessage;
+        : 'The rollout percentage must be an integer between 0 and 100 inclusive.';
     },
   });
   return rolloutPercent;
@@ -140,7 +130,6 @@ export default class ChannelRollout extends Command {
     if (currentBranchMapping.data.length > 2) {
       throw new Error('"channel:rollout" cannot handle branch mappings with more than 2 branches.');
     }
-
     // This combination doesn't make sense. Throw an error explaining the options.
     if (isRollout && branchName && !endFlag) {
       throw new Error(
@@ -157,6 +146,7 @@ export default class ChannelRollout extends Command {
      */
     let newChannelInfo, logMessage;
     if (!isRollout) {
+      // start rollout
       if (!branchName) {
         const validationMessage = 'A branch must be specified.';
         if (jsonFlag) {
@@ -172,13 +162,13 @@ export default class ChannelRollout extends Command {
       const branch = await getBranchByNameAsync({ appId: projectId, name: branchName! });
 
       if (percent === undefined) {
-        const promptMessage = `What percent of users should be directed to the branch ${branchName}?`;
-        const validationMessage =
-          'The rollout percentage must be an integer between 0 and 99 inclusive.';
         if (jsonFlag) {
-          throw new Error(validationMessage);
+          throw new Error(
+            'You must specify a percent with the --percent flag when initiating a rollout with the --json flag.'
+          );
         }
-        percent = await promptForRolloutPercentAsync({ promptMessage, validationMessage });
+        const promptMessage = `What percent of users should be directed to the branch ${branchName}?`;
+        percent = await promptForRolloutPercentAsync({ promptMessage });
       }
 
       const newBranchMapping = {
@@ -218,7 +208,7 @@ export default class ChannelRollout extends Command {
         100 - percent!
       )}% to ${oldBranch.name}.`;
     } else {
-      // active rollout
+      // edit active rollout
       if (!endFlag) {
         const { newBranch, oldBranch, currentPercent } = getRolloutInfo(
           getUpdateChannelByNameForAppResult
@@ -235,12 +225,7 @@ export default class ChannelRollout extends Command {
           } and ${100 - currentPercent}% of all users are routed to branch ${
             oldBranch.name
           }. What percent of users should be directed to the branch ${newBranch.name}?`;
-          const validationMessage =
-            'The rollout percentage must be an integer between 0 and 99 inclusive.';
-          if (jsonFlag) {
-            throw new Error(validationMessage);
-          }
-          percent = await promptForRolloutPercentAsync({ promptMessage, validationMessage });
+          percent = await promptForRolloutPercentAsync({ promptMessage });
         }
 
         const newBranchMapping = { ...currentBranchMapping };
@@ -259,7 +244,7 @@ export default class ChannelRollout extends Command {
           100 - percent!
         )}% to ${oldBranch.name}.`;
       } else {
-        // end flag is true
+        // end rollout
         const { newBranch, oldBranch, currentPercent } = getRolloutInfo(
           getUpdateChannelByNameForAppResult
         );
