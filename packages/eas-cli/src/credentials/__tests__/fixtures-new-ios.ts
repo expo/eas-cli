@@ -106,7 +106,7 @@ export function getNewIosApiMockWithoutCredentials() {
     createOrUpdateIosAppBuildCredentialsAsync: jest.fn(),
     getIosAppCredentialsWithBuildCredentialsAsync: jest.fn(),
     createOrGetExistingIosAppCredentialsWithBuildCredentialsAsync: jest.fn(),
-    createOrGetExistingAppleTeamAsync: jest.fn(),
+    createOrGetExistingAppleTeamAsync: () => testAppleTeam,
     createOrGetExistingAppleAppIdentifierAsync: jest.fn(),
     getDevicesForAppleTeamAsync: jest.fn(),
     createProvisioningProfileAsync: jest.fn(),
