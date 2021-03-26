@@ -5,10 +5,10 @@ import chalk from 'chalk';
 import { CredentialsProvider } from '../credentials/CredentialsProvider';
 import Log from '../log';
 import { confirmAsync, promptAsync } from '../prompts';
-import { platformDisplayNames } from './constants';
+import { requestedPlatformDisplayNames } from './constants';
 
 function logCredentials(target: 'local' | 'remote', platform: Platform) {
-  let message = `Using ${target} ${platformDisplayNames[platform]} credentials`;
+  let message = `Using ${target} ${requestedPlatformDisplayNames[platform]} credentials`;
   if (target === 'local') message += ` ${chalk.dim('(credentials.json)')}`;
   if (target === 'remote') message += ` ${chalk.dim('(Expo server)')}`;
   Log.succeed(message);
@@ -19,7 +19,7 @@ async function ensureCredentialsAutoAsync(
   workflow: Workflow,
   nonInteractive: boolean
 ): Promise<CredentialsSource.LOCAL | CredentialsSource.REMOTE> {
-  const platform = platformDisplayNames[provider.platform];
+  const platform = requestedPlatformDisplayNames[provider.platform];
   switch (workflow) {
     case Workflow.MANAGED:
       if (await provider.hasLocalAsync()) {

@@ -11,7 +11,7 @@ import { createCommandContextAsync } from '../../build/context';
 import { buildAsync } from '../../build/create';
 import { AnalyticsEvent, Build as BuildType, RequestedPlatform } from '../../build/types';
 import Analytics from '../../build/utils/analytics';
-import formatBuild from '../../build/utils/formatBuild';
+import { formatBuild } from '../../build/utils/formatBuild';
 import { isGitStatusCleanAsync } from '../../build/utils/repository';
 import { AppPlatform } from '../../graphql/generated';
 import { BuildQuery } from '../../graphql/queries/BuildQuery';

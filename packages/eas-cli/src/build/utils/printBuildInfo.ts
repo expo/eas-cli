@@ -3,7 +3,7 @@ import assert from 'assert';
 import chalk from 'chalk';
 
 import Log, { learnMore } from '../../log';
-import { platformDisplayNames, platformEmojis } from '../constants';
+import { platformEmojis, requestedPlatformDisplayNames } from '../constants';
 import { Build } from '../types';
 import { getBuildLogsUrl } from './url';
 
@@ -29,7 +29,9 @@ export function printLogsUrls(
         buildId,
         account: accountName,
       });
-      Log.log(`${platformDisplayNames[platform]} build details: ${chalk.underline(logsUrl)}`);
+      Log.log(
+        `${requestedPlatformDisplayNames[platform]} build details: ${chalk.underline(logsUrl)}`
+      );
     });
   }
 }
@@ -50,9 +52,9 @@ function printBuildResult(accountName: string, build: Build): void {
   if (build.status === 'errored') {
     const userError = build.error;
     Log.error(
-      `${platformEmojis[build.platform]} ${platformDisplayNames[build.platform]} build failed${
-        userError ? ':' : ''
-      }`
+      `${platformEmojis[build.platform]} ${
+        requestedPlatformDisplayNames[build.platform]
+      } build failed${userError ? ':' : ''}`
     );
     if (userError) {
       printUserError(userError);
@@ -61,7 +63,9 @@ function printBuildResult(accountName: string, build: Build): void {
   }
   if (build.status === 'canceled') {
     Log.error(
-      `${platformEmojis[build.platform]} ${platformDisplayNames[build.platform]} build was canceled`
+      `${platformEmojis[build.platform]} ${
+        requestedPlatformDisplayNames[build.platform]
+      } build was canceled`
     );
     return;
   }
@@ -73,7 +77,7 @@ function printBuildResult(accountName: string, build: Build): void {
     });
     Log.log(
       `${platformEmojis[build.platform]} Open this link on your ${
-        platformDisplayNames[build.platform]
+        requestedPlatformDisplayNames[build.platform]
       } devices to install the app:`
     );
     Log.log(`${chalk.underline(logsUrl)}`);
@@ -81,7 +85,9 @@ function printBuildResult(accountName: string, build: Build): void {
     // TODO: it looks like buildUrl could possibly be undefined, based on the code below.
     // we should account for this case better if it is possible
     const url = build.artifacts?.buildUrl ?? '';
-    Log.log(`${platformEmojis[build.platform]} ${platformDisplayNames[build.platform]} app:`);
+    Log.log(
+      `${platformEmojis[build.platform]} ${requestedPlatformDisplayNames[build.platform]} app:`
+    );
     Log.log(`${chalk.underline(url)}`);
   }
 }

@@ -1,41 +1,45 @@
+import { print } from 'graphql';
 import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../client';
 import {
   AppPlatform,
   Build,
+  BuildFragment,
+  BuildStatus,
   BuildsByIdQuery,
-  BuildsForAppQuery,
+  BuildsByIdQueryVariables,
+  GetAllBuildsForAppQuery,
+  GetAllBuildsForAppQueryVariables,
   PendingBuildsForAccountAndPlatformQuery,
+  PendingBuildsForAccountAndPlatformQueryVariables,
 } from '../generated';
+import { BuildFragmentNode } from '../types/Build';
 
-type Filters = Partial<Pick<Build, 'platform' | 'status'>> & {
+type Filters = {
+  platform?: AppPlatform;
+  status?: BuildStatus;
   offset?: number;
   limit?: number;
 };
 
-type BuildQueryResult = Pick<Build, 'id' | 'platform' | 'artifacts' | 'status' | 'createdAt'>;
 type PendingBuildQueryResult = Pick<Build, 'id' | 'platform'>;
 
-const BuildQuery = {
-  async byIdAsync(buildId: string): Promise<BuildQueryResult> {
+export const BuildQuery = {
+  async byIdAsync(buildId: string): Promise<BuildFragment> {
     const data = await withErrorHandlingAsync(
       graphqlClient
-        .query<BuildsByIdQuery>(
+        .query<BuildsByIdQuery, BuildsByIdQueryVariables>(
           gql`
             query BuildsByIdQuery($buildId: ID!) {
               builds {
                 byId(buildId: $buildId) {
                   id
-                  platform
-                  status
-                  createdAt
-                  artifacts {
-                    buildUrl
-                  }
+                  ...BuildFragment
                 }
               }
             }
+            ${print(BuildFragmentNode)}
           `,
           { buildId }
         )
@@ -45,44 +49,40 @@ const BuildQuery = {
     return data.builds.byId;
   },
 
-  async allForAppAsync(appId: string, filters?: Filters): Promise<BuildQueryResult[]> {
+  async allForAppAsync(
+    appId: string,
+    { limit = 10, offset = 0, status, platform }: Filters
+  ): Promise<BuildFragment[]> {
     const data = await withErrorHandlingAsync(
       graphqlClient
-        .query<BuildsForAppQuery>(
+        .query<GetAllBuildsForAppQuery, GetAllBuildsForAppQueryVariables>(
           // TODO: Change $appId: String! to ID! when fixed server-side schema
           gql`
-            query BuildsForAppQuery(
+            query GetAllBuildsForApp(
               $appId: String!
-              $limit: Int
-              $offset: Int
-              $platform: AppPlatform
+              $offset: Int!
+              $limit: Int!
               $status: BuildStatus
+              $platform: AppPlatform
             ) {
-              builds {
-                allForApp(
-                  appId: $appId
-                  limit: $limit
-                  offset: $offset
-                  platform: $platform
-                  status: $status
-                ) {
+              app {
+                byId(appId: $appId) {
                   id
-                  platform
-                  status
-                  createdAt
-                  artifacts {
-                    buildUrl
+                  builds(offset: $offset, limit: $limit, status: $status, platform: $platform) {
+                    id
+                    ...BuildFragment
                   }
                 }
               }
             }
+            ${print(BuildFragmentNode)}
           `,
-          { ...filters, appId }
+          { appId, offset, limit, status, platform }
         )
         .toPromise()
     );
 
-    return data.builds.allForApp as BuildQueryResult[];
+    return data.app?.byId.builds ?? [];
   },
 
   async getPendingBuildIdAsync(
@@ -91,7 +91,10 @@ const BuildQuery = {
   ): Promise<PendingBuildQueryResult | null> {
     const data = await withErrorHandlingAsync(
       graphqlClient
-        .query<PendingBuildsForAccountAndPlatformQuery>(
+        .query<
+          PendingBuildsForAccountAndPlatformQuery,
+          PendingBuildsForAccountAndPlatformQueryVariables
+        >(
           gql`
             query PendingBuildsForAccountAndPlatform(
               $accountName: String!
@@ -133,5 +136,3 @@ const BuildQuery = {
     return pendingBuilds.length > 0 ? pendingBuilds[0] : null;
   },
 };
-
-export { BuildQuery };

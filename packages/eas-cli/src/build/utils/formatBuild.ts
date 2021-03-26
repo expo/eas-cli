@@ -1,20 +1,23 @@
 import chalk from 'chalk';
 
+import { BuildFragment, BuildStatus as GraphQLBuildStatus } from '../../graphql/generated';
 import formatFields from '../../utils/formatFields';
-import { platformDisplayNames } from '../constants';
+import { appPlatformDisplayNames, requestedPlatformDisplayNames } from '../constants';
 import { Build, BuildStatus } from '../types';
 import { getBuildLogsUrl } from './url';
 
 interface Options {
   accountName: string;
 }
-
-export default function formatBuild(build: Build, { accountName }: Options) {
+/**
+ * @deprecated remove this once we don't use REST endpoints for EAS Build
+ */
+export function formatBuild(build: Build, { accountName }: Options) {
   const fields: { label: string; value: string }[] = [
     { label: 'ID', value: build.id },
     {
       label: 'Platform',
-      value: platformDisplayNames[build.platform],
+      value: requestedPlatformDisplayNames[build.platform],
     },
     {
       label: 'Status',
@@ -68,9 +71,88 @@ export default function formatBuild(build: Build, { accountName }: Options) {
           ? '<in progress>'
           : new Date(build.updatedAt).toLocaleString(),
     },
-    // TODO: we can do it once we migrate to GraphQL
-    // { label: 'Started by', get: build => 'TODO' },
   ];
 
   return formatFields(fields);
 }
+
+export function formatGraphQLBuild(build: BuildFragment) {
+  const actor = getActorName(build);
+  const account = build.project.__typename === 'App' ? build.project.ownerAccount.name : 'unknown';
+  const fields: { label: string; value: string }[] = [
+    { label: 'ID', value: build.id },
+    {
+      label: 'Platform',
+      value: appPlatformDisplayNames[build.platform],
+    },
+    {
+      label: 'Status',
+      get value() {
+        switch (build.status) {
+          case GraphQLBuildStatus.InQueue:
+            return chalk.blue('in queue');
+          case GraphQLBuildStatus.InProgress:
+            return chalk.blue('in progress');
+          case GraphQLBuildStatus.Canceled:
+            return chalk.gray('canceled');
+          case GraphQLBuildStatus.Finished:
+            return chalk.green('finished');
+          case GraphQLBuildStatus.Errored:
+            return chalk.red('errored');
+          default:
+            return 'unknown';
+        }
+      },
+    },
+    {
+      label: 'Logs',
+      value: getBuildLogsUrl({ buildId: build.id, account }),
+    },
+    {
+      label: 'Artifact',
+      get value() {
+        if (
+          build.status === GraphQLBuildStatus.InQueue ||
+          build.status === GraphQLBuildStatus.InProgress
+        ) {
+        }
+        switch (build.status) {
+          case GraphQLBuildStatus.InQueue:
+          case GraphQLBuildStatus.InProgress:
+            return '<in progress>';
+          case GraphQLBuildStatus.Canceled:
+          case GraphQLBuildStatus.Errored:
+            return '---------';
+          case GraphQLBuildStatus.Finished: {
+            const url = build.artifacts?.buildUrl;
+            return url ? url : chalk.red('not found');
+          }
+          default:
+            return 'unknown';
+        }
+      },
+    },
+    { label: 'Started at', value: new Date(build.createdAt).toLocaleString() },
+    {
+      label: 'Finished at',
+      value:
+        build.status === GraphQLBuildStatus.InQueue ||
+        build.status === GraphQLBuildStatus.InProgress
+          ? '<in progress>'
+          : new Date(build.updatedAt).toLocaleString(),
+    },
+    { label: 'Started by', value: actor ?? 'unknown' },
+  ];
+
+  return formatFields(fields);
+}
+
+const getActorName = (build: BuildFragment): string => {
+  if (!build.initiatingActor) {
+    return 'unknown';
+  } else if (build.initiatingActor.__typename === 'User') {
+    return build.initiatingActor.username;
+  } else {
+    return build.initiatingActor.firstName ?? 'unknown';
+  }
+};

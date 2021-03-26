@@ -3735,37 +3735,35 @@ export type BuildsByIdQuery = (
     { __typename?: 'BuildQuery' }
     & { byId: (
       { __typename?: 'Build' }
-      & Pick<Build, 'id' | 'platform' | 'status' | 'createdAt'>
-      & { artifacts?: Maybe<(
-        { __typename?: 'BuildArtifacts' }
-        & Pick<BuildArtifacts, 'buildUrl'>
-      )> }
+      & Pick<Build, 'id'>
+      & BuildFragment
     ) }
   ) }
 );
 
-export type BuildsForAppQueryVariables = Exact<{
+export type GetAllBuildsForAppQueryVariables = Exact<{
   appId: Scalars['String'];
-  limit?: Maybe<Scalars['Int']>;
-  offset?: Maybe<Scalars['Int']>;
-  platform?: Maybe<AppPlatform>;
+  offset: Scalars['Int'];
+  limit: Scalars['Int'];
   status?: Maybe<BuildStatus>;
+  platform?: Maybe<AppPlatform>;
 }>;
 
 
-export type BuildsForAppQuery = (
+export type GetAllBuildsForAppQuery = (
   { __typename?: 'RootQuery' }
-  & { builds: (
-    { __typename?: 'BuildQuery' }
-    & { allForApp: Array<Maybe<(
-      { __typename?: 'Build' }
-      & Pick<Build, 'id' | 'platform' | 'status' | 'createdAt'>
-      & { artifacts?: Maybe<(
-        { __typename?: 'BuildArtifacts' }
-        & Pick<BuildArtifacts, 'buildUrl'>
+  & { app?: Maybe<(
+    { __typename?: 'AppQuery' }
+    & { byId: (
+      { __typename?: 'App' }
+      & Pick<App, 'id'>
+      & { builds: Array<(
+        { __typename?: 'Build' }
+        & Pick<Build, 'id'>
+        & BuildFragment
       )> }
-    )>> }
-  ) }
+    ) }
+  )> }
 );
 
 export type PendingBuildsForAccountAndPlatformQueryVariables = Exact<{
@@ -3895,6 +3893,34 @@ export type CurrentUserQuery = (
 export type AppFragment = (
   { __typename?: 'App' }
   & Pick<App, 'id' | 'fullName' | 'slug'>
+);
+
+export type BuildFragment = (
+  { __typename?: 'Build' }
+  & Pick<Build, 'id' | 'status' | 'platform' | 'createdAt' | 'updatedAt'>
+  & { error?: Maybe<(
+    { __typename?: 'BuildError' }
+    & Pick<BuildError, 'errorCode' | 'message'>
+  )>, artifacts?: Maybe<(
+    { __typename?: 'BuildArtifacts' }
+    & Pick<BuildArtifacts, 'buildUrl' | 'xcodeBuildLogsUrl'>
+  )>, initiatingActor?: Maybe<(
+    { __typename: 'User' }
+    & Pick<User, 'username' | 'id'>
+  ) | (
+    { __typename: 'Robot' }
+    & Pick<Robot, 'firstName' | 'id'>
+  )>, project: (
+    { __typename: 'Snack' }
+    & Pick<Snack, 'id'>
+  ) | (
+    { __typename: 'App' }
+    & Pick<App, 'id'>
+    & { ownerAccount: (
+      { __typename?: 'Account' }
+      & Pick<Account, 'id' | 'name'>
+    ) }
+  ) }
 );
 
 export type EnvironmentSecretFragment = (
