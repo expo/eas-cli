@@ -1,14 +1,17 @@
-import { ExpoConfig } from '@expo/config';
+import assert from 'assert';
 import chalk from 'chalk';
 import ora from 'ora';
 
-import { apiClient } from '../api';
+import { AppPrivacy } from '../graphql/generated';
+import { AppMutation } from '../graphql/mutations/AppMutation';
 import { ProjectQuery } from '../graphql/queries/ProjectQuery';
+import { findAccountByName } from '../user/Account';
+import { ensureLoggedInAsync } from '../user/actions';
 
 interface ProjectInfo {
   accountName: string;
   projectName: string;
-  privacy?: ExpoConfig['privacy'];
+  privacy?: AppPrivacy;
 }
 
 /**
@@ -17,6 +20,11 @@ interface ProjectInfo {
  */
 export async function ensureProjectExistsAsync(projectInfo: ProjectInfo): Promise<string> {
   const { accountName, projectName } = projectInfo;
+
+  const actor = await ensureLoggedInAsync();
+  const account = findAccountByName(actor.accounts, accountName);
+  assert(account, `You must have access to the ${accountName} account to run this command`);
+
   const projectFullName = `@${accountName}/${projectName}`;
 
   const spinner = ora(`Linking to project ${chalk.bold(projectFullName)}`).start();
@@ -34,7 +42,11 @@ export async function ensureProjectExistsAsync(projectInfo: ProjectInfo): Promis
 
   try {
     spinner.text = `Creating ${chalk.bold(projectFullName)} on Expo`;
-    const id = await registerNewProjectAsync(projectInfo);
+    const id = await registerNewProjectAsync({
+      accountId: account.id,
+      projectName,
+      privacy: projectInfo.privacy,
+    });
     spinner.succeed(`Created ${chalk.bold(projectFullName)} on Expo`);
     return id;
   } catch (err) {
@@ -62,18 +74,17 @@ async function findProjectIdByAccountNameAndSlugAsync(
  * @returns Created project's ID
  */
 async function registerNewProjectAsync({
-  accountName,
+  accountId,
   projectName,
   privacy,
-}: ProjectInfo): Promise<string> {
-  const { data } = await apiClient
-    .post('projects', {
-      json: {
-        accountName,
-        projectName,
-        privacy: privacy ?? 'public',
-      },
-    })
-    .json();
-  return data.id;
+}: {
+  accountId: string;
+  projectName: string;
+  privacy?: AppPrivacy;
+}): Promise<string> {
+  return AppMutation.createAppAsync({
+    accountId,
+    projectName,
+    privacy: privacy ?? AppPrivacy.Public,
+  });
 }
