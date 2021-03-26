@@ -2,6 +2,7 @@ import { getConfig } from '@expo/config';
 import { Command, flags } from '@oclif/command';
 import chalk from 'chalk';
 
+import { GetChannelByNameForAppQuery, UpdateBranch } from '../../graphql/generated';
 import Log from '../../log';
 import { ensureProjectExistsAsync } from '../../project/ensureProjectExists';
 import {
@@ -13,7 +14,7 @@ import { promptAsync, selectAsync } from '../../prompts';
 import { updateChannelBranchMappingAsync } from './edit';
 import { getBranchMapping, getUpdateChannelByNameForAppAsync } from './view';
 
-async function getRolloutPercentAsync({
+async function promptForRolloutPercentAsync({
   validationMessage,
   promptMessage,
 }: {
@@ -43,6 +44,32 @@ async function getRolloutPercentAsync({
     },
   });
   return rolloutPercent;
+}
+
+function getRolloutInfo(
+  getUpdateChannelByNameForAppResult: GetChannelByNameForAppQuery
+): {
+  newBranch: Pick<UpdateBranch, 'name' | 'id'>;
+  oldBranch: Pick<UpdateBranch, 'name' | 'id'>;
+  currentPercent: number;
+} {
+  const { branchMapping } = getBranchMapping(getUpdateChannelByNameForAppResult);
+  const [newBranchId, oldBranchId] = branchMapping.data.map(d => d.branchId);
+  const newBranch = getUpdateChannelByNameForAppResult.app?.byId.updateChannelByName.updateBranches.filter(
+    branch => branch.id === newBranchId
+  )[0];
+  const oldBranch = getUpdateChannelByNameForAppResult.app?.byId.updateChannelByName.updateBranches.filter(
+    branch => branch.id === oldBranchId
+  )[0];
+
+  if (!newBranch || !oldBranch) {
+    throw new Error(
+      `Branch mapping rollout is missing a branch for channel "${getUpdateChannelByNameForAppResult.app?.byId.updateChannelByName.name}".`
+    );
+  }
+
+  const currentPercent = 100 * branchMapping.data[0].branchMappingLogic.operand;
+  return { newBranch, oldBranch, currentPercent };
 }
 
 export default class ChannelRollout extends Command {
@@ -150,7 +177,7 @@ export default class ChannelRollout extends Command {
         if (jsonFlag) {
           throw new Error(validationMessage);
         }
-        percent = await getRolloutPercentAsync({ promptMessage, validationMessage });
+        percent = await promptForRolloutPercentAsync({ promptMessage, validationMessage });
       }
 
       const newBranchMapping = {
@@ -190,21 +217,11 @@ export default class ChannelRollout extends Command {
         100 - percent!
       )}% to ${oldBranch.name}.`;
     } else {
-      // not a rollout
+      // active rollout
       if (!endFlag) {
-        const currentPercent = 100 * currentBranchMapping.data[0].branchMappingLogic.operand;
-        const [newBranchId, oldBranchId] = currentBranchMapping.data.map(d => d.branchId);
-        const newBranch = getUpdateChannelByNameForAppResult.app?.byId.updateChannelByName.updateBranches.filter(
-          branch => branch.id === newBranchId
-        )[0];
-        const oldBranch = getUpdateChannelByNameForAppResult.app?.byId.updateChannelByName.updateBranches.filter(
-          branch => branch.id === oldBranchId
-        )[0];
-        if (!newBranch || !oldBranch) {
-          throw new Error(
-            `Branch mapping rollout is missing a branch for channel "${channelName}" on app "@${accountName}/${slug}"`
-          );
-        }
+        const { newBranch, oldBranch, currentPercent } = getRolloutInfo(
+          getUpdateChannelByNameForAppResult
+        );
 
         if (percent === undefined) {
           if (jsonFlag) {
@@ -222,7 +239,7 @@ export default class ChannelRollout extends Command {
           if (jsonFlag) {
             throw new Error(validationMessage);
           }
-          percent = await getRolloutPercentAsync({ promptMessage, validationMessage });
+          percent = await promptForRolloutPercentAsync({ promptMessage, validationMessage });
         }
 
         const newBranchMapping = { ...currentBranchMapping };
@@ -242,19 +259,9 @@ export default class ChannelRollout extends Command {
         )}% to ${oldBranch.name}.`;
       } else {
         // end flag is true
-        const currentPercent = 100 * currentBranchMapping.data[0].branchMappingLogic.operand;
-        const [newBranchId, oldBranchId] = currentBranchMapping.data.map(d => d.branchId);
-        const newBranch = getUpdateChannelByNameForAppResult.app?.byId.updateChannelByName.updateBranches.filter(
-          branch => branch.id === newBranchId
-        )[0];
-        const oldBranch = getUpdateChannelByNameForAppResult.app?.byId.updateChannelByName.updateBranches.filter(
-          branch => branch.id === oldBranchId
-        )[0];
-        if (!newBranch || !oldBranch) {
-          throw new Error(
-            `Branch mapping rollout is missing a branch for channel "${channelName}" on app "@${accountName}/${slug}"`
-          );
-        }
+        const { newBranch, oldBranch, currentPercent } = getRolloutInfo(
+          getUpdateChannelByNameForAppResult
+        );
 
         const endOnNewBranch = await selectAsync<boolean>(
           'Ending the rollout will send all traffic to a single branch. Which one should that be?',
@@ -276,7 +283,7 @@ export default class ChannelRollout extends Command {
           version: 0,
           data: [
             {
-              branchId: endOnNewBranch ? newBranchId : oldBranchId,
+              branchId: endOnNewBranch ? newBranch.id : oldBranch.id,
               branchMappingLogic: 'true',
             },
           ],
