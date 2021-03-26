@@ -22,7 +22,7 @@ export class SetupDistributionCertificate implements Action {
   private validDistCerts?: AppleDistributionCertificateFragment[];
   private _distributionCertificate?: AppleDistributionCertificateFragment;
 
-  constructor(private app: AppLookupParams) {}
+  constructor(private app: AppLookupParams, private distributionType: IosDistributionType) {}
 
   public get distributionCertificate(): AppleDistributionCertificateFragment {
     assert(
@@ -38,7 +38,7 @@ export class SetupDistributionCertificate implements Action {
     try {
       const currentCertificate = await ctx.newIos.getDistributionCertificateForAppAsync(
         this.app,
-        IosDistributionType.AdHoc,
+        this.distributionType,
         { appleTeam }
       );
 
@@ -61,9 +61,7 @@ export class SetupDistributionCertificate implements Action {
   ): Promise<void> {
     // TODO: implement validation
     Log.addNewLineIfNone();
-    Log.warn(
-      'Distribution Certificate is not validated for non-interactive internal distribution builds.'
-    );
+    Log.warn('Distribution Certificate is not validated for non-interactive builds.');
     if (!currentCertificate) {
       throw new MissingCredentialsNonInteractiveError();
     }

@@ -52,7 +52,7 @@ export class SetupAdhocProvisioningProfile implements Action {
 
   private async runNonInteractiveAsync(manager: CredentialsManager, ctx: Context): Promise<void> {
     // 1. Setup Distribution Certificate
-    const distCertAction = new SetupDistributionCertificate(this.app);
+    const distCertAction = new SetupDistributionCertificate(this.app, IosDistributionType.AdHoc);
     await manager.runActionAsync(distCertAction);
 
     // 2. Fetch profile from EAS servers
@@ -97,7 +97,7 @@ export class SetupAdhocProvisioningProfile implements Action {
     }
 
     // 2. Setup Distribution Certificate
-    const distCertAction = new SetupDistributionCertificate(this.app);
+    const distCertAction = new SetupDistributionCertificate(this.app, IosDistributionType.AdHoc);
     await manager.runActionAsync(distCertAction);
     const distCert = distCertAction.distributionCertificate;
 
