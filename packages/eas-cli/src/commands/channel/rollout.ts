@@ -1,6 +1,7 @@
 import { getConfig } from '@expo/config';
 import { Command, flags } from '@oclif/command';
 import chalk from 'chalk';
+import { assert } from 'console';
 
 import { GetChannelByNameForAppQuery, UpdateBranch } from '../../graphql/generated';
 import Log from '../../log';
@@ -263,21 +264,46 @@ export default class ChannelRollout extends Command {
           getUpdateChannelByNameForAppResult
         );
 
-        const endOnNewBranch = await selectAsync<boolean>(
-          'Ending the rollout will send all traffic to a single branch. Which one should that be?',
-          [
-            {
-              title: `${newBranch.name} ${chalk.grey(
-                `- current percent: ${100 - currentPercent}%`
-              )}`,
-              value: true,
-            },
-            {
-              title: `${oldBranch.name} ${chalk.grey(`- current percent: ${currentPercent}%`)}`,
-              value: false,
-            },
-          ]
-        );
+        let endOnNewBranch;
+        if (branchName) {
+          const branch = await getBranchByNameAsync({ appId: projectId, name: branchName! });
+          switch (branch.id) {
+            case newBranch.id:
+              endOnNewBranch = true;
+              break;
+            case oldBranch.id:
+              endOnNewBranch = false;
+              break;
+            default:
+              throw new Error(
+                `The branch "${branchName}"specified by --branch must be one of the branches involved in the rollout: "${newBranch.name}" or "${oldBranch.name}".`
+              );
+          }
+        } else {
+          if (jsonFlag) {
+            throw new Error(
+              'Branch name must be specified with the --branch flag when both the --end and --json flag are true.'
+            );
+          }
+          endOnNewBranch = await selectAsync<boolean>(
+            'Ending the rollout will send all traffic to a single branch. Which one should that be?',
+            [
+              {
+                title: `${newBranch.name} ${chalk.grey(
+                  `- current percent: ${100 - currentPercent}%`
+                )}`,
+                value: true,
+              },
+              {
+                title: `${oldBranch.name} ${chalk.grey(`- current percent: ${currentPercent}%`)}`,
+                value: false,
+              },
+            ]
+          );
+        }
+        if (endOnNewBranch === undefined) {
+          throw new Error('Branch to end on is undefined.');
+        }
 
         const newBranchMapping = {
           version: 0,
