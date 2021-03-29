@@ -32,7 +32,8 @@ const IosBuilderEnvironmentSchema = Joi.object({
 });
 
 const CacheSchema = Joi.object({
-  key: Joi.string().allow('').default('').max(128),
+  disabled: Joi.boolean().default(false),
+  key: Joi.string().max(128),
   cacheDefaultPaths: Joi.boolean().default(true),
   customPaths: Joi.array().items(Joi.string()).default([]),
 });
@@ -49,7 +50,7 @@ const AndroidGenericSchema = Joi.object({
   artifactPath: Joi.string(),
   withoutCredentials: Joi.boolean().default(false),
   distribution: Joi.string().valid('store', 'internal').default('store'),
-  cache: CacheSchema.allow(null).default({ key: '', cacheDefaultPaths: true, customPaths: [] }),
+  cache: CacheSchema.default(),
 }).concat(AndroidBuilderEnvironmentSchema);
 
 const AndroidManagedSchema = Joi.object({
@@ -62,7 +63,7 @@ const AndroidManagedSchema = Joi.object({
     otherwise: Joi.string().valid('apk', 'app-bundle', 'development-client').default('app-bundle'),
   }),
   distribution: Joi.string().valid('store', 'internal').default('store'),
-  cache: CacheSchema.allow(null).default({ key: '', cacheDefaultPaths: true, customPaths: [] }),
+  cache: CacheSchema.default(),
 }).concat(AndroidBuilderEnvironmentSchema);
 
 const iOSGenericSchema = Joi.object({
@@ -76,7 +77,7 @@ const iOSGenericSchema = Joi.object({
   autoIncrement: Joi.alternatives()
     .try(Joi.boolean(), Joi.string().valid('version', 'buildNumber'))
     .default(false),
-  cache: CacheSchema.allow(null).default({ key: '', cacheDefaultPaths: true, customPaths: [] }),
+  cache: CacheSchema.default(),
 }).concat(IosBuilderEnvironmentSchema);
 
 const iOSManagedSchema = Joi.object({
@@ -88,7 +89,7 @@ const iOSManagedSchema = Joi.object({
   autoIncrement: Joi.alternatives()
     .try(Joi.boolean(), Joi.string().valid('version', 'buildNumber'))
     .default(false),
-  cache: CacheSchema.allow(null).default({ key: '', cacheDefaultPaths: true, customPaths: [] }),
+  cache: CacheSchema.default(),
 }).concat(IosBuilderEnvironmentSchema);
 
 const schemaBuildProfileMap: Record<string, Record<string, Joi.Schema>> = {

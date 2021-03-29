@@ -52,7 +52,7 @@ interface CommonJobProperties {
   builderEnvironment: Ios.BuilderEnvironment;
   releaseChannel?: string;
   distribution?: Ios.DistributionType;
-  cache: Cache | null;
+  cache: Cache;
   secrets: {
     buildCredentials: Ios.BuildCredentials;
     secretEnvs?: Record<string, string>;

@@ -41,7 +41,7 @@ interface CommonJobProperties {
   platform: Platform.ANDROID;
   projectArchive: ArchiveSource;
   builderEnvironment: Android.BuilderEnvironment;
-  cache: Cache | null;
+  cache: Cache;
   secrets: {
     buildCredentials?: {
       keystore: Android.Keystore;
