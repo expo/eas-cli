@@ -163,7 +163,7 @@ export default class ChannelRollout extends Command {
       const oldBranchId = currentBranchMapping.data[0].branchId;
       if (branch.id === oldBranchId) {
         throw new Error(
-          `${channelName} is already pointing at ${branchName}. Rollouts must be done with distinct branches.`
+          `channel "${channelName}" is already pointing at branch "${branchName}". Rollouts must be done with distinct branches.`
         );
       }
 
@@ -173,7 +173,7 @@ export default class ChannelRollout extends Command {
             'You must specify a percent with the --percent flag when initiating a rollout with the --json flag.'
           );
         }
-        const promptMessage = `What percent of users should be directed to the branch ${branchName}?`;
+        const promptMessage = `What percent of users should be directed to the branch "${branchName}"?`;
         percent = await promptForRolloutPercentAsync({ promptMessage });
       }
 
@@ -209,9 +209,9 @@ export default class ChannelRollout extends Command {
         branchName
       )} onto channel ${chalk.bold(channelName!)}! ${chalk.bold(
         percent
-      )}% of users will be directed to ${chalk.bold(branchName)}, ${chalk.bold(
+      )}% of users will be directed to branch ${chalk.bold(branchName)}, ${chalk.bold(
         100 - percent!
-      )}% to ${chalk.bold(oldBranch.name)}.`;
+      )}% to branch ${chalk.bold(oldBranch.name)}.`;
     } else {
       // edit active rollout
       if (!endFlag) {
@@ -245,9 +245,9 @@ export default class ChannelRollout extends Command {
           channelName!
         )} updated from ${chalk.bold(currentPercent)}% to ${chalk.bold(percent)}%. ${chalk.bold(
           percent
-        )}% of users will be directed to ${chalk.bold(newBranch.name)}, ${chalk.bold(
+        )}% of users will be directed to branch ${chalk.bold(newBranch.name)}, ${chalk.bold(
           100 - percent!
-        )}% to ${chalk.bold(oldBranch.name)}.`;
+        )}% to branch ${chalk.bold(oldBranch.name)}.`;
       } else {
         // end rollout
         const { newBranch, oldBranch, currentPercent } = getRolloutInfo(
@@ -311,7 +311,7 @@ export default class ChannelRollout extends Command {
         });
         logMessage = `️Rollout on channel ${chalk.bold(
           channelName
-        )} ended. All traffic is now sent to ${chalk.bold(
+        )} ended. All traffic is now sent to branch ${chalk.bold(
           endOnNewBranch ? newBranch.name : oldBranch.name
         )}`;
       }
