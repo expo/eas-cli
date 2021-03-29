@@ -136,7 +136,7 @@ async function readCredentialsForTargetAsync(
   };
 }
 
-export async function readSecretEnvsAsync(
+export async function readEnvironmentSecretsAsync(
   projectDir: string
 ): Promise<Record<string, string> | undefined> {
   if (!(await fileExistsAsync(projectDir))) {

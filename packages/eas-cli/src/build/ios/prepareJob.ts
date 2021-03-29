@@ -15,7 +15,7 @@ import {
   IosCredentials,
   IosTargetCredentials,
   isCredentialsMap,
-  readSecretEnvsAsync,
+  readEnvironmentSecretsAsync,
 } from '../../credentials/credentialsJson/read';
 import { getProjectAccountNameAsync } from '../../project/projectUtils';
 import { gitRootDirectoryAsync } from '../../utils/git';
@@ -55,7 +55,7 @@ interface CommonJobProperties {
   cache: Cache;
   secrets: {
     buildCredentials: Ios.BuildCredentials;
-    secretEnvs?: Record<string, string>;
+    environmentSecrets?: Record<string, string>;
   };
 }
 
@@ -67,7 +67,7 @@ async function prepareJobCommonAsync(
     targetName,
   }: { archiveBucketKey: string; credentials?: IosCredentials; targetName?: string }
 ): Promise<Partial<CommonJobProperties>> {
-  const secretEnvs = await readSecretEnvsAsync(ctx.commandCtx.projectDir);
+  const environmentSecrets = await readEnvironmentSecretsAsync(ctx.commandCtx.projectDir);
 
   let buildCredentials: CommonJobProperties['secrets']['buildCredentials'] = {};
   if (credentials && isCredentialsMap(credentials)) {
@@ -103,7 +103,7 @@ async function prepareJobCommonAsync(
     },
     cache: ctx.buildProfile.cache,
     secrets: {
-      ...(secretEnvs ? { secretEnvs } : {}),
+      ...(environmentSecrets ? { environmentSecrets } : {}),
       buildCredentials,
     },
   };

@@ -227,8 +227,8 @@ describe('credentialsJson', () => {
     });
   });
 
-  describe('readSecretEnvsAsync', () => {
-    it('should read secretEnvs field correctly', async () => {
+  describe('readEnvironmentSecretsAsync', () => {
+    it('should read environmentSecrets field correctly', async () => {
       vol.fromJSON({
         './credentials.json': JSON.stringify({
           ios: {
@@ -245,7 +245,7 @@ describe('credentialsJson', () => {
         './pprofile': 'somebinarycontent',
         './cert.p12': 'somebinarycontent2',
       });
-      const result = await credentialsJsonReader.readSecretEnvsAsync('.');
+      const result = await credentialsJsonReader.readEnvironmentSecretsAsync('.');
       expect(result).toEqual({
         NPM_TOKEN: 'VALUE',
       });
