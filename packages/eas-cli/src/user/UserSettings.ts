@@ -7,6 +7,8 @@ const SETTINGS_FILE_PATH = path.join(getConfigDirectory(), 'user-settings.json')
 
 export type UserSettingsData = {
   appleId?: string;
+  amplitudeDeviceId?: string;
+  amplitudeEnabled?: boolean;
 };
 
 const UserSettings: JsonFile<UserSettingsData> = new JsonFile<UserSettingsData>(

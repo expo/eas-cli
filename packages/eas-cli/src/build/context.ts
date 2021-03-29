@@ -1,10 +1,13 @@
 import { ExpoConfig } from '@expo/config';
 import { AndroidBuildProfile, EasConfig, iOSBuildProfile } from '@expo/eas-json';
+import { v4 as uuidv4 } from 'uuid';
 
 import { getProjectAccountName } from '../project/projectUtils';
+import { findAccountByName } from '../user/Account';
 import { Actor } from '../user/User';
 import { ensureLoggedInAsync } from '../user/actions';
 import { Platform, RequestedPlatform, TrackingContext } from './types';
+import Analytics, { Event } from './utils/analytics';
 
 export interface CommandContext {
   requestedPlatform: RequestedPlatform;
@@ -15,7 +18,6 @@ export interface CommandContext {
   accountName: string;
   projectName: string;
   exp: ExpoConfig;
-  trackingCtx: TrackingContext;
   nonInteractive: boolean;
   skipCredentialsCheck: boolean;
   skipProjectConfiguration: boolean;
@@ -28,7 +30,6 @@ export async function createCommandContextAsync({
   exp,
   projectDir,
   projectId,
-  trackingCtx,
   nonInteractive = false,
   skipCredentialsCheck = false,
   skipProjectConfiguration = false,
@@ -39,7 +40,6 @@ export async function createCommandContextAsync({
   exp: ExpoConfig;
   projectId: string;
   projectDir: string;
-  trackingCtx: TrackingContext;
   nonInteractive: boolean;
   skipCredentialsCheck: boolean;
   skipProjectConfiguration: boolean;
@@ -58,7 +58,6 @@ export async function createCommandContextAsync({
     accountName,
     projectName,
     exp,
-    trackingCtx,
     nonInteractive,
     skipCredentialsCheck,
     skipProjectConfiguration,
@@ -102,13 +101,20 @@ export function createBuildContext<T extends Platform>({
   if (!buildProfile) {
     throw new Error(`${platform} build profile does not exist`);
   }
-  const builderTrackingCtx = {
-    ...commandCtx.trackingCtx,
+
+  const accountId = findAccountByName(commandCtx.user.accounts, commandCtx.accountName)?.id;
+  const trackingCtx = {
+    tracking_id: uuidv4(),
     platform,
+    ...(accountId && { account_id: accountId }),
+    account_name: commandCtx.accountName,
+    project_id: commandCtx.projectId,
+    project_type: buildProfile.workflow,
   };
+  Analytics.logEvent(Event.BUILD_COMMAND, trackingCtx);
   return {
     commandCtx,
-    trackingCtx: builderTrackingCtx,
+    trackingCtx,
     platform,
     buildProfile,
   };

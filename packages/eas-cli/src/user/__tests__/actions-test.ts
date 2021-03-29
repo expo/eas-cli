@@ -1,7 +1,7 @@
 import ApiV2Error from '../../ApiV2Error';
 import { promptAsync } from '../../prompts';
 import { Actor, loginAsync } from '../User';
-import { ensureActorHasUsername, getActorDisplayName, showLoginPromptAsync } from '../actions';
+import { ensureActorHasUsername, showLoginPromptAsync } from '../actions';
 import { UserSecondFactorDeviceMethod, retryUsernamePasswordAuthWithOTPAsync } from '../otp';
 
 jest.mock('../../prompts');
@@ -33,24 +33,6 @@ const robotStub: Actor = {
   firstName: 'GLaDOS',
   accounts: [],
 };
-
-describe('getActorDisplayName', () => {
-  it('returns anonymous for unauthenticated users', () => {
-    expect(getActorDisplayName()).toBe('anonymous');
-  });
-
-  it('returns username for user actors', () => {
-    expect(getActorDisplayName(userStub)).toBe(userStub.username);
-  });
-
-  it('returns firstName with robot prefix for robot actors', () => {
-    expect(getActorDisplayName(robotStub)).toBe(`${robotStub.firstName} (robot)`);
-  });
-
-  it('returns robot prefix only for robot actors without firstName', () => {
-    expect(getActorDisplayName({ ...robotStub, firstName: undefined })).toBe('robot');
-  });
-});
 
 describe('ensureActorHasUsername', () => {
   it('returns username for user actors', () => {
