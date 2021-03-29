@@ -266,7 +266,7 @@ export default class ChannelRollout extends Command {
               break;
             default:
               throw new Error(
-                `The branch "${branchName}"specified by --branch must be one of the branches involved in the rollout: "${newBranch.name}" or "${oldBranch.name}".`
+                `The branch "${branchName}" specified by --branch must be one of the branches involved in the rollout: "${newBranch.name}" or "${oldBranch.name}".`
               );
           }
         } else {
