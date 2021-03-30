@@ -159,6 +159,7 @@ async function startRolloutAsync({
 
   return { newChannelInfo, logMessage };
 }
+
 async function editRolloutAsync({
   channelName,
   percent,
@@ -215,6 +216,7 @@ async function editRolloutAsync({
 
   return { newChannelInfo, logMessage };
 }
+
 async function endRolloutAsync({
   channelName,
   branchName,
@@ -301,6 +303,7 @@ async function endRolloutAsync({
 
   return { newChannelInfo, logMessage };
 }
+
 export default class ChannelRollout extends Command {
   static hidden = true;
   static description = 'Rollout a new branch out to a channel incrementally.';
@@ -381,10 +384,16 @@ export default class ChannelRollout extends Command {
      *    a. increase/decrease the rollout percentage.
      *    b. end the rollout.
      */
-    let newChannelInfo, logMessage;
-
+    let rolloutMutationResult: {
+      newChannelInfo: {
+        id: string;
+        name: string;
+        branchMapping: string;
+      };
+      logMessage: string;
+    };
     if (!isRollout) {
-      const rolloutResult = await startRolloutAsync({
+      rolloutMutationResult = await startRolloutAsync({
         channelName,
         branchName,
         percent,
@@ -395,38 +404,33 @@ export default class ChannelRollout extends Command {
         currentBranchMapping,
         getUpdateChannelByNameForAppResult,
       });
-      newChannelInfo = rolloutResult.newChannelInfo;
-      logMessage = rolloutResult.logMessage;
     } else {
-      // edit active rollout
       if (!endFlag) {
-        const rolloutResult = await editRolloutAsync({
+        rolloutMutationResult = await editRolloutAsync({
           channelName,
           percent,
           jsonFlag,
           currentBranchMapping,
           getUpdateChannelByNameForAppResult,
         });
-        newChannelInfo = rolloutResult.newChannelInfo;
-        logMessage = rolloutResult.logMessage;
       } else {
-        const rolloutResult = await endRolloutAsync({
+        rolloutMutationResult = await endRolloutAsync({
           channelName,
           branchName,
           jsonFlag,
           projectId,
           getUpdateChannelByNameForAppResult,
         });
-        newChannelInfo = rolloutResult.newChannelInfo;
-        logMessage = rolloutResult.logMessage;
       }
     }
-
+    if (!rolloutMutationResult) {
+      throw new Error('rollout result is empty');
+    }
+    const { newChannelInfo, logMessage } = rolloutMutationResult;
     if (jsonFlag) {
       Log.log(JSON.stringify(newChannelInfo));
       return;
     }
-
     Log.withTick(logMessage);
   }
 }
