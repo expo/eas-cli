@@ -182,7 +182,7 @@ export default class ChannelRollout extends Command {
           {
             branchId: branch.id,
             branchMappingLogic: {
-              operand: percent! / 100,
+              operand: percent / 100,
               clientKey: 'rolloutToken',
               branchMappingOperator: 'hash_lt',
             },
@@ -209,7 +209,7 @@ export default class ChannelRollout extends Command {
       )} onto channel ${chalk.bold(channelName!)}! ${chalk.bold(
         percent
       )}% of users will be directed to branch ${chalk.bold(branchName)}, ${chalk.bold(
-        100 - percent!
+        100 - percent
       )}% to branch ${chalk.bold(oldBranch.name)}.`;
     } else {
       // edit active rollout
@@ -245,7 +245,7 @@ export default class ChannelRollout extends Command {
         )} updated from ${chalk.bold(currentPercent)}% to ${chalk.bold(percent)}%. ${chalk.bold(
           percent
         )}% of users will be directed to branch ${chalk.bold(newBranch.name)}, ${chalk.bold(
-          100 - percent!
+          100 - percent
         )}% to branch ${chalk.bold(oldBranch.name)}.`;
       } else {
         // end rollout
