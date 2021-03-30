@@ -129,7 +129,7 @@ export default class BranchDelete extends Command {
       Log.addNewLineIfNone();
       Log.warn(
         `You are about to permamently delete branch: "${name}" and all of the updates published on it.` +
-          `\nThis action is irreversable.`
+          `\nThis action is irreversible.`
       );
       Log.newLine();
       const confirmed = await toggleConfirmAsync({ message: 'Are you sure you wish to proceed?' });
