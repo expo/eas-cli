@@ -404,24 +404,22 @@ export default class ChannelRollout extends Command {
         currentBranchMapping,
         getUpdateChannelByNameForAppResult,
       });
+    } else if (endFlag) {
+      rolloutMutationResult = await endRolloutAsync({
+        channelName,
+        branchName,
+        jsonFlag,
+        projectId,
+        getUpdateChannelByNameForAppResult,
+      });
     } else {
-      if (!endFlag) {
-        rolloutMutationResult = await editRolloutAsync({
-          channelName,
-          percent,
-          jsonFlag,
-          currentBranchMapping,
-          getUpdateChannelByNameForAppResult,
-        });
-      } else {
-        rolloutMutationResult = await endRolloutAsync({
-          channelName,
-          branchName,
-          jsonFlag,
-          projectId,
-          getUpdateChannelByNameForAppResult,
-        });
-      }
+      rolloutMutationResult = await editRolloutAsync({
+        channelName,
+        percent,
+        jsonFlag,
+        currentBranchMapping,
+        getUpdateChannelByNameForAppResult,
+      });
     }
     if (!rolloutMutationResult) {
       throw new Error('rollout result is empty');
