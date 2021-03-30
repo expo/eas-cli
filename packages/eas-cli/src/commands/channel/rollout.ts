@@ -12,7 +12,7 @@ import {
 } from '../../project/projectUtils';
 import { promptAsync, selectAsync } from '../../prompts';
 import { updateChannelBranchMappingAsync } from './edit';
-import { getBranchMapping, getUpdateChannelByNameForAppAsync } from './view';
+import { BranchMapping, getBranchMapping, getUpdateChannelByNameForAppAsync } from './view';
 
 async function promptForRolloutPercentAsync({
   promptMessage,
@@ -61,6 +61,104 @@ function getRolloutInfo(
 
   const currentPercent = 100 * branchMapping.data[0].branchMappingLogic.operand;
   return { newBranch, oldBranch, currentPercent };
+}
+
+// start rollout
+async function startRolloutAsync({
+  channelName,
+  branchName,
+  percent,
+  jsonFlag,
+  projectId,
+  accountName,
+  slug,
+  currentBranchMapping,
+  getUpdateChannelByNameForAppResult,
+}: {
+  channelName?: string;
+  branchName?: string;
+  percent?: number;
+  jsonFlag: boolean;
+  projectId: string;
+  accountName: string;
+  slug: string;
+  currentBranchMapping: BranchMapping;
+  getUpdateChannelByNameForAppResult: GetChannelByNameForAppQuery;
+}): Promise<{
+  newChannelInfo: {
+    id: string;
+    name: string;
+    branchMapping: string;
+  };
+  logMessage: string;
+}> {
+  if (!branchName) {
+    const validationMessage = 'A branch must be specified.';
+    if (jsonFlag) {
+      throw new Error(validationMessage);
+    }
+    ({ name: branchName } = await promptAsync({
+      type: 'text',
+      name: 'name',
+      message: `Select a branch to rollout onto ${channelName}`,
+      validate: value => (value ? true : validationMessage),
+    }));
+  }
+  const branch = await getBranchByNameAsync({ appId: projectId, name: branchName! });
+  const oldBranchId = currentBranchMapping.data[0].branchId;
+  if (branch.id === oldBranchId) {
+    throw new Error(
+      `channel "${channelName}" is already pointing at branch "${branchName}". Rollouts must be done with distinct branches.`
+    );
+  }
+
+  if (percent == null) {
+    if (jsonFlag) {
+      throw new Error(
+        'You must specify a percent with the --percent flag when initiating a rollout with the --json flag.'
+      );
+    }
+    const promptMessage = `What percent of users should be directed to the branch "${branchName}"?`;
+    percent = await promptForRolloutPercentAsync({ promptMessage });
+  }
+
+  const newBranchMapping = {
+    version: 0,
+    data: [
+      {
+        branchId: branch.id,
+        branchMappingLogic: {
+          operand: percent / 100,
+          clientKey: 'rolloutToken',
+          branchMappingOperator: 'hash_lt',
+        },
+      },
+      currentBranchMapping.data[0],
+    ],
+  };
+  const newChannelInfo = await updateChannelBranchMappingAsync({
+    channelId: getUpdateChannelByNameForAppResult.app?.byId.updateChannelByName.id!,
+    branchMapping: JSON.stringify(newBranchMapping),
+  });
+
+  const oldBranch = getUpdateChannelByNameForAppResult.app?.byId.updateChannelByName.updateBranches.filter(
+    branch => branch.id === oldBranchId
+  )[0];
+  if (!oldBranch) {
+    throw new Error(
+      `Branch mapping is missing its only branch for channel "${channelName}" on app "@${accountName}/${slug}"`
+    );
+  }
+
+  const logMessage = `️Started a rollout of branch ${chalk.bold(
+    branchName
+  )} onto channel ${chalk.bold(channelName!)}! ${chalk.bold(
+    percent
+  )}% of users will be directed to branch ${chalk.bold(branchName)}, ${chalk.bold(
+    100 - percent
+  )}% to branch ${chalk.bold(oldBranch.name)}.`;
+
+  return { newChannelInfo, logMessage };
 }
 
 export default class ChannelRollout extends Command {
@@ -144,73 +242,21 @@ export default class ChannelRollout extends Command {
      *    b. end the rollout.
      */
     let newChannelInfo, logMessage;
+
     if (!isRollout) {
-      // start rollout
-      if (!branchName) {
-        const validationMessage = 'A branch must be specified.';
-        if (jsonFlag) {
-          throw new Error(validationMessage);
-        }
-        ({ name: branchName } = await promptAsync({
-          type: 'text',
-          name: 'name',
-          message: `Select a branch to rollout onto ${channelName}`,
-          validate: value => (value ? true : validationMessage),
-        }));
-      }
-      const branch = await getBranchByNameAsync({ appId: projectId, name: branchName! });
-      const oldBranchId = currentBranchMapping.data[0].branchId;
-      if (branch.id === oldBranchId) {
-        throw new Error(
-          `channel "${channelName}" is already pointing at branch "${branchName}". Rollouts must be done with distinct branches.`
-        );
-      }
-
-      if (percent == null) {
-        if (jsonFlag) {
-          throw new Error(
-            'You must specify a percent with the --percent flag when initiating a rollout with the --json flag.'
-          );
-        }
-        const promptMessage = `What percent of users should be directed to the branch "${branchName}"?`;
-        percent = await promptForRolloutPercentAsync({ promptMessage });
-      }
-
-      const newBranchMapping = {
-        version: 0,
-        data: [
-          {
-            branchId: branch.id,
-            branchMappingLogic: {
-              operand: percent / 100,
-              clientKey: 'rolloutToken',
-              branchMappingOperator: 'hash_lt',
-            },
-          },
-          currentBranchMapping.data[0],
-        ],
-      };
-      newChannelInfo = await updateChannelBranchMappingAsync({
-        channelId: getUpdateChannelByNameForAppResult.app?.byId.updateChannelByName.id!,
-        branchMapping: JSON.stringify(newBranchMapping),
+      const rolloutResult = await startRolloutAsync({
+        channelName,
+        branchName,
+        percent,
+        jsonFlag,
+        projectId,
+        accountName,
+        slug,
+        currentBranchMapping,
+        getUpdateChannelByNameForAppResult,
       });
-
-      const oldBranch = getUpdateChannelByNameForAppResult.app?.byId.updateChannelByName.updateBranches.filter(
-        branch => branch.id === oldBranchId
-      )[0];
-      if (!oldBranch) {
-        throw new Error(
-          `Branch mapping is missing its only branch for channel "${channelName}" on app "@${accountName}/${slug}"`
-        );
-      }
-
-      logMessage = `️Started a rollout of branch ${chalk.bold(
-        branchName
-      )} onto channel ${chalk.bold(channelName!)}! ${chalk.bold(
-        percent
-      )}% of users will be directed to branch ${chalk.bold(branchName)}, ${chalk.bold(
-        100 - percent
-      )}% to branch ${chalk.bold(oldBranch.name)}.`;
+      newChannelInfo = rolloutResult.newChannelInfo;
+      logMessage = rolloutResult.logMessage;
     } else {
       // edit active rollout
       if (!endFlag) {

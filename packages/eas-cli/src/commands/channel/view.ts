@@ -14,7 +14,7 @@ import { ensureProjectExistsAsync } from '../../project/ensureProjectExists';
 import { findProjectRootAsync, getProjectAccountNameAsync } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
 
-type BranchMapping = {
+export type BranchMapping = {
   version: number;
   data: {
     branchId: string;
