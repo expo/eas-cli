@@ -69,8 +69,7 @@ async function startRolloutAsync({
   percent,
   jsonFlag,
   projectId,
-  accountName,
-  slug,
+  fullName,
   currentBranchMapping,
   getUpdateChannelByNameForAppResult,
 }: {
@@ -79,8 +78,7 @@ async function startRolloutAsync({
   percent?: number;
   jsonFlag: boolean;
   projectId: string;
-  accountName: string;
-  slug: string;
+  fullName: string;
   currentBranchMapping: BranchMapping;
   getUpdateChannelByNameForAppResult: GetChannelByNameForAppQuery;
 }): Promise<{
@@ -145,7 +143,7 @@ async function startRolloutAsync({
   )[0];
   if (!oldBranch) {
     throw new Error(
-      `Branch mapping is missing its only branch for channel "${channelName}" on app "@${accountName}/${slug}"`
+      `Branch mapping is missing its only branch for channel "${channelName}" on app "${fullName}"`
     );
   }
 
@@ -399,8 +397,7 @@ export default class ChannelRollout extends Command {
         percent,
         jsonFlag,
         projectId,
-        accountName,
-        slug,
+        fullName: `@${accountName}/${slug}`,
         currentBranchMapping,
         getUpdateChannelByNameForAppResult,
       });
