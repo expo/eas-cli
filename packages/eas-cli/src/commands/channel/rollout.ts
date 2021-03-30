@@ -85,12 +85,11 @@ export default class ChannelRollout extends Command {
       required: false,
     }),
     end: flags.boolean({
-      description: 'End the rollout.',
+      description: 'end the rollout',
       default: false,
     }),
     json: flags.boolean({
-      description:
-        'print output as a JSON object with the new channel ID, name and branch mapping.',
+      description: 'print output as a JSON object with the new channel ID, name and branch mapping',
       default: false,
     }),
   };
