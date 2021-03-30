@@ -6,13 +6,7 @@ import Log from '../../log';
 import { promptAsync } from '../../prompts';
 import { SubmissionPlatform } from '../types';
 import { getBuildArtifactUrlByIdAsync, getLatestBuildArtifactUrlAsync } from '../utils/builds';
-import {
-  downloadAppArchiveAsync,
-  extractLocalArchiveAsync,
-  isExistingFile,
-  pathIsTar,
-  uploadAppArchiveAsync,
-} from '../utils/files';
+import { isExistingFile, uploadAppArchiveAsync } from '../utils/files';
 
 export enum ArchiveFileSourceType {
   url,
@@ -72,14 +66,10 @@ export async function getArchiveFileLocationAsync(
     case ArchiveFileSourceType.prompt:
       return await handlePromptSourceAsync(source);
     case ArchiveFileSourceType.url: {
-      const urlArchive = await handleUrlSourceAsync(source);
-      const resolvedUrl = await getArchiveLocationForUrlAsync(urlArchive.location);
-      return { ...urlArchive, location: resolvedUrl };
+      return await handleUrlSourceAsync(source);
     }
     case ArchiveFileSourceType.latest: {
-      const urlArchive = await handleLatestSourceAsync(source);
-      const resolvedUrl = await getArchiveLocationForUrlAsync(urlArchive.location);
-      return { ...urlArchive, location: resolvedUrl };
+      return await handleLatestSourceAsync(source);
     }
     case ArchiveFileSourceType.path: {
       const pathArchive = await handlePathSourceAsync(source);
@@ -87,30 +77,14 @@ export async function getArchiveFileLocationAsync(
       return { ...pathArchive, location: resolvedUrl };
     }
     case ArchiveFileSourceType.buildId: {
-      const urlArchive = await handleBuildIdSourceAsync(source);
-      const resolvedUrl = await getArchiveLocationForUrlAsync(urlArchive.location);
-      return { ...urlArchive, location: resolvedUrl };
+      return await handleBuildIdSourceAsync(source);
     }
   }
 }
 
-async function getArchiveLocationForUrlAsync(url: string): Promise<string> {
-  // When a URL points to a tar file, download it and extract using unified logic.
-  // Otherwise send it directly to the server in online mode.
-  if (!pathIsTar(url)) {
-    return url;
-  } else {
-    Log.log('Downloading your app archive');
-    const localPath = await downloadAppArchiveAsync(url);
-    return await getArchiveLocationForPathAsync(localPath);
-  }
-}
-
 async function getArchiveLocationForPathAsync(path: string): Promise<string> {
-  const resolvedPath = await extractLocalArchiveAsync(path);
-
   Log.log('Uploading your app archive to the Expo Submission Service');
-  return await uploadAppArchiveAsync(resolvedPath);
+  return await uploadAppArchiveAsync(path);
 }
 
 async function handleUrlSourceAsync(source: ArchiveFileUrlSource): Promise<ResolvedArchive> {
