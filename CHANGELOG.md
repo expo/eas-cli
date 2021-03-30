@@ -7,6 +7,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🛠 Breaking changes
 
 ### 🎉 New features
+- `build:view` and `build:list` now showing the distribution type (store / internal) and release channel. ([#284](https://github.com/expo/eas-cli/pull/284) by [@vthibault](https://github.com/vthibault))
 
 - Add analytics to EAS Build. ([#162](https://github.com/expo/eas-cli/pull/162) by [@wkozyra95](https://github.com/wkozyra95))
 
