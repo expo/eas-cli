@@ -63,7 +63,6 @@ function getRolloutInfo(
   return { newBranch, oldBranch, currentPercent };
 }
 
-// start rollout
 async function startRolloutAsync({
   channelName,
   branchName,
@@ -160,7 +159,62 @@ async function startRolloutAsync({
 
   return { newChannelInfo, logMessage };
 }
+async function editRolloutAsync({
+  channelName,
+  percent,
+  jsonFlag,
+  currentBranchMapping,
+  getUpdateChannelByNameForAppResult,
+}: {
+  channelName?: string;
+  percent?: number;
+  jsonFlag: boolean;
+  currentBranchMapping: BranchMapping;
+  getUpdateChannelByNameForAppResult: GetChannelByNameForAppQuery;
+}): Promise<{
+  newChannelInfo: {
+    id: string;
+    name: string;
+    branchMapping: string;
+  };
+  logMessage: string;
+}> {
+  const { newBranch, oldBranch, currentPercent } = getRolloutInfo(
+    getUpdateChannelByNameForAppResult
+  );
 
+  if (percent == null) {
+    if (jsonFlag) {
+      throw new Error(
+        'A rollout is already in progress. If you wish to modify it you must use specify the new rollout percentage with the --percent flag.'
+      );
+    }
+    const promptMessage = `Currently ${currentPercent}% of all users are routed to branch ${
+      newBranch.name
+    } and ${100 - currentPercent}% of all users are routed to branch ${
+      oldBranch.name
+    }. What percent of users should be directed to the branch ${newBranch.name}?`;
+    percent = await promptForRolloutPercentAsync({ promptMessage });
+  }
+
+  const newBranchMapping = { ...currentBranchMapping };
+  newBranchMapping.data[0].branchMappingLogic.operand = percent / 100;
+
+  const newChannelInfo = await updateChannelBranchMappingAsync({
+    channelId: getUpdateChannelByNameForAppResult.app?.byId.updateChannelByName.id!,
+    branchMapping: JSON.stringify(newBranchMapping),
+  });
+
+  const logMessage = `️Rollout of branch ${chalk.bold(newBranch.name)} onto channel ${chalk.bold(
+    channelName!
+  )} updated from ${chalk.bold(currentPercent)}% to ${chalk.bold(percent)}%. ${chalk.bold(
+    percent
+  )}% of users will be directed to branch ${chalk.bold(newBranch.name)}, ${chalk.bold(
+    100 - percent
+  )}% to branch ${chalk.bold(oldBranch.name)}.`;
+
+  return { newChannelInfo, logMessage };
+}
 export default class ChannelRollout extends Command {
   static hidden = true;
   static description = 'Rollout a new branch out to a channel incrementally.';
@@ -197,7 +251,7 @@ export default class ChannelRollout extends Command {
       args: { channel: channelName },
       flags: { json: jsonFlag, end: endFlag },
     } = this.parse(ChannelRollout);
-    let {
+    const {
       flags: { branch: branchName, percent },
     } = this.parse(ChannelRollout);
 
@@ -260,39 +314,15 @@ export default class ChannelRollout extends Command {
     } else {
       // edit active rollout
       if (!endFlag) {
-        const { newBranch, oldBranch, currentPercent } = getRolloutInfo(
-          getUpdateChannelByNameForAppResult
-        );
-
-        if (percent == null) {
-          if (jsonFlag) {
-            throw new Error(
-              'A rollout is already in progress. If you wish to modify it you must use specify the new rollout percentage with the --percent flag.'
-            );
-          }
-          const promptMessage = `Currently ${currentPercent}% of all users are routed to branch ${
-            newBranch.name
-          } and ${100 - currentPercent}% of all users are routed to branch ${
-            oldBranch.name
-          }. What percent of users should be directed to the branch ${newBranch.name}?`;
-          percent = await promptForRolloutPercentAsync({ promptMessage });
-        }
-
-        const newBranchMapping = { ...currentBranchMapping };
-        newBranchMapping.data[0].branchMappingLogic.operand = percent / 100;
-
-        newChannelInfo = await updateChannelBranchMappingAsync({
-          channelId: getUpdateChannelByNameForAppResult.app?.byId.updateChannelByName.id!,
-          branchMapping: JSON.stringify(newBranchMapping),
+        const rolloutResult = await editRolloutAsync({
+          channelName,
+          percent,
+          jsonFlag,
+          currentBranchMapping,
+          getUpdateChannelByNameForAppResult,
         });
-
-        logMessage = `️Rollout of branch ${chalk.bold(newBranch.name)} onto channel ${chalk.bold(
-          channelName!
-        )} updated from ${chalk.bold(currentPercent)}% to ${chalk.bold(percent)}%. ${chalk.bold(
-          percent
-        )}% of users will be directed to branch ${chalk.bold(newBranch.name)}, ${chalk.bold(
-          100 - percent
-        )}% to branch ${chalk.bold(oldBranch.name)}.`;
+        newChannelInfo = rolloutResult.newChannelInfo;
+        logMessage = rolloutResult.logMessage;
       } else {
         // end rollout
         const { newBranch, oldBranch, currentPercent } = getRolloutInfo(
