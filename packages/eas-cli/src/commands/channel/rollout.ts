@@ -166,7 +166,7 @@ export default class ChannelRollout extends Command {
         );
       }
 
-      if (percent === undefined) {
+      if (percent == null) {
         if (jsonFlag) {
           throw new Error(
             'You must specify a percent with the --percent flag when initiating a rollout with the --json flag.'
@@ -218,7 +218,7 @@ export default class ChannelRollout extends Command {
           getUpdateChannelByNameForAppResult
         );
 
-        if (percent === undefined) {
+        if (percent == null) {
           if (jsonFlag) {
             throw new Error(
               'A rollout is already in progress. If you wish to modify it you must use specify the new rollout percentage with the --percent flag.'
@@ -290,7 +290,7 @@ export default class ChannelRollout extends Command {
             ]
           );
         }
-        if (endOnNewBranch === undefined) {
+        if (endOnNewBranch == null) {
           throw new Error('Branch to end on is undefined.');
         }
 

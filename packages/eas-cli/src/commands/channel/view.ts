@@ -62,7 +62,7 @@ export function getBranchMapping(
       if (branchMapping.data[0].branchMappingLogic.branchMappingOperator !== 'hash_lt') {
         throw new Error('Branch mapping operator of initial branch mapping must be "hash_lt"');
       }
-      if (rolloutPercent === undefined) {
+      if (rolloutPercent == null) {
         throw new Error('Branch mapping is missing a "rolloutPercent"');
       }
       if (branchMapping.data[1].branchMappingLogic !== 'true') {
