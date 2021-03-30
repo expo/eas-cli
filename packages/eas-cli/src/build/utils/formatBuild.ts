@@ -113,6 +113,14 @@ export function formatGraphQLBuild(build: BuildFragment) {
       },
     },
     {
+      label: 'Distribution',
+      value: build.distribution?.toLowerCase() ?? chalk.gray('unknown'),
+    },
+    {
+      label: 'Release Channel',
+      value: build.releaseChannel ?? chalk.gray('unknown'),
+    },
+    {
       label: 'Logs',
       value: getBuildLogsUrl({ buildId: build.id, account }),
     },

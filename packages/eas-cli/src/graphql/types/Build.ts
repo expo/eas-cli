@@ -33,6 +33,8 @@ export const BuildFragmentNode = gql`
         }
       }
     }
+    releaseChannel
+    distribution
     createdAt
     updatedAt
   }

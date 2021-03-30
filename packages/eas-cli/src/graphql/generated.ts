@@ -206,6 +206,7 @@ export type Account = {
   snacks: Array<Snack>;
   /** Apps associated with this account */
   apps: Array<App>;
+  appCount: Scalars['Int'];
   /** Build Jobs associated with this account */
   buildJobs: Array<BuildJob>;
   /** (EAS Build) Builds associated with this account */
@@ -3934,7 +3935,7 @@ export type AppFragment = (
 
 export type BuildFragment = (
   { __typename?: 'Build' }
-  & Pick<Build, 'id' | 'status' | 'platform' | 'createdAt' | 'updatedAt'>
+  & Pick<Build, 'id' | 'status' | 'platform' | 'releaseChannel' | 'distribution' | 'createdAt' | 'updatedAt'>
   & { error?: Maybe<(
     { __typename?: 'BuildError' }
     & Pick<BuildError, 'errorCode' | 'message'>
