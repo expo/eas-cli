@@ -46,7 +46,7 @@ interface ArchiveFilePromptSource extends ArchiveFileSourceBase {
   sourceType: ArchiveFileSourceType.prompt;
 }
 
-interface ResolvedArchive {
+export interface ResolvedArchive {
   location: string;
   realSource: ArchiveFileSource;
 }
