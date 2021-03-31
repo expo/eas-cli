@@ -44,7 +44,6 @@ interface ArchiveFileBuildIdSource extends ArchiveFileSourceBase {
 
 interface ArchiveFilePromptSource extends ArchiveFileSourceBase {
   sourceType: ArchiveFileSourceType.prompt;
-  projectDir: string;
 }
 
 interface ResolvedArchive {
@@ -72,19 +71,12 @@ export async function getArchiveFileLocationAsync(
       return await handleLatestSourceAsync(source);
     }
     case ArchiveFileSourceType.path: {
-      const pathArchive = await handlePathSourceAsync(source);
-      const resolvedUrl = await getArchiveLocationForPathAsync(pathArchive.location);
-      return { ...pathArchive, location: resolvedUrl };
+      return await handlePathSourceAsync(source);
     }
     case ArchiveFileSourceType.buildId: {
       return await handleBuildIdSourceAsync(source);
     }
   }
-}
-
-async function getArchiveLocationForPathAsync(path: string): Promise<string> {
-  Log.log('Uploading your app archive to the Expo Submission Service');
-  return await uploadAppArchiveAsync(path);
 }
 
 async function handleUrlSourceAsync(source: ArchiveFileUrlSource): Promise<ResolvedArchive> {
@@ -128,8 +120,11 @@ async function handlePathSourceAsync(source: ArchiveFilePathSource): Promise<Res
       sourceType: ArchiveFileSourceType.prompt,
     });
   }
+
+  Log.log('Uploading your app archive to the Expo Submission Service');
+  const uploadUrl = await uploadAppArchiveAsync(source.path);
   return {
-    location: source.path,
+    location: uploadUrl,
     realSource: source,
   };
 }
