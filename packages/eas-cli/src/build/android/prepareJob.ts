@@ -11,7 +11,7 @@ import { AndroidGenericBuildProfile, AndroidManagedBuildProfile } from '@expo/ea
 import path from 'path';
 
 import { AndroidCredentials } from '../../credentials/android/AndroidCredentialsProvider';
-import { readSecretEnvsAsync } from '../../credentials/credentialsJson/read';
+import { readEnvironmentSecretsAsync } from '../../credentials/credentialsJson/read';
 import { getProjectAccountNameAsync } from '../../project/projectUtils';
 import { gitRootDirectoryAsync } from '../../utils/git';
 import { BuildContext } from '../context';
@@ -41,12 +41,12 @@ interface CommonJobProperties {
   platform: Platform.ANDROID;
   projectArchive: ArchiveSource;
   builderEnvironment: Android.BuilderEnvironment;
-  cache: Cache | null;
+  cache: Cache;
   secrets: {
     buildCredentials?: {
       keystore: Android.Keystore;
     };
-    secretEnvs?: Record<string, string>;
+    environmentSecrets?: Record<string, string>;
   };
 }
 
@@ -54,7 +54,7 @@ async function prepareJobCommonAsync(
   ctx: BuildContext<Platform.ANDROID>,
   jobData: JobData
 ): Promise<Partial<CommonJobProperties>> {
-  const secretEnvs = await readSecretEnvsAsync(ctx.commandCtx.projectDir);
+  const environmentSecrets = await readEnvironmentSecretsAsync(ctx.commandCtx.projectDir);
   const credentials = jobData.credentials;
   const buildCredentials = credentials
     ? {
@@ -84,7 +84,7 @@ async function prepareJobCommonAsync(
     },
     cache: ctx.buildProfile.cache,
     secrets: {
-      ...(secretEnvs ? { secretEnvs } : {}),
+      ...(environmentSecrets ? { environmentSecrets } : {}),
       ...buildCredentials,
     },
   };

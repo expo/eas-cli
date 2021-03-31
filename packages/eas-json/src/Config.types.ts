@@ -18,7 +18,7 @@ export interface AndroidManagedBuildProfile extends Android.BuilderEnvironment {
   buildType?: Android.ManagedBuildType;
   releaseChannel?: string;
   distribution?: AndroidDistributionType;
-  cache: Cache | null;
+  cache: Cache;
 }
 
 export interface AndroidGenericBuildProfile extends Android.BuilderEnvironment {
@@ -29,7 +29,7 @@ export interface AndroidGenericBuildProfile extends Android.BuilderEnvironment {
   artifactPath?: string;
   withoutCredentials?: boolean;
   distribution?: AndroidDistributionType;
-  cache: Cache | null;
+  cache: Cache;
 }
 
 export interface iOSManagedBuildProfile extends Ios.BuilderEnvironment {
@@ -39,7 +39,7 @@ export interface iOSManagedBuildProfile extends Ios.BuilderEnvironment {
   releaseChannel?: string;
   distribution?: iOSDistributionType;
   autoIncrement: VersionAutoIncrement;
-  cache: Cache | null;
+  cache: Cache;
 }
 
 export interface iOSGenericBuildProfile extends Ios.BuilderEnvironment {
@@ -51,7 +51,7 @@ export interface iOSGenericBuildProfile extends Ios.BuilderEnvironment {
   artifactPath?: string;
   distribution?: iOSDistributionType;
   autoIncrement: VersionAutoIncrement;
-  cache: Cache | null;
+  cache: Cache;
   disableIosBundleIdentifierValidation?: boolean;
 }
 
