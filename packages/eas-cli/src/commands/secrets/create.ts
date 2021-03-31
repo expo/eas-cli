@@ -89,7 +89,7 @@ export default class EnvironmentSecretCreate extends Command {
             return 'Secret name may not be empty.';
           }
 
-          if (value.match(/^\w+$/)) {
+          if (!value.match(/^\w+$/)) {
             return 'Names may contain only letters, numbers, and underscores.';
           }
 
