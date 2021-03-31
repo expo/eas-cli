@@ -80,6 +80,14 @@ export async function getArchiveFileLocationAsync(
 }
 
 async function handleUrlSourceAsync(source: ArchiveFileUrlSource): Promise<ResolvedArchive> {
+  if (!validateUrl(source.url)) {
+    Log.error(chalk.bold(`The URL you provided is invalid: ${source.url}`));
+    return getArchiveFileLocationAsync({
+      ...source,
+      sourceType: ArchiveFileSourceType.prompt,
+    });
+  }
+
   return {
     location: source.url,
     realSource: source,

@@ -47,6 +47,21 @@ describe(getArchiveFileLocationAsync, () => {
     assertArchiveResult(resolvedArchive, ArchiveFileSourceType.url);
   });
 
+  it('prompts again if provided URL is invalid', async () => {
+    asMock(promptAsync)
+      .mockResolvedValueOnce({ sourceType: ArchiveFileSourceType.url })
+      .mockResolvedValueOnce({ url: ARCHIVE_URL });
+
+    const resolvedArchive = await getArchiveFileLocationAsync({
+      ...SOURCE_STUB_INPUT,
+      sourceType: ArchiveFileSourceType.url,
+      url: 'invalid',
+    });
+
+    expect(promptAsync).toHaveBeenCalledTimes(2);
+    assertArchiveResult(resolvedArchive, ArchiveFileSourceType.url);
+  });
+
   it('handles prompt source', async () => {
     asMock(promptAsync)
       .mockResolvedValueOnce({ sourceType: ArchiveFileSourceType.url })
