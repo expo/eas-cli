@@ -1,12 +1,4 @@
-import {
-  Android,
-  ArchiveSource,
-  ArchiveSourceType,
-  Cache,
-  Job,
-  Workflow,
-  sanitizeJob,
-} from '@expo/eas-build-job';
+import { Android, ArchiveSource, Cache, Job, Workflow, sanitizeJob } from '@expo/eas-build-job';
 import { AndroidGenericBuildProfile, AndroidManagedBuildProfile } from '@expo/eas-json';
 import path from 'path';
 
@@ -18,7 +10,7 @@ import { BuildContext } from '../context';
 import { Platform } from '../types';
 
 interface JobData {
-  archiveBucketKey: string;
+  projectArchive: ArchiveSource;
   credentials?: AndroidCredentials;
 }
 
@@ -71,10 +63,7 @@ async function prepareJobCommonAsync(
 
   return {
     platform: Platform.ANDROID,
-    projectArchive: {
-      type: ArchiveSourceType.S3,
-      bucketKey: jobData.archiveBucketKey,
-    },
+    projectArchive: jobData.projectArchive,
     builderEnvironment: {
       image: ctx.buildProfile.image,
       node: ctx.buildProfile.node,

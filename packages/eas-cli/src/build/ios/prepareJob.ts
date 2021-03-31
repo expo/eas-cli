@@ -1,12 +1,4 @@
-import {
-  ArchiveSource,
-  ArchiveSourceType,
-  Cache,
-  Ios,
-  Job,
-  Workflow,
-  sanitizeJob,
-} from '@expo/eas-build-job';
+import { ArchiveSource, Cache, Ios, Job, Workflow, sanitizeJob } from '@expo/eas-build-job';
 import { iOSGenericBuildProfile, iOSManagedBuildProfile } from '@expo/eas-json';
 import assert from 'assert';
 import path from 'path';
@@ -23,7 +15,7 @@ import { BuildContext } from '../context';
 import { Platform } from '../types';
 
 interface JobData {
-  archiveBucketKey: string;
+  projectArchive: ArchiveSource;
   credentials?: IosCredentials;
   projectConfiguration: {
     iosBuildScheme?: string;
@@ -62,10 +54,10 @@ interface CommonJobProperties {
 async function prepareJobCommonAsync(
   ctx: BuildContext<Platform.IOS>,
   {
-    archiveBucketKey,
     credentials,
     targetName,
-  }: { archiveBucketKey: string; credentials?: IosCredentials; targetName?: string }
+    projectArchive,
+  }: { credentials?: IosCredentials; targetName?: string; projectArchive: ArchiveSource }
 ): Promise<Partial<CommonJobProperties>> {
   const environmentSecrets = await readEnvironmentSecretsAsync(ctx.commandCtx.projectDir);
 
@@ -87,10 +79,7 @@ async function prepareJobCommonAsync(
 
   return {
     platform: Platform.IOS,
-    projectArchive: {
-      type: ArchiveSourceType.S3,
-      bucketKey: archiveBucketKey,
-    },
+    projectArchive,
     distribution: ctx.buildProfile.distribution,
     builderEnvironment: {
       image: ctx.buildProfile.image,
@@ -128,9 +117,9 @@ async function prepareGenericJobAsync(
     path.relative(await gitRootDirectoryAsync(), ctx.commandCtx.projectDir) || '.';
   return {
     ...(await prepareJobCommonAsync(ctx, {
-      archiveBucketKey: jobData.archiveBucketKey,
       credentials: jobData.credentials,
       targetName: jobData.projectConfiguration.iosApplicationTarget,
+      projectArchive: jobData.projectArchive,
     })),
     type: Workflow.GENERIC,
     scheme: jobData.projectConfiguration.iosBuildScheme,
@@ -154,9 +143,9 @@ async function prepareManagedJobAsync(
   const accountName = await getProjectAccountNameAsync(ctx.commandCtx.exp);
   return {
     ...(await prepareJobCommonAsync(ctx, {
-      archiveBucketKey: jobData.archiveBucketKey,
       credentials: jobData.credentials,
       targetName: jobData.projectConfiguration.iosApplicationTarget,
+      projectArchive: jobData.projectArchive,
     })),
     type: Workflow.MANAGED,
     buildType: buildProfile.buildType,
