@@ -30,9 +30,9 @@ describe('CreateProvisioningProfile', () => {
     );
     await createProvProfAction.runAsync(manager, ctx);
 
-    // expect provisioning profile not be created on expo servers
+    // expect provisioning profile to be created on expo servers
     expect((ctx.newIos.createProvisioningProfileAsync as any).mock.calls.length).toBe(1);
-    // expect provisioning profile not be created on apple portal
+    // expect provisioning profile to be created on apple portal
     expect((ctx.appStore.createProvisioningProfileAsync as any).mock.calls.length).toBe(1);
   });
   it('errors in Non Interactive Mode', async () => {
@@ -49,9 +49,9 @@ describe('CreateProvisioningProfile', () => {
       MissingCredentialsNonInteractiveError
     );
 
-    // expect provisioning profile not be created on expo servers
+    // expect provisioning profile not to be created on expo servers
     expect((ctx.newIos.createProvisioningProfileAsync as any).mock.calls.length).toBe(0);
-    // expect provisioning profile not be created on apple portal
+    // expect provisioning profile not to be created on apple portal
     expect((ctx.appStore.createProvisioningProfileAsync as any).mock.calls.length).toBe(0);
   });
 });
