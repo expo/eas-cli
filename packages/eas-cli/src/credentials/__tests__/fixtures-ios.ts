@@ -2,6 +2,7 @@ import {
   AppFragment,
   AppleAppIdentifierFragment,
   AppleDistributionCertificateFragment,
+  AppleProvisioningProfileFragment,
   AppleTeamFragment,
 } from '../../graphql/generated';
 import {
@@ -54,6 +55,17 @@ export const testAppFragment: AppFragment = {
   id: 'test-app-id',
   fullName: '@testuser/testapp',
   slug: 'testapp',
+};
+
+export const testProvisioningProfileFragment: AppleProvisioningProfileFragment = {
+  id: 'test-prov-prof-id-1',
+  expiration: new Date(),
+  developerPortalIdentifier: 'test-developer-identifier',
+  provisioningProfile: 'test-provisioning-profile',
+  updatedAt: new Date(),
+  status: 'Active',
+  appleTeam: { ...testAppleTeamFragment },
+  appleDevices: [],
 };
 
 export const testDistCertFragmentNoDependencies: AppleDistributionCertificateFragment = {

@@ -11,3 +11,9 @@ export class MissingCredentialsNonInteractiveError extends Error {
     );
   }
 }
+
+export class ProvisioningProfileNotFoundOnAppleServersError extends Error {
+  constructor(message?: string) {
+    super(message ?? 'Provisioning Profile not found on Apple Developer Portal.');
+  }
+}
