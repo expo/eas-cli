@@ -15,7 +15,7 @@ import { findAccountByName } from '../../user/Account';
 import { getActorDisplayName } from '../../user/User';
 import { ensureLoggedInAsync } from '../../user/actions';
 
-export enum EnvironmentSecretTargetLocation {
+export enum EnvironmentSecretScope {
   ACCOUNT = 'account',
   PROJECT = 'project',
 }
@@ -23,10 +23,10 @@ export default class EnvironmentSecretCreate extends Command {
   static description = 'Create an environment secret on the current project or owner account.';
 
   static flags = {
-    target: flags.enum({
-      description: 'Target location for the secret',
-      options: [EnvironmentSecretTargetLocation.ACCOUNT, EnvironmentSecretTargetLocation.PROJECT],
-      default: EnvironmentSecretTargetLocation.PROJECT,
+    scope: flags.enum({
+      description: 'Scope for the secret',
+      options: [EnvironmentSecretScope.ACCOUNT, EnvironmentSecretScope.PROJECT],
+      default: EnvironmentSecretScope.PROJECT,
     }),
     name: flags.string({
       description: 'Name of the secret',
@@ -39,7 +39,7 @@ export default class EnvironmentSecretCreate extends Command {
   async run() {
     const actor = await ensureLoggedInAsync();
     let {
-      flags: { name, value: secretValue, target },
+      flags: { name, value: secretValue, scope },
     } = this.parse(EnvironmentSecretCreate);
 
     const projectDir = (await findProjectRootAsync()) ?? process.cwd();
@@ -58,16 +58,16 @@ export default class EnvironmentSecretCreate extends Command {
       return;
     }
 
-    if (!target) {
-      const validationMessage = 'Secret target may not be empty.';
+    if (!scope) {
+      const validationMessage = 'Secret scope may not be empty.';
 
-      ({ target } = await promptAsync({
+      ({ scope } = await promptAsync({
         type: 'select',
-        name: 'target',
+        name: 'scope',
         message: 'Where should this secret be used:',
         choices: [
-          { title: 'Account-wide', value: EnvironmentSecretTargetLocation.ACCOUNT },
-          { title: 'Project-specific', value: EnvironmentSecretTargetLocation.PROJECT },
+          { title: 'Account-wide', value: EnvironmentSecretScope.ACCOUNT },
+          { title: 'Project-specific', value: EnvironmentSecretScope.PROJECT },
         ],
         validate: value => (value ? true : validationMessage),
       }));
@@ -107,7 +107,7 @@ export default class EnvironmentSecretCreate extends Command {
       if (!secretValue) throw new Error(validationMessage);
     }
 
-    if (target === EnvironmentSecretTargetLocation.PROJECT) {
+    if (scope === EnvironmentSecretScope.PROJECT) {
       const secret = await EnvironmentSecretMutation.createForApp(
         { name, value: secretValue },
         projectId
@@ -123,7 +123,7 @@ export default class EnvironmentSecretCreate extends Command {
           `@${accountName}/${slug}`
         )}.`
       );
-    } else if (target === EnvironmentSecretTargetLocation.ACCOUNT) {
+    } else if (scope === EnvironmentSecretScope.ACCOUNT) {
       const ownerAccount = findAccountByName(actor.accounts, accountName);
       if (!ownerAccount) {
         Log.warn(
