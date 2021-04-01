@@ -6,13 +6,7 @@ import Log from '../../log';
 import { promptAsync } from '../../prompts';
 import { SubmissionPlatform } from '../types';
 import { getBuildArtifactUrlByIdAsync, getLatestBuildArtifactUrlAsync } from '../utils/builds';
-import {
-  downloadAppArchiveAsync,
-  extractLocalArchiveAsync,
-  isExistingFile,
-  pathIsTar,
-  uploadAppArchiveAsync,
-} from '../utils/files';
+import { isExistingFile, uploadAppArchiveAsync } from '../utils/files';
 
 export enum ArchiveFileSourceType {
   url,
@@ -50,10 +44,9 @@ interface ArchiveFileBuildIdSource extends ArchiveFileSourceBase {
 
 interface ArchiveFilePromptSource extends ArchiveFileSourceBase {
   sourceType: ArchiveFileSourceType.prompt;
-  projectDir: string;
 }
 
-interface ResolvedArchive {
+export interface ResolvedArchive {
   location: string;
   realSource: ArchiveFileSource;
 }
@@ -72,48 +65,29 @@ export async function getArchiveFileLocationAsync(
     case ArchiveFileSourceType.prompt:
       return await handlePromptSourceAsync(source);
     case ArchiveFileSourceType.url: {
-      const urlArchive = await handleUrlSourceAsync(source);
-      const resolvedUrl = await getArchiveLocationForUrlAsync(urlArchive.location);
-      return { ...urlArchive, location: resolvedUrl };
+      return await handleUrlSourceAsync(source);
     }
     case ArchiveFileSourceType.latest: {
-      const urlArchive = await handleLatestSourceAsync(source);
-      const resolvedUrl = await getArchiveLocationForUrlAsync(urlArchive.location);
-      return { ...urlArchive, location: resolvedUrl };
+      return await handleLatestSourceAsync(source);
     }
     case ArchiveFileSourceType.path: {
-      const pathArchive = await handlePathSourceAsync(source);
-      const resolvedUrl = await getArchiveLocationForPathAsync(pathArchive.location);
-      return { ...pathArchive, location: resolvedUrl };
+      return await handlePathSourceAsync(source);
     }
     case ArchiveFileSourceType.buildId: {
-      const urlArchive = await handleBuildIdSourceAsync(source);
-      const resolvedUrl = await getArchiveLocationForUrlAsync(urlArchive.location);
-      return { ...urlArchive, location: resolvedUrl };
+      return await handleBuildIdSourceAsync(source);
     }
   }
-}
-
-async function getArchiveLocationForUrlAsync(url: string): Promise<string> {
-  // When a URL points to a tar file, download it and extract using unified logic.
-  // Otherwise send it directly to the server in online mode.
-  if (!pathIsTar(url)) {
-    return url;
-  } else {
-    Log.log('Downloading your app archive');
-    const localPath = await downloadAppArchiveAsync(url);
-    return await getArchiveLocationForPathAsync(localPath);
-  }
-}
-
-async function getArchiveLocationForPathAsync(path: string): Promise<string> {
-  const resolvedPath = await extractLocalArchiveAsync(path);
-
-  Log.log('Uploading your app archive to the Expo Submission Service');
-  return await uploadAppArchiveAsync(resolvedPath);
 }
 
 async function handleUrlSourceAsync(source: ArchiveFileUrlSource): Promise<ResolvedArchive> {
+  if (!validateUrl(source.url)) {
+    Log.error(chalk.bold(`The URL you provided is invalid: ${source.url}`));
+    return getArchiveFileLocationAsync({
+      ...source,
+      sourceType: ArchiveFileSourceType.prompt,
+    });
+  }
+
   return {
     location: source.url,
     realSource: source,
@@ -154,8 +128,11 @@ async function handlePathSourceAsync(source: ArchiveFilePathSource): Promise<Res
       sourceType: ArchiveFileSourceType.prompt,
     });
   }
+
+  Log.log('Uploading your app archive to the Expo Submission Service');
+  const uploadUrl = await uploadAppArchiveAsync(source.path);
   return {
-    location: source.path,
+    location: uploadUrl,
     realSource: source,
   };
 }
