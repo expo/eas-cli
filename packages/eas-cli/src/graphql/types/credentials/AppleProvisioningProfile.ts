@@ -6,6 +6,8 @@ export const AppleProvisioningProfileFragmentNode = gql`
     expiration
     developerPortalIdentifier
     provisioningProfile
+    updatedAt
+    status
     appleTeam {
       id
       appleTeamIdentifier

@@ -1,4 +1,8 @@
+import { print } from 'graphql';
 import gql from 'graphql-tag';
+
+import { AppleDistributionCertificateFragmentNode } from './AppleDistributionCertificate';
+import { AppleProvisioningProfileFragmentNode } from './AppleProvisioningProfile';
 
 export const IosAppBuildCredentialsFragmentNode = gql`
   fragment IosAppBuildCredentialsFragment on IosAppBuildCredentials {
@@ -6,38 +10,13 @@ export const IosAppBuildCredentialsFragmentNode = gql`
     iosDistributionType
     distributionCertificate {
       id
-      certificateP12
-      certificatePassword
-      serialNumber
-      developerPortalIdentifier
-      validityNotBefore
-      validityNotAfter
-      updatedAt
-      appleTeam {
-        id
-        appleTeamIdentifier
-        appleTeamName
-      }
+      ...AppleDistributionCertificateFragment
     }
     provisioningProfile {
       id
-      expiration
-      developerPortalIdentifier
-      provisioningProfile
-      updatedAt
-      status
-      appleDevices {
-        id
-        identifier
-        name
-        model
-        deviceClass
-      }
-      appleTeam {
-        id
-        appleTeamIdentifier
-        appleTeamName
-      }
+      ...AppleProvisioningProfileFragment
     }
   }
+  ${print(AppleDistributionCertificateFragmentNode)}
+  ${print(AppleProvisioningProfileFragmentNode)}
 `;

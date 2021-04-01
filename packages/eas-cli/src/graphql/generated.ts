@@ -4342,7 +4342,7 @@ export type AppleDistributionCertificateFragment = (
 
 export type AppleProvisioningProfileFragment = (
   { __typename?: 'AppleProvisioningProfile' }
-  & Pick<AppleProvisioningProfile, 'id' | 'expiration' | 'developerPortalIdentifier' | 'provisioningProfile'>
+  & Pick<AppleProvisioningProfile, 'id' | 'expiration' | 'developerPortalIdentifier' | 'provisioningProfile' | 'updatedAt' | 'status'>
   & { appleTeam?: Maybe<(
     { __typename?: 'AppleTeam' }
     & Pick<AppleTeam, 'id' | 'appleTeamIdentifier' | 'appleTeamName'>
@@ -4367,21 +4367,12 @@ export type IosAppBuildCredentialsFragment = (
   & Pick<IosAppBuildCredentials, 'id' | 'iosDistributionType'>
   & { distributionCertificate?: Maybe<(
     { __typename?: 'AppleDistributionCertificate' }
-    & Pick<AppleDistributionCertificate, 'id' | 'certificateP12' | 'certificatePassword' | 'serialNumber' | 'developerPortalIdentifier' | 'validityNotBefore' | 'validityNotAfter' | 'updatedAt'>
-    & { appleTeam?: Maybe<(
-      { __typename?: 'AppleTeam' }
-      & Pick<AppleTeam, 'id' | 'appleTeamIdentifier' | 'appleTeamName'>
-    )> }
+    & Pick<AppleDistributionCertificate, 'id'>
+    & AppleDistributionCertificateFragment
   )>, provisioningProfile?: Maybe<(
     { __typename?: 'AppleProvisioningProfile' }
-    & Pick<AppleProvisioningProfile, 'id' | 'expiration' | 'developerPortalIdentifier' | 'provisioningProfile' | 'updatedAt' | 'status'>
-    & { appleDevices: Array<(
-      { __typename?: 'AppleDevice' }
-      & Pick<AppleDevice, 'id' | 'identifier' | 'name' | 'model' | 'deviceClass'>
-    )>, appleTeam?: Maybe<(
-      { __typename?: 'AppleTeam' }
-      & Pick<AppleTeam, 'id' | 'appleTeamIdentifier' | 'appleTeamName'>
-    )> }
+    & Pick<AppleProvisioningProfile, 'id'>
+    & AppleProvisioningProfileFragment
   )> }
 );
 
