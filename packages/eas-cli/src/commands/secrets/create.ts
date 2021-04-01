@@ -1,5 +1,5 @@
 import { getConfig } from '@expo/config';
-import { Command } from '@oclif/command';
+import { Command, flags } from '@oclif/command';
 import chalk from 'chalk';
 
 import { EnvironmentSecretMutation } from '../../graphql/mutations/EnvironmentSecretMutation';
@@ -22,29 +22,24 @@ export enum EnvironmentSecretTargetLocation {
 export default class EnvironmentSecretCreate extends Command {
   static description = 'Create an environment secret on the current project or owner account.';
 
-  static args = [
-    {
-      name: 'target',
-      required: false,
+  static flags = {
+    target: flags.enum({
       description: 'Target location for the secret',
       options: [EnvironmentSecretTargetLocation.ACCOUNT, EnvironmentSecretTargetLocation.PROJECT],
-    },
-    {
-      name: 'name',
-      required: false,
+      default: EnvironmentSecretTargetLocation.PROJECT,
+    }),
+    name: flags.string({
       description: 'Name of the secret',
-    },
-    {
-      name: 'value',
-      required: false,
+    }),
+    value: flags.string({
       description: 'Value of the secret',
-    },
-  ];
+    }),
+  };
 
   async run() {
     const actor = await ensureLoggedInAsync();
     let {
-      args: { name, value: secretValue, target },
+      flags: { name, value: secretValue, target },
     } = this.parse(EnvironmentSecretCreate);
 
     const projectDir = (await findProjectRootAsync()) ?? process.cwd();
@@ -95,6 +90,8 @@ export default class EnvironmentSecretCreate extends Command {
           return true;
         },
       }));
+
+      if (!name) throw new Error('Secret name may not be empty.');
     }
 
     if (!secretValue) {
@@ -106,6 +103,8 @@ export default class EnvironmentSecretCreate extends Command {
         message: 'Secret value:',
         validate: value => (value ? true : validationMessage),
       }));
+
+      if (!secretValue) throw new Error(validationMessage);
     }
 
     if (target === EnvironmentSecretTargetLocation.PROJECT) {
