@@ -122,13 +122,13 @@ export default class IosCredentialsProvider implements CredentialsProvider {
     if (this.options.distribution === 'internal' && !isAdHoc) {
       throw new Error(
         `You must use an adhoc provisioning profile${
-          targetName && ` (target '${targetName})'`
+          targetName ? ` (target '${targetName})'` : ''
         } for internal distribution`
       );
     } else if (this.options.distribution !== 'internal' && isAdHoc) {
       throw new Error(
         `You can't use an adhoc provisioning profile${
-          targetName && ` (target '${targetName}')`
+          targetName ? ` (target '${targetName}')` : ''
         } for app store distribution`
       );
     }
