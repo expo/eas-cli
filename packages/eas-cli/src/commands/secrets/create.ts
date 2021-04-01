@@ -20,7 +20,6 @@ export enum EnvironmentSecretTargetLocation {
   PROJECT = 'project',
 }
 export default class EnvironmentSecretCreate extends Command {
-  static hidden = true;
   static description = 'Create an environment secret on the current project or owner account.';
 
   static args = [

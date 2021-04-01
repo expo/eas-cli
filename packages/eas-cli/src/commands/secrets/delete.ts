@@ -1,5 +1,6 @@
 import { getConfig } from '@expo/config';
 import { Command } from '@oclif/command';
+import chalk from 'chalk';
 
 import { EnvironmentSecretMutation } from '../../graphql/mutations/EnvironmentSecretMutation';
 import Log from '../../log';
@@ -12,11 +13,8 @@ import { toggleConfirmAsync } from '../../prompts';
 import { ensureLoggedInAsync } from '../../user/actions';
 
 export default class EnvironmentSecretDelete extends Command {
-  static hidden = true;
-  static description = `
-Delete an environment secret by ID.
-Unsure where to find the secret's ID? Run ${'`eas secrets:list`'}
-  `;
+  static description = `Delete an environment secret by ID.
+Unsure where to find the secret's ID? Run ${chalk.bold('eas secrets:list')}`;
 
   static args = [
     {
