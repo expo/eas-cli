@@ -18,7 +18,7 @@ import {
   getProjectIdAsync,
 } from '../../project/projectUtils';
 import { ensureLoggedInAsync } from '../../user/actions';
-import { EnvironmentSecretTargetLocation } from './create';
+import { EnvironmentSecretScope } from './create';
 
 export default class EnvironmentSecretsList extends Command {
   static description = 'Lists environment secrets available for your current app';
@@ -49,18 +49,18 @@ export default class EnvironmentSecretsList extends Command {
     ]);
 
     const secrets = [
-      ...appSecrets.map(s => ({ ...s, target: EnvironmentSecretTargetLocation.PROJECT })),
-      ...accountSecrets.map(s => ({ ...s, target: EnvironmentSecretTargetLocation.ACCOUNT })),
-    ] as (EnvironmentSecretFragment & { target: EnvironmentSecretTargetLocation })[];
+      ...appSecrets.map(s => ({ ...s, scope: EnvironmentSecretScope.PROJECT })),
+      ...accountSecrets.map(s => ({ ...s, scope: EnvironmentSecretScope.ACCOUNT })),
+    ] as (EnvironmentSecretFragment & { scope: EnvironmentSecretScope })[];
 
     const table = new Table({
-      head: ['Name', 'Target', 'Updated at', 'ID'],
+      head: ['Name', 'Scope', 'ID', 'Updated at'],
       wordWrap: true,
     });
 
     for (const secret of secrets) {
-      const { name, createdAt: updatedAt, target, id } = secret;
-      table.push([name, target, dateFormat(updatedAt, 'mmm dd HH:MM:ss'), id]);
+      const { name, createdAt: updatedAt, scope, id } = secret;
+      table.push([name, scope, id, dateFormat(updatedAt, 'mmm dd HH:MM:ss')]);
     }
 
     Log.log(chalk`{bold Secrets for this account and project:}`);
