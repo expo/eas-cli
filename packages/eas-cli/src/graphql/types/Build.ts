@@ -8,6 +8,7 @@ export const BuildFragmentNode = gql`
     error {
       errorCode
       message
+      docsUrl
     }
     artifacts {
       buildUrl

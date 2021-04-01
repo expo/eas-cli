@@ -16,3 +16,8 @@ export const platformEmojis = {
   [Platform.IOS]: '🍎',
   [Platform.ANDROID]: '🤖',
 };
+
+export const appPlatformEmojis = {
+  [AppPlatform.Ios]: '🍎',
+  [AppPlatform.Android]: '🤖',
+};
