@@ -779,8 +779,9 @@ export enum DistributionType {
 
 export type BuildError = {
   __typename?: 'BuildError';
-  errorCode?: Maybe<Scalars['String']>;
-  message?: Maybe<Scalars['String']>;
+  errorCode: Scalars['String'];
+  message: Scalars['String'];
+  docsUrl?: Maybe<Scalars['String']>;
 };
 
 /** Represents an Standalone App build job */
