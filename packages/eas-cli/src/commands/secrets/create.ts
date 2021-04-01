@@ -83,6 +83,8 @@ export default class EnvironmentSecretCreate extends Command {
             return 'Secret name may not be empty.';
           }
 
+          // this validation regex here is just to shorten the feedback loop
+          // the source of truth is in www's EnvironmentSecretValidator class
           if (!value.match(/^\w+$/)) {
             return 'Names may contain only letters, numbers, and underscores.';
           }
