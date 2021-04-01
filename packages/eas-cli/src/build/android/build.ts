@@ -1,4 +1,4 @@
-import { Workflow } from '@expo/eas-build-job';
+import { Android, Metadata, Workflow } from '@expo/eas-build-job';
 import { EasConfig } from '@expo/eas-json';
 import chalk from 'chalk';
 import fs from 'fs-extra';
@@ -8,14 +8,17 @@ import AndroidCredentialsProvider, {
   AndroidCredentials,
 } from '../../credentials/android/AndroidCredentialsProvider';
 import { createCredentialsContextAsync } from '../../credentials/context';
+import { BuildMutation, BuildResult } from '../../graphql/mutations/BuildMutation';
 import Log from '../../log';
 import { toggleConfirmAsync } from '../../prompts';
 import { CredentialsResult, prepareBuildRequestForPlatformAsync } from '../build';
 import { BuildContext, CommandContext, createBuildContext } from '../context';
 import { ensureCredentialsAsync } from '../credentials';
+import { transformMetadata } from '../graphql';
 import { Platform } from '../types';
 import { ensureApplicationIdIsValidAsync } from './applicationId';
 import { validateAndSyncProjectConfigurationAsync } from './configure';
+import { transformGenericJob, transformManagedJob } from './graphql';
 import { prepareJobAsync } from './prepareJob';
 
 export async function prepareAndroidBuildAsync(
@@ -72,6 +75,28 @@ This means that it will most likely produce an AAB and you will not be able to i
       }
     },
     prepareJobAsync,
+    sendBuildRequestAsync: async (
+      appId: string,
+      job: Android.Job,
+      metadata: Metadata
+    ): Promise<BuildResult> => {
+      const graphqlMetadata = transformMetadata(metadata);
+      if (job.type === Workflow.GENERIC) {
+        const graphqlJob = transformGenericJob(job);
+        return await BuildMutation.createAndroidGenericBuildAsync({
+          appId,
+          job: graphqlJob,
+          metadata: graphqlMetadata,
+        });
+      } else {
+        const graphqlJob = transformManagedJob(job);
+        return await BuildMutation.createAndroidManagedBuildAsync({
+          appId,
+          job: graphqlJob,
+          metadata: graphqlMetadata,
+        });
+      }
+    },
   });
 }
 
