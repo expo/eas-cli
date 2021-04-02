@@ -2,18 +2,18 @@ import { getConfig } from '@expo/config';
 import { Command, flags } from '@oclif/command';
 import chalk from 'chalk';
 import fs from 'fs-extra';
+import nullthrows from 'nullthrows';
 import path from 'path';
 
 import {
   flushAsync as flushAnalyticsAsync,
   initAsync as initAnalyticsAsync,
 } from '../../analytics';
-import { apiClient } from '../../api';
 import { configureAsync } from '../../build/configure';
 import { createCommandContextAsync } from '../../build/context';
 import { buildAsync } from '../../build/create';
-import { Build as BuildType, RequestedPlatform } from '../../build/types';
-import { formatBuild } from '../../build/utils/formatBuild';
+import { RequestedPlatform } from '../../build/types';
+import { formatGraphQLBuild } from '../../build/utils/formatBuild';
 import { isGitStatusCleanAsync } from '../../build/utils/repository';
 import { AppPlatform } from '../../graphql/generated';
 import { BuildQuery } from '../../graphql/queries/BuildQuery';
@@ -142,17 +142,12 @@ async function ensureNoPendingBuildsExistAsync({
     Log.newLine();
     const results = await Promise.all(
       pendingBuilds.map(pendingBuild => {
-        return apiClient.get<{ data: BuildType }>(
-          `projects/${projectId}/builds/${pendingBuild?.id}`,
-          {
-            responseType: 'json',
-          }
-        );
+        return BuildQuery.byIdAsync(nullthrows(pendingBuild).id);
       })
     );
 
     for (const result of results) {
-      Log.log(formatBuild(result.body.data, { accountName }));
+      Log.log(formatGraphQLBuild(result));
     }
 
     process.exitCode = 1;

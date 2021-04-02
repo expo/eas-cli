@@ -779,8 +779,9 @@ export enum DistributionType {
 
 export type BuildError = {
   __typename?: 'BuildError';
-  errorCode?: Maybe<Scalars['String']>;
-  message?: Maybe<Scalars['String']>;
+  errorCode: Scalars['String'];
+  message: Scalars['String'];
+  docsUrl?: Maybe<Scalars['String']>;
 };
 
 /** Represents an Standalone App build job */
@@ -4236,7 +4237,7 @@ export type BuildFragment = (
   & Pick<Build, 'id' | 'status' | 'platform' | 'releaseChannel' | 'distribution' | 'createdAt' | 'updatedAt'>
   & { error?: Maybe<(
     { __typename?: 'BuildError' }
-    & Pick<BuildError, 'errorCode' | 'message'>
+    & Pick<BuildError, 'errorCode' | 'message' | 'docsUrl'>
   )>, artifacts?: Maybe<(
     { __typename?: 'BuildArtifacts' }
     & Pick<BuildArtifacts, 'buildUrl' | 'xcodeBuildLogsUrl'>

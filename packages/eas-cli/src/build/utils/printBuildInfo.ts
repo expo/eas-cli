@@ -1,11 +1,20 @@
-import { errors } from '@expo/eas-build-job';
 import assert from 'assert';
 import chalk from 'chalk';
 
-import { EasBuildDeprecationInfo, EasBuildDeprecationInfoType } from '../../graphql/generated';
+import {
+  BuildError,
+  BuildFragment,
+  BuildStatus,
+  DistributionType,
+  EasBuildDeprecationInfo,
+  EasBuildDeprecationInfoType,
+} from '../../graphql/generated';
 import Log, { learnMore } from '../../log';
-import { platformEmojis, requestedPlatformDisplayNames } from '../constants';
-import { Build } from '../types';
+import {
+  appPlatformDisplayNames,
+  appPlatformEmojis,
+  requestedPlatformDisplayNames,
+} from '../constants';
 import { getBuildLogsUrl } from './url';
 
 export function printLogsUrls(
@@ -32,24 +41,26 @@ export function printLogsUrls(
   }
 }
 
-export function printBuildResults(accountName: string, builds: (Build | null)[]): void {
+export function printBuildResults(accountName: string, builds: (BuildFragment | null)[]): void {
   Log.newLine();
   if (builds.length === 1) {
     const [build] = builds;
     assert(build, 'Build should be defined');
     printBuildResult(accountName, build);
   } else {
-    (builds.filter(i => i) as Build[]).forEach(build => printBuildResult(accountName, build));
+    (builds.filter(i => i) as BuildFragment[]).forEach(build =>
+      printBuildResult(accountName, build)
+    );
   }
 }
 
-function printBuildResult(accountName: string, build: Build): void {
+function printBuildResult(accountName: string, build: BuildFragment): void {
   Log.addNewLineIfNone();
-  if (build.status === 'errored') {
+  if (build.status === BuildStatus.Errored) {
     const userError = build.error;
     Log.error(
-      `${platformEmojis[build.platform]} ${
-        requestedPlatformDisplayNames[build.platform]
+      `${appPlatformEmojis[build.platform]} ${
+        appPlatformDisplayNames[build.platform]
       } build failed${userError ? ':' : ''}`
     );
     if (userError) {
@@ -57,23 +68,23 @@ function printBuildResult(accountName: string, build: Build): void {
     }
     return;
   }
-  if (build.status === 'canceled') {
+  if (build.status === BuildStatus.Canceled) {
     Log.error(
-      `${platformEmojis[build.platform]} ${
-        requestedPlatformDisplayNames[build.platform]
+      `${appPlatformEmojis[build.platform]} ${
+        appPlatformDisplayNames[build.platform]
       } build was canceled`
     );
     return;
   }
 
-  if (build.metadata?.distribution === 'internal') {
+  if (build.distribution === DistributionType.Internal) {
     const logsUrl = getBuildLogsUrl({
       buildId: build.id,
       account: accountName,
     });
     Log.log(
-      `${platformEmojis[build.platform]} Open this link on your ${
-        requestedPlatformDisplayNames[build.platform]
+      `${appPlatformEmojis[build.platform]} Open this link on your ${
+        appPlatformDisplayNames[build.platform]
       } devices to install the app:`
     );
     Log.log(`${chalk.underline(logsUrl)}`);
@@ -81,9 +92,7 @@ function printBuildResult(accountName: string, build: Build): void {
     // TODO: it looks like buildUrl could possibly be undefined, based on the code below.
     // we should account for this case better if it is possible
     const url = build.artifacts?.buildUrl ?? '';
-    Log.log(
-      `${platformEmojis[build.platform]} ${requestedPlatformDisplayNames[build.platform]} app:`
-    );
+    Log.log(`${appPlatformEmojis[build.platform]} ${appPlatformDisplayNames[build.platform]} app:`);
     Log.log(`${chalk.underline(url)}`);
   }
 }
@@ -108,7 +117,7 @@ export function printDeprecationWarnings(deprecationInfo?: EasBuildDeprecationIn
   }
 }
 
-export function printUserError(error: errors.ExternalUserError): void {
+export function printUserError(error: BuildError): void {
   Log.error(error.message);
   if (error.docsUrl) {
     Log.error(learnMore(error.docsUrl, { dim: false }));

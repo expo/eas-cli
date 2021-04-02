@@ -1,14 +1,16 @@
 import { EasJsonReader } from '@expo/eas-json';
 import chalk from 'chalk';
+import nullthrows from 'nullthrows';
 import ora from 'ora';
 
-import { apiClient } from '../api';
+import { BuildFragment, BuildStatus } from '../graphql/generated';
+import { BuildQuery } from '../graphql/queries/BuildQuery';
 import Log from '../log';
 import { sleep } from '../utils/promise';
 import { prepareAndroidBuildAsync } from './android/build';
 import { CommandContext } from './context';
 import { prepareIosBuildAsync } from './ios/build';
-import { Build, BuildStatus, Platform, RequestedPlatform } from './types';
+import { Platform, RequestedPlatform } from './types';
 import { printBuildResults, printLogsUrls } from './utils/printBuildInfo';
 import { ensureGitRepoExistsAsync, ensureGitStatusIsCleanAsync } from './utils/repository';
 
@@ -22,10 +24,7 @@ export async function buildAsync(commandCtx: CommandContext): Promise<void> {
   Log.newLine();
 
   if (commandCtx.waitForBuildEnd) {
-    const builds = await waitForBuildEndAsync(
-      commandCtx,
-      scheduledBuilds.map(i => i.buildId)
-    );
+    const builds = await waitForBuildEndAsync(scheduledBuilds.map(i => i.buildId));
     printBuildResults(commandCtx.accountName, builds);
     exitWithNonZeroCodeIfSomeBuildsFailed(builds);
   }
@@ -66,44 +65,40 @@ async function startBuildsAsync(
 }
 
 async function waitForBuildEndAsync(
-  commandCtx: CommandContext,
   buildIds: string[],
   { timeoutSec = 1800, intervalSec = 30 } = {}
-): Promise<(Build | null)[]> {
+): Promise<(BuildFragment | null)[]> {
   Log.log('Waiting for build to complete. You can press Ctrl+C to exit.');
   const spinner = ora().start();
   let time = new Date().getTime();
   const endTime = time + timeoutSec * 1000;
   while (time <= endTime) {
-    const builds: (Build | null)[] = await Promise.all(
+    const builds: (BuildFragment | null)[] = await Promise.all(
       buildIds.map(async buildId => {
         try {
-          const { data } = await apiClient
-            .get(`projects/${commandCtx.projectId}/builds/${buildId}`)
-            .json();
-          return data;
+          return await BuildQuery.byIdAsync(buildId);
         } catch (err) {
           return null;
         }
       })
     );
     if (builds.length === 1) {
-      const build = builds[0] as Build;
+      const build = nullthrows(builds[0]);
       switch (build.status) {
-        case BuildStatus.FINISHED:
+        case BuildStatus.Finished:
           spinner.succeed('Build finished');
           return builds;
-        case BuildStatus.IN_QUEUE:
+        case BuildStatus.InQueue:
           spinner.text = 'Build queued...';
           break;
-        case BuildStatus.CANCELED:
+        case BuildStatus.Canceled:
           spinner.text = 'Build canceled';
           spinner.stopAndPersist();
           return builds;
-        case BuildStatus.IN_PROGRESS:
+        case BuildStatus.InProgress:
           spinner.text = 'Build in progress...';
           break;
-        case BuildStatus.ERRORED:
+        case BuildStatus.Errored:
           spinner.fail('Build failed');
           if (build.error) {
             return builds;
@@ -115,13 +110,13 @@ async function waitForBuildEndAsync(
           throw new Error(`Unknown status: ${builds} - aborting!`);
       }
     } else {
-      if (builds.filter(build => build?.status === BuildStatus.FINISHED).length === builds.length) {
+      if (builds.filter(build => build?.status === BuildStatus.Finished).length === builds.length) {
         spinner.succeed('All builds have finished');
         return builds;
       } else if (
         builds.filter(build =>
           build?.status
-            ? [BuildStatus.FINISHED, BuildStatus.ERRORED, BuildStatus.CANCELED].includes(
+            ? [BuildStatus.Finished, BuildStatus.Errored, BuildStatus.Canceled].includes(
                 build.status
               )
             : false
@@ -130,11 +125,11 @@ async function waitForBuildEndAsync(
         spinner.fail('Some of the builds were canceled or failed.');
         return builds;
       } else {
-        const inQueue = builds.filter(build => build?.status === BuildStatus.IN_QUEUE).length;
-        const inProgress = builds.filter(build => build?.status === BuildStatus.IN_PROGRESS).length;
-        const errored = builds.filter(build => build?.status === BuildStatus.ERRORED).length;
-        const finished = builds.filter(build => build?.status === BuildStatus.FINISHED).length;
-        const canceled = builds.filter(build => build?.status === BuildStatus.CANCELED).length;
+        const inQueue = builds.filter(build => build?.status === BuildStatus.InQueue).length;
+        const inProgress = builds.filter(build => build?.status === BuildStatus.InProgress).length;
+        const errored = builds.filter(build => build?.status === BuildStatus.Errored).length;
+        const finished = builds.filter(build => build?.status === BuildStatus.Finished).length;
+        const canceled = builds.filter(build => build?.status === BuildStatus.Canceled).length;
         const unknownState = builds.length - inQueue - inProgress - errored - finished;
         spinner.text = [
           inQueue && `Builds in queue: ${inQueue}`,
@@ -157,8 +152,10 @@ async function waitForBuildEndAsync(
   );
 }
 
-function exitWithNonZeroCodeIfSomeBuildsFailed(maybeBuilds: (Build | null)[]): void {
-  const failedBuilds = (maybeBuilds.filter(i => i) as Build[]).filter(i => i.status === 'errored');
+function exitWithNonZeroCodeIfSomeBuildsFailed(maybeBuilds: (BuildFragment | null)[]): void {
+  const failedBuilds = (maybeBuilds.filter(i => i) as BuildFragment[]).filter(
+    i => i.status === BuildStatus.Errored
+  );
   if (failedBuilds.length > 0) {
     process.exit(1);
   }

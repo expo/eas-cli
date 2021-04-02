@@ -1,5 +1,5 @@
 import { AppPlatform } from '../graphql/generated';
-import { Platform, RequestedPlatform } from './types';
+import { RequestedPlatform } from './types';
 
 export const requestedPlatformDisplayNames: Record<RequestedPlatform, string> = {
   [RequestedPlatform.iOS]: 'iOS',
@@ -12,7 +12,7 @@ export const appPlatformDisplayNames: Record<AppPlatform, string> = {
   [AppPlatform.Ios]: 'iOS',
 };
 
-export const platformEmojis = {
-  [Platform.IOS]: '🍎',
-  [Platform.ANDROID]: '🤖',
+export const appPlatformEmojis = {
+  [AppPlatform.Ios]: '🍎',
+  [AppPlatform.Android]: '🤖',
 };

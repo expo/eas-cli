@@ -4,11 +4,9 @@ import chalk from 'chalk';
 import gql from 'graphql-tag';
 import ora from 'ora';
 
-import { platformEmojis } from '../../build/constants';
-import { Platform } from '../../build/types';
+import { appPlatformEmojis } from '../../build/constants';
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
 import {
-  AppPlatform,
   Build,
   BuildStatus,
   CancelBuildMutation,
@@ -44,15 +42,10 @@ async function cancelBuildAsync(buildId: string): Promise<Pick<Build, 'id' | 'st
   return data.build!.cancel;
 }
 
-const appPlatformMap = {
-  [AppPlatform.Android]: Platform.ANDROID,
-  [AppPlatform.Ios]: Platform.IOS,
-};
-
 function formatUnfinishedBuild(
   build: Pick<Build, 'id' | 'platform' | 'status' | 'createdAt'>
 ): string {
-  const platform = platformEmojis[appPlatformMap[build.platform]];
+  const platform = appPlatformEmojis[build.platform];
   const startTime = new Date(build.createdAt).toLocaleString();
   const status = chalk.blue(build.status === BuildStatus.InQueue ? 'in-queue' : 'in-progress');
   return `${platform} Started at: ${startTime}, Status: ${status}, Id: ${build.id}`;
