@@ -7,7 +7,6 @@ import {
   AppleProvisioningProfileFragment,
 } from '../../../../graphql/generated';
 import Log from '../../../../log';
-import { Action, CredentialsManager } from '../../../CredentialsManager';
 import { Context } from '../../../context';
 import { AppLookupParams } from '../../api/GraphqlClient';
 import { AppleProvisioningProfileMutationResult } from '../../api/graphql/mutations/AppleProvisioningProfileMutation';
