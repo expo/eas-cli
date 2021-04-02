@@ -2,15 +2,10 @@ import assert from 'assert';
 import FormData from 'form-data';
 import fs from 'fs';
 import got, { Progress } from 'got';
-import md5File from 'md5-file';
 import { Readable } from 'stream';
 
-import { apiClient } from './api';
-
-export enum UploadType {
-  TURTLE_PROJECT_SOURCES = 'turtle-project-sources',
-  SUBMISSION_APP_ARCHIVE = 'submission-app-archive',
-}
+import { UploadSessionType } from './graphql/generated';
+import { PresignedPost, UploadSessionMutation } from './graphql/mutations/UploadSessionMutation';
 
 type ProgressHandler = (props: {
   progress?: Progress;
@@ -19,11 +14,11 @@ type ProgressHandler = (props: {
 }) => void;
 
 export async function uploadAsync(
-  uploadType: UploadType,
+  type: UploadSessionType,
   path: string,
   handleProgressEvent: ProgressHandler
 ): Promise<{ url: string; bucketKey: string }> {
-  const presignedPost = await obtainS3PresignedPostAsync(uploadType, path);
+  const presignedPost = await obtainS3PresignedPostAsync(type);
   const url = await uploadWithPresignedPostAsync(
     fs.createReadStream(path),
     presignedPost,
@@ -33,25 +28,8 @@ export async function uploadAsync(
   return { url, bucketKey: presignedPost.fields.key };
 }
 
-export interface PresignedPost {
-  url: string;
-  fields: Record<string, string>;
-}
-
-async function obtainS3PresignedPostAsync(
-  uploadType: UploadType,
-  filePath: string
-): Promise<PresignedPost> {
-  const fileHash = await md5File(filePath);
-  const { data } = await apiClient
-    .post('upload-sessions', {
-      json: {
-        type: uploadType,
-        checksum: fileHash,
-      },
-    })
-    .json();
-  return data.presignedUrl;
+async function obtainS3PresignedPostAsync(type: UploadSessionType): Promise<PresignedPost> {
+  return await UploadSessionMutation.createUploadSession(type);
 }
 
 export async function uploadWithPresignedPostAsync(
