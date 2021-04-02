@@ -1,6 +1,6 @@
 import { confirmAsync } from '../../../../../prompts';
 import { getAppstoreMock, testAuthCtx } from '../../../../__tests__/fixtures-appstore';
-import { createCtxMock, createManagerMock } from '../../../../__tests__/fixtures-context';
+import { createCtxMock } from '../../../../__tests__/fixtures-context';
 import {
   testDistCertFragmentNoDependencies,
   testProvisioningProfile,
@@ -14,7 +14,6 @@ jest.mock('../../../../../prompts');
 
 describe('ConfigureProvisioningProfile', () => {
   it('configures a Provisioning Profile in Interactive Mode', async () => {
-    const manager = createManagerMock();
     const mockProvisioningProfileFromApple = {
       provisioningProfileId: testProvisioningProfileFragment.developerPortalIdentifier,
       provisioningProfile: testProvisioningProfileFragment.provisioningProfile,
@@ -31,12 +30,12 @@ describe('ConfigureProvisioningProfile', () => {
       },
     });
     const appLookupParams = ManageIosBeta.getAppLookupParamsFromContext(ctx);
-    const configureProvProfAction = new ConfigureProvisioningProfile(
+    const provProfConfigurator = new ConfigureProvisioningProfile(
       appLookupParams,
       testDistCertFragmentNoDependencies,
       testProvisioningProfileFragment
     );
-    await configureProvProfAction.runAsync(manager, ctx);
+    await provProfConfigurator.runAsync(ctx);
 
     // expect provisioning profile not to be updated on expo servers
     expect((ctx.newIos.updateProvisioningProfileAsync as any).mock.calls.length).toBe(1);
@@ -44,17 +43,16 @@ describe('ConfigureProvisioningProfile', () => {
     expect((ctx.appStore.useExistingProvisioningProfileAsync as any).mock.calls.length).toBe(1);
   });
   it('errors in Non Interactive Mode', async () => {
-    const manager = createManagerMock();
     const ctx = createCtxMock({
       nonInteractive: true,
     });
     const appLookupParams = ManageIosBeta.getAppLookupParamsFromContext(ctx);
-    const configureProvProfAction = new ConfigureProvisioningProfile(
+    const provProfConfigurator = new ConfigureProvisioningProfile(
       appLookupParams,
       testDistCertFragmentNoDependencies,
       testProvisioningProfileFragment
     );
-    await expect(configureProvProfAction.runAsync(manager, ctx)).rejects.toThrowError(
+    await expect(provProfConfigurator.runAsync(ctx)).rejects.toThrowError(
       MissingCredentialsNonInteractiveError
     );
 
