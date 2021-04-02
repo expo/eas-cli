@@ -3,8 +3,9 @@ import { vol } from 'memfs';
 import { v4 as uuidv4 } from 'uuid';
 
 import { asMock } from '../../../__tests__/utils';
+import { UploadSessionType } from '../../../graphql/generated';
 import { promptAsync } from '../../../prompts';
-import { UploadType, uploadAsync } from '../../../uploads';
+import { uploadAsync } from '../../../uploads';
 import { SubmissionPlatform } from '../../types';
 import { getBuildArtifactUrlByIdAsync, getLatestBuildArtifactUrlAsync } from '../../utils/builds';
 import {
@@ -143,7 +144,11 @@ describe(getArchiveFileLocationAsync, () => {
       path,
     });
 
-    expect(uploadAsync).toBeCalledWith(UploadType.SUBMISSION_APP_ARCHIVE, path, expect.anything());
+    expect(uploadAsync).toBeCalledWith(
+      UploadSessionType.EasSubmitAppArchive,
+      path,
+      expect.anything()
+    );
     assertArchiveResult(resolvedArchive, ArchiveFileSourceType.path);
   });
 
