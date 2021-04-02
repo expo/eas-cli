@@ -3202,7 +3202,7 @@ export type GetAllChannelsForAppQuery = (
       & Pick<App, 'id'>
       & { updateChannels: Array<(
         { __typename?: 'UpdateChannel' }
-        & Pick<UpdateChannel, 'id' | 'name'>
+        & Pick<UpdateChannel, 'id' | 'name' | 'createdAt' | 'branchMapping'>
         & { updateBranches: Array<(
           { __typename?: 'UpdateBranch' }
           & Pick<UpdateBranch, 'id' | 'name'>
