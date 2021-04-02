@@ -1,6 +1,6 @@
 import assert from 'assert';
 import FormData from 'form-data';
-import fs from 'fs';
+import fs from 'fs-extra';
 import got, { Progress } from 'got';
 import { Readable } from 'stream';
 
@@ -18,7 +18,7 @@ export async function uploadAsync(
   path: string,
   handleProgressEvent: ProgressHandler
 ): Promise<{ url: string; bucketKey: string }> {
-  const presignedPost = await obtainS3PresignedPostAsync(type);
+  const presignedPost = await UploadSessionMutation.createUploadSession(type);
   const url = await uploadWithPresignedPostAsync(
     fs.createReadStream(path),
     presignedPost,
@@ -26,10 +26,6 @@ export async function uploadAsync(
   );
   assert(presignedPost.fields.key, 'key is not specified in in presigned post');
   return { url, bucketKey: presignedPost.fields.key };
-}
-
-async function obtainS3PresignedPostAsync(type: UploadSessionType): Promise<PresignedPost> {
-  return await UploadSessionMutation.createUploadSession(type);
 }
 
 export async function uploadWithPresignedPostAsync(
