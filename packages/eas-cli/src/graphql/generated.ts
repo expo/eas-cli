@@ -2111,12 +2111,214 @@ export type BuildMutation = {
    * @deprecated Use cancelBuild instead
    */
   cancel: Build;
+  /** Create an Android generic build */
+  createAndroidGenericBuild: CreateBuildResult;
+  /** Create an Android managed build */
+  createAndroidManagedBuild: CreateBuildResult;
+  /** Create an iOS generic build */
+  createIosGenericBuild: CreateBuildResult;
+  /** Create an iOS managed build */
+  createIosManagedBuild: CreateBuildResult;
 };
 
 
 export type BuildMutationCancelBuildArgs = {
   buildId: Scalars['ID'];
 };
+
+
+export type BuildMutationCreateAndroidGenericBuildArgs = {
+  appId: Scalars['ID'];
+  job: AndroidGenericJobInput;
+  metadata?: Maybe<BuildMetadataInput>;
+};
+
+
+export type BuildMutationCreateAndroidManagedBuildArgs = {
+  appId: Scalars['ID'];
+  job: AndroidManagedJobInput;
+  metadata?: Maybe<BuildMetadataInput>;
+};
+
+
+export type BuildMutationCreateIosGenericBuildArgs = {
+  appId: Scalars['ID'];
+  job: IosGenericJobInput;
+  metadata?: Maybe<BuildMetadataInput>;
+};
+
+
+export type BuildMutationCreateIosManagedBuildArgs = {
+  appId: Scalars['ID'];
+  job: IosManagedJobInput;
+  metadata?: Maybe<BuildMetadataInput>;
+};
+
+export type AndroidGenericJobInput = {
+  projectArchive: ProjectArchiveSourceInput;
+  projectRootDirectory: Scalars['String'];
+  releaseChannel?: Maybe<Scalars['String']>;
+  secrets?: Maybe<AndroidJobSecretsInput>;
+  builderEnvironment?: Maybe<AndroidBuilderEnvironmentInput>;
+  cache?: Maybe<BuildCacheInput>;
+  gradleCommand?: Maybe<Scalars['String']>;
+  artifactPath?: Maybe<Scalars['String']>;
+};
+
+export type ProjectArchiveSourceInput = {
+  type: ProjectArchiveSourceType;
+  bucketKey?: Maybe<Scalars['String']>;
+  url?: Maybe<Scalars['String']>;
+};
+
+export enum ProjectArchiveSourceType {
+  S3 = 'S3',
+  Url = 'URL'
+}
+
+export type AndroidJobSecretsInput = {
+  buildCredentials?: Maybe<AndroidJobBuildCredentialsInput>;
+  environmentSecrets?: Maybe<Scalars['JSONObject']>;
+};
+
+export type AndroidJobBuildCredentialsInput = {
+  keystore: AndroidJobKeystoreInput;
+};
+
+export type AndroidJobKeystoreInput = {
+  dataBase64: Scalars['String'];
+  keystorePassword: Scalars['String'];
+  keyAlias: Scalars['String'];
+  keyPassword: Scalars['String'];
+};
+
+export type AndroidBuilderEnvironmentInput = {
+  image?: Maybe<Scalars['String']>;
+  node?: Maybe<Scalars['String']>;
+  yarn?: Maybe<Scalars['String']>;
+  ndk?: Maybe<Scalars['String']>;
+  env?: Maybe<Scalars['JSONObject']>;
+};
+
+export type BuildCacheInput = {
+  disabled?: Maybe<Scalars['Boolean']>;
+  key?: Maybe<Scalars['String']>;
+  cacheDefaultPaths?: Maybe<Scalars['Boolean']>;
+  customPaths?: Maybe<Array<Maybe<Scalars['String']>>>;
+};
+
+export type BuildMetadataInput = {
+  trackingContext?: Maybe<Scalars['JSONObject']>;
+  appVersion?: Maybe<Scalars['String']>;
+  cliVersion?: Maybe<Scalars['String']>;
+  workflow?: Maybe<BuildWorkflow>;
+  credentialsSource?: Maybe<BuildCredentialsSource>;
+  sdkVersion?: Maybe<Scalars['String']>;
+  releaseChannel?: Maybe<Scalars['String']>;
+  distribution?: Maybe<DistributionType>;
+  appName?: Maybe<Scalars['String']>;
+  appIdentifier?: Maybe<Scalars['String']>;
+  buildProfile?: Maybe<Scalars['String']>;
+  gitCommitHash?: Maybe<Scalars['String']>;
+};
+
+export enum BuildWorkflow {
+  Generic = 'GENERIC',
+  Managed = 'MANAGED'
+}
+
+export enum BuildCredentialsSource {
+  Local = 'LOCAL',
+  Remote = 'REMOTE'
+}
+
+export type CreateBuildResult = {
+  __typename?: 'CreateBuildResult';
+  build: Build;
+  deprecationInfo?: Maybe<EasBuildDeprecationInfo>;
+};
+
+export type EasBuildDeprecationInfo = {
+  __typename?: 'EASBuildDeprecationInfo';
+  type: EasBuildDeprecationInfoType;
+  message: Scalars['String'];
+};
+
+export enum EasBuildDeprecationInfoType {
+  UserFacing = 'USER_FACING',
+  Internal = 'INTERNAL'
+}
+
+export type AndroidManagedJobInput = {
+  projectArchive: ProjectArchiveSourceInput;
+  projectRootDirectory: Scalars['String'];
+  releaseChannel?: Maybe<Scalars['String']>;
+  secrets?: Maybe<AndroidJobSecretsInput>;
+  builderEnvironment?: Maybe<AndroidBuilderEnvironmentInput>;
+  cache?: Maybe<BuildCacheInput>;
+  username?: Maybe<Scalars['String']>;
+};
+
+export type IosGenericJobInput = {
+  projectArchive: ProjectArchiveSourceInput;
+  projectRootDirectory: Scalars['String'];
+  releaseChannel?: Maybe<Scalars['String']>;
+  distribution?: Maybe<DistributionType>;
+  secrets?: Maybe<IosJobSecretsInput>;
+  builderEnvironment?: Maybe<IosBuilderEnvironmentInput>;
+  cache?: Maybe<BuildCacheInput>;
+  scheme: Scalars['String'];
+  schemeBuildConfiguration?: Maybe<IosSchemeBuildConfiguration>;
+  artifactPath?: Maybe<Scalars['String']>;
+};
+
+export type IosJobSecretsInput = {
+  buildCredentials?: Maybe<Array<Maybe<IosJobTargetCredentialsInput>>>;
+  environmentSecrets?: Maybe<Scalars['JSONObject']>;
+};
+
+export type IosJobTargetCredentialsInput = {
+  targetName: Scalars['String'];
+  provisioningProfileBase64: Scalars['String'];
+  distributionCertificate: IosJobDistributionCertificateInput;
+};
+
+export type IosJobDistributionCertificateInput = {
+  dataBase64: Scalars['String'];
+  password: Scalars['String'];
+};
+
+export type IosBuilderEnvironmentInput = {
+  image?: Maybe<Scalars['String']>;
+  node?: Maybe<Scalars['String']>;
+  yarn?: Maybe<Scalars['String']>;
+  bundler?: Maybe<Scalars['String']>;
+  fastlane?: Maybe<Scalars['String']>;
+  cocoapods?: Maybe<Scalars['String']>;
+  env?: Maybe<Scalars['JSONObject']>;
+};
+
+export enum IosSchemeBuildConfiguration {
+  Release = 'RELEASE',
+  Debug = 'DEBUG'
+}
+
+export type IosManagedJobInput = {
+  projectArchive: ProjectArchiveSourceInput;
+  projectRootDirectory: Scalars['String'];
+  releaseChannel?: Maybe<Scalars['String']>;
+  distribution?: Maybe<DistributionType>;
+  secrets?: Maybe<IosJobSecretsInput>;
+  builderEnvironment?: Maybe<IosBuilderEnvironmentInput>;
+  cache?: Maybe<BuildCacheInput>;
+  buildType?: Maybe<IosManagedBuildType>;
+  username?: Maybe<Scalars['String']>;
+};
+
+export enum IosManagedBuildType {
+  Release = 'RELEASE',
+  DevelopmentClient = 'DEVELOPMENT_CLIENT'
+}
 
 export type IosAppBuildCredentialsMutation = {
   __typename?: 'IosAppBuildCredentialsMutation';
@@ -3674,6 +3876,102 @@ export type CreateAppMutation = (
     & { createApp: (
       { __typename?: 'App' }
       & Pick<App, 'id'>
+    ) }
+  )> }
+);
+
+export type CreateAndroidGenericBuildMutationVariables = Exact<{
+  appId: Scalars['ID'];
+  job: AndroidGenericJobInput;
+  metadata?: Maybe<BuildMetadataInput>;
+}>;
+
+
+export type CreateAndroidGenericBuildMutation = (
+  { __typename?: 'RootMutation' }
+  & { build?: Maybe<(
+    { __typename?: 'BuildMutation' }
+    & { createAndroidGenericBuild: (
+      { __typename?: 'CreateBuildResult' }
+      & { build: (
+        { __typename?: 'Build' }
+        & Pick<Build, 'id'>
+      ), deprecationInfo?: Maybe<(
+        { __typename?: 'EASBuildDeprecationInfo' }
+        & Pick<EasBuildDeprecationInfo, 'type' | 'message'>
+      )> }
+    ) }
+  )> }
+);
+
+export type CreateAndroidManagedBuildMutationVariables = Exact<{
+  appId: Scalars['ID'];
+  job: AndroidManagedJobInput;
+  metadata?: Maybe<BuildMetadataInput>;
+}>;
+
+
+export type CreateAndroidManagedBuildMutation = (
+  { __typename?: 'RootMutation' }
+  & { build?: Maybe<(
+    { __typename?: 'BuildMutation' }
+    & { createAndroidManagedBuild: (
+      { __typename?: 'CreateBuildResult' }
+      & { build: (
+        { __typename?: 'Build' }
+        & Pick<Build, 'id'>
+      ), deprecationInfo?: Maybe<(
+        { __typename?: 'EASBuildDeprecationInfo' }
+        & Pick<EasBuildDeprecationInfo, 'type' | 'message'>
+      )> }
+    ) }
+  )> }
+);
+
+export type CreateIosGenericBuildMutationVariables = Exact<{
+  appId: Scalars['ID'];
+  job: IosGenericJobInput;
+  metadata?: Maybe<BuildMetadataInput>;
+}>;
+
+
+export type CreateIosGenericBuildMutation = (
+  { __typename?: 'RootMutation' }
+  & { build?: Maybe<(
+    { __typename?: 'BuildMutation' }
+    & { createIosGenericBuild: (
+      { __typename?: 'CreateBuildResult' }
+      & { build: (
+        { __typename?: 'Build' }
+        & Pick<Build, 'id'>
+      ), deprecationInfo?: Maybe<(
+        { __typename?: 'EASBuildDeprecationInfo' }
+        & Pick<EasBuildDeprecationInfo, 'type' | 'message'>
+      )> }
+    ) }
+  )> }
+);
+
+export type CreateIosManagedBuildMutationVariables = Exact<{
+  appId: Scalars['ID'];
+  job: IosManagedJobInput;
+  metadata?: Maybe<BuildMetadataInput>;
+}>;
+
+
+export type CreateIosManagedBuildMutation = (
+  { __typename?: 'RootMutation' }
+  & { build?: Maybe<(
+    { __typename?: 'BuildMutation' }
+    & { createIosManagedBuild: (
+      { __typename?: 'CreateBuildResult' }
+      & { build: (
+        { __typename?: 'Build' }
+        & Pick<Build, 'id'>
+      ), deprecationInfo?: Maybe<(
+        { __typename?: 'EASBuildDeprecationInfo' }
+        & Pick<EasBuildDeprecationInfo, 'type' | 'message'>
+      )> }
     ) }
   )> }
 );

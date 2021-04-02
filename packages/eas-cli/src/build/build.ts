@@ -1,8 +1,8 @@
-import { Job } from '@expo/eas-build-job';
+import { Job, Metadata } from '@expo/eas-build-job';
 import { CredentialsSource } from '@expo/eas-json';
 import fs from 'fs-extra';
 
-import { apiClient } from '../api';
+import { BuildResult } from '../graphql/mutations/BuildMutation';
 import Log from '../log';
 import { promptAsync } from '../prompts';
 import { UploadType, uploadAsync } from '../uploads';
@@ -27,7 +27,7 @@ export interface CredentialsResult<Credentials> {
   credentials: Credentials;
 }
 
-interface Builder<TPlatform extends Platform, Credentials, ProjectConfiguration> {
+interface Builder<TPlatform extends Platform, Credentials, ProjectConfiguration, TJob extends Job> {
   ctx: BuildContext<TPlatform>;
   projectConfiguration: ProjectConfiguration;
 
@@ -43,13 +43,17 @@ interface Builder<TPlatform extends Platform, Credentials, ProjectConfiguration>
       projectConfiguration?: ProjectConfiguration;
     }
   ): Promise<Job>;
+  sendBuildRequestAsync(appId: string, job: TJob, metadata: Metadata): Promise<BuildResult>;
 }
 
 export async function prepareBuildRequestForPlatformAsync<
   TPlatform extends Platform,
   Credentials,
-  ProjectConfiguration
->(builder: Builder<TPlatform, Credentials, ProjectConfiguration>): Promise<() => Promise<string>> {
+  ProjectConfiguration,
+  TJob extends Job
+>(
+  builder: Builder<TPlatform, Credentials, ProjectConfiguration, TJob>
+): Promise<() => Promise<string>> {
   const credentialsResult = await withAnalyticsAsync(
     async () => await builder.ensureCredentialsAsync(builder.ctx),
     {
@@ -91,30 +95,7 @@ export async function prepareBuildRequestForPlatformAsync<
 
   return async () => {
     try {
-      return await withAnalyticsAsync(
-        async () => {
-          if (Log.isDebug) {
-            Log.log(`Starting ${requestedPlatformDisplayNames[job.platform]} build`);
-          }
-          const {
-            data: { buildId, deprecationInfo },
-          } = await apiClient
-            .post(`projects/${builder.ctx.commandCtx.projectId}/builds`, {
-              json: {
-                job,
-                metadata,
-              },
-            })
-            .json();
-          printDeprecationWarnings(deprecationInfo);
-          return buildId;
-        },
-        {
-          successEvent: Event.BUILD_REQUEST_SUCCESS,
-          failureEvent: Event.BUILD_REQUEST_FAIL,
-          trackingCtx: builder.ctx.trackingCtx,
-        }
-      );
+      return sendBuildRequestAsync(builder, job, metadata);
     } catch (error) {
       if (error?.expoApiV2ErrorCode === 'TURTLE_DEPRECATED_JOB_FORMAT') {
         Log.error('EAS Build API has changed, please upgrade to the latest eas-cli');
@@ -159,6 +140,40 @@ async function uploadProjectAsync<TPlatform extends Platform>(
       await fs.remove(projectTarballPath);
     }
   }
+}
+
+async function sendBuildRequestAsync<
+  TPlatform extends Platform,
+  Credentials,
+  ProjectConfiguration,
+  TJob extends Job
+>(
+  builder: Builder<TPlatform, Credentials, ProjectConfiguration, TJob>,
+  job: TJob,
+  metadata: Metadata
+): Promise<string> {
+  const { ctx } = builder;
+  return await withAnalyticsAsync(
+    async () => {
+      if (Log.isDebug) {
+        Log.log(`Starting ${requestedPlatformDisplayNames[job.platform]} build`);
+      }
+
+      const { build, deprecationInfo } = await builder.sendBuildRequestAsync(
+        ctx.commandCtx.projectId,
+        job,
+        metadata
+      );
+
+      printDeprecationWarnings(deprecationInfo);
+      return build.id;
+    },
+    {
+      successEvent: Event.BUILD_REQUEST_SUCCESS,
+      failureEvent: Event.BUILD_REQUEST_FAIL,
+      trackingCtx: ctx.trackingCtx,
+    }
+  );
 }
 
 async function withAnalyticsAsync<Result>(

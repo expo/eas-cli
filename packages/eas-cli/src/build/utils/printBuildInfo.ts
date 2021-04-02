@@ -2,15 +2,11 @@ import { errors } from '@expo/eas-build-job';
 import assert from 'assert';
 import chalk from 'chalk';
 
+import { EasBuildDeprecationInfo, EasBuildDeprecationInfoType } from '../../graphql/generated';
 import Log, { learnMore } from '../../log';
 import { platformEmojis, requestedPlatformDisplayNames } from '../constants';
 import { Build } from '../types';
 import { getBuildLogsUrl } from './url';
-
-export interface DeprecationInfo {
-  type: 'user-facing' | 'internal';
-  message: string;
-}
 
 export function printLogsUrls(
   accountName: string,
@@ -92,15 +88,15 @@ function printBuildResult(accountName: string, build: Build): void {
   }
 }
 
-export function printDeprecationWarnings(deprecationInfo?: DeprecationInfo): void {
+export function printDeprecationWarnings(deprecationInfo?: EasBuildDeprecationInfo | null): void {
   if (!deprecationInfo) {
     return;
   }
-  if (deprecationInfo.type === 'internal') {
+  if (deprecationInfo.type === EasBuildDeprecationInfoType.Internal) {
     Log.warn('This command is using API that soon will be deprecated, please update eas-cli.');
     Log.warn("Changes won't affect your project config.");
     Log.warn(deprecationInfo.message);
-  } else if (deprecationInfo.type === 'user-facing') {
+  } else if (deprecationInfo.type === EasBuildDeprecationInfoType.UserFacing) {
     Log.warn('This command is using API that soon will be deprecated, please update eas-cli.');
     Log.warn(
       'There might be some changes necessary to your project config, latest eas-cli will provide more specific error messages.'
