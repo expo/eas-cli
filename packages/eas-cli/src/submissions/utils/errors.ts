@@ -4,6 +4,8 @@ import { SubmissionError } from '../SubmissionService.types';
 enum SubmissionErrorCode {
   ARCHIVE_DOWNLOAD_NOT_FOUND_ERROR = 'SUBMISSION_SERVICE_COMMON_ARCHIVE_DOWNLOAD_NOT_FOUND_ERROR',
   ARCHIVE_DOWNLOAD_FORBIDDEN_ERROR = 'SUBMISSION_SERVICE_COMMON_ARCHIVE_DOWNLOAD_FORBIDDEN_ERROR',
+  ARCHIVE_EXTRACT_NO_FILES_FOUND_ERROR = 'SUBMISSION_SERVICE_COMMON_ARCHIVE_EXTRACT_NO_FILES_FOUND_ERROR',
+  ARCHIVE_EXTRACT_CORRUPT_ARCHIVE_ERROR = 'SUBMISSION_SERVICE_COMMON_ARCHIVE_EXTRACT_CORRUPT_ARCHIVE_ERROR',
   ANDROID_UNKNOWN_ERROR = 'SUBMISSION_SERVICE_ANDROID_UNKNOWN_ERROR',
   ANDROID_FIRST_UPLOAD_ERROR = 'SUBMISSION_SERVICE_ANDROID_FIRST_UPLOAD_ERROR',
   ANDROID_OLD_VERSION_CODE_ERROR = 'SUBMISSION_SERVICE_ANDROID_OLD_VERSION_CODE_ERROR',
@@ -12,6 +14,7 @@ enum SubmissionErrorCode {
   IOS_UNKNOWN_ERROR = 'SUBMISSION_SERVICE_IOS_UNKNOWN_ERROR',
   IOS_MISSING_APP_ICON = 'SUBMISSION_SERVICE_IOS_MISSING_APP_ICON',
   IOS_INVALID_SIGNATURE = 'SUBMISSION_SERVICE_IOS_INVALID_SIGNATURE',
+  IOS_INCORRECT_CREDENTIALS = 'SUBMISSION_SERVICE_IOS_INVALID_CREDENTIALS',
 }
 
 const SubmissionErrorMessages: Record<SubmissionErrorCode, string> = {
@@ -19,6 +22,11 @@ const SubmissionErrorMessages: Record<SubmissionErrorCode, string> = {
     "Failed to download the archive file (Response code: 404 Not Found). Please make sure the URL you've provided is correct.",
   [SubmissionErrorCode.ARCHIVE_DOWNLOAD_FORBIDDEN_ERROR]:
     'Failed to download the archive file (Response code: 403 Forbidden). This is most probably caused by trying to upload an expired build artifact. All Expo build artifacts expire after 30 days.',
+  [SubmissionErrorCode.ARCHIVE_EXTRACT_CORRUPT_ARCHIVE_ERROR]:
+    'The compressed archive is corrupted or has an invalid format. EAS Submit accepts artifacts files provided directly or compressed into tar.gz archives.',
+  [SubmissionErrorCode.ARCHIVE_EXTRACT_NO_FILES_FOUND_ERROR]:
+    "EAS Submit couldn't find a valid build artifact within provided compressed archive.\n" +
+    'If provided a tar.gz archive, it should contain at least one .apk/.aab/.ipa file, depending on submission platform.',
   [SubmissionErrorCode.ANDROID_UNKNOWN_ERROR]:
     "We couldn't figure out what went wrong. Please see logs to learn more.",
   [SubmissionErrorCode.ANDROID_FIRST_UPLOAD_ERROR]:
@@ -47,6 +55,8 @@ const SubmissionErrorMessages: Record<SubmissionErrorCode, string> = {
     'Your app signature seems to be invalid.\n' +
     "Please check your iOS Distribution Certificate and your app's Provisioning Profile.\n" +
     `${learnMore('https://docs.expo.io/distribution/app-signing')}`,
+  [SubmissionErrorCode.IOS_INCORRECT_CREDENTIALS]:
+    'Your Apple ID or app specific password is incorrect. Please check if you entered them correctly and try again.',
 };
 
 export function printSubmissionError(error: SubmissionError): boolean {
