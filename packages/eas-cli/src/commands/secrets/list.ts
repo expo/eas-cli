@@ -41,7 +41,7 @@ export default class EnvironmentSecretsList extends Command {
       throw new Error("Please run this command inside your project's directory");
     }
 
-    const secrets = await EnvironmentSecretsQuery.all(projectAccountName, projectFullName);
+    const secrets = await EnvironmentSecretsQuery.allAsync(projectAccountName, projectFullName);
 
     const table = new Table({
       head: ['Name', 'Scope', 'ID', 'Updated at'],

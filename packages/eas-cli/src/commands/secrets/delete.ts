@@ -3,7 +3,10 @@ import { Command } from '@oclif/command';
 import chalk from 'chalk';
 
 import { EnvironmentSecretMutation } from '../../graphql/mutations/EnvironmentSecretMutation';
-import { EnvironmentSecretsQuery } from '../../graphql/queries/EnvironmentSecretsQuery';
+import {
+  EnvironmentSecretWithScope,
+  EnvironmentSecretsQuery,
+} from '../../graphql/queries/EnvironmentSecretsQuery';
 import Log from '../../log';
 import {
   isEasEnabledForProjectAsync,
@@ -17,6 +20,7 @@ import {
 } from '../../project/projectUtils';
 import { promptAsync, toggleConfirmAsync } from '../../prompts';
 import { ensureLoggedInAsync } from '../../user/actions';
+import { EnvironmentSecretScope } from './create';
 
 export default class EnvironmentSecretDelete extends Command {
   static description = `Delete an environment secret by ID.
@@ -48,12 +52,12 @@ Unsure where to find the secret's ID? Run ${chalk.bold('eas secrets:list')}`;
     let {
       args: { id },
     } = this.parse(EnvironmentSecretDelete);
-    let name;
+    let secret: EnvironmentSecretWithScope | undefined;
 
     if (!id) {
-      const secrets = await EnvironmentSecretsQuery.all(projectAccountName, projectFullName);
+      const secrets = await EnvironmentSecretsQuery.allAsync(projectAccountName, projectFullName);
 
-      const { secret } = await promptAsync({
+      ({ secret } = await promptAsync({
         type: 'autocomplete',
         name: 'secret',
         message: 'Pick the secret to be deleted:',
@@ -61,26 +65,34 @@ Unsure where to find the secret's ID? Run ${chalk.bold('eas secrets:list')}`;
           title: `${secret.name} (${secret.scope})`,
           value: secret,
         })),
-      });
+      }));
 
-      ({ id, name } = secret);
+      id = secret?.id;
     }
 
     Log.addNewLineIfNone();
     Log.warn(
       `You are about to permamently delete secret${
-        name ? ` "${name}"` : ''
+        secret?.name ? ` "${secret?.name}"` : ''
       } with id: "${id}".\nThis action is irreversible.`
     );
     Log.newLine();
-    const confirmed = await toggleConfirmAsync({ message: 'Are you sure you wish to proceed?' });
+    const confirmed = await toggleConfirmAsync({
+      message: `Are you sure you wish to proceed?${
+        secret?.scope === EnvironmentSecretScope.ACCOUNT
+          ? ' This secret is applied across your whole account and may affect multiple apps.'
+          : ''
+      }`,
+    });
     if (!confirmed) {
-      Log.error(`Canceled deletion of secret${name ? ` "${name}"` : ''} with id: "${id}".`);
+      Log.error(
+        `Canceled deletion of secret${secret?.name ? ` "${secret?.name}"` : ''} with id: "${id}".`
+      );
       process.exit(1);
     }
 
     await EnvironmentSecretMutation.delete(id);
 
-    Log.withTick(`️Deleted secret${name ? ` "${name}"` : ''} with id "${id}".`);
+    Log.withTick(`️Deleted secret${secret?.name ? ` "${secret?.name}"` : ''} with id "${id}".`);
   }
 }

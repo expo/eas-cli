@@ -10,6 +10,10 @@ import {
 } from '../generated';
 import { EnvironmentSecretFragmentNode } from '../types/EnvironmentSecret';
 
+export type EnvironmentSecretWithScope = EnvironmentSecretFragment & {
+  scope: EnvironmentSecretScope;
+};
+
 export const EnvironmentSecretsQuery = {
   async byAcccountNameAsync(accountName: string): Promise<EnvironmentSecretFragment[]> {
     const data = await withErrorHandlingAsync(
@@ -61,10 +65,10 @@ export const EnvironmentSecretsQuery = {
 
     return data.app?.byFullName.environmentSecrets ?? [];
   },
-  async all(
+  async allAsync(
     projectAccountName: string,
     projectFullName: string
-  ): Promise<(EnvironmentSecretFragment & { scope: EnvironmentSecretScope })[]> {
+  ): Promise<EnvironmentSecretWithScope[]> {
     const [accountSecrets, appSecrets] = await Promise.all([
       this.byAcccountNameAsync(projectAccountName),
       this.byAppFullNameAsync(projectFullName),
