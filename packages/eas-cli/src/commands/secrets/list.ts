@@ -4,7 +4,6 @@ import chalk from 'chalk';
 import Table from 'cli-table3';
 import dateFormat from 'dateformat';
 
-import { EnvironmentSecretFragment } from '../../graphql/generated';
 import { EnvironmentSecretsQuery } from '../../graphql/queries/EnvironmentSecretsQuery';
 import Log from '../../log';
 import {
@@ -18,7 +17,6 @@ import {
   getProjectIdAsync,
 } from '../../project/projectUtils';
 import { ensureLoggedInAsync } from '../../user/actions';
-import { EnvironmentSecretScope } from './create';
 
 export default class EnvironmentSecretsList extends Command {
   static description = 'Lists environment secrets available for your current app';
@@ -43,15 +41,7 @@ export default class EnvironmentSecretsList extends Command {
       throw new Error("Please run this command inside your project's directory");
     }
 
-    const [accountSecrets, appSecrets] = await Promise.all([
-      EnvironmentSecretsQuery.byAcccountNameAsync(projectAccountName),
-      EnvironmentSecretsQuery.byAppFullNameAsync(projectFullName),
-    ]);
-
-    const secrets = [
-      ...appSecrets.map(s => ({ ...s, scope: EnvironmentSecretScope.PROJECT })),
-      ...accountSecrets.map(s => ({ ...s, scope: EnvironmentSecretScope.ACCOUNT })),
-    ] as (EnvironmentSecretFragment & { scope: EnvironmentSecretScope })[];
+    const secrets = await EnvironmentSecretsQuery.all(projectAccountName, projectFullName);
 
     const table = new Table({
       head: ['Name', 'Scope', 'ID', 'Updated at'],

@@ -1,6 +1,7 @@
 import { print } from 'graphql';
 import gql from 'graphql-tag';
 
+import { EnvironmentSecretScope } from '../../commands/secrets/create';
 import { graphqlClient, withErrorHandlingAsync } from '../client';
 import {
   EnvironmentSecretFragment,
@@ -59,5 +60,19 @@ export const EnvironmentSecretsQuery = {
     );
 
     return data.app?.byFullName.environmentSecrets ?? [];
+  },
+  async all(
+    projectAccountName: string,
+    projectFullName: string
+  ): Promise<(EnvironmentSecretFragment & { scope: EnvironmentSecretScope })[]> {
+    const [accountSecrets, appSecrets] = await Promise.all([
+      this.byAcccountNameAsync(projectAccountName),
+      this.byAppFullNameAsync(projectFullName),
+    ]);
+
+    return [
+      ...appSecrets.map(s => ({ ...s, scope: EnvironmentSecretScope.PROJECT })),
+      ...accountSecrets.map(s => ({ ...s, scope: EnvironmentSecretScope.ACCOUNT })),
+    ];
   },
 };
