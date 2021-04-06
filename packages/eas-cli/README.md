@@ -36,6 +36,7 @@ eas --help COMMAND
 * [`eas account:login`](#eas-accountlogin)
 * [`eas account:logout`](#eas-accountlogout)
 * [`eas account:view`](#eas-accountview)
+* [`eas analytics [STATUS]`](#eas-analytics-status)
 * [`eas build`](#eas-build)
 * [`eas build:cancel [BUILD_ID]`](#eas-buildcancel-build_id)
 * [`eas build:configure`](#eas-buildconfigure)
@@ -46,6 +47,8 @@ eas --help COMMAND
 * [`eas device:list`](#eas-devicelist)
 * [`eas device:view [UDID]`](#eas-deviceview-udid)
 * [`eas help [COMMAND]`](#eas-help-command)
+* [`eas secrets:create`](#eas-secretscreate)
+* [`eas secrets:delete ID`](#eas-secretsdelete-id)
 * [`eas secrets:list`](#eas-secretslist)
 * [`eas submit --platform=(android|ios)`](#eas-submit---platformandroidios)
 
@@ -61,7 +64,7 @@ ALIASES
   $ eas login
 ```
 
-_See code: [build/commands/account/login.ts](https://github.com/expo/eas-cli/blob/v0.7.0/build/commands/account/login.ts)_
+_See code: [build/commands/account/login.ts](https://github.com/expo/eas-cli/blob/v0.8.0/build/commands/account/login.ts)_
 
 ## `eas account:logout`
 
@@ -75,7 +78,7 @@ ALIASES
   $ eas logout
 ```
 
-_See code: [build/commands/account/logout.ts](https://github.com/expo/eas-cli/blob/v0.7.0/build/commands/account/logout.ts)_
+_See code: [build/commands/account/logout.ts](https://github.com/expo/eas-cli/blob/v0.8.0/build/commands/account/logout.ts)_
 
 ## `eas account:view`
 
@@ -89,7 +92,18 @@ ALIASES
   $ eas whoami
 ```
 
-_See code: [build/commands/account/view.ts](https://github.com/expo/eas-cli/blob/v0.7.0/build/commands/account/view.ts)_
+_See code: [build/commands/account/view.ts](https://github.com/expo/eas-cli/blob/v0.8.0/build/commands/account/view.ts)_
+
+## `eas analytics [STATUS]`
+
+View or change analytics settings
+
+```
+USAGE
+  $ eas analytics [STATUS]
+```
+
+_See code: [build/commands/analytics.ts](https://github.com/expo/eas-cli/blob/v0.8.0/build/commands/analytics.ts)_
 
 ## `eas build`
 
@@ -108,7 +122,7 @@ OPTIONS
   --[no-]wait                       Wait for build(s) to complete
 ```
 
-_See code: [build/commands/build/index.ts](https://github.com/expo/eas-cli/blob/v0.7.0/build/commands/build/index.ts)_
+_See code: [build/commands/build/index.ts](https://github.com/expo/eas-cli/blob/v0.8.0/build/commands/build/index.ts)_
 
 ## `eas build:cancel [BUILD_ID]`
 
@@ -119,7 +133,7 @@ USAGE
   $ eas build:cancel [BUILD_ID]
 ```
 
-_See code: [build/commands/build/cancel.ts](https://github.com/expo/eas-cli/blob/v0.7.0/build/commands/build/cancel.ts)_
+_See code: [build/commands/build/cancel.ts](https://github.com/expo/eas-cli/blob/v0.8.0/build/commands/build/cancel.ts)_
 
 ## `eas build:configure`
 
@@ -134,7 +148,7 @@ OPTIONS
   --allow-experimental              Enable experimental configuration steps.
 ```
 
-_See code: [build/commands/build/configure.ts](https://github.com/expo/eas-cli/blob/v0.7.0/build/commands/build/configure.ts)_
+_See code: [build/commands/build/configure.ts](https://github.com/expo/eas-cli/blob/v0.8.0/build/commands/build/configure.ts)_
 
 ## `eas build:list`
 
@@ -150,7 +164,7 @@ OPTIONS
   --status=(in-queue|in-progress|errored|finished|canceled)
 ```
 
-_See code: [build/commands/build/list.ts](https://github.com/expo/eas-cli/blob/v0.7.0/build/commands/build/list.ts)_
+_See code: [build/commands/build/list.ts](https://github.com/expo/eas-cli/blob/v0.8.0/build/commands/build/list.ts)_
 
 ## `eas build:view [BUILD_ID]`
 
@@ -161,7 +175,7 @@ USAGE
   $ eas build:view [BUILD_ID]
 ```
 
-_See code: [build/commands/build/view.ts](https://github.com/expo/eas-cli/blob/v0.7.0/build/commands/build/view.ts)_
+_See code: [build/commands/build/view.ts](https://github.com/expo/eas-cli/blob/v0.8.0/build/commands/build/view.ts)_
 
 ## `eas credentials`
 
@@ -172,7 +186,7 @@ USAGE
   $ eas credentials
 ```
 
-_See code: [build/commands/credentials.ts](https://github.com/expo/eas-cli/blob/v0.7.0/build/commands/credentials.ts)_
+_See code: [build/commands/credentials.ts](https://github.com/expo/eas-cli/blob/v0.8.0/build/commands/credentials.ts)_
 
 ## `eas device:create`
 
@@ -183,7 +197,7 @@ USAGE
   $ eas device:create
 ```
 
-_See code: [build/commands/device/create.ts](https://github.com/expo/eas-cli/blob/v0.7.0/build/commands/device/create.ts)_
+_See code: [build/commands/device/create.ts](https://github.com/expo/eas-cli/blob/v0.8.0/build/commands/device/create.ts)_
 
 ## `eas device:list`
 
@@ -197,7 +211,7 @@ OPTIONS
   --apple-team-id=apple-team-id
 ```
 
-_See code: [build/commands/device/list.ts](https://github.com/expo/eas-cli/blob/v0.7.0/build/commands/device/list.ts)_
+_See code: [build/commands/device/list.ts](https://github.com/expo/eas-cli/blob/v0.8.0/build/commands/device/list.ts)_
 
 ## `eas device:view [UDID]`
 
@@ -208,7 +222,7 @@ USAGE
   $ eas device:view [UDID]
 ```
 
-_See code: [build/commands/device/view.ts](https://github.com/expo/eas-cli/blob/v0.7.0/build/commands/device/view.ts)_
+_See code: [build/commands/device/view.ts](https://github.com/expo/eas-cli/blob/v0.8.0/build/commands/device/view.ts)_
 
 ## `eas help [COMMAND]`
 
@@ -227,6 +241,39 @@ OPTIONS
 
 _See code: [@oclif/plugin-help](https://github.com/oclif/plugin-help/blob/v3.2.0/src/commands/help.ts)_
 
+## `eas secrets:create`
+
+Create an environment secret on the current project or owner account.
+
+```
+USAGE
+  $ eas secrets:create
+
+OPTIONS
+  --name=name                Name of the secret
+  --scope=(account|project)  [default: project] Scope for the secret
+  --value=value              Value of the secret
+```
+
+_See code: [build/commands/secrets/create.ts](https://github.com/expo/eas-cli/blob/v0.8.0/build/commands/secrets/create.ts)_
+
+## `eas secrets:delete ID`
+
+Delete an environment secret by ID.
+
+```
+USAGE
+  $ eas secrets:delete ID
+
+ARGUMENTS
+  ID  ID of the secret to delete
+
+DESCRIPTION
+  Unsure where to find the secret's ID? Run eas secrets:list
+```
+
+_See code: [build/commands/secrets/delete.ts](https://github.com/expo/eas-cli/blob/v0.8.0/build/commands/secrets/delete.ts)_
+
 ## `eas secrets:list`
 
 Lists environment secrets available for your current app
@@ -236,7 +283,7 @@ USAGE
   $ eas secrets:list
 ```
 
-_See code: [build/commands/secrets/list.ts](https://github.com/expo/eas-cli/blob/v0.7.0/build/commands/secrets/list.ts)_
+_See code: [build/commands/secrets/list.ts](https://github.com/expo/eas-cli/blob/v0.8.0/build/commands/secrets/list.ts)_
 
 ## `eas submit --platform=(android|ios)`
 
@@ -262,7 +309,8 @@ OPTIONS
 
   iOS specific options=asc-app-id                                    App Store Connect unique application Apple ID
                                                                      number. Providing this param results in skipping
-                                                                     app creation step. Learn more.
+                                                                     app creation step. Learn more:
+                                                                     https://expo.fyi/asc-app-id
 
   iOS specific options=bundle-identifier                             Your iOS Bundle Identifier (default:
                                                                      expo.ios.bundleIdentifier from app config)
@@ -315,5 +363,5 @@ EXAMPLES
          and provide its App ID
 ```
 
-_See code: [build/commands/submit.ts](https://github.com/expo/eas-cli/blob/v0.7.0/build/commands/submit.ts)_
+_See code: [build/commands/submit.ts](https://github.com/expo/eas-cli/blob/v0.8.0/build/commands/submit.ts)_
 <!-- commandsstop -->
