@@ -1540,6 +1540,7 @@ export type RootMutation = {
   updateChannel: UpdateChannelMutation;
   update: UpdateMutation;
   updateBranch: UpdateBranchMutation;
+  uploadSession: UploadSession;
   /** Mutations that create, delete, and accept UserInvitations */
   userInvitation: UserInvitationMutation;
   /** Mutations that modify the currently authenticated User */
@@ -2574,6 +2575,22 @@ export type PartialManifestAsset = {
   storageBucket: Scalars['String'];
   storageKey: Scalars['String'];
 };
+
+export type UploadSession = {
+  __typename?: 'UploadSession';
+  /** Create an Upload Session */
+  createUploadSession: Scalars['JSONObject'];
+};
+
+
+export type UploadSessionCreateUploadSessionArgs = {
+  type?: Maybe<UploadSessionType>;
+};
+
+export enum UploadSessionType {
+  EasBuildProjectSources = 'EAS_BUILD_PROJECT_SOURCES',
+  EasSubmitAppArchive = 'EAS_SUBMIT_APP_ARCHIVE'
+}
 
 export type UserInvitationMutation = {
   __typename?: 'UserInvitationMutation';
@@ -4058,6 +4075,19 @@ export type UpdatePublishMutation = (
       { __typename?: 'Update' }
       & Pick<Update, 'id' | 'group'>
     )>> }
+  ) }
+);
+
+export type CreateUploadSessionMutationVariables = Exact<{
+  type: UploadSessionType;
+}>;
+
+
+export type CreateUploadSessionMutation = (
+  { __typename?: 'RootMutation' }
+  & { uploadSession: (
+    { __typename?: 'UploadSession' }
+    & Pick<UploadSession, 'createUploadSession'>
   ) }
 );
 

@@ -2,10 +2,11 @@ import { Job, Metadata } from '@expo/eas-build-job';
 import { CredentialsSource } from '@expo/eas-json';
 import fs from 'fs-extra';
 
+import { UploadSessionType } from '../graphql/generated';
 import { BuildResult } from '../graphql/mutations/BuildMutation';
 import Log from '../log';
 import { promptAsync } from '../prompts';
-import { UploadType, uploadAsync } from '../uploads';
+import { uploadAsync } from '../uploads';
 import { formatBytes } from '../utils/files';
 import { createProgressTracker } from '../utils/progress';
 import { requestedPlatformDisplayNames } from './constants';
@@ -116,7 +117,7 @@ async function uploadProjectAsync<TPlatform extends Platform>(
         projectTarballPath = projectTarball.path;
 
         const { bucketKey } = await uploadAsync(
-          UploadType.TURTLE_PROJECT_SOURCES,
+          UploadSessionType.EasBuildProjectSources,
           projectTarball.path,
           createProgressTracker({
             total: projectTarball.size,

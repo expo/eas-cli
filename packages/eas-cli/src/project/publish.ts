@@ -10,9 +10,10 @@ import path from 'path';
 
 import { AssetMetadataStatus, PartialManifestAsset } from '../graphql/generated';
 import { PublishMutation } from '../graphql/mutations/PublishMutation';
+import { PresignedPost } from '../graphql/mutations/UploadSessionMutation';
 import { PublishQuery } from '../graphql/queries/PublishQuery';
 import Log from '../log';
-import { PresignedPost, uploadWithPresignedPostAsync } from '../uploads';
+import { uploadWithPresignedPostAsync } from '../uploads';
 
 export const TIMEOUT_LIMIT = 60_000; // 1 minute
 const STORAGE_BUCKET = getStorageBucket();
