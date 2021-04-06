@@ -26,7 +26,10 @@ type Filters = {
 type PendingBuildQueryResult = Pick<Build, 'id' | 'platform'>;
 
 export const BuildQuery = {
-  async byIdAsync(buildId: string): Promise<BuildFragment> {
+  async byIdAsync(
+    buildId: string,
+    { useCache = true }: { useCache?: boolean } = {}
+  ): Promise<BuildFragment> {
     const data = await withErrorHandlingAsync(
       graphqlClient
         .query<BuildsByIdQuery, BuildsByIdQueryVariables>(
@@ -41,7 +44,10 @@ export const BuildQuery = {
             }
             ${print(BuildFragmentNode)}
           `,
-          { buildId }
+          { buildId },
+          {
+            requestPolicy: useCache ? 'cache-first' : 'network-only',
+          }
         )
         .toPromise()
     );

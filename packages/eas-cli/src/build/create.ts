@@ -76,7 +76,7 @@ async function waitForBuildEndAsync(
     const builds: (BuildFragment | null)[] = await Promise.all(
       buildIds.map(async buildId => {
         try {
-          return await BuildQuery.byIdAsync(buildId);
+          return await BuildQuery.byIdAsync(buildId, { useCache: false });
         } catch (err) {
           return null;
         }
