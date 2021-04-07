@@ -3,6 +3,8 @@ import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../client';
 import {
+  WebhookByIdQuery,
+  WebhookByIdQueryVariables,
   WebhookFilter,
   WebhookFragment,
   WebhooksByAppIdQuery,
@@ -34,5 +36,26 @@ export const WebhookQuery = {
         .toPromise()
     );
     return data.app?.byId.webhooks ?? [];
+  },
+  async byIdAsync(webhookId: string): Promise<WebhookFragment> {
+    const data = await withErrorHandlingAsync(
+      graphqlClient
+        .query<WebhookByIdQuery, WebhookByIdQueryVariables>(
+          gql`
+            query WebhookById($webhookId: ID!) {
+              webhook {
+                byId(id: $webhookId) {
+                  id
+                  ...WebhookFragment
+                }
+              }
+            }
+            ${print(WebhookFragmentNode)}
+          `,
+          { webhookId }
+        )
+        .toPromise()
+    );
+    return data.webhook.byId;
   },
 };
