@@ -1,6 +1,6 @@
 import { confirmAsync } from '../../../../../prompts';
 import { getAppstoreMock, testAuthCtx } from '../../../../__tests__/fixtures-appstore';
-import { createCtxMock, createManagerMock } from '../../../../__tests__/fixtures-context';
+import { createCtxMock } from '../../../../__tests__/fixtures-context';
 import {
   testDistCertFragmentNoDependencies,
   testProvisioningProfile,

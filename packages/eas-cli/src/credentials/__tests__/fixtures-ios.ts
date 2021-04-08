@@ -4,7 +4,12 @@ import {
   AppleDistributionCertificateFragment,
   AppleProvisioningProfileFragment,
   AppleTeamFragment,
+  IosAppBuildCredentials,
+  IosAppBuildCredentialsFragment,
+  IosAppCredentialsFragment,
+  IosDistributionType,
 } from '../../graphql/generated';
+import { IosAppCredentialsWithBuildCredentialsQueryResult } from '../ios/api/graphql/queries/IosAppCredentialsQuery';
 import {
   DistributionCertificate,
   DistributionCertificateStoreInfo,
@@ -105,6 +110,18 @@ export const testDistCertFragmentOneDependency: AppleDistributionCertificateFrag
       },
     },
   ],
+};
+
+export const testIosAppBuildCredentialsFragment: IosAppBuildCredentialsFragment = {
+  id: 'test-ios-app-build-credentials-id',
+  iosDistributionType: IosDistributionType.AppStore,
+  distributionCertificate: testDistCertFragmentNoDependencies,
+  provisioningProfile: testProvisioningProfileFragment,
+};
+
+export const testIosAppCredentialsWithBuildCredentialsQueryResult: IosAppCredentialsWithBuildCredentialsQueryResult = {
+  id: 'test-app-credential-id',
+  iosAppBuildCredentialsArray: [testIosAppBuildCredentialsFragment],
 };
 
 export const testDistCert: DistributionCertificate = {
