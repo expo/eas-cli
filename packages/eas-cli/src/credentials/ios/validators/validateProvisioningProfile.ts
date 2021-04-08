@@ -2,6 +2,7 @@ import { PlistArray, PlistObject } from '@expo/plist';
 import crypto from 'crypto';
 import minimatch from 'minimatch';
 
+import Log from '../../../log';
 import { Context } from '../../context';
 import { DistributionCertificate, ProvisioningProfile } from '../appstore/Credentials.types';
 import { getP12CertFingerprint } from '../utils/p12Certificate';
@@ -14,8 +15,8 @@ interface ValidationResult {
 
 export async function validateProvisioningProfileAsync(
   ctx: Context,
-  profile: ProvisioningProfile,
-  distCert: DistributionCertificate,
+  profile: Pick<ProvisioningProfile, 'provisioningProfile' | 'provisioningProfileId'>,
+  distCert: Pick<DistributionCertificate, 'certP12' | 'certPassword'>,
   bundleIdentifier: string
 ): Promise<ValidationResult> {
   const resultWithoutApple = validateProvisioningProfileWithoutApple(
@@ -23,21 +24,33 @@ export async function validateProvisioningProfileAsync(
     distCert,
     bundleIdentifier
   );
+
+  // already failed, return early
   if (!resultWithoutApple.ok) {
     return resultWithoutApple;
   }
+
+  if (!ctx.appStore.authCtx) {
+    Log.warn(
+      "Skipping Provisioning Profile validation on Apple Servers because we aren't authenticated."
+    );
+    return resultWithoutApple;
+  }
+
   return await validateProvisioningProfileWithAppleAsync(ctx, profile, bundleIdentifier);
 }
 
 async function validateProvisioningProfileWithAppleAsync(
   ctx: Context,
-  profile: ProvisioningProfile,
+  profile: Pick<ProvisioningProfile, 'provisioningProfile' | 'provisioningProfileId'>,
   bundleIdentifier: string
 ): Promise<ValidationResult> {
   const profilesFromApple = await ctx.appStore.listProvisioningProfilesAsync(bundleIdentifier);
 
-  const configuredProfileFromApple = profilesFromApple.find(
-    appleProfile => appleProfile.provisioningProfileId === profile.provisioningProfileId
+  const configuredProfileFromApple = profilesFromApple.find(appleProfile =>
+    profile.provisioningProfileId
+      ? appleProfile.provisioningProfileId === profile.provisioningProfileId
+      : appleProfile.provisioningProfile === profile.provisioningProfile
   );
   if (!configuredProfileFromApple) {
     return {
@@ -49,8 +62,8 @@ async function validateProvisioningProfileWithAppleAsync(
 }
 
 export function validateProvisioningProfileWithoutApple(
-  provisioningProfile: ProvisioningProfile,
-  distCert: DistributionCertificate,
+  provisioningProfile: Pick<ProvisioningProfile, 'provisioningProfile' | 'provisioningProfileId'>,
+  distCert: Pick<DistributionCertificate, 'certP12' | 'certPassword'>,
   bundleIdentifier: string
 ): ValidationResult {
   try {

@@ -1,6 +1,6 @@
 import { confirmAsync } from '../../../../../prompts';
 import { getAppstoreMock, testAuthCtx } from '../../../../__tests__/fixtures-appstore';
-import { createCtxMock, createManagerMock } from '../../../../__tests__/fixtures-context';
+import { createCtxMock } from '../../../../__tests__/fixtures-context';
 import {
   testDistCertFragmentNoDependencies,
   testProvisioningProfile,
@@ -13,7 +13,6 @@ jest.mock('../../../../../prompts');
 
 describe('CreateProvisioningProfile', () => {
   it('creates a Provisioning Profile in Interactive Mode', async () => {
-    const manager = createManagerMock();
     const ctx = createCtxMock({
       nonInteractive: false,
       appStore: {
@@ -28,7 +27,7 @@ describe('CreateProvisioningProfile', () => {
       appLookupParams,
       testDistCertFragmentNoDependencies
     );
-    await createProvProfAction.runAsync(manager, ctx);
+    await createProvProfAction.runAsync(ctx);
 
     // expect provisioning profile to be created on expo servers
     expect((ctx.newIos.createProvisioningProfileAsync as any).mock.calls.length).toBe(1);
@@ -36,7 +35,6 @@ describe('CreateProvisioningProfile', () => {
     expect((ctx.appStore.createProvisioningProfileAsync as any).mock.calls.length).toBe(1);
   });
   it('errors in Non Interactive Mode', async () => {
-    const manager = createManagerMock();
     const ctx = createCtxMock({
       nonInteractive: true,
     });
@@ -45,7 +43,7 @@ describe('CreateProvisioningProfile', () => {
       appLookupParams,
       testDistCertFragmentNoDependencies
     );
-    await expect(createProvProfAction.runAsync(manager, ctx)).rejects.toThrowError(
+    await expect(createProvProfAction.runAsync(ctx)).rejects.toThrowError(
       MissingCredentialsNonInteractiveError
     );
 

@@ -3,7 +3,6 @@ import nullthrows from 'nullthrows';
 
 import { AppleDistributionCertificateFragment } from '../../../../graphql/generated';
 import Log from '../../../../log';
-import { Action, CredentialsManager } from '../../../CredentialsManager';
 import { Context } from '../../../context';
 import { askForUserProvidedAsync } from '../../../utils/promptForCredentials';
 import { AppLookupParams } from '../../api/GraphqlClient';
@@ -15,22 +14,13 @@ import { MissingCredentialsNonInteractiveError } from '../../errors';
 import { generateProvisioningProfileAsync } from '../ProvisioningProfileUtils';
 import { resolveAppleTeamIfAuthenticatedAsync } from './AppleTeamUtils';
 
-export class CreateProvisioningProfile implements Action {
-  private _provisioningProfile?: AppleProvisioningProfileMutationResult;
+export class CreateProvisioningProfile {
   constructor(
     private app: AppLookupParams,
     private distributionCertificate: AppleDistributionCertificateFragment
   ) {}
 
-  public get provisioningProfile(): AppleProvisioningProfileMutationResult {
-    assert(
-      this._provisioningProfile,
-      'provisioningProfile can be accessed only after calling .runAsync()'
-    );
-    return this._provisioningProfile;
-  }
-
-  async runAsync(_manager: CredentialsManager, ctx: Context): Promise<void> {
+  async runAsync(ctx: Context): Promise<AppleProvisioningProfileMutationResult> {
     if (ctx.nonInteractive) {
       throw new MissingCredentialsNonInteractiveError(
         'Creating Provisioning Profiles is only supported in interactive mode.'
@@ -43,7 +33,7 @@ export class CreateProvisioningProfile implements Action {
       this.app,
       appleTeam
     );
-    this._provisioningProfile = await ctx.newIos.createProvisioningProfileAsync(
+    const provisioningProfileMutationResult = await ctx.newIos.createProvisioningProfileAsync(
       this.app,
       appleAppIdentifier,
       {
@@ -52,6 +42,7 @@ export class CreateProvisioningProfile implements Action {
       }
     );
     Log.succeed('Created provisioning profile');
+    return provisioningProfileMutationResult;
   }
 
   private async provideOrGenerateAsync(
