@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Replace Credentials REST API calls with GraphQL counterparts, also improved DX. ([#293](https://github.com/expo/eas-cli/pull/293), [#299](https://github.com/expo/eas-cli/pull/299), [#301](https://github.com/expo/eas-cli/pull/301) by [@quinlanj](https://github.com/quinlanj))
+
 ## [0.8.1](https://github.com/expo/eas-cli/releases/tag/v0.8.1) - 2021-04-06
 
 ### 🐛 Bug fixes
