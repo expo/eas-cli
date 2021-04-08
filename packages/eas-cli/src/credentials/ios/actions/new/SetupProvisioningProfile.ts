@@ -149,19 +149,19 @@ export class SetupProvisioningProfile {
     if (!currentProfile) {
       return await this.createAndAssignProfileAsync(ctx, distCert);
     }
+
+    // See if the profile we have exists on the Apple Servers
+    // If it does, try to use that one. Else create a new one.
     const existingProfiles = await ctx.appStore.listProvisioningProfilesAsync(
       this.app.bundleIdentifier
     );
-
     if (existingProfiles.length === 0) {
       return await this.assignNewAndDeleteOldProfileAsync(ctx, distCert, currentProfile);
     }
-
     const currentProfileFromServer = this.getCurrentProfileStoreInfo(
       existingProfiles,
       currentProfile
     );
-
     if (!currentProfileFromServer) {
       return await this.assignNewAndDeleteOldProfileAsync(ctx, distCert, currentProfile);
     }
@@ -174,8 +174,12 @@ export class SetupProvisioningProfile {
     if (!confirm) {
       return await this.assignNewAndDeleteOldProfileAsync(ctx, distCert, currentProfile);
     }
+
+    // If we get here, we've verified the current profile still exists on Apple
+    // But something wasn't quite right, so we want to fix and update it
     const updatedProfile = await this.configureAndAssignProfileAsync(ctx, distCert, currentProfile);
     if (!updatedProfile) {
+      // Something went wrong, so just create a new profile instead
       return await this.assignNewAndDeleteOldProfileAsync(ctx, distCert, currentProfile);
     }
     return updatedProfile;
