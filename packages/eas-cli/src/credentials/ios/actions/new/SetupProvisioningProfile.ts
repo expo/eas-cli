@@ -24,16 +24,10 @@ export class SetupProvisioningProfile {
   constructor(private app: AppLookupParams) {}
 
   async areBuildCredentialsSetupAsync(ctx: Context): Promise<boolean> {
-    const appCredentials = await ctx.newIos.getIosAppCredentialsWithBuildCredentialsAsync(
-      this.app,
-      {
-        iosDistributionType: IosDistributionType.AppStore,
-      }
-    );
-    if (!appCredentials || appCredentials.iosAppBuildCredentialsArray.length === 0) {
+    const buildCredentials = await this.getBuildCredentialsAsync(ctx);
+    if (!buildCredentials) {
       return false;
     }
-    const [buildCredentials] = appCredentials.iosAppBuildCredentialsArray;
     const { distributionCertificate, provisioningProfile } = buildCredentials;
     if (!distributionCertificate || !provisioningProfile) {
       return false;
@@ -115,16 +109,10 @@ export class SetupProvisioningProfile {
   async getProvisioningProfileAsync(
     ctx: Context
   ): Promise<AppleProvisioningProfileFragment | null> {
-    const appCredentials = await ctx.newIos.getIosAppCredentialsWithBuildCredentialsAsync(
-      this.app,
-      {
-        iosDistributionType: IosDistributionType.AppStore,
-      }
-    );
-    if (!appCredentials || appCredentials.iosAppBuildCredentialsArray.length === 0) {
+    const buildCredentials = await this.getBuildCredentialsAsync(ctx);
+    if (!buildCredentials) {
       return null;
     }
-    const [buildCredentials] = appCredentials.iosAppBuildCredentialsArray;
     return buildCredentials.provisioningProfile ?? null;
   }
 

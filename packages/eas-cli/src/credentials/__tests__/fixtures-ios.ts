@@ -4,9 +4,7 @@ import {
   AppleDistributionCertificateFragment,
   AppleProvisioningProfileFragment,
   AppleTeamFragment,
-  IosAppBuildCredentials,
   IosAppBuildCredentialsFragment,
-  IosAppCredentialsFragment,
   IosDistributionType,
 } from '../../graphql/generated';
 import { IosAppCredentialsWithBuildCredentialsQueryResult } from '../ios/api/graphql/queries/IosAppCredentialsQuery';
