@@ -18,7 +18,7 @@ import {
 } from '../../project/projectUtils';
 import { ensureLoggedInAsync } from '../../user/actions';
 
-export default class EnvironmentSecretsList extends Command {
+export default class EnvironmentSecretList extends Command {
   static description = 'Lists environment secrets available for your current app';
   static usage = 'secrets:list';
 
