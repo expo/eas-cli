@@ -5,6 +5,8 @@ import { graphqlClient, withErrorHandlingAsync } from '../client';
 import {
   CreateWebhookMutation,
   CreateWebhookMutationVariables,
+  DeleteWebhookMutation,
+  DeleteWebhookMutationVariables,
   UpdateWebhookMutation,
   UpdateWebhookMutationVariables,
   WebhookFragment,
@@ -57,5 +59,23 @@ export const WebhookMutation = {
         .toPromise()
     );
     return data.webhook.updateWebhook;
+  },
+  async deleteWebhookAsync(webhookId: string): Promise<void> {
+    await withErrorHandlingAsync(
+      graphqlClient
+        .mutation<DeleteWebhookMutation, DeleteWebhookMutationVariables>(
+          gql`
+            mutation DeleteWebhookMutation($webhookId: ID!) {
+              webhook {
+                deleteWebhook(webhookId: $webhookId) {
+                  id
+                }
+              }
+            }
+          `,
+          { webhookId }
+        )
+        .toPromise()
+    );
   },
 };
