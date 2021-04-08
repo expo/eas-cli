@@ -12,6 +12,7 @@ import { CredentialsManager } from '../../../CredentialsManager';
 import { Context } from '../../../context';
 import { AppLookupParams } from '../../api/GraphqlClient';
 import { ProvisioningProfileStoreInfo } from '../../appstore/Credentials.types';
+import { MissingCredentialsNonInteractiveError } from '../../errors';
 import { validateProvisioningProfileAsync } from '../../validators/validateProvisioningProfile';
 import { formatProvisioningProfileFromApple } from '../ProvisioningProfileUtils';
 import { resolveAppleTeamIfAuthenticatedAsync } from './AppleTeamUtils';
@@ -136,13 +137,13 @@ export class SetupProvisioningProfile {
       return nullthrows(await this.getBuildCredentialsAsync(ctx));
     }
     if (ctx.nonInteractive) {
-      throw new Error(
+      throw new MissingCredentialsNonInteractiveError(
         'Provisioning profile is not configured correctly. Please run this command again in interactive mode.'
       );
     }
 
     const distCertAction = new SetupDistributionCertificate(this.app, IosDistributionType.AppStore);
-    await manager.runActionAsync(distCertAction);
+    await distCertAction.runAsync(manager, ctx);
     const distCert = distCertAction.distributionCertificate;
 
     const currentProfile = await this.getProvisioningProfileAsync(ctx);
@@ -151,13 +152,9 @@ export class SetupProvisioningProfile {
     }
 
     // See if the profile we have exists on the Apple Servers
-    // If it does, try to use that one. Else create a new one.
     const existingProfiles = await ctx.appStore.listProvisioningProfilesAsync(
       this.app.bundleIdentifier
     );
-    if (existingProfiles.length === 0) {
-      return await this.assignNewAndDeleteOldProfileAsync(ctx, distCert, currentProfile);
-    }
     const currentProfileFromServer = this.getCurrentProfileStoreInfo(
       existingProfiles,
       currentProfile
