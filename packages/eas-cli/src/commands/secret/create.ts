@@ -34,12 +34,16 @@ export default class EnvironmentSecretCreate extends Command {
     value: flags.string({
       description: 'Value of the secret',
     }),
+    json: flags.boolean({
+      description: 'Return JSON with the new secret ID and name.',
+      default: false,
+    }),
   };
 
   async run() {
     const actor = await ensureLoggedInAsync();
     let {
-      flags: { name, value: secretValue, scope },
+      flags: { name, value: secretValue, scope, json },
     } = this.parse(EnvironmentSecretCreate);
 
     const projectDir = (await findProjectRootAsync()) ?? process.cwd();
@@ -120,6 +124,11 @@ export default class EnvironmentSecretCreate extends Command {
         );
       }
 
+      if (json) {
+        Log.log(secret);
+        return;
+      }
+
       Log.withTick(
         `️Created a new secret ${chalk.bold(name)} on project ${chalk.bold(
           `@${accountName}/${slug}`
@@ -145,6 +154,11 @@ export default class EnvironmentSecretCreate extends Command {
         throw new Error(
           `Could not create secret with name ${name} on account with id ${ownerAccount.id}`
         );
+      }
+
+      if (json) {
+        Log.log(secret);
+        return;
       }
 
       Log.withTick(

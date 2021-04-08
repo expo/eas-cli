@@ -30,6 +30,10 @@ Unsure where to find the secret's ID? Run ${chalk.bold('eas secrets:list')}`;
     id: flags.string({
       description: 'ID of the secret to delete',
     }),
+    json: flags.boolean({
+      description: `Return JSON with the deleted secret's ID.`,
+      default: false,
+    }),
   };
 
   async run() {
@@ -48,7 +52,7 @@ Unsure where to find the secret's ID? Run ${chalk.bold('eas secrets:list')}`;
     }
 
     let {
-      flags: { id },
+      flags: { id, json },
     } = this.parse(EnvironmentSecretDelete);
     let secret: EnvironmentSecretWithScope | undefined;
 
@@ -92,6 +96,11 @@ Unsure where to find the secret's ID? Run ${chalk.bold('eas secrets:list')}`;
     }
 
     await EnvironmentSecretMutation.delete(id);
+
+    if (json) {
+      Log.log({ id });
+      return;
+    }
 
     Log.withTick(`️Deleted secret${secret?.name ? ` "${secret?.name}"` : ''} with id "${id}".`);
   }
