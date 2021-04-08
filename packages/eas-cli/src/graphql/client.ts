@@ -6,6 +6,7 @@ import {
 import fetch from 'node-fetch';
 
 import { getExpoApiBaseUrl } from '../api';
+import Log from '../log';
 import { getAccessToken, getSessionSecret } from '../user/sessionStorage';
 
 type AccessTokenHeaders = {
@@ -45,6 +46,9 @@ export async function withErrorHandlingAsync<T>(promise: Promise<OperationResult
   const { data, error } = await promise;
 
   if (error) {
+    if (error.graphQLErrors.some(e => e?.extensions?.isTransient)) {
+      Log.error(`We've encountered a transient error, please try again shortly.`);
+    }
     throw error;
   }
 
