@@ -89,6 +89,8 @@ export type RootQuery = {
    * query object
    */
   meActor?: Maybe<Actor>;
+  /** Top-level query object for querying Webhooks. */
+  webhook: WebhookQuery;
 };
 
 
@@ -161,8 +163,8 @@ export type ActivityTimelineProjectActivity = {
 export type Actor = {
   id: Scalars['ID'];
   firstName?: Maybe<Scalars['String']>;
-  created?: Maybe<Scalars['DateTime']>;
-  isExpoAdmin?: Maybe<Scalars['Boolean']>;
+  created: Scalars['DateTime'];
+  isExpoAdmin: Scalars['Boolean'];
   /** Associated accounts */
   accounts: Array<Account>;
   /** Access Tokens belonging to this actor */
@@ -189,19 +191,12 @@ export type Account = {
   __typename?: 'Account';
   id: Scalars['ID'];
   name: Scalars['String'];
-  isCurrent?: Maybe<Scalars['Boolean']>;
-  /** @deprecated Build packs are no longer supported */
-  availableBuilds?: Maybe<Scalars['Int']>;
-  unlimitedBuilds?: Maybe<Scalars['Boolean']>;
-  /** @deprecated No longer needed */
-  subscriptionChangesPending?: Maybe<Scalars['Boolean']>;
-  /** @deprecated Build packs are no longer supported */
-  willAutoRenewBuilds?: Maybe<Scalars['Boolean']>;
-  pushSecurityEnabled?: Maybe<Scalars['Boolean']>;
+  isCurrent: Scalars['Boolean'];
+  pushSecurityEnabled: Scalars['Boolean'];
   createdAt: Scalars['DateTime'];
   updatedAt: Scalars['DateTime'];
-  /** short lived property for test */
-  offers?: Maybe<Array<Maybe<Offer>>>;
+  /** Offers set on this account */
+  offers?: Maybe<Array<Offer>>;
   /** Snacks associated with this account */
   snacks: Array<Snack>;
   /** Apps associated with this account */
@@ -219,13 +214,6 @@ export type Account = {
   userInvitations: Array<UserInvitation>;
   /** Billing information */
   billing?: Maybe<Billing>;
-  /**
-   * Api tokens made for project
-   * @deprecated Legacy access tokens are deprecated
-   */
-  accessTokens: Array<Maybe<AccessToken>>;
-  /** @deprecated Legacy access tokens are deprecated */
-  requiresAccessTokenForPushSecurity: Scalars['Boolean'];
   /** iOS credentials for account */
   appleTeams: Array<AppleTeam>;
   appleAppIdentifiers: Array<AppleAppIdentifier>;
@@ -235,6 +223,18 @@ export type Account = {
   appleDevices: Array<AppleDevice>;
   /** Environment secrets for an account */
   environmentSecrets: Array<EnvironmentSecret>;
+  /** @deprecated Legacy access tokens are deprecated */
+  accessTokens: Array<Maybe<AccessToken>>;
+  /** @deprecated Legacy access tokens are deprecated */
+  requiresAccessTokenForPushSecurity: Scalars['Boolean'];
+  /** @deprecated See isCurrent */
+  unlimitedBuilds: Scalars['Boolean'];
+  /** @deprecated Build packs are no longer supported */
+  availableBuilds?: Maybe<Scalars['Int']>;
+  /** @deprecated No longer needed */
+  subscriptionChangesPending?: Maybe<Scalars['Boolean']>;
+  /** @deprecated Build packs are no longer supported */
+  willAutoRenewBuilds?: Maybe<Scalars['Boolean']>;
 };
 
 
@@ -382,12 +382,12 @@ export type Project = {
   name: Scalars['String'];
   fullName: Scalars['String'];
   description: Scalars['String'];
-  /** @deprecated Field no longer supported */
-  iconUrl?: Maybe<Scalars['String']>;
   slug: Scalars['String'];
-  username: Scalars['String'];
   updated: Scalars['DateTime'];
   published: Scalars['Boolean'];
+  username: Scalars['String'];
+  /** @deprecated Field no longer supported */
+  iconUrl?: Maybe<Scalars['String']>;
 };
 
 /** Represents an Exponent App (or Experience in legacy terms) */
@@ -397,52 +397,22 @@ export type App = Project & {
   name: Scalars['String'];
   fullName: Scalars['String'];
   description: Scalars['String'];
+  slug: Scalars['String'];
+  updated: Scalars['DateTime'];
+  published: Scalars['Boolean'];
+  ownerAccount: Account;
   githubUrl?: Maybe<Scalars['String']>;
   playStoreUrl?: Maybe<Scalars['String']>;
   appStoreUrl?: Maybe<Scalars['String']>;
-  /** @deprecated Field no longer supported */
-  iconUrl?: Maybe<Scalars['String']>;
   icon?: Maybe<AppIcon>;
-  slug: Scalars['String'];
   sdkVersion: Scalars['String'];
-  isDeprecated?: Maybe<Scalars['Boolean']>;
-  username: Scalars['String'];
-  updated: Scalars['DateTime'];
-  pushSecurityEnabled?: Maybe<Scalars['Boolean']>;
-  ownerAccount: Account;
-  /** @deprecated Use 'privacySetting' instead. */
-  privacy: Scalars['String'];
+  isDeprecated: Scalars['Boolean'];
   privacySetting: AppPrivacy;
   latestReleaseId: Scalars['ID'];
-  /** @deprecated 'likes' have been deprecated. */
-  isLikedByMe: Scalars['Boolean'];
-  published: Scalars['Boolean'];
-  /** @deprecated 'likes' have been deprecated. */
-  likeCount: Scalars['Int'];
-  /** @deprecated 'likes' have been deprecated. */
-  trendScore: Scalars['Float'];
-  /** @deprecated 'likes' have been deprecated. */
-  likedBy: Array<Maybe<User>>;
-  /** @deprecated Field no longer supported */
-  releases: Array<Maybe<AppRelease>>;
+  pushSecurityEnabled: Scalars['Boolean'];
   /** (EAS Build) Builds associated with this app */
   builds: Array<Build>;
   buildJobs: Array<BuildJob>;
-  /** @deprecated Field no longer supported */
-  users?: Maybe<Array<Maybe<User>>>;
-  /** @deprecated Field no longer supported */
-  lastPublishedTime: Scalars['DateTime'];
-  /** @deprecated Field no longer supported */
-  packageUsername: Scalars['String'];
-  /** @deprecated Field no longer supported */
-  packageName: Scalars['String'];
-  /**
-   * Api tokens made for project
-   * @deprecated Legacy access tokens are deprecated
-   */
-  accessTokens: Array<Maybe<AccessToken>>;
-  /** @deprecated Legacy access tokens are deprecated */
-  requiresAccessTokenForPushSecurity: Scalars['Boolean'];
   /** iOS app credentials for the project */
   iosAppCredentials: Array<IosAppCredentials>;
   /** Android app credentials for the project */
@@ -459,21 +429,36 @@ export type App = Project & {
   activityTimelineProjectActivities: Array<ActivityTimelineProjectActivity>;
   /** Environment secrets for an app */
   environmentSecrets: Array<EnvironmentSecret>;
-};
-
-
-/** Represents an Exponent App (or Experience in legacy terms) */
-export type AppLikedByArgs = {
-  offset?: Maybe<Scalars['Int']>;
-  limit?: Maybe<Scalars['Int']>;
-};
-
-
-/** Represents an Exponent App (or Experience in legacy terms) */
-export type AppReleasesArgs = {
-  platform: AppPlatform;
-  offset?: Maybe<Scalars['Int']>;
-  limit?: Maybe<Scalars['Int']>;
+  /** Webhooks for an app */
+  webhooks: Array<Webhook>;
+  /** @deprecated Use ownerAccount.name instead */
+  username: Scalars['String'];
+  /** @deprecated Field no longer supported */
+  iconUrl?: Maybe<Scalars['String']>;
+  /** @deprecated Use 'privacySetting' instead. */
+  privacy: Scalars['String'];
+  /** @deprecated Field no longer supported */
+  lastPublishedTime: Scalars['DateTime'];
+  /** @deprecated Field no longer supported */
+  packageUsername: Scalars['String'];
+  /** @deprecated Field no longer supported */
+  packageName: Scalars['String'];
+  /** @deprecated Legacy access tokens are deprecated */
+  accessTokens: Array<Maybe<AccessToken>>;
+  /** @deprecated Legacy access tokens are deprecated */
+  requiresAccessTokenForPushSecurity: Scalars['Boolean'];
+  /** @deprecated 'likes' have been deprecated. */
+  isLikedByMe: Scalars['Boolean'];
+  /** @deprecated 'likes' have been deprecated. */
+  likeCount: Scalars['Int'];
+  /** @deprecated 'likes' have been deprecated. */
+  trendScore: Scalars['Float'];
+  /** @deprecated 'likes' have been deprecated. */
+  likedBy: Array<Maybe<User>>;
+  /** @deprecated Field no longer supported */
+  users?: Maybe<Array<Maybe<User>>>;
+  /** @deprecated Field no longer supported */
+  releases: Array<Maybe<AppRelease>>;
 };
 
 
@@ -544,6 +529,27 @@ export type AppEnvironmentSecretsArgs = {
   filterNames?: Maybe<Array<Scalars['String']>>;
 };
 
+
+/** Represents an Exponent App (or Experience in legacy terms) */
+export type AppWebhooksArgs = {
+  filter?: Maybe<WebhookFilter>;
+};
+
+
+/** Represents an Exponent App (or Experience in legacy terms) */
+export type AppLikedByArgs = {
+  offset?: Maybe<Scalars['Int']>;
+  limit?: Maybe<Scalars['Int']>;
+};
+
+
+/** Represents an Exponent App (or Experience in legacy terms) */
+export type AppReleasesArgs = {
+  platform: AppPlatform;
+  offset?: Maybe<Scalars['Int']>;
+  limit?: Maybe<Scalars['Int']>;
+};
+
 export type AppIcon = {
   __typename?: 'AppIcon';
   url: Scalars['String'];
@@ -560,6 +566,46 @@ export enum AppPrivacy {
   Hidden = 'HIDDEN'
 }
 
+export enum BuildStatus {
+  InQueue = 'IN_QUEUE',
+  InProgress = 'IN_PROGRESS',
+  Errored = 'ERRORED',
+  Finished = 'FINISHED',
+  Canceled = 'CANCELED'
+}
+
+export enum AppPlatform {
+  Ios = 'IOS',
+  Android = 'ANDROID'
+}
+
+/** Represents an EAS Build */
+export type Build = ActivityTimelineProjectActivity & {
+  __typename?: 'Build';
+  id: Scalars['ID'];
+  actor?: Maybe<Actor>;
+  activityTimestamp: Scalars['DateTime'];
+  project: Project;
+  /** @deprecated User type is deprecated */
+  initiatingUser?: Maybe<User>;
+  initiatingActor?: Maybe<Actor>;
+  artifacts?: Maybe<BuildArtifacts>;
+  logFiles: Array<Scalars['String']>;
+  updatedAt?: Maybe<Scalars['DateTime']>;
+  createdAt?: Maybe<Scalars['DateTime']>;
+  status: BuildStatus;
+  expirationDate?: Maybe<Scalars['DateTime']>;
+  platform: AppPlatform;
+  appVersion?: Maybe<Scalars['String']>;
+  sdkVersion?: Maybe<Scalars['String']>;
+  releaseChannel?: Maybe<Scalars['String']>;
+  metrics?: Maybe<BuildMetrics>;
+  distribution?: Maybe<DistributionType>;
+  buildProfile?: Maybe<Scalars['String']>;
+  gitCommitHash?: Maybe<Scalars['String']>;
+  error?: Maybe<BuildError>;
+};
+
 /** Represents a human (not robot) actor. */
 export type User = Actor & {
   __typename?: 'User';
@@ -569,22 +615,17 @@ export type User = Actor & {
   firstName?: Maybe<Scalars['String']>;
   lastName?: Maybe<Scalars['String']>;
   fullName?: Maybe<Scalars['String']>;
-  profilePhoto?: Maybe<Scalars['String']>;
-  created?: Maybe<Scalars['DateTime']>;
-  lastLogin?: Maybe<Scalars['DateTime']>;
-  lastPasswordReset?: Maybe<Scalars['DateTime']>;
+  profilePhoto: Scalars['String'];
+  created: Scalars['DateTime'];
   industry?: Maybe<Scalars['String']>;
   location?: Maybe<Scalars['String']>;
-  appCount?: Maybe<Scalars['Int']>;
+  appCount: Scalars['Int'];
   githubUsername?: Maybe<Scalars['String']>;
   twitterUsername?: Maybe<Scalars['String']>;
   appetizeCode?: Maybe<Scalars['String']>;
-  emailVerified?: Maybe<Scalars['Boolean']>;
-  isOnboarded?: Maybe<Scalars['Boolean']>;
-  isLegacy?: Maybe<Scalars['Boolean']>;
-  wasLegacy?: Maybe<Scalars['Boolean']>;
-  isEmailUnsubscribed?: Maybe<Scalars['Boolean']>;
-  isExpoAdmin?: Maybe<Scalars['Boolean']>;
+  emailVerified: Scalars['Boolean'];
+  isEmailUnsubscribed: Scalars['Boolean'];
+  isExpoAdmin: Scalars['Boolean'];
   isSecondFactorAuthenticationEnabled: Scalars['Boolean'];
   /** Get all certified second factor authentication methods */
   secondFactorDevices: Array<UserSecondFactorDevice>;
@@ -596,11 +637,6 @@ export type User = Actor & {
   snacks: Array<Snack>;
   /** Apps this user has published */
   apps: Array<App>;
-  /**
-   * Likes this user has made
-   * @deprecated 'likes' have been deprecated.
-   */
-  likes?: Maybe<Array<Maybe<App>>>;
   /** Whether this user has any pending user invitations. Only resolves for the viewer. */
   hasPendingUserInvitations: Scalars['Boolean'];
   /** Pending UserInvitations for this user. Only resolves for the viewer. */
@@ -610,6 +646,18 @@ export type User = Actor & {
    * Only resolves for the viewer.
    */
   featureGates: Scalars['JSONObject'];
+  /** @deprecated Field no longer supported */
+  lastPasswordReset?: Maybe<Scalars['DateTime']>;
+  /** @deprecated Field no longer supported */
+  lastLogin?: Maybe<Scalars['DateTime']>;
+  /** @deprecated Field no longer supported */
+  isOnboarded?: Maybe<Scalars['Boolean']>;
+  /** @deprecated Field no longer supported */
+  isLegacy?: Maybe<Scalars['Boolean']>;
+  /** @deprecated Field no longer supported */
+  wasLegacy?: Maybe<Scalars['Boolean']>;
+  /** @deprecated 'likes' have been deprecated. */
+  likes?: Maybe<Array<Maybe<App>>>;
 };
 
 
@@ -629,15 +677,15 @@ export type UserAppsArgs = {
 
 
 /** Represents a human (not robot) actor. */
-export type UserLikesArgs = {
-  offset: Scalars['Int'];
-  limit: Scalars['Int'];
+export type UserFeatureGatesArgs = {
+  filter?: Maybe<Array<Scalars['String']>>;
 };
 
 
 /** Represents a human (not robot) actor. */
-export type UserFeatureGatesArgs = {
-  filter?: Maybe<Array<Scalars['String']>>;
+export type UserLikesArgs = {
+  offset: Scalars['Int'];
+  limit: Scalars['Int'];
 };
 
 /** A second factor device belonging to a User */
@@ -706,59 +754,6 @@ export enum Role {
 }
 
 
-export enum AppPlatform {
-  Ios = 'IOS',
-  Android = 'ANDROID'
-}
-
-export type AppRelease = {
-  __typename?: 'AppRelease';
-  id: Scalars['ID'];
-  hash?: Maybe<Scalars['String']>;
-  publishedTime?: Maybe<Scalars['DateTime']>;
-  publishingUsername?: Maybe<Scalars['String']>;
-  sdkVersion?: Maybe<Scalars['String']>;
-  version?: Maybe<Scalars['String']>;
-  s3Key?: Maybe<Scalars['String']>;
-  s3Url?: Maybe<Scalars['String']>;
-  manifest?: Maybe<Scalars['JSON']>;
-};
-
-export enum BuildStatus {
-  InQueue = 'IN_QUEUE',
-  InProgress = 'IN_PROGRESS',
-  Errored = 'ERRORED',
-  Finished = 'FINISHED',
-  Canceled = 'CANCELED'
-}
-
-/** Represents an EAS Build */
-export type Build = ActivityTimelineProjectActivity & {
-  __typename?: 'Build';
-  id: Scalars['ID'];
-  actor?: Maybe<Actor>;
-  activityTimestamp: Scalars['DateTime'];
-  project: Project;
-  /** @deprecated User type is deprecated */
-  initiatingUser?: Maybe<User>;
-  initiatingActor?: Maybe<Actor>;
-  artifacts?: Maybe<BuildArtifacts>;
-  logFiles: Array<Scalars['String']>;
-  updatedAt?: Maybe<Scalars['DateTime']>;
-  createdAt?: Maybe<Scalars['DateTime']>;
-  status: BuildStatus;
-  expirationDate?: Maybe<Scalars['DateTime']>;
-  platform: AppPlatform;
-  appVersion?: Maybe<Scalars['String']>;
-  sdkVersion?: Maybe<Scalars['String']>;
-  releaseChannel?: Maybe<Scalars['String']>;
-  metrics?: Maybe<BuildMetrics>;
-  distribution?: Maybe<DistributionType>;
-  buildProfile?: Maybe<Scalars['String']>;
-  gitCommitHash?: Maybe<Scalars['String']>;
-  error?: Maybe<BuildError>;
-};
-
 export type BuildArtifacts = {
   __typename?: 'BuildArtifacts';
   buildUrl?: Maybe<Scalars['String']>;
@@ -804,6 +799,19 @@ export type BuildJob = ActivityTimelineProjectActivity & {
   platform: AppPlatform;
   sdkVersion?: Maybe<Scalars['String']>;
   releaseChannel?: Maybe<Scalars['String']>;
+};
+
+export type AppRelease = {
+  __typename?: 'AppRelease';
+  id: Scalars['ID'];
+  hash?: Maybe<Scalars['String']>;
+  publishedTime?: Maybe<Scalars['DateTime']>;
+  publishingUsername?: Maybe<Scalars['String']>;
+  sdkVersion?: Maybe<Scalars['String']>;
+  version?: Maybe<Scalars['String']>;
+  s3Key?: Maybe<Scalars['String']>;
+  s3Url?: Maybe<Scalars['String']>;
+  manifest?: Maybe<Scalars['JSON']>;
 };
 
 export type BuildArtifact = {
@@ -1095,6 +1103,24 @@ export type EnvironmentSecret = {
   __typename?: 'EnvironmentSecret';
   id: Scalars['ID'];
   name: Scalars['String'];
+  createdAt: Scalars['DateTime'];
+  updatedAt: Scalars['DateTime'];
+};
+
+export type WebhookFilter = {
+  event?: Maybe<WebhookType>;
+};
+
+export enum WebhookType {
+  Build = 'BUILD'
+}
+
+export type Webhook = {
+  __typename?: 'Webhook';
+  id: Scalars['ID'];
+  appId: Scalars['ID'];
+  event: WebhookType;
+  url: Scalars['String'];
   createdAt: Scalars['DateTime'];
   updatedAt: Scalars['DateTime'];
 };
@@ -1491,6 +1517,16 @@ export type UserQueryByUsernameArgs = {
   username: Scalars['String'];
 };
 
+export type WebhookQuery = {
+  __typename?: 'WebhookQuery';
+  byId: Webhook;
+};
+
+
+export type WebhookQueryByIdArgs = {
+  id: Scalars['ID'];
+};
+
 export type RootMutation = {
   __typename?: 'RootMutation';
   /**
@@ -1549,6 +1585,8 @@ export type RootMutation = {
   emailSubscription: EmailSubscriptionMutation;
   /** Mutations that create and delete EnvironmentSecrets */
   environmentSecret: EnvironmentSecretMutation;
+  /** Mutations that create, delete, update Webhooks */
+  webhook: WebhookMutation;
 };
 
 
@@ -2419,8 +2457,8 @@ export type Robot = Actor & {
   __typename?: 'Robot';
   id: Scalars['ID'];
   firstName?: Maybe<Scalars['String']>;
-  created?: Maybe<Scalars['DateTime']>;
-  isExpoAdmin?: Maybe<Scalars['Boolean']>;
+  created: Scalars['DateTime'];
+  isExpoAdmin: Scalars['Boolean'];
   /** Associated accounts */
   accounts: Array<Account>;
   /** Access Tokens belonging to this actor */
@@ -2584,7 +2622,7 @@ export type UploadSession = {
 
 
 export type UploadSessionCreateUploadSessionArgs = {
-  type?: Maybe<UploadSessionType>;
+  type: UploadSessionType;
 };
 
 export enum UploadSessionType {
@@ -2923,6 +2961,44 @@ export type CreateEnvironmentSecretInput = {
 
 export type DeleteEnvironmentSecretResult = {
   __typename?: 'DeleteEnvironmentSecretResult';
+  id: Scalars['ID'];
+};
+
+export type WebhookMutation = {
+  __typename?: 'WebhookMutation';
+  /** Create a Webhook */
+  createWebhook: Webhook;
+  /** Update a Webhook */
+  updateWebhook: Webhook;
+  /** Delete a Webhook */
+  deleteWebhook: DeleteWebhookResult;
+};
+
+
+export type WebhookMutationCreateWebhookArgs = {
+  appId: Scalars['String'];
+  webhookInput: WebhookInput;
+};
+
+
+export type WebhookMutationUpdateWebhookArgs = {
+  webhookId: Scalars['ID'];
+  webhookInput: WebhookInput;
+};
+
+
+export type WebhookMutationDeleteWebhookArgs = {
+  webhookId: Scalars['ID'];
+};
+
+export type WebhookInput = {
+  url: Scalars['String'];
+  secret: Scalars['String'];
+  event: WebhookType;
+};
+
+export type DeleteWebhookResult = {
+  __typename?: 'DeleteWebhookResult';
   id: Scalars['ID'];
 };
 
@@ -4091,6 +4167,58 @@ export type CreateUploadSessionMutation = (
   ) }
 );
 
+export type CreateWebhookMutationVariables = Exact<{
+  appId: Scalars['String'];
+  webhookInput: WebhookInput;
+}>;
+
+
+export type CreateWebhookMutation = (
+  { __typename?: 'RootMutation' }
+  & { webhook: (
+    { __typename?: 'WebhookMutation' }
+    & { createWebhook: (
+      { __typename?: 'Webhook' }
+      & Pick<Webhook, 'id'>
+      & WebhookFragment
+    ) }
+  ) }
+);
+
+export type UpdateWebhookMutationVariables = Exact<{
+  webhookId: Scalars['ID'];
+  webhookInput: WebhookInput;
+}>;
+
+
+export type UpdateWebhookMutation = (
+  { __typename?: 'RootMutation' }
+  & { webhook: (
+    { __typename?: 'WebhookMutation' }
+    & { updateWebhook: (
+      { __typename?: 'Webhook' }
+      & Pick<Webhook, 'id'>
+      & WebhookFragment
+    ) }
+  ) }
+);
+
+export type DeleteWebhookMutationVariables = Exact<{
+  webhookId: Scalars['ID'];
+}>;
+
+
+export type DeleteWebhookMutation = (
+  { __typename?: 'RootMutation' }
+  & { webhook: (
+    { __typename?: 'WebhookMutation' }
+    & { deleteWebhook: (
+      { __typename?: 'DeleteWebhookResult' }
+      & Pick<DeleteWebhookResult, 'id'>
+    ) }
+  ) }
+);
+
 export type BuildsByIdQueryVariables = Exact<{
   buildId: Scalars['ID'];
 }>;
@@ -4257,6 +4385,45 @@ export type CurrentUserQuery = (
   )> }
 );
 
+export type WebhooksByAppIdQueryVariables = Exact<{
+  appId: Scalars['String'];
+  webhookFilter?: Maybe<WebhookFilter>;
+}>;
+
+
+export type WebhooksByAppIdQuery = (
+  { __typename?: 'RootQuery' }
+  & { app?: Maybe<(
+    { __typename?: 'AppQuery' }
+    & { byId: (
+      { __typename?: 'App' }
+      & Pick<App, 'id'>
+      & { webhooks: Array<(
+        { __typename?: 'Webhook' }
+        & Pick<Webhook, 'id'>
+        & WebhookFragment
+      )> }
+    ) }
+  )> }
+);
+
+export type WebhookByIdQueryVariables = Exact<{
+  webhookId: Scalars['ID'];
+}>;
+
+
+export type WebhookByIdQuery = (
+  { __typename?: 'RootQuery' }
+  & { webhook: (
+    { __typename?: 'WebhookQuery' }
+    & { byId: (
+      { __typename?: 'Webhook' }
+      & Pick<Webhook, 'id'>
+      & WebhookFragment
+    ) }
+  ) }
+);
+
 export type AppFragment = (
   { __typename?: 'App' }
   & Pick<App, 'id' | 'fullName' | 'slug'>
@@ -4293,6 +4460,11 @@ export type BuildFragment = (
 export type EnvironmentSecretFragment = (
   { __typename?: 'EnvironmentSecret' }
   & Pick<EnvironmentSecret, 'id' | 'name' | 'createdAt'>
+);
+
+export type WebhookFragment = (
+  { __typename?: 'Webhook' }
+  & Pick<Webhook, 'id' | 'event' | 'url' | 'createdAt' | 'updatedAt'>
 );
 
 export type AppleAppIdentifierFragment = (

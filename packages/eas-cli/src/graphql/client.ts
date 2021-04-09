@@ -1,8 +1,12 @@
 import {
   CombinedError as GraphqlError,
   OperationResult,
+  cacheExchange,
   createClient as createUrqlClient,
+  dedupExchange,
+  fetchExchange,
 } from '@urql/core';
+import { retryExchange } from '@urql/exchange-retry';
 import fetch from 'node-fetch';
 
 import { getExpoApiBaseUrl } from '../api';
@@ -19,6 +23,16 @@ type SessionHeaders = {
 
 export const graphqlClient = createUrqlClient({
   url: getExpoApiBaseUrl() + '/--/graphql',
+  exchanges: [
+    dedupExchange,
+    cacheExchange,
+    retryExchange({
+      maxDelayMs: 4000,
+      retryIf: err =>
+        !!(err && (err.networkError || err.graphQLErrors.some(e => e?.extensions?.isTransient))),
+    }),
+    fetchExchange,
+  ],
   // @ts-expect-error Type 'typeof fetch' is not assignable to type '(input: RequestInfo, init?: RequestInit | undefined) => Promise<Response>'.
   fetch,
   fetchOptions: (): { headers?: AccessTokenHeaders | SessionHeaders } => {

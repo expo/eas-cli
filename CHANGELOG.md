@@ -8,11 +8,19 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Retry graphQL call on network or transient server errors. ([#320](https://github.com/expo/eas-cli/pull/320) by [@jkhales](https://github.com/jkhales))
+- Display more friendly error messages when `eas submit` fails. ([#311](https://github.com/expo/eas-cli/pull/297) by [@barthap](https://github.com/barthap))
+- Add support for managing webhooks (new commands: `webhook:create`, `webhook:view`, `webhook:list`, `webhook:update`, and `webhook:delete`). ([#314](https://github.com/expo/eas-cli/pull/314) by [@dsokal](https://github.com/dsokal))
+
 ### 🐛 Bug fixes
 
+- Fix the issue where the first iOS build fails for a project without `ios.bundleIdentifier` set in `app.json`. ([#319](https://github.com/expo/eas-cli/pull/319) by [@dsokal](https://github.com/dsokal))
+- Bump @expo/config-plugins to fix `eas build:configure` on Windows
 - Fix provisioning profile validation to actually check status. ([#318](https://github.com/expo/eas-cli/pull/318) by [@quinlanj](https://github.com/quinlanj))
 
 ### 🧹 Chores
+
+- Replace Credentials REST API calls with GraphQL counterparts, also improved DX. ([#293](https://github.com/expo/eas-cli/pull/293), [#299](https://github.com/expo/eas-cli/pull/299), [#301](https://github.com/expo/eas-cli/pull/301), [#317](https://github.com/expo/eas-cli/pull/317) by [@quinlanj](https://github.com/quinlanj))
 
 ## [0.8.1](https://github.com/expo/eas-cli/releases/tag/v0.8.1) - 2021-04-06
 
@@ -34,7 +42,6 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🎉 New features
 
 - `build:view` and `build:list` now showing the distribution type (store / internal) and release channel. ([#284](https://github.com/expo/eas-cli/pull/284) by [@vthibault](https://github.com/vthibault))
-
 - Add analytics to EAS Build. ([#162](https://github.com/expo/eas-cli/pull/162) by [@wkozyra95](https://github.com/wkozyra95))
 - Improve tar archive support in EAS Submit. ([#297](https://github.com/expo/eas-cli/pull/297) by [@barthap](https://github.com/barthap))
 

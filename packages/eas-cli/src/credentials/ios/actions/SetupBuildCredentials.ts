@@ -12,8 +12,8 @@ import { isCredentialsMap, readIosCredentialsAsync } from '../../credentialsJson
 import { AppLookupParams, IosAppCredentials, IosDistCredentials } from '../credentials';
 import { displayProjectCredentials } from '../utils/printCredentials';
 import { readAppleTeam } from '../utils/provisioningProfile';
-import { SetupProvisioningProfile } from './SetupProvisioningProfile';
 import { SetupAdhocProvisioningProfile } from './new/SetupAdhocProvisioningProfile';
+import { SetupProvisioningProfile } from './new/SetupProvisioningProfile';
 
 type AppCredentialsAndDistCert = {
   appCredentials: IosAppCredentials;
@@ -32,11 +32,11 @@ export class SetupBuildCredentials implements Action {
 
     let iosAppBuildCredentials: IosAppBuildCredentialsFragment | null = null;
     try {
+      const account = findAccountByName(ctx.user.accounts, this.app.accountName);
+      if (!account) {
+        throw new Error(`You do not have access to the ${this.app.accountName} account`);
+      }
       if (this.distribution === 'internal') {
-        const account = findAccountByName(ctx.user.accounts, this.app.accountName);
-        if (!account) {
-          throw new Error(`You do not have access to the ${this.app.accountName} account`);
-        }
         const action = new SetupAdhocProvisioningProfile({
           account,
           projectName: this.app.projectName,
@@ -45,7 +45,12 @@ export class SetupBuildCredentials implements Action {
         await manager.runActionAsync(action);
         iosAppBuildCredentials = action.iosAppBuildCredentials;
       } else {
-        await manager.runActionAsync(new SetupProvisioningProfile(this.app));
+        const setupProvisioningProfileAction = new SetupProvisioningProfile({
+          account,
+          projectName: this.app.projectName,
+          bundleIdentifier: this.app.bundleIdentifier,
+        });
+        await setupProvisioningProfileAction.runAsync(manager, ctx);
       }
     } catch (error) {
       Log.error('Failed to setup credentials.');
