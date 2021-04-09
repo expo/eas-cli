@@ -1,4 +1,7 @@
+import { print } from 'graphql';
 import gql from 'graphql-tag';
+
+import { AppleDeviceFragmentNode } from './AppleDevice';
 
 export const AppleProvisioningProfileFragmentNode = gql`
   fragment AppleProvisioningProfileFragment on AppleProvisioningProfile {
@@ -15,12 +18,10 @@ export const AppleProvisioningProfileFragmentNode = gql`
     }
     appleDevices {
       id
-      identifier
-      name
-      model
-      deviceClass
+      ...AppleDeviceFragment
     }
   }
+  ${print(AppleDeviceFragmentNode)}
 `;
 export const AppleProvisioningProfileIdentifiersFragmentNode = gql`
   fragment AppleProvisioningProfileIdentifiersFragment on AppleProvisioningProfile {
