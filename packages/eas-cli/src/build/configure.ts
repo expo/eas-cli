@@ -1,4 +1,4 @@
-import { ExpoConfig, getConfig } from '@expo/config';
+import { getConfig } from '@expo/config';
 import { EasJsonReader } from '@expo/eas-json';
 import fs from 'fs-extra';
 import path from 'path';
@@ -29,7 +29,7 @@ export async function configureAsync(options: {
   platform: RequestedPlatform;
   projectDir: string;
   allowExperimental: boolean;
-}): Promise<ExpoConfig> {
+}): Promise<void> {
   await ensureGitRepoExistsAsync();
   await maybeBailOnGitStatusAsync();
 
@@ -65,8 +65,6 @@ export async function configureAsync(options: {
     Log.newLine();
     Log.withTick('No changes were necessary, the project is already configured correctly.');
   }
-
-  return exp;
 }
 
 export async function ensureEasJsonExistsAsync(ctx: ConfigureContext): Promise<void> {

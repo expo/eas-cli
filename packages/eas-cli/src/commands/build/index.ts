@@ -197,7 +197,7 @@ async function ensureProjectConfiguredAsync(projectDir: string): Promise<ExpoCon
     message: 'This app is not set up for building with EAS. Set it up now?',
   });
   if (confirm) {
-    const exp = await configureAsync({
+    await configureAsync({
       projectDir,
       platform: RequestedPlatform.All,
       allowExperimental: false,
@@ -207,6 +207,7 @@ async function ensureProjectConfiguredAsync(projectDir: string): Promise<ExpoCon
         'Build process requires clean git working tree, please commit all your changes and run `eas build` again'
       );
     }
+    const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
     return exp;
   } else {
     throw new Error(
