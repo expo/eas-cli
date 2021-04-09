@@ -58,6 +58,12 @@ async function validateProvisioningProfileWithAppleAsync(
       ok: false,
     };
   }
+  if (configuredProfileFromApple.status !== 'ACTIVE') {
+    return {
+      error: `Provisioning profile (id: ${profile.provisioningProfileId}) is no longer valid`,
+      ok: false,
+    };
+  }
   return { ok: true };
 }
 

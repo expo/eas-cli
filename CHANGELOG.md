@@ -16,6 +16,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - Fix the issue where the first iOS build fails for a project without `ios.bundleIdentifier` set in `app.json`. ([#319](https://github.com/expo/eas-cli/pull/319) by [@dsokal](https://github.com/dsokal))
 - Bump @expo/config-plugins to fix `eas build:configure` on Windows
+- Fix provisioning profile validation to actually check status. ([#318](https://github.com/expo/eas-cli/pull/318) by [@quinlanj](https://github.com/quinlanj))
 
 ### 🧹 Chores
 
