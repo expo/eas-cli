@@ -73,7 +73,7 @@ export default class Build extends Command {
         (flags.platform as RequestedPlatform | undefined) ?? (await promptForPlatformAsync());
 
       const projectDir = (await findProjectRootAsync()) ?? process.cwd();
-      const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
+      let { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
       const projectId = await getProjectIdAsync(exp);
 
       if (!(await isEasEnabledForProjectAsync(projectId))) {
@@ -94,6 +94,10 @@ export default class Build extends Command {
       }
 
       await ensureProjectConfiguredAsync(projectDir);
+
+      // the config could've been modified by ensureProjectConfiguredAsync
+      // we need to read it again
+      ({ exp } = getConfig(projectDir, { skipSDKVersionRequirement: true }));
 
       const commandCtx = await createCommandContextAsync({
         requestedPlatform: platform,
