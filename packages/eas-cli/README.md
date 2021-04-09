@@ -108,6 +108,8 @@ USAGE
   $ eas analytics [STATUS]
 ```
 
+_See code: [build/commands/analytics.ts](https://github.com/expo/eas-cli/blob/v0.9.0/build/commands/analytics.ts)_
+
 ## `eas build`
 
 Start a build
@@ -135,6 +137,8 @@ Cancel a build.
 USAGE
   $ eas build:cancel [BUILD_ID]
 ```
+
+_See code: [build/commands/build/cancel.ts](https://github.com/expo/eas-cli/blob/v0.9.0/build/commands/build/cancel.ts)_
 
 ## `eas build:configure`
 
@@ -256,6 +260,8 @@ OPTIONS
   --value=value              Value of the secret
 ```
 
+_See code: [build/commands/secrets/create.ts](https://github.com/expo/eas-cli/blob/v0.9.0/build/commands/secrets/create.ts)_
+
 ## `eas secrets:delete [ID]`
 
 Delete an environment secret by ID.
@@ -271,6 +277,8 @@ DESCRIPTION
   Unsure where to find the secret's ID? Run eas secrets:list
 ```
 
+_See code: [build/commands/secrets/delete.ts](https://github.com/expo/eas-cli/blob/v0.9.0/build/commands/secrets/delete.ts)_
+
 ## `eas secrets:list`
 
 Lists environment secrets available for your current app
@@ -279,6 +287,8 @@ Lists environment secrets available for your current app
 USAGE
   $ eas secrets:list
 ```
+
+_See code: [build/commands/secrets/list.ts](https://github.com/expo/eas-cli/blob/v0.9.0/build/commands/secrets/list.ts)_
 
 ## `eas submit --platform=(android|ios)`
 
@@ -376,6 +386,8 @@ OPTIONS
   --url=url        Webhook URL
 ```
 
+_See code: [build/commands/webhook/create.ts](https://github.com/expo/eas-cli/blob/v0.9.0/build/commands/webhook/create.ts)_
+
 ## `eas webhook:delete [ID]`
 
 Delete a webhook on the current project.
@@ -388,6 +400,8 @@ ARGUMENTS
   ID  ID of the webhook to delete
 ```
 
+_See code: [build/commands/webhook/delete.ts](https://github.com/expo/eas-cli/blob/v0.9.0/build/commands/webhook/delete.ts)_
+
 ## `eas webhook:list`
 
 List webhooks on the current project.
@@ -399,6 +413,8 @@ USAGE
 OPTIONS
   --event=(BUILD)  Event type that triggers the webhook
 ```
+
+_See code: [build/commands/webhook/list.ts](https://github.com/expo/eas-cli/blob/v0.9.0/build/commands/webhook/list.ts)_
 
 ## `eas webhook:update`
 
@@ -418,6 +434,8 @@ OPTIONS
   --url=url        Webhook URL
 ```
 
+_See code: [build/commands/webhook/update.ts](https://github.com/expo/eas-cli/blob/v0.9.0/build/commands/webhook/update.ts)_
+
 ## `eas webhook:view ID`
 
 View a webhook on the current project.
@@ -429,4 +447,6 @@ USAGE
 ARGUMENTS
   ID  ID of the webhook to view
 ```
+
+_See code: [build/commands/webhook/view.ts](https://github.com/expo/eas-cli/blob/v0.9.0/build/commands/webhook/view.ts)_
 <!-- commandsstop -->
