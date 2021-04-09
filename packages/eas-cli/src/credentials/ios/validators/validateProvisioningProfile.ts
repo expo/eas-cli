@@ -3,7 +3,6 @@ import crypto from 'crypto';
 import minimatch from 'minimatch';
 
 import Log from '../../../log';
-import { confirmAsync } from '../../../prompts';
 import { Context } from '../../context';
 import { DistributionCertificate, ProvisioningProfile } from '../appstore/Credentials.types';
 import { getP12CertFingerprint } from '../utils/p12Certificate';
