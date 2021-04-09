@@ -8,7 +8,7 @@ import {
 } from '../../../../graphql/generated';
 import Log from '../../../../log';
 import { confirmAsync, promptAsync } from '../../../../prompts';
-import { Action, CredentialsManager } from '../../../CredentialsManager';
+import { CredentialsManager } from '../../../CredentialsManager';
 import { Context } from '../../../context';
 import { AppLookupParams } from '../../api/GraphqlClient';
 import { AppleDistributionCertificateMutationResult } from '../../api/graphql/mutations/AppleDistributionCertificateMutation';
@@ -18,21 +18,15 @@ import { resolveAppleTeamIfAuthenticatedAsync } from './AppleTeamUtils';
 import { CreateDistributionCertificate } from './CreateDistributionCertificate';
 import { formatDistributionCertificate } from './DistributionCertificateUtils';
 
-export class SetupDistributionCertificate implements Action {
+export class SetupDistributionCertificate {
   private validDistCerts?: AppleDistributionCertificateFragment[];
-  private _distributionCertificate?: AppleDistributionCertificateFragment;
 
   constructor(private app: AppLookupParams, private distributionType: IosDistributionType) {}
 
-  public get distributionCertificate(): AppleDistributionCertificateFragment {
-    assert(
-      this._distributionCertificate,
-      'distributionCertificate can be accessed only after calling .runAsync()'
-    );
-    return this._distributionCertificate;
-  }
-
-  public async runAsync(manager: CredentialsManager, ctx: Context): Promise<void> {
+  public async runAsync(
+    manager: CredentialsManager,
+    ctx: Context
+  ): Promise<AppleDistributionCertificateFragment> {
     const appleTeam = await resolveAppleTeamIfAuthenticatedAsync(ctx, this.app);
 
     try {
@@ -43,9 +37,9 @@ export class SetupDistributionCertificate implements Action {
       );
 
       if (ctx.nonInteractive) {
-        await this.runNonInteractiveAsync(ctx, currentCertificate);
+        return await this.runNonInteractiveAsync(ctx, currentCertificate);
       } else {
-        await this.runInteractiveAsync(ctx, manager, currentCertificate);
+        return await this.runInteractiveAsync(ctx, manager, currentCertificate);
       }
     } catch (err) {
       if (err instanceof AppleTeamMissingError && ctx.nonInteractive) {
@@ -58,32 +52,30 @@ export class SetupDistributionCertificate implements Action {
   private async runNonInteractiveAsync(
     ctx: Context,
     currentCertificate: AppleDistributionCertificateFragment | null
-  ): Promise<void> {
+  ): Promise<AppleDistributionCertificateFragment> {
     // TODO: implement validation
     Log.addNewLineIfNone();
     Log.warn('Distribution Certificate is not validated for non-interactive builds.');
     if (!currentCertificate) {
       throw new MissingCredentialsNonInteractiveError();
     }
-    this._distributionCertificate = currentCertificate;
+    return currentCertificate;
   }
 
   private async runInteractiveAsync(
     ctx: Context,
     manager: CredentialsManager,
     currentCertificate: AppleDistributionCertificateFragment | null
-  ): Promise<void> {
+  ): Promise<AppleDistributionCertificateFragment> {
     if (await this.isCurrentCertificateValidAsync(ctx, currentCertificate)) {
       assert(currentCertificate, 'currentCertificate is defined here');
-      this._distributionCertificate = currentCertificate;
-      return;
+      return currentCertificate;
     }
 
     const validDistCertsOnFile = await this.getValidDistCertsAsync(ctx);
-    this._distributionCertificate =
-      validDistCertsOnFile.length === 0
-        ? await this.createNewDistCertAsync(manager)
-        : await this.createOrReuseDistCert(manager, ctx);
+    return validDistCertsOnFile.length === 0
+      ? await this.createNewDistCertAsync(manager)
+      : await this.createOrReuseDistCert(manager, ctx);
   }
 
   private async isCurrentCertificateValidAsync(

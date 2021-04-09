@@ -131,8 +131,7 @@ export class SetupProvisioningProfile {
     }
 
     const distCertAction = new SetupDistributionCertificate(this.app, IosDistributionType.AppStore);
-    await distCertAction.runAsync(manager, ctx);
-    const distCert = distCertAction.distributionCertificate;
+    const distCert = await distCertAction.runAsync(manager, ctx);
 
     const currentProfile = await this.getProvisioningProfileAsync(ctx);
     if (!currentProfile) {

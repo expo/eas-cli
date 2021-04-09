@@ -48,7 +48,7 @@ export class SetupAdhocProvisioningProfile {
   ): Promise<IosAppBuildCredentialsFragment> {
     // 1. Setup Distribution Certificate
     const distCertAction = new SetupDistributionCertificate(this.app, IosDistributionType.AdHoc);
-    await manager.runActionAsync(distCertAction);
+    await distCertAction.runAsync(manager, ctx);
 
     // 2. Fetch profile from EAS servers
     const currentProfile = await ctx.newIos.getProvisioningProfileAsync(
@@ -96,8 +96,7 @@ export class SetupAdhocProvisioningProfile {
 
     // 2. Setup Distribution Certificate
     const distCertAction = new SetupDistributionCertificate(this.app, IosDistributionType.AdHoc);
-    await manager.runActionAsync(distCertAction);
-    const distCert = distCertAction.distributionCertificate;
+    const distCert = await distCertAction.runAsync(manager, ctx);
 
     let profileFromExpoServersToUse:
       | AppleProvisioningProfileQueryResult
