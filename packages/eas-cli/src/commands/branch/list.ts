@@ -1,5 +1,6 @@
 import { getConfig } from '@expo/config';
 import { Command, flags } from '@oclif/command';
+import chalk from 'chalk';
 import CliTable from 'cli-table3';
 import gql from 'graphql-tag';
 import { format } from 'timeago.js';
@@ -17,7 +18,9 @@ import Log from '../../log';
 import { findProjectRootAsync, getProjectFullNameAsync } from '../../project/projectUtils';
 import { getActorDisplayName } from '../../user/User';
 
+export const UPDATE_COLUMNS = ['update description', 'update runtime version', 'update group ID'];
 const BRANCHES_LIMIT = 10_000;
+
 export async function listBranchesAsync({ fullName }: { fullName: string }) {
   const data = await withErrorHandlingAsync(
     graphqlClient
@@ -43,8 +46,10 @@ export async function listBranchesAsync({ fullName }: { fullName: string }) {
                         firstName
                       }
                     }
-                    updatedAt
+                    createdAt
                     message
+                    runtimeVersion
+                    group
                   }
                 }
               }
@@ -87,8 +92,19 @@ export default class BranchList extends Command {
     if (flags.json) {
       Log.log(JSON.stringify(branches, null, 2));
     } else {
-      const table = new CliTable({ head: ['Branch', 'Latest update'] });
-      table.push(...branches.map(branch => [branch.name, formatUpdate(branch.updates[0])]));
+      const table = new CliTable({
+        head: ['branch', ...UPDATE_COLUMNS],
+        wordWrap: true,
+      });
+      table.push(
+        ...branches.map(branch => [
+          branch.name,
+          formatUpdate(branch.updates[0]),
+          branch.updates[0].runtimeVersion,
+          branch.updates[0].group,
+        ])
+      );
+      Log.log(chalk.bold('Branches with their most recent update group:'));
       Log.log(table.toString());
       if (branches.length >= BRANCHES_LIMIT) {
         Log.warn(`Showing first ${BRANCHES_LIMIT} branches, some results might be omitted.`);
@@ -98,7 +114,7 @@ export default class BranchList extends Command {
 }
 
 export function formatUpdate(
-  update: Pick<Update, 'id' | 'updatedAt' | 'message'> & {
+  update: Pick<Update, 'id' | 'createdAt' | 'message'> & {
     actor?: Maybe<Pick<User, 'username' | 'id'> | Pick<Robot, 'firstName' | 'id'>>;
   }
 ): string {
@@ -106,7 +122,7 @@ export function formatUpdate(
     return 'N/A';
   }
   const message = update.message ? `"${update.message}" ` : '';
-  return `${message}(${format(update.updatedAt, 'en_US')} by ${getActorDisplayName(
+  return `${message}(${format(update.createdAt, 'en_US')} by ${getActorDisplayName(
     update.actor as any
   )})`;
 }

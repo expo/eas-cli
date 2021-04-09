@@ -12,6 +12,7 @@ import {
 import Log from '../../log';
 import { ensureProjectExistsAsync } from '../../project/ensureProjectExists';
 import { findProjectRootAsync, getProjectAccountNameAsync } from '../../project/projectUtils';
+import { UPDATE_COLUMNS, formatUpdate } from '../branch/list';
 
 const CHANNEL_LIMIT = 10_000;
 
@@ -38,11 +39,12 @@ async function getAllUpdateChannelForAppAsync({
                       id
                       group
                       message
+                      runtimeVersion
                       createdAt
                       actor {
                         id
                         ... on User {
-                          firstName
+                          username
                         }
                         ... on Robot {
                           firstName
@@ -103,7 +105,7 @@ export default class ChannelList extends Command {
     }
 
     const table = new Table({
-      head: ['channel', 'branch', 'update', 'message', 'created-at', 'actor'],
+      head: ['channel', 'branch', ...UPDATE_COLUMNS],
       wordWrap: true,
     });
 
@@ -115,14 +117,13 @@ export default class ChannelList extends Command {
       table.push([
         channel.name,
         branch.name,
+        formatUpdate(update),
+        update?.runtimeVersion,
         update?.group,
-        update?.message,
-        update?.createdAt && new Date(update.createdAt).toLocaleString(),
-        update?.actor?.firstName,
       ]);
     }
 
-    Log.log(chalk`{bold Channels for this app:}`);
+    Log.log(chalk`{bold Channels with their branches and their most recent update group:}`);
     Log.log(table.toString());
   }
 }

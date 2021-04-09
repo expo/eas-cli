@@ -66,6 +66,7 @@ export type RootQuery = {
   /** @deprecated Use 'search' root field. */
   searchUsersAndApps: Array<Maybe<SearchResult>>;
   snack: SnackQuery;
+  submissions: SubmissionQuery;
   /** Top-level query object for querying UserInvitationPublicData publicly. */
   userInvitationPublicData: UserInvitationPublicDataQuery;
   /** Top-level query object for querying Users. */
@@ -413,6 +414,8 @@ export type App = Project & {
   /** (EAS Build) Builds associated with this app */
   builds: Array<Build>;
   buildJobs: Array<BuildJob>;
+  /** EAS Submissions associated with this app */
+  submissions: Array<Submission>;
   /** iOS app credentials for the project */
   iosAppCredentials: Array<IosAppCredentials>;
   /** Android app credentials for the project */
@@ -476,6 +479,14 @@ export type AppBuildJobsArgs = {
   offset: Scalars['Int'];
   limit: Scalars['Int'];
   status?: Maybe<BuildStatus>;
+};
+
+
+/** Represents an Exponent App (or Experience in legacy terms) */
+export type AppSubmissionsArgs = {
+  filter: SubmissionFilter;
+  offset: Scalars['Int'];
+  limit: Scalars['Int'];
 };
 
 
@@ -839,6 +850,40 @@ export enum BuildJobStatus {
   Finished = 'FINISHED',
   SentToQueue = 'SENT_TO_QUEUE'
 }
+
+export type SubmissionFilter = {
+  platform?: Maybe<AppPlatform>;
+  status?: Maybe<SubmissionStatus>;
+};
+
+export enum SubmissionStatus {
+  InQueue = 'IN_QUEUE',
+  InProgress = 'IN_PROGRESS',
+  Finished = 'FINISHED',
+  Errored = 'ERRORED'
+}
+
+/** Represents an EAS Submission */
+export type Submission = ActivityTimelineProjectActivity & {
+  __typename?: 'Submission';
+  id: Scalars['ID'];
+  actor?: Maybe<Actor>;
+  activityTimestamp: Scalars['DateTime'];
+  app?: Maybe<App>;
+  initiatingActor?: Maybe<Actor>;
+  platform: AppPlatform;
+  status: SubmissionStatus;
+  logsUrl?: Maybe<Scalars['String']>;
+  error?: Maybe<SubmissionError>;
+  createdAt: Scalars['DateTime'];
+  updatedAt: Scalars['DateTime'];
+};
+
+export type SubmissionError = {
+  __typename?: 'SubmissionError';
+  errorCode?: Maybe<Scalars['String']>;
+  message?: Maybe<Scalars['String']>;
+};
 
 export type IosAppCredentialsFilter = {
   appleAppIdentifierId?: Maybe<Scalars['String']>;
@@ -1376,6 +1421,7 @@ export type BuildQuery = {
   /**
    * Get all builds for a specific app.
    * They are sorted from latest to oldest.
+   * @deprecated Use App.builds instead
    */
   allForApp: Array<Maybe<Build>>;
 };
@@ -1427,8 +1473,19 @@ export type ExperimentationQuery = {
 
 export type ProjectQuery = {
   __typename?: 'ProjectQuery';
+  byAccountNameAndSlug: Project;
+  /** @deprecated See byAccountNameAndSlug */
   byUsernameAndSlug: Project;
+  /** @deprecated Field no longer supported */
   byPaths: Array<Maybe<Project>>;
+};
+
+
+export type ProjectQueryByAccountNameAndSlugArgs = {
+  accountName: Scalars['String'];
+  slug: Scalars['String'];
+  platform?: Maybe<AppPlatform>;
+  sdkVersions?: Maybe<Array<Maybe<Scalars['String']>>>;
 };
 
 
@@ -1476,6 +1533,17 @@ export type SnackQueryByIdArgs = {
 
 export type SnackQueryByHashIdArgs = {
   hashId: Scalars['ID'];
+};
+
+export type SubmissionQuery = {
+  __typename?: 'SubmissionQuery';
+  /** Look up EAS Submission by submission ID */
+  byId: Submission;
+};
+
+
+export type SubmissionQueryByIdArgs = {
+  submissionId: Scalars['ID'];
 };
 
 export type UserInvitationPublicDataQuery = {
@@ -1573,6 +1641,8 @@ export type RootMutation = {
   iosAppCredentials: IosAppCredentialsMutation;
   /** Mutations that create, update, and delete Robots */
   robot: RobotMutation;
+  /** Mutations that modify an EAS Submit submission */
+  submission: SubmissionMutation;
   updateChannel: UpdateChannelMutation;
   update: UpdateMutation;
   updateBranch: UpdateBranchMutation;
@@ -2481,6 +2551,29 @@ export type DeleteRobotResult = {
   id: Scalars['ID'];
 };
 
+export type SubmissionMutation = {
+  __typename?: 'SubmissionMutation';
+  /** Create an EAS Submit submission */
+  createSubmission: CreateSubmissionResult;
+};
+
+
+export type SubmissionMutationCreateSubmissionArgs = {
+  input: CreateSubmissionInput;
+};
+
+export type CreateSubmissionInput = {
+  appId: Scalars['ID'];
+  platform: AppPlatform;
+  config: Scalars['JSONObject'];
+};
+
+export type CreateSubmissionResult = {
+  __typename?: 'CreateSubmissionResult';
+  /** Created submission */
+  submission: Submission;
+};
+
 export type UpdateChannelMutation = {
   __typename?: 'UpdateChannelMutation';
   /**
@@ -3127,7 +3220,7 @@ export type BranchesByAppQuery = (
         & Pick<UpdateBranch, 'id' | 'name'>
         & { updates: Array<(
           { __typename?: 'Update' }
-          & Pick<Update, 'id' | 'updatedAt' | 'message'>
+          & Pick<Update, 'id' | 'createdAt' | 'message' | 'runtimeVersion' | 'group'>
           & { actor?: Maybe<(
             { __typename: 'User' }
             & Pick<User, 'username' | 'id'>
@@ -3192,7 +3285,7 @@ export type ViewBranchQuery = (
           & Pick<Update, 'id' | 'group' | 'message' | 'createdAt' | 'runtimeVersion' | 'platform' | 'manifestFragment'>
           & { actor?: Maybe<(
             { __typename?: 'User' }
-            & Pick<User, 'firstName' | 'id'>
+            & Pick<User, 'username' | 'id'>
           ) | (
             { __typename?: 'Robot' }
             & Pick<Robot, 'firstName' | 'id'>
@@ -3301,10 +3394,10 @@ export type GetAllChannelsForAppQuery = (
           & Pick<UpdateBranch, 'id' | 'name'>
           & { updates: Array<(
             { __typename?: 'Update' }
-            & Pick<Update, 'id' | 'group' | 'message' | 'createdAt'>
+            & Pick<Update, 'id' | 'group' | 'message' | 'runtimeVersion' | 'createdAt'>
             & { actor?: Maybe<(
               { __typename?: 'User' }
-              & Pick<User, 'firstName' | 'id'>
+              & Pick<User, 'username' | 'id'>
             ) | (
               { __typename?: 'Robot' }
               & Pick<Robot, 'firstName' | 'id'>
@@ -3337,10 +3430,10 @@ export type GetChannelByNameForAppQuery = (
           & Pick<UpdateBranch, 'id' | 'name'>
           & { updates: Array<(
             { __typename?: 'Update' }
-            & Pick<Update, 'id' | 'group' | 'message' | 'createdAt'>
+            & Pick<Update, 'id' | 'group' | 'message' | 'runtimeVersion' | 'createdAt'>
             & { actor?: Maybe<(
               { __typename?: 'User' }
-              & Pick<User, 'firstName' | 'id'>
+              & Pick<User, 'username' | 'id'>
             ) | (
               { __typename?: 'Robot' }
               & Pick<Robot, 'firstName' | 'id'>
