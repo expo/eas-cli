@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import minimatch from 'minimatch';
 
 import Log from '../../../log';
+import { confirmAsync } from '../../../prompts';
 import { Context } from '../../context';
 import { DistributionCertificate, ProvisioningProfile } from '../appstore/Credentials.types';
 import { getP12CertFingerprint } from '../utils/p12Certificate';
@@ -55,6 +56,12 @@ async function validateProvisioningProfileWithAppleAsync(
   if (!configuredProfileFromApple) {
     return {
       error: `Provisioning profile (id: ${profile.provisioningProfileId}) does not exist in Apple Dev Portal`,
+      ok: false,
+    };
+  }
+  if (configuredProfileFromApple.status !== 'ACTIVE') {
+    return {
+      error: `Provisioning profile (id: ${profile.provisioningProfileId}) is no longer valid`,
       ok: false,
     };
   }
