@@ -5,7 +5,7 @@ import { WebhookFragment, WebhookInput, WebhookType } from '../graphql/generated
 import Log from '../log';
 import { promptAsync } from '../prompts';
 
-export async function prepareInputParams(
+export async function prepareInputParamsAsync(
   {
     event,
     url: maybeUrl,

@@ -52,7 +52,7 @@ export default class WebhookList extends Command {
       }
     } catch (err) {
       spinner.fail(
-        `Something went wrong and we couldn't fetch the webhook list ${projectFullName}`
+        `Something went wrong and we couldn't fetch the webhook list for the project ${projectFullName}`
       );
       throw err;
     }

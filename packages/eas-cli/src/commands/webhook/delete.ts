@@ -41,7 +41,7 @@ export default class WebhookDelete extends Command {
     let webhook: WebhookFragment | undefined =
       webhookId && (await WebhookQuery.byIdAsync(webhookId));
     if (!webhookId) {
-      const webhooks = await fetchWebhooksByAppId(projectId);
+      const webhooks = await fetchWebhooksByAppIdAsync(projectId);
       if (webhooks.length === 0) {
         process.exit(1);
       }
@@ -84,7 +84,7 @@ export default class WebhookDelete extends Command {
   }
 }
 
-async function fetchWebhooksByAppId(appId: string): Promise<WebhookFragment[]> {
+async function fetchWebhooksByAppIdAsync(appId: string): Promise<WebhookFragment[]> {
   const spinner = ora('Fetching webhooks').start();
   try {
     const webhooks = await WebhookQuery.byAppIdAsync(appId);

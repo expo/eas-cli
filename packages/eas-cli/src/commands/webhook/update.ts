@@ -6,7 +6,7 @@ import { WebhookType } from '../../graphql/generated';
 import { WebhookMutation } from '../../graphql/mutations/WebhookMutation';
 import { WebhookQuery } from '../../graphql/queries/WebhookQuery';
 import { ensureLoggedInAsync } from '../../user/actions';
-import { prepareInputParams } from '../../webhooks/input';
+import { prepareInputParamsAsync } from '../../webhooks/input';
 
 export default class WebhookUpdate extends Command {
   static description = 'Create a webhook on the current project.';
@@ -37,7 +37,7 @@ export default class WebhookUpdate extends Command {
     const webhookId = flags.id;
 
     const webhook = await WebhookQuery.byIdAsync(webhookId);
-    const webhookInputParams = await prepareInputParams(
+    const webhookInputParams = await prepareInputParamsAsync(
       pick(flags, ['event', 'url', 'secret']),
       webhook
     );

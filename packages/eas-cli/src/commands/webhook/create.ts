@@ -6,7 +6,7 @@ import { WebhookType } from '../../graphql/generated';
 import { WebhookMutation } from '../../graphql/mutations/WebhookMutation';
 import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUtils';
 import { ensureLoggedInAsync } from '../../user/actions';
-import { prepareInputParams } from '../../webhooks/input';
+import { prepareInputParamsAsync } from '../../webhooks/input';
 
 export default class WebhookCreate extends Command {
   static description = 'Create a webhook on the current project.';
@@ -29,7 +29,7 @@ export default class WebhookCreate extends Command {
   async run() {
     await ensureLoggedInAsync();
     const { flags } = this.parse(WebhookCreate);
-    const webhookInputParams = await prepareInputParams(flags);
+    const webhookInputParams = await prepareInputParamsAsync(flags);
 
     const projectDir = await findProjectRootAsync(process.cwd());
     if (!projectDir) {
