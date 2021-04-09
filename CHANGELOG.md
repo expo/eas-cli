@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Fix the issue where the first iOS build fails for a project without `ios.bundleIdentifier` set in `app.json`. ([#319](https://github.com/expo/eas-cli/pull/319) by [@dsokal](https://github.com/dsokal))
+
 ### 🧹 Chores
 
 ## [0.8.1](https://github.com/expo/eas-cli/releases/tag/v0.8.1) - 2021-04-06
