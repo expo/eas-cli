@@ -1,4 +1,4 @@
-import { getConfig } from '@expo/config';
+import { ExpoConfig, getConfig } from '@expo/config';
 import { Command, flags } from '@oclif/command';
 import chalk from 'chalk';
 import fs from 'fs-extra';
@@ -93,11 +93,7 @@ export default class Build extends Command {
         return;
       }
 
-      await ensureProjectConfiguredAsync(projectDir);
-
-      // the config could've been modified by ensureProjectConfiguredAsync
-      // we need to read it again
-      ({ exp } = getConfig(projectDir, { skipSDKVersionRequirement: true }));
+      exp = (await ensureProjectConfiguredAsync(projectDir)) ?? exp;
 
       const commandCtx = await createCommandContextAsync({
         requestedPlatform: platform,
@@ -193,15 +189,15 @@ async function promptForPlatformAsync(): Promise<RequestedPlatform> {
   return platform;
 }
 
-async function ensureProjectConfiguredAsync(projectDir: string): Promise<void> {
+async function ensureProjectConfiguredAsync(projectDir: string): Promise<ExpoConfig | null> {
   if (await fs.pathExists(path.join(projectDir, 'eas.json'))) {
-    return;
+    return null;
   }
   const confirm = await confirmAsync({
     message: 'This app is not set up for building with EAS. Set it up now?',
   });
   if (confirm) {
-    await configureAsync({
+    const exp = await configureAsync({
       projectDir,
       platform: RequestedPlatform.All,
       allowExperimental: false,
@@ -211,6 +207,7 @@ async function ensureProjectConfiguredAsync(projectDir: string): Promise<void> {
         'Build process requires clean git working tree, please commit all your changes and run `eas build` again'
       );
     }
+    return exp;
   } else {
     throw new Error(
       `Aborting, please run ${chalk.bold('eas build:configure')} or create eas.json (${learnMore(
