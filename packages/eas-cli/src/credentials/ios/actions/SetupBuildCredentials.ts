@@ -37,20 +37,19 @@ export class SetupBuildCredentials implements Action {
         throw new Error(`You do not have access to the ${this.app.accountName} account`);
       }
       if (this.distribution === 'internal') {
-        const action = new SetupAdhocProvisioningProfile({
+        const setupAdhocProvisioningProfileAction = new SetupAdhocProvisioningProfile({
           account,
           projectName: this.app.projectName,
           bundleIdentifier: this.app.bundleIdentifier,
         });
-        await manager.runActionAsync(action);
-        iosAppBuildCredentials = action.iosAppBuildCredentials;
+        iosAppBuildCredentials = await setupAdhocProvisioningProfileAction.runAsync(manager, ctx);
       } else {
         const setupProvisioningProfileAction = new SetupProvisioningProfile({
           account,
           projectName: this.app.projectName,
           bundleIdentifier: this.app.bundleIdentifier,
         });
-        await setupProvisioningProfileAction.runAsync(manager, ctx);
+        iosAppBuildCredentials = await setupProvisioningProfileAction.runAsync(manager, ctx);
       }
     } catch (error) {
       Log.error('Failed to setup credentials.');
