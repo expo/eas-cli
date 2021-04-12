@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Change build credentials summary format. ([#321](https://github.com/expo/eas-cli/pull/321) by [@dsokal](https://github.com/dsokal))
+
 ## [0.9.1](https://github.com/expo/eas-cli/releases/tag/v0.9.1) - 2021-04-09
 
 ### 🐛 Bug fixes
