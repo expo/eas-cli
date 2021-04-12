@@ -2,7 +2,6 @@ import chalk from 'chalk';
 
 import Log, { learnMore } from '../../../log';
 import { promptAsync } from '../../../prompts';
-import { CredentialsManager } from '../../CredentialsManager';
 import { Context } from '../../context';
 import { askForUserProvidedAsync } from '../../utils/promptForCredentials';
 import { AppleTooManyCertsError } from '../appstore/AppStoreApi';
