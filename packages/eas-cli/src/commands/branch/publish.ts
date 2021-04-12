@@ -64,10 +64,15 @@ export default class BranchPublish extends Command {
   static hidden = true;
   static description = 'Publish an update group to a branch.';
 
+  static args = [
+    {
+      name: 'name',
+      required: true,
+      description: 'Name of the branch to publish on',
+    },
+  ];
+
   static flags = {
-    branch: flags.string({
-      description: 'name of the branch to publish on.',
-    }),
     message: flags.string({
       description: 'Short message describing the updates.',
       required: false,
@@ -97,9 +102,9 @@ export default class BranchPublish extends Command {
 
   async run() {
     let {
+      args: { name },
       flags: {
         json: jsonFlag,
-        branch: name,
         message,
         republish,
         group,
