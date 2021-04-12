@@ -19,6 +19,7 @@ import Log from '../../log';
 import { ensureProjectExistsAsync } from '../../project/ensureProjectExists';
 import { findProjectRootAsync, getProjectAccountNameAsync } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
+import { UPDATE_COLUMNS, formatUpdate } from './list';
 
 const PAGE_LIMIT = 10_000;
 
@@ -59,7 +60,7 @@ export async function viewUpdateBranchAsync({
                     actor {
                       id
                       ... on User {
-                        firstName
+                        username
                       }
                       ... on Robot {
                         firstName
@@ -152,17 +153,12 @@ export default class BranchView extends Command {
     }
 
     const groupTable = new Table({
-      head: ['createdAt', 'message', 'group', 'actor'],
+      head: UPDATE_COLUMNS,
       wordWrap: true,
     });
 
     for (const update of updates) {
-      groupTable.push([
-        new Date(update.createdAt).toLocaleString(),
-        update.message,
-        update.group,
-        update.actor?.firstName,
-      ]);
+      groupTable.push([formatUpdate(update), update.runtimeVersion, update.group]);
     }
 
     Log.withTick(

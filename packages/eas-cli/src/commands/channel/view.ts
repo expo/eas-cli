@@ -13,6 +13,7 @@ import Log from '../../log';
 import { ensureProjectExistsAsync } from '../../project/ensureProjectExists';
 import { findProjectRootAsync, getProjectAccountNameAsync } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
+import { UPDATE_COLUMNS, formatUpdate } from '../branch/list';
 
 export type BranchMapping = {
   version: number;
@@ -100,11 +101,12 @@ export async function getUpdateChannelByNameForAppAsync({
                       id
                       group
                       message
+                      runtimeVersion
                       createdAt
                       actor {
                         id
                         ... on User {
-                          firstName
+                          username
                         }
                         ... on Robot {
                           firstName
@@ -192,14 +194,7 @@ export default class ChannelView extends Command {
     );
 
     const table = new Table({
-      head: [
-        'branch',
-        ...(isRollout ? ['rollout percent'] : []),
-        'active update group',
-        'update message',
-        'last publish',
-        'actor',
-      ],
+      head: ['branch', ...(isRollout ? ['rollout percent'] : []), ...UPDATE_COLUMNS],
       wordWrap: true,
     });
 
@@ -223,17 +218,18 @@ export default class ChannelView extends Command {
                 : `${(1 - rolloutPercent!) * 100}%`,
             ]
           : []),
+        formatUpdate(update),
+        update?.runtimeVersion,
         update?.group,
-        update?.message,
-        update?.createdAt && new Date(update.createdAt).toLocaleString(),
-        update?.actor?.firstName,
       ]);
     }
 
     Log.withTick(
       chalk`Channel: {bold ${channel.name}} on project {bold ${accountName}/${slug}}. Channel ID: {bold ${channel.id}}`
     );
-    Log.log(chalk`{bold Recent update groups published on this branch:}`);
+    Log.log(
+      chalk`{bold Branches, pointed at by this channel, and their most recent update group:}`
+    );
     Log.log(table.toString());
   }
 }

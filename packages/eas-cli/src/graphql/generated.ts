@@ -3220,7 +3220,7 @@ export type BranchesByAppQuery = (
         & Pick<UpdateBranch, 'id' | 'name'>
         & { updates: Array<(
           { __typename?: 'Update' }
-          & Pick<Update, 'id' | 'updatedAt' | 'message'>
+          & Pick<Update, 'id' | 'createdAt' | 'message' | 'runtimeVersion' | 'group'>
           & { actor?: Maybe<(
             { __typename: 'User' }
             & Pick<User, 'username' | 'id'>
@@ -3285,7 +3285,7 @@ export type ViewBranchQuery = (
           & Pick<Update, 'id' | 'group' | 'message' | 'createdAt' | 'runtimeVersion' | 'platform' | 'manifestFragment'>
           & { actor?: Maybe<(
             { __typename?: 'User' }
-            & Pick<User, 'firstName' | 'id'>
+            & Pick<User, 'username' | 'id'>
           ) | (
             { __typename?: 'Robot' }
             & Pick<Robot, 'firstName' | 'id'>
@@ -3394,10 +3394,10 @@ export type GetAllChannelsForAppQuery = (
           & Pick<UpdateBranch, 'id' | 'name'>
           & { updates: Array<(
             { __typename?: 'Update' }
-            & Pick<Update, 'id' | 'group' | 'message' | 'createdAt'>
+            & Pick<Update, 'id' | 'group' | 'message' | 'runtimeVersion' | 'createdAt'>
             & { actor?: Maybe<(
               { __typename?: 'User' }
-              & Pick<User, 'firstName' | 'id'>
+              & Pick<User, 'username' | 'id'>
             ) | (
               { __typename?: 'Robot' }
               & Pick<Robot, 'firstName' | 'id'>
@@ -3430,10 +3430,10 @@ export type GetChannelByNameForAppQuery = (
           & Pick<UpdateBranch, 'id' | 'name'>
           & { updates: Array<(
             { __typename?: 'Update' }
-            & Pick<Update, 'id' | 'group' | 'message' | 'createdAt'>
+            & Pick<Update, 'id' | 'group' | 'message' | 'runtimeVersion' | 'createdAt'>
             & { actor?: Maybe<(
               { __typename?: 'User' }
-              & Pick<User, 'firstName' | 'id'>
+              & Pick<User, 'username' | 'id'>
             ) | (
               { __typename?: 'Robot' }
               & Pick<Robot, 'firstName' | 'id'>
