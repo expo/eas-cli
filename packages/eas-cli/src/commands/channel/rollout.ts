@@ -46,16 +46,16 @@ function getRolloutInfo(
 } {
   const { branchMapping } = getBranchMapping(getUpdateChannelByNameForAppResult);
   const [newBranchId, oldBranchId] = branchMapping.data.map(d => d.branchId);
-  const newBranch = getUpdateChannelByNameForAppResult.app?.byId.updateChannelByName.updateBranches.filter(
+  const newBranch = getUpdateChannelByNameForAppResult.app?.byId.updateChannelByName?.updateBranches.filter(
     branch => branch.id === newBranchId
   )[0];
-  const oldBranch = getUpdateChannelByNameForAppResult.app?.byId.updateChannelByName.updateBranches.filter(
+  const oldBranch = getUpdateChannelByNameForAppResult.app?.byId.updateChannelByName?.updateBranches.filter(
     branch => branch.id === oldBranchId
   )[0];
 
   if (!newBranch || !oldBranch) {
     throw new Error(
-      `Branch mapping rollout is missing a branch for channel "${getUpdateChannelByNameForAppResult.app?.byId.updateChannelByName.name}".`
+      `Branch mapping rollout is missing a branch for channel "${getUpdateChannelByNameForAppResult.app?.byId.updateChannelByName?.name}".`
     );
   }
 
@@ -134,11 +134,11 @@ async function startRolloutAsync({
     ],
   };
   const newChannelInfo = await updateChannelBranchMappingAsync({
-    channelId: getUpdateChannelByNameForAppResult.app?.byId.updateChannelByName.id!,
+    channelId: getUpdateChannelByNameForAppResult.app?.byId.updateChannelByName?.id!,
     branchMapping: JSON.stringify(newBranchMapping),
   });
 
-  const oldBranch = getUpdateChannelByNameForAppResult.app?.byId.updateChannelByName.updateBranches.filter(
+  const oldBranch = getUpdateChannelByNameForAppResult.app?.byId.updateChannelByName?.updateBranches.filter(
     branch => branch.id === oldBranchId
   )[0];
   if (!oldBranch) {
@@ -200,7 +200,7 @@ async function editRolloutAsync({
   newBranchMapping.data[0].branchMappingLogic.operand = percent / 100;
 
   const newChannelInfo = await updateChannelBranchMappingAsync({
-    channelId: getUpdateChannelByNameForAppResult.app?.byId.updateChannelByName.id!,
+    channelId: getUpdateChannelByNameForAppResult.app?.byId.updateChannelByName?.id!,
     branchMapping: JSON.stringify(newBranchMapping),
   });
 
@@ -290,7 +290,7 @@ async function endRolloutAsync({
   };
 
   const newChannelInfo = await updateChannelBranchMappingAsync({
-    channelId: getUpdateChannelByNameForAppResult.app?.byId.updateChannelByName.id!,
+    channelId: getUpdateChannelByNameForAppResult.app?.byId.updateChannelByName?.id!,
     branchMapping: JSON.stringify(newBranchMapping),
   });
   const logMessage = `️Rollout on channel ${chalk.bold(

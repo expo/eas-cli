@@ -34,7 +34,7 @@ export function getBranchMapping(
   getChannelByNameForAppQuery: GetChannelByNameForAppQuery
 ): { branchMapping: BranchMapping; isRollout: boolean; rolloutPercent?: number } {
   const branchMappingString =
-    getChannelByNameForAppQuery.app?.byId.updateChannelByName.branchMapping;
+    getChannelByNameForAppQuery.app?.byId.updateChannelByName?.branchMapping;
   if (!branchMappingString) {
     throw new Error('Missing branch mapping.');
   }
