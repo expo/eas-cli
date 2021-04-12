@@ -1,4 +1,5 @@
 import { ExpoConfig } from '@expo/config';
+import { IOSConfig } from '@expo/config-plugins';
 import fs from 'fs-extra';
 import { vol } from 'memfs';
 import os from 'os';
@@ -38,9 +39,11 @@ describe(bumpVersionAsync, () => {
     });
 
     const appJSON = await fs.readJSON('/repo/app.json');
-    const infoPlist = await readPlistAsync('/repo/ios/myproject/Info.plist');
+    const infoPlist = (await readPlistAsync(
+      '/repo/ios/myproject/Info.plist'
+    )) as IOSConfig.InfoPlist;
     expect(fakeExp.version).toBe('1.0.0');
-    expect(fakeExp.ios.buildNumber).toBe('2');
+    expect(fakeExp.ios?.buildNumber).toBe('2');
     expect(appJSON.expo.version).toBe('1.0.0');
     expect(appJSON.expo.ios.buildNumber).toBe('2');
     expect(infoPlist['CFBundleShortVersionString']).toBe('1.0.0');
@@ -57,9 +60,11 @@ describe(bumpVersionAsync, () => {
     });
 
     const appJSON = await fs.readJSON('/repo/app.json');
-    const infoPlist = await readPlistAsync('/repo/ios/myproject/Info.plist');
+    const infoPlist = (await readPlistAsync(
+      '/repo/ios/myproject/Info.plist'
+    )) as IOSConfig.InfoPlist;
     expect(fakeExp.version).toBe('1.0.1');
-    expect(fakeExp.ios.buildNumber).toBe('1');
+    expect(fakeExp.ios?.buildNumber).toBe('1');
     expect(appJSON.expo.version).toBe('1.0.1');
     expect(appJSON.expo.ios.buildNumber).toBe('1');
     expect(infoPlist['CFBundleShortVersionString']).toBe('1.0.1');
@@ -76,9 +81,11 @@ describe(bumpVersionAsync, () => {
     });
 
     const appJSON = await fs.readJSON('/repo/app.json');
-    const infoPlist = await readPlistAsync('/repo/ios/myproject/Info.plist');
+    const infoPlist = (await readPlistAsync(
+      '/repo/ios/myproject/Info.plist'
+    )) as IOSConfig.InfoPlist;
     expect(fakeExp.version).toBe('1.0.0');
-    expect(fakeExp.ios.buildNumber).toBe('1');
+    expect(fakeExp.ios?.buildNumber).toBe('1');
     expect(appJSON.expo.version).toBe('1.0.0');
     expect(appJSON.expo.ios.buildNumber).toBe('1');
     expect(infoPlist['CFBundleShortVersionString']).toBe('1.0.0');
@@ -99,7 +106,7 @@ describe(bumpVersionInAppJsonAsync, () => {
 
     const appJSON = await fs.readJSON('/repo/app.json');
     expect(fakeExp.version).toBe('1.0.0');
-    expect(fakeExp.ios.buildNumber).toBe('2');
+    expect(fakeExp.ios?.buildNumber).toBe('2');
     expect(appJSON.expo.version).toBe('1.0.0');
     expect(appJSON.expo.ios.buildNumber).toBe('2');
   });
@@ -115,7 +122,7 @@ describe(bumpVersionInAppJsonAsync, () => {
 
     const appJSON = await fs.readJSON('/repo/app.json');
     expect(fakeExp.version).toBe('1.0.1');
-    expect(fakeExp.ios.buildNumber).toBe('1');
+    expect(fakeExp.ios?.buildNumber).toBe('1');
     expect(appJSON.expo.version).toBe('1.0.1');
     expect(appJSON.expo.ios.buildNumber).toBe('1');
   });
@@ -131,7 +138,7 @@ describe(bumpVersionInAppJsonAsync, () => {
 
     const appJSON = await fs.readJSON('/repo/app.json');
     expect(fakeExp.version).toBe('1.0.0');
-    expect(fakeExp.ios.buildNumber).toBe('1');
+    expect(fakeExp.ios?.buildNumber).toBe('1');
     expect(appJSON.expo.version).toBe('1.0.0');
     expect(appJSON.expo.ios.buildNumber).toBe('1');
   });

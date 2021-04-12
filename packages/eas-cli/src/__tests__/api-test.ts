@@ -21,7 +21,7 @@ describe('apiClient', () => {
         ],
       });
 
-    let error: Error;
+    let error: Error | null = null;
     try {
       await apiClient.post('test');
     } catch (e) {
@@ -41,7 +41,7 @@ describe('apiClient', () => {
   it('does not convert non-APIv2 error to ApiV2Error', async () => {
     nock(getExpoApiBaseUrl()).post('/--/api/v2/test').reply(500, 'Something went wrong');
 
-    let error: Error;
+    let error: Error | null = null;
     try {
       await apiClient.post('test');
     } catch (e) {

@@ -30,17 +30,18 @@ describe(AccountResolver, () => {
         { id: 'account_id_777', name: 'dominik' },
         { id: 'account_id_888', name: 'foo' },
       ],
+      isExpoAdmin: false,
     };
 
     describe('when inside project dir', () => {
-      const projectDir = '/app';
+      const exp = {} as any;
 
       it('returns the account defined in app.json/app.config.js if user confirms', async () => {
         asMock(prompts).mockImplementationOnce(() => ({
           value: true,
         }));
 
-        const resolver = new AccountResolver(projectDir, user);
+        const resolver = new AccountResolver(exp, user);
         const account = await resolver.resolveAccountAsync();
         expect(account).toEqual(user.accounts[1]);
       });
@@ -53,7 +54,7 @@ describe(AccountResolver, () => {
           account: user.accounts[0],
         }));
 
-        const resolver = new AccountResolver(projectDir, user);
+        const resolver = new AccountResolver(exp, user);
         const account = await resolver.resolveAccountAsync();
         expect(account).toEqual(user.accounts[0]);
       });
@@ -71,7 +72,7 @@ describe(AccountResolver, () => {
         const originalConsoleWarn = console.warn;
         console.warn = jest.fn();
 
-        const resolver = new AccountResolver(projectDir, userWithAccessToProjectAccount);
+        const resolver = new AccountResolver(exp, userWithAccessToProjectAccount);
         const account = await resolver.resolveAccountAsync();
         expect(account).toEqual(user.accounts[0]);
         expect(console.warn).toBeCalledWith(expect.stringMatching(/doesn't have access to the/));
