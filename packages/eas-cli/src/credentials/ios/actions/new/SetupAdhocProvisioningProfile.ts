@@ -7,7 +7,6 @@ import {
 } from '../../../../graphql/generated';
 import Log from '../../../../log';
 import { confirmAsync } from '../../../../prompts';
-import { CredentialsManager } from '../../../CredentialsManager';
 import { Context } from '../../../context';
 import { AppLookupParams } from '../../api/GraphqlClient';
 import { AppleProvisioningProfileMutationResult } from '../../api/graphql/mutations/AppleProvisioningProfileMutation';
@@ -24,13 +23,10 @@ import { SetupDistributionCertificate } from './SetupDistributionCertificate';
 export class SetupAdhocProvisioningProfile {
   constructor(private app: AppLookupParams) {}
 
-  async runAsync(
-    manager: CredentialsManager,
-    ctx: Context
-  ): Promise<IosAppBuildCredentialsFragment> {
+  async runAsync(ctx: Context): Promise<IosAppBuildCredentialsFragment> {
     if (ctx.nonInteractive) {
       try {
-        return await this.runNonInteractiveAsync(manager, ctx);
+        return await this.runNonInteractiveAsync(ctx);
       } catch (err) {
         if (err instanceof AppleTeamMissingError) {
           throw new MissingCredentialsNonInteractiveError();
@@ -38,17 +34,13 @@ export class SetupAdhocProvisioningProfile {
         throw err;
       }
     } else {
-      return await this.runInteractiveAsync(manager, ctx);
+      return await this.runInteractiveAsync(ctx);
     }
   }
 
-  private async runNonInteractiveAsync(
-    manager: CredentialsManager,
-    ctx: Context
-  ): Promise<IosAppBuildCredentialsFragment> {
+  private async runNonInteractiveAsync(ctx: Context): Promise<IosAppBuildCredentialsFragment> {
     // 1. Setup Distribution Certificate
-    const distCertAction = new SetupDistributionCertificate(this.app, IosDistributionType.AdHoc);
-    await distCertAction.runAsync(manager, ctx);
+    await new SetupDistributionCertificate(this.app, IosDistributionType.AdHoc).runAsync(ctx);
 
     // 2. Fetch profile from EAS servers
     const currentProfile = await ctx.newIos.getProvisioningProfileAsync(
@@ -74,10 +66,7 @@ export class SetupAdhocProvisioningProfile {
     return appCredentials.iosAppBuildCredentialsArray[0];
   }
 
-  private async runInteractiveAsync(
-    manager: CredentialsManager,
-    ctx: Context
-  ): Promise<IosAppBuildCredentialsFragment> {
+  private async runInteractiveAsync(ctx: Context): Promise<IosAppBuildCredentialsFragment> {
     // 0. Ensure the user is authenticated with Apple and resolve the Apple team object
     await ctx.appStore.ensureAuthenticatedAsync();
     const appleTeam = nullthrows(await resolveAppleTeamIfAuthenticatedAsync(ctx, this.app));
@@ -95,8 +84,10 @@ export class SetupAdhocProvisioningProfile {
     }
 
     // 2. Setup Distribution Certificate
-    const distCertAction = new SetupDistributionCertificate(this.app, IosDistributionType.AdHoc);
-    const distCert = await distCertAction.runAsync(manager, ctx);
+    const distCert = await new SetupDistributionCertificate(
+      this.app,
+      IosDistributionType.AdHoc
+    ).runAsync(ctx);
 
     let profileFromExpoServersToUse:
       | AppleProvisioningProfileQueryResult

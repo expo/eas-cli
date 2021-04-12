@@ -1,6 +1,6 @@
 import { confirmAsync } from '../../../../../prompts';
 import { getAppstoreMock, testAuthCtx } from '../../../../__tests__/fixtures-appstore';
-import { createCtxMock, createManagerMock } from '../../../../__tests__/fixtures-context';
+import { createCtxMock } from '../../../../__tests__/fixtures-context';
 import {
   testAppleAppIdentifierFragment,
   testIosAppBuildCredentialsFragment,
@@ -24,7 +24,6 @@ describe('SetupProvisioningProfile', () => {
       error: 'testing: everything is fine, ignore this',
       ok: false,
     }));
-    const manager = createManagerMock();
     const ctx = createCtxMock({
       nonInteractive: false,
       appStore: {
@@ -52,7 +51,7 @@ describe('SetupProvisioningProfile', () => {
     });
     const appLookupParams = ManageIosBeta.getAppLookupParamsFromContext(ctx);
     const setupProvisioningProfileAction = new SetupProvisioningProfile(appLookupParams);
-    await setupProvisioningProfileAction.runAsync(manager, ctx);
+    await setupProvisioningProfileAction.runAsync(ctx);
 
     // expect build credentials to be created or updated on expo servers
     expect((ctx.newIos.createOrUpdateIosAppBuildCredentialsAsync as any).mock.calls.length).toBe(1);
@@ -64,7 +63,6 @@ describe('SetupProvisioningProfile', () => {
       error: 'testing: everything is fine, ignore this',
       ok: false,
     }));
-    const manager = createManagerMock();
     const ctx = createCtxMock({
       nonInteractive: false,
       appStore: {
@@ -83,7 +81,7 @@ describe('SetupProvisioningProfile', () => {
     });
     const appLookupParams = ManageIosBeta.getAppLookupParamsFromContext(ctx);
     const setupProvisioningProfileAction = new SetupProvisioningProfile(appLookupParams);
-    await setupProvisioningProfileAction.runAsync(manager, ctx);
+    await setupProvisioningProfileAction.runAsync(ctx);
 
     // expect build credentials to be created or updated on expo servers
     expect((ctx.newIos.createOrUpdateIosAppBuildCredentialsAsync as any).mock.calls.length).toBe(1);
@@ -94,7 +92,6 @@ describe('SetupProvisioningProfile', () => {
     (validateProvisioningProfileAsync as jest.Mock).mockImplementation(() => ({
       ok: true,
     }));
-    const manager = createManagerMock();
     const ctx = createCtxMock({
       nonInteractive: false,
       appStore: {
@@ -113,7 +110,7 @@ describe('SetupProvisioningProfile', () => {
     });
     const appLookupParams = ManageIosBeta.getAppLookupParamsFromContext(ctx);
     const setupProvisioningProfileAction = new SetupProvisioningProfile(appLookupParams);
-    await setupProvisioningProfileAction.runAsync(manager, ctx);
+    await setupProvisioningProfileAction.runAsync(ctx);
 
     // expect build credentials not to be created or updated on expo servers
     expect((ctx.newIos.createOrUpdateIosAppBuildCredentialsAsync as any).mock.calls.length).toBe(0);
@@ -121,7 +118,6 @@ describe('SetupProvisioningProfile', () => {
     expect((ctx.newIos.deleteProvisioningProfilesAsync as any).mock.calls.length).toBe(0);
   });
   it('sets up a Provisioning Profile with no prior build credentials configured in Interactive Mode', async () => {
-    const manager = createManagerMock();
     const ctx = createCtxMock({
       nonInteractive: false,
       appStore: {
@@ -136,7 +132,7 @@ describe('SetupProvisioningProfile', () => {
     });
     const appLookupParams = ManageIosBeta.getAppLookupParamsFromContext(ctx);
     const setupProvisioningProfileAction = new SetupProvisioningProfile(appLookupParams);
-    await setupProvisioningProfileAction.runAsync(manager, ctx);
+    await setupProvisioningProfileAction.runAsync(ctx);
 
     // expect build credentials to be created or updated on expo servers
     expect((ctx.newIos.createOrUpdateIosAppBuildCredentialsAsync as any).mock.calls.length).toBe(1);
@@ -144,13 +140,12 @@ describe('SetupProvisioningProfile', () => {
     expect((ctx.newIos.deleteProvisioningProfilesAsync as any).mock.calls.length).toBe(0);
   });
   it('errors in Non Interactive Mode', async () => {
-    const manager = createManagerMock();
     const ctx = createCtxMock({
       nonInteractive: true,
     });
     const appLookupParams = ManageIosBeta.getAppLookupParamsFromContext(ctx);
     const setupProvisioningProfileAction = new SetupProvisioningProfile(appLookupParams);
-    await expect(setupProvisioningProfileAction.runAsync(manager, ctx)).rejects.toThrowError(
+    await expect(setupProvisioningProfileAction.runAsync(ctx)).rejects.toThrowError(
       MissingCredentialsNonInteractiveError
     );
 

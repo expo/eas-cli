@@ -5,16 +5,15 @@ import {
 import Log from '../../../../log';
 import { confirmAsync } from '../../../../prompts';
 import { Account } from '../../../../user/Account';
-import { Action, CredentialsManager } from '../../../CredentialsManager';
 import { Context } from '../../../context';
 import { AppLookupParams } from '../../api/GraphqlClient';
 import { selectDistributionCertificateWithDependenciesAsync } from './DistributionCertificateUtils';
 import { RemoveProvisioningProfiles } from './RemoveProvisioningProfile';
 
-export class SelectAndRemoveDistributionCertificate implements Action {
+export class SelectAndRemoveDistributionCertificate {
   constructor(private account: Account) {}
 
-  async runAsync(_manager: CredentialsManager, ctx: Context): Promise<void> {
+  async runAsync(ctx: Context): Promise<void> {
     const selected = await selectDistributionCertificateWithDependenciesAsync(ctx, this.account);
     if (selected) {
       await new RemoveDistributionCertificate(this.account, selected).runAsync(ctx);

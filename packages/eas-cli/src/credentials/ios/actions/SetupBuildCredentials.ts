@@ -38,13 +38,11 @@ export class SetupBuildCredentials implements Action {
         bundleIdentifier: this.app.bundleIdentifier,
       };
       if (this.distribution === 'internal') {
-        const setupAdhocProvisioningProfileAction = new SetupAdhocProvisioningProfile(
-          appLookupParams
+        iosAppBuildCredentials = await new SetupAdhocProvisioningProfile(appLookupParams).runAsync(
+          ctx
         );
-        iosAppBuildCredentials = await setupAdhocProvisioningProfileAction.runAsync(manager, ctx);
       } else {
-        const setupProvisioningProfileAction = new SetupProvisioningProfile(appLookupParams);
-        iosAppBuildCredentials = await setupProvisioningProfileAction.runAsync(manager, ctx);
+        iosAppBuildCredentials = await new SetupProvisioningProfile(appLookupParams).runAsync(ctx);
       }
 
       const appInfo = `@${this.app.accountName}/${this.app.projectName} (${this.app.bundleIdentifier})`;

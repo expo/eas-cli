@@ -8,7 +8,6 @@ import {
 } from '../../../../graphql/generated';
 import Log from '../../../../log';
 import { confirmAsync, promptAsync } from '../../../../prompts';
-import { CredentialsManager } from '../../../CredentialsManager';
 import { Context } from '../../../context';
 import { AppLookupParams } from '../../api/GraphqlClient';
 import { AppleDistributionCertificateMutationResult } from '../../api/graphql/mutations/AppleDistributionCertificateMutation';
@@ -23,10 +22,7 @@ export class SetupDistributionCertificate {
 
   constructor(private app: AppLookupParams, private distributionType: IosDistributionType) {}
 
-  public async runAsync(
-    manager: CredentialsManager,
-    ctx: Context
-  ): Promise<AppleDistributionCertificateFragment> {
+  public async runAsync(ctx: Context): Promise<AppleDistributionCertificateFragment> {
     const appleTeam = await resolveAppleTeamIfAuthenticatedAsync(ctx, this.app);
 
     try {
@@ -39,7 +35,7 @@ export class SetupDistributionCertificate {
       if (ctx.nonInteractive) {
         return await this.runNonInteractiveAsync(ctx, currentCertificate);
       } else {
-        return await this.runInteractiveAsync(ctx, manager, currentCertificate);
+        return await this.runInteractiveAsync(ctx, currentCertificate);
       }
     } catch (err) {
       if (err instanceof AppleTeamMissingError && ctx.nonInteractive) {
@@ -64,7 +60,6 @@ export class SetupDistributionCertificate {
 
   private async runInteractiveAsync(
     ctx: Context,
-    manager: CredentialsManager,
     currentCertificate: AppleDistributionCertificateFragment | null
   ): Promise<AppleDistributionCertificateFragment> {
     if (await this.isCurrentCertificateValidAsync(ctx, currentCertificate)) {
@@ -74,8 +69,8 @@ export class SetupDistributionCertificate {
 
     const validDistCertsOnFile = await this.getValidDistCertsAsync(ctx);
     return validDistCertsOnFile.length === 0
-      ? await this.createNewDistCertAsync(manager)
-      : await this.createOrReuseDistCert(manager, ctx);
+      ? await this.createNewDistCertAsync(ctx)
+      : await this.createOrReuseDistCert(ctx);
   }
 
   private async isCurrentCertificateValidAsync(
@@ -95,10 +90,7 @@ export class SetupDistributionCertificate {
     return isValid;
   }
 
-  private async createOrReuseDistCert(
-    manager: CredentialsManager,
-    ctx: Context
-  ): Promise<AppleDistributionCertificateFragment> {
+  private async createOrReuseDistCert(ctx: Context): Promise<AppleDistributionCertificateFragment> {
     const validDistCerts = await this.getValidDistCertsAsync(ctx);
     const autoselectedDistCert = validDistCerts[0];
 
@@ -129,18 +121,16 @@ export class SetupDistributionCertificate {
     });
 
     if (action === 'GENERATE') {
-      return await this.createNewDistCertAsync(manager);
+      return await this.createNewDistCertAsync(ctx);
     } else {
       return await this.reuseDistCertAsync(ctx);
     }
   }
 
   private async createNewDistCertAsync(
-    manager: CredentialsManager
+    ctx: Context
   ): Promise<AppleDistributionCertificateMutationResult> {
-    const action = new CreateDistributionCertificate(this.app);
-    await manager.runActionAsync(action);
-    return action.distributionCertificate;
+    return new CreateDistributionCertificate(this.app).runAsync(ctx);
   }
 
   private async reuseDistCertAsync(ctx: Context): Promise<AppleDistributionCertificate> {
