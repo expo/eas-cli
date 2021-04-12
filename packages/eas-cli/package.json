@@ -163,7 +163,7 @@
   "scripts": {
     "postpack": "rm -f oclif.manifest.json",
     "prepack": "rm -rf build && yarn build && yarn oclif-dev manifest && yarn oclif-dev readme",
-    "build": "tsc",
+    "build": "tsc -p tsconfig.build.json",
     "watch": "tsc --watch",
     "test": "jest",
     "version": "yarn oclif-dev readme && git add README.md",

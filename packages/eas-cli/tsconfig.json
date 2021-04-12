@@ -5,16 +5,15 @@
     "module": "commonjs",
     "esModuleInterop": true,
     "noImplicitReturns": true,
-    "outDir": "build",
-    "rootDir": "src",
     "strict": true,
     "target": "es2017",
+    "outDir": "build",
+    "rootDir": "src",
     "typeRoots": [
+      "../../node_modules/@types",
       "../../ts-declarations",
-      "./node_modules/@types",
-      "../../node_modules/@types"
+      "./node_modules/@types"
     ]
   },
-  "include": ["src/**/*"],
-  "exclude": ["**/__mocks__/*", "**/__tests__/*"]
+  "include": ["src/**/*"]
 }
