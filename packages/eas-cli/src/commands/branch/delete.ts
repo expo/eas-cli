@@ -44,7 +44,7 @@ async function getBranchInfoAsync({
       )
       .toPromise()
   );
-  const branchId = data.app?.byId.updateBranchByName.id;
+  const branchId = data.app?.byId.updateBranchByName?.id;
   if (!branchId) {
     throw new Error(`Could not find branch ${name} on ${appId}`);
   }

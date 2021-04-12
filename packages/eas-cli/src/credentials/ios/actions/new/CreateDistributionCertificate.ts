@@ -1,35 +1,19 @@
-import assert from 'assert';
-
 import Log from '../../../../log';
-import { Action, CredentialsManager } from '../../../CredentialsManager';
 import { Context } from '../../../context';
 import { AppLookupParams } from '../../api/GraphqlClient';
 import { AppleDistributionCertificateMutationResult } from '../../api/graphql/mutations/AppleDistributionCertificateMutation';
 import { provideOrGenerateDistributionCertificateAsync } from '../DistributionCertificateUtils';
 
-export class CreateDistributionCertificate implements Action {
-  private _distributionCertificate?: AppleDistributionCertificateMutationResult;
-
+export class CreateDistributionCertificate {
   constructor(private app: AppLookupParams) {}
 
-  public get distributionCertificate(): AppleDistributionCertificateMutationResult {
-    assert(
-      this._distributionCertificate,
-      'distributionCertificate can be accessed only after calling .runAsync()'
-    );
-    return this._distributionCertificate;
-  }
-
-  public async runAsync(manager: CredentialsManager, ctx: Context): Promise<void> {
+  public async runAsync(ctx: Context): Promise<AppleDistributionCertificateMutationResult> {
     const distCert = await provideOrGenerateDistributionCertificateAsync(
-      manager,
       ctx,
       this.app.account.name
     );
-    this._distributionCertificate = await ctx.newIos.createDistributionCertificateAsync(
-      this.app,
-      distCert
-    );
+    const result = await ctx.newIos.createDistributionCertificateAsync(this.app, distCert);
     Log.succeed('Created distribution certificate');
+    return result;
   }
 }

@@ -2,7 +2,6 @@ import chalk from 'chalk';
 
 import Log, { learnMore } from '../../../log';
 import { promptAsync } from '../../../prompts';
-import { CredentialsManager } from '../../CredentialsManager';
 import { Context } from '../../context';
 import { askForUserProvidedAsync } from '../../utils/promptForCredentials';
 import { AppleTooManyCertsError } from '../appstore/AppStoreApi';
@@ -31,7 +30,6 @@ Please remember that Apple Distribution Certificates are not application specifi
 `;
 
 export async function provideOrGenerateDistributionCertificateAsync(
-  manager: CredentialsManager,
   ctx: Context,
   accountName: string
 ): Promise<DistributionCertificate> {
@@ -50,11 +48,11 @@ export async function provideOrGenerateDistributionCertificateAsync(
         }
         return isValid
           ? userProvided
-          : await provideOrGenerateDistributionCertificateAsync(manager, ctx, accountName);
+          : await provideOrGenerateDistributionCertificateAsync(ctx, accountName);
       }
     }
   }
-  return await generateDistributionCertificateAsync(manager, ctx, accountName);
+  return await generateDistributionCertificateAsync(ctx, accountName);
 }
 
 async function promptForDistCertAsync(ctx: Context): Promise<DistributionCertificate | null> {
@@ -78,7 +76,6 @@ async function promptForDistCertAsync(ctx: Context): Promise<DistributionCertifi
 }
 
 async function generateDistributionCertificateAsync(
-  manager: CredentialsManager,
   ctx: Context,
   accountName: string
 ): Promise<DistributionCertificate> {
@@ -125,7 +122,7 @@ async function generateDistributionCertificateAsync(
       throw e;
     }
   }
-  return await generateDistributionCertificateAsync(manager, ctx, accountName);
+  return await generateDistributionCertificateAsync(ctx, accountName);
 }
 
 interface SelectOptions {
@@ -145,7 +142,7 @@ export async function selectDistributionCertificateAsync(
   let validDistCredentials: IosDistCredentials[] | null = null;
   if (ctx.appStore.authCtx) {
     const certInfoFromApple = await ctx.appStore.listDistributionCertificatesAsync();
-    validDistCredentials = await filterRevokedDistributionCerts(distCredentials, certInfoFromApple);
+    validDistCredentials = filterRevokedDistributionCerts(distCredentials, certInfoFromApple);
   }
   distCredentials =
     options.filterInvalid && validDistCredentials ? validDistCredentials : distCredentials;

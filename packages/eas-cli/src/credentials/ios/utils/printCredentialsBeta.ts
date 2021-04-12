@@ -2,10 +2,12 @@ import chalk from 'chalk';
 import dateformat from 'dateformat';
 
 import {
+  AppleDeviceFragment,
   CommonIosAppCredentialsFragment,
   IosAppBuildCredentialsFragment,
   IosDistributionType,
 } from '../../../graphql/generated';
+import { APPLE_DEVICE_CLASS_LABELS } from '../../../graphql/types/credentials/AppleDevice';
 import Log from '../../../log';
 import { fromNow } from '../../../utils/date';
 import { AppLookupParams } from '../api/GraphqlClient';
@@ -79,12 +81,25 @@ export function displayIosAppCredentials(credentials: CommonIosAppCredentialsFra
   }
 }
 
+export function displayProjectCredentials(
+  appLookupParams: AppLookupParams,
+  buildCredentials: IosAppBuildCredentialsFragment
+): void {
+  const experienceName = `@${appLookupParams.account.name}/${appLookupParams.projectName}`;
+  Log.addNewLineIfNone();
+  Log.log(chalk.bold('Project Credentials Configuration:'));
+  Log.log(`  Project: ${chalk.bold(experienceName)}`);
+  Log.log(`  Bundle Identifier: ${appLookupParams.bundleIdentifier}`);
+  displayIosAppBuildCredentials(buildCredentials);
+}
+
 function displayIosAppBuildCredentials(buildCredentials: IosAppBuildCredentialsFragment): void {
   Log.log(
     chalk.bold(
       `  Configuration: ${prettyIosDistributionType(buildCredentials.iosDistributionType)}`
     )
   );
+  Log.newLine();
   const maybeDistCert = buildCredentials.distributionCertificate;
   Log.log(`  Distribution Certificate:`);
   if (maybeDistCert) {
@@ -106,7 +121,14 @@ function displayIosAppBuildCredentials(buildCredentials: IosAppBuildCredentialsF
   const maybeProvProf = buildCredentials.provisioningProfile;
   Log.log(`  Provisioning Profile:`);
   if (maybeProvProf) {
-    const { expiration, updatedAt, status, developerPortalIdentifier, appleTeam } = maybeProvProf;
+    const {
+      expiration,
+      updatedAt,
+      status,
+      developerPortalIdentifier,
+      appleTeam,
+      appleDevices,
+    } = maybeProvProf;
     if (developerPortalIdentifier) {
       Log.log(`    Developer Portal ID: ${developerPortalIdentifier}`);
     }
@@ -118,9 +140,42 @@ function displayIosAppBuildCredentials(buildCredentials: IosAppBuildCredentialsF
         `    Apple Team: ${appleTeamIdentifier} ${appleTeamName ? `(${appleTeamName})` : ''}`
       );
     }
+    if (appleDevices && appleDevices.length > 0) {
+      Log.log(`    Provisioned devices:`);
+      for (const appleDevice of appleDevices) {
+        Log.log(`    - ${formatAppleDevice(appleDevice)}`);
+      }
+    }
     Log.log(`    Updated ${fromNow(new Date(updatedAt))} ago`);
   } else {
     Log.log(`    None assigned yet`);
   }
   Log.newLine();
+}
+
+function formatAppleDevice(device: AppleDeviceFragment): string {
+  let deviceString = '';
+  if (device.name) {
+    deviceString += device.name;
+  }
+  if (device.deviceClass || device.model) {
+    const deviceDetails = [
+      device.deviceClass && APPLE_DEVICE_CLASS_LABELS[device.deviceClass],
+      device.model,
+    ]
+      .filter(i => i)
+      .join(' ');
+    if (deviceString === '') {
+      deviceString += deviceDetails;
+    } else {
+      deviceString += ` - ${deviceDetails}`;
+    }
+  }
+
+  if (deviceString === '') {
+    deviceString += device.identifier;
+  } else {
+    deviceString += ` (UDID: ${device.identifier})`;
+  }
+  return deviceString;
 }

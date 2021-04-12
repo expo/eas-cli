@@ -8,7 +8,6 @@ import {
 } from '../../../../graphql/generated';
 import Log from '../../../../log';
 import { confirmAsync } from '../../../../prompts';
-import { CredentialsManager } from '../../../CredentialsManager';
 import { Context } from '../../../context';
 import { AppLookupParams } from '../../api/GraphqlClient';
 import { ProvisioningProfileStoreInfo } from '../../appstore/Credentials.types';
@@ -116,10 +115,7 @@ export class SetupProvisioningProfile {
     return buildCredentials.provisioningProfile ?? null;
   }
 
-  async runAsync(
-    manager: CredentialsManager,
-    ctx: Context
-  ): Promise<IosAppBuildCredentialsFragment> {
+  async runAsync(ctx: Context): Promise<IosAppBuildCredentialsFragment> {
     const areBuildCredentialsSetup = await this.areBuildCredentialsSetupAsync(ctx);
     if (areBuildCredentialsSetup) {
       return nullthrows(await this.getBuildCredentialsAsync(ctx));
@@ -130,9 +126,10 @@ export class SetupProvisioningProfile {
       );
     }
 
-    const distCertAction = new SetupDistributionCertificate(this.app, IosDistributionType.AppStore);
-    await distCertAction.runAsync(manager, ctx);
-    const distCert = distCertAction.distributionCertificate;
+    const distCert = await new SetupDistributionCertificate(
+      this.app,
+      IosDistributionType.AppStore
+    ).runAsync(ctx);
 
     const currentProfile = await this.getProvisioningProfileAsync(ctx);
     if (!currentProfile) {

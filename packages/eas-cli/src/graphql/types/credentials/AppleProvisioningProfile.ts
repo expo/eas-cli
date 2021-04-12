@@ -1,4 +1,8 @@
+import { print } from 'graphql';
 import gql from 'graphql-tag';
+
+import { AppleDeviceFragmentNode } from './AppleDevice';
+import { AppleTeamFragmentNode } from './AppleTeam';
 
 export const AppleProvisioningProfileFragmentNode = gql`
   fragment AppleProvisioningProfileFragment on AppleProvisioningProfile {
@@ -10,17 +14,15 @@ export const AppleProvisioningProfileFragmentNode = gql`
     status
     appleTeam {
       id
-      appleTeamIdentifier
-      appleTeamName
+      ...AppleTeamFragment
     }
     appleDevices {
       id
-      identifier
-      name
-      model
-      deviceClass
+      ...AppleDeviceFragment
     }
   }
+  ${print(AppleDeviceFragmentNode)}
+  ${print(AppleTeamFragmentNode)}
 `;
 export const AppleProvisioningProfileIdentifiersFragmentNode = gql`
   fragment AppleProvisioningProfileIdentifiersFragment on AppleProvisioningProfile {

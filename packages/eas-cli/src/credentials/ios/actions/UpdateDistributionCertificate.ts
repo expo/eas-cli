@@ -62,11 +62,7 @@ export class UpdateSpecificDistributionCertificate implements Action {
       cred => cred.distCredentialsId === this.userCredentialsId
     );
 
-    const newDistCert = await provideOrGenerateDistributionCertificateAsync(
-      manager,
-      ctx,
-      this.accountName
-    );
+    const newDistCert = await provideOrGenerateDistributionCertificateAsync(ctx, this.accountName);
     await ctx.ios.updateDistributionCertificateAsync(
       this.userCredentialsId,
       this.accountName,

@@ -31,11 +31,7 @@ export class CreateDistributionCertificate implements Action {
   }
 
   public async runAsync(manager: CredentialsManager, ctx: Context): Promise<void> {
-    const distCert = await provideOrGenerateDistributionCertificateAsync(
-      manager,
-      ctx,
-      this.accountName
-    );
+    const distCert = await provideOrGenerateDistributionCertificateAsync(ctx, this.accountName);
     this._distCredentials = await ctx.ios.createDistributionCertificateAsync(
       this.accountName,
       distCert
