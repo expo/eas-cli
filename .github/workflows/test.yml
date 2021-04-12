@@ -22,7 +22,7 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
       - run: yarn install --frozen-lockfile --check-files
-      - run: yarn lerna run build
+      - run: yarn typecheck
       - run: yarn test
         if: ${{ !matrix.coverage }}
       - run: yarn test --coverage

@@ -164,7 +164,8 @@
     "postpack": "rm -f oclif.manifest.json",
     "prepack": "rm -rf build && yarn build && yarn oclif-dev manifest && yarn oclif-dev readme",
     "build": "tsc -p tsconfig.build.json",
-    "watch": "tsc --watch",
+    "watch": "yarn build --watch",
+    "typecheck": "tsc",
     "test": "jest",
     "version": "yarn oclif-dev readme && git add README.md",
     "generate-graphql-code": "graphql-codegen --config graphql-codegen.yml"

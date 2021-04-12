@@ -32,7 +32,8 @@
   "repository": "expo/eas-cli",
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
-    "watch": "tsc --watch",
+    "watch": "yarn build --watch",
+    "typecheck": "tsc",
     "prepack": "rm -rf build && yarn build",
     "test": "jest"
   },
