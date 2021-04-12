@@ -3445,6 +3445,26 @@ export type GetChannelByNameForAppQuery = (
   )> }
 );
 
+export type UpdatesByGroupQueryVariables = Exact<{
+  groupId: Scalars['ID'];
+}>;
+
+
+export type UpdatesByGroupQuery = (
+  { __typename?: 'RootQuery' }
+  & { updatesByGroup: Array<(
+    { __typename?: 'Update' }
+    & Pick<Update, 'id' | 'group' | 'runtimeVersion' | 'platform' | 'message' | 'createdAt'>
+    & { actor?: Maybe<(
+      { __typename?: 'User' }
+      & Pick<User, 'username' | 'id'>
+    ) | (
+      { __typename?: 'Robot' }
+      & Pick<Robot, 'firstName' | 'id'>
+    )> }
+  )> }
+);
+
 export type CreateAppleAppIdentifierMutationVariables = Exact<{
   appleAppIdentifierInput: AppleAppIdentifierInput;
   accountId: Scalars['ID'];
