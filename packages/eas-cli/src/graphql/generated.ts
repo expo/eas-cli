@@ -4610,7 +4610,8 @@ export type AppleProvisioningProfileFragment = (
   & Pick<AppleProvisioningProfile, 'id' | 'expiration' | 'developerPortalIdentifier' | 'provisioningProfile' | 'updatedAt' | 'status'>
   & { appleTeam?: Maybe<(
     { __typename?: 'AppleTeam' }
-    & Pick<AppleTeam, 'id' | 'appleTeamIdentifier' | 'appleTeamName'>
+    & Pick<AppleTeam, 'id'>
+    & AppleTeamFragment
   )>, appleDevices: Array<(
     { __typename?: 'AppleDevice' }
     & Pick<AppleDevice, 'id'>
