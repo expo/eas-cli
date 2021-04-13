@@ -1,6 +1,7 @@
 import assert from 'assert';
 import chalk from 'chalk';
 import dateformat from 'dateformat';
+import { pki } from 'node-forge';
 
 import {
   AppleDistributionCertificateFragment,
@@ -13,6 +14,17 @@ import { fromNow } from '../../../../utils/date';
 import { Context } from '../../../context';
 import { AppLookupParams } from '../../api/GraphqlClient';
 import { filterRevokedDistributionCerts } from '../../appstore/CredentialsUtilsBeta';
+
+export function formatPkiCertificate(certificate: pki.Certificate): string {
+  const { serialNumber, validity } = certificate;
+  const { notBefore, notAfter } = validity;
+
+  let line: string = '';
+  line += `Serial Number: ${serialNumber} `;
+  line += chalk.gray(`\n    Created: ${fromNow(notBefore)} ago`);
+  line += chalk.gray(`\n    Expires: ${dateformat(notAfter, 'expiresHeaderFormat')}`);
+  return line;
+}
 
 export function formatDistributionCertificate(
   distributionCertificate: AppleDistributionCertificateFragment,

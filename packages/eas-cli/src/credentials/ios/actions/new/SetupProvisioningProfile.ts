@@ -14,7 +14,11 @@ import { ProvisioningProfileStoreInfo } from '../../appstore/Credentials.types';
 import { MissingCredentialsNonInteractiveError } from '../../errors';
 import { validateProvisioningProfileAsync } from '../../validators/validateProvisioningProfile';
 import { formatProvisioningProfileFromApple } from '../ProvisioningProfileUtils';
-import { resolveAppleTeamIfAuthenticatedAsync } from './AppleTeamUtils';
+import {
+  assignBuildCredentialsAsync,
+  getBuildCredentialsAsync,
+  getProvisioningProfileAsync,
+} from './BuildCredentialsUtils';
 import { ConfigureProvisioningProfile } from './ConfigureProvisioningProfile';
 import { CreateProvisioningProfile } from './CreateProvisioningProfile';
 import { SetupDistributionCertificate } from './SetupDistributionCertificate';
@@ -23,7 +27,11 @@ export class SetupProvisioningProfile {
   constructor(private app: AppLookupParams) {}
 
   async areBuildCredentialsSetupAsync(ctx: Context): Promise<boolean> {
-    const buildCredentials = await this.getBuildCredentialsAsync(ctx);
+    const buildCredentials = await getBuildCredentialsAsync(
+      ctx,
+      this.app,
+      IosDistributionType.AppStore
+    );
     if (!buildCredentials) {
       return false;
     }
@@ -32,20 +40,6 @@ export class SetupProvisioningProfile {
       return false;
     }
     return await this.isCurrentProfileValidAsync(ctx, provisioningProfile, distributionCertificate);
-  }
-
-  async getBuildCredentialsAsync(ctx: Context): Promise<IosAppBuildCredentialsFragment | null> {
-    const appCredentials = await ctx.newIos.getIosAppCredentialsWithBuildCredentialsAsync(
-      this.app,
-      {
-        iosDistributionType: IosDistributionType.AppStore,
-      }
-    );
-    if (!appCredentials || appCredentials.iosAppBuildCredentialsArray.length === 0) {
-      return null;
-    }
-    const [buildCredentials] = appCredentials.iosAppBuildCredentialsArray;
-    return buildCredentials;
   }
 
   async assignNewAndDeleteOldProfileAsync(
@@ -66,7 +60,13 @@ export class SetupProvisioningProfile {
     const provisioningProfile = await new CreateProvisioningProfile(this.app, distCert).runAsync(
       ctx
     );
-    return await this.assignBuildCredentialsAsync(ctx, distCert, provisioningProfile);
+    return await assignBuildCredentialsAsync(
+      ctx,
+      this.app,
+      IosDistributionType.AppStore,
+      distCert,
+      provisioningProfile
+    );
   }
 
   async configureAndAssignProfileAsync(
@@ -83,42 +83,21 @@ export class SetupProvisioningProfile {
     if (!updatedProvisioningProfile) {
       return null;
     }
-    return await this.assignBuildCredentialsAsync(ctx, distCert, updatedProvisioningProfile);
-  }
-
-  async assignBuildCredentialsAsync(
-    ctx: Context,
-    distCert: AppleDistributionCertificateFragment,
-    provisioningProfile: AppleProvisioningProfileFragment
-  ): Promise<IosAppBuildCredentialsFragment> {
-    const appleTeam = nullthrows(await resolveAppleTeamIfAuthenticatedAsync(ctx, this.app));
-    const appleAppIdentifier = await ctx.newIos.createOrGetExistingAppleAppIdentifierAsync(
+    return await assignBuildCredentialsAsync(
+      ctx,
       this.app,
-      appleTeam
+      IosDistributionType.AppStore,
+      distCert,
+      updatedProvisioningProfile
     );
-    return await ctx.newIos.createOrUpdateIosAppBuildCredentialsAsync(this.app, {
-      appleTeam,
-      appleAppIdentifierId: appleAppIdentifier.id,
-      appleDistributionCertificateId: distCert.id,
-      appleProvisioningProfileId: provisioningProfile.id,
-      iosDistributionType: IosDistributionType.AppStore,
-    });
-  }
-
-  async getProvisioningProfileAsync(
-    ctx: Context
-  ): Promise<AppleProvisioningProfileFragment | null> {
-    const buildCredentials = await this.getBuildCredentialsAsync(ctx);
-    if (!buildCredentials) {
-      return null;
-    }
-    return buildCredentials.provisioningProfile ?? null;
   }
 
   async runAsync(ctx: Context): Promise<IosAppBuildCredentialsFragment> {
     const areBuildCredentialsSetup = await this.areBuildCredentialsSetupAsync(ctx);
     if (areBuildCredentialsSetup) {
-      return nullthrows(await this.getBuildCredentialsAsync(ctx));
+      return nullthrows(
+        await getBuildCredentialsAsync(ctx, this.app, IosDistributionType.AppStore)
+      );
     }
     if (ctx.nonInteractive) {
       throw new MissingCredentialsNonInteractiveError(
@@ -131,7 +110,11 @@ export class SetupProvisioningProfile {
       IosDistributionType.AppStore
     ).runAsync(ctx);
 
-    const currentProfile = await this.getProvisioningProfileAsync(ctx);
+    const currentProfile = await getProvisioningProfileAsync(
+      ctx,
+      this.app,
+      IosDistributionType.AppStore
+    );
     if (!currentProfile) {
       return await this.createAndAssignProfileAsync(ctx, distCert);
     }
