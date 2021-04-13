@@ -54,7 +54,7 @@ export default class Build extends Command {
     }),
     local: flags.boolean({
       default: false,
-      description: 'Run build locally',
+      description: 'Run build locally [experimental]',
     }),
     wait: flags.boolean({
       default: true,
