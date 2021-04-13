@@ -1,12 +1,12 @@
 import Log from '../../log';
-import { getProjectAccountName, getProjectConfigDescription } from '../../project/projectUtils';
+import { getProjectAccountName } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
 import { findAccountByName } from '../../user/Account';
 import { ensureActorHasUsername } from '../../user/actions';
 import { Action, CredentialsManager } from '../CredentialsManager';
 import { Context } from '../context';
+import { getAppLookupParamsFromContext } from '../ios/actions/new/BuildCredentialsUtils';
 import { SelectAndRemoveDistributionCertificate } from '../ios/actions/new/RemoveDistributionCertificate';
-import { AppLookupParams } from '../ios/api/GraphqlClient';
 import {
   displayEmptyIosCredentials,
   displayIosAppCredentials,
@@ -39,7 +39,7 @@ export class ManageIosBeta implements Action {
           throw new Error(`You do not have access to account: ${accountName}`);
         }
         if (ctx.hasProjectContext) {
-          const appLookupParams = ManageIosBeta.getAppLookupParamsFromContext(ctx);
+          const appLookupParams = getAppLookupParamsFromContext(ctx);
           const iosAppCredentials = await ctx.newIos.getIosAppCredentialsWithCommonFieldsAsync(
             appLookupParams
           );
@@ -84,26 +84,5 @@ export class ManageIosBeta implements Action {
         return;
       }
     }
-  }
-
-  public static getAppLookupParamsFromContext(ctx: Context): AppLookupParams {
-    ctx.ensureProjectContext();
-    const projectName = ctx.exp.slug;
-    const accountName = getProjectAccountName(ctx.exp, ctx.user);
-    const account = findAccountByName(ctx.user.accounts, accountName);
-    if (!account) {
-      throw new Error(`You do not have access to account: ${accountName}`);
-    }
-
-    const bundleIdentifier = ctx.exp.ios?.bundleIdentifier;
-    if (!bundleIdentifier) {
-      throw new Error(
-        `ios.bundleIdentifier needs to be defined in your ${getProjectConfigDescription(
-          ctx.projectDir
-        )} file`
-      );
-    }
-
-    return { account, projectName, bundleIdentifier };
   }
 }

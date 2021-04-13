@@ -4,7 +4,7 @@ import {
   testDistCertFragmentNoDependencies,
   testDistCertFragmentOneDependency,
 } from '../../../../__tests__/fixtures-ios';
-import { ManageIosBeta } from '../../../../manager/ManageIosBeta';
+import { getAppLookupParamsFromContext } from '../BuildCredentialsUtils';
 import { RemoveDistributionCertificate } from '../RemoveDistributionCertificate';
 
 jest.mock('../../../../../prompts');
@@ -13,7 +13,7 @@ jest.mock('../../../../../prompts');
 describe('RemoveDistributionCertificate', () => {
   it('deletes the distribution certificate on Expo and Apple servers when there are no App Dependencies in Interactive Mode', async () => {
     const ctx = createCtxMock({ nonInteractive: false });
-    const appLookupParams = ManageIosBeta.getAppLookupParamsFromContext(ctx);
+    const appLookupParams = getAppLookupParamsFromContext(ctx);
     const removeDistCertAction = new RemoveDistributionCertificate(
       appLookupParams.account,
       testDistCertFragmentNoDependencies
@@ -29,7 +29,7 @@ describe('RemoveDistributionCertificate', () => {
   });
   it('deletes the distribution certificate on Expo servers when there are no App Dependencies in Non-Interactive Mode', async () => {
     const ctx = createCtxMock({ nonInteractive: true });
-    const appLookupParams = ManageIosBeta.getAppLookupParamsFromContext(ctx);
+    const appLookupParams = getAppLookupParamsFromContext(ctx);
     const removeDistCertAction = new RemoveDistributionCertificate(
       appLookupParams.account,
       testDistCertFragmentNoDependencies
@@ -45,7 +45,7 @@ describe('RemoveDistributionCertificate', () => {
   });
   it('deletes the distribution certificate and its provisioning profile on Expo and Apple servers when there are App Dependencies in Interactive Mode', async () => {
     const ctx = createCtxMock({ nonInteractive: false });
-    const appLookupParams = ManageIosBeta.getAppLookupParamsFromContext(ctx);
+    const appLookupParams = getAppLookupParamsFromContext(ctx);
     const removeDistCertAction = new RemoveDistributionCertificate(
       appLookupParams.account,
       testDistCertFragmentOneDependency
@@ -61,7 +61,7 @@ describe('RemoveDistributionCertificate', () => {
   });
   it('errors when the distribution certificate has App Dependencies in Non-Interactive Mode', async () => {
     const ctx = createCtxMock({ nonInteractive: true });
-    const appLookupParams = ManageIosBeta.getAppLookupParamsFromContext(ctx);
+    const appLookupParams = getAppLookupParamsFromContext(ctx);
     const removeDistCertAction = new RemoveDistributionCertificate(
       appLookupParams.account,
       testDistCertFragmentOneDependency

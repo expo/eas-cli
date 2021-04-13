@@ -1,11 +1,11 @@
 import { createCtxMock } from '../../../../__tests__/fixtures-context';
-import { ManageIosBeta } from '../../../../manager/ManageIosBeta';
+import { getAppLookupParamsFromContext } from '../BuildCredentialsUtils';
 import { RemoveProvisioningProfiles } from '../RemoveProvisioningProfile';
 
 describe('RemoveProvisioningProfile', () => {
   it('Basic Case', async () => {
     const ctx = createCtxMock();
-    const appLookupParams = ManageIosBeta.getAppLookupParamsFromContext(ctx);
+    const appLookupParams = getAppLookupParamsFromContext(ctx);
     const testProvisioningProfile = {
       id: 'test-id',
       developerPortalIdentifier: 'test-developer-portal-identifier',
