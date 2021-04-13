@@ -37,5 +37,5 @@ export function createManagerMock(mockOverride: Record<string, any> = {}): Crede
       }),
     },
     mockOverride
-  );
+  ) as any;
 }

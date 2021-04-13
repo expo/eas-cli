@@ -6,7 +6,9 @@
   "scripts": {
     "build": "lerna run build",
     "build:tarballs:linux": "yarn build && yarn workspace eas-cli oclif-dev pack --targets linux-x64",
+    "typecheck": "lerna run typecheck",
     "start": "lerna run watch --parallel",
+    "watch": "yarn start",
     "eas": "packages/eas-cli/bin/run",
     "lint": "eslint . --ext .ts",
     "release": "lerna version",

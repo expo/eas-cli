@@ -25,6 +25,7 @@ const userStub: Actor = {
   id: 'userId',
   username: 'username',
   accounts: [],
+  isExpoAdmin: false,
 };
 
 const robotStub: Actor = {
@@ -32,6 +33,7 @@ const robotStub: Actor = {
   id: 'userId',
   firstName: 'GLaDOS',
   accounts: [],
+  isExpoAdmin: false,
 };
 
 describe('ensureActorHasUsername', () => {

@@ -1,4 +1,5 @@
 import mockdate from 'mockdate';
+import nullthrows from 'nullthrows';
 
 import Log from '../../../../log';
 import { IosAppCredentialsQuery } from '../../api/graphql/queries/IosAppCredentialsQuery';
@@ -18,7 +19,7 @@ describe('print credentials', () => {
         appleAppIdentifierId: 'test-id',
       }
     );
-    displayIosAppCredentials(testIosAppCredentialsData);
+    displayIosAppCredentials(nullthrows(testIosAppCredentialsData));
     const loggedSoFar = (Log.log as jest.Mock).mock.calls.reduce(
       (acc, mockValue) => acc + mockValue
     );

@@ -1,3 +1,5 @@
+import nullthrows from 'nullthrows';
+
 import { confirmAsync } from '../../../../../prompts';
 import { getAppstoreMock, testAuthCtx } from '../../../../__tests__/fixtures-appstore';
 import { createCtxMock } from '../../../../__tests__/fixtures-context';
@@ -32,9 +34,10 @@ describe('SetupProvisioningProfile', () => {
         authCtx: testAuthCtx,
         listProvisioningProfilesAsync: jest.fn(() => [
           {
-            provisioningProfileId:
+            provisioningProfileId: nullthrows(
               testIosAppCredentialsWithBuildCredentialsQueryResult.iosAppBuildCredentialsArray[0]
-                .provisioningProfile.developerPortalIdentifier,
+                .provisioningProfile
+            ).developerPortalIdentifier,
           },
         ]),
       },

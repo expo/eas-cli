@@ -5,6 +5,7 @@ export const jester: Actor = {
   id: 'jester-id',
   username: 'jester',
   accounts: [{ id: 'jester-account-id', name: 'jester' }],
+  isExpoAdmin: false,
 };
 
 export const jester2: Actor = {
@@ -12,6 +13,7 @@ export const jester2: Actor = {
   id: 'jester2-id',
   username: 'jester2',
   accounts: [{ id: 'jester2-account-id', name: 'jester2' }],
+  isExpoAdmin: false,
 };
 
 export const testUsername = jester.username;

@@ -64,6 +64,7 @@ describe(getProjectAccountName, () => {
       id: 'userId',
       username: 'notbrent',
       accounts: [],
+      isExpoAdmin: false,
     });
     expect(projectAccountName).toBe(expWithOwner.owner);
   });
@@ -74,6 +75,7 @@ describe(getProjectAccountName, () => {
       id: 'userId',
       firstName: 'notauser',
       accounts: [],
+      isExpoAdmin: false,
     });
     expect(projectAccountName).toBe(expWithOwner.owner);
   });
@@ -84,6 +86,7 @@ describe(getProjectAccountName, () => {
       id: 'userId',
       username: 'dominik',
       accounts: [],
+      isExpoAdmin: false,
     });
     expect(projectAccountName).toBe('dominik');
   });
@@ -95,6 +98,7 @@ describe(getProjectAccountName, () => {
         id: 'userId',
         firstName: 'notauser',
         accounts: [],
+        isExpoAdmin: false,
       });
     expect(resolveProjectAccountName).toThrow('manifest property is required');
   });
@@ -117,6 +121,7 @@ describe(getProjectAccountNameAsync, () => {
         { id: 'account_id_1', name: 'notnotbrent' },
         { id: 'account_id_2', name: 'dominik' },
       ],
+      isExpoAdmin: false,
     }));
 
     const projectAccountName = await getProjectAccountNameAsync(expWithOwner);
@@ -132,6 +137,7 @@ describe(getProjectAccountNameAsync, () => {
         { id: 'account_id_1', name: 'notnotbrent' },
         { id: 'account_id_2', name: 'dominik' },
       ],
+      isExpoAdmin: false,
     }));
 
     const projectAccountName = await getProjectAccountNameAsync(expWithoutOwner);
@@ -155,6 +161,7 @@ describe(getProjectAccountNameAsync, () => {
         { id: 'account_id_1', name: 'notnotbrent' },
         { id: 'account_id_2', name: 'dominik' },
       ],
+      isExpoAdmin: false,
     }));
     await expect(getProjectAccountNameAsync(expWithoutOwner)).rejects.toThrow(
       'manifest property is required'
