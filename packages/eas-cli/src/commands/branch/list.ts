@@ -100,8 +100,8 @@ export default class BranchList extends Command {
         ...branches.map(branch => [
           branch.name,
           formatUpdate(branch.updates[0]),
-          branch.updates[0].runtimeVersion,
-          branch.updates[0].group,
+          branch.updates[0]?.runtimeVersion ?? 'N/A',
+          branch.updates[0]?.group ?? 'N/A',
         ])
       );
       Log.log(chalk.bold('Branches with their most recent update group:'));
