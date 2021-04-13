@@ -118,8 +118,8 @@ export default class ChannelList extends Command {
         channel.name,
         branch.name,
         formatUpdate(update),
-        update?.runtimeVersion,
-        update?.group,
+        update?.runtimeVersion ?? 'N/A',
+        update?.group ?? 'N/A',
       ]);
     }
 
