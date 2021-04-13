@@ -130,23 +130,16 @@ export async function getUpdateChannelByNameForAppAsync({
   );
 }
 
-export function logChannelDetails({
-  branchMapping,
-  isRollout,
-  rolloutPercent,
-  channel,
-}: {
-  branchMapping: BranchMapping;
-  isRollout: boolean;
-  rolloutPercent?: number;
-  channel: {
-    updateBranches: {
-      updates: (FormatUpdateParameter & { runtimeVersion?: string; group?: string })[];
-      name: string;
-      id: string;
-    }[];
-  };
+export function logChannelDetails(channel: {
+  branchMapping: string;
+  updateBranches: {
+    updates: (FormatUpdateParameter & { runtimeVersion?: string; group?: string })[];
+    name: string;
+    id: string;
+  }[];
 }): void {
+  const { branchMapping, isRollout, rolloutPercent } = getBranchMapping(channel.branchMapping);
+
   const table = new Table({
     head: ['branch', ...(isRollout ? ['rollout percent'] : []), ...UPDATE_COLUMNS],
     wordWrap: true,
@@ -250,10 +243,6 @@ export default class ChannelView extends Command {
     Log.log(
       chalk`{bold Branches, pointed at by this channel, and their most recent update group:}`
     );
-
-    const { branchMapping, isRollout, rolloutPercent } = getBranchMapping(
-      getUpdateChannelByNameForAppresult.app?.byId.updateChannelByName?.branchMapping
-    );
-    logChannelDetails({ branchMapping, isRollout, rolloutPercent, channel });
+    logChannelDetails(channel);
   }
 }

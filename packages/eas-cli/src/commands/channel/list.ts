@@ -11,7 +11,7 @@ import {
 import Log from '../../log';
 import { ensureProjectExistsAsync } from '../../project/ensureProjectExists';
 import { findProjectRootAsync, getProjectAccountNameAsync } from '../../project/projectUtils';
-import { getBranchMapping, logChannelDetails } from './view';
+import { logChannelDetails } from './view';
 
 const CHANNEL_LIMIT = 10_000;
 
@@ -106,9 +106,8 @@ export default class ChannelList extends Command {
 
     Log.log(); // spacing
     for (const channel of channels) {
-      const { branchMapping, isRollout, rolloutPercent } = getBranchMapping(channel.branchMapping);
       Log.log(`Details of channel ${chalk.bold(chalk.cyan(channel.name))}:`);
-      logChannelDetails({ branchMapping, isRollout, rolloutPercent, channel });
+      logChannelDetails(channel);
     }
   }
 }
