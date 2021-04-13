@@ -6,11 +6,13 @@ import path from 'path';
 
 import Log from '../log';
 
+const PLUGIN_PACKAGE_NAME = 'eas-cli-local-build-plugin';
+
 export async function runLocalBuildAsync(job: Job): Promise<void> {
   const execNameOrPath =
     process.env.EAS_LOCAL_BUILD_PLUGIN_PATH ??
     (await findWithNodeResolution()) ??
-    'eas-cli-local-build-plugin';
+    PLUGIN_PACKAGE_NAME;
   try {
     const arg = Buffer.from(JSON.stringify({ job })).toString('base64');
     await spawnAsync(execNameOrPath, [arg], {
@@ -20,8 +22,8 @@ export async function runLocalBuildAsync(job: Job): Promise<void> {
     if (err.code === 'ENOENT') {
       Log.warn(`Could not resolve executable ${execNameOrPath}.`);
       Log.warn(
-        `Install eas-cli-local-build-plugin package from npm e.g. ${chalk.bold(
-          'npm install -g eas-cli-local-build-plugin'
+        `Install ${PLUGIN_PACKAGE_NAME} package from npm e.g. ${chalk.bold(
+          `npm install -g ${PLUGIN_PACKAGE_NAME}`
         )} and make sure it's in PATH.`
       );
       throw err;
@@ -32,7 +34,7 @@ export async function runLocalBuildAsync(job: Job): Promise<void> {
 async function findWithNodeResolution(): Promise<string | undefined> {
   try {
     const resolvedPath = path.resolve(
-      path.dirname(require.resolve('eas-cli-local-build-plugin')),
+      path.dirname(require.resolve(PLUGIN_PACKAGE_NAME)),
       '../bin/run'
     );
     if (await fs.pathExists(resolvedPath)) {
