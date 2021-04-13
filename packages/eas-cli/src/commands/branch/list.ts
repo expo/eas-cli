@@ -18,6 +18,10 @@ import Log from '../../log';
 import { findProjectRootAsync, getProjectFullNameAsync } from '../../project/projectUtils';
 import { getActorDisplayName } from '../../user/User';
 
+export type FormatUpdateParameter = Pick<Update, 'id' | 'createdAt' | 'message'> & {
+  actor?: Maybe<Pick<User, 'username' | 'id'> | Pick<Robot, 'firstName' | 'id'>>;
+};
+
 export const UPDATE_COLUMNS = ['update description', 'update runtime version', 'update group ID'];
 const BRANCHES_LIMIT = 10_000;
 
@@ -113,11 +117,7 @@ export default class BranchList extends Command {
   }
 }
 
-export function formatUpdate(
-  update: Pick<Update, 'id' | 'createdAt' | 'message'> & {
-    actor?: Maybe<Pick<User, 'username' | 'id'> | Pick<Robot, 'firstName' | 'id'>>;
-  }
-): string {
+export function formatUpdate(update: FormatUpdateParameter): string {
   if (!update) {
     return 'N/A';
   }

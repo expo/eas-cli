@@ -44,7 +44,9 @@ function getRolloutInfo(
   oldBranch: Pick<UpdateBranch, 'name' | 'id'>;
   currentPercent: number;
 } {
-  const { branchMapping } = getBranchMapping(getUpdateChannelByNameForAppResult);
+  const { branchMapping } = getBranchMapping(
+    getUpdateChannelByNameForAppResult.app?.byId.updateChannelByName?.branchMapping
+  );
   const [newBranchId, oldBranchId] = branchMapping.data.map(d => d.branchId);
   const newBranch = getUpdateChannelByNameForAppResult.app?.byId.updateChannelByName?.updateBranches.filter(
     branch => branch.id === newBranchId
@@ -359,7 +361,7 @@ export default class ChannelRollout extends Command {
       channelName: channelName!,
     });
     const { branchMapping: currentBranchMapping, isRollout } = getBranchMapping(
-      getUpdateChannelByNameForAppResult
+      getUpdateChannelByNameForAppResult.app?.byId.updateChannelByName?.branchMapping
     );
 
     if (currentBranchMapping.data.length === 0) {
