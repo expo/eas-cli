@@ -8,7 +8,6 @@ import {
   IosDistributionType,
 } from '../../../../graphql/generated';
 import Log from '../../../../log';
-import { confirmAsync } from '../../../../prompts';
 import { Context } from '../../../context';
 import {
   IosTargetCredentials,
@@ -16,7 +15,6 @@ import {
   readIosCredentialsAsync,
 } from '../../../credentialsJson/read';
 import { AppLookupParams } from '../../api/GraphqlClient';
-import { getCertData } from '../../utils/p12Certificate';
 import { displayProjectCredentials } from '../../utils/printCredentialsBeta';
 import { readAppleTeam } from '../../utils/provisioningProfile';
 import {
@@ -25,14 +23,12 @@ import {
   getDistributionCertificateAsync,
   getProvisioningProfileAsync,
 } from './BuildCredentialsUtils';
-import { formatPkiCertificate } from './DistributionCertificateUtils';
 
 export class SetupBuildCredentialsFromCredentialsJson {
   constructor(private app: AppLookupParams, private distributionType: IosDistributionType) {}
 
   async getDistributionCertificateToAssignAsync(
     ctx: Context,
-    appInfo: string,
     targetCredentials: IosTargetCredentials,
     appleTeam: AppleTeamFragment,
     currentDistributionCertificate: AppleDistributionCertificateFragment | null
@@ -51,16 +47,6 @@ export class SetupBuildCredentialsFromCredentialsJson {
 
     const isSameCertificate = currentDistributionCertificate.certificateP12 === certP12;
     if (!isSameCertificate) {
-      const pkiCertificate = getCertData(certP12, certPassword);
-      const confirm = await confirmAsync({
-        message: `${formatPkiCertificate(
-          pkiCertificate
-        )} \n  There is already a Distribution Certificate assigned to this project. Would you like to assign this certificate to ${appInfo}?`,
-      });
-      if (!confirm) {
-        throw new Error('Aborting setup of Build Credentials from credentials json');
-      }
-
       return await ctx.newIos.createDistributionCertificateAsync(this.app, {
         certP12,
         certPassword,
@@ -89,11 +75,6 @@ export class SetupBuildCredentialsFromCredentialsJson {
     });
   }
 
-  /**
-   * We intentionally don't prompt the user if the old and new Provisioning Profiles differ.
-   * We assume that they already opted to use the new Distribution Certificate in their credentials
-   * json, and the new Provisioning Profile is only compatible with the new Distribution Certificate
-   */
   async getProvisioningProfileToAssignAsync(
     ctx: Context,
     targetCredentials: IosTargetCredentials,
@@ -134,21 +115,13 @@ export class SetupBuildCredentialsFromCredentialsJson {
     }
 
     // currently configured credentials
-    const buildCredentials = await getBuildCredentialsAsync(
-      ctx,
-      this.app,
-      IosDistributionType.AppStore
-    );
+    const buildCredentials = await getBuildCredentialsAsync(ctx, this.app, this.distributionType);
     const currentDistributionCertificate = await getDistributionCertificateAsync(
       ctx,
       this.app,
-      IosDistributionType.AppStore
+      this.distributionType
     );
-    const currentProfile = await getProvisioningProfileAsync(
-      ctx,
-      this.app,
-      IosDistributionType.AppStore
-    );
+    const currentProfile = await getProvisioningProfileAsync(ctx, this.app, this.distributionType);
     const appInfo = `@${this.app.account.name}/${this.app.projectName} (${this.app.bundleIdentifier})`;
 
     // new credentials from local json
@@ -158,12 +131,13 @@ export class SetupBuildCredentialsFromCredentialsJson {
       appleTeamName: appleTeamFromProvisioningProfile.teamName,
     });
     if (buildCredentials) {
+      Log.log('Currently configured credentials:');
       displayProjectCredentials(this.app, buildCredentials);
     }
 
+    Log.log(`Assigning credentials from credentials json to ${appInfo}...`);
     const distributionCertificateToAssign = await this.getDistributionCertificateToAssignAsync(
       ctx,
-      appInfo,
       localCredentials,
       appleTeam,
       currentDistributionCertificate
@@ -182,7 +156,17 @@ export class SetupBuildCredentialsFromCredentialsJson {
       provisioningProfileToAssign
     );
 
-    displayProjectCredentials(this.app, newBuildCredentials);
+    const didCredentialsChange =
+      !currentDistributionCertificate ||
+      !currentProfile ||
+      currentDistributionCertificate.id !== distributionCertificateToAssign.id ||
+      currentProfile.id !== provisioningProfileToAssign.id;
+    if (didCredentialsChange) {
+      Log.log('New credentials configuration:');
+      displayProjectCredentials(this.app, newBuildCredentials);
+    } else {
+      Log.log('Credentials have already been configured to your credentials json.');
+    }
 
     Log.newLine();
     Log.log(chalk.green(`All credentials are ready to build ${appInfo}`));
