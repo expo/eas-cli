@@ -2619,18 +2619,18 @@ export type DeleteUpdateChannelResult = {
 
 export type UpdateMutation = {
   __typename?: 'UpdateMutation';
-  /** Delete an EAS update */
-  deleteUpdate: DeleteUpdateResult;
+  /** Delete an EAS update group */
+  deleteUpdateGroup: DeleteUpdateGroupResult;
 };
 
 
-export type UpdateMutationDeleteUpdateArgs = {
-  updateId: Scalars['ID'];
+export type UpdateMutationDeleteUpdateGroupArgs = {
+  group: Scalars['ID'];
 };
 
-export type DeleteUpdateResult = {
-  __typename?: 'DeleteUpdateResult';
-  id: Scalars['ID'];
+export type DeleteUpdateGroupResult = {
+  __typename?: 'DeleteUpdateGroupResult';
+  group: Scalars['ID'];
 };
 
 export type UpdateBranchMutation = {
@@ -3463,6 +3463,22 @@ export type UpdatesByGroupQuery = (
       & Pick<Robot, 'firstName' | 'id'>
     )> }
   )> }
+);
+
+export type DeleteUpdateGroupMutationVariables = Exact<{
+  group: Scalars['ID'];
+}>;
+
+
+export type DeleteUpdateGroupMutation = (
+  { __typename?: 'RootMutation' }
+  & { update: (
+    { __typename?: 'UpdateMutation' }
+    & { deleteUpdateGroup: (
+      { __typename?: 'DeleteUpdateGroupResult' }
+      & Pick<DeleteUpdateGroupResult, 'group'>
+    ) }
+  ) }
 );
 
 export type CreateAppleAppIdentifierMutationVariables = Exact<{

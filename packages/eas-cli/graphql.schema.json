@@ -16939,11 +16939,11 @@
         "description": "",
         "fields": [
           {
-            "name": "deleteUpdate",
-            "description": "Delete an EAS update",
+            "name": "deleteUpdateGroup",
+            "description": "Delete an EAS update group",
             "args": [
               {
-                "name": "updateId",
+                "name": "group",
                 "description": null,
                 "type": {
                   "kind": "NON_NULL",
@@ -16962,7 +16962,7 @@
               "name": null,
               "ofType": {
                 "kind": "OBJECT",
-                "name": "DeleteUpdateResult",
+                "name": "DeleteUpdateGroupResult",
                 "ofType": null
               }
             },
@@ -16977,11 +16977,11 @@
       },
       {
         "kind": "OBJECT",
-        "name": "DeleteUpdateResult",
+        "name": "DeleteUpdateGroupResult",
         "description": "",
         "fields": [
           {
-            "name": "id",
+            "name": "group",
             "description": "",
             "args": [],
             "type": {
