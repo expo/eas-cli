@@ -53,7 +53,7 @@ export async function assignBuildCredentialsAsync(
   appleTeam?: AppleTeamFragment
 ): Promise<IosAppBuildCredentialsFragment> {
   const resolvedAppleTeam =
-    appleTeam ?? nullthrows(await resolveAppleTeamIfAuthenticatedAsync(ctx, app));
+    nullthrows(appleTeam ?? await resolveAppleTeamIfAuthenticatedAsync(ctx, app));
   const appleAppIdentifier = await ctx.newIos.createOrGetExistingAppleAppIdentifierAsync(
     app,
     resolvedAppleTeam
