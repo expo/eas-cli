@@ -3,8 +3,13 @@ import { JSONObject } from '@expo/json-file';
 import { AppPlatform, SubmissionFragment } from '../graphql/generated';
 import { SubmissionMutation } from '../graphql/mutations/SubmissionMutation';
 import { SubmissionQuery } from '../graphql/queries/SubmissionQuery';
-import { StartSubmissionResult, Submission, SubmissionConfig } from './SubmissionService.types';
+import { AndroidSubmissionConfig } from './android/AndroidSubmissionConfig';
+import { IosSubmissionConfig } from './ios/IosSubmissionConfig';
 import { SubmissionPlatform } from './types';
+
+export type SubmissionConfig = AndroidSubmissionConfig | IosSubmissionConfig;
+
+type StartSubmissionResult = string;
 
 const SubmissionService = {
   startSubmissionAsync,
