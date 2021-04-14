@@ -1,5 +1,6 @@
 import ora from 'ora';
 
+import { SubmissionFragment, SubmissionStatus } from '../graphql/generated';
 import Log from '../log';
 import { sleep } from '../utils/promise';
 import SubmissionService, { DEFAULT_CHECK_INTERVAL_MS } from './SubmissionService';
@@ -39,43 +40,41 @@ abstract class BaseSubmitter<SubmissionContext, SubmissionOptions> {
 
     let submissionCompleted = false;
     let submissionStatus: SubmissionStatus | null = null;
-    let submission: Submission | null = null;
+    let submission: SubmissionFragment | null = null;
     const submissionSpinner = ora(`Submitting your app to ${this.appStoreName}`).start();
     try {
       while (!submissionCompleted) {
         await sleep(DEFAULT_CHECK_INTERVAL_MS);
-        submission = await SubmissionService.getSubmissionAsync(
-          submissionConfig.projectId,
-          submissionId
-        );
-        submissionSpinner.text = this.getStatusText(submission.status);
+        submission = await SubmissionService.getSubmissionAsync(submissionId);
         submissionStatus = submission.status;
-        if (submissionStatus === SubmissionStatus.ERRORED) {
+
+        submissionSpinner.text = this.getStatusText(submissionStatus);
+        if (submissionStatus === SubmissionStatus.Errored) {
           submissionCompleted = true;
           process.exitCode = 1;
           submissionSpinner.fail();
-        } else if (submissionStatus === SubmissionStatus.FINISHED) {
+        } else if (submissionStatus === SubmissionStatus.Finished) {
           submissionCompleted = true;
           submissionSpinner.succeed();
         }
       }
     } catch (err) {
-      submissionSpinner.fail(this.getStatusText(SubmissionStatus.ERRORED));
+      submissionSpinner.fail(this.getStatusText(SubmissionStatus.Errored));
       throw err;
     }
 
     await displayLogs(submission, submissionStatus, verbose);
-    return submissionStatus ?? SubmissionStatus.ERRORED;
+    return submissionStatus ?? SubmissionStatus.Errored;
   }
 
   private getStatusText(status: SubmissionStatus): string {
-    if (status === SubmissionStatus.IN_QUEUE) {
+    if (status === SubmissionStatus.InQueue) {
       return `Submitting your app to ${this.appStoreName}: waiting for an available submitter`;
-    } else if (status === SubmissionStatus.IN_PROGRESS) {
+    } else if (status === SubmissionStatus.InProgress) {
       return `Submitting your app to ${this.appStoreName}: submission in progress`;
-    } else if (status === SubmissionStatus.FINISHED) {
+    } else if (status === SubmissionStatus.Finished) {
       return `Submitted your app to ${this.appStoreName}!`;
-    } else if (status === SubmissionStatus.ERRORED) {
+    } else if (status === SubmissionStatus.Errored) {
       return `Something went wrong when submitting your app to ${this.appStoreName}.`;
     } else {
       throw new Error('This should never happen');
