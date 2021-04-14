@@ -1,10 +1,10 @@
 import chalk from 'chalk';
 
+import { AppPlatform, SubmissionStatus } from '../../graphql/generated';
 import Log, { learnMore } from '../../log';
 import BaseSubmitter from '../BaseSubmitter';
-import { SubmissionStatus } from '../SubmissionService.types';
 import { Archive, ArchiveSource, getArchiveAsync } from '../archiveSource';
-import { IosSubmissionContext, SubmissionPlatform } from '../types';
+import { IosSubmissionContext } from '../types';
 import {
   ArchiveSourceSummaryFields,
   formatArchiveSourceSummary,
@@ -34,7 +34,7 @@ class IosSubmitter extends BaseSubmitter<IosSubmissionContext, IosSubmissionOpti
   protected readonly appStoreName: string = 'Apple App Store';
 
   constructor(ctx: IosSubmissionContext, options: IosSubmissionOptions) {
-    super(SubmissionPlatform.iOS, ctx, options);
+    super(AppPlatform.Ios, ctx, options);
   }
 
   async submitAsync(): Promise<void> {
@@ -51,7 +51,7 @@ class IosSubmitter extends BaseSubmitter<IosSubmissionContext, IosSubmissionOpti
     );
     const result = await this.startSubmissionAsync(submissionConfig, this.ctx.commandFlags.verbose);
 
-    if (result === SubmissionStatus.FINISHED) {
+    if (result === SubmissionStatus.Finished) {
       Log.addNewLineIfNone();
       Log.log(
         chalk.bold('Your binary has been successfully uploaded to App Store Connect!\n') +
@@ -67,7 +67,7 @@ class IosSubmitter extends BaseSubmitter<IosSubmissionContext, IosSubmissionOpti
   }
 
   private async resolveSourceOptions(): Promise<ResolvedSourceOptions> {
-    const archive = await getArchiveAsync(SubmissionPlatform.iOS, this.options.archiveSource);
+    const archive = await getArchiveAsync(AppPlatform.Ios, this.options.archiveSource);
     const appSpecificPassword = await getAppSpecificPasswordAsync(
       this.options.appSpecificPasswordSource
     );

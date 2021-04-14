@@ -2,9 +2,9 @@ import chalk from 'chalk';
 import { URL, parse as parseUrl } from 'url';
 import * as uuid from 'uuid';
 
+import { AppPlatform } from '../../graphql/generated';
 import Log from '../../log';
 import { promptAsync } from '../../prompts';
-import { SubmissionPlatform } from '../types';
 import { getBuildArtifactUrlByIdAsync, getLatestBuildArtifactUrlAsync } from '../utils/builds';
 import { isExistingFile, uploadAppArchiveAsync } from '../utils/files';
 
@@ -19,7 +19,7 @@ export enum ArchiveFileSourceType {
 interface ArchiveFileSourceBase {
   sourceType: ArchiveFileSourceType;
   projectDir: string;
-  platform: SubmissionPlatform;
+  platform: AppPlatform;
   projectId: string;
 }
 
@@ -235,8 +235,8 @@ async function askForArchiveUrlAsync(): Promise<string> {
   return url;
 }
 
-async function askForArchivePathAsync(platform: SubmissionPlatform): Promise<string> {
-  const isIos = platform === SubmissionPlatform.iOS;
+async function askForArchivePathAsync(platform: AppPlatform): Promise<string> {
+  const isIos = platform === AppPlatform.Ios;
   const defaultArchivePath = `/path/to/your/archive.${isIos ? 'ipa' : 'aab'}`;
   const { path } = await promptAsync({
     name: 'path',

@@ -1,13 +1,9 @@
 import fs from 'fs-extra';
 
+import { AppPlatform } from '../../graphql/generated';
 import BaseSubmitter from '../BaseSubmitter';
 import { Archive, ArchiveSource, getArchiveAsync } from '../archiveSource';
-import {
-  AndroidArchiveType,
-  AndroidSubmissionContext,
-  ArchiveType,
-  SubmissionPlatform,
-} from '../types';
+import { AndroidArchiveType, AndroidSubmissionContext, ArchiveType } from '../types';
 import {
   ArchiveSourceSummaryFields,
   formatArchiveSourceSummary,
@@ -34,7 +30,7 @@ class AndroidSubmitter extends BaseSubmitter<AndroidSubmissionContext, AndroidSu
   protected readonly appStoreName = 'Google Play Store';
 
   constructor(ctx: AndroidSubmissionContext, options: AndroidSubmissionOptions) {
-    super(SubmissionPlatform.Android, ctx, options);
+    super(AppPlatform.Android, ctx, options);
   }
 
   async submitAsync(): Promise<void> {
@@ -52,7 +48,7 @@ class AndroidSubmitter extends BaseSubmitter<AndroidSubmissionContext, AndroidSu
 
   private async resolveSourceOptions(): Promise<ResolvedSourceOptions> {
     const androidPackage = await getAndroidPackageAsync(this.options.androidPackageSource);
-    const archive = await getArchiveAsync(SubmissionPlatform.Android, this.options.archiveSource);
+    const archive = await getArchiveAsync(AppPlatform.Android, this.options.archiveSource);
     const serviceAccountPath = await getServiceAccountAsync(this.options.serviceAccountSource);
     return {
       androidPackage,

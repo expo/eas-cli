@@ -5,7 +5,6 @@ import { SubmissionMutation } from '../graphql/mutations/SubmissionMutation';
 import { SubmissionQuery } from '../graphql/queries/SubmissionQuery';
 import { AndroidSubmissionConfig } from './android/AndroidSubmissionConfig';
 import { IosSubmissionConfig } from './ios/IosSubmissionConfig';
-import { SubmissionPlatform } from './types';
 
 export type SubmissionConfig = AndroidSubmissionConfig | IosSubmissionConfig;
 
@@ -18,19 +17,14 @@ const SubmissionService = {
 
 export const DEFAULT_CHECK_INTERVAL_MS = 5 * 1000; // 5 secs
 
-const submissionPlatformMappings: Record<SubmissionPlatform, AppPlatform> = {
-  [SubmissionPlatform.Android]: AppPlatform.Android,
-  [SubmissionPlatform.iOS]: AppPlatform.Ios,
-};
-
 async function startSubmissionAsync(
-  platform: SubmissionPlatform,
+  platform: AppPlatform,
   projectId: string,
   config: SubmissionConfig
 ): Promise<StartSubmissionResult> {
   const { submission } = await SubmissionMutation.createSubmissionAsync({
     appId: projectId,
-    platform: submissionPlatformMappings[platform],
+    platform,
     config: (config as unknown) as JSONObject,
   });
 

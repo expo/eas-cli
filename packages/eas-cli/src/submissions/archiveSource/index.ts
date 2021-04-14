@@ -1,4 +1,5 @@
-import { ArchiveType, SubmissionPlatform } from '../types';
+import { AppPlatform } from '../../graphql/generated';
+import { ArchiveType } from '../types';
 import {
   ArchiveFileSource,
   ArchiveFileSourceType,
@@ -18,7 +19,7 @@ export interface Archive {
 }
 
 export async function getArchiveAsync(
-  platform: SubmissionPlatform,
+  platform: AppPlatform,
   source: ArchiveSource
 ): Promise<Archive> {
   const { location, realSource } = await getArchiveFileLocationAsync(source.archiveFile);

@@ -1,19 +1,13 @@
 import { AppPlatform, BuildStatus } from '../../graphql/generated';
 import { BuildQuery } from '../../graphql/queries/BuildQuery';
-import { SubmissionPlatform } from '../types';
-
-const graphqlPlatform: Record<SubmissionPlatform, AppPlatform> = {
-  [SubmissionPlatform.Android]: AppPlatform.Android,
-  [SubmissionPlatform.iOS]: AppPlatform.Ios,
-};
 
 export async function getBuildArtifactUrlByIdAsync(
-  platform: SubmissionPlatform,
+  platform: AppPlatform,
   buildId: string
 ): Promise<string> {
   const { platform: buildPlatform, artifacts } = await BuildQuery.byIdAsync(buildId);
 
-  if (buildPlatform !== graphqlPlatform[platform]) {
+  if (buildPlatform !== platform) {
     throw new Error("Build platform doesn't match!");
   }
 
@@ -28,11 +22,11 @@ export async function getBuildArtifactUrlByIdAsync(
 }
 
 export async function getLatestBuildArtifactUrlAsync(
-  platform: SubmissionPlatform,
+  platform: AppPlatform,
   appId: string
 ): Promise<string | null> {
   const builds = await BuildQuery.allForAppAsync(appId, {
-    platform: graphqlPlatform[platform],
+    platform,
     status: BuildStatus.Finished,
     limit: 1,
   });

@@ -1,20 +1,19 @@
 import ora from 'ora';
 
-import { SubmissionFragment, SubmissionStatus } from '../graphql/generated';
+import { AppPlatform, SubmissionFragment, SubmissionStatus } from '../graphql/generated';
 import Log from '../log';
 import { sleep } from '../utils/promise';
 import SubmissionService, {
   DEFAULT_CHECK_INTERVAL_MS,
   SubmissionConfig,
 } from './SubmissionService';
-import { SubmissionPlatform } from './types';
 import { displayLogs } from './utils/logs';
 
 abstract class BaseSubmitter<SubmissionContext, SubmissionOptions> {
   protected abstract readonly appStoreName: string;
 
   protected constructor(
-    private platform: SubmissionPlatform,
+    private platform: AppPlatform,
     protected ctx: SubmissionContext,
     protected options: SubmissionOptions
   ) {}
