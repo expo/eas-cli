@@ -8,7 +8,7 @@ import { IosSubmissionConfig } from './ios/IosSubmissionConfig';
 
 export type SubmissionConfig = AndroidSubmissionConfig | IosSubmissionConfig;
 
-type StartSubmissionResult = string;
+export type StartSubmissionResult = string;
 
 const SubmissionService = {
   startSubmissionAsync,

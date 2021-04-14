@@ -3,11 +3,11 @@ import { v4 as uuidv4 } from 'uuid';
 
 import { asMock } from '../../../__tests__/utils';
 import { jester as mockJester } from '../../../credentials/__tests__/fixtures-constants';
+import { AppPlatform, SubmissionFragment, SubmissionStatus } from '../../../graphql/generated';
 import { createTestProject } from '../../../project/__tests__/project-utils';
 import { ensureProjectExistsAsync } from '../../../project/ensureProjectExists';
 import SubmissionService from '../../SubmissionService';
-import { Submission, SubmissionStatus } from '../../SubmissionService.types';
-import { IosSubmitCommandFlags, SubmissionPlatform } from '../../types';
+import { IosSubmitCommandFlags } from '../../types';
 import { IosSubmissionConfig } from '../IosSubmissionConfig';
 import IosSubmitCommand from '../IosSubmitCommand';
 
@@ -75,11 +75,11 @@ describe(IosSubmitCommand, () => {
     it('sends a request to Submission Service', async () => {
       const projectId = uuidv4();
       asMock(SubmissionService.getSubmissionAsync).mockImplementationOnce(
-        async (projectId: string, submissionId: string): Promise<Submission> => {
-          const actualSubmission = await originalGetSubmissionAsync(projectId, submissionId);
+        async (submissionId: string): Promise<SubmissionFragment> => {
+          const actualSubmission = await originalGetSubmissionAsync(submissionId);
           return {
             ...actualSubmission,
-            status: SubmissionStatus.FINISHED,
+            status: SubmissionStatus.Finished,
           };
         }
       );
@@ -107,7 +107,7 @@ describe(IosSubmitCommand, () => {
       };
 
       expect(SubmissionService.startSubmissionAsync).toHaveBeenCalledWith(
-        SubmissionPlatform.iOS,
+        AppPlatform.Ios,
         projectId,
         iosSubmissionConfig
       );

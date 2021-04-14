@@ -1,12 +1,7 @@
 import { v4 as uuid } from 'uuid';
 
-import {
-  StartSubmissionResult,
-  Submission,
-  SubmissionConfig,
-  SubmissionStatus,
-} from '../SubmissionService.types';
-import { SubmissionPlatform } from '../types';
+import { AppPlatform, SubmissionFragment, SubmissionStatus } from '../../graphql/generated';
+import { StartSubmissionResult, SubmissionConfig } from '../SubmissionService';
 
 const SubmissionService = {
   startSubmissionAsync,
@@ -15,28 +10,24 @@ const SubmissionService = {
 
 export const DEFAULT_CHECK_INTERVAL_MS = 0;
 
-const submissionStore: Record<string, Submission> = {};
+const submissionStore: Record<string, SubmissionFragment> = {};
 
 async function startSubmissionAsync(
-  platform: SubmissionPlatform,
+  platform: AppPlatform,
   _projectId: string,
   _config: SubmissionConfig
 ): Promise<StartSubmissionResult> {
   const id = uuid();
-  const submission: Submission = {
+  const submission: SubmissionFragment = {
     id,
-    accountId: uuid(),
-    userId: uuid(),
     platform,
-    status: SubmissionStatus.IN_QUEUE,
-    createdAt: new Date(),
-    updatedAt: new Date(),
+    status: SubmissionStatus.InQueue,
   };
   submissionStore[id] = submission;
   return Promise.resolve(id);
 }
 
-async function getSubmissionAsync(_projectId: string, submissionId: string): Promise<Submission> {
+async function getSubmissionAsync(submissionId: string): Promise<SubmissionFragment> {
   return submissionStore[submissionId];
 }
 

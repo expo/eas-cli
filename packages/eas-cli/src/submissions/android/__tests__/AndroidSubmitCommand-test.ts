@@ -3,11 +3,11 @@ import { v4 as uuidv4 } from 'uuid';
 
 import { asMock } from '../../../__tests__/utils';
 import { jester as mockJester } from '../../../credentials/__tests__/fixtures-constants';
+import { AppPlatform, SubmissionFragment, SubmissionStatus } from '../../../graphql/generated';
 import { createTestProject } from '../../../project/__tests__/project-utils';
 import { ensureProjectExistsAsync } from '../../../project/ensureProjectExists';
 import SubmissionService from '../../SubmissionService';
-import { Submission, SubmissionStatus } from '../../SubmissionService.types';
-import { AndroidArchiveType, AndroidSubmitCommandFlags, SubmissionPlatform } from '../../types';
+import { AndroidArchiveType, AndroidSubmitCommandFlags } from '../../types';
 import { AndroidSubmissionConfig, ReleaseStatus, ReleaseTrack } from '../AndroidSubmissionConfig';
 import AndroidSubmitCommand from '../AndroidSubmitCommand';
 
@@ -80,11 +80,11 @@ describe(AndroidSubmitCommand, () => {
     it('sends a request to Submission Service', async () => {
       const projectId = uuidv4();
       asMock(SubmissionService.getSubmissionAsync).mockImplementationOnce(
-        async (projectId: string, submissionId: string): Promise<Submission> => {
-          const actualSubmission = await originalGetSubmissionAsync(projectId, submissionId);
+        async (submissionId: string): Promise<SubmissionFragment> => {
+          const actualSubmission = await originalGetSubmissionAsync(submissionId);
           return {
             ...actualSubmission,
-            status: SubmissionStatus.FINISHED,
+            status: SubmissionStatus.Finished,
           };
         }
       );
@@ -114,7 +114,7 @@ describe(AndroidSubmitCommand, () => {
       };
 
       expect(SubmissionService.startSubmissionAsync).toHaveBeenCalledWith(
-        SubmissionPlatform.Android,
+        AppPlatform.Android,
         projectId,
         androidSubmissionConfig
       );
