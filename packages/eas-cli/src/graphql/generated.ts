@@ -1745,11 +1745,13 @@ export type AccountMutation = {
   setBuildAutoRenew?: Maybe<Account>;
   /** Set payment details */
   setPaymentSource?: Maybe<Account>;
+  /** Extend offer to account */
+  extendOffer?: Maybe<Account>;
   /** Send an email to primary account email */
   sendEmail?: Maybe<Account>;
   /** Require authorization to send push notifications for experiences owned by this account */
   setPushSecurityEnabled?: Maybe<Account>;
-  /** Rename this account */
+  /** Rename this account and the primary user's username if this account is a personal account */
   rename: Account;
 };
 
@@ -1800,6 +1802,13 @@ export type AccountMutationSetPaymentSourceArgs = {
 };
 
 
+export type AccountMutationExtendOfferArgs = {
+  accountName: Scalars['ID'];
+  offer: StandardOffer;
+  suppressMessage?: Maybe<Scalars['Boolean']>;
+};
+
+
 export type AccountMutationSendEmailArgs = {
   accountName: Scalars['ID'];
   emailTemplate: EmailTemplate;
@@ -1816,6 +1825,17 @@ export type AccountMutationRenameArgs = {
   accountID: Scalars['ID'];
   newName: Scalars['String'];
 };
+
+export enum StandardOffer {
+  /** $29 USD per month, 30 day trial */
+  Default = 'DEFAULT',
+  /** $348 USD per year, 30 day trial */
+  YearlySub = 'YEARLY_SUB',
+  /** $29 USD per month, 1 year trial */
+  YcDeals = 'YC_DEALS',
+  /** $800 USD per month */
+  Support = 'SUPPORT'
+}
 
 export enum EmailTemplate {
   /** Able to purchase Developer Services */
@@ -2619,18 +2639,18 @@ export type DeleteUpdateChannelResult = {
 
 export type UpdateMutation = {
   __typename?: 'UpdateMutation';
-  /** Delete an EAS update */
-  deleteUpdate: DeleteUpdateResult;
+  /** Delete an EAS update group */
+  deleteUpdateGroup: DeleteUpdateGroupResult;
 };
 
 
-export type UpdateMutationDeleteUpdateArgs = {
-  updateId: Scalars['ID'];
+export type UpdateMutationDeleteUpdateGroupArgs = {
+  group: Scalars['ID'];
 };
 
-export type DeleteUpdateResult = {
-  __typename?: 'DeleteUpdateResult';
-  id: Scalars['ID'];
+export type DeleteUpdateGroupResult = {
+  __typename?: 'DeleteUpdateGroupResult';
+  group: Scalars['ID'];
 };
 
 export type UpdateBranchMutation = {
@@ -3095,15 +3115,6 @@ export type DeleteWebhookResult = {
   id: Scalars['ID'];
 };
 
-export enum StandardOffer {
-  /** $29 USD per month, 30 day trial */
-  Default = 'DEFAULT',
-  /** $29 USD per month, 1 year trial */
-  YcDeals = 'YC_DEALS',
-  /** $800 USD per month */
-  Support = 'SUPPORT'
-}
-
 export type BaseSearchResult = SearchResult & {
   __typename?: 'BaseSearchResult';
   /** @deprecated Use SearchResult instead */
@@ -3443,6 +3454,22 @@ export type GetChannelByNameForAppQuery = (
       )> }
     ) }
   )> }
+);
+
+export type DeleteUpdateGroupMutationVariables = Exact<{
+  group: Scalars['ID'];
+}>;
+
+
+export type DeleteUpdateGroupMutation = (
+  { __typename?: 'RootMutation' }
+  & { update: (
+    { __typename?: 'UpdateMutation' }
+    & { deleteUpdateGroup: (
+      { __typename?: 'DeleteUpdateGroupResult' }
+      & Pick<DeleteUpdateGroupResult, 'group'>
+    ) }
+  ) }
 );
 
 export type UpdatesByGroupQueryVariables = Exact<{

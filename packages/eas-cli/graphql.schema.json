@@ -12176,6 +12176,57 @@
             "deprecationReason": null
           },
           {
+            "name": "extendOffer",
+            "description": "Extend offer to account",
+            "args": [
+              {
+                "name": "accountName",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "ID",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null
+              },
+              {
+                "name": "offer",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "ENUM",
+                    "name": "StandardOffer",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null
+              },
+              {
+                "name": "suppressMessage",
+                "description": null,
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "Boolean",
+                  "ofType": null
+                },
+                "defaultValue": null
+              }
+            ],
+            "type": {
+              "kind": "OBJECT",
+              "name": "Account",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "sendEmail",
             "description": "Send an email to primary account email",
             "args": [
@@ -12259,7 +12310,7 @@
           },
           {
             "name": "rename",
-            "description": "Rename this account",
+            "description": "Rename this account and the primary user's username if this account is a personal account",
             "args": [
               {
                 "name": "accountID",
@@ -12306,6 +12357,41 @@
         "inputFields": null,
         "interfaces": [],
         "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "ENUM",
+        "name": "StandardOffer",
+        "description": "",
+        "fields": null,
+        "inputFields": null,
+        "interfaces": null,
+        "enumValues": [
+          {
+            "name": "DEFAULT",
+            "description": "$29 USD per month, 30 day trial",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "YEARLY_SUB",
+            "description": "$348 USD per year, 30 day trial",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "YC_DEALS",
+            "description": "$29 USD per month, 1 year trial",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "SUPPORT",
+            "description": "$800 USD per month",
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
         "possibleTypes": null
       },
       {
@@ -16939,11 +17025,11 @@
         "description": "",
         "fields": [
           {
-            "name": "deleteUpdate",
-            "description": "Delete an EAS update",
+            "name": "deleteUpdateGroup",
+            "description": "Delete an EAS update group",
             "args": [
               {
-                "name": "updateId",
+                "name": "group",
                 "description": null,
                 "type": {
                   "kind": "NON_NULL",
@@ -16962,7 +17048,7 @@
               "name": null,
               "ofType": {
                 "kind": "OBJECT",
-                "name": "DeleteUpdateResult",
+                "name": "DeleteUpdateGroupResult",
                 "ofType": null
               }
             },
@@ -16977,11 +17063,11 @@
       },
       {
         "kind": "OBJECT",
-        "name": "DeleteUpdateResult",
+        "name": "DeleteUpdateGroupResult",
         "description": "",
         "fields": [
           {
-            "name": "id",
+            "name": "group",
             "description": "",
             "args": [],
             "type": {
@@ -19525,35 +19611,6 @@
         "inputFields": null,
         "interfaces": [],
         "enumValues": null,
-        "possibleTypes": null
-      },
-      {
-        "kind": "ENUM",
-        "name": "StandardOffer",
-        "description": "",
-        "fields": null,
-        "inputFields": null,
-        "interfaces": null,
-        "enumValues": [
-          {
-            "name": "DEFAULT",
-            "description": "$29 USD per month, 30 day trial",
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "YC_DEALS",
-            "description": "$29 USD per month, 1 year trial",
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "SUPPORT",
-            "description": "$800 USD per month",
-            "isDeprecated": false,
-            "deprecationReason": null
-          }
-        ],
         "possibleTypes": null
       },
       {
