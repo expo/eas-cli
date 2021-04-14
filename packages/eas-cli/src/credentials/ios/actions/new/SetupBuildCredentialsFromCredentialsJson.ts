@@ -8,6 +8,7 @@ import {
   IosDistributionType,
 } from '../../../../graphql/generated';
 import Log from '../../../../log';
+import { confirmAsync } from '../../../../prompts';
 import { Context } from '../../../context';
 import {
   IosTargetCredentials,
@@ -133,6 +134,14 @@ export class SetupBuildCredentialsFromCredentialsJson {
     if (buildCredentials) {
       Log.log('Currently configured credentials:');
       displayProjectCredentials(this.app, buildCredentials);
+      if (!ctx.nonInteractive) {
+        const confirm = await confirmAsync({
+          message: `Would you like to replace this configuration with credentials from credentials json?`,
+        });
+        if (!confirm) {
+          throw new Error('Aborting setup of build credentials from credentials json');
+        }
+      }
     }
 
     Log.log(`Assigning credentials from credentials json to ${appInfo}...`);
@@ -153,7 +162,8 @@ export class SetupBuildCredentialsFromCredentialsJson {
       this.app,
       this.distributionType,
       distributionCertificateToAssign,
-      provisioningProfileToAssign
+      provisioningProfileToAssign,
+      appleTeam
     );
 
     const didCredentialsChange =

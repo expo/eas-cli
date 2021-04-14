@@ -3,6 +3,7 @@ import nullthrows from 'nullthrows';
 import {
   AppleDistributionCertificateFragment,
   AppleProvisioningProfileFragment,
+  AppleTeamFragment,
   IosAppBuildCredentialsFragment,
   IosDistributionType,
 } from '../../../../graphql/generated';
@@ -48,15 +49,17 @@ export async function assignBuildCredentialsAsync(
   app: AppLookupParams,
   iosDistributionType: IosDistributionType,
   distCert: AppleDistributionCertificateFragment,
-  provisioningProfile: AppleProvisioningProfileFragment
+  provisioningProfile: AppleProvisioningProfileFragment,
+  appleTeam?: AppleTeamFragment
 ): Promise<IosAppBuildCredentialsFragment> {
-  const appleTeam = nullthrows(await resolveAppleTeamIfAuthenticatedAsync(ctx, app));
+  const resolvedAppleTeam =
+    appleTeam ?? nullthrows(await resolveAppleTeamIfAuthenticatedAsync(ctx, app));
   const appleAppIdentifier = await ctx.newIos.createOrGetExistingAppleAppIdentifierAsync(
     app,
-    appleTeam
+    resolvedAppleTeam
   );
   return await ctx.newIos.createOrUpdateIosAppBuildCredentialsAsync(app, {
-    appleTeam,
+    appleTeam: resolvedAppleTeam,
     appleAppIdentifierId: appleAppIdentifier.id,
     appleDistributionCertificateId: distCert.id,
     appleProvisioningProfileId: provisioningProfile.id,
