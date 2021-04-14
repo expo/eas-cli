@@ -76,7 +76,7 @@ export async function ensureBundleIdExistsWithNameAsync(
   }
 }
 
-async function syncCapabilities(
+export async function syncCapabilities(
   bundleId: BundleId,
   options: EnsureAppExistsOptions
 ): Promise<void> {
