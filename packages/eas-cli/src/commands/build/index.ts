@@ -52,6 +52,10 @@ export default class Build extends Command {
       default: false,
       description: 'Run command in --non-interactive mode',
     }),
+    local: flags.boolean({
+      default: false,
+      description: 'Run build locally [experimental]',
+    }),
     wait: flags.boolean({
       default: true,
       allowNo: true,
@@ -76,8 +80,13 @@ export default class Build extends Command {
       let { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
       const projectId = await getProjectIdAsync(exp);
 
-      if (!(await isEasEnabledForProjectAsync(projectId))) {
+      if (!flags.local && !(await isEasEnabledForProjectAsync(projectId))) {
         warnEasUnavailable();
+        process.exitCode = 1;
+        return;
+      }
+
+      if (flags.local && !verifyOptionsForLocalBuilds(platform)) {
         process.exitCode = 1;
         return;
       }
@@ -103,6 +112,7 @@ export default class Build extends Command {
         projectId,
         nonInteractive,
         skipCredentialsCheck: flags['skip-credentials-check'],
+        local: flags.local,
         skipProjectConfiguration: flags['skip-project-configuration'],
         waitForBuildEnd: flags.wait,
       });
@@ -154,6 +164,18 @@ async function ensureNoPendingBuildsExistAsync({
     return true;
   }
   return false;
+}
+
+function verifyOptionsForLocalBuilds(platform: RequestedPlatform): boolean {
+  if (platform === RequestedPlatform.All) {
+    Log.error('Builds for multiple platforms are not supported with flag --local');
+    return false;
+  } else if (process.platform !== 'darwin' && platform === RequestedPlatform.iOS) {
+    Log.error('Unsupported platform, macOS is required to build apps for iOS');
+    return false;
+  } else {
+    return true;
+  }
 }
 
 function toAppPlatforms(requestedPlatform: RequestedPlatform): AppPlatform[] {

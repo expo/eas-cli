@@ -1,4 +1,4 @@
-import { Job, Metadata } from '@expo/eas-build-job';
+import { ArchiveSource, ArchiveSourceType, Job, Metadata } from '@expo/eas-build-job';
 import { CredentialsSource } from '@expo/eas-json';
 import fs from 'fs-extra';
 
@@ -11,6 +11,7 @@ import { formatBytes } from '../utils/files';
 import { createProgressTracker } from '../utils/progress';
 import { requestedPlatformDisplayNames } from './constants';
 import { BuildContext } from './context';
+import { runLocalBuildAsync } from './local';
 import { collectMetadata } from './metadata';
 import { Platform, TrackingContext } from './types';
 import Analytics, { Event } from './utils/analytics';
@@ -39,9 +40,9 @@ interface Builder<TPlatform extends Platform, Credentials, ProjectConfiguration,
   prepareJobAsync(
     ctx: BuildContext<TPlatform>,
     jobData: {
-      archiveBucketKey: string;
       credentials?: Credentials;
       projectConfiguration?: ProjectConfiguration;
+      projectArchive: ArchiveSource;
     }
   ): Promise<Job>;
   sendBuildRequestAsync(appId: string, job: TJob, metadata: Metadata): Promise<BuildResult>;
@@ -54,7 +55,7 @@ export async function prepareBuildRequestForPlatformAsync<
   TJob extends Job
 >(
   builder: Builder<TPlatform, Credentials, ProjectConfiguration, TJob>
-): Promise<() => Promise<string>> {
+): Promise<() => Promise<string | undefined>> {
   const credentialsResult = await withAnalyticsAsync(
     async () => await builder.ensureCredentialsAsync(builder.ctx),
     {
@@ -83,25 +84,38 @@ export async function prepareBuildRequestForPlatformAsync<
     );
   }
 
-  const archiveBucketKey = await uploadProjectAsync(builder.ctx);
+  const projectArchive = builder.ctx.commandCtx.local
+    ? ({
+        type: ArchiveSourceType.PATH,
+        path: (await makeProjectTarballAsync()).path,
+      } as const)
+    : ({
+        type: ArchiveSourceType.S3,
+        bucketKey: await uploadProjectAsync(builder.ctx),
+      } as const);
 
   const metadata = await collectMetadata(builder.ctx, {
     credentialsSource: credentialsResult?.source,
   });
   const job = await builder.prepareJobAsync(builder.ctx, {
-    archiveBucketKey,
+    projectArchive,
     credentials: credentialsResult?.credentials,
     projectConfiguration: builder.projectConfiguration,
   });
 
   return async () => {
-    try {
-      return sendBuildRequestAsync(builder, job, metadata);
-    } catch (error) {
-      if (error?.expoApiV2ErrorCode === 'TURTLE_DEPRECATED_JOB_FORMAT') {
-        Log.error('EAS Build API has changed, please upgrade to the latest eas-cli');
+    if (builder.ctx.commandCtx.local) {
+      await runLocalBuildAsync(job);
+      return undefined;
+    } else {
+      try {
+        return sendBuildRequestAsync(builder, job, metadata);
+      } catch (error) {
+        if (error?.expoApiV2ErrorCode === 'TURTLE_DEPRECATED_JOB_FORMAT') {
+          Log.error('EAS Build API has changed, please upgrade to the latest eas-cli');
+        }
+        throw error;
       }
-      throw error;
     }
   };
 }

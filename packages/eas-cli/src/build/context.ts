@@ -19,6 +19,7 @@ export interface CommandContext {
   projectName: string;
   exp: ExpoConfig;
   nonInteractive: boolean;
+  local: boolean;
   skipCredentialsCheck: boolean;
   skipProjectConfiguration: boolean;
   waitForBuildEnd: boolean;
@@ -31,6 +32,7 @@ export async function createCommandContextAsync({
   projectDir,
   projectId,
   nonInteractive = false,
+  local,
   skipCredentialsCheck = false,
   skipProjectConfiguration = false,
   waitForBuildEnd,
@@ -41,6 +43,7 @@ export async function createCommandContextAsync({
   projectId: string;
   projectDir: string;
   nonInteractive: boolean;
+  local: boolean;
   skipCredentialsCheck: boolean;
   skipProjectConfiguration: boolean;
   waitForBuildEnd: boolean;
@@ -59,6 +62,7 @@ export async function createCommandContextAsync({
     projectName,
     exp,
     nonInteractive,
+    local,
     skipCredentialsCheck,
     skipProjectConfiguration,
     waitForBuildEnd,

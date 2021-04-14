@@ -22,7 +22,7 @@ import { prepareJobAsync, sanitizedTargetName } from './prepareJob';
 export async function prepareIosBuildAsync(
   commandCtx: CommandContext,
   easConfig: EasConfig
-): Promise<() => Promise<string>> {
+): Promise<() => Promise<string | undefined>> {
   const buildCtx = createBuildContext<Platform.IOS>({
     commandCtx,
     platform: Platform.IOS,

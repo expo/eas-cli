@@ -19,6 +19,9 @@ export async function buildAsync(commandCtx: CommandContext): Promise<void> {
   await ensureGitStatusIsCleanAsync(commandCtx.nonInteractive);
 
   const scheduledBuilds = await startBuildsAsync(commandCtx);
+  if (commandCtx.local) {
+    return;
+  }
   Log.newLine();
   printLogsUrls(commandCtx.accountName, scheduledBuilds);
   Log.newLine();
@@ -46,7 +49,7 @@ async function startBuildsAsync(
 
   const builds: {
     platform: Platform;
-    sendBuildRequestAsync: () => Promise<string>;
+    sendBuildRequestAsync: () => Promise<string | undefined>;
   }[] = [];
   if (shouldBuildAndroid) {
     const sendBuildRequestAsync = await prepareAndroidBuildAsync(commandCtx, easConfig);
@@ -56,12 +59,14 @@ async function startBuildsAsync(
     const sendBuildRequestAsync = await prepareIosBuildAsync(commandCtx, easConfig);
     builds.push({ platform: Platform.IOS, sendBuildRequestAsync });
   }
-  return Promise.all(
-    builds.map(async ({ platform, sendBuildRequestAsync }) => ({
-      platform,
-      buildId: await sendBuildRequestAsync(),
-    }))
-  );
+  return (
+    await Promise.all(
+      builds.map(async ({ platform, sendBuildRequestAsync }) => ({
+        platform,
+        buildId: await sendBuildRequestAsync(),
+      }))
+    )
+  ).filter((build): build is { platform: Platform; buildId: string } => !!build.buildId);
 }
 
 async function waitForBuildEndAsync(

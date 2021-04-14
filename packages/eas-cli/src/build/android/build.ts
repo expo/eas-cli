@@ -24,7 +24,7 @@ import { prepareJobAsync } from './prepareJob';
 export async function prepareAndroidBuildAsync(
   commandCtx: CommandContext,
   easConfig: EasConfig
-): Promise<() => Promise<string>> {
+): Promise<() => Promise<string | undefined>> {
   const buildCtx = createBuildContext<Platform.ANDROID>({
     commandCtx,
     platform: Platform.ANDROID,
