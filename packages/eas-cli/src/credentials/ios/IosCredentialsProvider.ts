@@ -9,11 +9,8 @@ import { Context } from '../context';
 import * as credentialsJsonReader from '../credentialsJson/read';
 import type { IosCredentials } from '../credentialsJson/read';
 import { SetupBuildCredentials } from './actions/SetupBuildCredentials';
-import {
-  getAppLookupParamsFromContext,
-  getBuildCredentialsAsync,
-} from './actions/new/BuildCredentialsUtils';
-import { AppLookupParams as GraphQLAppLookupParams } from './api/GraphqlClient';
+import { getBuildCredentialsAsync } from './actions/new/BuildCredentialsUtils';
+import { AppLookupParams } from './api/GraphqlClient';
 import { isAdHocProfile } from './utils/provisioningProfile';
 
 export type { IosCredentials };
@@ -24,19 +21,10 @@ interface Options {
   skipCredentialsCheck?: boolean;
 }
 
-interface AppLookupParams {
-  projectName: string;
-  accountName: string;
-  bundleIdentifier: string;
-}
-
 export default class IosCredentialsProvider implements CredentialsProvider {
   public readonly platform = Platform.IOS;
-  private readonly appLookupParams: GraphQLAppLookupParams;
 
-  constructor(private ctx: Context, private options: Options) {
-    this.appLookupParams = getAppLookupParamsFromContext(this.ctx);
-  }
+  constructor(private ctx: Context, private options: Options) {}
 
   public async hasRemoteAsync(): Promise<boolean> {
     // TODO: this is temporary
@@ -136,7 +124,7 @@ export default class IosCredentialsProvider implements CredentialsProvider {
       Log.log('Skipping credentials check');
     } else {
       await new CredentialsManager(this.ctx).runActionAsync(
-        new SetupBuildCredentials(this.appLookupParams, this.options.distribution)
+        new SetupBuildCredentials(this.options.app, this.options.distribution)
       );
     }
 
@@ -176,6 +164,6 @@ export default class IosCredentialsProvider implements CredentialsProvider {
       this.options.distribution === 'internal'
         ? IosDistributionType.AdHoc
         : IosDistributionType.AppStore;
-    return await getBuildCredentialsAsync(this.ctx, this.appLookupParams, distributionType);
+    return await getBuildCredentialsAsync(this.ctx, this.options.app, distributionType);
   }
 }

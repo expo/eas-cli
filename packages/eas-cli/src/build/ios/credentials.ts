@@ -6,6 +6,8 @@ import { createCredentialsContextAsync } from '../../credentials/context';
 import IosCredentialsProvider, {
   IosCredentials,
 } from '../../credentials/ios/IosCredentialsProvider';
+import { getAppLookupParamsFromContext } from '../../credentials/ios/actions/new/BuildCredentialsUtils';
+
 import { AppLookupParams } from '../../credentials/ios/credentials';
 import { CredentialsResult } from '../build';
 import { BuildContext } from '../context';
@@ -46,16 +48,15 @@ export async function resolveIosCredentialsAsync(
   projectDir: string,
   params: ResolveCredentialsParams
 ): Promise<CredentialsResult<IosCredentials>> {
-  const provider = new IosCredentialsProvider(
-    await createCredentialsContextAsync(projectDir, {
-      nonInteractive: params.nonInteractive,
-    }),
-    {
-      app: params.app,
-      distribution: params.distribution,
-      skipCredentialsCheck: params.skipCredentialsCheck,
-    }
-  );
+  const ctx = await createCredentialsContextAsync(projectDir, {
+    nonInteractive: params.nonInteractive,
+  });
+  const app = getAppLookupParamsFromContext(ctx);
+  const provider = new IosCredentialsProvider(ctx, {
+    app,
+    distribution: params.distribution,
+    skipCredentialsCheck: params.skipCredentialsCheck,
+  });
   const credentialsSource = await ensureCredentialsAsync(
     provider,
     params.workflow,

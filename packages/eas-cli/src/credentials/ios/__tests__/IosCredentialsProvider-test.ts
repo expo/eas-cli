@@ -48,7 +48,10 @@ describe(IosCredentialsProvider, () => {
       const appLookupParams = getAppLookupParamsFromContext(ctx);
       const provider = new IosCredentialsProvider(ctx, {
         app: {
-          accountName: appLookupParams.account.name,
+          account: {
+            id: `id-${appLookupParams.account.name}`,
+            name: appLookupParams.account.name,
+          },
           bundleIdentifier: appLookupParams.bundleIdentifier,
           projectName: appLookupParams.projectName,
         },
@@ -72,7 +75,10 @@ describe(IosCredentialsProvider, () => {
       const appLookupParams = getAppLookupParamsFromContext(ctx);
       const provider = new IosCredentialsProvider(ctx, {
         app: {
-          accountName: appLookupParams.account.name,
+          account: {
+            id: `id-${appLookupParams.account.name}`,
+            name: appLookupParams.account.name,
+          },
           bundleIdentifier: appLookupParams.bundleIdentifier,
           projectName: appLookupParams.projectName,
         },
@@ -97,7 +103,10 @@ describe(IosCredentialsProvider, () => {
         const appLookupParams = getAppLookupParamsFromContext(ctx);
         const provider = new IosCredentialsProvider(ctx, {
           app: {
-            accountName: appLookupParams.account.name,
+            account: {
+              id: `id-${appLookupParams.account.name}`,
+              name: appLookupParams.account.name,
+            },
             bundleIdentifier: appLookupParams.bundleIdentifier,
             projectName: appLookupParams.projectName,
           },
@@ -123,7 +132,10 @@ describe(IosCredentialsProvider, () => {
         const appLookupParams = getAppLookupParamsFromContext(ctx);
         const provider = new IosCredentialsProvider(ctx, {
           app: {
-            accountName: appLookupParams.account.name,
+            account: {
+              id: `id-${appLookupParams.account.name}`,
+              name: appLookupParams.account.name,
+            },
             bundleIdentifier: appLookupParams.bundleIdentifier,
             projectName: appLookupParams.projectName,
           },
@@ -136,10 +148,10 @@ describe(IosCredentialsProvider, () => {
         await expect(provider.getCredentialsAsync(CredentialsSource.REMOTE)).resolves.toMatchObject(
           {
             distributionCertificate: {
-              certP12: buildCredentials.distributionCertificate.certificateP12,
-              certPassword: buildCredentials.distributionCertificate.certificatePassword,
+              certP12: buildCredentials.distributionCertificate?.certificateP12,
+              certPassword: buildCredentials.distributionCertificate?.certificatePassword,
             },
-            provisioningProfile: buildCredentials.provisioningProfile.provisioningProfile,
+            provisioningProfile: buildCredentials.provisioningProfile?.provisioningProfile,
           }
         );
       });
