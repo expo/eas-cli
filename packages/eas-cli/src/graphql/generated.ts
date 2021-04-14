@@ -66,6 +66,7 @@ export type RootQuery = {
   /** @deprecated Use 'search' root field. */
   searchUsersAndApps: Array<Maybe<SearchResult>>;
   snack: SnackQuery;
+  submissions: SubmissionQuery;
   /** Top-level query object for querying UserInvitationPublicData publicly. */
   userInvitationPublicData: UserInvitationPublicDataQuery;
   /** Top-level query object for querying Users. */
@@ -413,6 +414,8 @@ export type App = Project & {
   /** (EAS Build) Builds associated with this app */
   builds: Array<Build>;
   buildJobs: Array<BuildJob>;
+  /** EAS Submissions associated with this app */
+  submissions: Array<Submission>;
   /** iOS app credentials for the project */
   iosAppCredentials: Array<IosAppCredentials>;
   /** Android app credentials for the project */
@@ -420,11 +423,11 @@ export type App = Project & {
   /** EAS channels owned by an app */
   updateChannels: Array<UpdateChannel>;
   /** get an EAS channel owned by the app by name */
-  updateChannelByName: UpdateChannel;
+  updateChannelByName?: Maybe<UpdateChannel>;
   /** EAS branches owned by an app */
   updateBranches: Array<UpdateBranch>;
   /** get an EAS branch owned by the app by name */
-  updateBranchByName: UpdateBranch;
+  updateBranchByName?: Maybe<UpdateBranch>;
   /** Coalesced project activity for an app. Use "createdBefore" to offset a query. */
   activityTimelineProjectActivities: Array<ActivityTimelineProjectActivity>;
   /** Environment secrets for an app */
@@ -476,6 +479,14 @@ export type AppBuildJobsArgs = {
   offset: Scalars['Int'];
   limit: Scalars['Int'];
   status?: Maybe<BuildStatus>;
+};
+
+
+/** Represents an Exponent App (or Experience in legacy terms) */
+export type AppSubmissionsArgs = {
+  filter: SubmissionFilter;
+  offset: Scalars['Int'];
+  limit: Scalars['Int'];
 };
 
 
@@ -839,6 +850,40 @@ export enum BuildJobStatus {
   Finished = 'FINISHED',
   SentToQueue = 'SENT_TO_QUEUE'
 }
+
+export type SubmissionFilter = {
+  platform?: Maybe<AppPlatform>;
+  status?: Maybe<SubmissionStatus>;
+};
+
+export enum SubmissionStatus {
+  InQueue = 'IN_QUEUE',
+  InProgress = 'IN_PROGRESS',
+  Finished = 'FINISHED',
+  Errored = 'ERRORED'
+}
+
+/** Represents an EAS Submission */
+export type Submission = ActivityTimelineProjectActivity & {
+  __typename?: 'Submission';
+  id: Scalars['ID'];
+  actor?: Maybe<Actor>;
+  activityTimestamp: Scalars['DateTime'];
+  app?: Maybe<App>;
+  initiatingActor?: Maybe<Actor>;
+  platform: AppPlatform;
+  status: SubmissionStatus;
+  logsUrl?: Maybe<Scalars['String']>;
+  error?: Maybe<SubmissionError>;
+  createdAt: Scalars['DateTime'];
+  updatedAt: Scalars['DateTime'];
+};
+
+export type SubmissionError = {
+  __typename?: 'SubmissionError';
+  errorCode?: Maybe<Scalars['String']>;
+  message?: Maybe<Scalars['String']>;
+};
 
 export type IosAppCredentialsFilter = {
   appleAppIdentifierId?: Maybe<Scalars['String']>;
@@ -1376,6 +1421,7 @@ export type BuildQuery = {
   /**
    * Get all builds for a specific app.
    * They are sorted from latest to oldest.
+   * @deprecated Use App.builds instead
    */
   allForApp: Array<Maybe<Build>>;
 };
@@ -1427,8 +1473,19 @@ export type ExperimentationQuery = {
 
 export type ProjectQuery = {
   __typename?: 'ProjectQuery';
+  byAccountNameAndSlug: Project;
+  /** @deprecated See byAccountNameAndSlug */
   byUsernameAndSlug: Project;
+  /** @deprecated Field no longer supported */
   byPaths: Array<Maybe<Project>>;
+};
+
+
+export type ProjectQueryByAccountNameAndSlugArgs = {
+  accountName: Scalars['String'];
+  slug: Scalars['String'];
+  platform?: Maybe<AppPlatform>;
+  sdkVersions?: Maybe<Array<Maybe<Scalars['String']>>>;
 };
 
 
@@ -1476,6 +1533,17 @@ export type SnackQueryByIdArgs = {
 
 export type SnackQueryByHashIdArgs = {
   hashId: Scalars['ID'];
+};
+
+export type SubmissionQuery = {
+  __typename?: 'SubmissionQuery';
+  /** Look up EAS Submission by submission ID */
+  byId: Submission;
+};
+
+
+export type SubmissionQueryByIdArgs = {
+  submissionId: Scalars['ID'];
 };
 
 export type UserInvitationPublicDataQuery = {
@@ -1573,6 +1641,8 @@ export type RootMutation = {
   iosAppCredentials: IosAppCredentialsMutation;
   /** Mutations that create, update, and delete Robots */
   robot: RobotMutation;
+  /** Mutations that modify an EAS Submit submission */
+  submission: SubmissionMutation;
   updateChannel: UpdateChannelMutation;
   update: UpdateMutation;
   updateBranch: UpdateBranchMutation;
@@ -2481,6 +2551,29 @@ export type DeleteRobotResult = {
   id: Scalars['ID'];
 };
 
+export type SubmissionMutation = {
+  __typename?: 'SubmissionMutation';
+  /** Create an EAS Submit submission */
+  createSubmission: CreateSubmissionResult;
+};
+
+
+export type SubmissionMutationCreateSubmissionArgs = {
+  input: CreateSubmissionInput;
+};
+
+export type CreateSubmissionInput = {
+  appId: Scalars['ID'];
+  platform: AppPlatform;
+  config: Scalars['JSONObject'];
+};
+
+export type CreateSubmissionResult = {
+  __typename?: 'CreateSubmissionResult';
+  /** Created submission */
+  submission: Submission;
+};
+
 export type UpdateChannelMutation = {
   __typename?: 'UpdateChannelMutation';
   /**
@@ -3085,10 +3178,10 @@ export type GetBranchInfoQuery = (
     & { byId: (
       { __typename?: 'App' }
       & Pick<App, 'id'>
-      & { updateBranchByName: (
+      & { updateBranchByName?: Maybe<(
         { __typename?: 'UpdateBranch' }
         & Pick<UpdateBranch, 'id' | 'name'>
-      ) }
+      )> }
     ) }
   )> }
 );
@@ -3184,7 +3277,7 @@ export type ViewBranchQuery = (
     & { byId: (
       { __typename?: 'App' }
       & Pick<App, 'id'>
-      & { updateBranchByName: (
+      & { updateBranchByName?: Maybe<(
         { __typename?: 'UpdateBranch' }
         & Pick<UpdateBranch, 'id' | 'name'>
         & { updates: Array<(
@@ -3198,7 +3291,7 @@ export type ViewBranchQuery = (
             & Pick<Robot, 'firstName' | 'id'>
           )> }
         )> }
-      ) }
+      )> }
     ) }
   )> }
 );
@@ -3250,14 +3343,14 @@ export type GetChannelByNameToEditQuery = (
     & { byId: (
       { __typename?: 'App' }
       & Pick<App, 'id'>
-      & { updateChannelByName: (
+      & { updateChannelByName?: Maybe<(
         { __typename?: 'UpdateChannel' }
         & Pick<UpdateChannel, 'id' | 'name'>
         & { updateBranches: Array<(
           { __typename?: 'UpdateBranch' }
           & Pick<UpdateBranch, 'id' | 'name'>
         )> }
-      ) }
+      )> }
     ) }
   )> }
 );
@@ -3329,7 +3422,7 @@ export type GetChannelByNameForAppQuery = (
     & { byId: (
       { __typename?: 'App' }
       & Pick<App, 'id'>
-      & { updateChannelByName: (
+      & { updateChannelByName?: Maybe<(
         { __typename?: 'UpdateChannel' }
         & Pick<UpdateChannel, 'id' | 'name' | 'createdAt' | 'branchMapping'>
         & { updateBranches: Array<(
@@ -3347,7 +3440,7 @@ export type GetChannelByNameForAppQuery = (
             )> }
           )> }
         )> }
-      ) }
+      )> }
     ) }
   )> }
 );
@@ -4154,6 +4247,27 @@ export type UpdatePublishMutation = (
   ) }
 );
 
+export type CreateSubmissionMutationVariables = Exact<{
+  appId: Scalars['ID'];
+  platform: AppPlatform;
+  config: Scalars['JSONObject'];
+}>;
+
+
+export type CreateSubmissionMutation = (
+  { __typename?: 'RootMutation' }
+  & { submission: (
+    { __typename?: 'SubmissionMutation' }
+    & { createSubmission: (
+      { __typename?: 'CreateSubmissionResult' }
+      & { submission: (
+        { __typename?: 'Submission' }
+        & Pick<Submission, 'id'>
+      ) }
+    ) }
+  ) }
+);
+
 export type CreateUploadSessionMutationVariables = Exact<{
   type: UploadSessionType;
 }>;
@@ -4363,6 +4477,48 @@ export type GetAssetMetadataQuery = (
   ) }
 );
 
+export type SubmissionsByIdQueryVariables = Exact<{
+  submissionId: Scalars['ID'];
+}>;
+
+
+export type SubmissionsByIdQuery = (
+  { __typename?: 'RootQuery' }
+  & { submissions: (
+    { __typename?: 'SubmissionQuery' }
+    & { byId: (
+      { __typename?: 'Submission' }
+      & Pick<Submission, 'id'>
+      & SubmissionFragment
+    ) }
+  ) }
+);
+
+export type GetAllSubmissionsForAppQueryVariables = Exact<{
+  appId: Scalars['String'];
+  offset: Scalars['Int'];
+  limit: Scalars['Int'];
+  status?: Maybe<SubmissionStatus>;
+  platform?: Maybe<AppPlatform>;
+}>;
+
+
+export type GetAllSubmissionsForAppQuery = (
+  { __typename?: 'RootQuery' }
+  & { app?: Maybe<(
+    { __typename?: 'AppQuery' }
+    & { byId: (
+      { __typename?: 'App' }
+      & Pick<App, 'id'>
+      & { submissions: Array<(
+        { __typename?: 'Submission' }
+        & Pick<Submission, 'id'>
+        & SubmissionFragment
+      )> }
+    ) }
+  )> }
+);
+
 export type CurrentUserQueryVariables = Exact<{ [key: string]: never; }>;
 
 
@@ -4460,6 +4616,15 @@ export type BuildFragment = (
 export type EnvironmentSecretFragment = (
   { __typename?: 'EnvironmentSecret' }
   & Pick<EnvironmentSecret, 'id' | 'name' | 'createdAt'>
+);
+
+export type SubmissionFragment = (
+  { __typename?: 'Submission' }
+  & Pick<Submission, 'id' | 'status' | 'platform' | 'logsUrl'>
+  & { error?: Maybe<(
+    { __typename?: 'SubmissionError' }
+    & Pick<SubmissionError, 'errorCode' | 'message'>
+  )> }
 );
 
 export type WebhookFragment = (
