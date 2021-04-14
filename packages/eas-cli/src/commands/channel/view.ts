@@ -2,6 +2,7 @@ import { getConfig } from '@expo/config';
 import { Command, flags } from '@oclif/command';
 import chalk from 'chalk';
 import Table from 'cli-table3';
+import { assert } from 'console';
 import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
@@ -13,7 +14,7 @@ import Log from '../../log';
 import { ensureProjectExistsAsync } from '../../project/ensureProjectExists';
 import { findProjectRootAsync, getProjectAccountNameAsync } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
-import { UPDATE_COLUMNS, formatUpdate } from '../branch/list';
+import { FormatUpdateParameter, UPDATE_COLUMNS, formatUpdate } from '../branch/list';
 
 export type BranchMapping = {
   version: number;
@@ -32,15 +33,19 @@ export type BranchMapping = {
  * Ensure that the branch mapping is properly formatted.
  */
 export function getBranchMapping(
-  getChannelByNameForAppQuery: GetChannelByNameForAppQuery
+  branchMappingString?: string
 ): { branchMapping: BranchMapping; isRollout: boolean; rolloutPercent?: number } {
-  const branchMappingString =
-    getChannelByNameForAppQuery.app?.byId.updateChannelByName?.branchMapping;
   if (!branchMappingString) {
     throw new Error('Missing branch mapping.');
   }
+  let branchMapping: BranchMapping;
+  try {
+    branchMapping = JSON.parse(branchMappingString);
+  } catch (e) {
+    throw new Error(`Could not parse branchMapping string into a JSON: "${branchMappingString}"`);
+  }
+  assert(branchMapping, 'Branch Mapping must be defined.');
 
-  const branchMapping: BranchMapping = JSON.parse(branchMappingString);
   if (branchMapping.version !== 0) {
     throw new Error('Branch mapping must be version 0.');
   }
@@ -125,6 +130,49 @@ export async function getUpdateChannelByNameForAppAsync({
   );
 }
 
+export function logChannelDetails(channel: {
+  branchMapping: string;
+  updateBranches: {
+    updates: (FormatUpdateParameter & { runtimeVersion?: string; group?: string })[];
+    name: string;
+    id: string;
+  }[];
+}): void {
+  const { branchMapping, isRollout, rolloutPercent } = getBranchMapping(channel.branchMapping);
+
+  const table = new Table({
+    head: ['branch', ...(isRollout ? ['rollout percent'] : []), ...UPDATE_COLUMNS],
+    wordWrap: true,
+  });
+
+  for (const index in branchMapping.data) {
+    if (parseInt(index, 10) > 1) {
+      throw new Error('Branch Mapping data must have length less than or equal to 2.');
+    }
+
+    const { branchId } = branchMapping.data[index];
+    const branch = channel.updateBranches.filter(branch => branch.id === branchId)[0];
+    if (!branch) {
+      throw new Error('Branch mapping is pointing at a missing branch.');
+    }
+    const update = branch.updates[0];
+    table.push([
+      branch.name,
+      ...(isRollout
+        ? [
+            parseInt(index, 10) === 0
+              ? `${rolloutPercent! * 100}%`
+              : `${(1 - rolloutPercent!) * 100}%`,
+          ]
+        : []),
+      formatUpdate(update),
+      update?.runtimeVersion ?? 'N/A',
+      update?.group ?? 'N/A,',
+    ]);
+  }
+  Log.log(table.toString());
+}
+
 export default class ChannelView extends Command {
   static hidden = true;
   static description = 'View a channel on the current project.';
@@ -189,47 +237,12 @@ export default class ChannelView extends Command {
       return;
     }
 
-    const { branchMapping, isRollout, rolloutPercent } = getBranchMapping(
-      getUpdateChannelByNameForAppresult
-    );
-
-    const table = new Table({
-      head: ['branch', ...(isRollout ? ['rollout percent'] : []), ...UPDATE_COLUMNS],
-      wordWrap: true,
-    });
-
-    for (const index in branchMapping.data) {
-      if (parseInt(index, 10) > 1) {
-        throw new Error('Branch Mapping data must have length less than or equal to 2.');
-      }
-
-      const { branchId } = branchMapping.data[index];
-      const branch = channel.updateBranches.filter(branch => branch.id === branchId)[0];
-      if (!branch) {
-        throw new Error('Branch mapping is pointing at a missing branch.');
-      }
-      const update = branch.updates[0];
-      table.push([
-        branch.name,
-        ...(isRollout
-          ? [
-              parseInt(index, 10) === 0
-                ? `${rolloutPercent! * 100}%`
-                : `${(1 - rolloutPercent!) * 100}%`,
-            ]
-          : []),
-        formatUpdate(update),
-        update?.runtimeVersion,
-        update?.group,
-      ]);
-    }
-
     Log.withTick(
       chalk`Channel: {bold ${channel.name}} on project {bold ${accountName}/${slug}}. Channel ID: {bold ${channel.id}}`
     );
     Log.log(
       chalk`{bold Branches, pointed at by this channel, and their most recent update group:}`
     );
-    Log.log(table.toString());
+    logChannelDetails(channel);
   }
 }

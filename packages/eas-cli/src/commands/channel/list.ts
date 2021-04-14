@@ -1,7 +1,6 @@
 import { getConfig } from '@expo/config';
 import { Command, flags } from '@oclif/command';
 import chalk from 'chalk';
-import Table from 'cli-table3';
 import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
@@ -12,7 +11,7 @@ import {
 import Log from '../../log';
 import { ensureProjectExistsAsync } from '../../project/ensureProjectExists';
 import { findProjectRootAsync, getProjectAccountNameAsync } from '../../project/projectUtils';
-import { UPDATE_COLUMNS, formatUpdate } from '../branch/list';
+import { logChannelDetails } from './view';
 
 const CHANNEL_LIMIT = 10_000;
 
@@ -32,7 +31,8 @@ async function getAllUpdateChannelForAppAsync({
                 updateChannels(offset: $offset, limit: $limit) {
                   id
                   name
-                  updateBranches(offset: 0, limit: 1) {
+                  branchMapping
+                  updateBranches(offset: 0, limit: $limit) {
                     id
                     name
                     updates(offset: 0, limit: 1) {
@@ -104,26 +104,10 @@ export default class ChannelList extends Command {
       return;
     }
 
-    const table = new Table({
-      head: ['channel', 'branch', ...UPDATE_COLUMNS],
-      wordWrap: true,
-    });
-
+    Log.log(); // spacing
     for (const channel of channels) {
-      // TODO (cedric): refactor when multiple branches per channel are available
-      const branch = channel.updateBranches[0];
-      const update = branch.updates[0];
-
-      table.push([
-        channel.name,
-        branch.name,
-        formatUpdate(update),
-        update?.runtimeVersion ?? 'N/A',
-        update?.group ?? 'N/A',
-      ]);
+      Log.log(`Details of channel ${chalk.bold(chalk.cyan(channel.name))}:`);
+      logChannelDetails(channel);
     }
-
-    Log.log(chalk`{bold Channels with their branches and their most recent update group:}`);
-    Log.log(table.toString());
   }
 }
