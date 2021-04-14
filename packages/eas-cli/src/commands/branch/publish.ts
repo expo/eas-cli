@@ -1,4 +1,5 @@
-import { getConfig } from '@expo/config';
+import { getConfig, getDefaultTarget } from '@expo/config';
+import { getRuntimeVersionForSDKVersion } from '@expo/sdk-runtime-versions';
 import { Command, flags } from '@oclif/command';
 import assert from 'assert';
 import chalk from 'chalk';
@@ -122,7 +123,16 @@ export default class BranchPublish extends Command {
 
     const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
     const accountName = await getProjectAccountNameAsync(exp);
-    const { slug, runtimeVersion } = exp;
+    let { slug, runtimeVersion, sdkVersion } = exp;
+
+    // When a SDK version is supplied instead of a runtime version and we're in the managed workflow
+    // construct the runtimeVersion with special meaning indicating that the runtime is an
+    // Expo SDK preset runtime that can be launched in Expo Go.
+    const isManagedProject = getDefaultTarget(projectDir) === 'managed';
+    if (!runtimeVersion && sdkVersion && isManagedProject) {
+      runtimeVersion = getRuntimeVersionForSDKVersion(sdkVersion);
+    }
+
     if (!runtimeVersion) {
       throw new Error(
         "Couldn't find 'runtimeVersion'. Please specify it under the 'expo' key in 'app.json'"
