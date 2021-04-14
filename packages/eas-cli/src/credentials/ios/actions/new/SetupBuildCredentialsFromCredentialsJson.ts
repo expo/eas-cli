@@ -1,4 +1,5 @@
 import chalk from 'chalk';
+import nullthrows from 'nullthrows';
 
 import {
   AppleDistributionCertificateFragment,
@@ -131,6 +132,29 @@ export class SetupBuildCredentialsFromCredentialsJson {
       appleTeamIdentifier: appleTeamFromProvisioningProfile.teamId,
       appleTeamName: appleTeamFromProvisioningProfile.teamName,
     });
+    const distributionCertificateToAssign = await this.getDistributionCertificateToAssignAsync(
+      ctx,
+      localCredentials,
+      appleTeam,
+      currentDistributionCertificate
+    );
+    const provisioningProfileToAssign = await this.getProvisioningProfileToAssignAsync(
+      ctx,
+      localCredentials,
+      appleTeam,
+      currentProfile
+    );
+
+    const didCredentialsChange =
+      !currentDistributionCertificate ||
+      !currentProfile ||
+      currentDistributionCertificate.id !== distributionCertificateToAssign.id ||
+      currentProfile.id !== provisioningProfileToAssign.id;
+    if (!didCredentialsChange) {
+      Log.log('Credentials have already been configured to your credentials json.');
+      return nullthrows(buildCredentials, 'buildCredentials should have been defined.');
+    }
+
     if (buildCredentials) {
       Log.log('Currently configured credentials:');
       displayProjectCredentials(this.app, buildCredentials);
@@ -145,18 +169,6 @@ export class SetupBuildCredentialsFromCredentialsJson {
     }
 
     Log.log(`Assigning credentials from credentials json to ${appInfo}...`);
-    const distributionCertificateToAssign = await this.getDistributionCertificateToAssignAsync(
-      ctx,
-      localCredentials,
-      appleTeam,
-      currentDistributionCertificate
-    );
-    const provisioningProfileToAssign = await this.getProvisioningProfileToAssignAsync(
-      ctx,
-      localCredentials,
-      appleTeam,
-      currentProfile
-    );
     const newBuildCredentials = await assignBuildCredentialsAsync(
       ctx,
       this.app,
@@ -166,17 +178,8 @@ export class SetupBuildCredentialsFromCredentialsJson {
       appleTeam
     );
 
-    const didCredentialsChange =
-      !currentDistributionCertificate ||
-      !currentProfile ||
-      currentDistributionCertificate.id !== distributionCertificateToAssign.id ||
-      currentProfile.id !== provisioningProfileToAssign.id;
-    if (didCredentialsChange) {
-      Log.log('New credentials configuration:');
-      displayProjectCredentials(this.app, newBuildCredentials);
-    } else {
-      Log.log('Credentials have already been configured to your credentials json.');
-    }
+    Log.log('New credentials configuration:');
+    displayProjectCredentials(this.app, newBuildCredentials);
 
     Log.newLine();
     Log.log(chalk.green(`All credentials are ready to build ${appInfo}`));

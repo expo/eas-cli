@@ -69,8 +69,8 @@ describe('SetupBuildCredentialsFromCredentialsJson', () => {
     );
     await setupBuildCredentialsFromCredentialsJsonAction.runAsync(ctx);
 
-    // expect build credentials to be created or updated on expo servers
-    expect((ctx.newIos.createOrUpdateIosAppBuildCredentialsAsync as any).mock.calls.length).toBe(1);
+    // expect build credentials not to be created or updated on expo servers
+    expect((ctx.newIos.createOrUpdateIosAppBuildCredentialsAsync as any).mock.calls.length).toBe(0);
     // expect distribution certificate not to be uploaded on expo servers
     expect((ctx.newIos.createDistributionCertificateAsync as any).mock.calls.length).toBe(0);
     // expect provisioning profile not to be uploaded on expo servers
