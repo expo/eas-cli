@@ -130,6 +130,7 @@ export default class BranchPublish extends Command {
     // Expo SDK preset runtime that can be launched in Expo Go.
     const isManagedProject = getDefaultTarget(projectDir) === 'managed';
     if (!runtimeVersion && sdkVersion && isManagedProject) {
+      Log.withTick('Generating runtime version from sdk version');
       runtimeVersion = getRuntimeVersionForSDKVersion(sdkVersion);
     }
 
