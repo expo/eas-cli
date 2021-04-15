@@ -11,8 +11,6 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
-- `secret:<COMMAND>` now all accept a `--json` flag ([#315](https://github.com/expo/eas-cli/pull/315) by [@fiberjw](https://github.com/fiberjw))
-
 ### 🐛 Bug fixes
 
 ### 🧹 Chores

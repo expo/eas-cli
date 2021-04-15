@@ -22,13 +22,6 @@ export default class EnvironmentSecretList extends Command {
   static description = 'Lists environment secrets available for your current app';
   static usage = 'secrets:list';
 
-  static flags = {
-    json: flags.boolean({
-      description: `Return JSON with the current app's secrets.`,
-      default: false,
-    }),
-  };
-
   async run(): Promise<void> {
     await ensureLoggedInAsync();
 
@@ -44,20 +37,11 @@ export default class EnvironmentSecretList extends Command {
       return;
     }
 
-    const {
-      flags: { json },
-    } = this.parse(EnvironmentSecretList);
-
     if (!projectDir) {
       throw new Error("Please run this command inside your project's directory");
     }
 
     const secrets = await EnvironmentSecretsQuery.allAsync(projectAccountName, projectFullName);
-
-    if (json) {
-      Log.log(secrets);
-      return;
-    }
 
     const table = new Table({
       head: ['Name', 'Scope', 'ID', 'Updated at'],
