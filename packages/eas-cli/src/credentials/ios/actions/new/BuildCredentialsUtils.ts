@@ -1,12 +1,12 @@
-import { IosEnterpriseProvisioning, iOSDistributionType } from '@expo/eas-json';
+import { IosDistributionType, IosEnterpriseProvisioning } from '@expo/eas-json';
 import nullthrows from 'nullthrows';
 
 import {
   AppleDistributionCertificateFragment,
   AppleProvisioningProfileFragment,
   AppleTeamFragment,
+  IosDistributionType as GraphQLIosDistributionType,
   IosAppBuildCredentialsFragment,
-  IosDistributionType,
 } from '../../../../graphql/generated';
 import {
   getProjectAccountName,
@@ -20,7 +20,7 @@ import { resolveAppleTeamIfAuthenticatedAsync } from './AppleTeamUtils';
 export async function getBuildCredentialsAsync(
   ctx: Context,
   app: AppLookupParams,
-  iosDistributionType: IosDistributionType
+  iosDistributionType: GraphQLIosDistributionType
 ): Promise<IosAppBuildCredentialsFragment | null> {
   const appCredentials = await ctx.newIos.getIosAppCredentialsWithBuildCredentialsAsync(app, {
     iosDistributionType,
@@ -35,7 +35,7 @@ export async function getBuildCredentialsAsync(
 export async function getProvisioningProfileAsync(
   ctx: Context,
   app: AppLookupParams,
-  iosDistributionType: IosDistributionType
+  iosDistributionType: GraphQLIosDistributionType
 ): Promise<AppleProvisioningProfileFragment | null> {
   const buildCredentials = await getBuildCredentialsAsync(ctx, app, iosDistributionType);
   return buildCredentials?.provisioningProfile ?? null;
@@ -44,7 +44,7 @@ export async function getProvisioningProfileAsync(
 export async function getDistributionCertificateAsync(
   ctx: Context,
   app: AppLookupParams,
-  iosDistributionType: IosDistributionType
+  iosDistributionType: GraphQLIosDistributionType
 ): Promise<AppleDistributionCertificateFragment | null> {
   const buildCredentials = await getBuildCredentialsAsync(ctx, app, iosDistributionType);
   return buildCredentials?.distributionCertificate ?? null;
@@ -53,7 +53,7 @@ export async function getDistributionCertificateAsync(
 export async function assignBuildCredentialsAsync(
   ctx: Context,
   app: AppLookupParams,
-  iosDistributionType: IosDistributionType,
+  iosDistributionType: GraphQLIosDistributionType,
   distCert: AppleDistributionCertificateFragment,
   provisioningProfile: AppleProvisioningProfileFragment,
   appleTeam?: AppleTeamFragment
@@ -96,18 +96,18 @@ export function getAppLookupParamsFromContext(ctx: Context): AppLookupParams {
 }
 
 export function resolveDistributionType(
-  distribution: iOSDistributionType,
+  distribution: IosDistributionType,
   enterpriseProvisioning?: IosEnterpriseProvisioning
-): IosDistributionType {
+): GraphQLIosDistributionType {
   if (distribution === 'internal') {
     if (enterpriseProvisioning === 'adhoc') {
-      return IosDistributionType.AdHoc;
+      return GraphQLIosDistributionType.AdHoc;
     } else if (enterpriseProvisioning === 'universal') {
-      return IosDistributionType.Enterprise;
+      return GraphQLIosDistributionType.Enterprise;
     } else {
-      return IosDistributionType.AdHoc;
+      return GraphQLIosDistributionType.AdHoc;
     }
   } else {
-    return IosDistributionType.AppStore;
+    return GraphQLIosDistributionType.AppStore;
   }
 }

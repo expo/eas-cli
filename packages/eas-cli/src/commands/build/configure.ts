@@ -87,7 +87,7 @@ async function promptForPlatformAsync(): Promise<RequestedPlatform> {
       },
       {
         title: 'iOS',
-        value: RequestedPlatform.iOS,
+        value: RequestedPlatform.Ios,
       },
       {
         title: 'Android',

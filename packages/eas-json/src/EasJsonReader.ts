@@ -2,7 +2,7 @@ import { Platform, Workflow } from '@expo/eas-build-job';
 import fs from 'fs-extra';
 import path from 'path';
 
-import { AndroidBuildProfile, BuildProfile, EasConfig, iOSBuildProfile } from './Config.types';
+import { AndroidBuildProfile, BuildProfile, EasConfig, IosBuildProfile } from './Config.types';
 import { EasJsonSchema, schemaBuildProfileMap } from './EasJsonSchema';
 
 interface EasJson {
@@ -36,7 +36,7 @@ export class EasJsonReader {
     }
     let iosConfig;
     if (['ios', 'all'].includes(this.platform)) {
-      iosConfig = this.validateBuildProfile<iOSBuildProfile>(
+      iosConfig = this.validateBuildProfile<IosBuildProfile>(
         Platform.IOS,
         buildProfileName,
         easJson.builds?.ios || {}
@@ -63,7 +63,7 @@ export class EasJsonReader {
     for (const name of Object.keys(androidProfiles)) {
       try {
         if (this.isWorkflowKeySpecified(Platform.ANDROID, name, androidProfiles)) {
-          await this.validateBuildProfile(Platform.ANDROID, name, androidProfiles);
+          this.validateBuildProfile(Platform.ANDROID, name, androidProfiles);
         }
       } catch (err) {
         err.msg = `Failed to validate Android build profile "${name}"\n${err.msg}`;
@@ -74,7 +74,7 @@ export class EasJsonReader {
     for (const name of Object.keys(iosProfiles)) {
       try {
         if (this.isWorkflowKeySpecified(Platform.IOS, name, iosProfiles)) {
-          await this.validateBuildProfile(Platform.IOS, name, iosProfiles);
+          this.validateBuildProfile(Platform.IOS, name, iosProfiles);
         }
       } catch (err) {
         err.msg = `Failed to validate iOS build profile "${name}"\n${err.msg}`;
@@ -126,7 +126,7 @@ export class EasJsonReader {
     return value;
   }
 
-  private isWorkflowKeySpecified<T extends BuildProfile>(
+  private isWorkflowKeySpecified(
     platform: Platform,
     buildProfileName: string,
     buildProfiles: Record<string, BuildProfilePreValidation>

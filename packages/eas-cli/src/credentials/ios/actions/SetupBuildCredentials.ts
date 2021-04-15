@@ -1,7 +1,10 @@
-import { IosEnterpriseProvisioning, iOSDistributionType } from '@expo/eas-json';
+import { IosDistributionType, IosEnterpriseProvisioning } from '@expo/eas-json';
 import chalk from 'chalk';
 
-import { IosAppBuildCredentialsFragment, IosDistributionType } from '../../../graphql/generated';
+import {
+  IosDistributionType as GraphQLIosDistributionType,
+  IosAppBuildCredentialsFragment,
+} from '../../../graphql/generated';
 import Log from '../../../log';
 import { promptAsync } from '../../../prompts';
 import { Action, CredentialsManager } from '../../CredentialsManager';
@@ -18,7 +21,7 @@ import { SetupProvisioningProfile } from './new/SetupProvisioningProfile';
 
 interface Options {
   app: GraphQLAppLookupParams;
-  distribution: iOSDistributionType;
+  distribution: IosDistributionType;
   enterpriseProvisioning?: IosEnterpriseProvisioning;
   skipCredentialsCheck?: boolean;
 }
@@ -61,14 +64,17 @@ export class SetupBuildCredentials implements Action {
       if (enterpriseProvisioning === 'adhoc') {
         return await new SetupAdhocProvisioningProfile(app).runAsync(ctx);
       } else if (enterpriseProvisioning === 'universal') {
-        return await new SetupProvisioningProfile(app, IosDistributionType.Enterprise).runAsync(
-          ctx
-        );
+        return await new SetupProvisioningProfile(
+          app,
+          GraphQLIosDistributionType.Enterprise
+        ).runAsync(ctx);
       } else {
         return await new SetupInternalProvisioningProfile(app).runAsync(ctx);
       }
     } else {
-      return await new SetupProvisioningProfile(app, IosDistributionType.AppStore).runAsync(ctx);
+      return await new SetupProvisioningProfile(app, GraphQLIosDistributionType.AppStore).runAsync(
+        ctx
+      );
     }
   }
 }

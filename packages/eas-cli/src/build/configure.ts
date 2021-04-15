@@ -21,7 +21,7 @@ import {
 
 const configureCommitMessage = {
   [RequestedPlatform.Android]: 'Configure EAS Build for Android',
-  [RequestedPlatform.iOS]: 'Configure EAS Build for iOS',
+  [RequestedPlatform.Ios]: 'Configure EAS Build for iOS',
   [RequestedPlatform.All]: 'Configure EAS Build',
 };
 
@@ -44,7 +44,7 @@ export async function configureAsync(options: {
     shouldConfigureAndroid: [RequestedPlatform.All, RequestedPlatform.Android].includes(
       options.platform
     ),
-    shouldConfigureIos: [RequestedPlatform.All, RequestedPlatform.iOS].includes(options.platform),
+    shouldConfigureIos: [RequestedPlatform.All, RequestedPlatform.Ios].includes(options.platform),
     hasAndroidNativeProject: await fs.pathExists(path.join(options.projectDir, 'android')),
     hasIosNativeProject: await fs.pathExists(path.join(options.projectDir, 'ios')),
   };

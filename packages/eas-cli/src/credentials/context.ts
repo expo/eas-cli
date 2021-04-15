@@ -8,7 +8,7 @@ import { confirmAsync } from '../prompts';
 import { Actor, getActorDisplayName } from '../user/User';
 import { ensureLoggedInAsync } from '../user/actions';
 import AndroidApi from './android/api/Client';
-import iOSApi from './ios/api/Client';
+import IosApi from './ios/api/Client';
 import * as IosGraphqlClient from './ios/api/GraphqlClient';
 import AppStoreApi from './ios/appstore/AppStoreApi';
 
@@ -27,7 +27,7 @@ export interface Context {
   readonly user: Actor;
   readonly nonInteractive: boolean;
   readonly android: AndroidApi;
-  readonly ios: iOSApi;
+  readonly ios: IosApi;
   readonly newIos: typeof IosGraphqlClient;
   readonly appStore: AppStoreApi;
   readonly hasProjectContext: boolean;
@@ -56,7 +56,7 @@ export async function createCredentialsContextAsync(
 
 class CredentialsContext implements Context {
   public readonly android = new AndroidApi();
-  public readonly ios = new iOSApi();
+  public readonly ios = new IosApi();
   public readonly newIos = IosGraphqlClient;
   public readonly appStore: AppStoreApi;
   public readonly nonInteractive: boolean;

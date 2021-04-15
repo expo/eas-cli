@@ -1,5 +1,5 @@
 import { ArchiveSource, Cache, Ios, Job, Workflow, sanitizeJob } from '@expo/eas-build-job';
-import { iOSGenericBuildProfile, iOSManagedBuildProfile } from '@expo/eas-json';
+import { IosGenericBuildProfile, IosManagedBuildProfile } from '@expo/eas-json';
 import assert from 'assert';
 import path from 'path';
 
@@ -111,7 +111,7 @@ function prepareTargetCredentials(targetCredentials: IosTargetCredentials): Ios.
 async function prepareGenericJobAsync(
   ctx: BuildContext<Platform.IOS>,
   jobData: JobData,
-  buildProfile: iOSGenericBuildProfile
+  buildProfile: IosGenericBuildProfile
 ): Promise<Partial<Ios.GenericJob>> {
   const projectRootDirectory =
     path.relative(await gitRootDirectoryAsync(), ctx.commandCtx.projectDir) || '.';
@@ -136,7 +136,7 @@ async function prepareGenericJobAsync(
 async function prepareManagedJobAsync(
   ctx: BuildContext<Platform.IOS>,
   jobData: JobData,
-  buildProfile: iOSManagedBuildProfile
+  buildProfile: IosManagedBuildProfile
 ): Promise<Partial<Ios.ManagedJob>> {
   const projectRootDirectory =
     path.relative(await gitRootDirectoryAsync(), ctx.commandCtx.projectDir) || '.';

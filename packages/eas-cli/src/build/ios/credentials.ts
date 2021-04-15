@@ -1,5 +1,5 @@
 import { Workflow } from '@expo/eas-build-job';
-import { CredentialsSource, IosEnterpriseProvisioning, iOSDistributionType } from '@expo/eas-json';
+import { CredentialsSource, IosDistributionType, IosEnterpriseProvisioning } from '@expo/eas-json';
 import assert from 'assert';
 
 import { createCredentialsContextAsync } from '../../credentials/context';
@@ -39,7 +39,7 @@ interface ResolveCredentialsParams {
   app: AppLookupParams;
   workflow: Workflow;
   credentialsSource: CredentialsSource;
-  distribution: iOSDistributionType;
+  distribution: IosDistributionType;
   enterpriseProvisioning?: IosEnterpriseProvisioning;
   nonInteractive: boolean;
   skipCredentialsCheck: boolean;
