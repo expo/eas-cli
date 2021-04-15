@@ -12,7 +12,7 @@ import {
 } from '../../../../__tests__/fixtures-ios';
 import { getNewIosApiMockWithoutCredentials } from '../../../../__tests__/fixtures-new-ios';
 import { readIosCredentialsAsync } from '../../../../credentialsJson/read';
-import { ManageIosBeta } from '../../../../manager/ManageIosBeta';
+import { getAppLookupParamsFromContext } from '../BuildCredentialsUtils';
 import { SetupBuildCredentialsFromCredentialsJson } from '../SetupBuildCredentialsFromCredentialsJson';
 jest.mock('../../../../../prompts');
 jest.mock('../../../../credentialsJson/read');
@@ -62,7 +62,7 @@ describe('SetupBuildCredentialsFromCredentialsJson', () => {
         createOrUpdateIosAppBuildCredentialsAsync: jest.fn(() => testBuildCreds),
       },
     });
-    const appLookupParams = ManageIosBeta.getAppLookupParamsFromContext(ctx);
+    const appLookupParams = getAppLookupParamsFromContext(ctx);
     const setupBuildCredentialsFromCredentialsJsonAction = new SetupBuildCredentialsFromCredentialsJson(
       appLookupParams,
       IosDistributionType.AppStore
@@ -89,7 +89,7 @@ describe('SetupBuildCredentialsFromCredentialsJson', () => {
         ),
       },
     });
-    const appLookupParams = ManageIosBeta.getAppLookupParamsFromContext(ctx);
+    const appLookupParams = getAppLookupParamsFromContext(ctx);
     const setupBuildCredentialsFromCredentialsJsonAction = new SetupBuildCredentialsFromCredentialsJson(
       appLookupParams,
       IosDistributionType.AppStore
@@ -120,7 +120,7 @@ describe('SetupBuildCredentialsFromCredentialsJson', () => {
         createOrUpdateIosAppBuildCredentialsAsync: jest.fn(() => testBuildCreds),
       },
     });
-    const appLookupParams = ManageIosBeta.getAppLookupParamsFromContext(ctx);
+    const appLookupParams = getAppLookupParamsFromContext(ctx);
     const setupBuildCredentialsFromCredentialsJsonAction = new SetupBuildCredentialsFromCredentialsJson(
       appLookupParams,
       IosDistributionType.AppStore
@@ -152,7 +152,7 @@ describe('SetupBuildCredentialsFromCredentialsJson', () => {
         createOrUpdateIosAppBuildCredentialsAsync: jest.fn(() => testBuildCreds),
       },
     });
-    const appLookupParams = ManageIosBeta.getAppLookupParamsFromContext(ctx);
+    const appLookupParams = getAppLookupParamsFromContext(ctx);
     const setupBuildCredentialsFromCredentialsJsonAction = new SetupBuildCredentialsFromCredentialsJson(
       appLookupParams,
       IosDistributionType.AppStore

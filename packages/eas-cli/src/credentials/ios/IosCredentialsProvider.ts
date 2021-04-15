@@ -1,39 +1,24 @@
 import { Platform } from '@expo/eas-build-job';
 import { CredentialsSource, iOSDistributionType } from '@expo/eas-json';
 
-import { AppleTeamFragment, IosDistributionType } from '../../graphql/generated';
+import { IosAppBuildCredentialsFragment, IosDistributionType } from '../../graphql/generated';
 import Log from '../../log';
-import { findAccountByName } from '../../user/Account';
 import { CredentialsManager } from '../CredentialsManager';
 import { CredentialsProvider } from '../CredentialsProvider';
 import { Context } from '../context';
 import * as credentialsJsonReader from '../credentialsJson/read';
 import type { IosCredentials } from '../credentialsJson/read';
 import { SetupBuildCredentials } from './actions/SetupBuildCredentials';
-import { resolveAppleTeamIfAuthenticatedAsync } from './actions/new/AppleTeamUtils';
-import { AppleTeamMissingError, MissingCredentialsNonInteractiveError } from './errors';
+import { getBuildCredentialsAsync } from './actions/new/BuildCredentialsUtils';
+import { AppLookupParams } from './api/GraphqlClient';
 import { isAdHocProfile } from './utils/provisioningProfile';
 
-export { IosCredentials };
-
-interface PartialIosCredentials {
-  provisioningProfile?: string;
-  distributionCertificate?: {
-    certP12?: string;
-    certPassword?: string;
-  };
-}
+export type { IosCredentials };
 
 interface Options {
   app: AppLookupParams;
   distribution: iOSDistributionType;
   skipCredentialsCheck?: boolean;
-}
-
-interface AppLookupParams {
-  projectName: string;
-  accountName: string;
-  bundleIdentifier: string;
 }
 
 export default class IosCredentialsProvider implements CredentialsProvider {
@@ -47,11 +32,11 @@ export default class IosCredentialsProvider implements CredentialsProvider {
     if (this.options.distribution === 'internal' && (await this.hasLocalAsync())) {
       return false;
     }
-    const { distributionCertificate, provisioningProfile } = await this.fetchRemoteAsync();
+    const buildCredentials = await this.fetchRemoteAsync();
     return !!(
-      distributionCertificate?.certP12 ||
-      distributionCertificate?.certPassword ||
-      provisioningProfile
+      buildCredentials?.distributionCertificate?.certificateP12 ||
+      buildCredentials?.distributionCertificate?.certificatePassword ||
+      buildCredentials?.provisioningProfile?.provisioningProfile
     );
   }
 
@@ -85,9 +70,9 @@ export default class IosCredentialsProvider implements CredentialsProvider {
       return !!(
         r &&
         l &&
-        r.provisioningProfile === l.provisioningProfile &&
-        r.distributionCertificate?.certP12 === l.distributionCertificate.certP12 &&
-        r.distributionCertificate?.certPassword === l.distributionCertificate.certPassword
+        r.provisioningProfile?.provisioningProfile === l.provisioningProfile &&
+        r.distributionCertificate?.certificateP12 === l.distributionCertificate.certP12 &&
+        r.distributionCertificate?.certificatePassword === l.distributionCertificate.certPassword
       );
     } catch (_) {
       return false;
@@ -143,8 +128,11 @@ export default class IosCredentialsProvider implements CredentialsProvider {
       );
     }
 
-    const { distributionCertificate, provisioningProfile } = await this.fetchRemoteAsync();
-    if (!distributionCertificate?.certP12 || !distributionCertificate?.certPassword) {
+    const buildCredentials = await this.fetchRemoteAsync();
+    if (
+      !buildCredentials?.distributionCertificate?.certificateP12 ||
+      !buildCredentials.distributionCertificate?.certificatePassword
+    ) {
       if (this.options.skipCredentialsCheck) {
         throw new Error(
           'Distribution certificate is missing and credentials check was skipped. Run without --skip-credentials-check to set it up.'
@@ -153,7 +141,7 @@ export default class IosCredentialsProvider implements CredentialsProvider {
         throw new Error('Distribution certificate is missing');
       }
     }
-    if (!provisioningProfile) {
+    if (!buildCredentials.provisioningProfile?.provisioningProfile) {
       if (this.options.skipCredentialsCheck) {
         throw new Error(
           'Provisioning profile is missing and credentials check was skipped. Run without --skip-credentials-check to set it up.'
@@ -163,70 +151,19 @@ export default class IosCredentialsProvider implements CredentialsProvider {
       }
     }
     return {
-      provisioningProfile,
+      provisioningProfile: buildCredentials.provisioningProfile.provisioningProfile,
       distributionCertificate: {
-        certP12: distributionCertificate.certP12,
-        certPassword: distributionCertificate.certPassword,
+        certP12: buildCredentials.distributionCertificate.certificateP12,
+        certPassword: buildCredentials.distributionCertificate.certificatePassword,
       },
     };
   }
 
-  private async fetchRemoteAsync(): Promise<PartialIosCredentials> {
-    if (this.options.distribution === 'internal') {
-      const { app } = this.options;
-      const account = findAccountByName(this.ctx.user.accounts, app.accountName);
-      if (!account) {
-        throw new Error(`You do not have access to the ${app.accountName} account`);
-      }
-
-      const appLookupParams = {
-        account,
-        bundleIdentifier: this.options.app.bundleIdentifier,
-        projectName: this.options.app.projectName,
-      };
-
-      let appleTeam: AppleTeamFragment | null = null;
-      if (!this.ctx.nonInteractive) {
-        await this.ctx.appStore.ensureAuthenticatedAsync();
-        appleTeam = await resolveAppleTeamIfAuthenticatedAsync(this.ctx, appLookupParams);
-      }
-
-      try {
-        const [distCert, provisioningProfile] = await Promise.all([
-          this.ctx.newIos.getDistributionCertificateForAppAsync(
-            appLookupParams,
-            IosDistributionType.AdHoc,
-            { appleTeam }
-          ),
-          this.ctx.newIos.getProvisioningProfileAsync(appLookupParams, IosDistributionType.AdHoc, {
-            appleTeam,
-          }),
-        ]);
-        return {
-          provisioningProfile: provisioningProfile?.provisioningProfile ?? undefined,
-          distributionCertificate: {
-            certP12: distCert?.certificateP12 ?? undefined,
-            certPassword: distCert?.certificatePassword ?? undefined,
-          },
-        };
-      } catch (err) {
-        if (err instanceof AppleTeamMissingError && this.ctx.nonInteractive) {
-          throw new MissingCredentialsNonInteractiveError();
-        }
-        throw err;
-      }
-    } else {
-      const [distCert, provisioningProfile] = await Promise.all([
-        this.ctx.ios.getDistributionCertificateAsync(this.options.app),
-        this.ctx.ios.getProvisioningProfileAsync(this.options.app),
-      ]);
-      return {
-        provisioningProfile: provisioningProfile?.provisioningProfile,
-        distributionCertificate: {
-          certP12: distCert?.certP12,
-          certPassword: distCert?.certPassword,
-        },
-      };
-    }
+  private async fetchRemoteAsync(): Promise<IosAppBuildCredentialsFragment | null> {
+    const distributionType =
+      this.options.distribution === 'internal'
+        ? IosDistributionType.AdHoc
+        : IosDistributionType.AppStore;
+    return await getBuildCredentialsAsync(this.ctx, this.options.app, distributionType);
   }
 }

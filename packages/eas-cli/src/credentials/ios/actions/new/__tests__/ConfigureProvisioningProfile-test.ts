@@ -6,8 +6,8 @@ import {
   testProvisioningProfile,
   testProvisioningProfileFragment,
 } from '../../../../__tests__/fixtures-ios';
-import { ManageIosBeta } from '../../../../manager/ManageIosBeta';
 import { MissingCredentialsNonInteractiveError } from '../../../errors';
+import { getAppLookupParamsFromContext } from '../BuildCredentialsUtils';
 import { ConfigureProvisioningProfile } from '../ConfigureProvisioningProfile';
 jest.mock('../../../../../prompts');
 (confirmAsync as jest.Mock).mockImplementation(() => true);
@@ -29,7 +29,7 @@ describe('ConfigureProvisioningProfile', () => {
         useExistingProvisioningProfileAsync: jest.fn(() => mockProvisioningProfileFromApple),
       },
     });
-    const appLookupParams = ManageIosBeta.getAppLookupParamsFromContext(ctx);
+    const appLookupParams = getAppLookupParamsFromContext(ctx);
     const provProfConfigurator = new ConfigureProvisioningProfile(
       appLookupParams,
       testDistCertFragmentNoDependencies,
@@ -46,7 +46,7 @@ describe('ConfigureProvisioningProfile', () => {
     const ctx = createCtxMock({
       nonInteractive: true,
     });
-    const appLookupParams = ManageIosBeta.getAppLookupParamsFromContext(ctx);
+    const appLookupParams = getAppLookupParamsFromContext(ctx);
     const provProfConfigurator = new ConfigureProvisioningProfile(
       appLookupParams,
       testDistCertFragmentNoDependencies,

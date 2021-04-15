@@ -14,6 +14,7 @@ import {
 import { UpdateCredentialsJson } from '../ios/actions/UpdateCredentialsJson';
 import { UpdateDistributionCertificate } from '../ios/actions/UpdateDistributionCertificate';
 import { UseExistingDistributionCertificate } from '../ios/actions/UseDistributionCertificate';
+import { getAppLookupParamsFromContext } from '../ios/actions/new/BuildCredentialsUtils';
 import { AppLookupParams } from '../ios/credentials';
 import { displayAllIosCredentials } from '../ios/utils/printCredentials';
 import { PressAnyKeyToContinue } from './HelperActions';
@@ -132,8 +133,8 @@ export class ManageIos implements Action {
         return new UseExistingDistributionCertificate(app);
       }
       case ActionType.SetupBuildCredentials: {
-        const app = this.getAppLookupParamsFromContext(ctx);
-        return new SetupBuildCredentials(app, 'store');
+        const appLookupParams = getAppLookupParamsFromContext(ctx);
+        return new SetupBuildCredentials(appLookupParams, 'store');
       }
       case ActionType.RemoveSpecificProvisioningProfile: {
         const app = this.getAppLookupParamsFromContext(ctx);

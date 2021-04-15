@@ -9,9 +9,9 @@ import {
   testIosAppCredentialsWithBuildCredentialsQueryResult,
 } from '../../../../__tests__/fixtures-ios';
 import { getNewIosApiMockWithoutCredentials } from '../../../../__tests__/fixtures-new-ios';
-import { ManageIosBeta } from '../../../../manager/ManageIosBeta';
 import { MissingCredentialsNonInteractiveError } from '../../../errors';
 import { validateProvisioningProfileAsync } from '../../../validators/validateProvisioningProfile';
+import { getAppLookupParamsFromContext } from '../BuildCredentialsUtils';
 import { SetupProvisioningProfile } from '../SetupProvisioningProfile';
 jest.mock('../../../../../prompts');
 (confirmAsync as jest.Mock).mockImplementation(() => true);
@@ -52,7 +52,7 @@ describe('SetupProvisioningProfile', () => {
         ),
       },
     });
-    const appLookupParams = ManageIosBeta.getAppLookupParamsFromContext(ctx);
+    const appLookupParams = getAppLookupParamsFromContext(ctx);
     const setupProvisioningProfileAction = new SetupProvisioningProfile(appLookupParams);
     await setupProvisioningProfileAction.runAsync(ctx);
 
@@ -82,7 +82,7 @@ describe('SetupProvisioningProfile', () => {
         createOrGetExistingAppleAppIdentifierAsync: jest.fn(() => testAppleAppIdentifierFragment),
       },
     });
-    const appLookupParams = ManageIosBeta.getAppLookupParamsFromContext(ctx);
+    const appLookupParams = getAppLookupParamsFromContext(ctx);
     const setupProvisioningProfileAction = new SetupProvisioningProfile(appLookupParams);
     await setupProvisioningProfileAction.runAsync(ctx);
 
@@ -111,7 +111,7 @@ describe('SetupProvisioningProfile', () => {
         createOrGetExistingAppleAppIdentifierAsync: jest.fn(() => testAppleAppIdentifierFragment),
       },
     });
-    const appLookupParams = ManageIosBeta.getAppLookupParamsFromContext(ctx);
+    const appLookupParams = getAppLookupParamsFromContext(ctx);
     const setupProvisioningProfileAction = new SetupProvisioningProfile(appLookupParams);
     await setupProvisioningProfileAction.runAsync(ctx);
 
@@ -133,7 +133,7 @@ describe('SetupProvisioningProfile', () => {
         createOrGetExistingAppleAppIdentifierAsync: jest.fn(() => testAppleAppIdentifierFragment),
       },
     });
-    const appLookupParams = ManageIosBeta.getAppLookupParamsFromContext(ctx);
+    const appLookupParams = getAppLookupParamsFromContext(ctx);
     const setupProvisioningProfileAction = new SetupProvisioningProfile(appLookupParams);
     await setupProvisioningProfileAction.runAsync(ctx);
 
@@ -146,7 +146,7 @@ describe('SetupProvisioningProfile', () => {
     const ctx = createCtxMock({
       nonInteractive: true,
     });
-    const appLookupParams = ManageIosBeta.getAppLookupParamsFromContext(ctx);
+    const appLookupParams = getAppLookupParamsFromContext(ctx);
     const setupProvisioningProfileAction = new SetupProvisioningProfile(appLookupParams);
     await expect(setupProvisioningProfileAction.runAsync(ctx)).rejects.toThrowError(
       MissingCredentialsNonInteractiveError

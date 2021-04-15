@@ -7,6 +7,11 @@ import {
   IosAppBuildCredentialsFragment,
   IosDistributionType,
 } from '../../../../graphql/generated';
+import {
+  getProjectAccountName,
+  getProjectConfigDescription,
+} from '../../../../project/projectUtils';
+import { findAccountByName } from '../../../../user/Account';
 import { Context } from '../../../context';
 import { AppLookupParams } from '../../api/GraphqlClient';
 import { resolveAppleTeamIfAuthenticatedAsync } from './AppleTeamUtils';
@@ -66,4 +71,25 @@ export async function assignBuildCredentialsAsync(
     appleProvisioningProfileId: provisioningProfile.id,
     iosDistributionType,
   });
+}
+
+export function getAppLookupParamsFromContext(ctx: Context): AppLookupParams {
+  ctx.ensureProjectContext();
+  const projectName = ctx.exp.slug;
+  const accountName = getProjectAccountName(ctx.exp, ctx.user);
+  const account = findAccountByName(ctx.user.accounts, accountName);
+  if (!account) {
+    throw new Error(`You do not have access to account: ${accountName}`);
+  }
+
+  const bundleIdentifier = ctx.exp.ios?.bundleIdentifier;
+  if (!bundleIdentifier) {
+    throw new Error(
+      `ios.bundleIdentifier needs to be defined in your ${getProjectConfigDescription(
+        ctx.projectDir
+      )} file`
+    );
+  }
+
+  return { account, projectName, bundleIdentifier };
 }
