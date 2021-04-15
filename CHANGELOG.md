@@ -11,6 +11,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Use special Expo SDK runtime version for managed projects ([#336](https://github.com/expo/eas-cli/pull/336)) by [@wschurman](https://github.com/wschurman))
+
 ### 🐛 Bug fixes
 
 - Fix the behavior where the provisioning profile was invalidated after syncing bundle id capabilities. ([#334](https://github.com/expo/eas-cli/pull/334) by [@dsokal](https://github.com/dsokal))
