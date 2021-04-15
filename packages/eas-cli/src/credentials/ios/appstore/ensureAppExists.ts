@@ -36,7 +36,7 @@ export async function ensureBundleIdExistsWithNameAsync(
   options?: EnsureAppExistsOptions
 ) {
   const context = getRequestContext(authCtx);
-  let spinner = ora(`Linking bundle identifier ${chalk.dim(bundleIdentifier)}`).start();
+  const spinner = ora(`Linking bundle identifier ${chalk.dim(bundleIdentifier)}`).start();
 
   let bundleId: BundleId | null;
   try {
@@ -72,23 +72,33 @@ export async function ensureBundleIdExistsWithNameAsync(
   }
 
   if (options) {
-    try {
-      spinner = ora(`Syncing capabilities`).start();
+    await syncCapabilities(bundleId, options);
+  }
+}
 
-      // Update the capabilities
+export async function syncCapabilities(
+  bundleId: BundleId,
+  options: EnsureAppExistsOptions
+): Promise<void> {
+  const spinner = ora(`Syncing capabilities`).start();
+
+  try {
+    const capability = await bundleId.hasCapabilityAsync(CapabilityType.PUSH_NOTIFICATIONS);
+    if (!capability && options.enablePushNotifications) {
       await bundleId.updateBundleIdCapabilityAsync({
         capabilityType: CapabilityType.PUSH_NOTIFICATIONS,
-        option: options.enablePushNotifications
-          ? CapabilityTypeOption.ON
-          : CapabilityTypeOption.OFF,
-        // TODO: Add more capabilities
+        option: CapabilityTypeOption.ON,
       });
-      spinner.succeed(`Synced capabilities`);
-    } catch (err) {
-      spinner.fail(`Failed to sync capabilities ${chalk.dim(bundleIdentifier)}`);
-
-      throw err;
+    } else if (capability && !options.enablePushNotifications) {
+      await bundleId.updateBundleIdCapabilityAsync({
+        capabilityType: CapabilityType.PUSH_NOTIFICATIONS,
+        option: CapabilityTypeOption.OFF,
+      });
     }
+    spinner.succeed(`Synced capabilities`);
+  } catch (err) {
+    spinner.fail(`Failed to sync capabilities ${chalk.dim(bundleId.attributes.identifier)}`);
+    throw err;
   }
 }
 
