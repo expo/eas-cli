@@ -4294,6 +4294,27 @@ export type UpdatePublishMutation = (
   ) }
 );
 
+export type CreateSubmissionMutationVariables = Exact<{
+  appId: Scalars['ID'];
+  platform: AppPlatform;
+  config: Scalars['JSONObject'];
+}>;
+
+
+export type CreateSubmissionMutation = (
+  { __typename?: 'RootMutation' }
+  & { submission: (
+    { __typename?: 'SubmissionMutation' }
+    & { createSubmission: (
+      { __typename?: 'CreateSubmissionResult' }
+      & { submission: (
+        { __typename?: 'Submission' }
+        & Pick<Submission, 'id'>
+      ) }
+    ) }
+  ) }
+);
+
 export type CreateUploadSessionMutationVariables = Exact<{
   type: UploadSessionType;
 }>;
@@ -4503,6 +4524,48 @@ export type GetAssetMetadataQuery = (
   ) }
 );
 
+export type SubmissionsByIdQueryVariables = Exact<{
+  submissionId: Scalars['ID'];
+}>;
+
+
+export type SubmissionsByIdQuery = (
+  { __typename?: 'RootQuery' }
+  & { submissions: (
+    { __typename?: 'SubmissionQuery' }
+    & { byId: (
+      { __typename?: 'Submission' }
+      & Pick<Submission, 'id'>
+      & SubmissionFragment
+    ) }
+  ) }
+);
+
+export type GetAllSubmissionsForAppQueryVariables = Exact<{
+  appId: Scalars['String'];
+  offset: Scalars['Int'];
+  limit: Scalars['Int'];
+  status?: Maybe<SubmissionStatus>;
+  platform?: Maybe<AppPlatform>;
+}>;
+
+
+export type GetAllSubmissionsForAppQuery = (
+  { __typename?: 'RootQuery' }
+  & { app?: Maybe<(
+    { __typename?: 'AppQuery' }
+    & { byId: (
+      { __typename?: 'App' }
+      & Pick<App, 'id'>
+      & { submissions: Array<(
+        { __typename?: 'Submission' }
+        & Pick<Submission, 'id'>
+        & SubmissionFragment
+      )> }
+    ) }
+  )> }
+);
+
 export type CurrentUserQueryVariables = Exact<{ [key: string]: never; }>;
 
 
@@ -4600,6 +4663,15 @@ export type BuildFragment = (
 export type EnvironmentSecretFragment = (
   { __typename?: 'EnvironmentSecret' }
   & Pick<EnvironmentSecret, 'id' | 'name' | 'createdAt'>
+);
+
+export type SubmissionFragment = (
+  { __typename?: 'Submission' }
+  & Pick<Submission, 'id' | 'status' | 'platform' | 'logsUrl'>
+  & { error?: Maybe<(
+    { __typename?: 'SubmissionError' }
+    & Pick<SubmissionError, 'errorCode' | 'message'>
+  )> }
 );
 
 export type WebhookFragment = (

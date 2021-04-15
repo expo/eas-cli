@@ -1,10 +1,11 @@
 import * as uuid from 'uuid';
 
+import { AppPlatform } from '../graphql/generated';
 import { ArchiveFileSource, ArchiveFileSourceType } from './archiveSource';
-import { AndroidSubmissionContext, IosSubmissionContext, SubmissionPlatform } from './types';
+import { AndroidSubmissionContext, IosSubmissionContext } from './types';
 
 export function resolveArchiveFileSource(
-  platform: SubmissionPlatform,
+  platform: AppPlatform,
   ctx: AndroidSubmissionContext | IosSubmissionContext,
   projectId: string
 ): ArchiveFileSource {

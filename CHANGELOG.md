@@ -40,6 +40,8 @@ This is the log of notable changes to EAS CLI and related packages.
 - Fix the issue where the first iOS build fails for a project without `ios.bundleIdentifier` set in `app.json`. ([#319](https://github.com/expo/eas-cli/pull/319) by [@dsokal](https://github.com/dsokal))
 - Bump @expo/config-plugins to fix `eas build:configure` on Windows. ([d0f3e](https://github.com/expo/eas-cli/commit/d0f3e387e7f31dbce4c3b93b8d083c7d20d9e30d) by [@brentvatne](https://github.com/brentvatne))
 
+- Replace REST API calls with GraphQL counterparts. ([#333](https://github.com/expo/eas-cli/pull/333) by [@barthap](https://github.com/barthap))
+
 ## [0.8.1](https://github.com/expo/eas-cli/releases/tag/v0.8.1) - 2021-04-06
 
 ### 🐛 Bug fixes

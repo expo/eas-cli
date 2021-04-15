@@ -1,17 +1,14 @@
 import { getConfig } from '@expo/config';
 import { Command, flags } from '@oclif/command';
 
+import { AppPlatform } from '../graphql/generated';
 import { learnMore } from '../log';
 import { isEasEnabledForProjectAsync, warnEasUnavailable } from '../project/isEasEnabledForProject';
 import { findProjectRootAsync, getProjectIdAsync } from '../project/projectUtils';
 import { promptAsync } from '../prompts';
 import AndroidSubmitCommand from '../submissions/android/AndroidSubmitCommand';
 import IosSubmitCommand from '../submissions/ios/IosSubmitCommand';
-import {
-  AndroidSubmitCommandFlags,
-  IosSubmitCommandFlags,
-  SubmissionPlatform,
-} from '../submissions/types';
+import { AndroidSubmitCommandFlags, IosSubmitCommandFlags } from '../submissions/types';
 import { ensureLoggedInAsync } from '../user/actions';
 
 const COMMON_FLAGS = '';
@@ -159,14 +156,15 @@ export default class BuildSubmit extends Command {
         'company-name': companyName,
 
         // common
-        platform: platformFromParams,
         ...flags
       },
     } = this.parse(BuildSubmit);
 
     await ensureLoggedInAsync();
 
-    const platform = platformFromParams ?? (await promptForPlatformAsync());
+    const platform =
+      (flags.platform?.toUpperCase() as AppPlatform | undefined) ??
+      (await promptForPlatformAsync());
 
     const projectDir = (await findProjectRootAsync()) ?? process.cwd();
     const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
@@ -183,7 +181,7 @@ export default class BuildSubmit extends Command {
       throw new Error("Please run this command inside your project's directory");
     }
 
-    if (platform === SubmissionPlatform.Android) {
+    if (platform === AppPlatform.Android) {
       const options: AndroidSubmitCommandFlags = {
         androidPackage,
         releaseStatus,
@@ -193,7 +191,7 @@ export default class BuildSubmit extends Command {
       const ctx = AndroidSubmitCommand.createContext(projectDir, projectId, options);
       const command = new AndroidSubmitCommand(ctx);
       await command.runAsync();
-    } else if (platform === SubmissionPlatform.iOS) {
+    } else if (platform === AppPlatform.Ios) {
       const options: IosSubmitCommandFlags = {
         appleId,
         ascAppId,
@@ -213,7 +211,7 @@ export default class BuildSubmit extends Command {
   }
 }
 
-async function promptForPlatformAsync(): Promise<SubmissionPlatform> {
+async function promptForPlatformAsync(): Promise<AppPlatform> {
   const { platform } = await promptAsync({
     type: 'select',
     message: 'Submit to platform',
@@ -221,11 +219,11 @@ async function promptForPlatformAsync(): Promise<SubmissionPlatform> {
     choices: [
       {
         title: 'iOS',
-        value: SubmissionPlatform.iOS,
+        value: AppPlatform.Ios,
       },
       {
         title: 'Android',
-        value: SubmissionPlatform.Android,
+        value: AppPlatform.Android,
       },
     ],
   });

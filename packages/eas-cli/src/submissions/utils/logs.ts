@@ -1,29 +1,29 @@
 import chalk from 'chalk';
 import got from 'got';
 
+import { SubmissionFragment, SubmissionStatus } from '../../graphql/generated';
 import { default as LogModule } from '../../log';
-import { Submission, SubmissionStatus } from '../SubmissionService.types';
 import { printSubmissionError } from './errors';
 
 export async function displayLogs(
-  submission: Submission | null,
+  submission: SubmissionFragment | null,
   status: SubmissionStatus | null,
   verbose: boolean
 ): Promise<void> {
   let printedUnknownError = false;
-  if (status === SubmissionStatus.ERRORED && submission?.submissionInfo?.error) {
-    printedUnknownError = printSubmissionError(submission.submissionInfo.error);
+  if (status === SubmissionStatus.Errored && submission?.error) {
+    printedUnknownError = printSubmissionError(submission.error);
   }
   if ((printedUnknownError || verbose) && submission) {
     await downloadAndPrintSubmissionLogs(submission);
   }
 }
 
-async function downloadAndPrintSubmissionLogs(submission: Submission): Promise<void> {
-  if (!submission.submissionInfo?.logsUrl) {
+async function downloadAndPrintSubmissionLogs(submission: SubmissionFragment): Promise<void> {
+  if (!submission.logsUrl) {
     return;
   }
-  const { body: data } = await got.get(submission.submissionInfo.logsUrl);
+  const { body: data } = await got.get(submission.logsUrl);
   const logs = parseLogs(data);
   LogModule.addNewLineIfNone();
   const prefix = chalk.blueBright('[logs] ');

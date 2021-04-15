@@ -12,11 +12,6 @@ export interface SubmitCommandFlags {
   verbose: boolean;
 }
 
-export enum SubmissionPlatform {
-  Android = 'android',
-  iOS = 'ios',
-}
-
 export enum AndroidArchiveType {
   apk = 'apk',
   aab = 'aab',

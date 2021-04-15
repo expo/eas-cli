@@ -1,8 +1,14 @@
 import { JSONObject } from '@expo/json-file';
 
-import { apiClient } from '../api';
-import { StartSubmissionResult, Submission, SubmissionConfig } from './SubmissionService.types';
-import { SubmissionPlatform } from './types';
+import { AppPlatform, SubmissionFragment } from '../graphql/generated';
+import { SubmissionMutation } from '../graphql/mutations/SubmissionMutation';
+import { SubmissionQuery } from '../graphql/queries/SubmissionQuery';
+import { AndroidSubmissionConfig } from './android/AndroidSubmissionConfig';
+import { IosSubmissionConfig } from './ios/IosSubmissionConfig';
+
+export type SubmissionConfig = AndroidSubmissionConfig | IosSubmissionConfig;
+
+export type StartSubmissionResult = string;
 
 const SubmissionService = {
   startSubmissionAsync,
@@ -12,26 +18,20 @@ const SubmissionService = {
 export const DEFAULT_CHECK_INTERVAL_MS = 5 * 1000; // 5 secs
 
 async function startSubmissionAsync(
-  platform: SubmissionPlatform,
+  platform: AppPlatform,
   projectId: string,
   config: SubmissionConfig
 ): Promise<StartSubmissionResult> {
-  const { data } = await apiClient
-    .post(`projects/${projectId}/app-store-submissions`, {
-      json: {
-        platform,
-        config: (config as unknown) as JSONObject,
-      },
-    })
-    .json();
-  return data.submissionId;
+  const { submission } = await SubmissionMutation.createSubmissionAsync({
+    appId: projectId,
+    platform,
+    config: (config as unknown) as JSONObject,
+  });
+  return submission.id;
 }
 
-async function getSubmissionAsync(projectId: string, submissionId: string): Promise<Submission> {
-  const { data } = await apiClient
-    .get(`projects/${projectId}/app-store-submissions/${submissionId}`)
-    .json();
-  return data;
+async function getSubmissionAsync(submissionId: string): Promise<SubmissionFragment> {
+  return await SubmissionQuery.byIdAsync(submissionId, { useCache: false });
 }
 
 export default SubmissionService;

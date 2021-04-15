@@ -1,6 +1,7 @@
+import { AppPlatform } from '../../graphql/generated';
 import Log from '../../log';
 import { promptAsync } from '../../prompts';
-import { AndroidArchiveType, ArchiveType, IosArchiveType, SubmissionPlatform } from '../types';
+import { AndroidArchiveType, ArchiveType, IosArchiveType } from '../types';
 
 export enum ArchiveTypeSourceType {
   infer,
@@ -31,12 +32,12 @@ export type ArchiveTypeSource =
   | ArchiveTypePromptSource;
 
 export async function getArchiveTypeAsync(
-  platform: SubmissionPlatform,
+  platform: AppPlatform,
   source: ArchiveTypeSource,
   location: string
 ): Promise<ArchiveType> {
   // for iOS we have only one archive type
-  if (platform === SubmissionPlatform.iOS) {
+  if (platform === AppPlatform.Ios) {
     return IosArchiveType.ipa;
   }
 
@@ -51,7 +52,7 @@ export async function getArchiveTypeAsync(
 }
 
 async function handleInferSourceAsync(
-  platform: SubmissionPlatform,
+  platform: AppPlatform,
   _source: ArchiveTypeInferSource,
   location: string
 ): Promise<ArchiveType> {
@@ -65,7 +66,7 @@ async function handleInferSourceAsync(
 }
 
 async function handleParameterSourceAsync(
-  platform: SubmissionPlatform,
+  platform: AppPlatform,
   source: ArchiveTypeParameterSource,
   location: string
 ): Promise<ArchiveType> {
@@ -85,7 +86,7 @@ async function handleParameterSourceAsync(
 }
 
 async function handlePromptSourceAsync(
-  platform: SubmissionPlatform,
+  platform: AppPlatform,
   _source: ArchiveTypePromptSource,
   location: string
 ): Promise<ArchiveType> {
@@ -106,10 +107,10 @@ async function handlePromptSourceAsync(
 type ArchiveInferredType = ArchiveType | null;
 
 function inferArchiveTypeFromLocation(
-  platform: SubmissionPlatform,
+  platform: AppPlatform,
   location: string
 ): ArchiveInferredType {
-  if (platform === SubmissionPlatform.iOS) {
+  if (platform === AppPlatform.Ios) {
     return IosArchiveType.ipa;
   } else {
     if (location.endsWith('.apk')) {

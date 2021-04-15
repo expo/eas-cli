@@ -3,10 +3,9 @@ import { vol } from 'memfs';
 import { v4 as uuidv4 } from 'uuid';
 
 import { asMock } from '../../../__tests__/utils';
-import { UploadSessionType } from '../../../graphql/generated';
+import { AppPlatform, UploadSessionType } from '../../../graphql/generated';
 import { promptAsync } from '../../../prompts';
 import { uploadAsync } from '../../../uploads';
-import { SubmissionPlatform } from '../../types';
 import { getBuildArtifactUrlByIdAsync, getLatestBuildArtifactUrlAsync } from '../../utils/builds';
 import {
   ArchiveFileSourceType,
@@ -24,7 +23,7 @@ const ARCHIVE_URL = 'https://url.to/archive.tar.gz';
 
 const SOURCE_STUB_INPUT = {
   projectId: uuidv4(),
-  platform: SubmissionPlatform.Android,
+  platform: AppPlatform.Android,
   projectDir: '.',
 };
 

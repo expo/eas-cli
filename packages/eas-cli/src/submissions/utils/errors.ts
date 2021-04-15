@@ -1,5 +1,5 @@
+import { SubmissionError } from '../../graphql/generated';
 import Log, { learnMore } from '../../log';
-import { SubmissionError } from '../SubmissionService.types';
 
 enum SubmissionErrorCode {
   ARCHIVE_DOWNLOAD_NOT_FOUND_ERROR = 'SUBMISSION_SERVICE_COMMON_ARCHIVE_DOWNLOAD_NOT_FOUND_ERROR',
@@ -60,7 +60,10 @@ const SubmissionErrorMessages: Record<SubmissionErrorCode, string> = {
 };
 
 export function printSubmissionError(error: SubmissionError): boolean {
-  if ((Object.values(SubmissionErrorCode) as string[]).includes(error.errorCode)) {
+  if (
+    error.errorCode &&
+    (Object.values(SubmissionErrorCode) as string[]).includes(error.errorCode)
+  ) {
     const errorCode = error.errorCode as SubmissionErrorCode;
     Log.addNewLineIfNone();
     Log.error(SubmissionErrorMessages[errorCode]);

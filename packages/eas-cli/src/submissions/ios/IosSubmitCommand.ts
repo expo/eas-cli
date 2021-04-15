@@ -3,12 +3,13 @@ import chalk from 'chalk';
 import getenv from 'getenv';
 import wrapAnsi from 'wrap-ansi';
 
+import { AppPlatform } from '../../graphql/generated';
 import Log, { learnMore } from '../../log';
 import { promptAsync } from '../../prompts';
 import UserSettings from '../../user/UserSettings';
 import { ArchiveSource, ArchiveTypeSourceType } from '../archiveSource';
 import { resolveArchiveFileSource } from '../commons';
-import { IosSubmissionContext, IosSubmitCommandFlags, SubmissionPlatform } from '../types';
+import { IosSubmissionContext, IosSubmitCommandFlags } from '../types';
 import { ensureAppStoreConnectAppExistsAsync } from './AppProduce';
 import {
   AppSpecificPasswordSource,
@@ -77,7 +78,7 @@ class IosSubmitCommand {
 
   private resolveArchiveSource(projectId: string): Result<ArchiveSource> {
     return result({
-      archiveFile: resolveArchiveFileSource(SubmissionPlatform.iOS, this.ctx, projectId),
+      archiveFile: resolveArchiveFileSource(AppPlatform.Ios, this.ctx, projectId),
       archiveType: { sourceType: ArchiveTypeSourceType.infer },
     });
   }
