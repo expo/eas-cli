@@ -170,7 +170,7 @@ function verifyOptionsForLocalBuilds(platform: RequestedPlatform): boolean {
   if (platform === RequestedPlatform.All) {
     Log.error('Builds for multiple platforms are not supported with flag --local');
     return false;
-  } else if (process.platform !== 'darwin' && platform === RequestedPlatform.iOS) {
+  } else if (process.platform !== 'darwin' && platform === RequestedPlatform.Ios) {
     Log.error('Unsupported platform, macOS is required to build apps for iOS');
     return false;
   } else {
@@ -200,7 +200,7 @@ async function promptForPlatformAsync(): Promise<RequestedPlatform> {
       },
       {
         title: 'iOS',
-        value: RequestedPlatform.iOS,
+        value: RequestedPlatform.Ios,
       },
       {
         title: 'Android',

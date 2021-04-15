@@ -19,7 +19,7 @@ export default class BuildList extends Command {
 
   static flags = {
     platform: flags.enum({
-      options: [RequestedPlatform.All, RequestedPlatform.Android, RequestedPlatform.iOS],
+      options: [RequestedPlatform.All, RequestedPlatform.Android, RequestedPlatform.Ios],
     }),
     status: flags.enum({
       options: [

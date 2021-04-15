@@ -1,5 +1,5 @@
 import { ExpoConfig } from '@expo/config';
-import { AndroidBuildProfile, EasConfig, iOSBuildProfile } from '@expo/eas-json';
+import { AndroidBuildProfile, EasConfig, IosBuildProfile } from '@expo/eas-json';
 import { v4 as uuidv4 } from 'uuid';
 
 import { getProjectAccountName } from '../project/projectUtils';
@@ -83,7 +83,7 @@ export interface ConfigureContext {
 
 type PlatformBuildProfile<T extends Platform> = T extends Platform.ANDROID
   ? AndroidBuildProfile
-  : iOSBuildProfile;
+  : IosBuildProfile;
 
 export interface BuildContext<T extends Platform> {
   commandCtx: CommandContext;

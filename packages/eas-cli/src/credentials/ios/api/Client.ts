@@ -47,7 +47,7 @@ interface CredentialsCache {
   };
 }
 
-export default class iOSApi {
+export default class IosApi {
   client = new ApiClient();
   credentials: CredentialsCache = {};
   isPrefetched: { [accountName: string]: boolean } = {};

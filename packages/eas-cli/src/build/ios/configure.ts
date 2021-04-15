@@ -3,9 +3,9 @@ import { IOSConfig } from '@expo/config-plugins';
 import { Workflow } from '@expo/eas-build-job';
 import {
   EasJsonReader,
+  IosBuildProfile,
+  IosGenericBuildProfile,
   VersionAutoIncrement,
-  iOSBuildProfile,
-  iOSGenericBuildProfile,
 } from '@expo/eas-json';
 
 import Log from '../../log';
@@ -44,13 +44,13 @@ export async function validateAndSyncProjectConfigurationAsync({
 }: {
   projectDir: string;
   exp: ExpoConfig;
-  buildProfile: iOSBuildProfile;
+  buildProfile: IosBuildProfile;
 }): Promise<void> {
   const { workflow, autoIncrement } = buildProfile;
   const versionBumpStrategy = resolveVersionBumpStrategy(autoIncrement);
 
   if (workflow === Workflow.GENERIC) {
-    const genericBuildProfile = buildProfile as iOSGenericBuildProfile;
+    const genericBuildProfile = buildProfile as IosGenericBuildProfile;
     if (!genericBuildProfile.disableIosBundleIdentifierValidation) {
       const bundleIdentifierFromPbxproj = IOSConfig.BundleIdentifier.getBundleIdentifierFromPbxproj(
         projectDir

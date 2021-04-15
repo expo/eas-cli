@@ -2,7 +2,7 @@ import { AppPlatform } from '../graphql/generated';
 import { RequestedPlatform } from './types';
 
 export const requestedPlatformDisplayNames: Record<RequestedPlatform, string> = {
-  [RequestedPlatform.iOS]: 'iOS',
+  [RequestedPlatform.Ios]: 'iOS',
   [RequestedPlatform.Android]: 'Android',
   [RequestedPlatform.All]: 'Android and iOS',
 };

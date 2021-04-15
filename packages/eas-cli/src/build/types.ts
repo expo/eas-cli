@@ -2,7 +2,7 @@ export { Platform } from '@expo/eas-build-job';
 
 export enum RequestedPlatform {
   Android = 'android',
-  iOS = 'ios',
+  Ios = 'ios',
   All = 'all',
 }
 

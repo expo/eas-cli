@@ -1,5 +1,5 @@
 import { Platform } from '@expo/eas-build-job';
-import { CredentialsSource, IosEnterpriseProvisioning, iOSDistributionType } from '@expo/eas-json';
+import { CredentialsSource, IosDistributionType, IosEnterpriseProvisioning } from '@expo/eas-json';
 
 import { IosAppBuildCredentialsFragment } from '../../graphql/generated';
 import Log from '../../log';
@@ -20,7 +20,7 @@ export type { IosCredentials };
 
 interface Options {
   app: AppLookupParams;
-  distribution: iOSDistributionType;
+  distribution: IosDistributionType;
   enterpriseProvisioning?: IosEnterpriseProvisioning;
   skipCredentialsCheck?: boolean;
 }

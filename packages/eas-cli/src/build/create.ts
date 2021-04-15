@@ -39,7 +39,7 @@ async function startBuildsAsync(
   const shouldBuildAndroid = [RequestedPlatform.Android, RequestedPlatform.All].includes(
     commandCtx.requestedPlatform
   );
-  const shouldBuildiOS = [RequestedPlatform.iOS, RequestedPlatform.All].includes(
+  const shouldBuildIos = [RequestedPlatform.Ios, RequestedPlatform.All].includes(
     commandCtx.requestedPlatform
   );
   const easConfig = await new EasJsonReader(
@@ -55,7 +55,7 @@ async function startBuildsAsync(
     const sendBuildRequestAsync = await prepareAndroidBuildAsync(commandCtx, easConfig);
     builds.push({ platform: Platform.ANDROID, sendBuildRequestAsync });
   }
-  if (shouldBuildiOS) {
+  if (shouldBuildIos) {
     const sendBuildRequestAsync = await prepareIosBuildAsync(commandCtx, easConfig);
     builds.push({ platform: Platform.IOS, sendBuildRequestAsync });
   }
