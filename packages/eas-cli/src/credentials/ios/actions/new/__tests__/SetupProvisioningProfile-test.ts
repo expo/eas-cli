@@ -1,5 +1,6 @@
 import nullthrows from 'nullthrows';
 
+import { IosDistributionType } from '../../../../../graphql/generated';
 import { confirmAsync } from '../../../../../prompts';
 import { getAppstoreMock, testAuthCtx } from '../../../../__tests__/fixtures-appstore';
 import { createCtxMock } from '../../../../__tests__/fixtures-context';
@@ -53,7 +54,10 @@ describe('SetupProvisioningProfile', () => {
       },
     });
     const appLookupParams = getAppLookupParamsFromContext(ctx);
-    const setupProvisioningProfileAction = new SetupProvisioningProfile(appLookupParams);
+    const setupProvisioningProfileAction = new SetupProvisioningProfile(
+      appLookupParams,
+      IosDistributionType.AppStore
+    );
     await setupProvisioningProfileAction.runAsync(ctx);
 
     // expect build credentials to be created or updated on expo servers
@@ -83,7 +87,10 @@ describe('SetupProvisioningProfile', () => {
       },
     });
     const appLookupParams = getAppLookupParamsFromContext(ctx);
-    const setupProvisioningProfileAction = new SetupProvisioningProfile(appLookupParams);
+    const setupProvisioningProfileAction = new SetupProvisioningProfile(
+      appLookupParams,
+      IosDistributionType.AppStore
+    );
     await setupProvisioningProfileAction.runAsync(ctx);
 
     // expect build credentials to be created or updated on expo servers
@@ -112,7 +119,10 @@ describe('SetupProvisioningProfile', () => {
       },
     });
     const appLookupParams = getAppLookupParamsFromContext(ctx);
-    const setupProvisioningProfileAction = new SetupProvisioningProfile(appLookupParams);
+    const setupProvisioningProfileAction = new SetupProvisioningProfile(
+      appLookupParams,
+      IosDistributionType.AppStore
+    );
     await setupProvisioningProfileAction.runAsync(ctx);
 
     // expect build credentials not to be created or updated on expo servers
@@ -134,7 +144,10 @@ describe('SetupProvisioningProfile', () => {
       },
     });
     const appLookupParams = getAppLookupParamsFromContext(ctx);
-    const setupProvisioningProfileAction = new SetupProvisioningProfile(appLookupParams);
+    const setupProvisioningProfileAction = new SetupProvisioningProfile(
+      appLookupParams,
+      IosDistributionType.AppStore
+    );
     await setupProvisioningProfileAction.runAsync(ctx);
 
     // expect build credentials to be created or updated on expo servers
@@ -147,7 +160,10 @@ describe('SetupProvisioningProfile', () => {
       nonInteractive: true,
     });
     const appLookupParams = getAppLookupParamsFromContext(ctx);
-    const setupProvisioningProfileAction = new SetupProvisioningProfile(appLookupParams);
+    const setupProvisioningProfileAction = new SetupProvisioningProfile(
+      appLookupParams,
+      IosDistributionType.AppStore
+    );
     await expect(setupProvisioningProfileAction.runAsync(ctx)).rejects.toThrowError(
       MissingCredentialsNonInteractiveError
     );
