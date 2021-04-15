@@ -4,10 +4,11 @@ import crypto from 'crypto';
 import minimatch from 'minimatch';
 import nullthrows from 'nullthrows';
 
-import { IosAppBuildCredentialsFragment } from '../../../graphql/generated';
+import { IosAppBuildCredentialsFragment, IosDistributionType } from '../../../graphql/generated';
 import Log from '../../../log';
 import { Context } from '../../context';
 import { AppLookupParams } from '../api/GraphqlClient';
+import { ProfileClass } from '../appstore/provisioningProfile';
 import { getP12CertFingerprint } from '../utils/p12Certificate';
 import { parse as parseProvisioningProfile } from '../utils/provisioningProfile';
 
@@ -89,7 +90,12 @@ async function validateProvisioningProfileWithAppleAsync(
   assert(buildCredentials.provisioningProfile, 'Provisioning Profile must be defined');
   const { developerPortalIdentifier, provisioningProfile } = buildCredentials.provisioningProfile;
 
-  const profilesFromApple = await ctx.appStore.listProvisioningProfilesAsync(app.bundleIdentifier);
+  const profilesFromApple = await ctx.appStore.listProvisioningProfilesAsync(
+    app.bundleIdentifier,
+    buildCredentials.iosDistributionType === IosDistributionType.AdHoc
+      ? ProfileClass.Adhoc
+      : ProfileClass.General
+  );
 
   const configuredProfileFromApple = profilesFromApple.find(appleProfile =>
     developerPortalIdentifier

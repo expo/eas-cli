@@ -1,7 +1,11 @@
+import assert from 'assert';
+import differenceBy from 'lodash/differenceBy';
+import isEqual from 'lodash/isEqual';
 import nullthrows from 'nullthrows';
 
 import {
-  AppleDevice,
+  AppleProvisioningProfileFragment,
+  AppleTeamFragment,
   IosAppBuildCredentialsFragment,
   IosDistributionType,
 } from '../../../../graphql/generated';
@@ -9,61 +13,57 @@ import Log from '../../../../log';
 import { confirmAsync } from '../../../../prompts';
 import { Context } from '../../../context';
 import { AppLookupParams } from '../../api/GraphqlClient';
-import { AppleProvisioningProfileMutationResult } from '../../api/graphql/mutations/AppleProvisioningProfileMutation';
-import { AppleDeviceFragmentWithAppleTeam } from '../../api/graphql/queries/AppleDeviceQuery';
-import { AppleProvisioningProfileQueryResult } from '../../api/graphql/queries/AppleProvisioningProfileQuery';
-import { ProvisioningProfileStoreInfo } from '../../appstore/Credentials.types';
-import { ProfileClass } from '../../appstore/provisioningProfile';
-import { AppleTeamMissingError, MissingCredentialsNonInteractiveError } from '../../errors';
+import { MissingCredentialsNonInteractiveError } from '../../errors';
+import { validateProvisioningProfileAsync } from '../../validators/validateProvisioningProfile';
 import { resolveAppleTeamIfAuthenticatedAsync } from './AppleTeamUtils';
-import { getBuildCredentialsAsync } from './BuildCredentialsUtils';
-import { chooseDevices } from './DeviceUtils';
-import { doUDIDsMatch, isDevPortalAdhocProfileValid } from './ProvisioningProfileUtils';
+import { assignBuildCredentialsAsync, getBuildCredentialsAsync } from './BuildCredentialsUtils';
+import { chooseDevices, formatDeviceLabel } from './DeviceUtils';
 import { SetupDistributionCertificate } from './SetupDistributionCertificate';
 
 export class SetupAdhocProvisioningProfile {
   constructor(private app: AppLookupParams) {}
 
   async runAsync(ctx: Context): Promise<IosAppBuildCredentialsFragment> {
+    const areBuildCredentialsSetup = await this.areBuildCredentialsSetupAsync(ctx);
+
     if (ctx.nonInteractive) {
-      try {
-        return await this.runNonInteractiveAsync(ctx);
-      } catch (err) {
-        if (err instanceof AppleTeamMissingError) {
-          throw new MissingCredentialsNonInteractiveError();
-        }
-        throw err;
+      if (areBuildCredentialsSetup) {
+        return nullthrows(await getBuildCredentialsAsync(ctx, this.app, IosDistributionType.AdHoc));
+      } else {
+        throw new MissingCredentialsNonInteractiveError(
+          'Provisioning profile is not configured correctly. Please run this command again in interactive mode.'
+        );
       }
-    } else {
-      return await this.runInteractiveAsync(ctx);
     }
-  }
 
-  private async runNonInteractiveAsync(ctx: Context): Promise<IosAppBuildCredentialsFragment> {
-    await new SetupDistributionCertificate(this.app, IosDistributionType.AdHoc).runAsync(ctx);
-
-    const buildCredentials = await getBuildCredentialsAsync(
+    const currentBuildCredentials = await getBuildCredentialsAsync(
       ctx,
       this.app,
       IosDistributionType.AdHoc
     );
-
-    if (!buildCredentials || !buildCredentials.provisioningProfile) {
-      throw new MissingCredentialsNonInteractiveError();
+    if (areBuildCredentialsSetup) {
+      const buildCredentials = nullthrows(currentBuildCredentials);
+      if (await this.shouldReuseCredentialsAsync(ctx, buildCredentials)) {
+        return buildCredentials;
+      }
     }
-    Log.warn(
-      'Provisioning Profile is not validated for non-interactive internal distribution builds.'
-    );
 
-    return buildCredentials;
-  }
+    // 0. Setup Distribution Certificate
+    const distCert = await new SetupDistributionCertificate(
+      this.app,
+      IosDistributionType.AdHoc
+    ).runAsync(ctx);
 
-  private async runInteractiveAsync(ctx: Context): Promise<IosAppBuildCredentialsFragment> {
-    // 0. Ensure the user is authenticated with Apple and resolve the Apple team object
-    await ctx.appStore.ensureAuthenticatedAsync();
-    const appleTeam = nullthrows(await resolveAppleTeamIfAuthenticatedAsync(ctx, this.app));
+    // 1. Resolve Apple Team
+    let appleTeam: AppleTeamFragment | null =
+      distCert.appleTeam ?? currentBuildCredentials?.provisioningProfile?.appleTeam ?? null;
+    if (!appleTeam) {
+      await ctx.appStore.ensureAuthenticatedAsync();
+      appleTeam = await resolveAppleTeamIfAuthenticatedAsync(ctx, this.app);
+    }
+    assert(appleTeam, 'Apple Team must be defined here');
 
-    // 1. Fetch devices registered on EAS servers
+    // 2. Fetch devices registered on EAS servers
     const registeredAppleDevices = await ctx.newIos.getDevicesForAppleTeamAsync(
       this.app,
       appleTeam
@@ -72,105 +72,118 @@ export class SetupAdhocProvisioningProfile {
       ({ identifier }) => identifier
     );
     if (registeredAppleDeviceIdentifiers.length === 0) {
+      // TODO: implement device registration
       throw new Error(`Run 'eas device:create' to register your devices first`);
     }
 
-    // 2. Setup Distribution Certificate
-    const distCert = await new SetupDistributionCertificate(
-      this.app,
-      IosDistributionType.AdHoc
-    ).runAsync(ctx);
+    // 3. Choose devices for internal distribution
+    const provisionedDeviceIdentifiers = (
+      currentBuildCredentials?.provisioningProfile?.appleDevices ?? []
+    ).map(i => i.identifier);
+    const chosenDevices = await chooseDevices(registeredAppleDevices, provisionedDeviceIdentifiers);
 
-    let profileFromExpoServersToUse:
-      | AppleProvisioningProfileQueryResult
-      | AppleProvisioningProfileMutationResult
-      | null = await ctx.newIos.getProvisioningProfileAsync(this.app, IosDistributionType.AdHoc, {
-      appleTeam,
-    });
+    // 4. Reuse or create the profile on Apple Developer Portal
+    const provisioningProfileStoreInfo = await ctx.appStore.createOrReuseAdhocProvisioningProfileAsync(
+      chosenDevices.map(({ identifier }) => identifier),
+      this.app.bundleIdentifier,
+      distCert.serialNumber
+    );
 
-    // 4. Choose devices for internal distribution
-    let chosenDevices: AppleDeviceFragmentWithAppleTeam[];
-    if (profileFromExpoServersToUse) {
-      const appleDeviceIdentifiersFromProfile = ((profileFromExpoServersToUse.appleDevices ??
-        []) as AppleDevice[]).map(({ identifier }) => identifier);
-
-      let shouldAskToChooseDevices = true;
-      if (doUDIDsMatch(appleDeviceIdentifiersFromProfile, registeredAppleDeviceIdentifiers)) {
-        shouldAskToChooseDevices = await confirmAsync({
-          message: `All your registered devices are present in the Provisioning Profile. Would you like to exclude some devices?`,
-          initial: false,
-        });
-      }
-
-      chosenDevices = shouldAskToChooseDevices
-        ? await chooseDevices(registeredAppleDevices, appleDeviceIdentifiersFromProfile)
-        : registeredAppleDevices;
-    } else {
-      chosenDevices = await chooseDevices(registeredAppleDevices);
-    }
-
-    // 5. Try to find the profile on Apple Developer Portal
-    const currentProfileFromDevPortal = await this.getProfileFromDevPortalAsync(ctx);
-
-    // 6. Validate the profile and possibly recreate it
-    let profileToUse: ProvisioningProfileStoreInfo;
-    let profileWasRecreated = false;
-    if (isDevPortalAdhocProfileValid(currentProfileFromDevPortal, distCert, chosenDevices)) {
-      profileToUse = nullthrows(currentProfileFromDevPortal);
-    } else {
-      const chosenDeviceUDIDs = chosenDevices.map(({ identifier }) => identifier);
-      await ctx.appStore.createOrReuseAdhocProvisioningProfileAsync(
-        chosenDeviceUDIDs,
-        this.app.bundleIdentifier,
-        distCert.serialNumber
-      );
-      profileToUse = nullthrows(await this.getProfileFromDevPortalAsync(ctx));
-      profileWasRecreated = true;
-    }
-
-    // 7. Send profile to www if new has been created
+    // 5. Create or update the profile on servers
     const appleAppIdentifier = await ctx.newIos.createOrGetExistingAppleAppIdentifierAsync(
       this.app,
       appleTeam
     );
-    if (profileFromExpoServersToUse) {
-      if (profileWasRecreated) {
-        profileFromExpoServersToUse = await ctx.newIos.updateProvisioningProfileAsync(
-          profileFromExpoServersToUse.id,
+    let appleProvisioningProfile: AppleProvisioningProfileFragment | null = null;
+    if (currentBuildCredentials?.provisioningProfile) {
+      if (
+        currentBuildCredentials.provisioningProfile.developerPortalIdentifier !==
+        provisioningProfileStoreInfo.provisioningProfileId
+      ) {
+        await ctx.newIos.deleteProvisioningProfilesAsync([
+          currentBuildCredentials.provisioningProfile.id,
+        ]);
+        appleProvisioningProfile = await ctx.newIos.createProvisioningProfileAsync(
+          this.app,
+          appleAppIdentifier,
           {
-            appleProvisioningProfile: profileToUse.provisioningProfile,
-            developerPortalIdentifier: profileToUse.provisioningProfileId,
+            appleProvisioningProfile: provisioningProfileStoreInfo.provisioningProfile,
+            developerPortalIdentifier: provisioningProfileStoreInfo.provisioningProfileId,
           }
         );
+      } else {
+        appleProvisioningProfile = currentBuildCredentials.provisioningProfile;
       }
     } else {
-      profileFromExpoServersToUse = await ctx.newIos.createProvisioningProfileAsync(
+      appleProvisioningProfile = await ctx.newIos.createProvisioningProfileAsync(
         this.app,
         appleAppIdentifier,
         {
-          appleProvisioningProfile: profileToUse.provisioningProfile,
-          developerPortalIdentifier: profileToUse.provisioningProfileId,
+          appleProvisioningProfile: provisioningProfileStoreInfo.provisioningProfile,
+          developerPortalIdentifier: provisioningProfileStoreInfo.provisioningProfileId,
         }
       );
     }
 
-    // 8. Create (or update) app build credentials
-    return await ctx.newIos.createOrUpdateIosAppBuildCredentialsAsync(this.app, {
-      appleTeam,
-      appleAppIdentifierId: appleAppIdentifier.id,
-      appleDistributionCertificateId: distCert.id,
-      appleProvisioningProfileId: profileFromExpoServersToUse.id,
-      iosDistributionType: IosDistributionType.AdHoc,
-    });
+    // 6. Create (or update) app build credentials
+    assert(appleProvisioningProfile);
+    return await assignBuildCredentialsAsync(
+      ctx,
+      this.app,
+      IosDistributionType.AdHoc,
+      distCert,
+      appleProvisioningProfile,
+      appleTeam
+    );
   }
 
-  private async getProfileFromDevPortalAsync(
-    ctx: Context
-  ): Promise<ProvisioningProfileStoreInfo | null> {
-    const profilesFromDevPortal = await ctx.appStore.listProvisioningProfilesAsync(
-      this.app.bundleIdentifier,
-      ProfileClass.Adhoc
+  private async areBuildCredentialsSetupAsync(ctx: Context): Promise<boolean> {
+    const buildCredentials = await getBuildCredentialsAsync(
+      ctx,
+      this.app,
+      IosDistributionType.AdHoc
     );
-    return profilesFromDevPortal.length >= 1 ? profilesFromDevPortal[0] : null;
+    return await validateProvisioningProfileAsync(ctx, this.app, buildCredentials);
   }
+
+  private async shouldReuseCredentialsAsync(
+    ctx: Context,
+    buildCredentials: IosAppBuildCredentialsFragment
+  ): Promise<boolean> {
+    const provisioningProfile = nullthrows(buildCredentials.provisioningProfile);
+
+    const appleTeam = nullthrows(provisioningProfile.appleTeam);
+    const registeredAppleDevices = await ctx.newIos.getDevicesForAppleTeamAsync(
+      this.app,
+      appleTeam
+    );
+
+    const provisionedDevices = provisioningProfile.appleDevices;
+
+    const allRegisteredDevicesAreProvisioned = doUDIDsMatch(
+      registeredAppleDevices.map(({ identifier }) => identifier),
+      provisionedDevices.map(({ identifier }) => identifier)
+    );
+
+    if (allRegisteredDevicesAreProvisioned) {
+      return await confirmAsync({
+        message: `All your registered devices are present in the Provisioning Profile. Would you like to reuse it?`,
+        initial: true,
+      });
+    } else {
+      const missingDevices = differenceBy(registeredAppleDevices, provisionedDevices, 'identifier');
+      Log.warn(`The provisioning profile is missing the following devices:`);
+      for (const missingDevice of missingDevices) {
+        Log.warn(`- ${formatDeviceLabel(missingDevice)}`);
+      }
+      return !(await confirmAsync({
+        message: `Would you like to choose the devices to provision again?`,
+        initial: true,
+      }));
+    }
+  }
+}
+
+function doUDIDsMatch(udidsA: string[], udidsB: string[]): boolean {
+  return isEqual(new Set(udidsA), new Set(udidsB));
 }
