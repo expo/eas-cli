@@ -1,7 +1,7 @@
 import { print } from 'graphql';
 import gql from 'graphql-tag';
 
-import { EnvironmentSecretScope } from '../../commands/secrets/create';
+import { EnvironmentSecretScope } from '../../commands/secret/create';
 import { graphqlClient, withErrorHandlingAsync } from '../client';
 import {
   EnvironmentSecretFragment,

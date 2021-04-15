@@ -1,5 +1,5 @@
 import { getConfig } from '@expo/config';
-import { Command } from '@oclif/command';
+import { Command, flags } from '@oclif/command';
 import chalk from 'chalk';
 
 import { EnvironmentSecretMutation } from '../../graphql/mutations/EnvironmentSecretMutation';
@@ -26,13 +26,11 @@ export default class EnvironmentSecretDelete extends Command {
   static description = `Delete an environment secret by ID.
 Unsure where to find the secret's ID? Run ${chalk.bold('eas secrets:list')}`;
 
-  static args = [
-    {
-      name: 'id',
-      required: false,
-      description: `ID of the secret to delete`,
-    },
-  ];
+  static flags = {
+    id: flags.string({
+      description: 'ID of the secret to delete',
+    }),
+  };
 
   async run() {
     await ensureLoggedInAsync();
@@ -50,11 +48,13 @@ Unsure where to find the secret's ID? Run ${chalk.bold('eas secrets:list')}`;
     }
 
     let {
-      args: { id },
+      flags: { id },
     } = this.parse(EnvironmentSecretDelete);
     let secret: EnvironmentSecretWithScope | undefined;
 
     if (!id) {
+      const validationMessage = 'You must select which secret to delete.';
+
       const secrets = await EnvironmentSecretsQuery.allAsync(projectAccountName, projectFullName);
 
       ({ secret } = await promptAsync({
@@ -68,6 +68,8 @@ Unsure where to find the secret's ID? Run ${chalk.bold('eas secrets:list')}`;
       }));
 
       id = secret?.id;
+
+      if (!id) throw new Error(validationMessage);
     }
 
     Log.addNewLineIfNone();
