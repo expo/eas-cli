@@ -17,6 +17,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Replace REST API calls with GraphQL counterparts. ([#333](https://github.com/expo/eas-cli/pull/333) by [@barthap](https://github.com/barthap))
+
 ## [0.8.1](https://github.com/expo/eas-cli/releases/tag/v0.8.1) - 2021-04-06
 
 ### 🐛 Bug fixes

@@ -40,7 +40,7 @@ export const SubmissionQuery = {
             ${print(SubmissionFragmentNode)}
           `,
           { submissionId },
-          { requestPolicy: useCache ? 'cache-first' : `network-only` }
+          { requestPolicy: useCache ? 'cache-first' : 'network-only' }
         )
         .toPromise()
     );

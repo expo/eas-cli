@@ -27,14 +27,11 @@ async function startSubmissionAsync(
     platform,
     config: (config as unknown) as JSONObject,
   });
-
   return submission.id;
 }
 
 async function getSubmissionAsync(submissionId: string): Promise<SubmissionFragment> {
-  const submission = await SubmissionQuery.byIdAsync(submissionId, { useCache: false });
-
-  return submission;
+  return await SubmissionQuery.byIdAsync(submissionId, { useCache: false });
 }
 
 export default SubmissionService;
