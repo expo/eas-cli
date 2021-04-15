@@ -16,6 +16,7 @@ import { ProvisioningProfileStoreInfo } from '../../appstore/Credentials.types';
 import { ProfileClass } from '../../appstore/provisioningProfile';
 import { AppleTeamMissingError, MissingCredentialsNonInteractiveError } from '../../errors';
 import { resolveAppleTeamIfAuthenticatedAsync } from './AppleTeamUtils';
+import { getBuildCredentialsAsync } from './BuildCredentialsUtils';
 import { chooseDevices } from './DeviceUtils';
 import { doUDIDsMatch, isDevPortalAdhocProfileValid } from './ProvisioningProfileUtils';
 import { SetupDistributionCertificate } from './SetupDistributionCertificate';
@@ -39,31 +40,22 @@ export class SetupAdhocProvisioningProfile {
   }
 
   private async runNonInteractiveAsync(ctx: Context): Promise<IosAppBuildCredentialsFragment> {
-    // 1. Setup Distribution Certificate
     await new SetupDistributionCertificate(this.app, IosDistributionType.AdHoc).runAsync(ctx);
 
-    // 2. Fetch profile from EAS servers
-    const currentProfile = await ctx.newIos.getProvisioningProfileAsync(
+    const buildCredentials = await getBuildCredentialsAsync(
+      ctx,
       this.app,
       IosDistributionType.AdHoc
     );
 
-    if (!currentProfile) {
+    if (!buildCredentials || !buildCredentials.provisioningProfile) {
       throw new MissingCredentialsNonInteractiveError();
     }
-
-    // TODO: implement validation
     Log.warn(
       'Provisioning Profile is not validated for non-interactive internal distribution builds.'
     );
 
-    // app credentials should exist here because the profile exists
-    const appCredentials = nullthrows(
-      await ctx.newIos.getIosAppCredentialsWithBuildCredentialsAsync(this.app, {
-        iosDistributionType: IosDistributionType.AdHoc,
-      })
-    );
-    return appCredentials.iosAppBuildCredentialsArray[0];
+    return buildCredentials;
   }
 
   private async runInteractiveAsync(ctx: Context): Promise<IosAppBuildCredentialsFragment> {

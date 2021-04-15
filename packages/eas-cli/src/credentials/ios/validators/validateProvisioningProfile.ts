@@ -1,127 +1,122 @@
 import { PlistArray, PlistObject } from '@expo/plist';
+import assert from 'assert';
 import crypto from 'crypto';
 import minimatch from 'minimatch';
+import nullthrows from 'nullthrows';
 
+import { IosAppBuildCredentialsFragment } from '../../../graphql/generated';
 import Log from '../../../log';
 import { Context } from '../../context';
-import { DistributionCertificate, ProvisioningProfile } from '../appstore/Credentials.types';
+import { AppLookupParams } from '../api/GraphqlClient';
 import { getP12CertFingerprint } from '../utils/p12Certificate';
 import { parse as parseProvisioningProfile } from '../utils/provisioningProfile';
 
-interface ValidationResult {
-  error?: string;
-  ok: boolean;
-}
-
 export async function validateProvisioningProfileAsync(
   ctx: Context,
-  profile: Pick<ProvisioningProfile, 'provisioningProfile' | 'provisioningProfileId'>,
-  distCert: Pick<DistributionCertificate, 'certP12' | 'certPassword'>,
-  bundleIdentifier: string
-): Promise<ValidationResult> {
-  const resultWithoutApple = validateProvisioningProfileWithoutApple(
-    profile,
-    distCert,
-    bundleIdentifier
-  );
+  app: AppLookupParams,
+  buildCredentials: Partial<IosAppBuildCredentialsFragment> | null
+): Promise<boolean> {
+  if (
+    !buildCredentials ||
+    !buildCredentials.distributionCertificate ||
+    !buildCredentials.provisioningProfile
+  ) {
+    return false;
+  }
 
-  // already failed, return early
-  if (!resultWithoutApple.ok) {
-    return resultWithoutApple;
+  const resultWithoutApple = validateProvisioningProfileWithoutApple(app, buildCredentials);
+  if (!resultWithoutApple) {
+    return false;
   }
 
   if (!ctx.appStore.authCtx) {
     Log.warn(
       "Skipping Provisioning Profile validation on Apple Servers because we aren't authenticated."
     );
-    return resultWithoutApple;
+    return true;
   }
 
-  return await validateProvisioningProfileWithAppleAsync(ctx, profile, bundleIdentifier);
+  return await validateProvisioningProfileWithAppleAsync(ctx, app, buildCredentials);
 }
 
-async function validateProvisioningProfileWithAppleAsync(
-  ctx: Context,
-  profile: Pick<ProvisioningProfile, 'provisioningProfile' | 'provisioningProfileId'>,
-  bundleIdentifier: string
-): Promise<ValidationResult> {
-  const profilesFromApple = await ctx.appStore.listProvisioningProfilesAsync(bundleIdentifier);
-
-  const configuredProfileFromApple = profilesFromApple.find(appleProfile =>
-    profile.provisioningProfileId
-      ? appleProfile.provisioningProfileId === profile.provisioningProfileId
-      : appleProfile.provisioningProfile === profile.provisioningProfile
-  );
-  if (!configuredProfileFromApple) {
-    return {
-      error: `Provisioning profile (id: ${profile.provisioningProfileId}) does not exist in Apple Dev Portal`,
-      ok: false,
-    };
-  }
-  if (configuredProfileFromApple.status !== 'ACTIVE') {
-    return {
-      error: `Provisioning profile (id: ${profile.provisioningProfileId}) is no longer valid`,
-      ok: false,
-    };
-  }
-  return { ok: true };
-}
-
-export function validateProvisioningProfileWithoutApple(
-  provisioningProfile: Pick<ProvisioningProfile, 'provisioningProfile' | 'provisioningProfileId'>,
-  distCert: Pick<DistributionCertificate, 'certP12' | 'certPassword'>,
-  bundleIdentifier: string
-): ValidationResult {
+function validateProvisioningProfileWithoutApple(
+  app: AppLookupParams,
+  { provisioningProfile, distributionCertificate }: Partial<IosAppBuildCredentialsFragment>
+): boolean {
   try {
-    const profilePlist = parseProvisioningProfile(provisioningProfile.provisioningProfile);
+    const profilePlist = parseProvisioningProfile(
+      nullthrows(provisioningProfile?.provisioningProfile)
+    );
 
     let distCertFingerprint: string;
     try {
-      distCertFingerprint = getP12CertFingerprint(distCert.certP12, distCert.certPassword);
+      distCertFingerprint = getP12CertFingerprint(
+        nullthrows(distributionCertificate?.certificateP12),
+        nullthrows(distributionCertificate?.certificatePassword)
+      );
     } catch (e) {
-      return {
-        error: `Failed to calculate fingerprint for Distribution Certificate: ${e.toString()}`,
-        ok: false,
-      };
+      Log.warn(`Failed to calculate fingerprint for Distribution Certificate: ${e.toString()}`);
+      return false;
     }
 
     const devCertStatus = validateDeveloperCertificate(profilePlist, distCertFingerprint);
-    if (!devCertStatus.ok) {
-      return devCertStatus;
+    if (!devCertStatus) {
+      return false;
     }
-    const bundleIdentifierStatus = validateBundleIdentifier(profilePlist, bundleIdentifier);
-    if (!bundleIdentifierStatus.ok) {
-      return bundleIdentifierStatus;
+
+    const bundleIdentifierStatus = validateBundleIdentifier(profilePlist, app.bundleIdentifier);
+    if (!bundleIdentifierStatus) {
+      return false;
     }
 
     const isExpired = new Date(profilePlist['ExpirationDate'] as string) <= new Date();
     if (isExpired) {
-      return {
-        error: 'Provisioning Profile has expired.',
-        ok: false,
-      };
+      Log.warn('Provisioning Profile has expired.');
+      return false;
     }
   } catch (error) {
-    return {
-      error: 'Provisioning Profile is malformed.',
-      ok: false,
-    };
+    Log.warn('Provisioning Profile is malformed.');
+    return false;
   }
-  return {
-    ok: true,
-  };
+  return true;
+}
+
+async function validateProvisioningProfileWithAppleAsync(
+  ctx: Context,
+  app: AppLookupParams,
+  buildCredentials: Partial<IosAppBuildCredentialsFragment>
+): Promise<boolean> {
+  assert(buildCredentials.provisioningProfile, 'Provisioning Profile must be defined');
+  const { developerPortalIdentifier, provisioningProfile } = buildCredentials.provisioningProfile;
+
+  const profilesFromApple = await ctx.appStore.listProvisioningProfilesAsync(app.bundleIdentifier);
+
+  const configuredProfileFromApple = profilesFromApple.find(appleProfile =>
+    developerPortalIdentifier
+      ? appleProfile.provisioningProfileId === developerPortalIdentifier
+      : appleProfile.provisioningProfile === provisioningProfile
+  );
+  if (!configuredProfileFromApple) {
+    Log.warn(
+      `Provisioning profile (id: ${developerPortalIdentifier}) does not exist in Apple Developer Portal`
+    );
+    return false;
+  }
+  if (configuredProfileFromApple.status !== 'ACTIVE') {
+    Log.warn(`Provisioning profile (id: ${developerPortalIdentifier}) is no longer valid`);
+    return false;
+  }
+  return true;
 }
 
 function validateDeveloperCertificate(
   plistData: PlistObject,
   distCertFingerprint: string
-): ValidationResult {
+): boolean {
   const devCertBase64 = (plistData?.DeveloperCertificates as PlistArray)?.[0] as string;
   if (!devCertBase64) {
-    return {
-      error: 'Missing certificate fingerprint in provisioning profile.',
-      ok: false,
-    };
+    Log.warn('Missing certificate fingerprint in provisioning profile.');
+    return false;
   }
   const devCertBuffer = Buffer.from(devCertBase64, 'base64');
   const devCertFingerprint = crypto
@@ -131,40 +126,34 @@ function validateDeveloperCertificate(
     .toUpperCase();
 
   if (devCertFingerprint !== distCertFingerprint) {
-    return {
-      error: 'Provisioning profile is not associated with uploaded Distribution Certificate.',
-      ok: false,
-    };
+    Log.warn('Provisioning profile is not associated with uploaded Distribution Certificate.');
+    return false;
   }
-  return { ok: true };
+  return true;
 }
 
 function validateBundleIdentifier(
   plistData: PlistObject,
   expectedBundleIdentifier: string
-): ValidationResult {
+): boolean {
   const actualApplicationIdentifier = (plistData.Entitlements as PlistObject)?.[
     'application-identifier'
   ] as string;
   if (!actualApplicationIdentifier) {
-    return {
-      error: 'Missing application-identifier in provisioning profile entitlements',
-      ok: false,
-    };
+    Log.warn('Missing application-identifier in provisioning profile entitlements');
+    return false;
   }
   const actualBundleIdentifier = /\.(.+)/.exec(actualApplicationIdentifier)?.[1] as string;
   if (!actualBundleIdentifier) {
-    return {
-      error: 'Malformed application-identifier field in provisioning profile',
-      ok: false,
-    };
+    Log.warn('Malformed application-identifier field in provisioning profile');
+    return false;
   }
 
   if (!minimatch(expectedBundleIdentifier, actualBundleIdentifier)) {
-    return {
-      error: `Wrong bundleIdentifier found in provisioning profile; expected: ${expectedBundleIdentifier}, found (in provisioning profile): ${actualBundleIdentifier}`,
-      ok: false,
-    };
+    Log.warn(
+      `Wrong bundleIdentifier found in provisioning profile; expected: ${expectedBundleIdentifier}, found (in provisioning profile): ${actualBundleIdentifier}`
+    );
+    return false;
   }
-  return { ok: true };
+  return true;
 }

@@ -6,7 +6,6 @@ import {
   IosAppBuildCredentialsFragment,
   IosDistributionType,
 } from '../../../../graphql/generated';
-import Log from '../../../../log';
 import { confirmAsync } from '../../../../prompts';
 import { Context } from '../../../context';
 import { AppLookupParams } from '../../api/GraphqlClient';
@@ -28,14 +27,7 @@ export class SetupProvisioningProfile {
 
   async areBuildCredentialsSetupAsync(ctx: Context): Promise<boolean> {
     const buildCredentials = await getBuildCredentialsAsync(ctx, this.app, this.distributionType);
-    if (!buildCredentials) {
-      return false;
-    }
-    const { distributionCertificate, provisioningProfile } = buildCredentials;
-    if (!distributionCertificate || !provisioningProfile) {
-      return false;
-    }
-    return await this.isCurrentProfileValidAsync(ctx, provisioningProfile, distributionCertificate);
+    return await validateProvisioningProfileAsync(ctx, this.app, buildCredentials);
   }
 
   async assignNewAndDeleteOldProfileAsync(
@@ -138,37 +130,6 @@ export class SetupProvisioningProfile {
       return await this.assignNewAndDeleteOldProfileAsync(ctx, distCert, currentProfile);
     }
     return updatedProfile;
-  }
-
-  private async isCurrentProfileValidAsync(
-    ctx: Context,
-    currentProfile: AppleProvisioningProfileFragment,
-    currentCertificate: AppleDistributionCertificateFragment
-  ): Promise<boolean> {
-    const { provisioningProfile, developerPortalIdentifier } = currentProfile;
-    const { certificateP12, certificatePassword } = currentCertificate;
-    if (!provisioningProfile || !certificateP12 || !certificatePassword) {
-      return false;
-    }
-    const validationResult = await validateProvisioningProfileAsync(
-      ctx,
-      {
-        provisioningProfile,
-        ...(developerPortalIdentifier
-          ? { provisioningProfileId: developerPortalIdentifier }
-          : null),
-      },
-      {
-        certP12: certificateP12,
-        certPassword: certificatePassword,
-      },
-      this.app.bundleIdentifier
-    );
-    if (!validationResult.ok) {
-      Log.warn(validationResult.error);
-      return false;
-    }
-    return true;
   }
 
   private getCurrentProfileStoreInfo(
