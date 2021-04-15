@@ -1,6 +1,7 @@
-import { iOSDistributionType } from '@expo/eas-json';
+import { IosEnterpriseProvisioning, iOSDistributionType } from '@expo/eas-json';
 import chalk from 'chalk';
 
+import { IosAppBuildCredentialsFragment, IosDistributionType } from '../../../graphql/generated';
 import Log from '../../../log';
 import { promptAsync } from '../../../prompts';
 import { Action, CredentialsManager } from '../../CredentialsManager';
@@ -12,38 +13,62 @@ import { displayProjectCredentials as legacyDisplayProjectCredentials } from '..
 import { displayProjectCredentials } from '../utils/printCredentialsBeta';
 import { readAppleTeam } from '../utils/provisioningProfile';
 import { SetupAdhocProvisioningProfile } from './new/SetupAdhocProvisioningProfile';
+import { SetupInternalProvisioningProfile } from './new/SetupInternalProvisioningProfile';
 import { SetupProvisioningProfile } from './new/SetupProvisioningProfile';
 
+interface Options {
+  app: GraphQLAppLookupParams;
+  distribution: iOSDistributionType;
+  enterpriseProvisioning?: IosEnterpriseProvisioning;
+  skipCredentialsCheck?: boolean;
+}
+
 export class SetupBuildCredentials implements Action {
-  constructor(private app: GraphQLAppLookupParams, private distribution: iOSDistributionType) {}
+  constructor(private options: Options) {}
 
   async runAsync(manager: CredentialsManager, ctx: Context): Promise<void> {
+    const { app } = this.options;
+
     await ctx.bestEffortAppStoreAuthenticateAsync();
 
     if (ctx.appStore.authCtx) {
       await ctx.appStore.ensureBundleIdExistsAsync(
         {
-          accountName: this.app.account.name,
-          bundleIdentifier: this.app.bundleIdentifier,
-          projectName: this.app.projectName,
+          accountName: app.account.name,
+          bundleIdentifier: app.bundleIdentifier,
+          projectName: app.projectName,
         },
         { enablePushNotifications: true }
       );
     }
-
     try {
-      const buildCredentials =
-        this.distribution === 'internal'
-          ? await new SetupAdhocProvisioningProfile(this.app).runAsync(ctx)
-          : await new SetupProvisioningProfile(this.app).runAsync(ctx);
-      const appInfo = `@${this.app.account.name}/${this.app.projectName} (${this.app.bundleIdentifier})`;
-      displayProjectCredentials(this.app, buildCredentials);
+      const buildCredentials = await this.setupBuildCredentials(ctx);
+
+      const appInfo = `@${app.account.name}/${app.projectName} (${app.bundleIdentifier})`;
+      displayProjectCredentials(app, buildCredentials);
       Log.newLine();
       Log.log(chalk.green(`All credentials are ready to build ${appInfo}`));
       Log.newLine();
     } catch (error) {
       Log.error('Failed to setup credentials.');
       throw error;
+    }
+  }
+
+  async setupBuildCredentials(ctx: Context): Promise<IosAppBuildCredentialsFragment> {
+    const { app, distribution, enterpriseProvisioning } = this.options;
+    if (distribution === 'internal') {
+      if (enterpriseProvisioning === 'adhoc') {
+        return await new SetupAdhocProvisioningProfile(app).runAsync(ctx);
+      } else if (enterpriseProvisioning === 'universal') {
+        return await new SetupProvisioningProfile(app, IosDistributionType.Enterprise).runAsync(
+          ctx
+        );
+      } else {
+        return await new SetupInternalProvisioningProfile(app).runAsync(ctx);
+      }
+    } else {
+      return await new SetupProvisioningProfile(app, IosDistributionType.AppStore).runAsync(ctx);
     }
   }
 }

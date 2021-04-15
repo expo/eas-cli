@@ -10,6 +10,8 @@ export type AndroidDistributionType = 'store' | 'internal';
 export type iOSDistributionType = 'store' | 'internal' | 'simulator';
 export type DistributionType = AndroidDistributionType | iOSDistributionType;
 
+export type IosEnterpriseProvisioning = 'adhoc' | 'universal';
+
 export type VersionAutoIncrement = boolean | 'version' | 'buildNumber';
 
 export interface AndroidManagedBuildProfile extends Android.BuilderEnvironment {
@@ -38,6 +40,7 @@ export interface iOSManagedBuildProfile extends Ios.BuilderEnvironment {
   buildType?: Ios.ManagedBuildType;
   releaseChannel?: string;
   distribution?: iOSDistributionType;
+  enterpriseProvisioning?: IosEnterpriseProvisioning;
   autoIncrement: VersionAutoIncrement;
   cache: Cache;
 }
@@ -50,6 +53,7 @@ export interface iOSGenericBuildProfile extends Ios.BuilderEnvironment {
   releaseChannel?: string;
   artifactPath?: string;
   distribution?: iOSDistributionType;
+  enterpriseProvisioning?: IosEnterpriseProvisioning;
   autoIncrement: VersionAutoIncrement;
   cache: Cache;
   disableIosBundleIdentifierValidation?: boolean;

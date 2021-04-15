@@ -1,7 +1,7 @@
 import { Platform } from '@expo/eas-build-job';
-import { CredentialsSource, iOSDistributionType } from '@expo/eas-json';
+import { CredentialsSource, IosEnterpriseProvisioning, iOSDistributionType } from '@expo/eas-json';
 
-import { IosAppBuildCredentialsFragment, IosDistributionType } from '../../graphql/generated';
+import { IosAppBuildCredentialsFragment } from '../../graphql/generated';
 import Log from '../../log';
 import { CredentialsManager } from '../CredentialsManager';
 import { CredentialsProvider } from '../CredentialsProvider';
@@ -9,7 +9,10 @@ import { Context } from '../context';
 import * as credentialsJsonReader from '../credentialsJson/read';
 import type { IosCredentials } from '../credentialsJson/read';
 import { SetupBuildCredentials } from './actions/SetupBuildCredentials';
-import { getBuildCredentialsAsync } from './actions/new/BuildCredentialsUtils';
+import {
+  getBuildCredentialsAsync,
+  resolveDistributionType,
+} from './actions/new/BuildCredentialsUtils';
 import { AppLookupParams } from './api/GraphqlClient';
 import { isAdHocProfile } from './utils/provisioningProfile';
 
@@ -18,6 +21,7 @@ export type { IosCredentials };
 interface Options {
   app: AppLookupParams;
   distribution: iOSDistributionType;
+  enterpriseProvisioning?: IosEnterpriseProvisioning;
   skipCredentialsCheck?: boolean;
 }
 
@@ -124,7 +128,11 @@ export default class IosCredentialsProvider implements CredentialsProvider {
       Log.log('Skipping credentials check');
     } else {
       await new CredentialsManager(this.ctx).runActionAsync(
-        new SetupBuildCredentials(this.options.app, this.options.distribution)
+        new SetupBuildCredentials({
+          app: this.options.app,
+          distribution: this.options.distribution,
+          enterpriseProvisioning: this.options.enterpriseProvisioning,
+        })
       );
     }
 
@@ -160,10 +168,10 @@ export default class IosCredentialsProvider implements CredentialsProvider {
   }
 
   private async fetchRemoteAsync(): Promise<IosAppBuildCredentialsFragment | null> {
-    const distributionType =
-      this.options.distribution === 'internal'
-        ? IosDistributionType.AdHoc
-        : IosDistributionType.AppStore;
+    const distributionType = resolveDistributionType(
+      this.options.distribution,
+      this.options.enterpriseProvisioning
+    );
     return await getBuildCredentialsAsync(this.ctx, this.options.app, distributionType);
   }
 }

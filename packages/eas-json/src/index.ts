@@ -8,6 +8,7 @@ export {
   iOSManagedBuildProfile,
   iOSGenericBuildProfile,
   iOSBuildProfile,
+  IosEnterpriseProvisioning,
   DistributionType,
   EasConfig,
   VersionAutoIncrement,

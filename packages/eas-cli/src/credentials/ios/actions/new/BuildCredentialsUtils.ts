@@ -1,3 +1,4 @@
+import { IosEnterpriseProvisioning, iOSDistributionType } from '@expo/eas-json';
 import nullthrows from 'nullthrows';
 
 import {
@@ -92,4 +93,21 @@ export function getAppLookupParamsFromContext(ctx: Context): AppLookupParams {
   }
 
   return { account, projectName, bundleIdentifier };
+}
+
+export function resolveDistributionType(
+  distribution: iOSDistributionType,
+  enterpriseProvisioning?: IosEnterpriseProvisioning
+): IosDistributionType {
+  if (distribution === 'internal') {
+    if (enterpriseProvisioning === 'adhoc') {
+      return IosDistributionType.AdHoc;
+    } else if (enterpriseProvisioning === 'universal') {
+      return IosDistributionType.Enterprise;
+    } else {
+      return IosDistributionType.AdHoc;
+    }
+  } else {
+    return IosDistributionType.AppStore;
+  }
 }

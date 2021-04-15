@@ -1,5 +1,5 @@
 import { Workflow } from '@expo/eas-build-job';
-import { CredentialsSource, iOSDistributionType } from '@expo/eas-json';
+import { CredentialsSource, IosEnterpriseProvisioning, iOSDistributionType } from '@expo/eas-json';
 import assert from 'assert';
 
 import { createCredentialsContextAsync } from '../../credentials/context';
@@ -29,6 +29,7 @@ export async function ensureIosCredentialsAsync(
     workflow: ctx.buildProfile.workflow,
     credentialsSource: ctx.buildProfile.credentialsSource,
     distribution: ctx.buildProfile.distribution ?? 'store',
+    enterpriseProvisioning: ctx.buildProfile.enterpriseProvisioning,
     nonInteractive: ctx.commandCtx.nonInteractive,
     skipCredentialsCheck: ctx.commandCtx.skipCredentialsCheck,
   });
@@ -39,6 +40,7 @@ interface ResolveCredentialsParams {
   workflow: Workflow;
   credentialsSource: CredentialsSource;
   distribution: iOSDistributionType;
+  enterpriseProvisioning?: IosEnterpriseProvisioning;
   nonInteractive: boolean;
   skipCredentialsCheck: boolean;
 }
@@ -54,6 +56,7 @@ export async function resolveIosCredentialsAsync(
   const provider = new IosCredentialsProvider(ctx, {
     app,
     distribution: params.distribution,
+    enterpriseProvisioning: params.enterpriseProvisioning,
     skipCredentialsCheck: params.skipCredentialsCheck,
   });
   const credentialsSource = await ensureCredentialsAsync(
