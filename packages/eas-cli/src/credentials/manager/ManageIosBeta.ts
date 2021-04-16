@@ -79,9 +79,6 @@ export class ManageIosBeta implements Action {
       } catch (err) {
         Log.error(err);
         await manager.runActionAsync(new PressAnyKeyToContinue());
-      } finally {
-        // TODO remove finally block before committing!
-        return;
       }
     }
   }
