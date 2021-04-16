@@ -34,7 +34,8 @@ export type AppleDevicesByIdentifierQueryResult = AppleDeviceQueryResult & {
 const AppleDeviceQuery = {
   async getAllByAppleTeamIdentifierAsync(
     accountId: string,
-    appleTeamIdentifier: string
+    appleTeamIdentifier: string,
+    { useCache = true }: { useCache?: boolean } = {}
   ): Promise<AppleDeviceFragmentWithAppleTeam[]> {
     const data = await withErrorHandlingAsync(
       graphqlClient
@@ -63,7 +64,10 @@ const AppleDeviceQuery = {
             accountId,
             appleTeamIdentifier,
           },
-          { additionalTypenames: ['AppleDevice'] }
+          {
+            additionalTypenames: ['AppleDevice'],
+            requestPolicy: useCache ? 'cache-first' : 'network-only',
+          }
         )
         .toPromise()
     );

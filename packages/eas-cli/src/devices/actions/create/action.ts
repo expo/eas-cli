@@ -19,7 +19,7 @@ export default class DeviceCreateAction {
     private appleTeam: Pick<AppleTeam, 'appleTeamIdentifier' | 'appleTeamName' | 'id'>
   ) {}
 
-  public async runAsync(): Promise<void> {
+  public async runAsync(): Promise<RegistrationMethod> {
     const method = await this.askForRegistrationMethodAsync();
     if (method === RegistrationMethod.WEBSITE) {
       await runRegistrationUrlMethodAsync(this.account.id, this.appleTeam);
@@ -29,6 +29,7 @@ export default class DeviceCreateAction {
       Log.log('Bye!');
       process.exit(0);
     }
+    return method;
   }
 
   private async askForRegistrationMethodAsync(): Promise<RegistrationMethod> {
