@@ -20,7 +20,6 @@ import { ensureLoggedInAsync } from '../../user/actions';
 
 export default class EnvironmentSecretList extends Command {
   static description = 'Lists environment secrets available for your current app';
-  static usage = 'secrets:list';
 
   async run(): Promise<void> {
     await ensureLoggedInAsync();
