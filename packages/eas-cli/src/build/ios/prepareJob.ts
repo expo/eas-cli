@@ -1,4 +1,4 @@
-import { ArchiveSource, Cache, Ios, Job, Workflow, sanitizeJob } from '@expo/eas-build-job';
+import { ArchiveSource, Ios, Job, Workflow, sanitizeJob } from '@expo/eas-build-job';
 import { IosGenericBuildProfile, IosManagedBuildProfile } from '@expo/eas-json';
 import assert from 'assert';
 import path from 'path';
@@ -44,7 +44,6 @@ interface CommonJobProperties {
   builderEnvironment: Ios.BuilderEnvironment;
   releaseChannel?: string;
   distribution?: Ios.DistributionType;
-  cache: Cache;
   secrets: {
     buildCredentials: Ios.BuildCredentials;
     environmentSecrets?: Record<string, string>;
@@ -90,7 +89,6 @@ async function prepareJobCommonAsync(
       fastlane: ctx.buildProfile.fastlane,
       env: ctx.buildProfile.env,
     },
-    cache: ctx.buildProfile.cache,
     secrets: {
       ...(environmentSecrets ? { environmentSecrets } : {}),
       buildCredentials,
@@ -129,6 +127,7 @@ async function prepareGenericJobAsync(
         : buildProfile.schemeBuildConfiguration,
     artifactPath: buildProfile.artifactPath,
     releaseChannel: buildProfile.releaseChannel,
+    cache: ctx.buildProfile.cache,
     projectRootDirectory,
   };
 }
@@ -151,6 +150,10 @@ async function prepareManagedJobAsync(
     buildType: buildProfile.buildType,
     username: accountName,
     releaseChannel: buildProfile.releaseChannel,
+    cache: {
+      ...ctx.buildProfile.cache,
+      key: ctx.buildProfile.cache.key ?? ctx.commandCtx.exp.sdkVersion, // TODO: quickfix
+    },
     projectRootDirectory,
   };
 }
