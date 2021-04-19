@@ -17,6 +17,17 @@ import { Context } from '../../../context';
 import { AppLookupParams } from '../../api/GraphqlClient';
 import { resolveAppleTeamIfAuthenticatedAsync } from './AppleTeamUtils';
 
+export async function getAllBuildCredentialsAsync(
+  ctx: Context,
+  app: AppLookupParams
+): Promise<IosAppBuildCredentialsFragment[]> {
+  const appCredentials = await ctx.newIos.getIosAppCredentialsWithBuildCredentialsAsync(app, {});
+  if (!appCredentials) {
+    return [];
+  }
+  return appCredentials.iosAppBuildCredentialsArray;
+}
+
 export async function getBuildCredentialsAsync(
   ctx: Context,
   app: AppLookupParams,
