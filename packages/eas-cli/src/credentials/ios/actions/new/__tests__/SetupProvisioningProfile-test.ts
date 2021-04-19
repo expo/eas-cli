@@ -23,10 +23,7 @@ jest.mock('../../../validators/validateProvisioningProfile');
 
 describe('SetupProvisioningProfile', () => {
   it('repairs existing Provisioning Profile with bad build credentials in Interactive Mode', async () => {
-    (validateProvisioningProfileAsync as jest.Mock).mockImplementation(() => ({
-      error: 'testing: everything is fine, ignore this',
-      ok: false,
-    }));
+    (validateProvisioningProfileAsync as jest.Mock).mockImplementation(() => false);
     const ctx = createCtxMock({
       nonInteractive: false,
       appStore: {
@@ -66,10 +63,7 @@ describe('SetupProvisioningProfile', () => {
     expect((ctx.newIos.deleteProvisioningProfilesAsync as any).mock.calls.length).toBe(0);
   });
   it('sets up a new Provisioning Profile with bad build credentials in Interactive Mode', async () => {
-    (validateProvisioningProfileAsync as jest.Mock).mockImplementation(() => ({
-      error: 'testing: everything is fine, ignore this',
-      ok: false,
-    }));
+    (validateProvisioningProfileAsync as jest.Mock).mockImplementation(() => false);
     const ctx = createCtxMock({
       nonInteractive: false,
       appStore: {
@@ -99,9 +93,7 @@ describe('SetupProvisioningProfile', () => {
     expect((ctx.newIos.deleteProvisioningProfilesAsync as any).mock.calls.length).toBe(1);
   });
   it('skips setting up a Provisioning Profile with prior build credentials configured properly in Interactive Mode', async () => {
-    (validateProvisioningProfileAsync as jest.Mock).mockImplementation(() => ({
-      ok: true,
-    }));
+    (validateProvisioningProfileAsync as jest.Mock).mockImplementation(() => true);
     const ctx = createCtxMock({
       nonInteractive: false,
       appStore: {
@@ -131,6 +123,7 @@ describe('SetupProvisioningProfile', () => {
     expect((ctx.newIos.deleteProvisioningProfilesAsync as any).mock.calls.length).toBe(0);
   });
   it('sets up a Provisioning Profile with no prior build credentials configured in Interactive Mode', async () => {
+    (validateProvisioningProfileAsync as jest.Mock).mockImplementation(() => false);
     const ctx = createCtxMock({
       nonInteractive: false,
       appStore: {
@@ -156,6 +149,7 @@ describe('SetupProvisioningProfile', () => {
     expect((ctx.newIos.deleteProvisioningProfilesAsync as any).mock.calls.length).toBe(0);
   });
   it('errors in Non Interactive Mode', async () => {
+    (validateProvisioningProfileAsync as jest.Mock).mockImplementation(() => false);
     const ctx = createCtxMock({
       nonInteractive: true,
     });
