@@ -1,16 +1,10 @@
 // Copied from expo-cli/src/commands/eject/ConfigValidation
 import { ExpoConfig, getConfig, modifyConfigAsync } from '@expo/config';
 import { getAccountUsername } from '@expo/config/build/getCurrentFullName';
-import { Platform } from '@expo/eas-build-job';
 import chalk from 'chalk';
-
 import got from 'got';
 
 import Log, { learnMore } from '../log';
-import {
-  ensureAppIdentifierIsDefinedAsync,
-  getProjectConfigDescription,
-} from '../project/projectUtils';
 import { confirmAsync, promptAsync } from '../prompts';
 import { isUrlAvailableAsync } from './url';
 
