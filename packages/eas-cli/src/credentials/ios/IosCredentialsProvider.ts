@@ -30,59 +30,6 @@ export default class IosCredentialsProvider implements CredentialsProvider {
 
   constructor(private ctx: Context, private options: Options) {}
 
-  public async hasRemoteAsync(): Promise<boolean> {
-    // TODO: this is temporary
-    // remove this check when we implement syncing local credentials for internal distribution
-    if (this.options.distribution === 'internal' && (await this.hasLocalAsync())) {
-      return false;
-    }
-    const buildCredentials = await this.fetchRemoteAsync();
-    return !!(
-      buildCredentials?.distributionCertificate?.certificateP12 ||
-      buildCredentials?.distributionCertificate?.certificatePassword ||
-      buildCredentials?.provisioningProfile?.provisioningProfile
-    );
-  }
-
-  public async hasLocalAsync(): Promise<boolean> {
-    if (!(await credentialsJsonReader.fileExistsAsync(this.ctx.projectDir))) {
-      return false;
-    }
-    try {
-      const rawCredentialsJson = await credentialsJsonReader.readRawAsync(this.ctx.projectDir);
-      return !!rawCredentialsJson?.ios;
-    } catch (err) {
-      Log.error(err); // malformed json
-      return false;
-    }
-  }
-
-  public async isLocalSyncedAsync(): Promise<boolean> {
-    try {
-      const [remote, local] = await Promise.all([this.fetchRemoteAsync(), this.getLocalAsync()]);
-      const r = remote;
-      const l = local;
-
-      // TODO
-      // For now, when credentials.json contains credentials for multi-target project
-      // assume they are synced with the Expo servers.
-      // Change this behavior when we figure out how to store multi-target project credentials in the db.
-      if (credentialsJsonReader.isCredentialsMap(l)) {
-        return true;
-      }
-
-      return !!(
-        r &&
-        l &&
-        r.provisioningProfile?.provisioningProfile === l.provisioningProfile &&
-        r.distributionCertificate?.certificateP12 === l.distributionCertificate.certP12 &&
-        r.distributionCertificate?.certificatePassword === l.distributionCertificate.certPassword
-      );
-    } catch (_) {
-      return false;
-    }
-  }
-
   public async getCredentialsAsync(
     src: CredentialsSource.LOCAL | CredentialsSource.REMOTE
   ): Promise<IosCredentials> {

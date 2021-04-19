@@ -13,7 +13,7 @@ import Log from '../../log';
 import { toggleConfirmAsync } from '../../prompts';
 import { CredentialsResult, prepareBuildRequestForPlatformAsync } from '../build';
 import { BuildContext, CommandContext, createBuildContext } from '../context';
-import { ensureCredentialsAsync } from '../credentials';
+import { resolveCredentialsSource } from '../credentials';
 import { transformMetadata } from '../graphql';
 import { Platform } from '../types';
 import { ensureApplicationIdIsValidAsync } from './applicationId';
@@ -125,12 +125,7 @@ async function ensureAndroidCredentialsAsync(
       skipCredentialsCheck: ctx.commandCtx.skipCredentialsCheck,
     }
   );
-  const credentialsSource = await ensureCredentialsAsync(
-    provider,
-    ctx.buildProfile.workflow,
-    ctx.buildProfile.credentialsSource,
-    ctx.commandCtx.nonInteractive
-  );
+  const credentialsSource = resolveCredentialsSource(provider, ctx.buildProfile.credentialsSource);
   return {
     credentials: await provider.getCredentialsAsync(credentialsSource),
     source: credentialsSource,

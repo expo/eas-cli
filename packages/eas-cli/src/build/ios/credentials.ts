@@ -10,7 +10,7 @@ import { getAppLookupParamsFromContext } from '../../credentials/ios/actions/new
 import { AppLookupParams } from '../../credentials/ios/credentials';
 import { CredentialsResult } from '../build';
 import { BuildContext } from '../context';
-import { ensureCredentialsAsync } from '../credentials';
+import { resolveCredentialsSource } from '../credentials';
 import { Platform } from '../types';
 
 export async function ensureIosCredentialsAsync(
@@ -59,12 +59,7 @@ export async function resolveIosCredentialsAsync(
     enterpriseProvisioning: params.enterpriseProvisioning,
     skipCredentialsCheck: params.skipCredentialsCheck,
   });
-  const credentialsSource = await ensureCredentialsAsync(
-    provider,
-    params.workflow,
-    params.credentialsSource,
-    params.nonInteractive
-  );
+  const credentialsSource = resolveCredentialsSource(provider, params.credentialsSource);
   return {
     credentials: await provider.getCredentialsAsync(credentialsSource),
     source: credentialsSource,

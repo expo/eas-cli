@@ -40,7 +40,7 @@ const CacheSchema = Joi.object({
 
 const AndroidGenericSchema = Joi.object({
   workflow: Joi.string().valid('generic').required(),
-  credentialsSource: Joi.string().valid('local', 'remote', 'auto').default('auto'),
+  credentialsSource: Joi.string().valid('auto', 'local', 'remote').default('remote'),
   gradleCommand: Joi.alternatives().conditional('distribution', {
     is: 'internal',
     then: Joi.string().default(':app:assembleRelease'),
@@ -55,7 +55,7 @@ const AndroidGenericSchema = Joi.object({
 
 const AndroidManagedSchema = Joi.object({
   workflow: Joi.string().valid('managed').required(),
-  credentialsSource: Joi.string().valid('local', 'remote', 'auto').default('auto'),
+  credentialsSource: Joi.string().valid('auto', 'local', 'remote').default('remote'),
   releaseChannel: Joi.string(),
   buildType: Joi.alternatives().conditional('distribution', {
     is: 'internal',
@@ -68,7 +68,7 @@ const AndroidManagedSchema = Joi.object({
 
 const IosGenericSchema = Joi.object({
   workflow: Joi.string().valid('generic').required(),
-  credentialsSource: Joi.string().valid('local', 'remote', 'auto').default('auto'),
+  credentialsSource: Joi.string().valid('auto', 'local', 'remote').default('remote'),
   scheme: Joi.string(),
   schemeBuildConfiguration: Joi.string().valid('Debug', 'Release', 'Auto').default('Release'),
   releaseChannel: Joi.string(),
@@ -83,7 +83,7 @@ const IosGenericSchema = Joi.object({
 
 const IosManagedSchema = Joi.object({
   workflow: Joi.string().valid('managed').required(),
-  credentialsSource: Joi.string().valid('local', 'remote', 'auto').default('auto'),
+  credentialsSource: Joi.string().valid('auto', 'local', 'remote').default('remote'),
   buildType: Joi.string().valid('release', 'development-client').default('release'),
   releaseChannel: Joi.string(),
   distribution: Joi.string().valid('store', 'internal', 'simulator').default('store'),
