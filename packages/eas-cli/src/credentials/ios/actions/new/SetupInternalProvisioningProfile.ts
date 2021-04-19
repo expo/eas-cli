@@ -13,12 +13,14 @@ export class SetupInternalProvisioningProfile {
   async runAsync(ctx: Context): Promise<IosAppBuildCredentialsFragment> {
     const buildCredentials = await getAllBuildCredentialsAsync(ctx, this.app);
 
-    const adhocBuildCredentials = buildCredentials.filter(
-      ({ iosDistributionType }) => iosDistributionType === IosDistributionType.AdHoc
-    );
-    const enterpriseBuildCredentials = buildCredentials.filter(
-      ({ iosDistributionType }) => iosDistributionType === IosDistributionType.Enterprise
-    );
+    const adhocBuildCredentialsExist =
+      buildCredentials.filter(
+        ({ iosDistributionType }) => iosDistributionType === IosDistributionType.AdHoc
+      ).length > 0;
+    const enterpriseBuildCredentialsExist =
+      buildCredentials.filter(
+        ({ iosDistributionType }) => iosDistributionType === IosDistributionType.Enterprise
+      ).length > 0;
 
     if (!ctx.nonInteractive) {
       if (ctx.appStore.authCtx) {
@@ -28,19 +30,19 @@ export class SetupInternalProvisioningProfile {
             'Which credentials would you like to set up?'
           );
         } else {
-          return await this.setupAdhocProvisioningProfile(ctx);
+          return await this.setupAdhocProvisioningProfileAsync(ctx);
         }
       } else {
-        if (adhocBuildCredentials && enterpriseBuildCredentials) {
+        if (adhocBuildCredentialsExist && enterpriseBuildCredentialsExist) {
           Log.log('You have set up both adhoc and universal distribution credentials.');
           return await this.askForDistributionTypeAndSetupAsync(
             ctx,
             'Which credentials would you like to use?'
           );
-        } else if (adhocBuildCredentials) {
-          return await this.setupAdhocProvisioningProfile(ctx);
-        } else if (enterpriseBuildCredentials) {
-          return await this.setupUniversalProvisiongProfile(ctx);
+        } else if (adhocBuildCredentialsExist) {
+          return await this.setupAdhocProvisioningProfileAsync(ctx);
+        } else if (enterpriseBuildCredentialsExist) {
+          return await this.setupUniversalProvisiongProfileAsync(ctx);
         } else {
           const { team } = await ctx.appStore.ensureAuthenticatedAsync();
           if (team.inHouse) {
@@ -49,19 +51,19 @@ export class SetupInternalProvisioningProfile {
               'Which credentials would you like to set up?'
             );
           } else {
-            return await this.setupAdhocProvisioningProfile(ctx);
+            return await this.setupAdhocProvisioningProfileAsync(ctx);
           }
         }
       }
     } else {
-      if (adhocBuildCredentials && enterpriseBuildCredentials) {
+      if (adhocBuildCredentialsExist && enterpriseBuildCredentialsExist) {
         throw new Error(
           `You're in non-interactive mode. You have set up both adhoc and universal distribution credentials. Please set the 'enterpriseProvisioning' property (to 'adhoc' or 'universal') in eas.json to choose the credentials to use.`
         );
-      } else if (adhocBuildCredentials) {
-        return await this.setupAdhocProvisioningProfile(ctx);
-      } else if (enterpriseBuildCredentials) {
-        return await this.setupUniversalProvisiongProfile(ctx);
+      } else if (adhocBuildCredentialsExist) {
+        return await this.setupAdhocProvisioningProfileAsync(ctx);
+      } else if (enterpriseBuildCredentialsExist) {
+        return await this.setupUniversalProvisiongProfileAsync(ctx);
       } else {
         throw new Error(
           `You're in non-interactive mode. EAS CLI couldn't any credentials suitable for internal distribution. Please run again in interactive mode.`
@@ -70,13 +72,13 @@ export class SetupInternalProvisioningProfile {
     }
   }
 
-  private async setupAdhocProvisioningProfile(
+  private async setupAdhocProvisioningProfileAsync(
     ctx: Context
   ): Promise<IosAppBuildCredentialsFragment> {
     return await new SetupAdhocProvisioningProfile(this.app).runAsync(ctx);
   }
 
-  private async setupUniversalProvisiongProfile(
+  private async setupUniversalProvisiongProfileAsync(
     ctx: Context
   ): Promise<IosAppBuildCredentialsFragment> {
     return await new SetupProvisioningProfile(this.app, IosDistributionType.Enterprise).runAsync(
@@ -98,9 +100,9 @@ export class SetupInternalProvisioningProfile {
       ],
     });
     if (distributionType === IosDistributionType.Enterprise) {
-      return await this.setupUniversalProvisiongProfile(ctx);
+      return await this.setupUniversalProvisiongProfileAsync(ctx);
     } else {
-      return await this.setupAdhocProvisioningProfile(ctx);
+      return await this.setupAdhocProvisioningProfileAsync(ctx);
     }
   }
 }
