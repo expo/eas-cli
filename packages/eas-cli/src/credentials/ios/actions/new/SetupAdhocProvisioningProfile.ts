@@ -1,16 +1,19 @@
 import assert from 'assert';
+import chalk from 'chalk';
 import differenceBy from 'lodash/differenceBy';
 import isEqual from 'lodash/isEqual';
 import nullthrows from 'nullthrows';
 
+import DeviceCreateAction, { RegistrationMethod } from '../../../../devices/actions/create/action';
 import {
+  AppleDeviceFragment,
   AppleProvisioningProfileFragment,
   AppleTeamFragment,
   IosAppBuildCredentialsFragment,
   IosDistributionType,
 } from '../../../../graphql/generated';
 import Log from '../../../../log';
-import { confirmAsync } from '../../../../prompts';
+import { confirmAsync, pressAnyKeyToContinueAsync } from '../../../../prompts';
 import { Context } from '../../../context';
 import { AppLookupParams } from '../../api/GraphqlClient';
 import { MissingCredentialsNonInteractiveError } from '../../errors';
@@ -63,16 +66,18 @@ export class SetupAdhocProvisioningProfile {
     assert(appleTeam, 'Apple Team must be defined here');
 
     // 2. Fetch devices registered on EAS servers
-    const registeredAppleDevices = await ctx.newIos.getDevicesForAppleTeamAsync(
-      this.app,
-      appleTeam
-    );
-    const registeredAppleDeviceIdentifiers = registeredAppleDevices.map(
-      ({ identifier }) => identifier
-    );
-    if (registeredAppleDeviceIdentifiers.length === 0) {
-      // TODO: implement device registration
-      throw new Error(`Run 'eas device:create' to register your devices first`);
+    let registeredAppleDevices = await ctx.newIos.getDevicesForAppleTeamAsync(this.app, appleTeam);
+    if (registeredAppleDevices.length === 0) {
+      const shouldRegisterDevices = await confirmAsync({
+        message: `You don't have any registered devices yet. Would you like to register them now?`,
+        initial: true,
+      });
+
+      if (shouldRegisterDevices) {
+        registeredAppleDevices = await this.registerDevicesAsync(ctx, appleTeam);
+      } else {
+        throw new Error(`Run 'eas device:create' to register your devices first`);
+      }
     }
 
     // 3. Choose devices for internal distribution
@@ -179,6 +184,36 @@ export class SetupAdhocProvisioningProfile {
         message: `Would you like to choose the devices to provision again?`,
         initial: true,
       }));
+    }
+  }
+
+  private async registerDevicesAsync(
+    ctx: Context,
+    appleTeam: AppleTeamFragment
+  ): Promise<AppleDeviceFragment[]> {
+    const action = new DeviceCreateAction(this.app.account, appleTeam);
+    const method = await action.runAsync();
+
+    while (true) {
+      if (method !== RegistrationMethod.INPUT) {
+        Log.newLine();
+        Log.log(chalk.bold("Press any key if you've already finished device registration."));
+        await pressAnyKeyToContinueAsync();
+      }
+      Log.newLine();
+
+      const devices = await ctx.newIos.getDevicesForAppleTeamAsync(this.app, appleTeam, {
+        useCache: false,
+      });
+      if (devices.length === 0) {
+        Log.warn('There are still no registered devices.');
+        // if the user used the input method there should be some devices available
+        if (method === RegistrationMethod.INPUT) {
+          throw new Error('Input registration method has failed');
+        }
+      } else {
+        return devices;
+      }
     }
   }
 }

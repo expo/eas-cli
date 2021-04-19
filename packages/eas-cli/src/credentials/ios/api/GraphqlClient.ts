@@ -3,6 +3,7 @@ import nullthrows from 'nullthrows';
 import {
   AppFragment,
   AppleAppIdentifierFragment,
+  AppleDeviceFragment,
   AppleDistributionCertificateFragment,
   AppleTeamFragment,
   CommonIosAppCredentialsFragment,
@@ -26,10 +27,7 @@ import { IosAppBuildCredentialsMutation } from './graphql/mutations/IosAppBuildC
 import { IosAppCredentialsMutation } from './graphql/mutations/IosAppCredentialsMutation';
 import { AppQuery } from './graphql/queries/AppQuery';
 import { AppleAppIdentifierQuery } from './graphql/queries/AppleAppIdentifierQuery';
-import {
-  AppleDeviceFragmentWithAppleTeam,
-  AppleDeviceQuery,
-} from './graphql/queries/AppleDeviceQuery';
+import { AppleDeviceQuery } from './graphql/queries/AppleDeviceQuery';
 import { AppleDistributionCertificateQuery } from './graphql/queries/AppleDistributionCertificateQuery';
 import {
   AppleProvisioningProfileQuery,
@@ -215,9 +213,12 @@ export async function createOrGetExistingAppleAppIdentifierAsync(
 
 export async function getDevicesForAppleTeamAsync(
   { account }: AppLookupParams,
-  { appleTeamIdentifier }: AppleTeamFragment
-): Promise<AppleDeviceFragmentWithAppleTeam[]> {
-  return await AppleDeviceQuery.getAllByAppleTeamIdentifierAsync(account.id, appleTeamIdentifier);
+  { appleTeamIdentifier }: AppleTeamFragment,
+  { useCache = true }: { useCache?: boolean } = {}
+): Promise<AppleDeviceFragment[]> {
+  return await AppleDeviceQuery.getAllByAppleTeamIdentifierAsync(account.id, appleTeamIdentifier, {
+    useCache,
+  });
 }
 
 export async function createProvisioningProfileAsync(
