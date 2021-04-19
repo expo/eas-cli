@@ -13,7 +13,7 @@ import { prepareBuildRequestForPlatformAsync } from '../build';
 import { BuildContext, CommandContext, createBuildContext } from '../context';
 import { transformMetadata } from '../graphql';
 import { Platform } from '../types';
-import { ensureBundleIdentifierIsValidAsync } from './bundleIdentifer';
+import { configureBundleIdentifierAsync } from './bundleIdentifer';
 import { validateAndSyncProjectConfigurationAsync } from './configure';
 import { ensureIosCredentialsAsync } from './credentials';
 import { transformGenericJob, transformManagedJob } from './graphql';
@@ -58,7 +58,7 @@ export async function prepareIosBuildAsync(
     }
   }
 
-  await ensureBundleIdentifierIsValidAsync(commandCtx.projectDir, commandCtx.exp);
+  await configureBundleIdentifierAsync(commandCtx.projectDir, commandCtx.exp);
 
   return await prepareBuildRequestForPlatformAsync({
     ctx: buildCtx,

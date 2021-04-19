@@ -7,7 +7,7 @@ import { gitAddAsync } from '../../utils/git';
 import { ConfigureContext } from '../context';
 import { isExpoUpdatesInstalled } from '../utils/updates';
 import { configureUpdatesAsync, syncUpdatesConfigurationAsync } from './UpdatesModule';
-import { configureApplicationIdAsync, ensureApplicationIdIsValidAsync } from './applicationId';
+import { configureApplicationIdAsync } from './applicationId';
 
 export async function configureAndroidAsync(ctx: ConfigureContext): Promise<void> {
   if (!ctx.hasAndroidNativeProject) {
@@ -15,7 +15,6 @@ export async function configureAndroidAsync(ctx: ConfigureContext): Promise<void
   }
   await AndroidConfig.EasBuild.configureEasBuildAsync(ctx.projectDir);
   await configureApplicationIdAsync(ctx.projectDir, ctx.exp, ctx.allowExperimental);
-  await ensureApplicationIdIsValidAsync(ctx.projectDir, ctx.exp);
 
   const easGradlePath = AndroidConfig.EasBuild.getEasBuildGradlePath(ctx.projectDir);
   await gitAddAsync(easGradlePath, { intentToAdd: true });

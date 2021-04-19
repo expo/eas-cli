@@ -1,55 +1,49 @@
 import { ExpoConfig, getConfigFilePaths } from '@expo/config';
 import { AndroidConfig } from '@expo/config-plugins';
-import assert from 'assert';
 import chalk from 'chalk';
 import fs from 'fs-extra';
 import path from 'path';
 
 import Log from '../../log';
 import {
-  ensureAppIdentifierIsDefinedAsync,
   getAndroidApplicationIdAsync,
   getProjectConfigDescription,
 } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
-import { gitAddAsync } from '../../utils/git';
-import { Platform } from '../types';
+import {
+  assertPackageValid,
+  getOrPromptForPackageAsync,
+  setPackageInExpoConfigAsync,
+} from '../../utils/promptConfigModifications';
 
 enum ApplicationIdSource {
   AndroidProject,
   AppJson,
 }
 
-function isApplicationIdValid(applicationId: string): boolean {
-  return /^[a-zA-Z][a-zA-Z0-9_]*(\.[a-zA-Z][a-zA-Z0-9_]*)+$/.test(applicationId);
-}
-
-export async function ensureApplicationIdIsValidAsync(projectDir: string, exp: ExpoConfig) {
-  const applicationId = await ensureAppIdentifierIsDefinedAsync({
-    projectDir,
-    platform: Platform.ANDROID,
-    exp,
-  });
-  if (!isApplicationIdValid(applicationId)) {
-    const configDescription = getProjectConfigDescription(projectDir);
-    Log.error(
-      `Invalid format of Android applicationId. Only alphanumeric characters, '.' and '_' are allowed, and each '.' must be followed by a letter.`
-    );
-    Log.error(`Update "android.package" in ${configDescription} and run this command again.`);
-    throw new Error('Invalid applicationId');
-  }
-}
-
 export async function configureApplicationIdAsync(
   projectDir: string,
   exp: ExpoConfig,
   allowExperimental: boolean
-): Promise<void> {
-  const configDescription = getProjectConfigDescription(projectDir);
+): Promise<string> {
+  const applicationId = await _configureApplicationIdAsync(projectDir, exp, allowExperimental);
+  assertPackageValid(applicationId);
+  // TODO: Maybe check the git status here, skipping for now because it'll show too often.
+  // await ensureGitStatusIsCleanAsync();
+  return applicationId;
+}
+
+export async function _configureApplicationIdAsync(
+  projectDir: string,
+  exp: ExpoConfig,
+  allowExperimental: boolean
+): Promise<string> {
   const applicationIdFromConfig = AndroidConfig.Package.getPackage(exp);
   const applicationIdFromAndroidProject = await getAndroidApplicationIdAsync(projectDir);
 
   if (applicationIdFromAndroidProject && applicationIdFromConfig) {
+    const configDescription = getProjectConfigDescription(projectDir);
+
     if (applicationIdFromConfig !== applicationIdFromAndroidProject) {
       Log.newLine();
       Log.warn(
@@ -83,62 +77,51 @@ However, if you choose the one defined in the Android project you'll have to upd
       });
       switch (applicationIdSource) {
         case ApplicationIdSource.AppJson: {
+          // Update native
+          await updatePackageNameAsync(projectDir, exp);
           await updateApplicationIdInBuildGradleAsync(projectDir, exp);
-          break;
+          return applicationIdFromConfig;
         }
         case ApplicationIdSource.AndroidProject: {
-          if (hasApplicationIdInStaticConfig) {
-            await updateAppJsonConfigAsync(projectDir, exp, applicationIdFromAndroidProject);
-          } else {
-            throw new Error(missingPackageMessage(configDescription));
-          }
-          break;
+          const applicationId = await setPackageInExpoConfigAsync(
+            projectDir,
+            applicationIdFromAndroidProject,
+            exp
+          );
+          if (!exp.android) exp.android = {};
+          exp.android.package = applicationId;
+          return applicationId;
         }
       }
     }
-  } else if (!applicationIdFromAndroidProject && !applicationIdFromConfig) {
-    throw new Error(missingPackageMessage(configDescription));
-  } else if (applicationIdFromAndroidProject && !applicationIdFromConfig) {
-    if (getConfigFilePaths(projectDir).staticConfigPath) {
-      await updateAppJsonConfigAsync(projectDir, exp, applicationIdFromAndroidProject);
-    } else {
-      throw new Error(missingPackageMessage(configDescription));
-    }
-  } else if (!applicationIdFromAndroidProject && applicationIdFromConfig) {
-    // This should never happen, adding warning just in case
-    Log.warn(
-      'applicationId is not specified in your ./android/app/build.gradle file. Make sure your project is configured correctly before building.'
-    );
-    return;
   }
-  if (allowExperimental) {
-    // this step is optional, the Play store is using applicationId value from build.gradle
-    // to identify the app, so package name does not need to be updated
+
+  let applicationId: string;
+  if (applicationIdFromConfig) {
+    applicationId = applicationIdFromConfig;
+    // Update native
     await updatePackageNameAsync(projectDir, exp);
-    await gitAddAsync(path.join(projectDir, 'android'), { intentToAdd: true });
+    await updateApplicationIdInBuildGradleAsync(projectDir, exp);
+  } else if (applicationIdFromAndroidProject) {
+    applicationId = await setPackageInExpoConfigAsync(
+      projectDir,
+      applicationIdFromAndroidProject,
+      exp
+    );
+  } else {
+    applicationId = await getOrPromptForPackageAsync(projectDir);
+    // Only update if the native folder exists, this allows support for prompting in managed.
+    if (fs.existsSync(path.join(projectDir, 'android'))) {
+      // Update native
+      await updatePackageNameAsync(projectDir, exp);
+      await updateApplicationIdInBuildGradleAsync(projectDir, exp);
+    }
   }
-}
+  // sync up the config
+  if (!exp.android) exp.android = {};
+  exp.android.package = applicationId;
 
-function missingPackageMessage(configDescription: string): string {
-  return `Please define "android.package" in ${configDescription} and run "eas build:configure" again.`;
-}
-
-async function updateAppJsonConfigAsync(
-  projectDir: string,
-  exp: ExpoConfig,
-  newApplicationId: string
-): Promise<void> {
-  const paths = getConfigFilePaths(projectDir);
-  assert(paths.staticConfigPath, "can't update dynamic configs");
-
-  const rawStaticConfig = await fs.readJSON(paths.staticConfigPath);
-  rawStaticConfig.expo = {
-    ...rawStaticConfig.expo,
-    android: { ...rawStaticConfig.expo?.android, package: newApplicationId },
-  };
-  await fs.writeJson(paths.staticConfigPath, rawStaticConfig, { spaces: 2 });
-
-  exp.android = { ...exp.android, package: newApplicationId };
+  return applicationId;
 }
 
 /**

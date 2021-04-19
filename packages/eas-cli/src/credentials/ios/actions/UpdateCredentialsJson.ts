@@ -1,7 +1,5 @@
-import { Platform } from '@expo/eas-build-job';
-
+import { configureBundleIdentifierAsync } from '../../../build/ios/bundleIdentifer';
 import Log from '../../../log';
-import { ensureAppIdentifierIsDefinedAsync } from '../../../project/projectUtils';
 import { Action, CredentialsManager } from '../../CredentialsManager';
 import { Context } from '../../context';
 import { updateIosCredentialsAsync } from '../../credentialsJson/update';
@@ -11,11 +9,8 @@ export class UpdateCredentialsJson implements Action {
   constructor(private app: AppLookupParams) {}
 
   async runAsync(manager: CredentialsManager, ctx: Context): Promise<void> {
-    const bundleIdentifer = await ensureAppIdentifierIsDefinedAsync({
-      projectDir: ctx.projectDir,
-      platform: Platform.IOS,
-      exp: ctx.exp,
-    });
+    const bundleIdentifer = await configureBundleIdentifierAsync(ctx.projectDir, ctx.exp);
+
     Log.log('Updating iOS credentials in credentials.json');
     await updateIosCredentialsAsync(ctx, bundleIdentifer);
     Log.succeed(

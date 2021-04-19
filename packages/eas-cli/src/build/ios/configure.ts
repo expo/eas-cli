@@ -12,10 +12,7 @@ import Log from '../../log';
 import { ConfigureContext } from '../context';
 import { isExpoUpdatesInstalled } from '../utils/updates';
 import { configureUpdatesAsync, syncUpdatesConfigurationAsync } from './UpdatesModule';
-import {
-  configureBundleIdentifierAsync,
-  ensureBundleIdentifierIsValidAsync,
-} from './bundleIdentifer';
+import { configureBundleIdentifierAsync } from './bundleIdentifer';
 import { BumpStrategy, bumpVersionAsync, bumpVersionInAppJsonAsync } from './version';
 
 export async function configureIosAsync(ctx: ConfigureContext): Promise<void> {
@@ -28,7 +25,6 @@ export async function configureIosAsync(ctx: ConfigureContext): Promise<void> {
   )?.experimental?.disableIosBundleIdentifierValidation;
   if (!disableIosBundleIdentifierValidation) {
     await configureBundleIdentifierAsync(ctx.projectDir, ctx.exp);
-    await ensureBundleIdentifierIsValidAsync(ctx.projectDir, ctx.exp);
   }
 
   if (isExpoUpdatesInstalled(ctx.projectDir)) {

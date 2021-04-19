@@ -16,7 +16,7 @@ import { BuildContext, CommandContext, createBuildContext } from '../context';
 import { ensureCredentialsAsync } from '../credentials';
 import { transformMetadata } from '../graphql';
 import { Platform } from '../types';
-import { ensureApplicationIdIsValidAsync } from './applicationId';
+import { configureApplicationIdAsync } from './applicationId';
 import { validateAndSyncProjectConfigurationAsync } from './configure';
 import { transformGenericJob, transformManagedJob } from './graphql';
 import { prepareJobAsync } from './prepareJob';
@@ -63,7 +63,12 @@ This means that it will most likely produce an AAB and you will not be able to i
     }
   }
 
-  await ensureApplicationIdIsValidAsync(commandCtx.projectDir, commandCtx.exp);
+  await configureApplicationIdAsync(
+    commandCtx.projectDir,
+    commandCtx.exp,
+    false
+    // commandCtx.allowExperimental
+  );
 
   return await prepareBuildRequestForPlatformAsync({
     ctx: buildCtx,

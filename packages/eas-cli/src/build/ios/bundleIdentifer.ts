@@ -2,51 +2,42 @@ import { ExpoConfig, getConfigFilePaths } from '@expo/config';
 import { IOSConfig } from '@expo/config-plugins';
 import chalk from 'chalk';
 import fs from 'fs-extra';
+import path from 'path';
 
 import Log from '../../log';
-import {
-  ensureAppIdentifierIsDefinedAsync,
-  getProjectConfigDescription,
-} from '../../project/projectUtils';
+import { getProjectConfigDescription } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
-import { Platform } from '../types';
-import { updateAppJsonConfigAsync } from '../utils/appJson';
+import {
+  assertBundleIdentifierValid,
+  getOrPromptForBundleIdentifierAsync,
+  setBundleIdentifierInExpoConfigAsync,
+} from '../../utils/promptConfigModifications';
 
 enum BundleIdentiferSource {
   XcodeProject,
   AppJson,
 }
 
-function isBundleIdentifierValid(bundleIdentifier: string): boolean {
-  return /^[a-zA-Z][a-zA-Z0-9\-.]+$/.test(bundleIdentifier);
-}
-
-export async function ensureBundleIdentifierIsValidAsync(projectDir: string, exp: ExpoConfig) {
-  const bundleIdentifier = await ensureAppIdentifierIsDefinedAsync({
-    projectDir,
-    platform: Platform.IOS,
-    exp,
-  });
-  if (!isBundleIdentifierValid(bundleIdentifier)) {
-    const configDescription = getProjectConfigDescription(projectDir);
-    Log.error(
-      `Invalid format of iOS bundleId. Only alphanumeric characters, '.' and '-' are allowed, and each '.' must be followed by a letter.`
-    );
-    Log.error(`Update "ios.bundleIdentifier" in ${configDescription} and run this command again.`);
-    throw new Error('Invalid bundleIdentifier');
-  }
-}
-
 export async function configureBundleIdentifierAsync(
   projectDir: string,
   exp: ExpoConfig
-): Promise<void> {
-  const configDescription = getProjectConfigDescription(projectDir);
+): Promise<string> {
+  const bundleId = await _configureBundleIdentifierAsync(projectDir, exp);
+  assertBundleIdentifierValid(bundleId);
+  // TODO: Maybe check the git status here, skipping for now because it'll show too often.
+  return bundleId;
+}
+
+export async function _configureBundleIdentifierAsync(
+  projectDir: string,
+  exp: ExpoConfig
+): Promise<string> {
   const bundleIdentifierFromPbxproj = IOSConfig.BundleIdentifier.getBundleIdentifierFromPbxproj(
     projectDir
   );
   const bundleIdentifierFromConfig = IOSConfig.BundleIdentifier.getBundleIdentifier(exp);
   if (bundleIdentifierFromPbxproj && bundleIdentifierFromConfig) {
+    const configDescription = getProjectConfigDescription(projectDir);
     if (bundleIdentifierFromPbxproj !== bundleIdentifierFromConfig) {
       Log.addNewLineIfNone();
       Log.warn(
@@ -82,40 +73,46 @@ However, if you choose the one defined in the Xcode project you'll have to updat
             projectDir,
             bundleIdentifierFromConfig
           );
-          break;
+          return bundleIdentifierFromConfig;
         }
         case BundleIdentiferSource.XcodeProject: {
-          if (hasBundleIdentifierInStaticConfig) {
-            await updateAppJsonConfigAsync({ projectDir, exp }, config => {
-              config.ios = { ...config.ios, bundleIdentifier: bundleIdentifierFromPbxproj };
-            });
-          } else {
-            throw new Error(missingBundleIdentifierMessage(configDescription));
-          }
-          break;
+          const bundleIdentifier = await setBundleIdentifierInExpoConfigAsync(
+            projectDir,
+            bundleIdentifierFromPbxproj,
+            exp
+          );
+          if (!exp.ios) exp.ios = {};
+          exp.ios.bundleIdentifier = bundleIdentifier;
+          return bundleIdentifier;
         }
       }
     }
-  } else if (!bundleIdentifierFromPbxproj && !bundleIdentifierFromConfig) {
-    throw new Error(missingBundleIdentifierMessage(configDescription));
-  } else if (bundleIdentifierFromPbxproj && !bundleIdentifierFromConfig) {
-    if (getConfigFilePaths(projectDir).staticConfigPath) {
-      await updateAppJsonConfigAsync({ projectDir, exp }, config => {
-        config.ios = { ...config.ios, bundleIdentifier: bundleIdentifierFromPbxproj };
-      });
-    } else {
-      throw new Error(missingBundleIdentifierMessage(configDescription));
-    }
-  } else if (!bundleIdentifierFromPbxproj && bundleIdentifierFromConfig) {
+  }
+  let bundleIdentifier: string;
+  if (bundleIdentifierFromConfig) {
+    bundleIdentifier = bundleIdentifierFromConfig;
     IOSConfig.BundleIdentifier.setBundleIdentifierForPbxproj(
       projectDir,
       bundleIdentifierFromConfig
     );
+  } else if (bundleIdentifierFromPbxproj) {
+    bundleIdentifier = await setBundleIdentifierInExpoConfigAsync(
+      projectDir,
+      bundleIdentifierFromPbxproj,
+      exp
+    );
+  } else {
+    bundleIdentifier = await getOrPromptForBundleIdentifierAsync(projectDir);
+    // Only update if the native folder exists, this allows support for prompting in managed.
+    if (fs.existsSync(path.join(projectDir, 'ios'))) {
+      IOSConfig.BundleIdentifier.setBundleIdentifierForPbxproj(projectDir, bundleIdentifier);
+    }
   }
-}
+  // sync up the config
+  if (!exp.ios) exp.ios = {};
+  exp.ios.bundleIdentifier = bundleIdentifier;
 
-function missingBundleIdentifierMessage(configDescription: string): string {
-  return `Please define "ios.bundleIdentifier" in ${configDescription} and run "eas build:configure" again.`;
+  return bundleIdentifier;
 }
 
 /**
