@@ -24,6 +24,11 @@ export class SetupAdhocProvisioningProfile {
   constructor(private app: AppLookupParams) {}
 
   async runAsync(ctx: Context): Promise<IosAppBuildCredentialsFragment> {
+    const distCert = await new SetupDistributionCertificate(
+      this.app,
+      IosDistributionType.AdHoc
+    ).runAsync(ctx);
+
     const areBuildCredentialsSetup = await this.areBuildCredentialsSetupAsync(ctx);
 
     if (ctx.nonInteractive) {
@@ -43,16 +48,10 @@ export class SetupAdhocProvisioningProfile {
     );
     if (areBuildCredentialsSetup) {
       const buildCredentials = nullthrows(currentBuildCredentials);
-      if (await this.shouldReuseCredentialsAsync(ctx, buildCredentials)) {
+      if (await this.shouldGenerateNewProfileAsync(ctx, buildCredentials)) {
         return buildCredentials;
       }
     }
-
-    // 0. Setup Distribution Certificate
-    const distCert = await new SetupDistributionCertificate(
-      this.app,
-      IosDistributionType.AdHoc
-    ).runAsync(ctx);
 
     // 1. Resolve Apple Team
     let appleTeam: AppleTeamFragment | null =
@@ -146,7 +145,7 @@ export class SetupAdhocProvisioningProfile {
     return await validateProvisioningProfileAsync(ctx, this.app, buildCredentials);
   }
 
-  private async shouldReuseCredentialsAsync(
+  private async shouldGenerateNewProfileAsync(
     ctx: Context,
     buildCredentials: IosAppBuildCredentialsFragment
   ): Promise<boolean> {

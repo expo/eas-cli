@@ -81,6 +81,11 @@ export class SetupProvisioningProfile {
   }
 
   async runAsync(ctx: Context): Promise<IosAppBuildCredentialsFragment> {
+    const distCert = await new SetupDistributionCertificate(
+      this.app,
+      this.distributionType
+    ).runAsync(ctx);
+
     const areBuildCredentialsSetup = await this.areBuildCredentialsSetupAsync(ctx);
     if (areBuildCredentialsSetup) {
       return nullthrows(await getBuildCredentialsAsync(ctx, this.app, this.distributionType));
@@ -90,11 +95,6 @@ export class SetupProvisioningProfile {
         'Provisioning profile is not configured correctly. Please run this command again in interactive mode.'
       );
     }
-
-    const distCert = await new SetupDistributionCertificate(
-      this.app,
-      this.distributionType
-    ).runAsync(ctx);
 
     const currentProfile = await getProvisioningProfileAsync(ctx, this.app, this.distributionType);
     if (!currentProfile) {
