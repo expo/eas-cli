@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Prompt user for bundle identifer and application id when missing ([#346](https://github.com/expo/eas-cli/pull/346) by [@EvanBacon](https://github.com/EvanBacon))
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
