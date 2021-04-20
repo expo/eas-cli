@@ -26,10 +26,13 @@ interface Options {
   skipCredentialsCheck?: boolean;
 }
 
-export class SetupBuildCredentials implements Action {
+export class SetupBuildCredentials implements Action<IosAppBuildCredentialsFragment> {
   constructor(private options: Options) {}
 
-  async runAsync(manager: CredentialsManager, ctx: Context): Promise<void> {
+  async runAsync(
+    manager: CredentialsManager,
+    ctx: Context
+  ): Promise<IosAppBuildCredentialsFragment> {
     const { app } = this.options;
 
     await ctx.bestEffortAppStoreAuthenticateAsync();
@@ -46,12 +49,12 @@ export class SetupBuildCredentials implements Action {
     }
     try {
       const buildCredentials = await this.setupBuildCredentials(ctx);
-
       const appInfo = `@${app.account.name}/${app.projectName} (${app.bundleIdentifier})`;
       displayProjectCredentials(app, buildCredentials);
       Log.newLine();
       Log.log(chalk.green(`All credentials are ready to build ${appInfo}`));
       Log.newLine();
+      return buildCredentials;
     } catch (error) {
       Log.error('Failed to setup credentials.');
       throw error;

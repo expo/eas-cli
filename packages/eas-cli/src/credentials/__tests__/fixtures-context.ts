@@ -14,6 +14,7 @@ export function createCtxMock(mockOverride: Record<string, any> = {}): Context {
     newIos: getNewIosApiMockWithoutCredentials(),
     android: getAndroidApiMockWithoutCredentials(),
     appStore: getAppstoreMock(),
+    bestEffortAppStoreAuthenticateAsync: jest.fn(),
     ensureAppleCtx: jest.fn(),
     ensureProjectContext: jest.fn(),
     user: {

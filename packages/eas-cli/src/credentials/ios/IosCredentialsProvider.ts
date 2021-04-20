@@ -1,17 +1,11 @@
 import { Platform } from '@expo/eas-build-job';
 import { CredentialsSource, IosDistributionType, IosEnterpriseProvisioning } from '@expo/eas-json';
 
-import { IosAppBuildCredentialsFragment } from '../../graphql/generated';
-import Log from '../../log';
 import { CredentialsManager } from '../CredentialsManager';
 import { Context } from '../context';
 import * as credentialsJsonReader from '../credentialsJson/read';
 import type { IosCredentials } from '../credentialsJson/read';
 import { SetupBuildCredentials } from './actions/SetupBuildCredentials';
-import {
-  getBuildCredentialsAsync,
-  resolveDistributionType,
-} from './actions/new/BuildCredentialsUtils';
 import { AppLookupParams } from './api/GraphqlClient';
 import { isAdHocProfile } from './utils/provisioningProfile';
 
@@ -70,39 +64,20 @@ export default class IosCredentialsProvider {
   }
 
   private async getRemoteAsync(): Promise<IosCredentials> {
-    if (this.options.skipCredentialsCheck) {
-      Log.log('Skipping credentials check');
-    } else {
-      await new CredentialsManager(this.ctx).runActionAsync(
-        new SetupBuildCredentials({
-          app: this.options.app,
-          distribution: this.options.distribution,
-          enterpriseProvisioning: this.options.enterpriseProvisioning,
-        })
-      );
-    }
-
-    const buildCredentials = await this.fetchRemoteAsync();
+    const manager = new CredentialsManager(this.ctx);
+    const buildCredentials = await new SetupBuildCredentials({
+      app: this.options.app,
+      distribution: this.options.distribution,
+      enterpriseProvisioning: this.options.enterpriseProvisioning,
+    }).runAsync(manager, this.ctx);
     if (
       !buildCredentials?.distributionCertificate?.certificateP12 ||
       !buildCredentials.distributionCertificate?.certificatePassword
     ) {
-      if (this.options.skipCredentialsCheck) {
-        throw new Error(
-          'Distribution certificate is missing and credentials check was skipped. Run without --skip-credentials-check to set it up.'
-        );
-      } else {
-        throw new Error('Distribution certificate is missing');
-      }
+      throw new Error('Distribution certificate is missing');
     }
     if (!buildCredentials.provisioningProfile?.provisioningProfile) {
-      if (this.options.skipCredentialsCheck) {
-        throw new Error(
-          'Provisioning profile is missing and credentials check was skipped. Run without --skip-credentials-check to set it up.'
-        );
-      } else {
-        throw new Error('Provisioning profile is missing');
-      }
+      throw new Error('Provisioning profile is missing');
     }
     return {
       provisioningProfile: buildCredentials.provisioningProfile.provisioningProfile,
@@ -111,13 +86,5 @@ export default class IosCredentialsProvider {
         certPassword: buildCredentials.distributionCertificate.certificatePassword,
       },
     };
-  }
-
-  private async fetchRemoteAsync(): Promise<IosAppBuildCredentialsFragment | null> {
-    const distributionType = resolveDistributionType(
-      this.options.distribution,
-      this.options.enterpriseProvisioning
-    );
-    return await getBuildCredentialsAsync(this.ctx, this.options.app, distributionType);
   }
 }

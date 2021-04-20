@@ -42,7 +42,7 @@ export class SetupInternalProvisioningProfile {
         } else if (adhocBuildCredentialsExist) {
           return await this.setupAdhocProvisioningProfileAsync(ctx);
         } else if (enterpriseBuildCredentialsExist) {
-          return await this.setupUniversalProvisiongProfileAsync(ctx);
+          return await this.setupUniversalProvisioningProfileAsync(ctx);
         } else {
           const { team } = await ctx.appStore.ensureAuthenticatedAsync();
           if (team.inHouse) {
@@ -63,7 +63,7 @@ export class SetupInternalProvisioningProfile {
       } else if (adhocBuildCredentialsExist) {
         return await this.setupAdhocProvisioningProfileAsync(ctx);
       } else if (enterpriseBuildCredentialsExist) {
-        return await this.setupUniversalProvisiongProfileAsync(ctx);
+        return await this.setupUniversalProvisioningProfileAsync(ctx);
       } else {
         throw new Error(
           `You're in non-interactive mode. EAS CLI couldn't any credentials suitable for internal distribution. Please run again in interactive mode.`
@@ -78,7 +78,7 @@ export class SetupInternalProvisioningProfile {
     return await new SetupAdhocProvisioningProfile(this.app).runAsync(ctx);
   }
 
-  private async setupUniversalProvisiongProfileAsync(
+  private async setupUniversalProvisioningProfileAsync(
     ctx: Context
   ): Promise<IosAppBuildCredentialsFragment> {
     return await new SetupProvisioningProfile(this.app, IosDistributionType.Enterprise).runAsync(
@@ -100,7 +100,7 @@ export class SetupInternalProvisioningProfile {
       ],
     });
     if (distributionType === IosDistributionType.Enterprise) {
-      return await this.setupUniversalProvisiongProfileAsync(ctx);
+      return await this.setupUniversalProvisioningProfileAsync(ctx);
     } else {
       return await this.setupAdhocProvisioningProfileAsync(ctx);
     }

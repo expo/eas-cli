@@ -1,3 +1,4 @@
+import { IosAppBuildCredentialsFragment } from '../../graphql/generated';
 import Log from '../../log';
 import { getProjectAccountName } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
@@ -92,7 +93,7 @@ export class ManageIos implements Action {
         });
 
         try {
-          await manager.runActionAsync(this.getAction(manager, ctx, accountName, action));
+          await this.getAction(ctx, accountName, action).runAsync(manager, ctx);
         } catch (err) {
           Log.error(err);
         }
@@ -116,11 +117,10 @@ export class ManageIos implements Action {
   }
 
   private getAction(
-    manager: CredentialsManager,
     ctx: Context,
     accountName: string,
     action: ActionType
-  ): Action {
+  ): Action<void> | Action<IosAppBuildCredentialsFragment> {
     switch (action) {
       case ActionType.CreateDistributionCertificate:
         return new CreateDistributionCertificateStandaloneManager(accountName);
