@@ -1,3 +1,5 @@
+import { EasJsonReader, IosDistributionType as IosDistributionTypeEasConfig } from '@expo/eas-json';
+
 import Log from '../../log';
 import { getProjectAccountName } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
@@ -5,13 +7,18 @@ import { findAccountByName } from '../../user/Account';
 import { ensureActorHasUsername } from '../../user/actions';
 import { Action, CredentialsManager } from '../CredentialsManager';
 import { Context } from '../context';
+import { SetupBuildCredentials } from '../ios/actions/SetupBuildCredentials';
 import { getAppLookupParamsFromContext } from '../ios/actions/new/BuildCredentialsUtils';
 import { SelectAndRemoveDistributionCertificate } from '../ios/actions/new/RemoveDistributionCertificate';
+import { SetupBuildCredentialsFromCredentialsJson } from '../ios/actions/new/SetupBuildCredentialsFromCredentialsJson';
+import { AppLookupParams } from '../ios/api/GraphqlClient';
 import {
   displayEmptyIosCredentials,
   displayIosAppCredentials,
 } from '../ios/utils/printCredentialsBeta';
 import { PressAnyKeyToContinue } from './HelperActions';
+import { SelectIosDistributionTypeEasConfigFromBuildProfile } from './SelectIosDistributionTypeEasConfigFromBuildProfile';
+import { SelectIosDistributionTypeGraphqlFromIosDistributionTypeEasConfig } from './SelectIosDistributionTypeGraphqlFromIosDistributionTypeEasConfig';
 
 enum ActionType {
   SetupBuildCredentials,
@@ -51,9 +58,19 @@ export class ManageIosBeta implements Action {
         }
 
         const projectSpecificActions: { value: ActionType; title: string }[] = ctx.hasProjectContext
-          ? []
+          ? [
+              {
+                // This command will be triggered during build to ensure all credentials are ready
+                // I'm leaving it here for now to simplify testing
+                value: ActionType.SetupBuildCredentials,
+                title: 'Ensure all credentials for project are valid',
+              },
+              {
+                value: ActionType.SetupBuildCredentialsFromCredentialsJson,
+                title: 'Update credentials on EAS servers with values from credentials.json',
+              },
+            ]
           : [];
-
         const { action } = await promptAsync({
           type: 'select',
           name: 'action',
@@ -67,7 +84,23 @@ export class ManageIosBeta implements Action {
           ],
         });
         try {
-          if (action === ActionType.RemoveDistributionCertificate) {
+          const isProjectSpecific = projectSpecificActions.find(
+            actionItem => actionItem.value === action
+          );
+          if (isProjectSpecific) {
+            const appLookupParams = getAppLookupParamsFromContext(ctx);
+            const easJsonReader = await new EasJsonReader(ctx.projectDir, 'ios');
+            const iosDistributionTypeEasConfig = await new SelectIosDistributionTypeEasConfigFromBuildProfile(
+              easJsonReader
+            ).runAsync();
+            await this.runProjectSpecificActionAsync(
+              manager,
+              ctx,
+              appLookupParams,
+              iosDistributionTypeEasConfig,
+              action
+            );
+          } else if (action === ActionType.RemoveDistributionCertificate) {
             await new SelectAndRemoveDistributionCertificate(account).runAsync(ctx);
           } else {
             throw new Error('Unknown action selected');
@@ -80,6 +113,38 @@ export class ManageIosBeta implements Action {
         Log.error(err);
         await manager.runActionAsync(new PressAnyKeyToContinue());
       }
+    }
+  }
+
+  private async runProjectSpecificActionAsync(
+    manager: CredentialsManager,
+    ctx: Context,
+    appLookupParams: AppLookupParams,
+    iosDistributionTypeEasConfig: IosDistributionTypeEasConfig,
+    action: ActionType
+  ): Promise<void> {
+    switch (action) {
+      case ActionType.SetupBuildCredentials: {
+        return await new SetupBuildCredentials({
+          app: appLookupParams,
+          distribution: iosDistributionTypeEasConfig,
+        }).runAsync(manager, ctx);
+      }
+      case ActionType.SetupBuildCredentialsFromCredentialsJson: {
+        const iosAppCredentials = await ctx.newIos.getIosAppCredentialsWithCommonFieldsAsync(
+          appLookupParams
+        );
+        const iosDistributionTypeGraphql = await new SelectIosDistributionTypeGraphqlFromIosDistributionTypeEasConfig(
+          iosDistributionTypeEasConfig
+        ).runAsync(ctx, iosAppCredentials);
+        await new SetupBuildCredentialsFromCredentialsJson(
+          appLookupParams,
+          iosDistributionTypeGraphql
+        ).runAsync(ctx);
+        return;
+      }
+      default:
+        throw new Error('Unknown action selected');
     }
   }
 }
