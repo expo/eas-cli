@@ -2,7 +2,6 @@ import { Platform } from '@expo/eas-build-job';
 import { CredentialsSource } from '@expo/eas-json';
 
 import { CredentialsManager } from '../CredentialsManager';
-import { CredentialsProvider } from '../CredentialsProvider';
 import { Context } from '../context';
 import * as credentialsJsonReader from '../credentialsJson/read';
 import { SetupBuildCredentials } from './actions/SetupBuildCredentials';
@@ -22,7 +21,7 @@ interface Options {
   skipCredentialsCheck?: boolean;
 }
 
-export default class AndroidCredentialsProvider implements CredentialsProvider {
+export default class AndroidCredentialsProvider {
   public readonly platform = Platform.ANDROID;
 
   constructor(private ctx: Context, private options: Options) {}

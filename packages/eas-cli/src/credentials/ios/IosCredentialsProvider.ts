@@ -4,7 +4,6 @@ import { CredentialsSource, IosDistributionType, IosEnterpriseProvisioning } fro
 import { IosAppBuildCredentialsFragment } from '../../graphql/generated';
 import Log from '../../log';
 import { CredentialsManager } from '../CredentialsManager';
-import { CredentialsProvider } from '../CredentialsProvider';
 import { Context } from '../context';
 import * as credentialsJsonReader from '../credentialsJson/read';
 import type { IosCredentials } from '../credentialsJson/read';
@@ -25,7 +24,7 @@ interface Options {
   skipCredentialsCheck?: boolean;
 }
 
-export default class IosCredentialsProvider implements CredentialsProvider {
+export default class IosCredentialsProvider {
   public readonly platform = Platform.IOS;
 
   constructor(private ctx: Context, private options: Options) {}
