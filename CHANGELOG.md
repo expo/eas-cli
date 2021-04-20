@@ -10,7 +10,15 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
-### 🧹 Chores
+## [0.11.1](https://github.com/expo/eas-cli/releases/tag/v0.11.1) - 2021-04-20
+
+### 🎉 New features
+
+- Resolve ios distribution types. ([#348](https://github.com/expo/eas-cli/pull/348) by [@quinlanj](https://github.com/quinlanj))
+
+### 🐛 Bug fixes
+
+- Bump version of `@expo/apple-utils` to fix capabilities sync immediately after initial identifier registration.
 
 ## [0.11.0](https://github.com/expo/eas-cli/releases/tag/v0.11.0) - 2021-04-20
 
