@@ -65,6 +65,10 @@ export class SelectIosDistributionTypeGraphqlFromBuildProfile {
       return existingInternalIosDistributionTypes[0];
     }
 
+    if (ctx.nonInteractive) {
+      throw new Error('Unable to determine type of internal distribution. Please run this command in interactive mode.')
+    } 
+
     // ask the user as a last resort
     const { iosDistributionTypeGraphql } = await promptAsync({
       type: 'select',
