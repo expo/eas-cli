@@ -2386,8 +2386,15 @@ export type AndroidManagedJobInput = {
   secrets?: Maybe<AndroidJobSecretsInput>;
   builderEnvironment?: Maybe<AndroidBuilderEnvironmentInput>;
   cache?: Maybe<BuildCacheInput>;
+  buildType?: Maybe<AndroidManagedBuildType>;
   username?: Maybe<Scalars['String']>;
 };
+
+export enum AndroidManagedBuildType {
+  Apk = 'APK',
+  AppBundle = 'APP_BUNDLE',
+  DevelopmentClient = 'DEVELOPMENT_CLIENT'
+}
 
 export type IosGenericJobInput = {
   projectArchive: ProjectArchiveSourceInput;
