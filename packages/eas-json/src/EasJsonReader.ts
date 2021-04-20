@@ -23,7 +23,7 @@ interface BuildProfilePreValidation {
 export class EasJsonReader {
   constructor(private projectDir: string, private platform: 'android' | 'ios' | 'all') {}
 
-  public async getProfileNamesAsync(): Promise<string[]> {
+  public async getBuildProfileNamesAsync(): Promise<string[]> {
     const easJson = await this.readRawAsync();
     let profileNames: string[] = [];
     if (['android', 'all'].includes(this.platform)) {

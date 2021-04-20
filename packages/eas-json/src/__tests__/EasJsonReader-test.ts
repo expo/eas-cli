@@ -344,14 +344,14 @@ test('get profile names', async () => {
   });
 
   const androidReader = new EasJsonReader('/project', 'android');
-  const androidProfileNames = await androidReader.getProfileNamesAsync();
+  const androidProfileNames = await androidReader.getBuildProfileNamesAsync();
   expect(androidProfileNames.sort()).toEqual(['release', 'blah'].sort());
 
   const iosReader = new EasJsonReader('/project', 'ios');
-  const iosProfileNames = await iosReader.getProfileNamesAsync();
+  const iosProfileNames = await iosReader.getBuildProfileNamesAsync();
   expect(iosProfileNames.sort()).toEqual(['test'].sort());
 
   const allReader = new EasJsonReader('/project', 'all');
-  const allProfileNames = await allReader.getProfileNamesAsync();
+  const allProfileNames = await allReader.getBuildProfileNamesAsync();
   expect(allProfileNames.sort()).toEqual(['test', 'release', 'blah'].sort());
 });
