@@ -1,6 +1,6 @@
 import { EasConfig, EasJsonReader } from '@expo/eas-json';
-import Log from '../../log';
 
+import Log from '../../log';
 import { promptAsync } from '../../prompts';
 import { Context } from '../context';
 
@@ -24,8 +24,10 @@ export class SelectBuildProfileFromEasJson {
       return buildProfileNames[0];
     }
     if (ctx.nonInteractive) {
-      throw new Error('You have multiple build profiles. Please run this command in interactive mode.')
-    } 
+      throw new Error(
+        'You have multiple build profiles. Please run this command in interactive mode.'
+      );
+    }
     const { profileName } = await promptAsync({
       type: 'select',
       name: 'profileName',

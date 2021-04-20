@@ -90,7 +90,7 @@ export class ManageIosBeta implements Action {
           if (isProjectSpecific) {
             const appLookupParams = getAppLookupParamsFromContext(ctx);
             const easJsonReader = await new EasJsonReader(ctx.projectDir, 'ios');
-            const easConfig = await new SelectBuildProfileFromEasJson(easJsonReader).runAsync();
+            const easConfig = await new SelectBuildProfileFromEasJson(easJsonReader).runAsync(ctx);
             await this.runProjectSpecificActionAsync(
               manager,
               ctx,
