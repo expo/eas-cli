@@ -329,3 +329,29 @@ test('invalid semver value', async () => {
     'Object "android.release" in eas.json is not valid [ValidationError: "node" failed custom validation because 12.0.0-alpha is not a valid version]'
   );
 });
+
+test('get profile names', async () => {
+  await fs.writeJson('/project/eas.json', {
+    builds: {
+      android: {
+        release: { workflow: 'generic', node: '12.0.0-alpha' },
+        blah: { workflow: 'generic', node: '12.0.0-alpha' },
+      },
+      ios: {
+        test: { workflow: 'generic', node: '12.0.0-alpha' },
+      },
+    },
+  });
+
+  const androidReader = new EasJsonReader('/project', 'android');
+  const androidProfileNames = await androidReader.getProfileNamesAsync();
+  expect(androidProfileNames.sort()).toEqual(['release', 'blah'].sort());
+
+  const iosReader = new EasJsonReader('/project', 'ios');
+  const iosProfileNames = await iosReader.getProfileNamesAsync();
+  expect(iosProfileNames.sort()).toEqual(['test'].sort());
+
+  const allReader = new EasJsonReader('/project', 'all');
+  const allProfileNames = await allReader.getProfileNamesAsync();
+  expect(allProfileNames.sort()).toEqual(['test', 'release', 'blah'].sort());
+});

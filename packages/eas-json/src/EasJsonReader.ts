@@ -23,6 +23,20 @@ interface BuildProfilePreValidation {
 export class EasJsonReader {
   constructor(private projectDir: string, private platform: 'android' | 'ios' | 'all') {}
 
+  public async getProfileNamesAsync(): Promise<string[]> {
+    const easJson = await this.readRawAsync();
+    let profileNames: string[] = [];
+    if (['android', 'all'].includes(this.platform)) {
+      const androidProfiles = easJson.builds?.android ?? {};
+      profileNames = profileNames.concat(Object.keys(androidProfiles));
+    }
+    if (['ios', 'all'].includes(this.platform)) {
+      const iosProfiles = easJson.builds?.ios ?? {};
+      profileNames = profileNames.concat(Object.keys(iosProfiles));
+    }
+    return profileNames;
+  }
+
   public async readAsync(buildProfileName: string): Promise<EasConfig> {
     const easJson = await this.readRawAsync();
 
