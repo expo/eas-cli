@@ -2,7 +2,7 @@ import { EasConfig, EasJsonReader } from '@expo/eas-json';
 
 import { promptAsync } from '../../prompts';
 
-export class SelectEasConfigFromJson {
+export class SelectBuildProfileFromEasJson {
   constructor(private easJsonReader: EasJsonReader) {}
   async runAsync(): Promise<EasConfig> {
     const profileName = await this.getProfileNameFromEasConfigAsync();

@@ -8,7 +8,7 @@ import {
 import { promptAsync } from '../../prompts';
 import { Context } from '../context';
 
-export class SelectIosDistributionTypeGraphqlFromEasConfig {
+export class SelectIosDistributionTypeGraphqlFromBuildProfile {
   constructor(private easConfig: EasConfig) {}
   async runAsync(
     ctx: Context,

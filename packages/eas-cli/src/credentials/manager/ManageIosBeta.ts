@@ -17,8 +17,8 @@ import {
   displayIosAppCredentials,
 } from '../ios/utils/printCredentialsBeta';
 import { PressAnyKeyToContinue } from './HelperActions';
-import { SelectEasConfigFromJson } from './SelectEasConfigFromJson';
-import { SelectIosDistributionTypeGraphqlFromEasConfig } from './SelectIosDistributionTypeGraphqlFromEasConfig';
+import { SelectBuildProfileFromEasJson } from './SelectBuildProfileFromEasJson';
+import { SelectIosDistributionTypeGraphqlFromBuildProfile } from './SelectIosDistributionTypeGraphqlFromBuildProfile';
 
 enum ActionType {
   SetupBuildCredentials,
@@ -90,7 +90,7 @@ export class ManageIosBeta implements Action {
           if (isProjectSpecific) {
             const appLookupParams = getAppLookupParamsFromContext(ctx);
             const easJsonReader = await new EasJsonReader(ctx.projectDir, 'ios');
-            const easConfig = await new SelectEasConfigFromJson(easJsonReader).runAsync();
+            const easConfig = await new SelectBuildProfileFromEasJson(easJsonReader).runAsync();
             await this.runProjectSpecificActionAsync(
               manager,
               ctx,
@@ -136,7 +136,7 @@ export class ManageIosBeta implements Action {
         const iosAppCredentials = await ctx.newIos.getIosAppCredentialsWithCommonFieldsAsync(
           appLookupParams
         );
-        const iosDistributionTypeGraphql = await new SelectIosDistributionTypeGraphqlFromEasConfig(
+        const iosDistributionTypeGraphql = await new SelectIosDistributionTypeGraphqlFromBuildProfile(
           easConfig
         ).runAsync(ctx, iosAppCredentials);
         await new SetupBuildCredentialsFromCredentialsJson(
