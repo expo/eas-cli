@@ -15,6 +15,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Fix the bug where all Android managed builds produced AAB archives. The `buildType` property from `eas.json` is not ignored now. ([#349](https://github.com/expo/eas-cli/pull/349) by [@dsokal](https://github.com/dsokal))
+
 ### 🧹 Chores
 
 ## [0.10.0](https://github.com/expo/eas-cli/releases/tag/v0.10.0) - 2021-04-16
