@@ -80,6 +80,22 @@ export class SetupDistributionCertificate {
     if (!currentCertificate) {
       return false;
     }
+
+    const now = new Date();
+    if (
+      now < new Date(currentCertificate.validityNotBefore) ||
+      now > new Date(currentCertificate.validityNotAfter)
+    ) {
+      return false;
+    }
+
+    if (!ctx.appStore.authCtx) {
+      Log.warn(
+        "Skipping Distribution Certificate validation on Apple Servers because we aren't authenticated."
+      );
+      return true;
+    }
+
     const validCertSerialNumbers = (await this.getValidDistCertsAsync(ctx)).map(
       i => i.serialNumber
     );
