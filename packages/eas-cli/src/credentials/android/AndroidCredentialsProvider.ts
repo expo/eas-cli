@@ -1,9 +1,7 @@
 import { Platform } from '@expo/eas-build-job';
 import { CredentialsSource } from '@expo/eas-json';
 
-import Log from '../../log';
 import { CredentialsManager } from '../CredentialsManager';
-import { CredentialsProvider } from '../CredentialsProvider';
 import { Context } from '../context';
 import * as credentialsJsonReader from '../credentialsJson/read';
 import { SetupBuildCredentials } from './actions/SetupBuildCredentials';
@@ -23,7 +21,7 @@ interface Options {
   skipCredentialsCheck?: boolean;
 }
 
-export default class AndroidCredentialsProvider implements CredentialsProvider {
+export default class AndroidCredentialsProvider {
   public readonly platform = Platform.ANDROID;
 
   constructor(private ctx: Context, private options: Options) {}
@@ -31,45 +29,6 @@ export default class AndroidCredentialsProvider implements CredentialsProvider {
   private get projectFullName(): string {
     const { projectName, accountName } = this.options.app;
     return `@${accountName}/${projectName}`;
-  }
-
-  public async hasRemoteAsync(): Promise<boolean> {
-    const keystore = await this.ctx.android.fetchKeystoreAsync(this.projectFullName);
-    return !!keystore;
-  }
-
-  public async hasLocalAsync(): Promise<boolean> {
-    if (!(await credentialsJsonReader.fileExistsAsync(this.ctx.projectDir))) {
-      return false;
-    }
-    try {
-      const rawCredentialsJson = await credentialsJsonReader.readRawAsync(this.ctx.projectDir);
-      return !!rawCredentialsJson?.android;
-    } catch (err) {
-      Log.error(err); // malformed json
-      return false;
-    }
-  }
-
-  public async isLocalSyncedAsync(): Promise<boolean> {
-    try {
-      const [remote, local] = await Promise.all([
-        this.ctx.android.fetchKeystoreAsync(this.projectFullName),
-        credentialsJsonReader.readAndroidCredentialsAsync(this.ctx.projectDir),
-      ]);
-      const r = remote;
-      const l = local?.keystore;
-      return !!(
-        r &&
-        l &&
-        r.keystore === l.keystore &&
-        r.keystorePassword === l.keystorePassword &&
-        r.keyAlias === l.keyAlias &&
-        r.keyPassword === l.keyPassword
-      );
-    } catch (_) {
-      return false;
-    }
   }
 
   public async getCredentialsAsync(
@@ -81,7 +40,6 @@ export default class AndroidCredentialsProvider implements CredentialsProvider {
       case CredentialsSource.REMOTE:
         return await this.getRemoteAsync();
     }
-    throw new Error('Unknown');
   }
 
   private async getRemoteAsync(): Promise<AndroidCredentials> {

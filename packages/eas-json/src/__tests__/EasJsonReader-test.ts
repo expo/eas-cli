@@ -26,7 +26,7 @@ test('minimal valid android eas.json', async () => {
       android: {
         workflow: 'generic',
         distribution: 'store',
-        credentialsSource: 'auto',
+        credentialsSource: 'remote',
         env: {},
         withoutCredentials: false,
         cache: { disabled: false, cacheDefaultPaths: true, customPaths: [] },
@@ -50,7 +50,7 @@ test('minimal valid ios eas.json', async () => {
   expect({
     builds: {
       ios: {
-        credentialsSource: 'auto',
+        credentialsSource: 'remote',
         distribution: 'store',
         workflow: 'generic',
         autoIncrement: false,
@@ -82,7 +82,7 @@ test('minimal valid eas.json for both platforms', async () => {
       android: {
         workflow: 'generic',
         distribution: 'store',
-        credentialsSource: 'auto',
+        credentialsSource: 'remote',
         env: {},
         withoutCredentials: false,
         cache: { disabled: false, cacheDefaultPaths: true, customPaths: [] },
@@ -91,7 +91,7 @@ test('minimal valid eas.json for both platforms', async () => {
       ios: {
         workflow: 'generic',
         distribution: 'store',
-        credentialsSource: 'auto',
+        credentialsSource: 'remote',
         autoIncrement: false,
         env: {},
         cache: { disabled: false, cacheDefaultPaths: true, customPaths: [] },
@@ -121,7 +121,7 @@ test('valid eas.json with both platform, but reading only android', async () => 
       android: {
         workflow: 'generic',
         distribution: 'store',
-        credentialsSource: 'auto',
+        credentialsSource: 'remote',
         env: {},
         withoutCredentials: false,
         cache: { disabled: false, cacheDefaultPaths: true, customPaths: [] },
@@ -153,7 +153,7 @@ test('valid eas.json for development client builds', async () => {
   expect({
     builds: {
       android: {
-        credentialsSource: 'auto',
+        credentialsSource: 'remote',
         workflow: 'managed',
         distribution: 'store',
         env: {},
@@ -162,7 +162,7 @@ test('valid eas.json for development client builds', async () => {
         buildType: 'development-client',
       },
       ios: {
-        credentialsSource: 'auto',
+        credentialsSource: 'remote',
         workflow: 'managed',
         distribution: 'store',
         autoIncrement: false,
@@ -194,7 +194,7 @@ test('valid generic profile for internal distribution on Android', async () => {
       android: {
         workflow: 'generic',
         distribution: 'internal',
-        credentialsSource: 'auto',
+        credentialsSource: 'remote',
         gradleCommand: ':app:assembleRelease',
         env: {},
         withoutCredentials: false,
@@ -225,7 +225,7 @@ test('valid managed profile for internal distribution on Android', async () => {
         workflow: 'managed',
         buildType: 'apk',
         distribution: 'internal',
-        credentialsSource: 'auto',
+        credentialsSource: 'remote',
         env: {},
         cache: { disabled: false, cacheDefaultPaths: true, customPaths: [] },
         image: 'default',

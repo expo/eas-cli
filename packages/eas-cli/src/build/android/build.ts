@@ -13,9 +13,9 @@ import Log from '../../log';
 import { toggleConfirmAsync } from '../../prompts';
 import { CredentialsResult, prepareBuildRequestForPlatformAsync } from '../build';
 import { BuildContext, CommandContext, createBuildContext } from '../context';
-import { ensureCredentialsAsync } from '../credentials';
 import { transformMetadata } from '../graphql';
 import { Platform } from '../types';
+import { logCredentialsSource } from '../utils/credentials';
 import { ensureApplicationIdIsValidAsync } from './applicationId';
 import { validateAndSyncProjectConfigurationAsync } from './configure';
 import { transformGenericJob, transformManagedJob } from './graphql';
@@ -125,12 +125,8 @@ async function ensureAndroidCredentialsAsync(
       skipCredentialsCheck: ctx.commandCtx.skipCredentialsCheck,
     }
   );
-  const credentialsSource = await ensureCredentialsAsync(
-    provider,
-    ctx.buildProfile.workflow,
-    ctx.buildProfile.credentialsSource,
-    ctx.commandCtx.nonInteractive
-  );
+  const { credentialsSource } = ctx.buildProfile;
+  logCredentialsSource(credentialsSource, Platform.ANDROID);
   return {
     credentials: await provider.getCredentialsAsync(credentialsSource),
     source: credentialsSource,

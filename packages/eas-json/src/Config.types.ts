@@ -3,7 +3,6 @@ import { Android, Cache, Ios, Workflow } from '@expo/eas-build-job';
 export enum CredentialsSource {
   LOCAL = 'local',
   REMOTE = 'remote',
-  AUTO = 'auto',
 }
 
 export type AndroidDistributionType = 'store' | 'internal';
