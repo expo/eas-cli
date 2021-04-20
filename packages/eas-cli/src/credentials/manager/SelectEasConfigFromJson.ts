@@ -1,12 +1,12 @@
-import { EasJsonReader, IosDistributionType as IosDistributionTypeEasConfig } from '@expo/eas-json';
+import { EasConfig, EasJsonReader } from '@expo/eas-json';
 
 import { promptAsync } from '../../prompts';
 
-export class SelectIosDistributionTypeEasConfigFromBuildProfile {
+export class SelectEasConfigFromJson {
   constructor(private easJsonReader: EasJsonReader) {}
-  async runAsync(): Promise<IosDistributionTypeEasConfig> {
+  async runAsync(): Promise<EasConfig> {
     const profileName = await this.getProfileNameFromEasConfigAsync();
-    return this.getIosDistributionTypeFromBuildProfileAsync(profileName);
+    return await this.easJsonReader.readAsync(profileName);
   }
 
   async getProfileNameFromEasConfigAsync(): Promise<string> {
@@ -26,18 +26,5 @@ export class SelectIosDistributionTypeEasConfigFromBuildProfile {
       choices: buildProfileNames.map(profileName => ({ value: profileName, title: profileName })),
     });
     return profileName;
-  }
-
-  async getIosDistributionTypeFromBuildProfileAsync(
-    profileName: string
-  ): Promise<IosDistributionTypeEasConfig> {
-    const easConfig = await this.easJsonReader.readAsync(profileName);
-    const distributionType = easConfig.builds.ios?.distribution;
-    if (!distributionType) {
-      throw new Error(
-        `The distributionType field is required in your ${profileName} iOS build profile`
-      );
-    }
-    return distributionType;
   }
 }

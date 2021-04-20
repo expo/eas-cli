@@ -1,4 +1,4 @@
-import { EasJsonReader, IosDistributionType as IosDistributionTypeEasConfig } from '@expo/eas-json';
+import { EasConfig, EasJsonReader } from '@expo/eas-json';
 
 import Log from '../../log';
 import { getProjectAccountName } from '../../project/projectUtils';
@@ -17,8 +17,8 @@ import {
   displayIosAppCredentials,
 } from '../ios/utils/printCredentialsBeta';
 import { PressAnyKeyToContinue } from './HelperActions';
-import { SelectIosDistributionTypeEasConfigFromBuildProfile } from './SelectIosDistributionTypeEasConfigFromBuildProfile';
-import { SelectIosDistributionTypeGraphqlFromIosDistributionTypeEasConfig } from './SelectIosDistributionTypeGraphqlFromIosDistributionTypeEasConfig';
+import { SelectEasConfigFromJson } from './SelectEasConfigFromJson';
+import { SelectIosDistributionTypeGraphqlFromEasConfig } from './SelectIosDistributionTypeGraphqlFromEasConfig';
 
 enum ActionType {
   SetupBuildCredentials,
@@ -90,14 +90,12 @@ export class ManageIosBeta implements Action {
           if (isProjectSpecific) {
             const appLookupParams = getAppLookupParamsFromContext(ctx);
             const easJsonReader = await new EasJsonReader(ctx.projectDir, 'ios');
-            const iosDistributionTypeEasConfig = await new SelectIosDistributionTypeEasConfigFromBuildProfile(
-              easJsonReader
-            ).runAsync();
+            const easConfig = await new SelectEasConfigFromJson(easJsonReader).runAsync();
             await this.runProjectSpecificActionAsync(
               manager,
               ctx,
               appLookupParams,
-              iosDistributionTypeEasConfig,
+              easConfig,
               action
             );
           } else if (action === ActionType.RemoveDistributionCertificate) {
@@ -120,11 +118,15 @@ export class ManageIosBeta implements Action {
     manager: CredentialsManager,
     ctx: Context,
     appLookupParams: AppLookupParams,
-    iosDistributionTypeEasConfig: IosDistributionTypeEasConfig,
+    easConfig: EasConfig,
     action: ActionType
   ): Promise<void> {
     switch (action) {
       case ActionType.SetupBuildCredentials: {
+        const iosDistributionTypeEasConfig = easConfig.builds.ios?.distribution;
+        if (!iosDistributionTypeEasConfig) {
+          throw new Error(`The distributionType field is required in your iOS build profile`);
+        }
         return await new SetupBuildCredentials({
           app: appLookupParams,
           distribution: iosDistributionTypeEasConfig,
@@ -134,8 +136,8 @@ export class ManageIosBeta implements Action {
         const iosAppCredentials = await ctx.newIos.getIosAppCredentialsWithCommonFieldsAsync(
           appLookupParams
         );
-        const iosDistributionTypeGraphql = await new SelectIosDistributionTypeGraphqlFromIosDistributionTypeEasConfig(
-          iosDistributionTypeEasConfig
+        const iosDistributionTypeGraphql = await new SelectIosDistributionTypeGraphqlFromEasConfig(
+          easConfig
         ).runAsync(ctx, iosAppCredentials);
         await new SetupBuildCredentialsFromCredentialsJson(
           appLookupParams,
