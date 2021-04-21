@@ -110,6 +110,8 @@ describe('SetupBuildCredentialsFromCredentialsJson', () => {
     );
     testBuildCreds.iosAppBuildCredentialsArray[0].distributionCertificate.certificateP12 =
       'something different so SetupBuildCredentialsFromCredentialsJson doesnt think we want to exact the same cert and skip upload to expo servers';
+    testBuildCreds.iosAppBuildCredentialsArray[0].provisioningProfile.provisioningProfile =
+      'something different so SetupBuildCredentialsFromCredentialsJson doesnt think we want to exact the same cert and skip upload to expo servers';
     const ctx = createCtxMock({
       newIos: {
         ...getNewIosApiMockWithoutCredentials(),
@@ -140,6 +142,8 @@ describe('SetupBuildCredentialsFromCredentialsJson', () => {
       JSON.stringify(testIosAppCredentialsWithBuildCredentialsQueryResult)
     );
     testBuildCreds.iosAppBuildCredentialsArray[0].distributionCertificate.certificateP12 =
+      'something different so SetupBuildCredentialsFromCredentialsJson doesnt think we want to exact the same cert and skip upload to expo servers';
+    testBuildCreds.iosAppBuildCredentialsArray[0].provisioningProfile.provisioningProfile =
       'something different so SetupBuildCredentialsFromCredentialsJson doesnt think we want to exact the same cert and skip upload to expo servers';
     const ctx = createCtxMock({
       nonInteractive: true,
