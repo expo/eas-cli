@@ -8,7 +8,11 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Add the initiating user's username to the build metadata. ([#354](https://github.com/expo/eas-cli/pull/354) by [@dsokal](https://github.com/dsokal))
+
 ### 🐛 Bug fixes
+
+- Fix the bug where the account name was used as the username. ([#354](https://github.com/expo/eas-cli/pull/354) by [@dsokal](https://github.com/dsokal))
 
 ### 🧹 Chores
 
@@ -20,7 +24,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
-- Bump version of `@expo/apple-utils` to fix capabilities sync immediately after initial identifier registration.
+- Bump version of `@expo/apple-utils` to fix capabilities sync immediately after initial identifier registration. ([593c4](https://github.com/expo/eas-cli/commit/593c42f601396deba1751489343ec07b0a8876da) by [@brentvatne](https://github.com/brentvatne))
 
 ## [0.11.0](https://github.com/expo/eas-cli/releases/tag/v0.11.0) - 2021-04-20
 
