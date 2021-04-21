@@ -1,5 +1,4 @@
 import fs from 'fs-extra';
-import nullthrows from 'nullthrows';
 import path from 'path';
 
 import { IosDistributionType as IosDistributionTypeGraphql } from '../../graphql/generated';
