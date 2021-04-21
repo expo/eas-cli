@@ -4,6 +4,7 @@ import {
   AppleDistributionCertificateFragment,
   AppleProvisioningProfileFragment,
   AppleTeamFragment,
+  CommonIosAppCredentialsFragment,
   IosAppBuildCredentialsFragment,
   IosDistributionType,
 } from '../../graphql/generated';
@@ -64,7 +65,7 @@ export const testProvisioningProfileFragment: AppleProvisioningProfileFragment =
   id: 'test-prov-prof-id-1',
   expiration: new Date(),
   developerPortalIdentifier: 'test-developer-identifier',
-  provisioningProfile: 'test-provisioning-profile',
+  provisioningProfile: testProvisioningProfileBase64,
   updatedAt: new Date(),
   status: 'Active',
   appleTeam: { ...testAppleTeamFragment },
@@ -115,6 +116,14 @@ export const testIosAppBuildCredentialsFragment: IosAppBuildCredentialsFragment 
   iosDistributionType: IosDistributionType.AppStore,
   distributionCertificate: testDistCertFragmentNoDependencies,
   provisioningProfile: testProvisioningProfileFragment,
+};
+
+export const testCommonIosAppCredentialsFragment: CommonIosAppCredentialsFragment = {
+  id: 'test-common-ios-app-credentials-id',
+  app: testAppFragment,
+  appleTeam: testAppleTeamFragment,
+  appleAppIdentifier: testAppleAppIdentifierFragment,
+  iosAppBuildCredentialsArray: [testIosAppBuildCredentialsFragment],
 };
 
 export const testIosAppCredentialsWithBuildCredentialsQueryResult: IosAppCredentialsWithBuildCredentialsQueryResult = {

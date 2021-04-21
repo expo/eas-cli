@@ -1,11 +1,8 @@
 import { EasConfig } from '@expo/eas-json';
 
-import {
-  CommonIosAppCredentialsFragment,
-  IosDistributionType as IosDistributionTypeGraphql,
-} from '../../../graphql/generated';
+import { IosDistributionType as IosDistributionTypeGraphql } from '../../../graphql/generated';
 import { createCtxMock } from '../../__tests__/fixtures-context';
-import { testIosAppCredentialsWithBuildCredentialsQueryResult } from '../../__tests__/fixtures-ios';
+import { testCommonIosAppCredentialsFragment } from '../../__tests__/fixtures-ios';
 import { SelectIosDistributionTypeGraphqlFromBuildProfile } from '../SelectIosDistributionTypeGraphqlFromBuildProfile';
 
 describe('SelectIosDistributionTypeGraphqlFromBuildProfile', () => {
@@ -113,9 +110,7 @@ describe('SelectIosDistributionTypeGraphqlFromBuildProfile', () => {
     );
 
     // create deep clone the quick and dirty way
-    const testAppCredentials = JSON.parse(
-      JSON.stringify(testIosAppCredentialsWithBuildCredentialsQueryResult)
-    ) as CommonIosAppCredentialsFragment;
+    const testAppCredentials = JSON.parse(JSON.stringify(testCommonIosAppCredentialsFragment));
     testAppCredentials.iosAppBuildCredentialsArray[0].iosDistributionType =
       IosDistributionTypeGraphql.AdHoc;
     const iosDistributionTypeGraphql = await selectIosDistributionTypeGraphqlFromBuildProfileAction.runAsync(
