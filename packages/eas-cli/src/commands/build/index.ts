@@ -63,7 +63,7 @@ export default class Build extends Command {
     }),
     'clear-cache': flags.boolean({
       default: false,
-      description: 'Run builds without cache',
+      description: 'Clear cache before the build',
     }),
   };
 
