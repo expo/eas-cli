@@ -1183,10 +1183,10 @@
     xcode "^3.0.0"
     xml-js "^1.6.11"
 
-"@expo/eas-build-job@0.2.22":
-  version "0.2.22"
-  resolved "https://registry.yarnpkg.com/@expo/eas-build-job/-/eas-build-job-0.2.22.tgz#8432a8da25e8b8860ff7fec756821c660bcaef13"
-  integrity sha512-a+922tmi9xxA3WclDhvnz8sascqjSO8wX78MOqgLVDW2iyZaT7C7MvUv6Z8Vig3zdKoUsQaTg8QWJyQl1biU8A==
+"@expo/eas-build-job@0.2.27":
+  version "0.2.27"
+  resolved "https://registry.yarnpkg.com/@expo/eas-build-job/-/eas-build-job-0.2.27.tgz#105cf3019c5936f232758b132aaa27bb4a2bdb9f"
+  integrity sha512-hx53w8TvS6YW6p8TMAqwnwoNwIMSQCRr8UvpeYQKdL6cPK6uLbIS7YH5aGPEFO7JDV+fJRDCeMu0iCHUQ30R2w==
   dependencies:
     "@hapi/joi" "^17.1.1"
 

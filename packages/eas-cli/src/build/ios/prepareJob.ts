@@ -9,7 +9,8 @@ import {
   isCredentialsMap,
   readEnvironmentSecretsAsync,
 } from '../../credentials/credentialsJson/read';
-import { getProjectAccountNameAsync } from '../../project/projectUtils';
+import { getUsername } from '../../project/projectUtils';
+import { ensureLoggedInAsync } from '../../user/actions';
 import { gitRootDirectoryAsync } from '../../utils/git';
 import { BuildContext } from '../context';
 import { Platform } from '../types';
@@ -140,7 +141,7 @@ async function prepareManagedJobAsync(
 ): Promise<Partial<Ios.ManagedJob>> {
   const projectRootDirectory =
     path.relative(await gitRootDirectoryAsync(), ctx.commandCtx.projectDir) || '.';
-  const accountName = await getProjectAccountNameAsync(ctx.commandCtx.exp);
+  const username = getUsername(ctx.commandCtx.exp, await ensureLoggedInAsync());
   return {
     ...(await prepareJobCommonAsync(ctx, {
       credentials: jobData.credentials,
@@ -149,7 +150,7 @@ async function prepareManagedJobAsync(
     })),
     type: Workflow.MANAGED,
     buildType: buildProfile.buildType,
-    username: accountName,
+    username,
     releaseChannel: buildProfile.releaseChannel,
     projectRootDirectory,
   };

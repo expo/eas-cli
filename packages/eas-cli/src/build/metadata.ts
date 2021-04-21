@@ -1,7 +1,8 @@
 import { Metadata } from '@expo/eas-build-job';
 import { CredentialsSource } from '@expo/eas-json';
 
-import { getAppIdentifierAsync } from '../project/projectUtils';
+import { getAppIdentifierAsync, getUsername } from '../project/projectUtils';
+import { ensureLoggedInAsync } from '../user/actions';
 import { gitCommitHashAsync } from '../utils/git';
 import { readReleaseChannelSafelyAsync as readAndroidReleaseChannelSafelyAsync } from './android/UpdatesModule';
 import { BuildContext } from './context';
@@ -42,6 +43,7 @@ export async function collectMetadata<T extends Platform>(
       })) ?? undefined,
     buildProfile: ctx.commandCtx.profile,
     gitCommitHash: await gitCommitHashAsync(),
+    username: getUsername(ctx.commandCtx.exp, await ensureLoggedInAsync()),
   };
 }
 
