@@ -11,6 +11,7 @@ import { SetupBuildCredentials } from '../ios/actions/SetupBuildCredentials';
 import { getAppLookupParamsFromContext } from '../ios/actions/new/BuildCredentialsUtils';
 import { SelectAndRemoveDistributionCertificate } from '../ios/actions/new/RemoveDistributionCertificate';
 import { SetupBuildCredentialsFromCredentialsJson } from '../ios/actions/new/SetupBuildCredentialsFromCredentialsJson';
+import { UpdateCredentialsJson } from '../ios/actions/new/UpdateCredentialsJson';
 import { AppLookupParams } from '../ios/api/GraphqlClient';
 import {
   displayEmptyIosCredentials,
@@ -64,6 +65,10 @@ export class ManageIosBeta implements Action {
                 // I'm leaving it here for now to simplify testing
                 value: ActionType.SetupBuildCredentials,
                 title: 'Ensure all credentials for project are valid',
+              },
+              {
+                value: ActionType.UpdateCredentialsJson,
+                title: 'Update credentials.json with values from EAS servers',
               },
               {
                 value: ActionType.SetupBuildCredentialsFromCredentialsJson,
@@ -143,6 +148,16 @@ export class ManageIosBeta implements Action {
           appLookupParams,
           iosDistributionTypeGraphql
         ).runAsync(ctx);
+        return;
+      }
+      case ActionType.UpdateCredentialsJson: {
+        const iosAppCredentials = await ctx.newIos.getIosAppCredentialsWithCommonFieldsAsync(
+          appLookupParams
+        );
+        const iosDistributionTypeGraphql = await new SelectIosDistributionTypeGraphqlFromBuildProfile(
+          easConfig
+        ).runAsync(ctx, iosAppCredentials);
+        await new UpdateCredentialsJson(appLookupParams, iosDistributionTypeGraphql).runAsync(ctx);
         return;
       }
       default:
