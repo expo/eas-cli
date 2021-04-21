@@ -339,6 +339,7 @@ test('get profile names', async () => {
       },
       ios: {
         test: { workflow: 'generic', node: '12.0.0-alpha' },
+        blah: { workflow: 'generic', node: '12.0.0-alpha' },
       },
     },
   });
@@ -349,9 +350,9 @@ test('get profile names', async () => {
 
   const iosReader = new EasJsonReader('/project', 'ios');
   const iosProfileNames = await iosReader.getBuildProfileNamesAsync();
-  expect(iosProfileNames.sort()).toEqual(['test'].sort());
+  expect(iosProfileNames.sort()).toEqual(['test', 'blah'].sort());
 
   const allReader = new EasJsonReader('/project', 'all');
   const allProfileNames = await allReader.getBuildProfileNamesAsync();
-  expect(allProfileNames.sort()).toEqual(['test', 'release', 'blah'].sort());
+  expect(allProfileNames.sort()).toEqual(['blah'].sort());
 });
