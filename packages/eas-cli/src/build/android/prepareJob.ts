@@ -4,7 +4,8 @@ import path from 'path';
 
 import { AndroidCredentials } from '../../credentials/android/AndroidCredentialsProvider';
 import { readEnvironmentSecretsAsync } from '../../credentials/credentialsJson/read';
-import { getProjectAccountNameAsync } from '../../project/projectUtils';
+import { getUsername } from '../../project/projectUtils';
+import { ensureLoggedInAsync } from '../../user/actions';
 import { gitRootDirectoryAsync } from '../../utils/git';
 import { BuildContext } from '../context';
 import { Platform } from '../types';
@@ -103,11 +104,11 @@ async function prepareManagedJobAsync(
 ): Promise<Partial<Android.ManagedJob>> {
   const projectRootDirectory =
     path.relative(await gitRootDirectoryAsync(), ctx.commandCtx.projectDir) || '.';
-  const accountName = await getProjectAccountNameAsync(ctx.commandCtx.exp);
+  const username = getUsername(ctx.commandCtx.exp, await ensureLoggedInAsync());
   return {
     ...(await prepareJobCommonAsync(ctx, jobData)),
     type: Workflow.MANAGED,
-    username: accountName,
+    username,
     buildType: buildProfile.buildType,
     releaseChannel: buildProfile.releaseChannel,
     projectRootDirectory,

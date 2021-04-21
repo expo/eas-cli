@@ -26,6 +26,22 @@ export function getProjectAccountName(exp: ExpoConfig, user: Actor): string {
   }
 }
 
+export function getUsername(exp: ExpoConfig, user: Actor): string | undefined {
+  switch (user.__typename) {
+    case 'User':
+      return user.username;
+    case 'Robot':
+      // owner field is necessary to run `expo prebuild`
+      if (!exp.owner) {
+        throw new Error(
+          'The "owner" manifest property is required when using robot users. See: https://docs.expo.io/versions/latest/config/app/#owner'
+        );
+      }
+      // robot users don't have usernames
+      return undefined;
+  }
+}
+
 export async function getProjectAccountNameAsync(exp: ExpoConfig): Promise<string> {
   const user = await ensureLoggedInAsync();
   return getProjectAccountName(exp, user);
