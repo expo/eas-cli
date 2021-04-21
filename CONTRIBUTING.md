@@ -5,6 +5,26 @@
 1. Once the release is ready to go, you can go to https://github.com/expo/eas-cli/releases and mark it as not draft.
    - Remember to copy the changelog entries from `CHANGELOG.md`.
 1. Run `yarn lerna publish from-git` in the repository root folder. This will publish the packages to npm.
+
+   - This command works only if `HEAD` is on the release commit, e.g. when `git log -1` prints:
+
+     ```
+     commit cbb2de9e118bfbcb5a597b261d2dbef0bb5d4b0b (tag: v0.11.1)
+     Author: Brent Vatne <brentvatne@gmail.com>
+     Date:   Tue Apr 20 15:00:15 2021 -0700
+
+         v0.11.1
+     ```
+
+   - If you run `yarn lerna publish from-git` on any other commit, it'll print something like:
+
+     ```
+     lerna notice from-git No tagged release found
+     lerna success No changed packages to publish
+     ```
+
+   - If you ever run into the above issue, use `git checkout RELEASE_COMMIT_HASH` to checkout to the release commit. Later, when you've published the packages to npm, run `git checkout main` to go back to the latest commit.
+
 1. Update `CHANGELOG.md`.
    - Add the new section with the release version in the title.
    - Leave the `main` section empty (without any changelog entries).
