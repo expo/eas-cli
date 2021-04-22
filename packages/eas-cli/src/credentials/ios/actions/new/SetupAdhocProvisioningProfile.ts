@@ -51,7 +51,7 @@ export class SetupAdhocProvisioningProfile {
     );
     if (areBuildCredentialsSetup) {
       const buildCredentials = nullthrows(currentBuildCredentials);
-      if (await this.shouldGenerateNewProfileAsync(ctx, buildCredentials)) {
+      if (await this.shouldUseExistingProfileAsync(ctx, buildCredentials)) {
         return buildCredentials;
       }
     }
@@ -150,7 +150,7 @@ export class SetupAdhocProvisioningProfile {
     return await validateProvisioningProfileAsync(ctx, this.app, buildCredentials);
   }
 
-  private async shouldGenerateNewProfileAsync(
+  private async shouldUseExistingProfileAsync(
     ctx: Context,
     buildCredentials: IosAppBuildCredentialsFragment
   ): Promise<boolean> {
