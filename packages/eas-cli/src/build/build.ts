@@ -115,7 +115,7 @@ export async function prepareBuildRequestForPlatformAsync<
           Log.error('EAS Build API has changed, please upgrade to the latest eas-cli version.');
         } else if (error?.graphQLErrors) {
           Log.error(
-            'Build request failed. Make sure you are using the latest eas-cli version and if the problem persists, please report the issue.'
+            'Build request failed. Make sure you are using the latest eas-cli version. If the problem persists, please report the issue.'
           );
         }
         throw error;
