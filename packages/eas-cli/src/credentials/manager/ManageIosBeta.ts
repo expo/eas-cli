@@ -146,31 +146,6 @@ export class ManageIosBeta implements Action {
     }
   }
 
-  private async setupProvisioningProfileWithDistributionCertificateAsync(
-    ctx: Context,
-    appLookupParams: AppLookupParams,
-    distCert: AppleDistributionCertificateFragment
-  ): Promise<IosAppBuildCredentialsFragment> {
-    const easJsonReader = await new EasJsonReader(ctx.projectDir, 'ios');
-    const easConfig = await new SelectBuildProfileFromEasJson(easJsonReader).runAsync(ctx);
-    const iosAppCredentials = await ctx.newIos.getIosAppCredentialsWithCommonFieldsAsync(
-      appLookupParams
-    );
-    const iosDistributionTypeGraphql = await new SelectIosDistributionTypeGraphqlFromBuildProfile(
-      easConfig
-    ).runAsync(ctx, iosAppCredentials);
-    if (iosDistributionTypeGraphql === IosDistributionTypeGraphql.AdHoc) {
-      return await new SetupAdhocProvisioningProfile(
-        appLookupParams
-      ).runWithDistributionCertificateAsync(ctx, distCert);
-    } else {
-      return await new SetupProvisioningProfile(
-        appLookupParams,
-        iosDistributionTypeGraphql
-      ).createAndAssignProfileAsync(ctx, distCert);
-    }
-  }
-
   private async runProjectSpecificActionAsync(
     manager: CredentialsManager,
     ctx: Context,
@@ -213,7 +188,7 @@ export class ManageIosBeta implements Action {
           appLookupParams,
           iosDistributionTypeGraphql
         ).reuseDistCertAsync(ctx);
-        await this.setupProvisioningProfileWithDistributionCertificateAsync(
+        await this.setupProvisioningProfileWithSpecificDistCertAsync(
           ctx,
           appLookupParams,
           distCert
@@ -228,7 +203,7 @@ export class ManageIosBeta implements Action {
           message: `Do you want to configure ${appLookupParams.projectName} to use the new distribution certificate you created?`,
         });
         if (confirm) {
-          await this.setupProvisioningProfileWithDistributionCertificateAsync(
+          await this.setupProvisioningProfileWithSpecificDistCertAsync(
             ctx,
             appLookupParams,
             distCert
@@ -238,6 +213,32 @@ export class ManageIosBeta implements Action {
       }
       default:
         throw new Error('Unknown action selected');
+    }
+  }
+
+  // TODO: move to a separate action?
+  private async setupProvisioningProfileWithSpecificDistCertAsync(
+    ctx: Context,
+    appLookupParams: AppLookupParams,
+    distCert: AppleDistributionCertificateFragment
+  ): Promise<IosAppBuildCredentialsFragment> {
+    const easJsonReader = await new EasJsonReader(ctx.projectDir, 'ios');
+    const easConfig = await new SelectBuildProfileFromEasJson(easJsonReader).runAsync(ctx);
+    const iosAppCredentials = await ctx.newIos.getIosAppCredentialsWithCommonFieldsAsync(
+      appLookupParams
+    );
+    const iosDistributionTypeGraphql = await new SelectIosDistributionTypeGraphqlFromBuildProfile(
+      easConfig
+    ).runAsync(ctx, iosAppCredentials);
+    if (iosDistributionTypeGraphql === IosDistributionTypeGraphql.AdHoc) {
+      return await new SetupAdhocProvisioningProfile(
+        appLookupParams
+      ).runWithDistributionCertificateAsync(ctx, distCert);
+    } else {
+      return await new SetupProvisioningProfile(
+        appLookupParams,
+        iosDistributionTypeGraphql
+      ).createAndAssignProfileAsync(ctx, distCert);
     }
   }
 }
