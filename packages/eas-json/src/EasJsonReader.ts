@@ -20,8 +20,31 @@ interface BuildProfilePreValidation {
   extends?: string;
 }
 
+function intersect<T>(setA: Set<T>, setB: Set<T>): Set<T> {
+  return new Set([...setA].filter(i => setB.has(i)));
+}
+
 export class EasJsonReader {
   constructor(private projectDir: string, private platform: 'android' | 'ios' | 'all') {}
+
+  /**
+   * Return build profile names for a particular platform.
+   * If platform is 'all', return common build profiles for all platforms
+   */
+  public async getBuildProfileNamesAsync(): Promise<string[]> {
+    const easJson = await this.readRawAsync();
+    if (this.platform === 'android') {
+      return Object.keys(easJson?.builds?.android ?? {});
+    } else if (this.platform === 'ios') {
+      return Object.keys(easJson?.builds?.ios ?? {});
+    } else {
+      const intersectingProfileNames = intersect(
+        new Set(Object.keys(easJson?.builds?.ios ?? {})),
+        new Set(Object.keys(easJson?.builds?.android ?? {}))
+      );
+      return Array.from(intersectingProfileNames);
+    }
+  }
 
   public async readAsync(buildProfileName: string): Promise<EasConfig> {
     const easJson = await this.readRawAsync();
