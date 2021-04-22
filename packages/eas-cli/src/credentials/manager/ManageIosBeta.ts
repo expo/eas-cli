@@ -127,10 +127,11 @@ export class ManageIosBeta implements Action {
         if (!iosDistributionTypeEasConfig) {
           throw new Error(`The distributionType field is required in your iOS build profile`);
         }
-        return await new SetupBuildCredentials({
+        await new SetupBuildCredentials({
           app: appLookupParams,
           distribution: iosDistributionTypeEasConfig,
         }).runAsync(manager, ctx);
+        return;
       }
       case ActionType.SetupBuildCredentialsFromCredentialsJson: {
         const iosAppCredentials = await ctx.newIos.getIosAppCredentialsWithCommonFieldsAsync(
