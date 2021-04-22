@@ -8,14 +8,18 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+### 🐛 Bug fixes
+
+## [0.13.0](https://github.com/expo/eas-cli/releases/tag/v0.13.0) - 2021-04-22
+
+### 🎉 New features
+
 - Implement offline distribution certificate validation when running a build in non-interactive mode. ([#344](https://github.com/expo/eas-cli/pull/344) by [@dsokal](https://github.com/dsokal))
 - Add support for building internal distribution apps for Apple Enterprise Teams. ([#344](https://github.com/expo/eas-cli/pull/344) by [@dsokal](https://github.com/dsokal))
 
 ### 🐛 Bug fixes
 
 - Display descriptive error message when API for EAS Build changes. ([#359](https://github.com/expo/eas-cli/pull/359) by [@wkozyra95](https://github.com/wkozyra95))
-
-### 🧹 Chores
 
 ## [0.12.0](https://github.com/expo/eas-cli/releases/tag/v0.12.0) - 2021-04-22
 
