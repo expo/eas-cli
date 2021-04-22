@@ -8,14 +8,20 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [0.12.0](https://github.com/expo/eas-cli/releases/tag/v0.12.0) - 2021-04-22
+
+### 🎉 New features
+
 - Add the initiating user's username to the build metadata. ([#354](https://github.com/expo/eas-cli/pull/354) by [@dsokal](https://github.com/dsokal))
 - Add `--clear-cache` flag for `eas build`. ([#355](https://github.com/expo/eas-cli/pull/355) by [@wkozyra95](https://github.com/wkozyra95))
 
 ### 🐛 Bug fixes
 
 - Fix the bug where the account name was used as the username. ([#354](https://github.com/expo/eas-cli/pull/354) by [@dsokal](https://github.com/dsokal))
-
-### 🧹 Chores
 
 ## [0.11.1](https://github.com/expo/eas-cli/releases/tag/v0.11.1) - 2021-04-20
 
