@@ -1,11 +1,13 @@
 import fs from 'fs-extra';
 import path from 'path';
 
+import { IosDistributionType as IosDistributionTypeGraphql } from '../../graphql/generated';
 import Log from '../../log';
 import { getProjectAccountName } from '../../project/projectUtils';
 import { confirmAsync } from '../../prompts';
 import { gitStatusAsync } from '../../utils/git';
 import { Context } from '../context';
+import { AppLookupParams } from '../ios/api/GraphqlClient';
 import { CredentialsJson } from './read';
 
 /**
@@ -84,7 +86,8 @@ export async function updateAndroidCredentialsAsync(ctx: Context): Promise<void>
  */
 export async function updateIosCredentialsAsync(
   ctx: Context,
-  bundleIdentifier: string
+  appLookupParams: AppLookupParams,
+  iosDistributionTypeGraphql: IosDistributionTypeGraphql
 ): Promise<void> {
   const credentialsJsonFilePath = path.join(ctx.projectDir, 'credentials.json');
   let rawCredentialsJsonObject: any = {};
@@ -118,26 +121,27 @@ export async function updateIosCredentialsAsync(
     }
   }
 
-  const accountName = getProjectAccountName(ctx.exp, ctx.user);
-  const appLookupParams = {
-    accountName,
-    projectName: ctx.exp.slug,
-    bundleIdentifier,
-  };
   const profilePath =
     rawCredentialsJsonObject?.ios?.provisioningProfilePath ?? 'ios/certs/profile.mobileprovision';
   const distCertPath =
     rawCredentialsJsonObject?.ios?.distributionCertificate?.path ?? 'ios/certs/dist-cert.p12';
-  const appCredentials = await ctx.ios.getAppCredentialsAsync(appLookupParams);
-  const distCredentials = await ctx.ios.getDistributionCertificateAsync(appLookupParams);
-  if (!appCredentials?.credentials?.provisioningProfile && !distCredentials) {
-    throw new Error('There are no credentials configured for this project on EAS servers');
+  const iosAppCredentials = await ctx.newIos.getIosAppCredentialsWithCommonFieldsAsync(
+    appLookupParams
+  );
+  const buildCredentials =
+    iosAppCredentials?.iosAppBuildCredentialsArray.find(
+      buildCredentials => buildCredentials.iosDistributionType === iosDistributionTypeGraphql
+    ) ?? null;
+  if (!buildCredentials) {
+    throw new Error(
+      `There are no credentials configured for the ${iosDistributionTypeGraphql} distribution of this project on EAS servers`
+    );
   }
 
   const areCredentialsComplete =
-    appCredentials?.credentials?.provisioningProfile &&
-    distCredentials?.certP12 &&
-    distCredentials?.certPassword;
+    buildCredentials.provisioningProfile?.provisioningProfile &&
+    buildCredentials.distributionCertificate?.certificateP12 &&
+    buildCredentials.distributionCertificate.certificatePassword;
 
   if (!areCredentialsComplete) {
     const confirm = await confirmAsync({
@@ -149,28 +153,27 @@ export async function updateIosCredentialsAsync(
       return;
     }
   }
-
+  const provisioningProfile =
+    buildCredentials.provisioningProfile?.provisioningProfile ?? undefined;
+  const distributionCertificateP12 =
+    buildCredentials.distributionCertificate?.certificateP12 ?? undefined;
+  const distributionCertificatePassword =
+    buildCredentials.distributionCertificate?.certificatePassword ?? undefined;
   Log.log(`Writing Provisioning Profile to ${profilePath}`);
-  await updateFileAsync(
-    ctx.projectDir,
-    profilePath,
-    appCredentials?.credentials?.provisioningProfile
-  );
+  await updateFileAsync(ctx.projectDir, profilePath, provisioningProfile);
   const shouldWarnPProfile = await isFileUntrackedAsync(profilePath);
 
   Log.log(`Writing Distribution Certificate to ${distCertPath}`);
-  await updateFileAsync(ctx.projectDir, distCertPath, distCredentials?.certP12);
+  await updateFileAsync(ctx.projectDir, distCertPath, distributionCertificateP12);
   const shouldWarnDistCert = await isFileUntrackedAsync(distCertPath);
 
   const iosCredentials: Partial<CredentialsJson['ios']> = {
-    ...(appCredentials?.credentials?.provisioningProfile
-      ? { provisioningProfilePath: profilePath }
-      : {}),
-    ...(distCredentials?.certP12 && distCredentials?.certPassword
+    ...(provisioningProfile ? { provisioningProfilePath: profilePath } : {}),
+    ...(distributionCertificateP12 && distributionCertificatePassword
       ? {
           distributionCertificate: {
             path: distCertPath,
-            password: distCredentials?.certPassword,
+            password: distributionCertificatePassword,
           },
         }
       : {}),
