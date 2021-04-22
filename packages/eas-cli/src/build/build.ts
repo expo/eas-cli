@@ -109,10 +109,14 @@ export async function prepareBuildRequestForPlatformAsync<
       return undefined;
     } else {
       try {
-        return sendBuildRequestAsync(builder, job, metadata);
+        return await sendBuildRequestAsync(builder, job, metadata);
       } catch (error) {
-        if (error?.expoApiV2ErrorCode === 'TURTLE_DEPRECATED_JOB_FORMAT') {
-          Log.error('EAS Build API has changed, please upgrade to the latest eas-cli');
+        if (error?.graphQLErrors?.[0]?.extensions?.errorCode === 'TURTLE_DEPRECATED_JOB_FORMAT') {
+          Log.error('EAS Build API has changed, please upgrade to the latest eas-cli version.');
+        } else if (error?.graphQLErrors) {
+          Log.error(
+            'Build request failed. Make sure you are using the latest eas-cli version. If the problem persists, please report the issue.'
+          );
         }
         throw error;
       }
