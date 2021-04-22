@@ -20,12 +20,12 @@ interface BuildProfilePreValidation {
   extends?: string;
 }
 
+function intersect<T>(setA: Set<T>, setB: Set<T>): Set<T> {
+  return new Set([...setA].filter(i => setB.has(i)));
+}
+
 export class EasJsonReader {
   constructor(private projectDir: string, private platform: 'android' | 'ios' | 'all') {}
-
-  private intersect<T>(setA: Set<T>, setB: Set<T>): Set<T> {
-    return new Set([...setA].filter(i => setB.has(i)));
-  }
 
   /**
    * Return build profile names for a particular platform.
@@ -33,19 +33,17 @@ export class EasJsonReader {
    */
   public async getBuildProfileNamesAsync(): Promise<string[]> {
     const easJson = await this.readRawAsync();
-    let intersectingProfileNames: Set<string> | null = null;
-    for (const platform of ['android', 'ios'] as ('android' | 'ios')[]) {
-      const profiles = (easJson.builds ? easJson.builds[platform] : {}) ?? {};
-      const profileNames = new Set(Object.keys(profiles));
-      if (this.platform === platform) {
-        return Array.from(profileNames);
-      } else if (this.platform === 'all') {
-        intersectingProfileNames = intersectingProfileNames
-          ? this.intersect(intersectingProfileNames, profileNames)
-          : profileNames;
-      }
+    if (this.platform === 'android') {
+      return Object.keys(easJson?.builds?.android ?? {});
+    } else if (this.platform === 'ios') {
+      return Object.keys(easJson?.builds?.ios ?? {});
+    } else {
+      const intersectingProfileNames = intersect(
+        new Set(Object.keys(easJson?.builds?.ios ?? {})),
+        new Set(Object.keys(easJson?.builds?.android ?? {}))
+      );
+      return Array.from(intersectingProfileNames);
     }
-    return intersectingProfileNames ? Array.from(intersectingProfileNames) : [];
   }
 
   public async readAsync(buildProfileName: string): Promise<EasConfig> {
