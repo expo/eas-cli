@@ -19,7 +19,7 @@ Your app archive (.ipa) will be installable on your equipment as long as you sig
 The provisioning profile needs to contain the UDIDs (unique identifiers) of your iPhones and iPads.
 
 First of all, please choose the Expo account under which you want to register your devices.
-Later, authenticate with Apple and choose your desired Apple Team (if you're Apple ID has access to multiple teams).`;
+Later, authenticate with Apple and choose your desired Apple Team (if your Apple ID has access to multiple teams).`;
 
 export default class DeviceManager {
   constructor(private ctx: DeviceManagerContext) {}
