@@ -1,4 +1,3 @@
-import { IosDistributionType, IosEnterpriseProvisioning } from '@expo/eas-json';
 import nullthrows from 'nullthrows';
 
 import {
@@ -16,6 +15,17 @@ import { findAccountByName } from '../../../../user/Account';
 import { Context } from '../../../context';
 import { AppLookupParams } from '../../api/GraphqlClient';
 import { resolveAppleTeamIfAuthenticatedAsync } from './AppleTeamUtils';
+
+export async function getAllBuildCredentialsAsync(
+  ctx: Context,
+  app: AppLookupParams
+): Promise<IosAppBuildCredentialsFragment[]> {
+  const appCredentials = await ctx.newIos.getIosAppCredentialsWithBuildCredentialsAsync(app, {});
+  if (!appCredentials) {
+    return [];
+  }
+  return appCredentials.iosAppBuildCredentialsArray;
+}
 
 export async function getBuildCredentialsAsync(
   ctx: Context,
@@ -93,21 +103,4 @@ export function getAppLookupParamsFromContext(ctx: Context): AppLookupParams {
   }
 
   return { account, projectName, bundleIdentifier };
-}
-
-export function resolveDistributionType(
-  distribution: IosDistributionType,
-  enterpriseProvisioning?: IosEnterpriseProvisioning
-): GraphQLIosDistributionType {
-  if (distribution === 'internal') {
-    if (enterpriseProvisioning === 'adhoc') {
-      return GraphQLIosDistributionType.AdHoc;
-    } else if (enterpriseProvisioning === 'universal') {
-      return GraphQLIosDistributionType.Enterprise;
-    } else {
-      return GraphQLIosDistributionType.AdHoc;
-    }
-  } else {
-    return GraphQLIosDistributionType.AppStore;
-  }
 }

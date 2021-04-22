@@ -92,7 +92,7 @@ export class ManageIos implements Action {
         });
 
         try {
-          await manager.runActionAsync(this.getAction(manager, ctx, accountName, action));
+          await this.getAction(ctx, accountName, action).runAsync(manager, ctx);
         } catch (err) {
           Log.error(err);
         }
@@ -115,12 +115,7 @@ export class ManageIos implements Action {
     return { accountName, projectName, bundleIdentifier };
   }
 
-  private getAction(
-    manager: CredentialsManager,
-    ctx: Context,
-    accountName: string,
-    action: ActionType
-  ): Action {
+  private getAction(ctx: Context, accountName: string, action: ActionType): Action<unknown> {
     switch (action) {
       case ActionType.CreateDistributionCertificate:
         return new CreateDistributionCertificateStandaloneManager(accountName);

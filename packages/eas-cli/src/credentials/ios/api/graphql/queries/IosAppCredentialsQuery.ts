@@ -66,7 +66,7 @@ const IosAppCredentialsQuery = {
       iosDistributionType,
     }: {
       appleAppIdentifierId: string;
-      iosDistributionType: IosDistributionType;
+      iosDistributionType?: IosDistributionType;
     }
   ): Promise<IosAppCredentialsWithBuildCredentialsQueryResult | null> {
     const data = await withErrorHandlingAsync(
@@ -76,7 +76,7 @@ const IosAppCredentialsQuery = {
             query IosAppCredentialsWithBuildCredentialsByAppIdentifierIdQuery(
               $projectFullName: String!
               $appleAppIdentifierId: String!
-              $iosDistributionType: IosDistributionType!
+              $iosDistributionType: IosDistributionType
             ) {
               app {
                 byFullName(fullName: $projectFullName) {

@@ -4058,7 +4058,7 @@ export type IosAppCredentialsByAppIdentifierIdQuery = (
 export type IosAppCredentialsWithBuildCredentialsByAppIdentifierIdQueryVariables = Exact<{
   projectFullName: Scalars['String'];
   appleAppIdentifierId: Scalars['String'];
-  iosDistributionType: IosDistributionType;
+  iosDistributionType?: Maybe<IosDistributionType>;
 }>;
 
 

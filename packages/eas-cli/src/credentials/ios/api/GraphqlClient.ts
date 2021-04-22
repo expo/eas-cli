@@ -98,7 +98,7 @@ export async function createOrUpdateIosAppBuildCredentialsAsync(
 
 export async function getIosAppCredentialsWithBuildCredentialsAsync(
   appLookupParams: AppLookupParams,
-  { iosDistributionType }: { iosDistributionType: IosDistributionType }
+  { iosDistributionType }: { iosDistributionType?: IosDistributionType }
 ): Promise<IosAppCredentialsWithBuildCredentialsQueryResult | null> {
   const { account, bundleIdentifier } = appLookupParams;
   const appleAppIdentifier = await AppleAppIdentifierQuery.byBundleIdentifierAsync(
