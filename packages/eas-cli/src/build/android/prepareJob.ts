@@ -72,7 +72,10 @@ async function prepareJobCommonAsync(
       ndk: ctx.buildProfile.ndk,
       env: ctx.buildProfile.env,
     },
-    cache: ctx.buildProfile.cache,
+    cache: {
+      ...ctx.buildProfile.cache,
+      clear: ctx.commandCtx.clearCache,
+    },
     secrets: {
       ...(environmentSecrets ? { environmentSecrets } : {}),
       ...buildCredentials,

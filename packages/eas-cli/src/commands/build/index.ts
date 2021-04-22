@@ -61,6 +61,10 @@ export default class Build extends Command {
       allowNo: true,
       description: 'Wait for build(s) to complete',
     }),
+    'clear-cache': flags.boolean({
+      default: false,
+      description: 'Clear cache before the build',
+    }),
   };
 
   async run(): Promise<void> {
@@ -111,6 +115,7 @@ export default class Build extends Command {
         projectDir,
         projectId,
         nonInteractive,
+        clearCache: flags['clear-cache'],
         skipCredentialsCheck: flags['skip-credentials-check'],
         local: flags.local,
         skipProjectConfiguration: flags['skip-project-configuration'],

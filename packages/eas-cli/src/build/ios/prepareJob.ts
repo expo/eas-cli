@@ -91,7 +91,10 @@ async function prepareJobCommonAsync(
       fastlane: ctx.buildProfile.fastlane,
       env: ctx.buildProfile.env,
     },
-    cache: ctx.buildProfile.cache,
+    cache: {
+      ...ctx.buildProfile.cache,
+      clear: ctx.commandCtx.clearCache,
+    },
     secrets: {
       ...(environmentSecrets ? { environmentSecrets } : {}),
       buildCredentials,
