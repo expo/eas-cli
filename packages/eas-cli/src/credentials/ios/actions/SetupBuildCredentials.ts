@@ -1,5 +1,6 @@
 import { IosDistributionType, IosEnterpriseProvisioning } from '@expo/eas-json';
 import chalk from 'chalk';
+import nullthrows from 'nullthrows';
 
 import {
   IosDistributionType as GraphQLIosDistributionType,
@@ -26,13 +27,19 @@ interface Options {
   skipCredentialsCheck?: boolean;
 }
 
-export class SetupBuildCredentials implements Action<IosAppBuildCredentialsFragment> {
+interface IosAppBuildCredentials {
+  iosDistributionType: GraphQLIosDistributionType;
+  provisioningProfile: string;
+  distributionCertificate: {
+    certificateP12: string;
+    certificatePassword: string;
+  };
+}
+
+export class SetupBuildCredentials implements Action<IosAppBuildCredentials> {
   constructor(private options: Options) {}
 
-  async runAsync(
-    manager: CredentialsManager,
-    ctx: Context
-  ): Promise<IosAppBuildCredentialsFragment> {
+  async runAsync(manager: CredentialsManager, ctx: Context): Promise<IosAppBuildCredentials> {
     const { app } = this.options;
 
     await ctx.bestEffortAppStoreAuthenticateAsync();
@@ -54,7 +61,16 @@ export class SetupBuildCredentials implements Action<IosAppBuildCredentialsFragm
       Log.newLine();
       Log.log(chalk.green(`All credentials are ready to build ${appInfo}`));
       Log.newLine();
-      return buildCredentials;
+      return {
+        iosDistributionType: buildCredentials.iosDistributionType,
+        provisioningProfile: nullthrows(buildCredentials.provisioningProfile?.provisioningProfile),
+        distributionCertificate: {
+          certificateP12: nullthrows(buildCredentials.distributionCertificate?.certificateP12),
+          certificatePassword: nullthrows(
+            buildCredentials.distributionCertificate?.certificatePassword
+          ),
+        },
+      };
     } catch (error) {
       Log.error('Failed to setup credentials.');
       throw error;

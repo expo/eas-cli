@@ -26,11 +26,10 @@ export default class IosCredentialsProvider {
   public async getCredentialsAsync(
     src: CredentialsSource.LOCAL | CredentialsSource.REMOTE
   ): Promise<IosCredentials> {
-    switch (src) {
-      case CredentialsSource.LOCAL:
-        return await this.getLocalAsync();
-      case CredentialsSource.REMOTE:
-        return await this.getRemoteAsync();
+    if (src === CredentialsSource.LOCAL) {
+      return await this.getLocalAsync();
+    } else {
+      return await this.getRemoteAsync();
     }
   }
 
@@ -65,25 +64,16 @@ export default class IosCredentialsProvider {
 
   private async getRemoteAsync(): Promise<IosCredentials> {
     const manager = new CredentialsManager(this.ctx);
-    const buildCredentials = await new SetupBuildCredentials({
+    const { provisioningProfile, distributionCertificate } = await new SetupBuildCredentials({
       app: this.options.app,
       distribution: this.options.distribution,
       enterpriseProvisioning: this.options.enterpriseProvisioning,
     }).runAsync(manager, this.ctx);
-    if (
-      !buildCredentials?.distributionCertificate?.certificateP12 ||
-      !buildCredentials.distributionCertificate?.certificatePassword
-    ) {
-      throw new Error('Distribution certificate is missing');
-    }
-    if (!buildCredentials.provisioningProfile?.provisioningProfile) {
-      throw new Error('Provisioning profile is missing');
-    }
     return {
-      provisioningProfile: buildCredentials.provisioningProfile.provisioningProfile,
+      provisioningProfile,
       distributionCertificate: {
-        certP12: buildCredentials.distributionCertificate.certificateP12,
-        certPassword: buildCredentials.distributionCertificate.certificatePassword,
+        certP12: distributionCertificate.certificateP12,
+        certPassword: distributionCertificate.certificatePassword,
       },
     };
   }

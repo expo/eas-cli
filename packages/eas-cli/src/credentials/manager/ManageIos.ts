@@ -1,4 +1,3 @@
-import { IosAppBuildCredentialsFragment } from '../../graphql/generated';
 import Log from '../../log';
 import { getProjectAccountName } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
@@ -116,11 +115,7 @@ export class ManageIos implements Action {
     return { accountName, projectName, bundleIdentifier };
   }
 
-  private getAction(
-    ctx: Context,
-    accountName: string,
-    action: ActionType
-  ): Action<void> | Action<IosAppBuildCredentialsFragment> {
+  private getAction(ctx: Context, accountName: string, action: ActionType): Action<unknown> {
     switch (action) {
       case ActionType.CreateDistributionCertificate:
         return new CreateDistributionCertificateStandaloneManager(accountName);

@@ -7,6 +7,13 @@ import { getAllBuildCredentialsAsync } from './BuildCredentialsUtils';
 import { SetupAdhocProvisioningProfile } from './SetupAdhocProvisioningProfile';
 import { SetupProvisioningProfile } from './SetupProvisioningProfile';
 
+/**
+ * It's used when setting up credentials for internal distribution but `enterpriseProvisioning` is not set.
+ *
+ * TLDR: If the user authenticates with an account with Apple Developer Enterprise Program membership we ask them
+ * to choose if they want to set up an adhoc or universal distribution provisioning profile. Otherwise, always
+ * set up an adhoc provisioning profile.
+ */
 export class SetupInternalProvisioningProfile {
   constructor(private app: AppLookupParams) {}
 
