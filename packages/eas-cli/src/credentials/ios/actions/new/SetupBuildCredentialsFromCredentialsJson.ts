@@ -39,7 +39,7 @@ export class SetupBuildCredentialsFromCredentialsJson {
     const { certP12, certPassword } = distributionCertificate;
 
     if (!currentDistributionCertificate) {
-      return await ctx.newIos.createDistributionCertificateAsync(this.app, {
+      return await ctx.newIos.createDistributionCertificateAsync(this.app.account, {
         certP12,
         certPassword,
         teamId: appleTeam.appleTeamIdentifier,
@@ -49,7 +49,7 @@ export class SetupBuildCredentialsFromCredentialsJson {
 
     const isSameCertificate = currentDistributionCertificate.certificateP12 === certP12;
     if (!isSameCertificate) {
-      return await ctx.newIos.createDistributionCertificateAsync(this.app, {
+      return await ctx.newIos.createDistributionCertificateAsync(this.app.account, {
         certP12,
         certPassword,
         teamId: appleTeam.appleTeamIdentifier,
@@ -128,7 +128,7 @@ export class SetupBuildCredentialsFromCredentialsJson {
 
     // new credentials from local json
     const appleTeamFromProvisioningProfile = readAppleTeam(localCredentials.provisioningProfile);
-    const appleTeam = await ctx.newIos.createOrGetExistingAppleTeamAsync(this.app, {
+    const appleTeam = await ctx.newIos.createOrGetExistingAppleTeamAsync(this.app.account, {
       appleTeamIdentifier: appleTeamFromProvisioningProfile.teamId,
       appleTeamName: appleTeamFromProvisioningProfile.teamName,
     });
