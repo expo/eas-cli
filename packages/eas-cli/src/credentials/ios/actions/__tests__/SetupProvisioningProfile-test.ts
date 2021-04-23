@@ -1,25 +1,25 @@
 import nullthrows from 'nullthrows';
 
-import { IosDistributionType } from '../../../../../graphql/generated';
-import { confirmAsync } from '../../../../../prompts';
-import { getAppstoreMock, testAuthCtx } from '../../../../__tests__/fixtures-appstore';
-import { createCtxMock } from '../../../../__tests__/fixtures-context';
+import { IosDistributionType } from '../../../../graphql/generated';
+import { confirmAsync } from '../../../../prompts';
+import { getAppstoreMock, testAuthCtx } from '../../../__tests__/fixtures-appstore';
+import { createCtxMock } from '../../../__tests__/fixtures-context';
 import {
   testAppleAppIdentifierFragment,
   testIosAppBuildCredentialsFragment,
   testIosAppCredentialsWithBuildCredentialsQueryResult,
-} from '../../../../__tests__/fixtures-ios';
-import { getNewIosApiMockWithoutCredentials } from '../../../../__tests__/fixtures-new-ios';
-import { MissingCredentialsNonInteractiveError } from '../../../errors';
-import { validateProvisioningProfileAsync } from '../../../validators/validateProvisioningProfile';
+} from '../../../__tests__/fixtures-ios';
+import { getNewIosApiMockWithoutCredentials } from '../../../__tests__/fixtures-new-ios';
+import { MissingCredentialsNonInteractiveError } from '../../errors';
+import { validateProvisioningProfileAsync } from '../../validators/validateProvisioningProfile';
 import { getAppLookupParamsFromContext } from '../BuildCredentialsUtils';
 import { SetupProvisioningProfile } from '../SetupProvisioningProfile';
-jest.mock('../../../../../prompts');
+jest.mock('../../../../prompts');
 (confirmAsync as jest.Mock).mockImplementation(() => true);
 jest.mock('../SetupDistributionCertificate');
 jest.mock('../ConfigureProvisioningProfile');
 jest.mock('../CreateProvisioningProfile');
-jest.mock('../../../validators/validateProvisioningProfile');
+jest.mock('../../validators/validateProvisioningProfile');
 
 describe('SetupProvisioningProfile', () => {
   it('repairs existing Provisioning Profile with bad build credentials in Interactive Mode', async () => {

@@ -1,15 +1,15 @@
-import { confirmAsync } from '../../../../../prompts';
-import { getAppstoreMock, testAuthCtx } from '../../../../__tests__/fixtures-appstore';
-import { createCtxMock } from '../../../../__tests__/fixtures-context';
+import { confirmAsync } from '../../../../prompts';
+import { getAppstoreMock, testAuthCtx } from '../../../__tests__/fixtures-appstore';
+import { createCtxMock } from '../../../__tests__/fixtures-context';
 import {
   testDistCertFragmentNoDependencies,
   testProvisioningProfile,
   testProvisioningProfileFragment,
-} from '../../../../__tests__/fixtures-ios';
-import { MissingCredentialsNonInteractiveError } from '../../../errors';
+} from '../../../__tests__/fixtures-ios';
+import { MissingCredentialsNonInteractiveError } from '../../errors';
 import { getAppLookupParamsFromContext } from '../BuildCredentialsUtils';
 import { ConfigureProvisioningProfile } from '../ConfigureProvisioningProfile';
-jest.mock('../../../../../prompts');
+jest.mock('../../../../prompts');
 (confirmAsync as jest.Mock).mockImplementation(() => true);
 
 describe('ConfigureProvisioningProfile', () => {

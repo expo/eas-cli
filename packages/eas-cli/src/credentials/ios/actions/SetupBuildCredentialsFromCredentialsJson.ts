@@ -7,18 +7,18 @@ import {
   AppleTeamFragment,
   IosAppBuildCredentialsFragment,
   IosDistributionType,
-} from '../../../../graphql/generated';
-import Log from '../../../../log';
-import { confirmAsync } from '../../../../prompts';
-import { Context } from '../../../context';
+} from '../../../graphql/generated';
+import Log from '../../../log';
+import { confirmAsync } from '../../../prompts';
+import { Context } from '../../context';
 import {
   IosTargetCredentials,
   isCredentialsMap,
   readIosCredentialsAsync,
-} from '../../../credentialsJson/read';
-import { AppLookupParams } from '../../api/GraphqlClient';
-import { displayProjectCredentials } from '../../utils/printCredentialsBeta';
-import { readAppleTeam } from '../../utils/provisioningProfile';
+} from '../../credentialsJson/read';
+import { AppLookupParams } from '../api/GraphqlClient';
+import { displayProjectCredentials } from '../utils/printCredentialsBeta';
+import { readAppleTeam } from '../utils/provisioningProfile';
 import {
   assignBuildCredentialsAsync,
   getBuildCredentialsAsync,

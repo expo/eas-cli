@@ -1,7 +1,7 @@
-import { asMock } from '../../../../../__tests__/utils';
-import { IosDistributionType } from '../../../../../graphql/generated';
-import { confirmAsync } from '../../../../../prompts';
-import { createCtxMock } from '../../../../__tests__/fixtures-context';
+import { asMock } from '../../../../__tests__/utils';
+import { IosDistributionType } from '../../../../graphql/generated';
+import { confirmAsync } from '../../../../prompts';
+import { createCtxMock } from '../../../__tests__/fixtures-context';
 import {
   testAppleAppIdentifierFragment,
   testDistCert,
@@ -9,13 +9,13 @@ import {
   testIosAppCredentialsWithBuildCredentialsQueryResult,
   testProvisioningProfile,
   testProvisioningProfileFragment,
-} from '../../../../__tests__/fixtures-ios';
-import { getNewIosApiMockWithoutCredentials } from '../../../../__tests__/fixtures-new-ios';
-import { readIosCredentialsAsync } from '../../../../credentialsJson/read';
+} from '../../../__tests__/fixtures-ios';
+import { getNewIosApiMockWithoutCredentials } from '../../../__tests__/fixtures-new-ios';
+import { readIosCredentialsAsync } from '../../../credentialsJson/read';
 import { getAppLookupParamsFromContext } from '../BuildCredentialsUtils';
 import { SetupBuildCredentialsFromCredentialsJson } from '../SetupBuildCredentialsFromCredentialsJson';
-jest.mock('../../../../../prompts');
-jest.mock('../../../../credentialsJson/read');
+jest.mock('../../../../prompts');
+jest.mock('../../../credentialsJson/read');
 
 const originalConsoleLog = console.log;
 const originalConsoleWarn = console.warn;

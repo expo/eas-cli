@@ -1,25 +1,153 @@
+import assert from 'assert';
 import chalk from 'chalk';
+import dateformat from 'dateformat';
 
+import {
+  AppleDistributionCertificateFragment,
+  AppleTeamFragment,
+} from '../../../graphql/generated';
 import Log, { learnMore } from '../../../log';
 import { promptAsync } from '../../../prompts';
+import { Account } from '../../../user/Account';
+import { fromNow } from '../../../utils/date';
 import { Context } from '../../context';
 import { askForUserProvidedAsync } from '../../utils/promptForCredentials';
+import { AppLookupParams } from '../api/GraphqlClient';
 import { AppleTooManyCertsError } from '../appstore/AppStoreApi';
 import {
   DistributionCertificate,
   DistributionCertificateStoreInfo,
 } from '../appstore/Credentials.types';
-import {
-  filterRevokedDistributionCerts,
-  sortCertificatesByExpiryDesc,
-} from '../appstore/CredentialsUtils';
-import {
-  IosAppCredentials,
-  IosDistCredentials,
-  distributionCertificateSchema,
-} from '../credentials';
-import { findP12CertSerialNumber } from '../utils/p12Certificate';
+import { filterRevokedDistributionCerts } from '../appstore/CredentialsUtilsBeta';
+import { distributionCertificateSchema } from '../credentials';
 import { validateDistributionCertificateAsync } from '../validators/validateDistributionCertificate';
+
+export function formatDistributionCertificate(
+  distributionCertificate: AppleDistributionCertificateFragment,
+  validSerialNumbers?: string[]
+): string {
+  const {
+    serialNumber,
+    developerPortalIdentifier,
+    appleTeam,
+    validityNotBefore,
+    validityNotAfter,
+    updatedAt,
+  } = distributionCertificate;
+  let line: string = '';
+  if (developerPortalIdentifier) {
+    line += `Cert ID: ${developerPortalIdentifier}`;
+  }
+  line += `${line === '' ? '' : ', '}Serial number: ${serialNumber}${
+    appleTeam ? `, ${formatAppleTeam(appleTeam)}` : ''
+  }`;
+  line += chalk.gray(
+    `\n    Created: ${fromNow(new Date(validityNotBefore))} ago, Updated: ${fromNow(
+      new Date(updatedAt)
+    )} ago,`
+  );
+  line += chalk.gray(`\n    Expires: ${dateformat(validityNotAfter, 'expiresHeaderFormat')}`);
+  const apps = distributionCertificate.iosAppBuildCredentialsList.map(
+    buildCredentials => buildCredentials.iosAppCredentials.app
+  );
+  if (apps.length) {
+    const appFullNames = apps.map(app => app.fullName).join(',');
+    line += chalk.gray(`\n    📲 Used by: ${appFullNames}`);
+  }
+
+  if (validSerialNumbers?.includes(serialNumber)) {
+    line += chalk.gray("\n    ✅ Currently valid on Apple's servers.");
+  } else {
+    line += '';
+  }
+  return line;
+}
+
+function formatAppleTeam({ appleTeamIdentifier, appleTeamName }: AppleTeamFragment): string {
+  return `Team ID: ${appleTeamIdentifier}${appleTeamName ? `, Team name: ${appleTeamName}` : ''}`;
+}
+
+async function _selectDistributionCertificateAsync(
+  distCerts: AppleDistributionCertificateFragment[],
+  validDistributionCertificates?: AppleDistributionCertificateFragment[]
+): Promise<AppleDistributionCertificateFragment | null> {
+  const validDistCertSerialNumbers = validDistributionCertificates?.map(
+    distCert => distCert.serialNumber
+  );
+  const { chosenDistCert } = await promptAsync({
+    type: 'select',
+    name: 'chosenDistCert',
+    message: 'Select certificate from the list.',
+    choices: distCerts.map(distCert => ({
+      title: formatDistributionCertificate(distCert, validDistCertSerialNumbers),
+      value: distCert,
+    })),
+  });
+  return chosenDistCert;
+}
+
+/**
+ * select a distribution certificate from an account (validity status shown on a best effort basis)
+ * */
+export async function selectDistributionCertificateWithDependenciesAsync(
+  ctx: Context,
+  account: Account
+): Promise<AppleDistributionCertificateFragment | null> {
+  const distCertsForAccount = await ctx.newIos.getDistributionCertificatesForAccountAsync(account);
+  if (distCertsForAccount.length === 0) {
+    Log.warn(`There are no Distribution Certificates available in your EAS account.`);
+    return null;
+  }
+  if (!ctx.appStore.authCtx) {
+    return _selectDistributionCertificateAsync(distCertsForAccount);
+  }
+
+  // get valid certs on the developer portal
+  const certInfoFromApple = await ctx.appStore.listDistributionCertificatesAsync();
+  const validDistCerts = await filterRevokedDistributionCerts(
+    distCertsForAccount,
+    certInfoFromApple
+  );
+
+  return _selectDistributionCertificateAsync(distCertsForAccount, validDistCerts);
+}
+
+/**
+ * select a distribution certificate from a valid set (curated on a best effort basis)
+ * */
+export async function selectValidDistributionCertificateAsync(
+  ctx: Context,
+  appLookupParams: AppLookupParams
+): Promise<AppleDistributionCertificateFragment | null> {
+  const distCertsForAccount = await ctx.newIos.getDistributionCertificatesForAccountAsync(
+    appLookupParams.account
+  );
+  if (distCertsForAccount.length === 0) {
+    Log.warn(`There are no Distribution Certificates available in your EAS account.`);
+    return null;
+  }
+  if (!ctx.appStore.authCtx) {
+    return _selectDistributionCertificateAsync(distCertsForAccount);
+  }
+
+  // filter by apple team
+  assert(ctx.appStore.authCtx, 'authentication to the Apple App Store is required');
+  const appleTeamIdentifier = ctx.appStore.authCtx.team.id;
+  const distCertsForAppleTeam = distCertsForAccount.filter(distCert => {
+    return !distCert.appleTeam || distCert.appleTeam.appleTeamIdentifier === appleTeamIdentifier;
+  });
+
+  // filter by valid certs on the developer portal
+  const certInfoFromApple = await ctx.appStore.listDistributionCertificatesAsync();
+  const validDistCerts = await filterRevokedDistributionCerts(
+    distCertsForAppleTeam,
+    certInfoFromApple
+  );
+  Log.log(
+    `${validDistCerts.length}/${distCertsForAccount.length} Distribution Certificates are currently valid for Apple Team ${ctx.appStore.authCtx?.team.id}.`
+  );
+  return _selectDistributionCertificateAsync(validDistCerts);
+}
 
 const APPLE_DIST_CERTS_TOO_MANY_GENERATED_ERROR = `
 You can have only ${chalk.underline(
@@ -125,100 +253,6 @@ async function generateDistributionCertificateAsync(
   return await generateDistributionCertificateAsync(ctx, accountName);
 }
 
-interface SelectOptions {
-  filterInvalid?: boolean;
-}
-type ValidityStatus = 'UNKNOWN' | 'VALID' | 'INVALID';
-
-export async function selectDistributionCertificateAsync(
-  ctx: Context,
-  accountName: string,
-  options: SelectOptions = {}
-): Promise<IosDistCredentials | null> {
-  const credentials = await ctx.ios.getAllCredentialsAsync(accountName);
-  let distCredentials = credentials.userCredentials.filter(
-    (cred): cred is IosDistCredentials => cred.type === 'dist-cert'
-  );
-  let validDistCredentials: IosDistCredentials[] | null = null;
-  if (ctx.appStore.authCtx) {
-    const certInfoFromApple = await ctx.appStore.listDistributionCertificatesAsync();
-    validDistCredentials = filterRevokedDistributionCerts(distCredentials, certInfoFromApple);
-  }
-  distCredentials =
-    options.filterInvalid && validDistCredentials ? validDistCredentials : distCredentials;
-
-  if (distCredentials.length === 0) {
-    Log.warn('There are no Distribution Certificates available in your Expo account.');
-    return null;
-  }
-
-  const format = (distCredentials: IosDistCredentials): string => {
-    const usedByApps = credentials.appCredentials.filter(
-      cred => cred.distCredentialsId === distCredentials.id
-    );
-    let validityStatus: ValidityStatus;
-    if (!validDistCredentials) {
-      validityStatus = 'UNKNOWN';
-    } else if (validDistCredentials.includes(distCredentials)) {
-      validityStatus = 'VALID';
-    } else {
-      validityStatus = 'INVALID';
-    }
-    return formatDistributionCertificate(distCredentials, usedByApps, validityStatus);
-  };
-
-  const { credentialsIndex } = await promptAsync({
-    type: 'select',
-    name: 'credentialsIndex',
-    message: 'Select certificate from the list.',
-    choices: distCredentials.map((entry, index) => ({
-      title: format(entry),
-      value: index,
-    })),
-  });
-  return distCredentials[credentialsIndex];
-}
-
-export function formatDistributionCertificate(
-  distributionCertificate: IosDistCredentials,
-  usedByApps: IosAppCredentials[],
-  validityStatus: ValidityStatus = 'UNKNOWN'
-): string {
-  const joinApps = usedByApps.map(i => `${i.experienceName} (${i.bundleIdentifier})`).join(', ');
-
-  const usedByString = joinApps
-    ? `\n    ${chalk.gray(`used by ${joinApps}`)}`
-    : `\n    ${chalk.gray(`not used by any apps`)}`;
-
-  let serialNumber = distributionCertificate.distCertSerialNumber;
-  try {
-    if (!serialNumber) {
-      serialNumber = findP12CertSerialNumber(
-        distributionCertificate.certP12,
-        distributionCertificate.certPassword
-      );
-    }
-  } catch (error) {
-    serialNumber = chalk.red('invalid serial number');
-  }
-
-  let validityText;
-  if (validityStatus === 'VALID') {
-    validityText = chalk.gray("\n    ✅ Currently valid on Apple's servers.");
-  } else if (validityStatus === 'INVALID') {
-    validityText = chalk.gray("\n    ❌ No longer valid on Apple's servers.");
-  } else {
-    validityText = chalk.gray(
-      "\n    ❓ Validity of this certificate on Apple's servers is unknown."
-    );
-  }
-  return `Distribution Certificate (Cert ID: ${
-    distributionCertificate.certId || '-----'
-  }, Serial number: ${serialNumber}, Team ID: ${
-    distributionCertificate.teamId
-  })${usedByString}${validityText}`;
-}
-
 function formatDistributionCertificateFromApple(
   appleInfo: DistributionCertificateStoreInfo
 ): string {
@@ -227,21 +261,4 @@ function formatDistributionCertificateFromApple(
   const createdDate = new Date(created * 1000).toDateString();
   return `${name} (${status}) - Cert ID: ${id}, Serial number: ${serialNumber}, Team ID: ${appleInfo.ownerId}, Team name: ${ownerName}
     expires: ${expiresDate}, created: ${createdDate}`;
-}
-
-export async function getValidDistCertsAsync(
-  ctx: Context,
-  accountName: string
-): Promise<IosDistCredentials[]> {
-  const credentials = await ctx.ios.getAllCredentialsAsync(accountName);
-  const distCredentials = credentials.userCredentials.filter(
-    (cred): cred is IosDistCredentials => cred.type === 'dist-cert'
-  );
-  if (!ctx.appStore.authCtx) {
-    Log.log(chalk.yellow(`Unable to determine validity of Distribution Certificates.`));
-    return distCredentials;
-  }
-  const certInfoFromApple = await ctx.appStore.listDistributionCertificatesAsync();
-  const validCerts = await filterRevokedDistributionCerts(distCredentials, certInfoFromApple);
-  return sortCertificatesByExpiryDesc(certInfoFromApple, validCerts);
 }

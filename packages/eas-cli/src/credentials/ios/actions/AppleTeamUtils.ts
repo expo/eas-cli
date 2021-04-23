@@ -1,6 +1,6 @@
-import { AppleTeamFragment } from '../../../../graphql/generated';
-import { Context } from '../../../context';
-import { AppLookupParams } from '../../api/GraphqlClient';
+import { AppleTeamFragment } from '../../../graphql/generated';
+import { Context } from '../../context';
+import { AppLookupParams } from '../api/GraphqlClient';
 
 export async function resolveAppleTeamIfAuthenticatedAsync(
   ctx: Context,
