@@ -17,6 +17,7 @@ import { getAppLookupParamsFromContext } from '../ios/actions/new/BuildCredentia
 import { CreateDistributionCertificate } from '../ios/actions/new/CreateDistributionCertificate';
 import { selectValidDistributionCertificateAsync } from '../ios/actions/new/DistributionCertificateUtils';
 import { SelectAndRemoveDistributionCertificate } from '../ios/actions/new/RemoveDistributionCertificate';
+import { RemoveProvisioningProfiles } from '../ios/actions/new/RemoveProvisioningProfile';
 import { SetupAdhocProvisioningProfile } from '../ios/actions/new/SetupAdhocProvisioningProfile';
 import { SetupBuildCredentialsFromCredentialsJson } from '../ios/actions/new/SetupBuildCredentialsFromCredentialsJson';
 import { SetupProvisioningProfile } from '../ios/actions/new/SetupProvisioningProfile';
@@ -38,7 +39,7 @@ enum ActionType {
   SetupBuildCredentialsFromCredentialsJson,
   UpdateCredentialsJson,
   UseExistingDistributionCertificate,
-  RemoveSpecificProvisioningProfile,
+  RemoveProvisioningProfile,
   CreateDistributionCertificate,
   RemoveDistributionCertificate,
 }
@@ -135,6 +136,11 @@ export class ManageIosBeta implements Action {
             value: ActionType.RemoveDistributionCertificate,
             title: 'Distribution Certificate: Delete one from your account',
             scope: Scope.Account,
+          },
+          {
+            value: ActionType.RemoveProvisioningProfile,
+            title: 'Provisioning Profile: Delete one from your project',
+            scope: Scope.Project,
           },
           {
             value: ActionType.GoBackToHighLevelActions,
@@ -270,6 +276,26 @@ export class ManageIosBeta implements Action {
             appLookupParams,
             distCert,
             iosDistributionTypeGraphql
+          );
+        }
+        return;
+      }
+      case ActionType.RemoveProvisioningProfile: {
+        const provisioningProfile = iosAppCredentials?.iosAppBuildCredentialsArray.find(
+          buildCredentials => buildCredentials.iosDistributionType === iosDistributionTypeGraphql
+        )?.provisioningProfile;
+        if (!provisioningProfile) {
+          Log.log(
+            `No provisioning profile associated with the ${iosDistributionTypeGraphql} configuration of ${appLookupParams.projectName}`
+          );
+          return;
+        }
+        const confirm = await confirmAsync({
+          message: `Delete the provisioning profile associated with the ${iosDistributionTypeGraphql} configuration of ${appLookupParams.projectName}?`,
+        });
+        if (confirm) {
+          await new RemoveProvisioningProfiles([appLookupParams], [provisioningProfile]).runAsync(
+            ctx
           );
         }
         return;
