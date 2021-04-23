@@ -1,57 +1,47 @@
-import chalk from 'chalk';
-
+import {
+  AppleDistributionCertificateFragment,
+  AppleProvisioningProfileIdentifiersFragment,
+} from '../../../graphql/generated';
 import Log from '../../../log';
 import { confirmAsync } from '../../../prompts';
-import { Action, CredentialsManager } from '../../CredentialsManager';
+import { Account } from '../../../user/Account';
 import { Context } from '../../context';
-import { IosAppCredentials, getAppLookupParams } from '../credentials';
-import { selectDistributionCertificateAsync } from './DistributionCertificateUtils';
-import { RemoveSpecificProvisioningProfile } from './RemoveProvisioningProfile';
+import { AppLookupParams } from '../api/GraphqlClient';
+import { selectDistributionCertificateWithDependenciesAsync } from './DistributionCertificateUtils';
+import { RemoveProvisioningProfiles } from './RemoveProvisioningProfile';
 
-interface RemoveOptions {
-  shouldRevoke?: boolean;
-}
+export class SelectAndRemoveDistributionCertificate {
+  constructor(private account: Account) {}
 
-export class RemoveDistributionCertificate implements Action {
-  constructor(private accountName: string, private options: RemoveOptions = {}) {}
-
-  async runAsync(manager: CredentialsManager, ctx: Context): Promise<void> {
-    const selected = await selectDistributionCertificateAsync(ctx, this.accountName);
-    if (selected?.id) {
-      await manager.runActionAsync(
-        new RemoveSpecificDistributionCertificate(selected?.id, this.accountName, this.options)
-      );
+  async runAsync(ctx: Context): Promise<void> {
+    const selected = await selectDistributionCertificateWithDependenciesAsync(ctx, this.account);
+    if (selected) {
+      await new RemoveDistributionCertificate(this.account, selected).runAsync(ctx);
       Log.succeed('Removed distribution certificate');
       Log.newLine();
     }
   }
 }
 
-interface RemoveSpecificOptions {
-  shouldRevoke?: boolean;
-}
-
-export class RemoveSpecificDistributionCertificate implements Action {
+export class RemoveDistributionCertificate {
   constructor(
-    private userCredentialsId: number | string,
-    private accountName: string,
-    private options: RemoveSpecificOptions = {}
+    private account: Account,
+    private distributionCertificate: AppleDistributionCertificateFragment
   ) {}
 
-  public async runAsync(manager: CredentialsManager, ctx: Context): Promise<void> {
-    const distributionCertificate = await ctx.ios.getDistributionCertificateByIdAsync(
-      this.userCredentialsId,
-      this.accountName
+  public async runAsync(ctx: Context): Promise<void> {
+    const apps = this.distributionCertificate.iosAppBuildCredentialsList.map(
+      buildCredentials => buildCredentials.iosAppCredentials.app
     );
-    const credentials = await ctx.ios.getAllCredentialsAsync(this.accountName);
-    const apps = credentials.appCredentials.filter(
-      cred => cred.distCredentialsId === this.userCredentialsId
-    );
-    const appList = apps.map(appCred => chalk.green(appCred.experienceName)).join(', ');
-
-    if (appList && !ctx.nonInteractive) {
+    if (apps.length !== 0) {
+      const appFullNames = apps.map(app => app.fullName).join(',');
+      if (ctx.nonInteractive) {
+        throw new Error(
+          `Certificate is currently used by ${appFullNames} and cannot be deleted in non-interactive mode.`
+        );
+      }
       const confirm = await confirmAsync({
-        message: `You are removing certificate used by ${appList}. Do you want to continue?`,
+        message: `You are removing certificate used by ${appFullNames}. Do you want to continue?`,
       });
       if (!confirm) {
         Log.log('Aborting');
@@ -60,43 +50,41 @@ export class RemoveSpecificDistributionCertificate implements Action {
     }
 
     Log.log('Removing Distribution Certificate');
-    await ctx.ios.deleteDistributionCertificateAsync(this.userCredentialsId, this.accountName);
+    await ctx.newIos.deleteDistributionCertificateAsync(this.distributionCertificate.id);
 
-    let shouldRevoke = this.options.shouldRevoke;
-    if (distributionCertificate.certId) {
-      if (!shouldRevoke && !ctx.nonInteractive) {
+    if (this.distributionCertificate.developerPortalIdentifier) {
+      let shouldRevoke = false;
+      if (!ctx.nonInteractive) {
         shouldRevoke = await confirmAsync({
           message: `Do you also want to revoke this Distribution Certificate on Apple Developer Portal?`,
         });
+      } else if (ctx.nonInteractive) {
+        Log.log('Skipping certificate revocation on the Apple Developer Portal.');
       }
       if (shouldRevoke) {
-        await ctx.appStore.revokeDistributionCertificateAsync([distributionCertificate.certId]);
+        await ctx.appStore.revokeDistributionCertificateAsync([
+          this.distributionCertificate.developerPortalIdentifier,
+        ]);
       }
     }
 
-    await this.removeInvalidProvisioningProfilesAsync(manager, ctx, apps, shouldRevoke);
+    await this.removeInvalidProvisioningProfilesAsync(ctx);
   }
 
-  private async removeInvalidProvisioningProfilesAsync(
-    manager: CredentialsManager,
-    ctx: Context,
-    apps: IosAppCredentials[],
-    shouldRevoke?: boolean
-  ) {
-    for (const appCredentials of apps) {
-      const appLookupParams = getAppLookupParams(
-        appCredentials.experienceName,
-        appCredentials.bundleIdentifier
-      );
-      if (!(await ctx.ios.getProvisioningProfileAsync(appLookupParams))) {
-        continue;
+  private async removeInvalidProvisioningProfilesAsync(ctx: Context): Promise<void> {
+    const buildCredentialsList = this.distributionCertificate.iosAppBuildCredentialsList;
+    const appsWithProfilesToRemove: AppLookupParams[] = [];
+    const profilesToRemove: AppleProvisioningProfileIdentifiersFragment[] = [];
+    for (const buildCredentials of buildCredentialsList) {
+      const projectName = buildCredentials.iosAppCredentials.app.slug;
+      const { bundleIdentifier } = buildCredentials.iosAppCredentials.appleAppIdentifier;
+      const appLookupParams = { account: this.account, projectName, bundleIdentifier };
+      const maybeProvisioningProfile = buildCredentials.provisioningProfile;
+      if (maybeProvisioningProfile) {
+        appsWithProfilesToRemove.push(appLookupParams);
+        profilesToRemove.push(maybeProvisioningProfile);
       }
-      Log.log(
-        `Removing Provisioning Profile for ${appCredentials.experienceName} (${appCredentials.bundleIdentifier})`
-      );
-      await manager.runActionAsync(
-        new RemoveSpecificProvisioningProfile(appLookupParams, { shouldRevoke })
-      );
     }
+    await new RemoveProvisioningProfiles(appsWithProfilesToRemove, profilesToRemove).runAsync(ctx);
   }
 }

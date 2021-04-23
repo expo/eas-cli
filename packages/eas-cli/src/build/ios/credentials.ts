@@ -6,7 +6,7 @@ import { createCredentialsContextAsync } from '../../credentials/context';
 import IosCredentialsProvider, {
   IosCredentials,
 } from '../../credentials/ios/IosCredentialsProvider';
-import { getAppLookupParamsFromContext } from '../../credentials/ios/actions/new/BuildCredentialsUtils';
+import { getAppLookupParamsFromContext } from '../../credentials/ios/actions/BuildCredentialsUtils';
 import { AppLookupParams } from '../../credentials/ios/credentials';
 import { CredentialsResult } from '../build';
 import { BuildContext } from '../context';

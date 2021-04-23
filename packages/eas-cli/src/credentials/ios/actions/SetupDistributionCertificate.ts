@@ -5,14 +5,14 @@ import {
   AppleDistributionCertificate,
   AppleDistributionCertificateFragment,
   IosDistributionType,
-} from '../../../../graphql/generated';
-import Log from '../../../../log';
-import { confirmAsync, promptAsync } from '../../../../prompts';
-import { Context } from '../../../context';
-import { AppLookupParams } from '../../api/GraphqlClient';
-import { AppleDistributionCertificateMutationResult } from '../../api/graphql/mutations/AppleDistributionCertificateMutation';
-import { getValidCertSerialNumbers } from '../../appstore/CredentialsUtils';
-import { AppleTeamMissingError, MissingCredentialsNonInteractiveError } from '../../errors';
+} from '../../../graphql/generated';
+import Log from '../../../log';
+import { confirmAsync, promptAsync } from '../../../prompts';
+import { Context } from '../../context';
+import { AppLookupParams } from '../api/GraphqlClient';
+import { AppleDistributionCertificateMutationResult } from '../api/graphql/mutations/AppleDistributionCertificateMutation';
+import { getValidCertSerialNumbers } from '../appstore/CredentialsUtils';
+import { AppleTeamMissingError, MissingCredentialsNonInteractiveError } from '../errors';
 import { resolveAppleTeamIfAuthenticatedAsync } from './AppleTeamUtils';
 import { CreateDistributionCertificate } from './CreateDistributionCertificate';
 import { formatDistributionCertificate } from './DistributionCertificateUtils';

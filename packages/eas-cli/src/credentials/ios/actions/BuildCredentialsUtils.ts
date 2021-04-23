@@ -6,14 +6,11 @@ import {
   AppleTeamFragment,
   IosDistributionType as GraphQLIosDistributionType,
   IosAppBuildCredentialsFragment,
-} from '../../../../graphql/generated';
-import {
-  getProjectAccountName,
-  getProjectConfigDescription,
-} from '../../../../project/projectUtils';
-import { findAccountByName } from '../../../../user/Account';
-import { Context } from '../../../context';
-import { AppLookupParams } from '../../api/GraphqlClient';
+} from '../../../graphql/generated';
+import { getProjectAccountName, getProjectConfigDescription } from '../../../project/projectUtils';
+import { findAccountByName } from '../../../user/Account';
+import { Context } from '../../context';
+import { AppLookupParams } from '../api/GraphqlClient';
 import { resolveAppleTeamIfAuthenticatedAsync } from './AppleTeamUtils';
 
 export async function getAllBuildCredentialsAsync(

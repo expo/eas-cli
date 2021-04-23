@@ -1,48 +1,32 @@
+import { assert } from '@expo/config';
+
+import { AppleProvisioningProfileIdentifiersFragment } from '../../../graphql/generated';
 import Log from '../../../log';
-import { confirmAsync } from '../../../prompts';
-import { Action, CredentialsManager } from '../../CredentialsManager';
 import { Context } from '../../context';
-import { AppLookupParams, getAppLookupParams } from '../credentials';
-import { selectProvisioningProfileFromExpoAsync } from './ProvisioningProfileUtils';
+import { AppLookupParams } from '../api/GraphqlClient';
 
-interface RemoveOptions {
-  shouldRevoke?: boolean;
-}
-
-export class RemoveProvisioningProfile implements Action {
-  constructor(private accountName: string, private options: RemoveOptions = {}) {}
-
-  async runAsync(manager: CredentialsManager, ctx: Context): Promise<void> {
-    const selected = await selectProvisioningProfileFromExpoAsync(ctx, this.accountName);
-    if (selected) {
-      const app = getAppLookupParams(selected.experienceName, selected.bundleIdentifier);
-      await manager.runActionAsync(new RemoveSpecificProvisioningProfile(app, this.options));
-    }
-  }
-}
-
-interface RemoveSpecificOptions {
-  shouldRevoke?: boolean;
-}
-
-export class RemoveSpecificProvisioningProfile implements Action {
-  constructor(private app: AppLookupParams, private options: RemoveSpecificOptions = {}) {}
-
-  async runAsync(manager: CredentialsManager, ctx: Context): Promise<void> {
-    await ctx.ios.deleteProvisioningProfileAsync(this.app);
-    Log.succeed(
-      `Removed provisioning profile for @${this.app.accountName}/${this.app.projectName} (${this.app.bundleIdentifier})`
+export class RemoveProvisioningProfiles {
+  constructor(
+    private apps: AppLookupParams[],
+    private provisioningProfiles: AppleProvisioningProfileIdentifiersFragment[]
+  ) {
+    assert(
+      apps.length === provisioningProfiles.length,
+      'apps must correspond to the provisioning profiles being removed'
     );
+  }
 
-    let { shouldRevoke } = this.options;
-    if (!shouldRevoke && !ctx.nonInteractive) {
-      shouldRevoke = await confirmAsync({
-        message: 'Do you also want to revoke this provisioning profile on Apple Developer Portal?',
-      });
+  async runAsync(ctx: Context): Promise<void> {
+    if (this.provisioningProfiles.length === 0) {
+      Log.log(`Skipping deletion of Provisioning Profiles`);
+      return;
     }
-
-    if (shouldRevoke) {
-      await ctx.appStore.revokeProvisioningProfileAsync(this.app.bundleIdentifier);
-    }
+    await ctx.newIos.deleteProvisioningProfilesAsync(
+      this.provisioningProfiles.map(profile => profile.id)
+    );
+    const appAndBundles = this.apps
+      .map(app => `@${app.account.name}/${app.projectName} (${app.bundleIdentifier})`)
+      .join(',');
+    Log.succeed(`Successfully removed provisioning profiles for ${appAndBundles}`);
   }
 }

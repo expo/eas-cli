@@ -1,38 +1,11 @@
 import chalk from 'chalk';
 
-import Log from '../../../log';
-import { promptAsync } from '../../../prompts';
 import { Context } from '../../context';
 import {
   DistributionCertificate,
   ProvisioningProfile,
   ProvisioningProfileStoreInfo,
 } from '../appstore/Credentials.types';
-import { IosAppCredentials } from '../credentials';
-
-export async function selectProvisioningProfileFromAppleAsync(
-  ctx: Context,
-  bundleIdentifier: string
-): Promise<ProvisioningProfileStoreInfo | null> {
-  const profiles = await ctx.appStore.listProvisioningProfilesAsync(bundleIdentifier);
-  if (profiles.length === 0) {
-    Log.warn(
-      `There are no provisioning profiles available on Apple Developer Portal for bundle identifier ${bundleIdentifier}.`
-    );
-    return null;
-  }
-
-  const { credentialsIndex } = await promptAsync({
-    type: 'select',
-    name: 'credentialsIndex',
-    message: 'Select provisioning profile from the list.',
-    choices: profiles.map((entry, index) => ({
-      title: formatProvisioningProfileFromApple(entry),
-      value: index,
-    })),
-  });
-  return profiles[credentialsIndex];
-}
 
 export function formatProvisioningProfileFromApple(
   appleInfo: ProvisioningProfileStoreInfo
@@ -43,36 +16,6 @@ export function formatProvisioningProfileFromApple(
   const expiryString = expires ? new Date(expires * 1000).toDateString() : 'unknown';
   const details = chalk.green(`\n    Name: ${name}\n    Expiry: ${expiryString}`);
   return `Provisioning Profile - ID: ${id}${details}`;
-}
-
-export async function selectProvisioningProfileFromExpoAsync(
-  ctx: Context,
-  accountName: string
-): Promise<IosAppCredentials | null> {
-  const profiles = (await ctx.ios.getAllCredentialsAsync(accountName)).appCredentials.filter(
-    ({ credentials }) => !!credentials.provisioningProfile && !!credentials.provisioningProfileId
-  );
-  if (profiles.length === 0) {
-    Log.warn('There are no provisioning profiles available in your Expo account.');
-    return null;
-  }
-
-  const format = (profile: IosAppCredentials) => {
-    const id = chalk.green(profile.credentials.provisioningProfileId || '-----');
-    const teamId = profile.credentials.teamId || '------';
-    return `Provisioning Profile (ID: ${id}, Team ID: ${teamId})`;
-  };
-
-  const { credentialsIndex } = await promptAsync({
-    type: 'select',
-    name: 'credentialsIndex',
-    message: 'Select provisioning profile from the list.',
-    choices: profiles.map((entry, index) => ({
-      title: format(entry),
-      value: index,
-    })),
-  });
-  return profiles[credentialsIndex];
 }
 
 export async function generateProvisioningProfileAsync(

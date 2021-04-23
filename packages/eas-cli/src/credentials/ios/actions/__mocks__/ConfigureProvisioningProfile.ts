@@ -1,11 +1,11 @@
 import {
   AppleDistributionCertificateFragment,
   AppleProvisioningProfileFragment,
-} from '../../../../../graphql/generated';
-import { testProvisioningProfileFragment } from '../../../../__tests__/fixtures-ios';
-import { Context } from '../../../../context';
-import { AppLookupParams } from '../../../api/GraphqlClient';
-import { AppleProvisioningProfileMutationResult } from '../../../api/graphql/mutations/AppleProvisioningProfileMutation';
+} from '../../../../graphql/generated';
+import { testProvisioningProfileFragment } from '../../../__tests__/fixtures-ios';
+import { Context } from '../../../context';
+import { AppLookupParams } from '../../api/GraphqlClient';
+import { AppleProvisioningProfileMutationResult } from '../../api/graphql/mutations/AppleProvisioningProfileMutation';
 
 export class ConfigureProvisioningProfile {
   constructor(

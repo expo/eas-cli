@@ -1,8 +1,8 @@
-import { IosAppBuildCredentialsFragment, IosDistributionType } from '../../../../graphql/generated';
-import Log from '../../../../log';
-import { promptAsync } from '../../../../prompts';
-import { Context } from '../../../context';
-import { AppLookupParams } from '../../api/GraphqlClient';
+import { IosAppBuildCredentialsFragment, IosDistributionType } from '../../../graphql/generated';
+import Log from '../../../log';
+import { promptAsync } from '../../../prompts';
+import { Context } from '../../context';
+import { AppLookupParams } from '../api/GraphqlClient';
 import { getAllBuildCredentialsAsync } from './BuildCredentialsUtils';
 import { SetupAdhocProvisioningProfile } from './SetupAdhocProvisioningProfile';
 import { SetupProvisioningProfile } from './SetupProvisioningProfile';

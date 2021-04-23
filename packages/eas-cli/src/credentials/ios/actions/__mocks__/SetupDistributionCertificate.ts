@@ -1,10 +1,10 @@
 import {
   AppleDistributionCertificateFragment,
   IosDistributionType,
-} from '../../../../../graphql/generated';
-import { testDistCertFragmentOneDependency } from '../../../../__tests__/fixtures-ios';
-import { Context } from '../../../../context';
-import { AppLookupParams } from '../../../api/GraphqlClient';
+} from '../../../../graphql/generated';
+import { testDistCertFragmentOneDependency } from '../../../__tests__/fixtures-ios';
+import { Context } from '../../../context';
+import { AppLookupParams } from '../../api/GraphqlClient';
 export class SetupDistributionCertificate {
   constructor(private app: AppLookupParams, private distributionType: IosDistributionType) {}
 

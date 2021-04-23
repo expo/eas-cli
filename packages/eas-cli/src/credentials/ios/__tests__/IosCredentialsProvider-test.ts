@@ -7,7 +7,7 @@ import { createCtxMock } from '../../__tests__/fixtures-context';
 import { testIosAppCredentialsWithBuildCredentialsQueryResult } from '../../__tests__/fixtures-ios';
 import { getNewIosApiMockWithoutCredentials } from '../../__tests__/fixtures-new-ios';
 import IosCredentialsProvider from '../IosCredentialsProvider';
-import { getAppLookupParamsFromContext } from '../actions/new/BuildCredentialsUtils';
+import { getAppLookupParamsFromContext } from '../actions/BuildCredentialsUtils';
 
 jest.mock('fs');
 jest.mock('../validators/validateProvisioningProfile', () => ({
