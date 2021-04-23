@@ -21,7 +21,7 @@ export class RemoveProvisioningProfiles {
       Log.log(`Skipping deletion of Provisioning Profiles`);
       return;
     }
-    await ctx.newIos.deleteProvisioningProfilesAsync(
+    await ctx.ios.deleteProvisioningProfilesAsync(
       this.provisioningProfiles.map(profile => profile.id)
     );
     const appAndBundles = this.apps

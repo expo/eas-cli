@@ -5,13 +5,11 @@ import { Context } from '../context';
 import { getAndroidApiMockWithoutCredentials } from './fixtures-android';
 import { getAppstoreMock } from './fixtures-appstore';
 import { testAppJson, testUsername } from './fixtures-constants';
-import { getIosApiMockWithoutCredentials } from './fixtures-ios';
-import { getNewIosApiMockWithoutCredentials } from './fixtures-new-ios';
+import { getNewIosApiMockWithoutCredentials } from './fixtures-ios';
 
 export function createCtxMock(mockOverride: Record<string, any> = {}): Context {
   const defaultMock = {
-    ios: getIosApiMockWithoutCredentials(),
-    newIos: getNewIosApiMockWithoutCredentials(),
+    ios: getNewIosApiMockWithoutCredentials(),
     android: getAndroidApiMockWithoutCredentials(),
     appStore: getAppstoreMock(),
     bestEffortAppStoreAuthenticateAsync: jest.fn(),

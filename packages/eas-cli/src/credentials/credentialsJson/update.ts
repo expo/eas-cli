@@ -125,7 +125,7 @@ export async function updateIosCredentialsAsync(
     rawCredentialsJsonObject?.ios?.provisioningProfilePath ?? 'ios/certs/profile.mobileprovision';
   const distCertPath =
     rawCredentialsJsonObject?.ios?.distributionCertificate?.path ?? 'ios/certs/dist-cert.p12';
-  const iosAppCredentials = await ctx.newIos.getIosAppCredentialsWithCommonFieldsAsync(
+  const iosAppCredentials = await ctx.ios.getIosAppCredentialsWithCommonFieldsAsync(
     appLookupParams
   );
   const buildCredentials =

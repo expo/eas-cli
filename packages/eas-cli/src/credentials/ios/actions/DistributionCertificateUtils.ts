@@ -93,7 +93,7 @@ export async function selectDistributionCertificateWithDependenciesAsync(
   ctx: Context,
   account: Account
 ): Promise<AppleDistributionCertificateFragment | null> {
-  const distCertsForAccount = await ctx.newIos.getDistributionCertificatesForAccountAsync(account);
+  const distCertsForAccount = await ctx.ios.getDistributionCertificatesForAccountAsync(account);
   if (distCertsForAccount.length === 0) {
     Log.warn(`There are no Distribution Certificates available in your EAS account.`);
     return null;
@@ -119,7 +119,7 @@ export async function selectValidDistributionCertificateAsync(
   ctx: Context,
   appLookupParams: AppLookupParams
 ): Promise<AppleDistributionCertificateFragment | null> {
-  const distCertsForAccount = await ctx.newIos.getDistributionCertificatesForAccountAsync(
+  const distCertsForAccount = await ctx.ios.getDistributionCertificatesForAccountAsync(
     appLookupParams.account
   );
   if (distCertsForAccount.length === 0) {

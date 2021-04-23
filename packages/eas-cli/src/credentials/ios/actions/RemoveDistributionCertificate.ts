@@ -50,7 +50,7 @@ export class RemoveDistributionCertificate {
     }
 
     Log.log('Removing Distribution Certificate');
-    await ctx.newIos.deleteDistributionCertificateAsync(this.distributionCertificate.id);
+    await ctx.ios.deleteDistributionCertificateAsync(this.distributionCertificate.id);
 
     if (this.distributionCertificate.developerPortalIdentifier) {
       let shouldRevoke = false;

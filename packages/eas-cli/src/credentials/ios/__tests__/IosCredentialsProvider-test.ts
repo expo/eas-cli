@@ -4,8 +4,10 @@ import { vol } from 'memfs';
 import { IosAppBuildCredentialsFragment } from '../../../graphql/generated';
 import { getAppstoreMock } from '../../__tests__/fixtures-appstore';
 import { createCtxMock } from '../../__tests__/fixtures-context';
-import { testIosAppCredentialsWithBuildCredentialsQueryResult } from '../../__tests__/fixtures-ios';
-import { getNewIosApiMockWithoutCredentials } from '../../__tests__/fixtures-new-ios';
+import {
+  getNewIosApiMockWithoutCredentials,
+  testIosAppCredentialsWithBuildCredentialsQueryResult,
+} from '../../__tests__/fixtures-ios';
 import IosCredentialsProvider from '../IosCredentialsProvider';
 import { getAppLookupParamsFromContext } from '../actions/BuildCredentialsUtils';
 
@@ -50,7 +52,7 @@ describe(IosCredentialsProvider, () => {
           nonInteractive: true,
           appStore: getAppstoreMock(),
           projectDir: '/app',
-          newIos: {
+          ios: {
             ...getNewIosApiMockWithoutCredentials(),
             getIosAppCredentialsWithBuildCredentialsAsync: jest.fn(() => null),
           },
@@ -78,7 +80,7 @@ describe(IosCredentialsProvider, () => {
           nonInteractive: true,
           appStore: getAppstoreMock(),
           projectDir: '/app',
-          newIos: {
+          ios: {
             ...getNewIosApiMockWithoutCredentials(),
             getIosAppCredentialsWithBuildCredentialsAsync: jest.fn(
               () => testIosAppCredentialsWithBuildCredentialsQueryResult
