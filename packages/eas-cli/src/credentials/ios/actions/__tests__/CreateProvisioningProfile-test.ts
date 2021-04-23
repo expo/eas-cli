@@ -30,7 +30,7 @@ describe('CreateProvisioningProfile', () => {
     await createProvProfAction.runAsync(ctx);
 
     // expect provisioning profile to be created on expo servers
-    expect((ctx.newIos.createProvisioningProfileAsync as any).mock.calls.length).toBe(1);
+    expect((ctx.ios.createProvisioningProfileAsync as any).mock.calls.length).toBe(1);
     // expect provisioning profile to be created on apple portal
     expect((ctx.appStore.createProvisioningProfileAsync as any).mock.calls.length).toBe(1);
   });
@@ -48,7 +48,7 @@ describe('CreateProvisioningProfile', () => {
     );
 
     // expect provisioning profile not to be created on expo servers
-    expect((ctx.newIos.createProvisioningProfileAsync as any).mock.calls.length).toBe(0);
+    expect((ctx.ios.createProvisioningProfileAsync as any).mock.calls.length).toBe(0);
     // expect provisioning profile not to be created on apple portal
     expect((ctx.appStore.createProvisioningProfileAsync as any).mock.calls.length).toBe(0);
   });

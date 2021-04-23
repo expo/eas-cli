@@ -26,7 +26,7 @@ export class SetupDistributionCertificate {
     const appleTeam = await resolveAppleTeamIfAuthenticatedAsync(ctx, this.app);
 
     try {
-      const currentCertificate = await ctx.newIos.getDistributionCertificateForAppAsync(
+      const currentCertificate = await ctx.ios.getDistributionCertificateForAppAsync(
         this.app,
         this.distributionType,
         { appleTeam }
@@ -175,7 +175,7 @@ export class SetupDistributionCertificate {
     );
     const validDistCertSerialNumberSet = new Set(validDistCertSerialNumbers);
 
-    const distCertsForAccount = await ctx.newIos.getDistributionCertificatesForAccountAsync(
+    const distCertsForAccount = await ctx.ios.getDistributionCertificatesForAccountAsync(
       this.app.account
     );
     const distCertsForAppleTeam = distCertsForAccount.filter(distCert => {

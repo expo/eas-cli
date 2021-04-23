@@ -3,6 +3,7 @@ import { IosDistributionType } from '../../../../graphql/generated';
 import { confirmAsync } from '../../../../prompts';
 import { createCtxMock } from '../../../__tests__/fixtures-context';
 import {
+  getNewIosApiMockWithoutCredentials,
   testAppleAppIdentifierFragment,
   testDistCert,
   testDistCertFragmentNoDependencies,
@@ -10,7 +11,6 @@ import {
   testProvisioningProfile,
   testProvisioningProfileFragment,
 } from '../../../__tests__/fixtures-ios';
-import { getNewIosApiMockWithoutCredentials } from '../../../__tests__/fixtures-new-ios';
 import { readIosCredentialsAsync } from '../../../credentialsJson/read';
 import { getAppLookupParamsFromContext } from '../BuildCredentialsUtils';
 import { SetupBuildCredentialsFromCredentialsJson } from '../SetupBuildCredentialsFromCredentialsJson';
@@ -53,7 +53,7 @@ describe('SetupBuildCredentialsFromCredentialsJson', () => {
     testBuildCreds.iosAppBuildCredentialsArray[0].provisioningProfile.provisioningProfile =
       testProvisioningProfile.provisioningProfile;
     const ctx = createCtxMock({
-      newIos: {
+      ios: {
         ...getNewIosApiMockWithoutCredentials(),
         getIosAppCredentialsWithBuildCredentialsAsync: jest.fn(() => testBuildCreds),
         createOrGetExistingAppleAppIdentifierAsync: jest.fn(() => testAppleAppIdentifierFragment),
@@ -70,15 +70,15 @@ describe('SetupBuildCredentialsFromCredentialsJson', () => {
     await setupBuildCredentialsFromCredentialsJsonAction.runAsync(ctx);
 
     // expect build credentials not to be created or updated on expo servers
-    expect((ctx.newIos.createOrUpdateIosAppBuildCredentialsAsync as any).mock.calls.length).toBe(0);
+    expect((ctx.ios.createOrUpdateIosAppBuildCredentialsAsync as any).mock.calls.length).toBe(0);
     // expect distribution certificate not to be uploaded on expo servers
-    expect((ctx.newIos.createDistributionCertificateAsync as any).mock.calls.length).toBe(0);
+    expect((ctx.ios.createDistributionCertificateAsync as any).mock.calls.length).toBe(0);
     // expect provisioning profile not to be uploaded on expo servers
-    expect((ctx.newIos.createProvisioningProfileAsync as any).mock.calls.length).toBe(0);
+    expect((ctx.ios.createProvisioningProfileAsync as any).mock.calls.length).toBe(0);
   });
   it('sets up build credentials with no prior configuration in Interactive Mode', async () => {
     const ctx = createCtxMock({
-      newIos: {
+      ios: {
         ...getNewIosApiMockWithoutCredentials(),
         getIosAppCredentialsWithBuildCredentialsAsync: jest.fn(() => null),
         createOrGetExistingAppleAppIdentifierAsync: jest.fn(() => testAppleAppIdentifierFragment),
@@ -97,11 +97,11 @@ describe('SetupBuildCredentialsFromCredentialsJson', () => {
     await setupBuildCredentialsFromCredentialsJsonAction.runAsync(ctx);
 
     // expect build credentials to be created or updated on expo servers
-    expect((ctx.newIos.createOrUpdateIosAppBuildCredentialsAsync as any).mock.calls.length).toBe(1);
+    expect((ctx.ios.createOrUpdateIosAppBuildCredentialsAsync as any).mock.calls.length).toBe(1);
     // expect distribution certificate to be uploaded on expo servers
-    expect((ctx.newIos.createDistributionCertificateAsync as any).mock.calls.length).toBe(1);
+    expect((ctx.ios.createDistributionCertificateAsync as any).mock.calls.length).toBe(1);
     // expect provisioning profile to be uploaded on expo servers
-    expect((ctx.newIos.createProvisioningProfileAsync as any).mock.calls.length).toBe(1);
+    expect((ctx.ios.createProvisioningProfileAsync as any).mock.calls.length).toBe(1);
   });
   it('sets up build credentials with different prior configuration in Interactive Mode', async () => {
     // create deep clone the quick and dirty way
@@ -113,7 +113,7 @@ describe('SetupBuildCredentialsFromCredentialsJson', () => {
     testBuildCreds.iosAppBuildCredentialsArray[0].provisioningProfile.provisioningProfile =
       'something different so SetupBuildCredentialsFromCredentialsJson doesnt think we want to exact the same cert and skip upload to expo servers';
     const ctx = createCtxMock({
-      newIos: {
+      ios: {
         ...getNewIosApiMockWithoutCredentials(),
         getIosAppCredentialsWithBuildCredentialsAsync: jest.fn(() => testBuildCreds),
         createOrGetExistingAppleAppIdentifierAsync: jest.fn(() => testAppleAppIdentifierFragment),
@@ -130,11 +130,11 @@ describe('SetupBuildCredentialsFromCredentialsJson', () => {
     await setupBuildCredentialsFromCredentialsJsonAction.runAsync(ctx);
 
     // expect build credentials to be created or updated on expo servers
-    expect((ctx.newIos.createOrUpdateIosAppBuildCredentialsAsync as any).mock.calls.length).toBe(1);
+    expect((ctx.ios.createOrUpdateIosAppBuildCredentialsAsync as any).mock.calls.length).toBe(1);
     // expect distribution certificate to be uploaded on expo servers
-    expect((ctx.newIos.createDistributionCertificateAsync as any).mock.calls.length).toBe(1);
+    expect((ctx.ios.createDistributionCertificateAsync as any).mock.calls.length).toBe(1);
     // expect provisioning profile to be uploaded on expo servers
-    expect((ctx.newIos.createProvisioningProfileAsync as any).mock.calls.length).toBe(1);
+    expect((ctx.ios.createProvisioningProfileAsync as any).mock.calls.length).toBe(1);
   });
   it('works in Non Interactive Mode - sets up build credentials with different prior configuration', async () => {
     // create deep clone the quick and dirty way
@@ -147,7 +147,7 @@ describe('SetupBuildCredentialsFromCredentialsJson', () => {
       'something different so SetupBuildCredentialsFromCredentialsJson doesnt think we want to exact the same cert and skip upload to expo servers';
     const ctx = createCtxMock({
       nonInteractive: true,
-      newIos: {
+      ios: {
         ...getNewIosApiMockWithoutCredentials(),
         getIosAppCredentialsWithBuildCredentialsAsync: jest.fn(() => testBuildCreds),
         createOrGetExistingAppleAppIdentifierAsync: jest.fn(() => testAppleAppIdentifierFragment),
@@ -166,10 +166,10 @@ describe('SetupBuildCredentialsFromCredentialsJson', () => {
     // expect no prompts to be called
     expect((confirmAsync as any).mock.calls.length).toBe(0);
     // expect build credentials to be created or updated on expo servers
-    expect((ctx.newIos.createOrUpdateIosAppBuildCredentialsAsync as any).mock.calls.length).toBe(1);
+    expect((ctx.ios.createOrUpdateIosAppBuildCredentialsAsync as any).mock.calls.length).toBe(1);
     // expect distribution certificate to be uploaded on expo servers
-    expect((ctx.newIos.createDistributionCertificateAsync as any).mock.calls.length).toBe(1);
+    expect((ctx.ios.createDistributionCertificateAsync as any).mock.calls.length).toBe(1);
     // expect provisioning profile to be uploaded on expo servers
-    expect((ctx.newIos.createProvisioningProfileAsync as any).mock.calls.length).toBe(1);
+    expect((ctx.ios.createProvisioningProfileAsync as any).mock.calls.length).toBe(1);
   });
 });
