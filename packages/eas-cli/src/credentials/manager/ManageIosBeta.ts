@@ -15,10 +15,10 @@ import { Context } from '../context';
 import { SetupBuildCredentials } from '../ios/actions/SetupBuildCredentials';
 import { getAppLookupParamsFromContext } from '../ios/actions/new/BuildCredentialsUtils';
 import { CreateDistributionCertificate } from '../ios/actions/new/CreateDistributionCertificate';
+import { selectValidDistributionCertificateAsync } from '../ios/actions/new/DistributionCertificateUtils';
 import { SelectAndRemoveDistributionCertificate } from '../ios/actions/new/RemoveDistributionCertificate';
 import { SetupAdhocProvisioningProfile } from '../ios/actions/new/SetupAdhocProvisioningProfile';
 import { SetupBuildCredentialsFromCredentialsJson } from '../ios/actions/new/SetupBuildCredentialsFromCredentialsJson';
-import { SetupDistributionCertificate } from '../ios/actions/new/SetupDistributionCertificate';
 import { SetupProvisioningProfile } from '../ios/actions/new/SetupProvisioningProfile';
 import { UpdateCredentialsJson } from '../ios/actions/new/UpdateCredentialsJson';
 import { AppLookupParams } from '../ios/api/GraphqlClient';
@@ -184,14 +184,15 @@ export class ManageIosBeta implements Action {
         return;
       }
       case ActionType.UseExistingDistributionCertificate: {
-        const distCert = await new SetupDistributionCertificate(
-          appLookupParams,
-          iosDistributionTypeGraphql
-        ).reuseDistCertAsync(ctx);
+        const distCert = await selectValidDistributionCertificateAsync(ctx, appLookupParams);
+        if (!distCert) {
+          return;
+        }
         await this.setupProvisioningProfileWithSpecificDistCertAsync(
           ctx,
           appLookupParams,
-          distCert
+          distCert,
+          iosDistributionTypeGraphql
         );
         return;
       }
@@ -200,13 +201,14 @@ export class ManageIosBeta implements Action {
           ctx
         );
         const confirm = await confirmAsync({
-          message: `Do you want to configure ${appLookupParams.projectName} to use the new distribution certificate you created?`,
+          message: `Do you want ${appLookupParams.projectName} to use the new Distribution Certificate?`,
         });
         if (confirm) {
           await this.setupProvisioningProfileWithSpecificDistCertAsync(
             ctx,
             appLookupParams,
-            distCert
+            distCert,
+            iosDistributionTypeGraphql
           );
         }
         return;
@@ -216,20 +218,14 @@ export class ManageIosBeta implements Action {
     }
   }
 
-  // TODO: move to a separate action?
   private async setupProvisioningProfileWithSpecificDistCertAsync(
     ctx: Context,
     appLookupParams: AppLookupParams,
-    distCert: AppleDistributionCertificateFragment
+    distCert: AppleDistributionCertificateFragment,
+    iosDistributionTypeGraphql: IosDistributionTypeGraphql
   ): Promise<IosAppBuildCredentialsFragment> {
-    const easJsonReader = await new EasJsonReader(ctx.projectDir, 'ios');
-    const easConfig = await new SelectBuildProfileFromEasJson(easJsonReader).runAsync(ctx);
-    const iosAppCredentials = await ctx.newIos.getIosAppCredentialsWithCommonFieldsAsync(
-      appLookupParams
-    );
-    const iosDistributionTypeGraphql = await new SelectIosDistributionTypeGraphqlFromBuildProfile(
-      easConfig
-    ).runAsync(ctx, iosAppCredentials);
+    Log.log(`Setting up ${appLookupParams.projectName} to use Distribution Certificate`);
+    Log.log(`Creating provisioning profile...`);
     if (iosDistributionTypeGraphql === IosDistributionTypeGraphql.AdHoc) {
       return await new SetupAdhocProvisioningProfile(
         appLookupParams
