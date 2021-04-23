@@ -8,7 +8,7 @@ import {
 import Log from '../../log';
 import { getProjectAccountName } from '../../project/projectUtils';
 import { confirmAsync, promptAsync } from '../../prompts';
-import { findAccountByName } from '../../user/Account';
+import { Account, findAccountByName } from '../../user/Account';
 import { ensureActorHasUsername } from '../../user/actions';
 import { Action, CredentialsManager } from '../CredentialsManager';
 import { Context } from '../context';
@@ -31,23 +31,45 @@ import { SelectBuildProfileFromEasJson } from './SelectBuildProfileFromEasJson';
 import { SelectIosDistributionTypeGraphqlFromBuildProfile } from './SelectIosDistributionTypeGraphqlFromBuildProfile';
 
 enum ActionType {
+  ManageCredentialsJson,
+  ManageBuildCredentials,
+  GoBackToHighLevelActions,
   SetupBuildCredentials,
   SetupBuildCredentialsFromCredentialsJson,
   UpdateCredentialsJson,
   UseExistingDistributionCertificate,
   RemoveSpecificProvisioningProfile,
   CreateDistributionCertificate,
-  UpdateDistributionCertificate,
   RemoveDistributionCertificate,
 }
 
 enum Scope {
   Project,
   Account,
+  Manager,
 }
 
+type ActionInfo = { value: ActionType; title: string; scope: Scope };
+
+const highLevelActions: ActionInfo[] = [
+  {
+    value: ActionType.ManageBuildCredentials,
+    title: 'Build Credentials: Manage everything needed to build your project',
+    scope: Scope.Manager,
+  },
+  {
+    value: ActionType.ManageCredentialsJson,
+    title: 'Credentials.json: Upload/Download credentials between EAS servers and your local json ',
+    scope: Scope.Manager,
+  },
+];
+
 export class ManageIosBeta implements Action {
-  async runAsync(manager: CredentialsManager, ctx: Context): Promise<void> {
+  async runAsync(
+    manager: CredentialsManager,
+    ctx: Context,
+    currentActions: ActionInfo[] = highLevelActions
+  ): Promise<void> {
     while (true) {
       try {
         await ctx.bestEffortAppStoreAuthenticateAsync();
@@ -72,52 +94,81 @@ export class ManageIosBeta implements Action {
           }
         }
 
-        const actions: { value: ActionType; title: string; scope: Scope }[] = [
-          {
-            // This command will be triggered during build to ensure all credentials are ready
-            // I'm leaving it here for now to simplify testing
-            value: ActionType.SetupBuildCredentials,
-            title: 'Ensure all credentials for project are valid',
-            scope: Scope.Project,
-          },
+        const credentialsJsonActions: { value: ActionType; title: string; scope: Scope }[] = [
           {
             value: ActionType.UpdateCredentialsJson,
-            title: 'Update credentials.json with values from EAS servers',
+            title: 'Download contents from EAS servers to credentials.json',
             scope: Scope.Project,
           },
           {
             value: ActionType.SetupBuildCredentialsFromCredentialsJson,
-            title: 'Update credentials on EAS servers with values from credentials.json',
+            title: 'Upload contents from credentials.json to EAS servers',
+            scope: Scope.Project,
+          },
+          {
+            value: ActionType.GoBackToHighLevelActions,
+            title: 'Go back',
+            scope: Scope.Manager,
+          },
+        ];
+        const buildCredentialsActions: { value: ActionType; title: string; scope: Scope }[] = [
+          {
+            // This command will be triggered during build to ensure all credentials are ready
+            // I'm leaving it here for now to simplify testing
+            value: ActionType.SetupBuildCredentials,
+            title: 'All: Setup all the required credentials to build your project',
             scope: Scope.Project,
           },
           {
             value: ActionType.UseExistingDistributionCertificate,
-            title: 'Use existing Distribution Certificate in current project',
+            title: 'Distribution Certificate: Use an existing one for your project',
             scope: Scope.Project,
           },
           {
             value: ActionType.CreateDistributionCertificate,
-            title: 'Add new Distribution Certificate',
+            title: `Distribution Certificate: Add a new one${
+              ctx.hasProjectContext ? ' to your project' : ''
+            }`,
             scope: ctx.hasProjectContext ? Scope.Project : Scope.Account,
           },
           {
             value: ActionType.RemoveDistributionCertificate,
-            title: 'Remove Distribution Certificate',
+            title: 'Distribution Certificate: Delete one from your account',
             scope: Scope.Account,
+          },
+          {
+            value: ActionType.GoBackToHighLevelActions,
+            title: 'Go back',
+            scope: Scope.Manager,
           },
         ];
         const { action: chosenAction } = await promptAsync({
           type: 'select',
           name: 'action',
           message: 'What do you want to do?',
-          choices: actions.map(action => ({ value: action.value, title: action.title })),
+          choices: currentActions.map(action => ({
+            value: action.value,
+            title: action.title,
+          })),
         });
         try {
-          const actionInfo = actions.find(action => action.value === chosenAction);
+          const actionInfo = currentActions.find(action => action.value === chosenAction);
           if (!actionInfo) {
             throw new Error('Action not supported yet');
           }
-          if (actionInfo.scope === Scope.Project) {
+
+          if (actionInfo.scope === Scope.Manager) {
+            if (chosenAction === ActionType.ManageBuildCredentials) {
+              currentActions = buildCredentialsActions;
+              continue;
+            } else if (chosenAction === ActionType.ManageCredentialsJson) {
+              currentActions = credentialsJsonActions;
+              continue;
+            } else if (chosenAction === ActionType.GoBackToHighLevelActions) {
+              currentActions = highLevelActions;
+              continue;
+            }
+          } else if (actionInfo.scope === Scope.Project) {
             const appLookupParams = getAppLookupParamsFromContext(ctx);
             const easJsonReader = await new EasJsonReader(ctx.projectDir, 'ios');
             const easConfig = await new SelectBuildProfileFromEasJson(easJsonReader).runAsync(ctx);
@@ -128,10 +179,8 @@ export class ManageIosBeta implements Action {
               easConfig,
               chosenAction
             );
-          } else if (chosenAction === ActionType.RemoveDistributionCertificate) {
-            await new SelectAndRemoveDistributionCertificate(account).runAsync(ctx);
-          } else if (chosenAction === ActionType.CreateDistributionCertificate) {
-            await new CreateDistributionCertificate(account).runAsync(ctx);
+          } else if (actionInfo.scope === Scope.Account) {
+            await this.runAccountSpecificActionAsync(ctx, account, chosenAction);
           } else {
             throw new Error('Unknown action selected');
           }
@@ -143,6 +192,18 @@ export class ManageIosBeta implements Action {
         Log.error(err);
         await manager.runActionAsync(new PressAnyKeyToContinue());
       }
+    }
+  }
+
+  private async runAccountSpecificActionAsync(
+    ctx: Context,
+    account: Account,
+    action: ActionType
+  ): Promise<void> {
+    if (action === ActionType.RemoveDistributionCertificate) {
+      await new SelectAndRemoveDistributionCertificate(account).runAsync(ctx);
+    } else if (action === ActionType.CreateDistributionCertificate) {
+      await new CreateDistributionCertificate(account).runAsync(ctx);
     }
   }
 
