@@ -117,6 +117,9 @@ const AppleProvisioningProfileMutation = {
           `,
           {
             appleProvisioningProfileIds,
+          },
+          {
+            additionalTypenames: ['AppleProvisioningProfile'],
           }
         )
         .toPromise()
