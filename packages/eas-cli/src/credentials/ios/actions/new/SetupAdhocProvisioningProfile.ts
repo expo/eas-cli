@@ -7,6 +7,7 @@ import nullthrows from 'nullthrows';
 import DeviceCreateAction, { RegistrationMethod } from '../../../../devices/actions/create/action';
 import {
   AppleDeviceFragment,
+  AppleDistributionCertificateFragment,
   AppleProvisioningProfileFragment,
   AppleTeamFragment,
   IosAppBuildCredentialsFragment,
@@ -55,6 +56,19 @@ export class SetupAdhocProvisioningProfile {
         return buildCredentials;
       }
     }
+
+    return await this.runWithDistributionCertificateAsync(ctx, distCert);
+  }
+
+  async runWithDistributionCertificateAsync(
+    ctx: Context,
+    distCert: AppleDistributionCertificateFragment
+  ): Promise<IosAppBuildCredentialsFragment> {
+    const currentBuildCredentials = await getBuildCredentialsAsync(
+      ctx,
+      this.app,
+      IosDistributionType.AdHoc
+    );
 
     // 1. Resolve Apple Team
     let appleTeam: AppleTeamFragment | null =

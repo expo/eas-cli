@@ -173,7 +173,7 @@ export async function createOrGetExistingIosAppCredentialsWithBuildCredentialsAs
 }
 
 export async function createOrGetExistingAppleTeamAsync(
-  { account }: AppLookupParams,
+  account: Account,
   { appleTeamIdentifier, appleTeamName }: { appleTeamIdentifier: string; appleTeamName?: string }
 ): Promise<AppleTeamFragment> {
   const appleTeam = await AppleTeamQuery.getByAppleTeamIdentifierAsync(
@@ -296,14 +296,13 @@ export async function getDistributionCertificatesForAccountAsync(
 }
 
 export async function createDistributionCertificateAsync(
-  appLookupParams: AppLookupParams,
+  account: Account,
   distCert: DistributionCertificate
 ): Promise<AppleDistributionCertificateMutationResult> {
-  const appleTeam = await createOrGetExistingAppleTeamAsync(appLookupParams, {
+  const appleTeam = await createOrGetExistingAppleTeamAsync(account, {
     appleTeamIdentifier: distCert.teamId,
     appleTeamName: distCert.teamName,
   });
-  const { account } = appLookupParams;
   return await AppleDistributionCertificateMutation.createAppleDistributionCertificate(
     {
       certP12: distCert.certP12,

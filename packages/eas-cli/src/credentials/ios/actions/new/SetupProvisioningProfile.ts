@@ -22,6 +22,9 @@ import { ConfigureProvisioningProfile } from './ConfigureProvisioningProfile';
 import { CreateProvisioningProfile } from './CreateProvisioningProfile';
 import { SetupDistributionCertificate } from './SetupDistributionCertificate';
 
+/**
+ * Sets up either APP_STORE or ENTERPRISE provisioning profiles
+ */
 export class SetupProvisioningProfile {
   constructor(private app: AppLookupParams, private distributionType: IosDistributionType) {}
 

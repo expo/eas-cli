@@ -146,10 +146,10 @@ export class SetupDistributionCertificate {
   private async createNewDistCertAsync(
     ctx: Context
   ): Promise<AppleDistributionCertificateMutationResult> {
-    return new CreateDistributionCertificate(this.app).runAsync(ctx);
+    return new CreateDistributionCertificate(this.app.account).runAsync(ctx);
   }
 
-  private async reuseDistCertAsync(ctx: Context): Promise<AppleDistributionCertificate> {
+  async reuseDistCertAsync(ctx: Context): Promise<AppleDistributionCertificate> {
     const validDistCerts = await this.getValidDistCertsAsync(ctx);
     const { distCert } = await promptAsync({
       type: 'select',
