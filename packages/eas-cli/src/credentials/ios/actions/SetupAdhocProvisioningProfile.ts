@@ -4,7 +4,7 @@ import differenceBy from 'lodash/differenceBy';
 import isEqual from 'lodash/isEqual';
 import nullthrows from 'nullthrows';
 
-import DeviceCreateAction, { RegistrationMethod } from '../../../../devices/actions/create/action';
+import DeviceCreateAction, { RegistrationMethod } from '../../../devices/actions/create/action';
 import {
   AppleDeviceFragment,
   AppleDistributionCertificateFragment,
@@ -12,13 +12,13 @@ import {
   AppleTeamFragment,
   IosAppBuildCredentialsFragment,
   IosDistributionType,
-} from '../../../../graphql/generated';
-import Log from '../../../../log';
-import { confirmAsync, pressAnyKeyToContinueAsync } from '../../../../prompts';
-import { Context } from '../../../context';
-import { AppLookupParams } from '../../api/GraphqlClient';
-import { MissingCredentialsNonInteractiveError } from '../../errors';
-import { validateProvisioningProfileAsync } from '../../validators/validateProvisioningProfile';
+} from '../../../graphql/generated';
+import Log from '../../../log';
+import { confirmAsync, pressAnyKeyToContinueAsync } from '../../../prompts';
+import { Context } from '../../context';
+import { AppLookupParams } from '../api/GraphqlClient';
+import { MissingCredentialsNonInteractiveError } from '../errors';
+import { validateProvisioningProfileAsync } from '../validators/validateProvisioningProfile';
 import { resolveAppleTeamIfAuthenticatedAsync } from './AppleTeamUtils';
 import { assignBuildCredentialsAsync, getBuildCredentialsAsync } from './BuildCredentialsUtils';
 import { chooseDevices, formatDeviceLabel } from './DeviceUtils';

@@ -5,14 +5,13 @@ import {
   AppleProvisioningProfileFragment,
   IosAppBuildCredentialsFragment,
   IosDistributionType,
-} from '../../../../graphql/generated';
-import { confirmAsync } from '../../../../prompts';
-import { Context } from '../../../context';
-import { AppLookupParams } from '../../api/GraphqlClient';
-import { ProvisioningProfileStoreInfo } from '../../appstore/Credentials.types';
-import { MissingCredentialsNonInteractiveError } from '../../errors';
-import { validateProvisioningProfileAsync } from '../../validators/validateProvisioningProfile';
-import { formatProvisioningProfileFromApple } from '../ProvisioningProfileUtils';
+} from '../../../graphql/generated';
+import { confirmAsync } from '../../../prompts';
+import { Context } from '../../context';
+import { AppLookupParams } from '../api/GraphqlClient';
+import { ProvisioningProfileStoreInfo } from '../appstore/Credentials.types';
+import { MissingCredentialsNonInteractiveError } from '../errors';
+import { validateProvisioningProfileAsync } from '../validators/validateProvisioningProfile';
 import {
   assignBuildCredentialsAsync,
   getBuildCredentialsAsync,
@@ -20,6 +19,7 @@ import {
 } from './BuildCredentialsUtils';
 import { ConfigureProvisioningProfile } from './ConfigureProvisioningProfile';
 import { CreateProvisioningProfile } from './CreateProvisioningProfile';
+import { formatProvisioningProfileFromApple } from './ProvisioningProfileUtils';
 import { SetupDistributionCertificate } from './SetupDistributionCertificate';
 
 /**

@@ -11,7 +11,7 @@ import {
   testCommonIosAppCredentialsFragment,
 } from '../../__tests__/fixtures-ios';
 import { getNewIosApiMockWithoutCredentials } from '../../__tests__/fixtures-new-ios';
-import { getAppLookupParamsFromContext } from '../../ios/actions/new/BuildCredentialsUtils';
+import { getAppLookupParamsFromContext } from '../../ios/actions/BuildCredentialsUtils';
 import { updateAndroidCredentialsAsync, updateIosCredentialsAsync } from '../update';
 
 jest.mock('fs');

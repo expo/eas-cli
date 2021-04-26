@@ -13,15 +13,15 @@ import { ensureActorHasUsername } from '../../user/actions';
 import { Action, CredentialsManager } from '../CredentialsManager';
 import { Context } from '../context';
 import { SetupBuildCredentials } from '../ios/actions/SetupBuildCredentials';
-import { getAppLookupParamsFromContext } from '../ios/actions/new/BuildCredentialsUtils';
-import { CreateDistributionCertificate } from '../ios/actions/new/CreateDistributionCertificate';
-import { selectValidDistributionCertificateAsync } from '../ios/actions/new/DistributionCertificateUtils';
-import { SelectAndRemoveDistributionCertificate } from '../ios/actions/new/RemoveDistributionCertificate';
-import { RemoveProvisioningProfiles } from '../ios/actions/new/RemoveProvisioningProfile';
-import { SetupAdhocProvisioningProfile } from '../ios/actions/new/SetupAdhocProvisioningProfile';
-import { SetupBuildCredentialsFromCredentialsJson } from '../ios/actions/new/SetupBuildCredentialsFromCredentialsJson';
-import { SetupProvisioningProfile } from '../ios/actions/new/SetupProvisioningProfile';
-import { UpdateCredentialsJson } from '../ios/actions/new/UpdateCredentialsJson';
+import { getAppLookupParamsFromContext } from '../ios/actions/BuildCredentialsUtils';
+import { CreateDistributionCertificate } from '../ios/actions/CreateDistributionCertificate';
+import { selectValidDistributionCertificateAsync } from '../ios/actions/DistributionCertificateUtils';
+import { SelectAndRemoveDistributionCertificate } from '../ios/actions/RemoveDistributionCertificate';
+import { RemoveProvisioningProfiles } from '../ios/actions/RemoveProvisioningProfile';
+import { SetupAdhocProvisioningProfile } from '../ios/actions/SetupAdhocProvisioningProfile';
+import { SetupBuildCredentialsFromCredentialsJson } from '../ios/actions/SetupBuildCredentialsFromCredentialsJson';
+import { SetupProvisioningProfile } from '../ios/actions/SetupProvisioningProfile';
+import { UpdateCredentialsJson } from '../ios/actions/UpdateCredentialsJson';
 import { AppLookupParams } from '../ios/api/GraphqlClient';
 import {
   displayEmptyIosCredentials,

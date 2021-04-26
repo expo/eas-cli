@@ -1,17 +1,14 @@
-import { asMock } from '../../../../../__tests__/utils';
-import {
-  IosAppBuildCredentialsFragment,
-  IosDistributionType,
-} from '../../../../../graphql/generated';
-import { promptAsync } from '../../../../../prompts';
-import { getAppstoreMock, testAuthCtx } from '../../../../__tests__/fixtures-appstore';
-import { createCtxMock } from '../../../../__tests__/fixtures-context';
+import { asMock } from '../../../../__tests__/utils';
+import { IosAppBuildCredentialsFragment, IosDistributionType } from '../../../../graphql/generated';
+import { promptAsync } from '../../../../prompts';
+import { getAppstoreMock, testAuthCtx } from '../../../__tests__/fixtures-appstore';
+import { createCtxMock } from '../../../__tests__/fixtures-context';
 import { getAllBuildCredentialsAsync } from '../BuildCredentialsUtils';
 import { SetupAdhocProvisioningProfile } from '../SetupAdhocProvisioningProfile';
 import { SetupInternalProvisioningProfile } from '../SetupInternalProvisioningProfile';
 import { SetupProvisioningProfile } from '../SetupProvisioningProfile';
 
-jest.mock('../../../../../prompts');
+jest.mock('../../../../prompts');
 jest.mock('../SetupAdhocProvisioningProfile');
 jest.mock('../SetupProvisioningProfile');
 jest.mock('../BuildCredentialsUtils', () => ({ getAllBuildCredentialsAsync: jest.fn() }));

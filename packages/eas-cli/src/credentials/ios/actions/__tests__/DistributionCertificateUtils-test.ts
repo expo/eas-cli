@@ -1,12 +1,12 @@
 import mockdate from 'mockdate';
 
-import { AppleDistributionCertificateQuery } from '../../../api/graphql/queries/AppleDistributionCertificateQuery';
+import { AppleDistributionCertificateQuery } from '../../api/graphql/queries/AppleDistributionCertificateQuery';
 import { formatDistributionCertificate } from '../DistributionCertificateUtils';
-jest.mock('../../../api/graphql/queries/AppleDistributionCertificateQuery');
+jest.mock('../../api/graphql/queries/AppleDistributionCertificateQuery');
 jest.mock('chalk', () => {
   return {
     __esModule: true, // this property makes it work
-    default: { gray: jest.fn(log => log) },
+    default: { gray: jest.fn(log => log), underline: jest.fn(log => log) },
   };
 });
 

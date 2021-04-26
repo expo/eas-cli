@@ -1,4 +1,4 @@
-import { createCtxMock } from '../../../../__tests__/fixtures-context';
+import { createCtxMock } from '../../../__tests__/fixtures-context';
 import { getAppLookupParamsFromContext } from '../BuildCredentialsUtils';
 import { RemoveProvisioningProfiles } from '../RemoveProvisioningProfile';
 
