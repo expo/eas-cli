@@ -138,7 +138,7 @@ describe(convertAssetToUpdateInfoGroupFormatAsync, () => {
       path,
     };
     await expect(convertAssetToUpdateInfoGroupFormatAsync(asset)).resolves.toEqual({
-      bundleKey: `c939e759656f577c058f445bfb19182e.${type}`,
+      bundleKey: 'c939e759656f577c058f445bfb19182e',
       contentType: 'image/jpeg',
       fileSHA256: 'tzD6J-OQZaHCKnL3GHWV9RbnrpyojnagiOE7r3mSkU4',
       storageBucket: 'update-assets-production',
@@ -175,7 +175,7 @@ describe(buildUpdateInfoGroupAsync, () => {
       android: {
         assets: [
           {
-            bundleKey: 'c939e759656f577c058f445bfb19182e.jpg',
+            bundleKey: 'c939e759656f577c058f445bfb19182e',
             contentType: 'image/jpeg',
             fileSHA256: 'tzD6J-OQZaHCKnL3GHWV9RbnrpyojnagiOE7r3mSkU4',
             storageBucket: 'update-assets-production',
@@ -184,7 +184,7 @@ describe(buildUpdateInfoGroupAsync, () => {
         ],
 
         launchAsset: {
-          bundleKey: 'ec0dd14670aae108f99a810df9c1482c.bundle',
+          bundleKey: 'ec0dd14670aae108f99a810df9c1482c',
           contentType: 'bundle/javascript',
           fileSHA256: 'KEw79FnKTLOyVbRT1SlohSTjPe5e8FpULy2ST-I5BUg',
           storageBucket: 'update-assets-production',
