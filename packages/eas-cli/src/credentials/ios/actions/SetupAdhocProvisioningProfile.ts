@@ -80,7 +80,7 @@ export class SetupAdhocProvisioningProfile {
     assert(appleTeam, 'Apple Team must be defined here');
 
     // 2. Fetch devices registered on EAS servers
-    let registeredAppleDevices = await ctx.newIos.getDevicesForAppleTeamAsync(this.app, appleTeam);
+    let registeredAppleDevices = await ctx.ios.getDevicesForAppleTeamAsync(this.app, appleTeam);
     if (registeredAppleDevices.length === 0) {
       const shouldRegisterDevices = await confirmAsync({
         message: `You don't have any registered devices yet. Would you like to register them now?`,
@@ -108,7 +108,7 @@ export class SetupAdhocProvisioningProfile {
     );
 
     // 5. Create or update the profile on servers
-    const appleAppIdentifier = await ctx.newIos.createOrGetExistingAppleAppIdentifierAsync(
+    const appleAppIdentifier = await ctx.ios.createOrGetExistingAppleAppIdentifierAsync(
       this.app,
       appleTeam
     );
@@ -118,10 +118,10 @@ export class SetupAdhocProvisioningProfile {
         currentBuildCredentials.provisioningProfile.developerPortalIdentifier !==
         provisioningProfileStoreInfo.provisioningProfileId
       ) {
-        await ctx.newIos.deleteProvisioningProfilesAsync([
+        await ctx.ios.deleteProvisioningProfilesAsync([
           currentBuildCredentials.provisioningProfile.id,
         ]);
-        appleProvisioningProfile = await ctx.newIos.createProvisioningProfileAsync(
+        appleProvisioningProfile = await ctx.ios.createProvisioningProfileAsync(
           this.app,
           appleAppIdentifier,
           {
@@ -133,7 +133,7 @@ export class SetupAdhocProvisioningProfile {
         appleProvisioningProfile = currentBuildCredentials.provisioningProfile;
       }
     } else {
-      appleProvisioningProfile = await ctx.newIos.createProvisioningProfileAsync(
+      appleProvisioningProfile = await ctx.ios.createProvisioningProfileAsync(
         this.app,
         appleAppIdentifier,
         {
@@ -171,10 +171,7 @@ export class SetupAdhocProvisioningProfile {
     const provisioningProfile = nullthrows(buildCredentials.provisioningProfile);
 
     const appleTeam = nullthrows(provisioningProfile.appleTeam);
-    const registeredAppleDevices = await ctx.newIos.getDevicesForAppleTeamAsync(
-      this.app,
-      appleTeam
-    );
+    const registeredAppleDevices = await ctx.ios.getDevicesForAppleTeamAsync(this.app, appleTeam);
 
     const provisionedDevices = provisioningProfile.appleDevices;
 
@@ -216,7 +213,7 @@ export class SetupAdhocProvisioningProfile {
       }
       Log.newLine();
 
-      const devices = await ctx.newIos.getDevicesForAppleTeamAsync(this.app, appleTeam, {
+      const devices = await ctx.ios.getDevicesForAppleTeamAsync(this.app, appleTeam, {
         useCache: false,
       });
       if (devices.length === 0) {

@@ -29,11 +29,11 @@ export class CreateProvisioningProfile {
     const appleAuthCtx = await ctx.appStore.ensureAuthenticatedAsync();
     const provisioningProfile = await this.provideOrGenerateAsync(ctx, appleAuthCtx);
     const appleTeam = nullthrows(await resolveAppleTeamIfAuthenticatedAsync(ctx, this.app));
-    const appleAppIdentifier = await ctx.newIos.createOrGetExistingAppleAppIdentifierAsync(
+    const appleAppIdentifier = await ctx.ios.createOrGetExistingAppleAppIdentifierAsync(
       this.app,
       appleTeam
     );
-    const provisioningProfileMutationResult = await ctx.newIos.createProvisioningProfileAsync(
+    const provisioningProfileMutationResult = await ctx.ios.createProvisioningProfileAsync(
       this.app,
       appleAppIdentifier,
       {

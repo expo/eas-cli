@@ -12,13 +12,13 @@ import { Account, findAccountByName } from '../../user/Account';
 import { ensureActorHasUsername } from '../../user/actions';
 import { Action, CredentialsManager } from '../CredentialsManager';
 import { Context } from '../context';
-import { SetupBuildCredentials } from '../ios/actions/SetupBuildCredentials';
 import { getAppLookupParamsFromContext } from '../ios/actions/BuildCredentialsUtils';
 import { CreateDistributionCertificate } from '../ios/actions/CreateDistributionCertificate';
 import { selectValidDistributionCertificateAsync } from '../ios/actions/DistributionCertificateUtils';
 import { SelectAndRemoveDistributionCertificate } from '../ios/actions/RemoveDistributionCertificate';
 import { RemoveProvisioningProfiles } from '../ios/actions/RemoveProvisioningProfile';
 import { SetupAdhocProvisioningProfile } from '../ios/actions/SetupAdhocProvisioningProfile';
+import { SetupBuildCredentials } from '../ios/actions/SetupBuildCredentials';
 import { SetupBuildCredentialsFromCredentialsJson } from '../ios/actions/SetupBuildCredentialsFromCredentialsJson';
 import { SetupProvisioningProfile } from '../ios/actions/SetupProvisioningProfile';
 import { UpdateCredentialsJson } from '../ios/actions/UpdateCredentialsJson';
@@ -85,7 +85,7 @@ export class ManageIos implements Action {
         }
         if (ctx.hasProjectContext) {
           const appLookupParams = getAppLookupParamsFromContext(ctx);
-          const iosAppCredentials = await ctx.newIos.getIosAppCredentialsWithCommonFieldsAsync(
+          const iosAppCredentials = await ctx.ios.getIosAppCredentialsWithCommonFieldsAsync(
             appLookupParams
           );
           if (!iosAppCredentials) {
@@ -232,7 +232,7 @@ export class ManageIos implements Action {
       return;
     }
 
-    const iosAppCredentials = await ctx.newIos.getIosAppCredentialsWithCommonFieldsAsync(
+    const iosAppCredentials = await ctx.ios.getIosAppCredentialsWithCommonFieldsAsync(
       appLookupParams
     );
     const iosDistributionTypeGraphql = await new SelectIosDistributionTypeGraphqlFromBuildProfile(

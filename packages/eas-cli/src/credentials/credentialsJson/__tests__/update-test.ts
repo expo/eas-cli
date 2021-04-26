@@ -7,10 +7,10 @@ import { IosDistributionType } from '../../../graphql/generated';
 import { testKeystore } from '../../__tests__/fixtures-android';
 import { createCtxMock } from '../../__tests__/fixtures-context';
 import {
+  getNewIosApiMockWithoutCredentials,
   testAllCredentialsForApp,
   testCommonIosAppCredentialsFragment,
 } from '../../__tests__/fixtures-ios';
-import { getNewIosApiMockWithoutCredentials } from '../../__tests__/fixtures-new-ios';
 import { getAppLookupParamsFromContext } from '../../ios/actions/BuildCredentialsUtils';
 import { updateAndroidCredentialsAsync, updateIosCredentialsAsync } from '../update';
 
@@ -196,7 +196,7 @@ describe('update credentials.json', () => {
   describe(updateIosCredentialsAsync, () => {
     it('should update ios credentials in credentials.json if www returns valid credentials', async () => {
       const ctx = createCtxMock({
-        newIos: {
+        ios: {
           ...getNewIosApiMockWithoutCredentials(),
           getIosAppCredentialsWithCommonFieldsAsync: jest.fn(
             () => testCommonIosAppCredentialsFragment
@@ -241,7 +241,7 @@ describe('update credentials.json', () => {
     });
     it('should create credentials.json provisioning profile and distribution certificate if credentials.json does not exist', async () => {
       const ctx = createCtxMock({
-        newIos: {
+        ios: {
           ...getNewIosApiMockWithoutCredentials(),
           getIosAppCredentialsWithCommonFieldsAsync: jest.fn(
             () => testCommonIosAppCredentialsFragment
@@ -267,7 +267,7 @@ describe('update credentials.json', () => {
     });
     it('should not do anything if no credentials are returned from www', async () => {
       const ctx = createCtxMock({
-        newIos: {
+        ios: {
           ...getNewIosApiMockWithoutCredentials(),
           getIosAppCredentialsWithCommonFieldsAsync: jest.fn(() => null),
         },
@@ -309,7 +309,7 @@ describe('update credentials.json', () => {
       );
       testIosAppCredentialsNoDistCert.iosAppBuildCredentialsArray[0].distributionCertificate = null;
       const ctx = createCtxMock({
-        newIos: {
+        ios: {
           ...getNewIosApiMockWithoutCredentials(),
           getIosAppCredentialsWithCommonFieldsAsync: jest.fn(() => testIosAppCredentialsNoDistCert),
         },
@@ -349,7 +349,7 @@ describe('update credentials.json', () => {
     });
     it('should throw an error if credentials.json contains credentials for multi-target projects', async () => {
       const ctx = createCtxMock({
-        newIos: {
+        ios: {
           ...getNewIosApiMockWithoutCredentials(),
           getIosAppCredentialsWithCommonFieldsAsync: jest.fn(
             () => testCommonIosAppCredentialsFragment
@@ -387,7 +387,7 @@ describe('update credentials.json', () => {
     });
     it(`should throw an error if there is a typo in credentials.json (because we can't tell if this is a target name or not)`, async () => {
       const ctx = createCtxMock({
-        newIos: {
+        ios: {
           ...getNewIosApiMockWithoutCredentials(),
           getIosAppCredentialsWithCommonFieldsAsync: jest.fn(
             () => testCommonIosAppCredentialsFragment

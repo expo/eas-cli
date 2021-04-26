@@ -17,6 +17,6 @@ describe('RemoveProvisioningProfile', () => {
     await removeProfilesAction.runAsync(ctx);
 
     // expect provisioning profile to be deleted from servers
-    expect((ctx.newIos.deleteProvisioningProfilesAsync as any).mock.calls.length).toBe(1);
+    expect((ctx.ios.deleteProvisioningProfilesAsync as any).mock.calls.length).toBe(1);
   });
 });

@@ -39,7 +39,7 @@ export class SetupBuildCredentialsFromCredentialsJson {
     const { certP12, certPassword } = distributionCertificate;
 
     if (!currentDistributionCertificate) {
-      return await ctx.newIos.createDistributionCertificateAsync(this.app.account, {
+      return await ctx.ios.createDistributionCertificateAsync(this.app.account, {
         certP12,
         certPassword,
         teamId: appleTeam.appleTeamIdentifier,
@@ -49,7 +49,7 @@ export class SetupBuildCredentialsFromCredentialsJson {
 
     const isSameCertificate = currentDistributionCertificate.certificateP12 === certP12;
     if (!isSameCertificate) {
-      return await ctx.newIos.createDistributionCertificateAsync(this.app.account, {
+      return await ctx.ios.createDistributionCertificateAsync(this.app.account, {
         certP12,
         certPassword,
         teamId: appleTeam.appleTeamIdentifier,
@@ -68,11 +68,11 @@ export class SetupBuildCredentialsFromCredentialsJson {
   ): Promise<AppleProvisioningProfileFragment> {
     const { provisioningProfile } = targetCredentials;
 
-    const appleAppIdentifier = await ctx.newIos.createOrGetExistingAppleAppIdentifierAsync(
+    const appleAppIdentifier = await ctx.ios.createOrGetExistingAppleAppIdentifierAsync(
       this.app,
       appleTeam
     );
-    return await ctx.newIos.createProvisioningProfileAsync(this.app, appleAppIdentifier, {
+    return await ctx.ios.createProvisioningProfileAsync(this.app, appleAppIdentifier, {
       appleProvisioningProfile: provisioningProfile,
     });
   }
@@ -128,7 +128,7 @@ export class SetupBuildCredentialsFromCredentialsJson {
 
     // new credentials from local json
     const appleTeamFromProvisioningProfile = readAppleTeam(localCredentials.provisioningProfile);
-    const appleTeam = await ctx.newIos.createOrGetExistingAppleTeamAsync(this.app.account, {
+    const appleTeam = await ctx.ios.createOrGetExistingAppleTeamAsync(this.app.account, {
       appleTeamIdentifier: appleTeamFromProvisioningProfile.teamId,
       appleTeamName: appleTeamFromProvisioningProfile.teamName,
     });

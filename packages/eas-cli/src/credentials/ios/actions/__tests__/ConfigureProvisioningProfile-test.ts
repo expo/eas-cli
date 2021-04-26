@@ -38,7 +38,7 @@ describe('ConfigureProvisioningProfile', () => {
     await provProfConfigurator.runAsync(ctx);
 
     // expect provisioning profile not to be updated on expo servers
-    expect((ctx.newIos.updateProvisioningProfileAsync as any).mock.calls.length).toBe(1);
+    expect((ctx.ios.updateProvisioningProfileAsync as any).mock.calls.length).toBe(1);
     // expect provisioning profile not to be updated on apple portal
     expect((ctx.appStore.useExistingProvisioningProfileAsync as any).mock.calls.length).toBe(1);
   });
@@ -57,7 +57,7 @@ describe('ConfigureProvisioningProfile', () => {
     );
 
     // expect provisioning profile not to be updated on expo servers
-    expect((ctx.newIos.updateProvisioningProfileAsync as any).mock.calls.length).toBe(0);
+    expect((ctx.ios.updateProvisioningProfileAsync as any).mock.calls.length).toBe(0);
     // expect provisioning profile not to be updated on apple portal
     expect((ctx.appStore.useExistingProvisioningProfileAsync as any).mock.calls.length).toBe(0);
   });

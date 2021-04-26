@@ -17,7 +17,7 @@ export async function getAllBuildCredentialsAsync(
   ctx: Context,
   app: AppLookupParams
 ): Promise<IosAppBuildCredentialsFragment[]> {
-  const appCredentials = await ctx.newIos.getIosAppCredentialsWithBuildCredentialsAsync(app, {});
+  const appCredentials = await ctx.ios.getIosAppCredentialsWithBuildCredentialsAsync(app, {});
   if (!appCredentials) {
     return [];
   }
@@ -29,7 +29,7 @@ export async function getBuildCredentialsAsync(
   app: AppLookupParams,
   iosDistributionType: GraphQLIosDistributionType
 ): Promise<IosAppBuildCredentialsFragment | null> {
-  const appCredentials = await ctx.newIos.getIosAppCredentialsWithBuildCredentialsAsync(app, {
+  const appCredentials = await ctx.ios.getIosAppCredentialsWithBuildCredentialsAsync(app, {
     iosDistributionType,
   });
   if (!appCredentials || appCredentials.iosAppBuildCredentialsArray.length === 0) {
@@ -68,11 +68,11 @@ export async function assignBuildCredentialsAsync(
   const resolvedAppleTeam = nullthrows(
     appleTeam ?? (await resolveAppleTeamIfAuthenticatedAsync(ctx, app))
   );
-  const appleAppIdentifier = await ctx.newIos.createOrGetExistingAppleAppIdentifierAsync(
+  const appleAppIdentifier = await ctx.ios.createOrGetExistingAppleAppIdentifierAsync(
     app,
     resolvedAppleTeam
   );
-  return await ctx.newIos.createOrUpdateIosAppBuildCredentialsAsync(app, {
+  return await ctx.ios.createOrUpdateIosAppBuildCredentialsAsync(app, {
     appleTeam: resolvedAppleTeam,
     appleAppIdentifierId: appleAppIdentifier.id,
     appleDistributionCertificateId: distCert.id,
