@@ -18,7 +18,7 @@ import {
   DistributionCertificate,
   DistributionCertificateStoreInfo,
 } from '../appstore/Credentials.types';
-import { filterRevokedDistributionCerts } from '../appstore/CredentialsUtilsBeta';
+import { filterRevokedDistributionCertsFromEasServers } from '../appstore/CredentialsUtils';
 import { distributionCertificateSchema } from '../credentials';
 import { validateDistributionCertificateAsync } from '../validators/validateDistributionCertificate';
 
@@ -104,7 +104,7 @@ export async function selectDistributionCertificateWithDependenciesAsync(
 
   // get valid certs on the developer portal
   const certInfoFromApple = await ctx.appStore.listDistributionCertificatesAsync();
-  const validDistCerts = await filterRevokedDistributionCerts(
+  const validDistCerts = await filterRevokedDistributionCertsFromEasServers(
     distCertsForAccount,
     certInfoFromApple
   );
@@ -139,7 +139,7 @@ export async function selectValidDistributionCertificateAsync(
 
   // filter by valid certs on the developer portal
   const certInfoFromApple = await ctx.appStore.listDistributionCertificatesAsync();
-  const validDistCerts = await filterRevokedDistributionCerts(
+  const validDistCerts = await filterRevokedDistributionCertsFromEasServers(
     distCertsForAppleTeam,
     certInfoFromApple
   );
