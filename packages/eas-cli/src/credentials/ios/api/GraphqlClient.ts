@@ -45,7 +45,7 @@ export interface AppLookupParams {
   bundleIdentifier: string;
 }
 
-export async function getAppAsync(appLookupParams: AppLookupParams): Promise<AppFragment> {
+async function getAppAsync(appLookupParams: AppLookupParams): Promise<AppFragment> {
   const projectFullName = formatProjectFullName(appLookupParams);
   return await AppQuery.byFullNameAsync(projectFullName);
 }
