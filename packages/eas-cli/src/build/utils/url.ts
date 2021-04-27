@@ -15,7 +15,7 @@ export function getArtifactUrl(artifactId: string): string {
   return `${getExpoWebsiteBaseUrl()}/artifacts/${artifactId}`;
 }
 
-export function getInstallUrl(build: BuildFragment) {
+export function getInstallUrl(build: BuildFragment): string | undefined {
   if (build.platform === AppPlatform.Ios) {
     return `itms-services://?action=download-manifest;url=${getExpoApiBaseUrl()}/--/api/v2/projects/${
       build.project.id
