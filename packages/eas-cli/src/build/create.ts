@@ -71,7 +71,7 @@ async function startBuildsAsync(
 
 async function waitForBuildEndAsync(
   buildIds: string[],
-  { timeoutSec = 1800, intervalSec = 30 } = {}
+  { timeoutSec = 3600, intervalSec = 30 } = {}
 ): Promise<(BuildFragment | null)[]> {
   Log.log('Waiting for build to complete. You can press Ctrl+C to exit.');
   const spinner = ora().start();
