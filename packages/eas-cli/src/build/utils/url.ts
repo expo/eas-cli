@@ -1,4 +1,4 @@
-import { getExpoWebsiteBaseUrl, getExpoApiBaseUrl } from '../../api';
+import { getExpoApiBaseUrl, getExpoWebsiteBaseUrl } from '../../api';
 import { AppPlatform, BuildFragment } from '../../graphql/generated';
 
 export function getBuildLogsUrl({
