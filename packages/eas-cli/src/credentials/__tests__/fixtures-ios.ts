@@ -116,7 +116,6 @@ export const testAppleTeam = {
 
 export function getNewIosApiMockWithoutCredentials() {
   return {
-    getAppAsync: jest.fn(),
     createOrUpdateIosAppBuildCredentialsAsync: jest.fn(),
     getIosAppCredentialsWithBuildCredentialsAsync: jest.fn(),
     createOrGetExistingIosAppCredentialsWithBuildCredentialsAsync: jest.fn(),
@@ -136,7 +135,6 @@ export function getNewIosApiMockWithoutCredentials() {
 
 export function getNewIosApiMockWithCredentials() {
   return {
-    getAppAsync: jest.fn(),
     createOrUpdateIosAppBuildCredentialsAsync: jest.fn(),
     getIosAppCredentialsWithBuildCredentialsAsync: jest.fn(),
     createOrGetExistingIosAppCredentialsWithBuildCredentialsAsync: jest.fn(),
