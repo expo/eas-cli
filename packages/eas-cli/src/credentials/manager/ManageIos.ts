@@ -26,7 +26,7 @@ import { AppLookupParams } from '../ios/api/GraphqlClient';
 import {
   displayEmptyIosCredentials,
   displayIosAppCredentials,
-} from '../ios/utils/printCredentialsBeta';
+} from '../ios/utils/printCredentials';
 import { PressAnyKeyToContinue } from './HelperActions';
 import { SelectBuildProfileFromEasJson } from './SelectBuildProfileFromEasJson';
 import { SelectIosDistributionTypeGraphqlFromBuildProfile } from './SelectIosDistributionTypeGraphqlFromBuildProfile';
