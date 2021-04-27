@@ -1,5 +1,5 @@
-import { BuildFragment, AppPlatform } from '../../graphql/generated';
 import { getExpoWebsiteBaseUrl, getExpoApiBaseUrl } from '../../api';
+import { AppPlatform, BuildFragment } from '../../graphql/generated';
 
 export function getBuildLogsUrl({
   buildId,
