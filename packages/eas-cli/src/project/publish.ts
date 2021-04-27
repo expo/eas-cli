@@ -115,10 +115,7 @@ export async function convertAssetToUpdateInfoGroupFormatAsync(
   const fileSHA256 = getBase64URLEncoding(await calculateFileHashAsync(asset.path, 'sha256'));
   const contentType = asset.contentType;
   const storageKey = getStorageKey(contentType, fileSHA256);
-  const bundleKey = [
-    (await calculateFileHashAsync(asset.path, 'md5')).toString('hex'),
-    asset.type,
-  ].join('.');
+  const bundleKey = (await calculateFileHashAsync(asset.path, 'md5')).toString('hex');
 
   return {
     fileSHA256,
