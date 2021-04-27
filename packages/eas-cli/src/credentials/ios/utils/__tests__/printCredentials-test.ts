@@ -3,7 +3,7 @@ import nullthrows from 'nullthrows';
 
 import Log from '../../../../log';
 import { IosAppCredentialsQuery } from '../../api/graphql/queries/IosAppCredentialsQuery';
-import { displayIosAppCredentials } from '../printCredentialsBeta';
+import { displayIosAppCredentials } from '../printCredentials';
 
 jest.mock('../../../../log');
 jest.mock('chalk', () => ({ bold: jest.fn(log => log) }));

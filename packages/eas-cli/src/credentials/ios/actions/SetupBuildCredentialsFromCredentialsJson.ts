@@ -17,7 +17,7 @@ import {
   readIosCredentialsAsync,
 } from '../../credentialsJson/read';
 import { AppLookupParams } from '../api/GraphqlClient';
-import { displayProjectCredentials } from '../utils/printCredentialsBeta';
+import { displayProjectCredentials } from '../utils/printCredentials';
 import { readAppleTeam } from '../utils/provisioningProfile';
 import {
   assignBuildCredentialsAsync,

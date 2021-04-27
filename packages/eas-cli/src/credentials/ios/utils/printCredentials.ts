@@ -1,104 +1,159 @@
 import chalk from 'chalk';
+import dateformat from 'dateformat';
 
-import { AppleDevice } from '../../../graphql/generated';
+import {
+  AppleDeviceFragment,
+  CommonIosAppCredentialsFragment,
+  IosAppBuildCredentialsFragment,
+  IosDistributionType,
+} from '../../../graphql/generated';
 import { APPLE_DEVICE_CLASS_LABELS } from '../../../graphql/types/credentials/AppleDevice';
 import Log from '../../../log';
-import {
-  AppLookupParams,
-  IosAppCredentials,
-  IosCredentials,
-  IosDistCredentials,
-  IosPushCredentials,
-} from '../credentials';
+import { fromNow } from '../../../utils/date';
+import { AppLookupParams } from '../api/GraphqlClient';
+
+function prettyIosDistributionType(distributionType: IosDistributionType): string {
+  switch (distributionType) {
+    case IosDistributionType.AppStore:
+      return 'App Store';
+    case IosDistributionType.AdHoc:
+      return 'Ad Hoc';
+    case IosDistributionType.Development:
+      return 'Development';
+    case IosDistributionType.Enterprise:
+      return 'Enterprise';
+    default:
+      return 'Unknown';
+  }
+}
+
+export function displayEmptyIosCredentials(appLookupParams: AppLookupParams): void {
+  const { projectName, bundleIdentifier } = appLookupParams;
+  Log.log(chalk.bold(`iOS Credentials`));
+  Log.log(`  Project: ${projectName}`);
+  Log.log(`  Bundle Identifier: ${bundleIdentifier}`);
+  Log.log(`  No credentials set up yet!`);
+}
+
+/**
+ * sort a build credentials array in descending order of preference
+ */
+function sortBuildCredentialsByDistributionType(
+  iosAppBuildCredentialsArray: IosAppBuildCredentialsFragment[]
+): IosAppBuildCredentialsFragment[] {
+  // The order in which we choose the distribution type from least to most preferred
+  const typePriority = [
+    IosDistributionType.Development,
+    IosDistributionType.AdHoc,
+    IosDistributionType.Enterprise,
+    IosDistributionType.AppStore,
+  ];
+  return iosAppBuildCredentialsArray
+    .sort(
+      (buildCredentialsA, buildCredentialsB) =>
+        typePriority.indexOf(buildCredentialsA.iosDistributionType) -
+        typePriority.indexOf(buildCredentialsB.iosDistributionType)
+    )
+    .reverse();
+}
+
+export function displayIosAppCredentials(credentials: CommonIosAppCredentialsFragment): void {
+  Log.log(chalk.bold(`iOS Credentials`));
+  Log.log(`  Project: ${credentials.app.fullName}`);
+  Log.log(`  Bundle Identifier: ${credentials.appleAppIdentifier.bundleIdentifier}`);
+  const appleTeam = credentials.appleTeam;
+  if (appleTeam) {
+    const { appleTeamIdentifier, appleTeamName } = appleTeam;
+    Log.log(`  Apple Team: ${appleTeamIdentifier} ${appleTeamName ? `(${appleTeamName})` : ''}`);
+  }
+  Log.newLine();
+
+  if (credentials.iosAppBuildCredentialsArray.length === 0) {
+    Log.log(`  Configuration: None setup yet`);
+    Log.newLine();
+    return;
+  }
+  const sortedIosAppBuildCredentialsArray = sortBuildCredentialsByDistributionType(
+    credentials.iosAppBuildCredentialsArray
+  );
+  for (const iosAppBuildCredentials of sortedIosAppBuildCredentialsArray) {
+    displayIosAppBuildCredentials(iosAppBuildCredentials);
+  }
+}
 
 export function displayProjectCredentials(
   appLookupParams: AppLookupParams,
-  appCredentials?: IosAppCredentials | null,
-  pushKey?: IosPushCredentials | null,
-  distCert?: IosDistCredentials | null
+  buildCredentials: IosAppBuildCredentialsFragment
 ): void {
-  const experienceName = `@${appLookupParams.accountName}/${appLookupParams.projectName}`;
-  const bundleIdentifier = appLookupParams.bundleIdentifier;
-  if (!appCredentials) {
-    Log.log(
-      chalk.bold(
-        `No credentials configured for app ${experienceName} with bundle identifier ${bundleIdentifier}\n`
-      )
-    );
-    return;
-  }
-
-  Log.log();
+  const experienceName = `@${appLookupParams.account.name}/${appLookupParams.projectName}`;
+  Log.addNewLineIfNone();
   Log.log(chalk.bold('Project Credentials Configuration:'));
-  displayIosAppCredentials(appCredentials);
-  Log.log();
-
-  if (distCert) {
-    displayIosUserCredentials(distCert);
-  }
-
-  if (pushKey) {
-    displayIosUserCredentials(pushKey);
-  }
+  Log.log(`  Project: ${chalk.bold(experienceName)}`);
+  Log.log(`  Bundle Identifier: ${appLookupParams.bundleIdentifier}`);
+  displayIosAppBuildCredentials(buildCredentials);
 }
 
-export async function displayAllIosCredentials(credentials: IosCredentials) {
-  Log.log(chalk.bold('Available credentials for iOS apps'));
-  Log.newLine();
-
-  Log.log(chalk.bold('Application credentials'));
-  Log.newLine();
-  for (const cred of credentials.appCredentials) {
-    displayIosAppCredentials(cred);
-    Log.log();
-  }
-
-  Log.log(chalk.bold('User credentials\n'));
-  for (const cred of credentials.userCredentials) {
-    displayIosUserCredentials(cred, credentials);
-    Log.newLine();
-  }
-  Log.newLine();
-}
-
-export function displayIosAppCredentials(appCredentials: IosAppCredentials) {
+function displayIosAppBuildCredentials(buildCredentials: IosAppBuildCredentialsFragment): void {
   Log.log(
-    `  Project: ${chalk.bold(appCredentials.experienceName)}, bundle identifier: ${
-      appCredentials.bundleIdentifier
-    }`
+    chalk.bold(
+      `  Configuration: ${prettyIosDistributionType(buildCredentials.iosDistributionType)}`
+    )
   );
-  if (appCredentials.credentials.provisioningProfile) {
-    Log.log(
-      `    Provisioning profile (ID: ${chalk.green(
-        appCredentials.credentials.provisioningProfileId || '---------'
-      )})`
-    );
-  } else {
-    Log.log('    Provisioning profile is missing. It will be generated during the next build');
-  }
-  if (appCredentials.credentials.devices && appCredentials.credentials.devices.length > 0) {
-    Log.log(`    Provisioned devices:`);
-    for (const device of appCredentials.credentials.devices) {
-      Log.log(`    - ${formatDevice(device)}`);
+  Log.newLine();
+  const maybeDistCert = buildCredentials.distributionCertificate;
+  Log.log(`  Distribution Certificate:`);
+  if (maybeDistCert) {
+    const { serialNumber, updatedAt, validityNotAfter, appleTeam } = maybeDistCert;
+    Log.log(`    Serial Number: ${serialNumber}`);
+    Log.log(`    Expiration Date: ${dateformat(validityNotAfter, 'expiresHeaderFormat')}`);
+    if (appleTeam) {
+      const { appleTeamIdentifier, appleTeamName } = appleTeam;
+      Log.log(
+        `    Apple Team: ${appleTeamIdentifier} ${appleTeamName ? `(${appleTeamName})` : ''}`
+      );
     }
+    Log.log(`    Updated ${fromNow(new Date(updatedAt))} ago`);
+  } else {
+    Log.log(`    None assigned yet`);
   }
-  if (appCredentials.credentials.teamId || appCredentials.credentials.teamName) {
-    Log.log(
-      `    Apple Team ID: ${chalk.green(
-        appCredentials.credentials.teamId || '---------'
-      )},  Apple Team Name: ${chalk.green(appCredentials.credentials.teamName || '---------')}`
-    );
+  Log.newLine();
+
+  const maybeProvProf = buildCredentials.provisioningProfile;
+  Log.log(`  Provisioning Profile:`);
+  if (maybeProvProf) {
+    const {
+      expiration,
+      updatedAt,
+      status,
+      developerPortalIdentifier,
+      appleTeam,
+      appleDevices,
+    } = maybeProvProf;
+    if (developerPortalIdentifier) {
+      Log.log(`    Developer Portal ID: ${developerPortalIdentifier}`);
+    }
+    Log.log(`    Status: ${status}`);
+    Log.log(`    Expiration Date: ${dateformat(expiration, 'expiresHeaderFormat')}`);
+    if (appleTeam) {
+      const { appleTeamIdentifier, appleTeamName } = appleTeam;
+      Log.log(
+        `    Apple Team: ${appleTeamIdentifier} ${appleTeamName ? `(${appleTeamName})` : ''}`
+      );
+    }
+    if (appleDevices && appleDevices.length > 0) {
+      Log.log(`    Provisioned devices:`);
+      for (const appleDevice of appleDevices) {
+        Log.log(`    - ${formatAppleDevice(appleDevice)}`);
+      }
+    }
+    Log.log(`    Updated ${fromNow(new Date(updatedAt))} ago`);
+  } else {
+    Log.log(`    None assigned yet`);
   }
-  if (appCredentials.credentials.pushP12 && appCredentials.credentials.pushPassword) {
-    Log.log(
-      `    (deprecated) Push Certificate (Push ID: ${chalk.green(
-        appCredentials.credentials.pushId || '-----'
-      )})`
-    );
-  }
+  Log.newLine();
 }
 
-function formatDevice(device: AppleDevice): string {
+function formatAppleDevice(device: AppleDeviceFragment): string {
   let deviceString = '';
   if (device.name) {
     deviceString += device.name;
@@ -123,39 +178,4 @@ function formatDevice(device: AppleDevice): string {
     deviceString += ` (UDID: ${device.identifier})`;
   }
   return deviceString;
-}
-
-export function displayIosUserCredentials(
-  userCredentials: IosPushCredentials | IosDistCredentials,
-  credentials?: IosCredentials
-) {
-  if (userCredentials.type === 'push-key') {
-    Log.log(`  Push Notifications Key - Key ID: ${chalk.green(userCredentials.apnsKeyId)}`);
-  } else if (userCredentials.type === 'dist-cert') {
-    Log.log(
-      `  Distribution Certificate - Certificate ID: ${chalk.green(
-        userCredentials.certId || '-----'
-      )}`
-    );
-  } else {
-    Log.warn(`  Unknown key type ${(userCredentials as any).type}`);
-  }
-  Log.log(
-    `    Apple Team ID: ${chalk.green(
-      userCredentials.teamId || '---------'
-    )},  Apple Team Name: ${chalk.green(userCredentials.teamName || '---------')}`
-  );
-
-  if (credentials) {
-    const field = userCredentials.type === 'push-key' ? 'pushCredentialsId' : 'distCredentialsId';
-    const usedByApps = [
-      ...new Set(
-        credentials.appCredentials
-          .filter(c => c[field] === userCredentials.id)
-          .map(c => `${c.experienceName} (${c.bundleIdentifier})`)
-      ),
-    ].join(',\n      ');
-    const usedByAppsText = usedByApps ? `used by\n      ${usedByApps}` : 'not used by any apps';
-    Log.log(`    ${chalk.gray(usedByAppsText)}`);
-  }
 }
