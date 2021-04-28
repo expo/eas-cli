@@ -1,3 +1,5 @@
+import assert from 'assert';
+
 import { getExpoApiBaseUrl, getExpoWebsiteBaseUrl } from '../../api';
 import { AppPlatform, BuildFragment } from '../../graphql/generated';
 
@@ -22,5 +24,7 @@ export function getInternalDistributionInstallUrl(build: BuildFragment): string 
     }/builds/${build.id}/manifest.plist`;
   }
 
-  return build.artifacts!.buildUrl!;
+  assert(build.artifacts?.buildUrl, 'buildUrl is missing');
+
+  return build.artifacts.buildUrl;
 }
