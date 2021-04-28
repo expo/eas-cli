@@ -113,6 +113,16 @@ export async function prepareBuildRequestForPlatformAsync<
       } catch (error) {
         if (error?.graphQLErrors?.[0]?.extensions?.errorCode === 'TURTLE_DEPRECATED_JOB_FORMAT') {
           Log.error('EAS Build API has changed, please upgrade to the latest eas-cli version.');
+          throw new Error('Build request failed.');
+        } else if (
+          error?.graphQLErrors?.[0]?.extensions?.errorCode === 'EAS_BUILD_TOO_MANY_PENDING_BUILDS'
+        ) {
+          Log.error(
+            `You have already reached the maximum number of pending ${
+              requestedPlatformDisplayNames[job.platform]
+            } builds for your account. Try again latter.`
+          );
+          throw new Error('Build request failed.');
         } else if (error?.graphQLErrors) {
           Log.error(
             'Build request failed. Make sure you are using the latest eas-cli version. If the problem persists, please report the issue.'
