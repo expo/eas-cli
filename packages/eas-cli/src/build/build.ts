@@ -120,7 +120,7 @@ export async function prepareBuildRequestForPlatformAsync<
           Log.error(
             `You have already reached the maximum number of pending ${
               requestedPlatformDisplayNames[job.platform]
-            } builds for your account. Try again latter.`
+            } builds for your account. Try again later.`
           );
           throw new Error('Build request failed.');
         } else if (error?.graphQLErrors) {
