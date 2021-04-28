@@ -1,5 +1,7 @@
 import assert from 'assert';
 import chalk from 'chalk';
+import indentString from 'indent-string';
+import qrcodeTerminal from 'qrcode-terminal';
 
 import {
   BuildError,
@@ -15,7 +17,7 @@ import {
   appPlatformEmojis,
   requestedPlatformDisplayNames,
 } from '../constants';
-import { getBuildLogsUrl } from './url';
+import { getBuildLogsUrl, getInternalDistributionInstallUrl } from './url';
 
 export function printLogsUrls(
   accountName: string,
@@ -82,10 +84,12 @@ function printBuildResult(accountName: string, build: BuildFragment): void {
       buildId: build.id,
       account: accountName,
     });
+    const installUrl = getInternalDistributionInstallUrl(build);
+    qrcodeTerminal.generate(installUrl, code => console.log(`${indentString(code, 2)}\n`));
     Log.log(
       `${appPlatformEmojis[build.platform]} Open this link on your ${
         appPlatformDisplayNames[build.platform]
-      } devices to install the app:`
+      } devices (or scan the QR code) to install the app:`
     );
     Log.log(`${chalk.underline(logsUrl)}`);
   } else {

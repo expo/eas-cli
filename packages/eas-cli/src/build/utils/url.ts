@@ -1,4 +1,5 @@
-import { getExpoWebsiteBaseUrl } from '../../api';
+import { getExpoApiBaseUrl, getExpoWebsiteBaseUrl } from '../../api';
+import { AppPlatform, BuildFragment } from '../../graphql/generated';
 
 export function getBuildLogsUrl({
   buildId,
@@ -12,4 +13,14 @@ export function getBuildLogsUrl({
 
 export function getArtifactUrl(artifactId: string): string {
   return `${getExpoWebsiteBaseUrl()}/artifacts/${artifactId}`;
+}
+
+export function getInternalDistributionInstallUrl(build: BuildFragment): string {
+  if (build.platform === AppPlatform.Ios) {
+    return `itms-services://?action=download-manifest;url=${getExpoApiBaseUrl()}/--/api/v2/projects/${
+      build.project.id
+    }/builds/${build.id}/manifest.plist`;
+  }
+
+  return build.artifacts!.buildUrl!;
 }
