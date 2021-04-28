@@ -22,6 +22,7 @@ This is the log of notable changes to EAS CLI and related packages.
 - Port more options to the beta credentials manager. ([#352](https://github.com/expo/eas-cli/pull/352), [357](https://github.com/expo/eas-cli/pull/357), [361](https://github.com/expo/eas-cli/pull/361) by [@quinlanj](https://github.com/quinlanj))
 - Add getBuildProfileNamesAsync helper to EasJsonReader. ([#351](https://github.com/expo/eas-cli/pull/351) by [@quinlanj](https://github.com/quinlanj))
 - Increase build timeout to 1 hour. ([#370](https://github.com/expo/eas-cli/pull/370) by [@wkozyra95](https://github.com/wkozyra95))
+- Remove check for pending builds. ([#373](https://github.com/expo/eas-cli/pull/373) by [@wkozyra95](https://github.com/wkozyra95))
 
 ## [0.13.0](https://github.com/expo/eas-cli/releases/tag/v0.13.0) - 2021-04-22
 

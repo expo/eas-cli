@@ -2,7 +2,6 @@ import { ExpoConfig, getConfig } from '@expo/config';
 import { Command, flags } from '@oclif/command';
 import chalk from 'chalk';
 import fs from 'fs-extra';
-import nullthrows from 'nullthrows';
 import path from 'path';
 
 import {
@@ -13,22 +12,14 @@ import { configureAsync } from '../../build/configure';
 import { createCommandContextAsync } from '../../build/context';
 import { buildAsync } from '../../build/create';
 import { RequestedPlatform } from '../../build/types';
-import { formatGraphQLBuild } from '../../build/utils/formatBuild';
 import { isGitStatusCleanAsync } from '../../build/utils/repository';
-import { AppPlatform } from '../../graphql/generated';
-import { BuildQuery } from '../../graphql/queries/BuildQuery';
 import Log, { learnMore } from '../../log';
 import {
   isEasEnabledForProjectAsync,
   warnEasUnavailable,
 } from '../../project/isEasEnabledForProject';
-import {
-  findProjectRootAsync,
-  getProjectAccountNameAsync,
-  getProjectIdAsync,
-} from '../../project/projectUtils';
+import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUtils';
 import { confirmAsync, promptAsync } from '../../prompts';
-import { Actor } from '../../user/User';
 import { ensureLoggedInAsync } from '../../user/actions';
 
 export default class Build extends Command {
@@ -71,7 +62,7 @@ export default class Build extends Command {
     const { flags } = this.parse(Build);
     await initAnalyticsAsync(); // TODO: run in oclif hook for every command
     try {
-      const user = await ensureLoggedInAsync();
+      await ensureLoggedInAsync();
 
       const nonInteractive = flags['non-interactive'];
       if (!flags.platform && nonInteractive) {
@@ -92,17 +83,6 @@ export default class Build extends Command {
 
       if (flags.local && !verifyOptionsForLocalBuilds(platform)) {
         process.exitCode = 1;
-        return;
-      }
-
-      const accountName = await getProjectAccountNameAsync(exp);
-      const accountHasPendingBuilds = await ensureNoPendingBuildsExistAsync({
-        accountName,
-        platform,
-        projectId,
-        user,
-      });
-      if (accountHasPendingBuilds) {
         return;
       }
 
@@ -128,49 +108,6 @@ export default class Build extends Command {
   }
 }
 
-async function ensureNoPendingBuildsExistAsync({
-  user,
-  platform,
-  accountName,
-  projectId,
-}: {
-  user: Actor;
-  platform: RequestedPlatform;
-  accountName: string;
-  projectId: string;
-}): Promise<boolean> {
-  // allow expo admins to run as many builds as they wish
-  if (user.isExpoAdmin) {
-    return false;
-  }
-
-  const appPlatforms = toAppPlatforms(platform);
-  const maybePendingBuilds = await Promise.all(
-    appPlatforms.map(appPlatform => BuildQuery.getPendingBuildIdAsync(accountName, appPlatform))
-  );
-  const pendingBuilds = maybePendingBuilds.filter(i => i !== null);
-  if (pendingBuilds.length > 0) {
-    Log.newLine();
-    Log.error(
-      'Your other builds are still pending. Wait for them to complete before running this command again.'
-    );
-    Log.newLine();
-    const results = await Promise.all(
-      pendingBuilds.map(pendingBuild => {
-        return BuildQuery.byIdAsync(nullthrows(pendingBuild).id);
-      })
-    );
-
-    for (const result of results) {
-      Log.log(formatGraphQLBuild(result));
-    }
-
-    process.exitCode = 1;
-    return true;
-  }
-  return false;
-}
-
 function verifyOptionsForLocalBuilds(platform: RequestedPlatform): boolean {
   if (platform === RequestedPlatform.All) {
     Log.error('Builds for multiple platforms are not supported with flag --local');
@@ -180,16 +117,6 @@ function verifyOptionsForLocalBuilds(platform: RequestedPlatform): boolean {
     return false;
   } else {
     return true;
-  }
-}
-
-function toAppPlatforms(requestedPlatform: RequestedPlatform): AppPlatform[] {
-  if (requestedPlatform === RequestedPlatform.All) {
-    return [AppPlatform.Android, AppPlatform.Ios];
-  } else if (requestedPlatform === RequestedPlatform.Android) {
-    return [AppPlatform.Android];
-  } else {
-    return [AppPlatform.Ios];
   }
 }
 
