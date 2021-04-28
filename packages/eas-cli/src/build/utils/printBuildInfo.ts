@@ -17,7 +17,7 @@ import {
   appPlatformEmojis,
   requestedPlatformDisplayNames,
 } from '../constants';
-import { getBuildLogsUrl, getInstallUrl } from './url';
+import { getBuildLogsUrl, getInternalDistributionInstallUrl } from './url';
 
 export function printLogsUrls(
   accountName: string,
@@ -84,10 +84,8 @@ function printBuildResult(accountName: string, build: BuildFragment): void {
       buildId: build.id,
       account: accountName,
     });
-    const installUrl = getInstallUrl(build);
-    if (installUrl) {
-      qrcodeTerminal.generate(installUrl, code => console.log(`${indentString(code, 2)}\n`));
-    }
+    const installUrl = getInternalDistributionInstallUrl(build);
+    qrcodeTerminal.generate(installUrl, code => console.log(`${indentString(code, 2)}\n`));
     Log.log(
       `${appPlatformEmojis[build.platform]} Open this link on your ${
         appPlatformDisplayNames[build.platform]

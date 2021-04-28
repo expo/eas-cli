@@ -15,12 +15,12 @@ export function getArtifactUrl(artifactId: string): string {
   return `${getExpoWebsiteBaseUrl()}/artifacts/${artifactId}`;
 }
 
-export function getInstallUrl(build: BuildFragment): string | null | undefined {
+export function getInternalDistributionInstallUrl(build: BuildFragment): string {
   if (build.platform === AppPlatform.Ios) {
     return `itms-services://?action=download-manifest;url=${getExpoApiBaseUrl()}/--/api/v2/projects/${
       build.project.id
     }/builds/${build.id}/manifest.plist`;
   }
 
-  return build.artifacts?.buildUrl;
+  return build.artifacts!.buildUrl!;
 }
