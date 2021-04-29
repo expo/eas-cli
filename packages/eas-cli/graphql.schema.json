@@ -1560,6 +1560,55 @@
             "deprecationReason": null
           },
           {
+            "name": "buildOrBuildJobs",
+            "description": "Coalesced Build (EAS) or BuildJob (Classic) items for this account. Use \"createdBefore\" to offset a query.",
+            "args": [
+              {
+                "name": "limit",
+                "description": "",
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "Int",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null
+              },
+              {
+                "name": "createdBefore",
+                "description": " Use a Date to offset queries ",
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "DateTime",
+                  "ofType": null
+                },
+                "defaultValue": null
+              }
+            ],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "LIST",
+                "name": null,
+                "ofType": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "INTERFACE",
+                    "name": "BuildOrBuildJob",
+                    "ofType": null
+                  }
+                }
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "owner",
             "description": "Owning User of this account if personal account",
             "args": [],
@@ -1963,6 +2012,22 @@
         "fields": [
           {
             "name": "id",
+            "description": "",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "ID",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "stripeId",
             "description": "",
             "args": [],
             "type": {
@@ -2853,6 +2918,55 @@
                   "ofType": {
                     "kind": "OBJECT",
                     "name": "BuildJob",
+                    "ofType": null
+                  }
+                }
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "buildOrBuildJobs",
+            "description": "Coalesced Build (EAS) or BuildJob (Classic) items for this app. Use \"createdBefore\" to offset a query.",
+            "args": [
+              {
+                "name": "limit",
+                "description": "",
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "Int",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null
+              },
+              {
+                "name": "createdBefore",
+                "description": " Use a Date to offset queries ",
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "DateTime",
+                  "ofType": null
+                },
+                "defaultValue": null
+              }
+            ],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "LIST",
+                "name": null,
+                "ofType": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "INTERFACE",
+                    "name": "BuildOrBuildJob",
                     "ofType": null
                   }
                 }
@@ -4061,10 +4175,53 @@
             "kind": "INTERFACE",
             "name": "ActivityTimelineProjectActivity",
             "ofType": null
+          },
+          {
+            "kind": "INTERFACE",
+            "name": "BuildOrBuildJob",
+            "ofType": null
           }
         ],
         "enumValues": null,
         "possibleTypes": null
+      },
+      {
+        "kind": "INTERFACE",
+        "name": "BuildOrBuildJob",
+        "description": "",
+        "fields": [
+          {
+            "name": "id",
+            "description": "",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "ID",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": [
+          {
+            "kind": "OBJECT",
+            "name": "Build",
+            "ofType": null
+          },
+          {
+            "kind": "OBJECT",
+            "name": "BuildJob",
+            "ofType": null
+          }
+        ]
       },
       {
         "kind": "OBJECT",
@@ -4261,22 +4418,6 @@
           },
           {
             "name": "emailVerified",
-            "description": "",
-            "args": [],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "SCALAR",
-                "name": "Boolean",
-                "ofType": null
-              }
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "isEmailUnsubscribed",
             "description": "",
             "args": [],
             "type": {
@@ -4585,6 +4726,22 @@
             },
             "isDeprecated": false,
             "deprecationReason": null
+          },
+          {
+            "name": "isEmailUnsubscribed",
+            "description": "",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "Boolean",
+                "ofType": null
+              }
+            },
+            "isDeprecated": true,
+            "deprecationReason": "No longer supported"
           },
           {
             "name": "lastPasswordReset",
@@ -5598,6 +5755,11 @@
           {
             "kind": "INTERFACE",
             "name": "ActivityTimelineProjectActivity",
+            "ofType": null
+          },
+          {
+            "kind": "INTERFACE",
+            "name": "BuildOrBuildJob",
             "ofType": null
           }
         ],
@@ -7922,9 +8084,13 @@
             "description": "",
             "args": [],
             "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              }
             },
             "isDeprecated": false,
             "deprecationReason": null
@@ -15158,6 +15324,16 @@
             "defaultValue": null
           },
           {
+            "name": "clear",
+            "description": "",
+            "type": {
+              "kind": "SCALAR",
+              "name": "Boolean",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "key",
             "description": "",
             "type": {
@@ -15314,6 +15490,16 @@
           },
           {
             "name": "gitCommitHash",
+            "description": "",
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "username",
             "description": "",
             "type": {
               "kind": "SCALAR",
