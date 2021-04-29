@@ -207,6 +207,8 @@ export type Account = {
   buildJobs: Array<BuildJob>;
   /** (EAS Build) Builds associated with this account */
   builds: Array<Build>;
+  /** Coalesced Build (EAS) or BuildJob (Classic) items for this account. Use "createdBefore" to offset a query. */
+  buildOrBuildJobs: Array<BuildOrBuildJob>;
   /** Owning User of this account if personal account */
   owner?: Maybe<User>;
   /** Actors associated with this account and permissions they hold */
@@ -287,6 +289,16 @@ export type AccountBuildsArgs = {
  * An account is a container owning projects, credentials, billing and other organization
  * data and settings. Actors may own and be members of accounts.
  */
+export type AccountBuildOrBuildJobsArgs = {
+  limit: Scalars['Int'];
+  createdBefore?: Maybe<Scalars['DateTime']>;
+};
+
+
+/**
+ * An account is a container owning projects, credentials, billing and other organization
+ * data and settings. Actors may own and be members of accounts.
+ */
 export type AccountAppleTeamsArgs = {
   appleTeamIdentifier?: Maybe<Scalars['String']>;
 };
@@ -330,6 +342,7 @@ export type AccountEnvironmentSecretsArgs = {
 export type Offer = {
   __typename?: 'Offer';
   id: Scalars['ID'];
+  stripeId: Scalars['ID'];
   price: Scalars['Int'];
   quantity?: Maybe<Scalars['Int']>;
   trialLength?: Maybe<Scalars['Int']>;
@@ -414,6 +427,8 @@ export type App = Project & {
   /** (EAS Build) Builds associated with this app */
   builds: Array<Build>;
   buildJobs: Array<BuildJob>;
+  /** Coalesced Build (EAS) or BuildJob (Classic) items for this app. Use "createdBefore" to offset a query. */
+  buildOrBuildJobs: Array<BuildOrBuildJob>;
   /** EAS Submissions associated with this app */
   submissions: Array<Submission>;
   /** iOS app credentials for the project */
@@ -479,6 +494,13 @@ export type AppBuildJobsArgs = {
   offset: Scalars['Int'];
   limit: Scalars['Int'];
   status?: Maybe<BuildStatus>;
+};
+
+
+/** Represents an Exponent App (or Experience in legacy terms) */
+export type AppBuildOrBuildJobsArgs = {
+  limit: Scalars['Int'];
+  createdBefore?: Maybe<Scalars['DateTime']>;
 };
 
 
@@ -591,7 +613,7 @@ export enum AppPlatform {
 }
 
 /** Represents an EAS Build */
-export type Build = ActivityTimelineProjectActivity & {
+export type Build = ActivityTimelineProjectActivity & BuildOrBuildJob & {
   __typename?: 'Build';
   id: Scalars['ID'];
   actor?: Maybe<Actor>;
@@ -617,6 +639,10 @@ export type Build = ActivityTimelineProjectActivity & {
   error?: Maybe<BuildError>;
 };
 
+export type BuildOrBuildJob = {
+  id: Scalars['ID'];
+};
+
 /** Represents a human (not robot) actor. */
 export type User = Actor & {
   __typename?: 'User';
@@ -635,7 +661,6 @@ export type User = Actor & {
   twitterUsername?: Maybe<Scalars['String']>;
   appetizeCode?: Maybe<Scalars['String']>;
   emailVerified: Scalars['Boolean'];
-  isEmailUnsubscribed: Scalars['Boolean'];
   isExpoAdmin: Scalars['Boolean'];
   isSecondFactorAuthenticationEnabled: Scalars['Boolean'];
   /** Get all certified second factor authentication methods */
@@ -657,6 +682,8 @@ export type User = Actor & {
    * Only resolves for the viewer.
    */
   featureGates: Scalars['JSONObject'];
+  /** @deprecated Field no longer supported */
+  isEmailUnsubscribed: Scalars['Boolean'];
   /** @deprecated Field no longer supported */
   lastPasswordReset?: Maybe<Scalars['DateTime']>;
   /** @deprecated Field no longer supported */
@@ -791,7 +818,7 @@ export type BuildError = {
 };
 
 /** Represents an Standalone App build job */
-export type BuildJob = ActivityTimelineProjectActivity & {
+export type BuildJob = ActivityTimelineProjectActivity & BuildOrBuildJob & {
   __typename?: 'BuildJob';
   id: Scalars['ID'];
   actor?: Maybe<Actor>;
@@ -1083,7 +1110,7 @@ export enum AndroidFcmVersion {
 export type AndroidAppBuildCredentials = {
   __typename?: 'AndroidAppBuildCredentials';
   id: Scalars['ID'];
-  name?: Maybe<Scalars['String']>;
+  name: Scalars['String'];
   androidKeystore?: Maybe<AndroidKeystore>;
   isDefault: Scalars['Boolean'];
   isLegacy: Scalars['Boolean'];
@@ -2332,6 +2359,7 @@ export type AndroidBuilderEnvironmentInput = {
 
 export type BuildCacheInput = {
   disabled?: Maybe<Scalars['Boolean']>;
+  clear?: Maybe<Scalars['Boolean']>;
   key?: Maybe<Scalars['String']>;
   cacheDefaultPaths?: Maybe<Scalars['Boolean']>;
   customPaths?: Maybe<Array<Maybe<Scalars['String']>>>;
@@ -2350,6 +2378,7 @@ export type BuildMetadataInput = {
   appIdentifier?: Maybe<Scalars['String']>;
   buildProfile?: Maybe<Scalars['String']>;
   gitCommitHash?: Maybe<Scalars['String']>;
+  username?: Maybe<Scalars['String']>;
 };
 
 export enum BuildWorkflow {
@@ -3496,6 +3525,29 @@ export type UpdatesByGroupQuery = (
       { __typename?: 'Robot' }
       & Pick<Robot, 'firstName' | 'id'>
     )> }
+  )> }
+);
+
+export type CommonAndroidAppCredentialsWithBuildCredentialsByApplicationIdentifierQueryVariables = Exact<{
+  projectFullName: Scalars['String'];
+  applicationIdentifier?: Maybe<Scalars['String']>;
+  legacyOnly?: Maybe<Scalars['Boolean']>;
+}>;
+
+
+export type CommonAndroidAppCredentialsWithBuildCredentialsByApplicationIdentifierQuery = (
+  { __typename?: 'RootQuery' }
+  & { app?: Maybe<(
+    { __typename?: 'AppQuery' }
+    & { byFullName: (
+      { __typename?: 'App' }
+      & Pick<App, 'id'>
+      & { androidAppCredentials: Array<(
+        { __typename?: 'AndroidAppCredentials' }
+        & Pick<AndroidAppCredentials, 'id'>
+        & CommonAndroidAppCredentialsFragment
+      )> }
+    ) }
   )> }
 );
 
@@ -4684,6 +4736,35 @@ export type SubmissionFragment = (
 export type WebhookFragment = (
   { __typename?: 'Webhook' }
   & Pick<Webhook, 'id' | 'event' | 'url' | 'createdAt' | 'updatedAt'>
+);
+
+export type AndroidAppBuildCredentialsFragment = (
+  { __typename?: 'AndroidAppBuildCredentials' }
+  & Pick<AndroidAppBuildCredentials, 'id' | 'isDefault' | 'isLegacy' | 'name'>
+  & { androidKeystore?: Maybe<(
+    { __typename?: 'AndroidKeystore' }
+    & Pick<AndroidKeystore, 'id'>
+    & AndroidKeystoreFragment
+  )> }
+);
+
+export type CommonAndroidAppCredentialsFragment = (
+  { __typename?: 'AndroidAppCredentials' }
+  & Pick<AndroidAppCredentials, 'id' | 'applicationIdentifier' | 'isLegacy'>
+  & { app: (
+    { __typename?: 'App' }
+    & Pick<App, 'id'>
+    & AppFragment
+  ), androidAppBuildCredentialsList: Array<(
+    { __typename?: 'AndroidAppBuildCredentials' }
+    & Pick<AndroidAppBuildCredentials, 'id'>
+    & AndroidAppBuildCredentialsFragment
+  )> }
+);
+
+export type AndroidKeystoreFragment = (
+  { __typename?: 'AndroidKeystore' }
+  & Pick<AndroidKeystore, 'id' | 'type' | 'keystore' | 'keystorePassword' | 'keyAlias' | 'keyPassword' | 'md5CertificateFingerprint' | 'sha1CertificateFingerprint' | 'sha256CertificateFingerprint' | 'createdAt' | 'updatedAt'>
 );
 
 export type AppleAppIdentifierFragment = (
