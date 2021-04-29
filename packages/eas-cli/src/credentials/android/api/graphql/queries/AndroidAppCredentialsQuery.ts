@@ -1,0 +1,65 @@
+import assert from 'assert';
+import { print } from 'graphql';
+import gql from 'graphql-tag';
+
+import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
+import {
+  CommonAndroidAppCredentialsFragment,
+  CommonAndroidAppCredentialsWithBuildCredentialsByApplicationIdentifierQuery,
+} from '../../../../../graphql/generated';
+import { CommonAndroidAppCredentialsFragmentNode } from '../../../../../graphql/types/credentials/AndroidAppCredentials';
+
+const AndroidAppCredentialsQuery = {
+  async withCommonFieldsByApplicationIdentifierAsync(
+    projectFullName: string,
+    {
+      androidApplicationIdentifier,
+      legacyOnly,
+    }: {
+      androidApplicationIdentifier?: string;
+      legacyOnly?: boolean;
+    }
+  ): Promise<CommonAndroidAppCredentialsFragment | null> {
+    const data = await withErrorHandlingAsync(
+      graphqlClient
+        .query<CommonAndroidAppCredentialsWithBuildCredentialsByApplicationIdentifierQuery>(
+          gql`
+            query CommonAndroidAppCredentialsWithBuildCredentialsByApplicationIdentifierQuery(
+              $projectFullName: String!
+              $applicationIdentifier: String
+              $legacyOnly: Boolean
+            ) {
+              app {
+                byFullName(fullName: $projectFullName) {
+                  id
+                  androidAppCredentials(
+                    filter: {
+                      applicationIdentifier: $applicationIdentifier
+                      legacyOnly: $legacyOnly
+                    }
+                  ) {
+                    id
+                    ...CommonAndroidAppCredentialsFragment
+                  }
+                }
+              }
+            }
+            ${print(CommonAndroidAppCredentialsFragmentNode)}
+          `,
+          {
+            projectFullName,
+            applicationIdentifier: androidApplicationIdentifier,
+            legacyOnly,
+          },
+          {
+            additionalTypenames: ['AndroidAppCredentials', 'AndroidAppBuildCredentials', 'App'],
+          }
+        )
+        .toPromise()
+    );
+    assert(data.app, 'GraphQL: `app` not defined in server response');
+    return data.app.byFullName.androidAppCredentials[0] ?? null;
+  },
+};
+
+export { AndroidAppCredentialsQuery };

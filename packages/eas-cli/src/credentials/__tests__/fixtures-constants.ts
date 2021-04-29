@@ -34,6 +34,7 @@ export const testAppJson = {
   slug: testSlug,
   sdkVersion: '38.0.0',
   ios: { bundleIdentifier: testBundleIdentifier },
+  android: { package: testPackageName },
 };
 
 export const testAppJsonWithDifferentOwner = {
