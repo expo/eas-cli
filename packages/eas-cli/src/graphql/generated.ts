@@ -3936,7 +3936,7 @@ export type AppleDistributionCertificateByAppQuery = (
       & { iosAppCredentials: Array<(
         { __typename?: 'IosAppCredentials' }
         & Pick<IosAppCredentials, 'id'>
-        & { iosAppBuildCredentialsArray: Array<(
+        & { iosAppBuildCredentialsList: Array<(
           { __typename?: 'IosAppBuildCredentials' }
           & Pick<IosAppBuildCredentials, 'id'>
           & { distributionCertificate?: Maybe<(
@@ -3993,7 +3993,7 @@ export type AppleProvisioningProfilesByAppQuery = (
       & { iosAppCredentials: Array<(
         { __typename?: 'IosAppCredentials' }
         & Pick<IosAppCredentials, 'id'>
-        & { iosAppBuildCredentialsArray: Array<(
+        & { iosAppBuildCredentialsList: Array<(
           { __typename?: 'IosAppBuildCredentials' }
           & Pick<IosAppBuildCredentials, 'id'>
           & { provisioningProfile?: Maybe<(
@@ -4075,7 +4075,7 @@ export type IosAppBuildCredentialsByAppleAppIdentiferAndDistributionQuery = (
       & { iosAppCredentials: Array<(
         { __typename?: 'IosAppCredentials' }
         & Pick<IosAppCredentials, 'id'>
-        & { iosAppBuildCredentialsArray: Array<(
+        & { iosAppBuildCredentialsList: Array<(
           { __typename?: 'IosAppBuildCredentials' }
           & Pick<IosAppBuildCredentials, 'id'>
           & IosAppBuildCredentialsFragment
@@ -4124,7 +4124,7 @@ export type IosAppCredentialsWithBuildCredentialsByAppIdentifierIdQuery = (
       & { iosAppCredentials: Array<(
         { __typename?: 'IosAppCredentials' }
         & Pick<IosAppCredentials, 'id'>
-        & { iosAppBuildCredentialsArray: Array<(
+        & { iosAppBuildCredentialsList: Array<(
           { __typename?: 'IosAppBuildCredentials' }
           & Pick<IosAppBuildCredentials, 'id'>
           & IosAppBuildCredentialsFragment
@@ -4870,7 +4870,7 @@ export type CommonIosAppCredentialsFragment = (
     { __typename?: 'AppleAppIdentifier' }
     & Pick<AppleAppIdentifier, 'id'>
     & AppleAppIdentifierFragment
-  ), iosAppBuildCredentialsArray: Array<(
+  ), iosAppBuildCredentialsList: Array<(
     { __typename?: 'IosAppBuildCredentials' }
     & Pick<IosAppBuildCredentials, 'id'>
     & IosAppBuildCredentialsFragment

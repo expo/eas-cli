@@ -281,7 +281,7 @@ export class ManageIos implements Action {
         return;
       }
       case ActionType.RemoveProvisioningProfile: {
-        const provisioningProfile = iosAppCredentials?.iosAppBuildCredentialsArray.find(
+        const provisioningProfile = iosAppCredentials?.iosAppBuildCredentialsList.find(
           buildCredentials => buildCredentials.iosDistributionType === iosDistributionTypeGraphql
         )?.provisioningProfile;
         if (!provisioningProfile) {

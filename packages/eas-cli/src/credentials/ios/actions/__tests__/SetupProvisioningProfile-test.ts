@@ -33,7 +33,7 @@ describe('SetupProvisioningProfile', () => {
         listProvisioningProfilesAsync: jest.fn(() => [
           {
             provisioningProfileId: nullthrows(
-              testIosAppCredentialsWithBuildCredentialsQueryResult.iosAppBuildCredentialsArray[0]
+              testIosAppCredentialsWithBuildCredentialsQueryResult.iosAppBuildCredentialsList[0]
                 .provisioningProfile
             ).developerPortalIdentifier,
           },

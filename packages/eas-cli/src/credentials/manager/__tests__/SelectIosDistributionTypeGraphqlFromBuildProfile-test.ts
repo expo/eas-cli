@@ -111,7 +111,7 @@ describe('SelectIosDistributionTypeGraphqlFromBuildProfile', () => {
 
     // create deep clone the quick and dirty way
     const testAppCredentials = JSON.parse(JSON.stringify(testCommonIosAppCredentialsFragment));
-    testAppCredentials.iosAppBuildCredentialsArray[0].iosDistributionType =
+    testAppCredentials.iosAppBuildCredentialsList[0].iosDistributionType =
       IosDistributionTypeGraphql.AdHoc;
     const iosDistributionTypeGraphql = await selectIosDistributionTypeGraphqlFromBuildProfileAction.runAsync(
       ctx,

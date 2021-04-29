@@ -32,7 +32,7 @@ const IosAppBuildCredentialsQuery = {
                   id
                   iosAppCredentials(filter: { appleAppIdentifierId: $appleAppIdentifierId }) {
                     id
-                    iosAppBuildCredentialsArray(
+                    iosAppBuildCredentialsList(
                       filter: { iosDistributionType: $iosDistributionType }
                     ) {
                       id
@@ -56,7 +56,7 @@ const IosAppBuildCredentialsQuery = {
         .toPromise()
     );
     assert(data.app, 'GraphQL: `app` not defined in server response');
-    return data.app.byFullName.iosAppCredentials[0]?.iosAppBuildCredentialsArray[0] ?? null;
+    return data.app.byFullName.iosAppCredentials[0]?.iosAppBuildCredentialsList[0] ?? null;
   },
 };
 

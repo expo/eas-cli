@@ -129,7 +129,7 @@ export async function updateIosCredentialsAsync(
     appLookupParams
   );
   const buildCredentials =
-    iosAppCredentials?.iosAppBuildCredentialsArray.find(
+    iosAppCredentials?.iosAppBuildCredentialsList.find(
       buildCredentials => buildCredentials.iosDistributionType === iosDistributionTypeGraphql
     ) ?? null;
   if (!buildCredentials) {
