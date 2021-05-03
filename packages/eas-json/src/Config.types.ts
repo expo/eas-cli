@@ -13,48 +13,43 @@ export type IosEnterpriseProvisioning = 'adhoc' | 'universal';
 
 export type VersionAutoIncrement = boolean | 'version' | 'buildNumber';
 
-export interface AndroidManagedBuildProfile extends Android.BuilderEnvironment {
-  workflow: Workflow.MANAGED;
+interface CommonBuildProfile {
   credentialsSource: CredentialsSource;
-  buildType?: Android.ManagedBuildType;
   releaseChannel?: string;
-  distribution?: AndroidDistributionType;
   cache: Cache;
+  updatesRequestHeaders?: { [key: string]: string };
 }
 
-export interface AndroidGenericBuildProfile extends Android.BuilderEnvironment {
+export interface AndroidManagedBuildProfile extends Android.BuilderEnvironment, CommonBuildProfile {
+  workflow: Workflow.MANAGED;
+  buildType?: Android.ManagedBuildType;
+  distribution?: AndroidDistributionType;
+}
+
+export interface AndroidGenericBuildProfile extends Android.BuilderEnvironment, CommonBuildProfile {
   workflow: Workflow.GENERIC;
-  credentialsSource: CredentialsSource;
   gradleCommand?: string;
-  releaseChannel?: string;
   artifactPath?: string;
   withoutCredentials?: boolean;
   distribution?: AndroidDistributionType;
-  cache: Cache;
 }
 
-export interface IosManagedBuildProfile extends Ios.BuilderEnvironment {
+export interface IosManagedBuildProfile extends Ios.BuilderEnvironment, CommonBuildProfile {
   workflow: Workflow.MANAGED;
-  credentialsSource: CredentialsSource;
   buildType?: Ios.ManagedBuildType;
-  releaseChannel?: string;
   distribution?: IosDistributionType;
   enterpriseProvisioning?: IosEnterpriseProvisioning;
   autoIncrement: VersionAutoIncrement;
-  cache: Cache;
 }
 
-export interface IosGenericBuildProfile extends Ios.BuilderEnvironment {
+export interface IosGenericBuildProfile extends Ios.BuilderEnvironment, CommonBuildProfile {
   workflow: Workflow.GENERIC;
-  credentialsSource: CredentialsSource;
   scheme?: string;
   schemeBuildConfiguration?: Ios.SchemeBuildConfiguration | 'Auto';
-  releaseChannel?: string;
   artifactPath?: string;
   distribution?: IosDistributionType;
   enterpriseProvisioning?: IosEnterpriseProvisioning;
   autoIncrement: VersionAutoIncrement;
-  cache: Cache;
   disableIosBundleIdentifierValidation?: boolean;
 }
 
