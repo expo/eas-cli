@@ -155,7 +155,7 @@ export async function buildBundlesAsync({
   Log.withTick(`Building bundle with expo-cli...`);
   const spawnPromise = spawnAsync(
     'yarn',
-    ['expo', 'export', '--output-dir', inputDir, '--experimental-bundle', '--force'],
+    ['expo', 'export', '--output-dir', inputDir, '--experimental-bundle'],
     { stdio: ['inherit', 'pipe', 'pipe'] } // inherit stdin so user can install a missing expo-cli from inside this command
   );
   const {
