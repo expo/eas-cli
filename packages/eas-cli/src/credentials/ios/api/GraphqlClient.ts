@@ -74,7 +74,7 @@ export async function createOrUpdateIosAppBuildCredentialsAsync(
       iosDistributionType,
     }
   );
-  const iosAppBuildCredentials = iosAppCredentials.iosAppBuildCredentialsArray?.[0];
+  const iosAppBuildCredentials = iosAppCredentials.iosAppBuildCredentialsList?.[0];
   if (!iosAppBuildCredentials) {
     return await IosAppBuildCredentialsMutation.createIosAppBuildCredentialsAsync(
       {

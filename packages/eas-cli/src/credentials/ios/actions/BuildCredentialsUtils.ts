@@ -21,7 +21,7 @@ export async function getAllBuildCredentialsAsync(
   if (!appCredentials) {
     return [];
   }
-  return appCredentials.iosAppBuildCredentialsArray;
+  return appCredentials.iosAppBuildCredentialsList;
 }
 
 export async function getBuildCredentialsAsync(
@@ -32,10 +32,10 @@ export async function getBuildCredentialsAsync(
   const appCredentials = await ctx.ios.getIosAppCredentialsWithBuildCredentialsAsync(app, {
     iosDistributionType,
   });
-  if (!appCredentials || appCredentials.iosAppBuildCredentialsArray.length === 0) {
+  if (!appCredentials || appCredentials.iosAppBuildCredentialsList.length === 0) {
     return null;
   }
-  const [buildCredentials] = appCredentials.iosAppBuildCredentialsArray;
+  const [buildCredentials] = appCredentials.iosAppBuildCredentialsList;
   return buildCredentials;
 }
 

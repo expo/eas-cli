@@ -19,7 +19,7 @@ import {
 } from '../../../../../graphql/types/credentials/IosAppCredentials';
 
 export type IosAppCredentialsWithBuildCredentialsQueryResult = IosAppCredentialsFragment & {
-  iosAppBuildCredentialsArray: IosAppBuildCredentialsFragment[];
+  iosAppBuildCredentialsList: IosAppBuildCredentialsFragment[];
 };
 const IosAppCredentialsQuery = {
   async byAppIdentifierIdAsync(
@@ -84,7 +84,7 @@ const IosAppCredentialsQuery = {
                   iosAppCredentials(filter: { appleAppIdentifierId: $appleAppIdentifierId }) {
                     id
                     ...IosAppCredentialsFragment
-                    iosAppBuildCredentialsArray(
+                    iosAppBuildCredentialsList(
                       filter: { iosDistributionType: $iosDistributionType }
                     ) {
                       id

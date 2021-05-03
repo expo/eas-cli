@@ -39,7 +39,7 @@ export function displayEmptyIosCredentials(appLookupParams: AppLookupParams): vo
  * sort a build credentials array in descending order of preference
  */
 function sortBuildCredentialsByDistributionType(
-  iosAppBuildCredentialsArray: IosAppBuildCredentialsFragment[]
+  iosAppBuildCredentialsList: IosAppBuildCredentialsFragment[]
 ): IosAppBuildCredentialsFragment[] {
   // The order in which we choose the distribution type from least to most preferred
   const typePriority = [
@@ -48,7 +48,7 @@ function sortBuildCredentialsByDistributionType(
     IosDistributionType.Enterprise,
     IosDistributionType.AppStore,
   ];
-  return iosAppBuildCredentialsArray
+  return iosAppBuildCredentialsList
     .sort(
       (buildCredentialsA, buildCredentialsB) =>
         typePriority.indexOf(buildCredentialsA.iosDistributionType) -
@@ -68,15 +68,15 @@ export function displayIosAppCredentials(credentials: CommonIosAppCredentialsFra
   }
   Log.newLine();
 
-  if (credentials.iosAppBuildCredentialsArray.length === 0) {
+  if (credentials.iosAppBuildCredentialsList.length === 0) {
     Log.log(`  Configuration: None setup yet`);
     Log.newLine();
     return;
   }
-  const sortedIosAppBuildCredentialsArray = sortBuildCredentialsByDistributionType(
-    credentials.iosAppBuildCredentialsArray
+  const sortedIosAppBuildCredentialsList = sortBuildCredentialsByDistributionType(
+    credentials.iosAppBuildCredentialsList
   );
-  for (const iosAppBuildCredentials of sortedIosAppBuildCredentialsArray) {
+  for (const iosAppBuildCredentials of sortedIosAppBuildCredentialsList) {
     displayIosAppBuildCredentials(iosAppBuildCredentials);
   }
 }

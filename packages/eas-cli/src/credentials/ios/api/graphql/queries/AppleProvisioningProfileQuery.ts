@@ -41,7 +41,7 @@ const AppleProvisioningProfileQuery = {
                   id
                   iosAppCredentials(filter: { appleAppIdentifierId: $appleAppIdentifierId }) {
                     id
-                    iosAppBuildCredentialsArray(
+                    iosAppBuildCredentialsList(
                       filter: { iosDistributionType: $iosDistributionType }
                     ) {
                       id
@@ -84,7 +84,7 @@ const AppleProvisioningProfileQuery = {
     );
     assert(data.app, 'GraphQL: `app` not defined in server response');
     return (
-      data.app.byFullName.iosAppCredentials[0]?.iosAppBuildCredentialsArray[0]
+      data.app.byFullName.iosAppCredentials[0]?.iosAppBuildCredentialsList[0]
         ?.provisioningProfile ?? null
     );
   },

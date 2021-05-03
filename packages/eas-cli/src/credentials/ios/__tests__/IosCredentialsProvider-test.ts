@@ -87,7 +87,7 @@ describe(IosCredentialsProvider, () => {
             ),
             getDistributionCertificateForAppAsync: jest.fn(
               () =>
-                testIosAppCredentialsWithBuildCredentialsQueryResult.iosAppBuildCredentialsArray[0]
+                testIosAppCredentialsWithBuildCredentialsQueryResult.iosAppBuildCredentialsList[0]
                   .distributionCertificate
             ),
           },
@@ -106,7 +106,7 @@ describe(IosCredentialsProvider, () => {
         });
 
         const buildCredentials =
-          testIosAppCredentialsWithBuildCredentialsQueryResult.iosAppBuildCredentialsArray[0];
+          testIosAppCredentialsWithBuildCredentialsQueryResult.iosAppBuildCredentialsList[0];
         await expect(provider.getCredentialsAsync(CredentialsSource.REMOTE)).resolves.toMatchObject(
           {
             distributionCertificate: {

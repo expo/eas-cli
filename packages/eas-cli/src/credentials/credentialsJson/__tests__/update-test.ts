@@ -222,11 +222,11 @@ describe('update credentials.json', () => {
       const pprofile = await fs.readFile('./pprofile', 'base64');
       const credJson = await fs.readJson('./credentials.json');
       expect(certP12).toEqual(
-        testCommonIosAppCredentialsFragment.iosAppBuildCredentialsArray[0].distributionCertificate
+        testCommonIosAppCredentialsFragment.iosAppBuildCredentialsList[0].distributionCertificate
           ?.certificateP12
       );
       expect(pprofile).toEqual(
-        testCommonIosAppCredentialsFragment.iosAppBuildCredentialsArray[0].provisioningProfile
+        testCommonIosAppCredentialsFragment.iosAppBuildCredentialsList[0].provisioningProfile
           ?.provisioningProfile
       );
       expect(credJson).toEqual({
@@ -307,7 +307,7 @@ describe('update credentials.json', () => {
       const testIosAppCredentialsNoDistCert = JSON.parse(
         JSON.stringify(testCommonIosAppCredentialsFragment)
       );
-      testIosAppCredentialsNoDistCert.iosAppBuildCredentialsArray[0].distributionCertificate = null;
+      testIosAppCredentialsNoDistCert.iosAppBuildCredentialsList[0].distributionCertificate = null;
       const ctx = createCtxMock({
         ios: {
           ...getNewIosApiMockWithoutCredentials(),

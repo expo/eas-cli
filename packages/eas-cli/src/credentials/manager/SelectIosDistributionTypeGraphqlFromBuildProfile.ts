@@ -51,9 +51,9 @@ export class SelectIosDistributionTypeGraphqlFromBuildProfile {
     }
 
     // extrapolate type from existing app credentials
-    const iosAppBuildCredentialsArray = iosAppCredentials?.iosAppBuildCredentialsArray ?? [];
+    const iosAppBuildCredentialsList = iosAppCredentials?.iosAppBuildCredentialsList ?? [];
     const existingInternalIosDistributionTypes = uniq(
-      iosAppBuildCredentialsArray
+      iosAppBuildCredentialsList
         .map(buildCredentials => buildCredentials.iosDistributionType)
         .filter(
           distributionTypeGraphql =>

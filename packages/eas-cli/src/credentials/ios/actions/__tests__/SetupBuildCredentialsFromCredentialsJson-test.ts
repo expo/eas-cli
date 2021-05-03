@@ -48,9 +48,9 @@ describe('SetupBuildCredentialsFromCredentialsJson', () => {
     const testBuildCreds = JSON.parse(
       JSON.stringify(testIosAppCredentialsWithBuildCredentialsQueryResult)
     );
-    testBuildCreds.iosAppBuildCredentialsArray[0].distributionCertificate.certificateP12 =
+    testBuildCreds.iosAppBuildCredentialsList[0].distributionCertificate.certificateP12 =
       testDistCert.certP12;
-    testBuildCreds.iosAppBuildCredentialsArray[0].provisioningProfile.provisioningProfile =
+    testBuildCreds.iosAppBuildCredentialsList[0].provisioningProfile.provisioningProfile =
       testProvisioningProfile.provisioningProfile;
     const ctx = createCtxMock({
       ios: {
@@ -108,9 +108,9 @@ describe('SetupBuildCredentialsFromCredentialsJson', () => {
     const testBuildCreds = JSON.parse(
       JSON.stringify(testIosAppCredentialsWithBuildCredentialsQueryResult)
     );
-    testBuildCreds.iosAppBuildCredentialsArray[0].distributionCertificate.certificateP12 =
+    testBuildCreds.iosAppBuildCredentialsList[0].distributionCertificate.certificateP12 =
       'something different so SetupBuildCredentialsFromCredentialsJson doesnt think we want to exact the same cert and skip upload to expo servers';
-    testBuildCreds.iosAppBuildCredentialsArray[0].provisioningProfile.provisioningProfile =
+    testBuildCreds.iosAppBuildCredentialsList[0].provisioningProfile.provisioningProfile =
       'something different so SetupBuildCredentialsFromCredentialsJson doesnt think we want to exact the same cert and skip upload to expo servers';
     const ctx = createCtxMock({
       ios: {
@@ -141,9 +141,9 @@ describe('SetupBuildCredentialsFromCredentialsJson', () => {
     const testBuildCreds = JSON.parse(
       JSON.stringify(testIosAppCredentialsWithBuildCredentialsQueryResult)
     );
-    testBuildCreds.iosAppBuildCredentialsArray[0].distributionCertificate.certificateP12 =
+    testBuildCreds.iosAppBuildCredentialsList[0].distributionCertificate.certificateP12 =
       'something different so SetupBuildCredentialsFromCredentialsJson doesnt think we want to exact the same cert and skip upload to expo servers';
-    testBuildCreds.iosAppBuildCredentialsArray[0].provisioningProfile.provisioningProfile =
+    testBuildCreds.iosAppBuildCredentialsList[0].provisioningProfile.provisioningProfile =
       'something different so SetupBuildCredentialsFromCredentialsJson doesnt think we want to exact the same cert and skip upload to expo servers';
     const ctx = createCtxMock({
       nonInteractive: true,

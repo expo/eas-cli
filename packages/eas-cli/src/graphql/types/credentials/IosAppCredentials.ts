@@ -26,7 +26,7 @@ export const CommonIosAppCredentialsFragmentNode = gql`
       id
       ...AppleAppIdentifierFragment
     }
-    iosAppBuildCredentialsArray {
+    iosAppBuildCredentialsList {
       id
       ...IosAppBuildCredentialsFragment
     }

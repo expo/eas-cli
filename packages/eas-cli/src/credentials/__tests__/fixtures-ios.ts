@@ -102,12 +102,12 @@ export const testCommonIosAppCredentialsFragment: CommonIosAppCredentialsFragmen
   app: testAppFragment,
   appleTeam: testAppleTeamFragment,
   appleAppIdentifier: testAppleAppIdentifierFragment,
-  iosAppBuildCredentialsArray: [testIosAppBuildCredentialsFragment],
+  iosAppBuildCredentialsList: [testIosAppBuildCredentialsFragment],
 };
 
 export const testIosAppCredentialsWithBuildCredentialsQueryResult: IosAppCredentialsWithBuildCredentialsQueryResult = {
   id: 'test-app-credential-id',
-  iosAppBuildCredentialsArray: [testIosAppBuildCredentialsFragment],
+  iosAppBuildCredentialsList: [testIosAppBuildCredentialsFragment],
 };
 
 export const testAppleTeam = {

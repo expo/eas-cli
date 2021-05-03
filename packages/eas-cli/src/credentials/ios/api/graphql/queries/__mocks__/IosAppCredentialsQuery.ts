@@ -18,7 +18,7 @@ const IosAppCredentialsQuery = {
         bundleIdentifier: 'com.quinlanj.test52',
         __typename: 'AppleAppIdentifier',
       },
-      iosAppBuildCredentialsArray: [
+      iosAppBuildCredentialsList: [
         {
           id: '6f8d0175-0caf-4922-b09b-eae757b83144',
           iosDistributionType: 'APP_STORE',
