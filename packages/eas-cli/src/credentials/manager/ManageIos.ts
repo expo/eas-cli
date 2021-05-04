@@ -98,12 +98,12 @@ export class ManageIos implements Action {
         const credentialsJsonActions: { value: ActionType; title: string; scope: Scope }[] = [
           {
             value: ActionType.UpdateCredentialsJson,
-            title: 'Download contents from EAS servers to credentials.json',
+            title: 'Download credentials from EAS to credentials.json',
             scope: Scope.Project,
           },
           {
             value: ActionType.SetupBuildCredentialsFromCredentialsJson,
-            title: 'Upload contents from credentials.json to EAS servers',
+            title: 'Upload credentials from credentials.json to EAS',
             scope: Scope.Project,
           },
           {
@@ -117,7 +117,7 @@ export class ManageIos implements Action {
             // This command will be triggered during build to ensure all credentials are ready
             // I'm leaving it here for now to simplify testing
             value: ActionType.SetupBuildCredentials,
-            title: 'All: Setup all the required credentials to build your project',
+            title: 'All: Set up all the required credentials to build your project',
             scope: Scope.Project,
           },
           {
@@ -127,9 +127,7 @@ export class ManageIos implements Action {
           },
           {
             value: ActionType.CreateDistributionCertificate,
-            title: `Distribution Certificate: Add a new one${
-              ctx.hasProjectContext ? ' to your project' : ''
-            }`,
+            title: `Distribution Certificate: Add a new one to your account`,
             scope: ctx.hasProjectContext ? Scope.Project : Scope.Account,
           },
           {
