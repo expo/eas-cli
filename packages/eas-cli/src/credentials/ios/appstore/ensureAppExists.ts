@@ -7,6 +7,7 @@ import { assertContractMessagesAsync } from './contractMessages';
 
 export interface EnsureAppExistsOptions {
   enablePushNotifications?: boolean;
+  enableAssociatedDomains?: boolean;
 }
 
 export interface AppLookupParams {
@@ -83,15 +84,27 @@ export async function syncCapabilities(
   const spinner = ora(`Syncing capabilities`).start();
 
   try {
-    const capability = await bundleId.hasCapabilityAsync(CapabilityType.PUSH_NOTIFICATIONS);
-    if (!capability && options.enablePushNotifications) {
+    const notifications = await bundleId.hasCapabilityAsync(CapabilityType.PUSH_NOTIFICATIONS);
+    if (!notifications && options.enablePushNotifications) {
       await bundleId.updateBundleIdCapabilityAsync({
         capabilityType: CapabilityType.PUSH_NOTIFICATIONS,
         option: CapabilityTypeOption.ON,
       });
-    } else if (capability && !options.enablePushNotifications) {
+    } else if (notifications && !options.enablePushNotifications) {
       await bundleId.updateBundleIdCapabilityAsync({
         capabilityType: CapabilityType.PUSH_NOTIFICATIONS,
+        option: CapabilityTypeOption.OFF,
+      });
+    }
+    const associatedDomains = await bundleId.hasCapabilityAsync(CapabilityType.ASSOCIATED_DOMAINS);
+    if (!associatedDomains && options.enableAssociatedDomains) {
+      await bundleId.updateBundleIdCapabilityAsync({
+        capabilityType: CapabilityType.ASSOCIATED_DOMAINS,
+        option: CapabilityTypeOption.ON,
+      });
+    } else if (associatedDomains && !options.enableAssociatedDomains) {
+      await bundleId.updateBundleIdCapabilityAsync({
+        capabilityType: CapabilityType.ASSOCIATED_DOMAINS,
         option: CapabilityTypeOption.OFF,
       });
     }

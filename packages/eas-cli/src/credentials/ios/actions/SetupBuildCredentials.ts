@@ -40,13 +40,23 @@ export class SetupBuildCredentials implements Action<IosAppBuildCredentials> {
     await ctx.bestEffortAppStoreAuthenticateAsync();
 
     if (ctx.appStore.authCtx) {
+      // Determine if the app.json has `ios.associatedDomains` or equivalent entitlements field defined.
+      // If we don't enable this capability xcode will fail to build:
+      // error: Provisioning profile "*[expo] com.bacon.myapp AppStore 2021-05-04T22:29:48.816Z" doesn't support the Associated Domains capability.
+      const isAssociatedDomainsDefined =
+        !!ctx.exp.ios?.associatedDomains?.length ||
+        !!ctx.exp.ios?.entitlements?.['com.apple.developer.associated-domains']?.length;
+
       await ctx.appStore.ensureBundleIdExistsAsync(
         {
           accountName: app.account.name,
           bundleIdentifier: app.bundleIdentifier,
           projectName: app.projectName,
         },
-        { enablePushNotifications: true }
+        {
+          enablePushNotifications: true,
+          enableAssociatedDomains: isAssociatedDomainsDefined,
+        }
       );
     }
     try {
