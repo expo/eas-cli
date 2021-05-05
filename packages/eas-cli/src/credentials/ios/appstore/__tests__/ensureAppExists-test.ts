@@ -8,7 +8,10 @@ describe(syncCapabilities, () => {
       }),
       updateBundleIdCapabilityAsync: jest.fn(),
     } as any;
-    await syncCapabilities(bundleId, { enablePushNotifications: true });
+    await syncCapabilities(bundleId, {
+      enablePushNotifications: true,
+      enableAssociatedDomains: true,
+    });
     expect(bundleId.updateBundleIdCapabilityAsync).not.toHaveBeenCalled();
   });
   test('bundleId.updateBundleIdCapabilityAsync should be called if there are some changes to be made', async () => {
