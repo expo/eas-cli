@@ -2,8 +2,8 @@ import { App, BundleId } from '@expo/apple-utils';
 import { JSONObject } from '@expo/json-file';
 import chalk from 'chalk';
 import ora from 'ora';
-import Log from '../../../log';
 
+import Log from '../../../log';
 import { AuthCtx, getRequestContext } from './authenticate';
 import { syncCapabilitiesForEntitlementsAsync } from './bundleIdCapabilities';
 import { assertContractMessagesAsync } from './contractMessages';
