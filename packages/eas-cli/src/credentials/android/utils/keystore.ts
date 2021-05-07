@@ -5,9 +5,10 @@ import path from 'path';
 import tempy from 'tempy';
 import { v4 as uuidv4 } from 'uuid';
 
+import { AndroidKeystoreType } from '../../../graphql/generated';
 import Log from '../../../log';
 import { getTmpDirectory } from '../../../utils/paths';
-import { Keystore } from '../credentials';
+import { Keystore, KeystoreWithType } from '../credentials';
 
 export async function keytoolCommandExistsAsync(): Promise<boolean> {
   try {
@@ -82,7 +83,7 @@ async function createKeystoreAsync(credentials: {
   keystorePassword: string;
   keyAlias: string;
   keyPassword: string;
-}): Promise<Keystore> {
+}): Promise<KeystoreWithType> {
   await ensureKeytoolCommandExistsAsync();
   await fs.mkdirp(getTmpDirectory());
   const keystorePath = path.join(getTmpDirectory(), `${uuidv4()}-keystore.jks`);
@@ -112,13 +113,14 @@ async function createKeystoreAsync(credentials: {
     return {
       ...credentials,
       keystore: await fs.readFile(keystorePath, 'base64'),
+      type: AndroidKeystoreType.Jks,
     };
   } finally {
     await fs.remove(keystorePath);
   }
 }
 
-export async function generateRandomKeystoreAsync(): Promise<Keystore> {
+export async function generateRandomKeystoreAsync(): Promise<KeystoreWithType> {
   const keystoreData = {
     keystorePassword: crypto.randomBytes(16).toString('hex'),
     keyPassword: crypto.randomBytes(16).toString('hex'),

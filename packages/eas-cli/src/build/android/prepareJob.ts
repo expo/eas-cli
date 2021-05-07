@@ -56,7 +56,7 @@ async function prepareJobCommonAsync(
             dataBase64: credentials.keystore.keystore,
             keystorePassword: credentials.keystore.keystorePassword,
             keyAlias: credentials.keystore.keyAlias,
-            keyPassword: credentials.keystore.keyPassword,
+            keyPassword: credentials.keystore.keyPassword ?? '',
           },
         },
       }
