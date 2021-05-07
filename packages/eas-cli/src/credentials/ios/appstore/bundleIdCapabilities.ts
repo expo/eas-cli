@@ -6,6 +6,7 @@ import {
   CapabilityTypeOption,
 } from '@expo/apple-utils';
 import { JSONObject, JSONValue } from '@expo/json-file';
+
 import Log from '../../../log';
 
 type GetOptionsMethod<T extends CapabilityType = any> = (
