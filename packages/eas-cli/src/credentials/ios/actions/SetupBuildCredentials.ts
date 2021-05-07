@@ -1,3 +1,4 @@
+import { Workflow } from '@expo/eas-build-job';
 import { IosDistributionType, IosEnterpriseProvisioning } from '@expo/eas-json';
 import chalk from 'chalk';
 import nullthrows from 'nullthrows';
@@ -49,7 +50,7 @@ export class SetupBuildCredentials implements Action<IosAppBuildCredentials> {
         },
         {
           // TODO: Get correct workflow
-          entitlements: await resolveEntitlementsJsonAsync(ctx.projectDir, 'generic'),
+          entitlements: await resolveEntitlementsJsonAsync(ctx.projectDir, Workflow.GENERIC),
         }
       );
     }

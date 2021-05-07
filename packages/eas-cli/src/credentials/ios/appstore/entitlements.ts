@@ -1,5 +1,6 @@
 import { getConfig } from '@expo/config';
 import { IOSConfig } from '@expo/config-plugins';
+import { Workflow } from '@expo/eas-build-job';
 import plist from '@expo/plist';
 import fs from 'fs';
 
@@ -13,10 +14,10 @@ function getEntitlementsJson(projectDir: string) {
   return null;
 }
 
-export function resolveEntitlementsJsonAsync(projectDir: string, workflow: 'generic' | 'managed') {
-  if (workflow === 'generic') {
+export function resolveEntitlementsJsonAsync(projectDir: string, workflow: Workflow) {
+  if (workflow === Workflow.GENERIC) {
     return getEntitlementsJson(projectDir);
-  } else if (workflow === 'managed') {
+  } else if (workflow === Workflow.MANAGED) {
     // TODO: Support prebuild mods
     const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
     return (
