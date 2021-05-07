@@ -1,13 +1,15 @@
-import { App, BundleId, CapabilityType, CapabilityTypeOption } from '@expo/apple-utils';
+import { App, BundleId } from '@expo/apple-utils';
+import { JSONObject } from '@expo/json-file';
 import chalk from 'chalk';
 import ora from 'ora';
+import Log from '../../../log';
 
 import { AuthCtx, getRequestContext } from './authenticate';
+import { syncCapabilitiesForEntitlementsAsync } from './bundleIdCapabilities';
 import { assertContractMessagesAsync } from './contractMessages';
 
 export interface EnsureAppExistsOptions {
-  enablePushNotifications?: boolean;
-  enableAssociatedDomains?: boolean;
+  entitlements: JSONObject;
 }
 
 export interface AppLookupParams {
@@ -79,36 +81,28 @@ export async function ensureBundleIdExistsWithNameAsync(
 
 export async function syncCapabilities(
   bundleId: BundleId,
-  options: EnsureAppExistsOptions
+  { entitlements }: EnsureAppExistsOptions
 ): Promise<void> {
   const spinner = ora(`Syncing capabilities`).start();
 
+  // Stop spinning in debug mode so we can print other information
+  if (Log.isDebug) {
+    spinner.stop();
+  }
+
   try {
-    const notifications = await bundleId.hasCapabilityAsync(CapabilityType.PUSH_NOTIFICATIONS);
-    if (!notifications && options.enablePushNotifications) {
-      await bundleId.updateBundleIdCapabilityAsync({
-        capabilityType: CapabilityType.PUSH_NOTIFICATIONS,
-        option: CapabilityTypeOption.ON,
-      });
-    } else if (notifications && !options.enablePushNotifications) {
-      await bundleId.updateBundleIdCapabilityAsync({
-        capabilityType: CapabilityType.PUSH_NOTIFICATIONS,
-        option: CapabilityTypeOption.OFF,
-      });
-    }
-    const associatedDomains = await bundleId.hasCapabilityAsync(CapabilityType.ASSOCIATED_DOMAINS);
-    if (!associatedDomains && options.enableAssociatedDomains) {
-      await bundleId.updateBundleIdCapabilityAsync({
-        capabilityType: CapabilityType.ASSOCIATED_DOMAINS,
-        option: CapabilityTypeOption.ON,
-      });
-    } else if (associatedDomains && !options.enableAssociatedDomains) {
-      await bundleId.updateBundleIdCapabilityAsync({
-        capabilityType: CapabilityType.ASSOCIATED_DOMAINS,
-        option: CapabilityTypeOption.OFF,
-      });
-    }
-    spinner.succeed(`Synced capabilities`);
+    const { enabled, disabled } = await syncCapabilitiesForEntitlementsAsync(
+      bundleId,
+      entitlements
+    );
+    const buildMessage = (title: string, items: string[]) =>
+      items.length ? `${title}: ${items.join(', ')}` : '';
+    const results =
+      [buildMessage('Enabled', enabled), buildMessage('Disabled', disabled)]
+        .filter(Boolean)
+        .join(' ') || 'No updates';
+
+    spinner.succeed(`Synced capabilities: ` + chalk.dim(results));
   } catch (err) {
     spinner.fail(`Failed to sync capabilities ${chalk.dim(bundleId.attributes.identifier)}`);
     throw err;

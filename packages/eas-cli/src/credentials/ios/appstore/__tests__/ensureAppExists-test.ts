@@ -9,8 +9,9 @@ describe(syncCapabilities, () => {
       updateBundleIdCapabilityAsync: jest.fn(),
     } as any;
     await syncCapabilities(bundleId, {
-      enablePushNotifications: true,
-      enableAssociatedDomains: true,
+      entitlements: {
+        'aps-environment': 'production',
+      },
     });
     expect(bundleId.updateBundleIdCapabilityAsync).not.toHaveBeenCalled();
   });
@@ -21,7 +22,11 @@ describe(syncCapabilities, () => {
       }),
       updateBundleIdCapabilityAsync: jest.fn(),
     } as any;
-    await syncCapabilities(bundleId, { enablePushNotifications: true });
+    await syncCapabilities(bundleId, {
+      entitlements: {
+        'aps-environment': 'production',
+      },
+    });
     expect(bundleId.updateBundleIdCapabilityAsync).toHaveBeenCalled();
   });
 });

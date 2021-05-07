@@ -1,9 +1,5 @@
-import { ExpoConfig } from '@expo/config';
-import { IOSConfig } from '@expo/config-plugins';
 import { IosDistributionType, IosEnterpriseProvisioning } from '@expo/eas-json';
-import plist from '@expo/plist';
 import chalk from 'chalk';
-import fs from 'fs';
 import nullthrows from 'nullthrows';
 
 import {
@@ -14,6 +10,7 @@ import Log from '../../../log';
 import { Action, CredentialsManager } from '../../CredentialsManager';
 import { Context } from '../../context';
 import { AppLookupParams as GraphQLAppLookupParams } from '../api/GraphqlClient';
+import { resolveEntitlementsJsonAsync } from '../appstore/entitlements';
 import { displayProjectCredentials } from '../utils/printCredentials';
 import { SetupAdhocProvisioningProfile } from './SetupAdhocProvisioningProfile';
 import { SetupInternalProvisioningProfile } from './SetupInternalProvisioningProfile';
@@ -35,31 +32,6 @@ interface IosAppBuildCredentials {
   };
 }
 
-function isNativeAssociatedDomainsDefined(projectDir: string): boolean | null {
-  try {
-    const entitlementsPath = IOSConfig.Paths.getEntitlementsPath(projectDir);
-    if (entitlementsPath) {
-      const entitlements = plist.parse(fs.readFileSync(entitlementsPath, 'utf8'));
-      return !!entitlements['com.apple.developer.associated-domains'];
-    }
-  } catch {}
-  return null;
-}
-
-function isAssociatedDomainsDefined(projectDir: string, exp: Pick<ExpoConfig, 'ios'>) {
-  // Get the native entitlements file and determine if associated domains is defined in it.
-  // If we don't enable this capability xcode will fail to build:
-  // error: Provisioning profile "*[expo] com.bacon.myapp AppStore 2021-05-04T22:29:48.816Z" doesn't support the Associated Domains capability.
-  let isAssociatedDomainsDefined = isNativeAssociatedDomainsDefined(projectDir);
-  if (isAssociatedDomainsDefined == null) {
-    // Determine if the app.json has `ios.associatedDomains` or equivalent entitlements field defined.
-    isAssociatedDomainsDefined =
-      !!exp.ios?.associatedDomains ||
-      !!exp.ios?.entitlements?.['com.apple.developer.associated-domains'];
-  }
-  return isAssociatedDomainsDefined;
-}
-
 export class SetupBuildCredentials implements Action<IosAppBuildCredentials> {
   constructor(private options: Options) {}
 
@@ -69,7 +41,6 @@ export class SetupBuildCredentials implements Action<IosAppBuildCredentials> {
     await ctx.bestEffortAppStoreAuthenticateAsync();
 
     if (ctx.appStore.authCtx) {
-      const enableAssociatedDomains = isAssociatedDomainsDefined(ctx.projectDir, ctx.exp);
       await ctx.appStore.ensureBundleIdExistsAsync(
         {
           accountName: app.account.name,
@@ -77,8 +48,8 @@ export class SetupBuildCredentials implements Action<IosAppBuildCredentials> {
           projectName: app.projectName,
         },
         {
-          enablePushNotifications: true,
-          enableAssociatedDomains,
+          // TODO: Get correct workflow
+          entitlements: await resolveEntitlementsJsonAsync(ctx.projectDir, 'generic'),
         }
       );
     }
