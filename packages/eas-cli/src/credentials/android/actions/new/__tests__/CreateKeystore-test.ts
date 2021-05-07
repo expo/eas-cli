@@ -14,14 +14,14 @@ describe('CreateKeystore', () => {
     await createKeystoreAction.runAsync(ctx);
 
     // expect keystore to be created on expo servers
-    expect((ctx.newAndroid.createKeystoreAsync as any).mock.calls.length).toBe(1);
+    expect(ctx.newAndroid.createKeystoreAsync as any).toHaveBeenCalledTimes(1);
   });
   it('errors in Non-Interactive Mode', async () => {
     const ctx = createCtxMock({ nonInteractive: true });
     const appLookupParams = getAppLookupParamsFromContext(ctx);
     const createKeystoreAction = new CreateKeystore(appLookupParams.account);
 
-    // fail if users are trying to delete a dist cert with dependencies in non-interactive mode
+    // fail if users are running in non-interactive mode
     await expect(createKeystoreAction.runAsync(ctx)).rejects.toThrowError();
   });
 });
