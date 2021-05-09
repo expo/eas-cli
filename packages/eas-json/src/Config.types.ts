@@ -48,7 +48,7 @@ export interface IosGenericBuildProfile extends Ios.BuilderEnvironment {
   workflow: Workflow.GENERIC;
   credentialsSource: CredentialsSource;
   scheme?: string;
-  schemeBuildConfiguration?: Ios.SchemeBuildConfiguration | 'Auto';
+  buildConfiguration?: string;
   releaseChannel?: string;
   artifactPath?: string;
   distribution?: IosDistributionType;
