@@ -1,6 +1,7 @@
 import { Command, flags } from '@oclif/command';
 import Table from 'cli-table3';
 import gql from 'graphql-tag';
+import groupBy from 'lodash/groupBy';
 import { format } from 'timeago.js';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
@@ -14,7 +15,12 @@ import {
 } from '../../graphql/generated';
 import Log from '../../log';
 import { getActorDisplayName } from '../../user/User';
-import { UPDATE_COLUMNS } from '../branch/list';
+export const UPDATE_COLUMNS = [
+  'update description',
+  'update runtime version',
+  'update group ID',
+  'platforms',
+];
 
 export type FormatUpdateParameter = Pick<Update, 'id' | 'createdAt' | 'message'> & {
   actor?: Maybe<Pick<User, 'username' | 'id'> | Pick<Robot, 'firstName' | 'id'>>;
@@ -93,22 +99,35 @@ export default class UpdateView extends Command {
     }
 
     const groupTable = new Table({
-      head: [...UPDATE_COLUMNS, 'platforms'],
+      head: [...UPDATE_COLUMNS],
       wordWrap: true,
     });
 
-    // The relevant info of the updates are same except for their platform
-    const platforms = updatesByGroup.map(update => update.platform);
+    const platforms = getPlatformsForGroup({
+      updates: updatesByGroup,
+      group: updatesByGroup[0].group,
+    });
     const representativeUpdate = updatesByGroup[0];
     groupTable.push([
       formatUpdate(representativeUpdate),
       representativeUpdate.runtimeVersion,
       representativeUpdate.group,
-      platforms.join(','),
+      platforms,
     ]);
 
     Log.log(groupTable.toString());
   }
+}
+
+export function getPlatformsForGroup({
+  group,
+  updates,
+}: {
+  group: string;
+  updates: { group: string; platform: string }[];
+}): string {
+  const groupedUpdates = groupBy(updates, update => update.group);
+  return groupedUpdates[group].map(update => update.platform).join(',');
 }
 
 export function formatUpdate(update: FormatUpdateParameter): string {

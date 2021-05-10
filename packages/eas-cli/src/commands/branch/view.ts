@@ -19,8 +19,7 @@ import Log from '../../log';
 import { ensureProjectExistsAsync } from '../../project/ensureProjectExists';
 import { findProjectRootAsync, getProjectAccountNameAsync } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
-import { formatUpdate } from '../update/view';
-import { UPDATE_COLUMNS } from './list';
+import { UPDATE_COLUMNS, formatUpdate } from '../update/view';
 
 const PAGE_LIMIT = 10_000;
 

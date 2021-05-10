@@ -14,7 +14,7 @@ import Log from '../../log';
 import { ensureProjectExistsAsync } from '../../project/ensureProjectExists';
 import { findProjectRootAsync, getProjectAccountNameAsync } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
-import { FormatUpdateParameter, UPDATE_COLUMNS, formatUpdate } from '../branch/list';
+import { FormatUpdateParameter, UPDATE_COLUMNS, formatUpdate } from '../update/view';
 
 export type BranchMapping = {
   version: number;

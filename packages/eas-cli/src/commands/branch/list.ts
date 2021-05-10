@@ -8,9 +8,8 @@ import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
 import { BranchesByAppQuery, BranchesByAppQueryVariables } from '../../graphql/generated';
 import Log from '../../log';
 import { findProjectRootAsync, getProjectFullNameAsync } from '../../project/projectUtils';
-import { formatUpdate } from '../update/view';
+import { UPDATE_COLUMNS, formatUpdate } from '../update/view';
 
-export const UPDATE_COLUMNS = ['update description', 'update runtime version', 'update group ID'];
 const BRANCHES_LIMIT = 10_000;
 
 export async function listBranchesAsync({ fullName }: { fullName: string }) {
