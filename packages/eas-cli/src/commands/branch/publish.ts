@@ -30,7 +30,7 @@ import {
 import { promptAsync, selectAsync } from '../../prompts';
 import { getLastCommitMessageAsync } from '../../utils/git';
 import { formatUpdate } from '../update/view';
-import {  listBranchesAsync } from './list';
+import { listBranchesAsync } from './list';
 import { viewUpdateBranchAsync } from './view';
 
 type PublishPlatforms = 'android' | 'ios';
