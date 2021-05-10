@@ -78,6 +78,7 @@ function getX509Asn1FromPKCS12Keystore(
   let x509Asn1;
   try {
     const p12 = parsePKCS12(p12BufferOrBase64String, maybePassword);
+    console.log('debug', p12);
     x509Asn1 = getX509Asn1ByFriendlyName(p12, keyAlias);
   } catch (e) {
     throw new Error(`Invalid PKCS#12 (.p12) keystore: ${e.message}`);

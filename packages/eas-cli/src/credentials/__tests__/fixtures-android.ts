@@ -3,6 +3,8 @@ import {
   testKeystore2Base64,
   testKeystoreBase64,
   testPKCS12KeystoreBase64,
+  testPKCS12KeystoreEmptyPasswordBase64,
+  testPKCS12KeystoreUnencryptedBase64,
 } from './fixtures-base64-data';
 import { testExperienceName, testJester2ExperienceName } from './fixtures-constants';
 
@@ -25,6 +27,26 @@ export const testKeystore2: Keystore = {
 export const testPKCS12Keystore: Keystore = {
   keystore: testPKCS12KeystoreBase64,
   keystorePassword: 'password',
+  keyAlias: 'test-alias',
+};
+
+// openssl req -new -newkey rsa:4096 -nodes -keyout test.key -out test.csr
+// openssl x509 -req -sha256 -days 365 -in test.csr -signkey test.key -out test.pem
+// openssl pkcs12 -export -in test.pem -inkey test.key -name "test-alias" -passout pass: -out emptyPassword.p12
+// cat emptyPassword.p12 | base64
+export const testPKCS12EmptyPasswordKeystore: Keystore = {
+  keystore: testPKCS12KeystoreEmptyPasswordBase64,
+  keystorePassword: '',
+  keyAlias: 'test-alias',
+};
+
+// openssl req -new -newkey rsa:4096 -nodes -keyout test.key -out test.csr
+// openssl x509 -req -sha256 -days 365 -in test.csr -signkey test.key -out test.pem
+// openssl pkcs12 -export -keypbe NONE -certpbe NONE -nomaciter -in test.pem -inkey test.key -name "test-alias" -passout pass: -out unencrypted.p12
+// cat unencrypted.p12 | base64
+export const testPKCS12UnencryptedKeystore: Keystore = {
+  keystore: testPKCS12KeystoreUnencryptedBase64,
+  keystorePassword: '',
   keyAlias: 'test-alias',
 };
 
