@@ -1,11 +1,24 @@
 import { Command, flags } from '@oclif/command';
 import Table from 'cli-table3';
 import gql from 'graphql-tag';
+import { format } from 'timeago.js';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
-import { UpdatesByGroupQuery, UpdatesByGroupQueryVariables } from '../../graphql/generated';
+import {
+  Maybe,
+  Robot,
+  Update,
+  UpdatesByGroupQuery,
+  UpdatesByGroupQueryVariables,
+  User,
+} from '../../graphql/generated';
 import Log from '../../log';
-import { UPDATE_COLUMNS, formatUpdate } from '../branch/list';
+import { getActorDisplayName } from '../../user/User';
+import { UPDATE_COLUMNS } from '../branch/list';
+
+export type FormatUpdateParameter = Pick<Update, 'id' | 'createdAt' | 'message'> & {
+  actor?: Maybe<Pick<User, 'username' | 'id'> | Pick<Robot, 'firstName' | 'id'>>;
+};
 
 export async function viewUpdateAsync({
   groupId,
@@ -96,4 +109,14 @@ export default class UpdateView extends Command {
 
     Log.log(groupTable.toString());
   }
+}
+
+export function formatUpdate(update: FormatUpdateParameter): string {
+  if (!update) {
+    return 'N/A';
+  }
+  const message = update.message ? `"${update.message}" ` : '';
+  return `${message}(${format(update.createdAt, 'en_US')} by ${getActorDisplayName(
+    update.actor as any
+  )})`;
 }

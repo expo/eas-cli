@@ -3,24 +3,12 @@ import { Command, flags } from '@oclif/command';
 import chalk from 'chalk';
 import CliTable from 'cli-table3';
 import gql from 'graphql-tag';
-import { format } from 'timeago.js';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
-import {
-  BranchesByAppQuery,
-  BranchesByAppQueryVariables,
-  Maybe,
-  Robot,
-  Update,
-  User,
-} from '../../graphql/generated';
+import { BranchesByAppQuery, BranchesByAppQueryVariables } from '../../graphql/generated';
 import Log from '../../log';
 import { findProjectRootAsync, getProjectFullNameAsync } from '../../project/projectUtils';
-import { getActorDisplayName } from '../../user/User';
-
-export type FormatUpdateParameter = Pick<Update, 'id' | 'createdAt' | 'message'> & {
-  actor?: Maybe<Pick<User, 'username' | 'id'> | Pick<Robot, 'firstName' | 'id'>>;
-};
+import { formatUpdate } from '../update/view';
 
 export const UPDATE_COLUMNS = ['update description', 'update runtime version', 'update group ID'];
 const BRANCHES_LIMIT = 10_000;
@@ -115,14 +103,4 @@ export default class BranchList extends Command {
       }
     }
   }
-}
-
-export function formatUpdate(update: FormatUpdateParameter): string {
-  if (!update) {
-    return 'N/A';
-  }
-  const message = update.message ? `"${update.message}" ` : '';
-  return `${message}(${format(update.createdAt, 'en_US')} by ${getActorDisplayName(
-    update.actor as any
-  )})`;
 }

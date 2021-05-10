@@ -29,7 +29,8 @@ import {
 } from '../../project/publish';
 import { promptAsync, selectAsync } from '../../prompts';
 import { getLastCommitMessageAsync } from '../../utils/git';
-import { formatUpdate, listBranchesAsync } from './list';
+import { formatUpdate } from '../update/view';
+import {  listBranchesAsync } from './list';
 import { viewUpdateBranchAsync } from './view';
 
 type PublishPlatforms = 'android' | 'ios';
