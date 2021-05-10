@@ -19,7 +19,7 @@ import Log from '../../log';
 import { ensureProjectExistsAsync } from '../../project/ensureProjectExists';
 import { findProjectRootAsync, getProjectAccountNameAsync } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
-import { UPDATE_COLUMNS, formatUpdate } from '../update/view';
+import { UPDATE_COLUMNS, formatUpdate, getPlatformsForGroup } from '../update/view';
 
 const PAGE_LIMIT = 10_000;
 
@@ -158,7 +158,15 @@ export default class BranchView extends Command {
     });
 
     for (const update of updates) {
-      groupTable.push([formatUpdate(update), update.runtimeVersion, update.group]);
+      groupTable.push([
+        formatUpdate(update),
+        update.runtimeVersion,
+        update.group,
+        getPlatformsForGroup({
+          updates: UpdateBranch.updates,
+          group: update.group,
+        }),
+      ]);
     }
 
     Log.withTick(

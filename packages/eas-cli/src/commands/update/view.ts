@@ -103,16 +103,15 @@ export default class UpdateView extends Command {
       wordWrap: true,
     });
 
-    const platforms = getPlatformsForGroup({
-      updates: updatesByGroup,
-      group: updatesByGroup[0].group,
-    });
     const representativeUpdate = updatesByGroup[0];
     groupTable.push([
       formatUpdate(representativeUpdate),
       representativeUpdate.runtimeVersion,
       representativeUpdate.group,
-      platforms,
+      getPlatformsForGroup({
+        updates: updatesByGroup,
+        group: updatesByGroup[0].group,
+      }),
     ]);
 
     Log.log(groupTable.toString());

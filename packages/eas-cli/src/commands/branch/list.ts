@@ -8,7 +8,7 @@ import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
 import { BranchesByAppQuery, BranchesByAppQueryVariables } from '../../graphql/generated';
 import Log from '../../log';
 import { findProjectRootAsync, getProjectFullNameAsync } from '../../project/projectUtils';
-import { UPDATE_COLUMNS, formatUpdate } from '../update/view';
+import { UPDATE_COLUMNS, formatUpdate, getPlatformsForGroup } from '../update/view';
 
 const BRANCHES_LIMIT = 10_000;
 
@@ -25,7 +25,7 @@ export async function listBranchesAsync({ fullName }: { fullName: string }) {
                 updateBranches(offset: 0, limit: $limit) {
                   id
                   name
-                  updates(offset: 0, limit: 1) {
+                  updates(offset: 0, limit: 10) {
                     id
                     actor {
                       __typename
@@ -41,6 +41,7 @@ export async function listBranchesAsync({ fullName }: { fullName: string }) {
                     message
                     runtimeVersion
                     group
+                    platform
                   }
                 }
               }
@@ -93,6 +94,10 @@ export default class BranchList extends Command {
           formatUpdate(branch.updates[0]),
           branch.updates[0]?.runtimeVersion ?? 'N/A',
           branch.updates[0]?.group ?? 'N/A',
+          getPlatformsForGroup({
+            updates: branch.updates,
+            group: branch.updates[0]?.group,
+          }),
         ])
       );
       Log.log(chalk.bold('Branches with their most recent update group:'));

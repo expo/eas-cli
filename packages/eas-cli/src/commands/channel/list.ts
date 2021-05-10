@@ -35,12 +35,13 @@ async function getAllUpdateChannelForAppAsync({
                   updateBranches(offset: 0, limit: $limit) {
                     id
                     name
-                    updates(offset: 0, limit: 1) {
+                    updates(offset: 0, limit: 10) {
                       id
                       group
                       message
                       runtimeVersion
                       createdAt
+                      platform
                       actor {
                         id
                         ... on User {
