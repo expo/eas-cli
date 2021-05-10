@@ -33,7 +33,7 @@ import { getLastCommitMessageAsync } from '../../utils/git';
 import { formatUpdate, listBranchesAsync } from './list';
 import { viewUpdateBranchAsync } from './view';
 
-const Platforms: PublishPlatform[] = ['android', 'ios'];
+export const Platforms: PublishPlatform[] = ['android', 'ios'];
 
 async function getUpdateGroupAsync({
   group,

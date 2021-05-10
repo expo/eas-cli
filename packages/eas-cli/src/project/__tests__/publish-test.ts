@@ -3,12 +3,12 @@ import mockdate from 'mockdate';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 
+import { Platforms } from '../../commands/branch/publish';
 import { AssetMetadataStatus } from '../../graphql/generated';
 import { PublishMutation } from '../../graphql/mutations/PublishMutation';
 import { PublishQuery } from '../../graphql/queries/PublishQuery';
 import {
   MetadataJoi,
-  Platforms,
   TIMEOUT_LIMIT,
   buildUpdateInfoGroupAsync,
   collectAssets,
@@ -253,7 +253,7 @@ describe(collectAssets, () => {
       })
     );
 
-    expect(collectAssets(inputDir)).toEqual({
+    expect(collectAssets({ inputDir, platforms: Platforms })).toEqual({
       android: {
         launchAsset: {
           type: 'bundle',
@@ -262,6 +262,17 @@ describe(collectAssets, () => {
         },
         assets: userDefinedAssets,
       },
+      ios: {
+        launchAsset: {
+          type: 'bundle',
+          contentType: 'application/javascript',
+          path: path.resolve(`${inputDir}/bundles/ios.js`),
+        },
+        assets: userDefinedAssets,
+      },
+    });
+
+    expect(collectAssets({ inputDir, platforms: ['ios'] })).toEqual({
       ios: {
         launchAsset: {
           type: 'bundle',
