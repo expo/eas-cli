@@ -17,7 +17,7 @@ export interface CredentialsJson {
       keystorePath: string;
       keystorePassword: string;
       keyAlias: string;
-      keyPassword: string;
+      keyPassword?: string;
     };
   };
   ios?: CredentialsJsonIosCredentials | Record<string, CredentialsJsonIosCredentials>;
