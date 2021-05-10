@@ -1,5 +1,10 @@
-import { CommonAndroidAppCredentialsFragment } from '../../../graphql/generated';
+import {
+  AndroidKeystoreFragment,
+  CommonAndroidAppCredentialsFragment,
+} from '../../../graphql/generated';
 import { Account } from '../../../user/Account';
+import { KeystoreWithType } from '../credentials';
+import { AndroidKeystoreMutation } from './graphql/mutations/AndroidKeystoreMutation';
 import { AndroidAppCredentialsQuery } from './graphql/queries/AndroidAppCredentialsQuery';
 
 export interface AppLookupParams {
@@ -35,6 +40,21 @@ export async function getLegacyAndroidAppCredentialsWithCommonFieldsAsync(
   );
 }
 
-// TODO; refactor
+export async function createKeystoreAsync(
+  account: Account,
+  keystore: KeystoreWithType
+): Promise<AndroidKeystoreFragment> {
+  return await AndroidKeystoreMutation.createAndroidKeystore(
+    {
+      base64EncodedKeystore: keystore.keystore,
+      keystorePassword: keystore.keystorePassword,
+      keyAlias: keystore.keyAlias,
+      keyPassword: keystore.keyPassword,
+      type: keystore.type,
+    },
+    account.id
+  );
+}
+
 const formatProjectFullName = ({ account, projectName }: AppLookupParams): string =>
   `@${account.name}/${projectName}`;

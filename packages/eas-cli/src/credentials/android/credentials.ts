@@ -1,3 +1,4 @@
+import { AndroidKeystoreType } from '../../graphql/generated';
 import { CredentialSchema } from '../utils/promptForCredentials';
 
 export interface FcmCredentials {
@@ -8,8 +9,12 @@ export interface Keystore {
   keystore: string;
   keystorePassword: string;
   keyAlias: string;
-  keyPassword: string;
+  keyPassword?: string;
 }
+
+export type KeystoreWithType = Keystore & {
+  type: AndroidKeystoreType;
+};
 
 export type AndroidCredentials = {
   experienceName: string;

@@ -1248,6 +1248,13 @@
     qqjs "^0.3.10"
     tslib "^1.9.3"
 
+"@expo/pkcs12@^0.0.4":
+  version "0.0.4"
+  resolved "https://registry.yarnpkg.com/@expo/pkcs12/-/pkcs12-0.0.4.tgz#d4ba48bfcb5dcae979e96644a0ca157c0d70f075"
+  integrity sha512-dYNecU+r4RIy8dPzu1SCUi+EqPhfSic6ODH6IkKLCf9m7unxEO0SvhU+rJqlgpoQ49PThOmk4EFX2KCClyrKnw==
+  dependencies:
+    node-forge "^0.10.0"
+
 "@expo/plist@0.0.12":
   version "0.0.12"
   resolved "https://registry.yarnpkg.com/@expo/plist/-/plist-0.0.12.tgz#59d95db7f8f3cd5427a210a0f442dc1616b270d7"
@@ -3874,7 +3881,7 @@ asap@^2.0.0, asap@~2.0.3:
   resolved "https://registry.yarnpkg.com/asap/-/asap-2.0.6.tgz#e50347611d7e690943208bbdafebcbc2fb866d46"
   integrity sha1-5QNHYR1+aQlDIIu9r+vLwvuGbUY=
 
-asn1@~0.2.3:
+asn1@^0.2.4, asn1@~0.2.3:
   version "0.2.4"
   resolved "https://registry.yarnpkg.com/asn1/-/asn1-0.2.4.tgz#8d2475dfab553bb33e77b54e59e880bb8ce23136"
   integrity sha512-jxwzQpLQjSmWXgwaCZE9Nz+glAG01yF1QnWgbhGwHI5A6FRIEY6IVqtHhIepHqI7/kyEyQEagBC5mBEFlIYvdg==
@@ -8021,6 +8028,15 @@ jimp@0.12.1:
     "@jimp/types" "^0.12.1"
     regenerator-runtime "^0.13.3"
 
+jks-js@^1.0.0:
+  version "1.0.0"
+  resolved "https://registry.yarnpkg.com/jks-js/-/jks-js-1.0.0.tgz#bfe619d20af007f5dd62a286e47e245f7f44754e"
+  integrity sha512-0ocOpotBAJNz3ajlflj39DG9Cs96SCx3qtNPHJyUTXD5pk8/cQRfR5BSyPhcTHGKe2sxfT18WGiINtLqi/W64g==
+  dependencies:
+    node-forge "^0.10.0"
+    node-int64 "^0.4.0"
+    node-rsa "^1.0.7"
+
 jpeg-js@^0.4.0:
   version "0.4.2"
   resolved "https://registry.yarnpkg.com/jpeg-js/-/jpeg-js-0.4.2.tgz#8b345b1ae4abde64c2da2fe67ea216a114ac279d"
@@ -9174,6 +9190,13 @@ node-releases@^1.1.61:
   version "1.1.61"
   resolved "https://registry.yarnpkg.com/node-releases/-/node-releases-1.1.61.tgz#707b0fca9ce4e11783612ba4a2fcba09047af16e"
   integrity sha512-DD5vebQLg8jLCOzwupn954fbIiZht05DAZs0k2u8NStSe6h9XdsuIQL8hSRKYiU8WUQRznmSDrKGbv3ObOmC7g==
+
+node-rsa@^1.0.7:
+  version "1.1.1"
+  resolved "https://registry.yarnpkg.com/node-rsa/-/node-rsa-1.1.1.tgz#efd9ad382097782f506153398496f79e4464434d"
+  integrity sha512-Jd4cvbJMryN21r5HgxQOpMEqv+ooke/korixNNK3mGqfGJmy0M77WDDzo/05969+OkMy3XW1UuZsSmW9KQm7Fw==
+  dependencies:
+    asn1 "^0.2.4"
 
 nopt@^4.0.1:
   version "4.0.3"

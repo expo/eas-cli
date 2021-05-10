@@ -3572,6 +3572,24 @@ export type UpdatesByGroupQuery = (
   )> }
 );
 
+export type CreateAndroidKeystoreMutationVariables = Exact<{
+  androidKeystoreInput: AndroidKeystoreInput;
+  accountId: Scalars['ID'];
+}>;
+
+
+export type CreateAndroidKeystoreMutation = (
+  { __typename?: 'RootMutation' }
+  & { androidKeystore: (
+    { __typename?: 'AndroidKeystoreMutation' }
+    & { createAndroidKeystore?: Maybe<(
+      { __typename?: 'AndroidKeystore' }
+      & Pick<AndroidKeystore, 'id'>
+      & AndroidKeystoreFragment
+    )> }
+  ) }
+);
+
 export type CommonAndroidAppCredentialsWithBuildCredentialsByApplicationIdentifierQueryVariables = Exact<{
   projectFullName: Scalars['String'];
   applicationIdentifier?: Maybe<Scalars['String']>;
