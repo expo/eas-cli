@@ -29,8 +29,9 @@ import {
   uploadAssetsAsync,
 } from '../../project/publish';
 import { promptAsync, selectAsync } from '../../prompts';
+import { formatUpdate } from '../../update/utils';
 import { getLastCommitMessageAsync } from '../../utils/git';
-import { formatUpdate, listBranchesAsync } from './list';
+import { listBranchesAsync } from './list';
 import { viewUpdateBranchAsync } from './view';
 
 export const defaultPublishPlatforms: PublishPlatform[] = ['android', 'ios'];
