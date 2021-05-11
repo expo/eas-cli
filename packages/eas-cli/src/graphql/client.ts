@@ -33,6 +33,7 @@ export const graphqlClient = createUrqlClient({
     }),
     fetchExchange,
   ],
+  requestPolicy: 'network-only',
   // @ts-expect-error Type 'typeof fetch' is not assignable to type '(input: RequestInfo, init?: RequestInit | undefined) => Promise<Response>'.
   fetch,
   fetchOptions: (): { headers?: AccessTokenHeaders | SessionHeaders } => {
