@@ -11,6 +11,7 @@ module.exports = {
   },
   rules: {
     'no-constant-condition': ['warn', { checkLoops: false }],
+    'no-restricted-imports': ["warn", { "name": "lodash","message":"Please import directly to keep bundle size low: import foo from 'lodash/foo'" }],
     'sort-imports': [
       'warn',
       {
