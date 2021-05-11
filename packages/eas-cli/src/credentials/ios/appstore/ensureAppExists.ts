@@ -100,7 +100,7 @@ export async function syncCapabilities(
     const results =
       [buildMessage('Enabled', enabled), buildMessage('Disabled', disabled)]
         .filter(Boolean)
-        .join(' ') || 'No updates';
+        .join(' | ') || 'No updates';
 
     spinner.succeed(`Synced capabilities: ` + chalk.dim(results));
   } catch (err) {

@@ -131,6 +131,7 @@ function getCapabilitiesToEnable(
 
   return { enabledCapabilityNames, request, remainingCapabilities };
 }
+
 function getCapabilitiesToDisable(
   bundleId: BundleId,
   currentCapabilities: BundleIdCapability[],
