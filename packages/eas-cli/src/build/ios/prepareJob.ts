@@ -133,6 +133,7 @@ async function prepareGenericJobAsync(
         : buildProfile.schemeBuildConfiguration,
     artifactPath: buildProfile.artifactPath,
     releaseChannel: buildProfile.releaseChannel,
+    updatesRequestHeaders: buildProfile.updatesRequestHeaders,
     projectRootDirectory,
   };
 }
@@ -155,6 +156,7 @@ async function prepareManagedJobAsync(
     buildType: buildProfile.buildType,
     username,
     releaseChannel: buildProfile.releaseChannel,
+    updatesRequestHeaders: buildProfile.updatesRequestHeaders,
     projectRootDirectory,
   };
 }
