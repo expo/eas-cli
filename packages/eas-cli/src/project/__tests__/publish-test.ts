@@ -3,12 +3,12 @@ import mockdate from 'mockdate';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 
+import { defaultPublishPlatforms } from '../../commands/branch/publish';
 import { AssetMetadataStatus } from '../../graphql/generated';
 import { PublishMutation } from '../../graphql/mutations/PublishMutation';
 import { PublishQuery } from '../../graphql/queries/PublishQuery';
 import {
   MetadataJoi,
-  Platforms,
   TIMEOUT_LIMIT,
   buildUpdateInfoGroupAsync,
   collectAssets,
@@ -231,7 +231,7 @@ describe(collectAssets, () => {
     const assetDir = path.resolve(`${inputDir}/assets`);
     fs.mkdirSync(bundleDir, { recursive: true });
     fs.mkdirSync(assetDir, { recursive: true });
-    Platforms.forEach(platform => {
+    defaultPublishPlatforms.forEach(platform => {
       fs.writeFileSync(path.resolve(inputDir, `bundles/${platform}.js`), bundles[platform]);
     });
     fs.writeFileSync(path.resolve(`${inputDir}/assets/${fakeHash}`), dummyFileBuffer);
@@ -253,7 +253,7 @@ describe(collectAssets, () => {
       })
     );
 
-    expect(collectAssets(inputDir)).toEqual({
+    expect(collectAssets({ inputDir, platforms: defaultPublishPlatforms })).toEqual({
       android: {
         launchAsset: {
           type: 'bundle',
@@ -262,6 +262,17 @@ describe(collectAssets, () => {
         },
         assets: userDefinedAssets,
       },
+      ios: {
+        launchAsset: {
+          type: 'bundle',
+          contentType: 'application/javascript',
+          path: path.resolve(`${inputDir}/bundles/ios.js`),
+        },
+        assets: userDefinedAssets,
+      },
+    });
+
+    expect(collectAssets({ inputDir, platforms: ['ios'] })).toEqual({
       ios: {
         launchAsset: {
           type: 'bundle',
