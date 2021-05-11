@@ -33,7 +33,8 @@ import { getLastCommitMessageAsync } from '../../utils/git';
 import { formatUpdate, listBranchesAsync } from './list';
 import { viewUpdateBranchAsync } from './view';
 
-export const Platforms: PublishPlatform[] = ['android', 'ios'];
+export const defaultPublishPlatforms: PublishPlatform[] = ['android', 'ios'];
+type PlatformFlag = PublishPlatform | 'all';
 
 async function getUpdateGroupAsync({
   group,
@@ -96,9 +97,11 @@ export default class BranchPublish extends Command {
       description: `skip running Expo CLI to bundle the app before publishing`,
       default: false,
     }),
-    platform: flags.string({
+    platform: flags.enum({
+      char: 'p',
       description: `Only publish to a single platform`,
-      options: ['android', 'ios'],
+      options: [...defaultPublishPlatforms, 'all'],
+      default: 'all',
       required: false,
     }),
     json: flags.boolean({
@@ -112,7 +115,6 @@ export default class BranchPublish extends Command {
       args: { name },
       flags: {
         json: jsonFlag,
-        platform: platformFlag,
         message,
         republish,
         group,
@@ -120,6 +122,7 @@ export default class BranchPublish extends Command {
         'skip-bundler': skipBundler,
       },
     } = this.parse(BranchPublish);
+    const platformFlag = this.parse(BranchPublish).flags.platform as PlatformFlag;
     // If a group was specified, that means we are republishing it.
     republish = group ? true : republish;
 
@@ -210,13 +213,11 @@ export default class BranchPublish extends Command {
       }
 
       for (const update of updatesToRepublish) {
-        const { platform, manifestFragment } = update;
+        const { manifestFragment } = update;
+        const platform = update.platform as PublishPlatform;
 
-        // If the platformFlag is not set, add all platforms. If it is set, only add the specified platform
-        if (!platformFlag) {
-          updateInfoGroup[platform as PublishPlatform] = JSON.parse(manifestFragment);
-        } else if (platformFlag === platform) {
-          updateInfoGroup[platform as PublishPlatform] = JSON.parse(manifestFragment);
+        if (platformFlag === 'all' || platformFlag === platform) {
+          updateInfoGroup[platform] = JSON.parse(manifestFragment);
         }
       }
 
@@ -236,7 +237,9 @@ export default class BranchPublish extends Command {
 
       const assetSpinner = ora('Uploading assets...').start();
       try {
-        const platforms = platformFlag ? [platformFlag as PublishPlatform] : Platforms;
+        const platforms = platformFlag
+          ? [platformFlag as PublishPlatform]
+          : defaultPublishPlatforms;
         const assets = collectAssets({ inputDir: inputDir!, platforms });
         await uploadAssetsAsync(assets);
         updateInfoGroup = await buildUpdateInfoGroupAsync(assets);

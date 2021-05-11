@@ -3,7 +3,7 @@ import mockdate from 'mockdate';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 
-import { Platforms } from '../../commands/branch/publish';
+import { defaultPublishPlatforms } from '../../commands/branch/publish';
 import { AssetMetadataStatus } from '../../graphql/generated';
 import { PublishMutation } from '../../graphql/mutations/PublishMutation';
 import { PublishQuery } from '../../graphql/queries/PublishQuery';
@@ -231,7 +231,7 @@ describe(collectAssets, () => {
     const assetDir = path.resolve(`${inputDir}/assets`);
     fs.mkdirSync(bundleDir, { recursive: true });
     fs.mkdirSync(assetDir, { recursive: true });
-    Platforms.forEach(platform => {
+    defaultPublishPlatforms.forEach(platform => {
       fs.writeFileSync(path.resolve(inputDir, `bundles/${platform}.js`), bundles[platform]);
     });
     fs.writeFileSync(path.resolve(`${inputDir}/assets/${fakeHash}`), dummyFileBuffer);
@@ -253,7 +253,7 @@ describe(collectAssets, () => {
       })
     );
 
-    expect(collectAssets({ inputDir, platforms: Platforms })).toEqual({
+    expect(collectAssets({ inputDir, platforms: defaultPublishPlatforms })).toEqual({
       android: {
         launchAsset: {
           type: 'bundle',
