@@ -94,7 +94,7 @@ function getCapabilitiesToEnable(
 
     if (!staticCapabilityInfo) {
       if (Log.isDebug) {
-        Log.log(`Skipping unhandled entitlement: ${key}`);
+        Log.log(`Skipping entitlement that is not supported by EAS: ${key}`);
       }
       continue;
     }
@@ -106,6 +106,7 @@ function getCapabilitiesToEnable(
 
     // Only skip if the existing capability is a simple boolean value,
     // if it has more complex settings then we should always update it.
+    // If the `existing.attributes.settings` object is defined, then we can determine that it has extra configuration.
     if (existing && existing?.attributes.settings == null) {
       // Remove the item from the list of capabilities so we don't disable it.
       remainingCapabilities.splice(existingIndex, 1);
