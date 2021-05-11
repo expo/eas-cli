@@ -42,7 +42,7 @@ const getDefinedOptions: GetOptionsMethod = entitlement => {
 
 export async function syncCapabilitiesForEntitlementsAsync(
   bundleId: BundleId,
-  entitlements: JSONObject
+  entitlements: JSONObject = {}
 ) {
   const capabilities = await bundleId.getBundleIdCapabilitiesAsync();
   const enabled: string[] = [];

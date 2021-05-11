@@ -23,6 +23,7 @@ import { SetupBuildCredentialsFromCredentialsJson } from '../ios/actions/SetupBu
 import { SetupProvisioningProfile } from '../ios/actions/SetupProvisioningProfile';
 import { UpdateCredentialsJson } from '../ios/actions/UpdateCredentialsJson';
 import { AppLookupParams } from '../ios/api/GraphqlClient';
+import { getManagedEntitlementsJsonAsync } from '../ios/appstore/entitlements';
 import {
   displayEmptyIosCredentials,
   displayIosAppCredentials,
@@ -226,6 +227,9 @@ export class ManageIos implements Action {
       await new SetupBuildCredentials({
         app: appLookupParams,
         distribution: iosDistributionTypeEasConfig,
+        iosCapabilitiesOptions: {
+          entitlements: await getManagedEntitlementsJsonAsync(ctx.projectDir),
+        },
       }).runAsync(manager, ctx);
       return;
     }

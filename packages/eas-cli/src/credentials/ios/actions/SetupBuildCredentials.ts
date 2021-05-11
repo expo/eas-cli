@@ -1,4 +1,3 @@
-import { Workflow } from '@expo/eas-build-job';
 import { IosDistributionType, IosEnterpriseProvisioning } from '@expo/eas-json';
 import chalk from 'chalk';
 import nullthrows from 'nullthrows';
@@ -11,7 +10,7 @@ import Log from '../../../log';
 import { Action, CredentialsManager } from '../../CredentialsManager';
 import { Context } from '../../context';
 import { AppLookupParams as GraphQLAppLookupParams } from '../api/GraphqlClient';
-import { resolveEntitlementsJsonAsync } from '../appstore/entitlements';
+import { EnsureAppExistsOptions } from '../appstore/ensureAppExists';
 import { displayProjectCredentials } from '../utils/printCredentials';
 import { SetupAdhocProvisioningProfile } from './SetupAdhocProvisioningProfile';
 import { SetupInternalProvisioningProfile } from './SetupInternalProvisioningProfile';
@@ -22,6 +21,7 @@ interface Options {
   distribution: IosDistributionType;
   enterpriseProvisioning?: IosEnterpriseProvisioning;
   skipCredentialsCheck?: boolean;
+  iosCapabilitiesOptions?: EnsureAppExistsOptions;
 }
 
 interface IosAppBuildCredentials {
@@ -37,7 +37,7 @@ export class SetupBuildCredentials implements Action<IosAppBuildCredentials> {
   constructor(private options: Options) {}
 
   async runAsync(manager: CredentialsManager, ctx: Context): Promise<IosAppBuildCredentials> {
-    const { app } = this.options;
+    const { app, iosCapabilitiesOptions } = this.options;
 
     await ctx.bestEffortAppStoreAuthenticateAsync();
 
@@ -48,10 +48,7 @@ export class SetupBuildCredentials implements Action<IosAppBuildCredentials> {
           bundleIdentifier: app.bundleIdentifier,
           projectName: app.projectName,
         },
-        {
-          // TODO: Get correct workflow
-          entitlements: await resolveEntitlementsJsonAsync(ctx.projectDir, Workflow.GENERIC),
-        }
+        iosCapabilitiesOptions
       );
     }
     try {
