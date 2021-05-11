@@ -40,6 +40,21 @@ const getDefinedOptions: GetOptionsMethod = entitlement => {
   return entitlement ? CapabilityTypeOption.ON : CapabilityTypeOption.OFF;
 };
 
+/**
+ * Given an entitlements JSON object, synchronizes the remote capabilities for a bundle identifier.
+ *
+ * Example entitlements JSON:
+ * ```js
+ * {
+ *   'com.apple.developer.healthkit': true,
+ *   'com.apple.developer.in-app-payments': ['merchant.com.example.development'],
+ * }
+ * ```
+ *
+ * @param bundleId bundle identifier object
+ * @param entitlements JSON representation of the entitlements plist
+ * @returns
+ */
 export async function syncCapabilitiesForEntitlementsAsync(
   bundleId: BundleId,
   entitlements: JSONObject = {}
