@@ -127,7 +127,7 @@ async function prepareGenericJobAsync(
     })),
     type: Workflow.GENERIC,
     scheme: jobData.projectConfiguration.iosBuildScheme,
-    buildConfiguration: buildProfile.buildConfiguration,
+    buildConfiguration: buildProfile.schemeBuildConfiguration,
     artifactPath: buildProfile.artifactPath,
     releaseChannel: buildProfile.releaseChannel,
     projectRootDirectory,
