@@ -28,8 +28,8 @@ import {
   uploadAssetsAsync,
 } from '../../project/publish';
 import { promptAsync, selectAsync } from '../../prompts';
+import { formatUpdate } from '../../update/utils';
 import { getLastCommitMessageAsync } from '../../utils/git';
-import { formatUpdate } from '../update/view';
 import { listBranchesAsync } from './list';
 import { viewUpdateBranchAsync } from './view';
 

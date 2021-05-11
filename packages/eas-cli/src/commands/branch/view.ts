@@ -19,7 +19,7 @@ import Log from '../../log';
 import { ensureProjectExistsAsync } from '../../project/ensureProjectExists';
 import { findProjectRootAsync, getProjectAccountNameAsync } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
-import { UPDATE_COLUMNS, formatUpdate, getPlatformsForGroup } from '../update/view';
+import { UPDATE_COLUMNS, formatUpdate, getPlatformsForGroup } from '../../update/utils';
 
 const PAGE_LIMIT = 10_000;
 

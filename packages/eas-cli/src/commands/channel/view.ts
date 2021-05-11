@@ -19,7 +19,7 @@ import {
   UPDATE_COLUMNS,
   formatUpdate,
   getPlatformsForGroup,
-} from '../update/view';
+} from '../../update/utils';
 
 export type BranchMapping = {
   version: number;
@@ -180,7 +180,7 @@ export function logChannelDetails(channel: {
       update?.group ?? 'N/A,',
       getPlatformsForGroup({
         updates: branch.updates,
-        group: branch.updates[0].group,
+        group: branch.updates[0]?.group,
       }),
     ]);
   }

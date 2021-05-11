@@ -8,7 +8,7 @@ import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
 import { BranchesByAppQuery, BranchesByAppQueryVariables } from '../../graphql/generated';
 import Log from '../../log';
 import { findProjectRootAsync, getProjectFullNameAsync } from '../../project/projectUtils';
-import { UPDATE_COLUMNS, formatUpdate, getPlatformsForGroup } from '../update/view';
+import { UPDATE_COLUMNS, formatUpdate, getPlatformsForGroup } from '../../update/utils';
 
 const BRANCHES_LIMIT = 10_000;
 
@@ -88,6 +88,7 @@ export default class BranchList extends Command {
         head: ['branch', ...UPDATE_COLUMNS],
         wordWrap: true,
       });
+
       table.push(
         ...branches.map(branch => [
           branch.name,
