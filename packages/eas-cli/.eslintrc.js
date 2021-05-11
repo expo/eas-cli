@@ -1,5 +1,6 @@
 module.exports = {
   rules: {
+    'no-restricted-imports': ["warn", { "name": "lodash","message":"Please import directly to keep bundle size low: import foo from 'lodash/foo'" }],
     'import/no-cycle': 'error',
     'import/no-extraneous-dependencies': [
       'error',

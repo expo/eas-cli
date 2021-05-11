@@ -6,7 +6,7 @@ import chalk from 'chalk';
 import Table from 'cli-table3';
 import dateFormat from 'dateformat';
 import gql from 'graphql-tag';
-import { uniqBy } from 'lodash';
+import uniqBy from 'lodash/uniqBy';
 import ora from 'ora';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';

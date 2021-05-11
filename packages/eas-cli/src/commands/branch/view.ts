@@ -3,7 +3,7 @@ import { Command, flags } from '@oclif/command';
 import chalk from 'chalk';
 import Table from 'cli-table3';
 import gql from 'graphql-tag';
-import { groupBy } from 'lodash';
+import groupBy from 'lodash/groupBy';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
 import {
