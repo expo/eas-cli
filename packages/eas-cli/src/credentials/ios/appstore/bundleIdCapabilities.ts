@@ -1,5 +1,6 @@
 import {
   BundleId,
+  BundleIdCapability,
   CapabilityOptionMap,
   CapabilityType,
   CapabilityTypeDataProtectionOption,
@@ -59,76 +60,113 @@ export async function syncCapabilitiesForEntitlementsAsync(
   bundleId: BundleId,
   entitlements: JSONObject = {}
 ) {
-  const capabilities = await bundleId.getBundleIdCapabilitiesAsync();
-  const enabled: string[] = [];
-  const disabled: string[] = [];
-  const request: { capabilityType: CapabilityType; option: any }[] = [];
-  for (const [key, value] of Object.entries(entitlements)) {
-    if (value) {
-      const capability = CapabilityMapping.find(capability => capability.entitlement === key);
-      if (capability) {
-        const existingIndex = capabilities.findIndex(existing =>
-          existing.isType(capability.capability)
-        );
-        const existing = existingIndex > -1 ? capabilities[existingIndex] : null;
-        // Only skip if the existing capability is a simple boolean value,
-        // if it has more complex settings then we should always update it.
-        if (existing && existing?.attributes.settings == null) {
-          // Remove the item from the list of capabilities so we don't disable it.
-          capabilities.splice(existingIndex, 1);
-          if (Log.isDebug) {
-            Log.log(`Skipping existing capability: ${key} (${capability.name})`);
-          }
-          continue;
-        }
+  const currentCapabilities = await bundleId.getBundleIdCapabilitiesAsync();
 
-        if (!capability.validateOptions(value)) {
-          throw new Error(`iOS entitlement "${key}" has invalid value "${value}".`);
-        }
-        enabled.push(capability.name);
+  const { enabledCapabilityNames, request, remainingCapabilities } = getCapabilitiesToEnable(
+    currentCapabilities,
+    entitlements
+  );
 
-        const option = capability.getOptions(value, entitlements);
+  const { disabledCapabilityNames, request: modifiedRequest } = getCapabilitiesToDisable(
+    bundleId,
+    remainingCapabilities,
+    request
+  );
 
-        request.push({
-          capabilityType: capability.capability,
-          option,
-        });
-      } else {
-        if (Log.isDebug) {
-          Log.log(`Skipping unhandled entitlement: ${key}`);
-        }
-      }
-    }
+  if (modifiedRequest.length) {
+    await bundleId.updateBundleIdCapabilityAsync(modifiedRequest);
   }
+
+  return { enabled: enabledCapabilityNames, disabled: disabledCapabilityNames };
+}
+
+function getCapabilitiesToEnable(
+  currentCapabilities: BundleIdCapability[],
+  entitlements: JSONObject
+) {
+  const enabledCapabilityNames: string[] = [];
+  const request: { capabilityType: CapabilityType; option: any }[] = [];
+  const remainingCapabilities = [...currentCapabilities];
+  for (const [key, value] of Object.entries(entitlements)) {
+    const staticCapabilityInfo = CapabilityMapping.find(
+      capability => capability.entitlement === key
+    );
+
+    if (!staticCapabilityInfo) {
+      if (Log.isDebug) {
+        Log.log(`Skipping unhandled entitlement: ${key}`);
+      }
+      continue;
+    }
+
+    const existingIndex = currentCapabilities.findIndex(existing =>
+      existing.isType(staticCapabilityInfo.capability)
+    );
+    const existing = existingIndex > -1 ? remainingCapabilities[existingIndex] : null;
+
+    // Only skip if the existing capability is a simple boolean value,
+    // if it has more complex settings then we should always update it.
+    if (existing && existing?.attributes.settings == null) {
+      // Remove the item from the list of capabilities so we don't disable it.
+      remainingCapabilities.splice(existingIndex, 1);
+      if (Log.isDebug) {
+        Log.log(`Skipping existing capability: ${key} (${staticCapabilityInfo.name})`);
+      }
+      continue;
+    }
+
+    if (!staticCapabilityInfo.validateOptions(value)) {
+      throw new Error(`iOS entitlement "${key}" has invalid value "${value}".`);
+    }
+    enabledCapabilityNames.push(staticCapabilityInfo.name);
+
+    const option = staticCapabilityInfo.getOptions(value!, entitlements);
+
+    request.push({
+      capabilityType: staticCapabilityInfo.capability,
+      option,
+    });
+  }
+
+  return { enabledCapabilityNames, request, remainingCapabilities };
+}
+function getCapabilitiesToDisable(
+  bundleId: BundleId,
+  currentCapabilities: BundleIdCapability[],
+  request: { capabilityType: CapabilityType; option: any }[]
+) {
+  const disabledCapabilityNames: string[] = [];
 
   // Disable any extras that aren't present, this functionality is kinda unreliable because managed apps
   // might be enabling capabilities in modifiers.
 
-  for (const existing of capabilities) {
+  for (const existingCapability of currentCapabilities) {
     // Special case APNS because it's always enabled in Expo,
     // GC and IAP are always enabled in apps by default so we should avoid modifying them.
     if (
-      existing.isType(CapabilityType.IN_APP_PURCHASE) ||
-      existing.isType(CapabilityType.PUSH_NOTIFICATIONS) ||
-      existing.isType(CapabilityType.GAME_CENTER)
+      existingCapability.isType(CapabilityType.IN_APP_PURCHASE) ||
+      existingCapability.isType(CapabilityType.PUSH_NOTIFICATIONS) ||
+      existingCapability.isType(CapabilityType.GAME_CENTER)
     ) {
       continue;
     }
 
-    if (existing.attributes) {
-      let adjustedType: string | undefined = existing.attributes.capabilityType;
+    if (existingCapability.attributes) {
+      let adjustedType: string | undefined = existingCapability.attributes.capabilityType;
       if (!adjustedType) {
-        adjustedType = existing.id.replace(`${bundleId.id}_`, '');
+        adjustedType = existingCapability.id.replace(`${bundleId.id}_`, '');
       }
 
-      // Only disable attributes that we handle,
+      // Only disable capabilities that we handle,
       // this enables devs to turn on capabilities outside of EAS without worrying about us disabling them.
-      const capability = CapabilityMapping.find(
+      const staticCapabilityInfo = CapabilityMapping.find(
         capability => capability.capability === adjustedType
       );
       if (
-        !!capability &&
-        !request.find(request => request.capabilityType && existing.isType(request.capabilityType))
+        staticCapabilityInfo &&
+        !request.find(
+          request => request.capabilityType && existingCapability.isType(request.capabilityType)
+        )
       ) {
         request.push({
           // @ts-ignore
@@ -136,16 +174,12 @@ export async function syncCapabilitiesForEntitlementsAsync(
           option: CapabilityTypeOption.OFF,
         });
 
-        disabled.push(capability?.name || adjustedType);
+        disabledCapabilityNames.push(staticCapabilityInfo.name);
       }
     }
   }
 
-  if (request.length) {
-    await bundleId.updateBundleIdCapabilityAsync(request);
-  }
-
-  return { enabled, disabled };
+  return { disabledCapabilityNames, request };
 }
 
 // NOTE(Bacon): From manually toggling values in Xcode and checking the git diff and network requests.
