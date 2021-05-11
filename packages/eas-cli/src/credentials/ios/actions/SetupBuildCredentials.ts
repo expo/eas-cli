@@ -10,7 +10,7 @@ import Log from '../../../log';
 import { Action, CredentialsManager } from '../../CredentialsManager';
 import { Context } from '../../context';
 import { AppLookupParams as GraphQLAppLookupParams } from '../api/GraphqlClient';
-import { EnsureAppExistsOptions } from '../appstore/ensureAppExists';
+import { IOSCapabilitiesOptions } from '../appstore/ensureAppExists';
 import { displayProjectCredentials } from '../utils/printCredentials';
 import { SetupAdhocProvisioningProfile } from './SetupAdhocProvisioningProfile';
 import { SetupInternalProvisioningProfile } from './SetupInternalProvisioningProfile';
@@ -21,7 +21,7 @@ interface Options {
   distribution: IosDistributionType;
   enterpriseProvisioning?: IosEnterpriseProvisioning;
   skipCredentialsCheck?: boolean;
-  iosCapabilitiesOptions?: EnsureAppExistsOptions;
+  iosCapabilitiesOptions?: IOSCapabilitiesOptions;
 }
 
 interface IosAppBuildCredentials {

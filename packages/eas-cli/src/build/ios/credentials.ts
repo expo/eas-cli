@@ -7,7 +7,7 @@ import IosCredentialsProvider, {
   IosCredentials,
 } from '../../credentials/ios/IosCredentialsProvider';
 import { getAppLookupParamsFromContext } from '../../credentials/ios/actions/BuildCredentialsUtils';
-import { EnsureAppExistsOptions } from '../../credentials/ios/appstore/ensureAppExists';
+import { IOSCapabilitiesOptions } from '../../credentials/ios/appstore/ensureAppExists';
 import { resolveEntitlementsJsonAsync } from '../../credentials/ios/appstore/entitlements';
 import { AppLookupParams } from '../../credentials/ios/credentials';
 import { CredentialsResult } from '../build';
@@ -49,7 +49,7 @@ interface ResolveCredentialsParams {
   credentialsSource: CredentialsSource;
   distribution: IosDistributionType;
   enterpriseProvisioning?: IosEnterpriseProvisioning;
-  iosCapabilitiesOptions?: EnsureAppExistsOptions;
+  iosCapabilitiesOptions?: IOSCapabilitiesOptions;
   nonInteractive: boolean;
   skipCredentialsCheck: boolean;
 }
