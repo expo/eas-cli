@@ -17,7 +17,6 @@ import { uploadWithPresignedPostAsync } from '../uploads';
 
 export const TIMEOUT_LIMIT = 60_000; // 1 minute
 const STORAGE_BUCKET = getStorageBucket();
-export const Platforms: PublishPlatform[] = ['android', 'ios']; // TODO-JJ allow users to specify this in app.js
 
 function getStorageBucket(): string {
   if (process.env.EXPO_STAGING || process.env.EXPO_LOCAL) {
@@ -206,12 +205,18 @@ export function loadMetadata(distRoot: string): Metadata {
   return metadata;
 }
 
-export function collectAssets(inputDir: string): CollectedAssets {
+export function collectAssets({
+  inputDir,
+  platforms,
+}: {
+  inputDir: string;
+  platforms: PublishPlatform[];
+}): CollectedAssets {
   const distRoot = resolveInputDirectory(inputDir);
   const metadata = loadMetadata(distRoot);
 
   const assetsFinal: CollectedAssets = {};
-  for (const platform of Platforms) {
+  for (const platform of platforms) {
     assetsFinal[platform] = {
       launchAsset: {
         type: 'bundle',

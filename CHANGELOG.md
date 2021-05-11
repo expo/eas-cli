@@ -6,16 +6,31 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🛠 Breaking changes
 
+### 🎉 New features
+
+### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [0.14.1](https://github.com/expo/eas-cli/releases/tag/v0.14.1) - 2021-05-11
+
+### 🐛 Bug fixes
+
+- Make the default urql requestPolicy 'network-only' [#397](https://github.com/expo/eas-cli/pull/397) by [@jkhales](https://github.com/jkhales))
+
+## [0.14.0](https://github.com/expo/eas-cli/releases/tag/v0.14.0) - 2021-05-10
+
+### 🛠 Breaking changes
+
 - Make eas branch:publish work with expo-cli >= 4.4.3 ([#366](https://github.com/expo/eas-cli/pull/366) by [@jkhales](https://github.com/jkhales))
 - Create asset keys without an extension. ([#366](https://github.com/expo/eas-cli/pull/366) by [@jkhales](https://github.com/jkhales))
 
 ### 🎉 New features
 
 - Display platforms supported by an update group ([#391](https://github.com/expo/eas-cli/pull/391) by [@jkhales](https://github.com/jkhales))
+- Add a --platform flag to branch:publish command ([#389](https://github.com/expo/eas-cli/pull/389) by [@jkhales](https://github.com/jkhales))
 - Release new credentials manager. ([#363](https://github.com/expo/eas-cli/pull/363) by [@quinlanj](https://github.com/quinlanj))
 - Add QR code to install internal distribution build on device. ([#371](https://github.com/expo/eas-cli/pull/371) by [@axeldelafosse](https://github.com/axeldelafosse))
-
-### 🐛 Bug fixes
 
 ### 🧹 Chores
 
