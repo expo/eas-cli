@@ -19,7 +19,7 @@ export async function getManagedEntitlementsJsonAsync(projectDir: string): Promi
   // TODO: Support prebuild mods
   const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
   return (
-    exp.ios?.entitlements || {
+    exp.ios?.entitlements ?? {
       // Always enable notifications...
       'aps-environment': 'production',
     }
