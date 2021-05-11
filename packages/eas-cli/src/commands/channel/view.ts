@@ -14,7 +14,12 @@ import Log from '../../log';
 import { ensureProjectExistsAsync } from '../../project/ensureProjectExists';
 import { findProjectRootAsync, getProjectAccountNameAsync } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
-import { FormatUpdateParameter, UPDATE_COLUMNS, formatUpdate } from '../branch/list';
+import {
+  FormatUpdateParameter,
+  UPDATE_COLUMNS,
+  formatUpdate,
+  getPlatformsForGroup,
+} from '../../update/utils';
 
 export type BranchMapping = {
   version: number;
@@ -102,12 +107,13 @@ export async function getUpdateChannelByNameForAppAsync({
                   updateBranches(offset: 0, limit: 1000) {
                     id
                     name
-                    updates(offset: 0, limit: 1) {
+                    updates(offset: 0, limit: 10) {
                       id
                       group
                       message
                       runtimeVersion
                       createdAt
+                      platform
                       actor {
                         id
                         ... on User {
@@ -133,7 +139,11 @@ export async function getUpdateChannelByNameForAppAsync({
 export function logChannelDetails(channel: {
   branchMapping: string;
   updateBranches: {
-    updates: (FormatUpdateParameter & { runtimeVersion?: string; group?: string })[];
+    updates: (FormatUpdateParameter & {
+      runtimeVersion: string;
+      group: string;
+      platform: string;
+    })[];
     name: string;
     id: string;
   }[];
@@ -168,6 +178,10 @@ export function logChannelDetails(channel: {
       formatUpdate(update),
       update?.runtimeVersion ?? 'N/A',
       update?.group ?? 'N/A,',
+      getPlatformsForGroup({
+        updates: branch.updates,
+        group: branch.updates[0]?.group,
+      }),
     ]);
   }
   Log.log(table.toString());

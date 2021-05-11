@@ -3,26 +3,13 @@ import { Command, flags } from '@oclif/command';
 import chalk from 'chalk';
 import CliTable from 'cli-table3';
 import gql from 'graphql-tag';
-import { format } from 'timeago.js';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
-import {
-  BranchesByAppQuery,
-  BranchesByAppQueryVariables,
-  Maybe,
-  Robot,
-  Update,
-  User,
-} from '../../graphql/generated';
+import { BranchesByAppQuery, BranchesByAppQueryVariables } from '../../graphql/generated';
 import Log from '../../log';
 import { findProjectRootAsync, getProjectFullNameAsync } from '../../project/projectUtils';
-import { getActorDisplayName } from '../../user/User';
+import { UPDATE_COLUMNS, formatUpdate, getPlatformsForGroup } from '../../update/utils';
 
-export type FormatUpdateParameter = Pick<Update, 'id' | 'createdAt' | 'message'> & {
-  actor?: Maybe<Pick<User, 'username' | 'id'> | Pick<Robot, 'firstName' | 'id'>>;
-};
-
-export const UPDATE_COLUMNS = ['update description', 'update runtime version', 'update group ID'];
 const BRANCHES_LIMIT = 10_000;
 
 export async function listBranchesAsync({ fullName }: { fullName: string }) {
@@ -38,7 +25,7 @@ export async function listBranchesAsync({ fullName }: { fullName: string }) {
                 updateBranches(offset: 0, limit: $limit) {
                   id
                   name
-                  updates(offset: 0, limit: 1) {
+                  updates(offset: 0, limit: 10) {
                     id
                     actor {
                       __typename
@@ -54,6 +41,7 @@ export async function listBranchesAsync({ fullName }: { fullName: string }) {
                     message
                     runtimeVersion
                     group
+                    platform
                   }
                 }
               }
@@ -100,12 +88,17 @@ export default class BranchList extends Command {
         head: ['branch', ...UPDATE_COLUMNS],
         wordWrap: true,
       });
+
       table.push(
         ...branches.map(branch => [
           branch.name,
           formatUpdate(branch.updates[0]),
           branch.updates[0]?.runtimeVersion ?? 'N/A',
           branch.updates[0]?.group ?? 'N/A',
+          getPlatformsForGroup({
+            updates: branch.updates,
+            group: branch.updates[0]?.group,
+          }),
         ])
       );
       Log.log(chalk.bold('Branches with their most recent update group:'));
@@ -115,14 +108,4 @@ export default class BranchList extends Command {
       }
     }
   }
-}
-
-export function formatUpdate(update: FormatUpdateParameter): string {
-  if (!update) {
-    return 'N/A';
-  }
-  const message = update.message ? `"${update.message}" ` : '';
-  return `${message}(${format(update.createdAt, 'en_US')} by ${getActorDisplayName(
-    update.actor as any
-  )})`;
 }

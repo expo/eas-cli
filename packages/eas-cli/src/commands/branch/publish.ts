@@ -22,17 +22,20 @@ import Log from '../../log';
 import { ensureProjectExistsAsync } from '../../project/ensureProjectExists';
 import { findProjectRootAsync, getProjectAccountNameAsync } from '../../project/projectUtils';
 import {
+  PublishPlatform,
   buildBundlesAsync,
   buildUpdateInfoGroupAsync,
   collectAssets,
   uploadAssetsAsync,
 } from '../../project/publish';
 import { promptAsync, selectAsync } from '../../prompts';
+import { formatUpdate } from '../../update/utils';
 import { getLastCommitMessageAsync } from '../../utils/git';
-import { formatUpdate, listBranchesAsync } from './list';
+import { listBranchesAsync } from './list';
 import { viewUpdateBranchAsync } from './view';
 
-type PublishPlatforms = 'android' | 'ios';
+export const defaultPublishPlatforms: PublishPlatform[] = ['android', 'ios'];
+type PlatformFlag = PublishPlatform | 'all';
 
 async function getUpdateGroupAsync({
   group,
@@ -95,6 +98,13 @@ export default class BranchPublish extends Command {
       description: `skip running Expo CLI to bundle the app before publishing`,
       default: false,
     }),
+    platform: flags.enum({
+      char: 'p',
+      description: `Only publish to a single platform`,
+      options: [...defaultPublishPlatforms, 'all'],
+      default: 'all',
+      required: false,
+    }),
     json: flags.boolean({
       description: `return a json with the new update group.`,
       default: false,
@@ -113,6 +123,7 @@ export default class BranchPublish extends Command {
         'skip-bundler': skipBundler,
       },
     } = this.parse(BranchPublish);
+    const platformFlag = this.parse(BranchPublish).flags.platform as PlatformFlag;
     // If a group was specified, that means we are republishing it.
     republish = group ? true : republish;
 
@@ -198,10 +209,23 @@ export default class BranchPublish extends Command {
         updatesToRepublish = updates.filter(update => update.group === updateGroup);
       }
 
-      for (const update of updatesToRepublish) {
-        const { platform, manifestFragment } = update;
-        updateInfoGroup[platform as PublishPlatforms] = JSON.parse(manifestFragment);
+      if (updatesToRepublish.length === 0) {
+        throw new Error(`There are no updates in this group`);
       }
+
+      for (const update of updatesToRepublish) {
+        const { manifestFragment } = update;
+        const platform = update.platform as PublishPlatform;
+
+        if (platformFlag === 'all' || platformFlag === platform) {
+          updateInfoGroup[platform] = JSON.parse(manifestFragment);
+        }
+      }
+
+      if (Object.keys(updateInfoGroup).length === 0) {
+        throw new Error(`There are no updates for platform ${platformFlag} in this group`);
+      }
+
       // These are the same for each member of an update group
       group = updatesToRepublish[0].group;
       oldMessage = updatesToRepublish[0].message ?? '';
@@ -214,7 +238,10 @@ export default class BranchPublish extends Command {
 
       const assetSpinner = ora('Uploading assets...').start();
       try {
-        const assets = collectAssets(inputDir!);
+        const platforms = platformFlag
+          ? [platformFlag as PublishPlatform]
+          : defaultPublishPlatforms;
+        const assets = collectAssets({ inputDir: inputDir!, platforms });
         await uploadAssetsAsync(assets);
         updateInfoGroup = await buildUpdateInfoGroupAsync(assets);
         assetSpinner.succeed('Uploaded assets!');

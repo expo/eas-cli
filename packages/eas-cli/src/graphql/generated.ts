@@ -152,6 +152,7 @@ export type Update = ActivityTimelineProjectActivity & {
   createdAt: Scalars['DateTime'];
   message?: Maybe<Scalars['String']>;
   branch: UpdateBranch;
+  manifestPermalink: Scalars['String'];
 };
 
 export type ActivityTimelineProjectActivity = {
@@ -666,6 +667,7 @@ export type User = Actor & {
   /** Get all certified second factor authentication methods */
   secondFactorDevices: Array<UserSecondFactorDevice>;
   /** Associated accounts */
+  primaryAccount: Account;
   accounts: Array<Account>;
   /** Access Tokens belonging to this actor */
   accessTokens: Array<AccessToken>;
@@ -900,10 +902,45 @@ export type Submission = ActivityTimelineProjectActivity & {
   initiatingActor?: Maybe<Actor>;
   platform: AppPlatform;
   status: SubmissionStatus;
+  androidConfig?: Maybe<AndroidSubmissionConfig>;
+  iosConfig?: Maybe<IosSubmissionConfig>;
   logsUrl?: Maybe<Scalars['String']>;
   error?: Maybe<SubmissionError>;
   createdAt: Scalars['DateTime'];
   updatedAt: Scalars['DateTime'];
+};
+
+export type AndroidSubmissionConfig = {
+  __typename?: 'AndroidSubmissionConfig';
+  applicationIdentifier: Scalars['String'];
+  archiveType: SubmissionAndroidArchiveType;
+  track: SubmissionAndroidTrack;
+  releaseStatus?: Maybe<SubmissionAndroidReleaseStatus>;
+};
+
+export enum SubmissionAndroidArchiveType {
+  Apk = 'APK',
+  Aab = 'AAB'
+}
+
+export enum SubmissionAndroidTrack {
+  Production = 'PRODUCTION',
+  Internal = 'INTERNAL',
+  Alpha = 'ALPHA',
+  Beta = 'BETA'
+}
+
+export enum SubmissionAndroidReleaseStatus {
+  Draft = 'DRAFT',
+  InProgress = 'IN_PROGRESS',
+  Halted = 'HALTED',
+  Completed = 'COMPLETED'
+}
+
+export type IosSubmissionConfig = {
+  __typename?: 'IosSubmissionConfig';
+  ascAppIdentifier: Scalars['String'];
+  appleIdUsername: Scalars['String'];
 };
 
 export type SubmissionError = {
@@ -1169,6 +1206,12 @@ export type UpdateBranch = {
 export type UpdateBranchUpdatesArgs = {
   offset: Scalars['Int'];
   limit: Scalars['Int'];
+  filter?: Maybe<UpdatesFilter>;
+};
+
+export type UpdatesFilter = {
+  platform?: Maybe<AppPlatform>;
+  runtimeVersions?: Maybe<Array<Scalars['String']>>;
 };
 
 export type EnvironmentSecret = {
@@ -2435,6 +2478,7 @@ export type IosGenericJobInput = {
   cache?: Maybe<BuildCacheInput>;
   scheme: Scalars['String'];
   schemeBuildConfiguration?: Maybe<IosSchemeBuildConfiguration>;
+  buildConfiguration?: Maybe<Scalars['String']>;
   artifactPath?: Maybe<Scalars['String']>;
 };
 
@@ -3267,7 +3311,7 @@ export type BranchesByAppQuery = (
         & Pick<UpdateBranch, 'id' | 'name'>
         & { updates: Array<(
           { __typename?: 'Update' }
-          & Pick<Update, 'id' | 'createdAt' | 'message' | 'runtimeVersion' | 'group'>
+          & Pick<Update, 'id' | 'createdAt' | 'message' | 'runtimeVersion' | 'group' | 'platform'>
           & { actor?: Maybe<(
             { __typename: 'User' }
             & Pick<User, 'username' | 'id'>
@@ -3441,7 +3485,7 @@ export type GetAllChannelsForAppQuery = (
           & Pick<UpdateBranch, 'id' | 'name'>
           & { updates: Array<(
             { __typename?: 'Update' }
-            & Pick<Update, 'id' | 'group' | 'message' | 'runtimeVersion' | 'createdAt'>
+            & Pick<Update, 'id' | 'group' | 'message' | 'runtimeVersion' | 'createdAt' | 'platform'>
             & { actor?: Maybe<(
               { __typename?: 'User' }
               & Pick<User, 'username' | 'id'>
@@ -3477,7 +3521,7 @@ export type GetChannelByNameForAppQuery = (
           & Pick<UpdateBranch, 'id' | 'name'>
           & { updates: Array<(
             { __typename?: 'Update' }
-            & Pick<Update, 'id' | 'group' | 'message' | 'runtimeVersion' | 'createdAt'>
+            & Pick<Update, 'id' | 'group' | 'message' | 'runtimeVersion' | 'createdAt' | 'platform'>
             & { actor?: Maybe<(
               { __typename?: 'User' }
               & Pick<User, 'username' | 'id'>
@@ -3526,6 +3570,24 @@ export type UpdatesByGroupQuery = (
       & Pick<Robot, 'firstName' | 'id'>
     )> }
   )> }
+);
+
+export type CreateAndroidKeystoreMutationVariables = Exact<{
+  androidKeystoreInput: AndroidKeystoreInput;
+  accountId: Scalars['ID'];
+}>;
+
+
+export type CreateAndroidKeystoreMutation = (
+  { __typename?: 'RootMutation' }
+  & { androidKeystore: (
+    { __typename?: 'AndroidKeystoreMutation' }
+    & { createAndroidKeystore?: Maybe<(
+      { __typename?: 'AndroidKeystore' }
+      & Pick<AndroidKeystore, 'id'>
+      & AndroidKeystoreFragment
+    )> }
+  ) }
 );
 
 export type CommonAndroidAppCredentialsWithBuildCredentialsByApplicationIdentifierQueryVariables = Exact<{

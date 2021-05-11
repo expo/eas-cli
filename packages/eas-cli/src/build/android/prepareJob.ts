@@ -56,7 +56,8 @@ async function prepareJobCommonAsync(
             dataBase64: credentials.keystore.keystore,
             keystorePassword: credentials.keystore.keystorePassword,
             keyAlias: credentials.keystore.keyAlias,
-            keyPassword: credentials.keystore.keyPassword,
+            // TODO(quin): this is a hack for pkcs12 keystores which don't actually require a keyPassword
+            keyPassword: credentials.keystore.keyPassword ?? credentials.keystore.keystorePassword,
           },
         },
       }
