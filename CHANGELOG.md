@@ -10,13 +10,15 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Pin versions in package.json. ([#399](https://github.com/expo/eas-cli/pull/399) by [@dsokal](https://github.com/dsokal))
+
 ### 🧹 Chores
 
 ## [0.14.1](https://github.com/expo/eas-cli/releases/tag/v0.14.1) - 2021-05-11
 
 ### 🐛 Bug fixes
 
-- Make the default urql requestPolicy 'network-only' [#397](https://github.com/expo/eas-cli/pull/397) by [@jkhales](https://github.com/jkhales))
+- Make the default urql requestPolicy 'network-only'. ([#397](https://github.com/expo/eas-cli/pull/397) by [@jkhales](https://github.com/jkhales))
 
 ## [0.14.0](https://github.com/expo/eas-cli/releases/tag/v0.14.0) - 2021-05-10
 
