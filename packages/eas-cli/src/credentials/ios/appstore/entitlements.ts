@@ -5,7 +5,7 @@ import { JSONObject } from '@expo/json-file';
 import plist from '@expo/plist';
 import fs from 'fs';
 
-function getEntitlementsJson(projectDir: string) {
+function getEntitlementsJson(projectDir: string): JSONObject | null {
   try {
     const entitlementsPath = IOSConfig.Paths.getEntitlementsPath(projectDir);
     if (entitlementsPath) {
@@ -15,7 +15,7 @@ function getEntitlementsJson(projectDir: string) {
   return null;
 }
 
-export function getManagedEntitlementsJsonAsync(projectDir: string) {
+export async function getManagedEntitlementsJsonAsync(projectDir: string): Promise<JSONObject> {
   // TODO: Support prebuild mods
   const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
   return (
@@ -31,7 +31,7 @@ export async function resolveEntitlementsJsonAsync(
   workflow: Workflow
 ): Promise<JSONObject> {
   if (workflow === Workflow.GENERIC) {
-    return getEntitlementsJson(projectDir);
+    return getEntitlementsJson(projectDir) || {};
   } else if (workflow === Workflow.MANAGED) {
     return getManagedEntitlementsJsonAsync(projectDir);
   } else {
