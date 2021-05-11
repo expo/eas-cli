@@ -64,7 +64,6 @@ export type BuildProfile = AndroidBuildProfile | IosBuildProfile;
 
 // EasConfig represents eas.json with one specific profile
 export interface EasConfig {
-  appId?: string;
   builds: {
     android?: AndroidManagedBuildProfile | AndroidGenericBuildProfile;
     ios?: IosManagedBuildProfile | IosGenericBuildProfile;

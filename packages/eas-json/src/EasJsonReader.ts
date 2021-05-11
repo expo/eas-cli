@@ -6,7 +6,6 @@ import { AndroidBuildProfile, BuildProfile, EasConfig, IosBuildProfile } from '.
 import { EasJsonSchema, schemaBuildProfileMap } from './EasJsonSchema';
 
 interface EasJson {
-  appId?: string;
   experimental?: {
     disableIosBundleIdentifierValidation?: boolean;
   };
