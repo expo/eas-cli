@@ -1,4 +1,10 @@
-import { ExpoConfig, getConfig, getConfigFilePaths, modifyConfigAsync } from '@expo/config';
+import {
+  AppJSONConfig,
+  ExpoConfig,
+  getConfig,
+  getConfigFilePaths,
+  modifyConfigAsync,
+} from '@expo/config';
 import { AndroidConfig, IOSConfig } from '@expo/config-plugins';
 import { Platform } from '@expo/eas-build-job';
 import chalk from 'chalk';
@@ -54,7 +60,7 @@ export async function findProjectRootAsync(cwd?: string): Promise<string | null>
   return projectRootDir ?? null;
 }
 
-export async function setProjectIdAsync(projectDir: string): Promise<void> {
+export async function setProjectIdAsync(projectDir: string): Promise<ExpoConfig | undefined> {
   const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
 
   const privacy = toAppPrivacy(exp.privacy);
@@ -73,6 +79,16 @@ export async function setProjectIdAsync(projectDir: string): Promise<void> {
   }
 
   Log.withTick(`Linked app.json to project with ID ${chalk.bold(projectId)}`);
+  /**
+   * result.config will always be an AppJSONConfig if result.type === 'success'
+   * PR to fix this typing: https://github.com/expo/expo-cli/pull/3482/files
+   *
+   * Code is written to safely handle the case where config type is not
+   * AppJSONConfig (namely there will be no expo key and the result will be undefined).
+   * TODO-JJ delete AppJSONConfig casting once typing is updated in the published @expo/config and
+   * remove undefined alternative from return type
+   */
+  return (result.config as AppJSONConfig)?.expo;
 }
 
 export async function getProjectIdAsync(exp: ExpoConfig): Promise<string> {
@@ -86,10 +102,9 @@ export async function getProjectIdAsync(exp: ExpoConfig): Promise<string> {
   if (!projectDir) {
     throw new Error('Please run this command inside a project directory.');
   }
-  await setProjectIdAsync(projectDir);
-  const { exp: newExp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
+  const newExp = await setProjectIdAsync(projectDir);
 
-  const newLocalProjectId = newExp.extra?.eas?.projectId;
+  const newLocalProjectId = newExp?.extra?.eas?.projectId;
   if (!newLocalProjectId) {
     // throw if we still can't locate the projectId
     throw new Error('Could not retrieve project ID from app.json');
