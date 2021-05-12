@@ -7,21 +7,20 @@ import gql from 'graphql-tag';
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
 import { BranchesByAppQuery, BranchesByAppQueryVariables } from '../../graphql/generated';
 import Log from '../../log';
-import { findProjectRootAsync, getProjectFullNameAsync } from '../../project/projectUtils';
+import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUtils';
 import { UPDATE_COLUMNS, formatUpdate, getPlatformsForGroup } from '../../update/utils';
 
 const BRANCHES_LIMIT = 10_000;
 
-export async function listBranchesAsync({ fullName }: { fullName: string }) {
+export async function listBranchesAsync({ projectId }: { projectId: string }) {
   const data = await withErrorHandlingAsync(
     graphqlClient
       .query<BranchesByAppQuery, BranchesByAppQueryVariables>(
         gql`
-          query BranchesByAppQuery($fullName: String!, $limit: Int!) {
+          query BranchesByAppQuery($appId: String!, $limit: Int!) {
             app {
-              byFullName(fullName: $fullName) {
+              byId(appId: $appId) {
                 id
-                fullName
                 updateBranches(offset: 0, limit: $limit) {
                   id
                   name
@@ -49,14 +48,14 @@ export async function listBranchesAsync({ fullName }: { fullName: string }) {
           }
         `,
         {
-          fullName,
+          appId: projectId,
           limit: BRANCHES_LIMIT,
         }
       )
       .toPromise()
   );
 
-  return data?.app?.byFullName.updateBranches ?? [];
+  return data?.app?.byId.updateBranches ?? [];
 }
 
 export default class BranchList extends Command {
@@ -79,8 +78,8 @@ export default class BranchList extends Command {
       throw new Error('Please run this command inside a project directory.');
     }
     const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
-    const fullName = await getProjectFullNameAsync(exp);
-    const branches = await listBranchesAsync({ fullName });
+    const projectId = await getProjectIdAsync(exp);
+    const branches = await listBranchesAsync({ projectId });
     if (flags.json) {
       Log.log(JSON.stringify(branches, null, 2));
     } else {

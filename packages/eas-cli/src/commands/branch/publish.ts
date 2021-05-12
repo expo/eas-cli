@@ -22,7 +22,6 @@ import Log from '../../log';
 import {
   findProjectRootAsync,
   getProjectAccountNameAsync,
-  getProjectFullNameAsync,
   getProjectIdAsync,
 } from '../../project/projectUtils';
 import {
@@ -155,7 +154,6 @@ export default class BranchPublish extends Command {
       );
     }
     const projectId = await getProjectIdAsync(exp);
-    const fullName = await getProjectFullNameAsync(exp);
 
     if (!name) {
       const validationMessage = 'branch name may not be empty.';
@@ -163,7 +161,7 @@ export default class BranchPublish extends Command {
         throw new Error(validationMessage);
       }
 
-      const branches = await listBranchesAsync({ fullName });
+      const branches = await listBranchesAsync({ projectId });
       name = await selectAsync<string>(
         'which branch would you like to publish on?',
         branches.map(branch => {
