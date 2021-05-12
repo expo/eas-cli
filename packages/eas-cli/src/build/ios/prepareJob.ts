@@ -89,6 +89,7 @@ async function prepareJobCommonAsync(
       bundler: ctx.buildProfile.bundler,
       cocoapods: ctx.buildProfile.cocoapods,
       fastlane: ctx.buildProfile.fastlane,
+      expoCli: ctx.buildProfile.expoCli,
       env: ctx.buildProfile.env,
     },
     cache: {

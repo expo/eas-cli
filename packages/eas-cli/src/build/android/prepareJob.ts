@@ -71,6 +71,7 @@ async function prepareJobCommonAsync(
       node: ctx.buildProfile.node,
       yarn: ctx.buildProfile.yarn,
       ndk: ctx.buildProfile.ndk,
+      expoCli: ctx.buildProfile.expoCli,
       env: ctx.buildProfile.env,
     },
     cache: {

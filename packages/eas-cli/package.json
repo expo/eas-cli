@@ -13,7 +13,7 @@
     "@expo/apple-utils": "0.0.0-alpha.19",
     "@expo/config": "3.3.19",
     "@expo/config-plugins": "1.0.24",
-    "@expo/eas-build-job": "0.2.31",
+    "@expo/eas-build-job": "0.2.32",
     "@expo/eas-json": "0.14.0",
     "@expo/json-file": "8.2.25",
     "@expo/pkcs12": "0.0.4",
