@@ -11,10 +11,12 @@ import {
   UpdateBranch,
 } from '../../graphql/generated';
 import Log from '../../log';
-import { ensureProjectExistsAsync } from '../../project/ensureProjectExists';
-import { findProjectRootAsync, getProjectAccountName } from '../../project/projectUtils';
+import {
+  findProjectRootAsync,
+  getProjectFullNameAsync,
+  getProjectIdAsync,
+} from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
-import { ensureLoggedInAsync } from '../../user/actions';
 
 async function renameUpdateBranchOnAppAsync({
   appId,
@@ -76,12 +78,8 @@ export default class BranchRename extends Command {
       throw new Error('Please run this command inside a project directory.');
     }
     const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
-    const accountName = getProjectAccountName(exp, await ensureLoggedInAsync());
-
-    const projectId = await ensureProjectExistsAsync({
-      accountName,
-      projectName: exp.slug,
-    });
+    const fullName = await getProjectFullNameAsync(exp);
+    const projectId = await getProjectIdAsync(exp);
 
     if (!currentName) {
       const validationMessage = 'current name may not be empty.';
@@ -123,7 +121,7 @@ export default class BranchRename extends Command {
     Log.withTick(
       `️Renamed branch from ${currentName} to ${chalk.bold(
         editedBranch.name
-      )} on project ${chalk.bold(`@${accountName}/${exp.slug}`)}.`
+      )} on project ${chalk.bold(fullName)}.`
     );
   }
 }

@@ -16,8 +16,11 @@ import {
   ViewBranchQueryVariables,
 } from '../../graphql/generated';
 import Log from '../../log';
-import { ensureProjectExistsAsync } from '../../project/ensureProjectExists';
-import { findProjectRootAsync, getProjectAccountNameAsync } from '../../project/projectUtils';
+import {
+  findProjectRootAsync,
+  getProjectFullNameAsync,
+  getProjectIdAsync,
+} from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
 import { UPDATE_COLUMNS, formatUpdate, getPlatformsForGroup } from '../../update/utils';
 
@@ -118,12 +121,8 @@ export default class BranchView extends Command {
     }
 
     const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
-    const accountName = await getProjectAccountNameAsync(exp);
-    const { slug } = exp;
-    const projectId = await ensureProjectExistsAsync({
-      accountName,
-      projectName: slug,
-    });
+    const fullName = await getProjectFullNameAsync(exp);
+    const projectId = await getProjectIdAsync(exp);
 
     if (!name) {
       const validationMessage = 'Branch name may not be empty.';
@@ -171,7 +170,7 @@ export default class BranchView extends Command {
 
     Log.withTick(
       `️Branch: ${chalk.bold(UpdateBranch.name)} on project ${chalk.bold(
-        `@${accountName}/${slug}`
+        fullName
       )}. Branch ID: ${chalk.bold(UpdateBranch.id)}`
     );
     Log.log(chalk.bold('Recent update groups published on this branch:'));

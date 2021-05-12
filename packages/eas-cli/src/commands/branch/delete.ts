@@ -12,10 +12,12 @@ import {
   GetBranchInfoQueryVariables,
 } from '../../graphql/generated';
 import Log from '../../log';
-import { ensureProjectExistsAsync } from '../../project/ensureProjectExists';
-import { findProjectRootAsync, getProjectAccountName } from '../../project/projectUtils';
+import {
+  findProjectRootAsync,
+  getProjectFullNameAsync,
+  getProjectIdAsync,
+} from '../../project/projectUtils';
 import { promptAsync, toggleConfirmAsync } from '../../prompts';
-import { ensureLoggedInAsync } from '../../user/actions';
 
 async function getBranchInfoAsync({
   appId,
@@ -104,11 +106,8 @@ export default class BranchDelete extends Command {
       throw new Error('Please run this command inside a project directory.');
     }
     const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
-    const accountName = getProjectAccountName(exp, await ensureLoggedInAsync());
-    const projectId = await ensureProjectExistsAsync({
-      accountName,
-      projectName: exp.slug,
-    });
+    const fullName = await getProjectFullNameAsync(exp);
+    const projectId = await getProjectIdAsync(exp);
 
     if (!name) {
       const validationMessage = 'branch name may not be empty.';
@@ -148,9 +147,7 @@ export default class BranchDelete extends Command {
     }
 
     Log.withTick(
-      `️Deleted branch "${name}" and all of its updates on project ${chalk.bold(
-        `@${accountName}/${exp.slug}`
-      )}.`
+      `️Deleted branch "${name}" and all of its updates on project ${chalk.bold(fullName)}.`
     );
   }
 }

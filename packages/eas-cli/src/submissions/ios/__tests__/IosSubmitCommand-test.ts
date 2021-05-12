@@ -5,7 +5,7 @@ import { asMock } from '../../../__tests__/utils';
 import { jester as mockJester } from '../../../credentials/__tests__/fixtures-constants';
 import { AppPlatform, SubmissionFragment, SubmissionStatus } from '../../../graphql/generated';
 import { createTestProject } from '../../../project/__tests__/project-utils';
-import { ensureProjectExistsAsync } from '../../../project/ensureProjectExists';
+import { getProjectIdAsync } from '../../../project/projectUtils';
 import SubmissionService from '../../SubmissionService';
 import { IosSubmitCommandFlags } from '../../types';
 import { IosSubmissionConfig } from '../IosSubmissionConfig';
@@ -53,7 +53,7 @@ describe(IosSubmitCommand, () => {
   });
 
   afterEach(() => {
-    asMock(ensureProjectExistsAsync).mockClear();
+    asMock(getProjectIdAsync).mockClear();
   });
 
   describe('sending submission', () => {
@@ -83,7 +83,7 @@ describe(IosSubmitCommand, () => {
           };
         }
       );
-      asMock(ensureProjectExistsAsync).mockImplementationOnce(() => projectId);
+      asMock(getProjectIdAsync).mockImplementationOnce(() => projectId);
 
       process.env.EXPO_APPLE_APP_SPECIFIC_PASSWORD = 'supersecret';
 
