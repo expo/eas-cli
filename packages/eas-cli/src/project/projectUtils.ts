@@ -74,8 +74,27 @@ export async function setProjectIdAsync(projectDir: string): Promise<ExpoConfig 
     extra: { ...exp.extra, eas: { ...exp.extra?.eas, projectId } },
   });
 
-  if (result.type !== 'success') {
-    throw new Error(result.message);
+  switch (result.type) {
+    case 'success':
+      break;
+    case 'warn': {
+      Log.log();
+      Log.warn('It looks like you are using a dynamic configuration!');
+      Log.log(
+        chalk.dim(
+          'https://docs.expo.io/workflow/configuration/#dynamic-configuration-with-appconfigjs)\n'
+        )
+      );
+      Log.warn(
+        'In order to finish setting up your project you are going to need manually add the following to your "extra" key:\n\n'
+      );
+      Log.log(chalk.bold(`"extra": {\n  ...\n  "eas": {\n    "projectId": "${projectId}"\n  }\n}`));
+      throw new Error(result.message);
+    }
+    case 'fail':
+      throw new Error(result.message);
+    default:
+      throw new Error('Unexpected result type from modifyConfigAsync');
   }
 
   Log.withTick(`Linked app.json to project with ID ${chalk.bold(projectId)}`);
