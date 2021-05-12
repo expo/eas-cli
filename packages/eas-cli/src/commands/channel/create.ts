@@ -9,11 +9,11 @@ import {
   CreateUpdateChannelOnAppMutationVariables,
 } from '../../graphql/generated';
 import Log from '../../log';
-import { ensureProjectExistsAsync } from '../../project/ensureProjectExists';
 import {
   findProjectRootAsync,
   getBranchByNameAsync,
-  getProjectAccountNameAsync,
+  getProjectFullNameAsync,
+  getProjectIdAsync,
 } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
 import { createUpdateBranchOnAppAsync } from '../branch/create';
@@ -87,12 +87,8 @@ export default class ChannelCreate extends Command {
       throw new Error('Please run this command inside a project directory.');
     }
     const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
-    const accountName = await getProjectAccountNameAsync(exp);
-    const { slug } = exp;
-    const projectId = await ensureProjectExistsAsync({
-      accountName,
-      projectName: slug,
-    });
+    const fullName = await getProjectFullNameAsync(exp);
+    const projectId = await getProjectIdAsync(exp);
 
     if (!channelName) {
       const validationMessage = 'Channel name may not be empty.';
@@ -146,7 +142,7 @@ export default class ChannelCreate extends Command {
 
     Log.withTick(
       `️Created a new channel ${chalk.bold(newChannel.name)} on project ${chalk.bold(
-        `@${accountName}/${slug}`
+        fullName
       )}. ${branchMessage} and have pointed the channel at it. You can now update your app by publishing!`
     );
   }

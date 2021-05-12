@@ -19,8 +19,12 @@ import {
 } from '../../graphql/generated';
 import { PublishMutation } from '../../graphql/mutations/PublishMutation';
 import Log from '../../log';
-import { ensureProjectExistsAsync } from '../../project/ensureProjectExists';
-import { findProjectRootAsync, getProjectAccountNameAsync } from '../../project/projectUtils';
+import {
+  findProjectRootAsync,
+  getProjectAccountNameAsync,
+  getProjectFullNameAsync,
+  getProjectIdAsync,
+} from '../../project/projectUtils';
 import {
   PublishPlatform,
   buildBundlesAsync,
@@ -150,10 +154,8 @@ export default class BranchPublish extends Command {
         "Couldn't find 'runtimeVersion'. Please specify it under the 'expo' key in 'app.json'"
       );
     }
-    const projectId = await ensureProjectExistsAsync({
-      accountName,
-      projectName: slug,
-    });
+    const projectId = await getProjectIdAsync(exp);
+    const fullName = await getProjectFullNameAsync(exp);
 
     if (!name) {
       const validationMessage = 'branch name may not be empty.';
@@ -161,7 +163,7 @@ export default class BranchPublish extends Command {
         throw new Error(validationMessage);
       }
 
-      const branches = await listBranchesAsync({ fullName: `@${accountName}/${slug}` });
+      const branches = await listBranchesAsync({ fullName });
       name = await selectAsync<string>(
         'which branch would you like to publish on?',
         branches.map(branch => {

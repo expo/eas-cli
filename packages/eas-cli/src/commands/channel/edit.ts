@@ -13,11 +13,10 @@ import {
   UpdateChannelBranchMappingMutationVariables,
 } from '../../graphql/generated';
 import Log from '../../log';
-import { ensureProjectExistsAsync } from '../../project/ensureProjectExists';
 import {
   findProjectRootAsync,
   getBranchByNameAsync,
-  getProjectAccountNameAsync,
+  getProjectIdAsync,
 } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
 
@@ -126,12 +125,7 @@ export default class ChannelEdit extends Command {
       throw new Error('Please run this command inside a project directory.');
     }
     const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
-    const accountName = await getProjectAccountNameAsync(exp);
-    const { slug } = exp;
-    const projectId = await ensureProjectExistsAsync({
-      accountName,
-      projectName: slug,
-    });
+    const projectId = await getProjectIdAsync(exp);
 
     if (!channelName) {
       const validationMessage = 'A channel name is required to edit a specific channel.';

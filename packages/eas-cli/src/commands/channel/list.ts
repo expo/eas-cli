@@ -9,8 +9,7 @@ import {
   GetAllChannelsForAppQueryVariables,
 } from '../../graphql/generated';
 import Log from '../../log';
-import { ensureProjectExistsAsync } from '../../project/ensureProjectExists';
-import { findProjectRootAsync, getProjectAccountNameAsync } from '../../project/projectUtils';
+import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUtils';
 import { logChannelDetails } from './view';
 
 const CHANNEL_LIMIT = 10_000;
@@ -85,12 +84,7 @@ export default class ChannelList extends Command {
       throw new Error('Please run this command inside a project directory.');
     }
     const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
-    const accountName = await getProjectAccountNameAsync(exp);
-    const { slug } = exp;
-    const projectId = await ensureProjectExistsAsync({
-      accountName,
-      projectName: slug,
-    });
+    const projectId = await getProjectIdAsync(exp);
 
     const getAllUpdateChannelForAppResult = await getAllUpdateChannelForAppAsync({
       appId: projectId,
