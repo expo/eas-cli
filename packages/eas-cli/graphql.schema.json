@@ -15543,9 +15543,13 @@
             "name": "keyPassword",
             "description": "",
             "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              }
             },
             "defaultValue": null
           }
@@ -15592,16 +15596,6 @@
           },
           {
             "name": "ndk",
-            "description": "",
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
-            "name": "expoCli",
             "description": "",
             "type": {
               "kind": "SCALAR",
@@ -16428,16 +16422,6 @@
           },
           {
             "name": "cocoapods",
-            "description": "",
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
-            "name": "expoCli",
             "description": "",
             "type": {
               "kind": "SCALAR",
