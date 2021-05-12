@@ -2389,7 +2389,7 @@ export type AndroidJobKeystoreInput = {
   dataBase64: Scalars['String'];
   keystorePassword: Scalars['String'];
   keyAlias: Scalars['String'];
-  keyPassword: Scalars['String'];
+  keyPassword?: Maybe<Scalars['String']>;
 };
 
 export type AndroidBuilderEnvironmentInput = {
@@ -2397,6 +2397,7 @@ export type AndroidBuilderEnvironmentInput = {
   node?: Maybe<Scalars['String']>;
   yarn?: Maybe<Scalars['String']>;
   ndk?: Maybe<Scalars['String']>;
+  expoCli?: Maybe<Scalars['String']>;
   env?: Maybe<Scalars['JSONObject']>;
 };
 
@@ -2505,6 +2506,7 @@ export type IosBuilderEnvironmentInput = {
   bundler?: Maybe<Scalars['String']>;
   fastlane?: Maybe<Scalars['String']>;
   cocoapods?: Maybe<Scalars['String']>;
+  expoCli?: Maybe<Scalars['String']>;
   env?: Maybe<Scalars['JSONObject']>;
 };
 
@@ -3532,22 +3534,6 @@ export type GetChannelByNameForAppQuery = (
           )> }
         )> }
       )> }
-    ) }
-  )> }
-);
-
-export type ProjectByIdQueryVariables = Exact<{
-  projectId: Scalars['String'];
-}>;
-
-
-export type ProjectByIdQuery = (
-  { __typename?: 'RootQuery' }
-  & { app?: Maybe<(
-    { __typename?: 'AppQuery' }
-    & { byId: (
-      { __typename?: 'App' }
-      & Pick<App, 'id'>
     ) }
   )> }
 );
