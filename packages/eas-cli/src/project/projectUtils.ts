@@ -1,6 +1,13 @@
-import { ExpoConfig, getConfigFilePaths } from '@expo/config';
+import {
+  AppJSONConfig,
+  ExpoConfig,
+  getConfig,
+  getConfigFilePaths,
+  modifyConfigAsync,
+} from '@expo/config';
 import { AndroidConfig, IOSConfig } from '@expo/config-plugins';
 import { Platform } from '@expo/eas-build-job';
+import chalk from 'chalk';
 import fs from 'fs-extra';
 import gql from 'graphql-tag';
 import path from 'path';
@@ -8,6 +15,7 @@ import pkgDir from 'pkg-dir';
 
 import { graphqlClient, withErrorHandlingAsync } from '../graphql/client';
 import { AppPrivacy, UpdateBranch } from '../graphql/generated';
+import Log from '../log';
 import { Actor } from '../user/User';
 import { ensureLoggedInAsync } from '../user/actions';
 import { ensureProjectExistsAsync } from './ensureProjectExists';
@@ -52,13 +60,75 @@ export async function findProjectRootAsync(cwd?: string): Promise<string | null>
   return projectRootDir ?? null;
 }
 
-export async function getProjectIdAsync(exp: ExpoConfig): Promise<string> {
+export async function setProjectIdAsync(projectDir: string): Promise<ExpoConfig | undefined> {
+  const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
+
   const privacy = toAppPrivacy(exp.privacy);
-  return await ensureProjectExistsAsync({
+  const projectId = await ensureProjectExistsAsync({
     accountName: getProjectAccountName(exp, await ensureLoggedInAsync()),
     projectName: exp.slug,
     privacy,
   });
+
+  const result = await modifyConfigAsync(projectDir, {
+    extra: { ...exp.extra, eas: { ...exp.extra?.eas, projectId } },
+  });
+
+  switch (result.type) {
+    case 'success':
+      break;
+    case 'warn': {
+      Log.log();
+      Log.warn('It looks like you are using a dynamic configuration!');
+      Log.log(
+        chalk.dim(
+          'https://docs.expo.io/workflow/configuration/#dynamic-configuration-with-appconfigjs)\n'
+        )
+      );
+      Log.warn(
+        'In order to finish setting up your project you are going to need manually add the following to your "extra" key:\n\n'
+      );
+      Log.log(chalk.bold(`"extra": {\n  ...\n  "eas": {\n    "projectId": "${projectId}"\n  }\n}`));
+      throw new Error(result.message);
+    }
+    case 'fail':
+      throw new Error(result.message);
+    default:
+      throw new Error('Unexpected result type from modifyConfigAsync');
+  }
+
+  Log.withTick(`Linked app.json to project with ID ${chalk.bold(projectId)}`);
+  /**
+   * result.config will always be an AppJSONConfig if result.type === 'success'
+   * PR to fix this typing: https://github.com/expo/expo-cli/pull/3482/files
+   *
+   * Code is written to safely handle the case where config type is not
+   * AppJSONConfig (namely there will be no expo key and the result will be undefined).
+   * TODO-JJ delete AppJSONConfig casting once typing is updated in the published @expo/config and
+   * remove undefined alternative from return type
+   */
+  return (result.config as AppJSONConfig)?.expo;
+}
+
+export async function getProjectIdAsync(exp: ExpoConfig): Promise<string> {
+  const localProjectId = exp.extra?.eas?.projectId;
+  if (localProjectId) {
+    return localProjectId;
+  }
+
+  // Set the project ID if it is missing.
+  const projectDir = await findProjectRootAsync(process.cwd());
+  if (!projectDir) {
+    throw new Error('Please run this command inside a project directory.');
+  }
+  const newExp = await setProjectIdAsync(projectDir);
+
+  const newLocalProjectId = newExp?.extra?.eas?.projectId;
+  if (!newLocalProjectId) {
+    // throw if we still can't locate the projectId
+    throw new Error('Could not retrieve project ID from app.json');
+  }
+  return newLocalProjectId;
 }
 
 const toAppPrivacy = (privacy: ExpoConfig['privacy']) => {
