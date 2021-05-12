@@ -3536,22 +3536,6 @@ export type GetChannelByNameForAppQuery = (
   )> }
 );
 
-export type ProjectByIdQueryVariables = Exact<{
-  projectId: Scalars['String'];
-}>;
-
-
-export type ProjectByIdQuery = (
-  { __typename?: 'RootQuery' }
-  & { app?: Maybe<(
-    { __typename?: 'AppQuery' }
-    & { byId: (
-      { __typename?: 'App' }
-      & Pick<App, 'id'>
-    ) }
-  )> }
-);
-
 export type DeleteUpdateGroupMutationVariables = Exact<{
   group: Scalars['ID'];
 }>;
