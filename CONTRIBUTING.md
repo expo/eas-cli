@@ -2,8 +2,11 @@
 
 1. Run `yarn release` in the repository root folder. This will create a new tag like `v1.0.0`.
 1. **Wait until the `release` GitHub workflow has finished.**
+   ![Wait for all three jobs to complete](./.gh-assets/release-workflow.png)
 1. Once the release is ready to go, you can go to https://github.com/expo/eas-cli/releases and mark it as not draft.
    - Remember to copy the changelog entries from `CHANGELOG.md`.
+   - Before hitting the submit button, make sure there are 5 assets available under the release entry.
+     ![There are 5 assets for each release](./.gh-assets/draft-release.png)
 1. Run `yarn lerna publish from-git` in the repository root folder. This will publish the packages to npm.
 
    - This command works only if `HEAD` is on the release commit, e.g. when `git log -1` prints:

@@ -5,7 +5,7 @@ import gql from 'graphql-tag';
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
 import { UpdatesByGroupQuery, UpdatesByGroupQueryVariables } from '../../graphql/generated';
 import Log from '../../log';
-import { UPDATE_COLUMNS, formatUpdate } from '../branch/list';
+import { UPDATE_COLUMNS, formatUpdate, getPlatformsForGroup } from '../../update/utils';
 
 export async function viewUpdateAsync({
   groupId,
@@ -80,18 +80,19 @@ export default class UpdateView extends Command {
     }
 
     const groupTable = new Table({
-      head: [...UPDATE_COLUMNS, 'platforms'],
+      head: [...UPDATE_COLUMNS],
       wordWrap: true,
     });
 
-    // The relevant info of the updates are same except for their platform
-    const platforms = updatesByGroup.map(update => update.platform);
     const representativeUpdate = updatesByGroup[0];
     groupTable.push([
       formatUpdate(representativeUpdate),
       representativeUpdate.runtimeVersion,
       representativeUpdate.group,
-      platforms.join(','),
+      getPlatformsForGroup({
+        updates: updatesByGroup,
+        group: updatesByGroup[0]?.group,
+      }),
     ]);
 
     Log.log(groupTable.toString());

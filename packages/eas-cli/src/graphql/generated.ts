@@ -3311,7 +3311,7 @@ export type BranchesByAppQuery = (
         & Pick<UpdateBranch, 'id' | 'name'>
         & { updates: Array<(
           { __typename?: 'Update' }
-          & Pick<Update, 'id' | 'createdAt' | 'message' | 'runtimeVersion' | 'group'>
+          & Pick<Update, 'id' | 'createdAt' | 'message' | 'runtimeVersion' | 'group' | 'platform'>
           & { actor?: Maybe<(
             { __typename: 'User' }
             & Pick<User, 'username' | 'id'>
@@ -3485,7 +3485,7 @@ export type GetAllChannelsForAppQuery = (
           & Pick<UpdateBranch, 'id' | 'name'>
           & { updates: Array<(
             { __typename?: 'Update' }
-            & Pick<Update, 'id' | 'group' | 'message' | 'runtimeVersion' | 'createdAt'>
+            & Pick<Update, 'id' | 'group' | 'message' | 'runtimeVersion' | 'createdAt' | 'platform'>
             & { actor?: Maybe<(
               { __typename?: 'User' }
               & Pick<User, 'username' | 'id'>
@@ -3521,7 +3521,7 @@ export type GetChannelByNameForAppQuery = (
           & Pick<UpdateBranch, 'id' | 'name'>
           & { updates: Array<(
             { __typename?: 'Update' }
-            & Pick<Update, 'id' | 'group' | 'message' | 'runtimeVersion' | 'createdAt'>
+            & Pick<Update, 'id' | 'group' | 'message' | 'runtimeVersion' | 'createdAt' | 'platform'>
             & { actor?: Maybe<(
               { __typename?: 'User' }
               & Pick<User, 'username' | 'id'>
