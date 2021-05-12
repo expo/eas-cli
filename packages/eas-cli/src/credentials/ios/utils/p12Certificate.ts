@@ -39,7 +39,23 @@ function getRawCertData(p12Buffer: Buffer | string, passwordRaw: string | null):
   const password = String(passwordRaw || '');
   const p12Der = forge.util.decode64(p12Buffer);
   const p12Asn1 = forge.asn1.fromDer(p12Der);
-  const p12 = forge.pkcs12.pkcs12FromAsn1(p12Asn1, password);
+
+  let p12: forge.pkcs12.Pkcs12Pfx;
+  try {
+    if (password) {
+      p12 = forge.pkcs12.pkcs12FromAsn1(p12Asn1, password);
+    } else {
+      p12 = forge.pkcs12.pkcs12FromAsn1(p12Asn1, false /* strict */);
+    }
+  } catch (_error) {
+    const error: Error = _error;
+    if (/Invalid password/.exec(error.message)) {
+      throw new Error('Provided password for the distribution certificate is probably invalid');
+    } else {
+      throw error;
+    }
+  }
+
   const certBagType = forge.pki.oids.certBag;
   const certData = p12.getBags({ bagType: certBagType })?.[certBagType]?.[0]?.cert;
   if (!certData) {
