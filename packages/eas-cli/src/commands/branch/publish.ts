@@ -74,7 +74,6 @@ export default class BranchPublish extends Command {
   static args = [
     {
       name: 'name',
-      required: true,
       description: 'Name of the branch to publish on',
     },
   ];
