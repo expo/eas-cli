@@ -1,6 +1,7 @@
-import { ExpoConfig, getConfigFilePaths } from '@expo/config';
+import { ExpoConfig, getConfig, getConfigFilePaths, modifyConfigAsync } from '@expo/config';
 import { AndroidConfig, IOSConfig } from '@expo/config-plugins';
 import { Platform } from '@expo/eas-build-job';
+import chalk from 'chalk';
 import fs from 'fs-extra';
 import gql from 'graphql-tag';
 import path from 'path';
@@ -8,6 +9,7 @@ import pkgDir from 'pkg-dir';
 
 import { graphqlClient, withErrorHandlingAsync } from '../graphql/client';
 import { AppPrivacy, UpdateBranch } from '../graphql/generated';
+import Log from '../log';
 import { Actor } from '../user/User';
 import { ensureLoggedInAsync } from '../user/actions';
 import { ensureProjectExistsAsync } from './ensureProjectExists';
@@ -52,13 +54,47 @@ export async function findProjectRootAsync(cwd?: string): Promise<string | null>
   return projectRootDir ?? null;
 }
 
-export async function getProjectIdAsync(exp: ExpoConfig): Promise<string> {
+export async function setProjectIdAsync(projectDir: string): Promise<void> {
+  const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
+
   const privacy = toAppPrivacy(exp.privacy);
-  return await ensureProjectExistsAsync({
+  const projectId = await ensureProjectExistsAsync({
     accountName: getProjectAccountName(exp, await ensureLoggedInAsync()),
     projectName: exp.slug,
     privacy,
   });
+
+  const result = await modifyConfigAsync(projectDir, {
+    extra: { ...exp.extra, eas: { ...exp.extra?.eas, projectId } },
+  });
+
+  if (result.type !== 'success') {
+    throw new Error(result.message);
+  }
+
+  Log.withTick(`Synced app.json to project with ID ${chalk.bold(projectId)}`);
+}
+
+export async function getProjectIdAsync(exp: ExpoConfig): Promise<string> {
+  const localProjectId = exp.extra?.eas?.projectId;
+  if (localProjectId) {
+    return localProjectId;
+  }
+
+  // Set the project ID if it is missing.
+  const projectDir = await findProjectRootAsync(process.cwd());
+  if (!projectDir) {
+    throw new Error('Please run this command inside a project directory.');
+  }
+  await setProjectIdAsync(projectDir);
+  const { exp: newExp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
+
+  const newLocalProjectId = newExp.extra?.eas?.projectId;
+  if (!newLocalProjectId) {
+    // throw if we still can't locate the projectId
+    throw new Error('Could not retrieve project ID from app.json');
+  }
+  return newLocalProjectId;
 }
 
 const toAppPrivacy = (privacy: ExpoConfig['privacy']) => {
