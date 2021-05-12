@@ -16,7 +16,9 @@ export default class InitView extends Command {
     const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
 
     if (exp.extra?.eas?.projectId) {
-      Log.error(`Already synced to project with ID: ${chalk.bold(exp.extra?.eas?.projectId)}`);
+      Log.error(
+        `app.json is already linked to project with ID: ${chalk.bold(exp.extra?.eas?.projectId)}`
+      );
       return;
     }
 

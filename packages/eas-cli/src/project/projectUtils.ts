@@ -72,7 +72,7 @@ export async function setProjectIdAsync(projectDir: string): Promise<void> {
     throw new Error(result.message);
   }
 
-  Log.withTick(`Synced app.json to project with ID ${chalk.bold(projectId)}`);
+  Log.withTick(`Linked app.json to project with ID ${chalk.bold(projectId)}`);
 }
 
 export async function getProjectIdAsync(exp: ExpoConfig): Promise<string> {
