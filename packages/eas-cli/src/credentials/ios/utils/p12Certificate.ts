@@ -45,7 +45,7 @@ function getRawCertData(p12Buffer: Buffer | string, passwordRaw: string | null):
     if (password) {
       p12 = forge.pkcs12.pkcs12FromAsn1(p12Asn1, password);
     } else {
-      p12 = forge.pkcs12.pkcs12FromAsn1(p12Asn1, false /* strict */);
+      p12 = forge.pkcs12.pkcs12FromAsn1(p12Asn1);
     }
   } catch (_error) {
     const error: Error = _error;
