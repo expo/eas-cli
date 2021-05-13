@@ -22,7 +22,7 @@ describe(forge.pkcs12.pkcs12FromAsn1, () => {
       const p12Asn1 = forge.asn1.fromDer(p12Der);
       expect(() => forge.pkcs12.pkcs12FromAsn1(p12Asn1, '')).toThrow();
     });
-    it('does not throw if value is not specified', async () => {
+    it('does not throw if password value is not specified', async () => {
       const p12Der = forge.util.decode64(testDistributionCertificateEmptyPasswordBase64);
       const p12Asn1 = forge.asn1.fromDer(p12Der);
       expect(() => forge.pkcs12.pkcs12FromAsn1(p12Asn1)).not.toThrow();
@@ -34,7 +34,7 @@ describe(forge.pkcs12.pkcs12FromAsn1, () => {
       const p12Asn1 = forge.asn1.fromDer(p12Der);
       expect(() => forge.pkcs12.pkcs12FromAsn1(p12Asn1, '')).not.toThrow();
     });
-    it('does not throw if value is not specified', async () => {
+    it('throws if password value is not specified', async () => {
       const p12Der = forge.util.decode64(testPKCS12KeystoreEmptyPasswordBase64);
       const p12Asn1 = forge.asn1.fromDer(p12Der);
       expect(() => forge.pkcs12.pkcs12FromAsn1(p12Asn1)).toThrow();
