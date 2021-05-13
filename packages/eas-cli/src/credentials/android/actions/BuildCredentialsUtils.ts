@@ -1,4 +1,9 @@
+import assert from 'assert';
+import { nanoid } from 'nanoid';
+
+import { AndroidAppBuildCredentialsFragment } from '../../../graphql/generated';
 import { getProjectAccountName, getProjectConfigDescription } from '../../../project/projectUtils';
+import { promptAsync } from '../../../prompts';
 import { findAccountByName } from '../../../user/Account';
 import { Context } from '../../context';
 import { AppLookupParams } from '../api/GraphqlClient';
@@ -22,4 +27,44 @@ export function getAppLookupParamsFromContext(ctx: Context): AppLookupParams {
   }
 
   return { account, projectName, androidApplicationIdentifier };
+}
+
+export async function createOrUpdateDefaultAndroidAppBuildCredentialsAsync(
+  ctx: Context,
+  appLookupParams: AppLookupParams,
+  {
+    androidKeystoreId,
+  }: {
+    androidKeystoreId: string;
+  }
+): Promise<AndroidAppBuildCredentialsFragment> {
+  assert(
+    !ctx.nonInteractive,
+    'createOrUpdateDefaultAndroidAppBuildCredentialsAsync must be run in interactive mode'
+  );
+  const existingDefaultBuildCredentials = await ctx.newAndroid.getDefaultAndroidAppBuildCredentialsAsync(
+    appLookupParams
+  );
+  if (existingDefaultBuildCredentials) {
+    return await ctx.newAndroid.updateAndroidAppBuildCredentialsAsync(
+      existingDefaultBuildCredentials,
+      { androidKeystoreId }
+    );
+  }
+  const { providedName } = await promptAsync({
+    type: 'text',
+    name: 'providedName',
+    message: 'Assign a name to your build credentials:',
+    initial: generateRandomName(),
+    validate: (input: string) => input !== '',
+  });
+  return await ctx.newAndroid.createAndroidAppBuildCredentialsAsync(appLookupParams, {
+    name: providedName,
+    isDefault: true,
+    androidKeystoreId,
+  });
+}
+
+function generateRandomName(): string {
+  return `build-credentials-${nanoid(10)}`;
 }

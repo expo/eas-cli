@@ -6,7 +6,7 @@ import {
   testProvisioningProfile,
   testProvisioningProfileFragment,
 } from '../../../__tests__/fixtures-ios';
-import { MissingCredentialsNonInteractiveError } from '../../errors';
+import { MissingCredentialsNonInteractiveError } from '../../../errors';
 import { getAppLookupParamsFromContext } from '../BuildCredentialsUtils';
 import { ConfigureProvisioningProfile } from '../ConfigureProvisioningProfile';
 jest.mock('../../../../prompts');

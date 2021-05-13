@@ -1,9 +1,14 @@
 import {
+  AndroidAppBuildCredentialsFragment,
   AndroidKeystoreFragment,
+  AppFragment,
   CommonAndroidAppCredentialsFragment,
 } from '../../../graphql/generated';
 import { Account } from '../../../user/Account';
+import { AppQuery } from '../../ios/api/graphql/queries/AppQuery';
 import { KeystoreWithType } from '../credentials';
+import { AndroidAppBuildCredentialsMutation } from './graphql/mutations/AndroidAppBuildCredentialsMutation';
+import { AndroidAppCredentialsMutation } from './graphql/mutations/AndroidAppCredentialsMutation';
 import { AndroidKeystoreMutation } from './graphql/mutations/AndroidKeystoreMutation';
 import { AndroidAppCredentialsQuery } from './graphql/queries/AndroidAppCredentialsQuery';
 
@@ -27,6 +32,13 @@ export async function getAndroidAppCredentialsWithCommonFieldsAsync(
   );
 }
 
+export async function getAndroidAppBuildCredentialsListAsync(
+  appLookupParams: AppLookupParams
+): Promise<AndroidAppBuildCredentialsFragment[]> {
+  const appCredentials = await getAndroidAppCredentialsWithCommonFieldsAsync(appLookupParams);
+  return appCredentials?.androidAppBuildCredentialsList ?? [];
+}
+
 /* There is at most one set of legacy android app credentials associated with an Expo App */
 export async function getLegacyAndroidAppCredentialsWithCommonFieldsAsync(
   appLookupParams: AppLookupParams
@@ -38,6 +50,131 @@ export async function getLegacyAndroidAppCredentialsWithCommonFieldsAsync(
       legacyOnly: true,
     }
   );
+}
+
+/* There is at most one set of legacy android app build credentials associated with an Expo App */
+export async function getLegacyAndroidAppBuildCredentialsAsync(
+  appLookupParams: AppLookupParams
+): Promise<AndroidAppBuildCredentialsFragment | null> {
+  const legacyAppCredentials = await getLegacyAndroidAppCredentialsWithCommonFieldsAsync(
+    appLookupParams
+  );
+  return legacyAppCredentials?.androidAppBuildCredentialsList[0] ?? null;
+}
+
+export async function createOrGetExistingAndroidAppCredentialsWithBuildCredentialsAsync(
+  appLookupParams: AppLookupParams
+): Promise<CommonAndroidAppCredentialsFragment> {
+  const maybeAndroidAppCredentials = await getAndroidAppCredentialsWithCommonFieldsAsync(
+    appLookupParams
+  );
+  if (maybeAndroidAppCredentials) {
+    return maybeAndroidAppCredentials;
+  } else {
+    const app = await getAppAsync(appLookupParams);
+    return await AndroidAppCredentialsMutation.createAndroidAppCredentialsAsync(
+      {
+        /* fcmKey not supported yet */
+      },
+      app.id,
+      appLookupParams.androidApplicationIdentifier
+    );
+  }
+}
+
+export async function updateAndroidAppBuildCredentialsAsync(
+  buildCredentials: AndroidAppBuildCredentialsFragment,
+  {
+    androidKeystoreId,
+  }: {
+    androidKeystoreId: string;
+  }
+): Promise<AndroidAppBuildCredentialsFragment> {
+  return await AndroidAppBuildCredentialsMutation.setKeystoreAsync(
+    buildCredentials.id,
+    androidKeystoreId
+  );
+}
+
+export async function createAndroidAppBuildCredentialsAsync(
+  appLookupParams: AppLookupParams,
+  {
+    name,
+    isDefault,
+    androidKeystoreId,
+  }: {
+    name: string;
+    isDefault: boolean;
+    androidKeystoreId: string;
+  }
+): Promise<AndroidAppBuildCredentialsFragment> {
+  const androidAppCredentials = await createOrGetExistingAndroidAppCredentialsWithBuildCredentialsAsync(
+    appLookupParams
+  );
+  const buildCredentialsList = androidAppCredentials.androidAppBuildCredentialsList;
+  const existingDefaultBuildCredentials =
+    buildCredentialsList.find(buildCredentials => buildCredentials.isDefault) ?? null;
+  if (existingDefaultBuildCredentials) {
+    throw new Error(
+      'Cannot create new default Android Build Credentials. A set of default credentials exists already.'
+    );
+  }
+
+  return await AndroidAppBuildCredentialsMutation.createAndroidAppBuildCredentialsAsync(
+    {
+      name,
+      isDefault,
+      keystoreId: androidKeystoreId,
+    },
+    androidAppCredentials.id
+  );
+}
+
+export async function getDefaultAndroidAppBuildCredentialsAsync(
+  appLookupParams: AppLookupParams
+): Promise<AndroidAppBuildCredentialsFragment | null> {
+  const buildCredentialsList = await getAndroidAppBuildCredentialsListAsync(appLookupParams);
+  return buildCredentialsList.find(buildCredentials => buildCredentials.isDefault) ?? null;
+}
+
+export async function getAndroidAppBuildCredentialsByNameAsync(
+  appLookupParams: AppLookupParams,
+  name: string
+): Promise<AndroidAppBuildCredentialsFragment | null> {
+  const buildCredentialsList = await getAndroidAppBuildCredentialsListAsync(appLookupParams);
+  return buildCredentialsList.find(buildCredentials => buildCredentials.name === name) ?? null;
+}
+
+export async function createOrUpdateAndroidAppBuildCredentialsByNameAsync(
+  appLookupParams: AppLookupParams,
+  name: string,
+  {
+    androidKeystoreId,
+  }: {
+    androidKeystoreId: string;
+  }
+): Promise<AndroidAppBuildCredentialsFragment> {
+  const existingBuildCredentialsWithName = await getAndroidAppBuildCredentialsByNameAsync(
+    appLookupParams,
+    name
+  );
+  if (existingBuildCredentialsWithName) {
+    return await updateAndroidAppBuildCredentialsAsync(existingBuildCredentialsWithName, {
+      androidKeystoreId,
+    });
+  }
+  const defaultBuildCredentialsExist = !!(await getDefaultAndroidAppBuildCredentialsAsync(
+    appLookupParams
+  ));
+  return await createAndroidAppBuildCredentialsAsync(appLookupParams, {
+    name,
+    isDefault: !defaultBuildCredentialsExist, // make default if none exist
+    androidKeystoreId,
+  });
+}
+
+export async function createOrUpdateDefaultIosAppBuildCredentialsAsync() {
+  throw new Error('This requires user prompting. Look for me in BuildCredentialsUtils');
 }
 
 export async function createKeystoreAsync(
@@ -54,6 +191,11 @@ export async function createKeystoreAsync(
     },
     account.id
   );
+}
+
+async function getAppAsync(appLookupParams: AppLookupParams): Promise<AppFragment> {
+  const projectFullName = formatProjectFullName(appLookupParams);
+  return await AppQuery.byFullNameAsync(projectFullName);
 }
 
 const formatProjectFullName = ({ account, projectName }: AppLookupParams): string =>
