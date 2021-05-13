@@ -1,35 +1,28 @@
 import { ExpoConfig } from '@expo/config';
-import { IOSConfig } from '@expo/config-plugins';
 import { Workflow } from '@expo/eas-build-job';
-import {
-  EasJsonReader,
-  IosBuildProfile,
-  IosGenericBuildProfile,
-  VersionAutoIncrement,
-} from '@expo/eas-json';
+import { IosBuildProfile, VersionAutoIncrement } from '@expo/eas-json';
 
 import Log from '../../log';
 import { ConfigureContext } from '../context';
 import { isExpoUpdatesInstalled } from '../utils/updates';
 import { configureUpdatesAsync, syncUpdatesConfigurationAsync } from './UpdatesModule';
 import {
-  configureBundleIdentifierAsync,
-  ensureBundleIdentifierIsValidAsync,
-} from './bundleIdentifer';
+  getOrConfigureBundleIdentifierAsync,
+  warnIfBundleIdentifierDefinedInAppConfigForGenericProject,
+} from './bundleIdentifier';
 import { BumpStrategy, bumpVersionAsync, bumpVersionInAppJsonAsync } from './version';
 
 export async function configureIosAsync(ctx: ConfigureContext): Promise<void> {
   if (!ctx.hasIosNativeProject) {
+    await getOrConfigureBundleIdentifierAsync({
+      exp: ctx.exp,
+      projectDir: ctx.projectDir,
+      workflow: Workflow.MANAGED,
+    });
     return;
   }
 
-  const disableIosBundleIdentifierValidation = (
-    await new EasJsonReader(ctx.projectDir, 'all').readRawAsync()
-  )?.experimental?.disableIosBundleIdentifierValidation;
-  if (!disableIosBundleIdentifierValidation) {
-    await configureBundleIdentifierAsync(ctx.projectDir, ctx.exp);
-    await ensureBundleIdentifierIsValidAsync(ctx.projectDir, ctx.exp);
-  }
+  warnIfBundleIdentifierDefinedInAppConfigForGenericProject(ctx.projectDir, ctx.exp);
 
   if (isExpoUpdatesInstalled(ctx.projectDir)) {
     await configureUpdatesAsync(ctx.projectDir, ctx.exp);
@@ -50,20 +43,6 @@ export async function validateAndSyncProjectConfigurationAsync({
   const versionBumpStrategy = resolveVersionBumpStrategy(autoIncrement);
 
   if (workflow === Workflow.GENERIC) {
-    const genericBuildProfile = buildProfile as IosGenericBuildProfile;
-    if (!genericBuildProfile.disableIosBundleIdentifierValidation) {
-      const bundleIdentifierFromPbxproj = IOSConfig.BundleIdentifier.getBundleIdentifierFromPbxproj(
-        projectDir
-      );
-      if (
-        !bundleIdentifierFromPbxproj ||
-        bundleIdentifierFromPbxproj !== exp.ios?.bundleIdentifier
-      ) {
-        throw new Error(
-          'Bundle identifier is not configured correctly in your Xcode project. Please run "eas build:configure" to configure it.'
-        );
-      }
-    }
     if (isExpoUpdatesInstalled(projectDir)) {
       await syncUpdatesConfigurationAsync(projectDir, exp);
     }

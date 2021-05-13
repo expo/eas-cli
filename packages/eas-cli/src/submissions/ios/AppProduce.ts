@@ -3,13 +3,14 @@ import { getConfig } from '@expo/config';
 import { Platform } from '@expo/eas-build-job';
 import chalk from 'chalk';
 
+import { getBundleIdentifier } from '../../build/ios/bundleIdentifier';
+import { resolveWorkflow } from '../../build/utils/workflow';
 import { authenticateAsync, getRequestContext } from '../../credentials/ios/appstore/authenticate';
 import {
   ensureAppExistsAsync,
   ensureBundleIdExistsWithNameAsync,
 } from '../../credentials/ios/appstore/ensureAppExists';
 import Log from '../../log';
-import { getAppIdentifierAsync } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
 import { IosSubmissionContext } from '../types';
 import { sanitizeLanguage } from './utils/language';
@@ -38,15 +39,18 @@ export async function ensureAppStoreConnectAppExistsAsync(
 
   const { bundleIdentifier, appName, language } = ctx.commandFlags;
 
+  // TODO:
+  // - for builds from the database, read bundled identifier from metadata
+  // - for builds uploaded from file system, prompt for the bundle identifier
+  // this is necessary to make submit work outside the project directory
+  const workflow = resolveWorkflow(ctx.projectDir, Platform.IOS);
   const resolvedBundleId =
     bundleIdentifier ??
-    (await getAppIdentifierAsync({ projectDir: ctx.projectDir, platform: Platform.IOS, exp }));
-  if (!resolvedBundleId) {
-    throw new Error(
-      `Please define "expo.ios.bundleIdentifier" in your app config or provide it using --bundle-identifier param.
-Learn more: https://expo.fyi/bundle-identifier`
-    );
-  }
+    getBundleIdentifier({
+      projectDir: ctx.projectDir,
+      exp,
+      workflow,
+    });
 
   const options = {
     ...ctx.commandFlags,
@@ -59,7 +63,7 @@ Learn more: https://expo.fyi/bundle-identifier`
 }
 
 async function isProvisioningAvailableAsync(requestCtx: RequestContext): Promise<boolean> {
-  const session = await Session.getAnySessionInfo();
+  const session = Session.getAnySessionInfo();
   // TODO: Investigate if username and email can be different
   const username = session?.user.emailAddress;
   const [user] = await User.getAsync(requestCtx, { query: { filter: { username } } });
