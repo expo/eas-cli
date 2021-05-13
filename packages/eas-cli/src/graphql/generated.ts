@@ -1991,7 +1991,7 @@ export type AndroidAppCredentialsMutationSetFcmArgs = {
 };
 
 export type AndroidAppCredentialsInput = {
-  fcmId: Scalars['ID'];
+  fcmId?: Maybe<Scalars['ID']>;
 };
 
 export type AndroidFcmMutation = {
@@ -3572,6 +3572,61 @@ export type UpdatesByGroupQuery = (
       & Pick<Robot, 'firstName' | 'id'>
     )> }
   )> }
+);
+
+export type CreateAndroidAppBuildCredentialsMutationVariables = Exact<{
+  androidAppBuildCredentialsInput: AndroidAppBuildCredentialsInput;
+  androidAppCredentialsId: Scalars['ID'];
+}>;
+
+
+export type CreateAndroidAppBuildCredentialsMutation = (
+  { __typename?: 'RootMutation' }
+  & { androidAppBuildCredentials: (
+    { __typename?: 'AndroidAppBuildCredentialsMutation' }
+    & { createAndroidAppBuildCredentials?: Maybe<(
+      { __typename?: 'AndroidAppBuildCredentials' }
+      & Pick<AndroidAppBuildCredentials, 'id'>
+      & AndroidAppBuildCredentialsFragment
+    )> }
+  ) }
+);
+
+export type SetKeystoreMutationVariables = Exact<{
+  androidAppBuildCredentialsId: Scalars['ID'];
+  keystoreId: Scalars['ID'];
+}>;
+
+
+export type SetKeystoreMutation = (
+  { __typename?: 'RootMutation' }
+  & { androidAppBuildCredentials: (
+    { __typename?: 'AndroidAppBuildCredentialsMutation' }
+    & { setKeystore?: Maybe<(
+      { __typename?: 'AndroidAppBuildCredentials' }
+      & Pick<AndroidAppBuildCredentials, 'id'>
+      & AndroidAppBuildCredentialsFragment
+    )> }
+  ) }
+);
+
+export type CreateAndroidAppCredentialsMutationVariables = Exact<{
+  androidAppCredentialsInput: AndroidAppCredentialsInput;
+  appId: Scalars['ID'];
+  applicationIdentifier: Scalars['String'];
+}>;
+
+
+export type CreateAndroidAppCredentialsMutation = (
+  { __typename?: 'RootMutation' }
+  & { androidAppCredentials: (
+    { __typename?: 'AndroidAppCredentialsMutation' }
+    & { createAndroidAppCredentials?: Maybe<(
+      { __typename?: 'AndroidAppCredentials' }
+      & Pick<AndroidAppCredentials, 'id'>
+      & CommonAndroidAppCredentialsFragment
+    )> }
+  ) }
 );
 
 export type CreateAndroidKeystoreMutationVariables = Exact<{

@@ -10,7 +10,7 @@ import {
   testIosAppBuildCredentialsFragment,
   testIosAppCredentialsWithBuildCredentialsQueryResult,
 } from '../../../__tests__/fixtures-ios';
-import { MissingCredentialsNonInteractiveError } from '../../errors';
+import { MissingCredentialsNonInteractiveError } from '../../../errors';
 import { validateProvisioningProfileAsync } from '../../validators/validateProvisioningProfile';
 import { getAppLookupParamsFromContext } from '../BuildCredentialsUtils';
 import { SetupProvisioningProfile } from '../SetupProvisioningProfile';

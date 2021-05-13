@@ -47,6 +47,7 @@
     "lodash": "4.17.20",
     "mime": "2.4.7",
     "minimatch": "3.0.4",
+    "nanoid": "3.1.23",
     "node-fetch": "2.6.1",
     "node-forge": "0.10.0",
     "nullthrows": "1.1.1",

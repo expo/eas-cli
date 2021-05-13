@@ -8,9 +8,9 @@ import {
 } from '../../../graphql/generated';
 import { confirmAsync } from '../../../prompts';
 import { Context } from '../../context';
+import { MissingCredentialsNonInteractiveError } from '../../errors';
 import { AppLookupParams } from '../api/GraphqlClient';
 import { ProvisioningProfileStoreInfo } from '../appstore/Credentials.types';
-import { MissingCredentialsNonInteractiveError } from '../errors';
 import { validateProvisioningProfileAsync } from '../validators/validateProvisioningProfile';
 import {
   assignBuildCredentialsAsync,

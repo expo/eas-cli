@@ -16,8 +16,8 @@ import {
 import Log from '../../../log';
 import { confirmAsync, pressAnyKeyToContinueAsync } from '../../../prompts';
 import { Context } from '../../context';
+import { MissingCredentialsNonInteractiveError } from '../../errors';
 import { AppLookupParams } from '../api/GraphqlClient';
-import { MissingCredentialsNonInteractiveError } from '../errors';
 import { validateProvisioningProfileAsync } from '../validators/validateProvisioningProfile';
 import { resolveAppleTeamIfAuthenticatedAsync } from './AppleTeamUtils';
 import { assignBuildCredentialsAsync, getBuildCredentialsAsync } from './BuildCredentialsUtils';
