@@ -4,8 +4,8 @@ import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
 import {
-  AndroidAppBuildCredentials,
   AndroidAppBuildCredentialsFragment,
+  CreateAndroidAppBuildCredentialsMutation,
   SetKeystoreMutation,
 } from '../../../../../graphql/generated';
 import { AndroidAppBuildCredentialsFragmentNode } from '../../../../../graphql/types/credentials/AndroidAppBuildCredentials';
@@ -18,14 +18,10 @@ const AndroidAppBuildCredentialsMutation = {
       keystoreId: string;
     },
     androidAppCredentialsId: string
-  ): Promise<AndroidAppBuildCredentials> {
+  ): Promise<AndroidAppBuildCredentialsFragment> {
     const data = await withErrorHandlingAsync(
       graphqlClient
-        .mutation<{
-          androidAppBuildCredentials: {
-            createAndroidAppBuildCredentials: AndroidAppBuildCredentials;
-          };
-        }>(
+        .mutation<CreateAndroidAppBuildCredentialsMutation>(
           gql`
             mutation CreateAndroidAppBuildCredentialsMutation(
               $androidAppBuildCredentialsInput: AndroidAppBuildCredentialsInput!
@@ -49,6 +45,10 @@ const AndroidAppBuildCredentialsMutation = {
           }
         )
         .toPromise()
+    );
+    assert(
+      data.androidAppBuildCredentials.createAndroidAppBuildCredentials,
+      'GraphQL: `createAndroidAppBuildCredentials` not defined in server response'
     );
     return data.androidAppBuildCredentials.createAndroidAppBuildCredentials;
   },

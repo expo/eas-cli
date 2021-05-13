@@ -1991,7 +1991,7 @@ export type AndroidAppCredentialsMutationSetFcmArgs = {
 };
 
 export type AndroidAppCredentialsInput = {
-  fcmId: Scalars['ID'];
+  fcmId?: Maybe<Scalars['ID']>;
 };
 
 export type AndroidFcmMutation = {

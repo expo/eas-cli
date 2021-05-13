@@ -66,5 +66,5 @@ export async function createOrUpdateDefaultAndroidAppBuildCredentialsAsync(
 }
 
 function generateRandomName(): string {
-  return `build-credentials-${nanoid(10)}`;
+  return `Build Credentials ${nanoid(10)}`;
 }

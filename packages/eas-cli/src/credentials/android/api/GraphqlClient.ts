@@ -114,7 +114,7 @@ export async function createAndroidAppBuildCredentialsAsync(
   const buildCredentialsList = androidAppCredentials.androidAppBuildCredentialsList;
   const existingDefaultBuildCredentials =
     buildCredentialsList.find(buildCredentials => buildCredentials.isDefault) ?? null;
-  if (existingDefaultBuildCredentials) {
+  if (existingDefaultBuildCredentials && isDefault) {
     throw new Error(
       'Cannot create new default Android Build Credentials. A set of default credentials exists already.'
     );

@@ -1,3 +1,5 @@
+import nullthrows from 'nullthrows';
+
 import {
   AndroidAppBuildCredentialsFragment,
   AndroidKeystoreFragment,
@@ -80,7 +82,9 @@ export class SetupBuildCredentials {
     );
     const defaultKeystore = defaultBuildCredentials?.androidKeystore ?? null;
     if (defaultKeystore) {
-      Log.log(`Using Keystore from configuration: ${defaultBuildCredentials?.name} (default)`);
+      Log.log(
+        `Using Keystore from configuration: ${nullthrows(defaultBuildCredentials).name} (default)`
+      );
       return defaultBuildCredentials;
     }
 
@@ -105,22 +109,23 @@ export class SetupBuildCredentials {
     app: AppLookupParams;
     name: string;
   }): Promise<AndroidAppBuildCredentialsFragment | null> {
-    const buildCredentials = await ctx.newAndroid.getAndroidAppBuildCredentialsByNameAsync(
+    const maybeBuildCredentials = await ctx.newAndroid.getAndroidAppBuildCredentialsByNameAsync(
       app,
       name
     );
-    const keystore = buildCredentials?.androidKeystore ?? null;
+    const keystore = maybeBuildCredentials?.androidKeystore ?? null;
     if (keystore) {
+      const buildCredentials = nullthrows(maybeBuildCredentials);
       Log.log(
-        `Using Keystore from configuration: ${buildCredentials?.name}${
-          buildCredentials?.isDefault ? ' (default)' : ''
+        `Using Keystore from configuration: ${buildCredentials.name}${
+          buildCredentials.isDefault ? ' (default)' : ''
         }`
       );
       return buildCredentials;
     }
     Log.log(
-      `No Keystore found for configuration: ${buildCredentials?.name}${
-        buildCredentials?.isDefault ? ' (default)' : ''
+      `No Keystore found for configuration: ${name}${
+        maybeBuildCredentials?.isDefault ? ' (default)' : ''
       }`
     );
     return null;
