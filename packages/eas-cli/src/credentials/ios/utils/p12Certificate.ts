@@ -50,7 +50,9 @@ function getRawCertData(p12Buffer: Buffer | string, passwordRaw: string | null):
   } catch (_error) {
     const error: Error = _error;
     if (/Invalid password/.exec(error.message)) {
-      throw new Error('Provided password for the distribution certificate is probably invalid');
+      throw new Error(
+        'Could not parse distribution certificate. Check that your password is correct.'
+      );
     } else {
       throw error;
     }
