@@ -7,6 +7,7 @@ import * as credentialsJsonReader from '../credentialsJson/read';
 import type { IosCredentials } from '../credentialsJson/read';
 import { SetupBuildCredentials } from './actions/SetupBuildCredentials';
 import { AppLookupParams } from './api/GraphqlClient';
+import { IosCapabilitiesOptions } from './appstore/ensureAppExists';
 import { isAdHocProfile } from './utils/provisioningProfile';
 
 export type { IosCredentials };
@@ -16,6 +17,7 @@ interface Options {
   distribution: IosDistributionType;
   enterpriseProvisioning?: IosEnterpriseProvisioning;
   skipCredentialsCheck?: boolean;
+  iosCapabilitiesOptions?: IosCapabilitiesOptions;
 }
 
 export default class IosCredentialsProvider {
@@ -68,6 +70,7 @@ export default class IosCredentialsProvider {
       app: this.options.app,
       distribution: this.options.distribution,
       enterpriseProvisioning: this.options.enterpriseProvisioning,
+      iosCapabilitiesOptions: this.options.iosCapabilitiesOptions,
     }).runAsync(manager, this.ctx);
     return {
       provisioningProfile,

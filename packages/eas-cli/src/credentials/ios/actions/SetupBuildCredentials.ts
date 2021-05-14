@@ -10,6 +10,7 @@ import Log from '../../../log';
 import { Action, CredentialsManager } from '../../CredentialsManager';
 import { Context } from '../../context';
 import { AppLookupParams as GraphQLAppLookupParams } from '../api/GraphqlClient';
+import { IosCapabilitiesOptions } from '../appstore/ensureAppExists';
 import { displayProjectCredentials } from '../utils/printCredentials';
 import { SetupAdhocProvisioningProfile } from './SetupAdhocProvisioningProfile';
 import { SetupInternalProvisioningProfile } from './SetupInternalProvisioningProfile';
@@ -20,6 +21,7 @@ interface Options {
   distribution: IosDistributionType;
   enterpriseProvisioning?: IosEnterpriseProvisioning;
   skipCredentialsCheck?: boolean;
+  iosCapabilitiesOptions?: IosCapabilitiesOptions;
 }
 
 interface IosAppBuildCredentials {
@@ -35,7 +37,7 @@ export class SetupBuildCredentials implements Action<IosAppBuildCredentials> {
   constructor(private options: Options) {}
 
   async runAsync(manager: CredentialsManager, ctx: Context): Promise<IosAppBuildCredentials> {
-    const { app } = this.options;
+    const { app, iosCapabilitiesOptions } = this.options;
 
     await ctx.bestEffortAppStoreAuthenticateAsync();
 
@@ -46,7 +48,7 @@ export class SetupBuildCredentials implements Action<IosAppBuildCredentials> {
           bundleIdentifier: app.bundleIdentifier,
           projectName: app.projectName,
         },
-        { enablePushNotifications: true }
+        iosCapabilitiesOptions
       );
     }
     try {

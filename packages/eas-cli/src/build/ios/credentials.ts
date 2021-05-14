@@ -7,6 +7,8 @@ import IosCredentialsProvider, {
   IosCredentials,
 } from '../../credentials/ios/IosCredentialsProvider';
 import { getAppLookupParamsFromContext } from '../../credentials/ios/actions/BuildCredentialsUtils';
+import { IosCapabilitiesOptions } from '../../credentials/ios/appstore/ensureAppExists';
+import { resolveEntitlementsJsonAsync } from '../../credentials/ios/appstore/entitlements';
 import { AppLookupParams } from '../../credentials/ios/credentials';
 import { CredentialsResult } from '../build';
 import { BuildContext } from '../context';
@@ -26,6 +28,12 @@ export async function ensureIosCredentialsAsync(
       projectName: ctx.commandCtx.projectName,
       bundleIdentifier: ctx.commandCtx.exp.ios.bundleIdentifier,
     },
+    iosCapabilitiesOptions: {
+      entitlements: await resolveEntitlementsJsonAsync(
+        ctx.commandCtx.projectDir,
+        ctx.buildProfile.workflow
+      ),
+    },
     workflow: ctx.buildProfile.workflow,
     credentialsSource: ctx.buildProfile.credentialsSource,
     distribution: ctx.buildProfile.distribution ?? 'store',
@@ -41,6 +49,7 @@ interface ResolveCredentialsParams {
   credentialsSource: CredentialsSource;
   distribution: IosDistributionType;
   enterpriseProvisioning?: IosEnterpriseProvisioning;
+  iosCapabilitiesOptions?: IosCapabilitiesOptions;
   nonInteractive: boolean;
   skipCredentialsCheck: boolean;
 }
@@ -55,6 +64,7 @@ export async function resolveIosCredentialsAsync(
   const app = getAppLookupParamsFromContext(ctx);
   const provider = new IosCredentialsProvider(ctx, {
     app,
+    iosCapabilitiesOptions: params.iosCapabilitiesOptions,
     distribution: params.distribution,
     enterpriseProvisioning: params.enterpriseProvisioning,
     skipCredentialsCheck: params.skipCredentialsCheck,

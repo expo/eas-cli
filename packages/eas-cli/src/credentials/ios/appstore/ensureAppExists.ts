@@ -1,12 +1,15 @@
-import { App, BundleId, CapabilityType, CapabilityTypeOption } from '@expo/apple-utils';
+import { App, BundleId } from '@expo/apple-utils';
+import { JSONObject } from '@expo/json-file';
 import chalk from 'chalk';
 import ora from 'ora';
 
+import Log from '../../../log';
 import { AuthCtx, getRequestContext } from './authenticate';
+import { syncCapabilitiesForEntitlementsAsync } from './bundleIdCapabilities';
 import { assertContractMessagesAsync } from './contractMessages';
 
-export interface EnsureAppExistsOptions {
-  enablePushNotifications?: boolean;
+export interface IosCapabilitiesOptions {
+  entitlements: JSONObject;
 }
 
 export interface AppLookupParams {
@@ -18,7 +21,7 @@ export interface AppLookupParams {
 export async function ensureBundleIdExistsAsync(
   authCtx: AuthCtx,
   { accountName, projectName, bundleIdentifier }: AppLookupParams,
-  options?: EnsureAppExistsOptions
+  options?: IosCapabilitiesOptions
 ) {
   return ensureBundleIdExistsWithNameAsync(
     authCtx,
@@ -33,7 +36,7 @@ export async function ensureBundleIdExistsAsync(
 export async function ensureBundleIdExistsWithNameAsync(
   authCtx: AuthCtx,
   { name, bundleIdentifier }: { name: string; bundleIdentifier: string },
-  options?: EnsureAppExistsOptions
+  options?: IosCapabilitiesOptions
 ) {
   const context = getRequestContext(authCtx);
   const spinner = ora(`Linking bundle identifier ${chalk.dim(bundleIdentifier)}`).start();
@@ -78,24 +81,28 @@ export async function ensureBundleIdExistsWithNameAsync(
 
 export async function syncCapabilities(
   bundleId: BundleId,
-  options: EnsureAppExistsOptions
+  { entitlements }: IosCapabilitiesOptions
 ): Promise<void> {
   const spinner = ora(`Syncing capabilities`).start();
 
+  // Stop spinning in debug mode so we can print other information
+  if (Log.isDebug) {
+    spinner.stop();
+  }
+
   try {
-    const capability = await bundleId.hasCapabilityAsync(CapabilityType.PUSH_NOTIFICATIONS);
-    if (!capability && options.enablePushNotifications) {
-      await bundleId.updateBundleIdCapabilityAsync({
-        capabilityType: CapabilityType.PUSH_NOTIFICATIONS,
-        option: CapabilityTypeOption.ON,
-      });
-    } else if (capability && !options.enablePushNotifications) {
-      await bundleId.updateBundleIdCapabilityAsync({
-        capabilityType: CapabilityType.PUSH_NOTIFICATIONS,
-        option: CapabilityTypeOption.OFF,
-      });
-    }
-    spinner.succeed(`Synced capabilities`);
+    const { enabled, disabled } = await syncCapabilitiesForEntitlementsAsync(
+      bundleId,
+      entitlements
+    );
+    const buildMessage = (title: string, items: string[]) =>
+      items.length ? `${title}: ${items.join(', ')}` : '';
+    const results =
+      [buildMessage('Enabled', enabled), buildMessage('Disabled', disabled)]
+        .filter(Boolean)
+        .join(' | ') || 'No updates';
+
+    spinner.succeed(`Synced capabilities: ` + chalk.dim(results));
   } catch (err) {
     spinner.fail(`Failed to sync capabilities ${chalk.dim(bundleId.attributes.identifier)}`);
     throw err;
