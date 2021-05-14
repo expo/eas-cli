@@ -3,6 +3,7 @@
 # Checklist
 
 - [ ] I've added an entry to [CHANGELOG.md](https://github.com/expo/eas-cli/blob/main/CHANGELOG.md#main) if necessary.
+- [ ] I've marked changelog entry with `[EAS BUILD API]` if it's introducing breaking changes to EAS Build API(only possible when updating `@expo/eas-build-job` package).
 
 # Why
 
