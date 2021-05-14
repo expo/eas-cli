@@ -7,10 +7,10 @@ import {
 import { getCertData } from '../p12Certificate';
 
 describe(getCertData, () => {
-  it('does not throw if p12 file with empty password was created witch keychain', async () => {
+  it('does not throw if p12 file with empty password was created with keychain', async () => {
     expect(() => getCertData(testDistributionCertificateEmptyPasswordBase64, '')).not.toThrow();
   });
-  it('does throw an error if p12 file with empty password was created witch openssl', async () => {
+  it('does throw an error if p12 file with empty password was created with openssl', async () => {
     expect(() => getCertData(testPKCS12KeystoreEmptyPasswordBase64, '')).toThrow();
   });
 });
