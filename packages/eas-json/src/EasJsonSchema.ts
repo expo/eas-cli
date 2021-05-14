@@ -16,6 +16,7 @@ const AndroidBuilderEnvironmentSchema = Joi.object({
   node: Joi.string().empty(null).custom(semverSchemaCheck),
   yarn: Joi.string().empty(null).custom(semverSchemaCheck),
   ndk: Joi.string().empty(null).custom(semverSchemaCheck),
+  expoCli: Joi.string().empty(null).custom(semverSchemaCheck),
   env: Joi.object().pattern(Joi.string(), Joi.string().empty(null)).default({}),
 });
 
@@ -28,6 +29,7 @@ const IosBuilderEnvironmentSchema = Joi.object({
   bundler: Joi.string().empty(null).custom(semverSchemaCheck),
   fastlane: Joi.string().empty(null).custom(semverSchemaCheck),
   cocoapods: Joi.string().empty(null).custom(semverSchemaCheck),
+  expoCli: Joi.string().empty(null).custom(semverSchemaCheck),
   env: Joi.object().pattern(Joi.string(), Joi.string().empty(null)).default({}),
 });
 
