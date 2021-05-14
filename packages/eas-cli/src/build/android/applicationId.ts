@@ -71,7 +71,9 @@ async function configureApplicationIdAsync(projectDir: string, exp: ExpoConfig):
   const paths = getConfigFilePaths(projectDir);
   // we can't automatically update app.config.js
   if (!paths.staticConfigPath) {
-    throw new Error(`Please define "android.package" in your app.config.js`);
+    throw new Error(
+      `"android.package" is not defined in your app.config.js and we can't update this file programatically. Add the value on your own and run this command again.`
+    );
   }
 
   const { packageName } = await promptAsync({

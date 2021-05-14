@@ -66,7 +66,9 @@ async function configureBundleIdentifierAsync(
   const paths = getConfigFilePaths(projectDir);
   // we can't automatically update app.config.js
   if (!paths.staticConfigPath) {
-    throw new Error(`Please define "ios.bundleIdentifier" in your app.config.js`);
+    throw new Error(
+      `"ios.bundleIdentifier" is not defined in your app.config.js and we can't update this file programatically. Add the value on your own and run this command again.`
+    );
   }
 
   const { bundleIdentifier } = await promptAsync({
