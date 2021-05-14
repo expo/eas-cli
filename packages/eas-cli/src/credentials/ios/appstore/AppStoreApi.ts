@@ -15,7 +15,7 @@ import {
 } from './distributionCertificate';
 import {
   AppLookupParams,
-  IOSCapabilitiesOptions,
+  IosCapabilitiesOptions,
   ensureBundleIdExistsAsync,
 } from './ensureAppExists';
 import {
@@ -54,7 +54,7 @@ class AppStoreApi {
 
   public async ensureBundleIdExistsAsync(
     app: AppLookupParams,
-    options?: IOSCapabilitiesOptions
+    options?: IosCapabilitiesOptions
   ): Promise<void> {
     const ctx = await this.ensureAuthenticatedAsync();
     return await ensureBundleIdExistsAsync(ctx, app, options);

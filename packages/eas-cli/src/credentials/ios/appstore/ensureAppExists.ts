@@ -8,7 +8,7 @@ import { AuthCtx, getRequestContext } from './authenticate';
 import { syncCapabilitiesForEntitlementsAsync } from './bundleIdCapabilities';
 import { assertContractMessagesAsync } from './contractMessages';
 
-export interface IOSCapabilitiesOptions {
+export interface IosCapabilitiesOptions {
   entitlements: JSONObject;
 }
 
@@ -21,7 +21,7 @@ export interface AppLookupParams {
 export async function ensureBundleIdExistsAsync(
   authCtx: AuthCtx,
   { accountName, projectName, bundleIdentifier }: AppLookupParams,
-  options?: IOSCapabilitiesOptions
+  options?: IosCapabilitiesOptions
 ) {
   return ensureBundleIdExistsWithNameAsync(
     authCtx,
@@ -36,7 +36,7 @@ export async function ensureBundleIdExistsAsync(
 export async function ensureBundleIdExistsWithNameAsync(
   authCtx: AuthCtx,
   { name, bundleIdentifier }: { name: string; bundleIdentifier: string },
-  options?: IOSCapabilitiesOptions
+  options?: IosCapabilitiesOptions
 ) {
   const context = getRequestContext(authCtx);
   const spinner = ora(`Linking bundle identifier ${chalk.dim(bundleIdentifier)}`).start();
@@ -81,7 +81,7 @@ export async function ensureBundleIdExistsWithNameAsync(
 
 export async function syncCapabilities(
   bundleId: BundleId,
-  { entitlements }: IOSCapabilitiesOptions
+  { entitlements }: IosCapabilitiesOptions
 ): Promise<void> {
   const spinner = ora(`Syncing capabilities`).start();
 
