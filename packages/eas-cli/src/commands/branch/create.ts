@@ -10,10 +10,12 @@ import {
   UpdateBranch,
 } from '../../graphql/generated';
 import Log from '../../log';
-import { ensureProjectExistsAsync } from '../../project/ensureProjectExists';
-import { findProjectRootAsync, getProjectAccountName } from '../../project/projectUtils';
+import {
+  findProjectRootAsync,
+  getProjectFullNameAsync,
+  getProjectIdAsync,
+} from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
-import { ensureLoggedInAsync } from '../../user/actions';
 import { getBranchNameAsync } from '../../utils/git';
 
 export async function createUpdateBranchOnAppAsync({
@@ -78,11 +80,8 @@ export default class BranchCreate extends Command {
     }
 
     const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
-    const accountName = getProjectAccountName(exp, await ensureLoggedInAsync());
-    const projectId = await ensureProjectExistsAsync({
-      accountName,
-      projectName: exp.slug,
-    });
+    const fullName = await getProjectFullNameAsync(exp);
+    const projectId = await getProjectIdAsync(exp);
 
     if (!name) {
       const validationMessage = 'Branch name may not be empty.';
@@ -107,9 +106,7 @@ export default class BranchCreate extends Command {
     }
 
     Log.withTick(
-      `️Created a new branch: ${chalk.bold(newBranch.name)} on project ${chalk.bold(
-        `@${accountName}/${exp.slug}`
-      )}.`
+      `️Created a new branch: ${chalk.bold(newBranch.name)} on project ${chalk.bold(fullName)}.`
     );
   }
 }

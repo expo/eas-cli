@@ -11,8 +11,11 @@ import {
   GetChannelByNameForAppQueryVariables,
 } from '../../graphql/generated';
 import Log from '../../log';
-import { ensureProjectExistsAsync } from '../../project/ensureProjectExists';
-import { findProjectRootAsync, getProjectAccountNameAsync } from '../../project/projectUtils';
+import {
+  findProjectRootAsync,
+  getProjectFullNameAsync,
+  getProjectIdAsync,
+} from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
 import {
   FormatUpdateParameter,
@@ -217,12 +220,8 @@ export default class ChannelView extends Command {
       throw new Error('Please run this command inside a project directory.');
     }
     const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
-    const accountName = await getProjectAccountNameAsync(exp);
-    const { slug } = exp;
-    const projectId = await ensureProjectExistsAsync({
-      accountName,
-      projectName: slug,
-    });
+    const fullName = await getProjectFullNameAsync(exp);
+    const projectId = await getProjectIdAsync(exp);
 
     if (!channelName) {
       const validationMessage = 'A channel name is required to view a specific channel.';
@@ -252,7 +251,7 @@ export default class ChannelView extends Command {
     }
 
     Log.withTick(
-      chalk`Channel: {bold ${channel.name}} on project {bold ${accountName}/${slug}}. Channel ID: {bold ${channel.id}}`
+      chalk`Channel: {bold ${channel.name}} on project {bold ${fullName}}. Channel ID: {bold ${channel.id}}`
     );
     Log.log(
       chalk`{bold Branches, pointed at by this channel, and their most recent update group:}`

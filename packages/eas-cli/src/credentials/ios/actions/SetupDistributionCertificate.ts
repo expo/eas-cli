@@ -9,10 +9,11 @@ import {
 import Log from '../../../log';
 import { confirmAsync, promptAsync } from '../../../prompts';
 import { Context } from '../../context';
+import { MissingCredentialsNonInteractiveError } from '../../errors';
 import { AppLookupParams } from '../api/GraphqlClient';
 import { AppleDistributionCertificateMutationResult } from '../api/graphql/mutations/AppleDistributionCertificateMutation';
 import { getValidCertSerialNumbers } from '../appstore/CredentialsUtils';
-import { AppleTeamMissingError, MissingCredentialsNonInteractiveError } from '../errors';
+import { AppleTeamMissingError } from '../errors';
 import { resolveAppleTeamIfAuthenticatedAsync } from './AppleTeamUtils';
 import { CreateDistributionCertificate } from './CreateDistributionCertificate';
 import { formatDistributionCertificate } from './DistributionCertificateUtils';

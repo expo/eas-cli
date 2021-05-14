@@ -8,11 +8,11 @@ import {
 } from '../../../graphql/generated';
 import Log from '../../../log';
 import { Context } from '../../context';
+import { MissingCredentialsNonInteractiveError } from '../../errors';
 import { AppLookupParams } from '../api/GraphqlClient';
 import { AppleProvisioningProfileMutationResult } from '../api/graphql/mutations/AppleProvisioningProfileMutation';
 import { ProvisioningProfileStoreInfo } from '../appstore/Credentials.types';
 import { AuthCtx } from '../appstore/authenticate';
-import { MissingCredentialsNonInteractiveError } from '../errors';
 
 export class ConfigureProvisioningProfile {
   constructor(

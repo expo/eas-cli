@@ -5,7 +5,7 @@ import { asMock } from '../../../__tests__/utils';
 import { jester as mockJester } from '../../../credentials/__tests__/fixtures-constants';
 import { AppPlatform, SubmissionFragment, SubmissionStatus } from '../../../graphql/generated';
 import { createTestProject } from '../../../project/__tests__/project-utils';
-import { ensureProjectExistsAsync } from '../../../project/ensureProjectExists';
+import { getProjectIdAsync } from '../../../project/projectUtils';
 import SubmissionService from '../../SubmissionService';
 import { AndroidArchiveType, AndroidSubmitCommandFlags } from '../../types';
 import { AndroidSubmissionConfig, ReleaseStatus, ReleaseTrack } from '../AndroidSubmissionConfig';
@@ -58,7 +58,7 @@ describe(AndroidSubmitCommand, () => {
   });
 
   afterEach(() => {
-    asMock(ensureProjectExistsAsync).mockClear();
+    asMock(getProjectIdAsync).mockClear();
   });
 
   describe('sending submission', () => {
@@ -88,7 +88,7 @@ describe(AndroidSubmitCommand, () => {
           };
         }
       );
-      asMock(ensureProjectExistsAsync).mockImplementationOnce(() => projectId);
+      asMock(getProjectIdAsync).mockImplementationOnce(() => projectId);
 
       const options: AndroidSubmitCommandFlags = {
         latest: false,

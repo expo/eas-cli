@@ -4,13 +4,13 @@ import nullthrows from 'nullthrows';
 import { AppleDistributionCertificateFragment } from '../../../graphql/generated';
 import Log from '../../../log';
 import { Context } from '../../context';
+import { MissingCredentialsNonInteractiveError } from '../../errors';
 import { askForUserProvidedAsync } from '../../utils/promptForCredentials';
 import { AppLookupParams } from '../api/GraphqlClient';
 import { AppleProvisioningProfileMutationResult } from '../api/graphql/mutations/AppleProvisioningProfileMutation';
 import { ProvisioningProfile } from '../appstore/Credentials.types';
 import { AuthCtx } from '../appstore/authenticate';
 import { provisioningProfileSchema } from '../credentials';
-import { MissingCredentialsNonInteractiveError } from '../errors';
 import { resolveAppleTeamIfAuthenticatedAsync } from './AppleTeamUtils';
 import { generateProvisioningProfileAsync } from './ProvisioningProfileUtils';
 

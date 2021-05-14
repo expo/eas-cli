@@ -7,7 +7,6 @@ import {
   IosJobSecretsInput,
   IosManagedBuildType,
   IosManagedJobInput,
-  IosSchemeBuildConfiguration,
 } from '../../graphql/generated';
 import { transformProjectArchive } from '../graphql';
 
@@ -21,9 +20,7 @@ export function transformGenericJob(job: Ios.GenericJob): IosGenericJobInput {
     builderEnvironment: job.builderEnvironment,
     cache: job.cache,
     scheme: job.scheme,
-    schemeBuildConfiguration:
-      job.schemeBuildConfiguration &&
-      transformSchemeBuildConfiguration(job.schemeBuildConfiguration),
+    buildConfiguration: job.buildConfiguration,
     artifactPath: job.artifactPath,
   };
 }
@@ -72,16 +69,6 @@ function transformIosSecrets(secrets: {
     buildCredentials,
     environmentSecrets: secrets.env,
   };
-}
-
-function transformSchemeBuildConfiguration(
-  schemeBuildConfiguration: Ios.SchemeBuildConfiguration
-): IosSchemeBuildConfiguration {
-  if (schemeBuildConfiguration === Ios.SchemeBuildConfiguration.DEBUG) {
-    return IosSchemeBuildConfiguration.Debug;
-  } else {
-    return IosSchemeBuildConfiguration.Release;
-  }
 }
 
 function transformBuildType(buildType: Ios.ManagedBuildType): IosManagedBuildType {

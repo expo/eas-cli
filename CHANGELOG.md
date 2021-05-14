@@ -6,11 +6,18 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🛠 Breaking changes
 
+- Remove "Auto" option for `schemeBuildConfiguration` and make the old "Auto" behaviour the default. ([#394](https://github.com/expo/eas-cli/pull/394) by [@randomhajile](https://github.com/randomhajile))
+
 ### 🎉 New features
 
 - Auto sync associated domains capability before building. ([#384](https://github.com/expo/eas-cli/pull/384) by [@EvanBacon](https://github.com/EvanBacon))
+- Add eas init command. [#402](https://github.com/expo/eas-cli/pull/402) by [@jkhales](https://github.com/jkhales))
+- Allow for arbitrary string values in `schemeBuildConfiguration`. ([#394](https://github.com/expo/eas-cli/pull/394) by [@randomhajile](https://github.com/randomhajile))
 
 ### 🐛 Bug fixes
+
+- Pin versions in package.json. ([#399](https://github.com/expo/eas-cli/pull/399) by [@dsokal](https://github.com/dsokal))
+- Revert [0ac2f](https://github.com/expo/eas-cli/commit/0ac2fb77a118df609381c4e350aa68609340c3cd) as the root cause of the issue has been fixed in [#399](https://github.com/expo/eas-cli/pull/399).
 
 ### 🧹 Chores
 
@@ -18,7 +25,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
-- Make the default urql requestPolicy 'network-only' [#397](https://github.com/expo/eas-cli/pull/397) by [@jkhales](https://github.com/jkhales))
+- Make the default urql requestPolicy 'network-only'. ([#397](https://github.com/expo/eas-cli/pull/397) by [@jkhales](https://github.com/jkhales))
 
 ## [0.14.0](https://github.com/expo/eas-cli/releases/tag/v0.14.0) - 2021-05-10
 

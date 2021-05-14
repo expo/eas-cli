@@ -1991,7 +1991,7 @@ export type AndroidAppCredentialsMutationSetFcmArgs = {
 };
 
 export type AndroidAppCredentialsInput = {
-  fcmId: Scalars['ID'];
+  fcmId?: Maybe<Scalars['ID']>;
 };
 
 export type AndroidFcmMutation = {
@@ -2389,7 +2389,7 @@ export type AndroidJobKeystoreInput = {
   dataBase64: Scalars['String'];
   keystorePassword: Scalars['String'];
   keyAlias: Scalars['String'];
-  keyPassword: Scalars['String'];
+  keyPassword?: Maybe<Scalars['String']>;
 };
 
 export type AndroidBuilderEnvironmentInput = {
@@ -2397,6 +2397,7 @@ export type AndroidBuilderEnvironmentInput = {
   node?: Maybe<Scalars['String']>;
   yarn?: Maybe<Scalars['String']>;
   ndk?: Maybe<Scalars['String']>;
+  expoCli?: Maybe<Scalars['String']>;
   env?: Maybe<Scalars['JSONObject']>;
 };
 
@@ -2505,6 +2506,7 @@ export type IosBuilderEnvironmentInput = {
   bundler?: Maybe<Scalars['String']>;
   fastlane?: Maybe<Scalars['String']>;
   cocoapods?: Maybe<Scalars['String']>;
+  expoCli?: Maybe<Scalars['String']>;
   env?: Maybe<Scalars['JSONObject']>;
 };
 
@@ -3294,7 +3296,7 @@ export type DeleteUpdateBranchMutation = (
 );
 
 export type BranchesByAppQueryVariables = Exact<{
-  fullName: Scalars['String'];
+  appId: Scalars['String'];
   limit: Scalars['Int'];
 }>;
 
@@ -3303,9 +3305,9 @@ export type BranchesByAppQuery = (
   { __typename?: 'RootQuery' }
   & { app?: Maybe<(
     { __typename?: 'AppQuery' }
-    & { byFullName: (
+    & { byId: (
       { __typename?: 'App' }
-      & Pick<App, 'id' | 'fullName'>
+      & Pick<App, 'id'>
       & { updateBranches: Array<(
         { __typename?: 'UpdateBranch' }
         & Pick<UpdateBranch, 'id' | 'name'>
@@ -3570,6 +3572,61 @@ export type UpdatesByGroupQuery = (
       & Pick<Robot, 'firstName' | 'id'>
     )> }
   )> }
+);
+
+export type CreateAndroidAppBuildCredentialsMutationVariables = Exact<{
+  androidAppBuildCredentialsInput: AndroidAppBuildCredentialsInput;
+  androidAppCredentialsId: Scalars['ID'];
+}>;
+
+
+export type CreateAndroidAppBuildCredentialsMutation = (
+  { __typename?: 'RootMutation' }
+  & { androidAppBuildCredentials: (
+    { __typename?: 'AndroidAppBuildCredentialsMutation' }
+    & { createAndroidAppBuildCredentials?: Maybe<(
+      { __typename?: 'AndroidAppBuildCredentials' }
+      & Pick<AndroidAppBuildCredentials, 'id'>
+      & AndroidAppBuildCredentialsFragment
+    )> }
+  ) }
+);
+
+export type SetKeystoreMutationVariables = Exact<{
+  androidAppBuildCredentialsId: Scalars['ID'];
+  keystoreId: Scalars['ID'];
+}>;
+
+
+export type SetKeystoreMutation = (
+  { __typename?: 'RootMutation' }
+  & { androidAppBuildCredentials: (
+    { __typename?: 'AndroidAppBuildCredentialsMutation' }
+    & { setKeystore?: Maybe<(
+      { __typename?: 'AndroidAppBuildCredentials' }
+      & Pick<AndroidAppBuildCredentials, 'id'>
+      & AndroidAppBuildCredentialsFragment
+    )> }
+  ) }
+);
+
+export type CreateAndroidAppCredentialsMutationVariables = Exact<{
+  androidAppCredentialsInput: AndroidAppCredentialsInput;
+  appId: Scalars['ID'];
+  applicationIdentifier: Scalars['String'];
+}>;
+
+
+export type CreateAndroidAppCredentialsMutation = (
+  { __typename?: 'RootMutation' }
+  & { androidAppCredentials: (
+    { __typename?: 'AndroidAppCredentialsMutation' }
+    & { createAndroidAppCredentials?: Maybe<(
+      { __typename?: 'AndroidAppCredentials' }
+      & Pick<AndroidAppCredentials, 'id'>
+      & CommonAndroidAppCredentialsFragment
+    )> }
+  ) }
 );
 
 export type CreateAndroidKeystoreMutationVariables = Exact<{

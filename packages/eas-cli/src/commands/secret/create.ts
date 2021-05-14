@@ -4,12 +4,15 @@ import chalk from 'chalk';
 
 import { EnvironmentSecretMutation } from '../../graphql/mutations/EnvironmentSecretMutation';
 import Log from '../../log';
-import { ensureProjectExistsAsync } from '../../project/ensureProjectExists';
 import {
   isEasEnabledForProjectAsync,
   warnEasUnavailable,
 } from '../../project/isEasEnabledForProject';
-import { findProjectRootAsync, getProjectAccountNameAsync } from '../../project/projectUtils';
+import {
+  findProjectRootAsync,
+  getProjectAccountNameAsync,
+  getProjectIdAsync,
+} from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
 import { findAccountByName } from '../../user/Account';
 import { getActorDisplayName } from '../../user/User';
@@ -47,10 +50,7 @@ export default class EnvironmentSecretCreate extends Command {
     const accountName = await getProjectAccountNameAsync(exp);
 
     const { slug } = exp;
-    const projectId = await ensureProjectExistsAsync({
-      accountName,
-      projectName: slug,
-    });
+    const projectId = await getProjectIdAsync(exp);
 
     if (!(await isEasEnabledForProjectAsync(projectId))) {
       warnEasUnavailable();
