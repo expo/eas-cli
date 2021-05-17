@@ -111,6 +111,14 @@ export async function setProjectIdAsync(projectDir: string): Promise<ExpoConfig 
 }
 
 export async function getProjectIdAsync(exp: ExpoConfig): Promise<string> {
+  if (!process.env.EAS_ENABLE_PROJECT_ID) {
+    const privacy = toAppPrivacy(exp.privacy);
+    return await ensureProjectExistsAsync({
+      accountName: getProjectAccountName(exp, await ensureLoggedInAsync()),
+      projectName: exp.slug,
+      privacy,
+    });
+  }
   const localProjectId = exp.extra?.eas?.projectId;
   if (localProjectId) {
     return localProjectId;
