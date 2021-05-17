@@ -31,9 +31,9 @@
 1. Update `CHANGELOG.md`.
    - Add the new section with the release version in the title.
    - Leave the `main` section empty (without any changelog entries).
-
-1. If `[EAS BUILD API]` tag is present in CHANGELOG
-   - Find version of the package `@expo/eas-build-job` used in the eas-cli.
-   - Find `Publish` commit in [expo/eas-build](https://github.com/expo/eas-build/commit/) for that version of `@expo/eas-build-job`. In most cases it will be in the latest publish commit.
-   - Find version of the package `eas-cli-local-build-plugin` published in that commit.
-   - Run `npm dist-tags add eas-cli-local-build-plugin@VERSION latest` with the version from previous step.
+1. If any of the changelog entries have been tagged with `[EAS BUILD API]`
+   - Open `package.json` and note the version of `@expo/eas-build-job` used in the eas-cli.
+   - Find the `Publish` commit in [expo/eas-build](https://github.com/expo/eas-build/commit/) for that version. In most cases, it will be the latest `Publish` commit.
+   - Find the `eas-cli-local-build-plugin` version published in that commit.
+     ![example publish commit](./.gh-assets/eas-build-publish-commit.png)
+   - Run `npm dist-tags add eas-cli-local-build-plugin@VERSION latest` with the version from the previous step.
