@@ -1,8 +1,5 @@
-import { Platform } from '@expo/eas-build-job';
 import nullthrows from 'nullthrows';
 
-import { getBundleIdentifier } from '../../../build/ios/bundleIdentifier';
-import { resolveWorkflow } from '../../../build/utils/workflow';
 import {
   AppleDistributionCertificateFragment,
   AppleProvisioningProfileFragment,
@@ -10,6 +7,7 @@ import {
   IosDistributionType as GraphQLIosDistributionType,
   IosAppBuildCredentialsFragment,
 } from '../../../graphql/generated';
+import { getBundleIdentifier } from '../../../project/ios/bundleIdentifier';
 import { getProjectAccountName } from '../../../project/projectUtils';
 import { findAccountByName } from '../../../user/Account';
 import { Context } from '../../context';
@@ -93,12 +91,7 @@ export function getAppLookupParamsFromContext(ctx: Context): AppLookupParams {
     throw new Error(`You do not have access to account: ${accountName}`);
   }
 
-  const workflow = resolveWorkflow(ctx.projectDir, Platform.IOS);
-  const bundleIdentifier = getBundleIdentifier({
-    projectDir: ctx.projectDir,
-    exp: ctx.exp,
-    workflow,
-  });
+  const bundleIdentifier = getBundleIdentifier(ctx.projectDir, ctx.exp);
 
   return { account, projectName, bundleIdentifier };
 }

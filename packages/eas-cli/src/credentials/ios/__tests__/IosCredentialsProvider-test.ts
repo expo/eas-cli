@@ -25,7 +25,7 @@ jest.mock('../validators/validateProvisioningProfile', () => ({
     );
   },
 }));
-jest.mock('../../../build/ios/bundleIdentifier');
+jest.mock('../../../project/ios/bundleIdentifier');
 
 const originalConsoleLog = console.log;
 const originalConsoleError = console.error;

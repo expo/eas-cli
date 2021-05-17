@@ -1,16 +1,14 @@
 import { App, RequestContext, Session, User } from '@expo/apple-utils';
 import { getConfig } from '@expo/config';
-import { Platform } from '@expo/eas-build-job';
 import chalk from 'chalk';
 
-import { getBundleIdentifier } from '../../build/ios/bundleIdentifier';
-import { resolveWorkflow } from '../../build/utils/workflow';
 import { authenticateAsync, getRequestContext } from '../../credentials/ios/appstore/authenticate';
 import {
   ensureAppExistsAsync,
   ensureBundleIdExistsWithNameAsync,
 } from '../../credentials/ios/appstore/ensureAppExists';
 import Log from '../../log';
+import { getBundleIdentifier } from '../../project/ios/bundleIdentifier';
 import { promptAsync } from '../../prompts';
 import { IosSubmissionContext } from '../types';
 import { sanitizeLanguage } from './utils/language';
@@ -43,14 +41,7 @@ export async function ensureAppStoreConnectAppExistsAsync(
   // - for builds from the database, read bundled identifier from metadata
   // - for builds uploaded from file system, prompt for the bundle identifier
   // this is necessary to make submit work outside the project directory
-  const workflow = resolveWorkflow(ctx.projectDir, Platform.IOS);
-  const resolvedBundleId =
-    bundleIdentifier ??
-    getBundleIdentifier({
-      projectDir: ctx.projectDir,
-      exp,
-      workflow,
-    });
+  const resolvedBundleId = bundleIdentifier ?? getBundleIdentifier(ctx.projectDir, exp);
 
   const options = {
     ...ctx.commandFlags,

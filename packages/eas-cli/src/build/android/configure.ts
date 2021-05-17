@@ -1,24 +1,19 @@
 import { ExpoConfig } from '@expo/config';
 import { AndroidConfig } from '@expo/config-plugins';
-import { Workflow } from '@expo/eas-build-job';
 
 import Log from '../../log';
+import {
+  getOrConfigureApplicationIdAsync,
+  warnIfAndroidPackageDefinedInAppConfigForGenericProject,
+} from '../../project/android/applicationId';
 import { gitAddAsync } from '../../utils/git';
 import { ConfigureContext } from '../context';
 import { isExpoUpdatesInstalled } from '../utils/updates';
 import { configureUpdatesAsync, syncUpdatesConfigurationAsync } from './UpdatesModule';
-import {
-  getOrConfigureApplicationIdAsync,
-  warnIfAndroidPackageDefinedInAppConfigForGenericProject,
-} from './applicationId';
 
 export async function configureAndroidAsync(ctx: ConfigureContext): Promise<void> {
   if (!ctx.hasAndroidNativeProject) {
-    await getOrConfigureApplicationIdAsync({
-      exp: ctx.exp,
-      projectDir: ctx.projectDir,
-      workflow: Workflow.MANAGED,
-    });
+    await getOrConfigureApplicationIdAsync(ctx.projectDir, ctx.exp);
     return;
   }
 

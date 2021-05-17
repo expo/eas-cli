@@ -1,4 +1,3 @@
-import { Workflow } from '@expo/eas-build-job';
 import fs from 'fs-extra';
 import { vol } from 'memfs';
 import os from 'os';
@@ -41,21 +40,19 @@ describe(getApplicationId, () => {
         '/app'
       );
 
-      const applicationId = getApplicationId({
-        projectDir: '/app',
-        exp: {} as any,
-        workflow: Workflow.GENERIC,
-      });
+      const applicationId = getApplicationId('/app', {} as any);
       expect(applicationId).toBe('com.expo.notdominik');
     });
 
     it('throws an error if build.gradle does not exist', () => {
+      vol.fromJSON(
+        {
+          'android/gradle.properties': 'fake file',
+        },
+        '/app'
+      );
       expect(() => {
-        getApplicationId({
-          projectDir: '/app',
-          exp: {} as any,
-          workflow: Workflow.GENERIC,
-        });
+        getApplicationId('/app', {} as any);
       }).toThrowError(/Could not read application id/);
     });
 
@@ -68,42 +65,28 @@ describe(getApplicationId, () => {
       );
 
       expect(() => {
-        getApplicationId({
-          projectDir: '/app',
-          exp: {} as any,
-          workflow: Workflow.GENERIC,
-        });
+        getApplicationId('/app', {} as any);
       }).toThrowError(/Could not read application id/);
     });
   });
 
   describe('managed projects', () => {
     it('reads applicationId (Android package) from app config', () => {
-      const applicationId = getApplicationId({
-        projectDir: '/app',
-        exp: { android: { package: 'com.expo.notdominik' } } as any,
-        workflow: Workflow.MANAGED,
-      });
+      const applicationId = getApplicationId('/app', {
+        android: { package: 'com.expo.notdominik' },
+      } as any);
       expect(applicationId).toBe('com.expo.notdominik');
     });
 
     it('throws an error if Android package is not defined in app config', () => {
       expect(() => {
-        getApplicationId({
-          projectDir: '/app',
-          exp: {} as any,
-          workflow: Workflow.MANAGED,
-        });
+        getApplicationId('/app', {} as any);
       }).toThrowError(/Specify "android.package"/);
     });
 
     it('throws an error if Android package in app config is invalid', () => {
       expect(() => {
-        getApplicationId({
-          projectDir: '/app',
-          exp: { android: { package: '1com.expo.notdominik' } } as any,
-          workflow: Workflow.MANAGED,
-        });
+        getApplicationId('/app', { android: { package: '1com.expo.notdominik' } } as any);
       }).toThrowError(/Specify "android.package"/);
     });
   });
@@ -118,13 +101,9 @@ describe(getOrConfigureApplicationIdAsync, () => {
         },
         '/app'
       );
-      await expect(
-        getOrConfigureApplicationIdAsync({
-          projectDir: '/app',
-          exp: {} as any,
-          workflow: Workflow.MANAGED,
-        })
-      ).rejects.toThrowError(/we can't update this file programatically/);
+      await expect(getOrConfigureApplicationIdAsync('/app', {} as any)).rejects.toThrowError(
+        /we can't update this file programatically/
+      );
     });
     it('prompts for the Android package if using app.json', async () => {
       vol.fromJSON(
@@ -138,13 +117,9 @@ describe(getOrConfigureApplicationIdAsync, () => {
         packageName: 'com.expo.notdominik',
       }));
 
-      await expect(
-        getOrConfigureApplicationIdAsync({
-          projectDir: '/app',
-          exp: {} as any,
-          workflow: Workflow.MANAGED,
-        })
-      ).resolves.toBe('com.expo.notdominik');
+      await expect(getOrConfigureApplicationIdAsync('/app', {} as any)).resolves.toBe(
+        'com.expo.notdominik'
+      );
       expect(promptAsync).toHaveBeenCalled();
     });
     it('puts the Android package in app.json', async () => {
@@ -159,13 +134,9 @@ describe(getOrConfigureApplicationIdAsync, () => {
         packageName: 'com.expo.notdominik',
       }));
 
-      await expect(
-        getOrConfigureApplicationIdAsync({
-          projectDir: '/app',
-          exp: {} as any,
-          workflow: Workflow.MANAGED,
-        })
-      ).resolves.toBe('com.expo.notdominik');
+      await expect(getOrConfigureApplicationIdAsync('/app', {} as any)).resolves.toBe(
+        'com.expo.notdominik'
+      );
       expect(JSON.parse(fs.readFileSync('/app/app.json', 'utf-8'))).toMatchObject({
         expo: { android: { package: 'com.expo.notdominik' } },
       });

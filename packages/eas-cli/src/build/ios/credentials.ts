@@ -7,11 +7,11 @@ import IosCredentialsProvider, {
 } from '../../credentials/ios/IosCredentialsProvider';
 import { getAppLookupParamsFromContext } from '../../credentials/ios/actions/BuildCredentialsUtils';
 import { AppLookupParams } from '../../credentials/ios/credentials';
+import { getBundleIdentifier } from '../../project/ios/bundleIdentifier';
 import { CredentialsResult } from '../build';
 import { BuildContext } from '../context';
 import { Platform } from '../types';
 import { logCredentialsSource } from '../utils/credentials';
-import { getBundleIdentifier } from './bundleIdentifier';
 
 export async function ensureIosCredentialsAsync(
   ctx: BuildContext<Platform.IOS>
@@ -19,11 +19,7 @@ export async function ensureIosCredentialsAsync(
   if (!shouldProvideCredentials(ctx)) {
     return;
   }
-  const bundleIdentifier = getBundleIdentifier({
-    projectDir: ctx.commandCtx.projectDir,
-    exp: ctx.commandCtx.exp,
-    workflow: ctx.buildProfile.workflow,
-  });
+  const bundleIdentifier = getBundleIdentifier(ctx.commandCtx.projectDir, ctx.commandCtx.exp);
   return await resolveIosCredentialsAsync(ctx.commandCtx.projectDir, {
     app: {
       accountName: ctx.commandCtx.accountName,

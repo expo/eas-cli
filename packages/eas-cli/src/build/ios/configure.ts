@@ -3,22 +3,18 @@ import { Workflow } from '@expo/eas-build-job';
 import { IosBuildProfile, VersionAutoIncrement } from '@expo/eas-json';
 
 import Log from '../../log';
-import { ConfigureContext } from '../context';
-import { isExpoUpdatesInstalled } from '../utils/updates';
-import { configureUpdatesAsync, syncUpdatesConfigurationAsync } from './UpdatesModule';
 import {
   getOrConfigureBundleIdentifierAsync,
   warnIfBundleIdentifierDefinedInAppConfigForGenericProject,
-} from './bundleIdentifier';
+} from '../../project/ios/bundleIdentifier';
+import { ConfigureContext } from '../context';
+import { isExpoUpdatesInstalled } from '../utils/updates';
+import { configureUpdatesAsync, syncUpdatesConfigurationAsync } from './UpdatesModule';
 import { BumpStrategy, bumpVersionAsync, bumpVersionInAppJsonAsync } from './version';
 
 export async function configureIosAsync(ctx: ConfigureContext): Promise<void> {
   if (!ctx.hasIosNativeProject) {
-    await getOrConfigureBundleIdentifierAsync({
-      exp: ctx.exp,
-      projectDir: ctx.projectDir,
-      workflow: Workflow.MANAGED,
-    });
+    await getOrConfigureBundleIdentifierAsync(ctx.projectDir, ctx.exp);
     return;
   }
 

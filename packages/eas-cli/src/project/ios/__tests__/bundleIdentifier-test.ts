@@ -1,4 +1,3 @@
-import { Workflow } from '@expo/eas-build-job';
 import fs from 'fs-extra';
 import { vol } from 'memfs';
 import os from 'os';
@@ -45,11 +44,7 @@ describe(getBundleIdentifier, () => {
         '/app'
       );
 
-      const bundleIdentifier = getBundleIdentifier({
-        projectDir: '/app',
-        exp: {} as any,
-        workflow: Workflow.GENERIC,
-      });
+      const bundleIdentifier = getBundleIdentifier('/app', {} as any);
       expect(bundleIdentifier).toBe('org.name.testproject');
     });
 
@@ -65,42 +60,28 @@ describe(getBundleIdentifier, () => {
       );
 
       expect(() => {
-        getBundleIdentifier({
-          projectDir: '/app',
-          exp: {} as any,
-          workflow: Workflow.GENERIC,
-        });
+        getBundleIdentifier('/app', {} as any);
       }).toThrowError(/Could not read bundle identifier/);
     });
   });
 
   describe('managed projects', () => {
     it('reads bundleIdentifier from app config', () => {
-      const applicationId = getBundleIdentifier({
-        projectDir: '/app',
-        exp: { ios: { bundleIdentifier: 'com.expo.notdominik' } } as any,
-        workflow: Workflow.MANAGED,
-      });
+      const applicationId = getBundleIdentifier('/app', {
+        ios: { bundleIdentifier: 'com.expo.notdominik' },
+      } as any);
       expect(applicationId).toBe('com.expo.notdominik');
     });
 
     it('throws an error if bundleIdentifier is not defined in app config', () => {
       expect(() => {
-        getBundleIdentifier({
-          projectDir: '/app',
-          exp: {} as any,
-          workflow: Workflow.MANAGED,
-        });
+        getBundleIdentifier('/app', {} as any);
       }).toThrowError(/Specify "ios.bundleIdentifier"/);
     });
 
     it('throws an error if bundleIdentifier in app config is invalid', () => {
       expect(() => {
-        getBundleIdentifier({
-          projectDir: '/app',
-          exp: { ios: { bundleIdentifier: '' } } as any,
-          workflow: Workflow.MANAGED,
-        });
+        getBundleIdentifier('/app', { ios: { bundleIdentifier: '' } } as any);
       }).toThrowError(/Specify "ios.bundleIdentifier"/);
     });
   });
@@ -115,13 +96,9 @@ describe(getOrConfigureBundleIdentifierAsync, () => {
         },
         '/app'
       );
-      await expect(
-        getOrConfigureBundleIdentifierAsync({
-          projectDir: '/app',
-          exp: {} as any,
-          workflow: Workflow.MANAGED,
-        })
-      ).rejects.toThrowError(/we can't update this file programatically/);
+      await expect(getOrConfigureBundleIdentifierAsync('/app', {} as any)).rejects.toThrowError(
+        /we can't update this file programatically/
+      );
     });
     it('prompts for the bundle identifier if using app.json', async () => {
       vol.fromJSON(
@@ -135,13 +112,9 @@ describe(getOrConfigureBundleIdentifierAsync, () => {
         bundleIdentifier: 'com.expo.notdominik',
       }));
 
-      await expect(
-        getOrConfigureBundleIdentifierAsync({
-          projectDir: '/app',
-          exp: {} as any,
-          workflow: Workflow.MANAGED,
-        })
-      ).resolves.toBe('com.expo.notdominik');
+      await expect(getOrConfigureBundleIdentifierAsync('/app', {} as any)).resolves.toBe(
+        'com.expo.notdominik'
+      );
       expect(promptAsync).toHaveBeenCalled();
     });
     it('puts the bundle identifier in app.json', async () => {
@@ -156,13 +129,9 @@ describe(getOrConfigureBundleIdentifierAsync, () => {
         bundleIdentifier: 'com.expo.notdominik',
       }));
 
-      await expect(
-        getOrConfigureBundleIdentifierAsync({
-          projectDir: '/app',
-          exp: {} as any,
-          workflow: Workflow.MANAGED,
-        })
-      ).resolves.toBe('com.expo.notdominik');
+      await expect(getOrConfigureBundleIdentifierAsync('/app', {} as any)).resolves.toBe(
+        'com.expo.notdominik'
+      );
       expect(JSON.parse(fs.readFileSync('/app/app.json', 'utf-8'))).toMatchObject({
         expo: { ios: { bundleIdentifier: 'com.expo.notdominik' } },
       });

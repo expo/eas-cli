@@ -1,14 +1,14 @@
 import { Metadata } from '@expo/eas-build-job';
 import { CredentialsSource } from '@expo/eas-json';
 
+import { getApplicationId } from '../project/android/applicationId';
+import { getBundleIdentifier } from '../project/ios/bundleIdentifier';
 import { getUsername } from '../project/projectUtils';
 import { ensureLoggedInAsync } from '../user/actions';
 import { gitCommitHashAsync } from '../utils/git';
 import { readReleaseChannelSafelyAsync as readAndroidReleaseChannelSafelyAsync } from './android/UpdatesModule';
-import { getApplicationId } from './android/applicationId';
 import { BuildContext } from './context';
 import { readReleaseChannelSafelyAsync as readIosReleaseChannelSafelyAsync } from './ios/UpdatesModule';
-import { getBundleIdentifier } from './ios/bundleIdentifier';
 import { Platform } from './types';
 import { isExpoUpdatesInstalled } from './utils/updates';
 
@@ -27,15 +27,10 @@ export async function collectMetadata<T extends Platform>(
     credentialsSource?: CredentialsSource.LOCAL | CredentialsSource.REMOTE;
   }
 ): Promise<Metadata> {
-  const appIdentifierOpts = {
-    projectDir: ctx.commandCtx.projectDir,
-    exp: ctx.commandCtx.exp,
-    workflow: ctx.buildProfile.workflow,
-  };
   const appIdentifier =
     ctx.platform === Platform.IOS
-      ? getBundleIdentifier(appIdentifierOpts)
-      : getApplicationId(appIdentifierOpts);
+      ? getBundleIdentifier(ctx.commandCtx.projectDir, ctx.commandCtx.exp)
+      : getApplicationId(ctx.commandCtx.projectDir, ctx.commandCtx.exp);
   return {
     trackingContext: ctx.trackingCtx,
     appVersion: ctx.commandCtx.exp.version!,

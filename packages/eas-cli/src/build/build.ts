@@ -103,12 +103,6 @@ export async function prepareBuildRequestForPlatformAsync<
     projectConfiguration: builder.projectConfiguration,
   });
 
-  let x = 1;
-  x = 2;
-  if (x === 2) {
-    process.exit(2137);
-  }
-
   return async () => {
     if (builder.ctx.commandCtx.local) {
       await runLocalBuildAsync(job);

@@ -1,27 +1,25 @@
 import { ExpoConfig, getConfigFilePaths } from '@expo/config';
 import { AndroidConfig } from '@expo/config-plugins';
-import { Workflow } from '@expo/eas-build-job';
+import { Platform, Workflow } from '@expo/eas-build-job';
+import assert from 'assert';
 import fs from 'fs-extra';
 import nullthrows from 'nullthrows';
 
 import Log from '../../log';
 import { getProjectConfigDescription } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
+import { resolveWorkflow } from '../workflow';
 
 const INVALID_APPLICATION_ID_MESSAGE = `Invalid format of Android applicationId. Only alphanumeric characters, '.' and '_' are allowed, and each '.' must be followed by a letter.`;
 
-export async function getOrConfigureApplicationIdAsync({
-  projectDir,
-  exp,
-  workflow,
-}: {
-  projectDir: string;
-  exp: ExpoConfig;
-  workflow: Workflow;
-}): Promise<string> {
+export async function getOrConfigureApplicationIdAsync(
+  projectDir: string,
+  exp: ExpoConfig
+): Promise<string> {
   try {
-    return getApplicationId({ projectDir, exp, workflow });
+    return getApplicationId(projectDir, exp);
   } catch (err) {
+    const workflow = resolveWorkflow(projectDir, Platform.ANDROID);
     if (workflow === Workflow.MANAGED) {
       return await configureApplicationIdAsync(projectDir, exp);
     } else {
@@ -30,15 +28,8 @@ export async function getOrConfigureApplicationIdAsync({
   }
 }
 
-export function getApplicationId({
-  projectDir,
-  exp,
-  workflow,
-}: {
-  projectDir: string;
-  exp: ExpoConfig;
-  workflow: Workflow;
-}): string {
+export function getApplicationId(projectDir: string, exp: ExpoConfig): string {
+  const workflow = resolveWorkflow(projectDir, Platform.ANDROID);
   if (workflow === Workflow.GENERIC) {
     warnIfAndroidPackageDefinedInAppConfigForGenericProject(projectDir, exp);
 
@@ -70,16 +61,18 @@ export function getApplicationId({
 async function configureApplicationIdAsync(projectDir: string, exp: ExpoConfig): Promise<string> {
   const paths = getConfigFilePaths(projectDir);
   // we can't automatically update app.config.js
-  if (!paths.staticConfigPath) {
+  if (paths.dynamicConfigPath) {
     throw new Error(
       `"android.package" is not defined in your app.config.js and we can't update this file programatically. Add the value on your own and run this command again.`
     );
   }
 
+  assert(paths.staticConfigPath, 'app.json must exist');
+
   const { packageName } = await promptAsync({
     name: 'packageName',
     type: 'text',
-    message: `What would you like your Android package name to be?`,
+    message: `What would you like your Android application id to be?`,
     validate: value => (isApplicationIdValid(value) ? true : INVALID_APPLICATION_ID_MESSAGE),
   });
 

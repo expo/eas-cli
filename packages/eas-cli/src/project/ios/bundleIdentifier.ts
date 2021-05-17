@@ -1,27 +1,25 @@
 import { ExpoConfig, getConfigFilePaths } from '@expo/config';
 import { IOSConfig } from '@expo/config-plugins';
-import { Workflow } from '@expo/eas-build-job';
+import { Platform, Workflow } from '@expo/eas-build-job';
+import assert from 'assert';
 import fs from 'fs-extra';
 import nullthrows from 'nullthrows';
 
 import Log from '../../log';
-import { getProjectConfigDescription } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
+import { getProjectConfigDescription } from '../projectUtils';
+import { resolveWorkflow } from '../workflow';
 
 const INVALID_BUNDLE_IDENTIFIER_MESSAGE = `Invalid format of iOS bundle identifier. Only alphanumeric characters, '.' and '-' are allowed, and each '.' must be followed by a letter.`;
 
-export async function getOrConfigureBundleIdentifierAsync({
-  projectDir,
-  exp,
-  workflow,
-}: {
-  projectDir: string;
-  exp: ExpoConfig;
-  workflow: Workflow;
-}): Promise<string> {
+export async function getOrConfigureBundleIdentifierAsync(
+  projectDir: string,
+  exp: ExpoConfig
+): Promise<string> {
   try {
-    return getBundleIdentifier({ projectDir, exp, workflow });
+    return getBundleIdentifier(projectDir, exp);
   } catch (err) {
+    const workflow = resolveWorkflow(projectDir, Platform.IOS);
     if (workflow === Workflow.MANAGED) {
       return await configureBundleIdentifierAsync(projectDir, exp);
     } else {
@@ -30,15 +28,8 @@ export async function getOrConfigureBundleIdentifierAsync({
   }
 }
 
-export function getBundleIdentifier({
-  projectDir,
-  exp,
-  workflow,
-}: {
-  projectDir: string;
-  exp: ExpoConfig;
-  workflow: Workflow;
-}): string {
+export function getBundleIdentifier(projectDir: string, exp: ExpoConfig): string {
+  const workflow = resolveWorkflow(projectDir, Platform.IOS);
   if (workflow === Workflow.GENERIC) {
     const bundleIdentifier = IOSConfig.BundleIdentifier.getBundleIdentifierFromPbxproj(projectDir);
     return nullthrows(bundleIdentifier, 'Could not read bundle identifier from Xcode project.');
@@ -65,11 +56,13 @@ async function configureBundleIdentifierAsync(
 ): Promise<string> {
   const paths = getConfigFilePaths(projectDir);
   // we can't automatically update app.config.js
-  if (!paths.staticConfigPath) {
+  if (paths.dynamicConfigPath) {
     throw new Error(
       `"ios.bundleIdentifier" is not defined in your app.config.js and we can't update this file programatically. Add the value on your own and run this command again.`
     );
   }
+
+  assert(paths.staticConfigPath, 'app.json must exist');
 
   const { bundleIdentifier } = await promptAsync({
     name: 'bundleIdentifier',

@@ -10,13 +10,13 @@ import AndroidCredentialsProvider, {
 import { createCredentialsContextAsync } from '../../credentials/context';
 import { BuildMutation, BuildResult } from '../../graphql/mutations/BuildMutation';
 import Log from '../../log';
+import { getOrConfigureApplicationIdAsync } from '../../project/android/applicationId';
 import { toggleConfirmAsync } from '../../prompts';
 import { CredentialsResult, prepareBuildRequestForPlatformAsync } from '../build';
 import { BuildContext, CommandContext, createBuildContext } from '../context';
 import { transformMetadata } from '../graphql';
 import { Platform } from '../types';
 import { logCredentialsSource } from '../utils/credentials';
-import { getOrConfigureApplicationIdAsync } from './applicationId';
 import { validateAndSyncProjectConfigurationAsync } from './configure';
 import { transformGenericJob, transformManagedJob } from './graphql';
 import { prepareJobAsync } from './prepareJob';
@@ -64,11 +64,7 @@ This means that it will most likely produce an AAB and you will not be able to i
   }
 
   // this function throws if application id is invalid
-  await getOrConfigureApplicationIdAsync({
-    projectDir: commandCtx.projectDir,
-    exp: commandCtx.exp,
-    workflow: buildProfile.workflow,
-  });
+  await getOrConfigureApplicationIdAsync(commandCtx.projectDir, commandCtx.exp);
 
   return await prepareBuildRequestForPlatformAsync({
     ctx: buildCtx,
