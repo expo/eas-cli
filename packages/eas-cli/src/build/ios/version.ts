@@ -102,7 +102,7 @@ export async function bumpVersionInAppJsonAsync({
 
 async function readInfoPlistAsync(projectDir: string): Promise<IOSConfig.InfoPlist> {
   const infoPlistPath = IOSConfig.Paths.getInfoPlistPath(projectDir);
-  return await readPlistAsync(infoPlistPath);
+  return (await readPlistAsync(infoPlistPath)) as IOSConfig.InfoPlist;
 }
 
 async function writeVersionsToInfoPlistAsync({
