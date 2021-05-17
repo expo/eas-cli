@@ -30,7 +30,7 @@ const IosTargetCredentials = Joi.object({
   provisioningProfilePath: Joi.string().required(),
   distributionCertificate: Joi.object({
     path: Joi.string().required(),
-    password: Joi.string().required(),
+    password: Joi.string().allow('').required(),
   }).required(),
 });
 
@@ -38,9 +38,9 @@ const CredentialsJsonSchema = Joi.object({
   android: Joi.object({
     keystore: Joi.object({
       keystorePath: Joi.string().required(),
-      keystorePassword: Joi.string().required(),
+      keystorePassword: Joi.string().allow('').required(),
       keyAlias: Joi.string().required(),
-      keyPassword: Joi.string().required(),
+      keyPassword: Joi.string().allow(''),
     }).required(),
   }),
   ios: [
