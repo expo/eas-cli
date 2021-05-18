@@ -61,7 +61,7 @@ const AndroidManagedSchema = Joi.object({
   releaseChannel: Joi.string(),
   buildType: Joi.alternatives().conditional('distribution', {
     is: 'internal',
-    then: Joi.string().valid('apk').default('apk'),
+    then: Joi.string().valid('apk', 'development-client').default('apk'),
     otherwise: Joi.string().valid('apk', 'app-bundle', 'development-client').default('app-bundle'),
   }),
   distribution: Joi.string().valid('store', 'internal').default('store'),

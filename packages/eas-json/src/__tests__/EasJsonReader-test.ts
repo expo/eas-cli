@@ -248,7 +248,7 @@ test('invalid managed profile for internal distribution on Android', async () =>
   const reader = new EasJsonReader('/project', 'android');
   const promise = reader.readAsync('internal');
   await expect(promise).rejects.toThrowError(
-    'Object "android.internal" in eas.json is not valid [ValidationError: "buildType" must be [apk]]'
+    'Object "android.internal" in eas.json is not valid [ValidationError: "buildType" must be one of [apk, development-client]]'
   );
 });
 
