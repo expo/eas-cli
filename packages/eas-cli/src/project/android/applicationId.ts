@@ -3,6 +3,7 @@ import { AndroidConfig } from '@expo/config-plugins';
 import { Platform, Workflow } from '@expo/eas-build-job';
 import assert from 'assert';
 import fs from 'fs-extra';
+import once from 'lodash/once';
 import nullthrows from 'nullthrows';
 
 import Log from '../../log';
@@ -92,7 +93,7 @@ function isApplicationIdValid(applicationId: string): boolean {
   return /^[a-zA-Z][a-zA-Z0-9_]*(\.[a-zA-Z][a-zA-Z0-9_]*)+$/.test(applicationId);
 }
 
-export function warnIfAndroidPackageDefinedInAppConfigForGenericProject(
+function _warnIfAndroidPackageDefinedInAppConfigForGenericProject(
   projectDir: string,
   exp: ExpoConfig
 ): void {
@@ -105,3 +106,7 @@ export function warnIfAndroidPackageDefinedInAppConfigForGenericProject(
     );
   }
 }
+
+export const warnIfAndroidPackageDefinedInAppConfigForGenericProject = once(
+  _warnIfAndroidPackageDefinedInAppConfigForGenericProject
+);

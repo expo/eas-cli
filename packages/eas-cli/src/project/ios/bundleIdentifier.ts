@@ -3,6 +3,7 @@ import { IOSConfig } from '@expo/config-plugins';
 import { Platform, Workflow } from '@expo/eas-build-job';
 import assert from 'assert';
 import fs from 'fs-extra';
+import once from 'lodash/once';
 import nullthrows from 'nullthrows';
 
 import Log from '../../log';
@@ -31,6 +32,8 @@ export async function getOrConfigureBundleIdentifierAsync(
 export function getBundleIdentifier(projectDir: string, exp: ExpoConfig): string {
   const workflow = resolveWorkflow(projectDir, Platform.IOS);
   if (workflow === Workflow.GENERIC) {
+    warnIfBundleIdentifierDefinedInAppConfigForGenericProject(projectDir, exp);
+
     const bundleIdentifier = IOSConfig.BundleIdentifier.getBundleIdentifierFromPbxproj(projectDir);
     return nullthrows(bundleIdentifier, 'Could not read bundle identifier from Xcode project.');
   } else {
@@ -87,7 +90,7 @@ function isBundleIdentifierValid(bundleIdentifier: string): boolean {
   return /^[a-zA-Z]+(\.[a-zA-Z0-9-]+)*$/.test(bundleIdentifier);
 }
 
-export function warnIfBundleIdentifierDefinedInAppConfigForGenericProject(
+function _warnIfBundleIdentifierDefinedInAppConfigForGenericProject(
   projectDir: string,
   exp: ExpoConfig
 ): void {
@@ -100,3 +103,7 @@ export function warnIfBundleIdentifierDefinedInAppConfigForGenericProject(
     );
   }
 }
+
+export const warnIfBundleIdentifierDefinedInAppConfigForGenericProject = once(
+  _warnIfBundleIdentifierDefinedInAppConfigForGenericProject
+);
