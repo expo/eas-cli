@@ -5,10 +5,7 @@ import {
   getConfigFilePaths,
   modifyConfigAsync,
 } from '@expo/config';
-import { AndroidConfig, IOSConfig } from '@expo/config-plugins';
-import { Platform } from '@expo/eas-build-job';
 import chalk from 'chalk';
-import fs from 'fs-extra';
 import gql from 'graphql-tag';
 import path from 'path';
 import pkgDir from 'pkg-dir';
@@ -152,64 +149,6 @@ const toAppPrivacy = (privacy: ExpoConfig['privacy']) => {
 export async function getProjectFullNameAsync(exp: ExpoConfig): Promise<string> {
   const accountName = await getProjectAccountNameAsync(exp);
   return `@${accountName}/${exp.slug}`;
-}
-
-// TODO move to @expo/config
-export async function getAndroidApplicationIdAsync(projectDir: string): Promise<string | null> {
-  const buildGradlePath = AndroidConfig.Paths.getAppBuildGradle(projectDir);
-  if (!(await fs.pathExists(buildGradlePath))) {
-    return null;
-  }
-  const buildGradle = await fs.readFile(buildGradlePath, 'utf8');
-  const matchResult = buildGradle.match(/applicationId ['"](.*)['"]/);
-  // TODO add fallback for legacy cases to read from AndroidManifest.xml
-  return matchResult?.[1] ?? null;
-}
-
-export async function getAppIdentifierAsync({
-  projectDir,
-  platform,
-  exp,
-}: {
-  projectDir: string;
-  platform: Platform;
-  exp: ExpoConfig;
-}): Promise<string | null> {
-  switch (platform) {
-    case Platform.ANDROID: {
-      const packageNameFromConfig = AndroidConfig.Package.getPackage(exp);
-      if (packageNameFromConfig) {
-        return packageNameFromConfig;
-      }
-      return (await fs.pathExists(path.join(projectDir, 'android')))
-        ? await getAndroidApplicationIdAsync(projectDir)
-        : null;
-    }
-    case Platform.IOS: {
-      return (
-        IOSConfig.BundleIdentifier.getBundleIdentifier(exp) ??
-        IOSConfig.BundleIdentifier.getBundleIdentifierFromPbxproj(projectDir)
-      );
-    }
-  }
-}
-
-export async function ensureAppIdentifierIsDefinedAsync({
-  projectDir,
-  platform,
-  exp,
-}: {
-  projectDir: string;
-  platform: Platform;
-  exp: ExpoConfig;
-}): Promise<string> {
-  const appIdentifier = await getAppIdentifierAsync({ projectDir, platform, exp });
-  if (!appIdentifier) {
-    const desc = getProjectConfigDescription(projectDir);
-    const fieldStr = platform === Platform.ANDROID ? 'android.package' : 'ios.bundleIdentifier';
-    throw new Error(`Please define "${fieldStr}" in your ${desc}.`);
-  }
-  return appIdentifier;
 }
 
 /**

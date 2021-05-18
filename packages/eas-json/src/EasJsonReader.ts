@@ -6,9 +6,6 @@ import { AndroidBuildProfile, BuildProfile, EasConfig, IosBuildProfile } from '.
 import { EasJsonSchema, schemaBuildProfileMap } from './EasJsonSchema';
 
 interface EasJson {
-  experimental?: {
-    disableIosBundleIdentifierValidation?: boolean;
-  };
   builds: {
     android?: { [key: string]: BuildProfilePreValidation };
     ios?: { [key: string]: BuildProfilePreValidation };
@@ -65,16 +62,10 @@ export class EasJsonReader {
         easJson.builds?.ios || {}
       );
     }
-    const iosExperimental = easJson.experimental?.disableIosBundleIdentifierValidation
-      ? {
-          disableIosBundleIdentifierValidation:
-            easJson.experimental.disableIosBundleIdentifierValidation,
-        }
-      : {};
     return {
       builds: {
         ...(androidConfig ? { android: androidConfig } : {}),
-        ...(iosConfig ? { ios: { ...iosConfig, ...iosExperimental } } : {}),
+        ...(iosConfig ? { ios: iosConfig } : {}),
       },
     };
   }

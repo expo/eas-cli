@@ -1,7 +1,9 @@
 import { Metadata } from '@expo/eas-build-job';
 import { CredentialsSource } from '@expo/eas-json';
 
-import { getAppIdentifierAsync, getUsername } from '../project/projectUtils';
+import { getApplicationId } from '../project/android/applicationId';
+import { getBundleIdentifier } from '../project/ios/bundleIdentifier';
+import { getUsername } from '../project/projectUtils';
 import { ensureLoggedInAsync } from '../user/actions';
 import { gitCommitHashAsync } from '../utils/git';
 import { readReleaseChannelSafelyAsync as readAndroidReleaseChannelSafelyAsync } from './android/UpdatesModule';
@@ -25,6 +27,10 @@ export async function collectMetadata<T extends Platform>(
     credentialsSource?: CredentialsSource.LOCAL | CredentialsSource.REMOTE;
   }
 ): Promise<Metadata> {
+  const appIdentifier =
+    ctx.platform === Platform.IOS
+      ? getBundleIdentifier(ctx.commandCtx.projectDir, ctx.commandCtx.exp)
+      : getApplicationId(ctx.commandCtx.projectDir, ctx.commandCtx.exp);
   return {
     trackingContext: ctx.trackingCtx,
     appVersion: ctx.commandCtx.exp.version!,
@@ -35,12 +41,7 @@ export async function collectMetadata<T extends Platform>(
     releaseChannel: await resolveReleaseChannel(ctx),
     distribution: ctx.buildProfile.distribution ?? 'store',
     appName: ctx.commandCtx.exp.name,
-    appIdentifier:
-      (await getAppIdentifierAsync({
-        projectDir: ctx.commandCtx.projectDir,
-        platform: ctx.platform,
-        exp: ctx.commandCtx.exp,
-      })) ?? undefined,
+    appIdentifier,
     buildProfile: ctx.commandCtx.profile,
     gitCommitHash: await gitCommitHashAsync(),
     username: getUsername(ctx.commandCtx.exp, await ensureLoggedInAsync()),

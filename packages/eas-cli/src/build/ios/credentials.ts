@@ -1,6 +1,5 @@
 import { Workflow } from '@expo/eas-build-job';
 import { CredentialsSource, IosDistributionType, IosEnterpriseProvisioning } from '@expo/eas-json';
-import assert from 'assert';
 
 import { createCredentialsContextAsync } from '../../credentials/context';
 import IosCredentialsProvider, {
@@ -10,6 +9,7 @@ import { getAppLookupParamsFromContext } from '../../credentials/ios/actions/Bui
 import { IosCapabilitiesOptions } from '../../credentials/ios/appstore/ensureAppExists';
 import { resolveEntitlementsJsonAsync } from '../../credentials/ios/appstore/entitlements';
 import { AppLookupParams } from '../../credentials/ios/credentials';
+import { getBundleIdentifier } from '../../project/ios/bundleIdentifier';
 import { CredentialsResult } from '../build';
 import { BuildContext } from '../context';
 import { Platform } from '../types';
@@ -21,12 +21,12 @@ export async function ensureIosCredentialsAsync(
   if (!shouldProvideCredentials(ctx)) {
     return;
   }
-  assert(ctx.commandCtx.exp?.ios?.bundleIdentifier, 'ios.bundleIdentifier is required');
+  const bundleIdentifier = getBundleIdentifier(ctx.commandCtx.projectDir, ctx.commandCtx.exp);
   return await resolveIosCredentialsAsync(ctx.commandCtx.projectDir, {
     app: {
       accountName: ctx.commandCtx.accountName,
       projectName: ctx.commandCtx.projectName,
-      bundleIdentifier: ctx.commandCtx.exp.ios.bundleIdentifier,
+      bundleIdentifier,
     },
     iosCapabilitiesOptions: {
       entitlements: await resolveEntitlementsJsonAsync(

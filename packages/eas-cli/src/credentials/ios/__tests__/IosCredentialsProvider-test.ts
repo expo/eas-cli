@@ -25,6 +25,7 @@ jest.mock('../validators/validateProvisioningProfile', () => ({
     );
   },
 }));
+jest.mock('../../../project/ios/bundleIdentifier');
 
 const originalConsoleLog = console.log;
 const originalConsoleError = console.error;
@@ -47,7 +48,7 @@ beforeEach(() => {
 describe(IosCredentialsProvider, () => {
   describe('#getCredentialsAsync', () => {
     describe('remote credentials', () => {
-      it('throws an error is credentials do not exist', async () => {
+      it('throws an error if credentials do not exist', async () => {
         const ctx = createCtxMock({
           nonInteractive: true,
           appStore: getAppstoreMock(),
@@ -69,7 +70,6 @@ describe(IosCredentialsProvider, () => {
           },
           distribution: 'store',
         });
-
         await expect(provider.getCredentialsAsync(CredentialsSource.REMOTE)).rejects.toThrowError(
           /Credentials are not set up/
         );

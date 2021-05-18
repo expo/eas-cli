@@ -8,12 +8,12 @@ import path from 'path';
 
 import { BuildMutation, BuildResult } from '../../graphql/mutations/BuildMutation';
 import Log from '../../log';
+import { getOrConfigureBundleIdentifierAsync } from '../../project/ios/bundleIdentifier';
 import { promptAsync } from '../../prompts';
 import { prepareBuildRequestForPlatformAsync } from '../build';
 import { BuildContext, CommandContext, createBuildContext } from '../context';
 import { transformMetadata } from '../graphql';
 import { Platform } from '../types';
-import { ensureBundleIdentifierIsValidAsync } from './bundleIdentifer';
 import { validateAndSyncProjectConfigurationAsync } from './configure';
 import { ensureIosCredentialsAsync } from './credentials';
 import { transformGenericJob, transformManagedJob } from './graphql';
@@ -58,7 +58,8 @@ export async function prepareIosBuildAsync(
     }
   }
 
-  await ensureBundleIdentifierIsValidAsync(commandCtx.projectDir, commandCtx.exp);
+  // this function throws if bundle id is invalid
+  await getOrConfigureBundleIdentifierAsync(commandCtx.projectDir, commandCtx.exp);
 
   return await prepareBuildRequestForPlatformAsync({
     ctx: buildCtx,

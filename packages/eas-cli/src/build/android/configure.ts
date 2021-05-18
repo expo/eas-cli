@@ -2,20 +2,24 @@ import { ExpoConfig } from '@expo/config';
 import { AndroidConfig } from '@expo/config-plugins';
 
 import Log from '../../log';
-import { getAndroidApplicationIdAsync } from '../../project/projectUtils';
+import {
+  getOrConfigureApplicationIdAsync,
+  warnIfAndroidPackageDefinedInAppConfigForGenericProject,
+} from '../../project/android/applicationId';
 import { gitAddAsync } from '../../utils/git';
 import { ConfigureContext } from '../context';
 import { isExpoUpdatesInstalled } from '../utils/updates';
 import { configureUpdatesAsync, syncUpdatesConfigurationAsync } from './UpdatesModule';
-import { configureApplicationIdAsync, ensureApplicationIdIsValidAsync } from './applicationId';
 
 export async function configureAndroidAsync(ctx: ConfigureContext): Promise<void> {
   if (!ctx.hasAndroidNativeProject) {
+    await getOrConfigureApplicationIdAsync(ctx.projectDir, ctx.exp);
     return;
   }
+
+  warnIfAndroidPackageDefinedInAppConfigForGenericProject(ctx.projectDir, ctx.exp);
+
   await AndroidConfig.EasBuild.configureEasBuildAsync(ctx.projectDir);
-  await configureApplicationIdAsync(ctx.projectDir, ctx.exp, ctx.allowExperimental);
-  await ensureApplicationIdIsValidAsync(ctx.projectDir, ctx.exp);
 
   const easGradlePath = AndroidConfig.EasBuild.getEasBuildGradlePath(ctx.projectDir);
   await gitAddAsync(easGradlePath, { intentToAdd: true });
@@ -30,20 +34,11 @@ export async function validateAndSyncProjectConfigurationAsync(
   projectDir: string,
   exp: ExpoConfig
 ): Promise<void> {
-  const applicationIdFromAndroidProject = await getAndroidApplicationIdAsync(projectDir);
-  const packageNameFromConfig = AndroidConfig.Package.getPackage(exp);
-  const isApplicationIdConfigured =
-    applicationIdFromAndroidProject && applicationIdFromAndroidProject === packageNameFromConfig;
-
-  const isEasBuildGradleConfigured = await AndroidConfig.EasBuild.isEasBuildGradleConfiguredAsync(
-    projectDir
-  );
-  if (!isEasBuildGradleConfigured || !isApplicationIdConfigured) {
+  if (!(await AndroidConfig.EasBuild.isEasBuildGradleConfiguredAsync(projectDir))) {
     throw new Error(
       'Project is not configured. Please run "eas build:configure" to configure the project.'
     );
   }
-
   if (isExpoUpdatesInstalled(projectDir)) {
     await syncUpdatesConfigurationAsync(projectDir, exp);
   }

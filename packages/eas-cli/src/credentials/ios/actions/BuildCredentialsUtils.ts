@@ -7,7 +7,8 @@ import {
   IosDistributionType as GraphQLIosDistributionType,
   IosAppBuildCredentialsFragment,
 } from '../../../graphql/generated';
-import { getProjectAccountName, getProjectConfigDescription } from '../../../project/projectUtils';
+import { getBundleIdentifier } from '../../../project/ios/bundleIdentifier';
+import { getProjectAccountName } from '../../../project/projectUtils';
 import { findAccountByName } from '../../../user/Account';
 import { Context } from '../../context';
 import { AppLookupParams } from '../api/GraphqlClient';
@@ -90,14 +91,7 @@ export function getAppLookupParamsFromContext(ctx: Context): AppLookupParams {
     throw new Error(`You do not have access to account: ${accountName}`);
   }
 
-  const bundleIdentifier = ctx.exp.ios?.bundleIdentifier;
-  if (!bundleIdentifier) {
-    throw new Error(
-      `ios.bundleIdentifier needs to be defined in your ${getProjectConfigDescription(
-        ctx.projectDir
-      )} file`
-    );
-  }
+  const bundleIdentifier = getBundleIdentifier(ctx.projectDir, ctx.exp);
 
   return { account, projectName, bundleIdentifier };
 }

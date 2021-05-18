@@ -16,6 +16,7 @@ import { updateAndroidCredentialsAsync, updateIosCredentialsAsync } from '../upd
 
 jest.mock('fs');
 jest.mock('prompts');
+jest.mock('../../../project/ios/bundleIdentifier');
 
 const originalConsoleLog = console.log;
 const originalConsoleWarn = console.warn;

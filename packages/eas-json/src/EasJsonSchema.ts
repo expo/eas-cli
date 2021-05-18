@@ -108,9 +108,6 @@ const schemaBuildProfileMap: Record<string, Record<string, Joi.Schema>> = {
 };
 
 const EasJsonSchema = Joi.object({
-  experimental: Joi.object({
-    disableIosBundleIdentifierValidation: Joi.boolean(),
-  }),
   builds: Joi.object({
     android: Joi.object().pattern(
       Joi.string(),
