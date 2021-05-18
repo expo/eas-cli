@@ -39,7 +39,6 @@ export async function ensureIosCredentialsAsync(
     distribution: ctx.buildProfile.distribution ?? 'store',
     enterpriseProvisioning: ctx.buildProfile.enterpriseProvisioning,
     nonInteractive: ctx.commandCtx.nonInteractive,
-    skipCredentialsCheck: ctx.commandCtx.skipCredentialsCheck,
   });
 }
 
@@ -51,7 +50,6 @@ interface ResolveCredentialsParams {
   enterpriseProvisioning?: IosEnterpriseProvisioning;
   iosCapabilitiesOptions?: IosCapabilitiesOptions;
   nonInteractive: boolean;
-  skipCredentialsCheck: boolean;
 }
 
 export async function resolveIosCredentialsAsync(
@@ -67,7 +65,6 @@ export async function resolveIosCredentialsAsync(
     iosCapabilitiesOptions: params.iosCapabilitiesOptions,
     distribution: params.distribution,
     enterpriseProvisioning: params.enterpriseProvisioning,
-    skipCredentialsCheck: params.skipCredentialsCheck,
   });
   const { credentialsSource } = params;
   logCredentialsSource(credentialsSource, Platform.IOS);

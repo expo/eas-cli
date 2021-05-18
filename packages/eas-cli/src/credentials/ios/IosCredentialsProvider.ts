@@ -16,7 +16,6 @@ interface Options {
   app: AppLookupParams;
   distribution: IosDistributionType;
   enterpriseProvisioning?: IosEnterpriseProvisioning;
-  skipCredentialsCheck?: boolean;
   iosCapabilitiesOptions?: IosCapabilitiesOptions;
 }
 
@@ -47,7 +46,7 @@ export default class IosCredentialsProvider {
     return credentials;
   }
 
-  private assertProvisioningProfileType(provisionigProfile: string, targetName?: string) {
+  private assertProvisioningProfileType(provisionigProfile: string, targetName?: string): void {
     const isAdHoc = isAdHocProfile(provisionigProfile);
     if (this.options.distribution === 'internal' && !isAdHoc) {
       throw new Error(

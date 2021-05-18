@@ -20,7 +20,6 @@ interface Options {
   app: GraphQLAppLookupParams;
   distribution: IosDistributionType;
   enterpriseProvisioning?: IosEnterpriseProvisioning;
-  skipCredentialsCheck?: boolean;
   iosCapabilitiesOptions?: IosCapabilitiesOptions;
 }
 
