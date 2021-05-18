@@ -43,6 +43,7 @@ export interface AppLookupParams {
   account: Account;
   projectName: string;
   bundleIdentifier: string;
+  parentBundleIdentifier?: string;
 }
 
 async function getAppAsync(appLookupParams: AppLookupParams): Promise<AppFragment> {
@@ -191,7 +192,7 @@ export async function createOrGetExistingAppleTeamAsync(
 }
 
 export async function createOrGetExistingAppleAppIdentifierAsync(
-  { account, bundleIdentifier }: AppLookupParams,
+  { account, bundleIdentifier, parentBundleIdentifier }: AppLookupParams,
   appleTeam: AppleTeamFragment | null
 ): Promise<AppleAppIdentifierFragment> {
   const appleAppIdentifier = await AppleAppIdentifierQuery.byBundleIdentifierAsync(
@@ -204,8 +205,15 @@ export async function createOrGetExistingAppleAppIdentifierAsync(
     if (!appleTeam) {
       throw new AppleTeamMissingError();
     }
+    const parentAppleAppIdentifier = parentBundleIdentifier
+      ? await AppleAppIdentifierQuery.byBundleIdentifierAsync(account.name, parentBundleIdentifier)
+      : null;
     return await AppleAppIdentifierMutation.createAppleAppIdentifierAsync(
-      { bundleIdentifier, appleTeamId: appleTeam.id },
+      {
+        bundleIdentifier,
+        appleTeamId: appleTeam.id,
+        parentAppleAppId: parentAppleAppIdentifier?.id,
+      },
       account.id
     );
   }
