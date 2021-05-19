@@ -10,6 +10,7 @@ import {
   bumpVersionAsync,
   bumpVersionInAppJsonAsync,
   readBuildNumberAsync,
+  readShortVersionAsync,
 } from '../version';
 
 jest.mock('fs');
@@ -163,6 +164,24 @@ describe(readBuildNumberAsync, () => {
       const exp = initManagedProject();
       const buildNumber = await readBuildNumberAsync('/repo', exp);
       expect(buildNumber).toBe('1');
+    });
+  });
+});
+
+describe(readShortVersionAsync, () => {
+  describe('generic project', () => {
+    it('reads the short version from native code', async () => {
+      const exp = initGenericProject();
+      const shortVersion = await readShortVersionAsync('/repo', exp);
+      expect(shortVersion).toBe('1.0.0');
+    });
+  });
+
+  describe('managed project', () => {
+    it('reads the version from app config', async () => {
+      const exp = initGenericProject();
+      const shortVersion = await readShortVersionAsync('/repo', exp);
+      expect(shortVersion).toBe('1.0.0');
     });
   });
 });

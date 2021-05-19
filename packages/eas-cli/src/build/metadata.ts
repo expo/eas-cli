@@ -7,10 +7,10 @@ import { getUsername } from '../project/projectUtils';
 import { ensureLoggedInAsync } from '../user/actions';
 import { gitCommitHashAsync } from '../utils/git';
 import { readReleaseChannelSafelyAsync as readAndroidReleaseChannelSafelyAsync } from './android/UpdatesModule';
-import { readVersionCode } from './android/version';
+import { readVersionCode, readVersionName } from './android/version';
 import { BuildContext } from './context';
 import { readReleaseChannelSafelyAsync as readIosReleaseChannelSafelyAsync } from './ios/UpdatesModule';
-import { readBuildNumberAsync } from './ios/version';
+import { readBuildNumberAsync, readShortVersionAsync } from './ios/version';
 import { Platform } from './types';
 import { isExpoUpdatesInstalled } from './utils/updates';
 
@@ -31,7 +31,7 @@ export async function collectMetadata<T extends Platform>(
 ): Promise<Metadata> {
   return {
     trackingContext: ctx.trackingCtx,
-    appVersion: ctx.commandCtx.exp.version!,
+    appVersion: await resolveAppVersionAsync(ctx),
     cliVersion: packageJSON.version,
     workflow: ctx.buildProfile.workflow,
     credentialsSource,
@@ -46,6 +46,16 @@ export async function collectMetadata<T extends Platform>(
     buildNumber: await resolveBuildNumberAsync(ctx),
     versionCode: resolveVersionCode(ctx),
   };
+}
+
+async function resolveAppVersionAsync<T extends Platform>(
+  ctx: BuildContext<T>
+): Promise<string | undefined> {
+  if (ctx.platform === Platform.IOS) {
+    return await readShortVersionAsync(ctx.commandCtx.projectDir, ctx.commandCtx.exp);
+  } else {
+    return readVersionName(ctx.commandCtx.projectDir, ctx.commandCtx.exp);
+  }
 }
 
 function resolveAppIdentifier<T extends Platform>(ctx: BuildContext<T>): string {

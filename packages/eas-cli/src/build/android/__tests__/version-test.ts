@@ -1,10 +1,23 @@
 import { ExpoConfig } from '@expo/config';
+import fs from 'fs-extra';
 import { vol } from 'memfs';
+import os from 'os';
 
-import { readVersionCode } from '../version';
+import { readVersionCode, readVersionName } from '../version';
+
+jest.mock('fs');
+
+afterAll(() => {
+  // do not remove the following line
+  // this fixes a weird error with tempy in @expo/image-utils
+  fs.removeSync(os.tmpdir());
+});
 
 beforeEach(() => {
   vol.reset();
+  // do not remove the following line
+  // this fixes a weird error with tempy in @expo/image-utils
+  fs.mkdirpSync(os.tmpdir());
 });
 
 describe(readVersionCode, () => {
@@ -20,6 +33,23 @@ describe(readVersionCode, () => {
       const exp = initManagedProject();
       const versionCode = readVersionCode('/repo', exp);
       expect(versionCode).toBe(123);
+    });
+  });
+});
+
+describe(readVersionName, () => {
+  describe('generic project', () => {
+    it('reads the version name from native code', () => {
+      const exp = initGenericProject();
+      const versionName = readVersionName('/repo', exp);
+      expect(versionName).toBe('1.0');
+    });
+  });
+  describe('managed project', () => {
+    it('reads the version from expo config', () => {
+      const exp = initManagedProject();
+      const versionName = readVersionName('/repo', exp);
+      expect(versionName).toBe('1.0.0');
     });
   });
 });

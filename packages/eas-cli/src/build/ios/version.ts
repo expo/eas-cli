@@ -102,6 +102,19 @@ export async function bumpVersionInAppJsonAsync({
   }
 }
 
+export async function readShortVersionAsync(
+  projectDir: string,
+  exp: ExpoConfig
+): Promise<string | undefined> {
+  const workflow = resolveWorkflow(projectDir, Platform.IOS);
+  if (workflow === Workflow.GENERIC) {
+    const infoPlist = await readInfoPlistAsync(projectDir);
+    return infoPlist.CFBundleShortVersionString;
+  } else {
+    return exp.version;
+  }
+}
+
 export async function readBuildNumberAsync(
   projectDir: string,
   exp: ExpoConfig
