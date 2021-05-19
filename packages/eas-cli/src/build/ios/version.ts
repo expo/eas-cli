@@ -1,10 +1,12 @@
 import { ExpoConfig, getConfigFilePaths } from '@expo/config';
 import { IOSConfig } from '@expo/config-plugins';
+import { Platform, Workflow } from '@expo/eas-build-job';
 import chalk from 'chalk';
 import nullthrows from 'nullthrows';
 import semver from 'semver';
 
 import Log from '../../log';
+import { resolveWorkflow } from '../../project/workflow';
 import { promptAsync } from '../../prompts';
 import { updateAppJsonConfigAsync } from '../utils/appJson';
 import { readPlistAsync, writePlistAsync } from './plist';
@@ -100,9 +102,17 @@ export async function bumpVersionInAppJsonAsync({
   }
 }
 
-async function readInfoPlistAsync(projectDir: string): Promise<IOSConfig.InfoPlist> {
-  const infoPlistPath = IOSConfig.Paths.getInfoPlistPath(projectDir);
-  return (await readPlistAsync(infoPlistPath)) as IOSConfig.InfoPlist;
+export async function readBuildNumberAsync(
+  projectDir: string,
+  exp: ExpoConfig
+): Promise<string | undefined> {
+  const workflow = resolveWorkflow(projectDir, Platform.IOS);
+  if (workflow === Workflow.GENERIC) {
+    const infoPlist = await readInfoPlistAsync(projectDir);
+    return infoPlist.CFBundleVersion;
+  } else {
+    return IOSConfig.Version.getBuildNumber(exp);
+  }
 }
 
 async function writeVersionsToInfoPlistAsync({
@@ -118,6 +128,11 @@ async function writeVersionsToInfoPlistAsync({
   updatedInfoPlist = IOSConfig.Version.setBuildNumber(exp, updatedInfoPlist);
   await writeInfoPlistAsync({ projectDir, infoPlist: updatedInfoPlist });
   return updatedInfoPlist;
+}
+
+async function readInfoPlistAsync(projectDir: string): Promise<IOSConfig.InfoPlist> {
+  const infoPlistPath = IOSConfig.Paths.getInfoPlistPath(projectDir);
+  return (await readPlistAsync(infoPlistPath)) as IOSConfig.InfoPlist;
 }
 
 async function writeInfoPlistAsync({

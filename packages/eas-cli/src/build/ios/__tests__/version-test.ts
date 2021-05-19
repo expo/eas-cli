@@ -5,7 +5,12 @@ import { vol } from 'memfs';
 import os from 'os';
 
 import { readPlistAsync } from '../plist';
-import { BumpStrategy, bumpVersionAsync, bumpVersionInAppJsonAsync } from '../version';
+import {
+  BumpStrategy,
+  bumpVersionAsync,
+  bumpVersionInAppJsonAsync,
+  readBuildNumberAsync,
+} from '../version';
 
 jest.mock('fs');
 
@@ -141,6 +146,24 @@ describe(bumpVersionInAppJsonAsync, () => {
     expect(fakeExp.ios?.buildNumber).toBe('1');
     expect(appJSON.expo.version).toBe('1.0.0');
     expect(appJSON.expo.ios.buildNumber).toBe('1');
+  });
+});
+
+describe(readBuildNumberAsync, () => {
+  describe('generic project', () => {
+    it('reads the build number from native code', async () => {
+      const exp = initGenericProject();
+      const buildNumber = await readBuildNumberAsync('/repo', exp);
+      expect(buildNumber).toBe('1');
+    });
+  });
+
+  describe('managed project', () => {
+    it('reads the build number from expo config', async () => {
+      const exp = initManagedProject();
+      const buildNumber = await readBuildNumberAsync('/repo', exp);
+      expect(buildNumber).toBe('1');
+    });
   });
 });
 
