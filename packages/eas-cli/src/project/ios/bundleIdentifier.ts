@@ -13,7 +13,7 @@ import { resolveWorkflow } from '../workflow';
 
 const INVALID_BUNDLE_IDENTIFIER_MESSAGE = `Invalid format of iOS bundle identifier. Only alphanumeric characters, '.' and '-' are allowed, and each '.' must be followed by a letter.`;
 
-export async function getOrConfigureBundleIdentifierAsync(
+export async function getOrConfigureMainBundleIdentifierAsync(
   projectDir: string,
   exp: ExpoConfig
 ): Promise<string> {
@@ -29,13 +29,27 @@ export async function getOrConfigureBundleIdentifierAsync(
   }
 }
 
-export function getBundleIdentifier(projectDir: string, exp: ExpoConfig): string {
+export function getBundleIdentifier(
+  projectDir: string,
+  exp: ExpoConfig,
+  { targetName, buildConfiguration }: { targetName?: string; buildConfiguration?: string } = {}
+): string {
   const workflow = resolveWorkflow(projectDir, Platform.IOS);
   if (workflow === Workflow.GENERIC) {
     warnIfBundleIdentifierDefinedInAppConfigForGenericProject(projectDir, exp);
 
-    const bundleIdentifier = IOSConfig.BundleIdentifier.getBundleIdentifierFromPbxproj(projectDir);
-    return nullthrows(bundleIdentifier, 'Could not read bundle identifier from Xcode project.');
+    const bundleIdentifier = IOSConfig.BundleIdentifier.getBundleIdentifierFromPbxproj(projectDir, {
+      targetName,
+      buildConfiguration,
+    });
+    return nullthrows(
+      bundleIdentifier,
+      `Could not read bundle identifier from Xcode project${
+        targetName && buildConfiguration
+          ? `(target = ${targetName}, build configuration = ${buildConfiguration})`
+          : ''
+      }.`
+    );
   } else {
     const bundleIdentifer = IOSConfig.BundleIdentifier.getBundleIdentifier(exp);
     if (!bundleIdentifer || !isBundleIdentifierValid(bundleIdentifer)) {

@@ -29,33 +29,27 @@ export interface CredentialsResult<Credentials> {
   credentials: Credentials;
 }
 
-interface Builder<TPlatform extends Platform, Credentials, ProjectConfiguration, TJob extends Job> {
+export interface JobData<Credentials> {
+  credentials?: Credentials;
+  projectArchive: ArchiveSource;
+}
+
+interface Builder<TPlatform extends Platform, Credentials, TJob extends Job> {
   ctx: BuildContext<TPlatform>;
-  projectConfiguration: ProjectConfiguration;
 
   ensureCredentialsAsync(
     ctx: BuildContext<TPlatform>
   ): Promise<CredentialsResult<Credentials> | undefined>;
   ensureProjectConfiguredAsync(ctx: BuildContext<TPlatform>): Promise<void>;
-  prepareJobAsync(
-    ctx: BuildContext<TPlatform>,
-    jobData: {
-      credentials?: Credentials;
-      projectConfiguration?: ProjectConfiguration;
-      projectArchive: ArchiveSource;
-    }
-  ): Promise<Job>;
+  prepareJobAsync(ctx: BuildContext<TPlatform>, jobData: JobData<Credentials>): Promise<Job>;
   sendBuildRequestAsync(appId: string, job: TJob, metadata: Metadata): Promise<BuildResult>;
 }
 
 export async function prepareBuildRequestForPlatformAsync<
   TPlatform extends Platform,
   Credentials,
-  ProjectConfiguration,
   TJob extends Job
->(
-  builder: Builder<TPlatform, Credentials, ProjectConfiguration, TJob>
-): Promise<() => Promise<string | undefined>> {
+>(builder: Builder<TPlatform, Credentials, TJob>): Promise<() => Promise<string | undefined>> {
   const credentialsResult = await withAnalyticsAsync(
     async () => await builder.ensureCredentialsAsync(builder.ctx),
     {
@@ -100,7 +94,6 @@ export async function prepareBuildRequestForPlatformAsync<
   const job = await builder.prepareJobAsync(builder.ctx, {
     projectArchive,
     credentials: credentialsResult?.credentials,
-    projectConfiguration: builder.projectConfiguration,
   });
 
   return async () => {
@@ -171,13 +164,8 @@ async function uploadProjectAsync<TPlatform extends Platform>(
   }
 }
 
-async function sendBuildRequestAsync<
-  TPlatform extends Platform,
-  Credentials,
-  ProjectConfiguration,
-  TJob extends Job
->(
-  builder: Builder<TPlatform, Credentials, ProjectConfiguration, TJob>,
+async function sendBuildRequestAsync<TPlatform extends Platform, Credentials, TJob extends Job>(
+  builder: Builder<TPlatform, Credentials, TJob>,
   job: TJob,
   metadata: Metadata
 ): Promise<string> {

@@ -1,23 +1,25 @@
 import { IOSConfig } from '@expo/config-plugins';
-import { Ios, Metadata, Workflow } from '@expo/eas-build-job';
+import { Ios, Job, Metadata, Workflow } from '@expo/eas-build-job';
 import { EasConfig } from '@expo/eas-json';
 import chalk from 'chalk';
 import fs from 'fs-extra';
 import sortBy from 'lodash/sortBy';
 import path from 'path';
 
+import { IosCredentials } from '../../credentials/ios/types';
 import { BuildMutation, BuildResult } from '../../graphql/mutations/BuildMutation';
 import Log from '../../log';
-import { getOrConfigureBundleIdentifierAsync } from '../../project/ios/bundleIdentifier';
+import { getOrConfigureMainBundleIdentifierAsync } from '../../project/ios/bundleIdentifier';
+import { XcodeBuildContext, resolveTargetsAsync } from '../../project/ios/target';
 import { promptAsync } from '../../prompts';
-import { prepareBuildRequestForPlatformAsync } from '../build';
+import { JobData, prepareBuildRequestForPlatformAsync } from '../build';
 import { BuildContext, CommandContext, createBuildContext } from '../context';
 import { transformMetadata } from '../graphql';
 import { Platform } from '../types';
 import { validateAndSyncProjectConfigurationAsync } from './configure';
 import { ensureIosCredentialsAsync } from './credentials';
 import { transformGenericJob, transformManagedJob } from './graphql';
-import { prepareJobAsync, sanitizedTargetName } from './prepareJob';
+import { prepareJobAsync } from './prepareJob';
 
 export async function prepareIosBuildAsync(
   commandCtx: CommandContext,
@@ -40,34 +42,23 @@ export async function prepareIosBuildAsync(
     );
   }
 
-  let iosBuildScheme: string | undefined;
-  let iosApplicationTarget: string | undefined;
-  if (buildCtx.buildProfile.workflow === Workflow.GENERIC) {
-    iosBuildScheme = buildCtx.buildProfile.scheme ?? (await resolveSchemeAsync(buildCtx));
-    iosApplicationTarget = await IOSConfig.BuildScheme.getApplicationTargetForSchemeAsync(
-      buildCtx.commandCtx.projectDir,
-      iosBuildScheme
-    );
-  } else {
-    if (!commandCtx.exp.name) {
-      throw new Error('"expo.name" is required in your app.json');
-    }
-    iosApplicationTarget = sanitizedTargetName(commandCtx.exp.name);
-    if (!iosApplicationTarget) {
-      throw new Error('"expo.name" needs to contain some alphanumeric characters');
-    }
-  }
+  // this function throws if main bundle id is invalid
+  await getOrConfigureMainBundleIdentifierAsync(commandCtx.projectDir, commandCtx.exp);
 
-  // this function throws if bundle id is invalid
-  await getOrConfigureBundleIdentifierAsync(commandCtx.projectDir, commandCtx.exp);
+  const xcodeBuildContext = await resolveXcodeBuildContextAsync(buildCtx);
+  const targets = await resolveTargetsAsync(
+    {
+      projectDir: commandCtx.projectDir,
+      exp: commandCtx.exp,
+    },
+    xcodeBuildContext
+  );
 
   return await prepareBuildRequestForPlatformAsync({
     ctx: buildCtx,
-    projectConfiguration: {
-      iosBuildScheme,
-      iosApplicationTarget,
+    ensureCredentialsAsync: async (ctx: BuildContext<Platform.IOS>) => {
+      return ensureIosCredentialsAsync(ctx, targets);
     },
-    ensureCredentialsAsync: ensureIosCredentialsAsync,
     ensureProjectConfiguredAsync: async () => {
       await validateAndSyncProjectConfigurationAsync({
         projectDir: commandCtx.projectDir,
@@ -75,7 +66,12 @@ export async function prepareIosBuildAsync(
         buildProfile: buildCtx.buildProfile,
       });
     },
-    prepareJobAsync,
+    prepareJobAsync: async (
+      ctx: BuildContext<Platform.IOS>,
+      jobData: JobData<IosCredentials>
+    ): Promise<Job> => {
+      return await prepareJobAsync(ctx, { ...jobData, buildScheme: xcodeBuildContext.buildScheme });
+    },
     sendBuildRequestAsync: async (
       appId: string,
       job: Ios.Job,
@@ -99,6 +95,51 @@ export async function prepareIosBuildAsync(
       }
     },
   });
+}
+
+async function resolveXcodeBuildContextAsync(
+  buildCtx: BuildContext<Platform.IOS>
+): Promise<XcodeBuildContext> {
+  if (buildCtx.buildProfile.workflow === Workflow.GENERIC) {
+    const buildScheme = buildCtx.buildProfile.scheme ?? (await resolveSchemeAsync(buildCtx));
+    return {
+      buildScheme,
+      buildConfiguration:
+        buildCtx.buildProfile.schemeBuildConfiguration ??
+        (await IOSConfig.BuildScheme.getArchiveBuildConfigurationForSchemeAsync(
+          buildCtx.commandCtx.projectDir,
+          buildScheme
+        )),
+      applicationTarget: await IOSConfig.BuildScheme.getApplicationTargetNameForSchemeAsync(
+        buildCtx.commandCtx.projectDir,
+        buildScheme
+      ),
+    };
+  } else {
+    const expoName = buildCtx.commandCtx.exp.name;
+    if (!expoName) {
+      throw new Error('"expo.name" is required in your app.json');
+    }
+    const sanitizedExpoName = sanitizedName(expoName);
+    if (!sanitizedExpoName) {
+      throw new Error('"expo.name" needs to contain some alphanumeric characters');
+    }
+    return {
+      buildScheme: sanitizedExpoName,
+      buildConfiguration:
+        buildCtx.buildProfile.buildType === Ios.ManagedBuildType.DEVELOPMENT_CLIENT
+          ? 'Debug'
+          : 'Release',
+      applicationTarget: sanitizedExpoName,
+    };
+  }
+}
+
+function sanitizedName(name: string) {
+  return name
+    .replace(/[\W_]+/g, '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
 }
 
 async function resolveSchemeAsync(ctx: BuildContext<Platform.IOS>): Promise<string> {

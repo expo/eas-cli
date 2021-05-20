@@ -1,19 +1,17 @@
 import { Platform } from '@expo/eas-build-job';
 import { CredentialsSource, IosDistributionType, IosEnterpriseProvisioning } from '@expo/eas-json';
+import nullthrows from 'nullthrows';
 
-import { CredentialsManager } from '../CredentialsManager';
 import { Context } from '../context';
 import * as credentialsJsonReader from '../credentialsJson/read';
-import type { IosCredentials } from '../credentialsJson/read';
-import { SetupBuildCredentials } from './actions/SetupBuildCredentials';
-import { AppLookupParams } from './api/GraphqlClient';
+import { SetupMultitargetBuildCredentials } from './actions/SetupMultitargetBuildCredentials';
 import { IosCapabilitiesOptions } from './appstore/ensureAppExists';
+import { App, IosCredentials, Target } from './types';
 import { isAdHocProfile } from './utils/provisioningProfile';
 
-export type { IosCredentials };
-
 interface Options {
-  app: AppLookupParams;
+  app: App;
+  targets: Target[];
   distribution: IosDistributionType;
   enterpriseProvisioning?: IosEnterpriseProvisioning;
   iosCapabilitiesOptions?: IosCapabilitiesOptions;
@@ -35,15 +33,57 @@ export default class IosCredentialsProvider {
   }
 
   private async getLocalAsync(): Promise<IosCredentials> {
-    const credentials = await credentialsJsonReader.readIosCredentialsAsync(this.ctx.projectDir);
-    if (credentialsJsonReader.isCredentialsMap(credentials)) {
-      for (const targetName of Object.keys(credentials)) {
-        this.assertProvisioningProfileType(credentials[targetName].provisioningProfile, targetName);
+    const mainTarget = nullthrows(this.options.targets[0], 'There must be at least one target');
+
+    const iosTargetCredentialsMap = this.enforceIosTargetCredentialsMap(
+      await credentialsJsonReader.readIosCredentialsAsync(this.ctx.projectDir),
+      mainTarget
+    );
+
+    const notConfiguredTargets: string[] = [];
+    for (const target of this.options.targets) {
+      if (!(target.targetName in iosTargetCredentialsMap)) {
+        notConfiguredTargets.push(target.targetName);
+        continue;
       }
-    } else {
-      this.assertProvisioningProfileType(credentials.provisioningProfile);
+      this.assertProvisioningProfileType(
+        iosTargetCredentialsMap[target.targetName].provisioningProfile,
+        target.targetName
+      );
     }
-    return credentials;
+
+    if (notConfiguredTargets.length > 0) {
+      throw new Error(
+        `Credentials for target${
+          notConfiguredTargets.length === 1 ? '' : 's'
+        } ${notConfiguredTargets.map(i => `'${i}'`).join(',')} are not defined in credentials.json`
+      );
+    }
+
+    return iosTargetCredentialsMap;
+  }
+
+  private async getRemoteAsync(): Promise<IosCredentials> {
+    return await new SetupMultitargetBuildCredentials({
+      app: this.options.app,
+      targets: this.options.targets,
+      distribution: this.options.distribution,
+      enterpriseProvisioning: this.options.enterpriseProvisioning,
+      iosCapabilitiesOptions: this.options.iosCapabilitiesOptions,
+    }).runAsync(this.ctx);
+  }
+
+  private enforceIosTargetCredentialsMap(
+    iosCredentials: credentialsJsonReader.IosCredentials,
+    mainTarget: Target
+  ): credentialsJsonReader.IosTargetCredentialsMap {
+    if (credentialsJsonReader.isCredentialsMap(iosCredentials)) {
+      return iosCredentials;
+    } else {
+      return {
+        [mainTarget.targetName]: iosCredentials,
+      };
+    }
   }
 
   private assertProvisioningProfileType(provisionigProfile: string, targetName?: string): void {
@@ -61,22 +101,5 @@ export default class IosCredentialsProvider {
         } for app store distribution`
       );
     }
-  }
-
-  private async getRemoteAsync(): Promise<IosCredentials> {
-    const manager = new CredentialsManager(this.ctx);
-    const { provisioningProfile, distributionCertificate } = await new SetupBuildCredentials({
-      app: this.options.app,
-      distribution: this.options.distribution,
-      enterpriseProvisioning: this.options.enterpriseProvisioning,
-      iosCapabilitiesOptions: this.options.iosCapabilitiesOptions,
-    }).runAsync(manager, this.ctx);
-    return {
-      provisioningProfile,
-      distributionCertificate: {
-        certP12: distributionCertificate.certificateP12,
-        certPassword: distributionCertificate.certificatePassword,
-      },
-    };
   }
 }

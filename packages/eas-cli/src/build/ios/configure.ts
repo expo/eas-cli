@@ -4,7 +4,7 @@ import { IosBuildProfile, VersionAutoIncrement } from '@expo/eas-json';
 
 import Log from '../../log';
 import {
-  getOrConfigureBundleIdentifierAsync,
+  getOrConfigureMainBundleIdentifierAsync,
   warnIfBundleIdentifierDefinedInAppConfigForGenericProject,
 } from '../../project/ios/bundleIdentifier';
 import { ConfigureContext } from '../context';
@@ -14,7 +14,7 @@ import { BumpStrategy, bumpVersionAsync, bumpVersionInAppJsonAsync } from './ver
 
 export async function configureIosAsync(ctx: ConfigureContext): Promise<void> {
   if (!ctx.hasIosNativeProject) {
-    await getOrConfigureBundleIdentifierAsync(ctx.projectDir, ctx.exp);
+    await getOrConfigureMainBundleIdentifierAsync(ctx.projectDir, ctx.exp);
     return;
   }
 

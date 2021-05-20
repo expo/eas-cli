@@ -1,6 +1,4 @@
 import { IosDistributionType, IosEnterpriseProvisioning } from '@expo/eas-json';
-import chalk from 'chalk';
-import nullthrows from 'nullthrows';
 
 import {
   IosDistributionType as GraphQLIosDistributionType,
@@ -11,7 +9,6 @@ import { Action, CredentialsManager } from '../../CredentialsManager';
 import { Context } from '../../context';
 import { AppLookupParams as GraphQLAppLookupParams } from '../api/GraphqlClient';
 import { IosCapabilitiesOptions } from '../appstore/ensureAppExists';
-import { displayProjectCredentials } from '../utils/printCredentials';
 import { SetupAdhocProvisioningProfile } from './SetupAdhocProvisioningProfile';
 import { SetupInternalProvisioningProfile } from './SetupInternalProvisioningProfile';
 import { SetupProvisioningProfile } from './SetupProvisioningProfile';
@@ -22,20 +19,13 @@ interface Options {
   enterpriseProvisioning?: IosEnterpriseProvisioning;
   iosCapabilitiesOptions?: IosCapabilitiesOptions;
 }
-
-interface IosAppBuildCredentials {
-  iosDistributionType: GraphQLIosDistributionType;
-  provisioningProfile: string;
-  distributionCertificate: {
-    certificateP12: string;
-    certificatePassword: string;
-  };
-}
-
-export class SetupBuildCredentials implements Action<IosAppBuildCredentials> {
+export class SetupBuildCredentials implements Action<IosAppBuildCredentialsFragment> {
   constructor(private options: Options) {}
 
-  async runAsync(manager: CredentialsManager, ctx: Context): Promise<IosAppBuildCredentials> {
+  async runAsync(
+    manager: CredentialsManager,
+    ctx: Context
+  ): Promise<IosAppBuildCredentialsFragment> {
     const { app, iosCapabilitiesOptions } = this.options;
 
     await ctx.bestEffortAppStoreAuthenticateAsync();
@@ -51,22 +41,7 @@ export class SetupBuildCredentials implements Action<IosAppBuildCredentials> {
       );
     }
     try {
-      const buildCredentials = await this.setupBuildCredentials(ctx);
-      const appInfo = `@${app.account.name}/${app.projectName} (${app.bundleIdentifier})`;
-      displayProjectCredentials(app, buildCredentials);
-      Log.newLine();
-      Log.log(chalk.green(`All credentials are ready to build ${appInfo}`));
-      Log.newLine();
-      return {
-        iosDistributionType: buildCredentials.iosDistributionType,
-        provisioningProfile: nullthrows(buildCredentials.provisioningProfile?.provisioningProfile),
-        distributionCertificate: {
-          certificateP12: nullthrows(buildCredentials.distributionCertificate?.certificateP12),
-          certificatePassword: nullthrows(
-            buildCredentials.distributionCertificate?.certificatePassword
-          ),
-        },
-      };
+      return await this.setupBuildCredentials(ctx);
     } catch (error) {
       Log.error('Failed to setup credentials.');
       throw error;

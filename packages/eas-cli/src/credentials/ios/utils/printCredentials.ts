@@ -11,6 +11,7 @@ import { APPLE_DEVICE_CLASS_LABELS } from '../../../graphql/types/credentials/Ap
 import Log from '../../../log';
 import { fromNow } from '../../../utils/date';
 import { AppLookupParams } from '../api/GraphqlClient';
+import { App, IosAppBuildCredentialsMap, Target } from '../types';
 
 function prettyIosDistributionType(distributionType: IosDistributionType): string {
   switch (distributionType) {
@@ -82,22 +83,35 @@ export function displayIosAppCredentials(credentials: CommonIosAppCredentialsFra
 }
 
 export function displayProjectCredentials(
-  appLookupParams: AppLookupParams,
-  buildCredentials: IosAppBuildCredentialsFragment
+  app: App,
+  iosCredentials: IosAppBuildCredentialsMap,
+  targets: Target[]
 ): void {
-  const experienceName = `@${appLookupParams.account.name}/${appLookupParams.projectName}`;
+  const projectFullName = `@${app.account.name}/${app.projectName}`;
+  const targetToBundleId = targets.reduce((acc, target) => {
+    acc[target.targetName] = target.bundleIdentifier;
+    return acc;
+  }, {} as Record<string, string>);
+  const areMultitarget = Object.keys(iosCredentials).length > 1;
+
   Log.addNewLineIfNone();
   Log.log(chalk.bold('Project Credentials Configuration:'));
-  Log.log(`  Project: ${chalk.bold(experienceName)}`);
-  Log.log(`  Bundle Identifier: ${appLookupParams.bundleIdentifier}`);
-  displayIosAppBuildCredentials(buildCredentials);
+  Log.log(`  Project: ${chalk.bold(projectFullName)}`);
+  for (const [targetName, buildCredentials] of Object.entries(iosCredentials)) {
+    if (areMultitarget) {
+      Log.newLine();
+      Log.log(`  Target: ${chalk.bold(targetName)}`);
+    }
+    Log.log(`  Bundle Identifier: ${chalk.bold(targetToBundleId[targetName])}`);
+    displayIosAppBuildCredentials(buildCredentials);
+  }
 }
 
 function displayIosAppBuildCredentials(buildCredentials: IosAppBuildCredentialsFragment): void {
   Log.log(
-    chalk.bold(
-      `  Configuration: ${prettyIosDistributionType(buildCredentials.iosDistributionType)}`
-    )
+    `  Configuration: ${chalk.bold(
+      prettyIosDistributionType(buildCredentials.iosDistributionType)
+    )}`
   );
   Log.newLine();
   const maybeDistCert = buildCredentials.distributionCertificate;

@@ -65,9 +65,9 @@ describe(IosCredentialsProvider, () => {
               id: `id-${appLookupParams.account.name}`,
               name: appLookupParams.account.name,
             },
-            bundleIdentifier: appLookupParams.bundleIdentifier,
             projectName: appLookupParams.projectName,
           },
+          targets: [{ targetName: 'testapp', bundleIdentifier: appLookupParams.bundleIdentifier }],
           distribution: 'store',
         });
         await expect(provider.getCredentialsAsync(CredentialsSource.REMOTE)).rejects.toThrowError(
@@ -99,9 +99,9 @@ describe(IosCredentialsProvider, () => {
               id: `id-${appLookupParams.account.name}`,
               name: appLookupParams.account.name,
             },
-            bundleIdentifier: appLookupParams.bundleIdentifier,
             projectName: appLookupParams.projectName,
           },
+          targets: [{ targetName: 'testapp', bundleIdentifier: appLookupParams.bundleIdentifier }],
           distribution: 'store',
         });
 
@@ -109,11 +109,13 @@ describe(IosCredentialsProvider, () => {
           testIosAppCredentialsWithBuildCredentialsQueryResult.iosAppBuildCredentialsList[0];
         await expect(provider.getCredentialsAsync(CredentialsSource.REMOTE)).resolves.toMatchObject(
           {
-            distributionCertificate: {
-              certP12: buildCredentials.distributionCertificate?.certificateP12,
-              certPassword: buildCredentials.distributionCertificate?.certificatePassword,
+            testapp: {
+              distributionCertificate: {
+                certificateP12: buildCredentials.distributionCertificate?.certificateP12,
+                certificatePassword: buildCredentials.distributionCertificate?.certificatePassword,
+              },
+              provisioningProfile: buildCredentials.provisioningProfile?.provisioningProfile,
             },
-            provisioningProfile: buildCredentials.provisioningProfile?.provisioningProfile,
           }
         );
       });
