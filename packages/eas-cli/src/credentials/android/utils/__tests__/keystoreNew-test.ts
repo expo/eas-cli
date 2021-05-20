@@ -73,9 +73,4 @@ describe('validateKeystore', () => {
     expect(keystoreWithType.type).toBe(AndroidKeystoreType.Pkcs12);
     expect(() => validateKeystore(keystoreWithType)).not.toThrow();
   });
-  it('validates an unencrypted PKCS 12 Keystore', async () => {
-    const keystoreWithType = getKeystoreWithType(testPKCS12UnencryptedKeystore);
-    expect(keystoreWithType.type).toBe(AndroidKeystoreType.Pkcs12);
-    expect(() => validateKeystore(keystoreWithType)).not.toThrow();
-  });
 });

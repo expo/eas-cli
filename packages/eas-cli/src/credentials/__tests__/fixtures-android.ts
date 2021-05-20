@@ -40,16 +40,6 @@ export const testPKCS12EmptyPasswordKeystore: Keystore = {
   keyAlias: 'test-alias',
 };
 
-// openssl req -new -newkey rsa:4096 -nodes -keyout test.key -out test.csr
-// openssl x509 -req -sha256 -days 365 -in test.csr -signkey test.key -out test.pem
-// openssl pkcs12 -export -keypbe NONE -certpbe NONE -nomaciter -in test.pem -inkey test.key -name "test-alias" -passout pass: -out unencrypted.p12
-// cat unencrypted.p12 | base64
-export const testPKCS12UnencryptedKeystore: Keystore = {
-  keystore: testPKCS12KeystoreUnencryptedBase64,
-  keystorePassword: '',
-  keyAlias: 'test-alias',
-};
-
 export const testPushCredentials = {
   fcmApiKey: 'examplefcmapikey',
 };
