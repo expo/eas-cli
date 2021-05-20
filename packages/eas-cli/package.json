@@ -174,5 +174,6 @@
     "version": "yarn oclif-dev readme && git add README.md",
     "generate-graphql-code": "graphql-codegen --config graphql-codegen.yml"
   },
-  "types": "build/index.d.ts"
+  "types": "build/index.d.ts",
+  "gitHead": "161808bc37c255fdea6801d69d23dbc725c056c3"
 }
