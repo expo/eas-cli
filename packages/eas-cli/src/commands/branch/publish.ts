@@ -192,43 +192,68 @@ export default class BranchPublish extends Command {
       if (group) {
         updatesToRepublish = await getUpdateGroupAsync({ group });
       } else {
-        const updateGroups = uniqBy(updates, u => u.group).map(update => ({
-          title: formatUpdateTitle(update),
-          value: update.group,
-        }));
+        // Drop into interactive mode if the user has not specified an update group to republish.
+        if (jsonFlag) {
+          throw new Error('You must specify the update group to republish.');
+        }
+
+        const updateGroups = uniqBy(updates, u => u.group)
+          .filter(update => {
+            // Only show groups that have updates on the specified platform(s).
+            return platformFlag === 'all' || update.platform === platformFlag;
+          })
+          .map(update => ({
+            title: formatUpdateTitle(update),
+            value: update.group,
+          }));
         if (updateGroups.length === 0) {
           throw new Error(
-            `There are no updates on branch "${name}". Did you mean to do a regular publish?`
+            `There are no updates on branch "${name}" published on the platform(s) ${platformFlag}. Did you mean to do a regular publish?`
           );
         }
-        const updateGroup = await selectAsync<string>(
+
+        const selectedUpdateGroup = await selectAsync<string>(
           'which update would you like to republish?',
           updateGroups
         );
-        updatesToRepublish = updates.filter(update => update.group === updateGroup);
+        updatesToRepublish = updates.filter(update => update.group === selectedUpdateGroup);
+      }
+      const updatesToRepublishFilteredByPlatform = updatesToRepublish.filter(
+        // Only republish to the specified platforms
+        update => platformFlag === 'all' || update.platform === platformFlag
+      );
+      if (updatesToRepublishFilteredByPlatform.length === 0) {
+        throw new Error(
+          `There are no updates on branch "${name}" published on the platform(s) "${platformFlag}" with group ID "${
+            group ? group : updatesToRepublish[0].group
+          }". Did you mean to do a regular publish?`
+        );
       }
 
-      if (updatesToRepublish.length === 0) {
-        throw new Error(`There are no updates in this group`);
+      let publicationPlatformMessage: string;
+      if (platformFlag === 'all') {
+        if (updatesToRepublishFilteredByPlatform.length !== defaultPublishPlatforms.length) {
+          Log.warn(`You are republishing an update that wasn't published for all platforms.`);
+        }
+        publicationPlatformMessage = `The republished update will appear on the same plaforms it was originally published on: ${updatesToRepublishFilteredByPlatform
+          .map(update => update.platform)
+          .join(',')}`;
+      } else {
+        publicationPlatformMessage = `The republished update will appear only on: ${platformFlag}`;
       }
+      Log.withTick(publicationPlatformMessage);
 
-      for (const update of updatesToRepublish) {
+      for (const update of updatesToRepublishFilteredByPlatform) {
         const { manifestFragment } = update;
         const platform = update.platform as PublishPlatform;
 
-        if (platformFlag === 'all' || platformFlag === platform) {
-          updateInfoGroup[platform] = JSON.parse(manifestFragment);
-        }
-      }
-
-      if (Object.keys(updateInfoGroup).length === 0) {
-        throw new Error(`There are no updates for platform ${platformFlag} in this group`);
+        updateInfoGroup[platform] = JSON.parse(manifestFragment);
       }
 
       // These are the same for each member of an update group
-      group = updatesToRepublish[0].group;
-      oldMessage = updatesToRepublish[0].message ?? '';
-      oldRuntimeVersion = updatesToRepublish[0].runtimeVersion;
+      group = updatesToRepublishFilteredByPlatform[0].group;
+      oldMessage = updatesToRepublishFilteredByPlatform[0].message ?? '';
+      oldRuntimeVersion = updatesToRepublishFilteredByPlatform[0].runtimeVersion;
     } else {
       // build bundle and upload assets for a new publish
       if (!skipBundler) {
