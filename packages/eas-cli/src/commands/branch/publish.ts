@@ -237,9 +237,7 @@ export default class BranchPublish extends Command {
 
       const assetSpinner = ora('Uploading assets...').start();
       try {
-        const platforms = platformFlag
-          ? [platformFlag as PublishPlatform]
-          : defaultPublishPlatforms;
+        const platforms = platformFlag === 'all' ? defaultPublishPlatforms : [platformFlag];
         const assets = collectAssets({ inputDir: inputDir!, platforms });
         await uploadAssetsAsync(assets);
         updateInfoGroup = await buildUpdateInfoGroupAsync(assets);
