@@ -1,4 +1,3 @@
-// import { ExpoConfig, getConfigFilePaths } from '@expo/config';
 import * as ExpoConfig from '@expo/config';
 import assert from 'assert';
 import fs from 'fs-extra';

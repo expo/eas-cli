@@ -7,8 +7,10 @@ import { getUsername } from '../project/projectUtils';
 import { ensureLoggedInAsync } from '../user/actions';
 import { gitCommitHashAsync } from '../utils/git';
 import { readReleaseChannelSafelyAsync as readAndroidReleaseChannelSafelyAsync } from './android/UpdatesModule';
+import { readVersionCode, readVersionName } from './android/version';
 import { BuildContext } from './context';
 import { readReleaseChannelSafelyAsync as readIosReleaseChannelSafelyAsync } from './ios/UpdatesModule';
+import { readBuildNumberAsync, readShortVersionAsync } from './ios/version';
 import { Platform } from './types';
 import { isExpoUpdatesInstalled } from './utils/updates';
 
@@ -27,13 +29,10 @@ export async function collectMetadata<T extends Platform>(
     credentialsSource?: CredentialsSource.LOCAL | CredentialsSource.REMOTE;
   }
 ): Promise<Metadata> {
-  const appIdentifier =
-    ctx.platform === Platform.IOS
-      ? getBundleIdentifier(ctx.commandCtx.projectDir, ctx.commandCtx.exp)
-      : getApplicationId(ctx.commandCtx.projectDir, ctx.commandCtx.exp);
   return {
     trackingContext: ctx.trackingCtx,
-    appVersion: ctx.commandCtx.exp.version!,
+    appVersion: await resolveAppVersionAsync(ctx),
+    appBuildVersion: await resolveAppBuildVersionAsync(ctx),
     cliVersion: packageJSON.version,
     workflow: ctx.buildProfile.workflow,
     credentialsSource,
@@ -41,11 +40,40 @@ export async function collectMetadata<T extends Platform>(
     releaseChannel: await resolveReleaseChannel(ctx),
     distribution: ctx.buildProfile.distribution ?? 'store',
     appName: ctx.commandCtx.exp.name,
-    appIdentifier,
+    appIdentifier: resolveAppIdentifier(ctx),
     buildProfile: ctx.commandCtx.profile,
     gitCommitHash: await gitCommitHashAsync(),
     username: getUsername(ctx.commandCtx.exp, await ensureLoggedInAsync()),
   };
+}
+
+async function resolveAppVersionAsync<T extends Platform>(
+  ctx: BuildContext<T>
+): Promise<string | undefined> {
+  if (ctx.platform === Platform.IOS) {
+    return await readShortVersionAsync(ctx.commandCtx.projectDir, ctx.commandCtx.exp);
+  } else {
+    return readVersionName(ctx.commandCtx.projectDir, ctx.commandCtx.exp);
+  }
+}
+
+async function resolveAppBuildVersionAsync<T extends Platform>(
+  ctx: BuildContext<T>
+): Promise<string | undefined> {
+  if (ctx.platform === Platform.IOS) {
+    return await readBuildNumberAsync(ctx.commandCtx.projectDir, ctx.commandCtx.exp);
+  } else {
+    const versionCode = readVersionCode(ctx.commandCtx.projectDir, ctx.commandCtx.exp);
+    return versionCode !== undefined ? String(versionCode) : undefined;
+  }
+}
+
+function resolveAppIdentifier<T extends Platform>(ctx: BuildContext<T>): string {
+  if (ctx.platform === Platform.IOS) {
+    return getBundleIdentifier(ctx.commandCtx.projectDir, ctx.commandCtx.exp);
+  } else {
+    return getApplicationId(ctx.commandCtx.projectDir, ctx.commandCtx.exp);
+  }
 }
 
 async function resolveReleaseChannel<T extends Platform>(
