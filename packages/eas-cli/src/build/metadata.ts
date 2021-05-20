@@ -32,6 +32,7 @@ export async function collectMetadata<T extends Platform>(
   return {
     trackingContext: ctx.trackingCtx,
     appVersion: await resolveAppVersionAsync(ctx),
+    appBuildVersion: await resolveAppBuildVersionAsync(ctx),
     cliVersion: packageJSON.version,
     workflow: ctx.buildProfile.workflow,
     credentialsSource,
@@ -43,8 +44,6 @@ export async function collectMetadata<T extends Platform>(
     buildProfile: ctx.commandCtx.profile,
     gitCommitHash: await gitCommitHashAsync(),
     username: getUsername(ctx.commandCtx.exp, await ensureLoggedInAsync()),
-    buildNumber: await resolveBuildNumberAsync(ctx),
-    versionCode: resolveVersionCode(ctx),
   };
 }
 
@@ -58,28 +57,23 @@ async function resolveAppVersionAsync<T extends Platform>(
   }
 }
 
+async function resolveAppBuildVersionAsync<T extends Platform>(
+  ctx: BuildContext<T>
+): Promise<string | undefined> {
+  if (ctx.platform === Platform.IOS) {
+    return await readBuildNumberAsync(ctx.commandCtx.projectDir, ctx.commandCtx.exp);
+  } else {
+    const versionCode = readVersionCode(ctx.commandCtx.projectDir, ctx.commandCtx.exp);
+    return versionCode !== undefined ? String(versionCode) : undefined;
+  }
+}
+
 function resolveAppIdentifier<T extends Platform>(ctx: BuildContext<T>): string {
   if (ctx.platform === Platform.IOS) {
     return getBundleIdentifier(ctx.commandCtx.projectDir, ctx.commandCtx.exp);
   } else {
     return getApplicationId(ctx.commandCtx.projectDir, ctx.commandCtx.exp);
   }
-}
-
-async function resolveBuildNumberAsync<T extends Platform>(
-  ctx: BuildContext<T>
-): Promise<string | undefined> {
-  if (ctx.platform !== Platform.IOS) {
-    return undefined;
-  }
-  return readBuildNumberAsync(ctx.commandCtx.projectDir, ctx.commandCtx.exp);
-}
-
-function resolveVersionCode<T extends Platform>(ctx: BuildContext<T>): number | undefined {
-  if (ctx.platform !== Platform.ANDROID) {
-    return undefined;
-  }
-  return readVersionCode(ctx.commandCtx.projectDir, ctx.commandCtx.exp);
 }
 
 async function resolveReleaseChannel<T extends Platform>(
