@@ -1,7 +1,6 @@
 import { getX509Asn1ByFriendlyName, parsePKCS12 } from '@expo/pkcs12';
-import assert from 'assert';
 import jks from 'jks-js';
-import { asn1, pki } from 'node-forge';
+import { asn1 } from 'node-forge';
 
 import { AndroidKeystoreType } from '../../../graphql/generated';
 import Log from '../../../log';
@@ -43,10 +42,6 @@ export function validateKeystore(keystore: KeystoreWithType): void {
   if (keystore.type === AndroidKeystoreType.Jks) {
     getPemFromJksKeystore(keystore);
   } else if (keystore.type === AndroidKeystoreType.Pkcs12) {
-    assert(
-      isPKCS12PrivateKeyEncrypted(keystore.keystore, keystore.keystorePassword, keystore.keyAlias),
-      `private key under ${keystore.keyAlias} must be encrypted`
-    );
     getX509Asn1FromPKCS12Keystore(keystore.keystore, keystore.keystorePassword, keystore.keyAlias);
   } else if (keystore.type === AndroidKeystoreType.Unknown) {
     Log.warn('Unknown keystore type, skipping validation.');
@@ -93,37 +88,4 @@ function getX509Asn1FromPKCS12Keystore(
     );
   }
   return x509Asn1;
-}
-
-function isPKCS12PrivateKeyEncrypted(
-  p12BufferOrBase64String: Buffer | string,
-  maybePassword: string | null,
-  keyAlias: string
-): boolean {
-  try {
-    const p12 = parsePKCS12(p12BufferOrBase64String, maybePassword);
-    const { safeContents } = p12;
-    for (const safeContent of safeContents) {
-      const { encrypted: isEncrypted, safeBags } = safeContent;
-      for (const safeBag of safeBags) {
-        // node-forge converts friendly names to lowercase, so we search by lowercase
-        const friendlyName = keyAlias.toLowerCase();
-        const bagFriendlyName = safeBag.attributes.friendlyName;
-        if (
-          !Array.isArray(bagFriendlyName) ||
-          !bagFriendlyName.some(name => name === friendlyName)
-        ) {
-          continue;
-        }
-        // TODO check this!
-        console.log('debug', safeBag, pki.oids.pkcs8ShroudedKeyBag, pki.oids.keyBag, safeContent);
-        if (safeBag.type === pki.oids.pkcs8ShroudedKeyBag || safeBag.type === pki.oids.keyBag) {
-          return isEncrypted;
-        }
-      }
-    }
-    throw new Error(`No private key entry under alias: ${keyAlias}`);
-  } catch (e) {
-    throw new Error(`Invalid PKCS#12 (.p12) keystore: ${e.message}`);
-  }
 }
