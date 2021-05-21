@@ -208,7 +208,7 @@ export default class BranchPublish extends Command {
           }));
         if (updateGroups.length === 0) {
           throw new Error(
-            `There are no updates on branch "${name}" published on the platform(s) ${platformFlag}. Did you mean to do a regular publish?`
+            `There are no updates on branch "${name}" published on the platform(s) ${platformFlag}. Did you mean to publish a new update instead?`
           );
         }
 
@@ -226,7 +226,7 @@ export default class BranchPublish extends Command {
         throw new Error(
           `There are no updates on branch "${name}" published on the platform(s) "${platformFlag}" with group ID "${
             group ? group : updatesToRepublish[0].group
-          }". Did you mean to do a regular publish?`
+          }". Did you mean to publish a new update instead?`
         );
       }
 
