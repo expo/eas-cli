@@ -1,5 +1,5 @@
-import { getConfig } from '@expo/config';
-import { IOSConfig } from '@expo/config-plugins';
+import { getPrebuildConfig } from '@expo/config';
+import { compileModsAsync, IOSConfig } from '@expo/config-plugins';
 import { Workflow } from '@expo/eas-build-job';
 import { JSONObject } from '@expo/json-file';
 import plist from '@expo/plist';
@@ -16,14 +16,14 @@ function getEntitlementsJson(projectDir: string): JSONObject | null {
 }
 
 export async function getManagedEntitlementsJsonAsync(projectDir: string): Promise<JSONObject> {
-  // TODO: Support prebuild mods
-  const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
-  return (
-    exp.ios?.entitlements ?? {
-      // Always enable notifications...
-      'aps-environment': 'production',
-    }
-  );
+  let { exp } = getPrebuildConfig(projectDir, { platforms: ['ios'] });
+
+  exp = await compileModsAsync(exp, {
+    projectRoot: projectDir,
+    platforms: ['ios'],
+    introspect: true,
+  });
+  return exp.ios?.entitlements || {};
 }
 
 export async function resolveEntitlementsJsonAsync(
