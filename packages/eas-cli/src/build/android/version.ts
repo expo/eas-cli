@@ -36,7 +36,7 @@ export function readVersionName(projectDir: string, exp: ExpoConfig): string | u
 }
 
 function readBuildGradle(projectDir: string): string | undefined {
-  const buildGradlePath = AndroidConfig.Paths.getAppBuildGradle(projectDir);
+  const buildGradlePath = AndroidConfig.Paths.getAppBuildGradleFilePath(projectDir);
   if (!fs.pathExistsSync(buildGradlePath)) {
     return undefined;
   }

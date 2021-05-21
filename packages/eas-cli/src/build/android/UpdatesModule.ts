@@ -10,7 +10,7 @@ import { ensureValidVersions } from '../utils/updates';
 export async function configureUpdatesAsync(projectDir: string, exp: ExpoConfig): Promise<void> {
   ensureValidVersions(exp);
   const accountName = getProjectAccountName(exp, await ensureLoggedInAsync());
-  const buildGradlePath = AndroidConfig.Paths.getAppBuildGradle(projectDir);
+  const buildGradlePath = AndroidConfig.Paths.getAppBuildGradleFilePath(projectDir);
   const buildGradleContents = await fs.readFile(buildGradlePath, 'utf8');
 
   if (!AndroidConfig.Updates.isBuildGradleConfigured(projectDir, buildGradleContents)) {
@@ -70,7 +70,7 @@ export async function syncUpdatesConfigurationAsync(
 }
 
 async function ensureUpdatesConfiguredAsync(projectDir: string, exp: ExpoConfig): Promise<void> {
-  const buildGradlePath = AndroidConfig.Paths.getAppBuildGradle(projectDir);
+  const buildGradlePath = AndroidConfig.Paths.getAppBuildGradleFilePath(projectDir);
   const buildGradleContents = await fs.readFile(buildGradlePath, 'utf8');
 
   if (!AndroidConfig.Updates.isBuildGradleConfigured(projectDir, buildGradleContents)) {
