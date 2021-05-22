@@ -3,7 +3,6 @@ import {
   testKeystore,
   testPKCS12EmptyPasswordKeystore,
   testPKCS12Keystore,
-  testPKCS12UnencryptedKeystore,
 } from '../../../__tests__/fixtures-android';
 import { getKeystoreType, getKeystoreWithType, validateKeystore } from '../keystoreNew';
 
