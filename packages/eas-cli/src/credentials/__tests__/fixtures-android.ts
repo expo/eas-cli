@@ -4,7 +4,6 @@ import {
   testKeystoreBase64,
   testPKCS12KeystoreBase64,
   testPKCS12KeystoreEmptyPasswordBase64,
-  testPKCS12KeystoreUnencryptedBase64,
 } from './fixtures-base64-data';
 import { testExperienceName, testJester2ExperienceName } from './fixtures-constants';
 
