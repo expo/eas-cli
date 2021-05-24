@@ -1,5 +1,9 @@
 import { AndroidKeystoreType } from '../../../../graphql/generated';
-import { testKeystore, testPKCS12Keystore } from '../../../__tests__/fixtures-android';
+import {
+  testKeystore,
+  testPKCS12EmptyPasswordKeystore,
+  testPKCS12Keystore,
+} from '../../../__tests__/fixtures-android';
 import { getKeystoreType, getKeystoreWithType, validateKeystore } from '../keystoreNew';
 
 describe('getKeystoreType', () => {
@@ -34,6 +38,7 @@ describe('getKeystoreType', () => {
 describe('validateKeystore', () => {
   it('validates a correctly formatted jks keystore', async () => {
     const keystoreWithType = getKeystoreWithType(testKeystore);
+    expect(keystoreWithType.type).toBe(AndroidKeystoreType.Jks);
     expect(() => validateKeystore(keystoreWithType)).not.toThrow();
   });
   it('doesnt validate a jks keystore with wrong alias', async () => {
@@ -52,6 +57,7 @@ describe('validateKeystore', () => {
   });
   it('validates a correctly formatted pkcs 12 keystore', async () => {
     const keystoreWithType = getKeystoreWithType(testPKCS12Keystore);
+    expect(keystoreWithType.type).toBe(AndroidKeystoreType.Pkcs12);
     expect(() => validateKeystore(keystoreWithType)).not.toThrow();
   });
   it('doesnt validate a PKCS 12 keystore with wrong alias', async () => {
@@ -60,5 +66,10 @@ describe('validateKeystore', () => {
       keyAlias: 'non-existent-alias',
     });
     expect(() => validateKeystore(keystoreWithType)).toThrow();
+  });
+  it('validates an PKCS 12 Keystore with an empty password', async () => {
+    const keystoreWithType = getKeystoreWithType(testPKCS12EmptyPasswordKeystore);
+    expect(keystoreWithType.type).toBe(AndroidKeystoreType.Pkcs12);
+    expect(() => validateKeystore(keystoreWithType)).not.toThrow();
   });
 });
