@@ -1,8 +1,8 @@
 import { getConfig } from '@expo/config';
 import { Command, flags } from '@oclif/command';
+import assert from 'assert';
 import chalk from 'chalk';
 import Table from 'cli-table3';
-import { assert } from 'console';
 import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';

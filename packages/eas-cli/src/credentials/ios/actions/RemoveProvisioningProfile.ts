@@ -1,4 +1,4 @@
-import { assert } from '@expo/config';
+import assert from 'assert';
 
 import { AppleProvisioningProfileIdentifiersFragment } from '../../../graphql/generated';
 import Log from '../../../log';

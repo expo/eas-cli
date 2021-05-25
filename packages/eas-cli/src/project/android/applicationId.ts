@@ -35,8 +35,11 @@ export function getApplicationId(projectDir: string, exp: ExpoConfig): string {
     warnIfAndroidPackageDefinedInAppConfigForGenericProject(projectDir, exp);
 
     const errorMessage = 'Could not read application id from Android project.';
-    const buildGradlePath = AndroidConfig.Paths.getAppBuildGradle(projectDir);
-    if (!fs.pathExistsSync(buildGradlePath)) {
+    let buildGradlePath = null;
+    try {
+      buildGradlePath = AndroidConfig.Paths.getAppBuildGradleFilePath(projectDir);
+    } catch {}
+    if (!buildGradlePath || !fs.pathExistsSync(buildGradlePath)) {
       throw new Error(errorMessage);
     }
     const buildGradle = fs.readFileSync(buildGradlePath, 'utf8');
