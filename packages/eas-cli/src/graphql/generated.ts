@@ -225,6 +225,7 @@ export type Account = {
   applePushKeys: Array<ApplePushKey>;
   appleProvisioningProfiles: Array<AppleProvisioningProfile>;
   appleDevices: Array<AppleDevice>;
+  appleAppSpecificPasswords: Array<AppleAppSpecificPassword>;
   /** Environment secrets for an account */
   environmentSecrets: Array<EnvironmentSecret>;
   /** @deprecated Legacy access tokens are deprecated */
@@ -631,6 +632,7 @@ export type Build = ActivityTimelineProjectActivity & BuildOrBuildJob & {
   expirationDate?: Maybe<Scalars['DateTime']>;
   platform: AppPlatform;
   appVersion?: Maybe<Scalars['String']>;
+  appBuildVersion?: Maybe<Scalars['String']>;
   sdkVersion?: Maybe<Scalars['String']>;
   releaseChannel?: Maybe<Scalars['String']>;
   metrics?: Maybe<BuildMetrics>;
@@ -961,6 +963,7 @@ export type IosAppCredentials = {
   appleAppIdentifier: AppleAppIdentifier;
   iosAppBuildCredentialsList: Array<IosAppBuildCredentials>;
   pushKey?: Maybe<ApplePushKey>;
+  appSpecificPassword?: Maybe<AppleAppSpecificPassword>;
   /** @deprecated use iosAppBuildCredentialsList instead */
   iosAppBuildCredentialsArray: Array<IosAppBuildCredentials>;
 };
@@ -1089,6 +1092,16 @@ export type ApplePushKey = {
 
 export type IosAppBuildCredentialsFilter = {
   iosDistributionType?: Maybe<IosDistributionType>;
+};
+
+export type AppleAppSpecificPassword = {
+  __typename?: 'AppleAppSpecificPassword';
+  id: Scalars['ID'];
+  account: Account;
+  appleIdUsername: Scalars['String'];
+  passwordLabel?: Maybe<Scalars['String']>;
+  createdAt: Scalars['DateTime'];
+  updatedAt: Scalars['DateTime'];
 };
 
 export type AndroidAppCredentialsFilter = {
@@ -1686,6 +1699,8 @@ export type RootMutation = {
   androidKeystore: AndroidKeystoreMutation;
   /** Mutations that modify an Identifier for an iOS App */
   appleAppIdentifier: AppleAppIdentifierMutation;
+  /** Mutations that modify an App Specific Password for an Apple User Account */
+  appleAppSpecificPassword: AppleAppSpecificPasswordMutation;
   /** Mutations that modify an Apple Device */
   appleDevice: AppleDeviceMutation;
   /** Mutations that modify an Apple Device registration request */
@@ -2073,6 +2088,24 @@ export type AppleAppIdentifierInput = {
   parentAppleAppId?: Maybe<Scalars['ID']>;
 };
 
+export type AppleAppSpecificPasswordMutation = {
+  __typename?: 'AppleAppSpecificPasswordMutation';
+  /** Create an App Specific Password for an Apple User Account */
+  createAppleAppSpecificPassword: AppleAppSpecificPassword;
+};
+
+
+export type AppleAppSpecificPasswordMutationCreateAppleAppSpecificPasswordArgs = {
+  appleAppSpecificPasswordInput: AppleAppSpecificPasswordInput;
+  accountId: Scalars['ID'];
+};
+
+export type AppleAppSpecificPasswordInput = {
+  appleIdUsername: Scalars['String'];
+  passwordLabel?: Maybe<Scalars['String']>;
+  appSpecificPassword: Scalars['String'];
+};
+
 export type AppleDeviceMutation = {
   __typename?: 'AppleDeviceMutation';
   /** Create an Apple Device */
@@ -2412,6 +2445,7 @@ export type BuildCacheInput = {
 export type BuildMetadataInput = {
   trackingContext?: Maybe<Scalars['JSONObject']>;
   appVersion?: Maybe<Scalars['String']>;
+  appBuildVersion?: Maybe<Scalars['String']>;
   cliVersion?: Maybe<Scalars['String']>;
   workflow?: Maybe<BuildWorkflow>;
   credentialsSource?: Maybe<BuildCredentialsSource>;
