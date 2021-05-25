@@ -11,6 +11,7 @@ import { BuildMutation, BuildResult } from '../../graphql/mutations/BuildMutatio
 import Log from '../../log';
 import { ensureBundleIdentifierIsDefinedForManagedProjectAsync } from '../../project/ios/bundleIdentifier';
 import { XcodeBuildContext, resolveTargetsAsync } from '../../project/ios/target';
+import { sanitizedProjectName } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
 import { JobData, prepareBuildRequestForPlatformAsync } from '../build';
 import { BuildContext, CommandContext, createBuildContext } from '../context';
@@ -124,7 +125,7 @@ async function resolveXcodeBuildContextAsync(
     if (!expoName) {
       throw new Error('"expo.name" is required in your app.json');
     }
-    const sanitizedExpoName = sanitizedName(expoName);
+    const sanitizedExpoName = sanitizedProjectName(expoName);
     if (!sanitizedExpoName) {
       throw new Error('"expo.name" needs to contain some alphanumeric characters');
     }
@@ -132,15 +133,6 @@ async function resolveXcodeBuildContextAsync(
       buildScheme: sanitizedExpoName,
     };
   }
-}
-
-// copy-pasted from expo-cli
-// https://github.com/expo/expo-cli/blob/master/packages/expo-cli/src/utils/extractTemplateAppAsync.ts#L15
-function sanitizedName(name: string) {
-  return name
-    .replace(/[\W_]+/g, '')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '');
 }
 
 async function resolveSchemeAsync(ctx: BuildContext<Platform.IOS>): Promise<string> {

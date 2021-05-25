@@ -216,3 +216,12 @@ export async function getBranchByNameAsync({
   );
   return data.app.byId.updateBranchByName;
 }
+
+// copy-pasted from expo-cli
+// https://github.com/expo/expo-cli/blob/master/packages/expo-cli/src/utils/extractTemplateAppAsync.ts#L15
+export function sanitizedProjectName(name: string) {
+  return name
+    .replace(/[\W_]+/g, '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}

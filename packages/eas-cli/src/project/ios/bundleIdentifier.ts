@@ -7,7 +7,7 @@ import once from 'lodash/once';
 
 import Log from '../../log';
 import { promptAsync } from '../../prompts';
-import { getProjectConfigDescription } from '../projectUtils';
+import { getProjectConfigDescription, sanitizedProjectName } from '../projectUtils';
 import { resolveWorkflow } from '../workflow';
 
 const INVALID_BUNDLE_IDENTIFIER_MESSAGE = `Invalid format of iOS bundle identifier. Only alphanumeric characters, '.' and '-' are allowed, and each '.' must be followed by a letter.`;
@@ -54,6 +54,12 @@ export function getBundleIdentifier(
     }
     return bundleIdentifier;
   } else {
+    // TODO: the following asserts are only temporary until we support app extensions in managed projects
+    assert(
+      !targetName || targetName === sanitizedProjectName(exp.name),
+      'targetName cannot be set to an arbitrary value for managed projects'
+    );
+    assert(!buildConfiguration, 'buildConfiguration cannot be passed for managed projects');
     const bundleIdentifer = IOSConfig.BundleIdentifier.getBundleIdentifier(exp);
     if (!bundleIdentifer || !isBundleIdentifierValid(bundleIdentifer)) {
       if (bundleIdentifer) {
