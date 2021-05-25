@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Fix sending `appBuildVersion` as part of the build metadata. ([#423](https://github.com/expo/eas-cli/pull/423) by [@dsokal](https://github.com/dsokal))
+
 ### 🧹 Chores
 
 ## [0.15.0](https://github.com/expo/eas-cli/releases/tag/v0.15.0) - 2021-05-20

@@ -27,18 +27,10 @@ export function transformProjectArchive(archiveSource: ArchiveSource): ProjectAr
 
 export function transformMetadata(metadata: Metadata): BuildMetadataInput {
   return {
-    appIdentifier: metadata.appIdentifier,
-    appName: metadata.appName,
-    appVersion: metadata.appVersion,
-    buildProfile: metadata.buildProfile,
-    cliVersion: metadata.cliVersion,
+    ...metadata,
     credentialsSource:
       metadata.credentialsSource && transformCredentialsSource(metadata.credentialsSource),
     distribution: metadata.distribution && transformDistribution(metadata.distribution),
-    gitCommitHash: metadata.gitCommitHash,
-    releaseChannel: metadata.releaseChannel,
-    sdkVersion: metadata.sdkVersion,
-    trackingContext: metadata.trackingContext,
     workflow: metadata.workflow && transformWorkflow(metadata.workflow),
   };
 }
