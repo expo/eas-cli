@@ -18,9 +18,9 @@ import { selectValidDistributionCertificateAsync } from '../ios/actions/Distribu
 import { SelectAndRemoveDistributionCertificate } from '../ios/actions/RemoveDistributionCertificate';
 import { RemoveProvisioningProfiles } from '../ios/actions/RemoveProvisioningProfile';
 import { SetupAdhocProvisioningProfile } from '../ios/actions/SetupAdhocProvisioningProfile';
-import { SetupTargetBuildCredenitals } from '../ios/actions/SetupTargetBuildCredenitals';
 import { SetupBuildCredentialsFromCredentialsJson } from '../ios/actions/SetupBuildCredentialsFromCredentialsJson';
 import { SetupProvisioningProfile } from '../ios/actions/SetupProvisioningProfile';
+import { SetupTargetBuildCredenitals } from '../ios/actions/SetupTargetBuildCredenitals';
 import { UpdateCredentialsJson } from '../ios/actions/UpdateCredentialsJson';
 import { AppLookupParams } from '../ios/api/GraphqlClient';
 import { getManagedEntitlementsJsonAsync } from '../ios/appstore/entitlements';
