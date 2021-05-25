@@ -18,7 +18,7 @@ import { selectValidDistributionCertificateAsync } from '../ios/actions/Distribu
 import { SelectAndRemoveDistributionCertificate } from '../ios/actions/RemoveDistributionCertificate';
 import { RemoveProvisioningProfiles } from '../ios/actions/RemoveProvisioningProfile';
 import { SetupAdhocProvisioningProfile } from '../ios/actions/SetupAdhocProvisioningProfile';
-import { SetupBuildCredentials } from '../ios/actions/SetupBuildCredentials';
+import { SetupTargetBuildCredenitals } from '../ios/actions/SetupTargetBuildCredenitals';
 import { SetupBuildCredentialsFromCredentialsJson } from '../ios/actions/SetupBuildCredentialsFromCredentialsJson';
 import { SetupProvisioningProfile } from '../ios/actions/SetupProvisioningProfile';
 import { UpdateCredentialsJson } from '../ios/actions/UpdateCredentialsJson';
@@ -175,7 +175,7 @@ export class ManageIos implements Action {
             }
           } else if (actionInfo.scope === Scope.Project) {
             const appLookupParams = getAppLookupParamsFromContext(ctx);
-            const easJsonReader = await new EasJsonReader(ctx.projectDir, 'ios');
+            const easJsonReader = new EasJsonReader(ctx.projectDir, 'ios');
             const easConfig = await new SelectBuildProfileFromEasJson(easJsonReader).runAsync(ctx);
             await this.runProjectSpecificActionAsync(
               manager,
@@ -224,7 +224,7 @@ export class ManageIos implements Action {
       if (!iosDistributionTypeEasConfig) {
         throw new Error(`The distributionType field is required in your iOS build profile`);
       }
-      await new SetupBuildCredentials({
+      await new SetupTargetBuildCredenitals({
         app: appLookupParams,
         distribution: iosDistributionTypeEasConfig,
         iosCapabilitiesOptions: {

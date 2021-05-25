@@ -88,10 +88,10 @@ export function displayProjectCredentials(
   targets: Target[]
 ): void {
   const projectFullName = `@${app.account.name}/${app.projectName}`;
-  const targetToBundleId = targets.reduce((acc, target) => {
+  const targetToBundleId = targets.reduce<Record<string, string>>((acc, target) => {
     acc[target.targetName] = target.bundleIdentifier;
     return acc;
-  }, {} as Record<string, string>);
+  }, {});
   const areMultitarget = Object.keys(iosCredentials).length > 1;
 
   Log.addNewLineIfNone();

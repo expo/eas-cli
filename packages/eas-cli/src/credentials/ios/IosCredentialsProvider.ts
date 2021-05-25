@@ -4,7 +4,7 @@ import nullthrows from 'nullthrows';
 
 import { Context } from '../context';
 import * as credentialsJsonReader from '../credentialsJson/read';
-import { SetupMultitargetBuildCredentials } from './actions/SetupMultitargetBuildCredentials';
+import { SetupBuildCredentials } from './actions/SetupBuildCredentials';
 import { IosCapabilitiesOptions } from './appstore/ensureAppExists';
 import { App, IosCredentials, Target } from './types';
 import { isAdHocProfile } from './utils/provisioningProfile';
@@ -64,7 +64,7 @@ export default class IosCredentialsProvider {
   }
 
   private async getRemoteAsync(): Promise<IosCredentials> {
-    return await new SetupMultitargetBuildCredentials({
+    return await new SetupBuildCredentials({
       app: this.options.app,
       targets: this.options.targets,
       distribution: this.options.distribution,

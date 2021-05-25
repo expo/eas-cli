@@ -5,7 +5,10 @@ import path from 'path';
 
 import { asMock } from '../../../__tests__/utils';
 import { promptAsync } from '../../../prompts';
-import { getBundleIdentifier, getOrConfigureMainBundleIdentifierAsync } from '../bundleIdentifier';
+import {
+  ensureBundleIdentifierIsDefinedForManagedProjectAsync,
+  getBundleIdentifier,
+} from '../bundleIdentifier';
 
 jest.mock('fs');
 jest.mock('../../../prompts');
@@ -87,7 +90,7 @@ describe(getBundleIdentifier, () => {
   });
 });
 
-describe(getOrConfigureMainBundleIdentifierAsync, () => {
+describe(ensureBundleIdentifierIsDefinedForManagedProjectAsync, () => {
   describe('managed project + ios.bundleIdentifier missing in app config', () => {
     it('throws an error if using app.config.js', async () => {
       vol.fromJSON(
@@ -96,9 +99,9 @@ describe(getOrConfigureMainBundleIdentifierAsync, () => {
         },
         '/app'
       );
-      await expect(getOrConfigureMainBundleIdentifierAsync('/app', {} as any)).rejects.toThrowError(
-        /we can't update this file programatically/
-      );
+      await expect(
+        ensureBundleIdentifierIsDefinedForManagedProjectAsync('/app', {} as any)
+      ).rejects.toThrowError(/we can't update this file programatically/);
     });
     it('prompts for the bundle identifier if using app.json', async () => {
       vol.fromJSON(
@@ -112,9 +115,9 @@ describe(getOrConfigureMainBundleIdentifierAsync, () => {
         bundleIdentifier: 'com.expo.notdominik',
       }));
 
-      await expect(getOrConfigureMainBundleIdentifierAsync('/app', {} as any)).resolves.toBe(
-        'com.expo.notdominik'
-      );
+      await expect(
+        ensureBundleIdentifierIsDefinedForManagedProjectAsync('/app', {} as any)
+      ).resolves.toBe('com.expo.notdominik');
       expect(promptAsync).toHaveBeenCalled();
     });
     it('puts the bundle identifier in app.json', async () => {
@@ -129,9 +132,9 @@ describe(getOrConfigureMainBundleIdentifierAsync, () => {
         bundleIdentifier: 'com.expo.notdominik',
       }));
 
-      await expect(getOrConfigureMainBundleIdentifierAsync('/app', {} as any)).resolves.toBe(
-        'com.expo.notdominik'
-      );
+      await expect(
+        ensureBundleIdentifierIsDefinedForManagedProjectAsync('/app', {} as any)
+      ).resolves.toBe('com.expo.notdominik');
       expect(JSON.parse(fs.readFileSync('/app/app.json', 'utf-8'))).toMatchObject({
         expo: { ios: { bundleIdentifier: 'com.expo.notdominik' } },
       });

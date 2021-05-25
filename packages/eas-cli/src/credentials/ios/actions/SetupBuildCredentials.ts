@@ -1,70 +1,94 @@
 import { IosDistributionType, IosEnterpriseProvisioning } from '@expo/eas-json';
+import chalk from 'chalk';
+import nullthrows from 'nullthrows';
 
-import {
-  IosDistributionType as GraphQLIosDistributionType,
-  IosAppBuildCredentialsFragment,
-} from '../../../graphql/generated';
 import Log from '../../../log';
-import { Action, CredentialsManager } from '../../CredentialsManager';
+import { CredentialsManager } from '../../CredentialsManager';
 import { Context } from '../../context';
-import { AppLookupParams as GraphQLAppLookupParams } from '../api/GraphqlClient';
 import { IosCapabilitiesOptions } from '../appstore/ensureAppExists';
-import { SetupAdhocProvisioningProfile } from './SetupAdhocProvisioningProfile';
-import { SetupInternalProvisioningProfile } from './SetupInternalProvisioningProfile';
-import { SetupProvisioningProfile } from './SetupProvisioningProfile';
+import { App, IosAppBuildCredentialsMap, IosCredentials, Target } from '../types';
+import { displayProjectCredentials } from '../utils/printCredentials';
+import { SetupTargetBuildCredenitals } from './SetupTargetBuildCredenitals';
 
 interface Options {
-  app: GraphQLAppLookupParams;
+  app: App;
+  targets: Target[];
   distribution: IosDistributionType;
   enterpriseProvisioning?: IosEnterpriseProvisioning;
   iosCapabilitiesOptions?: IosCapabilitiesOptions;
 }
-export class SetupBuildCredentials implements Action<IosAppBuildCredentialsFragment> {
+
+export class SetupBuildCredentials {
   constructor(private options: Options) {}
 
-  async runAsync(
-    manager: CredentialsManager,
-    ctx: Context
-  ): Promise<IosAppBuildCredentialsFragment> {
-    const { app, iosCapabilitiesOptions } = this.options;
+  async runAsync(ctx: Context): Promise<IosCredentials> {
+    const manager = new CredentialsManager(ctx);
 
-    await ctx.bestEffortAppStoreAuthenticateAsync();
-
-    if (ctx.appStore.authCtx) {
-      await ctx.appStore.ensureBundleIdExistsAsync(
-        {
-          accountName: app.account.name,
-          bundleIdentifier: app.bundleIdentifier,
-          projectName: app.projectName,
-        },
-        iosCapabilitiesOptions
+    const hasManyTargets = this.options.targets.length > 1;
+    const iosAppBuildCredentialsMap: IosAppBuildCredentialsMap = {};
+    if (hasManyTargets) {
+      Log.newLine();
+      Log.log(`We found that the scheme you want to build consists of many targets.`);
+      Log.log(`You have to set up credentials for each of the targets.`);
+      Log.log(
+        `They can share the same Distribution Certificate but require separate Provisioning Profiles.`
       );
-    }
-    try {
-      return await this.setupBuildCredentials(ctx);
-    } catch (error) {
-      Log.error('Failed to setup credentials.');
-      throw error;
-    }
-  }
-
-  async setupBuildCredentials(ctx: Context): Promise<IosAppBuildCredentialsFragment> {
-    const { app, distribution, enterpriseProvisioning } = this.options;
-    if (distribution === 'internal') {
-      if (enterpriseProvisioning === 'adhoc') {
-        return await new SetupAdhocProvisioningProfile(app).runAsync(ctx);
-      } else if (enterpriseProvisioning === 'universal') {
-        return await new SetupProvisioningProfile(
-          app,
-          GraphQLIosDistributionType.Enterprise
-        ).runAsync(ctx);
-      } else {
-        return await new SetupInternalProvisioningProfile(app).runAsync(ctx);
+      Log.newLine();
+      Log.log(`Setting up credentials for following targets:`);
+      for (const { targetName, bundleIdentifier } of this.options.targets) {
+        Log.log(`- Target: ${chalk.bold(targetName)}`);
+        Log.log(`  Bundle Identifier: ${chalk.bold(bundleIdentifier)}`);
       }
-    } else {
-      return await new SetupProvisioningProfile(app, GraphQLIosDistributionType.AppStore).runAsync(
-        ctx
-      );
     }
+    for (const target of this.options.targets) {
+      if (hasManyTargets) {
+        Log.newLine();
+        Log.log(
+          `Setting up credentials for target ${chalk.bold(target.targetName)} (${chalk.bold(
+            target.bundleIdentifier
+          )})`
+        );
+        Log.newLine();
+      } else {
+        Log.newLine();
+      }
+      const action = new SetupTargetBuildCredenitals({
+        ...this.options,
+        app: {
+          ...this.options.app,
+          bundleIdentifier: target.bundleIdentifier,
+          parentBundleIdentifier: target.parentBundleIdentifier,
+        },
+      });
+      iosAppBuildCredentialsMap[target.targetName] = await action.runAsync(manager, ctx);
+    }
+
+    const appInfo = formatAppInfo(this.options.app, this.options.targets);
+    Log.newLine();
+    displayProjectCredentials(this.options.app, iosAppBuildCredentialsMap, this.options.targets);
+    Log.log(chalk.green(`All credentials are ready to build ${chalk.bold(appInfo)}`));
+    Log.newLine();
+
+    return toIosCredentials(iosAppBuildCredentialsMap);
   }
+}
+
+function toIosCredentials(appBuildCredentialsMap: IosAppBuildCredentialsMap): IosCredentials {
+  return Object.entries(appBuildCredentialsMap).reduce((acc, [targetName, appBuildCredentials]) => {
+    acc[targetName] = {
+      distributionCertificate: {
+        certificateP12: nullthrows(appBuildCredentials.distributionCertificate?.certificateP12),
+        certificatePassword: nullthrows(
+          appBuildCredentials.distributionCertificate?.certificatePassword
+        ),
+      },
+      provisioningProfile: nullthrows(appBuildCredentials.provisioningProfile?.provisioningProfile),
+    };
+    return acc;
+  }, {} as IosCredentials);
+}
+
+function formatAppInfo({ account, projectName }: App, targets: Target[]): string {
+  const bundleIds = targets.map(target => target.bundleIdentifier);
+  return `@${account.name}/${projectName} (${bundleIds.join(', ')})`;
 }

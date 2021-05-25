@@ -9,7 +9,7 @@ import path from 'path';
 import { IosCredentials } from '../../credentials/ios/types';
 import { BuildMutation, BuildResult } from '../../graphql/mutations/BuildMutation';
 import Log from '../../log';
-import { getOrConfigureMainBundleIdentifierAsync } from '../../project/ios/bundleIdentifier';
+import { ensureBundleIdentifierIsDefinedForManagedProjectAsync } from '../../project/ios/bundleIdentifier';
 import { XcodeBuildContext, resolveTargetsAsync } from '../../project/ios/target';
 import { promptAsync } from '../../prompts';
 import { JobData, prepareBuildRequestForPlatformAsync } from '../build';
@@ -42,8 +42,12 @@ export async function prepareIosBuildAsync(
     );
   }
 
-  // this function throws if main bundle id is invalid
-  await getOrConfigureMainBundleIdentifierAsync(commandCtx.projectDir, commandCtx.exp);
+  if (buildCtx.buildProfile.workflow === Workflow.MANAGED) {
+    await ensureBundleIdentifierIsDefinedForManagedProjectAsync(
+      commandCtx.projectDir,
+      commandCtx.exp
+    );
+  }
 
   const xcodeBuildContext = await resolveXcodeBuildContextAsync(buildCtx);
   const targets = await resolveTargetsAsync(
@@ -126,15 +130,12 @@ async function resolveXcodeBuildContextAsync(
     }
     return {
       buildScheme: sanitizedExpoName,
-      buildConfiguration:
-        buildCtx.buildProfile.buildType === Ios.ManagedBuildType.DEVELOPMENT_CLIENT
-          ? 'Debug'
-          : 'Release',
-      applicationTarget: sanitizedExpoName,
     };
   }
 }
 
+// copy-pasted from expo-cli
+// https://github.com/expo/expo-cli/blob/master/packages/expo-cli/src/utils/extractTemplateAppAsync.ts#L15
 function sanitizedName(name: string) {
   return name
     .replace(/[\W_]+/g, '')

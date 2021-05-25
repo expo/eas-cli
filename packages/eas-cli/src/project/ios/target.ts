@@ -8,8 +8,8 @@ import { getBundleIdentifier } from './bundleIdentifier';
 
 export interface XcodeBuildContext {
   buildScheme: string;
-  buildConfiguration: string;
-  applicationTarget: string;
+  buildConfiguration?: string;
+  applicationTarget?: string;
 }
 
 export async function resolveTargetsAsync(

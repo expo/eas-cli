@@ -4,7 +4,6 @@ import { Platform, Workflow } from '@expo/eas-build-job';
 import assert from 'assert';
 import fs from 'fs-extra';
 import once from 'lodash/once';
-import nullthrows from 'nullthrows';
 
 import Log from '../../log';
 import { promptAsync } from '../../prompts';
@@ -13,19 +12,17 @@ import { resolveWorkflow } from '../workflow';
 
 const INVALID_BUNDLE_IDENTIFIER_MESSAGE = `Invalid format of iOS bundle identifier. Only alphanumeric characters, '.' and '-' are allowed, and each '.' must be followed by a letter.`;
 
-export async function getOrConfigureMainBundleIdentifierAsync(
+export async function ensureBundleIdentifierIsDefinedForManagedProjectAsync(
   projectDir: string,
   exp: ExpoConfig
 ): Promise<string> {
+  const workflow = resolveWorkflow(projectDir, Platform.IOS);
+  assert(workflow === Workflow.MANAGED, 'This function should be called only for managed projects');
+
   try {
     return getBundleIdentifier(projectDir, exp);
   } catch (err) {
-    const workflow = resolveWorkflow(projectDir, Platform.IOS);
-    if (workflow === Workflow.MANAGED) {
-      return await configureBundleIdentifierAsync(projectDir, exp);
-    } else {
-      throw err;
-    }
+    return await configureBundleIdentifierAsync(projectDir, exp);
   }
 }
 
@@ -42,14 +39,20 @@ export function getBundleIdentifier(
       targetName,
       buildConfiguration,
     });
-    return nullthrows(
+    const buildConfigurationDesc =
+      targetName && buildConfiguration
+        ? ` (target = ${targetName}, build configuration = ${buildConfiguration})`
+        : '';
+    assert(
       bundleIdentifier,
-      `Could not read bundle identifier from Xcode project${
-        targetName && buildConfiguration
-          ? `(target = ${targetName}, build configuration = ${buildConfiguration})`
-          : ''
-      }.`
+      `Could not read bundle identifier from Xcode project${buildConfigurationDesc}.`
     );
+    if (!isBundleIdentifierValid(bundleIdentifier)) {
+      throw new Error(
+        `Bundle identifier "${bundleIdentifier}" is not valid${buildConfigurationDesc}. Open the project in Xcode to fix it.`
+      );
+    }
+    return bundleIdentifier;
   } else {
     const bundleIdentifer = IOSConfig.BundleIdentifier.getBundleIdentifier(exp);
     if (!bundleIdentifer || !isBundleIdentifierValid(bundleIdentifer)) {
