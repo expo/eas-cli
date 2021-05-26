@@ -20,7 +20,7 @@ import { RemoveProvisioningProfiles } from '../ios/actions/RemoveProvisioningPro
 import { SetupAdhocProvisioningProfile } from '../ios/actions/SetupAdhocProvisioningProfile';
 import { SetupBuildCredentialsFromCredentialsJson } from '../ios/actions/SetupBuildCredentialsFromCredentialsJson';
 import { SetupProvisioningProfile } from '../ios/actions/SetupProvisioningProfile';
-import { SetupTargetBuildCredenitals } from '../ios/actions/SetupTargetBuildCredenitals';
+import { SetupTargetBuildCredentials } from '../ios/actions/SetupTargetBuildCredentials';
 import { UpdateCredentialsJson } from '../ios/actions/UpdateCredentialsJson';
 import { AppLookupParams } from '../ios/api/GraphqlClient';
 import { getManagedEntitlementsJsonAsync } from '../ios/appstore/entitlements';
@@ -224,7 +224,7 @@ export class ManageIos implements Action {
       if (!iosDistributionTypeEasConfig) {
         throw new Error(`The distributionType field is required in your iOS build profile`);
       }
-      await new SetupTargetBuildCredenitals({
+      await new SetupTargetBuildCredentials({
         app: appLookupParams,
         distribution: iosDistributionTypeEasConfig,
         iosCapabilitiesOptions: {

@@ -8,7 +8,7 @@ import { Context } from '../../context';
 import { IosCapabilitiesOptions } from '../appstore/ensureAppExists';
 import { App, IosAppBuildCredentialsMap, IosCredentials, Target } from '../types';
 import { displayProjectCredentials } from '../utils/printCredentials';
-import { SetupTargetBuildCredenitals } from './SetupTargetBuildCredenitals';
+import { SetupTargetBuildCredentials } from './SetupTargetBuildCredentials';
 
 interface Options {
   app: App;
@@ -52,7 +52,7 @@ export class SetupBuildCredentials {
       } else {
         Log.newLine();
       }
-      const action = new SetupTargetBuildCredenitals({
+      const action = new SetupTargetBuildCredentials({
         ...this.options,
         app: {
           ...this.options.app,

@@ -19,7 +19,7 @@ interface Options {
   enterpriseProvisioning?: IosEnterpriseProvisioning;
   iosCapabilitiesOptions?: IosCapabilitiesOptions;
 }
-export class SetupTargetBuildCredenitals implements Action<IosAppBuildCredentialsFragment> {
+export class SetupTargetBuildCredentials implements Action<IosAppBuildCredentialsFragment> {
   constructor(private options: Options) {}
 
   async runAsync(

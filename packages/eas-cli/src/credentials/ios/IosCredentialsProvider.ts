@@ -33,7 +33,10 @@ export default class IosCredentialsProvider {
   }
 
   private async getLocalAsync(): Promise<IosCredentials> {
-    const mainTarget = nullthrows(this.options.targets[0], 'There must be at least one target');
+    const mainTarget = nullthrows(
+      this.options.targets.find(({ parentBundleIdentifier }) => !parentBundleIdentifier),
+      'Could not find the application target'
+    );
 
     const iosTargetCredentialsMap = this.enforceIosTargetCredentialsMap(
       await credentialsJsonReader.readIosCredentialsAsync(this.ctx.projectDir),
@@ -86,8 +89,8 @@ export default class IosCredentialsProvider {
     }
   }
 
-  private assertProvisioningProfileType(provisionigProfile: string, targetName?: string): void {
-    const isAdHoc = isAdHocProfile(provisionigProfile);
+  private assertProvisioningProfileType(provisioningProfile: string, targetName?: string): void {
+    const isAdHoc = isAdHocProfile(provisioningProfile);
     if (this.options.distribution === 'internal' && !isAdHoc) {
       throw new Error(
         `You must use an adhoc provisioning profile${

@@ -192,7 +192,7 @@ export async function createOrGetExistingAppleTeamAsync(
 }
 
 export async function createOrGetExistingAppleAppIdentifierAsync(
-  { account, bundleIdentifier, parentBundleIdentifier }: AppLookupParams,
+  { account, projectName, bundleIdentifier, parentBundleIdentifier }: AppLookupParams,
   appleTeam: AppleTeamFragment | null
 ): Promise<AppleAppIdentifierFragment> {
   const appleAppIdentifier = await AppleAppIdentifierQuery.byBundleIdentifierAsync(
@@ -206,7 +206,10 @@ export async function createOrGetExistingAppleAppIdentifierAsync(
       throw new AppleTeamMissingError();
     }
     const parentAppleAppIdentifier = parentBundleIdentifier
-      ? await AppleAppIdentifierQuery.byBundleIdentifierAsync(account.name, parentBundleIdentifier)
+      ? await createOrGetExistingAppleAppIdentifierAsync(
+          { account, projectName, bundleIdentifier: parentBundleIdentifier },
+          appleTeam
+        )
       : null;
     return await AppleAppIdentifierMutation.createAppleAppIdentifierAsync(
       {
