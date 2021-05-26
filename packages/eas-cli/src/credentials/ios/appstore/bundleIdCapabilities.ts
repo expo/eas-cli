@@ -65,6 +65,10 @@ export async function syncCapabilitiesForEntitlementsAsync(
 ): Promise<{ enabled: string[]; disabled: string[] }> {
   if (EXPO_NO_CAPABILITY_SYNC) return { enabled: [], disabled: [] };
   const currentCapabilities = await bundleId.getBundleIdCapabilitiesAsync();
+  if (Log.isDebug) {
+    Log.log(`Current remote capabilities:\n${JSON.stringify(currentCapabilities, null, 2)}`);
+    Log.log(`\nCurrent local entitlements:\n${JSON.stringify(entitlements, null, 2)}`);
+  }
 
   const { enabledCapabilityNames, request, remainingCapabilities } = getCapabilitiesToEnable(
     currentCapabilities,
