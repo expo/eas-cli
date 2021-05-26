@@ -8,6 +8,9 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Opt out of capability syncing with `EXPO_NO_CAPABILITY_SYNC=1`. ([#426](https://github.com/expo/eas-cli/pull/426) by [@brentvatne](https://github.com/brentvatne))
+- Add more verbose logging around capability syncing to help debug reported issues. ([#426](https://github.com/expo/eas-cli/pull/426) by [@brentvatne](https://github.com/brentvatne))
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
