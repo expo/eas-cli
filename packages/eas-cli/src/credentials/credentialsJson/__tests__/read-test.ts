@@ -109,8 +109,8 @@ describe('credentialsJson', () => {
         expect(result).toEqual({
           provisioningProfile: 'c29tZWJpbmFyeWNvbnRlbnQ=',
           distributionCertificate: {
-            certP12: 'c29tZWJpbmFyeWNvbnRlbnQy',
-            certPassword: 'certPass',
+            certificateP12: 'c29tZWJpbmFyeWNvbnRlbnQy',
+            certificatePassword: 'certPass',
           },
         });
       });
@@ -211,15 +211,15 @@ describe('credentialsJson', () => {
           target1: {
             provisioningProfile: 'cHByb2ZpbGUtMS1zb21lYmluYXJ5Y29udGVudA==',
             distributionCertificate: {
-              certP12: 'Y2VydC0xLXNvbWViaW5hcnljb250ZW50',
-              certPassword: 'cert-pass-1',
+              certificateP12: 'Y2VydC0xLXNvbWViaW5hcnljb250ZW50',
+              certificatePassword: 'cert-pass-1',
             },
           },
           target2: {
             provisioningProfile: 'cHByb2ZpbGUtMi1zb21lYmluYXJ5Y29udGVudA==',
             distributionCertificate: {
-              certP12: 'Y2VydC0yLXNvbWViaW5hcnljb250ZW50',
-              certPassword: 'cert-pass-2',
+              certificateP12: 'Y2VydC0yLXNvbWViaW5hcnljb250ZW50',
+              certificatePassword: 'cert-pass-2',
             },
           },
         });

@@ -4,39 +4,62 @@ import { Platform, Workflow } from '@expo/eas-build-job';
 import assert from 'assert';
 import fs from 'fs-extra';
 import once from 'lodash/once';
-import nullthrows from 'nullthrows';
 
 import Log from '../../log';
 import { promptAsync } from '../../prompts';
-import { getProjectConfigDescription } from '../projectUtils';
+import { getProjectConfigDescription, sanitizedProjectName } from '../projectUtils';
 import { resolveWorkflow } from '../workflow';
 
 const INVALID_BUNDLE_IDENTIFIER_MESSAGE = `Invalid format of iOS bundle identifier. Only alphanumeric characters, '.' and '-' are allowed, and each '.' must be followed by a letter.`;
 
-export async function getOrConfigureBundleIdentifierAsync(
+export async function ensureBundleIdentifierIsDefinedForManagedProjectAsync(
   projectDir: string,
   exp: ExpoConfig
 ): Promise<string> {
+  const workflow = resolveWorkflow(projectDir, Platform.IOS);
+  assert(workflow === Workflow.MANAGED, 'This function should be called only for managed projects');
+
   try {
     return getBundleIdentifier(projectDir, exp);
   } catch (err) {
-    const workflow = resolveWorkflow(projectDir, Platform.IOS);
-    if (workflow === Workflow.MANAGED) {
-      return await configureBundleIdentifierAsync(projectDir, exp);
-    } else {
-      throw err;
-    }
+    return await configureBundleIdentifierAsync(projectDir, exp);
   }
 }
 
-export function getBundleIdentifier(projectDir: string, exp: ExpoConfig): string {
+export function getBundleIdentifier(
+  projectDir: string,
+  exp: ExpoConfig,
+  { targetName, buildConfiguration }: { targetName?: string; buildConfiguration?: string } = {}
+): string {
   const workflow = resolveWorkflow(projectDir, Platform.IOS);
   if (workflow === Workflow.GENERIC) {
     warnIfBundleIdentifierDefinedInAppConfigForGenericProject(projectDir, exp);
 
-    const bundleIdentifier = IOSConfig.BundleIdentifier.getBundleIdentifierFromPbxproj(projectDir);
-    return nullthrows(bundleIdentifier, 'Could not read bundle identifier from Xcode project.');
+    const bundleIdentifier = IOSConfig.BundleIdentifier.getBundleIdentifierFromPbxproj(projectDir, {
+      targetName,
+      buildConfiguration,
+    });
+    const buildConfigurationDesc =
+      targetName && buildConfiguration
+        ? ` (target = ${targetName}, build configuration = ${buildConfiguration})`
+        : '';
+    assert(
+      bundleIdentifier,
+      `Could not read bundle identifier from Xcode project${buildConfigurationDesc}.`
+    );
+    if (!isBundleIdentifierValid(bundleIdentifier)) {
+      throw new Error(
+        `Bundle identifier "${bundleIdentifier}" is not valid${buildConfigurationDesc}. Open the project in Xcode to fix it.`
+      );
+    }
+    return bundleIdentifier;
   } else {
+    // TODO: the following asserts are only temporary until we support app extensions in managed projects
+    assert(
+      !targetName || targetName === sanitizedProjectName(exp.name),
+      'targetName cannot be set to an arbitrary value for managed projects'
+    );
+    assert(!buildConfiguration, 'buildConfiguration cannot be passed for managed projects');
     const bundleIdentifer = IOSConfig.BundleIdentifier.getBundleIdentifier(exp);
     if (!bundleIdentifer || !isBundleIdentifierValid(bundleIdentifer)) {
       if (bundleIdentifer) {

@@ -35,8 +35,8 @@ beforeEach(() => {
   (readIosCredentialsAsync as jest.Mock).mockImplementation(() => ({
     provisioningProfile: testProvisioningProfile.provisioningProfile,
     distributionCertificate: {
-      certP12: testDistCert.certP12,
-      certPassword: testDistCert.certPassword,
+      certificateP12: testDistCert.certP12,
+      certificatePassword: testDistCert.certPassword,
     },
   }));
 });

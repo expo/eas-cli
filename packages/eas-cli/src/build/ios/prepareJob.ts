@@ -1,14 +1,9 @@
 import { ArchiveSource, Cache, Ios, Job, Workflow, sanitizeJob } from '@expo/eas-build-job';
 import { IosGenericBuildProfile, IosManagedBuildProfile } from '@expo/eas-json';
-import assert from 'assert';
 import path from 'path';
 
-import {
-  IosCredentials,
-  IosTargetCredentials,
-  isCredentialsMap,
-  readEnvironmentSecretsAsync,
-} from '../../credentials/credentialsJson/read';
+import { readEnvironmentSecretsAsync } from '../../credentials/credentialsJson/read';
+import { IosCredentials, TargetCredentials } from '../../credentials/ios/types';
 import { getUsername } from '../../project/projectUtils';
 import { ensureLoggedInAsync } from '../../user/actions';
 import { gitRootDirectoryAsync } from '../../utils/git';
@@ -18,10 +13,7 @@ import { Platform } from '../types';
 interface JobData {
   projectArchive: ArchiveSource;
   credentials?: IosCredentials;
-  projectConfiguration: {
-    iosBuildScheme?: string;
-    iosApplicationTarget?: string;
-  };
+  buildScheme: string;
 }
 
 export async function prepareJobAsync(
@@ -54,28 +46,16 @@ interface CommonJobProperties {
 
 async function prepareJobCommonAsync(
   ctx: BuildContext<Platform.IOS>,
-  {
-    credentials,
-    targetName,
-    projectArchive,
-  }: { credentials?: IosCredentials; targetName?: string; projectArchive: ArchiveSource }
+  { credentials, projectArchive }: { credentials?: IosCredentials; projectArchive: ArchiveSource }
 ): Promise<Partial<CommonJobProperties>> {
   const environmentSecrets = await readEnvironmentSecretsAsync(ctx.commandCtx.projectDir);
 
-  let buildCredentials: CommonJobProperties['secrets']['buildCredentials'] = {};
-  if (credentials && isCredentialsMap(credentials)) {
-    const targets = Object.keys(credentials);
-    for (const target of targets) {
-      buildCredentials[target] = prepareTargetCredentials(credentials[target]);
+  const buildCredentials: CommonJobProperties['secrets']['buildCredentials'] = {};
+  if (credentials) {
+    const targetNames = Object.keys(credentials);
+    for (const targetName of targetNames) {
+      buildCredentials[targetName] = prepareTargetCredentials(credentials[targetName]);
     }
-  } else if (credentials) {
-    // targetName
-    // - for managed projects: sanitized .name from the app config
-    // - for generic projects: name of the application target
-    assert(targetName, 'target name should be defined');
-    buildCredentials = {
-      [targetName]: prepareTargetCredentials(credentials),
-    };
   }
 
   return {
@@ -103,12 +83,12 @@ async function prepareJobCommonAsync(
   };
 }
 
-function prepareTargetCredentials(targetCredentials: IosTargetCredentials): Ios.TargetCredentials {
+function prepareTargetCredentials(targetCredentials: TargetCredentials): Ios.TargetCredentials {
   return {
     provisioningProfileBase64: targetCredentials.provisioningProfile,
     distributionCertificate: {
-      dataBase64: targetCredentials.distributionCertificate.certP12,
-      password: targetCredentials.distributionCertificate.certPassword,
+      dataBase64: targetCredentials.distributionCertificate.certificateP12,
+      password: targetCredentials.distributionCertificate.certificatePassword,
     },
   };
 }
@@ -123,11 +103,10 @@ async function prepareGenericJobAsync(
   return {
     ...(await prepareJobCommonAsync(ctx, {
       credentials: jobData.credentials,
-      targetName: jobData.projectConfiguration.iosApplicationTarget,
       projectArchive: jobData.projectArchive,
     })),
     type: Workflow.GENERIC,
-    scheme: jobData.projectConfiguration.iosBuildScheme,
+    scheme: jobData.buildScheme,
     buildConfiguration: buildProfile.schemeBuildConfiguration,
     artifactPath: buildProfile.artifactPath,
     releaseChannel: buildProfile.releaseChannel,
@@ -146,7 +125,6 @@ async function prepareManagedJobAsync(
   return {
     ...(await prepareJobCommonAsync(ctx, {
       credentials: jobData.credentials,
-      targetName: jobData.projectConfiguration.iosApplicationTarget,
       projectArchive: jobData.projectArchive,
     })),
     type: Workflow.MANAGED,
@@ -155,13 +133,4 @@ async function prepareManagedJobAsync(
     releaseChannel: buildProfile.releaseChannel,
     projectRootDirectory,
   };
-}
-
-// copy-pasted from expo-cli/packages/xdl/src/Exp.ts
-// it's used in eject
-export function sanitizedTargetName(name: string) {
-  return name
-    .replace(/[\W_]+/g, '')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '');
 }
