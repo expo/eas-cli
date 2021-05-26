@@ -7,8 +7,11 @@ import {
   CapabilityTypeOption,
 } from '@expo/apple-utils';
 import { JSONObject, JSONValue } from '@expo/json-file';
+import getenv from 'getenv';
 
 import Log from '../../../log';
+
+const EXPO_NO_CAPABILITY_SYNC = getenv.boolish('EXPO_NO_CAPABILITY_SYNC', false);
 
 type GetOptionsMethod<T extends CapabilityType = any> = (
   entitlement: JSONValue,
@@ -59,7 +62,8 @@ const getDefinedOptions: GetOptionsMethod = entitlement => {
 export async function syncCapabilitiesForEntitlementsAsync(
   bundleId: BundleId,
   entitlements: JSONObject = {}
-) {
+): Promise<{ enabled: string[]; disabled: string[] }> {
+  if (EXPO_NO_CAPABILITY_SYNC) return { enabled: [], disabled: [] };
   const currentCapabilities = await bundleId.getBundleIdCapabilitiesAsync();
 
   const { enabledCapabilityNames, request, remainingCapabilities } = getCapabilitiesToEnable(
