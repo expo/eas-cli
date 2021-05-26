@@ -36,22 +36,22 @@ export class SetupBuildCredentialsFromCredentialsJson {
     currentDistributionCertificate: AppleDistributionCertificateFragment | null
   ): Promise<AppleDistributionCertificateFragment> {
     const { distributionCertificate } = targetCredentials;
-    const { certP12, certPassword } = distributionCertificate;
+    const { certificateP12, certificatePassword } = distributionCertificate;
 
     if (!currentDistributionCertificate) {
       return await ctx.ios.createDistributionCertificateAsync(this.app.account, {
-        certP12,
-        certPassword,
+        certP12: certificateP12,
+        certPassword: certificatePassword,
         teamId: appleTeam.appleTeamIdentifier,
         teamName: appleTeam.appleTeamName ?? undefined,
       });
     }
 
-    const isSameCertificate = currentDistributionCertificate.certificateP12 === certP12;
+    const isSameCertificate = currentDistributionCertificate.certificateP12 === certificateP12;
     if (!isSameCertificate) {
       return await ctx.ios.createDistributionCertificateAsync(this.app.account, {
-        certP12,
-        certPassword,
+        certP12: certificateP12,
+        certPassword: certificatePassword,
         teamId: appleTeam.appleTeamIdentifier,
         teamName: appleTeam.appleTeamName ?? undefined,
       });
@@ -157,7 +157,7 @@ export class SetupBuildCredentialsFromCredentialsJson {
 
     if (buildCredentials) {
       Log.log('Currently configured credentials:');
-      displayProjectCredentials(this.app, buildCredentials);
+      displaySingleTargetProjectCredentials(this.app, buildCredentials);
       if (!ctx.nonInteractive) {
         const confirm = await confirmAsync({
           message: `Would you like to replace this configuration with credentials from credentials json?`,
@@ -179,11 +179,21 @@ export class SetupBuildCredentialsFromCredentialsJson {
     );
 
     Log.log('New credentials configuration:');
-    displayProjectCredentials(this.app, newBuildCredentials);
+    displaySingleTargetProjectCredentials(this.app, newBuildCredentials);
 
     Log.newLine();
     Log.log(chalk.green(`All credentials are ready to build ${appInfo}`));
     Log.newLine();
     return newBuildCredentials;
   }
+}
+
+function displaySingleTargetProjectCredentials(
+  app: AppLookupParams,
+  buildCredentials: IosAppBuildCredentialsFragment
+) {
+  const targetName = app.projectName;
+  displayProjectCredentials(app, { [targetName]: buildCredentials }, [
+    { targetName, bundleIdentifier: app.bundleIdentifier },
+  ]);
 }

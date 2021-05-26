@@ -14,6 +14,7 @@ const AppleAppIdentifierMutation = {
     appleAppIdentifierInput: {
       bundleIdentifier: string;
       appleTeamId?: string;
+      parentAppleAppId?: string;
     },
     accountId: string
   ): Promise<AppleAppIdentifierFragment> {

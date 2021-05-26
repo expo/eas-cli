@@ -68,7 +68,6 @@ This means that it will most likely produce an AAB and you will not be able to i
 
   return await prepareBuildRequestForPlatformAsync({
     ctx: buildCtx,
-    projectConfiguration: {},
     ensureCredentialsAsync: ensureAndroidCredentialsAsync,
     ensureProjectConfiguredAsync: async () => {
       if (buildCtx.buildProfile.workflow === Workflow.GENERIC) {

@@ -59,8 +59,8 @@ interface AndroidCredentials {
 export interface IosTargetCredentials {
   provisioningProfile: string;
   distributionCertificate: {
-    certP12: string;
-    certPassword: string;
+    certificateP12: string;
+    certificatePassword: string;
   };
 }
 export type IosTargetCredentialsMap = Record<string, IosTargetCredentials>;
@@ -127,11 +127,11 @@ async function readCredentialsForTargetAsync(
       'base64'
     ),
     distributionCertificate: {
-      certP12: await fs.readFile(
+      certificateP12: await fs.readFile(
         getAbsolutePath(projectDir, targetCredentials.distributionCertificate.path),
         'base64'
       ),
-      certPassword: targetCredentials.distributionCertificate.password,
+      certificatePassword: targetCredentials.distributionCertificate.password,
     },
   };
 }
