@@ -8,13 +8,17 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
-- Opt out of capability syncing with `EXPO_NO_CAPABILITY_SYNC=1`. ([#426](https://github.com/expo/eas-cli/pull/426) by [@brentvatne](https://github.com/brentvatne))
-- Add more verbose logging around capability syncing to help debug reported issues. ([#426](https://github.com/expo/eas-cli/pull/426) by [@brentvatne](https://github.com/brentvatne))
-- Add managed credentials support for multitarget iOS projects. ([#414](https://github.com/expo/eas-cli/pull/414) by [@dsokal](https://github.com/dsokal))
-
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
+
+## [0.16.0](https://github.com/expo/eas-cli/releases/tag/v0.16.0) - 2021-05-26
+
+### 🎉 New features
+
+- Opt out of capability syncing with `EXPO_NO_CAPABILITY_SYNC=1`. ([#426](https://github.com/expo/eas-cli/pull/426) by [@brentvatne](https://github.com/brentvatne))
+- Add more verbose logging around capability syncing to help debug reported issues. ([#426](https://github.com/expo/eas-cli/pull/426) by [@brentvatne](https://github.com/brentvatne))
+- Add managed credentials support for multitarget iOS projects. ([#414](https://github.com/expo/eas-cli/pull/414) by [@dsokal](https://github.com/dsokal))
 
 ## [0.15.1](https://github.com/expo/eas-cli/releases/tag/v0.15.1) - 2021-05-25
 
