@@ -12,7 +12,6 @@ import { createCredentialsContextAsync } from '../../credentials/context';
 import { BuildMutation, BuildResult } from '../../graphql/mutations/BuildMutation';
 import Log from '../../log';
 import { ensureApplicationIdIsDefinedForManagedProjectAsync } from '../../project/android/applicationId';
-import { getProjectConfigDescription } from '../../project/projectUtils';
 import { toggleConfirmAsync } from '../../prompts';
 import { findAccountByName } from '../../user/Account';
 import { CredentialsResult, prepareBuildRequestForPlatformAsync } from '../build';
