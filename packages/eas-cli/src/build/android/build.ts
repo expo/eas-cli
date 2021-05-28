@@ -10,7 +10,7 @@ import AndroidCredentialsProvider, {
 import { createCredentialsContextAsync } from '../../credentials/context';
 import { BuildMutation, BuildResult } from '../../graphql/mutations/BuildMutation';
 import Log from '../../log';
-import { getOrConfigureApplicationIdAsync } from '../../project/android/applicationId';
+import { ensureApplicationIdIsDefinedForManagedProjectAsync } from '../../project/android/applicationId';
 import { toggleConfirmAsync } from '../../prompts';
 import { CredentialsResult, prepareBuildRequestForPlatformAsync } from '../build';
 import { BuildContext, CommandContext, createBuildContext } from '../context';
@@ -63,8 +63,9 @@ This means that it will most likely produce an AAB and you will not be able to i
     }
   }
 
-  // this function throws if application id is invalid
-  await getOrConfigureApplicationIdAsync(commandCtx.projectDir, commandCtx.exp);
+  if (buildCtx.buildProfile.workflow === Workflow.MANAGED) {
+    await ensureApplicationIdIsDefinedForManagedProjectAsync(commandCtx.projectDir, commandCtx.exp);
+  }
 
   return await prepareBuildRequestForPlatformAsync({
     ctx: buildCtx,

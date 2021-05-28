@@ -3,7 +3,7 @@ import { AndroidConfig } from '@expo/config-plugins';
 
 import Log from '../../log';
 import {
-  getOrConfigureApplicationIdAsync,
+  ensureApplicationIdIsDefinedForManagedProjectAsync,
   warnIfAndroidPackageDefinedInAppConfigForGenericProject,
 } from '../../project/android/applicationId';
 import { gitAddAsync } from '../../utils/git';
@@ -13,7 +13,7 @@ import { configureUpdatesAsync, syncUpdatesConfigurationAsync } from './UpdatesM
 
 export async function configureAndroidAsync(ctx: ConfigureContext): Promise<void> {
   if (!ctx.hasAndroidNativeProject) {
-    await getOrConfigureApplicationIdAsync(ctx.projectDir, ctx.exp);
+    await ensureApplicationIdIsDefinedForManagedProjectAsync(ctx.projectDir, ctx.exp);
     return;
   }
 
