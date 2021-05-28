@@ -3,16 +3,14 @@ import { Ios, Job, Metadata, Workflow } from '@expo/eas-build-job';
 import { EasConfig } from '@expo/eas-json';
 import chalk from 'chalk';
 import fs from 'fs-extra';
-import sortBy from 'lodash/sortBy';
 import path from 'path';
 
 import { IosCredentials } from '../../credentials/ios/types';
 import { BuildMutation, BuildResult } from '../../graphql/mutations/BuildMutation';
-import Log from '../../log';
 import { ensureBundleIdentifierIsDefinedForManagedProjectAsync } from '../../project/ios/bundleIdentifier';
+import { selectSchemeAsync } from '../../project/ios/scheme';
 import { XcodeBuildContext, resolveTargetsAsync } from '../../project/ios/target';
 import { sanitizedProjectName } from '../../project/projectUtils';
-import { promptAsync } from '../../prompts';
 import { JobData, prepareBuildRequestForPlatformAsync } from '../build';
 import { BuildContext, CommandContext, createBuildContext } from '../context';
 import { transformMetadata } from '../graphql';
@@ -106,7 +104,12 @@ async function resolveXcodeBuildContextAsync(
   buildCtx: BuildContext<Platform.IOS>
 ): Promise<XcodeBuildContext> {
   if (buildCtx.buildProfile.workflow === Workflow.GENERIC) {
-    const buildScheme = buildCtx.buildProfile.scheme ?? (await resolveSchemeAsync(buildCtx));
+    const buildScheme =
+      buildCtx.buildProfile.scheme ??
+      (await selectSchemeAsync({
+        projectDir: buildCtx.commandCtx.projectDir,
+        nonInteractive: buildCtx.commandCtx.nonInteractive,
+      }));
     return {
       buildScheme,
       buildConfiguration:
@@ -132,41 +135,5 @@ async function resolveXcodeBuildContextAsync(
     return {
       buildScheme: sanitizedExpoName,
     };
-  }
-}
-
-async function resolveSchemeAsync(ctx: BuildContext<Platform.IOS>): Promise<string> {
-  const schemes = IOSConfig.BuildScheme.getSchemesFromXcodeproj(ctx.commandCtx.projectDir);
-  if (schemes.length === 1) {
-    return schemes[0];
-  }
-
-  const sortedSchemes = sortBy(schemes);
-  Log.newLine();
-  Log.log(
-    `We've found multiple schemes in your Xcode project: ${chalk.bold(sortedSchemes.join(', '))}`
-  );
-  Log.log(
-    `You can specify the scheme you want to build at ${chalk.bold(
-      `builds.ios.${ctx.commandCtx.profile}.scheme`
-    )} in eas.json.`
-  );
-  if (ctx.commandCtx.nonInteractive) {
-    const withoutTvOS = sortedSchemes.filter(i => !i.includes('tvOS'));
-    const scheme = withoutTvOS.length > 0 ? withoutTvOS[0] : sortedSchemes[0];
-    Log.log(
-      `You've run Expo CLI in non-interactive mode, choosing the ${chalk.bold(scheme)} scheme.`
-    );
-    Log.newLine();
-    return scheme;
-  } else {
-    const { selectedScheme } = await promptAsync({
-      type: 'select',
-      name: 'selectedScheme',
-      message: 'Which scheme would you like to build now?',
-      choices: sortedSchemes.map(scheme => ({ title: scheme, value: scheme })),
-    });
-    Log.newLine();
-    return selectedScheme as string;
   }
 }
