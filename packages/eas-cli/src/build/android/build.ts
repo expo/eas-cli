@@ -117,6 +117,10 @@ async function ensureAndroidCredentialsAsync(
   if (!shouldProvideCredentials(ctx)) {
     return;
   }
+  const androidApplicationIdentifier = await getOrConfigureApplicationIdAsync(
+    ctx.commandCtx.projectDir,
+    ctx.commandCtx.exp
+  );
   const provider = new AndroidCredentialsProvider(
     await createCredentialsContextAsync(ctx.commandCtx.projectDir, {
       nonInteractive: ctx.commandCtx.nonInteractive,
@@ -128,12 +132,7 @@ async function ensureAndroidCredentialsAsync(
           `You do not have access to account: ${ctx.commandCtx.accountName}`
         ),
         projectName: ctx.commandCtx.projectName,
-        androidApplicationIdentifier: nullthrows(
-          ctx.commandCtx.exp.android?.package,
-          `android.package needs to be defined in your ${getProjectConfigDescription(
-            ctx.commandCtx.projectDir
-          )} file`
-        ),
+        androidApplicationIdentifier,
       },
       skipCredentialsCheck: ctx.commandCtx.skipCredentialsCheck,
     }
