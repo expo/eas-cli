@@ -2,13 +2,14 @@ import assert from 'assert';
 import { nanoid } from 'nanoid';
 
 import { AndroidAppBuildCredentialsFragment } from '../../../graphql/generated';
+import { getOrConfigureApplicationIdAsync } from '../../../project/android/applicationId';
 import { getProjectAccountName, getProjectConfigDescription } from '../../../project/projectUtils';
 import { promptAsync } from '../../../prompts';
 import { findAccountByName } from '../../../user/Account';
 import { Context } from '../../context';
 import { AppLookupParams } from '../api/GraphqlClient';
 
-export function getAppLookupParamsFromContext(ctx: Context): AppLookupParams {
+export async function getAppLookupParamsFromContextAsync(ctx: Context): Promise<AppLookupParams> {
   ctx.ensureProjectContext();
   const projectName = ctx.exp.slug;
   const accountName = getProjectAccountName(ctx.exp, ctx.user);
@@ -17,7 +18,10 @@ export function getAppLookupParamsFromContext(ctx: Context): AppLookupParams {
     throw new Error(`You do not have access to account: ${accountName}`);
   }
 
-  const androidApplicationIdentifier = ctx.exp.android?.package;
+  const androidApplicationIdentifier = await getOrConfigureApplicationIdAsync(
+    ctx.projectDir,
+    ctx.exp
+  );
   if (!androidApplicationIdentifier) {
     throw new Error(
       `android.package needs to be defined in your ${getProjectConfigDescription(

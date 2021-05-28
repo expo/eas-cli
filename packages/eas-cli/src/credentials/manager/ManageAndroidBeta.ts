@@ -3,7 +3,7 @@ import { getProjectAccountName } from '../../project/projectUtils';
 import { findAccountByName } from '../../user/Account';
 import { ensureActorHasUsername } from '../../user/actions';
 import { Action, CredentialsManager } from '../CredentialsManager';
-import { getAppLookupParamsFromContext } from '../android/actions/BuildCredentialsUtils';
+import { getAppLookupParamsFromContextAsync } from '../android/actions/BuildCredentialsUtils';
 import {
   displayAndroidAppCredentials,
   displayEmptyAndroidCredentials,
@@ -40,7 +40,7 @@ export class ManageAndroid implements Action {
           throw new Error(`You do not have access to account: ${accountName}`);
         }
         if (ctx.hasProjectContext) {
-          const appLookupParams = getAppLookupParamsFromContext(ctx);
+          const appLookupParams = await getAppLookupParamsFromContextAsync(ctx);
           const legacyAppCredentials = await ctx.newAndroid.getLegacyAndroidAppCredentialsWithCommonFieldsAsync(
             appLookupParams
           );

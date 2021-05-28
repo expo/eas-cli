@@ -1,6 +1,6 @@
 import { confirmAsync } from '../../../../../prompts';
 import { createCtxMock } from '../../../../__tests__/fixtures-context';
-import { getAppLookupParamsFromContext } from '../../BuildCredentialsUtils';
+import { getAppLookupParamsFromContextAsync } from '../../BuildCredentialsUtils';
 import { CreateKeystore } from '../CreateKeystore';
 
 jest.mock('../../../../../prompts');
@@ -9,7 +9,7 @@ jest.mock('../../../../../prompts');
 describe('CreateKeystore', () => {
   it('creates a keystore in Interactive Mode', async () => {
     const ctx = createCtxMock({ nonInteractive: false });
-    const appLookupParams = getAppLookupParamsFromContext(ctx);
+    const appLookupParams = await getAppLookupParamsFromContextAsync(ctx);
     const createKeystoreAction = new CreateKeystore(appLookupParams.account);
     await createKeystoreAction.runAsync(ctx);
 
@@ -18,7 +18,7 @@ describe('CreateKeystore', () => {
   });
   it('errors in Non-Interactive Mode', async () => {
     const ctx = createCtxMock({ nonInteractive: true });
-    const appLookupParams = getAppLookupParamsFromContext(ctx);
+    const appLookupParams = await getAppLookupParamsFromContextAsync(ctx);
     const createKeystoreAction = new CreateKeystore(appLookupParams.account);
 
     // fail if users are running in non-interactive mode
