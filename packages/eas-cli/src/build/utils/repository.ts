@@ -123,7 +123,7 @@ async function makeProjectTarballAsync(): Promise<{ path: string; size: number }
       '--no-hardlinks',
       '--depth',
       '1',
-      `file://${await gitRootDirectoryAsync()}`,
+      await getGitRootFullPathAsync(),
       shallowClonePath,
     ]);
     await tar.create({ cwd: shallowClonePath, file: tarPath, prefix: 'project', gzip: true }, [
@@ -150,6 +150,18 @@ async function makeProjectTarballAsync(): Promise<{ path: string; size: number }
   }
 
   return { size, path: tarPath };
+}
+
+async function getGitRootFullPathAsync() {
+  if (process.platform === 'win32') {
+    // getRootDirectoryAsync() will return C:/path/to/repo on Windows and path
+    // prefix should be file:///
+    return `file:///${await gitRootDirectoryAsync()}`;
+  } else {
+    // getRootDirectoryAsync() will /path/to/repo, and path prefix should be
+    // file:/// so only file:// needs to be prepended
+    return `file://${await gitRootDirectoryAsync()}`;
+  }
 }
 
 async function showDiffAsync() {
