@@ -5,12 +5,7 @@ import { Platform, Workflow } from '@expo/eas-build-job';
 import { Target } from '../../credentials/ios/types';
 import { resolveWorkflow } from '../workflow';
 import { getBundleIdentifier } from './bundleIdentifier';
-
-export interface XcodeBuildContext {
-  buildScheme: string;
-  buildConfiguration?: string;
-  applicationTarget?: string;
-}
+import { XcodeBuildContext } from './scheme';
 
 export async function resolveTargetsAsync(
   { exp, projectDir }: { exp: ExpoConfig; projectDir: string },

@@ -1,9 +1,66 @@
+import { ExpoConfig } from '@expo/config';
 import { IOSConfig } from '@expo/config-plugins';
+import { Platform, Workflow } from '@expo/eas-build-job';
 import chalk from 'chalk';
 import sortBy from 'lodash/sortBy';
 
 import Log from '../../log';
 import { promptAsync } from '../../prompts';
+import { sanitizedProjectName } from '../projectUtils';
+import { resolveWorkflow } from '../workflow';
+
+export interface XcodeBuildContext {
+  buildScheme: string;
+  buildConfiguration?: string;
+}
+
+export async function resolveXcodeBuildContextAsync(
+  {
+    exp,
+    projectDir,
+    nonInteractive,
+  }: { exp: ExpoConfig; projectDir: string; nonInteractive: boolean },
+  {
+    workflow: _workflow,
+    buildScheme: _buildScheme,
+    buildConfiguration,
+  }: {
+    buildScheme?: string;
+    buildConfiguration?: string;
+    workflow?: Workflow;
+  } = {}
+): Promise<XcodeBuildContext> {
+  const workflow = _workflow ?? resolveWorkflow(projectDir, Platform.IOS);
+  if (workflow === Workflow.GENERIC) {
+    const buildScheme =
+      _buildScheme ??
+      (await selectSchemeAsync({
+        projectDir,
+        nonInteractive,
+      }));
+    return {
+      buildScheme,
+      buildConfiguration:
+        buildConfiguration ??
+        (await IOSConfig.BuildScheme.getArchiveBuildConfigurationForSchemeAsync(
+          projectDir,
+          buildScheme
+        )),
+    };
+  } else {
+    const expoName = exp.name;
+    if (!expoName) {
+      throw new Error('"expo.name" is required in your app.json');
+    }
+    const sanitizedExpoName = sanitizedProjectName(expoName);
+    if (!sanitizedExpoName) {
+      throw new Error('"expo.name" needs to contain some alphanumeric characters');
+    }
+    return {
+      buildScheme: sanitizedExpoName,
+    };
+  }
+}
 
 export async function selectSchemeAsync({
   projectDir,

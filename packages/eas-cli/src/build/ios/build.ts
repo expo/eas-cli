@@ -1,4 +1,3 @@
-import { IOSConfig } from '@expo/config-plugins';
 import { Ios, Job, Metadata, Workflow } from '@expo/eas-build-job';
 import { EasConfig } from '@expo/eas-json';
 import chalk from 'chalk';
@@ -8,9 +7,8 @@ import path from 'path';
 import { IosCredentials } from '../../credentials/ios/types';
 import { BuildMutation, BuildResult } from '../../graphql/mutations/BuildMutation';
 import { ensureBundleIdentifierIsDefinedForManagedProjectAsync } from '../../project/ios/bundleIdentifier';
-import { selectSchemeAsync } from '../../project/ios/scheme';
-import { XcodeBuildContext, resolveTargetsAsync } from '../../project/ios/target';
-import { sanitizedProjectName } from '../../project/projectUtils';
+import { resolveXcodeBuildContextAsync } from '../../project/ios/scheme';
+import { resolveTargetsAsync } from '../../project/ios/target';
 import { JobData, prepareBuildRequestForPlatformAsync } from '../build';
 import { BuildContext, CommandContext, createBuildContext } from '../context';
 import { transformMetadata } from '../graphql';
@@ -29,9 +27,10 @@ export async function prepareIosBuildAsync(
     platform: Platform.IOS,
     easConfig,
   });
+  const { buildProfile } = buildCtx;
 
   if (
-    buildCtx.buildProfile.workflow === Workflow.GENERIC &&
+    buildProfile.workflow === Workflow.GENERIC &&
     !(await fs.pathExists(path.join(commandCtx.projectDir, 'ios')))
   ) {
     throw new Error(
@@ -41,14 +40,27 @@ export async function prepareIosBuildAsync(
     );
   }
 
-  if (buildCtx.buildProfile.workflow === Workflow.MANAGED) {
+  if (buildProfile.workflow === Workflow.MANAGED) {
     await ensureBundleIdentifierIsDefinedForManagedProjectAsync(
       commandCtx.projectDir,
       commandCtx.exp
     );
   }
 
-  const xcodeBuildContext = await resolveXcodeBuildContextAsync(buildCtx);
+  const xcodeBuildContext = await resolveXcodeBuildContextAsync(
+    {
+      projectDir: commandCtx.projectDir,
+      nonInteractive: commandCtx.nonInteractive,
+      exp: commandCtx.exp,
+    },
+    {
+      workflow: buildProfile.workflow,
+      ...(buildProfile.workflow === Workflow.GENERIC && {
+        buildScheme: buildProfile.scheme,
+        buildConfiguration: buildProfile.schemeBuildConfiguration,
+      }),
+    }
+  );
   const targets = await resolveTargetsAsync(
     {
       projectDir: commandCtx.projectDir,
@@ -66,7 +78,7 @@ export async function prepareIosBuildAsync(
       await validateAndSyncProjectConfigurationAsync({
         projectDir: commandCtx.projectDir,
         exp: commandCtx.exp,
-        buildProfile: buildCtx.buildProfile,
+        buildProfile,
       });
     },
     prepareJobAsync: async (
@@ -98,42 +110,4 @@ export async function prepareIosBuildAsync(
       }
     },
   });
-}
-
-async function resolveXcodeBuildContextAsync(
-  buildCtx: BuildContext<Platform.IOS>
-): Promise<XcodeBuildContext> {
-  if (buildCtx.buildProfile.workflow === Workflow.GENERIC) {
-    const buildScheme =
-      buildCtx.buildProfile.scheme ??
-      (await selectSchemeAsync({
-        projectDir: buildCtx.commandCtx.projectDir,
-        nonInteractive: buildCtx.commandCtx.nonInteractive,
-      }));
-    return {
-      buildScheme,
-      buildConfiguration:
-        buildCtx.buildProfile.schemeBuildConfiguration ??
-        (await IOSConfig.BuildScheme.getArchiveBuildConfigurationForSchemeAsync(
-          buildCtx.commandCtx.projectDir,
-          buildScheme
-        )),
-      applicationTarget: await IOSConfig.BuildScheme.getApplicationTargetNameForSchemeAsync(
-        buildCtx.commandCtx.projectDir,
-        buildScheme
-      ),
-    };
-  } else {
-    const expoName = buildCtx.commandCtx.exp.name;
-    if (!expoName) {
-      throw new Error('"expo.name" is required in your app.json');
-    }
-    const sanitizedExpoName = sanitizedProjectName(expoName);
-    if (!sanitizedExpoName) {
-      throw new Error('"expo.name" needs to contain some alphanumeric characters');
-    }
-    return {
-      buildScheme: sanitizedExpoName,
-    };
-  }
 }
