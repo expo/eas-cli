@@ -11,7 +11,10 @@ import AndroidCredentialsProvider, {
 import { createCredentialsContextAsync } from '../../credentials/context';
 import { BuildMutation, BuildResult } from '../../graphql/mutations/BuildMutation';
 import Log from '../../log';
-import { ensureApplicationIdIsDefinedForManagedProjectAsync } from '../../project/android/applicationId';
+import {
+  ensureApplicationIdIsDefinedForManagedProjectAsync,
+  getApplicationId,
+} from '../../project/android/applicationId';
 import { toggleConfirmAsync } from '../../prompts';
 import { findAccountByName } from '../../user/Account';
 import { CredentialsResult, prepareBuildRequestForPlatformAsync } from '../build';
@@ -116,7 +119,7 @@ async function ensureAndroidCredentialsAsync(
   if (!shouldProvideCredentials(ctx)) {
     return;
   }
-  const androidApplicationIdentifier = await getOrConfigureApplicationIdAsync(
+  const androidApplicationIdentifier = getApplicationId(
     ctx.commandCtx.projectDir,
     ctx.commandCtx.exp
   );
