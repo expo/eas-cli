@@ -2,6 +2,7 @@ import { Android, Metadata, Workflow } from '@expo/eas-build-job';
 import { EasConfig } from '@expo/eas-json';
 import chalk from 'chalk';
 import fs from 'fs-extra';
+import nullthrows from 'nullthrows';
 import path from 'path';
 
 import AndroidCredentialsProvider, {
@@ -10,8 +11,12 @@ import AndroidCredentialsProvider, {
 import { createCredentialsContextAsync } from '../../credentials/context';
 import { BuildMutation, BuildResult } from '../../graphql/mutations/BuildMutation';
 import Log from '../../log';
-import { ensureApplicationIdIsDefinedForManagedProjectAsync } from '../../project/android/applicationId';
+import {
+  ensureApplicationIdIsDefinedForManagedProjectAsync,
+  getApplicationId,
+} from '../../project/android/applicationId';
 import { toggleConfirmAsync } from '../../prompts';
+import { findAccountByName } from '../../user/Account';
 import { CredentialsResult, prepareBuildRequestForPlatformAsync } from '../build';
 import { BuildContext, CommandContext, createBuildContext } from '../context';
 import { transformMetadata } from '../graphql';
@@ -114,14 +119,22 @@ async function ensureAndroidCredentialsAsync(
   if (!shouldProvideCredentials(ctx)) {
     return;
   }
+  const androidApplicationIdentifier = getApplicationId(
+    ctx.commandCtx.projectDir,
+    ctx.commandCtx.exp
+  );
   const provider = new AndroidCredentialsProvider(
     await createCredentialsContextAsync(ctx.commandCtx.projectDir, {
       nonInteractive: ctx.commandCtx.nonInteractive,
     }),
     {
       app: {
+        account: nullthrows(
+          findAccountByName(ctx.commandCtx.user.accounts, ctx.commandCtx.accountName),
+          `You do not have access to account: ${ctx.commandCtx.accountName}`
+        ),
         projectName: ctx.commandCtx.projectName,
-        accountName: ctx.commandCtx.accountName,
+        androidApplicationIdentifier,
       },
       skipCredentialsCheck: ctx.commandCtx.skipCredentialsCheck,
     }
