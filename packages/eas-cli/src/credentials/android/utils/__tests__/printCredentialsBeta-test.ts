@@ -6,7 +6,7 @@ import {
   testLegacyAndroidAppCredentialsFragment,
 } from '../../../__tests__/fixtures-android-new';
 import { createCtxMock } from '../../../__tests__/fixtures-context';
-import { getAppLookupParamsFromContextAsync } from '../../actions/BuildCredentialsUtils';
+import { getAppLookupParamsFromContext } from '../../actions/BuildCredentialsUtils';
 import { displayAndroidAppCredentials } from '../printCredentialsBeta';
 
 jest.mock('../../../../log');
@@ -17,7 +17,7 @@ mockdate.set(new Date('4/20/2021'));
 describe('print credentials', () => {
   it('prints the AndroidAppCredentials fragment', async () => {
     const ctx = createCtxMock();
-    const appLookupParams = await getAppLookupParamsFromContextAsync(ctx);
+    const appLookupParams = getAppLookupParamsFromContext(ctx);
     displayAndroidAppCredentials({
       appLookupParams,
       legacyAppCredentials: testLegacyAndroidAppCredentialsFragment,
