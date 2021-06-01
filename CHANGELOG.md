@@ -14,6 +14,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Android credentials setup now on Graphql API ([#434](https://github.com/expo/eas-cli/pull/427) by [@quinlanj](https://github.com/quinlanj))
+
 ## [0.16.0](https://github.com/expo/eas-cli/releases/tag/v0.16.0) - 2021-05-26
 
 ### 🎉 New features
