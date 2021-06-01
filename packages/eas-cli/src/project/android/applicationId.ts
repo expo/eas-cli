@@ -13,19 +13,17 @@ import { resolveWorkflow } from '../workflow';
 
 const INVALID_APPLICATION_ID_MESSAGE = `Invalid format of Android applicationId. Only alphanumeric characters, '.' and '_' are allowed, and each '.' must be followed by a letter.`;
 
-export async function getOrConfigureApplicationIdAsync(
+export async function ensureApplicationIdIsDefinedForManagedProjectAsync(
   projectDir: string,
   exp: ExpoConfig
 ): Promise<string> {
+  const workflow = resolveWorkflow(projectDir, Platform.ANDROID);
+  assert(workflow === Workflow.MANAGED, 'This function should be called only for managed projects');
+
   try {
     return getApplicationId(projectDir, exp);
   } catch (err) {
-    const workflow = resolveWorkflow(projectDir, Platform.ANDROID);
-    if (workflow === Workflow.MANAGED) {
-      return await configureApplicationIdAsync(projectDir, exp);
-    } else {
-      throw err;
-    }
+    return await configureApplicationIdAsync(projectDir, exp);
   }
 }
 

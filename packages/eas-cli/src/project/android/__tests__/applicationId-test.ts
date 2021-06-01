@@ -4,7 +4,10 @@ import os from 'os';
 
 import { asMock } from '../../../__tests__/utils';
 import { promptAsync } from '../../../prompts';
-import { getApplicationId, getOrConfigureApplicationIdAsync } from '../applicationId';
+import {
+  ensureApplicationIdIsDefinedForManagedProjectAsync,
+  getApplicationId,
+} from '../applicationId';
 
 jest.mock('fs');
 jest.mock('../../../prompts');
@@ -92,7 +95,7 @@ describe(getApplicationId, () => {
   });
 });
 
-describe(getOrConfigureApplicationIdAsync, () => {
+describe(ensureApplicationIdIsDefinedForManagedProjectAsync, () => {
   describe('managed project + android.package missing in app config', () => {
     it('throws an error if using app.config.js', async () => {
       vol.fromJSON(
@@ -101,9 +104,9 @@ describe(getOrConfigureApplicationIdAsync, () => {
         },
         '/app'
       );
-      await expect(getOrConfigureApplicationIdAsync('/app', {} as any)).rejects.toThrowError(
-        /we can't update this file programatically/
-      );
+      await expect(
+        ensureApplicationIdIsDefinedForManagedProjectAsync('/app', {} as any)
+      ).rejects.toThrowError(/we can't update this file programatically/);
     });
     it('prompts for the Android package if using app.json', async () => {
       vol.fromJSON(
@@ -117,9 +120,9 @@ describe(getOrConfigureApplicationIdAsync, () => {
         packageName: 'com.expo.notdominik',
       }));
 
-      await expect(getOrConfigureApplicationIdAsync('/app', {} as any)).resolves.toBe(
-        'com.expo.notdominik'
-      );
+      await expect(
+        ensureApplicationIdIsDefinedForManagedProjectAsync('/app', {} as any)
+      ).resolves.toBe('com.expo.notdominik');
       expect(promptAsync).toHaveBeenCalled();
     });
     it('puts the Android package in app.json', async () => {
@@ -134,9 +137,9 @@ describe(getOrConfigureApplicationIdAsync, () => {
         packageName: 'com.expo.notdominik',
       }));
 
-      await expect(getOrConfigureApplicationIdAsync('/app', {} as any)).resolves.toBe(
-        'com.expo.notdominik'
-      );
+      await expect(
+        ensureApplicationIdIsDefinedForManagedProjectAsync('/app', {} as any)
+      ).resolves.toBe('com.expo.notdominik');
       expect(JSON.parse(fs.readFileSync('/app/app.json', 'utf-8'))).toMatchObject({
         expo: { android: { package: 'com.expo.notdominik' } },
       });
