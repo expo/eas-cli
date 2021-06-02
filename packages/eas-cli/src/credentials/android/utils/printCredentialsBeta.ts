@@ -23,7 +23,7 @@ export function displayEmptyAndroidCredentials(appLookupParams: AppLookupParams)
  * sort a build credentials array in descending order of preference
  * prefer default credentials, then prefer names that come first lexicographically
  */
-function sortBuildCredentials(
+export function sortBuildCredentials(
   androidAppBuildCredentialsList: AndroidAppBuildCredentialsFragment[]
 ): AndroidAppBuildCredentialsFragment[] {
   return androidAppBuildCredentialsList.sort((buildCredentialsA, buildCredentialsB) => {

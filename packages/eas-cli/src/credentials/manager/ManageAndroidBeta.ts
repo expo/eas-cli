@@ -1,17 +1,24 @@
+import { AndroidAppBuildCredentialsFragment } from '../../graphql/generated';
 import Log from '../../log';
 import { getProjectAccountName } from '../../project/projectUtils';
+import { promptAsync } from '../../prompts';
 import { findAccountByName } from '../../user/Account';
 import { ensureActorHasUsername } from '../../user/actions';
 import { Action, CredentialsManager } from '../CredentialsManager';
 import { getAppLookupParamsFromContext } from '../android/actions/BuildCredentialsUtils';
+import { CreateKeystore } from '../android/actions/new/CreateKeystore';
+import { AndroidAppBuildCredentialsMetadataInput } from '../android/api/graphql/mutations/AndroidAppBuildCredentialsMutation';
 import {
   displayAndroidAppCredentials,
   displayEmptyAndroidCredentials,
 } from '../android/utils/printCredentialsBeta';
 import { Context } from '../context';
 import { PressAnyKeyToContinue } from './HelperActions';
+import { SelectAndroidBuildCredentials } from './SelectAndroidBuildCredentials';
 
-enum ActionType {}
+enum ActionType {
+  CreateKeystore,
+}
 
 enum Scope {
   Project,
@@ -52,7 +59,38 @@ export class ManageAndroid implements Action {
           } else {
             displayAndroidAppCredentials({ appLookupParams, legacyAppCredentials, appCredentials });
           }
-          throw new Error('Not Implemented Yet');
+        }
+        const actions: { value: ActionType; title: string }[] = [
+          {
+            value: ActionType.CreateKeystore,
+            title: 'Set up a new keystore',
+          },
+        ];
+        const { action: chosenAction } = await promptAsync({
+          type: 'select',
+          name: 'action',
+          message: 'What do you want to do?',
+          choices: actions,
+        });
+        if (chosenAction === ActionType.CreateKeystore) {
+          const appLookupParams = getAppLookupParamsFromContext(ctx);
+          const buildCredentialsOrMetadataInput = await new SelectAndroidBuildCredentials(
+            appLookupParams
+          ).runAsync(ctx);
+          const keystore = await new CreateKeystore(appLookupParams.account).runAsync(ctx);
+          if (!('id' in buildCredentialsOrMetadataInput)) {
+            // a request to make build credentials will not have id from www yet
+            const buildCredentialsMetadataInput = buildCredentialsOrMetadataInput as AndroidAppBuildCredentialsMetadataInput;
+            await ctx.newAndroid.createAndroidAppBuildCredentialsAsync(appLookupParams, {
+              ...buildCredentialsMetadataInput,
+              androidKeystoreId: keystore.id,
+            });
+          } else {
+            const buildCredentials = buildCredentialsOrMetadataInput as AndroidAppBuildCredentialsFragment;
+            await ctx.newAndroid.updateAndroidAppBuildCredentialsAsync(buildCredentials, {
+              androidKeystoreId: keystore.id,
+            });
+          }
         }
       } catch (err) {
         Log.error(err);

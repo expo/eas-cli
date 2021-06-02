@@ -52,6 +52,15 @@ export async function createOrUpdateDefaultAndroidAppBuildCredentialsAsync(
       { androidKeystoreId }
     );
   }
+  const providedName = await promptForNameAsync();
+  return await ctx.newAndroid.createAndroidAppBuildCredentialsAsync(appLookupParams, {
+    name: providedName,
+    isDefault: true,
+    androidKeystoreId,
+  });
+}
+
+export async function promptForNameAsync(): Promise<string> {
   const { providedName } = await promptAsync({
     type: 'text',
     name: 'providedName',
@@ -59,11 +68,7 @@ export async function createOrUpdateDefaultAndroidAppBuildCredentialsAsync(
     initial: generateRandomName(),
     validate: (input: string) => input !== '',
   });
-  return await ctx.newAndroid.createAndroidAppBuildCredentialsAsync(appLookupParams, {
-    name: providedName,
-    isDefault: true,
-    androidKeystoreId,
-  });
+  return providedName;
 }
 
 function generateRandomName(): string {
