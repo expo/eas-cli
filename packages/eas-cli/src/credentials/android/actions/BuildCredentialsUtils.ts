@@ -2,6 +2,7 @@ import assert from 'assert';
 import { nanoid } from 'nanoid';
 
 import { AndroidAppBuildCredentialsFragment } from '../../../graphql/generated';
+import { getApplicationId } from '../../../project/android/applicationId';
 import { getProjectAccountName, getProjectConfigDescription } from '../../../project/projectUtils';
 import { promptAsync } from '../../../prompts';
 import { findAccountByName } from '../../../user/Account';
@@ -17,7 +18,7 @@ export function getAppLookupParamsFromContext(ctx: Context): AppLookupParams {
     throw new Error(`You do not have access to account: ${accountName}`);
   }
 
-  const androidApplicationIdentifier = ctx.exp.android?.package;
+  const androidApplicationIdentifier = getApplicationId(ctx.projectDir, ctx.exp);
   if (!androidApplicationIdentifier) {
     throw new Error(
       `android.package needs to be defined in your ${getProjectConfigDescription(
