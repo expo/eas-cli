@@ -11,10 +11,11 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 - Fix bundle identifier resolution when native target is not provided. ([#434](https://github.com/expo/eas-cli/pull/434) by [@dsokal](https://github.com/dsokal))
+- Fix git repo root path getter on Windows. ([#429](https://github.com/expo/eas-cli/pull/429) by [@brentvatne](https://github.com/brentvatne))
 
 ### 🧹 Chores
 
-- Android credentials setup now on Graphql API ([#434](https://github.com/expo/eas-cli/pull/427) by [@quinlanj](https://github.com/quinlanj))
+- Android credentials setup now on Graphql API. ([#434](https://github.com/expo/eas-cli/pull/427) by [@quinlanj](https://github.com/quinlanj))
 
 ## [0.16.0](https://github.com/expo/eas-cli/releases/tag/v0.16.0) - 2021-05-26
 
