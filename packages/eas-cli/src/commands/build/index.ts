@@ -4,10 +4,12 @@ import chalk from 'chalk';
 import fs from 'fs-extra';
 import path from 'path';
 
+import { logEvent } from '../../analytics';
 import { configureAsync } from '../../build/configure';
 import { createCommandContextAsync } from '../../build/context';
 import { buildAsync } from '../../build/create';
 import { RequestedPlatform } from '../../build/types';
+import { Event } from '../../build/utils/analytics';
 import { isGitStatusCleanAsync } from '../../build/utils/repository';
 import Log, { learnMore } from '../../log';
 import {
@@ -67,6 +69,8 @@ export default class Build extends AuthorizedCommand {
     const projectDir = (await findProjectRootAsync()) ?? process.cwd();
     let { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
     const projectId = await getProjectIdAsync(exp);
+
+    logEvent(Event.ACTION, { action: `eas build`, project_id: projectId, platform });
 
     if (!flags.local && !(await isEasEnabledForProjectAsync(projectId))) {
       warnEasUnavailable();
