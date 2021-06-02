@@ -120,6 +120,10 @@ export function createBuildContext<T extends Platform>({
     project_type: buildProfile.workflow,
   };
   Analytics.logEvent(Event.BUILD_COMMAND, trackingCtx);
+  Analytics.logEvent(Event.ACTION, {
+    ...trackingCtx,
+    ...{ action: `eas build` },
+  });
   return {
     commandCtx,
     trackingCtx,

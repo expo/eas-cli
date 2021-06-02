@@ -96,6 +96,7 @@ function getContext() {
     os_version: os.release(),
     device_brand: platform,
     device_model: platform,
-    app_version: packageJSON?.version,
+    source_version: packageJSON?.version,
+    source: 'eas cli',
   };
 }

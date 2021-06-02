@@ -1,13 +1,9 @@
 import { ExpoConfig, getConfig } from '@expo/config';
-import { Command, flags } from '@oclif/command';
+import { flags } from '@oclif/command';
 import chalk from 'chalk';
 import fs from 'fs-extra';
 import path from 'path';
 
-import {
-  flushAsync as flushAnalyticsAsync,
-  initAsync as initAnalyticsAsync,
-} from '../../analytics';
 import { configureAsync } from '../../build/configure';
 import { createCommandContextAsync } from '../../build/context';
 import { buildAsync } from '../../build/create';
@@ -20,9 +16,9 @@ import {
 } from '../../project/isEasEnabledForProject';
 import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUtils';
 import { confirmAsync, promptAsync } from '../../prompts';
-import { ensureLoggedInAsync } from '../../user/actions';
+import AuthorizedCommand from '../abstract/authorizedCommand';
 
-export default class Build extends Command {
+export default class Build extends AuthorizedCommand {
   static description = 'Start a build';
 
   static flags = {
@@ -60,51 +56,45 @@ export default class Build extends Command {
 
   async run(): Promise<void> {
     const { flags } = this.parse(Build);
-    await initAnalyticsAsync(); // TODO: run in oclif hook for every command
-    try {
-      await ensureLoggedInAsync();
 
-      const nonInteractive = flags['non-interactive'];
-      if (!flags.platform && nonInteractive) {
-        throw new Error('--platform is required when building in non-interactive mode');
-      }
-      const platform =
-        (flags.platform as RequestedPlatform | undefined) ?? (await promptForPlatformAsync());
-
-      const projectDir = (await findProjectRootAsync()) ?? process.cwd();
-      let { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
-      const projectId = await getProjectIdAsync(exp);
-
-      if (!flags.local && !(await isEasEnabledForProjectAsync(projectId))) {
-        warnEasUnavailable();
-        process.exitCode = 1;
-        return;
-      }
-
-      if (flags.local && !verifyOptionsForLocalBuilds(platform)) {
-        process.exitCode = 1;
-        return;
-      }
-
-      exp = (await ensureProjectConfiguredAsync(projectDir)) ?? exp;
-
-      const commandCtx = await createCommandContextAsync({
-        requestedPlatform: platform,
-        profile: flags.profile,
-        exp,
-        projectDir,
-        projectId,
-        nonInteractive,
-        clearCache: flags['clear-cache'],
-        skipCredentialsCheck: flags['skip-credentials-check'],
-        local: flags.local,
-        skipProjectConfiguration: flags['skip-project-configuration'],
-        waitForBuildEnd: flags.wait,
-      });
-      await buildAsync(commandCtx);
-    } finally {
-      await flushAnalyticsAsync(); // TODO: run in oclif hook for every command
+    const nonInteractive = flags['non-interactive'];
+    if (!flags.platform && nonInteractive) {
+      throw new Error('--platform is required when building in non-interactive mode');
     }
+    const platform =
+      (flags.platform as RequestedPlatform | undefined) ?? (await promptForPlatformAsync());
+
+    const projectDir = (await findProjectRootAsync()) ?? process.cwd();
+    let { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
+    const projectId = await getProjectIdAsync(exp);
+
+    if (!flags.local && !(await isEasEnabledForProjectAsync(projectId))) {
+      warnEasUnavailable();
+      process.exitCode = 1;
+      return;
+    }
+
+    if (flags.local && !verifyOptionsForLocalBuilds(platform)) {
+      process.exitCode = 1;
+      return;
+    }
+
+    exp = (await ensureProjectConfiguredAsync(projectDir)) ?? exp;
+
+    const commandCtx = await createCommandContextAsync({
+      requestedPlatform: platform,
+      profile: flags.profile,
+      exp,
+      projectDir,
+      projectId,
+      nonInteractive,
+      clearCache: flags['clear-cache'],
+      skipCredentialsCheck: flags['skip-credentials-check'],
+      local: flags.local,
+      skipProjectConfiguration: flags['skip-project-configuration'],
+      waitForBuildEnd: flags.wait,
+    });
+    await buildAsync(commandCtx);
   }
 }
 

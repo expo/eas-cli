@@ -1,6 +1,8 @@
 import { getConfig } from '@expo/config';
-import { Command, flags } from '@oclif/command';
+import { flags } from '@oclif/command';
 
+import { logEvent } from '../analytics';
+import { Event } from '../build/utils/analytics';
 import { AppPlatform } from '../graphql/generated';
 import { learnMore } from '../log';
 import { isEasEnabledForProjectAsync, warnEasUnavailable } from '../project/isEasEnabledForProject';
@@ -9,13 +11,13 @@ import { promptAsync } from '../prompts';
 import AndroidSubmitCommand from '../submissions/android/AndroidSubmitCommand';
 import IosSubmitCommand from '../submissions/ios/IosSubmitCommand';
 import { AndroidSubmitCommandFlags, IosSubmitCommandFlags } from '../submissions/types';
-import { ensureLoggedInAsync } from '../user/actions';
+import AuthorizedCommand from './abstract/authorizedCommand';
 
 const COMMON_FLAGS = '';
 const ANDROID_FLAGS = 'Android specific options';
 const IOS_FLAGS = 'iOS specific options';
 
-export default class BuildSubmit extends Command {
+export default class BuildSubmit extends AuthorizedCommand {
   static description = 'Submits build artifact to app store';
   static usage = 'submit --platform=(android|ios)';
   static aliases = ['build:submit'];
@@ -160,8 +162,6 @@ export default class BuildSubmit extends Command {
       },
     } = this.parse(BuildSubmit);
 
-    await ensureLoggedInAsync();
-
     const platform =
       (flags.platform?.toUpperCase() as AppPlatform | undefined) ??
       (await promptForPlatformAsync());
@@ -169,6 +169,12 @@ export default class BuildSubmit extends Command {
     const projectDir = (await findProjectRootAsync()) ?? process.cwd();
     const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
     const projectId = await getProjectIdAsync(exp);
+
+    logEvent(Event.ACTION, {
+      action: `eas submit`,
+      project_id: projectId,
+      platform,
+    });
 
     if (!(await isEasEnabledForProjectAsync(projectId))) {
       warnEasUnavailable();
