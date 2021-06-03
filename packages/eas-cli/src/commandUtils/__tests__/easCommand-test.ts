@@ -1,11 +1,14 @@
 import { flushAsync, initAsync, logEvent } from '../../analytics';
 import { jester as mockJester } from '../../credentials/__tests__/fixtures-constants';
+import { getUserAsync } from '../../user/User';
 import { ensureLoggedInAsync } from '../../user/actions';
 import EasCommand from '../easCommand';
 import TestEasCommand from './TestEasCommand';
 
 describe(EasCommand.name, () => {
   beforeAll(() => {
+    TestEasCommand.prototype.requiresAuthentication = jest.fn().mockImplementation(() => true);
+    jest.mock('../../user/User', () => ({ getUserAsync: jest.fn(() => mockJester) }));
     jest.mock('../../user/actions', () => ({ ensureLoggedInAsync: jest.fn(() => mockJester) }));
     jest.mock('../../analytics', () => {
       const { AnalyticsEvent } = jest.requireActual('../../analytics');
@@ -30,6 +33,16 @@ describe(EasCommand.name, () => {
       await TestEasCommand.run();
 
       expect(ensureLoggedInAsync).toHaveReturnedWith(mockJester);
+    });
+
+    it('ensures the user data is read from cache', async () => {
+      (TestEasCommand.prototype.requiresAuthentication as jest.Mock).mockImplementationOnce(
+        () => false
+      );
+
+      await TestEasCommand.run();
+
+      expect(getUserAsync).toHaveReturnedWith(mockJester);
     });
 
     it('initializes analytics', async () => {
