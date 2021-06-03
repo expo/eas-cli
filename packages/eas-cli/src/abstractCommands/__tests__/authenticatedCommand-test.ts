@@ -1,7 +1,7 @@
 import { flushAsync, initAsync, logEvent } from '../../analytics';
-import AuthenticatedCommand from '../../commands/abstract/authenticatedCommand';
 import { jester as mockJester } from '../../credentials/__tests__/fixtures-constants';
 import { ensureLoggedInAsync } from '../../user/actions';
+import AuthenticatedCommand from '../authenticatedCommand';
 import TestAuthenticatedCommand from './TestAuthenticatedCommand';
 
 describe(AuthenticatedCommand.name, () => {
