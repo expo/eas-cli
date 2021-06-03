@@ -6,15 +6,13 @@ import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/cl
 import {
   CreateIosAppCredentialsMutation,
   IosAppCredentialsFragment,
+  IosAppCredentialsInput,
 } from '../../../../../graphql/generated';
 import { IosAppCredentialsFragmentNode } from '../../../../../graphql/types/credentials/IosAppCredentials';
 
 const IosAppCredentialsMutation = {
   async createIosAppCredentialsAsync(
-    iosAppCredentialsInput: {
-      appleTeamId: string;
-      pushKeyId?: string;
-    },
+    iosAppCredentialsInput: IosAppCredentialsInput,
     appId: string,
     appleAppIdentifierId: string
   ): Promise<IosAppCredentialsFragment> {

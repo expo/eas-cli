@@ -5,6 +5,7 @@ import gql from 'graphql-tag';
 import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
 import {
   AppleDistributionCertificateFragment,
+  AppleDistributionCertificateInput,
   AppleTeamFragment,
   CreateAppleDistributionCertificateMutation,
   DeleteAppleDistributionCertificateMutation,
@@ -18,13 +19,7 @@ export type AppleDistributionCertificateMutationResult = AppleDistributionCertif
 
 const AppleDistributionCertificateMutation = {
   async createAppleDistributionCertificate(
-    appleDistributionCertificateInput: {
-      certP12: string;
-      certPassword: string;
-      certPrivateSigningKey?: string;
-      developerPortalIdentifier?: string;
-      appleTeamId?: string;
-    },
+    appleDistributionCertificateInput: AppleDistributionCertificateInput,
     accountId: string
   ): Promise<AppleDistributionCertificateMutationResult> {
     const data = await withErrorHandlingAsync(

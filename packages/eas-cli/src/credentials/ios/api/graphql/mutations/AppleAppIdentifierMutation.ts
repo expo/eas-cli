@@ -5,17 +5,14 @@ import gql from 'graphql-tag';
 import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
 import {
   AppleAppIdentifierFragment,
+  AppleAppIdentifierInput,
   CreateAppleAppIdentifierMutation,
 } from '../../../../../graphql/generated';
 import { AppleAppIdentifierFragmentNode } from '../../../../../graphql/types/credentials/AppleAppIdentifier';
 
 const AppleAppIdentifierMutation = {
   async createAppleAppIdentifierAsync(
-    appleAppIdentifierInput: {
-      bundleIdentifier: string;
-      appleTeamId?: string;
-      parentAppleAppId?: string;
-    },
+    appleAppIdentifierInput: AppleAppIdentifierInput,
     accountId: string
   ): Promise<AppleAppIdentifierFragment> {
     const data = await withErrorHandlingAsync(

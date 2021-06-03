@@ -3,20 +3,15 @@ import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
 import {
-  AppleDeviceClass,
   AppleDeviceFragment,
+  AppleDeviceInput,
   CreateAppleDeviceMutation,
 } from '../../../../../graphql/generated';
 import { AppleDeviceFragmentNode } from '../../../../../graphql/types/credentials/AppleDevice';
 
 const AppleDeviceMutation = {
   async createAppleDeviceAsync(
-    appleDeviceInput: {
-      appleTeamId: string;
-      identifier: string;
-      name?: string;
-      deviceClass?: AppleDeviceClass;
-    },
+    appleDeviceInput: AppleDeviceInput,
     accountId: string
   ): Promise<AppleDeviceFragment> {
     const data = await withErrorHandlingAsync(

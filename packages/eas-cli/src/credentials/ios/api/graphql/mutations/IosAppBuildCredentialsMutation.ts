@@ -6,18 +6,14 @@ import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/cl
 import {
   IosAppBuildCredentials,
   IosAppBuildCredentialsFragment,
-  IosDistributionType,
+  IosAppBuildCredentialsInput,
   SetProvisioningProfileMutation,
 } from '../../../../../graphql/generated';
 import { IosAppBuildCredentialsFragmentNode } from '../../../../../graphql/types/credentials/IosAppBuildCredentials';
 
 const IosAppBuildCredentialsMutation = {
   async createIosAppBuildCredentialsAsync(
-    iosAppBuildCredentialsInput: {
-      iosDistributionType: IosDistributionType;
-      distributionCertificateId: string;
-      provisioningProfileId: string;
-    },
+    iosAppBuildCredentialsInput: IosAppBuildCredentialsInput,
     iosAppCredentialsId: string
   ): Promise<IosAppBuildCredentials> {
     const data = await withErrorHandlingAsync(
