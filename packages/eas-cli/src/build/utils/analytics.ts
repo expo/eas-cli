@@ -18,8 +18,6 @@ export enum Event {
   CREDENTIALS_SYNC_UPDATE_LOCAL_FAIL = 'build cli credentials sync update local fail',
   CREDENTIALS_SYNC_UPDATE_REMOTE_SUCCESS = 'build cli credentials sync update remote success',
   CREDENTIALS_SYNC_UPDATE_REMOTE_FAIL = 'build cli credentials sync update remote fail',
-
-  ACTION = 'action', // generic event type which is used to determine the 'daily active user' stat, include an `action: eas ${subcommand}` property inside of the event properties object
 }
 
 export default {

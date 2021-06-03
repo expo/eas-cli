@@ -1,8 +1,6 @@
 import { getConfig } from '@expo/config';
 import { flags } from '@oclif/command';
 
-import { logEvent } from '../analytics';
-import { Event } from '../build/utils/analytics';
 import { AppPlatform } from '../graphql/generated';
 import { learnMore } from '../log';
 import { isEasEnabledForProjectAsync, warnEasUnavailable } from '../project/isEasEnabledForProject';
@@ -169,12 +167,6 @@ export default class BuildSubmit extends AuthorizedCommand {
     const projectDir = (await findProjectRootAsync()) ?? process.cwd();
     const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
     const projectId = await getProjectIdAsync(exp);
-
-    logEvent(Event.ACTION, {
-      action: `eas submit`,
-      project_id: projectId,
-      platform,
-    });
 
     if (!(await isEasEnabledForProjectAsync(projectId))) {
       warnEasUnavailable();
