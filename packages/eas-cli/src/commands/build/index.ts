@@ -4,12 +4,12 @@ import chalk from 'chalk';
 import fs from 'fs-extra';
 import path from 'path';
 
-import AuthenticatedCommand from '../../abstractCommands/authenticatedCommand';
 import { configureAsync } from '../../build/configure';
 import { createCommandContextAsync } from '../../build/context';
 import { buildAsync } from '../../build/create';
 import { RequestedPlatform } from '../../build/types';
 import { isGitStatusCleanAsync } from '../../build/utils/repository';
+import EasCommand from '../../commandUtils/easCommand';
 import Log, { learnMore } from '../../log';
 import {
   isEasEnabledForProjectAsync,
@@ -18,7 +18,7 @@ import {
 import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUtils';
 import { confirmAsync, promptAsync } from '../../prompts';
 
-export default class Build extends AuthenticatedCommand {
+export default class Build extends EasCommand {
   static description = 'Start a build';
 
   static flags = {

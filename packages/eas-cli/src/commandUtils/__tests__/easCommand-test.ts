@@ -1,10 +1,10 @@
 import { flushAsync, initAsync, logEvent } from '../../analytics';
 import { jester as mockJester } from '../../credentials/__tests__/fixtures-constants';
 import { ensureLoggedInAsync } from '../../user/actions';
-import AuthenticatedCommand from '../authenticatedCommand';
-import TestAuthenticatedCommand from './TestAuthenticatedCommand';
+import EasCommand from '../easCommand';
+import TestEasCommand from './TestEasCommand';
 
-describe(AuthenticatedCommand.name, () => {
+describe(EasCommand.name, () => {
   beforeAll(() => {
     jest.mock('../../user/actions', () => ({ ensureLoggedInAsync: jest.fn(() => mockJester) }));
     jest.mock('../../analytics', () => {
@@ -27,28 +27,28 @@ describe(AuthenticatedCommand.name, () => {
 
   describe('without exceptions', () => {
     it('ensures the user is logged in', async () => {
-      await TestAuthenticatedCommand.run();
+      await TestEasCommand.run();
 
       expect(ensureLoggedInAsync).toHaveReturnedWith(mockJester);
     });
 
     it('initializes analytics', async () => {
-      await TestAuthenticatedCommand.run();
+      await TestEasCommand.run();
 
       expect(initAsync).toHaveBeenCalled();
     });
 
     it('flushes analytics', async () => {
-      await TestAuthenticatedCommand.run();
+      await TestEasCommand.run();
 
       expect(flushAsync).toHaveBeenCalled();
     });
 
     it('logs events', async () => {
-      await TestAuthenticatedCommand.run();
+      await TestEasCommand.run();
 
       expect(logEvent).toHaveBeenCalledWith('action', {
-        action: `eas ${TestAuthenticatedCommand.id}`,
+        action: `eas ${TestEasCommand.id}`,
       });
     });
   });
@@ -56,7 +56,7 @@ describe(AuthenticatedCommand.name, () => {
   describe('after exceptions', () => {
     it('flushes analytics', async () => {
       try {
-        await TestAuthenticatedCommand.run().then(_ => {
+        await TestEasCommand.run().then(_ => {
           throw new Error('foo');
         });
       } catch (error) {}

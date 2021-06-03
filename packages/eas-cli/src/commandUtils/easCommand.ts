@@ -3,7 +3,7 @@ import { Command } from '@oclif/command';
 import { AnalyticsEvent, flushAsync, initAsync, logEvent } from '../analytics';
 import { ensureLoggedInAsync } from '../user/actions';
 
-export default abstract class AuthenticatedCommand extends Command {
+export default abstract class EasCommand extends Command {
   async init() {
     await initAsync();
     await ensureLoggedInAsync();
