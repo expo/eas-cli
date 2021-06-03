@@ -7,7 +7,15 @@ import TestAuthrizedCommand from './TestAuthrizedCommand';
 describe(AuthenticatedCommand.name, () => {
   beforeAll(() => {
     jest.mock('../../user/actions', () => ({ ensureLoggedInAsync: jest.fn(() => mockJester) }));
-    jest.mock('../../analytics', () => ({ initAsync: jest.fn(), flushAsync: jest.fn() }));
+    jest.mock('../../analytics', () => {
+      const { AnalyticsEvent } = jest.requireActual('../../analytics');
+      return {
+        AnalyticsEvent,
+        logEvent: jest.fn(),
+        initAsync: jest.fn(),
+        flushAsync: jest.fn(),
+      };
+    });
   });
 
   afterEach(() => {
