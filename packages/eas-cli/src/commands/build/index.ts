@@ -16,9 +16,9 @@ import {
 } from '../../project/isEasEnabledForProject';
 import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUtils';
 import { confirmAsync, promptAsync } from '../../prompts';
-import AuthorizedCommand from '../abstract/authorizedCommand';
+import AuthenticatedCommand from '../abstract/authenticatedCommand';
 
-export default class Build extends AuthorizedCommand {
+export default class Build extends AuthenticatedCommand {
   static description = 'Start a build';
 
   static flags = {

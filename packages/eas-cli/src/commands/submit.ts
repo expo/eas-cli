@@ -9,13 +9,13 @@ import { promptAsync } from '../prompts';
 import AndroidSubmitCommand from '../submissions/android/AndroidSubmitCommand';
 import IosSubmitCommand from '../submissions/ios/IosSubmitCommand';
 import { AndroidSubmitCommandFlags, IosSubmitCommandFlags } from '../submissions/types';
-import AuthorizedCommand from './abstract/authorizedCommand';
+import AuthenticatedCommand from './abstract/authenticatedCommand';
 
 const COMMON_FLAGS = '';
 const ANDROID_FLAGS = 'Android specific options';
 const IOS_FLAGS = 'iOS specific options';
 
-export default class BuildSubmit extends AuthorizedCommand {
+export default class BuildSubmit extends AuthenticatedCommand {
   static description = 'Submits build artifact to app store';
   static usage = 'submit --platform=(android|ios)';
   static aliases = ['build:submit'];

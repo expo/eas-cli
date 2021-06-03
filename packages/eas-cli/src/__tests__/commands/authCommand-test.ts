@@ -1,10 +1,10 @@
 import { flushAsync, initAsync } from '../../analytics';
-import AuthorizedCommand from '../../commands/abstract/authorizedCommand';
+import AuthenticatedCommand from '../../commands/abstract/authenticatedCommand';
 import { jester as mockJester } from '../../credentials/__tests__/fixtures-constants';
 import { ensureLoggedInAsync } from '../../user/actions';
 import TestAuthrizedCommand from './TestAuthrizedCommand';
 
-describe(AuthorizedCommand.name, () => {
+describe(AuthenticatedCommand.name, () => {
   beforeAll(() => {
     jest.mock('../../user/actions', () => ({ ensureLoggedInAsync: jest.fn(() => mockJester) }));
     jest.mock('../../analytics', () => ({ initAsync: jest.fn(), flushAsync: jest.fn() }));
