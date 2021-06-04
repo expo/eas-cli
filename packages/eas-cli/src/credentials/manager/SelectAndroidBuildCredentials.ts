@@ -1,12 +1,14 @@
 import { AndroidAppBuildCredentialsFragment } from '../../graphql/generated';
 import { promptAsync } from '../../prompts';
-import { promptForNameAsync } from '../android/actions/BuildCredentialsUtils';
+import { promptForNameAsync, sortBuildCredentials } from '../android/actions/BuildCredentialsUtils';
 import { AppLookupParams } from '../android/api/GraphqlClient';
 import { AndroidAppBuildCredentialsMetadataInput } from '../android/api/graphql/mutations/AndroidAppBuildCredentialsMutation';
-import { sortBuildCredentials } from '../android/utils/printCredentialsBeta';
 import { Context } from '../context';
 
-export const CREATE_NEW_BUILD_CREDENTIALS = 'CREATE_NEW_BUILD_CREDENTIALS';
+export enum SelectAndroidBuildCredentialsResultType {
+  CREATE_REQUEST,
+  EXISTING_CREDENTIALS,
+}
 /**
  * Return a selected Android Build Credential, or a request to make a new one
  */
@@ -15,7 +17,16 @@ export class SelectAndroidBuildCredentials {
 
   async runAsync(
     ctx: Context
-  ): Promise<AndroidAppBuildCredentialsFragment | AndroidAppBuildCredentialsMetadataInput> {
+  ): Promise<
+    | {
+        resultType: SelectAndroidBuildCredentialsResultType.CREATE_REQUEST;
+        result: AndroidAppBuildCredentialsMetadataInput;
+      }
+    | {
+        resultType: SelectAndroidBuildCredentialsResultType.EXISTING_CREDENTIALS;
+        result: AndroidAppBuildCredentialsFragment;
+      }
+  > {
     await ctx.newAndroid.createOrGetExistingAndroidAppCredentialsWithBuildCredentialsAsync(
       this.app
     );
@@ -24,8 +35,11 @@ export class SelectAndroidBuildCredentials {
     );
     if (buildCredentialsList.length === 0) {
       return {
-        isDefault: true,
-        name: await promptForNameAsync(),
+        resultType: SelectAndroidBuildCredentialsResultType.CREATE_REQUEST,
+        result: {
+          isDefault: true,
+          name: await promptForNameAsync(),
+        },
       };
     }
     const sortedBuildCredentialsList = sortBuildCredentials(buildCredentialsList);
@@ -38,7 +52,7 @@ export class SelectAndroidBuildCredentials {
 
     const buildCredentialsResultOrRequestToCreateNew:
       | AndroidAppBuildCredentialsFragment
-      | 'CREATE_NEW_BUILD_CREDENTIALS' = (
+      | SelectAndroidBuildCredentialsResultType.CREATE_REQUEST = (
       await promptAsync({
         type: 'select',
         name: 'buildCredentialsResultOrRequestToCreateNew',
@@ -47,21 +61,30 @@ export class SelectAndroidBuildCredentials {
           ...sortedBuildCredentialsChoices,
           {
             title: 'Create A New Build Credential Configuration',
-            value: CREATE_NEW_BUILD_CREDENTIALS,
+            value: SelectAndroidBuildCredentialsResultType.CREATE_REQUEST,
           },
         ],
       })
     ).buildCredentialsResultOrRequestToCreateNew;
-    if (buildCredentialsResultOrRequestToCreateNew !== CREATE_NEW_BUILD_CREDENTIALS) {
-      return buildCredentialsResultOrRequestToCreateNew;
+    if (
+      buildCredentialsResultOrRequestToCreateNew !==
+      SelectAndroidBuildCredentialsResultType.CREATE_REQUEST
+    ) {
+      return {
+        resultType: SelectAndroidBuildCredentialsResultType.EXISTING_CREDENTIALS,
+        result: buildCredentialsResultOrRequestToCreateNew,
+      };
     }
 
     const defaultCredentialsExists = buildCredentialsList.some(
       buildCredentials => buildCredentials.isDefault
     );
     return {
-      isDefault: !defaultCredentialsExists, // make default if there isn't one
-      name: await promptForNameAsync(),
+      resultType: SelectAndroidBuildCredentialsResultType.CREATE_REQUEST,
+      result: {
+        isDefault: !defaultCredentialsExists, // make default if there isn't one
+        name: await promptForNameAsync(),
+      },
     };
   }
 }

@@ -6,8 +6,8 @@ import {
 import { createCtxMock } from '../../__tests__/fixtures-context';
 import { getAppLookupParamsFromContext } from '../../android/actions/BuildCredentialsUtils';
 import {
-  CREATE_NEW_BUILD_CREDENTIALS,
   SelectAndroidBuildCredentials,
+  SelectAndroidBuildCredentialsResultType,
 } from '../SelectAndroidBuildCredentials';
 
 const TEST_STRING = 'TEST_STRING';
@@ -31,11 +31,15 @@ describe(SelectAndroidBuildCredentials, () => {
     const appLookupParams = getAppLookupParamsFromContext(ctx);
     const selectAndroidBuildCredentialsAction = new SelectAndroidBuildCredentials(appLookupParams);
     const buildCredentialsMetadataInput = await selectAndroidBuildCredentialsAction.runAsync(ctx);
-    expect(buildCredentialsMetadataInput).toMatchObject({ isDefault: true, name: TEST_STRING });
+    expect(buildCredentialsMetadataInput).toMatchObject({
+      resultType: SelectAndroidBuildCredentialsResultType.CREATE_REQUEST,
+      result: { isDefault: true, name: TEST_STRING },
+    });
   });
   it('returns a request to make build credentials when the user chooses to make a new one', async () => {
     (promptAsync as jest.Mock).mockImplementation(() => ({
-      buildCredentialsResultOrRequestToCreateNew: CREATE_NEW_BUILD_CREDENTIALS,
+      buildCredentialsResultOrRequestToCreateNew:
+        SelectAndroidBuildCredentialsResultType.CREATE_REQUEST,
       providedName: TEST_STRING,
     }));
     const ctx = createCtxMock({
@@ -49,11 +53,15 @@ describe(SelectAndroidBuildCredentials, () => {
     const appLookupParams = getAppLookupParamsFromContext(ctx);
     const selectAndroidBuildCredentialsAction = new SelectAndroidBuildCredentials(appLookupParams);
     const buildCredentialsMetadataInput = await selectAndroidBuildCredentialsAction.runAsync(ctx);
-    expect(buildCredentialsMetadataInput).toMatchObject({ isDefault: false, name: TEST_STRING });
+    expect(buildCredentialsMetadataInput).toMatchObject({
+      resultType: SelectAndroidBuildCredentialsResultType.CREATE_REQUEST,
+      result: { isDefault: false, name: TEST_STRING },
+    });
   });
   it('returns a request to make default build credentials when the user chooses to make a new one, and if they have no existing credentials', async () => {
     (promptAsync as jest.Mock).mockImplementation(() => ({
-      buildCredentialsResultOrRequestToCreateNew: CREATE_NEW_BUILD_CREDENTIALS,
+      buildCredentialsResultOrRequestToCreateNew:
+        SelectAndroidBuildCredentialsResultType.CREATE_REQUEST,
       providedName: TEST_STRING,
     }));
     const ctx = createCtxMock({
@@ -65,7 +73,10 @@ describe(SelectAndroidBuildCredentials, () => {
     const appLookupParams = getAppLookupParamsFromContext(ctx);
     const selectAndroidBuildCredentialsAction = new SelectAndroidBuildCredentials(appLookupParams);
     const buildCredentialsMetadataInput = await selectAndroidBuildCredentialsAction.runAsync(ctx);
-    expect(buildCredentialsMetadataInput).toMatchObject({ isDefault: true, name: TEST_STRING });
+    expect(buildCredentialsMetadataInput).toMatchObject({
+      resultType: SelectAndroidBuildCredentialsResultType.CREATE_REQUEST,
+      result: { isDefault: true, name: TEST_STRING },
+    });
   });
   it('returns buildCredentials of the users choice', async () => {
     (promptAsync as jest.Mock).mockImplementation(() => ({
@@ -82,6 +93,9 @@ describe(SelectAndroidBuildCredentials, () => {
     const appLookupParams = getAppLookupParamsFromContext(ctx);
     const selectAndroidBuildCredentialsAction = new SelectAndroidBuildCredentials(appLookupParams);
     const buildCredentialsMetadataInput = await selectAndroidBuildCredentialsAction.runAsync(ctx);
-    expect(buildCredentialsMetadataInput).toBe(testAndroidBuildCredentialsFragment);
+    expect(buildCredentialsMetadataInput).toMatchObject({
+      resultType: SelectAndroidBuildCredentialsResultType.EXISTING_CREDENTIALS,
+      result: testAndroidBuildCredentialsFragment,
+    });
   });
 });

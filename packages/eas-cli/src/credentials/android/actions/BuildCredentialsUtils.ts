@@ -71,6 +71,23 @@ export async function promptForNameAsync(): Promise<string> {
   return providedName;
 }
 
+/**
+ * sort a build credentials array in descending order of preference
+ * prefer default credentials, then prefer names that come first lexicographically
+ */
+export function sortBuildCredentials(
+  androidAppBuildCredentialsList: AndroidAppBuildCredentialsFragment[]
+): AndroidAppBuildCredentialsFragment[] {
+  return androidAppBuildCredentialsList.sort((buildCredentialsA, buildCredentialsB) => {
+    if (buildCredentialsA.isDefault) {
+      return -1;
+    } else if (buildCredentialsB.isDefault) {
+      return 1;
+    }
+    return buildCredentialsA.name.localeCompare(buildCredentialsB.name);
+  });
+}
+
 function generateRandomName(): string {
   return `Build Credentials ${nanoid(10)}`;
 }
