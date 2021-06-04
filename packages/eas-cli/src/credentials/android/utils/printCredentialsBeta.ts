@@ -2,7 +2,10 @@ import chalk from 'chalk';
 
 import {
   AndroidAppBuildCredentialsFragment,
+  AndroidFcmVersion,
   CommonAndroidAppCredentialsFragment,
+  FcmSnippetLegacy,
+  FcmSnippetV1,
 } from '../../../graphql/generated';
 import Log from '../../../log';
 import { fromNow } from '../../../utils/date';
@@ -41,6 +44,7 @@ function displayLegacyAndroidAppCredentials(
     // differentiate between old and new if there's both
     Log.log(chalk.bold(`  Credentials ported from Expo Classic (expo-cli):`));
   }
+  displayAndroidFcmCredentials(legacyAppCredentials);
   // There can only be one set of build credentials in legacy app credentials
   const [legacyBuildCredentials] = legacyAppCredentials.androidAppBuildCredentialsList;
   if (legacyBuildCredentials) {
@@ -51,6 +55,29 @@ function displayLegacyAndroidAppCredentials(
   }
 }
 
+function displayAndroidFcmCredentials(appCredentials: CommonAndroidAppCredentialsFragment): void {
+  const maybeFcm = appCredentials.androidFcm;
+  Log.log(`  Push Notifications (FCM):`);
+  if (!maybeFcm) {
+    Log.log(`    None assigned yet`);
+    Log.newLine();
+    return;
+  }
+  const { snippet, version, updatedAt } = maybeFcm;
+  if (version === AndroidFcmVersion.Legacy) {
+    const { firstFourCharacters, lastFourCharacters } = snippet as FcmSnippetLegacy;
+    Log.log(`    Key: ${firstFourCharacters}...${lastFourCharacters}`);
+  } else if (version === AndroidFcmVersion.V1) {
+    const { projectId, serviceAccountEmail, clientId, keyId } = snippet as FcmSnippetV1;
+    Log.log(`    Project Id: ${projectId}`);
+    Log.log(`    Service Account: ${serviceAccountEmail}`);
+    Log.log(`    Client Id: ${clientId}`);
+    Log.log(`    Key Id: ${keyId}`);
+  }
+  Log.log(`    Updated ${fromNow(new Date(updatedAt))} ago`);
+  Log.newLine();
+}
+
 function displayEASAndroidAppCredentials(
   legacyAppCredentials: CommonAndroidAppCredentialsFragment | null,
   appCredentials: CommonAndroidAppCredentialsFragment
@@ -59,7 +86,9 @@ function displayEASAndroidAppCredentials(
     // differentiate between old and new if there's both
     Log.log(chalk.bold(`  EAS Credentials:`));
     Log.log(`  These will take precedence over Expo Classic credentials`);
+    Log.newLine();
   }
+  displayAndroidFcmCredentials(appCredentials);
   const sortedBuildCredentialsList = sortBuildCredentials(
     appCredentials.androidAppBuildCredentialsList
   );
@@ -91,7 +120,6 @@ function displayAndroidBuildCredentials(
   if (!skipConfigurationDisplay) {
     const { isDefault, name } = buildCredentials;
     Log.log(chalk.bold(`  Configuration: ${name}${isDefault ? ' (Default)' : ''}`));
-    Log.newLine();
   }
 
   const maybeKeystore = buildCredentials.androidKeystore;

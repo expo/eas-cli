@@ -943,6 +943,7 @@ export type IosSubmissionConfig = {
   __typename?: 'IosSubmissionConfig';
   ascAppIdentifier: Scalars['String'];
   appleIdUsername: Scalars['String'];
+  appleAppSpecificPasswordId?: Maybe<Scalars['String']>;
 };
 
 export type SubmissionError = {
@@ -2606,6 +2607,8 @@ export type IosAppCredentialsMutation = {
   createIosAppCredentials?: Maybe<IosAppCredentials>;
   /** Set the push key to be used in an iOS app */
   setPushKey?: Maybe<IosAppCredentials>;
+  /** Set the app-specific password to be used for an iOS app */
+  setAppSpecificPassword?: Maybe<IosAppCredentials>;
 };
 
 
@@ -2621,9 +2624,16 @@ export type IosAppCredentialsMutationSetPushKeyArgs = {
   pushKeyId: Scalars['ID'];
 };
 
+
+export type IosAppCredentialsMutationSetAppSpecificPasswordArgs = {
+  id: Scalars['ID'];
+  appSpecificPasswordId: Scalars['ID'];
+};
+
 export type IosAppCredentialsInput = {
   appleTeamId: Scalars['ID'];
   pushKeyId?: Maybe<Scalars['ID']>;
+  appSpecificPasswordId?: Maybe<Scalars['ID']>;
 };
 
 export type RobotMutation = {
@@ -2691,11 +2701,18 @@ export type SubmissionMutation = {
   __typename?: 'SubmissionMutation';
   /** Create an EAS Submit submission */
   createSubmission: CreateSubmissionResult;
+  /** Create an iOS EAS Submit submission */
+  createIosSubmission: CreateSubmissionResult;
 };
 
 
 export type SubmissionMutationCreateSubmissionArgs = {
   input: CreateSubmissionInput;
+};
+
+
+export type SubmissionMutationCreateIosSubmissionArgs = {
+  input: CreateIosSubmissionInput;
 };
 
 export type CreateSubmissionInput = {
@@ -2708,6 +2725,19 @@ export type CreateSubmissionResult = {
   __typename?: 'CreateSubmissionResult';
   /** Created submission */
   submission: Submission;
+};
+
+export type CreateIosSubmissionInput = {
+  appId: Scalars['ID'];
+  config: NewIosSubmissionConfig;
+};
+
+export type NewIosSubmissionConfig = {
+  appleAppSpecificPasswordId?: Maybe<Scalars['String']>;
+  appleAppSpecificPassword?: Maybe<Scalars['String']>;
+  archiveUrl: Scalars['String'];
+  appleIdUsername: Scalars['String'];
+  ascAppIdentifier: Scalars['String'];
 };
 
 export type UpdateChannelMutation = {
@@ -3660,6 +3690,42 @@ export type CreateAndroidAppCredentialsMutation = (
       & Pick<AndroidAppCredentials, 'id'>
       & CommonAndroidAppCredentialsFragment
     )> }
+  ) }
+);
+
+export type SetFcmMutationVariables = Exact<{
+  androidAppCredentialsId: Scalars['ID'];
+  fcmId: Scalars['ID'];
+}>;
+
+
+export type SetFcmMutation = (
+  { __typename?: 'RootMutation' }
+  & { androidAppCredentials: (
+    { __typename?: 'AndroidAppCredentialsMutation' }
+    & { setFcm?: Maybe<(
+      { __typename?: 'AndroidAppCredentials' }
+      & Pick<AndroidAppCredentials, 'id'>
+      & CommonAndroidAppCredentialsFragment
+    )> }
+  ) }
+);
+
+export type CreateAndroidFcmMutationVariables = Exact<{
+  androidFcmInput: AndroidFcmInput;
+  accountId: Scalars['ID'];
+}>;
+
+
+export type CreateAndroidFcmMutation = (
+  { __typename?: 'RootMutation' }
+  & { androidFcm: (
+    { __typename?: 'AndroidFcmMutation' }
+    & { createAndroidFcm: (
+      { __typename?: 'AndroidFcm' }
+      & Pick<AndroidFcm, 'id'>
+      & AndroidFcmFragment
+    ) }
   ) }
 );
 
@@ -4908,11 +4974,27 @@ export type CommonAndroidAppCredentialsFragment = (
     { __typename?: 'App' }
     & Pick<App, 'id'>
     & AppFragment
-  ), androidAppBuildCredentialsList: Array<(
+  ), androidFcm?: Maybe<(
+    { __typename?: 'AndroidFcm' }
+    & Pick<AndroidFcm, 'id'>
+    & AndroidFcmFragment
+  )>, androidAppBuildCredentialsList: Array<(
     { __typename?: 'AndroidAppBuildCredentials' }
     & Pick<AndroidAppBuildCredentials, 'id'>
     & AndroidAppBuildCredentialsFragment
   )> }
+);
+
+export type AndroidFcmFragment = (
+  { __typename?: 'AndroidFcm' }
+  & Pick<AndroidFcm, 'id' | 'credential' | 'version' | 'createdAt' | 'updatedAt'>
+  & { snippet: (
+    { __typename?: 'FcmSnippetLegacy' }
+    & Pick<FcmSnippetLegacy, 'firstFourCharacters' | 'lastFourCharacters'>
+  ) | (
+    { __typename?: 'FcmSnippetV1' }
+    & Pick<FcmSnippetV1, 'projectId' | 'keyId' | 'serviceAccountEmail' | 'clientId'>
+  ) }
 );
 
 export type AndroidKeystoreFragment = (

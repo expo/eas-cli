@@ -52,7 +52,12 @@ const AndroidAppCredentialsQuery = {
             legacyOnly,
           },
           {
-            additionalTypenames: ['AndroidAppCredentials', 'AndroidAppBuildCredentials', 'App'],
+            additionalTypenames: [
+              'AndroidAppCredentials',
+              'AndroidAppBuildCredentials',
+              'App',
+              'AndroidFcm',
+            ],
           }
         )
         .toPromise()
