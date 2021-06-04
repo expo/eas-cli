@@ -1,5 +1,7 @@
 import {
   AndroidAppBuildCredentialsFragment,
+  AndroidFcmFragment,
+  AndroidFcmVersion,
   AndroidKeystoreFragment,
   AndroidKeystoreType,
   AppFragment,
@@ -12,6 +14,18 @@ export const testAppFragment: AppFragment = {
   id: 'test-app-id',
   fullName: '@testuser/testapp',
   slug: 'testapp',
+};
+
+export const testLegacyAndroidFcmFragment: AndroidFcmFragment = {
+  id: 'test-id',
+  snippet: {
+    firstFourCharacters: 'abcd',
+    lastFourCharacters: 'efgh',
+  },
+  credential: 'abcdxxxxxxefgh',
+  version: AndroidFcmVersion.Legacy,
+  createdAt: new Date(),
+  updatedAt: new Date(),
 };
 
 export const testJksAndroidKeystoreFragment: AndroidKeystoreFragment = {
@@ -57,6 +71,7 @@ export const testAndroidAppCredentialsFragment: CommonAndroidAppCredentialsFragm
   applicationIdentifier: null,
   isLegacy: false,
   app: testAppFragment,
+  androidFcm: testLegacyAndroidFcmFragment,
   androidAppBuildCredentialsList: [testLegacyAndroidBuildCredentialsFragment],
 };
 
@@ -67,11 +82,13 @@ export function getNewAndroidApiMockWithoutCredentials() {
     getLegacyAndroidAppCredentialsWithCommonFieldsAsync: jest.fn(),
     getLegacyAndroidAppBuildCredentialsAsync: jest.fn(),
     createOrGetExistingAndroidAppCredentialsWithBuildCredentialsAsync: jest.fn(),
+    updateAndroidAppCredentialsAsync: jest.fn(),
     updateAndroidAppBuildCredentialsAsync: jest.fn(),
     createAndroidAppBuildCredentialsAsync: jest.fn(),
     getDefaultAndroidAppBuildCredentialsAsync: jest.fn(),
     getAndroidAppBuildCredentialsByNameAsync: jest.fn(),
     createOrUpdateAndroidAppBuildCredentialsByNameAsync: jest.fn(),
     createKeystoreAsync: jest.fn(),
+    createFcmAsync: jest.fn(),
   };
 }

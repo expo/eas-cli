@@ -1,5 +1,7 @@
 import {
   AndroidAppBuildCredentialsFragment,
+  AndroidFcmFragment,
+  AndroidFcmVersion,
   AndroidKeystoreFragment,
   AppFragment,
   CommonAndroidAppCredentialsFragment,
@@ -9,6 +11,7 @@ import { AppQuery } from '../../ios/api/graphql/queries/AppQuery';
 import { KeystoreWithType } from '../credentials';
 import { AndroidAppBuildCredentialsMutation } from './graphql/mutations/AndroidAppBuildCredentialsMutation';
 import { AndroidAppCredentialsMutation } from './graphql/mutations/AndroidAppCredentialsMutation';
+import { AndroidFcmMutation } from './graphql/mutations/AndroidFcmMutation';
 import { AndroidKeystoreMutation } from './graphql/mutations/AndroidKeystoreMutation';
 import { AndroidAppCredentialsQuery } from './graphql/queries/AndroidAppCredentialsQuery';
 
@@ -73,13 +76,22 @@ export async function createOrGetExistingAndroidAppCredentialsWithBuildCredentia
   } else {
     const app = await getAppAsync(appLookupParams);
     return await AndroidAppCredentialsMutation.createAndroidAppCredentialsAsync(
-      {
-        /* fcmKey not supported yet */
-      },
+      {},
       app.id,
       appLookupParams.androidApplicationIdentifier
     );
   }
+}
+
+export async function updateAndroidAppCredentialsAsync(
+  appCredentials: CommonAndroidAppCredentialsFragment,
+  {
+    androidFcmId,
+  }: {
+    androidFcmId: string;
+  }
+): Promise<CommonAndroidAppCredentialsFragment> {
+  return await AndroidAppCredentialsMutation.setFcmKeyAsync(appCredentials.id, androidFcmId);
 }
 
 export async function updateAndroidAppBuildCredentialsAsync(
@@ -191,6 +203,14 @@ export async function createKeystoreAsync(
     },
     account.id
   );
+}
+
+export async function createFcmAsync(
+  account: Account,
+  fcmApiKey: string,
+  version: AndroidFcmVersion
+): Promise<AndroidFcmFragment> {
+  return await AndroidFcmMutation.createAndroidFcm({ credential: fcmApiKey, version }, account.id);
 }
 
 async function getAppAsync(appLookupParams: AppLookupParams): Promise<AppFragment> {

@@ -6,6 +6,7 @@ import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/cl
 import {
   CommonAndroidAppCredentialsFragment,
   CreateAndroidAppCredentialsMutation,
+  SetFcmMutation,
 } from '../../../../../graphql/generated';
 import { CommonAndroidAppCredentialsFragmentNode } from '../../../../../graphql/types/credentials/AndroidAppCredentials';
 
@@ -52,6 +53,34 @@ const AndroidAppCredentialsMutation = {
       'GraphQL: `createAndroidAppCredentials` not defined in server response'
     );
     return data.androidAppCredentials.createAndroidAppCredentials;
+  },
+  async setFcmKeyAsync(
+    androidAppCredentialsId: string,
+    fcmId: string
+  ): Promise<CommonAndroidAppCredentialsFragment> {
+    const data = await withErrorHandlingAsync(
+      graphqlClient
+        .mutation<SetFcmMutation>(
+          gql`
+            mutation SetFcmMutation($androidAppCredentialsId: ID!, $fcmId: ID!) {
+              androidAppCredentials {
+                setFcm(id: $androidAppCredentialsId, fcmId: $fcmId) {
+                  id
+                  ...CommonAndroidAppCredentialsFragment
+                }
+              }
+            }
+            ${print(CommonAndroidAppCredentialsFragmentNode)}
+          `,
+          {
+            androidAppCredentialsId,
+            fcmId,
+          }
+        )
+        .toPromise()
+    );
+    assert(data.androidAppCredentials.setFcm, 'GraphQL: `setFcm` not defined in server response');
+    return data.androidAppCredentials.setFcm;
   },
 };
 
