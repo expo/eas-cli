@@ -9,7 +9,7 @@ import { createCommandContextAsync } from '../../build/context';
 import { buildAsync } from '../../build/create';
 import { RequestedPlatform } from '../../build/types';
 import { isGitStatusCleanAsync } from '../../build/utils/repository';
-import EasCommand from '../../commandUtils/easCommand';
+import EasCommand from '../../commandUtils/EasCommand';
 import Log, { learnMore } from '../../log';
 import {
   isEasEnabledForProjectAsync,

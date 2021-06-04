@@ -1,6 +1,12 @@
-import EasCommand from '../easCommand';
+import EasCommand from '../EasCommand';
 
 export default class TestEasCommand extends EasCommand {
+  requiresAuthentication = this.authValue();
+
+  authValue() {
+    return false;
+  }
+
   async run() {}
 }
 

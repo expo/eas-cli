@@ -7,7 +7,7 @@ import TestEasCommand from './TestEasCommand';
 
 describe(EasCommand.name, () => {
   beforeAll(() => {
-    TestEasCommand.prototype.requiresAuthentication = jest.fn().mockImplementation(() => true);
+    TestEasCommand.prototype.authValue = jest.fn().mockImplementation(() => true);
     jest.mock('../../user/User', () => ({ getUserAsync: jest.fn(() => mockJester) }));
     jest.mock('../../user/actions', () => ({ ensureLoggedInAsync: jest.fn(() => mockJester) }));
     jest.mock('../../analytics', () => {
@@ -36,9 +36,7 @@ describe(EasCommand.name, () => {
     });
 
     it('ensures the user data is read from cache', async () => {
-      (TestEasCommand.prototype.requiresAuthentication as jest.Mock).mockImplementationOnce(
-        () => false
-      );
+      (TestEasCommand.prototype.authValue as jest.Mock).mockImplementationOnce(() => false);
 
       await TestEasCommand.run();
 
@@ -69,7 +67,7 @@ describe(EasCommand.name, () => {
   describe('after exceptions', () => {
     it('flushes analytics', async () => {
       try {
-        await TestEasCommand.run().then(_ => {
+        await TestEasCommand.run().then(() => {
           throw new Error('foo');
         });
       } catch (error) {}

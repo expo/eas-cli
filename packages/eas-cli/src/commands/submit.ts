@@ -1,7 +1,7 @@
 import { getConfig } from '@expo/config';
 import { flags } from '@oclif/command';
 
-import EasCommand from '../commandUtils/easCommand';
+import EasCommand from '../commandUtils/EasCommand';
 import { AppPlatform } from '../graphql/generated';
 import { learnMore } from '../log';
 import { isEasEnabledForProjectAsync, warnEasUnavailable } from '../project/isEasEnabledForProject';
