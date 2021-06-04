@@ -1,9 +1,11 @@
+import { findApplicationTarget } from '../../../../project/ios/target';
 import { confirmAsync } from '../../../../prompts';
 import { getAppstoreMock, testAuthCtx } from '../../../__tests__/fixtures-appstore';
 import { createCtxMock } from '../../../__tests__/fixtures-context';
 import {
   testDistCertFragmentNoDependencies,
   testProvisioningProfile,
+  testTargets,
 } from '../../../__tests__/fixtures-ios';
 import { MissingCredentialsNonInteractiveError } from '../../../errors';
 import { getAppLookupParamsFromContext } from '../BuildCredentialsUtils';
@@ -22,7 +24,7 @@ describe('CreateProvisioningProfile', () => {
         createProvisioningProfileAsync: jest.fn(() => testProvisioningProfile),
       },
     });
-    const appLookupParams = getAppLookupParamsFromContext(ctx);
+    const appLookupParams = getAppLookupParamsFromContext(ctx, findApplicationTarget(testTargets));
     const createProvProfAction = new CreateProvisioningProfile(
       appLookupParams,
       testDistCertFragmentNoDependencies
@@ -38,7 +40,7 @@ describe('CreateProvisioningProfile', () => {
     const ctx = createCtxMock({
       nonInteractive: true,
     });
-    const appLookupParams = getAppLookupParamsFromContext(ctx);
+    const appLookupParams = getAppLookupParamsFromContext(ctx, findApplicationTarget(testTargets));
     const createProvProfAction = new CreateProvisioningProfile(
       appLookupParams,
       testDistCertFragmentNoDependencies

@@ -1,4 +1,7 @@
-import { IosAppBuildCredentialsFragment } from '../../graphql/generated';
+import {
+  CommonIosAppCredentialsFragment,
+  IosAppBuildCredentialsFragment,
+} from '../../graphql/generated';
 import { Account } from '../../user/Account';
 
 export interface App {
@@ -23,3 +26,4 @@ export interface TargetCredentials {
 export type IosCredentials = Record<string, TargetCredentials>;
 
 export type IosAppBuildCredentialsMap = Record<string, IosAppBuildCredentialsFragment>;
+export type IosAppCredentialsMap = Record<string, CommonIosAppCredentialsFragment | null>;

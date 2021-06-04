@@ -1,6 +1,7 @@
 import nullthrows from 'nullthrows';
 
 import { IosDistributionType } from '../../../../graphql/generated';
+import { findApplicationTarget } from '../../../../project/ios/target';
 import { confirmAsync } from '../../../../prompts';
 import { getAppstoreMock, testAuthCtx } from '../../../__tests__/fixtures-appstore';
 import { createCtxMock } from '../../../__tests__/fixtures-context';
@@ -9,6 +10,7 @@ import {
   testAppleAppIdentifierFragment,
   testIosAppBuildCredentialsFragment,
   testIosAppCredentialsWithBuildCredentialsQueryResult,
+  testTargets,
 } from '../../../__tests__/fixtures-ios';
 import { MissingCredentialsNonInteractiveError } from '../../../errors';
 import { validateProvisioningProfileAsync } from '../../validators/validateProvisioningProfile';
@@ -50,7 +52,7 @@ describe('SetupProvisioningProfile', () => {
         ),
       },
     });
-    const appLookupParams = getAppLookupParamsFromContext(ctx);
+    const appLookupParams = getAppLookupParamsFromContext(ctx, findApplicationTarget(testTargets));
     const setupProvisioningProfileAction = new SetupProvisioningProfile(
       appLookupParams,
       IosDistributionType.AppStore
@@ -80,7 +82,7 @@ describe('SetupProvisioningProfile', () => {
         createOrGetExistingAppleAppIdentifierAsync: jest.fn(() => testAppleAppIdentifierFragment),
       },
     });
-    const appLookupParams = getAppLookupParamsFromContext(ctx);
+    const appLookupParams = getAppLookupParamsFromContext(ctx, findApplicationTarget(testTargets));
     const setupProvisioningProfileAction = new SetupProvisioningProfile(
       appLookupParams,
       IosDistributionType.AppStore
@@ -110,7 +112,7 @@ describe('SetupProvisioningProfile', () => {
         createOrGetExistingAppleAppIdentifierAsync: jest.fn(() => testAppleAppIdentifierFragment),
       },
     });
-    const appLookupParams = getAppLookupParamsFromContext(ctx);
+    const appLookupParams = getAppLookupParamsFromContext(ctx, findApplicationTarget(testTargets));
     const setupProvisioningProfileAction = new SetupProvisioningProfile(
       appLookupParams,
       IosDistributionType.AppStore
@@ -136,7 +138,7 @@ describe('SetupProvisioningProfile', () => {
         createOrGetExistingAppleAppIdentifierAsync: jest.fn(() => testAppleAppIdentifierFragment),
       },
     });
-    const appLookupParams = getAppLookupParamsFromContext(ctx);
+    const appLookupParams = getAppLookupParamsFromContext(ctx, findApplicationTarget(testTargets));
     const setupProvisioningProfileAction = new SetupProvisioningProfile(
       appLookupParams,
       IosDistributionType.AppStore
@@ -153,7 +155,7 @@ describe('SetupProvisioningProfile', () => {
     const ctx = createCtxMock({
       nonInteractive: true,
     });
-    const appLookupParams = getAppLookupParamsFromContext(ctx);
+    const appLookupParams = getAppLookupParamsFromContext(ctx, findApplicationTarget(testTargets));
     const setupProvisioningProfileAction = new SetupProvisioningProfile(
       appLookupParams,
       IosDistributionType.AppStore

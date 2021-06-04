@@ -1,36 +1,26 @@
-import { EasConfig } from '@expo/eas-json';
-import uniq from 'lodash/uniq';
+import { IosBuildProfile } from '@expo/eas-json';
 
-import {
-  CommonIosAppCredentialsFragment,
-  IosDistributionType as IosDistributionTypeGraphql,
-} from '../../graphql/generated';
+import { IosDistributionType as IosDistributionTypeGraphql } from '../../graphql/generated';
 import { promptAsync } from '../../prompts';
 import { Context } from '../context';
 
 export class SelectIosDistributionTypeGraphqlFromBuildProfile {
-  constructor(private easConfig: EasConfig) {}
-  async runAsync(
-    ctx: Context,
-    iosAppCredentials: CommonIosAppCredentialsFragment | null
-  ): Promise<IosDistributionTypeGraphql> {
-    const iosDistributionTypeEasConfig = this.easConfig.builds.ios?.distribution;
-    if (!iosDistributionTypeEasConfig) {
-      throw new Error(`The distributionType field is required in your iOS build profile`);
-    }
-    if (iosDistributionTypeEasConfig === 'simulator') {
+  constructor(private buildProfile: IosBuildProfile) {}
+
+  async runAsync(ctx: Context): Promise<IosDistributionTypeGraphql> {
+    const { distribution } = this.buildProfile;
+    if (distribution === 'simulator') {
       throw new Error('A simulator distribution does not require credentials to be configured.');
-    } else if (iosDistributionTypeEasConfig === 'store') {
+    } else if (distribution === 'store') {
       return IosDistributionTypeGraphql.AppStore;
-    } else return this.resolveInternalDistributionAsync(ctx, iosAppCredentials);
+    } else {
+      return this.resolveInternalDistributionAsync(ctx);
+    }
   }
 
-  async resolveInternalDistributionAsync(
-    ctx: Context,
-    iosAppCredentials: CommonIosAppCredentialsFragment | null
-  ): Promise<IosDistributionTypeGraphql> {
+  async resolveInternalDistributionAsync(ctx: Context): Promise<IosDistributionTypeGraphql> {
     // check if the type is specified in eas config
-    const maybeEnterpriseProvisioning = this.easConfig.builds.ios?.enterpriseProvisioning;
+    const maybeEnterpriseProvisioning = this.buildProfile.enterpriseProvisioning;
     if (maybeEnterpriseProvisioning) {
       switch (maybeEnterpriseProvisioning) {
         case 'universal':
@@ -48,21 +38,6 @@ export class SelectIosDistributionTypeGraphqlFromBuildProfile {
     const isDefinitelyNotAnEnterpriseAccount = ctx.appStore.authCtx?.team.inHouse === false;
     if (isDefinitelyNotAnEnterpriseAccount) {
       return IosDistributionTypeGraphql.AdHoc;
-    }
-
-    // extrapolate type from existing app credentials
-    const iosAppBuildCredentialsList = iosAppCredentials?.iosAppBuildCredentialsList ?? [];
-    const existingInternalIosDistributionTypes = uniq(
-      iosAppBuildCredentialsList
-        .map(buildCredentials => buildCredentials.iosDistributionType)
-        .filter(
-          distributionTypeGraphql =>
-            distributionTypeGraphql === IosDistributionTypeGraphql.AdHoc ||
-            distributionTypeGraphql === IosDistributionTypeGraphql.Enterprise
-        )
-    );
-    if (existingInternalIosDistributionTypes.length === 1) {
-      return existingInternalIosDistributionTypes[0];
     }
 
     if (ctx.nonInteractive) {

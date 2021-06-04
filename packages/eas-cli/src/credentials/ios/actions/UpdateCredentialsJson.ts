@@ -1,18 +1,19 @@
-import { IosDistributionType as IosDistributionTypeGraphql } from '../../../graphql/generated';
+import { IosDistributionType } from '../../../graphql/generated';
 import Log from '../../../log';
 import { Context } from '../../context';
 import { updateIosCredentialsAsync } from '../../credentialsJson/update';
-import { AppLookupParams } from '../api/GraphqlClient';
+import { App, Target } from '../types';
 
 export class UpdateCredentialsJson {
   constructor(
-    private app: AppLookupParams,
-    private iosDistributionTypeGraphql: IosDistributionTypeGraphql
+    private app: App,
+    private targets: Target[],
+    private distributionType: IosDistributionType
   ) {}
 
   async runAsync(ctx: Context): Promise<void> {
     Log.log('Updating iOS credentials in credentials.json');
-    await updateIosCredentialsAsync(ctx, this.app, this.iosDistributionTypeGraphql);
+    await updateIosCredentialsAsync(ctx, this.app, this.targets, this.distributionType);
     Log.succeed(
       'iOS part of your local credentials.json is synced with values stored on EAS servers.'
     );

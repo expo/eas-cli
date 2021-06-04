@@ -15,6 +15,7 @@ import {
   PushKey,
 } from '../ios/appstore/Credentials.types';
 import { IosDistCredentials, IosPushCredentials } from '../ios/credentials';
+import { Target } from '../ios/types';
 import { testProvisioningProfileBase64 } from './fixtures-base64-data';
 import { testBundleIdentifier, testExperienceName } from './fixtures-constants';
 
@@ -39,6 +40,8 @@ export const testAppFragment: AppFragment = {
   fullName: '@testuser/testapp',
   slug: 'testapp',
 };
+
+export const testTargets: Target[] = [{ targetName: 'testapp', bundleIdentifier: 'foo.bar.com' }];
 
 export const testProvisioningProfileFragment: AppleProvisioningProfileFragment = {
   id: 'test-prov-prof-id-1',

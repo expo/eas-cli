@@ -1,79 +1,22 @@
-import Joi from '@hapi/joi';
 import fs from 'fs-extra';
 import path from 'path';
 
-import { Keystore } from '../android/credentials';
-
-interface CredentialsJsonIosCredentials {
-  provisioningProfilePath: string;
-  distributionCertificate: {
-    path: string;
-    password: string;
-  };
-}
-export interface CredentialsJson {
-  android?: {
-    keystore: {
-      keystorePath: string;
-      keystorePassword: string;
-      keyAlias: string;
-      keyPassword?: string;
-    };
-  };
-  ios?: CredentialsJsonIosCredentials | Record<string, CredentialsJsonIosCredentials>;
-  experimental?: {
-    npmToken?: string;
-  };
-}
-
-const IosTargetCredentials = Joi.object({
-  provisioningProfilePath: Joi.string().required(),
-  distributionCertificate: Joi.object({
-    path: Joi.string().required(),
-    password: Joi.string().allow('').required(),
-  }).required(),
-});
-
-const CredentialsJsonSchema = Joi.object({
-  android: Joi.object({
-    keystore: Joi.object({
-      keystorePath: Joi.string().required(),
-      keystorePassword: Joi.string().allow('').required(),
-      keyAlias: Joi.string().required(),
-      keyPassword: Joi.string().allow(''),
-    }).required(),
-  }),
-  ios: [
-    IosTargetCredentials,
-    Joi.object().pattern(Joi.string().required(), IosTargetCredentials.required()),
-  ],
-  experimental: Joi.object({
-    npmToken: Joi.string(),
-  }),
-});
-
-interface AndroidCredentials {
-  keystore: Keystore;
-}
-
-export interface IosTargetCredentials {
-  provisioningProfile: string;
-  distributionCertificate: {
-    certificateP12: string;
-    certificatePassword: string;
-  };
-}
-export type IosTargetCredentialsMap = Record<string, IosTargetCredentials>;
-export type IosCredentials = IosTargetCredentials | IosTargetCredentialsMap;
-
-export async function fileExistsAsync(projectDir: string): Promise<boolean> {
-  return await fs.pathExists(path.join(projectDir, 'credentials.json'));
-}
+import { Target } from '../ios/types';
+import {
+  AndroidCredentials,
+  CredentialsJson,
+  CredentialsJsonIosCredentials,
+  CredentialsJsonIosTargetCredentials,
+  CredentialsJsonSchema,
+  IosCredentials,
+  IosTargetCredentials,
+} from './types';
+import { getCredentialsJsonPath } from './utils';
 
 export async function readAndroidCredentialsAsync(projectDir: string): Promise<AndroidCredentials> {
   const credentialsJson = await readAsync(projectDir);
   if (!credentialsJson.android) {
-    throw new Error('Android credentials are missing from credentials.json');
+    throw new Error('Android credentials are missing in credentials.json');
   }
   const keystoreInfo = credentialsJson.android.keystore;
   return {
@@ -86,40 +29,45 @@ export async function readAndroidCredentialsAsync(projectDir: string): Promise<A
   };
 }
 
-export async function readIosCredentialsAsync(projectDir: string): Promise<IosCredentials> {
+export async function readIosCredentialsAsync(
+  projectDir: string,
+  applicationTarget: Target
+): Promise<IosCredentials> {
   const credentialsJson = await readAsync(projectDir);
   if (!credentialsJson.ios) {
-    throw new Error('iOS credentials are missing from credentials.json');
+    throw new Error('iOS credentials are missing in credentials.json');
   }
 
-  if (!isInternalCredentialsMap(credentialsJson.ios)) {
-    return await readCredentialsForTargetAsync(projectDir, credentialsJson.ios);
-  } else {
+  if (isCredentialsMap(credentialsJson.ios)) {
     const targets = Object.keys(credentialsJson.ios);
-    const targetCredentialsMap: IosTargetCredentialsMap = {};
+    const iosCredentials: IosCredentials = {};
     for (const target of targets) {
-      targetCredentialsMap[target] = await readCredentialsForTargetAsync(
+      iosCredentials[target] = await readCredentialsForTargetAsync(
         projectDir,
         credentialsJson.ios[target]
       );
     }
-    return targetCredentialsMap;
+    return iosCredentials;
+  } else {
+    const applicationTargetCredentials = await readCredentialsForTargetAsync(
+      projectDir,
+      credentialsJson.ios
+    );
+    return {
+      [applicationTarget.targetName]: applicationTargetCredentials,
+    };
   }
 }
 
-function isInternalCredentialsMap(
-  ios: CredentialsJsonIosCredentials | Record<string, CredentialsJsonIosCredentials>
-): ios is Record<string, CredentialsJsonIosCredentials> {
+function isCredentialsMap(
+  ios: CredentialsJsonIosTargetCredentials | CredentialsJsonIosCredentials
+): ios is CredentialsJsonIosCredentials {
   return typeof ios.provisioningProfilePath !== 'string';
-}
-
-export function isCredentialsMap(ios: IosCredentials): ios is IosTargetCredentialsMap {
-  return typeof ios.provisioningProfile !== 'string';
 }
 
 async function readCredentialsForTargetAsync(
   projectDir: string,
-  targetCredentials: CredentialsJsonIosCredentials
+  targetCredentials: CredentialsJsonIosTargetCredentials
 ): Promise<IosTargetCredentials> {
   return {
     provisioningProfile: await fs.readFile(
@@ -139,7 +87,7 @@ async function readCredentialsForTargetAsync(
 export async function readEnvironmentSecretsAsync(
   projectDir: string
 ): Promise<Record<string, string> | undefined> {
-  if (!(await fileExistsAsync(projectDir))) {
+  if (!(await fs.pathExists(getCredentialsJsonPath(projectDir)))) {
     return undefined;
   }
   const credentialsJson = await readAsync(projectDir);
@@ -162,8 +110,18 @@ async function readAsync(projectDir: string): Promise<CredentialsJson> {
   return credentialsJson;
 }
 
-export async function readRawAsync(projectDir: string): Promise<any> {
-  const credentialsJsonFilePath = path.join(projectDir, 'credentials.json');
+export async function readRawAsync(
+  projectDir: string,
+  { throwIfMissing = true } = {}
+): Promise<any> {
+  const credentialsJsonFilePath = getCredentialsJsonPath(projectDir);
+  if (!(await fs.pathExists(credentialsJsonFilePath))) {
+    if (throwIfMissing) {
+      throw new Error('credentials.json does not exist in the project root directory');
+    } else {
+      return null;
+    }
+  }
   try {
     const credentialsJSONContents = await fs.readFile(credentialsJsonFilePath, 'utf8');
     return JSON.parse(credentialsJSONContents);

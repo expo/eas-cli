@@ -3,7 +3,6 @@ import dateformat from 'dateformat';
 
 import {
   AppleDeviceFragment,
-  CommonIosAppCredentialsFragment,
   IosAppBuildCredentialsFragment,
   IosDistributionType,
 } from '../../../graphql/generated';
@@ -11,7 +10,7 @@ import { APPLE_DEVICE_CLASS_LABELS } from '../../../graphql/types/credentials/Ap
 import Log from '../../../log';
 import { fromNow } from '../../../utils/date';
 import { AppLookupParams } from '../api/GraphqlClient';
-import { App, IosAppBuildCredentialsMap, Target } from '../types';
+import { App, IosAppBuildCredentialsMap, IosAppCredentialsMap, Target } from '../types';
 
 function prettyIosDistributionType(distributionType: IosDistributionType): string {
   switch (distributionType) {
@@ -58,33 +57,51 @@ function sortBuildCredentialsByDistributionType(
     .reverse();
 }
 
-export function displayIosAppCredentials(credentials: CommonIosAppCredentialsFragment): void {
-  Log.log(chalk.bold(`iOS Credentials`));
-  Log.log(`  Project: ${credentials.app.fullName}`);
-  Log.log(`  Bundle Identifier: ${credentials.appleAppIdentifier.bundleIdentifier}`);
-  const appleTeam = credentials.appleTeam;
-  if (appleTeam) {
-    const { appleTeamIdentifier, appleTeamName } = appleTeam;
-    Log.log(`  Apple Team: ${appleTeamIdentifier} ${appleTeamName ? `(${appleTeamName})` : ''}`);
-  }
-  Log.newLine();
+export function displayIosCredentials(
+  app: App,
+  appCredentials: IosAppCredentialsMap,
+  targets: Target[]
+): void {
+  const projectFullName = `@${app.account.name}/${app.projectName}`;
+  const areMultitarget = targets.length > 1;
 
-  if (credentials.iosAppBuildCredentialsList.length === 0) {
-    Log.log(`  Configuration: None setup yet`);
+  Log.log(chalk.bold(`iOS Credentials`));
+  Log.addNewLineIfNone();
+  Log.log(`  Project: ${chalk.bold(projectFullName)}`);
+
+  for (const { targetName, bundleIdentifier } of targets) {
+    if (areMultitarget) {
+      Log.newLine();
+      Log.log(`  Target: ${chalk.bold(targetName)}`);
+    }
+    Log.log(`  Bundle Identifier: ${chalk.bold(bundleIdentifier)}`);
+    const targetAppCredentials = appCredentials[targetName];
+    if (!targetAppCredentials || targetAppCredentials.iosAppBuildCredentialsList.length === 0) {
+      Log.newLine();
+      Log.log(`  No credentials set up yet!`);
+      Log.newLine();
+      continue;
+    }
+
+    const { appleTeam } = targetAppCredentials;
+    if (appleTeam) {
+      const { appleTeamIdentifier, appleTeamName } = appleTeam;
+      Log.log(`  Apple Team: ${appleTeamIdentifier} ${appleTeamName ? `(${appleTeamName})` : ''}`);
+    }
     Log.newLine();
-    return;
-  }
-  const sortedIosAppBuildCredentialsList = sortBuildCredentialsByDistributionType(
-    credentials.iosAppBuildCredentialsList
-  );
-  for (const iosAppBuildCredentials of sortedIosAppBuildCredentialsList) {
-    displayIosAppBuildCredentials(iosAppBuildCredentials);
+
+    const sortedIosAppBuildCredentialsList = sortBuildCredentialsByDistributionType(
+      targetAppCredentials.iosAppBuildCredentialsList
+    );
+    for (const iosAppBuildCredentials of sortedIosAppBuildCredentialsList) {
+      displayIosAppBuildCredentials(iosAppBuildCredentials);
+    }
   }
 }
 
 export function displayProjectCredentials(
   app: App,
-  iosCredentials: IosAppBuildCredentialsMap,
+  appBuildCredentials: IosAppBuildCredentialsMap,
   targets: Target[]
 ): void {
   const projectFullName = `@${app.account.name}/${app.projectName}`;
@@ -92,12 +109,12 @@ export function displayProjectCredentials(
     acc[target.targetName] = target.bundleIdentifier;
     return acc;
   }, {});
-  const areMultitarget = Object.keys(iosCredentials).length > 1;
+  const areMultitarget = targets.length > 1;
 
   Log.addNewLineIfNone();
   Log.log(chalk.bold('Project Credentials Configuration:'));
   Log.log(`  Project: ${chalk.bold(projectFullName)}`);
-  for (const [targetName, buildCredentials] of Object.entries(iosCredentials)) {
+  for (const [targetName, buildCredentials] of Object.entries(appBuildCredentials)) {
     if (areMultitarget) {
       Log.newLine();
       Log.log(`  Target: ${chalk.bold(targetName)}`);

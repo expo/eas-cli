@@ -1,9 +1,10 @@
 import { Platform } from '@expo/eas-build-job';
 import { CredentialsSource, IosDistributionType, IosEnterpriseProvisioning } from '@expo/eas-json';
-import nullthrows from 'nullthrows';
 
+import { findApplicationTarget } from '../../project/ios/target';
 import { Context } from '../context';
 import * as credentialsJsonReader from '../credentialsJson/read';
+import { ensureAllTargetsAreConfigured } from '../credentialsJson/utils';
 import { SetupBuildCredentials } from './actions/SetupBuildCredentials';
 import { IosCapabilitiesOptions } from './appstore/ensureAppExists';
 import { App, IosCredentials, Target } from './types';
@@ -33,37 +34,19 @@ export default class IosCredentialsProvider {
   }
 
   private async getLocalAsync(): Promise<IosCredentials> {
-    const mainTarget = nullthrows(
-      this.options.targets.find(({ parentBundleIdentifier }) => !parentBundleIdentifier),
-      'Could not find the application target'
+    const applicationTarget = findApplicationTarget(this.options.targets);
+    const iosCredentials = await credentialsJsonReader.readIosCredentialsAsync(
+      this.ctx.projectDir,
+      applicationTarget
     );
-
-    const iosTargetCredentialsMap = this.enforceIosTargetCredentialsMap(
-      await credentialsJsonReader.readIosCredentialsAsync(this.ctx.projectDir),
-      mainTarget
-    );
-
-    const notConfiguredTargets: string[] = [];
+    ensureAllTargetsAreConfigured(this.options.targets, iosCredentials);
     for (const target of this.options.targets) {
-      if (!(target.targetName in iosTargetCredentialsMap)) {
-        notConfiguredTargets.push(target.targetName);
-        continue;
-      }
       this.assertProvisioningProfileType(
-        iosTargetCredentialsMap[target.targetName].provisioningProfile,
+        iosCredentials[target.targetName].provisioningProfile,
         target.targetName
       );
     }
-
-    if (notConfiguredTargets.length > 0) {
-      throw new Error(
-        `Credentials for target${
-          notConfiguredTargets.length === 1 ? '' : 's'
-        } ${notConfiguredTargets.map(i => `'${i}'`).join(',')} are not defined in credentials.json`
-      );
-    }
-
-    return iosTargetCredentialsMap;
+    return iosCredentials;
   }
 
   private async getRemoteAsync(): Promise<IosCredentials> {
@@ -74,19 +57,6 @@ export default class IosCredentialsProvider {
       enterpriseProvisioning: this.options.enterpriseProvisioning,
       iosCapabilitiesOptions: this.options.iosCapabilitiesOptions,
     }).runAsync(this.ctx);
-  }
-
-  private enforceIosTargetCredentialsMap(
-    iosCredentials: credentialsJsonReader.IosCredentials,
-    mainTarget: Target
-  ): credentialsJsonReader.IosTargetCredentialsMap {
-    if (credentialsJsonReader.isCredentialsMap(iosCredentials)) {
-      return iosCredentials;
-    } else {
-      return {
-        [mainTarget.targetName]: iosCredentials,
-      };
-    }
   }
 
   private assertProvisioningProfileType(provisioningProfile: string, targetName?: string): void {

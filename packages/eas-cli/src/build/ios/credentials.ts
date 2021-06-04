@@ -1,10 +1,8 @@
-import nullthrows from 'nullthrows';
-
 import { createCredentialsContextAsync } from '../../credentials/context';
 import IosCredentialsProvider from '../../credentials/ios/IosCredentialsProvider';
+import { getAppFromContext } from '../../credentials/ios/actions/BuildCredentialsUtils';
 import { resolveEntitlementsJsonAsync } from '../../credentials/ios/appstore/entitlements';
 import { IosCredentials, Target } from '../../credentials/ios/types';
-import { findAccountByName } from '../../user/Account';
 import { CredentialsResult } from '../build';
 import { BuildContext } from '../context';
 import { Platform } from '../types';
@@ -25,13 +23,7 @@ export async function ensureIosCredentialsAsync(
   });
 
   const provider = new IosCredentialsProvider(ctx, {
-    app: {
-      account: nullthrows(
-        findAccountByName(ctx.user.accounts, buildCtx.commandCtx.accountName),
-        `You do not have access to account: ${buildCtx.commandCtx.accountName}`
-      ),
-      projectName: buildCtx.commandCtx.projectName,
-    },
+    app: getAppFromContext(ctx),
     targets,
     iosCapabilitiesOptions: {
       entitlements: await resolveEntitlementsJsonAsync(
