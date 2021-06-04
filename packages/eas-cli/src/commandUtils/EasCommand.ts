@@ -1,6 +1,11 @@
 import { Command } from '@oclif/command';
 
-import * as Analytics from '../analytics';
+import {
+  AnalyticsEvent,
+  flushAsync as flushAnalyticsAsync,
+  initAsync as initAnalyticsAsync,
+  logEvent,
+} from '../analytics';
 import { getUserAsync } from '../user/User';
 import { ensureLoggedInAsync } from '../user/actions';
 
@@ -12,20 +17,20 @@ export default abstract class EasCommand extends Command {
   protected requiresAuthentication = true;
 
   async init() {
-    await Analytics.initAsync();
+    await initAnalyticsAsync();
 
     if (this.requiresAuthentication) {
       await ensureLoggedInAsync();
     } else {
       await getUserAsync();
     }
-    Analytics.logEvent(Analytics.AnalyticsEvent.ACTION, {
+    logEvent(AnalyticsEvent.ACTION, {
       action: `eas ${this.id}`,
     });
   }
 
   async finally(err: Error) {
-    await Analytics.flushAsync();
+    await flushAnalyticsAsync();
     return super.finally(err);
   }
 }
