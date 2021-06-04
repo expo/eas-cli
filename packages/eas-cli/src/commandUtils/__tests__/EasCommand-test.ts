@@ -2,7 +2,7 @@ import { flushAsync, initAsync, logEvent } from '../../analytics';
 import { jester as mockJester } from '../../credentials/__tests__/fixtures-constants';
 import { getUserAsync } from '../../user/User';
 import { ensureLoggedInAsync } from '../../user/actions';
-import EasCommand from '../easCommand';
+import EasCommand from '../EasCommand';
 import TestEasCommand from './TestEasCommand';
 
 describe(EasCommand.name, () => {
