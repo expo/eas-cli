@@ -1697,6 +1697,18 @@
             "deprecationReason": null
           },
           {
+            "name": "subscription",
+            "description": "Subscription info visible to members that have VIEWER role",
+            "args": [],
+            "type": {
+              "kind": "OBJECT",
+              "name": "SubscriptionDetails",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "appleTeams",
             "description": "iOS credentials for account",
             "args": [
@@ -14962,13 +14974,9 @@
             "name": "appleTeamName",
             "description": "",
             "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "SCALAR",
-                "name": "String",
-                "ofType": null
-              }
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
             },
             "defaultValue": null
           }
