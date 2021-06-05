@@ -6,7 +6,6 @@ import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/cl
 import {
   AndroidKeystoreFragment,
   AndroidKeystoreInput,
-  AndroidKeystoreType,
   CreateAndroidKeystoreMutation,
 } from '../../../../../graphql/generated';
 import { AndroidKeystoreFragmentNode } from '../../../../../graphql/types/credentials/AndroidKeystore';
