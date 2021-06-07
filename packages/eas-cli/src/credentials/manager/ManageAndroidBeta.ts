@@ -1,17 +1,25 @@
 import Log from '../../log';
 import { getProjectAccountName } from '../../project/projectUtils';
+import { promptAsync } from '../../prompts';
 import { findAccountByName } from '../../user/Account';
 import { ensureActorHasUsername } from '../../user/actions';
 import { Action, CredentialsManager } from '../CredentialsManager';
 import { getAppLookupParamsFromContext } from '../android/actions/BuildCredentialsUtils';
+import { CreateKeystore } from '../android/actions/new/CreateKeystore';
 import {
   displayAndroidAppCredentials,
   displayEmptyAndroidCredentials,
 } from '../android/utils/printCredentialsBeta';
 import { Context } from '../context';
 import { PressAnyKeyToContinue } from './HelperActions';
+import {
+  SelectAndroidBuildCredentials,
+  SelectAndroidBuildCredentialsResultType,
+} from './SelectAndroidBuildCredentials';
 
-enum ActionType {}
+enum ActionType {
+  CreateKeystore,
+}
 
 enum Scope {
   Project,
@@ -52,7 +60,41 @@ export class ManageAndroid implements Action {
           } else {
             displayAndroidAppCredentials({ appLookupParams, legacyAppCredentials, appCredentials });
           }
-          throw new Error('Not Implemented Yet');
+        }
+        const actions: { value: ActionType; title: string }[] = [
+          {
+            value: ActionType.CreateKeystore,
+            title: 'Set up a new keystore',
+          },
+        ];
+        const { action: chosenAction } = await promptAsync({
+          type: 'select',
+          name: 'action',
+          message: 'What do you want to do?',
+          choices: actions,
+        });
+        if (chosenAction === ActionType.CreateKeystore) {
+          const appLookupParams = getAppLookupParamsFromContext(ctx);
+          const selectBuildCredentialsResult = await new SelectAndroidBuildCredentials(
+            appLookupParams
+          ).runAsync(ctx);
+          const keystore = await new CreateKeystore(appLookupParams.account).runAsync(ctx);
+          if (
+            selectBuildCredentialsResult.resultType ===
+            SelectAndroidBuildCredentialsResultType.CREATE_REQUEST
+          ) {
+            await ctx.newAndroid.createAndroidAppBuildCredentialsAsync(appLookupParams, {
+              ...selectBuildCredentialsResult.result,
+              androidKeystoreId: keystore.id,
+            });
+          } else {
+            await ctx.newAndroid.updateAndroidAppBuildCredentialsAsync(
+              selectBuildCredentialsResult.result,
+              {
+                androidKeystoreId: keystore.id,
+              }
+            );
+          }
         }
       } catch (err) {
         Log.error(err);

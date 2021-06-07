@@ -5,18 +5,19 @@ import gql from 'graphql-tag';
 import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
 import {
   AndroidAppBuildCredentialsFragment,
+  AndroidAppBuildCredentialsInput,
   CreateAndroidAppBuildCredentialsMutation,
   SetKeystoreMutation,
 } from '../../../../../graphql/generated';
 import { AndroidAppBuildCredentialsFragmentNode } from '../../../../../graphql/types/credentials/AndroidAppBuildCredentials';
 
+export type AndroidAppBuildCredentialsMetadataInput = Omit<
+  AndroidAppBuildCredentialsInput,
+  'keystoreId'
+>;
 const AndroidAppBuildCredentialsMutation = {
   async createAndroidAppBuildCredentialsAsync(
-    androidAppBuildCredentialsInput: {
-      isDefault: boolean;
-      name: string;
-      keystoreId: string;
-    },
+    androidAppBuildCredentialsInput: AndroidAppBuildCredentialsInput,
     androidAppCredentialsId: string
   ): Promise<AndroidAppBuildCredentialsFragment> {
     const data = await withErrorHandlingAsync(

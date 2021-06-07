@@ -52,6 +52,15 @@ export async function createOrUpdateDefaultAndroidAppBuildCredentialsAsync(
       { androidKeystoreId }
     );
   }
+  const providedName = await promptForNameAsync();
+  return await ctx.newAndroid.createAndroidAppBuildCredentialsAsync(appLookupParams, {
+    name: providedName,
+    isDefault: true,
+    androidKeystoreId,
+  });
+}
+
+export async function promptForNameAsync(): Promise<string> {
   const { providedName } = await promptAsync({
     type: 'text',
     name: 'providedName',
@@ -59,10 +68,23 @@ export async function createOrUpdateDefaultAndroidAppBuildCredentialsAsync(
     initial: generateRandomName(),
     validate: (input: string) => input !== '',
   });
-  return await ctx.newAndroid.createAndroidAppBuildCredentialsAsync(appLookupParams, {
-    name: providedName,
-    isDefault: true,
-    androidKeystoreId,
+  return providedName;
+}
+
+/**
+ * sort a build credentials array in descending order of preference
+ * prefer default credentials, then prefer names that come first lexicographically
+ */
+export function sortBuildCredentials(
+  androidAppBuildCredentialsList: AndroidAppBuildCredentialsFragment[]
+): AndroidAppBuildCredentialsFragment[] {
+  return androidAppBuildCredentialsList.sort((buildCredentialsA, buildCredentialsB) => {
+    if (buildCredentialsA.isDefault) {
+      return -1;
+    } else if (buildCredentialsB.isDefault) {
+      return 1;
+    }
+    return buildCredentialsA.name.localeCompare(buildCredentialsB.name);
   });
 }
 

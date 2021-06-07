@@ -9,6 +9,7 @@ import {
 } from '../../../graphql/generated';
 import Log from '../../../log';
 import { fromNow } from '../../../utils/date';
+import { sortBuildCredentials } from '../actions/BuildCredentialsUtils';
 import { AppLookupParams } from '../api/GraphqlClient';
 
 export function displayEmptyAndroidCredentials(appLookupParams: AppLookupParams): void {
@@ -17,23 +18,6 @@ export function displayEmptyAndroidCredentials(appLookupParams: AppLookupParams)
   Log.log(`  Project: ${projectName}`);
   Log.log(`  Application Identifier: ${androidApplicationIdentifier}`);
   Log.log(`  No credentials set up yet!`);
-}
-
-/**
- * sort a build credentials array in descending order of preference
- * prefer default credentials, then prefer names that come first lexicographically
- */
-function sortBuildCredentials(
-  androidAppBuildCredentialsList: AndroidAppBuildCredentialsFragment[]
-): AndroidAppBuildCredentialsFragment[] {
-  return androidAppBuildCredentialsList.sort((buildCredentialsA, buildCredentialsB) => {
-    if (buildCredentialsA.isDefault) {
-      return -1;
-    } else if (buildCredentialsB.isDefault) {
-      return 1;
-    }
-    return buildCredentialsA.name.localeCompare(buildCredentialsB.name);
-  });
 }
 
 function displayLegacyAndroidAppCredentials(
