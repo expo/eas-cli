@@ -1,6 +1,7 @@
 import { getConfig } from '@expo/config';
-import { Command, flags } from '@oclif/command';
+import { flags } from '@oclif/command';
 
+import EasCommand from '../commandUtils/EasCommand';
 import { AppPlatform } from '../graphql/generated';
 import { learnMore } from '../log';
 import { isEasEnabledForProjectAsync, warnEasUnavailable } from '../project/isEasEnabledForProject';
@@ -9,13 +10,12 @@ import { promptAsync } from '../prompts';
 import AndroidSubmitCommand from '../submissions/android/AndroidSubmitCommand';
 import IosSubmitCommand from '../submissions/ios/IosSubmitCommand';
 import { AndroidSubmitCommandFlags, IosSubmitCommandFlags } from '../submissions/types';
-import { ensureLoggedInAsync } from '../user/actions';
 
 const COMMON_FLAGS = '';
 const ANDROID_FLAGS = 'Android specific options';
 const IOS_FLAGS = 'iOS specific options';
 
-export default class BuildSubmit extends Command {
+export default class BuildSubmit extends EasCommand {
   static description = 'Submits build artifact to app store';
   static usage = 'submit --platform=(android|ios)';
   static aliases = ['build:submit'];
@@ -159,8 +159,6 @@ export default class BuildSubmit extends Command {
         ...flags
       },
     } = this.parse(BuildSubmit);
-
-    await ensureLoggedInAsync();
 
     const platform =
       (flags.platform?.toUpperCase() as AppPlatform | undefined) ??

@@ -96,6 +96,11 @@ function getContext() {
     os_version: os.release(),
     device_brand: platform,
     device_model: platform,
-    app_version: packageJSON?.version,
+    source_version: packageJSON?.version,
+    source: 'eas cli',
   };
+}
+
+export enum AnalyticsEvent {
+  ACTION = 'action', // generic event type which is used to determine the 'daily active user' stat, include an `action: eas ${subcommand}` property inside of the event properties object
 }
