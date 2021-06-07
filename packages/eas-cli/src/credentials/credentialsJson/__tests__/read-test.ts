@@ -247,29 +247,4 @@ describe('credentialsJson', () => {
       });
     });
   });
-
-  describe('readEnvironmentSecretsAsync', () => {
-    it('should read environmentSecrets field correctly', async () => {
-      vol.fromJSON({
-        './credentials.json': JSON.stringify({
-          ios: {
-            provisioningProfilePath: 'pprofile',
-            distributionCertificate: {
-              path: 'cert.p12',
-              password: 'certPass',
-            },
-          },
-          experimental: {
-            npmToken: 'VALUE',
-          },
-        }),
-        './pprofile': 'somebinarycontent',
-        './cert.p12': 'somebinarycontent2',
-      });
-      const result = await credentialsJsonReader.readEnvironmentSecretsAsync('.');
-      expect(result).toEqual({
-        NPM_TOKEN: 'VALUE',
-      });
-    });
-  });
 });

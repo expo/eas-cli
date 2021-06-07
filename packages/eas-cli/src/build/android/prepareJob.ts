@@ -3,7 +3,6 @@ import { AndroidGenericBuildProfile, AndroidManagedBuildProfile } from '@expo/ea
 import path from 'path';
 
 import { AndroidCredentials } from '../../credentials/android/AndroidCredentialsProvider';
-import { readEnvironmentSecretsAsync } from '../../credentials/credentialsJson/read';
 import { getUsername } from '../../project/projectUtils';
 import { ensureLoggedInAsync } from '../../user/actions';
 import { gitRootDirectoryAsync } from '../../utils/git';
@@ -39,7 +38,6 @@ interface CommonJobProperties {
     buildCredentials?: {
       keystore: Android.Keystore;
     };
-    environmentSecrets?: Record<string, string>;
   };
 }
 
@@ -47,8 +45,7 @@ async function prepareJobCommonAsync(
   ctx: BuildContext<Platform.ANDROID>,
   jobData: JobData
 ): Promise<Partial<CommonJobProperties>> {
-  const environmentSecrets = await readEnvironmentSecretsAsync(ctx.commandCtx.projectDir);
-  const credentials = jobData.credentials;
+  const { credentials } = jobData;
   const buildCredentials = credentials
     ? {
         buildCredentials: {
@@ -78,7 +75,6 @@ async function prepareJobCommonAsync(
       clear: ctx.commandCtx.clearCache,
     },
     secrets: {
-      ...(environmentSecrets ? { environmentSecrets } : {}),
       ...buildCredentials,
     },
   };
