@@ -17,10 +17,6 @@ export default class BuildConfigure extends Command {
       char: 'p',
       options: ['android', 'ios', 'all'],
     }),
-    'allow-experimental': flags.boolean({
-      description: 'Enable experimental configuration steps.',
-      default: false,
-    }),
   };
 
   async run() {
@@ -32,20 +28,10 @@ export default class BuildConfigure extends Command {
 
     const platform =
       (flags.platform as RequestedPlatform | undefined) ?? (await promptForPlatformAsync());
-    const allowExperimental = flags['allow-experimental'];
-
-    if (allowExperimental) {
-      Log.warn(
-        `Project configuration will execute some additional steps that might fail if structure of your native project is significantly different from ${chalk.bold(
-          'expo eject'
-        )} or ${chalk.bold('expo init')}`
-      );
-    }
 
     await ensureLoggedInAsync();
     await configureAsync({
       platform,
-      allowExperimental,
       projectDir: (await findProjectRootAsync()) ?? process.cwd(),
     });
 
