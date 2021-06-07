@@ -2,7 +2,11 @@ import { print } from 'graphql';
 import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
-import { AppleTeamFragment, CreateAppleTeamMutation } from '../../../../../graphql/generated';
+import {
+  AppleTeamFragment,
+  AppleTeamInput,
+  CreateAppleTeamMutation,
+} from '../../../../../graphql/generated';
 import { AppleTeamFragmentNode } from '../../../../../graphql/types/credentials/AppleTeam';
 import { Account } from '../../../../../user/Account';
 
@@ -12,10 +16,7 @@ export type AppleTeamMutationResult = AppleTeamFragment & {
 
 const AppleTeamMutation = {
   async createAppleTeamAsync(
-    appleTeamInput: {
-      appleTeamIdentifier: string;
-      appleTeamName?: string;
-    },
+    appleTeamInput: AppleTeamInput,
     accountId: string
   ): Promise<AppleTeamMutationResult> {
     const data = await withErrorHandlingAsync(

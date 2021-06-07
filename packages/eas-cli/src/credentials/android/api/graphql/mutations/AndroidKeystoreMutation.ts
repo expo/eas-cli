@@ -5,20 +5,14 @@ import gql from 'graphql-tag';
 import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
 import {
   AndroidKeystoreFragment,
-  AndroidKeystoreType,
+  AndroidKeystoreInput,
   CreateAndroidKeystoreMutation,
 } from '../../../../../graphql/generated';
 import { AndroidKeystoreFragmentNode } from '../../../../../graphql/types/credentials/AndroidKeystore';
 
 const AndroidKeystoreMutation = {
   async createAndroidKeystore(
-    androidKeystoreInput: {
-      base64EncodedKeystore: string;
-      keystorePassword: string;
-      keyAlias: string;
-      keyPassword?: string;
-      type: AndroidKeystoreType;
-    },
+    androidKeystoreInput: AndroidKeystoreInput,
     accountId: string
   ): Promise<AndroidKeystoreFragment> {
     const data = await withErrorHandlingAsync(

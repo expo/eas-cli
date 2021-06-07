@@ -218,6 +218,8 @@ export type Account = {
   userInvitations: Array<UserInvitation>;
   /** Billing information */
   billing?: Maybe<Billing>;
+  /** Subscription info visible to members that have VIEWER role */
+  subscription?: Maybe<SubscriptionDetails>;
   /** iOS credentials for account */
   appleTeams: Array<AppleTeam>;
   appleAppIdentifiers: Array<AppleAppIdentifier>;
@@ -2274,7 +2276,7 @@ export type AppleTeamMutationCreateAppleTeamArgs = {
 
 export type AppleTeamInput = {
   appleTeamIdentifier: Scalars['String'];
-  appleTeamName: Scalars['String'];
+  appleTeamName?: Maybe<Scalars['String']>;
 };
 
 export type AppMutation = {

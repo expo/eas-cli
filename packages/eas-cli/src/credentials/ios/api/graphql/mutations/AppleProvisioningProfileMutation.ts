@@ -4,6 +4,7 @@ import gql from 'graphql-tag';
 import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
 import {
   AppleProvisioningProfileFragment,
+  AppleProvisioningProfileInput,
   AppleTeamFragment,
   CreateAppleProvisioningProfileMutation,
   UpdateAppleProvisioningProfileMutation,
@@ -17,10 +18,7 @@ export type AppleProvisioningProfileMutationResult = AppleProvisioningProfileFra
 
 const AppleProvisioningProfileMutation = {
   async createAppleProvisioningProfileAsync(
-    appleProvisioningProfileInput: {
-      appleProvisioningProfile: string;
-      developerPortalIdentifier?: string;
-    },
+    appleProvisioningProfileInput: AppleProvisioningProfileInput,
     accountId: string,
     appleAppIdentifierId: string
   ): Promise<AppleProvisioningProfileMutationResult> {
