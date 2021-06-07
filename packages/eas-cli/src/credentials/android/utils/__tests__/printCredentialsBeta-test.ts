@@ -20,7 +20,6 @@ describe('print credentials', () => {
     const appLookupParams = getAppLookupParamsFromContext(ctx);
     displayAndroidAppCredentials({
       appLookupParams,
-      legacyAppCredentials: testLegacyAndroidAppCredentialsFragment,
       appCredentials: testAndroidAppCredentialsFragment,
     });
     const loggedSoFar = (Log.log as jest.Mock).mock.calls.reduce(
