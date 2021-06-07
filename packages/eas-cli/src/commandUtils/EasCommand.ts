@@ -25,6 +25,8 @@ export default abstract class EasCommand extends Command {
       await getUserAsync();
     }
     logEvent(AnalyticsEvent.ACTION, {
+      // id is assigned by oclif in constructor based on the filepath:
+      // commands/submit === submit, commands/build/list === build:list
       action: `eas ${this.id}`,
     });
   }
