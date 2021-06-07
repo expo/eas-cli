@@ -8,7 +8,11 @@ import Log from '../../../../log';
 import { Context } from '../../../context';
 import { MissingCredentialsNonInteractiveError } from '../../../errors';
 import { AppLookupParams } from '../../api/GraphqlClient';
-import { createOrUpdateDefaultAndroidAppBuildCredentialsAsync } from '../BuildCredentialsUtils';
+import {
+  canCopyLegacyCredentialsAsync,
+  createOrUpdateDefaultAndroidAppBuildCredentialsAsync,
+  promptUserAndCopyLegacyCredentialsAsync,
+} from '../BuildCredentialsUtils';
 import { CreateKeystore } from './CreateKeystore';
 
 interface Options {
@@ -25,6 +29,13 @@ export class SetupBuildCredentials {
 
   async runAsync(ctx: Context): Promise<AndroidAppBuildCredentialsFragment> {
     const { app, name: maybeName } = this.options;
+
+    // copy legacy credentials if user is new to EAS and has legacy credentials
+    const canCopyLegacyCredentials = await canCopyLegacyCredentialsAsync(ctx, app);
+    if (canCopyLegacyCredentials) {
+      await promptUserAndCopyLegacyCredentialsAsync(ctx, app);
+    }
+
     const alreadySetupBuildCredentials = await this.getFullySetupBuildCredentialsAsync({
       ctx,
       app,
@@ -86,16 +97,6 @@ export class SetupBuildCredentials {
         `Using Keystore from configuration: ${nullthrows(defaultBuildCredentials).name} (default)`
       );
       return defaultBuildCredentials;
-    }
-
-    // fall back to legacy credentials if we cant find a default keystore
-    const legacyBuildCredentials = await ctx.newAndroid.getLegacyAndroidAppBuildCredentialsAsync(
-      app
-    );
-    const legacyKeystore = legacyBuildCredentials?.androidKeystore ?? null;
-    if (legacyKeystore) {
-      Log.log('Using Keystore ported from Expo Classic (expo-cli)');
-      return legacyBuildCredentials;
     }
     return null;
   }

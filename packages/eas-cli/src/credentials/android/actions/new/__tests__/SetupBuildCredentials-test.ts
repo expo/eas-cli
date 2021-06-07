@@ -3,7 +3,6 @@ import {
   getNewAndroidApiMockWithoutCredentials,
   testAndroidBuildCredentialsFragment,
   testJksAndroidKeystoreFragment,
-  testLegacyAndroidBuildCredentialsFragment,
 } from '../../../../__tests__/fixtures-android-new';
 import { createCtxMock } from '../../../../__tests__/fixtures-context';
 import { MissingCredentialsNonInteractiveError } from '../../../../errors';
@@ -25,23 +24,6 @@ afterAll(() => {
 });
 
 describe('SetupBuildCredentials', () => {
-  it('skips setup when there are prior legacy credentials', async () => {
-    const ctx = createCtxMock({
-      nonInteractive: false,
-      newAndroid: {
-        ...getNewAndroidApiMockWithoutCredentials(),
-        getLegacyAndroidAppBuildCredentialsAsync: jest.fn(
-          () => testLegacyAndroidBuildCredentialsFragment
-        ),
-      },
-    });
-    const appLookupParams = getAppLookupParamsFromContext(ctx);
-    const setupBuildCredentialsAction = new SetupBuildCredentials({ app: appLookupParams });
-    await setupBuildCredentialsAction.runAsync(ctx);
-
-    // expect keystore not to be created
-    expect(ctx.newAndroid.createKeystoreAsync as any).toHaveBeenCalledTimes(0);
-  });
   it('skips setup when there are prior credentials', async () => {
     const ctx = createCtxMock({
       nonInteractive: false,
