@@ -38,16 +38,16 @@ export async function promptUserAndCopyLegacyCredentialsAsync(
     !ctx.nonInteractive,
     'Copying over Expo Classic credentials cannot be run in non-interactive mode'
   );
+  assert(
+    await canCopyLegacyCredentialsAsync(ctx, app),
+    'User not eligible to copy Expo Classic credentials to EAS'
+  );
   const shouldCopy = await confirmAsync({
     message: `We've detected credentials from Expo Classic (expo-cli). Would you like to copy them over to Expo Application Services (EAS)?`,
   });
   if (!shouldCopy) {
     return;
   }
-  assert(
-    await canCopyLegacyCredentialsAsync(ctx, app),
-    'User not eligible to copy Expo Classic credentials to EAS'
-  );
 
   Log.log('Copying credentials...');
   const spinner = ora().start();

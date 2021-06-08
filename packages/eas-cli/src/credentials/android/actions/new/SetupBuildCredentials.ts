@@ -30,10 +30,11 @@ export class SetupBuildCredentials {
   async runAsync(ctx: Context): Promise<AndroidAppBuildCredentialsFragment> {
     const { app, name: maybeName } = this.options;
 
-    // copy legacy credentials if user is new to EAS and has legacy credentials
-    const canCopyLegacyCredentials = await canCopyLegacyCredentialsAsync(ctx, app);
-    if (canCopyLegacyCredentials) {
-      await promptUserAndCopyLegacyCredentialsAsync(ctx, app);
+    if (!ctx.nonInteractive) {
+      const canCopyLegacyCredentials = await canCopyLegacyCredentialsAsync(ctx, app);
+      if (canCopyLegacyCredentials) {
+        await promptUserAndCopyLegacyCredentialsAsync(ctx, app);
+      }
     }
 
     const alreadySetupBuildCredentials = await this.getFullySetupBuildCredentialsAsync({
