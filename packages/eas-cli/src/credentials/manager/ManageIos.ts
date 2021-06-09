@@ -14,7 +14,6 @@ import { getProjectAccountName } from '../../project/projectUtils';
 import { confirmAsync, promptAsync, selectAsync } from '../../prompts';
 import { Account, findAccountByName } from '../../user/Account';
 import { ensureActorHasUsername } from '../../user/actions';
-import { Action, CredentialsManager } from '../CredentialsManager';
 import { Context } from '../context';
 import { getAppLookupParamsFromContext } from '../ios/actions/BuildCredentialsUtils';
 import { CreateDistributionCertificate } from '../ios/actions/CreateDistributionCertificate';
@@ -125,12 +124,8 @@ function getBuildCredentialsActions(
   ];
 }
 
-export class ManageIos implements Action {
-  async runAsync(
-    manager: CredentialsManager,
-    ctx: Context,
-    currentActions: ActionInfo[] = highLevelActions
-  ): Promise<void> {
+export class ManageIos {
+  async runAsync(ctx: Context, currentActions: ActionInfo[] = highLevelActions): Promise<void> {
     const buildCredentialsActions = getBuildCredentialsActions(ctx);
     await ctx.bestEffortAppStoreAuthenticateAsync();
 
@@ -142,11 +137,10 @@ export class ManageIos implements Action {
     if (!account) {
       throw new Error(`You do not have access to account: ${accountName}`);
     }
+    const { app, targets, buildProfile } = await this.createProjectContextAsync(ctx, account);
 
     while (true) {
       try {
-        const { app, targets, buildProfile } = await this.createProjectContextAsync(ctx, account);
-
         if (ctx.hasProjectContext) {
           assert(targets && app);
           const iosAppCredentialsMap: IosAppCredentialsMap = {};
@@ -199,7 +193,7 @@ export class ManageIos implements Action {
       } catch (err) {
         Log.error(err);
       }
-      await manager.runActionAsync(new PressAnyKeyToContinue());
+      await new PressAnyKeyToContinue().runAsync();
     }
   }
 

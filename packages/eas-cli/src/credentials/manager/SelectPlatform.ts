@@ -15,7 +15,10 @@ export class SelectPlatform implements Action {
         { value: 'ios', title: 'iOS' },
       ],
     });
-    const action = platform === 'ios' ? new ManageIos() : new SelectAndroidApp();
-    await manager.runActionAsync(action);
+
+    if (platform === 'ios') {
+      return await new ManageIos().runAsync(ctx);
+    }
+    return await manager.runActionAsync(new SelectAndroidApp());
   }
 }
