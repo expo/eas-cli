@@ -17,7 +17,7 @@ export class SelectPlatform implements Action {
     });
 
     if (platform === 'ios') {
-      return await new ManageIos().runAsync(ctx);
+      return await new ManageIos(new SelectPlatform()).runAsync(ctx);
     }
     return await manager.runActionAsync(new SelectAndroidApp());
   }
