@@ -114,7 +114,7 @@ export class SelectExistingAndroidBuildCredentials {
         type: 'select',
         name: 'buildCredentials',
         message: 'Select build credentials',
-        choices: [...sortedBuildCredentialsChoices],
+        choices: sortedBuildCredentialsChoices,
       })
     ).buildCredentials;
   }

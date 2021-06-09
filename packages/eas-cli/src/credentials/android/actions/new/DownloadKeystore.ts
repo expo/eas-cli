@@ -46,9 +46,9 @@ export class DownloadKeystore {
 
     // non-sensitive information
     displayAndroidKeystore(keystore);
-    Log.newLine();
 
     if (displaySensitiveInformation) {
+      Log.newLine();
       Log.log(`Sensitive Keystore information:
     Keystore password: ${chalk.bold(keystore.keystorePassword)}
     Key alias:         ${chalk.bold(keystore.keyAlias)}
@@ -57,6 +57,7 @@ export class DownloadKeystore {
     Path to Keystore:  ${keystorePath}
       `);
     }
+    Log.newLine();
   }
 }
 
