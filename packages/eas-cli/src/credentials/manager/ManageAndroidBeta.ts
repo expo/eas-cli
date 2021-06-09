@@ -10,6 +10,7 @@ import {
   promptUserAndCopyLegacyCredentialsAsync,
 } from '../android/actions/BuildCredentialsUtils';
 import { CreateKeystore } from '../android/actions/new/CreateKeystore';
+import { DownloadKeystore } from '../android/actions/new/DownloadKeystore';
 import {
   displayAndroidAppCredentials,
   displayEmptyAndroidCredentials,
@@ -19,10 +20,12 @@ import { PressAnyKeyToContinue } from './HelperActions';
 import {
   SelectAndroidBuildCredentials,
   SelectAndroidBuildCredentialsResultType,
+  SelectExistingAndroidBuildCredentials,
 } from './SelectAndroidBuildCredentials';
 
 enum ActionType {
   CreateKeystore,
+  DownloadKeystore,
 }
 
 enum Scope {
@@ -76,6 +79,10 @@ export class ManageAndroid implements Action {
             value: ActionType.CreateKeystore,
             title: 'Set up a new keystore',
           },
+          {
+            value: ActionType.DownloadKeystore,
+            title: 'Download existing keystore',
+          },
         ];
         const { action: chosenAction } = await promptAsync({
           type: 'select',
@@ -105,11 +112,19 @@ export class ManageAndroid implements Action {
               }
             );
           }
+        } else if (chosenAction === ActionType.DownloadKeystore) {
+          const appLookupParams = getAppLookupParamsFromContext(ctx);
+          const buildCredentials = await new SelectExistingAndroidBuildCredentials(
+            appLookupParams
+          ).runAsync(ctx);
+          if (buildCredentials) {
+            await new DownloadKeystore({ app: appLookupParams }).runAsync(ctx, buildCredentials);
+          }
         }
       } catch (err) {
         Log.error(err);
-        await manager.runActionAsync(new PressAnyKeyToContinue());
       }
+      await manager.runActionAsync(new PressAnyKeyToContinue());
     }
   }
 }

@@ -218,5 +218,5 @@ async function getAppAsync(appLookupParams: AppLookupParams): Promise<AppFragmen
   return await AppQuery.byFullNameAsync(projectFullName);
 }
 
-const formatProjectFullName = ({ account, projectName }: AppLookupParams): string =>
+export const formatProjectFullName = ({ account, projectName }: AppLookupParams): string =>
   `@${account.name}/${projectName}`;

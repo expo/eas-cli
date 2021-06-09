@@ -1,4 +1,5 @@
 import { AndroidAppBuildCredentialsFragment } from '../../graphql/generated';
+import Log from '../../log';
 import { promptAsync } from '../../prompts';
 import { promptForNameAsync, sortBuildCredentials } from '../android/actions/BuildCredentialsUtils';
 import { AppLookupParams } from '../android/api/GraphqlClient';
@@ -27,9 +28,6 @@ export class SelectAndroidBuildCredentials {
         result: AndroidAppBuildCredentialsFragment;
       }
   > {
-    await ctx.newAndroid.createOrGetExistingAndroidAppCredentialsWithBuildCredentialsAsync(
-      this.app
-    );
     const buildCredentialsList = await ctx.newAndroid.getAndroidAppBuildCredentialsListAsync(
       this.app
     );
@@ -86,5 +84,38 @@ export class SelectAndroidBuildCredentials {
         name: await promptForNameAsync(),
       },
     };
+  }
+}
+
+export class SelectExistingAndroidBuildCredentials {
+  constructor(private app: AppLookupParams) {}
+
+  async runAsync(ctx: Context): Promise<AndroidAppBuildCredentialsFragment | null> {
+    const buildCredentialsList = await ctx.newAndroid.getAndroidAppBuildCredentialsListAsync(
+      this.app
+    );
+    if (buildCredentialsList.length === 0) {
+      Log.log(`You don't have any Android Build Credentials`);
+      return null;
+    } else if (buildCredentialsList.length === 1) {
+      return buildCredentialsList[0];
+    }
+
+    const sortedBuildCredentialsList = sortBuildCredentials(buildCredentialsList);
+    const sortedBuildCredentialsChoices = sortedBuildCredentialsList.map(buildCredentials => ({
+      title: buildCredentials.isDefault
+        ? `${buildCredentials.name} (Default)`
+        : buildCredentials.name,
+      value: buildCredentials,
+    }));
+
+    return (
+      await promptAsync({
+        type: 'select',
+        name: 'buildCredentials',
+        message: 'Select build credentials',
+        choices: sortedBuildCredentialsChoices,
+      })
+    ).buildCredentials;
   }
 }
