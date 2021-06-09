@@ -3,6 +3,7 @@ import chalk from 'chalk';
 import {
   AndroidAppBuildCredentialsFragment,
   AndroidFcmVersion,
+  AndroidKeystoreFragment,
   CommonAndroidAppCredentialsFragment,
   FcmSnippetLegacy,
   FcmSnippetV1,
@@ -109,25 +110,29 @@ function displayAndroidBuildCredentials(
   const maybeKeystore = buildCredentials.androidKeystore;
   Log.log(`  Keystore:`);
   if (maybeKeystore) {
-    const {
-      keyAlias,
-      type,
-      md5CertificateFingerprint,
-      sha1CertificateFingerprint,
-      sha256CertificateFingerprint,
-      updatedAt,
-    } = maybeKeystore;
-    Log.log(`    Type: ${type}`);
-    Log.log(`    Key Alias: ${keyAlias}`);
-
-    Log.log(`    MD5 Fingerprint: ${formatFingerprint(md5CertificateFingerprint ?? null)}`);
-    Log.log(`    SHA1 Fingerprint: ${formatFingerprint(sha1CertificateFingerprint ?? null)}`);
-    Log.log(`    SHA256 Fingerprint: ${formatFingerprint(sha256CertificateFingerprint ?? null)}`);
-    Log.log(`    Updated ${fromNow(new Date(updatedAt))} ago`);
+    displayAndroidKeystore(maybeKeystore);
   } else {
     Log.log(`    None assigned yet`);
   }
   Log.newLine();
+}
+
+export function displayAndroidKeystore(keystore: AndroidKeystoreFragment) {
+  const {
+    keyAlias,
+    type,
+    md5CertificateFingerprint,
+    sha1CertificateFingerprint,
+    sha256CertificateFingerprint,
+    updatedAt,
+  } = keystore;
+  Log.log(`    Type: ${type}`);
+  Log.log(`    Key Alias: ${keyAlias}`);
+
+  Log.log(`    MD5 Fingerprint: ${formatFingerprint(md5CertificateFingerprint ?? null)}`);
+  Log.log(`    SHA1 Fingerprint: ${formatFingerprint(sha1CertificateFingerprint ?? null)}`);
+  Log.log(`    SHA256 Fingerprint: ${formatFingerprint(sha256CertificateFingerprint ?? null)}`);
+  Log.log(`    Updated ${fromNow(new Date(updatedAt))} ago`);
 }
 
 export function displayAndroidAppCredentials({
