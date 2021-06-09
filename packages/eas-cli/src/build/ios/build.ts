@@ -53,13 +53,7 @@ export async function prepareIosBuildAsync(
       nonInteractive: commandCtx.nonInteractive,
       exp: commandCtx.exp,
     },
-    {
-      workflow: buildProfile.workflow,
-      ...(buildProfile.workflow === Workflow.GENERIC && {
-        buildScheme: buildProfile.scheme,
-        buildConfiguration: buildProfile.schemeBuildConfiguration,
-      }),
-    }
+    buildProfile
   );
   const targets = await resolveTargetsAsync(
     {

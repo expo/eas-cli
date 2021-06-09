@@ -1,13 +1,13 @@
 import { ExpoConfig } from '@expo/config';
 import { IOSConfig } from '@expo/config-plugins';
-import { Platform, Workflow } from '@expo/eas-build-job';
+import { Workflow } from '@expo/eas-build-job';
+import { IosBuildProfile } from '@expo/eas-json';
 import chalk from 'chalk';
 import sortBy from 'lodash/sortBy';
 
 import Log from '../../log';
 import { promptAsync } from '../../prompts';
 import { sanitizedProjectName } from '../projectUtils';
-import { resolveWorkflow } from '../workflow';
 
 export interface XcodeBuildContext {
   buildScheme: string;
@@ -20,20 +20,11 @@ export async function resolveXcodeBuildContextAsync(
     projectDir,
     nonInteractive,
   }: { exp: ExpoConfig; projectDir: string; nonInteractive: boolean },
-  {
-    workflow: _workflow,
-    buildScheme: _buildScheme,
-    buildConfiguration,
-  }: {
-    buildScheme?: string;
-    buildConfiguration?: string;
-    workflow?: Workflow;
-  } = {}
+  buildProfile: IosBuildProfile
 ): Promise<XcodeBuildContext> {
-  const workflow = _workflow ?? resolveWorkflow(projectDir, Platform.IOS);
-  if (workflow === Workflow.GENERIC) {
+  if (buildProfile.workflow === Workflow.GENERIC) {
     const buildScheme =
-      _buildScheme ??
+      buildProfile.scheme ??
       (await selectSchemeAsync({
         projectDir,
         nonInteractive,
@@ -41,7 +32,7 @@ export async function resolveXcodeBuildContextAsync(
     return {
       buildScheme,
       buildConfiguration:
-        buildConfiguration ??
+        buildProfile.schemeBuildConfiguration ??
         (await IOSConfig.BuildScheme.getArchiveBuildConfigurationForSchemeAsync(
           projectDir,
           buildScheme

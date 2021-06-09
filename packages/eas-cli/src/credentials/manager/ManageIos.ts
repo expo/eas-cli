@@ -1,5 +1,5 @@
-import { Workflow } from '@expo/eas-build-job';
 import { EasJsonReader, IosBuildProfile } from '@expo/eas-json';
+import assert from 'assert';
 import nullthrows from 'nullthrows';
 
 import {
@@ -74,50 +74,23 @@ export class ManageIos implements Action {
     ctx: Context,
     currentActions: ActionInfo[] = highLevelActions
   ): Promise<void> {
-    let app: App | null = null;
-    let targets: Target[] | null = null;
-    let buildProfile: IosBuildProfile | null = null;
+    await ctx.bestEffortAppStoreAuthenticateAsync();
+
+    const accountName = ctx.hasProjectContext
+      ? getProjectAccountName(ctx.exp, ctx.user)
+      : ensureActorHasUsername(ctx.user);
+
+    const account = findAccountByName(ctx.user.accounts, accountName);
+    if (!account) {
+      throw new Error(`You do not have access to account: ${accountName}`);
+    }
 
     while (true) {
       try {
-        app = null;
-        targets = null;
-        buildProfile = null;
-
-        await ctx.bestEffortAppStoreAuthenticateAsync();
-
-        const accountName = ctx.hasProjectContext
-          ? getProjectAccountName(ctx.exp, ctx.user)
-          : ensureActorHasUsername(ctx.user);
-
-        const account = findAccountByName(ctx.user.accounts, accountName);
-        if (!account) {
-          throw new Error(`You do not have access to account: ${accountName}`);
-        }
+        const { app, targets, buildProfile } = await this.createProjectContextAsync(ctx, account);
 
         if (ctx.hasProjectContext) {
-          app = { account, projectName: ctx.exp.slug };
-          const easJsonReader = new EasJsonReader(ctx.projectDir, 'ios');
-          const easConfig = await new SelectBuildProfileFromEasJson(easJsonReader).runAsync(ctx);
-          buildProfile = nullthrows(easConfig.builds.ios, 'iOS build profile must be defined');
-          const xcodeBuildContext = await resolveXcodeBuildContextAsync(
-            {
-              projectDir: ctx.projectDir,
-              nonInteractive: ctx.nonInteractive,
-              exp: ctx.exp,
-            },
-            {
-              workflow: buildProfile.workflow,
-              ...(buildProfile.workflow === Workflow.GENERIC && {
-                buildConfiguration: buildProfile.schemeBuildConfiguration,
-                buildScheme: buildProfile.scheme,
-              }),
-            }
-          );
-          targets = await resolveTargetsAsync(
-            { exp: ctx.exp, projectDir: ctx.projectDir },
-            xcodeBuildContext
-          );
+          assert(targets && app);
           const iosAppCredentialsMap: IosAppCredentialsMap = {};
           for (const target of targets) {
             const appLookupParams = getAppLookupParamsFromContext(ctx, target);
@@ -227,6 +200,41 @@ export class ManageIos implements Action {
         await manager.runActionAsync(new PressAnyKeyToContinue());
       }
     }
+  }
+
+  private async createProjectContextAsync(
+    ctx: Context,
+    account: Account
+  ): Promise<{ app: App | null; targets: Target[] | null; buildProfile: IosBuildProfile | null }> {
+    if (!ctx.hasProjectContext) {
+      return {
+        app: null,
+        targets: null,
+        buildProfile: null,
+      };
+    }
+
+    const app = { account, projectName: ctx.exp.slug };
+    const easJsonReader = new EasJsonReader(ctx.projectDir, 'ios');
+    const easConfig = await new SelectBuildProfileFromEasJson(easJsonReader).runAsync(ctx);
+    const buildProfile = nullthrows(easConfig.builds.ios, 'iOS build profile must be defined');
+    const xcodeBuildContext = await resolveXcodeBuildContextAsync(
+      {
+        projectDir: ctx.projectDir,
+        nonInteractive: ctx.nonInteractive,
+        exp: ctx.exp,
+      },
+      buildProfile
+    );
+    const targets = await resolveTargetsAsync(
+      { exp: ctx.exp, projectDir: ctx.projectDir },
+      xcodeBuildContext
+    );
+    return {
+      app,
+      targets,
+      buildProfile,
+    };
   }
 
   private async runAccountSpecificActionAsync(

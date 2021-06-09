@@ -261,20 +261,16 @@ describe('update credentials.json', () => {
 
       await updateIosCredentialsAsync(ctx, app, targets, IosDistributionType.AppStore);
 
-      const { targetName } = targets[0];
-      const certP12 = await fs.readFile(`./credentials/ios/${targetName}-dist-cert.p12`, 'base64');
-      const pprofile = await fs.readFile(
-        `./credentials/ios/${targetName}-profile.mobileprovision`,
-        'base64'
-      );
+      const certP12 = await fs.readFile('./credentials/ios/dist-cert.p12', 'base64');
+      const pprofile = await fs.readFile('./credentials/ios/profile.mobileprovision', 'base64');
       const credJson = await fs.readJson('./credentials.json');
       expect(certP12).toEqual(testAllCredentialsForApp.distCredentials.certP12);
       expect(pprofile).toEqual(testAllCredentialsForApp.credentials.provisioningProfile);
       expect(credJson).toEqual({
         ios: {
-          provisioningProfilePath: `credentials/ios/${targetName}-profile.mobileprovision`,
+          provisioningProfilePath: `credentials/ios/profile.mobileprovision`,
           distributionCertificate: {
-            path: `credentials/ios/${targetName}-dist-cert.p12`,
+            path: `credentials/ios/dist-cert.p12`,
             password: testAllCredentialsForApp.distCredentials.certPassword,
           },
         },
@@ -306,7 +302,7 @@ describe('update credentials.json', () => {
         await updateIosCredentialsAsync(ctx, app, targets, IosDistributionType.AppStore);
         throw new Error('updateIosCredentialsAsync should throw na error');
       } catch (e) {
-        expect(e.message).toMatch("Some of the build targets don't have credentials configured");
+        expect(e.message).toMatch('There are no credentials configured');
       }
       const certP12 = await fs.readFile('./cert.p12', 'base64');
       const pprofile = await fs.readFile('./pprofile', 'base64');

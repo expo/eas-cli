@@ -59,23 +59,23 @@ function sortBuildCredentialsByDistributionType(
 
 export function displayIosCredentials(
   app: App,
-  appCredentials: IosAppCredentialsMap,
+  appCredentialsMap: IosAppCredentialsMap,
   targets: Target[]
 ): void {
   const projectFullName = `@${app.account.name}/${app.projectName}`;
-  const areMultitarget = targets.length > 1;
+  const isMultitarget = targets.length > 1;
 
   Log.log(chalk.bold(`iOS Credentials`));
   Log.addNewLineIfNone();
   Log.log(`  Project: ${chalk.bold(projectFullName)}`);
 
   for (const { targetName, bundleIdentifier } of targets) {
-    if (areMultitarget) {
+    if (isMultitarget) {
       Log.newLine();
       Log.log(`  Target: ${chalk.bold(targetName)}`);
     }
     Log.log(`  Bundle Identifier: ${chalk.bold(bundleIdentifier)}`);
-    const targetAppCredentials = appCredentials[targetName];
+    const targetAppCredentials = appCredentialsMap[targetName];
     if (!targetAppCredentials || targetAppCredentials.iosAppBuildCredentialsList.length === 0) {
       Log.newLine();
       Log.log(`  No credentials set up yet!`);
@@ -109,13 +109,13 @@ export function displayProjectCredentials(
     acc[target.targetName] = target.bundleIdentifier;
     return acc;
   }, {});
-  const areMultitarget = targets.length > 1;
+  const isMultitarget = targets.length > 1;
 
   Log.addNewLineIfNone();
   Log.log(chalk.bold('Project Credentials Configuration:'));
   Log.log(`  Project: ${chalk.bold(projectFullName)}`);
   for (const [targetName, buildCredentials] of Object.entries(appBuildCredentials)) {
-    if (areMultitarget) {
+    if (isMultitarget) {
       Log.newLine();
       Log.log(`  Target: ${chalk.bold(targetName)}`);
     }

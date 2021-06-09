@@ -119,20 +119,24 @@ export async function updateIosCredentialsAsync(
   }
 
   if (!areAllTargetsConfigured) {
-    throw new Error(
-      `Some of the build targets don't have credentials configured for the ${distributionType} distribution of this project are not on EAS servers: ${notConfiguredTargetLabels}`
-    );
+    const errorMessage =
+      targets.length === 1
+        ? `There are no credentials configured for the ${distributionType} distribution of this project on EAS servers`
+        : `Some of the build targets don't have credentials configured for the ${distributionType} distribution of this project on EAS servers: ${notConfiguredTargetLabels}`;
+    throw new Error(errorMessage);
   }
 
   const iosCredentials: CredentialsJsonIosCredentials = {};
+  const targetCredentialsPathsMap = createTargetCredentialsPathsMap(
+    targets,
+    rawCredentialsJson.ios
+  );
   for (const target of targets) {
-    iosCredentials[target.targetName] = await updateIosTargetCredentialsAsync(
-      ctx,
-      target,
+    iosCredentials[target.targetName] = await backupTargetCredentialsAsync(ctx, {
       // app build credentials must exist for target because otherwise an error must have been thrown earlier
-      nullthrows(targetBuildsCredentialsMap[target.targetName]),
-      rawCredentialsJson.ios?.[target.targetName]
-    );
+      targetCredentials: nullthrows(targetBuildsCredentialsMap[target.targetName]),
+      targetCredentialsPaths: targetCredentialsPathsMap[target.targetName],
+    });
   }
 
   if (Object.keys(iosCredentials).length === 1) {
@@ -158,6 +162,60 @@ export async function updateIosCredentialsAsync(
     newFilePaths.push('credentials.json');
   }
   displayUntrackedFilesWarning(newFilePaths);
+}
+
+interface TargetCredentialsPaths {
+  provisioningProfilePath: string;
+  distCertPath: string;
+}
+type TargetCredentialsPathsMap = Record<string, TargetCredentialsPaths>;
+function createTargetCredentialsPathsMap(
+  targets: Target[],
+  rawCredentialsJsonMap?: any
+): TargetCredentialsPathsMap {
+  const hasManyTargets = targets.length > 1;
+  const paths: TargetCredentialsPathsMap = {};
+
+  // 1. Create initial target credentials paths map
+  for (const target of targets) {
+    const rawTargetCredentialsJson = rawCredentialsJsonMap?.[target.targetName];
+    const filePrefix = hasManyTargets ? `${target.targetName}-` : '';
+
+    paths[target.targetName] = {
+      provisioningProfilePath:
+        rawTargetCredentialsJson?.provisioningProfilePath ??
+        `credentials/ios/${filePrefix}profile.mobileprovision`,
+      distCertPath:
+        rawTargetCredentialsJson?.distributionCertificate?.path ??
+        `credentials/ios/${filePrefix}dist-cert.p12`,
+    };
+  }
+
+  // 2. Look for duplicates and prefix them with target names
+  const deduplicatedPaths: TargetCredentialsPathsMap = {};
+  const usedProfilePaths = new Set<string>();
+  const usedDistCertPaths = new Set<string>();
+  for (const [targetName, { provisioningProfilePath, distCertPath }] of Object.entries(paths)) {
+    const newProvisioningProfilePath = usedProfilePaths.has(provisioningProfilePath)
+      ? path.join(
+          path.dirname(provisioningProfilePath),
+          `${targetName}-${path.basename(provisioningProfilePath)}`
+        )
+      : provisioningProfilePath;
+    usedProfilePaths.add(newProvisioningProfilePath);
+
+    const newDistCertPath = usedDistCertPaths.has(distCertPath)
+      ? path.join(path.dirname(distCertPath), `${targetName}-${path.basename(distCertPath)}`)
+      : distCertPath;
+    usedDistCertPaths.add(newDistCertPath);
+
+    deduplicatedPaths[targetName] = {
+      distCertPath: newDistCertPath,
+      provisioningProfilePath: newProvisioningProfilePath,
+    };
+  }
+
+  return deduplicatedPaths;
 }
 
 async function getTargetBuildCredentialsAsync(
@@ -199,18 +257,17 @@ async function getTargetBuildCredentialsAsync(
   };
 }
 
-async function updateIosTargetCredentialsAsync(
+async function backupTargetCredentialsAsync(
   ctx: Context,
-  target: Target,
-  targetCredentials: TargetCredentials,
-  currentRawTargetCredentialsObject?: any
+  {
+    targetCredentials,
+    targetCredentialsPaths,
+  }: {
+    targetCredentials: TargetCredentials;
+    targetCredentialsPaths: TargetCredentialsPaths;
+  }
 ): Promise<CredentialsJsonIosTargetCredentials> {
-  const provisioningProfilePath: string =
-    currentRawTargetCredentialsObject?.provisioningProfilePath ??
-    `credentials/ios/${target.targetName}-profile.mobileprovision`;
-  const distCertPath: string =
-    currentRawTargetCredentialsObject?.distributionCertificate?.path ??
-    `credentials/ios/${target.targetName}-dist-cert.p12`;
+  const { provisioningProfilePath, distCertPath } = targetCredentialsPaths;
 
   Log.log(`Writing Provisioning Profile to ${provisioningProfilePath}`);
   await updateFileAsync(
