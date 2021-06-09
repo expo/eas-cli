@@ -5,9 +5,6 @@ import { Keystore } from '../android/credentials';
 export interface CredentialsJson {
   android?: CredentialsJsonAndroidCredentials;
   ios?: CredentialsJsonIosTargetCredentials | CredentialsJsonIosCredentials;
-  experimental?: {
-    npmToken?: string;
-  };
 }
 
 export interface CredentialsJsonAndroidCredentials {
@@ -65,7 +62,4 @@ export const CredentialsJsonSchema = Joi.object({
       CredentialsJsonIosTargetCredentialsSchema.required()
     ),
   ],
-  experimental: Joi.object({
-    npmToken: Joi.string(),
-  }),
 });

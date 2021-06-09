@@ -28,7 +28,6 @@ const configureCommitMessage = {
 export async function configureAsync(options: {
   platform: RequestedPlatform;
   projectDir: string;
-  allowExperimental: boolean;
 }): Promise<void> {
   await ensureGitRepoExistsAsync();
   await maybeBailOnGitStatusAsync();
@@ -39,7 +38,6 @@ export async function configureAsync(options: {
     user: await ensureLoggedInAsync(),
     projectDir: options.projectDir,
     exp,
-    allowExperimental: options.allowExperimental,
     requestedPlatform: options.platform,
     shouldConfigureAndroid: [RequestedPlatform.All, RequestedPlatform.Android].includes(
       options.platform

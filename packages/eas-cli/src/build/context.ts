@@ -77,7 +77,6 @@ export interface ConfigureContext {
   user: Actor;
   projectDir: string;
   exp: ExpoConfig;
-  allowExperimental: boolean;
   requestedPlatform: RequestedPlatform;
   shouldConfigureAndroid: boolean;
   shouldConfigureIos: boolean;

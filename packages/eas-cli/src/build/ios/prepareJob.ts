@@ -2,7 +2,6 @@ import { ArchiveSource, Cache, Ios, Job, Workflow, sanitizeJob } from '@expo/eas
 import { IosGenericBuildProfile, IosManagedBuildProfile } from '@expo/eas-json';
 import path from 'path';
 
-import { readEnvironmentSecretsAsync } from '../../credentials/credentialsJson/read';
 import { IosCredentials, TargetCredentials } from '../../credentials/ios/types';
 import { getUsername } from '../../project/projectUtils';
 import { ensureLoggedInAsync } from '../../user/actions';
@@ -48,8 +47,6 @@ async function prepareJobCommonAsync(
   ctx: BuildContext<Platform.IOS>,
   { credentials, projectArchive }: { credentials?: IosCredentials; projectArchive: ArchiveSource }
 ): Promise<Partial<CommonJobProperties>> {
-  const environmentSecrets = await readEnvironmentSecretsAsync(ctx.commandCtx.projectDir);
-
   const buildCredentials: CommonJobProperties['secrets']['buildCredentials'] = {};
   if (credentials) {
     const targetNames = Object.keys(credentials);
@@ -77,7 +74,6 @@ async function prepareJobCommonAsync(
       clear: ctx.commandCtx.clearCache,
     },
     secrets: {
-      ...(environmentSecrets ? { environmentSecrets } : {}),
       buildCredentials,
     },
   };

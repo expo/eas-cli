@@ -84,17 +84,6 @@ async function readCredentialsForTargetAsync(
   };
 }
 
-export async function readEnvironmentSecretsAsync(
-  projectDir: string
-): Promise<Record<string, string> | undefined> {
-  if (!(await fs.pathExists(getCredentialsJsonPath(projectDir)))) {
-    return undefined;
-  }
-  const credentialsJson = await readAsync(projectDir);
-  const npmToken = credentialsJson?.experimental?.npmToken;
-  return npmToken ? { NPM_TOKEN: npmToken } : undefined;
-}
-
 async function readAsync(projectDir: string): Promise<CredentialsJson> {
   const credentialsJSONRaw = await readRawAsync(projectDir);
 

@@ -144,7 +144,6 @@ async function ensureProjectConfiguredAsync(projectDir: string): Promise<ExpoCon
     await configureAsync({
       projectDir,
       platform: RequestedPlatform.All,
-      allowExperimental: false,
     });
     if (!(await isGitStatusCleanAsync())) {
       throw new Error(
