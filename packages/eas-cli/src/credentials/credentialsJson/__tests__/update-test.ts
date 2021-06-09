@@ -11,12 +11,12 @@ import {
   testAllCredentialsForApp,
   testCommonIosAppCredentialsFragment,
 } from '../../__tests__/fixtures-ios';
-import { getAppLookupParamsFromContext } from '../../ios/actions/BuildCredentialsUtils';
+import { getAppFromContext } from '../../ios/actions/BuildCredentialsUtils';
+import { Target } from '../../ios/types';
 import { updateAndroidCredentialsAsync, updateIosCredentialsAsync } from '../update';
 
 jest.mock('fs');
 jest.mock('prompts');
-jest.mock('../../../project/ios/bundleIdentifier');
 
 const originalConsoleLog = console.log;
 const originalConsoleWarn = console.warn;
@@ -85,13 +85,13 @@ describe('update credentials.json', () => {
         },
       });
       await updateAndroidCredentialsAsync(ctx);
-      const keystore = await fs.readFile('./android/keystores/keystore.jks', 'base64');
+      const keystore = await fs.readFile('./credentials/android/keystore.jks', 'base64');
       const credJson = await fs.readJson('./credentials.json');
       expect(keystore).toEqual(testKeystore.keystore);
       expect(credJson).toEqual({
         android: {
           keystore: {
-            keystorePath: 'android/keystores/keystore.jks',
+            keystorePath: 'credentials/android/keystore.jks',
             keystorePassword: testKeystore.keystorePassword,
             keyAlias: testKeystore.keyAlias,
             keyPassword: testKeystore.keyPassword,
@@ -138,13 +138,13 @@ describe('update credentials.json', () => {
         './credentials.json': JSON.stringify({ android: { test: '123' } }),
       });
       await updateAndroidCredentialsAsync(ctx);
-      const keystore = await fs.readFile('./android/keystores/keystore.jks', 'base64');
+      const keystore = await fs.readFile('./credentials/android/keystore.jks', 'base64');
       const credJson = await fs.readJson('./credentials.json');
       expect(keystore).toEqual(testKeystore.keystore);
       expect(credJson).toEqual({
         android: {
           keystore: {
-            keystorePath: 'android/keystores/keystore.jks',
+            keystorePath: 'credentials/android/keystore.jks',
             keystorePassword: testKeystore.keystorePassword,
             keyAlias: testKeystore.keyAlias,
             keyPassword: testKeystore.keyPassword,
@@ -195,6 +195,13 @@ describe('update credentials.json', () => {
     });
   });
   describe(updateIosCredentialsAsync, () => {
+    const targets: Target[] = [
+      {
+        targetName: 'testapp',
+        bundleIdentifier: 'com.bundle.id',
+      },
+    ];
+
     it('should update ios credentials in credentials.json if www returns valid credentials', async () => {
       const ctx = createCtxMock({
         ios: {
@@ -217,8 +224,9 @@ describe('update credentials.json', () => {
         './pprofile': 'somebinarycontent',
         './cert.p12': 'somebinarycontent2',
       });
-      const appLookupParams = getAppLookupParamsFromContext(ctx);
-      await updateIosCredentialsAsync(ctx, appLookupParams, IosDistributionType.AppStore);
+      const app = getAppFromContext(ctx);
+
+      await updateIosCredentialsAsync(ctx, app, targets, IosDistributionType.AppStore);
       const certP12 = await fs.readFile('./cert.p12', 'base64');
       const pprofile = await fs.readFile('./pprofile', 'base64');
       const credJson = await fs.readJson('./credentials.json');
@@ -249,18 +257,20 @@ describe('update credentials.json', () => {
           ),
         },
       });
-      const appLookupParams = getAppLookupParamsFromContext(ctx);
-      await updateIosCredentialsAsync(ctx, appLookupParams, IosDistributionType.AppStore);
-      const certP12 = await fs.readFile('./ios/certs/dist-cert.p12', 'base64');
-      const pprofile = await fs.readFile('./ios/certs/profile.mobileprovision', 'base64');
+      const app = getAppFromContext(ctx);
+
+      await updateIosCredentialsAsync(ctx, app, targets, IosDistributionType.AppStore);
+
+      const certP12 = await fs.readFile('./credentials/ios/dist-cert.p12', 'base64');
+      const pprofile = await fs.readFile('./credentials/ios/profile.mobileprovision', 'base64');
       const credJson = await fs.readJson('./credentials.json');
       expect(certP12).toEqual(testAllCredentialsForApp.distCredentials.certP12);
       expect(pprofile).toEqual(testAllCredentialsForApp.credentials.provisioningProfile);
       expect(credJson).toEqual({
         ios: {
-          provisioningProfilePath: 'ios/certs/profile.mobileprovision',
+          provisioningProfilePath: `credentials/ios/profile.mobileprovision`,
           distributionCertificate: {
-            path: 'ios/certs/dist-cert.p12',
+            path: `credentials/ios/dist-cert.p12`,
             password: testAllCredentialsForApp.distCredentials.certPassword,
           },
         },
@@ -287,14 +297,12 @@ describe('update credentials.json', () => {
         './pprofile': 'somebinarycontent',
         './cert.p12': 'somebinarycontent2',
       });
+      const app = getAppFromContext(ctx);
       try {
-        const appLookupParams = getAppLookupParamsFromContext(ctx);
-        await updateIosCredentialsAsync(ctx, appLookupParams, IosDistributionType.AppStore);
+        await updateIosCredentialsAsync(ctx, app, targets, IosDistributionType.AppStore);
         throw new Error('updateIosCredentialsAsync should throw na error');
       } catch (e) {
-        expect(e.message).toMatch(
-          'There are no credentials configured for the APP_STORE distribution of this project on EAS servers'
-        );
+        expect(e.message).toMatch('There are no credentials configured');
       }
       const certP12 = await fs.readFile('./cert.p12', 'base64');
       const pprofile = await fs.readFile('./pprofile', 'base64');
@@ -302,117 +310,6 @@ describe('update credentials.json', () => {
       expect(certP12).toEqual('c29tZWJpbmFyeWNvbnRlbnQy'); // base64 "somebinarycontent2"
       expect(pprofile).toEqual('c29tZWJpbmFyeWNvbnRlbnQ='); // base64 "somebinarycontent"
       expect(newCredJson).toEqual(credJson);
-    });
-    it('should display confirm prompt if some credentials are missing in www (confirm: true)', async () => {
-      // create deep clone the quick and dirty way
-      const testIosAppCredentialsNoDistCert = JSON.parse(
-        JSON.stringify(testCommonIosAppCredentialsFragment)
-      );
-      testIosAppCredentialsNoDistCert.iosAppBuildCredentialsList[0].distributionCertificate = null;
-      const ctx = createCtxMock({
-        ios: {
-          ...getNewIosApiMockWithoutCredentials(),
-          getIosAppCredentialsWithCommonFieldsAsync: jest.fn(() => testIosAppCredentialsNoDistCert),
-        },
-      });
-
-      (prompts as any)
-        .mockImplementationOnce(() => ({ value: true })) // Continue with partial credentials
-        .mockImplementation(() => {
-          throw new Error("shouldn't happen");
-        });
-
-      vol.fromJSON({
-        './credentials.json': JSON.stringify({
-          ios: {
-            provisioningProfilePath: 'pprofile',
-            distributionCertificate: {
-              path: 'cert.p12',
-              password: 'certPass',
-            },
-          },
-        }),
-        './pprofile': 'somebinarycontent',
-        './cert.p12': 'somebinarycontent2',
-      });
-      const appLookupParams = getAppLookupParamsFromContext(ctx);
-      await updateIosCredentialsAsync(ctx, appLookupParams, IosDistributionType.AppStore);
-      const certP12Exists = await fs.pathExists('./cert.p12');
-      const pprofile = await fs.readFile('./pprofile', 'base64');
-      const credJson = await fs.readJson('./credentials.json');
-      expect(certP12Exists).toEqual(false);
-      expect(pprofile).toEqual(testAllCredentialsForApp.credentials.provisioningProfile);
-      expect(credJson).toEqual({
-        ios: {
-          provisioningProfilePath: 'pprofile',
-        },
-      });
-    });
-    it('should throw an error if credentials.json contains credentials for multi-target projects', async () => {
-      const ctx = createCtxMock({
-        ios: {
-          ...getNewIosApiMockWithoutCredentials(),
-          getIosAppCredentialsWithCommonFieldsAsync: jest.fn(
-            () => testCommonIosAppCredentialsFragment
-          ),
-        },
-      });
-      vol.fromJSON({
-        './credentials.json': JSON.stringify({
-          ios: {
-            target1: {
-              provisioningProfilePath: 'pprofile-1.mobileprovision',
-              distributionCertificate: {
-                path: 'dist-cert-1.p12',
-                password: 'cert-pass-1',
-              },
-            },
-            target2: {
-              provisioningProfilePath: 'pprofile-2.mobileprovision',
-              distributionCertificate: {
-                path: 'dist-cert-2.p12',
-                password: 'cert-pass-2',
-              },
-            },
-          },
-        }),
-        './pprofile-1.mobileprovision': 'pprofile-1-somebinarycontent',
-        './pprofile-2.mobileprovision': 'pprofile-2-somebinarycontent',
-        './dist-cert-1.p12': 'cert-1-somebinarycontent',
-        './dist-cert-2.p12': 'cert-2-somebinarycontent',
-      });
-      const appLookupParams = getAppLookupParamsFromContext(ctx);
-      await expect(() =>
-        updateIosCredentialsAsync(ctx, appLookupParams, IosDistributionType.AppStore)
-      ).rejects.toThrow(/Updating credentials.json failed/);
-    });
-    it(`should throw an error if there is a typo in credentials.json (because we can't tell if this is a target name or not)`, async () => {
-      const ctx = createCtxMock({
-        ios: {
-          ...getNewIosApiMockWithoutCredentials(),
-          getIosAppCredentialsWithCommonFieldsAsync: jest.fn(
-            () => testCommonIosAppCredentialsFragment
-          ),
-        },
-      });
-      vol.fromJSON({
-        './credentials.json': JSON.stringify({
-          ios: {
-            // typo!!!
-            xprovisioningProfilePath: 'pprofile-1.mobileprovision',
-            distributionCertificate: {
-              path: 'dist-cert-1.p12',
-              password: 'cert-pass-1',
-            },
-          },
-        }),
-        './pprofile-1.mobileprovision': 'pprofile-1-somebinarycontent',
-        './dist-cert-1.p12': 'cert-1-somebinarycontent',
-      });
-      const appLookupParams = getAppLookupParamsFromContext(ctx);
-      await expect(() =>
-        updateIosCredentialsAsync(ctx, appLookupParams, IosDistributionType.AppStore)
-      ).rejects.toThrow(/Updating credentials.json failed/);
     });
   });
 });

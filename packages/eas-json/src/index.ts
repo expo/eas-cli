@@ -4,6 +4,7 @@ export {
   AndroidManagedBuildProfile,
   AndroidGenericBuildProfile,
   AndroidBuildProfile,
+  BuildProfile,
   IosDistributionType,
   IosManagedBuildProfile,
   IosGenericBuildProfile,

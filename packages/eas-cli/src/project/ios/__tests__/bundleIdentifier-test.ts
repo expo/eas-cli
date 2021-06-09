@@ -40,7 +40,7 @@ describe(getBundleIdentifier, () => {
       vol.fromJSON(
         {
           'ios/myproject.xcodeproj/project.pbxproj': originalFs.readFileSync(
-            path.join(__dirname, './fixtures/project.pbxproj'),
+            path.join(__dirname, './fixtures/pbxproj/project.pbxproj'),
             'utf-8'
           ),
         },
@@ -55,7 +55,7 @@ describe(getBundleIdentifier, () => {
       vol.fromJSON(
         {
           'ios/myproject.xcodeproj/project.pbxproj': originalFs.readFileSync(
-            path.join(__dirname, './fixtures/project-without-bundleid.pbxproj'),
+            path.join(__dirname, './fixtures/pbxproj/project-without-bundleid.pbxproj'),
             'utf-8'
           ),
         },

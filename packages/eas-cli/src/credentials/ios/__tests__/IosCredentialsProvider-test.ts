@@ -2,11 +2,13 @@ import { CredentialsSource } from '@expo/eas-json';
 import { vol } from 'memfs';
 
 import { IosAppBuildCredentialsFragment } from '../../../graphql/generated';
+import { findApplicationTarget } from '../../../project/ios/target';
 import { getAppstoreMock } from '../../__tests__/fixtures-appstore';
 import { createCtxMock } from '../../__tests__/fixtures-context';
 import {
   getNewIosApiMockWithoutCredentials,
   testIosAppCredentialsWithBuildCredentialsQueryResult,
+  testTargets,
 } from '../../__tests__/fixtures-ios';
 import IosCredentialsProvider from '../IosCredentialsProvider';
 import { getAppLookupParamsFromContext } from '../actions/BuildCredentialsUtils';
@@ -58,7 +60,10 @@ describe(IosCredentialsProvider, () => {
             getIosAppCredentialsWithBuildCredentialsAsync: jest.fn(() => null),
           },
         });
-        const appLookupParams = getAppLookupParamsFromContext(ctx);
+        const appLookupParams = getAppLookupParamsFromContext(
+          ctx,
+          findApplicationTarget(testTargets)
+        );
         const provider = new IosCredentialsProvider(ctx, {
           app: {
             account: {
@@ -92,7 +97,10 @@ describe(IosCredentialsProvider, () => {
             ),
           },
         });
-        const appLookupParams = getAppLookupParamsFromContext(ctx);
+        const appLookupParams = getAppLookupParamsFromContext(
+          ctx,
+          findApplicationTarget(testTargets)
+        );
         const provider = new IosCredentialsProvider(ctx, {
           app: {
             account: {

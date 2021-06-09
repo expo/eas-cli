@@ -1,5 +1,6 @@
 import { asMock } from '../../../../__tests__/utils';
 import { IosDistributionType } from '../../../../graphql/generated';
+import { findApplicationTarget } from '../../../../project/ios/target';
 import { confirmAsync } from '../../../../prompts';
 import { createCtxMock } from '../../../__tests__/fixtures-context';
 import {
@@ -10,10 +11,12 @@ import {
   testIosAppCredentialsWithBuildCredentialsQueryResult,
   testProvisioningProfile,
   testProvisioningProfileFragment,
+  testTargets,
 } from '../../../__tests__/fixtures-ios';
-import { readIosCredentialsAsync } from '../../../credentialsJson/read';
+import { IosTargetCredentials } from '../../../credentialsJson/types';
 import { getAppLookupParamsFromContext } from '../BuildCredentialsUtils';
-import { SetupBuildCredentialsFromCredentialsJson } from '../SetupBuildCredentialsFromCredentialsJson';
+import { SetupTargetBuildCredentialsFromCredentialsJson } from '../SetupTargetBuildCredentialsFromCredentialsJson';
+
 jest.mock('../../../../prompts');
 jest.mock('../../../credentialsJson/read');
 
@@ -30,20 +33,19 @@ afterAll(() => {
 
 beforeEach(() => {
   asMock(confirmAsync).mockReset();
-  asMock(readIosCredentialsAsync).mockReset();
   (confirmAsync as jest.Mock).mockImplementation(() => true);
-  (readIosCredentialsAsync as jest.Mock).mockImplementation(() => ({
-    provisioningProfile: testProvisioningProfile.provisioningProfile,
+});
+
+describe('SetupTargetBuildCredentialsFromCredentialsJson', () => {
+  const targetCredentials: IosTargetCredentials = {
     distributionCertificate: {
       certificateP12: testDistCert.certP12,
       certificatePassword: testDistCert.certPassword,
     },
-  }));
-});
+    provisioningProfile: testProvisioningProfile.provisioningProfile,
+  };
 
-describe('SetupBuildCredentialsFromCredentialsJson', () => {
   it('sets up build credentials with same prior configuration in Interactive Mode', async () => {
-    // configure to be the same creds that are returned by readIosCredentialsAsync in the mock above
     // create deep clone the quick and dirty way
     const testBuildCreds = JSON.parse(
       JSON.stringify(testIosAppCredentialsWithBuildCredentialsQueryResult)
@@ -62,10 +64,11 @@ describe('SetupBuildCredentialsFromCredentialsJson', () => {
         createOrUpdateIosAppBuildCredentialsAsync: jest.fn(() => testBuildCreds),
       },
     });
-    const appLookupParams = getAppLookupParamsFromContext(ctx);
-    const setupBuildCredentialsFromCredentialsJsonAction = new SetupBuildCredentialsFromCredentialsJson(
+    const appLookupParams = getAppLookupParamsFromContext(ctx, findApplicationTarget(testTargets));
+    const setupBuildCredentialsFromCredentialsJsonAction = new SetupTargetBuildCredentialsFromCredentialsJson(
       appLookupParams,
-      IosDistributionType.AppStore
+      IosDistributionType.AppStore,
+      targetCredentials
     );
     await setupBuildCredentialsFromCredentialsJsonAction.runAsync(ctx);
 
@@ -89,10 +92,11 @@ describe('SetupBuildCredentialsFromCredentialsJson', () => {
         ),
       },
     });
-    const appLookupParams = getAppLookupParamsFromContext(ctx);
-    const setupBuildCredentialsFromCredentialsJsonAction = new SetupBuildCredentialsFromCredentialsJson(
+    const appLookupParams = getAppLookupParamsFromContext(ctx, findApplicationTarget(testTargets));
+    const setupBuildCredentialsFromCredentialsJsonAction = new SetupTargetBuildCredentialsFromCredentialsJson(
       appLookupParams,
-      IosDistributionType.AppStore
+      IosDistributionType.AppStore,
+      targetCredentials
     );
     await setupBuildCredentialsFromCredentialsJsonAction.runAsync(ctx);
 
@@ -122,10 +126,11 @@ describe('SetupBuildCredentialsFromCredentialsJson', () => {
         createOrUpdateIosAppBuildCredentialsAsync: jest.fn(() => testBuildCreds),
       },
     });
-    const appLookupParams = getAppLookupParamsFromContext(ctx);
-    const setupBuildCredentialsFromCredentialsJsonAction = new SetupBuildCredentialsFromCredentialsJson(
+    const appLookupParams = getAppLookupParamsFromContext(ctx, findApplicationTarget(testTargets));
+    const setupBuildCredentialsFromCredentialsJsonAction = new SetupTargetBuildCredentialsFromCredentialsJson(
       appLookupParams,
-      IosDistributionType.AppStore
+      IosDistributionType.AppStore,
+      targetCredentials
     );
     await setupBuildCredentialsFromCredentialsJsonAction.runAsync(ctx);
 
@@ -156,10 +161,11 @@ describe('SetupBuildCredentialsFromCredentialsJson', () => {
         createOrUpdateIosAppBuildCredentialsAsync: jest.fn(() => testBuildCreds),
       },
     });
-    const appLookupParams = getAppLookupParamsFromContext(ctx);
-    const setupBuildCredentialsFromCredentialsJsonAction = new SetupBuildCredentialsFromCredentialsJson(
+    const appLookupParams = getAppLookupParamsFromContext(ctx, findApplicationTarget(testTargets));
+    const setupBuildCredentialsFromCredentialsJsonAction = new SetupTargetBuildCredentialsFromCredentialsJson(
       appLookupParams,
-      IosDistributionType.AppStore
+      IosDistributionType.AppStore,
+      targetCredentials
     );
     await setupBuildCredentialsFromCredentialsJsonAction.runAsync(ctx);
 

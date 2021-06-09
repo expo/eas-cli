@@ -5,12 +5,7 @@ import { Platform, Workflow } from '@expo/eas-build-job';
 import { Target } from '../../credentials/ios/types';
 import { resolveWorkflow } from '../workflow';
 import { getBundleIdentifier } from './bundleIdentifier';
-
-export interface XcodeBuildContext {
-  buildScheme: string;
-  buildConfiguration?: string;
-  applicationTarget?: string;
-}
+import { XcodeBuildContext } from './scheme';
 
 export async function resolveTargetsAsync(
   { exp, projectDir }: { exp: ExpoConfig; projectDir: string },
@@ -18,7 +13,7 @@ export async function resolveTargetsAsync(
 ): Promise<Target[]> {
   const result: Target[] = [];
 
-  const applicationTarget = await getApplicationTargetAsync(projectDir, buildScheme);
+  const applicationTarget = await readApplicationTargetForSchemeAsync(projectDir, buildScheme);
   const bundleIdentifier = getBundleIdentifier(projectDir, exp, {
     targetName: applicationTarget.name,
     buildConfiguration,
@@ -44,7 +39,7 @@ export async function resolveTargetsAsync(
   return result;
 }
 
-async function getApplicationTargetAsync(
+async function readApplicationTargetForSchemeAsync(
   projectDir: string,
   scheme: string
 ): Promise<IOSConfig.Target.Target> {
@@ -58,4 +53,20 @@ async function getApplicationTargetAsync(
       dependencies: [],
     };
   }
+}
+
+export function findApplicationTarget(targets: Target[]): Target {
+  const applicationTarget = targets.find(({ parentBundleIdentifier }) => !parentBundleIdentifier);
+  if (!applicationTarget) {
+    throw new Error('Could not find the application target');
+  }
+  return applicationTarget;
+}
+
+export function findTargetByName(targets: Target[], name: string): Target {
+  const target = targets.find(target => target.targetName === name);
+  if (!target) {
+    throw new Error(`Could not find target '${name}'`);
+  }
+  return target;
 }

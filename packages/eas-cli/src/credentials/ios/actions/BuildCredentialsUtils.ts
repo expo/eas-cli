@@ -7,11 +7,11 @@ import {
   IosDistributionType as GraphQLIosDistributionType,
   IosAppBuildCredentialsFragment,
 } from '../../../graphql/generated';
-import { getBundleIdentifier } from '../../../project/ios/bundleIdentifier';
 import { getProjectAccountName } from '../../../project/projectUtils';
 import { findAccountByName } from '../../../user/Account';
 import { Context } from '../../context';
 import { AppLookupParams } from '../api/GraphqlClient';
+import { App, Target } from '../types';
 import { resolveAppleTeamIfAuthenticatedAsync } from './AppleTeamUtils';
 
 export async function getAllBuildCredentialsAsync(
@@ -82,7 +82,7 @@ export async function assignBuildCredentialsAsync(
   });
 }
 
-export function getAppLookupParamsFromContext(ctx: Context): AppLookupParams {
+export function getAppFromContext(ctx: Context): App {
   ctx.ensureProjectContext();
   const projectName = ctx.exp.slug;
   const accountName = getProjectAccountName(ctx.exp, ctx.user);
@@ -90,8 +90,13 @@ export function getAppLookupParamsFromContext(ctx: Context): AppLookupParams {
   if (!account) {
     throw new Error(`You do not have access to account: ${accountName}`);
   }
+  return {
+    account,
+    projectName,
+  };
+}
 
-  const bundleIdentifier = getBundleIdentifier(ctx.projectDir, ctx.exp);
-
-  return { account, projectName, bundleIdentifier };
+export function getAppLookupParamsFromContext(ctx: Context, target: Target): AppLookupParams {
+  const app = getAppFromContext(ctx);
+  return { ...app, bundleIdentifier: target.bundleIdentifier };
 }
