@@ -1,10 +1,7 @@
 import mockdate from 'mockdate';
 
 import Log from '../../../../log';
-import {
-  testAndroidAppCredentialsFragment,
-  testLegacyAndroidAppCredentialsFragment,
-} from '../../../__tests__/fixtures-android-new';
+import { testAndroidAppCredentialsFragment } from '../../../__tests__/fixtures-android-new';
 import { createCtxMock } from '../../../__tests__/fixtures-context';
 import { getAppLookupParamsFromContext } from '../../actions/BuildCredentialsUtils';
 import { displayAndroidAppCredentials } from '../printCredentialsBeta';
@@ -20,7 +17,6 @@ describe('print credentials', () => {
     const appLookupParams = getAppLookupParamsFromContext(ctx);
     displayAndroidAppCredentials({
       appLookupParams,
-      legacyAppCredentials: testLegacyAndroidAppCredentialsFragment,
       appCredentials: testAndroidAppCredentialsFragment,
     });
     const loggedSoFar = (Log.log as jest.Mock).mock.calls.reduce(

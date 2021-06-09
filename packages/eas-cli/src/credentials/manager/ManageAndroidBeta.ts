@@ -4,7 +4,11 @@ import { promptAsync } from '../../prompts';
 import { findAccountByName } from '../../user/Account';
 import { ensureActorHasUsername } from '../../user/actions';
 import { Action, CredentialsManager } from '../CredentialsManager';
-import { getAppLookupParamsFromContext } from '../android/actions/BuildCredentialsUtils';
+import {
+  canCopyLegacyCredentialsAsync,
+  getAppLookupParamsFromContext,
+  promptUserAndCopyLegacyCredentialsAsync,
+} from '../android/actions/BuildCredentialsUtils';
 import { CreateKeystore } from '../android/actions/new/CreateKeystore';
 import {
   displayAndroidAppCredentials,
@@ -49,16 +53,22 @@ export class ManageAndroid implements Action {
         }
         if (ctx.hasProjectContext) {
           const appLookupParams = getAppLookupParamsFromContext(ctx);
-          const legacyAppCredentials = await ctx.newAndroid.getLegacyAndroidAppCredentialsWithCommonFieldsAsync(
-            appLookupParams
-          );
           const appCredentials = await ctx.newAndroid.getAndroidAppCredentialsWithCommonFieldsAsync(
             appLookupParams
           );
-          if (!legacyAppCredentials && !appCredentials) {
+          if (!appCredentials) {
             displayEmptyAndroidCredentials(appLookupParams);
           } else {
-            displayAndroidAppCredentials({ appLookupParams, legacyAppCredentials, appCredentials });
+            displayAndroidAppCredentials({ appLookupParams, appCredentials });
+          }
+
+          // copy legacy credentials if user is new to EAS and has legacy credentials
+          const canCopyLegacyCredentials = await canCopyLegacyCredentialsAsync(
+            ctx,
+            appLookupParams
+          );
+          if (canCopyLegacyCredentials) {
+            await promptUserAndCopyLegacyCredentialsAsync(ctx, appLookupParams);
           }
         }
         const actions: { value: ActionType; title: string }[] = [

@@ -20,25 +20,6 @@ export function displayEmptyAndroidCredentials(appLookupParams: AppLookupParams)
   Log.log(`  No credentials set up yet!`);
 }
 
-function displayLegacyAndroidAppCredentials(
-  legacyAppCredentials: CommonAndroidAppCredentialsFragment,
-  appCredentials: CommonAndroidAppCredentialsFragment | null
-): void {
-  if (appCredentials) {
-    // differentiate between old and new if there's both
-    Log.log(chalk.bold(`  Credentials ported from Expo Classic (expo-cli):`));
-  }
-  displayAndroidFcmCredentials(legacyAppCredentials);
-  // There can only be one set of build credentials in legacy app credentials
-  const [legacyBuildCredentials] = legacyAppCredentials.androidAppBuildCredentialsList;
-  if (legacyBuildCredentials) {
-    displayAndroidBuildCredentials(
-      legacyBuildCredentials,
-      /* only one set to show, skip config display */ true
-    );
-  }
-}
-
 function displayAndroidFcmCredentials(appCredentials: CommonAndroidAppCredentialsFragment): void {
   const maybeFcm = appCredentials.androidFcm;
   Log.log(`  Push Notifications (FCM):`);
@@ -63,15 +44,8 @@ function displayAndroidFcmCredentials(appCredentials: CommonAndroidAppCredential
 }
 
 function displayEASAndroidAppCredentials(
-  legacyAppCredentials: CommonAndroidAppCredentialsFragment | null,
   appCredentials: CommonAndroidAppCredentialsFragment
 ): void {
-  if (legacyAppCredentials) {
-    // differentiate between old and new if there's both
-    Log.log(chalk.bold(`  EAS Credentials:`));
-    Log.log(`  These will take precedence over Expo Classic credentials`);
-    Log.newLine();
-  }
   displayAndroidFcmCredentials(appCredentials);
   const sortedBuildCredentialsList = sortBuildCredentials(
     appCredentials.androidAppBuildCredentialsList
@@ -132,11 +106,9 @@ function displayAndroidBuildCredentials(
 
 export function displayAndroidAppCredentials({
   appLookupParams,
-  legacyAppCredentials,
   appCredentials,
 }: {
   appLookupParams: AppLookupParams;
-  legacyAppCredentials: CommonAndroidAppCredentialsFragment | null;
   appCredentials: CommonAndroidAppCredentialsFragment | null;
 }): void {
   const { projectName, androidApplicationIdentifier } = appLookupParams;
@@ -146,10 +118,6 @@ export function displayAndroidAppCredentials({
   Log.newLine();
 
   if (appCredentials) {
-    displayEASAndroidAppCredentials(legacyAppCredentials, appCredentials);
-  }
-
-  if (legacyAppCredentials) {
-    displayLegacyAndroidAppCredentials(legacyAppCredentials, appCredentials);
+    displayEASAndroidAppCredentials(appCredentials);
   }
 }

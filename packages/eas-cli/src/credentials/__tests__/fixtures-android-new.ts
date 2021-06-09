@@ -55,6 +55,7 @@ export const testLegacyAndroidAppCredentialsFragment: CommonAndroidAppCredential
   applicationIdentifier: null,
   isLegacy: true,
   app: testAppFragment,
+  androidFcm: testLegacyAndroidFcmFragment,
   androidAppBuildCredentialsList: [testLegacyAndroidBuildCredentialsFragment],
 };
 

@@ -1,13 +1,96 @@
 import assert from 'assert';
 import { nanoid } from 'nanoid';
+import ora from 'ora';
 
 import { AndroidAppBuildCredentialsFragment } from '../../../graphql/generated';
+import Log from '../../../log';
 import { getApplicationId } from '../../../project/android/applicationId';
 import { getProjectAccountName, getProjectConfigDescription } from '../../../project/projectUtils';
-import { promptAsync } from '../../../prompts';
+import { confirmAsync, promptAsync } from '../../../prompts';
 import { findAccountByName } from '../../../user/Account';
 import { Context } from '../../context';
 import { AppLookupParams } from '../api/GraphqlClient';
+
+/**
+ * Legacy credentials can be copied over to EAS if the user does not have
+ * EAS credentials set up yet
+ */
+export async function canCopyLegacyCredentialsAsync(
+  ctx: Context,
+  app: AppLookupParams
+): Promise<boolean> {
+  const appCredentials = await ctx.newAndroid.getAndroidAppCredentialsWithCommonFieldsAsync(app);
+  if (appCredentials) {
+    return false; // modern credentials already exist
+  }
+
+  const legacyAppCredentials = await ctx.newAndroid.getLegacyAndroidAppCredentialsWithCommonFieldsAsync(
+    app
+  );
+  return !!legacyAppCredentials; // user has some legacy credentials
+}
+
+export async function promptUserAndCopyLegacyCredentialsAsync(
+  ctx: Context,
+  app: AppLookupParams
+): Promise<void> {
+  assert(
+    !ctx.nonInteractive,
+    'Copying over Expo Classic credentials cannot be run in non-interactive mode'
+  );
+  assert(
+    await canCopyLegacyCredentialsAsync(ctx, app),
+    'User not eligible to copy Expo Classic credentials to EAS'
+  );
+  const shouldCopy = await confirmAsync({
+    message: `We've detected credentials from Expo Classic (expo-cli). Would you like to copy them over to Expo Application Services (EAS)?`,
+  });
+  if (!shouldCopy) {
+    return;
+  }
+
+  Log.log('Copying credentials...');
+  const spinner = ora().start();
+
+  const legacyAppCredentials = await ctx.newAndroid.getLegacyAndroidAppCredentialsWithCommonFieldsAsync(
+    app
+  );
+  if (!legacyAppCredentials) {
+    return;
+  }
+
+  const appCredentials = await ctx.newAndroid.createOrGetExistingAndroidAppCredentialsWithBuildCredentialsAsync(
+    app
+  );
+  const legacyFcm = legacyAppCredentials.androidFcm;
+  if (legacyFcm) {
+    const clonedFcm = await ctx.newAndroid.createFcmAsync(
+      app.account,
+      legacyFcm.credential,
+      legacyFcm.version
+    );
+    await ctx.newAndroid.updateAndroidAppCredentialsAsync(appCredentials, {
+      androidFcmId: clonedFcm.id,
+    });
+  }
+
+  const legacyBuildCredentials = await ctx.newAndroid.getLegacyAndroidAppBuildCredentialsAsync(app);
+  const legacyKeystore = legacyBuildCredentials?.androidKeystore ?? null;
+
+  if (legacyKeystore) {
+    const clonedKeystore = await ctx.newAndroid.createKeystoreAsync(app.account, {
+      keystore: legacyKeystore.keystore,
+      keystorePassword: legacyKeystore.keystorePassword,
+      keyAlias: legacyKeystore.keyAlias,
+      keyPassword: legacyKeystore.keyPassword ?? undefined,
+      type: legacyKeystore.type,
+    });
+    await createOrUpdateDefaultAndroidAppBuildCredentialsAsync(ctx, app, {
+      androidKeystoreId: clonedKeystore.id,
+    });
+  }
+  spinner.succeed('Credentials successfully copied');
+}
 
 export function getAppLookupParamsFromContext(ctx: Context): AppLookupParams {
   ctx.ensureProjectContext();
