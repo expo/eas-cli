@@ -68,12 +68,70 @@ const highLevelActions: ActionInfo[] = [
   },
 ];
 
+const credentialsJsonActions: { value: ActionType; title: string; scope: Scope }[] = [
+  {
+    value: ActionType.UpdateCredentialsJson,
+    title: 'Download credentials from EAS to credentials.json',
+    scope: Scope.Project,
+  },
+  {
+    value: ActionType.SetupBuildCredentialsFromCredentialsJson,
+    title: 'Upload credentials from credentials.json to EAS',
+    scope: Scope.Project,
+  },
+  {
+    value: ActionType.GoBackToHighLevelActions,
+    title: 'Go back',
+    scope: Scope.Manager,
+  },
+];
+
+function getBuildCredentialsActions(
+  ctx: Context
+): { value: ActionType; title: string; scope: Scope }[] {
+  return [
+    {
+      // This command will be triggered during build to ensure all credentials are ready
+      // I'm leaving it here for now to simplify testing
+      value: ActionType.SetupBuildCredentials,
+      title: 'All: Set up all the required credentials to build your project',
+      scope: Scope.Project,
+    },
+    {
+      value: ActionType.UseExistingDistributionCertificate,
+      title: 'Distribution Certificate: Use an existing one for your project',
+      scope: Scope.Project,
+    },
+    {
+      value: ActionType.CreateDistributionCertificate,
+      title: `Distribution Certificate: Add a new one to your account`,
+      scope: ctx.hasProjectContext ? Scope.Project : Scope.Account,
+    },
+    {
+      value: ActionType.RemoveDistributionCertificate,
+      title: 'Distribution Certificate: Delete one from your account',
+      scope: Scope.Account,
+    },
+    {
+      value: ActionType.RemoveProvisioningProfile,
+      title: 'Provisioning Profile: Delete one from your project',
+      scope: Scope.Project,
+    },
+    {
+      value: ActionType.GoBackToHighLevelActions,
+      title: 'Go back',
+      scope: Scope.Manager,
+    },
+  ];
+}
+
 export class ManageIos implements Action {
   async runAsync(
     manager: CredentialsManager,
     ctx: Context,
     currentActions: ActionInfo[] = highLevelActions
   ): Promise<void> {
+    const buildCredentialsActions = getBuildCredentialsActions(ctx);
     await ctx.bestEffortAppStoreAuthenticateAsync();
 
     const accountName = ctx.hasProjectContext
@@ -101,57 +159,6 @@ export class ManageIos implements Action {
           displayIosCredentials(app, iosAppCredentialsMap, targets);
         }
 
-        const credentialsJsonActions: { value: ActionType; title: string; scope: Scope }[] = [
-          {
-            value: ActionType.UpdateCredentialsJson,
-            title: 'Download credentials from EAS to credentials.json',
-            scope: Scope.Project,
-          },
-          {
-            value: ActionType.SetupBuildCredentialsFromCredentialsJson,
-            title: 'Upload credentials from credentials.json to EAS',
-            scope: Scope.Project,
-          },
-          {
-            value: ActionType.GoBackToHighLevelActions,
-            title: 'Go back',
-            scope: Scope.Manager,
-          },
-        ];
-        const buildCredentialsActions: { value: ActionType; title: string; scope: Scope }[] = [
-          {
-            // This command will be triggered during build to ensure all credentials are ready
-            // I'm leaving it here for now to simplify testing
-            value: ActionType.SetupBuildCredentials,
-            title: 'All: Set up all the required credentials to build your project',
-            scope: Scope.Project,
-          },
-          {
-            value: ActionType.UseExistingDistributionCertificate,
-            title: 'Distribution Certificate: Use an existing one for your project',
-            scope: Scope.Project,
-          },
-          {
-            value: ActionType.CreateDistributionCertificate,
-            title: `Distribution Certificate: Add a new one to your account`,
-            scope: ctx.hasProjectContext ? Scope.Project : Scope.Account,
-          },
-          {
-            value: ActionType.RemoveDistributionCertificate,
-            title: 'Distribution Certificate: Delete one from your account',
-            scope: Scope.Account,
-          },
-          {
-            value: ActionType.RemoveProvisioningProfile,
-            title: 'Provisioning Profile: Delete one from your project',
-            scope: Scope.Project,
-          },
-          {
-            value: ActionType.GoBackToHighLevelActions,
-            title: 'Go back',
-            scope: Scope.Manager,
-          },
-        ];
         const { action: chosenAction } = await promptAsync({
           type: 'select',
           name: 'action',
@@ -161,44 +168,38 @@ export class ManageIos implements Action {
             title: action.title,
           })),
         });
-        try {
-          const actionInfo = currentActions.find(action => action.value === chosenAction);
-          if (!actionInfo) {
-            throw new Error('Action not supported yet');
-          }
-
-          if (actionInfo.scope === Scope.Manager) {
-            if (chosenAction === ActionType.ManageBuildCredentials) {
-              currentActions = buildCredentialsActions;
-              continue;
-            } else if (chosenAction === ActionType.ManageCredentialsJson) {
-              currentActions = credentialsJsonActions;
-              continue;
-            } else if (chosenAction === ActionType.GoBackToHighLevelActions) {
-              currentActions = highLevelActions;
-              continue;
-            }
-          } else if (actionInfo.scope === Scope.Project) {
-            await this.runProjectSpecificActionAsync(
-              ctx,
-              nullthrows(app),
-              nullthrows(targets),
-              nullthrows(buildProfile),
-              chosenAction
-            );
-          } else if (actionInfo.scope === Scope.Account) {
-            await this.runAccountSpecificActionAsync(ctx, account, chosenAction);
-          } else {
-            throw new Error('Unknown action selected');
-          }
-        } catch (err) {
-          Log.error(err);
+        const actionInfo = currentActions.find(action => action.value === chosenAction);
+        if (!actionInfo) {
+          throw new Error('Action not supported yet');
         }
-        await manager.runActionAsync(new PressAnyKeyToContinue());
+        if (actionInfo.scope === Scope.Manager) {
+          if (chosenAction === ActionType.ManageBuildCredentials) {
+            currentActions = buildCredentialsActions;
+            continue;
+          } else if (chosenAction === ActionType.ManageCredentialsJson) {
+            currentActions = credentialsJsonActions;
+            continue;
+          } else if (chosenAction === ActionType.GoBackToHighLevelActions) {
+            currentActions = highLevelActions;
+            continue;
+          }
+        } else if (actionInfo.scope === Scope.Project) {
+          await this.runProjectSpecificActionAsync(
+            ctx,
+            nullthrows(app),
+            nullthrows(targets),
+            nullthrows(buildProfile),
+            chosenAction
+          );
+        } else if (actionInfo.scope === Scope.Account) {
+          await this.runAccountSpecificActionAsync(ctx, account, chosenAction);
+        } else {
+          throw new Error('Unknown action selected');
+        }
       } catch (err) {
         Log.error(err);
-        await manager.runActionAsync(new PressAnyKeyToContinue());
       }
+      await manager.runActionAsync(new PressAnyKeyToContinue());
     }
   }
 
