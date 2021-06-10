@@ -7,6 +7,7 @@ import {
   AndroidFcmFragment,
   AndroidFcmInput,
   CreateAndroidFcmMutation,
+  DeleteAndroidFcmMutation,
 } from '../../../../../graphql/generated';
 import { AndroidFcmFragmentNode } from '../../../../../graphql/types/credentials/AndroidFcm';
 
@@ -41,6 +42,29 @@ const AndroidFcmMutation = {
       'GraphQL: `createAndroidFcm` not defined in server response'
     );
     return data.androidFcm.createAndroidFcm;
+  },
+  async deleteAndroidFcm(androidFcmId: string): Promise<void> {
+    await withErrorHandlingAsync(
+      graphqlClient
+        .mutation<DeleteAndroidFcmMutation>(
+          gql`
+            mutation DeleteAndroidFcmMutation($androidFcmId: ID!) {
+              androidFcm {
+                deleteAndroidFcm(id: $androidFcmId) {
+                  id
+                }
+              }
+            }
+          `,
+          {
+            androidFcmId,
+          },
+          {
+            additionalTypenames: ['AndroidFcm', 'AndroidAppCredentials'],
+          }
+        )
+        .toPromise()
+    );
   },
 };
 

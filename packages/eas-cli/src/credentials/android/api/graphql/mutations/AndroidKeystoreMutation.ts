@@ -7,6 +7,7 @@ import {
   AndroidKeystoreFragment,
   AndroidKeystoreInput,
   CreateAndroidKeystoreMutation,
+  DeleteAndroidKeystoreMutation,
 } from '../../../../../graphql/generated';
 import { AndroidKeystoreFragmentNode } from '../../../../../graphql/types/credentials/AndroidKeystore';
 
@@ -47,6 +48,29 @@ const AndroidKeystoreMutation = {
       'GraphQL: `createAndroidKeystore` not defined in server response'
     );
     return data.androidKeystore.createAndroidKeystore;
+  },
+  async deleteAndroidKeystore(androidKeystoreId: string): Promise<void> {
+    await withErrorHandlingAsync(
+      graphqlClient
+        .mutation<DeleteAndroidKeystoreMutation>(
+          gql`
+            mutation DeleteAndroidKeystoreMutation($androidKeystoreId: ID!) {
+              androidKeystore {
+                deleteAndroidKeystore(id: $androidKeystoreId) {
+                  id
+                }
+              }
+            }
+          `,
+          {
+            androidKeystoreId,
+          },
+          {
+            additionalTypenames: ['AndroidKeystore', 'AndroidAppBuildCredentials'],
+          }
+        )
+        .toPromise()
+    );
   },
 };
 

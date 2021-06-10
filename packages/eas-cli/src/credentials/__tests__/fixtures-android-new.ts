@@ -91,5 +91,7 @@ export function getNewAndroidApiMockWithoutCredentials() {
     createOrUpdateAndroidAppBuildCredentialsByNameAsync: jest.fn(),
     createKeystoreAsync: jest.fn(),
     createFcmAsync: jest.fn(),
+    deleteKeystoreAsync: jest.fn(),
+    deleteFcmAsync: jest.fn(),
   };
 }

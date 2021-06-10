@@ -205,12 +205,20 @@ export async function createKeystoreAsync(
   );
 }
 
+export async function deleteKeystoreAsync(keystore: AndroidKeystoreFragment): Promise<void> {
+  return await AndroidKeystoreMutation.deleteAndroidKeystore(keystore.id);
+}
+
 export async function createFcmAsync(
   account: Account,
   fcmApiKey: string,
   version: AndroidFcmVersion
 ): Promise<AndroidFcmFragment> {
   return await AndroidFcmMutation.createAndroidFcm({ credential: fcmApiKey, version }, account.id);
+}
+
+export async function deleteFcmAsync(fcm: AndroidFcmFragment): Promise<void> {
+  return await AndroidFcmMutation.deleteAndroidFcm(fcm.id);
 }
 
 async function getAppAsync(appLookupParams: AppLookupParams): Promise<AppFragment> {
