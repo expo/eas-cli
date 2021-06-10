@@ -3731,6 +3731,22 @@ export type CreateAndroidFcmMutation = (
   ) }
 );
 
+export type DeleteAndroidFcmMutationVariables = Exact<{
+  androidFcmId: Scalars['ID'];
+}>;
+
+
+export type DeleteAndroidFcmMutation = (
+  { __typename?: 'RootMutation' }
+  & { androidFcm: (
+    { __typename?: 'AndroidFcmMutation' }
+    & { deleteAndroidFcm: (
+      { __typename?: 'deleteAndroidFcmResult' }
+      & Pick<DeleteAndroidFcmResult, 'id'>
+    ) }
+  ) }
+);
+
 export type CreateAndroidKeystoreMutationVariables = Exact<{
   androidKeystoreInput: AndroidKeystoreInput;
   accountId: Scalars['ID'];
@@ -3746,6 +3762,22 @@ export type CreateAndroidKeystoreMutation = (
       & Pick<AndroidKeystore, 'id'>
       & AndroidKeystoreFragment
     )> }
+  ) }
+);
+
+export type DeleteAndroidKeystoreMutationVariables = Exact<{
+  androidKeystoreId: Scalars['ID'];
+}>;
+
+
+export type DeleteAndroidKeystoreMutation = (
+  { __typename?: 'RootMutation' }
+  & { androidKeystore: (
+    { __typename?: 'AndroidKeystoreMutation' }
+    & { deleteAndroidKeystore: (
+      { __typename?: 'DeleteAndroidKeystoreResult' }
+      & Pick<DeleteAndroidKeystoreResult, 'id'>
+    ) }
   ) }
 );
 

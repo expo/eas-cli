@@ -9,8 +9,12 @@ import {
   getAppLookupParamsFromContext,
   promptUserAndCopyLegacyCredentialsAsync,
 } from '../android/actions/BuildCredentialsUtils';
+import { AssignFcm } from '../android/actions/new/AssignFcm';
+import { CreateFcm } from '../android/actions/new/CreateFcm';
 import { CreateKeystore } from '../android/actions/new/CreateKeystore';
 import { DownloadKeystore } from '../android/actions/new/DownloadKeystore';
+import { RemoveFcm } from '../android/actions/new/RemoveFcm';
+import { RemoveKeystore } from '../android/actions/new/RemoveKeystore';
 import {
   displayAndroidAppCredentials,
   displayEmptyAndroidCredentials,
@@ -26,6 +30,9 @@ import {
 enum ActionType {
   CreateKeystore,
   DownloadKeystore,
+  RemoveKeystore,
+  CreateFcm,
+  RemoveFcm,
 }
 
 enum Scope {
@@ -83,6 +90,18 @@ export class ManageAndroid implements Action {
             value: ActionType.DownloadKeystore,
             title: 'Download existing keystore',
           },
+          {
+            value: ActionType.RemoveKeystore,
+            title: 'Delete your keystore',
+          },
+          {
+            value: ActionType.CreateFcm,
+            title: 'Upload an FCM Api Key',
+          },
+          {
+            value: ActionType.RemoveFcm,
+            title: 'Delete your FCM Api Key',
+          },
         ];
         const { action: chosenAction } = await promptAsync({
           type: 'select',
@@ -120,6 +139,21 @@ export class ManageAndroid implements Action {
           if (buildCredentials) {
             await new DownloadKeystore({ app: appLookupParams }).runAsync(ctx, buildCredentials);
           }
+        } else if (chosenAction === ActionType.RemoveKeystore) {
+          const appLookupParams = getAppLookupParamsFromContext(ctx);
+          const buildCredentials = await new SelectExistingAndroidBuildCredentials(
+            appLookupParams
+          ).runAsync(ctx);
+          if (buildCredentials) {
+            await new RemoveKeystore(appLookupParams).runAsync(ctx, buildCredentials);
+          }
+        } else if (chosenAction === ActionType.CreateFcm) {
+          const appLookupParams = getAppLookupParamsFromContext(ctx);
+          const fcm = await new CreateFcm(appLookupParams.account).runAsync(ctx);
+          await new AssignFcm(appLookupParams).runAsync(ctx, fcm);
+        } else if (chosenAction === ActionType.RemoveFcm) {
+          const appLookupParams = getAppLookupParamsFromContext(ctx);
+          await new RemoveFcm(appLookupParams).runAsync(ctx);
         }
       } catch (err) {
         Log.error(err);
