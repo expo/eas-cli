@@ -37,6 +37,7 @@ import { SelectIosDistributionTypeGraphqlFromBuildProfile } from './SelectIosDis
 enum ActionType {
   ManageCredentialsJson,
   ManageBuildCredentials,
+  GoBackToCaller,
   GoBackToHighLevelActions,
   SetupBuildCredentials,
   SetupBuildCredentialsFromCredentialsJson,
@@ -64,6 +65,11 @@ const highLevelActions: ActionInfo[] = [
   {
     value: ActionType.ManageCredentialsJson,
     title: 'Credentials.json: Upload/Download credentials between EAS servers and your local json ',
+    scope: Scope.Manager,
+  },
+  {
+    value: ActionType.GoBackToCaller,
+    title: 'Go back',
     scope: Scope.Manager,
   },
 ];
@@ -125,12 +131,9 @@ function getBuildCredentialsActions(
   ];
 }
 
-export class ManageIos implements Action {
-  async runAsync(
-    manager: CredentialsManager,
-    ctx: Context,
-    currentActions: ActionInfo[] = highLevelActions
-  ): Promise<void> {
+export class ManageIos {
+  constructor(private callingAction: Action) {}
+  async runAsync(ctx: Context, currentActions: ActionInfo[] = highLevelActions): Promise<void> {
     const buildCredentialsActions = getBuildCredentialsActions(ctx);
     await ctx.bestEffortAppStoreAuthenticateAsync();
 
@@ -142,11 +145,10 @@ export class ManageIos implements Action {
     if (!account) {
       throw new Error(`You do not have access to account: ${accountName}`);
     }
+    const { app, targets, buildProfile } = await this.createProjectContextAsync(ctx, account);
 
     while (true) {
       try {
-        const { app, targets, buildProfile } = await this.createProjectContextAsync(ctx, account);
-
         if (ctx.hasProjectContext) {
           assert(targets && app);
           const iosAppCredentialsMap: IosAppCredentialsMap = {};
@@ -182,6 +184,8 @@ export class ManageIos implements Action {
           } else if (chosenAction === ActionType.GoBackToHighLevelActions) {
             currentActions = highLevelActions;
             continue;
+          } else if (chosenAction === ActionType.GoBackToCaller) {
+            return await new CredentialsManager(ctx).runActionAsync(this.callingAction);
           }
         } else if (actionInfo.scope === Scope.Project) {
           await this.runProjectSpecificActionAsync(
@@ -199,7 +203,7 @@ export class ManageIos implements Action {
       } catch (err) {
         Log.error(err);
       }
-      await manager.runActionAsync(new PressAnyKeyToContinue());
+      await new PressAnyKeyToContinue().runAsync();
     }
   }
 
