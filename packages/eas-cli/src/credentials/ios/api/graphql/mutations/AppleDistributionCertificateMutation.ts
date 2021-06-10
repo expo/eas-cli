@@ -79,7 +79,7 @@ const AppleDistributionCertificateMutation = {
             appleDistributionCertificateId,
           },
           {
-            additionalTypenames: ['AppleDistributionCertificate'],
+            additionalTypenames: ['AppleDistributionCertificate', 'IosAppBuildCredentials'],
           }
         )
         .toPromise()
