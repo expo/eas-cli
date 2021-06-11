@@ -17,6 +17,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Deprecate `--skip-credentials-check` flag because it doesn't do anything and is no longer needed.([#442](https://github.com/expo/eas-cli/pull/442) by [@brentvatne](https://github.com/brentvatne))
+
 ## [0.17.0](https://github.com/expo/eas-cli/releases/tag/v0.17.0) - 2021-06-02
 
 ### 🐛 Bug fixes

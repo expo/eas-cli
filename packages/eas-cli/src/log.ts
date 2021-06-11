@@ -35,6 +35,10 @@ export default class Log {
     Log.consoleLog(...Log.withTextColor(args, chalk.gray));
   }
 
+  public static warnDeprecatedFlag(flag: string, message: string) {
+    Log.warn(`› ${chalk.bold('--' + flag)} flag is deprecated. ${message}`);
+  }
+
   public static succeed(message: string) {
     ora().succeed(message);
   }
