@@ -1,0 +1,7 @@
+s = open('README.md').read()
+s = s.replace('[build/', '[src/')
+s = s.replace('build/commands', 'packages/eas-cli/src/commands')
+f = open('README.md', 'w')
+f.write(s)
+f.close()
+quit()
