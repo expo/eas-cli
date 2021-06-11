@@ -21,7 +21,6 @@ export interface CommandContext {
   nonInteractive: boolean;
   local: boolean;
   clearCache: boolean;
-  skipCredentialsCheck: boolean;
   skipProjectConfiguration: boolean;
   waitForBuildEnd: boolean;
 }
@@ -35,7 +34,6 @@ export async function createCommandContextAsync({
   nonInteractive = false,
   local,
   clearCache = false,
-  skipCredentialsCheck = false,
   skipProjectConfiguration = false,
   waitForBuildEnd,
 }: {
@@ -47,7 +45,6 @@ export async function createCommandContextAsync({
   nonInteractive: boolean;
   local: boolean;
   clearCache: boolean;
-  skipCredentialsCheck: boolean;
   skipProjectConfiguration: boolean;
   waitForBuildEnd: boolean;
 }): Promise<CommandContext> {
@@ -67,7 +64,6 @@ export async function createCommandContextAsync({
     nonInteractive,
     local,
     clearCache,
-    skipCredentialsCheck,
     skipProjectConfiguration,
     waitForBuildEnd,
   };

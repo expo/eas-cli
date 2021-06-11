@@ -25,7 +25,7 @@ export default class Build extends EasCommand {
     platform: flags.enum({ char: 'p', options: ['android', 'ios', 'all'] }),
     'skip-credentials-check': flags.boolean({
       default: false,
-      description: 'Skip validation of build credentials',
+      hidden: true,
     }),
     'skip-project-configuration': flags.boolean({
       default: false,
@@ -64,6 +64,14 @@ export default class Build extends EasCommand {
     const platform =
       (flags.platform as RequestedPlatform | undefined) ?? (await promptForPlatformAsync());
 
+    if (flags['skip-credentials-check']) {
+      Log.warnDeprecatedFlag(
+        'skip-credentials-check',
+        'Build credential validation is always skipped with the --non-interactive flag. You can also skip interactively.'
+      );
+      Log.newLine();
+    }
+
     const projectDir = (await findProjectRootAsync()) ?? process.cwd();
     let { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
     const projectId = await getProjectIdAsync(exp);
@@ -89,7 +97,6 @@ export default class Build extends EasCommand {
       projectId,
       nonInteractive,
       clearCache: flags['clear-cache'],
-      skipCredentialsCheck: flags['skip-credentials-check'],
       local: flags.local,
       skipProjectConfiguration: flags['skip-project-configuration'],
       waitForBuildEnd: flags.wait,

@@ -15,7 +15,6 @@ export interface AndroidCredentials {
 
 interface Options {
   app: AppLookupParams;
-  skipCredentialsCheck?: boolean;
 }
 
 export default class AndroidCredentialsProvider {

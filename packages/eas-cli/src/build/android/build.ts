@@ -136,7 +136,6 @@ async function ensureAndroidCredentialsAsync(
         projectName: ctx.commandCtx.projectName,
         androidApplicationIdentifier,
       },
-      skipCredentialsCheck: ctx.commandCtx.skipCredentialsCheck,
     }
   );
   const { credentialsSource } = ctx.buildProfile;
