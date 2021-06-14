@@ -93,6 +93,7 @@ async function prepareGenericJobAsync(
     gradleCommand: buildProfile.gradleCommand,
     artifactPath: buildProfile.artifactPath,
     releaseChannel: buildProfile.releaseChannel,
+    updates: { channel: buildProfile.channel },
     projectRootDirectory,
   };
 }
@@ -111,6 +112,7 @@ async function prepareManagedJobAsync(
     username,
     buildType: buildProfile.buildType,
     releaseChannel: buildProfile.releaseChannel,
+    updates: { channel: buildProfile.channel },
     projectRootDirectory,
   };
 }

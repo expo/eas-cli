@@ -15644,11 +15644,11 @@
             "defaultValue": null
           },
           {
-            "name": "channel",
+            "name": "updates",
             "description": "",
             "type": {
-              "kind": "SCALAR",
-              "name": "String",
+              "kind": "INPUT_OBJECT",
+              "name": "BuildUpdatesInput",
               "ofType": null
             },
             "defaultValue": null
@@ -15774,6 +15774,27 @@
             "deprecationReason": null
           }
         ],
+        "possibleTypes": null
+      },
+      {
+        "kind": "INPUT_OBJECT",
+        "name": "BuildUpdatesInput",
+        "description": "",
+        "fields": null,
+        "inputFields": [
+          {
+            "name": "channel",
+            "description": "",
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null
+          }
+        ],
+        "interfaces": null,
+        "enumValues": null,
         "possibleTypes": null
       },
       {
@@ -16388,6 +16409,16 @@
             "defaultValue": null
           },
           {
+            "name": "updates",
+            "description": "",
+            "type": {
+              "kind": "INPUT_OBJECT",
+              "name": "BuildUpdatesInput",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "secrets",
             "description": "",
             "type": {
@@ -16516,11 +16547,11 @@
             "defaultValue": null
           },
           {
-            "name": "channel",
+            "name": "updates",
             "description": "",
             "type": {
-              "kind": "SCALAR",
-              "name": "String",
+              "kind": "INPUT_OBJECT",
+              "name": "BuildUpdatesInput",
               "ofType": null
             },
             "defaultValue": null
@@ -16895,6 +16926,16 @@
             "type": {
               "kind": "SCALAR",
               "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "updates",
+            "description": "",
+            "type": {
+              "kind": "INPUT_OBJECT",
+              "name": "BuildUpdatesInput",
               "ofType": null
             },
             "defaultValue": null

@@ -6,10 +6,16 @@ import { getBundleIdentifier } from '../project/ios/bundleIdentifier';
 import { getUsername } from '../project/projectUtils';
 import { ensureLoggedInAsync } from '../user/actions';
 import { gitCommitHashAsync } from '../utils/git';
-import { readReleaseChannelSafelyAsync as readAndroidReleaseChannelSafelyAsync } from './android/UpdatesModule';
+import {
+  readChannelSafelyAsync as readAndroidChannelSafelyAsync,
+  readReleaseChannelSafelyAsync as readAndroidReleaseChannelSafelyAsync,
+} from './android/UpdatesModule';
 import { readVersionCode, readVersionName } from './android/version';
 import { BuildContext } from './context';
-import { readReleaseChannelSafelyAsync as readIosReleaseChannelSafelyAsync } from './ios/UpdatesModule';
+import {
+  readChannelSafelyAsync as readIosChannelSafelyAsync,
+  readReleaseChannelSafelyAsync as readIosReleaseChannelSafelyAsync,
+} from './ios/UpdatesModule';
 import { readBuildNumberAsync, readShortVersionAsync } from './ios/version';
 import { Platform } from './types';
 import { isExpoUpdatesInstalled } from './utils/updates';
@@ -29,6 +35,7 @@ export async function collectMetadata<T extends Platform>(
     credentialsSource?: CredentialsSource.LOCAL | CredentialsSource.REMOTE;
   }
 ): Promise<Metadata> {
+  const channelOrReleaseChannel = await resolveChannelOrReleaseChannelAsync(ctx);
   return {
     // TODO: type error fixed in https://github.com/expo/eas-build/pull/34
     // remove @ts-expect-error after upgrading @expo/eas-build-job
@@ -40,7 +47,7 @@ export async function collectMetadata<T extends Platform>(
     workflow: ctx.buildProfile.workflow,
     credentialsSource,
     sdkVersion: ctx.commandCtx.exp.sdkVersion,
-    releaseChannel: await resolveReleaseChannel(ctx),
+    ...channelOrReleaseChannel,
     distribution: ctx.buildProfile.distribution ?? 'store',
     appName: ctx.commandCtx.exp.name,
     appIdentifier: resolveAppIdentifier(ctx),
@@ -79,22 +86,52 @@ function resolveAppIdentifier<T extends Platform>(ctx: BuildContext<T>): string 
   }
 }
 
-async function resolveReleaseChannel<T extends Platform>(
+async function resolveChannelOrReleaseChannelAsync<T extends Platform>(
+  ctx: BuildContext<T>
+): Promise<{ channel: string } | { releaseChannel: string } | null> {
+  if (!isExpoUpdatesInstalled(ctx.commandCtx.projectDir)) {
+    return null;
+  }
+  if (ctx.buildProfile.channel) {
+    return { channel: ctx.buildProfile.channel };
+  }
+  if (ctx.buildProfile.releaseChannel) {
+    return { releaseChannel: ctx.buildProfile.releaseChannel };
+  }
+  const channel = await getNativeChannelAsync(ctx);
+  if (channel) {
+    return { channel };
+  }
+  const releaseChannel = await getNativeReleaseChannelAsync(ctx);
+  return { releaseChannel };
+}
+
+async function getNativeReleaseChannelAsync<T extends Platform>(
+  ctx: BuildContext<T>
+): Promise<string> {
+  switch (ctx.platform) {
+    case Platform.ANDROID: {
+      return (await readAndroidReleaseChannelSafelyAsync(ctx.commandCtx.projectDir)) ?? 'default';
+    }
+    case Platform.IOS: {
+      return (await readIosReleaseChannelSafelyAsync(ctx.commandCtx.projectDir)) ?? 'default';
+    }
+    default:
+      return 'default';
+  }
+}
+
+async function getNativeChannelAsync<T extends Platform>(
   ctx: BuildContext<T>
 ): Promise<string | undefined> {
-  if (!isExpoUpdatesInstalled(ctx.commandCtx.projectDir)) {
-    return undefined;
+  switch (ctx.platform) {
+    case Platform.ANDROID: {
+      return (await readAndroidChannelSafelyAsync(ctx.commandCtx.projectDir)) ?? undefined;
+    }
+    case Platform.IOS: {
+      return (await readIosChannelSafelyAsync(ctx.commandCtx.projectDir)) ?? undefined;
+    }
   }
 
-  if (ctx.buildProfile.releaseChannel) {
-    return ctx.buildProfile.releaseChannel;
-  }
-
-  let maybeReleaseChannel: string | null;
-  if (ctx.platform === Platform.ANDROID) {
-    maybeReleaseChannel = await readAndroidReleaseChannelSafelyAsync(ctx.commandCtx.projectDir);
-  } else {
-    maybeReleaseChannel = await readIosReleaseChannelSafelyAsync(ctx.commandCtx.projectDir);
-  }
-  return maybeReleaseChannel ?? 'default';
+  return undefined;
 }

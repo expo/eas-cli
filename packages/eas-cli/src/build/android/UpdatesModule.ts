@@ -1,5 +1,5 @@
 import { ExpoConfig } from '@expo/config';
-import { AndroidConfig } from '@expo/config-plugins';
+import { AndroidConfig, AndroidManifest } from '@expo/config-plugins';
 import fs from 'fs-extra';
 
 import Log from '../../log';
@@ -22,12 +22,7 @@ export async function configureUpdatesAsync(projectDir: string, exp: ExpoConfig)
   }
 
   const androidManifestPath = await AndroidConfig.Paths.getAndroidManifestAsync(projectDir);
-  if (!androidManifestPath) {
-    throw new Error(`Could not find AndroidManifest.xml in project directory: "${projectDir}"`);
-  }
-  const androidManifest = await AndroidConfig.Manifest.readAndroidManifestAsync(
-    androidManifestPath
-  );
+  const androidManifest = await getAndroidManifestAsync(projectDir);
 
   if (!AndroidConfig.Updates.isMainApplicationMetaDataSynced(exp, androidManifest, accountName)) {
     const result = AndroidConfig.Updates.setUpdatesConfig(exp, androidManifest, accountName);
@@ -52,10 +47,7 @@ export async function syncUpdatesConfigurationAsync(
   }
 
   const androidManifestPath = await AndroidConfig.Paths.getAndroidManifestAsync(projectDir);
-  if (!androidManifestPath) {
-    throw new Error(`Could not find AndroidManifest.xml in project directory: "${projectDir}"`);
-  }
-  let androidManifest = await AndroidConfig.Manifest.readAndroidManifestAsync(androidManifestPath);
+  let androidManifest = await getAndroidManifestAsync(projectDir);
 
   if (!AndroidConfig.Updates.areVersionsSynced(exp, androidManifest)) {
     androidManifest = AndroidConfig.Updates.setVersionsConfig(exp, androidManifest);
@@ -78,13 +70,7 @@ async function ensureUpdatesConfiguredAsync(projectDir: string, exp: ExpoConfig)
     throw new Error(`Missing ${gradleScriptApply} in ${buildGradlePath}`);
   }
 
-  const androidManifestPath = await AndroidConfig.Paths.getAndroidManifestAsync(projectDir);
-  if (!androidManifestPath) {
-    throw new Error(`Could not find AndroidManifest.xml in project directory: "${projectDir}"`);
-  }
-  const androidManifest = await AndroidConfig.Manifest.readAndroidManifestAsync(
-    androidManifestPath
-  );
+  const androidManifest = await getAndroidManifestAsync(projectDir);
 
   if (!AndroidConfig.Updates.isMainApplicationMetaDataSet(androidManifest)) {
     throw new Error('Missing values in AndroidManifest.xml');
@@ -93,13 +79,7 @@ async function ensureUpdatesConfiguredAsync(projectDir: string, exp: ExpoConfig)
 
 export async function readReleaseChannelSafelyAsync(projectDir: string): Promise<string | null> {
   try {
-    const androidManifestPath = await AndroidConfig.Paths.getAndroidManifestAsync(projectDir);
-    if (!androidManifestPath) {
-      throw new Error(`Could not find AndroidManifest.xml in project directory: "${projectDir}"`);
-    }
-    const androidManifest = await AndroidConfig.Manifest.readAndroidManifestAsync(
-      androidManifestPath
-    );
+    const androidManifest = await getAndroidManifestAsync(projectDir);
     return AndroidConfig.Manifest.getMainApplicationMetaDataValue(
       androidManifest,
       AndroidConfig.Updates.Config.RELEASE_CHANNEL
@@ -107,4 +87,29 @@ export async function readReleaseChannelSafelyAsync(projectDir: string): Promise
   } catch (err) {
     return null;
   }
+}
+
+export async function readChannelSafelyAsync(projectDir: string): Promise<string | null> {
+  try {
+    const androidManifest = await getAndroidManifestAsync(projectDir);
+    const stringifiedRequestHeaders = AndroidConfig.Manifest.getMainApplicationMetaDataValue(
+      androidManifest,
+      'expo.modules.updates.UPDATES_CONFIGURATION_REQUEST_HEADERS_KEY' //TODO-JJ AndroidConfig.Updates.Config.UPDATES_CONFIGURATION_REQUEST_HEADERS_KEY once https://github.com/expo/expo-cli/pull/3571 is published
+    );
+    if (!stringifiedRequestHeaders) {
+      return null;
+    }
+    return JSON.parse(stringifiedRequestHeaders)['expo-channel-name'] ?? null;
+  } catch (err) {
+    console.log({ err });
+    return null;
+  }
+}
+
+async function getAndroidManifestAsync(projectDir: string): Promise<AndroidManifest> {
+  const androidManifestPath = await AndroidConfig.Paths.getAndroidManifestAsync(projectDir);
+  if (!androidManifestPath) {
+    throw new Error(`Could not find AndroidManifest.xml in project directory: "${projectDir}"`);
+  }
+  return AndroidConfig.Manifest.readAndroidManifestAsync(androidManifestPath);
 }

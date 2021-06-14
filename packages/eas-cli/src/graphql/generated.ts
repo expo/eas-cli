@@ -2402,7 +2402,7 @@ export type AndroidGenericJobInput = {
   projectArchive: ProjectArchiveSourceInput;
   projectRootDirectory: Scalars['String'];
   releaseChannel?: Maybe<Scalars['String']>;
-  channel?: Maybe<Scalars['String']>;
+  updates?: Maybe<BuildUpdatesInput>;
   secrets?: Maybe<AndroidJobSecretsInput>;
   builderEnvironment?: Maybe<AndroidBuilderEnvironmentInput>;
   cache?: Maybe<BuildCacheInput>;
@@ -2420,6 +2420,10 @@ export enum ProjectArchiveSourceType {
   S3 = 'S3',
   Url = 'URL'
 }
+
+export type BuildUpdatesInput = {
+  channel?: Maybe<Scalars['String']>;
+};
 
 export type AndroidJobSecretsInput = {
   buildCredentials?: Maybe<AndroidJobBuildCredentialsInput>;
@@ -2503,6 +2507,7 @@ export type AndroidManagedJobInput = {
   projectArchive: ProjectArchiveSourceInput;
   projectRootDirectory: Scalars['String'];
   releaseChannel?: Maybe<Scalars['String']>;
+  updates?: Maybe<BuildUpdatesInput>;
   secrets?: Maybe<AndroidJobSecretsInput>;
   builderEnvironment?: Maybe<AndroidBuilderEnvironmentInput>;
   cache?: Maybe<BuildCacheInput>;
@@ -2520,7 +2525,7 @@ export type IosGenericJobInput = {
   projectArchive: ProjectArchiveSourceInput;
   projectRootDirectory: Scalars['String'];
   releaseChannel?: Maybe<Scalars['String']>;
-  channel?: Maybe<Scalars['String']>;
+  updates?: Maybe<BuildUpdatesInput>;
   distribution?: Maybe<DistributionType>;
   secrets?: Maybe<IosJobSecretsInput>;
   builderEnvironment?: Maybe<IosBuilderEnvironmentInput>;
@@ -2567,6 +2572,7 @@ export type IosManagedJobInput = {
   projectArchive: ProjectArchiveSourceInput;
   projectRootDirectory: Scalars['String'];
   releaseChannel?: Maybe<Scalars['String']>;
+  updates?: Maybe<BuildUpdatesInput>;
   distribution?: Maybe<DistributionType>;
   secrets?: Maybe<IosJobSecretsInput>;
   builderEnvironment?: Maybe<IosBuilderEnvironmentInput>;
@@ -4079,25 +4085,7 @@ export type CreateIosAppCredentialsMutation = (
     & { createIosAppCredentials: (
       { __typename?: 'IosAppCredentials' }
       & Pick<IosAppCredentials, 'id'>
-      & CommonIosAppCredentialsFragment
-    ) }
-  ) }
-);
-
-export type SetPushKeyMutationVariables = Exact<{
-  iosAppCredentialsId: Scalars['ID'];
-  pushKeyId: Scalars['ID'];
-}>;
-
-
-export type SetPushKeyMutation = (
-  { __typename?: 'RootMutation' }
-  & { iosAppCredentials: (
-    { __typename?: 'IosAppCredentialsMutation' }
-    & { setPushKey: (
-      { __typename?: 'IosAppCredentials' }
-      & Pick<IosAppCredentials, 'id'>
-      & CommonIosAppCredentialsFragment
+      & IosAppCredentialsFragment
     ) }
   ) }
 );
