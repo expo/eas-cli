@@ -74,7 +74,7 @@ export async function selectSchemeAsync({
     const withoutTvOS = sortedSchemes.filter(i => !i.includes('tvOS'));
     const scheme = withoutTvOS.length > 0 ? withoutTvOS[0] : sortedSchemes[0];
     Log.log(
-      `You've run Expo CLI in non-interactive mode, choosing the ${chalk.bold(scheme)} scheme.`
+      `You've run EAS CLI in non-interactive mode, choosing the ${chalk.bold(scheme)} scheme.`
     );
     Log.newLine();
     return scheme;
