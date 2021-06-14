@@ -1,5 +1,6 @@
 import { ExpoConfig } from '@expo/config';
 import { AndroidBuildProfile, EasConfig, IosBuildProfile } from '@expo/eas-json';
+import JsonFile from '@expo/json-file';
 import { v4 as uuidv4 } from 'uuid';
 
 import { getProjectAccountName } from '../project/projectUtils';
@@ -8,6 +9,7 @@ import { Actor } from '../user/User';
 import { ensureLoggedInAsync } from '../user/actions';
 import { Platform, RequestedPlatform, TrackingContext } from './types';
 import Analytics, { Event } from './utils/analytics';
+import resolveFrom from 'resolve-from';
 
 export interface CommandContext {
   requestedPlatform: RequestedPlatform;
@@ -113,6 +115,7 @@ export function createBuildContext<T extends Platform>({
     account_name: commandCtx.accountName,
     project_id: commandCtx.projectId,
     project_type: buildProfile.workflow,
+    ...getDevClientEventProperties(commandCtx.projectDir),
   };
   Analytics.logEvent(Event.BUILD_COMMAND, trackingCtx);
   return {
@@ -121,4 +124,13 @@ export function createBuildContext<T extends Platform>({
     platform,
     buildProfile,
   };
+}
+
+function getDevClientEventProperties(projectDir: string) {
+  try {
+    const pkg = JsonFile.read(resolveFrom(projectDir, 'expo-dev-client/package.json'));
+    return { dev_client: true, dev_client_version: pkg.version };
+  } catch {
+    return { dev_client: false };
+  }
 }
