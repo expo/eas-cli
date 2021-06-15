@@ -12,12 +12,15 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🎉 New features
 
 - Make credentials manager work with multi-target iOS projects. ([#441](https://github.com/expo/eas-cli/pull/441) by [@dsokal](https://github.com/dsokal))
+- Copy over credentials from Expo Classic to EAS ([#445](https://github.com/expo/eas-cli/pull/445) by [@quinlanj](https://github.com/quinlanj))
 
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
 
 - Deprecate `--skip-credentials-check` flag because it doesn't do anything and is no longer needed.([#442](https://github.com/expo/eas-cli/pull/442) by [@brentvatne](https://github.com/brentvatne))
+- Move android credentials code to new Graphql API ([#439](https://github.com/expo/eas-cli/pull/439) [#440](https://github.com/expo/eas-cli/pull/440) [#438](https://github.com/expo/eas-cli/pull/438) [#443](https://github.com/expo/eas-cli/pull/443) [#447](https://github.com/expo/eas-cli/pull/447) [#451](https://github.com/expo/eas-cli/pull/451) by [@quinlanj](https://github.com/quinlanj))
+- Improve credentials DX ([#448](https://github.com/expo/eas-cli/pull/448) [#449](https://github.com/expo/eas-cli/pull/449) by [@quinlanj](https://github.com/quinlanj))
 
 ## [0.17.0](https://github.com/expo/eas-cli/releases/tag/v0.17.0) - 2021-06-02
 
