@@ -14,7 +14,7 @@ describe(CreateFcm, () => {
     await createFcmAction.runAsync(ctx);
 
     // expect fcm api key to be created on expo servers
-    expect(ctx.newAndroid.createFcmAsync as any).toHaveBeenCalledTimes(1);
+    expect(ctx.android.createFcmAsync as any).toHaveBeenCalledTimes(1);
   });
   it('errors in Non-Interactive Mode', async () => {
     const ctx = createCtxMock({ nonInteractive: true });

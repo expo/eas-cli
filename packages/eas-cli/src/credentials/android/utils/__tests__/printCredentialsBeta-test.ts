@@ -1,7 +1,7 @@
 import mockdate from 'mockdate';
 
 import Log from '../../../../log';
-import { testAndroidAppCredentialsFragment } from '../../../__tests__/fixtures-android-new';
+import { testAndroidAppCredentialsFragment } from '../../../__tests__/fixtures-android';
 import { createCtxMock } from '../../../__tests__/fixtures-context';
 import { getAppLookupParamsFromContext } from '../../actions/BuildCredentialsUtils';
 import { displayAndroidAppCredentials } from '../printCredentialsBeta';

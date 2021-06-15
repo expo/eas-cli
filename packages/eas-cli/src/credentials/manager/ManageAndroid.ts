@@ -148,7 +148,7 @@ export class ManageAndroid {
         }
         if (ctx.hasProjectContext) {
           const appLookupParams = getAppLookupParamsFromContext(ctx);
-          const appCredentials = await ctx.newAndroid.getAndroidAppCredentialsWithCommonFieldsAsync(
+          const appCredentials = await ctx.android.getAndroidAppCredentialsWithCommonFieldsAsync(
             appLookupParams
           );
           if (!appCredentials) {
@@ -206,12 +206,12 @@ export class ManageAndroid {
             selectBuildCredentialsResult.resultType ===
             SelectAndroidBuildCredentialsResultType.CREATE_REQUEST
           ) {
-            await ctx.newAndroid.createAndroidAppBuildCredentialsAsync(appLookupParams, {
+            await ctx.android.createAndroidAppBuildCredentialsAsync(appLookupParams, {
               ...selectBuildCredentialsResult.result,
               androidKeystoreId: keystore.id,
             });
           } else {
-            await ctx.newAndroid.updateAndroidAppBuildCredentialsAsync(
+            await ctx.android.updateAndroidAppBuildCredentialsAsync(
               selectBuildCredentialsResult.result,
               {
                 androidKeystoreId: keystore.id,

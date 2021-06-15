@@ -19,7 +19,7 @@ export class CreateFcm {
         validate: (value: string) => value.length > 0 || "FCM API Key can't be empty",
       },
     ]);
-    const fcmFragment = await ctx.newAndroid.createFcmAsync(
+    const fcmFragment = await ctx.android.createFcmAsync(
       this.account,
       fcmApiKey,
       AndroidFcmVersion.Legacy

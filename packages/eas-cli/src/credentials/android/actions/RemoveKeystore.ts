@@ -37,7 +37,7 @@ export class RemoveKeystore {
     }
     await new BackupKeystore(this.app).runAsync(ctx, buildCredentials);
 
-    await ctx.newAndroid.deleteKeystoreAsync(keystore);
+    await ctx.android.deleteKeystoreAsync(keystore);
     Log.succeed('Keystore removed');
   }
 

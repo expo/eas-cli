@@ -15,7 +15,7 @@ export class CreateKeystore {
       throw new Error(`New keystore cannot be created in non-interactive mode.`);
     }
     const keystore = await this.provideOrGenerateAsync();
-    const keystoreFragment = await ctx.newAndroid.createKeystoreAsync(this.account, keystore);
+    const keystoreFragment = await ctx.android.createKeystoreAsync(this.account, keystore);
     Log.succeed('Created keystore');
     return keystoreFragment;
   }

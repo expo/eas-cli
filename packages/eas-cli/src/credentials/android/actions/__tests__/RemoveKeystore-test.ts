@@ -1,5 +1,5 @@
 import { confirmAsync } from '../../../../prompts';
-import { testAndroidBuildCredentialsFragment } from '../../../__tests__/fixtures-android-new';
+import { testAndroidBuildCredentialsFragment } from '../../../__tests__/fixtures-android';
 import { createCtxMock } from '../../../__tests__/fixtures-context';
 import { getAppLookupParamsFromContext } from '../BuildCredentialsUtils';
 import { RemoveKeystore } from '../RemoveKeystore';
@@ -25,7 +25,7 @@ describe(RemoveKeystore, () => {
     const appLookupParams = getAppLookupParamsFromContext(ctx);
     const removeKeystoreAction = new RemoveKeystore(appLookupParams);
     await removeKeystoreAction.runAsync(ctx, testAndroidBuildCredentialsFragment);
-    expect(ctx.newAndroid.deleteKeystoreAsync as any).toHaveBeenCalledTimes(1);
+    expect(ctx.android.deleteKeystoreAsync as any).toHaveBeenCalledTimes(1);
   });
   it('errors in Non-Interactive Mode', async () => {
     const ctx = createCtxMock({ nonInteractive: true });

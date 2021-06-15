@@ -1,6 +1,6 @@
 import fs from 'fs-extra';
 
-import { testAndroidBuildCredentialsFragment } from '../../../__tests__/fixtures-android-new';
+import { testAndroidBuildCredentialsFragment } from '../../../__tests__/fixtures-android';
 import { createCtxMock } from '../../../__tests__/fixtures-context';
 import { getAppLookupParamsFromContext } from '../BuildCredentialsUtils';
 import { DownloadKeystore } from '../DownloadKeystore';

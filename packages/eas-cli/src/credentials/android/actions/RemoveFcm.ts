@@ -12,7 +12,7 @@ export class RemoveFcm {
         "Deleting an FCM Api Key is a destructive operation. Start the CLI without the '--non-interactive' flag to delete the credentials."
       );
     }
-    const appCredentials = await ctx.newAndroid.getAndroidAppCredentialsWithCommonFieldsAsync(
+    const appCredentials = await ctx.android.getAndroidAppCredentialsWithCommonFieldsAsync(
       this.app
     );
     const fcm = appCredentials?.androidFcm;
@@ -33,7 +33,7 @@ export class RemoveFcm {
       return;
     }
 
-    await ctx.newAndroid.deleteFcmAsync(fcm);
+    await ctx.android.deleteFcmAsync(fcm);
     Log.succeed('FCM Api Key removed');
   }
 }

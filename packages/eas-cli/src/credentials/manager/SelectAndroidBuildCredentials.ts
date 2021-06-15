@@ -28,9 +28,7 @@ export class SelectAndroidBuildCredentials {
         result: AndroidAppBuildCredentialsFragment;
       }
   > {
-    const buildCredentialsList = await ctx.newAndroid.getAndroidAppBuildCredentialsListAsync(
-      this.app
-    );
+    const buildCredentialsList = await ctx.android.getAndroidAppBuildCredentialsListAsync(this.app);
     if (buildCredentialsList.length === 0) {
       return {
         resultType: SelectAndroidBuildCredentialsResultType.CREATE_REQUEST,
@@ -91,9 +89,7 @@ export class SelectExistingAndroidBuildCredentials {
   constructor(private app: AppLookupParams) {}
 
   async runAsync(ctx: Context): Promise<AndroidAppBuildCredentialsFragment | null> {
-    const buildCredentialsList = await ctx.newAndroid.getAndroidAppBuildCredentialsListAsync(
-      this.app
-    );
+    const buildCredentialsList = await ctx.android.getAndroidAppBuildCredentialsListAsync(this.app);
     if (buildCredentialsList.length === 0) {
       Log.log(`You don't have any Android Build Credentials`);
       return null;

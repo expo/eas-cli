@@ -19,12 +19,12 @@ export async function canCopyLegacyCredentialsAsync(
   ctx: Context,
   app: AppLookupParams
 ): Promise<boolean> {
-  const appCredentials = await ctx.newAndroid.getAndroidAppCredentialsWithCommonFieldsAsync(app);
+  const appCredentials = await ctx.android.getAndroidAppCredentialsWithCommonFieldsAsync(app);
   if (appCredentials) {
     return false; // modern credentials already exist
   }
 
-  const legacyAppCredentials = await ctx.newAndroid.getLegacyAndroidAppCredentialsWithCommonFieldsAsync(
+  const legacyAppCredentials = await ctx.android.getLegacyAndroidAppCredentialsWithCommonFieldsAsync(
     app
   );
   return !!legacyAppCredentials; // user has some legacy credentials
@@ -52,33 +52,33 @@ export async function promptUserAndCopyLegacyCredentialsAsync(
   Log.log('Copying credentials...');
   const spinner = ora().start();
 
-  const legacyAppCredentials = await ctx.newAndroid.getLegacyAndroidAppCredentialsWithCommonFieldsAsync(
+  const legacyAppCredentials = await ctx.android.getLegacyAndroidAppCredentialsWithCommonFieldsAsync(
     app
   );
   if (!legacyAppCredentials) {
     return;
   }
 
-  const appCredentials = await ctx.newAndroid.createOrGetExistingAndroidAppCredentialsWithBuildCredentialsAsync(
+  const appCredentials = await ctx.android.createOrGetExistingAndroidAppCredentialsWithBuildCredentialsAsync(
     app
   );
   const legacyFcm = legacyAppCredentials.androidFcm;
   if (legacyFcm) {
-    const clonedFcm = await ctx.newAndroid.createFcmAsync(
+    const clonedFcm = await ctx.android.createFcmAsync(
       app.account,
       legacyFcm.credential,
       legacyFcm.version
     );
-    await ctx.newAndroid.updateAndroidAppCredentialsAsync(appCredentials, {
+    await ctx.android.updateAndroidAppCredentialsAsync(appCredentials, {
       androidFcmId: clonedFcm.id,
     });
   }
 
-  const legacyBuildCredentials = await ctx.newAndroid.getLegacyAndroidAppBuildCredentialsAsync(app);
+  const legacyBuildCredentials = await ctx.android.getLegacyAndroidAppBuildCredentialsAsync(app);
   const legacyKeystore = legacyBuildCredentials?.androidKeystore ?? null;
 
   if (legacyKeystore) {
-    const clonedKeystore = await ctx.newAndroid.createKeystoreAsync(app.account, {
+    const clonedKeystore = await ctx.android.createKeystoreAsync(app.account, {
       keystore: legacyKeystore.keystore,
       keystorePassword: legacyKeystore.keystorePassword,
       keyAlias: legacyKeystore.keyAlias,
@@ -126,17 +126,17 @@ export async function createOrUpdateDefaultAndroidAppBuildCredentialsAsync(
     !ctx.nonInteractive,
     'createOrUpdateDefaultAndroidAppBuildCredentialsAsync must be run in interactive mode'
   );
-  const existingDefaultBuildCredentials = await ctx.newAndroid.getDefaultAndroidAppBuildCredentialsAsync(
+  const existingDefaultBuildCredentials = await ctx.android.getDefaultAndroidAppBuildCredentialsAsync(
     appLookupParams
   );
   if (existingDefaultBuildCredentials) {
-    return await ctx.newAndroid.updateAndroidAppBuildCredentialsAsync(
+    return await ctx.android.updateAndroidAppBuildCredentialsAsync(
       existingDefaultBuildCredentials,
       { androidKeystoreId }
     );
   }
   const providedName = await promptForNameAsync();
-  return await ctx.newAndroid.createAndroidAppBuildCredentialsAsync(appLookupParams, {
+  return await ctx.android.createAndroidAppBuildCredentialsAsync(appLookupParams, {
     name: providedName,
     isDefault: true,
     androidKeystoreId,

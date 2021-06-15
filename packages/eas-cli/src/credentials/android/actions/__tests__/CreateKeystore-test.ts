@@ -14,7 +14,7 @@ describe('CreateKeystore', () => {
     await createKeystoreAction.runAsync(ctx);
 
     // expect keystore to be created on expo servers
-    expect(ctx.newAndroid.createKeystoreAsync as any).toHaveBeenCalledTimes(1);
+    expect(ctx.android.createKeystoreAsync as any).toHaveBeenCalledTimes(1);
   });
   it('errors in Non-Interactive Mode', async () => {
     const ctx = createCtxMock({ nonInteractive: true });
