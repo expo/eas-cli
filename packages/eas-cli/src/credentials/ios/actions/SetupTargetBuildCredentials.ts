@@ -5,8 +5,7 @@ import {
   IosAppBuildCredentialsFragment,
 } from '../../../graphql/generated';
 import Log from '../../../log';
-import { Action, CredentialsManager } from '../../CredentialsManager';
-import { Context } from '../../context';
+import { Action, Context } from '../../context';
 import { AppLookupParams as GraphQLAppLookupParams } from '../api/GraphqlClient';
 import { IosCapabilitiesOptions } from '../appstore/ensureAppExists';
 import { SetupAdhocProvisioningProfile } from './SetupAdhocProvisioningProfile';
@@ -22,10 +21,7 @@ interface Options {
 export class SetupTargetBuildCredentials implements Action<IosAppBuildCredentialsFragment> {
   constructor(private options: Options) {}
 
-  async runAsync(
-    manager: CredentialsManager,
-    ctx: Context
-  ): Promise<IosAppBuildCredentialsFragment> {
+  async runAsync(ctx: Context): Promise<IosAppBuildCredentialsFragment> {
     const { app, iosCapabilitiesOptions } = this.options;
 
     await ctx.bestEffortAppStoreAuthenticateAsync();

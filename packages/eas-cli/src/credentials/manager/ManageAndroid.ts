@@ -3,7 +3,6 @@ import { getProjectAccountName } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
 import { findAccountByName } from '../../user/Account';
 import { ensureActorHasUsername } from '../../user/actions';
-import { Action, CredentialsManager } from '../CredentialsManager';
 import { AssignFcm } from '../android/actions/AssignFcm';
 import {
   canCopyLegacyCredentialsAsync,
@@ -21,7 +20,7 @@ import {
   displayAndroidAppCredentials,
   displayEmptyAndroidCredentials,
 } from '../android/utils/printCredentialsBeta';
-import { Context } from '../context';
+import { Action, Context } from '../context';
 import { PressAnyKeyToContinue } from './HelperActions';
 import {
   SelectAndroidBuildCredentials,
@@ -194,7 +193,7 @@ export class ManageAndroid {
             currentActions = highLevelActions;
             continue;
           } else if (chosenAction === ActionType.GoBackToCaller) {
-            return await new CredentialsManager(ctx).runActionAsync(this.callingAction);
+            return await this.callingAction.runAsync(ctx);
           }
         }
         const appLookupParams = getAppLookupParamsFromContext(ctx);

@@ -12,6 +12,10 @@ import * as AndroidGraphqlClient from './android/api/GraphqlClient';
 import * as IosGraphqlClient from './ios/api/GraphqlClient';
 import AppStoreApi from './ios/appstore/AppStoreApi';
 
+export interface Action<T = void> {
+  runAsync(ctx: Context): Promise<T>;
+}
+
 interface AppleCtxOptions {
   appleId?: string;
   appleIdPassword?: string;

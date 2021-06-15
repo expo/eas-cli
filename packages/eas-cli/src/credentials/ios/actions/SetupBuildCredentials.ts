@@ -3,7 +3,6 @@ import chalk from 'chalk';
 import nullthrows from 'nullthrows';
 
 import Log from '../../../log';
-import { CredentialsManager } from '../../CredentialsManager';
 import { Context } from '../../context';
 import { IosCapabilitiesOptions } from '../appstore/ensureAppExists';
 import { App, IosAppBuildCredentialsMap, IosCredentials, Target } from '../types';
@@ -22,8 +21,6 @@ export class SetupBuildCredentials {
   constructor(private options: Options) {}
 
   async runAsync(ctx: Context): Promise<IosCredentials> {
-    const manager = new CredentialsManager(ctx);
-
     const hasManyTargets = this.options.targets.length > 1;
     const iosAppBuildCredentialsMap: IosAppBuildCredentialsMap = {};
     if (hasManyTargets) {
@@ -60,7 +57,7 @@ export class SetupBuildCredentials {
           parentBundleIdentifier: target.parentBundleIdentifier,
         },
       });
-      iosAppBuildCredentialsMap[target.targetName] = await action.runAsync(manager, ctx);
+      iosAppBuildCredentialsMap[target.targetName] = await action.runAsync(ctx);
     }
 
     const appInfo = formatAppInfo(this.options.app, this.options.targets);
