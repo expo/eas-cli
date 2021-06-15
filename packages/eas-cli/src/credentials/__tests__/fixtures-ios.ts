@@ -3,21 +3,16 @@ import {
   AppleAppIdentifierFragment,
   AppleDistributionCertificateFragment,
   AppleProvisioningProfileFragment,
+  ApplePushKeyFragment,
   AppleTeamFragment,
   CommonIosAppCredentialsFragment,
   IosAppBuildCredentialsFragment,
   IosDistributionType,
 } from '../../graphql/generated';
 import { IosAppCredentialsWithBuildCredentialsQueryResult } from '../ios/api/graphql/queries/IosAppCredentialsQuery';
-import {
-  DistributionCertificate,
-  ProvisioningProfile,
-  PushKey,
-} from '../ios/appstore/Credentials.types';
-import { IosDistCredentials, IosPushCredentials } from '../ios/credentials';
+import { DistributionCertificate, ProvisioningProfile } from '../ios/appstore/Credentials.types';
 import { Target } from '../ios/types';
 import { testProvisioningProfileBase64 } from './fixtures-base64-data';
-import { testBundleIdentifier, testExperienceName } from './fixtures-constants';
 
 export const testProvisioningProfile: ProvisioningProfile = {
   provisioningProfileId: 'test-id',
@@ -39,6 +34,13 @@ export const testAppFragment: AppFragment = {
   id: 'test-app-id',
   fullName: '@testuser/testapp',
   slug: 'testapp',
+};
+
+export const testPushKey: ApplePushKeyFragment = {
+  id: 'test-push-key-id',
+  keyIdentifier: 'test-key-identifier',
+  appleTeam: { ...testAppleTeamFragment },
+  updatedAt: new Date(),
 };
 
 export const testTargets: Target[] = [{ targetName: 'testapp', bundleIdentifier: 'foo.bar.com' }];
@@ -105,6 +107,7 @@ export const testCommonIosAppCredentialsFragment: CommonIosAppCredentialsFragmen
   app: testAppFragment,
   appleTeam: testAppleTeamFragment,
   appleAppIdentifier: testAppleAppIdentifierFragment,
+  pushKey: testPushKey,
   iosAppBuildCredentialsList: [testIosAppBuildCredentialsFragment],
 };
 
@@ -160,40 +163,4 @@ export const testDistCert: DistributionCertificate = {
   certPassword: 'test-password',
   distCertSerialNumber: 'test-serial',
   teamId: 'test-team-id',
-};
-export const testIosDistCredential: IosDistCredentials = {
-  id: 1,
-  type: 'dist-cert',
-  ...testDistCert,
-};
-
-export const testPushKey: PushKey = {
-  apnsKeyP8: 'test-p8',
-  apnsKeyId: 'test-key-id',
-  teamId: 'test-team-id',
-};
-
-/**
- * Legacy format fixtures
- */
-
-export const testIosPushCredential: IosPushCredentials = {
-  id: 2,
-  type: 'push-key',
-  ...testPushKey,
-};
-
-export const testAppCredential = {
-  experienceName: testExperienceName,
-  bundleIdentifier: testBundleIdentifier,
-  distCredentialsId: testIosDistCredential.id,
-  pushCredentialsId: testIosPushCredential.id,
-  credentials: {
-    ...testProvisioningProfile,
-  },
-};
-export const testAllCredentialsForApp = {
-  ...testAppCredential,
-  pushCredentials: testPushKey,
-  distCredentials: testDistCert,
 };

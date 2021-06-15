@@ -55,12 +55,12 @@ export interface IosAppCredentials {
 }
 
 export interface IosPushCredentials extends PushKey {
-  id: number | string;
+  id: string;
   type: 'push-key';
 }
 
 export interface IosDistCredentials extends DistributionCertificate {
-  id: number | string;
+  id: string;
   type: 'dist-cert';
 }
 

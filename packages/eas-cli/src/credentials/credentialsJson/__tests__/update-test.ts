@@ -8,8 +8,9 @@ import { testKeystore } from '../../__tests__/fixtures-android';
 import { createCtxMock } from '../../__tests__/fixtures-context';
 import {
   getNewIosApiMockWithoutCredentials,
-  testAllCredentialsForApp,
   testCommonIosAppCredentialsFragment,
+  testDistCertFragmentNoDependencies,
+  testProvisioningProfileFragment,
 } from '../../__tests__/fixtures-ios';
 import { getAppFromContext } from '../../ios/actions/BuildCredentialsUtils';
 import { Target } from '../../ios/types';
@@ -243,7 +244,7 @@ describe('update credentials.json', () => {
           provisioningProfilePath: 'pprofile',
           distributionCertificate: {
             path: 'cert.p12',
-            password: testAllCredentialsForApp.distCredentials.certPassword,
+            password: testDistCertFragmentNoDependencies.certificatePassword,
           },
         },
       });
@@ -264,14 +265,14 @@ describe('update credentials.json', () => {
       const certP12 = await fs.readFile('./credentials/ios/dist-cert.p12', 'base64');
       const pprofile = await fs.readFile('./credentials/ios/profile.mobileprovision', 'base64');
       const credJson = await fs.readJson('./credentials.json');
-      expect(certP12).toEqual(testAllCredentialsForApp.distCredentials.certP12);
-      expect(pprofile).toEqual(testAllCredentialsForApp.credentials.provisioningProfile);
+      expect(certP12).toEqual(testDistCertFragmentNoDependencies.certificateP12);
+      expect(pprofile).toEqual(testProvisioningProfileFragment.provisioningProfile);
       expect(credJson).toEqual({
         ios: {
           provisioningProfilePath: `credentials/ios/profile.mobileprovision`,
           distributionCertificate: {
             path: `credentials/ios/dist-cert.p12`,
-            password: testAllCredentialsForApp.distCredentials.certPassword,
+            password: testDistCertFragmentNoDependencies.certificatePassword,
           },
         },
       });
