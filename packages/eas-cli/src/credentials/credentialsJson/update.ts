@@ -3,11 +3,9 @@ import zipObject from 'lodash/zipObject';
 import nullthrows from 'nullthrows';
 import path from 'path';
 
-import { IosDistributionType } from '../../graphql/generated';
+import { AndroidAppBuildCredentialsFragment, IosDistributionType } from '../../graphql/generated';
 import Log from '../../log';
 import { findApplicationTarget, findTargetByName } from '../../project/ios/target';
-import { getProjectAccountName } from '../../project/projectUtils';
-import { confirmAsync } from '../../prompts';
 import { gitStatusAsync } from '../../utils/git';
 import { Context } from '../context';
 import { App, Target, TargetCredentials } from '../ios/types';
@@ -23,29 +21,16 @@ import { getCredentialsJsonPath } from './utils';
  * Update Android credentials.json with values from www, content of credentials.json
  * is not validated
  */
-export async function updateAndroidCredentialsAsync(ctx: Context): Promise<void> {
+export async function updateAndroidCredentialsAsync(
+  ctx: Context,
+  buildCredentials: AndroidAppBuildCredentialsFragment
+): Promise<void> {
   const rawCredentialsJson: any =
     (await readRawAsync(ctx.projectDir, { throwIfMissing: false })) ?? {};
 
-  const accountName = getProjectAccountName(ctx.exp, ctx.user);
-  const experienceName = `@${accountName}/${ctx.exp.slug}`;
-  const keystore = await ctx.android.fetchKeystoreAsync(experienceName);
+  const keystore = buildCredentials.androidKeystore;
   if (!keystore) {
     throw new Error('There are no credentials configured for this project on EAS servers');
-  }
-
-  const isKeystoreComplete =
-    keystore.keystore && keystore.keystorePassword && keystore.keyPassword && keystore.keyAlias;
-
-  if (!isKeystoreComplete) {
-    const confirm = await confirmAsync({
-      message:
-        'Credentials on EAS servers might be invalid or incomplete. Are you sure you want to continue?',
-    });
-    if (!confirm) {
-      Log.warn('Aborting...');
-      return;
-    }
   }
 
   const keystorePath =
@@ -59,7 +44,7 @@ export async function updateAndroidCredentialsAsync(ctx: Context): Promise<void>
       keystorePath,
       keystorePassword: keystore.keystorePassword,
       keyAlias: keystore.keyAlias,
-      keyPassword: keystore.keyPassword,
+      keyPassword: keystore.keyPassword ?? undefined,
     },
   };
   rawCredentialsJson.android = androidCredentials;

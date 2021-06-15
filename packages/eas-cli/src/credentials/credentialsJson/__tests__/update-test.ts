@@ -5,6 +5,7 @@ import prompts from 'prompts';
 import { asMock } from '../../../__tests__/utils';
 import { IosDistributionType } from '../../../graphql/generated';
 import { testKeystore } from '../../__tests__/fixtures-android';
+import { testLegacyAndroidBuildCredentialsFragment } from '../../__tests__/fixtures-android-new';
 import { createCtxMock } from '../../__tests__/fixtures-context';
 import {
   getNewIosApiMockWithoutCredentials,
@@ -45,11 +46,7 @@ beforeEach(() => {
 describe('update credentials.json', () => {
   describe(updateAndroidCredentialsAsync, () => {
     it('should update keystore in credentials.json if www returns valid credentials', async () => {
-      const ctx = createCtxMock({
-        android: {
-          fetchKeystoreAsync: jest.fn(() => testKeystore),
-        },
-      });
+      const ctx = createCtxMock();
       vol.fromJSON({
         './credentials.json': JSON.stringify({
           android: {
@@ -63,7 +60,7 @@ describe('update credentials.json', () => {
         }),
         'keystore.jks': 'somebinarydata',
       });
-      await updateAndroidCredentialsAsync(ctx);
+      await updateAndroidCredentialsAsync(ctx, testLegacyAndroidBuildCredentialsFragment);
       const keystore = await fs.readFile('./keystore.jks', 'base64');
       const credJson = await fs.readJson('./credentials.json');
       expect(keystore).toEqual(testKeystore.keystore);
@@ -71,20 +68,17 @@ describe('update credentials.json', () => {
         android: {
           keystore: {
             keystorePath: 'keystore.jks',
-            keystorePassword: testKeystore.keystorePassword,
-            keyAlias: testKeystore.keyAlias,
-            keyPassword: testKeystore.keyPassword,
+            keystorePassword:
+              testLegacyAndroidBuildCredentialsFragment.androidKeystore?.keystorePassword,
+            keyAlias: testLegacyAndroidBuildCredentialsFragment.androidKeystore?.keyAlias,
+            keyPassword: testLegacyAndroidBuildCredentialsFragment.androidKeystore?.keyPassword,
           },
         },
       });
     });
     it('should create credentials.json and keystore if credentials.json does not exist', async () => {
-      const ctx = createCtxMock({
-        android: {
-          fetchKeystoreAsync: jest.fn(() => testKeystore),
-        },
-      });
-      await updateAndroidCredentialsAsync(ctx);
+      const ctx = createCtxMock();
+      await updateAndroidCredentialsAsync(ctx, testLegacyAndroidBuildCredentialsFragment);
       const keystore = await fs.readFile('./credentials/android/keystore.jks', 'base64');
       const credJson = await fs.readJson('./credentials.json');
       expect(keystore).toEqual(testKeystore.keystore);
@@ -92,9 +86,10 @@ describe('update credentials.json', () => {
         android: {
           keystore: {
             keystorePath: 'credentials/android/keystore.jks',
-            keystorePassword: testKeystore.keystorePassword,
-            keyAlias: testKeystore.keyAlias,
-            keyPassword: testKeystore.keyPassword,
+            keystorePassword:
+              testLegacyAndroidBuildCredentialsFragment.androidKeystore?.keystorePassword,
+            keyAlias: testLegacyAndroidBuildCredentialsFragment.androidKeystore?.keyAlias,
+            keyPassword: testLegacyAndroidBuildCredentialsFragment.androidKeystore?.keyPassword,
           },
         },
       });
@@ -116,7 +111,9 @@ describe('update credentials.json', () => {
         'keystore.jks': 'somebinarydata',
       });
       try {
-        await updateAndroidCredentialsAsync(ctx);
+        const buildCredentialsNoKeystore = { ...testLegacyAndroidBuildCredentialsFragment };
+        delete buildCredentialsNoKeystore.androidKeystore;
+        await updateAndroidCredentialsAsync(ctx, buildCredentialsNoKeystore);
         throw new Error('updateAndroidCredentialsAsync should throw an error');
       } catch (e) {
         expect(e.message).toMatch(
@@ -129,15 +126,11 @@ describe('update credentials.json', () => {
       expect(newCredJson).toEqual(credJson);
     });
     it('should update keystore and credentials.json if android part of credentials.json is not valid', async () => {
-      const ctx = createCtxMock({
-        android: {
-          fetchKeystoreAsync: jest.fn(() => testKeystore),
-        },
-      });
+      const ctx = createCtxMock();
       vol.fromJSON({
         './credentials.json': JSON.stringify({ android: { test: '123' } }),
       });
-      await updateAndroidCredentialsAsync(ctx);
+      await updateAndroidCredentialsAsync(ctx, testLegacyAndroidBuildCredentialsFragment);
       const keystore = await fs.readFile('./credentials/android/keystore.jks', 'base64');
       const credJson = await fs.readJson('./credentials.json');
       expect(keystore).toEqual(testKeystore.keystore);
@@ -145,19 +138,16 @@ describe('update credentials.json', () => {
         android: {
           keystore: {
             keystorePath: 'credentials/android/keystore.jks',
-            keystorePassword: testKeystore.keystorePassword,
-            keyAlias: testKeystore.keyAlias,
-            keyPassword: testKeystore.keyPassword,
+            keystorePassword:
+              testLegacyAndroidBuildCredentialsFragment.androidKeystore?.keystorePassword,
+            keyAlias: testLegacyAndroidBuildCredentialsFragment.androidKeystore?.keyAlias,
+            keyPassword: testLegacyAndroidBuildCredentialsFragment.androidKeystore?.keyPassword,
           },
         },
       });
     });
     it('should update keystore and credentials.json if ios part of credentials.json is not valid', async () => {
-      const ctx = createCtxMock({
-        android: {
-          fetchKeystoreAsync: jest.fn(() => testKeystore),
-        },
-      });
+      const ctx = createCtxMock();
       const credJson = {
         android: {
           keystore: {
@@ -175,7 +165,7 @@ describe('update credentials.json', () => {
         './credentials.json': JSON.stringify(credJson),
         'keystore.jks': 'somebinarydata',
       });
-      await updateAndroidCredentialsAsync(ctx);
+      await updateAndroidCredentialsAsync(ctx, testLegacyAndroidBuildCredentialsFragment);
       const keystore = await fs.readFile('./keystore.jks', 'base64');
       const newCredJson = await fs.readJson('./credentials.json');
       expect(keystore).toEqual(testKeystore.keystore);
