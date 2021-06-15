@@ -3,6 +3,7 @@ import dateformat from 'dateformat';
 
 import {
   AppleDeviceFragment,
+  ApplePushKeyFragment,
   IosAppBuildCredentialsFragment,
   IosDistributionType,
 } from '../../../graphql/generated';
@@ -83,12 +84,16 @@ export function displayIosCredentials(
       continue;
     }
 
-    const { appleTeam } = targetAppCredentials;
+    const { appleTeam, pushKey } = targetAppCredentials;
     if (appleTeam) {
       const { appleTeamIdentifier, appleTeamName } = appleTeam;
       Log.log(`  Apple Team: ${appleTeamIdentifier} ${appleTeamName ? `(${appleTeamName})` : ''}`);
     }
     Log.newLine();
+
+    if (pushKey) {
+      displayApplePushKey(pushKey);
+    }
 
     const sortedIosAppBuildCredentialsList = sortBuildCredentialsByDistributionType(
       targetAppCredentials.iosAppBuildCredentialsList
@@ -176,6 +181,24 @@ function displayIosAppBuildCredentials(buildCredentials: IosAppBuildCredentialsF
       for (const appleDevice of appleDevices) {
         Log.log(`    - ${formatAppleDevice(appleDevice)}`);
       }
+    }
+    Log.log(`    Updated ${fromNow(new Date(updatedAt))} ago`);
+  } else {
+    Log.log(`    None assigned yet`);
+  }
+  Log.newLine();
+}
+
+function displayApplePushKey(maybePushKey: ApplePushKeyFragment | null): void {
+  Log.log(`  Push Key:`);
+  if (maybePushKey) {
+    const { keyIdentifier, appleTeam, updatedAt } = maybePushKey;
+    Log.log(`    Developer Portal ID: ${keyIdentifier}`);
+    if (appleTeam) {
+      const { appleTeamIdentifier, appleTeamName } = appleTeam;
+      Log.log(
+        `    Apple Team: ${appleTeamIdentifier} ${appleTeamName ? `(${appleTeamName})` : ''}`
+      );
     }
     Log.log(`    Updated ${fromNow(new Date(updatedAt))} ago`);
   } else {

@@ -18,6 +18,18 @@ const IosAppCredentialsQuery = {
         bundleIdentifier: 'com.quinlanj.test52',
         __typename: 'AppleAppIdentifier',
       },
+      pushKey: {
+        id: '74bdd007-da7b-4190-a571-edb87e9324a1',
+        keyIdentifier: '9839M6AY8W',
+        updatedAt: '2020-10-13T18:39:04.463Z',
+        appleTeam: {
+          id: '6d39dbfe-a30a-44a4-bc36-d562e5963fa3',
+          appleTeamIdentifier: '77KQ969CHE',
+          appleTeamName: null,
+          __typename: 'AppleTeam',
+        },
+        __typename: 'ApplePushKey',
+      },
       iosAppBuildCredentialsList: [
         {
           id: '6f8d0175-0caf-4922-b09b-eae757b83144',

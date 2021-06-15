@@ -637,6 +637,7 @@ export type Build = ActivityTimelineProjectActivity & BuildOrBuildJob & {
   appBuildVersion?: Maybe<Scalars['String']>;
   sdkVersion?: Maybe<Scalars['String']>;
   releaseChannel?: Maybe<Scalars['String']>;
+  channel?: Maybe<Scalars['String']>;
   metrics?: Maybe<BuildMetrics>;
   distribution?: Maybe<DistributionType>;
   buildProfile?: Maybe<Scalars['String']>;
@@ -2394,6 +2395,7 @@ export type AndroidGenericJobInput = {
   projectArchive: ProjectArchiveSourceInput;
   projectRootDirectory: Scalars['String'];
   releaseChannel?: Maybe<Scalars['String']>;
+  channel?: Maybe<Scalars['String']>;
   secrets?: Maybe<AndroidJobSecretsInput>;
   builderEnvironment?: Maybe<AndroidBuilderEnvironmentInput>;
   cache?: Maybe<BuildCacheInput>;
@@ -2454,6 +2456,7 @@ export type BuildMetadataInput = {
   credentialsSource?: Maybe<BuildCredentialsSource>;
   sdkVersion?: Maybe<Scalars['String']>;
   releaseChannel?: Maybe<Scalars['String']>;
+  channel?: Maybe<Scalars['String']>;
   distribution?: Maybe<DistributionType>;
   appName?: Maybe<Scalars['String']>;
   appIdentifier?: Maybe<Scalars['String']>;
@@ -2510,6 +2513,7 @@ export type IosGenericJobInput = {
   projectArchive: ProjectArchiveSourceInput;
   projectRootDirectory: Scalars['String'];
   releaseChannel?: Maybe<Scalars['String']>;
+  channel?: Maybe<Scalars['String']>;
   distribution?: Maybe<DistributionType>;
   secrets?: Maybe<IosJobSecretsInput>;
   builderEnvironment?: Maybe<IosBuilderEnvironmentInput>;
@@ -5100,6 +5104,16 @@ export type AppleProvisioningProfileIdentifiersFragment = (
   & Pick<AppleProvisioningProfile, 'id' | 'developerPortalIdentifier'>
 );
 
+export type ApplePushKeyFragment = (
+  { __typename?: 'ApplePushKey' }
+  & Pick<ApplePushKey, 'id' | 'keyIdentifier' | 'updatedAt'>
+  & { appleTeam?: Maybe<(
+    { __typename?: 'AppleTeam' }
+    & Pick<AppleTeam, 'id'>
+    & AppleTeamFragment
+  )> }
+);
+
 export type AppleTeamFragment = (
   { __typename?: 'AppleTeam' }
   & Pick<AppleTeam, 'id' | 'appleTeamIdentifier' | 'appleTeamName'>
@@ -5139,7 +5153,11 @@ export type CommonIosAppCredentialsFragment = (
     { __typename?: 'AppleAppIdentifier' }
     & Pick<AppleAppIdentifier, 'id'>
     & AppleAppIdentifierFragment
-  ), iosAppBuildCredentialsList: Array<(
+  ), pushKey?: Maybe<(
+    { __typename?: 'ApplePushKey' }
+    & Pick<ApplePushKey, 'id'>
+    & ApplePushKeyFragment
+  )>, iosAppBuildCredentialsList: Array<(
     { __typename?: 'IosAppBuildCredentials' }
     & Pick<IosAppBuildCredentials, 'id'>
     & IosAppBuildCredentialsFragment

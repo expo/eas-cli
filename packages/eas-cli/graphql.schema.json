@@ -4173,6 +4173,18 @@
             "deprecationReason": null
           },
           {
+            "name": "channel",
+            "description": "",
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "metrics",
             "description": "",
             "args": [],
@@ -15601,6 +15613,16 @@
             "defaultValue": null
           },
           {
+            "name": "channel",
+            "description": "",
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "secrets",
             "description": "",
             "type": {
@@ -16065,6 +16087,16 @@
             "defaultValue": null
           },
           {
+            "name": "channel",
+            "description": "",
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "distribution",
             "description": "",
             "type": {
@@ -16444,6 +16476,16 @@
           },
           {
             "name": "releaseChannel",
+            "description": "",
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "channel",
             "description": "",
             "type": {
               "kind": "SCALAR",
