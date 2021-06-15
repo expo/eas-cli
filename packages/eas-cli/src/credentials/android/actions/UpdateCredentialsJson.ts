@@ -16,7 +16,7 @@ export class UpdateCredentialsJson implements Action {
     );
     const legacyBuildCredentials = legacyAppCredentials?.androidAppBuildCredentialsList[0] ?? null;
     if (!legacyBuildCredentials) {
-      Log.log('You dont have any Expo Classic Android credentials configured at this time');
+      Log.log(`You don't have any Expo Classic Android credentials configured at this time`);
       return;
     }
     Log.log('Updating Android credentials in credentials.json');
