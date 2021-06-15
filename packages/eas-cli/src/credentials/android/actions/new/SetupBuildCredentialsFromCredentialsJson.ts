@@ -55,7 +55,7 @@ export class SetupBuildCredentialsFromCredentialsJson {
     const providedKeystoreWithType = getKeystoreWithType(localCredentials.keystore);
     if (providedKeystoreWithType.type === AndroidKeystoreType.Unknown) {
       const confirmKeystoreIsSketchy = await confirmAsync({
-        message: `The keystore you provided could not be parsed and may be corrupt. Proceed anyways?`,
+        message: `The keystore you provided could not be parsed and may be corrupt. Proceed anyway?`,
       });
       if (!confirmKeystoreIsSketchy) {
         return null;
