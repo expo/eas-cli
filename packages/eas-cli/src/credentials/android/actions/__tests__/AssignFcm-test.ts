@@ -1,7 +1,7 @@
-import { testLegacyAndroidFcmFragment } from '../../../../__tests__/fixtures-android-new';
-import { createCtxMock } from '../../../../__tests__/fixtures-context';
-import { getAppLookupParamsFromContext } from '../../BuildCredentialsUtils';
+import { testLegacyAndroidFcmFragment } from '../../../__tests__/fixtures-android-new';
+import { createCtxMock } from '../../../__tests__/fixtures-context';
 import { AssignFcm } from '../AssignFcm';
+import { getAppLookupParamsFromContext } from '../BuildCredentialsUtils';
 
 describe(AssignFcm, () => {
   it('assigns an fcm api key in Interactive Mode', async () => {

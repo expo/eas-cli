@@ -1,10 +1,10 @@
 import {
   AndroidFcmFragment,
   CommonAndroidAppCredentialsFragment,
-} from '../../../../graphql/generated';
-import Log from '../../../../log';
-import { Context } from '../../../context';
-import { AppLookupParams } from '../../api/GraphqlClient';
+} from '../../../graphql/generated';
+import Log from '../../../log';
+import { Context } from '../../context';
+import { AppLookupParams } from '../api/GraphqlClient';
 
 export class AssignFcm {
   constructor(private app: AppLookupParams) {}

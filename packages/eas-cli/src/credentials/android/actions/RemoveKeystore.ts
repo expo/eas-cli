@@ -1,38 +1,44 @@
 import chalk from 'chalk';
 
+import { AndroidAppBuildCredentialsFragment } from '../../../graphql/generated';
 import Log from '../../../log';
 import { confirmAsync } from '../../../prompts';
-import { Action, CredentialsManager } from '../../CredentialsManager';
 import { Context } from '../../context';
+import { AppLookupParams } from '../api/GraphqlClient';
 import { BackupKeystore } from './DownloadKeystore';
 
-export class RemoveKeystore implements Action {
-  constructor(private projectFullName: string) {}
+export class RemoveKeystore {
+  constructor(private app: AppLookupParams) {}
 
-  async runAsync(manager: CredentialsManager, ctx: Context): Promise<void> {
-    if (!(await ctx.android.fetchKeystoreAsync(this.projectFullName))) {
-      Log.warn('There is no Keystore defined for this app.');
+  async runAsync(
+    ctx: Context,
+    buildCredentials: AndroidAppBuildCredentialsFragment
+  ): Promise<void> {
+    if (ctx.nonInteractive) {
+      throw new Error(
+        "Deleting a keystore is a destructive operation. Start the CLI without the '--non-interactive' flag to delete the credentials."
+      );
+    }
+    const keystore = buildCredentials.androidKeystore;
+    if (!keystore) {
+      Log.warn(
+        `There is no valid Keystore defined for build credentials: ${buildCredentials.name}`
+      );
       return;
     }
 
     this.displayWarning();
-
-    if (ctx.nonInteractive) {
-      throw new Error(
-        "Deleting build credentials is a destructive operation. Start the CLI without the '--non-interactive' flag to delete the credentials."
-      );
-    }
-
     const confirm = await confirmAsync({
-      message: 'Permanently delete the Android build credentials from our servers?',
+      message: 'Permanently delete the Android Keystore?',
       initial: false,
     });
-    if (confirm) {
-      await manager.runActionAsync(new BackupKeystore(this.projectFullName));
-
-      await ctx.android.removeKeystoreAsync(this.projectFullName);
-      Log.succeed('Keystore removed');
+    if (!confirm) {
+      return;
     }
+    await new BackupKeystore(this.app).runAsync(ctx, buildCredentials);
+
+    await ctx.newAndroid.deleteKeystoreAsync(keystore);
+    Log.succeed('Keystore removed');
   }
 
   displayWarning() {

@@ -1,25 +1,25 @@
 import { vol } from 'memfs';
 
-import { AndroidKeystoreType } from '../../../../../graphql/generated';
-import { confirmAsync } from '../../../../../prompts';
+import { AndroidKeystoreType } from '../../../../graphql/generated';
+import { confirmAsync } from '../../../../prompts';
 import {
   getNewAndroidApiMockWithoutCredentials,
   testAndroidBuildCredentialsFragment,
   testJksAndroidKeystoreFragment,
-} from '../../../../__tests__/fixtures-android-new';
-import { createCtxMock } from '../../../../__tests__/fixtures-context';
+} from '../../../__tests__/fixtures-android-new';
+import { createCtxMock } from '../../../__tests__/fixtures-context';
 import {
   SelectAndroidBuildCredentials,
   SelectAndroidBuildCredentialsResultType,
-} from '../../../../manager/SelectAndroidBuildCredentials';
-import { getAppLookupParamsFromContext } from '../../BuildCredentialsUtils';
+} from '../../../manager/SelectAndroidBuildCredentials';
+import { getAppLookupParamsFromContext } from '../BuildCredentialsUtils';
 import { SetupBuildCredentialsFromCredentialsJson } from '../SetupBuildCredentialsFromCredentialsJson';
 
 jest.mock('fs');
 
-jest.mock('../../../../../prompts');
+jest.mock('../../../../prompts');
 (confirmAsync as jest.Mock).mockImplementation(() => true);
-jest.mock('../../../../manager/SelectAndroidBuildCredentials');
+jest.mock('../../../manager/SelectAndroidBuildCredentials');
 
 const originalConsoleLog = console.log;
 const originalConsoleWarn = console.warn;

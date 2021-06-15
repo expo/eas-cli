@@ -5,7 +5,7 @@ import nullthrows from 'nullthrows';
 import { AndroidAppBuildCredentialsFragment } from '../../graphql/generated';
 import { Context } from '../context';
 import * as credentialsJsonReader from '../credentialsJson/read';
-import { SetupBuildCredentials } from './actions/new/SetupBuildCredentials';
+import { SetupBuildCredentials } from './actions/SetupBuildCredentials';
 import { AppLookupParams } from './api/GraphqlClient';
 import { Keystore } from './credentials';
 

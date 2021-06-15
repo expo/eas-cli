@@ -1,100 +1,74 @@
-import prompts from 'prompts';
-
-import { Action } from '../../../CredentialsManager';
-import { testKeystore } from '../../../__tests__/fixtures-android';
-import { testExperienceName } from '../../../__tests__/fixtures-constants';
-import { createCtxMock, createManagerMock } from '../../../__tests__/fixtures-context';
+import { confirmAsync, promptAsync } from '../../../../prompts';
+import {
+  getNewAndroidApiMockWithoutCredentials,
+  testAndroidBuildCredentialsFragment,
+  testJksAndroidKeystoreFragment,
+} from '../../../__tests__/fixtures-android-new';
+import { createCtxMock } from '../../../__tests__/fixtures-context';
+import { MissingCredentialsNonInteractiveError } from '../../../errors';
+import { getAppLookupParamsFromContext } from '../BuildCredentialsUtils';
 import { SetupBuildCredentials } from '../SetupBuildCredentials';
-import { UpdateKeystore } from '../UpdateKeystore';
 
-jest.mock('prompts');
-jest.mock('../../utils/keystore');
+jest.mock('../../../../prompts');
+(confirmAsync as jest.Mock).mockImplementation(() => true);
 
-const originalWarn = console.warn;
-const originalLog = console.log;
+const originalConsoleLog = console.log;
+const originalConsoleWarn = console.warn;
 beforeAll(() => {
-  // console.warn = jest.fn();
-  // console.log = jest.fn();
+  console.log = jest.fn();
+  console.warn = jest.fn();
 });
 afterAll(() => {
-  console.warn = originalWarn;
-  console.log = originalLog;
-});
-beforeEach(() => {
-  (prompts as any).mockReset();
-  (prompts as any).mockImplementation(() => {
-    throw new Error('Should not be called');
-  });
+  console.log = originalConsoleLog;
+  console.warn = originalConsoleWarn;
 });
 
-describe('run SetupBuildCredentials when www has valid credentials', () => {
-  it('should fetch credentials and exit', async () => {
+describe('SetupBuildCredentials', () => {
+  it('skips setup when there are prior credentials', async () => {
     const ctx = createCtxMock({
-      android: {
-        fetchKeystoreAsync: jest.fn(() => testKeystore),
+      nonInteractive: false,
+      newAndroid: {
+        ...getNewAndroidApiMockWithoutCredentials(),
+        getDefaultAndroidAppBuildCredentialsAsync: jest.fn(
+          () => testAndroidBuildCredentialsFragment
+        ),
       },
     });
-    const manager = createManagerMock();
+    const appLookupParams = getAppLookupParamsFromContext(ctx);
+    const setupBuildCredentialsAction = new SetupBuildCredentials({ app: appLookupParams });
+    await setupBuildCredentialsAction.runAsync(ctx);
 
-    await new SetupBuildCredentials(testExperienceName).runAsync(manager, ctx);
-
-    expect(manager.runActionAsync).not.toHaveBeenCalled();
-    expect(ctx.android.fetchKeystoreAsync).toHaveBeenCalledTimes(1);
-    expect(ctx.android.updateKeystoreAsync).not.toHaveBeenCalled();
+    // expect keystore not to be created
+    expect(ctx.newAndroid.createKeystoreAsync as any).toHaveBeenCalledTimes(0);
   });
+  it('sets up credentials when there are no prior credentials', async () => {
+    (promptAsync as jest.Mock).mockImplementation(() => ({ providedName: 'test-provided-name' }));
+    const ctx = createCtxMock({
+      nonInteractive: false,
+      newAndroid: {
+        ...getNewAndroidApiMockWithoutCredentials(),
+        createKeystoreAsync: jest.fn(() => testJksAndroidKeystoreFragment),
+      },
+    });
+    const appLookupParams = getAppLookupParamsFromContext(ctx);
+    const setupBuildCredentialsAction = new SetupBuildCredentials({ app: appLookupParams });
+    await setupBuildCredentialsAction.runAsync(ctx);
 
-  it('should fetch credentials and exit in non-interactive mode', async () => {
+    // expect keystore to be created
+    expect(ctx.newAndroid.createKeystoreAsync as any).toHaveBeenCalledTimes(1);
+  });
+  it('errors in Non-Interactive Mode', async () => {
+    (promptAsync as jest.Mock).mockImplementation(() => ({ providedName: 'test-provided-name' }));
     const ctx = createCtxMock({
       nonInteractive: true,
-      android: {
-        fetchKeystoreAsync: jest.fn(() => testKeystore),
+      newAndroid: {
+        ...getNewAndroidApiMockWithoutCredentials(),
       },
     });
-    const manager = createManagerMock();
-
-    await new SetupBuildCredentials(testExperienceName).runAsync(manager, ctx);
-
-    expect(manager.runActionAsync).not.toHaveBeenCalled();
-    expect(ctx.android.fetchKeystoreAsync).toHaveBeenCalledTimes(1);
-    expect(ctx.android.updateKeystoreAsync).not.toHaveBeenCalled();
-  });
-});
-
-describe('run SetupBuildCredentials when www has no credentials', () => {
-  it('should try to fetch and launch UpdateKeystore', async () => {
-    const ctx = createCtxMock({
-      android: {
-        fetchKeystoreAsync: jest.fn(() => null),
-      },
-    });
-    const manager = createManagerMock();
-
-    (manager.runActionAsync as any).mockImplementationOnce((action: Action) => {
-      expect(action).toBeInstanceOf(UpdateKeystore);
-    });
-    await new SetupBuildCredentials(testExperienceName).runAsync(manager, ctx);
-
-    expect(manager.runActionAsync).toHaveBeenCalledTimes(1);
-    expect(ctx.android.fetchKeystoreAsync).toHaveBeenCalledTimes(1);
-    expect(ctx.android.updateKeystoreAsync).toHaveBeenCalledTimes(0); // will be called in UpdateKeystore
-  });
-
-  it('should fail if credentials are missing in non-interactive mode', async () => {
-    const ctx = createCtxMock({
-      nonInteractive: true,
-      android: {
-        fetchKeystore: jest.fn(() => null),
-      },
-    });
-    const manager = createManagerMock();
-
-    try {
-      await new SetupBuildCredentials(testExperienceName).runAsync(manager, ctx);
-      throw new Error('SetupBuildCredentials.runAsync should throw an error');
-    } catch (error) {
-      expect(error.message).toMatch('Generating a new Keystore is not supported');
-    }
-
-    expect(ctx.android.fetchKeystoreAsync).toHaveBeenCalledTimes(1);
+    const appLookupParams = getAppLookupParamsFromContext(ctx);
+    const setupBuildCredentialsAction = new SetupBuildCredentials({ app: appLookupParams });
+    await expect(setupBuildCredentialsAction.runAsync(ctx)).rejects.toThrowError(
+      MissingCredentialsNonInteractiveError
+    );
   });
 });

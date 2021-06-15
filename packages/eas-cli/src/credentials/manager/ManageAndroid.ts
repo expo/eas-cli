@@ -4,19 +4,19 @@ import { promptAsync } from '../../prompts';
 import { findAccountByName } from '../../user/Account';
 import { ensureActorHasUsername } from '../../user/actions';
 import { Action, CredentialsManager } from '../CredentialsManager';
+import { AssignFcm } from '../android/actions/AssignFcm';
 import {
   canCopyLegacyCredentialsAsync,
   getAppLookupParamsFromContext,
   promptUserAndCopyLegacyCredentialsAsync,
 } from '../android/actions/BuildCredentialsUtils';
-import { AssignFcm } from '../android/actions/new/AssignFcm';
-import { CreateFcm } from '../android/actions/new/CreateFcm';
-import { CreateKeystore } from '../android/actions/new/CreateKeystore';
-import { DownloadKeystore } from '../android/actions/new/DownloadKeystore';
-import { RemoveFcm } from '../android/actions/new/RemoveFcm';
-import { RemoveKeystore } from '../android/actions/new/RemoveKeystore';
-import { SetupBuildCredentialsFromCredentialsJson } from '../android/actions/new/SetupBuildCredentialsFromCredentialsJson';
-import { UpdateCredentialsJson } from '../android/actions/new/UpdateCredentialsJson';
+import { CreateFcm } from '../android/actions/CreateFcm';
+import { CreateKeystore } from '../android/actions/CreateKeystore';
+import { DownloadKeystore } from '../android/actions/DownloadKeystore';
+import { RemoveFcm } from '../android/actions/RemoveFcm';
+import { RemoveKeystore } from '../android/actions/RemoveKeystore';
+import { SetupBuildCredentialsFromCredentialsJson } from '../android/actions/SetupBuildCredentialsFromCredentialsJson';
+import { UpdateCredentialsJson } from '../android/actions/UpdateCredentialsJson';
 import {
   displayAndroidAppCredentials,
   displayEmptyAndroidCredentials,

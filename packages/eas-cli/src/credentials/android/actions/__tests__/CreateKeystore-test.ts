@@ -1,9 +1,9 @@
-import { confirmAsync } from '../../../../../prompts';
-import { createCtxMock } from '../../../../__tests__/fixtures-context';
-import { getAppLookupParamsFromContext } from '../../BuildCredentialsUtils';
+import { confirmAsync } from '../../../../prompts';
+import { createCtxMock } from '../../../__tests__/fixtures-context';
+import { getAppLookupParamsFromContext } from '../BuildCredentialsUtils';
 import { CreateKeystore } from '../CreateKeystore';
 
-jest.mock('../../../../../prompts');
+jest.mock('../../../../prompts');
 (confirmAsync as jest.Mock).mockImplementation(() => true);
 
 describe('CreateKeystore', () => {

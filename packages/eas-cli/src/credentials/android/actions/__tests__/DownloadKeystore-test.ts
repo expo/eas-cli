@@ -1,8 +1,8 @@
 import fs from 'fs-extra';
 
-import { testAndroidBuildCredentialsFragment } from '../../../../__tests__/fixtures-android-new';
-import { createCtxMock } from '../../../../__tests__/fixtures-context';
-import { getAppLookupParamsFromContext } from '../../BuildCredentialsUtils';
+import { testAndroidBuildCredentialsFragment } from '../../../__tests__/fixtures-android-new';
+import { createCtxMock } from '../../../__tests__/fixtures-context';
+import { getAppLookupParamsFromContext } from '../BuildCredentialsUtils';
 import { DownloadKeystore } from '../DownloadKeystore';
 
 const originalConsoleLog = console.log;
