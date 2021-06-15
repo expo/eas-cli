@@ -30,6 +30,11 @@ import {
 } from './SelectAndroidBuildCredentials';
 
 enum ActionType {
+  ManageBuildCredentials,
+  ManageFcm,
+  ManageCredentialsJson,
+  GoBackToCaller,
+  GoBackToHighLevelActions,
   CreateKeystore,
   DownloadKeystore,
   RemoveKeystore,
@@ -41,20 +46,97 @@ enum ActionType {
 
 enum Scope {
   Project,
-  Account,
   Manager,
 }
 
 type ActionInfo = { value: ActionType; title: string; scope: Scope };
 
-const highLevelActions: ActionInfo[] = [];
+const highLevelActions: ActionInfo[] = [
+  {
+    value: ActionType.ManageBuildCredentials,
+    title: 'Keystore: Manage everything needed to build your project',
+    scope: Scope.Manager,
+  },
+  {
+    value: ActionType.ManageFcm,
+    title: 'Push Key: Manage your FCM Api Key',
+    scope: Scope.Manager,
+  },
+  {
+    value: ActionType.ManageCredentialsJson,
+    title: 'Credentials.json: Upload/Download credentials between EAS servers and your local json ',
+    scope: Scope.Manager,
+  },
+  {
+    value: ActionType.GoBackToCaller,
+    title: 'Go back',
+    scope: Scope.Manager,
+  },
+];
 
-export class ManageAndroid implements Action {
-  async runAsync(
-    manager: CredentialsManager,
-    ctx: Context,
-    _currentActions: ActionInfo[] = highLevelActions
-  ): Promise<void> {
+const credentialsJsonActions: ActionInfo[] = [
+  {
+    value: ActionType.UpdateCredentialsJson,
+    title: 'Download credentials from EAS to credentials.json',
+    scope: Scope.Project,
+  },
+  {
+    value: ActionType.SetupBuildCredentialsFromCredentialsJson,
+    title: 'Upload credentials from credentials.json to EAS',
+    scope: Scope.Project,
+  },
+  {
+    value: ActionType.GoBackToHighLevelActions,
+    title: 'Go back',
+    scope: Scope.Manager,
+  },
+];
+
+const buildCredentialsActions: ActionInfo[] = [
+  {
+    value: ActionType.CreateKeystore,
+    title: 'Set up a new keystore',
+    scope: Scope.Project,
+  },
+  {
+    value: ActionType.DownloadKeystore,
+    title: 'Download existing keystore',
+    scope: Scope.Project,
+  },
+  {
+    value: ActionType.RemoveKeystore,
+    title: 'Delete your keystore',
+    scope: Scope.Project,
+  },
+  {
+    value: ActionType.GoBackToHighLevelActions,
+    title: 'Go back',
+    scope: Scope.Manager,
+  },
+];
+
+const fcmActions: ActionInfo[] = [
+  {
+    value: ActionType.CreateFcm,
+    title: 'Upload an FCM Api Key',
+    scope: Scope.Project,
+  },
+  {
+    value: ActionType.RemoveFcm,
+    title: 'Delete your FCM Api Key',
+    scope: Scope.Project,
+  },
+  {
+    value: ActionType.GoBackToHighLevelActions,
+    title: 'Go back',
+    scope: Scope.Manager,
+  },
+];
+
+export class ManageAndroid {
+  constructor(private callingAction: Action) {}
+
+  async runAsync(ctx: Context, currentActions: ActionInfo[] = highLevelActions): Promise<void> {
     while (true) {
       try {
         const accountName = ctx.hasProjectContext
@@ -85,44 +167,38 @@ export class ManageAndroid implements Action {
             await promptUserAndCopyLegacyCredentialsAsync(ctx, appLookupParams);
           }
         }
-        const actions: { value: ActionType; title: string }[] = [
-          {
-            value: ActionType.CreateKeystore,
-            title: 'Set up a new keystore',
-          },
-          {
-            value: ActionType.DownloadKeystore,
-            title: 'Download existing keystore',
-          },
-          {
-            value: ActionType.RemoveKeystore,
-            title: 'Delete your keystore',
-          },
-          {
-            value: ActionType.CreateFcm,
-            title: 'Upload an FCM Api Key',
-          },
-          {
-            value: ActionType.RemoveFcm,
-            title: 'Delete your FCM Api Key',
-          },
-          {
-            value: ActionType.UpdateCredentialsJson,
-            title: 'Update credentials.json with values from EAS servers',
-          },
-          {
-            value: ActionType.SetupBuildCredentialsFromCredentialsJson,
-            title: 'Update credentials on EAS servers with values from credentials.json',
-          },
-        ];
         const { action: chosenAction } = await promptAsync({
           type: 'select',
           name: 'action',
           message: 'What do you want to do?',
-          choices: actions,
+          choices: currentActions.map(action => ({
+            value: action.value,
+            title: action.title,
+          })),
         });
+        const actionInfo = currentActions.find(action => action.value === chosenAction);
+        if (!actionInfo) {
+          throw new Error('Action not supported yet');
+        }
+        if (actionInfo.scope === Scope.Manager) {
+          if (chosenAction === ActionType.ManageBuildCredentials) {
+            currentActions = buildCredentialsActions;
+            continue;
+          } else if (chosenAction === ActionType.ManageFcm) {
+            currentActions = fcmActions;
+            continue;
+          } else if (chosenAction === ActionType.ManageCredentialsJson) {
+            currentActions = credentialsJsonActions;
+            continue;
+          } else if (chosenAction === ActionType.GoBackToHighLevelActions) {
+            currentActions = highLevelActions;
+            continue;
+          } else if (chosenAction === ActionType.GoBackToCaller) {
+            return await new CredentialsManager(ctx).runActionAsync(this.callingAction);
+          }
+        }
+        const appLookupParams = getAppLookupParamsFromContext(ctx);
         if (chosenAction === ActionType.CreateKeystore) {
-          const appLookupParams = getAppLookupParamsFromContext(ctx);
           const selectBuildCredentialsResult = await new SelectAndroidBuildCredentials(
             appLookupParams
           ).runAsync(ctx);
@@ -144,7 +220,6 @@ export class ManageAndroid implements Action {
             );
           }
         } else if (chosenAction === ActionType.DownloadKeystore) {
-          const appLookupParams = getAppLookupParamsFromContext(ctx);
           const buildCredentials = await new SelectExistingAndroidBuildCredentials(
             appLookupParams
           ).runAsync(ctx);
@@ -152,7 +227,6 @@ export class ManageAndroid implements Action {
             await new DownloadKeystore({ app: appLookupParams }).runAsync(ctx, buildCredentials);
           }
         } else if (chosenAction === ActionType.RemoveKeystore) {
-          const appLookupParams = getAppLookupParamsFromContext(ctx);
           const buildCredentials = await new SelectExistingAndroidBuildCredentials(
             appLookupParams
           ).runAsync(ctx);
@@ -160,14 +234,11 @@ export class ManageAndroid implements Action {
             await new RemoveKeystore(appLookupParams).runAsync(ctx, buildCredentials);
           }
         } else if (chosenAction === ActionType.CreateFcm) {
-          const appLookupParams = getAppLookupParamsFromContext(ctx);
           const fcm = await new CreateFcm(appLookupParams.account).runAsync(ctx);
           await new AssignFcm(appLookupParams).runAsync(ctx, fcm);
         } else if (chosenAction === ActionType.RemoveFcm) {
-          const appLookupParams = getAppLookupParamsFromContext(ctx);
           await new RemoveFcm(appLookupParams).runAsync(ctx);
         } else if (chosenAction === ActionType.UpdateCredentialsJson) {
-          const appLookupParams = getAppLookupParamsFromContext(ctx);
           const buildCredentials = await new SelectExistingAndroidBuildCredentials(
             appLookupParams
           ).runAsync(ctx);
@@ -175,13 +246,12 @@ export class ManageAndroid implements Action {
             await new UpdateCredentialsJson().runAsync(ctx, buildCredentials);
           }
         } else if (chosenAction === ActionType.SetupBuildCredentialsFromCredentialsJson) {
-          const appLookupParams = getAppLookupParamsFromContext(ctx);
           await new SetupBuildCredentialsFromCredentialsJson(appLookupParams).runAsync(ctx);
         }
       } catch (err) {
         Log.error(err);
       }
-      await manager.runActionAsync(new PressAnyKeyToContinue());
+      await new PressAnyKeyToContinue().runAsync();
     }
   }
 }

@@ -74,7 +74,7 @@ const highLevelActions: ActionInfo[] = [
   },
 ];
 
-const credentialsJsonActions: { value: ActionType; title: string; scope: Scope }[] = [
+const credentialsJsonActions: ActionInfo[] = [
   {
     value: ActionType.UpdateCredentialsJson,
     title: 'Download credentials from EAS to credentials.json',
@@ -92,9 +92,7 @@ const credentialsJsonActions: { value: ActionType; title: string; scope: Scope }
   },
 ];
 
-function getBuildCredentialsActions(
-  ctx: Context
-): { value: ActionType; title: string; scope: Scope }[] {
+function getBuildCredentialsActions(ctx: Context): ActionInfo[] {
   return [
     {
       // This command will be triggered during build to ensure all credentials are ready
