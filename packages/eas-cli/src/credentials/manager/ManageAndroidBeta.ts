@@ -15,6 +15,8 @@ import { CreateKeystore } from '../android/actions/new/CreateKeystore';
 import { DownloadKeystore } from '../android/actions/new/DownloadKeystore';
 import { RemoveFcm } from '../android/actions/new/RemoveFcm';
 import { RemoveKeystore } from '../android/actions/new/RemoveKeystore';
+import { SetupBuildCredentialsFromCredentialsJson } from '../android/actions/new/SetupBuildCredentialsFromCredentialsJson';
+import { UpdateCredentialsJson } from '../android/actions/new/UpdateCredentialsJson';
 import {
   displayAndroidAppCredentials,
   displayEmptyAndroidCredentials,
@@ -33,6 +35,8 @@ enum ActionType {
   RemoveKeystore,
   CreateFcm,
   RemoveFcm,
+  UpdateCredentialsJson,
+  SetupBuildCredentialsFromCredentialsJson,
 }
 
 enum Scope {
@@ -102,6 +106,14 @@ export class ManageAndroid implements Action {
             value: ActionType.RemoveFcm,
             title: 'Delete your FCM Api Key',
           },
+          {
+            value: ActionType.UpdateCredentialsJson,
+            title: 'Update credentials.json with values from EAS servers',
+          },
+          {
+            value: ActionType.SetupBuildCredentialsFromCredentialsJson,
+            title: 'Update credentials on EAS servers with values from credentials.json',
+          },
         ];
         const { action: chosenAction } = await promptAsync({
           type: 'select',
@@ -154,6 +166,17 @@ export class ManageAndroid implements Action {
         } else if (chosenAction === ActionType.RemoveFcm) {
           const appLookupParams = getAppLookupParamsFromContext(ctx);
           await new RemoveFcm(appLookupParams).runAsync(ctx);
+        } else if (chosenAction === ActionType.UpdateCredentialsJson) {
+          const appLookupParams = getAppLookupParamsFromContext(ctx);
+          const buildCredentials = await new SelectExistingAndroidBuildCredentials(
+            appLookupParams
+          ).runAsync(ctx);
+          if (buildCredentials) {
+            await new UpdateCredentialsJson().runAsync(ctx, buildCredentials);
+          }
+        } else if (chosenAction === ActionType.SetupBuildCredentialsFromCredentialsJson) {
+          const appLookupParams = getAppLookupParamsFromContext(ctx);
+          await new SetupBuildCredentialsFromCredentialsJson(appLookupParams).runAsync(ctx);
         }
       } catch (err) {
         Log.error(err);
