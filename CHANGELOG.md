@@ -20,7 +20,8 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🧹 Chores
 
 - Deprecate `--skip-credentials-check` flag because it doesn't do anything and is no longer needed.([#442](https://github.com/expo/eas-cli/pull/442) by [@brentvatne](https://github.com/brentvatne))
-- Move android credentials code to new Graphql API ([#439](https://github.com/expo/eas-cli/pull/439) [#440](https://github.com/expo/eas-cli/pull/440) [#438](https://github.com/expo/eas-cli/pull/438) [#443](https://github.com/expo/eas-cli/pull/443) [#447](https://github.com/expo/eas-cli/pull/447) [#451](https://github.com/expo/eas-cli/pull/451) by [@quinlanj](https://github.com/quinlanj))
+- Move android credentials code to new Graphql API ([#439](https://github.com/expo/eas-cli/pull/439) [#440](https://github.com/expo/eas-cli/pull/440) [#438](https://github.com/expo/eas-cli/pull/438) [#443](https://github.com/expo/eas-cli/pull/443) [#447](https://github.com/expo/eas-cli/pull/447) [#451](https://github.com/expo/eas-cli/pull/451) [#455](https://github.com/expo/eas-cli/pull/455) by [@quinlanj](https://github.com/quinlanj))
+- Prepare Graphql infra to support iOS push keys ([#456](https://github.com/expo/eas-cli/pull/456) by [@quinlanj](https://github.com/quinlanj))
 - Improve credentials DX ([#448](https://github.com/expo/eas-cli/pull/448) [#449](https://github.com/expo/eas-cli/pull/449) by [@quinlanj](https://github.com/quinlanj))
 
 ## [0.17.0](https://github.com/expo/eas-cli/releases/tag/v0.17.0) - 2021-06-02
