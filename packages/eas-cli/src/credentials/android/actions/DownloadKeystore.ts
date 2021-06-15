@@ -7,7 +7,7 @@ import { confirmAsync } from '../../../prompts';
 import { maybeRenameExistingFileAsync } from '../../../utils/files';
 import { Context } from '../../context';
 import { AppLookupParams, formatProjectFullName } from '../api/GraphqlClient';
-import { displayAndroidKeystore } from '../utils/printCredentialsBeta';
+import { displayAndroidKeystore } from '../utils/printCredentials';
 
 interface DownloadKeystoreOptions {
   app: AppLookupParams;

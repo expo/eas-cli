@@ -19,7 +19,7 @@ import { UpdateCredentialsJson } from '../android/actions/UpdateCredentialsJson'
 import {
   displayAndroidAppCredentials,
   displayEmptyAndroidCredentials,
-} from '../android/utils/printCredentialsBeta';
+} from '../android/utils/printCredentials';
 import { Action, Context } from '../context';
 import { PressAnyKeyToContinue } from './HelperActions';
 import {
