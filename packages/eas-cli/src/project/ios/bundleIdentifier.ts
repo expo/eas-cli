@@ -110,7 +110,7 @@ async function configureBundleIdentifierAsync(
 }
 
 function isBundleIdentifierValid(bundleIdentifier: string): boolean {
-  return /^[a-zA-Z]+(\.[a-zA-Z0-9-]+)*$/.test(bundleIdentifier);
+  return /^[a-zA-Z0-9-.]+$/.test(bundleIdentifier);
 }
 
 function _warnIfBundleIdentifierDefinedInAppConfigForGenericProject(
