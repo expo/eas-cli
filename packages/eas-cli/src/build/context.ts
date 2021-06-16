@@ -126,7 +126,9 @@ export function createBuildContext<T extends Platform>({
   };
 }
 
-function getDevClientEventProperties(projectDir: string) {
+function getDevClientEventProperties(
+  projectDir: string
+): { dev_client: boolean; dev_client_version?: string } {
   try {
     const pkg = JsonFile.read(resolveFrom(projectDir, 'expo-dev-client/package.json'));
     return { dev_client: true, dev_client_version: pkg.version?.toString() };
