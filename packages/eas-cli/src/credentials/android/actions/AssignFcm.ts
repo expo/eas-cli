@@ -1,10 +1,10 @@
 import {
   AndroidFcmFragment,
   CommonAndroidAppCredentialsFragment,
-} from '../../../../graphql/generated';
-import Log from '../../../../log';
-import { Context } from '../../../context';
-import { AppLookupParams } from '../../api/GraphqlClient';
+} from '../../../graphql/generated';
+import Log from '../../../log';
+import { Context } from '../../context';
+import { AppLookupParams } from '../api/GraphqlClient';
 
 export class AssignFcm {
   constructor(private app: AppLookupParams) {}
@@ -13,10 +13,10 @@ export class AssignFcm {
     ctx: Context,
     fcm: AndroidFcmFragment
   ): Promise<CommonAndroidAppCredentialsFragment> {
-    const appCredentials = await ctx.newAndroid.createOrGetExistingAndroidAppCredentialsWithBuildCredentialsAsync(
+    const appCredentials = await ctx.android.createOrGetExistingAndroidAppCredentialsWithBuildCredentialsAsync(
       this.app
     );
-    const updatedAppCredentials = await ctx.newAndroid.updateAndroidAppCredentialsAsync(
+    const updatedAppCredentials = await ctx.android.updateAndroidAppCredentialsAsync(
       appCredentials,
       {
         androidFcmId: fcm.id,

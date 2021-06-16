@@ -1,9 +1,9 @@
-import { promptAsync } from '../../../../../prompts';
-import { createCtxMock } from '../../../../__tests__/fixtures-context';
-import { getAppLookupParamsFromContext } from '../../BuildCredentialsUtils';
+import { promptAsync } from '../../../../prompts';
+import { createCtxMock } from '../../../__tests__/fixtures-context';
+import { getAppLookupParamsFromContext } from '../BuildCredentialsUtils';
 import { CreateFcm } from '../CreateFcm';
 
-jest.mock('../../../../../prompts');
+jest.mock('../../../../prompts');
 (promptAsync as jest.Mock).mockImplementation(() => ({ fcmApiKey: 'blah' }));
 
 describe(CreateFcm, () => {
@@ -14,7 +14,7 @@ describe(CreateFcm, () => {
     await createFcmAction.runAsync(ctx);
 
     // expect fcm api key to be created on expo servers
-    expect(ctx.newAndroid.createFcmAsync as any).toHaveBeenCalledTimes(1);
+    expect(ctx.android.createFcmAsync as any).toHaveBeenCalledTimes(1);
   });
   it('errors in Non-Interactive Mode', async () => {
     const ctx = createCtxMock({ nonInteractive: true });

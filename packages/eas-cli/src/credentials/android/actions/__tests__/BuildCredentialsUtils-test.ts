@@ -6,7 +6,7 @@ import {
   testLegacyAndroidAppCredentialsFragment,
   testLegacyAndroidBuildCredentialsFragment,
   testLegacyAndroidFcmFragment,
-} from '../../../__tests__/fixtures-android-new';
+} from '../../../__tests__/fixtures-android';
 import { createCtxMock } from '../../../__tests__/fixtures-context';
 import {
   canCopyLegacyCredentialsAsync,
@@ -33,7 +33,7 @@ describe('BuildCredentialsUtils', () => {
     it('returns true if the user has legacy credentials and no modern ones', async () => {
       const ctx = createCtxMock({
         nonInteractive: true,
-        newAndroid: {
+        android: {
           ...getNewAndroidApiMockWithoutCredentials(),
           getAndroidAppCredentialsWithCommonFieldsAsync: jest.fn(() => null),
           getLegacyAndroidAppCredentialsWithCommonFieldsAsync: jest.fn(
@@ -48,7 +48,7 @@ describe('BuildCredentialsUtils', () => {
     it('returns false if the user has modern credentials', async () => {
       const ctx = createCtxMock({
         nonInteractive: true,
-        newAndroid: {
+        android: {
           ...getNewAndroidApiMockWithoutCredentials(),
           getAndroidAppCredentialsWithCommonFieldsAsync: jest.fn(
             () => testAndroidAppCredentialsFragment
@@ -65,7 +65,7 @@ describe('BuildCredentialsUtils', () => {
     it('returns false if the user has no legacy credentials', async () => {
       const ctx = createCtxMock({
         nonInteractive: true,
-        newAndroid: {
+        android: {
           ...getNewAndroidApiMockWithoutCredentials(),
           getAndroidAppCredentialsWithCommonFieldsAsync: jest.fn(() => null),
           getLegacyAndroidAppCredentialsWithCommonFieldsAsync: jest.fn(() => null),
@@ -78,7 +78,7 @@ describe('BuildCredentialsUtils', () => {
     it('works in Non-Interactive Mode', async () => {
       const ctx = createCtxMock({
         nonInteractive: true,
-        newAndroid: {
+        android: {
           ...getNewAndroidApiMockWithoutCredentials(),
           getAndroidAppCredentialsWithCommonFieldsAsync: jest.fn(() => null),
           getLegacyAndroidAppCredentialsWithCommonFieldsAsync: jest.fn(
@@ -96,7 +96,7 @@ describe('BuildCredentialsUtils', () => {
       (promptAsync as jest.Mock).mockImplementation(() => ({ providedName: 'test-provided-name' }));
       const ctx = createCtxMock({
         nonInteractive: false,
-        newAndroid: {
+        android: {
           ...getNewAndroidApiMockWithoutCredentials(),
           getAndroidAppCredentialsWithCommonFieldsAsync: jest.fn(() => null),
           getLegacyAndroidAppCredentialsWithCommonFieldsAsync: jest.fn(
@@ -113,17 +113,17 @@ describe('BuildCredentialsUtils', () => {
       await promptUserAndCopyLegacyCredentialsAsync(ctx, appLookupParams);
 
       expect(
-        ctx.newAndroid.createOrGetExistingAndroidAppCredentialsWithBuildCredentialsAsync as any
+        ctx.android.createOrGetExistingAndroidAppCredentialsWithBuildCredentialsAsync as any
       ).toHaveBeenCalledTimes(1);
-      expect(ctx.newAndroid.createFcmAsync as any).toHaveBeenCalledTimes(1);
-      expect(ctx.newAndroid.updateAndroidAppCredentialsAsync as any).toHaveBeenCalledTimes(1);
-      expect(ctx.newAndroid.createKeystoreAsync as any).toHaveBeenCalledTimes(1);
-      expect(ctx.newAndroid.createAndroidAppBuildCredentialsAsync as any).toHaveBeenCalledTimes(1);
+      expect(ctx.android.createFcmAsync as any).toHaveBeenCalledTimes(1);
+      expect(ctx.android.updateAndroidAppCredentialsAsync as any).toHaveBeenCalledTimes(1);
+      expect(ctx.android.createKeystoreAsync as any).toHaveBeenCalledTimes(1);
+      expect(ctx.android.createAndroidAppBuildCredentialsAsync as any).toHaveBeenCalledTimes(1);
     });
     it('errors in Non-Interactive Mode', async () => {
       const ctx = createCtxMock({
         nonInteractive: true,
-        newAndroid: {
+        android: {
           ...getNewAndroidApiMockWithoutCredentials(),
           getAndroidAppCredentialsWithCommonFieldsAsync: jest.fn(() => null),
           getLegacyAndroidAppCredentialsWithCommonFieldsAsync: jest.fn(

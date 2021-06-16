@@ -4,8 +4,10 @@ import prompts from 'prompts';
 
 import { asMock } from '../../../__tests__/utils';
 import { IosDistributionType } from '../../../graphql/generated';
-import { testKeystore } from '../../__tests__/fixtures-android';
-import { testLegacyAndroidBuildCredentialsFragment } from '../../__tests__/fixtures-android-new';
+import {
+  testKeystore,
+  testLegacyAndroidBuildCredentialsFragment,
+} from '../../__tests__/fixtures-android';
 import { createCtxMock } from '../../__tests__/fixtures-context';
 import {
   getNewIosApiMockWithoutCredentials,

@@ -1,9 +1,7 @@
 import merge from 'lodash/merge';
 
-import { CredentialsManager } from '../CredentialsManager';
 import { Context } from '../context';
-import { getAndroidApiMockWithoutCredentials } from './fixtures-android';
-import { getNewAndroidApiMockWithoutCredentials } from './fixtures-android-new';
+import { getNewAndroidApiMockWithoutCredentials } from './fixtures-android';
 import { getAppstoreMock } from './fixtures-appstore';
 import { testAppJson, testUsername } from './fixtures-constants';
 import { getNewIosApiMockWithoutCredentials } from './fixtures-ios';
@@ -11,8 +9,7 @@ import { getNewIosApiMockWithoutCredentials } from './fixtures-ios';
 export function createCtxMock(mockOverride: Record<string, any> = {}): Context {
   const defaultMock = {
     ios: getNewIosApiMockWithoutCredentials(),
-    android: getAndroidApiMockWithoutCredentials(),
-    newAndroid: getNewAndroidApiMockWithoutCredentials(),
+    android: getNewAndroidApiMockWithoutCredentials(),
     appStore: getAppstoreMock(),
     bestEffortAppStoreAuthenticateAsync: jest.fn(),
     ensureAppleCtx: jest.fn(),
@@ -28,15 +25,4 @@ export function createCtxMock(mockOverride: Record<string, any> = {}): Context {
     projectDir: '.',
   };
   return merge(defaultMock, mockOverride) as any;
-}
-
-export function createManagerMock(mockOverride: Record<string, any> = {}): CredentialsManager {
-  return merge(
-    {
-      runActionAsync: jest.fn(() => {
-        throw new Error('unexpected call'); // should be implemented in test directly
-      }),
-    },
-    mockOverride
-  ) as any;
 }

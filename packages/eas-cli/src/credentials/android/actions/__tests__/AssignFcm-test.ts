@@ -1,7 +1,7 @@
-import { testLegacyAndroidFcmFragment } from '../../../../__tests__/fixtures-android-new';
-import { createCtxMock } from '../../../../__tests__/fixtures-context';
-import { getAppLookupParamsFromContext } from '../../BuildCredentialsUtils';
+import { testLegacyAndroidFcmFragment } from '../../../__tests__/fixtures-android';
+import { createCtxMock } from '../../../__tests__/fixtures-context';
 import { AssignFcm } from '../AssignFcm';
+import { getAppLookupParamsFromContext } from '../BuildCredentialsUtils';
 
 describe(AssignFcm, () => {
   it('assigns an fcm api key in Interactive Mode', async () => {
@@ -14,9 +14,9 @@ describe(AssignFcm, () => {
 
     // expect app credentials to be fetched/created, then updated
     expect(
-      ctx.newAndroid.createOrGetExistingAndroidAppCredentialsWithBuildCredentialsAsync as any
+      ctx.android.createOrGetExistingAndroidAppCredentialsWithBuildCredentialsAsync as any
     ).toHaveBeenCalledTimes(1);
-    expect(ctx.newAndroid.updateAndroidAppCredentialsAsync as any).toHaveBeenCalledTimes(1);
+    expect(ctx.android.updateAndroidAppCredentialsAsync as any).toHaveBeenCalledTimes(1);
   });
   it('works in Non-Interactive Mode', async () => {
     const ctx = createCtxMock({

@@ -1,11 +1,19 @@
-import { AndroidCredentials, Keystore } from '../android/credentials';
+import {
+  AndroidAppBuildCredentialsFragment,
+  AndroidFcmFragment,
+  AndroidFcmVersion,
+  AndroidKeystoreFragment,
+  AndroidKeystoreType,
+  AppFragment,
+  CommonAndroidAppCredentialsFragment,
+} from '../../graphql/generated';
+import { Keystore } from '../android/credentials';
 import {
   testKeystore2Base64,
   testKeystoreBase64,
   testPKCS12KeystoreBase64,
   testPKCS12KeystoreEmptyPasswordBase64,
 } from './fixtures-base64-data';
-import { testExperienceName, testJester2ExperienceName } from './fixtures-constants';
 
 export const testKeystore: Keystore = {
   keystore: testKeystoreBase64,
@@ -39,56 +47,88 @@ export const testPKCS12EmptyPasswordKeystore: Keystore = {
   keyAlias: 'test-alias',
 };
 
-export const testPushCredentials = {
-  fcmApiKey: 'examplefcmapikey',
+export const testAppFragment: AppFragment = {
+  id: 'test-app-id',
+  fullName: '@testuser/testapp',
+  slug: 'testapp',
 };
 
-export const testAppCredentials = {
-  experienceName: testExperienceName,
-  keystore: testKeystore,
-  pushCredentials: testPushCredentials,
+export const testLegacyAndroidFcmFragment: AndroidFcmFragment = {
+  id: 'test-id',
+  snippet: {
+    firstFourCharacters: 'abcd',
+    lastFourCharacters: 'efgh',
+  },
+  credential: 'abcdxxxxxxefgh',
+  version: AndroidFcmVersion.Legacy,
+  createdAt: new Date(),
+  updatedAt: new Date(),
 };
 
-export const testJester2AppCredentials = {
-  experienceName: testJester2ExperienceName,
-  keystore: testKeystore2,
-  pushCredentials: testPushCredentials,
+export const testJksAndroidKeystoreFragment: AndroidKeystoreFragment = {
+  id: 'test-id',
+  type: AndroidKeystoreType.Jks,
+  keystore: testKeystoreBase64,
+  keystorePassword: testKeystore.keystorePassword,
+  keyAlias: testKeystore.keyAlias,
+  keyPassword: testKeystore.keyPassword,
+  md5CertificateFingerprint: 'test-md5',
+  sha1CertificateFingerprint: 'test-sha1',
+  sha256CertificateFingerprint: 'test-sha256',
+  createdAt: new Date(),
+  updatedAt: new Date(),
 };
 
-export const testAllCredentials: { [key: string]: AndroidCredentials } = {
-  [testExperienceName]: testAppCredentials,
+export const testLegacyAndroidBuildCredentialsFragment: AndroidAppBuildCredentialsFragment = {
+  id: 'test-id',
+  isDefault: true,
+  isLegacy: true,
+  name: 'legacy',
+  androidKeystore: testJksAndroidKeystoreFragment,
 };
 
-export function getApiClientWrapperMock() {
-  // by default all method throw exceptions to make sure that we only call what is expected
-  const getUnexpectedCallMock = () =>
-    jest.fn(() => {
-      throw new Error('unexpected call');
-    });
+export const testLegacyAndroidAppCredentialsFragment: CommonAndroidAppCredentialsFragment = {
+  id: 'test-id',
+  applicationIdentifier: null,
+  isLegacy: true,
+  app: testAppFragment,
+  androidFcm: testLegacyAndroidFcmFragment,
+  androidAppBuildCredentialsList: [testLegacyAndroidBuildCredentialsFragment],
+};
+
+export const testAndroidBuildCredentialsFragment: AndroidAppBuildCredentialsFragment = {
+  id: 'test-id',
+  isDefault: true,
+  isLegacy: false,
+  name: 'Google App Store Build Credentials',
+  androidKeystore: testJksAndroidKeystoreFragment,
+};
+
+export const testAndroidAppCredentialsFragment: CommonAndroidAppCredentialsFragment = {
+  id: 'test-id',
+  applicationIdentifier: null,
+  isLegacy: false,
+  app: testAppFragment,
+  androidFcm: testLegacyAndroidFcmFragment,
+  androidAppBuildCredentialsList: [testLegacyAndroidBuildCredentialsFragment],
+};
+
+export function getNewAndroidApiMockWithoutCredentials() {
   return {
-    getAllCredentialsApi: getUnexpectedCallMock(),
-    getAllCredentialsForAppApi: getUnexpectedCallMock(),
-    updateKeystoreApi: getUnexpectedCallMock(),
-    updateFcmKeyApi: getUnexpectedCallMock(),
-    removeKeystoreApi: getUnexpectedCallMock(),
-    removeFcmKeyApi: getUnexpectedCallMock(),
-  };
-}
-
-export function getAndroidApiMock() {
-  return {
-    fetchAllAsync: jest.fn(() => testAllCredentials),
-    fetchKeystoreAsync: jest.fn(() => testKeystore),
-    updateKeystoreAsync: jest.fn(),
-    removeKeystoreAsync: jest.fn(),
-  };
-}
-
-export function getAndroidApiMockWithoutCredentials() {
-  return {
-    fetchAllAsync: jest.fn(() => []),
-    fetchKeystoreAsync: jest.fn(() => null),
-    updateKeystoreAsync: jest.fn(),
-    removeKeystoreAsync: jest.fn(),
+    getAndroidAppCredentialsWithCommonFieldsAsync: jest.fn(),
+    getAndroidAppBuildCredentialsListAsync: jest.fn(() => []),
+    getLegacyAndroidAppCredentialsWithCommonFieldsAsync: jest.fn(),
+    getLegacyAndroidAppBuildCredentialsAsync: jest.fn(),
+    createOrGetExistingAndroidAppCredentialsWithBuildCredentialsAsync: jest.fn(),
+    updateAndroidAppCredentialsAsync: jest.fn(),
+    updateAndroidAppBuildCredentialsAsync: jest.fn(),
+    createAndroidAppBuildCredentialsAsync: jest.fn(),
+    getDefaultAndroidAppBuildCredentialsAsync: jest.fn(),
+    getAndroidAppBuildCredentialsByNameAsync: jest.fn(),
+    createOrUpdateAndroidAppBuildCredentialsByNameAsync: jest.fn(),
+    createKeystoreAsync: jest.fn(),
+    createFcmAsync: jest.fn(),
+    deleteKeystoreAsync: jest.fn(),
+    deleteFcmAsync: jest.fn(),
   };
 }

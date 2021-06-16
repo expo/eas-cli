@@ -1,9 +1,9 @@
-import { confirmAsync } from '../../../../../prompts';
-import { createCtxMock } from '../../../../__tests__/fixtures-context';
-import { getAppLookupParamsFromContext } from '../../BuildCredentialsUtils';
+import { confirmAsync } from '../../../../prompts';
+import { createCtxMock } from '../../../__tests__/fixtures-context';
+import { getAppLookupParamsFromContext } from '../BuildCredentialsUtils';
 import { CreateKeystore } from '../CreateKeystore';
 
-jest.mock('../../../../../prompts');
+jest.mock('../../../../prompts');
 (confirmAsync as jest.Mock).mockImplementation(() => true);
 
 describe('CreateKeystore', () => {
@@ -14,7 +14,7 @@ describe('CreateKeystore', () => {
     await createKeystoreAction.runAsync(ctx);
 
     // expect keystore to be created on expo servers
-    expect(ctx.newAndroid.createKeystoreAsync as any).toHaveBeenCalledTimes(1);
+    expect(ctx.android.createKeystoreAsync as any).toHaveBeenCalledTimes(1);
   });
   it('errors in Non-Interactive Mode', async () => {
     const ctx = createCtxMock({ nonInteractive: true });

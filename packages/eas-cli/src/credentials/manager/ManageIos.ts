@@ -14,8 +14,7 @@ import { getProjectAccountName } from '../../project/projectUtils';
 import { confirmAsync, promptAsync, selectAsync } from '../../prompts';
 import { Account, findAccountByName } from '../../user/Account';
 import { ensureActorHasUsername } from '../../user/actions';
-import { Action, CredentialsManager } from '../CredentialsManager';
-import { Context } from '../context';
+import { Action, Context } from '../context';
 import { getAppLookupParamsFromContext } from '../ios/actions/BuildCredentialsUtils';
 import { CreateDistributionCertificate } from '../ios/actions/CreateDistributionCertificate';
 import { selectValidDistributionCertificateAsync } from '../ios/actions/DistributionCertificateUtils';
@@ -74,7 +73,7 @@ const highLevelActions: ActionInfo[] = [
   },
 ];
 
-const credentialsJsonActions: { value: ActionType; title: string; scope: Scope }[] = [
+const credentialsJsonActions: ActionInfo[] = [
   {
     value: ActionType.UpdateCredentialsJson,
     title: 'Download credentials from EAS to credentials.json',
@@ -92,9 +91,7 @@ const credentialsJsonActions: { value: ActionType; title: string; scope: Scope }
   },
 ];
 
-function getBuildCredentialsActions(
-  ctx: Context
-): { value: ActionType; title: string; scope: Scope }[] {
+function getBuildCredentialsActions(ctx: Context): ActionInfo[] {
   return [
     {
       // This command will be triggered during build to ensure all credentials are ready
@@ -185,7 +182,7 @@ export class ManageIos {
             currentActions = highLevelActions;
             continue;
           } else if (chosenAction === ActionType.GoBackToCaller) {
-            return await new CredentialsManager(ctx).runActionAsync(this.callingAction);
+            return await this.callingAction.runAsync(ctx);
           }
         } else if (actionInfo.scope === Scope.Project) {
           await this.runProjectSpecificActionAsync(

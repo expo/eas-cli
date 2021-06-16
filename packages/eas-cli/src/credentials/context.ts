@@ -7,10 +7,13 @@ import { getProjectAccountName } from '../project/projectUtils';
 import { confirmAsync } from '../prompts';
 import { Actor, getActorDisplayName } from '../user/User';
 import { ensureLoggedInAsync } from '../user/actions';
-import AndroidApi from './android/api/Client';
 import * as AndroidGraphqlClient from './android/api/GraphqlClient';
 import * as IosGraphqlClient from './ios/api/GraphqlClient';
 import AppStoreApi from './ios/appstore/AppStoreApi';
+
+export interface Action<T = void> {
+  runAsync(ctx: Context): Promise<T>;
+}
 
 interface AppleCtxOptions {
   appleId?: string;
@@ -26,8 +29,7 @@ export interface Context {
   readonly projectDir: string;
   readonly user: Actor;
   readonly nonInteractive: boolean;
-  readonly android: AndroidApi;
-  readonly newAndroid: typeof AndroidGraphqlClient;
+  readonly android: typeof AndroidGraphqlClient;
   readonly ios: typeof IosGraphqlClient;
   readonly appStore: AppStoreApi;
   readonly hasProjectContext: boolean;
@@ -55,8 +57,7 @@ export async function createCredentialsContextAsync(
 }
 
 class CredentialsContext implements Context {
-  public readonly android = new AndroidApi();
-  public readonly newAndroid = AndroidGraphqlClient;
+  public readonly android = AndroidGraphqlClient;
   public readonly ios = IosGraphqlClient;
   public readonly appStore: AppStoreApi;
   public readonly nonInteractive: boolean;

@@ -1,17 +1,17 @@
 import {
   AndroidAppBuildCredentialsFragment,
   AndroidKeystoreType,
-} from '../../../../graphql/generated';
-import Log from '../../../../log';
-import { confirmAsync } from '../../../../prompts';
-import { Context } from '../../../context';
-import { readAndroidCredentialsAsync } from '../../../credentialsJson/read';
+} from '../../../graphql/generated';
+import Log from '../../../log';
+import { confirmAsync } from '../../../prompts';
+import { Context } from '../../context';
+import { readAndroidCredentialsAsync } from '../../credentialsJson/read';
 import {
   SelectAndroidBuildCredentials,
   SelectAndroidBuildCredentialsResultType,
-} from '../../../manager/SelectAndroidBuildCredentials';
-import { AppLookupParams } from '../../api/GraphqlClient';
-import { getKeystoreWithType } from '../../utils/keystoreNew';
+} from '../../manager/SelectAndroidBuildCredentials';
+import { AppLookupParams } from '../api/GraphqlClient';
+import { getKeystoreWithType } from '../utils/keystoreNew';
 import { BackupKeystore } from './DownloadKeystore';
 
 export class SetupBuildCredentialsFromCredentialsJson {
@@ -61,7 +61,7 @@ export class SetupBuildCredentialsFromCredentialsJson {
         return null;
       }
     }
-    const keystoreFragment = await ctx.newAndroid.createKeystoreAsync(
+    const keystoreFragment = await ctx.android.createKeystoreAsync(
       this.app.account,
       providedKeystoreWithType
     );
@@ -70,12 +70,12 @@ export class SetupBuildCredentialsFromCredentialsJson {
       selectBuildCredentialsResult.resultType ===
       SelectAndroidBuildCredentialsResultType.CREATE_REQUEST
     ) {
-      buildCredentials = await ctx.newAndroid.createAndroidAppBuildCredentialsAsync(this.app, {
+      buildCredentials = await ctx.android.createAndroidAppBuildCredentialsAsync(this.app, {
         ...selectBuildCredentialsResult.result,
         androidKeystoreId: keystoreFragment.id,
       });
     } else {
-      buildCredentials = await ctx.newAndroid.updateAndroidAppBuildCredentialsAsync(
+      buildCredentials = await ctx.android.updateAndroidAppBuildCredentialsAsync(
         selectBuildCredentialsResult.result,
         {
           androidKeystoreId: keystoreFragment.id,

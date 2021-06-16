@@ -1,45 +1,135 @@
+import nullthrows from 'nullthrows';
+
+import {
+  AndroidAppBuildCredentialsFragment,
+  AndroidKeystoreFragment,
+} from '../../../graphql/generated';
 import Log from '../../../log';
-import { Action, CredentialsManager } from '../../CredentialsManager';
 import { Context } from '../../context';
-import { readAndroidCredentialsAsync } from '../../credentialsJson/read';
-import { validateKeystoreAsync } from '../utils/keystore';
-import { UpdateKeystore } from './UpdateKeystore';
+import { MissingCredentialsNonInteractiveError } from '../../errors';
+import { AppLookupParams } from '../api/GraphqlClient';
+import {
+  canCopyLegacyCredentialsAsync,
+  createOrUpdateDefaultAndroidAppBuildCredentialsAsync,
+  promptUserAndCopyLegacyCredentialsAsync,
+} from './BuildCredentialsUtils';
+import { CreateKeystore } from './CreateKeystore';
 
-export class SetupBuildCredentials implements Action {
-  constructor(private projectFullName: string) {}
-
-  async runAsync(manager: CredentialsManager, ctx: Context): Promise<void> {
-    if (await ctx.android.fetchKeystoreAsync(this.projectFullName)) {
-      return;
-    }
-    if (ctx.nonInteractive) {
-      throw new Error('Generating a new Keystore is not supported in --non-interactive mode');
-    }
-
-    await manager.runActionAsync(new UpdateKeystore(this.projectFullName));
-  }
+interface Options {
+  app: AppLookupParams;
+  name?: string;
 }
 
-export class SetupBuildCredentialsFromCredentialsJson implements Action {
-  constructor(
-    private projectFullName: string,
-    private options: { skipKeystoreValidation: boolean }
-  ) {}
+/**
+ * Sets up Build Credentials for Android
+ * @name: sets up build credentials for the specified configuration. If no name is specified, the default configuration is setup
+ */
+export class SetupBuildCredentials {
+  constructor(private options: Options) {}
 
-  async runAsync(manager: CredentialsManager, ctx: Context): Promise<void> {
-    let localCredentials;
-    try {
-      localCredentials = await readAndroidCredentialsAsync(ctx.projectDir);
-    } catch (error) {
-      Log.error(
-        'Reading credentials from credentials.json failed. Make sure this file is correct and all credentials are present there.'
+  async runAsync(ctx: Context): Promise<AndroidAppBuildCredentialsFragment> {
+    const { app, name: maybeName } = this.options;
+
+    if (!ctx.nonInteractive) {
+      const canCopyLegacyCredentials = await canCopyLegacyCredentialsAsync(ctx, app);
+      if (canCopyLegacyCredentials) {
+        await promptUserAndCopyLegacyCredentialsAsync(ctx, app);
+      }
+    }
+
+    const alreadySetupBuildCredentials = await this.getFullySetupBuildCredentialsAsync({
+      ctx,
+      app,
+      name: maybeName,
+    });
+    if (alreadySetupBuildCredentials) {
+      return alreadySetupBuildCredentials;
+    }
+    if (ctx.nonInteractive) {
+      throw new MissingCredentialsNonInteractiveError(
+        'Generating a new Keystore is not supported in --non-interactive mode'
       );
-      throw error;
     }
-    if (!this.options.skipKeystoreValidation) {
-      await validateKeystoreAsync(localCredentials.keystore);
+
+    const keystore = await new CreateKeystore(app.account).runAsync(ctx);
+    return await this.assignBuildCredentialsAsync({ ctx, app, name: maybeName, keystore });
+  }
+
+  async assignBuildCredentialsAsync({
+    ctx,
+    app,
+    name,
+    keystore,
+  }: {
+    ctx: Context;
+    app: AppLookupParams;
+    name?: string;
+    keystore: AndroidKeystoreFragment;
+  }): Promise<AndroidAppBuildCredentialsFragment> {
+    if (name) {
+      return await ctx.android.createOrUpdateAndroidAppBuildCredentialsByNameAsync(app, name, {
+        androidKeystoreId: keystore.id,
+      });
     }
-    await ctx.android.updateKeystoreAsync(this.projectFullName, localCredentials.keystore);
-    Log.succeed('Keystore updated');
+    return await createOrUpdateDefaultAndroidAppBuildCredentialsAsync(ctx, app, {
+      androidKeystoreId: keystore.id,
+    });
+  }
+
+  async getFullySetupBuildCredentialsAsync({
+    ctx,
+    app,
+    name,
+  }: {
+    ctx: Context;
+    app: AppLookupParams;
+    name?: string;
+  }): Promise<AndroidAppBuildCredentialsFragment | null> {
+    if (name) {
+      return await this.getFullySetupBuildCredentialsByNameAsync({ ctx, app, name });
+    }
+
+    const defaultBuildCredentials = await ctx.android.getDefaultAndroidAppBuildCredentialsAsync(
+      app
+    );
+    const defaultKeystore = defaultBuildCredentials?.androidKeystore ?? null;
+    if (defaultKeystore) {
+      Log.log(
+        `Using Keystore from configuration: ${nullthrows(defaultBuildCredentials).name} (default)`
+      );
+      return defaultBuildCredentials;
+    }
+    return null;
+  }
+
+  async getFullySetupBuildCredentialsByNameAsync({
+    ctx,
+    app,
+    name,
+  }: {
+    ctx: Context;
+    app: AppLookupParams;
+    name: string;
+  }): Promise<AndroidAppBuildCredentialsFragment | null> {
+    const maybeBuildCredentials = await ctx.android.getAndroidAppBuildCredentialsByNameAsync(
+      app,
+      name
+    );
+    const keystore = maybeBuildCredentials?.androidKeystore ?? null;
+    if (keystore) {
+      const buildCredentials = nullthrows(maybeBuildCredentials);
+      Log.log(
+        `Using Keystore from configuration: ${buildCredentials.name}${
+          buildCredentials.isDefault ? ' (default)' : ''
+        }`
+      );
+      return buildCredentials;
+    }
+    Log.log(
+      `No Keystore found for configuration: ${name}${
+        maybeBuildCredentials?.isDefault ? ' (default)' : ''
+      }`
+    );
+    return null;
   }
 }
