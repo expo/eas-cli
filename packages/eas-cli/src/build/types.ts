@@ -14,4 +14,4 @@ export enum BuildStatus {
   CANCELED = 'canceled',
 }
 
-export type TrackingContext = Record<string, string | number | boolean | undefined>;
+export type TrackingContext = Record<string, string | number | boolean>;

@@ -115,6 +115,7 @@ export function createBuildContext<T extends Platform>({
   }
 
   const accountId = findAccountByName(commandCtx.user.accounts, commandCtx.accountName)?.id;
+  const devClienProperties = getDevClientEventProperties(platform, commandCtx, buildProfile);
   const trackingCtx = {
     tracking_id: uuidv4(),
     platform,
@@ -122,7 +123,10 @@ export function createBuildContext<T extends Platform>({
     account_name: commandCtx.accountName,
     project_id: commandCtx.projectId,
     project_type: buildProfile.workflow,
-    ...getDevClientEventProperties(platform, commandCtx, buildProfile),
+    dev_client: devClienProperties.dev_client,
+    ...(devClienProperties.dev_client_version
+      ? { dev_client_version: devClienProperties.dev_client_version }
+      : {}),
   };
   Analytics.logEvent(Event.BUILD_COMMAND, trackingCtx);
   return {
