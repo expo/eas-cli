@@ -1,6 +1,7 @@
 import { ExpoConfig } from '@expo/config';
 import { AndroidBuildProfile, EasConfig, IosBuildProfile } from '@expo/eas-json';
 import JsonFile from '@expo/json-file';
+import resolveFrom from 'resolve-from';
 import { v4 as uuidv4 } from 'uuid';
 
 import { getProjectAccountName } from '../project/projectUtils';
@@ -9,7 +10,6 @@ import { Actor } from '../user/User';
 import { ensureLoggedInAsync } from '../user/actions';
 import { Platform, RequestedPlatform, TrackingContext } from './types';
 import Analytics, { Event } from './utils/analytics';
-import resolveFrom from 'resolve-from';
 
 export interface CommandContext {
   requestedPlatform: RequestedPlatform;
