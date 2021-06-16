@@ -5,7 +5,7 @@ import { getApplicationId } from '../project/android/applicationId';
 import { getBundleIdentifier } from '../project/ios/bundleIdentifier';
 import { getUsername } from '../project/projectUtils';
 import { ensureLoggedInAsync } from '../user/actions';
-import { gitCommitHashAsync } from '../utils/git';
+import vcs from '../vcs';
 import {
   readChannelSafelyAsync as readAndroidChannelSafelyAsync,
   readReleaseChannelSafelyAsync as readAndroidReleaseChannelSafelyAsync,
@@ -52,7 +52,7 @@ export async function collectMetadata<T extends Platform>(
     appName: ctx.commandCtx.exp.name,
     appIdentifier: resolveAppIdentifier(ctx),
     buildProfile: ctx.commandCtx.profile,
-    gitCommitHash: await gitCommitHashAsync(),
+    gitCommitHash: await vcs.getCommitHashAsync(),
     username: getUsername(ctx.commandCtx.exp, await ensureLoggedInAsync()),
   };
 }

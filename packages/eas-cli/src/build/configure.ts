@@ -6,18 +6,12 @@ import path from 'path';
 import Log from '../log';
 import { promptAsync } from '../prompts';
 import { ensureLoggedInAsync } from '../user/actions';
-import { gitAddAsync } from '../utils/git';
+import vcs from '../vcs';
 import { configureAndroidAsync } from './android/configure';
 import { ConfigureContext } from './context';
 import { configureIosAsync } from './ios/configure';
 import { RequestedPlatform } from './types';
-import {
-  commitPromptAsync,
-  ensureGitRepoExistsAsync,
-  isGitStatusCleanAsync,
-  maybeBailOnGitStatusAsync,
-  showDiffAsync,
-} from './utils/repository';
+import { commitPromptAsync, maybeBailOnRepoStatusAsync } from './utils/repository';
 
 const configureCommitMessage = {
   [RequestedPlatform.Android]: 'Configure EAS Build for Android',
@@ -29,8 +23,8 @@ export async function configureAsync(options: {
   platform: RequestedPlatform;
   projectDir: string;
 }): Promise<void> {
-  await ensureGitRepoExistsAsync();
-  await maybeBailOnGitStatusAsync();
+  await vcs.ensureRepoExistsAsync();
+  await maybeBailOnRepoStatusAsync();
 
   const { exp } = getConfig(options.projectDir, { skipSDKVersionRequirement: true });
 
@@ -56,7 +50,7 @@ export async function configureAsync(options: {
     await configureIosAsync(ctx);
   }
 
-  if (!(await isGitStatusCleanAsync())) {
+  if (await vcs.hasUncommittedChangesAsync()) {
     Log.newLine();
     await reviewAndCommitChangesAsync(configureCommitMessage[options.platform]);
   } else {
@@ -142,7 +136,7 @@ export async function ensureEasJsonExistsAsync(ctx: ConfigureContext): Promise<v
   };
 
   await fs.writeFile(easJsonPath, `${JSON.stringify(easJson, null, 2)}\n`);
-  await gitAddAsync(easJsonPath, { intentToAdd: true });
+  await vcs.trackFileAsync(easJsonPath);
   Log.withTick(`${existingEasJson ? 'Updated' : 'Generated'} eas.json`);
 }
 
@@ -176,7 +170,7 @@ async function reviewAndCommitChangesAsync(
     await commitPromptAsync({ initialCommitMessage });
     Log.withTick('Committed changes');
   } else if (selected === ShouldCommitChanges.ShowDiffFirst) {
-    await showDiffAsync();
+    await vcs.showDiffAsync();
     await reviewAndCommitChangesAsync(initialCommitMessage, false);
   }
 }

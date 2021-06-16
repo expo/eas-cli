@@ -1,4 +1,3 @@
-import spawnAsync from '@expo/spawn-async';
 import chalk from 'chalk';
 import fs from 'fs-extra';
 import ora from 'ora';
@@ -9,51 +8,12 @@ import { v4 as uuidv4 } from 'uuid';
 import Log from '../../log';
 import { confirmAsync, promptAsync } from '../../prompts';
 import { formatBytes } from '../../utils/files';
-import {
-  doesGitRepoExistAsync,
-  getGitDiffOutputAsync,
-  gitDiffAsync,
-  gitRootDirectoryAsync,
-  gitStatusAsync,
-  isGitInstalledAsync,
-} from '../../utils/git';
 import { getTmpDirectory } from '../../utils/paths';
 import { endTimer, formatMilliseconds, startTimer } from '../../utils/timer';
+import vcs from '../../vcs';
 
-async function ensureGitRepoExistsAsync(): Promise<void> {
-  if (!(await isGitInstalledAsync())) {
-    throw new Error('git command not found, install it before proceeding');
-  }
-
-  if (await doesGitRepoExistAsync()) {
-    return;
-  }
-
-  Log.warn("It looks like you haven't initialized the git repository yet.");
-  Log.warn('EAS Build requires you to use a git repository for your project.');
-
-  const confirmInit = await confirmAsync({
-    message: `Would you like to run 'git init' in the current directory?`,
-  });
-  if (!confirmInit) {
-    throw new Error(
-      'A git repository is required for building your project. Initialize it and run this command again.'
-    );
-  }
-  await spawnAsync('git', ['init']);
-
-  Log.log("We're going to make an initial commit for you repository.");
-
-  await commitPromptAsync({ initialCommitMessage: 'Initial commit', commitAllFiles: true });
-}
-
-async function isGitStatusCleanAsync(): Promise<boolean> {
-  const changes = await gitStatusAsync({ showUntracked: true });
-  return changes.length === 0;
-}
-
-async function maybeBailOnGitStatusAsync(): Promise<void> {
-  if (await isGitStatusCleanAsync()) {
+export async function maybeBailOnRepoStatusAsync(): Promise<void> {
+  if (await vcs.hasUncommittedChangesAsync()) {
     return;
   }
   Log.addNewLineIfNone();
@@ -72,8 +32,8 @@ async function maybeBailOnGitStatusAsync(): Promise<void> {
   }
 }
 
-async function ensureGitStatusIsCleanAsync(nonInteractive = false): Promise<void> {
-  if (await isGitStatusCleanAsync()) {
+export async function ensureRepoIsCleanAsync(nonInteractive = false): Promise<void> {
+  if (!(await vcs.hasUncommittedChangesAsync())) {
     return;
   }
   Log.addNewLineIfNone();
@@ -96,7 +56,24 @@ async function ensureGitStatusIsCleanAsync(nonInteractive = false): Promise<void
   }
 }
 
-async function makeProjectTarballAsync(): Promise<{ path: string; size: number }> {
+export async function commitPromptAsync({
+  initialCommitMessage,
+  commitAllFiles,
+}: {
+  initialCommitMessage?: string;
+  commitAllFiles?: boolean;
+} = {}): Promise<void> {
+  const { message } = await promptAsync({
+    type: 'text',
+    name: 'message',
+    message: 'Commit message:',
+    initial: initialCommitMessage,
+    validate: (input: string) => input !== '',
+  });
+  await vcs.commitAsync({ commitAllFiles, commitMessage: message });
+}
+
+export async function makeProjectTarballAsync(): Promise<{ path: string; size: number }> {
   const spinner = ora('Compressing project files');
 
   await fs.mkdirp(getTmpDirectory());
@@ -118,14 +95,7 @@ async function makeProjectTarballAsync(): Promise<{ path: string; size: number }
   startTimer(compressTimerLabel);
 
   try {
-    await spawnAsync('git', [
-      'clone',
-      '--no-hardlinks',
-      '--depth',
-      '1',
-      await getGitRootFullPathAsync(),
-      shallowClonePath,
-    ]);
+    await vcs.makeShallowCopyAsync(shallowClonePath);
     await tar.create({ cwd: shallowClonePath, file: tarPath, prefix: 'project', gzip: true }, [
       '.',
     ]);
@@ -151,56 +121,3 @@ async function makeProjectTarballAsync(): Promise<{ path: string; size: number }
 
   return { size, path: tarPath };
 }
-
-async function getGitRootFullPathAsync() {
-  if (process.platform === 'win32') {
-    // getRootDirectoryAsync() will return C:/path/to/repo on Windows and path
-    // prefix should be file:///
-    return `file:///${await gitRootDirectoryAsync()}`;
-  } else {
-    // getRootDirectoryAsync() will /path/to/repo, and path prefix should be
-    // file:/// so only file:// needs to be prepended
-    return `file://${await gitRootDirectoryAsync()}`;
-  }
-}
-
-async function showDiffAsync() {
-  const outputTooLarge = (await getGitDiffOutputAsync()).split(/\r\n|\r|\n/).length > 100;
-  await gitDiffAsync({ withPager: outputTooLarge });
-}
-
-async function commitPromptAsync({
-  initialCommitMessage,
-  commitAllFiles,
-}: {
-  initialCommitMessage?: string;
-  commitAllFiles?: boolean;
-} = {}): Promise<void> {
-  const { message } = await promptAsync({
-    type: 'text',
-    name: 'message',
-    message: 'Commit message:',
-    initial: initialCommitMessage,
-    validate: (input: string) => input !== '',
-  });
-  if (commitAllFiles) {
-    await spawnAsync('git', ['add', '-A']);
-  }
-  await commitChangedFilesAsync(message);
-}
-
-async function commitChangedFilesAsync(message: string): Promise<void> {
-  await spawnAsync('git', ['add', '-u']);
-  await spawnAsync('git', ['commit', '-m', message]);
-}
-
-export {
-  isGitStatusCleanAsync,
-  showDiffAsync,
-  commitPromptAsync,
-  commitChangedFilesAsync,
-  ensureGitRepoExistsAsync,
-  ensureGitStatusIsCleanAsync,
-  maybeBailOnGitStatusAsync,
-  makeProjectTarballAsync,
-};

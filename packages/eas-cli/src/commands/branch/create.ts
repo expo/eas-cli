@@ -16,7 +16,7 @@ import {
   getProjectIdAsync,
 } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
-import { getBranchNameAsync } from '../../utils/git';
+import vcs from '../../vcs';
 
 export async function createUpdateBranchOnAppAsync({
   appId,
@@ -93,7 +93,7 @@ export default class BranchCreate extends Command {
         name: 'name',
         message: 'Please name the branch:',
         initial:
-          (await getBranchNameAsync()) || `branch-${Math.random().toString(36).substr(2, 4)}`,
+          (await vcs.getBranchNameAsync()) || `branch-${Math.random().toString(36).substr(2, 4)}`,
         validate: value => (value ? true : validationMessage),
       }));
     }

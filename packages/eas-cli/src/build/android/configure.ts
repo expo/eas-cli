@@ -6,7 +6,7 @@ import {
   ensureApplicationIdIsDefinedForManagedProjectAsync,
   warnIfAndroidPackageDefinedInAppConfigForGenericProject,
 } from '../../project/android/applicationId';
-import { gitAddAsync } from '../../utils/git';
+import vcs from '../../vcs';
 import { ConfigureContext } from '../context';
 import { isExpoUpdatesInstalled } from '../utils/updates';
 import { configureUpdatesAsync, syncUpdatesConfigurationAsync } from './UpdatesModule';
@@ -22,7 +22,7 @@ export async function configureAndroidAsync(ctx: ConfigureContext): Promise<void
   await AndroidConfig.EasBuild.configureEasBuildAsync(ctx.projectDir);
 
   const easGradlePath = AndroidConfig.EasBuild.getEasBuildGradlePath(ctx.projectDir);
-  await gitAddAsync(easGradlePath, { intentToAdd: true });
+  await vcs.trackFileAsync(easGradlePath);
 
   if (isExpoUpdatesInstalled(ctx.projectDir)) {
     await configureUpdatesAsync(ctx.projectDir, ctx.exp);
