@@ -115,7 +115,7 @@ export function createBuildContext<T extends Platform>({
   }
 
   const accountId = findAccountByName(commandCtx.user.accounts, commandCtx.accountName)?.id;
-  const devClienProperties = getDevClientEventProperties(platform, commandCtx, buildProfile);
+  const devClientProperties = getDevClientEventProperties(platform, commandCtx, buildProfile);
   const trackingCtx = {
     tracking_id: uuidv4(),
     platform,
@@ -123,10 +123,7 @@ export function createBuildContext<T extends Platform>({
     account_name: commandCtx.accountName,
     project_id: commandCtx.projectId,
     project_type: buildProfile.workflow,
-    dev_client: devClienProperties.dev_client,
-    ...(devClienProperties.dev_client_version
-      ? { dev_client_version: devClienProperties.dev_client_version }
-      : {}),
+    ...devClientProperties,
   };
   Analytics.logEvent(Event.BUILD_COMMAND, trackingCtx);
   return {
@@ -141,38 +138,31 @@ function getDevClientEventProperties(
   platform: Platform,
   commandCtx: CommandContext,
   buildProfile: AndroidBuildProfile | IosBuildProfile
-): { dev_client: boolean; dev_client_version?: string } {
-  const devClientVersion = tryGetDevClientVersion(commandCtx.projectDir);
-
+): Partial<TrackingContext> {
+  let includesDevClient;
+  const version = tryGetDevClientVersion(commandCtx.projectDir);
   if (buildProfile.workflow === Workflow.MANAGED) {
-    return {
-      dev_client:
-        buildProfile.buildType === Android.ManagedBuildType.DEVELOPMENT_CLIENT ||
-        buildProfile.buildType === Ios.ManagedBuildType.DEVELOPMENT_CLIENT,
-      dev_client_version: devClientVersion,
-    };
-  } else if (platform === Platform.ANDROID) {
-    const { gradleCommand } = buildProfile as AndroidGenericBuildProfile;
-    return {
-      dev_client: Boolean(devClientVersion && gradleCommand?.includes('Debug')),
-      dev_client_version: devClientVersion,
-    };
-  } else if (platform === Platform.IOS) {
-    const { schemeBuildConfiguration } = buildProfile as IosGenericBuildProfile;
-    return {
-      dev_client: Boolean(devClientVersion && schemeBuildConfiguration === 'Debug'),
-      dev_client_version: devClientVersion,
-    };
+    includesDevClient = buildProfile.buildType === 'development-client';
+  } else if (platform === Platform.ANDROID && 'gradleCommand' in buildProfile) {
+    includesDevClient = Boolean(version && buildProfile.gradleCommand?.includes('Debug'));
+  } else if (platform === Platform.IOS && 'schemeBuildConfiguration' in buildProfile) {
+    includesDevClient = Boolean(version && buildProfile.schemeBuildConfiguration === 'Debug');
   } else {
-    return { dev_client: false, dev_client_version: devClientVersion };
+    includesDevClient = false;
+  }
+
+  if (version) {
+    return { dev_client: includesDevClient, dev_client_version: version };
+  } else {
+    return { dev_client: includesDevClient };
   }
 }
 
-function tryGetDevClientVersion(projectDir: string): string | undefined {
+function tryGetDevClientVersion(projectDir: string): string | null {
   try {
     const pkg = JsonFile.read(resolveFrom(projectDir, 'expo-dev-client/package.json'));
-    return pkg.version?.toString();
+    return pkg.version?.toString() ?? null;
   } catch {
-    return undefined;
+    return null;
   }
 }
