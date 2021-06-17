@@ -65,6 +65,37 @@ export async function configureAsync(options: {
   }
 }
 
+const MANAGED_DEFAULTS = {
+  release: {
+    workflow: 'managed',
+  },
+  development: {
+    workflow: 'managed',
+    buildType: 'development-client',
+    distribution: 'internal',
+  },
+};
+const ANDROID_GENERIC_DEFAULTS = {
+  release: {
+    workflow: 'generic',
+  },
+  development: {
+    workflow: 'generic',
+    gradleCommand: ':app:assembleDebug',
+    distribution: 'internal',
+  },
+};
+const IOS_GENERIC_DEFAULTS = {
+  release: {
+    workflow: 'generic',
+  },
+  development: {
+    workflow: 'generic',
+    schemeBuildConfiguration: 'Debug',
+    distribution: 'internal',
+  },
+};
+
 export async function ensureEasJsonExistsAsync(ctx: ConfigureContext): Promise<void> {
   const easJsonPath = path.join(ctx.projectDir, 'eas.json');
   let existingEasJson;
@@ -99,20 +130,12 @@ export async function ensureEasJsonExistsAsync(ctx: ConfigureContext): Promise<v
       ...existingEasJson,
       ...(shouldInitAndroid
         ? {
-            android: {
-              release: {
-                workflow: ctx.hasAndroidNativeProject ? 'generic' : 'managed',
-              },
-            },
+            android: ctx.hasAndroidNativeProject ? ANDROID_GENERIC_DEFAULTS : MANAGED_DEFAULTS,
           }
         : null),
       ...(shouldInitIOS
         ? {
-            ios: {
-              release: {
-                workflow: ctx.hasIosNativeProject ? 'generic' : 'managed',
-              },
-            },
+            ios: ctx.hasIosNativeProject ? IOS_GENERIC_DEFAULTS : MANAGED_DEFAULTS,
           }
         : null),
     },
