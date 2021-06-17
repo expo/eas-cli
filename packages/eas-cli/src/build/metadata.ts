@@ -30,6 +30,9 @@ export async function collectMetadata<T extends Platform>(
   }
 ): Promise<Metadata> {
   return {
+    // TODO: type error fixed in https://github.com/expo/eas-build/pull/34
+    // remove @ts-expect-error after upgrading @expo/eas-build-job
+    // @ts-expect-error error TS2322: not assignable to type 'Record<string, string | number>'
     trackingContext: ctx.trackingCtx,
     appVersion: await resolveAppVersionAsync(ctx),
     appBuildVersion: await resolveAppBuildVersionAsync(ctx),
