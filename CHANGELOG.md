@@ -14,6 +14,7 @@ This is the log of notable changes to EAS CLI and related packages.
 - Make credentials manager work with multi-target iOS projects. ([#441](https://github.com/expo/eas-cli/pull/441) by [@dsokal](https://github.com/dsokal))
 - Copy over credentials from Expo Classic to EAS ([#445](https://github.com/expo/eas-cli/pull/445) by [@quinlanj](https://github.com/quinlanj))
 - Add Big Sur image for iOS builds. ([#457](https://github.com/expo/eas-cli/pull/457) by [@wkozyra95](https://github.com/wkozyra95))
+- Add an internal distribution with dev client to `build:configure` defaults. ([#463](https://github.com/expo/eas-cli/pull/463) by [@fson](https://github.com/fson))
 
 ### 🐛 Bug fixes
 
