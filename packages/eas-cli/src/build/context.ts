@@ -1,12 +1,6 @@
 import { ExpoConfig } from '@expo/config';
-import { Android, Ios, Workflow } from '@expo/eas-build-job';
-import {
-  AndroidBuildProfile,
-  AndroidGenericBuildProfile,
-  EasConfig,
-  IosBuildProfile,
-  IosGenericBuildProfile,
-} from '@expo/eas-json';
+import { Workflow } from '@expo/eas-build-job';
+import { AndroidBuildProfile, EasConfig, IosBuildProfile } from '@expo/eas-json';
 import JsonFile from '@expo/json-file';
 import resolveFrom from 'resolve-from';
 import { v4 as uuidv4 } from 'uuid';
