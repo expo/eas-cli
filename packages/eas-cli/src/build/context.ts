@@ -1,5 +1,8 @@
 import { ExpoConfig } from '@expo/config';
+import { Workflow } from '@expo/eas-build-job';
 import { AndroidBuildProfile, EasConfig, IosBuildProfile } from '@expo/eas-json';
+import JsonFile from '@expo/json-file';
+import resolveFrom from 'resolve-from';
 import { v4 as uuidv4 } from 'uuid';
 
 import { getProjectAccountName } from '../project/projectUtils';
@@ -106,6 +109,7 @@ export function createBuildContext<T extends Platform>({
   }
 
   const accountId = findAccountByName(commandCtx.user.accounts, commandCtx.accountName)?.id;
+  const devClientProperties = getDevClientEventProperties(platform, commandCtx, buildProfile);
   const trackingCtx = {
     tracking_id: uuidv4(),
     platform,
@@ -113,6 +117,7 @@ export function createBuildContext<T extends Platform>({
     account_name: commandCtx.accountName,
     project_id: commandCtx.projectId,
     project_type: buildProfile.workflow,
+    ...devClientProperties,
   };
   Analytics.logEvent(Event.BUILD_COMMAND, trackingCtx);
   return {
@@ -121,4 +126,37 @@ export function createBuildContext<T extends Platform>({
     platform,
     buildProfile,
   };
+}
+
+function getDevClientEventProperties(
+  platform: Platform,
+  commandCtx: CommandContext,
+  buildProfile: AndroidBuildProfile | IosBuildProfile
+): Partial<TrackingContext> {
+  let includesDevClient;
+  const version = tryGetDevClientVersion(commandCtx.projectDir);
+  if (buildProfile.workflow === Workflow.MANAGED) {
+    includesDevClient = buildProfile.buildType === 'development-client';
+  } else if (platform === Platform.ANDROID && 'gradleCommand' in buildProfile) {
+    includesDevClient = Boolean(version && buildProfile.gradleCommand?.includes('Debug'));
+  } else if (platform === Platform.IOS && 'schemeBuildConfiguration' in buildProfile) {
+    includesDevClient = Boolean(version && buildProfile.schemeBuildConfiguration === 'Debug');
+  } else {
+    includesDevClient = false;
+  }
+
+  if (version) {
+    return { dev_client: includesDevClient, dev_client_version: version };
+  } else {
+    return { dev_client: includesDevClient };
+  }
+}
+
+function tryGetDevClientVersion(projectDir: string): string | null {
+  try {
+    const pkg = JsonFile.read(resolveFrom(projectDir, 'expo-dev-client/package.json'));
+    return pkg.version?.toString() ?? null;
+  } catch {
+    return null;
+  }
 }
