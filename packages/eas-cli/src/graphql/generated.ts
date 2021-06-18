@@ -2343,6 +2343,8 @@ export type BuildMutation = {
   __typename?: 'BuildMutation';
   /** Cancel an EAS Build build */
   cancelBuild: Build;
+  /** Delete an EAS Build build */
+  deleteBuild: Build;
   /**
    * Cancel an EAS Build build
    * @deprecated Use cancelBuild instead
@@ -2360,6 +2362,11 @@ export type BuildMutation = {
 
 
 export type BuildMutationCancelBuildArgs = {
+  buildId: Scalars['ID'];
+};
+
+
+export type BuildMutationDeleteBuildArgs = {
   buildId: Scalars['ID'];
 };
 
@@ -2576,11 +2583,11 @@ export enum IosManagedBuildType {
 export type IosAppBuildCredentialsMutation = {
   __typename?: 'IosAppBuildCredentialsMutation';
   /** Create a set of build credentials for an iOS app */
-  createIosAppBuildCredentials?: Maybe<IosAppBuildCredentials>;
+  createIosAppBuildCredentials: IosAppBuildCredentials;
   /** Set the distribution certificate to be used for an iOS app */
-  setDistributionCertificate?: Maybe<IosAppBuildCredentials>;
+  setDistributionCertificate: IosAppBuildCredentials;
   /** Set the provisioning profile to be used for an iOS app */
-  setProvisioningProfile?: Maybe<IosAppBuildCredentials>;
+  setProvisioningProfile: IosAppBuildCredentials;
 };
 
 
@@ -2610,11 +2617,11 @@ export type IosAppBuildCredentialsInput = {
 export type IosAppCredentialsMutation = {
   __typename?: 'IosAppCredentialsMutation';
   /** Create a set of credentials for an iOS app */
-  createIosAppCredentials?: Maybe<IosAppCredentials>;
+  createIosAppCredentials: IosAppCredentials;
   /** Set the push key to be used in an iOS app */
-  setPushKey?: Maybe<IosAppCredentials>;
+  setPushKey: IosAppCredentials;
   /** Set the app-specific password to be used for an iOS app */
-  setAppSpecificPassword?: Maybe<IosAppCredentials>;
+  setAppSpecificPassword: IosAppCredentials;
 };
 
 
@@ -3964,6 +3971,24 @@ export type DeleteAppleProvisioningProfilesMutation = (
   ) }
 );
 
+export type CreateApplePushKeyMutationVariables = Exact<{
+  applePushKeyInput: ApplePushKeyInput;
+  accountId: Scalars['ID'];
+}>;
+
+
+export type CreateApplePushKeyMutation = (
+  { __typename?: 'RootMutation' }
+  & { applePushKey: (
+    { __typename?: 'ApplePushKeyMutation' }
+    & { createApplePushKey: (
+      { __typename?: 'ApplePushKey' }
+      & Pick<ApplePushKey, 'id'>
+      & ApplePushKeyFragment
+    ) }
+  ) }
+);
+
 export type CreateAppleTeamMutationVariables = Exact<{
   appleTeamInput: AppleTeamInput;
   accountId: Scalars['ID'];
@@ -3996,11 +4021,11 @@ export type CreateIosAppBuildCredentialsMutation = (
   { __typename?: 'RootMutation' }
   & { iosAppBuildCredentials: (
     { __typename?: 'IosAppBuildCredentialsMutation' }
-    & { createIosAppBuildCredentials?: Maybe<(
+    & { createIosAppBuildCredentials: (
       { __typename?: 'IosAppBuildCredentials' }
       & Pick<IosAppBuildCredentials, 'id'>
       & IosAppBuildCredentialsFragment
-    )> }
+    ) }
   ) }
 );
 
@@ -4014,11 +4039,11 @@ export type SetDistributionCertificateMutation = (
   { __typename?: 'RootMutation' }
   & { iosAppBuildCredentials: (
     { __typename?: 'IosAppBuildCredentialsMutation' }
-    & { setDistributionCertificate?: Maybe<(
+    & { setDistributionCertificate: (
       { __typename?: 'IosAppBuildCredentials' }
       & Pick<IosAppBuildCredentials, 'id'>
       & IosAppBuildCredentialsFragment
-    )> }
+    ) }
   ) }
 );
 
@@ -4032,11 +4057,11 @@ export type SetProvisioningProfileMutation = (
   { __typename?: 'RootMutation' }
   & { iosAppBuildCredentials: (
     { __typename?: 'IosAppBuildCredentialsMutation' }
-    & { setProvisioningProfile?: Maybe<(
+    & { setProvisioningProfile: (
       { __typename?: 'IosAppBuildCredentials' }
       & Pick<IosAppBuildCredentials, 'id'>
       & IosAppBuildCredentialsFragment
-    )> }
+    ) }
   ) }
 );
 
@@ -4051,11 +4076,29 @@ export type CreateIosAppCredentialsMutation = (
   { __typename?: 'RootMutation' }
   & { iosAppCredentials: (
     { __typename?: 'IosAppCredentialsMutation' }
-    & { createIosAppCredentials?: Maybe<(
+    & { createIosAppCredentials: (
       { __typename?: 'IosAppCredentials' }
       & Pick<IosAppCredentials, 'id'>
-      & IosAppCredentialsFragment
-    )> }
+      & CommonIosAppCredentialsFragment
+    ) }
+  ) }
+);
+
+export type SetPushKeyMutationVariables = Exact<{
+  iosAppCredentialsId: Scalars['ID'];
+  pushKeyId: Scalars['ID'];
+}>;
+
+
+export type SetPushKeyMutation = (
+  { __typename?: 'RootMutation' }
+  & { iosAppCredentials: (
+    { __typename?: 'IosAppCredentialsMutation' }
+    & { setPushKey: (
+      { __typename?: 'IosAppCredentials' }
+      & Pick<IosAppCredentials, 'id'>
+      & CommonIosAppCredentialsFragment
+    ) }
   ) }
 );
 
@@ -4342,28 +4385,6 @@ export type IosAppBuildCredentialsByAppleAppIdentiferAndDistributionQuery = (
   )> }
 );
 
-export type IosAppCredentialsByAppIdentifierIdQueryVariables = Exact<{
-  projectFullName: Scalars['String'];
-  appleAppIdentifierId: Scalars['String'];
-}>;
-
-
-export type IosAppCredentialsByAppIdentifierIdQuery = (
-  { __typename?: 'RootQuery' }
-  & { app?: Maybe<(
-    { __typename?: 'AppQuery' }
-    & { byFullName: (
-      { __typename?: 'App' }
-      & Pick<App, 'id'>
-      & { iosAppCredentials: Array<(
-        { __typename?: 'IosAppCredentials' }
-        & Pick<IosAppCredentials, 'id'>
-        & IosAppCredentialsFragment
-      )> }
-    ) }
-  )> }
-);
-
 export type IosAppCredentialsWithBuildCredentialsByAppIdentifierIdQueryVariables = Exact<{
   projectFullName: Scalars['String'];
   appleAppIdentifierId: Scalars['String'];
@@ -4386,7 +4407,7 @@ export type IosAppCredentialsWithBuildCredentialsByAppIdentifierIdQuery = (
           & Pick<IosAppBuildCredentials, 'id'>
           & IosAppBuildCredentialsFragment
         )> }
-        & IosAppCredentialsFragment
+        & CommonIosAppCredentialsWithoutBuildCredentialsFragment
       )> }
     ) }
   )> }
@@ -5133,12 +5154,7 @@ export type IosAppBuildCredentialsFragment = (
   )> }
 );
 
-export type IosAppCredentialsFragment = (
-  { __typename?: 'IosAppCredentials' }
-  & Pick<IosAppCredentials, 'id'>
-);
-
-export type CommonIosAppCredentialsFragment = (
+export type CommonIosAppCredentialsWithoutBuildCredentialsFragment = (
   { __typename?: 'IosAppCredentials' }
   & Pick<IosAppCredentials, 'id'>
   & { app: (
@@ -5157,9 +5173,16 @@ export type CommonIosAppCredentialsFragment = (
     { __typename?: 'ApplePushKey' }
     & Pick<ApplePushKey, 'id'>
     & ApplePushKeyFragment
-  )>, iosAppBuildCredentialsList: Array<(
+  )> }
+);
+
+export type CommonIosAppCredentialsFragment = (
+  { __typename?: 'IosAppCredentials' }
+  & Pick<IosAppCredentials, 'id'>
+  & { iosAppBuildCredentialsList: Array<(
     { __typename?: 'IosAppBuildCredentials' }
     & Pick<IosAppBuildCredentials, 'id'>
     & IosAppBuildCredentialsFragment
   )> }
+  & CommonIosAppCredentialsWithoutBuildCredentialsFragment
 );

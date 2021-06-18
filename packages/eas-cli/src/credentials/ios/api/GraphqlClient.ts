@@ -5,13 +5,14 @@ import {
   AppleAppIdentifierFragment,
   AppleDeviceFragment,
   AppleDistributionCertificateFragment,
+  ApplePushKeyFragment,
   AppleTeamFragment,
   CommonIosAppCredentialsFragment,
   IosAppBuildCredentialsFragment,
   IosDistributionType,
 } from '../../../graphql/generated';
 import { Account } from '../../../user/Account';
-import { DistributionCertificate } from '../appstore/Credentials.types';
+import { DistributionCertificate, PushKey } from '../appstore/Credentials.types';
 import { AppleTeamMissingError } from '../errors';
 import { AppleAppIdentifierMutation } from './graphql/mutations/AppleAppIdentifierMutation';
 import {
@@ -22,6 +23,7 @@ import {
   AppleProvisioningProfileMutation,
   AppleProvisioningProfileMutationResult,
 } from './graphql/mutations/AppleProvisioningProfileMutation';
+import { ApplePushKeyMutation } from './graphql/mutations/ApplePushKeyMutation';
 import { AppleTeamMutation } from './graphql/mutations/AppleTeamMutation';
 import { IosAppBuildCredentialsMutation } from './graphql/mutations/IosAppBuildCredentialsMutation';
 import { IosAppCredentialsMutation } from './graphql/mutations/IosAppCredentialsMutation';
@@ -34,10 +36,7 @@ import {
   AppleProvisioningProfileQueryResult,
 } from './graphql/queries/AppleProvisioningProfileQuery';
 import { AppleTeamQuery } from './graphql/queries/AppleTeamQuery';
-import {
-  IosAppCredentialsQuery,
-  IosAppCredentialsWithBuildCredentialsQueryResult,
-} from './graphql/queries/IosAppCredentialsQuery';
+import { IosAppCredentialsQuery } from './graphql/queries/IosAppCredentialsQuery';
 
 export interface AppLookupParams {
   account: Account;
@@ -100,7 +99,7 @@ export async function createOrUpdateIosAppBuildCredentialsAsync(
 export async function getIosAppCredentialsWithBuildCredentialsAsync(
   appLookupParams: AppLookupParams,
   { iosDistributionType }: { iosDistributionType?: IosDistributionType }
-): Promise<IosAppCredentialsWithBuildCredentialsQueryResult | null> {
+): Promise<CommonIosAppCredentialsFragment | null> {
   const { account, bundleIdentifier } = appLookupParams;
   const appleAppIdentifier = await AppleAppIdentifierQuery.byBundleIdentifierAsync(
     account.name,
@@ -133,7 +132,51 @@ export async function getIosAppCredentialsWithCommonFieldsAsync(
   });
 }
 
-export async function createOrGetExistingIosAppCredentialsWithBuildCredentialsAsync(
+export async function createOrGetIosAppCredentialsWithCommonFieldsAsync(
+  appLookupParams: AppLookupParams,
+  {
+    appleTeam,
+  }: {
+    appleTeam: AppleTeamFragment;
+  }
+): Promise<CommonIosAppCredentialsFragment> {
+  const maybeIosAppCredentials = await getIosAppCredentialsWithBuildCredentialsAsync(
+    appLookupParams,
+    {}
+  );
+  if (maybeIosAppCredentials) {
+    return maybeIosAppCredentials;
+  }
+  const [app, appleAppIdentifier] = await Promise.all([
+    getAppAsync(appLookupParams),
+    createOrGetExistingAppleAppIdentifierAsync(appLookupParams, appleTeam),
+  ]);
+  return await IosAppCredentialsMutation.createIosAppCredentialsAsync(
+    { appleTeamId: appleTeam.id },
+    app.id,
+    appleAppIdentifier.id
+  );
+}
+
+export async function updateIosAppCredentialsAsync(
+  appCredentials: CommonIosAppCredentialsFragment,
+  {
+    applePushKeyId,
+  }: {
+    applePushKeyId?: string;
+  }
+): Promise<CommonIosAppCredentialsFragment> {
+  let updatedAppCredentials = appCredentials;
+  if (applePushKeyId) {
+    updatedAppCredentials = await IosAppCredentialsMutation.setPushKeyAsync(
+      updatedAppCredentials.id,
+      applePushKeyId
+    );
+  }
+  return updatedAppCredentials;
+}
+
+async function createOrGetExistingIosAppCredentialsWithBuildCredentialsAsync(
   appLookupParams: AppLookupParams,
   {
     appleTeam,
@@ -144,7 +187,7 @@ export async function createOrGetExistingIosAppCredentialsWithBuildCredentialsAs
     appleAppIdentifierId: string;
     iosDistributionType: IosDistributionType;
   }
-): Promise<IosAppCredentialsWithBuildCredentialsQueryResult> {
+): Promise<CommonIosAppCredentialsFragment> {
   const maybeIosAppCredentials = await getIosAppCredentialsWithBuildCredentialsAsync(
     appLookupParams,
     {
@@ -331,6 +374,24 @@ export async function deleteDistributionCertificateAsync(
 ): Promise<void> {
   return await AppleDistributionCertificateMutation.deleteAppleDistributionCertificate(
     distributionCertificateId
+  );
+}
+
+export async function createPushKeyAsync(
+  account: Account,
+  pushKey: PushKey
+): Promise<ApplePushKeyFragment> {
+  const appleTeam = await createOrGetExistingAppleTeamAsync(account, {
+    appleTeamIdentifier: pushKey.teamId,
+    appleTeamName: pushKey.teamName,
+  });
+  return await ApplePushKeyMutation.createApplePushKey(
+    {
+      keyP8: pushKey.apnsKeyP8,
+      keyIdentifier: pushKey.apnsKeyId,
+      appleTeamId: appleTeam.id,
+    },
+    account.id
   );
 }
 

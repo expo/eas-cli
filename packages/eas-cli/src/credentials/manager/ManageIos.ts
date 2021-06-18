@@ -15,8 +15,10 @@ import { confirmAsync, promptAsync, selectAsync } from '../../prompts';
 import { Account, findAccountByName } from '../../user/Account';
 import { ensureActorHasUsername } from '../../user/actions';
 import { Action, Context } from '../context';
+import { AssignPushKey } from '../ios/actions/AssignPushKey';
 import { getAppLookupParamsFromContext } from '../ios/actions/BuildCredentialsUtils';
 import { CreateDistributionCertificate } from '../ios/actions/CreateDistributionCertificate';
+import { CreatePushKey } from '../ios/actions/CreatePushKey';
 import { selectValidDistributionCertificateAsync } from '../ios/actions/DistributionCertificateUtils';
 import { SelectAndRemoveDistributionCertificate } from '../ios/actions/RemoveDistributionCertificate';
 import { RemoveProvisioningProfiles } from '../ios/actions/RemoveProvisioningProfile';
@@ -36,6 +38,7 @@ import { SelectIosDistributionTypeGraphqlFromBuildProfile } from './SelectIosDis
 enum ActionType {
   ManageCredentialsJson,
   ManageBuildCredentials,
+  ManagePushKey,
   GoBackToCaller,
   GoBackToHighLevelActions,
   SetupBuildCredentials,
@@ -45,6 +48,7 @@ enum ActionType {
   RemoveProvisioningProfile,
   CreateDistributionCertificate,
   RemoveDistributionCertificate,
+  CreatePushKey,
 }
 
 enum Scope {
@@ -59,6 +63,11 @@ const highLevelActions: ActionInfo[] = [
   {
     value: ActionType.ManageBuildCredentials,
     title: 'Build Credentials: Manage everything needed to build your project',
+    scope: Scope.Manager,
+  },
+  {
+    value: ActionType.ManagePushKey,
+    title: 'Push Notifications: Manage your Apple Push Notifications Key',
     scope: Scope.Manager,
   },
   {
@@ -90,6 +99,21 @@ const credentialsJsonActions: ActionInfo[] = [
     scope: Scope.Manager,
   },
 ];
+
+function getPushKeyActions(ctx: Context): ActionInfo[] {
+  return [
+    {
+      value: ActionType.CreatePushKey,
+      title: 'Set up a new push key',
+      scope: ctx.hasProjectContext ? Scope.Project : Scope.Account,
+    },
+    {
+      value: ActionType.GoBackToHighLevelActions,
+      title: 'Go back',
+      scope: Scope.Manager,
+    },
+  ];
+}
 
 function getBuildCredentialsActions(ctx: Context): ActionInfo[] {
   return [
@@ -132,6 +156,8 @@ export class ManageIos {
   constructor(private callingAction: Action) {}
   async runAsync(ctx: Context, currentActions: ActionInfo[] = highLevelActions): Promise<void> {
     const buildCredentialsActions = getBuildCredentialsActions(ctx);
+    const pushKeyActions = getPushKeyActions(ctx);
+
     await ctx.bestEffortAppStoreAuthenticateAsync();
 
     const accountName = ctx.hasProjectContext
@@ -177,6 +203,9 @@ export class ManageIos {
             continue;
           } else if (chosenAction === ActionType.ManageCredentialsJson) {
             currentActions = credentialsJsonActions;
+            continue;
+          } else if (chosenAction === ActionType.ManagePushKey) {
+            currentActions = pushKeyActions;
             continue;
           } else if (chosenAction === ActionType.GoBackToHighLevelActions) {
             currentActions = highLevelActions;
@@ -248,6 +277,8 @@ export class ManageIos {
       await new SelectAndRemoveDistributionCertificate(account).runAsync(ctx);
     } else if (action === ActionType.CreateDistributionCertificate) {
       await new CreateDistributionCertificate(account).runAsync(ctx);
+    } else if (action === ActionType.CreatePushKey) {
+      await new CreatePushKey(account).runAsync(ctx);
     }
   }
 
@@ -338,6 +369,16 @@ export class ManageIos {
           await new RemoveProvisioningProfiles([appLookupParams], [provisioningProfile]).runAsync(
             ctx
           );
+        }
+        return;
+      }
+      case ActionType.CreatePushKey: {
+        const pushKey = await new CreatePushKey(appLookupParams.account).runAsync(ctx);
+        const confirm = await confirmAsync({
+          message: `Do you want ${appLookupParams.projectName} to use the new Push Key?`,
+        });
+        if (confirm) {
+          await new AssignPushKey(appLookupParams).runAsync(ctx, pushKey);
         }
         return;
       }

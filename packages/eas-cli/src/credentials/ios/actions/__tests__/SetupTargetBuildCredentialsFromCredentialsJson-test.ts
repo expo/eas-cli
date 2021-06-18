@@ -4,11 +4,11 @@ import { findApplicationTarget } from '../../../../project/ios/target';
 import { confirmAsync } from '../../../../prompts';
 import { createCtxMock } from '../../../__tests__/fixtures-context';
 import {
-  getNewIosApiMockWithoutCredentials,
+  getNewIosApiMock,
   testAppleAppIdentifierFragment,
+  testCommonIosAppCredentialsFragment,
   testDistCert,
   testDistCertFragmentNoDependencies,
-  testIosAppCredentialsWithBuildCredentialsQueryResult,
   testProvisioningProfile,
   testProvisioningProfileFragment,
   testTargets,
@@ -47,16 +47,14 @@ describe('SetupTargetBuildCredentialsFromCredentialsJson', () => {
 
   it('sets up build credentials with same prior configuration in Interactive Mode', async () => {
     // create deep clone the quick and dirty way
-    const testBuildCreds = JSON.parse(
-      JSON.stringify(testIosAppCredentialsWithBuildCredentialsQueryResult)
-    );
+    const testBuildCreds = JSON.parse(JSON.stringify(testCommonIosAppCredentialsFragment));
     testBuildCreds.iosAppBuildCredentialsList[0].distributionCertificate.certificateP12 =
       testDistCert.certP12;
     testBuildCreds.iosAppBuildCredentialsList[0].provisioningProfile.provisioningProfile =
       testProvisioningProfile.provisioningProfile;
     const ctx = createCtxMock({
       ios: {
-        ...getNewIosApiMockWithoutCredentials(),
+        ...getNewIosApiMock(),
         getIosAppCredentialsWithBuildCredentialsAsync: jest.fn(() => testBuildCreds),
         createOrGetExistingAppleAppIdentifierAsync: jest.fn(() => testAppleAppIdentifierFragment),
         createDistributionCertificateAsync: jest.fn(() => ({ testDistCertFragmentNoDependencies })),
@@ -82,13 +80,13 @@ describe('SetupTargetBuildCredentialsFromCredentialsJson', () => {
   it('sets up build credentials with no prior configuration in Interactive Mode', async () => {
     const ctx = createCtxMock({
       ios: {
-        ...getNewIosApiMockWithoutCredentials(),
+        ...getNewIosApiMock(),
         getIosAppCredentialsWithBuildCredentialsAsync: jest.fn(() => null),
         createOrGetExistingAppleAppIdentifierAsync: jest.fn(() => testAppleAppIdentifierFragment),
         createDistributionCertificateAsync: jest.fn(() => ({ testDistCertFragmentNoDependencies })),
         createProvisioningProfileAsync: jest.fn(() => testProvisioningProfileFragment),
         createOrUpdateIosAppBuildCredentialsAsync: jest.fn(
-          () => testIosAppCredentialsWithBuildCredentialsQueryResult
+          () => testCommonIosAppCredentialsFragment
         ),
       },
     });
@@ -109,16 +107,14 @@ describe('SetupTargetBuildCredentialsFromCredentialsJson', () => {
   });
   it('sets up build credentials with different prior configuration in Interactive Mode', async () => {
     // create deep clone the quick and dirty way
-    const testBuildCreds = JSON.parse(
-      JSON.stringify(testIosAppCredentialsWithBuildCredentialsQueryResult)
-    );
+    const testBuildCreds = JSON.parse(JSON.stringify(testCommonIosAppCredentialsFragment));
     testBuildCreds.iosAppBuildCredentialsList[0].distributionCertificate.certificateP12 =
       'something different so SetupBuildCredentialsFromCredentialsJson doesnt think we want to exact the same cert and skip upload to expo servers';
     testBuildCreds.iosAppBuildCredentialsList[0].provisioningProfile.provisioningProfile =
       'something different so SetupBuildCredentialsFromCredentialsJson doesnt think we want to exact the same cert and skip upload to expo servers';
     const ctx = createCtxMock({
       ios: {
-        ...getNewIosApiMockWithoutCredentials(),
+        ...getNewIosApiMock(),
         getIosAppCredentialsWithBuildCredentialsAsync: jest.fn(() => testBuildCreds),
         createOrGetExistingAppleAppIdentifierAsync: jest.fn(() => testAppleAppIdentifierFragment),
         createDistributionCertificateAsync: jest.fn(() => ({ testDistCertFragmentNoDependencies })),
@@ -143,9 +139,7 @@ describe('SetupTargetBuildCredentialsFromCredentialsJson', () => {
   });
   it('works in Non Interactive Mode - sets up build credentials with different prior configuration', async () => {
     // create deep clone the quick and dirty way
-    const testBuildCreds = JSON.parse(
-      JSON.stringify(testIosAppCredentialsWithBuildCredentialsQueryResult)
-    );
+    const testBuildCreds = JSON.parse(JSON.stringify(testCommonIosAppCredentialsFragment));
     testBuildCreds.iosAppBuildCredentialsList[0].distributionCertificate.certificateP12 =
       'something different so SetupBuildCredentialsFromCredentialsJson doesnt think we want to exact the same cert and skip upload to expo servers';
     testBuildCreds.iosAppBuildCredentialsList[0].provisioningProfile.provisioningProfile =
@@ -153,7 +147,7 @@ describe('SetupTargetBuildCredentialsFromCredentialsJson', () => {
     const ctx = createCtxMock({
       nonInteractive: true,
       ios: {
-        ...getNewIosApiMockWithoutCredentials(),
+        ...getNewIosApiMock(),
         getIosAppCredentialsWithBuildCredentialsAsync: jest.fn(() => testBuildCreds),
         createOrGetExistingAppleAppIdentifierAsync: jest.fn(() => testAppleAppIdentifierFragment),
         createDistributionCertificateAsync: jest.fn(() => ({ testDistCertFragmentNoDependencies })),
