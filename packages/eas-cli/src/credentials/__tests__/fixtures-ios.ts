@@ -9,7 +9,6 @@ import {
   IosAppBuildCredentialsFragment,
   IosDistributionType,
 } from '../../graphql/generated';
-import { IosAppCredentialsWithBuildCredentialsQueryResult } from '../ios/api/graphql/queries/IosAppCredentialsQuery';
 import { DistributionCertificate, ProvisioningProfile } from '../ios/appstore/Credentials.types';
 import { Target } from '../ios/types';
 import { testProvisioningProfileBase64 } from './fixtures-base64-data';
@@ -111,20 +110,16 @@ export const testCommonIosAppCredentialsFragment: CommonIosAppCredentialsFragmen
   iosAppBuildCredentialsList: [testIosAppBuildCredentialsFragment],
 };
 
-export const testIosAppCredentialsWithBuildCredentialsQueryResult: IosAppCredentialsWithBuildCredentialsQueryResult = {
-  id: 'test-app-credential-id',
-  iosAppBuildCredentialsList: [testIosAppBuildCredentialsFragment],
-};
-
 export const testAppleTeam = {
   id: 'test-team-id',
 };
 
-export function getNewIosApiMockWithoutCredentials() {
+export function getNewIosApiMock() {
   return {
+    createOrGetIosAppCredentialsWithCommonFieldsAsync: jest.fn(),
+    updateIosAppCredentialsAsync: jest.fn(),
     createOrUpdateIosAppBuildCredentialsAsync: jest.fn(),
     getIosAppCredentialsWithBuildCredentialsAsync: jest.fn(),
-    createOrGetExistingIosAppCredentialsWithBuildCredentialsAsync: jest.fn(),
     createOrGetExistingAppleTeamAsync: () => testAppleTeam,
     createOrGetExistingAppleAppIdentifierAsync: jest.fn(),
     getDevicesForAppleTeamAsync: jest.fn(),
@@ -136,25 +131,7 @@ export function getNewIosApiMockWithoutCredentials() {
     getDistributionCertificatesForAccountAsync: jest.fn(),
     createDistributionCertificateAsync: jest.fn(),
     deleteDistributionCertificateAsync: jest.fn(),
-  };
-}
-
-export function getNewIosApiMockWithCredentials() {
-  return {
-    createOrUpdateIosAppBuildCredentialsAsync: jest.fn(),
-    getIosAppCredentialsWithBuildCredentialsAsync: jest.fn(),
-    createOrGetExistingIosAppCredentialsWithBuildCredentialsAsync: jest.fn(),
-    createOrGetExistingAppleTeamAsync: jest.fn(),
-    createOrGetExistingAppleAppIdentifierAsync: jest.fn(),
-    getDevicesForAppleTeamAsync: jest.fn(),
-    createProvisioningProfileAsync: jest.fn(),
-    getProvisioningProfileAsync: jest.fn(),
-    updateProvisioningProfileAsync: jest.fn(),
-    deleteProvisioningProfilesAsync: jest.fn(),
-    getDistributionCertificateForAppAsync: jest.fn(),
-    getDistributionCertificatesForAccountAsync: jest.fn(),
-    createDistributionCertificateAsync: jest.fn(),
-    deleteDistributionCertificateAsync: jest.fn(),
+    createPushKeyAsync: jest.fn(),
   };
 }
 

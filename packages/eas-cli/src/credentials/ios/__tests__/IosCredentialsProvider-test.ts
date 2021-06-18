@@ -6,8 +6,8 @@ import { findApplicationTarget } from '../../../project/ios/target';
 import { getAppstoreMock } from '../../__tests__/fixtures-appstore';
 import { createCtxMock } from '../../__tests__/fixtures-context';
 import {
-  getNewIosApiMockWithoutCredentials,
-  testIosAppCredentialsWithBuildCredentialsQueryResult,
+  getNewIosApiMock,
+  testCommonIosAppCredentialsFragment,
   testTargets,
 } from '../../__tests__/fixtures-ios';
 import IosCredentialsProvider from '../IosCredentialsProvider';
@@ -56,7 +56,7 @@ describe(IosCredentialsProvider, () => {
           appStore: getAppstoreMock(),
           projectDir: '/app',
           ios: {
-            ...getNewIosApiMockWithoutCredentials(),
+            ...getNewIosApiMock(),
             getIosAppCredentialsWithBuildCredentialsAsync: jest.fn(() => null),
           },
         });
@@ -86,13 +86,13 @@ describe(IosCredentialsProvider, () => {
           appStore: getAppstoreMock(),
           projectDir: '/app',
           ios: {
-            ...getNewIosApiMockWithoutCredentials(),
+            ...getNewIosApiMock(),
             getIosAppCredentialsWithBuildCredentialsAsync: jest.fn(
-              () => testIosAppCredentialsWithBuildCredentialsQueryResult
+              () => testCommonIosAppCredentialsFragment
             ),
             getDistributionCertificateForAppAsync: jest.fn(
               () =>
-                testIosAppCredentialsWithBuildCredentialsQueryResult.iosAppBuildCredentialsList[0]
+                testCommonIosAppCredentialsFragment.iosAppBuildCredentialsList[0]
                   .distributionCertificate
             ),
           },
@@ -113,8 +113,7 @@ describe(IosCredentialsProvider, () => {
           distribution: 'store',
         });
 
-        const buildCredentials =
-          testIosAppCredentialsWithBuildCredentialsQueryResult.iosAppBuildCredentialsList[0];
+        const buildCredentials = testCommonIosAppCredentialsFragment.iosAppBuildCredentialsList[0];
         await expect(provider.getCredentialsAsync(CredentialsSource.REMOTE)).resolves.toMatchObject(
           {
             testapp: {

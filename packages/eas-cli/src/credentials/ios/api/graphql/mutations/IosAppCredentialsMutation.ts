@@ -4,18 +4,19 @@ import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
 import {
+  CommonIosAppCredentialsFragment,
   CreateIosAppCredentialsMutation,
-  IosAppCredentialsFragment,
   IosAppCredentialsInput,
+  SetPushKeyMutation,
 } from '../../../../../graphql/generated';
-import { IosAppCredentialsFragmentNode } from '../../../../../graphql/types/credentials/IosAppCredentials';
+import { CommonIosAppCredentialsFragmentNode } from '../../../../../graphql/types/credentials/IosAppCredentials';
 
 const IosAppCredentialsMutation = {
   async createIosAppCredentialsAsync(
     iosAppCredentialsInput: IosAppCredentialsInput,
     appId: string,
     appleAppIdentifierId: string
-  ): Promise<IosAppCredentialsFragment> {
+  ): Promise<CommonIosAppCredentialsFragment> {
     const data = await withErrorHandlingAsync(
       graphqlClient
         .mutation<CreateIosAppCredentialsMutation>(
@@ -32,11 +33,11 @@ const IosAppCredentialsMutation = {
                   appleAppIdentifierId: $appleAppIdentifierId
                 ) {
                   id
-                  ...IosAppCredentialsFragment
+                  ...CommonIosAppCredentialsFragment
                 }
               }
             }
-            ${print(IosAppCredentialsFragmentNode)}
+            ${print(CommonIosAppCredentialsFragmentNode)}
           `,
           {
             iosAppCredentialsInput,
@@ -51,6 +52,33 @@ const IosAppCredentialsMutation = {
       'GraphQL: `createIosAppCredentials` not defined in server response'
     );
     return data.iosAppCredentials.createIosAppCredentials;
+  },
+  async setPushKeyAsync(
+    iosAppCredentialsId: string,
+    pushKeyId: string
+  ): Promise<CommonIosAppCredentialsFragment> {
+    const data = await withErrorHandlingAsync(
+      graphqlClient
+        .mutation<SetPushKeyMutation>(
+          gql`
+            mutation SetPushKeyMutation($iosAppCredentialsId: ID!, $pushKeyId: ID!) {
+              iosAppCredentials {
+                setPushKey(id: $iosAppCredentialsId, pushKeyId: $pushKeyId) {
+                  id
+                  ...CommonIosAppCredentialsFragment
+                }
+              }
+            }
+            ${print(CommonIosAppCredentialsFragmentNode)}
+          `,
+          {
+            iosAppCredentialsId,
+            pushKeyId,
+          }
+        )
+        .toPromise()
+    );
+    return data.iosAppCredentials.setPushKey;
   },
 };
 

@@ -10,7 +10,7 @@ import {
 } from '../../__tests__/fixtures-android';
 import { createCtxMock } from '../../__tests__/fixtures-context';
 import {
-  getNewIosApiMockWithoutCredentials,
+  getNewIosApiMock,
   testCommonIosAppCredentialsFragment,
   testDistCertFragmentNoDependencies,
   testProvisioningProfileFragment,
@@ -198,7 +198,7 @@ describe('update credentials.json', () => {
     it('should update ios credentials in credentials.json if www returns valid credentials', async () => {
       const ctx = createCtxMock({
         ios: {
-          ...getNewIosApiMockWithoutCredentials(),
+          ...getNewIosApiMock(),
           getIosAppCredentialsWithCommonFieldsAsync: jest.fn(
             () => testCommonIosAppCredentialsFragment
           ),
@@ -244,7 +244,7 @@ describe('update credentials.json', () => {
     it('should create credentials.json provisioning profile and distribution certificate if credentials.json does not exist', async () => {
       const ctx = createCtxMock({
         ios: {
-          ...getNewIosApiMockWithoutCredentials(),
+          ...getNewIosApiMock(),
           getIosAppCredentialsWithCommonFieldsAsync: jest.fn(
             () => testCommonIosAppCredentialsFragment
           ),
@@ -272,7 +272,7 @@ describe('update credentials.json', () => {
     it('should not do anything if no credentials are returned from www', async () => {
       const ctx = createCtxMock({
         ios: {
-          ...getNewIosApiMockWithoutCredentials(),
+          ...getNewIosApiMock(),
           getIosAppCredentialsWithCommonFieldsAsync: jest.fn(() => null),
         },
       });

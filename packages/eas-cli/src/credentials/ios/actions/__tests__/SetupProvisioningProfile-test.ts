@@ -6,10 +6,10 @@ import { confirmAsync } from '../../../../prompts';
 import { getAppstoreMock, testAuthCtx } from '../../../__tests__/fixtures-appstore';
 import { createCtxMock } from '../../../__tests__/fixtures-context';
 import {
-  getNewIosApiMockWithoutCredentials,
+  getNewIosApiMock,
   testAppleAppIdentifierFragment,
+  testCommonIosAppCredentialsFragment,
   testIosAppBuildCredentialsFragment,
-  testIosAppCredentialsWithBuildCredentialsQueryResult,
   testTargets,
 } from '../../../__tests__/fixtures-ios';
 import { MissingCredentialsNonInteractiveError } from '../../../errors';
@@ -35,16 +35,15 @@ describe('SetupProvisioningProfile', () => {
         listProvisioningProfilesAsync: jest.fn(() => [
           {
             provisioningProfileId: nullthrows(
-              testIosAppCredentialsWithBuildCredentialsQueryResult.iosAppBuildCredentialsList[0]
-                .provisioningProfile
+              testCommonIosAppCredentialsFragment.iosAppBuildCredentialsList[0].provisioningProfile
             ).developerPortalIdentifier,
           },
         ]),
       },
       ios: {
-        ...getNewIosApiMockWithoutCredentials(),
+        ...getNewIosApiMock(),
         getIosAppCredentialsWithBuildCredentialsAsync: jest.fn(
-          () => testIosAppCredentialsWithBuildCredentialsQueryResult
+          () => testCommonIosAppCredentialsFragment
         ),
         createOrGetExistingAppleAppIdentifierAsync: jest.fn(() => testAppleAppIdentifierFragment),
         createOrUpdateIosAppBuildCredentialsAsync: jest.fn(
@@ -75,9 +74,9 @@ describe('SetupProvisioningProfile', () => {
         listProvisioningProfilesAsync: jest.fn(() => []),
       },
       ios: {
-        ...getNewIosApiMockWithoutCredentials(),
+        ...getNewIosApiMock(),
         getIosAppCredentialsWithBuildCredentialsAsync: jest.fn(
-          () => testIosAppCredentialsWithBuildCredentialsQueryResult
+          () => testCommonIosAppCredentialsFragment
         ),
         createOrGetExistingAppleAppIdentifierAsync: jest.fn(() => testAppleAppIdentifierFragment),
       },
@@ -105,9 +104,9 @@ describe('SetupProvisioningProfile', () => {
         //listProvisioningProfilesAsync: jest.fn(() => []),
       },
       ios: {
-        ...getNewIosApiMockWithoutCredentials(),
+        ...getNewIosApiMock(),
         getIosAppCredentialsWithBuildCredentialsAsync: jest.fn(
-          () => testIosAppCredentialsWithBuildCredentialsQueryResult
+          () => testCommonIosAppCredentialsFragment
         ),
         createOrGetExistingAppleAppIdentifierAsync: jest.fn(() => testAppleAppIdentifierFragment),
       },
@@ -134,7 +133,7 @@ describe('SetupProvisioningProfile', () => {
         authCtx: testAuthCtx,
       },
       ios: {
-        ...getNewIosApiMockWithoutCredentials(),
+        ...getNewIosApiMock(),
         createOrGetExistingAppleAppIdentifierAsync: jest.fn(() => testAppleAppIdentifierFragment),
       },
     });

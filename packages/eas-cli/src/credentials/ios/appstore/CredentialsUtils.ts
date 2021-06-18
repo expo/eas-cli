@@ -1,5 +1,21 @@
 import { AppleDistributionCertificateFragment } from '../../../graphql/generated';
-import { DistributionCertificate, DistributionCertificateStoreInfo } from './Credentials.types';
+import {
+  DistributionCertificate,
+  DistributionCertificateStoreInfo,
+  PushKey,
+  PushKeyStoreInfo,
+} from './Credentials.types';
+
+export async function filterRevokedPushKeys<T extends PushKey>(
+  pushKeys: T[],
+  pushInfoFromApple: PushKeyStoreInfo[]
+): Promise<T[]> {
+  // if the credentials are valid, check it against apple to make sure it hasnt been revoked
+  const validKeyIdsOnAppleServer = pushInfoFromApple.map(pushKey => pushKey.id);
+  return pushKeys.filter(pushKey => {
+    return validKeyIdsOnAppleServer.includes(pushKey.apnsKeyId);
+  });
+}
 
 export function filterRevokedDistributionCertsFromEasServers(
   distributionCerts: AppleDistributionCertificateFragment[],
