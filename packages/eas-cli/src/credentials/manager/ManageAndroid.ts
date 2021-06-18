@@ -58,7 +58,7 @@ const highLevelActions: ActionInfo[] = [
   },
   {
     value: ActionType.ManageFcm,
-    title: 'Push Key: Manage your FCM Api Key',
+    title: 'Push Notifications: Manage your FCM Api Key',
     scope: Scope.Manager,
   },
   {
