@@ -1,7 +1,7 @@
 import merge from 'lodash/merge';
 
 import { Context } from '../context';
-import { getNewAndroidApiMockWithoutCredentials } from './fixtures-android';
+import { getNewAndroidApiMock } from './fixtures-android';
 import { getAppstoreMock } from './fixtures-appstore';
 import { testAppJson, testUsername } from './fixtures-constants';
 import { getNewIosApiMockWithoutCredentials } from './fixtures-ios';
@@ -9,7 +9,7 @@ import { getNewIosApiMockWithoutCredentials } from './fixtures-ios';
 export function createCtxMock(mockOverride: Record<string, any> = {}): Context {
   const defaultMock = {
     ios: getNewIosApiMockWithoutCredentials(),
-    android: getNewAndroidApiMockWithoutCredentials(),
+    android: getNewAndroidApiMock(),
     appStore: getAppstoreMock(),
     bestEffortAppStoreAuthenticateAsync: jest.fn(),
     ensureAppleCtx: jest.fn(),

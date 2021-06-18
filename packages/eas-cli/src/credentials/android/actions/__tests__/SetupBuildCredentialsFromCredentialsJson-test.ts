@@ -3,7 +3,7 @@ import { vol } from 'memfs';
 import { AndroidKeystoreType } from '../../../../graphql/generated';
 import { confirmAsync } from '../../../../prompts';
 import {
-  getNewAndroidApiMockWithoutCredentials,
+  getNewAndroidApiMock,
   testAndroidBuildCredentialsFragment,
   testJksAndroidKeystoreFragment,
 } from '../../../__tests__/fixtures-android';
@@ -50,7 +50,7 @@ describe(SetupBuildCredentialsFromCredentialsJson, () => {
     const ctx = createCtxMock({
       nonInteractive: false,
       android: {
-        ...getNewAndroidApiMockWithoutCredentials(),
+        ...getNewAndroidApiMock(),
         createKeystoreAsync: jest.fn(() => testJksAndroidKeystoreFragment),
       },
     });
@@ -100,7 +100,7 @@ describe(SetupBuildCredentialsFromCredentialsJson, () => {
     const ctx = createCtxMock({
       nonInteractive: false,
       android: {
-        ...getNewAndroidApiMockWithoutCredentials(),
+        ...getNewAndroidApiMock(),
         createKeystoreAsync: jest.fn(() => testJksAndroidKeystoreFragment),
       },
     });

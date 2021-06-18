@@ -1,6 +1,6 @@
 import { confirmAsync, promptAsync } from '../../../../prompts';
 import {
-  getNewAndroidApiMockWithoutCredentials,
+  getNewAndroidApiMock,
   testAndroidAppCredentialsFragment,
   testJksAndroidKeystoreFragment,
   testLegacyAndroidAppCredentialsFragment,
@@ -34,7 +34,7 @@ describe('BuildCredentialsUtils', () => {
       const ctx = createCtxMock({
         nonInteractive: true,
         android: {
-          ...getNewAndroidApiMockWithoutCredentials(),
+          ...getNewAndroidApiMock(),
           getAndroidAppCredentialsWithCommonFieldsAsync: jest.fn(() => null),
           getLegacyAndroidAppCredentialsWithCommonFieldsAsync: jest.fn(
             () => testLegacyAndroidAppCredentialsFragment
@@ -49,7 +49,7 @@ describe('BuildCredentialsUtils', () => {
       const ctx = createCtxMock({
         nonInteractive: true,
         android: {
-          ...getNewAndroidApiMockWithoutCredentials(),
+          ...getNewAndroidApiMock(),
           getAndroidAppCredentialsWithCommonFieldsAsync: jest.fn(
             () => testAndroidAppCredentialsFragment
           ),
@@ -66,7 +66,7 @@ describe('BuildCredentialsUtils', () => {
       const ctx = createCtxMock({
         nonInteractive: true,
         android: {
-          ...getNewAndroidApiMockWithoutCredentials(),
+          ...getNewAndroidApiMock(),
           getAndroidAppCredentialsWithCommonFieldsAsync: jest.fn(() => null),
           getLegacyAndroidAppCredentialsWithCommonFieldsAsync: jest.fn(() => null),
         },
@@ -79,7 +79,7 @@ describe('BuildCredentialsUtils', () => {
       const ctx = createCtxMock({
         nonInteractive: true,
         android: {
-          ...getNewAndroidApiMockWithoutCredentials(),
+          ...getNewAndroidApiMock(),
           getAndroidAppCredentialsWithCommonFieldsAsync: jest.fn(() => null),
           getLegacyAndroidAppCredentialsWithCommonFieldsAsync: jest.fn(
             () => testLegacyAndroidAppCredentialsFragment
@@ -97,7 +97,7 @@ describe('BuildCredentialsUtils', () => {
       const ctx = createCtxMock({
         nonInteractive: false,
         android: {
-          ...getNewAndroidApiMockWithoutCredentials(),
+          ...getNewAndroidApiMock(),
           getAndroidAppCredentialsWithCommonFieldsAsync: jest.fn(() => null),
           getLegacyAndroidAppCredentialsWithCommonFieldsAsync: jest.fn(
             () => testLegacyAndroidAppCredentialsFragment
@@ -124,7 +124,7 @@ describe('BuildCredentialsUtils', () => {
       const ctx = createCtxMock({
         nonInteractive: true,
         android: {
-          ...getNewAndroidApiMockWithoutCredentials(),
+          ...getNewAndroidApiMock(),
           getAndroidAppCredentialsWithCommonFieldsAsync: jest.fn(() => null),
           getLegacyAndroidAppCredentialsWithCommonFieldsAsync: jest.fn(
             () => testLegacyAndroidAppCredentialsFragment

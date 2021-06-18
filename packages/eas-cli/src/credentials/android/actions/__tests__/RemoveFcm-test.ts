@@ -1,6 +1,6 @@
 import { confirmAsync } from '../../../../prompts';
 import {
-  getNewAndroidApiMockWithoutCredentials,
+  getNewAndroidApiMock,
   testAndroidAppCredentialsFragment,
 } from '../../../__tests__/fixtures-android';
 import { createCtxMock } from '../../../__tests__/fixtures-context';
@@ -25,7 +25,7 @@ describe(RemoveFcm, () => {
     const ctx = createCtxMock({
       nonInteractive: false,
       android: {
-        ...getNewAndroidApiMockWithoutCredentials(),
+        ...getNewAndroidApiMock(),
         getAndroidAppCredentialsWithCommonFieldsAsync: jest.fn(
           () => testAndroidAppCredentialsFragment
         ),

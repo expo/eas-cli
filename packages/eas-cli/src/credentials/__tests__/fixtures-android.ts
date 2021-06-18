@@ -113,7 +113,7 @@ export const testAndroidAppCredentialsFragment: CommonAndroidAppCredentialsFragm
   androidAppBuildCredentialsList: [testLegacyAndroidBuildCredentialsFragment],
 };
 
-export function getNewAndroidApiMockWithoutCredentials() {
+export function getNewAndroidApiMock() {
   return {
     getAndroidAppCredentialsWithCommonFieldsAsync: jest.fn(),
     getAndroidAppBuildCredentialsListAsync: jest.fn(() => []),

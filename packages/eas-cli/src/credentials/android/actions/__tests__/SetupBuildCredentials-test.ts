@@ -1,6 +1,6 @@
 import { confirmAsync, promptAsync } from '../../../../prompts';
 import {
-  getNewAndroidApiMockWithoutCredentials,
+  getNewAndroidApiMock,
   testAndroidBuildCredentialsFragment,
   testJksAndroidKeystoreFragment,
 } from '../../../__tests__/fixtures-android';
@@ -28,7 +28,7 @@ describe('SetupBuildCredentials', () => {
     const ctx = createCtxMock({
       nonInteractive: false,
       android: {
-        ...getNewAndroidApiMockWithoutCredentials(),
+        ...getNewAndroidApiMock(),
         getDefaultAndroidAppBuildCredentialsAsync: jest.fn(
           () => testAndroidBuildCredentialsFragment
         ),
@@ -46,7 +46,7 @@ describe('SetupBuildCredentials', () => {
     const ctx = createCtxMock({
       nonInteractive: false,
       android: {
-        ...getNewAndroidApiMockWithoutCredentials(),
+        ...getNewAndroidApiMock(),
         createKeystoreAsync: jest.fn(() => testJksAndroidKeystoreFragment),
       },
     });
@@ -62,7 +62,7 @@ describe('SetupBuildCredentials', () => {
     const ctx = createCtxMock({
       nonInteractive: true,
       android: {
-        ...getNewAndroidApiMockWithoutCredentials(),
+        ...getNewAndroidApiMock(),
       },
     });
     const appLookupParams = getAppLookupParamsFromContext(ctx);

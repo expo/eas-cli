@@ -1,6 +1,6 @@
 import { promptAsync } from '../../../prompts';
 import {
-  getNewAndroidApiMockWithoutCredentials,
+  getNewAndroidApiMock,
   testAndroidBuildCredentialsFragment,
 } from '../../__tests__/fixtures-android';
 import { createCtxMock } from '../../__tests__/fixtures-context';
@@ -24,7 +24,7 @@ describe(SelectAndroidBuildCredentials, () => {
     }));
     const ctx = createCtxMock({
       android: {
-        ...getNewAndroidApiMockWithoutCredentials(),
+        ...getNewAndroidApiMock(),
         getAndroidAppBuildCredentialsListAsync: jest.fn(() => []),
       },
     });
@@ -44,7 +44,7 @@ describe(SelectAndroidBuildCredentials, () => {
     }));
     const ctx = createCtxMock({
       android: {
-        ...getNewAndroidApiMockWithoutCredentials(),
+        ...getNewAndroidApiMock(),
         getAndroidAppBuildCredentialsListAsync: jest.fn(() => [
           testAndroidBuildCredentialsFragment,
         ]),
@@ -66,7 +66,7 @@ describe(SelectAndroidBuildCredentials, () => {
     }));
     const ctx = createCtxMock({
       android: {
-        ...getNewAndroidApiMockWithoutCredentials(),
+        ...getNewAndroidApiMock(),
         getAndroidAppBuildCredentialsListAsync: jest.fn(() => []),
       },
     });
@@ -84,7 +84,7 @@ describe(SelectAndroidBuildCredentials, () => {
     }));
     const ctx = createCtxMock({
       android: {
-        ...getNewAndroidApiMockWithoutCredentials(),
+        ...getNewAndroidApiMock(),
         getAndroidAppBuildCredentialsListAsync: jest.fn(() => [
           testAndroidBuildCredentialsFragment,
         ]),
