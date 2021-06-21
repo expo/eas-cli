@@ -34,7 +34,6 @@ interface CommonJobProperties {
   platform: Platform.IOS;
   projectArchive: ArchiveSource;
   builderEnvironment: Ios.BuilderEnvironment;
-  releaseChannel?: string;
   distribution?: Ios.DistributionType;
   cache: Cache;
   secrets: {
@@ -106,6 +105,7 @@ async function prepareGenericJobAsync(
     buildConfiguration: buildProfile.schemeBuildConfiguration,
     artifactPath: buildProfile.artifactPath,
     releaseChannel: buildProfile.releaseChannel,
+    updates: { channel: buildProfile.channel },
     projectRootDirectory,
   };
 }
@@ -127,6 +127,7 @@ async function prepareManagedJobAsync(
     buildType: buildProfile.buildType,
     username,
     releaseChannel: buildProfile.releaseChannel,
+    updates: { channel: buildProfile.channel },
     projectRootDirectory,
   };
 }

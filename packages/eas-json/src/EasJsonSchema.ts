@@ -49,6 +49,7 @@ const AndroidGenericSchema = Joi.object({
     otherwise: Joi.string(),
   }),
   releaseChannel: Joi.string(),
+  channel: Joi.string(),
   artifactPath: Joi.string(),
   withoutCredentials: Joi.boolean().default(false),
   distribution: Joi.string().valid('store', 'internal').default('store'),
@@ -59,6 +60,7 @@ const AndroidManagedSchema = Joi.object({
   workflow: Joi.string().valid('managed').required(),
   credentialsSource: Joi.string().valid('local', 'remote').default('remote'),
   releaseChannel: Joi.string(),
+  channel: Joi.string(),
   buildType: Joi.alternatives().conditional('distribution', {
     is: 'internal',
     then: Joi.string().valid('apk', 'development-client').default('apk'),
@@ -74,6 +76,7 @@ const IosGenericSchema = Joi.object({
   scheme: Joi.string(),
   schemeBuildConfiguration: Joi.string(),
   releaseChannel: Joi.string(),
+  channel: Joi.string(),
   artifactPath: Joi.string(),
   distribution: Joi.string().valid('store', 'internal', 'simulator').default('store'),
   enterpriseProvisioning: Joi.string().valid('adhoc', 'universal'),
@@ -88,6 +91,7 @@ const IosManagedSchema = Joi.object({
   credentialsSource: Joi.string().valid('local', 'remote').default('remote'),
   buildType: Joi.string().valid('release', 'development-client').default('release'),
   releaseChannel: Joi.string(),
+  channel: Joi.string(),
   distribution: Joi.string().valid('store', 'internal', 'simulator').default('store'),
   enterpriseProvisioning: Joi.string().valid('adhoc', 'universal'),
   autoIncrement: Joi.alternatives()

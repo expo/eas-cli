@@ -95,3 +95,13 @@ export async function readReleaseChannelSafelyAsync(projectDir: string): Promise
     return null;
   }
 }
+
+export async function readChannelSafelyAsync(projectDir: string): Promise<string | null> {
+  try {
+    const expoPlist: any = await readExpoPlistAsync(projectDir); // TODO-JJ remove any once IOSConfig.ExpoPlist is updated to include `EXUpdatesRequestHeaders : Record<string,string>`
+    const updatesRequestHeaders = expoPlist['EXUpdatesRequestHeaders'] ?? {}; //TODO-JJ 'EXUpdatesRequestHeaders' IosConfig.Updates.Config.UPDATES_CONFIGURATION_REQUEST_HEADERS_KEY once https://github.com/expo/expo-cli/pull/3571 is published
+    return updatesRequestHeaders['expo-channel-name'] ?? null;
+  } catch (err) {
+    return null;
+  }
+}

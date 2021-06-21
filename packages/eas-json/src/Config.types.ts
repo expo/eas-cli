@@ -18,6 +18,7 @@ export interface AndroidManagedBuildProfile extends Android.BuilderEnvironment {
   credentialsSource: CredentialsSource;
   buildType?: Android.ManagedBuildType;
   releaseChannel?: string;
+  channel?: string;
   distribution: AndroidDistributionType;
   cache: Cache;
 }
@@ -27,6 +28,7 @@ export interface AndroidGenericBuildProfile extends Android.BuilderEnvironment {
   credentialsSource: CredentialsSource;
   gradleCommand?: string;
   releaseChannel?: string;
+  channel?: string;
   artifactPath?: string;
   withoutCredentials?: boolean;
   distribution: AndroidDistributionType;
@@ -38,6 +40,7 @@ export interface IosManagedBuildProfile extends Ios.BuilderEnvironment {
   credentialsSource: CredentialsSource;
   buildType?: Ios.ManagedBuildType;
   releaseChannel?: string;
+  channel?: string;
   distribution: IosDistributionType;
   enterpriseProvisioning?: IosEnterpriseProvisioning;
   autoIncrement: VersionAutoIncrement;
@@ -50,6 +53,7 @@ export interface IosGenericBuildProfile extends Ios.BuilderEnvironment {
   scheme?: string;
   schemeBuildConfiguration?: string;
   releaseChannel?: string;
+  channel?: string;
   artifactPath?: string;
   distribution: IosDistributionType;
   enterpriseProvisioning?: IosEnterpriseProvisioning;
