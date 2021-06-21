@@ -35,6 +35,7 @@ import {
   AppleProvisioningProfileQuery,
   AppleProvisioningProfileQueryResult,
 } from './graphql/queries/AppleProvisioningProfileQuery';
+import { ApplePushKeyQuery } from './graphql/queries/ApplePushKeyQuery';
 import { AppleTeamQuery } from './graphql/queries/AppleTeamQuery';
 import { IosAppCredentialsQuery } from './graphql/queries/IosAppCredentialsQuery';
 
@@ -140,10 +141,7 @@ export async function createOrGetIosAppCredentialsWithCommonFieldsAsync(
     appleTeam: AppleTeamFragment;
   }
 ): Promise<CommonIosAppCredentialsFragment> {
-  const maybeIosAppCredentials = await getIosAppCredentialsWithBuildCredentialsAsync(
-    appLookupParams,
-    {}
-  );
+  const maybeIosAppCredentials = await getIosAppCredentialsWithCommonFieldsAsync(appLookupParams);
   if (maybeIosAppCredentials) {
     return maybeIosAppCredentials;
   }
@@ -393,6 +391,19 @@ export async function createPushKeyAsync(
     },
     account.id
   );
+}
+
+export async function getPushKeysForAccountAsync(
+  account: Account
+): Promise<ApplePushKeyFragment[]> {
+  return await ApplePushKeyQuery.getAllForAccount(account.name);
+}
+
+export async function getPushKeyForAppAsync(
+  appLookupParams: AppLookupParams
+): Promise<ApplePushKeyFragment | null> {
+  const maybeIosAppCredentials = await getIosAppCredentialsWithCommonFieldsAsync(appLookupParams);
+  return maybeIosAppCredentials?.pushKey ?? null;
 }
 
 const formatProjectFullName = ({ account, projectName }: AppLookupParams): string =>

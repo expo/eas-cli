@@ -2,10 +2,7 @@ import assert from 'assert';
 import chalk from 'chalk';
 import dateformat from 'dateformat';
 
-import {
-  AppleDistributionCertificateFragment,
-  AppleTeamFragment,
-} from '../../../graphql/generated';
+import { AppleDistributionCertificateFragment } from '../../../graphql/generated';
 import Log, { learnMore } from '../../../log';
 import { promptAsync } from '../../../prompts';
 import { Account } from '../../../user/Account';
@@ -21,6 +18,7 @@ import {
 import { filterRevokedDistributionCertsFromEasServers } from '../appstore/CredentialsUtils';
 import { distributionCertificateSchema } from '../credentials';
 import { validateDistributionCertificateAsync } from '../validators/validateDistributionCertificate';
+import { formatAppleTeam } from './AppleTeamUtils';
 
 export function formatDistributionCertificate(
   distributionCertificate: AppleDistributionCertificateFragment,
@@ -61,10 +59,6 @@ export function formatDistributionCertificate(
     line += '';
   }
   return line;
-}
-
-function formatAppleTeam({ appleTeamIdentifier, appleTeamName }: AppleTeamFragment): string {
-  return `Team ID: ${appleTeamIdentifier}${appleTeamName ? `, Team name: ${appleTeamName}` : ''}`;
 }
 
 async function _selectDistributionCertificateAsync(

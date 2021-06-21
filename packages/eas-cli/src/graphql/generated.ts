@@ -4326,6 +4326,27 @@ export type AppleProvisioningProfilesByAppQuery = (
   )> }
 );
 
+export type ApplePushKeyByAccountQueryVariables = Exact<{
+  accountName: Scalars['String'];
+}>;
+
+
+export type ApplePushKeyByAccountQuery = (
+  { __typename?: 'RootQuery' }
+  & { account: (
+    { __typename?: 'AccountQuery' }
+    & { byName: (
+      { __typename?: 'Account' }
+      & Pick<Account, 'id'>
+      & { applePushKeys: Array<(
+        { __typename?: 'ApplePushKey' }
+        & Pick<ApplePushKey, 'id'>
+        & ApplePushKeyFragment
+      )> }
+    ) }
+  ) }
+);
+
 export type AppleTeamsByAccountNameQueryVariables = Exact<{
   accountName: Scalars['String'];
 }>;
