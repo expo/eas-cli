@@ -4085,7 +4085,25 @@ export type CreateIosAppCredentialsMutation = (
     & { createIosAppCredentials: (
       { __typename?: 'IosAppCredentials' }
       & Pick<IosAppCredentials, 'id'>
-      & IosAppCredentialsFragment
+      & CommonIosAppCredentialsFragment
+    ) }
+  ) }
+);
+
+export type SetPushKeyMutationVariables = Exact<{
+  iosAppCredentialsId: Scalars['ID'];
+  pushKeyId: Scalars['ID'];
+}>;
+
+
+export type SetPushKeyMutation = (
+  { __typename?: 'RootMutation' }
+  & { iosAppCredentials: (
+    { __typename?: 'IosAppCredentialsMutation' }
+    & { setPushKey: (
+      { __typename?: 'IosAppCredentials' }
+      & Pick<IosAppCredentials, 'id'>
+      & CommonIosAppCredentialsFragment
     ) }
   ) }
 );
