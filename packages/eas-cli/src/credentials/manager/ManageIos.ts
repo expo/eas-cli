@@ -23,6 +23,7 @@ import { selectValidDistributionCertificateAsync } from '../ios/actions/Distribu
 import { selectPushKeyAsync } from '../ios/actions/PushKeyUtils';
 import { SelectAndRemoveDistributionCertificate } from '../ios/actions/RemoveDistributionCertificate';
 import { RemoveProvisioningProfiles } from '../ios/actions/RemoveProvisioningProfile';
+import { SelectAndRemovePushKey } from '../ios/actions/RemovePushKey';
 import { SetupAdhocProvisioningProfile } from '../ios/actions/SetupAdhocProvisioningProfile';
 import { SetupBuildCredentials } from '../ios/actions/SetupBuildCredentials';
 import { SetupBuildCredentialsFromCredentialsJson } from '../ios/actions/SetupBuildCredentialsFromCredentialsJson';
@@ -53,6 +54,7 @@ enum ActionType {
   SetupPushKey,
   CreatePushKey,
   UseExistingPushKey,
+  RemovePushKey,
 }
 
 enum Scope {
@@ -120,6 +122,11 @@ function getPushKeyActions(ctx: Context): ActionInfo[] {
       value: ActionType.UseExistingPushKey,
       title: 'Use an existing push key',
       scope: Scope.Project,
+    },
+    {
+      value: ActionType.RemovePushKey,
+      title: 'Remove a push key from your account',
+      scope: Scope.Account,
     },
     {
       value: ActionType.GoBackToHighLevelActions,
@@ -293,6 +300,8 @@ export class ManageIos {
       await new CreateDistributionCertificate(account).runAsync(ctx);
     } else if (action === ActionType.CreatePushKey) {
       await new CreatePushKey(account).runAsync(ctx);
+    } else if (action === ActionType.RemovePushKey) {
+      await new SelectAndRemovePushKey(account).runAsync(ctx);
     }
   }
 
