@@ -134,6 +134,7 @@ export function getNewIosApiMock() {
     deleteDistributionCertificateAsync: jest.fn(),
     createPushKeyAsync: jest.fn(),
     getPushKeyForAppAsync: jest.fn(),
+    deletePushKeyAsync: jest.fn(),
   };
 }
 

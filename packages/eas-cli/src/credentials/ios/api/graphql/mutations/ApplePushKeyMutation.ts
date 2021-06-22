@@ -7,6 +7,7 @@ import {
   ApplePushKeyFragment,
   ApplePushKeyInput,
   CreateApplePushKeyMutation,
+  DeleteApplePushKeyMutation,
 } from '../../../../../graphql/generated';
 import { ApplePushKeyFragmentNode } from '../../../../../graphql/types/credentials/ApplePushKey';
 
@@ -44,6 +45,29 @@ const ApplePushKeyMutation = {
       'GraphQL: `createApplePushKey` not defined in server response'
     );
     return data.applePushKey.createApplePushKey;
+  },
+  async deleteApplePushKey(applePushKeyId: string): Promise<void> {
+    await withErrorHandlingAsync(
+      graphqlClient
+        .mutation<DeleteApplePushKeyMutation>(
+          gql`
+            mutation DeleteApplePushKeyMutation($applePushKeyId: ID!) {
+              applePushKey {
+                deleteApplePushKey(id: $applePushKeyId) {
+                  id
+                }
+              }
+            }
+          `,
+          {
+            applePushKeyId,
+          },
+          {
+            additionalTypenames: ['ApplePushKey', 'IosAppCredentials'],
+          }
+        )
+        .toPromise()
+    );
   },
 };
 

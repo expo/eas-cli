@@ -406,5 +406,9 @@ export async function getPushKeyForAppAsync(
   return maybeIosAppCredentials?.pushKey ?? null;
 }
 
+export async function deletePushKeyAsync(pushKeyId: string): Promise<void> {
+  return await ApplePushKeyMutation.deleteApplePushKey(pushKeyId);
+}
+
 const formatProjectFullName = ({ account, projectName }: AppLookupParams): string =>
   `@${account.name}/${projectName}`;

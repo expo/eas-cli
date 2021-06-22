@@ -3995,6 +3995,22 @@ export type CreateApplePushKeyMutation = (
   ) }
 );
 
+export type DeleteApplePushKeyMutationVariables = Exact<{
+  applePushKeyId: Scalars['ID'];
+}>;
+
+
+export type DeleteApplePushKeyMutation = (
+  { __typename?: 'RootMutation' }
+  & { applePushKey: (
+    { __typename?: 'ApplePushKeyMutation' }
+    & { deleteApplePushKey: (
+      { __typename?: 'deleteApplePushKeyResult' }
+      & Pick<DeleteApplePushKeyResult, 'id'>
+    ) }
+  ) }
+);
+
 export type CreateAppleTeamMutationVariables = Exact<{
   appleTeamInput: AppleTeamInput;
   accountId: Scalars['ID'];
