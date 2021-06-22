@@ -1,13 +1,18 @@
 import chalk from 'chalk';
 
+import { ApplePushKeyFragment } from '../../../graphql/generated';
 import Log, { learnMore } from '../../../log';
 import { confirmAsync, promptAsync } from '../../../prompts';
+import { Account } from '../../../user/Account';
+import { fromNow } from '../../../utils/date';
 import { Context } from '../../context';
 import { askForUserProvidedAsync } from '../../utils/promptForCredentials';
 import { PushKey, PushKeyStoreInfo } from '../appstore/Credentials.types';
+import { filterRevokedAndUntrackedPushKeysFromEasServers } from '../appstore/CredentialsUtils';
 import { APPLE_KEYS_TOO_MANY_GENERATED_ERROR } from '../appstore/pushKey';
 import { pushKeySchema } from '../credentials';
-import { validatePushKeyAsync } from '../validators/validatePushKey';
+import { isPushKeyValidAndTrackedAsync } from '../validators/validatePushKey';
+import { formatAppleTeam } from './AppleTeamUtils';
 
 export async function provideOrGeneratePushKeyAsync(
   ctx: Context,
@@ -20,8 +25,8 @@ export async function provideOrGeneratePushKeyAsync(
         Log.warn('Unable to validate push key due to insufficient Apple Credentials');
         return userProvided;
       } else {
-        const isValid = await validatePushKeyAsync(ctx, userProvided);
-        if (isValid) {
+        const isValidAndTracked = await isPushKeyValidAndTrackedAsync(ctx, userProvided);
+        if (isValidAndTracked) {
           return userProvided;
         }
         // user could've just input the id wrong, and the p8 could still be valid
@@ -105,4 +110,87 @@ function formatPushKeyFromApple(pushKey: PushKeyStoreInfo): string {
   const { name, id } = pushKey;
   const keyIdText = id ? ` - Key ID: ${id}` : ``;
   return `${name}${keyIdText}`;
+}
+
+/**
+ * select a push key from an account (validity status shown on a best effort basis)
+ * */
+export async function selectPushKeyAsync(
+  ctx: Context,
+  account: Account
+): Promise<ApplePushKeyFragment | null> {
+  const pushKeysForAccount = await ctx.ios.getPushKeysForAccountAsync(account);
+  if (pushKeysForAccount.length === 0) {
+    Log.warn(`There are no Push Keys available in your EAS account.`);
+    return null;
+  }
+  if (!ctx.appStore.authCtx) {
+    return selectPushKeysAsync(pushKeysForAccount);
+  }
+
+  const validPushKeys = await getValidAndTrackedPushKeysOnEasServersAsync(ctx, pushKeysForAccount);
+  return selectPushKeysAsync(pushKeysForAccount, validPushKeys);
+}
+
+export async function getValidAndTrackedPushKeysOnEasServersAsync(
+  ctx: Context,
+  pushKeysForAccount: ApplePushKeyFragment[]
+): Promise<ApplePushKeyFragment[]> {
+  const pushInfoFromApple = await ctx.appStore.listPushKeysAsync();
+  return await filterRevokedAndUntrackedPushKeysFromEasServers(
+    pushKeysForAccount,
+    pushInfoFromApple
+  );
+}
+
+async function selectPushKeysAsync(
+  pushKeys: ApplePushKeyFragment[],
+  validPushKeys?: ApplePushKeyFragment[]
+): Promise<ApplePushKeyFragment | null> {
+  const validPushKeyIdentifiers = validPushKeys?.map(pushKey => pushKey.keyIdentifier);
+  const sortedPushKeys = sortPushKeys(pushKeys, validPushKeys);
+  const { chosenPushKey } = await promptAsync({
+    type: 'select',
+    name: 'chosenPushKey',
+    message: 'Select a push key from the list.',
+    choices: sortedPushKeys.map(pushKey => ({
+      title: formatPushKey(pushKey, validPushKeyIdentifiers),
+      value: pushKey,
+    })),
+  });
+  return chosenPushKey;
+}
+
+export function sortPushKeys(
+  pushKeys: ApplePushKeyFragment[],
+  validPushKeys?: ApplePushKeyFragment[]
+): ApplePushKeyFragment[] {
+  const validPushKeyIdentifiers = validPushKeys?.map(pushKey => pushKey.keyIdentifier);
+  return pushKeys.sort((pushKeyA, pushKeyB) => {
+    if (validPushKeyIdentifiers?.includes(pushKeyA.keyIdentifier)) {
+      return -1;
+    } else if (validPushKeyIdentifiers?.includes(pushKeyB.keyIdentifier)) {
+      return 1;
+    }
+    return 0;
+  });
+}
+
+export function formatPushKey(
+  pushKey: ApplePushKeyFragment,
+  validPushKeyIdentifiers?: string[]
+): string {
+  const { keyIdentifier, appleTeam, updatedAt } = pushKey;
+  let line: string = '';
+
+  line += `Push Key ID: ${pushKey.keyIdentifier}`;
+  line += ` ${appleTeam ? `, ${formatAppleTeam(appleTeam)}` : ''}`;
+  line += chalk.gray(`\n    Updated: ${fromNow(new Date(updatedAt))} ago,`);
+
+  if (validPushKeyIdentifiers?.includes(keyIdentifier)) {
+    line += chalk.gray("\n    ✅ Currently valid on Apple's servers.");
+  } else {
+    line += '';
+  }
+  return line;
 }

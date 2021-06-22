@@ -20,12 +20,14 @@ import { getAppLookupParamsFromContext } from '../ios/actions/BuildCredentialsUt
 import { CreateDistributionCertificate } from '../ios/actions/CreateDistributionCertificate';
 import { CreatePushKey } from '../ios/actions/CreatePushKey';
 import { selectValidDistributionCertificateAsync } from '../ios/actions/DistributionCertificateUtils';
+import { selectPushKeyAsync } from '../ios/actions/PushKeyUtils';
 import { SelectAndRemoveDistributionCertificate } from '../ios/actions/RemoveDistributionCertificate';
 import { RemoveProvisioningProfiles } from '../ios/actions/RemoveProvisioningProfile';
 import { SetupAdhocProvisioningProfile } from '../ios/actions/SetupAdhocProvisioningProfile';
 import { SetupBuildCredentials } from '../ios/actions/SetupBuildCredentials';
 import { SetupBuildCredentialsFromCredentialsJson } from '../ios/actions/SetupBuildCredentialsFromCredentialsJson';
 import { SetupProvisioningProfile } from '../ios/actions/SetupProvisioningProfile';
+import { SetupPushKey } from '../ios/actions/SetupPushKey';
 import { UpdateCredentialsJson } from '../ios/actions/UpdateCredentialsJson';
 import { AppLookupParams } from '../ios/api/GraphqlClient';
 import { getManagedEntitlementsJsonAsync } from '../ios/appstore/entitlements';
@@ -48,7 +50,9 @@ enum ActionType {
   RemoveProvisioningProfile,
   CreateDistributionCertificate,
   RemoveDistributionCertificate,
+  SetupPushKey,
   CreatePushKey,
+  UseExistingPushKey,
 }
 
 enum Scope {
@@ -103,9 +107,19 @@ const credentialsJsonActions: ActionInfo[] = [
 function getPushKeyActions(ctx: Context): ActionInfo[] {
   return [
     {
+      value: ActionType.SetupPushKey,
+      title: 'Setup your project to use Push Notifications',
+      scope: Scope.Project,
+    },
+    {
       value: ActionType.CreatePushKey,
-      title: 'Set up a new push key',
+      title: 'Add a new push key',
       scope: ctx.hasProjectContext ? Scope.Project : Scope.Account,
+    },
+    {
+      value: ActionType.UseExistingPushKey,
+      title: 'Use an existing push key',
+      scope: Scope.Project,
     },
     {
       value: ActionType.GoBackToHighLevelActions,
@@ -372,6 +386,18 @@ export class ManageIos {
         }
         return;
       }
+      case ActionType.SetupPushKey: {
+        const setupPushKeyAction = await new SetupPushKey(appLookupParams);
+        const isPushKeySetup = await setupPushKeyAction.isPushKeySetupAsync(ctx);
+        if (isPushKeySetup) {
+          Log.log(
+            `Push Key is already set up for ${appLookupParams.projectName} ${appLookupParams.bundleIdentifier}`
+          );
+        } else {
+          await new SetupPushKey(appLookupParams).runAsync(ctx);
+        }
+        return;
+      }
       case ActionType.CreatePushKey: {
         const pushKey = await new CreatePushKey(appLookupParams.account).runAsync(ctx);
         const confirm = await confirmAsync({
@@ -379,6 +405,13 @@ export class ManageIos {
         });
         if (confirm) {
           await new AssignPushKey(appLookupParams).runAsync(ctx, pushKey);
+        }
+        return;
+      }
+      case ActionType.UseExistingPushKey: {
+        const selectedPushKey = await selectPushKeyAsync(ctx, appLookupParams.account);
+        if (selectedPushKey) {
+          await new AssignPushKey(appLookupParams).runAsync(ctx, selectedPushKey);
         }
         return;
       }

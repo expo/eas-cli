@@ -116,6 +116,7 @@ export const testAppleTeam = {
 
 export function getNewIosApiMock() {
   return {
+    getIosAppCredentialsWithCommonFieldsAsync: jest.fn(),
     createOrGetIosAppCredentialsWithCommonFieldsAsync: jest.fn(),
     updateIosAppCredentialsAsync: jest.fn(),
     createOrUpdateIosAppBuildCredentialsAsync: jest.fn(),
@@ -132,6 +133,7 @@ export function getNewIosApiMock() {
     createDistributionCertificateAsync: jest.fn(),
     deleteDistributionCertificateAsync: jest.fn(),
     createPushKeyAsync: jest.fn(),
+    getPushKeyForAppAsync: jest.fn(),
   };
 }
 
