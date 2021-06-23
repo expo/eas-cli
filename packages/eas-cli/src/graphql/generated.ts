@@ -1092,6 +1092,7 @@ export type ApplePushKey = {
   keyP8: Scalars['String'];
   createdAt: Scalars['DateTime'];
   updatedAt: Scalars['DateTime'];
+  iosAppCredentialsList: Array<IosAppCredentials>;
 };
 
 export type IosAppBuildCredentialsFilter = {
@@ -2650,7 +2651,7 @@ export type IosAppCredentialsMutationSetAppSpecificPasswordArgs = {
 };
 
 export type IosAppCredentialsInput = {
-  appleTeamId: Scalars['ID'];
+  appleTeamId?: Maybe<Scalars['ID']>;
   pushKeyId?: Maybe<Scalars['ID']>;
   appSpecificPasswordId?: Maybe<Scalars['ID']>;
 };
@@ -3182,7 +3183,8 @@ export type AddUserInput = {
 };
 
 export enum MailchimpTag {
-  EasMasterList = 'EAS_MASTER_LIST'
+  EasMasterList = 'EAS_MASTER_LIST',
+  DevClientUsers = 'DEV_CLIENT_USERS'
 }
 
 export enum MailchimpAudience {

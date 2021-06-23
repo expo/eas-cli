@@ -12,6 +12,7 @@ import {
   IosDistributionType,
 } from '../../../graphql/generated';
 import { Account } from '../../../user/Account';
+import { isWildcardBundleIdentifier } from '../actions/AppleAppIdentifierUtils';
 import { DistributionCertificate, PushKey } from '../appstore/Credentials.types';
 import { AppleTeamMissingError } from '../errors';
 import { AppleAppIdentifierMutation } from './graphql/mutations/AppleAppIdentifierMutation';
@@ -138,7 +139,7 @@ export async function createOrGetIosAppCredentialsWithCommonFieldsAsync(
   {
     appleTeam,
   }: {
-    appleTeam: AppleTeamFragment;
+    appleTeam?: AppleTeamFragment;
   }
 ): Promise<CommonIosAppCredentialsFragment> {
   const maybeIosAppCredentials = await getIosAppCredentialsWithCommonFieldsAsync(appLookupParams);
@@ -147,10 +148,10 @@ export async function createOrGetIosAppCredentialsWithCommonFieldsAsync(
   }
   const [app, appleAppIdentifier] = await Promise.all([
     getAppAsync(appLookupParams),
-    createOrGetExistingAppleAppIdentifierAsync(appLookupParams, appleTeam),
+    createOrGetExistingAppleAppIdentifierAsync(appLookupParams, appleTeam ?? null),
   ]);
   return await IosAppCredentialsMutation.createIosAppCredentialsAsync(
-    { appleTeamId: appleTeam.id },
+    { appleTeamId: appleTeam?.id },
     app.id,
     appleAppIdentifier.id
   );
@@ -181,7 +182,7 @@ async function createOrGetExistingIosAppCredentialsWithBuildCredentialsAsync(
     appleAppIdentifierId,
     iosDistributionType,
   }: {
-    appleTeam: AppleTeamFragment;
+    appleTeam?: AppleTeamFragment;
     appleAppIdentifierId: string;
     iosDistributionType: IosDistributionType;
   }
@@ -197,10 +198,10 @@ async function createOrGetExistingIosAppCredentialsWithBuildCredentialsAsync(
   } else {
     const [app, appleAppIdentifier] = await Promise.all([
       getAppAsync(appLookupParams),
-      createOrGetExistingAppleAppIdentifierAsync(appLookupParams, appleTeam),
+      createOrGetExistingAppleAppIdentifierAsync(appLookupParams, appleTeam ?? null),
     ]);
     await IosAppCredentialsMutation.createIosAppCredentialsAsync(
-      { appleTeamId: appleTeam.id },
+      { appleTeamId: appleTeam?.id },
       app.id,
       appleAppIdentifier.id
     );
@@ -243,8 +244,10 @@ export async function createOrGetExistingAppleAppIdentifierAsync(
   if (appleAppIdentifier) {
     return appleAppIdentifier;
   } else {
-    if (!appleTeam) {
-      throw new AppleTeamMissingError();
+    if (isWildcardBundleIdentifier(bundleIdentifier) && !appleTeam) {
+      throw new AppleTeamMissingError(
+        `An Apple Team is required for wildcard bundle identifier: ${bundleIdentifier}`
+      );
     }
     const parentAppleAppIdentifier = parentBundleIdentifier
       ? await createOrGetExistingAppleAppIdentifierAsync(
@@ -255,7 +258,7 @@ export async function createOrGetExistingAppleAppIdentifierAsync(
     return await AppleAppIdentifierMutation.createAppleAppIdentifierAsync(
       {
         bundleIdentifier,
-        appleTeamId: appleTeam.id,
+        appleTeamId: appleTeam?.id,
         parentAppleAppId: parentAppleAppIdentifier?.id,
       },
       account.id
