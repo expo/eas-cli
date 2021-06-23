@@ -19,6 +19,7 @@ This is the log of notable changes to EAS CLI and related packages.
 - Add `updates.channel` to build metadata. ([#461](https://github.com/expo/eas-cli/pull/461) by [@jkhales](https://github.com/jkhales))
 - iOS push key setup and management now available in `eas-cli credentials` ([#469](https://github.com/expo/eas-cli/pull/469) [#470](https://github.com/expo/eas-cli/pull/470) by [@quinlanj](https://github.com/quinlanj))
 
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
@@ -28,6 +29,7 @@ This is the log of notable changes to EAS CLI and related packages.
 - Prepare Graphql infra to support iOS push keys ([#456](https://github.com/expo/eas-cli/pull/456) by [@quinlanj](https://github.com/quinlanj))
 - Improve credentials DX ([#448](https://github.com/expo/eas-cli/pull/448) [#449](https://github.com/expo/eas-cli/pull/449) by [@quinlanj](https://github.com/quinlanj))
 - Add analytics on dev client builds. ([#454](https://github.com/expo/eas-cli/pull/454) by [@fson](https://github.com/fson))
+- Support non-git projects. ([#462](https://github.com/expo/eas-cli/pull/462) by [@wkozyra95](https://github.com/wkozyra95))
 
 ## [0.17.0](https://github.com/expo/eas-cli/releases/tag/v0.17.0) - 2021-06-02
 
