@@ -12,7 +12,6 @@ export default class LocalClient extends Client {
   public async getRootPathAsync(): Promise<string> {
     const rootPath = process.env.EAS_PROJECT_ROOT ?? process.cwd();
     if (!path.isAbsolute(rootPath)) {
-      console.log(path.resolve(process.cwd(), rootPath));
       return path.resolve(process.cwd(), rootPath);
     }
     return rootPath;

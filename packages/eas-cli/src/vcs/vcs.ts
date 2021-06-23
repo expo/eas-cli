@@ -1,5 +1,5 @@
 export abstract class Client {
-  // makeShallowCopyAsync should copy current project (result of getRootPathAsync()) to specfied
+  // makeShallowCopyAsync should copy current project (result of getRootPathAsync()) to the specified
   // destination, folder created this way will be uploaded "as is", so implementation should skip
   // anything that is not commited to the repository. Most optimal solution is to create shallow clone
   // using tooling provided by specific VCS, that respect all ignore rules
@@ -9,7 +9,7 @@ export abstract class Client {
   public abstract getRootPathAsync(): Promise<string>;
 
   // (optional) ensureRepoExistsAsync should verify whether repository exists and tooling is installed
-  // it's not required for minimal support, but lack of validation might couse the failure at latter stage.
+  // it's not required for minimal support, but lack of validation might cause the failure at a later stage.
   public async ensureRepoExistsAsync(): Promise<void> {}
 
   // (optional) hasUncommittedChangesAsync should check whether there are changes in local repository
@@ -42,7 +42,7 @@ export abstract class Client {
   public async showDiffAsync(): Promise<void> {}
 
   // (optional) returns hash of the last commit
-  // used for metadata - implemntation can be safely skipped
+  // used for metadata - implementation can be safely skipped
   public async getCommitHashAsync(): Promise<string | undefined> {
     return undefined;
   }
