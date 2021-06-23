@@ -7,16 +7,17 @@ import { BuildFragment, BuildStatus } from '../graphql/generated';
 import { BuildQuery } from '../graphql/queries/BuildQuery';
 import Log from '../log';
 import { sleep } from '../utils/promise';
+import vcs from '../vcs';
 import { prepareAndroidBuildAsync } from './android/build';
 import { CommandContext } from './context';
 import { prepareIosBuildAsync } from './ios/build';
 import { Platform, RequestedPlatform } from './types';
 import { printBuildResults, printLogsUrls } from './utils/printBuildInfo';
-import { ensureGitRepoExistsAsync, ensureGitStatusIsCleanAsync } from './utils/repository';
+import { ensureRepoIsCleanAsync } from './utils/repository';
 
 export async function buildAsync(commandCtx: CommandContext): Promise<void> {
-  await ensureGitRepoExistsAsync();
-  await ensureGitStatusIsCleanAsync(commandCtx.nonInteractive);
+  await vcs.ensureRepoExistsAsync();
+  await ensureRepoIsCleanAsync(commandCtx.nonInteractive);
 
   const scheduledBuilds = await startBuildsAsync(commandCtx);
   if (commandCtx.local) {

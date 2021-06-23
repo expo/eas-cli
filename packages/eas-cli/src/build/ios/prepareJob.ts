@@ -5,7 +5,7 @@ import path from 'path';
 import { IosCredentials, TargetCredentials } from '../../credentials/ios/types';
 import { getUsername } from '../../project/projectUtils';
 import { ensureLoggedInAsync } from '../../user/actions';
-import { gitRootDirectoryAsync } from '../../utils/git';
+import vcs from '../../vcs';
 import { BuildContext } from '../context';
 import { Platform } from '../types';
 
@@ -94,7 +94,7 @@ async function prepareGenericJobAsync(
   buildProfile: IosGenericBuildProfile
 ): Promise<Partial<Ios.GenericJob>> {
   const projectRootDirectory =
-    path.relative(await gitRootDirectoryAsync(), ctx.commandCtx.projectDir) || '.';
+    path.relative(await vcs.getRootPathAsync(), ctx.commandCtx.projectDir) || '.';
   return {
     ...(await prepareJobCommonAsync(ctx, {
       credentials: jobData.credentials,
@@ -116,7 +116,7 @@ async function prepareManagedJobAsync(
   buildProfile: IosManagedBuildProfile
 ): Promise<Partial<Ios.ManagedJob>> {
   const projectRootDirectory =
-    path.relative(await gitRootDirectoryAsync(), ctx.commandCtx.projectDir) || '.';
+    path.relative(await vcs.getRootPathAsync(), ctx.commandCtx.projectDir) || '.';
   const username = getUsername(ctx.commandCtx.exp, await ensureLoggedInAsync());
   return {
     ...(await prepareJobCommonAsync(ctx, {

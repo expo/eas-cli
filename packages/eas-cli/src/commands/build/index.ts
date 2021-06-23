@@ -8,7 +8,6 @@ import { configureAsync } from '../../build/configure';
 import { createCommandContextAsync } from '../../build/context';
 import { buildAsync } from '../../build/create';
 import { RequestedPlatform } from '../../build/types';
-import { isGitStatusCleanAsync } from '../../build/utils/repository';
 import EasCommand from '../../commandUtils/EasCommand';
 import Log, { learnMore } from '../../log';
 import {
@@ -17,6 +16,7 @@ import {
 } from '../../project/isEasEnabledForProject';
 import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUtils';
 import { confirmAsync, promptAsync } from '../../prompts';
+import vcs from '../../vcs';
 
 export default class Build extends EasCommand {
   static description = 'Start a build';
@@ -152,9 +152,9 @@ async function ensureProjectConfiguredAsync(projectDir: string): Promise<ExpoCon
       projectDir,
       platform: RequestedPlatform.All,
     });
-    if (!(await isGitStatusCleanAsync())) {
+    if (await vcs.hasUncommittedChangesAsync()) {
       throw new Error(
-        'Build process requires clean git working tree, please commit all your changes and run `eas build` again'
+        'Build process requires clean working tree, please commit all your changes and run `eas build` again'
       );
     }
     const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });

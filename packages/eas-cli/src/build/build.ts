@@ -9,6 +9,7 @@ import { promptAsync } from '../prompts';
 import { uploadAsync } from '../uploads';
 import { formatBytes } from '../utils/files';
 import { createProgressTracker } from '../utils/progress';
+import vcs from '../vcs';
 import { requestedPlatformDisplayNames } from './constants';
 import { BuildContext } from './context';
 import { runLocalBuildAsync } from './local';
@@ -16,13 +17,7 @@ import { collectMetadata } from './metadata';
 import { Platform, TrackingContext } from './types';
 import Analytics, { Event } from './utils/analytics';
 import { printDeprecationWarnings } from './utils/printBuildInfo';
-import {
-  commitChangedFilesAsync,
-  commitPromptAsync,
-  isGitStatusCleanAsync,
-  makeProjectTarballAsync,
-  showDiffAsync,
-} from './utils/repository';
+import { commitPromptAsync, makeProjectTarballAsync } from './utils/repository';
 
 export interface CredentialsResult<Credentials> {
   source: CredentialsSource.LOCAL | CredentialsSource.REMOTE;
@@ -66,7 +61,7 @@ export async function prepareBuildRequestForPlatformAsync<
     });
   }
 
-  if (!(await isGitStatusCleanAsync())) {
+  if (await vcs.hasUncommittedChangesAsync()) {
     Log.addNewLineIfNone();
     await reviewAndCommitChangesAsync(
       `[EAS Build] Run EAS Build for ${
@@ -225,7 +220,7 @@ async function reviewAndCommitChangesAsync(
   { nonInteractive, askedFirstTime = true }: { nonInteractive: boolean; askedFirstTime?: boolean }
 ): Promise<void> {
   if (process.env.EAS_BUILD_AUTOCOMMIT) {
-    await commitChangedFilesAsync(initialCommitMessage);
+    await vcs.commitAsync({ commitMessage: initialCommitMessage, commitAllFiles: false });
     Log.withTick('Committed changes.');
     return;
   }
@@ -258,7 +253,7 @@ async function reviewAndCommitChangesAsync(
     await commitPromptAsync({ initialCommitMessage });
     Log.withTick('Committed changes.');
   } else if (selected === ShouldCommitChanges.ShowDiffFirst) {
-    await showDiffAsync();
+    await vcs.showDiffAsync();
     await reviewAndCommitChangesAsync(initialCommitMessage, {
       nonInteractive,
       askedFirstTime: false,

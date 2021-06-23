@@ -6,7 +6,8 @@ import path from 'path';
 import { AndroidAppBuildCredentialsFragment, IosDistributionType } from '../../graphql/generated';
 import Log from '../../log';
 import { findApplicationTarget, findTargetByName } from '../../project/ios/target';
-import { gitStatusAsync } from '../../utils/git';
+import vcs from '../../vcs';
+import GitClient from '../../vcs/git';
 import { Context } from '../context';
 import { App, Target, TargetCredentials } from '../ios/types';
 import { readRawAsync } from './read';
@@ -293,13 +294,10 @@ async function updateFileAsync(
 }
 
 async function isFileUntrackedAsync(path: string): Promise<boolean> {
-  const withUntrackedFiles = await gitStatusAsync({ showUntracked: true });
-  const trackedFiles = await gitStatusAsync({ showUntracked: false });
-  const pathWithoutLeadingDot = path.replace(/^\.\//, ''); // remove leading './' from path
-  return (
-    withUntrackedFiles.includes(pathWithoutLeadingDot) &&
-    !trackedFiles.includes(pathWithoutLeadingDot)
-  );
+  if (vcs instanceof GitClient) {
+    return await vcs.isFileUntrackedAsync(path);
+  }
+  return false;
 }
 
 function displayUntrackedFilesWarning(newFilePaths: string[]) {

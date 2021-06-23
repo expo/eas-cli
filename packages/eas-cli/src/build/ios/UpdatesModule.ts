@@ -5,7 +5,7 @@ import fs from 'fs-extra';
 import Log from '../../log';
 import { getProjectAccountName } from '../../project/projectUtils';
 import { ensureLoggedInAsync } from '../../user/actions';
-import { gitAddAsync } from '../../utils/git';
+import vcs from '../../vcs';
 import { ensureValidVersions } from '../utils/updates';
 import { readPlistAsync, writePlistAsync } from './plist';
 
@@ -84,7 +84,7 @@ async function writeExpoPlistAsync(
 ): Promise<void> {
   const expoPlistPath = IOSConfig.Paths.getExpoPlistPath(projectDir);
   await writePlistAsync(expoPlistPath, expoPlist);
-  await gitAddAsync(expoPlistPath, { intentToAdd: true });
+  await vcs.trackFileAsync(expoPlistPath);
 }
 
 export async function readReleaseChannelSafelyAsync(projectDir: string): Promise<string | null> {

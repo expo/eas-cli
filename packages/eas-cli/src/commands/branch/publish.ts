@@ -33,7 +33,7 @@ import {
 } from '../../project/publish';
 import { promptAsync, selectAsync } from '../../prompts';
 import { formatUpdate } from '../../update/utils';
-import { getLastCommitMessageAsync } from '../../utils/git';
+import vcs from '../../vcs';
 import { listBranchesAsync } from './list';
 import { viewUpdateBranchAsync } from './view';
 
@@ -284,7 +284,7 @@ export default class BranchPublish extends Command {
         message: `Please enter a publication message.`,
         initial: republish
           ? `Republish "${oldMessage!}" - group: ${group}`
-          : (await getLastCommitMessageAsync())?.trim(),
+          : (await vcs.getLastCommitMessageAsync())?.trim(),
         validate: value => (value ? true : validationMessage),
       }));
     }
