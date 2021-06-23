@@ -154,7 +154,7 @@ async function ensureProjectConfiguredAsync(projectDir: string): Promise<ExpoCon
     });
     if (await vcs.hasUncommittedChangesAsync()) {
       throw new Error(
-        'Build process requires clean git working tree, please commit all your changes and run `eas build` again'
+        'Build process requires clean working tree, please commit all your changes and run `eas build` again'
       );
     }
     const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });

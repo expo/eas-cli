@@ -17,7 +17,7 @@ export async function maybeBailOnRepoStatusAsync(): Promise<void> {
     return;
   }
   Log.addNewLineIfNone();
-  Log.warn(`${chalk.bold('Warning!')} Your git working tree is dirty.`);
+  Log.warn(`${chalk.bold('Warning!')} Your repository working tree is dirty.`);
   Log.log(
     `It's recommended to ${chalk.bold(
       'commit all your changes before proceeding'
@@ -37,7 +37,7 @@ export async function ensureRepoIsCleanAsync(nonInteractive = false): Promise<vo
     return;
   }
   Log.addNewLineIfNone();
-  Log.warn(`${chalk.bold('Warning!')} Your git working tree is dirty.`);
+  Log.warn(`${chalk.bold('Warning!')} Your repository working tree is dirty.`);
   Log.log(
     `This operation needs to be run on a clean working tree, please ${chalk.bold(
       'commit all your changes before proceeding'
