@@ -40,6 +40,7 @@ export const testPushKey: ApplePushKeyFragment = {
   keyIdentifier: 'test-key-identifier',
   appleTeam: { ...testAppleTeamFragment },
   updatedAt: new Date(),
+  iosAppCredentialsList: [],
 };
 
 export const testTargets: Target[] = [{ targetName: 'testapp', bundleIdentifier: 'foo.bar.com' }];

@@ -1,6 +1,8 @@
 import { print } from 'graphql';
 import gql from 'graphql-tag';
 
+import { AppFragmentNode } from '../App';
+import { AppleAppIdentifierFragmentNode } from './AppleAppIdentifier';
 import { AppleTeamFragmentNode } from './AppleTeam';
 
 export const ApplePushKeyFragmentNode = gql`
@@ -12,6 +14,19 @@ export const ApplePushKeyFragmentNode = gql`
       id
       ...AppleTeamFragment
     }
+    iosAppCredentialsList {
+      id
+      app {
+        id
+        ...AppFragment
+      }
+      appleAppIdentifier {
+        id
+        ...AppleAppIdentifierFragment
+      }
+    }
   }
   ${print(AppleTeamFragmentNode)}
+  ${print(AppFragmentNode)}
+  ${print(AppleAppIdentifierFragmentNode)}
 `;

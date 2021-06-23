@@ -187,6 +187,12 @@ export function formatPushKey(
   line += ` ${appleTeam ? `, ${formatAppleTeam(appleTeam)}` : ''}`;
   line += chalk.gray(`\n    Updated: ${fromNow(new Date(updatedAt))} ago,`);
 
+  const apps = pushKey.iosAppCredentialsList.map(appCredentials => appCredentials.app);
+  if (apps.length) {
+    const appFullNames = apps.map(app => app.fullName).join(',');
+    line += chalk.gray(`\n    📲 Used by: ${appFullNames}`);
+  }
+
   if (validPushKeyIdentifiers?.includes(keyIdentifier)) {
     line += chalk.gray("\n    ✅ Currently valid on Apple's servers.");
   } else {
