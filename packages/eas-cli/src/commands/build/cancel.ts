@@ -47,7 +47,15 @@ function formatUnfinishedBuild(
 ): string {
   const platform = appPlatformEmojis[build.platform];
   const startTime = new Date(build.createdAt).toLocaleString();
-  const status = chalk.blue(build.status === BuildStatus.InQueue ? 'in-queue' : 'in-progress');
+  let statusText: string;
+  if (build.status === BuildStatus.New) {
+    statusText = 'new';
+  } else if (build.status === BuildStatus.InQueue) {
+    statusText = 'in queue';
+  } else {
+    statusText = 'in progress';
+  }
+  const status = chalk.blue(statusText);
   return `${platform} Started at: ${startTime}, Status: ${status}, Id: ${build.id}`;
 }
 
@@ -58,12 +66,13 @@ async function selectBuildToCancelAsync(
   const spinner = ora().start('Fetching the uncompleted builds…');
   let builds;
   try {
-    const [inQueueBuilds, inProgressBuilds] = await Promise.all([
+    const [newBuilds, inQueueBuilds, inProgressBuilds] = await Promise.all([
+      BuildQuery.allForAppAsync(projectId, { status: BuildStatus.New }),
       BuildQuery.allForAppAsync(projectId, { status: BuildStatus.InQueue }),
       BuildQuery.allForAppAsync(projectId, { status: BuildStatus.InProgress }),
     ]);
     spinner.stop();
-    builds = [...inQueueBuilds, ...inProgressBuilds];
+    builds = [...newBuilds, ...inQueueBuilds, ...inProgressBuilds];
   } catch (error) {
     spinner.fail(
       `Something went wrong and we couldn't fetch the builds for the project ${projectFullName}.`

@@ -7,6 +7,7 @@ export enum RequestedPlatform {
 }
 
 export enum BuildStatus {
+  NEW = 'new',
   IN_QUEUE = 'in-queue',
   IN_PROGRESS = 'in-progress',
   ERRORED = 'errored',

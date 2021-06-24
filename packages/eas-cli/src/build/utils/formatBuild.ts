@@ -18,6 +18,8 @@ export function formatGraphQLBuild(build: BuildFragment) {
       label: 'Status',
       get value() {
         switch (build.status) {
+          case GraphQLBuildStatus.New:
+            return chalk.blue('new');
           case GraphQLBuildStatus.InQueue:
             return chalk.blue('in queue');
           case GraphQLBuildStatus.InProgress:
@@ -48,12 +50,8 @@ export function formatGraphQLBuild(build: BuildFragment) {
     {
       label: 'Artifact',
       get value() {
-        if (
-          build.status === GraphQLBuildStatus.InQueue ||
-          build.status === GraphQLBuildStatus.InProgress
-        ) {
-        }
         switch (build.status) {
+          case GraphQLBuildStatus.New:
           case GraphQLBuildStatus.InQueue:
           case GraphQLBuildStatus.InProgress:
             return '<in progress>';
@@ -72,11 +70,13 @@ export function formatGraphQLBuild(build: BuildFragment) {
     { label: 'Started at', value: new Date(build.createdAt).toLocaleString() },
     {
       label: 'Finished at',
-      value:
-        build.status === GraphQLBuildStatus.InQueue ||
-        build.status === GraphQLBuildStatus.InProgress
-          ? '<in progress>'
-          : new Date(build.updatedAt).toLocaleString(),
+      value: [
+        GraphQLBuildStatus.New,
+        GraphQLBuildStatus.InQueue,
+        GraphQLBuildStatus.InProgress,
+      ].includes(build.status)
+        ? '<in progress>'
+        : new Date(build.updatedAt).toLocaleString(),
     },
     { label: 'Started by', value: actor ?? 'unknown' },
   ];

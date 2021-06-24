@@ -23,6 +23,7 @@ export default class BuildList extends Command {
     }),
     status: flags.enum({
       options: [
+        BuildStatus.NEW,
         BuildStatus.IN_QUEUE,
         BuildStatus.IN_PROGRESS,
         BuildStatus.ERRORED,
@@ -92,6 +93,8 @@ const toAppPlatform = (requestedPlatform?: RequestedPlatform): AppPlatform | und
 const toGraphQLBuildStatus = (buildStatus: BuildStatus): GraphQLBuildStatus | undefined => {
   if (!buildStatus) {
     return undefined;
+  } else if (buildStatus === BuildStatus.NEW) {
+    return GraphQLBuildStatus.New;
   } else if (buildStatus === BuildStatus.IN_QUEUE) {
     return GraphQLBuildStatus.InQueue;
   } else if (buildStatus === BuildStatus.IN_PROGRESS) {

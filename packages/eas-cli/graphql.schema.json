@@ -3876,6 +3876,12 @@
         "interfaces": null,
         "enumValues": [
           {
+            "name": "NEW",
+            "description": "",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "IN_QUEUE",
             "description": "",
             "isDeprecated": false,
@@ -7930,6 +7936,30 @@
                 "kind": "SCALAR",
                 "name": "DateTime",
                 "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "iosAppCredentialsList",
+            "description": "",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "LIST",
+                "name": null,
+                "ofType": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "OBJECT",
+                    "name": "IosAppCredentials",
+                    "ofType": null
+                  }
+                }
               }
             },
             "isDeprecated": false,
@@ -17397,13 +17427,9 @@
             "name": "appleTeamId",
             "description": "",
             "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "SCALAR",
-                "name": "ID",
-                "ofType": null
-              }
+              "kind": "SCALAR",
+              "name": "ID",
+              "ofType": null
             },
             "defaultValue": null
           },
@@ -20246,6 +20272,12 @@
         "enumValues": [
           {
             "name": "EAS_MASTER_LIST",
+            "description": "",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "DEV_CLIENT_USERS",
             "description": "",
             "isDeprecated": false,
             "deprecationReason": null

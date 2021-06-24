@@ -604,6 +604,7 @@ export enum AppPrivacy {
 }
 
 export enum BuildStatus {
+  New = 'NEW',
   InQueue = 'IN_QUEUE',
   InProgress = 'IN_PROGRESS',
   Errored = 'ERRORED',
@@ -1092,6 +1093,7 @@ export type ApplePushKey = {
   keyP8: Scalars['String'];
   createdAt: Scalars['DateTime'];
   updatedAt: Scalars['DateTime'];
+  iosAppCredentialsList: Array<IosAppCredentials>;
 };
 
 export type IosAppBuildCredentialsFilter = {
@@ -2650,7 +2652,7 @@ export type IosAppCredentialsMutationSetAppSpecificPasswordArgs = {
 };
 
 export type IosAppCredentialsInput = {
-  appleTeamId: Scalars['ID'];
+  appleTeamId?: Maybe<Scalars['ID']>;
   pushKeyId?: Maybe<Scalars['ID']>;
   appSpecificPasswordId?: Maybe<Scalars['ID']>;
 };
@@ -3182,7 +3184,8 @@ export type AddUserInput = {
 };
 
 export enum MailchimpTag {
-  EasMasterList = 'EAS_MASTER_LIST'
+  EasMasterList = 'EAS_MASTER_LIST',
+  DevClientUsers = 'DEV_CLIENT_USERS'
 }
 
 export enum MailchimpAudience {
@@ -4800,30 +4803,6 @@ export type GetAllBuildsForAppQuery = (
       )> }
     ) }
   )> }
-);
-
-export type PendingBuildsForAccountAndPlatformQueryVariables = Exact<{
-  accountName: Scalars['String'];
-  platform: AppPlatform;
-}>;
-
-
-export type PendingBuildsForAccountAndPlatformQuery = (
-  { __typename?: 'RootQuery' }
-  & { account: (
-    { __typename?: 'AccountQuery' }
-    & { byName: (
-      { __typename?: 'Account' }
-      & Pick<Account, 'id'>
-      & { inQueueBuilds: Array<(
-        { __typename?: 'Build' }
-        & Pick<Build, 'id' | 'platform'>
-      )>, inProgressBuilds: Array<(
-        { __typename?: 'Build' }
-        & Pick<Build, 'id' | 'platform'>
-      )> }
-    ) }
-  ) }
 );
 
 export type EnvironmentSecretsByAccountNameQueryVariables = Exact<{
