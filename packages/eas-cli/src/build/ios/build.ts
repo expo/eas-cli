@@ -4,7 +4,6 @@ import chalk from 'chalk';
 import fs from 'fs-extra';
 import path from 'path';
 
-import { SetupPushKey } from '../../credentials/ios/actions/SetupPushKey';
 import { IosCredentials } from '../../credentials/ios/types';
 import { BuildMutation, BuildResult } from '../../graphql/mutations/BuildMutation';
 import { ensureBundleIdentifierIsDefinedForManagedProjectAsync } from '../../project/ios/bundleIdentifier';
