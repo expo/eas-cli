@@ -77,7 +77,7 @@ export function displayIosCredentials(
     }
     Log.log(`  Bundle Identifier: ${chalk.bold(bundleIdentifier)}`);
     const targetAppCredentials = appCredentialsMap[targetName];
-    if (!targetAppCredentials || targetAppCredentials.iosAppBuildCredentialsList.length === 0) {
+    if (!targetAppCredentials) {
       Log.newLine();
       Log.log(`  No credentials set up yet!`);
       Log.newLine();

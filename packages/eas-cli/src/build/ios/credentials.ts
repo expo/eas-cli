@@ -7,6 +7,7 @@ import { SetupPushKey } from '../../credentials/ios/actions/SetupPushKey';
 import { resolveEntitlementsJsonAsync } from '../../credentials/ios/appstore/entitlements';
 import { IosCredentials, Target } from '../../credentials/ios/types';
 import { CommonIosAppCredentialsFragment } from '../../graphql/generated';
+import Log from '../../log';
 import { findApplicationTarget } from '../../project/ios/target';
 import { confirmAsync } from '../../prompts';
 import { CredentialsResult } from '../build';
@@ -86,6 +87,9 @@ export async function setupPushKeyAsync(
   const setupPushKeyAction = await new SetupPushKey(appLookupParams);
   const isPushKeySetup = await setupPushKeyAction.isPushKeySetupAsync(ctx);
   if (isPushKeySetup) {
+    Log.succeed(
+      `Push Notifications setup for ${app.projectName}:${applicationTarget.bundleIdentifier}`
+    );
     return null;
   }
 
