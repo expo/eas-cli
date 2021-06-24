@@ -69,7 +69,7 @@ ALIASES
   $ eas login
 ```
 
-_See code: [src/commands/account/login.ts](https://github.com/expo/eas-cli/blob/v0.17.0/packages/eas-cli/src/commands/account/login.ts)_
+_See code: [src/commands/account/login.ts](https://github.com/expo/eas-cli/blob/v0.18.0/packages/eas-cli/src/commands/account/login.ts)_
 
 ## `eas account:logout`
 
@@ -83,7 +83,7 @@ ALIASES
   $ eas logout
 ```
 
-_See code: [src/commands/account/logout.ts](https://github.com/expo/eas-cli/blob/v0.17.0/packages/eas-cli/src/commands/account/logout.ts)_
+_See code: [src/commands/account/logout.ts](https://github.com/expo/eas-cli/blob/v0.18.0/packages/eas-cli/src/commands/account/logout.ts)_
 
 ## `eas account:view`
 
@@ -97,7 +97,7 @@ ALIASES
   $ eas whoami
 ```
 
-_See code: [src/commands/account/view.ts](https://github.com/expo/eas-cli/blob/v0.17.0/packages/eas-cli/src/commands/account/view.ts)_
+_See code: [src/commands/account/view.ts](https://github.com/expo/eas-cli/blob/v0.18.0/packages/eas-cli/src/commands/account/view.ts)_
 
 ## `eas analytics [STATUS]`
 
@@ -108,7 +108,7 @@ USAGE
   $ eas analytics [STATUS]
 ```
 
-_See code: [src/commands/analytics.ts](https://github.com/expo/eas-cli/blob/v0.17.0/packages/eas-cli/src/commands/analytics.ts)_
+_See code: [src/commands/analytics.ts](https://github.com/expo/eas-cli/blob/v0.18.0/packages/eas-cli/src/commands/analytics.ts)_
 
 ## `eas build`
 
@@ -124,12 +124,11 @@ OPTIONS
   --local                           Run build locally [experimental]
   --non-interactive                 Run command in --non-interactive mode
   --profile=profile                 [default: release] Name of the build profile from eas.json
-  --skip-credentials-check          Skip validation of build credentials
   --skip-project-configuration      Skip project configuration
   --[no-]wait                       Wait for build(s) to complete
 ```
 
-_See code: [src/commands/build/index.ts](https://github.com/expo/eas-cli/blob/v0.17.0/packages/eas-cli/src/commands/build/index.ts)_
+_See code: [src/commands/build/index.ts](https://github.com/expo/eas-cli/blob/v0.18.0/packages/eas-cli/src/commands/build/index.ts)_
 
 ## `eas build:cancel [BUILD_ID]`
 
@@ -140,7 +139,7 @@ USAGE
   $ eas build:cancel [BUILD_ID]
 ```
 
-_See code: [src/commands/build/cancel.ts](https://github.com/expo/eas-cli/blob/v0.17.0/packages/eas-cli/src/commands/build/cancel.ts)_
+_See code: [src/commands/build/cancel.ts](https://github.com/expo/eas-cli/blob/v0.18.0/packages/eas-cli/src/commands/build/cancel.ts)_
 
 ## `eas build:configure`
 
@@ -152,10 +151,9 @@ USAGE
 
 OPTIONS
   -p, --platform=(android|ios|all)  Platform to configure
-  --allow-experimental              Enable experimental configuration steps.
 ```
 
-_See code: [src/commands/build/configure.ts](https://github.com/expo/eas-cli/blob/v0.17.0/packages/eas-cli/src/commands/build/configure.ts)_
+_See code: [src/commands/build/configure.ts](https://github.com/expo/eas-cli/blob/v0.18.0/packages/eas-cli/src/commands/build/configure.ts)_
 
 ## `eas build:list`
 
@@ -168,10 +166,10 @@ USAGE
 OPTIONS
   --limit=limit
   --platform=(all|android|ios)
-  --status=(in-queue|in-progress|errored|finished|canceled)
+  --status=(new|in-queue|in-progress|errored|finished|canceled)
 ```
 
-_See code: [src/commands/build/list.ts](https://github.com/expo/eas-cli/blob/v0.17.0/packages/eas-cli/src/commands/build/list.ts)_
+_See code: [src/commands/build/list.ts](https://github.com/expo/eas-cli/blob/v0.18.0/packages/eas-cli/src/commands/build/list.ts)_
 
 ## `eas build:view [BUILD_ID]`
 
@@ -182,7 +180,7 @@ USAGE
   $ eas build:view [BUILD_ID]
 ```
 
-_See code: [src/commands/build/view.ts](https://github.com/expo/eas-cli/blob/v0.17.0/packages/eas-cli/src/commands/build/view.ts)_
+_See code: [src/commands/build/view.ts](https://github.com/expo/eas-cli/blob/v0.18.0/packages/eas-cli/src/commands/build/view.ts)_
 
 ## `eas credentials`
 
@@ -193,7 +191,7 @@ USAGE
   $ eas credentials
 ```
 
-_See code: [src/commands/credentials.ts](https://github.com/expo/eas-cli/blob/v0.17.0/packages/eas-cli/src/commands/credentials.ts)_
+_See code: [src/commands/credentials.ts](https://github.com/expo/eas-cli/blob/v0.18.0/packages/eas-cli/src/commands/credentials.ts)_
 
 ## `eas device:create`
 
@@ -204,7 +202,7 @@ USAGE
   $ eas device:create
 ```
 
-_See code: [src/commands/device/create.ts](https://github.com/expo/eas-cli/blob/v0.17.0/packages/eas-cli/src/commands/device/create.ts)_
+_See code: [src/commands/device/create.ts](https://github.com/expo/eas-cli/blob/v0.18.0/packages/eas-cli/src/commands/device/create.ts)_
 
 ## `eas device:list`
 
@@ -218,7 +216,7 @@ OPTIONS
   --apple-team-id=apple-team-id
 ```
 
-_See code: [src/commands/device/list.ts](https://github.com/expo/eas-cli/blob/v0.17.0/packages/eas-cli/src/commands/device/list.ts)_
+_See code: [src/commands/device/list.ts](https://github.com/expo/eas-cli/blob/v0.18.0/packages/eas-cli/src/commands/device/list.ts)_
 
 ## `eas device:view [UDID]`
 
@@ -229,7 +227,7 @@ USAGE
   $ eas device:view [UDID]
 ```
 
-_See code: [src/commands/device/view.ts](https://github.com/expo/eas-cli/blob/v0.17.0/packages/eas-cli/src/commands/device/view.ts)_
+_See code: [src/commands/device/view.ts](https://github.com/expo/eas-cli/blob/v0.18.0/packages/eas-cli/src/commands/device/view.ts)_
 
 ## `eas help [COMMAND]`
 
@@ -262,7 +260,7 @@ OPTIONS
   --value=value              Value of the secret
 ```
 
-_See code: [src/commands/secret/create.ts](https://github.com/expo/eas-cli/blob/v0.17.0/packages/eas-cli/src/commands/secret/create.ts)_
+_See code: [src/commands/secret/create.ts](https://github.com/expo/eas-cli/blob/v0.18.0/packages/eas-cli/src/commands/secret/create.ts)_
 
 ## `eas secret:delete`
 
@@ -279,7 +277,7 @@ DESCRIPTION
   Unsure where to find the secret's ID? Run eas secrets:list
 ```
 
-_See code: [src/commands/secret/delete.ts](https://github.com/expo/eas-cli/blob/v0.17.0/packages/eas-cli/src/commands/secret/delete.ts)_
+_See code: [src/commands/secret/delete.ts](https://github.com/expo/eas-cli/blob/v0.18.0/packages/eas-cli/src/commands/secret/delete.ts)_
 
 ## `eas secret:list`
 
@@ -290,7 +288,7 @@ USAGE
   $ eas secret:list
 ```
 
-_See code: [src/commands/secret/list.ts](https://github.com/expo/eas-cli/blob/v0.17.0/packages/eas-cli/src/commands/secret/list.ts)_
+_See code: [src/commands/secret/list.ts](https://github.com/expo/eas-cli/blob/v0.18.0/packages/eas-cli/src/commands/secret/list.ts)_
 
 ## `eas submit --platform=(android|ios)`
 
@@ -370,7 +368,7 @@ EXAMPLES
          and provide its App ID
 ```
 
-_See code: [src/commands/submit.ts](https://github.com/expo/eas-cli/blob/v0.17.0/packages/eas-cli/src/commands/submit.ts)_
+_See code: [src/commands/submit.ts](https://github.com/expo/eas-cli/blob/v0.18.0/packages/eas-cli/src/commands/submit.ts)_
 
 ## `eas webhook:create`
 
@@ -389,7 +387,7 @@ OPTIONS
   --url=url        Webhook URL
 ```
 
-_See code: [src/commands/webhook/create.ts](https://github.com/expo/eas-cli/blob/v0.17.0/packages/eas-cli/src/commands/webhook/create.ts)_
+_See code: [src/commands/webhook/create.ts](https://github.com/expo/eas-cli/blob/v0.18.0/packages/eas-cli/src/commands/webhook/create.ts)_
 
 ## `eas webhook:delete [ID]`
 
@@ -403,7 +401,7 @@ ARGUMENTS
   ID  ID of the webhook to delete
 ```
 
-_See code: [src/commands/webhook/delete.ts](https://github.com/expo/eas-cli/blob/v0.17.0/packages/eas-cli/src/commands/webhook/delete.ts)_
+_See code: [src/commands/webhook/delete.ts](https://github.com/expo/eas-cli/blob/v0.18.0/packages/eas-cli/src/commands/webhook/delete.ts)_
 
 ## `eas webhook:list`
 
@@ -417,7 +415,7 @@ OPTIONS
   --event=(BUILD)  Event type that triggers the webhook
 ```
 
-_See code: [src/commands/webhook/list.ts](https://github.com/expo/eas-cli/blob/v0.17.0/packages/eas-cli/src/commands/webhook/list.ts)_
+_See code: [src/commands/webhook/list.ts](https://github.com/expo/eas-cli/blob/v0.18.0/packages/eas-cli/src/commands/webhook/list.ts)_
 
 ## `eas webhook:update`
 
@@ -437,7 +435,7 @@ OPTIONS
   --url=url        Webhook URL
 ```
 
-_See code: [src/commands/webhook/update.ts](https://github.com/expo/eas-cli/blob/v0.17.0/packages/eas-cli/src/commands/webhook/update.ts)_
+_See code: [src/commands/webhook/update.ts](https://github.com/expo/eas-cli/blob/v0.18.0/packages/eas-cli/src/commands/webhook/update.ts)_
 
 ## `eas webhook:view ID`
 
@@ -451,5 +449,5 @@ ARGUMENTS
   ID  ID of the webhook to view
 ```
 
-_See code: [src/commands/webhook/view.ts](https://github.com/expo/eas-cli/blob/v0.17.0/packages/eas-cli/src/commands/webhook/view.ts)_
+_See code: [src/commands/webhook/view.ts](https://github.com/expo/eas-cli/blob/v0.18.0/packages/eas-cli/src/commands/webhook/view.ts)_
 <!-- commandsstop -->
