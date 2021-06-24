@@ -94,6 +94,9 @@ async function waitForBuildEndAsync(
         case BuildStatus.Finished:
           spinner.succeed('Build finished');
           return builds;
+        case BuildStatus.New:
+          spinner.text = 'Build created';
+          break;
         case BuildStatus.InQueue:
           spinner.text = 'Build queued...';
           break;
@@ -131,6 +134,7 @@ async function waitForBuildEndAsync(
         spinner.fail('Some of the builds were canceled or failed.');
         return builds;
       } else {
+        const newBuilds = builds.filter(build => build?.status === BuildStatus.New).length;
         const inQueue = builds.filter(build => build?.status === BuildStatus.InQueue).length;
         const inProgress = builds.filter(build => build?.status === BuildStatus.InProgress).length;
         const errored = builds.filter(build => build?.status === BuildStatus.Errored).length;
@@ -138,6 +142,7 @@ async function waitForBuildEndAsync(
         const canceled = builds.filter(build => build?.status === BuildStatus.Canceled).length;
         const unknownState = builds.length - inQueue - inProgress - errored - finished;
         spinner.text = [
+          newBuilds && `Builds created: ${newBuilds}`,
           inQueue && `Builds in queue: ${inQueue}`,
           inProgress && `Builds in progress: ${inProgress}`,
           canceled && `Builds canceled: ${canceled}`,

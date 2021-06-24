@@ -11,8 +11,6 @@ import {
   BuildsByIdQueryVariables,
   GetAllBuildsForAppQuery,
   GetAllBuildsForAppQueryVariables,
-  PendingBuildsForAccountAndPlatformQuery,
-  PendingBuildsForAccountAndPlatformQueryVariables,
 } from '../generated';
 import { BuildFragmentNode } from '../types/Build';
 
@@ -89,56 +87,5 @@ export const BuildQuery = {
     );
 
     return data.app?.byId.builds ?? [];
-  },
-
-  async getPendingBuildIdAsync(
-    accountName: string,
-    platform: AppPlatform
-  ): Promise<PendingBuildQueryResult | null> {
-    const data = await withErrorHandlingAsync(
-      graphqlClient
-        .query<
-          PendingBuildsForAccountAndPlatformQuery,
-          PendingBuildsForAccountAndPlatformQueryVariables
-        >(
-          gql`
-            query PendingBuildsForAccountAndPlatform(
-              $accountName: String!
-              $platform: AppPlatform!
-            ) {
-              account {
-                byName(accountName: $accountName) {
-                  id
-                  inQueueBuilds: builds(
-                    offset: 0
-                    limit: 1
-                    platform: $platform
-                    status: IN_QUEUE
-                  ) {
-                    id
-                    platform
-                  }
-                  inProgressBuilds: builds(
-                    offset: 0
-                    limit: 1
-                    platform: $platform
-                    status: IN_PROGRESS
-                  ) {
-                    id
-                    platform
-                  }
-                }
-              }
-            }
-          `,
-          { accountName, platform }
-        )
-        .toPromise()
-    );
-    const pendingBuilds = [
-      ...data.account.byName.inProgressBuilds,
-      ...data.account.byName.inQueueBuilds,
-    ];
-    return pendingBuilds.length > 0 ? pendingBuilds[0] : null;
   },
 };
