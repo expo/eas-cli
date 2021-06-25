@@ -2,6 +2,7 @@ import chalk from 'chalk';
 import dateformat from 'dateformat';
 
 import {
+  AppleAppSpecificPasswordFragment,
   AppleDeviceFragment,
   ApplePushKeyFragment,
   IosAppBuildCredentialsFragment,
@@ -84,7 +85,7 @@ export function displayIosCredentials(
       continue;
     }
 
-    const { appleTeam, pushKey } = targetAppCredentials;
+    const { appleTeam, pushKey, appSpecificPassword } = targetAppCredentials;
     if (appleTeam) {
       const { appleTeamIdentifier, appleTeamName } = appleTeam;
       Log.log(`  Apple Team: ${appleTeamIdentifier} ${appleTeamName ? `(${appleTeamName})` : ''}`);
@@ -93,6 +94,10 @@ export function displayIosCredentials(
 
     if (pushKey) {
       displayApplePushKey(pushKey);
+    }
+
+    if (appSpecificPassword) {
+      displayAppSpecificPassword(appSpecificPassword);
     }
 
     const sortedIosAppBuildCredentialsList = sortBuildCredentialsByDistributionType(
@@ -181,6 +186,23 @@ function displayIosAppBuildCredentials(buildCredentials: IosAppBuildCredentialsF
       for (const appleDevice of appleDevices) {
         Log.log(`    - ${formatAppleDevice(appleDevice)}`);
       }
+    }
+    Log.log(`    Updated ${fromNow(new Date(updatedAt))} ago`);
+  } else {
+    Log.log(`    None assigned yet`);
+  }
+  Log.newLine();
+}
+
+function displayAppSpecificPassword(
+  maybeAppSpecificPassword: AppleAppSpecificPasswordFragment | null
+): void {
+  Log.log(`  App Specific Password:`);
+  if (maybeAppSpecificPassword) {
+    const { appleIdUsername, passwordLabel, updatedAt } = maybeAppSpecificPassword;
+    Log.log(`    Apple ID Username: ${appleIdUsername}`);
+    if (passwordLabel) {
+      Log.log(`    Password Label: ${passwordLabel}`);
     }
     Log.log(`    Updated ${fromNow(new Date(updatedAt))} ago`);
   } else {

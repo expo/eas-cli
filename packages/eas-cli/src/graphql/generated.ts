@@ -5088,6 +5088,11 @@ export type AppleAppIdentifierFragment = (
   & Pick<AppleAppIdentifier, 'id' | 'bundleIdentifier'>
 );
 
+export type AppleAppSpecificPasswordFragment = (
+  { __typename?: 'AppleAppSpecificPassword' }
+  & Pick<AppleAppSpecificPassword, 'id' | 'appleIdUsername' | 'passwordLabel' | 'updatedAt'>
+);
+
 export type AppleDeviceFragment = (
   { __typename?: 'AppleDevice' }
   & Pick<AppleDevice, 'id' | 'identifier' | 'name' | 'model' | 'deviceClass'>
@@ -5195,6 +5200,10 @@ export type CommonIosAppCredentialsWithoutBuildCredentialsFragment = (
     { __typename?: 'ApplePushKey' }
     & Pick<ApplePushKey, 'id'>
     & ApplePushKeyFragment
+  )>, appSpecificPassword?: Maybe<(
+    { __typename?: 'AppleAppSpecificPassword' }
+    & Pick<AppleAppSpecificPassword, 'id'>
+    & AppleAppSpecificPasswordFragment
   )> }
 );
 

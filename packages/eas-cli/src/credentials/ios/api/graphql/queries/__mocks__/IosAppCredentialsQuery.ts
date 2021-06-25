@@ -30,6 +30,13 @@ const IosAppCredentialsQuery = {
         },
         __typename: 'ApplePushKey',
       },
+      appSpecificPassword: {
+        id: '64bdd007-da7b-4190-a571-edb87e9324a1',
+        appleIdUsername: 'quin@expo.io',
+        passwordLabel: 'description for super secret password',
+        updatedAt: '2020-10-13T18:39:04.463Z',
+        __typename: 'AppleAppSpecificPassword',
+      },
       iosAppBuildCredentialsList: [
         {
           id: '6f8d0175-0caf-4922-b09b-eae757b83144',
