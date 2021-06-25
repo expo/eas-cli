@@ -11,8 +11,8 @@ import {
   IosAppBuildCredentialsFragment,
   IosDistributionType,
 } from '../../../graphql/generated';
+import { isWildcardBundleIdentifier } from '../../../project/ios/bundleIdentifier';
 import { Account } from '../../../user/Account';
-import { isWildcardBundleIdentifier } from '../actions/AppleAppIdentifierUtils';
 import { DistributionCertificate, PushKey } from '../appstore/Credentials.types';
 import { AppleTeamMissingError } from '../errors';
 import { AppleAppIdentifierMutation } from './graphql/mutations/AppleAppIdentifierMutation';
