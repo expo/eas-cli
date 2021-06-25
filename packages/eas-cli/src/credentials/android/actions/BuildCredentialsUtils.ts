@@ -128,9 +128,8 @@ export async function createOrUpdateDefaultAndroidAppBuildCredentialsAsync(
       { androidKeystoreId }
     );
   }
-  const providedName = generateRandomName();
   return await ctx.android.createAndroidAppBuildCredentialsAsync(appLookupParams, {
-    name: providedName,
+    name: generateRandomName(),
     isDefault: true,
     androidKeystoreId,
   });
