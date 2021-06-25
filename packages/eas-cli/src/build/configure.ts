@@ -121,7 +121,7 @@ export async function ensureEasJsonExistsAsync(ctx: ConfigureContext): Promise<v
 
   const easJson = {
     builds: {
-      ...existingEasJson,
+      ...(existingEasJson?.builds ?? existingEasJson),
       ...(shouldInitAndroid
         ? {
             android: ctx.hasAndroidNativeProject ? ANDROID_GENERIC_DEFAULTS : MANAGED_DEFAULTS,
