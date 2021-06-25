@@ -104,7 +104,7 @@ async function prepareGenericJobAsync(
   ctx: BuildContext<Platform.IOS>,
   jobData: JobData,
   buildProfile: IosGenericBuildProfile
-): Promise<Partial<Ios.GenericJob>> {
+): Promise<Partial<Ios.Job>> {
   const projectRootDirectory =
     path.relative(await vcs.getRootPathAsync(), ctx.commandCtx.projectDir) || '.';
   return {
@@ -126,7 +126,7 @@ async function prepareManagedJobAsync(
   ctx: BuildContext<Platform.IOS>,
   jobData: JobData,
   buildProfile: IosManagedBuildProfile
-): Promise<Partial<Ios.ManagedJob>> {
+): Promise<Partial<Ios.Job>> {
   const projectRootDirectory =
     path.relative(await vcs.getRootPathAsync(), ctx.commandCtx.projectDir) || '.';
   const username = getUsername(ctx.commandCtx.exp, await ensureLoggedInAsync());

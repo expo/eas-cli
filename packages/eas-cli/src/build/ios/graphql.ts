@@ -3,15 +3,15 @@ import nullthrows from 'nullthrows';
 
 import {
   DistributionType,
-  IosGenericJobInput,
+  IosBuildType,
+  IosJobInput,
   IosJobSecretsInput,
-  IosManagedBuildType,
-  IosManagedJobInput,
 } from '../../graphql/generated';
-import { transformProjectArchive } from '../graphql';
+import { transformProjectArchive, transformWorkflow } from '../graphql';
 
-export function transformGenericJob(job: Ios.GenericJob): IosGenericJobInput {
+export function transformJob(job: Ios.Job): IosJobInput {
   return {
+    type: transformWorkflow(job.type),
     projectArchive: transformProjectArchive(job.projectArchive),
     projectRootDirectory: job.projectRootDirectory,
     releaseChannel: job.releaseChannel,
@@ -20,22 +20,11 @@ export function transformGenericJob(job: Ios.GenericJob): IosGenericJobInput {
     secrets: transformIosSecrets(job.secrets),
     builderEnvironment: job.builderEnvironment,
     cache: job.cache,
+
     scheme: job.scheme,
     buildConfiguration: job.buildConfiguration,
     artifactPath: job.artifactPath,
-  };
-}
 
-export function transformManagedJob(job: Ios.ManagedJob): IosManagedJobInput {
-  return {
-    projectArchive: transformProjectArchive(job.projectArchive),
-    projectRootDirectory: job.projectRootDirectory,
-    releaseChannel: job.releaseChannel,
-    updates: job.updates,
-    distribution: job.distribution && transformDistributionType(job.distribution),
-    secrets: transformIosSecrets(job.secrets),
-    builderEnvironment: job.builderEnvironment,
-    cache: job.cache,
     buildType: job.buildType && transformBuildType(job.buildType),
     username: job.username,
   };
@@ -73,10 +62,10 @@ function transformIosSecrets(secrets: {
   };
 }
 
-function transformBuildType(buildType: Ios.ManagedBuildType): IosManagedBuildType {
-  if (buildType === Ios.ManagedBuildType.DEVELOPMENT_CLIENT) {
-    return IosManagedBuildType.DevelopmentClient;
+function transformBuildType(buildType: Ios.BuildType): IosBuildType {
+  if (buildType === Ios.BuildType.DEVELOPMENT_CLIENT) {
+    return IosBuildType.DevelopmentClient;
   } else {
-    return IosManagedBuildType.Release;
+    return IosBuildType.Release;
   }
 }

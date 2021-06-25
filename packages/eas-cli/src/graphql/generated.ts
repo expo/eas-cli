@@ -2352,14 +2352,24 @@ export type BuildMutation = {
    * @deprecated Use cancelBuild instead
    */
   cancel: Build;
-  /** Create an Android generic build */
+  /**
+   * Create an Android generic build
+   * @deprecated Use createAndroidBuild instead
+   */
   createAndroidGenericBuild: CreateBuildResult;
-  /** Create an Android managed build */
+  /**
+   * Create an Android managed build
+   * @deprecated Use createAndroidBuild instead
+   */
   createAndroidManagedBuild: CreateBuildResult;
+  /** Create an Android build */
+  createAndroidBuild: CreateBuildResult;
   /** Create an iOS generic build */
   createIosGenericBuild: CreateBuildResult;
   /** Create an iOS managed build */
   createIosManagedBuild: CreateBuildResult;
+  /** Create an iOS build */
+  createIosBuild: CreateBuildResult;
 };
 
 
@@ -2387,6 +2397,13 @@ export type BuildMutationCreateAndroidManagedBuildArgs = {
 };
 
 
+export type BuildMutationCreateAndroidBuildArgs = {
+  appId: Scalars['ID'];
+  job: AndroidJobInput;
+  metadata?: Maybe<BuildMetadataInput>;
+};
+
+
 export type BuildMutationCreateIosGenericBuildArgs = {
   appId: Scalars['ID'];
   job: IosGenericJobInput;
@@ -2397,6 +2414,13 @@ export type BuildMutationCreateIosGenericBuildArgs = {
 export type BuildMutationCreateIosManagedBuildArgs = {
   appId: Scalars['ID'];
   job: IosManagedJobInput;
+  metadata?: Maybe<BuildMetadataInput>;
+};
+
+
+export type BuildMutationCreateIosBuildArgs = {
+  appId: Scalars['ID'];
+  job: IosJobInput;
   metadata?: Maybe<BuildMetadataInput>;
 };
 
@@ -2523,6 +2547,27 @@ export enum AndroidManagedBuildType {
   DevelopmentClient = 'DEVELOPMENT_CLIENT'
 }
 
+export type AndroidJobInput = {
+  type: BuildWorkflow;
+  projectArchive: ProjectArchiveSourceInput;
+  projectRootDirectory: Scalars['String'];
+  releaseChannel?: Maybe<Scalars['String']>;
+  updates?: Maybe<BuildUpdatesInput>;
+  secrets?: Maybe<AndroidJobSecretsInput>;
+  builderEnvironment?: Maybe<AndroidBuilderEnvironmentInput>;
+  cache?: Maybe<BuildCacheInput>;
+  gradleCommand?: Maybe<Scalars['String']>;
+  artifactPath?: Maybe<Scalars['String']>;
+  buildType?: Maybe<AndroidBuildType>;
+  username?: Maybe<Scalars['String']>;
+};
+
+export enum AndroidBuildType {
+  Apk = 'APK',
+  AppBundle = 'APP_BUNDLE',
+  DevelopmentClient = 'DEVELOPMENT_CLIENT'
+}
+
 export type IosGenericJobInput = {
   projectArchive: ProjectArchiveSourceInput;
   projectRootDirectory: Scalars['String'];
@@ -2584,6 +2629,28 @@ export type IosManagedJobInput = {
 };
 
 export enum IosManagedBuildType {
+  Release = 'RELEASE',
+  DevelopmentClient = 'DEVELOPMENT_CLIENT'
+}
+
+export type IosJobInput = {
+  type: BuildWorkflow;
+  projectArchive: ProjectArchiveSourceInput;
+  projectRootDirectory: Scalars['String'];
+  releaseChannel?: Maybe<Scalars['String']>;
+  updates?: Maybe<BuildUpdatesInput>;
+  distribution?: Maybe<DistributionType>;
+  secrets?: Maybe<IosJobSecretsInput>;
+  builderEnvironment?: Maybe<IosBuilderEnvironmentInput>;
+  cache?: Maybe<BuildCacheInput>;
+  scheme?: Maybe<Scalars['String']>;
+  buildConfiguration?: Maybe<Scalars['String']>;
+  artifactPath?: Maybe<Scalars['String']>;
+  buildType?: Maybe<IosBuildType>;
+  username?: Maybe<Scalars['String']>;
+};
+
+export enum IosBuildType {
   Release = 'RELEASE',
   DevelopmentClient = 'DEVELOPMENT_CLIENT'
 }
@@ -4497,18 +4564,18 @@ export type CreateAppMutation = (
   )> }
 );
 
-export type CreateAndroidGenericBuildMutationVariables = Exact<{
+export type CreateAndroidBuildMutationVariables = Exact<{
   appId: Scalars['ID'];
-  job: AndroidGenericJobInput;
+  job: AndroidJobInput;
   metadata?: Maybe<BuildMetadataInput>;
 }>;
 
 
-export type CreateAndroidGenericBuildMutation = (
+export type CreateAndroidBuildMutation = (
   { __typename?: 'RootMutation' }
   & { build?: Maybe<(
     { __typename?: 'BuildMutation' }
-    & { createAndroidGenericBuild: (
+    & { createAndroidBuild: (
       { __typename?: 'CreateBuildResult' }
       & { build: (
         { __typename?: 'Build' }
@@ -4521,66 +4588,18 @@ export type CreateAndroidGenericBuildMutation = (
   )> }
 );
 
-export type CreateAndroidManagedBuildMutationVariables = Exact<{
+export type CreateIosBuildMutationVariables = Exact<{
   appId: Scalars['ID'];
-  job: AndroidManagedJobInput;
+  job: IosJobInput;
   metadata?: Maybe<BuildMetadataInput>;
 }>;
 
 
-export type CreateAndroidManagedBuildMutation = (
+export type CreateIosBuildMutation = (
   { __typename?: 'RootMutation' }
   & { build?: Maybe<(
     { __typename?: 'BuildMutation' }
-    & { createAndroidManagedBuild: (
-      { __typename?: 'CreateBuildResult' }
-      & { build: (
-        { __typename?: 'Build' }
-        & Pick<Build, 'id'>
-      ), deprecationInfo?: Maybe<(
-        { __typename?: 'EASBuildDeprecationInfo' }
-        & Pick<EasBuildDeprecationInfo, 'type' | 'message'>
-      )> }
-    ) }
-  )> }
-);
-
-export type CreateIosGenericBuildMutationVariables = Exact<{
-  appId: Scalars['ID'];
-  job: IosGenericJobInput;
-  metadata?: Maybe<BuildMetadataInput>;
-}>;
-
-
-export type CreateIosGenericBuildMutation = (
-  { __typename?: 'RootMutation' }
-  & { build?: Maybe<(
-    { __typename?: 'BuildMutation' }
-    & { createIosGenericBuild: (
-      { __typename?: 'CreateBuildResult' }
-      & { build: (
-        { __typename?: 'Build' }
-        & Pick<Build, 'id'>
-      ), deprecationInfo?: Maybe<(
-        { __typename?: 'EASBuildDeprecationInfo' }
-        & Pick<EasBuildDeprecationInfo, 'type' | 'message'>
-      )> }
-    ) }
-  )> }
-);
-
-export type CreateIosManagedBuildMutationVariables = Exact<{
-  appId: Scalars['ID'];
-  job: IosManagedJobInput;
-  metadata?: Maybe<BuildMetadataInput>;
-}>;
-
-
-export type CreateIosManagedBuildMutation = (
-  { __typename?: 'RootMutation' }
-  & { build?: Maybe<(
-    { __typename?: 'BuildMutation' }
-    & { createIosManagedBuild: (
+    & { createIosBuild: (
       { __typename?: 'CreateBuildResult' }
       & { build: (
         { __typename?: 'Build' }

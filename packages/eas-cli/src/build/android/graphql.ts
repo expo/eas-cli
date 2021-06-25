@@ -1,14 +1,11 @@
 import { Android } from '@expo/eas-build-job';
 
-import {
-  AndroidGenericJobInput,
-  AndroidManagedBuildType,
-  AndroidManagedJobInput,
-} from '../../graphql/generated';
-import { transformProjectArchive } from '../graphql';
+import { AndroidBuildType, AndroidJobInput } from '../../graphql/generated';
+import { transformProjectArchive, transformWorkflow } from '../graphql';
 
-export function transformGenericJob(job: Android.GenericJob): AndroidGenericJobInput {
+export function transformJob(job: Android.Job): AndroidJobInput {
   return {
+    type: transformWorkflow(job.type),
     projectArchive: transformProjectArchive(job.projectArchive),
     projectRootDirectory: job.projectRootDirectory,
     releaseChannel: job.releaseChannel,
@@ -18,29 +15,17 @@ export function transformGenericJob(job: Android.GenericJob): AndroidGenericJobI
     cache: job.cache,
     gradleCommand: job.gradleCommand,
     artifactPath: job.artifactPath,
-  };
-}
-
-export function transformManagedJob(job: Android.ManagedJob): AndroidManagedJobInput {
-  return {
-    projectArchive: transformProjectArchive(job.projectArchive),
-    projectRootDirectory: job.projectRootDirectory,
-    releaseChannel: job.releaseChannel,
-    updates: job.updates,
-    secrets: job.secrets,
-    builderEnvironment: job.builderEnvironment,
-    cache: job.cache,
     username: job.username,
-    buildType: transformBuildType(job.buildType),
+    buildType: job.buildType && transformBuildType(job.buildType),
   };
 }
 
-function transformBuildType(buildType: Android.ManagedBuildType): AndroidManagedBuildType {
-  if (buildType === Android.ManagedBuildType.APK) {
-    return AndroidManagedBuildType.Apk;
-  } else if (buildType === Android.ManagedBuildType.APP_BUNDLE) {
-    return AndroidManagedBuildType.AppBundle;
+function transformBuildType(buildType: Android.BuildType): AndroidBuildType {
+  if (buildType === Android.BuildType.APK) {
+    return AndroidBuildType.Apk;
+  } else if (buildType === Android.BuildType.APP_BUNDLE) {
+    return AndroidBuildType.AppBundle;
   } else {
-    return AndroidManagedBuildType.DevelopmentClient;
+    return AndroidBuildType.DevelopmentClient;
   }
 }
