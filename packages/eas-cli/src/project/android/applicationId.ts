@@ -7,8 +7,9 @@ import once from 'lodash/once';
 import nullthrows from 'nullthrows';
 
 import Log from '../../log';
-import { getProjectConfigDescription } from '../../project/projectUtils';
+import { getProjectConfigDescription, getUsername } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
+import { ensureLoggedInAsync } from '../../user/actions';
 import { resolveWorkflow } from '../workflow';
 
 const INVALID_APPLICATION_ID_MESSAGE = `Invalid format of Android applicationId. Only alphanumeric characters, '.' and '_' are allowed, and each '.' must be followed by a letter.`;
@@ -71,9 +72,24 @@ async function configureApplicationIdAsync(projectDir: string, exp: ExpoConfig):
 
   assert(paths.staticConfigPath, 'app.json must exist');
 
+  // Recommend an application id based on iOS bundle id or username/slug.
+  // This same logic exists in expo-cli
+  let recommendedApplicationId: string | undefined;
+
+  if (exp.ios?.bundleIdentifier && isApplicationIdValid(exp.ios?.bundleIdentifier)) {
+    recommendedApplicationId = exp.ios?.bundleIdentifier;
+  } else {
+    const username = getUsername(exp, await ensureLoggedInAsync());
+    const possibleApplicationId = `com.${username}.${exp.slug}`;
+    if (isApplicationIdValid(possibleApplicationId)) {
+      recommendedApplicationId = possibleApplicationId;
+    }
+  }
+
   const { packageName } = await promptAsync({
     name: 'packageName',
     type: 'text',
+    initial: recommendedApplicationId,
     message: `What would you like your Android application id to be?`,
     validate: value => (isApplicationIdValid(value) ? true : INVALID_APPLICATION_ID_MESSAGE),
   });

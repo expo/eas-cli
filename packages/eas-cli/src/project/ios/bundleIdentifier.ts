@@ -7,7 +7,8 @@ import once from 'lodash/once';
 
 import Log from '../../log';
 import { promptAsync } from '../../prompts';
-import { getProjectConfigDescription, sanitizedProjectName } from '../projectUtils';
+import { ensureLoggedInAsync } from '../../user/actions';
+import { getProjectConfigDescription, getUsername, sanitizedProjectName } from '../projectUtils';
 import { resolveWorkflow } from '../workflow';
 
 const INVALID_BUNDLE_IDENTIFIER_MESSAGE = `Invalid format of iOS bundle identifier. Only alphanumeric characters, '.' and '-' are allowed, and each '.' must be followed by a letter.`;
@@ -90,9 +91,25 @@ async function configureBundleIdentifierAsync(
 
   assert(paths.staticConfigPath, 'app.json must exist');
 
+  // Recommend a bundle id based on Android application id or username/slug.
+  // This same logic exists in expo-cli
+  let recommendedBundleIdentifier: string | undefined;
+
+  const androidPackage = exp.android?.package;
+  if (androidPackage && isBundleIdentifierValid(androidPackage)) {
+    recommendedBundleIdentifier = androidPackage;
+  } else {
+    const username = getUsername(exp, await ensureLoggedInAsync());
+    const possibleBundleIdentifier = `com.${username}.${exp.slug}`;
+    if (isBundleIdentifierValid(possibleBundleIdentifier)) {
+      recommendedBundleIdentifier = possibleBundleIdentifier;
+    }
+  }
+
   const { bundleIdentifier } = await promptAsync({
     name: 'bundleIdentifier',
     type: 'text',
+    initial: recommendedBundleIdentifier,
     message: `What would you like your iOS bundle identifier to be?`,
     validate: value => (isBundleIdentifierValid(value) ? true : INVALID_BUNDLE_IDENTIFIER_MESSAGE),
   });
