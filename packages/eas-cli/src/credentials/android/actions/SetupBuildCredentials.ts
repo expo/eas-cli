@@ -1,4 +1,5 @@
 import nullthrows from 'nullthrows';
+import ora from 'ora';
 
 import {
   AndroidAppBuildCredentialsFragment,
@@ -94,9 +95,9 @@ export class SetupBuildCredentials {
     );
     const defaultKeystore = defaultBuildCredentials?.androidKeystore ?? null;
     if (defaultKeystore) {
-      Log.log(
+      ora(
         `Using Keystore from configuration: ${nullthrows(defaultBuildCredentials).name} (default)`
-      );
+      ).succeed();
       return defaultBuildCredentials;
     }
     return null;
@@ -118,11 +119,11 @@ export class SetupBuildCredentials {
     const keystore = maybeBuildCredentials?.androidKeystore ?? null;
     if (keystore) {
       const buildCredentials = nullthrows(maybeBuildCredentials);
-      Log.log(
+      ora(
         `Using Keystore from configuration: ${buildCredentials.name}${
           buildCredentials.isDefault ? ' (default)' : ''
         }`
-      );
+      ).succeed();
       return buildCredentials;
     }
     Log.log(
