@@ -10,8 +10,6 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
-- Fix CLI UI getting blocked on credentials migration, leading to partially migrated state. ([#477](https://github.com/expo/eas-cli/pull/477) by [@brentvatne](https://github.com/brentvatne))
-
 ### 🧹 Chores
 
 ## [0.18.1](https://github.com/expo/eas-cli/releases/tag/v0.18.1) - 2021-06-24
