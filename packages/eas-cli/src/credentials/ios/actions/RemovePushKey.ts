@@ -26,13 +26,16 @@ export class RemovePushKey {
       throw new Error(`Cannot remove push keys in non-interactive mode`);
     }
 
-    // TODO(quin): show the projects that rely on this
-    const confirm = await confirmAsync({
-      message: `Removing this push key will disable push notifications for projects that rely on it. Do you want to continue?`,
-    });
-
-    if (!confirm) {
-      return;
+    const apps = this.pushKey.iosAppCredentialsList.map(appCredentials => appCredentials.app);
+    if (apps.length !== 0) {
+      const appFullNames = apps.map(app => app.fullName).join(',');
+      const confirm = await confirmAsync({
+        message: `Removing this push key will disable push notifications for ${appFullNames}. Do you want to continue?`,
+      });
+      if (!confirm) {
+        Log.log('Aborting');
+        return;
+      }
     }
 
     Log.log('Removing Push Key');

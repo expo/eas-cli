@@ -5159,6 +5159,18 @@ export type ApplePushKeyFragment = (
     { __typename?: 'AppleTeam' }
     & Pick<AppleTeam, 'id'>
     & AppleTeamFragment
+  )>, iosAppCredentialsList: Array<(
+    { __typename?: 'IosAppCredentials' }
+    & Pick<IosAppCredentials, 'id'>
+    & { app: (
+      { __typename?: 'App' }
+      & Pick<App, 'id'>
+      & AppFragment
+    ), appleAppIdentifier: (
+      { __typename?: 'AppleAppIdentifier' }
+      & Pick<AppleAppIdentifier, 'id'>
+      & AppleAppIdentifierFragment
+    ) }
   )> }
 );
 
