@@ -14,6 +14,16 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+## [0.18.1](https://github.com/expo/eas-cli/releases/tag/v0.18.1) - 2021-06-24
+
+### 🎉 New features
+
+- Add basic printing support for Apple App Specific Password. ([#474](https://github.com/expo/eas-cli/pull/474) by [@quinlanj](https://github.com/quinlanj))
+
+### 🐛 Bug fixes
+
+- Fix CLI UI getting blocked on credentials migration, leading to partially migrated state. ([#477](https://github.com/expo/eas-cli/pull/477) by [@brentvatne](https://github.com/brentvatne))
+
 ## [0.18.0](https://github.com/expo/eas-cli/releases/tag/v0.18.0) - 2021-06-24
 
 ### 🛠 Breaking changes
