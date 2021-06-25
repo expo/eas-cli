@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Fix inverted conditional so we actually only prompt about commit when index is dirty. ([#481](https://github.com/expo/eas-cli/pull/481) by [@brentvatne](https://github.com/brentvatne))
+
 ### 🧹 Chores
 
 ## [0.18.1](https://github.com/expo/eas-cli/releases/tag/v0.18.1) - 2021-06-24
