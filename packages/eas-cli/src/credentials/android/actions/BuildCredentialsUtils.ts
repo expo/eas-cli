@@ -78,7 +78,7 @@ export async function promptUserAndCopyLegacyCredentialsAsync(
       });
     }
   } catch (e) {
-    spinner.fail(e.message);
+    spinner.fail(`Unable to migrate credentials to EAS. Error: ${e.message}`);
     return;
   }
 
