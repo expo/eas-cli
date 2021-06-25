@@ -4,7 +4,6 @@ import gql from 'graphql-tag';
 import { graphqlClient, withErrorHandlingAsync } from '../client';
 import {
   AppPlatform,
-  Build,
   BuildFragment,
   BuildStatus,
   BuildsByIdQuery,
@@ -20,8 +19,6 @@ type Filters = {
   offset?: number;
   limit?: number;
 };
-
-type PendingBuildQueryResult = Pick<Build, 'id' | 'platform'>;
 
 export const BuildQuery = {
   async byIdAsync(
