@@ -56,7 +56,7 @@ export default class GitClient extends Client {
 
   public async hasUncommittedChangesAsync(): Promise<boolean> {
     const changes = await gitStatusAsync({ showUntracked: true });
-    return changes.length !== 0;
+    return changes.length > 0;
   }
 
   public async getRootPathAsync(): Promise<string> {
