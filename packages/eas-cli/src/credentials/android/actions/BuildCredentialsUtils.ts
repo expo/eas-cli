@@ -5,6 +5,7 @@ import ora from 'ora';
 import { AndroidAppBuildCredentialsFragment } from '../../../graphql/generated';
 import { getApplicationId } from '../../../project/android/applicationId';
 import { getProjectAccountName, getProjectConfigDescription } from '../../../project/projectUtils';
+import { promptAsync } from '../../../prompts';
 import { findAccountByName } from '../../../user/Account';
 import { Context } from '../../context';
 import { AppLookupParams } from '../api/GraphqlClient';
@@ -133,6 +134,17 @@ export async function createOrUpdateDefaultAndroidAppBuildCredentialsAsync(
     isDefault: true,
     androidKeystoreId,
   });
+}
+
+export async function promptForNameAsync(): Promise<string> {
+  const { providedName } = await promptAsync({
+    type: 'text',
+    name: 'providedName',
+    message: 'Assign a name to your build credentials:',
+    initial: generateRandomName(),
+    validate: (input: string) => input !== '',
+  });
+  return providedName;
 }
 
 /**
