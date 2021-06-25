@@ -56,7 +56,6 @@ test('minimal valid ios eas.json', async () => {
         autoIncrement: false,
         env: {},
         cache: { disabled: false, cacheDefaultPaths: true, customPaths: [] },
-        image: 'default',
       },
     },
   }).toEqual(easJson);
@@ -94,7 +93,6 @@ test('minimal valid eas.json for both platforms', async () => {
         autoIncrement: false,
         env: {},
         cache: { disabled: false, cacheDefaultPaths: true, customPaths: [] },
-        image: 'default',
       },
     },
   }).toEqual(easJson);
@@ -165,7 +163,6 @@ test('valid eas.json for development client builds', async () => {
         distribution: 'store',
         autoIncrement: false,
         env: {},
-        image: 'default',
         cache: { disabled: false, cacheDefaultPaths: true, customPaths: [] },
         buildType: 'development-client',
       },

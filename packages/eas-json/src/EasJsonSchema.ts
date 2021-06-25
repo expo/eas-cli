@@ -21,9 +21,7 @@ const AndroidBuilderEnvironmentSchema = Joi.object({
 });
 
 const IosBuilderEnvironmentSchema = Joi.object({
-  image: Joi.string()
-    .valid(...Ios.builderBaseImages)
-    .default('default'),
+  image: Joi.string().valid(...Ios.builderBaseImages),
   node: Joi.string().empty(null).custom(semverSchemaCheck),
   yarn: Joi.string().empty(null).custom(semverSchemaCheck),
   bundler: Joi.string().empty(null).custom(semverSchemaCheck),
@@ -100,7 +98,7 @@ const IosManagedSchema = Joi.object({
   cache: CacheSchema.default(),
 }).concat(IosBuilderEnvironmentSchema);
 
-const schemaBuildProfileMap: Record<string, Record<string, Joi.Schema>> = {
+export const schemaBuildProfileMap: Record<string, Record<string, Joi.Schema>> = {
   android: {
     generic: AndroidGenericSchema,
     managed: AndroidManagedSchema,
@@ -111,7 +109,7 @@ const schemaBuildProfileMap: Record<string, Record<string, Joi.Schema>> = {
   },
 };
 
-const EasJsonSchema = Joi.object({
+export const EasJsonSchema = Joi.object({
   builds: Joi.object({
     android: Joi.object().pattern(
       Joi.string(),
@@ -127,5 +125,3 @@ const EasJsonSchema = Joi.object({
     ),
   }),
 });
-
-export { EasJsonSchema, schemaBuildProfileMap };

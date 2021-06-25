@@ -35,7 +35,7 @@ export interface AndroidGenericBuildProfile extends Android.BuilderEnvironment {
   cache: Cache;
 }
 
-export interface IosManagedBuildProfile extends Ios.BuilderEnvironment {
+export interface IosManagedBuildProfile extends Omit<Ios.BuilderEnvironment, 'image'> {
   workflow: Workflow.MANAGED;
   credentialsSource: CredentialsSource;
   buildType?: Ios.ManagedBuildType;
@@ -45,9 +45,10 @@ export interface IosManagedBuildProfile extends Ios.BuilderEnvironment {
   enterpriseProvisioning?: IosEnterpriseProvisioning;
   autoIncrement: VersionAutoIncrement;
   cache: Cache;
+  image?: Ios.BuilderEnvironment['image'];
 }
 
-export interface IosGenericBuildProfile extends Ios.BuilderEnvironment {
+export interface IosGenericBuildProfile extends Omit<Ios.BuilderEnvironment, 'image'> {
   workflow: Workflow.GENERIC;
   credentialsSource: CredentialsSource;
   scheme?: string;
@@ -59,6 +60,7 @@ export interface IosGenericBuildProfile extends Ios.BuilderEnvironment {
   enterpriseProvisioning?: IosEnterpriseProvisioning;
   autoIncrement: VersionAutoIncrement;
   cache: Cache;
+  image?: Ios.BuilderEnvironment['image'];
 }
 
 export type AndroidBuildProfile = AndroidManagedBuildProfile | AndroidGenericBuildProfile;
