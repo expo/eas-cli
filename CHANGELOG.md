@@ -8,13 +8,21 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [0.18.2](https://github.com/expo/eas-cli/releases/tag/v0.18.2) - 2021-06-25
+
+### 🎉 New features
+
 - Change default iOS image for projects with Expo SDK <= 41 (SDK 41 won't build with Xcode 12.5). ([#479](https://github.com/expo/eas-cli/pull/479) by [@dsokal](https://github.com/dsokal))
+- Make Apple team optional in appropriate cases. ([#468](https://github.com/expo/eas-cli/pull/468) by [@quinlanj](https://github.com/quinlanj))
+- Show projects that depend on a push key. ([#472](https://github.com/expo/eas-cli/pull/472) by [@quinlanj](https://github.com/quinlanj))
 
 ### 🐛 Bug fixes
 
 - Fix inverted conditional so we actually only prompt about commit when index is dirty. ([#481](https://github.com/expo/eas-cli/pull/481) by [@brentvatne](https://github.com/brentvatne))
-
-### 🧹 Chores
 
 ## [0.18.1](https://github.com/expo/eas-cli/releases/tag/v0.18.1) - 2021-06-24
 
