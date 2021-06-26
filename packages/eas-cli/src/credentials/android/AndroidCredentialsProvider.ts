@@ -47,7 +47,7 @@ export default class AndroidCredentialsProvider {
         keystore: nullthrows(androidBuildCredentials.androidKeystore?.keystore),
         keystorePassword: nullthrows(androidBuildCredentials.androidKeystore?.keystorePassword),
         keyAlias: nullthrows(androidBuildCredentials.androidKeystore?.keyAlias),
-        keyPassword: nullthrows(androidBuildCredentials.androidKeystore?.keyPassword),
+        keyPassword: androidBuildCredentials.androidKeystore?.keyPassword ?? undefined,
       },
     };
   }
