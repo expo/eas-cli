@@ -11,6 +11,15 @@ import {
 
 jest.mock('fs');
 jest.mock('../../../prompts');
+jest.mock('../../../user/actions', () => ({
+  ensureLoggedInAsync: jest.fn(() => ({
+    __typename: 'User',
+    id: 'jester-id',
+    username: 'jester',
+    accounts: [{ id: 'jester-account-id', name: 'jester' }],
+    isExpoAdmin: false,
+  })),
+}));
 
 const originalConsoleWarn = console.warn;
 beforeAll(() => {
