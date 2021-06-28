@@ -14,7 +14,7 @@ import { BuildContext, CommandContext, createBuildContext } from '../context';
 import { transformMetadata } from '../graphql';
 import { Platform } from '../types';
 import { validateAndSyncProjectConfigurationAsync } from './configure';
-import { ensureIosCredentialsAsync, setupPushKeyAsync } from './credentials';
+import { ensureIosCredentialsAsync } from './credentials';
 import { transformGenericJob, transformManagedJob } from './graphql';
 import { prepareJobAsync } from './prepareJob';
 
@@ -66,7 +66,6 @@ export async function prepareIosBuildAsync(
   return await prepareBuildRequestForPlatformAsync({
     ctx: buildCtx,
     ensureCredentialsAsync: async (ctx: BuildContext<Platform.IOS>) => {
-      await setupPushKeyAsync(ctx, targets);
       return ensureIosCredentialsAsync(ctx, targets);
     },
     ensureProjectConfiguredAsync: async () => {
