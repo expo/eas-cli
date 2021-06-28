@@ -5,6 +5,8 @@ import { createCtxMock } from '../../../__tests__/fixtures-context';
 import { getAppLookupParamsFromContext } from '../BuildCredentialsUtils';
 import { DownloadKeystore } from '../DownloadKeystore';
 
+jest.mock('fs-extra');
+
 const originalConsoleLog = console.log;
 const originalConsoleWarn = console.warn;
 beforeAll(() => {

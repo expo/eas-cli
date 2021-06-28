@@ -4,6 +4,7 @@ import { createCtxMock } from '../../../__tests__/fixtures-context';
 import { getAppLookupParamsFromContext } from '../BuildCredentialsUtils';
 import { RemoveKeystore } from '../RemoveKeystore';
 
+jest.mock('fs-extra');
 jest.mock('../../../../prompts');
 (confirmAsync as jest.Mock).mockImplementation(() => true);
 
