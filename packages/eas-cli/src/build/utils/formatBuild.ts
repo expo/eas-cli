@@ -59,7 +59,7 @@ export function formatGraphQLBuild(build: BuildFragment) {
           case GraphQLBuildStatus.Errored:
             return '---------';
           case GraphQLBuildStatus.Finished: {
-            const url = build.artifacts?.buildUrl;
+            const url = build.artifacts?.shortBuildUrl ?? build.artifacts?.buildUrl;
             return url ? url : chalk.red('not found');
           }
           default:

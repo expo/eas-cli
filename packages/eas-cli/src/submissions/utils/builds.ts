@@ -14,7 +14,7 @@ export async function getBuildArtifactUrlByIdAsync(
   if (!artifacts) {
     throw new Error('Build has no artifacts.');
   }
-  const buildUrl = artifacts.buildUrl;
+  const buildUrl = artifacts.shortBuildUrl ?? artifacts.buildUrl;
   if (!buildUrl) {
     throw new Error('Build URL is not defined.');
   }

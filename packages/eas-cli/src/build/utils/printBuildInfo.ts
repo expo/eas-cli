@@ -95,7 +95,7 @@ function printBuildResult(accountName: string, build: BuildFragment): void {
   } else {
     // TODO: it looks like buildUrl could possibly be undefined, based on the code below.
     // we should account for this case better if it is possible
-    const url = build.artifacts?.buildUrl ?? '';
+    const url = build.artifacts?.shortBuildUrl ?? build.artifacts?.buildUrl ?? '';
     Log.log(`${appPlatformEmojis[build.platform]} ${appPlatformDisplayNames[build.platform]} app:`);
     Log.log(`${chalk.underline(url)}`);
   }

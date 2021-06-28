@@ -24,7 +24,8 @@ export function getInternalDistributionInstallUrl(build: BuildFragment): string 
     }/builds/${build.id}/manifest.plist`;
   }
 
-  assert(build.artifacts?.buildUrl, 'buildUrl is missing');
+  const buildUrl = build.artifacts?.shortBuildUrl ?? build.artifacts?.buildUrl;
+  assert(buildUrl, 'buildUrl is missing');
 
-  return build.artifacts.buildUrl;
+  return buildUrl;
 }

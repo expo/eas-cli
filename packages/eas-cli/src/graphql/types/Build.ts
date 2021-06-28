@@ -12,6 +12,7 @@ export const BuildFragmentNode = gql`
     }
     artifacts {
       buildUrl
+      shortBuildUrl
       xcodeBuildLogsUrl
     }
     initiatingActor {
