@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Fix android builds for PKCS12 keystores. ([#484](https://github.com/expo/eas-cli/pull/484) by [@quinlanj](https://github.com/quinlanj))
+
 ### 🧹 Chores
 
 ## [0.18.2](https://github.com/expo/eas-cli/releases/tag/v0.18.2) - 2021-06-25
