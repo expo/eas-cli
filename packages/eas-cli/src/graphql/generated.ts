@@ -803,6 +803,7 @@ export enum Role {
 export type BuildArtifacts = {
   __typename?: 'BuildArtifacts';
   buildUrl?: Maybe<Scalars['String']>;
+  shortBuildUrl?: Maybe<Scalars['String']>;
   xcodeBuildLogsUrl?: Maybe<Scalars['String']>;
 };
 
@@ -5018,7 +5019,7 @@ export type BuildFragment = (
     & Pick<BuildError, 'errorCode' | 'message' | 'docsUrl'>
   )>, artifacts?: Maybe<(
     { __typename?: 'BuildArtifacts' }
-    & Pick<BuildArtifacts, 'buildUrl' | 'xcodeBuildLogsUrl'>
+    & Pick<BuildArtifacts, 'buildUrl' | 'shortBuildUrl' | 'xcodeBuildLogsUrl'>
   )>, initiatingActor?: Maybe<(
     { __typename: 'User' }
     & Pick<User, 'username' | 'id'>
