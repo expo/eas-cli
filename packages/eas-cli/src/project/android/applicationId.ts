@@ -1,14 +1,16 @@
 import { ExpoConfig, getConfigFilePaths } from '@expo/config';
-import { AndroidConfig } from '@expo/config-plugins';
+import { AndroidConfig, IOSConfig } from '@expo/config-plugins';
 import { Platform, Workflow } from '@expo/eas-build-job';
 import assert from 'assert';
+import chalk from 'chalk';
 import fs from 'fs-extra';
 import once from 'lodash/once';
 import nullthrows from 'nullthrows';
 
-import Log from '../../log';
+import Log, { learnMore } from '../../log';
 import { getProjectConfigDescription } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
+import { getActorDisplayName, getUserAsync } from '../../user/User';
 import { resolveWorkflow } from '../workflow';
 
 const INVALID_APPLICATION_ID_MESSAGE = `Invalid format of Android applicationId. Only alphanumeric characters, '.' and '_' are allowed, and each '.' must be followed by a letter.`;
@@ -71,10 +73,19 @@ async function configureApplicationIdAsync(projectDir: string, exp: ExpoConfig):
 
   assert(paths.staticConfigPath, 'app.json must exist');
 
+  Log.addNewLineIfNone();
+  Log.log(
+    `${chalk.bold(`📝  Android application id`)} ${chalk.dim(
+      learnMore('https://expo.fyi/android-package')
+    )}`
+  );
+
+  const recommendedAndroidApplicationId = await getRecommendedApplicationIdAsync(exp);
   const { packageName } = await promptAsync({
     name: 'packageName',
     type: 'text',
     message: `What would you like your Android application id to be?`,
+    initial: recommendedAndroidApplicationId,
     validate: value => (isApplicationIdValid(value) ? true : INVALID_APPLICATION_ID_MESSAGE),
   });
 
@@ -111,3 +122,19 @@ function _warnIfAndroidPackageDefinedInAppConfigForGenericProject(
 export const warnIfAndroidPackageDefinedInAppConfigForGenericProject = once(
   _warnIfAndroidPackageDefinedInAppConfigForGenericProject
 );
+
+async function getRecommendedApplicationIdAsync(exp: ExpoConfig): Promise<string | undefined> {
+  // Attempt to use the ios bundle id first since it's convenient to have them aligned.
+  const maybeBundleId = IOSConfig.BundleIdentifier.getBundleIdentifier(exp);
+  if (maybeBundleId && isApplicationIdValid(maybeBundleId)) {
+    return maybeBundleId;
+  } else {
+    const username = exp.owner ?? getActorDisplayName(await getUserAsync());
+    // It's common to use dashes in your node project name, strip them from the suggested package name.
+    const possibleId = `com.${username}.${exp.slug}`.split('-').join('');
+    if (isApplicationIdValid(possibleId)) {
+      return possibleId;
+    }
+  }
+  return undefined;
+}
