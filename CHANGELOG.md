@@ -9,6 +9,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🎉 New features
 
 - Auto-suggest application id and bundle identifier when running `eas build:configure` for a managed project. ([#487](https://github.com/expo/eas-cli/pull/487) by [@dsokal](https://github.com/dsokal))
+- Display short build artifact URL if available. ([#486](https://github.com/expo/eas-cli/pull/486) by [@dsokal](https://github.com/dsokal))
 
 ### 🐛 Bug fixes
 
