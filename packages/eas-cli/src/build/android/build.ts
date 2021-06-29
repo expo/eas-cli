@@ -23,7 +23,7 @@ import { transformMetadata } from '../graphql';
 import { Platform } from '../types';
 import { logCredentialsSource } from '../utils/credentials';
 import { validateAndSyncProjectConfigurationAsync } from './configure';
-import { transformGenericJob, transformManagedJob } from './graphql';
+import { transformJob } from './graphql';
 import { prepareJobAsync } from './prepareJob';
 
 export async function prepareAndroidBuildAsync(
@@ -87,21 +87,12 @@ This means that it will most likely produce an AAB and you will not be able to i
       metadata: Metadata
     ): Promise<BuildResult> => {
       const graphqlMetadata = transformMetadata(metadata);
-      if (job.type === Workflow.GENERIC) {
-        const graphqlJob = transformGenericJob(job);
-        return await BuildMutation.createAndroidGenericBuildAsync({
-          appId,
-          job: graphqlJob,
-          metadata: graphqlMetadata,
-        });
-      } else {
-        const graphqlJob = transformManagedJob(job);
-        return await BuildMutation.createAndroidManagedBuildAsync({
-          appId,
-          job: graphqlJob,
-          metadata: graphqlMetadata,
-        });
-      }
+      const graphqlJob = transformJob(job);
+      return await BuildMutation.createAndroidBuildAsync({
+        appId,
+        job: graphqlJob,
+        metadata: graphqlMetadata,
+      });
     },
   });
 }

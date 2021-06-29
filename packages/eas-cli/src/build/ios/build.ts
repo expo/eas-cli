@@ -15,7 +15,7 @@ import { transformMetadata } from '../graphql';
 import { Platform } from '../types';
 import { validateAndSyncProjectConfigurationAsync } from './configure';
 import { ensureIosCredentialsAsync } from './credentials';
-import { transformGenericJob, transformManagedJob } from './graphql';
+import { transformJob } from './graphql';
 import { prepareJobAsync } from './prepareJob';
 
 export async function prepareIosBuildAsync(
@@ -87,21 +87,12 @@ export async function prepareIosBuildAsync(
       metadata: Metadata
     ): Promise<BuildResult> => {
       const graphqlMetadata = transformMetadata(metadata);
-      if (job.type === Workflow.GENERIC) {
-        const graphqlJob = transformGenericJob(job);
-        return await BuildMutation.createIosGenericBuildAsync({
-          appId,
-          job: graphqlJob,
-          metadata: graphqlMetadata,
-        });
-      } else {
-        const graphqlJob = transformManagedJob(job);
-        return await BuildMutation.createIosManagedBuildAsync({
-          appId,
-          job: graphqlJob,
-          metadata: graphqlMetadata,
-        });
-      }
+      const graphqlJob = transformJob(job);
+      return await BuildMutation.createIosBuildAsync({
+        appId,
+        job: graphqlJob,
+        metadata: graphqlMetadata,
+      });
     },
   });
 }

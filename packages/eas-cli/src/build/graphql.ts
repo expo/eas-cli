@@ -55,7 +55,7 @@ function transformDistribution(distribution: Metadata['distribution']): Distribu
   }
 }
 
-function transformWorkflow(workflow: Metadata['workflow']): BuildWorkflow {
+export function transformWorkflow(workflow: Workflow): BuildWorkflow {
   if (workflow === Workflow.GENERIC) {
     return BuildWorkflow.Generic;
   } else {

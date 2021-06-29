@@ -16,7 +16,7 @@ export type VersionAutoIncrement = boolean | 'version' | 'buildNumber';
 export interface AndroidManagedBuildProfile extends Android.BuilderEnvironment {
   workflow: Workflow.MANAGED;
   credentialsSource: CredentialsSource;
-  buildType?: Android.ManagedBuildType;
+  buildType?: Android.BuildType;
   releaseChannel?: string;
   channel?: string;
   distribution: AndroidDistributionType;
@@ -38,7 +38,7 @@ export interface AndroidGenericBuildProfile extends Android.BuilderEnvironment {
 export interface IosManagedBuildProfile extends Omit<Ios.BuilderEnvironment, 'image'> {
   workflow: Workflow.MANAGED;
   credentialsSource: CredentialsSource;
-  buildType?: Ios.ManagedBuildType;
+  buildType?: Ios.BuildType;
   releaseChannel?: string;
   channel?: string;
   distribution: IosDistributionType;

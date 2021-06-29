@@ -3,20 +3,14 @@ import nullthrows from 'nullthrows';
 
 import { graphqlClient, withErrorHandlingAsync } from '../client';
 import {
-  AndroidGenericJobInput,
-  AndroidManagedJobInput,
+  AndroidJobInput,
   BuildMetadataInput,
-  CreateAndroidGenericBuildMutation,
-  CreateAndroidGenericBuildMutationVariables,
-  CreateAndroidManagedBuildMutation,
-  CreateAndroidManagedBuildMutationVariables,
-  CreateIosGenericBuildMutation,
-  CreateIosGenericBuildMutationVariables,
-  CreateIosManagedBuildMutation,
-  CreateIosManagedBuildMutationVariables,
+  CreateAndroidBuildMutation,
+  CreateAndroidBuildMutationVariables,
+  CreateIosBuildMutation,
+  CreateIosBuildMutationVariables,
   EasBuildDeprecationInfo,
-  IosGenericJobInput,
-  IosManagedJobInput,
+  IosJobInput,
 } from '../generated';
 
 export interface BuildResult {
@@ -25,22 +19,22 @@ export interface BuildResult {
 }
 
 const BuildMutation = {
-  async createAndroidGenericBuildAsync(input: {
+  async createAndroidBuildAsync(input: {
     appId: string;
-    job: AndroidGenericJobInput;
+    job: AndroidJobInput;
     metadata: BuildMetadataInput;
   }): Promise<BuildResult> {
     const data = await withErrorHandlingAsync(
       graphqlClient
-        .mutation<CreateAndroidGenericBuildMutation, CreateAndroidGenericBuildMutationVariables>(
+        .mutation<CreateAndroidBuildMutation, CreateAndroidBuildMutationVariables>(
           gql`
-            mutation CreateAndroidGenericBuildMutation(
+            mutation CreateAndroidBuildMutation(
               $appId: ID!
-              $job: AndroidGenericJobInput!
+              $job: AndroidJobInput!
               $metadata: BuildMetadataInput
             ) {
               build {
-                createAndroidGenericBuild(appId: $appId, job: $job, metadata: $metadata) {
+                createAndroidBuild(appId: $appId, job: $job, metadata: $metadata) {
                   build {
                     id
                   }
@@ -56,24 +50,24 @@ const BuildMutation = {
         )
         .toPromise()
     );
-    return nullthrows(data.build?.createAndroidGenericBuild);
+    return nullthrows(data.build?.createAndroidBuild);
   },
-  async createAndroidManagedBuildAsync(input: {
+  async createIosBuildAsync(input: {
     appId: string;
-    job: AndroidManagedJobInput;
+    job: IosJobInput;
     metadata: BuildMetadataInput;
   }): Promise<BuildResult> {
     const data = await withErrorHandlingAsync(
       graphqlClient
-        .mutation<CreateAndroidManagedBuildMutation, CreateAndroidManagedBuildMutationVariables>(
+        .mutation<CreateIosBuildMutation, CreateIosBuildMutationVariables>(
           gql`
-            mutation CreateAndroidManagedBuildMutation(
+            mutation CreateIosBuildMutation(
               $appId: ID!
-              $job: AndroidManagedJobInput!
+              $job: IosJobInput!
               $metadata: BuildMetadataInput
             ) {
               build {
-                createAndroidManagedBuild(appId: $appId, job: $job, metadata: $metadata) {
+                createIosBuild(appId: $appId, job: $job, metadata: $metadata) {
                   build {
                     id
                   }
@@ -89,73 +83,7 @@ const BuildMutation = {
         )
         .toPromise()
     );
-    return nullthrows(data.build?.createAndroidManagedBuild);
-  },
-  async createIosGenericBuildAsync(input: {
-    appId: string;
-    job: IosGenericJobInput;
-    metadata: BuildMetadataInput;
-  }): Promise<BuildResult> {
-    const data = await withErrorHandlingAsync(
-      graphqlClient
-        .mutation<CreateIosGenericBuildMutation, CreateIosGenericBuildMutationVariables>(
-          gql`
-            mutation CreateIosGenericBuildMutation(
-              $appId: ID!
-              $job: IosGenericJobInput!
-              $metadata: BuildMetadataInput
-            ) {
-              build {
-                createIosGenericBuild(appId: $appId, job: $job, metadata: $metadata) {
-                  build {
-                    id
-                  }
-                  deprecationInfo {
-                    type
-                    message
-                  }
-                }
-              }
-            }
-          `,
-          input
-        )
-        .toPromise()
-    );
-    return nullthrows(data.build?.createIosGenericBuild);
-  },
-  async createIosManagedBuildAsync(input: {
-    appId: string;
-    job: IosManagedJobInput;
-    metadata: BuildMetadataInput;
-  }): Promise<BuildResult> {
-    const data = await withErrorHandlingAsync(
-      graphqlClient
-        .mutation<CreateIosManagedBuildMutation, CreateIosManagedBuildMutationVariables>(
-          gql`
-            mutation CreateIosManagedBuildMutation(
-              $appId: ID!
-              $job: IosManagedJobInput!
-              $metadata: BuildMetadataInput
-            ) {
-              build {
-                createIosManagedBuild(appId: $appId, job: $job, metadata: $metadata) {
-                  build {
-                    id
-                  }
-                  deprecationInfo {
-                    type
-                    message
-                  }
-                }
-              }
-            }
-          `,
-          input
-        )
-        .toPromise()
-    );
-    return nullthrows(data.build?.createIosManagedBuild);
+    return nullthrows(data.build?.createIosBuild);
   },
 };
 

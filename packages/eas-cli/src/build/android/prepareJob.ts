@@ -84,7 +84,7 @@ async function prepareGenericJobAsync(
   ctx: BuildContext<Platform.ANDROID>,
   jobData: JobData,
   buildProfile: AndroidGenericBuildProfile
-): Promise<Partial<Android.GenericJob>> {
+): Promise<Partial<Android.Job>> {
   const projectRootDirectory =
     path.relative(await vcs.getRootPathAsync(), ctx.commandCtx.projectDir) || '.';
   return {
@@ -102,7 +102,7 @@ async function prepareManagedJobAsync(
   ctx: BuildContext<Platform.ANDROID>,
   jobData: JobData,
   buildProfile: AndroidManagedBuildProfile
-): Promise<Partial<Android.ManagedJob>> {
+): Promise<Partial<Android.Job>> {
   const projectRootDirectory =
     path.relative(await vcs.getRootPathAsync(), ctx.commandCtx.projectDir) || '.';
   const username = getUsername(ctx.commandCtx.exp, await ensureLoggedInAsync());
