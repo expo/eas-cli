@@ -8,8 +8,8 @@ import once from 'lodash/once';
 
 import Log, { learnMore } from '../../log';
 import { promptAsync } from '../../prompts';
-import { getActorDisplayName, getUserAsync } from '../../user/User';
-import { getProjectConfigDescription, sanitizedProjectName } from '../projectUtils';
+import { ensureLoggedInAsync } from '../../user/actions';
+import { getProjectConfigDescription, getUsername, sanitizedProjectName } from '../projectUtils';
 import { resolveWorkflow } from '../workflow';
 
 const INVALID_BUNDLE_IDENTIFIER_MESSAGE = `Invalid format of iOS bundle identifier. Only alphanumeric characters, '.' and '-' are allowed, and each '.' must be followed by a letter.`;
@@ -99,12 +99,12 @@ async function configureBundleIdentifierAsync(
     )}`
   );
 
-  const recommendedBundleIdentifier = await getRecommendedBundleIdentifierAsync(exp);
+  const suggestedBundleIdentifier = await getSuggestedBundleIdentifierAsync(exp);
   const { bundleIdentifier } = await promptAsync({
     name: 'bundleIdentifier',
     type: 'text',
     message: `What would you like your iOS bundle identifier to be?`,
-    initial: recommendedBundleIdentifier,
+    initial: suggestedBundleIdentifier,
     validate: value => (isBundleIdentifierValid(value) ? true : INVALID_BUNDLE_IDENTIFIER_MESSAGE),
   });
 
@@ -147,13 +147,13 @@ export function isWildcardBundleIdentifier(bundleIdentifier: string): boolean {
   return wildcardRegex.test(bundleIdentifier);
 }
 
-async function getRecommendedBundleIdentifierAsync(exp: ExpoConfig): Promise<string | undefined> {
+async function getSuggestedBundleIdentifierAsync(exp: ExpoConfig): Promise<string | undefined> {
   // Attempt to use the android package name first since it's convenient to have them aligned.
   const maybeAndroidPackage = AndroidConfig.Package.getPackage(exp);
   if (maybeAndroidPackage && isBundleIdentifierValid(maybeAndroidPackage)) {
     return maybeAndroidPackage;
   } else {
-    const username = exp.owner ?? getActorDisplayName(await getUserAsync());
+    const username = getUsername(exp, await ensureLoggedInAsync());
     // It's common to use dashes in your node project name, strip them from the suggested package name.
     const possibleId = `com.${username}.${exp.slug}`.split('-').join('');
     if (isBundleIdentifierValid(possibleId)) {

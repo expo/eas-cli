@@ -8,9 +8,9 @@ import once from 'lodash/once';
 import nullthrows from 'nullthrows';
 
 import Log, { learnMore } from '../../log';
-import { getProjectConfigDescription } from '../../project/projectUtils';
+import { getProjectConfigDescription, getUsername } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
-import { getActorDisplayName, getUserAsync } from '../../user/User';
+import { ensureLoggedInAsync } from '../../user/actions';
 import { resolveWorkflow } from '../workflow';
 
 const INVALID_APPLICATION_ID_MESSAGE = `Invalid format of Android applicationId. Only alphanumeric characters, '.' and '_' are allowed, and each '.' must be followed by a letter.`;
@@ -80,12 +80,12 @@ async function configureApplicationIdAsync(projectDir: string, exp: ExpoConfig):
     )}`
   );
 
-  const recommendedAndroidApplicationId = await getRecommendedApplicationIdAsync(exp);
+  const suggestedAndroidApplicationId = await getSuggestedApplicationIdAsync(exp);
   const { packageName } = await promptAsync({
     name: 'packageName',
     type: 'text',
     message: `What would you like your Android application id to be?`,
-    initial: recommendedAndroidApplicationId,
+    initial: suggestedAndroidApplicationId,
     validate: value => (isApplicationIdValid(value) ? true : INVALID_APPLICATION_ID_MESSAGE),
   });
 
@@ -123,13 +123,13 @@ export const warnIfAndroidPackageDefinedInAppConfigForGenericProject = once(
   _warnIfAndroidPackageDefinedInAppConfigForGenericProject
 );
 
-async function getRecommendedApplicationIdAsync(exp: ExpoConfig): Promise<string | undefined> {
+async function getSuggestedApplicationIdAsync(exp: ExpoConfig): Promise<string | undefined> {
   // Attempt to use the ios bundle id first since it's convenient to have them aligned.
   const maybeBundleId = IOSConfig.BundleIdentifier.getBundleIdentifier(exp);
   if (maybeBundleId && isApplicationIdValid(maybeBundleId)) {
     return maybeBundleId;
   } else {
-    const username = exp.owner ?? getActorDisplayName(await getUserAsync());
+    const username = getUsername(exp, await ensureLoggedInAsync());
     // It's common to use dashes in your node project name, strip them from the suggested package name.
     const possibleId = `com.${username}.${exp.slug}`.split('-').join('');
     if (isApplicationIdValid(possibleId)) {
