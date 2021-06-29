@@ -1,13 +1,15 @@
 import { ExpoConfig, getConfigFilePaths } from '@expo/config';
-import { IOSConfig } from '@expo/config-plugins';
+import { AndroidConfig, IOSConfig } from '@expo/config-plugins';
 import { Platform, Workflow } from '@expo/eas-build-job';
 import assert from 'assert';
+import chalk from 'chalk';
 import fs from 'fs-extra';
 import once from 'lodash/once';
 
-import Log from '../../log';
+import Log, { learnMore } from '../../log';
 import { promptAsync } from '../../prompts';
-import { getProjectConfigDescription, sanitizedProjectName } from '../projectUtils';
+import { ensureLoggedInAsync } from '../../user/actions';
+import { getProjectConfigDescription, getUsername, sanitizedProjectName } from '../projectUtils';
 import { resolveWorkflow } from '../workflow';
 
 const INVALID_BUNDLE_IDENTIFIER_MESSAGE = `Invalid format of iOS bundle identifier. Only alphanumeric characters, '.' and '-' are allowed, and each '.' must be followed by a letter.`;
@@ -90,10 +92,19 @@ async function configureBundleIdentifierAsync(
 
   assert(paths.staticConfigPath, 'app.json must exist');
 
+  Log.addNewLineIfNone();
+  Log.log(
+    `${chalk.bold(`📝  iOS Bundle Identifier`)} ${chalk.dim(
+      learnMore('https://expo.fyi/bundle-identifier')
+    )}`
+  );
+
+  const suggestedBundleIdentifier = await getSuggestedBundleIdentifierAsync(exp);
   const { bundleIdentifier } = await promptAsync({
     name: 'bundleIdentifier',
     type: 'text',
     message: `What would you like your iOS bundle identifier to be?`,
+    initial: suggestedBundleIdentifier,
     validate: value => (isBundleIdentifierValid(value) ? true : INVALID_BUNDLE_IDENTIFIER_MESSAGE),
   });
 
@@ -134,4 +145,20 @@ export const warnIfBundleIdentifierDefinedInAppConfigForGenericProject = once(
 export function isWildcardBundleIdentifier(bundleIdentifier: string): boolean {
   const wildcardRegex = /^[A-Za-z0-9.-]+\*$/;
   return wildcardRegex.test(bundleIdentifier);
+}
+
+async function getSuggestedBundleIdentifierAsync(exp: ExpoConfig): Promise<string | undefined> {
+  // Attempt to use the android package name first since it's convenient to have them aligned.
+  const maybeAndroidPackage = AndroidConfig.Package.getPackage(exp);
+  if (maybeAndroidPackage && isBundleIdentifierValid(maybeAndroidPackage)) {
+    return maybeAndroidPackage;
+  } else {
+    const username = getUsername(exp, await ensureLoggedInAsync());
+    // It's common to use dashes in your node project name, strip them from the suggested package name.
+    const possibleId = `com.${username}.${exp.slug}`.split('-').join('');
+    if (isBundleIdentifierValid(possibleId)) {
+      return possibleId;
+    }
+  }
+  return undefined;
 }
