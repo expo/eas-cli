@@ -3,7 +3,7 @@ import { nanoid } from 'nanoid';
 import ora from 'ora';
 
 import { AndroidAppBuildCredentialsFragment } from '../../../graphql/generated';
-import { getApplicationId } from '../../../project/android/applicationId';
+import { getApplicationIdAsync } from '../../../project/android/applicationId';
 import { getProjectAccountName, getProjectConfigDescription } from '../../../project/projectUtils';
 import { promptAsync } from '../../../prompts';
 import { findAccountByName } from '../../../user/Account';
@@ -86,7 +86,7 @@ export async function promptUserAndCopyLegacyCredentialsAsync(
   spinner.succeed('Credentials copied to EAS.');
 }
 
-export function getAppLookupParamsFromContext(ctx: Context): AppLookupParams {
+export async function getAppLookupParamsFromContextAsync(ctx: Context): Promise<AppLookupParams> {
   ctx.ensureProjectContext();
   const projectName = ctx.exp.slug;
   const accountName = getProjectAccountName(ctx.exp, ctx.user);
@@ -95,7 +95,7 @@ export function getAppLookupParamsFromContext(ctx: Context): AppLookupParams {
     throw new Error(`You do not have access to account: ${accountName}`);
   }
 
-  const androidApplicationIdentifier = getApplicationId(ctx.projectDir, ctx.exp);
+  const androidApplicationIdentifier = await getApplicationIdAsync(ctx.projectDir, ctx.exp);
   if (!androidApplicationIdentifier) {
     throw new Error(
       `android.package needs to be defined in your ${getProjectConfigDescription(

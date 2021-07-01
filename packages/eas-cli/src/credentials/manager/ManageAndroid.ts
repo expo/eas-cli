@@ -6,7 +6,7 @@ import { ensureActorHasUsername } from '../../user/actions';
 import { AssignFcm } from '../android/actions/AssignFcm';
 import {
   canCopyLegacyCredentialsAsync,
-  getAppLookupParamsFromContext,
+  getAppLookupParamsFromContextAsync,
   promptUserAndCopyLegacyCredentialsAsync,
 } from '../android/actions/BuildCredentialsUtils';
 import { CreateFcm } from '../android/actions/CreateFcm';
@@ -147,7 +147,7 @@ export class ManageAndroid {
           throw new Error(`You do not have access to account: ${accountName}`);
         }
         if (ctx.hasProjectContext) {
-          const appLookupParams = getAppLookupParamsFromContext(ctx);
+          const appLookupParams = await getAppLookupParamsFromContextAsync(ctx);
           const appCredentials = await ctx.android.getAndroidAppCredentialsWithCommonFieldsAsync(
             appLookupParams
           );
@@ -196,7 +196,7 @@ export class ManageAndroid {
             return await this.callingAction.runAsync(ctx);
           }
         }
-        const appLookupParams = getAppLookupParamsFromContext(ctx);
+        const appLookupParams = await getAppLookupParamsFromContextAsync(ctx);
         if (chosenAction === ActionType.CreateKeystore) {
           const selectBuildCredentialsResult = await new SelectAndroidBuildCredentials(
             appLookupParams

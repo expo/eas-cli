@@ -13,7 +13,7 @@ import { BuildMutation, BuildResult } from '../../graphql/mutations/BuildMutatio
 import Log from '../../log';
 import {
   ensureApplicationIdIsDefinedForManagedProjectAsync,
-  getApplicationId,
+  getApplicationIdAsync,
 } from '../../project/android/applicationId';
 import { toggleConfirmAsync } from '../../prompts';
 import { findAccountByName } from '../../user/Account';
@@ -110,7 +110,7 @@ async function ensureAndroidCredentialsAsync(
   if (!shouldProvideCredentials(ctx)) {
     return;
   }
-  const androidApplicationIdentifier = getApplicationId(
+  const androidApplicationIdentifier = await getApplicationIdAsync(
     ctx.commandCtx.projectDir,
     ctx.commandCtx.exp
   );

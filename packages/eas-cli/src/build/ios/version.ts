@@ -106,7 +106,7 @@ export async function readShortVersionAsync(
   projectDir: string,
   exp: ExpoConfig
 ): Promise<string | undefined> {
-  const workflow = resolveWorkflow(projectDir, Platform.IOS);
+  const workflow = await resolveWorkflow(projectDir, Platform.IOS);
   if (workflow === Workflow.GENERIC) {
     const infoPlist = await readInfoPlistAsync(projectDir);
     return infoPlist.CFBundleShortVersionString;
@@ -119,7 +119,7 @@ export async function readBuildNumberAsync(
   projectDir: string,
   exp: ExpoConfig
 ): Promise<string | undefined> {
-  const workflow = resolveWorkflow(projectDir, Platform.IOS);
+  const workflow = await resolveWorkflow(projectDir, Platform.IOS);
   if (workflow === Workflow.GENERIC) {
     const infoPlist = await readInfoPlistAsync(projectDir);
     return infoPlist.CFBundleVersion;

@@ -12,7 +12,7 @@ import {
   SelectAndroidBuildCredentials,
   SelectAndroidBuildCredentialsResultType,
 } from '../../../manager/SelectAndroidBuildCredentials';
-import { getAppLookupParamsFromContext } from '../BuildCredentialsUtils';
+import { getAppLookupParamsFromContextAsync } from '../BuildCredentialsUtils';
 import { SetupBuildCredentialsFromCredentialsJson } from '../SetupBuildCredentialsFromCredentialsJson';
 
 jest.mock('fs');
@@ -67,7 +67,7 @@ describe(SetupBuildCredentialsFromCredentialsJson, () => {
       }),
       'keystore.jks': 'some-binary-content',
     });
-    const appLookupParams = getAppLookupParamsFromContext(ctx);
+    const appLookupParams = await getAppLookupParamsFromContextAsync(ctx);
     const setupBuildCredentialsAction = new SetupBuildCredentialsFromCredentialsJson(
       appLookupParams
     );
@@ -117,7 +117,7 @@ describe(SetupBuildCredentialsFromCredentialsJson, () => {
       }),
       'keystore.jks': 'some-binary-content',
     });
-    const appLookupParams = getAppLookupParamsFromContext(ctx);
+    const appLookupParams = await getAppLookupParamsFromContextAsync(ctx);
     const setupBuildCredentialsAction = new SetupBuildCredentialsFromCredentialsJson(
       appLookupParams
     );
@@ -140,7 +140,7 @@ describe(SetupBuildCredentialsFromCredentialsJson, () => {
     const ctx = createCtxMock({
       nonInteractive: true,
     });
-    const appLookupParams = getAppLookupParamsFromContext(ctx);
+    const appLookupParams = await getAppLookupParamsFromContextAsync(ctx);
     const setupBuildCredentialsAction = new SetupBuildCredentialsFromCredentialsJson(
       appLookupParams
     );

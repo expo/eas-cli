@@ -2,7 +2,7 @@ export abstract class Client {
   // makeShallowCopyAsync should copy current project (result of getRootPathAsync()) to the specified
   // destination, folder created this way will be uploaded "as is", so implementation should skip
   // anything that is not commited to the repository. Most optimal solution is to create shallow clone
-  // using tooling provided by specific VCS, that respect all ignore rules
+  // using tooling provided by specific VCS, that respects all ignore rules
   public abstract makeShallowCopyAsync(destinationPath: string): Promise<void>;
 
   // Find root of the repository.
@@ -57,5 +57,12 @@ export abstract class Client {
   // used for EAS Update - implementation can be safely skipped
   public async getLastCommitMessageAsync(): Promise<string | null> {
     return null;
+  }
+
+  // (optional) checks if the file is ignored
+  // - returns true if the file is included in the project tarball
+  // - returns false otherwise
+  public async isFileIgnoredAsync(filePath: string): Promise<boolean> {
+    return false;
   }
 }

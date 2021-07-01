@@ -1,14 +1,14 @@
 import { testLegacyAndroidFcmFragment } from '../../../__tests__/fixtures-android';
 import { createCtxMock } from '../../../__tests__/fixtures-context';
 import { AssignFcm } from '../AssignFcm';
-import { getAppLookupParamsFromContext } from '../BuildCredentialsUtils';
+import { getAppLookupParamsFromContextAsync } from '../BuildCredentialsUtils';
 
 describe(AssignFcm, () => {
   it('assigns an fcm api key in Interactive Mode', async () => {
     const ctx = createCtxMock({
       nonInteractive: false,
     });
-    const appLookupParams = getAppLookupParamsFromContext(ctx);
+    const appLookupParams = await getAppLookupParamsFromContextAsync(ctx);
     const assignFcmAction = new AssignFcm(appLookupParams);
     await assignFcmAction.runAsync(ctx, testLegacyAndroidFcmFragment);
 
@@ -22,7 +22,7 @@ describe(AssignFcm, () => {
     const ctx = createCtxMock({
       nonInteractive: true,
     });
-    const appLookupParams = getAppLookupParamsFromContext(ctx);
+    const appLookupParams = await getAppLookupParamsFromContextAsync(ctx);
     const assignFcmAction = new AssignFcm(appLookupParams);
 
     // dont fail if users are running in non-interactive mode
