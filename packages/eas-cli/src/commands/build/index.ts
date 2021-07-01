@@ -1,4 +1,5 @@
 import { ExpoConfig, getConfig } from '@expo/config';
+import { EasJsonReader } from '@expo/eas-json';
 import { flags } from '@oclif/command';
 import chalk from 'chalk';
 import fs from 'fs-extra';
@@ -87,7 +88,7 @@ export default class Build extends EasCommand {
       return;
     }
 
-    exp = (await ensureProjectConfiguredAsync(projectDir)) ?? exp;
+    exp = (await ensureProjectConfiguredAsync(projectDir, platform)) ?? exp;
 
     const commandCtx = await createCommandContextAsync({
       requestedPlatform: platform,
@@ -101,6 +102,7 @@ export default class Build extends EasCommand {
       skipProjectConfiguration: flags['skip-project-configuration'],
       waitForBuildEnd: flags.wait,
     });
+
     await buildAsync(commandCtx);
   }
 }
@@ -140,17 +142,29 @@ async function promptForPlatformAsync(): Promise<RequestedPlatform> {
   return platform;
 }
 
-async function ensureProjectConfiguredAsync(projectDir: string): Promise<ExpoConfig | null> {
-  if (await fs.pathExists(path.join(projectDir, 'eas.json'))) {
+async function ensureProjectConfiguredAsync(
+  projectDir: string,
+  platform: RequestedPlatform
+): Promise<ExpoConfig | null> {
+  const platformsToConfigure = await getPlatformsToConfigureAsync(projectDir, platform);
+
+  if (!platformsToConfigure) {
     return null;
   }
-  const confirm = await confirmAsync({
-    message: 'This app is not set up for building with EAS. Set it up now?',
-  });
+
+  // Ensure the prompt is consistent with the platforms we need to configure
+  let message = 'This project is not configured to build with EAS. Set it up now?';
+  if (platformsToConfigure === RequestedPlatform.Ios) {
+    message = 'Your iOS project is not configured to build with EAS. Set it up now?';
+  } else if (platformsToConfigure === RequestedPlatform.Android) {
+    message = 'Your Android project is not configured to build with EAS. Set it up now?';
+  }
+
+  const confirm = await confirmAsync({ message });
   if (confirm) {
     await configureAsync({
       projectDir,
-      platform: RequestedPlatform.All,
+      platform: platformsToConfigure,
     });
     if (await vcs.hasUncommittedChangesAsync()) {
       throw new Error(
@@ -166,4 +180,31 @@ async function ensureProjectConfiguredAsync(projectDir: string): Promise<ExpoCon
       )})`
     );
   }
+}
+
+async function getPlatformsToConfigureAsync(
+  projectDir: string,
+  platform: RequestedPlatform
+): Promise<RequestedPlatform | null> {
+  if (!(await fs.pathExists(path.join(projectDir, 'eas.json')))) {
+    return platform;
+  }
+
+  const easConfig = await new EasJsonReader(projectDir, platform).readRawAsync();
+  if (platform === RequestedPlatform.All) {
+    if (easConfig.builds?.android && easConfig.builds?.ios) {
+      return null;
+    } else if (easConfig.builds?.ios) {
+      return RequestedPlatform.Android;
+    } else if (easConfig.builds?.android) {
+      return RequestedPlatform.Ios;
+    }
+  } else if (
+    (platform === RequestedPlatform.Android || platform === RequestedPlatform.Ios) &&
+    easConfig.builds?.[platform]
+  ) {
+    return null;
+  }
+
+  return platform;
 }
