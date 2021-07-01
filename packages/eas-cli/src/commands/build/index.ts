@@ -153,11 +153,11 @@ async function ensureProjectConfiguredAsync(
   }
 
   // Ensure the prompt is consistent with the platforms we need to configure
-  let message = 'This app is not configured to build with EAS. Set it up now?';
+  let message = 'This project is not configured to build with EAS. Set it up now?';
   if (platformsToConfigure === RequestedPlatform.Ios) {
-    message = 'Your iOS app is not configured to build with EAS. Set it up now?';
+    message = 'Your iOS project is not configured to build with EAS. Set it up now?';
   } else if (platformsToConfigure === RequestedPlatform.Android) {
-    message = 'Your Android app is not configured to build with EAS. Set it up now?';
+    message = 'Your Android project is not configured to build with EAS. Set it up now?';
   }
 
   const confirm = await confirmAsync({ message });
