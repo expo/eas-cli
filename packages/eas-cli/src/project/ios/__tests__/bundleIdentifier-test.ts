@@ -8,7 +8,7 @@ import { jester as mockJester } from '../../../credentials/__tests__/fixtures-co
 import { promptAsync } from '../../../prompts';
 import {
   ensureBundleIdentifierIsDefinedForManagedProjectAsync,
-  getBundleIdentifier,
+  getBundleIdentifierAsync,
   isWildcardBundleIdentifier,
 } from '../bundleIdentifier';
 
@@ -40,9 +40,9 @@ afterAll(() => {
 
 const originalFs = jest.requireActual('fs');
 
-describe(getBundleIdentifier, () => {
+describe(getBundleIdentifierAsync, () => {
   describe('generic projects', () => {
-    it('reads bundle identifier from project.', () => {
+    it('reads bundle identifier from project.', async () => {
       vol.fromJSON(
         {
           'ios/myproject.xcodeproj/project.pbxproj': originalFs.readFileSync(
@@ -53,11 +53,11 @@ describe(getBundleIdentifier, () => {
         '/app'
       );
 
-      const bundleIdentifier = getBundleIdentifier('/app', {} as any);
+      const bundleIdentifier = await getBundleIdentifierAsync('/app', {} as any);
       expect(bundleIdentifier).toBe('org.name.testproject');
     });
 
-    it('throws an error if the pbxproj is not configured with bundle id', () => {
+    it('throws an error if the pbxproj is not configured with bundle id', async () => {
       vol.fromJSON(
         {
           'ios/myproject.xcodeproj/project.pbxproj': originalFs.readFileSync(
@@ -68,30 +68,30 @@ describe(getBundleIdentifier, () => {
         '/app'
       );
 
-      expect(() => {
-        getBundleIdentifier('/app', {} as any);
-      }).toThrowError(/Could not read bundle identifier/);
+      await expect(getBundleIdentifierAsync('/app', {} as any)).rejects.toThrowError(
+        /Could not read bundle identifier/
+      );
     });
   });
 
   describe('managed projects', () => {
-    it('reads bundleIdentifier from app config', () => {
-      const applicationId = getBundleIdentifier('/app', {
+    it('reads bundleIdentifier from app config', async () => {
+      const applicationId = await getBundleIdentifierAsync('/app', {
         ios: { bundleIdentifier: 'com.expo.notdominik' },
       } as any);
       expect(applicationId).toBe('com.expo.notdominik');
     });
 
-    it('throws an error if bundleIdentifier is not defined in app config', () => {
-      expect(() => {
-        getBundleIdentifier('/app', {} as any);
-      }).toThrowError(/Specify "ios.bundleIdentifier"/);
+    it('throws an error if bundleIdentifier is not defined in app config', async () => {
+      await expect(getBundleIdentifierAsync('/app', {} as any)).rejects.toThrowError(
+        /Specify "ios.bundleIdentifier"/
+      );
     });
 
-    it('throws an error if bundleIdentifier in app config is invalid', () => {
-      expect(() => {
-        getBundleIdentifier('/app', { ios: { bundleIdentifier: '' } } as any);
-      }).toThrowError(/Specify "ios.bundleIdentifier"/);
+    it('throws an error if bundleIdentifier in app config is invalid', async () => {
+      await expect(
+        getBundleIdentifierAsync('/app', { ios: { bundleIdentifier: '' } } as any)
+      ).rejects.toThrowError(/Specify "ios.bundleIdentifier"/);
     });
   });
 });

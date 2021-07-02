@@ -10,7 +10,7 @@ import {
 import { createCtxMock } from '../../../__tests__/fixtures-context';
 import {
   canCopyLegacyCredentialsAsync,
-  getAppLookupParamsFromContext,
+  getAppLookupParamsFromContextAsync,
   promptUserAndCopyLegacyCredentialsAsync,
 } from '../BuildCredentialsUtils';
 
@@ -41,7 +41,7 @@ describe('BuildCredentialsUtils', () => {
           ),
         },
       });
-      const appLookupParams = getAppLookupParamsFromContext(ctx);
+      const appLookupParams = await getAppLookupParamsFromContextAsync(ctx);
       const canCopyLegacyCredentials = await canCopyLegacyCredentialsAsync(ctx, appLookupParams);
       expect(canCopyLegacyCredentials).toBe(true);
     });
@@ -58,7 +58,7 @@ describe('BuildCredentialsUtils', () => {
           ),
         },
       });
-      const appLookupParams = getAppLookupParamsFromContext(ctx);
+      const appLookupParams = await getAppLookupParamsFromContextAsync(ctx);
       const canCopyLegacyCredentials = await canCopyLegacyCredentialsAsync(ctx, appLookupParams);
       expect(canCopyLegacyCredentials).toBe(false);
     });
@@ -71,7 +71,7 @@ describe('BuildCredentialsUtils', () => {
           getLegacyAndroidAppCredentialsWithCommonFieldsAsync: jest.fn(() => null),
         },
       });
-      const appLookupParams = getAppLookupParamsFromContext(ctx);
+      const appLookupParams = await getAppLookupParamsFromContextAsync(ctx);
       const canCopyLegacyCredentials = await canCopyLegacyCredentialsAsync(ctx, appLookupParams);
       expect(canCopyLegacyCredentials).toBe(false);
     });
@@ -86,7 +86,7 @@ describe('BuildCredentialsUtils', () => {
           ),
         },
       });
-      const appLookupParams = getAppLookupParamsFromContext(ctx);
+      const appLookupParams = await getAppLookupParamsFromContextAsync(ctx);
       const canCopyLegacyCredentials = await canCopyLegacyCredentialsAsync(ctx, appLookupParams);
       expect(canCopyLegacyCredentials).toBe(true);
     });
@@ -109,7 +109,7 @@ describe('BuildCredentialsUtils', () => {
           createFcmAsync: jest.fn(() => testLegacyAndroidFcmFragment),
         },
       });
-      const appLookupParams = getAppLookupParamsFromContext(ctx);
+      const appLookupParams = await getAppLookupParamsFromContextAsync(ctx);
       await promptUserAndCopyLegacyCredentialsAsync(ctx, appLookupParams);
 
       expect(
@@ -131,7 +131,7 @@ describe('BuildCredentialsUtils', () => {
           ),
         },
       });
-      const appLookupParams = getAppLookupParamsFromContext(ctx);
+      const appLookupParams = await getAppLookupParamsFromContextAsync(ctx);
       await expect(
         promptUserAndCopyLegacyCredentialsAsync(ctx, appLookupParams)
       ).rejects.toThrowError();

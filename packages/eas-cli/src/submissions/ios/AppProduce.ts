@@ -8,7 +8,7 @@ import {
   ensureBundleIdExistsWithNameAsync,
 } from '../../credentials/ios/appstore/ensureAppExists';
 import Log from '../../log';
-import { getBundleIdentifier } from '../../project/ios/bundleIdentifier';
+import { getBundleIdentifierAsync } from '../../project/ios/bundleIdentifier';
 import { promptAsync } from '../../prompts';
 import { IosSubmissionContext } from '../types';
 import { sanitizeLanguage } from './utils/language';
@@ -41,7 +41,8 @@ export async function ensureAppStoreConnectAppExistsAsync(
   // - for builds from the database, read bundled identifier from metadata
   // - for builds uploaded from file system, prompt for the bundle identifier
   // this is necessary to make submit work outside the project directory
-  const resolvedBundleId = bundleIdentifier ?? getBundleIdentifier(ctx.projectDir, exp);
+  const resolvedBundleId =
+    bundleIdentifier ?? (await getBundleIdentifierAsync(ctx.projectDir, exp));
 
   const options = {
     ...ctx.commandFlags,

@@ -4,7 +4,7 @@ import {
   testAndroidBuildCredentialsFragment,
 } from '../../__tests__/fixtures-android';
 import { createCtxMock } from '../../__tests__/fixtures-context';
-import { getAppLookupParamsFromContext } from '../../android/actions/BuildCredentialsUtils';
+import { getAppLookupParamsFromContextAsync } from '../../android/actions/BuildCredentialsUtils';
 import {
   SelectAndroidBuildCredentials,
   SelectAndroidBuildCredentialsResultType,
@@ -28,7 +28,7 @@ describe(SelectAndroidBuildCredentials, () => {
         getAndroidAppBuildCredentialsListAsync: jest.fn(() => []),
       },
     });
-    const appLookupParams = getAppLookupParamsFromContext(ctx);
+    const appLookupParams = await getAppLookupParamsFromContextAsync(ctx);
     const selectAndroidBuildCredentialsAction = new SelectAndroidBuildCredentials(appLookupParams);
     const buildCredentialsMetadataInput = await selectAndroidBuildCredentialsAction.runAsync(ctx);
     expect(buildCredentialsMetadataInput).toMatchObject({
@@ -50,7 +50,7 @@ describe(SelectAndroidBuildCredentials, () => {
         ]),
       },
     });
-    const appLookupParams = getAppLookupParamsFromContext(ctx);
+    const appLookupParams = await getAppLookupParamsFromContextAsync(ctx);
     const selectAndroidBuildCredentialsAction = new SelectAndroidBuildCredentials(appLookupParams);
     const buildCredentialsMetadataInput = await selectAndroidBuildCredentialsAction.runAsync(ctx);
     expect(buildCredentialsMetadataInput).toMatchObject({
@@ -70,7 +70,7 @@ describe(SelectAndroidBuildCredentials, () => {
         getAndroidAppBuildCredentialsListAsync: jest.fn(() => []),
       },
     });
-    const appLookupParams = getAppLookupParamsFromContext(ctx);
+    const appLookupParams = await getAppLookupParamsFromContextAsync(ctx);
     const selectAndroidBuildCredentialsAction = new SelectAndroidBuildCredentials(appLookupParams);
     const buildCredentialsMetadataInput = await selectAndroidBuildCredentialsAction.runAsync(ctx);
     expect(buildCredentialsMetadataInput).toMatchObject({
@@ -90,7 +90,7 @@ describe(SelectAndroidBuildCredentials, () => {
         ]),
       },
     });
-    const appLookupParams = getAppLookupParamsFromContext(ctx);
+    const appLookupParams = await getAppLookupParamsFromContextAsync(ctx);
     const selectAndroidBuildCredentialsAction = new SelectAndroidBuildCredentials(appLookupParams);
     const buildCredentialsMetadataInput = await selectAndroidBuildCredentialsAction.runAsync(ctx);
     expect(buildCredentialsMetadataInput).toMatchObject({

@@ -1,8 +1,8 @@
 import { Metadata } from '@expo/eas-build-job';
 import { CredentialsSource } from '@expo/eas-json';
 
-import { getApplicationId } from '../project/android/applicationId';
-import { getBundleIdentifier } from '../project/ios/bundleIdentifier';
+import { getApplicationIdAsync } from '../project/android/applicationId';
+import { getBundleIdentifierAsync } from '../project/ios/bundleIdentifier';
 import { getUsername } from '../project/projectUtils';
 import { ensureLoggedInAsync } from '../user/actions';
 import vcs from '../vcs';
@@ -10,7 +10,7 @@ import {
   readChannelSafelyAsync as readAndroidChannelSafelyAsync,
   readReleaseChannelSafelyAsync as readAndroidReleaseChannelSafelyAsync,
 } from './android/UpdatesModule';
-import { readVersionCode, readVersionName } from './android/version';
+import { readVersionCodeAsync, readVersionNameAsync } from './android/version';
 import { BuildContext } from './context';
 import {
   readChannelSafelyAsync as readIosChannelSafelyAsync,
@@ -47,7 +47,7 @@ export async function collectMetadata<T extends Platform>(
     ...channelOrReleaseChannel,
     distribution: ctx.buildProfile.distribution ?? 'store',
     appName: ctx.commandCtx.exp.name,
-    appIdentifier: resolveAppIdentifier(ctx),
+    appIdentifier: await resolveAppIdentifierAsync(ctx),
     buildProfile: ctx.commandCtx.profile,
     gitCommitHash: await vcs.getCommitHashAsync(),
     username: getUsername(ctx.commandCtx.exp, await ensureLoggedInAsync()),
@@ -60,7 +60,7 @@ async function resolveAppVersionAsync<T extends Platform>(
   if (ctx.platform === Platform.IOS) {
     return await readShortVersionAsync(ctx.commandCtx.projectDir, ctx.commandCtx.exp);
   } else {
-    return readVersionName(ctx.commandCtx.projectDir, ctx.commandCtx.exp);
+    return await readVersionNameAsync(ctx.commandCtx.projectDir, ctx.commandCtx.exp);
   }
 }
 
@@ -70,16 +70,18 @@ async function resolveAppBuildVersionAsync<T extends Platform>(
   if (ctx.platform === Platform.IOS) {
     return await readBuildNumberAsync(ctx.commandCtx.projectDir, ctx.commandCtx.exp);
   } else {
-    const versionCode = readVersionCode(ctx.commandCtx.projectDir, ctx.commandCtx.exp);
+    const versionCode = await readVersionCodeAsync(ctx.commandCtx.projectDir, ctx.commandCtx.exp);
     return versionCode !== undefined ? String(versionCode) : undefined;
   }
 }
 
-function resolveAppIdentifier<T extends Platform>(ctx: BuildContext<T>): string {
+async function resolveAppIdentifierAsync<T extends Platform>(
+  ctx: BuildContext<T>
+): Promise<string> {
   if (ctx.platform === Platform.IOS) {
-    return getBundleIdentifier(ctx.commandCtx.projectDir, ctx.commandCtx.exp);
+    return await getBundleIdentifierAsync(ctx.commandCtx.projectDir, ctx.commandCtx.exp);
   } else {
-    return getApplicationId(ctx.commandCtx.projectDir, ctx.commandCtx.exp);
+    return await getApplicationIdAsync(ctx.commandCtx.projectDir, ctx.commandCtx.exp);
   }
 }
 

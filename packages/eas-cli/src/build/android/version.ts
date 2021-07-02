@@ -3,10 +3,13 @@ import { AndroidConfig } from '@expo/config-plugins';
 import { Platform, Workflow } from '@expo/eas-build-job';
 import fs from 'fs-extra';
 
-import { resolveWorkflow } from '../../project/workflow';
+import { resolveWorkflowAsync } from '../../project/workflow';
 
-export function readVersionCode(projectDir: string, exp: ExpoConfig): number | undefined {
-  const workflow = resolveWorkflow(projectDir, Platform.ANDROID);
+export async function readVersionCodeAsync(
+  projectDir: string,
+  exp: ExpoConfig
+): Promise<number | undefined> {
+  const workflow = await resolveWorkflowAsync(projectDir, Platform.ANDROID);
   if (workflow === Workflow.GENERIC) {
     const buildGradle = readBuildGradle(projectDir);
     const matchResult = buildGradle?.match(/versionCode (.*)/);
@@ -20,8 +23,11 @@ export function readVersionCode(projectDir: string, exp: ExpoConfig): number | u
   }
 }
 
-export function readVersionName(projectDir: string, exp: ExpoConfig): string | undefined {
-  const workflow = resolveWorkflow(projectDir, Platform.ANDROID);
+export async function readVersionNameAsync(
+  projectDir: string,
+  exp: ExpoConfig
+): Promise<string | undefined> {
+  const workflow = await resolveWorkflowAsync(projectDir, Platform.ANDROID);
   if (workflow === Workflow.GENERIC) {
     const buildGradle = readBuildGradle(projectDir);
     const matchResult = buildGradle?.match(/versionName ["'](.*)["']/);

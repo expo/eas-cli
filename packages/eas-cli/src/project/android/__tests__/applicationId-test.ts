@@ -7,7 +7,7 @@ import { jester as mockJester } from '../../../credentials/__tests__/fixtures-co
 import { promptAsync } from '../../../prompts';
 import {
   ensureApplicationIdIsDefinedForManagedProjectAsync,
-  getApplicationId,
+  getApplicationIdAsync,
 } from '../applicationId';
 
 jest.mock('fs');
@@ -31,71 +31,73 @@ beforeEach(() => {
 });
 
 afterAll(() => {
-  fs.removeSync(os.tmpdir());
   console.warn = originalConsoleWarn;
   console.log = originalConsoleLog;
 });
 
-describe(getApplicationId, () => {
+describe(getApplicationIdAsync, () => {
   describe('generic projects', () => {
-    it('reads applicationId from build.gradle', () => {
+    it('reads applicationId from build.gradle', async () => {
       vol.fromJSON(
         {
           'android/app/build.gradle': `
             applicationId "com.expo.notdominik"
           `,
+          'android/app/src/main/AndroidManifest.xml': 'fake',
         },
         '/app'
       );
 
-      const applicationId = getApplicationId('/app', {} as any);
+      const applicationId = await getApplicationIdAsync('/app', {} as any);
       expect(applicationId).toBe('com.expo.notdominik');
     });
 
-    it('throws an error if build.gradle does not exist', () => {
+    it('throws an error if build.gradle does not exist', async () => {
       vol.fromJSON(
         {
           'android/gradle.properties': 'fake file',
+          'android/app/src/main/AndroidManifest.xml': 'fake',
         },
         '/app'
       );
-      expect(() => {
-        getApplicationId('/app', {} as any);
-      }).toThrowError(/Could not read application id/);
+      await expect(getApplicationIdAsync('/app', {} as any)).rejects.toThrowError(
+        /Could not read application id/
+      );
     });
 
-    it('throws an error if the project does not have applicationId defined in build.gradle', () => {
+    it('throws an error if the project does not have applicationId defined in build.gradle', async () => {
       vol.fromJSON(
         {
           'android/app/build.gradle': `fake build.gradle`,
+          'android/app/src/main/AndroidManifest.xml': 'fake',
         },
         '/app'
       );
 
-      expect(() => {
-        getApplicationId('/app', {} as any);
-      }).toThrowError(/Could not read application id/);
+      await expect(getApplicationIdAsync('/app', {} as any)).rejects.toThrowError(
+        /Could not read application id/
+      );
     });
   });
 
   describe('managed projects', () => {
-    it('reads applicationId (Android package) from app config', () => {
-      const applicationId = getApplicationId('/app', {
+    it('reads applicationId (Android package) from app config', async () => {
+      const applicationId = await getApplicationIdAsync('/app', {
         android: { package: 'com.expo.notdominik' },
       } as any);
       expect(applicationId).toBe('com.expo.notdominik');
     });
 
-    it('throws an error if Android package is not defined in app config', () => {
-      expect(() => {
-        getApplicationId('/app', {} as any);
-      }).toThrowError(/Specify "android.package"/);
+    it('throws an error if Android package is not defined in app config', async () => {
+      await expect(getApplicationIdAsync('/app', {} as any)).rejects.toThrowError(
+        /Specify "android.package"/
+      );
     });
 
-    it('throws an error if Android package in app config is invalid', () => {
-      expect(() => {
-        getApplicationId('/app', { android: { package: '1com.expo.notdominik' } } as any);
-      }).toThrowError(/Specify "android.package"/);
+    it('throws an error if Android package in app config is invalid', async () => {
+      await expect(
+        getApplicationIdAsync('/app', { android: { package: '1com.expo.notdominik' } } as any)
+      ).rejects.toThrowError(/Specify "android.package"/);
     });
   });
 });

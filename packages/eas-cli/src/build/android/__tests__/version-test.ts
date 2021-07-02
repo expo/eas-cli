@@ -3,14 +3,19 @@ import fs from 'fs-extra';
 import { vol } from 'memfs';
 import os from 'os';
 
-import { readVersionCode, readVersionName } from '../version';
+import { readVersionCodeAsync, readVersionNameAsync } from '../version';
 
 jest.mock('fs');
 
+const originalConsoleWarn = console.warn;
+beforeAll(() => {
+  console.warn = jest.fn();
+});
 afterAll(() => {
   // do not remove the following line
   // this fixes a weird error with tempy in @expo/image-utils
   fs.removeSync(os.tmpdir());
+  console.warn = originalConsoleWarn;
 });
 
 beforeEach(() => {
@@ -20,35 +25,35 @@ beforeEach(() => {
   fs.mkdirpSync(os.tmpdir());
 });
 
-describe(readVersionCode, () => {
+describe(readVersionCodeAsync, () => {
   describe('generic project', () => {
-    it('reads the version code from native code', () => {
+    it('reads the version code from native code', async () => {
       const exp = initGenericProject();
-      const versionCode = readVersionCode('/repo', exp);
+      const versionCode = await readVersionCodeAsync('/repo', exp);
       expect(versionCode).toBe(123);
     });
   });
   describe('managed project', () => {
-    it('reads the version code from expo config', () => {
+    it('reads the version code from expo config', async () => {
       const exp = initManagedProject();
-      const versionCode = readVersionCode('/repo', exp);
+      const versionCode = await readVersionCodeAsync('/repo', exp);
       expect(versionCode).toBe(123);
     });
   });
 });
 
-describe(readVersionName, () => {
+describe(readVersionNameAsync, () => {
   describe('generic project', () => {
-    it('reads the version name from native code', () => {
+    it('reads the version name from native code', async () => {
       const exp = initGenericProject();
-      const versionName = readVersionName('/repo', exp);
+      const versionName = await readVersionNameAsync('/repo', exp);
       expect(versionName).toBe('1.0');
     });
   });
   describe('managed project', () => {
-    it('reads the version from expo config', () => {
+    it('reads the version from expo config', async () => {
       const exp = initManagedProject();
-      const versionName = readVersionName('/repo', exp);
+      const versionName = await readVersionNameAsync('/repo', exp);
       expect(versionName).toBe('1.0.0');
     });
   });
@@ -72,6 +77,7 @@ function initGenericProject(): ExpoConfig {
     versionName "1.0"
   }
 }`,
+      './android/app/src/main/AndroidManifest.xml': 'fake',
     },
     '/repo'
   );

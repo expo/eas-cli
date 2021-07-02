@@ -2,7 +2,7 @@ import fs from 'fs-extra';
 
 import { testAndroidBuildCredentialsFragment } from '../../../__tests__/fixtures-android';
 import { createCtxMock } from '../../../__tests__/fixtures-context';
-import { getAppLookupParamsFromContext } from '../BuildCredentialsUtils';
+import { getAppLookupParamsFromContextAsync } from '../BuildCredentialsUtils';
 import { DownloadKeystore } from '../DownloadKeystore';
 
 jest.mock('fs-extra');
@@ -23,7 +23,7 @@ describe(DownloadKeystore, () => {
     const ctx = createCtxMock({
       nonInteractive: false,
     });
-    const appLookupParams = getAppLookupParamsFromContext(ctx);
+    const appLookupParams = await getAppLookupParamsFromContextAsync(ctx);
     const downloadKeystoreAction = new DownloadKeystore({ app: appLookupParams });
     await downloadKeystoreAction.runAsync(ctx, testAndroidBuildCredentialsFragment);
     expect(fsWriteFileSpy as any).toHaveBeenCalledTimes(1);
@@ -36,7 +36,7 @@ describe(DownloadKeystore, () => {
   });
   it('works in Non-Interactive Mode', async () => {
     const ctx = createCtxMock({ nonInteractive: true });
-    const appLookupParams = getAppLookupParamsFromContext(ctx);
+    const appLookupParams = await getAppLookupParamsFromContextAsync(ctx);
     const downloadKeystoreAction = new DownloadKeystore({ app: appLookupParams });
     await expect(
       downloadKeystoreAction.runAsync(ctx, testAndroidBuildCredentialsFragment)

@@ -6,7 +6,7 @@ import {
 } from '../../../__tests__/fixtures-android';
 import { createCtxMock } from '../../../__tests__/fixtures-context';
 import { MissingCredentialsNonInteractiveError } from '../../../errors';
-import { getAppLookupParamsFromContext } from '../BuildCredentialsUtils';
+import { getAppLookupParamsFromContextAsync } from '../BuildCredentialsUtils';
 import { SetupBuildCredentials } from '../SetupBuildCredentials';
 
 jest.mock('../../../../prompts');
@@ -34,7 +34,7 @@ describe('SetupBuildCredentials', () => {
         ),
       },
     });
-    const appLookupParams = getAppLookupParamsFromContext(ctx);
+    const appLookupParams = await getAppLookupParamsFromContextAsync(ctx);
     const setupBuildCredentialsAction = new SetupBuildCredentials({ app: appLookupParams });
     await setupBuildCredentialsAction.runAsync(ctx);
 
@@ -50,7 +50,7 @@ describe('SetupBuildCredentials', () => {
         createKeystoreAsync: jest.fn(() => testJksAndroidKeystoreFragment),
       },
     });
-    const appLookupParams = getAppLookupParamsFromContext(ctx);
+    const appLookupParams = await getAppLookupParamsFromContextAsync(ctx);
     const setupBuildCredentialsAction = new SetupBuildCredentials({ app: appLookupParams });
     await setupBuildCredentialsAction.runAsync(ctx);
 
@@ -65,7 +65,7 @@ describe('SetupBuildCredentials', () => {
         ...getNewAndroidApiMock(),
       },
     });
-    const appLookupParams = getAppLookupParamsFromContext(ctx);
+    const appLookupParams = await getAppLookupParamsFromContextAsync(ctx);
     const setupBuildCredentialsAction = new SetupBuildCredentials({ app: appLookupParams });
     await expect(setupBuildCredentialsAction.runAsync(ctx)).rejects.toThrowError(
       MissingCredentialsNonInteractiveError

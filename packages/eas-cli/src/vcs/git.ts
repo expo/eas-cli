@@ -127,6 +127,15 @@ export default class GitClient extends Client {
       !trackedFiles.includes(pathWithoutLeadingDot)
     );
   }
+
+  public async isFileIgnoredAsync(filePath: string): Promise<boolean> {
+    try {
+      await spawnAsync('git', ['check-ignore', '-q', filePath]);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
 }
 
 async function isGitInstalledAsync(): Promise<boolean> {

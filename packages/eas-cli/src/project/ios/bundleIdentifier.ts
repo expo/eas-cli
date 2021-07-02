@@ -10,7 +10,7 @@ import Log, { learnMore } from '../../log';
 import { promptAsync } from '../../prompts';
 import { ensureLoggedInAsync } from '../../user/actions';
 import { getProjectConfigDescription, getUsername, sanitizedProjectName } from '../projectUtils';
-import { resolveWorkflow } from '../workflow';
+import { resolveWorkflowAsync } from '../workflow';
 
 const INVALID_BUNDLE_IDENTIFIER_MESSAGE = `Invalid format of iOS bundle identifier. Only alphanumeric characters, '.' and '-' are allowed, and each '.' must be followed by a letter.`;
 
@@ -18,22 +18,22 @@ export async function ensureBundleIdentifierIsDefinedForManagedProjectAsync(
   projectDir: string,
   exp: ExpoConfig
 ): Promise<string> {
-  const workflow = resolveWorkflow(projectDir, Platform.IOS);
+  const workflow = await resolveWorkflowAsync(projectDir, Platform.IOS);
   assert(workflow === Workflow.MANAGED, 'This function should be called only for managed projects');
 
   try {
-    return getBundleIdentifier(projectDir, exp);
+    return await getBundleIdentifierAsync(projectDir, exp);
   } catch (err) {
     return await configureBundleIdentifierAsync(projectDir, exp);
   }
 }
 
-export function getBundleIdentifier(
+export async function getBundleIdentifierAsync(
   projectDir: string,
   exp: ExpoConfig,
   { targetName, buildConfiguration }: { targetName?: string; buildConfiguration?: string } = {}
-): string {
-  const workflow = resolveWorkflow(projectDir, Platform.IOS);
+): Promise<string> {
+  const workflow = await resolveWorkflowAsync(projectDir, Platform.IOS);
   if (workflow === Workflow.GENERIC) {
     warnIfBundleIdentifierDefinedInAppConfigForGenericProject(projectDir, exp);
 
