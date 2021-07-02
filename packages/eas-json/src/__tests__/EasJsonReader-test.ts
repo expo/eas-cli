@@ -14,7 +14,7 @@ test('minimal valid android eas.json', async () => {
   await fs.writeJson('/project/eas.json', {
     builds: {
       android: {
-        release: { workflow: 'generic' },
+        release: {},
       },
     },
   });
@@ -24,7 +24,6 @@ test('minimal valid android eas.json', async () => {
   expect({
     builds: {
       android: {
-        workflow: 'generic',
         distribution: 'store',
         credentialsSource: 'remote',
         env: {},
@@ -40,7 +39,7 @@ test('minimal valid ios eas.json', async () => {
   await fs.writeJson('/project/eas.json', {
     builds: {
       ios: {
-        release: { workflow: 'generic' },
+        release: {},
       },
     },
   });
@@ -52,7 +51,6 @@ test('minimal valid ios eas.json', async () => {
       ios: {
         credentialsSource: 'remote',
         distribution: 'store',
-        workflow: 'generic',
         autoIncrement: false,
         env: {},
         cache: { disabled: false, cacheDefaultPaths: true, customPaths: [] },
@@ -65,10 +63,10 @@ test('minimal valid eas.json for both platforms', async () => {
   await fs.writeJson('/project/eas.json', {
     builds: {
       android: {
-        release: { workflow: 'generic' },
+        release: {},
       },
       ios: {
-        release: { workflow: 'generic' },
+        release: {},
       },
     },
   });
@@ -78,7 +76,6 @@ test('minimal valid eas.json for both platforms', async () => {
   expect({
     builds: {
       android: {
-        workflow: 'generic',
         distribution: 'store',
         credentialsSource: 'remote',
         env: {},
@@ -87,7 +84,6 @@ test('minimal valid eas.json for both platforms', async () => {
         image: 'default',
       },
       ios: {
-        workflow: 'generic',
         distribution: 'store',
         credentialsSource: 'remote',
         autoIncrement: false,
@@ -102,10 +98,10 @@ test('valid eas.json with both platform, but reading only android', async () => 
   await fs.writeJson('/project/eas.json', {
     builds: {
       ios: {
-        release: { workflow: 'generic' },
+        release: {},
       },
       android: {
-        release: { workflow: 'generic' },
+        release: {},
       },
     },
   });
@@ -115,7 +111,6 @@ test('valid eas.json with both platform, but reading only android', async () => 
   expect({
     builds: {
       android: {
-        workflow: 'generic',
         distribution: 'store',
         credentialsSource: 'remote',
         env: {},
@@ -131,13 +126,13 @@ test('valid eas.json for development client builds', async () => {
   await fs.writeJson('/project/eas.json', {
     builds: {
       ios: {
-        release: { workflow: 'managed' },
-        debug: { workflow: 'managed', buildType: 'development-client' },
+        release: {},
+        debug: { buildType: 'development-client' },
       },
       android: {
-        release: { workflow: 'managed' },
+        release: {},
         debug: {
-          workflow: 'managed',
+          withoutCredentials: false,
           buildType: 'development-client',
         },
       },
@@ -150,16 +145,15 @@ test('valid eas.json for development client builds', async () => {
     builds: {
       android: {
         credentialsSource: 'remote',
-        workflow: 'managed',
         distribution: 'store',
         env: {},
         image: 'default',
+        withoutCredentials: false,
         cache: { disabled: false, cacheDefaultPaths: true, customPaths: [] },
         buildType: 'development-client',
       },
       ios: {
         credentialsSource: 'remote',
-        workflow: 'managed',
         distribution: 'store',
         autoIncrement: false,
         env: {},
@@ -175,7 +169,6 @@ test('valid generic profile for internal distribution on Android', async () => {
     builds: {
       android: {
         internal: {
-          workflow: 'generic',
           distribution: 'internal',
         },
       },
@@ -187,10 +180,8 @@ test('valid generic profile for internal distribution on Android', async () => {
   expect({
     builds: {
       android: {
-        workflow: 'generic',
         distribution: 'internal',
         credentialsSource: 'remote',
-        gradleCommand: ':app:assembleRelease',
         env: {},
         withoutCredentials: false,
         cache: { disabled: false, cacheDefaultPaths: true, customPaths: [] },
@@ -205,7 +196,6 @@ test('valid managed profile for internal distribution on Android', async () => {
     builds: {
       android: {
         internal: {
-          workflow: 'managed',
           distribution: 'internal',
         },
       },
@@ -217,10 +207,9 @@ test('valid managed profile for internal distribution on Android', async () => {
   expect({
     builds: {
       android: {
-        workflow: 'managed',
-        buildType: 'apk',
         distribution: 'internal',
         credentialsSource: 'remote',
+        withoutCredentials: false,
         env: {},
         cache: { disabled: false, cacheDefaultPaths: true, customPaths: [] },
         image: 'default',
@@ -234,7 +223,6 @@ test('invalid managed profile for internal distribution on Android', async () =>
     builds: {
       android: {
         internal: {
-          workflow: 'managed',
           buildType: 'aab',
           distribution: 'internal',
         },
@@ -253,9 +241,7 @@ test('invalid eas.json with missing preset', async () => {
   await fs.writeJson('/project/eas.json', {
     builds: {
       android: {
-        release: {
-          workflow: 'generic',
-        },
+        release: {},
       },
     },
   });
@@ -271,7 +257,7 @@ test('invalid eas.json when using buildType for wrong platform', async () => {
   await fs.writeJson('/project/eas.json', {
     builds: {
       android: {
-        release: { workflow: 'managed', buildType: 'archive' },
+        release: { buildType: 'archive' },
       },
     },
   });
@@ -280,22 +266,6 @@ test('invalid eas.json when using buildType for wrong platform', async () => {
   const promise = reader.readAsync('release');
   await expect(promise).rejects.toThrowError(
     'Object "android.release" in eas.json is not valid [ValidationError: "buildType" must be one of [apk, app-bundle, development-client]]'
-  );
-});
-
-test('invalid eas.json when missing workflow', async () => {
-  await fs.writeJson('/project/eas.json', {
-    builds: {
-      android: {
-        release: { buildType: 'apk' },
-      },
-    },
-  });
-
-  const reader = new EasJsonReader('/project', 'android');
-  const promise = reader.readAsync('release');
-  await expect(promise).rejects.toThrowError(
-    '"workflow" key is required in a build profile and has to be one of ["generic", "managed"].'
   );
 });
 
@@ -313,7 +283,7 @@ test('invalid semver value', async () => {
   await fs.writeJson('/project/eas.json', {
     builds: {
       android: {
-        release: { workflow: 'generic', node: '12.0.0-alpha' },
+        release: { node: '12.0.0-alpha' },
       },
     },
   });
@@ -329,12 +299,12 @@ test('get profile names', async () => {
   await fs.writeJson('/project/eas.json', {
     builds: {
       android: {
-        release: { workflow: 'generic', node: '12.0.0-alpha' },
-        blah: { workflow: 'generic', node: '12.0.0-alpha' },
+        release: { node: '12.0.0-alpha' },
+        blah: { node: '12.0.0-alpha' },
       },
       ios: {
-        test: { workflow: 'generic', node: '12.0.0-alpha' },
-        blah: { workflow: 'generic', node: '12.0.0-alpha' },
+        test: { node: '12.0.0-alpha' },
+        blah: { node: '12.0.0-alpha' },
       },
     },
   });

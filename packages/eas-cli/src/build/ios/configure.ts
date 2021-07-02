@@ -1,5 +1,5 @@
 import { ExpoConfig } from '@expo/config';
-import { Workflow } from '@expo/eas-build-job';
+import { Platform, Workflow } from '@expo/eas-build-job';
 import { IosBuildProfile, VersionAutoIncrement } from '@expo/eas-json';
 
 import Log from '../../log';
@@ -7,6 +7,7 @@ import {
   ensureBundleIdentifierIsDefinedForManagedProjectAsync,
   warnIfBundleIdentifierDefinedInAppConfigForGenericProject,
 } from '../../project/ios/bundleIdentifier';
+import { resolveWorkflowAsync } from '../../project/workflow';
 import { ConfigureContext } from '../context';
 import { isExpoUpdatesInstalled } from '../utils/updates';
 import { configureUpdatesAsync, syncUpdatesConfigurationAsync } from './UpdatesModule';
@@ -35,7 +36,8 @@ export async function validateAndSyncProjectConfigurationAsync({
   exp: ExpoConfig;
   buildProfile: IosBuildProfile;
 }): Promise<void> {
-  const { workflow, autoIncrement } = buildProfile;
+  const workflow = await resolveWorkflowAsync(projectDir, Platform.IOS);
+  const { autoIncrement } = buildProfile;
   const versionBumpStrategy = resolveVersionBumpStrategy(autoIncrement);
 
   if (workflow === Workflow.GENERIC) {

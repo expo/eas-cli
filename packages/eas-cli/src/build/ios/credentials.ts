@@ -28,7 +28,7 @@ export async function ensureIosCredentialsAsync(
     iosCapabilitiesOptions: {
       entitlements: await resolveEntitlementsJsonAsync(
         buildCtx.commandCtx.projectDir,
-        buildCtx.buildProfile.workflow
+        buildCtx.workflow
       ),
     },
     distribution: buildCtx.buildProfile.distribution ?? 'store',

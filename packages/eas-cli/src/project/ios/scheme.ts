@@ -1,6 +1,6 @@
 import { ExpoConfig } from '@expo/config';
 import { IOSConfig } from '@expo/config-plugins';
-import { Workflow } from '@expo/eas-build-job';
+import { Platform, Workflow } from '@expo/eas-build-job';
 import { IosBuildProfile } from '@expo/eas-json';
 import chalk from 'chalk';
 import sortBy from 'lodash/sortBy';
@@ -8,6 +8,7 @@ import sortBy from 'lodash/sortBy';
 import Log from '../../log';
 import { promptAsync } from '../../prompts';
 import { sanitizedProjectName } from '../projectUtils';
+import { resolveWorkflowAsync } from '../workflow';
 
 export interface XcodeBuildContext {
   buildScheme: string;
@@ -22,7 +23,8 @@ export async function resolveXcodeBuildContextAsync(
   }: { exp: ExpoConfig; projectDir: string; nonInteractive: boolean },
   buildProfile: IosBuildProfile
 ): Promise<XcodeBuildContext> {
-  if (buildProfile.workflow === Workflow.GENERIC) {
+  const workflow = await resolveWorkflowAsync(projectDir, Platform.IOS);
+  if (workflow === Workflow.GENERIC) {
     const buildScheme =
       buildProfile.scheme ??
       (await selectSchemeAsync({

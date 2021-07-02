@@ -38,90 +38,58 @@ const CacheSchema = Joi.object({
   customPaths: Joi.array().items(Joi.string()).default([]),
 });
 
-const AndroidGenericSchema = Joi.object({
-  workflow: Joi.string().valid('generic').required(),
+const AndroidSchema = Joi.object({
+  workflow: Joi.string(),
   credentialsSource: Joi.string().valid('local', 'remote').default('remote'),
-  gradleCommand: Joi.alternatives().conditional('distribution', {
-    is: 'internal',
-    then: Joi.string().default(':app:assembleRelease'),
-    otherwise: Joi.string(),
-  }),
   releaseChannel: Joi.string(),
   channel: Joi.string(),
-  artifactPath: Joi.string(),
-  withoutCredentials: Joi.boolean().default(false),
   distribution: Joi.string().valid('store', 'internal').default('store'),
   cache: CacheSchema.default(),
-}).concat(AndroidBuilderEnvironmentSchema);
+  withoutCredentials: Joi.boolean().default(false),
 
-const AndroidManagedSchema = Joi.object({
-  workflow: Joi.string().valid('managed').required(),
-  credentialsSource: Joi.string().valid('local', 'remote').default('remote'),
-  releaseChannel: Joi.string(),
-  channel: Joi.string(),
+  artifactPath: Joi.string(),
+  gradleCommand: Joi.string(),
+
   buildType: Joi.alternatives().conditional('distribution', {
     is: 'internal',
-    then: Joi.string().valid('apk', 'development-client').default('apk'),
-    otherwise: Joi.string().valid('apk', 'app-bundle', 'development-client').default('app-bundle'),
+    then: Joi.string().valid('apk', 'development-client'),
+    otherwise: Joi.string().valid('apk', 'app-bundle', 'development-client'),
   }),
-  distribution: Joi.string().valid('store', 'internal').default('store'),
-  cache: CacheSchema.default(),
 }).concat(AndroidBuilderEnvironmentSchema);
 
-const IosGenericSchema = Joi.object({
-  workflow: Joi.string().valid('generic').required(),
+const IosSchema = Joi.object({
+  workflow: Joi.string(),
   credentialsSource: Joi.string().valid('local', 'remote').default('remote'),
+  releaseChannel: Joi.string(),
+  channel: Joi.string(),
+  distribution: Joi.string().valid('store', 'internal', 'simulator').default('store'),
+  enterpriseProvisioning: Joi.string().valid('adhoc', 'universal'),
+  autoIncrement: Joi.alternatives()
+    .try(Joi.boolean(), Joi.string().valid('version', 'buildNumber'))
+    .default(false),
+  cache: CacheSchema.default(),
+
+  artifactPath: Joi.string(),
   scheme: Joi.string(),
   schemeBuildConfiguration: Joi.string(),
-  releaseChannel: Joi.string(),
-  channel: Joi.string(),
-  artifactPath: Joi.string(),
-  distribution: Joi.string().valid('store', 'internal', 'simulator').default('store'),
-  enterpriseProvisioning: Joi.string().valid('adhoc', 'universal'),
-  autoIncrement: Joi.alternatives()
-    .try(Joi.boolean(), Joi.string().valid('version', 'buildNumber'))
-    .default(false),
-  cache: CacheSchema.default(),
+
+  buildType: Joi.string().valid('release', 'development-client'),
 }).concat(IosBuilderEnvironmentSchema);
 
-const IosManagedSchema = Joi.object({
-  workflow: Joi.string().valid('managed').required(),
-  credentialsSource: Joi.string().valid('local', 'remote').default('remote'),
-  buildType: Joi.string().valid('release', 'development-client').default('release'),
-  releaseChannel: Joi.string(),
-  channel: Joi.string(),
-  distribution: Joi.string().valid('store', 'internal', 'simulator').default('store'),
-  enterpriseProvisioning: Joi.string().valid('adhoc', 'universal'),
-  autoIncrement: Joi.alternatives()
-    .try(Joi.boolean(), Joi.string().valid('version', 'buildNumber'))
-    .default(false),
-  cache: CacheSchema.default(),
-}).concat(IosBuilderEnvironmentSchema);
-
-export const schemaBuildProfileMap: Record<string, Record<string, Joi.Schema>> = {
-  android: {
-    generic: AndroidGenericSchema,
-    managed: AndroidManagedSchema,
-  },
-  ios: {
-    managed: IosManagedSchema,
-    generic: IosGenericSchema,
-  },
+export const schemaBuildProfileMap: Record<string, Joi.Schema> = {
+  android: AndroidSchema,
+  ios: IosSchema,
 };
 
 export const EasJsonSchema = Joi.object({
   builds: Joi.object({
     android: Joi.object().pattern(
       Joi.string(),
-      Joi.object({
-        workflow: Joi.string().valid('generic', 'managed'),
-      }).unknown(true) // profile is validated further only if build is for that platform
+      Joi.object({}).unknown(true) // profile is validated further only if build is for that platform
     ),
     ios: Joi.object().pattern(
       Joi.string(),
-      Joi.object({
-        workflow: Joi.string().valid('generic', 'managed'),
-      }).unknown(true) // profile is validated further only if build is for that platform
+      Joi.object({}).unknown(true) // profile is validated further only if build is for that platform
     ),
   }),
 });

@@ -1,13 +1,9 @@
 export {
   CredentialsSource,
   AndroidDistributionType,
-  AndroidManagedBuildProfile,
-  AndroidGenericBuildProfile,
   AndroidBuildProfile,
   BuildProfile,
   IosDistributionType,
-  IosManagedBuildProfile,
-  IosGenericBuildProfile,
   IosBuildProfile,
   IosEnterpriseProvisioning,
   DistributionType,

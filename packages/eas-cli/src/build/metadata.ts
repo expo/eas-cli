@@ -41,7 +41,7 @@ export async function collectMetadata<T extends Platform>(
     appVersion: await resolveAppVersionAsync(ctx),
     appBuildVersion: await resolveAppBuildVersionAsync(ctx),
     cliVersion: packageJSON.version,
-    workflow: ctx.buildProfile.workflow,
+    workflow: ctx.workflow,
     credentialsSource,
     sdkVersion: ctx.commandCtx.exp.sdkVersion,
     ...channelOrReleaseChannel,

@@ -1,9 +1,7 @@
 import { Android, Metadata, Workflow } from '@expo/eas-build-job';
 import { EasConfig } from '@expo/eas-json';
 import chalk from 'chalk';
-import fs from 'fs-extra';
 import nullthrows from 'nullthrows';
-import path from 'path';
 
 import AndroidCredentialsProvider, {
   AndroidCredentials,
@@ -18,7 +16,7 @@ import {
 import { toggleConfirmAsync } from '../../prompts';
 import { findAccountByName } from '../../user/Account';
 import { CredentialsResult, prepareBuildRequestForPlatformAsync } from '../build';
-import { BuildContext, CommandContext, createBuildContext } from '../context';
+import { BuildContext, CommandContext, createBuildContextAsync } from '../context';
 import { transformMetadata } from '../graphql';
 import { Platform } from '../types';
 import { logCredentialsSource } from '../utils/credentials';
@@ -30,29 +28,14 @@ export async function prepareAndroidBuildAsync(
   commandCtx: CommandContext,
   easConfig: EasConfig
 ): Promise<() => Promise<string | undefined>> {
-  const buildCtx = createBuildContext<Platform.ANDROID>({
+  const buildCtx = await createBuildContextAsync<Platform.ANDROID>({
     commandCtx,
     platform: Platform.ANDROID,
     easConfig,
   });
   const { buildProfile } = buildCtx;
 
-  if (
-    buildProfile.workflow === Workflow.GENERIC &&
-    !(await fs.pathExists(path.join(commandCtx.projectDir, 'android')))
-  ) {
-    throw new Error(
-      `"android" directory not found. If you're trying to build a managed project, set ${chalk.bold(
-        `builds.android.${commandCtx.profile}.workflow`
-      )} in "eas.json" to "managed".`
-    );
-  }
-
-  if (
-    buildProfile.workflow === Workflow.GENERIC &&
-    buildProfile.distribution === 'internal' &&
-    buildProfile.gradleCommand?.match(/bundle/)
-  ) {
+  if (buildProfile.distribution === 'internal' && buildProfile.gradleCommand?.match(/bundle/)) {
     Log.addNewLineIfNone();
     Log.warn(
       `You're building your Android app for internal distribution. However, we've detected that the Gradle command you defined (${chalk.underline(
@@ -68,7 +51,7 @@ This means that it will most likely produce an AAB and you will not be able to i
     }
   }
 
-  if (buildCtx.buildProfile.workflow === Workflow.MANAGED) {
+  if (buildCtx.workflow === Workflow.MANAGED) {
     await ensureApplicationIdIsDefinedForManagedProjectAsync(commandCtx.projectDir, commandCtx.exp);
   }
 
@@ -76,7 +59,7 @@ This means that it will most likely produce an AAB and you will not be able to i
     ctx: buildCtx,
     ensureCredentialsAsync: ensureAndroidCredentialsAsync,
     ensureProjectConfiguredAsync: async () => {
-      if (buildCtx.buildProfile.workflow === Workflow.GENERIC) {
+      if (buildCtx.workflow === Workflow.GENERIC) {
         await validateAndSyncProjectConfigurationAsync(commandCtx.projectDir, commandCtx.exp);
       }
     },
@@ -98,10 +81,7 @@ This means that it will most likely produce an AAB and you will not be able to i
 }
 
 function shouldProvideCredentials(ctx: BuildContext<Platform.ANDROID>): boolean {
-  return (
-    ctx.buildProfile.workflow === Workflow.MANAGED ||
-    (ctx.buildProfile.workflow === Workflow.GENERIC && !ctx.buildProfile.withoutCredentials)
-  );
+  return !ctx.buildProfile.withoutCredentials;
 }
 
 async function ensureAndroidCredentialsAsync(
