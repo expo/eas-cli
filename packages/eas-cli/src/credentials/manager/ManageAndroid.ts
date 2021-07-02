@@ -1,6 +1,6 @@
 import assert from 'assert';
 
-import Log from '../../log';
+import Log, { learnMore } from '../../log';
 import {
   getProjectAccountName,
   promptToCreateProjectIfNotExistsAsync,
@@ -211,6 +211,10 @@ export class ManageAndroid {
         await this.runProjectSpecificActionAsync(ctx, chosenAction);
       } catch (err) {
         Log.error(err);
+        if (process.env.DEBUG) {
+          throw err; // breaks out of the loop so we can get stack trace
+        }
+        Log.error(`Cryptic error? ${learnMore('https://expo.fyi/cryptic-error-eas')}`);
       }
       await new PressAnyKeyToContinue().runAsync();
     }
