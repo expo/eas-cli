@@ -10,7 +10,10 @@ import {
 import Log from '../../log';
 import { resolveXcodeBuildContextAsync } from '../../project/ios/scheme';
 import { resolveTargetsAsync } from '../../project/ios/target';
-import { getProjectAccountName } from '../../project/projectUtils';
+import {
+  getProjectAccountName,
+  promptToCreateProjectIfNotExistsAsync,
+} from '../../project/projectUtils';
 import { confirmAsync, promptAsync, selectAsync } from '../../prompts';
 import { Account, findAccountByName } from '../../user/Account';
 import { ensureActorHasUsername } from '../../user/actions';
@@ -235,11 +238,15 @@ export class ManageIos {
             return await this.callingAction.runAsync(ctx);
           }
         } else if (actionInfo.scope === Scope.Project) {
+          assert(
+            ctx.hasProjectContext,
+            'You must be in your project directory in order to perform this action'
+          );
           await this.runProjectSpecificActionAsync(
             ctx,
-            nullthrows(app),
-            nullthrows(targets),
-            nullthrows(buildProfile),
+            nullthrows(app, 'app must be defined in project context'),
+            nullthrows(targets, 'targets must be defined in project context'),
+            nullthrows(buildProfile, 'buildProfile must be defined in project context'),
             chosenAction
           );
         } else if (actionInfo.scope === Scope.Account) {
@@ -264,6 +271,13 @@ export class ManageIos {
         targets: null,
         buildProfile: null,
       };
+    }
+
+    const maybeProjectId = await promptToCreateProjectIfNotExistsAsync(ctx.exp);
+    if (!maybeProjectId) {
+      throw new Error(
+        'Your project must be registered with EAS in order to use the credentials manager.'
+      );
     }
 
     const app = { account, projectName: ctx.exp.slug };
