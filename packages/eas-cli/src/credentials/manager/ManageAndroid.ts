@@ -155,7 +155,7 @@ export class ManageAndroid {
           const maybeProjectId = await promptToCreateProjectIfNotExistsAsync(ctx.exp);
           if (!maybeProjectId) {
             throw new Error(
-              'Your project must be registered with Expo in order to use the credentials manager.'
+              'Your project must be registered with EAS in order to use the credentials manager.'
             );
           }
           const appLookupParams = await getAppLookupParamsFromContextAsync(ctx);
