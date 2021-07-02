@@ -3,7 +3,7 @@ import { IOSConfig } from '@expo/config-plugins';
 import { Platform, Workflow } from '@expo/eas-build-job';
 
 import { Target } from '../../credentials/ios/types';
-import { resolveWorkflow } from '../workflow';
+import { resolveWorkflowAsync } from '../workflow';
 import { getBundleIdentifierAsync } from './bundleIdentifier';
 import { XcodeBuildContext } from './scheme';
 
@@ -43,7 +43,7 @@ async function readApplicationTargetForSchemeAsync(
   projectDir: string,
   scheme: string
 ): Promise<IOSConfig.Target.Target> {
-  const workflow = await resolveWorkflow(projectDir, Platform.IOS);
+  const workflow = await resolveWorkflowAsync(projectDir, Platform.IOS);
   if (workflow === Workflow.GENERIC) {
     return await IOSConfig.Target.findApplicationTargetWithDependenciesAsync(projectDir, scheme);
   } else {

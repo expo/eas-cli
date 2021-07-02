@@ -1,7 +1,7 @@
 import { Platform, Workflow } from '@expo/eas-build-job';
 import { vol } from 'memfs';
 
-import { resolveWorkflow } from '../workflow';
+import { resolveWorkflowAsync } from '../workflow';
 
 jest.mock('fs');
 
@@ -13,7 +13,7 @@ afterAll(() => {
   console.warn = originalConsoleWarn;
 });
 
-describe(resolveWorkflow, () => {
+describe(resolveWorkflowAsync, () => {
   beforeEach(() => {
     vol.reset();
   });
@@ -29,8 +29,10 @@ describe(resolveWorkflow, () => {
       projectDir
     );
 
-    await expect(resolveWorkflow(projectDir, Platform.ANDROID)).resolves.toBe(Workflow.GENERIC);
-    await expect(resolveWorkflow(projectDir, Platform.IOS)).resolves.toBe(Workflow.GENERIC);
+    await expect(resolveWorkflowAsync(projectDir, Platform.ANDROID)).resolves.toBe(
+      Workflow.GENERIC
+    );
+    await expect(resolveWorkflowAsync(projectDir, Platform.IOS)).resolves.toBe(Workflow.GENERIC);
   });
 
   test('generic workflow for single platform', async () => {
@@ -41,8 +43,10 @@ describe(resolveWorkflow, () => {
       projectDir
     );
 
-    await expect(resolveWorkflow(projectDir, Platform.ANDROID)).resolves.toBe(Workflow.MANAGED);
-    await expect(resolveWorkflow(projectDir, Platform.IOS)).resolves.toBe(Workflow.GENERIC);
+    await expect(resolveWorkflowAsync(projectDir, Platform.ANDROID)).resolves.toBe(
+      Workflow.MANAGED
+    );
+    await expect(resolveWorkflowAsync(projectDir, Platform.IOS)).resolves.toBe(Workflow.GENERIC);
   });
 
   test('android/ios directories are ignored', async () => {
@@ -55,7 +59,9 @@ describe(resolveWorkflow, () => {
       projectDir
     );
 
-    await expect(resolveWorkflow(projectDir, Platform.ANDROID)).resolves.toBe(Workflow.MANAGED);
-    await expect(resolveWorkflow(projectDir, Platform.IOS)).resolves.toBe(Workflow.MANAGED);
+    await expect(resolveWorkflowAsync(projectDir, Platform.ANDROID)).resolves.toBe(
+      Workflow.MANAGED
+    );
+    await expect(resolveWorkflowAsync(projectDir, Platform.IOS)).resolves.toBe(Workflow.MANAGED);
   });
 });

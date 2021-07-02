@@ -59,9 +59,9 @@ export abstract class Client {
     return null;
   }
 
-  // (optional) checks if the file is ignored
-  // - returns true if the file is included in the project tarball
-  // - returns false otherwise
+  // (optional) checks if the file is ignored, an implementation should ensure
+  // that if file exists and `isFileIgnoredAsync` returns true, then that file
+  // should not be included in the project tarball.
   public async isFileIgnoredAsync(filePath: string): Promise<boolean> {
     return false;
   }

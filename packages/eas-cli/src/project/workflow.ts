@@ -5,7 +5,10 @@ import path from 'path';
 
 import vcs from '../vcs';
 
-export async function resolveWorkflow(projectDir: string, platform: Platform): Promise<Workflow> {
+export async function resolveWorkflowAsync(
+  projectDir: string,
+  platform: Platform
+): Promise<Workflow> {
   let platformWorkflowMarker;
   try {
     platformWorkflowMarker =

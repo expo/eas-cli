@@ -6,7 +6,7 @@ import nullthrows from 'nullthrows';
 import semver from 'semver';
 
 import Log from '../../log';
-import { resolveWorkflow } from '../../project/workflow';
+import { resolveWorkflowAsync } from '../../project/workflow';
 import { promptAsync } from '../../prompts';
 import { updateAppJsonConfigAsync } from '../utils/appJson';
 import { readPlistAsync, writePlistAsync } from './plist';
@@ -106,7 +106,7 @@ export async function readShortVersionAsync(
   projectDir: string,
   exp: ExpoConfig
 ): Promise<string | undefined> {
-  const workflow = await resolveWorkflow(projectDir, Platform.IOS);
+  const workflow = await resolveWorkflowAsync(projectDir, Platform.IOS);
   if (workflow === Workflow.GENERIC) {
     const infoPlist = await readInfoPlistAsync(projectDir);
     return infoPlist.CFBundleShortVersionString;
@@ -119,7 +119,7 @@ export async function readBuildNumberAsync(
   projectDir: string,
   exp: ExpoConfig
 ): Promise<string | undefined> {
-  const workflow = await resolveWorkflow(projectDir, Platform.IOS);
+  const workflow = await resolveWorkflowAsync(projectDir, Platform.IOS);
   if (workflow === Workflow.GENERIC) {
     const infoPlist = await readInfoPlistAsync(projectDir);
     return infoPlist.CFBundleVersion;

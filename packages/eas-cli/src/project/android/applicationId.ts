@@ -11,7 +11,7 @@ import Log, { learnMore } from '../../log';
 import { getProjectConfigDescription, getUsername } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
 import { ensureLoggedInAsync } from '../../user/actions';
-import { resolveWorkflow } from '../workflow';
+import { resolveWorkflowAsync } from '../workflow';
 
 const INVALID_APPLICATION_ID_MESSAGE = `Invalid format of Android applicationId. Only alphanumeric characters, '.' and '_' are allowed, and each '.' must be followed by a letter.`;
 
@@ -19,7 +19,7 @@ export async function ensureApplicationIdIsDefinedForManagedProjectAsync(
   projectDir: string,
   exp: ExpoConfig
 ): Promise<string> {
-  const workflow = await resolveWorkflow(projectDir, Platform.ANDROID);
+  const workflow = await resolveWorkflowAsync(projectDir, Platform.ANDROID);
   assert(workflow === Workflow.MANAGED, 'This function should be called only for managed projects');
 
   try {
@@ -30,7 +30,7 @@ export async function ensureApplicationIdIsDefinedForManagedProjectAsync(
 }
 
 export async function getApplicationIdAsync(projectDir: string, exp: ExpoConfig): Promise<string> {
-  const workflow = await resolveWorkflow(projectDir, Platform.ANDROID);
+  const workflow = await resolveWorkflowAsync(projectDir, Platform.ANDROID);
   if (workflow === Workflow.GENERIC) {
     warnIfAndroidPackageDefinedInAppConfigForGenericProject(projectDir, exp);
 

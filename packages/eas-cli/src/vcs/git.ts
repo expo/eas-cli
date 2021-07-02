@@ -130,8 +130,8 @@ export default class GitClient extends Client {
 
   public async isFileIgnoredAsync(filePath: string): Promise<boolean> {
     try {
-      const { status } = await spawnAsync('git', ['check-ignore', '-q', filePath]);
-      return status === 0;
+      await spawnAsync('git', ['check-ignore', '-q', filePath]);
+      return true;
     } catch (e) {
       return false;
     }
