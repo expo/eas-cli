@@ -13,9 +13,13 @@ import pkgDir from 'pkg-dir';
 import { graphqlClient, withErrorHandlingAsync } from '../graphql/client';
 import { AppPrivacy, UpdateBranch } from '../graphql/generated';
 import Log from '../log';
+import { confirmAsync } from '../prompts';
 import { Actor } from '../user/User';
 import { ensureLoggedInAsync } from '../user/actions';
-import { ensureProjectExistsAsync } from './ensureProjectExists';
+import {
+  ensureProjectExistsAsync,
+  findProjectIdByAccountNameAndSlugNullableAsync,
+} from './ensureProjectExists';
 
 export function getProjectAccountName(exp: ExpoConfig, user: Actor): string {
   switch (user.__typename) {
@@ -224,4 +228,31 @@ export function sanitizedProjectName(name: string) {
     .replace(/[\W_]+/g, '')
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '');
+}
+
+// return project id of existing/newly created project, or null if user declines
+export async function promptToCreateProjectIfNotExistsAsync(
+  exp: ExpoConfig
+): Promise<string | null> {
+  const accountName = getProjectAccountName(exp, await ensureLoggedInAsync());
+  const maybeProjectId = await findProjectIdByAccountNameAndSlugNullableAsync(
+    accountName,
+    exp.slug
+  );
+  if (maybeProjectId) {
+    return maybeProjectId;
+  }
+  const fullName = await getProjectFullNameAsync(exp);
+  const shouldCreateProject = await confirmAsync({
+    message: `Looks like ${fullName} is new. Register it with Expo?`,
+  });
+  if (!shouldCreateProject) {
+    return null;
+  }
+  const privacy = toAppPrivacy(exp.privacy);
+  return await ensureProjectExistsAsync({
+    accountName,
+    projectName: exp.slug,
+    privacy,
+  });
 }

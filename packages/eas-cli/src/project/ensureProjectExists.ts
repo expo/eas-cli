@@ -29,15 +29,10 @@ export async function ensureProjectExistsAsync(projectInfo: ProjectInfo): Promis
 
   const spinner = ora(`Linking to project ${chalk.bold(projectFullName)}`).start();
 
-  try {
-    const id = await findProjectIdByAccountNameAndSlugAsync(accountName, projectName);
+  const maybeId = await findProjectIdByAccountNameAndSlugNullableAsync(accountName, projectName);
+  if (maybeId) {
     spinner.succeed(`Linked to project ${chalk.bold(projectFullName)}`);
-    return id;
-  } catch (err) {
-    if (err.graphQLErrors?.some((it: any) => it.extensions?.errorCode !== 'EXPERIENCE_NOT_FOUND')) {
-      spinner.fail(`Something went wrong while looking for ${chalk.bold(projectFullName)} on Expo`);
-      throw err;
-    }
+    return maybeId;
   }
 
   try {
@@ -52,6 +47,27 @@ export async function ensureProjectExistsAsync(projectInfo: ProjectInfo): Promis
   } catch (err) {
     spinner.fail();
     throw err;
+  }
+}
+
+/**
+ * Finds project by `@accountName/slug` and returns its ID, return null if the project does not exist
+ * @param accountName account name
+ * @param slug project slug
+ * @returns A promise resolving to Project ID
+ */
+export async function findProjectIdByAccountNameAndSlugNullableAsync(
+  accountName: string,
+  slug: string
+): Promise<string | null> {
+  try {
+    const id = await findProjectIdByAccountNameAndSlugAsync(accountName, slug);
+    return id;
+  } catch (err) {
+    if (err.graphQLErrors?.some((it: any) => it.extensions?.errorCode !== 'EXPERIENCE_NOT_FOUND')) {
+      throw err;
+    }
+    return null;
   }
 }
 
@@ -73,7 +89,7 @@ async function findProjectIdByAccountNameAndSlugAsync(
  * Registers new project on EAS servers
  * @returns Created project's ID
  */
-async function registerNewProjectAsync({
+export async function registerNewProjectAsync({
   accountId,
   projectName,
   privacy,
