@@ -7,7 +7,7 @@ import {
   IosAppBuildCredentialsFragment,
   IosDistributionType as IosDistributionTypeGraphql,
 } from '../../graphql/generated';
-import Log from '../../log';
+import Log, { learnMore } from '../../log';
 import { resolveXcodeBuildContextAsync } from '../../project/ios/scheme';
 import { resolveTargetsAsync } from '../../project/ios/target';
 import {
@@ -256,6 +256,10 @@ export class ManageIos {
         }
       } catch (err) {
         Log.error(err);
+        if (process.env.DEBUG) {
+          throw err; // breaks out of the loop so we can get stack trace
+        }
+        Log.error(`Cryptic error? ${learnMore('https://expo.fyi/implement-me')}`);
       }
       await new PressAnyKeyToContinue().runAsync();
     }
