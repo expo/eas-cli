@@ -1,5 +1,10 @@
+import assert from 'assert';
+
 import Log from '../../log';
-import { getProjectAccountName } from '../../project/projectUtils';
+import {
+  getProjectAccountName,
+  promptToCreateProjectIfNotExistsAsync,
+} from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
 import { findAccountByName } from '../../user/Account';
 import { ensureActorHasUsername } from '../../user/actions';
@@ -147,6 +152,12 @@ export class ManageAndroid {
           throw new Error(`You do not have access to account: ${accountName}`);
         }
         if (ctx.hasProjectContext) {
+          const maybeProjectId = await promptToCreateProjectIfNotExistsAsync(ctx.exp);
+          if (!maybeProjectId) {
+            throw new Error(
+              'Your project must be registered with Expo in order to use the credentials manager.'
+            );
+          }
           const appLookupParams = await getAppLookupParamsFromContextAsync(ctx);
           const appCredentials = await ctx.android.getAndroidAppCredentialsWithCommonFieldsAsync(
             appLookupParams
@@ -196,61 +207,70 @@ export class ManageAndroid {
             return await this.callingAction.runAsync(ctx);
           }
         }
-        const appLookupParams = await getAppLookupParamsFromContextAsync(ctx);
-        if (chosenAction === ActionType.CreateKeystore) {
-          const selectBuildCredentialsResult = await new SelectAndroidBuildCredentials(
-            appLookupParams
-          ).runAsync(ctx);
-          const keystore = await new CreateKeystore(appLookupParams.account).runAsync(ctx);
-          if (
-            selectBuildCredentialsResult.resultType ===
-            SelectAndroidBuildCredentialsResultType.CREATE_REQUEST
-          ) {
-            await ctx.android.createAndroidAppBuildCredentialsAsync(appLookupParams, {
-              ...selectBuildCredentialsResult.result,
-              androidKeystoreId: keystore.id,
-            });
-          } else {
-            await ctx.android.updateAndroidAppBuildCredentialsAsync(
-              selectBuildCredentialsResult.result,
-              {
-                androidKeystoreId: keystore.id,
-              }
-            );
-          }
-        } else if (chosenAction === ActionType.DownloadKeystore) {
-          const buildCredentials = await new SelectExistingAndroidBuildCredentials(
-            appLookupParams
-          ).runAsync(ctx);
-          if (buildCredentials) {
-            await new DownloadKeystore({ app: appLookupParams }).runAsync(ctx, buildCredentials);
-          }
-        } else if (chosenAction === ActionType.RemoveKeystore) {
-          const buildCredentials = await new SelectExistingAndroidBuildCredentials(
-            appLookupParams
-          ).runAsync(ctx);
-          if (buildCredentials) {
-            await new RemoveKeystore(appLookupParams).runAsync(ctx, buildCredentials);
-          }
-        } else if (chosenAction === ActionType.CreateFcm) {
-          const fcm = await new CreateFcm(appLookupParams.account).runAsync(ctx);
-          await new AssignFcm(appLookupParams).runAsync(ctx, fcm);
-        } else if (chosenAction === ActionType.RemoveFcm) {
-          await new RemoveFcm(appLookupParams).runAsync(ctx);
-        } else if (chosenAction === ActionType.UpdateCredentialsJson) {
-          const buildCredentials = await new SelectExistingAndroidBuildCredentials(
-            appLookupParams
-          ).runAsync(ctx);
-          if (buildCredentials) {
-            await new UpdateCredentialsJson().runAsync(ctx, buildCredentials);
-          }
-        } else if (chosenAction === ActionType.SetupBuildCredentialsFromCredentialsJson) {
-          await new SetupBuildCredentialsFromCredentialsJson(appLookupParams).runAsync(ctx);
-        }
+
+        await this.runProjectSpecificActionAsync(ctx, chosenAction);
       } catch (err) {
         Log.error(err);
       }
       await new PressAnyKeyToContinue().runAsync();
+    }
+  }
+
+  private async runProjectSpecificActionAsync(ctx: Context, action: ActionType): Promise<void> {
+    assert(
+      ctx.hasProjectContext,
+      'You must be in your project directory in order to perform this action'
+    );
+    const appLookupParams = await getAppLookupParamsFromContextAsync(ctx);
+    if (action === ActionType.CreateKeystore) {
+      const selectBuildCredentialsResult = await new SelectAndroidBuildCredentials(
+        appLookupParams
+      ).runAsync(ctx);
+      const keystore = await new CreateKeystore(appLookupParams.account).runAsync(ctx);
+      if (
+        selectBuildCredentialsResult.resultType ===
+        SelectAndroidBuildCredentialsResultType.CREATE_REQUEST
+      ) {
+        await ctx.android.createAndroidAppBuildCredentialsAsync(appLookupParams, {
+          ...selectBuildCredentialsResult.result,
+          androidKeystoreId: keystore.id,
+        });
+      } else {
+        await ctx.android.updateAndroidAppBuildCredentialsAsync(
+          selectBuildCredentialsResult.result,
+          {
+            androidKeystoreId: keystore.id,
+          }
+        );
+      }
+    } else if (action === ActionType.DownloadKeystore) {
+      const buildCredentials = await new SelectExistingAndroidBuildCredentials(
+        appLookupParams
+      ).runAsync(ctx);
+      if (buildCredentials) {
+        await new DownloadKeystore({ app: appLookupParams }).runAsync(ctx, buildCredentials);
+      }
+    } else if (action === ActionType.RemoveKeystore) {
+      const buildCredentials = await new SelectExistingAndroidBuildCredentials(
+        appLookupParams
+      ).runAsync(ctx);
+      if (buildCredentials) {
+        await new RemoveKeystore(appLookupParams).runAsync(ctx, buildCredentials);
+      }
+    } else if (action === ActionType.CreateFcm) {
+      const fcm = await new CreateFcm(appLookupParams.account).runAsync(ctx);
+      await new AssignFcm(appLookupParams).runAsync(ctx, fcm);
+    } else if (action === ActionType.RemoveFcm) {
+      await new RemoveFcm(appLookupParams).runAsync(ctx);
+    } else if (action === ActionType.UpdateCredentialsJson) {
+      const buildCredentials = await new SelectExistingAndroidBuildCredentials(
+        appLookupParams
+      ).runAsync(ctx);
+      if (buildCredentials) {
+        await new UpdateCredentialsJson().runAsync(ctx, buildCredentials);
+      }
+    } else if (action === ActionType.SetupBuildCredentialsFromCredentialsJson) {
+      await new SetupBuildCredentialsFromCredentialsJson(appLookupParams).runAsync(ctx);
     }
   }
 }
