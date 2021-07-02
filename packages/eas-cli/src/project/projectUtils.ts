@@ -244,7 +244,7 @@ export async function promptToCreateProjectIfNotExistsAsync(
   }
   const fullName = await getProjectFullNameAsync(exp);
   const shouldCreateProject = await confirmAsync({
-    message: `Looks like ${fullName} is new. Register it with Expo?`,
+    message: `Looks like ${fullName} is new. Register it with EAS?`,
   });
   if (!shouldCreateProject) {
     return null;
