@@ -54,15 +54,14 @@ export async function ensureProjectExistsAsync(projectInfo: ProjectInfo): Promis
  * Finds project by `@accountName/slug` and returns its ID, return null if the project does not exist
  * @param accountName account name
  * @param slug project slug
- * @returns A promise resolving to Project ID
+ * @returns A promise resolving to Project ID, null if it doesn't exist
  */
 export async function findProjectIdByAccountNameAndSlugNullableAsync(
   accountName: string,
   slug: string
 ): Promise<string | null> {
   try {
-    const id = await findProjectIdByAccountNameAndSlugAsync(accountName, slug);
-    return id;
+    return await findProjectIdByAccountNameAndSlugAsync(accountName, slug);
   } catch (err) {
     if (err.graphQLErrors?.some((it: any) => it.extensions?.errorCode !== 'EXPERIENCE_NOT_FOUND')) {
       throw err;
