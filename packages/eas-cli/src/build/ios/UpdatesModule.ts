@@ -75,7 +75,7 @@ async function ensureUpdatesConfiguredAsync(projectDir: string, exp: ExpoConfig)
 
 async function readExpoPlistAsync(projectDir: string): Promise<IOSConfig.ExpoPlist> {
   const expoPlistPath = IOSConfig.Paths.getExpoPlistPath(projectDir);
-  return await readPlistAsync(expoPlistPath);
+  return (await readPlistAsync(expoPlistPath)) as IOSConfig.ExpoPlist;
 }
 
 async function writeExpoPlistAsync(
