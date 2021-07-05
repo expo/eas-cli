@@ -1856,14 +1856,15 @@
     xcode "^3.0.1"
     xml2js "^0.4.23"
 
-"@expo/config-plugins@2.0.2":
-  version "2.0.2"
-  resolved "https://registry.yarnpkg.com/@expo/config-plugins/-/config-plugins-2.0.2.tgz#5abf85ecbf81ea16d040c2c84b1b57d1111bce86"
-  integrity sha512-kaTfzLfg9sjy9uAHq708FVqC2hlVQyzCmrCsnfRguk2d+5V9ZyCVdMPiDdAIKHtWCPygIPNmlIP4FYQ093RNzQ==
+"@expo/config-plugins@3.0.3":
+  version "3.0.3"
+  resolved "https://registry.yarnpkg.com/@expo/config-plugins/-/config-plugins-3.0.3.tgz#4aff484fd2adedbd12a1cd73daabf07b1a5af0e5"
+  integrity sha512-+DWHd/2L3O+njVercxGSzcBUXMm5CSzdvIK+7dU+FRhoiF57y2NzBhfNQcReYx/EY1coBrYOsMtENPhV1tWoWQ==
   dependencies:
     "@expo/config-types" "^41.0.0"
     "@expo/json-file" "8.2.30"
     "@expo/plist" "0.0.13"
+    debug "^4.3.1"
     find-up "~5.0.0"
     fs-extra "9.0.0"
     getenv "^1.0.0"
@@ -5895,6 +5896,13 @@ debug@^3.1.0:
   integrity sha512-mel+jf7nrtEl5Pn1Qx46zARXKDpBbvzezse7p7LqINmdoIk8PYP5SySaxEmYv6TZ0JyEKA1hsCId6DIhgITtWQ==
   dependencies:
     ms "^2.1.1"
+
+debug@^4.3.1:
+  version "4.3.2"
+  resolved "https://registry.yarnpkg.com/debug/-/debug-4.3.2.tgz#f0a49c18ac8779e31d4a0c6029dfb76873c7428b"
+  integrity sha512-mOp8wKcvj7XxC78zLgw/ZA+6TSgkoE2C/ienthhRD298T7UNwAg9diBpLRxC0mOezLl4B0xV7M0cCO6P/O0Xhw==
+  dependencies:
+    ms "2.1.2"
 
 debuglog@^1.0.1:
   version "1.0.1"
