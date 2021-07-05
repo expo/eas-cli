@@ -65,11 +65,10 @@ class AndroidSubmitCommand {
 
   private resolveAndroidPackageSource(): Result<AndroidPackageSource> {
     let androidPackage: string | undefined;
+    const { exp } = getConfig(this.ctx.projectDir, { skipSDKVersionRequirement: true });
     if (this.ctx.commandFlags.androidPackage) {
       androidPackage = this.ctx.commandFlags.androidPackage;
-    }
-    const { exp } = getConfig(this.ctx.projectDir, { skipSDKVersionRequirement: true });
-    if (exp.android?.package) {
+    } else if (exp.android?.package) {
       androidPackage = exp.android.package;
     }
     if (androidPackage) {
