@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Fix runtime version checks. ([#495](https://github.com/expo/eas-cli/pull/495) by [@dsokal](https://github.com/dsokal))
+
 ### 🧹 Chores
 
 ## [0.19.1](https://github.com/expo/eas-cli/releases/tag/v0.19.1) - 2021-07-02
