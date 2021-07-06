@@ -2,12 +2,13 @@ import { getConfig } from '@expo/config';
 import { Command } from '@oclif/command';
 import chalk from 'chalk';
 
-import Log from '../log';
-import { findProjectRootAsync, setProjectIdAsync } from '../project/projectUtils';
+import Log from '../../log';
+import { findProjectRootAsync, setProjectIdAsync } from '../../project/projectUtils';
 
-export default class InitView extends Command {
+export default class ProjectInit extends Command {
   static hidden = true;
-  static description = 'Create or link an EAS project';
+  static description = 'create or link an EAS project';
+  static aliases = ['init'];
 
   async run() {
     const projectDir = await findProjectRootAsync(process.cwd());

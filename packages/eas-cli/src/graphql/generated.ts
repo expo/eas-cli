@@ -61,10 +61,6 @@ export type RootQuery = {
   /** Top-level query object for querying Experimentation configuration. */
   experimentation: ExperimentationQuery;
   project: ProjectQuery;
-  /** Search for Snacks */
-  search: Array<SearchResult>;
-  /** @deprecated Use 'search' root field. */
-  searchUsersAndApps: Array<Maybe<SearchResult>>;
   snack: SnackQuery;
   submissions: SubmissionQuery;
   /** Top-level query object for querying UserInvitationPublicData publicly. */
@@ -110,22 +106,6 @@ export type RootQueryAllPublicAppsArgs = {
   sort: AppSort;
   offset?: Maybe<Scalars['Int']>;
   limit?: Maybe<Scalars['Int']>;
-};
-
-
-export type RootQuerySearchArgs = {
-  type: SearchType;
-  query: Scalars['String'];
-  offset: Scalars['Int'];
-  limit: Scalars['Int'];
-};
-
-
-export type RootQuerySearchUsersAndAppsArgs = {
-  type: SearchType;
-  query: Scalars['String'];
-  offset: Scalars['Int'];
-  limit: Scalars['Int'];
 };
 
 
@@ -637,6 +617,7 @@ export type Build = ActivityTimelineProjectActivity & BuildOrBuildJob & {
   appVersion?: Maybe<Scalars['String']>;
   appBuildVersion?: Maybe<Scalars['String']>;
   sdkVersion?: Maybe<Scalars['String']>;
+  runtimeVersion?: Maybe<Scalars['String']>;
   releaseChannel?: Maybe<Scalars['String']>;
   channel?: Maybe<Scalars['String']>;
   metrics?: Maybe<BuildMetrics>;
@@ -644,6 +625,7 @@ export type Build = ActivityTimelineProjectActivity & BuildOrBuildJob & {
   buildProfile?: Maybe<Scalars['String']>;
   gitCommitHash?: Maybe<Scalars['String']>;
   error?: Maybe<BuildError>;
+  submissions: Array<Submission>;
 };
 
 export type BuildOrBuildJob = {
@@ -825,6 +807,72 @@ export type BuildError = {
   docsUrl?: Maybe<Scalars['String']>;
 };
 
+/** Represents an EAS Submission */
+export type Submission = ActivityTimelineProjectActivity & {
+  __typename?: 'Submission';
+  id: Scalars['ID'];
+  actor?: Maybe<Actor>;
+  activityTimestamp: Scalars['DateTime'];
+  app?: Maybe<App>;
+  initiatingActor?: Maybe<Actor>;
+  submittedBuild?: Maybe<Build>;
+  platform: AppPlatform;
+  status: SubmissionStatus;
+  androidConfig?: Maybe<AndroidSubmissionConfig>;
+  iosConfig?: Maybe<IosSubmissionConfig>;
+  logsUrl?: Maybe<Scalars['String']>;
+  error?: Maybe<SubmissionError>;
+  createdAt: Scalars['DateTime'];
+  updatedAt: Scalars['DateTime'];
+};
+
+export enum SubmissionStatus {
+  InQueue = 'IN_QUEUE',
+  InProgress = 'IN_PROGRESS',
+  Finished = 'FINISHED',
+  Errored = 'ERRORED'
+}
+
+export type AndroidSubmissionConfig = {
+  __typename?: 'AndroidSubmissionConfig';
+  applicationIdentifier: Scalars['String'];
+  archiveType: SubmissionAndroidArchiveType;
+  track: SubmissionAndroidTrack;
+  releaseStatus?: Maybe<SubmissionAndroidReleaseStatus>;
+};
+
+export enum SubmissionAndroidArchiveType {
+  Apk = 'APK',
+  Aab = 'AAB'
+}
+
+export enum SubmissionAndroidTrack {
+  Production = 'PRODUCTION',
+  Internal = 'INTERNAL',
+  Alpha = 'ALPHA',
+  Beta = 'BETA'
+}
+
+export enum SubmissionAndroidReleaseStatus {
+  Draft = 'DRAFT',
+  InProgress = 'IN_PROGRESS',
+  Halted = 'HALTED',
+  Completed = 'COMPLETED'
+}
+
+export type IosSubmissionConfig = {
+  __typename?: 'IosSubmissionConfig';
+  ascAppIdentifier: Scalars['String'];
+  appleIdUsername: Scalars['String'];
+  appleAppSpecificPasswordId?: Maybe<Scalars['String']>;
+};
+
+export type SubmissionError = {
+  __typename?: 'SubmissionError';
+  errorCode?: Maybe<Scalars['String']>;
+  message?: Maybe<Scalars['String']>;
+};
+
 /** Represents an Standalone App build job */
 export type BuildJob = ActivityTimelineProjectActivity & BuildOrBuildJob & {
   __typename?: 'BuildJob';
@@ -889,71 +937,6 @@ export enum BuildJobStatus {
 export type SubmissionFilter = {
   platform?: Maybe<AppPlatform>;
   status?: Maybe<SubmissionStatus>;
-};
-
-export enum SubmissionStatus {
-  InQueue = 'IN_QUEUE',
-  InProgress = 'IN_PROGRESS',
-  Finished = 'FINISHED',
-  Errored = 'ERRORED'
-}
-
-/** Represents an EAS Submission */
-export type Submission = ActivityTimelineProjectActivity & {
-  __typename?: 'Submission';
-  id: Scalars['ID'];
-  actor?: Maybe<Actor>;
-  activityTimestamp: Scalars['DateTime'];
-  app?: Maybe<App>;
-  initiatingActor?: Maybe<Actor>;
-  platform: AppPlatform;
-  status: SubmissionStatus;
-  androidConfig?: Maybe<AndroidSubmissionConfig>;
-  iosConfig?: Maybe<IosSubmissionConfig>;
-  logsUrl?: Maybe<Scalars['String']>;
-  error?: Maybe<SubmissionError>;
-  createdAt: Scalars['DateTime'];
-  updatedAt: Scalars['DateTime'];
-};
-
-export type AndroidSubmissionConfig = {
-  __typename?: 'AndroidSubmissionConfig';
-  applicationIdentifier: Scalars['String'];
-  archiveType: SubmissionAndroidArchiveType;
-  track: SubmissionAndroidTrack;
-  releaseStatus?: Maybe<SubmissionAndroidReleaseStatus>;
-};
-
-export enum SubmissionAndroidArchiveType {
-  Apk = 'APK',
-  Aab = 'AAB'
-}
-
-export enum SubmissionAndroidTrack {
-  Production = 'PRODUCTION',
-  Internal = 'INTERNAL',
-  Alpha = 'ALPHA',
-  Beta = 'BETA'
-}
-
-export enum SubmissionAndroidReleaseStatus {
-  Draft = 'DRAFT',
-  InProgress = 'IN_PROGRESS',
-  Halted = 'HALTED',
-  Completed = 'COMPLETED'
-}
-
-export type IosSubmissionConfig = {
-  __typename?: 'IosSubmissionConfig';
-  ascAppIdentifier: Scalars['String'];
-  appleIdUsername: Scalars['String'];
-  appleAppSpecificPasswordId?: Maybe<Scalars['String']>;
-};
-
-export type SubmissionError = {
-  __typename?: 'SubmissionError';
-  errorCode?: Maybe<Scalars['String']>;
-  message?: Maybe<Scalars['String']>;
 };
 
 export type IosAppCredentialsFilter = {
@@ -1588,19 +1571,6 @@ export type ProjectQueryByUsernameAndSlugArgs = {
 
 export type ProjectQueryByPathsArgs = {
   paths?: Maybe<Array<Maybe<Scalars['String']>>>;
-};
-
-export enum SearchType {
-  All = 'ALL',
-  Users = 'USERS',
-  Apps = 'APPS',
-  Snacks = 'SNACKS'
-}
-
-/** Represents a search result for an app */
-export type SearchResult = {
-  id: Scalars['ID'];
-  rank?: Maybe<Scalars['Int']>;
 };
 
 export type SnackQuery = {
@@ -2492,6 +2462,7 @@ export type BuildMetadataInput = {
   workflow?: Maybe<BuildWorkflow>;
   credentialsSource?: Maybe<BuildCredentialsSource>;
   sdkVersion?: Maybe<Scalars['String']>;
+  runtimeVersion?: Maybe<Scalars['String']>;
   releaseChannel?: Maybe<Scalars['String']>;
   channel?: Maybe<Scalars['String']>;
   distribution?: Maybe<DistributionType>;
@@ -2807,6 +2778,7 @@ export type CreateSubmissionInput = {
   appId: Scalars['ID'];
   platform: AppPlatform;
   config: Scalars['JSONObject'];
+  submittedBuildId?: Maybe<Scalars['ID']>;
 };
 
 export type CreateSubmissionResult = {
@@ -2818,6 +2790,7 @@ export type CreateSubmissionResult = {
 export type CreateIosSubmissionInput = {
   appId: Scalars['ID'];
   config: NewIosSubmissionConfig;
+  submittedBuildId?: Maybe<Scalars['ID']>;
 };
 
 export type NewIosSubmissionConfig = {
@@ -3350,44 +3323,6 @@ export type DeleteWebhookResult = {
   id: Scalars['ID'];
 };
 
-export type BaseSearchResult = SearchResult & {
-  __typename?: 'BaseSearchResult';
-  /** @deprecated Use SearchResult instead */
-  id: Scalars['ID'];
-  /** @deprecated Use SearchResult instead */
-  rank?: Maybe<Scalars['Int']>;
-};
-
-/** Represents a search result for an app */
-export type AppSearchResult = SearchResult & {
-  __typename?: 'AppSearchResult';
-  /** @deprecated Field no longer supported */
-  id: Scalars['ID'];
-  /** @deprecated Field no longer supported */
-  rank?: Maybe<Scalars['Int']>;
-  /** @deprecated Field no longer supported */
-  app: App;
-};
-
-/** Represents a search result for a user */
-export type UserSearchResult = SearchResult & {
-  __typename?: 'UserSearchResult';
-  /** @deprecated Field no longer supported */
-  id: Scalars['ID'];
-  /** @deprecated Field no longer supported */
-  rank?: Maybe<Scalars['Int']>;
-  /** @deprecated Field no longer supported */
-  user: User;
-};
-
-/** Represents a search result for a snack */
-export type SnackSearchResult = SearchResult & {
-  __typename?: 'SnackSearchResult';
-  id: Scalars['ID'];
-  rank?: Maybe<Scalars['Int']>;
-  snack: Snack;
-};
-
 export enum CacheControlScope {
   Public = 'PUBLIC',
   Private = 'PRIVATE'
@@ -3687,6 +3622,22 @@ export type GetChannelByNameForAppQuery = (
           )> }
         )> }
       )> }
+    ) }
+  )> }
+);
+
+export type AppInfoQueryVariables = Exact<{
+  appId: Scalars['String'];
+}>;
+
+
+export type AppInfoQuery = (
+  { __typename?: 'RootQuery' }
+  & { app?: Maybe<(
+    { __typename?: 'AppQuery' }
+    & { byId: (
+      { __typename?: 'App' }
+      & Pick<App, 'id' | 'fullName'>
     ) }
   )> }
 );
