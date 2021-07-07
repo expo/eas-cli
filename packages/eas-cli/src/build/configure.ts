@@ -1,9 +1,11 @@
 import { getConfig } from '@expo/config';
+import { Platform, Workflow } from '@expo/eas-build-job';
 import { EasJsonReader } from '@expo/eas-json';
 import fs from 'fs-extra';
 import path from 'path';
 
 import Log from '../log';
+import { resolveWorkflowAsync } from '../project/workflow';
 import { promptAsync } from '../prompts';
 import { ensureLoggedInAsync } from '../user/actions';
 import vcs from '../vcs';
@@ -37,8 +39,10 @@ export async function configureAsync(options: {
       options.platform
     ),
     shouldConfigureIos: [RequestedPlatform.All, RequestedPlatform.Ios].includes(options.platform),
-    hasAndroidNativeProject: await fs.pathExists(path.join(options.projectDir, 'android')),
-    hasIosNativeProject: await fs.pathExists(path.join(options.projectDir, 'ios')),
+    hasAndroidNativeProject:
+      (await resolveWorkflowAsync(options.projectDir, Platform.ANDROID)) === Workflow.GENERIC,
+    hasIosNativeProject:
+      (await resolveWorkflowAsync(options.projectDir, Platform.IOS)) === Workflow.GENERIC,
   };
 
   Log.newLine();
@@ -59,32 +63,40 @@ export async function configureAsync(options: {
   }
 }
 
-const MANAGED_DEFAULTS = {
+const ANDROID_MANAGED_DEFAULTS = {
   release: {
-    workflow: 'managed',
+    buildType: 'app-bundle',
   },
   development: {
-    workflow: 'managed',
     buildType: 'development-client',
     distribution: 'internal',
   },
 };
 const ANDROID_GENERIC_DEFAULTS = {
   release: {
-    workflow: 'generic',
+    gradleCommand: ':app:bundleRelease',
   },
   development: {
-    workflow: 'generic',
     gradleCommand: ':app:assembleDebug',
     distribution: 'internal',
   },
 };
-const IOS_GENERIC_DEFAULTS = {
+
+const IOS_MANAGED_DEFAULTS = {
   release: {
-    workflow: 'generic',
+    buildType: 'release',
   },
   development: {
-    workflow: 'generic',
+    buildType: 'development-client',
+    distribution: 'internal',
+  },
+};
+
+const IOS_GENERIC_DEFAULTS = {
+  release: {
+    schemeBuildConfiguration: 'Release',
+  },
+  development: {
     schemeBuildConfiguration: 'Debug',
     distribution: 'internal',
   },
@@ -124,12 +136,14 @@ export async function ensureEasJsonExistsAsync(ctx: ConfigureContext): Promise<v
       ...existingEasJson?.builds,
       ...(shouldInitAndroid
         ? {
-            android: ctx.hasAndroidNativeProject ? ANDROID_GENERIC_DEFAULTS : MANAGED_DEFAULTS,
+            android: ctx.hasAndroidNativeProject
+              ? ANDROID_GENERIC_DEFAULTS
+              : ANDROID_MANAGED_DEFAULTS,
           }
         : null),
       ...(shouldInitIOS
         ? {
-            ios: ctx.hasIosNativeProject ? IOS_GENERIC_DEFAULTS : MANAGED_DEFAULTS,
+            ios: ctx.hasIosNativeProject ? IOS_GENERIC_DEFAULTS : IOS_MANAGED_DEFAULTS,
           }
         : null),
     },

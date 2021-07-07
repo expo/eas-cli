@@ -1,5 +1,4 @@
-import { Android, ArchiveSource, Cache, Job, Workflow, sanitizeJob } from '@expo/eas-build-job';
-import { AndroidGenericBuildProfile, AndroidManagedBuildProfile } from '@expo/eas-json';
+import { ArchiveSource, Job, sanitizeJob } from '@expo/eas-build-job';
 import path from 'path';
 
 import { AndroidCredentials } from '../../credentials/android/AndroidCredentialsProvider';
@@ -18,33 +17,9 @@ export async function prepareJobAsync(
   ctx: BuildContext<Platform.ANDROID>,
   jobData: JobData
 ): Promise<Job> {
-  if (ctx.buildProfile.workflow === Workflow.GENERIC) {
-    const partialJob = await prepareGenericJobAsync(ctx, jobData, ctx.buildProfile);
-    return sanitizeJob(partialJob);
-  } else if (ctx.buildProfile.workflow === Workflow.MANAGED) {
-    const partialJob = await prepareManagedJobAsync(ctx, jobData, ctx.buildProfile);
-    return sanitizeJob(partialJob);
-  } else {
-    throw new Error("Unknown workflow. Shouldn't happen");
-  }
-}
-
-interface CommonJobProperties {
-  platform: Platform.ANDROID;
-  projectArchive: ArchiveSource;
-  builderEnvironment: Android.BuilderEnvironment;
-  cache: Cache;
-  secrets: {
-    buildCredentials?: {
-      keystore: Android.Keystore;
-    };
-  };
-}
-
-async function prepareJobCommonAsync(
-  ctx: BuildContext<Platform.ANDROID>,
-  jobData: JobData
-): Promise<Partial<CommonJobProperties>> {
+  const username = getUsername(ctx.commandCtx.exp, await ensureLoggedInAsync());
+  const projectRootDirectory =
+    path.relative(await vcs.getRootPathAsync(), ctx.commandCtx.projectDir) || '.';
   const { credentials } = jobData;
   const buildCredentials = credentials
     ? {
@@ -59,8 +34,10 @@ async function prepareJobCommonAsync(
       }
     : {};
 
-  return {
+  const job = {
+    type: ctx.workflow,
     platform: Platform.ANDROID,
+    projectRootDirectory,
     projectArchive: jobData.projectArchive,
     builderEnvironment: {
       image: ctx.buildProfile.image,
@@ -77,42 +54,15 @@ async function prepareJobCommonAsync(
     secrets: {
       ...buildCredentials,
     },
-  };
-}
+    releaseChannel: ctx.buildProfile.releaseChannel,
+    updates: { channel: ctx.buildProfile.channel },
 
-async function prepareGenericJobAsync(
-  ctx: BuildContext<Platform.ANDROID>,
-  jobData: JobData,
-  buildProfile: AndroidGenericBuildProfile
-): Promise<Partial<Android.Job>> {
-  const projectRootDirectory =
-    path.relative(await vcs.getRootPathAsync(), ctx.commandCtx.projectDir) || '.';
-  return {
-    ...(await prepareJobCommonAsync(ctx, jobData)),
-    type: Workflow.GENERIC,
-    gradleCommand: buildProfile.gradleCommand,
-    artifactPath: buildProfile.artifactPath,
-    releaseChannel: buildProfile.releaseChannel,
-    updates: { channel: buildProfile.channel },
-    projectRootDirectory,
-  };
-}
+    gradleCommand: ctx.buildProfile.gradleCommand,
+    artifactPath: ctx.buildProfile.artifactPath,
 
-async function prepareManagedJobAsync(
-  ctx: BuildContext<Platform.ANDROID>,
-  jobData: JobData,
-  buildProfile: AndroidManagedBuildProfile
-): Promise<Partial<Android.Job>> {
-  const projectRootDirectory =
-    path.relative(await vcs.getRootPathAsync(), ctx.commandCtx.projectDir) || '.';
-  const username = getUsername(ctx.commandCtx.exp, await ensureLoggedInAsync());
-  return {
-    ...(await prepareJobCommonAsync(ctx, jobData)),
-    type: Workflow.MANAGED,
     username,
-    buildType: buildProfile.buildType,
-    releaseChannel: buildProfile.releaseChannel,
-    updates: { channel: buildProfile.channel },
-    projectRootDirectory,
+    buildType: ctx.buildProfile.buildType,
   };
+
+  return sanitizeJob(job);
 }

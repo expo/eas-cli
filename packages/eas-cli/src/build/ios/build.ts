@@ -1,8 +1,5 @@
 import { Ios, Job, Metadata, Workflow } from '@expo/eas-build-job';
 import { EasConfig } from '@expo/eas-json';
-import chalk from 'chalk';
-import fs from 'fs-extra';
-import path from 'path';
 
 import { IosCredentials } from '../../credentials/ios/types';
 import { BuildMutation, BuildResult } from '../../graphql/mutations/BuildMutation';
@@ -10,7 +7,7 @@ import { ensureBundleIdentifierIsDefinedForManagedProjectAsync } from '../../pro
 import { resolveXcodeBuildContextAsync } from '../../project/ios/scheme';
 import { resolveTargetsAsync } from '../../project/ios/target';
 import { JobData, prepareBuildRequestForPlatformAsync } from '../build';
-import { BuildContext, CommandContext, createBuildContext } from '../context';
+import { BuildContext, CommandContext, createBuildContextAsync } from '../context';
 import { transformMetadata } from '../graphql';
 import { Platform } from '../types';
 import { validateAndSyncProjectConfigurationAsync } from './configure';
@@ -22,25 +19,14 @@ export async function prepareIosBuildAsync(
   commandCtx: CommandContext,
   easConfig: EasConfig
 ): Promise<() => Promise<string | undefined>> {
-  const buildCtx = createBuildContext<Platform.IOS>({
+  const buildCtx = await createBuildContextAsync<Platform.IOS>({
     commandCtx,
     platform: Platform.IOS,
     easConfig,
   });
   const { buildProfile } = buildCtx;
 
-  if (
-    buildProfile.workflow === Workflow.GENERIC &&
-    !(await fs.pathExists(path.join(commandCtx.projectDir, 'ios')))
-  ) {
-    throw new Error(
-      `"ios" directory not found. If you're trying to build a managed project, set ${chalk.bold(
-        `builds.ios.${commandCtx.profile}.workflow`
-      )} in "eas.json" to "managed".`
-    );
-  }
-
-  if (buildProfile.workflow === Workflow.MANAGED) {
+  if (buildCtx.workflow === Workflow.MANAGED) {
     await ensureBundleIdentifierIsDefinedForManagedProjectAsync(
       commandCtx.projectDir,
       commandCtx.exp

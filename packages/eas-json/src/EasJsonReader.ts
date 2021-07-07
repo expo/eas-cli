@@ -76,9 +76,7 @@ export class EasJsonReader {
     const androidProfiles = easJson.builds?.android ?? {};
     for (const name of Object.keys(androidProfiles)) {
       try {
-        if (this.isWorkflowKeySpecified(Platform.ANDROID, name, androidProfiles)) {
-          this.validateBuildProfile(Platform.ANDROID, name, androidProfiles);
-        }
+        this.validateBuildProfile(Platform.ANDROID, name, androidProfiles);
       } catch (err) {
         err.msg = `Failed to validate Android build profile "${name}"\n${err.msg}`;
         throw err;
@@ -87,9 +85,7 @@ export class EasJsonReader {
     const iosProfiles = easJson.builds?.ios ?? {};
     for (const name of Object.keys(iosProfiles)) {
       try {
-        if (this.isWorkflowKeySpecified(Platform.IOS, name, iosProfiles)) {
-          this.validateBuildProfile(Platform.IOS, name, iosProfiles);
-        }
+        this.validateBuildProfile(Platform.IOS, name, iosProfiles);
       } catch (err) {
         err.msg = `Failed to validate iOS build profile "${name}"\n${err.msg}`;
         throw err;
@@ -117,15 +113,7 @@ export class EasJsonReader {
     buildProfiles: Record<string, BuildProfilePreValidation>
   ): T {
     const buildProfile = this.resolveBuildProfile(platform, buildProfileName, buildProfiles);
-    if (![Workflow.GENERIC, Workflow.MANAGED].includes(buildProfile.workflow)) {
-      throw new Error(
-        '"workflow" key is required in a build profile and has to be one of ["generic", "managed"].'
-      );
-    }
-    const schema = schemaBuildProfileMap[platform][buildProfile.workflow];
-    if (!schema) {
-      throw new Error('invalid workflow'); // this should be validated earlier
-    }
+    const schema = schemaBuildProfileMap[platform];
     const { value, error } = schema.validate(buildProfile, {
       stripUnknown: true,
       convert: true,
@@ -138,15 +126,6 @@ export class EasJsonReader {
       );
     }
     return value;
-  }
-
-  private isWorkflowKeySpecified(
-    platform: Platform,
-    buildProfileName: string,
-    buildProfiles: Record<string, BuildProfilePreValidation>
-  ): boolean {
-    const buildProfile = this.resolveBuildProfile(platform, buildProfileName, buildProfiles);
-    return !!buildProfile.workflow;
   }
 
   private resolveBuildProfile(

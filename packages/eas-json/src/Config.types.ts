@@ -1,4 +1,4 @@
-import { Android, Cache, Ios, Workflow } from '@expo/eas-build-job';
+import { Android, Cache, Ios } from '@expo/eas-build-job';
 
 export enum CredentialsSource {
   LOCAL = 'local',
@@ -13,64 +13,46 @@ export type IosEnterpriseProvisioning = 'adhoc' | 'universal';
 
 export type VersionAutoIncrement = boolean | 'version' | 'buildNumber';
 
-export interface AndroidManagedBuildProfile extends Android.BuilderEnvironment {
-  workflow: Workflow.MANAGED;
+interface IosBuilderEnvironment extends Omit<Ios.BuilderEnvironment, 'image'> {
+  image?: Ios.BuilderEnvironment['image'];
+}
+
+export interface AndroidBuildProfile extends Android.BuilderEnvironment {
   credentialsSource: CredentialsSource;
-  buildType?: Android.BuildType;
   releaseChannel?: string;
   channel?: string;
   distribution: AndroidDistributionType;
   cache: Cache;
-}
-
-export interface AndroidGenericBuildProfile extends Android.BuilderEnvironment {
-  workflow: Workflow.GENERIC;
-  credentialsSource: CredentialsSource;
-  gradleCommand?: string;
-  releaseChannel?: string;
-  channel?: string;
-  artifactPath?: string;
   withoutCredentials?: boolean;
-  distribution: AndroidDistributionType;
-  cache: Cache;
+
+  buildType?: Android.BuildType;
+
+  gradleCommand?: string;
+  artifactPath?: string;
 }
 
-export interface IosManagedBuildProfile extends Omit<Ios.BuilderEnvironment, 'image'> {
-  workflow: Workflow.MANAGED;
+export interface IosBuildProfile extends IosBuilderEnvironment {
   credentialsSource: CredentialsSource;
-  buildType?: Ios.BuildType;
   releaseChannel?: string;
   channel?: string;
   distribution: IosDistributionType;
   enterpriseProvisioning?: IosEnterpriseProvisioning;
   autoIncrement: VersionAutoIncrement;
   cache: Cache;
-  image?: Ios.BuilderEnvironment['image'];
-}
 
-export interface IosGenericBuildProfile extends Omit<Ios.BuilderEnvironment, 'image'> {
-  workflow: Workflow.GENERIC;
-  credentialsSource: CredentialsSource;
+  artifactPath?: string;
   scheme?: string;
   schemeBuildConfiguration?: string;
-  releaseChannel?: string;
-  channel?: string;
-  artifactPath?: string;
-  distribution: IosDistributionType;
-  enterpriseProvisioning?: IosEnterpriseProvisioning;
-  autoIncrement: VersionAutoIncrement;
-  cache: Cache;
-  image?: Ios.BuilderEnvironment['image'];
+
+  buildType?: Ios.BuildType;
 }
 
-export type AndroidBuildProfile = AndroidManagedBuildProfile | AndroidGenericBuildProfile;
-export type IosBuildProfile = IosManagedBuildProfile | IosGenericBuildProfile;
 export type BuildProfile = AndroidBuildProfile | IosBuildProfile;
 
 // EasConfig represents eas.json with one specific profile
 export interface EasConfig {
   builds: {
-    android?: AndroidManagedBuildProfile | AndroidGenericBuildProfile;
-    ios?: IosManagedBuildProfile | IosGenericBuildProfile;
+    android?: AndroidBuildProfile;
+    ios?: IosBuildProfile;
   };
 }
