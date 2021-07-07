@@ -15,7 +15,6 @@ import {
 import {
   findProjectRootAsync,
   getProjectAccountNameAsync,
-  getProjectFullNameAsync,
   getProjectIdAsync,
 } from '../../project/projectUtils';
 import { promptAsync, toggleConfirmAsync } from '../../prompts';
@@ -38,7 +37,6 @@ Unsure where to find the secret's ID? Run ${chalk.bold('eas secrets:list')}`;
     const projectDir = (await findProjectRootAsync()) ?? process.cwd();
     const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
     const projectId = await getProjectIdAsync(exp);
-    const projectFullName = await getProjectFullNameAsync(exp);
     const projectAccountName = await getProjectAccountNameAsync(exp);
 
     if (!(await isEasEnabledForProjectAsync(projectId))) {
@@ -55,7 +53,7 @@ Unsure where to find the secret's ID? Run ${chalk.bold('eas secrets:list')}`;
     if (!id) {
       const validationMessage = 'You must select which secret to delete.';
 
-      const secrets = await EnvironmentSecretsQuery.allAsync(projectAccountName, projectFullName);
+      const secrets = await EnvironmentSecretsQuery.allAsync(projectAccountName, projectId);
 
       ({ secret } = await promptAsync({
         type: 'autocomplete',

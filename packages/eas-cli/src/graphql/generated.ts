@@ -4815,16 +4815,16 @@ export type EnvironmentSecretsByAccountNameQuery = (
   ) }
 );
 
-export type EnvironmentSecretsByAppFullNameQueryVariables = Exact<{
-  fullName: Scalars['String'];
+export type EnvironmentSecretsByAppIdQueryVariables = Exact<{
+  appId: Scalars['String'];
 }>;
 
 
-export type EnvironmentSecretsByAppFullNameQuery = (
+export type EnvironmentSecretsByAppIdQuery = (
   { __typename?: 'RootQuery' }
   & { app?: Maybe<(
     { __typename?: 'AppQuery' }
-    & { byFullName: (
+    & { byId: (
       { __typename?: 'App' }
       & Pick<App, 'id'>
       & { environmentSecrets: Array<(

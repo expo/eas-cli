@@ -31,7 +31,6 @@ async function projectInfoByIdAsync(appId: string): Promise<AppInfoQuery> {
 }
 
 export default class ProjectInfo extends Command {
-  static hidden = true;
   static description = 'information about the current project';
 
   async run() {
@@ -49,8 +48,8 @@ export default class ProjectInfo extends Command {
     Log.addNewLineIfNone();
     Log.log(
       formatFields([
-        { label: 'ID', value: projectId },
         { label: 'fullName', value: app.byId.fullName },
+        { label: 'ID', value: projectId },
       ])
     );
   }

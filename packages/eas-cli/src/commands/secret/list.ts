@@ -13,7 +13,6 @@ import {
 import {
   findProjectRootAsync,
   getProjectAccountNameAsync,
-  getProjectFullNameAsync,
   getProjectIdAsync,
 } from '../../project/projectUtils';
 import { ensureLoggedInAsync } from '../../user/actions';
@@ -27,7 +26,6 @@ export default class EnvironmentSecretList extends Command {
     const projectDir = (await findProjectRootAsync()) ?? process.cwd();
     const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
     const projectId = await getProjectIdAsync(exp);
-    const projectFullName = await getProjectFullNameAsync(exp);
     const projectAccountName = await getProjectAccountNameAsync(exp);
 
     if (!(await isEasEnabledForProjectAsync(projectId))) {
@@ -40,7 +38,7 @@ export default class EnvironmentSecretList extends Command {
       throw new Error("Please run this command inside your project's directory");
     }
 
-    const secrets = await EnvironmentSecretsQuery.allAsync(projectAccountName, projectFullName);
+    const secrets = await EnvironmentSecretsQuery.allAsync(projectAccountName, projectId);
 
     const table = new Table({
       head: ['Name', 'Scope', 'ID', 'Updated at'],
