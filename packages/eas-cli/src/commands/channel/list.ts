@@ -1,6 +1,5 @@
 import { getConfig } from '@expo/config';
 import { Command, flags } from '@oclif/command';
-import chalk from 'chalk';
 import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
@@ -10,6 +9,7 @@ import {
 } from '../../graphql/generated';
 import Log from '../../log';
 import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUtils';
+import formatFields from '../../utils/formatFields';
 import { logChannelDetails } from './view';
 
 const CHANNEL_LIMIT = 10_000;
@@ -99,9 +99,14 @@ export default class ChannelList extends Command {
       return;
     }
 
-    Log.log(); // spacing
     for (const channel of channels) {
-      Log.log(`Details of channel ${chalk.bold(chalk.cyan(channel.name))}:`);
+      Log.addNewLineIfNone();
+      Log.log(
+        formatFields([
+          { label: 'Name', value: channel.name },
+          { label: 'ID', value: channel.id },
+        ])
+      );
       logChannelDetails(channel);
     }
   }

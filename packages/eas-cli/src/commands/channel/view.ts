@@ -11,11 +11,7 @@ import {
   GetChannelByNameForAppQueryVariables,
 } from '../../graphql/generated';
 import Log from '../../log';
-import {
-  findProjectRootAsync,
-  getProjectFullNameAsync,
-  getProjectIdAsync,
-} from '../../project/projectUtils';
+import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
 import {
   FormatUpdateParameter,
@@ -23,6 +19,7 @@ import {
   formatUpdate,
   getPlatformsForGroup,
 } from '../../update/utils';
+import formatFields from '../../utils/formatFields';
 
 export type BranchMapping = {
   version: number;
@@ -220,7 +217,6 @@ export default class ChannelView extends Command {
       throw new Error('Please run this command inside a project directory.');
     }
     const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
-    const fullName = await getProjectFullNameAsync(exp);
     const projectId = await getProjectIdAsync(exp);
 
     if (!channelName) {
@@ -250,9 +246,15 @@ export default class ChannelView extends Command {
       return;
     }
 
-    Log.withTick(
-      chalk`Channel: {bold ${channel.name}} on project {bold ${fullName}}. Channel ID: {bold ${channel.id}}`
+    Log.addNewLineIfNone();
+    Log.log(chalk.bold('Channel:'));
+    Log.log(
+      formatFields([
+        { label: 'Name', value: channel.name },
+        { label: 'ID', value: channel.id },
+      ])
     );
+    Log.addNewLineIfNone();
     Log.log(
       chalk`{bold Branches, pointed at by this channel, and their most recent update group:}`
     );

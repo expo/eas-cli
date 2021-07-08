@@ -100,6 +100,8 @@ export default class BranchList extends Command {
           }),
         ])
       );
+
+      Log.addNewLineIfNone();
       Log.log(chalk.bold('Branches with their most recent update group:'));
       Log.log(table.toString());
       if (branches.length >= BRANCHES_LIMIT) {
