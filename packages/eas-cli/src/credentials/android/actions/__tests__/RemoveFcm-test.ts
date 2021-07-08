@@ -10,16 +10,6 @@ import { RemoveFcm } from '../RemoveFcm';
 jest.mock('../../../../prompts');
 (confirmAsync as jest.Mock).mockImplementation(() => true);
 
-const originalConsoleLog = console.log;
-const originalConsoleWarn = console.warn;
-beforeAll(() => {
-  console.log = jest.fn();
-  console.warn = jest.fn();
-});
-afterAll(() => {
-  console.log = originalConsoleLog;
-  console.warn = originalConsoleWarn;
-});
 describe(RemoveFcm, () => {
   it('removes an FCM Api Key', async () => {
     const ctx = createCtxMock({

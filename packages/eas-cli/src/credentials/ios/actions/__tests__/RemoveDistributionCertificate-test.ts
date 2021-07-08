@@ -12,14 +12,6 @@ import { RemoveDistributionCertificate } from '../RemoveDistributionCertificate'
 jest.mock('../../../../prompts');
 (confirmAsync as jest.Mock).mockImplementation(() => true);
 
-const originalConsoleLog = console.log;
-beforeAll(() => {
-  console.log = jest.fn();
-});
-afterAll(() => {
-  console.log = originalConsoleLog;
-});
-
 describe('RemoveDistributionCertificate', () => {
   it('deletes the distribution certificate on Expo and Apple servers when there are no App Dependencies in Interactive Mode', async () => {
     const ctx = createCtxMock({ nonInteractive: false });

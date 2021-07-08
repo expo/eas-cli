@@ -29,20 +29,6 @@ jest.mock('../validators/validateProvisioningProfile', () => ({
 }));
 jest.mock('../../../project/ios/bundleIdentifier');
 
-const originalConsoleLog = console.log;
-const originalConsoleError = console.error;
-const originalConsoleWarn = console.warn;
-beforeAll(() => {
-  console.log = jest.fn();
-  console.error = jest.fn();
-  console.warn = jest.fn();
-});
-afterAll(() => {
-  console.log = originalConsoleLog;
-  console.error = originalConsoleError;
-  console.warn = originalConsoleWarn;
-});
-
 beforeEach(() => {
   vol.reset();
 });

@@ -20,17 +20,6 @@ jest.mock('fs');
 jest.mock('../../user/User');
 jest.mock('../ensureProjectExists');
 
-const originalConsoleLog = console.log;
-const originalConsoleWarn = console.warn;
-beforeAll(() => {
-  console.log = jest.fn();
-  console.warn = jest.fn();
-});
-afterAll(() => {
-  console.log = originalConsoleLog;
-  console.warn = originalConsoleWarn;
-});
-
 describe(findProjectRootAsync, () => {
   beforeEach(() => {
     vol.reset();

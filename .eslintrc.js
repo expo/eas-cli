@@ -10,6 +10,7 @@ module.exports = {
     jasmine: false,
   },
   rules: {
+    'no-console':'warn',
     'no-constant-condition': ['warn', { checkLoops: false }],
     'sort-imports': [
       'warn',

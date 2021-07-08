@@ -9,14 +9,6 @@ import { SetupPushKey } from '../SetupPushKey';
 jest.mock('../../../../prompts');
 (confirmAsync as jest.Mock).mockImplementation(() => true);
 
-const originalConsoleLog = console.log;
-beforeAll(() => {
-  console.log = jest.fn();
-});
-afterAll(() => {
-  console.log = originalConsoleLog;
-});
-
 describe(SetupPushKey, () => {
   it('skips setting up a Push Key if it is already configured', async () => {
     const ctx = createCtxMock({

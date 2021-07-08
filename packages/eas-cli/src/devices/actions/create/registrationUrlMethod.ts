@@ -14,7 +14,7 @@ export async function runRegistrationUrlMethodAsync(
 ): Promise<void> {
   const registrationURL = await generateDeviceRegistrationURLAsync(accountId, appleTeam);
   Log.newLine();
-  qrcodeTerminal.generate(registrationURL, code => console.log(`${indentString(code, 2)}\n`));
+  qrcodeTerminal.generate(registrationURL, code => Log.log(`${indentString(code, 2)}\n`));
   Log.log(
     'Open the following link on your iOS devices (or scan the QR code) and follow the instructions to install the development profile:'
   );

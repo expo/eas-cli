@@ -20,17 +20,6 @@ import { SetupTargetBuildCredentialsFromCredentialsJson } from '../SetupTargetBu
 jest.mock('../../../../prompts');
 jest.mock('../../../credentialsJson/read');
 
-const originalConsoleLog = console.log;
-const originalConsoleWarn = console.warn;
-beforeAll(() => {
-  console.log = jest.fn();
-  console.warn = jest.fn();
-});
-afterAll(() => {
-  console.log = originalConsoleLog;
-  console.warn = originalConsoleWarn;
-});
-
 beforeEach(() => {
   asMock(confirmAsync).mockReset();
   (confirmAsync as jest.Mock).mockImplementation(() => true);

@@ -13,14 +13,6 @@ jest.mock('../SetupAdhocProvisioningProfile');
 jest.mock('../SetupProvisioningProfile');
 jest.mock('../BuildCredentialsUtils', () => ({ getAllBuildCredentialsAsync: jest.fn() }));
 
-const originalConsoleLog = console.log;
-beforeAll(() => {
-  console.log = jest.fn();
-});
-afterAll(() => {
-  console.log = originalConsoleLog;
-});
-
 beforeEach(() => {
   asMock(promptAsync).mockReset();
 

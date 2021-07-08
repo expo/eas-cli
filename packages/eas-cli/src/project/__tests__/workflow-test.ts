@@ -5,14 +5,6 @@ import { resolveWorkflowAsync } from '../workflow';
 
 jest.mock('fs');
 
-const originalConsoleWarn = console.warn;
-beforeAll(() => {
-  console.warn = jest.fn();
-});
-afterAll(() => {
-  console.warn = originalConsoleWarn;
-});
-
 describe(resolveWorkflowAsync, () => {
   beforeEach(() => {
     vol.reset();
