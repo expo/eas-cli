@@ -21,16 +21,6 @@ jest.mock('../../../../prompts');
 (confirmAsync as jest.Mock).mockImplementation(() => true);
 jest.mock('../../../manager/SelectAndroidBuildCredentials');
 
-const originalConsoleLog = console.log;
-const originalConsoleWarn = console.warn;
-beforeAll(() => {
-  console.log = jest.fn();
-  console.warn = jest.fn();
-});
-afterAll(() => {
-  console.log = originalConsoleLog;
-  console.warn = originalConsoleWarn;
-});
 beforeEach(() => {
   vol.reset();
 });

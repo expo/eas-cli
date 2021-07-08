@@ -1,13 +1,5 @@
 import { sanitizeLanguage } from '../language';
 
-const originalConsoleLog = console.log;
-beforeAll(() => {
-  console.log = jest.fn();
-});
-afterAll(() => {
-  console.log = originalConsoleLog;
-});
-
 describe(sanitizeLanguage, () => {
   it('throws when language not found', () => {
     expect(() => sanitizeLanguage('Ponglish')).toThrowError();

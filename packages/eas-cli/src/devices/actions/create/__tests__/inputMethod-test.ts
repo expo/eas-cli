@@ -8,17 +8,6 @@ import { runInputMethodAsync } from '../inputMethod';
 jest.mock('prompts');
 jest.mock('../../../../credentials/ios/api/graphql/mutations/AppleDeviceMutation');
 
-const originalConsoleLog = console.log;
-const originalConsoleWarn = console.warn;
-beforeAll(() => {
-  console.log = jest.fn();
-  console.warn = jest.fn();
-});
-afterAll(() => {
-  console.log = originalConsoleLog;
-  console.warn = originalConsoleWarn;
-});
-
 beforeEach(() => {
   asMock(prompts).mockReset();
   asMock(prompts).mockImplementation(() => {

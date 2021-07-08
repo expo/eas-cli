@@ -7,15 +7,10 @@ import { readVersionCodeAsync, readVersionNameAsync } from '../version';
 
 jest.mock('fs');
 
-const originalConsoleWarn = console.warn;
-beforeAll(() => {
-  console.warn = jest.fn();
-});
 afterAll(() => {
   // do not remove the following line
   // this fixes a weird error with tempy in @expo/image-utils
   fs.removeSync(os.tmpdir());
-  console.warn = originalConsoleWarn;
 });
 
 beforeEach(() => {

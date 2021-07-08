@@ -30,10 +30,7 @@ describe(IosSubmitCommand, () => {
     '/artifacts/fake.ipa': 'fake ipa',
   };
 
-  const originalConsoleLog = console.log;
   beforeAll(() => {
-    console.log = jest.fn();
-
     vol.fromJSON({
       ...testProject.projectTree,
       ...fakeFiles,
@@ -48,8 +45,6 @@ describe(IosSubmitCommand, () => {
     vol.reset();
 
     jest.unmock('@expo/config');
-
-    console.log = originalConsoleLog;
   });
 
   afterEach(() => {

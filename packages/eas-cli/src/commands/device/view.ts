@@ -45,7 +45,6 @@ If you are not sure what is the UDID of the device you are looking for, run:
         spinner.fail(`Couldn't find a device with the UDID ${UDID}`);
       }
     } catch (e) {
-      console.log(e);
       spinner.fail(`Something went wrong and we couldn't fetch the device with UDID ${UDID}`);
       throw e;
     }

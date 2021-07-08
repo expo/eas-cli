@@ -15,12 +15,7 @@ import {
 
 jest.mock('fs');
 
-const originalConsoleLog = console.log;
-beforeAll(() => {
-  console.log = jest.fn();
-});
 afterAll(() => {
-  console.log = originalConsoleLog;
   // do not remove the following line
   // this fixes a weird error with tempy in @expo/image-utils
   fs.removeSync(os.tmpdir());

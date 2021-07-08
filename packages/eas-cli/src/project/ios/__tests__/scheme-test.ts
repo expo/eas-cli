@@ -9,11 +9,6 @@ import { selectSchemeAsync } from '../scheme';
 jest.mock('fs');
 jest.mock('../../../prompts');
 
-const originalConsoleLog = console.log;
-beforeAll(() => {
-  console.log = jest.fn();
-});
-
 beforeEach(() => {
   vol.reset();
   // do not remove the following line
@@ -21,11 +16,6 @@ beforeEach(() => {
   fs.mkdirpSync(os.tmpdir());
 
   asMock(promptAsync).mockReset();
-});
-
-afterAll(() => {
-  fs.removeSync(os.tmpdir());
-  console.log = originalConsoleLog;
 });
 
 describe(selectSchemeAsync, () => {

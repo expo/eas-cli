@@ -101,7 +101,6 @@ export async function readChannelSafelyAsync(projectDir: string): Promise<string
     }
     return JSON.parse(stringifiedRequestHeaders)['expo-channel-name'] ?? null;
   } catch (err) {
-    console.log({ err });
     return null;
   }
 }

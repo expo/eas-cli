@@ -85,7 +85,7 @@ function printBuildResult(accountName: string, build: BuildFragment): void {
       account: accountName,
     });
     const installUrl = getInternalDistributionInstallUrl(build);
-    qrcodeTerminal.generate(installUrl, code => console.log(`${indentString(code, 2)}\n`));
+    qrcodeTerminal.generate(installUrl, code => Log.log(`${indentString(code, 2)}\n`));
     Log.log(
       `${appPlatformEmojis[build.platform]} Open this link on your ${
         appPlatformDisplayNames[build.platform]

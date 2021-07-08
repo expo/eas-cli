@@ -6,14 +6,6 @@ import DeviceCreateAction, { RegistrationMethod } from '../action';
 import { runInputMethodAsync } from '../inputMethod';
 import { runRegistrationUrlMethodAsync } from '../registrationUrlMethod';
 
-const originalConsoleLog = console.log;
-beforeAll(() => {
-  console.log = jest.fn();
-});
-afterAll(() => {
-  console.log = originalConsoleLog;
-});
-
 jest.mock('prompts');
 jest.mock('../registrationUrlMethod');
 jest.mock('../inputMethod');

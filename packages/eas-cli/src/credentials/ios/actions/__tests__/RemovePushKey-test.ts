@@ -8,14 +8,6 @@ import { RemovePushKey } from '../RemovePushKey';
 jest.mock('../../../../prompts');
 (confirmAsync as jest.Mock).mockImplementation(() => true);
 
-const originalConsoleLog = console.log;
-beforeAll(() => {
-  console.log = jest.fn();
-});
-afterAll(() => {
-  console.log = originalConsoleLog;
-});
-
 describe(RemovePushKey, () => {
   it('deletes the push key on Expo and Apple servers in Interactive Mode', async () => {
     const ctx = createCtxMock({ nonInteractive: false });

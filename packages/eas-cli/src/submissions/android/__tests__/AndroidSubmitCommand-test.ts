@@ -35,10 +35,7 @@ describe(AndroidSubmitCommand, () => {
     '/google-service-account.json': JSON.stringify({ service: 'account' }),
   };
 
-  const originalConsoleLog = console.log;
   beforeAll(() => {
-    console.log = jest.fn();
-
     vol.fromJSON({
       ...testProject.projectTree,
       ...fakeFiles,
@@ -53,8 +50,6 @@ describe(AndroidSubmitCommand, () => {
     vol.reset();
 
     jest.unmock('@expo/config');
-
-    console.log = originalConsoleLog;
   });
 
   afterEach(() => {

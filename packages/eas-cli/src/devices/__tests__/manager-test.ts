@@ -1,6 +1,7 @@
 import prompts from 'prompts';
 
 import { asMock } from '../../__tests__/utils';
+import Log from '../../log';
 import { Actor } from '../../user/User';
 import { AccountResolver } from '../manager';
 
@@ -69,15 +70,11 @@ describe(AccountResolver, () => {
           accounts: [user.accounts[0]],
         };
 
-        const originalConsoleWarn = console.warn;
-        console.warn = jest.fn();
-
+        jest.spyOn(Log, 'warn');
         const resolver = new AccountResolver(exp, userWithAccessToProjectAccount);
         const account = await resolver.resolveAccountAsync();
         expect(account).toEqual(user.accounts[0]);
-        expect(console.warn).toBeCalledWith(expect.stringMatching(/doesn't have access to the/));
-
-        console.warn = originalConsoleWarn;
+        expect(Log.warn).toBeCalledWith(expect.stringMatching(/doesn't have access to the/));
       });
     });
 

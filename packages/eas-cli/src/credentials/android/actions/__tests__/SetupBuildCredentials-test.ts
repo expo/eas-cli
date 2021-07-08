@@ -12,17 +12,6 @@ import { SetupBuildCredentials } from '../SetupBuildCredentials';
 jest.mock('../../../../prompts');
 (confirmAsync as jest.Mock).mockImplementation(() => true);
 
-const originalConsoleLog = console.log;
-const originalConsoleWarn = console.warn;
-beforeAll(() => {
-  console.log = jest.fn();
-  console.warn = jest.fn();
-});
-afterAll(() => {
-  console.log = originalConsoleLog;
-  console.warn = originalConsoleWarn;
-});
-
 describe('SetupBuildCredentials', () => {
   it('skips setup when there are prior credentials', async () => {
     const ctx = createCtxMock({

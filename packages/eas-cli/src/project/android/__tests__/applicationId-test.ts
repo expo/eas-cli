@@ -14,13 +14,6 @@ jest.mock('fs');
 jest.mock('../../../prompts');
 jest.mock('../../../user/actions', () => ({ ensureLoggedInAsync: jest.fn(() => mockJester) }));
 
-const originalConsoleWarn = console.warn;
-const originalConsoleLog = console.log;
-beforeAll(() => {
-  console.warn = jest.fn();
-  console.log = jest.fn();
-});
-
 beforeEach(() => {
   vol.reset();
   // do not remove the following line
@@ -28,11 +21,6 @@ beforeEach(() => {
   fs.mkdirpSync(os.tmpdir());
 
   asMock(promptAsync).mockReset();
-});
-
-afterAll(() => {
-  console.warn = originalConsoleWarn;
-  console.log = originalConsoleLog;
 });
 
 describe(getApplicationIdAsync, () => {
