@@ -33,6 +33,10 @@ describe(syncCapabilitiesForEntitlementsAsync, () => {
       'com.apple.developer.applesignin': ['Default'],
       'com.apple.developer.siri': true,
       'com.apple.developer.networking.wifi-info': true,
+      'com.apple.developer.usernotifications.communication': true,
+      'com.apple.developer.usernotifications.time-sensitive': true,
+      'com.apple.developer.group-session': true,
+      'com.apple.developer.family-controls': true,
       'com.apple.developer.authentication-services.autofill-credential-provider': true,
       //   'com.apple.developer.game-center': true,
       'com.apple.security.application-groups': [
@@ -61,6 +65,22 @@ describe(syncCapabilitiesForEntitlementsAsync, () => {
       { capabilityType: 'APPLE_ID_AUTH', option: 'ON' },
       { capabilityType: 'SIRIKIT', option: 'ON' },
       { capabilityType: 'ACCESS_WIFI_INFORMATION', option: 'ON' },
+      {
+        capabilityType: 'USERNOTIFICATIONS_COMMUNICATION',
+        option: 'ON',
+      },
+      {
+        capabilityType: 'USERNOTIFICATIONS_TIMESENSITIVE',
+        option: 'ON',
+      },
+      {
+        capabilityType: 'GROUP_ACTIVITIES',
+        option: 'ON',
+      },
+      {
+        capabilityType: 'FAMILY_CONTROLS',
+        option: 'ON',
+      },
       { capabilityType: 'AUTOFILL_CREDENTIAL_PROVIDER', option: 'ON' },
       { capabilityType: 'APP_GROUPS', option: 'ON' },
     ]);
@@ -86,6 +106,10 @@ describe(syncCapabilitiesForEntitlementsAsync, () => {
       'Sign In with Apple',
       'SiriKit',
       'Access WiFi Information',
+      'Communication Notifications',
+      'Time Sensitive Notifications',
+      'Group Activities',
+      'Family Controls',
       'AutoFill Credential Provider',
       'App Groups',
     ]);

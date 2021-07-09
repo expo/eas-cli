@@ -314,6 +314,34 @@ export const CapabilityMapping: {
     getOptions: getDefinedOptions,
   },
   {
+    name: 'Communication Notifications',
+    entitlement: 'com.apple.developer.usernotifications.communication',
+    capability: CapabilityType.USER_NOTIFICATIONS_COMMUNICATION,
+    validateOptions: validateBooleanOptions,
+    getOptions: getBooleanOptions,
+  },
+  {
+    name: 'Time Sensitive Notifications',
+    entitlement: 'com.apple.developer.usernotifications.time-sensitive',
+    capability: CapabilityType.USER_NOTIFICATIONS_TIME_SENSITIVE,
+    validateOptions: validateBooleanOptions,
+    getOptions: getBooleanOptions,
+  },
+  {
+    name: 'Group Activities',
+    entitlement: 'com.apple.developer.group-session',
+    capability: CapabilityType.GROUP_ACTIVITIES,
+    validateOptions: validateBooleanOptions,
+    getOptions: getBooleanOptions,
+  },
+  {
+    name: 'Family Controls',
+    entitlement: 'com.apple.developer.family-controls',
+    capability: CapabilityType.FAMILY_CONTROLS,
+    validateOptions: validateBooleanOptions,
+    getOptions: getBooleanOptions,
+  },
+  {
     // https://developer.apple.com/documentation/bundleresources/entitlements/com_apple_developer_default-data-protection
     name: 'Data Protection',
     entitlement: 'com.apple.developer.default-data-protection',
