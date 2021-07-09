@@ -103,6 +103,13 @@ export async function prepareBuildRequestForPlatformAsync<
           Log.error('EAS Build API has changed, please upgrade to the latest eas-cli version.');
           throw new Error('Build request failed.');
         } else if (
+          error?.graphQLErrors?.[0]?.extensions?.errorCode === 'EAS_BUILD_DOWN_FOR_MAINTENANCE'
+        ) {
+          Log.error(
+            'EAS Build is down for maintenance, please try again later. Check https://status.expo.dev/ for updates.'
+          );
+          throw new Error('Build request failed.');
+        } else if (
           error?.graphQLErrors?.[0]?.extensions?.errorCode === 'EAS_BUILD_TOO_MANY_PENDING_BUILDS'
         ) {
           Log.error(
