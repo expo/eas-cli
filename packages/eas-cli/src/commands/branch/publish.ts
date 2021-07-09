@@ -3,7 +3,6 @@ import { getRuntimeVersionForSDKVersion } from '@expo/sdk-runtime-versions';
 import { Command, flags } from '@oclif/command';
 import assert from 'assert';
 import chalk from 'chalk';
-import Table from 'cli-table3';
 import dateFormat from 'dateformat';
 import gql from 'graphql-tag';
 import { uniqBy } from 'lodash';
@@ -19,11 +18,7 @@ import {
 } from '../../graphql/generated';
 import { PublishMutation } from '../../graphql/mutations/PublishMutation';
 import Log from '../../log';
-import {
-  findProjectRootAsync,
-  getProjectAccountNameAsync,
-  getProjectIdAsync,
-} from '../../project/projectUtils';
+import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUtils';
 import {
   PublishPlatform,
   buildBundlesAsync,
@@ -33,6 +28,7 @@ import {
 } from '../../project/publish';
 import { promptAsync, selectAsync } from '../../prompts';
 import { formatUpdate } from '../../update/utils';
+import formatFields from '../../utils/formatFields';
 import vcs from '../../vcs';
 import { listBranchesAsync } from './list';
 import { viewUpdateBranchAsync } from './view';
@@ -135,8 +131,7 @@ export default class BranchPublish extends Command {
     }
 
     const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
-    const accountName = await getProjectAccountNameAsync(exp);
-    let { slug, runtimeVersion, sdkVersion } = exp;
+    let { runtimeVersion, sdkVersion } = exp;
 
     // When a SDK version is supplied instead of a runtime version and we're in the managed workflow
     // construct the runtimeVersion with special meaning indicating that the runtime is an
@@ -307,35 +302,14 @@ export default class BranchPublish extends Command {
     if (jsonFlag) {
       Log.log(JSON.stringify(newUpdateGroup));
     } else {
-      const outputMessage = new Table({
-        wordWrap: true,
-        chars: {
-          top: '',
-          'top-mid': '',
-          'top-left': '',
-          'top-right': '',
-          bottom: '',
-          'bottom-mid': '',
-          'bottom-left': '',
-          'bottom-right': '',
-          left: '',
-          'left-mid': '',
-          mid: '',
-          'mid-mid': '',
-          right: '',
-          'right-mid': '',
-          middle: ' ',
-        },
-        style: { 'padding-left': 0, 'padding-right': 0 },
-      });
-      outputMessage.push(
-        [chalk.dim('project'), `@${accountName}/${slug}`],
-        [chalk.dim('branch'), name],
-        [chalk.dim('runtimeVersion'), runtimeVersion],
-        [chalk.dim('groupID'), newUpdateGroup.group],
-        [chalk.dim('message'), message]
+      Log.log(
+        formatFields([
+          { label: 'branch', value: name },
+          { label: 'runtime version', value: runtimeVersion },
+          { label: 'update group ID', value: newUpdateGroup.group },
+          { label: 'message', value: message },
+        ])
       );
-      Log.log(outputMessage.toString());
     }
   }
 }

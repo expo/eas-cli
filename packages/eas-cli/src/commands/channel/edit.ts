@@ -146,13 +146,6 @@ export default class ChannelEdit extends Command {
         'There is a rollout in progress. Please manage it with "channel:rollout" instead.'
       );
     }
-    const existingBranch = existingChannel.updateBranches[0];
-
-    Log.addNewLineIfNone();
-    Log.log(
-      chalk`Channel {bold ${existingChannel.name}} is currently set to branch {bold ${existingBranch.name}}`
-    );
-    Log.addNewLineIfNone();
 
     if (!branchName) {
       const validationMessage = 'branch name may not be empty.';
@@ -185,6 +178,7 @@ export default class ChannelEdit extends Command {
     Log.withTick(
       chalk`Channel {bold ${channel.name}} is now set to branch {bold ${branch.name}}.\n`
     );
+    Log.addNewLineIfNone();
     Log.log(
       chalk`Users with builds on channel {bold ${channel.name}} will now receive the active update on {bold ${branch.name}}.`
     );

@@ -16,13 +16,10 @@ import {
   ViewBranchQueryVariables,
 } from '../../graphql/generated';
 import Log from '../../log';
-import {
-  findProjectRootAsync,
-  getProjectFullNameAsync,
-  getProjectIdAsync,
-} from '../../project/projectUtils';
+import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
 import { UPDATE_COLUMNS, formatUpdate, getPlatformsForGroup } from '../../update/utils';
+import formatFields from '../../utils/formatFields';
 
 const PAGE_LIMIT = 10_000;
 
@@ -121,7 +118,6 @@ export default class BranchView extends Command {
     }
 
     const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
-    const fullName = await getProjectFullNameAsync(exp);
     const projectId = await getProjectIdAsync(exp);
 
     if (!name) {
@@ -168,12 +164,16 @@ export default class BranchView extends Command {
       ]);
     }
 
-    Log.withTick(
-      `️Branch: ${chalk.bold(UpdateBranch.name)} on project ${chalk.bold(
-        fullName
-      )}. Branch ID: ${chalk.bold(UpdateBranch.id)}`
+    Log.addNewLineIfNone();
+    Log.log(chalk.bold('Branch:'));
+    Log.log(
+      formatFields([
+        { label: 'Name', value: UpdateBranch.name },
+        { label: 'ID', value: UpdateBranch.id },
+      ])
     );
-    Log.log(chalk.bold('Recent update groups published on this branch:'));
+    Log.addNewLineIfNone();
+    Log.log(chalk.bold('Recently published update groups:'));
     Log.log(groupTable.toString());
   }
 }

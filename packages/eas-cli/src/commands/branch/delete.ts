@@ -22,7 +22,7 @@ import { promptAsync, toggleConfirmAsync } from '../../prompts';
 async function getBranchInfoAsync({
   appId,
   name,
-}: GetBranchInfoQueryVariables): Promise<{ branchId: string }> {
+}: GetBranchInfoQueryVariables): Promise<GetBranchInfoQuery> {
   const data = await withErrorHandlingAsync(
     graphqlClient
       .query<GetBranchInfoQuery, GetBranchInfoQueryVariables>(
@@ -46,11 +46,7 @@ async function getBranchInfoAsync({
       )
       .toPromise()
   );
-  const branchId = data.app?.byId.updateBranchByName?.id;
-  if (!branchId) {
-    throw new Error(`Could not find branch ${name} on ${appId}`);
-  }
-  return { branchId };
+  return data;
 }
 
 async function deleteBranchOnAppAsync({
@@ -122,7 +118,11 @@ export default class BranchDelete extends Command {
       }));
     }
 
-    const { branchId } = await getBranchInfoAsync({ appId: projectId, name });
+    const data = await getBranchInfoAsync({ appId: projectId, name });
+    const branchId = data.app?.byId.updateBranchByName?.id;
+    if (!branchId) {
+      throw new Error(`Could not find branch ${name} on ${fullName}`);
+    }
 
     if (!jsonFlag) {
       Log.addNewLineIfNone();

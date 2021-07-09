@@ -16,6 +16,7 @@ import {
   getProjectIdAsync,
 } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
+import formatFields from '../../utils/formatFields';
 import { createUpdateBranchOnAppAsync } from '../branch/create';
 
 async function createUpdateChannelOnAppAsync({
@@ -87,7 +88,6 @@ export default class ChannelCreate extends Command {
       throw new Error('Please run this command inside a project directory.');
     }
     const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
-    const fullName = await getProjectFullNameAsync(exp);
     const projectId = await getProjectIdAsync(exp);
 
     if (!channelName) {
@@ -140,10 +140,26 @@ export default class ChannelCreate extends Command {
       return;
     }
 
+    Log.addNewLineIfNone();
     Log.withTick(
-      `️Created a new channel ${chalk.bold(newChannel.name)} on project ${chalk.bold(
-        fullName
-      )}. ${branchMessage} and have pointed the channel at it. You can now update your app by publishing!`
+      `Created a new channel on project ${chalk.bold(await getProjectFullNameAsync(exp))}`
     );
+    Log.log(
+      formatFields([
+        { label: 'Name', value: newChannel.name },
+        { label: 'ID', value: newChannel.id },
+      ])
+    );
+    Log.addNewLineIfNone();
+    Log.withTick(`${branchMessage} and have pointed the channel at it.`);
+    Log.log(
+      formatFields([
+        { label: 'Name', value: newChannel.name },
+        { label: 'ID', value: branchId },
+      ])
+    );
+
+    Log.addNewLineIfNone();
+    Log.log(chalk.bold('You can now update your app by publishing!'));
   }
 }
