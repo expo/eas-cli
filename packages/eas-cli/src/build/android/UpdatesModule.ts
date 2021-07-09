@@ -94,7 +94,7 @@ export async function readChannelSafelyAsync(projectDir: string): Promise<string
     const androidManifest = await getAndroidManifestAsync(projectDir);
     const stringifiedRequestHeaders = AndroidConfig.Manifest.getMainApplicationMetaDataValue(
       androidManifest,
-      'expo.modules.updates.UPDATES_CONFIGURATION_REQUEST_HEADERS_KEY' //TODO-JJ AndroidConfig.Updates.Config.UPDATES_CONFIGURATION_REQUEST_HEADERS_KEY once https://github.com/expo/expo-cli/pull/3571 is published
+      AndroidConfig.Updates.Config.UPDATES_CONFIGURATION_REQUEST_HEADERS_KEY
     );
     if (!stringifiedRequestHeaders) {
       return null;

@@ -1496,6 +1496,12 @@ export type BuildQuery = {
    * @deprecated Use App.builds instead
    */
   allForApp: Array<Maybe<Build>>;
+  /**
+   * Get all builds.
+   * By default, they are sorted from latest to oldest.
+   * Available only for admin users.
+   */
+  all: Array<Build>;
 };
 
 
@@ -1511,6 +1517,19 @@ export type BuildQueryAllForAppArgs = {
   offset?: Maybe<Scalars['Int']>;
   limit?: Maybe<Scalars['Int']>;
 };
+
+
+export type BuildQueryAllArgs = {
+  statuses?: Maybe<Array<BuildStatus>>;
+  offset?: Maybe<Scalars['Int']>;
+  limit?: Maybe<Scalars['Int']>;
+  order?: Maybe<Order>;
+};
+
+export enum Order {
+  Desc = 'DESC',
+  Asc = 'ASC'
+}
 
 export type ClientBuildQuery = {
   __typename?: 'ClientBuildQuery';
@@ -4963,7 +4982,7 @@ export type AppFragment = (
 
 export type BuildFragment = (
   { __typename?: 'Build' }
-  & Pick<Build, 'id' | 'status' | 'platform' | 'releaseChannel' | 'distribution' | 'createdAt' | 'updatedAt'>
+  & Pick<Build, 'id' | 'status' | 'platform' | 'channel' | 'releaseChannel' | 'distribution' | 'buildProfile' | 'sdkVersion' | 'appVersion' | 'appBuildVersion' | 'gitCommitHash' | 'createdAt' | 'updatedAt'>
   & { error?: Maybe<(
     { __typename?: 'BuildError' }
     & Pick<BuildError, 'errorCode' | 'message' | 'docsUrl'>

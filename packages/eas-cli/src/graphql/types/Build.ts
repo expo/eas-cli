@@ -34,8 +34,14 @@ export const BuildFragmentNode = gql`
         }
       }
     }
+    channel
     releaseChannel
     distribution
+    buildProfile
+    sdkVersion
+    appVersion
+    appBuildVersion
+    gitCommitHash
     createdAt
     updatedAt
   }

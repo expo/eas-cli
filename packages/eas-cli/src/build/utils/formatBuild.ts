@@ -1,6 +1,10 @@
 import chalk from 'chalk';
 
-import { BuildFragment, BuildStatus as GraphQLBuildStatus } from '../../graphql/generated';
+import {
+  AppPlatform,
+  BuildFragment,
+  BuildStatus as GraphQLBuildStatus,
+} from '../../graphql/generated';
 import formatFields from '../../utils/formatFields';
 import { appPlatformDisplayNames } from '../constants';
 import { getBuildLogsUrl } from './url';
@@ -8,7 +12,7 @@ import { getBuildLogsUrl } from './url';
 export function formatGraphQLBuild(build: BuildFragment) {
   const actor = getActorName(build);
   const account = build.project.__typename === 'App' ? build.project.ownerAccount.name : 'unknown';
-  const fields: { label: string; value: string }[] = [
+  const fields: { label: string; value?: string | null }[] = [
     { label: 'ID', value: build.id },
     {
       label: 'Platform',
@@ -37,11 +41,31 @@ export function formatGraphQLBuild(build: BuildFragment) {
     },
     {
       label: 'Distribution',
-      value: build.distribution?.toLowerCase() ?? chalk.gray('unknown'),
+      value: build.distribution?.toLowerCase(),
     },
     {
       label: 'Release Channel',
-      value: build.releaseChannel ?? chalk.gray('unknown'),
+      value: build.releaseChannel,
+    },
+    {
+      label: 'Channel',
+      value: build.channel,
+    },
+    {
+      label: 'SDK Version',
+      value: build.sdkVersion,
+    },
+    {
+      label: 'Version',
+      value: build.appVersion,
+    },
+    {
+      label: build.platform === AppPlatform.Android ? 'Version code' : 'Build number',
+      value: build.appBuildVersion,
+    },
+    {
+      label: 'Commit',
+      value: build.gitCommitHash,
     },
     {
       label: 'Logs',
@@ -57,13 +81,13 @@ export function formatGraphQLBuild(build: BuildFragment) {
             return '<in progress>';
           case GraphQLBuildStatus.Canceled:
           case GraphQLBuildStatus.Errored:
-            return '---------';
+            return null;
           case GraphQLBuildStatus.Finished: {
             const url = build.artifacts?.buildUrl;
             return url ? url : chalk.red('not found');
           }
           default:
-            return 'unknown';
+            return null;
         }
       },
     },
@@ -81,7 +105,11 @@ export function formatGraphQLBuild(build: BuildFragment) {
     { label: 'Started by', value: actor ?? 'unknown' },
   ];
 
-  return formatFields(fields);
+  const filteredFields = fields.filter(({ value }) => value !== undefined && value !== null) as {
+    label: string;
+    value: string;
+  }[];
+  return formatFields(filteredFields);
 }
 
 const getActorName = (build: BuildFragment): string => {
