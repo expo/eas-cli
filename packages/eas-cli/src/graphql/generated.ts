@@ -4982,7 +4982,7 @@ export type AppFragment = (
 
 export type BuildFragment = (
   { __typename?: 'Build' }
-  & Pick<Build, 'id' | 'status' | 'platform' | 'channel' | 'releaseChannel' | 'distribution' | 'buildProfile' | 'sdkVersion' | 'appVersion' | 'appBuildVersion' | 'gitCommitHash' | 'createdAt' | 'updatedAt'>
+  & Pick<Build, 'id' | 'status' | 'platform' | 'channel' | 'releaseChannel' | 'distribution' | 'buildProfile' | 'sdkVersion' | 'appVersion' | 'appBuildVersion' | 'runtimeVersion' | 'gitCommitHash' | 'createdAt' | 'updatedAt'>
   & { error?: Maybe<(
     { __typename?: 'BuildError' }
     & Pick<BuildError, 'errorCode' | 'message' | 'docsUrl'>
