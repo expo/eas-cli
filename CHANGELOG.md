@@ -8,13 +8,17 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
-- Added support for iOS 15 capabilities: Communication Notifications, Time Sensitive Notifications, Group Activities, and Family Controls. ([#499](https://github.com/expo/eas-cli/pull/499) by [@EvanBacon](https://github.com/EvanBacon))
-- Show more build metadata in `build:view` and `build:list`. ([#504](https://github.com/expo/eas-cli/pull/504) and [#508](https://github.com/expo/eas-cli/pull/508) by [@dsokal](https://github.com/dsokal))
-- Add runtime version to build metadata. ([#493](https://github.com/expo/eas-cli/pull/493) by [@dsokal](https://github.com/dsokal))
-
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
+
+## [0.21.0](https://github.com/expo/eas-cli/releases/tag/v0.21.0) - 2021-07-12
+
+### 🎉 New features
+
+- Added support for iOS 15 capabilities: Communication Notifications, Time Sensitive Notifications, Group Activities, and Family Controls. ([#499](https://github.com/expo/eas-cli/pull/499) by [@EvanBacon](https://github.com/EvanBacon))
+- Show more build metadata in `build:view` and `build:list`. ([#504](https://github.com/expo/eas-cli/pull/504) and [#508](https://github.com/expo/eas-cli/pull/508) by [@dsokal](https://github.com/dsokal))
+- Add runtime version to build metadata. ([#493](https://github.com/expo/eas-cli/pull/493) by [@dsokal](https://github.com/dsokal))
 
 ## [0.20.0](https://github.com/expo/eas-cli/releases/tag/v0.20.0) - 2021-07-09
 
