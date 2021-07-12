@@ -41,6 +41,7 @@ export const BuildFragmentNode = gql`
     sdkVersion
     appVersion
     appBuildVersion
+    runtimeVersion
     gitCommitHash
     createdAt
     updatedAt

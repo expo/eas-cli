@@ -56,6 +56,10 @@ export function formatGraphQLBuild(build: BuildFragment) {
       value: build.sdkVersion,
     },
     {
+      label: 'Runtime Version',
+      value: build.runtimeVersion,
+    },
+    {
       label: 'Version',
       value: build.appVersion,
     },
