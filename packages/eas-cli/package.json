@@ -141,7 +141,7 @@
         "description": "manage update channels"
       },
       "device": {
-        "description": "manage your Apple devices"
+        "description": "manage your Apple devices for internal distribution"
       },
       "project": {
         "description": "manage your project"
