@@ -44,6 +44,7 @@ export async function collectMetadata<T extends Platform>(
     workflow: ctx.workflow,
     credentialsSource,
     sdkVersion: ctx.commandCtx.exp.sdkVersion,
+    runtimeVersion: ctx.commandCtx.exp.runtimeVersion,
     ...channelOrReleaseChannel,
     distribution: ctx.buildProfile.distribution ?? 'store',
     appName: ctx.commandCtx.exp.name,
