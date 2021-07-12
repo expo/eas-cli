@@ -6,7 +6,6 @@ import Log from '../../log';
 import { findProjectRootAsync, setProjectIdAsync } from '../../project/projectUtils';
 
 export default class ProjectInit extends Command {
-  static hidden = true;
   static description = 'create or link an EAS project';
   static aliases = ['init'];
 

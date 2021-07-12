@@ -6,7 +6,7 @@ import { graphqlClient, withErrorHandlingAsync } from '../client';
 import {
   EnvironmentSecretFragment,
   EnvironmentSecretsByAccountNameQuery,
-  EnvironmentSecretsByAppFullNameQuery,
+  EnvironmentSecretsByAppIdQuery,
 } from '../generated';
 import { EnvironmentSecretFragmentNode } from '../types/EnvironmentSecret';
 
@@ -40,14 +40,14 @@ export const EnvironmentSecretsQuery = {
 
     return data.account.byName.environmentSecrets;
   },
-  async byAppFullNameAsync(fullName: string): Promise<EnvironmentSecretFragment[]> {
+  async byAppIdAsync(appId: string): Promise<EnvironmentSecretFragment[]> {
     const data = await withErrorHandlingAsync(
       graphqlClient
-        .query<EnvironmentSecretsByAppFullNameQuery>(
+        .query<EnvironmentSecretsByAppIdQuery>(
           gql`
-            query EnvironmentSecretsByAppFullName($fullName: String!) {
+            query EnvironmentSecretsByAppId($appId: String!) {
               app {
-                byFullName(fullName: $fullName) {
+                byId(appId: $appId) {
                   id
                   environmentSecrets {
                     id
@@ -58,12 +58,12 @@ export const EnvironmentSecretsQuery = {
             }
             ${print(EnvironmentSecretFragmentNode)}
           `,
-          { fullName }
+          { appId }
         )
         .toPromise()
     );
 
-    return data.app?.byFullName.environmentSecrets ?? [];
+    return data.app?.byId.environmentSecrets ?? [];
   },
   async allAsync(
     projectAccountName: string,
@@ -71,7 +71,7 @@ export const EnvironmentSecretsQuery = {
   ): Promise<EnvironmentSecretWithScope[]> {
     const [accountSecrets, appSecrets] = await Promise.all([
       this.byAcccountNameAsync(projectAccountName),
-      this.byAppFullNameAsync(projectFullName),
+      this.byAppIdAsync(projectFullName),
     ]);
 
     return [

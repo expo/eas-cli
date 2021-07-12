@@ -131,14 +131,26 @@
     ],
     "helpClass": "./build/help",
     "topics": {
+      "account": {
+        "description": "manage your account"
+      },
       "build": {
         "description": "build app binaries"
       },
       "channel": {
         "description": "manage update channels"
       },
+      "device": {
+        "description": "manage your Apple devices for internal distribution"
+      },
+      "project": {
+        "description": "manage your project"
+      },
       "release": {
         "description": "manage update releases"
+      },
+      "secret": {
+        "description": "manage project and account secrets"
       },
       "update": {
         "description": "manage individual updates"
