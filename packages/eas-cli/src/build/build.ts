@@ -113,7 +113,7 @@ export async function prepareBuildRequestForPlatformAsync<
           error?.graphQLErrors?.[0]?.extensions?.errorCode === 'EAS_BUILD_FREE_TIER_DISABLED'
         ) {
           Log.error(
-            'EAS Build for free tier is temporarily disabled, please try again later. Check https://status.expo.dev/ for updates.'
+            'EAS Build free tier is temporarily disabled, please try again later. Check https://status.expo.dev/ for updates.'
           );
           throw new Error('Build request failed.');
         } else if (
