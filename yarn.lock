@@ -2,36 +2,36 @@
 # yarn lockfile v1
 
 
-"@amplitude/identify@1.5.0", "@amplitude/identify@^1.5.0":
-  version "1.5.0"
-  resolved "https://registry.yarnpkg.com/@amplitude/identify/-/identify-1.5.0.tgz#6d31aaae615393867328abc6fcad037e9d1639e8"
-  integrity sha512-GCDxvwZvfFInZQ6m5LYnb9sVmJP+n+Re6vkBdtclp9uTNVPpdsXtdw2ann5Ts5pV10fivDpgdZ3OHehSxe742A==
+"@amplitude/identify@1.7.0", "@amplitude/identify@^1.7.0":
+  version "1.7.0"
+  resolved "https://registry.yarnpkg.com/@amplitude/identify/-/identify-1.7.0.tgz#ea8e435d55e55027ced0abfe1a5e250038e75f6c"
+  integrity sha512-AhaYj76cExvABu2C2Q6oO4aRNQhQkP7foQb7Lk7qW5ZPhdiWpAOGThdMre0pu5CSYF21G+FUnM6/1WQ5Cfkw3A==
   dependencies:
-    "@amplitude/types" "^1.5.0"
-    "@amplitude/utils" "^1.5.0"
+    "@amplitude/types" "^1.7.0"
+    "@amplitude/utils" "^1.7.0"
     tslib "^1.9.3"
 
-"@amplitude/node@1.5.0":
-  version "1.5.0"
-  resolved "https://registry.yarnpkg.com/@amplitude/node/-/node-1.5.0.tgz#23e1650fed6302696b669dd8ceea0164b73f220e"
-  integrity sha512-/jfmYHanhln/OAuL8QG76EjThnaRDnfxLxO4oYstMFZKRktnUahE5i0sH02+tJ7I2nzq+4KTYY2hc8Rvi+Vt4Q==
+"@amplitude/node@1.7.0":
+  version "1.7.0"
+  resolved "https://registry.yarnpkg.com/@amplitude/node/-/node-1.7.0.tgz#534745e79a621ef74b1153c19c5683559ff930ac"
+  integrity sha512-+2z0V+3fVbSihbJipADvFPb2bDCLvpgDnzLkNUka606DTyLWPuoDKzawUgl2yanuFXowFYEmQ2EltuQHoXd3YQ==
   dependencies:
-    "@amplitude/identify" "^1.5.0"
-    "@amplitude/types" "^1.5.0"
-    "@amplitude/utils" "^1.5.0"
+    "@amplitude/identify" "^1.7.0"
+    "@amplitude/types" "^1.7.0"
+    "@amplitude/utils" "^1.7.0"
     tslib "^1.9.3"
 
-"@amplitude/types@^1.5.0":
-  version "1.5.0"
-  resolved "https://registry.yarnpkg.com/@amplitude/types/-/types-1.5.0.tgz#cf34d0f304558d8b0d847a6217d506e6226e653c"
-  integrity sha512-XspuOsUzUcxwAptHeGiIn4giuLWs285xTJa7h8kAEEynxtEI3/krWCoDYZSB9PekaPXB6phxiO/tMd9t5V9LgQ==
+"@amplitude/types@^1.7.0":
+  version "1.7.0"
+  resolved "https://registry.yarnpkg.com/@amplitude/types/-/types-1.7.0.tgz#c9f6636245f2de0ab58ee667b442cef58c42c453"
+  integrity sha512-zPENZDWlh64WHj/7Jjghu2HGWywMPundf25ycxn0tYXtxTvPmK2m/MMV6GvUN5uW0kg65eeKETCfge1UJ9MXlQ==
 
-"@amplitude/utils@^1.5.0":
-  version "1.5.0"
-  resolved "https://registry.yarnpkg.com/@amplitude/utils/-/utils-1.5.0.tgz#b48c3233e12f2c04880dd98f3c2628fd0976d3cb"
-  integrity sha512-1DrDJkb4dVX+FiBXhGpO2Dn2cRKdP+gtrVR8vZcE8wz/V2XxUI3DDx7uQbIS6WbQf6swv6Uo2eMHYtrwebostw==
+"@amplitude/utils@^1.7.0":
+  version "1.7.0"
+  resolved "https://registry.yarnpkg.com/@amplitude/utils/-/utils-1.7.0.tgz#91ef07f203223ad4f5309f0c8950ebb5de6bd8eb"
+  integrity sha512-+WsKdFbA+rR/xSTlho90C+GlzDL7Sn51J4bmmGtOSTZk5oEPohvHzHO8pVBGDB8UvNAs2LjQQ7q7b2qRWdUtvA==
   dependencies:
-    "@amplitude/types" "^1.5.0"
+    "@amplitude/types" "^1.7.0"
     tslib "^1.9.3"
 
 "@ardatan/aggregate-error@0.0.6":
