@@ -36,7 +36,7 @@ export async function initAsync(): Promise<void> {
       process.env.EXPO_STAGING || process.env.EXPO_LOCAL
         ? 'cdebbc678931403439486c4750781544'
         : '4ac443afd5073c0df6169291db1d3495';
-    client = Amplitude.init(apiKey);
+    client = Amplitude.init(apiKey, { retryClass: new Amplitude.OfflineRetryHandler(apiKey) });
   }
 }
 
