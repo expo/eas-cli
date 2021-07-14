@@ -4,6 +4,7 @@ import chalk from 'chalk';
 
 import { EnvironmentSecretMutation } from '../../graphql/mutations/EnvironmentSecretMutation';
 import {
+  EnvironmentSecretScope,
   EnvironmentSecretWithScope,
   EnvironmentSecretsQuery,
 } from '../../graphql/queries/EnvironmentSecretsQuery';
@@ -19,7 +20,6 @@ import {
 } from '../../project/projectUtils';
 import { promptAsync, toggleConfirmAsync } from '../../prompts';
 import { ensureLoggedInAsync } from '../../user/actions';
-import { EnvironmentSecretScope } from './create';
 
 export default class EnvironmentSecretDelete extends Command {
   static description = `Delete an environment secret by ID.

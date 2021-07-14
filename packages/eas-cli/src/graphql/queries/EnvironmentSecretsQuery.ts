@@ -1,7 +1,6 @@
 import { print } from 'graphql';
 import gql from 'graphql-tag';
 
-import { EnvironmentSecretScope } from '../../commands/secret/create';
 import { graphqlClient, withErrorHandlingAsync } from '../client';
 import {
   EnvironmentSecretFragment,
@@ -9,6 +8,11 @@ import {
   EnvironmentSecretsByAppIdQuery,
 } from '../generated';
 import { EnvironmentSecretFragmentNode } from '../types/EnvironmentSecret';
+
+export enum EnvironmentSecretScope {
+  ACCOUNT = 'account',
+  PROJECT = 'project',
+}
 
 export type EnvironmentSecretWithScope = EnvironmentSecretFragment & {
   scope: EnvironmentSecretScope;

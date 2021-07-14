@@ -3,6 +3,10 @@ import { Command, flags } from '@oclif/command';
 import chalk from 'chalk';
 
 import { EnvironmentSecretMutation } from '../../graphql/mutations/EnvironmentSecretMutation';
+import {
+  EnvironmentSecretScope,
+  EnvironmentSecretsQuery,
+} from '../../graphql/queries/EnvironmentSecretsQuery';
 import Log from '../../log';
 import {
   isEasEnabledForProjectAsync,
@@ -18,10 +22,6 @@ import { findAccountByName } from '../../user/Account';
 import { getActorDisplayName } from '../../user/User';
 import { ensureLoggedInAsync } from '../../user/actions';
 
-export enum EnvironmentSecretScope {
-  ACCOUNT = 'account',
-  PROJECT = 'project',
-}
 export default class EnvironmentSecretCreate extends Command {
   static description = 'Create an environment secret on the current project or owner account.';
 
@@ -37,12 +37,16 @@ export default class EnvironmentSecretCreate extends Command {
     value: flags.string({
       description: 'Value of the secret',
     }),
+    force: flags.boolean({
+      description: 'Delete and recreate existing secrets',
+      default: false,
+    }),
   };
 
   async run() {
     const actor = await ensureLoggedInAsync();
     let {
-      flags: { name, value: secretValue, scope },
+      flags: { name, value: secretValue, scope, force },
     } = this.parse(EnvironmentSecretCreate);
 
     const projectDir = (await findProjectRootAsync()) ?? process.cwd();
@@ -110,6 +114,20 @@ export default class EnvironmentSecretCreate extends Command {
     }
 
     if (scope === EnvironmentSecretScope.PROJECT) {
+      if (force) {
+        const existingSecrets = await EnvironmentSecretsQuery.byAppIdAsync(projectId);
+        const existingSecret = existingSecrets.find(secret => secret.name === name);
+
+        if (existingSecret) {
+          await EnvironmentSecretMutation.delete(existingSecret.id);
+          Log.withTick(
+            `Deleting existing secret ${chalk.bold(name)} on project ${chalk.bold(
+              `@${accountName}/${slug}`
+            )}.`
+          );
+        }
+      }
+
       const secret = await EnvironmentSecretMutation.createForApp(
         { name, value: secretValue },
         projectId
@@ -134,6 +152,20 @@ export default class EnvironmentSecretCreate extends Command {
           )} account`
         );
         return;
+      }
+
+      if (force) {
+        const existingSecrets = await EnvironmentSecretsQuery.byAcccountNameAsync(projectId);
+        const existingSecret = existingSecrets.find(secret => secret.name === name);
+
+        if (existingSecret) {
+          await EnvironmentSecretMutation.delete(existingSecret.id);
+          Log.withTick(
+            `Deleting existing secret ${chalk.bold(name)} on account ${chalk.bold(
+              ownerAccount.name
+            )}.`
+          );
+        }
       }
 
       const secret = await EnvironmentSecretMutation.createForAccount(
