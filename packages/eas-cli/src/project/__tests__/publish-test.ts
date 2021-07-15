@@ -155,22 +155,28 @@ describe(buildUpdateInfoGroupAsync, () => {
 
   it('returns the correct value', async () => {
     await expect(
-      buildUpdateInfoGroupAsync({
-        android: {
-          launchAsset: {
-            type: 'bundle',
-            contentType: 'bundle/javascript',
-            path: androidBundlePath,
-          },
-          assets: [
-            {
-              type: 'jpg',
-              contentType: 'image/jpeg',
-              path: assetPath,
+      buildUpdateInfoGroupAsync(
+        {
+          android: {
+            launchAsset: {
+              type: 'bundle',
+              contentType: 'bundle/javascript',
+              path: androidBundlePath,
             },
-          ],
+            assets: [
+              {
+                type: 'jpg',
+                contentType: 'image/jpeg',
+                path: assetPath,
+              },
+            ],
+          },
         },
-      })
+        {
+          slug: 'hello',
+          name: 'hello',
+        }
+      )
     ).resolves.toEqual({
       android: {
         assets: [
@@ -182,13 +188,18 @@ describe(buildUpdateInfoGroupAsync, () => {
             storageKey: 'fo8Y08LktVk6qLtGbn8GRWpOUyD13ABMUnbtRCN1L7Y',
           },
         ],
-
         launchAsset: {
           bundleKey: 'ec0dd14670aae108f99a810df9c1482c',
           contentType: 'bundle/javascript',
           fileSHA256: 'KEw79FnKTLOyVbRT1SlohSTjPe5e8FpULy2ST-I5BUg',
           storageBucket: 'update-assets-production',
           storageKey: 'aC9N6RZlcHoIYjIsoJd2KUcigBKy98RHvZacDyPNjCQ',
+        },
+        extra: {
+          expoClient: {
+            slug: 'hello',
+            name: 'hello',
+          },
         },
       },
     });
