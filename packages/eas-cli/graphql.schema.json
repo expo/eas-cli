@@ -313,6 +313,22 @@
             "deprecationReason": null
           },
           {
+            "name": "easBuild",
+            "description": "Top-level query object for querying EAS Build configuration.",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "OBJECT",
+                "name": "EasBuildQuery",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "experimentation",
             "description": "Top-level query object for querying Experimentation configuration.",
             "args": [],
@@ -641,6 +657,22 @@
               "ofType": {
                 "kind": "SCALAR",
                 "name": "String",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "clientConfig",
+            "description": "",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "JSONObject",
                 "ofType": null
               }
             },
@@ -1419,7 +1451,7 @@
           },
           {
             "name": "buildOrBuildJobs",
-            "description": "Coalesced Build (EAS) or BuildJob (Classic) items for this account. Use \"createdBefore\" to offset a query.",
+            "description": "Coalesced Build (EAS) or BuildJob (Classic) for all apps belonging to this account.",
             "args": [
               {
                 "name": "limit",
@@ -1437,7 +1469,7 @@
               },
               {
                 "name": "createdBefore",
-                "description": " Use a Date to offset queries ",
+                "description": " Offset the query ",
                 "type": {
                   "kind": "SCALAR",
                   "name": "DateTime",
@@ -1458,6 +1490,73 @@
                   "ofType": {
                     "kind": "INTERFACE",
                     "name": "BuildOrBuildJob",
+                    "ofType": null
+                  }
+                }
+              }
+            },
+            "isDeprecated": true,
+            "deprecationReason": "Use activityTimelineProjectActivities with filterTypes instead"
+          },
+          {
+            "name": "activityTimelineProjectActivities",
+            "description": "Coalesced project activity for all apps belonging to this account.",
+            "args": [
+              {
+                "name": "limit",
+                "description": "",
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "Int",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null
+              },
+              {
+                "name": "createdBefore",
+                "description": " Offset the query ",
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "DateTime",
+                  "ofType": null
+                },
+                "defaultValue": null
+              },
+              {
+                "name": "filterTypes",
+                "description": " Types of objects to filter ",
+                "type": {
+                  "kind": "LIST",
+                  "name": null,
+                  "ofType": {
+                    "kind": "NON_NULL",
+                    "name": null,
+                    "ofType": {
+                      "kind": "ENUM",
+                      "name": "ActivityTimelineProjectActivityType",
+                      "ofType": null
+                    }
+                  }
+                },
+                "defaultValue": null
+              }
+            ],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "LIST",
+                "name": null,
+                "ofType": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "INTERFACE",
+                    "name": "ActivityTimelineProjectActivity",
                     "ofType": null
                   }
                 }
@@ -2822,7 +2921,7 @@
           },
           {
             "name": "buildOrBuildJobs",
-            "description": "Coalesced Build (EAS) or BuildJob (Classic) items for this app. Use \"createdBefore\" to offset a query.",
+            "description": "Coalesced Build (EAS) or BuildJob (Classic) items for this app.",
             "args": [
               {
                 "name": "limit",
@@ -2840,7 +2939,7 @@
               },
               {
                 "name": "createdBefore",
-                "description": " Use a Date to offset queries ",
+                "description": " Offset the query ",
                 "type": {
                   "kind": "SCALAR",
                   "name": "DateTime",
@@ -2866,8 +2965,8 @@
                 }
               }
             },
-            "isDeprecated": false,
-            "deprecationReason": null
+            "isDeprecated": true,
+            "deprecationReason": "Use activityTimelineProjectActivities with filterTypes instead"
           },
           {
             "name": "submissions",
@@ -3168,7 +3267,7 @@
           },
           {
             "name": "activityTimelineProjectActivities",
-            "description": "Coalesced project activity for an app. Use \"createdBefore\" to offset a query.",
+            "description": "Coalesced project activity for an app",
             "args": [
               {
                 "name": "limit",
@@ -3186,11 +3285,29 @@
               },
               {
                 "name": "createdBefore",
-                "description": " Use a Date to offset queries ",
+                "description": " Offset the query ",
                 "type": {
                   "kind": "SCALAR",
                   "name": "DateTime",
                   "ofType": null
+                },
+                "defaultValue": null
+              },
+              {
+                "name": "filterTypes",
+                "description": " Types of objects to filter ",
+                "type": {
+                  "kind": "LIST",
+                  "name": null,
+                  "ofType": {
+                    "kind": "NON_NULL",
+                    "name": null,
+                    "ofType": {
+                      "kind": "ENUM",
+                      "name": "ActivityTimelineProjectActivityType",
+                      "ofType": null
+                    }
+                  }
                 },
                 "defaultValue": null
               }
@@ -4669,6 +4786,73 @@
             "deprecationReason": null
           },
           {
+            "name": "activityTimelineProjectActivities",
+            "description": "Coalesced project activity for all apps belonging to all accounts this user belongs to. Only resolves for the viewer.",
+            "args": [
+              {
+                "name": "limit",
+                "description": "",
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "Int",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null
+              },
+              {
+                "name": "createdBefore",
+                "description": " Offset the query ",
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "DateTime",
+                  "ofType": null
+                },
+                "defaultValue": null
+              },
+              {
+                "name": "filterTypes",
+                "description": " Types of objects to filter ",
+                "type": {
+                  "kind": "LIST",
+                  "name": null,
+                  "ofType": {
+                    "kind": "NON_NULL",
+                    "name": null,
+                    "ofType": {
+                      "kind": "ENUM",
+                      "name": "ActivityTimelineProjectActivityType",
+                      "ofType": null
+                    }
+                  }
+                },
+                "defaultValue": null
+              }
+            ],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "LIST",
+                "name": null,
+                "ofType": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "INTERFACE",
+                    "name": "ActivityTimelineProjectActivity",
+                    "ofType": null
+                  }
+                }
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "featureGates",
             "description": "Server feature gate values for this actor, optionally filtering by desired gates.\nOnly resolves for the viewer.",
             "args": [
@@ -5333,6 +5517,41 @@
           },
           {
             "name": "NOT_ADMIN",
+            "description": "",
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "possibleTypes": null
+      },
+      {
+        "kind": "ENUM",
+        "name": "ActivityTimelineProjectActivityType",
+        "description": "",
+        "fields": null,
+        "inputFields": null,
+        "interfaces": null,
+        "enumValues": [
+          {
+            "name": "BUILD_JOB",
+            "description": "",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "BUILD",
+            "description": "",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "UPDATE",
+            "description": "",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "SUBMISSION",
             "description": "",
             "isDeprecated": false,
             "deprecationReason": null
@@ -11091,6 +11310,113 @@
       },
       {
         "kind": "OBJECT",
+        "name": "EasBuildQuery",
+        "description": "",
+        "fields": [
+          {
+            "name": "killSwitches",
+            "description": "Get EAS Build kill switches state",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "LIST",
+                "name": null,
+                "ofType": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "OBJECT",
+                    "name": "EasBuildKillSwitch",
+                    "ofType": null
+                  }
+                }
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
+        "name": "EasBuildKillSwitch",
+        "description": "",
+        "fields": [
+          {
+            "name": "name",
+            "description": "",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "ENUM",
+                "name": "EasBuildKillSwitchName",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "value",
+            "description": "",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "Boolean",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "ENUM",
+        "name": "EasBuildKillSwitchName",
+        "description": "",
+        "fields": null,
+        "inputFields": null,
+        "interfaces": null,
+        "enumValues": [
+          {
+            "name": "STOP_ACCEPTING_BUILDS",
+            "description": "",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "STOP_SCHEDULING_BUILDS",
+            "description": "",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "STOP_ACCEPTING_NORMAL_PRIORITY_BUILDS",
+            "description": "",
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
         "name": "ExperimentationQuery",
         "description": "",
         "fields": [
@@ -12172,6 +12498,22 @@
               "kind": "OBJECT",
               "name": "MeMutation",
               "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "easBuildKillSwitch",
+            "description": "",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "OBJECT",
+                "name": "EasBuildKillSwitchMutation",
+                "ofType": null
+              }
             },
             "isDeprecated": false,
             "deprecationReason": null
@@ -18826,9 +19168,13 @@
                 "kind": "LIST",
                 "name": null,
                 "ofType": {
-                  "kind": "OBJECT",
-                  "name": "Update",
-                  "ofType": null
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "OBJECT",
+                    "name": "Update",
+                    "ofType": null
+                  }
                 }
               }
             },
@@ -18977,6 +19323,16 @@
             "type": {
               "kind": "SCALAR",
               "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "clientConfig",
+            "description": "",
+            "type": {
+              "kind": "SCALAR",
+              "name": "JSONObject",
               "ofType": null
             },
             "defaultValue": null
@@ -20548,6 +20904,86 @@
                   "kind": "SCALAR",
                   "name": "String",
                   "ofType": null
+                }
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
+        "name": "EasBuildKillSwitchMutation",
+        "description": "",
+        "fields": [
+          {
+            "name": "set",
+            "description": "Set an EAS Build kill switch to a given value",
+            "args": [
+              {
+                "name": "name",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "ENUM",
+                    "name": "EasBuildKillSwitchName",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null
+              },
+              {
+                "name": "value",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "Boolean",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null
+              }
+            ],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "OBJECT",
+                "name": "EasBuildKillSwitch",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "resetAll",
+            "description": "Reset all EAS Build kill switches (set them to false)",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "LIST",
+                "name": null,
+                "ofType": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "OBJECT",
+                    "name": "EasBuildKillSwitch",
+                    "ofType": null
+                  }
                 }
               }
             },

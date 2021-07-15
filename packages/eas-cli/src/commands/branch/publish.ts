@@ -49,6 +49,7 @@ async function getUpdateGroupAsync({
               group
               runtimeVersion
               manifestFragment
+              clientConfig
               platform
               message
             }
@@ -130,7 +131,10 @@ export default class BranchPublish extends Command {
       throw new Error('Please run this command inside a project directory.');
     }
 
-    const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
+    const { exp } = getConfig(projectDir, {
+      skipSDKVersionRequirement: true,
+      isPublicConfig: true,
+    });
     let { runtimeVersion, sdkVersion } = exp;
 
     // When a SDK version is supplied instead of a runtime version and we're in the managed workflow
@@ -176,13 +180,14 @@ export default class BranchPublish extends Command {
     });
 
     let updateInfoGroup: UpdateInfoGroup = {};
+    let clientConfig: { [key: string]: any };
     let oldMessage: string, oldRuntimeVersion: string;
     if (republish) {
       // If we are republishing, we don't need to worry about building the bundle or uploading the assets.
       // Instead we get the `updateInfoGroup` from the update we wish to republish.
       let updatesToRepublish: Pick<
         Update,
-        'group' | 'message' | 'runtimeVersion' | 'manifestFragment' | 'platform'
+        'group' | 'message' | 'runtimeVersion' | 'manifestFragment' | 'platform' | 'clientConfig'
       >[];
       if (group) {
         updatesToRepublish = await getUpdateGroupAsync({ group });
@@ -246,6 +251,7 @@ export default class BranchPublish extends Command {
       }
 
       // These are the same for each member of an update group
+      clientConfig = updatesToRepublishFilteredByPlatform[0].clientConfig ?? {};
       group = updatesToRepublishFilteredByPlatform[0].group;
       oldMessage = updatesToRepublishFilteredByPlatform[0].message ?? '';
       oldRuntimeVersion = updatesToRepublishFilteredByPlatform[0].runtimeVersion;
@@ -266,6 +272,8 @@ export default class BranchPublish extends Command {
         assetSpinner.fail('Failed to upload assets');
         throw e;
       }
+
+      clientConfig = exp;
     }
 
     if (!message) {
@@ -292,6 +300,7 @@ export default class BranchPublish extends Command {
         updateInfoGroup,
         runtimeVersion: republish ? oldRuntimeVersion! : runtimeVersion,
         message,
+        clientConfig,
       });
       publishSpinner.succeed('Published!');
     } catch (e) {

@@ -23,8 +23,6 @@ import formatFields from '../../utils/formatFields';
 
 const PAGE_LIMIT = 10_000;
 
-type TruncatedUpdate = Pick<Update, 'group' | 'message' | 'createdAt' | 'actor'>;
-
 export async function viewUpdateBranchAsync({
   appId,
   name,
@@ -32,7 +30,14 @@ export async function viewUpdateBranchAsync({
   Pick<UpdateBranch, 'id' | 'name'> & {
     updates: (Pick<
       Update,
-      'id' | 'group' | 'message' | 'createdAt' | 'runtimeVersion' | 'platform' | 'manifestFragment'
+      | 'id'
+      | 'group'
+      | 'message'
+      | 'createdAt'
+      | 'runtimeVersion'
+      | 'platform'
+      | 'manifestFragment'
+      | 'clientConfig'
     > & {
       actor?: Maybe<Pick<User, 'firstName' | 'id'> | Pick<Robot, 'firstName' | 'id'>>;
     })[];
@@ -57,6 +62,7 @@ export async function viewUpdateBranchAsync({
                     runtimeVersion
                     platform
                     manifestFragment
+                    clientConfig
                     actor {
                       id
                       ... on User {
