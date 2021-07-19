@@ -2,7 +2,7 @@ import chalk from 'chalk';
 import { URL, parse as parseUrl } from 'url';
 import * as uuid from 'uuid';
 
-import { AppPlatform } from '../../graphql/generated';
+import { AppPlatform, BuildFragment } from '../../graphql/generated';
 import Log from '../../log';
 import { promptAsync } from '../../prompts';
 import { getBuildArtifactUrlByIdAsync, getLatestBuildArtifactUrlAsync } from '../utils/builds';
@@ -49,6 +49,7 @@ interface ArchiveFilePromptSource extends ArchiveFileSourceBase {
 export interface ResolvedArchive {
   location: string;
   realSource: ArchiveFileSource;
+  buildDetails?: BuildFragment;
 }
 
 export type ArchiveFileSource =

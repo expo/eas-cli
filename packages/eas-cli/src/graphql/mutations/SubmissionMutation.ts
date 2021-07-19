@@ -17,6 +17,7 @@ interface CreateSubmissionResult {
 export const SubmissionMutation = {
   async createSubmissionAsync(input: {
     appId: string;
+    submittedBuildId?: string;
     platform: AppPlatform;
     config: JSONObject;
   }): Promise<CreateSubmissionResult> {
