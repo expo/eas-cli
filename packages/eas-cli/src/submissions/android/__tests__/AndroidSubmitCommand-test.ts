@@ -111,7 +111,8 @@ describe(AndroidSubmitCommand, () => {
       expect(SubmissionService.startSubmissionAsync).toHaveBeenCalledWith(
         AppPlatform.Android,
         projectId,
-        androidSubmissionConfig
+        androidSubmissionConfig,
+        undefined
       );
     });
   });
