@@ -120,7 +120,7 @@ const SummaryHumanReadableKeys: Record<keyof SummaryData, string> = {
   projectId: 'Project ID',
   archiveUrl: 'Archive URL',
   archivePath: 'Archive Path',
-  buildId: 'Build ID',
+  submittedBuildDetails: 'Submitted Build',
 };
 
 const SummaryHumanReadableValues: Partial<Record<keyof SummaryData, Function>> = {};

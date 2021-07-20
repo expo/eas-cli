@@ -1,16 +1,16 @@
-import { AppPlatform, BuildStatus } from '../../graphql/generated';
+import { AppPlatform, BuildFragment, BuildStatus } from '../../graphql/generated';
 import { BuildQuery } from '../../graphql/queries/BuildQuery';
 
-export interface SubmittedBuildInfo {
-  buildId: string;
+export type SubmittedBuildInfo = {
+  buildId: BuildFragment['id'];
   artifactUrl: string;
-}
+} & Pick<BuildFragment, 'createdAt' | 'appVersion' | 'appBuildVersion' | 'platform'>;
 
 export async function getBuildInfoByIdAsync(
   platform: AppPlatform,
   buildId: string
 ): Promise<SubmittedBuildInfo> {
-  const { platform: buildPlatform, artifacts } = await BuildQuery.byIdAsync(buildId);
+  const { platform: buildPlatform, artifacts, ...rest } = await BuildQuery.byIdAsync(buildId);
 
   if (buildPlatform !== platform) {
     throw new Error("Build platform doesn't match!");
@@ -23,7 +23,7 @@ export async function getBuildInfoByIdAsync(
   if (!artifactUrl) {
     throw new Error('Build URL is not defined.');
   }
-  return { buildId, artifactUrl };
+  return { buildId, artifactUrl, platform, ...rest };
 }
 
 export async function getLatestBuildInfoAsync(
@@ -40,10 +40,10 @@ export async function getLatestBuildInfoAsync(
     return null;
   }
 
-  const { id, artifacts } = builds[0];
-  if (!artifacts || !artifacts.buildUrl) {
+  const { id: buildId, artifacts, ...rest } = builds[0];
+  if (!artifacts?.buildUrl) {
     return null;
   }
 
-  return { buildId: id, artifactUrl: artifacts.buildUrl };
+  return { buildId, artifactUrl: artifacts.buildUrl, ...rest };
 }
