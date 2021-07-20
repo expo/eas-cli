@@ -49,7 +49,12 @@ class IosSubmitter extends BaseSubmitter<IosSubmissionContext, IosSubmissionOpti
       SummaryHumanReadableKeys,
       SummaryHumanReadableValues
     );
-    const result = await this.startSubmissionAsync(submissionConfig, this.ctx.commandFlags.verbose);
+
+    const result = await this.startSubmissionAsync(
+      submissionConfig,
+      resolvedSourceOptions.archive.submittedBuildDetails?.buildId,
+      this.ctx.commandFlags.verbose
+    );
 
     if (result === SubmissionStatus.Finished) {
       Log.addNewLineIfNone();
@@ -115,7 +120,7 @@ const SummaryHumanReadableKeys: Record<keyof SummaryData, string> = {
   projectId: 'Project ID',
   archiveUrl: 'Archive URL',
   archivePath: 'Archive Path',
-  buildId: 'Build ID',
+  submittedBuildDetails: 'Submitted Build',
 };
 
 const SummaryHumanReadableValues: Partial<Record<keyof SummaryData, Function>> = {};

@@ -104,7 +104,8 @@ describe(IosSubmitCommand, () => {
       expect(SubmissionService.startSubmissionAsync).toHaveBeenCalledWith(
         AppPlatform.Ios,
         projectId,
-        iosSubmissionConfig
+        iosSubmissionConfig,
+        undefined
       );
 
       delete process.env.EXPO_APPLE_APP_SPECIFIC_PASSWORD;
