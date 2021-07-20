@@ -1,7 +1,10 @@
 import chalk from 'chalk';
+import glob from 'fast-glob';
 import fs from 'fs-extra';
+import path from 'path';
 
 import Log, { learnMore } from '../../log';
+import { findProjectRootAsync } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
 import { isExistingFile } from '../utils/files';
 
@@ -54,11 +57,26 @@ async function handlePathSourceAsync(source: ServiceAccountPathSource): Promise<
   return source.path;
 }
 
-async function handleDetectSourceAsync(source: ServiceAccountDetectSoruce): Promise<string> {
-  // some detection logic
-  // if detected, return path source
+async function handleDetectSourceAsync(_source: ServiceAccountDetectSoruce): Promise<string> {
+  const projectDir = (await findProjectRootAsync()) ?? process.cwd();
+  const foundFilenames = await glob('**/*.json', {
+    cwd: projectDir,
+    ignore: ['app.json', 'package*.json', 'tsconfig.json'],
+  });
 
-  // prompt if not found
+  const googleServiceFiles = await filterAsync(
+    foundFilenames.map(file => path.join(projectDir, file)),
+    fileIsGoogleServicesAsync
+  );
+
+  if (googleServiceFiles.length > 0) {
+    const detectedPath = googleServiceFiles[0];
+
+    if (await confirmDetectedPathAsync(detectedPath)) {
+      return detectedPath;
+    }
+  }
+
   return await getServiceAccountAsync({ sourceType: ServiceAccountSourceType.prompt });
 }
 
@@ -98,3 +116,38 @@ async function askForServiceAccountPathAsync(): Promise<string> {
   });
   return filePath;
 }
+
+async function confirmDetectedPathAsync(path: string): Promise<boolean> {
+  Log.log(
+    `A valid Google Service Account JSON key has been found in \n   ${chalk.underline(path)}`
+  );
+  const { confirmed } = await promptAsync({
+    name: 'confirmed',
+    type: 'confirm',
+    message: 'Would you like to use this file?',
+    initial: true,
+  });
+
+  Log.addNewLineIfNone();
+  return confirmed;
+}
+
+async function fileIsGoogleServicesAsync(path: string): Promise<boolean> {
+  try {
+    const jsonFile = await fs.readJson(path);
+    return jsonFile.type === 'service_account';
+  } catch (e) {
+    return false;
+  }
+}
+
+/**
+ * asynchronous array filter
+ * @param arr array to filter
+ * @param predicate a predicate function to run asynchronously
+ * @returns a promise resolving to a filtered array
+ */
+const filterAsync = async <T>(
+  arr: T[],
+  predicate: (arg: T, index?: number, array?: T[]) => Promise<boolean>
+) => Promise.all(arr.map(predicate)).then(results => arr.filter((_v, index) => results[index]));
