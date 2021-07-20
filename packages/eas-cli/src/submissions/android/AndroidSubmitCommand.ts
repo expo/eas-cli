@@ -155,7 +155,7 @@ class AndroidSubmitCommand {
       });
     } else {
       return result({
-        sourceType: ServiceAccountSourceType.prompt,
+        sourceType: ServiceAccountSourceType.detect,
       });
     }
   }

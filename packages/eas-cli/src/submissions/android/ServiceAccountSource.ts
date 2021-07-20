@@ -8,6 +8,7 @@ import { isExistingFile } from '../utils/files';
 export enum ServiceAccountSourceType {
   path,
   prompt,
+  detect,
   // credentialsService,
   // ...
 }
@@ -25,7 +26,14 @@ interface ServiceAccountPromptSource extends ServiceAccountSourceBase {
   sourceType: ServiceAccountSourceType.prompt;
 }
 
-export type ServiceAccountSource = ServiceAccountPathSource | ServiceAccountPromptSource;
+interface ServiceAccountDetectSoruce extends ServiceAccountSourceBase {
+  sourceType: ServiceAccountSourceType.detect;
+}
+
+export type ServiceAccountSource =
+  | ServiceAccountPathSource
+  | ServiceAccountPromptSource
+  | ServiceAccountDetectSoruce;
 
 export async function getServiceAccountAsync(source: ServiceAccountSource): Promise<string> {
   switch (source.sourceType) {
@@ -33,6 +41,8 @@ export async function getServiceAccountAsync(source: ServiceAccountSource): Prom
       return await handlePathSourceAsync(source);
     case ServiceAccountSourceType.prompt:
       return await handlePromptSourceAsync(source);
+    case ServiceAccountSourceType.detect:
+      return await handleDetectSourceAsync(source);
   }
 }
 
@@ -42,6 +52,14 @@ async function handlePathSourceAsync(source: ServiceAccountPathSource): Promise<
     return await getServiceAccountAsync({ sourceType: ServiceAccountSourceType.prompt });
   }
   return source.path;
+}
+
+async function handleDetectSourceAsync(source: ServiceAccountDetectSoruce): Promise<string> {
+  // some detection logic
+  // if detected, return path source
+
+  // prompt if not found
+  return await getServiceAccountAsync({ sourceType: ServiceAccountSourceType.prompt });
 }
 
 async function handlePromptSourceAsync(_source: ServiceAccountPromptSource): Promise<string> {
