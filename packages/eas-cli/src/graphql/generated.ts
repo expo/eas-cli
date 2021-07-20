@@ -58,6 +58,8 @@ export type RootQuery = {
   buildJobs: BuildJobQuery;
   builds: BuildQuery;
   clientBuilds: ClientBuildQuery;
+  /** Top-level query object for querying EAS Build configuration. */
+  easBuild: EasBuildQuery;
   /** Top-level query object for querying Experimentation configuration. */
   experimentation: ExperimentationQuery;
   project: ProjectQuery;
@@ -188,8 +190,13 @@ export type Account = {
   buildJobs: Array<BuildJob>;
   /** (EAS Build) Builds associated with this account */
   builds: Array<Build>;
-  /** Coalesced Build (EAS) or BuildJob (Classic) items for this account. Use "createdBefore" to offset a query. */
+  /**
+   * Coalesced Build (EAS) or BuildJob (Classic) for all apps belonging to this account.
+   * @deprecated Use activityTimelineProjectActivities with filterTypes instead
+   */
   buildOrBuildJobs: Array<BuildOrBuildJob>;
+  /** Coalesced project activity for all apps belonging to this account. */
+  activityTimelineProjectActivities: Array<ActivityTimelineProjectActivity>;
   /** Owning User of this account if personal account */
   owner?: Maybe<User>;
   /** Actors associated with this account and permissions they hold */
@@ -276,6 +283,17 @@ export type AccountBuildsArgs = {
 export type AccountBuildOrBuildJobsArgs = {
   limit: Scalars['Int'];
   createdBefore?: Maybe<Scalars['DateTime']>;
+};
+
+
+/**
+ * An account is a container owning projects, credentials, billing and other organization
+ * data and settings. Actors may own and be members of accounts.
+ */
+export type AccountActivityTimelineProjectActivitiesArgs = {
+  limit: Scalars['Int'];
+  createdBefore?: Maybe<Scalars['DateTime']>;
+  filterTypes?: Maybe<Array<ActivityTimelineProjectActivityType>>;
 };
 
 
@@ -411,7 +429,10 @@ export type App = Project & {
   /** (EAS Build) Builds associated with this app */
   builds: Array<Build>;
   buildJobs: Array<BuildJob>;
-  /** Coalesced Build (EAS) or BuildJob (Classic) items for this app. Use "createdBefore" to offset a query. */
+  /**
+   * Coalesced Build (EAS) or BuildJob (Classic) items for this app.
+   * @deprecated Use activityTimelineProjectActivities with filterTypes instead
+   */
   buildOrBuildJobs: Array<BuildOrBuildJob>;
   /** EAS Submissions associated with this app */
   submissions: Array<Submission>;
@@ -427,7 +448,7 @@ export type App = Project & {
   updateBranches: Array<UpdateBranch>;
   /** get an EAS branch owned by the app by name */
   updateBranchByName?: Maybe<UpdateBranch>;
-  /** Coalesced project activity for an app. Use "createdBefore" to offset a query. */
+  /** Coalesced project activity for an app */
   activityTimelineProjectActivities: Array<ActivityTimelineProjectActivity>;
   /** Environment secrets for an app */
   environmentSecrets: Array<EnvironmentSecret>;
@@ -538,6 +559,7 @@ export type AppUpdateBranchByNameArgs = {
 export type AppActivityTimelineProjectActivitiesArgs = {
   limit: Scalars['Int'];
   createdBefore?: Maybe<Scalars['DateTime']>;
+  filterTypes?: Maybe<Array<ActivityTimelineProjectActivityType>>;
 };
 
 
@@ -667,6 +689,8 @@ export type User = Actor & {
   hasPendingUserInvitations: Scalars['Boolean'];
   /** Pending UserInvitations for this user. Only resolves for the viewer. */
   pendingUserInvitations: Array<UserInvitation>;
+  /** Coalesced project activity for all apps belonging to all accounts this user belongs to. Only resolves for the viewer. */
+  activityTimelineProjectActivities: Array<ActivityTimelineProjectActivity>;
   /**
    * Server feature gate values for this actor, optionally filtering by desired gates.
    * Only resolves for the viewer.
@@ -701,6 +725,14 @@ export type UserAppsArgs = {
   offset: Scalars['Int'];
   limit: Scalars['Int'];
   includeUnpublished?: Maybe<Scalars['Boolean']>;
+};
+
+
+/** Represents a human (not robot) actor. */
+export type UserActivityTimelineProjectActivitiesArgs = {
+  limit: Scalars['Int'];
+  createdBefore?: Maybe<Scalars['DateTime']>;
+  filterTypes?: Maybe<Array<ActivityTimelineProjectActivityType>>;
 };
 
 
@@ -779,6 +811,13 @@ export enum Role {
   Custom = 'CUSTOM',
   HasAdmin = 'HAS_ADMIN',
   NotAdmin = 'NOT_ADMIN'
+}
+
+export enum ActivityTimelineProjectActivityType {
+  BuildJob = 'BUILD_JOB',
+  Build = 'BUILD',
+  Update = 'UPDATE',
+  Submission = 'SUBMISSION'
 }
 
 
@@ -1552,6 +1591,24 @@ export type ClientBuild = {
   userId?: Maybe<Scalars['String']>;
 };
 
+export type EasBuildQuery = {
+  __typename?: 'EasBuildQuery';
+  /** Get EAS Build kill switches state */
+  killSwitches: Array<EasBuildKillSwitch>;
+};
+
+export type EasBuildKillSwitch = {
+  __typename?: 'EasBuildKillSwitch';
+  name: EasBuildKillSwitchName;
+  value: Scalars['Boolean'];
+};
+
+export enum EasBuildKillSwitchName {
+  StopAcceptingBuilds = 'STOP_ACCEPTING_BUILDS',
+  StopSchedulingBuilds = 'STOP_SCHEDULING_BUILDS',
+  StopAcceptingNormalPriorityBuilds = 'STOP_ACCEPTING_NORMAL_PRIORITY_BUILDS'
+}
+
 export type ExperimentationQuery = {
   __typename?: 'ExperimentationQuery';
   /** Get user experimentation config */
@@ -1731,6 +1788,7 @@ export type RootMutation = {
   userInvitation: UserInvitationMutation;
   /** Mutations that modify the currently authenticated User */
   me?: Maybe<MeMutation>;
+  easBuildKillSwitch: EasBuildKillSwitchMutation;
   /** Mutations that modify an EmailSubscription */
   emailSubscription: EmailSubscriptionMutation;
   /** Mutations that create and delete EnvironmentSecrets */
@@ -3226,6 +3284,20 @@ export type SecondFactorRegenerateBackupCodesResult = {
   plaintextBackupCodes: Array<Maybe<Scalars['String']>>;
 };
 
+export type EasBuildKillSwitchMutation = {
+  __typename?: 'EasBuildKillSwitchMutation';
+  /** Set an EAS Build kill switch to a given value */
+  set: EasBuildKillSwitch;
+  /** Reset all EAS Build kill switches (set them to false) */
+  resetAll: Array<EasBuildKillSwitch>;
+};
+
+
+export type EasBuildKillSwitchMutationSetArgs = {
+  name: EasBuildKillSwitchName;
+  value: Scalars['Boolean'];
+};
+
 export type EmailSubscriptionMutation = {
   __typename?: 'EmailSubscriptionMutation';
   addUser?: Maybe<AddUserPayload>;
@@ -4670,6 +4742,7 @@ export type CreateSubmissionMutationVariables = Exact<{
   appId: Scalars['ID'];
   platform: AppPlatform;
   config: Scalars['JSONObject'];
+  submittedBuildId?: Maybe<Scalars['ID']>;
 }>;
 
 

@@ -12,6 +12,7 @@ export interface ArchiveSourceSummaryFields {
 
 export function formatArchiveSourceSummary({
   realFileSource,
+  submittedBuildDetails,
 }: Archive): ArchiveSourceSummaryFields {
   const summarySlice: ArchiveSourceSummaryFields = {};
 
@@ -26,8 +27,7 @@ export function formatArchiveSourceSummary({
       summarySlice.buildId = realFileSource.id;
       break;
     case ArchiveFileSourceType.latest:
-      // TODO: Resolve real build ID here
-      summarySlice.buildId = '[latest]';
+      summarySlice.buildId = submittedBuildDetails?.buildId;
       break;
   }
   return summarySlice;

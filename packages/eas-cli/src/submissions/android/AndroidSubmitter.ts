@@ -43,7 +43,11 @@ class AndroidSubmitter extends BaseSubmitter<AndroidSubmissionContext, AndroidSu
       SummaryHumanReadableValues
     );
 
-    await this.startSubmissionAsync(submissionConfig, this.ctx.commandFlags.verbose);
+    await this.startSubmissionAsync(
+      submissionConfig,
+      resolvedSourceOptions.archive.submittedBuildDetails?.buildId,
+      this.ctx.commandFlags.verbose
+    );
   }
 
   private async resolveSourceOptions(): Promise<ResolvedSourceOptions> {

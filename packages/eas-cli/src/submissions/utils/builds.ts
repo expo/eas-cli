@@ -1,10 +1,15 @@
 import { AppPlatform, BuildStatus } from '../../graphql/generated';
 import { BuildQuery } from '../../graphql/queries/BuildQuery';
 
-export async function getBuildArtifactUrlByIdAsync(
+export interface SubmittedBuildInfo {
+  buildId: string;
+  artifactUrl: string;
+}
+
+export async function getBuildInfoByIdAsync(
   platform: AppPlatform,
   buildId: string
-): Promise<string> {
+): Promise<SubmittedBuildInfo> {
   const { platform: buildPlatform, artifacts } = await BuildQuery.byIdAsync(buildId);
 
   if (buildPlatform !== platform) {
@@ -14,17 +19,17 @@ export async function getBuildArtifactUrlByIdAsync(
   if (!artifacts) {
     throw new Error('Build has no artifacts.');
   }
-  const buildUrl = artifacts.buildUrl;
-  if (!buildUrl) {
+  const artifactUrl = artifacts.buildUrl;
+  if (!artifactUrl) {
     throw new Error('Build URL is not defined.');
   }
-  return buildUrl;
+  return { buildId, artifactUrl };
 }
 
-export async function getLatestBuildArtifactUrlAsync(
+export async function getLatestBuildInfoAsync(
   platform: AppPlatform,
   appId: string
-): Promise<string | null> {
+): Promise<SubmittedBuildInfo | null> {
   const builds = await BuildQuery.allForAppAsync(appId, {
     platform,
     status: BuildStatus.Finished,
@@ -35,10 +40,10 @@ export async function getLatestBuildArtifactUrlAsync(
     return null;
   }
 
-  const { artifacts } = builds[0];
-  if (!artifacts) {
+  const { id, artifacts } = builds[0];
+  if (!artifacts || !artifacts.buildUrl) {
     return null;
   }
 
-  return artifacts.buildUrl ?? null;
+  return { buildId: id, artifactUrl: artifacts.buildUrl };
 }

@@ -22,6 +22,7 @@ abstract class BaseSubmitter<SubmissionContext, SubmissionOptions> {
 
   protected async startSubmissionAsync(
     submissionConfig: SubmissionConfig,
+    submittedBuildId?: string,
     verbose: boolean = false
   ): Promise<SubmissionStatus> {
     Log.addNewLineIfNone();
@@ -31,7 +32,8 @@ abstract class BaseSubmitter<SubmissionContext, SubmissionOptions> {
       submissionId = await SubmissionService.startSubmissionAsync(
         this.platform,
         submissionConfig.projectId,
-        submissionConfig
+        submissionConfig,
+        submittedBuildId
       );
       scheduleSpinner.succeed();
     } catch (err) {

@@ -2,10 +2,14 @@ import chalk from 'chalk';
 import { URL, parse as parseUrl } from 'url';
 import * as uuid from 'uuid';
 
-import { AppPlatform, BuildFragment } from '../../graphql/generated';
+import { AppPlatform } from '../../graphql/generated';
 import Log from '../../log';
 import { promptAsync } from '../../prompts';
-import { getBuildArtifactUrlByIdAsync, getLatestBuildArtifactUrlAsync } from '../utils/builds';
+import {
+  SubmittedBuildInfo,
+  getBuildInfoByIdAsync,
+  getLatestBuildInfoAsync,
+} from '../utils/builds';
 import { isExistingFile, uploadAppArchiveAsync } from '../utils/files';
 
 export enum ArchiveFileSourceType {
@@ -49,7 +53,7 @@ interface ArchiveFilePromptSource extends ArchiveFileSourceBase {
 export interface ResolvedArchive {
   location: string;
   realSource: ArchiveFileSource;
-  buildDetails?: BuildFragment;
+  buildDetails?: SubmittedBuildInfo;
 }
 
 export type ArchiveFileSource =
@@ -97,9 +101,9 @@ async function handleUrlSourceAsync(source: ArchiveFileUrlSource): Promise<Resol
 
 async function handleLatestSourceAsync(source: ArchiveFileLatestSource): Promise<ResolvedArchive> {
   try {
-    const artifactUrl = await getLatestBuildArtifactUrlAsync(source.platform, source.projectId);
+    const buildDetails = await getLatestBuildInfoAsync(source.platform, source.projectId);
 
-    if (!artifactUrl) {
+    if (!buildDetails) {
       Log.error(
         chalk.bold(
           "Couldn't find any builds for this project on EAS servers. It looks like you haven't run 'eas build' yet."
@@ -112,8 +116,9 @@ async function handleLatestSourceAsync(source: ArchiveFileLatestSource): Promise
     }
 
     return {
-      location: artifactUrl,
+      location: buildDetails.artifactUrl,
       realSource: source,
+      buildDetails,
     };
   } catch (err) {
     Log.error(err);
@@ -142,9 +147,11 @@ async function handleBuildIdSourceAsync(
   source: ArchiveFileBuildIdSource
 ): Promise<ResolvedArchive> {
   try {
+    const buildDetails = await getBuildInfoByIdAsync(source.platform, source.id);
     return {
-      location: await getBuildArtifactUrlByIdAsync(source.platform, source.id),
+      location: buildDetails.artifactUrl,
       realSource: source,
+      buildDetails,
     };
   } catch (err) {
     Log.error(chalk.bold(`Couldn't find build for id ${source.id}`));

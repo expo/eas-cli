@@ -29,9 +29,17 @@ export const SubmissionMutation = {
               $appId: ID!
               $platform: AppPlatform!
               $config: JSONObject!
+              $submittedBuildId: ID
             ) {
               submission {
-                createSubmission(input: { appId: $appId, platform: $platform, config: $config }) {
+                createSubmission(
+                  input: {
+                    appId: $appId
+                    platform: $platform
+                    config: $config
+                    submittedBuildId: $submittedBuildId
+                  }
+                ) {
                   submission {
                     id
                   }
