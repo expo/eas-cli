@@ -1,5 +1,5 @@
 import { Metadata } from '@expo/eas-build-job';
-import { CredentialsSource } from '@expo/eas-json';
+import { CredentialsSource, IosEnterpriseProvisioning } from '@expo/eas-json';
 
 import { getApplicationIdAsync } from '../project/android/applicationId';
 import { getBundleIdentifierAsync } from '../project/ios/bundleIdentifier';
@@ -52,6 +52,11 @@ export async function collectMetadata<T extends Platform>(
     buildProfile: ctx.commandCtx.profile,
     gitCommitHash: await vcs.getCommitHashAsync(),
     username: getUsername(ctx.commandCtx.exp, await ensureLoggedInAsync()),
+    ...(ctx.platform === Platform.IOS && {
+      iosEnterpriseProvisioning: resolveIosEnterpriseProvisioning(
+        ctx as BuildContext<Platform.IOS>
+      ),
+    }),
   };
 }
 
@@ -134,4 +139,10 @@ async function getNativeChannelAsync<T extends Platform>(
   }
 
   return undefined;
+}
+
+function resolveIosEnterpriseProvisioning(
+  ctx: BuildContext<Platform.IOS>
+): IosEnterpriseProvisioning | undefined {
+  return ctx.buildProfile.enterpriseProvisioning;
 }
