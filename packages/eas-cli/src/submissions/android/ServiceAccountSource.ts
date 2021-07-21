@@ -61,7 +61,7 @@ async function handleDetectSourceAsync(_source: ServiceAccountDetectSoruce): Pro
   const projectDir = (await findProjectRootAsync()) ?? process.cwd();
   const foundFilenames = await glob('**/*.json', {
     cwd: projectDir,
-    ignore: ['app.json', 'package*.json', 'tsconfig.json'],
+    ignore: ['app.json', 'package*.json', 'tsconfig.json', 'node_modules'],
   });
 
   const googleServiceFiles = await filterAsync(
