@@ -1,12 +1,11 @@
 import {
+  AppGroup,
   BundleId,
   BundleIdCapability,
   CapabilityOptionMap,
   CapabilityType,
   CapabilityTypeDataProtectionOption,
   CapabilityTypeOption,
-  ConnectModel,
-  AppGroup,
   CloudContainer,
   MerchantId,
 } from '@expo/apple-utils';
