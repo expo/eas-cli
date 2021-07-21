@@ -1,34 +1,32 @@
 import chalk from 'chalk';
 
-import { AppPlatform } from '../../graphql/generated';
+import { AppPlatform, BuildFragment } from '../../graphql/generated';
 import Log from '../../log';
 import formatFields from '../../utils/formatFields';
 import { Archive, ArchiveFileSourceType } from '../archiveSource';
-import { SubmittedBuildInfo } from './builds';
-
 export interface ArchiveSourceSummaryFields {
   archiveUrl?: string;
   archivePath?: string;
-  submittedBuildDetails?: string;
+  formattedBuild?: string;
 }
 
-function formatSubmittedBuildSummary(info: SubmittedBuildInfo) {
+function formatSubmissionBuildSummary(build: BuildFragment) {
   const fields = [
     {
       label: 'Build ID',
-      value: info.buildId,
+      value: build.id,
     },
     {
       label: 'Build Date',
-      value: new Date(info.createdAt).toLocaleString(),
+      value: new Date(build.createdAt).toLocaleString(),
     },
     {
       label: 'App Version',
-      value: info.appVersion,
+      value: build.appVersion,
     },
     {
-      label: info.platform === AppPlatform.Android ? 'Version code' : 'Build number',
-      value: info.appBuildVersion,
+      label: build.platform === AppPlatform.Android ? 'Version code' : 'Build number',
+      value: build.appBuildVersion,
     },
   ];
 
@@ -47,7 +45,7 @@ function formatSubmittedBuildSummary(info: SubmittedBuildInfo) {
 
 export function formatArchiveSourceSummary({
   realFileSource,
-  submittedBuildDetails,
+  build,
 }: Archive): ArchiveSourceSummaryFields {
   const summarySlice: ArchiveSourceSummaryFields = {};
 
@@ -60,7 +58,7 @@ export function formatArchiveSourceSummary({
       break;
     case ArchiveFileSourceType.buildId:
     case ArchiveFileSourceType.latest:
-      summarySlice.submittedBuildDetails = formatSubmittedBuildSummary(submittedBuildDetails!);
+      summarySlice.formattedBuild = formatSubmissionBuildSummary(build!);
       break;
   }
   return summarySlice;

@@ -45,7 +45,7 @@ class AndroidSubmitter extends BaseSubmitter<AndroidSubmissionContext, AndroidSu
 
     await this.startSubmissionAsync(
       submissionConfig,
-      resolvedSourceOptions.archive.submittedBuildDetails?.buildId,
+      resolvedSourceOptions.archive.build?.id,
       this.ctx.commandFlags.verbose
     );
   }
@@ -116,7 +116,7 @@ const SummaryHumanReadableKeys: Record<keyof Summary, string> = {
   track: 'Release track',
   releaseStatus: 'Release status',
   projectId: 'Project ID',
-  submittedBuildDetails: 'Submitted Build',
+  formattedBuild: 'Build',
 };
 
 const SummaryHumanReadableValues: Partial<Record<keyof Summary, Function>> = {

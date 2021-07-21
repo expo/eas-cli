@@ -21,13 +21,13 @@ async function startSubmissionAsync(
   platform: AppPlatform,
   projectId: string,
   config: SubmissionConfig,
-  submittedBuildId?: string
+  buildId?: string
 ): Promise<StartSubmissionResult> {
   const { submission } = await SubmissionMutation.createSubmissionAsync({
     appId: projectId,
     platform,
     config: (config as unknown) as JSONObject,
-    submittedBuildId,
+    submittedBuildId: buildId,
   });
   return submission.id;
 }

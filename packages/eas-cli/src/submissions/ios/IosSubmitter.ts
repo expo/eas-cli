@@ -52,7 +52,7 @@ class IosSubmitter extends BaseSubmitter<IosSubmissionContext, IosSubmissionOpti
 
     const result = await this.startSubmissionAsync(
       submissionConfig,
-      resolvedSourceOptions.archive.submittedBuildDetails?.buildId,
+      resolvedSourceOptions.archive.build?.id,
       this.ctx.commandFlags.verbose
     );
 
@@ -120,7 +120,7 @@ const SummaryHumanReadableKeys: Record<keyof SummaryData, string> = {
   projectId: 'Project ID',
   archiveUrl: 'Archive URL',
   archivePath: 'Archive Path',
-  submittedBuildDetails: 'Submitted Build',
+  formattedBuild: 'Build',
 };
 
 const SummaryHumanReadableValues: Partial<Record<keyof SummaryData, Function>> = {};

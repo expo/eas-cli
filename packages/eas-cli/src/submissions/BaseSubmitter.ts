@@ -22,7 +22,7 @@ abstract class BaseSubmitter<SubmissionContext, SubmissionOptions> {
 
   protected async startSubmissionAsync(
     submissionConfig: SubmissionConfig,
-    submittedBuildId?: string,
+    buildId?: string,
     verbose: boolean = false
   ): Promise<SubmissionStatus> {
     Log.addNewLineIfNone();
@@ -33,7 +33,7 @@ abstract class BaseSubmitter<SubmissionContext, SubmissionOptions> {
         this.platform,
         submissionConfig.projectId,
         submissionConfig,
-        submittedBuildId
+        buildId
       );
       scheduleSpinner.succeed();
     } catch (err) {

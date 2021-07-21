@@ -1,35 +1,35 @@
-import { AppPlatform, BuildFragment, BuildStatus } from '../../graphql/generated';
+import { AppPlatform, BuildArtifacts, BuildFragment, BuildStatus } from '../../graphql/generated';
 import { BuildQuery } from '../../graphql/queries/BuildQuery';
 
-export type SubmittedBuildInfo = {
-  buildId: BuildFragment['id'];
-  artifactUrl: string;
-} & Pick<BuildFragment, 'createdAt' | 'appVersion' | 'appBuildVersion' | 'platform'>;
+// `BuildFragment` with non-null `artifacts.buildUrl`
+type BuildFragmentWithArtifact = Omit<BuildFragment, 'artifacts'> & {
+  artifacts: Omit<BuildArtifacts, 'buildUrl'> & BuildArtifacts & { buildUrl: string };
+};
 
-export async function getBuildInfoByIdAsync(
+/**
+ * Gets build by ID and ensures that `artifacts.buildUrl` exists
+ */
+export async function getBuildByIdForSubmissionAsync(
   platform: AppPlatform,
   buildId: string
-): Promise<SubmittedBuildInfo> {
-  const { platform: buildPlatform, artifacts, ...rest } = await BuildQuery.byIdAsync(buildId);
+): Promise<BuildFragmentWithArtifact> {
+  const build = await BuildQuery.byIdAsync(buildId);
 
-  if (buildPlatform !== platform) {
+  if (build.platform !== platform) {
     throw new Error("Build platform doesn't match!");
   }
 
-  if (!artifacts) {
-    throw new Error('Build has no artifacts.');
+  if (!buildFragmentHasArtifact(build)) {
+    throw new Error('Build has no artifacts or build URL is not defined.');
   }
-  const artifactUrl = artifacts.buildUrl;
-  if (!artifactUrl) {
-    throw new Error('Build URL is not defined.');
-  }
-  return { buildId, artifactUrl, platform, ...rest };
+
+  return build;
 }
 
-export async function getLatestBuildInfoAsync(
+export async function getLatestBuildForSubmissionAsync(
   platform: AppPlatform,
   appId: string
-): Promise<SubmittedBuildInfo | null> {
+): Promise<BuildFragmentWithArtifact | null> {
   const builds = await BuildQuery.allForAppAsync(appId, {
     platform,
     status: BuildStatus.Finished,
@@ -40,10 +40,15 @@ export async function getLatestBuildInfoAsync(
     return null;
   }
 
-  const { id: buildId, artifacts, ...rest } = builds[0];
-  if (!artifacts?.buildUrl) {
+  const build = builds[0];
+  if (!buildFragmentHasArtifact(build)) {
     return null;
   }
 
-  return { buildId, artifactUrl: artifacts.buildUrl, ...rest };
+  return build;
+}
+
+// Utility function needed to make TypeScript happy
+function buildFragmentHasArtifact(build: BuildFragment): build is BuildFragmentWithArtifact {
+  return build.artifacts?.buildUrl != null;
 }

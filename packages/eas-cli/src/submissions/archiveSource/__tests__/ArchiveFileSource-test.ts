@@ -3,13 +3,12 @@ import { vol } from 'memfs';
 import { v4 as uuidv4 } from 'uuid';
 
 import { asMock } from '../../../__tests__/utils';
-import { AppPlatform, UploadSessionType } from '../../../graphql/generated';
+import { AppPlatform, BuildFragment, UploadSessionType } from '../../../graphql/generated';
 import { promptAsync } from '../../../prompts';
 import { uploadAsync } from '../../../uploads';
 import {
-  SubmittedBuildInfo,
-  getBuildInfoByIdAsync,
-  getLatestBuildInfoAsync,
+  getBuildByIdForSubmissionAsync,
+  getLatestBuildForSubmissionAsync,
 } from '../../utils/builds';
 import {
   ArchiveFileSourceType,
@@ -25,9 +24,11 @@ jest.mock('../../../uploads');
 
 const ARCHIVE_URL = 'https://url.to/archive.tar.gz';
 
-const MOCK_BUILD_DETAILS: SubmittedBuildInfo = {
-  buildId: uuidv4(),
-  artifactUrl: ARCHIVE_URL,
+const MOCK_BUILD_FRAGMENT: Partial<BuildFragment> = {
+  id: uuidv4(),
+  artifacts: {
+    buildUrl: ARCHIVE_URL,
+  },
   appVersion: '1.2.3',
   platform: AppPlatform.Android,
 };
@@ -88,7 +89,7 @@ describe(getArchiveFileLocationAsync, () => {
 
   it('handles Build ID source', async () => {
     const buildId = uuidv4();
-    asMock(getBuildInfoByIdAsync).mockResolvedValueOnce(MOCK_BUILD_DETAILS);
+    asMock(getBuildByIdForSubmissionAsync).mockResolvedValueOnce(MOCK_BUILD_FRAGMENT);
 
     const resolvedArchive = await getArchiveFileLocationAsync({
       ...SOURCE_STUB_INPUT,
@@ -96,12 +97,12 @@ describe(getArchiveFileLocationAsync, () => {
       id: buildId,
     });
 
-    expect(getBuildInfoByIdAsync).toBeCalledWith(SOURCE_STUB_INPUT.platform, buildId);
+    expect(getBuildByIdForSubmissionAsync).toBeCalledWith(SOURCE_STUB_INPUT.platform, buildId);
     assertArchiveResult(resolvedArchive, ArchiveFileSourceType.buildId);
   });
 
   it('prompts again if build with provided ID doesnt exist', async () => {
-    asMock(getBuildInfoByIdAsync).mockRejectedValue(new Error('Build doesnt exist'));
+    asMock(getBuildByIdForSubmissionAsync).mockRejectedValue(new Error('Build doesnt exist'));
     asMock(promptAsync)
       .mockResolvedValueOnce({ sourceType: ArchiveFileSourceType.url })
       .mockResolvedValueOnce({ url: ARCHIVE_URL });
@@ -117,7 +118,7 @@ describe(getArchiveFileLocationAsync, () => {
 
   it('handles latest build source', async () => {
     const projectId = uuidv4();
-    asMock(getLatestBuildInfoAsync).mockResolvedValueOnce(MOCK_BUILD_DETAILS);
+    asMock(getLatestBuildForSubmissionAsync).mockResolvedValueOnce(MOCK_BUILD_FRAGMENT);
 
     const resolvedArchive = await getArchiveFileLocationAsync({
       ...SOURCE_STUB_INPUT,
@@ -125,12 +126,12 @@ describe(getArchiveFileLocationAsync, () => {
       sourceType: ArchiveFileSourceType.latest,
     });
 
-    expect(getLatestBuildInfoAsync).toBeCalledWith(SOURCE_STUB_INPUT.platform, projectId);
+    expect(getLatestBuildForSubmissionAsync).toBeCalledWith(SOURCE_STUB_INPUT.platform, projectId);
     assertArchiveResult(resolvedArchive, ArchiveFileSourceType.latest);
   });
 
   it('prompts again if no builds exists when selected latest', async () => {
-    asMock(getLatestBuildInfoAsync).mockResolvedValueOnce(null);
+    asMock(getLatestBuildForSubmissionAsync).mockResolvedValueOnce(null);
     asMock(promptAsync)
       .mockResolvedValueOnce({ sourceType: ArchiveFileSourceType.url })
       .mockResolvedValueOnce({ url: ARCHIVE_URL });

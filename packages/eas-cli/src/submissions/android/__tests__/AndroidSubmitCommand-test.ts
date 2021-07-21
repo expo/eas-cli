@@ -3,12 +3,17 @@ import { v4 as uuidv4 } from 'uuid';
 
 import { asMock } from '../../../__tests__/utils';
 import { jester as mockJester } from '../../../credentials/__tests__/fixtures-constants';
-import { AppPlatform, SubmissionFragment, SubmissionStatus } from '../../../graphql/generated';
+import {
+  AppPlatform,
+  BuildFragment,
+  SubmissionFragment,
+  SubmissionStatus,
+} from '../../../graphql/generated';
 import { createTestProject } from '../../../project/__tests__/project-utils';
 import { getProjectIdAsync } from '../../../project/projectUtils';
 import SubmissionService from '../../SubmissionService';
 import { AndroidArchiveType, AndroidSubmitCommandFlags } from '../../types';
-import { getLatestBuildInfoAsync } from '../../utils/builds';
+import { getLatestBuildForSubmissionAsync } from '../../utils/builds';
 import { AndroidSubmissionConfig, ReleaseStatus, ReleaseTrack } from '../AndroidSubmissionConfig';
 import AndroidSubmitCommand from '../AndroidSubmitCommand';
 
@@ -37,9 +42,9 @@ describe(AndroidSubmitCommand, () => {
     '/google-service-account.json': JSON.stringify({ service: 'account' }),
   };
 
-  const fakeBuildDetails = {
-    buildId: uuidv4(),
-    artifactUrl: 'http://expo.io/fake.apk',
+  const fakeBuildFragment: Partial<BuildFragment> = {
+    id: uuidv4(),
+    artifacts: { buildUrl: 'http://expo.io/fake.apk' },
     appVersion: '1.2.3',
     platform: AppPlatform.Android,
   };
@@ -137,7 +142,7 @@ describe(AndroidSubmitCommand, () => {
         }
       );
       asMock(getProjectIdAsync).mockImplementationOnce(() => projectId);
-      asMock(getLatestBuildInfoAsync).mockResolvedValueOnce(fakeBuildDetails);
+      asMock(getLatestBuildForSubmissionAsync).mockResolvedValueOnce(fakeBuildFragment);
 
       const options: AndroidSubmitCommandFlags = {
         latest: true,
@@ -165,7 +170,7 @@ describe(AndroidSubmitCommand, () => {
         AppPlatform.Android,
         projectId,
         androidSubmissionConfig,
-        fakeBuildDetails.buildId
+        fakeBuildFragment.id
       );
     });
   });
