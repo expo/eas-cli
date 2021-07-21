@@ -107,7 +107,7 @@ function getCapabilitiesToEnable(
       continue;
     }
 
-    const existingIndex = currentCapabilities.findIndex(existing =>
+    const existingIndex = remainingCapabilities.findIndex(existing =>
       existing.isType(staticCapabilityInfo.capability)
     );
     const existing = existingIndex > -1 ? remainingCapabilities[existingIndex] : null;
@@ -120,6 +120,10 @@ function getCapabilitiesToEnable(
       remainingCapabilities.splice(existingIndex, 1);
       if (Log.isDebug) {
         Log.log(`Skipping existing capability: ${key} (${staticCapabilityInfo.name})`);
+        Log.log(
+          `Remaining to remove: `,
+          remainingCapabilities.map(({ id }) => id)
+        );
       }
       continue;
     }
@@ -145,6 +149,12 @@ function getCapabilitiesToDisable(
   currentCapabilities: BundleIdCapability[],
   request: { capabilityType: CapabilityType; option: any }[]
 ) {
+  if (Log.isDebug) {
+    Log.log(
+      `Existing to disable: `,
+      currentCapabilities.map(({ id }) => id)
+    );
+  }
   const disabledCapabilityNames: string[] = [];
 
   // Disable any extras that aren't present, this functionality is kinda unreliable because managed apps
