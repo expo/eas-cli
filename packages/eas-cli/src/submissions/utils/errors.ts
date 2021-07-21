@@ -15,6 +15,7 @@ enum SubmissionErrorCode {
   IOS_MISSING_APP_ICON = 'SUBMISSION_SERVICE_IOS_MISSING_APP_ICON',
   IOS_INVALID_SIGNATURE = 'SUBMISSION_SERVICE_IOS_INVALID_SIGNATURE',
   IOS_INCORRECT_CREDENTIALS = 'SUBMISSION_SERVICE_IOS_INVALID_CREDENTIALS',
+  IOS_IPAD_INVALID_ORIENTATION = 'SUBMISSION_SERVICE_IOS_IPAD_INVALID_ORIENTATION',
 }
 
 const SubmissionErrorMessages: Record<SubmissionErrorCode, string> = {
@@ -57,6 +58,10 @@ const SubmissionErrorMessages: Record<SubmissionErrorCode, string> = {
     `${learnMore('https://docs.expo.io/distribution/app-signing')}`,
   [SubmissionErrorCode.IOS_INCORRECT_CREDENTIALS]:
     'Your Apple ID or app-specific password is incorrect. Please verify that you entered them correctly and try again.',
+  [SubmissionErrorCode.IOS_IPAD_INVALID_ORIENTATION]:
+    "Your app doesn't support iPad multitasking and has to require full screen.\n" +
+    "If you're submitting a managed Expo project, set the `expo.ios.requireFullScreen` to true in app.json and build the project again.\n" +
+    `${learnMore('https://expo.fyi/ipad-requires-fullscreen')}`,
 };
 
 export function printSubmissionError(error: SubmissionError): boolean {
