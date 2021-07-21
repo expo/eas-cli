@@ -6,6 +6,7 @@ import ora from 'ora';
 import Log from '../../../log';
 import { AuthCtx, getRequestContext } from './authenticate';
 import { syncCapabilitiesForEntitlementsAsync } from './bundleIdCapabilities';
+import { syncCapabilityIdentifiersForEntitlementsAsync } from './capabilityIdentifiers';
 import { assertContractMessagesAsync } from './contractMessages';
 
 export interface IosCapabilitiesOptions {
@@ -95,8 +96,6 @@ export async function syncCapabilities(
       bundleId,
       entitlements
     );
-    const buildMessage = (title: string, items: string[]) =>
-      items.length ? `${title}: ${items.join(', ')}` : '';
     const results =
       [buildMessage('Enabled', enabled), buildMessage('Disabled', disabled)]
         .filter(Boolean)
@@ -105,6 +104,43 @@ export async function syncCapabilities(
     spinner.succeed(`Synced capabilities: ` + chalk.dim(results));
   } catch (err) {
     spinner.fail(`Failed to sync capabilities ${chalk.dim(bundleId.attributes.identifier)}`);
+    throw err;
+  }
+
+  // Always run this after syncing the capabilities...
+  await syncCapabilityIdentifiersAsync(bundleId, { entitlements });
+}
+
+const buildMessage = (title: string, items: string[]) =>
+  items.length ? `${title}: ${items.join(', ')}` : '';
+
+export async function syncCapabilityIdentifiersAsync(
+  bundleId: BundleId,
+  { entitlements }: IosCapabilitiesOptions
+): Promise<void> {
+  const spinner = ora(`Syncing capabilities identifiers`).start();
+
+  // Stop spinning in debug mode so we can print other information
+  if (Log.isDebug) {
+    spinner.stop();
+  }
+
+  try {
+    const { created, linked } = await syncCapabilityIdentifiersForEntitlementsAsync(
+      bundleId,
+      entitlements
+    );
+
+    const results =
+      [buildMessage('Created', created), buildMessage('Linked', linked)]
+        .filter(Boolean)
+        .join(' | ') || 'No updates';
+
+    spinner.succeed(`Synced capability identifiers: ` + chalk.dim(results));
+  } catch (err) {
+    spinner.fail(
+      `Failed to sync capability identifiers ${chalk.dim(bundleId.attributes.identifier)}`
+    );
     throw err;
   }
 }

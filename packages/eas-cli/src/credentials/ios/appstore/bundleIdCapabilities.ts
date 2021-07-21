@@ -5,13 +5,17 @@ import {
   CapabilityType,
   CapabilityTypeDataProtectionOption,
   CapabilityTypeOption,
+  ConnectModel,
+  AppGroup,
+  CloudContainer,
+  MerchantId,
 } from '@expo/apple-utils';
 import { JSONObject, JSONValue } from '@expo/json-file';
 import getenv from 'getenv';
 
 import Log from '../../../log';
 
-const EXPO_NO_CAPABILITY_SYNC = getenv.boolish('EXPO_NO_CAPABILITY_SYNC', false);
+export const EXPO_NO_CAPABILITY_SYNC = getenv.boolish('EXPO_NO_CAPABILITY_SYNC', false);
 
 type GetOptionsMethod<T extends CapabilityType = any> = (
   entitlement: JSONValue,
@@ -20,6 +24,13 @@ type GetOptionsMethod<T extends CapabilityType = any> = (
 
 const validateBooleanOptions = (options: any): boolean => {
   return typeof options === 'boolean';
+};
+
+const validatePrefixedStringArrayOptions = (prefix: string) => (options: any): boolean => {
+  return (
+    Array.isArray(options) &&
+    options.every(option => typeof option === 'string' && option.startsWith(prefix))
+  );
 };
 
 const validateStringArrayOptions = (options: any): boolean => {
@@ -211,6 +222,7 @@ export const CapabilityMapping: {
   capability: CapabilityType;
   validateOptions: (options: any) => boolean;
   getOptions: GetOptionsMethod;
+  capabilityIdModel?: typeof MerchantId;
   options?: undefined;
 }[] = [
   {
@@ -297,24 +309,27 @@ export const CapabilityMapping: {
     entitlement: 'com.apple.security.application-groups',
     capability: CapabilityType.APP_GROUP,
     // Ex: ['group.CY-A5149AC2-49FC-11E7-B3F3-0335A16FFB8D.com.cydia.Extender']
-    validateOptions: validateStringArrayOptions,
+    validateOptions: validatePrefixedStringArrayOptions('group.'),
     getOptions: getDefinedOptions,
+    capabilityIdModel: AppGroup,
   },
   {
     name: 'Apple Pay Payment Processing',
     entitlement: 'com.apple.developer.in-app-payments',
     capability: CapabilityType.APPLE_PAY,
     // Ex: ['merchant.com.example.development']
-    validateOptions: validateStringArrayOptions,
+    validateOptions: validatePrefixedStringArrayOptions('merchant.'),
     getOptions: getDefinedOptions,
+    capabilityIdModel: MerchantId,
   },
   {
     name: 'iCloud',
     entitlement: 'com.apple.developer.icloud-container-identifiers',
     capability: CapabilityType.ICLOUD,
-    validateOptions: validateStringArrayOptions,
+    validateOptions: validatePrefixedStringArrayOptions('iCloud.'),
     // Only supports Xcode +6, 5 could be added if needed.
     getOptions: getDefinedOptions,
+    capabilityIdModel: CloudContainer,
   },
   {
     name: 'ClassKit',
