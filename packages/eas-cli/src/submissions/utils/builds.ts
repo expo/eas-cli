@@ -2,8 +2,8 @@ import { AppPlatform, BuildArtifacts, BuildFragment, BuildStatus } from '../../g
 import { BuildQuery } from '../../graphql/queries/BuildQuery';
 
 // `BuildFragment` with non-null `artifacts.buildUrl`
-type BuildFragmentWithArtifact = Omit<BuildFragment, 'artifacts'> & {
-  artifacts: Omit<BuildArtifacts, 'buildUrl'> & BuildArtifacts & { buildUrl: string };
+type BuildFragmentWithArtifact = BuildFragment & {
+  artifacts: BuildArtifacts & { buildUrl: string };
 };
 
 /**
