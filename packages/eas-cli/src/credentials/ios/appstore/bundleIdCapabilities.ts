@@ -138,12 +138,11 @@ function getCapabilitiesToEnable(
       continue;
     }
 
-    if (!staticCapabilityInfo.validateOptions(value)) {
-      throw new Error(`iOS entitlement "${key}" has invalid value "${value}".`);
-    }
+    assertValidOptions(staticCapabilityInfo, value);
+
     enabledCapabilityNames.push(staticCapabilityInfo.name);
 
-    const option = staticCapabilityInfo.getOptions(value!, entitlements);
+    const option = staticCapabilityInfo.getOptions(value, entitlements);
 
     request.push({
       capabilityType: staticCapabilityInfo.capability,
@@ -152,6 +151,19 @@ function getCapabilitiesToEnable(
   }
 
   return { enabledCapabilityNames, request, remainingCapabilities };
+}
+
+export function assertValidOptions(classifier: CapabilityClassifier, value: any): asserts value {
+  if (!classifier.validateOptions(value)) {
+    let reason = '';
+    if (classifier.capabilityIdPrefix) {
+      // Assert string array matching prefix. ASC will throw if the IDs are invalid, this just saves some time.
+      reason = ` Expected an array of strings, where each string is prefixed with "${classifier.capabilityIdPrefix}", ex: ["${classifier.capabilityIdPrefix}myapp"]`;
+    }
+    throw new Error(
+      `iOS entitlement "${classifier.entitlement}" has invalid value "${value}".${reason}`
+    );
+  }
 }
 
 function getCapabilitiesToDisable(
@@ -212,18 +224,21 @@ function getCapabilitiesToDisable(
   return { disabledCapabilityNames, request };
 }
 
-// NOTE(Bacon): From manually toggling values in Xcode and checking the git diff and network requests.
-// Last Updated: May 5th, 2021
-// https://developer.apple.com/documentation/bundleresources/entitlements
-export const CapabilityMapping: {
+type CapabilityClassifier = {
   name: string;
   entitlement: string;
   capability: CapabilityType;
   validateOptions: (options: any) => boolean;
   getOptions: GetOptionsMethod;
   capabilityIdModel?: typeof MerchantId;
+  capabilityIdPrefix?: string;
   options?: undefined;
-}[] = [
+};
+
+// NOTE(Bacon): From manually toggling values in Xcode and checking the git diff and network requests.
+// Last Updated: July 22nd, 2021
+// https://developer.apple.com/documentation/bundleresources/entitlements
+export const CapabilityMapping: CapabilityClassifier[] = [
   {
     name: 'HomeKit',
     entitlement: 'com.apple.developer.homekit',
@@ -311,6 +326,7 @@ export const CapabilityMapping: {
     validateOptions: validatePrefixedStringArrayOptions('group.'),
     getOptions: getDefinedOptions,
     capabilityIdModel: AppGroup,
+    capabilityIdPrefix: 'group.',
   },
   {
     name: 'Apple Pay Payment Processing',
@@ -320,6 +336,7 @@ export const CapabilityMapping: {
     validateOptions: validatePrefixedStringArrayOptions('merchant.'),
     getOptions: getDefinedOptions,
     capabilityIdModel: MerchantId,
+    capabilityIdPrefix: 'merchant.',
   },
   {
     name: 'iCloud',
@@ -329,6 +346,7 @@ export const CapabilityMapping: {
     // Only supports Xcode +6, 5 could be added if needed.
     getOptions: getDefinedOptions,
     capabilityIdModel: CloudContainer,
+    capabilityIdPrefix: 'iCloud.',
   },
   {
     name: 'ClassKit',

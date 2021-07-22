@@ -2,7 +2,11 @@ import { BundleId, CapabilityTypeOption } from '@expo/apple-utils';
 import { JSONObject } from '@expo/json-file';
 
 import Log from '../../../log';
-import { CapabilityMapping, EXPO_NO_CAPABILITY_SYNC } from './bundleIdCapabilities';
+import {
+  CapabilityMapping,
+  EXPO_NO_CAPABILITY_SYNC,
+  assertValidOptions,
+} from './bundleIdCapabilities';
 
 type UpdateCapabilityRequest = Parameters<BundleId['updateBundleIdCapabilityAsync']>[0];
 
@@ -42,12 +46,7 @@ export async function syncCapabilityIdentifiersForEntitlementsAsync(
       if (!value) {
         return false;
       }
-      // Assert string array matching prefix. ASC will throw if the IDs are invalid, this just saves some time.
-      if (!classifier.validateOptions(value)) {
-        throw new Error(
-          `iOS entitlement "${classifier.entitlement}" has invalid incorrectly formatted identifier list: "${value}".`
-        );
-      }
+      assertValidOptions(classifier, value);
       return true;
     };
 
