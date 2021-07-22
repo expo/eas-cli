@@ -34,8 +34,9 @@ export async function prepareJobAsync(
       }
     : {};
 
+  const { gradleCommand } = ctx.buildProfile;
   let buildType: Android.BuildType | undefined = ctx.buildProfile.buildType;
-  if (!buildType && ctx.buildProfile.distribution === 'internal') {
+  if (!buildType && !gradleCommand && ctx.buildProfile.distribution === 'internal') {
     buildType = Android.BuildType.APK;
   }
 
@@ -62,7 +63,7 @@ export async function prepareJobAsync(
     releaseChannel: ctx.buildProfile.releaseChannel,
     updates: { channel: ctx.buildProfile.channel },
 
-    gradleCommand: ctx.buildProfile.gradleCommand,
+    gradleCommand,
     artifactPath: ctx.buildProfile.artifactPath,
 
     username,
