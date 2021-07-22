@@ -1,30 +1,35 @@
-import { AppPlatform, BuildStatus } from '../../graphql/generated';
+import { AppPlatform, BuildArtifacts, BuildFragment, BuildStatus } from '../../graphql/generated';
 import { BuildQuery } from '../../graphql/queries/BuildQuery';
 
-export async function getBuildArtifactUrlByIdAsync(
+// `BuildFragment` with non-null `artifacts.buildUrl`
+type BuildFragmentWithArtifact = BuildFragment & {
+  artifacts: BuildArtifacts & { buildUrl: string };
+};
+
+/**
+ * Gets build by ID and ensures that `artifacts.buildUrl` exists
+ */
+export async function getBuildByIdForSubmissionAsync(
   platform: AppPlatform,
   buildId: string
-): Promise<string> {
-  const { platform: buildPlatform, artifacts } = await BuildQuery.byIdAsync(buildId);
+): Promise<BuildFragmentWithArtifact> {
+  const build = await BuildQuery.byIdAsync(buildId);
 
-  if (buildPlatform !== platform) {
+  if (build.platform !== platform) {
     throw new Error("Build platform doesn't match!");
   }
 
-  if (!artifacts) {
-    throw new Error('Build has no artifacts.');
+  if (!buildFragmentHasArtifact(build)) {
+    throw new Error('Build has no artifacts or build URL is not defined.');
   }
-  const buildUrl = artifacts.buildUrl;
-  if (!buildUrl) {
-    throw new Error('Build URL is not defined.');
-  }
-  return buildUrl;
+
+  return build;
 }
 
-export async function getLatestBuildArtifactUrlAsync(
+export async function getLatestBuildForSubmissionAsync(
   platform: AppPlatform,
   appId: string
-): Promise<string | null> {
+): Promise<BuildFragmentWithArtifact | null> {
   const builds = await BuildQuery.allForAppAsync(appId, {
     platform,
     status: BuildStatus.Finished,
@@ -35,10 +40,15 @@ export async function getLatestBuildArtifactUrlAsync(
     return null;
   }
 
-  const { artifacts } = builds[0];
-  if (!artifacts) {
+  const build = builds[0];
+  if (!buildFragmentHasArtifact(build)) {
     return null;
   }
 
-  return artifacts.buildUrl ?? null;
+  return build;
+}
+
+// Utility function needed to make TypeScript happy
+function buildFragmentHasArtifact(build: BuildFragment): build is BuildFragmentWithArtifact {
+  return build.artifacts?.buildUrl != null;
 }

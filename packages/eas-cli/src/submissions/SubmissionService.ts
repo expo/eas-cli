@@ -20,12 +20,14 @@ export const DEFAULT_CHECK_INTERVAL_MS = 5 * 1000; // 5 secs
 async function startSubmissionAsync(
   platform: AppPlatform,
   projectId: string,
-  config: SubmissionConfig
+  config: SubmissionConfig,
+  buildId?: string
 ): Promise<StartSubmissionResult> {
   const { submission } = await SubmissionMutation.createSubmissionAsync({
     appId: projectId,
     platform,
     config: (config as unknown) as JSONObject,
+    submittedBuildId: buildId,
   });
   return submission.id;
 }

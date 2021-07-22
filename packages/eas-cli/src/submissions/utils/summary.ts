@@ -1,17 +1,51 @@
 import chalk from 'chalk';
 
+import { AppPlatform, BuildFragment } from '../../graphql/generated';
 import Log from '../../log';
 import formatFields from '../../utils/formatFields';
 import { Archive, ArchiveFileSourceType } from '../archiveSource';
-
 export interface ArchiveSourceSummaryFields {
   archiveUrl?: string;
   archivePath?: string;
-  buildId?: string;
+  formattedBuild?: string;
+}
+
+function formatSubmissionBuildSummary(build: BuildFragment) {
+  const fields = [
+    {
+      label: 'Build ID',
+      value: build.id,
+    },
+    {
+      label: 'Build Date',
+      value: new Date(build.createdAt).toLocaleString(),
+    },
+    {
+      label: 'App Version',
+      value: build.appVersion,
+    },
+    {
+      label: build.platform === AppPlatform.Android ? 'Version code' : 'Build number',
+      value: build.appBuildVersion,
+    },
+  ];
+
+  const filteredFields = fields.filter(({ value }) => value !== undefined && value !== null) as {
+    label: string;
+    value: string;
+  }[];
+
+  return (
+    '\n' +
+    formatFields(filteredFields, {
+      labelFormat: label => `    ${chalk.dim(label)}:`,
+    })
+  );
 }
 
 export function formatArchiveSourceSummary({
   realFileSource,
+  build,
 }: Archive): ArchiveSourceSummaryFields {
   const summarySlice: ArchiveSourceSummaryFields = {};
 
@@ -23,11 +57,8 @@ export function formatArchiveSourceSummary({
       summarySlice.archiveUrl = realFileSource.url;
       break;
     case ArchiveFileSourceType.buildId:
-      summarySlice.buildId = realFileSource.id;
-      break;
     case ArchiveFileSourceType.latest:
-      // TODO: Resolve real build ID here
-      summarySlice.buildId = '[latest]';
+      summarySlice.formattedBuild = formatSubmissionBuildSummary(build!);
       break;
   }
   return summarySlice;

@@ -43,7 +43,11 @@ class AndroidSubmitter extends BaseSubmitter<AndroidSubmissionContext, AndroidSu
       SummaryHumanReadableValues
     );
 
-    await this.startSubmissionAsync(submissionConfig, this.ctx.commandFlags.verbose);
+    await this.startSubmissionAsync(
+      submissionConfig,
+      resolvedSourceOptions.archive.build?.id,
+      this.ctx.commandFlags.verbose
+    );
   }
 
   private async resolveSourceOptions(): Promise<ResolvedSourceOptions> {
@@ -88,8 +92,8 @@ class AndroidSubmitter extends BaseSubmitter<AndroidSubmissionContext, AndroidSu
       track,
       releaseStatus,
       archiveType: archive.type as AndroidArchiveType,
-      ...formatArchiveSourceSummary(archive),
       serviceAccountPath,
+      ...formatArchiveSourceSummary(archive),
     };
   }
 }
@@ -108,11 +112,11 @@ const SummaryHumanReadableKeys: Record<keyof Summary, string> = {
   archivePath: 'Archive path',
   archiveUrl: 'Download URL',
   archiveType: 'Archive type',
-  buildId: 'Build ID',
   serviceAccountPath: 'Google Service Key',
   track: 'Release track',
   releaseStatus: 'Release status',
   projectId: 'Project ID',
+  formattedBuild: 'Build',
 };
 
 const SummaryHumanReadableValues: Partial<Record<keyof Summary, Function>> = {
