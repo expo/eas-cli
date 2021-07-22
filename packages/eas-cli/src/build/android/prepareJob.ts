@@ -1,4 +1,4 @@
-import { ArchiveSource, Job, sanitizeJob } from '@expo/eas-build-job';
+import { Android, ArchiveSource, Job, sanitizeJob } from '@expo/eas-build-job';
 import path from 'path';
 
 import { AndroidCredentials } from '../../credentials/android/AndroidCredentialsProvider';
@@ -34,6 +34,11 @@ export async function prepareJobAsync(
       }
     : {};
 
+  let buildType: Android.BuildType | undefined = ctx.buildProfile.buildType;
+  if (!buildType && ctx.buildProfile.distribution === 'internal') {
+    buildType = Android.BuildType.APK;
+  }
+
   const job = {
     type: ctx.workflow,
     platform: Platform.ANDROID,
@@ -61,7 +66,7 @@ export async function prepareJobAsync(
     artifactPath: ctx.buildProfile.artifactPath,
 
     username,
-    buildType: ctx.buildProfile.buildType,
+    buildType,
   };
 
   return sanitizeJob(job);
