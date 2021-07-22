@@ -34,12 +34,16 @@ class CustomCommandHelp extends CommandHelp {
       this.aliases(cmd.aliases),
       this.examples(cmd.examples || (cmd as any).example),
     ]).join('\n\n');
-    if (this.opts.stripAnsi) output = stripAnsi(output);
+    if (this.opts.stripAnsi) {
+      output = stripAnsi(output);
+    }
     return output;
   }
 
   protected flags(flags: Config.Command.Flag[]): string | undefined {
-    if (flags.length === 0) return;
+    if (flags.length === 0) {
+      return;
+    }
     const groupableFlags = flags.map(originalFlag => {
       const { helpLabel, ...flag } = originalFlag;
       // We re-purpose `helpLabel` to mean a "header to group the flag under".

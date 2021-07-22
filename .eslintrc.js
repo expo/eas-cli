@@ -19,6 +19,7 @@ module.exports = {
       },
     ],
     'flowtype/no-types-missing-file-annotation': 'off',
+    'curly': 'warn',
   },
   settings: {
     react: {

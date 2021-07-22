@@ -67,7 +67,9 @@ Unsure where to find the secret's ID? Run ${chalk.bold('eas secrets:list')}`;
 
       id = secret?.id;
 
-      if (!id) throw new Error(validationMessage);
+      if (!id) {
+        throw new Error(validationMessage);
+      }
     }
 
     Log.addNewLineIfNone();

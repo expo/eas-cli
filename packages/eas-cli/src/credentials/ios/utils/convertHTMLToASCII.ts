@@ -41,7 +41,9 @@ function getService(rootUrl: string) {
     },
     replacement(content: string, node: any) {
       let href = node.getAttribute('href');
-      if (href.startsWith('/')) href = `${rootUrl}${href}`;
+      if (href.startsWith('/')) {
+        href = `${rootUrl}${href}`;
+      }
       if (terminalLink.isSupported) {
         return chalk.cyan(terminalLink(content, href));
       }

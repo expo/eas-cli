@@ -14,7 +14,9 @@ export function endTimer(label = LABEL, clear: boolean = true) {
   const startTime = startTimes[label];
   if (startTime) {
     const delta = endTime - startTime;
-    if (clear) delete startTimes[label];
+    if (clear) {
+      delete startTimes[label];
+    }
     return delta;
   }
   throw new Error(`Timer '${label}' has not be started yet`);

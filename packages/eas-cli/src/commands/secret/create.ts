@@ -97,7 +97,9 @@ export default class EnvironmentSecretCreate extends Command {
         },
       }));
 
-      if (!name) throw new Error('Secret name may not be empty.');
+      if (!name) {
+        throw new Error('Secret name may not be empty.');
+      }
     }
 
     if (!secretValue) {
@@ -110,7 +112,9 @@ export default class EnvironmentSecretCreate extends Command {
         validate: value => (value ? true : validationMessage),
       }));
 
-      if (!secretValue) throw new Error(validationMessage);
+      if (!secretValue) {
+        throw new Error(validationMessage);
+      }
     }
 
     if (scope === EnvironmentSecretScope.PROJECT) {
