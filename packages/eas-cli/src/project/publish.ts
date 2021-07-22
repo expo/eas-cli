@@ -1,4 +1,4 @@
-import { Platform } from '@expo/config';
+import { ExpoConfig, Platform } from '@expo/config';
 import JsonFile from '@expo/json-file';
 import spawnAsync from '@expo/spawn-async';
 import Joi from '@hapi/joi';
@@ -46,9 +46,14 @@ type CollectedAssets = {
   };
 };
 
+type ManifestExtra = {
+  expoClient?: { [key: string]: any };
+  [key: string]: any;
+};
 type ManifestFragment = {
   launchAsset: PartialManifestAsset;
   assets: PartialManifestAsset[];
+  extra?: ManifestExtra;
 };
 type UpdateInfoGroup = {
   [key in PublishPlatform]: ManifestFragment;
@@ -125,7 +130,10 @@ export async function convertAssetToUpdateInfoGroupFormatAsync(
   };
 }
 
-export async function buildUpdateInfoGroupAsync(assets: CollectedAssets): Promise<UpdateInfoGroup> {
+export async function buildUpdateInfoGroupAsync(
+  assets: CollectedAssets,
+  exp: ExpoConfig
+): Promise<UpdateInfoGroup> {
   let platform: PublishPlatform;
   const updateInfoGroup: Partial<UpdateInfoGroup> = {};
   for (platform in assets) {
@@ -134,6 +142,9 @@ export async function buildUpdateInfoGroupAsync(assets: CollectedAssets): Promis
       assets: await Promise.all(
         (assets[platform]?.assets ?? []).map(convertAssetToUpdateInfoGroupFormatAsync)
       ),
+      extra: {
+        expoClient: exp,
+      },
     };
   }
   return updateInfoGroup as UpdateInfoGroup;

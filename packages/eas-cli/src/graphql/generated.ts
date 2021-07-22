@@ -644,6 +644,7 @@ export type Build = ActivityTimelineProjectActivity & BuildOrBuildJob & {
   channel?: Maybe<Scalars['String']>;
   metrics?: Maybe<BuildMetrics>;
   distribution?: Maybe<DistributionType>;
+  iosEnterpriseProvisioning?: Maybe<BuildIosEnterpriseProvisioning>;
   buildProfile?: Maybe<Scalars['String']>;
   gitCommitHash?: Maybe<Scalars['String']>;
   error?: Maybe<BuildError>;
@@ -837,6 +838,11 @@ export enum DistributionType {
   Store = 'STORE',
   Internal = 'INTERNAL',
   Simulator = 'SIMULATOR'
+}
+
+export enum BuildIosEnterpriseProvisioning {
+  Adhoc = 'ADHOC',
+  Universal = 'UNIVERSAL'
 }
 
 export type BuildError = {
@@ -2543,6 +2549,7 @@ export type BuildMetadataInput = {
   releaseChannel?: Maybe<Scalars['String']>;
   channel?: Maybe<Scalars['String']>;
   distribution?: Maybe<DistributionType>;
+  iosEnterpriseProvisioning?: Maybe<BuildIosEnterpriseProvisioning>;
   appName?: Maybe<Scalars['String']>;
   appIdentifier?: Maybe<Scalars['String']>;
   buildProfile?: Maybe<Scalars['String']>;
@@ -2949,7 +2956,7 @@ export type UpdateBranchMutation = {
   /** Delete an EAS branch and all of its updates as long as the branch is not being used by any channels */
   deleteUpdateBranch: DeleteUpdateBranchResult;
   /** Publish an update group to a branch */
-  publishUpdateGroup: Array<Maybe<Update>>;
+  publishUpdateGroup: Array<Update>;
 };
 
 
@@ -3001,6 +3008,7 @@ export type UpdateInfoGroup = {
 export type PartialManifest = {
   launchAsset: PartialManifestAsset;
   assets: Array<Maybe<PartialManifestAsset>>;
+  extra?: Maybe<Scalars['JSONObject']>;
 };
 
 export type PartialManifestAsset = {
@@ -4731,10 +4739,10 @@ export type UpdatePublishMutation = (
   { __typename?: 'RootMutation' }
   & { updateBranch: (
     { __typename?: 'UpdateBranchMutation' }
-    & { publishUpdateGroup: Array<Maybe<(
+    & { publishUpdateGroup: Array<(
       { __typename?: 'Update' }
       & Pick<Update, 'id' | 'group'>
-    )>> }
+    )> }
   ) }
 );
 

@@ -130,7 +130,10 @@ export default class BranchPublish extends Command {
       throw new Error('Please run this command inside a project directory.');
     }
 
-    const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
+    const { exp } = getConfig(projectDir, {
+      skipSDKVersionRequirement: true,
+      isPublicConfig: true,
+    });
     let { runtimeVersion, sdkVersion } = exp;
 
     // When a SDK version is supplied instead of a runtime version and we're in the managed workflow
@@ -260,7 +263,7 @@ export default class BranchPublish extends Command {
         const platforms = platformFlag === 'all' ? defaultPublishPlatforms : [platformFlag];
         const assets = collectAssets({ inputDir: inputDir!, platforms });
         await uploadAssetsAsync(assets);
-        updateInfoGroup = await buildUpdateInfoGroupAsync(assets);
+        updateInfoGroup = await buildUpdateInfoGroupAsync(assets, exp);
         assetSpinner.succeed('Uploaded assets!');
       } catch (e) {
         assetSpinner.fail('Failed to upload assets');

@@ -23,8 +23,6 @@ import formatFields from '../../utils/formatFields';
 
 const PAGE_LIMIT = 10_000;
 
-type TruncatedUpdate = Pick<Update, 'group' | 'message' | 'createdAt' | 'actor'>;
-
 export async function viewUpdateBranchAsync({
   appId,
   name,
