@@ -19,7 +19,7 @@ export async function readVersionCodeAsync(
       return undefined;
     }
   } else {
-    return AndroidConfig.Version.getVersionCode(exp) ?? undefined;
+    return AndroidConfig.Version.getVersionCode(exp) ?? 1;
   }
 }
 
