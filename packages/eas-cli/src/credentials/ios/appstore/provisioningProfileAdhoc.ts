@@ -136,10 +136,11 @@ async function manageAdHocProfilesAsync(
   if (profileId) {
     existingProfile = await findProfileByIdAsync(context, profileId, bundleId);
     // Fail if we cannot find the profile that was specifically requested
-    if (!existingProfile)
+    if (!existingProfile) {
       throw new Error(
         `Could not find profile with profile id "${profileId}" for bundle id "${bundleId}"`
       );
+    }
   } else {
     // If no profile id is passed, try to find a suitable provisioning profile for the App ID.
     const results = await findProfileByBundleIdAsync(context, bundleId, certSerialNumber);
