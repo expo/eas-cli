@@ -34,7 +34,9 @@ export async function syncCapabilityIdentifiersForEntitlementsAsync(
   for (const classifier of CapabilityIdMapping) {
     const CapabilityModel = classifier.capabilityIdModel;
     // Skip capabilities that don't support capability IDs.
-    if (!CapabilityModel) continue;
+    if (!CapabilityModel) {
+      continue;
+    }
 
     const validate = (value: any): value is string[] => {
       if (!value) {
@@ -52,7 +54,9 @@ export async function syncCapabilityIdentifiersForEntitlementsAsync(
     // Skip capabilities that aren't defined in the entitlements file.
     const entitlementValue = entitlements[classifier.entitlement];
 
-    if (!validate(entitlementValue)) continue;
+    if (!validate(entitlementValue)) {
+      continue;
+    }
 
     // Remove any duplicates to cut down on network requests
     const capabilityIds: string[] = [...new Set(entitlementValue)];
@@ -69,7 +73,9 @@ export async function syncCapabilityIdentifiersForEntitlementsAsync(
 
       // If a remote ID exists, then create it.
       if (!remoteIdModel) {
-        if (Log.isDebug) Log.log(`Creating capability ID: ${localId} (${CapabilityModel.type})`);
+        if (Log.isDebug) {
+          Log.log(`Creating capability ID: ${localId} (${CapabilityModel.type})`);
+        }
         try {
           remoteIdModel = await CapabilityModel.createAsync(bundleId.context, {
             identifier: localId,
@@ -81,10 +87,13 @@ export async function syncCapabilityIdentifiersForEntitlementsAsync(
         }
         // Create a list of newly created IDs for displaying in the CLI.
         createdIds.push(localId);
-        if (Log.isDebug) Log.log(`Created capability ID: ${remoteIdModel.id}`);
+        if (Log.isDebug) {
+          Log.log(`Created capability ID: ${remoteIdModel.id}`);
+        }
       }
-      if (Log.isDebug)
+      if (Log.isDebug) {
         Log.log(`Linking ID to ${CapabilityModel.type}: ${localId} (${remoteIdModel.id})`);
+      }
       // Create a list of linked IDs for displaying in the CLI.
       linkedIds.push(remoteIdModel.attributes.identifier);
       capabilityIdOpaqueIds.push(remoteIdModel.id);
@@ -101,8 +110,9 @@ export async function syncCapabilityIdentifiersForEntitlementsAsync(
   }
 
   if (updateRequest.length) {
-    if (Log.isDebug)
+    if (Log.isDebug) {
       Log.log(`Updating bundle identifier with capability identifiers:`, updateRequest);
+    }
     await bundleId.updateBundleIdCapabilityAsync(updateRequest);
   } else if (Log.isDebug) {
     Log.log(`No capability identifiers need to be updated`);
