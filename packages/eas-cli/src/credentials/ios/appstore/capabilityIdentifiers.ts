@@ -13,7 +13,8 @@ type UpdateCapabilityRequest = Parameters<BundleId['updateBundleIdCapabilityAsyn
  *
  * @param bundleId Bundle identifier object.
  * @param entitlements JSON representation of the iOS entitlements plist
- * @returns
+ *
+ * @returns an object specifying the capabilities that were linked, and created.
  */
 export async function syncCapabilityIdentifiersForEntitlementsAsync(
   bundleId: BundleId,
@@ -35,19 +36,26 @@ export async function syncCapabilityIdentifiersForEntitlementsAsync(
     // Skip capabilities that don't support capability IDs.
     if (!CapabilityModel) continue;
 
-    // Skip capabilities that aren't defined in the entitlements file.
-    let capabilityIds = entitlements[classifier.entitlement] as string[];
-    if (!capabilityIds) continue;
+    const validate = (value: any): value is string[] => {
+      if (!value) {
+        return false;
+      }
+      // Assert string array matching prefix. ASC will throw if the IDs are invalid, this just saves some time.
+      if (!classifier.validateOptions(value)) {
+        throw new Error(
+          `iOS entitlement "${classifier.entitlement}" has invalid incorrectly formatted identifier list: "${value}".`
+        );
+      }
+      return true;
+    };
 
-    // Assert string array matching prefix. ASC will throw if the IDs are invalid, this just saves some time.
-    if (!classifier.validateOptions(capabilityIds)) {
-      throw new Error(
-        `iOS entitlement "${classifier.entitlement}" has invalid incorrectly formatted identifier list: "${capabilityIds}".`
-      );
-    }
+    // Skip capabilities that aren't defined in the entitlements file.
+    const entitlementValue = entitlements[classifier.entitlement];
+
+    if (!validate(entitlementValue)) continue;
 
     // Remove any duplicates to cut down on network requests
-    capabilityIds = [...new Set(capabilityIds)];
+    const capabilityIds: string[] = [...new Set(entitlementValue)];
 
     // Get a list of all of the capability IDs that are already created on the server.
     const existingIds = await CapabilityModel.getAsync(bundleId.context);
