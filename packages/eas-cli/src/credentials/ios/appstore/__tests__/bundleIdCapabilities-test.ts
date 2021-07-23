@@ -1,6 +1,21 @@
 import { BundleIdCapability, CapabilityType } from '@expo/apple-utils';
 
-import { syncCapabilitiesForEntitlementsAsync } from '../bundleIdCapabilities';
+import {
+  CapabilityMapping,
+  assertValidOptions,
+  syncCapabilitiesForEntitlementsAsync,
+} from '../bundleIdCapabilities';
+
+describe(assertValidOptions, () => {
+  it(`adds a reason for asserting capability identifiers`, () => {
+    const classifier = CapabilityMapping.find(
+      ({ capabilityIdPrefix }) => capabilityIdPrefix === 'merchant.'
+    )!;
+    expect(() => assertValidOptions(classifier, ['foobar'])).toThrowError(
+      /Expected an array of strings, where each string is prefixed with "merchant."/
+    );
+  });
+});
 
 describe(syncCapabilitiesForEntitlementsAsync, () => {
   it('enables all capabilities', async () => {
