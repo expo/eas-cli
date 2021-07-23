@@ -1918,10 +1918,10 @@
     xcode "^3.0.0"
     xml-js "^1.6.11"
 
-"@expo/eas-build-job@0.2.43":
-  version "0.2.43"
-  resolved "https://registry.yarnpkg.com/@expo/eas-build-job/-/eas-build-job-0.2.43.tgz#23d4683f3fb23c55fd02f8507d8935c91427dafb"
-  integrity sha512-us9RY9kD5sd8Q7sxzYkx2LCYZQmNnC9kpG2ieUPw+mdXdtF+HpdZtNQWD0Tttvu+T2HWYIot8PMrxu3a6JdFlA==
+"@expo/eas-build-job@0.2.44":
+  version "0.2.44"
+  resolved "https://registry.yarnpkg.com/@expo/eas-build-job/-/eas-build-job-0.2.44.tgz#11f442cf9c1ac8402afbb06742bc99d4c1c6b6d9"
+  integrity sha512-4/wtOyAFLa0aILfco0a/slL96CBUppSeXfPdLzcHkBIc+AUB/pUSGf/M+Z3Pn7QoA3BHCnSIW8DosqqBBOppRg==
   dependencies:
     "@hapi/joi" "^17.1.1"
 

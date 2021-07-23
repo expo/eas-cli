@@ -2,6 +2,7 @@ import { ArchiveSource, ArchiveSourceType, Metadata, Workflow } from '@expo/eas-
 
 import {
   BuildCredentialsSource,
+  BuildIosEnterpriseProvisioning,
   BuildMetadataInput,
   BuildWorkflow,
   DistributionType,
@@ -32,6 +33,9 @@ export function transformMetadata(metadata: Metadata): BuildMetadataInput {
       metadata.credentialsSource && transformCredentialsSource(metadata.credentialsSource),
     distribution: metadata.distribution && transformDistribution(metadata.distribution),
     workflow: metadata.workflow && transformWorkflow(metadata.workflow),
+    iosEnterpriseProvisioning:
+      metadata.iosEnterpriseProvisioning &&
+      transformIosEnterpriseProvisioning(metadata.iosEnterpriseProvisioning),
   };
 }
 
@@ -60,5 +64,15 @@ export function transformWorkflow(workflow: Workflow): BuildWorkflow {
     return BuildWorkflow.Generic;
   } else {
     return BuildWorkflow.Managed;
+  }
+}
+
+export function transformIosEnterpriseProvisioning(
+  enterpriseProvisioning: Metadata['iosEnterpriseProvisioning']
+): BuildIosEnterpriseProvisioning {
+  if (enterpriseProvisioning === 'adhoc') {
+    return BuildIosEnterpriseProvisioning.Adhoc;
+  } else {
+    return BuildIosEnterpriseProvisioning.Universal;
   }
 }

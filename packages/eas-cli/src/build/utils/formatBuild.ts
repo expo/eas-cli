@@ -44,6 +44,10 @@ export function formatGraphQLBuild(build: BuildFragment) {
       value: build.distribution?.toLowerCase(),
     },
     {
+      label: 'Enterprise Provisioning',
+      value: build.iosEnterpriseProvisioning?.toLowerCase(),
+    },
+    {
       label: 'Release Channel',
       value: build.releaseChannel,
     },
