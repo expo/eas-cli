@@ -1,14 +1,20 @@
-import { EasConfig, EasJsonReader } from '@expo/eas-json';
+import { Platform } from '@expo/eas-build-job';
+import { BuildProfile, EasJsonReader } from '@expo/eas-json';
 
 import Log from '../../log';
 import { promptAsync } from '../../prompts';
 import { Context } from '../context';
 
 export class SelectBuildProfileFromEasJson {
-  constructor(private easJsonReader: EasJsonReader) {}
-  async runAsync(ctx: Context): Promise<EasConfig> {
+  private easJsonReader: EasJsonReader;
+
+  constructor(private projectDir: string, private platform: Platform) {
+    this.easJsonReader = new EasJsonReader(projectDir);
+  }
+
+  async runAsync(ctx: Context): Promise<BuildProfile> {
     const profileName = await this.getProfileNameFromEasConfigAsync(ctx);
-    const easConfig = await this.easJsonReader.readAsync(profileName);
+    const easConfig = await this.easJsonReader.readBuildProfileAsync(profileName, this.platform);
     Log.succeed(`Using build profile: ${profileName}`);
     return easConfig;
   }

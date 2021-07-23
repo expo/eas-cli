@@ -1,4 +1,5 @@
 import { Android, ArchiveSource, Job, sanitizeJob } from '@expo/eas-build-job';
+import { AndroidBuildProfile } from '@expo/eas-json';
 import path from 'path';
 
 import { AndroidCredentials } from '../../credentials/android/AndroidCredentialsProvider';
@@ -13,11 +14,18 @@ interface JobData {
   credentials?: AndroidCredentials;
 }
 
+const cacheDefaults = {
+  disabled: false,
+  customPaths: [],
+  cacheDefaultPaths: true,
+};
+
 export async function prepareJobAsync(
   ctx: BuildContext<Platform.ANDROID>,
   jobData: JobData
 ): Promise<Job> {
   const username = getUsername(ctx.exp, await ensureLoggedInAsync());
+  const buildProfile: AndroidBuildProfile = ctx.buildProfile;
   const projectRootDirectory = path.relative(await vcs.getRootPathAsync(), ctx.projectDir) || '.';
   const { credentials } = jobData;
   const buildCredentials = credentials
@@ -33,19 +41,19 @@ export async function prepareJobAsync(
       }
     : {};
 
-  const { gradleCommand } = ctx.buildProfile;
-  let buildType: Android.BuildType | undefined = ctx.buildProfile.buildType;
-  if (!buildType && !gradleCommand && ctx.buildProfile.distribution === 'internal') {
+  const { gradleCommand } = buildProfile;
+  let buildType = ctx.buildProfile.buildType;
+  if (!buildType && !buildProfile.gradleCommand && ctx.buildProfile.distribution === 'internal') {
     buildType = Android.BuildType.APK;
   }
 
-  const job = {
+  const job: Android.Job = {
     type: ctx.workflow,
     platform: Platform.ANDROID,
     projectRootDirectory,
     projectArchive: jobData.projectArchive,
     builderEnvironment: {
-      image: ctx.buildProfile.image,
+      image: buildProfile.image ?? 'default',
       node: ctx.buildProfile.node,
       yarn: ctx.buildProfile.yarn,
       ndk: ctx.buildProfile.ndk,
@@ -53,6 +61,7 @@ export async function prepareJobAsync(
       env: ctx.buildProfile.env,
     },
     cache: {
+      ...cacheDefaults,
       ...ctx.buildProfile.cache,
       clear: ctx.clearCache,
     },
@@ -66,7 +75,9 @@ export async function prepareJobAsync(
     artifactPath: ctx.buildProfile.artifactPath,
 
     username,
-    buildType,
+    buildType: ctx.buildProfile.developmentClient
+      ? Android.BuildType.DEVELOPMENT_CLIENT
+      : buildType,
   };
 
   return sanitizeJob(job);

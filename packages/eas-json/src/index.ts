@@ -1,13 +1,12 @@
 export {
-  CredentialsSource,
-  AndroidDistributionType,
   AndroidBuildProfile,
   BuildProfile,
-  IosDistributionType,
+  CredentialsSource,
+  DistributionType,
+  EasJson,
   IosBuildProfile,
   IosEnterpriseProvisioning,
-  DistributionType,
-  EasConfig,
   VersionAutoIncrement,
-} from './Config.types';
+} from './EasJson.types';
 export { EasJsonReader } from './EasJsonReader';
+export { hasMismatchedExtendsAsync, isUsingDeprecatedFormatAsync, migrateAsync } from './migrate';

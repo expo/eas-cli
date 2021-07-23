@@ -1,6 +1,6 @@
 import { ExpoConfig } from '@expo/config';
 import { Workflow } from '@expo/eas-build-job';
-import { AndroidBuildProfile, EasConfig, IosBuildProfile } from '@expo/eas-json';
+import { AndroidBuildProfile, IosBuildProfile } from '@expo/eas-json';
 import JsonFile from '@expo/json-file';
 import resolveFrom from 'resolve-from';
 import { v4 as uuidv4 } from 'uuid';
@@ -13,6 +13,7 @@ import { Actor } from '../user/User';
 import { ensureLoggedInAsync } from '../user/actions';
 import { Platform, RequestedPlatform, TrackingContext } from './types';
 import Analytics, { Event } from './utils/analytics';
+
 export interface ConfigureContext {
   user: Actor;
   projectDir: string;
@@ -48,8 +49,8 @@ export interface BuildContext<T extends Platform> {
 
 export async function createBuildContextAsync<T extends Platform>({
   buildProfileName,
+  buildProfile,
   clearCache = false,
-  easConfig,
   local,
   nonInteractive = false,
   platform,
@@ -57,20 +58,15 @@ export async function createBuildContextAsync<T extends Platform>({
   skipProjectConfiguration = false,
 }: {
   buildProfileName: string;
+  buildProfile: PlatformBuildProfile<T>;
   clearCache: boolean;
-  easConfig: EasConfig;
   local: boolean;
   nonInteractive: boolean;
   platform: T;
   projectDir: string;
   skipProjectConfiguration: boolean;
 }): Promise<BuildContext<T>> {
-  const buildProfile = easConfig.builds[platform] as PlatformBuildProfile<T> | undefined;
-  if (!buildProfile) {
-    throw new Error(`${platform} build profile does not exist`);
-  }
-
-  const exp = getExpoConfig(projectDir, buildProfile.env);
+  const exp = getExpoConfig(projectDir, { env: buildProfile.env });
 
   const user = await ensureLoggedInAsync();
   const accountName = getProjectAccountName(exp, user);
@@ -126,10 +122,10 @@ function getDevClientEventProperties({
   const version = tryGetDevClientVersion(projectDir);
   if (platform === Platform.ANDROID && 'gradleCommand' in buildProfile) {
     includesDevClient = Boolean(version && buildProfile.gradleCommand?.includes('Debug'));
-  } else if (platform === Platform.IOS && 'schemeBuildConfiguration' in buildProfile) {
-    includesDevClient = Boolean(version && buildProfile.schemeBuildConfiguration === 'Debug');
-  } else if ('buildType' in buildProfile) {
-    includesDevClient = buildProfile.buildType === 'development-client';
+  } else if (platform === Platform.IOS && 'buildConfiguration' in buildProfile) {
+    includesDevClient = Boolean(version && buildProfile.buildConfiguration === 'Debug');
+  } else if (buildProfile.developmentClient) {
+    includesDevClient = true;
   } else {
     includesDevClient = false;
   }

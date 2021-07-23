@@ -1,4 +1,5 @@
-import { EasJsonReader, IosBuildProfile } from '@expo/eas-json';
+import { Platform } from '@expo/eas-build-job';
+import { IosBuildProfile } from '@expo/eas-json';
 import assert from 'assert';
 import nullthrows from 'nullthrows';
 
@@ -284,9 +285,10 @@ export class ManageIos {
     }
 
     const app = { account, projectName: ctx.exp.slug };
-    const easJsonReader = new EasJsonReader(ctx.projectDir, 'ios');
-    const easConfig = await new SelectBuildProfileFromEasJson(easJsonReader).runAsync(ctx);
-    const buildProfile = nullthrows(easConfig.builds.ios, 'iOS build profile must be defined');
+    const buildProfile = (await new SelectBuildProfileFromEasJson(
+      ctx.projectDir,
+      Platform.IOS
+    ).runAsync(ctx)) as IosBuildProfile;
     const xcodeBuildContext = await resolveXcodeBuildContextAsync(
       {
         projectDir: ctx.projectDir,

@@ -41,5 +41,5 @@ export async function ensureIosCredentialsAsync(
 }
 
 function shouldProvideCredentials(buildCtx: BuildContext<Platform.IOS>): boolean {
-  return buildCtx.buildProfile.distribution !== 'simulator';
+  return !buildCtx.buildProfile.simulator;
 }

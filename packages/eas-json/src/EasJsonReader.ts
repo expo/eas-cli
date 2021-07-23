@@ -1,32 +1,32 @@
-import { Platform, Workflow } from '@expo/eas-build-job';
+import { Platform } from '@expo/eas-build-job';
 import fs from 'fs-extra';
 import path from 'path';
 
-import { AndroidBuildProfile, BuildProfile, EasConfig, IosBuildProfile } from './Config.types';
-import { EasJsonSchema, schemaBuildProfileMap } from './EasJsonSchema';
+import {
+  AndroidBuildProfile,
+  BuildProfile,
+  CredentialsSource,
+  EasJson,
+  IosBuildProfile,
+  RawBuildProfile,
+} from './EasJson.types';
+import { EasJsonSchema, MinimalEasJsonSchema } from './EasJsonSchema';
 
-interface EasJson {
-  builds: {
-    android?: { [key: string]: BuildProfilePreValidation };
-    ios?: { [key: string]: BuildProfilePreValidation };
-  };
+interface EasJsonPreValidation {
+  build: { [profile: string]: object };
 }
 
-interface BuildProfilePreValidation {
-  workflow?: Workflow;
-  extends?: string;
-}
-
-function intersect<T>(setA: Set<T>, setB: Set<T>): Set<T> {
-  return new Set([...setA].filter(i => setB.has(i)));
-}
+const defaults = {
+  distribution: 'store',
+  credentialsSource: CredentialsSource.REMOTE,
+} as const;
 
 export class EasJsonReader {
   public static formatEasJsonPath(projectDir: string) {
     return path.join(projectDir, 'eas.json');
   }
 
-  constructor(private projectDir: string, private platform: 'android' | 'ios' | 'all') {}
+  constructor(private projectDir: string) {}
 
   /**
    * Return build profile names for a particular platform.
@@ -34,74 +34,70 @@ export class EasJsonReader {
    */
   public async getBuildProfileNamesAsync(): Promise<string[]> {
     const easJson = await this.readRawAsync();
-    if (this.platform === 'android') {
-      return Object.keys(easJson?.builds?.android ?? {});
-    } else if (this.platform === 'ios') {
-      return Object.keys(easJson?.builds?.ios ?? {});
+    return Object.keys(easJson?.build ?? {});
+  }
+
+  public async readAndroidBuildProfileAsync(
+    buildProfileName: string
+  ): Promise<AndroidBuildProfile> {
+    const easJson = await this.readAndValidateAsync();
+    this.checkProfile(easJson, buildProfileName);
+    const {
+      android: resolvedAndroidSpecifcicValues,
+      ios,
+      ...resolvedProfile
+    } = this.resolveBuildProfile(easJson, buildProfileName);
+    const profileWithoutDefaults = profileMerge(
+      resolvedProfile,
+      resolvedAndroidSpecifcicValues ?? {}
+    );
+    return profileMerge(defaults, profileWithoutDefaults) as AndroidBuildProfile;
+  }
+
+  public async readIosBuildProfileAsync(buildProfileName: string): Promise<IosBuildProfile> {
+    const easJson = await this.readAndValidateAsync();
+    this.checkProfile(easJson, buildProfileName);
+    const {
+      android,
+      ios: resolvedIosSpecifcicValues,
+      ...resolvedProfile
+    } = this.resolveBuildProfile(easJson, buildProfileName);
+    const profileWithoutDefaults = profileMerge(resolvedProfile, resolvedIosSpecifcicValues ?? {});
+    return profileMerge(defaults, profileWithoutDefaults) as IosBuildProfile;
+  }
+
+  public async readBuildProfileAsync(
+    buildProfileName: string,
+    platform: Platform
+  ): Promise<BuildProfile> {
+    if (platform === Platform.ANDROID) {
+      return await this.readAndroidBuildProfileAsync(buildProfileName);
+    } else if (platform === Platform.IOS) {
+      return await this.readIosBuildProfileAsync(buildProfileName);
     } else {
-      const intersectingProfileNames = intersect(
-        new Set(Object.keys(easJson?.builds?.ios ?? {})),
-        new Set(Object.keys(easJson?.builds?.android ?? {}))
-      );
-      return Array.from(intersectingProfileNames);
+      throw new Error(`Unknown platform ${platform}`);
     }
   }
 
-  public async readAsync(buildProfileName: string): Promise<EasConfig> {
+  public async readAndValidateAsync(): Promise<EasJson> {
     const easJson = await this.readRawAsync();
+    const { value, error } = EasJsonSchema.validate(easJson, {
+      allowUnknown: false,
+      convert: true,
+      abortEarly: false,
+    });
 
-    let androidConfig;
-    if (['android', 'all'].includes(this.platform)) {
-      androidConfig = this.validateBuildProfile<AndroidBuildProfile>(
-        Platform.ANDROID,
-        buildProfileName,
-        easJson.builds?.android || {}
-      );
+    if (error) {
+      throw new Error(`eas.json is not valid [${error.toString()}]`);
     }
-    let iosConfig;
-    if (['ios', 'all'].includes(this.platform)) {
-      iosConfig = this.validateBuildProfile<IosBuildProfile>(
-        Platform.IOS,
-        buildProfileName,
-        easJson.builds?.ios || {}
-      );
-    }
-    return {
-      builds: {
-        ...(androidConfig ? { android: androidConfig } : {}),
-        ...(iosConfig ? { ios: iosConfig } : {}),
-      },
-    };
+    return value as EasJson;
   }
 
-  public async validateAsync(): Promise<void> {
-    const easJson = await this.readRawAsync();
-
-    const androidProfiles = easJson.builds?.android ?? {};
-    for (const name of Object.keys(androidProfiles)) {
-      try {
-        this.validateBuildProfile(Platform.ANDROID, name, androidProfiles);
-      } catch (err) {
-        err.msg = `Failed to validate Android build profile "${name}"\n${err.msg}`;
-        throw err;
-      }
-    }
-    const iosProfiles = easJson.builds?.ios ?? {};
-    for (const name of Object.keys(iosProfiles)) {
-      try {
-        this.validateBuildProfile(Platform.IOS, name, iosProfiles);
-      } catch (err) {
-        err.msg = `Failed to validate iOS build profile "${name}"\n${err.msg}`;
-        throw err;
-      }
-    }
-  }
-
-  public async readRawAsync(): Promise<EasJson> {
+  public async readRawAsync(): Promise<EasJsonPreValidation> {
     const rawFile = await fs.readFile(EasJsonReader.formatEasJsonPath(this.projectDir), 'utf8');
     const json = JSON.parse(rawFile);
 
-    const { value, error } = EasJsonSchema.validate(json, {
+    const { value, error } = MinimalEasJsonSchema.validate(json, {
       abortEarly: false,
     });
 
@@ -111,79 +107,54 @@ export class EasJsonReader {
     return value;
   }
 
-  private validateBuildProfile<T extends BuildProfile>(
-    platform: Platform,
-    buildProfileName: string,
-    buildProfiles: Record<string, BuildProfilePreValidation>
-  ): T {
-    const buildProfile = this.resolveBuildProfile(platform, buildProfileName, buildProfiles);
-    const schema = schemaBuildProfileMap[platform];
-    const { value, error } = schema.validate(buildProfile, {
-      stripUnknown: true,
-      convert: true,
-      abortEarly: false,
-    });
-
-    if (error) {
-      throw new Error(
-        `Object "${platform}.${buildProfileName}" in eas.json is not valid [${error.toString()}]`
-      );
-    }
-    return value;
-  }
-
   private resolveBuildProfile(
-    platform: Platform,
-    buildProfileName: string,
-    buildProfiles: Record<string, BuildProfilePreValidation>,
+    easJson: EasJson,
+    profileName: string,
     depth: number = 0
-  ): Record<string, any> {
+  ): RawBuildProfile {
     if (depth >= 2) {
       throw new Error(
         'Too long chain of build profile extensions, make sure "extends" keys do not make a cycle'
       );
     }
-    const buildProfile = buildProfiles[buildProfileName];
+    const buildProfile = easJson.build[profileName];
     if (!buildProfile) {
-      throw new Error(`There is no profile named ${buildProfileName} for platform ${platform}`);
+      throw new Error(`There is no profile named ${profileName}`);
     }
     const { extends: baseProfileName, ...buildProfileRest } = buildProfile;
     if (baseProfileName) {
-      return deepMerge(
-        this.resolveBuildProfile(platform, baseProfileName, buildProfiles, depth + 1),
+      return profileMerge(
+        this.resolveBuildProfile(easJson, baseProfileName, depth + 1),
         buildProfileRest
       );
     } else {
       return buildProfileRest;
     }
   }
+
+  private checkProfile(easJson: EasJson, profileName: string) {
+    if (!easJson.build || !easJson.build[profileName]) {
+      throw new Error(`There is no profile named ${profileName} in eas.json.`);
+    }
+  }
 }
 
-function isObject(value: any): boolean {
-  return typeof value === 'object' && value !== null;
-}
-
-export function deepMerge(
-  base: Record<string, any>,
-  update: Record<string, any>
-): Record<string, any> {
-  const result: Record<string, any> = {};
-  Object.keys(base).forEach(key => {
-    const oldValue = base[key];
-    const newValue = update[key];
-    if (isObject(newValue) && isObject(oldValue)) {
-      result[key] = deepMerge(oldValue, newValue);
-    } else if (newValue !== undefined) {
-      result[key] = isObject(newValue) ? deepMerge({}, newValue) : newValue;
-    } else {
-      result[key] = isObject(oldValue) ? deepMerge({}, oldValue) : oldValue;
-    }
-  });
-  Object.keys(update).forEach(key => {
-    const newValue = update[key];
-    if (result[key] === undefined) {
-      result[key] = isObject(newValue) ? deepMerge({}, newValue) : newValue;
-    }
-  });
+export function profileMerge(base: RawBuildProfile, update: RawBuildProfile): RawBuildProfile {
+  const result = {
+    ...base,
+    ...update,
+  };
+  if (base.env && update.env) {
+    result.env = {
+      ...base.env,
+      ...update.env,
+    };
+  }
+  if (base.android && update.android) {
+    result.android = profileMerge(base.android, update.android);
+  }
+  if (base.ios && update.ios) {
+    result.ios = profileMerge(base.ios, update.ios);
+  }
   return result;
 }
