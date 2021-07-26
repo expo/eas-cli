@@ -63,6 +63,11 @@ export async function selectSchemeAsync({
   nonInteractive?: boolean;
 }): Promise<string> {
   const schemes = IOSConfig.BuildScheme.getSchemesFromXcodeproj(projectDir);
+  if (schemes.length === 0) {
+    throw new Error(
+      `We did not find any schemes in the Xcode project, make sure that at least one scheme is marked as "shared" in Xcode, and that it's listed in the output of "xcodebuild -list" command`
+    );
+  }
   if (schemes.length === 1) {
     return schemes[0];
   }

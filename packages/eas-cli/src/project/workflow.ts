@@ -14,7 +14,7 @@ export async function resolveWorkflowAsync(
     platformWorkflowMarker =
       platform === Platform.ANDROID
         ? await AndroidConfig.Paths.getAndroidManifestAsync(projectDir)
-        : IOSConfig.Paths.getXcodeProjectPath(projectDir);
+        : IOSConfig.Paths.getPBXProjectPath(projectDir);
   } catch {
     return Workflow.MANAGED;
   }
