@@ -22,6 +22,10 @@ function intersect<T>(setA: Set<T>, setB: Set<T>): Set<T> {
 }
 
 export class EasJsonReader {
+  public static formatEasJsonPath(projectDir: string) {
+    return path.join(projectDir, 'eas.json');
+  }
+
   constructor(private projectDir: string, private platform: 'android' | 'ios' | 'all') {}
 
   /**
@@ -94,7 +98,7 @@ export class EasJsonReader {
   }
 
   public async readRawAsync(): Promise<EasJson> {
-    const rawFile = await fs.readFile(path.join(this.projectDir, 'eas.json'), 'utf8');
+    const rawFile = await fs.readFile(EasJsonReader.formatEasJsonPath(this.projectDir), 'utf8');
     const json = JSON.parse(rawFile);
 
     const { value, error } = EasJsonSchema.validate(json, {

@@ -1,14 +1,19 @@
 import { ArchiveSource, ArchiveSourceType, Job, Metadata } from '@expo/eas-build-job';
 import { CredentialsSource } from '@expo/eas-json';
+import chalk from 'chalk';
 import fs from 'fs-extra';
+import nullthrows from 'nullthrows';
+import ora from 'ora';
 
-import { UploadSessionType } from '../graphql/generated';
+import { BuildFragment, BuildStatus, UploadSessionType } from '../graphql/generated';
 import { BuildResult } from '../graphql/mutations/BuildMutation';
+import { BuildQuery } from '../graphql/queries/BuildQuery';
 import Log from '../log';
 import { promptAsync } from '../prompts';
 import { uploadAsync } from '../uploads';
 import { formatBytes } from '../utils/files';
 import { createProgressTracker } from '../utils/progress';
+import { sleep } from '../utils/promise';
 import vcs from '../vcs';
 import { requestedPlatformDisplayNames } from './constants';
 import { BuildContext } from './context';
@@ -40,11 +45,13 @@ interface Builder<TPlatform extends Platform, Credentials, TJob extends Job> {
   sendBuildRequestAsync(appId: string, job: TJob, metadata: Metadata): Promise<BuildResult>;
 }
 
+export type BuildRequestSender = () => Promise<BuildFragment | undefined>;
+
 export async function prepareBuildRequestForPlatformAsync<
   TPlatform extends Platform,
   Credentials,
   TJob extends Job
->(builder: Builder<TPlatform, Credentials, TJob>): Promise<() => Promise<string | undefined>> {
+>(builder: Builder<TPlatform, Credentials, TJob>): Promise<BuildRequestSender> {
   const credentialsResult = await withAnalyticsAsync(
     async () => await builder.ensureCredentialsAsync(builder.ctx),
     {
@@ -53,7 +60,7 @@ export async function prepareBuildRequestForPlatformAsync<
       trackingCtx: builder.ctx.trackingCtx,
     }
   );
-  if (!builder.ctx.commandCtx.skipProjectConfiguration) {
+  if (!builder.ctx.skipProjectConfiguration) {
     await withAnalyticsAsync(async () => await builder.ensureProjectConfiguredAsync(builder.ctx), {
       successEvent: Event.CONFIGURE_PROJECT_SUCCESS,
       failureEvent: Event.CONFIGURE_PROJECT_FAIL,
@@ -68,12 +75,12 @@ export async function prepareBuildRequestForPlatformAsync<
         requestedPlatformDisplayNames[builder.ctx.platform as Platform]
       }`,
       {
-        nonInteractive: builder.ctx.commandCtx.nonInteractive,
+        nonInteractive: builder.ctx.nonInteractive,
       }
     );
   }
 
-  const projectArchive = builder.ctx.commandCtx.local
+  const projectArchive = builder.ctx.local
     ? ({
         type: ArchiveSourceType.PATH,
         path: (await makeProjectTarballAsync()).path,
@@ -92,7 +99,7 @@ export async function prepareBuildRequestForPlatformAsync<
   });
 
   return async () => {
-    if (builder.ctx.commandCtx.local) {
+    if (builder.ctx.local) {
       await runLocalBuildAsync(job);
       return undefined;
     } else {
@@ -177,7 +184,7 @@ async function sendBuildRequestAsync<TPlatform extends Platform, Credentials, TJ
   builder: Builder<TPlatform, Credentials, TJob>,
   job: TJob,
   metadata: Metadata
-): Promise<string> {
+): Promise<BuildFragment> {
   const { ctx } = builder;
   return await withAnalyticsAsync(
     async () => {
@@ -186,13 +193,13 @@ async function sendBuildRequestAsync<TPlatform extends Platform, Credentials, TJ
       }
 
       const { build, deprecationInfo } = await builder.sendBuildRequestAsync(
-        ctx.commandCtx.projectId,
+        ctx.projectId,
         job,
         metadata
       );
 
       printDeprecationWarnings(deprecationInfo);
-      return build.id;
+      return build;
     },
     {
       successEvent: Event.BUILD_REQUEST_SUCCESS,
@@ -273,4 +280,99 @@ async function reviewAndCommitChangesAsync(
       askedFirstTime: false,
     });
   }
+}
+
+export async function waitForBuildEndAsync(
+  buildIds: string[],
+  { timeoutSec = 3600, intervalSec = 30 } = {}
+): Promise<(BuildFragment | null)[]> {
+  Log.log(
+    `Waiting for build${buildIds.length > 1 ? 's' : ''} to complete. You can press Ctrl+C to exit.`
+  );
+  const spinner = ora().start();
+  let time = new Date().getTime();
+  const endTime = time + timeoutSec * 1000;
+  while (time <= endTime) {
+    const builds: (BuildFragment | null)[] = await Promise.all(
+      buildIds.map(async buildId => {
+        try {
+          return await BuildQuery.byIdAsync(buildId, { useCache: false });
+        } catch (err) {
+          return null;
+        }
+      })
+    );
+    if (builds.length === 1) {
+      const build = nullthrows(builds[0]);
+      switch (build.status) {
+        case BuildStatus.Finished:
+          spinner.succeed('Build finished');
+          return builds;
+        case BuildStatus.New:
+          spinner.text = 'Build created';
+          break;
+        case BuildStatus.InQueue:
+          spinner.text = 'Build queued...';
+          break;
+        case BuildStatus.Canceled:
+          spinner.text = 'Build canceled';
+          spinner.stopAndPersist();
+          return builds;
+        case BuildStatus.InProgress:
+          spinner.text = 'Build in progress...';
+          break;
+        case BuildStatus.Errored:
+          spinner.fail('Build failed');
+          if (build.error) {
+            return builds;
+          } else {
+            throw new Error(`Standalone build failed!`);
+          }
+        default:
+          spinner.warn('Unknown status.');
+          throw new Error(`Unknown status: ${builds} - aborting!`);
+      }
+    } else {
+      if (builds.filter(build => build?.status === BuildStatus.Finished).length === builds.length) {
+        spinner.succeed('All builds have finished');
+        return builds;
+      } else if (
+        builds.filter(build =>
+          build?.status
+            ? [BuildStatus.Finished, BuildStatus.Errored, BuildStatus.Canceled].includes(
+                build.status
+              )
+            : false
+        ).length === builds.length
+      ) {
+        spinner.fail('Some of the builds were canceled or failed.');
+        return builds;
+      } else {
+        const newBuilds = builds.filter(build => build?.status === BuildStatus.New).length;
+        const inQueue = builds.filter(build => build?.status === BuildStatus.InQueue).length;
+        const inProgress = builds.filter(build => build?.status === BuildStatus.InProgress).length;
+        const errored = builds.filter(build => build?.status === BuildStatus.Errored).length;
+        const finished = builds.filter(build => build?.status === BuildStatus.Finished).length;
+        const canceled = builds.filter(build => build?.status === BuildStatus.Canceled).length;
+        const unknownState = builds.length - inQueue - inProgress - errored - finished;
+        spinner.text = [
+          newBuilds && `Builds created: ${newBuilds}`,
+          inQueue && `Builds in queue: ${inQueue}`,
+          inProgress && `Builds in progress: ${inProgress}`,
+          canceled && `Builds canceled: ${canceled}`,
+          errored && chalk.red(`Builds failed: ${errored}`),
+          finished && chalk.green(`Builds finished: ${finished}`),
+          unknownState && chalk.red(`Builds in unknown state: ${unknownState}`),
+        ]
+          .filter(i => i)
+          .join('\t');
+      }
+    }
+    time = new Date().getTime();
+    await sleep(intervalSec * 1000);
+  }
+  spinner.warn('Timed out');
+  throw new Error(
+    'Timeout reached! It is taking longer than expected to finish the build, aborting...'
+  );
 }

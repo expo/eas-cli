@@ -1,12 +1,13 @@
 import { getConfig } from '@expo/config';
 import { Platform, Workflow } from '@expo/eas-build-job';
 import { EasJsonReader } from '@expo/eas-json';
+import chalk from 'chalk';
 import fs from 'fs-extra';
-import path from 'path';
 
-import Log from '../log';
+import { ExitError } from '../error/ExitError';
+import Log, { learnMore } from '../log';
 import { resolveWorkflowAsync } from '../project/workflow';
-import { promptAsync } from '../prompts';
+import { confirmAsync, promptAsync } from '../prompts';
 import { ensureLoggedInAsync } from '../user/actions';
 import vcs from '../vcs';
 import { configureAndroidAsync } from './android/configure';
@@ -20,6 +21,43 @@ const configureCommitMessage = {
   [RequestedPlatform.Ios]: 'Configure EAS Build for iOS',
   [RequestedPlatform.All]: 'Configure EAS Build',
 };
+
+export async function ensureProjectConfiguredAsync(
+  projectDir: string,
+  requestedPlatform: RequestedPlatform
+): Promise<void> {
+  const platformToConfigure = await getPlatformToConfigureAsync(projectDir, requestedPlatform);
+  if (!platformToConfigure) {
+    return;
+  }
+
+  // Ensure the prompt is consistent with the platforms we need to configure
+  let message = 'This project is not configured to build with EAS. Set it up now?';
+  if (platformToConfigure === RequestedPlatform.Ios) {
+    message = 'Your iOS project is not configured to build with EAS. Set it up now?';
+  } else if (platformToConfigure === RequestedPlatform.Android) {
+    message = 'Your Android project is not configured to build with EAS. Set it up now?';
+  }
+
+  const confirm = await confirmAsync({ message });
+  if (confirm) {
+    await configureAsync({
+      projectDir,
+      platform: platformToConfigure,
+    });
+    if (await vcs.hasUncommittedChangesAsync()) {
+      throw new ExitError(
+        'Build process requires clean working tree, please commit all your changes and run `eas build` again'
+      );
+    }
+  } else {
+    throw new ExitError(
+      `Aborting, please run ${chalk.bold('eas build:configure')} or create eas.json (${learnMore(
+        'https://docs.expo.io/build/eas-json'
+      )})`
+    );
+  }
+}
 
 export async function configureAsync(options: {
   platform: RequestedPlatform;
@@ -103,7 +141,7 @@ const IOS_GENERIC_DEFAULTS = {
 };
 
 export async function ensureEasJsonExistsAsync(ctx: ConfigureContext): Promise<void> {
-  const easJsonPath = path.join(ctx.projectDir, 'eas.json');
+  const easJsonPath = EasJsonReader.formatEasJsonPath(ctx.projectDir);
   let existingEasJson;
 
   if (await fs.pathExists(easJsonPath)) {
@@ -187,4 +225,31 @@ async function reviewAndCommitChangesAsync(
     await vcs.showDiffAsync();
     await reviewAndCommitChangesAsync(initialCommitMessage, false);
   }
+}
+
+async function getPlatformToConfigureAsync(
+  projectDir: string,
+  platform: RequestedPlatform
+): Promise<RequestedPlatform | null> {
+  if (!(await fs.pathExists(EasJsonReader.formatEasJsonPath(projectDir)))) {
+    return platform;
+  }
+
+  const easConfig = await new EasJsonReader(projectDir, platform).readRawAsync();
+  if (platform === RequestedPlatform.All) {
+    if (easConfig.builds?.android && easConfig.builds?.ios) {
+      return null;
+    } else if (easConfig.builds?.ios) {
+      return RequestedPlatform.Android;
+    } else if (easConfig.builds?.android) {
+      return RequestedPlatform.Ios;
+    }
+  } else if (
+    (platform === RequestedPlatform.Android || platform === RequestedPlatform.Ios) &&
+    easConfig.builds?.[platform]
+  ) {
+    return null;
+  }
+
+  return platform;
 }

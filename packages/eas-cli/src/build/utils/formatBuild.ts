@@ -11,7 +11,6 @@ import { getBuildLogsUrl } from './url';
 
 export function formatGraphQLBuild(build: BuildFragment) {
   const actor = getActorName(build);
-  const account = build.project.__typename === 'App' ? build.project.ownerAccount.name : 'unknown';
   const fields: { label: string; value?: string | null }[] = [
     { label: 'ID', value: build.id },
     {
@@ -77,7 +76,7 @@ export function formatGraphQLBuild(build: BuildFragment) {
     },
     {
       label: 'Logs',
-      value: getBuildLogsUrl({ buildId: build.id, account }),
+      value: getBuildLogsUrl(build),
     },
     {
       label: 'Artifact',

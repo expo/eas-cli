@@ -12,51 +12,34 @@ import {
   EasBuildDeprecationInfoType,
 } from '../../graphql/generated';
 import Log, { learnMore } from '../../log';
-import {
-  appPlatformDisplayNames,
-  appPlatformEmojis,
-  requestedPlatformDisplayNames,
-} from '../constants';
+import { appPlatformDisplayNames, appPlatformEmojis } from '../constants';
 import { getBuildLogsUrl, getInternalDistributionInstallUrl } from './url';
 
-export function printLogsUrls(
-  accountName: string,
-  builds: { platform: 'android' | 'ios'; buildId: string }[]
-): void {
+export function printLogsUrls(builds: BuildFragment[]): void {
   if (builds.length === 1) {
-    const { buildId } = builds[0];
-    const logsUrl = getBuildLogsUrl({
-      buildId,
-      account: accountName,
-    });
-    Log.log(`Build details: ${chalk.underline(logsUrl)}`);
+    Log.log(`Build details: ${chalk.underline(getBuildLogsUrl(builds[0]))}`);
   } else {
-    builds.forEach(({ buildId, platform }) => {
-      const logsUrl = getBuildLogsUrl({
-        buildId,
-        account: accountName,
-      });
+    builds.forEach(build => {
+      const logsUrl = getBuildLogsUrl(build);
       Log.log(
-        `${requestedPlatformDisplayNames[platform]} build details: ${chalk.underline(logsUrl)}`
+        `${appPlatformDisplayNames[build.platform]} build details: ${chalk.underline(logsUrl)}`
       );
     });
   }
 }
 
-export function printBuildResults(accountName: string, builds: (BuildFragment | null)[]): void {
+export function printBuildResults(builds: (BuildFragment | null)[]): void {
   Log.newLine();
   if (builds.length === 1) {
     const [build] = builds;
     assert(build, 'Build should be defined');
-    printBuildResult(accountName, build);
+    printBuildResult(build);
   } else {
-    (builds.filter(i => i) as BuildFragment[]).forEach(build =>
-      printBuildResult(accountName, build)
-    );
+    (builds.filter(i => i) as BuildFragment[]).forEach(build => printBuildResult(build));
   }
 }
 
-function printBuildResult(accountName: string, build: BuildFragment): void {
+function printBuildResult(build: BuildFragment): void {
   Log.addNewLineIfNone();
   if (build.status === BuildStatus.Errored) {
     const userError = build.error;
@@ -80,10 +63,7 @@ function printBuildResult(accountName: string, build: BuildFragment): void {
   }
 
   if (build.distribution === DistributionType.Internal) {
-    const logsUrl = getBuildLogsUrl({
-      buildId: build.id,
-      account: accountName,
-    });
+    const logsUrl = getBuildLogsUrl(build);
     const installUrl = getInternalDistributionInstallUrl(build);
     qrcodeTerminal.generate(installUrl, code => Log.log(`${indentString(code, 2)}\n`));
     Log.log(

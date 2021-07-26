@@ -43,15 +43,15 @@ export async function collectMetadata<T extends Platform>(
     cliVersion: packageJSON.version,
     workflow: ctx.workflow,
     credentialsSource,
-    sdkVersion: ctx.commandCtx.exp.sdkVersion,
-    runtimeVersion: ctx.commandCtx.exp.runtimeVersion,
+    sdkVersion: ctx.exp.sdkVersion,
+    runtimeVersion: ctx.exp.runtimeVersion,
     ...channelOrReleaseChannel,
     distribution: ctx.buildProfile.distribution ?? 'store',
-    appName: ctx.commandCtx.exp.name,
+    appName: ctx.exp.name,
     appIdentifier: await resolveAppIdentifierAsync(ctx),
-    buildProfile: ctx.commandCtx.profile,
+    buildProfile: ctx.buildProfileName,
     gitCommitHash: await vcs.getCommitHashAsync(),
-    username: getUsername(ctx.commandCtx.exp, await ensureLoggedInAsync()),
+    username: getUsername(ctx.exp, await ensureLoggedInAsync()),
     ...(ctx.platform === Platform.IOS && {
       iosEnterpriseProvisioning: resolveIosEnterpriseProvisioning(
         ctx as BuildContext<Platform.IOS>
@@ -64,9 +64,9 @@ async function resolveAppVersionAsync<T extends Platform>(
   ctx: BuildContext<T>
 ): Promise<string | undefined> {
   if (ctx.platform === Platform.IOS) {
-    return await readShortVersionAsync(ctx.commandCtx.projectDir, ctx.commandCtx.exp);
+    return await readShortVersionAsync(ctx.projectDir, ctx.exp);
   } else {
-    return await readVersionNameAsync(ctx.commandCtx.projectDir, ctx.commandCtx.exp);
+    return await readVersionNameAsync(ctx.projectDir, ctx.exp);
   }
 }
 
@@ -74,9 +74,9 @@ async function resolveAppBuildVersionAsync<T extends Platform>(
   ctx: BuildContext<T>
 ): Promise<string | undefined> {
   if (ctx.platform === Platform.IOS) {
-    return await readBuildNumberAsync(ctx.commandCtx.projectDir, ctx.commandCtx.exp);
+    return await readBuildNumberAsync(ctx.projectDir, ctx.exp);
   } else {
-    const versionCode = await readVersionCodeAsync(ctx.commandCtx.projectDir, ctx.commandCtx.exp);
+    const versionCode = await readVersionCodeAsync(ctx.projectDir, ctx.exp);
     return versionCode !== undefined ? String(versionCode) : undefined;
   }
 }
@@ -85,16 +85,16 @@ async function resolveAppIdentifierAsync<T extends Platform>(
   ctx: BuildContext<T>
 ): Promise<string> {
   if (ctx.platform === Platform.IOS) {
-    return await getBundleIdentifierAsync(ctx.commandCtx.projectDir, ctx.commandCtx.exp);
+    return await getBundleIdentifierAsync(ctx.projectDir, ctx.exp);
   } else {
-    return await getApplicationIdAsync(ctx.commandCtx.projectDir, ctx.commandCtx.exp);
+    return await getApplicationIdAsync(ctx.projectDir, ctx.exp);
   }
 }
 
 async function resolveChannelOrReleaseChannelAsync<T extends Platform>(
   ctx: BuildContext<T>
 ): Promise<{ channel: string } | { releaseChannel: string } | null> {
-  if (!isExpoUpdatesInstalled(ctx.commandCtx.projectDir)) {
+  if (!isExpoUpdatesInstalled(ctx.projectDir)) {
     return null;
   }
   if (ctx.buildProfile.channel) {
@@ -116,10 +116,10 @@ async function getNativeReleaseChannelAsync<T extends Platform>(
 ): Promise<string> {
   switch (ctx.platform) {
     case Platform.ANDROID: {
-      return (await readAndroidReleaseChannelSafelyAsync(ctx.commandCtx.projectDir)) ?? 'default';
+      return (await readAndroidReleaseChannelSafelyAsync(ctx.projectDir)) ?? 'default';
     }
     case Platform.IOS: {
-      return (await readIosReleaseChannelSafelyAsync(ctx.commandCtx.projectDir)) ?? 'default';
+      return (await readIosReleaseChannelSafelyAsync(ctx.projectDir)) ?? 'default';
     }
     default:
       return 'default';
@@ -131,10 +131,10 @@ async function getNativeChannelAsync<T extends Platform>(
 ): Promise<string | undefined> {
   switch (ctx.platform) {
     case Platform.ANDROID: {
-      return (await readAndroidChannelSafelyAsync(ctx.commandCtx.projectDir)) ?? undefined;
+      return (await readAndroidChannelSafelyAsync(ctx.projectDir)) ?? undefined;
     }
     case Platform.IOS: {
-      return (await readIosChannelSafelyAsync(ctx.commandCtx.projectDir)) ?? undefined;
+      return (await readIosChannelSafelyAsync(ctx.projectDir)) ?? undefined;
     }
   }
 

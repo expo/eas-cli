@@ -1,5 +1,4 @@
 import { Android, Metadata, Workflow } from '@expo/eas-build-job';
-import { EasConfig } from '@expo/eas-json';
 import chalk from 'chalk';
 import nullthrows from 'nullthrows';
 
@@ -15,8 +14,12 @@ import {
 } from '../../project/android/applicationId';
 import { toggleConfirmAsync } from '../../prompts';
 import { findAccountByName } from '../../user/Account';
-import { CredentialsResult, prepareBuildRequestForPlatformAsync } from '../build';
-import { BuildContext, CommandContext, createBuildContextAsync } from '../context';
+import {
+  BuildRequestSender,
+  CredentialsResult,
+  prepareBuildRequestForPlatformAsync,
+} from '../build';
+import { BuildContext } from '../context';
 import { transformMetadata } from '../graphql';
 import { Platform } from '../types';
 import { logCredentialsSource } from '../utils/credentials';
@@ -25,15 +28,9 @@ import { transformJob } from './graphql';
 import { prepareJobAsync } from './prepareJob';
 
 export async function prepareAndroidBuildAsync(
-  commandCtx: CommandContext,
-  easConfig: EasConfig
-): Promise<() => Promise<string | undefined>> {
-  const buildCtx = await createBuildContextAsync<Platform.ANDROID>({
-    commandCtx,
-    platform: Platform.ANDROID,
-    easConfig,
-  });
-  const { buildProfile } = buildCtx;
+  ctx: BuildContext<Platform.ANDROID>
+): Promise<BuildRequestSender> {
+  const { buildProfile } = ctx;
 
   if (buildProfile.distribution === 'internal' && buildProfile.gradleCommand?.match(/bundle/)) {
     Log.addNewLineIfNone();
@@ -51,16 +48,16 @@ This means that it will most likely produce an AAB and you will not be able to i
     }
   }
 
-  if (buildCtx.workflow === Workflow.MANAGED) {
-    await ensureApplicationIdIsDefinedForManagedProjectAsync(commandCtx.projectDir, commandCtx.exp);
+  if (ctx.workflow === Workflow.MANAGED) {
+    await ensureApplicationIdIsDefinedForManagedProjectAsync(ctx.projectDir, ctx.exp);
   }
 
   return await prepareBuildRequestForPlatformAsync({
-    ctx: buildCtx,
+    ctx,
     ensureCredentialsAsync: ensureAndroidCredentialsAsync,
     ensureProjectConfiguredAsync: async () => {
-      if (buildCtx.workflow === Workflow.GENERIC) {
-        await validateAndSyncProjectConfigurationAsync(commandCtx.projectDir, commandCtx.exp);
+      if (ctx.workflow === Workflow.GENERIC) {
+        await validateAndSyncProjectConfigurationAsync(ctx.projectDir, ctx.exp);
       }
     },
     prepareJobAsync,
@@ -90,21 +87,19 @@ async function ensureAndroidCredentialsAsync(
   if (!shouldProvideCredentials(ctx)) {
     return;
   }
-  const androidApplicationIdentifier = await getApplicationIdAsync(
-    ctx.commandCtx.projectDir,
-    ctx.commandCtx.exp
-  );
+  const androidApplicationIdentifier = await getApplicationIdAsync(ctx.projectDir, ctx.exp);
   const provider = new AndroidCredentialsProvider(
-    await createCredentialsContextAsync(ctx.commandCtx.projectDir, {
-      nonInteractive: ctx.commandCtx.nonInteractive,
+    await createCredentialsContextAsync(ctx.projectDir, {
+      exp: ctx.exp,
+      nonInteractive: ctx.nonInteractive,
     }),
     {
       app: {
         account: nullthrows(
-          findAccountByName(ctx.commandCtx.user.accounts, ctx.commandCtx.accountName),
-          `You do not have access to account: ${ctx.commandCtx.accountName}`
+          findAccountByName(ctx.user.accounts, ctx.accountName),
+          `You do not have access to account: ${ctx.accountName}`
         ),
-        projectName: ctx.commandCtx.projectName,
+        projectName: ctx.projectName,
         androidApplicationIdentifier,
       },
     }

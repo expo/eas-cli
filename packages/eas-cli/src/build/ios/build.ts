@@ -1,13 +1,12 @@
 import { Ios, Job, Metadata, Workflow } from '@expo/eas-build-job';
-import { EasConfig } from '@expo/eas-json';
 
 import { IosCredentials } from '../../credentials/ios/types';
 import { BuildMutation, BuildResult } from '../../graphql/mutations/BuildMutation';
 import { ensureBundleIdentifierIsDefinedForManagedProjectAsync } from '../../project/ios/bundleIdentifier';
 import { resolveXcodeBuildContextAsync } from '../../project/ios/scheme';
 import { resolveTargetsAsync } from '../../project/ios/target';
-import { JobData, prepareBuildRequestForPlatformAsync } from '../build';
-import { BuildContext, CommandContext, createBuildContextAsync } from '../context';
+import { BuildRequestSender, JobData, prepareBuildRequestForPlatformAsync } from '../build';
+import { BuildContext } from '../context';
 import { transformMetadata } from '../graphql';
 import { Platform } from '../types';
 import { validateAndSyncProjectConfigurationAsync } from './configure';
@@ -16,48 +15,39 @@ import { transformJob } from './graphql';
 import { prepareJobAsync } from './prepareJob';
 
 export async function prepareIosBuildAsync(
-  commandCtx: CommandContext,
-  easConfig: EasConfig
-): Promise<() => Promise<string | undefined>> {
-  const buildCtx = await createBuildContextAsync<Platform.IOS>({
-    commandCtx,
-    platform: Platform.IOS,
-    easConfig,
-  });
-  const { buildProfile } = buildCtx;
+  ctx: BuildContext<Platform.IOS>
+): Promise<BuildRequestSender> {
+  const { buildProfile } = ctx;
 
-  if (buildCtx.workflow === Workflow.MANAGED) {
-    await ensureBundleIdentifierIsDefinedForManagedProjectAsync(
-      commandCtx.projectDir,
-      commandCtx.exp
-    );
+  if (ctx.workflow === Workflow.MANAGED) {
+    await ensureBundleIdentifierIsDefinedForManagedProjectAsync(ctx.projectDir, ctx.exp);
   }
 
   const xcodeBuildContext = await resolveXcodeBuildContextAsync(
     {
-      projectDir: commandCtx.projectDir,
-      nonInteractive: commandCtx.nonInteractive,
-      exp: commandCtx.exp,
+      projectDir: ctx.projectDir,
+      nonInteractive: ctx.nonInteractive,
+      exp: ctx.exp,
     },
     buildProfile
   );
   const targets = await resolveTargetsAsync(
     {
-      projectDir: commandCtx.projectDir,
-      exp: commandCtx.exp,
+      projectDir: ctx.projectDir,
+      exp: ctx.exp,
     },
     xcodeBuildContext
   );
 
   return await prepareBuildRequestForPlatformAsync({
-    ctx: buildCtx,
+    ctx,
     ensureCredentialsAsync: async (ctx: BuildContext<Platform.IOS>) => {
       return ensureIosCredentialsAsync(ctx, targets);
     },
     ensureProjectConfiguredAsync: async () => {
       await validateAndSyncProjectConfigurationAsync({
-        projectDir: commandCtx.projectDir,
-        exp: commandCtx.exp,
+        projectDir: ctx.projectDir,
+        exp: ctx.exp,
         buildProfile,
       });
     },
