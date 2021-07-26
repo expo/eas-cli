@@ -1,23 +1,46 @@
-import { ExpoConfig, getConfig } from '@expo/config';
 import { EasJsonReader } from '@expo/eas-json';
 import { flags } from '@oclif/command';
-import chalk from 'chalk';
-import fs from 'fs-extra';
-import path from 'path';
+import { error, exit } from '@oclif/errors';
 
-import { configureAsync } from '../../build/configure';
-import { createCommandContextAsync } from '../../build/context';
-import { buildAsync } from '../../build/create';
-import { RequestedPlatform } from '../../build/types';
+import { prepareAndroidBuildAsync } from '../../build/android/build';
+import { BuildRequestSender, waitForBuildEndAsync } from '../../build/build';
+import { ensureProjectConfiguredAsync } from '../../build/configure';
+import { BuildContext, createBuildContextAsync } from '../../build/context';
+import { prepareIosBuildAsync } from '../../build/ios/build';
+import { Platform, RequestedPlatform } from '../../build/types';
+import { printBuildResults, printLogsUrls } from '../../build/utils/printBuildInfo';
+import { ensureRepoIsCleanAsync } from '../../build/utils/repository';
 import EasCommand from '../../commandUtils/EasCommand';
-import Log, { learnMore } from '../../log';
+import { BuildFragment, BuildStatus } from '../../graphql/generated';
+import Log from '../../log';
 import {
+  EAS_UNAVAILABLE_MESSAGE,
   isEasEnabledForProjectAsync,
-  warnEasUnavailable,
 } from '../../project/isEasEnabledForProject';
-import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUtils';
-import { confirmAsync, promptAsync } from '../../prompts';
+import { findProjectRootAsync } from '../../project/projectUtils';
+import { promptAsync } from '../../prompts';
 import vcs from '../../vcs';
+
+interface RawBuildFlags {
+  platform?: string;
+  'skip-credentials-check': boolean;
+  'skip-project-configuration': boolean;
+  profile: string;
+  'non-interactive': boolean;
+  local: boolean;
+  wait: boolean;
+  'clear-cache': boolean;
+}
+
+interface BuildFlags {
+  requestedPlatform: RequestedPlatform;
+  skipProjectConfiguration: boolean;
+  profile: string;
+  nonInteractive: boolean;
+  local: boolean;
+  wait: boolean;
+  clearCache: boolean;
+}
 
 export default class Build extends EasCommand {
   static description = 'Start a build';
@@ -56,155 +79,134 @@ export default class Build extends EasCommand {
   };
 
   async run(): Promise<void> {
-    const { flags } = this.parse(Build);
+    const { flags: rawFlags } = this.parse(Build);
 
+    const flags = await this.sanitizeFlagsAsync(rawFlags);
+    const { requestedPlatform } = flags;
+
+    await vcs.ensureRepoExistsAsync();
+    await ensureRepoIsCleanAsync(flags.nonInteractive);
+
+    const projectDir = (await findProjectRootAsync()) ?? process.cwd();
+    await ensureProjectConfiguredAsync(projectDir, requestedPlatform);
+
+    const easConfig = await new EasJsonReader(projectDir, requestedPlatform).readAsync(
+      flags.profile
+    );
+    const platformsToBuild = this.getPlatformsToBuild(requestedPlatform);
+
+    const startedBuilds: BuildFragment[] = [];
+    for (const platform of platformsToBuild) {
+      const ctx = await createBuildContextAsync({
+        buildProfileName: flags.profile,
+        clearCache: flags.clearCache,
+        easConfig,
+        local: flags.local,
+        nonInteractive: flags.nonInteractive,
+        platform,
+        projectDir,
+        skipProjectConfiguration: flags.skipProjectConfiguration,
+      });
+
+      if (!ctx.local && !(await isEasEnabledForProjectAsync(ctx.projectId))) {
+        error(EAS_UNAVAILABLE_MESSAGE, { exit: 1 });
+      }
+
+      const maybeBuild = await this.startBuildAsync(ctx);
+      if (maybeBuild) {
+        startedBuilds.push(maybeBuild);
+      }
+    }
+    if (flags.local) {
+      return;
+    }
+
+    Log.newLine();
+    printLogsUrls(startedBuilds);
+    Log.newLine();
+
+    if (flags.wait) {
+      const builds = await waitForBuildEndAsync(startedBuilds.map(build => build.id));
+      printBuildResults(builds);
+      this.exitWithNonZeroCodeIfSomeBuildsFailed(builds);
+    }
+  }
+
+  private async sanitizeFlagsAsync(flags: RawBuildFlags): Promise<BuildFlags> {
     const nonInteractive = flags['non-interactive'];
     if (!flags.platform && nonInteractive) {
       throw new Error('--platform is required when building in non-interactive mode');
     }
-    const platform =
-      (flags.platform as RequestedPlatform | undefined) ?? (await promptForPlatformAsync());
+    const requestedPlatform =
+      (flags.platform as RequestedPlatform | undefined) ?? (await this.promptForPlatformAsync());
+
+    if (flags.local) {
+      if (requestedPlatform === RequestedPlatform.All) {
+        error('Builds for multiple platforms are not supported with flag --local', { exit: 1 });
+      } else if (process.platform !== 'darwin' && requestedPlatform === RequestedPlatform.Ios) {
+        error('Unsupported platform, macOS is required to build apps for iOS', { exit: 1 });
+      }
+    }
 
     if (flags['skip-credentials-check']) {
       Log.warnDeprecatedFlag(
         'skip-credentials-check',
-        'Build credential validation is always skipped with the --non-interactive flag. You can also skip interactively.'
+        'Build credentials validation is always skipped with the --non-interactive flag. You can also skip interactively.'
       );
       Log.newLine();
     }
 
-    const projectDir = (await findProjectRootAsync()) ?? process.cwd();
-    let { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
-    const projectId = await getProjectIdAsync(exp);
-
-    if (!flags.local && !(await isEasEnabledForProjectAsync(projectId))) {
-      warnEasUnavailable();
-      process.exitCode = 1;
-      return;
-    }
-
-    if (flags.local && !verifyOptionsForLocalBuilds(platform)) {
-      process.exitCode = 1;
-      return;
-    }
-
-    exp = (await ensureProjectConfiguredAsync(projectDir, platform)) ?? exp;
-
-    const commandCtx = await createCommandContextAsync({
-      requestedPlatform: platform,
-      profile: flags.profile,
-      exp,
-      projectDir,
-      projectId,
-      nonInteractive,
-      clearCache: flags['clear-cache'],
-      local: flags.local,
+    return {
+      requestedPlatform,
       skipProjectConfiguration: flags['skip-project-configuration'],
-      waitForBuildEnd: flags.wait,
+      profile: flags['profile'],
+      nonInteractive,
+      local: flags['local'],
+      wait: flags['wait'],
+      clearCache: flags['clear-cache'],
+    };
+  }
+
+  private async promptForPlatformAsync(): Promise<RequestedPlatform> {
+    const { platform } = await promptAsync({
+      type: 'select',
+      message: 'Build for platforms',
+      name: 'platform',
+      choices: [
+        { title: 'All', value: RequestedPlatform.All },
+        { title: 'iOS', value: RequestedPlatform.Ios },
+        { title: 'Android', value: RequestedPlatform.Android },
+      ],
     });
-
-    await buildAsync(commandCtx);
-  }
-}
-
-function verifyOptionsForLocalBuilds(platform: RequestedPlatform): boolean {
-  if (platform === RequestedPlatform.All) {
-    Log.error('Builds for multiple platforms are not supported with flag --local');
-    return false;
-  } else if (process.platform !== 'darwin' && platform === RequestedPlatform.Ios) {
-    Log.error('Unsupported platform, macOS is required to build apps for iOS');
-    return false;
-  } else {
-    return true;
-  }
-}
-
-async function promptForPlatformAsync(): Promise<RequestedPlatform> {
-  const { platform } = await promptAsync({
-    type: 'select',
-    message: 'Build for platforms',
-    name: 'platform',
-    choices: [
-      {
-        title: 'All',
-        value: RequestedPlatform.All,
-      },
-      {
-        title: 'iOS',
-        value: RequestedPlatform.Ios,
-      },
-      {
-        title: 'Android',
-        value: RequestedPlatform.Android,
-      },
-    ],
-  });
-  return platform;
-}
-
-async function ensureProjectConfiguredAsync(
-  projectDir: string,
-  platform: RequestedPlatform
-): Promise<ExpoConfig | null> {
-  const platformsToConfigure = await getPlatformsToConfigureAsync(projectDir, platform);
-
-  if (!platformsToConfigure) {
-    return null;
-  }
-
-  // Ensure the prompt is consistent with the platforms we need to configure
-  let message = 'This project is not configured to build with EAS. Set it up now?';
-  if (platformsToConfigure === RequestedPlatform.Ios) {
-    message = 'Your iOS project is not configured to build with EAS. Set it up now?';
-  } else if (platformsToConfigure === RequestedPlatform.Android) {
-    message = 'Your Android project is not configured to build with EAS. Set it up now?';
-  }
-
-  const confirm = await confirmAsync({ message });
-  if (confirm) {
-    await configureAsync({
-      projectDir,
-      platform: platformsToConfigure,
-    });
-    if (await vcs.hasUncommittedChangesAsync()) {
-      throw new Error(
-        'Build process requires clean working tree, please commit all your changes and run `eas build` again'
-      );
-    }
-    const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
-    return exp;
-  } else {
-    throw new Error(
-      `Aborting, please run ${chalk.bold('eas build:configure')} or create eas.json (${learnMore(
-        'https://docs.expo.io/build/eas-json'
-      )})`
-    );
-  }
-}
-
-async function getPlatformsToConfigureAsync(
-  projectDir: string,
-  platform: RequestedPlatform
-): Promise<RequestedPlatform | null> {
-  if (!(await fs.pathExists(path.join(projectDir, 'eas.json')))) {
     return platform;
   }
 
-  const easConfig = await new EasJsonReader(projectDir, platform).readRawAsync();
-  if (platform === RequestedPlatform.All) {
-    if (easConfig.builds?.android && easConfig.builds?.ios) {
-      return null;
-    } else if (easConfig.builds?.ios) {
-      return RequestedPlatform.Android;
-    } else if (easConfig.builds?.android) {
-      return RequestedPlatform.Ios;
+  private getPlatformsToBuild(requestedPlatform: RequestedPlatform): Platform[] {
+    if (requestedPlatform === RequestedPlatform.All) {
+      return [Platform.ANDROID, Platform.IOS];
+    } else if (requestedPlatform === RequestedPlatform.Android) {
+      return [Platform.ANDROID];
+    } else {
+      return [Platform.IOS];
     }
-  } else if (
-    (platform === RequestedPlatform.Android || platform === RequestedPlatform.Ios) &&
-    easConfig.builds?.[platform]
-  ) {
-    return null;
   }
 
-  return platform;
+  private async startBuildAsync(ctx: BuildContext<Platform>): Promise<BuildFragment | undefined> {
+    let sendBuildRequestAsync: BuildRequestSender;
+    if (ctx.platform === Platform.ANDROID) {
+      sendBuildRequestAsync = await prepareAndroidBuildAsync(ctx as BuildContext<Platform.ANDROID>);
+    } else {
+      sendBuildRequestAsync = await prepareIosBuildAsync(ctx as BuildContext<Platform.IOS>);
+    }
+    return await sendBuildRequestAsync();
+  }
+
+  private exitWithNonZeroCodeIfSomeBuildsFailed(maybeBuilds: (BuildFragment | null)[]): void {
+    const failedBuilds = (maybeBuilds.filter(i => i) as BuildFragment[]).filter(
+      i => i.status === BuildStatus.Errored
+    );
+    if (failedBuilds.length > 0) {
+      exit(1);
+    }
+  }
 }

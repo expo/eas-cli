@@ -19,9 +19,8 @@ export async function prepareJobAsync(
   ctx: BuildContext<Platform.IOS>,
   jobData: JobData
 ): Promise<Job> {
-  const projectRootDirectory =
-    path.relative(await vcs.getRootPathAsync(), ctx.commandCtx.projectDir) || '.';
-  const username = getUsername(ctx.commandCtx.exp, await ensureLoggedInAsync());
+  const projectRootDirectory = path.relative(await vcs.getRootPathAsync(), ctx.projectDir) || '.';
+  const username = getUsername(ctx.exp, await ensureLoggedInAsync());
   const buildCredentials: Ios.Job['secrets']['buildCredentials'] = {};
   if (jobData.credentials) {
     const targetNames = Object.keys(jobData.credentials);
@@ -48,7 +47,7 @@ export async function prepareJobAsync(
     },
     cache: {
       ...ctx.buildProfile.cache,
-      clear: ctx.commandCtx.clearCache,
+      clear: ctx.clearCache,
     },
     secrets: {
       buildCredentials,
@@ -69,8 +68,8 @@ export async function prepareJobAsync(
 
 function resolveImage(ctx: BuildContext<Platform.IOS>): Ios.BuilderEnvironment['image'] {
   // see https://linear.app/expo/issue/ENG-1396/make-default-image-dependent-on-sdk-version
-  if (!ctx.buildProfile.image && ctx.commandCtx.exp.sdkVersion) {
-    const majorSdkVersion = semver.major(ctx.commandCtx.exp.sdkVersion);
+  if (!ctx.buildProfile.image && ctx.exp.sdkVersion) {
+    const majorSdkVersion = semver.major(ctx.exp.sdkVersion);
     if (majorSdkVersion <= 41) {
       return 'macos-catalina-10.15-xcode-12.4';
     }

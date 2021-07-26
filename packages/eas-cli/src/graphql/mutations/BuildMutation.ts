@@ -1,9 +1,11 @@
+import { print } from 'graphql';
 import gql from 'graphql-tag';
 import nullthrows from 'nullthrows';
 
 import { graphqlClient, withErrorHandlingAsync } from '../client';
 import {
   AndroidJobInput,
+  BuildFragment,
   BuildMetadataInput,
   CreateAndroidBuildMutation,
   CreateAndroidBuildMutationVariables,
@@ -12,9 +14,10 @@ import {
   EasBuildDeprecationInfo,
   IosJobInput,
 } from '../generated';
+import { BuildFragmentNode } from '../types/Build';
 
 export interface BuildResult {
-  build: { id: string };
+  build: BuildFragment;
   deprecationInfo?: EasBuildDeprecationInfo | null;
 }
 
@@ -37,6 +40,7 @@ const BuildMutation = {
                 createAndroidBuild(appId: $appId, job: $job, metadata: $metadata) {
                   build {
                     id
+                    ...BuildFragment
                   }
                   deprecationInfo {
                     type
@@ -45,6 +49,7 @@ const BuildMutation = {
                 }
               }
             }
+            ${print(BuildFragmentNode)}
           `,
           input
         )
@@ -70,6 +75,7 @@ const BuildMutation = {
                 createIosBuild(appId: $appId, job: $job, metadata: $metadata) {
                   build {
                     id
+                    ...BuildFragment
                   }
                   deprecationInfo {
                     type
@@ -78,6 +84,7 @@ const BuildMutation = {
                 }
               }
             }
+            ${print(BuildFragmentNode)}
           `,
           input
         )

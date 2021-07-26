@@ -16,20 +16,16 @@ export async function ensureIosCredentialsAsync(
     return;
   }
 
-  const { projectDir } = buildCtx.commandCtx;
-
-  const ctx = await createCredentialsContextAsync(projectDir, {
-    nonInteractive: buildCtx.commandCtx.nonInteractive,
+  const credentialsCtx = await createCredentialsContextAsync(buildCtx.projectDir, {
+    exp: buildCtx.exp,
+    nonInteractive: buildCtx.nonInteractive,
   });
 
-  const provider = new IosCredentialsProvider(ctx, {
-    app: getAppFromContext(ctx),
+  const provider = new IosCredentialsProvider(credentialsCtx, {
+    app: getAppFromContext(credentialsCtx),
     targets,
     iosCapabilitiesOptions: {
-      entitlements: await resolveEntitlementsJsonAsync(
-        buildCtx.commandCtx.projectDir,
-        buildCtx.workflow
-      ),
+      entitlements: await resolveEntitlementsJsonAsync(buildCtx.projectDir, buildCtx.workflow),
     },
     distribution: buildCtx.buildProfile.distribution ?? 'store',
     enterpriseProvisioning: buildCtx.buildProfile.enterpriseProvisioning,

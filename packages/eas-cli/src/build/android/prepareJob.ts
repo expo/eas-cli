@@ -17,9 +17,8 @@ export async function prepareJobAsync(
   ctx: BuildContext<Platform.ANDROID>,
   jobData: JobData
 ): Promise<Job> {
-  const username = getUsername(ctx.commandCtx.exp, await ensureLoggedInAsync());
-  const projectRootDirectory =
-    path.relative(await vcs.getRootPathAsync(), ctx.commandCtx.projectDir) || '.';
+  const username = getUsername(ctx.exp, await ensureLoggedInAsync());
+  const projectRootDirectory = path.relative(await vcs.getRootPathAsync(), ctx.projectDir) || '.';
   const { credentials } = jobData;
   const buildCredentials = credentials
     ? {
@@ -55,7 +54,7 @@ export async function prepareJobAsync(
     },
     cache: {
       ...ctx.buildProfile.cache,
-      clear: ctx.commandCtx.clearCache,
+      clear: ctx.clearCache,
     },
     secrets: {
       ...buildCredentials,

@@ -1,10 +1,5 @@
-import {
-  AppJSONConfig,
-  ExpoConfig,
-  getConfig,
-  getConfigFilePaths,
-  modifyConfigAsync,
-} from '@expo/config';
+import { AppJSONConfig, ExpoConfig, getConfigFilePaths, modifyConfigAsync } from '@expo/config';
+import { Env } from '@expo/eas-build-job';
 import chalk from 'chalk';
 import gql from 'graphql-tag';
 import path from 'path';
@@ -20,6 +15,7 @@ import {
   ensureProjectExistsAsync,
   findProjectIdByAccountNameAndSlugNullableAsync,
 } from './ensureProjectExists';
+import { getExpoConfig } from './expoConfig';
 
 export function getProjectAccountName(exp: ExpoConfig, user: Actor): string {
   switch (user.__typename) {
@@ -61,8 +57,11 @@ export async function findProjectRootAsync(cwd?: string): Promise<string | null>
   return projectRootDir ?? null;
 }
 
-export async function setProjectIdAsync(projectDir: string): Promise<ExpoConfig | undefined> {
-  const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
+export async function setProjectIdAsync(
+  projectDir: string,
+  options: { env?: Env } = {}
+): Promise<ExpoConfig | undefined> {
+  const exp = getExpoConfig(projectDir, options.env);
 
   const privacy = toAppPrivacy(exp.privacy);
   const projectId = await ensureProjectExistsAsync({
@@ -111,7 +110,10 @@ export async function setProjectIdAsync(projectDir: string): Promise<ExpoConfig 
   return (result.config as AppJSONConfig)?.expo;
 }
 
-export async function getProjectIdAsync(exp: ExpoConfig): Promise<string> {
+export async function getProjectIdAsync(
+  exp: ExpoConfig,
+  options: { env?: Env } = {}
+): Promise<string> {
   if (!process.env.EAS_ENABLE_PROJECT_ID) {
     const privacy = toAppPrivacy(exp.privacy);
     return await ensureProjectExistsAsync({
@@ -120,6 +122,7 @@ export async function getProjectIdAsync(exp: ExpoConfig): Promise<string> {
       privacy,
     });
   }
+
   const localProjectId = exp.extra?.eas?.projectId;
   if (localProjectId) {
     return localProjectId;
@@ -130,7 +133,7 @@ export async function getProjectIdAsync(exp: ExpoConfig): Promise<string> {
   if (!projectDir) {
     throw new Error('Please run this command inside a project directory.');
   }
-  const newExp = await setProjectIdAsync(projectDir);
+  const newExp = await setProjectIdAsync(projectDir, options);
 
   const newLocalProjectId = newExp?.extra?.eas?.projectId;
   if (!newLocalProjectId) {

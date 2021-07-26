@@ -629,6 +629,7 @@ export type Build = ActivityTimelineProjectActivity & BuildOrBuildJob & {
   /** @deprecated User type is deprecated */
   initiatingUser?: Maybe<User>;
   initiatingActor?: Maybe<Actor>;
+  cancelingActor?: Maybe<Actor>;
   artifacts?: Maybe<BuildArtifacts>;
   logFiles: Array<Scalars['String']>;
   updatedAt?: Maybe<Scalars['DateTime']>;
@@ -1247,6 +1248,7 @@ export type UpdateBranch = {
   createdAt: Scalars['DateTime'];
   updatedAt: Scalars['DateTime'];
   updates: Array<Update>;
+  mostRecentUpdateForEachPlatform: Array<Update>;
 };
 
 
@@ -3422,6 +3424,16 @@ export type DeleteWebhookResult = {
   id: Scalars['ID'];
 };
 
+/** Represents a Deployment - a set of Builds with the same Runtime Version and Channel */
+export type Deployment = {
+  __typename?: 'Deployment';
+  id?: Maybe<Scalars['String']>;
+  runtimeVersion?: Maybe<Scalars['String']>;
+  channel?: Maybe<Scalars['String']>;
+  recentBuilds?: Maybe<Array<Maybe<Build>>>;
+  branchToReceive?: Maybe<UpdateBranch>;
+};
+
 export enum CacheControlScope {
   Public = 'PUBLIC',
   Private = 'PRIVATE'
@@ -4630,6 +4642,7 @@ export type CreateAndroidBuildMutation = (
       & { build: (
         { __typename?: 'Build' }
         & Pick<Build, 'id'>
+        & BuildFragment
       ), deprecationInfo?: Maybe<(
         { __typename?: 'EASBuildDeprecationInfo' }
         & Pick<EasBuildDeprecationInfo, 'type' | 'message'>
@@ -4654,6 +4667,7 @@ export type CreateIosBuildMutation = (
       & { build: (
         { __typename?: 'Build' }
         & Pick<Build, 'id'>
+        & BuildFragment
       ), deprecationInfo?: Maybe<(
         { __typename?: 'EASBuildDeprecationInfo' }
         & Pick<EasBuildDeprecationInfo, 'type' | 'message'>
@@ -5078,10 +5092,10 @@ export type BuildFragment = (
     & Pick<Robot, 'firstName' | 'id'>
   )>, project: (
     { __typename: 'Snack' }
-    & Pick<Snack, 'id'>
+    & Pick<Snack, 'id' | 'name'>
   ) | (
     { __typename: 'App' }
-    & Pick<App, 'id'>
+    & Pick<App, 'id' | 'name'>
     & { ownerAccount: (
       { __typename?: 'Account' }
       & Pick<Account, 'id' | 'name'>

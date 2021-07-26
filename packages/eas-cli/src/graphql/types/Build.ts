@@ -27,6 +27,7 @@ export const BuildFragmentNode = gql`
     project {
       __typename
       id
+      name
       ... on App {
         ownerAccount {
           id

@@ -3,14 +3,15 @@ import assert from 'assert';
 import { getExpoApiBaseUrl, getExpoWebsiteBaseUrl } from '../../api';
 import { AppPlatform, BuildFragment } from '../../graphql/generated';
 
-export function getBuildLogsUrl({
-  buildId,
-  account,
-}: {
-  buildId: string;
-  account: string;
-}): string {
-  return `${getExpoWebsiteBaseUrl()}/accounts/${account}/builds/${buildId}`;
+export function getBuildLogsUrl(build: BuildFragment): string {
+  const { project } = build;
+  if (project.__typename === 'App') {
+    return `${getExpoWebsiteBaseUrl()}/accounts/${project.ownerAccount.name}/projects/${
+      project.name
+    }/builds/${build.id}`;
+  } else {
+    return `${getExpoWebsiteBaseUrl()}/builds/${build.id}`;
+  }
 }
 
 export function getArtifactUrl(artifactId: string): string {

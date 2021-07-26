@@ -3,6 +3,7 @@ import chalk from 'chalk';
 import pick from 'lodash/pick';
 
 import Log from '../log';
+import { getExpoConfig } from '../project/expoConfig';
 import { getProjectAccountName } from '../project/projectUtils';
 import { confirmAsync } from '../prompts';
 import { Actor, getActorDisplayName } from '../user/User';
@@ -23,6 +24,7 @@ interface AppleCtxOptions {
 
 interface Options extends AppleCtxOptions {
   nonInteractive?: boolean;
+  exp?: ExpoConfig;
 }
 
 export interface Context {
@@ -45,12 +47,13 @@ export async function createCredentialsContextAsync(
 ): Promise<Context> {
   const user = await ensureLoggedInAsync();
 
-  let expoConfig: ExpoConfig | undefined;
-  try {
-    const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
-    expoConfig = exp;
-  } catch (error) {
-    // ignore error, context might be created outside of expo project
+  let expoConfig: ExpoConfig | undefined = options.exp;
+  if (!expoConfig) {
+    try {
+      expoConfig = getExpoConfig(projectDir);
+    } catch (error) {
+      // ignore error, context might be created outside of expo project
+    }
   }
 
   return new CredentialsContext(projectDir, user, expoConfig, options);
