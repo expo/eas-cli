@@ -3,6 +3,7 @@ import chalk from 'chalk';
 import pick from 'lodash/pick';
 
 import Log from '../log';
+import { getExpoConfig } from '../project/expoConfig';
 import { getProjectAccountName } from '../project/projectUtils';
 import { confirmAsync } from '../prompts';
 import { Actor, getActorDisplayName } from '../user/User';
@@ -49,8 +50,7 @@ export async function createCredentialsContextAsync(
   let expoConfig: ExpoConfig | undefined = options.exp;
   if (!expoConfig) {
     try {
-      const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
-      expoConfig = exp;
+      expoConfig = getExpoConfig(projectDir);
     } catch (error) {
       // ignore error, context might be created outside of expo project
     }

@@ -16,13 +16,13 @@ export async function ensureIosCredentialsAsync(
     return;
   }
 
-  const ctx = await createCredentialsContextAsync(buildCtx.projectDir, {
+  const credentialsCtx = await createCredentialsContextAsync(buildCtx.projectDir, {
     exp: buildCtx.exp,
     nonInteractive: buildCtx.nonInteractive,
   });
 
-  const provider = new IosCredentialsProvider(ctx, {
-    app: getAppFromContext(ctx),
+  const provider = new IosCredentialsProvider(credentialsCtx, {
+    app: getAppFromContext(credentialsCtx),
     targets,
     iosCapabilitiesOptions: {
       entitlements: await resolveEntitlementsJsonAsync(buildCtx.projectDir, buildCtx.workflow),

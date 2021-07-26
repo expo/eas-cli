@@ -1,5 +1,6 @@
 import { EasJsonReader } from '@expo/eas-json';
 import { flags } from '@oclif/command';
+import { error, exit } from '@oclif/errors';
 
 import { prepareAndroidBuildAsync } from '../../build/android/build';
 import { BuildRequestSender, waitForBuildEndAsync } from '../../build/build';
@@ -10,7 +11,6 @@ import { Platform, RequestedPlatform } from '../../build/types';
 import { printBuildResults, printLogsUrls } from '../../build/utils/printBuildInfo';
 import { ensureRepoIsCleanAsync } from '../../build/utils/repository';
 import EasCommand from '../../commandUtils/EasCommand';
-import { ExitError } from '../../error/ExitError';
 import { BuildFragment, BuildStatus } from '../../graphql/generated';
 import Log from '../../log';
 import {
@@ -81,65 +81,54 @@ export default class Build extends EasCommand {
   async run(): Promise<void> {
     const { flags: rawFlags } = this.parse(Build);
 
-    try {
-      const flags = await this.sanitizeFlagsAsync(rawFlags);
-      const { requestedPlatform } = flags;
+    const flags = await this.sanitizeFlagsAsync(rawFlags);
+    const { requestedPlatform } = flags;
 
-      await vcs.ensureRepoExistsAsync();
-      await ensureRepoIsCleanAsync(flags.nonInteractive);
+    await vcs.ensureRepoExistsAsync();
+    await ensureRepoIsCleanAsync(flags.nonInteractive);
 
-      const projectDir = (await findProjectRootAsync()) ?? process.cwd();
-      await ensureProjectConfiguredAsync(projectDir, requestedPlatform);
+    const projectDir = (await findProjectRootAsync()) ?? process.cwd();
+    await ensureProjectConfiguredAsync(projectDir, requestedPlatform);
 
-      const easConfig = await new EasJsonReader(projectDir, requestedPlatform).readAsync(
-        flags.profile
-      );
-      const platformsToBuild = this.getPlatformsToBuild(requestedPlatform);
+    const easConfig = await new EasJsonReader(projectDir, requestedPlatform).readAsync(
+      flags.profile
+    );
+    const platformsToBuild = this.getPlatformsToBuild(requestedPlatform);
 
-      const startedBuilds: BuildFragment[] = [];
-      for (const platform of platformsToBuild) {
-        const ctx = await createBuildContextAsync({
-          buildProfileName: flags.profile,
-          clearCache: flags.clearCache,
-          easConfig,
-          local: flags.local,
-          nonInteractive: flags.nonInteractive,
-          platform,
-          projectDir,
-          skipProjectConfiguration: flags.skipProjectConfiguration,
-        });
+    const startedBuilds: BuildFragment[] = [];
+    for (const platform of platformsToBuild) {
+      const ctx = await createBuildContextAsync({
+        buildProfileName: flags.profile,
+        clearCache: flags.clearCache,
+        easConfig,
+        local: flags.local,
+        nonInteractive: flags.nonInteractive,
+        platform,
+        projectDir,
+        skipProjectConfiguration: flags.skipProjectConfiguration,
+      });
 
-        if (!ctx.local && !(await isEasEnabledForProjectAsync(ctx.projectId))) {
-          throw new ExitError(EAS_UNAVAILABLE_MESSAGE);
-        }
-
-        const maybeBuild = await this.startBuildAsync(ctx);
-        if (maybeBuild) {
-          startedBuilds.push(maybeBuild);
-        }
-      }
-      if (flags.local) {
-        return;
+      if (!ctx.local && !(await isEasEnabledForProjectAsync(ctx.projectId))) {
+        error(EAS_UNAVAILABLE_MESSAGE, { exit: 1 });
       }
 
-      Log.newLine();
-      printLogsUrls(startedBuilds);
-      Log.newLine();
+      const maybeBuild = await this.startBuildAsync(ctx);
+      if (maybeBuild) {
+        startedBuilds.push(maybeBuild);
+      }
+    }
+    if (flags.local) {
+      return;
+    }
 
-      if (flags.wait) {
-        const builds = await waitForBuildEndAsync(startedBuilds.map(build => build.id));
-        printBuildResults(builds);
-        this.exitWithNonZeroCodeIfSomeBuildsFailed(builds);
-      }
-    } catch (err) {
-      if (err instanceof ExitError) {
-        if (err.message) {
-          Log.error(err.message);
-        }
-        process.exitCode = err.errorCode;
-        return;
-      }
-      throw err;
+    Log.newLine();
+    printLogsUrls(startedBuilds);
+    Log.newLine();
+
+    if (flags.wait) {
+      const builds = await waitForBuildEndAsync(startedBuilds.map(build => build.id));
+      printBuildResults(builds);
+      this.exitWithNonZeroCodeIfSomeBuildsFailed(builds);
     }
   }
 
@@ -153,9 +142,9 @@ export default class Build extends EasCommand {
 
     if (flags.local) {
       if (requestedPlatform === RequestedPlatform.All) {
-        throw new ExitError('Builds for multiple platforms are not supported with flag --local');
+        error('Builds for multiple platforms are not supported with flag --local', { exit: 1 });
       } else if (process.platform !== 'darwin' && requestedPlatform === RequestedPlatform.Ios) {
-        throw new ExitError('Unsupported platform, macOS is required to build apps for iOS');
+        error('Unsupported platform, macOS is required to build apps for iOS', { exit: 1 });
       }
     }
 
@@ -217,7 +206,7 @@ export default class Build extends EasCommand {
       i => i.status === BuildStatus.Errored
     );
     if (failedBuilds.length > 0) {
-      throw new ExitError();
+      exit(1);
     }
   }
 }
