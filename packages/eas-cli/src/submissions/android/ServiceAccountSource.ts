@@ -144,7 +144,7 @@ async function displayPathChooserAsync(
   const { selectedPath } = await promptAsync({
     name: 'selectedPath',
     type: 'select',
-    message: 'Choose the key you want to use for this submission',
+    message: 'Choose the key you want to use for this submission:',
     choices,
   });
 
@@ -153,7 +153,7 @@ async function displayPathChooserAsync(
 }
 
 async function confirmDetectedPathAsync(path: string): Promise<boolean> {
-  Log.log(`A Google Service Account JSON key has been found at \n   ${chalk.underline(path)}`);
+  Log.log(`A Google Service Account JSON key has been found at\n  ${chalk.underline(path)}`);
   const { confirmed } = await promptAsync({
     name: 'confirmed',
     type: 'confirm',
