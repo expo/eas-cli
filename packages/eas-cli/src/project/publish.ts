@@ -109,6 +109,7 @@ export async function convertAssetToUpdateInfoGroupFormatAsync(
 ): Promise<PartialManifestAsset> {
   const fileSHA256 = getBase64URLEncoding(await calculateFileHashAsync(asset.path, 'sha256'));
   const contentType = asset.contentType;
+  const type = asset.type;
   const storageKey = getStorageKey(contentType, fileSHA256);
   const bundleKey = (await calculateFileHashAsync(asset.path, 'md5')).toString('hex');
 
@@ -117,6 +118,7 @@ export async function convertAssetToUpdateInfoGroupFormatAsync(
     contentType,
     storageKey,
     bundleKey,
+    type,
   };
 }
 

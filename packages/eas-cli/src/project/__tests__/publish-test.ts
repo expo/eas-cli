@@ -140,6 +140,7 @@ describe(convertAssetToUpdateInfoGroupFormatAsync, () => {
     await expect(convertAssetToUpdateInfoGroupFormatAsync(asset)).resolves.toEqual({
       bundleKey: 'c939e759656f577c058f445bfb19182e',
       contentType: 'image/jpeg',
+      type,
       fileSHA256: 'tzD6J-OQZaHCKnL3GHWV9RbnrpyojnagiOE7r3mSkU4',
       storageKey: 'fo8Y08LktVk6qLtGbn8GRWpOUyD13ABMUnbtRCN1L7Y',
     });
@@ -182,6 +183,7 @@ describe(buildUpdateInfoGroupAsync, () => {
           {
             bundleKey: 'c939e759656f577c058f445bfb19182e',
             contentType: 'image/jpeg',
+            type: 'jpg',
             fileSHA256: 'tzD6J-OQZaHCKnL3GHWV9RbnrpyojnagiOE7r3mSkU4',
             storageKey: 'fo8Y08LktVk6qLtGbn8GRWpOUyD13ABMUnbtRCN1L7Y',
           },
@@ -189,6 +191,7 @@ describe(buildUpdateInfoGroupAsync, () => {
         launchAsset: {
           bundleKey: 'ec0dd14670aae108f99a810df9c1482c',
           contentType: 'bundle/javascript',
+          type: 'bundle',
           fileSHA256: 'KEw79FnKTLOyVbRT1SlohSTjPe5e8FpULy2ST-I5BUg',
           storageKey: 'aC9N6RZlcHoIYjIsoJd2KUcigBKy98RHvZacDyPNjCQ',
         },
