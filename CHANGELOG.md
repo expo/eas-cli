@@ -41,6 +41,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Include the file extension for update's assets in the manifest fragment. ([#532](https://github.com/expo/eas-cli/pull/535) by [@jkhales](https://github.com/jkhales))
 - Use env variables from `eas.json` when evaluating `app.config.js`. ([#532](https://github.com/expo/eas-cli/pull/532) by [@dsokal](https://github.com/dsokal))
 
 ### 🐛 Bug fixes
