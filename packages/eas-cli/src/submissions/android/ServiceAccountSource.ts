@@ -77,7 +77,7 @@ async function handleDetectSourceAsync(_source: ServiceAccountDetectSource): Pro
       return selectedPath;
     }
   } else if (googleServiceFiles.length === 1) {
-    const detectedPath = googleServiceFiles[0];
+    const [detectedPath] = googleServiceFiles;
 
     if (await confirmDetectedPathAsync(detectedPath)) {
       return detectedPath;
@@ -153,7 +153,7 @@ async function displayPathChooserAsync(
 }
 
 async function confirmDetectedPathAsync(path: string): Promise<boolean> {
-  Log.log(`A Google Service Account JSON key has been found in \n   ${chalk.underline(path)}`);
+  Log.log(`A Google Service Account JSON key has been found at \n   ${chalk.underline(path)}`);
   const { confirmed } = await promptAsync({
     name: 'confirmed',
     type: 'confirm',
