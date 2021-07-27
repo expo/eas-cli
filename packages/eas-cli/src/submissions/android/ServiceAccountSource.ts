@@ -6,6 +6,7 @@ import path from 'path';
 import Log, { learnMore } from '../../log';
 import { findProjectRootAsync } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
+import { filterAsync } from '../../utils/filterAsync';
 import { isExistingFile } from '../utils/files';
 
 export enum ServiceAccountSourceType {
@@ -29,14 +30,14 @@ interface ServiceAccountPromptSource extends ServiceAccountSourceBase {
   sourceType: ServiceAccountSourceType.prompt;
 }
 
-interface ServiceAccountDetectSoruce extends ServiceAccountSourceBase {
+interface ServiceAccountDetectSource extends ServiceAccountSourceBase {
   sourceType: ServiceAccountSourceType.detect;
 }
 
 export type ServiceAccountSource =
   | ServiceAccountPathSource
   | ServiceAccountPromptSource
-  | ServiceAccountDetectSoruce;
+  | ServiceAccountDetectSource;
 
 export async function getServiceAccountAsync(source: ServiceAccountSource): Promise<string> {
   switch (source.sourceType) {
@@ -57,7 +58,7 @@ async function handlePathSourceAsync(source: ServiceAccountPathSource): Promise<
   return source.path;
 }
 
-async function handleDetectSourceAsync(_source: ServiceAccountDetectSoruce): Promise<string> {
+async function handleDetectSourceAsync(_source: ServiceAccountDetectSource): Promise<string> {
   const projectDir = (await findProjectRootAsync()) ?? process.cwd();
   const foundFilePaths = await glob('**/*.json', {
     cwd: projectDir,
@@ -172,14 +173,3 @@ async function fileIsGoogleServicesAsync(path: string): Promise<boolean> {
     return false;
   }
 }
-
-/**
- * asynchronous array filter
- * @param arr array to filter
- * @param predicate a predicate function to run asynchronously
- * @returns a promise resolving to a filtered array
- */
-const filterAsync = async <T>(
-  arr: T[],
-  predicate: (arg: T, index?: number, array?: T[]) => Promise<boolean>
-) => Promise.all(arr.map(predicate)).then(results => arr.filter((_v, index) => results[index]));
