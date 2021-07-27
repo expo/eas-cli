@@ -59,17 +59,23 @@ async function handlePathSourceAsync(source: ServiceAccountPathSource): Promise<
 
 async function handleDetectSourceAsync(_source: ServiceAccountDetectSoruce): Promise<string> {
   const projectDir = (await findProjectRootAsync()) ?? process.cwd();
-  const foundFilenames = await glob('**/*.json', {
+  const foundFilePaths = await glob('**/*.json', {
     cwd: projectDir,
     ignore: ['app.json', 'package*.json', 'tsconfig.json', 'node_modules'],
   });
 
   const googleServiceFiles = await filterAsync(
-    foundFilenames.map(file => path.join(projectDir, file)),
+    foundFilePaths.map(file => path.join(projectDir, file)),
     fileIsGoogleServicesAsync
   );
 
-  if (googleServiceFiles.length > 0) {
+  if (googleServiceFiles.length > 1) {
+    const selectedPath = await displayPathChooserAsync(googleServiceFiles, projectDir);
+
+    if (selectedPath !== false) {
+      return selectedPath;
+    }
+  } else if (googleServiceFiles.length === 1) {
     const detectedPath = googleServiceFiles[0];
 
     if (await confirmDetectedPathAsync(detectedPath)) {
@@ -117,10 +123,36 @@ async function askForServiceAccountPathAsync(): Promise<string> {
   return filePath;
 }
 
-async function confirmDetectedPathAsync(path: string): Promise<boolean> {
+async function displayPathChooserAsync(
+  paths: string[],
+  projectDir: string
+): Promise<string | false> {
+  const choices = paths.map<{ title: string; value: string | false }>(f => ({
+    value: f,
+    title: f.startsWith(projectDir) ? path.relative(projectDir, f) : f,
+  }));
+
+  choices.push({
+    title: 'None of the above',
+    value: false,
+  });
+
   Log.log(
-    `A valid Google Service Account JSON key has been found in \n   ${chalk.underline(path)}`
+    'Multiple Google Service Account JSON keys have been found inside your project directory.'
   );
+  const { selectedPath } = await promptAsync({
+    name: 'selectedPath',
+    type: 'select',
+    message: 'Choose the key you want to use for this submission',
+    choices,
+  });
+
+  Log.addNewLineIfNone();
+  return selectedPath;
+}
+
+async function confirmDetectedPathAsync(path: string): Promise<boolean> {
+  Log.log(`A Google Service Account JSON key has been found in \n   ${chalk.underline(path)}`);
   const { confirmed } = await promptAsync({
     name: 'confirmed',
     type: 'confirm',
