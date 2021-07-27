@@ -16,6 +16,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Upgrade typescript to 4.3.5. ([#533](https://github.com/expo/eas-cli/pull/533) by [@dsokal](https://github.com/dsokal))
+
 ## [0.22.0](https://github.com/expo/eas-cli/releases/tag/v0.22.0) - 2021-07-23
 
 ### 🎉 New features
