@@ -1,3 +1,4 @@
+import { Workflow } from '@expo/eas-build-job';
 import { EasJsonReader } from '@expo/eas-json';
 import { flags } from '@oclif/command';
 import { error, exit } from '@oclif/errors';
@@ -17,6 +18,7 @@ import {
   EAS_UNAVAILABLE_MESSAGE,
   isEasEnabledForProjectAsync,
 } from '../../project/isEasEnabledForProject';
+import { validateMetroConfigForManagedWorkflowAsync } from '../../project/metroConfig';
 import { findProjectRootAsync } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
 import vcs from '../../vcs';
@@ -96,6 +98,7 @@ export default class Build extends EasCommand {
     const platformsToBuild = this.getPlatformsToBuild(requestedPlatform);
 
     const startedBuilds: BuildFragment[] = [];
+    let metroConfigValidated = false;
     for (const platform of platformsToBuild) {
       const ctx = await createBuildContextAsync({
         buildProfileName: flags.profile,
@@ -107,6 +110,11 @@ export default class Build extends EasCommand {
         projectDir,
         skipProjectConfiguration: flags.skipProjectConfiguration,
       });
+
+      if (ctx.workflow === Workflow.MANAGED && !metroConfigValidated) {
+        await validateMetroConfigForManagedWorkflowAsync(ctx);
+        metroConfigValidated = true;
+      }
 
       if (!ctx.local && !(await isEasEnabledForProjectAsync(ctx.projectId))) {
         error(EAS_UNAVAILABLE_MESSAGE, { exit: 1 });
