@@ -8,6 +8,16 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [0.22.1](https://github.com/expo/eas-cli/releases/tag/v0.22.1) - 2021-07-28
+
+### 🛠 Breaking changes
+
+### 🎉 New features
+
 - Use env variables from `eas.json` when evaluating `app.config.js`. ([#532](https://github.com/expo/eas-cli/pull/532) by [@dsokal](https://github.com/dsokal))
 
 ### 🐛 Bug fixes
