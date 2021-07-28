@@ -25,24 +25,30 @@ const validateBooleanOptions = (options: any): boolean => {
   return typeof options === 'boolean';
 };
 
-const validatePrefixedStringArrayOptions = (prefix: string) => (options: any): boolean => {
-  return (
-    Array.isArray(options) &&
-    options.every(option => typeof option === 'string' && option.startsWith(prefix))
-  );
-};
+const validatePrefixedStringArrayOptions =
+  (prefix: string) =>
+  (options: any): boolean => {
+    return (
+      Array.isArray(options) &&
+      options.every(option => typeof option === 'string' && option.startsWith(prefix))
+    );
+  };
 
 const validateStringArrayOptions = (options: any): boolean => {
   return Array.isArray(options) && options.every(option => typeof option === 'string');
 };
 
-const createValidateStringOptions = (allowed: string[]) => (options: any): boolean => {
-  return allowed.includes(options);
-};
+const createValidateStringOptions =
+  (allowed: string[]) =>
+  (options: any): boolean => {
+    return allowed.includes(options);
+  };
 
-const createValidateStringArrayOptions = (allowed: string[]) => (options: any): boolean => {
-  return Array.isArray(options) && options.every(option => allowed.includes(option));
-};
+const createValidateStringArrayOptions =
+  (allowed: string[]) =>
+  (options: any): boolean => {
+    return Array.isArray(options) && options.every(option => allowed.includes(option));
+  };
 
 const validateDevProdString = createValidateStringOptions(['development', 'production']);
 

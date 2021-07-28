@@ -52,11 +52,12 @@ describe('SetupTargetBuildCredentialsFromCredentialsJson', () => {
       },
     });
     const appLookupParams = getAppLookupParamsFromContext(ctx, findApplicationTarget(testTargets));
-    const setupBuildCredentialsFromCredentialsJsonAction = new SetupTargetBuildCredentialsFromCredentialsJson(
-      appLookupParams,
-      IosDistributionType.AppStore,
-      targetCredentials
-    );
+    const setupBuildCredentialsFromCredentialsJsonAction =
+      new SetupTargetBuildCredentialsFromCredentialsJson(
+        appLookupParams,
+        IosDistributionType.AppStore,
+        targetCredentials
+      );
     await setupBuildCredentialsFromCredentialsJsonAction.runAsync(ctx);
 
     // expect build credentials not to be created or updated on expo servers
@@ -80,11 +81,12 @@ describe('SetupTargetBuildCredentialsFromCredentialsJson', () => {
       },
     });
     const appLookupParams = getAppLookupParamsFromContext(ctx, findApplicationTarget(testTargets));
-    const setupBuildCredentialsFromCredentialsJsonAction = new SetupTargetBuildCredentialsFromCredentialsJson(
-      appLookupParams,
-      IosDistributionType.AppStore,
-      targetCredentials
-    );
+    const setupBuildCredentialsFromCredentialsJsonAction =
+      new SetupTargetBuildCredentialsFromCredentialsJson(
+        appLookupParams,
+        IosDistributionType.AppStore,
+        targetCredentials
+      );
     await setupBuildCredentialsFromCredentialsJsonAction.runAsync(ctx);
 
     // expect build credentials to be created or updated on expo servers
@@ -112,11 +114,12 @@ describe('SetupTargetBuildCredentialsFromCredentialsJson', () => {
       },
     });
     const appLookupParams = getAppLookupParamsFromContext(ctx, findApplicationTarget(testTargets));
-    const setupBuildCredentialsFromCredentialsJsonAction = new SetupTargetBuildCredentialsFromCredentialsJson(
-      appLookupParams,
-      IosDistributionType.AppStore,
-      targetCredentials
-    );
+    const setupBuildCredentialsFromCredentialsJsonAction =
+      new SetupTargetBuildCredentialsFromCredentialsJson(
+        appLookupParams,
+        IosDistributionType.AppStore,
+        targetCredentials
+      );
     await setupBuildCredentialsFromCredentialsJsonAction.runAsync(ctx);
 
     // expect build credentials to be created or updated on expo servers
@@ -145,11 +148,12 @@ describe('SetupTargetBuildCredentialsFromCredentialsJson', () => {
       },
     });
     const appLookupParams = getAppLookupParamsFromContext(ctx, findApplicationTarget(testTargets));
-    const setupBuildCredentialsFromCredentialsJsonAction = new SetupTargetBuildCredentialsFromCredentialsJson(
-      appLookupParams,
-      IosDistributionType.AppStore,
-      targetCredentials
-    );
+    const setupBuildCredentialsFromCredentialsJsonAction =
+      new SetupTargetBuildCredentialsFromCredentialsJson(
+        appLookupParams,
+        IosDistributionType.AppStore,
+        targetCredentials
+      );
     await setupBuildCredentialsFromCredentialsJsonAction.runAsync(ctx);
 
     // expect no prompts to be called

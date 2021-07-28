@@ -37,9 +37,11 @@ export type BranchMapping = {
  * Get the branch mapping and determine whether it is a rollout.
  * Ensure that the branch mapping is properly formatted.
  */
-export function getBranchMapping(
-  branchMappingString?: string
-): { branchMapping: BranchMapping; isRollout: boolean; rolloutPercent?: number } {
+export function getBranchMapping(branchMappingString?: string): {
+  branchMapping: BranchMapping;
+  isRollout: boolean;
+  rolloutPercent?: number;
+} {
   if (!branchMappingString) {
     throw new Error('Missing branch mapping.');
   }

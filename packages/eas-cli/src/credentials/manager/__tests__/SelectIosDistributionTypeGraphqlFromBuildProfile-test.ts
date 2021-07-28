@@ -13,9 +13,8 @@ describe('SelectIosDistributionTypeGraphqlFromBuildProfile', () => {
     const ctx = createCtxMock({
       nonInteractive: false,
     });
-    const selectIosDistributionTypeGraphqlFromBuildProfileAction = new SelectIosDistributionTypeGraphqlFromBuildProfile(
-      buildProfile
-    );
+    const selectIosDistributionTypeGraphqlFromBuildProfileAction =
+      new SelectIosDistributionTypeGraphqlFromBuildProfile(buildProfile);
     await expect(
       selectIosDistributionTypeGraphqlFromBuildProfileAction.runAsync(ctx)
     ).rejects.toThrowError();
@@ -28,12 +27,10 @@ describe('SelectIosDistributionTypeGraphqlFromBuildProfile', () => {
     const ctx = createCtxMock({
       nonInteractive: false,
     });
-    const selectIosDistributionTypeGraphqlFromBuildProfileAction = new SelectIosDistributionTypeGraphqlFromBuildProfile(
-      buildProfile
-    );
-    const iosDistributionTypeGraphql = await selectIosDistributionTypeGraphqlFromBuildProfileAction.runAsync(
-      ctx
-    );
+    const selectIosDistributionTypeGraphqlFromBuildProfileAction =
+      new SelectIosDistributionTypeGraphqlFromBuildProfile(buildProfile);
+    const iosDistributionTypeGraphql =
+      await selectIosDistributionTypeGraphqlFromBuildProfileAction.runAsync(ctx);
     expect(iosDistributionTypeGraphql).toBe(IosDistributionTypeGraphql.AppStore);
   });
   it('returns ENTERPRISE type with an internal distribution with the universal provisioningEnterprise configuration', async () => {
@@ -45,12 +42,10 @@ describe('SelectIosDistributionTypeGraphqlFromBuildProfile', () => {
     const ctx = createCtxMock({
       nonInteractive: false,
     });
-    const selectIosDistributionTypeGraphqlFromBuildProfileAction = new SelectIosDistributionTypeGraphqlFromBuildProfile(
-      buildProfile
-    );
-    const iosDistributionTypeGraphql = await selectIosDistributionTypeGraphqlFromBuildProfileAction.runAsync(
-      ctx
-    );
+    const selectIosDistributionTypeGraphqlFromBuildProfileAction =
+      new SelectIosDistributionTypeGraphqlFromBuildProfile(buildProfile);
+    const iosDistributionTypeGraphql =
+      await selectIosDistributionTypeGraphqlFromBuildProfileAction.runAsync(ctx);
     expect(iosDistributionTypeGraphql).toBe(IosDistributionTypeGraphql.Enterprise);
   });
   it('returns ADHOC type with an internal distribution with the adhoc provisioningEnterprise configuration', async () => {
@@ -62,12 +57,10 @@ describe('SelectIosDistributionTypeGraphqlFromBuildProfile', () => {
     const ctx = createCtxMock({
       nonInteractive: false,
     });
-    const selectIosDistributionTypeGraphqlFromBuildProfileAction = new SelectIosDistributionTypeGraphqlFromBuildProfile(
-      buildProfile
-    );
-    const iosDistributionTypeGraphql = await selectIosDistributionTypeGraphqlFromBuildProfileAction.runAsync(
-      ctx
-    );
+    const selectIosDistributionTypeGraphqlFromBuildProfileAction =
+      new SelectIosDistributionTypeGraphqlFromBuildProfile(buildProfile);
+    const iosDistributionTypeGraphql =
+      await selectIosDistributionTypeGraphqlFromBuildProfileAction.runAsync(ctx);
     expect(iosDistributionTypeGraphql).toBe(IosDistributionTypeGraphql.AdHoc);
   });
 });

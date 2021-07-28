@@ -407,9 +407,7 @@ declare module 'xcode' {
      */
     findPBXGroupKey(criteria: { name?: string; path?: string }): UUID | undefined;
     findPBXVariantGroupKey(criteria: unknown): string;
-    addLocalizationVariantGroup(
-      name: unknown
-    ): {
+    addLocalizationVariantGroup(name: unknown): {
       uuid: unknown;
       fileRef: unknown;
       basename: unknown;

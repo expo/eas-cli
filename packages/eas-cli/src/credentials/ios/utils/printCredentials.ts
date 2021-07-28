@@ -162,14 +162,8 @@ function displayIosAppBuildCredentials(buildCredentials: IosAppBuildCredentialsF
   const maybeProvProf = buildCredentials.provisioningProfile;
   Log.log(`  Provisioning Profile:`);
   if (maybeProvProf) {
-    const {
-      expiration,
-      updatedAt,
-      status,
-      developerPortalIdentifier,
-      appleTeam,
-      appleDevices,
-    } = maybeProvProf;
+    const { expiration, updatedAt, status, developerPortalIdentifier, appleTeam, appleDevices } =
+      maybeProvProf;
     if (developerPortalIdentifier) {
       Log.log(`    Developer Portal ID: ${developerPortalIdentifier}`);
     }

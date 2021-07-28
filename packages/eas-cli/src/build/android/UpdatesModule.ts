@@ -14,10 +14,11 @@ export async function configureUpdatesAsync(projectDir: string, exp: ExpoConfig)
   const buildGradleContents = await fs.readFile(buildGradlePath, 'utf8');
 
   if (!AndroidConfig.Updates.isBuildGradleConfigured(projectDir, buildGradleContents)) {
-    const updatedBuildGradleContents = AndroidConfig.Updates.ensureBuildGradleContainsConfigurationScript(
-      projectDir,
-      buildGradleContents
-    );
+    const updatedBuildGradleContents =
+      AndroidConfig.Updates.ensureBuildGradleContainsConfigurationScript(
+        projectDir,
+        buildGradleContents
+      );
     await fs.writeFile(buildGradlePath, updatedBuildGradleContents);
   }
 
