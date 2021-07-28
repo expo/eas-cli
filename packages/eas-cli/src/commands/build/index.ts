@@ -230,16 +230,16 @@ export async function handleDeprecatedEasJsonAsync(
   if (await isUsingDeprecatedFormatAsync(projectDir)) {
     const hasMismatchedExtendsKeys = await hasMismatchedExtendsAsync(projectDir);
     if (nonInteractive) {
-      Log.error('We detected that your eas.json is using deprecated format.');
+      Log.error('We detected that your eas.json is using a deprecated format.');
       Log.error(
-        'We will convert it automatically if run this command without --non-interactive flag or you can update your eas.json manually according to https://docs.expo.io/build/eas-json'
+        'We will convert it automatically if run this command without --non-interactive flag. Alternatively, you can update eas.json manually according to https://docs.expo.io/build/eas-json'
       );
       error('Unsupported eas.json format', { exit: 1 });
     }
 
     const confirm = await confirmAsync({
       message:
-        'We detected that your eas.json is using deprecated format, do you want us to migrate it automatically',
+        'We detected that your eas.json is using a deprecated format, do you want to migrate to the new format?',
     });
     if (confirm) {
       await migrateAsync(projectDir);
@@ -248,13 +248,13 @@ export async function handleDeprecatedEasJsonAsync(
           '"extends" keyword can only be migrated automatically to the new format if both Android and iOS profiles extend base profiles with the same names for both platforms'
         );
         Log.warn(
-          'Migration was sucesfull, but you need to adjust manually a way your profile extend each other'
+          'Migration was successful, but you need to manually adjust the extend rules for your profiles'
         );
-        error('Manual intervention is reuired', { exit: 1 });
+        error('Fix eas.json manually', { exit: 1 });
       }
     } else {
       Log.error(
-        'Aborting, update you eas.json according to https://docs.expo.io/build/eas-json and run build again'
+        "Aborting, update your eas.json according to https://docs.expo.io/build/eas-json and run 'eas build' again"
       );
       error('Unsupported eas.json format', { exit: 1 });
     }

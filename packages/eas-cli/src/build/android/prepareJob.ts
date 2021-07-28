@@ -41,7 +41,6 @@ export async function prepareJobAsync(
       }
     : {};
 
-  const { gradleCommand } = buildProfile;
   let buildType = ctx.buildProfile.buildType;
   if (!buildType && !buildProfile.gradleCommand && ctx.buildProfile.distribution === 'internal') {
     buildType = Android.BuildType.APK;
@@ -54,15 +53,15 @@ export async function prepareJobAsync(
     projectArchive: jobData.projectArchive,
     builderEnvironment: {
       image: buildProfile.image ?? 'default',
-      node: ctx.buildProfile.node,
-      yarn: ctx.buildProfile.yarn,
-      ndk: ctx.buildProfile.ndk,
-      expoCli: ctx.buildProfile.expoCli,
-      env: ctx.buildProfile.env,
+      node: buildProfile.node,
+      yarn: buildProfile.yarn,
+      ndk: buildProfile.ndk,
+      expoCli: buildProfile.expoCli,
+      env: buildProfile.env,
     },
     cache: {
       ...cacheDefaults,
-      ...ctx.buildProfile.cache,
+      ...buildProfile.cache,
       clear: ctx.clearCache,
     },
     secrets: {
@@ -71,13 +70,11 @@ export async function prepareJobAsync(
     releaseChannel: ctx.buildProfile.releaseChannel,
     updates: { channel: ctx.buildProfile.channel },
 
-    gradleCommand,
-    artifactPath: ctx.buildProfile.artifactPath,
+    gradleCommand: buildProfile.gradleCommand,
+    artifactPath: buildProfile.artifactPath,
 
     username,
-    buildType: ctx.buildProfile.developmentClient
-      ? Android.BuildType.DEVELOPMENT_CLIENT
-      : buildType,
+    buildType: buildProfile.developmentClient ? Android.BuildType.DEVELOPMENT_CLIENT : buildType,
   };
 
   return sanitizeJob(job);

@@ -21,7 +21,10 @@ export async function hasMismatchedExtendsAsync(projectDir: string): Promise<boo
 
   let hasMismatchedExtendsKeys = false;
   profiles.forEach(profileName => {
-    if (rawEasJson?.builds?.ios?.[profileName] !== rawEasJson?.builds?.android?.[profileName]) {
+    if (
+      rawEasJson?.builds?.ios?.[profileName]?.extends !==
+      rawEasJson?.builds?.android?.[profileName]?.extends
+    ) {
       hasMismatchedExtendsKeys = true;
     }
   });
@@ -33,9 +36,7 @@ export async function migrateAsync(projectDir: string): Promise<void> {
   try {
     await reader.validateAsync();
   } catch (err) {
-    throw new Error(
-      `Valid eas.json is required to automatically migrate to the new format\n${err.msg}`
-    );
+    throw new Error(`Valid eas.json is required to migrate to the new format\n${err.msg}`);
   }
   const rawFile = await fs.readFile(path.join(projectDir, 'eas.json'), 'utf8');
   const rawEasJson = JSON.parse(rawFile) as DeprecatedEasJson;

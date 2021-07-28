@@ -28,10 +28,6 @@ export class EasJsonReader {
 
   constructor(private projectDir: string) {}
 
-  /**
-   * Return build profile names for a particular platform.
-   * If platform is 'all', return common build profiles for all platforms
-   */
   public async getBuildProfileNamesAsync(): Promise<string[]> {
     const easJson = await this.readRawAsync();
     return Object.keys(easJson?.build ?? {});
@@ -41,28 +37,28 @@ export class EasJsonReader {
     buildProfileName: string
   ): Promise<AndroidBuildProfile> {
     const easJson = await this.readAndValidateAsync();
-    this.checkProfile(easJson, buildProfileName);
+    this.ensureProfileExists(easJson, buildProfileName);
     const {
-      android: resolvedAndroidSpecifcicValues,
+      android: resolvedAndroidSpecificValues,
       ios,
       ...resolvedProfile
     } = this.resolveBuildProfile(easJson, buildProfileName);
     const profileWithoutDefaults = profileMerge(
       resolvedProfile,
-      resolvedAndroidSpecifcicValues ?? {}
+      resolvedAndroidSpecificValues ?? {}
     );
     return profileMerge(defaults, profileWithoutDefaults) as AndroidBuildProfile;
   }
 
   public async readIosBuildProfileAsync(buildProfileName: string): Promise<IosBuildProfile> {
     const easJson = await this.readAndValidateAsync();
-    this.checkProfile(easJson, buildProfileName);
+    this.ensureProfileExists(easJson, buildProfileName);
     const {
       android,
-      ios: resolvedIosSpecifcicValues,
+      ios: resolvedIosSpecificValues,
       ...resolvedProfile
     } = this.resolveBuildProfile(easJson, buildProfileName);
-    const profileWithoutDefaults = profileMerge(resolvedProfile, resolvedIosSpecifcicValues ?? {});
+    const profileWithoutDefaults = profileMerge(resolvedProfile, resolvedIosSpecificValues ?? {});
     return profileMerge(defaults, profileWithoutDefaults) as IosBuildProfile;
   }
 
@@ -132,7 +128,7 @@ export class EasJsonReader {
     }
   }
 
-  private checkProfile(easJson: EasJson, profileName: string) {
+  private ensureProfileExists(easJson: EasJson, profileName: string) {
     if (!easJson.build || !easJson.build[profileName]) {
       throw new Error(`There is no profile named ${profileName} in eas.json.`);
     }
