@@ -1,4 +1,4 @@
-import { Android, Cache, Ios } from '@expo/eas-build-job';
+import { Android, Cache, Ios, Platform } from '@expo/eas-build-job';
 
 export enum CredentialsSource {
   LOCAL = 'local',
@@ -50,7 +50,13 @@ export interface IosBuildProfile extends CommonBuildProfile {
   buildConfiguration?: string;
 }
 
-export type BuildProfile = AndroidBuildProfile | IosBuildProfile;
+export type BuildProfile<TPlatform extends Platform = Platform> = TPlatform extends Platform.ANDROID
+  ? AndroidBuildProfile
+  : TPlatform extends Platform.IOS
+  ? IosBuildProfile
+  : TPlatform extends Platform
+  ? AndroidBuildProfile | IosBuildProfile
+  : never;
 
 export interface RawBuildProfile extends Partial<CommonBuildProfile> {
   extends?: string;

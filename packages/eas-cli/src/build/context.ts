@@ -1,6 +1,6 @@
 import { ExpoConfig } from '@expo/config';
 import { Workflow } from '@expo/eas-build-job';
-import { AndroidBuildProfile, IosBuildProfile } from '@expo/eas-json';
+import { AndroidBuildProfile, BuildProfile, IosBuildProfile } from '@expo/eas-json';
 import JsonFile from '@expo/json-file';
 import resolveFrom from 'resolve-from';
 import { v4 as uuidv4 } from 'uuid';
@@ -25,13 +25,9 @@ export interface ConfigureContext {
   hasIosNativeProject: boolean;
 }
 
-type PlatformBuildProfile<T extends Platform> = T extends Platform.ANDROID
-  ? AndroidBuildProfile
-  : IosBuildProfile;
-
 export interface BuildContext<T extends Platform> {
   accountName: string;
-  buildProfile: PlatformBuildProfile<T>;
+  buildProfile: BuildProfile<T>;
   buildProfileName: string;
   clearCache: boolean;
   exp: ExpoConfig;
@@ -58,7 +54,7 @@ export async function createBuildContextAsync<T extends Platform>({
   skipProjectConfiguration = false,
 }: {
   buildProfileName: string;
-  buildProfile: PlatformBuildProfile<T>;
+  buildProfile: BuildProfile<T>;
   clearCache: boolean;
   local: boolean;
   nonInteractive: boolean;

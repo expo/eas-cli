@@ -285,10 +285,10 @@ export class ManageIos {
     }
 
     const app = { account, projectName: ctx.exp.slug };
-    const buildProfile = (await new SelectBuildProfileFromEasJson(
+    const buildProfile = await new SelectBuildProfileFromEasJson(
       ctx.projectDir,
       Platform.IOS
-    ).runAsync(ctx)) as IosBuildProfile;
+    ).runAsync(ctx);
     const xcodeBuildContext = await resolveXcodeBuildContextAsync(
       {
         projectDir: ctx.projectDir,

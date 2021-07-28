@@ -5,16 +5,16 @@ import Log from '../../log';
 import { promptAsync } from '../../prompts';
 import { Context } from '../context';
 
-export class SelectBuildProfileFromEasJson {
+export class SelectBuildProfileFromEasJson<T extends Platform> {
   private easJsonReader: EasJsonReader;
 
-  constructor(private projectDir: string, private platform: Platform) {
+  constructor(private projectDir: string, private platform: T) {
     this.easJsonReader = new EasJsonReader(projectDir);
   }
 
-  async runAsync(ctx: Context): Promise<BuildProfile> {
+  async runAsync(ctx: Context): Promise<BuildProfile<T>> {
     const profileName = await this.getProfileNameFromEasConfigAsync(ctx);
-    const easConfig = await this.easJsonReader.readBuildProfileAsync(profileName, this.platform);
+    const easConfig = await this.easJsonReader.readBuildProfileAsync<T>(profileName, this.platform);
     Log.succeed(`Using build profile: ${profileName}`);
     return easConfig;
   }

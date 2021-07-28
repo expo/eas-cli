@@ -2,14 +2,7 @@ import { Platform } from '@expo/eas-build-job';
 import fs from 'fs-extra';
 import path from 'path';
 
-import {
-  AndroidBuildProfile,
-  BuildProfile,
-  CredentialsSource,
-  EasJson,
-  IosBuildProfile,
-  RawBuildProfile,
-} from './EasJson.types';
+import { BuildProfile, CredentialsSource, EasJson, RawBuildProfile } from './EasJson.types';
 import { EasJsonSchema, MinimalEasJsonSchema } from './EasJsonSchema';
 
 interface EasJsonPreValidation {
@@ -33,43 +26,26 @@ export class EasJsonReader {
     return Object.keys(easJson?.build ?? {});
   }
 
-  public async readAndroidBuildProfileAsync(
-    buildProfileName: string
-  ): Promise<AndroidBuildProfile> {
+  public async readBuildProfileAsync<T extends Platform>(
+    buildProfileName: string,
+    platform: T
+  ): Promise<BuildProfile<T>> {
     const easJson = await this.readAndValidateAsync();
     this.ensureProfileExists(easJson, buildProfileName);
     const {
       android: resolvedAndroidSpecificValues,
-      ios,
-      ...resolvedProfile
-    } = this.resolveBuildProfile(easJson, buildProfileName);
-    const profileWithoutDefaults = profileMerge(
-      resolvedProfile,
-      resolvedAndroidSpecificValues ?? {}
-    );
-    return profileMerge(defaults, profileWithoutDefaults) as AndroidBuildProfile;
-  }
-
-  public async readIosBuildProfileAsync(buildProfileName: string): Promise<IosBuildProfile> {
-    const easJson = await this.readAndValidateAsync();
-    this.ensureProfileExists(easJson, buildProfileName);
-    const {
-      android,
       ios: resolvedIosSpecificValues,
       ...resolvedProfile
     } = this.resolveBuildProfile(easJson, buildProfileName);
-    const profileWithoutDefaults = profileMerge(resolvedProfile, resolvedIosSpecificValues ?? {});
-    return profileMerge(defaults, profileWithoutDefaults) as IosBuildProfile;
-  }
-
-  public async readBuildProfileAsync(
-    buildProfileName: string,
-    platform: Platform
-  ): Promise<BuildProfile> {
     if (platform === Platform.ANDROID) {
-      return await this.readAndroidBuildProfileAsync(buildProfileName);
+      const profileWithoutDefaults = profileMerge(
+        resolvedProfile,
+        resolvedAndroidSpecificValues ?? {}
+      );
+      return profileMerge(defaults, profileWithoutDefaults) as BuildProfile<T>;
     } else if (platform === Platform.IOS) {
-      return await this.readIosBuildProfileAsync(buildProfileName);
+      const profileWithoutDefaults = profileMerge(resolvedProfile, resolvedIosSpecificValues ?? {});
+      return profileMerge(defaults, profileWithoutDefaults) as BuildProfile<T>;
     } else {
       throw new Error(`Unknown platform ${platform}`);
     }
