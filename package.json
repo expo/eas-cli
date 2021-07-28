@@ -17,12 +17,12 @@
   "devDependencies": {
     "@expo/oclif-dev-cli": "1.24.0-expo",
     "@types/jest": "^26.0.13",
-    "eslint": "^6.6.0",
-    "eslint-config-universe": "^4.0.0",
-    "eslint-plugin-graphql": "^4.0.0",
+    "eslint": "7.31.0",
+    "eslint-config-universe": "7.0.1",
+    "eslint-plugin-graphql": "4.0.0",
     "jest": "^26.4.2",
     "jest-watch-typeahead": "^0.6.1",
     "lerna": "^3.22.1",
-    "prettier": "^2.0.5"
+    "prettier": "2.3.2"
   }
 }
