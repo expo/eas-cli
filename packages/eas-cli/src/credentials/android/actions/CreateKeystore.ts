@@ -25,6 +25,7 @@ export class CreateKeystore {
     if (providedKeystore) {
       const providedKeystoreWithType = getKeystoreWithType(providedKeystore);
       validateKeystore(providedKeystoreWithType);
+      return providedKeystoreWithType;
     }
     return await generateRandomKeystoreAsync();
   }
