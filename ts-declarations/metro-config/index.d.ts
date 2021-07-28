@@ -1,6 +1,6 @@
 declare module 'metro-config' {
   import { IncomingMessage, ServerResponse } from 'http';
-  import {
+  import type {
     DeltaResult,
     Graph,
     JsTransformerConfig,
@@ -8,13 +8,10 @@ declare module 'metro-config' {
     Reporter,
     SerializerOptions,
     Server,
-    TransformResult,
     TransformVariants,
   } from 'metro';
 
-  // TODO: import { CacheStore } from 'metro-cache';
   type CacheStore = unknown;
-  // TODO: import { CustomResolver } from 'metro-resolver';
   type CustomResolver = unknown;
 
   import type { BasicSourceMap, MixedSourceMap } from 'metro-source-map';
@@ -44,7 +41,7 @@ declare module 'metro-config' {
           [path: string]: true;
         }
       | false;
-    readonly ramGroups: Array<string>;
+    readonly ramGroups: string[];
     readonly transform: {
       readonly experimentalImportSupport: boolean;
       readonly inlineRequires:
@@ -54,7 +51,7 @@ declare module 'metro-config' {
             };
           }
         | boolean;
-      readonly nonInlinedRequires?: ReadonlyArray<string>;
+      readonly nonInlinedRequires?: string[];
       readonly unstable_disableES6Transforms?: boolean;
     };
   }
@@ -66,9 +63,9 @@ declare module 'metro-config' {
   }
 
   export type GetTransformOptions = (
-    entryPoints: ReadonlyArray<string>,
+    entryPoints: readonly string[],
     options: GetTransformOptionsOpts,
-    getDependenciesOf: (path: string) => Promise<Array<string>>
+    getDependenciesOf: (path: string) => Promise<string[]>
   ) => Promise<ExtraTransformOptions>;
 
   export type Middleware = (
@@ -78,18 +75,18 @@ declare module 'metro-config' {
   ) => unknown;
 
   interface ResolverConfigT {
-    assetExts: ReadonlyArray<string>;
-    assetResolutions: ReadonlyArray<string>;
+    assetExts: readonly string[];
+    assetResolutions: readonly string[];
     blacklistRE: RegExp;
     dependencyExtractor: string | null | undefined;
     extraNodeModules: {
       [name: string]: string;
     };
     hasteImplModulePath: string | null | undefined;
-    platforms: ReadonlyArray<string>;
-    resolverMainFields: ReadonlyArray<string>;
+    platforms: readonly string[];
+    resolverMainFields: readonly string[];
     resolveRequest: CustomResolver | null | undefined;
-    sourceExts: ReadonlyArray<string>;
+    sourceExts: readonly string[];
     useWatchman: boolean;
   }
 
@@ -97,15 +94,15 @@ declare module 'metro-config' {
     createModuleIdFactory: () => (path: string) => number;
     customSerializer: (
       entryPoint: string,
-      preModules: ReadonlyArray<Module>,
+      preModules: Module[],
       graph: Graph,
       options: SerializerOptions
     ) => string | { code: string; map: string } | null | undefined;
     experimentalSerializerHook: (graph: Graph, delta: DeltaResult) => unknown;
-    getModulesRunBeforeMainModule: (entryFilePath: string) => Array<string>;
-    getPolyfills: (arg: { platform: string | null | undefined }) => ReadonlyArray<string>;
+    getModulesRunBeforeMainModule: (entryFilePath: string) => string[];
+    getPolyfills: (arg: { platform: string | null | undefined }) => readonly string[];
     getRunModuleStatement: (moduleId: number | string) => string;
-    polyfillModuleNames: ReadonlyArray<string>;
+    polyfillModuleNames: readonly string[];
     postProcessBundleSourcemap: PostProcessBundleSourcemap;
     processModuleFilter: (modules: Module) => boolean;
   }
@@ -120,8 +117,7 @@ declare module 'metro-config' {
   };
 
   interface MetalConfigT {
-    // cacheStores: ReadonlyArray<CacheStore<TransformResult>>;
-    cacheStores: ReadonlyArray<any>;
+    cacheStores: readonly any[];
     cacheVersion: string;
     hasteMapCacheDirectory?: string;
     maxWorkers: number;
@@ -130,7 +126,7 @@ declare module 'metro-config' {
     transformerPath: string;
     reporter: Reporter;
     resetCache: boolean;
-    watchFolders: ReadonlyArray<string>;
+    watchFolders: readonly string[];
   }
 
   interface ServerConfigT {
@@ -199,10 +195,10 @@ declare module 'metro-config' {
     port?: string | number;
     host?: string;
     projectRoot?: string;
-    watchFolders?: Array<string>;
-    assetExts?: Array<string>;
-    sourceExts?: Array<string>;
-    platforms?: Array<string>;
+    watchFolders?: string[];
+    assetExts?: string[];
+    sourceExts?: string[];
+    platforms?: string[];
     'max-workers'?: string | number;
     maxWorkers?: string | number;
     transformer?: string;
@@ -216,7 +212,7 @@ declare module 'metro-config' {
 
   export function mergeConfig<T extends InputConfigT>(
     defaultConfig: T,
-    ...configs: Array<InputConfigT>
+    ...configs: InputConfigT[]
   ): T;
 
   export function loadConfig(

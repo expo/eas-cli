@@ -8,12 +8,12 @@ declare module 'metro' {
     readonly height: number | null | undefined;
     readonly httpServerLocation: string;
     readonly name: string;
-    readonly scales: Array<number>;
+    readonly scales: number[];
     readonly type: string;
     readonly width: number | null | undefined;
   };
 
-  export type AssetData = AssetDataWithoutFiles & { readonly files: Array<string> };
+  export type AssetData = AssetDataWithoutFiles & { readonly files: string[] };
 
   //#endregion
   //#region metro/src/DeltaBundler/types.flow.js
@@ -71,7 +71,7 @@ declare module 'metro' {
        */
       readonly isOptional?: boolean;
 
-      readonly locs: ReadonlyArray<BabelSourceLocation>;
+      readonly locs: readonly BabelSourceLocation[];
     };
   }
 
@@ -83,7 +83,7 @@ declare module 'metro' {
   export interface Module<T = MixedOutput> {
     readonly dependencies: Map<string, Dependency>;
     readonly inverseDependencies: Set<string>;
-    readonly output: ReadonlyArray<T>;
+    readonly output: readonly T[];
     readonly path: string;
     readonly getSource: () => Buffer;
   }
@@ -91,16 +91,16 @@ declare module 'metro' {
   export interface Graph<T = MixedOutput> {
     dependencies: Map<string, Module<T>>;
     importBundleNames: Set<string>;
-    readonly entryPoints: ReadonlyArray<string>;
+    readonly entryPoints: readonly string[];
   }
 
   export type TransformResult<T = MixedOutput> = Readonly<{
-    dependencies: ReadonlyArray<TransformResultDependency>;
-    output: ReadonlyArray<T>;
+    dependencies: readonly TransformResultDependency[];
+    output: readonly T[];
   }>;
 
   interface AllowOptionalDependenciesWithOptions {
-    readonly exclude: Array<string>;
+    readonly exclude: string[];
   }
   type AllowOptionalDependencies = boolean | AllowOptionalDependenciesWithOptions;
 
@@ -120,7 +120,7 @@ declare module 'metro' {
     readonly modulesOnly: boolean;
     readonly processModuleFilter: (module: Module) => boolean;
     readonly projectRoot: string;
-    readonly runBeforeMainModule: ReadonlyArray<string>;
+    readonly runBeforeMainModule: readonly string[];
     readonly runModule: boolean;
     readonly sourceMapUrl: string | null | undefined;
     readonly sourceUrl: string | null | undefined;
@@ -131,17 +131,17 @@ declare module 'metro' {
 
   interface RamBundleInfo {
     getDependencies: (filePath: string) => Set<string>;
-    startupModules: ReadonlyArray<ModuleTransportLike>;
-    lazyModules: ReadonlyArray<ModuleTransportLike>;
+    startupModules: readonly ModuleTransportLike[];
+    lazyModules: readonly ModuleTransportLike[];
     groups: Map<number, Set<number>>;
   }
 
   //#endregion
   //#region metro/src/index.js
 
-  import { Server as HttpServer } from 'http';
+  import { Server as HttpServer, IncomingMessage, ServerResponse } from 'http';
   import { Server as HttpsServer } from 'https';
-  import { loadConfig, ConfigT, InputConfigT, Middleware } from 'metro-config';
+  import { ConfigT, InputConfigT, Middleware, loadConfig } from 'metro-config';
 
   type MetroMiddleWare = {
     attachHmrServer: (httpServer: HttpServer | HttpsServer) => void;
@@ -163,7 +163,7 @@ declare module 'metro' {
   };
 
   type BuildGraphOptions = {
-    entries: ReadonlyArray<string>;
+    entries: readonly string[];
     customTransformOptions?: CustomTransformOptions;
     dev?: boolean;
     minify?: boolean;
@@ -194,7 +194,7 @@ declare module 'metro' {
           map: string;
         },
         arg1: OutputOptions,
-        arg2: (...args: Array<string>) => void
+        arg2: (...args: string[]) => void
       ) => Promise<unknown>;
     };
     platform?: string;
@@ -233,7 +233,7 @@ declare module 'metro' {
   };
 
   export type JsTransformerConfig = Readonly<{
-    assetPlugins: ReadonlyArray<string>;
+    assetPlugins: readonly string[];
     assetRegistryPath: string;
     asyncRequireModulePath: string;
     babelTransformerPath: string;
@@ -355,7 +355,7 @@ declare module 'metro' {
   //#region metro/src/ModuleGraph/types.flow.js
 
   export type TransformVariants = {
-    readonly [name: string]: {};
+    readonly [name: string]: object;
   };
 
   //#endregion
@@ -368,9 +368,6 @@ declare module 'metro' {
   //#endregion
   //#region metro/src/Server/index.js
 
-  import { IncomingMessage, ServerResponse } from 'http';
-
-  // TODO: type declaration
   type IncrementalBundler = unknown;
 
   export class Server {
@@ -382,23 +379,21 @@ declare module 'metro' {
 
     getCreateModuleId(): (path: string) => number;
 
-    build(
-      options: BundleOptions
-    ): Promise<{
+    build(options: BundleOptions): Promise<{
       code: string;
       map: string;
     }>;
 
     getRamBundleInfo(options: BundleOptions): Promise<RamBundleInfo>;
 
-    getAssets(options: BundleOptions): Promise<ReadonlyArray<AssetData>>;
+    getAssets(options: BundleOptions): Promise<readonly AssetData[]>;
 
     getOrderedDependencyPaths(options: {
       readonly dev: boolean;
       readonly entryFile: string;
       readonly minify: boolean;
       readonly platform: string;
-    }): Promise<Array<string>>;
+    }): Promise<string[]>;
 
     processRequest(
       req: IncomingMessage,
@@ -408,9 +403,9 @@ declare module 'metro' {
 
     getNewBuildID(): string;
 
-    getPlatforms(): ReadonlyArray<string>;
+    getPlatforms(): readonly string[];
 
-    getWatchFolders(): ReadonlyArray<string>;
+    getWatchFolders(): readonly string[];
 
     static DEFAULT_GRAPH_OPTIONS: {
       customTransformOptions: any;
@@ -436,7 +431,7 @@ declare module 'metro' {
 
   type BundleType = 'bundle' | 'delta' | 'meta' | 'map' | 'ram' | 'cli' | 'hmr' | 'todo' | 'graph';
 
-  type MetroSourceMapOrMappings = MixedSourceMap | Array<MetroSourceMapSegmentTuple>;
+  type MetroSourceMapOrMappings = MixedSourceMap | MetroSourceMapSegmentTuple[];
 
   export interface BundleOptions {
     bundleType: BundleType;

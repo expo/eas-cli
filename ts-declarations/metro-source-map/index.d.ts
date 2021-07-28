@@ -5,12 +5,12 @@ declare module 'metro-source-map' {
   type SourceMapping = [number, number, number, number];
   type SourceMappingWithName = [number, number, number, number, string];
 
-  type HermesFunctionOffsets = { [key: number]: Readonly<Array<number>> };
+  type HermesFunctionOffsets = { [key: number]: Readonly<number[]> };
 
-  type FBSourcesArray = Readonly<Array<FBSourceMetadata | null>>;
+  type FBSourcesArray = Readonly<(FBSourceMetadata | null)[]>;
   type FBSourceMetadata = [FBSourceFunctionMap | null];
   type FBSourceFunctionMap = {
-    names: Readonly<Array<string>>;
+    names: Readonly<string[]>;
     mappings: string;
   };
 
@@ -19,13 +19,13 @@ declare module 'metro-source-map' {
   interface BasicSourceMap {
     file?: string;
     mappings: string;
-    names: Array<string>;
+    names: string[];
     sourceRoot?: string;
-    sources: Array<string>;
-    sourcesContent?: Array<string | null>;
+    sources: string[];
+    sourcesContent?: (string | null)[];
     version: number;
-    x_facebook_offsets?: Array<number>;
-    x_metro_module_paths?: Array<string>;
+    x_facebook_offsets?: number[];
+    x_metro_module_paths?: string[];
     x_facebook_sources?: FBSourcesArray;
     x_facebook_segments?: FBSegmentMap;
     x_hermes_function_offsets?: HermesFunctionOffsets;
@@ -42,10 +42,10 @@ declare module 'metro-source-map' {
   interface IndexMap {
     file?: string;
     mappings?: void; // avoids SourceMap being a disjoint union
-    sections: Array<IndexMapSection>;
+    sections: IndexMapSection[];
     version: number;
-    x_facebook_offsets?: Array<number>;
-    x_metro_module_paths?: Array<string>;
+    x_facebook_offsets?: number[];
+    x_metro_module_paths?: string[];
     x_facebook_sources?: FBSourcesArray;
     x_facebook_segments?: FBSegmentMap;
     x_hermes_function_offsets?: HermesFunctionOffsets;
@@ -57,7 +57,7 @@ declare module 'metro-source-map' {
 
   //#region metro-source-map/src/composeSourceMaps.js.flow
 
-  export function composeSourceMaps(maps: Readonly<Array<MixedSourceMap>>): MixedSourceMap;
+  export function composeSourceMaps(maps: Readonly<MixedSourceMap[]>): MixedSourceMap;
 
   //#endregion
 }
