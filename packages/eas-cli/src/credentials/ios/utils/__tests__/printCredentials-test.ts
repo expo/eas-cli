@@ -21,12 +21,10 @@ describe('print credentials', () => {
       },
       projectName: 'test52',
     };
-    const testIosAppCredentialsData = await IosAppCredentialsQuery.withCommonFieldsByAppIdentifierIdAsync(
-      '@quinlanj/test52',
-      {
+    const testIosAppCredentialsData =
+      await IosAppCredentialsQuery.withCommonFieldsByAppIdentifierIdAsync('@quinlanj/test52', {
         appleAppIdentifierId: 'test-id',
-      }
-    );
+      });
     const appCredentials = {
       test52: nullthrows(testIosAppCredentialsData),
     };

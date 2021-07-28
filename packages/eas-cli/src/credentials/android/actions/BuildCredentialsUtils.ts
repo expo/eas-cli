@@ -23,9 +23,8 @@ export async function canCopyLegacyCredentialsAsync(
     return false; // modern credentials already exist
   }
 
-  const legacyAppCredentials = await ctx.android.getLegacyAndroidAppCredentialsWithCommonFieldsAsync(
-    app
-  );
+  const legacyAppCredentials =
+    await ctx.android.getLegacyAndroidAppCredentialsWithCommonFieldsAsync(app);
   return !!legacyAppCredentials; // user has some legacy credentials
 }
 
@@ -41,16 +40,14 @@ export async function promptUserAndCopyLegacyCredentialsAsync(
   const spinner = ora('Classic credentials detected, copying to EAS...').start();
 
   try {
-    const legacyAppCredentials = await ctx.android.getLegacyAndroidAppCredentialsWithCommonFieldsAsync(
-      app
-    );
+    const legacyAppCredentials =
+      await ctx.android.getLegacyAndroidAppCredentialsWithCommonFieldsAsync(app);
     if (!legacyAppCredentials) {
       return;
     }
 
-    const appCredentials = await ctx.android.createOrGetExistingAndroidAppCredentialsWithBuildCredentialsAsync(
-      app
-    );
+    const appCredentials =
+      await ctx.android.createOrGetExistingAndroidAppCredentialsWithBuildCredentialsAsync(app);
     const legacyFcm = legacyAppCredentials.androidFcm;
     if (legacyFcm) {
       const clonedFcm = await ctx.android.createFcmAsync(
@@ -120,9 +117,8 @@ export async function createOrUpdateDefaultAndroidAppBuildCredentialsAsync(
     !ctx.nonInteractive,
     'createOrUpdateDefaultAndroidAppBuildCredentialsAsync must be run in interactive mode'
   );
-  const existingDefaultBuildCredentials = await ctx.android.getDefaultAndroidAppBuildCredentialsAsync(
-    appLookupParams
-  );
+  const existingDefaultBuildCredentials =
+    await ctx.android.getDefaultAndroidAppBuildCredentialsAsync(appLookupParams);
   if (existingDefaultBuildCredentials) {
     return await ctx.android.updateAndroidAppBuildCredentialsAsync(
       existingDefaultBuildCredentials,

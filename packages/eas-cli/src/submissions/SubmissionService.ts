@@ -26,7 +26,7 @@ async function startSubmissionAsync(
   const { submission } = await SubmissionMutation.createSubmissionAsync({
     appId: projectId,
     platform,
-    config: (config as unknown) as JSONObject,
+    config: config as unknown as JSONObject,
     submittedBuildId: buildId,
   });
   return submission.id;

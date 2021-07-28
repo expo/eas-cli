@@ -16,9 +16,7 @@ export enum SelectAndroidBuildCredentialsResultType {
 export class SelectAndroidBuildCredentials {
   constructor(private app: AppLookupParams) {}
 
-  async runAsync(
-    ctx: Context
-  ): Promise<
+  async runAsync(ctx: Context): Promise<
     | {
         resultType: SelectAndroidBuildCredentialsResultType.CREATE_REQUEST;
         result: AndroidAppBuildCredentialsMetadataInput;

@@ -35,9 +35,11 @@ export default class BuildList extends Command {
   };
 
   async run() {
-    const { platform: requestedPlatform, status: buildStatus, limit = 10 } = this.parse(
-      BuildList
-    ).flags;
+    const {
+      platform: requestedPlatform,
+      status: buildStatus,
+      limit = 10,
+    } = this.parse(BuildList).flags;
 
     const platform = toAppPlatform(requestedPlatform);
     const graphqlBuildStatus = toGraphQLBuildStatus(buildStatus);

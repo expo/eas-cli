@@ -37,9 +37,7 @@ async function promptForRolloutPercentAsync({
   return rolloutPercent;
 }
 
-function getRolloutInfo(
-  getUpdateChannelByNameForAppResult: GetChannelByNameForAppQuery
-): {
+function getRolloutInfo(getUpdateChannelByNameForAppResult: GetChannelByNameForAppQuery): {
   newBranch: Pick<UpdateBranch, 'name' | 'id'>;
   oldBranch: Pick<UpdateBranch, 'name' | 'id'>;
   currentPercent: number;
@@ -48,12 +46,14 @@ function getRolloutInfo(
     getUpdateChannelByNameForAppResult.app?.byId.updateChannelByName?.branchMapping
   );
   const [newBranchId, oldBranchId] = branchMapping.data.map(d => d.branchId);
-  const newBranch = getUpdateChannelByNameForAppResult.app?.byId.updateChannelByName?.updateBranches.filter(
-    branch => branch.id === newBranchId
-  )[0];
-  const oldBranch = getUpdateChannelByNameForAppResult.app?.byId.updateChannelByName?.updateBranches.filter(
-    branch => branch.id === oldBranchId
-  )[0];
+  const newBranch =
+    getUpdateChannelByNameForAppResult.app?.byId.updateChannelByName?.updateBranches.filter(
+      branch => branch.id === newBranchId
+    )[0];
+  const oldBranch =
+    getUpdateChannelByNameForAppResult.app?.byId.updateChannelByName?.updateBranches.filter(
+      branch => branch.id === oldBranchId
+    )[0];
 
   if (!newBranch || !oldBranch) {
     throw new Error(
@@ -140,9 +140,10 @@ async function startRolloutAsync({
     branchMapping: JSON.stringify(newBranchMapping),
   });
 
-  const oldBranch = getUpdateChannelByNameForAppResult.app?.byId.updateChannelByName?.updateBranches.filter(
-    branch => branch.id === oldBranchId
-  )[0];
+  const oldBranch =
+    getUpdateChannelByNameForAppResult.app?.byId.updateChannelByName?.updateBranches.filter(
+      branch => branch.id === oldBranchId
+    )[0];
   if (!oldBranch) {
     throw new Error(
       `Branch mapping is missing its only branch for channel "${channelName}" on app "${fullName}"`

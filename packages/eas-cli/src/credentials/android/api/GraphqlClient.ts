@@ -120,9 +120,8 @@ export async function createAndroidAppBuildCredentialsAsync(
     androidKeystoreId: string;
   }
 ): Promise<AndroidAppBuildCredentialsFragment> {
-  const androidAppCredentials = await createOrGetExistingAndroidAppCredentialsWithBuildCredentialsAsync(
-    appLookupParams
-  );
+  const androidAppCredentials =
+    await createOrGetExistingAndroidAppCredentialsWithBuildCredentialsAsync(appLookupParams);
   const buildCredentialsList = androidAppCredentials.androidAppBuildCredentialsList;
   const existingDefaultBuildCredentials =
     buildCredentialsList.find(buildCredentials => buildCredentials.isDefault) ?? null;

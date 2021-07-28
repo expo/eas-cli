@@ -101,11 +101,12 @@ export class SetupAdhocProvisioningProfile {
     const chosenDevices = await chooseDevices(registeredAppleDevices, provisionedDeviceIdentifiers);
 
     // 4. Reuse or create the profile on Apple Developer Portal
-    const provisioningProfileStoreInfo = await ctx.appStore.createOrReuseAdhocProvisioningProfileAsync(
-      chosenDevices.map(({ identifier }) => identifier),
-      this.app.bundleIdentifier,
-      distCert.serialNumber
-    );
+    const provisioningProfileStoreInfo =
+      await ctx.appStore.createOrReuseAdhocProvisioningProfileAsync(
+        chosenDevices.map(({ identifier }) => identifier),
+        this.app.bundleIdentifier,
+        distCert.serialNumber
+      );
 
     // 5. Create or update the profile on servers
     const appleAppIdentifier = await ctx.ios.createOrGetExistingAppleAppIdentifierAsync(

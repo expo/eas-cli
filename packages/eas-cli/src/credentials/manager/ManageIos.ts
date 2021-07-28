@@ -201,9 +201,8 @@ export class ManageIos {
           const iosAppCredentialsMap: IosAppCredentialsMap = {};
           for (const target of targets) {
             const appLookupParams = getAppLookupParamsFromContext(ctx, target);
-            iosAppCredentialsMap[
-              target.targetName
-            ] = await ctx.ios.getIosAppCredentialsWithCommonFieldsAsync(appLookupParams);
+            iosAppCredentialsMap[target.targetName] =
+              await ctx.ios.getIosAppCredentialsWithCommonFieldsAsync(appLookupParams);
           }
           displayIosCredentials(app, iosAppCredentialsMap, targets);
         }

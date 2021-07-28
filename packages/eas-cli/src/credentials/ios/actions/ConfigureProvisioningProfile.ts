@@ -67,12 +67,8 @@ export class ConfigureProvisioningProfile {
     app: AppLookupParams,
     profileFromApple: ProvisioningProfileStoreInfo
   ): Promise<AppleProvisioningProfileMutationResult> {
-    const {
-      developerPortalIdentifier,
-      certificateP12,
-      certificatePassword,
-      serialNumber,
-    } = this.distributionCertificate;
+    const { developerPortalIdentifier, certificateP12, certificatePassword, serialNumber } =
+      this.distributionCertificate;
     assert(
       certificateP12 && certificatePassword,
       'Distribution Certificate P12 and Password is required'

@@ -13,9 +13,8 @@ export class AssignFcm {
     ctx: Context,
     fcm: AndroidFcmFragment
   ): Promise<CommonAndroidAppCredentialsFragment> {
-    const appCredentials = await ctx.android.createOrGetExistingAndroidAppCredentialsWithBuildCredentialsAsync(
-      this.app
-    );
+    const appCredentials =
+      await ctx.android.createOrGetExistingAndroidAppCredentialsWithBuildCredentialsAsync(this.app);
     const updatedAppCredentials = await ctx.android.updateAndroidAppCredentialsAsync(
       appCredentials,
       {
