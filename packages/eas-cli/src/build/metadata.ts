@@ -35,7 +35,6 @@ export async function collectMetadata<T extends Platform>(
     credentialsSource?: CredentialsSource.LOCAL | CredentialsSource.REMOTE;
   }
 ): Promise<Metadata> {
-  const channelOrReleaseChannel = await resolveChannelOrReleaseChannelAsync(ctx);
   return {
     trackingContext: ctx.trackingCtx,
     appVersion: await resolveAppVersionAsync(ctx),
@@ -45,7 +44,7 @@ export async function collectMetadata<T extends Platform>(
     credentialsSource,
     sdkVersion: ctx.exp.sdkVersion,
     runtimeVersion: ctx.exp.runtimeVersion,
-    ...channelOrReleaseChannel,
+    channel: await resolveChannelAsync(ctx),
     distribution: ctx.buildProfile.distribution ?? 'store',
     appName: ctx.exp.name,
     appIdentifier: await resolveAppIdentifierAsync(ctx),
@@ -91,24 +90,18 @@ async function resolveAppIdentifierAsync<T extends Platform>(
   }
 }
 
-async function resolveChannelOrReleaseChannelAsync<T extends Platform>(
+async function resolveChannelAsync<T extends Platform>(
   ctx: BuildContext<T>
-): Promise<{ channel: string } | { releaseChannel: string } | null> {
+): Promise<string | undefined> {
   if (!isExpoUpdatesInstalled(ctx.projectDir)) {
-    return null;
+    return undefined;
   }
-  if (ctx.buildProfile.channel) {
-    return { channel: ctx.buildProfile.channel };
-  }
-  if (ctx.buildProfile.releaseChannel) {
-    return { releaseChannel: ctx.buildProfile.releaseChannel };
-  }
-  const channel = await getNativeChannelAsync(ctx);
-  if (channel) {
-    return { channel };
-  }
-  const releaseChannel = await getNativeReleaseChannelAsync(ctx);
-  return { releaseChannel };
+  return (
+    ctx.buildProfile.channel ??
+    ctx.buildProfile.releaseChannel ??
+    (await getNativeChannelAsync(ctx)) ??
+    (await getNativeReleaseChannelAsync(ctx))
+  );
 }
 
 async function getNativeReleaseChannelAsync<T extends Platform>(
