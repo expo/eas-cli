@@ -7,7 +7,7 @@ import { SelectIosDistributionTypeGraphqlFromBuildProfile } from '../SelectIosDi
 describe('SelectIosDistributionTypeGraphqlFromBuildProfile', () => {
   it('errors with a simulator distribution', async () => {
     const buildProfile = {
-      distribution: 'simulator',
+      simulator: true,
     } as IosBuildProfile;
 
     const ctx = createCtxMock({

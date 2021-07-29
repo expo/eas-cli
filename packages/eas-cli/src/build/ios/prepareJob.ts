@@ -15,6 +15,12 @@ interface JobData {
   buildScheme: string;
 }
 
+const cacheDefaults = {
+  disabled: false,
+  customPaths: [],
+  cacheDefaultPaths: true,
+};
+
 export async function prepareJobAsync(
   ctx: BuildContext<Platform.IOS>,
   jobData: JobData
@@ -29,12 +35,12 @@ export async function prepareJobAsync(
     }
   }
 
-  const job = {
+  const job: Ios.Job = {
     type: ctx.workflow,
     platform: Platform.IOS,
     projectArchive: jobData.projectArchive,
     projectRootDirectory,
-    distribution: ctx.buildProfile.distribution,
+    distribution: ctx.buildProfile.scheme ? 'simulator' : ctx.buildProfile.distribution,
     builderEnvironment: {
       image: resolveImage(ctx),
       node: ctx.buildProfile.node,
@@ -46,6 +52,7 @@ export async function prepareJobAsync(
       env: ctx.buildProfile.env,
     },
     cache: {
+      ...cacheDefaults,
       ...ctx.buildProfile.cache,
       clear: ctx.clearCache,
     },
@@ -56,13 +63,14 @@ export async function prepareJobAsync(
     updates: { channel: ctx.buildProfile.channel },
 
     scheme: jobData.buildScheme,
-    buildConfiguration: ctx.buildProfile.schemeBuildConfiguration,
+    buildConfiguration: ctx.buildProfile.buildConfiguration,
     artifactPath: ctx.buildProfile.artifactPath,
 
-    buildType: ctx.buildProfile.buildType,
+    buildType: ctx.buildProfile.developmentClient
+      ? Ios.BuildType.DEVELOPMENT_CLIENT
+      : Ios.BuildType.RELEASE,
     username,
   };
-
   return sanitizeJob(job);
 }
 

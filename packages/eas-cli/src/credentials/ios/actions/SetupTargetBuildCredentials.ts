@@ -1,4 +1,4 @@
-import { IosDistributionType, IosEnterpriseProvisioning } from '@expo/eas-json';
+import { DistributionType, IosEnterpriseProvisioning } from '@expo/eas-json';
 
 import {
   IosDistributionType as GraphQLIosDistributionType,
@@ -14,7 +14,7 @@ import { SetupProvisioningProfile } from './SetupProvisioningProfile';
 
 interface Options {
   app: GraphQLAppLookupParams;
-  distribution: IosDistributionType;
+  distribution: DistributionType;
   enterpriseProvisioning?: IosEnterpriseProvisioning;
   iosCapabilitiesOptions?: IosCapabilitiesOptions;
 }

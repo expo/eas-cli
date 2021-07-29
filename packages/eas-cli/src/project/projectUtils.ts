@@ -61,7 +61,7 @@ export async function setProjectIdAsync(
   projectDir: string,
   options: { env?: Env } = {}
 ): Promise<ExpoConfig | undefined> {
-  const exp = getExpoConfig(projectDir, options.env);
+  const exp = getExpoConfig(projectDir, options);
 
   const privacy = toAppPrivacy(exp.privacy);
   const projectId = await ensureProjectExistsAsync({

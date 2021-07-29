@@ -34,7 +34,7 @@ export async function resolveXcodeBuildContextAsync(
     return {
       buildScheme,
       buildConfiguration:
-        buildProfile.schemeBuildConfiguration ??
+        buildProfile.buildConfiguration ??
         (await IOSConfig.BuildScheme.getArchiveBuildConfigurationForSchemeAsync(
           projectDir,
           buildScheme

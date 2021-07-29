@@ -38,7 +38,7 @@ export async function validateAndSyncProjectConfigurationAsync({
 }): Promise<void> {
   const workflow = await resolveWorkflowAsync(projectDir, Platform.IOS);
   const { autoIncrement } = buildProfile;
-  const versionBumpStrategy = resolveVersionBumpStrategy(autoIncrement);
+  const versionBumpStrategy = resolveVersionBumpStrategy(autoIncrement ?? false);
 
   if (workflow === Workflow.GENERIC) {
     if (isExpoUpdatesInstalled(projectDir)) {

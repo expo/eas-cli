@@ -1,5 +1,5 @@
 import { Platform } from '@expo/eas-build-job';
-import { CredentialsSource, IosDistributionType, IosEnterpriseProvisioning } from '@expo/eas-json';
+import { CredentialsSource, DistributionType, IosEnterpriseProvisioning } from '@expo/eas-json';
 
 import { CommonIosAppCredentialsFragment } from '../../graphql/generated';
 import Log from '../../log';
@@ -18,7 +18,7 @@ import { isAdHocProfile } from './utils/provisioningProfile';
 interface Options {
   app: App;
   targets: Target[];
-  distribution: IosDistributionType;
+  distribution: DistributionType;
   enterpriseProvisioning?: IosEnterpriseProvisioning;
   iosCapabilitiesOptions?: IosCapabilitiesOptions;
 }

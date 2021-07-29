@@ -1,4 +1,4 @@
-import { IosDistributionType, IosEnterpriseProvisioning } from '@expo/eas-json';
+import { DistributionType, IosEnterpriseProvisioning } from '@expo/eas-json';
 import chalk from 'chalk';
 import nullthrows from 'nullthrows';
 
@@ -12,7 +12,7 @@ import { SetupTargetBuildCredentials } from './SetupTargetBuildCredentials';
 interface Options {
   app: App;
   targets: Target[];
-  distribution: IosDistributionType;
+  distribution: DistributionType;
   enterpriseProvisioning?: IosEnterpriseProvisioning;
   iosCapabilitiesOptions?: IosCapabilitiesOptions;
 }

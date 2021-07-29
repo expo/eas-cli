@@ -8,8 +8,8 @@ export class SelectIosDistributionTypeGraphqlFromBuildProfile {
   constructor(private buildProfile: IosBuildProfile) {}
 
   async runAsync(ctx: Context): Promise<IosDistributionTypeGraphql> {
-    const { distribution } = this.buildProfile;
-    if (distribution === 'simulator') {
+    const { distribution, simulator } = this.buildProfile;
+    if (simulator) {
       throw new Error('A simulator distribution does not require credentials to be configured.');
     } else if (distribution === 'store') {
       return IosDistributionTypeGraphql.AppStore;

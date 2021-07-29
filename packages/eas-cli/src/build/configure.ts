@@ -26,24 +26,16 @@ export async function ensureProjectConfiguredAsync(
   projectDir: string,
   requestedPlatform: RequestedPlatform
 ): Promise<void> {
-  const platformToConfigure = await getPlatformToConfigureAsync(projectDir, requestedPlatform);
-  if (!platformToConfigure) {
+  if (await fs.pathExists(EasJsonReader.formatEasJsonPath(projectDir))) {
     return;
   }
 
-  // Ensure the prompt is consistent with the platforms we need to configure
-  let message = 'This project is not configured to build with EAS. Set it up now?';
-  if (platformToConfigure === RequestedPlatform.Ios) {
-    message = 'Your iOS project is not configured to build with EAS. Set it up now?';
-  } else if (platformToConfigure === RequestedPlatform.Android) {
-    message = 'Your Android project is not configured to build with EAS. Set it up now?';
-  }
-
+  const message = 'This project is not configured to build with EAS. Set it up now?';
   const confirm = await confirmAsync({ message });
   if (confirm) {
     await configureAsync({
       projectDir,
-      platform: platformToConfigure,
+      platform: requestedPlatform,
     });
     if (await vcs.hasUncommittedChangesAsync()) {
       error(
@@ -103,95 +95,46 @@ export async function configureAsync(options: {
   }
 }
 
-const ANDROID_MANAGED_DEFAULTS = {
-  release: {
-    buildType: 'app-bundle',
-  },
+const MANAGED_DEFAULTS = {
+  release: {},
   development: {
-    buildType: 'development-client',
-    distribution: 'internal',
-  },
-};
-const ANDROID_GENERIC_DEFAULTS = {
-  release: {
-    gradleCommand: ':app:bundleRelease',
-  },
-  development: {
-    gradleCommand: ':app:assembleDebug',
+    developmentClient: true,
     distribution: 'internal',
   },
 };
 
-const IOS_MANAGED_DEFAULTS = {
-  release: {
-    buildType: 'release',
-  },
+const GENERIC_DEFAULTS = {
+  release: {},
   development: {
-    buildType: 'development-client',
     distribution: 'internal',
-  },
-};
-
-const IOS_GENERIC_DEFAULTS = {
-  release: {
-    schemeBuildConfiguration: 'Release',
-  },
-  development: {
-    schemeBuildConfiguration: 'Debug',
-    distribution: 'internal',
+    android: {
+      gradleCommand: ':app:assembleDebug',
+    },
+    ios: {
+      buildConfiguration: 'Debug',
+    },
   },
 };
 
 export async function ensureEasJsonExistsAsync(ctx: ConfigureContext): Promise<void> {
   const easJsonPath = EasJsonReader.formatEasJsonPath(ctx.projectDir);
-  let existingEasJson;
 
   if (await fs.pathExists(easJsonPath)) {
-    const reader = new EasJsonReader(ctx.projectDir, ctx.requestedPlatform);
-    await reader.validateAsync();
+    const reader = new EasJsonReader(ctx.projectDir);
+    await reader.readAndValidateAsync();
 
-    existingEasJson = await reader.readRawAsync();
     Log.withTick('Validated eas.json');
-
-    // If we have already populated eas.json with the default fields for the
-    // platform then proceed
-    if (ctx.requestedPlatform !== 'all' && existingEasJson.builds[ctx.requestedPlatform]) {
-      return;
-    } else if (
-      ctx.requestedPlatform === 'all' &&
-      existingEasJson.builds.ios &&
-      existingEasJson.builds.android
-    ) {
-      return;
-    }
+    return;
   }
 
-  const shouldInitIOS =
-    ['all', 'ios'].includes(ctx.requestedPlatform) && !existingEasJson?.builds.ios;
-  const shouldInitAndroid =
-    ['all', 'android'].includes(ctx.requestedPlatform) && !existingEasJson?.builds.android;
-
-  const easJson = {
-    builds: {
-      ...existingEasJson?.builds,
-      ...(shouldInitAndroid
-        ? {
-            android: ctx.hasAndroidNativeProject
-              ? ANDROID_GENERIC_DEFAULTS
-              : ANDROID_MANAGED_DEFAULTS,
-          }
-        : null),
-      ...(shouldInitIOS
-        ? {
-            ios: ctx.hasIosNativeProject ? IOS_GENERIC_DEFAULTS : IOS_MANAGED_DEFAULTS,
-          }
-        : null),
-    },
-  };
+  const easJson =
+    ctx.hasAndroidNativeProject && ctx.hasIosNativeProject
+      ? { build: GENERIC_DEFAULTS }
+      : { build: MANAGED_DEFAULTS };
 
   await fs.writeFile(easJsonPath, `${JSON.stringify(easJson, null, 2)}\n`);
   await vcs.trackFileAsync(easJsonPath);
-  Log.withTick(`${existingEasJson ? 'Updated' : 'Generated'} eas.json`);
+  Log.withTick('Generated eas.json');
 }
 
 enum ShouldCommitChanges {
@@ -227,31 +170,4 @@ async function reviewAndCommitChangesAsync(
     await vcs.showDiffAsync();
     await reviewAndCommitChangesAsync(initialCommitMessage, false);
   }
-}
-
-async function getPlatformToConfigureAsync(
-  projectDir: string,
-  platform: RequestedPlatform
-): Promise<RequestedPlatform | null> {
-  if (!(await fs.pathExists(EasJsonReader.formatEasJsonPath(projectDir)))) {
-    return platform;
-  }
-
-  const easConfig = await new EasJsonReader(projectDir, platform).readRawAsync();
-  if (platform === RequestedPlatform.All) {
-    if (easConfig.builds?.android && easConfig.builds?.ios) {
-      return null;
-    } else if (easConfig.builds?.ios) {
-      return RequestedPlatform.Android;
-    } else if (easConfig.builds?.android) {
-      return RequestedPlatform.Ios;
-    }
-  } else if (
-    (platform === RequestedPlatform.Android || platform === RequestedPlatform.Ios) &&
-    easConfig.builds?.[platform]
-  ) {
-    return null;
-  }
-
-  return platform;
 }
