@@ -40,7 +40,7 @@ export async function prepareJobAsync(
     platform: Platform.IOS,
     projectArchive: jobData.projectArchive,
     projectRootDirectory,
-    distribution: ctx.buildProfile.distribution,
+    distribution: ctx.buildProfile.scheme ? 'simulator' : ctx.buildProfile.distribution,
     builderEnvironment: {
       image: resolveImage(ctx),
       node: ctx.buildProfile.node,
@@ -71,7 +71,6 @@ export async function prepareJobAsync(
       : Ios.BuildType.RELEASE,
     username,
   };
-
   return sanitizeJob(job);
 }
 

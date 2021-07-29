@@ -7,7 +7,11 @@ import { EasJson as DeprecatedEasJson, EasJsonReader } from './DeprecatedEasJson
 import { EasJson, RawBuildProfile } from './EasJson.types';
 
 export async function isUsingDeprecatedFormatAsync(projectDir: string): Promise<boolean> {
-  const rawFile = await fs.readFile(path.join(projectDir, 'eas.json'), 'utf8');
+  const easJsonPath = path.join(projectDir, 'eas.json');
+  if (!(await fs.pathExists(easJsonPath))) {
+    return false;
+  }
+  const rawFile = await fs.readFile(easJsonPath, 'utf8');
   const json = JSON.parse(rawFile);
   return !!json?.builds;
 }
