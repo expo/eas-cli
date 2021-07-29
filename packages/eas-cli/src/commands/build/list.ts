@@ -54,8 +54,10 @@ export default class BuildList extends Command {
     try {
       const builds = await BuildQuery.allForAppAsync(projectId, {
         limit,
-        platform,
-        status: graphqlBuildStatus,
+        filter: {
+          platform,
+          status: graphqlBuildStatus,
+        },
       });
 
       if (builds.length) {

@@ -13,11 +13,13 @@ import {
 } from '../generated';
 import { BuildFragmentNode } from '../types/Build';
 
-type Filters = {
-  platform?: AppPlatform;
-  status?: BuildStatus;
+type BuildsQuery = {
   offset?: number;
   limit?: number;
+  filter?: {
+    platform?: AppPlatform;
+    status?: BuildStatus;
+  };
 };
 
 export const BuildQuery = {
@@ -52,7 +54,7 @@ export const BuildQuery = {
 
   async allForAppAsync(
     appId: string,
-    { limit = 10, offset = 0, status, platform }: Filters
+    { limit = 10, offset = 0, filter }: BuildsQuery
   ): Promise<BuildFragment[]> {
     const data = await withErrorHandlingAsync(
       graphqlClient
@@ -63,13 +65,12 @@ export const BuildQuery = {
               $appId: String!
               $offset: Int!
               $limit: Int!
-              $status: BuildStatus
-              $platform: AppPlatform
+              $filter: BuildFilter
             ) {
               app {
                 byId(appId: $appId) {
                   id
-                  builds(offset: $offset, limit: $limit, status: $status, platform: $platform) {
+                  builds(offset: $offset, limit: $limit, filter: $filter) {
                     id
                     ...BuildFragment
                   }
@@ -78,7 +79,7 @@ export const BuildQuery = {
             }
             ${print(BuildFragmentNode)}
           `,
-          { appId, offset, limit, status, platform }
+          { appId, offset, limit, filter }
         )
         .toPromise()
     );

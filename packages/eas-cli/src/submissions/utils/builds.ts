@@ -31,9 +31,11 @@ export async function getLatestBuildForSubmissionAsync(
   appId: string
 ): Promise<BuildFragmentWithArtifact | null> {
   const builds = await BuildQuery.allForAppAsync(appId, {
-    platform,
-    status: BuildStatus.Finished,
     limit: 1,
+    filter: {
+      platform,
+      status: BuildStatus.Finished,
+    },
   });
 
   if (builds.length < 1) {
