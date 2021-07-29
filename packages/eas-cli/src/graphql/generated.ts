@@ -436,6 +436,8 @@ export type App = Project & {
   buildOrBuildJobs: Array<BuildOrBuildJob>;
   /** EAS Submissions associated with this app */
   submissions: Array<Submission>;
+  /** Deployments associated with this app */
+  deployments: Array<Deployment>;
   /** iOS app credentials for the project */
   iosAppCredentials: Array<IosAppCredentials>;
   /** Android app credentials for the project */
@@ -487,6 +489,7 @@ export type App = Project & {
 
 /** Represents an Exponent App (or Experience in legacy terms) */
 export type AppBuildsArgs = {
+  filter?: Maybe<BuildFilter>;
   offset: Scalars['Int'];
   limit: Scalars['Int'];
   status?: Maybe<BuildStatus>;
@@ -514,6 +517,14 @@ export type AppSubmissionsArgs = {
   filter: SubmissionFilter;
   offset: Scalars['Int'];
   limit: Scalars['Int'];
+};
+
+
+/** Represents an Exponent App (or Experience in legacy terms) */
+export type AppDeploymentsArgs = {
+  limit: Scalars['Int'];
+  buildListMaxSize: Scalars['Int'];
+  mostRecentlyUpdatedAt?: Maybe<Scalars['DateTime']>;
 };
 
 
@@ -605,6 +616,25 @@ export enum AppPrivacy {
   Hidden = 'HIDDEN'
 }
 
+export type BuildFilter = {
+  platform?: Maybe<AppPlatform>;
+  status?: Maybe<BuildStatus>;
+  distribution?: Maybe<DistributionType>;
+  channel?: Maybe<Scalars['String']>;
+  appVersion?: Maybe<Scalars['String']>;
+  appBuildVersion?: Maybe<Scalars['String']>;
+  sdkVersion?: Maybe<Scalars['String']>;
+  runtimeVersion?: Maybe<Scalars['String']>;
+  appIdentifier?: Maybe<Scalars['String']>;
+  buildProfile?: Maybe<Scalars['String']>;
+  gitCommitHash?: Maybe<Scalars['String']>;
+};
+
+export enum AppPlatform {
+  Ios = 'IOS',
+  Android = 'ANDROID'
+}
+
 export enum BuildStatus {
   New = 'NEW',
   InQueue = 'IN_QUEUE',
@@ -614,9 +644,10 @@ export enum BuildStatus {
   Canceled = 'CANCELED'
 }
 
-export enum AppPlatform {
-  Ios = 'IOS',
-  Android = 'ANDROID'
+export enum DistributionType {
+  Store = 'STORE',
+  Internal = 'INTERNAL',
+  Simulator = 'SIMULATOR'
 }
 
 /** Represents an EAS Build */
@@ -835,12 +866,6 @@ export type BuildMetrics = {
   buildDuration?: Maybe<Scalars['Int']>;
 };
 
-export enum DistributionType {
-  Store = 'STORE',
-  Internal = 'INTERNAL',
-  Simulator = 'SIMULATOR'
-}
-
 export enum BuildIosEnterpriseProvisioning {
   Adhoc = 'ADHOC',
   Universal = 'UNIVERSAL'
@@ -983,6 +1008,39 @@ export enum BuildJobStatus {
 export type SubmissionFilter = {
   platform?: Maybe<AppPlatform>;
   status?: Maybe<SubmissionStatus>;
+};
+
+/** Represents a Deployment - a set of Builds with the same Runtime Version and Channel */
+export type Deployment = {
+  __typename?: 'Deployment';
+  id?: Maybe<Scalars['String']>;
+  runtimeVersion?: Maybe<Scalars['String']>;
+  channel?: Maybe<Scalars['String']>;
+  recentBuilds?: Maybe<Array<Maybe<Build>>>;
+  branchToReceive?: Maybe<UpdateBranch>;
+};
+
+export type UpdateBranch = {
+  __typename?: 'UpdateBranch';
+  id: Scalars['ID'];
+  appId: Scalars['ID'];
+  name: Scalars['String'];
+  createdAt: Scalars['DateTime'];
+  updatedAt: Scalars['DateTime'];
+  updates: Array<Update>;
+  mostRecentUpdateForEachPlatform: Array<Update>;
+};
+
+
+export type UpdateBranchUpdatesArgs = {
+  offset: Scalars['Int'];
+  limit: Scalars['Int'];
+  filter?: Maybe<UpdatesFilter>;
+};
+
+export type UpdatesFilter = {
+  platform?: Maybe<AppPlatform>;
+  runtimeVersions?: Maybe<Array<Scalars['String']>>;
 };
 
 export type IosAppCredentialsFilter = {
@@ -1238,29 +1296,6 @@ export type UpdateChannel = {
 export type UpdateChannelUpdateBranchesArgs = {
   offset: Scalars['Int'];
   limit: Scalars['Int'];
-};
-
-export type UpdateBranch = {
-  __typename?: 'UpdateBranch';
-  id: Scalars['ID'];
-  appId: Scalars['ID'];
-  name: Scalars['String'];
-  createdAt: Scalars['DateTime'];
-  updatedAt: Scalars['DateTime'];
-  updates: Array<Update>;
-  mostRecentUpdateForEachPlatform: Array<Update>;
-};
-
-
-export type UpdateBranchUpdatesArgs = {
-  offset: Scalars['Int'];
-  limit: Scalars['Int'];
-  filter?: Maybe<UpdatesFilter>;
-};
-
-export type UpdatesFilter = {
-  platform?: Maybe<AppPlatform>;
-  runtimeVersions?: Maybe<Array<Scalars['String']>>;
 };
 
 export type EnvironmentSecret = {
@@ -3424,16 +3459,6 @@ export type DeleteWebhookResult = {
   id: Scalars['ID'];
 };
 
-/** Represents a Deployment - a set of Builds with the same Runtime Version and Channel */
-export type Deployment = {
-  __typename?: 'Deployment';
-  id?: Maybe<Scalars['String']>;
-  runtimeVersion?: Maybe<Scalars['String']>;
-  channel?: Maybe<Scalars['String']>;
-  recentBuilds?: Maybe<Array<Maybe<Build>>>;
-  branchToReceive?: Maybe<UpdateBranch>;
-};
-
 export enum CacheControlScope {
   Public = 'PUBLIC',
   Private = 'PRIVATE'
@@ -4868,8 +4893,7 @@ export type GetAllBuildsForAppQueryVariables = Exact<{
   appId: Scalars['String'];
   offset: Scalars['Int'];
   limit: Scalars['Int'];
-  status?: Maybe<BuildStatus>;
-  platform?: Maybe<AppPlatform>;
+  filter?: Maybe<BuildFilter>;
 }>;
 
 
