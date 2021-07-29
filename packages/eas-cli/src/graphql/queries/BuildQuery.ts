@@ -8,6 +8,7 @@ import {
   BuildStatus,
   BuildsByIdQuery,
   BuildsByIdQueryVariables,
+  DistributionType,
   GetAllBuildsForAppQuery,
   GetAllBuildsForAppQueryVariables,
 } from '../generated';
@@ -19,6 +20,15 @@ type BuildsQuery = {
   filter?: {
     platform?: AppPlatform;
     status?: BuildStatus;
+    distribution?: DistributionType;
+    channel?: string;
+    appVersion?: string;
+    appBuildVersion?: string;
+    sdkVersion?: string;
+    runtimeVersion?: string;
+    appIdentifier?: string;
+    buildProfile?: string;
+    gitCommitHash?: string;
   };
 };
 
