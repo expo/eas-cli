@@ -1,5 +1,6 @@
 import { Metadata, sanitizeMetadata } from '@expo/eas-build-job';
-import { CredentialsSource, IosEnterpriseProvisioning } from '@expo/eas-json';
+import { IosEnterpriseProvisioning } from '@expo/eas-json';
+import type { XCBuildConfiguration } from 'xcode';
 
 import { getApplicationIdAsync } from '../project/android/applicationId';
 import { getBundleIdentifierAsync } from '../project/ios/bundleIdentifier';
@@ -27,22 +28,26 @@ import { isExpoUpdatesInstalled } from './utils/updates';
  */
 const packageJSON = require('../../package.json');
 
+export type MetadataContext<T extends Platform> = T extends Platform.ANDROID
+  ? object
+  : IosMetadataContext;
+
+export interface IosMetadataContext {
+  buildSettings: XCBuildConfiguration['buildSettings'];
+}
+
 export async function collectMetadata<T extends Platform>(
   ctx: BuildContext<T>,
-  {
-    credentialsSource,
-  }: {
-    credentialsSource?: CredentialsSource.LOCAL | CredentialsSource.REMOTE;
-  }
+  platformContext?: MetadataContext<T>
 ): Promise<Metadata> {
   const channelOrReleaseChannel = await resolveChannelOrReleaseChannelAsync(ctx);
   const metadata = {
     trackingContext: ctx.trackingCtx,
     appVersion: await resolveAppVersionAsync(ctx),
-    appBuildVersion: await resolveAppBuildVersionAsync(ctx),
+    appBuildVersion: await resolveAppBuildVersionAsync(ctx, platformContext),
     cliVersion: packageJSON.version,
     workflow: ctx.workflow,
-    credentialsSource,
+    credentialsSource: ctx.buildProfile.credentialsSource,
     sdkVersion: ctx.exp.sdkVersion,
     runtimeVersion: ctx.exp.runtimeVersion,
     ...channelOrReleaseChannel,
@@ -62,20 +67,24 @@ export async function collectMetadata<T extends Platform>(
 }
 
 async function resolveAppVersionAsync<T extends Platform>(
-  ctx: BuildContext<T>
+  ctx: BuildContext<T>,
+  platformContext?: MetadataContext<T>
 ): Promise<string | undefined> {
   if (ctx.platform === Platform.IOS) {
-    return await readShortVersionAsync(ctx.projectDir, ctx.exp);
+    const iosContext = platformContext as IosMetadataContext | undefined;
+    return await readShortVersionAsync(ctx.projectDir, ctx.exp, iosContext?.buildSettings ?? {});
   } else {
     return await readVersionNameAsync(ctx.projectDir, ctx.exp);
   }
 }
 
 async function resolveAppBuildVersionAsync<T extends Platform>(
-  ctx: BuildContext<T>
+  ctx: BuildContext<T>,
+  platformContext?: MetadataContext<T>
 ): Promise<string | undefined> {
   if (ctx.platform === Platform.IOS) {
-    return await readBuildNumberAsync(ctx.projectDir, ctx.exp);
+    const iosContext = platformContext as IosMetadataContext | undefined;
+    return await readBuildNumberAsync(ctx.projectDir, ctx.exp, iosContext?.buildSettings ?? {});
   } else {
     const versionCode = await readVersionCodeAsync(ctx.projectDir, ctx.exp);
     return versionCode !== undefined ? String(versionCode) : undefined;

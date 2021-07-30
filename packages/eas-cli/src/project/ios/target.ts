@@ -21,12 +21,14 @@ export async function resolveTargetsAsync(
   result.push({
     targetName: applicationTarget.name,
     bundleIdentifier,
+    buildConfiguration,
   });
 
   if (applicationTarget.dependencies && applicationTarget.dependencies.length > 0) {
     for (const dependency of applicationTarget.dependencies) {
       result.push({
         targetName: dependency.name,
+        buildConfiguration,
         bundleIdentifier: await getBundleIdentifierAsync(projectDir, exp, {
           targetName: dependency.name,
           buildConfiguration,

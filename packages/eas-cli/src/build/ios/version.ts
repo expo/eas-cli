@@ -4,11 +4,13 @@ import { Platform, Workflow } from '@expo/eas-build-job';
 import chalk from 'chalk';
 import nullthrows from 'nullthrows';
 import semver from 'semver';
+import type { XCBuildConfiguration } from 'xcode';
 
 import Log from '../../log';
 import { resolveWorkflowAsync } from '../../project/workflow';
 import { promptAsync } from '../../prompts';
 import { updateAppJsonConfigAsync } from '../utils/appJson';
+import { evaluateString } from '../utils/template';
 import { readPlistAsync, writePlistAsync } from './plist';
 
 export enum BumpStrategy {
@@ -104,12 +106,16 @@ export async function bumpVersionInAppJsonAsync({
 
 export async function readShortVersionAsync(
   projectDir: string,
-  exp: ExpoConfig
+  exp: ExpoConfig,
+  buildSettings: XCBuildConfiguration['buildSettings']
 ): Promise<string | undefined> {
   const workflow = await resolveWorkflowAsync(projectDir, Platform.IOS);
   if (workflow === Workflow.GENERIC) {
     const infoPlist = await readInfoPlistAsync(projectDir);
-    return infoPlist.CFBundleShortVersionString;
+    return (
+      infoPlist.CFBundleShortVersionString &&
+      evaluateString(infoPlist.CFBundleShortVersionString, buildSettings)
+    );
   } else {
     return exp.version;
   }
@@ -117,12 +123,13 @@ export async function readShortVersionAsync(
 
 export async function readBuildNumberAsync(
   projectDir: string,
-  exp: ExpoConfig
+  exp: ExpoConfig,
+  buildSettings: XCBuildConfiguration['buildSettings']
 ): Promise<string | undefined> {
   const workflow = await resolveWorkflowAsync(projectDir, Platform.IOS);
   if (workflow === Workflow.GENERIC) {
     const infoPlist = await readInfoPlistAsync(projectDir);
-    return infoPlist.CFBundleVersion;
+    return infoPlist.CFBundleVersion && evaluateString(infoPlist.CFBundleVersion, buildSettings);
   } else {
     return IOSConfig.Version.getBuildNumber(exp);
   }
