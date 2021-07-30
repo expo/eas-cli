@@ -11,6 +11,7 @@ export interface App {
 
 export interface Target {
   targetName: string;
+  buildConfiguration?: string;
   bundleIdentifier: string;
   parentBundleIdentifier?: string;
 }

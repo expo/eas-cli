@@ -18,7 +18,7 @@ import vcs from '../vcs';
 import { requestedPlatformDisplayNames } from './constants';
 import { BuildContext } from './context';
 import { runLocalBuildAsync } from './local';
-import { collectMetadata } from './metadata';
+import { MetadataContext, collectMetadata } from './metadata';
 import { Platform, TrackingContext } from './types';
 import Analytics, { Event } from './utils/analytics';
 import { printDeprecationWarnings } from './utils/printBuildInfo';
@@ -41,6 +41,7 @@ interface Builder<TPlatform extends Platform, Credentials, TJob extends Job> {
     ctx: BuildContext<TPlatform>
   ): Promise<CredentialsResult<Credentials> | undefined>;
   ensureProjectConfiguredAsync(ctx: BuildContext<TPlatform>): Promise<void>;
+  getMetadataContext: () => MetadataContext<TPlatform>;
   prepareJobAsync(ctx: BuildContext<TPlatform>, jobData: JobData<Credentials>): Promise<Job>;
   sendBuildRequestAsync(appId: string, job: TJob, metadata: Metadata): Promise<BuildResult>;
 }
@@ -52,54 +53,50 @@ export async function prepareBuildRequestForPlatformAsync<
   Credentials,
   TJob extends Job
 >(builder: Builder<TPlatform, Credentials, TJob>): Promise<BuildRequestSender> {
+  const { ctx } = builder;
   const credentialsResult = await withAnalyticsAsync(
-    async () => await builder.ensureCredentialsAsync(builder.ctx),
+    async () => await builder.ensureCredentialsAsync(ctx),
     {
       successEvent: Event.GATHER_CREDENTIALS_SUCCESS,
       failureEvent: Event.GATHER_CREDENTIALS_FAIL,
-      trackingCtx: builder.ctx.trackingCtx,
+      trackingCtx: ctx.trackingCtx,
     }
   );
-  if (!builder.ctx.skipProjectConfiguration) {
-    await withAnalyticsAsync(async () => await builder.ensureProjectConfiguredAsync(builder.ctx), {
+  if (!ctx.skipProjectConfiguration) {
+    await withAnalyticsAsync(async () => await builder.ensureProjectConfiguredAsync(ctx), {
       successEvent: Event.CONFIGURE_PROJECT_SUCCESS,
       failureEvent: Event.CONFIGURE_PROJECT_FAIL,
-      trackingCtx: builder.ctx.trackingCtx,
+      trackingCtx: ctx.trackingCtx,
     });
   }
 
   if (await vcs.hasUncommittedChangesAsync()) {
     Log.addNewLineIfNone();
     await reviewAndCommitChangesAsync(
-      `[EAS Build] Run EAS Build for ${
-        requestedPlatformDisplayNames[builder.ctx.platform as Platform]
-      }`,
-      {
-        nonInteractive: builder.ctx.nonInteractive,
-      }
+      `[EAS Build] Run EAS Build for ${requestedPlatformDisplayNames[ctx.platform as Platform]}`,
+      { nonInteractive: ctx.nonInteractive }
     );
   }
 
-  const projectArchive = builder.ctx.local
+  const projectArchive = ctx.local
     ? ({
         type: ArchiveSourceType.PATH,
         path: (await makeProjectTarballAsync()).path,
       } as const)
     : ({
         type: ArchiveSourceType.S3,
-        bucketKey: await uploadProjectAsync(builder.ctx),
+        bucketKey: await uploadProjectAsync(ctx),
       } as const);
 
-  const metadata = await collectMetadata(builder.ctx, {
-    credentialsSource: credentialsResult?.source,
-  });
-  const job = await builder.prepareJobAsync(builder.ctx, {
+  const metadataContext = builder.getMetadataContext();
+  const metadata = await collectMetadata(ctx, metadataContext);
+  const job = await builder.prepareJobAsync(ctx, {
     projectArchive,
     credentials: credentialsResult?.credentials,
   });
 
   return async () => {
-    if (builder.ctx.local) {
+    if (ctx.local) {
       await runLocalBuildAsync(job);
       return undefined;
     } else {

@@ -60,6 +60,7 @@ This means that it will most likely produce an AAB and you will not be able to i
         await validateAndSyncProjectConfigurationAsync(ctx.projectDir, ctx.exp);
       }
     },
+    getMetadataContext: () => ({}),
     prepareJobAsync,
     sendBuildRequestAsync: async (
       appId: string,

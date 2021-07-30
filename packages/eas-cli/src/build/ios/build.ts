@@ -1,13 +1,15 @@
+import { IOSConfig } from '@expo/config-plugins';
 import { Ios, Job, Metadata, Workflow } from '@expo/eas-build-job';
 
 import { IosCredentials } from '../../credentials/ios/types';
 import { BuildMutation, BuildResult } from '../../graphql/mutations/BuildMutation';
 import { ensureBundleIdentifierIsDefinedForManagedProjectAsync } from '../../project/ios/bundleIdentifier';
 import { resolveXcodeBuildContextAsync } from '../../project/ios/scheme';
-import { resolveTargetsAsync } from '../../project/ios/target';
+import { findApplicationTarget, resolveTargetsAsync } from '../../project/ios/target';
 import { BuildRequestSender, JobData, prepareBuildRequestForPlatformAsync } from '../build';
 import { BuildContext } from '../context';
 import { transformMetadata } from '../graphql';
+import { IosMetadataContext } from '../metadata';
 import { Platform } from '../types';
 import { validateAndSyncProjectConfigurationAsync } from './configure';
 import { ensureIosCredentialsAsync } from './credentials';
@@ -50,6 +52,16 @@ export async function prepareIosBuildAsync(
         exp: ctx.exp,
         buildProfile,
       });
+    },
+    getMetadataContext: (): IosMetadataContext => {
+      const applicationTarget = findApplicationTarget(targets);
+      const project = IOSConfig.XcodeUtils.getPbxproj(ctx.projectDir);
+      const xcBuildConfiguration = IOSConfig.Target.getXCBuildConfigurationFromPbxproj(project, {
+        targetName: applicationTarget.targetName,
+        buildConfiguration: applicationTarget.buildConfiguration,
+      });
+      const buildSettings = xcBuildConfiguration?.buildSettings ?? {};
+      return { buildSettings };
     },
     prepareJobAsync: async (
       ctx: BuildContext<Platform.IOS>,

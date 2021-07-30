@@ -149,7 +149,7 @@ describe(readBuildNumberAsync, () => {
   describe('generic project', () => {
     it('reads the build number from native code', async () => {
       const exp = initGenericProject();
-      const buildNumber = await readBuildNumberAsync('/repo', exp);
+      const buildNumber = await readBuildNumberAsync('/repo', exp, {});
       expect(buildNumber).toBe('1');
     });
   });
@@ -157,7 +157,7 @@ describe(readBuildNumberAsync, () => {
   describe('managed project', () => {
     it('reads the build number from expo config', async () => {
       const exp = initManagedProject();
-      const buildNumber = await readBuildNumberAsync('/repo', exp);
+      const buildNumber = await readBuildNumberAsync('/repo', exp, {});
       expect(buildNumber).toBe('1');
     });
   });
@@ -167,21 +167,33 @@ describe(readShortVersionAsync, () => {
   describe('generic project', () => {
     it('reads the short version from native code', async () => {
       const exp = initGenericProject();
-      const shortVersion = await readShortVersionAsync('/repo', exp);
+      const shortVersion = await readShortVersionAsync('/repo', exp, {});
       expect(shortVersion).toBe('1.0.0');
+    });
+    it('evaluates interpolated build number', async () => {
+      const exp = initGenericProject({
+        shortVersion: '$(CURRENT_PROJECT_VERSION)',
+      });
+      const buildNumber = await readShortVersionAsync('/repo', exp, {
+        CURRENT_PROJECT_VERSION: '1.0.0',
+      });
+      expect(buildNumber).toBe('1.0.0');
     });
   });
 
   describe('managed project', () => {
     it('reads the version from app config', async () => {
       const exp = initGenericProject();
-      const shortVersion = await readShortVersionAsync('/repo', exp);
+      const shortVersion = await readShortVersionAsync('/repo', exp, {});
       expect(shortVersion).toBe('1.0.0');
     });
   });
 });
 
-function initGenericProject(): ExpoConfig {
+function initGenericProject({
+  shortVersion = '1.0.0',
+  version = '1',
+}: { shortVersion?: string; version?: string } = {}): ExpoConfig {
   vol.fromJSON(
     {
       './app.json': JSON.stringify({
@@ -197,9 +209,9 @@ function initGenericProject(): ExpoConfig {
 <plist version="1.0">
 <dict>
   <key>CFBundleShortVersionString</key>
-  <string>1.0.0</string>
+  <string>${shortVersion}</string>
   <key>CFBundleVersion</key>
-  <string>1</string>
+  <string>${version}</string>
 </dict>
 </plist>`,
     },
