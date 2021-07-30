@@ -15,4 +15,10 @@ export enum BuildStatus {
   CANCELED = 'canceled',
 }
 
+export enum BuildDistributionType {
+  STORE = 'store',
+  INTERNAL = 'internal',
+  SIMULATOR = 'simulator',
+}
+
 export type TrackingContext = Record<string, string | number | boolean>;

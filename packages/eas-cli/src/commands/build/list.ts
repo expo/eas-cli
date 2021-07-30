@@ -3,9 +3,13 @@ import { Command, flags } from '@oclif/command';
 import chalk from 'chalk';
 import ora from 'ora';
 
-import { BuildStatus, RequestedPlatform } from '../../build/types';
+import { BuildDistributionType, BuildStatus, RequestedPlatform } from '../../build/types';
 import { formatGraphQLBuild } from '../../build/utils/formatBuild';
-import { AppPlatform, BuildStatus as GraphQLBuildStatus } from '../../graphql/generated';
+import {
+  AppPlatform,
+  DistributionType,
+  BuildStatus as GraphQLBuildStatus,
+} from '../../graphql/generated';
 import { BuildQuery } from '../../graphql/queries/BuildQuery';
 import Log from '../../log';
 import {
@@ -31,18 +35,36 @@ export default class BuildList extends Command {
         BuildStatus.CANCELED,
       ],
     }),
+    distribution: flags.enum({
+      options: [
+        BuildDistributionType.STORE,
+        BuildDistributionType.INTERNAL,
+        BuildDistributionType.SIMULATOR,
+      ],
+    }),
+    channel: flags.string(),
+    appVersion: flags.string(),
+    appBuildVersion: flags.string(),
+    sdkVersion: flags.string(),
+    runtimeVersion: flags.string(),
+    appIdentifier: flags.string(),
+    buildProfile: flags.string(),
+    gitCommitHash: flags.string(),
     limit: flags.integer(),
   };
 
   async run() {
+    const { flags } = this.parse(BuildList);
     const {
       platform: requestedPlatform,
       status: buildStatus,
+      distribution: buildDistribution,
       limit = 10,
-    } = this.parse(BuildList).flags;
+    } = flags;
 
     const platform = toAppPlatform(requestedPlatform);
     const graphqlBuildStatus = toGraphQLBuildStatus(buildStatus);
+    const graphqlBuildDistribution = toGraphQLBuildDistribution(buildDistribution);
 
     const projectDir = (await findProjectRootAsync()) ?? process.cwd();
     const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
@@ -54,8 +76,19 @@ export default class BuildList extends Command {
     try {
       const builds = await BuildQuery.allForAppAsync(projectId, {
         limit,
-        platform,
-        status: graphqlBuildStatus,
+        filter: {
+          platform,
+          status: graphqlBuildStatus,
+          distribution: graphqlBuildDistribution,
+          channel: flags.channel,
+          appVersion: flags.appVersion,
+          appBuildVersion: flags.appBuildVersion,
+          sdkVersion: flags.sdkVersion,
+          runtimeVersion: flags.runtimeVersion,
+          appIdentifier: flags.appIdentifier,
+          buildProfile: flags.buildProfile,
+          gitCommitHash: flags.gitCommitHash,
+        },
       });
 
       if (builds.length) {
@@ -92,7 +125,7 @@ const toAppPlatform = (requestedPlatform?: RequestedPlatform): AppPlatform | und
   }
 };
 
-const toGraphQLBuildStatus = (buildStatus: BuildStatus): GraphQLBuildStatus | undefined => {
+const toGraphQLBuildStatus = (buildStatus?: BuildStatus): GraphQLBuildStatus | undefined => {
   if (!buildStatus) {
     return undefined;
   } else if (buildStatus === BuildStatus.NEW) {
@@ -107,5 +140,19 @@ const toGraphQLBuildStatus = (buildStatus: BuildStatus): GraphQLBuildStatus | un
     return GraphQLBuildStatus.Finished;
   } else {
     return GraphQLBuildStatus.Canceled;
+  }
+};
+
+const toGraphQLBuildDistribution = (
+  buildDistribution?: BuildDistributionType
+): DistributionType | undefined => {
+  if (buildDistribution === BuildDistributionType.STORE) {
+    return DistributionType.Store;
+  } else if (buildDistribution === BuildDistributionType.INTERNAL) {
+    return DistributionType.Internal;
+  } else if (buildDistribution === BuildDistributionType.SIMULATOR) {
+    return DistributionType.Simulator;
+  } else {
+    return undefined;
   }
 };

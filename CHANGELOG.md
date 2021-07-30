@@ -10,13 +10,13 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Add more filter params to `build:list`. ([#540](https://github.com/expo/eas-cli/pull/540) by [@dsokal](https://github.com/dsokal))
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
 
 ## [0.22.1](https://github.com/expo/eas-cli/releases/tag/v0.22.1) - 2021-07-28
-
-### 🛠 Breaking changes
 
 ### 🎉 New features
 
