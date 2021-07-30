@@ -354,7 +354,7 @@ export async function waitForBuildEndAsync(
         const errored = builds.filter(build => build?.status === BuildStatus.Errored).length;
         const finished = builds.filter(build => build?.status === BuildStatus.Finished).length;
         const canceled = builds.filter(build => build?.status === BuildStatus.Canceled).length;
-        const unknownState = builds.length - inQueue - inProgress - errored - finished;
+        const unknownState = builds.length - newBuilds - inQueue - inProgress - errored - finished;
         spinner.text = [
           newBuilds && `Builds created: ${newBuilds}`,
           inQueue && `Builds in queue: ${inQueue}`,
