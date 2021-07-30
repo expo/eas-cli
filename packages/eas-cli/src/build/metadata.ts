@@ -1,4 +1,4 @@
-import { Metadata } from '@expo/eas-build-job';
+import { Metadata, sanitizeMetadata } from '@expo/eas-build-job';
 import { CredentialsSource, IosEnterpriseProvisioning } from '@expo/eas-json';
 
 import { getApplicationIdAsync } from '../project/android/applicationId';
@@ -36,7 +36,7 @@ export async function collectMetadata<T extends Platform>(
   }
 ): Promise<Metadata> {
   const channelOrReleaseChannel = await resolveChannelOrReleaseChannelAsync(ctx);
-  return {
+  const metadata = {
     trackingContext: ctx.trackingCtx,
     appVersion: await resolveAppVersionAsync(ctx),
     appBuildVersion: await resolveAppBuildVersionAsync(ctx),
@@ -58,6 +58,7 @@ export async function collectMetadata<T extends Platform>(
       ),
     }),
   };
+  return sanitizeMetadata(metadata);
 }
 
 async function resolveAppVersionAsync<T extends Platform>(
