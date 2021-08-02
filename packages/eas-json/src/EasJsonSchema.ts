@@ -59,6 +59,7 @@ const IosBuildProfileSchema = CommonBuildProfileSchema.concat(
 
     artifactPath: Joi.string(),
     scheme: Joi.string(),
+    simulator: Joi.boolean(),
     buildConfiguration: Joi.string(),
   })
 );
