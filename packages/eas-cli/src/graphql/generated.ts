@@ -1013,11 +1013,11 @@ export type SubmissionFilter = {
 /** Represents a Deployment - a set of Builds with the same Runtime Version and Channel */
 export type Deployment = {
   __typename?: 'Deployment';
-  id?: Maybe<Scalars['String']>;
-  runtimeVersion?: Maybe<Scalars['String']>;
-  channel?: Maybe<Scalars['String']>;
-  recentBuilds?: Maybe<Array<Maybe<Build>>>;
-  branchToReceive?: Maybe<UpdateBranch>;
+  id: Scalars['ID'];
+  runtimeVersion: Scalars['String'];
+  channel: Scalars['String'];
+  recentBuilds: Array<Build>;
+  branchMapping?: Maybe<UpdateBranch>;
 };
 
 export type UpdateBranch = {
@@ -1028,7 +1028,6 @@ export type UpdateBranch = {
   createdAt: Scalars['DateTime'];
   updatedAt: Scalars['DateTime'];
   updates: Array<Update>;
-  mostRecentUpdateForEachPlatform: Array<Update>;
 };
 
 
@@ -3052,7 +3051,7 @@ export type PartialManifestAsset = {
   fileSHA256: Scalars['String'];
   bundleKey: Scalars['String'];
   contentType: Scalars['String'];
-  storageBucket: Scalars['String'];
+  fileExtension?: Maybe<Scalars['String']>;
   storageKey: Scalars['String'];
 };
 
