@@ -6,6 +6,16 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🛠 Breaking changes
 
+### 🎉 New features
+
+### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [0.22.2](https://github.com/expo/eas-cli/releases/tag/v0.22.2) - 2021-08-02
+
+### 🛠 Breaking changes
+
 - Introduce new format of eas.json (old eas.json will be migrated automatically). ([#537](https://github.com/expo/eas-cli/pull/537) by [@wkozyra95](https://github.com/wkozyra95))
 
 ### 🎉 New features
@@ -18,8 +28,6 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - Validate metadata client side to print better errors. ([#542](https://github.com/expo/eas-cli/pull/542) by [@wkozyra95](https://github.com/wkozyra95))
 - Fix `new` build status when building both paltforms. ([#543](https://github.com/expo/eas-cli/pull/543) by [@wkozyra95](https://github.com/wkozyra95))
-
-### 🧹 Chores
 
 ## [0.22.1](https://github.com/expo/eas-cli/releases/tag/v0.22.1) - 2021-07-28
 
