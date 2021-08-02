@@ -40,7 +40,7 @@ export async function prepareJobAsync(
     platform: Platform.IOS,
     projectArchive: jobData.projectArchive,
     projectRootDirectory,
-    distribution: ctx.buildProfile.scheme ? 'simulator' : ctx.buildProfile.distribution,
+    distribution: ctx.buildProfile.simulator ? 'simulator' : ctx.buildProfile.distribution,
     builderEnvironment: {
       image: resolveImage(ctx),
       node: ctx.buildProfile.node,
