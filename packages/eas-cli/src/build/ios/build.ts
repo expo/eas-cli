@@ -54,6 +54,9 @@ export async function prepareIosBuildAsync(
       });
     },
     getMetadataContext: (): IosMetadataContext => {
+      if (ctx.workflow === Workflow.MANAGED) {
+        return { buildSettings: {} };
+      }
       const applicationTarget = findApplicationTarget(targets);
       const project = IOSConfig.XcodeUtils.getPbxproj(ctx.projectDir);
       const xcBuildConfiguration = IOSConfig.Target.getXCBuildConfigurationFromPbxproj(project, {
