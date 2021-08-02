@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Fix build profile schema validation when `simulator` key is present for iOS ([#546](https://github.com/expo/eas-cli/pull/546) by [@sallar](https://github.com/sallar))
+
 ### 🧹 Chores
 
 ## [0.22.2](https://github.com/expo/eas-cli/releases/tag/v0.22.2) - 2021-08-02
