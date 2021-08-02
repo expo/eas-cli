@@ -51,6 +51,7 @@ const IosBuildProfileSchema = CommonBuildProfileSchema.concat(
       Joi.boolean(),
       Joi.string().valid('version', 'buildNumber')
     ),
+    simulator: Joi.boolean(),
 
     image: Joi.string().valid(...Ios.builderBaseImages),
     bundler: Joi.string().empty(null).custom(semverSchemaCheck),
@@ -59,7 +60,6 @@ const IosBuildProfileSchema = CommonBuildProfileSchema.concat(
 
     artifactPath: Joi.string(),
     scheme: Joi.string(),
-    simulator: Joi.boolean(),
     buildConfiguration: Joi.string(),
   })
 );
