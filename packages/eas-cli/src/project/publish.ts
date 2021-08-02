@@ -112,6 +112,7 @@ export async function convertAssetToUpdateInfoGroupFormatAsync(
 
   let fileExtension;
   if (asset.type) {
+    // ensure the "type" a.k.a the "file extension" has a '.' prefix
     fileExtension = asset.type.startsWith('.') ? asset.type : '.' + asset.type;
   }
   const storageKey = getStorageKey(contentType, fileSHA256);
