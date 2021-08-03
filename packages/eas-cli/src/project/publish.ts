@@ -16,15 +16,6 @@ import Log from '../log';
 import { uploadWithPresignedPostAsync } from '../uploads';
 
 export const TIMEOUT_LIMIT = 60_000; // 1 minute
-const STORAGE_BUCKET = getStorageBucket();
-
-function getStorageBucket(): string {
-  if (process.env.EXPO_STAGING || process.env.EXPO_LOCAL) {
-    return 'update-assets-staging';
-  } else {
-    return 'update-assets-production';
-  }
-}
 
 export type PublishPlatform = Extract<'android' | 'ios', Platform>;
 type Metadata = {
@@ -124,7 +115,6 @@ export async function convertAssetToUpdateInfoGroupFormatAsync(
   return {
     fileSHA256,
     contentType,
-    storageBucket: STORAGE_BUCKET,
     storageKey,
     bundleKey,
   };
