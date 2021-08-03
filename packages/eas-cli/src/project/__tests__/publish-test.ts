@@ -309,7 +309,9 @@ describe(filterOutAssetsThatAlreadyExistAsync, () => {
     });
 
     expect(
-      await (await filterOutAssetsThatAlreadyExistAsync([{ storageKey: 'blah' } as any])).length
+      await (
+        await filterOutAssetsThatAlreadyExistAsync([{ storageKey: 'blah' } as any])
+      ).length
     ).toBe(1);
   });
   it('ignores an asset that exists', async () => {
@@ -323,7 +325,9 @@ describe(filterOutAssetsThatAlreadyExistAsync, () => {
       ];
     });
     expect(
-      await (await filterOutAssetsThatAlreadyExistAsync([{ storageKey: 'blah' } as any])).length
+      await (
+        await filterOutAssetsThatAlreadyExistAsync([{ storageKey: 'blah' } as any])
+      ).length
     ).toBe(0);
   });
 });
