@@ -26,7 +26,7 @@ type Metadata = {
   };
 };
 export type RawAsset = {
-  type?: string;
+  fileExtension?: string;
   contentType: string;
   path: string;
 };
@@ -108,13 +108,8 @@ export async function convertAssetToUpdateInfoGroupFormatAsync(
   asset: RawAsset
 ): Promise<PartialManifestAsset> {
   const fileSHA256 = getBase64URLEncoding(await calculateFileHashAsync(asset.path, 'sha256'));
-  const contentType = asset.contentType;
+  const { contentType, fileExtension } = asset;
 
-  let fileExtension;
-  if (asset.type) {
-    // ensure the "type" a.k.a the "file extension" has a '.' prefix
-    fileExtension = asset.type.startsWith('.') ? asset.type : '.' + asset.type;
-  }
   const storageKey = getStorageKey(contentType, fileSHA256);
   const bundleKey = (await calculateFileHashAsync(asset.path, 'md5')).toString('hex');
 
@@ -227,13 +222,18 @@ export function collectAssets({
   for (const platform of platforms) {
     assetsFinal[platform] = {
       launchAsset: {
-        type: 'bundle',
+        fileExtension: '.bundle',
         contentType: 'application/javascript',
         path: path.resolve(distRoot, metadata.fileMetadata[platform].bundle),
       },
       assets: metadata.fileMetadata[platform].assets.map(asset => {
+        let fileExtension;
+        if (asset.ext) {
+          // ensure the file extension has a '.' prefix
+          fileExtension = asset.ext.startsWith('.') ? asset.ext : '.' + asset.ext;
+        }
         return {
-          type: asset.ext,
+          fileExtension,
           contentType: guessContentTypeFromExtension(asset.ext),
           path: path.join(distRoot, asset.path),
         };

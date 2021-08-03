@@ -128,54 +128,19 @@ describe(getStorageKeyForAssetAsync, () => {
 });
 
 describe(convertAssetToUpdateInfoGroupFormatAsync, () => {
-  let path: string;
-  beforeAll(() => {
-    path = uuidv4();
-    fs.writeFileSync(path, 'I am pretending to be a jpeg');
-  });
   it('resolves to the correct value', async () => {
-    const type = 'jpg';
+    const path = uuidv4();
+    fs.writeFileSync(path, 'I am pretending to be a jpeg');
+    const fileExtension = '.jpg';
     const asset = {
-      type,
+      fileExtension,
       contentType: 'image/jpeg',
       path,
     };
     await expect(convertAssetToUpdateInfoGroupFormatAsync(asset)).resolves.toEqual({
       bundleKey: 'c939e759656f577c058f445bfb19182e',
+      fileExtension: '.jpg',
       contentType: 'image/jpeg',
-      fileExtension: `.${type}`,
-      fileSHA256: 'tzD6J-OQZaHCKnL3GHWV9RbnrpyojnagiOE7r3mSkU4',
-      storageBucket: 'update-assets-production',
-      storageKey: 'fo8Y08LktVk6qLtGbn8GRWpOUyD13ABMUnbtRCN1L7Y',
-    });
-  });
-  it(`resolves to the correct value when the is an '.' prefix on the 'type' field.`, async () => {
-    const type = '.jpg';
-    const asset = {
-      type,
-      contentType: 'image/jpeg',
-      path,
-    };
-    await expect(convertAssetToUpdateInfoGroupFormatAsync(asset)).resolves.toEqual({
-      bundleKey: 'c939e759656f577c058f445bfb19182e',
-      contentType: 'image/jpeg',
-      fileExtension: type,
-      fileSHA256: 'tzD6J-OQZaHCKnL3GHWV9RbnrpyojnagiOE7r3mSkU4',
-      storageBucket: 'update-assets-production',
-      storageKey: 'fo8Y08LktVk6qLtGbn8GRWpOUyD13ABMUnbtRCN1L7Y',
-    });
-  });
-  it('resolves to the correct value when the file extension is undefined.', async () => {
-    const type = undefined;
-    const asset = {
-      type,
-      contentType: 'image/jpeg',
-      path,
-    };
-    await expect(convertAssetToUpdateInfoGroupFormatAsync(asset)).resolves.toEqual({
-      bundleKey: 'c939e759656f577c058f445bfb19182e',
-      contentType: 'image/jpeg',
-      fileExtension: type,
       fileSHA256: 'tzD6J-OQZaHCKnL3GHWV9RbnrpyojnagiOE7r3mSkU4',
       storageKey: 'fo8Y08LktVk6qLtGbn8GRWpOUyD13ABMUnbtRCN1L7Y',
     });
@@ -194,13 +159,13 @@ describe(buildUpdateInfoGroupAsync, () => {
         {
           android: {
             launchAsset: {
-              type: 'bundle',
+              fileExtension: '.bundle',
               contentType: 'bundle/javascript',
               path: androidBundlePath,
             },
             assets: [
               {
-                type: 'jpg',
+                fileExtension: '.jpg',
                 contentType: 'image/jpeg',
                 path: assetPath,
               },
@@ -217,16 +182,16 @@ describe(buildUpdateInfoGroupAsync, () => {
         assets: [
           {
             bundleKey: 'c939e759656f577c058f445bfb19182e',
-            contentType: 'image/jpeg',
             fileExtension: '.jpg',
+            contentType: 'image/jpeg',
             fileSHA256: 'tzD6J-OQZaHCKnL3GHWV9RbnrpyojnagiOE7r3mSkU4',
             storageKey: 'fo8Y08LktVk6qLtGbn8GRWpOUyD13ABMUnbtRCN1L7Y',
           },
         ],
         launchAsset: {
           bundleKey: 'ec0dd14670aae108f99a810df9c1482c',
-          contentType: 'bundle/javascript',
           fileExtension: '.bundle',
+          contentType: 'bundle/javascript',
           fileSHA256: 'KEw79FnKTLOyVbRT1SlohSTjPe5e8FpULy2ST-I5BUg',
           storageKey: 'aC9N6RZlcHoIYjIsoJd2KUcigBKy98RHvZacDyPNjCQ',
         },
@@ -267,7 +232,7 @@ describe(collectAssets, () => {
 
     const userDefinedAssets = [
       {
-        type: 'jpg',
+        fileExtension: '.jpg',
         contentType: 'image/jpeg',
         path: path.resolve(`${inputDir}/assets/${fakeHash}`),
       },
@@ -302,7 +267,7 @@ describe(collectAssets, () => {
     expect(collectAssets({ inputDir, platforms: defaultPublishPlatforms })).toEqual({
       android: {
         launchAsset: {
-          type: 'bundle',
+          fileExtension: '.bundle',
           contentType: 'application/javascript',
           path: path.resolve(`${inputDir}/bundles/android.js`),
         },
@@ -310,7 +275,7 @@ describe(collectAssets, () => {
       },
       ios: {
         launchAsset: {
-          type: 'bundle',
+          fileExtension: '.bundle',
           contentType: 'application/javascript',
           path: path.resolve(`${inputDir}/bundles/ios.js`),
         },
@@ -321,7 +286,7 @@ describe(collectAssets, () => {
     expect(collectAssets({ inputDir, platforms: ['ios'] })).toEqual({
       ios: {
         launchAsset: {
-          type: 'bundle',
+          fileExtension: '.bundle',
           contentType: 'application/javascript',
           path: path.resolve(`${inputDir}/bundles/ios.js`),
         },
@@ -344,9 +309,7 @@ describe(filterOutAssetsThatAlreadyExistAsync, () => {
     });
 
     expect(
-      await (
-        await filterOutAssetsThatAlreadyExistAsync([{ storageKey: 'blah' } as any])
-      ).length
+      await (await filterOutAssetsThatAlreadyExistAsync([{ storageKey: 'blah' } as any])).length
     ).toBe(1);
   });
   it('ignores an asset that exists', async () => {
@@ -360,9 +323,7 @@ describe(filterOutAssetsThatAlreadyExistAsync, () => {
       ];
     });
     expect(
-      await (
-        await filterOutAssetsThatAlreadyExistAsync([{ storageKey: 'blah' } as any])
-      ).length
+      await (await filterOutAssetsThatAlreadyExistAsync([{ storageKey: 'blah' } as any])).length
     ).toBe(0);
   });
 });
