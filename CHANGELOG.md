@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Add --auto flag for eas branch:publish ([549](https://github.com/expo/eas-cli/pull/549) by [@jkhales](https://github.com/jkhales)
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
