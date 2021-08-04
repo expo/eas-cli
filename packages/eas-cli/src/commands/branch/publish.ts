@@ -72,12 +72,13 @@ async function ensureBranchExists({
 }: {
   appId: string;
   name: string;
-}): Promise<
-  Exclude<
+}): Promise<{
+  id: string;
+  updates: Exclude<
     Exclude<ViewBranchQuery['app'], null | undefined>['byId']['updateBranchByName'],
     null | undefined
-  >
-> {
+  >['updates'];
+}> {
   const { app } = await viewUpdateBranchAsync({
     appId,
     name: branchName,
@@ -85,17 +86,16 @@ async function ensureBranchExists({
   const updateBranch = app?.byId.updateBranchByName;
   if (updateBranch) {
     const { id, updates } = updateBranch;
-    return { id, name: branchName, updates };
+    return { id, updates };
   }
 
   const newUpdateBranch = await createUpdateBranchOnAppAsync({ appId, name: branchName });
-  return { id: newUpdateBranch.id, name: branchName, updates: [] };
+  return { id: newUpdateBranch.id, updates: [] };
 }
 
 export default class BranchPublish extends Command {
   static hidden = true;
   static description = 'Publish an update group to a branch.';
-  static aliases = ['publish', 'p'];
 
   static args = [
     {
@@ -106,7 +106,7 @@ export default class BranchPublish extends Command {
 
   static flags = {
     message: flags.string({
-      description: 'Short message describing the updates.',
+      description: 'short message describing the updates.',
       required: false,
     }),
     republish: flags.boolean({
@@ -128,7 +128,7 @@ export default class BranchPublish extends Command {
     }),
     platform: flags.enum({
       char: 'p',
-      description: `Only publish to a single platform`,
+      description: `only publish to a single platform`,
       options: [...defaultPublishPlatforms, 'all'],
       default: 'all',
       required: false,
@@ -139,7 +139,7 @@ export default class BranchPublish extends Command {
     }),
     auto: flags.boolean({
       description:
-        'Publish to an EAS branch with the same name as the current git branch and publish message equal to the last git commit message.',
+        'use the current git branch and commit message for the EAS branch and update message',
       default: false,
     }),
   };
