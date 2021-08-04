@@ -6,15 +6,7 @@ import gql from 'graphql-tag';
 import { groupBy } from 'lodash';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
-import {
-  Maybe,
-  Robot,
-  Update,
-  UpdateBranch,
-  User,
-  ViewBranchQuery,
-  ViewBranchQueryVariables,
-} from '../../graphql/generated';
+import { ViewBranchQuery, ViewBranchQueryVariables } from '../../graphql/generated';
 import Log from '../../log';
 import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
@@ -26,16 +18,7 @@ const PAGE_LIMIT = 10_000;
 export async function viewUpdateBranchAsync({
   appId,
   name,
-}: Pick<ViewBranchQueryVariables, 'appId' | 'name'>): Promise<
-  Pick<UpdateBranch, 'id' | 'name'> & {
-    updates: (Pick<
-      Update,
-      'id' | 'group' | 'message' | 'createdAt' | 'runtimeVersion' | 'platform' | 'manifestFragment'
-    > & {
-      actor?: Maybe<Pick<User, 'firstName' | 'id'> | Pick<Robot, 'firstName' | 'id'>>;
-    })[];
-  }
-> {
+}: Pick<ViewBranchQueryVariables, 'appId' | 'name'>): Promise<ViewBranchQuery> {
   const data = await withErrorHandlingAsync(
     graphqlClient
       .query<ViewBranchQuery, ViewBranchQueryVariables>(
@@ -78,11 +61,7 @@ export async function viewUpdateBranchAsync({
       )
       .toPromise()
   );
-  const updateBranch = data.app?.byId.updateBranchByName;
-  if (!updateBranch) {
-    throw new Error(`Could not find branch "${name}"`);
-  }
-  return updateBranch;
+  return data;
 }
 
 export default class BranchView extends Command {
@@ -131,10 +110,15 @@ export default class BranchView extends Command {
       }));
     }
 
-    const UpdateBranch = await viewUpdateBranchAsync({
+    // return data.app?.byId.updateBranchByName;
+    const { app } = await viewUpdateBranchAsync({
       appId: projectId,
       name,
     });
+    const UpdateBranch = app?.byId.updateBranchByName;
+    if (!UpdateBranch) {
+      throw new Error(`Could not find branch "${name}"`);
+    }
 
     const updates = Object.values(groupBy(UpdateBranch.updates, u => u.group)).map(
       group => group[0]
