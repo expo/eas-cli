@@ -207,6 +207,8 @@ OPTIONS
   --profile=profile
 ```
 
+_See code: [src/commands/config.ts](https://github.com/expo/eas-cli/blob/v0.23.0/packages/eas-cli/src/commands/config.ts)_
+
 ## `eas credentials`
 
 Manage your credentials

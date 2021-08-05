@@ -6,15 +6,21 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🛠 Breaking changes
 
-- Stop including deprecated storageBucket field when publishing ([547](https://github.com/expo/eas-cli/pull/547)) by [@jkhales](https://github.com/jkhales)
-
 ### 🎉 New features
 
 ### 🐛 Bug fixes
 
-- Pass through metadata context to app version resolver. ([#550](https://github.com/expo/eas-cli/pull/550) by [@brentvatne](https://github.com/brentvatne))
-
 ### 🧹 Chores
+
+## [0.23.0](https://github.com/expo/eas-cli/releases/tag/v0.23.0) - 2021-08-05
+
+### 🛠 Breaking changes
+
+- Stop including deprecated storageBucket field when publishing ([547](https://github.com/expo/eas-cli/pull/547)) by [@jkhales](https://github.com/jkhales)
+
+### 🐛 Bug fixes
+
+- Pass through metadata context to app version resolver. ([#550](https://github.com/expo/eas-cli/pull/550) by [@brentvatne](https://github.com/brentvatne))
 
 ## [0.22.4](https://github.com/expo/eas-cli/releases/tag/v0.22.4) - 2021-08-02
 
