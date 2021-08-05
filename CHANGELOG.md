@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Pass through metadata contexct to app version resolver
+
 ### 🧹 Chores
 
 ## [0.22.4](https://github.com/expo/eas-cli/releases/tag/v0.22.4) - 2021-08-02
