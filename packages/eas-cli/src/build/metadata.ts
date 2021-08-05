@@ -43,7 +43,7 @@ export async function collectMetadata<T extends Platform>(
   const channelOrReleaseChannel = await resolveChannelOrReleaseChannelAsync(ctx);
   const metadata = {
     trackingContext: ctx.trackingCtx,
-    appVersion: await resolveAppVersionAsync(ctx),
+    appVersion: await resolveAppVersionAsync(ctx, platformContext),
     appBuildVersion: await resolveAppBuildVersionAsync(ctx, platformContext),
     cliVersion: packageJSON.version,
     workflow: ctx.workflow,
