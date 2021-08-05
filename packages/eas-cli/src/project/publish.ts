@@ -230,7 +230,7 @@ export function collectAssets({
         let fileExtension;
         if (asset.ext) {
           // ensure the file extension has a '.' prefix
-          fileExtension = asset.ext.startsWith('.') ? asset.ext : '.' + asset.ext;
+          fileExtension = asset.ext.startsWith('.') ? asset.ext : `.${asset.ext}`;
         }
         return {
           fileExtension,
