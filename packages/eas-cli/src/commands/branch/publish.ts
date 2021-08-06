@@ -211,8 +211,9 @@ export default class BranchPublish extends Command {
           };
         })
       );
+      assert(branchName, 'branch name must be specified.');
     }
-    assert(branchName, 'branch name must be specified.');
+
     const { id: branchId, updates } = await ensureBranchExists({
       appId: projectId,
       name: branchName,
