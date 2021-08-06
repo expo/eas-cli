@@ -110,7 +110,6 @@ export default class BranchView extends Command {
       }));
     }
 
-    // return data.app?.byId.updateBranchByName;
     const { app } = await viewUpdateBranchAsync({
       appId: projectId,
       name,
