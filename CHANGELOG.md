@@ -8,7 +8,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
-- Add --auto flag for eas branch:publish ([549](https://github.com/expo/eas-cli/pull/549) by [@jkhales](https://github.com/jkhales)
+- Add --auto flag for eas branch:publish ([#549](https://github.com/expo/eas-cli/pull/549) by [@jkhales](https://github.com/jkhales))
 
 ### 🐛 Bug fixes
 
@@ -18,7 +18,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🛠 Breaking changes
 
-- Stop including deprecated storageBucket field when publishing ([547](https://github.com/expo/eas-cli/pull/547)) by [@jkhales](https://github.com/jkhales)
+- Stop including deprecated storageBucket field when publishing ([#547](https://github.com/expo/eas-cli/pull/547) by [@jkhales](https://github.com/jkhales))
 
 ### 🐛 Bug fixes
 
