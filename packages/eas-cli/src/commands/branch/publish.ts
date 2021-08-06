@@ -10,11 +10,13 @@ import ora from 'ora';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
 import {
-  Actor,
   GetUpdateGroupAsyncQuery,
+  Robot,
   RootQueryUpdatesByGroupArgs,
   Update,
   UpdateInfoGroup,
+  User,
+  ViewBranchQuery,
 } from '../../graphql/generated';
 import { PublishMutation } from '../../graphql/mutations/PublishMutation';
 import Log from '../../log';
@@ -30,6 +32,7 @@ import { promptAsync, selectAsync } from '../../prompts';
 import { formatUpdate } from '../../update/utils';
 import formatFields from '../../utils/formatFields';
 import vcs from '../../vcs';
+import { createUpdateBranchOnAppAsync } from './create';
 import { listBranchesAsync } from './list';
 import { viewUpdateBranchAsync } from './view';
 
@@ -63,6 +66,33 @@ async function getUpdateGroupAsync({
   return updatesByGroup;
 }
 
+async function ensureBranchExists({
+  appId,
+  name: branchName,
+}: {
+  appId: string;
+  name: string;
+}): Promise<{
+  id: string;
+  updates: Exclude<
+    Exclude<ViewBranchQuery['app'], null | undefined>['byId']['updateBranchByName'],
+    null | undefined
+  >['updates'];
+}> {
+  const { app } = await viewUpdateBranchAsync({
+    appId,
+    name: branchName,
+  });
+  const updateBranch = app?.byId.updateBranchByName;
+  if (updateBranch) {
+    const { id, updates } = updateBranch;
+    return { id, updates };
+  }
+
+  const newUpdateBranch = await createUpdateBranchOnAppAsync({ appId, name: branchName });
+  return { id: newUpdateBranch.id, updates: [] };
+}
+
 export default class BranchPublish extends Command {
   static hidden = true;
   static description = 'Publish an update group to a branch.';
@@ -76,7 +106,7 @@ export default class BranchPublish extends Command {
 
   static flags = {
     message: flags.string({
-      description: 'Short message describing the updates.',
+      description: 'short message describing the updates.',
       required: false,
     }),
     republish: flags.boolean({
@@ -98,7 +128,7 @@ export default class BranchPublish extends Command {
     }),
     platform: flags.enum({
       char: 'p',
-      description: `Only publish to a single platform`,
+      description: `only publish to a single platform`,
       options: [...defaultPublishPlatforms, 'all'],
       default: 'all',
       required: false,
@@ -107,13 +137,19 @@ export default class BranchPublish extends Command {
       description: `return a json with the new update group.`,
       default: false,
     }),
+    auto: flags.boolean({
+      description:
+        'use the current git branch and commit message for the EAS branch and update message',
+      default: false,
+    }),
   };
 
   async run() {
     let {
-      args: { name },
+      args: { name: branchName },
       flags: {
         json: jsonFlag,
+        auto: autoFlag,
         message,
         republish,
         group,
@@ -152,14 +188,19 @@ export default class BranchPublish extends Command {
     }
     const projectId = await getProjectIdAsync(exp);
 
-    if (!name) {
+    if (!branchName && autoFlag) {
+      branchName =
+        (await vcs.getBranchNameAsync()) || `branch-${Math.random().toString(36).substr(2, 4)}`;
+    }
+
+    if (!branchName) {
       const validationMessage = 'branch name may not be empty.';
       if (jsonFlag) {
         throw new Error(validationMessage);
       }
 
       const branches = await listBranchesAsync({ projectId });
-      name = await selectAsync<string>(
+      branchName = await selectAsync<string>(
         'which branch would you like to publish on?',
         branches.map(branch => {
           return {
@@ -170,12 +211,12 @@ export default class BranchPublish extends Command {
           };
         })
       );
+      assert(branchName, 'branch name must be specified.');
     }
-    assert(name, 'branch name must be specified.');
 
-    const { id: branchId, updates } = await viewUpdateBranchAsync({
+    const { id: branchId, updates } = await ensureBranchExists({
       appId: projectId,
-      name,
+      name: branchName,
     });
 
     let updateInfoGroup: UpdateInfoGroup = {};
@@ -206,7 +247,7 @@ export default class BranchPublish extends Command {
           }));
         if (updateGroups.length === 0) {
           throw new Error(
-            `There are no updates on branch "${name}" published on the platform(s) ${platformFlag}. Did you mean to publish a new update instead?`
+            `There are no updates on branch "${branchName}" published on the platform(s) ${platformFlag}. Did you mean to publish a new update instead?`
           );
         }
 
@@ -222,7 +263,7 @@ export default class BranchPublish extends Command {
       );
       if (updatesToRepublishFilteredByPlatform.length === 0) {
         throw new Error(
-          `There are no updates on branch "${name}" published on the platform(s) "${platformFlag}" with group ID "${
+          `There are no updates on branch "${branchName}" published on the platform(s) "${platformFlag}" with group ID "${
             group ? group : updatesToRepublish[0].group
           }". Did you mean to publish a new update instead?`
         );
@@ -271,6 +312,10 @@ export default class BranchPublish extends Command {
       }
     }
 
+    if (!message && autoFlag) {
+      message = (await vcs.getLastCommitMessageAsync())?.trim();
+    }
+
     if (!message) {
       const validationMessage = 'publish message may not be empty.';
       if (jsonFlag) {
@@ -307,7 +352,7 @@ export default class BranchPublish extends Command {
     } else {
       Log.log(
         formatFields([
-          { label: 'branch', value: name },
+          { label: 'branch', value: branchName },
           { label: 'runtime version', value: runtimeVersion },
           { label: 'update group ID', value: newUpdateGroup.group },
           { label: 'message', value: message },
@@ -318,12 +363,29 @@ export default class BranchPublish extends Command {
 }
 
 function formatUpdateTitle(
-  update: Pick<Update, 'message' | 'createdAt' | 'runtimeVersion'> & {
-    actor?: Pick<Actor, 'firstName'> | null;
-  }
+  update: Exclude<
+    Exclude<ViewBranchQuery['app'], null | undefined>['byId']['updateBranchByName'],
+    null | undefined
+  >['updates'][number]
 ): string {
   const { message, createdAt, actor, runtimeVersion } = update;
-  return `[${dateFormat(createdAt, 'mmm dd HH:MM')} by ${
-    actor?.firstName ?? 'unknown'
-  }, runtimeVersion: ${runtimeVersion}] ${message}`;
+
+  let actorName: string;
+  switch (actor?.__typename) {
+    case 'User': {
+      actorName = (actor as Pick<User, 'username' | 'id'>).username;
+      break;
+    }
+    case 'Robot': {
+      const { firstName, id } = actor as Pick<Robot, 'firstName' | 'id'>;
+      actorName = firstName ?? `robot: ${id.slice(0, 4)}...`;
+      break;
+    }
+    default:
+      actorName = 'unknown';
+  }
+  return `[${dateFormat(
+    createdAt,
+    'mmm dd HH:MM'
+  )} by ${actorName}, runtimeVersion: ${runtimeVersion}] ${message}`;
 }
