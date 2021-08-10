@@ -1,7 +1,11 @@
+import { getConfig } from '@expo/config';
+import chalk from 'chalk';
 import ora from 'ora';
 
+import { getExpoWebsiteBaseUrl } from '../api';
 import { AppPlatform, SubmissionFragment, SubmissionStatus } from '../graphql/generated';
 import Log from '../log';
+import { findProjectRootAsync, getProjectAccountNameAsync } from '../project/projectUtils';
 import { sleep } from '../utils/promise';
 import SubmissionService, {
   DEFAULT_CHECK_INTERVAL_MS,
@@ -41,10 +45,19 @@ abstract class BaseSubmitter<SubmissionContext, SubmissionOptions> {
       throw err;
     }
 
+    const projectUrl = await this.getProjectUrl();
+    const submissionUrl = `${projectUrl}/submissions/${submissionId}`;
+
+    Log.log();
+    Log.log(`Submission details: ${chalk.underline(submissionUrl)}`);
+    Log.log(`Waiting for submission to finish. You can press Ctrl + C to exit`);
+    Log.log();
+
     let submissionCompleted = false;
     let submissionStatus: SubmissionStatus | null = null;
     let submission: SubmissionFragment | null = null;
     const submissionSpinner = ora(`Submitting your app to ${this.appStoreName}`).start();
+
     try {
       while (!submissionCompleted) {
         await sleep(DEFAULT_CHECK_INTERVAL_MS);
@@ -52,6 +65,7 @@ abstract class BaseSubmitter<SubmissionContext, SubmissionOptions> {
         submissionStatus = submission.status;
 
         submissionSpinner.text = this.getStatusText(submissionStatus);
+
         if (submissionStatus === SubmissionStatus.Errored) {
           submissionCompleted = true;
           process.exitCode = 1;
@@ -82,6 +96,16 @@ abstract class BaseSubmitter<SubmissionContext, SubmissionOptions> {
     } else {
       throw new Error('This should never happen');
     }
+  }
+
+  private async getProjectUrl(): Promise<string> {
+    const projectDir = (await findProjectRootAsync()) ?? process.cwd();
+    const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
+    const accountName = await getProjectAccountNameAsync(exp);
+    const projectName = exp.slug;
+
+    const submissionUrl = `${getExpoWebsiteBaseUrl()}/accounts/${accountName}/projects/${projectName}`;
+    return submissionUrl;
   }
 }
 
