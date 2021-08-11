@@ -98,7 +98,7 @@ abstract class BaseSubmitter<SubmissionContext, SubmissionOptions> {
     }
   }
 
-  private async getProjectUrl(): Promise<string> {
+  private async getProjectUrlAsync(): Promise<string> {
     const projectDir = (await findProjectRootAsync()) ?? process.cwd();
     const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
     const accountName = await getProjectAccountNameAsync(exp);
