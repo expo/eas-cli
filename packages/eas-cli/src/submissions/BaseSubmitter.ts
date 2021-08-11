@@ -1,15 +1,20 @@
+import { getConfig } from '@expo/config';
+import chalk from 'chalk';
 import ora from 'ora';
 
+import { getExpoWebsiteBaseUrl } from '../api';
 import { AppPlatform, SubmissionFragment, SubmissionStatus } from '../graphql/generated';
 import Log from '../log';
+import { getProjectAccountNameAsync } from '../project/projectUtils';
 import { sleep } from '../utils/promise';
 import SubmissionService, {
   DEFAULT_CHECK_INTERVAL_MS,
   SubmissionConfig,
 } from './SubmissionService';
+import { BaseSubmissionContext } from './types';
 import { displayLogs } from './utils/logs';
 
-abstract class BaseSubmitter<SubmissionContext, SubmissionOptions> {
+abstract class BaseSubmitter<SubmissionContext extends BaseSubmissionContext, SubmissionOptions> {
   protected abstract readonly appStoreName: string;
 
   protected constructor(
@@ -41,10 +46,19 @@ abstract class BaseSubmitter<SubmissionContext, SubmissionOptions> {
       throw err;
     }
 
+    const projectUrl = await this.getProjectUrlAsync();
+    const submissionUrl = `${projectUrl}/submissions/${submissionId}`;
+
+    Log.newLine();
+    Log.log(`Submission details: ${chalk.underline(submissionUrl)}`);
+    Log.log(`Waiting for submission to finish. You can press Ctrl + C to exit`);
+    Log.newLine();
+
     let submissionCompleted = false;
     let submissionStatus: SubmissionStatus | null = null;
     let submission: SubmissionFragment | null = null;
     const submissionSpinner = ora(`Submitting your app to ${this.appStoreName}`).start();
+
     try {
       while (!submissionCompleted) {
         await sleep(DEFAULT_CHECK_INTERVAL_MS);
@@ -52,6 +66,7 @@ abstract class BaseSubmitter<SubmissionContext, SubmissionOptions> {
         submissionStatus = submission.status;
 
         submissionSpinner.text = this.getStatusText(submissionStatus);
+
         if (submissionStatus === SubmissionStatus.Errored) {
           submissionCompleted = true;
           process.exitCode = 1;
@@ -82,6 +97,16 @@ abstract class BaseSubmitter<SubmissionContext, SubmissionOptions> {
     } else {
       throw new Error('This should never happen');
     }
+  }
+
+  private async getProjectUrlAsync(): Promise<string> {
+    const projectDir = this.ctx.projectDir;
+    const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
+    const accountName = await getProjectAccountNameAsync(exp);
+    const projectName = exp.slug;
+
+    const submissionUrl = `${getExpoWebsiteBaseUrl()}/accounts/${accountName}/projects/${projectName}`;
+    return submissionUrl;
   }
 }
 

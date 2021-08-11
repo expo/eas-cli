@@ -1,7 +1,10 @@
-export interface SubmissionContext<T extends SubmitCommandFlags> {
+export interface SubmissionContext<T extends SubmitCommandFlags> extends BaseSubmissionContext {
+  commandFlags: T;
+}
+
+export interface BaseSubmissionContext {
   projectDir: string;
   projectId: string;
-  commandFlags: T;
 }
 
 export interface SubmitCommandFlags {
