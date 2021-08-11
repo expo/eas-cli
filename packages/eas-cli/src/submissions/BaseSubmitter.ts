@@ -51,7 +51,7 @@ abstract class BaseSubmitter<SubmissionContext, SubmissionOptions> {
     Log.log();
     Log.log(`Submission details: ${chalk.underline(submissionUrl)}`);
     Log.log(`Waiting for submission to finish. You can press Ctrl + C to exit`);
-    Log.log();
+    Log.newLine();
 
     let submissionCompleted = false;
     let submissionStatus: SubmissionStatus | null = null;
