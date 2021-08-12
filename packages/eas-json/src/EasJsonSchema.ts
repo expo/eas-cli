@@ -1,6 +1,8 @@
 import { Android, Ios } from '@expo/eas-build-job';
 import Joi from '@hapi/joi';
 
+import { ReleaseStatus, ReleaseTrack } from './EasSubmit.types';
+
 const semverSchemaCheck = (value: any) => {
   if (/^[0-9]+\.[0-9]+\.[0-9]+$/.test(value)) {
     return value;
@@ -72,10 +74,36 @@ const EasJsonBuildProfileSchema = CommonBuildProfileSchema.concat(
   })
 );
 
+const AndroidSubmitProfileSchema = Joi.object({
+  serviceAccountKeyPath: Joi.string(),
+  track: Joi.string().valid(...Object.values(ReleaseTrack)),
+  releaseStatus: Joi.string().valid(...Object.values(ReleaseStatus)),
+  verbose: Joi.boolean(),
+});
+
+const IosSubmitProfileSchema = Joi.object({
+  appleId: Joi.string(),
+  ascAppId: Joi.string(),
+
+  appleTeamId: Joi.string(),
+  itcTeamId: Joi.string(),
+  sku: Joi.string(),
+  language: Joi.string(),
+  companyName: Joi.string(),
+  verbose: Joi.boolean(),
+});
+
+const EasJsonSubmitConfigurationSchema = Joi.object({
+  android: AndroidSubmitProfileSchema,
+  ios: IosSubmitProfileSchema,
+});
+
 export const MinimalEasJsonSchema = Joi.object({
   build: Joi.object().pattern(Joi.string(), Joi.object()),
+  submit: Joi.object().pattern(Joi.string(), Joi.object()),
 });
 
 export const EasJsonSchema = Joi.object({
   build: Joi.object().pattern(Joi.string(), EasJsonBuildProfileSchema),
+  submit: Joi.object().pattern(Joi.string(), EasJsonSubmitConfigurationSchema),
 });

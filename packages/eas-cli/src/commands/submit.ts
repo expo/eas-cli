@@ -1,6 +1,8 @@
 import { getConfig } from '@expo/config';
+import { Platform } from '@expo/eas-build-job';
 import { flags } from '@oclif/command';
 
+import { EasJsonReader } from '../../../eas-json/build';
 import EasCommand from '../commandUtils/EasCommand';
 import { AppPlatform } from '../graphql/generated';
 import { learnMore } from '../log';
@@ -14,6 +16,13 @@ import { AndroidSubmitCommandFlags, IosSubmitCommandFlags } from '../submissions
 const COMMON_FLAGS = '';
 const ANDROID_FLAGS = 'Android specific options';
 const IOS_FLAGS = 'iOS specific options';
+
+interface Flags {
+  platform?: Platform;
+  profile?: string;
+  iosOptions: Partial<IosSubmitCommandFlags>;
+  androidOptions: Partial<AndroidSubmitCommandFlags>;
+}
 
 export default class BuildSubmit extends EasCommand {
   static description = 'Submits build artifact to app store';
@@ -41,6 +50,9 @@ export default class BuildSubmit extends EasCommand {
     }),
 
     /* Common flags for both platforms */
+    profile: flags.string({
+      description: 'Name of the submit profile from eas.json',
+    }),
     latest: flags.boolean({
       description: 'Submit the latest build for specified platform',
       exclusive: ['id', 'path', 'url'],
@@ -65,7 +77,6 @@ export default class BuildSubmit extends EasCommand {
 
     verbose: flags.boolean({
       description: 'Always print logs from Submission Service',
-      default: false,
       helpLabel: COMMON_FLAGS,
     }),
 
@@ -77,7 +88,8 @@ export default class BuildSubmit extends EasCommand {
     }),
 
     key: flags.string({
-      description: 'Path to the JSON key used to authenticate with Google Play',
+      description:
+        'Path to the JSON file with service account key used to authenticate with Google Play',
       helpLabel: ANDROID_FLAGS,
     }),
     'android-package': flags.string({
@@ -87,13 +99,11 @@ export default class BuildSubmit extends EasCommand {
 
     track: flags.enum({
       description: 'The track of the application to use',
-      default: 'internal',
       options: ['production', 'beta', 'alpha', 'internal', 'rollout'],
       helpLabel: ANDROID_FLAGS,
     }),
     'release-status': flags.enum({
       description: 'Release status (used when uploading new APKs/AABs)',
-      default: 'completed',
       options: ['completed', 'draft', 'halted', 'inProgress'],
       helpLabel: ANDROID_FLAGS,
     }),
@@ -130,7 +140,6 @@ export default class BuildSubmit extends EasCommand {
     }),
     language: flags.string({
       description: 'Primary language (e.g. English, German, ...)',
-      default: 'en-US',
       helpLabel: IOS_FLAGS,
     }),
     'company-name': flags.string({
@@ -141,25 +150,7 @@ export default class BuildSubmit extends EasCommand {
   };
 
   async run(): Promise<void> {
-    const {
-      flags: {
-        // android
-        'android-package': androidPackage,
-        'release-status': releaseStatus,
-
-        // ios
-        'apple-id': appleId,
-        'asc-app-id': ascAppId,
-        'apple-team-id': appleTeamId,
-        'app-name': appName,
-        'bundle-identifier': bundleIdentifier,
-        'company-name': companyName,
-
-        // common
-        ...flags
-      },
-    } = this.parse(BuildSubmit);
-
+    const flags = this.paseFlags();
     const platform =
       (flags.platform?.toUpperCase() as AppPlatform | undefined) ??
       (await promptForPlatformAsync());
@@ -178,26 +169,32 @@ export default class BuildSubmit extends EasCommand {
     if (!projectDir) {
       throw new Error("Please run this command inside your project's directory");
     }
+    const easJsonReader = new EasJsonReader(projectDir);
 
     if (platform === AppPlatform.Android) {
+      const submitProfile = flags.profile
+        ? await easJsonReader.readSubmitProfileAsync(flags.profile, Platform.ANDROID)
+        : {};
       const options: AndroidSubmitCommandFlags = {
-        androidPackage,
-        releaseStatus,
-        ...flags,
+        releaseStatus: 'completed',
+        track: 'internal',
+        verbose: false,
+        ...submitProfile,
+        ...flags.androidOptions,
       };
 
       const ctx = AndroidSubmitCommand.createContext(projectDir, projectId, options);
       const command = new AndroidSubmitCommand(ctx);
       await command.runAsync();
     } else if (platform === AppPlatform.Ios) {
+      const submitProfile = flags.profile
+        ? await easJsonReader.readSubmitProfileAsync(flags.profile, Platform.IOS)
+        : {};
       const options: IosSubmitCommandFlags = {
-        appleId,
-        ascAppId,
-        appleTeamId,
-        appName,
-        bundleIdentifier,
-        companyName,
-        ...flags,
+        language: 'en-US',
+        verbose: false,
+        ...submitProfile,
+        ...flags.iosOptions,
       };
 
       const ctx = IosSubmitCommand.createContext(projectDir, projectId, options);
@@ -206,6 +203,53 @@ export default class BuildSubmit extends EasCommand {
     } else {
       throw new Error(`Unsupported platform: ${platform}!`);
     }
+  }
+
+  private paseFlags(): Flags {
+    const {
+      flags: {
+        platform,
+        profile,
+
+        // android
+        'android-package': androidPackage,
+        'release-status': releaseStatus,
+        track,
+        type,
+        key: serviceAccountKeyPath,
+
+        // ios
+        'apple-id': appleId,
+        'asc-app-id': ascAppId,
+        'apple-team-id': appleTeamId,
+        'app-name': appName,
+        'bundle-identifier': bundleIdentifier,
+        'company-name': companyName,
+
+        // common
+        ...flags
+      },
+    } = this.parse(BuildSubmit);
+    return {
+      platform: platform as Platform,
+      profile,
+      androidOptions: {
+        ...(androidPackage && { androidPackage }),
+        ...(releaseStatus && { releaseStatus }),
+        ...(track && { track }),
+        ...(serviceAccountKeyPath && { serviceAccountKeyPath }),
+        ...flags,
+      },
+      iosOptions: {
+        ...(appleId && { appleId }),
+        ...(ascAppId && { ascAppId }),
+        ...(appleTeamId && { appleTeamId }),
+        ...(appName && { appName }),
+        ...(bundleIdentifier && { bundleIdentifier }),
+        ...(companyName && { companyName }),
+        ...flags,
+      },
+    };
   }
 }
 
