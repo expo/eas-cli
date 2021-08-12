@@ -152,7 +152,14 @@ export async function ensureAppExistsAsync(
     language,
     companyName,
     bundleIdentifier,
-  }: { name: string; language?: string; companyName?: string; bundleIdentifier: string }
+    sku,
+  }: {
+    name: string;
+    language?: string;
+    companyName?: string;
+    bundleIdentifier: string;
+    sku?: string;
+  }
 ) {
   const context = getRequestContext(authCtx);
   const spinner = ora(`Linking to App Store ${chalk.dim(bundleIdentifier)}`).start();
@@ -170,6 +177,7 @@ export async function ensureAppExistsAsync(
         name,
         primaryLocale: language,
         companyName,
+        sku,
       });
     } catch (error) {
       if (error.message.match(/An App ID with Identifier '(.*)' is not available/)) {

@@ -70,6 +70,7 @@ async function createAppStoreConnectAppAsync(options: CreateAppOptions): Promise
     appName,
     language,
     companyName,
+    sku,
   } = options;
 
   const authCtx = await authenticateAsync({
@@ -99,6 +100,7 @@ async function createAppStoreConnectAppAsync(options: CreateAppOptions): Promise
       language,
       companyName,
       bundleIdentifier: bundleId,
+      sku,
     });
   } catch (error) {
     if (
