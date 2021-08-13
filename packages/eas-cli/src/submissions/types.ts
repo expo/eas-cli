@@ -45,7 +45,6 @@ export interface IosSubmitCommandFlags extends SubmitCommandFlags {
 
   // used only when running produce
   appleTeamId?: string;
-  itcTeamId?: string;
   appName?: string;
   bundleIdentifier?: string;
   sku?: string;

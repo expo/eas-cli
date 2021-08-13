@@ -29,12 +29,12 @@ class AndroidSubmitCommand {
 
   async runAsync(): Promise<void> {
     Log.addNewLineIfNone();
-    const submissionOptions = await this.getAndroidSubmissionOptions();
+    const submissionOptions = await this.getAndroidSubmissionOptionsAsync();
     const submitter = new AndroidSubmitter(this.ctx, submissionOptions);
     await submitter.submitAsync();
   }
 
-  private async getAndroidSubmissionOptions(): Promise<AndroidSubmissionOptions> {
+  private async getAndroidSubmissionOptionsAsync(): Promise<AndroidSubmissionOptions> {
     const androidPackageSource = await this.resolveAndroidPackageSourceAsync();
     const track = this.resolveTrack();
     const releaseStatus = this.resolveReleaseStatus();

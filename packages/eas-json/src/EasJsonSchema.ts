@@ -86,7 +86,6 @@ const IosSubmitProfileSchema = Joi.object({
   ascAppId: Joi.string(),
 
   appleTeamId: Joi.string(),
-  itcTeamId: Joi.string(),
   sku: Joi.string(),
   language: Joi.string(),
   companyName: Joi.string(),

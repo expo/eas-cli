@@ -98,12 +98,12 @@ export default class BuildSubmit extends EasCommand {
     }),
 
     track: flags.enum({
-      description: 'The track of the application to use',
+      description: '[default: internal] The track of the application to use',
       options: ['production', 'beta', 'alpha', 'internal', 'rollout'],
       helpLabel: ANDROID_FLAGS,
     }),
     'release-status': flags.enum({
-      description: 'Release status (used when uploading new APKs/AABs)',
+      description: '[default: completed] Release status (used when uploading new APKs/AABs)',
       options: ['completed', 'draft', 'halted', 'inProgress'],
       helpLabel: ANDROID_FLAGS,
     }),
@@ -139,7 +139,7 @@ export default class BuildSubmit extends EasCommand {
       helpLabel: IOS_FLAGS,
     }),
     language: flags.string({
-      description: 'Primary language (e.g. English, German, ...)',
+      description: '[default: en-US] Primary language (e.g. English, German, ...)',
       helpLabel: IOS_FLAGS,
     }),
     'company-name': flags.string({
@@ -150,7 +150,7 @@ export default class BuildSubmit extends EasCommand {
   };
 
   async run(): Promise<void> {
-    const flags = this.paseFlags();
+    const flags = this.parseFlags();
     const platform =
       (flags.platform?.toUpperCase() as AppPlatform | undefined) ??
       (await promptForPlatformAsync());
@@ -205,7 +205,7 @@ export default class BuildSubmit extends EasCommand {
     }
   }
 
-  private paseFlags(): Flags {
+  private parseFlags(): Flags {
     const {
       flags: {
         platform,
