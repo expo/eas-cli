@@ -3,6 +3,10 @@ import assert from 'assert';
 import { getExpoApiBaseUrl, getExpoWebsiteBaseUrl } from '../../api';
 import { AppPlatform, BuildFragment } from '../../graphql/generated';
 
+export function getProjectDashboardUrl(accountName: string, projectName: string): string {
+  return `${getExpoWebsiteBaseUrl()}/accounts/${accountName}/projects/${projectName}`;
+}
+
 export function getBuildLogsUrl(build: BuildFragment): string {
   const { project } = build;
   if (project.__typename === 'App') {

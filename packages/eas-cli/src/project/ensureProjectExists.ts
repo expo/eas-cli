@@ -1,7 +1,9 @@
 import assert from 'assert';
 import chalk from 'chalk';
 import ora from 'ora';
+import terminalLink from 'terminal-link';
 
+import { getProjectDashboardUrl } from '../build/utils/url';
 import { AppPrivacy } from '../graphql/generated';
 import { AppMutation } from '../graphql/mutations/AppMutation';
 import { ProjectQuery } from '../graphql/queries/ProjectQuery';
@@ -26,12 +28,14 @@ export async function ensureProjectExistsAsync(projectInfo: ProjectInfo): Promis
   assert(account, `You must have access to the ${accountName} account to run this command`);
 
   const projectFullName = `@${accountName}/${projectName}`;
+  const projectDashboardUrl = getProjectDashboardUrl(accountName, projectName);
+  const projectLink = terminalLink(projectFullName, projectDashboardUrl);
 
   const spinner = ora(`Linking to project ${chalk.bold(projectFullName)}`).start();
 
   const maybeId = await findProjectIdByAccountNameAndSlugNullableAsync(accountName, projectName);
   if (maybeId) {
-    spinner.succeed(`Linked to project ${chalk.bold(projectFullName)}`);
+    spinner.succeed(`Linked to project ${chalk.bold(projectLink)}`);
     return maybeId;
   }
 
@@ -42,7 +46,7 @@ export async function ensureProjectExistsAsync(projectInfo: ProjectInfo): Promis
       projectName,
       privacy: projectInfo.privacy,
     });
-    spinner.succeed(`Created ${chalk.bold(projectFullName)} on Expo`);
+    spinner.succeed(`Created ${chalk.bold(projectLink)} on Expo`);
     return id;
   } catch (err) {
     spinner.fail();
