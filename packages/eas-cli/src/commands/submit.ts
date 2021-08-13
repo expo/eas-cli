@@ -107,6 +107,11 @@ export default class BuildSubmit extends EasCommand {
       options: ['completed', 'draft', 'halted', 'inProgress'],
       helpLabel: ANDROID_FLAGS,
     }),
+    'changes-not-send-for-review': flags.boolean({
+      description:
+        '[default: false] Indicates that the changes in this edit will not be reviewed until they are explicitly sent for review from the Google Play Console UI',
+      helpLabel: ANDROID_FLAGS,
+    }),
 
     /* iOS specific flags */
     'apple-id': flags.string({
@@ -179,6 +184,7 @@ export default class BuildSubmit extends EasCommand {
         releaseStatus: 'completed',
         track: 'internal',
         verbose: false,
+        changesNotSentForReview: false,
         ...submitProfile,
         ...flags.androidOptions,
       };
@@ -214,6 +220,7 @@ export default class BuildSubmit extends EasCommand {
         // android
         'android-package': androidPackage,
         'release-status': releaseStatus,
+        'changes-not-send-for-review': changesNotSentForReview,
         track,
         type,
         key: serviceAccountKeyPath,
@@ -237,6 +244,7 @@ export default class BuildSubmit extends EasCommand {
         ...(androidPackage && { androidPackage }),
         ...(releaseStatus && { releaseStatus }),
         ...(track && { track }),
+        ...(changesNotSentForReview && { changesNotSentForReview }),
         ...(serviceAccountKeyPath && { serviceAccountKeyPath }),
         ...flags,
       },

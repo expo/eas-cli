@@ -14,7 +14,10 @@ import { AndroidSubmissionConfig, ReleaseStatus, ReleaseTrack } from './AndroidS
 import { ServiceAccountSource, getServiceAccountAsync } from './ServiceAccountSource';
 
 export interface AndroidSubmissionOptions
-  extends Pick<AndroidSubmissionConfig, 'track' | 'releaseStatus' | 'projectId'> {
+  extends Pick<
+    AndroidSubmissionConfig,
+    'track' | 'releaseStatus' | 'projectId' | 'changesNotSentForReview'
+  > {
   androidPackageSource: AndroidPackageSource;
   archiveSource: ArchiveSource;
   serviceAccountSource: ServiceAccountSource;
@@ -66,7 +69,7 @@ class AndroidSubmitter extends BaseSubmitter<AndroidSubmissionContext, AndroidSu
     { archive, androidPackage, serviceAccountPath }: ResolvedSourceOptions
   ): Promise<AndroidSubmissionConfig> {
     const serviceAccount = await fs.readFile(serviceAccountPath, 'utf-8');
-    const { track, releaseStatus, projectId } = options;
+    const { track, releaseStatus, projectId, changesNotSentForReview } = options;
 
     // structuring order affects table rows order
     return {
@@ -77,6 +80,7 @@ class AndroidSubmitter extends BaseSubmitter<AndroidSubmissionContext, AndroidSu
       releaseStatus,
       projectId,
       serviceAccount,
+      changesNotSentForReview,
     };
   }
 
