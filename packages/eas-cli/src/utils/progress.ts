@@ -17,7 +17,7 @@ function createProgressTracker({
 }: {
   total?: number;
   message: string | ((ratio: number) => string);
-  completedMessage: string;
+  completedMessage: string | ((duration: string) => string);
 }): ProgressHandler {
   let bar: ora.Ora | null = null;
   let calcTotal: number = total ?? 0;
@@ -66,7 +66,11 @@ function createProgressTracker({
       if (error) {
         bar.fail();
       } else if (isComplete) {
-        bar.succeed(`${completedMessage} ${chalk.dim(prettyTime)}`);
+        if (typeof completedMessage === 'string') {
+          bar.succeed(`${completedMessage} ${chalk.dim(prettyTime)}`);
+        } else {
+          bar.succeed(completedMessage(prettyTime));
+        }
       }
     }
   };
