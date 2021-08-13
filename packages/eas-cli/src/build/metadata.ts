@@ -41,6 +41,10 @@ export async function collectMetadata<T extends Platform>(
   platformContext?: MetadataContext<T>
 ): Promise<Metadata> {
   const channelOrReleaseChannel = await resolveChannelOrReleaseChannelAsync(ctx);
+  const distribution =
+    ('simulator' in ctx.buildProfile && ctx.buildProfile.simulator
+      ? 'simulator'
+      : ctx.buildProfile.distribution) ?? 'store';
   const metadata = {
     trackingContext: ctx.trackingCtx,
     appVersion: await resolveAppVersionAsync(ctx, platformContext),
@@ -51,7 +55,7 @@ export async function collectMetadata<T extends Platform>(
     sdkVersion: ctx.exp.sdkVersion,
     runtimeVersion: ctx.exp.runtimeVersion,
     ...channelOrReleaseChannel,
-    distribution: ctx.buildProfile.distribution ?? 'store',
+    distribution,
     appName: ctx.exp.name,
     appIdentifier: await resolveAppIdentifierAsync(ctx),
     buildProfile: ctx.buildProfileName,
