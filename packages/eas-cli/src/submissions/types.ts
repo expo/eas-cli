@@ -8,7 +8,7 @@ export interface BaseSubmissionContext {
 }
 
 export interface SubmitCommandFlags {
-  latest: boolean;
+  latest?: boolean;
   id?: string;
   path?: string;
   url?: string;
@@ -29,7 +29,7 @@ export type ArchiveType = AndroidArchiveType | IosArchiveType;
 // Android specific types
 export interface AndroidSubmitCommandFlags extends SubmitCommandFlags {
   type?: 'apk' | 'aab';
-  key?: string;
+  serviceAccountKeyPath?: string;
   androidPackage?: string;
   track: string;
   releaseStatus: string;
@@ -45,7 +45,6 @@ export interface IosSubmitCommandFlags extends SubmitCommandFlags {
 
   // used only when running produce
   appleTeamId?: string;
-  itcTeamId?: string;
   appName?: string;
   bundleIdentifier?: string;
   sku?: string;

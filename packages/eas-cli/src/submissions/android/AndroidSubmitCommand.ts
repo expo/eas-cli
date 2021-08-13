@@ -3,6 +3,7 @@ import { Result, result } from '@expo/results';
 
 import { AppPlatform } from '../../graphql/generated';
 import Log from '../../log';
+import { getApplicationIdAsync } from '../../project/android/applicationId';
 import { ArchiveSource, ArchiveTypeSource, ArchiveTypeSourceType } from '../archiveSource';
 import { resolveArchiveFileSource } from '../commons';
 import { AndroidArchiveType, AndroidSubmissionContext, AndroidSubmitCommandFlags } from '../types';
@@ -28,13 +29,13 @@ class AndroidSubmitCommand {
 
   async runAsync(): Promise<void> {
     Log.addNewLineIfNone();
-    const submissionOptions = this.getAndroidSubmissionOptions();
+    const submissionOptions = await this.getAndroidSubmissionOptionsAsync();
     const submitter = new AndroidSubmitter(this.ctx, submissionOptions);
     await submitter.submitAsync();
   }
 
-  private getAndroidSubmissionOptions(): AndroidSubmissionOptions {
-    const androidPackageSource = this.resolveAndroidPackageSource();
+  private async getAndroidSubmissionOptionsAsync(): Promise<AndroidSubmissionOptions> {
+    const androidPackageSource = await this.resolveAndroidPackageSourceAsync();
     const track = this.resolveTrack();
     const releaseStatus = this.resolveReleaseStatus();
     const archiveSource = this.resolveArchiveSource(this.ctx.projectId);
@@ -63,13 +64,21 @@ class AndroidSubmitCommand {
     };
   }
 
-  private resolveAndroidPackageSource(): Result<AndroidPackageSource> {
-    let androidPackage: string | undefined;
+  private async maybeGetAndroidPackageFromCurrentProjectAsync(): Promise<string | undefined> {
     const { exp } = getConfig(this.ctx.projectDir, { skipSDKVersionRequirement: true });
+    try {
+      return await getApplicationIdAsync(this.ctx.projectDir, exp);
+    } catch {
+      return undefined;
+    }
+  }
+
+  private async resolveAndroidPackageSourceAsync(): Promise<Result<AndroidPackageSource>> {
+    let androidPackage: string | undefined;
     if (this.ctx.commandFlags.androidPackage) {
       androidPackage = this.ctx.commandFlags.androidPackage;
-    } else if (exp.android?.package) {
-      androidPackage = exp.android.package;
+    } else {
+      androidPackage = await this.maybeGetAndroidPackageFromCurrentProjectAsync();
     }
     if (androidPackage) {
       return result({
@@ -147,11 +156,11 @@ class AndroidSubmitCommand {
   }
 
   private resolveServiceAccountSource(): Result<ServiceAccountSource> {
-    const { key } = this.ctx.commandFlags;
-    if (key) {
+    const { serviceAccountKeyPath } = this.ctx.commandFlags;
+    if (serviceAccountKeyPath) {
       return result({
         sourceType: ServiceAccountSourceType.path,
-        path: key,
+        path: serviceAccountKeyPath,
       });
     } else {
       return result({

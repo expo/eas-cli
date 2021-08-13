@@ -18,7 +18,6 @@ interface CreateAppOptions {
   appName: string;
   bundleIdentifier: string;
   appleTeamId?: string;
-  itcTeamId?: string;
   language?: string;
   companyName?: string;
   sku?: string;

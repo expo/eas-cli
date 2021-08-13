@@ -1,12 +1,13 @@
+export { AndroidSubmitProfile, IosSubmitProfile } from './EasSubmit.types';
+export { EasJson } from './EasJson.types';
 export {
   AndroidBuildProfile,
   BuildProfile,
   CredentialsSource,
   DistributionType,
-  EasJson,
   IosBuildProfile,
   IosEnterpriseProvisioning,
   VersionAutoIncrement,
-} from './EasJson.types';
+} from './EasBuild.types';
 export { EasJsonReader } from './EasJsonReader';
 export { hasMismatchedExtendsAsync, isUsingDeprecatedFormatAsync, migrateAsync } from './migrate';

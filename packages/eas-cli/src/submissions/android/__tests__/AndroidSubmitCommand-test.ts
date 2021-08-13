@@ -103,7 +103,7 @@ describe(AndroidSubmitCommand, () => {
         latest: false,
         url: 'http://expo.io/fake.apk',
         type: 'apk',
-        key: '/google-service-account.json',
+        serviceAccountKeyPath: '/google-service-account.json',
         track: 'internal',
         releaseStatus: 'draft',
         verbose: false,
@@ -147,7 +147,7 @@ describe(AndroidSubmitCommand, () => {
       const options: AndroidSubmitCommandFlags = {
         latest: true,
         type: 'apk',
-        key: '/google-service-account.json',
+        serviceAccountKeyPath: '/google-service-account.json',
         track: 'internal',
         releaseStatus: 'draft',
         verbose: false,

@@ -2,8 +2,10 @@ import { Platform } from '@expo/eas-build-job';
 import fs from 'fs-extra';
 import path from 'path';
 
-import { BuildProfile, CredentialsSource, EasJson, RawBuildProfile } from './EasJson.types';
+import { BuildProfile } from './EasBuild.types';
+import { CredentialsSource, EasJson, RawBuildProfile } from './EasJson.types';
 import { EasJsonSchema, MinimalEasJsonSchema } from './EasJsonSchema';
+import { SubmitProfile } from './EasSubmit.types';
 
 interface EasJsonPreValidation {
   build: { [profile: string]: object };
@@ -26,12 +28,24 @@ export class EasJsonReader {
     return Object.keys(easJson?.build ?? {});
   }
 
+  public async readSubmitProfileAsync<T extends Platform>(
+    profileName: string,
+    platform: T
+  ): Promise<SubmitProfile<T>> {
+    const easJson = await this.readAndValidateAsync();
+    const profile = easJson?.submit?.[profileName]?.[platform];
+    if (!profile) {
+      throw new Error(`There is no profile named ${profileName} in eas.json for ${platform}.`);
+    }
+    return profile as SubmitProfile<T>;
+  }
+
   public async readBuildProfileAsync<T extends Platform>(
     buildProfileName: string,
     platform: T
   ): Promise<BuildProfile<T>> {
     const easJson = await this.readAndValidateAsync();
-    this.ensureProfileExists(easJson, buildProfileName);
+    this.ensureBuildProfileExists(easJson, buildProfileName);
     const {
       android: resolvedAndroidSpecificValues,
       ios: resolvedIosSpecificValues,
@@ -104,7 +118,7 @@ export class EasJsonReader {
     }
   }
 
-  private ensureProfileExists(easJson: EasJson, profileName: string) {
+  private ensureBuildProfileExists(easJson: EasJson, profileName: string) {
     if (!easJson.build || !easJson.build[profileName]) {
       throw new Error(`There is no profile named ${profileName} in eas.json.`);
     }
