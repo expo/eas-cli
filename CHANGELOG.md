@@ -13,6 +13,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Fixed `--sku` flag being ignored when running `eas submit -p ios`. ([#559](https://github.com/expo/eas-cli/pull/559) by [@barthap](https://github.com/barthap))
+
 ### 🧹 Chores
 
 ## [0.23.0](https://github.com/expo/eas-cli/releases/tag/v0.23.0) - 2021-08-05
