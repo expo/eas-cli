@@ -71,16 +71,15 @@ class AndroidSubmitter extends BaseSubmitter<AndroidSubmissionContext, AndroidSu
     const serviceAccount = await fs.readFile(serviceAccountPath, 'utf-8');
     const { track, releaseStatus, projectId, changesNotSentForReview } = options;
 
-    // structuring order affects table rows order
     return {
       androidPackage,
       archiveUrl: archive.location,
       archiveType: archive.type as AndroidArchiveType,
       track,
+      changesNotSentForReview,
       releaseStatus,
       projectId,
       serviceAccount,
-      changesNotSentForReview,
     };
   }
 
@@ -88,12 +87,14 @@ class AndroidSubmitter extends BaseSubmitter<AndroidSubmissionContext, AndroidSu
     options: AndroidSubmissionOptions,
     { archive, androidPackage, serviceAccountPath }: ResolvedSourceOptions
   ): Summary {
-    const { projectId, track, releaseStatus } = options;
+    const { projectId, track, releaseStatus, changesNotSentForReview } = options;
 
+    // structuring order affects table rows order
     return {
       projectId,
       androidPackage,
       track,
+      changesNotSentForReview,
       releaseStatus,
       archiveType: archive.type as AndroidArchiveType,
       serviceAccountPath,
@@ -109,6 +110,7 @@ type Summary = {
   track: ReleaseTrack;
   releaseStatus?: ReleaseStatus;
   projectId?: string;
+  changesNotSentForReview?: boolean;
 } & ArchiveSourceSummaryFields;
 
 const SummaryHumanReadableKeys: Record<keyof Summary, string> = {
@@ -117,6 +119,7 @@ const SummaryHumanReadableKeys: Record<keyof Summary, string> = {
   archiveUrl: 'Download URL',
   archiveType: 'Archive type',
   serviceAccountPath: 'Google Service Key',
+  changesNotSentForReview: 'Changes not sent for a review',
   track: 'Release track',
   releaseStatus: 'Release status',
   projectId: 'Project ID',
