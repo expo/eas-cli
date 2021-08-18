@@ -1,5 +1,5 @@
 import { getConfig } from '@expo/config';
-import { Command } from '@oclif/command';
+import { Command, flags } from '@oclif/command';
 import ora from 'ora';
 
 import { formatGraphQLBuild } from '../../build/utils/formatBuild';
@@ -11,14 +11,27 @@ import {
   getProjectFullNameAsync,
   getProjectIdAsync,
 } from '../../project/projectUtils';
+import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
 export default class BuildView extends Command {
   static description = 'view a build for your project';
 
   static args = [{ name: 'BUILD_ID' }];
 
+  static flags = {
+    json: flags.boolean({
+      description: 'Enable json output, non json messages will printed to stderr',
+    }),
+  };
+
   async run() {
-    const { BUILD_ID: buildId } = this.parse(BuildView).args;
+    const {
+      args: { BUILD_ID: buildId },
+      flags,
+    } = this.parse(BuildView);
+    if (flags.json) {
+      enableJsonOutput();
+    }
 
     const projectDir = (await findProjectRootAsync()) ?? process.cwd();
     const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
@@ -47,7 +60,11 @@ export default class BuildView extends Command {
         spinner.succeed(`Showing the last build for the project ${projectName}`);
       }
 
-      Log.log(`\n${formatGraphQLBuild(build)}`);
+      if (flags.json) {
+        printJsonOnlyOutput(build);
+      } else {
+        Log.log(`\n${formatGraphQLBuild(build)}`);
+      }
     } catch (err) {
       if (buildId) {
         spinner.fail(`Something went wrong and we couldn't fetch the build with id ${buildId}`);

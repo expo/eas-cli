@@ -26,6 +26,7 @@ import {
 import { validateMetroConfigForManagedWorkflowAsync } from '../../project/metroConfig';
 import { findProjectRootAsync } from '../../project/projectUtils';
 import { confirmAsync, promptAsync } from '../../prompts';
+import { enableJsonOutput } from '../../utils/json';
 import vcs from '../../vcs';
 
 interface RawBuildFlags {
@@ -37,6 +38,7 @@ interface RawBuildFlags {
   local: boolean;
   wait: boolean;
   'clear-cache': boolean;
+  json: boolean;
 }
 
 interface BuildFlags {
@@ -47,6 +49,7 @@ interface BuildFlags {
   local: boolean;
   wait: boolean;
   clearCache: boolean;
+  json: boolean;
 }
 
 export default class Build extends EasCommand {
@@ -57,6 +60,10 @@ export default class Build extends EasCommand {
     'skip-credentials-check': flags.boolean({
       default: false,
       hidden: true,
+    }),
+    json: flags.boolean({
+      description: 'Enable json output, non-json messages will printed to stderr',
+      default: false,
     }),
     'skip-project-configuration': flags.boolean({
       default: false,
@@ -87,6 +94,9 @@ export default class Build extends EasCommand {
 
   async run(): Promise<void> {
     const { flags: rawFlags } = this.parse(Build);
+    if (rawFlags.json) {
+      enableJsonOutput();
+    }
     const flags = await this.sanitizeFlagsAsync(rawFlags);
     const { requestedPlatform } = flags;
 
@@ -139,7 +149,7 @@ export default class Build extends EasCommand {
 
     if (flags.wait) {
       const builds = await waitForBuildEndAsync(startedBuilds.map(build => build.id));
-      printBuildResults(builds);
+      printBuildResults(builds, flags.json);
       this.exitWithNonZeroCodeIfSomeBuildsFailed(builds);
     }
   }
@@ -148,6 +158,9 @@ export default class Build extends EasCommand {
     const nonInteractive = flags['non-interactive'];
     if (!flags.platform && nonInteractive) {
       throw new Error('--platform is required when building in non-interactive mode');
+    }
+    if (flags.json && !nonInteractive) {
+      throw new Error('--json is allowed only when building in non-interactive mode');
     }
     const requestedPlatform =
       (flags.platform as RequestedPlatform | undefined) ?? (await this.promptForPlatformAsync());
@@ -176,6 +189,7 @@ export default class Build extends EasCommand {
       local: flags['local'],
       wait: flags['wait'],
       clearCache: flags['clear-cache'],
+      json: flags['json'],
     };
   }
 

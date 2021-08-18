@@ -17,6 +17,7 @@ import {
   getProjectFullNameAsync,
   getProjectIdAsync,
 } from '../../project/projectUtils';
+import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
 export default class BuildList extends Command {
   static description = 'list all builds for your project';
@@ -24,6 +25,9 @@ export default class BuildList extends Command {
   static flags = {
     platform: flags.enum({
       options: [RequestedPlatform.All, RequestedPlatform.Android, RequestedPlatform.Ios],
+    }),
+    json: flags.boolean({
+      description: 'Enable json output, non-json messages will printed to stderr',
     }),
     status: flags.enum({
       options: [
@@ -56,11 +60,15 @@ export default class BuildList extends Command {
   async run() {
     const { flags } = this.parse(BuildList);
     const {
+      json,
       platform: requestedPlatform,
       status: buildStatus,
       distribution: buildDistribution,
       limit = 10,
     } = flags;
+    if (json) {
+      enableJsonOutput();
+    }
 
     const platform = toAppPlatform(requestedPlatform);
     const graphqlBuildStatus = toGraphQLBuildStatus(buildStatus);
@@ -100,11 +108,15 @@ export default class BuildList extends Command {
           spinner.succeed(`Showing last ${builds.length} builds for the project ${projectName}`);
         }
 
-        const list = builds
-          .map(build => formatGraphQLBuild(build))
-          .join(`\n\n${chalk.dim('———')}\n\n`);
+        if (json) {
+          printJsonOnlyOutput(builds);
+        } else {
+          const list = builds
+            .map(build => formatGraphQLBuild(build))
+            .join(`\n\n${chalk.dim('———')}\n\n`);
 
-        Log.log(`\n${list}`);
+          Log.log(`\n${list}`);
+        }
       } else {
         spinner.fail(`Couldn't find any builds for the project ${projectName}`);
       }
