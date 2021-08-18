@@ -438,6 +438,7 @@ export type App = Project & {
   submissions: Array<Submission>;
   /** Deployments associated with this app */
   deployments: Array<Deployment>;
+  deployment?: Maybe<Deployment>;
   /** iOS app credentials for the project */
   iosAppCredentials: Array<IosAppCredentials>;
   /** Android app credentials for the project */
@@ -523,8 +524,16 @@ export type AppSubmissionsArgs = {
 /** Represents an Exponent App (or Experience in legacy terms) */
 export type AppDeploymentsArgs = {
   limit: Scalars['Int'];
-  buildListMaxSize: Scalars['Int'];
   mostRecentlyUpdatedAt?: Maybe<Scalars['DateTime']>;
+  options?: Maybe<DeploymentOptions>;
+};
+
+
+/** Represents an Exponent App (or Experience in legacy terms) */
+export type AppDeploymentArgs = {
+  channel: Scalars['String'];
+  runtimeVersion: Scalars['String'];
+  options?: Maybe<DeploymentOptions>;
 };
 
 
@@ -1010,6 +1019,11 @@ export type SubmissionFilter = {
   status?: Maybe<SubmissionStatus>;
 };
 
+export type DeploymentOptions = {
+  /** Max number of associated builds to return */
+  buildListMaxSize?: Maybe<Scalars['Int']>;
+};
+
 /** Represents a Deployment - a set of Builds with the same Runtime Version and Channel */
 export type Deployment = {
   __typename?: 'Deployment';
@@ -1207,6 +1221,7 @@ export type AndroidAppCredentials = {
   app: App;
   applicationIdentifier?: Maybe<Scalars['String']>;
   androidFcm?: Maybe<AndroidFcm>;
+  googleServiceAccountKeyForSubmissions?: Maybe<GoogleServiceAccountKey>;
   androidAppBuildCredentialsList: Array<AndroidAppBuildCredentials>;
   isLegacy: Scalars['Boolean'];
   /** @deprecated use androidAppBuildCredentialsList instead */
@@ -1248,6 +1263,18 @@ export enum AndroidFcmVersion {
   Legacy = 'LEGACY',
   V1 = 'V1'
 }
+
+export type GoogleServiceAccountKey = {
+  __typename?: 'GoogleServiceAccountKey';
+  id: Scalars['ID'];
+  account: Account;
+  projectIdentifier: Scalars['String'];
+  privateKeyIdentifier: Scalars['String'];
+  clientEmail: Scalars['String'];
+  clientIdentifier: Scalars['String'];
+  createdAt: Scalars['DateTime'];
+  updatedAt: Scalars['DateTime'];
+};
 
 export type AndroidAppBuildCredentials = {
   __typename?: 'AndroidAppBuildCredentials';
@@ -2882,6 +2909,8 @@ export type SubmissionMutation = {
   createSubmission: CreateSubmissionResult;
   /** Create an iOS EAS Submit submission */
   createIosSubmission: CreateSubmissionResult;
+  /** Create an Android EAS Submit submission */
+  createAndroidSubmission: CreateSubmissionResult;
 };
 
 
@@ -2892,6 +2921,11 @@ export type SubmissionMutationCreateSubmissionArgs = {
 
 export type SubmissionMutationCreateIosSubmissionArgs = {
   input: CreateIosSubmissionInput;
+};
+
+
+export type SubmissionMutationCreateAndroidSubmissionArgs = {
+  input: CreateAndroidSubmissionInput;
 };
 
 export type CreateSubmissionInput = {
@@ -2909,16 +2943,32 @@ export type CreateSubmissionResult = {
 
 export type CreateIosSubmissionInput = {
   appId: Scalars['ID'];
-  config: NewIosSubmissionConfig;
+  config: IosSubmissionConfigInput;
   submittedBuildId?: Maybe<Scalars['ID']>;
 };
 
-export type NewIosSubmissionConfig = {
+export type IosSubmissionConfigInput = {
   appleAppSpecificPasswordId?: Maybe<Scalars['String']>;
   appleAppSpecificPassword?: Maybe<Scalars['String']>;
   archiveUrl: Scalars['String'];
   appleIdUsername: Scalars['String'];
   ascAppIdentifier: Scalars['String'];
+};
+
+export type CreateAndroidSubmissionInput = {
+  appId: Scalars['ID'];
+  config: AndroidSubmissionConfigInput;
+  submittedBuildId?: Maybe<Scalars['ID']>;
+};
+
+export type AndroidSubmissionConfigInput = {
+  googleServiceAccountKeyId?: Maybe<Scalars['String']>;
+  googleServiceAccountKeyJson?: Maybe<Scalars['String']>;
+  archiveUrl: Scalars['String'];
+  archiveType: SubmissionAndroidArchiveType;
+  applicationIdentifier: Scalars['String'];
+  track: SubmissionAndroidTrack;
+  releaseStatus?: Maybe<SubmissionAndroidReleaseStatus>;
 };
 
 export type UpdateChannelMutation = {
@@ -2992,7 +3042,7 @@ export type UpdateBranchMutation = {
   /** Delete an EAS branch and all of its updates as long as the branch is not being used by any channels */
   deleteUpdateBranch: DeleteUpdateBranchResult;
   /** Publish an update group to a branch */
-  publishUpdateGroup: Array<Update>;
+  publishUpdateGroups: Array<Update>;
 };
 
 
@@ -3012,8 +3062,8 @@ export type UpdateBranchMutationDeleteUpdateBranchArgs = {
 };
 
 
-export type UpdateBranchMutationPublishUpdateGroupArgs = {
-  publishUpdateGroupInput?: Maybe<PublishUpdateGroupInput>;
+export type UpdateBranchMutationPublishUpdateGroupsArgs = {
+  publishUpdateGroupsInput: Array<PublishUpdateGroupInput>;
 };
 
 export type EditUpdateBranchInput = {
@@ -4769,7 +4819,7 @@ export type GetSignedUploadMutation = (
 );
 
 export type UpdatePublishMutationVariables = Exact<{
-  publishUpdateGroupInput?: Maybe<PublishUpdateGroupInput>;
+  publishUpdateGroupsInput: Array<PublishUpdateGroupInput>;
 }>;
 
 
@@ -4777,9 +4827,9 @@ export type UpdatePublishMutation = (
   { __typename?: 'RootMutation' }
   & { updateBranch: (
     { __typename?: 'UpdateBranchMutation' }
-    & { publishUpdateGroup: Array<(
+    & { publishUpdateGroups: Array<(
       { __typename?: 'Update' }
-      & Pick<Update, 'id' | 'group'>
+      & Pick<Update, 'id' | 'group' | 'runtimeVersion' | 'platform'>
     )> }
   ) }
 );

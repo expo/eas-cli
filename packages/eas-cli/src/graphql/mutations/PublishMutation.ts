@@ -30,27 +30,28 @@ const PublishMutation = {
   },
 
   async publishUpdateGroupAsync(
-    publishUpdateGroupInput: PublishUpdateGroupInput
-  ): Promise<Pick<Update, 'group'>> {
+    publishUpdateGroupsInput: PublishUpdateGroupInput[]
+  ): Promise<UpdatePublishMutation['updateBranch']['publishUpdateGroups']> {
     const data = await withErrorHandlingAsync(
       graphqlClient
         .mutation<UpdatePublishMutation>(
           gql`
-            mutation UpdatePublishMutation($publishUpdateGroupInput: PublishUpdateGroupInput) {
+            mutation UpdatePublishMutation($publishUpdateGroupsInput: [PublishUpdateGroupInput!]!) {
               updateBranch {
-                publishUpdateGroup(publishUpdateGroupInput: $publishUpdateGroupInput) {
+                publishUpdateGroups(publishUpdateGroupsInput: $publishUpdateGroupsInput) {
                   id
                   group
+                  runtimeVersion
+                  platform
                 }
               }
             }
           `,
-          { publishUpdateGroupInput }
+          { publishUpdateGroupsInput }
         )
         .toPromise()
     );
-    const { group } = data.updateBranch.publishUpdateGroup[0]!;
-    return { group };
+    return data.updateBranch.publishUpdateGroups;
   },
 };
 

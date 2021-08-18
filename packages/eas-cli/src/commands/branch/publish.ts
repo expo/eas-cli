@@ -5,7 +5,7 @@ import assert from 'assert';
 import chalk from 'chalk';
 import dateFormat from 'dateformat';
 import gql from 'graphql-tag';
-import { uniqBy } from 'lodash';
+import { groupBy, uniqBy, update } from 'lodash';
 import ora from 'ora';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
@@ -181,11 +181,44 @@ export default class BranchPublish extends Command {
       runtimeVersion = getRuntimeVersionForSDKVersion(sdkVersion);
     }
 
-    if (!runtimeVersion) {
+    let runtimeVersions: { [keyof: string]: string };
+    const iOSRuntimeVersion = (exp as any).ios?.runtimeVersion; // TODO-JJ remove cast to any
+    const androidRuntimeVersion = (exp as any).android?.runtimeVersion; // TODO-JJ remove cast to any
+    switch (platformFlag) {
+      case 'ios': {
+        runtimeVersions = {
+          ios: iOSRuntimeVersion ?? runtimeVersion,
+        };
+        break;
+      }
+      case 'android': {
+        runtimeVersions = {
+          android: androidRuntimeVersion ?? runtimeVersion,
+        };
+        break;
+      }
+      case 'all': {
+        runtimeVersions = {
+          ios: iOSRuntimeVersion ?? runtimeVersion,
+          android: androidRuntimeVersion ?? runtimeVersion,
+        };
+        break;
+      }
+      default:
+        throw new Error('Platform flag must be "ios", "android", or "all"');
+    }
+
+    if (Object.values(runtimeVersions).some(runtime => !runtime)) {
       throw new Error(
-        "Couldn't find 'runtimeVersion'. Please specify it under the 'expo' key in 'app.json'"
+        "Couldn't find a 'runtimeVersion' for every platform. Please specify it under the 'expo' key in 'app.json'"
       );
     }
+    if (Object.values(runtimeVersions).some(runtime => typeof runtime !== 'string')) {
+      throw new Error(
+        `Please ensure that all of the runtime versions defined in the app.json are strings.`
+      );
+    }
+
     const projectId = await getProjectIdAsync(exp);
 
     if (!branchName && autoFlag) {
@@ -282,6 +315,7 @@ export default class BranchPublish extends Command {
       }
       Log.withTick(publicationPlatformMessage);
 
+      const updateInfoGroup: UpdateInfoGroup = {};
       for (const update of updatesToRepublishFilteredByPlatform) {
         const { manifestFragment } = update;
         const platform = update.platform as PublishPlatform;
@@ -332,15 +366,28 @@ export default class BranchPublish extends Command {
       }));
     }
 
-    let newUpdateGroup;
+    const runtimeToPlatformMapping: { [keyof: string]: string[] } = {};
+    for (const runtime of new Set(Object.values(runtimeVersions))) {
+      runtimeToPlatformMapping[runtime] = Object.entries(runtimeVersions)
+        .filter(pair => pair[1] === runtime)
+        .map(pair => pair[0]);
+    }
+
+    const updateGroups = Object.entries(runtimeToPlatformMapping).map(([runtime, platforms]) => {
+      const localUpdateInfoGroup = Object.fromEntries(
+        platforms.map(platform => [platform, updateInfoGroup[platform as keyof UpdateInfoGroup]])
+      );
+      return {
+        branchId,
+        updateInfoGroup: localUpdateInfoGroup,
+        runtimeVersion: republish ? oldRuntimeVersion! : runtime,
+        message,
+      };
+    });
+    let newUpdates;
     const publishSpinner = ora('Publishing...').start();
     try {
-      newUpdateGroup = await PublishMutation.publishUpdateGroupAsync({
-        branchId,
-        updateInfoGroup,
-        runtimeVersion: republish ? oldRuntimeVersion! : runtimeVersion,
-        message,
-      });
+      newUpdates = await PublishMutation.publishUpdateGroupAsync(updateGroups);
       publishSpinner.succeed('Published!');
     } catch (e) {
       publishSpinner.fail('Failed to published updates');
@@ -348,16 +395,35 @@ export default class BranchPublish extends Command {
     }
 
     if (jsonFlag) {
-      Log.log(JSON.stringify(newUpdateGroup));
+      Log.log(JSON.stringify(newUpdates));
     } else {
-      Log.log(
-        formatFields([
-          { label: 'branch', value: branchName },
-          { label: 'runtime version', value: runtimeVersion },
-          { label: 'update group ID', value: newUpdateGroup.group },
-          { label: 'message', value: message },
-        ])
-      );
+      if (new Set(newUpdates.map(update => update.group)).size > 1) {
+        Log.addNewLineIfNone();
+        Log.log(
+          '👉 Since multiple runtime versions are defined, multiple update groups have been published.'
+        );
+      }
+
+      Log.addNewLineIfNone();
+      for (const runtime of new Set(Object.values(runtimeVersions))) {
+        const platforms = newUpdates
+          .filter(update => update.runtimeVersion === runtime)
+          .map(update => update.platform);
+        const newUpdate = newUpdates.find(update => update.runtimeVersion === runtime);
+        if (!newUpdate) {
+          throw new Error(`Publish response is missing updates with runtime ${runtime}.`);
+        }
+        Log.log(
+          formatFields([
+            { label: 'branch', value: branchName },
+            { label: 'runtime version', value: runtime },
+            { label: 'platform', value: platforms.join(',') },
+            { label: 'update group ID', value: newUpdate.group },
+            { label: 'message', value: message },
+          ])
+        );
+        Log.addNewLineIfNone();
+      }
     }
   }
 }
