@@ -122,7 +122,10 @@ export async function convertAssetToUpdateInfoGroupFormatAsync(
   };
 }
 
-export async function buildUpdateInfoGroupAsync(
+/**
+ * This will be sorted later based on the platform's runtime versions.
+ */
+export async function buildUnsortedUpdateInfoGroupAsync(
   assets: CollectedAssets,
   exp: ExpoConfig
 ): Promise<UpdateInfoGroup> {

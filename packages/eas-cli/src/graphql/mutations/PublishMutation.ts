@@ -1,7 +1,7 @@
 import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../client';
-import { PublishUpdateGroupInput, Update, UpdatePublishMutation } from '../generated';
+import { PublishUpdateGroupInput, UpdatePublishMutation } from '../generated';
 
 const PublishMutation = {
   async getUploadURLsAsync(contentTypes: string[]): Promise<{ specifications: string[] }> {

@@ -5,7 +5,7 @@ import assert from 'assert';
 import chalk from 'chalk';
 import dateFormat from 'dateformat';
 import gql from 'graphql-tag';
-import { groupBy, uniqBy, update } from 'lodash';
+import { uniqBy } from 'lodash';
 import ora from 'ora';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
@@ -24,7 +24,7 @@ import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUt
 import {
   PublishPlatform,
   buildBundlesAsync,
-  buildUpdateInfoGroupAsync,
+  buildUnsortedUpdateInfoGroupAsync,
   collectAssets,
   uploadAssetsAsync,
 } from '../../project/publish';
@@ -252,7 +252,7 @@ export default class BranchPublish extends Command {
       name: branchName,
     });
 
-    let updateInfoGroup: UpdateInfoGroup = {};
+    let unsortedUpdateInfoGroups: UpdateInfoGroup = {};
     let oldMessage: string, oldRuntimeVersion: string;
     if (republish) {
       // If we are republishing, we don't need to worry about building the bundle or uploading the assets.
@@ -315,12 +315,11 @@ export default class BranchPublish extends Command {
       }
       Log.withTick(publicationPlatformMessage);
 
-      const updateInfoGroup: UpdateInfoGroup = {};
       for (const update of updatesToRepublishFilteredByPlatform) {
         const { manifestFragment } = update;
         const platform = update.platform as PublishPlatform;
 
-        updateInfoGroup[platform] = JSON.parse(manifestFragment);
+        unsortedUpdateInfoGroups[platform] = JSON.parse(manifestFragment);
       }
 
       // These are the same for each member of an update group
@@ -338,7 +337,7 @@ export default class BranchPublish extends Command {
         const platforms = platformFlag === 'all' ? defaultPublishPlatforms : [platformFlag];
         const assets = collectAssets({ inputDir: inputDir!, platforms });
         await uploadAssetsAsync(assets);
-        updateInfoGroup = await buildUpdateInfoGroupAsync(assets, exp);
+        unsortedUpdateInfoGroups = await buildUnsortedUpdateInfoGroupAsync(assets, exp);
         assetSpinner.succeed('Uploaded assets!');
       } catch (e) {
         assetSpinner.fail('Failed to upload assets');
@@ -373,14 +372,24 @@ export default class BranchPublish extends Command {
         .map(pair => pair[0]);
     }
 
+    // Sort the updates into different groups based on their platform specific runtime versions
     const updateGroups = Object.entries(runtimeToPlatformMapping).map(([runtime, platforms]) => {
       const localUpdateInfoGroup = Object.fromEntries(
-        platforms.map(platform => [platform, updateInfoGroup[platform as keyof UpdateInfoGroup]])
+        platforms.map(platform => [
+          platform,
+          unsortedUpdateInfoGroups[platform as keyof UpdateInfoGroup],
+        ])
       );
+
+      if (republish && !oldRuntimeVersion) {
+        throw new Error(
+          'Can not find the runtime version of the update group that is being republished.'
+        );
+      }
       return {
         branchId,
         updateInfoGroup: localUpdateInfoGroup,
-        runtimeVersion: republish ? oldRuntimeVersion! : runtime,
+        runtimeVersion: republish ? oldRuntimeVersion : runtime,
         message,
       };
     });

@@ -10,7 +10,7 @@ import { PublishQuery } from '../../graphql/queries/PublishQuery';
 import {
   MetadataJoi,
   TIMEOUT_LIMIT,
-  buildUpdateInfoGroupAsync,
+  buildUnsortedUpdateInfoGroupAsync,
   collectAssets,
   convertAssetToUpdateInfoGroupFormatAsync,
   filterOutAssetsThatAlreadyExistAsync,
@@ -147,7 +147,7 @@ describe(convertAssetToUpdateInfoGroupFormatAsync, () => {
   });
 });
 
-describe(buildUpdateInfoGroupAsync, () => {
+describe(buildUnsortedUpdateInfoGroupAsync, () => {
   const androidBundlePath = uuidv4();
   const assetPath = uuidv4();
   fs.writeFileSync(androidBundlePath, 'I am a js bundle');
@@ -155,7 +155,7 @@ describe(buildUpdateInfoGroupAsync, () => {
 
   it('returns the correct value', async () => {
     await expect(
-      buildUpdateInfoGroupAsync(
+      buildUnsortedUpdateInfoGroupAsync(
         {
           android: {
             launchAsset: {
