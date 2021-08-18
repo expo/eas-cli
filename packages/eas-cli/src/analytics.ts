@@ -1,5 +1,6 @@
 import { Identify } from '@amplitude/identify';
 import * as Amplitude from '@amplitude/node';
+import RudderAnalytics from '@expo/rudder-sdk-node';
 import os from 'os';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -18,8 +19,9 @@ const PLATFORM_TO_ANALYTICS_PLATFORM: { [platform: string]: string } = {
   linux: 'Linux',
 };
 
-let client: Amplitude.NodeClient | null = null;
-let userIdentifyCalled = false;
+let amplitudeClient: Amplitude.NodeClient | null = null;
+let rudderstackClient: RudderAnalytics | null = null;
+let userIdentified = false;
 let identifyData: {
   userId: string;
   deviceId: string;
@@ -32,11 +34,33 @@ export async function initAsync(): Promise<void> {
   }
   const amplitudeEnabled = await UserSettings.getAsync('amplitudeEnabled', true);
   if (amplitudeEnabled) {
-    const apiKey =
+    const config =
       process.env.EXPO_STAGING || process.env.EXPO_LOCAL
-        ? 'cdebbc678931403439486c4750781544'
-        : '4ac443afd5073c0df6169291db1d3495';
-    client = Amplitude.init(apiKey, { retryClass: new Amplitude.OfflineRetryHandler(apiKey) });
+        ? {
+            // staging environment
+            amplitudeWriteKey: 'cdebbc678931403439486c4750781544',
+            rudderstackWriteKey: '1wpX20Da4ltFGSXbPFYUL00Chb7',
+            rudderstackDataPlaneURL: 'https://cdp.expo.dev',
+          }
+        : {
+            // prod environment
+            amplitudeWriteKey: '4ac443afd5073c0df6169291db1d3495',
+            rudderstackWriteKey: '1wpXLFxmujq86etH6G6cc90hPcC',
+            rudderstackDataPlaneURL: 'https://cdp.expo.dev',
+          };
+
+    amplitudeClient = Amplitude.init(config.amplitudeWriteKey, {
+      retryClass: new Amplitude.OfflineRetryHandler(config.amplitudeWriteKey),
+    });
+
+    rudderstackClient = new RudderAnalytics(
+      config.rudderstackWriteKey,
+      new URL('/v1/batch', config.rudderstackDataPlaneURL).toString(),
+      {
+        flushInterval: 300,
+      }
+    );
+    rudderstackClient.logger.silent = true;
   }
 }
 
@@ -53,6 +77,7 @@ export async function setUserDataAsync(
   if (!savedDeviceId) {
     await UserSettings.setAsync('amplitudeDeviceId', deviceId);
   }
+
   identifyData = {
     userId,
     deviceId,
@@ -63,41 +88,79 @@ export async function setUserDataAsync(
 }
 
 export async function flushAsync(): Promise<void> {
-  if (client) {
-    await client.flush();
+  if (rudderstackClient) {
+    rudderstackClient.flush();
+  }
+
+  if (amplitudeClient) {
+    await amplitudeClient.flush();
   }
 }
 
 export function logEvent(name: string, properties: Record<string, any> = {}) {
-  if (client) {
-    ensureUserIdentified();
-    const { userId, deviceId } = identifyData ?? {};
-    client.logEvent({
+  if (!amplitudeClient && !rudderstackClient) {
+    return;
+  }
+  ensureUserIdentified();
+
+  const { userId, deviceId } = identifyData ?? {};
+  const commonEventProperties = { source_version: packageJSON?.version, source: 'eas cli' };
+
+  if (amplitudeClient) {
+    amplitudeClient.logEvent({
       event_type: name,
-      event_properties: properties,
+      event_properties: { ...properties, ...commonEventProperties },
       ...(userId && { user_id: userId }),
       ...(deviceId && { device_id: deviceId }),
-      ...getContext(),
+      ...getAmplitudeContext(),
+    });
+  }
+
+  if (rudderstackClient) {
+    const identity = { userId: userId ?? undefined, anonymousId: deviceId ?? uuidv4() };
+    rudderstackClient.track({
+      event: name,
+      properties: { ...properties, ...commonEventProperties },
+      ...identity,
+      context: getRudderStackContext(),
     });
   }
 }
 
 function ensureUserIdentified() {
-  if (client && !userIdentifyCalled && identifyData) {
-    client.identify(identifyData.userId, identifyData.deviceId, identifyData.identify);
-    userIdentifyCalled = true;
+  if (!(rudderstackClient || amplitudeClient) || userIdentified || !identifyData) {
+    return;
   }
+
+  if (amplitudeClient) {
+    amplitudeClient.identify(identifyData.userId, identifyData.deviceId, identifyData.identify);
+  }
+
+  if (rudderstackClient) {
+    rudderstackClient.identify({
+      userId: identifyData.userId,
+      anonymousId: identifyData.deviceId,
+    });
+  }
+  userIdentified = true;
 }
 
-function getContext() {
+function getAmplitudeContext() {
   const platform = PLATFORM_TO_ANALYTICS_PLATFORM[os.platform()] || os.platform();
   return {
     os_name: platform,
     os_version: os.release(),
     device_brand: platform,
     device_model: platform,
-    source_version: packageJSON?.version,
-    source: 'eas cli',
+  };
+}
+
+function getRudderStackContext() {
+  const platform = PLATFORM_TO_ANALYTICS_PLATFORM[os.platform()] || os.platform();
+  return {
+    os: { name: platform, version: os.release() },
+    device: { type: platform, model: platform },
+    app: { name: 'eas cli', version: packageJSON?.version ?? undefined },
   };
 }
 
