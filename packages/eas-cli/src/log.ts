@@ -85,7 +85,7 @@ export default class Log {
 /**
  * Format links as dim (unless disabled) with an underline.
  *
- * @example Learn more: https://expo.io
+ * @example Learn more: https://expo.dev
  * @param url
  */
 export function learnMore(

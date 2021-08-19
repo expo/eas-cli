@@ -44,7 +44,7 @@ describe(AndroidSubmitCommand, () => {
 
   const fakeBuildFragment: Partial<BuildFragment> = {
     id: uuidv4(),
-    artifacts: { buildUrl: 'http://expo.io/fake.apk' },
+    artifacts: { buildUrl: 'http://expo.dev/fake.apk' },
     appVersion: '1.2.3',
     platform: AppPlatform.Android,
   };
@@ -101,7 +101,7 @@ describe(AndroidSubmitCommand, () => {
 
       const options: AndroidSubmitCommandFlags = {
         latest: false,
-        url: 'http://expo.io/fake.apk',
+        url: 'http://expo.dev/fake.apk',
         type: 'apk',
         serviceAccountKeyPath: '/google-service-account.json',
         track: 'internal',
@@ -113,7 +113,7 @@ describe(AndroidSubmitCommand, () => {
       await command.runAsync();
 
       const androidSubmissionConfig: AndroidSubmissionConfig = {
-        archiveUrl: 'http://expo.io/fake.apk',
+        archiveUrl: 'http://expo.dev/fake.apk',
         archiveType: AndroidArchiveType.apk,
         androidPackage: testProject.appJSON.expo.android?.package,
         serviceAccount: fakeFiles['/google-service-account.json'],
@@ -157,7 +157,7 @@ describe(AndroidSubmitCommand, () => {
       await command.runAsync();
 
       const androidSubmissionConfig: AndroidSubmissionConfig = {
-        archiveUrl: 'http://expo.io/fake.apk',
+        archiveUrl: 'http://expo.dev/fake.apk',
         archiveType: AndroidArchiveType.apk,
         androidPackage: testProject.appJSON.expo.android?.package,
         serviceAccount: fakeFiles['/google-service-account.json'],

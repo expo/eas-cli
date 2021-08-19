@@ -84,7 +84,7 @@ describe(IosSubmitCommand, () => {
 
       const options: IosSubmitCommandFlags = {
         latest: false,
-        url: 'http://expo.io/fake.ipa',
+        url: 'http://expo.dev/fake.ipa',
         appleId: 'test@example.com',
         ascAppId: '12345678',
         verbose: false,
@@ -94,7 +94,7 @@ describe(IosSubmitCommand, () => {
       await command.runAsync();
 
       const iosSubmissionConfig: IosSubmissionConfig = {
-        archiveUrl: 'http://expo.io/fake.ipa',
+        archiveUrl: 'http://expo.dev/fake.ipa',
         appleId: 'test@example.com',
         appSpecificPassword: 'supersecret',
         appAppleId: '12345678',

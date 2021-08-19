@@ -80,7 +80,7 @@ async function generatePushKeyAsync(ctx: Context, accountName: string): Promise<
       }
 
       Log.log(chalk.grey(`⚠️  Revoking a Push Key will affect other apps that rely on it`));
-      Log.log(learnMore('https://docs.expo.io/distribution/app-signing/#push-notification-keys'));
+      Log.log(learnMore('https://docs.expo.dev/distribution/app-signing/#push-notification-keys'));
       Log.log();
 
       const { pushKeysToRevoke } = await promptAsync({

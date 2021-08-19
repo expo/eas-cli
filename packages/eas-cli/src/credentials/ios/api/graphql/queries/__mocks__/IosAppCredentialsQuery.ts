@@ -32,7 +32,7 @@ const IosAppCredentialsQuery = {
       },
       appSpecificPassword: {
         id: '64bdd007-da7b-4190-a571-edb87e9324a1',
-        appleIdUsername: 'quin@expo.io',
+        appleIdUsername: 'quin@expo.dev',
         passwordLabel: 'description for super secret password',
         updatedAt: '2020-10-13T18:39:04.463Z',
         __typename: 'AppleAppSpecificPassword',

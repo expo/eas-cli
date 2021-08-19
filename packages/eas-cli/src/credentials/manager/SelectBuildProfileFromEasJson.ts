@@ -23,7 +23,7 @@ export class SelectBuildProfileFromEasJson<T extends Platform> {
     const buildProfileNames = await this.easJsonReader.getBuildProfileNamesAsync();
     if (buildProfileNames.length === 0) {
       throw new Error(
-        'You need at least one iOS build profile declared in eas.json. Go to https://docs.expo.io/build/eas-json/ for more details'
+        'You need at least one iOS build profile declared in eas.json. Go to https://docs.expo.dev/build/eas-json/ for more details'
       );
     } else if (buildProfileNames.length === 1) {
       return buildProfileNames[0];
