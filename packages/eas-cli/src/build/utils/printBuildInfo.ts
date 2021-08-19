@@ -12,6 +12,7 @@ import {
   EasBuildDeprecationInfoType,
 } from '../../graphql/generated';
 import Log, { learnMore } from '../../log';
+import { printJsonOnlyOutput } from '../../utils/json';
 import { appPlatformDisplayNames, appPlatformEmojis } from '../constants';
 import { getBuildLogsUrl, getInternalDistributionInstallUrl } from './url';
 
@@ -28,14 +29,18 @@ export function printLogsUrls(builds: BuildFragment[]): void {
   }
 }
 
-export function printBuildResults(builds: (BuildFragment | null)[]): void {
-  Log.newLine();
-  if (builds.length === 1) {
-    const [build] = builds;
-    assert(build, 'Build should be defined');
-    printBuildResult(build);
+export function printBuildResults(builds: (BuildFragment | null)[], json: boolean): void {
+  if (json) {
+    printJsonOnlyOutput(builds);
   } else {
-    (builds.filter(i => i) as BuildFragment[]).forEach(build => printBuildResult(build));
+    Log.newLine();
+    if (builds.length === 1) {
+      const [build] = builds;
+      assert(build, 'Build should be defined');
+      printBuildResult(build);
+    } else {
+      (builds.filter(i => i) as BuildFragment[]).forEach(build => printBuildResult(build));
+    }
   }
 }
 
