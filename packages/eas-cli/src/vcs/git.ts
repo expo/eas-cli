@@ -64,6 +64,11 @@ export default class GitClient extends Client {
   }
 
   public async makeShallowCopyAsync(destinationPath: string): Promise<void> {
+    if (await this.hasUncommittedChangesAsync()) {
+      // it should not happen, we need that to make sure that check before clone
+      // is always caused by case sensitvity
+      throw new Error('You have some uncommited changes in you repository.');
+    }
     let gitRepoUri;
     if (process.platform === 'win32') {
       // getRootDirectoryAsync() will return C:/path/to/repo on Windows and path
@@ -74,15 +79,27 @@ export default class GitClient extends Client {
       // file:/// so only file:// needs to be prepended
       gitRepoUri = `file://${await this.getRootPathAsync()}`;
     }
-
-    await spawnAsync('git', [
-      'clone',
-      '--no-hardlinks',
-      '--depth',
-      '1',
-      gitRepoUri,
-      destinationPath,
-    ]);
+    const isCaseSensitive = await isGitCaseSensitiveAsync();
+    await setGitCaseSensitivityAsync(true);
+    try {
+      if (await this.hasUncommittedChangesAsync()) {
+        await spawnAsync('git', ['status'], { stdio: 'inherit' });
+        Log.error(
+          'Case of some of your filenames is inconsitent between value stored in the git and in the filesystem. Run "git config core.ignorecase false" to show those differences.'
+        );
+        throw new Error('You have some uncommited changes in you repository.');
+      }
+      await spawnAsync('git', [
+        'clone',
+        '--no-hardlinks',
+        '--depth',
+        '1',
+        gitRepoUri,
+        destinationPath,
+      ]);
+    } finally {
+      await setGitCaseSensitivityAsync(isCaseSensitive);
+    }
   }
 
   public async getCommitHashAsync(): Promise<string | undefined> {
@@ -173,4 +190,32 @@ async function getGitDiffOutputAsync(): Promise<string> {
 async function gitDiffAsync({ withPager = false }: { withPager?: boolean } = {}): Promise<void> {
   const options = withPager ? [] : ['--no-pager'];
   await spawnAsync('git', [...options, 'diff'], { stdio: ['ignore', 'inherit', 'inherit'] });
+}
+
+async function isGitCaseSensitiveAsync(): Promise<boolean | undefined> {
+  if (process.platform !== 'darwin') {
+    return undefined;
+  }
+  const result = await spawnAsync('git', ['config', '--get', 'core.ignorecase']);
+  const isIgnoreCaseEnabled = result.stdout.trim();
+  if (isIgnoreCaseEnabled === '') {
+    return undefined;
+  } else if (isIgnoreCaseEnabled === 'true') {
+    return false;
+  } else {
+    return true;
+  }
+}
+
+async function setGitCaseSensitivityAsync(enable: boolean | undefined): Promise<void> {
+  // we are assuming that if someone sets that on non macos device that
+  // they know what they are doing
+  if (process.platform !== 'darwin') {
+    return;
+  }
+  if (enable === undefined) {
+    await spawnAsync('git', ['config', '--unset', 'core.ignorecase']);
+  } else {
+    await spawnAsync('git', ['config', 'core.ignorecase', String(!enable)]);
+  }
 }
