@@ -27,7 +27,7 @@ export default class BuildList extends Command {
       options: [RequestedPlatform.All, RequestedPlatform.Android, RequestedPlatform.Ios],
     }),
     json: flags.boolean({
-      description: 'Enable json output, non-json messages will printed to stderr',
+      description: 'Enable JSON output, non-JSON messages will be printed to stderr',
     }),
     status: flags.enum({
       options: [

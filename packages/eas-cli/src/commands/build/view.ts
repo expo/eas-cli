@@ -20,7 +20,7 @@ export default class BuildView extends Command {
 
   static flags = {
     json: flags.boolean({
-      description: 'Enable json output, non json messages will printed to stderr',
+      description: 'Enable JSON output, non-JSON messages will be printed to stderr',
     }),
   };
 

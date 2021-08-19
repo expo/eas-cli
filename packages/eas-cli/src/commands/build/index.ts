@@ -62,7 +62,7 @@ export default class Build extends EasCommand {
       hidden: true,
     }),
     json: flags.boolean({
-      description: 'Enable json output, non-json messages will printed to stderr',
+      description: 'Enable JSON output, non-JSON messages will be printed to stderr',
       default: false,
     }),
     'skip-project-configuration': flags.boolean({
