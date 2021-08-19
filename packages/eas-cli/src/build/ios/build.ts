@@ -11,6 +11,7 @@ import { BuildContext } from '../context';
 import { transformMetadata } from '../graphql';
 import { IosMetadataContext } from '../metadata';
 import { Platform } from '../types';
+import { checkGoogleServicesFileAsync, checkNodeEnvVariable } from '../validate';
 import { validateAndSyncProjectConfigurationAsync } from './configure';
 import { ensureIosCredentialsAsync } from './credentials';
 import { transformJob } from './graphql';
@@ -24,6 +25,9 @@ export async function prepareIosBuildAsync(
   if (ctx.workflow === Workflow.MANAGED) {
     await ensureBundleIdentifierIsDefinedForManagedProjectAsync(ctx.projectDir, ctx.exp);
   }
+
+  checkNodeEnvVariable(ctx);
+  await checkGoogleServicesFileAsync(ctx);
 
   const xcodeBuildContext = await resolveXcodeBuildContextAsync(
     {

@@ -23,6 +23,7 @@ import { BuildContext } from '../context';
 import { transformMetadata } from '../graphql';
 import { Platform } from '../types';
 import { logCredentialsSource } from '../utils/credentials';
+import { checkGoogleServicesFileAsync, checkNodeEnvVariable } from '../validate';
 import { validateAndSyncProjectConfigurationAsync } from './configure';
 import { transformJob } from './graphql';
 import { prepareJobAsync } from './prepareJob';
@@ -47,6 +48,9 @@ This means that it will most likely produce an AAB and you will not be able to i
       process.exit(1);
     }
   }
+
+  checkNodeEnvVariable(ctx);
+  await checkGoogleServicesFileAsync(ctx);
 
   if (ctx.workflow === Workflow.MANAGED) {
     await ensureApplicationIdIsDefinedForManagedProjectAsync(ctx.projectDir, ctx.exp);
