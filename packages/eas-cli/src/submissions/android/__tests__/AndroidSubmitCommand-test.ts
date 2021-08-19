@@ -107,6 +107,7 @@ describe(AndroidSubmitCommand, () => {
         track: 'internal',
         releaseStatus: 'draft',
         verbose: false,
+        changesNotSentForReview: false,
       };
       const ctx = AndroidSubmitCommand.createContext(testProject.projectRoot, projectId, options);
       const command = new AndroidSubmitCommand(ctx);
@@ -119,6 +120,7 @@ describe(AndroidSubmitCommand, () => {
         serviceAccount: fakeFiles['/google-service-account.json'],
         releaseStatus: ReleaseStatus.draft,
         track: ReleaseTrack.internal,
+        changesNotSentForReview: false,
         projectId,
       };
 
@@ -151,6 +153,7 @@ describe(AndroidSubmitCommand, () => {
         track: 'internal',
         releaseStatus: 'draft',
         verbose: false,
+        changesNotSentForReview: false,
       };
       const ctx = AndroidSubmitCommand.createContext(testProject.projectRoot, projectId, options);
       const command = new AndroidSubmitCommand(ctx);
@@ -164,6 +167,7 @@ describe(AndroidSubmitCommand, () => {
         releaseStatus: ReleaseStatus.draft,
         track: ReleaseTrack.internal,
         projectId,
+        changesNotSentForReview: false,
       };
 
       expect(SubmissionService.startSubmissionAsync).toHaveBeenCalledWith(

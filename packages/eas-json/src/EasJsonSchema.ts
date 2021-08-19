@@ -78,6 +78,7 @@ const AndroidSubmitProfileSchema = Joi.object({
   serviceAccountKeyPath: Joi.string(),
   track: Joi.string().valid(...Object.values(ReleaseTrack)),
   releaseStatus: Joi.string().valid(...Object.values(ReleaseStatus)),
+  changesNotSentForReview: Joi.boolean(),
   verbose: Joi.boolean(),
 });
 

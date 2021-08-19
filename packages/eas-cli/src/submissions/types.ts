@@ -33,6 +33,7 @@ export interface AndroidSubmitCommandFlags extends SubmitCommandFlags {
   androidPackage?: string;
   track: string;
   releaseStatus: string;
+  changesNotSentForReview: boolean;
 }
 
 export type AndroidSubmissionContext = SubmissionContext<AndroidSubmitCommandFlags>;

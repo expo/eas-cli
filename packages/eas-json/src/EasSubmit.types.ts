@@ -18,6 +18,7 @@ export interface AndroidSubmitProfile {
   serviceAccountKeyPath?: string;
   track?: ReleaseTrack;
   releaseStatus?: ReleaseStatus;
+  changesNotSentForReview?: boolean;
   verbose?: boolean;
 }
 

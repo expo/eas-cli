@@ -61,6 +61,7 @@ class AndroidSubmitCommand {
       releaseStatus: releaseStatus.enforceValue(),
       archiveSource: archiveSource.enforceValue(),
       serviceAccountSource: serviceAccountSource.enforceValue(),
+      changesNotSentForReview: this.ctx.commandFlags.changesNotSentForReview,
     };
   }
 

@@ -8,6 +8,7 @@ export interface AndroidSubmissionConfig {
   track: ReleaseTrack;
   serviceAccount: string;
   releaseStatus?: ReleaseStatus;
+  changesNotSentForReview: boolean;
 }
 
 export enum ReleaseStatus {
