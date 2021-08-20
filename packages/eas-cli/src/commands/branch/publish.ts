@@ -1,4 +1,4 @@
-import { getConfig, getDefaultTarget } from '@expo/config';
+import { ExpoConfig, getConfig, getDefaultTarget } from '@expo/config';
 import { getRuntimeVersionForSDKVersion } from '@expo/sdk-runtime-versions';
 import { Command, flags } from '@oclif/command';
 import assert from 'assert';
@@ -170,54 +170,8 @@ export default class BranchPublish extends Command {
       skipSDKVersionRequirement: true,
       isPublicConfig: true,
     });
-    let { runtimeVersion, sdkVersion } = exp;
 
-    // When a SDK version is supplied instead of a runtime version and we're in the managed workflow
-    // construct the runtimeVersion with special meaning indicating that the runtime is an
-    // Expo SDK preset runtime that can be launched in Expo Go.
-    const isManagedProject = getDefaultTarget(projectDir) === 'managed';
-    if (!runtimeVersion && sdkVersion && isManagedProject) {
-      Log.withTick('Generating runtime version from sdk version');
-      runtimeVersion = getRuntimeVersionForSDKVersion(sdkVersion);
-    }
-
-    let runtimeVersions: Record<string, string>;
-    const iOSRuntimeVersion = (exp as any).ios?.runtimeVersion; // TODO-JJ remove cast to any
-    const androidRuntimeVersion = (exp as any).android?.runtimeVersion; // TODO-JJ remove cast to any
-    switch (platformFlag) {
-      case 'ios': {
-        runtimeVersions = {
-          ios: iOSRuntimeVersion ?? runtimeVersion,
-        };
-        break;
-      }
-      case 'android': {
-        runtimeVersions = {
-          android: androidRuntimeVersion ?? runtimeVersion,
-        };
-        break;
-      }
-      case 'all': {
-        runtimeVersions = {
-          ios: iOSRuntimeVersion ?? runtimeVersion,
-          android: androidRuntimeVersion ?? runtimeVersion,
-        };
-        break;
-      }
-      default:
-        throw new Error('Platform flag must be "ios", "android", or "all"');
-    }
-
-    if (Object.values(runtimeVersions).some(runtime => !runtime)) {
-      throw new Error(
-        "Couldn't find a 'runtimeVersion' for every platform. Please specify it under the 'expo' key in 'app.json'"
-      );
-    }
-    if (Object.values(runtimeVersions).some(runtime => typeof runtime !== 'string')) {
-      throw new Error(
-        `Please ensure that all of the runtime versions defined in the app.json are strings.`
-      );
-    }
+    const runtimeVersions = getRuntimeVersionObject(exp, platformFlag, projectDir);
 
     const projectId = await getProjectIdAsync(exp);
 
@@ -435,6 +389,61 @@ export default class BranchPublish extends Command {
       }
     }
   }
+}
+
+function getRuntimeVersionObject(
+  exp: ExpoConfig,
+  platformFlag: string,
+  projectDir: string
+): Record<string, string> {
+  let { runtimeVersion: defaultRuntimeVersion, sdkVersion } = exp;
+
+  // When a SDK version is supplied instead of a runtime version and we're in the managed workflow
+  // construct the runtimeVersion with special meaning indicating that the runtime is an
+  // Expo SDK preset runtime that can be launched in Expo Go.
+  const isManagedProject = getDefaultTarget(projectDir) === 'managed';
+  if (!defaultRuntimeVersion && sdkVersion && isManagedProject) {
+    Log.withTick('Generating runtime version from sdk version');
+    defaultRuntimeVersion = getRuntimeVersionForSDKVersion(sdkVersion);
+  }
+  const iOSRuntimeVersion = (exp as any).ios?.runtimeVersion; // TODO-JJ remove cast to any
+  const androidRuntimeVersion = (exp as any).android?.runtimeVersion; // TODO-JJ remove cast to any
+  let runtimeVersions: Record<string, string>;
+  switch (platformFlag) {
+    case 'ios': {
+      runtimeVersions = {
+        ios: iOSRuntimeVersion ?? defaultRuntimeVersion,
+      };
+      break;
+    }
+    case 'android': {
+      runtimeVersions = {
+        android: androidRuntimeVersion ?? defaultRuntimeVersion,
+      };
+      break;
+    }
+    case 'all': {
+      runtimeVersions = {
+        ios: iOSRuntimeVersion ?? defaultRuntimeVersion,
+        android: androidRuntimeVersion ?? defaultRuntimeVersion,
+      };
+      break;
+    }
+    default:
+      throw new Error('Platform flag must be "ios", "android", or "all"');
+  }
+  if (Object.values(runtimeVersions).some(runtime => !runtime)) {
+    throw new Error(
+      "Couldn't find a 'runtimeVersion' for every platform. Please specify it under the 'expo' key in 'app.json'"
+    );
+  }
+  if (Object.values(runtimeVersions).some(runtime => typeof runtime !== 'string')) {
+    throw new Error(
+      `Please ensure that all of the runtime versions defined in the app.json are strings.`
+    );
+  }
+
+  return runtimeVersions;
 }
 
 function formatUpdateTitle(
