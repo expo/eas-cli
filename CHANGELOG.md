@@ -21,6 +21,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Add warnings around common issues (`NODE_ENV=production`, git ignored `googleServicesFile`). ([#569](https://github.com/expo/eas-cli/pull/569) by [@wkozyra95](https://github.com/wkozyra95))
+
 ## [0.23.0](https://github.com/expo/eas-cli/releases/tag/v0.23.0) - 2021-08-05
 
 ### 🛠 Breaking changes
