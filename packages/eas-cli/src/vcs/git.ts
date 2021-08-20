@@ -192,6 +192,12 @@ async function gitDiffAsync({ withPager = false }: { withPager?: boolean } = {})
   await spawnAsync('git', [...options, 'diff'], { stdio: ['ignore', 'inherit', 'inherit'] });
 }
 
+/**
+ * Checks if git is configured to be case sensitive
+ * @returns {boolean | undefined}
+ *    - boolean - is git case senstive
+ *    - undefined - case sensitivity is not configured and git is using default behaviour
+ */
 async function isGitCaseSensitiveAsync(): Promise<boolean | undefined> {
   if (process.platform !== 'darwin') {
     return undefined;
