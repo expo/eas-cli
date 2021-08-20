@@ -66,8 +66,8 @@ export default class GitClient extends Client {
   public async makeShallowCopyAsync(destinationPath: string): Promise<void> {
     if (await this.hasUncommittedChangesAsync()) {
       // it should not happen, we need that to make sure that check before clone
-      // is always caused by case sensitvity
-      throw new Error('You have some uncommited changes in you repository.');
+      // is always caused by case sensitivity
+      throw new Error('You have some uncommitted changes in your repository.');
     }
     let gitRepoUri;
     if (process.platform === 'win32') {
@@ -85,9 +85,9 @@ export default class GitClient extends Client {
       if (await this.hasUncommittedChangesAsync()) {
         await spawnAsync('git', ['status'], { stdio: 'inherit' });
         Log.error(
-          'Case of some of your filenames is inconsitent between value stored in the git and in the filesystem. Run "git config core.ignorecase false" to show those differences.'
+          'Case of some of your filenames is inconsistent between values stored in the git and in the filesystem. Run "git config core.ignorecase false" to show those differences.'
         );
-        throw new Error('You have some uncommited changes in you repository.');
+        throw new Error('You have some uncommitted changes in your repository.');
       }
       await spawnAsync('git', [
         'clone',
