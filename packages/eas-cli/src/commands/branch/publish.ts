@@ -181,7 +181,7 @@ export default class BranchPublish extends Command {
       runtimeVersion = getRuntimeVersionForSDKVersion(sdkVersion);
     }
 
-    let runtimeVersions: { [keyof: string]: string };
+    let runtimeVersions: Record<string, string>;
     const iOSRuntimeVersion = (exp as any).ios?.runtimeVersion; // TODO-JJ remove cast to any
     const androidRuntimeVersion = (exp as any).android?.runtimeVersion; // TODO-JJ remove cast to any
     switch (platformFlag) {
@@ -365,7 +365,7 @@ export default class BranchPublish extends Command {
       }));
     }
 
-    const runtimeToPlatformMapping: { [keyof: string]: string[] } = {};
+    const runtimeToPlatformMapping: Record<string, string[]> = {};
     for (const runtime of new Set(Object.values(runtimeVersions))) {
       runtimeToPlatformMapping[runtime] = Object.entries(runtimeVersions)
         .filter(pair => pair[1] === runtime)
