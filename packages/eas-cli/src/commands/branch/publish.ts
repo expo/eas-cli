@@ -1,4 +1,4 @@
-import { getConfig, getDefaultTarget } from '@expo/config';
+import { ExpoConfig, getConfig, getDefaultTarget } from '@expo/config';
 import { getRuntimeVersionForSDKVersion } from '@expo/sdk-runtime-versions';
 import { Command, flags } from '@oclif/command';
 import assert from 'assert';
@@ -24,7 +24,7 @@ import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUt
 import {
   PublishPlatform,
   buildBundlesAsync,
-  buildUpdateInfoGroupAsync,
+  buildUnsortedUpdateInfoGroupAsync,
   collectAssets,
   uploadAssetsAsync,
 } from '../../project/publish';
@@ -170,22 +170,9 @@ export default class BranchPublish extends Command {
       skipSDKVersionRequirement: true,
       isPublicConfig: true,
     });
-    let { runtimeVersion, sdkVersion } = exp;
 
-    // When a SDK version is supplied instead of a runtime version and we're in the managed workflow
-    // construct the runtimeVersion with special meaning indicating that the runtime is an
-    // Expo SDK preset runtime that can be launched in Expo Go.
-    const isManagedProject = getDefaultTarget(projectDir) === 'managed';
-    if (!runtimeVersion && sdkVersion && isManagedProject) {
-      Log.withTick('Generating runtime version from sdk version');
-      runtimeVersion = getRuntimeVersionForSDKVersion(sdkVersion);
-    }
+    const runtimeVersions = getRuntimeVersionObject(exp, platformFlag, projectDir);
 
-    if (!runtimeVersion) {
-      throw new Error(
-        "Couldn't find 'runtimeVersion'. Please specify it under the 'expo' key in 'app.json'"
-      );
-    }
     const projectId = await getProjectIdAsync(exp);
 
     if (!branchName && autoFlag) {
@@ -219,7 +206,7 @@ export default class BranchPublish extends Command {
       name: branchName,
     });
 
-    let updateInfoGroup: UpdateInfoGroup = {};
+    let unsortedUpdateInfoGroups: UpdateInfoGroup = {};
     let oldMessage: string, oldRuntimeVersion: string;
     if (republish) {
       // If we are republishing, we don't need to worry about building the bundle or uploading the assets.
@@ -286,7 +273,7 @@ export default class BranchPublish extends Command {
         const { manifestFragment } = update;
         const platform = update.platform as PublishPlatform;
 
-        updateInfoGroup[platform] = JSON.parse(manifestFragment);
+        unsortedUpdateInfoGroups[platform] = JSON.parse(manifestFragment);
       }
 
       // These are the same for each member of an update group
@@ -304,7 +291,7 @@ export default class BranchPublish extends Command {
         const platforms = platformFlag === 'all' ? defaultPublishPlatforms : [platformFlag];
         const assets = collectAssets({ inputDir: inputDir!, platforms });
         await uploadAssetsAsync(assets);
-        updateInfoGroup = await buildUpdateInfoGroupAsync(assets, exp);
+        unsortedUpdateInfoGroups = await buildUnsortedUpdateInfoGroupAsync(assets, exp);
         assetSpinner.succeed('Uploaded assets!');
       } catch (e) {
         assetSpinner.fail('Failed to upload assets');
@@ -332,15 +319,38 @@ export default class BranchPublish extends Command {
       }));
     }
 
-    let newUpdateGroup;
+    const runtimeToPlatformMapping: Record<string, string[]> = {};
+    for (const runtime of new Set(Object.values(runtimeVersions))) {
+      runtimeToPlatformMapping[runtime] = Object.entries(runtimeVersions)
+        .filter(pair => pair[1] === runtime)
+        .map(pair => pair[0]);
+    }
+
+    // Sort the updates into different groups based on their platform specific runtime versions
+    const updateGroups = Object.entries(runtimeToPlatformMapping).map(([runtime, platforms]) => {
+      const localUpdateInfoGroup = Object.fromEntries(
+        platforms.map(platform => [
+          platform,
+          unsortedUpdateInfoGroups[platform as keyof UpdateInfoGroup],
+        ])
+      );
+
+      if (republish && !oldRuntimeVersion) {
+        throw new Error(
+          'Can not find the runtime version of the update group that is being republished.'
+        );
+      }
+      return {
+        branchId,
+        updateInfoGroup: localUpdateInfoGroup,
+        runtimeVersion: republish ? oldRuntimeVersion : runtime,
+        message,
+      };
+    });
+    let newUpdates;
     const publishSpinner = ora('Publishing...').start();
     try {
-      newUpdateGroup = await PublishMutation.publishUpdateGroupAsync({
-        branchId,
-        updateInfoGroup,
-        runtimeVersion: republish ? oldRuntimeVersion! : runtimeVersion,
-        message,
-      });
+      newUpdates = await PublishMutation.publishUpdateGroupAsync(updateGroups);
       publishSpinner.succeed('Published!');
     } catch (e) {
       publishSpinner.fail('Failed to published updates');
@@ -348,18 +358,92 @@ export default class BranchPublish extends Command {
     }
 
     if (jsonFlag) {
-      Log.log(JSON.stringify(newUpdateGroup));
+      Log.log(JSON.stringify(newUpdates));
     } else {
-      Log.log(
-        formatFields([
-          { label: 'branch', value: branchName },
-          { label: 'runtime version', value: runtimeVersion },
-          { label: 'update group ID', value: newUpdateGroup.group },
-          { label: 'message', value: message },
-        ])
-      );
+      if (new Set(newUpdates.map(update => update.group)).size > 1) {
+        Log.addNewLineIfNone();
+        Log.log(
+          '👉 Since multiple runtime versions are defined, multiple update groups have been published.'
+        );
+      }
+
+      Log.addNewLineIfNone();
+      for (const runtime of new Set(Object.values(runtimeVersions))) {
+        const platforms = newUpdates
+          .filter(update => update.runtimeVersion === runtime)
+          .map(update => update.platform);
+        const newUpdate = newUpdates.find(update => update.runtimeVersion === runtime);
+        if (!newUpdate) {
+          throw new Error(`Publish response is missing updates with runtime ${runtime}.`);
+        }
+        Log.log(
+          formatFields([
+            { label: 'branch', value: branchName },
+            { label: 'runtime version', value: runtime },
+            { label: 'platform', value: platforms.join(',') },
+            { label: 'update group ID', value: newUpdate.group },
+            { label: 'message', value: message },
+          ])
+        );
+        Log.addNewLineIfNone();
+      }
     }
   }
+}
+
+function getRuntimeVersionObject(
+  exp: ExpoConfig,
+  platformFlag: string,
+  projectDir: string
+): Record<string, string> {
+  let { runtimeVersion: defaultRuntimeVersion, sdkVersion } = exp;
+
+  // When a SDK version is supplied instead of a runtime version and we're in the managed workflow
+  // construct the runtimeVersion with special meaning indicating that the runtime is an
+  // Expo SDK preset runtime that can be launched in Expo Go.
+  const isManagedProject = getDefaultTarget(projectDir) === 'managed';
+  if (!defaultRuntimeVersion && sdkVersion && isManagedProject) {
+    Log.withTick('Generating runtime version from sdk version');
+    defaultRuntimeVersion = getRuntimeVersionForSDKVersion(sdkVersion);
+  }
+  const iOSRuntimeVersion = (exp as any).ios?.runtimeVersion; // TODO-JJ remove cast to any
+  const androidRuntimeVersion = (exp as any).android?.runtimeVersion; // TODO-JJ remove cast to any
+  let runtimeVersions: Record<string, string>;
+  switch (platformFlag) {
+    case 'ios': {
+      runtimeVersions = {
+        ios: iOSRuntimeVersion ?? defaultRuntimeVersion,
+      };
+      break;
+    }
+    case 'android': {
+      runtimeVersions = {
+        android: androidRuntimeVersion ?? defaultRuntimeVersion,
+      };
+      break;
+    }
+    case 'all': {
+      runtimeVersions = {
+        ios: iOSRuntimeVersion ?? defaultRuntimeVersion,
+        android: androidRuntimeVersion ?? defaultRuntimeVersion,
+      };
+      break;
+    }
+    default:
+      throw new Error('Platform flag must be "ios", "android", or "all"');
+  }
+  if (Object.values(runtimeVersions).some(runtime => !runtime)) {
+    throw new Error(
+      "Couldn't find a 'runtimeVersion' for every platform. Please specify it under the 'expo' key in 'app.json'"
+    );
+  }
+  if (Object.values(runtimeVersions).some(runtime => typeof runtime !== 'string')) {
+    throw new Error(
+      `Please ensure that all of the runtime versions defined in the app.json are strings.`
+    );
+  }
+
+  return runtimeVersions;
 }
 
 function formatUpdateTitle(

@@ -6,6 +6,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🛠 Breaking changes
 
+- Allow publishing of multiple update groups ([#566](https://github.com/expo/eas-cli/pull/566) by [@jkhales](https://github.com/jkhales))
+
 ### 🎉 New features
 
 - Add --auto flag for eas branch:publish ([#549](https://github.com/expo/eas-cli/pull/549) by [@jkhales](https://github.com/jkhales))
