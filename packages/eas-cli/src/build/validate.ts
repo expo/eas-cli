@@ -7,10 +7,10 @@ import vcs from '../vcs';
 import { BuildContext } from './context';
 import { Platform } from './types';
 
-export function checkNodeEnvVariable(ctx: BuildContext<Platform>) {
+export function checkNodeEnvVariable(ctx: BuildContext<Platform>): void {
   if (ctx.buildProfile.env?.NODE_ENV === 'production') {
     Log.warn(
-      'You are setting environment variable NODE_ENV=production, remember that it will be available during entire build process and will affect among other things what yarn/npm packages will be installed.'
+      'You set NODE_ENV=production in the build profile. Remember that it will be available during the entire build process. In particular, it will make yarn/npm install only production packages.'
     );
     Log.newLine();
   }
@@ -34,7 +34,7 @@ export async function checkGoogleServicesFileAsync<T extends Platform>(
       !isInsideDirectory(absGoogleServicesFilePath, rootDir))
   ) {
     Log.warn(
-      `File specified via "${ctx.platform}.googleServicesFile" field in your app.json is not commited into your repository and won't be uploaded to the builder.`
+      `File specified via "${ctx.platform}.googleServicesFile" field in your app.json is not checked in to your repository and won't be uploaded to the builder.`
     );
     Log.warn(
       `Use EAS Secret to pass all values that you don't want to include in your version control. ${learnMore(
@@ -42,19 +42,12 @@ export async function checkGoogleServicesFileAsync<T extends Platform>(
       )}`
     );
     Log.warn(
-      'If you are using that file for compatibility with classic build service you can silence this warning by setting GOOGLE_SERVICES_FILE in your build profile in eas.json to any non falsy value.'
+      'If you are using that file for compatibility with the classic build service (expo build) you can silence this warning by setting GOOGLE_SERVICES_FILE in your build profile in eas.json to any non-falsy value.'
     );
     Log.newLine();
   }
 }
 
 function isInsideDirectory(file: string, directory: string): boolean {
-  let lastPath = file;
-  while (path.dirname(lastPath) !== lastPath) {
-    if (lastPath === directory) {
-      return true;
-    }
-    lastPath = path.dirname(lastPath);
-  }
-  return false;
+  return file.startsWith(directory);
 }
