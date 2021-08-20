@@ -8,7 +8,7 @@ import ora from 'ora';
 import { BuildFragment, BuildStatus, UploadSessionType } from '../graphql/generated';
 import { BuildResult } from '../graphql/mutations/BuildMutation';
 import { BuildQuery } from '../graphql/queries/BuildQuery';
-import Log from '../log';
+import Log, { learnMore } from '../log';
 import { promptAsync } from '../prompts';
 import { uploadAsync } from '../uploads';
 import { formatBytes } from '../utils/files';
@@ -159,7 +159,10 @@ async function uploadProjectAsync<TPlatform extends Platform>(
               `Uploading to EAS Build (${formatBytes(projectTarball.size * ratio)} / ${formatBytes(
                 projectTarball.size
               )})`,
-            completedMessage: `Uploaded to EAS`,
+            completedMessage: (duration: string) =>
+              `Uploaded to EAS ${chalk.dim(duration)} ${learnMore(
+                'https://expo.fyi/eas-build-archive'
+              )}`,
           })
         );
         return bucketKey;
