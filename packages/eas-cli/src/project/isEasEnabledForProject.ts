@@ -24,7 +24,7 @@ export async function isEasEnabledForProjectAsync(projectId: string): Promise<bo
 }
 
 export const EAS_UNAVAILABLE_MESSAGE = `Your account doesn't have access to Expo Application Services (EAS) features. Enroll in EAS to give it a try: ${chalk.underline(
-  'https://expo.io/eas'
+  'https://expo.dev/eas'
 )}`;
 
 export function warnEasUnavailable() {

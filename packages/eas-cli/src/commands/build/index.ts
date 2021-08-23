@@ -246,7 +246,7 @@ export async function handleDeprecatedEasJsonAsync(
     if (nonInteractive) {
       Log.error('We detected that your eas.json is using a deprecated format.');
       Log.error(
-        'We will convert it automatically if run this command without --non-interactive flag. Alternatively, you can update eas.json manually according to https://docs.expo.io/build/eas-json'
+        'We will convert it automatically if run this command without --non-interactive flag. Alternatively, you can update eas.json manually according to https://docs.expo.dev/build/eas-json'
       );
       error('Unsupported eas.json format', { exit: 1 });
     }
@@ -268,7 +268,7 @@ export async function handleDeprecatedEasJsonAsync(
       }
     } else {
       Log.error(
-        "Aborting, update your eas.json according to https://docs.expo.io/build/eas-json and run 'eas build' again"
+        "Aborting, update your eas.json according to https://docs.expo.dev/build/eas-json and run 'eas build' again"
       );
       error('Unsupported eas.json format', { exit: 1 });
     }

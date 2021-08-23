@@ -46,7 +46,7 @@ export async function ensureProjectConfiguredAsync(
   } else {
     error(
       `Aborting, please run ${chalk.bold('eas build:configure')} or create eas.json (${learnMore(
-        'https://docs.expo.io/build/eas-json'
+        'https://docs.expo.dev/build/eas-json'
       )})`,
       { exit: 1 }
     );

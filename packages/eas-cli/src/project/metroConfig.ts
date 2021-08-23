@@ -28,7 +28,7 @@ export async function validateMetroConfigForManagedWorkflowAsync(ctx: BuildConte
     );
     Log.warn(`We recommend you to abort, fix the ${chalk.bold('metro.config.js')}, and try again.`);
     Log.warn(
-      learnMore('https://docs.expo.io/guides/customizing-metro/', {
+      learnMore('https://docs.expo.dev/guides/customizing-metro/', {
         learnMoreMessage: 'Learn more on customizing Metro',
       })
     );

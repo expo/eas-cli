@@ -56,7 +56,7 @@ function logSuccess(platform: RequestedPlatform) {
 
 - Run ${chalk.bold('eas build')} when you are ready to create your first build.
 - Once the build is completed, run ${chalk.bold('eas submit')} to upload the app to ${storesText}
-- ${learnMore('https://docs.expo.io/build/introduction', {
+- ${learnMore('https://docs.expo.dev/build/introduction', {
     learnMoreMessage: 'Learn more about other capabilities of EAS Build',
   })}`);
 }

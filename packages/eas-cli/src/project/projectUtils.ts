@@ -24,7 +24,7 @@ export function getProjectAccountName(exp: ExpoConfig, user: Actor): string {
     case 'Robot':
       if (!exp.owner) {
         throw new Error(
-          'The "owner" manifest property is required when using robot users. See: https://docs.expo.io/versions/latest/config/app/#owner'
+          'The "owner" manifest property is required when using robot users. See: https://docs.expo.dev/versions/latest/config/app/#owner'
         );
       }
       return exp.owner;
@@ -39,7 +39,7 @@ export function getUsername(exp: ExpoConfig, user: Actor): string | undefined {
       // owner field is necessary to run `expo prebuild`
       if (!exp.owner) {
         throw new Error(
-          'The "owner" manifest property is required when using robot users. See: https://docs.expo.io/versions/latest/config/app/#owner'
+          'The "owner" manifest property is required when using robot users. See: https://docs.expo.dev/versions/latest/config/app/#owner'
         );
       }
       // robot users don't have usernames
@@ -82,7 +82,7 @@ export async function setProjectIdAsync(
       Log.warn('It looks like you are using a dynamic configuration!');
       Log.log(
         chalk.dim(
-          'https://docs.expo.io/workflow/configuration/#dynamic-configuration-with-appconfigjs)\n'
+          'https://docs.expo.dev/workflow/configuration/#dynamic-configuration-with-appconfigjs)\n'
         )
       );
       Log.warn(

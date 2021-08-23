@@ -51,11 +51,11 @@ const SubmissionErrorMessages: Record<SubmissionErrorCode, string> = {
   [SubmissionErrorCode.IOS_MISSING_APP_ICON]:
     'Your iOS app icon is missing or is an invalid format. The icon must be a 1024x1024 PNG image with no transparency.\n' +
     'Please check your icon image and icon configuration in app.json.\n' +
-    `${learnMore('https://docs.expo.io/guides/app-icons/')}`,
+    `${learnMore('https://docs.expo.dev/guides/app-icons/')}`,
   [SubmissionErrorCode.IOS_INVALID_SIGNATURE]:
     'Your app signature seems to be invalid.\n' +
     "Please check your iOS Distribution Certificate and your app's Provisioning Profile.\n" +
-    `${learnMore('https://docs.expo.io/distribution/app-signing')}`,
+    `${learnMore('https://docs.expo.dev/distribution/app-signing')}`,
   [SubmissionErrorCode.IOS_INCORRECT_CREDENTIALS]:
     'Your Apple ID or app-specific password is incorrect. Please verify that you entered them correctly and try again.',
   [SubmissionErrorCode.IOS_IPAD_INVALID_ORIENTATION]:
