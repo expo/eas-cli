@@ -1,5 +1,4 @@
 import { Platform } from '@expo/eas-build-job';
-import ora from 'ora';
 
 import {
   AndroidSubmissionConfigInput,
@@ -8,6 +7,7 @@ import {
 } from '../graphql/generated';
 import { toAppPlatform } from '../graphql/types/AppPlatform';
 import Log from '../log';
+import { ora } from '../ora';
 import { appPlatformDisplayNames } from '../platform';
 import { SubmissionContext } from './context';
 

@@ -1,10 +1,10 @@
 import { flags } from '@oclif/command';
-import ora from 'ora';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import { WebhookType } from '../../graphql/generated';
 import { WebhookMutation } from '../../graphql/mutations/WebhookMutation';
 import { WebhookQuery } from '../../graphql/queries/WebhookQuery';
+import { ora } from '../../ora';
 import pick from '../../utils/expodash/pick';
 import { prepareInputParamsAsync } from '../../webhooks/input';
 

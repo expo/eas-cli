@@ -1,7 +1,6 @@
 import { getConfig } from '@expo/config';
 import { flags } from '@oclif/command';
 import chalk from 'chalk';
-import ora from 'ora';
 
 import { BuildDistributionType, BuildStatus } from '../../build/types';
 import { formatGraphQLBuild } from '../../build/utils/formatBuild';
@@ -13,6 +12,7 @@ import {
 } from '../../graphql/generated';
 import { BuildQuery } from '../../graphql/queries/BuildQuery';
 import Log from '../../log';
+import { ora } from '../../ora';
 import { RequestedPlatform } from '../../platform';
 import {
   findProjectRootAsync,

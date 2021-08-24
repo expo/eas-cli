@@ -4,8 +4,8 @@ import {
   RequestContext,
   createCertificateAndP12Async,
 } from '@expo/apple-utils';
-import ora from 'ora';
 
+import { ora } from '../../../ora';
 import { DistributionCertificate, DistributionCertificateStoreInfo } from './Credentials.types';
 import { AuthCtx, getRequestContext } from './authenticate';
 

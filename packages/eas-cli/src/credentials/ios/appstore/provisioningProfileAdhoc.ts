@@ -1,6 +1,6 @@
 import { Device, Profile, ProfileState, ProfileType, RequestContext } from '@expo/apple-utils';
-import ora from 'ora';
 
+import { ora } from '../../../ora';
 import { ProvisioningProfile } from './Credentials.types';
 import { AuthCtx, getRequestContext } from './authenticate';
 import { getBundleIdForIdentifierAsync, getProfilesForBundleIdAsync } from './bundleId';

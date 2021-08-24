@@ -1,12 +1,12 @@
 import { getConfig } from '@expo/config';
 import { flags } from '@oclif/command';
 import chalk from 'chalk';
-import ora from 'ora';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import { WebhookType } from '../../graphql/generated';
 import { WebhookQuery } from '../../graphql/queries/WebhookQuery';
 import Log from '../../log';
+import { ora } from '../../ora';
 import {
   findProjectRootAsync,
   getProjectFullNameAsync,

@@ -1,7 +1,8 @@
 import chalk from 'chalk';
 import { Progress } from 'got';
-import ora from 'ora';
+import { Ora } from 'ora';
 
+import { ora } from '../ora';
 import { endTimer, formatMilliseconds, startTimer } from './timer';
 
 type ProgressHandler = (props: {
@@ -19,7 +20,7 @@ function createProgressTracker({
   message: string | ((ratio: number) => string);
   completedMessage: string | ((duration: string) => string);
 }): ProgressHandler {
-  let bar: ora.Ora | null = null;
+  let bar: Ora | null = null;
   let calcTotal: number = total ?? 0;
   let transferredSoFar = 0;
   let current = 0;

@@ -1,6 +1,6 @@
 import { ITCAgreements, RequestContext } from '@expo/apple-utils';
 import chalk from 'chalk';
-import { Ora } from 'ora';
+import type { Ora } from 'ora';
 
 import Log from '../../../log';
 import { convertHTMLToASCII } from '../utils/convertHTMLToASCII';

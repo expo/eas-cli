@@ -1,12 +1,12 @@
 import assert from 'assert';
 import chalk from 'chalk';
-import ora from 'ora';
 
 import {
   AppleDistributionCertificateFragment,
   AppleProvisioningProfileFragment,
 } from '../../../graphql/generated';
 import Log from '../../../log';
+import { ora } from '../../../ora';
 import { Context } from '../../context';
 import { MissingCredentialsNonInteractiveError } from '../../errors';
 import { AppLookupParams } from '../api/GraphqlClient';

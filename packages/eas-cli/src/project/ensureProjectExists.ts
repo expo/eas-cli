@@ -1,12 +1,12 @@
 import assert from 'assert';
 import chalk from 'chalk';
-import ora from 'ora';
 import terminalLink from 'terminal-link';
 
 import { getProjectDashboardUrl } from '../build/utils/url';
 import { AppPrivacy } from '../graphql/generated';
 import { AppMutation } from '../graphql/mutations/AppMutation';
 import { ProjectQuery } from '../graphql/queries/ProjectQuery';
+import { ora } from '../ora';
 import { findAccountByName } from '../user/Account';
 import { ensureLoggedInAsync } from '../user/actions';
 
