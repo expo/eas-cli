@@ -70,10 +70,10 @@ function printBuildResult(build: BuildFragment): void {
 
   if (build.distribution === DistributionType.Internal) {
     const logsUrl = getBuildLogsUrl(build);
-    const installUrl = getInternalDistributionInstallUrl(build);
     // It's tricky to install the .apk file directly on Android so let's fallback
     // to the build details page and let people press the button to download there
-    const qrcodeUrl = build.platform === AppPlatform.Ios ? installUrl : logsUrl;
+    const qrcodeUrl =
+      build.platform === AppPlatform.Ios ? getInternalDistributionInstallUrl(build) : logsUrl;
     qrcodeTerminal.generate(qrcodeUrl, { small: true }, code =>
       Log.log(`${indentString(code, 2)}\n`)
     );
