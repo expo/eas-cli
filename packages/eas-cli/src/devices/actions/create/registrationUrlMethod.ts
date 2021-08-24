@@ -28,10 +28,11 @@ async function generateDeviceRegistrationURLAsync(
   accountId: string,
   appleTeam: Pick<AppleTeam, 'id'>
 ) {
-  const appleDeviceRegistrationRequest = await AppleDeviceRegistrationRequestMutation.createAppleDeviceRegistrationRequestAsync(
-    appleTeam.id,
-    accountId
-  );
+  const appleDeviceRegistrationRequest =
+    await AppleDeviceRegistrationRequestMutation.createAppleDeviceRegistrationRequestAsync(
+      appleTeam.id,
+      accountId
+    );
   return formatRegistrationURL(appleDeviceRegistrationRequest.id);
 }
 
