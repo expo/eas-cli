@@ -10,7 +10,7 @@ module.exports = {
     jasmine: false,
   },
   rules: {
-    'no-console':'warn',
+    'no-console': 'warn',
     'no-constant-condition': ['warn', { checkLoops: false }],
     'sort-imports': [
       'warn',
@@ -20,6 +20,7 @@ module.exports = {
     ],
     'flowtype/no-types-missing-file-annotation': 'off',
     'curly': 'warn',
+    'import/no-relative-packages': 'error',
   },
   settings: {
     react: {
