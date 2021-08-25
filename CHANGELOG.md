@@ -6,14 +6,24 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🛠 Breaking changes
 
-- Allow publishing of multiple update groups ([#566](https://github.com/expo/eas-cli/pull/566) by [@jkhales](https://github.com/jkhales))
+### 🎉 New features
+
+### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [0.24.0](https://github.com/expo/eas-cli/releases/tag/v0.24.0) - 2021-08-25
+
+### 🛠 Breaking changes
+
+- Allow publishing of multiple update groups. ([#566](https://github.com/expo/eas-cli/pull/566) by [@jkhales](https://github.com/jkhales))
 
 ### 🎉 New features
 
 - Retry status code 500-600 server errors from Apple servers with cookies auth. ([#574](https://github.com/expo/eas-cli/pull/574) by [@EvanBacon](https://github.com/EvanBacon))
 - Throw internal server errors when Apple servers fail to authenticate. ([#574](https://github.com/expo/eas-cli/pull/574) by [@EvanBacon](https://github.com/EvanBacon))
-- Add --auto flag for eas branch:publish ([#549](https://github.com/expo/eas-cli/pull/549) by [@jkhales](https://github.com/jkhales))
-- Add submissions link in output of `eas submit`([#553](https://github.com/expo/eas-cli/pull/553) by [@ajsmth](https://github.com/ajsmth))
+- Add --auto flag for eas branch:publish. ([#549](https://github.com/expo/eas-cli/pull/549) by [@jkhales](https://github.com/jkhales))
+- Add submissions link in output of `eas submit`. ([#553](https://github.com/expo/eas-cli/pull/553) by [@ajsmth](https://github.com/ajsmth))
 - Add submit profiles. ([#555](https://github.com/expo/eas-cli/pull/555) by [@wkozyra95](https://github.com/wkozyra95))
 - Add `changesNotSentForReview` option to android submissions. ([#560](https://github.com/expo/eas-cli/pull/560) by [@wkozyra95](https://github.com/wkozyra95))
 - Support `--json` flag in build commands. ([#567](https://github.com/expo/eas-cli/pull/567) by [@wkozyra95](https://github.com/wkozyra95))
@@ -33,7 +43,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🛠 Breaking changes
 
-- Stop including deprecated storageBucket field when publishing ([#547](https://github.com/expo/eas-cli/pull/547) by [@jkhales](https://github.com/jkhales))
+- Stop including deprecated storageBucket field when publishing. ([#547](https://github.com/expo/eas-cli/pull/547) by [@jkhales](https://github.com/jkhales))
 
 ### 🐛 Bug fixes
 
@@ -43,7 +53,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
-- Fix build profile schema validation when `simulator` key is present for iOS ([#546](https://github.com/expo/eas-cli/pull/546) by [@sallar](https://github.com/sallar))
+- Fix build profile schema validation when `simulator` key is present for iOS. ([#546](https://github.com/expo/eas-cli/pull/546) by [@sallar](https://github.com/sallar))
 
 ## [0.22.2](https://github.com/expo/eas-cli/releases/tag/v0.22.2) - 2021-08-02
 
