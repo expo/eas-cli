@@ -10,9 +10,13 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
-- Fix wrong `EasJsonReader` import causing `eas submit` to fail. ([951ee](https://github.com/expo/eas-cli/commit/951eea2396591bd612aa7cb3038da35e45c33bb8) by [@dsokal](https://github.com/dsokal))
-
 ### 🧹 Chores
+
+## [0.24.1](https://github.com/expo/eas-cli/releases/tag/v0.24.1) - 2021-08-25
+
+### 🐛 Bug fixes
+
+- Fix wrong `EasJsonReader` import causing `eas submit` to fail. ([951ee](https://github.com/expo/eas-cli/commit/951eea2396591bd612aa7cb3038da35e45c33bb8) by [@dsokal](https://github.com/dsokal))
 
 ## [0.24.0](https://github.com/expo/eas-cli/releases/tag/v0.24.0) - 2021-08-25
 
