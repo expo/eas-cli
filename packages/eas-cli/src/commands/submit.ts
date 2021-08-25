@@ -1,8 +1,8 @@
 import { getConfig } from '@expo/config';
 import { Platform } from '@expo/eas-build-job';
+import { EasJsonReader } from '@expo/eas-json';
 import { flags } from '@oclif/command';
 
-import { EasJsonReader } from '../../../eas-json/build';
 import EasCommand from '../commandUtils/EasCommand';
 import { AppPlatform } from '../graphql/generated';
 import { learnMore } from '../log';
