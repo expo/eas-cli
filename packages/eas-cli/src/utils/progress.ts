@@ -1,8 +1,7 @@
 import chalk from 'chalk';
 import { Progress } from 'got';
-import { Ora } from 'ora';
 
-import { ora } from '../ora';
+import { Ora, ora } from '../ora';
 import { endTimer, formatMilliseconds, startTimer } from './timer';
 
 type ProgressHandler = (props: {

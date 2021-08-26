@@ -1,4 +1,4 @@
-import oraReal from 'ora';
+import oraReal, { Options, Ora } from 'ora';
 
 import Log from './log';
 
@@ -8,10 +8,10 @@ import Log from './log';
  * @param options
  * @returns
  */
-export function ora(options?: oraReal.Options | string): oraReal.Ora {
-  const inputOptions = typeof options === 'string' ? { text: options } : options || {};
+export function ora(options?: Options | string): Ora {
+  const inputOptions = typeof options === 'string' ? { text: options } : options ?? {};
   const disabled = Log.isDebug || !process.stdin.isTTY;
-  const ora = oraReal({
+  const spinner = oraReal({
     // Ensure our non-interactive mode emulates CI mode.
     isEnabled: !disabled,
     // In non-interactive mode, send the stream to stdout so it prevents looking like an error.
@@ -28,14 +28,14 @@ export function ora(options?: oraReal.Options | string): oraReal.Ora {
   // eslint-disable-next-line no-console
   const errorReal = console.error;
 
-  const oraStop = ora.stop.bind(ora);
+  const oraStop = spinner.stop.bind(spinner);
 
-  const origStopAndPersist = ora.stopAndPersist.bind(ora);
+  const oraStopAndPersist = spinner.stopAndPersist.bind(spinner);
 
   const logWrap = (method: any, args: any[]) => {
     oraStop();
     method(...args);
-    ora!.start();
+    spinner.start();
   };
 
   // eslint-disable-next-line no-console
@@ -58,17 +58,19 @@ export function ora(options?: oraReal.Options | string): oraReal.Ora {
     console.error = errorReal;
   };
 
-  ora.stopAndPersist = (): oraReal.Ora => {
-    origStopAndPersist();
+  spinner.stopAndPersist = (): Ora => {
+    oraStopAndPersist();
     resetNativeLogs();
-    return ora!;
+    return spinner;
   };
 
-  ora.stop = (): oraReal.Ora => {
+  spinner.stop = (): Ora => {
     oraStop();
     resetNativeLogs();
-    return ora!;
+    return spinner;
   };
 
-  return ora;
+  return spinner;
 }
+
+export { Ora, Options };

@@ -2,14 +2,13 @@ import { getConfig } from '@expo/config';
 import { flags } from '@oclif/command';
 import assert from 'assert';
 import chalk from 'chalk';
-import { Ora } from 'ora';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import { AppleDeviceQuery } from '../../credentials/ios/api/graphql/queries/AppleDeviceQuery';
 import { AppleTeamQuery } from '../../credentials/ios/api/graphql/queries/AppleTeamQuery';
 import formatDevice from '../../devices/utils/formatDevice';
 import Log from '../../log';
-import { ora } from '../../ora';
+import { Ora, ora } from '../../ora';
 import { findProjectRootAsync, getProjectAccountNameAsync } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
 
