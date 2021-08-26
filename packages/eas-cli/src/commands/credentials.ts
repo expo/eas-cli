@@ -1,9 +1,8 @@
-import { Command } from '@oclif/command';
-
+import EasCommand from '../commandUtils/EasCommand';
 import { createCredentialsContextAsync } from '../credentials/context';
 import { SelectPlatform } from '../credentials/manager/SelectPlatform';
 
-export default class Credentials extends Command {
+export default class Credentials extends EasCommand {
   static description = 'Manage your credentials';
 
   async run() {

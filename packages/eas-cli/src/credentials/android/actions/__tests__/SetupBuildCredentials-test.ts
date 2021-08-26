@@ -1,16 +1,17 @@
-import { confirmAsync, promptAsync } from '../../../../prompts';
 import {
   getNewAndroidApiMock,
   testAndroidBuildCredentialsFragment,
   testJksAndroidKeystoreFragment,
 } from '../../../__tests__/fixtures-android';
+import { jester as mockJester } from '../../../__tests__/fixtures-constants';
 import { createCtxMock } from '../../../__tests__/fixtures-context';
 import { MissingCredentialsNonInteractiveError } from '../../../errors';
 import { getAppLookupParamsFromContextAsync } from '../BuildCredentialsUtils';
 import { SetupBuildCredentials } from '../SetupBuildCredentials';
 
-jest.mock('../../../../prompts');
-(confirmAsync as jest.Mock).mockImplementation(() => true);
+jest.mock('../../../../project/ensureProjectExists');
+jest.mock('../../../../user/actions', () => ({ ensureLoggedInAsync: jest.fn(() => mockJester) }));
+jest.mock('../../../../prompts', () => ({ confirmAsync: jest.fn(() => true) }));
 
 describe('SetupBuildCredentials', () => {
   it('skips setup when there are prior credentials', async () => {
@@ -31,7 +32,6 @@ describe('SetupBuildCredentials', () => {
     expect(ctx.android.createKeystoreAsync as any).toHaveBeenCalledTimes(0);
   });
   it('sets up credentials when there are no prior credentials', async () => {
-    (promptAsync as jest.Mock).mockImplementation(() => ({ providedName: 'test-provided-name' }));
     const ctx = createCtxMock({
       nonInteractive: false,
       android: {
@@ -47,7 +47,6 @@ describe('SetupBuildCredentials', () => {
     expect(ctx.android.createKeystoreAsync as any).toHaveBeenCalledTimes(1);
   });
   it('errors in Non-Interactive Mode', async () => {
-    (promptAsync as jest.Mock).mockImplementation(() => ({ providedName: 'test-provided-name' }));
     const ctx = createCtxMock({
       nonInteractive: true,
       android: {

@@ -2,13 +2,13 @@ import spawnAsync from '@expo/spawn-async';
 import crypto from 'crypto';
 import fs from 'fs-extra';
 import path from 'path';
-import tempy from 'tempy';
 import { v4 as uuidv4 } from 'uuid';
 
+import Analytics, { Event } from '../../../build/utils/analytics';
 import { AndroidKeystoreType } from '../../../graphql/generated';
 import Log from '../../../log';
 import { getTmpDirectory } from '../../../utils/paths';
-import { Keystore, KeystoreWithType } from '../credentials';
+import { KeystoreWithType } from '../credentials';
 
 export async function keytoolCommandExistsAsync(): Promise<boolean> {
   try {
@@ -28,63 +28,47 @@ async function ensureKeytoolCommandExistsAsync(): Promise<void> {
   }
 }
 
-async function writeFileToTmpAsync(base64Data: string, nameSuffix: string = ''): Promise<string> {
-  await fs.mkdirp(getTmpDirectory());
-  const filePath = path.join(getTmpDirectory(), `${uuidv4()}${nameSuffix}`);
-  await fs.writeFile(filePath, base64Data, 'base64');
-  return filePath;
+enum KeystoreCreateStep {
+  Attempt = 'attempt',
+  Fail = 'fail',
+  Success = 'success',
 }
 
-export async function exportCertificateAsync(
-  keystore: Keystore,
-  options?: { rfcFormat: boolean }
-): Promise<string> {
-  await ensureKeytoolCommandExistsAsync();
-  const keystorePath = await writeFileToTmpAsync(keystore.keystore, '-keystore.jks');
-  const certPath = path.join(getTmpDirectory(), `${uuidv4()}.cer`);
+export async function generateRandomKeystoreAsync(projectId: string): Promise<KeystoreWithType> {
+  const keystoreData = {
+    keystorePassword: crypto.randomBytes(16).toString('hex'),
+    keyPassword: crypto.randomBytes(16).toString('hex'),
+    keyAlias: crypto.randomBytes(16).toString('hex'),
+  };
+  return await createKeystoreAsync(keystoreData, projectId);
+}
+
+async function createKeystoreAsync(
+  credentials: {
+    keystorePassword: string;
+    keyAlias: string;
+    keyPassword: string;
+  },
+  projectId: string
+): Promise<KeystoreWithType> {
+  Analytics.logEvent(Event.ANDROID_KEYSTORE_CREATE, {
+    project_id: projectId,
+    step: KeystoreCreateStep.Attempt,
+    type: AndroidKeystoreType.Jks,
+  });
+
   try {
-    await spawnAsync('keytool', [
-      '-exportcert',
-      ...(options?.rfcFormat ? ['-rfc'] : []),
-      '-keystore',
-      keystorePath,
-      '-storepass',
-      keystore.keystorePassword,
-      '-alias',
-      keystore.keyAlias,
-      '-file',
-      certPath,
-      '-noprompt',
-      '-storetype',
-      'JKS',
-    ]);
-    return await fs.readFile(certPath, 'base64');
-  } finally {
-    await fs.remove(keystorePath);
-    await fs.remove(certPath);
+    await ensureKeytoolCommandExistsAsync();
+  } catch (error: any) {
+    Analytics.logEvent(Event.ANDROID_KEYSTORE_CREATE, {
+      project_id: projectId,
+      step: KeystoreCreateStep.Fail,
+      reason: error.message,
+      type: AndroidKeystoreType.Jks,
+    });
+    throw error;
   }
-}
 
-export async function logKeystoreHashesAsync(keystore: Keystore, linePrefix: string = '') {
-  const base64Cert = await exportCertificateAsync(keystore);
-  const data = Buffer.from(base64Cert, 'base64');
-  const googleHash = crypto.createHash('sha1').update(data).digest('hex').toUpperCase();
-  const googleHash256 = crypto.createHash('sha256').update(data).digest('hex').toUpperCase();
-  const fbHash = crypto.createHash('sha1').update(data).digest('base64');
-  Log.log(
-    `${linePrefix}Google Certificate Fingerprint:     ${googleHash.replace(/(.{2}(?!$))/g, '$1:')}`
-  );
-  Log.log(`${linePrefix}Google Certificate Hash (SHA-1):    ${googleHash}`);
-  Log.log(`${linePrefix}Google Certificate Hash (SHA-256):  ${googleHash256}`);
-  Log.log(`${linePrefix}Facebook Key Hash:                  ${fbHash}`);
-}
-
-async function createKeystoreAsync(credentials: {
-  keystorePassword: string;
-  keyAlias: string;
-  keyPassword: string;
-}): Promise<KeystoreWithType> {
-  await ensureKeytoolCommandExistsAsync();
   await fs.mkdirp(getTmpDirectory());
   const keystorePath = path.join(getTmpDirectory(), `${uuidv4()}-keystore.jks`);
   try {
@@ -110,42 +94,27 @@ async function createKeystoreAsync(credentials: {
       '-dname',
       `CN=,OU=,O=,L=,S=,C=US`,
     ]);
+
+    Analytics.logEvent(Event.ANDROID_KEYSTORE_CREATE, {
+      project_id: projectId,
+      step: KeystoreCreateStep.Success,
+      type: AndroidKeystoreType.Jks,
+    });
+
     return {
       ...credentials,
       keystore: await fs.readFile(keystorePath, 'base64'),
       type: AndroidKeystoreType.Jks,
     };
+  } catch (error: any) {
+    Analytics.logEvent(Event.ANDROID_KEYSTORE_CREATE, {
+      project_id: projectId,
+      step: KeystoreCreateStep.Fail,
+      reason: error.message,
+      type: AndroidKeystoreType.Jks,
+    });
+    throw error;
   } finally {
     await fs.remove(keystorePath);
-  }
-}
-
-export async function generateRandomKeystoreAsync(): Promise<KeystoreWithType> {
-  const keystoreData = {
-    keystorePassword: crypto.randomBytes(16).toString('hex'),
-    keyPassword: crypto.randomBytes(16).toString('hex'),
-    keyAlias: crypto.randomBytes(16).toString('hex'),
-  };
-  return await createKeystoreAsync(keystoreData);
-}
-
-export async function validateKeystoreAsync(keystore: Keystore): Promise<void> {
-  await ensureKeytoolCommandExistsAsync();
-  try {
-    await tempy.write.task(Buffer.from(keystore.keystore, 'base64'), async keystorePath => {
-      await spawnAsync('keytool', [
-        '-list',
-        '-keystore',
-        keystorePath,
-        '-storepass',
-        keystore.keystorePassword,
-        '-alias',
-        keystore.keyAlias,
-      ]);
-    });
-  } catch (e: any) {
-    throw new Error(
-      `An error occurred when validating the Android keystore: ${e.stdout ?? e.message}`
-    );
   }
 }

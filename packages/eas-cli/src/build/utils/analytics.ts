@@ -18,6 +18,8 @@ export enum Event {
   CREDENTIALS_SYNC_UPDATE_LOCAL_FAIL = 'build cli credentials sync update local fail',
   CREDENTIALS_SYNC_UPDATE_REMOTE_SUCCESS = 'build cli credentials sync update remote success',
   CREDENTIALS_SYNC_UPDATE_REMOTE_FAIL = 'build cli credentials sync update remote fail',
+
+  ANDROID_KEYSTORE_CREATE = 'build cli credentials keystore create',
 }
 
 export default {
