@@ -5,9 +5,9 @@
   "author": "Expo <support@expo.dev>",
   "bugs": "https://github.com/expo/eas-cli/issues",
   "dependencies": {
-    "@expo/eas-build-job": "0.2.45",
-    "@hapi/joi": "17.1.1",
+    "@expo/eas-build-job": "0.2.46",
     "fs-extra": "9.0.1",
+    "joi": "17.4.2",
     "tslib": "2.3.0"
   },
   "devDependencies": {
@@ -16,7 +16,6 @@
     "@babel/preset-typescript": "^7.10.4",
     "@expo/babel-preset-cli": "^0.2.17",
     "@types/fs-extra": "^9.0.1",
-    "@types/hapi__joi": "^17.1.4",
     "@types/node": "^12",
     "babel-jest": "^26.3.0",
     "memfs": "^3.2.0",

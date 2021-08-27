@@ -1,5 +1,5 @@
 import { Android, Ios } from '@expo/eas-build-job';
-import Joi from '@hapi/joi';
+import Joi from 'joi';
 
 import { ReleaseStatus, ReleaseTrack } from './EasSubmit.types';
 
