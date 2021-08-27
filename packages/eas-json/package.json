@@ -8,7 +8,7 @@
     "@expo/eas-build-job": "0.2.46",
     "fs-extra": "10.0.0",
     "joi": "17.4.2",
-    "tslib": "2.3.0"
+    "tslib": "2.3.1"
   },
   "devDependencies": {
     "@babel/core": "^7.11.6",
@@ -19,7 +19,7 @@
     "@types/node": "^12",
     "babel-jest": "^26.3.0",
     "memfs": "^3.2.0",
-    "typescript": "4.3.5"
+    "typescript": "4.4.2"
   },
   "engines": {
     "node": ">=12.0.0"
