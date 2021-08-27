@@ -1,10 +1,10 @@
-export interface SubmissionContext<T extends SubmitCommandFlags> extends BaseSubmissionContext {
-  commandFlags: T;
-}
-
 export interface BaseSubmissionContext {
   projectDir: string;
   projectId: string;
+}
+
+export interface SubmissionContext<T extends SubmitCommandFlags> extends BaseSubmissionContext {
+  commandFlags: T;
 }
 
 export interface SubmitCommandFlags {
@@ -12,7 +12,6 @@ export interface SubmitCommandFlags {
   id?: string;
   path?: string;
   url?: string;
-  verbose: boolean;
 }
 
 export enum AndroidArchiveType {

@@ -5,6 +5,14 @@ export const SubmissionFragmentNode = gql`
     id
     status
     platform
+    app {
+      id
+      name
+      ownerAccount {
+        id
+        name
+      }
+    }
     error {
       errorCode
       message

@@ -2,22 +2,30 @@ import { getConfig } from '@expo/config';
 import { Platform } from '@expo/eas-build-job';
 import { EasJsonReader } from '@expo/eas-json';
 import { flags } from '@oclif/command';
+import { exit } from '@oclif/errors';
+import chalk from 'chalk';
 
 import EasCommand from '../commandUtils/EasCommand';
-import { AppPlatform } from '../graphql/generated';
-import { learnMore } from '../log';
+import { AppPlatform, SubmissionFragment, SubmissionStatus } from '../graphql/generated';
+import Log, { learnMore } from '../log';
+import { appPlatformDisplayNames, appPlatformEmojis } from '../platform';
 import { isEasEnabledForProjectAsync, warnEasUnavailable } from '../project/isEasEnabledForProject';
 import { findProjectRootAsync, getProjectIdAsync } from '../project/projectUtils';
 import { promptAsync } from '../prompts';
 import AndroidSubmitCommand from '../submissions/android/AndroidSubmitCommand';
 import IosSubmitCommand from '../submissions/ios/IosSubmitCommand';
 import { AndroidSubmitCommandFlags, IosSubmitCommandFlags } from '../submissions/types';
+import { displayLogsAsync } from '../submissions/utils/logs';
+import { printSubmissionDetailsUrls } from '../submissions/utils/urls';
+import { waitForSubmissionsEndAsync } from '../submissions/utils/wait';
 
 const COMMON_FLAGS = '';
 const ANDROID_FLAGS = 'Android specific options';
 const IOS_FLAGS = 'iOS specific options';
 
 interface Flags {
+  verbose: boolean;
+  wait: boolean;
   platform?: Platform;
   profile?: string;
   iosOptions: Partial<IosSubmitCommandFlags>;
@@ -152,13 +160,18 @@ export default class BuildSubmit extends EasCommand {
         'The name of your company, needed only for the first upload of any app to App Store',
       helpLabel: IOS_FLAGS,
     }),
+    wait: flags.boolean({
+      default: true,
+      allowNo: true,
+      description: 'Wait for submission to complete',
+    }),
   };
 
   async run(): Promise<void> {
     const flags = this.parseFlags();
     const platform =
       (flags.platform?.toUpperCase() as AppPlatform | undefined) ??
-      (await promptForPlatformAsync());
+      (await this.promptForPlatformAsync());
 
     const projectDir = (await findProjectRootAsync()) ?? process.cwd();
     const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
@@ -170,44 +183,83 @@ export default class BuildSubmit extends EasCommand {
       return;
     }
 
-    // TODO: Make this work outside project dir
-    if (!projectDir) {
-      throw new Error("Please run this command inside your project's directory");
-    }
     const easJsonReader = new EasJsonReader(projectDir);
 
+    const submissions: SubmissionFragment[] = [];
     if (platform === AppPlatform.Android) {
       const submitProfile = flags.profile
         ? await easJsonReader.readSubmitProfileAsync(flags.profile, Platform.ANDROID)
         : {};
-      const options: AndroidSubmitCommandFlags = {
+      const commandFlags: AndroidSubmitCommandFlags = {
         releaseStatus: 'completed',
         track: 'internal',
-        verbose: false,
         changesNotSentForReview: false,
         ...submitProfile,
         ...flags.androidOptions,
       };
-
-      const ctx = AndroidSubmitCommand.createContext(projectDir, projectId, options);
+      const ctx = AndroidSubmitCommand.createContext({
+        projectDir,
+        projectId,
+        commandFlags,
+      });
       const command = new AndroidSubmitCommand(ctx);
-      await command.runAsync();
-    } else if (platform === AppPlatform.Ios) {
+      submissions.push(await command.runAsync());
+    } else {
       const submitProfile = flags.profile
         ? await easJsonReader.readSubmitProfileAsync(flags.profile, Platform.IOS)
         : {};
-      const options: IosSubmitCommandFlags = {
+      const commandFlags: IosSubmitCommandFlags = {
         language: 'en-US',
-        verbose: false,
         ...submitProfile,
         ...flags.iosOptions,
       };
-
-      const ctx = IosSubmitCommand.createContext(projectDir, projectId, options);
+      const ctx = IosSubmitCommand.createContext({
+        projectDir,
+        projectId,
+        commandFlags,
+      });
       const command = new IosSubmitCommand(ctx);
-      await command.runAsync();
-    } else {
-      throw new Error(`Unsupported platform: ${platform}!`);
+      submissions.push(await command.runAsync());
+    }
+
+    Log.newLine();
+    printSubmissionDetailsUrls(submissions);
+
+    if (flags.wait) {
+      Log.newLine();
+      const completedSubmissions = await waitForSubmissionsEndAsync(submissions);
+      for (const submission of completedSubmissions) {
+        if (completedSubmissions.length > 1) {
+          Log.log(
+            `${appPlatformEmojis[submission.platform]}${chalk.bold(
+              `${appPlatformDisplayNames[submission.platform]} submission`
+            )}`
+          );
+        }
+        if (
+          submission.platform === AppPlatform.Ios &&
+          submission.status === SubmissionStatus.Finished
+        ) {
+          Log.addNewLineIfNone();
+          Log.log(
+            chalk.bold('Your binary has been successfully uploaded to App Store Connect!\n') +
+              '- It is now being processed by Apple - you will receive an e-mail when the processing finishes.\n' +
+              '- It usually takes about 5-10 minutes depending on how busy Apple servers are.\n' +
+              '- When it’s done, you can see your build here' +
+              learnMore(
+                `https://appstoreconnect.apple.com/apps/${flags.iosOptions.ascAppId}/appstore/ios`,
+                {
+                  learnMoreMessage: '',
+                }
+              )
+          );
+        }
+        await displayLogsAsync(submission, { verbose: flags.verbose });
+        if (completedSubmissions.length > 1) {
+          Log.newLine();
+        }
+      }
+      this.exitWithNonZeroCodeIfSomeSubmissionsDidntFinish(completedSubmissions);
     }
   }
 
@@ -216,6 +268,8 @@ export default class BuildSubmit extends EasCommand {
       flags: {
         platform,
         profile,
+        verbose,
+        wait,
 
         // android
         'android-package': androidPackage,
@@ -257,25 +311,36 @@ export default class BuildSubmit extends EasCommand {
         ...(companyName && { companyName }),
         ...flags,
       },
+      verbose,
+      wait,
     };
   }
-}
 
-async function promptForPlatformAsync(): Promise<AppPlatform> {
-  const { platform } = await promptAsync({
-    type: 'select',
-    message: 'Submit to platform',
-    name: 'platform',
-    choices: [
-      {
-        title: 'iOS',
-        value: AppPlatform.Ios,
-      },
-      {
-        title: 'Android',
-        value: AppPlatform.Android,
-      },
-    ],
-  });
-  return platform;
+  private async promptForPlatformAsync(): Promise<AppPlatform> {
+    const { platform } = await promptAsync({
+      type: 'select',
+      message: 'Submit to platform',
+      name: 'platform',
+      choices: [
+        {
+          title: 'iOS',
+          value: AppPlatform.Ios,
+        },
+        {
+          title: 'Android',
+          value: AppPlatform.Android,
+        },
+      ],
+    });
+    return platform;
+  }
+
+  private exitWithNonZeroCodeIfSomeSubmissionsDidntFinish(submissions: SubmissionFragment[]): void {
+    const nonFinishedSubmissions = submissions.filter(
+      ({ status }) => status !== SubmissionStatus.Finished
+    );
+    if (nonFinishedSubmissions.length > 0) {
+      exit(1);
+    }
+  }
 }
