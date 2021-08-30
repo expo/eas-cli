@@ -102,7 +102,7 @@ export async function prepareBuildRequestForPlatformAsync<
     } else {
       try {
         return await sendBuildRequestAsync(builder, job, metadata);
-      } catch (error) {
+      } catch (error: any) {
         if (error?.graphQLErrors?.[0]?.extensions?.errorCode === 'TURTLE_DEPRECATED_JOB_FORMAT') {
           Log.error('EAS Build API has changed, please upgrade to the latest eas-cli version.');
           throw new Error('Build request failed.');
@@ -221,7 +221,7 @@ async function withAnalyticsAsync<Result>(
     const result = await fn();
     Analytics.logEvent(analytics.successEvent, analytics.trackingCtx);
     return result;
-  } catch (error) {
+  } catch (error: any) {
     Analytics.logEvent(analytics.failureEvent, {
       ...analytics.trackingCtx,
       reason: error.message,

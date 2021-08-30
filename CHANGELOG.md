@@ -14,6 +14,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Replace `@hapi/joi` with `joi`. Upgrade typescript to 4.4.2. Upgrade dependencies. ([#582](https://github.com/expo/eas-cli/pull/582) by [@dsokal](https://github.com/dsokal))
+
 ## [0.24.1](https://github.com/expo/eas-cli/releases/tag/v0.24.1) - 2021-08-25
 
 ### 🐛 Bug fixes

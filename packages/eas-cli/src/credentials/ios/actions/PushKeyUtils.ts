@@ -67,7 +67,7 @@ async function generatePushKeyAsync(ctx: Context, accountName: string): Promise<
   await ctx.appStore.ensureAuthenticatedAsync();
   try {
     return await ctx.appStore.createPushKeyAsync();
-  } catch (e) {
+  } catch (e: any) {
     if (e.message === APPLE_KEYS_TOO_MANY_GENERATED_ERROR) {
       const pushKeys = await ctx.appStore.listPushKeysAsync();
       Log.warn('Maximum number of Push Notifications Keys generated on Apple Developer Portal.');

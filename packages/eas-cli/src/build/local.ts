@@ -18,7 +18,7 @@ export async function runLocalBuildAsync(job: Job): Promise<void> {
     await spawnAsync(execNameOrPath, [arg], {
       stdio: 'inherit',
     });
-  } catch (err) {
+  } catch (err: any) {
     if (err.code === 'ENOENT') {
       Log.warn(`Could not resolve executable ${execNameOrPath}.`);
       Log.warn(

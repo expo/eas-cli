@@ -18,7 +18,7 @@ type SessionData = {
 export function getSession(): SessionData | null {
   try {
     return JsonFile.read<UserSettingsData>(getStateJsonPath())?.auth ?? null;
-  } catch (error) {
+  } catch (error: any) {
     if (error.code === 'ENOENT') {
       return null;
     }

@@ -44,7 +44,7 @@ export async function createPushKeyAsync(
       teamId: authCtx.team.id,
       teamName: authCtx.team.name,
     };
-  } catch (err) {
+  } catch (err: any) {
     spinner.fail('Failed to create Apple push key');
     const resultString = err.rawDump?.resultString;
     if (

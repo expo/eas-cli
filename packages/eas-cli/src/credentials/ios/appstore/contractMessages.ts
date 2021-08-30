@@ -11,7 +11,7 @@ async function getContractStatusAsync(
   try {
     const capabilities = await ITCAgreements.getCapabilitiesAsync(context);
     return capabilities?.contractStatus ?? null;
-  } catch (error) {
+  } catch (error: any) {
     Log.warn(`Failed to get iTunes contract status: ${error.message}`);
     return null;
   }
@@ -20,7 +20,7 @@ async function getContractStatusAsync(
 async function getContractMessagesAsync(context: RequestContext) {
   try {
     return await ITCAgreements.getContractMessagesAsync(context);
-  } catch (error) {
+  } catch (error: any) {
     Log.warn(`Failed to get iTunes contract messages: ${error.message}`);
     return null;
   }

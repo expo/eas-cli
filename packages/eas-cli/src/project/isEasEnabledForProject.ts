@@ -14,7 +14,7 @@ export async function isEasEnabledForProjectAsync(projectId: string): Promise<bo
       data: { enabled },
     } = await apiClient.get(`projects/${projectId}/eas-enabled`).json();
     return enabled;
-  } catch (error) {
+  } catch (error: any) {
     if (error.response?.statusCode === 404) {
       return true;
     } else {

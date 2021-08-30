@@ -55,7 +55,7 @@ function validateProvisioningProfileWithoutApple(
         nullthrows(distributionCertificate?.certificateP12),
         nullthrows(distributionCertificate?.certificatePassword)
       );
-    } catch (e) {
+    } catch (e: any) {
       Log.warn(`Failed to calculate fingerprint for Distribution Certificate: ${e.toString()}`);
       return false;
     }

@@ -56,7 +56,7 @@ export async function ensureBundleIdExistsWithNameAsync(
       });
     }
     spinner.succeed(`Bundle identifier registered ${chalk.dim(bundleIdentifier)}`);
-  } catch (err) {
+  } catch (err: any) {
     if (err.message.match(/An App ID with Identifier '(.*)' is not available/)) {
       spinner.fail(
         `The bundle identifier ${chalk.bold(bundleIdentifier)} is not available to team "${
@@ -179,7 +179,7 @@ export async function ensureAppExistsAsync(
         companyName,
         sku,
       });
-    } catch (error) {
+    } catch (error: any) {
       if (error.message.match(/An App ID with Identifier '(.*)' is not available/)) {
         const providerName = authCtx.authState?.session.provider.name;
         throw new Error(

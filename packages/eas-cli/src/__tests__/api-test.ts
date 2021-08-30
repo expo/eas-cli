@@ -24,7 +24,7 @@ describe('apiClient', () => {
     let error: Error | null = null;
     try {
       await apiClient.post('test');
-    } catch (e) {
+    } catch (e: any) {
       error = e;
     }
 
@@ -44,7 +44,7 @@ describe('apiClient', () => {
     let error: Error | null = null;
     try {
       await apiClient.post('test');
-    } catch (e) {
+    } catch (e: any) {
       error = e;
     }
     expect(error).toBeInstanceOf(RequestError);

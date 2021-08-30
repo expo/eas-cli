@@ -79,7 +79,7 @@ export async function syncCapabilityIdentifiersForEntitlementsAsync(
           remoteIdModel = await CapabilityModel.createAsync(bundleId.context, {
             identifier: localId,
           });
-        } catch (error) {
+        } catch (error: any) {
           // Add a more helpful error message.
           error.message += `\n\nRemove the value '${localId}' from the array '${classifier.entitlement}' in the iOS project entitlements.\nIf you know that the ID is registered to one of your apps, try again with a different Apple account.`;
           throw error;

@@ -103,7 +103,7 @@ export async function createDistributionCertificateAsync(
       teamId: authCtx.team.id,
       teamName: authCtx.team.name,
     };
-  } catch (error) {
+  } catch (error: any) {
     spinner.fail('Failed to create Apple distribution certificate');
     // TODO: Move check into apple-utils
     if (

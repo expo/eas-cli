@@ -101,7 +101,7 @@ async function createAppStoreConnectAppAsync(options: CreateAppOptions): Promise
       bundleIdentifier: bundleId,
       sku,
     });
-  } catch (error) {
+  } catch (error: any) {
     if (
       // Name is invalid
       error.message.match(

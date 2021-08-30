@@ -49,7 +49,7 @@ export async function uploadWithPresignedPostAsync(
       const response = await uploadPromise;
       handleProgressEvent({ isComplete: true });
       return String(response.headers.location);
-    } catch (error) {
+    } catch (error: any) {
       handleProgressEvent({ isComplete: true, error });
       throw error;
     }
