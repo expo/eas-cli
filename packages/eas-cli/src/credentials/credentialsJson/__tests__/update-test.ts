@@ -102,7 +102,7 @@ describe('update credentials.json', () => {
         delete buildCredentialsNoKeystore.androidKeystore;
         await updateAndroidCredentialsAsync(ctx, buildCredentialsNoKeystore);
         throw new Error('updateAndroidCredentialsAsync should throw an error');
-      } catch (e) {
+      } catch (e: any) {
         expect(e.message).toMatch(
           'There are no credentials configured for this project on EAS servers'
         );
@@ -278,7 +278,7 @@ describe('update credentials.json', () => {
       try {
         await updateIosCredentialsAsync(ctx, app, targets, IosDistributionType.AppStore);
         throw new Error('updateIosCredentialsAsync should throw na error');
-      } catch (e) {
+      } catch (e: any) {
         expect(e.message).toMatch('There are no credentials configured');
       }
       const certP12 = await fs.readFile('./cert.p12', 'base64');

@@ -47,7 +47,7 @@ function getRawCertData(p12Buffer: Buffer | string, passwordRaw: string | null):
     } else {
       p12 = forge.pkcs12.pkcs12FromAsn1(p12Asn1);
     }
-  } catch (_error) {
+  } catch (_error: any) {
     const error: Error = _error;
     if (/Invalid password/.exec(error.message)) {
       throw new Error(

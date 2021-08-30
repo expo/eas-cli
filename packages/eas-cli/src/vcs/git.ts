@@ -141,7 +141,7 @@ export default class GitClient extends Client {
 async function isGitInstalledAsync(): Promise<boolean> {
   try {
     await spawnAsync('git', ['--help']);
-  } catch (error) {
+  } catch (error: any) {
     if (error.code === 'ENOENT') {
       return false;
     }

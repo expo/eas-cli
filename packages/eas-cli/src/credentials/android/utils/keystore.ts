@@ -143,7 +143,7 @@ export async function validateKeystoreAsync(keystore: Keystore): Promise<void> {
         keystore.keyAlias,
       ]);
     });
-  } catch (e) {
+  } catch (e: any) {
     throw new Error(
       `An error occurred when validating the Android keystore: ${e.stdout ?? e.message}`
     );

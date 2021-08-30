@@ -66,7 +66,7 @@ export async function findProjectIdByAccountNameAndSlugNullableAsync(
 ): Promise<string | null> {
   try {
     return await findProjectIdByAccountNameAndSlugAsync(accountName, slug);
-  } catch (err) {
+  } catch (err: any) {
     if (err.graphQLErrors?.some((it: any) => it.extensions?.errorCode !== 'EXPERIENCE_NOT_FOUND')) {
       throw err;
     }

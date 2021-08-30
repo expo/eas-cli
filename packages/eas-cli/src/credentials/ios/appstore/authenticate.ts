@@ -178,7 +178,7 @@ export async function authenticateAsync(options: Options = {}): Promise<AuthCtx>
       // Defined for legacy usage in Turtle V1 or any other places where Fastlane is used in the servers.
       fastlaneSession,
     };
-  } catch (error) {
+  } catch (error: any) {
     if (error.message === 'ABORTED') {
       process.exit(1);
     }

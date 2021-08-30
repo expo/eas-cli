@@ -65,7 +65,7 @@ function getPemFromJksKeystore(keystore: Keystore): string {
   const { protectedPrivateKey } = keystoreEntry;
   try {
     return jks.decrypt(protectedPrivateKey, keystore.keyPassword);
-  } catch (e) {
+  } catch (e: any) {
     throw new Error(`${e.message}: Check that your key password is correct`);
   }
 }
@@ -79,7 +79,7 @@ function getX509Asn1FromPKCS12Keystore(
   try {
     const p12 = parsePKCS12(p12BufferOrBase64String, maybePassword);
     x509Asn1 = getX509Asn1ByFriendlyName(p12, keyAlias);
-  } catch (e) {
+  } catch (e: any) {
     throw new Error(`Invalid PKCS#12 (.p12) keystore: ${e.message}`);
   }
   if (!x509Asn1) {

@@ -39,7 +39,7 @@ export async function migrateAsync(projectDir: string): Promise<void> {
   const reader = new EasJsonReader(projectDir, 'all');
   try {
     await reader.validateAsync();
-  } catch (err) {
+  } catch (err: any) {
     throw new Error(`Valid eas.json is required to migrate to the new format\n${err.message}`);
   }
   const rawFile = await fs.readFile(path.join(projectDir, 'eas.json'), 'utf8');
