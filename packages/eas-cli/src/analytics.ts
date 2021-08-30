@@ -2,6 +2,7 @@ import { Identify } from '@amplitude/identify';
 import * as Amplitude from '@amplitude/node';
 import RudderAnalytics from '@expo/rudder-sdk-node';
 import os from 'os';
+import { URL } from 'url';
 import { v4 as uuidv4 } from 'uuid';
 
 import UserSettings from './user/UserSettings';
