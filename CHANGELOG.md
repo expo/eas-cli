@@ -12,7 +12,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
-- Fix wrong warning for `metro.config.js` check on Windows ([#587](https://github.com/expo/eas-cli/pull/587) by [@louisgv](https://github.com/louisgv))
+- Fix wrong warning for `metro.config.js` check on Windows ([#587](https://github.com/expo/eas-cli/pull/588) by [@louisgv](https://github.com/louisgv))
 
 ### 🧹 Chores
 
