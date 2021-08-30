@@ -1,6 +1,6 @@
 import spawnAsync from '@expo/spawn-async';
 
-import Log from '../log';
+import Log, { learnMore } from '../log';
 import { confirmAsync, promptAsync } from '../prompts';
 import { Client } from './vcs';
 
@@ -83,9 +83,14 @@ export default class GitClient extends Client {
     await setGitCaseSensitivityAsync(true);
     try {
       if (await this.hasUncommittedChangesAsync()) {
-        await spawnAsync('git', ['status'], { stdio: 'inherit' });
+        Log.error('Detected inconsistent filename casing between your local filesystem and git.');
+        Log.error('This will likely cause your build to fail. Impacted files:');
+        await spawnAsync('git', ['status', '--short'], { stdio: 'inherit' });
+        Log.newLine();
         Log.error(
-          'Case of some of your filenames is inconsistent between values stored in the git and in the filesystem. Run "git config core.ignorecase false" to show those differences.'
+          `Error: Resolve filename casing inconsistencies before proceeding. ${learnMore(
+            'https://expo.fyi/macos-ignorecase'
+          )}`
         );
         throw new Error('You have some uncommitted changes in your repository.');
       }
@@ -196,7 +201,7 @@ async function gitDiffAsync({ withPager = false }: { withPager?: boolean } = {})
  * Checks if git is configured to be case sensitive
  * @returns {boolean | undefined}
  *    - boolean - is git case senstive
- *    - undefined - case sensitivity is not configured and git is using default behaviour
+ *    - undefined - case sensitivity is not configured and git is using default behavior
  */
 async function isGitCaseSensitiveAsync(): Promise<boolean | undefined> {
   if (process.platform !== 'darwin') {
@@ -214,7 +219,7 @@ async function isGitCaseSensitiveAsync(): Promise<boolean | undefined> {
 }
 
 async function setGitCaseSensitivityAsync(enable: boolean | undefined): Promise<void> {
-  // we are assuming that if someone sets that on non macos device that
+  // we are assuming that if someone sets that on non-macos device then
   // they know what they are doing
   if (process.platform !== 'darwin') {
     return;
