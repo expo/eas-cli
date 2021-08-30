@@ -62,6 +62,9 @@ export abstract class Client {
   // (optional) checks if the file is ignored, an implementation should ensure
   // that if file exists and `isFileIgnoredAsync` returns true, then that file
   // should not be included in the project tarball.
+  //
+  // @param filePath has to be a relative normalized path pointing to a file
+  // located under root of the repository
   public async isFileIgnoredAsync(filePath: string): Promise<boolean> {
     return false;
   }
