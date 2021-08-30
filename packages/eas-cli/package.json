@@ -104,7 +104,7 @@
     "typescript": "4.3.5"
   },
   "engines": {
-    "node": ">=8.0.0"
+    "node": ">=12.0.0"
   },
   "files": [
     "/bin",
@@ -184,7 +184,5 @@
     "test": "jest",
     "version": "yarn oclif-dev readme && node patch-readme && git add README.md",
     "generate-graphql-code": "graphql-codegen --config graphql-codegen.yml"
-  },
-  "types": "build/index.d.ts",
-  "gitHead": "161808bc37c255fdea6801d69d23dbc725c056c3"
+  }
 }
