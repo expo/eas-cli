@@ -83,7 +83,7 @@ export class EasJsonReader {
       try {
         this.validateBuildProfile(Platform.ANDROID, name, androidProfiles);
       } catch (err) {
-        err.msg = `Failed to validate Android build profile "${name}"\n${err.msg}`;
+        err.message = `Failed to validate Android build profile "${name}"\n${err.message}`;
         throw err;
       }
     }
@@ -92,7 +92,7 @@ export class EasJsonReader {
       try {
         this.validateBuildProfile(Platform.IOS, name, iosProfiles);
       } catch (err) {
-        err.msg = `Failed to validate iOS build profile "${name}"\n${err.msg}`;
+        err.message = `Failed to validate iOS build profile "${name}"\n${err.message}`;
         throw err;
       }
     }
