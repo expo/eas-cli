@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Fix wrong warning for `metro.config.js` check on Windows ([#587](https://github.com/expo/eas-cli/pull/587) by [@louisgv](https://github.com/louisgv))
+
 ### 🧹 Chores
 
 - Replace `@hapi/joi` with `joi`. Upgrade typescript to 4.4.2. Upgrade dependencies. ([#582](https://github.com/expo/eas-cli/pull/582) by [@dsokal](https://github.com/dsokal))
