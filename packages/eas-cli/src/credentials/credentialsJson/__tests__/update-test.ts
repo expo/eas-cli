@@ -22,15 +22,15 @@ import { updateAndroidCredentialsAsync, updateIosCredentialsAsync } from '../upd
 jest.mock('fs');
 jest.mock('prompts');
 
-beforeEach(() => {
-  vol.reset();
-  asMock(prompts).mockReset();
-  asMock(prompts).mockImplementation(() => {
-    throw new Error(`unhandled prompts call - this shouldn't happen - fix tests!`);
-  });
-});
-
 describe('update credentials.json', () => {
+  beforeEach(() => {
+    vol.reset();
+    asMock(prompts).mockReset();
+    asMock(prompts).mockImplementation(() => {
+      throw new Error(`unhandled prompts call - this shouldn't happen - fix tests!`);
+    });
+  });
+
   describe(updateAndroidCredentialsAsync, () => {
     it('should update keystore in credentials.json if www returns valid credentials', async () => {
       const ctx = createCtxMock();

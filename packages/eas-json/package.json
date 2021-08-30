@@ -17,7 +17,6 @@
     "@expo/babel-preset-cli": "^0.2.17",
     "@types/fs-extra": "9.0.12",
     "@types/node": "^12",
-    "babel-jest": "^26.3.0",
     "memfs": "3.2.2",
     "typescript": "4.4.2"
   },

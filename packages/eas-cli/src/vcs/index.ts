@@ -7,7 +7,9 @@ const NO_VCS_WARNING = `Using EAS CLI without version control system is not reco
 
 function resolveVcsClient(): Client {
   if (process.env.EAS_NO_VCS) {
-    log.warn(NO_VCS_WARNING);
+    if (process.env.NODE_ENV !== 'test') {
+      log.warn(NO_VCS_WARNING);
+    }
     return new LocalClient();
   }
   return new GitClient();

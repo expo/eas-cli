@@ -5,6 +5,7 @@ import { createCtxMock } from '../../../__tests__/fixtures-context';
 import { testTargets } from '../../../__tests__/fixtures-ios';
 import { getAppLookupParamsFromContext } from '../BuildCredentialsUtils';
 import { CreatePushKey } from '../CreatePushKey';
+
 jest.mock('../../../../prompts');
 (confirmAsync as jest.Mock).mockImplementation(() => true);
 
