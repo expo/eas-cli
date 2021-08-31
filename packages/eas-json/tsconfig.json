@@ -6,7 +6,7 @@
     "esModuleInterop": true,
     "noImplicitReturns": true,
     "strict": true,
-    "target": "es2017",
+    "target": "ES2019",
     "outDir": "build",
     "rootDir": "src",
     "typeRoots": [
