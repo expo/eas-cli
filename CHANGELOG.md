@@ -11,6 +11,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🎉 New features
 
 - Support `--no-wait` in `eas submit`. ([#578](https://github.com/expo/eas-cli/pull/578) by [@dsokal](https://github.com/dsokal))
+- Detect changes when `core.ignorecase` is set to true. ([#570](https://github.com/expo/eas-cli/pull/570) by [@wkozyra95](https://github.com/wkozyra95))
 
 ### 🐛 Bug fixes
 
