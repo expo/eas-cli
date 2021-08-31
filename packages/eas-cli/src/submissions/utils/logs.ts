@@ -5,21 +5,20 @@ import { SubmissionFragment, SubmissionStatus } from '../../graphql/generated';
 import { default as LogModule } from '../../log';
 import { printSubmissionError } from './errors';
 
-export async function displayLogs(
-  submission: SubmissionFragment | null,
-  status: SubmissionStatus | null,
-  verbose: boolean
+export async function displayLogsAsync(
+  submission: SubmissionFragment,
+  { verbose = false }: { verbose?: boolean } = {}
 ): Promise<void> {
   let printedUnknownError = false;
-  if (status === SubmissionStatus.Errored && submission?.error) {
+  if (submission.status === SubmissionStatus.Errored && submission.error) {
     printedUnknownError = printSubmissionError(submission.error);
   }
-  if ((printedUnknownError || verbose) && submission) {
-    await downloadAndPrintSubmissionLogs(submission);
+  if (printedUnknownError || verbose) {
+    await downloadAndPrintSubmissionLogsAsync(submission);
   }
 }
 
-async function downloadAndPrintSubmissionLogs(submission: SubmissionFragment): Promise<void> {
+async function downloadAndPrintSubmissionLogsAsync(submission: SubmissionFragment): Promise<void> {
   if (!submission.logsUrl) {
     return;
   }

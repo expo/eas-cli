@@ -13,8 +13,8 @@ import {
   EasBuildDeprecationInfoType,
 } from '../../graphql/generated';
 import Log, { learnMore } from '../../log';
+import { appPlatformDisplayNames, appPlatformEmojis } from '../../platform';
 import { printJsonOnlyOutput } from '../../utils/json';
-import { appPlatformDisplayNames, appPlatformEmojis } from '../constants';
 import { getBuildLogsUrl, getInternalDistributionInstallUrl } from './url';
 
 export function printLogsUrls(builds: BuildFragment[]): void {

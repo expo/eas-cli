@@ -5,8 +5,8 @@ import {
   BuildFragment,
   BuildStatus as GraphQLBuildStatus,
 } from '../../graphql/generated';
+import { appPlatformDisplayNames } from '../../platform';
 import formatFields from '../../utils/formatFields';
-import { appPlatformDisplayNames } from '../constants';
 import { getBuildLogsUrl } from './url';
 
 export function formatGraphQLBuild(build: BuildFragment) {

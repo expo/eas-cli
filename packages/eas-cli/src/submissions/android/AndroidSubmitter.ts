@@ -1,6 +1,6 @@
 import fs from 'fs-extra';
 
-import { AppPlatform } from '../../graphql/generated';
+import { AppPlatform, SubmissionFragment } from '../../graphql/generated';
 import BaseSubmitter from '../BaseSubmitter';
 import { Archive, ArchiveSource, getArchiveAsync } from '../archiveSource';
 import { AndroidArchiveType, AndroidSubmissionContext, ArchiveType } from '../types';
@@ -30,13 +30,11 @@ interface ResolvedSourceOptions {
 }
 
 class AndroidSubmitter extends BaseSubmitter<AndroidSubmissionContext, AndroidSubmissionOptions> {
-  protected readonly appStoreName = 'Google Play Store';
-
   constructor(ctx: AndroidSubmissionContext, options: AndroidSubmissionOptions) {
     super(AppPlatform.Android, ctx, options);
   }
 
-  async submitAsync(): Promise<void> {
+  async submitAsync(): Promise<SubmissionFragment> {
     const resolvedSourceOptions = await this.resolveSourceOptions();
     const submissionConfig = await this.formatSubmissionConfig(this.options, resolvedSourceOptions);
 
@@ -46,10 +44,9 @@ class AndroidSubmitter extends BaseSubmitter<AndroidSubmissionContext, AndroidSu
       SummaryHumanReadableValues
     );
 
-    await this.startSubmissionAsync(
+    return await this.createSubmissionAsync(
       submissionConfig,
-      resolvedSourceOptions.archive.build?.id,
-      this.ctx.commandFlags.verbose
+      resolvedSourceOptions.archive.build?.id
     );
   }
 
