@@ -71,10 +71,6 @@
     "wrap-ansi": "7.0.0"
   },
   "devDependencies": {
-    "@babel/core": "^7.11.6",
-    "@babel/preset-env": "^7.11.5",
-    "@babel/preset-typescript": "^7.10.4",
-    "@expo/babel-preset-cli": "^0.2.17",
     "@graphql-codegen/cli": "^1.19.2",
     "@graphql-codegen/introspection": "^1.18.0",
     "@graphql-codegen/typescript": "^1.17.11",
@@ -95,7 +91,6 @@
     "@types/uuid": "8.3.1",
     "@types/wrap-ansi": "3.0.0",
     "axios": "0.21.1",
-    "babel-jest": "^26.3.0",
     "memfs": "3.2.2",
     "mockdate": "^3.0.2",
     "nock": "^13.0.5",
