@@ -3,17 +3,21 @@ import { v4 as uuidv4 } from 'uuid';
 
 import { asMock } from '../../../__tests__/utils';
 import { jester as mockJester } from '../../../credentials/__tests__/fixtures-constants';
-import { AppPlatform, SubmissionFragment, SubmissionStatus } from '../../../graphql/generated';
+import { AppPlatform } from '../../../graphql/generated';
+import { SubmissionMutation } from '../../../graphql/mutations/SubmissionMutation';
 import { createTestProject } from '../../../project/__tests__/project-utils';
 import { getProjectIdAsync } from '../../../project/projectUtils';
-import SubmissionService from '../../SubmissionService';
 import { IosSubmitCommandFlags } from '../../types';
 import { IosSubmissionConfig } from '../IosSubmissionConfig';
 import IosSubmitCommand from '../IosSubmitCommand';
 
 jest.mock('fs');
 jest.mock('ora');
-jest.mock('../../SubmissionService');
+jest.mock('../../../graphql/mutations/SubmissionMutation', () => ({
+  SubmissionMutation: {
+    createSubmissionAsync: jest.fn(),
+  },
+}));
 jest.mock('../../../project/ensureProjectExists');
 jest.mock('../../../user/User', () => ({
   getUserAsync: jest.fn(() => mockJester),
@@ -43,7 +47,6 @@ describe(IosSubmitCommand, () => {
   });
   afterAll(() => {
     vol.reset();
-
     jest.unmock('@expo/config');
   });
 
@@ -52,44 +55,22 @@ describe(IosSubmitCommand, () => {
   });
 
   describe('sending submission', () => {
-    const originalStartSubmissionAsync = SubmissionService.startSubmissionAsync;
-    const originalGetSubmissionAsync = SubmissionService.getSubmissionAsync;
-    beforeAll(() => {
-      SubmissionService.startSubmissionAsync = jest.fn(SubmissionService.startSubmissionAsync);
-      SubmissionService.getSubmissionAsync = jest.fn(SubmissionService.getSubmissionAsync);
-    });
-    afterAll(() => {
-      SubmissionService.startSubmissionAsync = originalStartSubmissionAsync;
-      SubmissionService.getSubmissionAsync = originalGetSubmissionAsync;
-    });
-    afterEach(() => {
-      asMock(SubmissionService.startSubmissionAsync).mockClear();
-      asMock(SubmissionService.getSubmissionAsync).mockClear();
-    });
-
     it('sends a request to Submission Service', async () => {
       const projectId = uuidv4();
-      asMock(SubmissionService.getSubmissionAsync).mockImplementationOnce(
-        async (submissionId: string): Promise<SubmissionFragment> => {
-          const actualSubmission = await originalGetSubmissionAsync(submissionId);
-          return {
-            ...actualSubmission,
-            status: SubmissionStatus.Finished,
-          };
-        }
-      );
-      asMock(getProjectIdAsync).mockImplementationOnce(() => projectId);
 
       process.env.EXPO_APPLE_APP_SPECIFIC_PASSWORD = 'supersecret';
 
-      const options: IosSubmitCommandFlags = {
+      const commandFlags: IosSubmitCommandFlags = {
         latest: false,
         url: 'http://expo.dev/fake.ipa',
         appleId: 'test@example.com',
         ascAppId: '12345678',
-        verbose: false,
       };
-      const ctx = IosSubmitCommand.createContext(testProject.projectRoot, projectId, options);
+      const ctx = IosSubmitCommand.createContext({
+        projectDir: testProject.projectRoot,
+        projectId,
+        commandFlags,
+      });
       const command = new IosSubmitCommand(ctx);
       await command.runAsync();
 
@@ -101,12 +82,11 @@ describe(IosSubmitCommand, () => {
         projectId,
       };
 
-      expect(SubmissionService.startSubmissionAsync).toHaveBeenCalledWith(
-        AppPlatform.Ios,
-        projectId,
-        iosSubmissionConfig,
-        undefined
-      );
+      expect(SubmissionMutation.createSubmissionAsync).toHaveBeenCalledWith({
+        appId: projectId,
+        config: iosSubmissionConfig,
+        platform: AppPlatform.Ios,
+      });
 
       delete process.env.EXPO_APPLE_APP_SPECIFIC_PASSWORD;
     });

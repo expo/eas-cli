@@ -1,7 +1,4 @@
-import chalk from 'chalk';
-
-import { AppPlatform, SubmissionStatus } from '../../graphql/generated';
-import Log, { learnMore } from '../../log';
+import { AppPlatform, SubmissionFragment } from '../../graphql/generated';
 import BaseSubmitter from '../BaseSubmitter';
 import { Archive, ArchiveSource, getArchiveAsync } from '../archiveSource';
 import { IosSubmissionContext } from '../types';
@@ -31,13 +28,11 @@ type SummaryData = Pick<IosSubmissionOptions, 'ascAppId' | 'appleId' | 'projectI
   ArchiveSourceSummaryFields;
 
 class IosSubmitter extends BaseSubmitter<IosSubmissionContext, IosSubmissionOptions> {
-  protected readonly appStoreName: string = 'Apple App Store';
-
   constructor(ctx: IosSubmissionContext, options: IosSubmissionOptions) {
     super(AppPlatform.Ios, ctx, options);
   }
 
-  async submitAsync(): Promise<void> {
+  async submitAsync(): Promise<SubmissionFragment> {
     const resolvedSourceOptions = await this.resolveSourceOptions();
     const submissionConfig = await this.formatSubmissionConfigAsync(
       this.options,
@@ -50,25 +45,10 @@ class IosSubmitter extends BaseSubmitter<IosSubmissionContext, IosSubmissionOpti
       SummaryHumanReadableValues
     );
 
-    const result = await this.startSubmissionAsync(
+    return await this.createSubmissionAsync(
       submissionConfig,
-      resolvedSourceOptions.archive.build?.id,
-      this.ctx.commandFlags.verbose
+      resolvedSourceOptions.archive.build?.id
     );
-
-    if (result === SubmissionStatus.Finished) {
-      Log.addNewLineIfNone();
-      Log.log(
-        chalk.bold('Your binary has been successfully uploaded to App Store Connect!\n') +
-          '- It is now being processed by Apple - you will receive an e-mail when the processing finishes.\n' +
-          '- It usually takes about 5-10 minutes depending on how busy Apple servers are.\n' +
-          '- When it’s done, you can see your build here' +
-          learnMore(
-            `https://appstoreconnect.apple.com/apps/${this.options.ascAppId}/appstore/ios`,
-            { learnMoreMessage: '' }
-          )
-      );
-    }
   }
 
   private async resolveSourceOptions(): Promise<ResolvedSourceOptions> {

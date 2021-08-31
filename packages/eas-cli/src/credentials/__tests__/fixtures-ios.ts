@@ -13,6 +13,8 @@ import { DistributionCertificate, ProvisioningProfile } from '../ios/appstore/Cr
 import { Target } from '../ios/types';
 import { testProvisioningProfileBase64 } from './fixtures-base64-data';
 
+const now = new Date();
+
 export const testProvisioningProfile: ProvisioningProfile = {
   provisioningProfileId: 'test-id',
   provisioningProfile: testProvisioningProfileBase64,
@@ -39,7 +41,7 @@ export const testPushKey: ApplePushKeyFragment = {
   id: 'test-push-key-id',
   keyIdentifier: 'test-key-identifier',
   appleTeam: { ...testAppleTeamFragment },
-  updatedAt: new Date(),
+  updatedAt: now,
   iosAppCredentialsList: [],
 };
 
@@ -47,10 +49,10 @@ export const testTargets: Target[] = [{ targetName: 'testapp', bundleIdentifier:
 
 export const testProvisioningProfileFragment: AppleProvisioningProfileFragment = {
   id: 'test-prov-prof-id-1',
-  expiration: new Date(),
+  expiration: now,
   developerPortalIdentifier: 'test-developer-identifier',
   provisioningProfile: testProvisioningProfileBase64,
-  updatedAt: new Date(),
+  updatedAt: now,
   status: 'Active',
   appleTeam: { ...testAppleTeamFragment },
   appleDevices: [],
@@ -62,9 +64,9 @@ export const testDistCertFragmentNoDependencies: AppleDistributionCertificateFra
   certificatePassword: 'test-password',
   serialNumber: 'test-serial',
   developerPortalIdentifier: 'test-developer-identifier',
-  validityNotAfter: new Date(),
-  validityNotBefore: new Date(),
-  updatedAt: new Date(),
+  validityNotAfter: now,
+  validityNotBefore: now,
+  updatedAt: now,
   appleTeam: { ...testAppleTeamFragment },
   iosAppBuildCredentialsList: [],
 };
@@ -75,9 +77,9 @@ export const testDistCertFragmentOneDependency: AppleDistributionCertificateFrag
   certificatePassword: 'test-password',
   serialNumber: 'test-serial',
   developerPortalIdentifier: 'test-developer-identifier',
-  validityNotAfter: new Date(),
-  validityNotBefore: new Date(),
-  updatedAt: new Date(),
+  validityNotAfter: now,
+  validityNotBefore: now,
+  updatedAt: now,
   appleTeam: { ...testAppleTeamFragment },
   iosAppBuildCredentialsList: [
     {

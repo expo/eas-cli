@@ -19,7 +19,7 @@ module.exports = {
       },
     ],
     'flowtype/no-types-missing-file-annotation': 'off',
-    'curly': 'warn',
+    curly: 'warn',
     'import/no-relative-packages': 'error',
   },
   settings: {

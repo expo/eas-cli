@@ -5,35 +5,42 @@ import { ensureLoggedInAsync } from '../../user/actions';
 import EasCommand from '../EasCommand';
 import TestEasCommand from './TestEasCommand';
 
+TestEasCommand.prototype.authValue = jest.fn().mockImplementation(() => true);
+
+jest.mock('../../user/User');
+jest.mock('../../user/actions', () => ({ ensureLoggedInAsync: jest.fn() }));
+jest.mock('../../analytics', () => {
+  const { AnalyticsEvent } = jest.requireActual('../../analytics');
+  return {
+    AnalyticsEvent,
+    logEvent: jest.fn(),
+    initAsync: jest.fn(),
+    flushAsync: jest.fn(),
+  };
+});
+
+beforeEach(() => {
+  (getUserAsync as jest.Mock).mockReset().mockImplementation(() => mockJester);
+  (ensureLoggedInAsync as jest.Mock).mockReset().mockImplementation(() => mockJester);
+  (initAsync as jest.Mock).mockReset();
+  (flushAsync as jest.Mock).mockReset();
+  (logEvent as jest.Mock).mockReset();
+});
+
 describe(EasCommand.name, () => {
-  beforeAll(() => {
-    TestEasCommand.prototype.authValue = jest.fn().mockImplementation(() => true);
-    jest.mock('../../user/User', () => ({ getUserAsync: jest.fn(() => mockJester) }));
-    jest.mock('../../user/actions', () => ({ ensureLoggedInAsync: jest.fn(() => mockJester) }));
-    jest.mock('../../analytics', () => {
-      const { AnalyticsEvent } = jest.requireActual('../../analytics');
-      return {
-        AnalyticsEvent,
-        logEvent: jest.fn(),
-        initAsync: jest.fn(),
-        flushAsync: jest.fn(),
-      };
-    });
-  });
-
-  afterEach(() => {
-    (ensureLoggedInAsync as jest.Mock).mockClear();
-    (initAsync as jest.Mock).mockClear();
-    (flushAsync as jest.Mock).mockClear();
-    (logEvent as jest.Mock).mockClear();
-  });
-
   describe('without exceptions', () => {
+    // The first test in this suite should have an increased timeout
+    // because of the implementation of Command from @oclif/command.
+    // It seems that loading config takes significant amount of time
+    // and I'm not sure how to mock it.
+    //
+    // See https://github.com/oclif/command/blob/master/src/command.ts#L80
+    // and look for "Config.load"
     it('ensures the user is logged in', async () => {
       await TestEasCommand.run();
 
-      expect(ensureLoggedInAsync).toHaveReturnedWith(mockJester);
-    });
+      expect(ensureLoggedInAsync).toHaveBeenCalled();
+    }, 15_000);
 
     it('ensures the user data is read from cache', async () => {
       (TestEasCommand.prototype.authValue as jest.Mock).mockImplementationOnce(() => false);

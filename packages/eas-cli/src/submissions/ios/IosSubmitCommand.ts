@@ -3,7 +3,7 @@ import chalk from 'chalk';
 import getenv from 'getenv';
 import wrapAnsi from 'wrap-ansi';
 
-import { AppPlatform } from '../../graphql/generated';
+import { AppPlatform, SubmissionFragment } from '../../graphql/generated';
 import Log, { learnMore } from '../../log';
 import { promptAsync } from '../../prompts';
 import UserSettings from '../../user/UserSettings';
@@ -18,11 +18,15 @@ import {
 import IosSubmitter, { IosSubmissionOptions } from './IosSubmitter';
 
 class IosSubmitCommand {
-  static createContext(
-    projectDir: string,
-    projectId: string,
-    commandFlags: IosSubmitCommandFlags
-  ): IosSubmissionContext {
+  static createContext({
+    projectDir,
+    projectId,
+    commandFlags,
+  }: {
+    projectDir: string;
+    projectId: string;
+    commandFlags: IosSubmitCommandFlags;
+  }): IosSubmissionContext {
     return {
       projectDir,
       projectId,
@@ -32,11 +36,11 @@ class IosSubmitCommand {
 
   constructor(private ctx: IosSubmissionContext) {}
 
-  async runAsync(): Promise<void> {
+  async runAsync(): Promise<SubmissionFragment> {
     Log.addNewLineIfNone();
     const options = await this.resolveSubmissionOptionsAsync();
     const submitter = new IosSubmitter(this.ctx, options);
-    await submitter.submitAsync();
+    return await submitter.submitAsync();
   }
 
   private async resolveSubmissionOptionsAsync(): Promise<IosSubmissionOptions> {

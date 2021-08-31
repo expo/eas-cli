@@ -1,7 +1,10 @@
 import mockdate from 'mockdate';
 
 import Log from '../../../../log';
-import { testAndroidAppCredentialsFragment } from '../../../__tests__/fixtures-android';
+import {
+  testAndroidAppCredentialsFragment,
+  testLegacyAndroidFcmFragment,
+} from '../../../__tests__/fixtures-android';
 import { createCtxMock } from '../../../__tests__/fixtures-context';
 import { getAppLookupParamsFromContextAsync } from '../../actions/BuildCredentialsUtils';
 import { displayAndroidAppCredentials } from '../printCredentials';
@@ -9,7 +12,7 @@ import { displayAndroidAppCredentials } from '../printCredentials';
 jest.mock('../../../../log');
 jest.mock('chalk', () => ({ bold: jest.fn(log => log) }));
 
-mockdate.set(new Date('4/20/2021'));
+mockdate.set(testLegacyAndroidFcmFragment.updatedAt);
 
 describe('print credentials', () => {
   it('prints the AndroidAppCredentials fragment', async () => {

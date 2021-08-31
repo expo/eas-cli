@@ -15,6 +15,8 @@ import {
   testPKCS12KeystoreEmptyPasswordBase64,
 } from './fixtures-base64-data';
 
+const now = new Date();
+
 export const testKeystore: Keystore = {
   keystore: testKeystoreBase64,
   keystorePassword: 'ae6777e9444a436dbe533d2be46c83ba',
@@ -61,8 +63,8 @@ export const testLegacyAndroidFcmFragment: AndroidFcmFragment = {
   },
   credential: 'abcdxxxxxxefgh',
   version: AndroidFcmVersion.Legacy,
-  createdAt: new Date(),
-  updatedAt: new Date(),
+  createdAt: now,
+  updatedAt: now,
 };
 
 export const testJksAndroidKeystoreFragment: AndroidKeystoreFragment = {
@@ -75,8 +77,8 @@ export const testJksAndroidKeystoreFragment: AndroidKeystoreFragment = {
   md5CertificateFingerprint: 'test-md5',
   sha1CertificateFingerprint: 'test-sha1',
   sha256CertificateFingerprint: 'test-sha256',
-  createdAt: new Date(),
-  updatedAt: new Date(),
+  createdAt: now,
+  updatedAt: now,
 };
 
 export const testLegacyAndroidBuildCredentialsFragment: AndroidAppBuildCredentialsFragment = {

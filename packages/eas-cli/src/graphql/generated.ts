@@ -485,6 +485,7 @@ export type App = Project & {
   users?: Maybe<Array<Maybe<User>>>;
   /** @deprecated Field no longer supported */
   releases: Array<Maybe<AppRelease>>;
+  latestReleaseForReleaseChannel?: Maybe<AppRelease>;
 };
 
 
@@ -607,6 +608,13 @@ export type AppReleasesArgs = {
   platform: AppPlatform;
   offset?: Maybe<Scalars['Int']>;
   limit?: Maybe<Scalars['Int']>;
+};
+
+
+/** Represents an Exponent App (or Experience in legacy terms) */
+export type AppLatestReleaseForReleaseChannelArgs = {
+  platform: AppPlatform;
+  releaseChannel: Scalars['String'];
 };
 
 export type AppIcon = {
@@ -893,7 +901,7 @@ export type Submission = ActivityTimelineProjectActivity & {
   id: Scalars['ID'];
   actor?: Maybe<Actor>;
   activityTimestamp: Scalars['DateTime'];
-  app?: Maybe<App>;
+  app: App;
   initiatingActor?: Maybe<Actor>;
   submittedBuild?: Maybe<Build>;
   platform: AppPlatform;
@@ -907,16 +915,18 @@ export type Submission = ActivityTimelineProjectActivity & {
 };
 
 export enum SubmissionStatus {
+  AwaitingBuild = 'AWAITING_BUILD',
   InQueue = 'IN_QUEUE',
   InProgress = 'IN_PROGRESS',
   Finished = 'FINISHED',
-  Errored = 'ERRORED'
+  Errored = 'ERRORED',
+  Canceled = 'CANCELED'
 }
 
 export type AndroidSubmissionConfig = {
   __typename?: 'AndroidSubmissionConfig';
   applicationIdentifier: Scalars['String'];
-  archiveType: SubmissionAndroidArchiveType;
+  archiveType?: Maybe<SubmissionAndroidArchiveType>;
   track: SubmissionAndroidTrack;
   releaseStatus?: Maybe<SubmissionAndroidReleaseStatus>;
 };
@@ -978,14 +988,15 @@ export type BuildJob = ActivityTimelineProjectActivity & BuildOrBuildJob & {
 export type AppRelease = {
   __typename?: 'AppRelease';
   id: Scalars['ID'];
-  hash?: Maybe<Scalars['String']>;
-  publishedTime?: Maybe<Scalars['DateTime']>;
-  publishingUsername?: Maybe<Scalars['String']>;
-  sdkVersion?: Maybe<Scalars['String']>;
-  version?: Maybe<Scalars['String']>;
-  s3Key?: Maybe<Scalars['String']>;
-  s3Url?: Maybe<Scalars['String']>;
-  manifest?: Maybe<Scalars['JSON']>;
+  hash: Scalars['String'];
+  publishedTime: Scalars['DateTime'];
+  publishingUsername: Scalars['String'];
+  sdkVersion: Scalars['String'];
+  runtimeVersion?: Maybe<Scalars['String']>;
+  version: Scalars['String'];
+  s3Key: Scalars['String'];
+  s3Url: Scalars['String'];
+  manifest: Scalars['JSON'];
 };
 
 export type BuildArtifact = {
@@ -1032,6 +1043,7 @@ export type Deployment = {
   channel: Scalars['String'];
   recentBuilds: Array<Build>;
   branchMapping?: Maybe<UpdateBranch>;
+  mostRecentlyUpdatedAt: Scalars['DateTime'];
 };
 
 export type UpdateBranch = {
@@ -2905,7 +2917,10 @@ export type DeleteRobotResult = {
 
 export type SubmissionMutation = {
   __typename?: 'SubmissionMutation';
-  /** Create an EAS Submit submission */
+  /**
+   * Create an EAS Submit submission
+   * @deprecated Use createIosSubmission / createAndroidSubmission instead
+   */
   createSubmission: CreateSubmissionResult;
   /** Create an iOS EAS Submit submission */
   createIosSubmission: CreateSubmissionResult;
@@ -2950,7 +2965,7 @@ export type CreateIosSubmissionInput = {
 export type IosSubmissionConfigInput = {
   appleAppSpecificPasswordId?: Maybe<Scalars['String']>;
   appleAppSpecificPassword?: Maybe<Scalars['String']>;
-  archiveUrl: Scalars['String'];
+  archiveUrl?: Maybe<Scalars['String']>;
   appleIdUsername: Scalars['String'];
   ascAppIdentifier: Scalars['String'];
 };
@@ -2964,11 +2979,12 @@ export type CreateAndroidSubmissionInput = {
 export type AndroidSubmissionConfigInput = {
   googleServiceAccountKeyId?: Maybe<Scalars['String']>;
   googleServiceAccountKeyJson?: Maybe<Scalars['String']>;
-  archiveUrl: Scalars['String'];
-  archiveType: SubmissionAndroidArchiveType;
+  archiveUrl?: Maybe<Scalars['String']>;
+  archiveType?: Maybe<SubmissionAndroidArchiveType>;
   applicationIdentifier: Scalars['String'];
   track: SubmissionAndroidTrack;
   releaseStatus?: Maybe<SubmissionAndroidReleaseStatus>;
+  changesNotSentForReview?: Maybe<Scalars['Boolean']>;
 };
 
 export type UpdateChannelMutation = {
@@ -3271,6 +3287,7 @@ export type MeMutationLeaveAccountArgs = {
 
 export type MeMutationInitiateSecondFactorAuthenticationArgs = {
   deviceConfigurations: Array<Maybe<SecondFactorDeviceConfiguration>>;
+  recaptchaResponseToken?: Maybe<Scalars['String']>;
 };
 
 
@@ -4851,6 +4868,7 @@ export type CreateSubmissionMutation = (
       & { submission: (
         { __typename?: 'Submission' }
         & Pick<Submission, 'id'>
+        & SubmissionFragment
       ) }
     ) }
   ) }
@@ -5184,7 +5202,14 @@ export type EnvironmentSecretFragment = (
 export type SubmissionFragment = (
   { __typename?: 'Submission' }
   & Pick<Submission, 'id' | 'status' | 'platform' | 'logsUrl'>
-  & { error?: Maybe<(
+  & { app: (
+    { __typename?: 'App' }
+    & Pick<App, 'id' | 'name'>
+    & { ownerAccount: (
+      { __typename?: 'Account' }
+      & Pick<Account, 'id' | 'name'>
+    ) }
+  ), error?: Maybe<(
     { __typename?: 'SubmissionError' }
     & Pick<SubmissionError, 'errorCode' | 'message'>
   )> }

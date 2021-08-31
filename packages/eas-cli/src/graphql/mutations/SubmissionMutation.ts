@@ -1,4 +1,5 @@
 import { JSONObject } from '@expo/json-file';
+import { print } from 'graphql';
 import gql from 'graphql-tag';
 import nullthrows from 'nullthrows';
 
@@ -7,12 +8,9 @@ import {
   AppPlatform,
   CreateSubmissionMutation,
   CreateSubmissionMutationVariables,
-  Submission,
+  SubmissionFragment,
 } from '../generated';
-
-interface CreateSubmissionResult {
-  submission: Pick<Submission, 'id'>;
-}
+import { SubmissionFragmentNode } from '../types/Submission';
 
 export const SubmissionMutation = {
   async createSubmissionAsync(input: {
@@ -20,7 +18,7 @@ export const SubmissionMutation = {
     submittedBuildId?: string;
     platform: AppPlatform;
     config: JSONObject;
-  }): Promise<CreateSubmissionResult> {
+  }): Promise<SubmissionFragment> {
     const data = await withErrorHandlingAsync(
       graphqlClient
         .mutation<CreateSubmissionMutation, CreateSubmissionMutationVariables>(
@@ -42,15 +40,17 @@ export const SubmissionMutation = {
                 ) {
                   submission {
                     id
+                    ...SubmissionFragment
                   }
                 }
               }
             }
+            ${print(SubmissionFragmentNode)}
           `,
           input
         )
         .toPromise()
     );
-    return nullthrows(data.submission?.createSubmission);
+    return nullthrows(data.submission?.createSubmission.submission);
   },
 };

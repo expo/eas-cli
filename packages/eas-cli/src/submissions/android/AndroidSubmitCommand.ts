@@ -1,7 +1,7 @@
 import { getConfig } from '@expo/config';
 import { Result, result } from '@expo/results';
 
-import { AppPlatform } from '../../graphql/generated';
+import { AppPlatform, SubmissionFragment } from '../../graphql/generated';
 import Log from '../../log';
 import { getApplicationIdAsync } from '../../project/android/applicationId';
 import { ArchiveSource, ArchiveTypeSource, ArchiveTypeSourceType } from '../archiveSource';
@@ -13,11 +13,15 @@ import AndroidSubmitter, { AndroidSubmissionOptions } from './AndroidSubmitter';
 import { ServiceAccountSource, ServiceAccountSourceType } from './ServiceAccountSource';
 
 class AndroidSubmitCommand {
-  static createContext(
-    projectDir: string,
-    projectId: string,
-    commandFlags: AndroidSubmitCommandFlags
-  ): AndroidSubmissionContext {
+  static createContext({
+    projectDir,
+    projectId,
+    commandFlags,
+  }: {
+    projectDir: string;
+    projectId: string;
+    commandFlags: AndroidSubmitCommandFlags;
+  }): AndroidSubmissionContext {
     return {
       projectDir,
       projectId,
@@ -27,11 +31,11 @@ class AndroidSubmitCommand {
 
   constructor(private ctx: AndroidSubmissionContext) {}
 
-  async runAsync(): Promise<void> {
+  async runAsync(): Promise<SubmissionFragment> {
     Log.addNewLineIfNone();
     const submissionOptions = await this.getAndroidSubmissionOptionsAsync();
     const submitter = new AndroidSubmitter(this.ctx, submissionOptions);
-    await submitter.submitAsync();
+    return await submitter.submitAsync();
   }
 
   private async getAndroidSubmissionOptionsAsync(): Promise<AndroidSubmissionOptions> {

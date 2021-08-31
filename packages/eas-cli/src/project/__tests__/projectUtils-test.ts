@@ -17,6 +17,7 @@ import {
 jest.mock('@expo/config');
 jest.mock('fs');
 
+jest.mock('../../prompts');
 jest.mock('../../user/User');
 jest.mock('../ensureProjectExists');
 
@@ -138,14 +139,6 @@ describe(getProjectAccountNameAsync, () => {
 
     const projectAccountName = await getProjectAccountNameAsync(expWithoutOwner);
     expect(projectAccountName).toBe('notnotbrent');
-  });
-
-  it(`throws an error if the user is not logged in`, async () => {
-    asMock(getUserAsync).mockImplementation((): Actor | undefined => undefined);
-
-    await expect(getProjectAccountNameAsync(expWithOwner)).rejects.toThrow(
-      /Failed to access user data/
-    );
   });
 
   it(`throws when project owner is undefined for robot actors`, async () => {

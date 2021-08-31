@@ -1,3 +1,5 @@
+import nullthrows from 'nullthrows';
+
 import ApiV2Error from '../ApiV2Error';
 import Log from '../log';
 import { promptAsync } from '../prompts';
@@ -40,19 +42,16 @@ export async function ensureLoggedInAsync(): Promise<Actor> {
   try {
     user = await getUserAsync();
   } catch (_) {}
+
   if (!user) {
     Log.warn('An Expo user account is required to proceed.');
     Log.newLine();
     Log.log('Log in to EAS');
     await showLoginPromptAsync(); // TODO: login or register
     user = await getUserAsync();
-    if (!user) {
-      // just to satisfy ts
-      throw new Error('Failed to access user data');
-    }
   }
 
-  return user;
+  return nullthrows(user);
 }
 
 export function ensureActorHasUsername(user: Actor): string {
