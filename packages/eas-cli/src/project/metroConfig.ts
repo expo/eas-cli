@@ -15,7 +15,7 @@ export async function validateMetroConfigForManagedWorkflowAsync(ctx: BuildConte
 
   const metroConfig = await loadConfigAsync(ctx.projectDir);
   const hasHashAssetFilesPlugin = metroConfig.transformer?.assetPlugins?.find((plugin: string) =>
-    plugin.match(/expo-asset[\/|\\]tools[\/|\\]hashAssetFiles/)
+    plugin.match(/expo-asset[/|\\]tools[/|\\]hashAssetFiles/)
   );
   if (!hasHashAssetFilesPlugin) {
     Log.warn(
