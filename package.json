@@ -10,7 +10,7 @@
     "start": "lerna run watch --parallel",
     "watch": "yarn start",
     "eas": "packages/eas-cli/bin/run",
-    "lint": "eslint . --ext .ts",
+    "lint": "eslint . --ext .ts --ext .js",
     "release": "lerna version",
     "test": "jest"
   },
