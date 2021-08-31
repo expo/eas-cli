@@ -81,7 +81,6 @@
     "@types/getenv": "^1.0.0",
     "@types/lodash": "4.14.172",
     "@types/mime": "2.0.3",
-    "@types/node": "^12",
     "@types/node-fetch": "^2.5.7",
     "@types/node-forge": "^0.9.5",
     "@types/prompts": "^2.0.9",
@@ -94,8 +93,7 @@
     "eslint-plugin-graphql": "4.0.0",
     "memfs": "3.2.2",
     "mockdate": "^3.0.2",
-    "nock": "^13.0.5",
-    "typescript": "4.4.2"
+    "nock": "^13.0.5"
   },
   "engines": {
     "node": ">=12.0.0"
