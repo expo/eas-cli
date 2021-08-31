@@ -64,7 +64,7 @@ export abstract class Client {
   // should not be included in the project tarball.
   //
   // @param filePath has to be a relative normalized path pointing to a file
-  // located under root of the repository
+  // located under the root of the repository
   public async isFileIgnoredAsync(filePath: string): Promise<boolean> {
     return false;
   }
