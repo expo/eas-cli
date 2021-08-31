@@ -29,9 +29,9 @@ export async function checkGoogleServicesFileAsync<T extends Platform>(
   const rootDir = await vcs.getRootPathAsync();
   const absGoogleServicesFilePath = path.resolve(ctx.projectDir, googleServicesFilePath);
   if (
-    (await fs.pathExists(googleServicesFilePath)) &&
-    ((await vcs.isFileIgnoredAsync(googleServicesFilePath)) ||
-      !isInsideDirectory(absGoogleServicesFilePath, rootDir))
+    (await fs.pathExists(absGoogleServicesFilePath)) &&
+    (!isInsideDirectory(absGoogleServicesFilePath, rootDir) ||
+      (await vcs.isFileIgnoredAsync(path.relative(rootDir, absGoogleServicesFilePath))))
   ) {
     Log.warn(
       `File specified via "${ctx.platform}.googleServicesFile" field in your app.json is not checked in to your repository and won't be uploaded to the builder.`
