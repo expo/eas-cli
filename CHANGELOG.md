@@ -15,6 +15,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Fix wrong warning for `metro.config.js` check on Windows ([#587](https://github.com/expo/eas-cli/pull/588) by [@louisgv](https://github.com/louisgv))
 - Fix detecting `googleServicesFile` with `EAS_NO_VCS=1`. ([#583](https://github.com/expo/eas-cli/pull/583) by [@wkozyra95](https://github.com/wkozyra95))
 
 ### 🧹 Chores
