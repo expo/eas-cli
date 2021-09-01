@@ -3,7 +3,7 @@ import chalk from 'chalk';
 import { AppPlatform, BuildFragment } from '../../graphql/generated';
 import Log from '../../log';
 import formatFields from '../../utils/formatFields';
-import { Archive, ArchiveFileSourceType } from '../archiveSource';
+import { Archive, ArchiveSourceType } from '../ArchiveSource';
 export interface ArchiveSourceSummaryFields {
   archiveUrl?: string;
   archivePath?: string;
@@ -43,36 +43,28 @@ function formatSubmissionBuildSummary(build: BuildFragment) {
   );
 }
 
-export function formatArchiveSourceSummary({
-  realFileSource,
-  build,
-}: Archive): ArchiveSourceSummaryFields {
+export function formatArchiveSourceSummary({ source, build }: Archive): ArchiveSourceSummaryFields {
   const summarySlice: ArchiveSourceSummaryFields = {};
 
-  switch (realFileSource.sourceType) {
-    case ArchiveFileSourceType.path:
-      summarySlice.archivePath = realFileSource.path;
+  switch (source.sourceType) {
+    case ArchiveSourceType.path:
+      summarySlice.archivePath = source.path;
       break;
-    case ArchiveFileSourceType.url:
-      summarySlice.archiveUrl = realFileSource.url;
+    case ArchiveSourceType.url:
+      summarySlice.archiveUrl = source.url;
       break;
-    case ArchiveFileSourceType.buildId:
-    case ArchiveFileSourceType.latest:
+    case ArchiveSourceType.buildId:
+    case ArchiveSourceType.latest:
       summarySlice.formattedBuild = formatSubmissionBuildSummary(build!);
       break;
   }
   return summarySlice;
 }
 
-export function printSummary<T>(
-  summary: T,
-  keyMap: Record<keyof T, string>,
-  valueRemap: Partial<Record<keyof T, Function>>
-): void {
+export function printSummary<T>(summary: T, keyMap: Record<keyof T, string>): void {
   const fields = [];
-  for (const [key, entryValue] of Object.entries(summary)) {
+  for (const [key, value] of Object.entries(summary)) {
     const label = `${keyMap[key as keyof T]}:`;
-    const value = valueRemap[key as keyof T]?.(entryValue) ?? entryValue;
     fields.push({ label, value });
   }
 

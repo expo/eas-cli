@@ -7,7 +7,6 @@ import { AppPlatform, BuildFragment } from '../../../graphql/generated';
 import { SubmissionMutation } from '../../../graphql/mutations/SubmissionMutation';
 import { createTestProject } from '../../../project/__tests__/project-utils';
 import { getProjectIdAsync } from '../../../project/projectUtils';
-import { AndroidArchiveType, AndroidSubmitCommandFlags } from '../../types';
 import { getLatestBuildForSubmissionAsync } from '../../utils/builds';
 import { AndroidSubmissionConfig, ReleaseStatus, ReleaseTrack } from '../AndroidSubmissionConfig';
 import AndroidSubmitCommand from '../AndroidSubmitCommand';
@@ -73,26 +72,24 @@ describe(AndroidSubmitCommand, () => {
     it('sends a request to Submission Service', async () => {
       const projectId = uuidv4();
 
-      const commandFlags: AndroidSubmitCommandFlags = {
-        latest: false,
-        url: 'http://expo.dev/fake.apk',
-        type: 'apk',
-        serviceAccountKeyPath: '/google-service-account.json',
-        track: 'internal',
-        releaseStatus: 'draft',
-        changesNotSentForReview: false,
-      };
       const ctx = AndroidSubmitCommand.createContext({
         projectDir: testProject.projectRoot,
         projectId,
-        commandFlags,
+        archiveFlags: {
+          url: 'http://expo.dev/fake.apk',
+        },
+        profile: {
+          serviceAccountKeyPath: '/google-service-account.json',
+          track: ReleaseTrack.internal,
+          releaseStatus: ReleaseStatus.draft,
+          changesNotSentForReview: false,
+        },
       });
       const command = new AndroidSubmitCommand(ctx);
       await command.runAsync();
 
       const androidSubmissionConfig: AndroidSubmissionConfig = {
         archiveUrl: 'http://expo.dev/fake.apk',
-        archiveType: AndroidArchiveType.apk,
         androidPackage: testProject.appJSON.expo.android?.package,
         serviceAccount: fakeFiles['/google-service-account.json'],
         releaseStatus: ReleaseStatus.draft,
@@ -112,25 +109,24 @@ describe(AndroidSubmitCommand, () => {
       const projectId = uuidv4();
       asMock(getLatestBuildForSubmissionAsync).mockResolvedValueOnce(fakeBuildFragment);
 
-      const commandFlags: AndroidSubmitCommandFlags = {
-        latest: true,
-        type: 'apk',
-        serviceAccountKeyPath: '/google-service-account.json',
-        track: 'internal',
-        releaseStatus: 'draft',
-        changesNotSentForReview: false,
-      };
       const ctx = AndroidSubmitCommand.createContext({
         projectDir: testProject.projectRoot,
         projectId,
-        commandFlags,
+        archiveFlags: {
+          latest: true,
+        },
+        profile: {
+          serviceAccountKeyPath: '/google-service-account.json',
+          track: ReleaseTrack.internal,
+          releaseStatus: ReleaseStatus.draft,
+          changesNotSentForReview: false,
+        },
       });
       const command = new AndroidSubmitCommand(ctx);
       await command.runAsync();
 
       const androidSubmissionConfig: AndroidSubmissionConfig = {
         archiveUrl: 'http://expo.dev/fake.apk',
-        archiveType: AndroidArchiveType.apk,
         androidPackage: testProject.appJSON.expo.android?.package,
         serviceAccount: fakeFiles['/google-service-account.json'],
         releaseStatus: ReleaseStatus.draft,

@@ -6,17 +6,10 @@ import { SubmissionMutation } from '../graphql/mutations/SubmissionMutation';
 import Log from '../log';
 import { AndroidSubmissionConfig } from './android/AndroidSubmissionConfig';
 import { IosSubmissionConfig } from './ios/IosSubmissionConfig';
-import { BaseSubmissionContext } from './types';
+import { SubmissionContext } from './types';
 
-export default abstract class BaseSubmitter<
-  SubmissionContext extends BaseSubmissionContext,
-  SubmissionOptions
-> {
-  protected constructor(
-    private platform: AppPlatform,
-    protected ctx: SubmissionContext,
-    protected options: SubmissionOptions
-  ) {}
+export default abstract class BaseSubmitter<P extends AppPlatform, SubmissionOptions> {
+  constructor(protected ctx: SubmissionContext<P>, protected options: SubmissionOptions) {}
 
   public abstract submitAsync(): Promise<SubmissionFragment>;
 
@@ -29,7 +22,7 @@ export default abstract class BaseSubmitter<
     try {
       const submission = await SubmissionMutation.createSubmissionAsync({
         appId: submissionConfig.projectId,
-        platform: this.platform,
+        platform: this.ctx.platform,
         config: submissionConfig as unknown as JSONObject,
         submittedBuildId: buildId,
       });

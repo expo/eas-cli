@@ -157,10 +157,10 @@ export default class Build extends EasCommand {
   private async sanitizeFlagsAsync(flags: RawBuildFlags): Promise<BuildFlags> {
     const nonInteractive = flags['non-interactive'];
     if (!flags.platform && nonInteractive) {
-      throw new Error('--platform is required when building in non-interactive mode');
+      error('--platform is required when building in non-interactive mode', { exit: 1 });
     }
     if (flags.json && !nonInteractive) {
-      throw new Error('--json is allowed only when building in non-interactive mode');
+      error('--json is allowed only when building in non-interactive mode', { exit: 1 });
     }
     const requestedPlatform =
       (flags.platform as RequestedPlatform | undefined) ?? (await this.promptForPlatformAsync());

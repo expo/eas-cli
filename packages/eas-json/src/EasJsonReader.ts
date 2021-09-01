@@ -28,18 +28,6 @@ export class EasJsonReader {
     return Object.keys(easJson?.build ?? {});
   }
 
-  public async readSubmitProfileAsync<T extends Platform>(
-    profileName: string,
-    platform: T
-  ): Promise<SubmitProfile<T>> {
-    const easJson = await this.readAndValidateAsync();
-    const profile = easJson?.submit?.[profileName]?.[platform];
-    if (!profile) {
-      throw new Error(`There is no profile named ${profileName} in eas.json for ${platform}.`);
-    }
-    return profile as SubmitProfile<T>;
-  }
-
   public async readBuildProfileAsync<T extends Platform>(
     buildProfileName: string,
     platform: T
@@ -63,6 +51,18 @@ export class EasJsonReader {
     } else {
       throw new Error(`Unknown platform ${platform}`);
     }
+  }
+
+  public async readSubmitProfileAsync<T extends Platform>(
+    profileName: string,
+    platform: T
+  ): Promise<SubmitProfile<T>> {
+    const easJson = await this.readAndValidateAsync();
+    const profile = easJson?.submit?.[profileName]?.[platform];
+    if (!profile) {
+      throw new Error(`There is no profile named ${profileName} in eas.json for ${platform}.`);
+    }
+    return profile as SubmitProfile<T>;
   }
 
   public async readAndValidateAsync(): Promise<EasJson> {

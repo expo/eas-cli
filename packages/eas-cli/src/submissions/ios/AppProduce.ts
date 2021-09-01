@@ -7,10 +7,11 @@ import {
   ensureAppExistsAsync,
   ensureBundleIdExistsWithNameAsync,
 } from '../../credentials/ios/appstore/ensureAppExists';
+import { AppPlatform } from '../../graphql/generated';
 import Log from '../../log';
 import { getBundleIdentifierAsync } from '../../project/ios/bundleIdentifier';
 import { promptAsync } from '../../prompts';
-import { IosSubmissionContext } from '../types';
+import { SubmissionContext } from '../types';
 import { sanitizeLanguage } from './utils/language';
 
 interface CreateAppOptions {
@@ -29,23 +30,16 @@ type AppStoreResult = {
 };
 
 export async function ensureAppStoreConnectAppExistsAsync(
-  ctx: IosSubmissionContext
+  ctx: SubmissionContext<AppPlatform.Ios>
 ): Promise<AppStoreResult> {
   const projectConfig = getConfig(ctx.projectDir, { skipSDKVersionRequirement: true });
   const { exp } = projectConfig;
 
-  const { bundleIdentifier, appName, language } = ctx.commandFlags;
-
-  // TODO:
-  // - for builds from the database, read bundled identifier from metadata
-  // - for builds uploaded from file system, prompt for the bundle identifier
-  // this is necessary to make submit work outside the project directory
-  const resolvedBundleId =
-    bundleIdentifier ?? (await getBundleIdentifierAsync(ctx.projectDir, exp));
+  const { appName, language } = ctx.profile;
 
   const options = {
-    ...ctx.commandFlags,
-    bundleIdentifier: resolvedBundleId,
+    ...ctx.profile,
+    bundleIdentifier: await getBundleIdentifierAsync(ctx.projectDir, exp),
     appName: appName ?? exp.name ?? (await promptForAppNameAsync()),
     language: sanitizeLanguage(language),
   };

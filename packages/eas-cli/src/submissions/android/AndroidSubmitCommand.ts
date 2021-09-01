@@ -1,35 +1,40 @@
 import { getConfig } from '@expo/config';
+import { AndroidSubmitProfile } from '@expo/eas-json';
 import { Result, result } from '@expo/results';
 
 import { AppPlatform, SubmissionFragment } from '../../graphql/generated';
 import Log from '../../log';
 import { getApplicationIdAsync } from '../../project/android/applicationId';
-import { ArchiveSource, ArchiveTypeSource, ArchiveTypeSourceType } from '../archiveSource';
-import { resolveArchiveFileSource } from '../commons';
-import { AndroidArchiveType, AndroidSubmissionContext, AndroidSubmitCommandFlags } from '../types';
+import { ArchiveSource } from '../ArchiveSource';
+import { resolveArchiveSource } from '../commons';
+import { SubmissionContext, SubmitArchiveFlags } from '../types';
 import { AndroidPackageSource, AndroidPackageSourceType } from './AndroidPackageSource';
 import { ReleaseStatus, ReleaseTrack } from './AndroidSubmissionConfig';
 import AndroidSubmitter, { AndroidSubmissionOptions } from './AndroidSubmitter';
 import { ServiceAccountSource, ServiceAccountSourceType } from './ServiceAccountSource';
 
-class AndroidSubmitCommand {
+export default class AndroidSubmitCommand {
   static createContext({
+    archiveFlags,
+    profile,
     projectDir,
     projectId,
-    commandFlags,
   }: {
+    archiveFlags: SubmitArchiveFlags;
+    profile: AndroidSubmitProfile;
     projectDir: string;
     projectId: string;
-    commandFlags: AndroidSubmitCommandFlags;
-  }): AndroidSubmissionContext {
+  }): SubmissionContext<AppPlatform.Android> {
     return {
+      archiveFlags,
+      platform: AppPlatform.Android,
+      profile,
       projectDir,
       projectId,
-      commandFlags,
     };
   }
 
-  constructor(private ctx: AndroidSubmissionContext) {}
+  constructor(private ctx: SubmissionContext<AppPlatform.Android>) {}
 
   async runAsync(): Promise<SubmissionFragment> {
     Log.addNewLineIfNone();
@@ -42,7 +47,7 @@ class AndroidSubmitCommand {
     const androidPackageSource = await this.resolveAndroidPackageSourceAsync();
     const track = this.resolveTrack();
     const releaseStatus = this.resolveReleaseStatus();
-    const archiveSource = this.resolveArchiveSource(this.ctx.projectId);
+    const archiveSource = this.resolveArchiveSource();
     const serviceAccountSource = this.resolveServiceAccountSource();
 
     const errored = [
@@ -65,7 +70,7 @@ class AndroidSubmitCommand {
       releaseStatus: releaseStatus.enforceValue(),
       archiveSource: archiveSource.enforceValue(),
       serviceAccountSource: serviceAccountSource.enforceValue(),
-      changesNotSentForReview: this.ctx.commandFlags.changesNotSentForReview,
+      changesNotSentForReview: this.ctx.profile.changesNotSentForReview,
     };
   }
 
@@ -79,12 +84,7 @@ class AndroidSubmitCommand {
   }
 
   private async resolveAndroidPackageSourceAsync(): Promise<Result<AndroidPackageSource>> {
-    let androidPackage: string | undefined;
-    if (this.ctx.commandFlags.androidPackage) {
-      androidPackage = this.ctx.commandFlags.androidPackage;
-    } else {
-      androidPackage = await this.maybeGetAndroidPackageFromCurrentProjectAsync();
-    }
+    const androidPackage = await this.maybeGetAndroidPackageFromCurrentProjectAsync();
     if (androidPackage) {
       return result({
         sourceType: AndroidPackageSourceType.userDefined,
@@ -98,7 +98,7 @@ class AndroidSubmitCommand {
   }
 
   private resolveTrack(): Result<ReleaseTrack> {
-    const { track } = this.ctx.commandFlags;
+    const { track } = this.ctx.profile;
     if (!track) {
       return result(ReleaseTrack.internal);
     }
@@ -114,7 +114,7 @@ class AndroidSubmitCommand {
   }
 
   private resolveReleaseStatus(): Result<ReleaseStatus> {
-    const { releaseStatus } = this.ctx.commandFlags;
+    const { releaseStatus } = this.ctx.profile;
     if (!releaseStatus) {
       return result(ReleaseStatus.completed);
     }
@@ -131,37 +131,12 @@ class AndroidSubmitCommand {
     }
   }
 
-  private resolveArchiveSource(projectId: string): Result<ArchiveSource> {
-    return result({
-      archiveFile: resolveArchiveFileSource(AppPlatform.Android, this.ctx, projectId),
-      archiveType: this.resolveArchiveTypeSource(),
-    });
-  }
-
-  private resolveArchiveTypeSource(): ArchiveTypeSource {
-    const { type: rawArchiveType } = this.ctx.commandFlags;
-    if (rawArchiveType) {
-      if (!(rawArchiveType in AndroidArchiveType)) {
-        throw new Error(
-          `Unsupported archive type: ${rawArchiveType} (valid options: ${Object.keys(
-            AndroidArchiveType
-          ).join(', ')})`
-        );
-      }
-      const archiveType = rawArchiveType as AndroidArchiveType;
-      return {
-        sourceType: ArchiveTypeSourceType.parameter,
-        archiveType,
-      };
-    } else {
-      return {
-        sourceType: ArchiveTypeSourceType.infer,
-      };
-    }
+  private resolveArchiveSource(): Result<ArchiveSource> {
+    return result(resolveArchiveSource(this.ctx, AppPlatform.Android));
   }
 
   private resolveServiceAccountSource(): Result<ServiceAccountSource> {
-    const { serviceAccountKeyPath } = this.ctx.commandFlags;
+    const { serviceAccountKeyPath } = this.ctx.profile;
     if (serviceAccountKeyPath) {
       return result({
         sourceType: ServiceAccountSourceType.path,
@@ -174,5 +149,3 @@ class AndroidSubmitCommand {
     }
   }
 }
-
-export default AndroidSubmitCommand;

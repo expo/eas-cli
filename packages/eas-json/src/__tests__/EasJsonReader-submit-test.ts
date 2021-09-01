@@ -25,8 +25,14 @@ test('minimal allowed eas.json for both platforms', async () => {
   const iosProfile = await reader.readSubmitProfileAsync('release', Platform.IOS);
   const androidProfile = await reader.readSubmitProfileAsync('release', Platform.ANDROID);
 
-  expect(androidProfile).toEqual({});
-  expect(iosProfile).toEqual({});
+  expect(androidProfile).toEqual({
+    changesNotSentForReview: false,
+    releaseStatus: 'completed',
+    track: 'internal',
+  });
+  expect(iosProfile).toEqual({
+    language: 'en-US',
+  });
 });
 
 test('android config with all required values', async () => {
@@ -49,6 +55,7 @@ test('android config with all required values', async () => {
     serviceAccountKeyPath: './path.json',
     track: 'beta',
     releaseStatus: 'completed',
+    changesNotSentForReview: false,
   });
 });
 
@@ -72,6 +79,7 @@ test('ios config with all required values', async () => {
     appleId: 'some@email.com',
     appleTeamId: 'QWERTY',
     ascAppId: '1223423523',
+    language: 'en-US',
   });
 });
 

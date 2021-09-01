@@ -1,9 +1,8 @@
 import fs from 'fs-extra';
 
 import { AppPlatform, SubmissionFragment } from '../../graphql/generated';
+import { Archive, ArchiveSource, getArchiveAsync } from '../ArchiveSource';
 import BaseSubmitter from '../BaseSubmitter';
-import { Archive, ArchiveSource, getArchiveAsync } from '../archiveSource';
-import { AndroidArchiveType, AndroidSubmissionContext, ArchiveType } from '../types';
 import {
   ArchiveSourceSummaryFields,
   formatArchiveSourceSummary,
@@ -29,19 +28,17 @@ interface ResolvedSourceOptions {
   serviceAccountPath: string;
 }
 
-class AndroidSubmitter extends BaseSubmitter<AndroidSubmissionContext, AndroidSubmissionOptions> {
-  constructor(ctx: AndroidSubmissionContext, options: AndroidSubmissionOptions) {
-    super(AppPlatform.Android, ctx, options);
-  }
-
+export default class AndroidSubmitter extends BaseSubmitter<
+  AppPlatform.Android,
+  AndroidSubmissionOptions
+> {
   async submitAsync(): Promise<SubmissionFragment> {
     const resolvedSourceOptions = await this.resolveSourceOptions();
     const submissionConfig = await this.formatSubmissionConfig(this.options, resolvedSourceOptions);
 
     printSummary(
       this.prepareSummaryData(this.options, resolvedSourceOptions),
-      SummaryHumanReadableKeys,
-      SummaryHumanReadableValues
+      SummaryHumanReadableKeys
     );
 
     return await this.createSubmissionAsync(
@@ -52,7 +49,7 @@ class AndroidSubmitter extends BaseSubmitter<AndroidSubmissionContext, AndroidSu
 
   private async resolveSourceOptions(): Promise<ResolvedSourceOptions> {
     const androidPackage = await getAndroidPackageAsync(this.options.androidPackageSource);
-    const archive = await getArchiveAsync(AppPlatform.Android, this.options.archiveSource);
+    const archive = await getArchiveAsync(this.options.archiveSource);
     const serviceAccountPath = await getServiceAccountAsync(this.options.serviceAccountSource);
     return {
       androidPackage,
@@ -70,8 +67,7 @@ class AndroidSubmitter extends BaseSubmitter<AndroidSubmissionContext, AndroidSu
 
     return {
       androidPackage,
-      archiveUrl: archive.location,
-      archiveType: archive.type as AndroidArchiveType,
+      archiveUrl: archive.url,
       track,
       changesNotSentForReview,
       releaseStatus,
@@ -93,7 +89,6 @@ class AndroidSubmitter extends BaseSubmitter<AndroidSubmissionContext, AndroidSu
       track,
       changesNotSentForReview,
       releaseStatus,
-      archiveType: archive.type as AndroidArchiveType,
       serviceAccountPath,
       ...formatArchiveSourceSummary(archive),
     };
@@ -102,7 +97,6 @@ class AndroidSubmitter extends BaseSubmitter<AndroidSubmissionContext, AndroidSu
 
 type Summary = {
   androidPackage: string;
-  archiveType: ArchiveType;
   serviceAccountPath: string;
   track: ReleaseTrack;
   releaseStatus?: ReleaseStatus;
@@ -114,7 +108,6 @@ const SummaryHumanReadableKeys: Record<keyof Summary, string> = {
   androidPackage: 'Android package',
   archivePath: 'Archive path',
   archiveUrl: 'Download URL',
-  archiveType: 'Archive type',
   serviceAccountPath: 'Google Service Key',
   changesNotSentForReview: 'Changes not sent for a review',
   track: 'Release track',
@@ -122,9 +115,3 @@ const SummaryHumanReadableKeys: Record<keyof Summary, string> = {
   projectId: 'Project ID',
   formattedBuild: 'Build',
 };
-
-const SummaryHumanReadableValues: Partial<Record<keyof Summary, Function>> = {
-  archiveType: (type: string) => type.toUpperCase(),
-};
-
-export default AndroidSubmitter;

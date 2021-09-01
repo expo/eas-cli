@@ -1,3 +1,4 @@
+import { IosSubmitProfile } from '@expo/eas-json';
 import { Result, result } from '@expo/results';
 import chalk from 'chalk';
 import getenv from 'getenv';
@@ -7,9 +8,9 @@ import { AppPlatform, SubmissionFragment } from '../../graphql/generated';
 import Log, { learnMore } from '../../log';
 import { promptAsync } from '../../prompts';
 import UserSettings from '../../user/UserSettings';
-import { ArchiveSource, ArchiveTypeSourceType } from '../archiveSource';
-import { resolveArchiveFileSource } from '../commons';
-import { IosSubmissionContext, IosSubmitCommandFlags } from '../types';
+import { ArchiveSource } from '../ArchiveSource';
+import { resolveArchiveSource } from '../commons';
+import { SubmissionContext, SubmitArchiveFlags } from '../types';
 import { ensureAppStoreConnectAppExistsAsync } from './AppProduce';
 import {
   AppSpecificPasswordSource,
@@ -17,24 +18,28 @@ import {
 } from './AppSpecificPasswordSource';
 import IosSubmitter, { IosSubmissionOptions } from './IosSubmitter';
 
-class IosSubmitCommand {
+export default class IosSubmitCommand {
   static createContext({
+    archiveFlags,
+    profile,
     projectDir,
     projectId,
-    commandFlags,
   }: {
+    archiveFlags: SubmitArchiveFlags;
+    profile: IosSubmitProfile;
     projectDir: string;
     projectId: string;
-    commandFlags: IosSubmitCommandFlags;
-  }): IosSubmissionContext {
+  }): SubmissionContext<AppPlatform.Ios> {
     return {
+      archiveFlags,
+      platform: AppPlatform.Ios,
+      profile,
       projectDir,
       projectId,
-      commandFlags,
     };
   }
 
-  constructor(private ctx: IosSubmissionContext) {}
+  constructor(private ctx: SubmissionContext<AppPlatform.Ios>) {}
 
   async runAsync(): Promise<SubmissionFragment> {
     Log.addNewLineIfNone();
@@ -44,7 +49,7 @@ class IosSubmitCommand {
   }
 
   private async resolveSubmissionOptionsAsync(): Promise<IosSubmissionOptions> {
-    const archiveSource = this.resolveArchiveSource(this.ctx.projectId);
+    const archiveSource = this.resolveArchiveSource();
     const appSpecificPasswordSource = this.resolveAppSpecificPasswordSource();
 
     const errored = [archiveSource, appSpecificPasswordSource].filter(r => !r.ok);
@@ -80,11 +85,8 @@ class IosSubmitCommand {
     });
   }
 
-  private resolveArchiveSource(projectId: string): Result<ArchiveSource> {
-    return result({
-      archiveFile: resolveArchiveFileSource(AppPlatform.Ios, this.ctx, projectId),
-      archiveType: { sourceType: ArchiveTypeSourceType.infer },
-    });
+  private resolveArchiveSource(): Result<ArchiveSource> {
+    return result(resolveArchiveSource(this.ctx, AppPlatform.Ios));
   }
 
   /**
@@ -97,7 +99,7 @@ class IosSubmitCommand {
     appleId: string;
     ascAppId: string;
   }> {
-    const { ascAppId } = this.ctx.commandFlags;
+    const { ascAppId } = this.ctx.profile;
 
     if (ascAppId) {
       return {
@@ -127,7 +129,7 @@ class IosSubmitCommand {
    * and we just need apple ID
    */
   private async getAppleIdAsync(): Promise<string> {
-    const { appleId } = this.ctx.commandFlags;
+    const { appleId } = this.ctx.profile;
     const envAppleId = getenv.string('EXPO_APPLE_ID', '');
 
     if (appleId) {
@@ -151,5 +153,3 @@ class IosSubmitCommand {
     return promptAppleId;
   }
 }
-
-export default IosSubmitCommand;

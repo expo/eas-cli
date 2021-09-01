@@ -76,21 +76,23 @@ const EasJsonBuildProfileSchema = CommonBuildProfileSchema.concat(
 
 const AndroidSubmitProfileSchema = Joi.object({
   serviceAccountKeyPath: Joi.string(),
-  track: Joi.string().valid(...Object.values(ReleaseTrack)),
-  releaseStatus: Joi.string().valid(...Object.values(ReleaseStatus)),
-  changesNotSentForReview: Joi.boolean(),
-  verbose: Joi.boolean(),
+  track: Joi.string()
+    .valid(...Object.values(ReleaseTrack))
+    .default(ReleaseTrack.internal),
+  releaseStatus: Joi.string()
+    .valid(...Object.values(ReleaseStatus))
+    .default(ReleaseStatus.completed),
+  changesNotSentForReview: Joi.boolean().default(false),
 });
 
 const IosSubmitProfileSchema = Joi.object({
   appleId: Joi.string(),
   ascAppId: Joi.string(),
-
   appleTeamId: Joi.string(),
   sku: Joi.string(),
-  language: Joi.string(),
+  language: Joi.string().default('en-US'),
   companyName: Joi.string(),
-  verbose: Joi.boolean(),
+  appName: Joi.string(),
 });
 
 const EasJsonSubmitConfigurationSchema = Joi.object({

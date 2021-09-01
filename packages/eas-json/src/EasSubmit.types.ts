@@ -16,21 +16,19 @@ export enum ReleaseTrack {
 
 export interface AndroidSubmitProfile {
   serviceAccountKeyPath?: string;
-  track?: ReleaseTrack;
-  releaseStatus?: ReleaseStatus;
-  changesNotSentForReview?: boolean;
-  verbose?: boolean;
+  track: ReleaseTrack;
+  releaseStatus: ReleaseStatus;
+  changesNotSentForReview: boolean;
 }
 
 export interface IosSubmitProfile {
   appleId?: string;
   ascAppId?: string;
-
   appleTeamId?: string;
   sku?: string;
-  language?: string;
+  language: string;
   companyName?: string;
-  verbose?: boolean;
+  appName?: string;
 }
 
 export type SubmitProfile<TPlatform extends Platform = Platform> =

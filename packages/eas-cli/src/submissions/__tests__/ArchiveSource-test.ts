@@ -2,25 +2,18 @@ import fs from 'fs-extra';
 import { vol } from 'memfs';
 import { v4 as uuidv4 } from 'uuid';
 
-import { asMock } from '../../../__tests__/utils';
-import { AppPlatform, BuildFragment, UploadSessionType } from '../../../graphql/generated';
-import { promptAsync } from '../../../prompts';
-import { uploadAsync } from '../../../uploads';
-import {
-  getBuildByIdForSubmissionAsync,
-  getLatestBuildForSubmissionAsync,
-} from '../../utils/builds';
-import {
-  ArchiveFileSourceType,
-  ResolvedArchive,
-  getArchiveFileLocationAsync,
-} from '../ArchiveFileSource';
+import { asMock } from '../../__tests__/utils';
+import { AppPlatform, BuildFragment, UploadSessionType } from '../../graphql/generated';
+import { promptAsync } from '../../prompts';
+import { uploadAsync } from '../../uploads';
+import { Archive, ArchiveSourceType, getArchiveAsync } from '../ArchiveSource';
+import { getBuildByIdForSubmissionAsync, getLatestBuildForSubmissionAsync } from '../utils/builds';
 
 jest.mock('fs');
-jest.mock('../../../log');
-jest.mock('../../../prompts');
-jest.mock('../../utils/builds');
-jest.mock('../../../uploads');
+jest.mock('../../log');
+jest.mock('../../prompts');
+jest.mock('../utils/builds');
+jest.mock('../../uploads');
 
 const ARCHIVE_URL = 'https://url.to/archive.tar.gz';
 
@@ -39,7 +32,7 @@ const SOURCE_STUB_INPUT = {
   projectDir: '.',
 };
 
-describe(getArchiveFileLocationAsync, () => {
+describe(getArchiveAsync, () => {
   beforeEach(() => {
     vol.reset();
 
@@ -50,98 +43,98 @@ describe(getArchiveFileLocationAsync, () => {
   });
 
   it('handles URL source', async () => {
-    const resolvedArchive = await getArchiveFileLocationAsync({
+    const archive = await getArchiveAsync({
       ...SOURCE_STUB_INPUT,
-      sourceType: ArchiveFileSourceType.url,
+      sourceType: ArchiveSourceType.url,
       url: ARCHIVE_URL,
     });
 
-    assertArchiveResult(resolvedArchive, ArchiveFileSourceType.url);
+    assertArchiveResult(archive, ArchiveSourceType.url);
   });
 
   it('prompts again if provided URL is invalid', async () => {
     asMock(promptAsync)
-      .mockResolvedValueOnce({ sourceType: ArchiveFileSourceType.url })
+      .mockResolvedValueOnce({ sourceType: ArchiveSourceType.url })
       .mockResolvedValueOnce({ url: ARCHIVE_URL });
 
-    const resolvedArchive = await getArchiveFileLocationAsync({
+    const archive = await getArchiveAsync({
       ...SOURCE_STUB_INPUT,
-      sourceType: ArchiveFileSourceType.url,
+      sourceType: ArchiveSourceType.url,
       url: 'invalid',
     });
 
     expect(promptAsync).toHaveBeenCalledTimes(2);
-    assertArchiveResult(resolvedArchive, ArchiveFileSourceType.url);
+    assertArchiveResult(archive, ArchiveSourceType.url);
   });
 
   it('handles prompt source', async () => {
     asMock(promptAsync)
-      .mockResolvedValueOnce({ sourceType: ArchiveFileSourceType.url })
+      .mockResolvedValueOnce({ sourceType: ArchiveSourceType.url })
       .mockResolvedValueOnce({ url: ARCHIVE_URL });
 
-    const resolvedArchive = await getArchiveFileLocationAsync({
+    const archive = await getArchiveAsync({
       ...SOURCE_STUB_INPUT,
-      sourceType: ArchiveFileSourceType.prompt,
+      sourceType: ArchiveSourceType.prompt,
     });
 
-    assertArchiveResult(resolvedArchive, ArchiveFileSourceType.url);
+    assertArchiveResult(archive, ArchiveSourceType.url);
   });
 
   it('handles Build ID source', async () => {
     const buildId = uuidv4();
     asMock(getBuildByIdForSubmissionAsync).mockResolvedValueOnce(MOCK_BUILD_FRAGMENT);
 
-    const resolvedArchive = await getArchiveFileLocationAsync({
+    const archive = await getArchiveAsync({
       ...SOURCE_STUB_INPUT,
-      sourceType: ArchiveFileSourceType.buildId,
+      sourceType: ArchiveSourceType.buildId,
       id: buildId,
     });
 
     expect(getBuildByIdForSubmissionAsync).toBeCalledWith(SOURCE_STUB_INPUT.platform, buildId);
-    assertArchiveResult(resolvedArchive, ArchiveFileSourceType.buildId);
+    assertArchiveResult(archive, ArchiveSourceType.buildId);
   });
 
   it('prompts again if build with provided ID doesnt exist', async () => {
     asMock(getBuildByIdForSubmissionAsync).mockRejectedValue(new Error('Build doesnt exist'));
     asMock(promptAsync)
-      .mockResolvedValueOnce({ sourceType: ArchiveFileSourceType.url })
+      .mockResolvedValueOnce({ sourceType: ArchiveSourceType.url })
       .mockResolvedValueOnce({ url: ARCHIVE_URL });
 
-    const resolvedArchive = await getArchiveFileLocationAsync({
+    const archive = await getArchiveAsync({
       ...SOURCE_STUB_INPUT,
-      sourceType: ArchiveFileSourceType.buildId,
+      sourceType: ArchiveSourceType.buildId,
       id: uuidv4(),
     });
 
-    assertArchiveResult(resolvedArchive, ArchiveFileSourceType.url);
+    assertArchiveResult(archive, ArchiveSourceType.url);
   });
 
   it('handles latest build source', async () => {
     const projectId = uuidv4();
     asMock(getLatestBuildForSubmissionAsync).mockResolvedValueOnce(MOCK_BUILD_FRAGMENT);
 
-    const resolvedArchive = await getArchiveFileLocationAsync({
+    const archive = await getArchiveAsync({
       ...SOURCE_STUB_INPUT,
       projectId,
-      sourceType: ArchiveFileSourceType.latest,
+      sourceType: ArchiveSourceType.latest,
     });
 
     expect(getLatestBuildForSubmissionAsync).toBeCalledWith(SOURCE_STUB_INPUT.platform, projectId);
-    assertArchiveResult(resolvedArchive, ArchiveFileSourceType.latest);
+    assertArchiveResult(archive, ArchiveSourceType.latest);
   });
 
   it('prompts again if no builds exists when selected latest', async () => {
     asMock(getLatestBuildForSubmissionAsync).mockResolvedValueOnce(null);
     asMock(promptAsync)
-      .mockResolvedValueOnce({ sourceType: ArchiveFileSourceType.url })
+      .mockResolvedValueOnce({ sourceType: ArchiveSourceType.url })
       .mockResolvedValueOnce({ url: ARCHIVE_URL });
 
-    const resolvedArchive = await getArchiveFileLocationAsync({
+    const archive = await getArchiveAsync({
       ...SOURCE_STUB_INPUT,
-      sourceType: ArchiveFileSourceType.latest,
+      sourceType: ArchiveSourceType.latest,
     });
 
-    assertArchiveResult(resolvedArchive, ArchiveFileSourceType.url);
+    assertArchiveResult(archive, ArchiveSourceType.url);
   });
 
   it('handles path source', async () => {
@@ -149,9 +142,9 @@ describe(getArchiveFileLocationAsync, () => {
     await fs.writeFile(path, 'some content');
     asMock(uploadAsync).mockResolvedValueOnce({ url: ARCHIVE_URL });
 
-    const resolvedArchive = await getArchiveFileLocationAsync({
+    const archive = await getArchiveAsync({
       ...SOURCE_STUB_INPUT,
-      sourceType: ArchiveFileSourceType.path,
+      sourceType: ArchiveSourceType.path,
       path,
     });
 
@@ -160,29 +153,29 @@ describe(getArchiveFileLocationAsync, () => {
       path,
       expect.anything()
     );
-    assertArchiveResult(resolvedArchive, ArchiveFileSourceType.path);
+    assertArchiveResult(archive, ArchiveSourceType.path);
   });
 
   it('prompts again if provided path doesnt exist', async () => {
     asMock(promptAsync)
-      .mockResolvedValueOnce({ sourceType: ArchiveFileSourceType.url })
+      .mockResolvedValueOnce({ sourceType: ArchiveSourceType.url })
       .mockResolvedValueOnce({ url: ARCHIVE_URL });
 
-    const resolvedArchive = await getArchiveFileLocationAsync({
+    const archive = await getArchiveAsync({
       ...SOURCE_STUB_INPUT,
-      sourceType: ArchiveFileSourceType.path,
+      sourceType: ArchiveSourceType.path,
       path: './doesnt/exist.aab',
     });
 
-    assertArchiveResult(resolvedArchive, ArchiveFileSourceType.url);
+    assertArchiveResult(archive, ArchiveSourceType.url);
   });
 });
 
 function assertArchiveResult(
-  resolvedArchive: ResolvedArchive,
-  expectedSourceType: ArchiveFileSourceType,
-  expectedLocation: string = ARCHIVE_URL
+  archive: Archive,
+  expectedSourceType: ArchiveSourceType,
+  expectedUrl: string = ARCHIVE_URL
 ) {
-  expect(resolvedArchive.realSource.sourceType).toBe(expectedSourceType);
-  expect(resolvedArchive.location).toBe(expectedLocation);
+  expect(archive.source.sourceType).toBe(expectedSourceType);
+  expect(archive.url).toBe(expectedUrl);
 }
