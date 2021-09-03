@@ -12,6 +12,7 @@ import {
   ensureApplicationIdIsDefinedForManagedProjectAsync,
   getApplicationIdAsync,
 } from '../../project/android/applicationId';
+import { GradleBuildContext, resolveGradleBuildContextAsync } from '../../project/android/gradle';
 import { toggleConfirmAsync } from '../../prompts';
 import { findAccountByName } from '../../user/Account';
 import {
@@ -51,19 +52,25 @@ This means that it will most likely produce an AAB and you will not be able to i
   checkNodeEnvVariable(ctx);
   await checkGoogleServicesFileAsync(ctx);
 
+  const gradleContext = await resolveGradleBuildContextAsync(ctx.projectDir, buildProfile);
+
   if (ctx.workflow === Workflow.MANAGED) {
     await ensureApplicationIdIsDefinedForManagedProjectAsync(ctx.projectDir, ctx.exp);
   }
 
   return await prepareBuildRequestForPlatformAsync({
     ctx,
-    ensureCredentialsAsync: ensureAndroidCredentialsAsync,
+    ensureCredentialsAsync: async (ctx: BuildContext<Platform.ANDROID>) => {
+      return await ensureAndroidCredentialsAsync(ctx, gradleContext);
+    },
     ensureProjectConfiguredAsync: async () => {
       if (ctx.workflow === Workflow.GENERIC) {
         await validateAndSyncProjectConfigurationAsync(ctx.projectDir, ctx.exp);
       }
     },
-    getMetadataContext: () => ({}),
+    getMetadataContext: () => ({
+      gradleContext,
+    }),
     prepareJobAsync,
     sendBuildRequestAsync: async (
       appId: string,
@@ -86,12 +93,17 @@ function shouldProvideCredentials(ctx: BuildContext<Platform.ANDROID>): boolean 
 }
 
 async function ensureAndroidCredentialsAsync(
-  ctx: BuildContext<Platform.ANDROID>
+  ctx: BuildContext<Platform.ANDROID>,
+  gradleContext?: GradleBuildContext
 ): Promise<CredentialsResult<AndroidCredentials> | undefined> {
   if (!shouldProvideCredentials(ctx)) {
     return;
   }
-  const androidApplicationIdentifier = await getApplicationIdAsync(ctx.projectDir, ctx.exp);
+  const androidApplicationIdentifier = await getApplicationIdAsync(
+    ctx.projectDir,
+    ctx.exp,
+    gradleContext
+  );
   const provider = new AndroidCredentialsProvider(
     await createCredentialsContextAsync(ctx.projectDir, {
       exp: ctx.exp,

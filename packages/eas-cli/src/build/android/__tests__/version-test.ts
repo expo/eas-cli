@@ -1,9 +1,11 @@
 import { ExpoConfig } from '@expo/config';
+import { Platform } from '@expo/eas-build-job';
+import { BuildProfile } from '@expo/eas-json';
 import fs from 'fs-extra';
 import { vol } from 'memfs';
 import os from 'os';
 
-import { readVersionCodeAsync, readVersionNameAsync } from '../version';
+import { maybeResolveVersionsAsync } from '../version';
 
 jest.mock('fs');
 
@@ -20,36 +22,29 @@ beforeEach(() => {
   fs.mkdirpSync(os.tmpdir());
 });
 
-describe(readVersionCodeAsync, () => {
+describe(maybeResolveVersionsAsync, () => {
   describe('generic project', () => {
     it('reads the version code from native code', async () => {
       const exp = initGenericProject();
-      const versionCode = await readVersionCodeAsync('/repo', exp);
-      expect(versionCode).toBe(123);
+      const { appVersion, appBuildVersion } = await maybeResolveVersionsAsync(
+        '/repo',
+        exp,
+        {} as BuildProfile<Platform.ANDROID>
+      );
+      expect(appVersion).toBe('2.0');
+      expect(appBuildVersion).toBe('123');
     });
   });
   describe('managed project', () => {
     it('reads the version code from expo config', async () => {
       const exp = initManagedProject();
-      const versionCode = await readVersionCodeAsync('/repo', exp);
-      expect(versionCode).toBe(123);
-    });
-  });
-});
-
-describe(readVersionNameAsync, () => {
-  describe('generic project', () => {
-    it('reads the version name from native code', async () => {
-      const exp = initGenericProject();
-      const versionName = await readVersionNameAsync('/repo', exp);
-      expect(versionName).toBe('1.0');
-    });
-  });
-  describe('managed project', () => {
-    it('reads the version from expo config', async () => {
-      const exp = initManagedProject();
-      const versionName = await readVersionNameAsync('/repo', exp);
-      expect(versionName).toBe('1.0.0');
+      const { appVersion, appBuildVersion } = await maybeResolveVersionsAsync(
+        '/repo',
+        exp,
+        {} as BuildProfile<Platform.ANDROID>
+      );
+      expect(appVersion).toBe('5.0.0');
+      expect(appBuildVersion).toBe('126');
     });
   });
 });
@@ -69,7 +64,7 @@ function initGenericProject(): ExpoConfig {
   defaultConfig {
     applicationId "com.expo.testapp"
     versionCode 123
-    versionName "1.0"
+    versionName "2.0"
   }
 }`,
       './android/app/src/main/AndroidManifest.xml': 'fake',
@@ -80,9 +75,9 @@ function initGenericProject(): ExpoConfig {
   const fakeExp: ExpoConfig = {
     name: 'myproject',
     slug: 'myproject',
-    version: '1.0.0',
+    version: '3.0.0',
     android: {
-      versionCode: 123,
+      versionCode: 124,
     },
   };
   return fakeExp;
@@ -93,9 +88,9 @@ function initManagedProject(): ExpoConfig {
     {
       './app.json': JSON.stringify({
         expo: {
-          version: '1.0.0',
+          version: '4.0.0',
           android: {
-            versionCode: 123,
+            versionCode: 125,
           },
         },
       }),
@@ -106,9 +101,9 @@ function initManagedProject(): ExpoConfig {
   const fakeExp: ExpoConfig = {
     name: 'myproject',
     slug: 'myproject',
-    version: '1.0.0',
+    version: '5.0.0',
     android: {
-      versionCode: 123,
+      versionCode: 126,
     },
   };
   return fakeExp;

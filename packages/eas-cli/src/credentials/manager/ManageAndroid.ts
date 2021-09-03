@@ -1,6 +1,9 @@
+import { Platform } from '@expo/eas-build-job';
+import { AndroidBuildProfile } from '@expo/eas-json';
 import assert from 'assert';
 
 import Log, { learnMore } from '../../log';
+import { GradleBuildContext, resolveGradleBuildContextAsync } from '../../project/android/gradle';
 import {
   getProjectAccountName,
   promptToCreateProjectIfNotExistsAsync,
@@ -32,6 +35,7 @@ import {
   SelectAndroidBuildCredentialsResultType,
   SelectExistingAndroidBuildCredentials,
 } from './SelectAndroidBuildCredentials';
+import { SelectBuildProfileFromEasJson } from './SelectBuildProfileFromEasJson';
 
 enum ActionType {
   ManageBuildCredentials,
@@ -151,6 +155,7 @@ export class ManageAndroid {
         if (!account) {
           throw new Error(`You do not have access to account: ${accountName}`);
         }
+        const { gradleContext } = await this.createProjectContextAsync(ctx);
         if (ctx.hasProjectContext) {
           const maybeProjectId = await promptToCreateProjectIfNotExistsAsync(ctx.exp);
           if (!maybeProjectId) {
@@ -158,7 +163,7 @@ export class ManageAndroid {
               'Your project must be registered with EAS in order to use the credentials manager.'
             );
           }
-          const appLookupParams = await getAppLookupParamsFromContextAsync(ctx);
+          const appLookupParams = await getAppLookupParamsFromContextAsync(ctx, gradleContext);
           const appCredentials = await ctx.android.getAndroidAppCredentialsWithCommonFieldsAsync(
             appLookupParams
           );
@@ -208,7 +213,7 @@ export class ManageAndroid {
           }
         }
 
-        await this.runProjectSpecificActionAsync(ctx, chosenAction);
+        await this.runProjectSpecificActionAsync(ctx, chosenAction, gradleContext);
       } catch (err) {
         Log.error(err);
         if (process.env.DEBUG) {
@@ -220,12 +225,42 @@ export class ManageAndroid {
     }
   }
 
-  private async runProjectSpecificActionAsync(ctx: Context, action: ActionType): Promise<void> {
+  private async createProjectContextAsync(ctx: Context): Promise<{
+    gradleContext?: GradleBuildContext;
+    buildProfile?: AndroidBuildProfile;
+  }> {
+    if (!ctx.hasProjectContext) {
+      return {};
+    }
+
+    const maybeProjectId = await promptToCreateProjectIfNotExistsAsync(ctx.exp);
+    if (!maybeProjectId) {
+      throw new Error(
+        'Your project must be registered with EAS in order to use the credentials manager.'
+      );
+    }
+
+    const buildProfile = await new SelectBuildProfileFromEasJson(
+      ctx.projectDir,
+      Platform.ANDROID
+    ).runAsync(ctx);
+    const gradleContext = await resolveGradleBuildContextAsync(ctx.projectDir, buildProfile);
+    return {
+      gradleContext,
+      buildProfile,
+    };
+  }
+
+  private async runProjectSpecificActionAsync(
+    ctx: Context,
+    action: ActionType,
+    gradleContext?: GradleBuildContext
+  ): Promise<void> {
     assert(
       ctx.hasProjectContext,
       'You must be in your project directory in order to perform this action'
     );
-    const appLookupParams = await getAppLookupParamsFromContextAsync(ctx);
+    const appLookupParams = await getAppLookupParamsFromContextAsync(ctx, gradleContext);
     if (action === ActionType.CreateKeystore) {
       const selectBuildCredentialsResult = await new SelectAndroidBuildCredentials(
         appLookupParams

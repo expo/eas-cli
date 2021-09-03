@@ -60,7 +60,7 @@ export default class AndroidSubmitCommand {
 
   private async maybeGetAndroidPackageFromCurrentProjectAsync(): Promise<string | undefined> {
     try {
-      return await getApplicationIdAsync(this.ctx.projectDir, this.ctx.exp);
+      return await getApplicationIdAsync(this.ctx.projectDir, this.ctx.exp, { moduleName: 'app' });
     } catch {
       return undefined;
     }

@@ -34,7 +34,7 @@ export default class AndroidCredentialsProvider {
   }
 
   private async getRemoteAsync(): Promise<AndroidCredentials> {
-    const setupBuildCredentialsAction = await new SetupBuildCredentials({ app: this.options.app });
+    const setupBuildCredentialsAction = new SetupBuildCredentials({ app: this.options.app });
     const buildCredentials = await setupBuildCredentialsAction.runAsync(this.ctx);
     return this.toAndroidCredentials(buildCredentials);
   }
