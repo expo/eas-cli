@@ -1,14 +1,15 @@
-import { confirmAsync } from '../../../../prompts';
+import { asMock } from '../../../../__tests__/utils';
+import { jester as mockJester } from '../../../../credentials/__tests__/fixtures-constants';
 import { testKeystore } from '../../../__tests__/fixtures-android';
 import { createCtxMock } from '../../../__tests__/fixtures-context';
 import { askForUserProvidedAsync } from '../../../utils/promptForCredentials';
 import { getAppLookupParamsFromContextAsync } from '../BuildCredentialsUtils';
 import { CreateKeystore } from '../CreateKeystore';
 
-jest.mock('../../../../prompts');
-(confirmAsync as jest.Mock).mockImplementation(() => true);
-
 jest.mock('../../../utils/promptForCredentials');
+jest.mock('../../../../project/ensureProjectExists');
+jest.mock('../../../../prompts', () => ({ confirmAsync: jest.fn(() => true) }));
+jest.mock('../../../../user/actions', () => ({ ensureLoggedInAsync: jest.fn(() => mockJester) }));
 
 describe('CreateKeystore', () => {
   it('creates a keystore in Interactive Mode', async () => {
@@ -21,7 +22,7 @@ describe('CreateKeystore', () => {
     expect(ctx.android.createKeystoreAsync as any).toHaveBeenCalledTimes(1);
   });
   it('creates a keystore by uploading', async () => {
-    (askForUserProvidedAsync as jest.Mock).mockImplementation(() => testKeystore);
+    asMock(askForUserProvidedAsync).mockImplementationOnce(() => testKeystore);
     const ctx = createCtxMock({ nonInteractive: false });
     const appLookupParams = await getAppLookupParamsFromContextAsync(ctx);
     const createKeystoreAction = new CreateKeystore(appLookupParams.account);

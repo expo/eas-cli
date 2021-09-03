@@ -1,5 +1,6 @@
 import { AndroidKeystoreFragment } from '../../../graphql/generated';
 import Log from '../../../log';
+import { getProjectIdAsync } from '../../../project/projectUtils';
 import { Account } from '../../../user/Account';
 import { Context } from '../../context';
 import { askForUserProvidedAsync } from '../../utils/promptForCredentials';
@@ -14,19 +15,21 @@ export class CreateKeystore {
     if (ctx.nonInteractive) {
       throw new Error(`New keystore cannot be created in non-interactive mode.`);
     }
-    const keystore = await this.provideOrGenerateAsync();
+
+    const projectId = await getProjectIdAsync(ctx.exp);
+    const keystore = await this.provideOrGenerateAsync(projectId);
     const keystoreFragment = await ctx.android.createKeystoreAsync(this.account, keystore);
     Log.succeed('Created keystore');
     return keystoreFragment;
   }
 
-  private async provideOrGenerateAsync(): Promise<KeystoreWithType> {
+  private async provideOrGenerateAsync(projectId: string): Promise<KeystoreWithType> {
     const providedKeystore = await askForUserProvidedAsync(keystoreSchema);
     if (providedKeystore) {
       const providedKeystoreWithType = getKeystoreWithType(providedKeystore);
       validateKeystore(providedKeystoreWithType);
       return providedKeystoreWithType;
     }
-    return await generateRandomKeystoreAsync();
+    return await generateRandomKeystoreAsync(projectId);
   }
 }
