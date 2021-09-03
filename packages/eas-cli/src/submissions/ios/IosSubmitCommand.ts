@@ -111,10 +111,9 @@ export default class IosSubmitCommand {
     Log.log(
       wrapAnsi(
         chalk.italic(
-          'Ensuring your app exists on App Store Connect. ' +
-            `This step can be skipped by providing the --asc-app-id param. ${learnMore(
-              'https://expo.fyi/asc-app-id'
-            )}`
+          `Ensuring your app exists on App Store Connect. This step can be skipped by providing ascAppId in the submit profile. ${learnMore(
+            'https://expo.fyi/asc-app-id'
+          )}`
         ),
         process.stdout.columns || 80
       )
