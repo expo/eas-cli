@@ -1,6 +1,7 @@
-import { AppPlatform, SubmissionFragment } from '../../graphql/generated';
+import { AppPlatform, IosSubmissionConfigInput, SubmissionFragment } from '../../graphql/generated';
+import { SubmissionMutation } from '../../graphql/mutations/SubmissionMutation';
 import { Archive, ArchiveSource, getArchiveAsync } from '../ArchiveSource';
-import BaseSubmitter from '../BaseSubmitter';
+import BaseSubmitter, { SubmissionInput } from '../BaseSubmitter';
 import {
   ArchiveSourceSummaryFields,
   formatArchiveSourceSummary,
@@ -10,10 +11,10 @@ import {
   AppSpecificPasswordSource,
   getAppSpecificPasswordAsync,
 } from './AppSpecificPasswordSource';
-import { IosSubmissionConfig } from './IosSubmissionConfig';
 
-export interface IosSubmissionOptions extends Pick<IosSubmissionConfig, 'projectId' | 'appleId'> {
-  ascAppId: string;
+export interface IosSubmissionOptions
+  extends Pick<IosSubmissionConfigInput, 'appleIdUsername' | 'ascAppIdentifier'> {
+  projectId: string;
   archiveSource: ArchiveSource;
   appSpecificPasswordSource: AppSpecificPasswordSource;
 }
@@ -22,9 +23,6 @@ interface ResolvedSourceOptions {
   archive: Archive;
   appSpecificPassword: string;
 }
-
-type SummaryData = Pick<IosSubmissionOptions, 'ascAppId' | 'appleId' | 'projectId'> &
-  ArchiveSourceSummaryFields;
 
 export default class IosSubmitter extends BaseSubmitter<AppPlatform.Ios, IosSubmissionOptions> {
   async submitAsync(): Promise<SubmissionFragment> {
@@ -39,10 +37,23 @@ export default class IosSubmitter extends BaseSubmitter<AppPlatform.Ios, IosSubm
       SummaryHumanReadableKeys
     );
 
-    return await this.createSubmissionAsync(
+    return await this.createSubmissionAsync({
+      projectId: this.options.projectId,
       submissionConfig,
-      resolvedSourceOptions.archive.build?.id
-    );
+      buildId: resolvedSourceOptions.archive.build?.id,
+    });
+  }
+
+  protected async createPlatformSubmissionAsync({
+    projectId,
+    submissionConfig,
+    buildId,
+  }: SubmissionInput<AppPlatform.Ios>): Promise<SubmissionFragment> {
+    return await SubmissionMutation.createIosSubmissionAsync({
+      appId: projectId,
+      config: submissionConfig,
+      submittedBuildId: buildId,
+    });
   }
 
   private async resolveSourceOptions(): Promise<ResolvedSourceOptions> {
@@ -60,37 +71,41 @@ export default class IosSubmitter extends BaseSubmitter<AppPlatform.Ios, IosSubm
   private async formatSubmissionConfigAsync(
     options: IosSubmissionOptions,
     { archive, appSpecificPassword }: ResolvedSourceOptions
-  ): Promise<IosSubmissionConfig> {
-    const { projectId, appleId, ascAppId } = options;
-    const submissionConfig = {
-      appAppleId: ascAppId, //ASC App ID is called "appAppleId" on server side
-      appleId,
-      projectId,
+  ): Promise<IosSubmissionConfigInput> {
+    const { appleIdUsername, ascAppIdentifier } = options;
+    return {
+      ascAppIdentifier,
+      appleIdUsername,
       archiveUrl: archive.url,
-      appSpecificPassword,
+      appleAppSpecificPassword: appSpecificPassword,
     };
-    return submissionConfig;
   }
 
   private prepareSummaryData(
     options: IosSubmissionOptions,
     { archive }: ResolvedSourceOptions
   ): SummaryData {
-    const { appleId, ascAppId, projectId } = options;
+    const { appleIdUsername, ascAppIdentifier, projectId } = options;
 
     // structuring order affects table rows order
     return {
-      ascAppId,
-      appleId,
+      ascAppIdentifier,
+      appleIdUsername,
       projectId,
       ...formatArchiveSourceSummary(archive),
     };
   }
 }
 
+type SummaryData = {
+  ascAppIdentifier: string;
+  appleIdUsername: string;
+  projectId: string;
+} & ArchiveSourceSummaryFields;
+
 const SummaryHumanReadableKeys: Record<keyof SummaryData, string> = {
-  ascAppId: 'ASC App ID',
-  appleId: 'Apple ID',
+  ascAppIdentifier: 'ASC App ID',
+  appleIdUsername: 'Apple ID',
   projectId: 'Project ID',
   archiveUrl: 'Archive URL',
   archivePath: 'Archive Path',

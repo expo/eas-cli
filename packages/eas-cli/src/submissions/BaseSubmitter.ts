@@ -1,31 +1,33 @@
-import { JSONObject } from '@expo/json-file';
 import ora from 'ora';
 
-import { AppPlatform, SubmissionFragment } from '../graphql/generated';
-import { SubmissionMutation } from '../graphql/mutations/SubmissionMutation';
+import {
+  AndroidSubmissionConfigInput,
+  AppPlatform,
+  IosSubmissionConfigInput,
+  SubmissionFragment,
+} from '../graphql/generated';
 import Log from '../log';
-import { AndroidSubmissionConfig } from './android/AndroidSubmissionConfig';
-import { IosSubmissionConfig } from './ios/IosSubmissionConfig';
 import { SubmissionContext } from './types';
 
+export interface SubmissionInput<P extends AppPlatform> {
+  projectId: string;
+  submissionConfig: P extends AppPlatform.Android
+    ? AndroidSubmissionConfigInput
+    : IosSubmissionConfigInput;
+  buildId?: string;
+}
 export default abstract class BaseSubmitter<P extends AppPlatform, SubmissionOptions> {
   constructor(protected ctx: SubmissionContext<P>, protected options: SubmissionOptions) {}
 
   public abstract submitAsync(): Promise<SubmissionFragment>;
 
   protected async createSubmissionAsync(
-    submissionConfig: AndroidSubmissionConfig | IosSubmissionConfig,
-    buildId?: string
+    submissionInput: SubmissionInput<P>
   ): Promise<SubmissionFragment> {
     Log.addNewLineIfNone();
     const scheduleSpinner = ora('Scheduling submission').start();
     try {
-      const submission = await SubmissionMutation.createSubmissionAsync({
-        appId: submissionConfig.projectId,
-        platform: this.ctx.platform,
-        config: submissionConfig as unknown as JSONObject,
-        submittedBuildId: buildId,
-      });
+      const submission = this.createPlatformSubmissionAsync(submissionInput);
       scheduleSpinner.succeed();
       return submission;
     } catch (err) {
@@ -33,4 +35,8 @@ export default abstract class BaseSubmitter<P extends AppPlatform, SubmissionOpt
       throw err;
     }
   }
+
+  protected abstract createPlatformSubmissionAsync(
+    input: SubmissionInput<P>
+  ): Promise<SubmissionFragment>;
 }

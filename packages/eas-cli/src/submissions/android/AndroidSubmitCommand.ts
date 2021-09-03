@@ -1,15 +1,20 @@
 import { getConfig } from '@expo/config';
-import { AndroidSubmitProfile } from '@expo/eas-json';
+import { AndroidReleaseStatus, AndroidReleaseTrack, AndroidSubmitProfile } from '@expo/eas-json';
 import { Result, result } from '@expo/results';
+import capitalize from 'lodash/capitalize';
 
-import { AppPlatform, SubmissionFragment } from '../../graphql/generated';
+import {
+  AppPlatform,
+  SubmissionAndroidReleaseStatus,
+  SubmissionAndroidTrack,
+  SubmissionFragment,
+} from '../../graphql/generated';
 import Log from '../../log';
 import { getApplicationIdAsync } from '../../project/android/applicationId';
 import { ArchiveSource } from '../ArchiveSource';
 import { resolveArchiveSource } from '../commons';
 import { SubmissionContext, SubmitArchiveFlags } from '../types';
 import { AndroidPackageSource, AndroidPackageSourceType } from './AndroidPackageSource';
-import { ReleaseStatus, ReleaseTrack } from './AndroidSubmissionConfig';
 import AndroidSubmitter, { AndroidSubmissionOptions } from './AndroidSubmitter';
 import { ServiceAccountSource, ServiceAccountSourceType } from './ServiceAccountSource';
 
@@ -97,34 +102,44 @@ export default class AndroidSubmitCommand {
     }
   }
 
-  private resolveTrack(): Result<ReleaseTrack> {
+  private resolveTrack(): Result<SubmissionAndroidTrack> {
     const { track } = this.ctx.profile;
     if (!track) {
-      return result(ReleaseTrack.internal);
+      return result(SubmissionAndroidTrack.Internal);
     }
-    if (track in ReleaseTrack) {
-      return result(ReleaseTrack[track as keyof typeof ReleaseTrack]);
+    const capitalizedTrack = capitalize(track);
+    if (capitalizedTrack in SubmissionAndroidTrack) {
+      return result(
+        SubmissionAndroidTrack[capitalizedTrack as keyof typeof SubmissionAndroidTrack]
+      );
     } else {
       return result(
         new Error(
-          `Unsupported track: ${track} (valid options: ${Object.keys(ReleaseTrack).join(', ')})`
+          `Unsupported track: ${track} (valid options: ${Object.keys(AndroidReleaseTrack).join(
+            ', '
+          )})`
         )
       );
     }
   }
 
-  private resolveReleaseStatus(): Result<ReleaseStatus> {
+  private resolveReleaseStatus(): Result<SubmissionAndroidReleaseStatus> {
     const { releaseStatus } = this.ctx.profile;
     if (!releaseStatus) {
-      return result(ReleaseStatus.completed);
+      return result(SubmissionAndroidReleaseStatus.Completed);
     }
-    if (releaseStatus in ReleaseStatus) {
-      return result(ReleaseStatus[releaseStatus as keyof typeof ReleaseStatus]);
+    const capitalizedReleaseStatus = capitalize(releaseStatus);
+    if (capitalizedReleaseStatus in SubmissionAndroidReleaseStatus) {
+      return result(
+        SubmissionAndroidReleaseStatus[
+          capitalizedReleaseStatus as keyof typeof SubmissionAndroidReleaseStatus
+        ]
+      );
     } else {
       return result(
         new Error(
           `Unsupported release status: ${releaseStatus} (valid options: ${Object.keys(
-            ReleaseStatus
+            AndroidReleaseStatus
           ).join(', ')})`
         )
       );

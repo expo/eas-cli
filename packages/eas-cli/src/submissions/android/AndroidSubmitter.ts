@@ -1,22 +1,29 @@
 import fs from 'fs-extra';
 
-import { AppPlatform, SubmissionFragment } from '../../graphql/generated';
+import {
+  AndroidSubmissionConfigInput,
+  AppPlatform,
+  SubmissionAndroidReleaseStatus,
+  SubmissionAndroidTrack,
+  SubmissionFragment,
+} from '../../graphql/generated';
+import { SubmissionMutation } from '../../graphql/mutations/SubmissionMutation';
 import { Archive, ArchiveSource, getArchiveAsync } from '../ArchiveSource';
-import BaseSubmitter from '../BaseSubmitter';
+import BaseSubmitter, { SubmissionInput } from '../BaseSubmitter';
 import {
   ArchiveSourceSummaryFields,
   formatArchiveSourceSummary,
   printSummary,
 } from '../utils/summary';
 import { AndroidPackageSource, getAndroidPackageAsync } from './AndroidPackageSource';
-import { AndroidSubmissionConfig, ReleaseStatus, ReleaseTrack } from './AndroidSubmissionConfig';
 import { ServiceAccountSource, getServiceAccountAsync } from './ServiceAccountSource';
 
 export interface AndroidSubmissionOptions
   extends Pick<
-    AndroidSubmissionConfig,
-    'track' | 'releaseStatus' | 'projectId' | 'changesNotSentForReview'
+    AndroidSubmissionConfigInput,
+    'track' | 'releaseStatus' | 'changesNotSentForReview'
   > {
+  projectId: string;
   androidPackageSource: AndroidPackageSource;
   archiveSource: ArchiveSource;
   serviceAccountSource: ServiceAccountSource;
@@ -41,10 +48,23 @@ export default class AndroidSubmitter extends BaseSubmitter<
       SummaryHumanReadableKeys
     );
 
-    return await this.createSubmissionAsync(
+    return await this.createSubmissionAsync({
+      projectId: this.options.projectId,
       submissionConfig,
-      resolvedSourceOptions.archive.build?.id
-    );
+      buildId: resolvedSourceOptions.archive.build?.id,
+    });
+  }
+
+  protected async createPlatformSubmissionAsync({
+    projectId,
+    submissionConfig,
+    buildId,
+  }: SubmissionInput<AppPlatform.Android>): Promise<SubmissionFragment> {
+    return await SubmissionMutation.createAndroidSubmissionAsync({
+      appId: projectId,
+      config: submissionConfig,
+      submittedBuildId: buildId,
+    });
   }
 
   private async resolveSourceOptions(): Promise<ResolvedSourceOptions> {
@@ -61,25 +81,23 @@ export default class AndroidSubmitter extends BaseSubmitter<
   private async formatSubmissionConfig(
     options: AndroidSubmissionOptions,
     { archive, androidPackage, serviceAccountPath }: ResolvedSourceOptions
-  ): Promise<AndroidSubmissionConfig> {
+  ): Promise<AndroidSubmissionConfigInput> {
     const serviceAccount = await fs.readFile(serviceAccountPath, 'utf-8');
-    const { track, releaseStatus, projectId, changesNotSentForReview } = options;
-
+    const { track, releaseStatus, changesNotSentForReview } = options;
     return {
-      androidPackage,
+      applicationIdentifier: androidPackage,
       archiveUrl: archive.url,
       track,
       changesNotSentForReview,
       releaseStatus,
-      projectId,
-      serviceAccount,
+      googleServiceAccountKeyJson: serviceAccount,
     };
   }
 
   private prepareSummaryData(
     options: AndroidSubmissionOptions,
     { archive, androidPackage, serviceAccountPath }: ResolvedSourceOptions
-  ): Summary {
+  ): SummaryData {
     const { projectId, track, releaseStatus, changesNotSentForReview } = options;
 
     // structuring order affects table rows order
@@ -87,31 +105,31 @@ export default class AndroidSubmitter extends BaseSubmitter<
       projectId,
       androidPackage,
       track,
-      changesNotSentForReview,
-      releaseStatus,
+      changesNotSentForReview: changesNotSentForReview ?? undefined,
+      releaseStatus: releaseStatus ?? undefined,
       serviceAccountPath,
       ...formatArchiveSourceSummary(archive),
     };
   }
 }
 
-type Summary = {
+type SummaryData = {
   androidPackage: string;
-  serviceAccountPath: string;
-  track: ReleaseTrack;
-  releaseStatus?: ReleaseStatus;
-  projectId?: string;
   changesNotSentForReview?: boolean;
+  projectId: string;
+  releaseStatus?: SubmissionAndroidReleaseStatus;
+  serviceAccountPath: string;
+  track: SubmissionAndroidTrack;
 } & ArchiveSourceSummaryFields;
 
-const SummaryHumanReadableKeys: Record<keyof Summary, string> = {
+const SummaryHumanReadableKeys: Record<keyof SummaryData, string> = {
   androidPackage: 'Android package',
   archivePath: 'Archive path',
   archiveUrl: 'Download URL',
-  serviceAccountPath: 'Google Service Key',
   changesNotSentForReview: 'Changes not sent for a review',
-  track: 'Release track',
-  releaseStatus: 'Release status',
-  projectId: 'Project ID',
   formattedBuild: 'Build',
+  projectId: 'Project ID',
+  releaseStatus: 'Release status',
+  serviceAccountPath: 'Google Service Key',
+  track: 'Release track',
 };

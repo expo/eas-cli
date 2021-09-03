@@ -1,4 +1,9 @@
-export { AndroidSubmitProfile, IosSubmitProfile } from './EasSubmit.types';
+export {
+  AndroidSubmitProfile,
+  AndroidReleaseStatus,
+  AndroidReleaseTrack,
+  IosSubmitProfile,
+} from './EasSubmit.types';
 export { EasJson } from './EasJson.types';
 export {
   AndroidBuildProfile,

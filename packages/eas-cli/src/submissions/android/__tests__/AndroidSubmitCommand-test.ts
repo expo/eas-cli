@@ -1,21 +1,26 @@
+import { AndroidReleaseStatus, AndroidReleaseTrack } from '@expo/eas-json';
 import { vol } from 'memfs';
 import { v4 as uuidv4 } from 'uuid';
 
 import { asMock } from '../../../__tests__/utils';
 import { jester as mockJester } from '../../../credentials/__tests__/fixtures-constants';
-import { AppPlatform, BuildFragment } from '../../../graphql/generated';
+import {
+  AppPlatform,
+  BuildFragment,
+  SubmissionAndroidReleaseStatus,
+  SubmissionAndroidTrack,
+} from '../../../graphql/generated';
 import { SubmissionMutation } from '../../../graphql/mutations/SubmissionMutation';
 import { createTestProject } from '../../../project/__tests__/project-utils';
 import { getProjectIdAsync } from '../../../project/projectUtils';
 import { getLatestBuildForSubmissionAsync } from '../../utils/builds';
-import { AndroidSubmissionConfig, ReleaseStatus, ReleaseTrack } from '../AndroidSubmissionConfig';
 import AndroidSubmitCommand from '../AndroidSubmitCommand';
 
 jest.mock('fs');
 jest.mock('ora');
 jest.mock('../../../graphql/mutations/SubmissionMutation', () => ({
   SubmissionMutation: {
-    createSubmissionAsync: jest.fn(),
+    createAndroidSubmissionAsync: jest.fn(),
   },
 }));
 jest.mock('../../../project/ensureProjectExists');
@@ -60,8 +65,6 @@ describe(AndroidSubmitCommand, () => {
   });
   afterAll(() => {
     vol.reset();
-
-    jest.unmock('@expo/config');
   });
 
   afterEach(() => {
@@ -80,28 +83,24 @@ describe(AndroidSubmitCommand, () => {
         },
         profile: {
           serviceAccountKeyPath: '/google-service-account.json',
-          track: ReleaseTrack.internal,
-          releaseStatus: ReleaseStatus.draft,
+          track: AndroidReleaseTrack.internal,
+          releaseStatus: AndroidReleaseStatus.draft,
           changesNotSentForReview: false,
         },
       });
       const command = new AndroidSubmitCommand(ctx);
       await command.runAsync();
 
-      const androidSubmissionConfig: AndroidSubmissionConfig = {
-        archiveUrl: 'http://expo.dev/fake.apk',
-        androidPackage: testProject.appJSON.expo.android?.package,
-        serviceAccount: fakeFiles['/google-service-account.json'],
-        releaseStatus: ReleaseStatus.draft,
-        track: ReleaseTrack.internal,
-        changesNotSentForReview: false,
-        projectId,
-      };
-
-      expect(SubmissionMutation.createSubmissionAsync).toHaveBeenCalledWith({
+      expect(SubmissionMutation.createAndroidSubmissionAsync).toHaveBeenCalledWith({
         appId: projectId,
-        config: androidSubmissionConfig,
-        platform: AppPlatform.Android,
+        config: {
+          archiveUrl: 'http://expo.dev/fake.apk',
+          applicationIdentifier: testProject.appJSON.expo.android?.package,
+          googleServiceAccountKeyJson: fakeFiles['/google-service-account.json'],
+          releaseStatus: SubmissionAndroidReleaseStatus.Draft,
+          track: SubmissionAndroidTrack.Internal,
+          changesNotSentForReview: false,
+        },
       });
     });
 
@@ -117,28 +116,24 @@ describe(AndroidSubmitCommand, () => {
         },
         profile: {
           serviceAccountKeyPath: '/google-service-account.json',
-          track: ReleaseTrack.internal,
-          releaseStatus: ReleaseStatus.draft,
+          track: AndroidReleaseTrack.internal,
+          releaseStatus: AndroidReleaseStatus.draft,
           changesNotSentForReview: false,
         },
       });
       const command = new AndroidSubmitCommand(ctx);
       await command.runAsync();
 
-      const androidSubmissionConfig: AndroidSubmissionConfig = {
-        archiveUrl: 'http://expo.dev/fake.apk',
-        androidPackage: testProject.appJSON.expo.android?.package,
-        serviceAccount: fakeFiles['/google-service-account.json'],
-        releaseStatus: ReleaseStatus.draft,
-        track: ReleaseTrack.internal,
-        projectId,
-        changesNotSentForReview: false,
-      };
-
-      expect(SubmissionMutation.createSubmissionAsync).toHaveBeenCalledWith({
+      expect(SubmissionMutation.createAndroidSubmissionAsync).toHaveBeenCalledWith({
         appId: projectId,
-        config: androidSubmissionConfig,
-        platform: AppPlatform.Android,
+        config: {
+          archiveUrl: 'http://expo.dev/fake.apk',
+          applicationIdentifier: testProject.appJSON.expo.android?.package,
+          googleServiceAccountKeyJson: fakeFiles['/google-service-account.json'],
+          releaseStatus: SubmissionAndroidReleaseStatus.Draft,
+          track: SubmissionAndroidTrack.Internal,
+          changesNotSentForReview: false,
+        },
         submittedBuildId: fakeBuildFragment.id,
       });
     });

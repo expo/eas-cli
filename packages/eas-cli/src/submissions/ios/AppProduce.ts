@@ -25,8 +25,8 @@ interface CreateAppOptions {
 }
 
 type AppStoreResult = {
-  appleId: string;
-  ascAppId: string;
+  appleIdUsername: string;
+  ascAppIdentifier: string;
 };
 
 export async function ensureAppStoreConnectAppExistsAsync(
@@ -119,8 +119,8 @@ async function createAppStoreConnectAppAsync(options: CreateAppOptions): Promise
   }
 
   return {
-    appleId: authCtx.appleId,
-    ascAppId: app.id,
+    appleIdUsername: authCtx.appleId,
+    ascAppIdentifier: app.id,
   };
 }
 

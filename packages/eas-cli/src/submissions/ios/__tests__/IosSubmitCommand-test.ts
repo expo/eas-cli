@@ -3,18 +3,16 @@ import { v4 as uuidv4 } from 'uuid';
 
 import { asMock } from '../../../__tests__/utils';
 import { jester as mockJester } from '../../../credentials/__tests__/fixtures-constants';
-import { AppPlatform } from '../../../graphql/generated';
 import { SubmissionMutation } from '../../../graphql/mutations/SubmissionMutation';
 import { createTestProject } from '../../../project/__tests__/project-utils';
 import { getProjectIdAsync } from '../../../project/projectUtils';
-import { IosSubmissionConfig } from '../IosSubmissionConfig';
 import IosSubmitCommand from '../IosSubmitCommand';
 
 jest.mock('fs');
 jest.mock('ora');
 jest.mock('../../../graphql/mutations/SubmissionMutation', () => ({
   SubmissionMutation: {
-    createSubmissionAsync: jest.fn(),
+    createIosSubmissionAsync: jest.fn(),
   },
 }));
 jest.mock('../../../project/ensureProjectExists');
@@ -74,18 +72,14 @@ describe(IosSubmitCommand, () => {
       const command = new IosSubmitCommand(ctx);
       await command.runAsync();
 
-      const iosSubmissionConfig: IosSubmissionConfig = {
-        archiveUrl: 'http://expo.dev/fake.ipa',
-        appleId: 'test@example.com',
-        appSpecificPassword: 'supersecret',
-        appAppleId: '12345678',
-        projectId,
-      };
-
-      expect(SubmissionMutation.createSubmissionAsync).toHaveBeenCalledWith({
+      expect(SubmissionMutation.createIosSubmissionAsync).toHaveBeenCalledWith({
         appId: projectId,
-        config: iosSubmissionConfig,
-        platform: AppPlatform.Ios,
+        config: {
+          archiveUrl: 'http://expo.dev/fake.ipa',
+          appleIdUsername: 'test@example.com',
+          appleAppSpecificPassword: 'supersecret',
+          ascAppIdentifier: '12345678',
+        },
       });
 
       delete process.env.EXPO_APPLE_APP_SPECIFIC_PASSWORD;

@@ -1,7 +1,7 @@
 import { Android, Ios } from '@expo/eas-build-job';
 import Joi from 'joi';
 
-import { ReleaseStatus, ReleaseTrack } from './EasSubmit.types';
+import { AndroidReleaseStatus, AndroidReleaseTrack } from './EasSubmit.types';
 
 const semverSchemaCheck = (value: any) => {
   if (/^[0-9]+\.[0-9]+\.[0-9]+$/.test(value)) {
@@ -77,11 +77,11 @@ const EasJsonBuildProfileSchema = CommonBuildProfileSchema.concat(
 const AndroidSubmitProfileSchema = Joi.object({
   serviceAccountKeyPath: Joi.string(),
   track: Joi.string()
-    .valid(...Object.values(ReleaseTrack))
-    .default(ReleaseTrack.internal),
+    .valid(...Object.values(AndroidReleaseTrack))
+    .default(AndroidReleaseTrack.internal),
   releaseStatus: Joi.string()
-    .valid(...Object.values(ReleaseStatus))
-    .default(ReleaseStatus.completed),
+    .valid(...Object.values(AndroidReleaseStatus))
+    .default(AndroidReleaseStatus.completed),
   changesNotSentForReview: Joi.boolean().default(false),
 });
 

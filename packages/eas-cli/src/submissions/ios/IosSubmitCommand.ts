@@ -59,12 +59,12 @@ export default class IosSubmitCommand {
       throw new Error('Failed to submit the app');
     }
 
-    const { appleId, ascAppId } = await this.getAppStoreInfoAsync();
+    const { appleIdUsername, ascAppIdentifier } = await this.getAppStoreInfoAsync();
 
     return {
       projectId: this.ctx.projectId,
-      appleId,
-      ascAppId,
+      appleIdUsername,
+      ascAppIdentifier,
       archiveSource: archiveSource.enforceValue(),
       appSpecificPasswordSource: appSpecificPasswordSource.enforceValue(),
     };
@@ -96,15 +96,15 @@ export default class IosSubmitCommand {
    * - App Store Connect app ID (appAppleId)
    */
   private async getAppStoreInfoAsync(): Promise<{
-    appleId: string;
-    ascAppId: string;
+    appleIdUsername: string;
+    ascAppIdentifier: string;
   }> {
     const { ascAppId } = this.ctx.profile;
 
     if (ascAppId) {
       return {
-        appleId: await this.getAppleIdAsync(),
-        ascAppId,
+        appleIdUsername: await this.getAppleIdAsync(),
+        ascAppIdentifier: ascAppId,
       };
     }
 

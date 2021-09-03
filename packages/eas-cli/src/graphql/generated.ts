@@ -4874,6 +4874,50 @@ export type CreateSubmissionMutation = (
   ) }
 );
 
+export type CreateAndroidSubmissionMutationVariables = Exact<{
+  appId: Scalars['ID'];
+  config: AndroidSubmissionConfigInput;
+  submittedBuildId?: Maybe<Scalars['ID']>;
+}>;
+
+
+export type CreateAndroidSubmissionMutation = (
+  { __typename?: 'RootMutation' }
+  & { submission: (
+    { __typename?: 'SubmissionMutation' }
+    & { createAndroidSubmission: (
+      { __typename?: 'CreateSubmissionResult' }
+      & { submission: (
+        { __typename?: 'Submission' }
+        & Pick<Submission, 'id'>
+        & SubmissionFragment
+      ) }
+    ) }
+  ) }
+);
+
+export type CreateIosSubmissionMutationVariables = Exact<{
+  appId: Scalars['ID'];
+  config: IosSubmissionConfigInput;
+  submittedBuildId?: Maybe<Scalars['ID']>;
+}>;
+
+
+export type CreateIosSubmissionMutation = (
+  { __typename?: 'RootMutation' }
+  & { submission: (
+    { __typename?: 'SubmissionMutation' }
+    & { createIosSubmission: (
+      { __typename?: 'CreateSubmissionResult' }
+      & { submission: (
+        { __typename?: 'Submission' }
+        & Pick<Submission, 'id'>
+        & SubmissionFragment
+      ) }
+    ) }
+  ) }
+);
+
 export type CreateUploadSessionMutationVariables = Exact<{
   type: UploadSessionType;
 }>;
