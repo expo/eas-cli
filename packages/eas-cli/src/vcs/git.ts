@@ -207,14 +207,19 @@ async function isGitCaseSensitiveAsync(): Promise<boolean | undefined> {
   if (process.platform !== 'darwin') {
     return undefined;
   }
-  const result = await spawnAsync('git', ['config', '--get', 'core.ignorecase']);
-  const isIgnoreCaseEnabled = result.stdout.trim();
-  if (isIgnoreCaseEnabled === '') {
+
+  try {
+    const result = await spawnAsync('git', ['config', '--get', 'core.ignorecase']);
+    const isIgnoreCaseEnabled = result.stdout.trim();
+    if (isIgnoreCaseEnabled === '') {
+      return undefined;
+    } else if (isIgnoreCaseEnabled === 'true') {
+      return false;
+    } else {
+      return true;
+    }
+  } catch (e) {
     return undefined;
-  } else if (isIgnoreCaseEnabled === 'true') {
-    return false;
-  } else {
-    return true;
   }
 }
 
