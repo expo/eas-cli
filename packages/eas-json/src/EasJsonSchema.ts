@@ -74,7 +74,7 @@ const EasJsonBuildProfileSchema = CommonBuildProfileSchema.concat(
   })
 );
 
-const AndroidSubmitProfileSchema = Joi.object({
+export const AndroidSubmitProfileSchema = Joi.object({
   serviceAccountKeyPath: Joi.string(),
   track: Joi.string()
     .valid(...Object.values(AndroidReleaseTrack))
@@ -85,7 +85,7 @@ const AndroidSubmitProfileSchema = Joi.object({
   changesNotSentForReview: Joi.boolean().default(false),
 });
 
-const IosSubmitProfileSchema = Joi.object({
+export const IosSubmitProfileSchema = Joi.object({
   appleId: Joi.string(),
   ascAppId: Joi.string(),
   appleTeamId: Joi.string(),

@@ -4,8 +4,13 @@ import path from 'path';
 
 import { BuildProfile } from './EasBuild.types';
 import { CredentialsSource, EasJson, RawBuildProfile } from './EasJson.types';
-import { EasJsonSchema, MinimalEasJsonSchema } from './EasJsonSchema';
-import { AndroidReleaseStatus, AndroidReleaseTrack, SubmitProfile } from './EasSubmit.types';
+import {
+  AndroidSubmitProfileSchema,
+  EasJsonSchema,
+  IosSubmitProfileSchema,
+  MinimalEasJsonSchema,
+} from './EasJsonSchema';
+import { SubmitProfile } from './EasSubmit.types';
 
 interface EasJsonPreValidation {
   build: { [profile: string]: object };
@@ -109,10 +114,7 @@ export class EasJsonReader {
     const rawFile = await fs.readFile(EasJsonReader.formatEasJsonPath(this.projectDir), 'utf8');
     const json = JSON.parse(rawFile);
 
-    const { value, error } = MinimalEasJsonSchema.validate(json, {
-      abortEarly: false,
-    });
-
+    const { value, error } = MinimalEasJsonSchema.validate(json, { abortEarly: false });
     if (error) {
       throw new Error(`eas.json is not valid [${error.toString()}]`);
     }
@@ -172,17 +174,7 @@ export function profileMerge(base: RawBuildProfile, update: RawBuildProfile): Ra
 }
 
 function getDefaultSubmitProfile<T extends Platform>(platform: T): SubmitProfile<T> {
-  if (platform === Platform.ANDROID) {
-    const defaultAndroidProfile: SubmitProfile<Platform.ANDROID> = {
-      changesNotSentForReview: false,
-      releaseStatus: AndroidReleaseStatus.completed,
-      track: AndroidReleaseTrack.internal,
-    };
-    return defaultAndroidProfile as SubmitProfile<T>;
-  } else {
-    const defaultIosProfile: SubmitProfile<Platform.IOS> = {
-      language: 'en-US',
-    };
-    return defaultIosProfile as SubmitProfile<T>;
-  }
+  const Schema =
+    platform === Platform.ANDROID ? AndroidSubmitProfileSchema : IosSubmitProfileSchema;
+  return Schema.validate({}, { convert: true }).value;
 }
