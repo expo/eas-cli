@@ -1,5 +1,6 @@
 import { App, RequestContext, Session, User } from '@expo/apple-utils';
 import { getConfig } from '@expo/config';
+import { Platform } from '@expo/eas-build-job';
 import chalk from 'chalk';
 
 import { authenticateAsync, getRequestContext } from '../../credentials/ios/appstore/authenticate';
@@ -7,7 +8,6 @@ import {
   ensureAppExistsAsync,
   ensureBundleIdExistsWithNameAsync,
 } from '../../credentials/ios/appstore/ensureAppExists';
-import { AppPlatform } from '../../graphql/generated';
 import Log from '../../log';
 import { getBundleIdentifierAsync } from '../../project/ios/bundleIdentifier';
 import { promptAsync } from '../../prompts';
@@ -30,7 +30,7 @@ type AppStoreResult = {
 };
 
 export async function ensureAppStoreConnectAppExistsAsync(
-  ctx: SubmissionContext<AppPlatform.Ios>
+  ctx: SubmissionContext<Platform.IOS>
 ): Promise<AppStoreResult> {
   const projectConfig = getConfig(ctx.projectDir, { skipSDKVersionRequirement: true });
   const { exp } = projectConfig;

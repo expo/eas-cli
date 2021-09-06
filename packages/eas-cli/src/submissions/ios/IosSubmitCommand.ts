@@ -1,10 +1,11 @@
+import { Platform } from '@expo/eas-build-job';
 import { IosSubmitProfile } from '@expo/eas-json';
 import { Result, result } from '@expo/results';
 import chalk from 'chalk';
 import getenv from 'getenv';
 import wrapAnsi from 'wrap-ansi';
 
-import { AppPlatform, SubmissionFragment } from '../../graphql/generated';
+import { SubmissionFragment } from '../../graphql/generated';
 import Log, { learnMore } from '../../log';
 import { promptAsync } from '../../prompts';
 import UserSettings from '../../user/UserSettings';
@@ -29,17 +30,17 @@ export default class IosSubmitCommand {
     profile: IosSubmitProfile;
     projectDir: string;
     projectId: string;
-  }): SubmissionContext<AppPlatform.Ios> {
+  }): SubmissionContext<Platform.IOS> {
     return {
       archiveFlags,
-      platform: AppPlatform.Ios,
+      platform: Platform.IOS,
       profile,
       projectDir,
       projectId,
     };
   }
 
-  constructor(private ctx: SubmissionContext<AppPlatform.Ios>) {}
+  constructor(private ctx: SubmissionContext<Platform.IOS>) {}
 
   async runAsync(): Promise<SubmissionFragment> {
     Log.addNewLineIfNone();
@@ -86,7 +87,7 @@ export default class IosSubmitCommand {
   }
 
   private resolveArchiveSource(): Result<ArchiveSource> {
-    return result(resolveArchiveSource(this.ctx, AppPlatform.Ios));
+    return result(resolveArchiveSource(this.ctx, Platform.IOS));
   }
 
   /**

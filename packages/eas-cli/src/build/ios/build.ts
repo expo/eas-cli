@@ -1,5 +1,5 @@
 import { IOSConfig } from '@expo/config-plugins';
-import { Ios, Job, Metadata, Workflow } from '@expo/eas-build-job';
+import { Ios, Job, Metadata, Platform, Workflow } from '@expo/eas-build-job';
 
 import { IosCredentials } from '../../credentials/ios/types';
 import { BuildMutation, BuildResult } from '../../graphql/mutations/BuildMutation';
@@ -10,7 +10,6 @@ import { BuildRequestSender, JobData, prepareBuildRequestForPlatformAsync } from
 import { BuildContext } from '../context';
 import { transformMetadata } from '../graphql';
 import { IosMetadataContext } from '../metadata';
-import { Platform } from '../types';
 import { checkGoogleServicesFileAsync, checkNodeEnvVariable } from '../validate';
 import { validateAndSyncProjectConfigurationAsync } from './configure';
 import { ensureIosCredentialsAsync } from './credentials';

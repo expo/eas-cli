@@ -1,5 +1,3 @@
-export { Platform } from '@expo/eas-build-job';
-
 export enum RequestedPlatform {
   Android = 'android',
   Ios = 'ios',

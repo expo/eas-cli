@@ -1,8 +1,8 @@
+import { Platform } from '@expo/eas-build-job';
 import fs from 'fs-extra';
 
 import {
   AndroidSubmissionConfigInput,
-  AppPlatform,
   SubmissionAndroidReleaseStatus,
   SubmissionAndroidTrack,
   SubmissionFragment,
@@ -36,7 +36,7 @@ interface ResolvedSourceOptions {
 }
 
 export default class AndroidSubmitter extends BaseSubmitter<
-  AppPlatform.Android,
+  Platform.ANDROID,
   AndroidSubmissionOptions
 > {
   async submitAsync(): Promise<SubmissionFragment> {
@@ -59,7 +59,7 @@ export default class AndroidSubmitter extends BaseSubmitter<
     projectId,
     submissionConfig,
     buildId,
-  }: SubmissionInput<AppPlatform.Android>): Promise<SubmissionFragment> {
+  }: SubmissionInput<Platform.ANDROID>): Promise<SubmissionFragment> {
     return await SubmissionMutation.createAndroidSubmissionAsync({
       appId: projectId,
       config: submissionConfig,

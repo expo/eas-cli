@@ -1,8 +1,10 @@
+import { Platform } from '@expo/eas-build-job';
 import chalk from 'chalk';
-import { URL, parse as parseUrl } from 'url';
+import { URL } from 'url';
 import * as uuid from 'uuid';
 
-import { AppPlatform, BuildFragment } from '../graphql/generated';
+import { BuildFragment } from '../graphql/generated';
+import { toAppPlatform } from '../graphql/types/AppPlatform';
 import Log from '../log';
 import { promptAsync } from '../prompts';
 import { getBuildByIdForSubmissionAsync, getLatestBuildForSubmissionAsync } from './utils/builds';
@@ -18,7 +20,7 @@ export enum ArchiveSourceType {
 
 interface ArchiveSourceBase {
   sourceType: ArchiveSourceType;
-  platform: AppPlatform;
+  platform: Platform;
   projectId: string;
 }
 
@@ -94,7 +96,10 @@ async function handleUrlSourceAsync(source: ArchiveUrlSource): Promise<Archive> 
 
 async function handleLatestSourceAsync(source: ArchiveLatestSource): Promise<Archive> {
   try {
-    const latestBuild = await getLatestBuildForSubmissionAsync(source.platform, source.projectId);
+    const latestBuild = await getLatestBuildForSubmissionAsync(
+      toAppPlatform(source.platform),
+      source.projectId
+    );
 
     if (!latestBuild) {
       Log.error(
@@ -138,7 +143,7 @@ async function handlePathSourceAsync(source: ArchivePathSource): Promise<Archive
 
 async function handleBuildIdSourceAsync(source: ArchiveBuildIdSource): Promise<Archive> {
   try {
-    const build = await getBuildByIdForSubmissionAsync(source.platform, source.id);
+    const build = await getBuildByIdForSubmissionAsync(toAppPlatform(source.platform), source.id);
     return {
       build,
       source,
@@ -234,8 +239,8 @@ async function askForArchiveUrlAsync(): Promise<string> {
   return url;
 }
 
-async function askForArchivePathAsync(platform: AppPlatform): Promise<string> {
-  const isIos = platform === AppPlatform.Ios;
+async function askForArchivePathAsync(platform: Platform): Promise<string> {
+  const isIos = platform === Platform.IOS;
   const defaultArchivePath = `/path/to/your/archive.${isIos ? 'ipa' : 'aab'}`;
   const { path } = await promptAsync({
     name: 'path',
@@ -274,9 +279,7 @@ async function askForBuildIdAsync(): Promise<string> {
 function validateUrl(url: string): boolean {
   const protocols = ['http', 'https'];
   try {
-    // eslint-disable-next-line no-new
-    new URL(url);
-    const parsed = parseUrl(url);
+    const parsed = new URL(url);
     return protocols
       ? parsed.protocol
         ? protocols.map(x => `${x.toLowerCase()}:`).includes(parsed.protocol)

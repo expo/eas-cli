@@ -1,9 +1,11 @@
+import { Platform } from '@expo/eas-build-job';
 import fs from 'fs-extra';
 import { vol } from 'memfs';
 import { v4 as uuidv4 } from 'uuid';
 
 import { asMock } from '../../__tests__/utils';
 import { AppPlatform, BuildFragment, UploadSessionType } from '../../graphql/generated';
+import { toAppPlatform } from '../../graphql/types/AppPlatform';
 import { promptAsync } from '../../prompts';
 import { uploadAsync } from '../../uploads';
 import { Archive, ArchiveSourceType, getArchiveAsync } from '../ArchiveSource';
@@ -28,7 +30,7 @@ const MOCK_BUILD_FRAGMENT: Partial<BuildFragment> = {
 
 const SOURCE_STUB_INPUT = {
   projectId: uuidv4(),
-  platform: AppPlatform.Android,
+  platform: Platform.ANDROID,
   projectDir: '.',
 };
 
@@ -90,7 +92,10 @@ describe(getArchiveAsync, () => {
       id: buildId,
     });
 
-    expect(getBuildByIdForSubmissionAsync).toBeCalledWith(SOURCE_STUB_INPUT.platform, buildId);
+    expect(getBuildByIdForSubmissionAsync).toBeCalledWith(
+      toAppPlatform(SOURCE_STUB_INPUT.platform),
+      buildId
+    );
     assertArchiveResult(archive, ArchiveSourceType.buildId);
   });
 
@@ -119,7 +124,10 @@ describe(getArchiveAsync, () => {
       sourceType: ArchiveSourceType.latest,
     });
 
-    expect(getLatestBuildForSubmissionAsync).toBeCalledWith(SOURCE_STUB_INPUT.platform, projectId);
+    expect(getLatestBuildForSubmissionAsync).toBeCalledWith(
+      toAppPlatform(SOURCE_STUB_INPUT.platform),
+      projectId
+    );
     assertArchiveResult(archive, ArchiveSourceType.latest);
   });
 

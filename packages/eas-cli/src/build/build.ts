@@ -1,4 +1,4 @@
-import { ArchiveSource, ArchiveSourceType, Job, Metadata } from '@expo/eas-build-job';
+import { ArchiveSource, ArchiveSourceType, Job, Metadata, Platform } from '@expo/eas-build-job';
 import { CredentialsSource } from '@expo/eas-json';
 import chalk from 'chalk';
 import fs from 'fs-extra';
@@ -19,7 +19,7 @@ import { requestedPlatformDisplayNames } from './constants';
 import { BuildContext } from './context';
 import { runLocalBuildAsync } from './local';
 import { MetadataContext, collectMetadata } from './metadata';
-import { Platform, TrackingContext } from './types';
+import { TrackingContext } from './types';
 import Analytics, { Event } from './utils/analytics';
 import { printDeprecationWarnings } from './utils/printBuildInfo';
 import { commitPromptAsync, makeProjectTarballAsync } from './utils/repository';

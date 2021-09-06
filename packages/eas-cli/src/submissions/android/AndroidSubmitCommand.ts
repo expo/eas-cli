@@ -1,10 +1,10 @@
 import { getConfig } from '@expo/config';
+import { Platform } from '@expo/eas-build-job';
 import { AndroidReleaseStatus, AndroidReleaseTrack, AndroidSubmitProfile } from '@expo/eas-json';
 import { Result, result } from '@expo/results';
 import capitalize from 'lodash/capitalize';
 
 import {
-  AppPlatform,
   SubmissionAndroidReleaseStatus,
   SubmissionAndroidTrack,
   SubmissionFragment,
@@ -29,17 +29,17 @@ export default class AndroidSubmitCommand {
     profile: AndroidSubmitProfile;
     projectDir: string;
     projectId: string;
-  }): SubmissionContext<AppPlatform.Android> {
+  }): SubmissionContext<Platform.ANDROID> {
     return {
       archiveFlags,
-      platform: AppPlatform.Android,
+      platform: Platform.ANDROID,
       profile,
       projectDir,
       projectId,
     };
   }
 
-  constructor(private ctx: SubmissionContext<AppPlatform.Android>) {}
+  constructor(private ctx: SubmissionContext<Platform.ANDROID>) {}
 
   async runAsync(): Promise<SubmissionFragment> {
     Log.addNewLineIfNone();
@@ -147,7 +147,7 @@ export default class AndroidSubmitCommand {
   }
 
   private resolveArchiveSource(): Result<ArchiveSource> {
-    return result(resolveArchiveSource(this.ctx, AppPlatform.Android));
+    return result(resolveArchiveSource(this.ctx, Platform.ANDROID));
   }
 
   private resolveServiceAccountSource(): Result<ServiceAccountSource> {

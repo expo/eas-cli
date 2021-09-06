@@ -1,4 +1,4 @@
-import { Workflow } from '@expo/eas-build-job';
+import { Platform, Workflow } from '@expo/eas-build-job';
 import {
   EasJsonReader,
   hasMismatchedExtendsAsync,
@@ -13,7 +13,7 @@ import { BuildRequestSender, waitForBuildEndAsync } from '../../build/build';
 import { ensureProjectConfiguredAsync } from '../../build/configure';
 import { BuildContext, createBuildContextAsync } from '../../build/context';
 import { prepareIosBuildAsync } from '../../build/ios/build';
-import { Platform, RequestedPlatform } from '../../build/types';
+import { RequestedPlatform } from '../../build/types';
 import { printBuildResults, printLogsUrls } from '../../build/utils/printBuildInfo';
 import { ensureRepoIsCleanAsync } from '../../build/utils/repository';
 import EasCommand from '../../commandUtils/EasCommand';

@@ -1,10 +1,10 @@
+import { Platform } from '@expo/eas-build-job';
 import { exit } from '@oclif/errors';
 import chalk from 'chalk';
 import type MetroConfig from 'metro-config';
 import resolveFrom from 'resolve-from';
 
 import { BuildContext } from '../build/context';
-import { Platform } from '../build/types';
 import Log, { learnMore } from '../log';
 import { confirmAsync } from '../prompts';
 

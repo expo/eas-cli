@@ -1,10 +1,10 @@
+import { Platform } from '@expo/eas-build-job';
 import * as uuid from 'uuid';
 
-import { AppPlatform } from '../graphql/generated';
 import { ArchiveSource, ArchiveSourceType } from './ArchiveSource';
 import { SubmissionContext } from './types';
 
-export function resolveArchiveSource<T extends AppPlatform>(
+export function resolveArchiveSource<T extends Platform>(
   ctx: SubmissionContext<T>,
   platform: T
 ): ArchiveSource {

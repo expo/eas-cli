@@ -1,5 +1,5 @@
 import { ExpoConfig } from '@expo/config';
-import { Workflow } from '@expo/eas-build-job';
+import { Platform, Workflow } from '@expo/eas-build-job';
 import { AndroidBuildProfile, BuildProfile, IosBuildProfile } from '@expo/eas-json';
 import JsonFile from '@expo/json-file';
 import resolveFrom from 'resolve-from';
@@ -11,7 +11,7 @@ import { resolveWorkflowAsync } from '../project/workflow';
 import { findAccountByName } from '../user/Account';
 import { Actor } from '../user/User';
 import { ensureLoggedInAsync } from '../user/actions';
-import { Platform, RequestedPlatform, TrackingContext } from './types';
+import { RequestedPlatform, TrackingContext } from './types';
 import Analytics, { Event } from './utils/analytics';
 
 export interface ConfigureContext {

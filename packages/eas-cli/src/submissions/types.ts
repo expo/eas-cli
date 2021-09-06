@@ -1,11 +1,10 @@
-import { AndroidSubmitProfile, IosSubmitProfile } from '@expo/eas-json';
+import { Platform } from '@expo/eas-build-job';
+import { SubmitProfile } from '@expo/eas-json';
 
-import { AppPlatform } from '../graphql/generated';
-
-export interface SubmissionContext<T extends AppPlatform> {
+export interface SubmissionContext<T extends Platform> {
   archiveFlags: SubmitArchiveFlags;
   platform: T;
-  profile: T extends AppPlatform.Android ? AndroidSubmitProfile : IosSubmitProfile;
+  profile: SubmitProfile<T>;
   projectDir: string;
   projectId: string;
 }

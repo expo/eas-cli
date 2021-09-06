@@ -1,4 +1,4 @@
-import { Android, ArchiveSource, Job, sanitizeJob } from '@expo/eas-build-job';
+import { Android, ArchiveSource, Job, Platform, sanitizeJob } from '@expo/eas-build-job';
 import { AndroidBuildProfile } from '@expo/eas-json';
 import path from 'path';
 
@@ -7,7 +7,6 @@ import { getUsername } from '../../project/projectUtils';
 import { ensureLoggedInAsync } from '../../user/actions';
 import vcs from '../../vcs';
 import { BuildContext } from '../context';
-import { Platform } from '../types';
 
 interface JobData {
   projectArchive: ArchiveSource;

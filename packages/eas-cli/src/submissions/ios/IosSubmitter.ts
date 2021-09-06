@@ -1,4 +1,6 @@
-import { AppPlatform, IosSubmissionConfigInput, SubmissionFragment } from '../../graphql/generated';
+import { Platform } from '@expo/eas-build-job';
+
+import { IosSubmissionConfigInput, SubmissionFragment } from '../../graphql/generated';
 import { SubmissionMutation } from '../../graphql/mutations/SubmissionMutation';
 import { Archive, ArchiveSource, getArchiveAsync } from '../ArchiveSource';
 import BaseSubmitter, { SubmissionInput } from '../BaseSubmitter';
@@ -24,7 +26,7 @@ interface ResolvedSourceOptions {
   appSpecificPassword: string;
 }
 
-export default class IosSubmitter extends BaseSubmitter<AppPlatform.Ios, IosSubmissionOptions> {
+export default class IosSubmitter extends BaseSubmitter<Platform.IOS, IosSubmissionOptions> {
   async submitAsync(): Promise<SubmissionFragment> {
     const resolvedSourceOptions = await this.resolveSourceOptions();
     const submissionConfig = await this.formatSubmissionConfigAsync(
@@ -48,7 +50,7 @@ export default class IosSubmitter extends BaseSubmitter<AppPlatform.Ios, IosSubm
     projectId,
     submissionConfig,
     buildId,
-  }: SubmissionInput<AppPlatform.Ios>): Promise<SubmissionFragment> {
+  }: SubmissionInput<Platform.IOS>): Promise<SubmissionFragment> {
     return await SubmissionMutation.createIosSubmissionAsync({
       appId: projectId,
       config: submissionConfig,
