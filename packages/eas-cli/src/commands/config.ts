@@ -8,7 +8,6 @@ import { getExpoConfig } from '../project/expoConfig';
 import { findProjectRootAsync } from '../project/projectUtils';
 import { selectAsync } from '../prompts';
 import { handleDeprecatedEasJsonAsync } from './build';
-export { Platform } from '@expo/eas-build-job';
 
 export default class Config extends Command {
   static description = 'Show the eas.json config';
