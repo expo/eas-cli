@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Fix `eas build` from throwing an exception when detecting git core.ignorecase ([#592](https://github.com/expo/eas-cli/pull/592) by [@mwillbanks](https://github.com/mwillbanks))
+
 ### 🧹 Chores
 
 ## [0.25.0](https://github.com/expo/eas-cli/releases/tag/v0.25.0) - 2021-09-01
