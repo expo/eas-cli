@@ -4,7 +4,7 @@ import Log from '../log';
 import UserSettings from '../user/UserSettings';
 
 export default class AnalyticsView extends Command {
-  static description = 'View or change analytics settings';
+  static description = 'view or change analytics settings';
 
   static args = [{ name: 'STATUS', options: ['on', 'off'] }];
 

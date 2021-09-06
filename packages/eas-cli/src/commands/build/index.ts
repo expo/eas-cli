@@ -53,7 +53,7 @@ interface BuildFlags {
 }
 
 export default class Build extends EasCommand {
-  static description = 'Start a build';
+  static description = 'start a build';
 
   static flags = {
     platform: flags.enum({ char: 'p', options: ['android', 'ios', 'all'] }),

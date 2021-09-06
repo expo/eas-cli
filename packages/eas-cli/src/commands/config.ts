@@ -11,7 +11,7 @@ import { handleDeprecatedEasJsonAsync } from './build';
 export { Platform } from '@expo/eas-build-job';
 
 export default class Config extends Command {
-  static description = 'Show the eas.json config';
+  static description = 'show the eas.json config';
 
   static flags = {
     platform: flags.enum({ char: 'p', options: ['android', 'ios'] }),

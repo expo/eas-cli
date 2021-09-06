@@ -90,13 +90,19 @@ export default class Log {
  */
 export function learnMore(
   url: string,
-  { learnMoreMessage, dim = true }: { learnMoreMessage?: string; dim?: boolean } = {}
+  {
+    learnMoreMessage: maybeLearnMoreMessage,
+    dim = true,
+  }: { learnMoreMessage?: string; dim?: boolean } = {}
 ): string {
   // Links can be disabled via env variables https://github.com/jamestalmage/supports-hyperlinks/blob/master/index.js
   if (terminalLink.isSupported) {
-    const text = terminalLink(learnMoreMessage ?? 'Learn more.', url);
+    const text = terminalLink(maybeLearnMoreMessage ?? 'Learn more.', url);
     return dim ? chalk.dim(text) : text;
   }
-  const text = `${learnMoreMessage ?? 'Learn more'}: ${chalk.underline(url)}`;
+  const learnMoreMessage = maybeLearnMoreMessage ?? 'Learn more';
+  const text = `${
+    learnMoreMessage === '' ? learnMoreMessage : `${learnMoreMessage}: `
+  }${chalk.underline(url)}`;
   return dim ? chalk.dim(text) : text;
 }

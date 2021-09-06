@@ -28,7 +28,10 @@ interface Flags {
 }
 
 export default class BuildSubmit extends EasCommand {
-  static description = 'Submit build archive to app store';
+  static description = `submit build archive to app store
+See how to configure submits with eas.json: ${learnMore('https://docs.expo.dev/submit/eas-json/', {
+    learnMoreMessage: '',
+  })}`;
   static aliases = ['build:submit'];
 
   static flags = {
@@ -137,7 +140,7 @@ export default class BuildSubmit extends EasCommand {
             '- It usually takes about 5-10 minutes depending on how busy Apple servers are.',
             // ascAppIdentifier should be always available for ios submissions but check it anyway
             submission.iosConfig?.ascAppIdentifier &&
-              `- When it’s done, you can see your build here ${learnMore(
+              `- When it’s done, you can see your build here: ${learnMore(
                 `https://appstoreconnect.apple.com/apps/${submission.iosConfig?.ascAppIdentifier}/appstore/ios`,
                 { learnMoreMessage: '' }
               )}`,
