@@ -135,9 +135,10 @@ export default class BuildSubmit extends EasCommand {
             chalk.bold('Your binary has been successfully uploaded to App Store Connect!'),
             '- It is now being processed by Apple - you will receive an e-mail when the processing finishes.',
             '- It usually takes about 5-10 minutes depending on how busy Apple servers are.',
-            iosSubmitProfile?.ascAppId &&
+            // ascAppIdentifier should be always available for ios submissions but check it anyway
+            submission.iosConfig?.ascAppIdentifier &&
               `- When it’s done, you can see your build here ${learnMore(
-                `https://appstoreconnect.apple.com/apps/${iosSubmitProfile.ascAppId}/appstore/ios`,
+                `https://appstoreconnect.apple.com/apps/${submission.iosConfig?.ascAppIdentifier}/appstore/ios`,
                 { learnMoreMessage: '' }
               )}`,
           ].join('\n');

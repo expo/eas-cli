@@ -13,6 +13,15 @@ export const SubmissionFragmentNode = gql`
         name
       }
     }
+    androidConfig {
+      applicationIdentifier
+      track
+      releaseStatus
+    }
+    iosConfig {
+      ascAppIdentifier
+      appleIdUsername
+    }
     error {
       errorCode
       message

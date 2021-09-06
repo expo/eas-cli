@@ -4851,29 +4851,6 @@ export type UpdatePublishMutation = (
   ) }
 );
 
-export type CreateSubmissionMutationVariables = Exact<{
-  appId: Scalars['ID'];
-  platform: AppPlatform;
-  config: Scalars['JSONObject'];
-  submittedBuildId?: Maybe<Scalars['ID']>;
-}>;
-
-
-export type CreateSubmissionMutation = (
-  { __typename?: 'RootMutation' }
-  & { submission: (
-    { __typename?: 'SubmissionMutation' }
-    & { createSubmission: (
-      { __typename?: 'CreateSubmissionResult' }
-      & { submission: (
-        { __typename?: 'Submission' }
-        & Pick<Submission, 'id'>
-        & SubmissionFragment
-      ) }
-    ) }
-  ) }
-);
-
 export type CreateAndroidSubmissionMutationVariables = Exact<{
   appId: Scalars['ID'];
   config: AndroidSubmissionConfigInput;
@@ -5253,7 +5230,13 @@ export type SubmissionFragment = (
       { __typename?: 'Account' }
       & Pick<Account, 'id' | 'name'>
     ) }
-  ), error?: Maybe<(
+  ), androidConfig?: Maybe<(
+    { __typename?: 'AndroidSubmissionConfig' }
+    & Pick<AndroidSubmissionConfig, 'applicationIdentifier' | 'track' | 'releaseStatus'>
+  )>, iosConfig?: Maybe<(
+    { __typename?: 'IosSubmissionConfig' }
+    & Pick<IosSubmissionConfig, 'ascAppIdentifier' | 'appleIdUsername'>
+  )>, error?: Maybe<(
     { __typename?: 'SubmissionError' }
     & Pick<SubmissionError, 'errorCode' | 'message'>
   )> }
