@@ -1,0 +1,14 @@
+name: "\U0001F64B Enhancement"
+labels: 'enhancement'
+description: 'Want us to add something to EAS CLI?'
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for helping us make EAS even better! 😀 Unfortunately, this is not the right place for feature requests. Please find and upvote your feature (or create a new one) at https://expo.canny.io instead.
+  - type: dropdown
+    validations:
+      required: true
+    attributes:
+      label: Do you understand that any feature requests opened in this repository will be closed?
+      options:
+        - 'Yes'
