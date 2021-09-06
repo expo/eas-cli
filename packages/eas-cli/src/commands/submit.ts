@@ -23,7 +23,7 @@ interface Flags {
   verbose: boolean;
   wait: boolean;
   platform?: Platform;
-  profile: string;
+  profile?: string;
   archiveFlags: SubmitArchiveFlags;
 }
 
@@ -37,8 +37,8 @@ export default class BuildSubmit extends EasCommand {
       options: ['android', 'ios'],
     }),
     profile: flags.string({
-      default: 'release',
-      description: 'Name of the submit profile from eas.json',
+      description:
+        'Name of the submit profile from eas.json. Defaults to "release" if defined in eas.json.',
     }),
     latest: flags.boolean({
       description: 'Submit the latest build for specified platform',
@@ -90,8 +90,8 @@ export default class BuildSubmit extends EasCommand {
     let iosSubmitProfile: IosSubmitProfile | null = null;
     if (platform === AppPlatform.Android) {
       const submitProfile = await easJsonReader.readSubmitProfileAsync(
-        flags.profile,
-        Platform.ANDROID
+        Platform.ANDROID,
+        flags.profile
       );
       const ctx = AndroidSubmitCommand.createContext({
         projectDir,
@@ -102,7 +102,7 @@ export default class BuildSubmit extends EasCommand {
       const command = new AndroidSubmitCommand(ctx);
       submissions.push(await command.runAsync());
     } else {
-      iosSubmitProfile = await easJsonReader.readSubmitProfileAsync(flags.profile, Platform.IOS);
+      iosSubmitProfile = await easJsonReader.readSubmitProfileAsync(Platform.IOS, flags.profile);
       const ctx = IosSubmitCommand.createContext({
         projectDir,
         projectId,

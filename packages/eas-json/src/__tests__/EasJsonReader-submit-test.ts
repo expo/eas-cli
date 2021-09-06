@@ -22,8 +22,8 @@ test('minimal allowed eas.json for both platforms', async () => {
   });
 
   const reader = new EasJsonReader('/project');
-  const iosProfile = await reader.readSubmitProfileAsync('release', Platform.IOS);
-  const androidProfile = await reader.readSubmitProfileAsync('release', Platform.ANDROID);
+  const iosProfile = await reader.readSubmitProfileAsync(Platform.IOS, 'release');
+  const androidProfile = await reader.readSubmitProfileAsync(Platform.ANDROID, 'release');
 
   expect(androidProfile).toEqual({
     changesNotSentForReview: false,
@@ -49,7 +49,7 @@ test('android config with all required values', async () => {
   });
 
   const reader = new EasJsonReader('/project');
-  const androidProfile = await reader.readSubmitProfileAsync('release', Platform.ANDROID);
+  const androidProfile = await reader.readSubmitProfileAsync(Platform.ANDROID, 'release');
 
   expect(androidProfile).toEqual({
     serviceAccountKeyPath: './path.json',
@@ -73,7 +73,7 @@ test('ios config with all required values', async () => {
   });
 
   const reader = new EasJsonReader('/project');
-  const iosProfile = await reader.readSubmitProfileAsync('release', Platform.IOS);
+  const iosProfile = await reader.readSubmitProfileAsync(Platform.IOS, 'release');
 
   expect(iosProfile).toEqual({
     appleId: 'some@email.com',
@@ -97,7 +97,7 @@ test('missing ios profile', async () => {
   });
 
   const reader = new EasJsonReader('/project');
-  const promise = reader.readSubmitProfileAsync('release', Platform.IOS);
+  const promise = reader.readSubmitProfileAsync(Platform.IOS, 'release');
 
   expect(promise).rejects.toThrow('There is no profile named release in eas.json for ios.');
 });

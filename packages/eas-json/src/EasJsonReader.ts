@@ -5,10 +5,11 @@ import path from 'path';
 import { BuildProfile } from './EasBuild.types';
 import { CredentialsSource, EasJson, RawBuildProfile } from './EasJson.types';
 import { EasJsonSchema, MinimalEasJsonSchema } from './EasJsonSchema';
-import { SubmitProfile } from './EasSubmit.types';
+import { AndroidReleaseStatus, AndroidReleaseTrack, SubmitProfile } from './EasSubmit.types';
 
 interface EasJsonPreValidation {
   build: { [profile: string]: object };
+  submit?: { [profile: string]: object };
 }
 
 const defaults = {
@@ -28,17 +29,32 @@ export class EasJsonReader {
     return Object.keys(easJson?.build ?? {});
   }
 
+  public async getSubmitProfileNamesAsync({ throwIfEasJsonDoesNotExist = true } = {}): Promise<
+    string[]
+  > {
+    try {
+      const easJson = await this.readRawAsync();
+      return Object.keys(easJson?.submit ?? {});
+    } catch (err: any) {
+      if (!throwIfEasJsonDoesNotExist && err.code === 'ENOENT') {
+        return [];
+      } else {
+        throw err;
+      }
+    }
+  }
+
   public async readBuildProfileAsync<T extends Platform>(
-    buildProfileName: string,
-    platform: T
+    platform: T,
+    profileName: string
   ): Promise<BuildProfile<T>> {
     const easJson = await this.readAndValidateAsync();
-    this.ensureBuildProfileExists(easJson, buildProfileName);
+    this.ensureBuildProfileExists(easJson, profileName);
     const {
       android: resolvedAndroidSpecificValues,
       ios: resolvedIosSpecificValues,
       ...resolvedProfile
-    } = this.resolveBuildProfile(easJson, buildProfileName);
+    } = this.resolveBuildProfile(easJson, profileName);
     if (platform === Platform.ANDROID) {
       const profileWithoutDefaults = profileMerge(
         resolvedProfile,
@@ -54,9 +70,19 @@ export class EasJsonReader {
   }
 
   public async readSubmitProfileAsync<T extends Platform>(
-    profileName: string,
-    platform: T
+    platform: T,
+    profileName?: string
   ): Promise<SubmitProfile<T>> {
+    if (!profileName) {
+      const profileNames = await this.getSubmitProfileNamesAsync({
+        throwIfEasJsonDoesNotExist: false,
+      });
+      if ('release' in profileNames) {
+        return await this.readSubmitProfileAsync(platform, 'release');
+      } else {
+        return getDefaultSubmitProfile(platform);
+      }
+    }
     const easJson = await this.readAndValidateAsync();
     const profile = easJson?.submit?.[profileName]?.[platform];
     if (!profile) {
@@ -143,4 +169,20 @@ export function profileMerge(base: RawBuildProfile, update: RawBuildProfile): Ra
     result.ios = profileMerge(base.ios, update.ios);
   }
   return result;
+}
+
+function getDefaultSubmitProfile<T extends Platform>(platform: T): SubmitProfile<T> {
+  if (platform === Platform.ANDROID) {
+    const defaultAndroidProfile: SubmitProfile<Platform.ANDROID> = {
+      changesNotSentForReview: false,
+      releaseStatus: AndroidReleaseStatus.completed,
+      track: AndroidReleaseTrack.internal,
+    };
+    return defaultAndroidProfile as SubmitProfile<T>;
+  } else {
+    const defaultIosProfile: SubmitProfile<Platform.IOS> = {
+      language: 'en-US',
+    };
+    return defaultIosProfile as SubmitProfile<T>;
+  }
 }

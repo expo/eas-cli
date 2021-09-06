@@ -1,6 +1,6 @@
 import { getConfig } from '@expo/config';
 import { Platform, Workflow } from '@expo/eas-build-job';
-import { EasJsonReader } from '@expo/eas-json';
+import { EasJson, EasJsonReader } from '@expo/eas-json';
 import { error } from '@oclif/errors';
 import chalk from 'chalk';
 import fs from 'fs-extra';
@@ -95,24 +95,34 @@ export async function configureAsync(options: {
   }
 }
 
-const MANAGED_DEFAULTS = {
-  release: {},
-  development: {
-    developmentClient: true,
-    distribution: 'internal',
+const EAS_JSON_MANAGED_DEFAULT: EasJson = {
+  build: {
+    release: {},
+    development: {
+      developmentClient: true,
+      distribution: 'internal',
+    },
+  },
+  submit: {
+    release: {},
   },
 };
 
-const GENERIC_DEFAULTS = {
-  release: {},
-  development: {
-    distribution: 'internal',
-    android: {
-      gradleCommand: ':app:assembleDebug',
+const EAS_JSON_GENERIC_DEFAULT: EasJson = {
+  build: {
+    release: {},
+    development: {
+      distribution: 'internal',
+      android: {
+        gradleCommand: ':app:assembleDebug',
+      },
+      ios: {
+        buildConfiguration: 'Debug',
+      },
     },
-    ios: {
-      buildConfiguration: 'Debug',
-    },
+  },
+  submit: {
+    release: {},
   },
 };
 
@@ -129,8 +139,8 @@ export async function ensureEasJsonExistsAsync(ctx: ConfigureContext): Promise<v
 
   const easJson =
     ctx.hasAndroidNativeProject && ctx.hasIosNativeProject
-      ? { build: GENERIC_DEFAULTS }
-      : { build: MANAGED_DEFAULTS };
+      ? EAS_JSON_GENERIC_DEFAULT
+      : EAS_JSON_MANAGED_DEFAULT;
 
   await fs.writeFile(easJsonPath, `${JSON.stringify(easJson, null, 2)}\n`);
   await vcs.trackFileAsync(easJsonPath);

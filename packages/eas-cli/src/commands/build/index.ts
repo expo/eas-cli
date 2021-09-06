@@ -117,7 +117,7 @@ export default class Build extends EasCommand {
       const ctx = await createBuildContextAsync({
         buildProfileName: flags.profile,
         clearCache: flags.clearCache,
-        buildProfile: await easJsonReader.readBuildProfileAsync(flags.profile, platform),
+        buildProfile: await easJsonReader.readBuildProfileAsync(platform, flags.profile),
         local: flags.local,
         nonInteractive: flags.nonInteractive,
         platform,

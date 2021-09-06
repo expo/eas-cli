@@ -53,7 +53,7 @@ export default class Config extends Command {
         },
       ]));
 
-    const profile = await reader.readBuildProfileAsync(profileName, platform);
+    const profile = await reader.readBuildProfileAsync(platform, profileName);
     const config = getExpoConfig(projectDir, { env: profile.env, isPublicConfig: true });
 
     Log.log(getProjectConfigDescription(projectDir));
