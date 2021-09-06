@@ -8,9 +8,11 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Add `eas diagnostics` command. ([#594](https://github.com/expo/eas-cli/pull/594) by [@dsokal](https://github.com/dsokal))
+
 ### 🐛 Bug fixes
 
-- Fix `eas build` from throwing an exception when detecting git core.ignorecase ([#592](https://github.com/expo/eas-cli/pull/592) by [@mwillbanks](https://github.com/mwillbanks))
+- Fix `eas build` from throwing an exception when detecting the git `core.ignorecase` setting. ([#592](https://github.com/expo/eas-cli/pull/592) by [@mwillbanks](https://github.com/mwillbanks))
 
 ### 🧹 Chores
 
