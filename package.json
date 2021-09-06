@@ -15,7 +15,6 @@
     "test": "jest"
   },
   "devDependencies": {
-    "@babel/core": "7.15.0",
     "@expo/oclif-dev-cli": "1.24.0-expo",
     "@types/jest": "27.0.1",
     "@types/node": "16.7.8",
