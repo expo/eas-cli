@@ -82,7 +82,7 @@ export class EasJsonReader {
       const profileNames = await this.getSubmitProfileNamesAsync({
         throwIfEasJsonDoesNotExist: false,
       });
-      if ('release' in profileNames) {
+      if (profileNames.includes('release')) {
         return await this.readSubmitProfileAsync(platform, 'release');
       } else {
         return getDefaultSubmitProfile(platform);
