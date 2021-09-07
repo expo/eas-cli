@@ -4,7 +4,7 @@ import spawnAsync from '@expo/spawn-async';
 import crypto from 'crypto';
 import fs from 'fs';
 import Joi from 'joi';
-import { uniqBy } from 'lodash';
+import uniqBy from 'lodash/uniqBy';
 import mime from 'mime';
 import path from 'path';
 

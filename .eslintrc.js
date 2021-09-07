@@ -21,6 +21,13 @@ module.exports = {
     'flowtype/no-types-missing-file-annotation': 'off',
     curly: 'warn',
     'import/no-relative-packages': 'error',
+    'no-restricted-imports': [
+      'error',
+      {
+        name: 'lodash',
+        message: "Please import directly to keep bundle size low: import foo from 'lodash/foo'",
+      },
+    ],
   },
   settings: {
     react: {
