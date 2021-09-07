@@ -1,4 +1,4 @@
-import { ArchiveSource, Ios, Job, sanitizeJob } from '@expo/eas-build-job';
+import { ArchiveSource, Ios, Job, Platform, sanitizeJob } from '@expo/eas-build-job';
 import path from 'path';
 import semver from 'semver';
 
@@ -7,7 +7,6 @@ import { getUsername } from '../../project/projectUtils';
 import { ensureLoggedInAsync } from '../../user/actions';
 import vcs from '../../vcs';
 import { BuildContext } from '../context';
-import { Platform } from '../types';
 
 interface JobData {
   projectArchive: ArchiveSource;

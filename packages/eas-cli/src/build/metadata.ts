@@ -1,4 +1,4 @@
-import { Metadata, sanitizeMetadata } from '@expo/eas-build-job';
+import { Metadata, Platform, sanitizeMetadata } from '@expo/eas-build-job';
 import { IosEnterpriseProvisioning } from '@expo/eas-json';
 import type { XCBuildConfiguration } from 'xcode';
 
@@ -18,7 +18,6 @@ import {
   readReleaseChannelSafelyAsync as readIosReleaseChannelSafelyAsync,
 } from './ios/UpdatesModule';
 import { readBuildNumberAsync, readShortVersionAsync } from './ios/version';
-import { Platform } from './types';
 import { isExpoUpdatesInstalled } from './utils/updates';
 
 /**

@@ -10,7 +10,7 @@ import { selectAsync } from '../prompts';
 import { handleDeprecatedEasJsonAsync } from './build';
 
 export default class Config extends Command {
-  static description = 'Show the eas.json config';
+  static description = 'show the eas.json config';
 
   static flags = {
     platform: flags.enum({ char: 'p', options: ['android', 'ios'] }),
@@ -52,7 +52,7 @@ export default class Config extends Command {
         },
       ]));
 
-    const profile = await reader.readBuildProfileAsync(profileName, platform);
+    const profile = await reader.readBuildProfileAsync(platform, profileName);
     const config = getExpoConfig(projectDir, { env: profile.env, isPublicConfig: true });
 
     Log.log(getProjectConfigDescription(projectDir));

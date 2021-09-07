@@ -1,38 +1,33 @@
-import { JSONObject } from '@expo/json-file';
+import { Platform } from '@expo/eas-build-job';
 import ora from 'ora';
 
-import { AppPlatform, SubmissionFragment } from '../graphql/generated';
-import { SubmissionMutation } from '../graphql/mutations/SubmissionMutation';
+import {
+  AndroidSubmissionConfigInput,
+  IosSubmissionConfigInput,
+  SubmissionFragment,
+} from '../graphql/generated';
 import Log from '../log';
-import { AndroidSubmissionConfig } from './android/AndroidSubmissionConfig';
-import { IosSubmissionConfig } from './ios/IosSubmissionConfig';
-import { BaseSubmissionContext } from './types';
+import { SubmissionContext } from './types';
 
-export default abstract class BaseSubmitter<
-  SubmissionContext extends BaseSubmissionContext,
-  SubmissionOptions
-> {
-  protected constructor(
-    private platform: AppPlatform,
-    protected ctx: SubmissionContext,
-    protected options: SubmissionOptions
-  ) {}
+export interface SubmissionInput<P extends Platform> {
+  projectId: string;
+  submissionConfig: P extends Platform.ANDROID
+    ? AndroidSubmissionConfigInput
+    : IosSubmissionConfigInput;
+  buildId?: string;
+}
+export default abstract class BaseSubmitter<P extends Platform, SubmissionOptions> {
+  constructor(protected ctx: SubmissionContext<P>, protected options: SubmissionOptions) {}
 
   public abstract submitAsync(): Promise<SubmissionFragment>;
 
   protected async createSubmissionAsync(
-    submissionConfig: AndroidSubmissionConfig | IosSubmissionConfig,
-    buildId?: string
+    submissionInput: SubmissionInput<P>
   ): Promise<SubmissionFragment> {
     Log.addNewLineIfNone();
     const scheduleSpinner = ora('Scheduling submission').start();
     try {
-      const submission = await SubmissionMutation.createSubmissionAsync({
-        appId: submissionConfig.projectId,
-        platform: this.platform,
-        config: submissionConfig as unknown as JSONObject,
-        submittedBuildId: buildId,
-      });
+      const submission = this.createPlatformSubmissionAsync(submissionInput);
       scheduleSpinner.succeed();
       return submission;
     } catch (err) {
@@ -40,4 +35,8 @@ export default abstract class BaseSubmitter<
       throw err;
     }
   }
+
+  protected abstract createPlatformSubmissionAsync(
+    input: SubmissionInput<P>
+  ): Promise<SubmissionFragment>;
 }

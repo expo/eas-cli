@@ -1,4 +1,4 @@
-import { Android, Metadata, Workflow } from '@expo/eas-build-job';
+import { Android, Metadata, Platform, Workflow } from '@expo/eas-build-job';
 import chalk from 'chalk';
 import nullthrows from 'nullthrows';
 
@@ -21,7 +21,6 @@ import {
 } from '../build';
 import { BuildContext } from '../context';
 import { transformMetadata } from '../graphql';
-import { Platform } from '../types';
 import { logCredentialsSource } from '../utils/credentials';
 import { checkGoogleServicesFileAsync, checkNodeEnvVariable } from '../validate';
 import { validateAndSyncProjectConfigurationAsync } from './configure';

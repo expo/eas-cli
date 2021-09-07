@@ -14,7 +14,7 @@ export class SelectBuildProfileFromEasJson<T extends Platform> {
 
   async runAsync(ctx: Context): Promise<BuildProfile<T>> {
     const profileName = await this.getProfileNameFromEasConfigAsync(ctx);
-    const easConfig = await this.easJsonReader.readBuildProfileAsync<T>(profileName, this.platform);
+    const easConfig = await this.easJsonReader.readBuildProfileAsync<T>(this.platform, profileName);
     Log.succeed(`Using build profile: ${profileName}`);
     return easConfig;
   }

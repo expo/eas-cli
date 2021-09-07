@@ -1,5 +1,6 @@
 import { App, RequestContext, Session, User } from '@expo/apple-utils';
 import { getConfig } from '@expo/config';
+import { Platform } from '@expo/eas-build-job';
 import chalk from 'chalk';
 
 import { authenticateAsync, getRequestContext } from '../../credentials/ios/appstore/authenticate';
@@ -10,7 +11,7 @@ import {
 import Log from '../../log';
 import { getBundleIdentifierAsync } from '../../project/ios/bundleIdentifier';
 import { promptAsync } from '../../prompts';
-import { IosSubmissionContext } from '../types';
+import { SubmissionContext } from '../types';
 import { sanitizeLanguage } from './utils/language';
 
 interface CreateAppOptions {
@@ -24,28 +25,21 @@ interface CreateAppOptions {
 }
 
 type AppStoreResult = {
-  appleId: string;
-  ascAppId: string;
+  appleIdUsername: string;
+  ascAppIdentifier: string;
 };
 
 export async function ensureAppStoreConnectAppExistsAsync(
-  ctx: IosSubmissionContext
+  ctx: SubmissionContext<Platform.IOS>
 ): Promise<AppStoreResult> {
   const projectConfig = getConfig(ctx.projectDir, { skipSDKVersionRequirement: true });
   const { exp } = projectConfig;
 
-  const { bundleIdentifier, appName, language } = ctx.commandFlags;
-
-  // TODO:
-  // - for builds from the database, read bundled identifier from metadata
-  // - for builds uploaded from file system, prompt for the bundle identifier
-  // this is necessary to make submit work outside the project directory
-  const resolvedBundleId =
-    bundleIdentifier ?? (await getBundleIdentifierAsync(ctx.projectDir, exp));
+  const { appName, language } = ctx.profile;
 
   const options = {
-    ...ctx.commandFlags,
-    bundleIdentifier: resolvedBundleId,
+    ...ctx.profile,
+    bundleIdentifier: await getBundleIdentifierAsync(ctx.projectDir, exp),
     appName: appName ?? exp.name ?? (await promptForAppNameAsync()),
     language: sanitizeLanguage(language),
   };
@@ -125,8 +119,8 @@ async function createAppStoreConnectAppAsync(options: CreateAppOptions): Promise
   }
 
   return {
-    appleId: authCtx.appleId,
-    ascAppId: app.id,
+    appleIdUsername: authCtx.appleId,
+    ascAppIdentifier: app.id,
   };
 }
 

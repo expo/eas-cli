@@ -1,3 +1,5 @@
+import { Platform } from '@expo/eas-build-job';
+
 import { createCredentialsContextAsync } from '../../credentials/context';
 import IosCredentialsProvider from '../../credentials/ios/IosCredentialsProvider';
 import { getAppFromContext } from '../../credentials/ios/actions/BuildCredentialsUtils';
@@ -5,7 +7,6 @@ import { resolveEntitlementsJsonAsync } from '../../credentials/ios/appstore/ent
 import { IosCredentials, Target } from '../../credentials/ios/types';
 import { CredentialsResult } from '../build';
 import { BuildContext } from '../context';
-import { Platform } from '../types';
 import { logCredentialsSource } from '../utils/credentials';
 
 export async function ensureIosCredentialsAsync(

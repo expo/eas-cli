@@ -4,11 +4,17 @@ import path from 'path';
 
 import { BuildProfile } from './EasBuild.types';
 import { CredentialsSource, EasJson, RawBuildProfile } from './EasJson.types';
-import { EasJsonSchema, MinimalEasJsonSchema } from './EasJsonSchema';
+import {
+  AndroidSubmitProfileSchema,
+  EasJsonSchema,
+  IosSubmitProfileSchema,
+  MinimalEasJsonSchema,
+} from './EasJsonSchema';
 import { SubmitProfile } from './EasSubmit.types';
 
 interface EasJsonPreValidation {
   build: { [profile: string]: object };
+  submit?: { [profile: string]: object };
 }
 
 const defaults = {
@@ -28,29 +34,32 @@ export class EasJsonReader {
     return Object.keys(easJson?.build ?? {});
   }
 
-  public async readSubmitProfileAsync<T extends Platform>(
-    profileName: string,
-    platform: T
-  ): Promise<SubmitProfile<T>> {
-    const easJson = await this.readAndValidateAsync();
-    const profile = easJson?.submit?.[profileName]?.[platform];
-    if (!profile) {
-      throw new Error(`There is no profile named ${profileName} in eas.json for ${platform}.`);
+  public async getSubmitProfileNamesAsync({ throwIfEasJsonDoesNotExist = true } = {}): Promise<
+    string[]
+  > {
+    try {
+      const easJson = await this.readRawAsync();
+      return Object.keys(easJson?.submit ?? {});
+    } catch (err: any) {
+      if (!throwIfEasJsonDoesNotExist && err.code === 'ENOENT') {
+        return [];
+      } else {
+        throw err;
+      }
     }
-    return profile as SubmitProfile<T>;
   }
 
   public async readBuildProfileAsync<T extends Platform>(
-    buildProfileName: string,
-    platform: T
+    platform: T,
+    profileName: string
   ): Promise<BuildProfile<T>> {
     const easJson = await this.readAndValidateAsync();
-    this.ensureBuildProfileExists(easJson, buildProfileName);
+    this.ensureBuildProfileExists(easJson, profileName);
     const {
       android: resolvedAndroidSpecificValues,
       ios: resolvedIosSpecificValues,
       ...resolvedProfile
-    } = this.resolveBuildProfile(easJson, buildProfileName);
+    } = this.resolveBuildProfile(easJson, profileName);
     if (platform === Platform.ANDROID) {
       const profileWithoutDefaults = profileMerge(
         resolvedProfile,
@@ -63,6 +72,28 @@ export class EasJsonReader {
     } else {
       throw new Error(`Unknown platform ${platform}`);
     }
+  }
+
+  public async readSubmitProfileAsync<T extends Platform>(
+    platform: T,
+    profileName?: string
+  ): Promise<SubmitProfile<T>> {
+    if (!profileName) {
+      const profileNames = await this.getSubmitProfileNamesAsync({
+        throwIfEasJsonDoesNotExist: false,
+      });
+      if (profileNames.includes('release')) {
+        return await this.readSubmitProfileAsync(platform, 'release');
+      } else {
+        return getDefaultSubmitProfile(platform);
+      }
+    }
+    const easJson = await this.readAndValidateAsync();
+    const profile = easJson?.submit?.[profileName]?.[platform];
+    if (!profile) {
+      throw new Error(`There is no profile named ${profileName} in eas.json for ${platform}.`);
+    }
+    return profile as SubmitProfile<T>;
   }
 
   public async readAndValidateAsync(): Promise<EasJson> {
@@ -83,10 +114,7 @@ export class EasJsonReader {
     const rawFile = await fs.readFile(EasJsonReader.formatEasJsonPath(this.projectDir), 'utf8');
     const json = JSON.parse(rawFile);
 
-    const { value, error } = MinimalEasJsonSchema.validate(json, {
-      abortEarly: false,
-    });
-
+    const { value, error } = MinimalEasJsonSchema.validate(json, { abortEarly: false });
     if (error) {
       throw new Error(`eas.json is not valid [${error.toString()}]`);
     }
@@ -143,4 +171,10 @@ export function profileMerge(base: RawBuildProfile, update: RawBuildProfile): Ra
     result.ios = profileMerge(base.ios, update.ios);
   }
   return result;
+}
+
+function getDefaultSubmitProfile<T extends Platform>(platform: T): SubmitProfile<T> {
+  const Schema =
+    platform === Platform.ANDROID ? AndroidSubmitProfileSchema : IosSubmitProfileSchema;
+  return Schema.validate({}, { convert: true }).value;
 }

@@ -1,11 +1,10 @@
-import { Workflow } from '@expo/eas-build-job';
+import { Platform, Workflow } from '@expo/eas-build-job';
 import fs from 'fs-extra';
 import path from 'path';
 
 import Log, { learnMore } from '../log';
 import vcs from '../vcs';
 import { BuildContext } from './context';
-import { Platform } from './types';
 
 export function checkNodeEnvVariable(ctx: BuildContext<Platform>): void {
   if (ctx.buildProfile.env?.NODE_ENV === 'production') {

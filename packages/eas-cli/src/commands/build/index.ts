@@ -1,4 +1,4 @@
-import { Workflow } from '@expo/eas-build-job';
+import { Platform, Workflow } from '@expo/eas-build-job';
 import {
   EasJsonReader,
   hasMismatchedExtendsAsync,
@@ -13,7 +13,7 @@ import { BuildRequestSender, waitForBuildEndAsync } from '../../build/build';
 import { ensureProjectConfiguredAsync } from '../../build/configure';
 import { BuildContext, createBuildContextAsync } from '../../build/context';
 import { prepareIosBuildAsync } from '../../build/ios/build';
-import { Platform, RequestedPlatform } from '../../build/types';
+import { RequestedPlatform } from '../../build/types';
 import { printBuildResults, printLogsUrls } from '../../build/utils/printBuildInfo';
 import { ensureRepoIsCleanAsync } from '../../build/utils/repository';
 import EasCommand from '../../commandUtils/EasCommand';
@@ -53,7 +53,7 @@ interface BuildFlags {
 }
 
 export default class Build extends EasCommand {
-  static description = 'Start a build';
+  static description = 'start a build';
 
   static flags = {
     platform: flags.enum({ char: 'p', options: ['android', 'ios', 'all'] }),
@@ -117,7 +117,7 @@ export default class Build extends EasCommand {
       const ctx = await createBuildContextAsync({
         buildProfileName: flags.profile,
         clearCache: flags.clearCache,
-        buildProfile: await easJsonReader.readBuildProfileAsync(flags.profile, platform),
+        buildProfile: await easJsonReader.readBuildProfileAsync(platform, flags.profile),
         local: flags.local,
         nonInteractive: flags.nonInteractive,
         platform,
@@ -157,10 +157,10 @@ export default class Build extends EasCommand {
   private async sanitizeFlagsAsync(flags: RawBuildFlags): Promise<BuildFlags> {
     const nonInteractive = flags['non-interactive'];
     if (!flags.platform && nonInteractive) {
-      throw new Error('--platform is required when building in non-interactive mode');
+      error('--platform is required when building in non-interactive mode', { exit: 1 });
     }
     if (flags.json && !nonInteractive) {
-      throw new Error('--json is allowed only when building in non-interactive mode');
+      error('--json is allowed only when building in non-interactive mode', { exit: 1 });
     }
     const requestedPlatform =
       (flags.platform as RequestedPlatform | undefined) ?? (await this.promptForPlatformAsync());

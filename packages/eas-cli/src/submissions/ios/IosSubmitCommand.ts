@@ -1,15 +1,17 @@
+import { Platform } from '@expo/eas-build-job';
+import { IosSubmitProfile } from '@expo/eas-json';
 import { Result, result } from '@expo/results';
 import chalk from 'chalk';
 import getenv from 'getenv';
 import wrapAnsi from 'wrap-ansi';
 
-import { AppPlatform, SubmissionFragment } from '../../graphql/generated';
+import { SubmissionFragment } from '../../graphql/generated';
 import Log, { learnMore } from '../../log';
 import { promptAsync } from '../../prompts';
 import UserSettings from '../../user/UserSettings';
-import { ArchiveSource, ArchiveTypeSourceType } from '../archiveSource';
-import { resolveArchiveFileSource } from '../commons';
-import { IosSubmissionContext, IosSubmitCommandFlags } from '../types';
+import { ArchiveSource } from '../ArchiveSource';
+import { resolveArchiveSource } from '../commons';
+import { SubmissionContext, SubmitArchiveFlags } from '../types';
 import { ensureAppStoreConnectAppExistsAsync } from './AppProduce';
 import {
   AppSpecificPasswordSource,
@@ -17,24 +19,28 @@ import {
 } from './AppSpecificPasswordSource';
 import IosSubmitter, { IosSubmissionOptions } from './IosSubmitter';
 
-class IosSubmitCommand {
+export default class IosSubmitCommand {
   static createContext({
+    archiveFlags,
+    profile,
     projectDir,
     projectId,
-    commandFlags,
   }: {
+    archiveFlags: SubmitArchiveFlags;
+    profile: IosSubmitProfile;
     projectDir: string;
     projectId: string;
-    commandFlags: IosSubmitCommandFlags;
-  }): IosSubmissionContext {
+  }): SubmissionContext<Platform.IOS> {
     return {
+      archiveFlags,
+      platform: Platform.IOS,
+      profile,
       projectDir,
       projectId,
-      commandFlags,
     };
   }
 
-  constructor(private ctx: IosSubmissionContext) {}
+  constructor(private ctx: SubmissionContext<Platform.IOS>) {}
 
   async runAsync(): Promise<SubmissionFragment> {
     Log.addNewLineIfNone();
@@ -44,7 +50,7 @@ class IosSubmitCommand {
   }
 
   private async resolveSubmissionOptionsAsync(): Promise<IosSubmissionOptions> {
-    const archiveSource = this.resolveArchiveSource(this.ctx.projectId);
+    const archiveSource = this.resolveArchiveSource();
     const appSpecificPasswordSource = this.resolveAppSpecificPasswordSource();
 
     const errored = [archiveSource, appSpecificPasswordSource].filter(r => !r.ok);
@@ -54,12 +60,12 @@ class IosSubmitCommand {
       throw new Error('Failed to submit the app');
     }
 
-    const { appleId, ascAppId } = await this.getAppStoreInfoAsync();
+    const { appleIdUsername, ascAppIdentifier } = await this.getAppStoreInfoAsync();
 
     return {
       projectId: this.ctx.projectId,
-      appleId,
-      ascAppId,
+      appleIdUsername,
+      ascAppIdentifier,
       archiveSource: archiveSource.enforceValue(),
       appSpecificPasswordSource: appSpecificPasswordSource.enforceValue(),
     };
@@ -80,11 +86,8 @@ class IosSubmitCommand {
     });
   }
 
-  private resolveArchiveSource(projectId: string): Result<ArchiveSource> {
-    return result({
-      archiveFile: resolveArchiveFileSource(AppPlatform.Ios, this.ctx, projectId),
-      archiveType: { sourceType: ArchiveTypeSourceType.infer },
-    });
+  private resolveArchiveSource(): Result<ArchiveSource> {
+    return result(resolveArchiveSource(this.ctx, Platform.IOS));
   }
 
   /**
@@ -94,25 +97,24 @@ class IosSubmitCommand {
    * - App Store Connect app ID (appAppleId)
    */
   private async getAppStoreInfoAsync(): Promise<{
-    appleId: string;
-    ascAppId: string;
+    appleIdUsername: string;
+    ascAppIdentifier: string;
   }> {
-    const { ascAppId } = this.ctx.commandFlags;
+    const { ascAppId } = this.ctx.profile;
 
     if (ascAppId) {
       return {
-        appleId: await this.getAppleIdAsync(),
-        ascAppId,
+        appleIdUsername: await this.getAppleIdAsync(),
+        ascAppIdentifier: ascAppId,
       };
     }
 
     Log.log(
       wrapAnsi(
         chalk.italic(
-          'Ensuring your app exists on App Store Connect. ' +
-            `This step can be skipped by providing the --asc-app-id param. ${learnMore(
-              'https://expo.fyi/asc-app-id'
-            )}`
+          `Ensuring your app exists on App Store Connect. This step can be skipped by providing ascAppId in the submit profile. ${learnMore(
+            'https://expo.fyi/asc-app-id'
+          )}`
         ),
         process.stdout.columns || 80
       )
@@ -127,7 +129,7 @@ class IosSubmitCommand {
    * and we just need apple ID
    */
   private async getAppleIdAsync(): Promise<string> {
-    const { appleId } = this.ctx.commandFlags;
+    const { appleId } = this.ctx.profile;
     const envAppleId = getenv.string('EXPO_APPLE_ID', '');
 
     if (appleId) {
@@ -151,5 +153,3 @@ class IosSubmitCommand {
     return promptAppleId;
   }
 }
-
-export default IosSubmitCommand;

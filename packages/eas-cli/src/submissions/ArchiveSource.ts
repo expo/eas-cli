@@ -1,14 +1,16 @@
+import { Platform } from '@expo/eas-build-job';
 import chalk from 'chalk';
-import { URL, parse as parseUrl } from 'url';
+import { URL } from 'url';
 import * as uuid from 'uuid';
 
-import { AppPlatform, BuildFragment } from '../../graphql/generated';
-import Log from '../../log';
-import { promptAsync } from '../../prompts';
-import { getBuildByIdForSubmissionAsync, getLatestBuildForSubmissionAsync } from '../utils/builds';
-import { isExistingFile, uploadAppArchiveAsync } from '../utils/files';
+import { BuildFragment } from '../graphql/generated';
+import { toAppPlatform } from '../graphql/types/AppPlatform';
+import Log from '../log';
+import { promptAsync } from '../prompts';
+import { getBuildByIdForSubmissionAsync, getLatestBuildForSubmissionAsync } from './utils/builds';
+import { isExistingFile, uploadAppArchiveAsync } from './utils/files';
 
-export enum ArchiveFileSourceType {
+export enum ArchiveSourceType {
   url,
   latest,
   path,
@@ -16,88 +18,88 @@ export enum ArchiveFileSourceType {
   prompt,
 }
 
-interface ArchiveFileSourceBase {
-  sourceType: ArchiveFileSourceType;
-  projectDir: string;
-  platform: AppPlatform;
+interface ArchiveSourceBase {
+  sourceType: ArchiveSourceType;
+  platform: Platform;
   projectId: string;
 }
 
-interface ArchiveFileUrlSource extends ArchiveFileSourceBase {
-  sourceType: ArchiveFileSourceType.url;
+interface ArchiveUrlSource extends ArchiveSourceBase {
+  sourceType: ArchiveSourceType.url;
   url: string;
 }
 
-interface ArchiveFileLatestSource extends ArchiveFileSourceBase {
-  sourceType: ArchiveFileSourceType.latest;
+interface ArchiveLatestSource extends ArchiveSourceBase {
+  sourceType: ArchiveSourceType.latest;
 }
 
-interface ArchiveFilePathSource extends ArchiveFileSourceBase {
-  sourceType: ArchiveFileSourceType.path;
+interface ArchivePathSource extends ArchiveSourceBase {
+  sourceType: ArchiveSourceType.path;
   path: string;
 }
 
-interface ArchiveFileBuildIdSource extends ArchiveFileSourceBase {
-  sourceType: ArchiveFileSourceType.buildId;
+interface ArchiveBuildIdSource extends ArchiveSourceBase {
+  sourceType: ArchiveSourceType.buildId;
   id: string;
 }
 
-interface ArchiveFilePromptSource extends ArchiveFileSourceBase {
-  sourceType: ArchiveFileSourceType.prompt;
+interface ArchivePromptSource extends ArchiveSourceBase {
+  sourceType: ArchiveSourceType.prompt;
 }
 
-export interface ResolvedArchive {
-  location: string;
-  realSource: ArchiveFileSource;
+export interface Archive {
   build?: BuildFragment;
+  source: ArchiveSource;
+  url: string;
 }
 
-export type ArchiveFileSource =
-  | ArchiveFileUrlSource
-  | ArchiveFileLatestSource
-  | ArchiveFilePathSource
-  | ArchiveFileBuildIdSource
-  | ArchiveFilePromptSource;
+export type ArchiveSource =
+  | ArchiveUrlSource
+  | ArchiveLatestSource
+  | ArchivePathSource
+  | ArchiveBuildIdSource
+  | ArchivePromptSource;
 
-export async function getArchiveFileLocationAsync(
-  source: ArchiveFileSource
-): Promise<ResolvedArchive> {
+export async function getArchiveAsync(source: ArchiveSource): Promise<Archive> {
   switch (source.sourceType) {
-    case ArchiveFileSourceType.prompt:
+    case ArchiveSourceType.prompt:
       return await handlePromptSourceAsync(source);
-    case ArchiveFileSourceType.url: {
+    case ArchiveSourceType.url: {
       return await handleUrlSourceAsync(source);
     }
-    case ArchiveFileSourceType.latest: {
+    case ArchiveSourceType.latest: {
       return await handleLatestSourceAsync(source);
     }
-    case ArchiveFileSourceType.path: {
+    case ArchiveSourceType.path: {
       return await handlePathSourceAsync(source);
     }
-    case ArchiveFileSourceType.buildId: {
+    case ArchiveSourceType.buildId: {
       return await handleBuildIdSourceAsync(source);
     }
   }
 }
 
-async function handleUrlSourceAsync(source: ArchiveFileUrlSource): Promise<ResolvedArchive> {
+async function handleUrlSourceAsync(source: ArchiveUrlSource): Promise<Archive> {
   if (!validateUrl(source.url)) {
     Log.error(chalk.bold(`The URL you provided is invalid: ${source.url}`));
-    return getArchiveFileLocationAsync({
+    return getArchiveAsync({
       ...source,
-      sourceType: ArchiveFileSourceType.prompt,
+      sourceType: ArchiveSourceType.prompt,
     });
   }
 
   return {
-    location: source.url,
-    realSource: source,
+    url: source.url,
+    source,
   };
 }
 
-async function handleLatestSourceAsync(source: ArchiveFileLatestSource): Promise<ResolvedArchive> {
+async function handleLatestSourceAsync(source: ArchiveLatestSource): Promise<Archive> {
   try {
-    const latestBuild = await getLatestBuildForSubmissionAsync(source.platform, source.projectId);
+    const latestBuild = await getLatestBuildForSubmissionAsync(
+      toAppPlatform(source.platform),
+      source.projectId
+    );
 
     if (!latestBuild) {
       Log.error(
@@ -105,16 +107,16 @@ async function handleLatestSourceAsync(source: ArchiveFileLatestSource): Promise
           "Couldn't find any builds for this project on EAS servers. It looks like you haven't run 'eas build' yet."
         )
       );
-      return getArchiveFileLocationAsync({
+      return getArchiveAsync({
         ...source,
-        sourceType: ArchiveFileSourceType.prompt,
+        sourceType: ArchiveSourceType.prompt,
       });
     }
 
     return {
-      location: latestBuild.artifacts.buildUrl,
-      realSource: source,
       build: latestBuild,
+      url: latestBuild.artifacts.buildUrl,
+      source,
     };
   } catch (err) {
     Log.error(err);
@@ -122,44 +124,42 @@ async function handleLatestSourceAsync(source: ArchiveFileLatestSource): Promise
   }
 }
 
-async function handlePathSourceAsync(source: ArchiveFilePathSource): Promise<ResolvedArchive> {
+async function handlePathSourceAsync(source: ArchivePathSource): Promise<Archive> {
   if (!(await isExistingFile(source.path))) {
     Log.error(chalk.bold(`${source.path} doesn't exist`));
-    return getArchiveFileLocationAsync({
+    return getArchiveAsync({
       ...source,
-      sourceType: ArchiveFileSourceType.prompt,
+      sourceType: ArchiveSourceType.prompt,
     });
   }
 
   Log.log('Uploading your app archive to the Expo Submission Service');
   const uploadUrl = await uploadAppArchiveAsync(source.path);
   return {
-    location: uploadUrl,
-    realSource: source,
+    url: uploadUrl,
+    source,
   };
 }
 
-async function handleBuildIdSourceAsync(
-  source: ArchiveFileBuildIdSource
-): Promise<ResolvedArchive> {
+async function handleBuildIdSourceAsync(source: ArchiveBuildIdSource): Promise<Archive> {
   try {
-    const build = await getBuildByIdForSubmissionAsync(source.platform, source.id);
+    const build = await getBuildByIdForSubmissionAsync(toAppPlatform(source.platform), source.id);
     return {
-      location: build.artifacts.buildUrl,
-      realSource: source,
       build,
+      source,
+      url: build.artifacts.buildUrl,
     };
   } catch (err) {
     Log.error(chalk.bold(`Couldn't find build for id ${source.id}`));
     Log.error(err);
-    return getArchiveFileLocationAsync({
+    return getArchiveAsync({
       ...source,
-      sourceType: ArchiveFileSourceType.prompt,
+      sourceType: ArchiveSourceType.prompt,
     });
   }
 }
 
-async function handlePromptSourceAsync(source: ArchiveFilePromptSource): Promise<ResolvedArchive> {
+async function handlePromptSourceAsync(source: ArchivePromptSource): Promise<Archive> {
   const { sourceType: sourceTypeRaw } = await promptAsync({
     name: 'sourceType',
     type: 'select',
@@ -167,52 +167,52 @@ async function handlePromptSourceAsync(source: ArchiveFilePromptSource): Promise
     choices: [
       {
         title: 'Latest build from EAS',
-        value: ArchiveFileSourceType.latest,
+        value: ArchiveSourceType.latest,
       },
-      { title: 'I have a url to the app archive', value: ArchiveFileSourceType.url },
+      { title: 'I have a url to the app archive', value: ArchiveSourceType.url },
       {
         title: 'Local app binary file',
-        value: ArchiveFileSourceType.path,
+        value: ArchiveSourceType.path,
       },
       {
         title: 'A build identified by a build id',
-        value: ArchiveFileSourceType.buildId,
+        value: ArchiveSourceType.buildId,
       },
     ],
   });
-  const sourceType = sourceTypeRaw as ArchiveFileSourceType;
+  const sourceType = sourceTypeRaw as ArchiveSourceType;
   switch (sourceType) {
-    case ArchiveFileSourceType.url: {
+    case ArchiveSourceType.url: {
       const url = await askForArchiveUrlAsync();
-      return getArchiveFileLocationAsync({
+      return getArchiveAsync({
         ...source,
-        sourceType: ArchiveFileSourceType.url,
+        sourceType: ArchiveSourceType.url,
         url,
       });
     }
-    case ArchiveFileSourceType.path: {
+    case ArchiveSourceType.path: {
       const path = await askForArchivePathAsync(source.platform);
-      return getArchiveFileLocationAsync({
+      return getArchiveAsync({
         ...source,
-        sourceType: ArchiveFileSourceType.path,
+        sourceType: ArchiveSourceType.path,
         path,
       });
     }
-    case ArchiveFileSourceType.latest: {
-      return getArchiveFileLocationAsync({
+    case ArchiveSourceType.latest: {
+      return getArchiveAsync({
         ...source,
-        sourceType: ArchiveFileSourceType.latest,
+        sourceType: ArchiveSourceType.latest,
       });
     }
-    case ArchiveFileSourceType.buildId: {
+    case ArchiveSourceType.buildId: {
       const id = await askForBuildIdAsync();
-      return getArchiveFileLocationAsync({
+      return getArchiveAsync({
         ...source,
-        sourceType: ArchiveFileSourceType.buildId,
+        sourceType: ArchiveSourceType.buildId,
         id,
       });
     }
-    case ArchiveFileSourceType.prompt:
+    case ArchiveSourceType.prompt:
       throw new Error('This should never happen');
   }
 }
@@ -239,8 +239,8 @@ async function askForArchiveUrlAsync(): Promise<string> {
   return url;
 }
 
-async function askForArchivePathAsync(platform: AppPlatform): Promise<string> {
-  const isIos = platform === AppPlatform.Ios;
+async function askForArchivePathAsync(platform: Platform): Promise<string> {
+  const isIos = platform === Platform.IOS;
   const defaultArchivePath = `/path/to/your/archive.${isIos ? 'ipa' : 'aab'}`;
   const { path } = await promptAsync({
     name: 'path',
@@ -279,9 +279,7 @@ async function askForBuildIdAsync(): Promise<string> {
 function validateUrl(url: string): boolean {
   const protocols = ['http', 'https'];
   try {
-    // eslint-disable-next-line no-new
-    new URL(url);
-    const parsed = parseUrl(url);
+    const parsed = new URL(url);
     return protocols
       ? parsed.protocol
         ? protocols.map(x => `${x.toLowerCase()}:`).includes(parsed.protocol)

@@ -1,13 +1,13 @@
 import { Platform } from '@expo/eas-build-job';
 
-export enum ReleaseStatus {
+export enum AndroidReleaseStatus {
   completed = 'completed',
   draft = 'draft',
   halted = 'halted',
   inProgress = 'inProgress',
 }
 
-export enum ReleaseTrack {
+export enum AndroidReleaseTrack {
   production = 'production',
   beta = 'beta',
   alpha = 'alpha',
@@ -16,21 +16,19 @@ export enum ReleaseTrack {
 
 export interface AndroidSubmitProfile {
   serviceAccountKeyPath?: string;
-  track?: ReleaseTrack;
-  releaseStatus?: ReleaseStatus;
-  changesNotSentForReview?: boolean;
-  verbose?: boolean;
+  track: AndroidReleaseTrack;
+  releaseStatus: AndroidReleaseStatus;
+  changesNotSentForReview: boolean;
 }
 
 export interface IosSubmitProfile {
   appleId?: string;
   ascAppId?: string;
-
   appleTeamId?: string;
   sku?: string;
-  language?: string;
+  language: string;
   companyName?: string;
-  verbose?: boolean;
+  appName?: string;
 }
 
 export type SubmitProfile<TPlatform extends Platform = Platform> =
