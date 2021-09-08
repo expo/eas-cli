@@ -6,7 +6,17 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🛠 Breaking changes
 
-- Require `eas submit` to be configured with eas.json submit profiles. Drop support for CLI params. ([#590](https://github.com/expo/eas-cli/pull/590) by [@dsokal](https://github.com/dsokal))
+### 🎉 New features
+
+### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [0.26.0](https://github.com/expo/eas-cli/releases/tag/v0.26.0) - 2021-09-08
+
+### 🛠 Breaking changes
+
+- Require `eas submit` to be configured with eas.json submit profiles (see [https://docs.expo.dev/submit/eas-json/](https://docs.expo.dev/submit/eas-json/) for details). Drop support for CLI params. ([#590](https://github.com/expo/eas-cli/pull/590) by [@dsokal](https://github.com/dsokal))
 
 ### 🎉 New features
 
@@ -16,8 +26,6 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - Fix `eas build` from throwing an exception when detecting the git `core.ignorecase` setting. ([#592](https://github.com/expo/eas-cli/pull/592) by [@mwillbanks](https://github.com/mwillbanks))
 - Support app names that consist only of unicode characters. ([#596](https://github.com/expo/eas-cli/pull/596) by [@wkozyra95](https://github.com/wkozyra95))
-
-### 🧹 Chores
 
 ## [0.25.0](https://github.com/expo/eas-cli/releases/tag/v0.25.0) - 2021-09-01
 
