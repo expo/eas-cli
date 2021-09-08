@@ -13,12 +13,12 @@ import { BuildRequestSender, waitForBuildEndAsync } from '../../build/build';
 import { ensureProjectConfiguredAsync } from '../../build/configure';
 import { BuildContext, createBuildContextAsync } from '../../build/context';
 import { prepareIosBuildAsync } from '../../build/ios/build';
-import { RequestedPlatform } from '../../build/types';
 import { printBuildResults, printLogsUrls } from '../../build/utils/printBuildInfo';
 import { ensureRepoIsCleanAsync } from '../../build/utils/repository';
 import EasCommand from '../../commandUtils/EasCommand';
 import { BuildFragment, BuildStatus } from '../../graphql/generated';
 import Log from '../../log';
+import { RequestedPlatform } from '../../platform';
 import {
   EAS_UNAVAILABLE_MESSAGE,
   isEasEnabledForProjectAsync,
@@ -56,7 +56,10 @@ export default class Build extends EasCommand {
   static description = 'start a build';
 
   static flags = {
-    platform: flags.enum({ char: 'p', options: ['android', 'ios', 'all'] }),
+    platform: flags.enum({
+      char: 'p',
+      options: ['android', 'ios', 'all'],
+    }),
     'skip-credentials-check': flags.boolean({
       default: false,
       hidden: true,

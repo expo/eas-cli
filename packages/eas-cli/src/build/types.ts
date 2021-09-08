@@ -1,9 +1,3 @@
-export enum RequestedPlatform {
-  Android = 'android',
-  Ios = 'ios',
-  All = 'all',
-}
-
 export enum BuildStatus {
   NEW = 'new',
   IN_QUEUE = 'in-queue',

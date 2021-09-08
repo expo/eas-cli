@@ -2,8 +2,8 @@ import { Command, flags } from '@oclif/command';
 import chalk from 'chalk';
 
 import { configureAsync } from '../../build/configure';
-import { RequestedPlatform } from '../../build/types';
 import Log, { learnMore } from '../../log';
+import { RequestedPlatform } from '../../platform';
 import { findProjectRootAsync } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
 import { ensureLoggedInAsync } from '../../user/actions';

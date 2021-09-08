@@ -6,6 +6,7 @@ import chalk from 'chalk';
 import fs from 'fs-extra';
 
 import Log, { learnMore } from '../log';
+import { RequestedPlatform } from '../platform';
 import { resolveWorkflowAsync } from '../project/workflow';
 import { confirmAsync, promptAsync } from '../prompts';
 import { ensureLoggedInAsync } from '../user/actions';
@@ -13,7 +14,6 @@ import vcs from '../vcs';
 import { configureAndroidAsync } from './android/configure';
 import { ConfigureContext } from './context';
 import { configureIosAsync } from './ios/configure';
-import { RequestedPlatform } from './types';
 import { commitPromptAsync, maybeBailOnRepoStatusAsync } from './utils/repository';
 
 const configureCommitMessage = {
