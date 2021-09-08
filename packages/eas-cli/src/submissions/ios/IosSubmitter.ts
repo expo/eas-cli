@@ -63,7 +63,6 @@ export default class IosSubmitter extends BaseSubmitter<Platform.IOS, IosSubmiss
     const appSpecificPassword = await getAppSpecificPasswordAsync(
       this.options.appSpecificPasswordSource
     );
-
     return {
       archive,
       appSpecificPassword,

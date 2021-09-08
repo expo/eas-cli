@@ -6,7 +6,9 @@ import {
   IosSubmissionConfigInput,
   SubmissionFragment,
 } from '../graphql/generated';
+import { toAppPlatform } from '../graphql/types/AppPlatform';
 import Log from '../log';
+import { appPlatformDisplayNames } from '../platform';
 import { SubmissionContext } from './context';
 
 export interface SubmissionInput<P extends Platform> {
@@ -25,13 +27,14 @@ export default abstract class BaseSubmitter<P extends Platform, SubmissionOption
     submissionInput: SubmissionInput<P>
   ): Promise<SubmissionFragment> {
     Log.addNewLineIfNone();
-    const scheduleSpinner = ora('Scheduling submission').start();
+    const platformDisplayName = appPlatformDisplayNames[toAppPlatform(this.ctx.platform)];
+    const scheduleSpinner = ora(`Scheduling ${platformDisplayName} submission`).start();
     try {
       const submission = this.createPlatformSubmissionAsync(submissionInput);
-      scheduleSpinner.succeed();
+      scheduleSpinner.succeed(`Scheduled ${platformDisplayName} submission`);
       return submission;
     } catch (err) {
-      scheduleSpinner.fail('Failed to schedule submission');
+      scheduleSpinner.fail(`Failed to schedule ${platformDisplayName} submission`);
       throw err;
     }
   }

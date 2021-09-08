@@ -6,7 +6,7 @@ import {
   migrateAsync,
 } from '@expo/eas-json';
 import { flags } from '@oclif/command';
-import { error, exit } from '@oclif/errors';
+import { error } from '@oclif/errors';
 
 import { prepareAndroidBuildAsync } from '../../build/android/build';
 import { BuildRequestSender, waitForBuildEndAsync } from '../../build/build';
@@ -117,10 +117,11 @@ export default class Build extends EasCommand {
     const startedBuilds: BuildFragment[] = [];
     let metroConfigValidated = false;
     for (const platform of platformsToBuild) {
+      const buildProfile = await easJsonReader.readBuildProfileAsync(platform, flags.profile);
       const ctx = await createBuildContextAsync({
         buildProfileName: flags.profile,
         clearCache: flags.clearCache,
-        buildProfile: await easJsonReader.readBuildProfileAsync(platform, flags.profile),
+        buildProfile,
         local: flags.local,
         nonInteractive: flags.nonInteractive,
         platform,
@@ -210,7 +211,7 @@ export default class Build extends EasCommand {
       i => i.status === BuildStatus.Errored
     );
     if (failedBuilds.length > 0) {
-      exit(1);
+      process.exit(1);
     }
   }
 }

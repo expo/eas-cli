@@ -27,8 +27,11 @@ export const requestedPlatformDisplayNames: Record<RequestedPlatform, string> = 
 };
 
 export async function selectRequestedPlatformAsync(platform?: string): Promise<RequestedPlatform> {
-  if (platform && platform in RequestedPlatform) {
-    return platform as RequestedPlatform;
+  if (
+    platform &&
+    Object.values(RequestedPlatform).includes(platform.toLowerCase() as RequestedPlatform)
+  ) {
+    return platform.toLowerCase() as RequestedPlatform;
   }
 
   const { requestedPlatform } = await promptAsync({
