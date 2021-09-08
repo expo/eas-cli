@@ -15,6 +15,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 - Fix `eas build` from throwing an exception when detecting the git `core.ignorecase` setting. ([#592](https://github.com/expo/eas-cli/pull/592) by [@mwillbanks](https://github.com/mwillbanks))
+- Support app names that consist only of unicode characters. ([#596](https://github.com/expo/eas-cli/pull/596) by [@wkozyra95](https://github.com/wkozyra95))
 
 ### 🧹 Chores
 

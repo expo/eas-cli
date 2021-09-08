@@ -7,7 +7,6 @@ import sortBy from 'lodash/sortBy';
 
 import Log from '../../log';
 import { promptAsync } from '../../prompts';
-import { sanitizedProjectName } from '../projectUtils';
 import { resolveWorkflowAsync } from '../workflow';
 
 export interface XcodeBuildContext {
@@ -45,7 +44,7 @@ export async function resolveXcodeBuildContextAsync(
     if (!expoName) {
       throw new Error('"expo.name" is required in your app.json');
     }
-    const sanitizedExpoName = sanitizedProjectName(expoName);
+    const sanitizedExpoName = IOSConfig.XcodeUtils.sanitizedName(expoName);
     if (!sanitizedExpoName) {
       throw new Error('"expo.name" needs to contain some alphanumeric characters');
     }

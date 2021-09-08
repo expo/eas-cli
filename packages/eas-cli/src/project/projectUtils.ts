@@ -224,15 +224,6 @@ export async function getBranchByNameAsync({
   return data.app.byId.updateBranchByName;
 }
 
-// copy-pasted from expo-cli
-// https://github.com/expo/expo-cli/blob/master/packages/expo-cli/src/utils/extractTemplateAppAsync.ts#L15
-export function sanitizedProjectName(name: string) {
-  return name
-    .replace(/[\W_]+/g, '')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '');
-}
-
 // return project id of existing/newly created project, or null if user declines
 export async function promptToCreateProjectIfNotExistsAsync(
   exp: ExpoConfig
