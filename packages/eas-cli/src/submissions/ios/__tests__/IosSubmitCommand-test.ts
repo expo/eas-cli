@@ -71,6 +71,7 @@ describe(IosSubmitCommand, () => {
           appleId: 'test@example.com',
           ascAppId: '12345678',
         },
+        nonInteractive: true,
       });
       const command = new IosSubmitCommand(ctx);
       await command.runAsync();

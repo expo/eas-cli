@@ -44,6 +44,8 @@ export function resolveArchiveSource<T extends Platform>(
       platform,
       projectId: ctx.projectId,
     };
+  } else if (ctx.nonInteractive) {
+    throw new Error('You need to specify the archive source when running in non-interactive mode ');
   } else {
     return {
       sourceType: ArchiveSourceType.prompt,

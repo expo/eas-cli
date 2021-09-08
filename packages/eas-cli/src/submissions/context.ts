@@ -7,6 +7,7 @@ export interface SubmissionContext<T extends Platform> {
   profile: SubmitProfile<T>;
   projectDir: string;
   projectId: string;
+  nonInteractive: boolean;
 }
 
 export interface SubmitArchiveFlags {
@@ -22,6 +23,7 @@ export function createSubmissionContext<T extends Platform>(params: {
   profile: SubmitProfile<T>;
   projectDir: string;
   projectId: string;
+  nonInteractive: boolean;
 }): SubmissionContext<T> {
   return params;
 }

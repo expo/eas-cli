@@ -31,20 +31,25 @@ export default class IosSubmitCommand {
   private async resolveSubmissionOptionsAsync(): Promise<IosSubmissionOptions> {
     const archiveSource = this.resolveArchiveSource();
     const appSpecificPasswordSource = this.resolveAppSpecificPasswordSource();
+    const ascAppIdentifier = await this.resolveAscAppIdentifierAsync();
+    const appleIdUsername = await this.resolveAppleIdUsernameAsync();
 
-    const errored = [archiveSource, appSpecificPasswordSource].filter(r => !r.ok);
+    const errored = [
+      archiveSource,
+      appSpecificPasswordSource,
+      ascAppIdentifier,
+      appleIdUsername,
+    ].filter(r => !r.ok);
     if (errored.length > 0) {
       const message = errored.map(err => err.reason?.message).join('\n');
       Log.error(message);
-      throw new Error('Failed to submit the app');
+      throw new Error('Submission failed');
     }
-
-    const { appleIdUsername, ascAppIdentifier } = await this.getAppStoreInfoAsync();
 
     return {
       projectId: this.ctx.projectId,
-      appleIdUsername,
-      ascAppIdentifier,
+      appleIdUsername: appleIdUsername.enforceValue(),
+      ascAppIdentifier: ascAppIdentifier.enforceValue(),
       archiveSource: archiveSource.enforceValue(),
       appSpecificPasswordSource: appSpecificPasswordSource.enforceValue(),
     };
@@ -58,77 +63,79 @@ export default class IosSubmitCommand {
         sourceType: AppSpecificPasswordSourceType.userDefined,
         appSpecificPassword: envAppSpecificPassword,
       });
+    } else if (this.ctx.nonInteractive) {
+      return result(new Error('Set the EXPO_APPLE_APP_SPECIFIC_PASSWORD environment variable.'));
+    } else {
+      return result({
+        sourceType: AppSpecificPasswordSourceType.prompt,
+      });
     }
-
-    return result({
-      sourceType: AppSpecificPasswordSourceType.prompt,
-    });
   }
 
   private resolveArchiveSource(): Result<ArchiveSource> {
-    return result(resolveArchiveSource(this.ctx, Platform.IOS));
+    try {
+      return result(resolveArchiveSource(this.ctx, Platform.IOS));
+    } catch (err: any) {
+      return result(err);
+    }
   }
 
-  /**
-   * Returns App Store related information required for build submission
-   * It is:
-   * - User Apple ID
-   * - App Store Connect app ID (appAppleId)
-   */
-  private async getAppStoreInfoAsync(): Promise<{
-    appleIdUsername: string;
-    ascAppIdentifier: string;
-  }> {
+  private async resolveAscAppIdentifierAsync(): Promise<Result<string>> {
     const { ascAppId } = this.ctx.profile;
-
     if (ascAppId) {
-      return {
-        appleIdUsername: await this.getAppleIdAsync(),
-        ascAppIdentifier: ascAppId,
-      };
+      return result(ascAppId);
+    } else if (this.ctx.nonInteractive) {
+      return result(new Error('Set ascAppId in the submit profile (eas.json).'));
+    } else {
+      Log.log(
+        wrapAnsi(
+          chalk.italic(
+            `Ensuring your app exists on App Store Connect. This step can be skipped by providing ascAppId in the submit profile. ${learnMore(
+              'https://expo.fyi/asc-app-id'
+            )}`
+          ),
+          process.stdout.columns || 80
+        )
+      );
+      Log.addNewLineIfNone();
+      try {
+        const { ascAppIdentifier } = await ensureAppStoreConnectAppExistsAsync(this.ctx);
+        return result(ascAppIdentifier);
+      } catch (err: any) {
+        return result(err);
+      }
+    }
+  }
+
+  private async resolveAppleIdUsernameAsync(): Promise<Result<string>> {
+    if (this.ctx.profile.appleId) {
+      return result(this.ctx.profile.appleId);
     }
 
-    Log.log(
-      wrapAnsi(
-        chalk.italic(
-          `Ensuring your app exists on App Store Connect. This step can be skipped by providing ascAppId in the submit profile. ${learnMore(
-            'https://expo.fyi/asc-app-id'
-          )}`
-        ),
-        process.stdout.columns || 80
-      )
-    );
-    Log.addNewLineIfNone();
-    return await ensureAppStoreConnectAppExistsAsync(this.ctx);
-  }
-
-  /**
-   * This is going to be used only when `produce` is not being run,
-   * and we don't need to call full credentials.authenticateAsync()
-   * and we just need apple ID
-   */
-  private async getAppleIdAsync(): Promise<string> {
-    const { appleId } = this.ctx.profile;
     const envAppleId = getenv.string('EXPO_APPLE_ID', '');
-
-    if (appleId) {
-      return appleId;
-    } else if (envAppleId) {
-      return envAppleId;
+    if (envAppleId) {
+      return result(envAppleId);
     }
 
     // Get the email address that was last used and set it as
     // the default value for quicker authentication.
     const lastAppleId = await UserSettings.getAsync('appleId', null);
 
-    const { appleId: promptAppleId } = await promptAsync({
+    if (this.ctx.nonInteractive) {
+      if (lastAppleId) {
+        return result(lastAppleId);
+      } else {
+        return result(new Error('Set appleId in the submit profile (eas.json).'));
+      }
+    }
+
+    const { appleId } = await promptAsync({
       type: 'text',
       name: 'appleId',
       message: `Enter your Apple ID:`,
       validate: (val: string) => !!val,
       initial: lastAppleId ?? undefined,
     });
-
-    return promptAppleId;
+    return result(appleId);
   }
 }

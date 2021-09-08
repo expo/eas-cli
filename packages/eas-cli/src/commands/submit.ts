@@ -38,6 +38,7 @@ interface RawFlags {
   url?: string;
   verbose: boolean;
   wait: boolean;
+  'non-interactive': boolean;
 }
 
 interface Flags {
@@ -46,6 +47,7 @@ interface Flags {
   archiveFlags: SubmitArchiveFlags;
   verbose: boolean;
   wait: boolean;
+  nonInteractive: boolean;
 }
 
 export default class Submit extends EasCommand {
@@ -89,6 +91,10 @@ See how to configure submits with eas.json: ${learnMore('https://docs.expo.dev/s
       default: true,
       allowNo: true,
     }),
+    'non-interactive': flags.boolean({
+      default: false,
+      description: 'Run command in non-interactive mode',
+    }),
   };
 
   async run(): Promise<void> {
@@ -116,6 +122,7 @@ See how to configure submits with eas.json: ${learnMore('https://docs.expo.dev/s
         projectId,
         profile,
         archiveFlags: flags.archiveFlags,
+        nonInteractive: flags.nonInteractive,
       });
 
       if (platforms.length > 1) {
@@ -141,10 +148,20 @@ See how to configure submits with eas.json: ${learnMore('https://docs.expo.dev/s
   }
 
   private async sanitizeFlagsAsync(flags: RawFlags): Promise<Flags> {
-    const { platform, verbose, wait, profile, ...archiveFlags } = flags;
+    const {
+      platform,
+      verbose,
+      wait,
+      profile,
+      'non-interactive': nonInteractive,
+      ...archiveFlags
+    } = flags;
+
+    if (!flags.platform && nonInteractive) {
+      error('--platform is required when building in non-interactive mode', { exit: 1 });
+    }
 
     const requestedPlatform = await selectRequestedPlatformAsync(flags.platform);
-
     if (requestedPlatform === RequestedPlatform.All) {
       if (archiveFlags.id || archiveFlags.path || archiveFlags.url) {
         error(
@@ -160,6 +177,7 @@ See how to configure submits with eas.json: ${learnMore('https://docs.expo.dev/s
       verbose,
       wait,
       profile,
+      nonInteractive,
     };
   }
 

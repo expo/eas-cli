@@ -90,6 +90,7 @@ describe(AndroidSubmitCommand, () => {
           releaseStatus: AndroidReleaseStatus.draft,
           changesNotSentForReview: false,
         },
+        nonInteractive: true,
       });
       const command = new AndroidSubmitCommand(ctx);
       await command.runAsync();
@@ -124,6 +125,7 @@ describe(AndroidSubmitCommand, () => {
           releaseStatus: AndroidReleaseStatus.draft,
           changesNotSentForReview: false,
         },
+        nonInteractive: true,
       });
       const command = new AndroidSubmitCommand(ctx);
       await command.runAsync();
