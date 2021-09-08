@@ -15,3 +15,13 @@ export interface SubmitArchiveFlags {
   path?: string;
   url?: string;
 }
+
+export function createSubmissionContext<T extends Platform>(params: {
+  platform: T;
+  archiveFlags: SubmitArchiveFlags;
+  profile: SubmitProfile<T>;
+  projectDir: string;
+  projectId: string;
+}): SubmissionContext<T> {
+  return params;
+}

@@ -2,7 +2,7 @@ import { Platform } from '@expo/eas-build-job';
 import * as uuid from 'uuid';
 
 import { ArchiveSource, ArchiveSourceType } from './ArchiveSource';
-import { SubmissionContext } from './types';
+import { SubmissionContext } from './context';
 
 export function resolveArchiveSource<T extends Platform>(
   ctx: SubmissionContext<T>,

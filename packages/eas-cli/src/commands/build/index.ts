@@ -18,14 +18,14 @@ import { ensureRepoIsCleanAsync } from '../../build/utils/repository';
 import EasCommand from '../../commandUtils/EasCommand';
 import { BuildFragment, BuildStatus } from '../../graphql/generated';
 import Log from '../../log';
-import { RequestedPlatform } from '../../platform';
+import { RequestedPlatform, selectRequestedPlatformAsync, toPlatforms } from '../../platform';
 import {
   EAS_UNAVAILABLE_MESSAGE,
   isEasEnabledForProjectAsync,
 } from '../../project/isEasEnabledForProject';
 import { validateMetroConfigForManagedWorkflowAsync } from '../../project/metroConfig';
 import { findProjectRootAsync } from '../../project/projectUtils';
-import { confirmAsync, promptAsync } from '../../prompts';
+import { confirmAsync } from '../../prompts';
 import { enableJsonOutput } from '../../utils/json';
 import vcs from '../../vcs';
 
@@ -78,7 +78,7 @@ export default class Build extends EasCommand {
     }),
     'non-interactive': flags.boolean({
       default: false,
-      description: 'Run command in --non-interactive mode',
+      description: 'Run command in non-interactive mode',
     }),
     local: flags.boolean({
       default: false,
@@ -112,7 +112,7 @@ export default class Build extends EasCommand {
     await ensureProjectConfiguredAsync(projectDir, requestedPlatform);
 
     const easJsonReader = new EasJsonReader(projectDir);
-    const platformsToBuild = this.getPlatformsToBuild(requestedPlatform);
+    const platformsToBuild = toPlatforms(requestedPlatform);
 
     const startedBuilds: BuildFragment[] = [];
     let metroConfigValidated = false;
@@ -165,8 +165,7 @@ export default class Build extends EasCommand {
     if (flags.json && !nonInteractive) {
       error('--json is allowed only when building in non-interactive mode', { exit: 1 });
     }
-    const requestedPlatform =
-      (flags.platform as RequestedPlatform | undefined) ?? (await this.promptForPlatformAsync());
+    const requestedPlatform = await selectRequestedPlatformAsync(flags.platform);
 
     if (flags.local) {
       if (requestedPlatform === RequestedPlatform.All) {
@@ -194,30 +193,6 @@ export default class Build extends EasCommand {
       clearCache: flags['clear-cache'],
       json: flags['json'],
     };
-  }
-
-  private async promptForPlatformAsync(): Promise<RequestedPlatform> {
-    const { platform } = await promptAsync({
-      type: 'select',
-      message: 'Build for platforms',
-      name: 'platform',
-      choices: [
-        { title: 'All', value: RequestedPlatform.All },
-        { title: 'Android', value: RequestedPlatform.Android },
-        { title: 'iOS', value: RequestedPlatform.Ios },
-      ],
-    });
-    return platform;
-  }
-
-  private getPlatformsToBuild(requestedPlatform: RequestedPlatform): Platform[] {
-    if (requestedPlatform === RequestedPlatform.All) {
-      return [Platform.ANDROID, Platform.IOS];
-    } else if (requestedPlatform === RequestedPlatform.Android) {
-      return [Platform.ANDROID];
-    } else {
-      return [Platform.IOS];
-    }
   }
 
   private async startBuildAsync(ctx: BuildContext<Platform>): Promise<BuildFragment | undefined> {

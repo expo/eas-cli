@@ -2,32 +2,50 @@ import { getConfig } from '@expo/config';
 import { Platform } from '@expo/eas-build-job';
 import { EasJsonReader, IosSubmitProfile } from '@expo/eas-json';
 import { flags } from '@oclif/command';
-import { exit } from '@oclif/errors';
+import { error, exit } from '@oclif/errors';
 import chalk from 'chalk';
 
 import EasCommand from '../commandUtils/EasCommand';
 import { AppPlatform, SubmissionFragment, SubmissionStatus } from '../graphql/generated';
 import Log, { learnMore } from '../log';
-import { appPlatformDisplayNames, appPlatformEmojis } from '../platform';
+import {
+  RequestedPlatform,
+  appPlatformDisplayNames,
+  appPlatformEmojis,
+  selectRequestedPlatformAsync,
+  toPlatforms,
+} from '../platform';
 import { isEasEnabledForProjectAsync, warnEasUnavailable } from '../project/isEasEnabledForProject';
 import { findProjectRootAsync, getProjectIdAsync } from '../project/projectUtils';
-import { promptAsync } from '../prompts';
 import AndroidSubmitCommand from '../submissions/android/AndroidSubmitCommand';
+import { SubmitArchiveFlags, createSubmissionContext } from '../submissions/context';
 import IosSubmitCommand from '../submissions/ios/IosSubmitCommand';
-import { SubmitArchiveFlags } from '../submissions/types';
 import { displayLogsAsync } from '../submissions/utils/logs';
 import { printSubmissionDetailsUrls } from '../submissions/utils/urls';
 import { waitForSubmissionsEndAsync } from '../submissions/utils/wait';
 
-interface Flags {
+interface RawFlags {
+  platform?: string;
+  profile?: string;
+  latest?: boolean;
+  id?: string;
+  path?: string;
+  url?: string;
   verbose: boolean;
   wait: boolean;
-  platform?: Platform;
-  profile?: string;
-  archiveFlags: SubmitArchiveFlags;
+  'non-interactive': boolean;
 }
 
-export default class BuildSubmit extends EasCommand {
+interface Flags {
+  requestedPlatform: RequestedPlatform;
+  profile?: string;
+  archiveFlags: SubmitArchiveFlags;
+  verbose: boolean;
+  wait: boolean;
+  nonInteractive: boolean;
+}
+
+export default class Submit extends EasCommand {
   static description = `submit build archive to app store
 See how to configure submits with eas.json: ${learnMore('https://docs.expo.dev/submit/eas-json/', {
     learnMoreMessage: '',
@@ -37,7 +55,7 @@ See how to configure submits with eas.json: ${learnMore('https://docs.expo.dev/s
   static flags = {
     platform: flags.enum({
       char: 'p',
-      options: ['android', 'ios'],
+      options: ['android', 'ios', 'all'],
     }),
     profile: flags.string({
       description:
@@ -69,13 +87,15 @@ See how to configure submits with eas.json: ${learnMore('https://docs.expo.dev/s
       default: true,
       allowNo: true,
     }),
+    'non-interactive': flags.boolean({
+      default: false,
+      description: 'Run command in non-interactive mode',
+    }),
   };
 
   async run(): Promise<void> {
-    const flags = this.parseFlags();
-    const platform =
-      (flags.platform?.toUpperCase() as AppPlatform | undefined) ??
-      (await this.promptForPlatformAsync());
+    const { flags: rawFlags } = this.parse(Submit);
+    const flags = await this.sanitizeFlagsAsync(rawFlags);
 
     const projectDir = (await findProjectRootAsync()) ?? process.cwd();
     const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
@@ -89,14 +109,17 @@ See how to configure submits with eas.json: ${learnMore('https://docs.expo.dev/s
 
     const easJsonReader = new EasJsonReader(projectDir);
 
+    // TODO: change this
+    const [platform] = toPlatforms(flags.requestedPlatform);
     const submissions: SubmissionFragment[] = [];
     let iosSubmitProfile: IosSubmitProfile | null = null;
-    if (platform === AppPlatform.Android) {
+    if (platform === Platform.ANDROID) {
       const submitProfile = await easJsonReader.readSubmitProfileAsync(
         Platform.ANDROID,
         flags.profile
       );
-      const ctx = AndroidSubmitCommand.createContext({
+      const ctx = createSubmissionContext({
+        platform,
         projectDir,
         projectId,
         profile: submitProfile,
@@ -106,7 +129,8 @@ See how to configure submits with eas.json: ${learnMore('https://docs.expo.dev/s
       submissions.push(await command.runAsync());
     } else {
       iosSubmitProfile = await easJsonReader.readSubmitProfileAsync(Platform.IOS, flags.profile);
-      const ctx = IosSubmitCommand.createContext({
+      const ctx = createSubmissionContext({
+        platform,
         projectDir,
         projectId,
         profile: iosSubmitProfile,
@@ -157,37 +181,27 @@ See how to configure submits with eas.json: ${learnMore('https://docs.expo.dev/s
     }
   }
 
-  private parseFlags(): Flags {
+  private async sanitizeFlagsAsync(flags: RawFlags): Promise<Flags> {
     const {
-      flags: { platform, profile, verbose, wait, ...archiveFlags },
-    } = this.parse(BuildSubmit);
-
-    return {
-      platform: platform as Platform,
-      profile,
+      'non-interactive': nonInteractive,
+      platform,
       verbose,
       wait,
+      profile,
+      ...archiveFlags
+    } = flags;
+    if (!platform && nonInteractive) {
+      error('--platform is required when building in non-interactive mode', { exit: 1 });
+    }
+    const requestedPlatform = await selectRequestedPlatformAsync(flags.platform);
+    return {
       archiveFlags,
+      nonInteractive,
+      requestedPlatform,
+      verbose,
+      wait,
+      profile,
     };
-  }
-
-  private async promptForPlatformAsync(): Promise<AppPlatform> {
-    const { platform } = await promptAsync({
-      type: 'select',
-      message: 'Submit to platform',
-      name: 'platform',
-      choices: [
-        {
-          title: 'Android',
-          value: AppPlatform.Android,
-        },
-        {
-          title: 'iOS',
-          value: AppPlatform.Ios,
-        },
-      ],
-    });
-    return platform;
   }
 
   private exitWithNonZeroCodeIfSomeSubmissionsDidntFinish(submissions: SubmissionFragment[]): void {

@@ -1,6 +1,6 @@
 import { getConfig } from '@expo/config';
 import { Platform } from '@expo/eas-build-job';
-import { AndroidReleaseStatus, AndroidReleaseTrack, AndroidSubmitProfile } from '@expo/eas-json';
+import { AndroidReleaseStatus, AndroidReleaseTrack } from '@expo/eas-json';
 import { Result, result } from '@expo/results';
 import capitalize from 'lodash/capitalize';
 
@@ -13,32 +13,12 @@ import Log from '../../log';
 import { getApplicationIdAsync } from '../../project/android/applicationId';
 import { ArchiveSource } from '../ArchiveSource';
 import { resolveArchiveSource } from '../commons';
-import { SubmissionContext, SubmitArchiveFlags } from '../types';
+import { SubmissionContext } from '../context';
 import { AndroidPackageSource, AndroidPackageSourceType } from './AndroidPackageSource';
 import AndroidSubmitter, { AndroidSubmissionOptions } from './AndroidSubmitter';
 import { ServiceAccountSource, ServiceAccountSourceType } from './ServiceAccountSource';
 
 export default class AndroidSubmitCommand {
-  static createContext({
-    archiveFlags,
-    profile,
-    projectDir,
-    projectId,
-  }: {
-    archiveFlags: SubmitArchiveFlags;
-    profile: AndroidSubmitProfile;
-    projectDir: string;
-    projectId: string;
-  }): SubmissionContext<Platform.ANDROID> {
-    return {
-      archiveFlags,
-      platform: Platform.ANDROID,
-      profile,
-      projectDir,
-      projectId,
-    };
-  }
-
   constructor(private ctx: SubmissionContext<Platform.ANDROID>) {}
 
   async runAsync(): Promise<SubmissionFragment> {

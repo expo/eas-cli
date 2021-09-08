@@ -1,5 +1,4 @@
 import { Platform } from '@expo/eas-build-job';
-import { IosSubmitProfile } from '@expo/eas-json';
 import { Result, result } from '@expo/results';
 import chalk from 'chalk';
 import getenv from 'getenv';
@@ -11,7 +10,7 @@ import { promptAsync } from '../../prompts';
 import UserSettings from '../../user/UserSettings';
 import { ArchiveSource } from '../ArchiveSource';
 import { resolveArchiveSource } from '../commons';
-import { SubmissionContext, SubmitArchiveFlags } from '../types';
+import { SubmissionContext } from '../context';
 import { ensureAppStoreConnectAppExistsAsync } from './AppProduce';
 import {
   AppSpecificPasswordSource,
@@ -20,26 +19,6 @@ import {
 import IosSubmitter, { IosSubmissionOptions } from './IosSubmitter';
 
 export default class IosSubmitCommand {
-  static createContext({
-    archiveFlags,
-    profile,
-    projectDir,
-    projectId,
-  }: {
-    archiveFlags: SubmitArchiveFlags;
-    profile: IosSubmitProfile;
-    projectDir: string;
-    projectId: string;
-  }): SubmissionContext<Platform.IOS> {
-    return {
-      archiveFlags,
-      platform: Platform.IOS,
-      profile,
-      projectDir,
-      projectId,
-    };
-  }
-
   constructor(private ctx: SubmissionContext<Platform.IOS>) {}
 
   async runAsync(): Promise<SubmissionFragment> {

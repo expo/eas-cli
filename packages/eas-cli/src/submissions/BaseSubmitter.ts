@@ -7,7 +7,7 @@ import {
   SubmissionFragment,
 } from '../graphql/generated';
 import Log from '../log';
-import { SubmissionContext } from './types';
+import { SubmissionContext } from './context';
 
 export interface SubmissionInput<P extends Platform> {
   projectId: string;
