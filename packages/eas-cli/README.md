@@ -47,13 +47,14 @@ eas --help COMMAND
 * [`eas device:create`](#eas-devicecreate)
 * [`eas device:list`](#eas-devicelist)
 * [`eas device:view [UDID]`](#eas-deviceview-udid)
+* [`eas diagnostics`](#eas-diagnostics)
 * [`eas help [COMMAND]`](#eas-help-command)
 * [`eas project:info`](#eas-projectinfo)
 * [`eas project:init`](#eas-projectinit)
 * [`eas secret:create`](#eas-secretcreate)
 * [`eas secret:delete`](#eas-secretdelete)
 * [`eas secret:list`](#eas-secretlist)
-* [`eas submit --platform=(android|ios)`](#eas-submit---platformandroidios)
+* [`eas submit`](#eas-submit)
 * [`eas webhook:create`](#eas-webhookcreate)
 * [`eas webhook:delete [ID]`](#eas-webhookdelete-id)
 * [`eas webhook:list`](#eas-webhooklist)
@@ -72,7 +73,7 @@ ALIASES
   $ eas login
 ```
 
-_See code: [src/commands/account/login.js](https://github.com/expo/eas-cli/blob/v0.25.0/packages/eas-cli/src/commands/account/login.js)_
+_See code: [src/commands/account/login.js](https://github.com/expo/eas-cli/blob/v0.26.0/packages/eas-cli/src/commands/account/login.js)_
 
 ## `eas account:logout`
 
@@ -86,7 +87,7 @@ ALIASES
   $ eas logout
 ```
 
-_See code: [src/commands/account/logout.js](https://github.com/expo/eas-cli/blob/v0.25.0/packages/eas-cli/src/commands/account/logout.js)_
+_See code: [src/commands/account/logout.js](https://github.com/expo/eas-cli/blob/v0.26.0/packages/eas-cli/src/commands/account/logout.js)_
 
 ## `eas account:view`
 
@@ -100,22 +101,22 @@ ALIASES
   $ eas whoami
 ```
 
-_See code: [src/commands/account/view.js](https://github.com/expo/eas-cli/blob/v0.25.0/packages/eas-cli/src/commands/account/view.js)_
+_See code: [src/commands/account/view.js](https://github.com/expo/eas-cli/blob/v0.26.0/packages/eas-cli/src/commands/account/view.js)_
 
 ## `eas analytics [STATUS]`
 
-View or change analytics settings
+view or change analytics settings
 
 ```
 USAGE
   $ eas analytics [STATUS]
 ```
 
-_See code: [src/commands/analytics.js](https://github.com/expo/eas-cli/blob/v0.25.0/packages/eas-cli/src/commands/analytics.js)_
+_See code: [src/commands/analytics.js](https://github.com/expo/eas-cli/blob/v0.26.0/packages/eas-cli/src/commands/analytics.js)_
 
 ## `eas build`
 
-Start a build
+start a build
 
 ```
 USAGE
@@ -132,7 +133,7 @@ OPTIONS
   --[no-]wait                       Wait for build(s) to complete
 ```
 
-_See code: [src/commands/build/index.js](https://github.com/expo/eas-cli/blob/v0.25.0/packages/eas-cli/src/commands/build/index.js)_
+_See code: [src/commands/build/index.js](https://github.com/expo/eas-cli/blob/v0.26.0/packages/eas-cli/src/commands/build/index.js)_
 
 ## `eas build:cancel [BUILD_ID]`
 
@@ -143,7 +144,7 @@ USAGE
   $ eas build:cancel [BUILD_ID]
 ```
 
-_See code: [src/commands/build/cancel.js](https://github.com/expo/eas-cli/blob/v0.25.0/packages/eas-cli/src/commands/build/cancel.js)_
+_See code: [src/commands/build/cancel.js](https://github.com/expo/eas-cli/blob/v0.26.0/packages/eas-cli/src/commands/build/cancel.js)_
 
 ## `eas build:configure`
 
@@ -157,7 +158,7 @@ OPTIONS
   -p, --platform=(android|ios|all)  Platform to configure
 ```
 
-_See code: [src/commands/build/configure.js](https://github.com/expo/eas-cli/blob/v0.25.0/packages/eas-cli/src/commands/build/configure.js)_
+_See code: [src/commands/build/configure.js](https://github.com/expo/eas-cli/blob/v0.26.0/packages/eas-cli/src/commands/build/configure.js)_
 
 ## `eas build:list`
 
@@ -190,7 +191,7 @@ OPTIONS
   --status=(new|in-queue|in-progress|errored|finished|canceled)
 ```
 
-_See code: [src/commands/build/list.js](https://github.com/expo/eas-cli/blob/v0.25.0/packages/eas-cli/src/commands/build/list.js)_
+_See code: [src/commands/build/list.js](https://github.com/expo/eas-cli/blob/v0.26.0/packages/eas-cli/src/commands/build/list.js)_
 
 ## `eas build:view [BUILD_ID]`
 
@@ -204,11 +205,11 @@ OPTIONS
   --json  Enable JSON output, non-JSON messages will be printed to stderr
 ```
 
-_See code: [src/commands/build/view.js](https://github.com/expo/eas-cli/blob/v0.25.0/packages/eas-cli/src/commands/build/view.js)_
+_See code: [src/commands/build/view.js](https://github.com/expo/eas-cli/blob/v0.26.0/packages/eas-cli/src/commands/build/view.js)_
 
 ## `eas config`
 
-Show the eas.json config
+show the eas.json config
 
 ```
 USAGE
@@ -219,18 +220,18 @@ OPTIONS
   --profile=profile
 ```
 
-_See code: [src/commands/config.js](https://github.com/expo/eas-cli/blob/v0.25.0/packages/eas-cli/src/commands/config.js)_
+_See code: [src/commands/config.js](https://github.com/expo/eas-cli/blob/v0.26.0/packages/eas-cli/src/commands/config.js)_
 
 ## `eas credentials`
 
-Manage your credentials
+manage your credentials
 
 ```
 USAGE
   $ eas credentials
 ```
 
-_See code: [src/commands/credentials.js](https://github.com/expo/eas-cli/blob/v0.25.0/packages/eas-cli/src/commands/credentials.js)_
+_See code: [src/commands/credentials.js](https://github.com/expo/eas-cli/blob/v0.26.0/packages/eas-cli/src/commands/credentials.js)_
 
 ## `eas device:create`
 
@@ -241,7 +242,7 @@ USAGE
   $ eas device:create
 ```
 
-_See code: [src/commands/device/create.js](https://github.com/expo/eas-cli/blob/v0.25.0/packages/eas-cli/src/commands/device/create.js)_
+_See code: [src/commands/device/create.js](https://github.com/expo/eas-cli/blob/v0.26.0/packages/eas-cli/src/commands/device/create.js)_
 
 ## `eas device:list`
 
@@ -255,7 +256,7 @@ OPTIONS
   --apple-team-id=apple-team-id
 ```
 
-_See code: [src/commands/device/list.js](https://github.com/expo/eas-cli/blob/v0.25.0/packages/eas-cli/src/commands/device/list.js)_
+_See code: [src/commands/device/list.js](https://github.com/expo/eas-cli/blob/v0.26.0/packages/eas-cli/src/commands/device/list.js)_
 
 ## `eas device:view [UDID]`
 
@@ -266,7 +267,18 @@ USAGE
   $ eas device:view [UDID]
 ```
 
-_See code: [src/commands/device/view.js](https://github.com/expo/eas-cli/blob/v0.25.0/packages/eas-cli/src/commands/device/view.js)_
+_See code: [src/commands/device/view.js](https://github.com/expo/eas-cli/blob/v0.26.0/packages/eas-cli/src/commands/device/view.js)_
+
+## `eas diagnostics`
+
+log environment info to the console
+
+```
+USAGE
+  $ eas diagnostics
+```
+
+_See code: [src/commands/diagnostics.js](https://github.com/expo/eas-cli/blob/v0.26.0/packages/eas-cli/src/commands/diagnostics.js)_
 
 ## `eas help [COMMAND]`
 
@@ -294,7 +306,7 @@ USAGE
   $ eas project:info
 ```
 
-_See code: [src/commands/project/info.js](https://github.com/expo/eas-cli/blob/v0.25.0/packages/eas-cli/src/commands/project/info.js)_
+_See code: [src/commands/project/info.js](https://github.com/expo/eas-cli/blob/v0.26.0/packages/eas-cli/src/commands/project/info.js)_
 
 ## `eas project:init`
 
@@ -308,7 +320,7 @@ ALIASES
   $ eas init
 ```
 
-_See code: [src/commands/project/init.js](https://github.com/expo/eas-cli/blob/v0.25.0/packages/eas-cli/src/commands/project/init.js)_
+_See code: [src/commands/project/init.js](https://github.com/expo/eas-cli/blob/v0.26.0/packages/eas-cli/src/commands/project/init.js)_
 
 ## `eas secret:create`
 
@@ -325,7 +337,7 @@ OPTIONS
   --value=value              Value of the secret
 ```
 
-_See code: [src/commands/secret/create.js](https://github.com/expo/eas-cli/blob/v0.25.0/packages/eas-cli/src/commands/secret/create.js)_
+_See code: [src/commands/secret/create.js](https://github.com/expo/eas-cli/blob/v0.26.0/packages/eas-cli/src/commands/secret/create.js)_
 
 ## `eas secret:delete`
 
@@ -342,7 +354,7 @@ DESCRIPTION
   Unsure where to find the secret's ID? Run eas secrets:list
 ```
 
-_See code: [src/commands/secret/delete.js](https://github.com/expo/eas-cli/blob/v0.25.0/packages/eas-cli/src/commands/secret/delete.js)_
+_See code: [src/commands/secret/delete.js](https://github.com/expo/eas-cli/blob/v0.26.0/packages/eas-cli/src/commands/secret/delete.js)_
 
 ## `eas secret:list`
 
@@ -353,96 +365,34 @@ USAGE
   $ eas secret:list
 ```
 
-_See code: [src/commands/secret/list.js](https://github.com/expo/eas-cli/blob/v0.25.0/packages/eas-cli/src/commands/secret/list.js)_
+_See code: [src/commands/secret/list.js](https://github.com/expo/eas-cli/blob/v0.26.0/packages/eas-cli/src/commands/secret/list.js)_
 
-## `eas submit --platform=(android|ios)`
+## `eas submit`
 
-Submits build artifact to app store
+submit build archive to app store
 
 ```
 USAGE
-  $ eas submit --platform=(android|ios)
+  $ eas submit
 
 OPTIONS
-  -p, --platform=(android|ios)                                       For which platform you want to submit a build
+  -p, --platform=(android|ios)
+  --id=id                       ID of the build to submit
+  --latest                      Submit the latest build for specified platform
+  --path=path                   Path to the .apk/.aab/.ipa file
+  --profile=profile             Name of the submit profile from eas.json. Defaults to "release" if defined in eas.json.
+  --url=url                     App archive url
+  --verbose                     Always print logs from Submission Service
+  --[no-]wait                   Wait for submission to complete
 
-  Android specific options=android-package                           Android package name (default: expo.android.package
-                                                                     from app config)
-
-  iOS specific options=app-name                                      The name of your app as it will appear on the App
-                                                                     Store (default: expo.name from app config)
-
-  iOS specific options=apple-id                                      Your Apple ID username (you can also set
-                                                                     EXPO_APPLE_ID env variable)
-
-  iOS specific options=apple-team-id                                 Your Apple Developer Team ID
-
-  iOS specific options=asc-app-id                                    App Store Connect unique application Apple ID
-                                                                     number. Providing this param results in skipping
-                                                                     app creation step. Learn more:
-                                                                     https://expo.fyi/asc-app-id
-
-  iOS specific options=bundle-identifier                             Your iOS Bundle Identifier (default:
-                                                                     expo.ios.bundleIdentifier from app config)
-
-  Android specific options                                           [default: false] Indicates that the changes sent
-                                                                     with this submission will not be reviewed until
-                                                                     they are explicitly sent for review from the Google
-                                                                     Play Console UI
-
-  iOS specific options=company-name                                  The name of your company, needed only for the first
-                                                                     upload of any app to App Store
-
-  --id=id                                                            ID of the build to submit
-
-  Android specific options=key                                       Path to the JSON file with service account key used
-                                                                     to authenticate with Google Play
-
-  iOS specific options=language                                      [default: en-US] Primary language (e.g. English,
-                                                                     German, ...)
-
-  --latest                                                           Submit the latest build for specified platform
-
-  --path=path                                                        Path to the .apk/.aab file
-
-  --profile=profile                                                  Name of the submit profile from eas.json
-
-  Android specific options=(completed|draft|halted|inProgress)       [default: completed] Release status (used when
-                                                                     uploading new APKs/AABs)
-
-  iOS specific options=sku                                           An unique ID for your app that is not visible on
-                                                                     the App Store, will be generated unless provided
-
-  Android specific options=(production|beta|alpha|internal|rollout)  [default: internal] The track of the application to
-                                                                     use
-
-  Android specific options=(apk|aab)                                 Android archive type
-
-  --url=url                                                          App archive url
-
-  --verbose                                                          Always print logs from Submission Service
-
-  --[no-]wait                                                        Wait for submission to complete
+DESCRIPTION
+  See how to configure submits with eas.json: https://docs.expo.dev/submit/eas-json/
 
 ALIASES
   $ eas build:submit
-
-EXAMPLES
-  $ eas submit --platform=ios
-       - Fully interactive iOS submission
-
-  $ eas submit --platform=android
-       - Fully interactive Android submission
-
-  $ eas submit -p android --latest --key=/path/to/google-services.json
-       - Minimal non-interactive Android submission, however it can ask you for other params if not specified
-
-  $ EXPO_APPLE_APP_SPECIFIC_PASSWORD=xxx eas submit -p ios --latest --apple-id=user@example.com --asc-app-id=1234567890,
-       - Minimal non-interactive iOS submission, assuming you already have an app in App Store Connect
-         and provide its App ID
 ```
 
-_See code: [src/commands/submit.js](https://github.com/expo/eas-cli/blob/v0.25.0/packages/eas-cli/src/commands/submit.js)_
+_See code: [src/commands/submit.js](https://github.com/expo/eas-cli/blob/v0.26.0/packages/eas-cli/src/commands/submit.js)_
 
 ## `eas webhook:create`
 
@@ -461,7 +411,7 @@ OPTIONS
   --url=url        Webhook URL
 ```
 
-_See code: [src/commands/webhook/create.js](https://github.com/expo/eas-cli/blob/v0.25.0/packages/eas-cli/src/commands/webhook/create.js)_
+_See code: [src/commands/webhook/create.js](https://github.com/expo/eas-cli/blob/v0.26.0/packages/eas-cli/src/commands/webhook/create.js)_
 
 ## `eas webhook:delete [ID]`
 
@@ -475,7 +425,7 @@ ARGUMENTS
   ID  ID of the webhook to delete
 ```
 
-_See code: [src/commands/webhook/delete.js](https://github.com/expo/eas-cli/blob/v0.25.0/packages/eas-cli/src/commands/webhook/delete.js)_
+_See code: [src/commands/webhook/delete.js](https://github.com/expo/eas-cli/blob/v0.26.0/packages/eas-cli/src/commands/webhook/delete.js)_
 
 ## `eas webhook:list`
 
@@ -489,7 +439,7 @@ OPTIONS
   --event=(BUILD)  Event type that triggers the webhook
 ```
 
-_See code: [src/commands/webhook/list.js](https://github.com/expo/eas-cli/blob/v0.25.0/packages/eas-cli/src/commands/webhook/list.js)_
+_See code: [src/commands/webhook/list.js](https://github.com/expo/eas-cli/blob/v0.26.0/packages/eas-cli/src/commands/webhook/list.js)_
 
 ## `eas webhook:update`
 
@@ -509,7 +459,7 @@ OPTIONS
   --url=url        Webhook URL
 ```
 
-_See code: [src/commands/webhook/update.js](https://github.com/expo/eas-cli/blob/v0.25.0/packages/eas-cli/src/commands/webhook/update.js)_
+_See code: [src/commands/webhook/update.js](https://github.com/expo/eas-cli/blob/v0.26.0/packages/eas-cli/src/commands/webhook/update.js)_
 
 ## `eas webhook:view ID`
 
@@ -523,5 +473,5 @@ ARGUMENTS
   ID  ID of the webhook to view
 ```
 
-_See code: [src/commands/webhook/view.js](https://github.com/expo/eas-cli/blob/v0.25.0/packages/eas-cli/src/commands/webhook/view.js)_
+_See code: [src/commands/webhook/view.js](https://github.com/expo/eas-cli/blob/v0.26.0/packages/eas-cli/src/commands/webhook/view.js)_
 <!-- commandsstop -->
