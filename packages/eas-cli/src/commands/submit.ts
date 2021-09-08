@@ -178,12 +178,12 @@ See how to configure submits with eas.json: ${learnMore('https://docs.expo.dev/s
       name: 'platform',
       choices: [
         {
-          title: 'iOS',
-          value: AppPlatform.Ios,
-        },
-        {
           title: 'Android',
           value: AppPlatform.Android,
+        },
+        {
+          title: 'iOS',
+          value: AppPlatform.Ios,
         },
       ],
     });

@@ -200,8 +200,8 @@ export default class Build extends EasCommand {
       name: 'platform',
       choices: [
         { title: 'All', value: RequestedPlatform.All },
-        { title: 'iOS', value: RequestedPlatform.Ios },
         { title: 'Android', value: RequestedPlatform.Android },
+        { title: 'iOS', value: RequestedPlatform.Ios },
       ],
     });
     return platform;
