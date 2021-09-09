@@ -32,11 +32,8 @@ type AppStoreResult = {
 export async function ensureAppStoreConnectAppExistsAsync(
   ctx: SubmissionContext<Platform.IOS>
 ): Promise<AppStoreResult> {
-  const projectConfig = getConfig(ctx.projectDir, { skipSDKVersionRequirement: true });
-  const { exp } = projectConfig;
-
+  const { exp } = getConfig(ctx.projectDir, { skipSDKVersionRequirement: true });
   const { appName, language } = ctx.profile;
-
   const options = {
     ...ctx.profile,
     bundleIdentifier: await getBundleIdentifierAsync(ctx.projectDir, exp),

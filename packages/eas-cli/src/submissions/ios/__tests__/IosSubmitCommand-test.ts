@@ -53,6 +53,27 @@ describe(IosSubmitCommand, () => {
     asMock(getProjectIdAsync).mockClear();
   });
 
+  describe('non-interactive mode', () => {
+    it("throws error if didn't provide appleId and ascAppId in the submit profile", async () => {
+      const projectId = uuidv4();
+
+      const ctx = createSubmissionContext({
+        platform: Platform.IOS,
+        projectDir: testProject.projectRoot,
+        projectId,
+        archiveFlags: {
+          url: 'http://expo.dev/fake.ipa',
+        },
+        profile: {
+          language: 'en-US',
+        },
+        nonInteractive: true,
+      });
+      const command = new IosSubmitCommand(ctx);
+      await expect(command.runAsync()).rejects.toThrowError();
+    });
+  });
+
   describe('sending submission', () => {
     it('sends a request to Submission Service', async () => {
       const projectId = uuidv4();
@@ -71,6 +92,7 @@ describe(IosSubmitCommand, () => {
           appleId: 'test@example.com',
           ascAppId: '12345678',
         },
+        nonInteractive: false,
       });
       const command = new IosSubmitCommand(ctx);
       await command.runAsync();

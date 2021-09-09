@@ -45,7 +45,7 @@ export default class AndroidSubmitCommand {
     if (errored.length > 0) {
       const message = errored.map(err => err.reason?.message).join('\n');
       Log.error(message);
-      throw new Error('Failed to submit the app');
+      throw new Error('Submission failed');
     }
 
     return {
@@ -75,6 +75,8 @@ export default class AndroidSubmitCommand {
         sourceType: AndroidPackageSourceType.userDefined,
         androidPackage,
       });
+    } else if (this.ctx.nonInteractive) {
+      return result(new Error("Couldn't resolve the Android package."));
     } else {
       return result({
         sourceType: AndroidPackageSourceType.prompt,
@@ -127,7 +129,11 @@ export default class AndroidSubmitCommand {
   }
 
   private resolveArchiveSource(): Result<ArchiveSource> {
-    return result(resolveArchiveSource(this.ctx, Platform.ANDROID));
+    try {
+      return result(resolveArchiveSource(this.ctx, Platform.ANDROID));
+    } catch (err: any) {
+      return result(err);
+    }
   }
 
   private resolveServiceAccountSource(): Result<ServiceAccountSource> {
@@ -137,6 +143,8 @@ export default class AndroidSubmitCommand {
         sourceType: ServiceAccountSourceType.path,
         path: serviceAccountKeyPath,
       });
+    } else if (this.ctx.nonInteractive) {
+      return result(new Error('Set serviceAccountKeyPath in the submit profile (eas.json).'));
     } else {
       return result({
         sourceType: ServiceAccountSourceType.detect,
