@@ -10,6 +10,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - Implement support for `--platform all` in `eas submit`. ([#598](https://github.com/expo/eas-cli/pull/598) by [@dsokal](https://github.com/dsokal))
 - Implement support for `--non-interactive` in `eas submit`. ([#600](https://github.com/expo/eas-cli/pull/600) by [@dsokal](https://github.com/dsokal))
+- Add auto-submit feature. Run `eas build --submit` to submit automatically on build complete. ([#603](https://github.com/expo/eas-cli/pull/603) by [@dsokal](https://github.com/dsokal))
 
 ### 🐛 Bug fixes
 
