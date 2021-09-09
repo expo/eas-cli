@@ -1,3 +1,4 @@
+import { asMock } from '../../../../__tests__/utils';
 import {
   getNewAndroidApiMock,
   testAndroidBuildCredentialsFragment,
@@ -16,6 +17,10 @@ jest.mock('../../../../prompts', () => ({ confirmAsync: jest.fn(() => true) }));
 jest.mock('../../utils/keystore', () => ({ generateRandomKeystoreAsync: jest.fn() }));
 
 describe('SetupBuildCredentials', () => {
+  beforeEach(() => {
+    asMock(generateRandomKeystoreAsync).mockReset();
+  });
+
   it('skips setup when there are prior credentials', async () => {
     const ctx = createCtxMock({
       nonInteractive: false,

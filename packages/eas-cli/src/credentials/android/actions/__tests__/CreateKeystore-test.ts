@@ -3,15 +3,20 @@ import { jester as mockJester } from '../../../../credentials/__tests__/fixtures
 import { testKeystore } from '../../../__tests__/fixtures-android';
 import { createCtxMock } from '../../../__tests__/fixtures-context';
 import { askForUserProvidedAsync } from '../../../utils/promptForCredentials';
+import { generateRandomKeystoreAsync } from '../../utils/keystore';
 import { getAppLookupParamsFromContextAsync } from '../BuildCredentialsUtils';
 import { CreateKeystore } from '../CreateKeystore';
 
-jest.mock('../../../utils/promptForCredentials');
 jest.mock('../../../../project/ensureProjectExists');
 jest.mock('../../../../prompts', () => ({ confirmAsync: jest.fn(() => true) }));
 jest.mock('../../../../user/actions', () => ({ ensureLoggedInAsync: jest.fn(() => mockJester) }));
+jest.mock('../../../utils/promptForCredentials');
+jest.mock('../../utils/keystore', () => ({ generateRandomKeystoreAsync: jest.fn() }));
 
 describe('CreateKeystore', () => {
+  beforeEach(() => {
+    asMock(generateRandomKeystoreAsync).mockReset();
+  });
   it('creates a keystore in Interactive Mode', async () => {
     const ctx = createCtxMock({ nonInteractive: false });
     const appLookupParams = await getAppLookupParamsFromContextAsync(ctx);
@@ -19,7 +24,8 @@ describe('CreateKeystore', () => {
     await createKeystoreAction.runAsync(ctx);
 
     // expect keystore to be created on expo servers
-    expect(ctx.android.createKeystoreAsync as any).toHaveBeenCalledTimes(1);
+    expect(ctx.android.createKeystoreAsync).toHaveBeenCalled();
+    expect(generateRandomKeystoreAsync).toHaveBeenCalled();
   });
   it('creates a keystore by uploading', async () => {
     asMock(askForUserProvidedAsync).mockImplementationOnce(() => testKeystore);
@@ -29,11 +35,11 @@ describe('CreateKeystore', () => {
     await createKeystoreAction.runAsync(ctx);
 
     // expect keystore to be created on expo servers
-    expect(ctx.android.createKeystoreAsync as any).toHaveBeenCalledTimes(1);
-    expect(ctx.android.createKeystoreAsync as any).toHaveBeenCalledWith(
+    expect(ctx.android.createKeystoreAsync).toHaveBeenCalledWith(
       appLookupParams.account,
       expect.objectContaining(testKeystore)
     );
+    expect(generateRandomKeystoreAsync).not.toHaveBeenCalled();
   });
   it('errors in Non-Interactive Mode', async () => {
     const ctx = createCtxMock({ nonInteractive: true });
