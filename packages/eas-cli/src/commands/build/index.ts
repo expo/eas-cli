@@ -7,6 +7,7 @@ import {
 } from '@expo/eas-json';
 import { flags } from '@oclif/command';
 import { error } from '@oclif/errors';
+import chalk from 'chalk';
 
 import { prepareAndroidBuildAsync } from '../../build/android/build';
 import { BuildRequestSender, waitForBuildEndAsync } from '../../build/build';
@@ -17,8 +18,15 @@ import { printBuildResults, printLogsUrls } from '../../build/utils/printBuildIn
 import { ensureRepoIsCleanAsync } from '../../build/utils/repository';
 import EasCommand from '../../commandUtils/EasCommand';
 import { BuildFragment, BuildStatus } from '../../graphql/generated';
+import { toAppPlatform } from '../../graphql/types/AppPlatform';
 import Log from '../../log';
-import { RequestedPlatform, selectRequestedPlatformAsync, toPlatforms } from '../../platform';
+import {
+  RequestedPlatform,
+  appPlatformDisplayNames,
+  appPlatformEmojis,
+  selectRequestedPlatformAsync,
+  toPlatforms,
+} from '../../platform';
 import {
   EAS_UNAVAILABLE_MESSAGE,
   isEasEnabledForProjectAsync,
@@ -75,6 +83,7 @@ export default class Build extends EasCommand {
     profile: flags.string({
       default: 'release',
       description: 'Name of the build profile from eas.json',
+      helpValue: 'PROFILE_NAME',
     }),
     'non-interactive': flags.boolean({
       default: false,
@@ -112,11 +121,11 @@ export default class Build extends EasCommand {
     await ensureProjectConfiguredAsync(projectDir, requestedPlatform);
 
     const easJsonReader = new EasJsonReader(projectDir);
-    const platformsToBuild = toPlatforms(requestedPlatform);
+    const platforms = toPlatforms(requestedPlatform);
 
     const startedBuilds: BuildFragment[] = [];
     let metroConfigValidated = false;
-    for (const platform of platformsToBuild) {
+    for (const platform of platforms) {
       const buildProfile = await easJsonReader.readBuildProfileAsync(platform, flags.profile);
       const ctx = await createBuildContextAsync({
         buildProfileName: flags.profile,
@@ -128,6 +137,16 @@ export default class Build extends EasCommand {
         projectDir,
         skipProjectConfiguration: flags.skipProjectConfiguration,
       });
+
+      if (platforms.length > 1) {
+        Log.newLine();
+        const appPlatform = toAppPlatform(platform);
+        Log.log(
+          `${appPlatformEmojis[appPlatform]} ${chalk.bold(
+            `${appPlatformDisplayNames[appPlatform]} build`
+          )}`
+        );
+      }
 
       if (ctx.workflow === Workflow.MANAGED && !metroConfigValidated) {
         await validateMetroConfigForManagedWorkflowAsync(ctx);
