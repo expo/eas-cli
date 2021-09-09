@@ -125,6 +125,8 @@ export default class Build extends EasCommand {
     }),
   };
 
+  private metroConfigValidated = false;
+
   async run(): Promise<void> {
     const { flags: rawFlags } = this.parse(Build);
     if (rawFlags.json) {
@@ -141,44 +143,16 @@ export default class Build extends EasCommand {
 
     await ensureProjectConfiguredAsync(projectDir, requestedPlatform);
 
-    const easJsonReader = new EasJsonReader(projectDir);
     const platforms = toPlatforms(requestedPlatform);
 
     const startedBuilds: BuildFragment[] = [];
-    let metroConfigValidated = false;
     for (const platform of platforms) {
-      const buildProfile = await easJsonReader.readBuildProfileAsync(platform, flags.profile);
-      const buildCtx = await createBuildContextAsync({
-        buildProfileName: flags.profile,
-        clearCache: flags.clearCache,
-        buildProfile,
-        local: flags.local,
-        nonInteractive: flags.nonInteractive,
-        platform,
+      const maybeBuild = await this.prepareAndStartBuildAsync({
         projectDir,
-        skipProjectConfiguration: flags.skipProjectConfiguration,
+        platform,
+        flags,
+        moreBuilds: platforms.length > 1,
       });
-
-      if (platforms.length > 1) {
-        Log.newLine();
-        const appPlatform = toAppPlatform(platform);
-        Log.log(
-          `${appPlatformEmojis[appPlatform]} ${chalk.bold(
-            `${appPlatformDisplayNames[appPlatform]} build`
-          )}`
-        );
-      }
-
-      if (buildCtx.workflow === Workflow.MANAGED && !metroConfigValidated) {
-        await validateMetroConfigForManagedWorkflowAsync(buildCtx);
-        metroConfigValidated = true;
-      }
-
-      if (!buildCtx.local && !(await isEasEnabledForProjectAsync(buildCtx.projectId))) {
-        error(EAS_UNAVAILABLE_MESSAGE, { exit: 1 });
-      }
-
-      const maybeBuild = await this.startBuildAsync(buildCtx);
       if (maybeBuild) {
         startedBuilds.push(maybeBuild);
       }
@@ -194,30 +168,12 @@ export default class Build extends EasCommand {
     const submissions: SubmissionFragment[] = [];
     if (flags.submit) {
       for (const build of startedBuilds) {
-        const platform = toPlatform(build.platform);
-        const submitProfile = await easJsonReader.readSubmitProfileAsync(
-          platform,
-          flags.submitProfile
-        );
-        const submissionCtx = createSubmissionContext({
-          platform,
+        const submission = await this.prepareAndStartSubmissionAsync({
           projectDir,
-          projectId: build.project.id,
-          profile: submitProfile,
-          archiveFlags: { id: build.id },
-          nonInteractive: flags.nonInteractive,
+          build,
+          flags,
+          moreBuilds: startedBuilds.length > 1,
         });
-
-        if (startedBuilds.length > 1) {
-          Log.newLine();
-          Log.log(
-            `${appPlatformEmojis[build.platform]} ${chalk.bold(
-              `${appPlatformDisplayNames[build.platform]} submission`
-            )}`
-          );
-        }
-
-        const submission = await submitAsync(submissionCtx);
         submissions.push(submission);
       }
 
@@ -286,6 +242,52 @@ export default class Build extends EasCommand {
     };
   }
 
+  private async prepareAndStartBuildAsync({
+    projectDir,
+    platform,
+    flags,
+    moreBuilds,
+  }: {
+    projectDir: string;
+    platform: Platform;
+    flags: BuildFlags;
+    moreBuilds: boolean;
+  }): Promise<BuildFragment | undefined> {
+    const easJsonReader = new EasJsonReader(projectDir);
+    const buildProfile = await easJsonReader.readBuildProfileAsync(platform, flags.profile);
+    const buildCtx = await createBuildContextAsync({
+      buildProfileName: flags.profile,
+      clearCache: flags.clearCache,
+      buildProfile,
+      local: flags.local,
+      nonInteractive: flags.nonInteractive,
+      platform,
+      projectDir,
+      skipProjectConfiguration: flags.skipProjectConfiguration,
+    });
+
+    if (moreBuilds) {
+      Log.newLine();
+      const appPlatform = toAppPlatform(platform);
+      Log.log(
+        `${appPlatformEmojis[appPlatform]} ${chalk.bold(
+          `${appPlatformDisplayNames[appPlatform]} build`
+        )}`
+      );
+    }
+
+    if (buildCtx.workflow === Workflow.MANAGED && !this.metroConfigValidated) {
+      await validateMetroConfigForManagedWorkflowAsync(buildCtx);
+      this.metroConfigValidated = true;
+    }
+
+    if (!buildCtx.local && !(await isEasEnabledForProjectAsync(buildCtx.projectId))) {
+      error(EAS_UNAVAILABLE_MESSAGE, { exit: 1 });
+    }
+
+    return await this.startBuildAsync(buildCtx);
+  }
+
   private async startBuildAsync(ctx: BuildContext<Platform>): Promise<BuildFragment | undefined> {
     let sendBuildRequestAsync: BuildRequestSender;
     if (ctx.platform === Platform.ANDROID) {
@@ -294,6 +296,41 @@ export default class Build extends EasCommand {
       sendBuildRequestAsync = await prepareIosBuildAsync(ctx as BuildContext<Platform.IOS>);
     }
     return await sendBuildRequestAsync();
+  }
+
+  private async prepareAndStartSubmissionAsync({
+    projectDir,
+    build,
+    flags,
+    moreBuilds,
+  }: {
+    projectDir: string;
+    build: BuildFragment;
+    flags: BuildFlags;
+    moreBuilds: boolean;
+  }): Promise<SubmissionFragment> {
+    const easJsonReader = new EasJsonReader(projectDir);
+    const platform = toPlatform(build.platform);
+    const submitProfile = await easJsonReader.readSubmitProfileAsync(platform, flags.submitProfile);
+    const submissionCtx = createSubmissionContext({
+      platform,
+      projectDir,
+      projectId: build.project.id,
+      profile: submitProfile,
+      archiveFlags: { id: build.id },
+      nonInteractive: flags.nonInteractive,
+    });
+
+    if (moreBuilds) {
+      Log.newLine();
+      Log.log(
+        `${appPlatformEmojis[build.platform]} ${chalk.bold(
+          `${appPlatformDisplayNames[build.platform]} submission`
+        )}`
+      );
+    }
+
+    return await submitAsync(submissionCtx);
   }
 
   private exitWithNonZeroCodeIfSomeBuildsFailed(maybeBuilds: (BuildFragment | null)[]): void {
