@@ -6,12 +6,14 @@ import {
 import { jester as mockJester } from '../../../__tests__/fixtures-constants';
 import { createCtxMock } from '../../../__tests__/fixtures-context';
 import { MissingCredentialsNonInteractiveError } from '../../../errors';
+import { generateRandomKeystoreAsync } from '../../utils/keystore';
 import { getAppLookupParamsFromContextAsync } from '../BuildCredentialsUtils';
 import { SetupBuildCredentials } from '../SetupBuildCredentials';
 
 jest.mock('../../../../project/ensureProjectExists');
 jest.mock('../../../../user/actions', () => ({ ensureLoggedInAsync: jest.fn(() => mockJester) }));
 jest.mock('../../../../prompts', () => ({ confirmAsync: jest.fn(() => true) }));
+jest.mock('../../utils/keystore', () => ({ generateRandomKeystoreAsync: jest.fn() }));
 
 describe('SetupBuildCredentials', () => {
   it('skips setup when there are prior credentials', async () => {
@@ -29,7 +31,7 @@ describe('SetupBuildCredentials', () => {
     await setupBuildCredentialsAction.runAsync(ctx);
 
     // expect keystore not to be created
-    expect(ctx.android.createKeystoreAsync as any).toHaveBeenCalledTimes(0);
+    expect(ctx.android.createKeystoreAsync).not.toHaveBeenCalled();
   });
   it('sets up credentials when there are no prior credentials', async () => {
     const ctx = createCtxMock({
@@ -44,7 +46,8 @@ describe('SetupBuildCredentials', () => {
     await setupBuildCredentialsAction.runAsync(ctx);
 
     // expect keystore to be created
-    expect(ctx.android.createKeystoreAsync as any).toHaveBeenCalledTimes(1);
+    expect(ctx.android.createKeystoreAsync).toHaveBeenCalled();
+    expect(generateRandomKeystoreAsync).toHaveBeenCalled();
   });
   it('errors in Non-Interactive Mode', async () => {
     const ctx = createCtxMock({
