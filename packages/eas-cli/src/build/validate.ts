@@ -25,7 +25,7 @@ export async function checkGoogleServicesFileAsync<T extends Platform>(
   if (!googleServicesFilePath) {
     return;
   }
-  const rootDir = await vcs.getRootPathAsync();
+  const rootDir = path.normalize(await vcs.getRootPathAsync());
   const absGoogleServicesFilePath = path.resolve(ctx.projectDir, googleServicesFilePath);
   if (
     (await fs.pathExists(absGoogleServicesFilePath)) &&
