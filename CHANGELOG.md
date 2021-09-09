@@ -12,7 +12,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
-- Fix detecting `googleServicesFile` on windows. ([#602](https://github.com/expo/eas-cli/pull/602) by [@wkozyra95](https://github.com/wkozyra95))
+- Fix detecting `googleServicesFile` on Windows. ([#602](https://github.com/expo/eas-cli/pull/602) by [@wkozyra95](https://github.com/wkozyra95))
 
 ### 🧹 Chores
 
