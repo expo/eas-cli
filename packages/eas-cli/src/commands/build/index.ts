@@ -17,8 +17,8 @@ import { prepareIosBuildAsync } from '../../build/ios/build';
 import { printBuildResults, printLogsUrls } from '../../build/utils/printBuildInfo';
 import { ensureRepoIsCleanAsync } from '../../build/utils/repository';
 import EasCommand from '../../commandUtils/EasCommand';
-import { BuildFragment, BuildStatus } from '../../graphql/generated';
-import { toAppPlatform } from '../../graphql/types/AppPlatform';
+import { BuildFragment, BuildStatus, SubmissionFragment } from '../../graphql/generated';
+import { toAppPlatform, toPlatform } from '../../graphql/types/AppPlatform';
 import Log from '../../log';
 import {
   RequestedPlatform,
@@ -34,6 +34,12 @@ import {
 import { validateMetroConfigForManagedWorkflowAsync } from '../../project/metroConfig';
 import { findProjectRootAsync } from '../../project/projectUtils';
 import { confirmAsync } from '../../prompts';
+import { createSubmissionContext } from '../../submissions/context';
+import {
+  submitAsync,
+  waitToCompleteAsync as waitForSubmissionsToCompleteAsync,
+} from '../../submissions/submit';
+import { printSubmissionDetailsUrls } from '../../submissions/utils/urls';
 import { enableJsonOutput } from '../../utils/json';
 import vcs from '../../vcs';
 
@@ -47,6 +53,8 @@ interface RawBuildFlags {
   wait: boolean;
   'clear-cache': boolean;
   json: boolean;
+  submit: boolean;
+  'submit-profile'?: string;
 }
 
 interface BuildFlags {
@@ -58,6 +66,8 @@ interface BuildFlags {
   wait: boolean;
   clearCache: boolean;
   json: boolean;
+  submit: boolean;
+  submitProfile?: string;
 }
 
 export default class Build extends EasCommand {
@@ -102,6 +112,17 @@ export default class Build extends EasCommand {
       default: false,
       description: 'Clear cache before the build',
     }),
+    submit: flags.boolean({
+      default: false,
+      description:
+        'Submit on build complete using the submit profile with the same name as the build profile',
+      exclusive: ['submit-with-profile'],
+    }),
+    'submit-with-profile': flags.string({
+      description: 'Submit on build complete using the submit profile with provided name',
+      helpValue: 'PROFILE_NAME',
+      exclusive: ['submit'],
+    }),
   };
 
   async run(): Promise<void> {
@@ -127,7 +148,7 @@ export default class Build extends EasCommand {
     let metroConfigValidated = false;
     for (const platform of platforms) {
       const buildProfile = await easJsonReader.readBuildProfileAsync(platform, flags.profile);
-      const ctx = await createBuildContextAsync({
+      const buildCtx = await createBuildContextAsync({
         buildProfileName: flags.profile,
         clearCache: flags.clearCache,
         buildProfile,
@@ -148,16 +169,16 @@ export default class Build extends EasCommand {
         );
       }
 
-      if (ctx.workflow === Workflow.MANAGED && !metroConfigValidated) {
-        await validateMetroConfigForManagedWorkflowAsync(ctx);
+      if (buildCtx.workflow === Workflow.MANAGED && !metroConfigValidated) {
+        await validateMetroConfigForManagedWorkflowAsync(buildCtx);
         metroConfigValidated = true;
       }
 
-      if (!ctx.local && !(await isEasEnabledForProjectAsync(ctx.projectId))) {
+      if (!buildCtx.local && !(await isEasEnabledForProjectAsync(buildCtx.projectId))) {
         error(EAS_UNAVAILABLE_MESSAGE, { exit: 1 });
       }
 
-      const maybeBuild = await this.startBuildAsync(ctx);
+      const maybeBuild = await this.startBuildAsync(buildCtx);
       if (maybeBuild) {
         startedBuilds.push(maybeBuild);
       }
@@ -170,10 +191,52 @@ export default class Build extends EasCommand {
     printLogsUrls(startedBuilds);
     Log.newLine();
 
-    if (flags.wait) {
-      const builds = await waitForBuildEndAsync(startedBuilds.map(build => build.id));
-      printBuildResults(builds, flags.json);
+    const submissions: SubmissionFragment[] = [];
+    if (flags.submit) {
+      for (const build of startedBuilds) {
+        const platform = toPlatform(build.platform);
+        const submitProfile = await easJsonReader.readSubmitProfileAsync(
+          platform,
+          flags.submitProfile
+        );
+        const submissionCtx = createSubmissionContext({
+          platform,
+          projectDir,
+          projectId: build.project.id,
+          profile: submitProfile,
+          archiveFlags: { id: build.id },
+          nonInteractive: flags.nonInteractive,
+        });
+
+        if (startedBuilds.length > 1) {
+          Log.newLine();
+          Log.log(
+            `${appPlatformEmojis[build.platform]} ${chalk.bold(
+              `${appPlatformDisplayNames[build.platform]} submission`
+            )}`
+          );
+        }
+
+        const submission = await submitAsync(submissionCtx);
+        submissions.push(submission);
+      }
+
+      Log.newLine();
+      printSubmissionDetailsUrls(submissions);
+    }
+
+    if (!flags.wait) {
+      return;
+    }
+
+    const builds = await waitForBuildEndAsync(startedBuilds.map(build => build.id));
+    printBuildResults(builds, flags.json);
+
+    if (!flags.submit) {
       this.exitWithNonZeroCodeIfSomeBuildsFailed(builds);
+    } else {
+      // the following function also exits with non zero code if any of the submissions failed
+      await waitForSubmissionsToCompleteAsync(submissions);
     }
   }
 
@@ -185,9 +248,14 @@ export default class Build extends EasCommand {
     if (flags.json && !nonInteractive) {
       error('--json is allowed only when building in non-interactive mode', { exit: 1 });
     }
-    const requestedPlatform = await selectRequestedPlatformAsync(flags.platform);
 
+    const requestedPlatform = await selectRequestedPlatformAsync(flags.platform);
     if (flags.local) {
+      if (flags.submit || flags['submit-profile'] !== undefined) {
+        // TODO: implement this
+        error('Auto-submits are not yet supported when building locally', { exit: 1 });
+      }
+
       if (requestedPlatform === RequestedPlatform.All) {
         error('Builds for multiple platforms are not supported with flag --local', { exit: 1 });
       } else if (process.platform !== 'darwin' && requestedPlatform === RequestedPlatform.Ios) {
@@ -203,15 +271,18 @@ export default class Build extends EasCommand {
       Log.newLine();
     }
 
+    const profile = flags['profile'];
     return {
       requestedPlatform,
       skipProjectConfiguration: flags['skip-project-configuration'],
-      profile: flags['profile'],
+      profile,
       nonInteractive,
       local: flags['local'],
       wait: flags['wait'],
       clearCache: flags['clear-cache'],
       json: flags['json'],
+      submit: flags['submit'],
+      submitProfile: flags['submit-profile'] ?? profile,
     };
   }
 
