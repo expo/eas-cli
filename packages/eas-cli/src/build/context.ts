@@ -5,13 +5,14 @@ import JsonFile from '@expo/json-file';
 import resolveFrom from 'resolve-from';
 import { v4 as uuidv4 } from 'uuid';
 
+import { RequestedPlatform } from '../platform';
 import { getExpoConfig } from '../project/expoConfig';
 import { getProjectAccountName, getProjectIdAsync } from '../project/projectUtils';
 import { resolveWorkflowAsync } from '../project/workflow';
 import { findAccountByName } from '../user/Account';
 import { Actor } from '../user/User';
 import { ensureLoggedInAsync } from '../user/actions';
-import { RequestedPlatform, TrackingContext } from './types';
+import { TrackingContext } from './types';
 import Analytics, { Event } from './utils/analytics';
 
 export interface ConfigureContext {

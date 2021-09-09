@@ -3,7 +3,7 @@ import { CredentialsSource } from '@expo/eas-json';
 import chalk from 'chalk';
 
 import Log from '../../log';
-import { requestedPlatformDisplayNames } from '../constants';
+import { requestedPlatformDisplayNames } from '../../platform';
 
 export function logCredentialsSource(credentialsSource: CredentialsSource, platform: Platform) {
   let message = `Using ${credentialsSource} ${requestedPlatformDisplayNames[platform]} credentials`;

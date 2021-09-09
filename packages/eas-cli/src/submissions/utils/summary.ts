@@ -68,7 +68,7 @@ export function printSummary<T>(summary: T, keyMap: Record<keyof T, string>): vo
     fields.push({ label, value });
   }
 
-  Log.newLine();
+  Log.addNewLineIfNone();
   Log.log(formatFields(fields, { labelFormat: chalk.bold.cyan }));
   Log.addNewLineIfNone();
 }

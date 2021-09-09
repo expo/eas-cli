@@ -1,5 +1,4 @@
 import { Platform } from '@expo/eas-build-job';
-import { exit } from '@oclif/errors';
 import chalk from 'chalk';
 import type MetroConfig from 'metro-config';
 import resolveFrom from 'resolve-from';
@@ -38,7 +37,7 @@ export async function validateMetroConfigForManagedWorkflowAsync(ctx: BuildConte
     });
     if (shouldAbort) {
       Log.log('Aborting...');
-      exit();
+      process.exit(1);
     }
   }
 }

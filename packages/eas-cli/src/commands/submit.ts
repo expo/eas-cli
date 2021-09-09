@@ -1,33 +1,54 @@
 import { getConfig } from '@expo/config';
 import { Platform } from '@expo/eas-build-job';
-import { EasJsonReader, IosSubmitProfile } from '@expo/eas-json';
+import { EasJsonReader } from '@expo/eas-json';
 import { flags } from '@oclif/command';
-import { exit } from '@oclif/errors';
+import { error } from '@oclif/errors';
 import chalk from 'chalk';
 
 import EasCommand from '../commandUtils/EasCommand';
 import { AppPlatform, SubmissionFragment, SubmissionStatus } from '../graphql/generated';
+import { toAppPlatform } from '../graphql/types/AppPlatform';
 import Log, { learnMore } from '../log';
-import { appPlatformDisplayNames, appPlatformEmojis } from '../platform';
+import {
+  RequestedPlatform,
+  appPlatformDisplayNames,
+  appPlatformEmojis,
+  selectRequestedPlatformAsync,
+  toPlatforms,
+} from '../platform';
 import { isEasEnabledForProjectAsync, warnEasUnavailable } from '../project/isEasEnabledForProject';
 import { findProjectRootAsync, getProjectIdAsync } from '../project/projectUtils';
-import { promptAsync } from '../prompts';
 import AndroidSubmitCommand from '../submissions/android/AndroidSubmitCommand';
+import {
+  SubmissionContext,
+  SubmitArchiveFlags,
+  createSubmissionContext,
+} from '../submissions/context';
 import IosSubmitCommand from '../submissions/ios/IosSubmitCommand';
-import { SubmitArchiveFlags } from '../submissions/types';
 import { displayLogsAsync } from '../submissions/utils/logs';
 import { printSubmissionDetailsUrls } from '../submissions/utils/urls';
 import { waitForSubmissionsEndAsync } from '../submissions/utils/wait';
 
-interface Flags {
+interface RawFlags {
+  platform?: string;
+  profile?: string;
+  latest?: boolean;
+  id?: string;
+  path?: string;
+  url?: string;
   verbose: boolean;
   wait: boolean;
-  platform?: Platform;
-  profile?: string;
-  archiveFlags: SubmitArchiveFlags;
 }
 
-export default class BuildSubmit extends EasCommand {
+interface Flags {
+  requestedPlatform: RequestedPlatform;
+  profile?: string;
+  archiveFlags: SubmitArchiveFlags;
+  verbose: boolean;
+  wait: boolean;
+}
+
+export default class Submit extends EasCommand {
   static description = `submit build archive to app store
 See how to configure submits with eas.json: ${learnMore('https://docs.expo.dev/submit/eas-json/', {
     learnMoreMessage: '',
@@ -37,7 +58,7 @@ See how to configure submits with eas.json: ${learnMore('https://docs.expo.dev/s
   static flags = {
     platform: flags.enum({
       char: 'p',
-      options: ['android', 'ios'],
+      options: ['android', 'ios', 'all'],
     }),
     profile: flags.string({
       description:
@@ -46,7 +67,6 @@ See how to configure submits with eas.json: ${learnMore('https://docs.expo.dev/s
     latest: flags.boolean({
       description: 'Submit the latest build for specified platform',
       exclusive: ['id', 'path', 'url'],
-      default: false,
     }),
     id: flags.string({
       description: 'ID of the build to submit',
@@ -72,10 +92,8 @@ See how to configure submits with eas.json: ${learnMore('https://docs.expo.dev/s
   };
 
   async run(): Promise<void> {
-    const flags = this.parseFlags();
-    const platform =
-      (flags.platform?.toUpperCase() as AppPlatform | undefined) ??
-      (await this.promptForPlatformAsync());
+    const { flags: rawFlags } = this.parse(Submit);
+    const flags = await this.sanitizeFlagsAsync(rawFlags);
 
     const projectDir = (await findProjectRootAsync()) ?? process.cwd();
     const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
@@ -88,106 +106,118 @@ See how to configure submits with eas.json: ${learnMore('https://docs.expo.dev/s
     }
 
     const easJsonReader = new EasJsonReader(projectDir);
-
+    const platforms = toPlatforms(flags.requestedPlatform);
     const submissions: SubmissionFragment[] = [];
-    let iosSubmitProfile: IosSubmitProfile | null = null;
-    if (platform === AppPlatform.Android) {
-      const submitProfile = await easJsonReader.readSubmitProfileAsync(
-        Platform.ANDROID,
-        flags.profile
-      );
-      const ctx = AndroidSubmitCommand.createContext({
+    for (const platform of platforms) {
+      const profile = await easJsonReader.readSubmitProfileAsync(platform, flags.profile);
+      const ctx = createSubmissionContext({
+        platform,
         projectDir,
         projectId,
-        profile: submitProfile,
+        profile,
         archiveFlags: flags.archiveFlags,
       });
-      const command = new AndroidSubmitCommand(ctx);
-      submissions.push(await command.runAsync());
-    } else {
-      iosSubmitProfile = await easJsonReader.readSubmitProfileAsync(Platform.IOS, flags.profile);
-      const ctx = IosSubmitCommand.createContext({
-        projectDir,
-        projectId,
-        profile: iosSubmitProfile,
-        archiveFlags: flags.archiveFlags,
-      });
-      const command = new IosSubmitCommand(ctx);
-      submissions.push(await command.runAsync());
+
+      if (platforms.length > 1) {
+        Log.newLine();
+        const appPlatform = toAppPlatform(platform);
+        Log.log(
+          `${appPlatformEmojis[appPlatform]} ${chalk.bold(
+            `${appPlatformDisplayNames[appPlatform]} submission`
+          )}`
+        );
+      }
+
+      const submission = await this.submitAsync(ctx);
+      submissions.push(submission);
     }
 
     Log.newLine();
     printSubmissionDetailsUrls(submissions);
 
     if (flags.wait) {
-      Log.newLine();
-      const completedSubmissions = await waitForSubmissionsEndAsync(submissions);
-      for (const submission of completedSubmissions) {
-        if (completedSubmissions.length > 1) {
-          Log.log(
-            `${appPlatformEmojis[submission.platform]}${chalk.bold(
-              `${appPlatformDisplayNames[submission.platform]} submission`
-            )}`
-          );
-        }
-        if (
-          submission.platform === AppPlatform.Ios &&
-          submission.status === SubmissionStatus.Finished
-        ) {
-          const logMsg = [
-            chalk.bold('Your binary has been successfully uploaded to App Store Connect!'),
-            '- It is now being processed by Apple - you will receive an e-mail when the processing finishes.',
-            '- It usually takes about 5-10 minutes depending on how busy Apple servers are.',
-            // ascAppIdentifier should be always available for ios submissions but check it anyway
-            submission.iosConfig?.ascAppIdentifier &&
-              `- When it’s done, you can see your build here: ${learnMore(
-                `https://appstoreconnect.apple.com/apps/${submission.iosConfig?.ascAppIdentifier}/appstore/ios`,
-                { learnMoreMessage: '' }
-              )}`,
-          ].join('\n');
-          Log.addNewLineIfNone();
-          Log.log(logMsg);
-        }
-        await displayLogsAsync(submission, { verbose: flags.verbose });
-        if (completedSubmissions.length > 1) {
-          Log.newLine();
-        }
-      }
-      this.exitWithNonZeroCodeIfSomeSubmissionsDidntFinish(completedSubmissions);
+      this.waitToCompleteAsync(submissions, flags);
     }
   }
 
-  private parseFlags(): Flags {
-    const {
-      flags: { platform, profile, verbose, wait, ...archiveFlags },
-    } = this.parse(BuildSubmit);
+  private async sanitizeFlagsAsync(flags: RawFlags): Promise<Flags> {
+    const { platform, verbose, wait, profile, ...archiveFlags } = flags;
+
+    const requestedPlatform = await selectRequestedPlatformAsync(flags.platform);
+
+    if (requestedPlatform === RequestedPlatform.All) {
+      if (archiveFlags.id || archiveFlags.path || archiveFlags.url) {
+        error(
+          '--id, --path, and --url params are only supported when performing a single-platform submit',
+          { exit: 1 }
+        );
+      }
+    }
 
     return {
-      platform: platform as Platform,
-      profile,
+      archiveFlags,
+      requestedPlatform,
       verbose,
       wait,
-      archiveFlags,
+      profile,
     };
   }
 
-  private async promptForPlatformAsync(): Promise<AppPlatform> {
-    const { platform } = await promptAsync({
-      type: 'select',
-      message: 'Submit to platform',
-      name: 'platform',
-      choices: [
-        {
-          title: 'iOS',
-          value: AppPlatform.Ios,
-        },
-        {
-          title: 'Android',
-          value: AppPlatform.Android,
-        },
-      ],
-    });
-    return platform;
+  private async submitAsync<T extends Platform>(
+    ctx: SubmissionContext<T>
+  ): Promise<SubmissionFragment> {
+    const command =
+      ctx.platform === Platform.ANDROID
+        ? new AndroidSubmitCommand(ctx as SubmissionContext<Platform.ANDROID>)
+        : new IosSubmitCommand(ctx as SubmissionContext<Platform.IOS>);
+    return command.runAsync();
+  }
+
+  private async waitToCompleteAsync(
+    submissions: SubmissionFragment[],
+    flags: Flags
+  ): Promise<void> {
+    Log.newLine();
+    const completedSubmissions = await waitForSubmissionsEndAsync(submissions);
+    if (completedSubmissions.length > 1) {
+      Log.newLine();
+    }
+    for (const submission of completedSubmissions) {
+      if (completedSubmissions.length > 1) {
+        Log.log(
+          `${appPlatformEmojis[submission.platform]} ${chalk.bold(
+            `${appPlatformDisplayNames[submission.platform]} submission`
+          )}`
+        );
+      }
+      this.printInstructionsForIosSubmission(submission);
+      await displayLogsAsync(submission, { verbose: flags.verbose });
+      if (completedSubmissions.length > 1) {
+        Log.newLine();
+      }
+    }
+    this.exitWithNonZeroCodeIfSomeSubmissionsDidntFinish(completedSubmissions);
+  }
+
+  private printInstructionsForIosSubmission(submission: SubmissionFragment): void {
+    if (
+      submission.platform === AppPlatform.Ios &&
+      submission.status === SubmissionStatus.Finished
+    ) {
+      const logMsg = [
+        chalk.bold('Your binary has been successfully uploaded to App Store Connect!'),
+        '- It is now being processed by Apple - you will receive an e-mail when the processing finishes.',
+        '- It usually takes about 5-10 minutes depending on how busy Apple servers are.',
+        // ascAppIdentifier should be always available for ios submissions but check it anyway
+        submission.iosConfig?.ascAppIdentifier &&
+          `- When it’s done, you can see your build here: ${learnMore(
+            `https://appstoreconnect.apple.com/apps/${submission.iosConfig?.ascAppIdentifier}/appstore/ios`,
+            { learnMoreMessage: '' }
+          )}`,
+      ].join('\n');
+      Log.addNewLineIfNone();
+      Log.log(logMsg);
+    }
   }
 
   private exitWithNonZeroCodeIfSomeSubmissionsDidntFinish(submissions: SubmissionFragment[]): void {
@@ -195,7 +225,7 @@ See how to configure submits with eas.json: ${learnMore('https://docs.expo.dev/s
       ({ status }) => status !== SubmissionStatus.Finished
     );
     if (nonFinishedSubmissions.length > 0) {
-      exit(1);
+      process.exit(1);
     }
   }
 }

@@ -1,3 +1,4 @@
+import { Platform } from '@expo/eas-build-job';
 import { AndroidReleaseStatus, AndroidReleaseTrack } from '@expo/eas-json';
 import { vol } from 'memfs';
 import { v4 as uuidv4 } from 'uuid';
@@ -13,6 +14,7 @@ import {
 import { SubmissionMutation } from '../../../graphql/mutations/SubmissionMutation';
 import { createTestProject } from '../../../project/__tests__/project-utils';
 import { getProjectIdAsync } from '../../../project/projectUtils';
+import { createSubmissionContext } from '../../context';
 import { getLatestBuildForSubmissionAsync } from '../../utils/builds';
 import AndroidSubmitCommand from '../AndroidSubmitCommand';
 
@@ -75,7 +77,8 @@ describe(AndroidSubmitCommand, () => {
     it('sends a request to Submission Service', async () => {
       const projectId = uuidv4();
 
-      const ctx = AndroidSubmitCommand.createContext({
+      const ctx = createSubmissionContext({
+        platform: Platform.ANDROID,
         projectDir: testProject.projectRoot,
         projectId,
         archiveFlags: {
@@ -108,7 +111,8 @@ describe(AndroidSubmitCommand, () => {
       const projectId = uuidv4();
       asMock(getLatestBuildForSubmissionAsync).mockResolvedValueOnce(fakeBuildFragment);
 
-      const ctx = AndroidSubmitCommand.createContext({
+      const ctx = createSubmissionContext({
+        platform: Platform.ANDROID,
         projectDir: testProject.projectRoot,
         projectId,
         archiveFlags: {

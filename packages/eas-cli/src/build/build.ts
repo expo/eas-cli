@@ -9,13 +9,13 @@ import { BuildFragment, BuildStatus, UploadSessionType } from '../graphql/genera
 import { BuildResult } from '../graphql/mutations/BuildMutation';
 import { BuildQuery } from '../graphql/queries/BuildQuery';
 import Log, { learnMore } from '../log';
+import { requestedPlatformDisplayNames } from '../platform';
 import { promptAsync } from '../prompts';
 import { uploadAsync } from '../uploads';
 import { formatBytes } from '../utils/files';
 import { createProgressTracker } from '../utils/progress';
 import { sleep } from '../utils/promise';
 import vcs from '../vcs';
-import { requestedPlatformDisplayNames } from './constants';
 import { BuildContext } from './context';
 import { runLocalBuildAsync } from './local';
 import { MetadataContext, collectMetadata } from './metadata';

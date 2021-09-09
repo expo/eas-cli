@@ -11,7 +11,7 @@ import {
 import Log from '../../log';
 import { getBundleIdentifierAsync } from '../../project/ios/bundleIdentifier';
 import { promptAsync } from '../../prompts';
-import { SubmissionContext } from '../types';
+import { SubmissionContext } from '../context';
 import { sanitizeLanguage } from './utils/language';
 
 interface CreateAppOptions {

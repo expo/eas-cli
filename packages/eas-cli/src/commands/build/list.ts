@@ -3,7 +3,7 @@ import { Command, flags } from '@oclif/command';
 import chalk from 'chalk';
 import ora from 'ora';
 
-import { BuildDistributionType, BuildStatus, RequestedPlatform } from '../../build/types';
+import { BuildDistributionType, BuildStatus } from '../../build/types';
 import { formatGraphQLBuild } from '../../build/utils/formatBuild';
 import {
   AppPlatform,
@@ -12,6 +12,7 @@ import {
 } from '../../graphql/generated';
 import { BuildQuery } from '../../graphql/queries/BuildQuery';
 import Log from '../../log';
+import { RequestedPlatform } from '../../platform';
 import {
   findProjectRootAsync,
   getProjectFullNameAsync,

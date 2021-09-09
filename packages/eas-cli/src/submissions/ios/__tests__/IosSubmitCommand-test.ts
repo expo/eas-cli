@@ -1,3 +1,4 @@
+import { Platform } from '@expo/eas-build-job';
 import { vol } from 'memfs';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -6,6 +7,7 @@ import { jester as mockJester } from '../../../credentials/__tests__/fixtures-co
 import { SubmissionMutation } from '../../../graphql/mutations/SubmissionMutation';
 import { createTestProject } from '../../../project/__tests__/project-utils';
 import { getProjectIdAsync } from '../../../project/projectUtils';
+import { createSubmissionContext } from '../../context';
 import IosSubmitCommand from '../IosSubmitCommand';
 
 jest.mock('fs');
@@ -57,7 +59,8 @@ describe(IosSubmitCommand, () => {
 
       process.env.EXPO_APPLE_APP_SPECIFIC_PASSWORD = 'supersecret';
 
-      const ctx = IosSubmitCommand.createContext({
+      const ctx = createSubmissionContext({
+        platform: Platform.IOS,
         projectDir: testProject.projectRoot,
         projectId,
         archiveFlags: {
