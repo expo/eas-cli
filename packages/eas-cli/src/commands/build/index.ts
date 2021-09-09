@@ -54,7 +54,7 @@ interface RawBuildFlags {
   'clear-cache': boolean;
   json: boolean;
   submit: boolean;
-  'submit-profile'?: string;
+  'submit-with-profile'?: string;
 }
 
 interface BuildFlags {
@@ -251,7 +251,7 @@ export default class Build extends EasCommand {
 
     const requestedPlatform = await selectRequestedPlatformAsync(flags.platform);
     if (flags.local) {
-      if (flags.submit || flags['submit-profile'] !== undefined) {
+      if (flags.submit || flags['submit-with-profile'] !== undefined) {
         // TODO: implement this
         error('Auto-submits are not yet supported when building locally', { exit: 1 });
       }
@@ -282,7 +282,7 @@ export default class Build extends EasCommand {
       clearCache: flags['clear-cache'],
       json: flags['json'],
       submit: flags['submit'],
-      submitProfile: flags['submit-profile'] ?? profile,
+      submitProfile: flags['submit-with-profile'] ?? profile,
     };
   }
 
