@@ -73,6 +73,29 @@ describe(AndroidSubmitCommand, () => {
     asMock(getProjectIdAsync).mockClear();
   });
 
+  describe('non-interactive mode', () => {
+    it("throws error if didn't provide serviceAccountKeyPath in the submit profile", async () => {
+      const projectId = uuidv4();
+
+      const ctx = createSubmissionContext({
+        platform: Platform.ANDROID,
+        projectDir: testProject.projectRoot,
+        projectId,
+        archiveFlags: {
+          url: 'http://expo.dev/fake.apk',
+        },
+        profile: {
+          track: AndroidReleaseTrack.internal,
+          releaseStatus: AndroidReleaseStatus.draft,
+          changesNotSentForReview: false,
+        },
+        nonInteractive: true,
+      });
+      const command = new AndroidSubmitCommand(ctx);
+      await expect(command.runAsync()).rejects.toThrowError();
+    });
+  });
+
   describe('sending submission', () => {
     it('sends a request to Submission Service', async () => {
       const projectId = uuidv4();
@@ -90,7 +113,7 @@ describe(AndroidSubmitCommand, () => {
           releaseStatus: AndroidReleaseStatus.draft,
           changesNotSentForReview: false,
         },
-        nonInteractive: true,
+        nonInteractive: false,
       });
       const command = new AndroidSubmitCommand(ctx);
       await command.runAsync();
@@ -125,7 +148,7 @@ describe(AndroidSubmitCommand, () => {
           releaseStatus: AndroidReleaseStatus.draft,
           changesNotSentForReview: false,
         },
-        nonInteractive: true,
+        nonInteractive: false,
       });
       const command = new AndroidSubmitCommand(ctx);
       await command.runAsync();
