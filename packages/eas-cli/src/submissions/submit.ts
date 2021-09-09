@@ -37,7 +37,11 @@ export async function waitToCompleteAsync(
         )}`
       );
     }
-    printInstructionsForIosSubmission(submission);
+    if (submission.platform === AppPlatform.Android) {
+      printInstructionsForAndroidSubmission(submission);
+    } else {
+      printInstructionsForIosSubmission(submission);
+    }
     await displayLogsAsync(submission, { verbose });
     if (completedSubmissions.length > 1) {
       Log.newLine();
@@ -46,8 +50,15 @@ export async function waitToCompleteAsync(
   exitWithNonZeroCodeIfSomeSubmissionsDidntFinish(completedSubmissions);
 }
 
+function printInstructionsForAndroidSubmission(submission: SubmissionFragment): void {
+  if (submission.status === SubmissionStatus.Finished) {
+    Log.addNewLineIfNone();
+    Log.log('All done!');
+  }
+}
+
 function printInstructionsForIosSubmission(submission: SubmissionFragment): void {
-  if (submission.platform === AppPlatform.Ios && submission.status === SubmissionStatus.Finished) {
+  if (submission.status === SubmissionStatus.Finished) {
     const logMsg = [
       chalk.bold('Your binary has been successfully uploaded to App Store Connect!'),
       '- It is now being processed by Apple - you will receive an e-mail when the processing finishes.',
