@@ -160,9 +160,7 @@ export default class EnvironmentSecretCreate extends Command {
       }
 
       if (force) {
-        const existingSecrets = await EnvironmentSecretsQuery.byAcccountNameAsync(
-          ownerAccount.name
-        );
+        const existingSecrets = await EnvironmentSecretsQuery.byAccountNameAsync(ownerAccount.name);
         const existingSecret = existingSecrets.find(secret => secret.name === name);
 
         if (existingSecret) {

@@ -19,7 +19,7 @@ export type EnvironmentSecretWithScope = EnvironmentSecretFragment & {
 };
 
 export const EnvironmentSecretsQuery = {
-  async byAcccountNameAsync(accountName: string): Promise<EnvironmentSecretFragment[]> {
+  async byAccountNameAsync(accountName: string): Promise<EnvironmentSecretFragment[]> {
     const data = await withErrorHandlingAsync(
       graphqlClient
         .query<EnvironmentSecretsByAccountNameQuery>(
@@ -74,7 +74,7 @@ export const EnvironmentSecretsQuery = {
     projectFullName: string
   ): Promise<EnvironmentSecretWithScope[]> {
     const [accountSecrets, appSecrets] = await Promise.all([
-      this.byAcccountNameAsync(projectAccountName),
+      this.byAccountNameAsync(projectAccountName),
       this.byAppIdAsync(projectFullName),
     ]);
 
