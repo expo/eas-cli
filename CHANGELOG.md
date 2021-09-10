@@ -10,9 +10,13 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
-- Fixed force-creation, app secret creation, and secret deletion mutations. ([#606](https://github.com/expo/eas-cli/pull/606) by [@fiberjw](https://github.com/fiberjw))
-
 ### 🧹 Chores
+
+## [0.27.1](https://github.com/expo/eas-cli/releases/tag/v0.27.1) - 2021-09-10
+
+### 🐛 Bug fixes
+
+- Fixed force-creation, app secret creation, and secret deletion mutations. ([#606](https://github.com/expo/eas-cli/pull/606) by [@fiberjw](https://github.com/fiberjw))
 
 ## [0.27.0](https://github.com/expo/eas-cli/releases/tag/v0.27.0) - 2021-09-10
 
