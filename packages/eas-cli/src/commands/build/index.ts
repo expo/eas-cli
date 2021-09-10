@@ -53,8 +53,8 @@ interface RawBuildFlags {
   wait: boolean;
   'clear-cache': boolean;
   json: boolean;
-  submit: boolean;
-  'submit-with-profile'?: string;
+  'auto-submit': boolean;
+  'auto-submit-with-profile'?: string;
 }
 
 interface BuildFlags {
@@ -66,7 +66,7 @@ interface BuildFlags {
   wait: boolean;
   clearCache: boolean;
   json: boolean;
-  submit: boolean;
+  autoSubmit: boolean;
   submitProfile?: string;
 }
 
@@ -112,16 +112,16 @@ export default class Build extends EasCommand {
       default: false,
       description: 'Clear cache before the build',
     }),
-    submit: flags.boolean({
+    'auto-submit': flags.boolean({
       default: false,
       description:
         'Submit on build complete using the submit profile with the same name as the build profile',
-      exclusive: ['submit-with-profile'],
+      exclusive: ['auto-submit-with-profile'],
     }),
-    'submit-with-profile': flags.string({
+    'auto-submit-with-profile': flags.string({
       description: 'Submit on build complete using the submit profile with provided name',
       helpValue: 'PROFILE_NAME',
-      exclusive: ['submit'],
+      exclusive: ['auto-submit'],
     }),
   };
 
@@ -166,7 +166,7 @@ export default class Build extends EasCommand {
     Log.newLine();
 
     const submissions: SubmissionFragment[] = [];
-    if (flags.submit) {
+    if (flags.autoSubmit) {
       for (const build of startedBuilds) {
         const submission = await this.prepareAndStartSubmissionAsync({
           projectDir,
@@ -188,7 +188,7 @@ export default class Build extends EasCommand {
     const builds = await waitForBuildEndAsync(startedBuilds.map(build => build.id));
     printBuildResults(builds, flags.json);
 
-    if (!flags.submit) {
+    if (!flags.autoSubmit) {
       this.exitWithNonZeroCodeIfSomeBuildsFailed(builds);
     } else {
       // the following function also exits with non zero code if any of the submissions failed
@@ -207,7 +207,7 @@ export default class Build extends EasCommand {
 
     const requestedPlatform = await selectRequestedPlatformAsync(flags.platform);
     if (flags.local) {
-      if (flags.submit || flags['submit-with-profile'] !== undefined) {
+      if (flags['auto-submit'] || flags['auto-submit-with-profile'] !== undefined) {
         // TODO: implement this
         error('Auto-submits are not yet supported when building locally', { exit: 1 });
       }
@@ -237,8 +237,8 @@ export default class Build extends EasCommand {
       wait: flags['wait'],
       clearCache: flags['clear-cache'],
       json: flags['json'],
-      submit: flags['submit'],
-      submitProfile: flags['submit-with-profile'] ?? profile,
+      autoSubmit: flags['auto-submit'],
+      submitProfile: flags['auto-submit-with-profile'] ?? profile,
     };
   }
 
