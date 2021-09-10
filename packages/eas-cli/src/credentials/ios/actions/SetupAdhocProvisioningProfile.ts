@@ -1,7 +1,5 @@
 import assert from 'assert';
 import chalk from 'chalk';
-import differenceBy from 'lodash/differenceBy';
-import isEqual from 'lodash/isEqual';
 import nullthrows from 'nullthrows';
 
 import DeviceCreateAction, { RegistrationMethod } from '../../../devices/actions/create/action';
@@ -15,6 +13,7 @@ import {
 } from '../../../graphql/generated';
 import Log from '../../../log';
 import { confirmAsync, pressAnyKeyToContinueAsync } from '../../../prompts';
+import differenceBy from '../../../utils/expodash/differenceBy';
 import { Context } from '../../context';
 import { MissingCredentialsNonInteractiveError } from '../../errors';
 import { AppLookupParams } from '../api/GraphqlClient';
@@ -231,5 +230,16 @@ export class SetupAdhocProvisioningProfile {
 }
 
 function doUDIDsMatch(udidsA: string[], udidsB: string[]): boolean {
-  return isEqual(new Set(udidsA), new Set(udidsB));
+  const setA = new Set(udidsA);
+  const setB = new Set(udidsB);
+
+  if (setA.size !== setB.size) {
+    return false;
+  }
+  for (const a of setA) {
+    if (!setB.has(a)) {
+      return false;
+    }
+  }
+  return true;
 }

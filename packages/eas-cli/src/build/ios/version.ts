@@ -10,7 +10,6 @@ import Log from '../../log';
 import { resolveWorkflowAsync } from '../../project/workflow';
 import { promptAsync } from '../../prompts';
 import { updateAppJsonConfigAsync } from '../utils/appJson';
-import { evaluateString } from '../utils/template';
 import { readPlistAsync, writePlistAsync } from './plist';
 
 export enum BumpStrategy {
@@ -171,4 +170,12 @@ function ensureStaticConfigExists(projectDir: string): void {
   if (!paths.staticConfigPath) {
     throw new Error('autoIncrement option is not supported when using app.config.js');
   }
+}
+
+function evaluateString(s: string, vars: Record<string, any>): string {
+  let result = s;
+  for (const key in vars) {
+    result = result.replace(new RegExp(`$(${key})`, 'g'), vars[key]);
+  }
+  return result;
 }

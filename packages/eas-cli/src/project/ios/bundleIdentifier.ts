@@ -4,7 +4,6 @@ import { Platform, Workflow } from '@expo/eas-build-job';
 import assert from 'assert';
 import chalk from 'chalk';
 import fs from 'fs-extra';
-import once from 'lodash/once';
 
 import Log, { learnMore } from '../../log';
 import { promptAsync } from '../../prompts';
@@ -124,23 +123,21 @@ function isBundleIdentifierValid(bundleIdentifier: string): boolean {
   return /^[a-zA-Z0-9-.]+$/.test(bundleIdentifier);
 }
 
-function _warnIfBundleIdentifierDefinedInAppConfigForGenericProject(
+let warnPrinted = false;
+export function warnIfBundleIdentifierDefinedInAppConfigForGenericProject(
   projectDir: string,
   exp: ExpoConfig
 ): void {
-  if (IOSConfig.BundleIdentifier.getBundleIdentifier(exp)) {
+  if (IOSConfig.BundleIdentifier.getBundleIdentifier(exp) && !warnPrinted) {
     Log.warn(
       `Specifying "ios.bundleIdentifier" in ${getProjectConfigDescription(
         projectDir
       )} is deprecated for generic projects.\n` +
         'EAS Build depends only on the value in the native code. Please remove the deprecated configuration.'
     );
+    warnPrinted = true;
   }
 }
-
-export const warnIfBundleIdentifierDefinedInAppConfigForGenericProject = once(
-  _warnIfBundleIdentifierDefinedInAppConfigForGenericProject
-);
 
 export function isWildcardBundleIdentifier(bundleIdentifier: string): boolean {
   const wildcardRegex = /^[A-Za-z0-9.-]+\*$/;

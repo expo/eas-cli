@@ -3,7 +3,6 @@ import { Command, flags } from '@oclif/command';
 import chalk from 'chalk';
 import Table from 'cli-table3';
 import gql from 'graphql-tag';
-import { groupBy } from 'lodash';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
 import { ViewBranchQuery, ViewBranchQueryVariables } from '../../graphql/generated';
@@ -11,6 +10,7 @@ import Log from '../../log';
 import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
 import { UPDATE_COLUMNS, formatUpdate, getPlatformsForGroup } from '../../update/utils';
+import groupBy from '../../utils/expodash/groupBy';
 import formatFields from '../../utils/formatFields';
 
 const PAGE_LIMIT = 10_000;

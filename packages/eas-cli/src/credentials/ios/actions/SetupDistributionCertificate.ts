@@ -1,5 +1,4 @@
 import assert from 'assert';
-import sortBy from 'lodash/sortBy';
 
 import {
   AppleDistributionCertificate,
@@ -8,6 +7,7 @@ import {
 } from '../../../graphql/generated';
 import Log from '../../../log';
 import { confirmAsync, promptAsync } from '../../../prompts';
+import sortBy from '../../../utils/expodash/sortBy';
 import { Context } from '../../context';
 import { MissingCredentialsNonInteractiveError } from '../../errors';
 import { AppLookupParams } from '../api/GraphqlClient';

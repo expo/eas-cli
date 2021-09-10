@@ -4,7 +4,6 @@ import spawnAsync from '@expo/spawn-async';
 import crypto from 'crypto';
 import fs from 'fs';
 import Joi from 'joi';
-import { uniqBy } from 'lodash';
 import mime from 'mime';
 import path from 'path';
 
@@ -14,6 +13,7 @@ import { PresignedPost } from '../graphql/mutations/UploadSessionMutation';
 import { PublishQuery } from '../graphql/queries/PublishQuery';
 import Log from '../log';
 import { uploadWithPresignedPostAsync } from '../uploads';
+import uniqBy from '../utils/expodash/uniqBy';
 
 export const TIMEOUT_LIMIT = 60_000; // 1 minute
 
@@ -274,21 +274,19 @@ export async function uploadAssetsAsync(assetsForUpdateInfoGroup: CollectedAsset
     ];
   }
 
+  const assetsWithStorageKey = await Promise.all(
+    assets.map(async asset => {
+      return {
+        ...asset,
+        storageKey: await getStorageKeyForAssetAsync(asset),
+      };
+    })
+  );
   const uniqueAssets = uniqBy<
     RawAsset & {
       storageKey: string;
     }
-  >(
-    await Promise.all(
-      assets.map(async asset => {
-        return {
-          ...asset,
-          storageKey: await getStorageKeyForAssetAsync(asset),
-        };
-      })
-    ),
-    'storageKey'
-  );
+  >(assetsWithStorageKey, 'storageKey');
 
   let missingAssets = await filterOutAssetsThatAlreadyExistAsync(uniqueAssets);
   const { specifications } = await PublishMutation.getUploadURLsAsync(

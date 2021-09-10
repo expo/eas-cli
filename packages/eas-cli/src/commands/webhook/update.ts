@@ -1,11 +1,11 @@
 import { Command, flags } from '@oclif/command';
-import pick from 'lodash/pick';
 import ora from 'ora';
 
 import { WebhookType } from '../../graphql/generated';
 import { WebhookMutation } from '../../graphql/mutations/WebhookMutation';
 import { WebhookQuery } from '../../graphql/queries/WebhookQuery';
 import { ensureLoggedInAsync } from '../../user/actions';
+import pick from '../../utils/expodash/pick';
 import { prepareInputParamsAsync } from '../../webhooks/input';
 
 export default class WebhookUpdate extends Command {

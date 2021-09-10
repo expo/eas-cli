@@ -1,4 +1,4 @@
-import merge from 'lodash/merge';
+import merge from 'ts-deepmerge';
 
 import { Context } from '../context';
 import { getNewAndroidApiMock } from './fixtures-android';

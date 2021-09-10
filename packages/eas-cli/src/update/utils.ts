@@ -1,8 +1,8 @@
-import groupBy from 'lodash/groupBy';
 import { format } from 'timeago.js';
 
 import { Maybe, Robot, Update, User } from '../graphql/generated';
 import { getActorDisplayName } from '../user/User';
+import groupBy from '../utils/expodash/groupBy';
 
 export type FormatUpdateParameter = Pick<Update, 'id' | 'createdAt' | 'message'> & {
   actor?: Maybe<Pick<User, 'username' | 'id'> | Pick<Robot, 'firstName' | 'id'>>;
