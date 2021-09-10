@@ -16,18 +16,24 @@ interface ProjectInfo {
   privacy?: AppPrivacy;
 }
 
+const projectCache: Record<string, string> = {};
+
 /**
  * Ensures project exists on EAS servers. Registers it when it doesn't
  * @returns The project ID
  */
 export async function ensureProjectExistsAsync(projectInfo: ProjectInfo): Promise<string> {
   const { accountName, projectName } = projectInfo;
+  const projectFullName = `@${accountName}/${projectName}`;
+
+  if (projectFullName in projectCache) {
+    return projectCache[projectFullName];
+  }
 
   const actor = await ensureLoggedInAsync();
   const account = findAccountByName(actor.accounts, accountName);
   assert(account, `You must have access to the ${accountName} account to run this command`);
 
-  const projectFullName = `@${accountName}/${projectName}`;
   const projectDashboardUrl = getProjectDashboardUrl(accountName, projectName);
   const projectLink = terminalLink(projectFullName, projectDashboardUrl);
 
@@ -36,6 +42,7 @@ export async function ensureProjectExistsAsync(projectInfo: ProjectInfo): Promis
   const maybeId = await findProjectIdByAccountNameAndSlugNullableAsync(accountName, projectName);
   if (maybeId) {
     spinner.succeed(`Linked to project ${chalk.bold(projectLink)}`);
+    projectCache[projectFullName] = maybeId;
     return maybeId;
   }
 
@@ -47,6 +54,7 @@ export async function ensureProjectExistsAsync(projectInfo: ProjectInfo): Promis
       privacy: projectInfo.privacy,
     });
     spinner.succeed(`Created ${chalk.bold(projectLink)} on Expo`);
+    projectCache[projectFullName] = id;
     return id;
   } catch (err) {
     spinner.fail();
@@ -84,8 +92,8 @@ async function findProjectIdByAccountNameAndSlugAsync(
   accountName: string,
   slug: string
 ): Promise<string> {
-  const project = await ProjectQuery.byUsernameAndSlugAsync(accountName, slug);
-  return project.id;
+  const { id } = await ProjectQuery.byUsernameAndSlugAsync(accountName, slug);
+  return id;
 }
 
 /**

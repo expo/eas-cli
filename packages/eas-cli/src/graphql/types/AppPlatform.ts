@@ -11,3 +11,11 @@ export function toAppPlatform(platform: Platform): AppPlatform {
     throw new Error(`Unsupported platform: ${platform}`);
   }
 }
+
+export function toPlatform(appPlatform: AppPlatform): Platform {
+  if (appPlatform === AppPlatform.Android) {
+    return Platform.ANDROID;
+  } else {
+    return Platform.IOS;
+  }
+}

@@ -185,5 +185,7 @@ function assertArchiveResult(
   expectedUrl: string = ARCHIVE_URL
 ) {
   expect(archive.source.sourceType).toBe(expectedSourceType);
-  expect(archive.url).toBe(expectedUrl);
+  if (archive.url) {
+    expect(archive.url).toBe(expectedUrl);
+  }
 }

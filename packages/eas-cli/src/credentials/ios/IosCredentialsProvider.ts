@@ -87,7 +87,7 @@ export default class IosCredentialsProvider {
     const isPushKeySetup = await setupPushKeyAction.isPushKeySetupAsync(ctx);
     if (isPushKeySetup) {
       Log.succeed(
-        `Push Notifications setup for ${app.projectName}:${applicationTarget.bundleIdentifier}`
+        `Push Notifications setup for ${app.projectName}: ${applicationTarget.bundleIdentifier}`
       );
       return null;
     }

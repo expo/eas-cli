@@ -50,7 +50,7 @@ interface ArchivePromptSource extends ArchiveSourceBase {
 export interface Archive {
   build?: BuildFragment;
   source: ArchiveSource;
-  url: string;
+  url?: string;
 }
 
 export type ArchiveSource =
@@ -62,8 +62,9 @@ export type ArchiveSource =
 
 export async function getArchiveAsync(source: ArchiveSource): Promise<Archive> {
   switch (source.sourceType) {
-    case ArchiveSourceType.prompt:
+    case ArchiveSourceType.prompt: {
       return await handlePromptSourceAsync(source);
+    }
     case ArchiveSourceType.url: {
       return await handleUrlSourceAsync(source);
     }
@@ -115,7 +116,6 @@ async function handleLatestSourceAsync(source: ArchiveLatestSource): Promise<Arc
 
     return {
       build: latestBuild,
-      url: latestBuild.artifacts.buildUrl,
       source,
     };
   } catch (err) {
@@ -147,7 +147,6 @@ async function handleBuildIdSourceAsync(source: ArchiveBuildIdSource): Promise<A
     return {
       build,
       source,
-      url: build.artifacts.buildUrl,
     };
   } catch (err) {
     Log.error(chalk.bold(`Couldn't find build for id ${source.id}`));
@@ -166,7 +165,7 @@ async function handlePromptSourceAsync(source: ArchivePromptSource): Promise<Arc
     message: 'What would you like to submit?',
     choices: [
       {
-        title: 'Latest build from EAS',
+        title: 'Latest finished build from EAS',
         value: ArchiveSourceType.latest,
       },
       { title: 'I have a url to the app archive', value: ArchiveSourceType.url },
