@@ -48,7 +48,7 @@ export const EnvironmentSecretMutation = {
   ): Promise<EnvironmentSecretFragment> {
     const data = await withErrorHandlingAsync(
       graphqlClient
-        .query<CreateEnvironmentSecretForAppMutation>(
+        .mutation<CreateEnvironmentSecretForAppMutation>(
           gql`
             mutation CreateEnvironmentSecretForApp(
               $input: CreateEnvironmentSecretInput!
@@ -73,7 +73,7 @@ export const EnvironmentSecretMutation = {
   async delete(id: string): Promise<{ id: string }> {
     const data = await withErrorHandlingAsync(
       graphqlClient
-        .query<DeleteEnvironmentSecretMutation>(
+        .mutation<DeleteEnvironmentSecretMutation>(
           gql`
             mutation DeleteEnvironmentSecret($id: String!) {
               environmentSecret {
