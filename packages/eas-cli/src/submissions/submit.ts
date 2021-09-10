@@ -26,11 +26,12 @@ export async function waitToCompleteAsync(
 ): Promise<void> {
   Log.newLine();
   const completedSubmissions = await waitForSubmissionsEndAsync(submissions);
-  if (completedSubmissions.length > 1) {
+  const moreSubmissions = completedSubmissions.length > 1;
+  if (moreSubmissions) {
     Log.newLine();
   }
   for (const submission of completedSubmissions) {
-    if (completedSubmissions.length > 1) {
+    if (moreSubmissions) {
       Log.log(
         `${appPlatformEmojis[submission.platform]} ${chalk.bold(
           `${appPlatformDisplayNames[submission.platform]} submission`
@@ -42,8 +43,8 @@ export async function waitToCompleteAsync(
     } else {
       printInstructionsForIosSubmission(submission);
     }
-    await displayLogsAsync(submission, { verbose });
-    if (completedSubmissions.length > 1) {
+    await displayLogsAsync(submission, { verbose, moreSubmissions });
+    if (moreSubmissions) {
       Log.newLine();
     }
   }

@@ -179,6 +179,7 @@ export default class Build extends EasCommand {
 
       Log.newLine();
       printSubmissionDetailsUrls(submissions);
+      Log.newLine();
     }
 
     if (!flags.wait) {
@@ -188,7 +189,10 @@ export default class Build extends EasCommand {
     const builds = await waitForBuildEndAsync(startedBuilds.map(build => build.id));
     printBuildResults(builds, flags.json);
 
-    if (!flags.autoSubmit) {
+    const haveAllBuildsFailedOrCanceled = builds.every(
+      build => build?.status && [BuildStatus.Errored, BuildStatus.Canceled].includes(build?.status)
+    );
+    if (haveAllBuildsFailedOrCanceled || !flags.autoSubmit) {
       this.exitWithNonZeroCodeIfSomeBuildsFailed(builds);
     } else {
       // the following function also exits with non zero code if any of the submissions failed

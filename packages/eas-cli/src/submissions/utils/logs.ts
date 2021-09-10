@@ -2,16 +2,19 @@ import chalk from 'chalk';
 import got from 'got';
 
 import { SubmissionFragment, SubmissionStatus } from '../../graphql/generated';
-import { default as LogModule } from '../../log';
+import Log from '../../log';
 import { printSubmissionError } from './errors';
 
 export async function displayLogsAsync(
   submission: SubmissionFragment,
-  { verbose = false }: { verbose?: boolean } = {}
+  { verbose = false, moreSubmissions = false } = {}
 ): Promise<void> {
   let printedUnknownError = false;
   if (submission.status === SubmissionStatus.Errored && submission.error) {
     printedUnknownError = printSubmissionError(submission.error);
+  } else if (submission.status === SubmissionStatus.Canceled && moreSubmissions) {
+    Log.newLine();
+    Log.error('Submission has been canceled');
   }
   if (printedUnknownError || verbose) {
     await downloadAndPrintSubmissionLogsAsync(submission);
@@ -24,28 +27,28 @@ async function downloadAndPrintSubmissionLogsAsync(submission: SubmissionFragmen
   }
   const { body: data } = await got.get(submission.logsUrl);
   const logs = parseLogs(data);
-  LogModule.addNewLineIfNone();
+  Log.addNewLineIfNone();
   const prefix = chalk.blueBright('[logs] ');
   for (const { level, msg } of logs) {
     const msgWithPrefix = `${prefix}${msg}`;
     if (level === 'error') {
-      LogModule.error(msgWithPrefix);
+      Log.error(msgWithPrefix);
     } else if (level === 'warn') {
-      LogModule.warn(msgWithPrefix);
+      Log.warn(msgWithPrefix);
     } else {
-      LogModule.log(msgWithPrefix);
+      Log.log(msgWithPrefix);
     }
   }
 }
 
-interface Log {
+interface LogLine {
   level: 'error' | 'warn' | 'info';
   msg: string;
 }
 
-function parseLogs(logs: string): Log[] {
+function parseLogs(logs: string): LogLine[] {
   const lines = logs.split('\n');
-  const result: Log[] = [];
+  const result: LogLine[] = [];
   for (const line of lines) {
     let parsedLine;
     try {
@@ -53,7 +56,7 @@ function parseLogs(logs: string): Log[] {
     } catch (error) {
       continue;
     }
-    let level: Log['level'];
+    let level: LogLine['level'];
     const { level: levelNumber, msg } = parsedLine;
     if (levelNumber >= 50) {
       level = 'error';
