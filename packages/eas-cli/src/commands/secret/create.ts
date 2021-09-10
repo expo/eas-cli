@@ -149,6 +149,7 @@ export default class EnvironmentSecretCreate extends Command {
       );
     } else if (scope === EnvironmentSecretScope.ACCOUNT) {
       const ownerAccount = findAccountByName(actor.accounts, accountName);
+
       if (!ownerAccount) {
         Log.warn(
           `Your account (${getActorDisplayName(actor)}) doesn't have access to the ${chalk.bold(
@@ -159,11 +160,12 @@ export default class EnvironmentSecretCreate extends Command {
       }
 
       if (force) {
-        const existingSecrets = await EnvironmentSecretsQuery.byAcccountNameAsync(projectId);
+        const existingSecrets = await EnvironmentSecretsQuery.byAccountNameAsync(ownerAccount.name);
         const existingSecret = existingSecrets.find(secret => secret.name === name);
 
         if (existingSecret) {
           await EnvironmentSecretMutation.delete(existingSecret.id);
+
           Log.withTick(
             `Deleting existing secret ${chalk.bold(name)} on account ${chalk.bold(
               ownerAccount.name
