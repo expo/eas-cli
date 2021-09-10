@@ -1,4 +1,5 @@
 import { Platform } from '@expo/eas-build-job';
+import envString from 'env-string';
 import fs from 'fs-extra';
 import path from 'path';
 
@@ -10,7 +11,11 @@ import {
   IosSubmitProfileSchema,
   MinimalEasJsonSchema,
 } from './EasJsonSchema';
-import { SubmitProfile } from './EasSubmit.types';
+import {
+  AndroidSubmitProfileFieldsToEvaluate,
+  IosSubmitProfileFieldsToEvaluate,
+  SubmitProfile,
+} from './EasSubmit.types';
 
 interface EasJsonPreValidation {
   build: { [profile: string]: object };
@@ -93,7 +98,7 @@ export class EasJsonReader {
     if (!profile) {
       throw new Error(`There is no profile named ${profileName} in eas.json for ${platform}.`);
     }
-    return profile as SubmitProfile<T>;
+    return this.evaluateFields(platform, profile as SubmitProfile<T>);
   }
 
   public async readAndValidateAsync(): Promise<EasJson> {
@@ -150,6 +155,24 @@ export class EasJsonReader {
     if (!easJson.build || !easJson.build[profileName]) {
       throw new Error(`There is no profile named ${profileName} in eas.json.`);
     }
+  }
+
+  private evaluateFields<T extends Platform>(
+    platform: T,
+    profile: SubmitProfile<T>
+  ): SubmitProfile<T> {
+    const fields =
+      platform === Platform.ANDROID
+        ? AndroidSubmitProfileFieldsToEvaluate
+        : IosSubmitProfileFieldsToEvaluate;
+    const evaluatedProfile = { ...profile };
+    for (const field of fields) {
+      if (field in evaluatedProfile) {
+        // @ts-ignore
+        evaluatedProfile[field] = envString(evaluatedProfile[field], process.env);
+      }
+    }
+    return evaluatedProfile;
   }
 }
 

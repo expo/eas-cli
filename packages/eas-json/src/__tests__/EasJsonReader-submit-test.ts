@@ -59,6 +59,35 @@ test('android config with all required values', async () => {
   });
 });
 
+test('android config with serviceAccountKeyPath set to env var', async () => {
+  await fs.writeJson('/project/eas.json', {
+    submit: {
+      release: {
+        android: {
+          serviceAccountKeyPath: '$GOOGLE_SERVICE_ACCOUNT',
+          track: 'beta',
+          releaseStatus: 'completed',
+        },
+      },
+    },
+  });
+
+  try {
+    process.env.GOOGLE_SERVICE_ACCOUNT = './path.json';
+    const reader = new EasJsonReader('/project');
+    const androidProfile = await reader.readSubmitProfileAsync(Platform.ANDROID, 'release');
+
+    expect(androidProfile).toEqual({
+      serviceAccountKeyPath: './path.json',
+      track: 'beta',
+      releaseStatus: 'completed',
+      changesNotSentForReview: false,
+    });
+  } finally {
+    process.env.GOOGLE_SERVICE_ACCOUNT = undefined;
+  }
+});
+
 test('ios config with all required values', async () => {
   await fs.writeJson('/project/eas.json', {
     submit: {

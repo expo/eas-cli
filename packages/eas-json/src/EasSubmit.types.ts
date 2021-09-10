@@ -21,6 +21,10 @@ export interface AndroidSubmitProfile {
   changesNotSentForReview: boolean;
 }
 
+export const AndroidSubmitProfileFieldsToEvaluate: (keyof AndroidSubmitProfile)[] = [
+  'serviceAccountKeyPath',
+];
+
 export interface IosSubmitProfile {
   appleId?: string;
   ascAppId?: string;
@@ -30,6 +34,8 @@ export interface IosSubmitProfile {
   companyName?: string;
   appName?: string;
 }
+
+export const IosSubmitProfileFieldsToEvaluate: (keyof IosSubmitProfile)[] = [];
 
 export type SubmitProfile<TPlatform extends Platform = Platform> =
   TPlatform extends Platform.ANDROID
