@@ -19,7 +19,7 @@
     "@types/jest": "27.0.1",
     "@types/node": "16.7.8",
     "eslint": "7.32.0",
-    "eslint-config-universe": "7.0.1",
+    "eslint-config-universe": "8.0.0",
     "jest": "27.1.0",
     "jest-watch-typeahead": "0.6.4",
     "lerna": "4.0.0",
