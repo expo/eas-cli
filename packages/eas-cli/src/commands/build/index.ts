@@ -315,6 +315,7 @@ export default class Build extends EasCommand {
   }): Promise<SubmissionFragment> {
     const easJsonReader = new EasJsonReader(projectDir);
     const platform = toPlatform(build.platform);
+    const buildProfile = await easJsonReader.readBuildProfileAsync(platform, flags.profile);
     const submitProfile = await easJsonReader.readSubmitProfileAsync(platform, flags.submitProfile);
     const submissionCtx = createSubmissionContext({
       platform,
@@ -323,6 +324,7 @@ export default class Build extends EasCommand {
       profile: submitProfile,
       archiveFlags: { id: build.id },
       nonInteractive: flags.nonInteractive,
+      env: buildProfile.env,
     });
 
     if (moreBuilds) {

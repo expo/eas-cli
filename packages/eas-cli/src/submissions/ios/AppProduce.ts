@@ -1,5 +1,4 @@
 import { App, RequestContext, Session, User } from '@expo/apple-utils';
-import { getConfig } from '@expo/config';
 import { Platform } from '@expo/eas-build-job';
 import chalk from 'chalk';
 
@@ -32,7 +31,7 @@ type AppStoreResult = {
 export async function ensureAppStoreConnectAppExistsAsync(
   ctx: SubmissionContext<Platform.IOS>
 ): Promise<AppStoreResult> {
-  const { exp } = getConfig(ctx.projectDir, { skipSDKVersionRequirement: true });
+  const { exp } = ctx;
   const { appName, language } = ctx.profile;
   const options = {
     ...ctx.profile,

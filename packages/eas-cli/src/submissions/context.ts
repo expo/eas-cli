@@ -1,5 +1,8 @@
+import { ExpoConfig } from '@expo/config';
 import { Platform } from '@expo/eas-build-job';
 import { SubmitProfile } from '@expo/eas-json';
+
+import { getExpoConfig } from '../project/expoConfig';
 
 export interface SubmissionContext<T extends Platform> {
   archiveFlags: SubmitArchiveFlags;
@@ -8,6 +11,7 @@ export interface SubmissionContext<T extends Platform> {
   projectDir: string;
   projectId: string;
   nonInteractive: boolean;
+  exp: ExpoConfig;
 }
 
 export interface SubmitArchiveFlags {
@@ -24,6 +28,13 @@ export function createSubmissionContext<T extends Platform>(params: {
   projectDir: string;
   projectId: string;
   nonInteractive: boolean;
+  env?: Record<string, string>;
 }): SubmissionContext<T> {
-  return params;
+  const { projectDir } = params;
+  const exp = getExpoConfig(projectDir, { env: params.env });
+  const { env, ...rest } = params;
+  return {
+    ...rest,
+    exp,
+  };
 }
