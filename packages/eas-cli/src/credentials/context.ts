@@ -1,6 +1,5 @@
 import { ExpoConfig, getConfig } from '@expo/config';
 import chalk from 'chalk';
-import pick from 'lodash/pick';
 
 import Log from '../log';
 import { getExpoConfig } from '../project/expoConfig';
@@ -8,6 +7,7 @@ import { getProjectAccountName } from '../project/projectUtils';
 import { confirmAsync } from '../prompts';
 import { Actor, getActorDisplayName } from '../user/User';
 import { ensureLoggedInAsync } from '../user/actions';
+import pick from '../utils/expodash/pick';
 import * as AndroidGraphqlClient from './android/api/GraphqlClient';
 import * as IosGraphqlClient from './ios/api/GraphqlClient';
 import AppStoreApi from './ios/appstore/AppStoreApi';

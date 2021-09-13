@@ -2,7 +2,6 @@ import { getConfig } from '@expo/config';
 import { Platform } from '@expo/eas-build-job';
 import { AndroidReleaseStatus, AndroidReleaseTrack } from '@expo/eas-json';
 import { Result, result } from '@expo/results';
-import capitalize from 'lodash/capitalize';
 
 import {
   SubmissionAndroidReleaseStatus,
@@ -11,6 +10,7 @@ import {
 } from '../../graphql/generated';
 import Log from '../../log';
 import { getApplicationIdAsync } from '../../project/android/applicationId';
+import capitalize from '../../utils/expodash/capitalize';
 import { ArchiveSource } from '../ArchiveSource';
 import { resolveArchiveSource } from '../commons';
 import { SubmissionContext } from '../context';

@@ -21,6 +21,17 @@ module.exports = {
     'flowtype/no-types-missing-file-annotation': 'off',
     curly: 'warn',
     'import/no-relative-packages': 'error',
+    'no-restricted-imports': [
+      'error',
+      {
+        paths: [
+          {
+            name: 'lodash',
+            message: "Don't use lodash, it's heavy!",
+          },
+        ],
+      },
+    ],
   },
   settings: {
     react: {

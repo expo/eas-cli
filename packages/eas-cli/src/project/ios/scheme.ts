@@ -3,10 +3,10 @@ import { IOSConfig } from '@expo/config-plugins';
 import { Platform, Workflow } from '@expo/eas-build-job';
 import { IosBuildProfile } from '@expo/eas-json';
 import chalk from 'chalk';
-import sortBy from 'lodash/sortBy';
 
 import Log from '../../log';
 import { promptAsync } from '../../prompts';
+import sortBy from '../../utils/expodash/sortBy';
 import { resolveWorkflowAsync } from '../workflow';
 
 export interface XcodeBuildContext {

@@ -4,7 +4,6 @@ import { Platform, Workflow } from '@expo/eas-build-job';
 import assert from 'assert';
 import chalk from 'chalk';
 import fs from 'fs-extra';
-import once from 'lodash/once';
 import nullthrows from 'nullthrows';
 
 import Log, { learnMore } from '../../log';
@@ -105,23 +104,21 @@ function isApplicationIdValid(applicationId: string): boolean {
   return /^[a-zA-Z][a-zA-Z0-9_]*(\.[a-zA-Z][a-zA-Z0-9_]*)+$/.test(applicationId);
 }
 
-function _warnIfAndroidPackageDefinedInAppConfigForGenericProject(
+let warnPrinted = false;
+export function warnIfAndroidPackageDefinedInAppConfigForGenericProject(
   projectDir: string,
   exp: ExpoConfig
 ): void {
-  if (AndroidConfig.Package.getPackage(exp)) {
+  if (AndroidConfig.Package.getPackage(exp) && !warnPrinted) {
     Log.warn(
       `Specifying "android.package" in ${getProjectConfigDescription(
         projectDir
       )} is deprecated for generic projects.\n` +
         'EAS Build depends only on the value in the native code. Please remove the deprecated configuration.'
     );
+    warnPrinted = true;
   }
 }
-
-export const warnIfAndroidPackageDefinedInAppConfigForGenericProject = once(
-  _warnIfAndroidPackageDefinedInAppConfigForGenericProject
-);
 
 async function getSuggestedApplicationIdAsync(exp: ExpoConfig): Promise<string | undefined> {
   // Attempt to use the ios bundle id first since it's convenient to have them aligned.

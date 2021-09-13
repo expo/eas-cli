@@ -5,7 +5,6 @@ import assert from 'assert';
 import chalk from 'chalk';
 import dateFormat from 'dateformat';
 import gql from 'graphql-tag';
-import { uniqBy } from 'lodash';
 import ora from 'ora';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
@@ -30,6 +29,7 @@ import {
 } from '../../project/publish';
 import { promptAsync, selectAsync } from '../../prompts';
 import { formatUpdate } from '../../update/utils';
+import uniqBy from '../../utils/expodash/uniqBy';
 import formatFields from '../../utils/formatFields';
 import vcs from '../../vcs';
 import { createUpdateBranchOnAppAsync } from './create';

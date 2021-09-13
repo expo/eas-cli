@@ -1,11 +1,11 @@
 import fs from 'fs-extra';
-import zipObject from 'lodash/zipObject';
 import nullthrows from 'nullthrows';
 import path from 'path';
 
 import { AndroidAppBuildCredentialsFragment, IosDistributionType } from '../../graphql/generated';
 import Log from '../../log';
 import { findApplicationTarget, findTargetByName } from '../../project/ios/target';
+import zipObject from '../../utils/expodash/zipObject';
 import vcs from '../../vcs';
 import GitClient from '../../vcs/git';
 import { Context } from '../context';

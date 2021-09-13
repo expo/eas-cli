@@ -10,7 +10,6 @@ import Log from '../../log';
 import { resolveWorkflowAsync } from '../../project/workflow';
 import { promptAsync } from '../../prompts';
 import { updateAppJsonConfigAsync } from '../utils/appJson';
-import { evaluateString } from '../utils/template';
 import { readPlistAsync, writePlistAsync } from './plist';
 
 export enum BumpStrategy {
@@ -114,7 +113,7 @@ export async function readShortVersionAsync(
     const infoPlist = await readInfoPlistAsync(projectDir);
     return (
       infoPlist.CFBundleShortVersionString &&
-      evaluateString(infoPlist.CFBundleShortVersionString, buildSettings)
+      evaluateTemplateString(infoPlist.CFBundleShortVersionString, buildSettings)
     );
   } else {
     return exp.version;
@@ -129,7 +128,9 @@ export async function readBuildNumberAsync(
   const workflow = await resolveWorkflowAsync(projectDir, Platform.IOS);
   if (workflow === Workflow.GENERIC) {
     const infoPlist = await readInfoPlistAsync(projectDir);
-    return infoPlist.CFBundleVersion && evaluateString(infoPlist.CFBundleVersion, buildSettings);
+    return (
+      infoPlist.CFBundleVersion && evaluateTemplateString(infoPlist.CFBundleVersion, buildSettings)
+    );
   } else {
     return IOSConfig.Version.getBuildNumber(exp);
   }
@@ -171,4 +172,8 @@ function ensureStaticConfigExists(projectDir: string): void {
   if (!paths.staticConfigPath) {
     throw new Error('autoIncrement option is not supported when using app.config.js');
   }
+}
+
+export function evaluateTemplateString(s: string, vars: Record<string, any>): string {
+  return s.replace(/\$\((\w+)\)/g, (match, key) => (vars.hasOwnProperty(key) ? vars[key] : match));
 }

@@ -1,8 +1,8 @@
-import { getPrebuildConfig } from '@expo/config';
 import { IOSConfig, compileModsAsync } from '@expo/config-plugins';
 import { Workflow } from '@expo/eas-build-job';
 import { JSONObject } from '@expo/json-file';
 import plist from '@expo/plist';
+import { getPrebuildConfig } from '@expo/prebuild-config';
 import fs from 'fs';
 
 function getEntitlementsJson(projectDir: string): JSONObject | null {
