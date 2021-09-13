@@ -286,7 +286,7 @@ export async function uploadAssetsAsync(assetsForUpdateInfoGroup: CollectedAsset
     RawAsset & {
       storageKey: string;
     }
-  >(assetsWithStorageKey, 'storageKey');
+  >(assetsWithStorageKey, asset => asset.storageKey);
 
   let missingAssets = await filterOutAssetsThatAlreadyExistAsync(uniqueAssets);
   const { specifications } = await PublishMutation.getUploadURLsAsync(

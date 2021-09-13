@@ -1,10 +1,10 @@
-export default function uniqBy<T extends object>(list: T[], key: keyof T): T[] {
+export default function uniqBy<T, K = any>(list: T[], getKey: (item: T) => K): T[] {
   const uniqueValues = new Set();
   const result: T[] = [];
   for (const i of list) {
-    if (!uniqueValues.has(i[key])) {
+    if (!uniqueValues.has(getKey(i))) {
       result.push(i);
-      uniqueValues.add(i[key]);
+      uniqueValues.add(getKey(i));
     }
   }
   return result;

@@ -1,11 +1,13 @@
-export default function sortBy<T>(list: T[], what?: string, order: 'asc' | 'desc' = 'asc'): T[] {
-  const compareByFn = what !== undefined ? compareBy(what, order) : undefined;
+export default function sortBy<T extends any>(
+  list: T[],
+  what?: keyof T,
+  order: 'asc' | 'desc' = 'asc'
+): T[] {
+  const compareByFn =
+    what &&
+    ((a: T, b: T) => {
+      const r = a[what] > b[what] ? 1 : b[what] > a[what] ? -1 : 0;
+      return order === 'asc' ? r : -r;
+    });
   return list.concat().sort(compareByFn);
 }
-
-const compareBy = (key: string, order: 'asc' | 'desc') => {
-  return (a: any, b: any) => {
-    const r = a[key] > b[key] ? 1 : b[key] > a[key] ? -1 : 0;
-    return order === 'asc' ? r : -r;
-  };
-};
