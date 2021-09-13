@@ -1,4 +1,4 @@
-import { format } from 'timeago.js';
+import { format } from '@expo/timeago.js';
 
 import { Maybe, Robot, Update, User } from '../graphql/generated';
 import { getActorDisplayName } from '../user/User';
