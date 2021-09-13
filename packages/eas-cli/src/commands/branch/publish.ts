@@ -223,7 +223,7 @@ export default class BranchPublish extends Command {
           throw new Error('You must specify the update group to republish.');
         }
 
-        const updateGroups = uniqBy(updates, update => update.group)
+        const updateGroups = uniqBy(updates, u => u.group)
           .filter(update => {
             // Only show groups that have updates on the specified platform(s).
             return platformFlag === 'all' || update.platform === platformFlag;

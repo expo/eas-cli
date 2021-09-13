@@ -229,7 +229,7 @@ export class SetupAdhocProvisioningProfile {
   }
 }
 
-function doUDIDsMatch(udidsA: string[], udidsB: string[]): boolean {
+export function doUDIDsMatch(udidsA: string[], udidsB: string[]): boolean {
   const setA = new Set(udidsA);
   const setB = new Set(udidsB);
 
