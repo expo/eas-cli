@@ -1,4 +1,3 @@
-import { getConfig } from '@expo/config';
 import { Platform } from '@expo/eas-build-job';
 import { AndroidReleaseStatus, AndroidReleaseTrack } from '@expo/eas-json';
 import { Result, result } from '@expo/results';
@@ -60,9 +59,8 @@ export default class AndroidSubmitCommand {
   }
 
   private async maybeGetAndroidPackageFromCurrentProjectAsync(): Promise<string | undefined> {
-    const { exp } = getConfig(this.ctx.projectDir, { skipSDKVersionRequirement: true });
     try {
-      return await getApplicationIdAsync(this.ctx.projectDir, exp);
+      return await getApplicationIdAsync(this.ctx.projectDir, this.ctx.exp);
     } catch {
       return undefined;
     }
