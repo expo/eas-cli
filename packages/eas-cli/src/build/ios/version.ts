@@ -113,7 +113,7 @@ export async function readShortVersionAsync(
     const infoPlist = await readInfoPlistAsync(projectDir);
     return (
       infoPlist.CFBundleShortVersionString &&
-      evaluateString(infoPlist.CFBundleShortVersionString, buildSettings)
+      evaluateTemplateString(infoPlist.CFBundleShortVersionString, buildSettings)
     );
   } else {
     return exp.version;
@@ -128,7 +128,9 @@ export async function readBuildNumberAsync(
   const workflow = await resolveWorkflowAsync(projectDir, Platform.IOS);
   if (workflow === Workflow.GENERIC) {
     const infoPlist = await readInfoPlistAsync(projectDir);
-    return infoPlist.CFBundleVersion && evaluateString(infoPlist.CFBundleVersion, buildSettings);
+    return (
+      infoPlist.CFBundleVersion && evaluateTemplateString(infoPlist.CFBundleVersion, buildSettings)
+    );
   } else {
     return IOSConfig.Version.getBuildNumber(exp);
   }
@@ -172,10 +174,6 @@ function ensureStaticConfigExists(projectDir: string): void {
   }
 }
 
-function evaluateString(s: string, vars: Record<string, any>): string {
-  let result = s;
-  for (const key in vars) {
-    result = result.replace(new RegExp(`$(${key})`, 'g'), vars[key]);
-  }
-  return result;
+export function evaluateTemplateString(s: string, vars: Record<string, any>): string {
+  return s.replace(/\$\((\w+)\)/g, (match, key) => (vars.hasOwnProperty(key) ? vars[key] : match));
 }

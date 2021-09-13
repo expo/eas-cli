@@ -9,6 +9,7 @@ import {
   BumpStrategy,
   bumpVersionAsync,
   bumpVersionInAppJsonAsync,
+  evaluateTemplateString,
   readBuildNumberAsync,
   readShortVersionAsync,
 } from '../version';
@@ -26,6 +27,12 @@ beforeEach(() => {
   // do not remove the following line
   // this fixes a weird error with tempy in @expo/image-utils
   fs.mkdirpSync(os.tmpdir());
+});
+
+describe(evaluateTemplateString, () => {
+  it('evaluates the template string', () => {
+    expect(evaluateTemplateString('$(BLAH_BLAH)', { BLAH_BLAH: 123 })).toBe('123');
+  });
 });
 
 // generic workflow
