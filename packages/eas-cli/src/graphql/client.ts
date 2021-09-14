@@ -7,6 +7,9 @@ import {
   fetchExchange,
 } from '@urql/core';
 import { retryExchange } from '@urql/exchange-retry';
+// node-fetch is used here because @urql/core uses the fetch API under the hood
+// don't use node-fetch elsewhere
+// eslint-disable-next-line
 import fetch from 'node-fetch';
 
 import { getExpoApiBaseUrl } from '../api';

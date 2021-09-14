@@ -29,6 +29,10 @@ module.exports = {
             name: 'lodash',
             message: "Don't use lodash, it's heavy!",
           },
+          {
+            name: 'node-fetch',
+            message: 'Use got instead, node-fetch is used only for the GraphQL client.',
+          },
         ],
       },
     ],
