@@ -3,6 +3,11 @@ import { AndroidConfig } from '@expo/config-plugins';
 import { Platform, Workflow } from '@expo/eas-build-job';
 import { BuildProfile } from '@expo/eas-json';
 
+import {
+  getAppBuildGradleAsync,
+  parseGradleCommand,
+  resolveConfigValue,
+} from '../../project/android/gradleUtils';
 import { resolveWorkflowAsync } from '../../project/workflow';
 
 export async function maybeResolveVersionsAsync(
@@ -12,25 +17,17 @@ export async function maybeResolveVersionsAsync(
 ): Promise<{ appVersion?: string; appBuildVersion?: string }> {
   const workflow = await resolveWorkflowAsync(projectDir, Platform.ANDROID);
   if (workflow === Workflow.GENERIC) {
-    const buildGradle = await AndroidConfig.BuildGradle.getAppBuildGradleAsync(projectDir);
+    const buildGradle = await getAppBuildGradleAsync(projectDir);
     try {
       const parsedGradleCommand = buildProfile.gradleCommand
-        ? AndroidConfig.BuildGradle.parseGradleCommand(buildProfile.gradleCommand, buildGradle)
+        ? parseGradleCommand(buildProfile.gradleCommand, buildGradle)
         : undefined;
 
       return {
         appVersion:
-          AndroidConfig.BuildGradle.resolveConfigValue(
-            buildGradle,
-            parsedGradleCommand?.flavor,
-            'versionName'
-          ) ?? '1.0.0',
+          resolveConfigValue(buildGradle, 'versionName', parsedGradleCommand?.flavor) ?? '1.0.0',
         appBuildVersion:
-          AndroidConfig.BuildGradle.resolveConfigValue(
-            buildGradle,
-            parsedGradleCommand?.flavor,
-            'versionCode'
-          ) ?? '1',
+          resolveConfigValue(buildGradle, 'versionCode', parsedGradleCommand?.flavor) ?? '1',
       };
     } catch (err: any) {
       return {};

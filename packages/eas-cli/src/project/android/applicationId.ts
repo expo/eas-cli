@@ -12,6 +12,7 @@ import { promptAsync } from '../../prompts';
 import { ensureLoggedInAsync } from '../../user/actions';
 import { resolveWorkflowAsync } from '../workflow';
 import { GradleBuildContext } from './gradle';
+import { getAppBuildGradleAsync, resolveConfigValue } from './gradleUtils';
 
 const INVALID_APPLICATION_ID_MESSAGE = `Invalid format of Android applicationId. Only alphanumeric characters, '.' and '_' are allowed, and each '.' must be followed by a letter.`;
 
@@ -40,12 +41,8 @@ export async function getApplicationIdAsync(
 
     const errorMessage = 'Could not read application id from Android project.';
     if (gradleContext) {
-      const buildGradle = await AndroidConfig.BuildGradle.getAppBuildGradleAsync(projectDir);
-      const applicationId = AndroidConfig.BuildGradle.resolveConfigValue(
-        buildGradle,
-        gradleContext.flavor,
-        'applicationId'
-      );
+      const buildGradle = await getAppBuildGradleAsync(projectDir);
+      const applicationId = resolveConfigValue(buildGradle, 'applicationId', gradleContext.flavor);
       return nullthrows(applicationId, errorMessage);
     } else {
       // fallback to best effort approach, this logic can be dropped when we start supporting
