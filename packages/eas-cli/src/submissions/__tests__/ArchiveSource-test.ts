@@ -6,7 +6,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { asMock } from '../../__tests__/utils';
 import { AppPlatform, BuildFragment, UploadSessionType } from '../../graphql/generated';
 import { toAppPlatform } from '../../graphql/types/AppPlatform';
-import { promptAsync } from '../../prompts';
+import { promptAsync, confirmAsync } from '../../prompts';
 import { uploadAsync } from '../../uploads';
 import { Archive, ArchiveSourceType, getArchiveAsync } from '../ArchiveSource';
 import { getBuildByIdForSubmissionAsync, getLatestBuildForSubmissionAsync } from '../utils/builds';
@@ -32,6 +32,7 @@ const SOURCE_STUB_INPUT = {
   projectId: uuidv4(),
   platform: Platform.ANDROID,
   projectDir: '.',
+  nonInteractive: false,
 };
 
 describe(getArchiveAsync, () => {
@@ -40,6 +41,11 @@ describe(getArchiveAsync, () => {
 
     asMock(promptAsync).mockReset();
     asMock(promptAsync).mockImplementation(() => {
+      throw new Error(`unhandled prompts call - this shouldn't happen - fix tests!`);
+    });
+
+    asMock(confirmAsync).mockReset();
+    asMock(confirmAsync).mockImplementation(() => {
       throw new Error(`unhandled prompts call - this shouldn't happen - fix tests!`);
     });
   });
@@ -67,6 +73,20 @@ describe(getArchiveAsync, () => {
 
     expect(promptAsync).toHaveBeenCalledTimes(2);
     assertArchiveResult(archive, ArchiveSourceType.url);
+  });
+
+  it('asks the user if use build id instead of build details page url', async () => {
+    asMock(confirmAsync).mockResolvedValueOnce(true);
+
+    const archive = await getArchiveAsync({
+      ...SOURCE_STUB_INPUT,
+      sourceType: ArchiveSourceType.url,
+      url: 'https://expo.dev/accounts/turtle/projects/blah/builds/81da6b36-efe4-4262-8970-84f03efeec81',
+    });
+
+    expect(confirmAsync).toHaveBeenCalled();
+    assertArchiveResult(archive, ArchiveSourceType.buildId);
+    expect((archive.source as any).id).toBe('81da6b36-efe4-4262-8970-84f03efeec81');
   });
 
   it('handles prompt source', async () => {
