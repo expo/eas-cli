@@ -6,7 +6,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { asMock } from '../../__tests__/utils';
 import { AppPlatform, BuildFragment, UploadSessionType } from '../../graphql/generated';
 import { toAppPlatform } from '../../graphql/types/AppPlatform';
-import { promptAsync, confirmAsync } from '../../prompts';
+import { confirmAsync, promptAsync } from '../../prompts';
 import { uploadAsync } from '../../uploads';
 import { Archive, ArchiveSourceType, getArchiveAsync } from '../ArchiveSource';
 import { getBuildByIdForSubmissionAsync, getLatestBuildForSubmissionAsync } from '../utils/builds';
