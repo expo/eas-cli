@@ -12,13 +12,13 @@ export default class AnalyticsView extends EasCommand {
   async runAsync(): Promise<void> {
     const { STATUS: status } = this.parse(AnalyticsView).args;
     if (status) {
-      await UserSettings.setAsync('amplitudeEnabled', status === 'on');
+      await UserSettings.setAsync('analyticsEnabled', status === 'on');
       Log.withTick(`${status === 'on' ? 'Enabling' : 'Disabling'} analytics.`);
     } else {
-      const amplitudeEnabled = await UserSettings.getAsync('amplitudeEnabled', null);
+      const analyticsEnabled = await UserSettings.getAsync('analyticsEnabled', null);
       Log.log(
         `Analytics are ${
-          amplitudeEnabled === false ? 'disabled' : 'enabled'
+          analyticsEnabled === false ? 'disabled' : 'enabled'
         } on this eas-cli installation.`
       );
     }
