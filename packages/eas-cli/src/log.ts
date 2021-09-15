@@ -10,65 +10,65 @@ type Color = (...text: string[]) => string;
 export default class Log {
   public static readonly isDebug = boolish('EXPO_DEBUG', false);
 
-  public static log(...args: any[]) {
+  public static log(...args: any[]): void {
     Log.consoleLog(...args);
   }
 
-  public static newLine() {
+  public static newLine(): void {
     Log.consoleLog();
   }
 
-  public static addNewLineIfNone() {
+  public static addNewLineIfNone(): void {
     if (!Log.isLastLineNewLine) {
       Log.newLine();
     }
   }
 
-  public static error(...args: any[]) {
+  public static error(...args: any[]): void {
     Log.consoleError(...Log.withTextColor(args, chalk.red));
   }
 
-  public static warn(...args: any[]) {
+  public static warn(...args: any[]): void {
     Log.consoleWarn(...Log.withTextColor(args, chalk.yellow));
   }
 
-  public static gray(...args: any[]) {
+  public static gray(...args: any[]): void {
     Log.consoleLog(...Log.withTextColor(args, chalk.gray));
   }
 
-  public static warnDeprecatedFlag(flag: string, message: string) {
+  public static warnDeprecatedFlag(flag: string, message: string): void {
     Log.warn(`› ${chalk.bold('--' + flag)} flag is deprecated. ${message}`);
   }
 
-  public static succeed(message: string) {
+  public static succeed(message: string): void {
     ora().succeed(message);
   }
 
-  public static withTick(...args: any[]) {
+  public static withTick(...args: any[]): void {
     Log.consoleLog(chalk.green(figures.tick), ...args);
   }
 
-  private static consoleLog(...args: any[]) {
+  private static consoleLog(...args: any[]): void {
     Log.updateIsLastLineNewLine(args);
     console.log(...args);
   }
 
-  private static consoleWarn(...args: any[]) {
+  private static consoleWarn(...args: any[]): void {
     Log.updateIsLastLineNewLine(args);
     console.warn(...args);
   }
 
-  private static consoleError(...args: any[]) {
+  private static consoleError(...args: any[]): void {
     Log.updateIsLastLineNewLine(args);
     console.error(...args);
   }
 
-  private static withTextColor(args: any[], chalkColor: Color) {
+  private static withTextColor(args: any[], chalkColor: Color): string[] {
     return args.map(arg => chalkColor(arg));
   }
 
   private static isLastLineNewLine = false;
-  private static updateIsLastLineNewLine(args: any[]) {
+  private static updateIsLastLineNewLine(args: any[]): void {
     if (args.length === 0) {
       Log.isLastLineNewLine = true;
     } else {

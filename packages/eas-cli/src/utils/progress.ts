@@ -26,7 +26,7 @@ function createProgressTracker({
 
   const timerLabel = String(Date.now());
 
-  const getMessage = (v: number) => {
+  const getMessage = (v: number): string => {
     const ratio = Math.min(Math.max(v, 0), 1);
     const percent = Math.floor(ratio * 100);
     return typeof message === 'string' ? `${message} ${percent.toFixed(0)}%` : message(ratio);

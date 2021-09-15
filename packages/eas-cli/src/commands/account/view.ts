@@ -9,7 +9,7 @@ export default class AccountView extends Command {
 
   static aliases = ['whoami'];
 
-  async run() {
+  async run(): Promise<void> {
     const user = await getUserAsync();
     if (user) {
       Log.log(chalk.green(getActorDisplayName(user)));

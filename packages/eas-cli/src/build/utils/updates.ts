@@ -1,6 +1,6 @@
 import { ExpoConfig, getPackageJson } from '@expo/config';
 
-export function isExpoUpdatesInstalled(projectDir: string) {
+export function isExpoUpdatesInstalled(projectDir: string): boolean {
   const packageJson = getPackageJson(projectDir);
   return packageJson.dependencies && 'expo-updates' in packageJson.dependencies;
 }

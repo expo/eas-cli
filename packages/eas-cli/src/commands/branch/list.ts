@@ -2,17 +2,27 @@ import { getConfig } from '@expo/config';
 import { Command, flags } from '@oclif/command';
 import chalk from 'chalk';
 import CliTable from 'cli-table3';
+import { print } from 'graphql';
 import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
-import { BranchesByAppQuery, BranchesByAppQueryVariables } from '../../graphql/generated';
+import {
+  BranchesByAppQuery,
+  BranchesByAppQueryVariables,
+  UpdateBranchFragment,
+} from '../../graphql/generated';
+import { UpdateBranchFragmentNode } from '../../graphql/types/UpdateBranch';
 import Log from '../../log';
 import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUtils';
 import { UPDATE_COLUMNS, formatUpdate, getPlatformsForGroup } from '../../update/utils';
 
 const BRANCHES_LIMIT = 10_000;
 
-export async function listBranchesAsync({ projectId }: { projectId: string }) {
+export async function listBranchesAsync({
+  projectId,
+}: {
+  projectId: string;
+}): Promise<UpdateBranchFragment[]> {
   const data = await withErrorHandlingAsync(
     graphqlClient
       .query<BranchesByAppQuery, BranchesByAppQueryVariables>(
@@ -23,29 +33,12 @@ export async function listBranchesAsync({ projectId }: { projectId: string }) {
                 id
                 updateBranches(offset: 0, limit: $limit) {
                   id
-                  name
-                  updates(offset: 0, limit: 10) {
-                    id
-                    actor {
-                      __typename
-                      id
-                      ... on User {
-                        username
-                      }
-                      ... on Robot {
-                        firstName
-                      }
-                    }
-                    createdAt
-                    message
-                    runtimeVersion
-                    group
-                    platform
-                  }
+                  ...UpdateBranchFragment
                 }
               }
             }
           }
+          ${print(UpdateBranchFragmentNode)}
         `,
         {
           appId: projectId,
@@ -70,7 +63,7 @@ export default class BranchList extends Command {
     }),
   };
 
-  async run() {
+  async run(): Promise<void> {
     const { flags } = this.parse(BranchList);
 
     const projectDir = await findProjectRootAsync(process.cwd());

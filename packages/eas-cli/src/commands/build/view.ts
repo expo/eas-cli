@@ -24,7 +24,7 @@ export default class BuildView extends Command {
     }),
   };
 
-  async run() {
+  async run(): Promise<void> {
     const {
       args: { BUILD_ID: buildId },
       flags,

@@ -91,7 +91,7 @@ export default class BranchDelete extends Command {
     }),
   };
 
-  async run() {
+  async run(): Promise<void> {
     let {
       args: { name },
       flags: { json: jsonFlag },

@@ -1,3 +1,4 @@
+import AppStoreApi from '../ios/appstore/AppStoreApi';
 import { AuthCtx } from '../ios/appstore/authenticate';
 
 export const testAuthCtx: AuthCtx = {
@@ -6,7 +7,7 @@ export const testAuthCtx: AuthCtx = {
   team: { id: 'test-team-id', name: 'test-team-name', inHouse: false },
 };
 
-export function getAppstoreMock() {
+export function getAppstoreMock(): AppStoreApi {
   return {
     ensureAuthenticatedAsync: jest.fn(),
     ensureBundleIdExistsAsync: jest.fn(),
@@ -21,5 +22,5 @@ export function getAppstoreMock() {
     createProvisioningProfileAsync: jest.fn(),
     revokeProvisioningProfileAsync: jest.fn(),
     createOrReuseAdhocProvisioningProfileAsync: jest.fn(),
-  };
+  } as any;
 }

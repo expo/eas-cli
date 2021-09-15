@@ -19,7 +19,7 @@ export default class BuildConfigure extends Command {
     }),
   };
 
-  async run() {
+  async run(): Promise<void> {
     const { flags } = this.parse(BuildConfigure);
     Log.log(
       '💡 The following process will configure your iOS and/or Android project to be compatible with EAS Build. These changes only apply to your local project files and you can safely revert them at any time.'
@@ -40,7 +40,7 @@ export default class BuildConfigure extends Command {
   }
 }
 
-function logSuccess(platform: RequestedPlatform) {
+function logSuccess(platform: RequestedPlatform): void {
   let platformsText = 'iOS and Android projects are';
   let storesText = 'the Apple App Store or Google Play Store';
 

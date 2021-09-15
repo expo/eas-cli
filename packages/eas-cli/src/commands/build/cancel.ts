@@ -114,7 +114,7 @@ export default class BuildCancel extends Command {
 
   static args = [{ name: 'BUILD_ID' }];
 
-  async run() {
+  async run(): Promise<void> {
     const { BUILD_ID: buildIdFromArg } = this.parse(BuildCancel).args;
 
     const projectDir = (await findProjectRootAsync()) ?? process.cwd();

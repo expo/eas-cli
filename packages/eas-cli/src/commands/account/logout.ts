@@ -8,7 +8,7 @@ export default class AccountLogout extends Command {
 
   static aliases = ['logout'];
 
-  async run() {
+  async run(): Promise<void> {
     await logoutAsync();
     Log.log('Logged out');
   }

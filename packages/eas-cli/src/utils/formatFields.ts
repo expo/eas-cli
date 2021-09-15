@@ -7,7 +7,7 @@ type FormatFieldsOptions = {
 export default function formatFields(
   fields: { label: string; value: string }[],
   options: FormatFieldsOptions = { labelFormat: chalk.dim }
-) {
+): string {
   const columnWidth = fields.reduce((a, b) => (a.label.length > b.label.length ? a : b)).label
     .length;
 

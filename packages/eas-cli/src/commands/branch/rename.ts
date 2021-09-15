@@ -68,7 +68,7 @@ export default class BranchRename extends Command {
     }),
   };
 
-  async run() {
+  async run(): Promise<void> {
     let {
       flags: { json: jsonFlag, from: currentName, to: newName },
     } = this.parse(BranchRename);

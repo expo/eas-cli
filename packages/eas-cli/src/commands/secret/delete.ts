@@ -31,7 +31,7 @@ Unsure where to find the secret's ID? Run ${chalk.bold('eas secrets:list')}`;
     }),
   };
 
-  async run() {
+  async run(): Promise<void> {
     await ensureLoggedInAsync();
 
     const projectDir = (await findProjectRootAsync()) ?? process.cwd();

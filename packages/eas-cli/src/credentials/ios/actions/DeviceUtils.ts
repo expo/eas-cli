@@ -7,7 +7,7 @@ export async function chooseDevices(
   preselectedDeviceIdentifiers: string[] = []
 ): Promise<AppleDevice[]> {
   const preselectedDeviceIdentifierSet = new Set(preselectedDeviceIdentifiers);
-  const isSelected = (device: AppleDeviceFragment) =>
+  const isSelected = (device: AppleDeviceFragment): boolean =>
     preselectedDeviceIdentifierSet.size === 0 ||
     preselectedDeviceIdentifierSet.has(device.identifier);
   const { devices } = await promptAsync({

@@ -28,7 +28,7 @@ const defaults = {
 } as const;
 
 export class EasJsonReader {
-  public static formatEasJsonPath(projectDir: string) {
+  public static formatEasJsonPath(projectDir: string): string {
     return path.join(projectDir, 'eas.json');
   }
 
@@ -151,7 +151,7 @@ export class EasJsonReader {
     }
   }
 
-  private ensureBuildProfileExists(easJson: EasJson, profileName: string) {
+  private ensureBuildProfileExists(easJson: EasJson, profileName: string): void {
     if (!easJson.build || !easJson.build[profileName]) {
       throw new Error(`There is no profile named ${profileName} in eas.json.`);
     }

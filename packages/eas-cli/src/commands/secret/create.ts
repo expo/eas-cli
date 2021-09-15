@@ -43,7 +43,7 @@ export default class EnvironmentSecretCreate extends Command {
     }),
   };
 
-  async run() {
+  async run(): Promise<void> {
     const actor = await ensureLoggedInAsync();
     let {
       flags: { name, value: secretValue, scope, force },

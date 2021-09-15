@@ -183,7 +183,7 @@ function assertArchiveResult(
   archive: Archive,
   expectedSourceType: ArchiveSourceType,
   expectedUrl: string = ARCHIVE_URL
-) {
+): void {
   expect(archive.source.sourceType).toBe(expectedSourceType);
   if (archive.url) {
     expect(archive.url).toBe(expectedUrl);

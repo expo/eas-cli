@@ -151,7 +151,7 @@ export async function buildBundlesAsync({
 }: {
   projectDir: string;
   inputDir: string;
-}) {
+}): Promise<void> {
   const packageJSON = JsonFile.read(path.resolve(projectDir, 'package.json'));
   if (!packageJSON) {
     throw new Error('Could not locate package.json');

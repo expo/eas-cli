@@ -336,7 +336,7 @@ export default class ChannelRollout extends Command {
     }),
   };
 
-  async run() {
+  async run(): Promise<void> {
     const {
       args: { channel: channelName },
       flags: { json: jsonFlag, end: endFlag },

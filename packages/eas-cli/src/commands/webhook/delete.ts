@@ -25,7 +25,7 @@ export default class WebhookDelete extends Command {
     },
   ];
 
-  async run() {
+  async run(): Promise<void> {
     await ensureLoggedInAsync();
     let {
       args: { ID: webhookId },

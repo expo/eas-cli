@@ -52,7 +52,7 @@ export default class UpdateDelete extends Command {
     }),
   };
 
-  async run() {
+  async run(): Promise<void> {
     const {
       args: { groupId: group },
       flags: { json: jsonFlag },

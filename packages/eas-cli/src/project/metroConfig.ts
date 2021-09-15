@@ -7,7 +7,9 @@ import { BuildContext } from '../build/context';
 import Log, { learnMore } from '../log';
 import { confirmAsync } from '../prompts';
 
-export async function validateMetroConfigForManagedWorkflowAsync(ctx: BuildContext<Platform>) {
+export async function validateMetroConfigForManagedWorkflowAsync(
+  ctx: BuildContext<Platform>
+): Promise<void> {
   if (!(await configExistsAsync(ctx.projectDir))) {
     return;
   }

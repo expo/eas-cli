@@ -66,7 +66,7 @@ export default class UpdateView extends Command {
     }),
   };
 
-  async run() {
+  async run(): Promise<void> {
     const {
       args: { groupId },
       flags: { json: jsonFlag },

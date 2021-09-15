@@ -1,7 +1,7 @@
 import { Android, Ios } from '@expo/eas-build-job';
 import Joi, { CustomHelpers } from 'joi';
 
-const semverSchemaCheck = (value: any, helpers: CustomHelpers) => {
+const semverSchemaCheck = (value: any, helpers: CustomHelpers): any => {
   if (/^[0-9]+\.[0-9]+\.[0-9]+$/.test(value)) {
     return value;
   } else {

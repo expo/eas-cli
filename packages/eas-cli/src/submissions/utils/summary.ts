@@ -10,7 +10,7 @@ export interface ArchiveSourceSummaryFields {
   formattedBuild?: string;
 }
 
-function formatSubmissionBuildSummary(build: BuildFragment) {
+function formatSubmissionBuildSummary(build: BuildFragment): string {
   const fields = [
     {
       label: 'Build ID',

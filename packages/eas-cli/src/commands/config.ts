@@ -17,7 +17,7 @@ export default class Config extends Command {
     profile: flags.string(),
   };
 
-  async run() {
+  async run(): Promise<void> {
     const { flags } = this.parse(Config);
     const { platform: maybePlatform, profile: maybeProfile } = flags as {
       platform?: Platform;

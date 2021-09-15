@@ -16,7 +16,7 @@ export default abstract class EasCommand extends Command {
    */
   protected requiresAuthentication = true;
 
-  async init() {
+  async init(): Promise<void> {
     await initAnalyticsAsync();
 
     if (this.requiresAuthentication) {
@@ -31,7 +31,7 @@ export default abstract class EasCommand extends Command {
     });
   }
 
-  async finally(err: Error) {
+  async finally(err: Error): Promise<any> {
     await flushAnalyticsAsync();
     return super.finally(err);
   }

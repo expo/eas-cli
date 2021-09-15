@@ -106,10 +106,19 @@ export async function syncCapabilitiesForEntitlementsAsync(
   return { enabled: enabledCapabilityNames, disabled: disabledCapabilityNames };
 }
 
+interface CapabilitiesRequest {
+  capabilityType: CapabilityType;
+  option: any;
+}
+
 function getCapabilitiesToEnable(
   currentCapabilities: BundleIdCapability[],
   entitlements: JSONObject
-) {
+): {
+  enabledCapabilityNames: string[];
+  request: CapabilitiesRequest[];
+  remainingCapabilities: BundleIdCapability[];
+} {
   const enabledCapabilityNames: string[] = [];
   const request: { capabilityType: CapabilityType; option: any }[] = [];
   const remainingCapabilities = [...currentCapabilities];
@@ -177,8 +186,8 @@ export function assertValidOptions(classifier: CapabilityClassifier, value: any)
 function getCapabilitiesToDisable(
   bundleId: BundleId,
   currentCapabilities: BundleIdCapability[],
-  request: { capabilityType: CapabilityType; option: any }[]
-) {
+  request: CapabilitiesRequest[]
+): { disabledCapabilityNames: string[]; request: CapabilitiesRequest[] } {
   if (Log.isDebug) {
     Log.log(
       `Existing to disable: `,

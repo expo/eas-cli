@@ -57,7 +57,7 @@ async function addCertificateToProfileAsync(
     profileId: string;
     bundleIdentifier: string;
   }
-) {
+): Promise<Profile> {
   const cert = await getCertificateBySerialNumberAsync(context, serialNumber);
 
   const profiles = await getProfilesForBundleIdAsync(context, bundleIdentifier);

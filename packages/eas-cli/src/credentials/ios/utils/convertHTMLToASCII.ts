@@ -6,7 +6,7 @@ import wrapAnsi from 'wrap-ansi';
 
 const turndownServices: Record<string, any> = {};
 
-function getService(rootUrl: string) {
+function getService(rootUrl: string): TurndownService {
   if (turndownServices[rootUrl]) {
     return turndownServices[rootUrl];
   }

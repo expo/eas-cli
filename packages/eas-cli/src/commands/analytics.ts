@@ -8,7 +8,7 @@ export default class AnalyticsView extends Command {
 
   static args = [{ name: 'STATUS', options: ['on', 'off'] }];
 
-  async run() {
+  async run(): Promise<void> {
     const { STATUS: status } = this.parse(AnalyticsView).args;
     if (status) {
       await UserSettings.setAsync('amplitudeEnabled', status === 'on');

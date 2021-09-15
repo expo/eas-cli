@@ -127,7 +127,7 @@ async function loginWithUserCredentialsAsync({
   password?: string;
   teamId?: string;
   providerId?: number;
-}) {
+}): Promise<Session.AuthState> {
   // Start a new login flow
   const newSession = await Auth.loginWithUserCredentialsAsync({
     username,

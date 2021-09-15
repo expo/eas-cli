@@ -26,7 +26,9 @@ export type AppSpecificPasswordSource =
   | AppSpecificPasswordUserDefinedSource
   | AppSpecificPasswordPromptSource;
 
-export async function getAppSpecificPasswordAsync(source: AppSpecificPasswordSource) {
+export async function getAppSpecificPasswordAsync(
+  source: AppSpecificPasswordSource
+): Promise<string> {
   if (source.sourceType === AppSpecificPasswordSourceType.userDefined) {
     return source.appSpecificPassword;
   } else if (source.sourceType === AppSpecificPasswordSourceType.prompt) {

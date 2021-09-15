@@ -58,7 +58,7 @@ export default class BuildList extends Command {
     limit: flags.integer(),
   };
 
-  async run() {
+  async run(): Promise<void> {
     const { flags } = this.parse(BuildList);
     const {
       json,

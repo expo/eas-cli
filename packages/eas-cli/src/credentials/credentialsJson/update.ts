@@ -300,7 +300,7 @@ async function isFileUntrackedAsync(path: string): Promise<boolean> {
   return false;
 }
 
-function displayUntrackedFilesWarning(newFilePaths: string[]) {
+function displayUntrackedFilesWarning(newFilePaths: string[]): void {
   if (newFilePaths.length === 1) {
     Log.warn(
       `File ${newFilePaths[0]} is currently untracked, remember to add it to .gitignore, or to encrypt it (e.g. with git-crypt).`

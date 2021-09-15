@@ -9,7 +9,10 @@ function getRenamedFilename(filename: string, num: number): string {
   return `${basename}_OLD_${num}${ext}`;
 }
 
-export async function maybeRenameExistingFileAsync(projectDir: string, filename: string) {
+export async function maybeRenameExistingFileAsync(
+  projectDir: string,
+  filename: string
+): Promise<void> {
   const desiredFilePath = path.resolve(projectDir, filename);
 
   if (await fs.pathExists(desiredFilePath)) {

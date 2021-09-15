@@ -91,7 +91,7 @@ function displayAndroidBuildCredentials(
   Log.newLine();
 }
 
-export function displayAndroidKeystore(keystore: AndroidKeystoreFragment) {
+export function displayAndroidKeystore(keystore: AndroidKeystoreFragment): void {
   const {
     keyAlias,
     type,

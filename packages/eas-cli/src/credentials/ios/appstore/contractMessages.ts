@@ -17,7 +17,9 @@ async function getContractStatusAsync(
   }
 }
 
-async function getContractMessagesAsync(context: RequestContext) {
+async function getContractMessagesAsync(
+  context: RequestContext
+): Promise<ITCAgreements.ITCContractMessage[] | null> {
   try {
     return await ITCAgreements.getContractMessagesAsync(context);
   } catch (error: any) {
@@ -75,7 +77,10 @@ export function formatContractMessage(message: ITCAgreements.ITCContractMessage)
   });
 }
 
-export async function assertContractMessagesAsync(context: RequestContext, spinner?: Ora) {
+export async function assertContractMessagesAsync(
+  context: RequestContext,
+  spinner?: Ora
+): Promise<void> {
   const { messages, isFatal } = await getRequiredContractMessagesAsync(context);
 
   if (Array.isArray(messages) && messages.length) {

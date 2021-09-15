@@ -184,7 +184,7 @@ export async function createOrUpdateAndroidAppBuildCredentialsByNameAsync(
   });
 }
 
-export async function createOrUpdateDefaultIosAppBuildCredentialsAsync() {
+export async function createOrUpdateDefaultIosAppBuildCredentialsAsync(): Promise<void> {
   throw new Error('This requires user prompting. Look for me in BuildCredentialsUtils');
 }
 
