@@ -29,14 +29,18 @@ describe(getApplicationIdAsync, () => {
       vol.fromJSON(
         {
           'android/app/build.gradle': `
-            applicationId "com.expo.notdominik"
+          android {
+            defaultConfig {
+              applicationId "com.expo.notdominik"
+            }
+          }
           `,
           'android/app/src/main/AndroidManifest.xml': 'fake',
         },
         '/app'
       );
 
-      const applicationId = await getApplicationIdAsync('/app', {} as any);
+      const applicationId = await getApplicationIdAsync('/app', {} as any, { moduleName: 'app' });
       expect(applicationId).toBe('com.expo.notdominik');
     });
 
@@ -48,7 +52,7 @@ describe(getApplicationIdAsync, () => {
         },
         '/app'
       );
-      await expect(getApplicationIdAsync('/app', {} as any)).rejects.toThrowError(
+      await expect(getApplicationIdAsync('/app', {} as any, undefined)).rejects.toThrowError(
         /Could not read application id/
       );
     });
@@ -62,29 +66,35 @@ describe(getApplicationIdAsync, () => {
         '/app'
       );
 
-      await expect(getApplicationIdAsync('/app', {} as any)).rejects.toThrowError(
-        /Could not read application id/
-      );
+      await expect(
+        getApplicationIdAsync('/app', {} as any, { moduleName: 'app' })
+      ).rejects.toThrowError(/Could not read application id/);
     });
   });
 
   describe('managed projects', () => {
     it('reads applicationId (Android package) from app config', async () => {
-      const applicationId = await getApplicationIdAsync('/app', {
-        android: { package: 'com.expo.notdominik' },
-      } as any);
+      const applicationId = await getApplicationIdAsync(
+        '/app',
+        {
+          android: { package: 'com.expo.notdominik' },
+        } as any,
+        { moduleName: 'app' }
+      );
       expect(applicationId).toBe('com.expo.notdominik');
     });
 
     it('throws an error if Android package is not defined in app config', async () => {
-      await expect(getApplicationIdAsync('/app', {} as any)).rejects.toThrowError(
-        /Specify "android.package"/
-      );
+      await expect(
+        getApplicationIdAsync('/app', {} as any, { moduleName: 'app' })
+      ).rejects.toThrowError(/Specify "android.package"/);
     });
 
     it('throws an error if Android package in app config is invalid', async () => {
       await expect(
-        getApplicationIdAsync('/app', { android: { package: '1com.expo.notdominik' } } as any)
+        getApplicationIdAsync('/app', { android: { package: '1com.expo.notdominik' } } as any, {
+          moduleName: 'app',
+        })
       ).rejects.toThrowError(/Specify "android.package"/);
     });
   });

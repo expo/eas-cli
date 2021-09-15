@@ -4,6 +4,7 @@ import ora from 'ora';
 
 import { AndroidAppBuildCredentialsFragment } from '../../../graphql/generated';
 import { getApplicationIdAsync } from '../../../project/android/applicationId';
+import { GradleBuildContext } from '../../../project/android/gradle';
 import { getProjectAccountName, getProjectConfigDescription } from '../../../project/projectUtils';
 import { promptAsync } from '../../../prompts';
 import { findAccountByName } from '../../../user/Account';
@@ -83,7 +84,10 @@ export async function promptUserAndCopyLegacyCredentialsAsync(
   spinner.succeed('Credentials copied to EAS.');
 }
 
-export async function getAppLookupParamsFromContextAsync(ctx: Context): Promise<AppLookupParams> {
+export async function getAppLookupParamsFromContextAsync(
+  ctx: Context,
+  gradleContext?: GradleBuildContext
+): Promise<AppLookupParams> {
   ctx.ensureProjectContext();
   const projectName = ctx.exp.slug;
   const accountName = getProjectAccountName(ctx.exp, ctx.user);
@@ -92,7 +96,11 @@ export async function getAppLookupParamsFromContextAsync(ctx: Context): Promise<
     throw new Error(`You do not have access to account: ${accountName}`);
   }
 
-  const androidApplicationIdentifier = await getApplicationIdAsync(ctx.projectDir, ctx.exp);
+  const androidApplicationIdentifier = await getApplicationIdAsync(
+    ctx.projectDir,
+    ctx.exp,
+    gradleContext
+  );
   if (!androidApplicationIdentifier) {
     throw new Error(
       `android.package needs to be defined in your ${getProjectConfigDescription(

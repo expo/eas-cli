@@ -67,7 +67,11 @@ export async function prepareIosBuildAsync(
         buildConfiguration: applicationTarget.buildConfiguration,
       });
       const buildSettings = xcBuildConfiguration?.buildSettings ?? {};
-      return { buildSettings };
+      return {
+        buildSettings,
+        targetName: applicationTarget.targetName,
+        buildConfiguration: applicationTarget.buildConfiguration,
+      };
     },
     prepareJobAsync: async (
       ctx: BuildContext<Platform.IOS>,

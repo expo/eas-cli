@@ -136,6 +136,21 @@ export async function readBuildNumberAsync(
   }
 }
 
+export async function maybeResolveVersionsAsync(
+  projectDir: string,
+  exp: ExpoConfig,
+  buildSettings: XCBuildConfiguration['buildSettings']
+): Promise<{ appVersion?: string; appBuildVersion?: string }> {
+  try {
+    return {
+      appBuildVersion: await readBuildNumberAsync(projectDir, exp, buildSettings),
+      appVersion: await readShortVersionAsync(projectDir, exp, buildSettings),
+    };
+  } catch {
+    return {};
+  }
+}
+
 async function writeVersionsToInfoPlistAsync({
   projectDir,
   exp,

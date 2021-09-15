@@ -11,6 +11,8 @@ import { getProjectConfigDescription, getUsername } from '../../project/projectU
 import { promptAsync } from '../../prompts';
 import { ensureLoggedInAsync } from '../../user/actions';
 import { resolveWorkflowAsync } from '../workflow';
+import { GradleBuildContext } from './gradle';
+import * as gradleUtils from './gradleUtils';
 
 const INVALID_APPLICATION_ID_MESSAGE = `Invalid format of Android applicationId. Only alphanumeric characters, '.' and '_' are allowed, and each '.' must be followed by a letter.`;
 
@@ -22,28 +24,50 @@ export async function ensureApplicationIdIsDefinedForManagedProjectAsync(
   assert(workflow === Workflow.MANAGED, 'This function should be called only for managed projects');
 
   try {
-    return await getApplicationIdAsync(projectDir, exp);
+    return await getApplicationIdAsync(projectDir, exp, {
+      moduleName: gradleUtils.DEFAULT_MODULE_NAME,
+    });
   } catch (err) {
     return await configureApplicationIdAsync(projectDir, exp);
   }
 }
 
-export async function getApplicationIdAsync(projectDir: string, exp: ExpoConfig): Promise<string> {
+export async function getApplicationIdAsync(
+  projectDir: string,
+  exp: ExpoConfig,
+  gradleContext?: GradleBuildContext
+): Promise<string> {
   const workflow = await resolveWorkflowAsync(projectDir, Platform.ANDROID);
   if (workflow === Workflow.GENERIC) {
     warnIfAndroidPackageDefinedInAppConfigForGenericProject(projectDir, exp);
 
     const errorMessage = 'Could not read application id from Android project.';
-    let buildGradlePath = null;
-    try {
-      buildGradlePath = AndroidConfig.Paths.getAppBuildGradleFilePath(projectDir);
-    } catch {}
-    if (!buildGradlePath || !fs.pathExistsSync(buildGradlePath)) {
-      throw new Error(errorMessage);
+    if (gradleContext) {
+      const buildGradle = await gradleUtils.getAppBuildGradleAsync(projectDir);
+      const applicationId = gradleUtils.resolveConfigValue(
+        buildGradle,
+        'applicationId',
+        gradleContext.flavor
+      );
+      return nullthrows(applicationId, errorMessage);
+    } else {
+      // fallback to best effort approach, this logic can be dropped when we start supporting
+      // modules different than 'app' and 'flavorDimensions'
+      let buildGradlePath = null;
+      try {
+        buildGradlePath = AndroidConfig.Paths.getAppBuildGradleFilePath(projectDir);
+      } catch {}
+      if (!buildGradlePath || !fs.pathExistsSync(buildGradlePath)) {
+        throw new Error(errorMessage);
+      }
+      const buildGradle = fs.readFileSync(buildGradlePath, 'utf8');
+      const matchResult = buildGradle.match(/applicationId ['"](.*)['"]/);
+      const applicationId = nullthrows(matchResult?.[1], errorMessage);
+
+      Log.warn(`Unable to detect applicationId`);
+      Log.warn(`Falling back to best effort approach, using applicationId ${applicationId}`);
+      return applicationId;
     }
-    const buildGradle = fs.readFileSync(buildGradlePath, 'utf8');
-    const matchResult = buildGradle.match(/applicationId ['"](.*)['"]/);
-    return nullthrows(matchResult?.[1], errorMessage);
   } else {
     const applicationId = AndroidConfig.Package.getPackage(exp);
     if (!applicationId || !isApplicationIdValid(applicationId)) {
