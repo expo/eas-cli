@@ -11,6 +11,7 @@ This is the log of notable changes to EAS CLI and related packages.
 - Use envs from build profile to resolve app config when auto-submitting. ([#614](https://github.com/expo/eas-cli/pull/614) by [@dsokal](https://github.com/dsokal))
 - Support multi flavor Android projects. ([#595](https://github.com/expo/eas-cli/pull/595) by [@wkozyra95](https://github.com/wkozyra95))
 - Improve experience when using the build details page as a build artifact URL in `eas submit`. ([#620](https://github.com/expo/eas-cli/pull/620) by [@dsokal](https://github.com/dsokal))
+- Better error message when eas.json is invalid JSON. ([#618](https://github.com/expo/eas-cli/pull/618) by [@dsokal](https://github.com/dsokal))
 
 ### 🐛 Bug fixes
 
