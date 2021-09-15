@@ -27,6 +27,6 @@ export const EAS_UNAVAILABLE_MESSAGE = `Your account doesn't have access to Expo
   'https://expo.dev/eas'
 )}`;
 
-export function warnEasUnavailable() {
+export function warnEasUnavailable(): void {
   Log.warn(EAS_UNAVAILABLE_MESSAGE);
 }

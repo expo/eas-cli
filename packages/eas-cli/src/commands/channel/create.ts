@@ -77,7 +77,7 @@ export default class ChannelCreate extends Command {
     }),
   };
 
-  async run() {
+  async run(): Promise<void> {
     let {
       args: { name: channelName },
       flags: { json: jsonFlag },

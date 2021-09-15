@@ -17,7 +17,7 @@ export default class WebhookView extends Command {
     },
   ];
 
-  async run() {
+  async run(): Promise<void> {
     await ensureLoggedInAsync();
     const {
       args: { ID: webhookId },

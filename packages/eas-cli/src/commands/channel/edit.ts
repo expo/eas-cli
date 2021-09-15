@@ -114,7 +114,7 @@ export default class ChannelEdit extends Command {
     }),
   };
 
-  async run() {
+  async run(): Promise<void> {
     let {
       args: { name: channelName },
       flags: { branch: branchName, json: jsonFlag },

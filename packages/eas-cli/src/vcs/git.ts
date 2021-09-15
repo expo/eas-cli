@@ -135,7 +135,7 @@ export default class GitClient extends Client {
     }
   }
 
-  public async showDiffAsync() {
+  public async showDiffAsync(): Promise<void> {
     const outputTooLarge = (await getGitDiffOutputAsync()).split(/\r\n|\r|\n/).length > 100;
     await gitDiffAsync({ withPager: outputTooLarge });
   }

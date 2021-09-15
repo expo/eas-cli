@@ -1,6 +1,6 @@
 import { syncCapabilityIdentifiersForEntitlementsAsync } from '../capabilityIdentifiers';
 
-function mockCapabilities(Apple: any) {
+function mockCapabilities(Apple: any): void {
   Apple.MerchantId.getAsync = jest.fn(() => [
     {
       id: 'XXX-merch-1',
@@ -149,12 +149,14 @@ describe(syncCapabilityIdentifiersForEntitlementsAsync, () => {
   it(`throws when creating a missing capability that is reserved`, async () => {
     const Apple = require('@expo/apple-utils');
     mockCapabilities(Apple);
-    Apple.MerchantId.createAsync = jest.fn((ctx: any, { identifier }: { identifier: string }) => {
-      // e2e test with: merchant.expodemo
-      throw new Error(
-        `There is a problem with the request entity - A Merchant ID with Identifier '${identifier}' is not available. Please enter a different string.`
-      );
-    });
+    Apple.MerchantId.createAsync = jest.fn(
+      (ctx: any, { identifier }: { identifier: string }): any => {
+        // e2e test with: merchant.expodemo
+        throw new Error(
+          `There is a problem with the request entity - A Merchant ID with Identifier '${identifier}' is not available. Please enter a different string.`
+        );
+      }
+    );
     const bundleId = {
       context: {},
       updateBundleIdCapabilityAsync: jest.fn(),

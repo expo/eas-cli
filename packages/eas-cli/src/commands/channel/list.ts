@@ -74,7 +74,7 @@ export default class ChannelList extends Command {
     }),
   };
 
-  async run() {
+  async run(): Promise<void> {
     const {
       flags: { json: jsonFlag },
     } = this.parse(ChannelList);

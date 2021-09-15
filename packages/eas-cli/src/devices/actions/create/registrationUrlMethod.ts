@@ -27,7 +27,7 @@ export async function runRegistrationUrlMethodAsync(
 async function generateDeviceRegistrationURLAsync(
   accountId: string,
   appleTeam: Pick<AppleTeam, 'id'>
-) {
+): Promise<string> {
   const appleDeviceRegistrationRequest =
     await AppleDeviceRegistrationRequestMutation.createAppleDeviceRegistrationRequestAsync(
       appleTeam.id,

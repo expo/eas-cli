@@ -26,7 +26,7 @@ export default class WebhookCreate extends Command {
     }),
   };
 
-  async run() {
+  async run(): Promise<void> {
     await ensureLoggedInAsync();
     const { flags } = this.parse(WebhookCreate);
     const webhookInputParams = await prepareInputParamsAsync(flags);

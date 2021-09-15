@@ -143,7 +143,7 @@ export async function getProjectIdAsync(
   return newLocalProjectId;
 }
 
-const toAppPrivacy = (privacy: ExpoConfig['privacy']) => {
+const toAppPrivacy = (privacy: ExpoConfig['privacy']): AppPrivacy => {
   if (privacy === 'public') {
     return AppPrivacy.Public;
   } else if (privacy === 'hidden') {

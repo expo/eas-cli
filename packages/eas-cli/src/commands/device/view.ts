@@ -12,7 +12,7 @@ export default class DeviceView extends Command {
 
   static args = [{ name: 'UDID' }];
 
-  async run() {
+  async run(): Promise<void> {
     const { UDID } = this.parse(DeviceView).args;
 
     if (!UDID) {

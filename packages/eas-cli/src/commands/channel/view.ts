@@ -208,7 +208,7 @@ export default class ChannelView extends Command {
     }),
   };
 
-  async run() {
+  async run(): Promise<void> {
     let {
       args: { name: channelName },
       flags: { json: jsonFlag },

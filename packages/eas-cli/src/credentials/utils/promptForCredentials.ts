@@ -22,7 +22,7 @@ export type CredentialSchema<T> = {
 };
 
 let expertPromptLogged = false;
-const EXPERT_PROMPT = () => {
+const EXPERT_PROMPT = (): void => {
   if (expertPromptLogged) {
     return;
   }
@@ -63,7 +63,9 @@ export async function getCredentialsFromUserAsync<T>(
     : (results as T);
 }
 
-async function shouldAutoGenerateCredentialsAsync<T>(schema: CredentialSchema<T>) {
+async function shouldAutoGenerateCredentialsAsync<T>(
+  schema: CredentialSchema<T>
+): Promise<boolean> {
   const answer = await confirmAsync({
     message: schema?.provideMethodQuestion?.question ?? `Generate a new ${schema.name}?`,
     initial: true,

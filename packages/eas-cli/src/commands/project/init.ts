@@ -9,7 +9,7 @@ export default class ProjectInit extends Command {
   static description = 'create or link an EAS project';
   static aliases = ['init'];
 
-  async run() {
+  async run(): Promise<void> {
     const projectDir = await findProjectRootAsync(process.cwd());
     if (!projectDir) {
       throw new Error('Please run this command inside a project directory.');

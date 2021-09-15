@@ -16,6 +16,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🧹 Chores
 
 - Reduce `eas-cli` size by almost getting rid of `lodash` from dependencies. ([#605](https://github.com/expo/eas-cli/pull/605) by [@dsokal](https://github.com/dsokal))
+- Enforce explicit return type in all functions. ([#619](https://github.com/expo/eas-cli/pull/619) by [@wkozyra95](https://github.com/wkozyra95))
 
 ## [0.27.1](https://github.com/expo/eas-cli/releases/tag/v0.27.1) - 2021-09-10
 

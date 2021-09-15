@@ -3,7 +3,7 @@ import Joi from 'joi';
 
 import { AndroidReleaseStatus, AndroidReleaseTrack } from './EasSubmit.types';
 
-const semverSchemaCheck = (value: any) => {
+const semverSchemaCheck = (value: any): any => {
   if (/^[0-9]+\.[0-9]+\.[0-9]+$/.test(value)) {
     return value;
   } else {

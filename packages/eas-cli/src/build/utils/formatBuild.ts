@@ -9,7 +9,7 @@ import { appPlatformDisplayNames } from '../../platform';
 import formatFields from '../../utils/formatFields';
 import { getBuildLogsUrl } from './url';
 
-export function formatGraphQLBuild(build: BuildFragment) {
+export function formatGraphQLBuild(build: BuildFragment): string {
   const actor = getActorName(build);
   const fields: { label: string; value?: string | null }[] = [
     { label: 'ID', value: build.id },

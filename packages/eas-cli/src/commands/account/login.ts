@@ -8,7 +8,7 @@ export default class AccountLogin extends Command {
 
   static aliases = ['login'];
 
-  async run() {
+  async run(): Promise<void> {
     Log.log('Log in to EAS');
     await showLoginPromptAsync();
     Log.log('Logged in');

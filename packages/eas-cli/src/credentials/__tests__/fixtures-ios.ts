@@ -9,6 +9,7 @@ import {
   IosAppBuildCredentialsFragment,
   IosDistributionType,
 } from '../../graphql/generated';
+import * as IosGraphqlClient from '../ios/api/GraphqlClient';
 import { DistributionCertificate, ProvisioningProfile } from '../ios/appstore/Credentials.types';
 import { Target } from '../ios/types';
 import { testProvisioningProfileBase64 } from './fixtures-base64-data';
@@ -117,7 +118,7 @@ export const testAppleTeam = {
   id: 'test-team-id',
 };
 
-export function getNewIosApiMock() {
+export function getNewIosApiMock(): { [key in keyof typeof IosGraphqlClient]?: any } {
   return {
     getIosAppCredentialsWithCommonFieldsAsync: jest.fn(),
     createOrGetIosAppCredentialsWithCommonFieldsAsync: jest.fn(),

@@ -5,11 +5,11 @@ export function hasTimer(label: string): number | null {
   return startTimes[label] ?? null;
 }
 
-export function startTimer(label = LABEL) {
+export function startTimer(label = LABEL): void {
   startTimes[label] = Date.now();
 }
 
-export function endTimer(label = LABEL, clear: boolean = true) {
+export function endTimer(label = LABEL, clear: boolean = true): number {
   const endTime = Date.now();
   const startTime = startTimes[label];
   if (startTime) {
@@ -30,7 +30,7 @@ export function endTimer(label = LABEL, clear: boolean = true) {
  * @example `40s`
  * @param duration
  */
-export function formatMilliseconds(duration: number) {
+export function formatMilliseconds(duration: number): string {
   const portions: string[] = [];
 
   const msInHour = 1000 * 60 * 60;

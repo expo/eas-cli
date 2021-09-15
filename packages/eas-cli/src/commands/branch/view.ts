@@ -83,7 +83,7 @@ export default class BranchView extends Command {
     }),
   };
 
-  async run() {
+  async run(): Promise<void> {
     let {
       args: { name },
       flags: { json: jsonFlag },

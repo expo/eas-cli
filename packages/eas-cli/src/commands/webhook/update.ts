@@ -30,7 +30,7 @@ export default class WebhookUpdate extends Command {
     }),
   };
 
-  async run() {
+  async run(): Promise<void> {
     await ensureLoggedInAsync();
     const { flags } = this.parse(WebhookUpdate);
 

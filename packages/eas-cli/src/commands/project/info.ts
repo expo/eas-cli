@@ -33,7 +33,7 @@ async function projectInfoByIdAsync(appId: string): Promise<AppInfoQuery> {
 export default class ProjectInfo extends Command {
   static description = 'information about the current project';
 
-  async run() {
+  async run(): Promise<void> {
     const projectDir = await findProjectRootAsync(process.cwd());
     if (!projectDir) {
       throw new Error('Please run this command inside a project directory.');

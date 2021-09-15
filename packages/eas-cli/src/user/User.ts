@@ -87,7 +87,7 @@ export async function loginAsync({
   });
 }
 
-export async function logoutAsync() {
+export async function logoutAsync(): Promise<void> {
   currentUser = undefined;
   await setSessionAsync(undefined);
 }

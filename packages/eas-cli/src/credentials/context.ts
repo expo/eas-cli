@@ -85,7 +85,7 @@ class CredentialsContext implements Context {
     return this._exp!;
   }
 
-  public ensureProjectContext() {
+  public ensureProjectContext(): void {
     if (this.hasProjectContext) {
       return;
     }
@@ -93,7 +93,7 @@ class CredentialsContext implements Context {
     getConfig(this.projectDir, { skipSDKVersionRequirement: true });
   }
 
-  public logOwnerAndProject() {
+  public logOwnerAndProject(): void {
     if (this.hasProjectContext) {
       const owner = getProjectAccountName(this.exp, this.user);
       // Figure out if User A is configuring credentials as admin for User B's project

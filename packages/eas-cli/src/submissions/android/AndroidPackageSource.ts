@@ -20,7 +20,7 @@ interface AndroidPackagePromptSource extends AndroidPackageSourceBase {
 
 export type AndroidPackageSource = AndroidPackageUserDefinedSource | AndroidPackagePromptSource;
 
-export async function getAndroidPackageAsync(source: AndroidPackageSource) {
+export async function getAndroidPackageAsync(source: AndroidPackageSource): Promise<string> {
   if (source.sourceType === AndroidPackageSourceType.userDefined) {
     return source.androidPackage;
   } else if (source.sourceType === AndroidPackageSourceType.prompt) {

@@ -58,8 +58,6 @@ export type RootQuery = {
   buildJobs: BuildJobQuery;
   builds: BuildQuery;
   clientBuilds: ClientBuildQuery;
-  /** Top-level query object for querying EAS Build configuration. */
-  easBuild: EasBuildQuery;
   /** Top-level query object for querying Experimentation configuration. */
   experimentation: ExperimentationQuery;
   project: ProjectQuery;
@@ -926,6 +924,7 @@ export enum SubmissionStatus {
 export type AndroidSubmissionConfig = {
   __typename?: 'AndroidSubmissionConfig';
   applicationIdentifier: Scalars['String'];
+  /** @deprecated archiveType is deprecated and will be null */
   archiveType?: Maybe<SubmissionAndroidArchiveType>;
   track: SubmissionAndroidTrack;
   releaseStatus?: Maybe<SubmissionAndroidReleaseStatus>;
@@ -1040,10 +1039,31 @@ export type Deployment = {
   __typename?: 'Deployment';
   id: Scalars['ID'];
   runtimeVersion: Scalars['String'];
-  channel: Scalars['String'];
+  /**
+   * The name of this deployment's associated channel. It is specified separately from the `channel`
+   * field to allow specifying a deployment before an EAS Update channel has been created.
+   */
+  channelName: Scalars['String'];
+  channel?: Maybe<UpdateChannel>;
   recentBuilds: Array<Build>;
-  branchMapping?: Maybe<UpdateBranch>;
   mostRecentlyUpdatedAt: Scalars['DateTime'];
+};
+
+export type UpdateChannel = {
+  __typename?: 'UpdateChannel';
+  id: Scalars['ID'];
+  appId: Scalars['ID'];
+  name: Scalars['String'];
+  branchMapping: Scalars['String'];
+  createdAt: Scalars['DateTime'];
+  updatedAt: Scalars['DateTime'];
+  updateBranches: Array<UpdateBranch>;
+};
+
+
+export type UpdateChannelUpdateBranchesArgs = {
+  offset: Scalars['Int'];
+  limit: Scalars['Int'];
 };
 
 export type UpdateBranch = {
@@ -1318,23 +1338,6 @@ export enum AndroidKeystoreType {
   Pkcs12 = 'PKCS12',
   Unknown = 'UNKNOWN'
 }
-
-export type UpdateChannel = {
-  __typename?: 'UpdateChannel';
-  id: Scalars['ID'];
-  appId: Scalars['ID'];
-  name: Scalars['String'];
-  branchMapping: Scalars['String'];
-  createdAt: Scalars['DateTime'];
-  updatedAt: Scalars['DateTime'];
-  updateBranches: Array<UpdateBranch>;
-};
-
-
-export type UpdateChannelUpdateBranchesArgs = {
-  offset: Scalars['Int'];
-  limit: Scalars['Int'];
-};
 
 export type EnvironmentSecret = {
   __typename?: 'EnvironmentSecret';
@@ -1672,24 +1675,6 @@ export type ClientBuild = {
   userId?: Maybe<Scalars['String']>;
 };
 
-export type EasBuildQuery = {
-  __typename?: 'EasBuildQuery';
-  /** Get EAS Build kill switches state */
-  killSwitches: Array<EasBuildKillSwitch>;
-};
-
-export type EasBuildKillSwitch = {
-  __typename?: 'EasBuildKillSwitch';
-  name: EasBuildKillSwitchName;
-  value: Scalars['Boolean'];
-};
-
-export enum EasBuildKillSwitchName {
-  StopAcceptingBuilds = 'STOP_ACCEPTING_BUILDS',
-  StopSchedulingBuilds = 'STOP_SCHEDULING_BUILDS',
-  StopAcceptingNormalPriorityBuilds = 'STOP_ACCEPTING_NORMAL_PRIORITY_BUILDS'
-}
-
 export type ExperimentationQuery = {
   __typename?: 'ExperimentationQuery';
   /** Get user experimentation config */
@@ -1869,7 +1854,6 @@ export type RootMutation = {
   userInvitation: UserInvitationMutation;
   /** Mutations that modify the currently authenticated User */
   me?: Maybe<MeMutation>;
-  easBuildKillSwitch: EasBuildKillSwitchMutation;
   /** Mutations that modify an EmailSubscription */
   emailSubscription: EmailSubscriptionMutation;
   /** Mutations that create and delete EnvironmentSecrets */
@@ -1964,10 +1948,6 @@ export type AccountMutation = {
   setBuildAutoRenew?: Maybe<Account>;
   /** Set payment details */
   setPaymentSource?: Maybe<Account>;
-  /** Extend offer to account */
-  extendOffer?: Maybe<Account>;
-  /** Send an email to primary account email */
-  sendEmail?: Maybe<Account>;
   /** Require authorization to send push notifications for experiences owned by this account */
   setPushSecurityEnabled?: Maybe<Account>;
   /** Rename this account and the primary user's username if this account is a personal account */
@@ -2021,19 +2001,6 @@ export type AccountMutationSetPaymentSourceArgs = {
 };
 
 
-export type AccountMutationExtendOfferArgs = {
-  accountName: Scalars['ID'];
-  offer: StandardOffer;
-  suppressMessage?: Maybe<Scalars['Boolean']>;
-};
-
-
-export type AccountMutationSendEmailArgs = {
-  accountName: Scalars['ID'];
-  emailTemplate: EmailTemplate;
-};
-
-
 export type AccountMutationSetPushSecurityEnabledArgs = {
   accountID: Scalars['ID'];
   pushSecurityEnabled: Scalars['Boolean'];
@@ -2044,24 +2011,6 @@ export type AccountMutationRenameArgs = {
   accountID: Scalars['ID'];
   newName: Scalars['String'];
 };
-
-export enum StandardOffer {
-  /** $29 USD per month, 30 day trial */
-  Default = 'DEFAULT',
-  /** $348 USD per year, 30 day trial */
-  YearlySub = 'YEARLY_SUB',
-  /** $29 USD per month, 1 year trial */
-  YcDeals = 'YC_DEALS',
-  /** $800 USD per month */
-  Support = 'SUPPORT'
-}
-
-export enum EmailTemplate {
-  /** Able to purchase Developer Services */
-  DevServicesOfferExtended = 'DEV_SERVICES_OFFER_EXTENDED',
-  /** Developer Services Signup */
-  DevServicesOnboarding = 'DEV_SERVICES_ONBOARDING'
-}
 
 export type AndroidAppBuildCredentialsMutation = {
   __typename?: 'AndroidAppBuildCredentialsMutation';
@@ -2980,7 +2929,6 @@ export type AndroidSubmissionConfigInput = {
   googleServiceAccountKeyId?: Maybe<Scalars['String']>;
   googleServiceAccountKeyJson?: Maybe<Scalars['String']>;
   archiveUrl?: Maybe<Scalars['String']>;
-  archiveType?: Maybe<SubmissionAndroidArchiveType>;
   applicationIdentifier: Scalars['String'];
   track: SubmissionAndroidTrack;
   releaseStatus?: Maybe<SubmissionAndroidReleaseStatus>;
@@ -3395,20 +3343,6 @@ export type SecondFactorRegenerateBackupCodesResult = {
   plaintextBackupCodes: Array<Maybe<Scalars['String']>>;
 };
 
-export type EasBuildKillSwitchMutation = {
-  __typename?: 'EasBuildKillSwitchMutation';
-  /** Set an EAS Build kill switch to a given value */
-  set: EasBuildKillSwitch;
-  /** Reset all EAS Build kill switches (set them to false) */
-  resetAll: Array<EasBuildKillSwitch>;
-};
-
-
-export type EasBuildKillSwitchMutationSetArgs = {
-  name: EasBuildKillSwitchName;
-  value: Scalars['Boolean'];
-};
-
 export type EmailSubscriptionMutation = {
   __typename?: 'EmailSubscriptionMutation';
   addUser?: Maybe<AddUserPayload>;
@@ -3525,6 +3459,17 @@ export type DeleteWebhookResult = {
   id: Scalars['ID'];
 };
 
+export enum StandardOffer {
+  /** $29 USD per month, 30 day trial */
+  Default = 'DEFAULT',
+  /** $348 USD per year, 30 day trial */
+  YearlySub = 'YEARLY_SUB',
+  /** $29 USD per month, 1 year trial */
+  YcDeals = 'YC_DEALS',
+  /** $800 USD per month */
+  Support = 'SUPPORT'
+}
+
 export enum CacheControlScope {
   Public = 'PUBLIC',
   Private = 'PRIVATE'
@@ -3600,18 +3545,8 @@ export type BranchesByAppQuery = (
       & Pick<App, 'id'>
       & { updateBranches: Array<(
         { __typename?: 'UpdateBranch' }
-        & Pick<UpdateBranch, 'id' | 'name'>
-        & { updates: Array<(
-          { __typename?: 'Update' }
-          & Pick<Update, 'id' | 'createdAt' | 'message' | 'runtimeVersion' | 'group' | 'platform'>
-          & { actor?: Maybe<(
-            { __typename: 'User' }
-            & Pick<User, 'username' | 'id'>
-          ) | (
-            { __typename: 'Robot' }
-            & Pick<Robot, 'firstName' | 'id'>
-          )> }
-        )> }
+        & Pick<UpdateBranch, 'id'>
+        & UpdateBranchFragment
       )> }
     ) }
   )> }
@@ -5239,6 +5174,22 @@ export type SubmissionFragment = (
   )>, error?: Maybe<(
     { __typename?: 'SubmissionError' }
     & Pick<SubmissionError, 'errorCode' | 'message'>
+  )> }
+);
+
+export type UpdateBranchFragment = (
+  { __typename?: 'UpdateBranch' }
+  & Pick<UpdateBranch, 'id' | 'name'>
+  & { updates: Array<(
+    { __typename?: 'Update' }
+    & Pick<Update, 'id' | 'createdAt' | 'message' | 'runtimeVersion' | 'group' | 'platform'>
+    & { actor?: Maybe<(
+      { __typename: 'User' }
+      & Pick<User, 'username' | 'id'>
+    ) | (
+      { __typename: 'Robot' }
+      & Pick<Robot, 'firstName' | 'id'>
+    )> }
   )> }
 );
 

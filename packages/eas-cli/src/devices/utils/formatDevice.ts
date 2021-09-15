@@ -5,7 +5,7 @@ type Device = Pick<AppleDevice, 'id' | 'identifier' | 'name' | 'deviceClass' | '
 
 type Team = Pick<AppleTeam, 'appleTeamIdentifier' | 'appleTeamName'>;
 
-export default function formatDevice(device: Device, team?: Team) {
+export default function formatDevice(device: Device, team?: Team): string {
   const fields = [
     { label: 'ID', value: device.id },
     { label: 'Name', value: device.name ?? 'Unknown' },

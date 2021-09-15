@@ -7,6 +7,7 @@ import {
   AppFragment,
   CommonAndroidAppCredentialsFragment,
 } from '../../graphql/generated';
+import * as AndroidGraphqlClient from '../android/api/GraphqlClient';
 import { Keystore } from '../android/credentials';
 import {
   testKeystore2Base64,
@@ -115,7 +116,7 @@ export const testAndroidAppCredentialsFragment: CommonAndroidAppCredentialsFragm
   androidAppBuildCredentialsList: [testLegacyAndroidBuildCredentialsFragment],
 };
 
-export function getNewAndroidApiMock() {
+export function getNewAndroidApiMock(): { [key in keyof typeof AndroidGraphqlClient]?: any } {
   return {
     getAndroidAppCredentialsWithCommonFieldsAsync: jest.fn(),
     getAndroidAppBuildCredentialsListAsync: jest.fn(() => []),

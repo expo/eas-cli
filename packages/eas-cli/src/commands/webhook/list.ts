@@ -24,7 +24,7 @@ export default class WebhookList extends Command {
     }),
   };
 
-  async run() {
+  async run(): Promise<void> {
     await ensureLoggedInAsync();
     const {
       flags: { event },

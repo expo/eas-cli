@@ -68,7 +68,7 @@ export default class BranchCreate extends Command {
     }),
   };
 
-  async run() {
+  async run(): Promise<void> {
     let {
       args: { name },
       flags,

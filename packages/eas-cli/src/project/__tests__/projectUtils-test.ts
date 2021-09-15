@@ -89,7 +89,7 @@ describe(getProjectAccountName, () => {
   });
 
   it('throws for robot actor when owner is undefined', () => {
-    const resolveProjectAccountName = () =>
+    const resolveProjectAccountName = (): string =>
       getProjectAccountName(expWithoutOwner, {
         __typename: 'Robot',
         id: 'userId',

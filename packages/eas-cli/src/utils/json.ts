@@ -4,7 +4,7 @@ import Log from '../log';
 
 let stdoutWrite: NodeJS.WriteStream['write'] | undefined;
 
-export function enableJsonOutput() {
+export function enableJsonOutput(): void {
   if (stdoutWrite) {
     return;
   }

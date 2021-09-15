@@ -23,7 +23,7 @@ export async function ensureBundleIdExistsAsync(
   authCtx: AuthCtx,
   { accountName, projectName, bundleIdentifier }: AppLookupParams,
   options?: IosCapabilitiesOptions
-) {
+): Promise<void> {
   return ensureBundleIdExistsWithNameAsync(
     authCtx,
     {
@@ -38,7 +38,7 @@ export async function ensureBundleIdExistsWithNameAsync(
   authCtx: AuthCtx,
   { name, bundleIdentifier }: { name: string; bundleIdentifier: string },
   options?: IosCapabilitiesOptions
-) {
+): Promise<void> {
   const context = getRequestContext(authCtx);
   const spinner = ora(`Linking bundle identifier ${chalk.dim(bundleIdentifier)}`).start();
 
@@ -111,7 +111,7 @@ export async function syncCapabilities(
   await syncCapabilityIdentifiersAsync(bundleId, { entitlements });
 }
 
-const buildMessage = (title: string, items: string[]) =>
+const buildMessage = (title: string, items: string[]): string =>
   items.length ? `${title}: ${items.join(', ')}` : '';
 
 export async function syncCapabilityIdentifiersAsync(
@@ -160,7 +160,7 @@ export async function ensureAppExistsAsync(
     bundleIdentifier: string;
     sku?: string;
   }
-) {
+): Promise<App> {
   const context = getRequestContext(authCtx);
   const spinner = ora(`Linking to App Store ${chalk.dim(bundleIdentifier)}`).start();
 

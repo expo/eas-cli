@@ -8,7 +8,7 @@ const packageJSON = require('../../package.json');
 export default class Diagnostics extends Command {
   static description = 'log environment info to the console';
 
-  async run() {
+  async run(): Promise<void> {
     const info = await envinfo.run(
       {
         System: ['OS', 'Shell'],

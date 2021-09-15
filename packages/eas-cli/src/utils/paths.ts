@@ -4,7 +4,7 @@ import * as path from 'path';
 
 // The ~/.expo directory is used to store authentication sessions,
 // which are shared between EAS CLI and Expo CLI.
-function dotExpoHomeDirectory() {
+function dotExpoHomeDirectory(): string {
   const home = homedir();
   if (!home) {
     throw new Error(
@@ -23,7 +23,7 @@ function dotExpoHomeDirectory() {
   return dirPath;
 }
 
-const getStateJsonPath = () => path.join(dotExpoHomeDirectory(), 'state.json');
+const getStateJsonPath = (): string => path.join(dotExpoHomeDirectory(), 'state.json');
 
 // Paths for storing things like data, config, cache, etc.
 // Should use the correct OS-specific paths (e.g. XDG base directory on Linux)
@@ -35,11 +35,11 @@ const {
   temp: TEMP_PATH,
 } = envPaths('eas-cli');
 
-const getDataDirectory = () => DATA_PATH;
-const getConfigDirectory = () => CONFIG_PATH;
-const getCacheDirectory = () => CACHE_PATH;
-const getLogDirectory = () => LOG_PATH;
-const getTmpDirectory = () => TEMP_PATH;
+const getDataDirectory = (): string => DATA_PATH;
+const getConfigDirectory = (): string => CONFIG_PATH;
+const getCacheDirectory = (): string => CACHE_PATH;
+const getLogDirectory = (): string => LOG_PATH;
+const getTmpDirectory = (): string => TEMP_PATH;
 
 export {
   getDataDirectory,

@@ -15,7 +15,10 @@ export interface AppLookupParams {
   bundleIdentifier: string;
 }
 
-export function getAppLookupParams(experienceName: string, bundleIdentifier: string) {
+export function getAppLookupParams(
+  experienceName: string,
+  bundleIdentifier: string
+): AppLookupParams {
   const matchedExperienceName = experienceName.match(/@(.+)\/(.+)/);
   if (!matchedExperienceName || matchedExperienceName.length < 3) {
     throw new Error('invalid experience name');

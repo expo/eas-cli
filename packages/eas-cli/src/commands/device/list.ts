@@ -18,7 +18,7 @@ export default class BuildList extends Command {
     'apple-team-id': flags.string(),
   };
 
-  async run() {
+  async run(): Promise<void> {
     let appleTeamIdentifier = this.parse(BuildList).flags['apple-team-id'];
 
     const projectDir = (await findProjectRootAsync()) ?? process.cwd();

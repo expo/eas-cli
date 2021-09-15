@@ -41,7 +41,7 @@ export class RemoveKeystore {
     Log.succeed('Keystore removed');
   }
 
-  displayWarning() {
+  displayWarning(): void {
     Log.newLine();
     Log.warn(
       `Clearing your Android build credentials from our build servers is a ${chalk.bold(

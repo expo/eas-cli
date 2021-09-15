@@ -128,7 +128,7 @@ describe(parseGradleCommand, () => {
     expect(result).toEqual({ moduleName: 'app', flavor: 'Example', buildType: 'release' });
   });
   test('parsing :app:buildExampleDebug when flavor does not exists', async () => {
-    const result = () => {
+    const result = (): any => {
       parseGradleCommand(':app:buildExampleRelease', {
         android: { productFlavors: {} },
       });

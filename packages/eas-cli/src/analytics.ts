@@ -98,7 +98,7 @@ export async function flushAsync(): Promise<void> {
   }
 }
 
-export function logEvent(name: string, properties: Record<string, any> = {}) {
+export function logEvent(name: string, properties: Record<string, any> = {}): void {
   if (!amplitudeClient && !rudderstackClient) {
     return;
   }
@@ -128,7 +128,7 @@ export function logEvent(name: string, properties: Record<string, any> = {}) {
   }
 }
 
-function ensureUserIdentified() {
+function ensureUserIdentified(): void {
   if (!(rudderstackClient || amplitudeClient) || userIdentified || !identifyData) {
     return;
   }
@@ -146,7 +146,7 @@ function ensureUserIdentified() {
   userIdentified = true;
 }
 
-function getAmplitudeContext() {
+function getAmplitudeContext(): Record<string, string> {
   const platform = PLATFORM_TO_ANALYTICS_PLATFORM[os.platform()] || os.platform();
   return {
     os_name: platform,
@@ -156,7 +156,7 @@ function getAmplitudeContext() {
   };
 }
 
-function getRudderStackContext() {
+function getRudderStackContext(): Record<string, any> {
   const platform = PLATFORM_TO_ANALYTICS_PLATFORM[os.platform()] || os.platform();
   return {
     os: { name: platform, version: os.release() },

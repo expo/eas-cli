@@ -80,7 +80,7 @@ export async function toggleConfirmAsync(
   return value ?? null;
 }
 
-export async function pressAnyKeyToContinueAsync() {
+export async function pressAnyKeyToContinueAsync(): Promise<void> {
   process.stdin.setRawMode(true);
   process.stdin.resume();
   process.stdin.setEncoding('utf8');

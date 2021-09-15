@@ -8,7 +8,7 @@ import { ensureLoggedInAsync } from '../../user/actions';
 export default class DeviceCreate extends Command {
   static description = 'register new Apple Devices to use for internal distribution';
 
-  async run() {
+  async run(): Promise<void> {
     const user = await ensureLoggedInAsync();
 
     const ctx = await createContext({ appStore: new AppStoreApi(), user });

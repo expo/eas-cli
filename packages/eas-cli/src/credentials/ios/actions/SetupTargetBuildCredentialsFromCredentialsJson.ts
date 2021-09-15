@@ -170,7 +170,7 @@ export class SetupTargetBuildCredentialsFromCredentialsJson {
 function displaySingleTargetProjectCredentials(
   app: AppLookupParams,
   buildCredentials: IosAppBuildCredentialsFragment
-) {
+): void {
   const targetName = app.projectName;
   displayProjectCredentials(app, { [targetName]: buildCredentials }, [
     { targetName, bundleIdentifier: app.bundleIdentifier },
