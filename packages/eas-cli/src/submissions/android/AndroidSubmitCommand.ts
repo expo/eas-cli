@@ -9,6 +9,7 @@ import {
 } from '../../graphql/generated';
 import Log from '../../log';
 import { getApplicationIdAsync } from '../../project/android/applicationId';
+import * as gradleUtils from '../../project/android/gradleUtils';
 import capitalize from '../../utils/expodash/capitalize';
 import { ArchiveSource } from '../ArchiveSource';
 import { resolveArchiveSource } from '../commons';
@@ -60,7 +61,9 @@ export default class AndroidSubmitCommand {
 
   private async maybeGetAndroidPackageFromCurrentProjectAsync(): Promise<string | undefined> {
     try {
-      return await getApplicationIdAsync(this.ctx.projectDir, this.ctx.exp, { moduleName: 'app' });
+      return await getApplicationIdAsync(this.ctx.projectDir, this.ctx.exp, {
+        moduleName: gradleUtils.DEFAULT_MODULE_NAME,
+      });
     } catch {
       return undefined;
     }

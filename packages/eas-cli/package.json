@@ -42,7 +42,7 @@
     "fs-extra": "10.0.0",
     "getenv": "1.0.0",
     "got": "11.8.2",
-    "gradle-to-js": "^2.0.0",
+    "gradle-to-js": "2.0.0",
     "graphql": "15.5.1",
     "graphql-tag": "2.12.5",
     "ignore": "5.1.8",

@@ -34,7 +34,7 @@ export async function maybeResolveVersionsAsync(
     }
   } else {
     return {
-      appBuildVersion: String(AndroidConfig.Version.getVersionCode(exp) ?? 1),
+      appBuildVersion: String(AndroidConfig.Version.getVersionCode(exp)),
       appVersion: exp.version,
     };
   }

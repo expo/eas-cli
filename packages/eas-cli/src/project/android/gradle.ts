@@ -3,7 +3,7 @@ import { BuildProfile } from '@expo/eas-json';
 
 import Log from '../../log';
 import { resolveWorkflowAsync } from '../../project/workflow';
-import { getAppBuildGradleAsync, parseGradleCommand } from './gradleUtils';
+import * as gradleUtils from './gradleUtils';
 
 export interface GradleBuildContext {
   moduleName?: string;
@@ -18,25 +18,30 @@ export async function resolveGradleBuildContextAsync(
   if (workflow === Workflow.GENERIC) {
     try {
       if (buildProfile.gradleCommand) {
-        const buildGradle = await getAppBuildGradleAsync(projectDir);
+        const buildGradle = await gradleUtils.getAppBuildGradleAsync(projectDir);
         const parsedGradleCommand = buildProfile.gradleCommand
-          ? parseGradleCommand(buildProfile.gradleCommand, buildGradle)
+          ? gradleUtils.parseGradleCommand(buildProfile.gradleCommand, buildGradle)
           : undefined;
-        if (parsedGradleCommand?.moduleName && parsedGradleCommand.moduleName !== 'app') {
-          Log.warn('Building modules different than "app" migth result in unexpected behavior');
+        if (
+          parsedGradleCommand?.moduleName &&
+          parsedGradleCommand.moduleName !== gradleUtils.DEFAULT_MODULE_NAME
+        ) {
+          Log.warn(
+            `Building modules different than "${gradleUtils.DEFAULT_MODULE_NAME}" might result in unexpected behavior`
+          );
         }
         return {
-          moduleName: parsedGradleCommand?.moduleName ?? 'app',
+          moduleName: parsedGradleCommand?.moduleName ?? gradleUtils.DEFAULT_MODULE_NAME,
           flavor: parsedGradleCommand?.flavor,
         };
       } else {
-        return { moduleName: 'app' };
+        return { moduleName: gradleUtils.DEFAULT_MODULE_NAME };
       }
     } catch (err: any) {
       Log.warn(`Unable to read project config from app/build.gradle: ${err.message}`);
       return undefined;
     }
   } else {
-    return { moduleName: 'app' };
+    return { moduleName: gradleUtils.DEFAULT_MODULE_NAME };
   }
 }

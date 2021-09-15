@@ -24,6 +24,8 @@ interface AppBuildGradle {
   };
 }
 
+export const DEFAULT_MODULE_NAME = 'app';
+
 export async function getAppBuildGradleAsync(projectDir: string): Promise<AppBuildGradle> {
   const buildGradlePath = AndroidConfig.Paths.getAppBuildGradleFilePath(projectDir);
   const rawBuildGradle = await fs.readFile(buildGradlePath, 'utf8');
@@ -34,7 +36,7 @@ export function resolveConfigValue(
   buildGradle: AppBuildGradle,
   field: keyof Config,
   flavor?: string
-) {
+): string | undefined {
   return (
     (flavor && buildGradle?.android?.productFlavors?.[flavor]?.[field]) ??
     buildGradle?.android?.defaultConfig?.[field]
@@ -73,7 +75,7 @@ export function parseGradleCommand(cmd: string, buildGradle: AppBuildGradle): Gr
 
   const matchResult = taskName.match(/(build|bundle|assemble)(.*)(Release|Debug)/);
   if (!matchResult) {
-    throw new Error('Failed to parse gradle command');
+    throw new Error(`Failed to parse gradle command: ${cmd}`);
   }
   let flavor: string | undefined;
   if (matchResult[2]) {

@@ -146,8 +146,9 @@ export async function maybeResolveVersionsAsync(
       appBuildVersion: await readBuildNumberAsync(projectDir, exp, buildSettings),
       appVersion: await readShortVersionAsync(projectDir, exp, buildSettings),
     };
-  } catch {}
-  return {};
+  } catch {
+    return {};
+  }
 }
 
 async function writeVersionsToInfoPlistAsync({

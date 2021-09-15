@@ -12,7 +12,7 @@ import { promptAsync } from '../../prompts';
 import { ensureLoggedInAsync } from '../../user/actions';
 import { resolveWorkflowAsync } from '../workflow';
 import { GradleBuildContext } from './gradle';
-import { getAppBuildGradleAsync, resolveConfigValue } from './gradleUtils';
+import * as gradleUtils from './gradleUtils';
 
 const INVALID_APPLICATION_ID_MESSAGE = `Invalid format of Android applicationId. Only alphanumeric characters, '.' and '_' are allowed, and each '.' must be followed by a letter.`;
 
@@ -24,7 +24,9 @@ export async function ensureApplicationIdIsDefinedForManagedProjectAsync(
   assert(workflow === Workflow.MANAGED, 'This function should be called only for managed projects');
 
   try {
-    return await getApplicationIdAsync(projectDir, exp, { moduleName: 'app' });
+    return await getApplicationIdAsync(projectDir, exp, {
+      moduleName: gradleUtils.DEFAULT_MODULE_NAME,
+    });
   } catch (err) {
     return await configureApplicationIdAsync(projectDir, exp);
   }
@@ -33,7 +35,7 @@ export async function ensureApplicationIdIsDefinedForManagedProjectAsync(
 export async function getApplicationIdAsync(
   projectDir: string,
   exp: ExpoConfig,
-  gradleContext: GradleBuildContext | undefined
+  gradleContext?: GradleBuildContext
 ): Promise<string> {
   const workflow = await resolveWorkflowAsync(projectDir, Platform.ANDROID);
   if (workflow === Workflow.GENERIC) {
@@ -41,12 +43,16 @@ export async function getApplicationIdAsync(
 
     const errorMessage = 'Could not read application id from Android project.';
     if (gradleContext) {
-      const buildGradle = await getAppBuildGradleAsync(projectDir);
-      const applicationId = resolveConfigValue(buildGradle, 'applicationId', gradleContext.flavor);
+      const buildGradle = await gradleUtils.getAppBuildGradleAsync(projectDir);
+      const applicationId = gradleUtils.resolveConfigValue(
+        buildGradle,
+        'applicationId',
+        gradleContext.flavor
+      );
       return nullthrows(applicationId, errorMessage);
     } else {
       // fallback to best effort approach, this logic can be dropped when we start supporting
-      // modules diffrent than 'app' and 'flavorDimensions'
+      // modules different than 'app' and 'flavorDimensions'
       let buildGradlePath = null;
       try {
         buildGradlePath = AndroidConfig.Paths.getAppBuildGradleFilePath(projectDir);

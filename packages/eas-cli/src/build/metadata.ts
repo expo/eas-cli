@@ -52,7 +52,7 @@ export async function collectMetadata<T extends Platform>(
       : ctx.buildProfile.distribution) ?? 'store';
   const metadata = {
     trackingContext: ctx.trackingCtx,
-    ...(await resolveVersionsAsync(ctx, platformContext)),
+    ...(await maybeResolveVersionsAsync(ctx, platformContext)),
     cliVersion: packageJSON.version,
     workflow: ctx.workflow,
     credentialsSource: ctx.buildProfile.credentialsSource,
@@ -74,12 +74,12 @@ export async function collectMetadata<T extends Platform>(
   return sanitizeMetadata(metadata);
 }
 
-async function resolveVersionsAsync<T extends Platform>(
+async function maybeResolveVersionsAsync<T extends Platform>(
   ctx: BuildContext<T>,
-  platformContext?: MetadataContext<T>
+  platformContext: MetadataContext<T>
 ): Promise<{ appBuildVersion?: string; appVersion?: string }> {
   if (ctx.platform === Platform.IOS) {
-    const iosContext = platformContext as IosMetadataContext | undefined;
+    const iosContext = platformContext as IosMetadataContext;
     return await maybeResolveIosVersionsAsync(
       ctx.projectDir,
       ctx.exp,
