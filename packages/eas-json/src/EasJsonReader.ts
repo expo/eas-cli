@@ -1,6 +1,6 @@
 import { Platform } from '@expo/eas-build-job';
+import JsonFile from '@expo/json-file';
 import envString from 'env-string';
-import fs from 'fs-extra';
 import path from 'path';
 
 import { BuildProfile } from './EasBuild.types';
@@ -116,14 +116,20 @@ export class EasJsonReader {
   }
 
   public async readRawAsync(): Promise<EasJsonPreValidation> {
-    const rawFile = await fs.readFile(EasJsonReader.formatEasJsonPath(this.projectDir), 'utf8');
-    const json = JSON.parse(rawFile);
-
-    const { value, error } = MinimalEasJsonSchema.validate(json, { abortEarly: false });
-    if (error) {
-      throw new Error(`eas.json is not valid [${error.toString()}]`);
+    try {
+      const easJsonPath = EasJsonReader.formatEasJsonPath(this.projectDir);
+      const rawEasJson = JsonFile.read(easJsonPath);
+      const { value, error } = MinimalEasJsonSchema.validate(rawEasJson, { abortEarly: false });
+      if (error) {
+        throw new Error(`eas.json is not valid [${error.toString()}]`);
+      }
+      return value;
+    } catch (err: any) {
+      if (err.code === 'EJSONPARSE') {
+        err.message = `Found invalid JSON in eas.json. ${err.message}`;
+      }
+      throw err;
     }
-    return value;
   }
 
   private resolveBuildProfile(

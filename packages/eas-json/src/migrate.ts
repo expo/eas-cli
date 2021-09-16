@@ -1,4 +1,5 @@
 import { Android, Ios } from '@expo/eas-build-job';
+import JsonFile, { JSONObject } from '@expo/json-file';
 import fs from 'fs-extra';
 import path from 'path';
 
@@ -11,14 +12,12 @@ export async function isUsingDeprecatedFormatAsync(projectDir: string): Promise<
   if (!(await fs.pathExists(easJsonPath))) {
     return false;
   }
-  const rawFile = await fs.readFile(easJsonPath, 'utf8');
-  const json = JSON.parse(rawFile);
+  const json = await readEasJsonAsync(projectDir);
   return !!json?.builds;
 }
 
 export async function hasMismatchedExtendsAsync(projectDir: string): Promise<boolean> {
-  const rawFile = await fs.readFile(path.join(projectDir, 'eas.json'), 'utf8');
-  const rawEasJson = JSON.parse(rawFile) as DeprecatedEasJson;
+  const rawEasJson = (await readEasJsonAsync(projectDir)) as unknown as DeprecatedEasJson;
   const profiles = new Set<string>();
   Object.keys(rawEasJson.builds.android ?? {}).forEach(profile => profiles.add(profile));
   Object.keys(rawEasJson.builds.ios ?? {}).forEach(profile => profiles.add(profile));
@@ -42,8 +41,7 @@ export async function migrateAsync(projectDir: string): Promise<void> {
   } catch (err: any) {
     throw new Error(`Valid eas.json is required to migrate to the new format\n${err.message}`);
   }
-  const rawFile = await fs.readFile(path.join(projectDir, 'eas.json'), 'utf8');
-  const rawEasJson = JSON.parse(rawFile) as DeprecatedEasJson;
+  const rawEasJson = (await readEasJsonAsync(projectDir)) as unknown as DeprecatedEasJson;
   const profiles = new Set<string>();
   Object.keys(rawEasJson.builds.android ?? {}).forEach(profile => profiles.add(profile));
   Object.keys(rawEasJson.builds.ios ?? {}).forEach(profile => profiles.add(profile));
@@ -55,6 +53,18 @@ export async function migrateAsync(projectDir: string): Promise<void> {
     result.build[profileName] = migrateProfile(rawEasJson, profileName);
   });
   await fs.writeFile(path.join(projectDir, 'eas.json'), `${JSON.stringify(result, null, 2)}\n`);
+}
+
+async function readEasJsonAsync(projectDir: string): Promise<JSONObject> {
+  try {
+    const easJsonPath = path.join(projectDir, 'eas.json');
+    return JsonFile.read(easJsonPath);
+  } catch (err: any) {
+    if (err.code === 'EJSONPARSE') {
+      err.message = `Found invalid JSON in eas.json. ${err.message}`;
+    }
+    throw err;
+  }
 }
 
 interface MigrateContext {
