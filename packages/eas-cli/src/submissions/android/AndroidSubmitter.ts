@@ -40,8 +40,11 @@ export default class AndroidSubmitter extends BaseSubmitter<
   AndroidSubmissionOptions
 > {
   async submitAsync(): Promise<SubmissionFragment> {
-    const resolvedSourceOptions = await this.resolveSourceOptions();
-    const submissionConfig = await this.formatSubmissionConfig(this.options, resolvedSourceOptions);
+    const resolvedSourceOptions = await this.resolveSourceOptionsAsync();
+    const submissionConfig = await this.formatSubmissionConfigAsync(
+      this.options,
+      resolvedSourceOptions
+    );
 
     printSummary(
       this.prepareSummaryData(this.options, resolvedSourceOptions),
@@ -67,7 +70,7 @@ export default class AndroidSubmitter extends BaseSubmitter<
     });
   }
 
-  private async resolveSourceOptions(): Promise<ResolvedSourceOptions> {
+  private async resolveSourceOptionsAsync(): Promise<ResolvedSourceOptions> {
     const androidPackage = await getAndroidPackageAsync(this.options.androidPackageSource);
     const archive = await getArchiveAsync(this.options.archiveSource);
     const serviceAccountPath = await getServiceAccountAsync(this.options.serviceAccountSource);
@@ -78,7 +81,7 @@ export default class AndroidSubmitter extends BaseSubmitter<
     };
   }
 
-  private async formatSubmissionConfig(
+  private async formatSubmissionConfigAsync(
     options: AndroidSubmissionOptions,
     { archive, androidPackage, serviceAccountPath }: ResolvedSourceOptions
   ): Promise<AndroidSubmissionConfigInput> {

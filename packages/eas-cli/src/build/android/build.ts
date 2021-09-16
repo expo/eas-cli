@@ -1,4 +1,4 @@
-import { Android, Metadata, Platform, Workflow } from '@expo/eas-build-job';
+import { Android, Job, Metadata, Platform, Workflow } from '@expo/eas-build-job';
 import chalk from 'chalk';
 import nullthrows from 'nullthrows';
 
@@ -18,6 +18,7 @@ import { findAccountByName } from '../../user/Account';
 import {
   BuildRequestSender,
   CredentialsResult,
+  JobData,
   prepareBuildRequestForPlatformAsync,
 } from '../build';
 import { BuildContext } from '../context';
@@ -71,7 +72,12 @@ This means that it will most likely produce an AAB and you will not be able to i
     getMetadataContext: () => ({
       gradleContext,
     }),
-    prepareJobAsync,
+    prepareJobAsync: async (
+      ctx: BuildContext<Platform.ANDROID>,
+      jobData: JobData<AndroidCredentials>
+    ): Promise<Job> => {
+      return await prepareJobAsync(ctx, jobData);
+    },
     sendBuildRequestAsync: async (
       appId: string,
       job: Android.Job,

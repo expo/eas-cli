@@ -3,7 +3,7 @@ import ora from 'ora';
 import { AppPlatform, SubmissionFragment, SubmissionStatus } from '../../graphql/generated';
 import { SubmissionQuery } from '../../graphql/queries/SubmissionQuery';
 import Log from '../../log';
-import { sleep } from '../../utils/promise';
+import { sleepAsync } from '../../utils/promise';
 
 const APP_STORE_NAMES: Record<AppPlatform, string> = {
   [AppPlatform.Android]: 'Google Play Store',
@@ -62,7 +62,7 @@ export async function waitForSubmissionsEndAsync(
     }
 
     time = new Date().getTime();
-    await sleep(CHECK_INTERVAL_MS);
+    await sleepAsync(CHECK_INTERVAL_MS);
   }
   spinner.warn('Timed out');
   throw new Error('Timeout reached! It is taking longer than expected to complete, aborting...');

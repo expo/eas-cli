@@ -1,12 +1,13 @@
 import { ExpoConfig, getConfig, getDefaultTarget } from '@expo/config';
 import { getRuntimeVersionForSDKVersion } from '@expo/sdk-runtime-versions';
-import { Command, flags } from '@oclif/command';
+import { flags } from '@oclif/command';
 import assert from 'assert';
 import chalk from 'chalk';
 import dateFormat from 'dateformat';
 import gql from 'graphql-tag';
 import ora from 'ora';
 
+import EasCommand from '../../commandUtils/EasCommand';
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
 import {
   GetUpdateGroupAsyncQuery,
@@ -66,7 +67,7 @@ async function getUpdateGroupAsync({
   return updatesByGroup;
 }
 
-async function ensureBranchExists({
+async function ensureBranchExistsAsync({
   appId,
   name: branchName,
 }: {
@@ -93,7 +94,7 @@ async function ensureBranchExists({
   return { id: newUpdateBranch.id, updates: [] };
 }
 
-export default class BranchPublish extends Command {
+export default class BranchPublish extends EasCommand {
   static hidden = true;
   static description = 'Publish an update group to a branch.';
 
@@ -144,7 +145,7 @@ export default class BranchPublish extends Command {
     }),
   };
 
-  async run(): Promise<void> {
+  async runAsync(): Promise<void> {
     let {
       args: { name: branchName },
       flags: {
@@ -201,7 +202,7 @@ export default class BranchPublish extends Command {
       assert(branchName, 'branch name must be specified.');
     }
 
-    const { id: branchId, updates } = await ensureBranchExists({
+    const { id: branchId, updates } = await ensureBranchExistsAsync({
       appId: projectId,
       name: branchName,
     });

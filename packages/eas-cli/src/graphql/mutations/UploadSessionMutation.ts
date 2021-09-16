@@ -13,7 +13,7 @@ export interface PresignedPost {
 }
 
 export const UploadSessionMutation = {
-  async createUploadSession(type: UploadSessionType): Promise<PresignedPost> {
+  async createUploadSessionAsync(type: UploadSessionType): Promise<PresignedPost> {
     const data = await withErrorHandlingAsync(
       graphqlClient
         .mutation<CreateUploadSessionMutation, CreateUploadSessionMutationVariables>(

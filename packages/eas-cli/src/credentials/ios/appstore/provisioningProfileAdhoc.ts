@@ -4,7 +4,7 @@ import ora from 'ora';
 import { ProvisioningProfile } from './Credentials.types';
 import { AuthCtx, getRequestContext } from './authenticate';
 import { getBundleIdForIdentifierAsync, getProfilesForBundleIdAsync } from './bundleId';
-import { getDistributionCertificateAync } from './distributionCertificate';
+import { getDistributionCertificateAsync } from './distributionCertificate';
 
 interface ProfileResults {
   didUpdate?: boolean;
@@ -80,7 +80,10 @@ async function findProfileByBundleIdAsync(
   } else if (expoProfiles) {
     // there is an expo managed profile, but it doesn't have our desired certificate
     // append the certificate and update the profile
-    const distributionCertificate = await getDistributionCertificateAync(context, certSerialNumber);
+    const distributionCertificate = await getDistributionCertificateAsync(
+      context,
+      certSerialNumber
+    );
     if (!distributionCertificate) {
       throw new Error(`Certificate for serial number "${certSerialNumber}" does not exist`);
     }
@@ -190,7 +193,7 @@ async function manageAdHocProfilesAsync(
   // No existing profile...
 
   // We need to find user's distribution certificate to make a provisioning profile for it.
-  const distributionCertificate = await getDistributionCertificateAync(context, certSerialNumber);
+  const distributionCertificate = await getDistributionCertificateAsync(context, certSerialNumber);
 
   if (!distributionCertificate) {
     // If the distribution certificate doesn't exist, the user must have deleted it, we can't do anything here :(

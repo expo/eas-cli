@@ -347,7 +347,7 @@ export async function getDistributionCertificateForAppAsync(
 export async function getDistributionCertificatesForAccountAsync(
   account: Account
 ): Promise<AppleDistributionCertificateFragment[]> {
-  return await AppleDistributionCertificateQuery.getAllForAccount(account.name);
+  return await AppleDistributionCertificateQuery.getAllForAccountAsync(account.name);
 }
 
 export async function createDistributionCertificateAsync(
@@ -358,7 +358,7 @@ export async function createDistributionCertificateAsync(
     appleTeamIdentifier: distCert.teamId,
     appleTeamName: distCert.teamName,
   });
-  return await AppleDistributionCertificateMutation.createAppleDistributionCertificate(
+  return await AppleDistributionCertificateMutation.createAppleDistributionCertificateAsync(
     {
       certP12: distCert.certP12,
       certPassword: distCert.certPassword,
@@ -373,7 +373,7 @@ export async function createDistributionCertificateAsync(
 export async function deleteDistributionCertificateAsync(
   distributionCertificateId: string
 ): Promise<void> {
-  return await AppleDistributionCertificateMutation.deleteAppleDistributionCertificate(
+  return await AppleDistributionCertificateMutation.deleteAppleDistributionCertificateAsync(
     distributionCertificateId
   );
 }
@@ -386,7 +386,7 @@ export async function createPushKeyAsync(
     appleTeamIdentifier: pushKey.teamId,
     appleTeamName: pushKey.teamName,
   });
-  return await ApplePushKeyMutation.createApplePushKey(
+  return await ApplePushKeyMutation.createApplePushKeyAsync(
     {
       keyP8: pushKey.apnsKeyP8,
       keyIdentifier: pushKey.apnsKeyId,
@@ -399,7 +399,7 @@ export async function createPushKeyAsync(
 export async function getPushKeysForAccountAsync(
   account: Account
 ): Promise<ApplePushKeyFragment[]> {
-  return await ApplePushKeyQuery.getAllForAccount(account.name);
+  return await ApplePushKeyQuery.getAllForAccountAsync(account.name);
 }
 
 export async function getPushKeyForAppAsync(
@@ -410,7 +410,7 @@ export async function getPushKeyForAppAsync(
 }
 
 export async function deletePushKeyAsync(pushKeyId: string): Promise<void> {
-  return await ApplePushKeyMutation.deleteApplePushKey(pushKeyId);
+  return await ApplePushKeyMutation.deleteApplePushKeyAsync(pushKeyId);
 }
 
 const formatProjectFullName = ({ account, projectName }: AppLookupParams): string =>

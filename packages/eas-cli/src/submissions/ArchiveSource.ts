@@ -8,7 +8,7 @@ import { toAppPlatform } from '../graphql/types/AppPlatform';
 import Log from '../log';
 import { promptAsync } from '../prompts';
 import { getBuildByIdForSubmissionAsync, getLatestBuildForSubmissionAsync } from './utils/builds';
-import { isExistingFile, uploadAppArchiveAsync } from './utils/files';
+import { isExistingFileAsync, uploadAppArchiveAsync } from './utils/files';
 
 export enum ArchiveSourceType {
   url,
@@ -125,7 +125,7 @@ async function handleLatestSourceAsync(source: ArchiveLatestSource): Promise<Arc
 }
 
 async function handlePathSourceAsync(source: ArchivePathSource): Promise<Archive> {
-  if (!(await isExistingFile(source.path))) {
+  if (!(await isExistingFileAsync(source.path))) {
     Log.error(chalk.bold(`${source.path} doesn't exist`));
     return getArchiveAsync({
       ...source,
@@ -246,10 +246,11 @@ async function askForArchivePathAsync(platform: Platform): Promise<string> {
     message: `Path to the app archive file (${isIos ? 'ipa' : 'aab or apk'}):`,
     initial: defaultArchivePath,
     type: 'text',
+    // eslint-disable-next-line async-protect/async-suffix
     validate: async (path: string): Promise<boolean | string> => {
       if (path === defaultArchivePath) {
         return 'That was just an example path, meant to show you the format that we expect for the response.';
-      } else if (!(await isExistingFile(path))) {
+      } else if (!(await isExistingFileAsync(path))) {
         return `File ${path} doesn't exist.`;
       } else {
         return true;

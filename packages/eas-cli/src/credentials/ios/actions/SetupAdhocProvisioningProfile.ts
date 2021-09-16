@@ -20,7 +20,7 @@ import { AppLookupParams } from '../api/GraphqlClient';
 import { validateProvisioningProfileAsync } from '../validators/validateProvisioningProfile';
 import { resolveAppleTeamIfAuthenticatedAsync } from './AppleTeamUtils';
 import { assignBuildCredentialsAsync, getBuildCredentialsAsync } from './BuildCredentialsUtils';
-import { chooseDevices, formatDeviceLabel } from './DeviceUtils';
+import { chooseDevicesAsync, formatDeviceLabel } from './DeviceUtils';
 import { SetupDistributionCertificate } from './SetupDistributionCertificate';
 
 export class SetupAdhocProvisioningProfile {
@@ -97,7 +97,10 @@ export class SetupAdhocProvisioningProfile {
     const provisionedDeviceIdentifiers = (
       currentBuildCredentials?.provisioningProfile?.appleDevices ?? []
     ).map(i => i.identifier);
-    const chosenDevices = await chooseDevices(registeredAppleDevices, provisionedDeviceIdentifiers);
+    const chosenDevices = await chooseDevicesAsync(
+      registeredAppleDevices,
+      provisionedDeviceIdentifiers
+    );
 
     // 4. Reuse or create the profile on Apple Developer Portal
     const provisioningProfileStoreInfo =

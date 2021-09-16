@@ -11,7 +11,7 @@ const PLUGIN_PACKAGE_NAME = 'eas-cli-local-build-plugin';
 export async function runLocalBuildAsync(job: Job): Promise<void> {
   const execNameOrPath =
     process.env.EAS_LOCAL_BUILD_PLUGIN_PATH ??
-    (await findWithNodeResolution()) ??
+    (await findWithNodeResolutionAsync()) ??
     PLUGIN_PACKAGE_NAME;
   try {
     const arg = Buffer.from(JSON.stringify({ job })).toString('base64');
@@ -31,7 +31,7 @@ export async function runLocalBuildAsync(job: Job): Promise<void> {
   }
 }
 
-async function findWithNodeResolution(): Promise<string | undefined> {
+async function findWithNodeResolutionAsync(): Promise<string | undefined> {
   try {
     const resolvedPath = path.resolve(
       path.dirname(require.resolve(PLUGIN_PACKAGE_NAME)),

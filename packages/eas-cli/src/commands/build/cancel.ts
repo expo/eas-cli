@@ -1,9 +1,9 @@
 import { getConfig } from '@expo/config';
-import { Command } from '@oclif/command';
 import chalk from 'chalk';
 import gql from 'graphql-tag';
 import ora from 'ora';
 
+import EasCommand from '../../commandUtils/EasCommand';
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
 import {
   Build,
@@ -109,12 +109,12 @@ async function ensureBuildExistsAsync(buildId: string): Promise<void> {
   }
 }
 
-export default class BuildCancel extends Command {
+export default class BuildCancel extends EasCommand {
   static description = 'Cancel a build.';
 
   static args = [{ name: 'BUILD_ID' }];
 
-  async run(): Promise<void> {
+  async runAsync(): Promise<void> {
     const { BUILD_ID: buildIdFromArg } = this.parse(BuildCancel).args;
 
     const projectDir = (await findProjectRootAsync()) ?? process.cwd();

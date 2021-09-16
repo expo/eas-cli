@@ -1,7 +1,8 @@
-import { Command, flags } from '@oclif/command';
+import { flags } from '@oclif/command';
 import Table from 'cli-table3';
 import gql from 'graphql-tag';
 
+import EasCommand from '../../commandUtils/EasCommand';
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
 import { UpdatesByGroupQuery, UpdatesByGroupQueryVariables } from '../../graphql/generated';
 import Log from '../../log';
@@ -47,7 +48,7 @@ export async function viewUpdateAsync({
   }
   return data;
 }
-export default class UpdateView extends Command {
+export default class UpdateView extends EasCommand {
   static hidden = true;
   static description = 'Update group details.';
 
@@ -66,7 +67,7 @@ export default class UpdateView extends Command {
     }),
   };
 
-  async run(): Promise<void> {
+  async runAsync(): Promise<void> {
     const {
       args: { groupId },
       flags: { json: jsonFlag },

@@ -1,12 +1,11 @@
-import { Command } from '@oclif/command';
 import ora from 'ora';
 
+import EasCommand from '../../commandUtils/EasCommand';
 import { WebhookQuery } from '../../graphql/queries/WebhookQuery';
 import Log from '../../log';
-import { ensureLoggedInAsync } from '../../user/actions';
 import { formatWebhook } from '../../webhooks/formatWebhook';
 
-export default class WebhookView extends Command {
+export default class WebhookView extends EasCommand {
   static description = 'View a webhook on the current project.';
 
   static args = [
@@ -17,8 +16,7 @@ export default class WebhookView extends Command {
     },
   ];
 
-  async run(): Promise<void> {
-    await ensureLoggedInAsync();
+  async runAsync(): Promise<void> {
     const {
       args: { ID: webhookId },
     } = this.parse(WebhookView);

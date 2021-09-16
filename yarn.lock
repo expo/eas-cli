@@ -5074,6 +5074,11 @@ eslint-module-utils@^2.6.2:
     debug "^3.2.7"
     pkg-dir "^2.0.0"
 
+eslint-plugin-async-protect@1.1.0:
+  version "1.1.0"
+  resolved "https://registry.yarnpkg.com/eslint-plugin-async-protect/-/eslint-plugin-async-protect-1.1.0.tgz#1b5652f5d4b875064065e5478b5e8c5d1aa6fb71"
+  integrity sha512-RlBCU/TCf4SaQe0NZfmbxjNHoHMv183VCsgRhBidSQBjXz4HJeaSNrvhhFwvhtk8BHapy+tcTTT3L+oJ3iPM7Q==
+
 eslint-plugin-graphql@4.0.0:
   version "4.0.0"
   resolved "https://registry.yarnpkg.com/eslint-plugin-graphql/-/eslint-plugin-graphql-4.0.0.tgz#d238ff2baee4d632cfcbe787a7a70a1f50428358"

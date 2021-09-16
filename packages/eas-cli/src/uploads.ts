@@ -18,7 +18,7 @@ export async function uploadAsync(
   path: string,
   handleProgressEvent: ProgressHandler
 ): Promise<{ url: string; bucketKey: string }> {
-  const presignedPost = await UploadSessionMutation.createUploadSession(type);
+  const presignedPost = await UploadSessionMutation.createUploadSessionAsync(type);
   const url = await uploadWithPresignedPostAsync(
     fs.createReadStream(path),
     presignedPost,

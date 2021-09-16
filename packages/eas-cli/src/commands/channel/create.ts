@@ -1,8 +1,9 @@
 import { getConfig } from '@expo/config';
-import { Command, flags } from '@oclif/command';
+import { flags } from '@oclif/command';
 import chalk from 'chalk';
 import gql from 'graphql-tag';
 
+import EasCommand from '../../commandUtils/EasCommand';
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
 import {
   CreateUpdateChannelOnAppMutation,
@@ -57,7 +58,7 @@ async function createUpdateChannelOnAppAsync({
   );
 }
 
-export default class ChannelCreate extends Command {
+export default class ChannelCreate extends EasCommand {
   static hidden = true;
   static description = 'Create a channel on the current project.';
 
@@ -77,7 +78,7 @@ export default class ChannelCreate extends Command {
     }),
   };
 
-  async run(): Promise<void> {
+  async runAsync(): Promise<void> {
     let {
       args: { name: channelName },
       flags: { json: jsonFlag },

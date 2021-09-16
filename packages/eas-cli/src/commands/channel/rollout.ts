@@ -1,7 +1,8 @@
 import { getConfig } from '@expo/config';
-import { Command, flags } from '@oclif/command';
+import { flags } from '@oclif/command';
 import chalk from 'chalk';
 
+import EasCommand from '../../commandUtils/EasCommand';
 import { GetChannelByNameForAppQuery, UpdateBranch } from '../../graphql/generated';
 import Log from '../../log';
 import {
@@ -305,7 +306,7 @@ async function endRolloutAsync({
   return { newChannelInfo, logMessage };
 }
 
-export default class ChannelRollout extends Command {
+export default class ChannelRollout extends EasCommand {
   static hidden = true;
   static description = 'Rollout a new branch out to a channel incrementally.';
 
@@ -336,7 +337,7 @@ export default class ChannelRollout extends Command {
     }),
   };
 
-  async run(): Promise<void> {
+  async runAsync(): Promise<void> {
     const {
       args: { channel: channelName },
       flags: { json: jsonFlag, end: endFlag },

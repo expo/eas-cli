@@ -12,7 +12,7 @@ import {
 import { AndroidKeystoreFragmentNode } from '../../../../../graphql/types/credentials/AndroidKeystore';
 
 const AndroidKeystoreMutation = {
-  async createAndroidKeystore(
+  async createAndroidKeystoreAsync(
     androidKeystoreInput: AndroidKeystoreInput,
     accountId: string
   ): Promise<AndroidKeystoreFragment> {
@@ -49,7 +49,7 @@ const AndroidKeystoreMutation = {
     );
     return data.androidKeystore.createAndroidKeystore;
   },
-  async deleteAndroidKeystore(androidKeystoreId: string): Promise<void> {
+  async deleteAndroidKeystoreAsync(androidKeystoreId: string): Promise<void> {
     await withErrorHandlingAsync(
       graphqlClient
         .mutation<DeleteAndroidKeystoreMutation>(

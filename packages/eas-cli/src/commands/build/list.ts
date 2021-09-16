@@ -1,10 +1,11 @@
 import { getConfig } from '@expo/config';
-import { Command, flags } from '@oclif/command';
+import { flags } from '@oclif/command';
 import chalk from 'chalk';
 import ora from 'ora';
 
 import { BuildDistributionType, BuildStatus } from '../../build/types';
 import { formatGraphQLBuild } from '../../build/utils/formatBuild';
+import EasCommand from '../../commandUtils/EasCommand';
 import {
   AppPlatform,
   DistributionType,
@@ -20,7 +21,7 @@ import {
 } from '../../project/projectUtils';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
-export default class BuildList extends Command {
+export default class BuildList extends EasCommand {
   static description = 'list all builds for your project';
 
   static flags = {
@@ -58,7 +59,7 @@ export default class BuildList extends Command {
     limit: flags.integer(),
   };
 
-  async run(): Promise<void> {
+  async runAsync(): Promise<void> {
     const { flags } = this.parse(BuildList);
     const {
       json,

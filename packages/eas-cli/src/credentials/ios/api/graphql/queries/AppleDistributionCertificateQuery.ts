@@ -71,7 +71,9 @@ const AppleDistributionCertificateQuery = {
         ?.distributionCertificate ?? null
     );
   },
-  async getAllForAccount(accountName: string): Promise<AppleDistributionCertificateFragment[]> {
+  async getAllForAccountAsync(
+    accountName: string
+  ): Promise<AppleDistributionCertificateFragment[]> {
     const data = await withErrorHandlingAsync(
       graphqlClient
         .query<AppleDistributionCertificateByAccountQuery>(

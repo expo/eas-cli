@@ -1,10 +1,11 @@
 import { getConfig } from '@expo/config';
-import { Command, flags } from '@oclif/command';
+import { flags } from '@oclif/command';
 import chalk from 'chalk';
 import CliTable from 'cli-table3';
 import { print } from 'graphql';
 import gql from 'graphql-tag';
 
+import EasCommand from '../../commandUtils/EasCommand';
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
 import {
   BranchesByAppQuery,
@@ -51,7 +52,7 @@ export async function listBranchesAsync({
   return data?.app?.byId.updateBranches ?? [];
 }
 
-export default class BranchList extends Command {
+export default class BranchList extends EasCommand {
   static hidden = true;
 
   static description = 'List all branches on this project.';
@@ -63,7 +64,7 @@ export default class BranchList extends Command {
     }),
   };
 
-  async run(): Promise<void> {
+  async runAsync(): Promise<void> {
     const { flags } = this.parse(BranchList);
 
     const projectDir = await findProjectRootAsync(process.cwd());

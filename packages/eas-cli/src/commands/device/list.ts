@@ -1,9 +1,10 @@
 import { getConfig } from '@expo/config';
-import { Command, flags } from '@oclif/command';
+import { flags } from '@oclif/command';
 import assert from 'assert';
 import chalk from 'chalk';
 import ora from 'ora';
 
+import EasCommand from '../../commandUtils/EasCommand';
 import { AppleDeviceQuery } from '../../credentials/ios/api/graphql/queries/AppleDeviceQuery';
 import { AppleTeamQuery } from '../../credentials/ios/api/graphql/queries/AppleTeamQuery';
 import formatDevice from '../../devices/utils/formatDevice';
@@ -11,14 +12,14 @@ import Log from '../../log';
 import { findProjectRootAsync, getProjectAccountNameAsync } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
 
-export default class BuildList extends Command {
+export default class BuildList extends EasCommand {
   static description = 'list all registered devices for your account';
 
   static flags = {
     'apple-team-id': flags.string(),
   };
 
-  async run(): Promise<void> {
+  async runAsync(): Promise<void> {
     let appleTeamIdentifier = this.parse(BuildList).flags['apple-team-id'];
 
     const projectDir = (await findProjectRootAsync()) ?? process.cwd();

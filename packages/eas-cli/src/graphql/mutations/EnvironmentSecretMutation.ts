@@ -11,7 +11,7 @@ import {
 import { EnvironmentSecretFragmentNode } from '../types/EnvironmentSecret';
 
 export const EnvironmentSecretMutation = {
-  async createForAccount(
+  async createForAccountAsync(
     input: { name: string; value: string },
     accountId: string
   ): Promise<EnvironmentSecretFragment> {
@@ -42,7 +42,7 @@ export const EnvironmentSecretMutation = {
 
     return data.environmentSecret.createEnvironmentSecretForAccount;
   },
-  async createForApp(
+  async createForAppAsync(
     input: { name: string; value: string },
     appId: string
   ): Promise<EnvironmentSecretFragment> {
@@ -70,7 +70,7 @@ export const EnvironmentSecretMutation = {
 
     return data.environmentSecret.createEnvironmentSecretForApp;
   },
-  async delete(id: string): Promise<{ id: string }> {
+  async deleteAsync(id: string): Promise<{ id: string }> {
     const data = await withErrorHandlingAsync(
       graphqlClient
         .mutation<DeleteEnvironmentSecretMutation>(

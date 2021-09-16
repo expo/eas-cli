@@ -1,10 +1,11 @@
 import { getConfig } from '@expo/config';
-import { Command, flags } from '@oclif/command';
+import { flags } from '@oclif/command';
 import assert from 'assert';
 import chalk from 'chalk';
 import Table from 'cli-table3';
 import gql from 'graphql-tag';
 
+import EasCommand from '../../commandUtils/EasCommand';
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
 import {
   GetChannelByNameForAppQuery,
@@ -189,7 +190,7 @@ export function logChannelDetails(channel: {
   Log.log(table.toString());
 }
 
-export default class ChannelView extends Command {
+export default class ChannelView extends EasCommand {
   static hidden = true;
   static description = 'View a channel on the current project.';
 
@@ -208,7 +209,7 @@ export default class ChannelView extends Command {
     }),
   };
 
-  async run(): Promise<void> {
+  async runAsync(): Promise<void> {
     let {
       args: { name: channelName },
       flags: { json: jsonFlag },

@@ -12,7 +12,7 @@ import {
 import { ApplePushKeyFragmentNode } from '../../../../../graphql/types/credentials/ApplePushKey';
 
 const ApplePushKeyMutation = {
-  async createApplePushKey(
+  async createApplePushKeyAsync(
     applePushKeyInput: ApplePushKeyInput,
     accountId: string
   ): Promise<ApplePushKeyFragment> {
@@ -46,7 +46,7 @@ const ApplePushKeyMutation = {
     );
     return data.applePushKey.createApplePushKey;
   },
-  async deleteApplePushKey(applePushKeyId: string): Promise<void> {
+  async deleteApplePushKeyAsync(applePushKeyId: string): Promise<void> {
     await withErrorHandlingAsync(
       graphqlClient
         .mutation<DeleteApplePushKeyMutation>(
