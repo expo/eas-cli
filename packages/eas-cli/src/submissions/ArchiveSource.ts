@@ -6,7 +6,7 @@ import * as uuid from 'uuid';
 import { BuildFragment } from '../graphql/generated';
 import { toAppPlatform } from '../graphql/types/AppPlatform';
 import Log from '../log';
-import { promptAsync } from '../prompts';
+import { confirmAsync, promptAsync } from '../prompts';
 import { getBuildByIdForSubmissionAsync, getLatestBuildForSubmissionAsync } from './utils/builds';
 import { isExistingFileAsync, uploadAppArchiveAsync } from './utils/files';
 
@@ -22,6 +22,7 @@ interface ArchiveSourceBase {
   sourceType: ArchiveSourceType;
   platform: Platform;
   projectId: string;
+  nonInteractive: boolean;
 }
 
 interface ArchiveUrlSource extends ArchiveSourceBase {
@@ -81,16 +82,29 @@ export async function getArchiveAsync(source: ArchiveSource): Promise<Archive> {
 }
 
 async function handleUrlSourceAsync(source: ArchiveUrlSource): Promise<Archive> {
-  if (!validateUrl(source.url)) {
-    Log.error(chalk.bold(`The URL you provided is invalid: ${source.url}`));
+  const { url } = source;
+
+  if (!validateUrl(url)) {
+    Log.error(chalk.bold(`The URL you provided is invalid: ${url}`));
     return getArchiveAsync({
       ...source,
       sourceType: ArchiveSourceType.prompt,
     });
   }
 
+  const maybeBuildId = isBuildDetailsPage(url);
+  if (maybeBuildId) {
+    if (await askIfUseBuildIdFromUrlAsync(source, maybeBuildId)) {
+      return getArchiveAsync({
+        ...source,
+        sourceType: ArchiveSourceType.buildId,
+        id: maybeBuildId,
+      });
+    }
+  }
+
   return {
-    url: source.url,
+    url,
     source,
   };
 }
@@ -216,8 +230,6 @@ async function handlePromptSourceAsync(source: ArchivePromptSource): Promise<Arc
   }
 }
 
-/* PROMPTS */
-
 async function askForArchiveUrlAsync(): Promise<string> {
   const defaultArchiveUrl = 'https://url.to/your/archive.aab';
   const { url } = await promptAsync({
@@ -266,14 +278,50 @@ async function askForBuildIdAsync(): Promise<string> {
     message: 'Build ID:',
     type: 'text',
     validate: (val: string): string | boolean => {
-      if (!uuid.validate(val)) {
-        return `${val} is not a valid id`;
+      if (!isUuidV4(val)) {
+        return `${val} is not a valid ID`;
       } else {
         return true;
       }
     },
   });
   return id;
+}
+
+async function askIfUseBuildIdFromUrlAsync(
+  source: ArchiveUrlSource,
+  buildId: string
+): Promise<boolean> {
+  const { url } = source;
+  Log.warn(`It seems that you provided a build details page URL: ${url}`);
+  Log.warn('We expected to see the build artifact URL.');
+  if (!source.nonInteractive) {
+    const useAsBuildId = await confirmAsync({
+      message: `Do you want to submit build ${buildId} instead?`,
+    });
+    if (useAsBuildId) {
+      return true;
+    } else {
+      Log.warn('The submission will most probably fail.');
+    }
+  } else {
+    Log.warn("Proceeding because you've run this command in non-interactive mode.");
+  }
+  return false;
+}
+
+function isBuildDetailsPage(url: string): string | false {
+  const maybeExpoUrl = url.match(/expo\.(dev|io).*\/builds\/(.{36}).*/);
+  if (maybeExpoUrl) {
+    const maybeBuildId = maybeExpoUrl[2];
+    if (isUuidV4(maybeBuildId)) {
+      return maybeBuildId;
+    } else {
+      return false;
+    }
+  } else {
+    return false;
+  }
 }
 
 function validateUrl(url: string): boolean {
@@ -288,4 +336,8 @@ function validateUrl(url: string): boolean {
   } catch (err) {
     return false;
   }
+}
+
+export function isUuidV4(s: string): boolean {
+  return uuid.validate(s) && uuid.version(s) === 4;
 }

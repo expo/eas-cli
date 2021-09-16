@@ -1,7 +1,6 @@
 import { Platform } from '@expo/eas-build-job';
-import * as uuid from 'uuid';
 
-import { ArchiveSource, ArchiveSourceType } from './ArchiveSource';
+import { ArchiveSource, ArchiveSourceType, isUuidV4 } from './ArchiveSource';
 import { SubmissionContext } from './context';
 
 export function resolveArchiveSource<T extends Platform>(
@@ -20,6 +19,7 @@ export function resolveArchiveSource<T extends Platform>(
       url,
       platform,
       projectId: ctx.projectId,
+      nonInteractive: ctx.nonInteractive,
     };
   } else if (path) {
     return {
@@ -27,22 +27,25 @@ export function resolveArchiveSource<T extends Platform>(
       path,
       platform,
       projectId: ctx.projectId,
+      nonInteractive: ctx.nonInteractive,
     };
   } else if (id) {
-    if (!uuid.validate(id)) {
-      throw new Error(`${id} is not an ID`);
+    if (!isUuidV4(id)) {
+      throw new Error(`${id} is not a valid ID`);
     }
     return {
       sourceType: ArchiveSourceType.buildId,
       id,
       platform,
       projectId: ctx.projectId,
+      nonInteractive: ctx.nonInteractive,
     };
   } else if (latest) {
     return {
       sourceType: ArchiveSourceType.latest,
       platform,
       projectId: ctx.projectId,
+      nonInteractive: ctx.nonInteractive,
     };
   } else if (ctx.nonInteractive) {
     throw new Error('You need to specify the archive source when running in non-interactive mode ');
@@ -51,6 +54,7 @@ export function resolveArchiveSource<T extends Platform>(
       sourceType: ArchiveSourceType.prompt,
       platform,
       projectId: ctx.projectId,
+      nonInteractive: ctx.nonInteractive,
     };
   }
 }
