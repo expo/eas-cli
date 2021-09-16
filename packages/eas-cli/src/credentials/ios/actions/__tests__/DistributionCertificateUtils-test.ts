@@ -14,7 +14,7 @@ mockdate.set(new Date('4/20/2021'));
 describe('select credentials', () => {
   it('select an AppleDistributionCertificate fragment', async () => {
     const testDistCerts = (
-      await AppleDistributionCertificateQuery.getAllForAccount('quinAccount')
+      await AppleDistributionCertificateQuery.getAllForAccountAsync('quinAccount')
     ).sort((a, b) => (a.serialNumber > b.serialNumber ? 1 : -1));
     const loggedSoFar = testDistCerts
       .map(cert => formatDistributionCertificate(cert))
