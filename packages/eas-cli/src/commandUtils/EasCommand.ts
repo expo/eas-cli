@@ -16,6 +16,9 @@ export default abstract class EasCommand extends Command {
    */
   protected requiresAuthentication = true;
 
+  protected abstract runAsync(): Promise<any>;
+
+  // eslint-disable-next-line async-protect/async-suffix
   async init(): Promise<void> {
     await initAnalyticsAsync();
 
@@ -31,6 +34,12 @@ export default abstract class EasCommand extends Command {
     });
   }
 
+  // eslint-disable-next-line async-protect/async-suffix
+  async run(): Promise<any> {
+    return this.runAsync();
+  }
+
+  // eslint-disable-next-line async-protect/async-suffix
   async finally(err: Error): Promise<any> {
     await flushAnalyticsAsync();
     return super.finally(err);

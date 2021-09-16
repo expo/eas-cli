@@ -4,7 +4,7 @@ import { UploadSessionType } from '../../graphql/generated';
 import { uploadAsync } from '../../uploads';
 import { createProgressTracker } from '../../utils/progress';
 
-export async function isExistingFile(filePath: string): Promise<boolean> {
+export async function isExistingFileAsync(filePath: string): Promise<boolean> {
   try {
     const stats = await fs.stat(filePath);
     return stats.isFile();

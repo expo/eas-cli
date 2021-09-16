@@ -1,7 +1,8 @@
 import { getConfig } from '@expo/config';
-import { Command, flags } from '@oclif/command';
+import { flags } from '@oclif/command';
 import chalk from 'chalk';
 
+import EasCommand from '../../commandUtils/EasCommand';
 import { EnvironmentSecretMutation } from '../../graphql/mutations/EnvironmentSecretMutation';
 import {
   EnvironmentSecretScope,
@@ -22,7 +23,7 @@ import { findAccountByName } from '../../user/Account';
 import { getActorDisplayName } from '../../user/User';
 import { ensureLoggedInAsync } from '../../user/actions';
 
-export default class EnvironmentSecretCreate extends Command {
+export default class EnvironmentSecretCreate extends EasCommand {
   static description = 'Create an environment secret on the current project or owner account.';
 
   static flags = {
@@ -43,7 +44,7 @@ export default class EnvironmentSecretCreate extends Command {
     }),
   };
 
-  async run(): Promise<void> {
+  async runAsync(): Promise<void> {
     const actor = await ensureLoggedInAsync();
     let {
       flags: { name, value: secretValue, scope, force },
@@ -123,7 +124,7 @@ export default class EnvironmentSecretCreate extends Command {
         const existingSecret = existingSecrets.find(secret => secret.name === name);
 
         if (existingSecret) {
-          await EnvironmentSecretMutation.delete(existingSecret.id);
+          await EnvironmentSecretMutation.deleteAsync(existingSecret.id);
           Log.withTick(
             `Deleting existing secret ${chalk.bold(name)} on project ${chalk.bold(
               `@${accountName}/${slug}`
@@ -132,7 +133,7 @@ export default class EnvironmentSecretCreate extends Command {
         }
       }
 
-      const secret = await EnvironmentSecretMutation.createForApp(
+      const secret = await EnvironmentSecretMutation.createForAppAsync(
         { name, value: secretValue },
         projectId
       );
@@ -164,7 +165,7 @@ export default class EnvironmentSecretCreate extends Command {
         const existingSecret = existingSecrets.find(secret => secret.name === name);
 
         if (existingSecret) {
-          await EnvironmentSecretMutation.delete(existingSecret.id);
+          await EnvironmentSecretMutation.deleteAsync(existingSecret.id);
 
           Log.withTick(
             `Deleting existing secret ${chalk.bold(name)} on account ${chalk.bold(
@@ -174,7 +175,7 @@ export default class EnvironmentSecretCreate extends Command {
         }
       }
 
-      const secret = await EnvironmentSecretMutation.createForAccount(
+      const secret = await EnvironmentSecretMutation.createForAccountAsync(
         { name, value: secretValue },
         ownerAccount.id
       );

@@ -13,7 +13,7 @@ interface Credentials {
   password: string;
 }
 
-export function deletePasswordAsync({
+export async function deletePasswordAsync({
   username,
   serviceName,
 }: Pick<Credentials, 'username' | 'serviceName'>): Promise<boolean> {
@@ -63,7 +63,7 @@ export async function getPasswordAsync({
   });
 }
 
-export function setPasswordAsync({
+export async function setPasswordAsync({
   serviceName,
   username,
   password,

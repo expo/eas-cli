@@ -14,7 +14,7 @@ import {
  * It is possible an uploaded key could have a valid p8 but invalid identifier, making it impossible for us to
  * track it's status on the Apple Developer Portal
  */
-export async function filterRevokedAndUntrackedPushKeys<T extends PushKey>(
+export async function filterRevokedAndUntrackedPushKeysAsync<T extends PushKey>(
   pushKeys: T[],
   pushInfoFromApple: PushKeyStoreInfo[]
 ): Promise<T[]> {
@@ -30,7 +30,7 @@ export async function filterRevokedAndUntrackedPushKeys<T extends PushKey>(
  * It is possible an uploaded key could have a valid p8 but invalid identifier, making it impossible for us to
  * track it's status on the Apple Developer Portal
  */
-export async function filterRevokedAndUntrackedPushKeysFromEasServers(
+export async function filterRevokedAndUntrackedPushKeysFromEasServersAsync(
   pushKeys: ApplePushKeyFragment[],
   pushInfoFromApple: PushKeyStoreInfo[]
 ): Promise<ApplePushKeyFragment[]> {

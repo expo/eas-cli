@@ -1,7 +1,7 @@
 import { getConfig } from '@expo/config';
-import { Command } from '@oclif/command';
 import gql from 'graphql-tag';
 
+import EasCommand from '../../commandUtils/EasCommand';
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
 import { AppInfoQuery, AppInfoQueryVariables } from '../../graphql/generated';
 import Log from '../../log';
@@ -30,10 +30,10 @@ async function projectInfoByIdAsync(appId: string): Promise<AppInfoQuery> {
   return data;
 }
 
-export default class ProjectInfo extends Command {
+export default class ProjectInfo extends EasCommand {
   static description = 'information about the current project';
 
-  async run(): Promise<void> {
+  async runAsync(): Promise<void> {
     const projectDir = await findProjectRootAsync(process.cwd());
     if (!projectDir) {
       throw new Error('Please run this command inside a project directory.');

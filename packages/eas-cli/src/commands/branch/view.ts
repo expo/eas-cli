@@ -1,9 +1,10 @@
 import { getConfig } from '@expo/config';
-import { Command, flags } from '@oclif/command';
+import { flags } from '@oclif/command';
 import chalk from 'chalk';
 import Table from 'cli-table3';
 import gql from 'graphql-tag';
 
+import EasCommand from '../../commandUtils/EasCommand';
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
 import { ViewBranchQuery, ViewBranchQueryVariables } from '../../graphql/generated';
 import Log from '../../log';
@@ -64,7 +65,7 @@ export async function viewUpdateBranchAsync({
   return data;
 }
 
-export default class BranchView extends Command {
+export default class BranchView extends EasCommand {
   static hidden = true;
   static description = 'View a branch.';
 
@@ -83,7 +84,7 @@ export default class BranchView extends Command {
     }),
   };
 
-  async run(): Promise<void> {
+  async runAsync(): Promise<void> {
     let {
       args: { name },
       flags: { json: jsonFlag },

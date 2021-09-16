@@ -11,7 +11,7 @@ export interface DeviceManagerContext {
   user: Actor;
 }
 
-export async function createContext({
+export async function createContextAsync({
   appStore,
   cwd,
   user,

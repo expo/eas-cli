@@ -1,18 +1,18 @@
 import { getConfig } from '@expo/config';
-import { Command } from '@oclif/command';
 import ora from 'ora';
 
+import EasCommand from '../../commandUtils/EasCommand';
 import { AppleDeviceQuery } from '../../credentials/ios/api/graphql/queries/AppleDeviceQuery';
 import formatDevice from '../../devices/utils/formatDevice';
 import Log from '../../log';
 import { findProjectRootAsync, getProjectAccountNameAsync } from '../../project/projectUtils';
 
-export default class DeviceView extends Command {
+export default class DeviceView extends EasCommand {
   static description = 'view a device for your project';
 
   static args = [{ name: 'UDID' }];
 
-  async run(): Promise<void> {
+  async runAsync(): Promise<void> {
     const { UDID } = this.parse(DeviceView).args;
 
     if (!UDID) {
@@ -36,7 +36,7 @@ If you are not sure what is the UDID of the device you are looking for, run:
     const spinner = ora().start(`Fetching device details for ${UDID}…`);
 
     try {
-      const device = await AppleDeviceQuery.getByDeviceIdentifier(accountName, UDID);
+      const device = await AppleDeviceQuery.getByDeviceIdentifierAsync(accountName, UDID);
 
       if (device) {
         spinner.succeed('Fetched device details');

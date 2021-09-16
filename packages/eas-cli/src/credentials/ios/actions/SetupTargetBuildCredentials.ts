@@ -37,14 +37,14 @@ export class SetupTargetBuildCredentials implements Action<IosAppBuildCredential
       );
     }
     try {
-      return await this.setupBuildCredentials(ctx);
+      return await this.setupBuildCredentialsAsync(ctx);
     } catch (error) {
       Log.error('Failed to setup credentials.');
       throw error;
     }
   }
 
-  async setupBuildCredentials(ctx: Context): Promise<IosAppBuildCredentialsFragment> {
+  async setupBuildCredentialsAsync(ctx: Context): Promise<IosAppBuildCredentialsFragment> {
     const { app, distribution, enterpriseProvisioning } = this.options;
     if (distribution === 'internal') {
       if (enterpriseProvisioning === 'adhoc') {

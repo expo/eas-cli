@@ -12,7 +12,7 @@ import {
 import { AndroidFcmFragmentNode } from '../../../../../graphql/types/credentials/AndroidFcm';
 
 const AndroidFcmMutation = {
-  async createAndroidFcm(
+  async createAndroidFcmAsync(
     androidFcmInput: AndroidFcmInput,
     accountId: string
   ): Promise<AndroidFcmFragment> {
@@ -43,7 +43,7 @@ const AndroidFcmMutation = {
     );
     return data.androidFcm.createAndroidFcm;
   },
-  async deleteAndroidFcm(androidFcmId: string): Promise<void> {
+  async deleteAndroidFcmAsync(androidFcmId: string): Promise<void> {
     await withErrorHandlingAsync(
       graphqlClient
         .mutation<DeleteAndroidFcmMutation>(

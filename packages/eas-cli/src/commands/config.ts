@@ -1,15 +1,16 @@
 import { getProjectConfigDescription } from '@expo/config';
 import { Platform } from '@expo/eas-build-job';
 import { EasJsonReader } from '@expo/eas-json';
-import { Command, flags } from '@oclif/command';
+import { flags } from '@oclif/command';
 
+import EasCommand from '../commandUtils/EasCommand';
 import Log from '../log';
 import { getExpoConfig } from '../project/expoConfig';
 import { findProjectRootAsync } from '../project/projectUtils';
 import { selectAsync } from '../prompts';
 import { handleDeprecatedEasJsonAsync } from './build';
 
-export default class Config extends Command {
+export default class Config extends EasCommand {
   static description = 'show the eas.json config';
 
   static flags = {
@@ -17,7 +18,9 @@ export default class Config extends Command {
     profile: flags.string(),
   };
 
-  async run(): Promise<void> {
+  protected requiresAuthentication = false;
+
+  async runAsync(): Promise<void> {
     const { flags } = this.parse(Config);
     const { platform: maybePlatform, profile: maybeProfile } = flags as {
       platform?: Platform;

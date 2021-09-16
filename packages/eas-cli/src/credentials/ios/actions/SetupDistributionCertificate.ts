@@ -71,7 +71,7 @@ export class SetupDistributionCertificate {
     const validDistCertsOnFile = await this.getValidDistCertsAsync(ctx);
     return validDistCertsOnFile.length === 0
       ? await this.createNewDistCertAsync(ctx)
-      : await this.createOrReuseDistCert(ctx);
+      : await this.createOrReuseDistCertAsync(ctx);
   }
 
   private async isCurrentCertificateValidAsync(
@@ -107,7 +107,9 @@ export class SetupDistributionCertificate {
     return isValid;
   }
 
-  private async createOrReuseDistCert(ctx: Context): Promise<AppleDistributionCertificateFragment> {
+  private async createOrReuseDistCertAsync(
+    ctx: Context
+  ): Promise<AppleDistributionCertificateFragment> {
     const validDistCerts = await this.getValidDistCertsAsync(ctx);
     const autoselectedDistCert = validDistCerts[0];
 

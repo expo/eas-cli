@@ -1,8 +1,9 @@
 import { getConfig } from '@expo/config';
-import { Command, flags } from '@oclif/command';
+import { flags } from '@oclif/command';
 import chalk from 'chalk';
 import gql from 'graphql-tag';
 
+import EasCommand from '../../commandUtils/EasCommand';
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
 import {
   GetChannelByNameToEditQuery,
@@ -92,7 +93,7 @@ export async function updateChannelBranchMappingAsync({
   return data.updateChannel.editUpdateChannel!;
 }
 
-export default class ChannelEdit extends Command {
+export default class ChannelEdit extends EasCommand {
   static hidden = true;
   static description = 'Point a channel at a new branch.';
 
@@ -114,7 +115,7 @@ export default class ChannelEdit extends Command {
     }),
   };
 
-  async run(): Promise<void> {
+  async runAsync(): Promise<void> {
     let {
       args: { name: channelName },
       flags: { branch: branchName, json: jsonFlag },

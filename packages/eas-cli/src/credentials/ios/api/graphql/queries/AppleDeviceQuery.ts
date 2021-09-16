@@ -119,7 +119,7 @@ const AppleDeviceQuery = {
     return data.account.byName.appleTeams[0];
   },
 
-  async getByDeviceIdentifier(
+  async getByDeviceIdentifierAsync(
     accountName: string,
     identifier: string
   ): Promise<AppleDevicesByIdentifierQueryResult | null> {

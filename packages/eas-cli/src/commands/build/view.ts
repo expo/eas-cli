@@ -1,8 +1,9 @@
 import { getConfig } from '@expo/config';
-import { Command, flags } from '@oclif/command';
+import { flags } from '@oclif/command';
 import ora from 'ora';
 
 import { formatGraphQLBuild } from '../../build/utils/formatBuild';
+import EasCommand from '../../commandUtils/EasCommand';
 import { BuildFragment } from '../../graphql/generated';
 import { BuildQuery } from '../../graphql/queries/BuildQuery';
 import Log from '../../log';
@@ -13,7 +14,7 @@ import {
 } from '../../project/projectUtils';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
-export default class BuildView extends Command {
+export default class BuildView extends EasCommand {
   static description = 'view a build for your project';
 
   static args = [{ name: 'BUILD_ID' }];
@@ -24,7 +25,7 @@ export default class BuildView extends Command {
     }),
   };
 
-  async run(): Promise<void> {
+  async runAsync(): Promise<void> {
     const {
       args: { BUILD_ID: buildId },
       flags,

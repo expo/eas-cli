@@ -24,7 +24,7 @@ export async function getCertificateBySerialNumberAsync(
   return cert;
 }
 
-export async function getDistributionCertificateAync(
+export async function getDistributionCertificateAsync(
   context: RequestContext,
   serialNumber: string
 ): Promise<Certificate | null> {

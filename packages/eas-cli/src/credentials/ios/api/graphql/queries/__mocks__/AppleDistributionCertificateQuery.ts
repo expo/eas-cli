@@ -1,5 +1,5 @@
 const AppleDistributionCertificateQuery = {
-  getAllForAccount: jest.fn().mockImplementation(() => {
+  getAllForAccountAsync: jest.fn().mockImplementation(() => {
     return [
       {
         id: '6a7422cc-392b-451d-984c-b0b4b027680a',

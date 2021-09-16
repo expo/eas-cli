@@ -1,14 +1,14 @@
 import { getConfig } from '@expo/config';
-import { Command, flags } from '@oclif/command';
+import { flags } from '@oclif/command';
 import ora from 'ora';
 
+import EasCommand from '../../commandUtils/EasCommand';
 import { WebhookType } from '../../graphql/generated';
 import { WebhookMutation } from '../../graphql/mutations/WebhookMutation';
 import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUtils';
-import { ensureLoggedInAsync } from '../../user/actions';
 import { prepareInputParamsAsync } from '../../webhooks/input';
 
-export default class WebhookCreate extends Command {
+export default class WebhookCreate extends EasCommand {
   static description = 'Create a webhook on the current project.';
 
   static flags = {
@@ -26,8 +26,7 @@ export default class WebhookCreate extends Command {
     }),
   };
 
-  async run(): Promise<void> {
-    await ensureLoggedInAsync();
+  async runAsync(): Promise<void> {
     const { flags } = this.parse(WebhookCreate);
     const webhookInputParams = await prepareInputParamsAsync(flags);
 

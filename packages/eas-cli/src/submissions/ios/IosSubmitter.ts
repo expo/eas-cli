@@ -28,7 +28,7 @@ interface ResolvedSourceOptions {
 
 export default class IosSubmitter extends BaseSubmitter<Platform.IOS, IosSubmissionOptions> {
   async submitAsync(): Promise<SubmissionFragment> {
-    const resolvedSourceOptions = await this.resolveSourceOptions();
+    const resolvedSourceOptions = await this.resolveSourceOptionsAsync();
     const submissionConfig = await this.formatSubmissionConfigAsync(
       this.options,
       resolvedSourceOptions
@@ -58,7 +58,7 @@ export default class IosSubmitter extends BaseSubmitter<Platform.IOS, IosSubmiss
     });
   }
 
-  private async resolveSourceOptions(): Promise<ResolvedSourceOptions> {
+  private async resolveSourceOptionsAsync(): Promise<ResolvedSourceOptions> {
     const archive = await getArchiveAsync(this.options.archiveSource);
     const appSpecificPassword = await getAppSpecificPasswordAsync(
       this.options.appSpecificPasswordSource

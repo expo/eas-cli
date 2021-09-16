@@ -1,14 +1,15 @@
-import { Command } from '@oclif/command';
-
+import EasCommand from '../commandUtils/EasCommand';
 import Log from '../log';
 import UserSettings from '../user/UserSettings';
 
-export default class AnalyticsView extends Command {
+export default class AnalyticsView extends EasCommand {
   static description = 'view or change analytics settings';
 
   static args = [{ name: 'STATUS', options: ['on', 'off'] }];
 
-  async run(): Promise<void> {
+  protected requiresAuthentication = false;
+
+  async runAsync(): Promise<void> {
     const { STATUS: status } = this.parse(AnalyticsView).args;
     if (status) {
       await UserSettings.setAsync('amplitudeEnabled', status === 'on');

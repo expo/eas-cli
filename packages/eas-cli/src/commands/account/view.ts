@@ -1,15 +1,16 @@
-import { Command } from '@oclif/command';
 import chalk from 'chalk';
 
+import EasCommand from '../../commandUtils/EasCommand';
 import Log from '../../log';
 import { getActorDisplayName, getUserAsync } from '../../user/User';
 
-export default class AccountView extends Command {
+export default class AccountView extends EasCommand {
   static description = 'show the username you are logged in as';
-
   static aliases = ['whoami'];
 
-  async run(): Promise<void> {
+  protected requiresAuthentication = false;
+
+  async runAsync(): Promise<void> {
     const user = await getUserAsync();
     if (user) {
       Log.log(chalk.green(getActorDisplayName(user)));

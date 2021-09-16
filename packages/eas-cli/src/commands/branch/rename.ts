@@ -1,8 +1,9 @@
 import { getConfig } from '@expo/config';
-import { Command, flags } from '@oclif/command';
+import { flags } from '@oclif/command';
 import chalk from 'chalk';
 import gql from 'graphql-tag';
 
+import EasCommand from '../../commandUtils/EasCommand';
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
 import {
   EditUpdateBranchInput,
@@ -49,7 +50,7 @@ async function renameUpdateBranchOnAppAsync({
   return data.updateBranch.editUpdateBranch;
 }
 
-export default class BranchRename extends Command {
+export default class BranchRename extends EasCommand {
   static hidden = true;
   static description = 'Rename a branch.';
 
@@ -68,7 +69,7 @@ export default class BranchRename extends Command {
     }),
   };
 
-  async run(): Promise<void> {
+  async runAsync(): Promise<void> {
     let {
       flags: { json: jsonFlag, from: currentName, to: newName },
     } = this.parse(BranchRename);

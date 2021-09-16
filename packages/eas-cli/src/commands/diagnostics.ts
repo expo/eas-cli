@@ -1,14 +1,16 @@
-import { Command } from '@oclif/command';
 import envinfo from 'envinfo';
 
+import EasCommand from '../commandUtils/EasCommand';
 import Log from '../log';
 
 const packageJSON = require('../../package.json');
 
-export default class Diagnostics extends Command {
+export default class Diagnostics extends EasCommand {
   static description = 'log environment info to the console';
 
-  async run(): Promise<void> {
+  protected requiresAuthentication = false;
+
+  async runAsync(): Promise<void> {
     const info = await envinfo.run(
       {
         System: ['OS', 'Shell'],

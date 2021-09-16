@@ -1,14 +1,7 @@
 module.exports = {
   root: true,
   extends: ['universe/node'],
-  overrides: [
-    {
-      files: ['**/__tests__/*'],
-    },
-  ],
-  globals: {
-    jasmine: false,
-  },
+  plugins: ['async-protect'],
   rules: {
     'no-console': 'warn',
     'no-constant-condition': ['warn', { checkLoops: false }],
@@ -42,10 +35,14 @@ module.exports = {
         allowExpressions: true,
       },
     ],
+    'async-protect/async-suffix': 'error',
   },
-  settings: {
-    react: {
-      version: 'detect',
+  overrides: [
+    {
+      files: ['**/__tests__/**/*.ts', '**/__mocks__/**/*.ts'],
+      rules: {
+        'async-protect/async-suffix': 'off',
+      },
     },
-  },
+  ],
 };

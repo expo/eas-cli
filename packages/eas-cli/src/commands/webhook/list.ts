@@ -1,8 +1,9 @@
 import { getConfig } from '@expo/config';
-import { Command, flags } from '@oclif/command';
+import { flags } from '@oclif/command';
 import chalk from 'chalk';
 import ora from 'ora';
 
+import EasCommand from '../../commandUtils/EasCommand';
 import { WebhookType } from '../../graphql/generated';
 import { WebhookQuery } from '../../graphql/queries/WebhookQuery';
 import Log from '../../log';
@@ -11,10 +12,9 @@ import {
   getProjectFullNameAsync,
   getProjectIdAsync,
 } from '../../project/projectUtils';
-import { ensureLoggedInAsync } from '../../user/actions';
 import { formatWebhook } from '../../webhooks/formatWebhook';
 
-export default class WebhookList extends Command {
+export default class WebhookList extends EasCommand {
   static description = 'List webhooks on the current project.';
 
   static flags = {
@@ -24,8 +24,7 @@ export default class WebhookList extends Command {
     }),
   };
 
-  async run(): Promise<void> {
-    await ensureLoggedInAsync();
+  async runAsync(): Promise<void> {
     const {
       flags: { event },
     } = this.parse(WebhookList);

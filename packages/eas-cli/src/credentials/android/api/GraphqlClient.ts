@@ -192,7 +192,7 @@ export async function createKeystoreAsync(
   account: Account,
   keystore: KeystoreWithType
 ): Promise<AndroidKeystoreFragment> {
-  return await AndroidKeystoreMutation.createAndroidKeystore(
+  return await AndroidKeystoreMutation.createAndroidKeystoreAsync(
     {
       base64EncodedKeystore: keystore.keystore,
       keystorePassword: keystore.keystorePassword,
@@ -205,7 +205,7 @@ export async function createKeystoreAsync(
 }
 
 export async function deleteKeystoreAsync(keystore: AndroidKeystoreFragment): Promise<void> {
-  return await AndroidKeystoreMutation.deleteAndroidKeystore(keystore.id);
+  return await AndroidKeystoreMutation.deleteAndroidKeystoreAsync(keystore.id);
 }
 
 export async function createFcmAsync(
@@ -213,11 +213,14 @@ export async function createFcmAsync(
   fcmApiKey: string,
   version: AndroidFcmVersion
 ): Promise<AndroidFcmFragment> {
-  return await AndroidFcmMutation.createAndroidFcm({ credential: fcmApiKey, version }, account.id);
+  return await AndroidFcmMutation.createAndroidFcmAsync(
+    { credential: fcmApiKey, version },
+    account.id
+  );
 }
 
 export async function deleteFcmAsync(fcm: AndroidFcmFragment): Promise<void> {
-  return await AndroidFcmMutation.deleteAndroidFcm(fcm.id);
+  return await AndroidFcmMutation.deleteAndroidFcmAsync(fcm.id);
 }
 
 async function getAppAsync(appLookupParams: AppLookupParams): Promise<AppFragment> {

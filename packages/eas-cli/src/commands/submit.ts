@@ -89,7 +89,7 @@ See how to configure submits with eas.json: ${learnMore('https://docs.expo.dev/s
     }),
   };
 
-  async run(): Promise<void> {
+  async runAsync(): Promise<void> {
     const { flags: rawFlags } = this.parse(Submit);
     const flags = await this.sanitizeFlagsAsync(rawFlags);
 

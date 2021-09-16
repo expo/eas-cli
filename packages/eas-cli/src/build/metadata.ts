@@ -41,7 +41,7 @@ export interface IosMetadataContext {
   buildConfiguration?: string;
 }
 
-export async function collectMetadata<T extends Platform>(
+export async function collectMetadataAsync<T extends Platform>(
   ctx: BuildContext<T>,
   platformContext: MetadataContext<T>
 ): Promise<Metadata> {

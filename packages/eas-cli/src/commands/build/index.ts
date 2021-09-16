@@ -127,7 +127,7 @@ export default class Build extends EasCommand {
 
   private metroConfigValidated = false;
 
-  async run(): Promise<void> {
+  async runAsync(): Promise<void> {
     const { flags: rawFlags } = this.parse(Build);
     if (rawFlags.json) {
       enableJsonOutput();

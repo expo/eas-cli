@@ -37,16 +37,16 @@ export class SetupPushKey {
     if (pushKeysForAccount.length === 0) {
       pushKey = await new CreatePushKey(this.app.account).runAsync(ctx);
     } else {
-      pushKey = await this.createOrReusePushKey(ctx);
+      pushKey = await this.createOrReusePushKeyAsync(ctx);
     }
     return await new AssignPushKey(this.app).runAsync(ctx, pushKey);
   }
 
-  private async createOrReusePushKey(ctx: Context): Promise<ApplePushKeyFragment> {
+  private async createOrReusePushKeyAsync(ctx: Context): Promise<ApplePushKeyFragment> {
     const pushKeysForAccount = await ctx.ios.getPushKeysForAccountAsync(this.app.account);
     assert(
       pushKeysForAccount.length > 0,
-      'createOrReusePushKey: There are no Push Keys available in your EAS account.'
+      'createOrReusePushKeyAsync: There are no Push Keys available in your EAS account.'
     );
 
     if (ctx.appStore.authCtx) {

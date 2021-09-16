@@ -14,11 +14,11 @@ import { promptAsync } from '../prompts';
 import { uploadAsync } from '../uploads';
 import { formatBytes } from '../utils/files';
 import { createProgressTracker } from '../utils/progress';
-import { sleep } from '../utils/promise';
+import { sleepAsync } from '../utils/promise';
 import vcs from '../vcs';
 import { BuildContext } from './context';
 import { runLocalBuildAsync } from './local';
-import { MetadataContext, collectMetadata } from './metadata';
+import { MetadataContext, collectMetadataAsync } from './metadata';
 import { TrackingContext } from './types';
 import Analytics, { Event } from './utils/analytics';
 import { printDeprecationWarnings } from './utils/printBuildInfo';
@@ -89,7 +89,7 @@ export async function prepareBuildRequestForPlatformAsync<
       } as const);
 
   const metadataContext = builder.getMetadataContext();
-  const metadata = await collectMetadata(ctx, metadataContext);
+  const metadata = await collectMetadataAsync(ctx, metadataContext);
   const job = await builder.prepareJobAsync(ctx, {
     projectArchive,
     credentials: credentialsResult?.credentials,
@@ -369,7 +369,7 @@ export async function waitForBuildEndAsync(
       }
     }
     time = new Date().getTime();
-    await sleep(intervalSec * 1000);
+    await sleepAsync(intervalSec * 1000);
   }
   spinner.warn('Timed out');
   throw new Error(

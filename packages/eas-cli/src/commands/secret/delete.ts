@@ -1,7 +1,8 @@
 import { getConfig } from '@expo/config';
-import { Command, flags } from '@oclif/command';
+import { flags } from '@oclif/command';
 import chalk from 'chalk';
 
+import EasCommand from '../../commandUtils/EasCommand';
 import { EnvironmentSecretMutation } from '../../graphql/mutations/EnvironmentSecretMutation';
 import {
   EnvironmentSecretScope,
@@ -19,9 +20,8 @@ import {
   getProjectIdAsync,
 } from '../../project/projectUtils';
 import { promptAsync, toggleConfirmAsync } from '../../prompts';
-import { ensureLoggedInAsync } from '../../user/actions';
 
-export default class EnvironmentSecretDelete extends Command {
+export default class EnvironmentSecretDelete extends EasCommand {
   static description = `Delete an environment secret by ID.
 Unsure where to find the secret's ID? Run ${chalk.bold('eas secrets:list')}`;
 
@@ -31,9 +31,7 @@ Unsure where to find the secret's ID? Run ${chalk.bold('eas secrets:list')}`;
     }),
   };
 
-  async run(): Promise<void> {
-    await ensureLoggedInAsync();
-
+  async runAsync(): Promise<void> {
     const projectDir = (await findProjectRootAsync()) ?? process.cwd();
     const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
     const projectId = await getProjectIdAsync(exp);
@@ -93,7 +91,7 @@ Unsure where to find the secret's ID? Run ${chalk.bold('eas secrets:list')}`;
       process.exit(1);
     }
 
-    await EnvironmentSecretMutation.delete(id);
+    await EnvironmentSecretMutation.deleteAsync(id);
 
     Log.withTick(`️Deleted secret${secret?.name ? ` "${secret?.name}"` : ''} with id "${id}".`);
   }

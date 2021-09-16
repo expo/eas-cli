@@ -1,20 +1,19 @@
 import { getConfig } from '@expo/config';
-import { Command } from '@oclif/command';
 import assert from 'assert';
 import chalk from 'chalk';
 import nullthrows from 'nullthrows';
 import ora from 'ora';
 
+import EasCommand from '../../commandUtils/EasCommand';
 import { WebhookFragment } from '../../graphql/generated';
 import { WebhookMutation } from '../../graphql/mutations/WebhookMutation';
 import { WebhookQuery } from '../../graphql/queries/WebhookQuery';
 import Log from '../../log';
 import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUtils';
 import { promptAsync, toggleConfirmAsync } from '../../prompts';
-import { ensureLoggedInAsync } from '../../user/actions';
 import { formatWebhook } from '../../webhooks/formatWebhook';
 
-export default class WebhookDelete extends Command {
+export default class WebhookDelete extends EasCommand {
   static description = 'Delete a webhook on the current project.';
 
   static args = [
@@ -25,8 +24,7 @@ export default class WebhookDelete extends Command {
     },
   ];
 
-  async run(): Promise<void> {
-    await ensureLoggedInAsync();
+  async runAsync(): Promise<void> {
     let {
       args: { ID: webhookId },
     } = this.parse(WebhookDelete);

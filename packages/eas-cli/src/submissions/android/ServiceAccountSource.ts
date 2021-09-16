@@ -7,7 +7,7 @@ import Log, { learnMore } from '../../log';
 import { findProjectRootAsync } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
 import { filterAsync } from '../../utils/filterAsync';
-import { isExistingFile } from '../utils/files';
+import { isExistingFileAsync } from '../utils/files';
 
 export enum ServiceAccountSourceType {
   path,
@@ -51,7 +51,7 @@ export async function getServiceAccountAsync(source: ServiceAccountSource): Prom
 }
 
 async function handlePathSourceAsync(source: ServiceAccountPathSource): Promise<string> {
-  if (!(await isExistingFile(source.path))) {
+  if (!(await isExistingFileAsync(source.path))) {
     Log.warn(`File ${source.path} doesn't exist.`);
     return await getServiceAccountAsync({ sourceType: ServiceAccountSourceType.prompt });
   }
@@ -109,6 +109,7 @@ async function askForServiceAccountPathAsync(): Promise<string> {
     message: 'Path to Google Service Account file:',
     initial: 'api-0000000000000000000-111111-aaaaaabbbbbb.json',
     type: 'text',
+    // eslint-disable-next-line async-protect/async-suffix
     validate: async (filePath: string) => {
       try {
         const stats = await fs.stat(filePath);

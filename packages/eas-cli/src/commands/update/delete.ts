@@ -1,7 +1,8 @@
-import { Command, flags } from '@oclif/command';
+import { flags } from '@oclif/command';
 import chalk from 'chalk';
 import gql from 'graphql-tag';
 
+import EasCommand from '../../commandUtils/EasCommand';
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
 import {
   DeleteUpdateGroupMutation,
@@ -33,7 +34,7 @@ async function deleteUpdateGroupAsync({
   );
 }
 
-export default class UpdateDelete extends Command {
+export default class UpdateDelete extends EasCommand {
   static hidden = true;
   static description = 'Delete all the updates in an update Group.';
 
@@ -52,7 +53,7 @@ export default class UpdateDelete extends Command {
     }),
   };
 
-  async run(): Promise<void> {
+  async runAsync(): Promise<void> {
     const {
       args: { groupId: group },
       flags: { json: jsonFlag },

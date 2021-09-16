@@ -18,7 +18,7 @@ export type AppleDistributionCertificateMutationResult = AppleDistributionCertif
 };
 
 const AppleDistributionCertificateMutation = {
-  async createAppleDistributionCertificate(
+  async createAppleDistributionCertificateAsync(
     appleDistributionCertificateInput: AppleDistributionCertificateInput,
     accountId: string
   ): Promise<AppleDistributionCertificateMutationResult> {
@@ -60,7 +60,9 @@ const AppleDistributionCertificateMutation = {
     );
     return data.appleDistributionCertificate.createAppleDistributionCertificate;
   },
-  async deleteAppleDistributionCertificate(appleDistributionCertificateId: string): Promise<void> {
+  async deleteAppleDistributionCertificateAsync(
+    appleDistributionCertificateId: string
+  ): Promise<void> {
     await withErrorHandlingAsync(
       graphqlClient
         .mutation<DeleteAppleDistributionCertificateMutation>(

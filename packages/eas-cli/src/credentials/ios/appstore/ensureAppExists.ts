@@ -76,11 +76,11 @@ export async function ensureBundleIdExistsWithNameAsync(
   }
 
   if (options) {
-    await syncCapabilities(bundleId, options);
+    await syncCapabilitiesAsync(bundleId, options);
   }
 }
 
-export async function syncCapabilities(
+export async function syncCapabilitiesAsync(
   bundleId: BundleId,
   { entitlements }: IosCapabilitiesOptions
 ): Promise<void> {

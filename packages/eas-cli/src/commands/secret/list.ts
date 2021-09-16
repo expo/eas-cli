@@ -1,9 +1,9 @@
 import { getConfig } from '@expo/config';
-import { Command } from '@oclif/command';
 import chalk from 'chalk';
 import Table from 'cli-table3';
 import dateFormat from 'dateformat';
 
+import EasCommand from '../../commandUtils/EasCommand';
 import { EnvironmentSecretsQuery } from '../../graphql/queries/EnvironmentSecretsQuery';
 import Log from '../../log';
 import {
@@ -15,14 +15,11 @@ import {
   getProjectAccountNameAsync,
   getProjectIdAsync,
 } from '../../project/projectUtils';
-import { ensureLoggedInAsync } from '../../user/actions';
 
-export default class EnvironmentSecretList extends Command {
+export default class EnvironmentSecretList extends EasCommand {
   static description = 'Lists environment secrets available for your current app';
 
-  async run(): Promise<void> {
-    await ensureLoggedInAsync();
-
+  async runAsync(): Promise<void> {
     const projectDir = (await findProjectRootAsync()) ?? process.cwd();
     const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
     const projectId = await getProjectIdAsync(exp);

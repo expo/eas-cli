@@ -1,7 +1,8 @@
 import { getConfig } from '@expo/config';
-import { Command, flags } from '@oclif/command';
+import { flags } from '@oclif/command';
 import gql from 'graphql-tag';
 
+import EasCommand from '../../commandUtils/EasCommand';
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
 import {
   GetAllChannelsForAppQuery,
@@ -63,7 +64,7 @@ async function getAllUpdateChannelForAppAsync({
   );
 }
 
-export default class ChannelList extends Command {
+export default class ChannelList extends EasCommand {
   static hidden = true;
   static description = 'List all channels on the current project.';
 
@@ -74,7 +75,7 @@ export default class ChannelList extends Command {
     }),
   };
 
-  async run(): Promise<void> {
+  async runAsync(): Promise<void> {
     const {
       flags: { json: jsonFlag },
     } = this.parse(ChannelList);

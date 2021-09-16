@@ -6,7 +6,7 @@ import { ApplePushKeyByAccountQuery, ApplePushKeyFragment } from '../../../../..
 import { ApplePushKeyFragmentNode } from '../../../../../graphql/types/credentials/ApplePushKey';
 
 const ApplePushKeyQuery = {
-  async getAllForAccount(accountName: string): Promise<ApplePushKeyFragment[]> {
+  async getAllForAccountAsync(accountName: string): Promise<ApplePushKeyFragment[]> {
     const data = await withErrorHandlingAsync(
       graphqlClient
         .query<ApplePushKeyByAccountQuery>(

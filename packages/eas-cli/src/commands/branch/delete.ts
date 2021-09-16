@@ -1,8 +1,9 @@
 import { getConfig } from '@expo/config';
-import { Command, flags } from '@oclif/command';
+import { flags } from '@oclif/command';
 import chalk from 'chalk';
 import gql from 'graphql-tag';
 
+import EasCommand from '../../commandUtils/EasCommand';
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
 import {
   DeleteUpdateBranchMutation,
@@ -73,7 +74,7 @@ async function deleteBranchOnAppAsync({
   return data.updateBranch.deleteUpdateBranch;
 }
 
-export default class BranchDelete extends Command {
+export default class BranchDelete extends EasCommand {
   static hidden = true;
   static description = 'Republish an update group';
 
@@ -91,7 +92,7 @@ export default class BranchDelete extends Command {
     }),
   };
 
-  async run(): Promise<void> {
+  async runAsync(): Promise<void> {
     let {
       args: { name },
       flags: { json: jsonFlag },

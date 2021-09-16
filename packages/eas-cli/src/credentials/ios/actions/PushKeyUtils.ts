@@ -8,7 +8,7 @@ import { fromNow } from '../../../utils/date';
 import { Context } from '../../context';
 import { askForUserProvidedAsync } from '../../utils/promptForCredentials';
 import { PushKey, PushKeyStoreInfo } from '../appstore/Credentials.types';
-import { filterRevokedAndUntrackedPushKeysFromEasServers } from '../appstore/CredentialsUtils';
+import { filterRevokedAndUntrackedPushKeysFromEasServersAsync } from '../appstore/CredentialsUtils';
 import { APPLE_KEYS_TOO_MANY_GENERATED_ERROR } from '../appstore/pushKey';
 import { pushKeySchema } from '../credentials';
 import { isPushKeyValidAndTrackedAsync } from '../validators/validatePushKey';
@@ -137,7 +137,7 @@ export async function getValidAndTrackedPushKeysOnEasServersAsync(
   pushKeysForAccount: ApplePushKeyFragment[]
 ): Promise<ApplePushKeyFragment[]> {
   const pushInfoFromApple = await ctx.appStore.listPushKeysAsync();
-  return await filterRevokedAndUntrackedPushKeysFromEasServers(
+  return await filterRevokedAndUntrackedPushKeysFromEasServersAsync(
     pushKeysForAccount,
     pushInfoFromApple
   );

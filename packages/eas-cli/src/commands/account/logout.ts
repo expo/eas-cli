@@ -1,14 +1,14 @@
-import { Command } from '@oclif/command';
-
+import EasCommand from '../../commandUtils/EasCommand';
 import Log from '../../log';
 import { logoutAsync } from '../../user/User';
 
-export default class AccountLogout extends Command {
+export default class AccountLogout extends EasCommand {
   static description = 'log out';
-
   static aliases = ['logout'];
 
-  async run(): Promise<void> {
+  protected requiresAuthentication = false;
+
+  async runAsync(): Promise<void> {
     await logoutAsync();
     Log.log('Logged out');
   }
