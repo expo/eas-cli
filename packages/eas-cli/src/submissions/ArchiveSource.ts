@@ -163,11 +163,11 @@ async function handleBuildIdSourceAsync(source: ArchiveBuildIdSource): Promise<A
       source,
     };
   } catch (err) {
-    Log.error(chalk.bold(`Could not find build with id ${source.id}`));
+    Log.error(chalk.bold(`Could not find build with ID ${source.id}`));
     Log.warn(
-      'Are you sure you did not pass the build id from the legacy build service (expo build:(android|ios))?'
+      'Are you sure you did not pass the build ID from the legacy build service (expo build:(android|ios))?'
     );
-    Log.warn('Only EAS Build build ids are supported.');
+    Log.warn('Only EAS Build build IDs are supported.');
     return getArchiveAsync({
       ...source,
       sourceType: ArchiveSourceType.prompt,
@@ -191,7 +191,7 @@ async function handlePromptSourceAsync(source: ArchivePromptSource): Promise<Arc
         value: ArchiveSourceType.path,
       },
       {
-        title: 'A build identified by a build id',
+        title: 'A build identified by a build ID',
         value: ArchiveSourceType.buildId,
       },
     ],
