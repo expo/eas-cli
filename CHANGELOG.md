@@ -12,6 +12,7 @@ This is the log of notable changes to EAS CLI and related packages.
 - Support multi flavor Android projects. ([#595](https://github.com/expo/eas-cli/pull/595) by [@wkozyra95](https://github.com/wkozyra95))
 - Improve experience when using the build details page as a build artifact URL in `eas submit`. ([#620](https://github.com/expo/eas-cli/pull/620) by [@dsokal](https://github.com/dsokal))
 - Better error message when eas.json is invalid JSON. ([#618](https://github.com/expo/eas-cli/pull/618) by [@dsokal](https://github.com/dsokal))
+- Add warning about the legacy build service IDs in `eas submit`. ([#624](https://github.com/expo/eas-cli/pull/624) by [@dsokal](https://github.com/dsokal))
 
 ### 🐛 Bug fixes
 

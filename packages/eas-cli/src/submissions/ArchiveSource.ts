@@ -5,7 +5,7 @@ import * as uuid from 'uuid';
 
 import { BuildFragment } from '../graphql/generated';
 import { toAppPlatform } from '../graphql/types/AppPlatform';
-import Log from '../log';
+import Log, { learnMore } from '../log';
 import { confirmAsync, promptAsync } from '../prompts';
 import { getBuildByIdForSubmissionAsync, getLatestBuildForSubmissionAsync } from './utils/builds';
 import { isExistingFileAsync, uploadAppArchiveAsync } from './utils/files';
@@ -163,8 +163,13 @@ async function handleBuildIdSourceAsync(source: ArchiveBuildIdSource): Promise<A
       source,
     };
   } catch (err) {
-    Log.error(chalk.bold(`Couldn't find build for id ${source.id}`));
-    Log.error(err);
+    Log.error(chalk.bold(`Could not find build with ID ${source.id}`));
+    Log.warn('Are you sure that the given ID corresponds to a build from EAS Build?');
+    Log.warn(
+      `Build IDs from the classic build service (expo build:[android|ios]) are not supported. ${learnMore(
+        'https://docs.expo.dev/submit/classic-builds/'
+      )}`
+    );
     return getArchiveAsync({
       ...source,
       sourceType: ArchiveSourceType.prompt,
@@ -188,7 +193,7 @@ async function handlePromptSourceAsync(source: ArchivePromptSource): Promise<Arc
         value: ArchiveSourceType.path,
       },
       {
-        title: 'A build identified by a build id',
+        title: 'A build identified by a build ID',
         value: ArchiveSourceType.buildId,
       },
     ],
