@@ -162,7 +162,11 @@ async function handleBuildIdSourceAsync(source: ArchiveBuildIdSource): Promise<A
 
     if (build.platform !== toAppPlatform(source.platform)) {
       Log.error(
-        `Build platform doesn't match! Expected '${source.platform}', but the build platform is '${build.platform}'.`
+        chalk.bold(
+          `Build platform doesn't match! Expected '${
+            source.platform
+          }', but the build platform is '${build.platform.toLowerCase()}'.`
+        )
       );
 
       return getArchiveAsync({
