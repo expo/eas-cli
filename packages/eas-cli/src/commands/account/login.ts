@@ -9,7 +9,6 @@ export default class AccountLogin extends EasCommand {
   protected requiresAuthentication = false;
 
   async runAsync(): Promise<void> {
-    Log.log('Log in to EAS');
     await showLoginPromptAsync();
     Log.log('Logged in');
   }
