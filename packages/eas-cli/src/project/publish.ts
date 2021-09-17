@@ -1,6 +1,5 @@
 import { ExpoConfig, Platform } from '@expo/config';
 import JsonFile from '@expo/json-file';
-import spawnAsync from '@expo/spawn-async';
 import crypto from 'crypto';
 import fs from 'fs';
 import Joi from 'joi';

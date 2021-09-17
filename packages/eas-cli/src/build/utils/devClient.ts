@@ -5,7 +5,7 @@ import chalk from 'chalk';
 import resolveFrom from 'resolve-from';
 
 import { toAppPlatform } from '../../graphql/types/AppPlatform';
-import Log from '../../log';
+import Log, { learnMore } from '../../log';
 import { appPlatformDisplayNames } from '../../platform';
 import { resolveWorkflowAsync } from '../../project/workflow';
 import { confirmAsync } from '../../prompts';
@@ -47,6 +47,7 @@ export async function ensureExpoDevClientInstalledForDevClientBuildsAsync({
     platformsToCheck.map(platform => resolveWorkflowAsync(projectDir, platform))
   );
 
+  Log.newLine();
   Log.error(
     `You want to build a development client build for platforms: ${platformsToCheck
       .map(i => chalk.bold(appPlatformDisplayNames[toAppPlatform(i)]))
@@ -72,7 +73,14 @@ export async function ensureExpoDevClientInstalledForDevClientBuildsAsync({
     }
   } else {
     Log.warn(`Unfortunately, you need to install ${chalk.bold('expo-dev-client')} on your own.`);
+    Log.warn(
+      learnMore('https://docs.expo.dev/clients/installation/', {
+        learnMoreMessage: 'See installation instructions on how to do it',
+        dim: false,
+      })
+    );
     Log.warn('If you proceed anyway, you might not get the build you want.');
+    Log.newLine();
     const shouldContinue = await confirmAsync({
       message: 'Do you want to proceed anyway?',
       initial: false,
