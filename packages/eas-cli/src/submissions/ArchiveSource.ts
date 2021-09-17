@@ -166,7 +166,7 @@ async function handleBuildIdSourceAsync(source: ArchiveBuildIdSource): Promise<A
       const receivedPlatformName = appPlatformDisplayNames[build.platform];
       Log.error(
         chalk.bold(
-          `Build platform doesn't match! Expected ${expectedPlatformName} build, but got ${receivedPlatformName}.`
+          `Build platform doesn't match! Expected ${expectedPlatformName} build but got ${receivedPlatformName}.`
         )
       );
 
