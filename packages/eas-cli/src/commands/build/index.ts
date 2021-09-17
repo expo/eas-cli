@@ -14,6 +14,7 @@ import { BuildRequestSender, waitForBuildEndAsync } from '../../build/build';
 import { ensureProjectConfiguredAsync } from '../../build/configure';
 import { BuildContext, createBuildContextAsync } from '../../build/context';
 import { prepareIosBuildAsync } from '../../build/ios/build';
+import { ensureExpoDevClientInstalledForDevClientBuildsAsync } from '../../build/utils/devClient';
 import { printBuildResults, printLogsUrls } from '../../build/utils/printBuildInfo';
 import { ensureRepoIsCleanAsync } from '../../build/utils/repository';
 import EasCommand from '../../commandUtils/EasCommand';
@@ -144,6 +145,12 @@ export default class Build extends EasCommand {
     await ensureProjectConfiguredAsync(projectDir, requestedPlatform);
 
     const platforms = toPlatforms(requestedPlatform);
+    await ensureExpoDevClientInstalledForDevClientBuildsAsync({
+      platforms,
+      projectDir,
+      profile: flags.profile,
+      nonInteractive: flags.nonInteractive,
+    });
 
     const startedBuilds: BuildFragment[] = [];
     for (const platform of platforms) {
