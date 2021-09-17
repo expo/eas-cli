@@ -2,38 +2,6 @@
 # yarn lockfile v1
 
 
-"@amplitude/identify@1.7.0", "@amplitude/identify@^1.7.0":
-  version "1.7.0"
-  resolved "https://registry.yarnpkg.com/@amplitude/identify/-/identify-1.7.0.tgz#ea8e435d55e55027ced0abfe1a5e250038e75f6c"
-  integrity sha512-AhaYj76cExvABu2C2Q6oO4aRNQhQkP7foQb7Lk7qW5ZPhdiWpAOGThdMre0pu5CSYF21G+FUnM6/1WQ5Cfkw3A==
-  dependencies:
-    "@amplitude/types" "^1.7.0"
-    "@amplitude/utils" "^1.7.0"
-    tslib "^1.9.3"
-
-"@amplitude/node@1.7.0":
-  version "1.7.0"
-  resolved "https://registry.yarnpkg.com/@amplitude/node/-/node-1.7.0.tgz#534745e79a621ef74b1153c19c5683559ff930ac"
-  integrity sha512-+2z0V+3fVbSihbJipADvFPb2bDCLvpgDnzLkNUka606DTyLWPuoDKzawUgl2yanuFXowFYEmQ2EltuQHoXd3YQ==
-  dependencies:
-    "@amplitude/identify" "^1.7.0"
-    "@amplitude/types" "^1.7.0"
-    "@amplitude/utils" "^1.7.0"
-    tslib "^1.9.3"
-
-"@amplitude/types@^1.7.0":
-  version "1.7.0"
-  resolved "https://registry.yarnpkg.com/@amplitude/types/-/types-1.7.0.tgz#c9f6636245f2de0ab58ee667b442cef58c42c453"
-  integrity sha512-zPENZDWlh64WHj/7Jjghu2HGWywMPundf25ycxn0tYXtxTvPmK2m/MMV6GvUN5uW0kg65eeKETCfge1UJ9MXlQ==
-
-"@amplitude/utils@^1.7.0":
-  version "1.7.0"
-  resolved "https://registry.yarnpkg.com/@amplitude/utils/-/utils-1.7.0.tgz#91ef07f203223ad4f5309f0c8950ebb5de6bd8eb"
-  integrity sha512-+WsKdFbA+rR/xSTlho90C+GlzDL7Sn51J4bmmGtOSTZk5oEPohvHzHO8pVBGDB8UvNAs2LjQQ7q7b2qRWdUtvA==
-  dependencies:
-    "@amplitude/types" "^1.7.0"
-    tslib "^1.9.3"
-
 "@ardatan/aggregate-error@0.0.6":
   version "0.0.6"
   resolved "https://registry.yarnpkg.com/@ardatan/aggregate-error/-/aggregate-error-0.0.6.tgz#fe6924771ea40fc98dc7a7045c2e872dc8527609"

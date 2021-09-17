@@ -9,6 +9,8 @@ export type UserSettingsData = {
   appleId?: string;
   amplitudeDeviceId?: string;
   amplitudeEnabled?: boolean;
+  analyticsDeviceId?: string;
+  analyticsEnabled?: boolean;
 };
 
 const UserSettings: JsonFile<UserSettingsData> = new JsonFile<UserSettingsData>(
