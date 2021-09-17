@@ -121,3 +121,55 @@ export async function makeProjectTarballAsync(): Promise<{ path: string; size: n
 
   return { size, path: tarPath };
 }
+
+enum ShouldCommitChanges {
+  Yes,
+  ShowDiffFirst,
+  Abort,
+}
+
+export async function reviewAndCommitChangesAsync(
+  initialCommitMessage: string,
+  { nonInteractive, askedFirstTime = true }: { nonInteractive: boolean; askedFirstTime?: boolean }
+): Promise<void> {
+  if (process.env.EAS_BUILD_AUTOCOMMIT) {
+    await vcs.commitAsync({ commitMessage: initialCommitMessage, commitAllFiles: false });
+    Log.withTick('Committed changes.');
+    return;
+  }
+  if (nonInteractive) {
+    throw new Error(
+      'Cannot commit changes when --non-interactive is specified. Run the command in interactive mode or set EAS_BUILD_AUTOCOMMIT=1 in your environment.'
+    );
+  }
+  const { selected } = await promptAsync({
+    type: 'select',
+    name: 'selected',
+    message: 'Can we commit these changes to git for you?',
+    choices: [
+      { title: 'Yes', value: ShouldCommitChanges.Yes },
+      ...(askedFirstTime
+        ? [{ title: 'Show the diff and ask me again', value: ShouldCommitChanges.ShowDiffFirst }]
+        : []),
+      {
+        title: 'Abort build process',
+        value: ShouldCommitChanges.Abort,
+      },
+    ],
+  });
+
+  if (selected === ShouldCommitChanges.Abort) {
+    throw new Error(
+      "Aborting, run the command again once you're ready. Make sure to commit any changes you've made."
+    );
+  } else if (selected === ShouldCommitChanges.Yes) {
+    await commitPromptAsync({ initialCommitMessage });
+    Log.withTick('Committed changes.');
+  } else if (selected === ShouldCommitChanges.ShowDiffFirst) {
+    await vcs.showDiffAsync();
+    await reviewAndCommitChangesAsync(initialCommitMessage, {
+      nonInteractive,
+      askedFirstTime: false,
+    });
+  }
+}
