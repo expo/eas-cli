@@ -5,17 +5,23 @@ import { v4 as uuidv4 } from 'uuid';
 
 import { asMock } from '../../__tests__/utils';
 import { AppPlatform, BuildFragment, UploadSessionType } from '../../graphql/generated';
+import { BuildQuery } from '../../graphql/queries/BuildQuery';
 import { toAppPlatform } from '../../graphql/types/AppPlatform';
 import { confirmAsync, promptAsync } from '../../prompts';
 import { uploadAsync } from '../../uploads';
 import { Archive, ArchiveSourceType, getArchiveAsync } from '../ArchiveSource';
-import { getBuildByIdForSubmissionAsync, getLatestBuildForSubmissionAsync } from '../utils/builds';
+import { getLatestBuildForSubmissionAsync } from '../utils/builds';
 
 jest.mock('fs');
 jest.mock('../../log');
 jest.mock('../../prompts');
 jest.mock('../utils/builds');
 jest.mock('../../uploads');
+jest.mock('../../graphql/queries/BuildQuery', () => ({
+  BuildQuery: {
+    byIdAsync: jest.fn(),
+  },
+}));
 
 const ARCHIVE_URL = 'https://url.to/archive.tar.gz';
 
@@ -77,6 +83,7 @@ describe(getArchiveAsync, () => {
 
   it('asks the user if use build id instead of build details page url', async () => {
     asMock(confirmAsync).mockResolvedValueOnce(true);
+    asMock(BuildQuery.byIdAsync).mockResolvedValueOnce(MOCK_BUILD_FRAGMENT);
 
     const archive = await getArchiveAsync({
       ...SOURCE_STUB_INPUT,
@@ -104,7 +111,7 @@ describe(getArchiveAsync, () => {
 
   it('handles Build ID source', async () => {
     const buildId = uuidv4();
-    asMock(getBuildByIdForSubmissionAsync).mockResolvedValueOnce(MOCK_BUILD_FRAGMENT);
+    asMock(BuildQuery.byIdAsync).mockResolvedValueOnce(MOCK_BUILD_FRAGMENT);
 
     const archive = await getArchiveAsync({
       ...SOURCE_STUB_INPUT,
@@ -112,15 +119,12 @@ describe(getArchiveAsync, () => {
       id: buildId,
     });
 
-    expect(getBuildByIdForSubmissionAsync).toBeCalledWith(
-      toAppPlatform(SOURCE_STUB_INPUT.platform),
-      buildId
-    );
+    expect(BuildQuery.byIdAsync).toBeCalledWith(buildId);
     assertArchiveResult(archive, ArchiveSourceType.buildId);
   });
 
   it('prompts again if build with provided ID doesnt exist', async () => {
-    asMock(getBuildByIdForSubmissionAsync).mockRejectedValue(new Error('Build doesnt exist'));
+    asMock(BuildQuery.byIdAsync).mockRejectedValue(new Error('Build doesnt exist'));
     asMock(promptAsync)
       .mockResolvedValueOnce({ sourceType: ArchiveSourceType.url })
       .mockResolvedValueOnce({ url: ARCHIVE_URL });
