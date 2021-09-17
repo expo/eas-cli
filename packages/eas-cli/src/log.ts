@@ -32,6 +32,12 @@ export default class Log {
     Log.consoleWarn(...Log.withTextColor(args, chalk.yellow));
   }
 
+  public static debug(...args: any[]): void {
+    if (Log.isDebug) {
+      Log.consoleLog(...args);
+    }
+  }
+
   public static gray(...args: any[]): void {
     Log.consoleLog(...Log.withTextColor(args, chalk.gray));
   }

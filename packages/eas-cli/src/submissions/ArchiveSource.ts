@@ -4,10 +4,11 @@ import { URL } from 'url';
 import * as uuid from 'uuid';
 
 import { BuildFragment } from '../graphql/generated';
+import { BuildQuery } from '../graphql/queries/BuildQuery';
 import { toAppPlatform } from '../graphql/types/AppPlatform';
 import Log, { learnMore } from '../log';
 import { confirmAsync, promptAsync } from '../prompts';
-import { getBuildByIdForSubmissionAsync, getLatestBuildForSubmissionAsync } from './utils/builds';
+import { getLatestBuildForSubmissionAsync } from './utils/builds';
 import { isExistingFileAsync, uploadAppArchiveAsync } from './utils/files';
 
 export enum ArchiveSourceType {
@@ -157,7 +158,19 @@ async function handlePathSourceAsync(source: ArchivePathSource): Promise<Archive
 
 async function handleBuildIdSourceAsync(source: ArchiveBuildIdSource): Promise<Archive> {
   try {
-    const build = await getBuildByIdForSubmissionAsync(toAppPlatform(source.platform), source.id);
+    const build = await BuildQuery.byIdAsync(source.id);
+
+    if (build.platform !== toAppPlatform(source.platform)) {
+      Log.error(
+        `Build platform doesn't match! Expected '${source.platform}', but the build platform is '${build.platform}'.`
+      );
+
+      return getArchiveAsync({
+        ...source,
+        sourceType: ArchiveSourceType.prompt,
+      });
+    }
+
     return {
       build,
       source,
@@ -170,6 +183,8 @@ async function handleBuildIdSourceAsync(source: ArchiveBuildIdSource): Promise<A
         'https://docs.expo.dev/submit/classic-builds/'
       )}`
     );
+    Log.debug('Original error:', err);
+
     return getArchiveAsync({
       ...source,
       sourceType: ArchiveSourceType.prompt,
