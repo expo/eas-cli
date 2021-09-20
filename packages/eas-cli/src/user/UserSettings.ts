@@ -13,13 +13,10 @@ export type UserSettingsData = {
   analyticsEnabled?: boolean;
 };
 
-const UserSettings: JsonFile<UserSettingsData> = new JsonFile<UserSettingsData>(
-  SETTINGS_FILE_PATH,
-  {
-    jsonParseErrorDefault: {},
-    cantReadFileDefault: {},
-    ensureDir: true,
-  }
-);
+const UserSettings = new JsonFile<UserSettingsData>(SETTINGS_FILE_PATH, {
+  jsonParseErrorDefault: {},
+  cantReadFileDefault: {},
+  ensureDir: true,
+});
 
 export default UserSettings;

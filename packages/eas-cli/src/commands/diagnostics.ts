@@ -18,14 +18,16 @@ export default class Diagnostics extends EasCommand {
         Utilities: ['Git'],
         npmPackages: [
           'expo',
+          'expo-cli',
           'react',
           'react-dom',
           'react-native',
           'react-native-web',
           'react-navigation',
           '@expo/webpack-config',
+          'expo-dev-client',
         ],
-        npmGlobalPackages: ['eas-cli'],
+        npmGlobalPackages: ['eas-cli', 'expo-cli'],
       },
       {
         title: `EAS CLI ${packageJSON.version} environment info`,

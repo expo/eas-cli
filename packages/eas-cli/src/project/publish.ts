@@ -1,6 +1,5 @@
 import { ExpoConfig, Platform } from '@expo/config';
 import JsonFile from '@expo/json-file';
-import spawnAsync from '@expo/spawn-async';
 import crypto from 'crypto';
 import fs from 'fs';
 import Joi from 'joi';
@@ -13,6 +12,7 @@ import { PresignedPost } from '../graphql/mutations/UploadSessionMutation';
 import { PublishQuery } from '../graphql/queries/PublishQuery';
 import Log from '../log';
 import { uploadWithPresignedPostAsync } from '../uploads';
+import { expoCommandAsync } from '../utils/expoCommand';
 import uniqBy from '../utils/expodash/uniqBy';
 
 export const TIMEOUT_LIMIT = 60_000; // 1 minute
@@ -158,28 +158,7 @@ export async function buildBundlesAsync({
   }
 
   Log.withTick(`Building bundle with expo-cli...`);
-  const spawnPromise = spawnAsync(
-    'yarn',
-    ['expo', 'export', '--output-dir', inputDir, '--experimental-bundle'],
-    { stdio: ['inherit', 'pipe', 'pipe'] } // inherit stdin so user can install a missing expo-cli from inside this command
-  );
-  const {
-    child: { stdout, stderr },
-  } = spawnPromise;
-  if (!(stdout && stderr)) {
-    throw new Error('Failed to spawn expo-cli');
-  }
-  stdout.on('data', data => {
-    for (const line of data.toString().trim().split('\n')) {
-      Log.log(`[expo-cli]${line}`);
-    }
-  });
-  stderr.on('data', data => {
-    for (const line of data.toString().trim().split('\n')) {
-      Log.warn(`[expo-cli]${line}`);
-    }
-  });
-  await spawnPromise;
+  await expoCommandAsync(projectDir, ['export', '--output-dir', inputDir, '--experimental-bundle']);
 }
 
 export function resolveInputDirectory(customInputDirectory: string): string {
