@@ -1,3 +1,4 @@
+// eslint-disable-next-line
 import oraReal, { Options, Ora } from 'ora';
 
 import Log from './log';
