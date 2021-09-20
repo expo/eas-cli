@@ -35,12 +35,12 @@ import {
 import { validateMetroConfigForManagedWorkflowAsync } from '../../project/metroConfig';
 import { findProjectRootAsync } from '../../project/projectUtils';
 import { confirmAsync } from '../../prompts';
-import { createSubmissionContext } from '../../submissions/context';
+import { createSubmissionContext } from '../../submit/context';
 import {
   submitAsync,
   waitToCompleteAsync as waitForSubmissionsToCompleteAsync,
-} from '../../submissions/submit';
-import { printSubmissionDetailsUrls } from '../../submissions/utils/urls';
+} from '../../submit/submit';
+import { printSubmissionDetailsUrls } from '../../submit/utils/urls';
 import { enableJsonOutput } from '../../utils/json';
 import vcs from '../../vcs';
 
