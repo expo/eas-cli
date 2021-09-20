@@ -17,9 +17,9 @@ import {
 } from '../platform';
 import { isEasEnabledForProjectAsync, warnEasUnavailable } from '../project/isEasEnabledForProject';
 import { findProjectRootAsync, getProjectIdAsync } from '../project/projectUtils';
-import { SubmitArchiveFlags, createSubmissionContext } from '../submissions/context';
-import { submitAsync, waitToCompleteAsync } from '../submissions/submit';
-import { printSubmissionDetailsUrls } from '../submissions/utils/urls';
+import { SubmitArchiveFlags, createSubmissionContext } from '../submit/context';
+import { submitAsync, waitToCompleteAsync } from '../submit/submit';
+import { printSubmissionDetailsUrls } from '../submit/utils/urls';
 
 interface RawFlags {
   platform?: string;
