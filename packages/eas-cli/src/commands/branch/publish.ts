@@ -5,7 +5,6 @@ import assert from 'assert';
 import chalk from 'chalk';
 import dateFormat from 'dateformat';
 import gql from 'graphql-tag';
-import ora from 'ora';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
@@ -20,6 +19,7 @@ import {
 } from '../../graphql/generated';
 import { PublishMutation } from '../../graphql/mutations/PublishMutation';
 import Log from '../../log';
+import { ora } from '../../ora';
 import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUtils';
 import {
   PublishPlatform,

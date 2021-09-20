@@ -1,9 +1,9 @@
 import { Keys } from '@expo/apple-utils';
 import chalk from 'chalk';
 import dateformat from 'dateformat';
-import ora from 'ora';
 
 import Log from '../../../log';
+import { ora } from '../../../ora';
 import { PushKey, PushKeyStoreInfo } from './Credentials.types';
 import { AuthCtx, getRequestContext } from './authenticate';
 

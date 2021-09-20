@@ -1,10 +1,10 @@
 import chalk from 'chalk';
 import Table from 'cli-table3';
-import ora from 'ora';
 
 import { AppleDeviceMutation } from '../../../credentials/ios/api/graphql/mutations/AppleDeviceMutation';
 import { AppleDeviceClass, AppleTeam } from '../../../graphql/generated';
 import Log from '../../../log';
+import { ora } from '../../../ora';
 import { confirmAsync, promptAsync } from '../../../prompts';
 import { isValidUDID, normalizeUDID } from '../../udids';
 

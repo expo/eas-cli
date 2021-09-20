@@ -13,6 +13,11 @@ module.exports = {
     ],
     'flowtype/no-types-missing-file-annotation': 'off',
     curly: 'warn',
+    'import/no-cycle': 'error',
+    'import/no-extraneous-dependencies': [
+      'error',
+      { devDependencies: ['**/__tests__/**/*', '**/__mocks__/**/*'] },
+    ],
     'import/no-relative-packages': 'error',
     'no-restricted-imports': [
       'error',

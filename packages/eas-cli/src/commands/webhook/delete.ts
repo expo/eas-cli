@@ -2,13 +2,13 @@ import { getConfig } from '@expo/config';
 import assert from 'assert';
 import chalk from 'chalk';
 import nullthrows from 'nullthrows';
-import ora from 'ora';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import { WebhookFragment } from '../../graphql/generated';
 import { WebhookMutation } from '../../graphql/mutations/WebhookMutation';
 import { WebhookQuery } from '../../graphql/queries/WebhookQuery';
 import Log from '../../log';
+import { ora } from '../../ora';
 import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUtils';
 import { promptAsync, toggleConfirmAsync } from '../../prompts';
 import { formatWebhook } from '../../webhooks/formatWebhook';

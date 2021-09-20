@@ -1,9 +1,18 @@
+const rootEslintrc = require('../../.eslintrc.js');
+
 module.exports = {
   rules: {
-    'import/no-cycle': 'error',
-    'import/no-extraneous-dependencies': [
+    'no-restricted-imports': [
       'error',
-      { devDependencies: ['**/__tests__/**/*', '**/__mocks__/**/*'] },
+      {
+        paths: [
+          ...rootEslintrc.rules['no-restricted-imports'][1].paths,
+          {
+            name: 'ora',
+            message: 'Import ora from src/ora.ts instead.',
+          },
+        ],
+      },
     ],
     'graphql/template-strings': [
       'error',

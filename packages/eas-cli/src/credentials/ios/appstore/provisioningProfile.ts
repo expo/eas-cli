@@ -1,6 +1,6 @@
 import { Profile, ProfileType, RequestContext } from '@expo/apple-utils';
-import ora from 'ora';
 
+import { ora } from '../../../ora';
 import { findP12CertSerialNumber } from '../utils/p12Certificate';
 import {
   DistributionCertificate,

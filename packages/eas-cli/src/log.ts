@@ -1,8 +1,6 @@
-/* eslint-disable no-console */
 import chalk from 'chalk';
 import figures from 'figures';
 import { boolish } from 'getenv';
-import ora from 'ora';
 import terminalLink from 'terminal-link';
 
 type Color = (...text: string[]) => string;
@@ -47,7 +45,7 @@ export default class Log {
   }
 
   public static succeed(message: string): void {
-    ora().succeed(message);
+    Log.log(`${chalk.green('√')} ${message}`);
   }
 
   public static withTick(...args: any[]): void {
@@ -56,16 +54,19 @@ export default class Log {
 
   private static consoleLog(...args: any[]): void {
     Log.updateIsLastLineNewLine(args);
+    // eslint-disable-next-line no-console
     console.log(...args);
   }
 
   private static consoleWarn(...args: any[]): void {
     Log.updateIsLastLineNewLine(args);
+    // eslint-disable-next-line no-console
     console.warn(...args);
   }
 
   private static consoleError(...args: any[]): void {
     Log.updateIsLastLineNewLine(args);
+    // eslint-disable-next-line no-console
     console.error(...args);
   }
 

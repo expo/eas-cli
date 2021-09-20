@@ -1,8 +1,7 @@
-import ora from 'ora';
-
 import EasCommand from '../../commandUtils/EasCommand';
 import { WebhookQuery } from '../../graphql/queries/WebhookQuery';
 import Log from '../../log';
+import { ora } from '../../ora';
 import { formatWebhook } from '../../webhooks/formatWebhook';
 
 export default class WebhookView extends EasCommand {

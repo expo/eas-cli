@@ -1,11 +1,11 @@
 import chalk from 'chalk';
 import fs from 'fs-extra';
-import ora from 'ora';
 import path from 'path';
 import tar from 'tar';
 import { v4 as uuidv4 } from 'uuid';
 
 import Log from '../../log';
+import { ora } from '../../ora';
 import { confirmAsync, promptAsync } from '../../prompts';
 import { formatBytes } from '../../utils/files';
 import { getTmpDirectory } from '../../utils/paths';

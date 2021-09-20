@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Prevent ora spinners breaking when debug logs are enabled. ([#575](https://github.com/expo/eas-cli/pull/575) by [@EvanBacon](https://github.com/EvanBacon))
+
 ### 🧹 Chores
 
 ## [0.28.0](https://github.com/expo/eas-cli/releases/tag/v0.28.0) - 2021-09-10

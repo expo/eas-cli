@@ -1,8 +1,7 @@
-import ora from 'ora';
-
 import { AppPlatform, SubmissionFragment, SubmissionStatus } from '../../graphql/generated';
 import { SubmissionQuery } from '../../graphql/queries/SubmissionQuery';
 import Log from '../../log';
+import { ora } from '../../ora';
 import { sleepAsync } from '../../utils/promise';
 
 const APP_STORE_NAMES: Record<AppPlatform, string> = {

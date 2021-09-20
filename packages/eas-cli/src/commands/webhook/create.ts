@@ -1,10 +1,10 @@
 import { getConfig } from '@expo/config';
 import { flags } from '@oclif/command';
-import ora from 'ora';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import { WebhookType } from '../../graphql/generated';
 import { WebhookMutation } from '../../graphql/mutations/WebhookMutation';
+import { ora } from '../../ora';
 import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUtils';
 import { prepareInputParamsAsync } from '../../webhooks/input';
 

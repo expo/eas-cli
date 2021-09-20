@@ -1,10 +1,10 @@
 import { getConfig } from '@expo/config';
-import ora from 'ora';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import { AppleDeviceQuery } from '../../credentials/ios/api/graphql/queries/AppleDeviceQuery';
 import formatDevice from '../../devices/utils/formatDevice';
 import Log from '../../log';
+import { ora } from '../../ora';
 import { findProjectRootAsync, getProjectAccountNameAsync } from '../../project/projectUtils';
 
 export default class DeviceView extends EasCommand {

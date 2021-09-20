@@ -3,12 +3,12 @@ import { CredentialsSource } from '@expo/eas-json';
 import chalk from 'chalk';
 import fs from 'fs-extra';
 import nullthrows from 'nullthrows';
-import ora from 'ora';
 
 import { BuildFragment, BuildStatus, UploadSessionType } from '../graphql/generated';
 import { BuildResult } from '../graphql/mutations/BuildMutation';
 import { BuildQuery } from '../graphql/queries/BuildQuery';
 import Log, { learnMore } from '../log';
+import { ora } from '../ora';
 import { requestedPlatformDisplayNames } from '../platform';
 import { uploadAsync } from '../uploads';
 import { formatBytes } from '../utils/files';
