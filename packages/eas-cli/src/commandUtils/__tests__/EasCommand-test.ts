@@ -19,6 +19,17 @@ jest.mock('../../analytics', () => {
   };
 });
 
+let originalProcessArgv: string[];
+
+beforeAll(() => {
+  originalProcessArgv = process.argv;
+  process.argv = [];
+});
+
+afterAll(() => {
+  process.argv = originalProcessArgv;
+});
+
 beforeEach(() => {
   (getUserAsync as jest.Mock).mockReset().mockImplementation(() => mockJester);
   (ensureLoggedInAsync as jest.Mock).mockReset().mockImplementation(() => mockJester);

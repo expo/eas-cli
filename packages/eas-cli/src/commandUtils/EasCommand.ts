@@ -19,11 +19,13 @@ export default abstract class EasCommand extends Command {
   protected abstract runAsync(): Promise<any>;
 
   // eslint-disable-next-line async-protect/async-suffix
-  async init(): Promise<void> {
+  async run(): Promise<any> {
     await initAnalyticsAsync();
 
     if (this.requiresAuthentication) {
-      await ensureLoggedInAsync();
+      const { flags } = this.parse();
+      const nonInteractive = (flags as any)['non-interactive'] ?? false;
+      await ensureLoggedInAsync({ nonInteractive });
     } else {
       await getUserAsync();
     }
@@ -32,10 +34,6 @@ export default abstract class EasCommand extends Command {
       // commands/submit === submit, commands/build/list === build:list
       action: `eas ${this.id}`,
     });
-  }
-
-  // eslint-disable-next-line async-protect/async-suffix
-  async run(): Promise<any> {
     return this.runAsync();
   }
 

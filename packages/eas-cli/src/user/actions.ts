@@ -1,12 +1,33 @@
+import { error } from '@oclif/errors';
+import chalk from 'chalk';
 import nullthrows from 'nullthrows';
 
 import ApiV2Error from '../ApiV2Error';
-import Log from '../log';
+import Log, { learnMore } from '../log';
 import { promptAsync } from '../prompts';
 import { Actor, getUserAsync, loginAsync } from './User';
 import { retryUsernamePasswordAuthWithOTPAsync } from './otp';
 
-export async function showLoginPromptAsync(): Promise<void> {
+export async function showLoginPromptAsync({
+  nonInteractive = false,
+  printNewLine = false,
+} = {}): Promise<void> {
+  if (nonInteractive) {
+    error(
+      `Either log in with ${chalk.bold('eas login')} or set the ${chalk.bold(
+        'EXPO_TOKEN'
+      )} environment variable if you're using EAS CLI on CI (${learnMore(
+        'https://docs.expo.dev/accounts/programmatic-access/',
+        { dim: false }
+      )})`
+    );
+  }
+  if (printNewLine) {
+    Log.newLine();
+  }
+
+  Log.log('Log in to EAS');
+
   const { username, password } = await promptAsync([
     {
       type: 'text',
@@ -37,7 +58,7 @@ export async function showLoginPromptAsync(): Promise<void> {
   }
 }
 
-export async function ensureLoggedInAsync(): Promise<Actor> {
+export async function ensureLoggedInAsync({ nonInteractive = false } = {}): Promise<Actor> {
   let user: Actor | undefined;
   try {
     user = await getUserAsync();
@@ -45,9 +66,7 @@ export async function ensureLoggedInAsync(): Promise<Actor> {
 
   if (!user) {
     Log.warn('An Expo user account is required to proceed.');
-    Log.newLine();
-    Log.log('Log in to EAS');
-    await showLoginPromptAsync(); // TODO: login or register
+    await showLoginPromptAsync({ nonInteractive, printNewLine: true });
     user = await getUserAsync();
   }
 
