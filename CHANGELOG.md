@@ -8,6 +8,14 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [0.28.0](https://github.com/expo/eas-cli/releases/tag/v0.28.0) - 2021-09-10
+
+### 🎉 New features
+
 - Use envs from build profile to resolve app config when auto-submitting. ([#614](https://github.com/expo/eas-cli/pull/614) by [@dsokal](https://github.com/dsokal))
 - Support multi flavor Android projects. ([#595](https://github.com/expo/eas-cli/pull/595) by [@wkozyra95](https://github.com/wkozyra95))
 - Improve experience when using the build details page as a build artifact URL in `eas submit`. ([#620](https://github.com/expo/eas-cli/pull/620) by [@dsokal](https://github.com/dsokal))
@@ -15,8 +23,6 @@ This is the log of notable changes to EAS CLI and related packages.
 - Add warning about the legacy build service IDs in `eas submit`. ([#624](https://github.com/expo/eas-cli/pull/624) by [@dsokal](https://github.com/dsokal))
 - Validate that project includes `expo-dev-client` when building with `developmentClient` flag. ([#627](https://github.com/expo/eas-cli/pull/627) by [@dsokal](https://github.com/dsokal))
 - Better experience when not logged in in non-interactive mode. ([#628](https://github.com/expo/eas-cli/pull/628) by [@dsokal](https://github.com/dsokal))
-
-### 🐛 Bug fixes
 
 ### 🧹 Chores
 
