@@ -304,6 +304,7 @@ export default class Build extends EasCommand {
       // multiflavor android projects.
       throw new Error('Autoincrementing is only supported for managed apps.');
     }
+
     return await this.startBuildAsync(buildCtx);
   }
 

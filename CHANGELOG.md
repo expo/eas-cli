@@ -6,6 +6,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🛠 Breaking changes
 
+- Only allow autoIncrementing on managed projects. ([#630](https://github.com/expo/eas-cli/pull/630) by [@jkhales](https://github.com/jkhales))
+
 ### 🎉 New features
 
 ### 🐛 Bug fixes
