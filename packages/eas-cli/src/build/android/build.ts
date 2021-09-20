@@ -64,9 +64,11 @@ This means that it will most likely produce an AAB and you will not be able to i
       return await ensureAndroidCredentialsAsync(ctx, gradleContext);
     },
     ensureProjectConfiguredAsync: async () => {
-      if (ctx.workflow === Workflow.GENERIC) {
-        await validateAndSyncProjectConfigurationAsync(ctx.projectDir, ctx.exp);
-      }
+      await validateAndSyncProjectConfigurationAsync({
+        projectDir: ctx.projectDir,
+        exp: ctx.exp,
+        buildProfile,
+      });
     },
     getMetadataContext: () => ({
       gradleContext,

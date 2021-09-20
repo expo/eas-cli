@@ -2,19 +2,18 @@ import { ExpoConfig, getConfigFilePaths } from '@expo/config';
 import { IOSConfig } from '@expo/config-plugins';
 import { Platform, Workflow } from '@expo/eas-build-job';
 import chalk from 'chalk';
-import nullthrows from 'nullthrows';
 import path from 'path';
-import semver from 'semver';
 import type { XCBuildConfiguration } from 'xcode';
 
 import Log from '../../log';
 import { resolveWorkflowAsync } from '../../project/workflow';
 import { promptAsync } from '../../prompts';
 import { updateAppJsonConfigAsync } from '../utils/appJson';
+import { bumpAppVersionAsync } from '../utils/version';
 import { readPlistAsync, writePlistAsync } from './plist';
 
 export enum BumpStrategy {
-  SHORT_VERSION,
+  APP_VERSION,
   BUILD_NUMBER,
   NOOP,
 }
@@ -55,29 +54,9 @@ export async function bumpVersionInAppJsonAsync({
   }
   ensureStaticConfigExists(projectDir);
   Log.addNewLineIfNone();
-  if (bumpStrategy === BumpStrategy.SHORT_VERSION) {
-    const shortVersion = IOSConfig.Version.getVersion(exp);
-    if (semver.valid(shortVersion)) {
-      const bumpedShortVersion = nullthrows(semver.inc(shortVersion, 'patch'));
-      Log.log(
-        `Bumping ${chalk.bold('expo.version')} from ${chalk.bold(shortVersion)} to ${chalk.bold(
-          bumpedShortVersion
-        )}`
-      );
-      await updateAppJsonConfigAsync({ projectDir, exp }, config => {
-        config.version = bumpedShortVersion;
-      });
-    } else {
-      Log.log(`${chalk.bold('expo.version')} = ${chalk.bold(shortVersion)} is not a valid semver`);
-      const { bumpedShortVersion } = await promptAsync({
-        type: 'text',
-        name: 'bumpedShortVersion',
-        message: 'What is the next version?',
-      });
-      await updateAppJsonConfigAsync({ projectDir, exp }, config => {
-        config.version = bumpedShortVersion;
-      });
-    }
+  if (bumpStrategy === BumpStrategy.APP_VERSION) {
+    const appVersion = IOSConfig.Version.getVersion(exp);
+    await bumpAppVersionAsync({ appVersion, projectDir, exp });
   } else {
     const buildNumber = IOSConfig.Version.getBuildNumber(exp);
     if (buildNumber.match(/^\d+(\.\d+)*$/)) {
