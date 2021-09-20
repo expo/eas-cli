@@ -297,6 +297,16 @@ export default class Build extends EasCommand {
       error(EAS_UNAVAILABLE_MESSAGE, { exit: 1 });
     }
 
+    if (buildCtx.platform === Platform.ANDROID && buildCtx.buildProfile.autoIncrement) {
+      // TODO-JJ this is being removed in a fast follow PR
+      throw new Error('Autoincrementing is only supported for iOS.');
+    }
+    if (buildCtx.workflow === Workflow.GENERIC && buildCtx.buildProfile.autoIncrement) {
+      // Once we work out the kinks, this can be relaxed to support some GENERIC workflows.
+      // One of the known issues with extending autoIncrement to GENERIC projects is
+      // multiflavor android projects.
+      throw new Error('Autoincrementing is only supported for managed apps.');
+    }
     return await this.startBuildAsync(buildCtx);
   }
 

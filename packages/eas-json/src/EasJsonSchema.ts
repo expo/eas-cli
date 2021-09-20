@@ -35,6 +35,10 @@ const CommonBuildProfileSchema = Joi.object({
 const AndroidBuildProfileSchema = CommonBuildProfileSchema.concat(
   Joi.object({
     withoutCredentials: Joi.boolean(),
+    autoIncrement: Joi.alternatives().try(
+      Joi.boolean(),
+      Joi.string().valid('version', 'versionCode')
+    ),
 
     image: Joi.string().valid(...Android.builderBaseImages),
     ndk: Joi.string().empty(null).custom(semverSchemaCheck),
