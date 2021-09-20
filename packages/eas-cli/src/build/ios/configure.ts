@@ -11,7 +11,7 @@ import { resolveWorkflowAsync } from '../../project/workflow';
 import { ConfigureContext } from '../context';
 import { isExpoUpdatesInstalled } from '../utils/updates';
 import { configureUpdatesAsync, syncUpdatesConfigurationAsync } from './UpdatesModule';
-import { BumpStrategy, bumpVersionAsync, bumpVersionInAppJsonAsync } from './version';
+import { BumpStrategy, bumpVersionInAppJsonAsync } from './version';
 
 export async function configureIosAsync(ctx: ConfigureContext): Promise<void> {
   if (!ctx.hasIosNativeProject) {
@@ -44,7 +44,6 @@ export async function validateAndSyncProjectConfigurationAsync({
     if (isExpoUpdatesInstalled(projectDir)) {
       await syncUpdatesConfigurationAsync(projectDir, exp);
     }
-    await bumpVersionAsync({ projectDir, exp, bumpStrategy: versionBumpStrategy });
   } else {
     await bumpVersionInAppJsonAsync({ projectDir, exp, bumpStrategy: versionBumpStrategy });
   }

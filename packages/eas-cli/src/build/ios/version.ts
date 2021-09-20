@@ -10,32 +10,12 @@ import Log from '../../log';
 import { resolveWorkflowAsync } from '../../project/workflow';
 import { promptAsync } from '../../prompts';
 import { updateAppJsonConfigAsync } from '../utils/appJson';
-import { readPlistAsync, writePlistAsync } from './plist';
+import { readPlistAsync } from './plist';
 
 export enum BumpStrategy {
   SHORT_VERSION,
   BUILD_NUMBER,
   NOOP,
-}
-
-export async function bumpVersionAsync({
-  bumpStrategy,
-  projectDir,
-  exp,
-}: {
-  projectDir: string;
-  exp: ExpoConfig;
-  bumpStrategy: BumpStrategy;
-}): Promise<void> {
-  if (bumpStrategy === BumpStrategy.NOOP) {
-    return;
-  }
-  ensureStaticConfigExists(projectDir);
-  const infoPlist = await readInfoPlistAsync(projectDir);
-  await bumpVersionInAppJsonAsync({ bumpStrategy, projectDir, exp });
-  Log.log('Updated versions in app.json');
-  await writeVersionsToInfoPlistAsync({ projectDir, exp, infoPlist });
-  Log.log('Synchronized versions with Info.plist');
 }
 
 export async function bumpVersionInAppJsonAsync({
@@ -151,35 +131,9 @@ export async function maybeResolveVersionsAsync(
   }
 }
 
-async function writeVersionsToInfoPlistAsync({
-  projectDir,
-  exp,
-  infoPlist,
-}: {
-  projectDir: string;
-  exp: ExpoConfig;
-  infoPlist: IOSConfig.InfoPlist;
-}): Promise<IOSConfig.InfoPlist> {
-  let updatedInfoPlist = IOSConfig.Version.setVersion(exp, infoPlist);
-  updatedInfoPlist = IOSConfig.Version.setBuildNumber(exp, updatedInfoPlist);
-  await writeInfoPlistAsync({ projectDir, infoPlist: updatedInfoPlist });
-  return updatedInfoPlist;
-}
-
 async function readInfoPlistAsync(projectDir: string): Promise<IOSConfig.InfoPlist> {
   const infoPlistPath = IOSConfig.Paths.getInfoPlistPath(projectDir);
   return (await readPlistAsync(infoPlistPath)) as IOSConfig.InfoPlist;
-}
-
-async function writeInfoPlistAsync({
-  projectDir,
-  infoPlist,
-}: {
-  projectDir: string;
-  infoPlist: IOSConfig.InfoPlist;
-}): Promise<void> {
-  const infoPlistPath = IOSConfig.Paths.getInfoPlistPath(projectDir);
-  await writePlistAsync(infoPlistPath, infoPlist);
 }
 
 function ensureStaticConfigExists(projectDir: string): void {

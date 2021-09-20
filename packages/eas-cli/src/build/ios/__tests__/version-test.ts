@@ -1,13 +1,10 @@
 import { ExpoConfig } from '@expo/config';
-import { IOSConfig } from '@expo/config-plugins';
 import fs from 'fs-extra';
 import { vol } from 'memfs';
 import os from 'os';
 
-import { readPlistAsync } from '../plist';
 import {
   BumpStrategy,
-  bumpVersionAsync,
   bumpVersionInAppJsonAsync,
   evaluateTemplateString,
   readBuildNumberAsync,
@@ -35,73 +32,6 @@ describe(evaluateTemplateString, () => {
   });
 });
 
-// generic workflow
-describe(bumpVersionAsync, () => {
-  it('bumps expo.ios.buildNumber and CFBundleVersion when strategy = BumpStrategy.BUILD_NUMBER', async () => {
-    const fakeExp = initGenericProject();
-
-    await bumpVersionAsync({
-      bumpStrategy: BumpStrategy.BUILD_NUMBER,
-      projectDir: '/repo',
-      exp: fakeExp,
-    });
-
-    const appJSON = await fs.readJSON('/repo/app.json');
-    const infoPlist = (await readPlistAsync(
-      '/repo/ios/myproject/Info.plist'
-    )) as IOSConfig.InfoPlist;
-    expect(fakeExp.version).toBe('1.0.0');
-    expect(fakeExp.ios?.buildNumber).toBe('2');
-    expect(appJSON.expo.version).toBe('1.0.0');
-    expect(appJSON.expo.ios.buildNumber).toBe('2');
-    expect(infoPlist['CFBundleShortVersionString']).toBe('1.0.0');
-    expect(infoPlist['CFBundleVersion']).toBe('2');
-  });
-
-  it('bumps expo.version and CFBundleShortVersionString when strategy = BumpStrategy.SHORT_VERSION', async () => {
-    const fakeExp = initGenericProject();
-
-    await bumpVersionAsync({
-      bumpStrategy: BumpStrategy.SHORT_VERSION,
-      projectDir: '/repo',
-      exp: fakeExp,
-    });
-
-    const appJSON = await fs.readJSON('/repo/app.json');
-    const infoPlist = (await readPlistAsync(
-      '/repo/ios/myproject/Info.plist'
-    )) as IOSConfig.InfoPlist;
-    expect(fakeExp.version).toBe('1.0.1');
-    expect(fakeExp.ios?.buildNumber).toBe('1');
-    expect(appJSON.expo.version).toBe('1.0.1');
-    expect(appJSON.expo.ios.buildNumber).toBe('1');
-    expect(infoPlist['CFBundleShortVersionString']).toBe('1.0.1');
-    expect(infoPlist['CFBundleVersion']).toBe('1');
-  });
-
-  it('does not bump any version when strategy = BumpStrategy.NOOP', async () => {
-    const fakeExp = initGenericProject();
-
-    await bumpVersionAsync({
-      bumpStrategy: BumpStrategy.NOOP,
-      projectDir: '/repo',
-      exp: fakeExp,
-    });
-
-    const appJSON = await fs.readJSON('/repo/app.json');
-    const infoPlist = (await readPlistAsync(
-      '/repo/ios/myproject/Info.plist'
-    )) as IOSConfig.InfoPlist;
-    expect(fakeExp.version).toBe('1.0.0');
-    expect(fakeExp.ios?.buildNumber).toBe('1');
-    expect(appJSON.expo.version).toBe('1.0.0');
-    expect(appJSON.expo.ios.buildNumber).toBe('1');
-    expect(infoPlist['CFBundleShortVersionString']).toBe('1.0.0');
-    expect(infoPlist['CFBundleVersion']).toBe('1');
-  });
-});
-
-// managed workflow
 describe(bumpVersionInAppJsonAsync, () => {
   it('bumps expo.ios.buildNumber when strategy = BumpStrategy.BUILD_NUMBER', async () => {
     const fakeExp = initManagedProject();
