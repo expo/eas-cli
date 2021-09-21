@@ -3,6 +3,7 @@ import { IOSConfig } from '@expo/config-plugins';
 import { Platform, Workflow } from '@expo/eas-build-job';
 import chalk from 'chalk';
 import nullthrows from 'nullthrows';
+import path from 'path';
 import semver from 'semver';
 import type { XCBuildConfiguration } from 'xcode';
 
@@ -31,7 +32,7 @@ export async function bumpVersionAsync({
     return;
   }
   ensureStaticConfigExists(projectDir);
-  const infoPlist = await readInfoPlistAsync(projectDir);
+  const infoPlist = await readInfoPlistAsync(projectDir, {});
   await bumpVersionInAppJsonAsync({ bumpStrategy, projectDir, exp });
   Log.log('Updated versions in app.json');
   await writeVersionsToInfoPlistAsync({ projectDir, exp, infoPlist });
@@ -110,7 +111,7 @@ export async function readShortVersionAsync(
 ): Promise<string | undefined> {
   const workflow = await resolveWorkflowAsync(projectDir, Platform.IOS);
   if (workflow === Workflow.GENERIC) {
-    const infoPlist = await readInfoPlistAsync(projectDir);
+    const infoPlist = await readInfoPlistAsync(projectDir, buildSettings);
     return (
       infoPlist.CFBundleShortVersionString &&
       evaluateTemplateString(infoPlist.CFBundleShortVersionString, buildSettings)
@@ -127,7 +128,7 @@ export async function readBuildNumberAsync(
 ): Promise<string | undefined> {
   const workflow = await resolveWorkflowAsync(projectDir, Platform.IOS);
   if (workflow === Workflow.GENERIC) {
-    const infoPlist = await readInfoPlistAsync(projectDir);
+    const infoPlist = await readInfoPlistAsync(projectDir, buildSettings);
     return (
       infoPlist.CFBundleVersion && evaluateTemplateString(infoPlist.CFBundleVersion, buildSettings)
     );
@@ -166,8 +167,30 @@ async function writeVersionsToInfoPlistAsync({
   return updatedInfoPlist;
 }
 
-async function readInfoPlistAsync(projectDir: string): Promise<IOSConfig.InfoPlist> {
-  const infoPlistPath = IOSConfig.Paths.getInfoPlistPath(projectDir);
+export function getInfoPlistPath(
+  projectDir: string,
+  buildSettings: XCBuildConfiguration['buildSettings']
+): string {
+  if (buildSettings.INFOPLIST_FILE) {
+    const infoPlistFile = buildSettings.INFOPLIST_FILE.startsWith('"')
+      ? buildSettings.INFOPLIST_FILE.slice(1, -1)
+      : buildSettings.INFOPLIST_FILE;
+    const iosDir = path.join(projectDir, 'ios');
+    const plistPath = evaluateTemplateString(infoPlistFile, {
+      ...buildSettings,
+      SRCROOT: iosDir,
+    });
+    return path.isAbsolute(plistPath) ? plistPath : path.resolve(iosDir, plistPath);
+  } else {
+    return IOSConfig.Paths.getInfoPlistPath(projectDir);
+  }
+}
+
+async function readInfoPlistAsync(
+  projectDir: string,
+  buildSettings: XCBuildConfiguration['buildSettings']
+): Promise<IOSConfig.InfoPlist> {
+  const infoPlistPath = getInfoPlistPath(projectDir, buildSettings);
   return (await readPlistAsync(infoPlistPath)) as IOSConfig.InfoPlist;
 }
 
@@ -190,5 +213,12 @@ function ensureStaticConfigExists(projectDir: string): void {
 }
 
 export function evaluateTemplateString(s: string, vars: Record<string, any>): string {
-  return s.replace(/\$\((\w+)\)/g, (match, key) => (vars.hasOwnProperty(key) ? vars[key] : match));
+  return s.replace(/\$\((\w+)\)/g, (match, key) => {
+    if (vars.hasOwnProperty(key)) {
+      const value = String(vars[key]);
+      return value.startsWith('"') ? value.slice(1, -1) : value;
+    } else {
+      return match;
+    }
+  });
 }

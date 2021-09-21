@@ -12,6 +12,7 @@ import {
   evaluateTemplateString,
   readBuildNumberAsync,
   readShortVersionAsync,
+  getInfoPlistPath,
 } from '../version';
 
 jest.mock('fs');
@@ -30,8 +31,21 @@ beforeEach(() => {
 });
 
 describe(evaluateTemplateString, () => {
-  it('evaluates the template string', () => {
+  it('evaluates the template string when value is a number', () => {
     expect(evaluateTemplateString('$(BLAH_BLAH)', { BLAH_BLAH: 123 })).toBe('123');
+  });
+  it('evaluates the template string when value is a string', () => {
+    expect(evaluateTemplateString('$(BLAH_BLAH)', { BLAH_BLAH: '123' })).toBe('123');
+  });
+  it('evaluates the template string when template is not the only elment', () => {
+    expect(evaluateTemplateString('before$(BLAH_BLAH)after', { BLAH_BLAH: '123' })).toBe(
+      'before123after'
+    );
+  });
+  it('evaluates the template string when template value is double quoted', () => {
+    expect(evaluateTemplateString('before$(BLAH_BLAH)after', { BLAH_BLAH: '"123"' })).toBe(
+      'before123after'
+    );
   });
 });
 
@@ -194,6 +208,54 @@ describe(readShortVersionAsync, () => {
       const shortVersion = await readShortVersionAsync('/repo', exp, {});
       expect(shortVersion).toBe('1.0.0');
     });
+  });
+});
+
+describe(getInfoPlistPath, () => {
+  it('returns default path if INFOPLIST_FILE is not specified', () => {
+    vol.fromJSON(
+      {
+        './ios/testapp/Info.plist': '',
+      },
+      '/repo'
+    );
+    const plistPath = getInfoPlistPath('/repo', {});
+    expect(plistPath).toBe('/repo/ios/testapp/Info.plist');
+  });
+  it('returns INFOPLIST_FILE if specified', () => {
+    vol.fromJSON(
+      {
+        './ios/testapp/Info.plist': '',
+      },
+      '/repo'
+    );
+    const plistPath = getInfoPlistPath('/repo', { INFOPLIST_FILE: './qwert/NotInfo.plist' });
+    expect(plistPath).toBe('/repo/ios/qwert/NotInfo.plist');
+  });
+  it('evaluates SRCROOT in Info.plist', () => {
+    vol.fromJSON(
+      {
+        './ios/testapp/Info.plist': '',
+      },
+      '/repo'
+    );
+    const plistPath = getInfoPlistPath('/repo', {
+      INFOPLIST_FILE: '$(SRCROOT)/qwert/NotInfo.plist',
+    });
+    expect(plistPath).toBe('/repo/ios/qwert/NotInfo.plist');
+  });
+  it('evaluates BuildSettings in Info.plist', () => {
+    vol.fromJSON(
+      {
+        './ios/testapp/Info.plist': '',
+      },
+      '/repo'
+    );
+    const plistPath = getInfoPlistPath('/repo', {
+      INFOPLIST_FILE: '$(SRCROOT)/qwert/$(TARGET_NAME).plist',
+      TARGET_NAME: 'NotInfo',
+    });
+    expect(plistPath).toBe('/repo/ios/qwert/NotInfo.plist');
   });
 });
 
