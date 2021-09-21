@@ -10,9 +10,9 @@ import {
   bumpVersionAsync,
   bumpVersionInAppJsonAsync,
   evaluateTemplateString,
+  getInfoPlistPath,
   readBuildNumberAsync,
   readShortVersionAsync,
-  getInfoPlistPath,
 } from '../version';
 
 jest.mock('fs');
@@ -37,7 +37,7 @@ describe(evaluateTemplateString, () => {
   it('evaluates the template string when value is a string', () => {
     expect(evaluateTemplateString('$(BLAH_BLAH)', { BLAH_BLAH: '123' })).toBe('123');
   });
-  it('evaluates the template string when template is not the only elment', () => {
+  it('evaluates the template string when template is not the only element', () => {
     expect(evaluateTemplateString('before$(BLAH_BLAH)after', { BLAH_BLAH: '123' })).toBe(
       'before123after'
     );
