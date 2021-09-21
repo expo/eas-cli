@@ -264,6 +264,7 @@ export default class Build extends EasCommand {
     flags: BuildFlags;
     moreBuilds: boolean;
   }): Promise<BuildFragment | undefined> {
+    // blah blah
     const easJsonReader = new EasJsonReader(projectDir);
     const buildProfile = await easJsonReader.readBuildProfileAsync(platform, flags.profile);
 
