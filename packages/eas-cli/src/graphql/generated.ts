@@ -5335,6 +5335,11 @@ export type AppleTeamFragment = (
   & Pick<AppleTeam, 'id' | 'appleTeamIdentifier' | 'appleTeamName'>
 );
 
+export type GoogleServiceAccountKeyFragment = (
+  { __typename?: 'GoogleServiceAccountKey' }
+  & Pick<GoogleServiceAccountKey, 'id' | 'projectIdentifier' | 'privateKeyIdentifier' | 'clientEmail' | 'clientIdentifier' | 'createdAt' | 'updatedAt'>
+);
+
 export type IosAppBuildCredentialsFragment = (
   { __typename?: 'IosAppBuildCredentials' }
   & Pick<IosAppBuildCredentials, 'id' | 'iosDistributionType'>
