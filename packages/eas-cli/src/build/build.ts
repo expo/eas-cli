@@ -2,7 +2,6 @@ import { ArchiveSource, ArchiveSourceType, Job, Metadata, Platform } from '@expo
 import { CredentialsSource } from '@expo/eas-json';
 import chalk from 'chalk';
 import fs from 'fs-extra';
-import nullthrows from 'nullthrows';
 
 import { BuildFragment, BuildStatus, UploadSessionType } from '../graphql/generated';
 import { BuildResult } from '../graphql/mutations/BuildMutation';
@@ -245,39 +244,46 @@ export async function waitForBuildEndAsync(
         try {
           return await BuildQuery.byIdAsync(buildId, { useCache: false });
         } catch (err) {
+          Log.debug('Failed to fetch the build status', err);
           return null;
         }
       })
     );
     if (builds.length === 1) {
-      const build = nullthrows(builds[0]);
-      switch (build.status) {
-        case BuildStatus.Finished:
-          spinner.succeed('Build finished');
-          return builds;
-        case BuildStatus.New:
-          spinner.text = 'Build created';
-          break;
-        case BuildStatus.InQueue:
-          spinner.text = 'Build queued...';
-          break;
-        case BuildStatus.Canceled:
-          spinner.text = 'Build canceled';
-          spinner.stopAndPersist();
-          return builds;
-        case BuildStatus.InProgress:
-          spinner.text = 'Build in progress...';
-          break;
-        case BuildStatus.Errored:
-          spinner.fail('Build failed');
-          if (build.error) {
+      const [build] = builds;
+      if (build !== null) {
+        switch (build.status) {
+          case BuildStatus.Finished:
+            spinner.succeed('Build finished');
             return builds;
-          } else {
-            throw new Error(`Standalone build failed!`);
-          }
-        default:
-          spinner.warn('Unknown status.');
-          throw new Error(`Unknown status: ${builds} - aborting!`);
+          case BuildStatus.New:
+            spinner.text = 'Build created';
+            break;
+          case BuildStatus.InQueue:
+            spinner.text = 'Build queued...';
+            break;
+          case BuildStatus.Canceled:
+            spinner.text = 'Build canceled';
+            spinner.stopAndPersist();
+            return builds;
+          case BuildStatus.InProgress:
+            spinner.text = 'Build in progress...';
+            break;
+          case BuildStatus.Errored:
+            spinner.fail('Build failed');
+            if (build.error) {
+              return builds;
+            } else {
+              throw new Error(`Standalone build failed!`);
+            }
+          default:
+            spinner.warn('Unknown status');
+            throw new Error(`Unknown build status: ${build.status} - aborting!`);
+        }
+      } else {
+        if (!spinner.text) {
+          spinner.text = 'Could not fetch the build status. Check your network connection.';
+        }
       }
     } else {
       if (builds.filter(build => build?.status === BuildStatus.Finished).length === builds.length) {
@@ -301,7 +307,7 @@ export async function waitForBuildEndAsync(
         const errored = builds.filter(build => build?.status === BuildStatus.Errored).length;
         const finished = builds.filter(build => build?.status === BuildStatus.Finished).length;
         const canceled = builds.filter(build => build?.status === BuildStatus.Canceled).length;
-        const unknownState = builds.length - newBuilds - inQueue - inProgress - errored - finished;
+        const unknown = builds.length - newBuilds - inQueue - inProgress - errored - finished;
         spinner.text = [
           newBuilds && `Builds created: ${newBuilds}`,
           inQueue && `Builds in queue: ${inQueue}`,
@@ -309,7 +315,7 @@ export async function waitForBuildEndAsync(
           canceled && `Builds canceled: ${canceled}`,
           errored && chalk.red(`Builds failed: ${errored}`),
           finished && chalk.green(`Builds finished: ${finished}`),
-          unknownState && chalk.red(`Builds in unknown state: ${unknownState}`),
+          unknown && chalk.red(`Builds with unknown status: ${unknown}`),
         ]
           .filter(i => i)
           .join('\t');
