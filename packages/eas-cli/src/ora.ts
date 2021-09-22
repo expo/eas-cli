@@ -63,13 +63,13 @@ export function ora(options?: Options | string): Ora {
     console.error = errorReal;
   };
 
-  spinner.start = (): Ora => {
+  spinner.start = (text): Ora => {
     wrapNativeLogs();
-    return oraStart();
+    return oraStart(text);
   };
 
-  spinner.stopAndPersist = (): Ora => {
-    const result = oraStopAndPersist();
+  spinner.stopAndPersist = (options): Ora => {
+    const result = oraStopAndPersist(options);
     resetNativeLogs();
     return result;
   };
