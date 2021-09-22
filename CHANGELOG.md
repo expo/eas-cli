@@ -14,7 +14,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
-- Add Graphql support for GoogleServiceAccountKey. ([#632](https://github.com/expo/eas-cli/pull/632) by [@quinlanj](https://github.com/quinlanj))
+- Add GraphQL support for GoogleServiceAccountKey. ([#632](https://github.com/expo/eas-cli/pull/632) by [@quinlanj](https://github.com/quinlanj))
 
 ## [0.28.0](https://github.com/expo/eas-cli/releases/tag/v0.28.0) - 2021-09-10
 
