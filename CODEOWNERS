@@ -1,0 +1,7 @@
+packages/eas-cli/src/build @dsokal @wkozyra95
+packages/eas-cli/src/commands/build @dsokal @wkozyra95
+
+packages/eas-cli/src/submit @barthap @dsokal
+packages/eas-cli/src/commands/submit.ts @barthap @dsokal
+
+packages/eas-json @dsokal @wkozyra95
