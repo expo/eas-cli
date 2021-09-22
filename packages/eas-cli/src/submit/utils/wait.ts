@@ -1,3 +1,5 @@
+import nullthrows from 'nullthrows';
+
 import { AppPlatform, SubmissionFragment, SubmissionStatus } from '../../graphql/generated';
 import { SubmissionQuery } from '../../graphql/queries/SubmissionQuery';
 import Log from '../../log';
@@ -27,21 +29,35 @@ export async function waitForSubmissionsEndAsync(
   const timeoutTime = time + CHECK_TIMEOUT_MS;
   while (time <= timeoutTime) {
     const submissions = await Promise.all(
-      initialSubmissions.map(({ id }) => SubmissionQuery.byIdAsync(id, { useCache: false }))
+      initialSubmissions.map(({ id }) => {
+        try {
+          return SubmissionQuery.byIdAsync(id, { useCache: false });
+        } catch (err) {
+          Log.debug('Failed to fetch the submission status', err);
+          return null;
+        }
+      })
     );
 
     if (submissions.length === 1) {
       const [submission] = submissions;
-      spinner.text = getSingleSpinnerText(submission);
-      if (submission.status === SubmissionStatus.Finished) {
-        spinner.succeed();
-        return submissions;
-      } else if (submission.status === SubmissionStatus.Errored) {
-        spinner.fail();
-        return submissions;
-      } else if (submission.status === SubmissionStatus.Canceled) {
-        spinner.warn();
-        return submissions;
+      if (submission !== null) {
+        spinner.text = getSingleSpinnerText(submission);
+        if (submission.status === SubmissionStatus.Finished) {
+          spinner.succeed();
+          return [submission];
+        } else if (submission.status === SubmissionStatus.Errored) {
+          spinner.fail();
+          return [submission];
+        } else if (submission.status === SubmissionStatus.Canceled) {
+          spinner.warn();
+          return [submission];
+        }
+      } else {
+        if (!spinner.text) {
+          spinner.text =
+            'Could not fetch the submission status. Check your network connection. If the problem persists re-run the command with the EXPO_DEBUG=1 environment variable.';
+        }
       }
     } else {
       spinner.text = getMultipleSpinnerText(submissions);
@@ -56,7 +72,7 @@ export async function waitForSubmissionsEndAsync(
         } else {
           spinner.fail('Some submissions were canceled or failed');
         }
-        return submissions;
+        return submissions.map(s => nullthrows(s));
       }
     }
 
@@ -86,13 +102,15 @@ function getSingleSpinnerText(submission: SubmissionFragment): string {
   }
 }
 
-function getMultipleSpinnerText(submissions: SubmissionFragment[]): string {
+function getMultipleSpinnerText(submissions: (SubmissionFragment | null)[]): string {
   const awaitingSubmissions = countWithStatus(submissions, SubmissionStatus.AwaitingBuild);
   const inQueue = countWithStatus(submissions, SubmissionStatus.InQueue);
   const inProgress = countWithStatus(submissions, SubmissionStatus.InProgress);
   const finished = countWithStatus(submissions, SubmissionStatus.Finished);
   const errored = countWithStatus(submissions, SubmissionStatus.Errored);
   const canceled = countWithStatus(submissions, SubmissionStatus.Canceled);
+  const unknown =
+    submissions.length - awaitingSubmissions - inQueue - inProgress - finished - errored - canceled;
   const text = [
     awaitingSubmissions && `Awaiting submissions: ${awaitingSubmissions}`,
     inQueue && `Submissions in queue: ${inQueue}`,
@@ -100,12 +118,16 @@ function getMultipleSpinnerText(submissions: SubmissionFragment[]): string {
     canceled && `Canceled submissions: ${canceled}`,
     errored && `Failed submissions: ${errored}`,
     finished && `Finished submissions: ${finished}`,
+    unknown && `Submissions with unknown status: ${unknown}`,
   ]
     .filter(i => i)
     .join('\t');
   return text;
 }
 
-function countWithStatus(submissions: SubmissionFragment[], status: SubmissionStatus): number {
-  return submissions.filter(submission => submission.status === status).length;
+function countWithStatus(
+  submissions: (SubmissionFragment | null)[],
+  status: SubmissionStatus
+): number {
+  return submissions.filter(submission => submission?.status === status).length;
 }
