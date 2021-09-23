@@ -10,10 +10,14 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+### 🧹 Chores
+
+## [0.28.2](https://github.com/expo/eas-cli/releases/tag/v0.28.2) - 2021-09-23
+
+### 🐛 Bug fixes
+
 - Use `log-symbols` to unify green ticks style. ([#639](https://github.com/expo/eas-cli/pull/639) by [@dsokal](https://github.com/dsokal))
 - Fix `eas build --auto-submit` in fresh projects. ([#640](https://github.com/expo/eas-cli/pull/640) by [@dsokal](https://github.com/dsokal))
-
-### 🧹 Chores
 
 ## [0.28.1](https://github.com/expo/eas-cli/releases/tag/v0.28.1) - 2021-09-22
 
