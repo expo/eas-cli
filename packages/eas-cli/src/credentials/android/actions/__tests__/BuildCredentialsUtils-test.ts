@@ -14,6 +14,7 @@ import {
   promptUserAndCopyLegacyCredentialsAsync,
 } from '../BuildCredentialsUtils';
 
+jest.mock('../../../../ora');
 jest.mock('../../../../prompts');
 (confirmAsync as jest.Mock).mockImplementation(() => true);
 

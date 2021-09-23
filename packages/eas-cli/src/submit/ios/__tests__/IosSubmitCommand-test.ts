@@ -11,7 +11,7 @@ import { createSubmissionContext } from '../../context';
 import IosSubmitCommand from '../IosSubmitCommand';
 
 jest.mock('fs');
-jest.mock('ora');
+jest.mock('../../../ora');
 jest.mock('../../../graphql/mutations/SubmissionMutation', () => ({
   SubmissionMutation: {
     createIosSubmissionAsync: jest.fn(),
