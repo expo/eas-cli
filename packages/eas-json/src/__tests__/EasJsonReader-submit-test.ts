@@ -14,10 +14,7 @@ beforeEach(async () => {
 test('minimal allowed eas.json for both platforms', async () => {
   await fs.writeJson('/project/eas.json', {
     submit: {
-      release: {
-        android: {},
-        ios: {},
-      },
+      release: {},
     },
   });
 
@@ -110,23 +107,4 @@ test('ios config with all required values', async () => {
     ascAppId: '1223423523',
     language: 'en-US',
   });
-});
-
-test('missing ios profile', async () => {
-  await fs.writeJson('/project/eas.json', {
-    submit: {
-      release: {
-        android: {
-          serviceAccountKeyPath: './path.json',
-          track: 'beta',
-          releaseStatus: 'completed',
-        },
-      },
-    },
-  });
-
-  const reader = new EasJsonReader('/project');
-  const promise = reader.readSubmitProfileAsync(Platform.IOS, 'release');
-
-  expect(promise).rejects.toThrow('There is no profile named release in eas.json for ios.');
 });

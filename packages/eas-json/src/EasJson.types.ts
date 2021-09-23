@@ -1,3 +1,5 @@
+import { Platform } from '@expo/eas-build-job';
+
 import { AndroidBuildProfile, CommonBuildProfile, IosBuildProfile } from './EasBuild.types';
 import { AndroidSubmitProfile, IosSubmitProfile } from './EasSubmit.types';
 
@@ -8,13 +10,13 @@ export enum CredentialsSource {
 
 export interface RawBuildProfile extends Partial<CommonBuildProfile> {
   extends?: string;
-  android?: Partial<AndroidBuildProfile>;
-  ios?: Partial<IosBuildProfile>;
+  [Platform.ANDROID]?: Partial<AndroidBuildProfile>;
+  [Platform.IOS]?: Partial<IosBuildProfile>;
 }
 
 export interface EasSubmitConfiguration {
-  android?: AndroidSubmitProfile;
-  ios?: IosSubmitProfile;
+  [Platform.ANDROID]?: AndroidSubmitProfile;
+  [Platform.IOS]?: IosSubmitProfile;
 }
 
 export interface EasJson {
