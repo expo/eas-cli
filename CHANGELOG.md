@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Use `log-symbols` to unify green ticks style. ([#639](https://github.com/expo/eas-cli/pull/639) by [@dsokal](https://github.com/dsokal))
+
 ### 🧹 Chores
 
 ## [0.28.1](https://github.com/expo/eas-cli/releases/tag/v0.28.1) - 2021-09-22
