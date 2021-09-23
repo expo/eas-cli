@@ -94,11 +94,16 @@ export class EasJsonReader {
       }
     }
     const easJson = await this.readAndValidateAsync();
-    const profile = easJson?.submit?.[profileName]?.[platform];
+    const profile = easJson?.submit?.[profileName];
     if (!profile) {
-      throw new Error(`There is no profile named ${profileName} in eas.json for ${platform}.`);
+      throw new Error(`There is no profile named ${profileName} in eas.json`);
     }
-    return this.evaluateFields(platform, profile as SubmitProfile<T>);
+    const platformProfile = profile[platform];
+    if (platformProfile) {
+      return this.evaluateFields(platform, platformProfile as SubmitProfile<T>);
+    } else {
+      return getDefaultSubmitProfile(platform);
+    }
   }
 
   public async readAndValidateAsync(): Promise<EasJson> {
@@ -144,7 +149,7 @@ export class EasJsonReader {
     }
     const buildProfile = easJson.build[profileName];
     if (!buildProfile) {
-      throw new Error(`There is no profile named ${profileName}`);
+      throw new Error(`There is no profile named ${profileName} in eas.json`);
     }
     const { extends: baseProfileName, ...buildProfileRest } = buildProfile;
     if (baseProfileName) {
@@ -159,7 +164,7 @@ export class EasJsonReader {
 
   private ensureBuildProfileExists(easJson: EasJson, profileName: string): void {
     if (!easJson.build || !easJson.build[profileName]) {
-      throw new Error(`There is no profile named ${profileName} in eas.json.`);
+      throw new Error(`There is no profile named ${profileName} in eas.json`);
     }
   }
 
