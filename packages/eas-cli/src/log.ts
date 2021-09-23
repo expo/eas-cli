@@ -1,6 +1,7 @@
 import chalk from 'chalk';
 import figures from 'figures';
 import { boolish } from 'getenv';
+import logSymbols from 'log-symbols';
 import terminalLink from 'terminal-link';
 
 type Color = (...text: string[]) => string;
@@ -45,7 +46,7 @@ export default class Log {
   }
 
   public static succeed(message: string): void {
-    Log.log(`${chalk.green('√')} ${message}`);
+    Log.log(`${chalk.green(logSymbols.success)} ${message}`);
   }
 
   public static withTick(...args: any[]): void {
