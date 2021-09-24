@@ -50,7 +50,7 @@ export async function askForUserProvidedAsync<T>(
 export async function getCredentialsFromUserAsync<T>(
   credentialsSchema: CredentialSchema<T>,
   initialValues: Partial<T>
-): Promise<T | null> {
+): Promise<T> {
   const results: any = {};
   for (const question of credentialsSchema.questions) {
     results[question.field] = await askQuestionAndProcessAnswerAsync(

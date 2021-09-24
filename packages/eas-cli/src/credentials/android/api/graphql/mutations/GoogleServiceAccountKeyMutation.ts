@@ -10,7 +10,7 @@ import {
 } from '../../../../../graphql/generated';
 import { GoogleServiceAccountKeyFragmentNode } from '../../../../../graphql/types/credentials/GoogleServiceAccountKey';
 
-const GoogleServiceAccountKeyMutation = {
+export const GoogleServiceAccountKeyMutation = {
   async createGoogleServiceAccountKeyAsync(
     googleServiceAccountKeyInput: GoogleServiceAccountKeyInput,
     accountId: string
@@ -49,5 +49,3 @@ const GoogleServiceAccountKeyMutation = {
     return data.googleServiceAccountKey.createGoogleServiceAccountKey;
   },
 };
-
-export { GoogleServiceAccountKeyMutation };
