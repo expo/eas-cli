@@ -15,6 +15,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Move away from weird convention of exports. ([#647](https://github.com/expo/eas-cli/pull/647) by [@quinlanj](https://github.com/quinlanj))
+
 ## [0.28.2](https://github.com/expo/eas-cli/releases/tag/v0.28.2) - 2021-09-23
 
 ### 🐛 Bug fixes
