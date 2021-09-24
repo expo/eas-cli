@@ -5,7 +5,7 @@ import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/cl
 import { ApplePushKeyByAccountQuery, ApplePushKeyFragment } from '../../../../../graphql/generated';
 import { ApplePushKeyFragmentNode } from '../../../../../graphql/types/credentials/ApplePushKey';
 
-const ApplePushKeyQuery = {
+export const ApplePushKeyQuery = {
   async getAllForAccountAsync(accountName: string): Promise<ApplePushKeyFragment[]> {
     const data = await withErrorHandlingAsync(
       graphqlClient
@@ -33,5 +33,3 @@ const ApplePushKeyQuery = {
     return data.account.byName.applePushKeys;
   },
 };
-
-export { ApplePushKeyQuery };

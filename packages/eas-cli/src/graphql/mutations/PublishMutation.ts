@@ -3,7 +3,7 @@ import gql from 'graphql-tag';
 import { graphqlClient, withErrorHandlingAsync } from '../client';
 import { PublishUpdateGroupInput, UpdatePublishMutation } from '../generated';
 
-const PublishMutation = {
+export const PublishMutation = {
   async getUploadURLsAsync(contentTypes: string[]): Promise<{ specifications: string[] }> {
     const data = await withErrorHandlingAsync(
       graphqlClient
@@ -54,5 +54,3 @@ const PublishMutation = {
     return data.updateBranch.publishUpdateGroups;
   },
 };
-
-export { PublishMutation };

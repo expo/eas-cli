@@ -11,7 +11,7 @@ import {
 } from '../../../../../graphql/generated';
 import { AndroidKeystoreFragmentNode } from '../../../../../graphql/types/credentials/AndroidKeystore';
 
-const AndroidKeystoreMutation = {
+export const AndroidKeystoreMutation = {
   async createAndroidKeystoreAsync(
     androidKeystoreInput: AndroidKeystoreInput,
     accountId: string
@@ -73,5 +73,3 @@ const AndroidKeystoreMutation = {
     );
   },
 };
-
-export { AndroidKeystoreMutation };

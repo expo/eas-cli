@@ -10,7 +10,7 @@ import {
 } from '../../../../../graphql/generated';
 import { IosAppBuildCredentialsFragmentNode } from '../../../../../graphql/types/credentials/IosAppBuildCredentials';
 
-const IosAppBuildCredentialsQuery = {
+export const IosAppBuildCredentialsQuery = {
   async byAppIdentifierIdAndDistributionTypeAsync(
     projectFullName: string,
     {
@@ -59,5 +59,3 @@ const IosAppBuildCredentialsQuery = {
     return data.app.byFullName.iosAppCredentials[0]?.iosAppBuildCredentialsList[0] ?? null;
   },
 };
-
-export { IosAppBuildCredentialsQuery };

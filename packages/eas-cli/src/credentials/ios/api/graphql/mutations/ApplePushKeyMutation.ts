@@ -11,7 +11,7 @@ import {
 } from '../../../../../graphql/generated';
 import { ApplePushKeyFragmentNode } from '../../../../../graphql/types/credentials/ApplePushKey';
 
-const ApplePushKeyMutation = {
+export const ApplePushKeyMutation = {
   async createApplePushKeyAsync(
     applePushKeyInput: ApplePushKeyInput,
     accountId: string
@@ -70,5 +70,3 @@ const ApplePushKeyMutation = {
     );
   },
 };
-
-export { ApplePushKeyMutation };

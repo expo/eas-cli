@@ -6,7 +6,7 @@ import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/cl
 import { AppByFullNameQuery, AppFragment } from '../../../../../graphql/generated';
 import { AppFragmentNode } from '../../../../../graphql/types/App';
 
-const AppQuery = {
+export const AppQuery = {
   async byFullNameAsync(fullName: string): Promise<AppFragment> {
     const data = await withErrorHandlingAsync(
       graphqlClient
@@ -31,5 +31,3 @@ const AppQuery = {
     return data.app.byFullName;
   },
 };
-
-export { AppQuery };

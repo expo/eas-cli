@@ -11,7 +11,7 @@ import {
 } from '../../../../../graphql/generated';
 import { AndroidFcmFragmentNode } from '../../../../../graphql/types/credentials/AndroidFcm';
 
-const AndroidFcmMutation = {
+export const AndroidFcmMutation = {
   async createAndroidFcmAsync(
     androidFcmInput: AndroidFcmInput,
     accountId: string
@@ -67,5 +67,3 @@ const AndroidFcmMutation = {
     );
   },
 };
-
-export { AndroidFcmMutation };

@@ -1,6 +1,6 @@
 import { AppleTeam } from '../../../../../../graphql/generated';
 
-const AppleTeamQuery = {
+export const AppleTeamQuery = {
   byAppleTeamIdentifierAsync: jest.fn().mockImplementation(() => {
     const appleTeam: Pick<AppleTeam, 'id' | 'appleTeamIdentifier' | 'appleTeamName'> = {
       id: 'apple-team-id',
@@ -10,5 +10,3 @@ const AppleTeamQuery = {
     return appleTeam;
   }),
 };
-
-export { AppleTeamQuery };

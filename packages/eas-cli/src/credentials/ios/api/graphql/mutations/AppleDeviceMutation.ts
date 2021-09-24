@@ -9,7 +9,7 @@ import {
 } from '../../../../../graphql/generated';
 import { AppleDeviceFragmentNode } from '../../../../../graphql/types/credentials/AppleDevice';
 
-const AppleDeviceMutation = {
+export const AppleDeviceMutation = {
   async createAppleDeviceAsync(
     appleDeviceInput: AppleDeviceInput,
     accountId: string
@@ -41,5 +41,3 @@ const AppleDeviceMutation = {
     return data.appleDevice.createAppleDevice;
   },
 };
-
-export { AppleDeviceMutation };

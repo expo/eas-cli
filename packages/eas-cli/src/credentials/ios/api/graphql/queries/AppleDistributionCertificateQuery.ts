@@ -12,7 +12,7 @@ import {
 import { AppleDistributionCertificateFragmentNode } from '../../../../../graphql/types/credentials/AppleDistributionCertificate';
 import { AppleTeamFragmentNode } from '../../../../../graphql/types/credentials/AppleTeam';
 
-const AppleDistributionCertificateQuery = {
+export const AppleDistributionCertificateQuery = {
   async getForAppAsync(
     projectFullName: string,
     {
@@ -100,5 +100,3 @@ const AppleDistributionCertificateQuery = {
     return data.account.byName.appleDistributionCertificates;
   },
 };
-
-export { AppleDistributionCertificateQuery };

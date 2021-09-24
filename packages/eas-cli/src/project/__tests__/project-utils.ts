@@ -25,7 +25,7 @@ interface AppJSON {
   };
 }
 
-function createTestProject(
+export function createTestProject(
   user: Actor,
   appJSONExtraData?: Record<string, object | string>
 ): MockProject {
@@ -58,5 +58,3 @@ function createTestProject(
     },
   };
 }
-
-export { createTestProject };
