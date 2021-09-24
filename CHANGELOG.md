@@ -11,6 +11,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 - Credentials manager: stop prompting for an Android build profile every iteration. ([#641](https://github.com/expo/eas-cli/pull/641) by [@quinlanj](https://github.com/quinlanj))
+- Don't display prompt in non-interactive mode when the metro config seems invalid. ([#644](https://github.com/expo/eas-cli/pull/644) by [@dsokal](https://github.com/dsokal))
 
 ### 🧹 Chores
 
