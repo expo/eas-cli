@@ -16,6 +16,15 @@ export type KeystoreWithType = Keystore & {
   type: AndroidKeystoreType;
 };
 
+export type GoogleServiceAccountKey = {
+  [key: string]: any;
+  private_key: string;
+};
+
+type GoogleServiceAccountKeyFile = {
+  keyJson: string;
+};
+
 export type AndroidCredentials = {
   experienceName: string;
   keystore: Keystore | null;
@@ -48,6 +57,17 @@ export const keystoreSchema: CredentialSchema<Keystore> = {
       field: 'keyPassword',
       question: 'Key password',
       type: 'password',
+    },
+  ],
+};
+
+export const googleServiceAccountKeySchema: CredentialSchema<GoogleServiceAccountKeyFile> = {
+  name: 'Google Service Account Key',
+  questions: [
+    {
+      field: 'keyJson',
+      type: 'file',
+      question: 'Path to Google Service Account Key JSON file:',
     },
   ],
 };

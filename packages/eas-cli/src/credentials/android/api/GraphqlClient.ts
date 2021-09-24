@@ -5,14 +5,16 @@ import {
   AndroidKeystoreFragment,
   AppFragment,
   CommonAndroidAppCredentialsFragment,
+  GoogleServiceAccountKeyFragment,
 } from '../../../graphql/generated';
 import { Account } from '../../../user/Account';
 import { AppQuery } from '../../ios/api/graphql/queries/AppQuery';
-import { KeystoreWithType } from '../credentials';
+import { GoogleServiceAccountKey, KeystoreWithType } from '../credentials';
 import { AndroidAppBuildCredentialsMutation } from './graphql/mutations/AndroidAppBuildCredentialsMutation';
 import { AndroidAppCredentialsMutation } from './graphql/mutations/AndroidAppCredentialsMutation';
 import { AndroidFcmMutation } from './graphql/mutations/AndroidFcmMutation';
 import { AndroidKeystoreMutation } from './graphql/mutations/AndroidKeystoreMutation';
+import { GoogleServiceAccountKeyMutation } from './graphql/mutations/GoogleServiceAccountKeyMutation';
 import { AndroidAppCredentialsQuery } from './graphql/queries/AndroidAppCredentialsQuery';
 
 export interface AppLookupParams {
@@ -221,6 +223,16 @@ export async function createFcmAsync(
 
 export async function deleteFcmAsync(fcm: AndroidFcmFragment): Promise<void> {
   return await AndroidFcmMutation.deleteAndroidFcmAsync(fcm.id);
+}
+
+export async function createGoogleServiceAccountKeyAsync(
+  account: Account,
+  jsonKey: GoogleServiceAccountKey
+): Promise<GoogleServiceAccountKeyFragment> {
+  return await GoogleServiceAccountKeyMutation.createGoogleServiceAccountKeyAsync(
+    { jsonKey },
+    account.id
+  );
 }
 
 async function getAppAsync(appLookupParams: AppLookupParams): Promise<AppFragment> {
