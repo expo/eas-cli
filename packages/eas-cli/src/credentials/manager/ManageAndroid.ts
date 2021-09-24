@@ -145,17 +145,17 @@ export class ManageAndroid {
   constructor(private callingAction: Action) {}
 
   async runAsync(ctx: Context, currentActions: ActionInfo[] = highLevelActions): Promise<void> {
+    const accountName = ctx.hasProjectContext
+      ? getProjectAccountName(ctx.exp, ctx.user)
+      : ensureActorHasUsername(ctx.user);
+    const account = findAccountByName(ctx.user.accounts, accountName);
+    if (!account) {
+      throw new Error(`You do not have access to account: ${accountName}`);
+    }
+    const { gradleContext } = await this.createProjectContextAsync(ctx);
+
     while (true) {
       try {
-        const accountName = ctx.hasProjectContext
-          ? getProjectAccountName(ctx.exp, ctx.user)
-          : ensureActorHasUsername(ctx.user);
-
-        const account = findAccountByName(ctx.user.accounts, accountName);
-        if (!account) {
-          throw new Error(`You do not have access to account: ${accountName}`);
-        }
-        const { gradleContext } = await this.createProjectContextAsync(ctx);
         if (ctx.hasProjectContext) {
           const maybeProjectId = await promptToCreateProjectIfNotExistsAsync(ctx.exp);
           if (!maybeProjectId) {
