@@ -1,4 +1,5 @@
 import { Platform } from '@expo/eas-build-job';
+import { exit } from '@oclif/errors';
 import chalk from 'chalk';
 import type MetroConfig from 'metro-config';
 import resolveFrom from 'resolve-from';
@@ -27,19 +28,28 @@ export async function validateMetroConfigForManagedWorkflowAsync(
     Log.warn(
       'This can result in unexpected and hard to debug issues, like missing assets in the production bundle.'
     );
-    Log.warn(`We recommend you to abort, fix the ${chalk.bold('metro.config.js')}, and try again.`);
+    if (!ctx.nonInteractive) {
+      Log.warn(
+        `We recommend you to abort, fix the ${chalk.bold('metro.config.js')}, and try again.`
+      );
+    }
     Log.warn(
       learnMore('https://docs.expo.dev/guides/customizing-metro/', {
         learnMoreMessage: 'Learn more on customizing Metro',
       })
     );
 
+    if (ctx.nonInteractive) {
+      Log.warn("You've run EAS CLI in non-interactive mode, proceeding...");
+      return;
+    }
+
     const shouldAbort = await confirmAsync({
       message: 'Would you like to abort?',
     });
     if (shouldAbort) {
-      Log.log('Aborting...');
-      process.exit(1);
+      Log.error('Aborting...');
+      exit(1);
     }
   }
 }

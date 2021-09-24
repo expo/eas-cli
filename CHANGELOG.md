@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Don't display prompt in non-interactive mode when the metro config seems invalid. ([#644](https://github.com/expo/eas-cli/pull/644) by [@dsokal](https://github.com/dsokal))
+
 ### 🧹 Chores
 
 ## [0.28.2](https://github.com/expo/eas-cli/releases/tag/v0.28.2) - 2021-09-23
