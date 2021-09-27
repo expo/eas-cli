@@ -8,7 +8,7 @@ import {
 } from '../../../../../graphql/generated';
 import { AppleAppIdentifierFragmentNode } from '../../../../../graphql/types/credentials/AppleAppIdentifier';
 
-const AppleAppIdentifierQuery = {
+export const AppleAppIdentifierQuery = {
   async byBundleIdentifierAsync(
     accountName: string,
     bundleIdentifier: string
@@ -46,5 +46,3 @@ const AppleAppIdentifierQuery = {
     return data.account.byName.appleAppIdentifiers[0];
   },
 };
-
-export { AppleAppIdentifierQuery };

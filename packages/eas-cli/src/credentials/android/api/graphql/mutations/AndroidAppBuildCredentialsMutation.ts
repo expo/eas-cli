@@ -15,7 +15,7 @@ export type AndroidAppBuildCredentialsMetadataInput = Omit<
   AndroidAppBuildCredentialsInput,
   'keystoreId'
 >;
-const AndroidAppBuildCredentialsMutation = {
+export const AndroidAppBuildCredentialsMutation = {
   async createAndroidAppBuildCredentialsAsync(
     androidAppBuildCredentialsInput: AndroidAppBuildCredentialsInput,
     androidAppCredentialsId: string
@@ -85,5 +85,3 @@ const AndroidAppBuildCredentialsMutation = {
     return data.androidAppBuildCredentials.setKeystore;
   },
 };
-
-export { AndroidAppBuildCredentialsMutation };

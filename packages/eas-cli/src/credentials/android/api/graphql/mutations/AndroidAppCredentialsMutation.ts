@@ -10,7 +10,7 @@ import {
 } from '../../../../../graphql/generated';
 import { CommonAndroidAppCredentialsFragmentNode } from '../../../../../graphql/types/credentials/AndroidAppCredentials';
 
-const AndroidAppCredentialsMutation = {
+export const AndroidAppCredentialsMutation = {
   async createAndroidAppCredentialsAsync(
     androidAppCredentialsInput: {
       fcmId?: string;
@@ -83,5 +83,3 @@ const AndroidAppCredentialsMutation = {
     return data.androidAppCredentials.setFcm;
   },
 };
-
-export { AndroidAppCredentialsMutation };

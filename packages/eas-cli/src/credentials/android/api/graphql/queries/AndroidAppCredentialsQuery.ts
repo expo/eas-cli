@@ -9,7 +9,7 @@ import {
 } from '../../../../../graphql/generated';
 import { CommonAndroidAppCredentialsFragmentNode } from '../../../../../graphql/types/credentials/AndroidAppCredentials';
 
-const AndroidAppCredentialsQuery = {
+export const AndroidAppCredentialsQuery = {
   async withCommonFieldsByApplicationIdentifierAsync(
     projectFullName: string,
     {
@@ -66,5 +66,3 @@ const AndroidAppCredentialsQuery = {
     return data.app.byFullName.androidAppCredentials[0] ?? null;
   },
 };
-
-export { AndroidAppCredentialsQuery };

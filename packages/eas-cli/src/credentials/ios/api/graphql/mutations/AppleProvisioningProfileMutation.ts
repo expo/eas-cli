@@ -16,7 +16,7 @@ export type AppleProvisioningProfileMutationResult = AppleProvisioningProfileFra
   appleTeam?: AppleTeamFragment | null;
 };
 
-const AppleProvisioningProfileMutation = {
+export const AppleProvisioningProfileMutation = {
   async createAppleProvisioningProfileAsync(
     appleProvisioningProfileInput: AppleProvisioningProfileInput,
     accountId: string,
@@ -124,5 +124,3 @@ const AppleProvisioningProfileMutation = {
     );
   },
 };
-
-export { AppleProvisioningProfileMutation };

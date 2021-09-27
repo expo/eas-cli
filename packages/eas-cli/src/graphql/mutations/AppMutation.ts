@@ -4,7 +4,7 @@ import gql from 'graphql-tag';
 import { graphqlClient, withErrorHandlingAsync } from '../client';
 import { AppPrivacy, CreateAppMutation, CreateAppMutationVariables } from '../generated';
 
-const AppMutation = {
+export const AppMutation = {
   async createAppAsync(appInput: {
     accountId: string;
     projectName: string;
@@ -33,5 +33,3 @@ const AppMutation = {
     return appId;
   },
 };
-
-export { AppMutation };

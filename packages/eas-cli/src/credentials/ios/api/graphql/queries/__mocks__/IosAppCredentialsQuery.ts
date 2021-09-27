@@ -1,4 +1,4 @@
-const IosAppCredentialsQuery = {
+export const IosAppCredentialsQuery = {
   withCommonFieldsByAppIdentifierIdAsync: jest.fn().mockImplementation(() => {
     return {
       id: '48d0cd34-96d8-447c-9de8-40dd2c3ca0f8',
@@ -112,5 +112,3 @@ const IosAppCredentialsQuery = {
     };
   }),
 };
-
-export { IosAppCredentialsQuery };

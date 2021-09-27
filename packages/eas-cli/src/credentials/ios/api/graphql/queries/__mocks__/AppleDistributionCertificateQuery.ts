@@ -1,4 +1,4 @@
-const AppleDistributionCertificateQuery = {
+export const AppleDistributionCertificateQuery = {
   getAllForAccountAsync: jest.fn().mockImplementation(() => {
     return [
       {
@@ -40,5 +40,3 @@ const AppleDistributionCertificateQuery = {
     ];
   }),
 };
-
-export { AppleDistributionCertificateQuery };
