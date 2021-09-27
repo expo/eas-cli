@@ -23,19 +23,21 @@ export async function bumpVersionAsync({
   bumpStrategy,
   projectDir,
   exp,
+  buildSettings,
 }: {
   projectDir: string;
   exp: ExpoConfig;
   bumpStrategy: BumpStrategy;
+  buildSettings: XCBuildConfiguration['buildSettings'];
 }): Promise<void> {
   if (bumpStrategy === BumpStrategy.NOOP) {
     return;
   }
   ensureStaticConfigExists(projectDir);
-  const infoPlist = await readInfoPlistAsync(projectDir, {});
+  const infoPlist = await readInfoPlistAsync(projectDir, buildSettings);
   await bumpVersionInAppJsonAsync({ bumpStrategy, projectDir, exp });
   Log.log('Updated versions in app.json');
-  await writeVersionsToInfoPlistAsync({ projectDir, exp, infoPlist });
+  await writeVersionsToInfoPlistAsync({ projectDir, exp, infoPlist, buildSettings });
   Log.log('Synchronized versions with Info.plist');
 }
 
@@ -156,14 +158,16 @@ async function writeVersionsToInfoPlistAsync({
   projectDir,
   exp,
   infoPlist,
+  buildSettings,
 }: {
   projectDir: string;
   exp: ExpoConfig;
   infoPlist: IOSConfig.InfoPlist;
+  buildSettings: XCBuildConfiguration['buildSettings'];
 }): Promise<IOSConfig.InfoPlist> {
   let updatedInfoPlist = IOSConfig.Version.setVersion(exp, infoPlist);
   updatedInfoPlist = IOSConfig.Version.setBuildNumber(exp, updatedInfoPlist);
-  await writeInfoPlistAsync({ projectDir, infoPlist: updatedInfoPlist });
+  await writeInfoPlistAsync({ projectDir, infoPlist: updatedInfoPlist, buildSettings });
   return updatedInfoPlist;
 }
 
@@ -197,11 +201,13 @@ async function readInfoPlistAsync(
 async function writeInfoPlistAsync({
   projectDir,
   infoPlist,
+  buildSettings,
 }: {
   projectDir: string;
   infoPlist: IOSConfig.InfoPlist;
+  buildSettings: XCBuildConfiguration['buildSettings'];
 }): Promise<void> {
-  const infoPlistPath = IOSConfig.Paths.getInfoPlistPath(projectDir);
+  const infoPlistPath = getInfoPlistPath(projectDir, buildSettings);
   await writePlistAsync(infoPlistPath, infoPlist);
 }
 
