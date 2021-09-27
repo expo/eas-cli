@@ -1,3 +1,4 @@
+import { asMock } from '../../__tests__/utils';
 import { apiClient } from '../../api';
 import Log from '../../log';
 import { promptAsync, selectAsync } from '../../prompts';
@@ -12,23 +13,23 @@ jest.mock('../User', () => ({
 jest.mock('../../log');
 
 beforeEach(() => {
-  (promptAsync as jest.Mock).mockReset();
-  (promptAsync as jest.Mock).mockImplementation(() => {
+  asMock(promptAsync).mockReset();
+  asMock(promptAsync).mockImplementation(() => {
     throw new Error('Should not be called');
   });
 
-  (selectAsync as jest.Mock).mockReset();
-  (selectAsync as jest.Mock).mockImplementation(() => {
+  asMock(selectAsync).mockReset();
+  asMock(selectAsync).mockImplementation(() => {
     throw new Error('Should not be called');
   });
 
-  (loginAsync as jest.Mock).mockReset();
-  (Log.log as jest.Mock).mockReset();
+  asMock(loginAsync).mockReset();
+  asMock(Log.log).mockReset();
 });
 
 describe(retryUsernamePasswordAuthWithOTPAsync, () => {
   it('shows SMS OTP prompt when SMS is primary and code was automatically sent', async () => {
-    (promptAsync as jest.Mock)
+    asMock(promptAsync)
       .mockImplementationOnce(() => ({ otp: 'hello' }))
       .mockImplementation(() => {
         throw new Error("shouldn't happen");
@@ -50,11 +51,11 @@ describe(retryUsernamePasswordAuthWithOTPAsync, () => {
       'One-time password was sent to the phone number ending in testphone.'
     );
 
-    expect(loginAsync as jest.Mock).toHaveBeenCalledTimes(1);
+    expect(asMock(loginAsync)).toHaveBeenCalledTimes(1);
   });
 
   it('shows authenticator OTP prompt when authenticator is primary', async () => {
-    (promptAsync as jest.Mock)
+    asMock(promptAsync)
       .mockImplementationOnce(() => ({ otp: 'hello' }))
       .mockImplementation(() => {
         throw new Error("shouldn't happen");
@@ -73,18 +74,18 @@ describe(retryUsernamePasswordAuthWithOTPAsync, () => {
     });
 
     expect(Log.log).toHaveBeenCalledWith('One-time password from authenticator required.');
-    expect(loginAsync as jest.Mock).toHaveBeenCalledTimes(1);
+    expect(asMock(loginAsync)).toHaveBeenCalledTimes(1);
   });
 
   it('shows menu when user bails on primary', async () => {
-    (promptAsync as jest.Mock)
+    asMock(promptAsync)
       .mockImplementationOnce(() => ({ otp: null }))
       .mockImplementationOnce(() => ({ otp: 'hello' })) // second time it is prompted after selecting backup code
       .mockImplementation(() => {
         throw new Error("shouldn't happen");
       });
 
-    (selectAsync as any)
+    asMock(selectAsync)
       .mockImplementationOnce(() => -1)
       .mockImplementation(() => {
         throw new Error("shouldn't happen");
@@ -108,12 +109,12 @@ describe(retryUsernamePasswordAuthWithOTPAsync, () => {
       smsAutomaticallySent: false,
     });
 
-    expect((selectAsync as any).mock.calls.length).toEqual(1);
-    expect(loginAsync as jest.Mock).toHaveBeenCalledTimes(1);
+    expect(asMock(selectAsync).mock.calls.length).toEqual(1);
+    expect(asMock(loginAsync)).toHaveBeenCalledTimes(1);
   });
 
   it('shows a warning when when user bails on primary and does not have any secondary set up', async () => {
-    (promptAsync as jest.Mock)
+    asMock(promptAsync)
       .mockImplementationOnce(() => ({ otp: null }))
       .mockImplementation(() => {
         throw new Error("shouldn't happen");
@@ -137,14 +138,14 @@ describe(retryUsernamePasswordAuthWithOTPAsync, () => {
   });
 
   it('prompts for authenticator OTP when user selects authenticator secondary', async () => {
-    (promptAsync as jest.Mock)
+    asMock(promptAsync)
       .mockImplementationOnce(() => ({ otp: null }))
       .mockImplementationOnce(() => ({ otp: 'hello' })) // second time it is prompted after selecting backup code
       .mockImplementation(() => {
         throw new Error("shouldn't happen");
       });
 
-    (selectAsync as any)
+    asMock(selectAsync)
       .mockImplementationOnce(() => -1)
       .mockImplementation(() => {
         throw new Error("shouldn't happen");
@@ -168,24 +169,24 @@ describe(retryUsernamePasswordAuthWithOTPAsync, () => {
       smsAutomaticallySent: false,
     });
 
-    expect((promptAsync as jest.Mock).mock.calls.length).toBe(2); // first OTP, second OTP
+    expect(asMock(promptAsync).mock.calls.length).toBe(2); // first OTP, second OTP
   });
 
   it('requests SMS OTP and prompts for SMS OTP when user selects SMS secondary', async () => {
-    (promptAsync as jest.Mock)
+    asMock(promptAsync)
       .mockImplementationOnce(() => ({ otp: null }))
       .mockImplementationOnce(() => ({ otp: 'hello' })) // second time it is prompted after selecting backup code
       .mockImplementation(() => {
         throw new Error("shouldn't happen");
       });
 
-    (selectAsync as any)
+    asMock(selectAsync)
       .mockImplementationOnce(() => 0)
       .mockImplementation(() => {
         throw new Error("shouldn't happen");
       });
 
-    (apiClient.post as jest.Mock).mockReturnValueOnce({
+    asMock(apiClient.post).mockReturnValueOnce({
       json: () => Promise.resolve({ data: { sessionSecret: 'SESSION_SECRET' } }),
     });
 
@@ -207,8 +208,8 @@ describe(retryUsernamePasswordAuthWithOTPAsync, () => {
       smsAutomaticallySent: false,
     });
 
-    expect((promptAsync as jest.Mock).mock.calls.length).toBe(2); // first OTP, second OTP
-    expect((apiClient.post as jest.Mock).mock.calls[0]).toEqual([
+    expect(asMock(promptAsync).mock.calls.length).toBe(2); // first OTP, second OTP
+    expect(asMock(apiClient.post).mock.calls[0]).toEqual([
       'auth/send-sms-otp',
       {
         json: {
@@ -221,13 +222,13 @@ describe(retryUsernamePasswordAuthWithOTPAsync, () => {
   });
 
   it('exits when user bails on primary and backup', async () => {
-    (promptAsync as jest.Mock)
+    asMock(promptAsync)
       .mockImplementationOnce(() => ({ otp: null }))
       .mockImplementation(() => {
         throw new Error("shouldn't happen");
       });
 
-    (selectAsync as any)
+    asMock(selectAsync)
       .mockImplementationOnce(() => -2)
       .mockImplementation(() => {
         throw new Error("shouldn't happen");

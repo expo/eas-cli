@@ -1,3 +1,4 @@
+import { asMock } from '../../../../__tests__/utils';
 import { confirmAsync } from '../../../../prompts';
 import {
   getNewAndroidApiMock,
@@ -8,7 +9,7 @@ import { getAppLookupParamsFromContextAsync } from '../BuildCredentialsUtils';
 import { RemoveFcm } from '../RemoveFcm';
 
 jest.mock('../../../../prompts');
-(confirmAsync as jest.Mock).mockImplementation(() => true);
+asMock(confirmAsync).mockImplementation(() => true);
 
 describe(RemoveFcm, () => {
   it('removes an FCM Api Key', async () => {
@@ -24,7 +25,7 @@ describe(RemoveFcm, () => {
     const appLookupParams = await getAppLookupParamsFromContextAsync(ctx);
     const removeFcmApiKeyAction = new RemoveFcm(appLookupParams);
     await removeFcmApiKeyAction.runAsync(ctx);
-    expect(ctx.android.deleteFcmAsync as any).toHaveBeenCalledTimes(1);
+    expect(ctx.android.deleteFcmAsync).toHaveBeenCalledTimes(1);
   });
   it('errors in Non-Interactive Mode', async () => {
     const ctx = createCtxMock({ nonInteractive: true });

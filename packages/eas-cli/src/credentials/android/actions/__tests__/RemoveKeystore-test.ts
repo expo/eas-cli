@@ -1,3 +1,4 @@
+import { asMock } from '../../../../__tests__/utils';
 import { confirmAsync } from '../../../../prompts';
 import { testAndroidBuildCredentialsFragment } from '../../../__tests__/fixtures-android';
 import { createCtxMock } from '../../../__tests__/fixtures-context';
@@ -6,7 +7,7 @@ import { RemoveKeystore } from '../RemoveKeystore';
 
 jest.mock('fs-extra');
 jest.mock('../../../../prompts');
-(confirmAsync as jest.Mock).mockImplementation(() => true);
+asMock(confirmAsync).mockImplementation(() => true);
 
 describe(RemoveKeystore, () => {
   it('removes a keystore', async () => {
@@ -16,7 +17,7 @@ describe(RemoveKeystore, () => {
     const appLookupParams = await getAppLookupParamsFromContextAsync(ctx);
     const removeKeystoreAction = new RemoveKeystore(appLookupParams);
     await removeKeystoreAction.runAsync(ctx, testAndroidBuildCredentialsFragment);
-    expect(ctx.android.deleteKeystoreAsync as any).toHaveBeenCalledTimes(1);
+    expect(ctx.android.deleteKeystoreAsync).toHaveBeenCalledTimes(1);
   });
   it('errors in Non-Interactive Mode', async () => {
     const ctx = createCtxMock({ nonInteractive: true });

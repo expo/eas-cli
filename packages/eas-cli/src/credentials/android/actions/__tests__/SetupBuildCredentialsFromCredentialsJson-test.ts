@@ -1,5 +1,6 @@
 import { vol } from 'memfs';
 
+import { asMock } from '../../../../__tests__/utils';
 import { AndroidKeystoreType } from '../../../../graphql/generated';
 import { confirmAsync } from '../../../../prompts';
 import {
@@ -18,7 +19,7 @@ import { SetupBuildCredentialsFromCredentialsJson } from '../SetupBuildCredentia
 jest.mock('fs');
 
 jest.mock('../../../../prompts');
-(confirmAsync as jest.Mock).mockImplementation(() => true);
+asMock(confirmAsync).mockImplementation(() => true);
 jest.mock('../../../manager/SelectAndroidBuildCredentials');
 
 beforeEach(() => {
@@ -27,7 +28,7 @@ beforeEach(() => {
 
 describe(SetupBuildCredentialsFromCredentialsJson, () => {
   it('sets up a new build configuration from credentials.json upon user request', async () => {
-    (SelectAndroidBuildCredentials as any).mockImplementation(() => {
+    asMock(SelectAndroidBuildCredentials).mockImplementation(() => {
       return {
         runAsync: () => {
           return {
@@ -64,8 +65,8 @@ describe(SetupBuildCredentialsFromCredentialsJson, () => {
     await setupBuildCredentialsAction.runAsync(ctx);
 
     // expect keystore to be created with credentials.json content
-    expect(ctx.android.createKeystoreAsync as any).toHaveBeenCalledTimes(1);
-    expect(ctx.android.createKeystoreAsync as any).toBeCalledWith(appLookupParams.account, {
+    expect(ctx.android.createKeystoreAsync).toHaveBeenCalledTimes(1);
+    expect(ctx.android.createKeystoreAsync).toBeCalledWith(appLookupParams.account, {
       keystorePassword: testJksAndroidKeystoreFragment.keystorePassword,
       keyAlias: testJksAndroidKeystoreFragment.keyAlias,
       keyPassword: testJksAndroidKeystoreFragment.keyPassword,
@@ -74,10 +75,10 @@ describe(SetupBuildCredentialsFromCredentialsJson, () => {
     });
 
     // expect new build credentials to be created
-    expect(ctx.android.createAndroidAppBuildCredentialsAsync as any).toHaveBeenCalledTimes(1);
+    expect(ctx.android.createAndroidAppBuildCredentialsAsync).toHaveBeenCalledTimes(1);
   });
   it('uses an existing build configuration upon user request', async () => {
-    (SelectAndroidBuildCredentials as any).mockImplementation(() => {
+    asMock(SelectAndroidBuildCredentials).mockImplementation(() => {
       return {
         runAsync: () => {
           return {
@@ -114,8 +115,8 @@ describe(SetupBuildCredentialsFromCredentialsJson, () => {
     await setupBuildCredentialsAction.runAsync(ctx);
 
     // expect keystore to be created with credentials.json content
-    expect(ctx.android.createKeystoreAsync as any).toHaveBeenCalledTimes(1);
-    expect(ctx.android.createKeystoreAsync as any).toBeCalledWith(appLookupParams.account, {
+    expect(ctx.android.createKeystoreAsync).toHaveBeenCalledTimes(1);
+    expect(ctx.android.createKeystoreAsync).toBeCalledWith(appLookupParams.account, {
       keystorePassword: testJksAndroidKeystoreFragment.keystorePassword,
       keyAlias: testJksAndroidKeystoreFragment.keyAlias,
       keyPassword: testJksAndroidKeystoreFragment.keyPassword,
@@ -124,7 +125,7 @@ describe(SetupBuildCredentialsFromCredentialsJson, () => {
     });
 
     // expect existing build credentials to be updated
-    expect(ctx.android.updateAndroidAppBuildCredentialsAsync as any).toHaveBeenCalledTimes(1);
+    expect(ctx.android.updateAndroidAppBuildCredentialsAsync).toHaveBeenCalledTimes(1);
   });
   it('errors in Non-Interactive Mode', async () => {
     const ctx = createCtxMock({
