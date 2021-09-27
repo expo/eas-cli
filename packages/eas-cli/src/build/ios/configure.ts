@@ -1,6 +1,7 @@
 import { ExpoConfig } from '@expo/config';
 import { Platform, Workflow } from '@expo/eas-build-job';
 import { IosBuildProfile, VersionAutoIncrement } from '@expo/eas-json';
+import type { XCBuildConfiguration } from 'xcode';
 
 import Log from '../../log';
 import {
@@ -31,10 +32,12 @@ export async function validateAndSyncProjectConfigurationAsync({
   projectDir,
   exp,
   buildProfile,
+  buildSettings,
 }: {
   projectDir: string;
   exp: ExpoConfig;
   buildProfile: IosBuildProfile;
+  buildSettings: XCBuildConfiguration['buildSettings'];
 }): Promise<void> {
   const workflow = await resolveWorkflowAsync(projectDir, Platform.IOS);
   const { autoIncrement } = buildProfile;
@@ -44,7 +47,7 @@ export async function validateAndSyncProjectConfigurationAsync({
     if (isExpoUpdatesInstalled(projectDir)) {
       await syncUpdatesConfigurationAsync(projectDir, exp);
     }
-    await bumpVersionAsync({ projectDir, exp, bumpStrategy: versionBumpStrategy });
+    await bumpVersionAsync({ projectDir, exp, bumpStrategy: versionBumpStrategy, buildSettings });
   } else {
     await bumpVersionInAppJsonAsync({ projectDir, exp, bumpStrategy: versionBumpStrategy });
   }

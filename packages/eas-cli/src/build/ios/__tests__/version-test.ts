@@ -10,6 +10,7 @@ import {
   bumpVersionAsync,
   bumpVersionInAppJsonAsync,
   evaluateTemplateString,
+  getInfoPlistPath,
   readBuildNumberAsync,
   readShortVersionAsync,
 } from '../version';
@@ -30,8 +31,21 @@ beforeEach(() => {
 });
 
 describe(evaluateTemplateString, () => {
-  it('evaluates the template string', () => {
+  it('evaluates the template string when value is a number', () => {
     expect(evaluateTemplateString('$(BLAH_BLAH)', { BLAH_BLAH: 123 })).toBe('123');
+  });
+  it('evaluates the template string when value is a string', () => {
+    expect(evaluateTemplateString('$(BLAH_BLAH)', { BLAH_BLAH: '123' })).toBe('123');
+  });
+  it('evaluates the template string when template is not the only element', () => {
+    expect(evaluateTemplateString('before$(BLAH_BLAH)after', { BLAH_BLAH: '123' })).toBe(
+      'before123after'
+    );
+  });
+  it('evaluates the template string when template value is double quoted', () => {
+    expect(evaluateTemplateString('before$(BLAH_BLAH)after', { BLAH_BLAH: '"123"' })).toBe(
+      'before123after'
+    );
   });
 });
 
@@ -44,11 +58,36 @@ describe(bumpVersionAsync, () => {
       bumpStrategy: BumpStrategy.BUILD_NUMBER,
       projectDir: '/repo',
       exp: fakeExp,
+      buildSettings: {},
     });
 
     const appJSON = await fs.readJSON('/repo/app.json');
     const infoPlist = (await readPlistAsync(
       '/repo/ios/myproject/Info.plist'
+    )) as IOSConfig.InfoPlist;
+    expect(fakeExp.version).toBe('1.0.0');
+    expect(fakeExp.ios?.buildNumber).toBe('2');
+    expect(appJSON.expo.version).toBe('1.0.0');
+    expect(appJSON.expo.ios.buildNumber).toBe('2');
+    expect(infoPlist['CFBundleShortVersionString']).toBe('1.0.0');
+    expect(infoPlist['CFBundleVersion']).toBe('2');
+  });
+
+  it('bumps expo.ios.buildNumber and CFBundleVersion for non default Info.plist location', async () => {
+    const fakeExp = initGenericProject({ infoPlistName: 'Info2.plist' });
+
+    await bumpVersionAsync({
+      bumpStrategy: BumpStrategy.BUILD_NUMBER,
+      projectDir: '/repo',
+      exp: fakeExp,
+      buildSettings: {
+        INFOPLIST_FILE: '$(SRCROOT)/myproject/Info2.plist',
+      },
+    });
+
+    const appJSON = await fs.readJSON('/repo/app.json');
+    const infoPlist = (await readPlistAsync(
+      '/repo/ios/myproject/Info2.plist'
     )) as IOSConfig.InfoPlist;
     expect(fakeExp.version).toBe('1.0.0');
     expect(fakeExp.ios?.buildNumber).toBe('2');
@@ -65,6 +104,7 @@ describe(bumpVersionAsync, () => {
       bumpStrategy: BumpStrategy.SHORT_VERSION,
       projectDir: '/repo',
       exp: fakeExp,
+      buildSettings: {},
     });
 
     const appJSON = await fs.readJSON('/repo/app.json');
@@ -86,6 +126,7 @@ describe(bumpVersionAsync, () => {
       bumpStrategy: BumpStrategy.NOOP,
       projectDir: '/repo',
       exp: fakeExp,
+      buildSettings: {},
     });
 
     const appJSON = await fs.readJSON('/repo/app.json');
@@ -197,10 +238,59 @@ describe(readShortVersionAsync, () => {
   });
 });
 
+describe(getInfoPlistPath, () => {
+  it('returns default path if INFOPLIST_FILE is not specified', () => {
+    vol.fromJSON(
+      {
+        './ios/testapp/Info.plist': '',
+      },
+      '/repo'
+    );
+    const plistPath = getInfoPlistPath('/repo', {});
+    expect(plistPath).toBe('/repo/ios/testapp/Info.plist');
+  });
+  it('returns INFOPLIST_FILE if specified', () => {
+    vol.fromJSON(
+      {
+        './ios/testapp/Info.plist': '',
+      },
+      '/repo'
+    );
+    const plistPath = getInfoPlistPath('/repo', { INFOPLIST_FILE: './qwert/NotInfo.plist' });
+    expect(plistPath).toBe('/repo/ios/qwert/NotInfo.plist');
+  });
+  it('evaluates SRCROOT in Info.plist', () => {
+    vol.fromJSON(
+      {
+        './ios/testapp/Info.plist': '',
+      },
+      '/repo'
+    );
+    const plistPath = getInfoPlistPath('/repo', {
+      INFOPLIST_FILE: '$(SRCROOT)/qwert/NotInfo.plist',
+    });
+    expect(plistPath).toBe('/repo/ios/qwert/NotInfo.plist');
+  });
+  it('evaluates BuildSettings in Info.plist', () => {
+    vol.fromJSON(
+      {
+        './ios/testapp/Info.plist': '',
+      },
+      '/repo'
+    );
+    const plistPath = getInfoPlistPath('/repo', {
+      INFOPLIST_FILE: '$(SRCROOT)/qwert/$(TARGET_NAME).plist',
+      TARGET_NAME: 'NotInfo',
+    });
+    expect(plistPath).toBe('/repo/ios/qwert/NotInfo.plist');
+  });
+});
+
 function initGenericProject({
   shortVersion = '1.0.0',
   version = '1',
-}: { shortVersion?: string; version?: string } = {}): ExpoConfig {
+  infoPlistName = 'Info.plist',
+}: { shortVersion?: string; version?: string; infoPlistName?: string } = {}): ExpoConfig {
   vol.fromJSON(
     {
       './app.json': JSON.stringify({
@@ -211,7 +301,7 @@ function initGenericProject({
           },
         },
       }),
-      './ios/myproject/Info.plist': `<?xml version="1.0" encoding="UTF-8"?>
+      [`./ios/myproject/${infoPlistName}`]: `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
