@@ -4,7 +4,7 @@ import { promptAsync } from '../../../prompts';
 import { Account } from '../../../user/Account';
 import { Context } from '../../context';
 import { GoogleServiceAccountKey } from '../credentials';
-import { validateServiceAccountKey } from '../utils/googleServiceAccountKey';
+import { readAndValidateServiceAccountKey } from '../utils/googleServiceAccountKey';
 
 export class CreateGoogleServiceAccountKey {
   constructor(private account: Account) {}
@@ -32,7 +32,7 @@ export class CreateGoogleServiceAccountKey {
           validate: (value: string) => value.length > 0 || "Path can't be empty",
         },
       ]);
-      return validateServiceAccountKey(keyJsonPath);
+      return readAndValidateServiceAccountKey(keyJsonPath);
     } catch (e) {
       Log.error(e);
       return await this.provideAsync();

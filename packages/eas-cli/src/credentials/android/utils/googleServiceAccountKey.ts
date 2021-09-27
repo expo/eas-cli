@@ -8,7 +8,7 @@ export const MinimalGoogleServiceAccountKeySchema = Joi.object({
   private_key: Joi.string().required(),
 });
 
-export function validateServiceAccountKey(keyJsonPath: string): GoogleServiceAccountKey {
+export function readAndValidateServiceAccountKey(keyJsonPath: string): GoogleServiceAccountKey {
   try {
     const jsonKeyObject = JsonFile.read(keyJsonPath);
     const { error, value } = MinimalGoogleServiceAccountKeySchema.validate(jsonKeyObject, {

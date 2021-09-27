@@ -1,5 +1,6 @@
 import { vol } from 'memfs';
 
+import { asMock } from '../../../../__tests__/utils';
 import { promptAsync } from '../../../../prompts';
 import { createCtxMock } from '../../../__tests__/fixtures-context';
 import { getAppLookupParamsFromContextAsync } from '../BuildCredentialsUtils';
@@ -7,9 +8,13 @@ import { CreateGoogleServiceAccountKey } from '../CreateGoogleServiceAccountKey'
 
 jest.mock('../../../../prompts');
 jest.mock('fs');
-(promptAsync as jest.Mock).mockImplementation(() => ({
+asMock(promptAsync).mockImplementation(() => ({
   keyJsonPath: '/google-service-account-key.json',
 }));
+
+beforeEach(() => {
+  vol.reset();
+});
 
 describe(CreateGoogleServiceAccountKey, () => {
   it('creates a Google Service Account Key in Interactive Mode', async () => {
@@ -23,7 +28,7 @@ describe(CreateGoogleServiceAccountKey, () => {
     await createGsaKeyAction.runAsync(ctx);
 
     // expect fcm api key to be created on expo servers
-    expect(ctx.android.createGoogleServiceAccountKeyAsync as any).toHaveBeenCalledTimes(1);
+    expect(ctx.android.createGoogleServiceAccountKeyAsync).toHaveBeenCalledTimes(1);
   });
   it('errors in Non-Interactive Mode', async () => {
     const ctx = createCtxMock({ nonInteractive: true });
