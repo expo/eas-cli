@@ -1,3 +1,4 @@
+import { asMock } from '../../../../__tests__/utils';
 import { confirmAsync, promptAsync } from '../../../../prompts';
 import {
   getNewAndroidApiMock,
@@ -14,8 +15,9 @@ import {
   promptUserAndCopyLegacyCredentialsAsync,
 } from '../BuildCredentialsUtils';
 
+jest.mock('../../../../ora');
 jest.mock('../../../../prompts');
-(confirmAsync as jest.Mock).mockImplementation(() => true);
+asMock(confirmAsync).mockImplementation(() => true);
 
 describe('BuildCredentialsUtils', () => {
   describe(canCopyLegacyCredentialsAsync, () => {
@@ -82,7 +84,7 @@ describe('BuildCredentialsUtils', () => {
   });
   describe(promptUserAndCopyLegacyCredentialsAsync, () => {
     it('copies all legacy credentials to EAS if the user is eligible', async () => {
-      (promptAsync as jest.Mock).mockImplementation(() => ({ providedName: 'test-provided-name' }));
+      asMock(promptAsync).mockImplementation(() => ({ providedName: 'test-provided-name' }));
       const ctx = createCtxMock({
         nonInteractive: false,
         android: {
@@ -102,12 +104,12 @@ describe('BuildCredentialsUtils', () => {
       await promptUserAndCopyLegacyCredentialsAsync(ctx, appLookupParams);
 
       expect(
-        ctx.android.createOrGetExistingAndroidAppCredentialsWithBuildCredentialsAsync as any
+        ctx.android.createOrGetExistingAndroidAppCredentialsWithBuildCredentialsAsync
       ).toHaveBeenCalledTimes(1);
-      expect(ctx.android.createFcmAsync as any).toHaveBeenCalledTimes(1);
-      expect(ctx.android.updateAndroidAppCredentialsAsync as any).toHaveBeenCalledTimes(1);
-      expect(ctx.android.createKeystoreAsync as any).toHaveBeenCalledTimes(1);
-      expect(ctx.android.createAndroidAppBuildCredentialsAsync as any).toHaveBeenCalledTimes(1);
+      expect(ctx.android.createFcmAsync).toHaveBeenCalledTimes(1);
+      expect(ctx.android.updateAndroidAppCredentialsAsync).toHaveBeenCalledTimes(1);
+      expect(ctx.android.createKeystoreAsync).toHaveBeenCalledTimes(1);
+      expect(ctx.android.createAndroidAppBuildCredentialsAsync).toHaveBeenCalledTimes(1);
     });
     it('errors in Non-Interactive Mode', async () => {
       const ctx = createCtxMock({

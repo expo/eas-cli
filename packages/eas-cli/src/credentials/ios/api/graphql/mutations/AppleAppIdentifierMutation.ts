@@ -10,7 +10,7 @@ import {
 } from '../../../../../graphql/generated';
 import { AppleAppIdentifierFragmentNode } from '../../../../../graphql/types/credentials/AppleAppIdentifier';
 
-const AppleAppIdentifierMutation = {
+export const AppleAppIdentifierMutation = {
   async createAppleAppIdentifierAsync(
     appleAppIdentifierInput: AppleAppIdentifierInput,
     accountId: string
@@ -49,5 +49,3 @@ const AppleAppIdentifierMutation = {
     return data.appleAppIdentifier.createAppleAppIdentifier;
   },
 };
-
-export { AppleAppIdentifierMutation };

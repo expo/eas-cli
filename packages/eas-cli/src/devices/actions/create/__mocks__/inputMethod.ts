@@ -1,3 +1,1 @@
-const runInputMethodAsync = jest.fn();
-
-export { runInputMethodAsync };
+export const runInputMethodAsync = jest.fn();

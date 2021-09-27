@@ -1,3 +1,4 @@
+import { asMock } from '../../__tests__/utils';
 import { flushAsync, initAsync, logEvent } from '../../analytics';
 import { jester as mockJester } from '../../credentials/__tests__/fixtures-constants';
 import { getUserAsync } from '../../user/User';
@@ -31,11 +32,15 @@ afterAll(() => {
 });
 
 beforeEach(() => {
-  (getUserAsync as jest.Mock).mockReset().mockImplementation(() => mockJester);
-  (ensureLoggedInAsync as jest.Mock).mockReset().mockImplementation(() => mockJester);
-  (initAsync as jest.Mock).mockReset();
-  (flushAsync as jest.Mock).mockReset();
-  (logEvent as jest.Mock).mockReset();
+  asMock(getUserAsync)
+    .mockReset()
+    .mockImplementation(() => mockJester);
+  asMock(ensureLoggedInAsync)
+    .mockReset()
+    .mockImplementation(() => mockJester);
+  asMock(initAsync).mockReset();
+  asMock(flushAsync).mockReset();
+  asMock(logEvent).mockReset();
 });
 
 describe(EasCommand.name, () => {
@@ -54,7 +59,7 @@ describe(EasCommand.name, () => {
     }, 15_000);
 
     it('ensures the user data is read from cache', async () => {
-      (TestEasCommand.prototype.authValue as jest.Mock).mockImplementationOnce(() => false);
+      asMock(TestEasCommand.prototype.authValue).mockImplementationOnce(() => false);
 
       await TestEasCommand.run();
 

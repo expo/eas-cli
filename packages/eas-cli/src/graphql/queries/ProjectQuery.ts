@@ -5,7 +5,7 @@ import { Project, ProjectByUsernameAndSlugQuery } from '../generated';
 
 type ProjectQueryResult = Pick<Project, 'id'>;
 
-const ProjectQuery = {
+export const ProjectQuery = {
   async byUsernameAndSlugAsync(username: string, slug: string): Promise<ProjectQueryResult> {
     const data = await withErrorHandlingAsync(
       graphqlClient
@@ -27,5 +27,3 @@ const ProjectQuery = {
     return data.project.byUsernameAndSlug;
   },
 };
-
-export { ProjectQuery };

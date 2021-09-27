@@ -14,9 +14,9 @@ describe(AssignFcm, () => {
 
     // expect app credentials to be fetched/created, then updated
     expect(
-      ctx.android.createOrGetExistingAndroidAppCredentialsWithBuildCredentialsAsync as any
+      ctx.android.createOrGetExistingAndroidAppCredentialsWithBuildCredentialsAsync
     ).toHaveBeenCalledTimes(1);
-    expect(ctx.android.updateAndroidAppCredentialsAsync as any).toHaveBeenCalledTimes(1);
+    expect(ctx.android.updateAndroidAppCredentialsAsync).toHaveBeenCalledTimes(1);
   });
   it('works in Non-Interactive Mode', async () => {
     const ctx = createCtxMock({

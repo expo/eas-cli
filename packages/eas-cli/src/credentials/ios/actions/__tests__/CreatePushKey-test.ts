@@ -1,3 +1,4 @@
+import { asMock } from '../../../../__tests__/utils';
 import { findApplicationTarget } from '../../../../project/ios/target';
 import { confirmAsync } from '../../../../prompts';
 import { getAppstoreMock, testAuthCtx } from '../../../__tests__/fixtures-appstore';
@@ -7,7 +8,7 @@ import { getAppLookupParamsFromContext } from '../BuildCredentialsUtils';
 import { CreatePushKey } from '../CreatePushKey';
 
 jest.mock('../../../../prompts');
-(confirmAsync as jest.Mock).mockImplementation(() => true);
+asMock(confirmAsync).mockImplementation(() => true);
 
 describe(CreatePushKey, () => {
   it('creates a Push Key in Interactive Mode', async () => {
@@ -24,9 +25,9 @@ describe(CreatePushKey, () => {
     await createPushKeyAction.runAsync(ctx);
 
     // expect push key to be created on expo servers
-    expect((ctx.ios.createPushKeyAsync as any).mock.calls.length).toBe(1);
+    expect(asMock(ctx.ios.createPushKeyAsync).mock.calls.length).toBe(1);
     // expect push key to be created on apple portal
-    expect((ctx.appStore.createPushKeyAsync as any).mock.calls.length).toBe(1);
+    expect(asMock(ctx.appStore.createPushKeyAsync).mock.calls.length).toBe(1);
   });
   it('errors in Non Interactive Mode', async () => {
     const ctx = createCtxMock({

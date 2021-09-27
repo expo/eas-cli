@@ -5,8 +5,8 @@ import { AppleDeviceMutation } from '../../../../credentials/ios/api/graphql/mut
 import { AppleDeviceClass, AppleTeam } from '../../../../graphql/generated';
 import { runInputMethodAsync } from '../inputMethod';
 
-jest.mock('prompts');
 jest.mock('../../../../credentials/ios/api/graphql/mutations/AppleDeviceMutation');
+jest.mock('../../../../ora');
 
 beforeEach(() => {
   asMock(prompts).mockReset();

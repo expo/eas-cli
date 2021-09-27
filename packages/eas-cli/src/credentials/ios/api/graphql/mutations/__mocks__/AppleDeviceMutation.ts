@@ -1,6 +1,6 @@
 import { AppleDevice } from '../../../../../../graphql/generated';
 
-const AppleDeviceMutation = {
+export const AppleDeviceMutation = {
   createAppleDeviceAsync: jest.fn().mockImplementation(() => {
     const appleDevice: Pick<AppleDevice, 'id' | 'identifier'> = {
       id: 'apple-device-id',
@@ -9,5 +9,3 @@ const AppleDeviceMutation = {
     return appleDevice;
   }),
 };
-
-export { AppleDeviceMutation };

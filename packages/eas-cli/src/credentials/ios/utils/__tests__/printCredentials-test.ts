@@ -1,6 +1,7 @@
 import mockdate from 'mockdate';
 import nullthrows from 'nullthrows';
 
+import { asMock } from '../../../../__tests__/utils';
 import Log from '../../../../log';
 import { IosAppCredentialsQuery } from '../../api/graphql/queries/IosAppCredentialsQuery';
 import { App, Target } from '../../types';
@@ -30,9 +31,7 @@ describe('print credentials', () => {
     };
     const targets: Target[] = [{ targetName: 'test52', bundleIdentifier: 'com.quinlanj.test52' }];
     displayIosCredentials(app, appCredentials, targets);
-    const loggedSoFar = (Log.log as jest.Mock).mock.calls.reduce(
-      (acc, mockValue) => acc + mockValue
-    );
+    const loggedSoFar = asMock(Log.log).mock.calls.reduce((acc, mockValue) => acc + mockValue);
     expect(loggedSoFar).toMatchSnapshot();
   });
 });

@@ -17,7 +17,7 @@ export type AppleDistributionCertificateMutationResult = AppleDistributionCertif
   appleTeam?: AppleTeamFragment | null;
 };
 
-const AppleDistributionCertificateMutation = {
+export const AppleDistributionCertificateMutation = {
   async createAppleDistributionCertificateAsync(
     appleDistributionCertificateInput: AppleDistributionCertificateInput,
     accountId: string
@@ -88,5 +88,3 @@ const AppleDistributionCertificateMutation = {
     );
   },
 };
-
-export { AppleDistributionCertificateMutation };

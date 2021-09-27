@@ -11,7 +11,7 @@ import {
 } from '../../../../../graphql/generated';
 import { CommonIosAppCredentialsFragmentNode } from '../../../../../graphql/types/credentials/IosAppCredentials';
 
-const IosAppCredentialsMutation = {
+export const IosAppCredentialsMutation = {
   async createIosAppCredentialsAsync(
     iosAppCredentialsInput: IosAppCredentialsInput,
     appId: string,
@@ -81,5 +81,3 @@ const IosAppCredentialsMutation = {
     return data.iosAppCredentials.setPushKey;
   },
 };
-
-export { IosAppCredentialsMutation };

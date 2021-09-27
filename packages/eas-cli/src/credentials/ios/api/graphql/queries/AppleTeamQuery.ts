@@ -9,7 +9,7 @@ import {
 } from '../../../../../graphql/generated';
 import { AppleTeamFragmentNode } from '../../../../../graphql/types/credentials/AppleTeam';
 
-const AppleTeamQuery = {
+export const AppleTeamQuery = {
   async getAllForAccountAsync(accountName: string): Promise<AppleTeamFragment[]> {
     const data = await withErrorHandlingAsync(
       graphqlClient
@@ -64,5 +64,3 @@ const AppleTeamQuery = {
     return data.appleTeam.byAppleTeamIdentifier ?? null;
   },
 };
-
-export { AppleTeamQuery };

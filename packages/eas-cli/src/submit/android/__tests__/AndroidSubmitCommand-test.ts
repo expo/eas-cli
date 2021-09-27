@@ -19,7 +19,7 @@ import { getLatestBuildForSubmissionAsync } from '../../utils/builds';
 import AndroidSubmitCommand from '../AndroidSubmitCommand';
 
 jest.mock('fs');
-jest.mock('ora');
+jest.mock('../../../ora');
 jest.mock('../../../graphql/mutations/SubmissionMutation', () => ({
   SubmissionMutation: {
     createAndroidSubmissionAsync: jest.fn(),

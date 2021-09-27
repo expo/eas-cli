@@ -225,7 +225,7 @@ test('valid eas.json with missing profile', async () => {
 
   const reader = new EasJsonReader('/project');
   const promise = reader.readBuildProfileAsync(Platform.ANDROID, 'debug');
-  await expect(promise).rejects.toThrowError('There is no profile named debug in eas.json.');
+  await expect(promise).rejects.toThrowError('There is no profile named debug in eas.json');
 });
 
 test('invalid eas.json when using wrong buildType', async () => {
@@ -247,7 +247,7 @@ test('empty json', async () => {
 
   const reader = new EasJsonReader('/project');
   const promise = reader.readBuildProfileAsync(Platform.ANDROID, 'release');
-  await expect(promise).rejects.toThrowError('There is no profile named release in eas.json.');
+  await expect(promise).rejects.toThrowError('There is no profile named release in eas.json');
 });
 
 test('invalid semver value', async () => {

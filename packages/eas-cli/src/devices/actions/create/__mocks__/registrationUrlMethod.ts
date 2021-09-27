@@ -1,3 +1,1 @@
-const runRegistrationUrlMethodAsync = jest.fn();
-
-export { runRegistrationUrlMethodAsync };
+export const runRegistrationUrlMethodAsync = jest.fn();

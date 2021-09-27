@@ -3,7 +3,7 @@ import gql from 'graphql-tag';
 import { graphqlClient, withErrorHandlingAsync } from '../client';
 import { CurrentUserQuery } from '../generated';
 
-const UserQuery = {
+export const UserQuery = {
   async currentUserAsync(): Promise<CurrentUserQuery['meActor']> {
     const data = await withErrorHandlingAsync(
       graphqlClient
@@ -34,5 +34,3 @@ const UserQuery = {
     return data.meActor;
   },
 };
-
-export { UserQuery };

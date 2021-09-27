@@ -10,7 +10,7 @@ type ProgressHandler = (props: {
   error?: Error;
 }) => void;
 
-function createProgressTracker({
+export function createProgressTracker({
   total,
   message,
   completedMessage,
@@ -75,5 +75,3 @@ function createProgressTracker({
     }
   };
 }
-
-export { createProgressTracker };

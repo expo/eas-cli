@@ -8,7 +8,7 @@ import {
 } from '../../../../../graphql/generated';
 import { AppleDeviceRegistrationRequestFragmentNode } from '../../../../../graphql/types/credentials/AppleDeviceRegistrationRequest';
 
-const AppleDeviceRegistrationRequestMutation = {
+export const AppleDeviceRegistrationRequestMutation = {
   async createAppleDeviceRegistrationRequestAsync(
     appleTeamId: string,
     accountId: string
@@ -43,5 +43,3 @@ const AppleDeviceRegistrationRequestMutation = {
     return data.appleDeviceRegistrationRequest.createAppleDeviceRegistrationRequest;
   },
 };
-
-export { AppleDeviceRegistrationRequestMutation };

@@ -192,7 +192,7 @@ describe(promptToCreateProjectIfNotExistsAsync, () => {
     asMock(ensureProjectExistsAsync).mockImplementation(() => 'new-project-id');
 
     // user agrees to make new project
-    (confirmAsync as jest.Mock).mockImplementation(() => true);
+    asMock(confirmAsync).mockImplementation(() => true);
     const exp: any = {};
     const projectId = await promptToCreateProjectIfNotExistsAsync(exp);
     expect(projectId).toBe('new-project-id');
@@ -210,7 +210,7 @@ describe(promptToCreateProjectIfNotExistsAsync, () => {
     asMock(ensureProjectExistsAsync).mockImplementation(() => 'new-project-id');
 
     // user doesnt agree to make new project
-    (confirmAsync as jest.Mock).mockImplementation(() => false);
+    asMock(confirmAsync).mockImplementation(() => false);
     const exp: any = {};
     const projectId = await promptToCreateProjectIfNotExistsAsync(exp);
     expect(projectId).toBe(null);

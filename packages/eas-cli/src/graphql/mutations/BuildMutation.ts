@@ -21,7 +21,7 @@ export interface BuildResult {
   deprecationInfo?: EasBuildDeprecationInfo | null;
 }
 
-const BuildMutation = {
+export const BuildMutation = {
   async createAndroidBuildAsync(input: {
     appId: string;
     job: AndroidJobInput;
@@ -93,5 +93,3 @@ const BuildMutation = {
     return nullthrows(data.build?.createIosBuild);
   },
 };
-
-export { BuildMutation };

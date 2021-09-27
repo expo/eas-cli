@@ -19,7 +19,7 @@ import { AppleTeamFragmentNode } from '../../../../../graphql/types/credentials/
 export type AppleProvisioningProfileQueryResult = AppleProvisioningProfileFragment & {
   appleTeam?: AppleTeamFragment | null;
 } & { appleDevices: AppleDeviceFragment[] } & { appleAppIdentifier: AppleAppIdentifierFragment };
-const AppleProvisioningProfileQuery = {
+export const AppleProvisioningProfileQuery = {
   async getForAppAsync(
     projectFullName: string,
     {
@@ -89,5 +89,3 @@ const AppleProvisioningProfileQuery = {
     );
   },
 };
-
-export { AppleProvisioningProfileQuery };

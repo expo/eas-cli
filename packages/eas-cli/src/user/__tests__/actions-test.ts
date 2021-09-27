@@ -1,4 +1,5 @@
 import ApiV2Error from '../../ApiV2Error';
+import { asMock } from '../../__tests__/utils';
 import { promptAsync } from '../../prompts';
 import { Actor, loginAsync } from '../User';
 import { ensureActorHasUsername, showLoginPromptAsync } from '../actions';
@@ -12,12 +13,12 @@ jest.mock('../User', () => ({
 }));
 
 beforeEach(() => {
-  (promptAsync as jest.Mock).mockReset();
-  (promptAsync as jest.Mock).mockImplementation(() => {
+  asMock(promptAsync).mockReset();
+  asMock(promptAsync).mockImplementation(() => {
     throw new Error('Should not be called');
   });
 
-  (loginAsync as jest.Mock).mockReset();
+  asMock(loginAsync).mockReset();
 });
 
 const userStub: Actor = {
@@ -48,13 +49,13 @@ describe('ensureActorHasUsername', () => {
 
 describe(showLoginPromptAsync, () => {
   it('prompts for OTP when 2FA is enabled', async () => {
-    (promptAsync as jest.Mock)
+    asMock(promptAsync)
       .mockImplementationOnce(() => ({ username: 'hello', password: 'world' }))
       .mockImplementationOnce(() => ({ otp: '123456' }))
       .mockImplementation(() => {
         throw new Error("shouldn't happen");
       });
-    (loginAsync as jest.Mock)
+    asMock(loginAsync)
       .mockImplementationOnce(async () => {
         throw new ApiV2Error({ code: 'testcode', request: {} } as any, {
           message: 'An OTP is required',
@@ -76,20 +77,16 @@ describe(showLoginPromptAsync, () => {
 
     await showLoginPromptAsync();
 
-    expect(retryUsernamePasswordAuthWithOTPAsync as jest.Mock).toHaveBeenCalledWith(
-      'hello',
-      'world',
-      {
-        secondFactorDevices: [
-          {
-            id: 'p0',
-            is_primary: true,
-            method: UserSecondFactorDeviceMethod.SMS,
-            sms_phone_number: 'testphone',
-          },
-        ],
-        smsAutomaticallySent: true,
-      }
-    );
+    expect(retryUsernamePasswordAuthWithOTPAsync).toHaveBeenCalledWith('hello', 'world', {
+      secondFactorDevices: [
+        {
+          id: 'p0',
+          is_primary: true,
+          method: UserSecondFactorDeviceMethod.SMS,
+          sms_phone_number: 'testphone',
+        },
+      ],
+      smsAutomaticallySent: true,
+    });
   });
 });

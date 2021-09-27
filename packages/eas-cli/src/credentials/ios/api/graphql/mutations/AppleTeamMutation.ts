@@ -14,7 +14,7 @@ export type AppleTeamMutationResult = AppleTeamFragment & {
   account: Account;
 };
 
-const AppleTeamMutation = {
+export const AppleTeamMutation = {
   async createAppleTeamAsync(
     appleTeamInput: AppleTeamInput,
     accountId: string
@@ -47,5 +47,3 @@ const AppleTeamMutation = {
     return data.appleTeam.createAppleTeam;
   },
 };
-
-export { AppleTeamMutation };

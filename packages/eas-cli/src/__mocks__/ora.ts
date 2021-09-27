@@ -1,4 +1,4 @@
-export default jest.fn().mockReturnValue({
+export const ora = jest.fn().mockReturnValue({
   start: jest.fn().mockReturnValue({
     fail: jest.fn(),
     succeed: jest.fn(),

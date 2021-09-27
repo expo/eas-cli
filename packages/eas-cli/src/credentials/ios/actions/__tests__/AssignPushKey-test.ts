@@ -14,10 +14,8 @@ describe(AssignPushKey, () => {
     await assignPushKeyAction.runAsync(ctx, testPushKey);
 
     // expect app credentials to be fetched/created, then updated
-    expect(ctx.ios.createOrGetIosAppCredentialsWithCommonFieldsAsync as any).toHaveBeenCalledTimes(
-      1
-    );
-    expect(ctx.ios.updateIosAppCredentialsAsync as any).toHaveBeenCalledTimes(1);
+    expect(ctx.ios.createOrGetIosAppCredentialsWithCommonFieldsAsync).toHaveBeenCalledTimes(1);
+    expect(ctx.ios.updateIosAppCredentialsAsync).toHaveBeenCalledTimes(1);
   });
   it('works in Non-Interactive Mode', async () => {
     const ctx = createCtxMock({

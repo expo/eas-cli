@@ -16,8 +16,8 @@ describe(DownloadKeystore, () => {
     const appLookupParams = await getAppLookupParamsFromContextAsync(ctx);
     const downloadKeystoreAction = new DownloadKeystore({ app: appLookupParams });
     await downloadKeystoreAction.runAsync(ctx, testAndroidBuildCredentialsFragment);
-    expect(fsWriteFileSpy as any).toHaveBeenCalledTimes(1);
-    expect(fsWriteFileSpy as any).toHaveBeenCalledWith(
+    expect(fsWriteFileSpy).toHaveBeenCalledTimes(1);
+    expect(fsWriteFileSpy).toHaveBeenCalledWith(
       `@${appLookupParams.account.name}__${appLookupParams.projectName}.jks`,
       testAndroidBuildCredentialsFragment.androidKeystore?.keystore,
       'base64'

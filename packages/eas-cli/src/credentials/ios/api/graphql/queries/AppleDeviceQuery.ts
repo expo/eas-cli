@@ -31,7 +31,7 @@ export type AppleDevicesByIdentifierQueryResult = AppleDeviceQueryResult & {
   appleTeam: AppleTeamFragment;
 };
 
-const AppleDeviceQuery = {
+export const AppleDeviceQuery = {
   async getAllByAppleTeamIdentifierAsync(
     accountId: string,
     appleTeamIdentifier: string,
@@ -155,5 +155,3 @@ const AppleDeviceQuery = {
     return data.account.byName.appleDevices[0] ?? null;
   },
 };
-
-export { AppleDeviceQuery };

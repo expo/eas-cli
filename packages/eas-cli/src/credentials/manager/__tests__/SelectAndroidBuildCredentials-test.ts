@@ -1,3 +1,4 @@
+import { asMock } from '../../../__tests__/utils';
 import { promptAsync } from '../../../prompts';
 import {
   getNewAndroidApiMock,
@@ -14,12 +15,12 @@ const TEST_STRING = 'TEST_STRING';
 jest.mock('../../../prompts');
 
 beforeEach(() => {
-  (promptAsync as jest.Mock).mockReset();
+  asMock(promptAsync).mockReset();
 });
 
 describe(SelectAndroidBuildCredentials, () => {
   it('returns a request to make default build credentials when there are no credentials', async () => {
-    (promptAsync as jest.Mock).mockImplementation(() => ({
+    asMock(promptAsync).mockImplementation(() => ({
       providedName: TEST_STRING,
     }));
     const ctx = createCtxMock({
@@ -37,7 +38,7 @@ describe(SelectAndroidBuildCredentials, () => {
     });
   });
   it('returns a request to make build credentials when the user chooses to make a new one', async () => {
-    (promptAsync as jest.Mock).mockImplementation(() => ({
+    asMock(promptAsync).mockImplementation(() => ({
       buildCredentialsResultOrRequestToCreateNew:
         SelectAndroidBuildCredentialsResultType.CREATE_REQUEST,
       providedName: TEST_STRING,
@@ -59,7 +60,7 @@ describe(SelectAndroidBuildCredentials, () => {
     });
   });
   it('returns a request to make default build credentials when the user chooses to make a new one, and if they have no existing credentials', async () => {
-    (promptAsync as jest.Mock).mockImplementation(() => ({
+    asMock(promptAsync).mockImplementation(() => ({
       buildCredentialsResultOrRequestToCreateNew:
         SelectAndroidBuildCredentialsResultType.CREATE_REQUEST,
       providedName: TEST_STRING,
@@ -79,7 +80,7 @@ describe(SelectAndroidBuildCredentials, () => {
     });
   });
   it('returns buildCredentials of the users choice', async () => {
-    (promptAsync as jest.Mock).mockImplementation(() => ({
+    asMock(promptAsync).mockImplementation(() => ({
       buildCredentialsResultOrRequestToCreateNew: testAndroidBuildCredentialsFragment,
     }));
     const ctx = createCtxMock({

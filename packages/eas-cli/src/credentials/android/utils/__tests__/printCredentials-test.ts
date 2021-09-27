@@ -1,5 +1,6 @@
 import mockdate from 'mockdate';
 
+import { asMock } from '../../../../__tests__/utils';
 import Log from '../../../../log';
 import {
   testAndroidAppCredentialsFragment,
@@ -22,9 +23,7 @@ describe('print credentials', () => {
       appLookupParams,
       appCredentials: testAndroidAppCredentialsFragment,
     });
-    const loggedSoFar = (Log.log as jest.Mock).mock.calls.reduce(
-      (acc, mockValue) => acc + mockValue
-    );
+    const loggedSoFar = asMock(Log.log).mock.calls.reduce((acc, mockValue) => acc + mockValue);
     expect(loggedSoFar).toMatchSnapshot();
   });
 });

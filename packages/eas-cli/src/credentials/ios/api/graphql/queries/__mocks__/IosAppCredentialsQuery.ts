@@ -1,4 +1,4 @@
-const IosAppCredentialsQuery = {
+export const IosAppCredentialsQuery = {
   withCommonFieldsByAppIdentifierIdAsync: jest.fn().mockImplementation(() => {
     return {
       id: '48d0cd34-96d8-447c-9de8-40dd2c3ca0f8',
@@ -29,13 +29,6 @@ const IosAppCredentialsQuery = {
           __typename: 'AppleTeam',
         },
         __typename: 'ApplePushKey',
-      },
-      appSpecificPassword: {
-        id: '64bdd007-da7b-4190-a571-edb87e9324a1',
-        appleIdUsername: 'quin@expo.dev',
-        passwordLabel: 'description for super secret password',
-        updatedAt: '2020-10-13T18:39:04.463Z',
-        __typename: 'AppleAppSpecificPassword',
       },
       iosAppBuildCredentialsList: [
         {
@@ -119,5 +112,3 @@ const IosAppCredentialsQuery = {
     };
   }),
 };
-
-export { IosAppCredentialsQuery };

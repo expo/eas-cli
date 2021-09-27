@@ -10,12 +10,34 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
-- Prevent ora spinners breaking when debug logs are enabled. ([#575](https://github.com/expo/eas-cli/pull/575) by [@EvanBacon](https://github.com/EvanBacon))
+- Credentials manager: stop prompting for an Android build profile every iteration. ([#641](https://github.com/expo/eas-cli/pull/641) by [@quinlanj](https://github.com/quinlanj))
+- Don't display prompt in non-interactive mode when the metro config seems invalid. ([#644](https://github.com/expo/eas-cli/pull/644) by [@dsokal](https://github.com/dsokal))
 - Read versions from correct `Info.plist`. ([#635](https://github.com/expo/eas-cli/pull/635) by [@wkozyra95](https://github.com/wkozyra95))
 
 ### 🧹 Chores
 
-## [0.28.0](https://github.com/expo/eas-cli/releases/tag/v0.28.0) - 2021-09-10
+- Move away from weird convention of exports. ([#647](https://github.com/expo/eas-cli/pull/647) by [@quinlanj](https://github.com/quinlanj))
+
+## [0.28.2](https://github.com/expo/eas-cli/releases/tag/v0.28.2) - 2021-09-23
+
+### 🐛 Bug fixes
+
+- Use `log-symbols` to unify green ticks style. ([#639](https://github.com/expo/eas-cli/pull/639) by [@dsokal](https://github.com/dsokal))
+- Fix `eas build --auto-submit` in fresh projects. ([#640](https://github.com/expo/eas-cli/pull/640) by [@dsokal](https://github.com/dsokal))
+
+## [0.28.1](https://github.com/expo/eas-cli/releases/tag/v0.28.1) - 2021-09-22
+
+### 🐛 Bug fixes
+
+- Prevent ora spinners breaking when debug logs are enabled. ([#575](https://github.com/expo/eas-cli/pull/575) by [@EvanBacon](https://github.com/EvanBacon))
+- Do not fail `eas build` when transient network errors occur. ([#638](https://github.com/expo/eas-cli/pull/638) by [@dsokal](https://github.com/dsokal))
+
+### 🧹 Chores
+
+- Add GraphQL support for GoogleServiceAccountKey. ([#632](https://github.com/expo/eas-cli/pull/632) by [@quinlanj](https://github.com/quinlanj))
+- Remove GraphQL support for the App Specific Password. ([#633](https://github.com/expo/eas-cli/pull/633) by [@quinlanj](https://github.com/quinlanj))
+
+## [0.28.0](https://github.com/expo/eas-cli/releases/tag/v0.28.0) - 2021-09-20
 
 ### 🎉 New features
 
