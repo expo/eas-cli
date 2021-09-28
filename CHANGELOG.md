@@ -9,7 +9,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🎉 New features
 
 - Added upload support for Google Service Account Keys. ([#642](https://github.com/expo/eas-cli/pull/642) by [@quinlanj](https://github.com/quinlanj))
-- Add Xcode 13 image ([#651](https://github.com/expo/eas-cli/pull/651) by [@wkozyra95](https://github.com/wkozyra95))
+- Add Xcode 13 image. ([#651](https://github.com/expo/eas-cli/pull/651) by [@wkozyra95](https://github.com/wkozyra95))
 
 ### 🐛 Bug fixes
 
