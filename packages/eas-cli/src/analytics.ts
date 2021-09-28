@@ -65,7 +65,6 @@ export async function initAsync(): Promise<void> {
         flushInterval: 300,
       }
     );
-    rudderstackClient.logger.silent = true;
   }
 }
 
@@ -87,7 +86,7 @@ export async function setUserDataAsync(userId: string, traits: Record<string, an
 
 export async function flushAsync(): Promise<void> {
   if (rudderstackClient) {
-    rudderstackClient.flush();
+    await rudderstackClient.flush();
   }
 }
 
@@ -114,13 +113,11 @@ function ensureUserIdentified(): void {
     return;
   }
 
-  if (rudderstackClient) {
-    rudderstackClient.identify({
-      userId: identifyData.userId,
-      anonymousId: identifyData.deviceId,
-      traits: identifyData.traits,
-    });
-  }
+  rudderstackClient.identify({
+    userId: identifyData.userId,
+    anonymousId: identifyData.deviceId,
+    traits: identifyData.traits,
+  });
   userIdentified = true;
 }
 
