@@ -1,8 +1,10 @@
 import { fs } from 'memfs';
 
 // needed because of a weird bug with tempy (dependency of @expo/config-plugins)
+// eslint-disable-next-line node/no-sync
 fs.mkdirSync('/tmp');
 if (process.env.TMPDIR) {
+  // eslint-disable-next-line node/no-sync
   fs.mkdirSync(process.env.TMPDIR, { recursive: true });
 }
 

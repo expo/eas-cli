@@ -10,14 +10,14 @@ const fsReal = jest.requireActual('fs') as typeof fs;
 jest.mock('fs');
 
 describe(getAppBuildGradleAsync, () => {
-  afterEach(async () => {
+  afterEach(() => {
     vol.reset();
   });
 
   test('parsing build.gradle from managed template', async () => {
     vol.fromJSON(
       {
-        'android/app/build.gradle': fsReal.readFileSync(
+        'android/app/build.gradle': await fsReal.promises.readFile(
           path.join(__dirname, 'fixtures/build.gradle'),
           'utf-8'
         ),
@@ -41,7 +41,7 @@ describe(getAppBuildGradleAsync, () => {
   test('parsing multiflavor build.gradle', async () => {
     vol.fromJSON(
       {
-        'android/app/build.gradle': fsReal.readFileSync(
+        'android/app/build.gradle': await fsReal.promises.readFile(
           path.join(__dirname, 'fixtures/multiflavor-build.gradle'),
           'utf-8'
         ),
@@ -75,7 +75,7 @@ describe(getAppBuildGradleAsync, () => {
   test('parsing build.gradle with flavor dimensions', async () => {
     vol.fromJSON(
       {
-        'android/app/build.gradle': fsReal.readFileSync(
+        'android/app/build.gradle': await fsReal.promises.readFile(
           path.join(__dirname, 'fixtures/multiflavor-with-dimensions-build.gradle'),
           'utf-8'
         ),

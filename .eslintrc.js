@@ -1,7 +1,7 @@
 module.exports = {
   root: true,
   extends: ['universe/node'],
-  plugins: ['async-protect'],
+  plugins: ['async-protect', 'node'],
   rules: {
     'no-console': 'warn',
     'no-constant-condition': ['warn', { checkLoops: false }],
@@ -41,6 +41,7 @@ module.exports = {
       },
     ],
     'async-protect/async-suffix': 'error',
+    'node/no-sync': 'error',
   },
   overrides: [
     {

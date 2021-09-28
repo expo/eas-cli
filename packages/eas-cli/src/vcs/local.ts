@@ -15,7 +15,7 @@ export default class LocalClient extends Client {
 
   public async makeShallowCopyAsync(destinationPath: string): Promise<void> {
     const srcPath = getRootPath();
-    const ignore = initIgnore();
+    const ignore = await initIgnoreAsync();
     await fs.copy(srcPath, destinationPath, {
       filter: (srcFilePath: string) => {
         if (srcFilePath === srcPath) {
@@ -27,7 +27,7 @@ export default class LocalClient extends Client {
   }
 
   public async isFileIgnoredAsync(filePath: string): Promise<boolean> {
-    return initIgnore().ignores(filePath);
+    return (await initIgnoreAsync()).ignores(filePath);
   }
 }
 
@@ -39,16 +39,16 @@ function getRootPath(): string {
   return rootPath;
 }
 
-function initIgnore(): Ignore {
+async function initIgnoreAsync(): Promise<Ignore> {
   const srcPath = getRootPath();
   const easIgnorePath = path.join(srcPath, '.easignore');
   const gitIgnorePath = path.join(srcPath, '.gitignore');
 
   let ignoreFile = DEFAULT_IGNORE;
-  if (fs.pathExistsSync(easIgnorePath)) {
-    ignoreFile = fs.readFileSync(easIgnorePath, 'utf8');
-  } else if (fs.pathExistsSync(gitIgnorePath)) {
-    ignoreFile = fs.readFileSync(gitIgnorePath, 'utf8');
+  if (await fs.pathExists(easIgnorePath)) {
+    ignoreFile = await fs.readFile(easIgnorePath, 'utf8');
+  } else if (await fs.pathExists(gitIgnorePath)) {
+    ignoreFile = await fs.readFile(gitIgnorePath, 'utf8');
   }
 
   return ignore().add(ignoreFile);

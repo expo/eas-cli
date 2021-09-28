@@ -14,11 +14,12 @@ jest.mock('fs');
 jest.mock('../../../prompts');
 jest.mock('../../../user/actions', () => ({ ensureLoggedInAsync: jest.fn(() => mockJester) }));
 
-beforeEach(() => {
+beforeEach(async () => {
   vol.reset();
+
   // do not remove the following line
   // this fixes a weird error with tempy in @expo/image-utils
-  fs.mkdirpSync(os.tmpdir());
+  await fs.mkdirp(os.tmpdir());
 
   asMock(promptAsync).mockReset();
 });
@@ -145,7 +146,8 @@ describe(ensureApplicationIdIsDefinedForManagedProjectAsync, () => {
       await expect(
         ensureApplicationIdIsDefinedForManagedProjectAsync('/app', {} as any)
       ).resolves.toBe('com.expo.notdominik');
-      expect(JSON.parse(fs.readFileSync('/app/app.json', 'utf-8'))).toMatchObject({
+      const appJson = JSON.parse(await fs.readFile('/app/app.json', 'utf-8'));
+      expect(appJson).toMatchObject({
         expo: { android: { package: 'com.expo.notdominik' } },
       });
     });

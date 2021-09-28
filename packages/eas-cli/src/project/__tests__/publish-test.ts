@@ -1,4 +1,4 @@
-import fs from 'fs';
+import fs from 'fs-extra';
 import mockdate from 'mockdate';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
@@ -11,14 +11,14 @@ import {
   MetadataJoi,
   TIMEOUT_LIMIT,
   buildUnsortedUpdateInfoGroupAsync,
-  collectAssets,
+  collectAssetsAsync,
   convertAssetToUpdateInfoGroupFormatAsync,
   filterOutAssetsThatAlreadyExistAsync,
   getBase64URLEncoding,
   getStorageKey,
   getStorageKeyForAssetAsync,
   guessContentTypeFromExtension,
-  resolveInputDirectory,
+  resolveInputDirectoryAsync,
   uploadAssetsAsync,
 } from '../publish';
 
@@ -26,8 +26,15 @@ jest.mock('../../uploads');
 jest.mock('fs');
 
 const dummyFileBuffer = Buffer.from('dummy-file');
-fs.mkdirSync(path.resolve(), { recursive: true });
-fs.writeFileSync(path.resolve('md5-hash-of-file'), dummyFileBuffer);
+
+beforeAll(async () => {
+  await fs.mkdir(path.resolve(), { recursive: true });
+  await fs.writeFile(path.resolve('md5-hash-of-file'), dummyFileBuffer);
+});
+
+afterAll(async () => {
+  await fs.remove(path.resolve('md5-hash-of-file'));
+});
 
 describe('MetadataJoi', () => {
   it('passes correctly structured metadata', () => {
@@ -114,7 +121,12 @@ describe(getStorageKey, () => {
 
 describe(getStorageKeyForAssetAsync, () => {
   const pathLocation = uuidv4();
-  fs.writeFileSync(pathLocation, Buffer.from('I am pretending to be a jpeg'));
+  beforeAll(async () => {
+    await fs.writeFile(pathLocation, Buffer.from('I am pretending to be a jpeg'));
+  });
+  afterAll(async () => {
+    await fs.remove(pathLocation);
+  });
   it('returns the correct key', async () => {
     const asset = {
       type: 'jpg',
@@ -128,14 +140,19 @@ describe(getStorageKeyForAssetAsync, () => {
 });
 
 describe(convertAssetToUpdateInfoGroupFormatAsync, () => {
+  const pathLocation = uuidv4();
+  beforeAll(async () => {
+    await fs.writeFile(pathLocation, Buffer.from('I am pretending to be a jpeg'));
+  });
+  afterAll(async () => {
+    await fs.remove(pathLocation);
+  });
   it('resolves to the correct value', async () => {
-    const path = uuidv4();
-    fs.writeFileSync(path, 'I am pretending to be a jpeg');
     const fileExtension = '.jpg';
     const asset = {
       fileExtension,
       contentType: 'image/jpeg',
-      path,
+      path: pathLocation,
     };
     await expect(convertAssetToUpdateInfoGroupFormatAsync(asset)).resolves.toEqual({
       bundleKey: 'c939e759656f577c058f445bfb19182e',
@@ -150,8 +167,15 @@ describe(convertAssetToUpdateInfoGroupFormatAsync, () => {
 describe(buildUnsortedUpdateInfoGroupAsync, () => {
   const androidBundlePath = uuidv4();
   const assetPath = uuidv4();
-  fs.writeFileSync(androidBundlePath, 'I am a js bundle');
-  fs.writeFileSync(assetPath, 'I am pretending to be a jpeg');
+
+  beforeAll(async () => {
+    await fs.writeFile(androidBundlePath, 'I am a js bundle');
+    await fs.writeFile(assetPath, 'I am pretending to be a jpeg');
+  });
+  afterAll(async () => {
+    await fs.remove(androidBundlePath);
+    await fs.remove(assetPath);
+  });
 
   it('returns the correct value', async () => {
     await expect(
@@ -206,17 +230,16 @@ describe(buildUnsortedUpdateInfoGroupAsync, () => {
   });
 });
 
-describe(resolveInputDirectory, () => {
-  it('returns the correct distRoot path', () => {
+describe(resolveInputDirectoryAsync, () => {
+  it('returns the correct distRoot path', async () => {
     const customDirectoryName = path.resolve(uuidv4());
-    fs.mkdirSync(customDirectoryName, { recursive: true });
-    expect(resolveInputDirectory(customDirectoryName)).toBe(customDirectoryName);
+    await fs.mkdir(customDirectoryName, { recursive: true });
+    expect(await resolveInputDirectoryAsync(customDirectoryName)).toBe(customDirectoryName);
   });
-  it('throws an error if the path does not exist', () => {
+  it('throws an error if the path does not exist', async () => {
     const nonExistentPath = path.resolve(uuidv4());
-    expect(() => {
-      resolveInputDirectory(nonExistentPath);
-    }).toThrow(`The input directory "${nonExistentPath}" does not exist.
+    await expect(resolveInputDirectoryAsync(nonExistentPath)).rejects
+      .toThrow(`The input directory "${nonExistentPath}" does not exist.
     You can allow us to build it for you by not setting the --skip-bundler flag.
     If you chose to build it yourself you'll need to run a command to build the JS
     bundle first.
@@ -224,8 +247,8 @@ describe(resolveInputDirectory, () => {
   });
 });
 
-describe(collectAssets, () => {
-  it('builds an update info group', () => {
+describe(collectAssetsAsync, () => {
+  it('builds an update info group', async () => {
     const fakeHash = 'md5-hash-of-jpg';
     const bundles = { android: 'android-bundle-code', ios: 'ios-bundle-code' };
     const inputDir = uuidv4();
@@ -240,13 +263,13 @@ describe(collectAssets, () => {
 
     const bundleDir = path.resolve(`${inputDir}/bundles`);
     const assetDir = path.resolve(`${inputDir}/assets`);
-    fs.mkdirSync(bundleDir, { recursive: true });
-    fs.mkdirSync(assetDir, { recursive: true });
-    defaultPublishPlatforms.forEach(platform => {
-      fs.writeFileSync(path.resolve(inputDir, `bundles/${platform}.js`), bundles[platform]);
-    });
-    fs.writeFileSync(path.resolve(`${inputDir}/assets/${fakeHash}`), dummyFileBuffer);
-    fs.writeFileSync(
+    await fs.mkdir(bundleDir, { recursive: true });
+    await fs.mkdir(assetDir, { recursive: true });
+    for (const platform of defaultPublishPlatforms) {
+      await fs.writeFile(path.resolve(inputDir, `bundles/${platform}.js`), bundles[platform]);
+    }
+    await fs.writeFile(path.resolve(`${inputDir}/assets/${fakeHash}`), dummyFileBuffer);
+    await fs.writeFile(
       path.resolve(inputDir, 'metadata.json'),
       JSON.stringify({
         version: 0,
@@ -264,7 +287,7 @@ describe(collectAssets, () => {
       })
     );
 
-    expect(collectAssets({ inputDir, platforms: defaultPublishPlatforms })).toEqual({
+    expect(await collectAssetsAsync({ inputDir, platforms: defaultPublishPlatforms })).toEqual({
       android: {
         launchAsset: {
           fileExtension: '.bundle',
@@ -283,7 +306,7 @@ describe(collectAssets, () => {
       },
     });
 
-    expect(collectAssets({ inputDir, platforms: ['ios'] })).toEqual({
+    expect(await collectAssetsAsync({ inputDir, platforms: ['ios'] })).toEqual({
       ios: {
         launchAsset: {
           fileExtension: '.bundle',
@@ -309,9 +332,7 @@ describe(filterOutAssetsThatAlreadyExistAsync, () => {
     });
 
     expect(
-      await (
-        await filterOutAssetsThatAlreadyExistAsync([{ storageKey: 'blah' } as any])
-      ).length
+      (await filterOutAssetsThatAlreadyExistAsync([{ storageKey: 'blah' } as any])).length
     ).toBe(1);
   });
   it('ignores an asset that exists', async () => {
@@ -325,9 +346,7 @@ describe(filterOutAssetsThatAlreadyExistAsync, () => {
       ];
     });
     expect(
-      await (
-        await filterOutAssetsThatAlreadyExistAsync([{ storageKey: 'blah' } as any])
-      ).length
+      (await filterOutAssetsThatAlreadyExistAsync([{ storageKey: 'blah' } as any])).length
     ).toBe(0);
   });
 });
@@ -350,10 +369,20 @@ describe(uploadAssetsAsync, () => {
   const iosBundlePath = uuidv4();
   const dummyFilePath = uuidv4();
   const userDefinedPath = uuidv4();
-  fs.writeFileSync(androidBundlePath, publishBundles.android.code);
-  fs.writeFileSync(iosBundlePath, publishBundles.ios.code);
-  fs.writeFileSync(dummyFilePath, dummyFileBuffer);
-  fs.writeFileSync(userDefinedPath, 'I am an octet stream');
+
+  beforeAll(async () => {
+    await fs.writeFile(androidBundlePath, publishBundles.android.code);
+    await fs.writeFile(iosBundlePath, publishBundles.ios.code);
+    await fs.writeFile(dummyFilePath, dummyFileBuffer);
+    await fs.writeFile(userDefinedPath, 'I am an octet stream');
+  });
+
+  afterAll(async () => {
+    await fs.remove(androidBundlePath);
+    await fs.remove(iosBundlePath);
+    await fs.remove(dummyFilePath);
+    await fs.remove(userDefinedPath);
+  });
 
   const userDefinedAsset = {
     type: 'bundle',
