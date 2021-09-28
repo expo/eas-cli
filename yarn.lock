@@ -889,10 +889,10 @@
     slugify "^1.3.4"
     sucrase "^3.20.0"
 
-"@expo/eas-build-job@0.2.46":
-  version "0.2.46"
-  resolved "https://registry.yarnpkg.com/@expo/eas-build-job/-/eas-build-job-0.2.46.tgz#2742fd21a0fb0fdd2857705f931a4c10c0ad45f7"
-  integrity sha512-D3/RcwlLdywmT7UCtOOylLGy47W+o4UwGxrLH1j8IVYTJxyT+s/n1ss5ipbLkssEPPUfibTBysgZfwVGdCSWkQ==
+"@expo/eas-build-job@0.2.48":
+  version "0.2.48"
+  resolved "https://registry.yarnpkg.com/@expo/eas-build-job/-/eas-build-job-0.2.48.tgz#ebc2abea02cb3f23be9714318bea04515980b03d"
+  integrity sha512-QWg44uXndNw3ZKrP+1FD2Li1VSQoSWn94iQ6j6lwMfVfFpp6DiiZ73HXf4Bxix52cl5DTmpaE7hxYyhxSvV0yA==
   dependencies:
     joi "^17.4.2"
 
