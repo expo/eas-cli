@@ -16,32 +16,46 @@ import { AppLookupParams } from '../api/GraphqlClient';
 
 export function displayEmptyAndroidCredentials(appLookupParams: AppLookupParams): void {
   const { projectName, androidApplicationIdentifier } = appLookupParams;
-  Log.log(chalk.bold(`Android Credentials`));
-  Log.log(`  Project: ${projectName}`);
-  Log.log(`  Application Identifier: ${androidApplicationIdentifier}`);
-  Log.log(`  No credentials set up yet!`);
+  const fields = [
+    { label: 'Android Credentials', value: '' },
+    { label: 'Project', value: projectName },
+    { label: 'Application Identifier', value: androidApplicationIdentifier },
+  ];
+  Log.log(formatFields(fields, { labelFormat: chalk.cyan.bold }));
+  Log.log(
+    formatFields([{ label: 'No credentials set up yet!', value: '' }])
+  );
+  Log.newLine();
 }
 
 function displayAndroidFcmCredentials(appCredentials: CommonAndroidAppCredentialsFragment): void {
   const maybeFcm = appCredentials.androidFcm;
-  Log.log(`  Push Notifications (FCM):`);
+  Log.log(
+    formatFields([{ label: 'Push Notifications (FCM)', value: '' }], {
+      labelFormat: chalk.cyan.bold,
+    })
+  );
   if (!maybeFcm) {
-    Log.log(`    None assigned yet`);
+    Log.log(
+      formatFields([{ label: '', value: 'None assigned yet' }])
+    );
     Log.newLine();
     return;
   }
   const { snippet, version, updatedAt } = maybeFcm;
+  let fields = [];
   if (version === AndroidFcmVersion.Legacy) {
     const { firstFourCharacters, lastFourCharacters } = snippet as FcmSnippetLegacy;
-    Log.log(`    Key: ${firstFourCharacters}...${lastFourCharacters}`);
+    fields.push( { label: 'Key', value: `${firstFourCharacters}...${lastFourCharacters}` });
   } else if (version === AndroidFcmVersion.V1) {
     const { projectId, serviceAccountEmail, clientId, keyId } = snippet as FcmSnippetV1;
-    Log.log(`    Project Id: ${projectId}`);
-    Log.log(`    Service Account: ${serviceAccountEmail}`);
-    Log.log(`    Client Id: ${clientId}`);
-    Log.log(`    Key Id: ${keyId}`);
+    fields.push( { label: 'Project ID', value: projectId });
+    fields.push( { label: 'Client Email', value: serviceAccountEmail });
+    fields.push( { label: 'Client ID', value: clientId ?? 'Unknown' });
+    fields.push( { label: 'Private Key ID', value: keyId });
   }
-  Log.log(`    Updated ${fromNow(new Date(updatedAt))} ago`);
+  fields.push( { label: 'Updated', value: `${fromNow(new Date(updatedAt))} ago` });
+  Log.log(formatFields(fields, { labelFormat: chalk.cyan.bold }));
   Log.newLine();
 }
 
@@ -56,9 +70,7 @@ function displayGoogleServiceAccountKeyForSubmissions(
   );
   if (!maybeGsaKey) {
     Log.log(
-      formatFields([{ label: '', value: 'None assigned yet' }], {
-        labelFormat: chalk.cyan.bold,
-      })
+      formatFields([{ label: '', value: 'None assigned yet' }])
     );
     Log.newLine();
     return;
@@ -108,19 +120,26 @@ function formatFingerprint(fingerprint: string | null): string {
 }
 function displayAndroidBuildCredentials(
   buildCredentials: AndroidAppBuildCredentialsFragment,
-  skipConfigurationDisplay?: boolean
 ): void {
-  if (!skipConfigurationDisplay) {
-    const { isDefault, name } = buildCredentials;
-    Log.log(chalk.bold(`  Configuration: ${name}${isDefault ? ' (Default)' : ''}`));
-  }
+  const { isDefault, name } = buildCredentials;
+  Log.log(
+    formatFields([{ label: `Configuration: ${name}${isDefault ? ' (Default)' : ''}`, value: '' }], {
+      labelFormat: chalk.cyan.bold,
+    })
+  );
 
   const maybeKeystore = buildCredentials.androidKeystore;
-  Log.log(`  Keystore:`);
+  Log.log(
+    formatFields([{ label: 'Keystore', value: '' }], {
+      labelFormat: chalk.cyan.bold,
+    })
+  );
   if (maybeKeystore) {
     displayAndroidKeystore(maybeKeystore);
   } else {
-    Log.log(`    None assigned yet`);
+    Log.log(
+      formatFields([{ label: '', value: 'None assigned yet' }])
+    );
   }
   Log.newLine();
 }
@@ -134,13 +153,15 @@ export function displayAndroidKeystore(keystore: AndroidKeystoreFragment): void 
     sha256CertificateFingerprint,
     updatedAt,
   } = keystore;
-  Log.log(`    Type: ${type}`);
-  Log.log(`    Key Alias: ${keyAlias}`);
-
-  Log.log(`    MD5 Fingerprint: ${formatFingerprint(md5CertificateFingerprint ?? null)}`);
-  Log.log(`    SHA1 Fingerprint: ${formatFingerprint(sha1CertificateFingerprint ?? null)}`);
-  Log.log(`    SHA256 Fingerprint: ${formatFingerprint(sha256CertificateFingerprint ?? null)}`);
-  Log.log(`    Updated ${fromNow(new Date(updatedAt))} ago`);
+  const fields = [
+    { label: 'Type', value: type },
+    { label: 'Key Alias', value: keyAlias },
+    { label: 'MD5 Fingerprint', value: formatFingerprint(md5CertificateFingerprint ?? null) },
+    { label: 'SHA1 Fingerprint', value: formatFingerprint(sha1CertificateFingerprint ?? null) },
+    { label: 'SHA256 Fingerprint', value: formatFingerprint(sha256CertificateFingerprint ?? null) },
+    { label: 'Updated', value: `${fromNow(new Date(updatedAt))} ago` },
+  ];
+  Log.log(formatFields(fields, { labelFormat: chalk.cyan.bold }));
 }
 
 export function displayAndroidAppCredentials({
@@ -151,9 +172,12 @@ export function displayAndroidAppCredentials({
   appCredentials: CommonAndroidAppCredentialsFragment | null;
 }): void {
   const { projectName, androidApplicationIdentifier } = appLookupParams;
-  Log.log(chalk.bold(`Android Credentials`));
-  Log.log(`  Project: ${projectName}`);
-  Log.log(`  Application Identifier: ${androidApplicationIdentifier}`);
+  const fields = [
+    { label: 'Android Credentials', value: '' },
+    { label: 'Project', value: projectName },
+    { label: 'Application Identifier', value: androidApplicationIdentifier },
+  ];
+  Log.log(formatFields(fields, { labelFormat: chalk.cyan.bold }));
   Log.newLine();
 
   if (appCredentials) {
