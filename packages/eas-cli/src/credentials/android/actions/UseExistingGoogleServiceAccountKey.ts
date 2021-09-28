@@ -33,7 +33,7 @@ export class UseExistingGoogleServiceAccountKey {
     const { chosenKey } = await promptAsync({
       type: 'select',
       name: 'chosenKey',
-      message: 'Select a Google Service Account Key.',
+      message: 'Select a Google Service Account Key:',
       choices: sortedKeys.map(key => ({
         title: this.formatGoogleServiceAccountKey(key),
         value: key,
@@ -42,7 +42,7 @@ export class UseExistingGoogleServiceAccountKey {
     return chosenKey;
   }
 
-  sortGoogleServiceAccountKeysByUpdatedAtDesc(
+  private sortGoogleServiceAccountKeysByUpdatedAtDesc(
     keys: GoogleServiceAccountKeyFragment[]
   ): GoogleServiceAccountKeyFragment[] {
     return keys.sort(
@@ -51,11 +51,14 @@ export class UseExistingGoogleServiceAccountKey {
     );
   }
 
-  private formatGoogleServiceAccountKey(key: GoogleServiceAccountKeyFragment): string {
-    const { projectIdentifier, privateKeyIdentifier, clientEmail, clientIdentifier, updatedAt } =
-      key;
+  private formatGoogleServiceAccountKey({
+    projectIdentifier,
+    privateKeyIdentifier,
+    clientEmail,
+    clientIdentifier,
+    updatedAt,
+  }: GoogleServiceAccountKeyFragment): string {
     let line: string = '';
-
     line += `Client Email: ${clientEmail}, Project Id: ${projectIdentifier}`;
     line += chalk.gray(
       `\n    Client Id: ${clientIdentifier}, Private Key Id: ${privateKeyIdentifier}`

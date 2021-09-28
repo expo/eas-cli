@@ -12,7 +12,7 @@ jest.mock('../../../../prompts');
 asMock(promptAsync).mockImplementation(() => ({ chosenKey: testGoogleServiceAccountKeyFragment }));
 
 describe(UseExistingGoogleServiceAccountKey, () => {
-  it('uses an existing an Google Service Account Key in Interactive Mode', async () => {
+  it('uses an existing Google Service Account Key in Interactive Mode', async () => {
     const ctx = createCtxMock({
       nonInteractive: false,
       android: {
