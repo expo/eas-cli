@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Added upload support for Google Service Account Keys. ([#642](https://github.com/expo/eas-cli/pull/642), [#649](https://github.com/expo/eas-cli/pull/649) by [@quinlanj](https://github.com/quinlanj))
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores

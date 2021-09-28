@@ -6,6 +6,7 @@ import {
   AndroidKeystoreType,
   AppFragment,
   CommonAndroidAppCredentialsFragment,
+  GoogleServiceAccountKeyFragment,
 } from '../../graphql/generated';
 import * as AndroidGraphqlClient from '../android/api/GraphqlClient';
 import { Keystore } from '../android/credentials';
@@ -68,6 +69,16 @@ export const testLegacyAndroidFcmFragment: AndroidFcmFragment = {
   updatedAt: now,
 };
 
+export const testGoogleServiceAccountKeyFragment: GoogleServiceAccountKeyFragment = {
+  id: 'test-id',
+  projectIdentifier: 'sdf.sdf.sdf',
+  privateKeyIdentifier: 'test-private-key-identifier',
+  clientEmail: 'quin@expo.io',
+  clientIdentifier: 'test-client-identifier',
+  createdAt: now,
+  updatedAt: now,
+};
+
 export const testJksAndroidKeystoreFragment: AndroidKeystoreFragment = {
   id: 'test-id',
   type: AndroidKeystoreType.Jks,
@@ -113,6 +124,7 @@ export const testAndroidAppCredentialsFragment: CommonAndroidAppCredentialsFragm
   isLegacy: false,
   app: testAppFragment,
   androidFcm: testLegacyAndroidFcmFragment,
+  googleServiceAccountKeyForSubmissions: testGoogleServiceAccountKeyFragment,
   androidAppBuildCredentialsList: [testLegacyAndroidBuildCredentialsFragment],
 };
 
