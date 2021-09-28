@@ -25,7 +25,7 @@ import {
   PublishPlatform,
   buildBundlesAsync,
   buildUnsortedUpdateInfoGroupAsync,
-  collectAssets,
+  collectAssetsAsync,
   uploadAssetsAsync,
 } from '../../project/publish';
 import { promptAsync, selectAsync } from '../../prompts';
@@ -290,7 +290,7 @@ export default class BranchPublish extends EasCommand {
       const assetSpinner = ora('Uploading assets...').start();
       try {
         const platforms = platformFlag === 'all' ? defaultPublishPlatforms : [platformFlag];
-        const assets = collectAssets({ inputDir: inputDir!, platforms });
+        const assets = await collectAssetsAsync({ inputDir: inputDir!, platforms });
         await uploadAssetsAsync(assets);
         unsortedUpdateInfoGroups = await buildUnsortedUpdateInfoGroupAsync(assets, exp);
         assetSpinner.succeed('Uploaded assets!');

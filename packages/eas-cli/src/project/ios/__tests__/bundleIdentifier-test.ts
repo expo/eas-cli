@@ -16,23 +16,24 @@ jest.mock('fs');
 jest.mock('../../../prompts');
 jest.mock('../../../user/actions', () => ({ ensureLoggedInAsync: jest.fn(() => mockJester) }));
 
-beforeEach(() => {
+beforeEach(async () => {
   vol.reset();
+
   // do not remove the following line
   // this fixes a weird error with tempy in @expo/image-utils
-  fs.mkdirpSync(os.tmpdir());
+  await fs.mkdirp(os.tmpdir());
 
   asMock(promptAsync).mockReset();
 });
 
-const originalFs = jest.requireActual('fs');
+const originalFs = jest.requireActual('fs') as typeof fs;
 
 describe(getBundleIdentifierAsync, () => {
   describe('generic projects', () => {
     it('reads bundle identifier from project.', async () => {
       vol.fromJSON(
         {
-          'ios/myproject.xcodeproj/project.pbxproj': originalFs.readFileSync(
+          'ios/myproject.xcodeproj/project.pbxproj': await originalFs.promises.readFile(
             path.join(__dirname, './fixtures/pbxproj/project.pbxproj'),
             'utf-8'
           ),
@@ -47,7 +48,7 @@ describe(getBundleIdentifierAsync, () => {
     it('throws an error if the pbxproj is not configured with bundle id', async () => {
       vol.fromJSON(
         {
-          'ios/myproject.xcodeproj/project.pbxproj': originalFs.readFileSync(
+          'ios/myproject.xcodeproj/project.pbxproj': await originalFs.promises.readFile(
             path.join(__dirname, './fixtures/pbxproj/project-without-bundleid.pbxproj'),
             'utf-8'
           ),
@@ -128,7 +129,8 @@ describe(ensureBundleIdentifierIsDefinedForManagedProjectAsync, () => {
       await expect(
         ensureBundleIdentifierIsDefinedForManagedProjectAsync('/app', {} as any)
       ).resolves.toBe('com.expo.notdominik');
-      expect(JSON.parse(fs.readFileSync('/app/app.json', 'utf-8'))).toMatchObject({
+      const appJson = JSON.parse(await fs.readFile('/app/app.json', 'utf-8'));
+      expect(appJson).toMatchObject({
         expo: { ios: { bundleIdentifier: 'com.expo.notdominik' } },
       });
     });

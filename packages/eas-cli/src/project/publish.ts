@@ -1,7 +1,7 @@
 import { ExpoConfig, Platform } from '@expo/config';
 import JsonFile from '@expo/json-file';
 import crypto from 'crypto';
-import fs from 'fs';
+import fs from 'fs-extra';
 import Joi from 'joi';
 import mime from 'mime';
 import path from 'path';
@@ -161,9 +161,9 @@ export async function buildBundlesAsync({
   await expoCommandAsync(projectDir, ['export', '--output-dir', inputDir, '--experimental-bundle']);
 }
 
-export function resolveInputDirectory(customInputDirectory: string): string {
+export async function resolveInputDirectoryAsync(customInputDirectory: string): Promise<string> {
   const distRoot = path.resolve(customInputDirectory);
-  if (!fs.existsSync(distRoot)) {
+  if (!(await fs.pathExists(distRoot))) {
     throw new Error(`The input directory "${customInputDirectory}" does not exist.
     You can allow us to build it for you by not setting the --skip-bundler flag.
     If you chose to build it yourself you'll need to run a command to build the JS
@@ -190,14 +190,14 @@ export function loadMetadata(distRoot: string): Metadata {
   return metadata;
 }
 
-export function collectAssets({
+export async function collectAssetsAsync({
   inputDir,
   platforms,
 }: {
   inputDir: string;
   platforms: PublishPlatform[];
-}): CollectedAssets {
-  const distRoot = resolveInputDirectory(inputDir);
+}): Promise<CollectedAssets> {
+  const distRoot = await resolveInputDirectoryAsync(inputDir);
   const metadata = loadMetadata(distRoot);
 
   const assetsFinal: CollectedAssets = {};

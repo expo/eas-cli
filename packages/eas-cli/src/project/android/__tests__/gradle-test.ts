@@ -11,11 +11,11 @@ jest.mock('fs');
 jest.mock('../../../prompts');
 jest.mock('../../../user/actions', () => ({ ensureLoggedInAsync: jest.fn(() => mockJester) }));
 
-beforeEach(() => {
+beforeEach(async () => {
   vol.reset();
   // do not remove the following line
   // this fixes a weird error with tempy in @expo/image-utils
-  fs.mkdirpSync(os.tmpdir());
+  await fs.mkdirp(os.tmpdir());
 
   asMock(promptAsync).mockReset();
 });
