@@ -7,6 +7,7 @@ import {
   CommonAndroidAppCredentialsFragment,
   CreateAndroidAppCredentialsMutation,
   SetFcmMutation,
+  SetGoogleServiceAccountKeyForSubmissionsMutation,
 } from '../../../../../graphql/generated';
 import { CommonAndroidAppCredentialsFragmentNode } from '../../../../../graphql/types/credentials/AndroidAppCredentials';
 
@@ -81,5 +82,42 @@ export const AndroidAppCredentialsMutation = {
     );
     assert(data.androidAppCredentials.setFcm, 'GraphQL: `setFcm` not defined in server response');
     return data.androidAppCredentials.setFcm;
+  },
+  async setGoogleServiceAccountKeyForSubmissionsAsync(
+    androidAppCredentialsId: string,
+    googleServiceAccountKeyId: string
+  ): Promise<CommonAndroidAppCredentialsFragment> {
+    const data = await withErrorHandlingAsync(
+      graphqlClient
+        .mutation<SetGoogleServiceAccountKeyForSubmissionsMutation>(
+          gql`
+            mutation SetGoogleServiceAccountKeyForSubmissionsMutation(
+              $androidAppCredentialsId: ID!
+              $googleServiceAccountKeyId: ID!
+            ) {
+              androidAppCredentials {
+                setGoogleServiceAccountKeyForSubmissions(
+                  id: $androidAppCredentialsId
+                  googleServiceAccountKeyId: $googleServiceAccountKeyId
+                ) {
+                  id
+                  ...CommonAndroidAppCredentialsFragment
+                }
+              }
+            }
+            ${print(CommonAndroidAppCredentialsFragmentNode)}
+          `,
+          {
+            androidAppCredentialsId,
+            googleServiceAccountKeyId,
+          }
+        )
+        .toPromise()
+    );
+    assert(
+      data.androidAppCredentials.setGoogleServiceAccountKeyForSubmissions,
+      'GraphQL: `setGoogleServiceAccountKeyForSubmissions` not defined in server response'
+    );
+    return data.androidAppCredentials.setGoogleServiceAccountKeyForSubmissions;
   },
 };

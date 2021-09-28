@@ -44,10 +44,31 @@ function displayAndroidFcmCredentials(appCredentials: CommonAndroidAppCredential
   Log.newLine();
 }
 
+function displayGoogleServiceAccountKeyForSubmissions(
+  appCredentials: CommonAndroidAppCredentialsFragment
+): void {
+  const maybeGsaKey = appCredentials.googleServiceAccountKeyForSubmissions;
+  Log.log(`  Google Service Account Key For Submissions:`);
+  if (!maybeGsaKey) {
+    Log.log(`    None assigned yet`);
+    Log.newLine();
+    return;
+  }
+  const { projectIdentifier, privateKeyIdentifier, clientEmail, clientIdentifier, updatedAt } =
+    maybeGsaKey;
+  Log.log(`    Project Id: ${projectIdentifier}`);
+  Log.log(`    Private Key Id: ${privateKeyIdentifier}`);
+  Log.log(`    Client Email: ${clientEmail}`);
+  Log.log(`    Client Id: ${clientIdentifier}`);
+  Log.log(`    Updated ${fromNow(new Date(updatedAt))} ago`);
+  Log.newLine();
+}
+
 function displayEASAndroidAppCredentials(
   appCredentials: CommonAndroidAppCredentialsFragment
 ): void {
   displayAndroidFcmCredentials(appCredentials);
+  displayGoogleServiceAccountKeyForSubmissions(appCredentials);
   const sortedBuildCredentialsList = sortBuildCredentials(
     appCredentials.androidAppBuildCredentialsList
   );

@@ -12,12 +12,14 @@ import { promptAsync } from '../../prompts';
 import { findAccountByName } from '../../user/Account';
 import { ensureActorHasUsername } from '../../user/actions';
 import { AssignFcm } from '../android/actions/AssignFcm';
+import { AssignGoogleServiceAccountKey } from '../android/actions/AssignGoogleServiceAccountKey';
 import {
   canCopyLegacyCredentialsAsync,
   getAppLookupParamsFromContextAsync,
   promptUserAndCopyLegacyCredentialsAsync,
 } from '../android/actions/BuildCredentialsUtils';
 import { CreateFcm } from '../android/actions/CreateFcm';
+import { CreateGoogleServiceAccountKey } from '../android/actions/CreateGoogleServiceAccountKey';
 import { CreateKeystore } from '../android/actions/CreateKeystore';
 import { DownloadKeystore } from '../android/actions/DownloadKeystore';
 import { RemoveFcm } from '../android/actions/RemoveFcm';
@@ -40,6 +42,7 @@ import { SelectBuildProfileFromEasJson } from './SelectBuildProfileFromEasJson';
 enum ActionType {
   ManageBuildCredentials,
   ManageFcm,
+  ManageGoogleServiceAccountKey,
   ManageCredentialsJson,
   GoBackToCaller,
   GoBackToHighLevelActions,
@@ -48,6 +51,7 @@ enum ActionType {
   RemoveKeystore,
   CreateFcm,
   RemoveFcm,
+  CreateGsaKey,
   UpdateCredentialsJson,
   SetupBuildCredentialsFromCredentialsJson,
 }
@@ -68,6 +72,11 @@ const highLevelActions: ActionInfo[] = [
   {
     value: ActionType.ManageFcm,
     title: 'Push Notifications: Manage your FCM Api Key',
+    scope: Scope.Manager,
+  },
+  {
+    value: ActionType.ManageGoogleServiceAccountKey,
+    title: 'Google Service Account: Manage your Service Account Key',
     scope: Scope.Manager,
   },
   {
@@ -141,6 +150,19 @@ const fcmActions: ActionInfo[] = [
   },
 ];
 
+const gsaKeyActions: ActionInfo[] = [
+  {
+    value: ActionType.CreateGsaKey,
+    title: 'Upload a Google Service Account Key',
+    scope: Scope.Project,
+  },
+  {
+    value: ActionType.GoBackToHighLevelActions,
+    title: 'Go back',
+    scope: Scope.Manager,
+  },
+];
+
 export class ManageAndroid {
   constructor(private callingAction: Action) {}
 
@@ -201,6 +223,9 @@ export class ManageAndroid {
             continue;
           } else if (chosenAction === ActionType.ManageFcm) {
             currentActions = fcmActions;
+            continue;
+          } else if (chosenAction === ActionType.ManageGoogleServiceAccountKey) {
+            currentActions = gsaKeyActions;
             continue;
           } else if (chosenAction === ActionType.ManageCredentialsJson) {
             currentActions = credentialsJsonActions;
@@ -301,6 +326,9 @@ export class ManageAndroid {
       await new AssignFcm(appLookupParams).runAsync(ctx, fcm);
     } else if (action === ActionType.RemoveFcm) {
       await new RemoveFcm(appLookupParams).runAsync(ctx);
+    } else if (action === ActionType.CreateGsaKey) {
+      const gsaKey = await new CreateGoogleServiceAccountKey(appLookupParams.account).runAsync(ctx);
+      await new AssignGoogleServiceAccountKey(appLookupParams).runAsync(ctx, gsaKey);
     } else if (action === ActionType.UpdateCredentialsJson) {
       const buildCredentials = await new SelectExistingAndroidBuildCredentials(
         appLookupParams

@@ -4,6 +4,7 @@ import { asMock } from '../../../../__tests__/utils';
 import Log from '../../../../log';
 import {
   testAndroidAppCredentialsFragment,
+  testGoogleServiceAccountKeyFragment,
   testLegacyAndroidFcmFragment,
 } from '../../../__tests__/fixtures-android';
 import { createCtxMock } from '../../../__tests__/fixtures-context';
@@ -14,6 +15,7 @@ jest.mock('../../../../log');
 jest.mock('chalk', () => ({ bold: jest.fn(log => log) }));
 
 mockdate.set(testLegacyAndroidFcmFragment.updatedAt);
+mockdate.set(testGoogleServiceAccountKeyFragment.updatedAt);
 
 describe('print credentials', () => {
   it('prints the AndroidAppCredentials fragment', async () => {

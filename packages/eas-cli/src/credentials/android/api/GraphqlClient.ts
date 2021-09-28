@@ -89,11 +89,27 @@ export async function updateAndroidAppCredentialsAsync(
   appCredentials: CommonAndroidAppCredentialsFragment,
   {
     androidFcmId,
+    googleServiceAccountKeyForSubmissionsId,
   }: {
-    androidFcmId: string;
+    androidFcmId?: string;
+    googleServiceAccountKeyForSubmissionsId?: string;
   }
 ): Promise<CommonAndroidAppCredentialsFragment> {
-  return await AndroidAppCredentialsMutation.setFcmKeyAsync(appCredentials.id, androidFcmId);
+  let updatedAppCredentials = appCredentials;
+  if (androidFcmId) {
+    updatedAppCredentials = await AndroidAppCredentialsMutation.setFcmKeyAsync(
+      appCredentials.id,
+      androidFcmId
+    );
+  }
+  if (googleServiceAccountKeyForSubmissionsId) {
+    updatedAppCredentials =
+      await AndroidAppCredentialsMutation.setGoogleServiceAccountKeyForSubmissionsAsync(
+        appCredentials.id,
+        googleServiceAccountKeyForSubmissionsId
+      );
+  }
+  return updatedAppCredentials;
 }
 
 export async function updateAndroidAppBuildCredentialsAsync(

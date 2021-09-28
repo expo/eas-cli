@@ -2169,8 +2169,10 @@ export type DeleteAndroidKeystoreResult = {
 
 export type GoogleServiceAccountKeyMutation = {
   __typename?: 'GoogleServiceAccountKeyMutation';
-  /** Create an Google Service Account Key */
+  /** Create a Google Service Account Key */
   createGoogleServiceAccountKey: GoogleServiceAccountKey;
+  /** Delete a Google Service Account Key */
+  deleteGoogleServiceAccountKey: DeleteGoogleServiceAccountKeyResult;
 };
 
 
@@ -2179,8 +2181,18 @@ export type GoogleServiceAccountKeyMutationCreateGoogleServiceAccountKeyArgs = {
   accountId: Scalars['ID'];
 };
 
+
+export type GoogleServiceAccountKeyMutationDeleteGoogleServiceAccountKeyArgs = {
+  id: Scalars['ID'];
+};
+
 export type GoogleServiceAccountKeyInput = {
   jsonKey: Scalars['JSONObject'];
+};
+
+export type DeleteGoogleServiceAccountKeyResult = {
+  __typename?: 'DeleteGoogleServiceAccountKeyResult';
+  id: Scalars['ID'];
 };
 
 export type AppleAppIdentifierMutation = {
@@ -3918,6 +3930,24 @@ export type SetFcmMutation = (
   ) }
 );
 
+export type SetGoogleServiceAccountKeyForSubmissionsMutationVariables = Exact<{
+  androidAppCredentialsId: Scalars['ID'];
+  googleServiceAccountKeyId: Scalars['ID'];
+}>;
+
+
+export type SetGoogleServiceAccountKeyForSubmissionsMutation = (
+  { __typename?: 'RootMutation' }
+  & { androidAppCredentials: (
+    { __typename?: 'AndroidAppCredentialsMutation' }
+    & { setGoogleServiceAccountKeyForSubmissions?: Maybe<(
+      { __typename?: 'AndroidAppCredentials' }
+      & Pick<AndroidAppCredentials, 'id'>
+      & CommonAndroidAppCredentialsFragment
+    )> }
+  ) }
+);
+
 export type CreateAndroidFcmMutationVariables = Exact<{
   androidFcmInput: AndroidFcmInput;
   accountId: Scalars['ID'];
@@ -5267,6 +5297,10 @@ export type CommonAndroidAppCredentialsFragment = (
     { __typename?: 'AndroidFcm' }
     & Pick<AndroidFcm, 'id'>
     & AndroidFcmFragment
+  )>, googleServiceAccountKeyForSubmissions?: Maybe<(
+    { __typename?: 'GoogleServiceAccountKey' }
+    & Pick<GoogleServiceAccountKey, 'id'>
+    & GoogleServiceAccountKeyFragment
   )>, androidAppBuildCredentialsList: Array<(
     { __typename?: 'AndroidAppBuildCredentials' }
     & Pick<AndroidAppBuildCredentials, 'id'>
