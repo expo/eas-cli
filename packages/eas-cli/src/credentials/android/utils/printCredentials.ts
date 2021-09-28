@@ -68,9 +68,9 @@ function displayGoogleServiceAccountKeyForSubmissions(
 
   const fields = [
     { label: 'Project ID', value: projectIdentifier },
-    { label: 'Private Key ID', value: privateKeyIdentifier },
     { label: 'Client Email', value: clientEmail },
     { label: 'Client ID', value: clientIdentifier },
+    { label: 'Private Key ID', value: privateKeyIdentifier },
     { label: 'Updated', value: `${fromNow(new Date(updatedAt))} ago` },
   ];
   Log.log(formatFields(fields, { labelFormat: chalk.cyan.bold }));

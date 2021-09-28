@@ -143,6 +143,7 @@ export function getNewAndroidApiMock(): { [key in keyof typeof AndroidGraphqlCli
     createOrUpdateAndroidAppBuildCredentialsByNameAsync: jest.fn(),
     createKeystoreAsync: jest.fn(),
     createGoogleServiceAccountKeyAsync: jest.fn(),
+    getGoogleServiceAccountKeysForAccountAsync: jest.fn(),
     createFcmAsync: jest.fn(),
     deleteKeystoreAsync: jest.fn(),
     deleteFcmAsync: jest.fn(),

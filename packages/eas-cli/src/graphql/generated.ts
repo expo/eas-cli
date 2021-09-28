@@ -4637,6 +4637,27 @@ export type AppleTeamByIdentifierQuery = (
   ) }
 );
 
+export type GoogleServiceAccountKeyByAccountQueryVariables = Exact<{
+  accountName: Scalars['String'];
+}>;
+
+
+export type GoogleServiceAccountKeyByAccountQuery = (
+  { __typename?: 'RootQuery' }
+  & { account: (
+    { __typename?: 'AccountQuery' }
+    & { byName: (
+      { __typename?: 'Account' }
+      & Pick<Account, 'id'>
+      & { googleServiceAccountKeys: Array<(
+        { __typename?: 'GoogleServiceAccountKey' }
+        & Pick<GoogleServiceAccountKey, 'id'>
+        & GoogleServiceAccountKeyFragment
+      )> }
+    ) }
+  ) }
+);
+
 export type IosAppBuildCredentialsByAppleAppIdentiferAndDistributionQueryVariables = Exact<{
   projectFullName: Scalars['String'];
   appleAppIdentifierId: Scalars['String'];
