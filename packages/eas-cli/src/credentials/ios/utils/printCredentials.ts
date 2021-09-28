@@ -10,6 +10,7 @@ import {
 import { APPLE_DEVICE_CLASS_LABELS } from '../../../graphql/types/credentials/AppleDevice';
 import Log from '../../../log';
 import { fromNow } from '../../../utils/date';
+import formatFields from '../../../utils/formatFields';
 import { AppLookupParams } from '../api/GraphqlClient';
 import { App, IosAppBuildCredentialsMap, IosAppCredentialsMap, Target } from '../types';
 
@@ -30,10 +31,16 @@ function prettyIosDistributionType(distributionType: IosDistributionType): strin
 
 export function displayEmptyIosCredentials(appLookupParams: AppLookupParams): void {
   const { projectName, bundleIdentifier } = appLookupParams;
-  Log.log(chalk.bold(`iOS Credentials`));
-  Log.log(`  Project: ${projectName}`);
-  Log.log(`  Bundle Identifier: ${bundleIdentifier}`);
-  Log.log(`  No credentials set up yet!`);
+  const fields = [
+    { label: 'iOS Credentials', value: '' },
+    { label: 'Project', value: projectName },
+    { label: 'Bundle Identifier', value: bundleIdentifier },
+  ];
+  Log.log(formatFields(fields, { labelFormat: chalk.cyan.bold }));
+  Log.log(
+    formatFields([{ label: 'No credentials set up yet!', value: '' }])
+  );
+  Log.newLine();
 }
 
 /**
@@ -66,20 +73,24 @@ export function displayIosCredentials(
   const projectFullName = `@${app.account.name}/${app.projectName}`;
   const isMultitarget = targets.length > 1;
 
-  Log.log(chalk.bold(`iOS Credentials`));
-  Log.addNewLineIfNone();
-  Log.log(`  Project: ${chalk.bold(projectFullName)}`);
+  const fields = [
+    { label: 'iOS Credentials', value: '' },
+    { label: 'Project', value: projectFullName },
+  ];
+  Log.log(formatFields(fields, { labelFormat: chalk.cyan.bold }));
 
   for (const { targetName, bundleIdentifier } of targets) {
     if (isMultitarget) {
       Log.newLine();
-      Log.log(`  Target: ${chalk.bold(targetName)}`);
+      Log.log(formatFields([{ label: 'Target', value: targetName }], { labelFormat: chalk.cyan.bold }));
     }
-    Log.log(`  Bundle Identifier: ${chalk.bold(bundleIdentifier)}`);
+    Log.log(formatFields([{ label: 'Bundle Identifier', value: bundleIdentifier }], { labelFormat: chalk.cyan.bold }));
     const targetAppCredentials = appCredentialsMap[targetName];
     if (!targetAppCredentials) {
       Log.newLine();
-      Log.log(`  No credentials set up yet!`);
+      Log.log(
+        formatFields([{ label: 'No credentials set up yet!', value: '' }])
+      );
       Log.newLine();
       continue;
     }
@@ -87,7 +98,7 @@ export function displayIosCredentials(
     const { appleTeam, pushKey } = targetAppCredentials;
     if (appleTeam) {
       const { appleTeamIdentifier, appleTeamName } = appleTeam;
-      Log.log(`  Apple Team: ${appleTeamIdentifier} ${appleTeamName ? `(${appleTeamName})` : ''}`);
+      Log.log(formatFields([{ label: 'Apple Team', value: `${appleTeamIdentifier} ${appleTeamName ? `(${appleTeamName})` : ''}` }], { labelFormat: chalk.cyan.bold }));
     }
     Log.newLine();
 
@@ -117,86 +128,104 @@ export function displayProjectCredentials(
   const isMultitarget = targets.length > 1;
 
   Log.addNewLineIfNone();
-  Log.log(chalk.bold('Project Credentials Configuration:'));
-  Log.log(`  Project: ${chalk.bold(projectFullName)}`);
+  const fields = [
+    { label: 'Project Credentials Configuration', value: '' },
+    { label: 'Project', value: projectFullName },
+  ];
+  Log.log(formatFields(fields, { labelFormat: chalk.cyan.bold }));
+
   for (const [targetName, buildCredentials] of Object.entries(appBuildCredentials)) {
     if (isMultitarget) {
       Log.newLine();
-      Log.log(`  Target: ${chalk.bold(targetName)}`);
+      Log.log(formatFields([{ label: 'Target', value: targetName }], { labelFormat: chalk.cyan.bold }));
     }
-    Log.log(`  Bundle Identifier: ${chalk.bold(targetToBundleId[targetName])}`);
+    Log.log(formatFields([{ label: 'Bundle Identifier', value: targetToBundleId[targetName] }], { labelFormat: chalk.cyan.bold }));
     displayIosAppBuildCredentials(buildCredentials);
   }
 }
 
 function displayIosAppBuildCredentials(buildCredentials: IosAppBuildCredentialsFragment): void {
-  Log.log(
-    `  Configuration: ${chalk.bold(
-      prettyIosDistributionType(buildCredentials.iosDistributionType)
-    )}`
-  );
+  Log.log(formatFields([{ label: 'Configuration', value: prettyIosDistributionType(buildCredentials.iosDistributionType) }], { labelFormat: chalk.cyan.bold }));
   Log.newLine();
   const maybeDistCert = buildCredentials.distributionCertificate;
-  Log.log(`  Distribution Certificate:`);
+  Log.log(
+    formatFields([{ label: 'Distribution Certificate', value: '' }], {
+      labelFormat: chalk.cyan.bold,
+    })
+  );
   if (maybeDistCert) {
     const { serialNumber, updatedAt, validityNotAfter, appleTeam } = maybeDistCert;
-    Log.log(`    Serial Number: ${serialNumber}`);
-    Log.log(`    Expiration Date: ${dateformat(validityNotAfter, 'expiresHeaderFormat')}`);
+    const fields = [
+      { label: 'Serial Number', value: serialNumber },
+      { label: 'Expiration Date', value: dateformat(validityNotAfter, 'expiresHeaderFormat') },
+    ];
     if (appleTeam) {
       const { appleTeamIdentifier, appleTeamName } = appleTeam;
-      Log.log(
-        `    Apple Team: ${appleTeamIdentifier} ${appleTeamName ? `(${appleTeamName})` : ''}`
-      );
+      fields.push({label:'Apple Team', value:  `${appleTeamIdentifier} ${appleTeamName ? `(${appleTeamName})` : ''}`});
     }
-    Log.log(`    Updated ${fromNow(new Date(updatedAt))} ago`);
+    fields.push({label:'Updated', value:  `${fromNow(new Date(updatedAt))} ago`});
+    Log.log(formatFields(fields, { labelFormat: chalk.cyan.bold }));
   } else {
-    Log.log(`    None assigned yet`);
+    Log.log(
+      formatFields([{ label: '', value: 'None assigned yet' }])
+    );
   }
   Log.newLine();
 
   const maybeProvProf = buildCredentials.provisioningProfile;
-  Log.log(`  Provisioning Profile:`);
+  Log.log(
+    formatFields([{ label: 'Provisioning Profile', value: '' }], {
+      labelFormat: chalk.cyan.bold,
+    })
+  );
   if (maybeProvProf) {
     const { expiration, updatedAt, status, developerPortalIdentifier, appleTeam, appleDevices } =
       maybeProvProf;
+    const fields = [];
     if (developerPortalIdentifier) {
-      Log.log(`    Developer Portal ID: ${developerPortalIdentifier}`);
+      fields.push({label:'Developer Portal ID', value:  developerPortalIdentifier});
     }
-    Log.log(`    Status: ${status}`);
-    Log.log(`    Expiration Date: ${dateformat(expiration, 'expiresHeaderFormat')}`);
+    fields.push({label:'Status', value:  status});
+    fields.push({label:'Expiration', value:  dateformat(expiration, 'expiresHeaderFormat')});
     if (appleTeam) {
       const { appleTeamIdentifier, appleTeamName } = appleTeam;
-      Log.log(
-        `    Apple Team: ${appleTeamIdentifier} ${appleTeamName ? `(${appleTeamName})` : ''}`
-      );
+      fields.push({label:'Apple Team', value:  `${appleTeamIdentifier} ${appleTeamName ? `(${appleTeamName})` : ''}`});
     }
     if (appleDevices && appleDevices.length > 0) {
-      Log.log(`    Provisioned devices:`);
+      fields.push({label:'Provisioned devices', value:  ''});
       for (const appleDevice of appleDevices) {
-        Log.log(`    - ${formatAppleDevice(appleDevice)}`);
+        fields.push({label:'    -', value:  formatAppleDevice(appleDevice)});
       }
     }
-    Log.log(`    Updated ${fromNow(new Date(updatedAt))} ago`);
+    fields.push({label:'Updated', value:  `${fromNow(new Date(updatedAt))} ago`});
+    Log.log(formatFields(fields, { labelFormat: chalk.cyan.bold }));
   } else {
-    Log.log(`    None assigned yet`);
+    Log.log(
+      formatFields([{ label: '', value: 'None assigned yet' }])
+    );
   }
   Log.newLine();
 }
 
 function displayApplePushKey(maybePushKey: ApplePushKeyFragment | null): void {
-  Log.log(`  Push Key:`);
+  Log.log(
+    formatFields([{ label: 'Push Key', value: '' }], {
+      labelFormat: chalk.cyan.bold,
+    })
+  );
   if (maybePushKey) {
     const { keyIdentifier, appleTeam, updatedAt } = maybePushKey;
-    Log.log(`    Developer Portal ID: ${keyIdentifier}`);
+    const fields = [{label:'Developer Portal ID', value:  keyIdentifier}];
     if (appleTeam) {
       const { appleTeamIdentifier, appleTeamName } = appleTeam;
-      Log.log(
-        `    Apple Team: ${appleTeamIdentifier} ${appleTeamName ? `(${appleTeamName})` : ''}`
-      );
+      fields.push({label:'Apple Team', value:  `${appleTeamIdentifier} ${appleTeamName ? `(${appleTeamName})` : ''}`});
     }
-    Log.log(`    Updated ${fromNow(new Date(updatedAt))} ago`);
+    fields.push({label:'Updated', value:  `${fromNow(new Date(updatedAt))} ago`});
+    Log.log(formatFields(fields, { labelFormat: chalk.cyan.bold }));
   } else {
-    Log.log(`    None assigned yet`);
+    Log.log(
+      formatFields([{ label: '', value: 'None assigned yet' }])
+    );
   }
   Log.newLine();
 }
