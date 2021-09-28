@@ -1,9 +1,9 @@
-import { Context } from '../../context';
+import { CredentialsContext } from '../../context';
 import { DistributionCertificate } from '../appstore/Credentials.types';
 import { filterRevokedDistributionCerts } from '../appstore/CredentialsUtils';
 
 export async function validateDistributionCertificateAsync(
-  ctx: Context,
+  ctx: CredentialsContext,
   distributionCertificate: DistributionCertificate
 ): Promise<boolean> {
   const certInfoFromApple = await ctx.appStore.listDistributionCertificatesAsync();

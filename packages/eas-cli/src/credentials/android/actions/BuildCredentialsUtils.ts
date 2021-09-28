@@ -8,7 +8,7 @@ import { GradleBuildContext } from '../../../project/android/gradle';
 import { getProjectAccountName, getProjectConfigDescription } from '../../../project/projectUtils';
 import { promptAsync } from '../../../prompts';
 import { findAccountByName } from '../../../user/Account';
-import { Context } from '../../context';
+import { CredentialsContext } from '../../context';
 import { AppLookupParams } from '../api/GraphqlClient';
 
 /**
@@ -16,7 +16,7 @@ import { AppLookupParams } from '../api/GraphqlClient';
  * EAS credentials set up yet
  */
 export async function canCopyLegacyCredentialsAsync(
-  ctx: Context,
+  ctx: CredentialsContext,
   app: AppLookupParams
 ): Promise<boolean> {
   const appCredentials = await ctx.android.getAndroidAppCredentialsWithCommonFieldsAsync(app);
@@ -30,7 +30,7 @@ export async function canCopyLegacyCredentialsAsync(
 }
 
 export async function promptUserAndCopyLegacyCredentialsAsync(
-  ctx: Context,
+  ctx: CredentialsContext,
   app: AppLookupParams
 ): Promise<void> {
   assert(
@@ -85,7 +85,7 @@ export async function promptUserAndCopyLegacyCredentialsAsync(
 }
 
 export async function getAppLookupParamsFromContextAsync(
-  ctx: Context,
+  ctx: CredentialsContext,
   gradleContext?: GradleBuildContext
 ): Promise<AppLookupParams> {
   ctx.ensureProjectContext();
@@ -113,7 +113,7 @@ export async function getAppLookupParamsFromContextAsync(
 }
 
 export async function createOrUpdateDefaultAndroidAppBuildCredentialsAsync(
-  ctx: Context,
+  ctx: CredentialsContext,
   appLookupParams: AppLookupParams,
   {
     androidKeystoreId,

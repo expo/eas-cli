@@ -7,15 +7,15 @@ import Log, { learnMore } from '../../../log';
 import { promptAsync } from '../../../prompts';
 import { Account } from '../../../user/Account';
 import { fromNow } from '../../../utils/date';
-import { Context } from '../../context';
+import { CredentialsContext } from '../../context';
 import { askForUserProvidedAsync } from '../../utils/promptForCredentials';
 import { AppLookupParams } from '../api/GraphqlClient';
-import { AppleTooManyCertsError } from '../appstore/AppStoreApi';
 import {
   DistributionCertificate,
   DistributionCertificateStoreInfo,
 } from '../appstore/Credentials.types';
 import { filterRevokedDistributionCertsFromEasServers } from '../appstore/CredentialsUtils';
+import { AppleTooManyCertsError } from '../appstore/distributionCertificate';
 import { distributionCertificateSchema } from '../credentials';
 import { validateDistributionCertificateAsync } from '../validators/validateDistributionCertificate';
 import { formatAppleTeam } from './AppleTeamUtils';
@@ -84,7 +84,7 @@ async function _selectDistributionCertificateAsync(
  * select a distribution certificate from an account (validity status shown on a best effort basis)
  * */
 export async function selectDistributionCertificateWithDependenciesAsync(
-  ctx: Context,
+  ctx: CredentialsContext,
   account: Account
 ): Promise<AppleDistributionCertificateFragment | null> {
   const distCertsForAccount = await ctx.ios.getDistributionCertificatesForAccountAsync(account);
@@ -110,7 +110,7 @@ export async function selectDistributionCertificateWithDependenciesAsync(
  * select a distribution certificate from a valid set (curated on a best effort basis)
  * */
 export async function selectValidDistributionCertificateAsync(
-  ctx: Context,
+  ctx: CredentialsContext,
   appLookupParams: AppLookupParams
 ): Promise<AppleDistributionCertificateFragment | null> {
   const distCertsForAccount = await ctx.ios.getDistributionCertificatesForAccountAsync(
@@ -133,7 +133,7 @@ export async function selectValidDistributionCertificateAsync(
 
   // filter by valid certs on the developer portal
   const certInfoFromApple = await ctx.appStore.listDistributionCertificatesAsync();
-  const validDistCerts = await filterRevokedDistributionCertsFromEasServers(
+  const validDistCerts = filterRevokedDistributionCertsFromEasServers(
     distCertsForAppleTeam,
     certInfoFromApple
   );
@@ -152,7 +152,7 @@ Please remember that Apple Distribution Certificates are not application specifi
 `;
 
 export async function provideOrGenerateDistributionCertificateAsync(
-  ctx: Context,
+  ctx: CredentialsContext,
   accountName: string
 ): Promise<DistributionCertificate> {
   if (!ctx.nonInteractive) {
@@ -177,7 +177,9 @@ export async function provideOrGenerateDistributionCertificateAsync(
   return await generateDistributionCertificateAsync(ctx, accountName);
 }
 
-async function promptForDistCertAsync(ctx: Context): Promise<DistributionCertificate | null> {
+async function promptForDistCertAsync(
+  ctx: CredentialsContext
+): Promise<DistributionCertificate | null> {
   let initialValues: { teamId?: string } = {};
   if (ctx.appStore.authCtx) {
     initialValues = {
@@ -198,7 +200,7 @@ async function promptForDistCertAsync(ctx: Context): Promise<DistributionCertifi
 }
 
 async function generateDistributionCertificateAsync(
-  ctx: Context,
+  ctx: CredentialsContext,
   accountName: string
 ): Promise<DistributionCertificate> {
   await ctx.appStore.ensureAuthenticatedAsync();

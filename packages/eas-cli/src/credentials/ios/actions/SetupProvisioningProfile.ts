@@ -7,7 +7,7 @@ import {
   IosDistributionType,
 } from '../../../graphql/generated';
 import { confirmAsync } from '../../../prompts';
-import { Context } from '../../context';
+import { CredentialsContext } from '../../context';
 import { MissingCredentialsNonInteractiveError } from '../../errors';
 import { AppLookupParams } from '../api/GraphqlClient';
 import { ProvisioningProfileStoreInfo } from '../appstore/Credentials.types';
@@ -28,13 +28,13 @@ import { SetupDistributionCertificate } from './SetupDistributionCertificate';
 export class SetupProvisioningProfile {
   constructor(private app: AppLookupParams, private distributionType: IosDistributionType) {}
 
-  async areBuildCredentialsSetupAsync(ctx: Context): Promise<boolean> {
+  async areBuildCredentialsSetupAsync(ctx: CredentialsContext): Promise<boolean> {
     const buildCredentials = await getBuildCredentialsAsync(ctx, this.app, this.distributionType);
     return await validateProvisioningProfileAsync(ctx, this.app, buildCredentials);
   }
 
   async assignNewAndDeleteOldProfileAsync(
-    ctx: Context,
+    ctx: CredentialsContext,
     distCert: AppleDistributionCertificateFragment,
     currentProfile: AppleProvisioningProfileFragment
   ): Promise<IosAppBuildCredentialsFragment> {
@@ -45,7 +45,7 @@ export class SetupProvisioningProfile {
   }
 
   async createAndAssignProfileAsync(
-    ctx: Context,
+    ctx: CredentialsContext,
     distCert: AppleDistributionCertificateFragment
   ): Promise<IosAppBuildCredentialsFragment> {
     const provisioningProfile = await new CreateProvisioningProfile(this.app, distCert).runAsync(
@@ -61,7 +61,7 @@ export class SetupProvisioningProfile {
   }
 
   async configureAndAssignProfileAsync(
-    ctx: Context,
+    ctx: CredentialsContext,
     distCert: AppleDistributionCertificateFragment,
     originalProvisioningProfile: AppleProvisioningProfileFragment
   ): Promise<IosAppBuildCredentialsFragment | null> {
@@ -83,7 +83,7 @@ export class SetupProvisioningProfile {
     );
   }
 
-  async runAsync(ctx: Context): Promise<IosAppBuildCredentialsFragment> {
+  async runAsync(ctx: CredentialsContext): Promise<IosAppBuildCredentialsFragment> {
     const distCert = await new SetupDistributionCertificate(
       this.app,
       this.distributionType

@@ -2,12 +2,12 @@ import { IosBuildProfile } from '@expo/eas-json';
 
 import { IosDistributionType as IosDistributionTypeGraphql } from '../../graphql/generated';
 import { promptAsync } from '../../prompts';
-import { Context } from '../context';
+import { CredentialsContext } from '../context';
 
 export class SelectIosDistributionTypeGraphqlFromBuildProfile {
   constructor(private buildProfile: IosBuildProfile) {}
 
-  async runAsync(ctx: Context): Promise<IosDistributionTypeGraphql> {
+  async runAsync(ctx: CredentialsContext): Promise<IosDistributionTypeGraphql> {
     const { distribution, simulator } = this.buildProfile;
     if (simulator) {
       throw new Error('A simulator distribution does not require credentials to be configured.');
@@ -18,7 +18,9 @@ export class SelectIosDistributionTypeGraphqlFromBuildProfile {
     }
   }
 
-  async resolveInternalDistributionAsync(ctx: Context): Promise<IosDistributionTypeGraphql> {
+  async resolveInternalDistributionAsync(
+    ctx: CredentialsContext
+  ): Promise<IosDistributionTypeGraphql> {
     // check if the type is specified in eas config
     const maybeEnterpriseProvisioning = this.buildProfile.enterpriseProvisioning;
     if (maybeEnterpriseProvisioning) {

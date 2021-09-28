@@ -7,7 +7,7 @@ import {
 } from '../../../graphql/generated';
 import Log from '../../../log';
 import { ora } from '../../../ora';
-import { Context } from '../../context';
+import { CredentialsContext } from '../../context';
 import { MissingCredentialsNonInteractiveError } from '../../errors';
 import { AppLookupParams } from '../api/GraphqlClient';
 import { AppleProvisioningProfileMutationResult } from '../api/graphql/mutations/AppleProvisioningProfileMutation';
@@ -21,7 +21,9 @@ export class ConfigureProvisioningProfile {
     private originalProvisioningProfile: AppleProvisioningProfileFragment
   ) {}
 
-  public async runAsync(ctx: Context): Promise<AppleProvisioningProfileMutationResult | null> {
+  public async runAsync(
+    ctx: CredentialsContext
+  ): Promise<AppleProvisioningProfileMutationResult | null> {
     if (ctx.nonInteractive) {
       throw new MissingCredentialsNonInteractiveError(
         'Configuring Provisioning Profiles is only supported in interactive mode.'
@@ -62,7 +64,7 @@ export class ConfigureProvisioningProfile {
   }
 
   private async configureAndUpdateAsync(
-    ctx: Context,
+    ctx: CredentialsContext,
     authCtx: AuthCtx,
     app: AppLookupParams,
     profileFromApple: ProvisioningProfileStoreInfo

@@ -1,12 +1,12 @@
 import Log from '../../../log';
 import { confirmAsync } from '../../../prompts';
-import { Context } from '../../context';
+import { CredentialsContext } from '../../context';
 import { AppLookupParams, formatProjectFullName } from '../api/GraphqlClient';
 
 export class RemoveFcm {
   constructor(private app: AppLookupParams) {}
 
-  async runAsync(ctx: Context): Promise<void> {
+  async runAsync(ctx: CredentialsContext): Promise<void> {
     if (ctx.nonInteractive) {
       throw new Error(
         "Deleting an FCM Api Key is a destructive operation. Start the CLI without the '--non-interactive' flag to delete the credentials."

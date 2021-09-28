@@ -6,14 +6,14 @@ import nullthrows from 'nullthrows';
 
 import { IosAppBuildCredentialsFragment, IosDistributionType } from '../../../graphql/generated';
 import Log from '../../../log';
-import { Context } from '../../context';
+import { CredentialsContext } from '../../context';
 import { AppLookupParams } from '../api/GraphqlClient';
 import { ProfileClass } from '../appstore/provisioningProfile';
 import { getP12CertFingerprint } from '../utils/p12Certificate';
 import { parse as parseProvisioningProfile } from '../utils/provisioningProfile';
 
 export async function validateProvisioningProfileAsync(
-  ctx: Context,
+  ctx: CredentialsContext,
   app: AppLookupParams,
   buildCredentials: Partial<IosAppBuildCredentialsFragment> | null
 ): Promise<boolean> {
@@ -83,7 +83,7 @@ function validateProvisioningProfileWithoutApple(
 }
 
 async function validateProvisioningProfileWithAppleAsync(
-  ctx: Context,
+  ctx: CredentialsContext,
   app: AppLookupParams,
   buildCredentials: Partial<IosAppBuildCredentialsFragment>
 ): Promise<boolean> {

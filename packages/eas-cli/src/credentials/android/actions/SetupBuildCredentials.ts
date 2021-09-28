@@ -6,7 +6,7 @@ import {
 } from '../../../graphql/generated';
 import Log from '../../../log';
 import { ora } from '../../../ora';
-import { Context } from '../../context';
+import { CredentialsContext } from '../../context';
 import { MissingCredentialsNonInteractiveError } from '../../errors';
 import { AppLookupParams } from '../api/GraphqlClient';
 import {
@@ -28,7 +28,7 @@ interface Options {
 export class SetupBuildCredentials {
   constructor(private options: Options) {}
 
-  async runAsync(ctx: Context): Promise<AndroidAppBuildCredentialsFragment> {
+  async runAsync(ctx: CredentialsContext): Promise<AndroidAppBuildCredentialsFragment> {
     const { app, name: maybeName } = this.options;
 
     if (!ctx.nonInteractive) {
@@ -62,7 +62,7 @@ export class SetupBuildCredentials {
     name,
     keystore,
   }: {
-    ctx: Context;
+    ctx: CredentialsContext;
     app: AppLookupParams;
     name?: string;
     keystore: AndroidKeystoreFragment;
@@ -82,7 +82,7 @@ export class SetupBuildCredentials {
     app,
     name,
   }: {
-    ctx: Context;
+    ctx: CredentialsContext;
     app: AppLookupParams;
     name?: string;
   }): Promise<AndroidAppBuildCredentialsFragment | null> {
@@ -108,7 +108,7 @@ export class SetupBuildCredentials {
     app,
     name,
   }: {
-    ctx: Context;
+    ctx: CredentialsContext;
     app: AppLookupParams;
     name: string;
   }): Promise<AndroidAppBuildCredentialsFragment | null> {

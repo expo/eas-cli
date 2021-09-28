@@ -8,7 +8,7 @@ import { findApplicationTarget, findTargetByName } from '../../project/ios/targe
 import zipObject from '../../utils/expodash/zipObject';
 import vcs from '../../vcs';
 import GitClient from '../../vcs/git';
-import { Context } from '../context';
+import { CredentialsContext } from '../context';
 import { App, Target, TargetCredentials } from '../ios/types';
 import { readRawAsync } from './read';
 import {
@@ -23,7 +23,7 @@ import { getCredentialsJsonPath } from './utils';
  * is not validated
  */
 export async function updateAndroidCredentialsAsync(
-  ctx: Context,
+  ctx: CredentialsContext,
   buildCredentials: AndroidAppBuildCredentialsFragment
 ): Promise<void> {
   const rawCredentialsJson: any =
@@ -70,7 +70,7 @@ export async function updateAndroidCredentialsAsync(
  * credentials.json will be updated partially
  */
 export async function updateIosCredentialsAsync(
-  ctx: Context,
+  ctx: CredentialsContext,
   app: App,
   targets: Target[],
   distributionType: IosDistributionType
@@ -205,7 +205,7 @@ function createTargetCredentialsPathsMap(
 }
 
 async function getTargetBuildCredentialsAsync(
-  ctx: Context,
+  ctx: CredentialsContext,
   app: App,
   target: Target,
   iosDistributionType: IosDistributionType
@@ -244,7 +244,7 @@ async function getTargetBuildCredentialsAsync(
 }
 
 async function backupTargetCredentialsAsync(
-  ctx: Context,
+  ctx: CredentialsContext,
   {
     targetCredentials,
     targetCredentialsPaths,

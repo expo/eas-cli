@@ -4,7 +4,7 @@ import nullthrows from 'nullthrows';
 import { ApplePushKeyFragment, CommonIosAppCredentialsFragment } from '../../../graphql/generated';
 import Log from '../../../log';
 import { confirmAsync, promptAsync } from '../../../prompts';
-import { Context } from '../../context';
+import { CredentialsContext } from '../../context';
 import { AppLookupParams } from '../api/GraphqlClient';
 import { AssignPushKey } from './AssignPushKey';
 import { CreatePushKey } from './CreatePushKey';
@@ -17,12 +17,12 @@ import {
 export class SetupPushKey {
   constructor(private app: AppLookupParams) {}
 
-  async isPushKeySetupAsync(ctx: Context): Promise<boolean> {
+  async isPushKeySetupAsync(ctx: CredentialsContext): Promise<boolean> {
     const pushKey = await ctx.ios.getPushKeyForAppAsync(this.app);
     return !!pushKey;
   }
 
-  public async runAsync(ctx: Context): Promise<CommonIosAppCredentialsFragment | null> {
+  public async runAsync(ctx: CredentialsContext): Promise<CommonIosAppCredentialsFragment | null> {
     if (ctx.nonInteractive) {
       throw new Error(`Push keys cannot be setup in non-interactive mode.`);
     }
@@ -42,7 +42,7 @@ export class SetupPushKey {
     return await new AssignPushKey(this.app).runAsync(ctx, pushKey);
   }
 
-  private async createOrReusePushKeyAsync(ctx: Context): Promise<ApplePushKeyFragment> {
+  private async createOrReusePushKeyAsync(ctx: CredentialsContext): Promise<ApplePushKeyFragment> {
     const pushKeysForAccount = await ctx.ios.getPushKeysForAccountAsync(this.app.account);
     assert(
       pushKeysForAccount.length > 0,

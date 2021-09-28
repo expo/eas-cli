@@ -1,6 +1,6 @@
 import { ApplePushKeyFragment, CommonIosAppCredentialsFragment } from '../../../graphql/generated';
 import Log from '../../../log';
-import { Context } from '../../context';
+import { CredentialsContext } from '../../context';
 import { AppLookupParams } from '../api/GraphqlClient';
 import { resolveAppleTeamIfAuthenticatedAsync } from './AppleTeamUtils';
 
@@ -8,7 +8,7 @@ export class AssignPushKey {
   constructor(private app: AppLookupParams) {}
 
   public async runAsync(
-    ctx: Context,
+    ctx: CredentialsContext,
     pushKey: ApplePushKeyFragment
   ): Promise<CommonIosAppCredentialsFragment> {
     const appleTeam =

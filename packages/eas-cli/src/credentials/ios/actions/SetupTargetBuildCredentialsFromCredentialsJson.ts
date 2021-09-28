@@ -10,7 +10,7 @@ import {
 } from '../../../graphql/generated';
 import Log from '../../../log';
 import { confirmAsync } from '../../../prompts';
-import { Context } from '../../context';
+import { CredentialsContext } from '../../context';
 import { IosTargetCredentials } from '../../credentialsJson/types';
 import { AppLookupParams } from '../api/GraphqlClient';
 import { displayProjectCredentials } from '../utils/printCredentials';
@@ -29,7 +29,7 @@ export class SetupTargetBuildCredentialsFromCredentialsJson {
     private targetCredentials: IosTargetCredentials
   ) {}
 
-  async runAsync(ctx: Context): Promise<IosAppBuildCredentialsFragment> {
+  async runAsync(ctx: CredentialsContext): Promise<IosAppBuildCredentialsFragment> {
     // currently configured credentials
     const buildCredentials = await getBuildCredentialsAsync(ctx, this.app, this.distributionType);
     const currentDistributionCertificate = await getDistributionCertificateAsync(
@@ -102,7 +102,7 @@ export class SetupTargetBuildCredentialsFromCredentialsJson {
   }
 
   async getDistributionCertificateToAssignAsync(
-    ctx: Context,
+    ctx: CredentialsContext,
     appleTeam: AppleTeamFragment,
     currentDistributionCertificate: AppleDistributionCertificateFragment | null
   ): Promise<AppleDistributionCertificateFragment> {
@@ -132,7 +132,7 @@ export class SetupTargetBuildCredentialsFromCredentialsJson {
   }
 
   async getProvisioningProfileToAssignAsync(
-    ctx: Context,
+    ctx: CredentialsContext,
     appleTeam: AppleTeamFragment,
     currentProvisioningProfile: AppleProvisioningProfileFragment | null
   ): Promise<AppleProvisioningProfileFragment> {
@@ -152,7 +152,7 @@ export class SetupTargetBuildCredentialsFromCredentialsJson {
   }
 
   async createNewProvisioningProfileAsync(
-    ctx: Context,
+    ctx: CredentialsContext,
     appleTeam: AppleTeamFragment
   ): Promise<AppleProvisioningProfileFragment> {
     const { provisioningProfile } = this.targetCredentials;

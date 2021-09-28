@@ -2,14 +2,14 @@ import { GoogleServiceAccountKeyFragment } from '../../../graphql/generated';
 import Log from '../../../log';
 import { promptAsync } from '../../../prompts';
 import { Account } from '../../../user/Account';
-import { Context } from '../../context';
+import { CredentialsContext } from '../../context';
 import { GoogleServiceAccountKey } from '../credentials';
 import { readAndValidateServiceAccountKey } from '../utils/googleServiceAccountKey';
 
 export class CreateGoogleServiceAccountKey {
   constructor(private account: Account) {}
 
-  public async runAsync(ctx: Context): Promise<GoogleServiceAccountKeyFragment> {
+  public async runAsync(ctx: CredentialsContext): Promise<GoogleServiceAccountKeyFragment> {
     if (ctx.nonInteractive) {
       throw new Error(`New Google Service Account Key cannot be created in non-interactive mode.`);
     }

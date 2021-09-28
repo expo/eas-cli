@@ -18,7 +18,7 @@ import {
 import { confirmAsync, promptAsync, selectAsync } from '../../prompts';
 import { Account, findAccountByName } from '../../user/Account';
 import { ensureActorHasUsername } from '../../user/actions';
-import { Action, Context } from '../context';
+import { CredentialsContext } from '../context';
 import { AssignPushKey } from '../ios/actions/AssignPushKey';
 import { getAppLookupParamsFromContext } from '../ios/actions/BuildCredentialsUtils';
 import { CreateDistributionCertificate } from '../ios/actions/CreateDistributionCertificate';
@@ -38,7 +38,7 @@ import { AppLookupParams } from '../ios/api/GraphqlClient';
 import { getManagedEntitlementsJsonAsync } from '../ios/appstore/entitlements';
 import { App, IosAppCredentialsMap, Target } from '../ios/types';
 import { displayIosCredentials } from '../ios/utils/printCredentials';
-import { PressAnyKeyToContinue } from './HelperActions';
+import { Action, PressAnyKeyToContinue } from './HelperActions';
 import { SelectBuildProfileFromEasJson } from './SelectBuildProfileFromEasJson';
 import { SelectIosDistributionTypeGraphqlFromBuildProfile } from './SelectIosDistributionTypeGraphqlFromBuildProfile';
 
@@ -110,7 +110,7 @@ const credentialsJsonActions: ActionInfo[] = [
   },
 ];
 
-function getPushKeyActions(ctx: Context): ActionInfo[] {
+function getPushKeyActions(ctx: CredentialsContext): ActionInfo[] {
   return [
     {
       value: ActionType.SetupPushKey,
@@ -140,7 +140,7 @@ function getPushKeyActions(ctx: Context): ActionInfo[] {
   ];
 }
 
-function getBuildCredentialsActions(ctx: Context): ActionInfo[] {
+function getBuildCredentialsActions(ctx: CredentialsContext): ActionInfo[] {
   return [
     {
       // This command will be triggered during build to ensure all credentials are ready
@@ -179,7 +179,11 @@ function getBuildCredentialsActions(ctx: Context): ActionInfo[] {
 
 export class ManageIos {
   constructor(private callingAction: Action) {}
-  async runAsync(ctx: Context, currentActions: ActionInfo[] = highLevelActions): Promise<void> {
+
+  async runAsync(
+    ctx: CredentialsContext,
+    currentActions: ActionInfo[] = highLevelActions
+  ): Promise<void> {
     const buildCredentialsActions = getBuildCredentialsActions(ctx);
     const pushKeyActions = getPushKeyActions(ctx);
 
@@ -266,7 +270,7 @@ export class ManageIos {
   }
 
   private async createProjectContextAsync(
-    ctx: Context,
+    ctx: CredentialsContext,
     account: Account
   ): Promise<{ app: App | null; targets: Target[] | null; buildProfile: IosBuildProfile | null }> {
     if (!ctx.hasProjectContext) {
@@ -309,7 +313,7 @@ export class ManageIos {
   }
 
   private async runAccountSpecificActionAsync(
-    ctx: Context,
+    ctx: CredentialsContext,
     account: Account,
     action: ActionType
   ): Promise<void> {
@@ -325,7 +329,7 @@ export class ManageIos {
   }
 
   private async runProjectSpecificActionAsync(
-    ctx: Context,
+    ctx: CredentialsContext,
     app: App,
     targets: Target[],
     buildProfile: IosBuildProfile,
@@ -449,7 +453,7 @@ export class ManageIos {
   }
 
   private async setupProvisioningProfileWithSpecificDistCertAsync(
-    ctx: Context,
+    ctx: CredentialsContext,
     appLookupParams: AppLookupParams,
     distCert: AppleDistributionCertificateFragment,
     distributionType: IosDistributionTypeGraphql

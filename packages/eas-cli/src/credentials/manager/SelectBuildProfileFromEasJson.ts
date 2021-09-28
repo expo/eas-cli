@@ -3,23 +3,23 @@ import { BuildProfile, EasJsonReader } from '@expo/eas-json';
 
 import Log from '../../log';
 import { promptAsync } from '../../prompts';
-import { Context } from '../context';
+import { CredentialsContext } from '../context';
 
 export class SelectBuildProfileFromEasJson<T extends Platform> {
   private easJsonReader: EasJsonReader;
 
-  constructor(private projectDir: string, private platform: T) {
+  constructor(projectDir: string, private platform: T) {
     this.easJsonReader = new EasJsonReader(projectDir);
   }
 
-  async runAsync(ctx: Context): Promise<BuildProfile<T>> {
+  async runAsync(ctx: CredentialsContext): Promise<BuildProfile<T>> {
     const profileName = await this.getProfileNameFromEasConfigAsync(ctx);
     const easConfig = await this.easJsonReader.readBuildProfileAsync<T>(this.platform, profileName);
     Log.succeed(`Using build profile: ${profileName}`);
     return easConfig;
   }
 
-  async getProfileNameFromEasConfigAsync(ctx: Context): Promise<string> {
+  async getProfileNameFromEasConfigAsync(ctx: CredentialsContext): Promise<string> {
     const buildProfileNames = await this.easJsonReader.getBuildProfileNamesAsync();
     if (buildProfileNames.length === 0) {
       throw new Error(

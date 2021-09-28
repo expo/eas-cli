@@ -4,7 +4,7 @@ import {
 } from '../../../graphql/generated';
 import Log from '../../../log';
 import { confirmAsync } from '../../../prompts';
-import { Context } from '../../context';
+import { CredentialsContext } from '../../context';
 import { readAndroidCredentialsAsync } from '../../credentialsJson/read';
 import {
   SelectAndroidBuildCredentials,
@@ -17,7 +17,7 @@ import { BackupKeystore } from './DownloadKeystore';
 export class SetupBuildCredentialsFromCredentialsJson {
   constructor(private app: AppLookupParams) {}
 
-  async runAsync(ctx: Context): Promise<AndroidAppBuildCredentialsFragment | null> {
+  async runAsync(ctx: CredentialsContext): Promise<AndroidAppBuildCredentialsFragment | null> {
     if (ctx.nonInteractive) {
       throw new Error(
         'Setting up build credentials from credentials.json is only available in interactive mode'
