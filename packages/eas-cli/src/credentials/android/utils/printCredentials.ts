@@ -10,6 +10,7 @@ import {
 } from '../../../graphql/generated';
 import Log from '../../../log';
 import { fromNow } from '../../../utils/date';
+import formatFields from '../../../utils/formatFields';
 import { sortBuildCredentials } from '../actions/BuildCredentialsUtils';
 import { AppLookupParams } from '../api/GraphqlClient';
 
@@ -48,19 +49,31 @@ function displayGoogleServiceAccountKeyForSubmissions(
   appCredentials: CommonAndroidAppCredentialsFragment
 ): void {
   const maybeGsaKey = appCredentials.googleServiceAccountKeyForSubmissions;
-  Log.log(`  Google Service Account Key For Submissions:`);
+  Log.log(
+    formatFields([{ label: 'Google Service Account Key For Submissions', value: '' }], {
+      labelFormat: chalk.cyan.bold,
+    })
+  );
   if (!maybeGsaKey) {
-    Log.log(`    None assigned yet`);
+    Log.log(
+      formatFields([{ label: '', value: 'None assigned yet' }], {
+        labelFormat: chalk.cyan.bold,
+      })
+    );
     Log.newLine();
     return;
   }
   const { projectIdentifier, privateKeyIdentifier, clientEmail, clientIdentifier, updatedAt } =
     maybeGsaKey;
-  Log.log(`    Project Id: ${projectIdentifier}`);
-  Log.log(`    Private Key Id: ${privateKeyIdentifier}`);
-  Log.log(`    Client Email: ${clientEmail}`);
-  Log.log(`    Client Id: ${clientIdentifier}`);
-  Log.log(`    Updated ${fromNow(new Date(updatedAt))} ago`);
+
+  const fields = [
+    { label: 'Project ID', value: projectIdentifier },
+    { label: 'Private Key ID', value: privateKeyIdentifier },
+    { label: 'Client Email', value: clientEmail },
+    { label: 'Client ID', value: clientIdentifier },
+    { label: 'Updated', value: `${fromNow(new Date(updatedAt))} ago` },
+  ];
+  Log.log(formatFields(fields, { labelFormat: chalk.cyan.bold }));
   Log.newLine();
 }
 
