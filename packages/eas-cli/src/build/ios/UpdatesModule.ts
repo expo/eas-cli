@@ -19,7 +19,11 @@ export async function configureUpdatesAsync(projectDir: string, exp: ExpoConfig)
       projectDir,
       xcodeProject
     );
-    await fs.writeFile(IOSConfig.Paths.getPBXProjectPath(projectDir), xcodeProject.writeSync());
+    await fs.writeFile(
+      IOSConfig.Paths.getPBXProjectPath(projectDir),
+      // eslint-disable-next-line node/no-sync
+      xcodeProject.writeSync()
+    );
   }
 
   let expoPlist = await readExpoPlistAsync(projectDir);

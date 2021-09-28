@@ -6,17 +6,17 @@ import { readChannelSafelyAsync } from '../UpdatesModule';
 
 jest.mock('fs');
 
-afterAll(() => {
+afterAll(async () => {
   // do not remove the following line
   // this fixes a weird error with tempy in @expo/image-utils
-  fs.removeSync(os.tmpdir());
+  await fs.remove(os.tmpdir());
 });
 
-beforeEach(() => {
+beforeEach(async () => {
   vol.reset();
   // do not remove the following line
   // this fixes a weird error with tempy in @expo/image-utils
-  fs.mkdirpSync(os.tmpdir());
+  await fs.mkdirp(os.tmpdir());
 });
 
 const testChannel = 'test-channel';

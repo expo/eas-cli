@@ -21,6 +21,7 @@
     "eslint": "7.32.0",
     "eslint-config-universe": "8.0.0",
     "eslint-plugin-async-protect": "1.1.0",
+    "eslint-plugin-node": "11.1.0",
     "jest": "27.1.0",
     "jest-watch-typeahead": "0.6.4",
     "lerna": "4.0.0",

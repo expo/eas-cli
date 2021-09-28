@@ -57,10 +57,10 @@ export async function getApplicationIdAsync(
       try {
         buildGradlePath = AndroidConfig.Paths.getAppBuildGradleFilePath(projectDir);
       } catch {}
-      if (!buildGradlePath || !fs.pathExistsSync(buildGradlePath)) {
+      if (!buildGradlePath || !(await fs.pathExists(buildGradlePath))) {
         throw new Error(errorMessage);
       }
-      const buildGradle = fs.readFileSync(buildGradlePath, 'utf8');
+      const buildGradle = await fs.readFile(buildGradlePath, 'utf8');
       const matchResult = buildGradle.match(/applicationId ['"](.*)['"]/);
       const applicationId = nullthrows(matchResult?.[1], errorMessage);
 
