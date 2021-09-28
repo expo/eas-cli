@@ -16,6 +16,7 @@ import { AndroidFcmMutation } from './graphql/mutations/AndroidFcmMutation';
 import { AndroidKeystoreMutation } from './graphql/mutations/AndroidKeystoreMutation';
 import { GoogleServiceAccountKeyMutation } from './graphql/mutations/GoogleServiceAccountKeyMutation';
 import { AndroidAppCredentialsQuery } from './graphql/queries/AndroidAppCredentialsQuery';
+import { GoogleServiceAccountKeyQuery } from './graphql/queries/GoogleServiceAccountKeyQuery';
 
 export interface AppLookupParams {
   account: Account;
@@ -249,6 +250,12 @@ export async function createGoogleServiceAccountKeyAsync(
     { jsonKey },
     account.id
   );
+}
+
+export async function getGoogleServiceAccountKeysForAccountAsync(
+  account: Account
+): Promise<GoogleServiceAccountKeyFragment[]> {
+  return await GoogleServiceAccountKeyQuery.getAllForAccountAsync(account.name);
 }
 
 async function getAppAsync(appLookupParams: AppLookupParams): Promise<AppFragment> {
