@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Added upload support for Google Service Account Keys. ([#642](https://github.com/expo/eas-cli/pull/642) by [@quinlanj](https://github.com/quinlanj))
+
 ### 🐛 Bug fixes
 
 - Credentials manager: stop prompting for an Android build profile every iteration. ([#641](https://github.com/expo/eas-cli/pull/641) by [@quinlanj](https://github.com/quinlanj))

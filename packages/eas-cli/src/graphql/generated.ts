@@ -213,6 +213,8 @@ export type Account = {
   appleProvisioningProfiles: Array<AppleProvisioningProfile>;
   appleDevices: Array<AppleDevice>;
   appleAppSpecificPasswords: Array<AppleAppSpecificPassword>;
+  /** Android credentials for account */
+  googleServiceAccountKeys: Array<GoogleServiceAccountKey>;
   /** Environment secrets for an account */
   environmentSecrets: Array<EnvironmentSecret>;
   /** @deprecated Legacy access tokens are deprecated */
@@ -1816,6 +1818,8 @@ export type RootMutation = {
   androidFcm: AndroidFcmMutation;
   /** Mutations that modify a Keystore */
   androidKeystore: AndroidKeystoreMutation;
+  /** Mutations that modify a Google Service Account Key */
+  googleServiceAccountKey: GoogleServiceAccountKeyMutation;
   /** Mutations that modify an Identifier for an iOS App */
   appleAppIdentifier: AppleAppIdentifierMutation;
   /** Mutations that modify an App Specific Password for an Apple User Account */
@@ -2074,6 +2078,8 @@ export type AndroidAppCredentialsMutation = {
   createAndroidAppCredentials?: Maybe<AndroidAppCredentials>;
   /** Set the FCM push key to be used in an Android app */
   setFcm?: Maybe<AndroidAppCredentials>;
+  /** Set the Google Service Account Key to be used for submitting an Android app */
+  setGoogleServiceAccountKeyForSubmissions?: Maybe<AndroidAppCredentials>;
 };
 
 
@@ -2089,8 +2095,15 @@ export type AndroidAppCredentialsMutationSetFcmArgs = {
   fcmId: Scalars['ID'];
 };
 
+
+export type AndroidAppCredentialsMutationSetGoogleServiceAccountKeyForSubmissionsArgs = {
+  id: Scalars['ID'];
+  googleServiceAccountKeyId: Scalars['ID'];
+};
+
 export type AndroidAppCredentialsInput = {
   fcmId?: Maybe<Scalars['ID']>;
+  googleServiceAccountKeyForSubmissionsId?: Maybe<Scalars['ID']>;
 };
 
 export type AndroidFcmMutation = {
@@ -2152,6 +2165,22 @@ export type AndroidKeystoreInput = {
 export type DeleteAndroidKeystoreResult = {
   __typename?: 'DeleteAndroidKeystoreResult';
   id: Scalars['ID'];
+};
+
+export type GoogleServiceAccountKeyMutation = {
+  __typename?: 'GoogleServiceAccountKeyMutation';
+  /** Create an Google Service Account Key */
+  createGoogleServiceAccountKey: GoogleServiceAccountKey;
+};
+
+
+export type GoogleServiceAccountKeyMutationCreateGoogleServiceAccountKeyArgs = {
+  googleServiceAccountKeyInput: GoogleServiceAccountKeyInput;
+  accountId: Scalars['ID'];
+};
+
+export type GoogleServiceAccountKeyInput = {
+  jsonKey: Scalars['JSONObject'];
 };
 
 export type AppleAppIdentifierMutation = {
@@ -3953,6 +3982,24 @@ export type DeleteAndroidKeystoreMutation = (
     & { deleteAndroidKeystore: (
       { __typename?: 'DeleteAndroidKeystoreResult' }
       & Pick<DeleteAndroidKeystoreResult, 'id'>
+    ) }
+  ) }
+);
+
+export type CreateGoogleServiceAccountKeyMutationVariables = Exact<{
+  googleServiceAccountKeyInput: GoogleServiceAccountKeyInput;
+  accountId: Scalars['ID'];
+}>;
+
+
+export type CreateGoogleServiceAccountKeyMutation = (
+  { __typename?: 'RootMutation' }
+  & { googleServiceAccountKey: (
+    { __typename?: 'GoogleServiceAccountKeyMutation' }
+    & { createGoogleServiceAccountKey: (
+      { __typename?: 'GoogleServiceAccountKey' }
+      & Pick<GoogleServiceAccountKey, 'id'>
+      & GoogleServiceAccountKeyFragment
     ) }
   ) }
 );

@@ -16,6 +16,11 @@ export type KeystoreWithType = Keystore & {
   type: AndroidKeystoreType;
 };
 
+export type GoogleServiceAccountKey = {
+  [key: string]: any;
+  private_key: string;
+};
+
 export type AndroidCredentials = {
   experienceName: string;
   keystore: Keystore | null;
