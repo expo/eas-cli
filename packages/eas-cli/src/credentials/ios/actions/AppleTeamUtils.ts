@@ -1,9 +1,9 @@
 import { AppleTeamFragment } from '../../../graphql/generated';
-import { Context } from '../../context';
+import { CredentialsContext } from '../../context';
 import { AppLookupParams } from '../api/GraphqlClient';
 
 export async function resolveAppleTeamIfAuthenticatedAsync(
-  ctx: Context,
+  ctx: CredentialsContext,
   app: AppLookupParams
 ): Promise<AppleTeamFragment | null> {
   if (!ctx.appStore.authCtx) {

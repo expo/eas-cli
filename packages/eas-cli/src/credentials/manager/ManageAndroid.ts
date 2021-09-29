@@ -31,8 +31,8 @@ import {
   displayAndroidAppCredentials,
   displayEmptyAndroidCredentials,
 } from '../android/utils/printCredentials';
-import { Action, Context } from '../context';
-import { PressAnyKeyToContinue } from './HelperActions';
+import { CredentialsContext } from '../context';
+import { Action, PressAnyKeyToContinue } from './HelperActions';
 import {
   SelectAndroidBuildCredentials,
   SelectAndroidBuildCredentialsResultType,
@@ -173,7 +173,10 @@ const gsaKeyActions: ActionInfo[] = [
 export class ManageAndroid {
   constructor(private callingAction: Action) {}
 
-  async runAsync(ctx: Context, currentActions: ActionInfo[] = highLevelActions): Promise<void> {
+  async runAsync(
+    ctx: CredentialsContext,
+    currentActions: ActionInfo[] = highLevelActions
+  ): Promise<void> {
     const accountName = ctx.hasProjectContext
       ? getProjectAccountName(ctx.exp, ctx.user)
       : ensureActorHasUsername(ctx.user);
@@ -257,7 +260,7 @@ export class ManageAndroid {
     }
   }
 
-  private async createProjectContextAsync(ctx: Context): Promise<{
+  private async createProjectContextAsync(ctx: CredentialsContext): Promise<{
     gradleContext?: GradleBuildContext;
     buildProfile?: AndroidBuildProfile;
   }> {
@@ -284,7 +287,7 @@ export class ManageAndroid {
   }
 
   private async runProjectSpecificActionAsync(
-    ctx: Context,
+    ctx: CredentialsContext,
     action: ActionType,
     gradleContext?: GradleBuildContext
   ): Promise<void> {

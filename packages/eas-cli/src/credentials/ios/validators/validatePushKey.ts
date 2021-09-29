@@ -1,9 +1,9 @@
-import { Context } from '../../context';
+import { CredentialsContext } from '../../context';
 import { PushKey } from '../appstore/Credentials.types';
 import { filterRevokedAndUntrackedPushKeysAsync } from '../appstore/CredentialsUtils';
 
 export async function isPushKeyValidAndTrackedAsync(
-  ctx: Context,
+  ctx: CredentialsContext,
   pushKey: PushKey
 ): Promise<boolean> {
   const pushInfoFromApple = await ctx.appStore.listPushKeysAsync();

@@ -35,9 +35,9 @@ export async function getAppSpecificPasswordAsync(
     Log.addNewLineIfNone();
     Log.log(
       wrapAnsi(
-        `Please enter your Apple app-specific password. You can also provide it by using ${chalk.italic(
+        `Please enter your Apple app-specific password. You can also provide it by using the ${chalk.bold(
           'EXPO_APPLE_APP_SPECIFIC_PASSWORD'
-        )} env variable.`,
+        )} environment variable.`,
         process.stdout.columns || 80
       )
     );

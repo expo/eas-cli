@@ -4,7 +4,7 @@ import { promptAsync } from '../../prompts';
 import { promptForNameAsync, sortBuildCredentials } from '../android/actions/BuildCredentialsUtils';
 import { AppLookupParams } from '../android/api/GraphqlClient';
 import { AndroidAppBuildCredentialsMetadataInput } from '../android/api/graphql/mutations/AndroidAppBuildCredentialsMutation';
-import { Context } from '../context';
+import { CredentialsContext } from '../context';
 
 export enum SelectAndroidBuildCredentialsResultType {
   CREATE_REQUEST,
@@ -16,7 +16,7 @@ export enum SelectAndroidBuildCredentialsResultType {
 export class SelectAndroidBuildCredentials {
   constructor(private app: AppLookupParams) {}
 
-  async runAsync(ctx: Context): Promise<
+  async runAsync(ctx: CredentialsContext): Promise<
     | {
         resultType: SelectAndroidBuildCredentialsResultType.CREATE_REQUEST;
         result: AndroidAppBuildCredentialsMetadataInput;
@@ -86,7 +86,7 @@ export class SelectAndroidBuildCredentials {
 export class SelectExistingAndroidBuildCredentials {
   constructor(private app: AppLookupParams) {}
 
-  async runAsync(ctx: Context): Promise<AndroidAppBuildCredentialsFragment | null> {
+  async runAsync(ctx: CredentialsContext): Promise<AndroidAppBuildCredentialsFragment | null> {
     const buildCredentialsList = await ctx.android.getAndroidAppBuildCredentialsListAsync(this.app);
     if (buildCredentialsList.length === 0) {
       Log.log(`You don't have any Android Build Credentials`);

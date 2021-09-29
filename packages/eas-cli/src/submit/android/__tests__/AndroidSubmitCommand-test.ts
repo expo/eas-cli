@@ -14,7 +14,7 @@ import {
 import { SubmissionMutation } from '../../../graphql/mutations/SubmissionMutation';
 import { createTestProject } from '../../../project/__tests__/project-utils';
 import { getProjectIdAsync } from '../../../project/projectUtils';
-import { createSubmissionContext } from '../../context';
+import { createSubmissionContextAsync } from '../../context';
 import { getLatestBuildForSubmissionAsync } from '../../utils/builds';
 import AndroidSubmitCommand from '../AndroidSubmitCommand';
 
@@ -77,7 +77,7 @@ describe(AndroidSubmitCommand, () => {
     it("throws error if didn't provide serviceAccountKeyPath in the submit profile", async () => {
       const projectId = uuidv4();
 
-      const ctx = createSubmissionContext({
+      const ctx = await createSubmissionContextAsync({
         platform: Platform.ANDROID,
         projectDir: testProject.projectRoot,
         projectId,
@@ -100,7 +100,7 @@ describe(AndroidSubmitCommand, () => {
     it('sends a request to Submission Service', async () => {
       const projectId = uuidv4();
 
-      const ctx = createSubmissionContext({
+      const ctx = await createSubmissionContextAsync({
         platform: Platform.ANDROID,
         projectDir: testProject.projectRoot,
         projectId,
@@ -135,7 +135,7 @@ describe(AndroidSubmitCommand, () => {
       const projectId = uuidv4();
       asMock(getLatestBuildForSubmissionAsync).mockResolvedValueOnce(fakeBuildFragment);
 
-      const ctx = createSubmissionContext({
+      const ctx = await createSubmissionContextAsync({
         platform: Platform.ANDROID,
         projectDir: testProject.projectRoot,
         projectId,

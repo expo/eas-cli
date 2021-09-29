@@ -14,7 +14,7 @@ import {
 import Log from '../../../log';
 import { confirmAsync, pressAnyKeyToContinueAsync } from '../../../prompts';
 import differenceBy from '../../../utils/expodash/differenceBy';
-import { Context } from '../../context';
+import { CredentialsContext } from '../../context';
 import { MissingCredentialsNonInteractiveError } from '../../errors';
 import { AppLookupParams } from '../api/GraphqlClient';
 import { validateProvisioningProfileAsync } from '../validators/validateProvisioningProfile';
@@ -26,7 +26,7 @@ import { SetupDistributionCertificate } from './SetupDistributionCertificate';
 export class SetupAdhocProvisioningProfile {
   constructor(private app: AppLookupParams) {}
 
-  async runAsync(ctx: Context): Promise<IosAppBuildCredentialsFragment> {
+  async runAsync(ctx: CredentialsContext): Promise<IosAppBuildCredentialsFragment> {
     const distCert = await new SetupDistributionCertificate(
       this.app,
       IosDistributionType.AdHoc
@@ -60,7 +60,7 @@ export class SetupAdhocProvisioningProfile {
   }
 
   async runWithDistributionCertificateAsync(
-    ctx: Context,
+    ctx: CredentialsContext,
     distCert: AppleDistributionCertificateFragment
   ): Promise<IosAppBuildCredentialsFragment> {
     const currentBuildCredentials = await getBuildCredentialsAsync(
@@ -158,7 +158,7 @@ export class SetupAdhocProvisioningProfile {
     );
   }
 
-  private async areBuildCredentialsSetupAsync(ctx: Context): Promise<boolean> {
+  private async areBuildCredentialsSetupAsync(ctx: CredentialsContext): Promise<boolean> {
     const buildCredentials = await getBuildCredentialsAsync(
       ctx,
       this.app,
@@ -168,7 +168,7 @@ export class SetupAdhocProvisioningProfile {
   }
 
   private async shouldUseExistingProfileAsync(
-    ctx: Context,
+    ctx: CredentialsContext,
     buildCredentials: IosAppBuildCredentialsFragment
   ): Promise<boolean> {
     const provisioningProfile = nullthrows(buildCredentials.provisioningProfile);
@@ -202,7 +202,7 @@ export class SetupAdhocProvisioningProfile {
   }
 
   private async registerDevicesAsync(
-    ctx: Context,
+    ctx: CredentialsContext,
     appleTeam: AppleTeamFragment
   ): Promise<AppleDeviceFragment[]> {
     const action = new DeviceCreateAction(this.app.account, appleTeam);

@@ -13,6 +13,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Fix double prompt for Apple credentials when running `eas build --auto-submit`. ([#654](https://github.com/expo/eas-cli/pull/654) by [@dsokal](https://github.com/dsokal))
+
 ### 🧹 Chores
 
 - Always use async `fs` functions. ([#652](https://github.com/expo/eas-cli/pull/652) by [@dsokal](https://github.com/dsokal))

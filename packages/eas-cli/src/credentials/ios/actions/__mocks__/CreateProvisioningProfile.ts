@@ -1,6 +1,6 @@
 import { AppleDistributionCertificateFragment } from '../../../../graphql/generated';
 import { testProvisioningProfileFragment } from '../../../__tests__/fixtures-ios';
-import { Context } from '../../../context';
+import { CredentialsContext } from '../../../context';
 import { AppLookupParams } from '../../api/GraphqlClient';
 import { AppleProvisioningProfileMutationResult } from '../../api/graphql/mutations/AppleProvisioningProfileMutation';
 
@@ -10,7 +10,7 @@ export class CreateProvisioningProfile {
     private distributionCertificate: AppleDistributionCertificateFragment
   ) {}
 
-  async runAsync(ctx: Context): Promise<AppleProvisioningProfileMutationResult> {
+  async runAsync(ctx: CredentialsContext): Promise<AppleProvisioningProfileMutationResult> {
     return testProvisioningProfileFragment;
   }
 }

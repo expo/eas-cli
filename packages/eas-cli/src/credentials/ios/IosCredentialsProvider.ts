@@ -5,7 +5,7 @@ import { CommonIosAppCredentialsFragment } from '../../graphql/generated';
 import Log from '../../log';
 import { findApplicationTarget } from '../../project/ios/target';
 import { confirmAsync } from '../../prompts';
-import { Context } from '../context';
+import { CredentialsContext } from '../context';
 import * as credentialsJsonReader from '../credentialsJson/read';
 import { ensureAllTargetsAreConfigured } from '../credentialsJson/utils';
 import { getAppFromContext } from './actions/BuildCredentialsUtils';
@@ -26,7 +26,7 @@ interface Options {
 export default class IosCredentialsProvider {
   public readonly platform = Platform.IOS;
 
-  constructor(private ctx: Context, private options: Options) {}
+  constructor(private ctx: CredentialsContext, private options: Options) {}
 
   public async getCredentialsAsync(
     src: CredentialsSource.LOCAL | CredentialsSource.REMOTE
@@ -68,7 +68,7 @@ export default class IosCredentialsProvider {
   }
 
   private async getPushKeyAsync(
-    ctx: Context,
+    ctx: CredentialsContext,
     targets: Target[]
   ): Promise<CommonIosAppCredentialsFragment | null> {
     if (ctx.nonInteractive) {

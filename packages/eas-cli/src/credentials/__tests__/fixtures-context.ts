@@ -1,12 +1,12 @@
 import merge from 'ts-deepmerge';
 
-import { Context } from '../context';
+import { CredentialsContext } from '../context';
 import { getNewAndroidApiMock } from './fixtures-android';
 import { getAppstoreMock } from './fixtures-appstore';
 import { testAppJson, testUsername } from './fixtures-constants';
 import { getNewIosApiMock } from './fixtures-ios';
 
-export function createCtxMock(mockOverride: Record<string, any> = {}): Context {
+export function createCtxMock(mockOverride: Record<string, any> = {}): CredentialsContext {
   const defaultMock = {
     ios: getNewIosApiMock(),
     android: getNewAndroidApiMock(),

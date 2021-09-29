@@ -6,74 +6,41 @@ import { getExpoConfig } from '../project/expoConfig';
 import { getProjectAccountName } from '../project/projectUtils';
 import { confirmAsync } from '../prompts';
 import { Actor, getActorDisplayName } from '../user/User';
-import { ensureLoggedInAsync } from '../user/actions';
-import pick from '../utils/expodash/pick';
 import * as AndroidGraphqlClient from './android/api/GraphqlClient';
 import * as IosGraphqlClient from './ios/api/GraphqlClient';
 import AppStoreApi from './ios/appstore/AppStoreApi';
 
-export interface Action<T = void> {
-  runAsync(ctx: Context): Promise<T>;
-}
-
-interface AppleCtxOptions {
-  appleId?: string;
-  appleIdPassword?: string;
-  teamId?: string;
-}
-
-interface Options extends AppleCtxOptions {
-  nonInteractive?: boolean;
-  exp?: ExpoConfig;
-}
-
-export interface Context {
-  readonly projectDir: string;
-  readonly user: Actor;
-  readonly nonInteractive: boolean;
-  readonly android: typeof AndroidGraphqlClient;
-  readonly ios: typeof IosGraphqlClient;
-  readonly appStore: AppStoreApi;
-  readonly hasProjectContext: boolean;
-  readonly exp: ExpoConfig;
-
-  ensureProjectContext(): void;
-  bestEffortAppStoreAuthenticateAsync(): Promise<void>;
-}
-
-export async function createCredentialsContextAsync(
-  projectDir: string,
-  options: Options
-): Promise<Context> {
-  const user = await ensureLoggedInAsync();
-
-  let expoConfig: ExpoConfig | undefined = options.exp;
-  if (!expoConfig) {
-    try {
-      expoConfig = getExpoConfig(projectDir);
-    } catch (error) {
-      // ignore error, context might be created outside of expo project
-    }
-  }
-
-  return new CredentialsContext(projectDir, user, expoConfig, options);
-}
-
-class CredentialsContext implements Context {
+export class CredentialsContext {
   public readonly android = AndroidGraphqlClient;
+  public readonly appStore = new AppStoreApi();
   public readonly ios = IosGraphqlClient;
-  public readonly appStore: AppStoreApi;
   public readonly nonInteractive: boolean;
+  public readonly projectDir: string;
+  public readonly user: Actor;
+
   private shouldAskAuthenticateAppStore: boolean = true;
+  private _exp?: ExpoConfig;
 
   constructor(
-    public readonly projectDir: string,
-    public readonly user: Actor,
-    private _exp: ExpoConfig | undefined,
-    options: Options
+    private options: {
+      exp?: ExpoConfig;
+      nonInteractive?: boolean;
+      projectDir: string;
+      user: Actor;
+    }
   ) {
-    this.appStore = new AppStoreApi(pick(options, ['appleId', 'appleIdPassword', 'teamId']));
+    this.projectDir = options.projectDir;
+    this.user = options.user;
     this.nonInteractive = options.nonInteractive ?? false;
+
+    this._exp = options.exp;
+    if (!this._exp) {
+      try {
+        this._exp = getExpoConfig(options.projectDir);
+      } catch (error) {
+        // ignore error, context might be created outside of expo project
+      }
+    }
   }
 
   get hasProjectContext(): boolean {
@@ -90,14 +57,15 @@ class CredentialsContext implements Context {
       return;
     }
     // trigger getConfig error
-    getConfig(this.projectDir, { skipSDKVersionRequirement: true });
+    getConfig(this.options.projectDir, { skipSDKVersionRequirement: true });
   }
 
   public logOwnerAndProject(): void {
+    const { user } = this.options;
     if (this.hasProjectContext) {
-      const owner = getProjectAccountName(this.exp, this.user);
+      const owner = getProjectAccountName(this.exp, user);
       // Figure out if User A is configuring credentials as admin for User B's project
-      const isProxyUser = this.user.__typename === 'Robot' || owner !== this.user.username;
+      const isProxyUser = user.__typename === 'Robot' || owner !== user.username;
 
       Log.log(
         `Accessing credentials ${isProxyUser ? 'on behalf of' : 'for'} ${owner} in project ${
@@ -105,7 +73,7 @@ class CredentialsContext implements Context {
         }`
       );
     } else {
-      Log.log(`Accessing credentials for ${this.exp.owner ?? getActorDisplayName(this.user)}`);
+      Log.log(`Accessing credentials for ${this.exp.owner ?? getActorDisplayName(user)}`);
     }
   }
 

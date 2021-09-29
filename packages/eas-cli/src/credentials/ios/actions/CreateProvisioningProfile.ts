@@ -3,7 +3,7 @@ import nullthrows from 'nullthrows';
 
 import { AppleDistributionCertificateFragment } from '../../../graphql/generated';
 import Log from '../../../log';
-import { Context } from '../../context';
+import { CredentialsContext } from '../../context';
 import { MissingCredentialsNonInteractiveError } from '../../errors';
 import { askForUserProvidedAsync } from '../../utils/promptForCredentials';
 import { AppLookupParams } from '../api/GraphqlClient';
@@ -20,7 +20,7 @@ export class CreateProvisioningProfile {
     private distributionCertificate: AppleDistributionCertificateFragment
   ) {}
 
-  async runAsync(ctx: Context): Promise<AppleProvisioningProfileMutationResult> {
+  async runAsync(ctx: CredentialsContext): Promise<AppleProvisioningProfileMutationResult> {
     if (ctx.nonInteractive) {
       throw new MissingCredentialsNonInteractiveError(
         'Creating Provisioning Profiles is only supported in interactive mode.'
@@ -46,7 +46,7 @@ export class CreateProvisioningProfile {
   }
 
   private async provideOrGenerateAsync(
-    ctx: Context,
+    ctx: CredentialsContext,
     appleAuthCtx: AuthCtx
   ): Promise<ProvisioningProfile> {
     const userProvided = await askForUserProvidedAsync(provisioningProfileSchema);

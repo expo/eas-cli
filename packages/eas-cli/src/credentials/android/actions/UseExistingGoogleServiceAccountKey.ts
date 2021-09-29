@@ -5,12 +5,12 @@ import Log from '../../../log';
 import { promptAsync } from '../../../prompts';
 import { Account } from '../../../user/Account';
 import { fromNow } from '../../../utils/date';
-import { Context } from '../../context';
+import { CredentialsContext } from '../../context';
 
 export class UseExistingGoogleServiceAccountKey {
   constructor(private account: Account) {}
 
-  public async runAsync(ctx: Context): Promise<GoogleServiceAccountKeyFragment | null> {
+  public async runAsync(ctx: CredentialsContext): Promise<GoogleServiceAccountKeyFragment | null> {
     if (ctx.nonInteractive) {
       throw new Error(
         `Existing Google Service Account Key cannot be chosen in non-interactive mode.`

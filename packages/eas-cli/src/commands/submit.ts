@@ -17,7 +17,7 @@ import {
 } from '../platform';
 import { isEasEnabledForProjectAsync, warnEasUnavailable } from '../project/isEasEnabledForProject';
 import { findProjectRootAsync, getProjectIdAsync } from '../project/projectUtils';
-import { SubmitArchiveFlags, createSubmissionContext } from '../submit/context';
+import { SubmitArchiveFlags, createSubmissionContextAsync } from '../submit/context';
 import { submitAsync, waitToCompleteAsync } from '../submit/submit';
 import { printSubmissionDetailsUrls } from '../submit/utils/urls';
 
@@ -108,7 +108,7 @@ See how to configure submits with eas.json: ${learnMore('https://docs.expo.dev/s
     const submissions: SubmissionFragment[] = [];
     for (const platform of platforms) {
       const profile = await easJsonReader.readSubmitProfileAsync(platform, flags.profile);
-      const ctx = createSubmissionContext({
+      const ctx = await createSubmissionContextAsync({
         platform,
         projectDir,
         projectId,
