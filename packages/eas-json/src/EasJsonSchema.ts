@@ -38,6 +38,10 @@ const AndroidBuildProfileSchema = CommonBuildProfileSchema.concat(
 
     image: Joi.string().valid(...Android.builderBaseImages),
     ndk: Joi.string().empty(null).custom(semverSchemaCheck),
+    autoIncrement: Joi.alternatives().try(
+      Joi.boolean(),
+      Joi.string().valid('version', 'versionCode')
+    ),
 
     artifactPath: Joi.string(),
     gradleCommand: Joi.string(),

@@ -13,7 +13,8 @@ export {
   DistributionType,
   IosBuildProfile,
   IosEnterpriseProvisioning,
-  VersionAutoIncrement,
+  IosVersionAutoIncrement,
+  AndroidVersionAutoIncrement,
 } from './EasBuild.types';
 export { EasJsonReader } from './EasJsonReader';
 export { hasMismatchedExtendsAsync, isUsingDeprecatedFormatAsync, migrateAsync } from './migrate';
