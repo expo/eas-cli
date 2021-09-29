@@ -71,8 +71,7 @@ function formatGoogleServiceAccountKey({
   clientIdentifier,
   updatedAt,
 }: GoogleServiceAccountKeyFragment): string {
-  let line: string = '';
-  line += `Client Email: ${clientEmail}, Project Id: ${projectIdentifier}`;
+  let line = `Client Email: ${clientEmail}, Project Id: ${projectIdentifier}`;
   line += chalk.gray(
     `\n    Client Id: ${clientIdentifier}, Private Key Id: ${privateKeyIdentifier}`
   );
