@@ -5,6 +5,7 @@ import gql from 'graphql-tag';
 import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
 import {
   CreateGoogleServiceAccountKeyMutation,
+  DeleteGoogleServiceAccountKeyMutation,
   GoogleServiceAccountKeyFragment,
   GoogleServiceAccountKeyInput,
 } from '../../../../../graphql/generated';
@@ -47,5 +48,28 @@ export const GoogleServiceAccountKeyMutation = {
       'GraphQL: `createAndroidFcm` not defined in server response'
     );
     return data.googleServiceAccountKey.createGoogleServiceAccountKey;
+  },
+  async deleteGoogleServiceAccountKeyAsync(googleServiceAccountKeyId: string): Promise<void> {
+    await withErrorHandlingAsync(
+      graphqlClient
+        .mutation<DeleteGoogleServiceAccountKeyMutation>(
+          gql`
+            mutation DeleteGoogleServiceAccountKeyMutation($googleServiceAccountKeyId: ID!) {
+              googleServiceAccountKey {
+                deleteGoogleServiceAccountKey(id: $googleServiceAccountKeyId) {
+                  id
+                }
+              }
+            }
+          `,
+          {
+            googleServiceAccountKeyId,
+          },
+          {
+            additionalTypenames: ['GoogleServiceAccountKey', 'AndroidAppCredentials'],
+          }
+        )
+        .toPromise()
+    );
   },
 };

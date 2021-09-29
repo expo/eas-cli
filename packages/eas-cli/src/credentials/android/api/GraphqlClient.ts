@@ -252,6 +252,14 @@ export async function createGoogleServiceAccountKeyAsync(
   );
 }
 
+export async function deleteGoogleServiceAccountKeyAsync(
+  googleServiceAccountKey: GoogleServiceAccountKeyFragment
+): Promise<void> {
+  return await GoogleServiceAccountKeyMutation.deleteGoogleServiceAccountKeyAsync(
+    googleServiceAccountKey.id
+  );
+}
+
 export async function getGoogleServiceAccountKeysForAccountAsync(
   account: Account
 ): Promise<GoogleServiceAccountKeyFragment[]> {

@@ -1,7 +1,11 @@
 import JsonFile from '@expo/json-file';
+import chalk from 'chalk';
 import Joi from 'joi';
 
+import { GoogleServiceAccountKeyFragment } from '../../../graphql/generated';
 import Log, { learnMore } from '../../../log';
+import { promptAsync } from '../../../prompts';
+import { fromNow } from '../../../utils/date';
 import { GoogleServiceAccountKey } from '../credentials';
 
 export const MinimalGoogleServiceAccountKeySchema = Joi.object({
@@ -33,4 +37,45 @@ export function readAndValidateServiceAccountKey(keyJsonPath: string): GoogleSer
     }
     throw err;
   }
+}
+
+export async function selectGoogleServiceAccountKeyAsync(
+  keys: GoogleServiceAccountKeyFragment[]
+): Promise<GoogleServiceAccountKeyFragment> {
+  const sortedKeys = sortGoogleServiceAccountKeysByUpdatedAtDesc(keys);
+  const { chosenKey } = await promptAsync({
+    type: 'select',
+    name: 'chosenKey',
+    message: 'Select a Google Service Account Key:',
+    choices: sortedKeys.map(key => ({
+      title: formatGoogleServiceAccountKey(key),
+      value: key,
+    })),
+  });
+  return chosenKey;
+}
+
+function sortGoogleServiceAccountKeysByUpdatedAtDesc(
+  keys: GoogleServiceAccountKeyFragment[]
+): GoogleServiceAccountKeyFragment[] {
+  return keys.sort(
+    (keyA, keyB) =>
+      new Date(keyB.updatedAt).getMilliseconds() - new Date(keyA.updatedAt).getMilliseconds()
+  );
+}
+
+function formatGoogleServiceAccountKey({
+  projectIdentifier,
+  privateKeyIdentifier,
+  clientEmail,
+  clientIdentifier,
+  updatedAt,
+}: GoogleServiceAccountKeyFragment): string {
+  let line: string = '';
+  line += `Client Email: ${clientEmail}, Project Id: ${projectIdentifier}`;
+  line += chalk.gray(
+    `\n    Client Id: ${clientIdentifier}, Private Key Id: ${privateKeyIdentifier}`
+  );
+  line += chalk.gray(`\n    Updated: ${fromNow(new Date(updatedAt))} ago,`);
+  return line;
 }
