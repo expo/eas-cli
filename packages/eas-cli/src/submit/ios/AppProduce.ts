@@ -39,7 +39,6 @@ export async function ensureAppStoreConnectAppExistsAsync(
     appName: appName ?? exp.name ?? (await promptForAppNameAsync()),
     language: sanitizeLanguage(language),
   };
-
   return await createAppStoreConnectAppAsync(options);
 }
 

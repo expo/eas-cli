@@ -8,6 +8,7 @@ import {
 import { flags } from '@oclif/command';
 import { error } from '@oclif/errors';
 import chalk from 'chalk';
+import nullthrows from 'nullthrows';
 
 import { prepareAndroidBuildAsync } from '../../build/android/build';
 import { BuildRequestSender, waitForBuildEndAsync } from '../../build/build';
@@ -18,7 +19,13 @@ import { ensureExpoDevClientInstalledForDevClientBuildsAsync } from '../../build
 import { printBuildResults, printLogsUrls } from '../../build/utils/printBuildInfo';
 import { ensureRepoIsCleanAsync } from '../../build/utils/repository';
 import EasCommand from '../../commandUtils/EasCommand';
-import { BuildFragment, BuildStatus, SubmissionFragment } from '../../graphql/generated';
+import { CredentialsContext } from '../../credentials/context';
+import {
+  AppPlatform,
+  BuildFragment,
+  BuildStatus,
+  SubmissionFragment,
+} from '../../graphql/generated';
 import { toAppPlatform, toPlatform } from '../../graphql/types/AppPlatform';
 import Log from '../../log';
 import {
@@ -35,7 +42,7 @@ import {
 import { validateMetroConfigForManagedWorkflowAsync } from '../../project/metroConfig';
 import { findProjectRootAsync } from '../../project/projectUtils';
 import { confirmAsync } from '../../prompts';
-import { createSubmissionContext } from '../../submit/context';
+import { createSubmissionContextAsync } from '../../submit/context';
 import {
   submitAsync,
   waitToCompleteAsync as waitForSubmissionsToCompleteAsync,
@@ -153,8 +160,9 @@ export default class Build extends EasCommand {
     });
 
     const startedBuilds: BuildFragment[] = [];
+    const buildCtxByPlatform: { [p in AppPlatform]?: BuildContext<Platform> } = {};
     for (const platform of platforms) {
-      const maybeBuild = await this.prepareAndStartBuildAsync({
+      const { build: maybeBuild, buildCtx } = await this.prepareAndStartBuildAsync({
         projectDir,
         platform,
         flags,
@@ -163,6 +171,7 @@ export default class Build extends EasCommand {
       if (maybeBuild) {
         startedBuilds.push(maybeBuild);
       }
+      buildCtxByPlatform[toAppPlatform(platform)] = buildCtx;
     }
     if (flags.local) {
       return;
@@ -176,10 +185,11 @@ export default class Build extends EasCommand {
     if (flags.autoSubmit) {
       for (const build of startedBuilds) {
         const submission = await this.prepareAndStartSubmissionAsync({
-          projectDir,
           build,
+          credentialsCtx: nullthrows(buildCtxByPlatform[build.platform]?.credentialsCtx),
           flags,
           moreBuilds: startedBuilds.length > 1,
+          projectDir,
         });
         submissions.push(submission);
       }
@@ -253,17 +263,17 @@ export default class Build extends EasCommand {
     };
   }
 
-  private async prepareAndStartBuildAsync({
+  private async prepareAndStartBuildAsync<T extends Platform>({
     projectDir,
     platform,
     flags,
     moreBuilds,
   }: {
     projectDir: string;
-    platform: Platform;
+    platform: T;
     flags: BuildFlags;
     moreBuilds: boolean;
-  }): Promise<BuildFragment | undefined> {
+  }): Promise<{ build: BuildFragment | undefined; buildCtx: BuildContext<T> }> {
     const easJsonReader = new EasJsonReader(projectDir);
     const buildProfile = await easJsonReader.readBuildProfileAsync(platform, flags.profile);
 
@@ -297,7 +307,11 @@ export default class Build extends EasCommand {
       error(EAS_UNAVAILABLE_MESSAGE, { exit: 1 });
     }
 
-    return await this.startBuildAsync(buildCtx);
+    const build = await this.startBuildAsync(buildCtx);
+    return {
+      build,
+      buildCtx,
+    };
   }
 
   private async startBuildAsync(ctx: BuildContext<Platform>): Promise<BuildFragment | undefined> {
@@ -311,21 +325,23 @@ export default class Build extends EasCommand {
   }
 
   private async prepareAndStartSubmissionAsync({
-    projectDir,
     build,
+    credentialsCtx,
     flags,
     moreBuilds,
+    projectDir,
   }: {
-    projectDir: string;
     build: BuildFragment;
+    credentialsCtx: CredentialsContext;
     flags: BuildFlags;
     moreBuilds: boolean;
+    projectDir: string;
   }): Promise<SubmissionFragment> {
     const easJsonReader = new EasJsonReader(projectDir);
     const platform = toPlatform(build.platform);
     const buildProfile = await easJsonReader.readBuildProfileAsync(platform, flags.profile);
     const submitProfile = await easJsonReader.readSubmitProfileAsync(platform, flags.submitProfile);
-    const submissionCtx = createSubmissionContext({
+    const submissionCtx = await createSubmissionContextAsync({
       platform,
       projectDir,
       projectId: build.project.id,
@@ -333,6 +349,7 @@ export default class Build extends EasCommand {
       archiveFlags: { id: build.id },
       nonInteractive: flags.nonInteractive,
       env: buildProfile.env,
+      credentialsCtx,
     });
 
     if (moreBuilds) {
