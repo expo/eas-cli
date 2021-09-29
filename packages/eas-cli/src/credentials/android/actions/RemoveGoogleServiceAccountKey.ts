@@ -13,7 +13,7 @@ export class SelectAndRemoveGoogleServiceAccountKey {
       this.account
     );
     if (gsaKeyFragments.length === 0) {
-      Log.error("There aren't any Google Service Account Keys associated with your account.");
+      Log.warn("There aren't any Google Service Account Keys associated with your account.");
       return;
     }
 
