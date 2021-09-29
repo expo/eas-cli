@@ -2,13 +2,13 @@ import { GoogleServiceAccountKeyFragment } from '../../../graphql/generated';
 import Log from '../../../log';
 import { confirmAsync } from '../../../prompts';
 import { Account } from '../../../user/Account';
-import { Context } from '../../context';
+import { CredentialsContext } from '../../context';
 import { selectGoogleServiceAccountKeyAsync } from '../utils/googleServiceAccountKey';
 
 export class SelectAndRemoveGoogleServiceAccountKey {
   constructor(private account: Account) {}
 
-  async runAsync(ctx: Context): Promise<void> {
+  async runAsync(ctx: CredentialsContext): Promise<void> {
     if (ctx.nonInteractive) {
       throw new Error(
         `Cannot select and remove Google Service Account Keys in non-interactive mode.`
