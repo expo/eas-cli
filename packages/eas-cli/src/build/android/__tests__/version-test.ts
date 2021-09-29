@@ -15,7 +15,7 @@ import {
   maybeResolveVersionsAsync,
 } from '../version';
 
-const fsReal = jest.requireActual('fs') as typeof fs;
+const fsReal = jest.requireActual('fs').promises as typeof fs;
 jest.mock('fs');
 
 afterAll(async () => {
@@ -47,7 +47,7 @@ describe(bumpVersionAsync, () => {
         exp: {} as any,
       })
     ).rejects.toThrow(
-      'automatic version bumping is not supported for multiflavor android projects'
+      'Automatic version bumping is not supported for multi-flavor Android projects.'
     );
   });
   it('throws an informative error when multiple flavor dimensions are defined in an android project', async () => {
@@ -64,7 +64,7 @@ describe(bumpVersionAsync, () => {
         exp: {} as any,
       })
     ).rejects.toThrow(
-      'automatic version bumping is not supported for multiflavor android projects'
+      'Automatic version bumping is not supported for multi-flavor Android projects.'
     );
   });
   it('bumps expo.android.versionCode and buildGradle versionCode when strategy = BumpStrategy.VERSION_CODE', async () => {
