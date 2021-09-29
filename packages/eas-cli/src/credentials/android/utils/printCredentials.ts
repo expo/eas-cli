@@ -22,9 +22,7 @@ export function displayEmptyAndroidCredentials(appLookupParams: AppLookupParams)
     { label: 'Application Identifier', value: androidApplicationIdentifier },
   ];
   Log.log(formatFields(fields, { labelFormat: chalk.cyan.bold }));
-  Log.log(
-    formatFields([{ label: 'No credentials set up yet!', value: '' }])
-  );
+  Log.log(formatFields([{ label: 'No credentials set up yet!', value: '' }]));
   Log.newLine();
 }
 
@@ -36,25 +34,23 @@ function displayAndroidFcmCredentials(appCredentials: CommonAndroidAppCredential
     })
   );
   if (!maybeFcm) {
-    Log.log(
-      formatFields([{ label: '', value: 'None assigned yet' }])
-    );
+    Log.log(formatFields([{ label: '', value: 'None assigned yet' }]));
     Log.newLine();
     return;
   }
   const { snippet, version, updatedAt } = maybeFcm;
-  let fields = [];
+  const fields = [];
   if (version === AndroidFcmVersion.Legacy) {
     const { firstFourCharacters, lastFourCharacters } = snippet as FcmSnippetLegacy;
-    fields.push( { label: 'Key', value: `${firstFourCharacters}...${lastFourCharacters}` });
+    fields.push({ label: 'Key', value: `${firstFourCharacters}...${lastFourCharacters}` });
   } else if (version === AndroidFcmVersion.V1) {
     const { projectId, serviceAccountEmail, clientId, keyId } = snippet as FcmSnippetV1;
-    fields.push( { label: 'Project ID', value: projectId });
-    fields.push( { label: 'Client Email', value: serviceAccountEmail });
-    fields.push( { label: 'Client ID', value: clientId ?? 'Unknown' });
-    fields.push( { label: 'Private Key ID', value: keyId });
+    fields.push({ label: 'Project ID', value: projectId });
+    fields.push({ label: 'Client Email', value: serviceAccountEmail });
+    fields.push({ label: 'Client ID', value: clientId ?? 'Unknown' });
+    fields.push({ label: 'Private Key ID', value: keyId });
   }
-  fields.push( { label: 'Updated', value: `${fromNow(new Date(updatedAt))} ago` });
+  fields.push({ label: 'Updated', value: `${fromNow(new Date(updatedAt))} ago` });
   Log.log(formatFields(fields, { labelFormat: chalk.cyan.bold }));
   Log.newLine();
 }
@@ -69,9 +65,7 @@ function displayGoogleServiceAccountKeyForSubmissions(
     })
   );
   if (!maybeGsaKey) {
-    Log.log(
-      formatFields([{ label: '', value: 'None assigned yet' }])
-    );
+    Log.log(formatFields([{ label: '', value: 'None assigned yet' }]));
     Log.newLine();
     return;
   }
@@ -119,7 +113,7 @@ function formatFingerprint(fingerprint: string | null): string {
   return bytes.join(':');
 }
 function displayAndroidBuildCredentials(
-  buildCredentials: AndroidAppBuildCredentialsFragment,
+  buildCredentials: AndroidAppBuildCredentialsFragment
 ): void {
   const { isDefault, name } = buildCredentials;
   Log.log(
@@ -137,9 +131,7 @@ function displayAndroidBuildCredentials(
   if (maybeKeystore) {
     displayAndroidKeystore(maybeKeystore);
   } else {
-    Log.log(
-      formatFields([{ label: '', value: 'None assigned yet' }])
-    );
+    Log.log(formatFields([{ label: '', value: 'None assigned yet' }]));
   }
   Log.newLine();
 }
