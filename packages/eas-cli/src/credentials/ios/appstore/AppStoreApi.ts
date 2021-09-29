@@ -6,7 +6,7 @@ import {
   PushKey,
   PushKeyStoreInfo,
 } from './Credentials.types';
-import { AuthCtx, authenticateAsync } from './authenticate';
+import { AuthCtx, Options as AuthenticateOptions, authenticateAsync } from './authenticate';
 import {
   createDistributionCertificateAsync,
   listDistributionCertificatesAsync,
@@ -30,9 +30,9 @@ import { createPushKeyAsync, listPushKeysAsync, revokePushKeyAsync } from './pus
 export default class AppStoreApi {
   public authCtx?: AuthCtx;
 
-  public async ensureAuthenticatedAsync(): Promise<AuthCtx> {
+  public async ensureAuthenticatedAsync(options?: AuthenticateOptions): Promise<AuthCtx> {
     if (!this.authCtx) {
-      this.authCtx = await authenticateAsync();
+      this.authCtx = await authenticateAsync(options);
     }
     return this.authCtx;
   }
