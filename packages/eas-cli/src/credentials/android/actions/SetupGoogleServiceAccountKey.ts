@@ -6,7 +6,7 @@ import {
 } from '../../../graphql/generated';
 import Log from '../../../log';
 import { promptAsync } from '../../../prompts';
-import { Context } from '../../context';
+import { CredentialsContext } from '../../context';
 import { MissingCredentialsNonInteractiveError } from '../../errors';
 import { AppLookupParams } from '../api/GraphqlClient';
 import { AssignGoogleServiceAccountKey } from './AssignGoogleServiceAccountKey';
@@ -16,26 +16,19 @@ import { UseExistingGoogleServiceAccountKey } from './UseExistingGoogleServiceAc
 export class SetupGoogleServiceAccountKey {
   constructor(private app: AppLookupParams) {}
 
-  private async isGoogleServiceAccountKeySetupAsync(ctx: Context): Promise<boolean> {
-    const appCredentials = await ctx.android.getAndroidAppCredentialsWithCommonFieldsAsync(
-      this.app
-    );
-    return !!appCredentials?.googleServiceAccountKeyForSubmissions;
-  }
-
-  public async runAsync(ctx: Context): Promise<CommonAndroidAppCredentialsFragment> {
+  public async runAsync(ctx: CredentialsContext): Promise<CommonAndroidAppCredentialsFragment> {
     if (ctx.nonInteractive) {
       throw new MissingCredentialsNonInteractiveError(
-        'Google Service Account Keys cannot be setup in --non-interactive mode.'
+        'Google Service Account Keys cannot be set up in --non-interactive mode.'
       );
     }
 
     const isKeySetup = await this.isGoogleServiceAccountKeySetupAsync(ctx);
     if (isKeySetup) {
-      Log.succeed('Google Service Account Key already setup.');
+      Log.succeed('Google Service Account Key already set up.');
       return nullthrows(
         await ctx.android.getAndroidAppCredentialsWithCommonFieldsAsync(this.app),
-        'androidAppCredentials cannot be null if google service account key is already setup'
+        'androidAppCredentials cannot be null if google service account key is already set up'
       );
     }
 
@@ -53,8 +46,15 @@ export class SetupGoogleServiceAccountKey {
     return await new AssignGoogleServiceAccountKey(this.app).runAsync(ctx, googleServiceAccountKey);
   }
 
+  private async isGoogleServiceAccountKeySetupAsync(ctx: CredentialsContext): Promise<boolean> {
+    const appCredentials = await ctx.android.getAndroidAppCredentialsWithCommonFieldsAsync(
+      this.app
+    );
+    return !!appCredentials?.googleServiceAccountKeyForSubmissions;
+  }
+
   private async createOrUseExistingKeyAsync(
-    ctx: Context
+    ctx: CredentialsContext
   ): Promise<GoogleServiceAccountKeyFragment> {
     const { action } = await promptAsync({
       type: 'select',
