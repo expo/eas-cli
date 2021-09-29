@@ -33,7 +33,7 @@ export class SelectAndRemoveGoogleServiceAccountKey {
 export class RemoveGoogleServiceAccountKey {
   constructor(private googleServiceAccountKey: GoogleServiceAccountKeyFragment) {}
 
-  public async runAsync(ctx: Context): Promise<void> {
+  public async runAsync(ctx: CredentialsContext): Promise<void> {
     if (ctx.nonInteractive) {
       throw new Error(`Cannot remove Google Service Account Keys in non-interactive mode`);
     }
