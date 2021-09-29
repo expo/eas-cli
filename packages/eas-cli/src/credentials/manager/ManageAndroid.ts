@@ -26,6 +26,7 @@ import { RemoveFcm } from '../android/actions/RemoveFcm';
 import { SelectAndRemoveGoogleServiceAccountKey } from '../android/actions/RemoveGoogleServiceAccountKey';
 import { RemoveKeystore } from '../android/actions/RemoveKeystore';
 import { SetupBuildCredentialsFromCredentialsJson } from '../android/actions/SetupBuildCredentialsFromCredentialsJson';
+import { SetupGoogleServiceAccountKey } from '../android/actions/SetupGoogleServiceAccountKey';
 import { UpdateCredentialsJson } from '../android/actions/UpdateCredentialsJson';
 import { UseExistingGoogleServiceAccountKey } from '../android/actions/UseExistingGoogleServiceAccountKey';
 import {
@@ -56,6 +57,7 @@ enum ActionType {
   CreateGsaKey,
   UseExistingGsaKey,
   RemoveGsaKey,
+  SetupGsaKey,
   UpdateCredentialsJson,
   SetupBuildCredentialsFromCredentialsJson,
 }
@@ -155,6 +157,11 @@ const fcmActions: ActionInfo[] = [
 ];
 
 const gsaKeyActions: ActionInfo[] = [
+  {
+    value: ActionType.SetupGsaKey,
+    title: 'Setup a Google Service Account Key',
+    scope: Scope.Project,
+  },
   {
     value: ActionType.CreateGsaKey,
     title: 'Upload a Google Service Account Key',
@@ -355,6 +362,8 @@ export class ManageAndroid {
       }
     } else if (action === ActionType.RemoveGsaKey) {
       await new SelectAndRemoveGoogleServiceAccountKey(appLookupParams.account).runAsync(ctx);
+    } else if (action === ActionType.SetupGsaKey) {
+      await new SetupGoogleServiceAccountKey(appLookupParams).runAsync(ctx);
     } else if (action === ActionType.UpdateCredentialsJson) {
       const buildCredentials = await new SelectExistingAndroidBuildCredentials(
         appLookupParams
