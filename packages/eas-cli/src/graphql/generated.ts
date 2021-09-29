@@ -4034,6 +4034,22 @@ export type CreateGoogleServiceAccountKeyMutation = (
   ) }
 );
 
+export type DeleteGoogleServiceAccountKeyMutationVariables = Exact<{
+  googleServiceAccountKeyId: Scalars['ID'];
+}>;
+
+
+export type DeleteGoogleServiceAccountKeyMutation = (
+  { __typename?: 'RootMutation' }
+  & { googleServiceAccountKey: (
+    { __typename?: 'GoogleServiceAccountKeyMutation' }
+    & { deleteGoogleServiceAccountKey: (
+      { __typename?: 'DeleteGoogleServiceAccountKeyResult' }
+      & Pick<DeleteGoogleServiceAccountKeyResult, 'id'>
+    ) }
+  ) }
+);
+
 export type CommonAndroidAppCredentialsWithBuildCredentialsByApplicationIdentifierQueryVariables = Exact<{
   projectFullName: Scalars['String'];
   applicationIdentifier?: Maybe<Scalars['String']>;
@@ -4055,6 +4071,27 @@ export type CommonAndroidAppCredentialsWithBuildCredentialsByApplicationIdentifi
       )> }
     ) }
   )> }
+);
+
+export type GoogleServiceAccountKeyByAccountQueryVariables = Exact<{
+  accountName: Scalars['String'];
+}>;
+
+
+export type GoogleServiceAccountKeyByAccountQuery = (
+  { __typename?: 'RootQuery' }
+  & { account: (
+    { __typename?: 'AccountQuery' }
+    & { byName: (
+      { __typename?: 'Account' }
+      & Pick<Account, 'id'>
+      & { googleServiceAccountKeys: Array<(
+        { __typename?: 'GoogleServiceAccountKey' }
+        & Pick<GoogleServiceAccountKey, 'id'>
+        & GoogleServiceAccountKeyFragment
+      )> }
+    ) }
+  ) }
 );
 
 export type CreateAppleAppIdentifierMutationVariables = Exact<{
@@ -4634,27 +4671,6 @@ export type AppleTeamByIdentifierQuery = (
       & Pick<AppleTeam, 'id'>
       & AppleTeamFragment
     )> }
-  ) }
-);
-
-export type GoogleServiceAccountKeyByAccountQueryVariables = Exact<{
-  accountName: Scalars['String'];
-}>;
-
-
-export type GoogleServiceAccountKeyByAccountQuery = (
-  { __typename?: 'RootQuery' }
-  & { account: (
-    { __typename?: 'AccountQuery' }
-    & { byName: (
-      { __typename?: 'Account' }
-      & Pick<Account, 'id'>
-      & { googleServiceAccountKeys: Array<(
-        { __typename?: 'GoogleServiceAccountKey' }
-        & Pick<GoogleServiceAccountKey, 'id'>
-        & GoogleServiceAccountKeyFragment
-      )> }
-    ) }
   ) }
 );
 
