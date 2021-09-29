@@ -9,6 +9,12 @@ export class SelectAndRemoveGoogleServiceAccountKey {
   constructor(private account: Account) {}
 
   async runAsync(ctx: Context): Promise<void> {
+    if (ctx.nonInteractive) {
+      throw new Error(
+        `Cannot select and remove Google Service Account Keys in non-interactive mode.`
+      );
+    }
+
     const gsaKeyFragments = await ctx.android.getGoogleServiceAccountKeysForAccountAsync(
       this.account
     );
@@ -19,7 +25,7 @@ export class SelectAndRemoveGoogleServiceAccountKey {
 
     const selected = await selectGoogleServiceAccountKeyAsync(gsaKeyFragments);
     await new RemoveGoogleServiceAccountKey(selected).runAsync(ctx);
-    Log.succeed('Removed Google Service Account Key');
+    Log.succeed('Removed Google Service Account Key.');
     Log.newLine();
   }
 }
@@ -41,7 +47,7 @@ export class RemoveGoogleServiceAccountKey {
       return;
     }
 
-    Log.log('Removing Google Service Account Key');
+    Log.log('Removing Google Service Account Key.');
     await ctx.android.deleteGoogleServiceAccountKeyAsync(this.googleServiceAccountKey);
   }
 }

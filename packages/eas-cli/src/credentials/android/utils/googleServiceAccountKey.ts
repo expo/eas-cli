@@ -59,8 +59,7 @@ function sortGoogleServiceAccountKeysByUpdatedAtDesc(
   keys: GoogleServiceAccountKeyFragment[]
 ): GoogleServiceAccountKeyFragment[] {
   return keys.sort(
-    (keyA, keyB) =>
-      new Date(keyB.updatedAt).getMilliseconds() - new Date(keyA.updatedAt).getMilliseconds()
+    (keyA, keyB) => new Date(keyB.updatedAt).getTime() - new Date(keyA.updatedAt).getTime()
   );
 }
 
