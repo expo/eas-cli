@@ -1,16 +1,28 @@
 import JsonFile from '@expo/json-file';
 import chalk from 'chalk';
+import glob from 'fast-glob';
 import Joi from 'joi';
+import path from 'path';
 
 import { GoogleServiceAccountKeyFragment } from '../../../graphql/generated';
 import Log, { learnMore } from '../../../log';
-import { promptAsync } from '../../../prompts';
+import { confirmAsync, promptAsync } from '../../../prompts';
 import { fromNow } from '../../../utils/date';
 import { GoogleServiceAccountKey } from '../credentials';
 
 export const MinimalGoogleServiceAccountKeySchema = Joi.object({
+  type: Joi.string().required(),
   private_key: Joi.string().required(),
 });
+
+function fileIsServiceAccountKey(keyJsonPath: string): boolean {
+  try {
+    readAndValidateServiceAccountKey(keyJsonPath);
+    return true;
+  } catch (err: any) {
+    return false;
+  }
+}
 
 export function readAndValidateServiceAccountKey(keyJsonPath: string): GoogleServiceAccountKey {
   try {
@@ -76,4 +88,70 @@ function formatGoogleServiceAccountKey({
   );
   line += chalk.gray(`\n    Updated: ${fromNow(new Date(updatedAt))} ago,`);
   return line;
+}
+
+export async function detectGoogleServiceAccountKeyPathAsync(
+  projectDir: string
+): Promise<string | null> {
+  const foundFilePaths = await glob('**/*.json', {
+    cwd: projectDir,
+    ignore: ['app.json', 'package*.json', 'tsconfig.json', 'node_modules'],
+  });
+
+  const googleServiceFiles = foundFilePaths
+    .map(file => path.join(projectDir, file))
+    .filter(fileIsServiceAccountKey);
+
+  if (googleServiceFiles.length > 1) {
+    const selectedPath = await displayPathChooserAsync(googleServiceFiles, projectDir);
+
+    if (selectedPath) {
+      return selectedPath;
+    }
+  } else if (googleServiceFiles.length === 1) {
+    const [detectedPath] = googleServiceFiles;
+
+    if (await confirmDetectedPathAsync(detectedPath)) {
+      return detectedPath;
+    }
+  }
+
+  return null;
+}
+
+async function displayPathChooserAsync(
+  paths: string[],
+  projectDir: string
+): Promise<string | null> {
+  const choices = paths.map<{ title: string; value: string | null }>(f => ({
+    value: f,
+    title: f.startsWith(projectDir) ? path.relative(projectDir, f) : f,
+  }));
+
+  choices.push({
+    title: 'None of the above',
+    value: null,
+  });
+
+  Log.log(
+    'Multiple Google Service Account JSON keys have been found inside your project directory.'
+  );
+  const { selectedPath } = await promptAsync({
+    name: 'selectedPath',
+    type: 'select',
+    message: 'Choose the key you want to use:',
+    choices,
+  });
+
+  Log.addNewLineIfNone();
+  return selectedPath;
+}
+
+async function confirmDetectedPathAsync(path: string): Promise<boolean> {
+  Log.log(`A Google Service Account JSON key has been found at\n  ${chalk.underline(path)}`);
+  const confirm = await confirmAsync({
+    message: 'Would you like to use this file?',
+  });
+  Log.addNewLineIfNone();
+  return confirm;
 }
