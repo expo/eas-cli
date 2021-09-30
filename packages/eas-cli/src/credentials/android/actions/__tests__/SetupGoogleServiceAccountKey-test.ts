@@ -42,7 +42,10 @@ describe(SetupGoogleServiceAccountKey, () => {
   });
   it('sets up a Google Service Account Key when there is none already setup', async () => {
     vol.fromJSON({
-      '/google-service-account-key.json': JSON.stringify({ private_key: 'super secret' }),
+      '/google-service-account-key.json': JSON.stringify({
+        type: 'service_account',
+        private_key: 'super secret',
+      }),
     });
     const ctx = createCtxMock({
       nonInteractive: false,
