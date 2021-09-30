@@ -1,7 +1,7 @@
 import { vol } from 'memfs';
 
 import { asMock } from '../../../../__tests__/utils';
-import { promptAsync } from '../../../../prompts';
+import { confirmAsync, promptAsync } from '../../../../prompts';
 import { detectGoogleServiceAccountKeyPathAsync } from '../googleServiceAccountKey';
 
 jest.mock('fs');
@@ -25,16 +25,16 @@ afterAll(() => {
 
 afterEach(() => {
   asMock(promptAsync).mockClear();
+  asMock(confirmAsync).mockClear();
 });
 
 describe('Google Service Account Key path detection', () => {
   it('detects a single google-services file and prompts for confirmation', async () => {
-    asMock(promptAsync).mockResolvedValueOnce({
-      confirmed: true,
-    });
+    asMock(confirmAsync).mockResolvedValueOnce(true);
     const serviceAccountPath = await detectGoogleServiceAccountKeyPathAsync('/project_dir/subdir');
-
-    expect(promptAsync).toHaveBeenCalledWith(expect.objectContaining({ type: 'confirm' }));
+    expect(confirmAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ message: 'Would you like to use this file?' })
+    );
     expect(serviceAccountPath).toBe('/project_dir/subdir/service-account.json');
   });
 
@@ -45,14 +45,12 @@ describe('Google Service Account Key path detection', () => {
   });
 
   it('returns null, when user rejects to use detected file', async () => {
-    asMock(promptAsync).mockResolvedValueOnce({
-      confirmed: false,
-    });
-
+    asMock(confirmAsync).mockResolvedValueOnce(false);
     const serviceAccountPath = await detectGoogleServiceAccountKeyPathAsync('/project_dir/subdir');
-
-    expect(promptAsync).toHaveBeenCalledTimes(1);
-    expect(promptAsync).toHaveBeenCalledWith(expect.objectContaining({ type: 'confirm' }));
+    expect(confirmAsync).toHaveBeenCalledTimes(1);
+    expect(confirmAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ message: 'Would you like to use this file?' })
+    );
     expect(serviceAccountPath).toBe(null);
   });
 
@@ -60,15 +58,13 @@ describe('Google Service Account Key path detection', () => {
     asMock(promptAsync).mockResolvedValueOnce({
       selectedPath: '/project_dir/another-service-account.json',
     });
-
     const serviceAccountPath = await detectGoogleServiceAccountKeyPathAsync('/project_dir'); // should find 2 files here
 
     const expectedChoices = expect.arrayContaining([
       expect.objectContaining({ value: '/project_dir/another-service-account.json' }),
       expect.objectContaining({ value: '/project_dir/subdir/service-account.json' }),
-      expect.objectContaining({ value: false }),
+      expect.objectContaining({ value: null }),
     ]);
-
     expect(promptAsync).toHaveBeenCalledWith(
       expect.objectContaining({
         type: 'select',

@@ -6,7 +6,7 @@ import path from 'path';
 
 import { GoogleServiceAccountKeyFragment } from '../../../graphql/generated';
 import Log, { learnMore } from '../../../log';
-import { promptAsync } from '../../../prompts';
+import { confirmAsync, promptAsync } from '../../../prompts';
 import { fromNow } from '../../../utils/date';
 import { GoogleServiceAccountKey } from '../credentials';
 
@@ -105,7 +105,7 @@ export async function detectGoogleServiceAccountKeyPathAsync(
   if (googleServiceFiles.length > 1) {
     const selectedPath = await displayPathChooserAsync(googleServiceFiles, projectDir);
 
-    if (selectedPath !== false) {
+    if (selectedPath) {
       return selectedPath;
     }
   } else if (googleServiceFiles.length === 1) {
@@ -122,15 +122,15 @@ export async function detectGoogleServiceAccountKeyPathAsync(
 async function displayPathChooserAsync(
   paths: string[],
   projectDir: string
-): Promise<string | false> {
-  const choices = paths.map<{ title: string; value: string | false }>(f => ({
+): Promise<string | null> {
+  const choices = paths.map<{ title: string; value: string | null }>(f => ({
     value: f,
     title: f.startsWith(projectDir) ? path.relative(projectDir, f) : f,
   }));
 
   choices.push({
     title: 'None of the above',
-    value: false,
+    value: null,
   });
 
   Log.log(
@@ -149,13 +149,9 @@ async function displayPathChooserAsync(
 
 async function confirmDetectedPathAsync(path: string): Promise<boolean> {
   Log.log(`A Google Service Account JSON key has been found at\n  ${chalk.underline(path)}`);
-  const { confirmed } = await promptAsync({
-    name: 'confirmed',
-    type: 'confirm',
+  const confirm = await confirmAsync({
     message: 'Would you like to use this file?',
-    initial: true,
   });
-
   Log.addNewLineIfNone();
-  return confirmed;
+  return confirm;
 }
