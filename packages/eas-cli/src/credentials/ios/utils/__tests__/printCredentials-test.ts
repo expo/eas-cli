@@ -8,7 +8,7 @@ import { App, Target } from '../../types';
 import { displayIosCredentials } from '../printCredentials';
 
 jest.mock('../../../../log');
-jest.mock('chalk', () => ({ bold: jest.fn(log => log) }));
+jest.mock('chalk', () => ({ bold: jest.fn(log => log), cyan: { bold: jest.fn(log => log) } }));
 
 jest.mock('../../api/graphql/queries/IosAppCredentialsQuery');
 mockdate.set(new Date('4/20/2021'));
