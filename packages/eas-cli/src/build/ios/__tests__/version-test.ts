@@ -101,7 +101,7 @@ describe(bumpVersionAsync, () => {
     const fakeExp = initGenericProject();
 
     await bumpVersionAsync({
-      bumpStrategy: BumpStrategy.SHORT_VERSION,
+      bumpStrategy: BumpStrategy.APP_VERSION,
       projectDir: '/repo',
       exp: fakeExp,
       buildSettings: {},
@@ -164,7 +164,7 @@ describe(bumpVersionInAppJsonAsync, () => {
     const fakeExp = initManagedProject();
 
     await bumpVersionInAppJsonAsync({
-      bumpStrategy: BumpStrategy.SHORT_VERSION,
+      bumpStrategy: BumpStrategy.APP_VERSION,
       projectDir: '/repo',
       exp: fakeExp,
     });
@@ -215,12 +215,12 @@ describe(readShortVersionAsync, () => {
   describe('generic project', () => {
     it('reads the short version from native code', async () => {
       const exp = initGenericProject();
-      const shortVersion = await readShortVersionAsync('/repo', exp, {});
-      expect(shortVersion).toBe('1.0.0');
+      const appVersion = await readShortVersionAsync('/repo', exp, {});
+      expect(appVersion).toBe('1.0.0');
     });
     it('evaluates interpolated build number', async () => {
       const exp = initGenericProject({
-        shortVersion: '$(CURRENT_PROJECT_VERSION)',
+        appVersion: '$(CURRENT_PROJECT_VERSION)',
       });
       const buildNumber = await readShortVersionAsync('/repo', exp, {
         CURRENT_PROJECT_VERSION: '1.0.0',
@@ -232,8 +232,8 @@ describe(readShortVersionAsync, () => {
   describe('managed project', () => {
     it('reads the version from app config', async () => {
       const exp = initGenericProject();
-      const shortVersion = await readShortVersionAsync('/repo', exp, {});
-      expect(shortVersion).toBe('1.0.0');
+      const appVersion = await readShortVersionAsync('/repo', exp, {});
+      expect(appVersion).toBe('1.0.0');
     });
   });
 });
@@ -287,26 +287,29 @@ describe(getInfoPlistPath, () => {
 });
 
 function initGenericProject({
-  shortVersion = '1.0.0',
+  appVersion = '1.0.0',
   version = '1',
   infoPlistName = 'Info.plist',
-}: { shortVersion?: string; version?: string; infoPlistName?: string } = {}): ExpoConfig {
+}: { appVersion?: string; version?: string; infoPlistName?: string } = {}): ExpoConfig {
+  const fakeExp: ExpoConfig = {
+    name: 'myproject',
+    slug: 'myproject',
+    version: '1.0.0',
+    ios: {
+      buildNumber: '1',
+    },
+  };
   vol.fromJSON(
     {
       './app.json': JSON.stringify({
-        expo: {
-          version: '1.0.0',
-          ios: {
-            buildNumber: '1',
-          },
-        },
+        expo: fakeExp,
       }),
       [`./ios/myproject/${infoPlistName}`]: `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
   <key>CFBundleShortVersionString</key>
-  <string>${shortVersion}</string>
+  <string>${appVersion}</string>
   <key>CFBundleVersion</key>
   <string>${version}</string>
 </dict>
@@ -315,6 +318,10 @@ function initGenericProject({
     '/repo'
   );
 
+  return fakeExp;
+}
+
+function initManagedProject(): ExpoConfig {
   const fakeExp: ExpoConfig = {
     name: 'myproject',
     slug: 'myproject',
@@ -323,31 +330,15 @@ function initGenericProject({
       buildNumber: '1',
     },
   };
-  return fakeExp;
-}
 
-function initManagedProject(): ExpoConfig {
   vol.fromJSON(
     {
       './app.json': JSON.stringify({
-        expo: {
-          version: '1.0.0',
-          ios: {
-            buildNumber: '1',
-          },
-        },
+        expo: fakeExp,
       }),
     },
     '/repo'
   );
 
-  const fakeExp: ExpoConfig = {
-    name: 'myproject',
-    slug: 'myproject',
-    version: '1.0.0',
-    ios: {
-      buildNumber: '1',
-    },
-  };
   return fakeExp;
 }

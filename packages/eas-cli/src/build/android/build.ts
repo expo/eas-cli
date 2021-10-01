@@ -5,7 +5,6 @@ import nullthrows from 'nullthrows';
 import AndroidCredentialsProvider, {
   AndroidCredentials,
 } from '../../credentials/android/AndroidCredentialsProvider';
-import { createCredentialsContextAsync } from '../../credentials/context';
 import { BuildMutation, BuildResult } from '../../graphql/mutations/BuildMutation';
 import Log from '../../log';
 import {
@@ -65,9 +64,11 @@ This means that it will most likely produce an AAB and you will not be able to i
       return await ensureAndroidCredentialsAsync(ctx, gradleContext);
     },
     ensureProjectConfiguredAsync: async () => {
-      if (ctx.workflow === Workflow.GENERIC) {
-        await validateAndSyncProjectConfigurationAsync(ctx.projectDir, ctx.exp);
-      }
+      await validateAndSyncProjectConfigurationAsync({
+        projectDir: ctx.projectDir,
+        exp: ctx.exp,
+        buildProfile,
+      });
     },
     getMetadataContext: () => ({
       gradleContext,
@@ -110,22 +111,16 @@ async function ensureAndroidCredentialsAsync(
     ctx.exp,
     gradleContext
   );
-  const provider = new AndroidCredentialsProvider(
-    await createCredentialsContextAsync(ctx.projectDir, {
-      exp: ctx.exp,
-      nonInteractive: ctx.nonInteractive,
-    }),
-    {
-      app: {
-        account: nullthrows(
-          findAccountByName(ctx.user.accounts, ctx.accountName),
-          `You do not have access to account: ${ctx.accountName}`
-        ),
-        projectName: ctx.projectName,
-        androidApplicationIdentifier,
-      },
-    }
-  );
+  const provider = new AndroidCredentialsProvider(ctx.credentialsCtx, {
+    app: {
+      account: nullthrows(
+        findAccountByName(ctx.user.accounts, ctx.accountName),
+        `You do not have access to account: ${ctx.accountName}`
+      ),
+      projectName: ctx.projectName,
+      androidApplicationIdentifier,
+    },
+  });
   const { credentialsSource } = ctx.buildProfile;
   logCredentialsSource(credentialsSource, Platform.ANDROID);
   return {

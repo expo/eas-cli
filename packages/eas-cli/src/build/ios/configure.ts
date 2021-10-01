@@ -1,6 +1,6 @@
 import { ExpoConfig } from '@expo/config';
 import { Platform, Workflow } from '@expo/eas-build-job';
-import { IosBuildProfile, VersionAutoIncrement } from '@expo/eas-json';
+import { IosBuildProfile, IosVersionAutoIncrement } from '@expo/eas-json';
 import type { XCBuildConfiguration } from 'xcode';
 
 import Log from '../../log';
@@ -53,7 +53,7 @@ export async function validateAndSyncProjectConfigurationAsync({
   }
 }
 
-function resolveVersionBumpStrategy(autoIncrement: VersionAutoIncrement): BumpStrategy {
+function resolveVersionBumpStrategy(autoIncrement: IosVersionAutoIncrement): BumpStrategy {
   if (autoIncrement === true) {
     return BumpStrategy.BUILD_NUMBER;
   } else if (autoIncrement === false) {
@@ -61,6 +61,6 @@ function resolveVersionBumpStrategy(autoIncrement: VersionAutoIncrement): BumpSt
   } else if (autoIncrement === 'buildNumber') {
     return BumpStrategy.BUILD_NUMBER;
   } else {
-    return BumpStrategy.SHORT_VERSION;
+    return BumpStrategy.APP_VERSION;
   }
 }

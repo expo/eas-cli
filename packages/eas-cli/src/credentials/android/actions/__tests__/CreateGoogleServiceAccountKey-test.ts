@@ -19,7 +19,10 @@ beforeEach(() => {
 describe(CreateGoogleServiceAccountKey, () => {
   it('creates a Google Service Account Key in Interactive Mode', async () => {
     vol.fromJSON({
-      '/google-service-account-key.json': JSON.stringify({ private_key: 'super secret' }),
+      '/google-service-account-key.json': JSON.stringify({
+        type: 'service_account',
+        private_key: 'super secret',
+      }),
     });
 
     const ctx = createCtxMock({ nonInteractive: false });

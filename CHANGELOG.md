@@ -6,17 +6,34 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🛠 Breaking changes
 
-### 🎉 New features
+- Enable auto-incrementing on Android. ([#645](https://github.com/expo/eas-cli/pull/645) by [@jkhales](https://github.com/jkhales))
 
-- More upload support for Google Service Account Keys. ([#649](https://github.com/expo/eas-cli/pull/649) by [@quinlanj](https://github.com/quinlanj))
-- Allow the user to assign an existing Google Service Account Key to their project. ([#650](https://github.com/expo/eas-cli/pull/650) by [@quinlanj](https://github.com/quinlanj))
+### 🎉 New features
 
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
 
-- Always use async `fs` functions. ([#652](https://github.com/expo/eas-cli/pull/652) by [@dsokal](https://github.com/dsokal))
+- Ports detection for Google Service Account Keys into the credentials service. ([#660](https://github.com/expo/eas-cli/pull/660) by [@quinlanj](https://github.com/quinlanj))
 - Improve iOS credentials printing. ([#657](https://github.com/expo/eas-cli/pull/657) by [@quinlanj](https://github.com/quinlanj))
+
+## [0.29.1](https://github.com/expo/eas-cli/releases/tag/v0.29.1) - 2021-09-29
+
+### 🎉 New features
+
+- More upload support for Google Service Account Keys. ([#649](https://github.com/expo/eas-cli/pull/649) by [@quinlanj](https://github.com/quinlanj))
+- Allow the user to assign an existing Google Service Account Key to their project. ([#650](https://github.com/expo/eas-cli/pull/650) by [@quinlanj](https://github.com/quinlanj))
+- Allow the user to remove a Google Service Account Key from their account. ([#658](https://github.com/expo/eas-cli/pull/658) by [@quinlanj](https://github.com/quinlanj))
+- Adds setup support for Google Service Account Keys. ([#659](https://github.com/expo/eas-cli/pull/659) by [@quinlanj](https://github.com/quinlanj))
+
+### 🐛 Bug fixes
+
+- Fix double prompt for Apple credentials when running `eas build --auto-submit`. ([#654](https://github.com/expo/eas-cli/pull/654) by [@dsokal](https://github.com/dsokal))
+
+### 🧹 Chores
+
+- Always use async `fs` functions. ([#652](https://github.com/expo/eas-cli/pull/652) by [@dsokal](https://github.com/dsokal))
+- Improve Android credentials printing. ([#656](https://github.com/expo/eas-cli/pull/656) by [@quinlanj](https://github.com/quinlanj))
 
 ## [0.29.0](https://github.com/expo/eas-cli/releases/tag/v0.29.0) - 2021-09-28
 

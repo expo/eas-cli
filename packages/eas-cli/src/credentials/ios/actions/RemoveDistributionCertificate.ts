@@ -5,7 +5,7 @@ import {
 import Log from '../../../log';
 import { confirmAsync } from '../../../prompts';
 import { Account } from '../../../user/Account';
-import { Context } from '../../context';
+import { CredentialsContext } from '../../context';
 import { AppLookupParams } from '../api/GraphqlClient';
 import { selectDistributionCertificateWithDependenciesAsync } from './DistributionCertificateUtils';
 import { RemoveProvisioningProfiles } from './RemoveProvisioningProfile';
@@ -13,7 +13,7 @@ import { RemoveProvisioningProfiles } from './RemoveProvisioningProfile';
 export class SelectAndRemoveDistributionCertificate {
   constructor(private account: Account) {}
 
-  async runAsync(ctx: Context): Promise<void> {
+  async runAsync(ctx: CredentialsContext): Promise<void> {
     const selected = await selectDistributionCertificateWithDependenciesAsync(ctx, this.account);
     if (selected) {
       await new RemoveDistributionCertificate(this.account, selected).runAsync(ctx);
@@ -29,7 +29,7 @@ export class RemoveDistributionCertificate {
     private distributionCertificate: AppleDistributionCertificateFragment
   ) {}
 
-  public async runAsync(ctx: Context): Promise<void> {
+  public async runAsync(ctx: CredentialsContext): Promise<void> {
     const apps = this.distributionCertificate.iosAppBuildCredentialsList.map(
       buildCredentials => buildCredentials.iosAppCredentials.app
     );
@@ -71,7 +71,7 @@ export class RemoveDistributionCertificate {
     await this.removeInvalidProvisioningProfilesAsync(ctx);
   }
 
-  private async removeInvalidProvisioningProfilesAsync(ctx: Context): Promise<void> {
+  private async removeInvalidProvisioningProfilesAsync(ctx: CredentialsContext): Promise<void> {
     const buildCredentialsList = this.distributionCertificate.iosAppBuildCredentialsList;
     const appsWithProfilesToRemove: AppLookupParams[] = [];
     const profilesToRemove: AppleProvisioningProfileIdentifiersFragment[] = [];

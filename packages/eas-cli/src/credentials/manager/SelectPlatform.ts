@@ -1,10 +1,10 @@
 import { promptAsync } from '../../prompts';
-import { Action, Context } from '../context';
+import { CredentialsContext } from '../context';
 import { ManageAndroid } from './ManageAndroid';
 import { ManageIos } from './ManageIos';
 
-export class SelectPlatform implements Action {
-  async runAsync(ctx: Context): Promise<void> {
+export class SelectPlatform {
+  async runAsync(ctx: CredentialsContext): Promise<void> {
     const { platform } = await promptAsync({
       type: 'select',
       name: 'platform',

@@ -3,14 +3,14 @@ import {
   CommonAndroidAppCredentialsFragment,
 } from '../../../graphql/generated';
 import Log from '../../../log';
-import { Context } from '../../context';
+import { CredentialsContext } from '../../context';
 import { AppLookupParams } from '../api/GraphqlClient';
 
 export class AssignFcm {
   constructor(private app: AppLookupParams) {}
 
   public async runAsync(
-    ctx: Context,
+    ctx: CredentialsContext,
     fcm: AndroidFcmFragment
   ): Promise<CommonAndroidAppCredentialsFragment> {
     const appCredentials =

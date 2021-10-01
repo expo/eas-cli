@@ -3,7 +3,7 @@ import chalk from 'chalk';
 import nullthrows from 'nullthrows';
 
 import Log from '../../../log';
-import { Context } from '../../context';
+import { CredentialsContext } from '../../context';
 import { IosCapabilitiesOptions } from '../appstore/ensureAppExists';
 import { App, IosAppBuildCredentialsMap, IosCredentials, Target } from '../types';
 import { displayProjectCredentials } from '../utils/printCredentials';
@@ -20,7 +20,7 @@ interface Options {
 export class SetupBuildCredentials {
   constructor(private options: Options) {}
 
-  async runAsync(ctx: Context): Promise<IosCredentials> {
+  async runAsync(ctx: CredentialsContext): Promise<IosCredentials> {
     const hasManyTargets = this.options.targets.length > 1;
     const iosAppBuildCredentialsMap: IosAppBuildCredentialsMap = {};
     if (hasManyTargets) {

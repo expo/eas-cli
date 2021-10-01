@@ -2,7 +2,7 @@ import assert from 'assert';
 
 import { AppleProvisioningProfileIdentifiersFragment } from '../../../graphql/generated';
 import Log from '../../../log';
-import { Context } from '../../context';
+import { CredentialsContext } from '../../context';
 import { AppLookupParams } from '../api/GraphqlClient';
 
 export class RemoveProvisioningProfiles {
@@ -16,7 +16,7 @@ export class RemoveProvisioningProfiles {
     );
   }
 
-  async runAsync(ctx: Context): Promise<void> {
+  async runAsync(ctx: CredentialsContext): Promise<void> {
     if (this.provisioningProfiles.length === 0) {
       Log.log(`Skipping deletion of Provisioning Profiles`);
       return;

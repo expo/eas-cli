@@ -5,7 +5,7 @@ import {
   IosAppBuildCredentialsFragment,
 } from '../../../graphql/generated';
 import Log from '../../../log';
-import { Action, Context } from '../../context';
+import { CredentialsContext } from '../../context';
 import { AppLookupParams as GraphQLAppLookupParams } from '../api/GraphqlClient';
 import { IosCapabilitiesOptions } from '../appstore/ensureAppExists';
 import { SetupAdhocProvisioningProfile } from './SetupAdhocProvisioningProfile';
@@ -18,10 +18,10 @@ interface Options {
   enterpriseProvisioning?: IosEnterpriseProvisioning;
   iosCapabilitiesOptions?: IosCapabilitiesOptions;
 }
-export class SetupTargetBuildCredentials implements Action<IosAppBuildCredentialsFragment> {
+export class SetupTargetBuildCredentials {
   constructor(private options: Options) {}
 
-  async runAsync(ctx: Context): Promise<IosAppBuildCredentialsFragment> {
+  async runAsync(ctx: CredentialsContext): Promise<IosAppBuildCredentialsFragment> {
     const { app, iosCapabilitiesOptions } = this.options;
 
     await ctx.bestEffortAppStoreAuthenticateAsync();
@@ -44,7 +44,9 @@ export class SetupTargetBuildCredentials implements Action<IosAppBuildCredential
     }
   }
 
-  async setupBuildCredentialsAsync(ctx: Context): Promise<IosAppBuildCredentialsFragment> {
+  async setupBuildCredentialsAsync(
+    ctx: CredentialsContext
+  ): Promise<IosAppBuildCredentialsFragment> {
     const { app, distribution, enterpriseProvisioning } = this.options;
     if (distribution === 'internal') {
       if (enterpriseProvisioning === 'adhoc') {

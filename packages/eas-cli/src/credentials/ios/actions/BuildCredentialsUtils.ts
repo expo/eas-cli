@@ -9,13 +9,13 @@ import {
 } from '../../../graphql/generated';
 import { getProjectAccountName } from '../../../project/projectUtils';
 import { findAccountByName } from '../../../user/Account';
-import { Context } from '../../context';
+import { CredentialsContext } from '../../context';
 import { AppLookupParams } from '../api/GraphqlClient';
 import { App, Target } from '../types';
 import { resolveAppleTeamIfAuthenticatedAsync } from './AppleTeamUtils';
 
 export async function getAllBuildCredentialsAsync(
-  ctx: Context,
+  ctx: CredentialsContext,
   app: AppLookupParams
 ): Promise<IosAppBuildCredentialsFragment[]> {
   const appCredentials = await ctx.ios.getIosAppCredentialsWithBuildCredentialsAsync(app, {});
@@ -26,7 +26,7 @@ export async function getAllBuildCredentialsAsync(
 }
 
 export async function getBuildCredentialsAsync(
-  ctx: Context,
+  ctx: CredentialsContext,
   app: AppLookupParams,
   iosDistributionType: GraphQLIosDistributionType
 ): Promise<IosAppBuildCredentialsFragment | null> {
@@ -41,7 +41,7 @@ export async function getBuildCredentialsAsync(
 }
 
 export async function getProvisioningProfileAsync(
-  ctx: Context,
+  ctx: CredentialsContext,
   app: AppLookupParams,
   iosDistributionType: GraphQLIosDistributionType
 ): Promise<AppleProvisioningProfileFragment | null> {
@@ -50,7 +50,7 @@ export async function getProvisioningProfileAsync(
 }
 
 export async function getDistributionCertificateAsync(
-  ctx: Context,
+  ctx: CredentialsContext,
   app: AppLookupParams,
   iosDistributionType: GraphQLIosDistributionType
 ): Promise<AppleDistributionCertificateFragment | null> {
@@ -59,7 +59,7 @@ export async function getDistributionCertificateAsync(
 }
 
 export async function assignBuildCredentialsAsync(
-  ctx: Context,
+  ctx: CredentialsContext,
   app: AppLookupParams,
   iosDistributionType: GraphQLIosDistributionType,
   distCert: AppleDistributionCertificateFragment,
@@ -82,7 +82,7 @@ export async function assignBuildCredentialsAsync(
   });
 }
 
-export function getAppFromContext(ctx: Context): App {
+export function getAppFromContext(ctx: CredentialsContext): App {
   ctx.ensureProjectContext();
   const projectName = ctx.exp.slug;
   const accountName = getProjectAccountName(ctx.exp, ctx.user);
@@ -96,7 +96,10 @@ export function getAppFromContext(ctx: Context): App {
   };
 }
 
-export function getAppLookupParamsFromContext(ctx: Context, target: Target): AppLookupParams {
+export function getAppLookupParamsFromContext(
+  ctx: CredentialsContext,
+  target: Target
+): AppLookupParams {
   const app = getAppFromContext(ctx);
   return { ...app, bundleIdentifier: target.bundleIdentifier };
 }

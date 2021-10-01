@@ -2,13 +2,13 @@ import { ApplePushKeyFragment } from '../../../graphql/generated';
 import Log from '../../../log';
 import { confirmAsync } from '../../../prompts';
 import { Account } from '../../../user/Account';
-import { Context } from '../../context';
+import { CredentialsContext } from '../../context';
 import { selectPushKeyAsync } from './PushKeyUtils';
 
 export class SelectAndRemovePushKey {
   constructor(private account: Account) {}
 
-  async runAsync(ctx: Context): Promise<void> {
+  async runAsync(ctx: CredentialsContext): Promise<void> {
     const selected = await selectPushKeyAsync(ctx, this.account);
     if (selected) {
       await new RemovePushKey(this.account, selected).runAsync(ctx);
@@ -21,7 +21,7 @@ export class SelectAndRemovePushKey {
 export class RemovePushKey {
   constructor(private account: Account, private pushKey: ApplePushKeyFragment) {}
 
-  public async runAsync(ctx: Context): Promise<void> {
+  public async runAsync(ctx: CredentialsContext): Promise<void> {
     if (ctx.nonInteractive) {
       throw new Error(`Cannot remove push keys in non-interactive mode`);
     }

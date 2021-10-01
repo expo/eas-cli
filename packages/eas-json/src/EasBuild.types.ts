@@ -9,7 +9,9 @@ export type DistributionType = 'store' | 'internal';
 
 export type IosEnterpriseProvisioning = 'adhoc' | 'universal';
 
-export type VersionAutoIncrement = boolean | 'version' | 'buildNumber';
+export type VersionAutoIncrement = boolean | 'version';
+export type IosVersionAutoIncrement = VersionAutoIncrement | 'buildNumber';
+export type AndroidVersionAutoIncrement = VersionAutoIncrement | 'versionCode';
 
 export interface CommonBuildProfile {
   credentialsSource: CredentialsSource;
@@ -29,6 +31,7 @@ export interface AndroidBuildProfile extends CommonBuildProfile {
   withoutCredentials?: boolean;
   image?: Android.BuilderEnvironment['image'];
   ndk?: string;
+  autoIncrement?: AndroidVersionAutoIncrement;
 
   buildType?: Android.BuildType.APK | Android.BuildType.APP_BUNDLE;
 
@@ -38,7 +41,7 @@ export interface AndroidBuildProfile extends CommonBuildProfile {
 
 export interface IosBuildProfile extends CommonBuildProfile {
   enterpriseProvisioning?: IosEnterpriseProvisioning;
-  autoIncrement?: VersionAutoIncrement;
+  autoIncrement?: IosVersionAutoIncrement;
   simulator?: boolean;
   image?: Ios.BuilderEnvironment['image'];
   bundler?: string;

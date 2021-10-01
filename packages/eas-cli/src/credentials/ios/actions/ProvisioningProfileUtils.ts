@@ -1,6 +1,6 @@
 import chalk from 'chalk';
 
-import { Context } from '../../context';
+import { CredentialsContext } from '../../context';
 import {
   DistributionCertificate,
   ProvisioningProfile,
@@ -19,7 +19,7 @@ export function formatProvisioningProfileFromApple(
 }
 
 export async function generateProvisioningProfileAsync(
-  ctx: Context,
+  ctx: CredentialsContext,
   bundleIdentifier: string,
   distCert: DistributionCertificate
 ): Promise<ProvisioningProfile> {

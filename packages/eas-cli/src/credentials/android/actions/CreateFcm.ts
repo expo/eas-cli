@@ -2,12 +2,12 @@ import { AndroidFcmFragment, AndroidFcmVersion } from '../../../graphql/generate
 import Log from '../../../log';
 import { promptAsync } from '../../../prompts';
 import { Account } from '../../../user/Account';
-import { Context } from '../../context';
+import { CredentialsContext } from '../../context';
 
 export class CreateFcm {
   constructor(private account: Account) {}
 
-  public async runAsync(ctx: Context): Promise<AndroidFcmFragment> {
+  public async runAsync(ctx: CredentialsContext): Promise<AndroidFcmFragment> {
     if (ctx.nonInteractive) {
       throw new Error(`FCM API Key cannot be uploaded in non-interactive mode.`);
     }

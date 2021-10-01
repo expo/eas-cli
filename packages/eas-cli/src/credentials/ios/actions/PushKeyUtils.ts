@@ -5,7 +5,7 @@ import Log, { learnMore } from '../../../log';
 import { confirmAsync, promptAsync } from '../../../prompts';
 import { Account } from '../../../user/Account';
 import { fromNow } from '../../../utils/date';
-import { Context } from '../../context';
+import { CredentialsContext } from '../../context';
 import { askForUserProvidedAsync } from '../../utils/promptForCredentials';
 import { PushKey, PushKeyStoreInfo } from '../appstore/Credentials.types';
 import { filterRevokedAndUntrackedPushKeysFromEasServersAsync } from '../appstore/CredentialsUtils';
@@ -15,7 +15,7 @@ import { isPushKeyValidAndTrackedAsync } from '../validators/validatePushKey';
 import { formatAppleTeam } from './AppleTeamUtils';
 
 export async function provideOrGeneratePushKeyAsync(
-  ctx: Context,
+  ctx: CredentialsContext,
   accountName: string
 ): Promise<PushKey> {
   if (!ctx.nonInteractive) {
@@ -43,7 +43,7 @@ export async function provideOrGeneratePushKeyAsync(
   return await generatePushKeyAsync(ctx, accountName);
 }
 
-async function promptForPushKeyAsync(ctx: Context): Promise<PushKey | null> {
+async function promptForPushKeyAsync(ctx: CredentialsContext): Promise<PushKey | null> {
   let initialValues: { teamId?: string } = {};
   if (ctx.appStore.authCtx) {
     initialValues = {
@@ -63,7 +63,10 @@ async function promptForPushKeyAsync(ctx: Context): Promise<PushKey | null> {
   return userProvided;
 }
 
-async function generatePushKeyAsync(ctx: Context, accountName: string): Promise<PushKey> {
+async function generatePushKeyAsync(
+  ctx: CredentialsContext,
+  accountName: string
+): Promise<PushKey> {
   await ctx.appStore.ensureAuthenticatedAsync();
   try {
     return await ctx.appStore.createPushKeyAsync();
@@ -116,7 +119,7 @@ function formatPushKeyFromApple(pushKey: PushKeyStoreInfo): string {
  * select a push key from an account (validity status shown on a best effort basis)
  * */
 export async function selectPushKeyAsync(
-  ctx: Context,
+  ctx: CredentialsContext,
   account: Account
 ): Promise<ApplePushKeyFragment | null> {
   const pushKeysForAccount = await ctx.ios.getPushKeysForAccountAsync(account);
@@ -133,7 +136,7 @@ export async function selectPushKeyAsync(
 }
 
 export async function getValidAndTrackedPushKeysOnEasServersAsync(
-  ctx: Context,
+  ctx: CredentialsContext,
   pushKeysForAccount: ApplePushKeyFragment[]
 ): Promise<ApplePushKeyFragment[]> {
   const pushInfoFromApple = await ctx.appStore.listPushKeysAsync();

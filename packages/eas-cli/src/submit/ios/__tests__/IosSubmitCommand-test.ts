@@ -7,7 +7,7 @@ import { jester as mockJester } from '../../../credentials/__tests__/fixtures-co
 import { SubmissionMutation } from '../../../graphql/mutations/SubmissionMutation';
 import { createTestProject } from '../../../project/__tests__/project-utils';
 import { getProjectIdAsync } from '../../../project/projectUtils';
-import { createSubmissionContext } from '../../context';
+import { createSubmissionContextAsync } from '../../context';
 import IosSubmitCommand from '../IosSubmitCommand';
 
 jest.mock('fs');
@@ -57,7 +57,7 @@ describe(IosSubmitCommand, () => {
     it("throws error if didn't provide appleId and ascAppId in the submit profile", async () => {
       const projectId = uuidv4();
 
-      const ctx = createSubmissionContext({
+      const ctx = await createSubmissionContextAsync({
         platform: Platform.IOS,
         projectDir: testProject.projectRoot,
         projectId,
@@ -80,7 +80,7 @@ describe(IosSubmitCommand, () => {
 
       process.env.EXPO_APPLE_APP_SPECIFIC_PASSWORD = 'supersecret';
 
-      const ctx = createSubmissionContext({
+      const ctx = await createSubmissionContextAsync({
         platform: Platform.IOS,
         projectDir: testProject.projectRoot,
         projectId,

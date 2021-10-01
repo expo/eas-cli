@@ -3,7 +3,7 @@ import {
   AppleProvisioningProfileFragment,
 } from '../../../../graphql/generated';
 import { testProvisioningProfileFragment } from '../../../__tests__/fixtures-ios';
-import { Context } from '../../../context';
+import { CredentialsContext } from '../../../context';
 import { AppLookupParams } from '../../api/GraphqlClient';
 import { AppleProvisioningProfileMutationResult } from '../../api/graphql/mutations/AppleProvisioningProfileMutation';
 
@@ -14,7 +14,9 @@ export class ConfigureProvisioningProfile {
     private originalProvisioningProfile: AppleProvisioningProfileFragment
   ) {}
 
-  public async runAsync(ctx: Context): Promise<AppleProvisioningProfileMutationResult | null> {
+  public async runAsync(
+    ctx: CredentialsContext
+  ): Promise<AppleProvisioningProfileMutationResult | null> {
     return testProvisioningProfileFragment;
   }
 }

@@ -2,7 +2,7 @@ import { App, RequestContext, Session, User } from '@expo/apple-utils';
 import { Platform } from '@expo/eas-build-job';
 import chalk from 'chalk';
 
-import { authenticateAsync, getRequestContext } from '../../credentials/ios/appstore/authenticate';
+import { getRequestContext } from '../../credentials/ios/appstore/authenticate';
 import {
   ensureAppExistsAsync,
   ensureBundleIdExistsWithNameAsync,
@@ -39,8 +39,7 @@ export async function ensureAppStoreConnectAppExistsAsync(
     appName: appName ?? exp.name ?? (await promptForAppNameAsync()),
     language: sanitizeLanguage(language),
   };
-
-  return await createAppStoreConnectAppAsync(options);
+  return await createAppStoreConnectAppAsync(ctx, options);
 }
 
 async function isProvisioningAvailableAsync(requestCtx: RequestContext): Promise<boolean> {
@@ -51,7 +50,10 @@ async function isProvisioningAvailableAsync(requestCtx: RequestContext): Promise
   return user.attributes.provisioningAllowed;
 }
 
-async function createAppStoreConnectAppAsync(options: CreateAppOptions): Promise<AppStoreResult> {
+async function createAppStoreConnectAppAsync(
+  ctx: SubmissionContext<Platform.IOS>,
+  options: CreateAppOptions
+): Promise<AppStoreResult> {
   const {
     appleId,
     appleTeamId,
@@ -62,7 +64,7 @@ async function createAppStoreConnectAppAsync(options: CreateAppOptions): Promise
     sku,
   } = options;
 
-  const authCtx = await authenticateAsync({
+  const authCtx = await ctx.credentialsCtx.appStore.ensureAuthenticatedAsync({
     appleId,
     teamId: appleTeamId,
   });

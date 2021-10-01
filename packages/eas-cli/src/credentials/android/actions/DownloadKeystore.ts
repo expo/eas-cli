@@ -5,7 +5,7 @@ import { AndroidAppBuildCredentialsFragment } from '../../../graphql/generated';
 import Log from '../../../log';
 import { confirmAsync } from '../../../prompts';
 import { maybeRenameExistingFileAsync } from '../../../utils/files';
-import { Context } from '../../context';
+import { CredentialsContext } from '../../context';
 import { AppLookupParams, formatProjectFullName } from '../api/GraphqlClient';
 import { displayAndroidKeystore } from '../utils/printCredentials';
 
@@ -19,7 +19,7 @@ export class DownloadKeystore {
   constructor(private options: DownloadKeystoreOptions) {}
 
   public async runAsync(
-    ctx: Context,
+    ctx: CredentialsContext,
     buildCredentials: AndroidAppBuildCredentialsFragment
   ): Promise<void> {
     const keystore = buildCredentials.androidKeystore;
@@ -65,7 +65,7 @@ export class BackupKeystore {
   constructor(private app: AppLookupParams) {}
 
   public async runAsync(
-    ctx: Context,
+    ctx: CredentialsContext,
     buildCredentials: AndroidAppBuildCredentialsFragment
   ): Promise<void> {
     if (!buildCredentials.androidKeystore) {

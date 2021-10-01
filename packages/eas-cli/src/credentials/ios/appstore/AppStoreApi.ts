@@ -6,9 +6,8 @@ import {
   PushKey,
   PushKeyStoreInfo,
 } from './Credentials.types';
-import { AuthCtx, authenticateAsync } from './authenticate';
+import { AuthCtx, Options as AuthenticateOptions, authenticateAsync } from './authenticate';
 import {
-  AppleTooManyCertsError,
   createDistributionCertificateAsync,
   listDistributionCertificatesAsync,
   revokeDistributionCertificateAsync,
@@ -28,28 +27,14 @@ import {
 import { createOrReuseAdhocProvisioningProfileAsync } from './provisioningProfileAdhoc';
 import { createPushKeyAsync, listPushKeysAsync, revokePushKeyAsync } from './pushKey';
 
-interface Options {
-  appleIdPassword?: string;
-  appleId?: string;
-  teamId?: string;
-}
+export default class AppStoreApi {
+  public authCtx?: AuthCtx;
 
-export { AppleTooManyCertsError };
-
-class AppStoreApi {
-  private _authCtx?: AuthCtx;
-
-  constructor(public readonly options?: Options) {}
-
-  public get authCtx(): AuthCtx | undefined {
-    return this._authCtx;
-  }
-
-  public async ensureAuthenticatedAsync(): Promise<AuthCtx> {
-    if (!this._authCtx) {
-      this._authCtx = await authenticateAsync(this.options);
+  public async ensureAuthenticatedAsync(options?: AuthenticateOptions): Promise<AuthCtx> {
+    if (!this.authCtx) {
+      this.authCtx = await authenticateAsync(options);
     }
-    return this._authCtx;
+    return this.authCtx;
   }
 
   public async ensureBundleIdExistsAsync(
@@ -152,4 +137,3 @@ class AppStoreApi {
     );
   }
 }
-export default AppStoreApi;

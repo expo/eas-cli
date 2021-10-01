@@ -5,6 +5,7 @@ import JsonFile from '@expo/json-file';
 import resolveFrom from 'resolve-from';
 import { v4 as uuidv4 } from 'uuid';
 
+import { CredentialsContext } from '../credentials/context';
 import { RequestedPlatform } from '../platform';
 import { getExpoConfig } from '../project/expoConfig';
 import { getProjectAccountName, getProjectIdAsync } from '../project/projectUtils';
@@ -31,6 +32,7 @@ export interface BuildContext<T extends Platform> {
   buildProfile: BuildProfile<T>;
   buildProfileName: string;
   clearCache: boolean;
+  credentialsCtx: CredentialsContext;
   exp: ExpoConfig;
   local: boolean;
   nonInteractive: boolean;
@@ -69,9 +71,16 @@ export async function createBuildContextAsync<T extends Platform>({
   const accountName = getProjectAccountName(exp, user);
   const projectName = exp.slug;
   const projectId = await getProjectIdAsync(exp, { env: buildProfile.env });
-
   const workflow = await resolveWorkflowAsync(projectDir, platform);
   const accountId = findAccountByName(user.accounts, accountName)?.id;
+
+  const credentialsCtx = new CredentialsContext({
+    exp,
+    nonInteractive,
+    projectDir,
+    user,
+  });
+
   const devClientProperties = getDevClientEventProperties({
     platform,
     projectDir,
@@ -87,11 +96,13 @@ export async function createBuildContextAsync<T extends Platform>({
     ...devClientProperties,
   };
   Analytics.logEvent(Event.BUILD_COMMAND, trackingCtx);
+
   return {
     accountName,
     buildProfile,
     buildProfileName,
     clearCache,
+    credentialsCtx,
     exp,
     local,
     nonInteractive,

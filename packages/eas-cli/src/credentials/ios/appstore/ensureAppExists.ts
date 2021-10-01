@@ -165,7 +165,6 @@ export async function ensureAppExistsAsync(
   const spinner = ora(`Linking to App Store ${chalk.dim(bundleIdentifier)}`).start();
 
   let app = await App.findAsync(context, { bundleId: bundleIdentifier });
-
   if (!app) {
     spinner.text = `Creating App Store app ${chalk.bold(name)} ${chalk.dim(bundleIdentifier)}`;
     try {

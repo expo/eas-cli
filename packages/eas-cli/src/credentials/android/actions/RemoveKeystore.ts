@@ -3,7 +3,7 @@ import chalk from 'chalk';
 import { AndroidAppBuildCredentialsFragment } from '../../../graphql/generated';
 import Log from '../../../log';
 import { confirmAsync } from '../../../prompts';
-import { Context } from '../../context';
+import { CredentialsContext } from '../../context';
 import { AppLookupParams } from '../api/GraphqlClient';
 import { BackupKeystore } from './DownloadKeystore';
 
@@ -11,7 +11,7 @@ export class RemoveKeystore {
   constructor(private app: AppLookupParams) {}
 
   async runAsync(
-    ctx: Context,
+    ctx: CredentialsContext,
     buildCredentials: AndroidAppBuildCredentialsFragment
   ): Promise<void> {
     if (ctx.nonInteractive) {
