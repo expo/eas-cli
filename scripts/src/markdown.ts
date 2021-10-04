@@ -1,3 +1,5 @@
+// this is mostly copy-pasted from https://github.com/expo/expo/blob/master/tools/src/Markdown.ts
+
 import { unescape } from 'lodash';
 import marked from 'marked';
 
