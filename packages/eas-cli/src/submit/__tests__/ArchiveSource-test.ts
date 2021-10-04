@@ -10,7 +10,7 @@ import { toAppPlatform } from '../../graphql/types/AppPlatform';
 import { confirmAsync, promptAsync } from '../../prompts';
 import { uploadAsync } from '../../uploads';
 import { Archive, ArchiveSourceType, getArchiveAsync } from '../ArchiveSource';
-import { getLatestBuildForSubmissionAsync } from '../utils/builds';
+import { getRecentBuildsForSubmissionAsync } from '../utils/builds';
 
 jest.mock('fs');
 jest.mock('../../log');
@@ -140,7 +140,7 @@ describe(getArchiveAsync, () => {
 
   it('handles latest build source', async () => {
     const projectId = uuidv4();
-    asMock(getLatestBuildForSubmissionAsync).mockResolvedValueOnce(MOCK_BUILD_FRAGMENT);
+    asMock(getRecentBuildsForSubmissionAsync).mockResolvedValueOnce(MOCK_BUILD_FRAGMENT);
 
     const archive = await getArchiveAsync({
       ...SOURCE_STUB_INPUT,
@@ -148,7 +148,7 @@ describe(getArchiveAsync, () => {
       sourceType: ArchiveSourceType.latest,
     });
 
-    expect(getLatestBuildForSubmissionAsync).toBeCalledWith(
+    expect(getRecentBuildsForSubmissionAsync).toBeCalledWith(
       toAppPlatform(SOURCE_STUB_INPUT.platform),
       projectId
     );
@@ -156,7 +156,7 @@ describe(getArchiveAsync, () => {
   });
 
   it('prompts again if no builds exists when selected latest', async () => {
-    asMock(getLatestBuildForSubmissionAsync).mockResolvedValueOnce(null);
+    asMock(getRecentBuildsForSubmissionAsync).mockResolvedValueOnce(null);
     asMock(promptAsync)
       .mockResolvedValueOnce({ sourceType: ArchiveSourceType.url })
       .mockResolvedValueOnce({ url: ARCHIVE_URL });
