@@ -41,7 +41,7 @@ export type ServiceAccountKeyResult = {
 };
 
 type ServiceAccountKeySummary = {
-  source: 'local' | 'Expo servers';
+  source: 'local' | 'EAS servers';
   path?: string;
   email: string;
 };
@@ -64,23 +64,25 @@ export async function getServiceAccountKeyResultAsync(
   source: ServiceAccountSource,
   androidApplicationIdentifier: string
 ): Promise<ServiceAccountKeyResult> {
-  if (source.sourceType !== ServiceAccountSourceType.credentialsService) {
-    const serviceAccountKeyPath = await getServiceAccountKeyPathAsync(source);
-    const serviceAccountKey = readAndValidateServiceAccountKey(serviceAccountKeyPath);
-    return {
-      result: { googleServiceAccountKeyJson: await fs.readFile(serviceAccountKeyPath, 'utf-8') },
-      summary: {
-        source: 'local',
-        path: serviceAccountKeyPath,
-        email: serviceAccountKey.client_email,
-      },
-    };
+  if (source.sourceType === ServiceAccountSourceType.credentialsService) {
+    return await getServiceAccountFromCredentialsServiceAsync(ctx, androidApplicationIdentifier);
   }
-  return await getServiceAccountFromCredentialsServiceAsync(
-    ctx,
-    source,
-    androidApplicationIdentifier
-  );
+  return await getServiceAccountLocallyAsync(source);
+}
+
+async function getServiceAccountLocallyAsync(
+  source: ServiceAccountSource
+): Promise<ServiceAccountKeyResult> {
+  const serviceAccountKeyPath = await getServiceAccountKeyPathAsync(source);
+  const serviceAccountKey = readAndValidateServiceAccountKey(serviceAccountKeyPath);
+  return {
+    result: { googleServiceAccountKeyJson: await fs.readFile(serviceAccountKeyPath, 'utf-8') },
+    summary: {
+      source: 'local',
+      path: serviceAccountKeyPath,
+      email: serviceAccountKey.client_email,
+    },
+  };
 }
 
 export async function getServiceAccountKeyPathAsync(source: ServiceAccountSource): Promise<string> {
@@ -89,13 +91,14 @@ export async function getServiceAccountKeyPathAsync(source: ServiceAccountSource
       return await handlePathSourceAsync(source);
     case ServiceAccountSourceType.prompt:
       return await handlePromptSourceAsync(source);
+    case ServiceAccountSourceType.credentialsService: {
+      throw new Error(`ServiceAccountSource ${source} does not return a path.`);
+    }
   }
-  throw new Error(`ServiceAccountSource ${source} does not return a path.`);
 }
 
 export async function getServiceAccountFromCredentialsServiceAsync(
   ctx: SubmissionContext<Platform.ANDROID>,
-  _source: ServiceAccountCredentialsServiceSource,
   androidApplicationIdentifier: string
 ): Promise<ServiceAccountKeyResult> {
   const appLookupParams = {
@@ -120,7 +123,7 @@ export async function getServiceAccountFromCredentialsServiceAsync(
       googleServiceAccountKeyId: googleServiceAccountKey.id,
     },
     summary: {
-      source: 'Expo servers',
+      source: 'EAS servers',
       email: googleServiceAccountKey.clientEmail,
     },
   };

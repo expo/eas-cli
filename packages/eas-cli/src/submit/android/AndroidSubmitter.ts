@@ -108,12 +108,11 @@ export default class AndroidSubmitter extends BaseSubmitter<
     { archive, androidPackage, serviceAccountKeyResult }: ResolvedSourceOptions
   ): SummaryData {
     const { projectId, track, releaseStatus, changesNotSentForReview } = options;
-    const { summary } = serviceAccountKeyResult;
     const {
       email: serviceAccountEmail,
       path: serviceAccountKeyPath,
       source: serviceAccountKeySource,
-    } = summary;
+    } = serviceAccountKeyResult.summary;
 
     // structuring order affects table rows order
     return {
