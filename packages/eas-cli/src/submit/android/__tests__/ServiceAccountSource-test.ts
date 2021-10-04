@@ -1,7 +1,6 @@
 import { vol } from 'memfs';
 
 import { asMock } from '../../../__tests__/utils';
-import { findProjectRootAsync } from '../../../project/projectUtils';
 import { promptAsync } from '../../../prompts';
 import {
   ServiceAccountSource,
@@ -96,102 +95,6 @@ describe(getServiceAccountAsync, () => {
       };
       const serviceAccountPath = await getServiceAccountAsync(source);
       expect(promptAsync).toHaveBeenCalledTimes(3);
-      expect(serviceAccountPath).toBe('/google-service-account.json');
-    });
-  });
-
-  describe('when source is ServiceAccountSourceType.detect', () => {
-    it('detects a single google-services file and prompts for confirmation', async () => {
-      asMock(findProjectRootAsync).mockResolvedValueOnce('/project_dir/subdir'); // should find 1 file
-      asMock(promptAsync).mockResolvedValueOnce({
-        confirmed: true,
-      });
-
-      const serviceAccountPath = await getServiceAccountAsync({
-        sourceType: ServiceAccountSourceType.detect,
-      });
-
-      expect(promptAsync).toHaveBeenCalledWith(expect.objectContaining({ type: 'confirm' }));
-      expect(serviceAccountPath).toBe('/project_dir/subdir/service-account.json');
-    });
-
-    it('falls back to prompt, when no valid files are found in the dir', async () => {
-      asMock(findProjectRootAsync).mockResolvedValueOnce('/other_dir'); // no valid files in that dir
-      asMock(promptAsync).mockResolvedValueOnce({
-        filePath: '/google-service-account.json',
-      });
-
-      const serviceAccountPath = await getServiceAccountAsync({
-        sourceType: ServiceAccountSourceType.detect,
-      });
-
-      expect(promptAsync).toHaveBeenCalledWith(expect.objectContaining({ type: 'text' }));
-      expect(serviceAccountPath).toBe('/google-service-account.json');
-    });
-
-    it('falls back to prompt, when user rejects to use detected file', async () => {
-      asMock(findProjectRootAsync).mockResolvedValueOnce('/project_dir/subdir'); // should find 1 file
-      asMock(promptAsync)
-        .mockResolvedValueOnce({
-          confirmed: false,
-        })
-        .mockResolvedValueOnce({
-          filePath: '/google-service-account.json',
-        });
-      const source: ServiceAccountSource = {
-        sourceType: ServiceAccountSourceType.detect,
-      };
-
-      const serviceAccountPath = await getServiceAccountAsync(source);
-
-      expect(promptAsync).toHaveBeenCalledTimes(2);
-      expect(promptAsync).toHaveBeenCalledWith(expect.objectContaining({ type: 'confirm' }));
-      expect(promptAsync).toHaveBeenLastCalledWith(expect.objectContaining({ type: 'text' }));
-      expect(serviceAccountPath).toBe('/google-service-account.json');
-    });
-
-    it('displays a chooser, when multiple files are found', async () => {
-      asMock(findProjectRootAsync).mockResolvedValueOnce('/project_dir'); // should find 2 files here
-      asMock(promptAsync).mockResolvedValueOnce({
-        selectedPath: '/project_dir/another-service-account.json',
-      });
-
-      const serviceAccountPath = await getServiceAccountAsync({
-        sourceType: ServiceAccountSourceType.detect,
-      });
-
-      const expectedChoices = expect.arrayContaining([
-        expect.objectContaining({ value: '/project_dir/another-service-account.json' }),
-        expect.objectContaining({ value: '/project_dir/subdir/service-account.json' }),
-        expect.objectContaining({ value: false }),
-      ]);
-
-      expect(promptAsync).toHaveBeenCalledWith(
-        expect.objectContaining({
-          type: 'select',
-          choices: expectedChoices,
-        })
-      );
-      expect(serviceAccountPath).toBe('/project_dir/another-service-account.json');
-    });
-
-    it('falls back to prompt, when user selects the "None of above"', async () => {
-      asMock(findProjectRootAsync).mockResolvedValueOnce('/project_dir'); // should find 2 files here
-      asMock(promptAsync)
-        .mockResolvedValueOnce({
-          selectedPath: false,
-        })
-        .mockResolvedValueOnce({
-          filePath: '/google-service-account.json',
-        });
-
-      const serviceAccountPath = await getServiceAccountAsync({
-        sourceType: ServiceAccountSourceType.detect,
-      });
-
-      expect(promptAsync).toHaveBeenCalledTimes(2);
-      expect(promptAsync).toHaveBeenCalledWith(expect.objectContaining({ type: 'select' }));
-      expect(promptAsync).toHaveBeenLastCalledWith(expect.objectContaining({ type: 'text' }));
       expect(serviceAccountPath).toBe('/google-service-account.json');
     });
   });

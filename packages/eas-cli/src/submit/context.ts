@@ -4,9 +4,12 @@ import { SubmitProfile } from '@expo/eas-json';
 
 import { CredentialsContext } from '../credentials/context';
 import { getExpoConfig } from '../project/expoConfig';
+import { getProjectAccountName } from '../project/projectUtils';
+import { Actor } from '../user/User';
 import { ensureLoggedInAsync } from '../user/actions';
 
 export interface SubmissionContext<T extends Platform> {
+  accountName: string;
   archiveFlags: SubmitArchiveFlags;
   credentialsCtx: CredentialsContext;
   exp: ExpoConfig;
@@ -15,6 +18,8 @@ export interface SubmissionContext<T extends Platform> {
   profile: SubmitProfile<T>;
   projectDir: string;
   projectId: string;
+  projectName: string;
+  user: Actor;
 }
 
 export interface SubmitArchiveFlags {
@@ -37,14 +42,19 @@ export async function createSubmissionContextAsync<T extends Platform>(params: {
   const { projectDir, nonInteractive } = params;
   const exp = getExpoConfig(projectDir, { env: params.env });
   const { env, ...rest } = params;
+  const user = await ensureLoggedInAsync();
+  const projectName = exp.slug;
+  const accountName = getProjectAccountName(exp, user);
   let credentialsCtx: CredentialsContext | undefined = params.credentialsCtx;
   if (!credentialsCtx) {
-    const user = await ensureLoggedInAsync();
     credentialsCtx = new CredentialsContext({ projectDir, user, exp, nonInteractive });
   }
   return {
     ...rest,
+    accountName,
     credentialsCtx,
     exp,
+    projectName,
+    user,
   };
 }

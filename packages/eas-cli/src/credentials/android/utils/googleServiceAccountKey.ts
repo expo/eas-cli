@@ -13,6 +13,7 @@ import { GoogleServiceAccountKey } from '../credentials';
 export const MinimalGoogleServiceAccountKeySchema = Joi.object({
   type: Joi.string().required(),
   private_key: Joi.string().required(),
+  client_email: Joi.string().required(),
 });
 
 function fileIsServiceAccountKey(keyJsonPath: string): boolean {

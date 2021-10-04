@@ -144,12 +144,9 @@ export default class AndroidSubmitCommand {
         sourceType: ServiceAccountSourceType.path,
         path: serviceAccountKeyPath,
       });
-    } else if (this.ctx.nonInteractive) {
-      return result(new Error('Set serviceAccountKeyPath in the submit profile (eas.json).'));
-    } else {
-      return result({
-        sourceType: ServiceAccountSourceType.detect,
-      });
     }
+    return result({
+      sourceType: ServiceAccountSourceType.credentialsService,
+    });
   }
 }

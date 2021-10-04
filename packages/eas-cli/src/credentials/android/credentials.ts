@@ -19,6 +19,8 @@ export type KeystoreWithType = Keystore & {
 export type GoogleServiceAccountKey = {
   [key: string]: any;
   private_key: string;
+  type: string;
+  client_email: string;
 };
 
 export type AndroidCredentials = {
