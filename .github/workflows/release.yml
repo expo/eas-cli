@@ -15,7 +15,7 @@ jobs:
       - id: create_release
         uses: actions/create-release@v1
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: ${{ github.ref }}
           draft: true
@@ -113,3 +113,49 @@ jobs:
           asset_path: packages/eas-cli/dist/win/${{ steps.x86.outputs.filename }}
           asset_name: ${{ steps.x86.outputs.filename }}
           asset_content_type: application/gzip
+  publish-to-npm:
+    name: Publish to npm
+    runs-on: ubuntu-latest
+    needs: [build-linux, build-mac, build-windows]
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v1
+        with:
+          registry-url: 'https://registry.npmjs.org/'
+          scope: 'expo'
+          node-version: '16'
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile --check-files
+      - name: Build
+        run: yarn build
+      - name: Publish packages to npm
+        run: yarn lerna publish from-package --yes --no-verify-access
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_ACCESS_TOKEN }}
+  release-changelog:
+    name: Update changelog and publish release
+    runs-on: ubuntu-latest
+    needs: publish-to-npm
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v1
+        with:
+          node-version: '16'
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile --check-files
+      - name: Update changelog
+        working-directory: ./scripts
+        run: yarn --silent release-changelog ${GITHUB_REF#refs/tags/v} > /tmp/current-changelog
+      - name: Publish release
+        run: hub release edit v${GITHUB_REF#refs/tags/v} --draft=false -F /tmp/current-changelog
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Commit and push
+        run: |
+          git fetch
+          git checkout main
+          git config --global user.email "support+ci@expo.io"
+          git config --global user.name "Expo CI"
+          git add CHANGELOG.md
+          git commit -m "[skip ci] update CHANGELOG.md"
+          git push

@@ -1,7 +1,8 @@
 {
   "private": true,
   "workspaces": [
-    "packages/*"
+    "packages/*",
+    "scripts"
   ],
   "scripts": {
     "build": "lerna run build",
