@@ -6,11 +6,17 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🛠 Breaking changes
 
-- Enable auto-incrementing on Android. ([#645](https://github.com/expo/eas-cli/pull/645) by [@jkhales](https://github.com/jkhales))
-
 ### 🎉 New features
 
 ### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [0.30.0](https://github.com/expo/eas-cli/releases/tag/v0.30.0) - 2021-10-05
+
+### 🛠 Breaking changes
+
+- Enable auto-incrementing on Android. ([#645](https://github.com/expo/eas-cli/pull/645) by [@jkhales](https://github.com/jkhales))
 
 ### 🧹 Chores
 
