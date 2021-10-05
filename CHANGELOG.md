@@ -16,6 +16,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - Ports detection for Google Service Account Keys into the credentials service. ([#660](https://github.com/expo/eas-cli/pull/660) by [@quinlanj](https://github.com/quinlanj))
 - Improve iOS credentials printing. ([#657](https://github.com/expo/eas-cli/pull/657) by [@quinlanj](https://github.com/quinlanj))
+- Automate `eas-cli` releases. ([#668](https://github.com/expo/eas-cli/pull/668) by [@dsokal](https://github.com/dsokal))
 
 ## [0.29.1](https://github.com/expo/eas-cli/releases/tag/v0.29.1) - 2021-09-29
 
