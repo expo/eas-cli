@@ -143,11 +143,13 @@ jobs:
           node-version: '16'
       - name: Install dependencies
         run: yarn install --frozen-lockfile --check-files
+      - name: Resolve version
+        run: echo "EAS_CLI_VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_ENV
       - name: Update changelog
         working-directory: ./scripts
-        run: yarn --silent release-changelog ${GITHUB_REF#refs/tags/v} > /tmp/current-changelog
+        run: yarn --silent release-changelog $EAS_CLI_VERSION > /tmp/current-changelog
       - name: Publish release
-        run: hub release edit v${GITHUB_REF#refs/tags/v} --draft=false -F /tmp/current-changelog
+        run: hub release edit v$EAS_CLI_VERSION --draft=false -F /tmp/current-changelog
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Commit and push
@@ -159,3 +161,21 @@ jobs:
           git add CHANGELOG.md
           git commit -m "[skip ci] update CHANGELOG.md"
           git push
+      - name: Prepare changelog for Slack
+        run: |
+          tail -n +3 /tmp/current-changelog > /tmp/changelog.md
+          npx slackmd /tmp/changelog.md
+          echo 'SLACK_CHANGELOG<<EOF' >> $GITHUB_ENV
+          cat /tmp/changelog.slack.md >> $GITHUB_ENV
+          echo 'EOF' >> $GITHUB_ENV
+      - name: Slack Notification
+        uses: rtCamp/action-slack-notify@v2
+        env:
+          SLACK_CHANNEL: eas-cli
+          SLACK_COLOR: ${{ job.status }}
+          SLACK_ICON: https://github.com/expo-ci.png?size=48
+          SLACK_TITLE: 'Released eas-cli@${{ env.EAS_CLI_VERSION }}'
+          SLACK_MESSAGE: ${{ env.SLACK_CHANGELOG }}
+          SLACK_USERNAME: 'Expo CI'
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+          SLACK_FOOTER: ''
