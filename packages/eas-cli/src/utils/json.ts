@@ -9,9 +9,7 @@ export function enableJsonOutput(): void {
     return;
   }
   stdoutWrite = process.stdout.write;
-  process.stdout.write = (...args: any) => {
-    return process.stderr.write.call(null, args);
-  };
+  process.stdout.write = process.stderr.write.bind(process.stderr);
 }
 
 export function printJsonOnlyOutput(value: object): void {
@@ -20,9 +18,7 @@ export function printJsonOnlyOutput(value: object): void {
     process.stdout.write = stdoutWrite;
     Log.log(JSON.stringify(sanitizeValue(value), null, 2));
   } finally {
-    process.stdout.write = (...args: any) => {
-      return process.stderr.write.call(null, args);
-    };
+    process.stdout.write = process.stderr.write.bind(process.stderr);
   }
 }
 
