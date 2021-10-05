@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Integrate credentials service with Android submissions. ([#664](https://github.com/expo/eas-cli/pull/664) by [@quinlanj](https://github.com/quinlanj))
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
