@@ -1,7 +1,7 @@
 {
   "name": "scripts",
   "private": true,
-  "version": "0.33.0",
+  "version": "0.30.0",
   "scripts": {
     "release-changelog": "ts-node src/changelog.ts"
   },
