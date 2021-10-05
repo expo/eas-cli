@@ -138,6 +138,8 @@ jobs:
     needs: publish-to-npm
     steps:
       - uses: actions/checkout@v2
+        env:
+          token: ${{ secrets.EAS_CLI_RELEASE_GITHUB_TOKEN }}
       - uses: actions/setup-node@v1
         with:
           node-version: '16'
