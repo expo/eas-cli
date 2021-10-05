@@ -31,7 +31,7 @@ interface ServiceAccountPromptSource extends ServiceAccountSourceBase {
   sourceType: ServiceAccountSourceType.prompt;
 }
 
-interface ServiceAccountCredentialsServiceSource extends ServiceAccountSourceBase {
+export interface ServiceAccountCredentialsServiceSource extends ServiceAccountSourceBase {
   sourceType: ServiceAccountSourceType.credentialsService;
 }
 
