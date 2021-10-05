@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Fix `--json` flag when running EAS CLI on GitHub actions. ([#669](https://github.com/expo/eas-cli/pull/669) by [@dsokal](https://github.com/dsokal))
+
 ### 🧹 Chores
 
 ## [0.30.0](https://github.com/expo/eas-cli/releases/tag/v0.30.0) - 2021-10-05
