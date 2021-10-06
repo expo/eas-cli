@@ -1,6 +1,7 @@
 import { ArchiveSource, Ios, Job, Platform, sanitizeJob } from '@expo/eas-build-job';
 import path from 'path';
 import semver from 'semver';
+import slash from 'slash';
 
 import { IosCredentials, TargetCredentials } from '../../credentials/ios/types';
 import { getUsername } from '../../project/projectUtils';
@@ -25,7 +26,7 @@ export async function prepareJobAsync(
   jobData: JobData
 ): Promise<Job> {
   const projectRootDirectory =
-    path.posix.relative(await vcs.getRootPathAsync(), ctx.projectDir) || '.';
+    slash(path.relative(await vcs.getRootPathAsync(), ctx.projectDir)) || '.';
   const username = getUsername(ctx.exp, await ensureLoggedInAsync());
   const buildCredentials: Ios.Job['secrets']['buildCredentials'] = {};
   if (jobData.credentials) {

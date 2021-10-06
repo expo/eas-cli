@@ -4,7 +4,6 @@ import chalk from 'chalk';
 import gql from 'graphql-tag';
 import path from 'path';
 import pkgDir from 'pkg-dir';
-import slash from 'slash';
 
 import { graphqlClient, withErrorHandlingAsync } from '../graphql/client';
 import { AppPrivacy, UpdateBranch } from '../graphql/generated';
@@ -65,10 +64,10 @@ export async function findProjectRootAsync({
     if (!defaultToProcessCwd) {
       throw new Error('Please run this command inside a project directory.');
     } else {
-      return slash(process.cwd());
+      return process.cwd();
     }
   } else {
-    return slash(projectRootDir);
+    return projectRootDir;
   }
 }
 

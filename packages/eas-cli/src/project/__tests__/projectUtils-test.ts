@@ -1,5 +1,4 @@
 import { vol } from 'memfs';
-import * as pkgDir from 'pkg-dir';
 
 import { asMock } from '../../__tests__/utils';
 import { confirmAsync } from '../../prompts';
@@ -17,14 +16,6 @@ import {
 
 jest.mock('@expo/config');
 jest.mock('fs');
-jest.mock('pkg-dir', () => {
-  const pkdDirMod = jest.requireActual('pkg-dir');
-  return {
-    ...pkdDirMod,
-    __esModule: true,
-    default: jest.fn(pkdDirMod.default),
-  };
-});
 
 jest.mock('../../prompts');
 jest.mock('../../user/User');
@@ -74,24 +65,6 @@ describe(findProjectRootAsync, () => {
     );
     const projectRoot = await findProjectRootAsync({ cwd: '/app/src' });
     expect(projectRoot).toBe('/app');
-  });
-
-  it('returns posix path on Windows', async () => {
-    const processCwdSpy = jest
-      .spyOn(process, 'cwd')
-      .mockReturnValue('C:\\Users\\User\\expo\\fakeproject\\apps\\managed');
-
-    const pkgDirSpy = jest
-      .spyOn(pkgDir, 'default')
-      .mockResolvedValue('C:\\Users\\User\\expo\\fakeproject\\apps\\managed');
-
-    try {
-      const projectRoot = await findProjectRootAsync();
-      expect(projectRoot).toBe('C:/Users/User/expo/fakeproject/apps/managed');
-    } finally {
-      processCwdSpy.mockRestore();
-      pkgDirSpy.mockRestore();
-    }
   });
 });
 
