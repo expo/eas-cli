@@ -123,7 +123,7 @@ export default class AndroidSubmitter extends BaseSubmitter<
       releaseStatus: releaseStatus ?? undefined,
       serviceAccountEmail,
       serviceAccountKeySource,
-      serviceAccountKeyPath,
+      ...(serviceAccountKeyPath ? { serviceAccountKeyPath } : {}),
       ...formatArchiveSourceSummary(archive),
     };
   }
