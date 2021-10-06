@@ -52,9 +52,23 @@ export async function getProjectAccountNameAsync(exp: ExpoConfig): Promise<strin
   return getProjectAccountName(exp, user);
 }
 
-export async function findProjectRootAsync(cwd?: string): Promise<string | null> {
+export async function findProjectRootAsync({
+  cwd,
+  defaultToProcessCwd = false,
+}: {
+  cwd?: string;
+  defaultToProcessCwd?: boolean;
+} = {}): Promise<string> {
   const projectRootDir = await pkgDir(cwd);
-  return projectRootDir ?? null;
+  if (!projectRootDir) {
+    if (!defaultToProcessCwd) {
+      throw new Error('Please run this command inside a project directory.');
+    } else {
+      return process.cwd();
+    }
+  } else {
+    return projectRootDir;
+  }
 }
 
 export async function setProjectIdAsync(
@@ -129,7 +143,7 @@ export async function getProjectIdAsync(
   }
 
   // Set the project ID if it is missing.
-  const projectDir = await findProjectRootAsync(process.cwd());
+  const projectDir = await findProjectRootAsync();
   if (!projectDir) {
     throw new Error('Please run this command inside a project directory.');
   }

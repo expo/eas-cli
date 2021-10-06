@@ -20,7 +20,7 @@ export default class EnvironmentSecretList extends EasCommand {
   static description = 'Lists environment secrets available for your current app';
 
   async runAsync(): Promise<void> {
-    const projectDir = (await findProjectRootAsync()) ?? process.cwd();
+    const projectDir = await findProjectRootAsync();
     const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
     const projectId = await getProjectIdAsync(exp);
     const projectAccountName = await getProjectAccountNameAsync(exp);

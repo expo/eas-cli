@@ -29,7 +29,7 @@ If you are not sure what is the UDID of the device you are looking for, run:
       throw new Error('Device UDID is missing');
     }
 
-    const projectDir = (await findProjectRootAsync()) ?? process.cwd();
+    const projectDir = await findProjectRootAsync();
     const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
     const accountName = await getProjectAccountNameAsync(exp);
 

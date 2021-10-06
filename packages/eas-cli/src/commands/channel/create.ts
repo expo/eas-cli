@@ -84,10 +84,7 @@ export default class ChannelCreate extends EasCommand {
       flags: { json: jsonFlag },
     } = this.parse(ChannelCreate);
 
-    const projectDir = await findProjectRootAsync(process.cwd());
-    if (!projectDir) {
-      throw new Error('Please run this command inside a project directory.');
-    }
+    const projectDir = await findProjectRootAsync();
     const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
     const projectId = await getProjectIdAsync(exp);
 
