@@ -41,12 +41,12 @@ const projectId = uuidv4();
 const mockDetectableServiceAccountJson = JSON.stringify({
   type: 'service_account',
   private_key: 'super secret',
-  client_email: 'foo@bar.com',
+  client_email: 'beep-boop@iam.gserviceaccount.com',
 });
 
 beforeAll(() => {
   vol.fromJSON({
-    '/google-service-account.json': JSON.stringify({ service: 'account' }),
+    '/google-service-account.json': mockDetectableServiceAccountJson,
     '/project_dir/subdir/service-account.json': mockDetectableServiceAccountJson,
     '/project_dir/another-service-account.json': mockDetectableServiceAccountJson,
     '/other_dir/invalid_file.txt': 'this is not even a JSON',
@@ -160,7 +160,7 @@ describe(getServiceAccountKeyResultAsync, () => {
       summary: {
         source: 'local',
         path: '/project_dir/subdir/service-account.json',
-        email: 'foo@bar.com',
+        email: 'beep-boop@iam.gserviceaccount.com',
       },
     });
   });
@@ -194,7 +194,7 @@ describe(getServiceAccountKeyResultAsync, () => {
       summary: {
         source: 'local',
         path: '/project_dir/subdir/service-account.json',
-        email: 'foo@bar.com',
+        email: 'beep-boop@iam.gserviceaccount.com',
       },
     });
   });

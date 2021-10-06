@@ -22,6 +22,7 @@ describe(CreateGoogleServiceAccountKey, () => {
       '/google-service-account-key.json': JSON.stringify({
         type: 'service_account',
         private_key: 'super secret',
+        client_email: 'beep-boop@iam.gserviceaccount.com',
       }),
     });
 
