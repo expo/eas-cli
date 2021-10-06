@@ -159,7 +159,7 @@ jobs:
           git config --global user.email "support+ci@expo.io"
           git config --global user.name "Expo CI"
           git add CHANGELOG.md
-          git commit -m "[skip ci] update CHANGELOG.md"
+          git commit -m "update CHANGELOG.md"
           git push
       - name: Prepare changelog for Slack
         run: |
