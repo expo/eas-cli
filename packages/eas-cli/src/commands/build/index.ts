@@ -143,7 +143,7 @@ export default class Build extends EasCommand {
     const flags = await this.sanitizeFlagsAsync(rawFlags);
     const { requestedPlatform } = flags;
 
-    const projectDir = (await findProjectRootAsync()) ?? process.cwd();
+    const projectDir = await findProjectRootAsync();
     await handleDeprecatedEasJsonAsync(projectDir, flags.nonInteractive);
 
     await vcs.ensureRepoExistsAsync();

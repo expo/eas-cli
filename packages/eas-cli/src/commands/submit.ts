@@ -93,7 +93,7 @@ See how to configure submits with eas.json: ${learnMore('https://docs.expo.dev/s
     const { flags: rawFlags } = this.parse(Submit);
     const flags = await this.sanitizeFlagsAsync(rawFlags);
 
-    const projectDir = (await findProjectRootAsync()) ?? process.cwd();
+    const projectDir = await findProjectRootAsync();
     const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
     const projectId = await getProjectIdAsync(exp);
 

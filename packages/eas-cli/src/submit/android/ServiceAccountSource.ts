@@ -59,7 +59,7 @@ async function handlePathSourceAsync(source: ServiceAccountPathSource): Promise<
 }
 
 async function handleDetectSourceAsync(_source: ServiceAccountDetectSource): Promise<string> {
-  const projectDir = (await findProjectRootAsync()) ?? process.cwd();
+  const projectDir = await findProjectRootAsync();
   const foundFilePaths = await glob('**/*.json', {
     cwd: projectDir,
     ignore: ['app.json', 'package*.json', 'tsconfig.json', 'node_modules'],

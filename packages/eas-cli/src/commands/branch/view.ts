@@ -90,11 +90,7 @@ export default class BranchView extends EasCommand {
       flags: { json: jsonFlag },
     } = this.parse(BranchView);
 
-    const projectDir = await findProjectRootAsync(process.cwd());
-    if (!projectDir) {
-      throw new Error('Please run this command inside a project directory.');
-    }
-
+    const projectDir = await findProjectRootAsync();
     const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
     const projectId = await getProjectIdAsync(exp);
 

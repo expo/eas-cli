@@ -24,7 +24,8 @@ export async function prepareJobAsync(
   ctx: BuildContext<Platform.IOS>,
   jobData: JobData
 ): Promise<Job> {
-  const projectRootDirectory = path.relative(await vcs.getRootPathAsync(), ctx.projectDir) || '.';
+  const projectRootDirectory =
+    path.posix.relative(await vcs.getRootPathAsync(), ctx.projectDir) || '.';
   const username = getUsername(ctx.exp, await ensureLoggedInAsync());
   const buildCredentials: Ios.Job['secrets']['buildCredentials'] = {};
   if (jobData.credentials) {

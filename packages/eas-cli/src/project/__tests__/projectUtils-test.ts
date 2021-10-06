@@ -1,4 +1,5 @@
 import { vol } from 'memfs';
+import * as pkgDir from 'pkg-dir';
 
 import { asMock } from '../../__tests__/utils';
 import { confirmAsync } from '../../prompts';
@@ -16,6 +17,14 @@ import {
 
 jest.mock('@expo/config');
 jest.mock('fs');
+jest.mock('pkg-dir', () => {
+  const pkdDirMod = jest.requireActual('pkg-dir');
+  return {
+    ...pkdDirMod,
+    __esModule: true,
+    default: jest.fn(pkdDirMod.default),
+  };
+});
 
 jest.mock('../../prompts');
 jest.mock('../../user/User');
@@ -26,15 +35,32 @@ describe(findProjectRootAsync, () => {
     vol.reset();
   });
 
-  it('returns null if not inside the project directory', async () => {
+  it('throws if not inside the project directory', async () => {
     vol.fromJSON(
       {
         './README.md': '1',
       },
       '/app'
     );
-    const projectRoot = await findProjectRootAsync('/app');
-    expect(projectRoot).toBeNull();
+    await expect(findProjectRootAsync({ cwd: '/app' })).rejects.toThrow(
+      'Please run this command inside a project directory.'
+    );
+  });
+
+  it('defaults to process.cwd() if defaultToProcessCwd = true', async () => {
+    const spy = jest.spyOn(process, 'cwd').mockReturnValue('/this/is/fake/process/cwd');
+    try {
+      vol.fromJSON(
+        {
+          './README.md': '1',
+        },
+        '/app'
+      );
+      const projectDir = await findProjectRootAsync({ cwd: '/app', defaultToProcessCwd: true });
+      expect(projectDir).toBe('/this/is/fake/process/cwd');
+    } finally {
+      spy.mockRestore();
+    }
   });
 
   it('returns the root directory of the project', async () => {
@@ -46,8 +72,26 @@ describe(findProjectRootAsync, () => {
       },
       '/app'
     );
-    const projectRoot = await findProjectRootAsync('/app/src');
+    const projectRoot = await findProjectRootAsync({ cwd: '/app/src' });
     expect(projectRoot).toBe('/app');
+  });
+
+  it('returns posix path on Windows', async () => {
+    const processCwdSpy = jest
+      .spyOn(process, 'cwd')
+      .mockReturnValue('C:\\Users\\User\\expo\\fakeproject\\apps\\managed');
+
+    const pkgDirSpy = jest
+      .spyOn(pkgDir, 'default')
+      .mockResolvedValue('C:\\Users\\User\\expo\\fakeproject\\apps\\managed');
+
+    try {
+      const projectRoot = await findProjectRootAsync();
+      expect(projectRoot).toBe('C:/Users/User/expo/fakeproject/apps/managed');
+    } finally {
+      processCwdSpy.mockRestore();
+      pkgDirSpy.mockRestore();
+    }
   });
 });
 

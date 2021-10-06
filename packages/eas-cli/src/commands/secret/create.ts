@@ -50,7 +50,7 @@ export default class EnvironmentSecretCreate extends EasCommand {
       flags: { name, value: secretValue, scope, force },
     } = this.parse(EnvironmentSecretCreate);
 
-    const projectDir = (await findProjectRootAsync()) ?? process.cwd();
+    const projectDir = await findProjectRootAsync();
     const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
     const accountName = await getProjectAccountNameAsync(exp);
 

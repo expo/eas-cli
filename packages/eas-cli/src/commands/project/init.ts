@@ -10,10 +10,7 @@ export default class ProjectInit extends EasCommand {
   static aliases = ['init'];
 
   async runAsync(): Promise<void> {
-    const projectDir = await findProjectRootAsync(process.cwd());
-    if (!projectDir) {
-      throw new Error('Please run this command inside a project directory.');
-    }
+    const projectDir = await findProjectRootAsync();
     const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
 
     if (exp.extra?.eas?.projectId) {

@@ -20,7 +20,7 @@ export async function createContextAsync({
   cwd?: string;
   user: Actor;
 }): Promise<DeviceManagerContext> {
-  const projectDir = await findProjectRootAsync(cwd);
+  const projectDir = await findProjectRootAsync({ cwd });
   let exp: ExpoConfig | null = null;
   if (projectDir) {
     const config = getConfig(projectDir, { skipSDKVersionRequirement: true });

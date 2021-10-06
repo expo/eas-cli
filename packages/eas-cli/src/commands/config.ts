@@ -27,7 +27,7 @@ export default class Config extends EasCommand {
       profile?: string;
     };
 
-    const projectDir = (await findProjectRootAsync()) ?? process.cwd();
+    const projectDir = await findProjectRootAsync();
     await handleDeprecatedEasJsonAsync(projectDir, false);
 
     const reader = new EasJsonReader(projectDir);

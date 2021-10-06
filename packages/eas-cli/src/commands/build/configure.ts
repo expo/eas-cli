@@ -31,7 +31,7 @@ export default class BuildConfigure extends EasCommand {
 
     await configureAsync({
       platform,
-      projectDir: (await findProjectRootAsync()) ?? process.cwd(),
+      projectDir: await findProjectRootAsync(),
     });
 
     Log.newLine();

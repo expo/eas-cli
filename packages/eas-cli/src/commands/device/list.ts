@@ -22,7 +22,7 @@ export default class BuildList extends EasCommand {
   async runAsync(): Promise<void> {
     let appleTeamIdentifier = this.parse(BuildList).flags['apple-team-id'];
 
-    const projectDir = (await findProjectRootAsync()) ?? process.cwd();
+    const projectDir = await findProjectRootAsync();
     const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
     const accountName = await getProjectAccountNameAsync(exp);
 

@@ -25,7 +25,8 @@ export async function prepareJobAsync(
 ): Promise<Job> {
   const username = getUsername(ctx.exp, await ensureLoggedInAsync());
   const buildProfile: AndroidBuildProfile = ctx.buildProfile;
-  const projectRootDirectory = path.relative(await vcs.getRootPathAsync(), ctx.projectDir) || '.';
+  const projectRootDirectory =
+    path.posix.relative(await vcs.getRootPathAsync(), ctx.projectDir) || '.';
   const { credentials } = jobData;
   const buildCredentials = credentials
     ? {
