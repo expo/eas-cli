@@ -15,7 +15,6 @@ export enum ServiceAccountSourceType {
   path,
   prompt,
   credentialsService,
-  // ...
 }
 
 interface ServiceAccountSourceBase {
@@ -66,8 +65,9 @@ export async function getServiceAccountKeyResultAsync(
 ): Promise<ServiceAccountKeyResult> {
   if (source.sourceType === ServiceAccountSourceType.credentialsService) {
     return await getServiceAccountFromCredentialsServiceAsync(ctx, androidApplicationIdentifier);
+  } else {
+    return await getServiceAccountLocallyAsync(source);
   }
-  return await getServiceAccountLocallyAsync(source);
 }
 
 async function getServiceAccountLocallyAsync(
