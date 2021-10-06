@@ -1,5 +1,4 @@
 import { Platform } from '@expo/eas-build-job';
-import fs from 'fs-extra';
 
 import {
   AndroidSubmissionConfigInput,
@@ -16,7 +15,11 @@ import {
   printSummary,
 } from '../utils/summary';
 import { AndroidPackageSource, getAndroidPackageAsync } from './AndroidPackageSource';
-import { ServiceAccountSource, getServiceAccountAsync } from './ServiceAccountSource';
+import {
+  ServiceAccountKeyResult,
+  ServiceAccountSource,
+  getServiceAccountKeyResultAsync,
+} from './ServiceAccountSource';
 
 export interface AndroidSubmissionOptions
   extends Pick<
@@ -32,7 +35,7 @@ export interface AndroidSubmissionOptions
 interface ResolvedSourceOptions {
   androidPackage: string;
   archive: Archive;
-  serviceAccountPath: string;
+  serviceAccountKeyResult: ServiceAccountKeyResult;
 }
 
 export default class AndroidSubmitter extends BaseSubmitter<
@@ -73,19 +76,22 @@ export default class AndroidSubmitter extends BaseSubmitter<
   private async resolveSourceOptionsAsync(): Promise<ResolvedSourceOptions> {
     const androidPackage = await getAndroidPackageAsync(this.options.androidPackageSource);
     const archive = await getArchiveAsync(this.options.archiveSource);
-    const serviceAccountPath = await getServiceAccountAsync(this.options.serviceAccountSource);
+    const serviceAccountKeyResult = await getServiceAccountKeyResultAsync(
+      this.ctx,
+      this.options.serviceAccountSource,
+      androidPackage
+    );
     return {
       androidPackage,
       archive,
-      serviceAccountPath,
+      serviceAccountKeyResult,
     };
   }
 
   private async formatSubmissionConfigAsync(
     options: AndroidSubmissionOptions,
-    { archive, androidPackage, serviceAccountPath }: ResolvedSourceOptions
+    { archive, androidPackage, serviceAccountKeyResult }: ResolvedSourceOptions
   ): Promise<AndroidSubmissionConfigInput> {
-    const serviceAccount = await fs.readFile(serviceAccountPath, 'utf-8');
     const { track, releaseStatus, changesNotSentForReview } = options;
     return {
       applicationIdentifier: androidPackage,
@@ -93,15 +99,20 @@ export default class AndroidSubmitter extends BaseSubmitter<
       track,
       changesNotSentForReview,
       releaseStatus,
-      googleServiceAccountKeyJson: serviceAccount,
+      ...serviceAccountKeyResult.result,
     };
   }
 
   private prepareSummaryData(
     options: AndroidSubmissionOptions,
-    { archive, androidPackage, serviceAccountPath }: ResolvedSourceOptions
+    { archive, androidPackage, serviceAccountKeyResult }: ResolvedSourceOptions
   ): SummaryData {
     const { projectId, track, releaseStatus, changesNotSentForReview } = options;
+    const {
+      email: serviceAccountEmail,
+      path: serviceAccountKeyPath,
+      source: serviceAccountKeySource,
+    } = serviceAccountKeyResult.summary;
 
     // structuring order affects table rows order
     return {
@@ -110,7 +121,9 @@ export default class AndroidSubmitter extends BaseSubmitter<
       track,
       changesNotSentForReview: changesNotSentForReview ?? undefined,
       releaseStatus: releaseStatus ?? undefined,
-      serviceAccountPath,
+      serviceAccountEmail,
+      serviceAccountKeySource,
+      ...(serviceAccountKeyPath ? { serviceAccountKeyPath } : {}),
       ...formatArchiveSourceSummary(archive),
     };
   }
@@ -121,7 +134,9 @@ type SummaryData = {
   changesNotSentForReview?: boolean;
   projectId: string;
   releaseStatus?: SubmissionAndroidReleaseStatus;
-  serviceAccountPath: string;
+  serviceAccountKeySource: string;
+  serviceAccountKeyPath?: string;
+  serviceAccountEmail: string;
   track: SubmissionAndroidTrack;
 } & ArchiveSourceSummaryFields;
 
@@ -133,6 +148,8 @@ const SummaryHumanReadableKeys: Record<keyof SummaryData, string> = {
   formattedBuild: 'Build',
   projectId: 'Project ID',
   releaseStatus: 'Release status',
-  serviceAccountPath: 'Google Service Key',
+  serviceAccountKeySource: 'Google Service Key Source',
+  serviceAccountKeyPath: 'Google Service Key Path',
+  serviceAccountEmail: 'Google Service Account',
   track: 'Release track',
 };

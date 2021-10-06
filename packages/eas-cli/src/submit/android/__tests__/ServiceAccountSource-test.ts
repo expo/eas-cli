@@ -1,39 +1,70 @@
+import { Platform } from '@expo/eas-build-job';
+import { AndroidReleaseStatus, AndroidReleaseTrack } from '@expo/eas-json';
 import { vol } from 'memfs';
+import { v4 as uuidv4 } from 'uuid';
 
 import { asMock } from '../../../__tests__/utils';
-import { findProjectRootAsync } from '../../../project/projectUtils';
+import { testAndroidAppCredentialsFragment } from '../../../credentials/__tests__/fixtures-android';
+import { jester as mockJester } from '../../../credentials/__tests__/fixtures-constants';
+import { SetupGoogleServiceAccountKey } from '../../../credentials/android/actions/SetupGoogleServiceAccountKey';
+import { createTestProject } from '../../../project/__tests__/project-utils';
 import { promptAsync } from '../../../prompts';
+import { createSubmissionContextAsync } from '../../context';
 import {
   ServiceAccountSource,
   ServiceAccountSourceType,
-  getServiceAccountAsync,
+  getServiceAccountKeyPathAsync,
+  getServiceAccountKeyResultAsync,
 } from '../ServiceAccountSource';
 
 jest.mock('fs');
 jest.mock('../../../prompts');
 jest.mock('../../../project/projectUtils');
+jest.mock('../../../credentials/android/actions/SetupGoogleServiceAccountKey');
+jest.mock('../../../user/User', () => ({
+  getUserAsync: jest.fn(() => mockJester),
+}));
+jest.mock('../../../user/Account', () => ({
+  findAccountByName: jest.fn(() => mockJester.accounts[0]),
+}));
+const testProject = createTestProject(mockJester, {
+  android: {
+    package: 'com.expo.test.project',
+  },
+});
+const mockManifest = { exp: testProject.appJSON.expo };
+jest.mock('@expo/config', () => ({
+  getConfig: jest.fn(() => mockManifest),
+}));
 
-describe(getServiceAccountAsync, () => {
-  beforeAll(() => {
-    const mockDetectableServiceAccountJson = JSON.stringify({
-      type: 'service_account',
-    });
+const projectId = uuidv4();
+const mockDetectableServiceAccountJson = JSON.stringify({
+  type: 'service_account',
+  private_key: 'super secret',
+  client_email: 'beep-boop@iam.gserviceaccount.com',
+});
 
-    vol.fromJSON({
-      '/google-service-account.json': JSON.stringify({ service: 'account' }),
-      '/project_dir/subdir/service-account.json': mockDetectableServiceAccountJson,
-      '/project_dir/another-service-account.json': mockDetectableServiceAccountJson,
-      '/other_dir/invalid_file.txt': 'this is not even a JSON',
-    });
+beforeAll(() => {
+  vol.fromJSON({
+    '/google-service-account.json': mockDetectableServiceAccountJson,
+    '/project_dir/subdir/service-account.json': mockDetectableServiceAccountJson,
+    '/project_dir/another-service-account.json': mockDetectableServiceAccountJson,
+    '/other_dir/invalid_file.txt': 'this is not even a JSON',
   });
-  afterAll(() => {
-    vol.reset();
-  });
+  jest
+    .spyOn(SetupGoogleServiceAccountKey.prototype, 'runAsync')
+    .mockImplementation(async () => testAndroidAppCredentialsFragment);
+});
+afterAll(() => {
+  vol.reset();
+});
 
-  afterEach(() => {
-    asMock(promptAsync).mockClear();
-  });
+afterEach(() => {
+  asMock(promptAsync).mockClear();
+  jest.restoreAllMocks();
+});
 
+describe(getServiceAccountKeyPathAsync, () => {
   describe('when source is ServiceAccountSourceType.path', () => {
     it("prompts for path if the provided file doesn't exist", async () => {
       asMock(promptAsync).mockImplementationOnce(() => ({
@@ -43,7 +74,7 @@ describe(getServiceAccountAsync, () => {
         sourceType: ServiceAccountSourceType.path,
         path: '/doesnt-exist.json',
       };
-      const serviceAccountPath = await getServiceAccountAsync(source);
+      const serviceAccountPath = await getServiceAccountKeyPathAsync(source);
       expect(promptAsync).toHaveBeenCalled();
       expect(serviceAccountPath).toBe('/google-service-account.json');
     });
@@ -53,7 +84,7 @@ describe(getServiceAccountAsync, () => {
         sourceType: ServiceAccountSourceType.path,
         path: '/google-service-account.json',
       };
-      await getServiceAccountAsync(source);
+      await getServiceAccountKeyPathAsync(source);
       expect(promptAsync).not.toHaveBeenCalled();
     });
 
@@ -62,7 +93,7 @@ describe(getServiceAccountAsync, () => {
         sourceType: ServiceAccountSourceType.path,
         path: '/google-service-account.json',
       };
-      const serviceAccountPath = await getServiceAccountAsync(source);
+      const serviceAccountPath = await getServiceAccountKeyPathAsync(source);
       expect(serviceAccountPath).toBe('/google-service-account.json');
     });
   });
@@ -75,7 +106,7 @@ describe(getServiceAccountAsync, () => {
       const source: ServiceAccountSource = {
         sourceType: ServiceAccountSourceType.prompt,
       };
-      const serviceAccountPath = await getServiceAccountAsync(source);
+      const serviceAccountPath = await getServiceAccountKeyPathAsync(source);
       expect(promptAsync).toHaveBeenCalled();
       expect(serviceAccountPath).toBe('/google-service-account.json');
     });
@@ -94,105 +125,105 @@ describe(getServiceAccountAsync, () => {
       const source: ServiceAccountSource = {
         sourceType: ServiceAccountSourceType.prompt,
       };
-      const serviceAccountPath = await getServiceAccountAsync(source);
+      const serviceAccountPath = await getServiceAccountKeyPathAsync(source);
       expect(promptAsync).toHaveBeenCalledTimes(3);
       expect(serviceAccountPath).toBe('/google-service-account.json');
     });
   });
+});
 
-  describe('when source is ServiceAccountSourceType.detect', () => {
-    it('detects a single google-services file and prompts for confirmation', async () => {
-      asMock(findProjectRootAsync).mockResolvedValueOnce('/project_dir/subdir'); // should find 1 file
-      asMock(promptAsync).mockResolvedValueOnce({
-        confirmed: true,
-      });
-
-      const serviceAccountPath = await getServiceAccountAsync({
-        sourceType: ServiceAccountSourceType.detect,
-      });
-
-      expect(promptAsync).toHaveBeenCalledWith(expect.objectContaining({ type: 'confirm' }));
-      expect(serviceAccountPath).toBe('/project_dir/subdir/service-account.json');
+describe(getServiceAccountKeyResultAsync, () => {
+  it('returns a local Service Account Key file with a ServiceAccountSourceType.path source', async () => {
+    const ctx = await createSubmissionContextAsync({
+      platform: Platform.ANDROID,
+      projectDir: testProject.projectRoot,
+      projectId,
+      archiveFlags: {
+        url: 'http://expo.dev/fake.apk',
+      },
+      profile: {
+        track: AndroidReleaseTrack.internal,
+        releaseStatus: AndroidReleaseStatus.draft,
+        changesNotSentForReview: false,
+      },
+      nonInteractive: true,
     });
-
-    it('falls back to prompt, when no valid files are found in the dir', async () => {
-      asMock(findProjectRootAsync).mockResolvedValueOnce('/other_dir'); // no valid files in that dir
-      asMock(promptAsync).mockResolvedValueOnce({
-        filePath: '/google-service-account.json',
-      });
-
-      const serviceAccountPath = await getServiceAccountAsync({
-        sourceType: ServiceAccountSourceType.detect,
-      });
-
-      expect(promptAsync).toHaveBeenCalledWith(expect.objectContaining({ type: 'text' }));
-      expect(serviceAccountPath).toBe('/google-service-account.json');
+    const source: ServiceAccountSource = {
+      sourceType: ServiceAccountSourceType.path,
+      path: '/project_dir/subdir/service-account.json',
+    };
+    const serviceAccountResult = await getServiceAccountKeyResultAsync(ctx, source, 'test.sdf');
+    expect(serviceAccountResult).toMatchObject({
+      result: {
+        googleServiceAccountKeyJson: mockDetectableServiceAccountJson,
+      },
+      summary: {
+        source: 'local',
+        path: '/project_dir/subdir/service-account.json',
+        email: 'beep-boop@iam.gserviceaccount.com',
+      },
     });
+  });
 
-    it('falls back to prompt, when user rejects to use detected file', async () => {
-      asMock(findProjectRootAsync).mockResolvedValueOnce('/project_dir/subdir'); // should find 1 file
-      asMock(promptAsync)
-        .mockResolvedValueOnce({
-          confirmed: false,
-        })
-        .mockResolvedValueOnce({
-          filePath: '/google-service-account.json',
-        });
-      const source: ServiceAccountSource = {
-        sourceType: ServiceAccountSourceType.detect,
-      };
-
-      const serviceAccountPath = await getServiceAccountAsync(source);
-
-      expect(promptAsync).toHaveBeenCalledTimes(2);
-      expect(promptAsync).toHaveBeenCalledWith(expect.objectContaining({ type: 'confirm' }));
-      expect(promptAsync).toHaveBeenLastCalledWith(expect.objectContaining({ type: 'text' }));
-      expect(serviceAccountPath).toBe('/google-service-account.json');
+  it('returns a local Service Account Key file with a ServiceAccountSourceType.prompt source', async () => {
+    asMock(promptAsync).mockImplementationOnce(() => ({
+      filePath: '/project_dir/subdir/service-account.json',
+    }));
+    const ctx = await createSubmissionContextAsync({
+      platform: Platform.ANDROID,
+      projectDir: testProject.projectRoot,
+      projectId,
+      archiveFlags: {
+        url: 'http://expo.dev/fake.apk',
+      },
+      profile: {
+        track: AndroidReleaseTrack.internal,
+        releaseStatus: AndroidReleaseStatus.draft,
+        changesNotSentForReview: false,
+      },
+      nonInteractive: true,
     });
-
-    it('displays a chooser, when multiple files are found', async () => {
-      asMock(findProjectRootAsync).mockResolvedValueOnce('/project_dir'); // should find 2 files here
-      asMock(promptAsync).mockResolvedValueOnce({
-        selectedPath: '/project_dir/another-service-account.json',
-      });
-
-      const serviceAccountPath = await getServiceAccountAsync({
-        sourceType: ServiceAccountSourceType.detect,
-      });
-
-      const expectedChoices = expect.arrayContaining([
-        expect.objectContaining({ value: '/project_dir/another-service-account.json' }),
-        expect.objectContaining({ value: '/project_dir/subdir/service-account.json' }),
-        expect.objectContaining({ value: false }),
-      ]);
-
-      expect(promptAsync).toHaveBeenCalledWith(
-        expect.objectContaining({
-          type: 'select',
-          choices: expectedChoices,
-        })
-      );
-      expect(serviceAccountPath).toBe('/project_dir/another-service-account.json');
+    const source: ServiceAccountSource = {
+      sourceType: ServiceAccountSourceType.prompt,
+    };
+    const serviceAccountResult = await getServiceAccountKeyResultAsync(ctx, source, 'test.sdf');
+    expect(serviceAccountResult).toMatchObject({
+      result: {
+        googleServiceAccountKeyJson: mockDetectableServiceAccountJson,
+      },
+      summary: {
+        source: 'local',
+        path: '/project_dir/subdir/service-account.json',
+        email: 'beep-boop@iam.gserviceaccount.com',
+      },
     });
+  });
 
-    it('falls back to prompt, when user selects the "None of above"', async () => {
-      asMock(findProjectRootAsync).mockResolvedValueOnce('/project_dir'); // should find 2 files here
-      asMock(promptAsync)
-        .mockResolvedValueOnce({
-          selectedPath: false,
-        })
-        .mockResolvedValueOnce({
-          filePath: '/google-service-account.json',
-        });
-
-      const serviceAccountPath = await getServiceAccountAsync({
-        sourceType: ServiceAccountSourceType.detect,
-      });
-
-      expect(promptAsync).toHaveBeenCalledTimes(2);
-      expect(promptAsync).toHaveBeenCalledWith(expect.objectContaining({ type: 'select' }));
-      expect(promptAsync).toHaveBeenLastCalledWith(expect.objectContaining({ type: 'text' }));
-      expect(serviceAccountPath).toBe('/google-service-account.json');
+  it('returns a remote Service Account Key file with a ServiceAccountSourceType.credentialService source', async () => {
+    const ctx = await createSubmissionContextAsync({
+      platform: Platform.ANDROID,
+      projectDir: testProject.projectRoot,
+      projectId,
+      archiveFlags: {
+        url: 'http://expo.dev/fake.apk',
+      },
+      profile: {
+        track: AndroidReleaseTrack.internal,
+        releaseStatus: AndroidReleaseStatus.draft,
+        changesNotSentForReview: false,
+      },
+      nonInteractive: true,
+    });
+    const serviceAccountResult = await getServiceAccountKeyResultAsync(
+      ctx,
+      {
+        sourceType: ServiceAccountSourceType.credentialsService,
+      },
+      'test.application.identiifer'
+    );
+    expect(serviceAccountResult).toMatchObject({
+      result: { googleServiceAccountKeyId: 'test-id' },
+      summary: { source: 'EAS servers', email: 'quin@expo.io' },
     });
   });
 });

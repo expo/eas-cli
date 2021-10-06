@@ -44,7 +44,11 @@ describe(AndroidSubmitCommand, () => {
 
   const fakeFiles: Record<string, string> = {
     '/apks/fake.apk': 'fake apk',
-    '/google-service-account.json': JSON.stringify({ service: 'account' }),
+    '/google-service-account.json': JSON.stringify({
+      type: 'service_account',
+      private_key: 'super secret',
+      client_email: 'beep-boop@iam.gserviceaccount.com',
+    }),
   };
 
   const fakeBuildFragment: Partial<BuildFragment> = {

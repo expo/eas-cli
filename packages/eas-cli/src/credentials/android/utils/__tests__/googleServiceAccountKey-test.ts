@@ -11,6 +11,7 @@ beforeAll(() => {
   const mockDetectableServiceAccountJson = JSON.stringify({
     type: 'service_account',
     private_key: 'super secret',
+    client_email: 'beep-boop@iam.gserviceaccount.com',
   });
 
   vol.fromJSON({
