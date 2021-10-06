@@ -10,11 +10,15 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+### 🧹 Chores
+
+## [0.30.1](https://github.com/expo/eas-cli/releases/tag/0.30.1) - 2021-10-06
+
+### 🐛 Bug fixes
+
 - Fix `--json` flag when running EAS CLI on GitHub actions. ([#669](https://github.com/expo/eas-cli/pull/669) by [@dsokal](https://github.com/dsokal))
 - Fix `"ios: mods.ios.infoPlist: Failed to find Info.plist linked to Xcode project."` warning when running `eas build` in a managed project.([#670](https://github.com/expo/eas-cli/pull/670) by [@brentvatne](https://github.com/brentvatne))
 - Fix building monorepo projects on Windows. ([#671](https://github.com/expo/eas-cli/pull/671) by [@dsokal](https://github.com/dsokal))
-
-### 🧹 Chores
 
 ## [0.30.0](https://github.com/expo/eas-cli/releases/tag/v0.30.0) - 2021-10-05
 
