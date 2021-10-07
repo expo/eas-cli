@@ -128,11 +128,9 @@ export function displayProjectCredentials(
   const isMultitarget = targets.length > 1;
 
   Log.addNewLineIfNone();
-  const fields = [
-    { label: 'Project Credentials Configuration', value: '' },
-    { label: 'Project', value: projectFullName },
-  ];
-
+  Log.log(chalk.cyan.bold('Project Credentials Configuration'));
+  Log.newLine();
+  const fields = [{ label: 'Project', value: projectFullName }];
   for (const [targetName, buildCredentials] of Object.entries(appBuildCredentials)) {
     if (isMultitarget) {
       fields.push({ label: '', value: '' });
@@ -148,10 +146,12 @@ function displayIosAppBuildCredentials(
   buildCredentials: IosAppBuildCredentialsFragment,
   fields: { label: string; value: string }[]
 ): void {
+  fields.push({ label: '', value: '' });
   fields.push({
     label: `${prettyIosDistributionType(buildCredentials.iosDistributionType)} Configuration`,
     value: '',
   });
+  fields.push({ label: '', value: '' });
   const maybeDistCert = buildCredentials.distributionCertificate;
   fields.push({ label: 'Distribution Certificate', value: '' });
   if (maybeDistCert) {
@@ -192,9 +192,10 @@ function displayIosAppBuildCredentials(
       });
     }
     if (appleDevices && appleDevices.length > 0) {
-      fields.push({ label: 'Provisioned devices', value: '' });
-      for (const appleDevice of appleDevices) {
-        fields.push({ label: '    -', value: formatAppleDevice(appleDevice) });
+      const [firstAppleDevice, ...rest] = appleDevices;
+      fields.push({ label: 'Provisioned devices', value: formatAppleDevice(firstAppleDevice) });
+      for (const appleDevice of rest) {
+        fields.push({ label: '', value: formatAppleDevice(appleDevice) });
       }
     }
     fields.push({ label: 'Updated', value: `${fromNow(new Date(updatedAt))} ago` });
