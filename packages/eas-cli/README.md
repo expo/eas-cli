@@ -7,9 +7,9 @@ EAS command line tool
 [![Downloads/week](https://img.shields.io/npm/dw/eas-cli.svg)](https://npmjs.org/package/eas-cli)
 [![License](https://img.shields.io/npm/l/eas-cli.svg)](https://github.com/expo/eas-cli/blob/main/package.json)
 
-* [Installation](#installation)
-* [Usage](#usage)
-* [Commands](#commands)
+- [Installation](#installation)
+- [Usage](#usage)
+- [Commands](#commands)
 
 # Installation
 
@@ -33,33 +33,34 @@ eas --help COMMAND
 # Commands
 
 <!-- commands -->
-* [`eas account:login`](#eas-accountlogin)
-* [`eas account:logout`](#eas-accountlogout)
-* [`eas account:view`](#eas-accountview)
-* [`eas analytics [STATUS]`](#eas-analytics-status)
-* [`eas build`](#eas-build)
-* [`eas build:cancel [BUILD_ID]`](#eas-buildcancel-build_id)
-* [`eas build:configure`](#eas-buildconfigure)
-* [`eas build:list`](#eas-buildlist)
-* [`eas build:view [BUILD_ID]`](#eas-buildview-build_id)
-* [`eas config`](#eas-config)
-* [`eas credentials`](#eas-credentials)
-* [`eas device:create`](#eas-devicecreate)
-* [`eas device:list`](#eas-devicelist)
-* [`eas device:view [UDID]`](#eas-deviceview-udid)
-* [`eas diagnostics`](#eas-diagnostics)
-* [`eas help [COMMAND]`](#eas-help-command)
-* [`eas project:info`](#eas-projectinfo)
-* [`eas project:init`](#eas-projectinit)
-* [`eas secret:create`](#eas-secretcreate)
-* [`eas secret:delete`](#eas-secretdelete)
-* [`eas secret:list`](#eas-secretlist)
-* [`eas submit`](#eas-submit)
-* [`eas webhook:create`](#eas-webhookcreate)
-* [`eas webhook:delete [ID]`](#eas-webhookdelete-id)
-* [`eas webhook:list`](#eas-webhooklist)
-* [`eas webhook:update`](#eas-webhookupdate)
-* [`eas webhook:view ID`](#eas-webhookview-id)
+
+- [`eas account:login`](#eas-accountlogin)
+- [`eas account:logout`](#eas-accountlogout)
+- [`eas account:view`](#eas-accountview)
+- [`eas analytics [STATUS]`](#eas-analytics-status)
+- [`eas build`](#eas-build)
+- [`eas build:cancel [BUILD_ID]`](#eas-buildcancel-build_id)
+- [`eas build:configure`](#eas-buildconfigure)
+- [`eas build:list`](#eas-buildlist)
+- [`eas build:view [BUILD_ID]`](#eas-buildview-build_id)
+- [`eas config`](#eas-config)
+- [`eas credentials`](#eas-credentials)
+- [`eas device:create`](#eas-devicecreate)
+- [`eas device:list`](#eas-devicelist)
+- [`eas device:view [UDID]`](#eas-deviceview-udid)
+- [`eas diagnostics`](#eas-diagnostics)
+- [`eas help [COMMAND]`](#eas-help-command)
+- [`eas project:info`](#eas-projectinfo)
+- [`eas project:init`](#eas-projectinit)
+- [`eas secret:create`](#eas-secretcreate)
+- [`eas secret:delete`](#eas-secretdelete)
+- [`eas secret:list`](#eas-secretlist)
+- [`eas submit`](#eas-submit)
+- [`eas webhook:create`](#eas-webhookcreate)
+- [`eas webhook:delete [ID]`](#eas-webhookdelete-id)
+- [`eas webhook:list`](#eas-webhooklist)
+- [`eas webhook:update`](#eas-webhookupdate)
+- [`eas webhook:view ID`](#eas-webhookview-id)
 
 ## `eas account:login`
 
@@ -138,7 +139,7 @@ OPTIONS
 
   --non-interactive                        Run command in non-interactive mode
 
-  --profile=PROFILE_NAME                   [default: release] Name of the build profile from eas.json
+  --profile=PROFILE_NAME                   [default: production] Name of the build profile from eas.json
 
   --skip-project-configuration             Skip project configuration
 
@@ -394,7 +395,7 @@ OPTIONS
   --non-interactive                 Run command in non-interactive mode
   --path=path                       Path to the .apk/.aab/.ipa file
 
-  --profile=profile                 Name of the submit profile from eas.json. Defaults to "release" if defined in
+  --profile=profile                 Name of the submit profile from eas.json. Defaults to "production" if defined in
                                     eas.json.
 
   --url=url                         App archive url
@@ -492,4 +493,5 @@ ARGUMENTS
 ```
 
 _See code: [src/commands/webhook/view.js](https://github.com/expo/eas-cli/blob/v0.30.1/packages/eas-cli/src/commands/webhook/view.js)_
+
 <!-- commandsstop -->

@@ -14,13 +14,13 @@ beforeEach(async () => {
 test('minimal allowed eas.json for both platforms', async () => {
   await fs.writeJson('/project/eas.json', {
     submit: {
-      release: {},
+      production: {},
     },
   });
 
   const reader = new EasJsonReader('/project');
-  const iosProfile = await reader.readSubmitProfileAsync(Platform.IOS, 'release');
-  const androidProfile = await reader.readSubmitProfileAsync(Platform.ANDROID, 'release');
+  const iosProfile = await reader.readSubmitProfileAsync(Platform.IOS, 'production');
+  const androidProfile = await reader.readSubmitProfileAsync(Platform.ANDROID, 'production');
 
   expect(androidProfile).toEqual({
     changesNotSentForReview: false,
@@ -35,7 +35,7 @@ test('minimal allowed eas.json for both platforms', async () => {
 test('android config with all required values', async () => {
   await fs.writeJson('/project/eas.json', {
     submit: {
-      release: {
+      production: {
         android: {
           serviceAccountKeyPath: './path.json',
           track: 'beta',
@@ -46,7 +46,7 @@ test('android config with all required values', async () => {
   });
 
   const reader = new EasJsonReader('/project');
-  const androidProfile = await reader.readSubmitProfileAsync(Platform.ANDROID, 'release');
+  const androidProfile = await reader.readSubmitProfileAsync(Platform.ANDROID, 'production');
 
   expect(androidProfile).toEqual({
     serviceAccountKeyPath: './path.json',
@@ -59,7 +59,7 @@ test('android config with all required values', async () => {
 test('android config with serviceAccountKeyPath set to env var', async () => {
   await fs.writeJson('/project/eas.json', {
     submit: {
-      release: {
+      production: {
         android: {
           serviceAccountKeyPath: '$GOOGLE_SERVICE_ACCOUNT',
           track: 'beta',
@@ -72,7 +72,7 @@ test('android config with serviceAccountKeyPath set to env var', async () => {
   try {
     process.env.GOOGLE_SERVICE_ACCOUNT = './path.json';
     const reader = new EasJsonReader('/project');
-    const androidProfile = await reader.readSubmitProfileAsync(Platform.ANDROID, 'release');
+    const androidProfile = await reader.readSubmitProfileAsync(Platform.ANDROID, 'production');
 
     expect(androidProfile).toEqual({
       serviceAccountKeyPath: './path.json',
@@ -88,7 +88,7 @@ test('android config with serviceAccountKeyPath set to env var', async () => {
 test('ios config with all required values', async () => {
   await fs.writeJson('/project/eas.json', {
     submit: {
-      release: {
+      production: {
         ios: {
           appleId: 'some@email.com',
           ascAppId: '1223423523',
@@ -99,7 +99,7 @@ test('ios config with all required values', async () => {
   });
 
   const reader = new EasJsonReader('/project');
-  const iosProfile = await reader.readSubmitProfileAsync(Platform.IOS, 'release');
+  const iosProfile = await reader.readSubmitProfileAsync(Platform.IOS, 'production');
 
   expect(iosProfile).toEqual({
     appleId: 'some@email.com',

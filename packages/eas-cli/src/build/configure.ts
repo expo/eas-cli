@@ -97,20 +97,22 @@ export async function configureAsync(options: {
 
 const EAS_JSON_MANAGED_DEFAULT: EasJson = {
   build: {
-    release: {},
     development: {
       developmentClient: true,
       distribution: 'internal',
     },
+    preview: {
+      distribution: 'internal',
+    },
+    production: {},
   },
   submit: {
-    release: {},
+    production: {},
   },
 };
 
 const EAS_JSON_GENERIC_DEFAULT: EasJson = {
   build: {
-    release: {},
     development: {
       distribution: 'internal',
       android: {
@@ -120,9 +122,11 @@ const EAS_JSON_GENERIC_DEFAULT: EasJson = {
         buildConfiguration: 'Debug',
       },
     },
+    preview: {},
+    production: {}, // TODO: make sure these profiles work.
   },
   submit: {
-    release: {},
+    production: {},
   },
 };
 

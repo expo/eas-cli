@@ -4,6 +4,7 @@ import {
   hasMismatchedExtendsAsync,
   isUsingDeprecatedFormatAsync,
   migrateAsync,
+  BuildProfile,
 } from '@expo/eas-json';
 import { flags } from '@oclif/command';
 import { error } from '@oclif/errors';
@@ -55,7 +56,7 @@ interface RawBuildFlags {
   platform?: string;
   'skip-credentials-check': boolean;
   'skip-project-configuration': boolean;
-  profile: string;
+  profile?: string;
   'non-interactive': boolean;
   local: boolean;
   wait: boolean;
@@ -68,7 +69,7 @@ interface RawBuildFlags {
 interface BuildFlags {
   requestedPlatform: RequestedPlatform;
   skipProjectConfiguration: boolean;
-  profile: string;
+  profile: string | any; // TODO: replace this with the proper type
   nonInteractive: boolean;
   local: boolean;
   wait: boolean;
@@ -99,8 +100,8 @@ export default class Build extends EasCommand {
       description: 'Skip project configuration',
     }),
     profile: flags.string({
-      default: 'release',
-      description: 'Name of the build profile from eas.json',
+      description:
+        'Name of the submit profile from eas.json. Defaults to "production" if defined in eas.json.',
       helpValue: 'PROFILE_NAME',
     }),
     'non-interactive': flags.boolean({
@@ -152,27 +153,35 @@ export default class Build extends EasCommand {
     await ensureProjectConfiguredAsync(projectDir, requestedPlatform);
 
     const platforms = toPlatforms(requestedPlatform);
-    await ensureExpoDevClientInstalledForDevClientBuildsAsync({
+
+    const buildProfiles = await this.getBuildProfiles({
       platforms,
       projectDir,
-      profile: flags.profile,
+      profileName: flags.profile,
+    });
+
+    await ensureExpoDevClientInstalledForDevClientBuildsAsync({
+      projectDir,
       nonInteractive: flags.nonInteractive,
+      buildProfiles,
     });
 
     const startedBuilds: BuildFragment[] = [];
     const buildCtxByPlatform: { [p in AppPlatform]?: BuildContext<Platform> } = {};
-    for (const platform of platforms) {
+
+    for (const buildProfile of buildProfiles) {
       const { build: maybeBuild, buildCtx } = await this.prepareAndStartBuildAsync({
         projectDir,
-        platform,
         flags,
         moreBuilds: platforms.length > 1,
+        buildProfile,
       });
       if (maybeBuild) {
         startedBuilds.push(maybeBuild);
       }
-      buildCtxByPlatform[toAppPlatform(platform)] = buildCtx;
+      buildCtxByPlatform[toAppPlatform(buildProfile.platform)] = buildCtx;
     }
+
     if (flags.local) {
       return;
     }
@@ -252,7 +261,7 @@ export default class Build extends EasCommand {
     return {
       requestedPlatform,
       skipProjectConfiguration: flags['skip-project-configuration'],
-      profile,
+      profile: profile ?? null,
       nonInteractive,
       local: flags['local'],
       wait: flags['wait'],
@@ -265,32 +274,29 @@ export default class Build extends EasCommand {
 
   private async prepareAndStartBuildAsync<T extends Platform>({
     projectDir,
-    platform,
     flags,
     moreBuilds,
+    buildProfile,
   }: {
     projectDir: string;
-    platform: T;
     flags: BuildFlags;
     moreBuilds: boolean;
-  }): Promise<{ build: BuildFragment | undefined; buildCtx: BuildContext<T> }> {
-    const easJsonReader = new EasJsonReader(projectDir);
-    const buildProfile = await easJsonReader.readBuildProfileAsync(platform, flags.profile);
-
+    buildProfile: { profile: BuildProfile<T>; platform: Platform; profileName: string };
+  }): Promise<{ build: BuildFragment | undefined; buildCtx: BuildContext<Platform> }> {
     const buildCtx = await createBuildContextAsync({
-      buildProfileName: flags.profile,
+      buildProfileName: buildProfile.profileName,
       clearCache: flags.clearCache,
-      buildProfile,
+      buildProfile: buildProfile.profile,
       local: flags.local,
       nonInteractive: flags.nonInteractive,
-      platform,
+      platform: buildProfile.platform,
       projectDir,
       skipProjectConfiguration: flags.skipProjectConfiguration,
     });
 
     if (moreBuilds) {
       Log.newLine();
-      const appPlatform = toAppPlatform(platform);
+      const appPlatform = toAppPlatform(buildProfile.platform);
       Log.log(
         `${appPlatformEmojis[appPlatform]} ${chalk.bold(
           `${appPlatformDisplayNames[appPlatform]} build`
@@ -371,6 +377,59 @@ export default class Build extends EasCommand {
     if (failedBuilds.length > 0) {
       process.exit(1);
     }
+  }
+
+  private async getBuildProfiles({
+    platforms,
+    projectDir,
+    profileName,
+  }: {
+    platforms: Platform[];
+    projectDir: string;
+    profileName?: string;
+  }): Promise<
+    {
+      profile: BuildProfile<Platform>;
+      platform: Platform;
+      profileName: string;
+    }[]
+  > {
+    const easJsonReader = new EasJsonReader(projectDir);
+    return await Promise.all(
+      platforms.map(async function (platform) {
+        if (!profileName) {
+          try {
+            const profile = await easJsonReader.readBuildProfileAsync(platform, 'production');
+            return {
+              profile,
+              profileName: 'production',
+              platform,
+            };
+          } catch (error) {
+            try {
+              const profile = await easJsonReader.readBuildProfileAsync(platform, 'release');
+              Log.warn(
+                'The default profile changed to "production" from "release". We detected that you still have a "release" build profile, so we are using it. Update eas.json to have a profile named "production" under the `build` key, or specify which profile you\'d like to use with the --profile flag. This fallback behavior will be removed in the next major version of eas-cli.'
+              );
+              return {
+                profile,
+                profileName: 'release',
+                platform,
+              };
+            } catch (error) {
+              throw new Error('There is no profile named "production" in eas.json');
+            }
+          }
+        } else {
+          const profile = await easJsonReader.readBuildProfileAsync(platform, profileName);
+          return {
+            profile,
+            profileName,
+            platform,
+          };
+        }
+      })
+    );
   }
 }
 

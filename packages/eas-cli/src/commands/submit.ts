@@ -56,7 +56,7 @@ See how to configure submits with eas.json: ${learnMore('https://docs.expo.dev/s
     }),
     profile: flags.string({
       description:
-        'Name of the submit profile from eas.json. Defaults to "release" if defined in eas.json.',
+        'Name of the submit profile from eas.json. Defaults to "production" if defined in eas.json.',
     }),
     latest: flags.boolean({
       description: 'Submit the latest build for specified platform',
