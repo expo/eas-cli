@@ -1,10 +1,10 @@
 import { Platform, Workflow } from '@expo/eas-build-job';
 import {
+  BuildProfile,
   EasJsonReader,
   hasMismatchedExtendsAsync,
   isUsingDeprecatedFormatAsync,
   migrateAsync,
-  BuildProfile,
 } from '@expo/eas-json';
 import { flags } from '@oclif/command';
 import { error } from '@oclif/errors';
@@ -195,16 +195,16 @@ export default class Build extends EasCommand {
 
     const submissions: SubmissionFragment[] = [];
     if (flags.autoSubmit) {
-      for (const startdBuild of startedBuilds) {
+      for (const startedBuild of startedBuilds) {
         const submission = await this.prepareAndStartSubmissionAsync({
-          build: startdBuild.build,
+          build: startedBuild.build,
           credentialsCtx: nullthrows(
-            buildCtxByPlatform[startdBuild.build.platform]?.credentialsCtx
+            buildCtxByPlatform[startedBuild.build.platform]?.credentialsCtx
           ),
           flags,
           moreBuilds: startedBuilds.length > 1,
           projectDir,
-          buildProfile: startdBuild.buildProfile,
+          buildProfile: startedBuild.buildProfile,
         });
         submissions.push(submission);
       }
