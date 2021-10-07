@@ -154,7 +154,7 @@ export default class Build extends EasCommand {
 
     const platforms = toPlatforms(requestedPlatform);
 
-    const buildProfiles = await this.getBuildProfiles({
+    const buildProfiles = await this.getBuildProfilesAsync({
       platforms,
       projectDir,
       profileName: flags.profile,
@@ -388,7 +388,7 @@ export default class Build extends EasCommand {
     }
   }
 
-  private async getBuildProfiles({
+  private async getBuildProfilesAsync({
     platforms,
     projectDir,
     profileName,
