@@ -83,20 +83,26 @@ export class EasJsonReader {
     platform: T,
     profileName?: string
   ): Promise<SubmitProfile<T>> {
-    if (!profileName) {
+    let _profileName = profileName;
+
+    if (!_profileName) {
       const profileNames = await this.getSubmitProfileNamesAsync({
         throwIfEasJsonDoesNotExist: false,
       });
-      if (profileNames.includes('release')) {
-        return await this.readSubmitProfileAsync(platform, 'release');
+
+      if (profileNames.includes('production')) {
+        _profileName = 'production';
+      } else if (profileNames.includes('release')) {
+        _profileName = 'release';
       } else {
         return getDefaultSubmitProfile(platform);
       }
     }
+
     const easJson = await this.readAndValidateAsync();
-    const profile = easJson?.submit?.[profileName];
+    const profile = easJson?.submit?.[_profileName];
     if (!profile) {
-      throw new Error(`There is no profile named ${profileName} in eas.json`);
+      throw new Error(`There is no profile named ${_profileName} in eas.json`);
     }
     const platformProfile = profile[platform];
     if (platformProfile) {

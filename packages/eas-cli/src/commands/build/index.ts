@@ -69,7 +69,7 @@ interface RawBuildFlags {
 interface BuildFlags {
   requestedPlatform: RequestedPlatform;
   skipProjectConfiguration: boolean;
-  profile: string | any; // TODO: replace this with the proper type
+  profile: string | null;
   nonInteractive: boolean;
   local: boolean;
   wait: boolean;
@@ -166,7 +166,10 @@ export default class Build extends EasCommand {
       buildProfiles,
     });
 
-    const startedBuilds: BuildFragment[] = [];
+    const startedBuilds: {
+      build: BuildFragment;
+      buildProfile: { profile: BuildProfile<Platform>; platform: Platform; profileName: string };
+    }[] = [];
     const buildCtxByPlatform: { [p in AppPlatform]?: BuildContext<Platform> } = {};
 
     for (const buildProfile of buildProfiles) {
@@ -177,7 +180,7 @@ export default class Build extends EasCommand {
         buildProfile,
       });
       if (maybeBuild) {
-        startedBuilds.push(maybeBuild);
+        startedBuilds.push({ build: maybeBuild, buildProfile });
       }
       buildCtxByPlatform[toAppPlatform(buildProfile.platform)] = buildCtx;
     }
@@ -187,18 +190,21 @@ export default class Build extends EasCommand {
     }
 
     Log.newLine();
-    printLogsUrls(startedBuilds);
+    printLogsUrls(startedBuilds.map(startedBuild => startedBuild.build));
     Log.newLine();
 
     const submissions: SubmissionFragment[] = [];
     if (flags.autoSubmit) {
-      for (const build of startedBuilds) {
+      for (const startdBuild of startedBuilds) {
         const submission = await this.prepareAndStartSubmissionAsync({
-          build,
-          credentialsCtx: nullthrows(buildCtxByPlatform[build.platform]?.credentialsCtx),
+          build: startdBuild.build,
+          credentialsCtx: nullthrows(
+            buildCtxByPlatform[startdBuild.build.platform]?.credentialsCtx
+          ),
           flags,
           moreBuilds: startedBuilds.length > 1,
           projectDir,
+          buildProfile: startdBuild.buildProfile,
         });
         submissions.push(submission);
       }
@@ -212,7 +218,9 @@ export default class Build extends EasCommand {
       return;
     }
 
-    const builds = await waitForBuildEndAsync(startedBuilds.map(build => build.id));
+    const builds = await waitForBuildEndAsync(
+      startedBuilds.map(startedBuild => startedBuild.build.id)
+    );
     printBuildResults(builds, flags.json);
 
     const haveAllBuildsFailedOrCanceled = builds.every(
@@ -336,16 +344,17 @@ export default class Build extends EasCommand {
     flags,
     moreBuilds,
     projectDir,
+    buildProfile,
   }: {
     build: BuildFragment;
     credentialsCtx: CredentialsContext;
     flags: BuildFlags;
     moreBuilds: boolean;
     projectDir: string;
+    buildProfile: { profile: BuildProfile<Platform>; platform: Platform; profileName: string };
   }): Promise<SubmissionFragment> {
     const easJsonReader = new EasJsonReader(projectDir);
     const platform = toPlatform(build.platform);
-    const buildProfile = await easJsonReader.readBuildProfileAsync(platform, flags.profile);
     const submitProfile = await easJsonReader.readSubmitProfileAsync(platform, flags.submitProfile);
     const submissionCtx = await createSubmissionContextAsync({
       platform,
@@ -354,7 +363,7 @@ export default class Build extends EasCommand {
       profile: submitProfile,
       archiveFlags: { id: build.id },
       nonInteractive: flags.nonInteractive,
-      env: buildProfile.env,
+      env: buildProfile.profile.env,
       credentialsCtx,
     });
 
@@ -386,7 +395,7 @@ export default class Build extends EasCommand {
   }: {
     platforms: Platform[];
     projectDir: string;
-    profileName?: string;
+    profileName?: string | null;
   }): Promise<
     {
       profile: BuildProfile<Platform>;
