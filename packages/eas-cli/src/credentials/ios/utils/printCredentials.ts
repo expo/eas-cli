@@ -193,9 +193,12 @@ function displayIosAppBuildCredentials(
     }
     if (appleDevices && appleDevices.length > 0) {
       const [firstAppleDevice, ...rest] = appleDevices;
-      fields.push({ label: 'Provisioned devices', value: formatAppleDevice(firstAppleDevice) });
+      fields.push({
+        label: 'Provisioned devices',
+        value: `- ${formatAppleDevice(firstAppleDevice)}`,
+      });
       for (const appleDevice of rest) {
-        fields.push({ label: '', value: formatAppleDevice(appleDevice) });
+        fields.push({ label: '', value: `- ${formatAppleDevice(appleDevice)}` });
       }
     }
     fields.push({ label: 'Updated', value: `${fromNow(new Date(updatedAt))} ago` });
