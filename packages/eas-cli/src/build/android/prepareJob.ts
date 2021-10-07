@@ -53,7 +53,7 @@ export async function prepareJobAsync(
     projectRootDirectory,
     projectArchive: jobData.projectArchive,
     builderEnvironment: {
-      image: buildProfile.image ?? 'default',
+      image: buildProfile.image,
       node: buildProfile.node,
       yarn: buildProfile.yarn,
       ndk: buildProfile.ndk,
