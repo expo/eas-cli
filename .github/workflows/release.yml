@@ -142,6 +142,7 @@ jobs:
         with:
           node-version: '16'
       - name: Install dependencies
+        working-directory: ./scripts
         run: yarn install --frozen-lockfile --check-files
       - name: Resolve version
         run: echo "EAS_CLI_VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_ENV

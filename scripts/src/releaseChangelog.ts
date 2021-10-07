@@ -1,16 +1,12 @@
 import dateFormat from 'dateformat';
-import fs from 'fs-extra';
-import path from 'path';
 import semver from 'semver';
 
+import { CATEGORY_HEADERS } from './changelog/consts';
+import { readAndParseChangelogAsync, writeChangelogAsync } from './changelog/file';
 import * as markdown from './markdown';
 
-type Tokens = markdown.Token[];
-
-const CHANGELOG_PATH = path.join(__dirname, '../../CHANGELOG.md');
-
-const MAIN_CATEGORIES = ['🛠 Breaking changes', '🎉 New features', '🐛 Bug fixes', '🧹 Chores'].map(
-  text => markdown.createHeadingToken(text, 3)
+const MAIN_CATEGORIES = Object.values(CATEGORY_HEADERS).map(text =>
+  markdown.createHeadingToken(text, 3)
 );
 const FORMAT_RELEASE_HEADING = (version: string): markdown.Token =>
   markdown.createHeadingToken(
@@ -28,8 +24,7 @@ const FORMAT_RELEASE_HEADING = (version: string): markdown.Token =>
   const tokens = await readAndParseChangelogAsync();
   removeEmptyCategories(tokens);
   insertNewEmptyCategoriesAndReleaseHeading(tokens, version);
-  const newChangelog = markdown.render(tokens);
-  await fs.writeFile(CHANGELOG_PATH, newChangelog);
+  await writeChangelogAsync(tokens);
   findAndPrintCurrentReleaseChangelog(tokens, version);
 })(process.argv[process.argv.length - 1]).catch(err => {
   // eslint-disable-next-line no-console
@@ -37,12 +32,7 @@ const FORMAT_RELEASE_HEADING = (version: string): markdown.Token =>
   process.exit(1);
 });
 
-async function readAndParseChangelogAsync(): Promise<Tokens> {
-  const contents = await fs.readFile(CHANGELOG_PATH, 'utf8');
-  return markdown.lexify(contents);
-}
-
-function removeEmptyCategories(tokens: Tokens): void {
+function removeEmptyCategories(tokens: markdown.Tokens): void {
   const idxToRemove: number[] = [];
 
   let i = 0;
@@ -72,7 +62,7 @@ function removeEmptyCategories(tokens: Tokens): void {
   }
 }
 
-function insertNewEmptyCategoriesAndReleaseHeading(tokens: Tokens, version: string): void {
+function insertNewEmptyCategoriesAndReleaseHeading(tokens: markdown.Tokens, version: string): void {
   let i = 0;
   while (true) {
     const token = tokens[i++];
@@ -86,7 +76,7 @@ function insertNewEmptyCategoriesAndReleaseHeading(tokens: Tokens, version: stri
   tokens.splice(i, 0, ...MAIN_CATEGORIES, releaseHeading);
 }
 
-function findAndPrintCurrentReleaseChangelog(tokens: Tokens, version: string): void {
+function findAndPrintCurrentReleaseChangelog(tokens: markdown.Tokens, version: string): void {
   const startIdx = tokens.findIndex(
     token =>
       token.type === markdown.TokenType.HEADING && token.depth === 2 && token.text.trim() !== 'main'

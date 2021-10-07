@@ -1,9 +1,6 @@
 {
   "private": true,
-  "workspaces": [
-    "packages/*",
-    "scripts"
-  ],
+  "workspaces": ["packages/*"],
   "scripts": {
     "build": "lerna run build",
     "build:tarballs:linux": "yarn build && yarn workspace eas-cli oclif-dev pack --targets linux-x64",
