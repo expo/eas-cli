@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Use template string over string concatenation. ([#679](https://github.com/expo/eas-cli/pull/679) by [@dsokal](https://github.com/dsokal))
+
 ## [0.31.0](https://github.com/expo/eas-cli/releases/tag/0.31.0) - 2021-10-08
 
 ### 🛠 Breaking changes
