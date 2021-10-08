@@ -4,7 +4,7 @@ import ApiV2Error from './ApiV2Error';
 import { getAccessToken, getSessionSecret } from './user/sessionStorage';
 
 export const apiClient = got.extend({
-  prefixUrl: getExpoApiBaseUrl() + '/--/api/v2/',
+  prefixUrl: `${getExpoApiBaseUrl()}/--/api/v2/`,
   hooks: {
     beforeRequest: [
       (options: NormalizedOptions) => {
