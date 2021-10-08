@@ -24,7 +24,9 @@ export function printLogsUrls(builds: BuildFragment[]): void {
     builds.forEach(build => {
       const logsUrl = getBuildLogsUrl(build);
       Log.log(
-        `${appPlatformDisplayNames[build.platform]} build details: ${chalk.underline(logsUrl)}`
+        `${appPlatformEmojis[build.platform]} ${
+          appPlatformDisplayNames[build.platform]
+        } build details: ${chalk.underline(logsUrl)}`
       );
     });
   }
