@@ -286,7 +286,7 @@ export default class Build extends EasCommand {
     };
   }
 
-  private async prepareAndStartBuildAsync<T extends Platform>({
+  private async prepareAndStartBuildAsync({
     projectDir,
     flags,
     moreBuilds,
