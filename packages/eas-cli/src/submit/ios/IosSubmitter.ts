@@ -1,7 +1,9 @@
 import { Platform } from '@expo/eas-build-job';
+import chalk from 'chalk';
 
 import { IosSubmissionConfigInput, SubmissionFragment } from '../../graphql/generated';
 import { SubmissionMutation } from '../../graphql/mutations/SubmissionMutation';
+import formatFields from '../../utils/formatFields';
 import { Archive, ArchiveSource, getArchiveAsync } from '../ArchiveSource';
 import BaseSubmitter, { SubmissionInput } from '../BaseSubmitter';
 import {
@@ -103,17 +105,15 @@ export default class IosSubmitter extends BaseSubmitter<Platform.IOS, IosSubmiss
     { archive, ascApiKeyResult }: ResolvedSourceOptions
   ): SummaryData {
     const { appleIdUsername, ascAppIdentifier, projectId } = options;
-    const ascApiKeySummary = ascApiKeyResult?.summary;
 
     // structuring order affects table rows order
     return {
       ascAppIdentifier,
       appleIdUsername,
       projectId,
-      ...(ascApiKeySummary
-        ? { ascApiKeySource: ascApiKeySummary.source, ascApiKeyId: ascApiKeySummary.keyId }
+      ...(ascApiKeyResult
+        ? { formattedAscApiKey: formatServiceAccountSummary(ascApiKeyResult) }
         : null),
-      ...(ascApiKeySummary?.path ? { ascApiKeyPath: ascApiKeySummary.path } : null),
       ...formatArchiveSourceSummary(archive),
     };
   }
@@ -123,9 +123,7 @@ type SummaryData = {
   ascAppIdentifier: string;
   appleIdUsername: string;
   projectId: string;
-  ascApiKeySource?: string;
-  ascApiKeyPath?: string;
-  ascApiKeyId?: string;
+  formattedAscApiKey?: string;
 } & ArchiveSourceSummaryFields;
 
 const SummaryHumanReadableKeys: Record<keyof SummaryData, string> = {
@@ -135,7 +133,36 @@ const SummaryHumanReadableKeys: Record<keyof SummaryData, string> = {
   archiveUrl: 'Archive URL',
   archivePath: 'Archive Path',
   formattedBuild: 'Build',
-  ascApiKeySource: 'App Store Connect Api Key Source',
-  ascApiKeyPath: 'App Store Connect Api Key Path',
-  ascApiKeyId: 'App Store Connect Api Key ID',
+  formattedAscApiKey: 'App Store Connect Api Key',
 };
+
+function formatServiceAccountSummary({ summary }: AscApiKeyResult): string {
+  const { source, path, keyId } = summary;
+
+  const fields = [
+    {
+      label: 'Key Source',
+      value: source,
+    },
+    {
+      label: 'Key Path',
+      value: path,
+    },
+    {
+      label: 'Key ID',
+      value: keyId,
+    },
+  ];
+
+  const filteredFields = fields.filter(({ value }) => value !== undefined && value !== null) as {
+    label: string;
+    value: string;
+  }[];
+
+  return (
+    '\n' +
+    formatFields(filteredFields, {
+      labelFormat: label => `    ${chalk.dim(label)}:`,
+    })
+  );
+}
