@@ -6,16 +6,22 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🛠 Breaking changes
 
+### 🎉 New features
+
+### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [0.31.0](https://github.com/expo/eas-cli/releases/tag/0.31.0) - 2021-10-08
+
+### 🛠 Breaking changes
+
 - Don't resolve the iOS builder image on the client side. EAS Build will use the appropriate iOS image for a given Expo SDK version unless the `image` is defined. This only applies to managed projects. ([#675](https://github.com/expo/eas-cli/pull/675) by [@wkozyra95](https://github.com/wkozyra95) + [@dsokal](https://github.com/dsokal))
 
 ### 🎉 New features
 
 - Integrate credentials service with Android submissions. ([#664](https://github.com/expo/eas-cli/pull/664) by [@quinlanj](https://github.com/quinlanj))
 - Add option to review ad-hoc devices when reusing provisioning profile. ([#673](https://github.com/expo/eas-cli/pull/673) by [@dsokal](https://github.com/dsokal))
-
-### 🐛 Bug fixes
-
-### 🧹 Chores
 
 ## [0.30.1](https://github.com/expo/eas-cli/releases/tag/0.30.1) - 2021-10-06
 
