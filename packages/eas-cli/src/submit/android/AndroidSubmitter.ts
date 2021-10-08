@@ -1,4 +1,5 @@
 import { Platform } from '@expo/eas-build-job';
+import chalk from 'chalk';
 
 import {
   AndroidSubmissionConfigInput,
@@ -7,6 +8,7 @@ import {
   SubmissionFragment,
 } from '../../graphql/generated';
 import { SubmissionMutation } from '../../graphql/mutations/SubmissionMutation';
+import formatFields from '../../utils/formatFields';
 import { Archive, ArchiveSource, getArchiveAsync } from '../ArchiveSource';
 import BaseSubmitter, { SubmissionInput } from '../BaseSubmitter';
 import {
@@ -108,11 +110,6 @@ export default class AndroidSubmitter extends BaseSubmitter<
     { archive, androidPackage, serviceAccountKeyResult }: ResolvedSourceOptions
   ): SummaryData {
     const { projectId, track, releaseStatus, changesNotSentForReview } = options;
-    const {
-      email: serviceAccountEmail,
-      path: serviceAccountKeyPath,
-      source: serviceAccountKeySource,
-    } = serviceAccountKeyResult.summary;
 
     // structuring order affects table rows order
     return {
@@ -121,9 +118,7 @@ export default class AndroidSubmitter extends BaseSubmitter<
       track,
       changesNotSentForReview: changesNotSentForReview ?? undefined,
       releaseStatus: releaseStatus ?? undefined,
-      serviceAccountEmail,
-      serviceAccountKeySource,
-      ...(serviceAccountKeyPath ? { serviceAccountKeyPath } : {}),
+      formattedServiceAccount: formatServiceAccountSummary(serviceAccountKeyResult),
       ...formatArchiveSourceSummary(archive),
     };
   }
@@ -132,11 +127,9 @@ export default class AndroidSubmitter extends BaseSubmitter<
 type SummaryData = {
   androidPackage: string;
   changesNotSentForReview?: boolean;
+  formattedServiceAccount: string;
   projectId: string;
   releaseStatus?: SubmissionAndroidReleaseStatus;
-  serviceAccountKeySource: string;
-  serviceAccountKeyPath?: string;
-  serviceAccountEmail: string;
   track: SubmissionAndroidTrack;
 } & ArchiveSourceSummaryFields;
 
@@ -146,10 +139,43 @@ const SummaryHumanReadableKeys: Record<keyof SummaryData, string> = {
   archiveUrl: 'Download URL',
   changesNotSentForReview: 'Changes not sent for a review',
   formattedBuild: 'Build',
+  formattedServiceAccount: 'Google Service Account Key',
   projectId: 'Project ID',
   releaseStatus: 'Release status',
-  serviceAccountKeySource: 'Google Service Key Source',
-  serviceAccountKeyPath: 'Google Service Key Path',
-  serviceAccountEmail: 'Google Service Account',
   track: 'Release track',
 };
+
+function formatServiceAccountSummary({ summary }: ServiceAccountKeyResult): string {
+  const {
+    email: serviceAccountEmail,
+    path: serviceAccountKeyPath,
+    source: serviceAccountKeySource,
+  } = summary;
+
+  const fields = [
+    {
+      label: 'Key Source',
+      value: serviceAccountKeySource,
+    },
+    {
+      label: 'Key Path',
+      value: serviceAccountKeyPath,
+    },
+    {
+      label: 'Account E-mail',
+      value: serviceAccountEmail,
+    },
+  ];
+
+  const filteredFields = fields.filter(({ value }) => value !== undefined && value !== null) as {
+    label: string;
+    value: string;
+  }[];
+
+  return (
+    '\n' +
+    formatFields(filteredFields, {
+      labelFormat: label => `    ${chalk.dim(label)}:`,
+    })
+  );
+}
