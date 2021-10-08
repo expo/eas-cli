@@ -122,8 +122,10 @@ const EAS_JSON_GENERIC_DEFAULT: EasJson = {
         buildConfiguration: 'Debug',
       },
     },
-    preview: {},
-    production: {}, // TODO: make sure these profiles work.
+    preview: {
+      distribution: 'internal',
+    },
+    production: {},
   },
   submit: {
     production: {},
