@@ -10,6 +10,7 @@ import { appPlatformDisplayNames } from '../../platform';
 import { resolveWorkflowAsync } from '../../project/workflow';
 import { confirmAsync } from '../../prompts';
 import { expoCommandAsync } from '../../utils/expoCommand';
+import { ProfileData } from '../../utils/profiles';
 import { reviewAndCommitChangesAsync } from './repository';
 
 export async function ensureExpoDevClientInstalledForDevClientBuildsAsync({
@@ -19,7 +20,7 @@ export async function ensureExpoDevClientInstalledForDevClientBuildsAsync({
 }: {
   projectDir: string;
   nonInteractive?: boolean;
-  buildProfiles?: { profile: BuildProfile; platform: Platform; profileName: string }[];
+  buildProfiles?: ProfileData<BuildProfile>[];
 }): Promise<void> {
   if (await isExpoDevClientInstalledAsync(projectDir)) {
     return;
@@ -64,15 +65,15 @@ export async function ensureExpoDevClientInstalledForDevClientBuildsAsync({
     if (install) {
       await installExpoDevClientAsync(projectDir, { nonInteractive });
     } else {
-      error(`Install ${chalk.bold('expo-dev-client')} on your own and come back later.`, {
+      error(`Install ${chalk.bold('expo-dev-client')} manually and come back later.`, {
         exit: 1,
       });
     }
   } else {
-    Log.warn(`You'll need to install ${chalk.bold('expo-dev-client')} on your own.`);
+    Log.warn(`You'll need to install ${chalk.bold('expo-dev-client')} manually.`);
     Log.warn(
       learnMore('https://docs.expo.dev/clients/installation/', {
-        learnMoreMessage: 'See installation instructions on how to do it',
+        learnMoreMessage: 'See installation instructions on how to do it.',
         dim: false,
       })
     );

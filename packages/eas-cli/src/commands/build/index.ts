@@ -102,7 +102,7 @@ export default class Build extends EasCommand {
     }),
     profile: flags.string({
       description:
-        'Name of the submit profile from eas.json. Defaults to "production" if defined in eas.json.',
+        'Name of the build profile from eas.json. Defaults to "production" if defined in eas.json.',
       helpValue: 'PROFILE_NAME',
     }),
     'non-interactive': flags.boolean({
@@ -158,7 +158,7 @@ export default class Build extends EasCommand {
     const buildProfiles = await getDefaultProfilesAsync<BuildProfile<Platform>>({
       platforms,
       profileName: flags.profile,
-      readProfileAsync: async function readProfileAsync(platform, profileName) {
+      async readProfileAsync(platform, profileName) {
         return await easJsonReader.readBuildProfileAsync(platform, profileName);
       },
     });
@@ -354,7 +354,7 @@ export default class Build extends EasCommand {
     flags: BuildFlags;
     moreBuilds: boolean;
     projectDir: string;
-    buildProfile: { profile: BuildProfile<Platform>; platform: Platform; profileName: string };
+    buildProfile: ProfileData<BuildProfile>;
   }): Promise<SubmissionFragment> {
     const easJsonReader = new EasJsonReader(projectDir);
     const platform = toPlatform(build.platform);
