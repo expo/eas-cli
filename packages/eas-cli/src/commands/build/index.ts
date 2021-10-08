@@ -50,6 +50,7 @@ import {
 } from '../../submit/submit';
 import { printSubmissionDetailsUrls } from '../../submit/utils/urls';
 import { enableJsonOutput } from '../../utils/json';
+import { ProfileData, getDefaultProfilesAsync } from '../../utils/profiles';
 import vcs from '../../vcs';
 
 interface RawBuildFlags {
@@ -77,12 +78,6 @@ interface BuildFlags {
   json: boolean;
   autoSubmit: boolean;
   submitProfile?: string;
-}
-
-interface BuildProfileData {
-  profile: BuildProfile<Platform>;
-  platform: Platform;
-  profileName: string;
 }
 
 export default class Build extends EasCommand {
@@ -159,11 +154,13 @@ export default class Build extends EasCommand {
     await ensureProjectConfiguredAsync(projectDir, requestedPlatform);
 
     const platforms = toPlatforms(requestedPlatform);
-
-    const buildProfiles = await this.getBuildProfilesAsync({
+    const easJsonReader = new EasJsonReader(projectDir);
+    const buildProfiles = await getDefaultProfilesAsync<BuildProfile<Platform>>({
       platforms,
-      projectDir,
       profileName: flags.profile,
+      readProfileAsync: async function readProfileAsync(platform, profileName) {
+        return await easJsonReader.readBuildProfileAsync(platform, profileName);
+      },
     });
 
     await ensureExpoDevClientInstalledForDevClientBuildsAsync({
@@ -174,7 +171,7 @@ export default class Build extends EasCommand {
 
     const startedBuilds: {
       build: BuildFragment;
-      buildProfile: BuildProfileData;
+      buildProfile: ProfileData<BuildProfile>;
     }[] = [];
     const buildCtxByPlatform: { [p in AppPlatform]?: BuildContext<Platform> } = {};
 
@@ -295,7 +292,7 @@ export default class Build extends EasCommand {
     projectDir: string;
     flags: BuildFlags;
     moreBuilds: boolean;
-    buildProfile: BuildProfileData;
+    buildProfile: ProfileData<BuildProfile>;
   }): Promise<{ build: BuildFragment | undefined; buildCtx: BuildContext<Platform> }> {
     const buildCtx = await createBuildContextAsync({
       buildProfileName: buildProfile.profileName,
@@ -392,59 +389,6 @@ export default class Build extends EasCommand {
     if (failedBuilds.length > 0) {
       process.exit(1);
     }
-  }
-
-  private async getBuildProfilesAsync({
-    platforms,
-    projectDir,
-    profileName,
-  }: {
-    platforms: Platform[];
-    projectDir: string;
-    profileName?: string | null;
-  }): Promise<
-    {
-      profile: BuildProfile<Platform>;
-      platform: Platform;
-      profileName: string;
-    }[]
-  > {
-    const easJsonReader = new EasJsonReader(projectDir);
-    return await Promise.all(
-      platforms.map(async function (platform) {
-        if (!profileName) {
-          try {
-            const profile = await easJsonReader.readBuildProfileAsync(platform, 'production');
-            return {
-              profile,
-              profileName: 'production',
-              platform,
-            };
-          } catch (error) {
-            try {
-              const profile = await easJsonReader.readBuildProfileAsync(platform, 'release');
-              Log.warn(
-                'The default profile changed to "production" from "release". We detected that you still have a "release" build profile, so we are using it. Update eas.json to have a profile named "production" under the `build` key, or specify which profile you\'d like to use with the --profile flag. This fallback behavior will be removed in the next major version of eas-cli.'
-              );
-              return {
-                profile,
-                profileName: 'release',
-                platform,
-              };
-            } catch (error) {
-              throw new Error('There is no profile named "production" in eas.json');
-            }
-          }
-        } else {
-          const profile = await easJsonReader.readBuildProfileAsync(platform, profileName);
-          return {
-            profile,
-            profileName,
-            platform,
-          };
-        }
-      })
-    );
   }
 }
 
