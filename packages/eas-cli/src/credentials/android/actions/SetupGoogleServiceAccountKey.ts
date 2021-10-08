@@ -17,18 +17,17 @@ export class SetupGoogleServiceAccountKey {
   constructor(private app: AppLookupParams) {}
 
   public async runAsync(ctx: CredentialsContext): Promise<CommonAndroidAppCredentialsFragment> {
-    if (ctx.nonInteractive) {
-      throw new MissingCredentialsNonInteractiveError(
-        'Google Service Account Keys cannot be set up in --non-interactive mode.'
-      );
-    }
-
     const isKeySetup = await this.isGoogleServiceAccountKeySetupAsync(ctx);
     if (isKeySetup) {
       Log.succeed('Google Service Account Key already set up.');
       return nullthrows(
         await ctx.android.getAndroidAppCredentialsWithCommonFieldsAsync(this.app),
         'androidAppCredentials cannot be null if google service account key is already set up'
+      );
+    }
+    if (ctx.nonInteractive) {
+      throw new MissingCredentialsNonInteractiveError(
+        'Google Service Account Keys cannot be set up in --non-interactive mode.'
       );
     }
 

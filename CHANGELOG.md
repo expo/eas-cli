@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Google Service Account Keys: Fix non-interactive bug in credentials service workflow ([#682](https://github.com/expo/eas-cli/pull/682) by [@quinlanj](https://github.com/quinlanj))
+
 ### 🧹 Chores
 
 ## [0.31.0](https://github.com/expo/eas-cli/releases/tag/0.31.0) - 2021-10-08
