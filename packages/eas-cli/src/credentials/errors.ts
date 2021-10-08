@@ -5,3 +5,9 @@ export class MissingCredentialsNonInteractiveError extends Error {
     );
   }
 }
+
+export class MissingCredentialsError extends Error {
+  constructor(message?: string) {
+    super(message ?? 'Credentials are not set up.');
+  }
+}

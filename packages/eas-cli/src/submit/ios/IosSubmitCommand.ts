@@ -4,6 +4,7 @@ import chalk from 'chalk';
 import getenv from 'getenv';
 import wrapAnsi from 'wrap-ansi';
 
+import { MissingCredentialsError } from '../../credentials/errors';
 import { SubmissionFragment } from '../../graphql/generated';
 import Log, { learnMore } from '../../log';
 import { promptAsync } from '../../prompts';
@@ -16,6 +17,7 @@ import {
   AppSpecificPasswordSource,
   AppSpecificPasswordSourceType,
 } from './AppSpecificPasswordSource';
+import { AscApiKeySource, AscApiKeySourceType } from './AscApiKeySource';
 import IosSubmitter, { IosSubmissionOptions } from './IosSubmitter';
 
 export default class IosSubmitCommand {
@@ -28,16 +30,37 @@ export default class IosSubmitCommand {
     return await submitter.submitAsync();
   }
 
+  private async resolveCredentialSubmissionOptionsAsync(): Promise<
+    | { appSpecificPasswordSource: Result<AppSpecificPasswordSource> }
+    | { ascApiKeySource: Result<AscApiKeySource> }
+  > {
+    // Fall back to app specific password if no ascApiKey defined
+    const ascApiKeySource = this.resolveAscApiKeySource();
+    const shouldUseAppSpecificPassword =
+      !ascApiKeySource.ok && ascApiKeySource.enforceError() instanceof MissingCredentialsError;
+    if (shouldUseAppSpecificPassword) {
+      return { appSpecificPasswordSource: this.resolveAppSpecificPasswordSource() };
+    } else {
+      return { ascApiKeySource };
+    }
+  }
+
   private async resolveSubmissionOptionsAsync(): Promise<IosSubmissionOptions> {
     const archiveSource = this.resolveArchiveSource();
-    const appSpecificPasswordSource = this.resolveAppSpecificPasswordSource();
+    const credentialsSource = await this.resolveCredentialSubmissionOptionsAsync();
+    const maybeAppSpecificPasswordSource =
+      'appSpecificPasswordSource' in credentialsSource
+        ? credentialsSource.appSpecificPasswordSource
+        : null;
+    const maybeAscApiKeySource =
+      'ascApiKeySource' in credentialsSource ? credentialsSource.ascApiKeySource : null;
     const ascAppIdentifier = await this.resolveAscAppIdentifierAsync();
     const appleIdUsername = await this.resolveAppleIdUsernameAsync();
 
     const errored = [
       archiveSource,
-      appSpecificPasswordSource,
-      ascAppIdentifier,
+      ...(maybeAppSpecificPasswordSource ? [maybeAppSpecificPasswordSource] : []),
+      ...(maybeAscApiKeySource ? [maybeAscApiKeySource] : []),
       appleIdUsername,
     ].filter(r => !r.ok);
     if (errored.length > 0) {
@@ -51,7 +74,16 @@ export default class IosSubmitCommand {
       appleIdUsername: appleIdUsername.enforceValue(),
       ascAppIdentifier: ascAppIdentifier.enforceValue(),
       archiveSource: archiveSource.enforceValue(),
-      appSpecificPasswordSource: appSpecificPasswordSource.enforceValue(),
+      ...(maybeAppSpecificPasswordSource
+        ? {
+            appSpecificPasswordSource: maybeAppSpecificPasswordSource.enforceValue(),
+          }
+        : null),
+      ...(maybeAscApiKeySource
+        ? {
+            ascApiKeySource: maybeAscApiKeySource.enforceValue(),
+          }
+        : null),
     };
   }
 
@@ -70,6 +102,36 @@ export default class IosSubmitCommand {
         sourceType: AppSpecificPasswordSourceType.prompt,
       });
     }
+  }
+
+  private resolveAscApiKeySource(): Result<AscApiKeySource> {
+    const envAscApiKeyPath = getenv.string('EXPO_ASC_API_KEY_PATH', '');
+    const envAscIssuerId = getenv.string('EXPO_ASC_API_KEY_ISSUER_ID', '');
+    const envAscKeyId = getenv.string('EXPO_ASC_API_KEY_ID', '');
+
+    if (envAscApiKeyPath && envAscIssuerId && envAscKeyId) {
+      return result({
+        sourceType: AscApiKeySourceType.path,
+        path: {
+          keyP8Path: envAscApiKeyPath,
+          issuerId: envAscIssuerId,
+          keyId: envAscKeyId,
+        },
+      });
+    }
+
+    // interpret this to mean the user had some intention of passing in ASC Api key
+    if (envAscApiKeyPath || envAscIssuerId || envAscKeyId) {
+      return result({
+        sourceType: AscApiKeySourceType.prompt,
+      });
+    }
+
+    return result(
+      new MissingCredentialsError(
+        'Set the EXPO_APPLE_APP_STORE_CONNECT_API_KEY_PATH environment variable.'
+      )
+    );
   }
 
   private resolveArchiveSource(): Result<ArchiveSource> {

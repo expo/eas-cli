@@ -100,6 +100,37 @@ export const distributionCertificateSchema: CredentialSchema<DistributionCertifi
   },
 };
 
+export type MinimalAscApiKey = {
+  keyP8: string;
+  keyId: string;
+  issuerId: string;
+  teamId?: string;
+  teamName?: string;
+  roles?: string[];
+};
+
+export interface AscApiKeyPath {
+  keyP8Path: string;
+  keyId: string;
+  issuerId: string;
+}
+
+export const ascApiKeyMetadataSchema: CredentialSchema<Omit<MinimalAscApiKey, 'keyP8'>> = {
+  name: 'App Store Connect API Key',
+  questions: [
+    {
+      field: 'keyId',
+      type: 'string',
+      question: 'Key ID:',
+    },
+    {
+      field: 'issuerId',
+      type: 'string',
+      question: 'Issuer ID:',
+    },
+  ],
+};
+
 export const pushKeySchema: CredentialSchema<PushKey> = {
   name: 'Apple Push Notifications service key',
   questions: [
