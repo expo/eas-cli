@@ -100,11 +100,15 @@ const EAS_JSON_MANAGED_DEFAULT: EasJson = {
     development: {
       developmentClient: true,
       distribution: 'internal',
+      channel: 'development',
     },
     preview: {
       distribution: 'internal',
+      channel: 'preview',
     },
-    production: {},
+    production: {
+      channel: 'production',
+    },
   },
   submit: {
     production: {},
@@ -115,6 +119,7 @@ const EAS_JSON_GENERIC_DEFAULT: EasJson = {
   build: {
     development: {
       distribution: 'internal',
+      channel: 'development',
       android: {
         gradleCommand: ':app:assembleDebug',
       },
@@ -124,8 +129,11 @@ const EAS_JSON_GENERIC_DEFAULT: EasJson = {
     },
     preview: {
       distribution: 'internal',
+      channel: 'preview',
     },
-    production: {},
+    production: {
+      channel: 'production',
+    },
   },
   submit: {
     production: {},
