@@ -3,7 +3,8 @@
   "private": true,
   "version": "0.31.0",
   "scripts": {
-    "release-changelog": "ts-node src/changelog.ts"
+    "changelog-entry": "ts-node src/changelogEntry.ts",
+    "release-changelog": "ts-node src/releaseChangelog.ts"
   },
   "author": "Expo <support@expo.dev>",
   "license": "MIT",
@@ -15,10 +16,17 @@
     "fs-extra": "10.0.0",
     "lodash": "4.17.21",
     "marked": "3.0.4",
-    "semver": "7.3.5"
+    "nullthrows": "1.1.1",
+    "semver": "7.3.5",
+    "tslib": "2.3.1"
   },
   "devDependencies": {
+    "@types/dateformat": "3.0.1",
+    "@types/fs-extra": "9.0.13",
     "@types/lodash": "4.14.175",
-    "ts-node": "10.2.1"
+    "@types/node": "16.7.8",
+    "@types/semver": "7.3.8",
+    "ts-node": "10.2.1",
+    "typescript": "4.4.2"
   }
 }
