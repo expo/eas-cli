@@ -79,6 +79,12 @@ interface BuildFlags {
   submitProfile?: string;
 }
 
+interface BuildProfileData {
+  profile: BuildProfile<Platform>;
+  platform: Platform;
+  profileName: string;
+}
+
 export default class Build extends EasCommand {
   static description = 'start a build';
 
@@ -168,7 +174,7 @@ export default class Build extends EasCommand {
 
     const startedBuilds: {
       build: BuildFragment;
-      buildProfile: { profile: BuildProfile<Platform>; platform: Platform; profileName: string };
+      buildProfile: BuildProfileData;
     }[] = [];
     const buildCtxByPlatform: { [p in AppPlatform]?: BuildContext<Platform> } = {};
 
@@ -289,7 +295,7 @@ export default class Build extends EasCommand {
     projectDir: string;
     flags: BuildFlags;
     moreBuilds: boolean;
-    buildProfile: { profile: BuildProfile<T>; platform: Platform; profileName: string };
+    buildProfile: BuildProfileData;
   }): Promise<{ build: BuildFragment | undefined; buildCtx: BuildContext<Platform> }> {
     const buildCtx = await createBuildContextAsync({
       buildProfileName: buildProfile.profileName,
