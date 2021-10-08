@@ -1,6 +1,5 @@
 import { ArchiveSource, Ios, Job, Platform, sanitizeJob } from '@expo/eas-build-job';
 import path from 'path';
-import semver from 'semver';
 import slash from 'slash';
 
 import { IosCredentials, TargetCredentials } from '../../credentials/ios/types';
