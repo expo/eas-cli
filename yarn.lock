@@ -903,12 +903,13 @@
     slugify "^1.3.4"
     sucrase "^3.20.0"
 
-"@expo/eas-build-job@0.2.48":
-  version "0.2.48"
-  resolved "https://registry.yarnpkg.com/@expo/eas-build-job/-/eas-build-job-0.2.48.tgz#ebc2abea02cb3f23be9714318bea04515980b03d"
-  integrity sha512-QWg44uXndNw3ZKrP+1FD2Li1VSQoSWn94iQ6j6lwMfVfFpp6DiiZ73HXf4Bxix52cl5DTmpaE7hxYyhxSvV0yA==
+"@expo/eas-build-job@0.2.52":
+  version "0.2.52"
+  resolved "https://registry.yarnpkg.com/@expo/eas-build-job/-/eas-build-job-0.2.52.tgz#889025a412c21e2c77a0c42d342916e2a2569a50"
+  integrity sha512-1bfOp/dMOf3zbnfJnES3y2z/+pAwNUIIaicnMURY2JLars+3gkQOKm26nk+FnTTE/8QykmIocls6RhlPqCNnUg==
   dependencies:
     joi "^17.4.2"
+    semver "^7.3.5"
 
 "@expo/image-utils@0.3.16":
   version "0.3.16"

@@ -6,6 +6,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🛠 Breaking changes
 
+- Don't resolve the iOS builder image on the client side. EAS Build will use the appropriate iOS image for a given Expo SDK version unless the `image` is defined. This only applies to managed projects. ([#675](https://github.com/expo/eas-cli/pull/675) by [@dsokal](https://github.com/dsokal))
+
 ### 🎉 New features
 
 - Integrate credentials service with Android submissions. ([#664](https://github.com/expo/eas-cli/pull/664) by [@quinlanj](https://github.com/quinlanj))
