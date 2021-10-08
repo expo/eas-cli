@@ -12,7 +12,7 @@ import {
   IosDistributionType,
 } from '../../../graphql/generated';
 import Log from '../../../log';
-import { confirmAsync, pressAnyKeyToContinueAsync } from '../../../prompts';
+import { confirmAsync, pressAnyKeyToContinueAsync, promptAsync } from '../../../prompts';
 import differenceBy from '../../../utils/expodash/differenceBy';
 import { CredentialsContext } from '../../context';
 import { MissingCredentialsNonInteractiveError } from '../../errors';
@@ -22,6 +22,12 @@ import { resolveAppleTeamIfAuthenticatedAsync } from './AppleTeamUtils';
 import { assignBuildCredentialsAsync, getBuildCredentialsAsync } from './BuildCredentialsUtils';
 import { chooseDevicesAsync, formatDeviceLabel } from './DeviceUtils';
 import { SetupDistributionCertificate } from './SetupDistributionCertificate';
+
+enum ReuseAction {
+  Yes,
+  ShowDevices,
+  No,
+}
 
 export class SetupAdhocProvisioningProfile {
   constructor(private app: AppLookupParams) {}
@@ -184,10 +190,23 @@ export class SetupAdhocProvisioningProfile {
     );
 
     if (allRegisteredDevicesAreProvisioned) {
-      return await confirmAsync({
-        message: `All your registered devices are present in the Provisioning Profile. Would you like to reuse it?`,
-        initial: true,
-      });
+      const reuseAction = await this.promptForReuseActionAsync();
+      if (reuseAction === ReuseAction.Yes) {
+        return true;
+      } else if (reuseAction === ReuseAction.No) {
+        return false;
+      } else {
+        Log.newLine();
+        Log.log('Devices registered in the Provisioning Profile:');
+        for (const device of provisionedDevices) {
+          Log.log(`- ${formatDeviceLabel(device)}`);
+        }
+        Log.newLine();
+        return (
+          (await this.promptForReuseActionAsync({ showShowDevicesOption: false })) ===
+          ReuseAction.Yes
+        );
+      }
     } else {
       const missingDevices = differenceBy(registeredAppleDevices, provisionedDevices, 'identifier');
       Log.warn(`The provisioning profile is missing the following devices:`);
@@ -199,6 +218,36 @@ export class SetupAdhocProvisioningProfile {
         initial: true,
       }));
     }
+  }
+
+  private async promptForReuseActionAsync({
+    showShowDevicesOption = true,
+  } = {}): Promise<ReuseAction> {
+    const { selected } = await promptAsync({
+      type: 'select',
+      name: 'selected',
+      message: `${
+        showShowDevicesOption
+          ? 'All your registered devices are present in the Provisioning Profile. '
+          : ''
+      }Would you like to reuse the profile?`,
+      choices: [
+        { title: 'Yes', value: ReuseAction.Yes },
+        ...(showShowDevicesOption
+          ? [
+              {
+                title: 'Show devices and ask me again',
+                value: ReuseAction.ShowDevices,
+              },
+            ]
+          : []),
+        {
+          title: 'No, let me choose devices again',
+          value: ReuseAction.No,
+        },
+      ],
+    });
+    return selected;
   }
 
   private async registerDevicesAsync(

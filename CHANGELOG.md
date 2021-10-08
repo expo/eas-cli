@@ -9,6 +9,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🎉 New features
 
 - Integrate credentials service with Android submissions. ([#664](https://github.com/expo/eas-cli/pull/664) by [@quinlanj](https://github.com/quinlanj))
+- Add option to review ad-hoc devices when reusing provisioning profile. ([#673](https://github.com/expo/eas-cli/pull/673) by [@dsokal](https://github.com/dsokal))
 
 ### 🐛 Bug fixes
 
