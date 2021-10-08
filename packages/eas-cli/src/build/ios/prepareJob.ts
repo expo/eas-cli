@@ -1,6 +1,5 @@
 import { ArchiveSource, Ios, Job, Platform, sanitizeJob } from '@expo/eas-build-job';
 import path from 'path';
-import semver from 'semver';
 import slash from 'slash';
 
 import { IosCredentials, TargetCredentials } from '../../credentials/ios/types';
@@ -43,7 +42,7 @@ export async function prepareJobAsync(
     projectRootDirectory,
     distribution: ctx.buildProfile.simulator ? 'simulator' : ctx.buildProfile.distribution,
     builderEnvironment: {
-      image: resolveImage(ctx),
+      image: ctx.buildProfile.image,
       node: ctx.buildProfile.node,
       yarn: ctx.buildProfile.yarn,
       bundler: ctx.buildProfile.bundler,
@@ -73,17 +72,6 @@ export async function prepareJobAsync(
     username,
   };
   return sanitizeJob(job);
-}
-
-function resolveImage(ctx: BuildContext<Platform.IOS>): Ios.BuilderEnvironment['image'] {
-  // see https://linear.app/expo/issue/ENG-1396/make-default-image-dependent-on-sdk-version
-  if (!ctx.buildProfile.image && ctx.exp.sdkVersion) {
-    const majorSdkVersion = semver.major(ctx.exp.sdkVersion);
-    if (majorSdkVersion <= 41) {
-      return 'macos-catalina-10.15-xcode-12.4';
-    }
-  }
-  return ctx.buildProfile.image ?? 'default';
 }
 
 function prepareTargetCredentials(targetCredentials: TargetCredentials): Ios.TargetCredentials {

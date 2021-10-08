@@ -10,7 +10,6 @@
     "outDir": "build",
     "rootDir": "src",
     "typeRoots": [
-      "../node_modules/@types",
       "../ts-declarations",
       "./node_modules/@types"
     ]
