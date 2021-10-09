@@ -105,23 +105,22 @@ export default class IosSubmitCommand {
   }
 
   private resolveAscApiKeySource(): Result<AscApiKeySource> {
-    const envAscApiKeyPath = getenv.string('EXPO_ASC_API_KEY_PATH', '');
-    const envAscIssuerId = getenv.string('EXPO_ASC_API_KEY_ISSUER_ID', '');
-    const envAscKeyId = getenv.string('EXPO_ASC_API_KEY_ID', '');
+    const { ascApiKeyPath, ascApiKeyIssuerId, ascApiKeyId } = this.ctx.profile;
 
-    if (envAscApiKeyPath && envAscIssuerId && envAscKeyId) {
+    if (ascApiKeyPath && ascApiKeyIssuerId && ascApiKeyId) {
       return result({
         sourceType: AscApiKeySourceType.path,
         path: {
-          keyP8Path: envAscApiKeyPath,
-          issuerId: envAscIssuerId,
-          keyId: envAscKeyId,
+          keyP8Path: ascApiKeyPath,
+          issuerId: ascApiKeyIssuerId,
+          keyId: ascApiKeyId,
         },
       });
     }
 
     // interpret this to mean the user had some intention of passing in ASC Api key
-    if (envAscApiKeyPath || envAscIssuerId || envAscKeyId) {
+    if (ascApiKeyPath || ascApiKeyIssuerId || ascApiKeyId) {
+      Log.warn(`ascApiKeyPath, ascApiKeyIssuerId and ascApiKeyId must all be defined in eas.json`)
       return result({
         sourceType: AscApiKeySourceType.prompt,
       });
@@ -129,7 +128,7 @@ export default class IosSubmitCommand {
 
     return result(
       new MissingCredentialsError(
-        'Set the EXPO_APPLE_APP_STORE_CONNECT_API_KEY_PATH environment variable.'
+        'Set the ascApiKeyPath, ascApiKeyIssuerId and ascApiKeyId fields in eas.json'
       )
     );
   }
