@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Fix printing App Store Connect URL after submission ([#683](https://github.com/expo/eas-cli/pull/683) by [@brentvatne](https://github.com/brentvatne))
+
 ### 🧹 Chores
 
 ## [0.31.1](https://github.com/expo/eas-cli/releases/tag/0.31.1) - 2021-10-08
