@@ -61,6 +61,7 @@ export default class IosSubmitCommand {
       archiveSource,
       ...(maybeAppSpecificPasswordSource ? [maybeAppSpecificPasswordSource] : []),
       ...(maybeAscApiKeySource ? [maybeAscApiKeySource] : []),
+      ascAppIdentifier,
       appleIdUsername,
     ].filter(r => !r.ok);
     if (errored.length > 0) {

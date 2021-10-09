@@ -4,6 +4,7 @@ import { promptForAscApiKeyAsync } from '../../credentials/ios/actions/AscApiKey
 import { AscApiKeyPath, MinimalAscApiKey } from '../../credentials/ios/credentials';
 import Log from '../../log';
 import { isExistingFileAsync } from '../utils/files';
+
 export enum AscApiKeySourceType {
   path,
   prompt,
@@ -34,6 +35,7 @@ export type AscApiKeyResult = {
   result: MinimalAscApiKey;
   summary: AscApiKeySummary;
 };
+
 export async function getAscApiKeyLocallyAsync(source: AscApiKeySource): Promise<AscApiKeyResult> {
   const ascApiKeyPath = await getAscApiKeyPathAsync(source);
   const { keyP8Path, keyId, issuerId } = ascApiKeyPath;
