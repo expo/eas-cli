@@ -90,6 +90,9 @@ export const AndroidSubmitProfileSchema = Joi.object({
 });
 
 export const IosSubmitProfileSchema = Joi.object({
+  ascApiKeyPath: Joi.string(),
+  ascApiKeyId: Joi.string(),
+  ascApiKeyIssuerId: Joi.string(),
   appleId: Joi.string(),
   ascAppId: Joi.string(),
   appleTeamId: Joi.string(),
