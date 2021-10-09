@@ -2,7 +2,7 @@ import { Platform } from '@expo/eas-build-job';
 import chalk from 'chalk';
 
 import { AppPlatform, SubmissionFragment, SubmissionStatus } from '../graphql/generated';
-import Log, { learnMore } from '../log';
+import Log, { learnMore, link } from '../log';
 import { appPlatformDisplayNames, appPlatformEmojis } from '../platform';
 import AndroidSubmitCommand from './android/AndroidSubmitCommand';
 import { SubmissionContext } from './context';
@@ -66,9 +66,8 @@ function printInstructionsForIosSubmission(submission: SubmissionFragment): void
       '- It usually takes about 5-10 minutes depending on how busy Apple servers are.',
       // ascAppIdentifier should be always available for ios submissions but check it anyway
       submission.iosConfig?.ascAppIdentifier &&
-        `- When it’s done, you can see your build here: ${learnMore(
-          `https://appstoreconnect.apple.com/apps/${submission.iosConfig?.ascAppIdentifier}/appstore/ios`,
-          { learnMoreMessage: '' }
+        `- When it’s done, you can see your build here: ${link(
+          `https://appstoreconnect.apple.com/apps/${submission.iosConfig?.ascAppIdentifier}/appstore/ios`
         )}`,
     ].join('\n');
     Log.addNewLineIfNone();
