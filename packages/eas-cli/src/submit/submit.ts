@@ -2,7 +2,7 @@ import { Platform } from '@expo/eas-build-job';
 import chalk from 'chalk';
 
 import { AppPlatform, SubmissionFragment, SubmissionStatus } from '../graphql/generated';
-import Log, { learnMore, link } from '../log';
+import Log, { link } from '../log';
 import { appPlatformDisplayNames, appPlatformEmojis } from '../platform';
 import AndroidSubmitCommand from './android/AndroidSubmitCommand';
 import { SubmissionContext } from './context';
