@@ -91,7 +91,7 @@ export default class Log {
 }
 
 /**
- * Prints a link with a m and links to it if supported.
+ * Prints a link for given URL, using text if provided, otherwise text is just the URL.
  * Format links as dim (unless disabled) and with an underline.
  *
  * @example https://expo.dev
