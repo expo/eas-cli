@@ -350,13 +350,16 @@ export type Offer = {
   trialLength?: Maybe<Scalars['Int']>;
   type: OfferType;
   features?: Maybe<Array<Maybe<Feature>>>;
+  prerequisite?: Maybe<OfferPrerequisite>;
 };
 
 export enum OfferType {
   /** Term subscription */
   Subscription = 'SUBSCRIPTION',
   /** Advanced Purchase of Paid Resource */
-  Prepaid = 'PREPAID'
+  Prepaid = 'PREPAID',
+  /** Addon, or supplementary subscription */
+  Addon = 'ADDON'
 }
 
 export enum Feature {
@@ -369,6 +372,12 @@ export enum Feature {
   /** Funds support for open source development */
   OpenSource = 'OPEN_SOURCE'
 }
+
+export type OfferPrerequisite = {
+  __typename?: 'OfferPrerequisite';
+  type: Scalars['String'];
+  stripeIds: Array<Scalars['String']>;
+};
 
 export type Snack = Project & {
   __typename?: 'Snack';
@@ -1379,6 +1388,7 @@ export type UserPermission = {
 
 export type Billing = {
   __typename?: 'Billing';
+  id: Scalars['ID'];
   payment?: Maybe<PaymentDetails>;
   subscription?: Maybe<SubscriptionDetails>;
   /** History of invoices */
@@ -1413,6 +1423,8 @@ export type Address = {
 export type SubscriptionDetails = {
   __typename?: 'SubscriptionDetails';
   id: Scalars['ID'];
+  planId?: Maybe<Scalars['String']>;
+  addons: Array<AddonDetails>;
   name?: Maybe<Scalars['String']>;
   nextInvoice?: Maybe<Scalars['DateTime']>;
   cancelledAt?: Maybe<Scalars['DateTime']>;
@@ -1420,6 +1432,13 @@ export type SubscriptionDetails = {
   endedAt?: Maybe<Scalars['DateTime']>;
   trialEnd?: Maybe<Scalars['DateTime']>;
   status?: Maybe<Scalars['String']>;
+};
+
+export type AddonDetails = {
+  __typename?: 'AddonDetails';
+  id: Scalars['ID'];
+  planId: Scalars['String'];
+  name: Scalars['String'];
 };
 
 export type Charge = {
@@ -2956,9 +2975,16 @@ export type CreateIosSubmissionInput = {
 export type IosSubmissionConfigInput = {
   appleAppSpecificPasswordId?: Maybe<Scalars['String']>;
   appleAppSpecificPassword?: Maybe<Scalars['String']>;
+  ascApiKey?: Maybe<AscApiKeyInput>;
   archiveUrl?: Maybe<Scalars['String']>;
   appleIdUsername: Scalars['String'];
   ascAppIdentifier: Scalars['String'];
+};
+
+export type AscApiKeyInput = {
+  keyP8: Scalars['String'];
+  keyIdentifier: Scalars['String'];
+  issuerIdentifier: Scalars['String'];
 };
 
 export type CreateAndroidSubmissionInput = {
