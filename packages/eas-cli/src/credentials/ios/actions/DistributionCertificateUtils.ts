@@ -61,7 +61,7 @@ export function formatDistributionCertificate(
   return line;
 }
 
-async function _selectDistributionCertificateAsync(
+async function selectDistributionCertificateAsync(
   distCerts: AppleDistributionCertificateFragment[],
   validDistributionCertificates?: AppleDistributionCertificateFragment[]
 ): Promise<AppleDistributionCertificateFragment | null> {
@@ -93,7 +93,7 @@ export async function selectDistributionCertificateWithDependenciesAsync(
     return null;
   }
   if (!ctx.appStore.authCtx) {
-    return _selectDistributionCertificateAsync(distCertsForAccount);
+    return selectDistributionCertificateAsync(distCertsForAccount);
   }
 
   // get valid certs on the developer portal
@@ -103,7 +103,7 @@ export async function selectDistributionCertificateWithDependenciesAsync(
     certInfoFromApple
   );
 
-  return _selectDistributionCertificateAsync(distCertsForAccount, validDistCerts);
+  return selectDistributionCertificateAsync(distCertsForAccount, validDistCerts);
 }
 
 /**
@@ -121,7 +121,7 @@ export async function selectValidDistributionCertificateAsync(
     return null;
   }
   if (!ctx.appStore.authCtx) {
-    return _selectDistributionCertificateAsync(distCertsForAccount);
+    return selectDistributionCertificateAsync(distCertsForAccount);
   }
 
   // filter by apple team
@@ -140,7 +140,7 @@ export async function selectValidDistributionCertificateAsync(
   Log.log(
     `${validDistCerts.length}/${distCertsForAccount.length} Distribution Certificates are currently valid for Apple Team ${ctx.appStore.authCtx?.team.id}.`
   );
-  return _selectDistributionCertificateAsync(validDistCerts);
+  return selectDistributionCertificateAsync(validDistCerts);
 }
 
 const APPLE_DIST_CERTS_TOO_MANY_GENERATED_ERROR = `
