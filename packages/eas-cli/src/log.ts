@@ -100,14 +100,13 @@ export function link(
   url: string,
   { text = url, dim = true }: { text?: string; dim?: boolean } = {}
 ): string {
-  let output: string | undefined;
+  let output: string;
   // Links can be disabled via env variables https://github.com/jamestalmage/supports-hyperlinks/blob/master/index.js
   if (terminalLink.isSupported) {
     output = terminalLink(text, url);
   } else {
     output = `${text === url ? '' : text + ': '}${chalk.underline(url)}`;
   }
-
   return dim ? chalk.dim(output) : output;
 }
 
