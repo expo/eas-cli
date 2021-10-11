@@ -19,7 +19,7 @@ export class CredentialsContext {
   public readonly user: Actor;
 
   private shouldAskAuthenticateAppStore: boolean = true;
-  private _exp?: ExpoConfig;
+  private resolvedExp?: ExpoConfig;
 
   constructor(
     private options: {
@@ -33,10 +33,10 @@ export class CredentialsContext {
     this.user = options.user;
     this.nonInteractive = options.nonInteractive ?? false;
 
-    this._exp = options.exp;
-    if (!this._exp) {
+    this.resolvedExp = options.exp;
+    if (!this.resolvedExp) {
       try {
-        this._exp = getExpoConfig(options.projectDir);
+        this.resolvedExp = getExpoConfig(options.projectDir);
       } catch (error) {
         // ignore error, context might be created outside of expo project
       }
@@ -44,12 +44,12 @@ export class CredentialsContext {
   }
 
   get hasProjectContext(): boolean {
-    return !!this._exp;
+    return !!this.resolvedExp;
   }
 
   get exp(): ExpoConfig {
     this.ensureProjectContext();
-    return this._exp!;
+    return this.resolvedExp!;
   }
 
   public ensureProjectContext(): void {
