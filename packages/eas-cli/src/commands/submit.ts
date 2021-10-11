@@ -7,7 +7,7 @@ import chalk from 'chalk';
 import EasCommand from '../commandUtils/EasCommand';
 import { SubmissionFragment } from '../graphql/generated';
 import { toAppPlatform } from '../graphql/types/AppPlatform';
-import Log, { learnMore } from '../log';
+import Log, { link } from '../log';
 import {
   RequestedPlatform,
   appPlatformDisplayNames,
@@ -44,9 +44,7 @@ interface Flags {
 
 export default class Submit extends EasCommand {
   static description = `submit build archive to app store
-See how to configure submits with eas.json: ${learnMore('https://docs.expo.dev/submit/eas-json/', {
-    learnMoreMessage: '',
-  })}`;
+See how to configure submits with eas.json: ${link('https://docs.expo.dev/submit/eas-json/')}`;
   static aliases = ['build:submit'];
 
   static flags = {
