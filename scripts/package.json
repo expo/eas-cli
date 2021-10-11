@@ -1,6 +1,7 @@
 {
   "name": "scripts",
   "private": true,
+  "type": "module",
   "version": "0.31.0",
   "scripts": {
     "changelog-entry": "ts-node src/changelogEntry.ts",

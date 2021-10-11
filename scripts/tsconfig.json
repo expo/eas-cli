@@ -2,13 +2,15 @@
   "compilerOptions": {
     "declaration": true,
     "importHelpers": true,
-    "module": "commonjs",
-    "esModuleInterop": true,
+    "module": "ES2020",
     "noImplicitReturns": true,
     "strict": true,
     "target": "ES2019",
     "outDir": "build",
     "rootDir": "src",
+    "moduleResolution": "node",
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true,
     "typeRoots": [
       "../ts-declarations",
       "./node_modules/@types"

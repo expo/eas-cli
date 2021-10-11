@@ -1,5 +1,6 @@
 {
   "name": "eas-cli",
+  "type": "module",
   "description": "EAS command line tool",
   "version": "0.31.1",
   "author": "Expo <support@expo.dev>",
@@ -113,7 +114,6 @@
     "cli"
   ],
   "license": "MIT",
-  "main": "build/index.js",
   "oclif": {
     "bin": "eas",
     "commands": "./build/commands",
