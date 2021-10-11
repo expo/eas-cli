@@ -129,7 +129,7 @@ export default class IosSubmitCommand {
 
     return result(
       new MissingCredentialsError(
-        'Set the ascApiKeyPath, ascApiKeyIssuerId and ascApiKeyId fields in eas.json'
+        'Set the ascApiKeyPath, ascApiKeyIssuerId and ascApiKeyId fields in eas.json.'
       )
     );
   }
