@@ -10,7 +10,8 @@
     "eas": "packages/eas-cli/bin/run",
     "lint": "eslint . --ext .ts --ext .js",
     "release": "lerna version",
-    "test": "jest"
+    "test": "jest",
+    "clean": "lerna run clean"
   },
   "devDependencies": {
     "@expo/oclif-dev-cli": "1.24.0-expo",
