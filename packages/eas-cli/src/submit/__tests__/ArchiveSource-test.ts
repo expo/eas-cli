@@ -32,6 +32,7 @@ const MOCK_BUILD_FRAGMENT: Partial<BuildFragment> = {
   },
   appVersion: '1.2.3',
   platform: AppPlatform.Android,
+  updatedAt: Date.now(),
 };
 
 const SOURCE_STUB_INPUT = {
@@ -140,7 +141,7 @@ describe(getArchiveAsync, () => {
 
   it('handles latest build source', async () => {
     const projectId = uuidv4();
-    asMock(getRecentBuildsForSubmissionAsync).mockResolvedValueOnce(MOCK_BUILD_FRAGMENT);
+    asMock(getRecentBuildsForSubmissionAsync).mockResolvedValueOnce([MOCK_BUILD_FRAGMENT]);
 
     const archive = await getArchiveAsync({
       ...SOURCE_STUB_INPUT,
@@ -156,7 +157,7 @@ describe(getArchiveAsync, () => {
   });
 
   it('prompts again if no builds exists when selected latest', async () => {
-    asMock(getRecentBuildsForSubmissionAsync).mockResolvedValueOnce(null);
+    asMock(getRecentBuildsForSubmissionAsync).mockResolvedValueOnce([]);
     asMock(promptAsync)
       .mockResolvedValueOnce({ sourceType: ArchiveSourceType.url })
       .mockResolvedValueOnce({ url: ARCHIVE_URL });
@@ -164,6 +165,59 @@ describe(getArchiveAsync, () => {
     const archive = await getArchiveAsync({
       ...SOURCE_STUB_INPUT,
       sourceType: ArchiveSourceType.latest,
+    });
+
+    assertArchiveResult(archive, ArchiveSourceType.url);
+  });
+
+  it('handles build-list-select source', async () => {
+    const projectId = uuidv4();
+    asMock(getRecentBuildsForSubmissionAsync).mockResolvedValueOnce([MOCK_BUILD_FRAGMENT]);
+    asMock(promptAsync).mockResolvedValueOnce({ selectedBuild: MOCK_BUILD_FRAGMENT });
+
+    const archive = await getArchiveAsync({
+      ...SOURCE_STUB_INPUT,
+      projectId,
+      sourceType: ArchiveSourceType.buildList,
+    });
+
+    expect(getRecentBuildsForSubmissionAsync).toBeCalledWith(
+      toAppPlatform(SOURCE_STUB_INPUT.platform),
+      projectId,
+      { limit: 4 }
+    );
+    assertArchiveResult(archive, ArchiveSourceType.buildList);
+  });
+
+  it('prompts again if all builds have expired', async () => {
+    asMock(getRecentBuildsForSubmissionAsync).mockResolvedValueOnce([
+      {
+        ...MOCK_BUILD_FRAGMENT,
+        updatedAt: new Date(Date.now() - 31 * 24 * 3600 * 1000),
+      },
+    ]);
+    asMock(promptAsync)
+      .mockResolvedValueOnce({ sourceType: ArchiveSourceType.url })
+      .mockResolvedValueOnce({ url: ARCHIVE_URL });
+
+    const archive = await getArchiveAsync({
+      ...SOURCE_STUB_INPUT,
+      sourceType: ArchiveSourceType.buildList,
+    });
+
+    assertArchiveResult(archive, ArchiveSourceType.url);
+  });
+
+  it('falls back to prompt if user selected "None of the above"', async () => {
+    asMock(getRecentBuildsForSubmissionAsync).mockResolvedValueOnce([MOCK_BUILD_FRAGMENT]);
+    asMock(promptAsync)
+      .mockResolvedValueOnce({ selectedBuild: null })
+      .mockResolvedValueOnce({ sourceType: ArchiveSourceType.url })
+      .mockResolvedValueOnce({ url: ARCHIVE_URL });
+
+    const archive = await getArchiveAsync({
+      ...SOURCE_STUB_INPUT,
+      sourceType: ArchiveSourceType.buildList,
     });
 
     assertArchiveResult(archive, ArchiveSourceType.url);

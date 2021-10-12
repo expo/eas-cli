@@ -215,7 +215,7 @@ async function handleBuildListSourceAsync(source: ArchiveBuildListSource): Promi
     expiryDate.setDate(nowDate.getDate() - 30);
 
     const recentBuilds = await getRecentBuildsForSubmissionAsync(appPlatform, source.projectId, {
-      limit: 5,
+      limit: 4,
     });
 
     if (recentBuilds.length < 1) {

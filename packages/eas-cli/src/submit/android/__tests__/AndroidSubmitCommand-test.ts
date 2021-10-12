@@ -137,7 +137,7 @@ describe(AndroidSubmitCommand, () => {
 
     it('assigns the build ID to submission', async () => {
       const projectId = uuidv4();
-      asMock(getRecentBuildsForSubmissionAsync).mockResolvedValueOnce(fakeBuildFragment);
+      asMock(getRecentBuildsForSubmissionAsync).mockResolvedValueOnce([fakeBuildFragment]);
 
       const ctx = await createSubmissionContextAsync({
         platform: Platform.ANDROID,
