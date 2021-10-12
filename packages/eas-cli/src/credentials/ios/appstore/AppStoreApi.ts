@@ -1,4 +1,5 @@
 import {
+  AscApiKey,
   DistributionCertificate,
   DistributionCertificateStoreInfo,
   ProvisioningProfile,
@@ -6,6 +7,7 @@ import {
   PushKey,
   PushKeyStoreInfo,
 } from './Credentials.types';
+import { createAscApiKeyAsync } from './ascApiKey';
 import { AuthCtx, Options as AuthenticateOptions, authenticateAsync } from './authenticate';
 import {
   createDistributionCertificateAsync,
@@ -135,5 +137,10 @@ export default class AppStoreApi {
       bundleIdentifier,
       distCertSerialNumber
     );
+  }
+
+  public async createAscApiKeyAsync({ name }: { name: string }): Promise<AscApiKey> {
+    const ctx = await this.ensureAuthenticatedAsync();
+    return await createAscApiKeyAsync(ctx, { name });
   }
 }

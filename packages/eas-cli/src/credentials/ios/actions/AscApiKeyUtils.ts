@@ -5,7 +5,8 @@ import path from 'path';
 import Log, { learnMore } from '../../../log';
 import { promptAsync } from '../../../prompts';
 import { getCredentialsFromUserAsync } from '../../utils/promptForCredentials';
-import { AscApiKeyPath, ascApiKeyMetadataSchema } from '../credentials';
+import { AscApiKey } from '../appstore/Credentials.types';
+import { AscApiKeyPath, MinimalAscApiKey, ascApiKeyMetadataSchema } from '../credentials';
 
 export async function promptForAscApiKeyAsync(): Promise<AscApiKeyPath> {
   Log.log(
@@ -41,4 +42,29 @@ export async function promptForAscApiKeyAsync(): Promise<AscApiKeyPath> {
     keyId: bestEffortKeyId,
   });
   return { ...ascApiKeyMetadata, keyP8Path };
+}
+
+export async function promptForIssuerIdAsync(): Promise<string> {
+  Log.log(
+    `${chalk.bold('An App Store Connect Issuer ID is required')}.\n` +
+      `If you're not sure what this is or how to find yours, ${learnMore(
+        'https://expo.fyi/asc-issuer-id'
+      )}`
+  );
+
+  const { issuerId } = await promptAsync({
+    type: 'text',
+    name: 'issuerId',
+    message: 'App Store Connect Issuer ID:',
+    validate: (input: string) => input !== '',
+  });
+
+  return issuerId;
+}
+
+export async function getMinimalAscApiKeyAsync(ascApiKey: AscApiKey): Promise<MinimalAscApiKey> {
+  return {
+    ...ascApiKey,
+    issuerId: ascApiKey.issuerId ?? (await promptForIssuerIdAsync()),
+  };
 }

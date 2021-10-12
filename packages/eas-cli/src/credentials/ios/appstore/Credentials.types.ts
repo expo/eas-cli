@@ -1,3 +1,5 @@
+import { UserRole } from 'connect/models/User';
+
 export interface Device {
   id: string;
   teamId: string;
@@ -66,3 +68,16 @@ export interface PushKey {
   teamId: string;
   teamName?: string;
 }
+
+export type AscApiKeyInfo = {
+  keyId: string;
+  issuerId?: string;
+  teamId: string;
+  name: string;
+  teamName?: string;
+  roles: UserRole[];
+};
+
+export type AscApiKey = AscApiKeyInfo & {
+  keyP8: string;
+};
