@@ -289,7 +289,8 @@ function formatBuildChoice(build: BuildFragment, expiryDate: Date): prompts.Choi
     releaseChannel,
   } = build;
 
-  const formatValue = (field?: string | null) => (field ? chalk.bold(field) : chalk.dim('Unknown'));
+  const formatValue = (field?: string | null): string =>
+    field ? chalk.bold(field) : chalk.dim('Unknown');
 
   const buildDate = new Date(updatedAt);
   const maybeRuntimeVersion = runtimeVersion ? `Runtime: ${formatValue(runtimeVersion)}` : null;
