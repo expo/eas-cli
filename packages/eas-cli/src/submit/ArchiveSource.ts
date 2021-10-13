@@ -13,6 +13,8 @@ import { confirmAsync, promptAsync } from '../prompts';
 import { getRecentBuildsForSubmissionAsync } from './utils/builds';
 import { isExistingFileAsync, uploadAppArchiveAsync } from './utils/files';
 
+export const BUILD_LIST_ITEM_COUNT = 4;
+
 export enum ArchiveSourceType {
   url,
   latest,
@@ -210,12 +212,11 @@ async function handleBuildIdSourceAsync(source: ArchiveBuildIdSource): Promise<A
 async function handleBuildListSourceAsync(source: ArchiveBuildListSource): Promise<Archive> {
   try {
     const appPlatform = toAppPlatform(source.platform);
-    const nowDate = new Date();
     const expiryDate = new Date(); // artifacts expire after 30 days
-    expiryDate.setDate(nowDate.getDate() - 30);
+    expiryDate.setDate(expiryDate.getDate() - 30);
 
     const recentBuilds = await getRecentBuildsForSubmissionAsync(appPlatform, source.projectId, {
-      limit: 4,
+      limit: BUILD_LIST_ITEM_COUNT,
     });
 
     if (recentBuilds.length < 1) {
@@ -235,7 +236,7 @@ async function handleBuildListSourceAsync(source: ArchiveBuildListSource): Promi
       Log.error(
         chalk.bold(
           'It looks like all of your build artifacts have expired. ' +
-            'Build artifacts are kept on EAS for 30 days before they expire.'
+            'EAS keeps your build artifacts only for 30 days.'
         )
       );
       return getArchiveAsync({
@@ -325,7 +326,7 @@ async function handlePromptSourceAsync(source: ArchivePromptSource): Promise<Arc
     message: 'What would you like to submit?',
     choices: [
       {
-        title: 'A selected build from EAS',
+        title: 'Selected build from EAS',
         value: ArchiveSourceType.buildList,
       },
       { title: 'I have a url to the app archive', value: ArchiveSourceType.url },

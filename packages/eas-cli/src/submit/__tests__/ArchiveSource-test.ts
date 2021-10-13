@@ -9,7 +9,12 @@ import { BuildQuery } from '../../graphql/queries/BuildQuery';
 import { toAppPlatform } from '../../graphql/types/AppPlatform';
 import { confirmAsync, promptAsync } from '../../prompts';
 import { uploadAsync } from '../../uploads';
-import { Archive, ArchiveSourceType, getArchiveAsync } from '../ArchiveSource';
+import {
+  Archive,
+  ArchiveSourceType,
+  BUILD_LIST_ITEM_COUNT,
+  getArchiveAsync,
+} from '../ArchiveSource';
 import { getRecentBuildsForSubmissionAsync } from '../utils/builds';
 
 jest.mock('fs');
@@ -184,7 +189,7 @@ describe(getArchiveAsync, () => {
     expect(getRecentBuildsForSubmissionAsync).toBeCalledWith(
       toAppPlatform(SOURCE_STUB_INPUT.platform),
       projectId,
-      { limit: 4 }
+      { limit: BUILD_LIST_ITEM_COUNT }
     );
     assertArchiveResult(archive, ArchiveSourceType.buildList);
   });
