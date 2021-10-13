@@ -26,6 +26,9 @@ export const AndroidSubmitProfileFieldsToEvaluate: (keyof AndroidSubmitProfile)[
 ];
 
 export interface IosSubmitProfile {
+  ascApiKeyPath?: string;
+  ascApiKeyIssuerId?: string;
+  ascApiKeyId?: string;
   appleId?: string;
   ascAppId?: string;
   appleTeamId?: string;
@@ -35,7 +38,11 @@ export interface IosSubmitProfile {
   appName?: string;
 }
 
-export const IosSubmitProfileFieldsToEvaluate: (keyof IosSubmitProfile)[] = [];
+export const IosSubmitProfileFieldsToEvaluate: (keyof IosSubmitProfile)[] = [
+  'ascApiKeyPath',
+  'ascApiKeyIssuerId',
+  'ascApiKeyId',
+];
 
 export type SubmitProfile<TPlatform extends Platform = Platform> =
   TPlatform extends Platform.ANDROID

@@ -22,10 +22,23 @@ This is the log of notable changes to EAS CLI and related packages.
     }
   }
   ```
+- Add App Store Connect Api Key support to iOS submissions. ([#678](https://github.com/expo/eas-cli/pull/678) by [@quinlanj](https://github.com/quinlanj))
+
 
 ### 🐛 Bug fixes
 
+- Fix printing App Store Connect URL after submission. ([#683](https://github.com/expo/eas-cli/pull/683) by [@brentvatne](https://github.com/brentvatne))
+
 ### 🧹 Chores
+
+- Add App Store Connect Api Key fields to `eas.json`. ([#684](https://github.com/expo/eas-cli/pull/684) by [@quinlanj](https://github.com/quinlanj))
+- Enable no-underscore-dangle eslint rule. ([#686](https://github.com/expo/eas-cli/pull/686) by [@dsokal](https://github.com/dsokal))
+
+## [0.31.1](https://github.com/expo/eas-cli/releases/tag/0.31.1) - 2021-10-08
+
+### 🐛 Bug fixes
+
+- Google Service Account Keys: Fix non-interactive bug in credentials service workflow ([#682](https://github.com/expo/eas-cli/pull/682) by [@quinlanj](https://github.com/quinlanj))
 
 ## [0.31.0](https://github.com/expo/eas-cli/releases/tag/0.31.0) - 2021-10-08
 

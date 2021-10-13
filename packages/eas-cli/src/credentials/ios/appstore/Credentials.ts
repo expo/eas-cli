@@ -15,8 +15,8 @@ export function formatDistributionCertificate({
   created,
   ownerName,
 }: DistributionCertificateStoreInfo): string {
-  const expiresDate = _formatTimestamp(expires);
-  const createdDate = _formatTimestamp(created);
+  const expiresDate = formatTimestamp(expires);
+  const createdDate = formatTimestamp(created);
   return `${name} (${status}) - ID: ${id} - expires: ${expiresDate} (created: ${createdDate}) - owner: ${ownerName}`;
 }
 
@@ -48,6 +48,6 @@ export function isPushKey(obj: { [key: string]: any }): obj is PushKey {
   );
 }
 
-function _formatTimestamp(timestamp: number): string {
+function formatTimestamp(timestamp: number): string {
   return dateformat(new Date(timestamp * 1000));
 }

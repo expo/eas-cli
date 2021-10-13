@@ -34,6 +34,7 @@ module.exports = {
         ],
       },
     ],
+    'no-underscore-dangle': ['error', { allow: ['__typename'] }],
     '@typescript-eslint/explicit-function-return-type': [
       'warn',
       {

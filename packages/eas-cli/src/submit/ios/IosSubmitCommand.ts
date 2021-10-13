@@ -4,6 +4,7 @@ import chalk from 'chalk';
 import getenv from 'getenv';
 import wrapAnsi from 'wrap-ansi';
 
+import { MissingCredentialsError } from '../../credentials/errors';
 import { SubmissionFragment } from '../../graphql/generated';
 import Log, { learnMore } from '../../log';
 import { promptAsync } from '../../prompts';
@@ -16,6 +17,7 @@ import {
   AppSpecificPasswordSource,
   AppSpecificPasswordSourceType,
 } from './AppSpecificPasswordSource';
+import { AscApiKeySource, AscApiKeySourceType } from './AscApiKeySource';
 import IosSubmitter, { IosSubmissionOptions } from './IosSubmitter';
 
 export default class IosSubmitCommand {
@@ -28,15 +30,37 @@ export default class IosSubmitCommand {
     return await submitter.submitAsync();
   }
 
+  private async resolveCredentialSubmissionOptionsAsync(): Promise<
+    | { appSpecificPasswordSource: Result<AppSpecificPasswordSource> }
+    | { ascApiKeySource: Result<AscApiKeySource> }
+  > {
+    // Fall back to app specific password if no ascApiKey defined
+    const ascApiKeySource = this.resolveAscApiKeySource();
+    const shouldUseAppSpecificPassword =
+      !ascApiKeySource.ok && ascApiKeySource.enforceError() instanceof MissingCredentialsError;
+    if (shouldUseAppSpecificPassword) {
+      return { appSpecificPasswordSource: this.resolveAppSpecificPasswordSource() };
+    } else {
+      return { ascApiKeySource };
+    }
+  }
+
   private async resolveSubmissionOptionsAsync(): Promise<IosSubmissionOptions> {
     const archiveSource = this.resolveArchiveSource();
-    const appSpecificPasswordSource = this.resolveAppSpecificPasswordSource();
+    const credentialsSource = await this.resolveCredentialSubmissionOptionsAsync();
+    const maybeAppSpecificPasswordSource =
+      'appSpecificPasswordSource' in credentialsSource
+        ? credentialsSource.appSpecificPasswordSource
+        : null;
+    const maybeAscApiKeySource =
+      'ascApiKeySource' in credentialsSource ? credentialsSource.ascApiKeySource : null;
     const ascAppIdentifier = await this.resolveAscAppIdentifierAsync();
     const appleIdUsername = await this.resolveAppleIdUsernameAsync();
 
     const errored = [
       archiveSource,
-      appSpecificPasswordSource,
+      ...(maybeAppSpecificPasswordSource ? [maybeAppSpecificPasswordSource] : []),
+      ...(maybeAscApiKeySource ? [maybeAscApiKeySource] : []),
       ascAppIdentifier,
       appleIdUsername,
     ].filter(r => !r.ok);
@@ -51,7 +75,16 @@ export default class IosSubmitCommand {
       appleIdUsername: appleIdUsername.enforceValue(),
       ascAppIdentifier: ascAppIdentifier.enforceValue(),
       archiveSource: archiveSource.enforceValue(),
-      appSpecificPasswordSource: appSpecificPasswordSource.enforceValue(),
+      ...(maybeAppSpecificPasswordSource
+        ? {
+            appSpecificPasswordSource: maybeAppSpecificPasswordSource.enforceValue(),
+          }
+        : null),
+      ...(maybeAscApiKeySource
+        ? {
+            ascApiKeySource: maybeAscApiKeySource.enforceValue(),
+          }
+        : null),
     };
   }
 
@@ -70,6 +103,35 @@ export default class IosSubmitCommand {
         sourceType: AppSpecificPasswordSourceType.prompt,
       });
     }
+  }
+
+  private resolveAscApiKeySource(): Result<AscApiKeySource> {
+    const { ascApiKeyPath, ascApiKeyIssuerId, ascApiKeyId } = this.ctx.profile;
+
+    if (ascApiKeyPath && ascApiKeyIssuerId && ascApiKeyId) {
+      return result({
+        sourceType: AscApiKeySourceType.path,
+        path: {
+          keyP8Path: ascApiKeyPath,
+          issuerId: ascApiKeyIssuerId,
+          keyId: ascApiKeyId,
+        },
+      });
+    }
+
+    // interpret this to mean the user had some intention of passing in ASC Api key
+    if (ascApiKeyPath || ascApiKeyIssuerId || ascApiKeyId) {
+      Log.warn(`ascApiKeyPath, ascApiKeyIssuerId and ascApiKeyId must all be defined in eas.json`);
+      return result({
+        sourceType: AscApiKeySourceType.prompt,
+      });
+    }
+
+    return result(
+      new MissingCredentialsError(
+        'Set the ascApiKeyPath, ascApiKeyIssuerId and ascApiKeyId fields in eas.json.'
+      )
+    );
   }
 
   private resolveArchiveSource(): Result<ArchiveSource> {

@@ -1,7 +1,9 @@
 import { Platform } from '@expo/eas-build-job';
+import chalk from 'chalk';
 
 import { IosSubmissionConfigInput, SubmissionFragment } from '../../graphql/generated';
 import { SubmissionMutation } from '../../graphql/mutations/SubmissionMutation';
+import formatFields from '../../utils/formatFields';
 import { Archive, ArchiveSource, getArchiveAsync } from '../ArchiveSource';
 import BaseSubmitter, { SubmissionInput } from '../BaseSubmitter';
 import {
@@ -13,17 +15,20 @@ import {
   AppSpecificPasswordSource,
   getAppSpecificPasswordAsync,
 } from './AppSpecificPasswordSource';
+import { AscApiKeyResult, AscApiKeySource, getAscApiKeyLocallyAsync } from './AscApiKeySource';
 
 export interface IosSubmissionOptions
   extends Pick<IosSubmissionConfigInput, 'appleIdUsername' | 'ascAppIdentifier'> {
   projectId: string;
   archiveSource: ArchiveSource;
-  appSpecificPasswordSource: AppSpecificPasswordSource;
+  appSpecificPasswordSource?: AppSpecificPasswordSource;
+  ascApiKeySource?: AscApiKeySource;
 }
 
 interface ResolvedSourceOptions {
   archive: Archive;
-  appSpecificPassword: string;
+  appSpecificPassword?: string;
+  ascApiKeyResult?: AscApiKeyResult;
 }
 
 export default class IosSubmitter extends BaseSubmitter<Platform.IOS, IosSubmissionOptions> {
@@ -60,18 +65,22 @@ export default class IosSubmitter extends BaseSubmitter<Platform.IOS, IosSubmiss
 
   private async resolveSourceOptionsAsync(): Promise<ResolvedSourceOptions> {
     const archive = await getArchiveAsync(this.options.archiveSource);
-    const appSpecificPassword = await getAppSpecificPasswordAsync(
-      this.options.appSpecificPasswordSource
-    );
+    const maybeAppSpecificPassword = this.options.appSpecificPasswordSource
+      ? await getAppSpecificPasswordAsync(this.options.appSpecificPasswordSource)
+      : null;
+    const maybeAppStoreConnectApiKey = this.options.ascApiKeySource
+      ? await getAscApiKeyLocallyAsync(this.options.ascApiKeySource)
+      : null;
     return {
       archive,
-      appSpecificPassword,
+      ...(maybeAppSpecificPassword ? { appSpecificPassword: maybeAppSpecificPassword } : null),
+      ...(maybeAppStoreConnectApiKey ? { ascApiKeyResult: maybeAppStoreConnectApiKey } : null),
     };
   }
 
   private async formatSubmissionConfigAsync(
     options: IosSubmissionOptions,
-    { archive, appSpecificPassword }: ResolvedSourceOptions
+    { archive, appSpecificPassword, ascApiKeyResult }: ResolvedSourceOptions
   ): Promise<IosSubmissionConfigInput> {
     const { appleIdUsername, ascAppIdentifier } = options;
     return {
@@ -79,12 +88,21 @@ export default class IosSubmitter extends BaseSubmitter<Platform.IOS, IosSubmiss
       appleIdUsername,
       archiveUrl: archive.url,
       appleAppSpecificPassword: appSpecificPassword,
+      ...(ascApiKeyResult?.result
+        ? {
+            ascApiKey: {
+              keyP8: ascApiKeyResult?.result.keyP8,
+              keyIdentifier: ascApiKeyResult?.result.keyId,
+              issuerIdentifier: ascApiKeyResult?.result.issuerId,
+            },
+          }
+        : null),
     };
   }
 
   private prepareSummaryData(
     options: IosSubmissionOptions,
-    { archive }: ResolvedSourceOptions
+    { archive, ascApiKeyResult }: ResolvedSourceOptions
   ): SummaryData {
     const { appleIdUsername, ascAppIdentifier, projectId } = options;
 
@@ -93,6 +111,9 @@ export default class IosSubmitter extends BaseSubmitter<Platform.IOS, IosSubmiss
       ascAppIdentifier,
       appleIdUsername,
       projectId,
+      ...(ascApiKeyResult
+        ? { formattedAscApiKey: formatServiceAccountSummary(ascApiKeyResult) }
+        : null),
       ...formatArchiveSourceSummary(archive),
     };
   }
@@ -102,6 +123,7 @@ type SummaryData = {
   ascAppIdentifier: string;
   appleIdUsername: string;
   projectId: string;
+  formattedAscApiKey?: string;
 } & ArchiveSourceSummaryFields;
 
 const SummaryHumanReadableKeys: Record<keyof SummaryData, string> = {
@@ -111,4 +133,36 @@ const SummaryHumanReadableKeys: Record<keyof SummaryData, string> = {
   archiveUrl: 'Archive URL',
   archivePath: 'Archive Path',
   formattedBuild: 'Build',
+  formattedAscApiKey: 'App Store Connect Api Key',
 };
+
+function formatServiceAccountSummary({ summary }: AscApiKeyResult): string {
+  const { source, path, keyId } = summary;
+
+  const fields = [
+    {
+      label: 'Key Source',
+      value: source,
+    },
+    {
+      label: 'Key Path',
+      value: path,
+    },
+    {
+      label: 'Key ID',
+      value: keyId,
+    },
+  ];
+
+  const filteredFields = fields.filter(({ value }) => value !== undefined && value !== null) as {
+    label: string;
+    value: string;
+  }[];
+
+  return (
+    '\n' +
+    formatFields(filteredFields, {
+      labelFormat: label => `    ${chalk.dim(label)}:`,
+    })
+  );
+}
