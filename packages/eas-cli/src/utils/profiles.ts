@@ -10,8 +10,7 @@ export type ProfileData<T> = {
 
 export async function getDefaultProfilesAsync<T>({
   platforms,
-  profileName,
-
+  profileName: profileNameArg,
   // eslint-disable-next-line async-protect/async-suffix
   readProfileAsync,
 }: {
@@ -19,39 +18,35 @@ export async function getDefaultProfilesAsync<T>({
   profileName?: string | null;
   readProfileAsync: (platform: Platform, profileName: string) => Promise<T>;
 }): Promise<ProfileData<T>[]> {
-  return await Promise.all(
-    platforms.map(async function (platform) {
-      if (!profileName) {
+  const results = platforms.map(async function (platform) {
+    let profile;
+    let profileName = profileNameArg;
+
+    if (!profileName) {
+      try {
+        profile = await readProfileAsync(platform, 'production');
+        profileName = 'production';
+      } catch (error) {
         try {
-          const profile = await readProfileAsync(platform, 'production');
-          return {
-            profile,
-            profileName: 'production',
-            platform,
-          };
+          profile = await readProfileAsync(platform, 'release');
+          profileName = 'release';
+          Log.warn(
+            'The default profile changed to "production" from "release". We detected that you still have a "release" build profile, so we are using it. Update eas.json to have a profile named "production" under the `build` key, or specify which profile you\'d like to use with the --profile flag. This fallback behavior will be removed in the next major version of eas-cli.'
+          );
         } catch (error) {
-          try {
-            const profile = await readProfileAsync(platform, 'release');
-            Log.warn(
-              'The default profile changed to "production" from "release". We detected that you still have a "release" build profile, so we are using it. Update eas.json to have a profile named "production" under the `build` key, or specify which profile you\'d like to use with the --profile flag. This fallback behavior will be removed in the next major version of eas-cli.'
-            );
-            return {
-              profile,
-              profileName: 'release',
-              platform,
-            };
-          } catch (error) {
-            throw new Error('There is no profile named "production" in eas.json');
-          }
+          throw new Error('There is no profile named "production" in eas.json');
         }
-      } else {
-        const profile = await readProfileAsync(platform, profileName);
-        return {
-          profile,
-          profileName,
-          platform,
-        };
       }
-    })
-  );
+    } else {
+      profile = await readProfileAsync(platform, profileName);
+    }
+
+    return {
+      profile,
+      profileName,
+      platform,
+    };
+  });
+
+  return await Promise.all(results);
 }
