@@ -7,9 +7,9 @@ EAS command line tool
 [![Downloads/week](https://img.shields.io/npm/dw/eas-cli.svg)](https://npmjs.org/package/eas-cli)
 [![License](https://img.shields.io/npm/l/eas-cli.svg)](https://github.com/expo/eas-cli/blob/main/package.json)
 
-- [Installation](#installation)
-- [Usage](#usage)
-- [Commands](#commands)
+* [Installation](#installation)
+* [Usage](#usage)
+* [Commands](#commands)
 
 # Installation
 
@@ -33,34 +33,33 @@ eas --help COMMAND
 # Commands
 
 <!-- commands -->
-
-- [`eas account:login`](#eas-accountlogin)
-- [`eas account:logout`](#eas-accountlogout)
-- [`eas account:view`](#eas-accountview)
-- [`eas analytics [STATUS]`](#eas-analytics-status)
-- [`eas build`](#eas-build)
-- [`eas build:cancel [BUILD_ID]`](#eas-buildcancel-build_id)
-- [`eas build:configure`](#eas-buildconfigure)
-- [`eas build:list`](#eas-buildlist)
-- [`eas build:view [BUILD_ID]`](#eas-buildview-build_id)
-- [`eas config`](#eas-config)
-- [`eas credentials`](#eas-credentials)
-- [`eas device:create`](#eas-devicecreate)
-- [`eas device:list`](#eas-devicelist)
-- [`eas device:view [UDID]`](#eas-deviceview-udid)
-- [`eas diagnostics`](#eas-diagnostics)
-- [`eas help [COMMAND]`](#eas-help-command)
-- [`eas project:info`](#eas-projectinfo)
-- [`eas project:init`](#eas-projectinit)
-- [`eas secret:create`](#eas-secretcreate)
-- [`eas secret:delete`](#eas-secretdelete)
-- [`eas secret:list`](#eas-secretlist)
-- [`eas submit`](#eas-submit)
-- [`eas webhook:create`](#eas-webhookcreate)
-- [`eas webhook:delete [ID]`](#eas-webhookdelete-id)
-- [`eas webhook:list`](#eas-webhooklist)
-- [`eas webhook:update`](#eas-webhookupdate)
-- [`eas webhook:view ID`](#eas-webhookview-id)
+* [`eas account:login`](#eas-accountlogin)
+* [`eas account:logout`](#eas-accountlogout)
+* [`eas account:view`](#eas-accountview)
+* [`eas analytics [STATUS]`](#eas-analytics-status)
+* [`eas build`](#eas-build)
+* [`eas build:cancel [BUILD_ID]`](#eas-buildcancel-build_id)
+* [`eas build:configure`](#eas-buildconfigure)
+* [`eas build:list`](#eas-buildlist)
+* [`eas build:view [BUILD_ID]`](#eas-buildview-build_id)
+* [`eas config`](#eas-config)
+* [`eas credentials`](#eas-credentials)
+* [`eas device:create`](#eas-devicecreate)
+* [`eas device:list`](#eas-devicelist)
+* [`eas device:view [UDID]`](#eas-deviceview-udid)
+* [`eas diagnostics`](#eas-diagnostics)
+* [`eas help [COMMAND]`](#eas-help-command)
+* [`eas project:info`](#eas-projectinfo)
+* [`eas project:init`](#eas-projectinit)
+* [`eas secret:create`](#eas-secretcreate)
+* [`eas secret:delete`](#eas-secretdelete)
+* [`eas secret:list`](#eas-secretlist)
+* [`eas submit`](#eas-submit)
+* [`eas webhook:create`](#eas-webhookcreate)
+* [`eas webhook:delete [ID]`](#eas-webhookdelete-id)
+* [`eas webhook:list`](#eas-webhooklist)
+* [`eas webhook:update`](#eas-webhookupdate)
+* [`eas webhook:view ID`](#eas-webhookview-id)
 
 ## `eas account:login`
 
@@ -74,7 +73,7 @@ ALIASES
   $ eas login
 ```
 
-_See code: [src/commands/account/login.js](https://github.com/expo/eas-cli/blob/v0.31.0/packages/eas-cli/src/commands/account/login.js)_
+_See code: [src/commands/account/login.js](https://github.com/expo/eas-cli/blob/v0.31.1/packages/eas-cli/src/commands/account/login.js)_
 
 ## `eas account:logout`
 
@@ -88,7 +87,7 @@ ALIASES
   $ eas logout
 ```
 
-_See code: [src/commands/account/logout.js](https://github.com/expo/eas-cli/blob/v0.31.0/packages/eas-cli/src/commands/account/logout.js)_
+_See code: [src/commands/account/logout.js](https://github.com/expo/eas-cli/blob/v0.31.1/packages/eas-cli/src/commands/account/logout.js)_
 
 ## `eas account:view`
 
@@ -102,7 +101,7 @@ ALIASES
   $ eas whoami
 ```
 
-_See code: [src/commands/account/view.js](https://github.com/expo/eas-cli/blob/v0.31.0/packages/eas-cli/src/commands/account/view.js)_
+_See code: [src/commands/account/view.js](https://github.com/expo/eas-cli/blob/v0.31.1/packages/eas-cli/src/commands/account/view.js)_
 
 ## `eas analytics [STATUS]`
 
@@ -113,7 +112,7 @@ USAGE
   $ eas analytics [STATUS]
 ```
 
-_See code: [src/commands/analytics.js](https://github.com/expo/eas-cli/blob/v0.31.0/packages/eas-cli/src/commands/analytics.js)_
+_See code: [src/commands/analytics.js](https://github.com/expo/eas-cli/blob/v0.31.1/packages/eas-cli/src/commands/analytics.js)_
 
 ## `eas build`
 
@@ -146,7 +145,7 @@ OPTIONS
   --[no-]wait                              Wait for build(s) to complete
 ```
 
-_See code: [src/commands/build/index.js](https://github.com/expo/eas-cli/blob/v0.31.0/packages/eas-cli/src/commands/build/index.js)_
+_See code: [src/commands/build/index.js](https://github.com/expo/eas-cli/blob/v0.31.1/packages/eas-cli/src/commands/build/index.js)_
 
 ## `eas build:cancel [BUILD_ID]`
 
@@ -157,7 +156,7 @@ USAGE
   $ eas build:cancel [BUILD_ID]
 ```
 
-_See code: [src/commands/build/cancel.js](https://github.com/expo/eas-cli/blob/v0.31.0/packages/eas-cli/src/commands/build/cancel.js)_
+_See code: [src/commands/build/cancel.js](https://github.com/expo/eas-cli/blob/v0.31.1/packages/eas-cli/src/commands/build/cancel.js)_
 
 ## `eas build:configure`
 
@@ -171,7 +170,7 @@ OPTIONS
   -p, --platform=(android|ios|all)  Platform to configure
 ```
 
-_See code: [src/commands/build/configure.js](https://github.com/expo/eas-cli/blob/v0.31.0/packages/eas-cli/src/commands/build/configure.js)_
+_See code: [src/commands/build/configure.js](https://github.com/expo/eas-cli/blob/v0.31.1/packages/eas-cli/src/commands/build/configure.js)_
 
 ## `eas build:list`
 
@@ -204,7 +203,7 @@ OPTIONS
   --status=(new|in-queue|in-progress|errored|finished|canceled)
 ```
 
-_See code: [src/commands/build/list.js](https://github.com/expo/eas-cli/blob/v0.31.0/packages/eas-cli/src/commands/build/list.js)_
+_See code: [src/commands/build/list.js](https://github.com/expo/eas-cli/blob/v0.31.1/packages/eas-cli/src/commands/build/list.js)_
 
 ## `eas build:view [BUILD_ID]`
 
@@ -218,7 +217,7 @@ OPTIONS
   --json  Enable JSON output, non-JSON messages will be printed to stderr
 ```
 
-_See code: [src/commands/build/view.js](https://github.com/expo/eas-cli/blob/v0.31.0/packages/eas-cli/src/commands/build/view.js)_
+_See code: [src/commands/build/view.js](https://github.com/expo/eas-cli/blob/v0.31.1/packages/eas-cli/src/commands/build/view.js)_
 
 ## `eas config`
 
@@ -233,7 +232,7 @@ OPTIONS
   --profile=profile
 ```
 
-_See code: [src/commands/config.js](https://github.com/expo/eas-cli/blob/v0.31.0/packages/eas-cli/src/commands/config.js)_
+_See code: [src/commands/config.js](https://github.com/expo/eas-cli/blob/v0.31.1/packages/eas-cli/src/commands/config.js)_
 
 ## `eas credentials`
 
@@ -244,7 +243,7 @@ USAGE
   $ eas credentials
 ```
 
-_See code: [src/commands/credentials.js](https://github.com/expo/eas-cli/blob/v0.31.0/packages/eas-cli/src/commands/credentials.js)_
+_See code: [src/commands/credentials.js](https://github.com/expo/eas-cli/blob/v0.31.1/packages/eas-cli/src/commands/credentials.js)_
 
 ## `eas device:create`
 
@@ -255,7 +254,7 @@ USAGE
   $ eas device:create
 ```
 
-_See code: [src/commands/device/create.js](https://github.com/expo/eas-cli/blob/v0.31.0/packages/eas-cli/src/commands/device/create.js)_
+_See code: [src/commands/device/create.js](https://github.com/expo/eas-cli/blob/v0.31.1/packages/eas-cli/src/commands/device/create.js)_
 
 ## `eas device:list`
 
@@ -269,7 +268,7 @@ OPTIONS
   --apple-team-id=apple-team-id
 ```
 
-_See code: [src/commands/device/list.js](https://github.com/expo/eas-cli/blob/v0.31.0/packages/eas-cli/src/commands/device/list.js)_
+_See code: [src/commands/device/list.js](https://github.com/expo/eas-cli/blob/v0.31.1/packages/eas-cli/src/commands/device/list.js)_
 
 ## `eas device:view [UDID]`
 
@@ -280,7 +279,7 @@ USAGE
   $ eas device:view [UDID]
 ```
 
-_See code: [src/commands/device/view.js](https://github.com/expo/eas-cli/blob/v0.31.0/packages/eas-cli/src/commands/device/view.js)_
+_See code: [src/commands/device/view.js](https://github.com/expo/eas-cli/blob/v0.31.1/packages/eas-cli/src/commands/device/view.js)_
 
 ## `eas diagnostics`
 
@@ -291,7 +290,7 @@ USAGE
   $ eas diagnostics
 ```
 
-_See code: [src/commands/diagnostics.js](https://github.com/expo/eas-cli/blob/v0.31.0/packages/eas-cli/src/commands/diagnostics.js)_
+_See code: [src/commands/diagnostics.js](https://github.com/expo/eas-cli/blob/v0.31.1/packages/eas-cli/src/commands/diagnostics.js)_
 
 ## `eas help [COMMAND]`
 
@@ -319,7 +318,7 @@ USAGE
   $ eas project:info
 ```
 
-_See code: [src/commands/project/info.js](https://github.com/expo/eas-cli/blob/v0.31.0/packages/eas-cli/src/commands/project/info.js)_
+_See code: [src/commands/project/info.js](https://github.com/expo/eas-cli/blob/v0.31.1/packages/eas-cli/src/commands/project/info.js)_
 
 ## `eas project:init`
 
@@ -333,7 +332,7 @@ ALIASES
   $ eas init
 ```
 
-_See code: [src/commands/project/init.js](https://github.com/expo/eas-cli/blob/v0.31.0/packages/eas-cli/src/commands/project/init.js)_
+_See code: [src/commands/project/init.js](https://github.com/expo/eas-cli/blob/v0.31.1/packages/eas-cli/src/commands/project/init.js)_
 
 ## `eas secret:create`
 
@@ -350,7 +349,7 @@ OPTIONS
   --value=value              Value of the secret
 ```
 
-_See code: [src/commands/secret/create.js](https://github.com/expo/eas-cli/blob/v0.31.0/packages/eas-cli/src/commands/secret/create.js)_
+_See code: [src/commands/secret/create.js](https://github.com/expo/eas-cli/blob/v0.31.1/packages/eas-cli/src/commands/secret/create.js)_
 
 ## `eas secret:delete`
 
@@ -367,7 +366,7 @@ DESCRIPTION
   Unsure where to find the secret's ID? Run eas secrets:list
 ```
 
-_See code: [src/commands/secret/delete.js](https://github.com/expo/eas-cli/blob/v0.31.0/packages/eas-cli/src/commands/secret/delete.js)_
+_See code: [src/commands/secret/delete.js](https://github.com/expo/eas-cli/blob/v0.31.1/packages/eas-cli/src/commands/secret/delete.js)_
 
 ## `eas secret:list`
 
@@ -378,7 +377,7 @@ USAGE
   $ eas secret:list
 ```
 
-_See code: [src/commands/secret/list.js](https://github.com/expo/eas-cli/blob/v0.31.0/packages/eas-cli/src/commands/secret/list.js)_
+_See code: [src/commands/secret/list.js](https://github.com/expo/eas-cli/blob/v0.31.1/packages/eas-cli/src/commands/secret/list.js)_
 
 ## `eas submit`
 
@@ -395,7 +394,7 @@ OPTIONS
   --non-interactive                 Run command in non-interactive mode
   --path=path                       Path to the .apk/.aab/.ipa file
 
-  --profile=profile                 Name of the submit profile from eas.json. Defaults to "production" if defined in
+  --profile=profile                 Name of the submit profile from eas.json. Defaults to "release" if defined in
                                     eas.json.
 
   --url=url                         App archive url
@@ -411,7 +410,7 @@ ALIASES
   $ eas build:submit
 ```
 
-_See code: [src/commands/submit.js](https://github.com/expo/eas-cli/blob/v0.31.0/packages/eas-cli/src/commands/submit.js)_
+_See code: [src/commands/submit.js](https://github.com/expo/eas-cli/blob/v0.31.1/packages/eas-cli/src/commands/submit.js)_
 
 ## `eas webhook:create`
 
@@ -430,7 +429,7 @@ OPTIONS
   --url=url        Webhook URL
 ```
 
-_See code: [src/commands/webhook/create.js](https://github.com/expo/eas-cli/blob/v0.31.0/packages/eas-cli/src/commands/webhook/create.js)_
+_See code: [src/commands/webhook/create.js](https://github.com/expo/eas-cli/blob/v0.31.1/packages/eas-cli/src/commands/webhook/create.js)_
 
 ## `eas webhook:delete [ID]`
 
@@ -444,7 +443,7 @@ ARGUMENTS
   ID  ID of the webhook to delete
 ```
 
-_See code: [src/commands/webhook/delete.js](https://github.com/expo/eas-cli/blob/v0.31.0/packages/eas-cli/src/commands/webhook/delete.js)_
+_See code: [src/commands/webhook/delete.js](https://github.com/expo/eas-cli/blob/v0.31.1/packages/eas-cli/src/commands/webhook/delete.js)_
 
 ## `eas webhook:list`
 
@@ -458,7 +457,7 @@ OPTIONS
   --event=(BUILD)  Event type that triggers the webhook
 ```
 
-_See code: [src/commands/webhook/list.js](https://github.com/expo/eas-cli/blob/v0.31.0/packages/eas-cli/src/commands/webhook/list.js)_
+_See code: [src/commands/webhook/list.js](https://github.com/expo/eas-cli/blob/v0.31.1/packages/eas-cli/src/commands/webhook/list.js)_
 
 ## `eas webhook:update`
 
@@ -478,7 +477,7 @@ OPTIONS
   --url=url        Webhook URL
 ```
 
-_See code: [src/commands/webhook/update.js](https://github.com/expo/eas-cli/blob/v0.31.0/packages/eas-cli/src/commands/webhook/update.js)_
+_See code: [src/commands/webhook/update.js](https://github.com/expo/eas-cli/blob/v0.31.1/packages/eas-cli/src/commands/webhook/update.js)_
 
 ## `eas webhook:view ID`
 
@@ -492,6 +491,5 @@ ARGUMENTS
   ID  ID of the webhook to view
 ```
 
-_See code: [src/commands/webhook/view.js](https://github.com/expo/eas-cli/blob/v0.31.0/packages/eas-cli/src/commands/webhook/view.js)_
-
+_See code: [src/commands/webhook/view.js](https://github.com/expo/eas-cli/blob/v0.31.1/packages/eas-cli/src/commands/webhook/view.js)_
 <!-- commandsstop -->
