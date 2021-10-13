@@ -75,7 +75,7 @@ test(`createAscApiKeyAsync`, async () => {
   const mockRequestContext = {};
   jest.spyOn(ApiKey, 'createAsync').mockImplementation(async () => mockApiKey);
   asMock(getRequestContext).mockImplementation(() => mockRequestContext);
-  const result = await createAscApiKeyAsync(mockAuthCtx, { name: 'test-name' });
+  const result = await createAscApiKeyAsync(mockAuthCtx, { nickname: 'test-name' });
   expect(ApiKey.createAsync).toHaveBeenLastCalledWith(mockRequestContext, {
     nickname: 'test-name',
     allAppsVisible: true,

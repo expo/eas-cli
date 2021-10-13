@@ -1,4 +1,4 @@
-import { UserRole } from 'connect/models/User';
+import { UserRole } from '@expo/apple-utils';
 
 export interface Device {
   id: string;

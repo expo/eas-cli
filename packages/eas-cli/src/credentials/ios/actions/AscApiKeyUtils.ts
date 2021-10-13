@@ -1,6 +1,7 @@
 import chalk from 'chalk';
 import fs from 'fs-extra';
 import path from 'path';
+import * as uuid from 'uuid';
 
 import Log, { learnMore } from '../../../log';
 import { promptAsync } from '../../../prompts';
@@ -10,12 +11,12 @@ import { AscApiKeyPath, MinimalAscApiKey, ascApiKeyMetadataSchema } from '../cre
 
 export async function promptForAscApiKeyAsync(): Promise<AscApiKeyPath> {
   Log.log(
-    `${chalk.bold(
-      'An App Store Connect Api key is required to upload your app to the Apple App Store'
-    )}.\n` +
-      `If you're not sure what this is or how to create one, ${learnMore(
-        'https://expo.fyi/creating-asc-api-key'
-      )}`
+    chalk.bold('An App Store Connect Api key is required to upload your app to the Apple App Store')
+  );
+  Log.log(
+    `If you're not sure what this is or how to create one, ${learnMore(
+      'https://expo.fyi/creating-asc-api-key'
+    )}`
   );
 
   const { keyP8Path } = await promptAsync({
@@ -45,18 +46,18 @@ export async function promptForAscApiKeyAsync(): Promise<AscApiKeyPath> {
 }
 
 export async function promptForIssuerIdAsync(): Promise<string> {
+  Log.log(chalk.bold('An App Store Connect Issuer ID is required'));
   Log.log(
-    `${chalk.bold('An App Store Connect Issuer ID is required')}.\n` +
-      `If you're not sure what this is or how to find yours, ${learnMore(
-        'https://expo.fyi/asc-issuer-id'
-      )}`
+    `If you're not sure what this is or how to find yours, ${learnMore(
+      'https://expo.fyi/asc-issuer-id'
+    )}`
   );
 
   const { issuerId } = await promptAsync({
     type: 'text',
     name: 'issuerId',
     message: 'App Store Connect Issuer ID:',
-    validate: (input: string) => input !== '',
+    validate: (input: string) => uuid.validate(input),
   });
 
   return issuerId;

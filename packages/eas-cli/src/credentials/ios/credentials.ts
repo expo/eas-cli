@@ -1,4 +1,4 @@
-import { UserRole } from 'connect/models/User';
+import { UserRole } from '@expo/apple-utils';
 
 import { AppleDevice } from '../../graphql/generated';
 import Log from '../../log';
