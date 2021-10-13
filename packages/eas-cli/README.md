@@ -139,7 +139,7 @@ OPTIONS
 
   --non-interactive                        Run command in non-interactive mode
 
-  --profile=PROFILE_NAME                   [default: production] Name of the build profile from eas.json
+  --profile=PROFILE_NAME                   [default: release] Name of the build profile from eas.json
 
   --skip-project-configuration             Skip project configuration
 
