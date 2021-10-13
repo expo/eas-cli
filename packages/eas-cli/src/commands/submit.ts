@@ -1,6 +1,5 @@
 import { getConfig } from '@expo/config';
-import { Platform } from '@expo/eas-build-job';
-import { EasJsonReader, SubmitProfile } from '@expo/eas-json';
+import { EasJsonReader } from '@expo/eas-json';
 import { flags } from '@oclif/command';
 import { error } from '@oclif/errors';
 import chalk from 'chalk';

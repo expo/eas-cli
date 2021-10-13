@@ -1,4 +1,4 @@
-import { Platform, Workflow } from '@expo/eas-build-job';
+import { Workflow } from '@expo/eas-build-job';
 import { BuildProfile } from '@expo/eas-json';
 import { error } from '@oclif/errors';
 import chalk from 'chalk';
