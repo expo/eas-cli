@@ -155,9 +155,9 @@ export default class AppStoreApi {
     return await getAscApiKeyAsync(ctx, keyId);
   }
 
-  public async createAscApiKeyAsync({ name }: { name: string }): Promise<AscApiKey> {
+  public async createAscApiKeyAsync({ nickname }: { nickname: string }): Promise<AscApiKey> {
     const ctx = await this.ensureAuthenticatedAsync();
-    return await createAscApiKeyAsync(ctx, { name });
+    return await createAscApiKeyAsync(ctx, { nickname });
   }
 
   public async revokeAscApiKeyAsync(keyId: string): Promise<AscApiKeyInfo> {
