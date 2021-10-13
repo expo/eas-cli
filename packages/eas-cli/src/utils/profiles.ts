@@ -8,7 +8,7 @@ export type ProfileData<T> = {
   profileName: string;
 };
 
-export async function getDefaultProfilesAsync<T>({
+export async function getProfilesAsync<T>({
   platforms,
   profileName: profileNameArg,
   // eslint-disable-next-line async-protect/async-suffix
@@ -31,7 +31,7 @@ export async function getDefaultProfilesAsync<T>({
           profile = await readProfileAsync(platform, 'release');
           profileName = 'release';
           Log.warn(
-            'The default profile changed to "production" from "release". We detected that you still have a "release" build profile, so we are using it. Update eas.json to have a profile named "production" under the `build` key, or specify which profile you\'d like to use with the --profile flag. This fallback behavior will be removed in the next major version of eas-cli.'
+            'The default profile changed from "release" to "production". We detected that you still have a "release" build profile, so we are using it. Update eas.json to have a profile named "production" under the `build` key, or specify which profile you\'d like to use with the --profile flag. This fallback behavior will be removed in the next major version of EAS CLI.'
           );
         } catch (error) {
           throw new Error('There is no profile named "production" in eas.json');

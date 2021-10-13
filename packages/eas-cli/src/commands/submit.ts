@@ -21,7 +21,7 @@ import { findProjectRootAsync, getProjectIdAsync } from '../project/projectUtils
 import { SubmitArchiveFlags, createSubmissionContextAsync } from '../submit/context';
 import { submitAsync, waitToCompleteAsync } from '../submit/submit';
 import { printSubmissionDetailsUrls } from '../submit/utils/urls';
-import { getDefaultProfilesAsync } from '../utils/profiles';
+import { getProfilesAsync } from '../utils/profiles';
 
 interface RawFlags {
   platform?: string;
@@ -107,7 +107,7 @@ See how to configure submits with eas.json: ${learnMore('https://docs.expo.dev/s
 
     const platforms = toPlatforms(flags.requestedPlatform);
     const easJsonReader = new EasJsonReader(projectDir);
-    const submissionProfiles = await getDefaultProfilesAsync<SubmitProfile<Platform>>({
+    const submissionProfiles = await getProfilesAsync({
       platforms,
       profileName: flags.profile,
       async readProfileAsync(platform, profileName) {

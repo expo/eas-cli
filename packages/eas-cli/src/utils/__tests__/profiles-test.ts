@@ -1,11 +1,11 @@
 import { Platform } from '@expo/eas-build-job';
 
-import { getDefaultProfilesAsync } from '../profiles';
+import { getProfilesAsync } from '../profiles';
 
-describe(getDefaultProfilesAsync, () => {
+describe(getProfilesAsync, () => {
   test('defaults to production profile', async () => {
     const callback = jest.fn();
-    const result = await getDefaultProfilesAsync({
+    const result = await getProfilesAsync({
       platforms: [Platform.ANDROID, Platform.IOS],
       profileName: undefined,
       readProfileAsync: callback,
@@ -27,7 +27,7 @@ describe(getDefaultProfilesAsync, () => {
         throw new Error();
       });
 
-    const result = await getDefaultProfilesAsync({
+    const result = await getProfilesAsync({
       platforms: [Platform.ANDROID, Platform.IOS],
       profileName: undefined,
       readProfileAsync: callback,
@@ -50,24 +50,19 @@ describe(getDefaultProfilesAsync, () => {
       .mockRejectedValueOnce(() => {
         throw new Error();
       });
-    let error;
 
-    try {
-      await getDefaultProfilesAsync({
+    await expect(
+      getProfilesAsync({
         platforms: [Platform.ANDROID],
         profileName: undefined,
         readProfileAsync: callback,
-      });
-    } catch (_error) {
-      error = _error;
-    }
-
-    expect(error).toStrictEqual(new Error('There is no profile named "production" in eas.json'));
+      })
+    ).rejects.toThrowError(/There is no profile named "production" in eas.json/);
   });
 
   test('gets a specific profile', async () => {
     const callback = jest.fn();
-    const result = await getDefaultProfilesAsync({
+    const result = await getProfilesAsync({
       platforms: [Platform.ANDROID, Platform.IOS],
       profileName: 'custom-profile',
       readProfileAsync: callback,

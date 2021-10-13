@@ -50,7 +50,7 @@ import {
 } from '../../submit/submit';
 import { printSubmissionDetailsUrls } from '../../submit/utils/urls';
 import { enableJsonOutput } from '../../utils/json';
-import { ProfileData, getDefaultProfilesAsync } from '../../utils/profiles';
+import { ProfileData, getProfilesAsync } from '../../utils/profiles';
 import vcs from '../../vcs';
 
 interface RawBuildFlags {
@@ -155,7 +155,7 @@ export default class Build extends EasCommand {
 
     const platforms = toPlatforms(requestedPlatform);
     const easJsonReader = new EasJsonReader(projectDir);
-    const buildProfiles = await getDefaultProfilesAsync<BuildProfile<Platform>>({
+    const buildProfiles = await getProfilesAsync({
       platforms,
       profileName: flags.profile,
       async readProfileAsync(platform, profileName) {
@@ -221,9 +221,7 @@ export default class Build extends EasCommand {
       return;
     }
 
-    const builds = await waitForBuildEndAsync(
-      startedBuilds.map(startedBuild => startedBuild.build.id)
-    );
+    const builds = await waitForBuildEndAsync(startedBuilds.map(({ build }) => build.id));
     printBuildResults(builds, flags.json);
 
     const haveAllBuildsFailedOrCanceled = builds.every(
