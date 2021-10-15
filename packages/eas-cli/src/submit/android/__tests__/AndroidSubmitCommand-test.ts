@@ -15,7 +15,7 @@ import { SubmissionMutation } from '../../../graphql/mutations/SubmissionMutatio
 import { createTestProject } from '../../../project/__tests__/project-utils';
 import { getProjectIdAsync } from '../../../project/projectUtils';
 import { createSubmissionContextAsync } from '../../context';
-import { getLatestBuildForSubmissionAsync } from '../../utils/builds';
+import { getRecentBuildsForSubmissionAsync } from '../../utils/builds';
 import AndroidSubmitCommand from '../AndroidSubmitCommand';
 
 jest.mock('fs');
@@ -137,7 +137,7 @@ describe(AndroidSubmitCommand, () => {
 
     it('assigns the build ID to submission', async () => {
       const projectId = uuidv4();
-      asMock(getLatestBuildForSubmissionAsync).mockResolvedValueOnce(fakeBuildFragment);
+      asMock(getRecentBuildsForSubmissionAsync).mockResolvedValueOnce([fakeBuildFragment]);
 
       const ctx = await createSubmissionContextAsync({
         platform: Platform.ANDROID,

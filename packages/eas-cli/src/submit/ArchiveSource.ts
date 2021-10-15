@@ -1,22 +1,26 @@
 import { Platform } from '@expo/eas-build-job';
 import chalk from 'chalk';
+import prompts from 'prompts';
 import { URL } from 'url';
 import * as uuid from 'uuid';
 
-import { BuildFragment } from '../graphql/generated';
+import { AppPlatform, BuildFragment } from '../graphql/generated';
 import { BuildQuery } from '../graphql/queries/BuildQuery';
 import { toAppPlatform } from '../graphql/types/AppPlatform';
 import Log, { learnMore } from '../log';
 import { appPlatformDisplayNames } from '../platform';
 import { confirmAsync, promptAsync } from '../prompts';
-import { getLatestBuildForSubmissionAsync } from './utils/builds';
+import { getRecentBuildsForSubmissionAsync } from './utils/builds';
 import { isExistingFileAsync, uploadAppArchiveAsync } from './utils/files';
+
+export const BUILD_LIST_ITEM_COUNT = 4;
 
 export enum ArchiveSourceType {
   url,
   latest,
   path,
   buildId,
+  buildList,
   prompt,
 }
 
@@ -46,6 +50,10 @@ interface ArchiveBuildIdSource extends ArchiveSourceBase {
   id: string;
 }
 
+interface ArchiveBuildListSource extends ArchiveSourceBase {
+  sourceType: ArchiveSourceType.buildList;
+}
+
 interface ArchivePromptSource extends ArchiveSourceBase {
   sourceType: ArchiveSourceType.prompt;
 }
@@ -61,6 +69,7 @@ export type ArchiveSource =
   | ArchiveLatestSource
   | ArchivePathSource
   | ArchiveBuildIdSource
+  | ArchiveBuildListSource
   | ArchivePromptSource;
 
 export async function getArchiveAsync(source: ArchiveSource): Promise<Archive> {
@@ -79,6 +88,9 @@ export async function getArchiveAsync(source: ArchiveSource): Promise<Archive> {
     }
     case ArchiveSourceType.buildId: {
       return await handleBuildIdSourceAsync(source);
+    }
+    case ArchiveSourceType.buildList: {
+      return await handleBuildListSourceAsync(source);
     }
   }
 }
@@ -113,7 +125,7 @@ async function handleUrlSourceAsync(source: ArchiveUrlSource): Promise<Archive> 
 
 async function handleLatestSourceAsync(source: ArchiveLatestSource): Promise<Archive> {
   try {
-    const latestBuild = await getLatestBuildForSubmissionAsync(
+    const [latestBuild] = await getRecentBuildsForSubmissionAsync(
       toAppPlatform(source.platform),
       source.projectId
     );
@@ -197,6 +209,116 @@ async function handleBuildIdSourceAsync(source: ArchiveBuildIdSource): Promise<A
   }
 }
 
+async function handleBuildListSourceAsync(source: ArchiveBuildListSource): Promise<Archive> {
+  try {
+    const appPlatform = toAppPlatform(source.platform);
+    const expiryDate = new Date(); // artifacts expire after 30 days
+    expiryDate.setDate(expiryDate.getDate() - 30);
+
+    const recentBuilds = await getRecentBuildsForSubmissionAsync(appPlatform, source.projectId, {
+      limit: BUILD_LIST_ITEM_COUNT,
+    });
+
+    if (recentBuilds.length < 1) {
+      Log.error(
+        chalk.bold(
+          `Couldn't find any ${appPlatformDisplayNames[appPlatform]} builds for this project on EAS servers. ` +
+            "It looks like you haven't run 'eas build' yet."
+        )
+      );
+      return getArchiveAsync({
+        ...source,
+        sourceType: ArchiveSourceType.prompt,
+      });
+    }
+
+    if (recentBuilds.every(it => new Date(it.updatedAt) < expiryDate)) {
+      Log.error(
+        chalk.bold(
+          'It looks like all of your build artifacts have expired. ' +
+            'EAS keeps your build artifacts only for 30 days.'
+        )
+      );
+      return getArchiveAsync({
+        ...source,
+        sourceType: ArchiveSourceType.prompt,
+      });
+    }
+
+    const choices = recentBuilds.map(build => formatBuildChoice(build, expiryDate));
+    choices.push({
+      title: 'None of the above (select another option)',
+      value: null,
+    });
+
+    const { selectedBuild } = await promptAsync({
+      name: 'selectedBuild',
+      type: 'select',
+      message: 'Which build would you like to submit?',
+      choices: choices.map(choice => ({ ...choice, title: `- ${choice.title}` })),
+      // @ts-expect-error field documented in npm, but not defined in typescript
+      warn: 'This artifact has expired',
+    });
+
+    if (selectedBuild == null) {
+      return getArchiveAsync({
+        ...source,
+        sourceType: ArchiveSourceType.prompt,
+      });
+    }
+
+    return {
+      build: selectedBuild,
+      source,
+    };
+  } catch (err) {
+    Log.error(err);
+    throw err;
+  }
+}
+
+function formatBuildChoice(build: BuildFragment, expiryDate: Date): prompts.Choice {
+  const {
+    id,
+    platform,
+    updatedAt,
+    appVersion,
+    sdkVersion,
+    runtimeVersion,
+    buildProfile,
+    appBuildVersion,
+    releaseChannel,
+  } = build;
+
+  const formatValue = (field?: string | null): string =>
+    field ? chalk.bold(field) : chalk.dim('Unknown');
+
+  const buildDate = new Date(updatedAt);
+  const maybeRuntimeVersion = runtimeVersion ? `Runtime: ${formatValue(runtimeVersion)}` : null;
+  const maybeSdkVersion = sdkVersion ? `SDK: ${formatValue(sdkVersion)}` : null;
+  const appBuildVersionString = `${
+    platform === AppPlatform.Android ? 'Version code' : 'Build number'
+  }: ${formatValue(appBuildVersion)}`;
+
+  const title = [
+    `ID: ${chalk.dim(id)}, Finished at: ${chalk.bold(buildDate.toLocaleString())}`,
+    [
+      `\tApp version: ${formatValue(appVersion)}, ${appBuildVersionString}`,
+      maybeRuntimeVersion,
+      maybeSdkVersion,
+    ]
+      .filter(it => it != null)
+      .join(', '),
+    `\tProfile: ${formatValue(buildProfile)}, Release channel: ${formatValue(releaseChannel)}`,
+  ].join('\n');
+
+  return {
+    title,
+    value: build,
+    disabled: buildDate < expiryDate,
+  };
+}
+
 async function handlePromptSourceAsync(source: ArchivePromptSource): Promise<Archive> {
   const { sourceType: sourceTypeRaw } = await promptAsync({
     name: 'sourceType',
@@ -204,8 +326,8 @@ async function handlePromptSourceAsync(source: ArchivePromptSource): Promise<Arc
     message: 'What would you like to submit?',
     choices: [
       {
-        title: 'Latest finished build from EAS',
-        value: ArchiveSourceType.latest,
+        title: 'Selected build from EAS',
+        value: ArchiveSourceType.buildList,
       },
       { title: 'I have a url to the app archive', value: ArchiveSourceType.url },
       {
@@ -236,10 +358,10 @@ async function handlePromptSourceAsync(source: ArchivePromptSource): Promise<Arc
         path,
       });
     }
-    case ArchiveSourceType.latest: {
+    case ArchiveSourceType.buildList: {
       return getArchiveAsync({
         ...source,
-        sourceType: ArchiveSourceType.latest,
+        sourceType: ArchiveSourceType.buildList,
       });
     }
     case ArchiveSourceType.buildId: {
@@ -250,7 +372,7 @@ async function handlePromptSourceAsync(source: ArchivePromptSource): Promise<Arc
         id,
       });
     }
-    case ArchiveSourceType.prompt:
+    default:
       throw new Error('This should never happen');
   }
 }
