@@ -93,7 +93,7 @@ export default class IosCredentialsProvider {
     }
 
     const confirmSetup = await confirmAsync({
-      message: `Would you like to setup Push Notifications for your project?`,
+      message: `Would you like to set up Push Notifications for your project?`,
     });
     if (!confirmSetup) {
       return null;

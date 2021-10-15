@@ -39,7 +39,7 @@ export class SetupTargetBuildCredentials {
     try {
       return await this.setupBuildCredentialsAsync(ctx);
     } catch (error) {
-      Log.error('Failed to setup credentials.');
+      Log.error('Failed to set up credentials.');
       throw error;
     }
   }
