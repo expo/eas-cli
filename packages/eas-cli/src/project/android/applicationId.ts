@@ -39,7 +39,7 @@ export async function getApplicationIdAsync(
 ): Promise<string> {
   const workflow = await resolveWorkflowAsync(projectDir, Platform.ANDROID);
   if (workflow === Workflow.GENERIC) {
-    warnIfAndroidPackageDefinedInAppConfigForGenericProject(projectDir, exp);
+    warnIfAndroidPackageDefinedInAppConfigForBareWorkflowProject(projectDir, exp);
 
     const errorMessage = 'Could not read application id from Android project.';
     if (gradleContext) {
@@ -129,7 +129,7 @@ function isApplicationIdValid(applicationId: string): boolean {
 }
 
 let warnPrinted = false;
-export function warnIfAndroidPackageDefinedInAppConfigForGenericProject(
+export function warnIfAndroidPackageDefinedInAppConfigForBareWorkflowProject(
   projectDir: string,
   exp: ExpoConfig
 ): void {
@@ -137,7 +137,7 @@ export function warnIfAndroidPackageDefinedInAppConfigForGenericProject(
     Log.warn(
       `Specifying "android.package" in ${getProjectConfigDescription(
         projectDir
-      )} is deprecated for generic projects.\n` +
+      )} is deprecated for bare workflow projects.\n` +
         'EAS Build depends only on the value in the native code. Please remove the deprecated configuration.'
     );
     warnPrinted = true;

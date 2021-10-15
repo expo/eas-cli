@@ -49,10 +49,10 @@ describe(evaluateTemplateString, () => {
   });
 });
 
-// generic workflow
+// bare workflow
 describe(bumpVersionAsync, () => {
   it('bumps expo.ios.buildNumber and CFBundleVersion when strategy = BumpStrategy.BUILD_NUMBER', async () => {
-    const fakeExp = initGenericProject();
+    const fakeExp = initBareWorkflowProject();
 
     await bumpVersionAsync({
       bumpStrategy: BumpStrategy.BUILD_NUMBER,
@@ -74,7 +74,7 @@ describe(bumpVersionAsync, () => {
   });
 
   it('bumps expo.ios.buildNumber and CFBundleVersion for non default Info.plist location', async () => {
-    const fakeExp = initGenericProject({ infoPlistName: 'Info2.plist' });
+    const fakeExp = initBareWorkflowProject({ infoPlistName: 'Info2.plist' });
 
     await bumpVersionAsync({
       bumpStrategy: BumpStrategy.BUILD_NUMBER,
@@ -98,7 +98,7 @@ describe(bumpVersionAsync, () => {
   });
 
   it('bumps expo.version and CFBundleShortVersionString when strategy = BumpStrategy.SHORT_VERSION', async () => {
-    const fakeExp = initGenericProject();
+    const fakeExp = initBareWorkflowProject();
 
     await bumpVersionAsync({
       bumpStrategy: BumpStrategy.APP_VERSION,
@@ -120,7 +120,7 @@ describe(bumpVersionAsync, () => {
   });
 
   it('does not bump any version when strategy = BumpStrategy.NOOP', async () => {
-    const fakeExp = initGenericProject();
+    const fakeExp = initBareWorkflowProject();
 
     await bumpVersionAsync({
       bumpStrategy: BumpStrategy.NOOP,
@@ -194,9 +194,9 @@ describe(bumpVersionInAppJsonAsync, () => {
 });
 
 describe(readBuildNumberAsync, () => {
-  describe('generic project', () => {
+  describe('bare project', () => {
     it('reads the build number from native code', async () => {
-      const exp = initGenericProject();
+      const exp = initBareWorkflowProject();
       const buildNumber = await readBuildNumberAsync('/repo', exp, {});
       expect(buildNumber).toBe('1');
     });
@@ -212,14 +212,14 @@ describe(readBuildNumberAsync, () => {
 });
 
 describe(readShortVersionAsync, () => {
-  describe('generic project', () => {
+  describe('bare project', () => {
     it('reads the short version from native code', async () => {
-      const exp = initGenericProject();
+      const exp = initBareWorkflowProject();
       const appVersion = await readShortVersionAsync('/repo', exp, {});
       expect(appVersion).toBe('1.0.0');
     });
     it('evaluates interpolated build number', async () => {
-      const exp = initGenericProject({
+      const exp = initBareWorkflowProject({
         appVersion: '$(CURRENT_PROJECT_VERSION)',
       });
       const buildNumber = await readShortVersionAsync('/repo', exp, {
@@ -231,7 +231,7 @@ describe(readShortVersionAsync, () => {
 
   describe('managed project', () => {
     it('reads the version from app config', async () => {
-      const exp = initGenericProject();
+      const exp = initBareWorkflowProject();
       const appVersion = await readShortVersionAsync('/repo', exp, {});
       expect(appVersion).toBe('1.0.0');
     });
@@ -286,7 +286,7 @@ describe(getInfoPlistPath, () => {
   });
 });
 
-function initGenericProject({
+function initBareWorkflowProject({
   appVersion = '1.0.0',
   version = '1',
   infoPlistName = 'Info.plist',

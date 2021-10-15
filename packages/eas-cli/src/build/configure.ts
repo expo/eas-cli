@@ -108,7 +108,7 @@ const EAS_JSON_MANAGED_DEFAULT: EasJson = {
   },
 };
 
-const EAS_JSON_GENERIC_DEFAULT: EasJson = {
+const EAS_JSON_BARE_DEFAULT: EasJson = {
   build: {
     release: {},
     development: {
@@ -139,7 +139,7 @@ export async function ensureEasJsonExistsAsync(ctx: ConfigureContext): Promise<v
 
   const easJson =
     ctx.hasAndroidNativeProject && ctx.hasIosNativeProject
-      ? EAS_JSON_GENERIC_DEFAULT
+      ? EAS_JSON_BARE_DEFAULT
       : EAS_JSON_MANAGED_DEFAULT;
 
   await fs.writeFile(easJsonPath, `${JSON.stringify(easJson, null, 2)}\n`);

@@ -6,7 +6,7 @@ import { AndroidBuildProfile, AndroidVersionAutoIncrement } from '@expo/eas-json
 import Log from '../../log';
 import {
   ensureApplicationIdIsDefinedForManagedProjectAsync,
-  warnIfAndroidPackageDefinedInAppConfigForGenericProject,
+  warnIfAndroidPackageDefinedInAppConfigForBareWorkflowProject,
 } from '../../project/android/applicationId';
 import { resolveWorkflowAsync } from '../../project/workflow';
 import vcs from '../../vcs';
@@ -21,7 +21,7 @@ export async function configureAndroidAsync(ctx: ConfigureContext): Promise<void
     return;
   }
 
-  warnIfAndroidPackageDefinedInAppConfigForGenericProject(ctx.projectDir, ctx.exp);
+  warnIfAndroidPackageDefinedInAppConfigForBareWorkflowProject(ctx.projectDir, ctx.exp);
 
   await AndroidConfig.EasBuild.configureEasBuildAsync(ctx.projectDir);
 

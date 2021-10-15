@@ -29,7 +29,7 @@ beforeEach(async () => {
 const originalFs = jest.requireActual('fs') as typeof fs;
 
 describe(getBundleIdentifierAsync, () => {
-  describe('generic projects', () => {
+  describe('bare projects', () => {
     it('reads bundle identifier from project.', async () => {
       vol.fromJSON(
         {

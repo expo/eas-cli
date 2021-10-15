@@ -12,7 +12,7 @@ describe(resolveWorkflowAsync, () => {
 
   const projectDir = '/app';
 
-  test('generic workflow for both platforms', async () => {
+  test('bare workflow for both platforms', async () => {
     vol.fromJSON(
       {
         './ios/helloworld.xcodeproj/project.pbxproj': 'fake',
@@ -27,7 +27,7 @@ describe(resolveWorkflowAsync, () => {
     await expect(resolveWorkflowAsync(projectDir, Platform.IOS)).resolves.toBe(Workflow.GENERIC);
   });
 
-  test('generic workflow for single platform', async () => {
+  test('bare workflow for single platform', async () => {
     vol.fromJSON(
       {
         './ios/helloworld.xcodeproj/project.pbxproj': 'fake',

@@ -31,7 +31,7 @@ beforeEach(async () => {
   await fs.mkdirp(os.tmpdir());
 });
 
-// generic workflow
+// bare workflow
 describe(bumpVersionAsync, () => {
   it('throws an informative error when multiple flavors are detected in the android project', async () => {
     await initProjectWithGradleFileAsync(
@@ -69,7 +69,7 @@ describe(bumpVersionAsync, () => {
   });
   it('bumps expo.android.versionCode and buildGradle versionCode when strategy = BumpStrategy.VERSION_CODE', async () => {
     const nativeVersionCode = 100; // this should be overwritten by bumpVersionAsync
-    const fakeExp = initGenericProject({ versionCode: nativeVersionCode });
+    const fakeExp = initBareWorkflowProject({ versionCode: nativeVersionCode });
 
     await bumpVersionAsync({
       bumpStrategy: BumpStrategy.VERSION_CODE,
@@ -91,7 +91,7 @@ describe(bumpVersionAsync, () => {
 
   it('bumps expo.version and gradle versionCode when strategy = BumpStrategy.SHORT_VERSION', async () => {
     const nativeVersionName = '1.0.0'; // this should be overwritten by bumpVersionAsync
-    const fakeExp = initGenericProject({ versionName: nativeVersionName });
+    const fakeExp = initBareWorkflowProject({ versionName: nativeVersionName });
 
     await bumpVersionAsync({
       bumpStrategy: BumpStrategy.APP_VERSION,
@@ -112,7 +112,7 @@ describe(bumpVersionAsync, () => {
   });
 
   it('does not bump any version when strategy = BumpStrategy.NOOP', async () => {
-    const fakeExp = initGenericProject();
+    const fakeExp = initBareWorkflowProject();
 
     await bumpVersionAsync({
       bumpStrategy: BumpStrategy.NOOP,
@@ -185,9 +185,9 @@ describe(bumpVersionInAppJsonAsync, () => {
 });
 
 describe(maybeResolveVersionsAsync, () => {
-  describe('generic project', () => {
+  describe('bare project', () => {
     it('reads the versions from native code', async () => {
-      const exp = initGenericProject();
+      const exp = initBareWorkflowProject();
       const { appVersion, appBuildVersion } = await maybeResolveVersionsAsync(
         '/repo',
         exp,
@@ -211,7 +211,7 @@ describe(maybeResolveVersionsAsync, () => {
   });
 });
 
-function initGenericProject({
+function initBareWorkflowProject({
   versionCode = 123,
   versionName = '3.0.0',
 }: {

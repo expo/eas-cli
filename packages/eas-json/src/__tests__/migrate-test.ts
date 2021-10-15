@@ -35,7 +35,7 @@ test('migration for default manged eas.json', async () => {
   });
 });
 
-test('migration for default generic eas.json', async () => {
+test('migration for default bare workflow eas.json', async () => {
   const easJson = {
     builds: {
       android: {
@@ -194,7 +194,7 @@ test('migration for example manged eas.json', async () => {
   });
 });
 
-test('migration for example generic eas.json', async () => {
+test('migration for example bare workflow eas.json', async () => {
   const easJson = {
     builds: {
       android: {
