@@ -1,4 +1,6 @@
 import {
+  AscApiKey,
+  AscApiKeyInfo,
   DistributionCertificate,
   DistributionCertificateStoreInfo,
   ProvisioningProfile,
@@ -6,6 +8,12 @@ import {
   PushKey,
   PushKeyStoreInfo,
 } from './Credentials.types';
+import {
+  createAscApiKeyAsync,
+  getAscApiKeyAsync,
+  listAscApiKeysAsync,
+  revokeAscApiKeyAsync,
+} from './ascApiKey';
 import { AuthCtx, Options as AuthenticateOptions, authenticateAsync } from './authenticate';
 import {
   createDistributionCertificateAsync,
@@ -135,5 +143,25 @@ export default class AppStoreApi {
       bundleIdentifier,
       distCertSerialNumber
     );
+  }
+
+  public async listAscApiKeysAsync(): Promise<AscApiKeyInfo[]> {
+    const ctx = await this.ensureAuthenticatedAsync();
+    return await listAscApiKeysAsync(ctx);
+  }
+
+  public async getAscApiKeyAsync(keyId: string): Promise<AscApiKeyInfo> {
+    const ctx = await this.ensureAuthenticatedAsync();
+    return await getAscApiKeyAsync(ctx, keyId);
+  }
+
+  public async createAscApiKeyAsync({ nickname }: { nickname: string }): Promise<AscApiKey> {
+    const ctx = await this.ensureAuthenticatedAsync();
+    return await createAscApiKeyAsync(ctx, { nickname });
+  }
+
+  public async revokeAscApiKeyAsync(keyId: string): Promise<AscApiKeyInfo> {
+    const ctx = await this.ensureAuthenticatedAsync();
+    return await revokeAscApiKeyAsync(ctx, keyId);
   }
 }
