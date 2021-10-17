@@ -13,7 +13,7 @@ import { endTimer, formatMilliseconds, startTimer } from '../../utils/timer';
 import vcs from '../../vcs';
 
 export async function maybeBailOnRepoStatusAsync(): Promise<void> {
-  if (!(await vcs.hasUncommittedChangesAsync())) {
+  if (!(await vcs.isCommitRequiredAsync())) {
     return;
   }
   Log.addNewLineIfNone();
@@ -33,7 +33,7 @@ export async function maybeBailOnRepoStatusAsync(): Promise<void> {
 }
 
 export async function ensureRepoIsCleanAsync(nonInteractive = false): Promise<void> {
-  if (!(await vcs.hasUncommittedChangesAsync())) {
+  if (!(await vcs.isCommitRequiredAsync())) {
     return;
   }
   Log.addNewLineIfNone();

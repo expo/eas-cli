@@ -7,7 +7,7 @@ import Log from '../../log';
 import { findApplicationTarget, findTargetByName } from '../../project/ios/target';
 import zipObject from '../../utils/expodash/zipObject';
 import vcs from '../../vcs';
-import GitClient from '../../vcs/git';
+import GitClient from '../../vcs/clients/git';
 import { CredentialsContext } from '../context';
 import { App, Target, TargetCredentials } from '../ios/types';
 import { readRawAsync } from './read';

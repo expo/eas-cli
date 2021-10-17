@@ -68,7 +68,7 @@ export async function prepareBuildRequestForPlatformAsync<
     });
   }
 
-  if (await vcs.hasUncommittedChangesAsync()) {
+  if (await vcs.isCommitRequiredAsync()) {
     Log.addNewLineIfNone();
     await reviewAndCommitChangesAsync(
       `[EAS Build] Run EAS Build for ${requestedPlatformDisplayNames[ctx.platform as Platform]}`,

@@ -37,7 +37,7 @@ export async function ensureProjectConfiguredAsync(
       projectDir,
       platform: requestedPlatform,
     });
-    if (await vcs.hasUncommittedChangesAsync()) {
+    if (await vcs.isCommitRequiredAsync()) {
       error(
         'Build process requires clean working tree, please commit all your changes and run `eas build` again',
         { exit: 1 }
@@ -86,10 +86,10 @@ export async function configureAsync(options: {
     await configureIosAsync(ctx);
   }
 
-  if (await vcs.hasUncommittedChangesAsync()) {
+  if (await vcs.isCommitRequiredAsync()) {
     Log.newLine();
     await reviewAndCommitChangesAsync(configureCommitMessage[options.platform]);
-  } else {
+  } else if (!(await vcs.hasUncommittedChangesAsync())) {
     Log.newLine();
     Log.withTick('No changes were necessary, the project is already configured correctly.');
   }

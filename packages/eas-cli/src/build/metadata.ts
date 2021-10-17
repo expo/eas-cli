@@ -64,6 +64,7 @@ export async function collectMetadataAsync<T extends Platform>(
     appIdentifier: await resolveAppIdentifierAsync(ctx, platformContext),
     buildProfile: ctx.buildProfileName,
     gitCommitHash: await vcs.getCommitHashAsync(),
+    gitWorkingTreeDirty: await vcs.hasUncommittedChangesAsync(),
     username: getUsername(ctx.exp, await ensureLoggedInAsync()),
     ...(ctx.platform === Platform.IOS && {
       iosEnterpriseProvisioning: resolveIosEnterpriseProvisioning(
