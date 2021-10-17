@@ -1,3 +1,5 @@
+import { UserRole } from '@expo/apple-utils';
+
 import { AppleDevice } from '../../graphql/generated';
 import Log from '../../log';
 import { CredentialSchema } from '../utils/promptForCredentials';
@@ -106,7 +108,8 @@ export type MinimalAscApiKey = {
   issuerId: string;
   teamId?: string;
   teamName?: string;
-  roles?: string[];
+  roles?: UserRole[];
+  name?: string;
 };
 
 export interface AscApiKeyPath {

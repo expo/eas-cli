@@ -21,7 +21,18 @@ This is the log of notable changes to EAS CLI and related packages.
     }
   }
   ```
+
+### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [0.32.0](https://github.com/expo/eas-cli/releases/tag/0.32.0) - 2021-10-15
+
+### 🎉 New features
+
 - Add App Store Connect Api Key support to iOS submissions. ([#678](https://github.com/expo/eas-cli/pull/678) by [@quinlanj](https://github.com/quinlanj))
+- Create/list/revoke App Store Connect Api keys via Apple apis. ([#687](https://github.com/expo/eas-cli/pull/687) by [@quinlanj](https://github.com/quinlanj))
+- Add ability to select a build from a list in `eas submit` interactive mode. ([#688](https://github.com/expo/eas-cli/pull/688) by [@barthap](https://github.com/barthap))
 
 ### 🐛 Bug fixes
 
