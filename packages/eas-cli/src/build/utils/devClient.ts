@@ -37,7 +37,7 @@ export async function ensureExpoDevClientInstalledForDevClientBuildsAsync({
   }
 
   const platformsToCheck = buildProfilesWithDevelopmentClientRequired.map(
-    ({ platform }: ProfileData<BuildProfile>) => platform
+    ({ platform }) => platform
   );
 
   const workflowPerPlatformList = await Promise.all(
