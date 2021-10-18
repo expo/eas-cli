@@ -1,6 +1,6 @@
 import * as ExpoConfig from '@expo/config';
+import JsonFile from '@expo/json-file';
 import assert from 'assert';
-import fs from 'fs-extra';
 
 export async function updateAppJsonConfigAsync(
   {
@@ -15,10 +15,19 @@ export async function updateAppJsonConfigAsync(
   const paths = ExpoConfig.getConfigFilePaths(projectDir);
   assert(paths.staticConfigPath, "can't update dynamic config");
 
-  const rawStaticConfig = await fs.readJSON(paths.staticConfigPath);
+  const rawStaticConfig = readAppJson(paths.staticConfigPath);
   rawStaticConfig.expo = rawStaticConfig.expo ?? {};
   modifyConfig(rawStaticConfig.expo);
-  await fs.writeJson(paths.staticConfigPath, rawStaticConfig, { spaces: 2 });
+  await JsonFile.writeAsync(paths.staticConfigPath, rawStaticConfig, { json5: false });
 
   modifyConfig(exp);
+}
+
+// TODO: remove this once @expo/config exports getStaticConfig
+export function readAppJson(appJsonPath: string): any {
+  const config = JsonFile.read(appJsonPath, { json5: true });
+  if (config) {
+    return config as any;
+  }
+  throw new Error(`Failed to read app.json`);
 }

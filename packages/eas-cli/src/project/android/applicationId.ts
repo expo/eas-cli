@@ -6,6 +6,7 @@ import chalk from 'chalk';
 import fs from 'fs-extra';
 import nullthrows from 'nullthrows';
 
+import { readAppJson } from '../../build/utils/appJson';
 import Log, { learnMore } from '../../log';
 import { getProjectConfigDescription, getUsername } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
@@ -112,7 +113,7 @@ async function configureApplicationIdAsync(projectDir: string, exp: ExpoConfig):
     validate: value => (isApplicationIdValid(value) ? true : INVALID_APPLICATION_ID_MESSAGE),
   });
 
-  const rawStaticConfig = await fs.readJSON(paths.staticConfigPath);
+  const rawStaticConfig = readAppJson(paths.staticConfigPath);
   rawStaticConfig.expo = {
     ...rawStaticConfig.expo,
     android: { ...rawStaticConfig.expo?.android, package: packageName },
