@@ -34,7 +34,7 @@ export async function getBundleIdentifierAsync(
 ): Promise<string> {
   const workflow = await resolveWorkflowAsync(projectDir, Platform.IOS);
   if (workflow === Workflow.GENERIC) {
-    warnIfBundleIdentifierDefinedInAppConfigForGenericProject(projectDir, exp);
+    warnIfBundleIdentifierDefinedInAppConfigForBareWorkflowProject(projectDir, exp);
 
     const bundleIdentifier = IOSConfig.BundleIdentifier.getBundleIdentifierFromPbxproj(projectDir, {
       targetName,
@@ -124,7 +124,7 @@ function isBundleIdentifierValid(bundleIdentifier: string): boolean {
 }
 
 let warnPrinted = false;
-export function warnIfBundleIdentifierDefinedInAppConfigForGenericProject(
+export function warnIfBundleIdentifierDefinedInAppConfigForBareWorkflowProject(
   projectDir: string,
   exp: ExpoConfig
 ): void {
@@ -132,7 +132,7 @@ export function warnIfBundleIdentifierDefinedInAppConfigForGenericProject(
     Log.warn(
       `Specifying "ios.bundleIdentifier" in ${getProjectConfigDescription(
         projectDir
-      )} is deprecated for generic projects.\n` +
+      )} is deprecated for bare workflow projects.\n` +
         'EAS Build depends only on the value in the native code. Please remove the deprecated configuration.'
     );
     warnPrinted = true;

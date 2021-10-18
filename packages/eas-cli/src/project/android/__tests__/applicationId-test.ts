@@ -25,7 +25,7 @@ beforeEach(async () => {
 });
 
 describe(getApplicationIdAsync, () => {
-  describe('generic projects', () => {
+  describe('bare projects', () => {
     it('reads applicationId from build.gradle', async () => {
       vol.fromJSON(
         {

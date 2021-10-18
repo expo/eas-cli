@@ -6,7 +6,7 @@ import type { XCBuildConfiguration } from 'xcode';
 import Log from '../../log';
 import {
   ensureBundleIdentifierIsDefinedForManagedProjectAsync,
-  warnIfBundleIdentifierDefinedInAppConfigForGenericProject,
+  warnIfBundleIdentifierDefinedInAppConfigForBareWorkflowProject,
 } from '../../project/ios/bundleIdentifier';
 import { resolveWorkflowAsync } from '../../project/workflow';
 import { ConfigureContext } from '../context';
@@ -20,7 +20,7 @@ export async function configureIosAsync(ctx: ConfigureContext): Promise<void> {
     return;
   }
 
-  warnIfBundleIdentifierDefinedInAppConfigForGenericProject(ctx.projectDir, ctx.exp);
+  warnIfBundleIdentifierDefinedInAppConfigForBareWorkflowProject(ctx.projectDir, ctx.exp);
 
   if (isExpoUpdatesInstalled(ctx.projectDir)) {
     await configureUpdatesAsync(ctx.projectDir, ctx.exp);

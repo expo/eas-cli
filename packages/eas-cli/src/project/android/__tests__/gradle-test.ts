@@ -21,7 +21,7 @@ beforeEach(async () => {
 });
 
 describe(resolveGradleBuildContextAsync, () => {
-  describe('generic projects', () => {
+  describe('bare projects', () => {
     it('resolves to default config (no flavor)', async () => {
       vol.fromJSON(
         {
