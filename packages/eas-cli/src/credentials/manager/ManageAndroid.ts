@@ -87,7 +87,7 @@ const highLevelActions: ActionInfo[] = [
   },
   {
     value: ActionType.ManageCredentialsJson,
-    title: 'Credentials.json: Upload/Download credentials between EAS servers and your local json ',
+    title: 'credentials.json: Upload/Download credentials between EAS servers and your local json ',
     scope: Scope.Manager,
   },
   {
