@@ -1,5 +1,5 @@
-import { Platform, Workflow } from '@expo/eas-build-job';
-import { EasJsonReader } from '@expo/eas-json';
+import { Workflow } from '@expo/eas-build-job';
+import { BuildProfile } from '@expo/eas-json';
 import { error } from '@oclif/errors';
 import chalk from 'chalk';
 import resolveFrom from 'resolve-from';
@@ -10,39 +10,36 @@ import { appPlatformDisplayNames } from '../../platform';
 import { resolveWorkflowAsync } from '../../project/workflow';
 import { confirmAsync } from '../../prompts';
 import { expoCommandAsync } from '../../utils/expoCommand';
-import zipObject from '../../utils/expodash/zipObject';
+import { ProfileData } from '../../utils/profiles';
 import { reviewAndCommitChangesAsync } from './repository';
 
 export async function ensureExpoDevClientInstalledForDevClientBuildsAsync({
   projectDir,
-  platforms,
-  profile,
   nonInteractive = false,
+  buildProfiles = [],
 }: {
   projectDir: string;
-  platforms: Platform[];
-  profile: string;
   nonInteractive?: boolean;
+  buildProfiles?: ProfileData<BuildProfile>[];
 }): Promise<void> {
   if (await isExpoDevClientInstalledAsync(projectDir)) {
     return;
   }
 
-  const easJsonReader = new EasJsonReader(projectDir);
-  const devClientPerPlatformList = await Promise.all(
-    platforms.map(async platform => {
-      const buildProfile = await easJsonReader.readBuildProfileAsync(platform, profile);
-      return buildProfile.developmentClient ?? false;
-    })
+  const buildProfilesWithDevelopmentClientRequired = buildProfiles.filter(
+    buildProfile => buildProfile.profile.developmentClient
   );
 
-  const isDevClientRequired = devClientPerPlatformList.some(i => i);
-  if (!isDevClientRequired) {
+  const isDevelopmentClientRequired = buildProfilesWithDevelopmentClientRequired.some(Boolean);
+
+  if (!isDevelopmentClientRequired) {
     return;
   }
 
-  const devClientPerPlatform = zipObject(platforms, devClientPerPlatformList);
-  const platformsToCheck = platforms.filter(platform => devClientPerPlatform[platform]);
+  const platformsToCheck = buildProfilesWithDevelopmentClientRequired.map(
+    ({ platform }) => platform
+  );
+
   const workflowPerPlatformList = await Promise.all(
     platformsToCheck.map(platform => resolveWorkflowAsync(projectDir, platform))
   );
@@ -67,15 +64,15 @@ export async function ensureExpoDevClientInstalledForDevClientBuildsAsync({
     if (install) {
       await installExpoDevClientAsync(projectDir, { nonInteractive });
     } else {
-      error(`Install ${chalk.bold('expo-dev-client')} on your own and come back later.`, {
+      error(`Install ${chalk.bold('expo-dev-client')} manually and come back later.`, {
         exit: 1,
       });
     }
   } else {
-    Log.warn(`Unfortunately, you need to install ${chalk.bold('expo-dev-client')} on your own.`);
+    Log.warn(`You'll need to install ${chalk.bold('expo-dev-client')} manually.`);
     Log.warn(
       learnMore('https://docs.expo.dev/clients/installation/', {
-        learnMoreMessage: 'See installation instructions on how to do it',
+        learnMoreMessage: 'See installation instructions on how to do it.',
         dim: false,
       })
     );

@@ -81,18 +81,24 @@ export class EasJsonReader {
 
   public async readSubmitProfileAsync<T extends Platform>(
     platform: T,
-    profileName?: string
+    profileNameArg?: string
   ): Promise<SubmitProfile<T>> {
+    let profileName = profileNameArg;
+
     if (!profileName) {
       const profileNames = await this.getSubmitProfileNamesAsync({
         throwIfEasJsonDoesNotExist: false,
       });
-      if (profileNames.includes('release')) {
-        return await this.readSubmitProfileAsync(platform, 'release');
+
+      if (profileNames.includes('production')) {
+        profileName = 'production';
+      } else if (profileNames.includes('release')) {
+        profileName = 'release';
       } else {
         return getDefaultSubmitProfile(platform);
       }
     }
+
     const easJson = await this.readAndValidateAsync();
     const profile = easJson?.submit?.[profileName];
     if (!profile) {

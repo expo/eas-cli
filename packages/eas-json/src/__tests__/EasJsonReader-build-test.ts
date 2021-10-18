@@ -14,13 +14,13 @@ beforeEach(async () => {
 test('minimal valid eas.json for both platforms', async () => {
   await fs.writeJson('/project/eas.json', {
     build: {
-      release: {},
+      production: {},
     },
   });
 
   const reader = new EasJsonReader('/project');
-  const iosProfile = await reader.readBuildProfileAsync(Platform.IOS, 'release');
-  const androidProfile = await reader.readBuildProfileAsync(Platform.ANDROID, 'release');
+  const iosProfile = await reader.readBuildProfileAsync(Platform.IOS, 'production');
+  const androidProfile = await reader.readBuildProfileAsync(Platform.ANDROID, 'production');
 
   expect({
     distribution: 'store',
@@ -36,7 +36,7 @@ test('minimal valid eas.json for both platforms', async () => {
 test('valid eas.json for development client builds', async () => {
   await fs.writeJson('/project/eas.json', {
     build: {
-      release: {},
+      production: {},
       debug: {
         developmentClient: true,
         android: {
@@ -219,7 +219,7 @@ test('valid profile extending other profile with platform specific caching', asy
 test('valid eas.json with missing profile', async () => {
   await fs.writeJson('/project/eas.json', {
     build: {
-      release: {},
+      production: {},
     },
   });
 
@@ -231,14 +231,14 @@ test('valid eas.json with missing profile', async () => {
 test('invalid eas.json when using wrong buildType', async () => {
   await fs.writeJson('/project/eas.json', {
     build: {
-      release: { android: { buildType: 'archive' } },
+      production: { android: { buildType: 'archive' } },
     },
   });
 
   const reader = new EasJsonReader('/project');
-  const promise = reader.readBuildProfileAsync(Platform.ANDROID, 'release');
+  const promise = reader.readBuildProfileAsync(Platform.ANDROID, 'production');
   await expect(promise).rejects.toThrowError(
-    'eas.json is not valid [ValidationError: "build.release.android.buildType" must be one of [apk, app-bundle]]'
+    'eas.json is not valid [ValidationError: "build.production.android.buildType" must be one of [apk, app-bundle]]'
   );
 });
 
@@ -246,33 +246,33 @@ test('empty json', async () => {
   await fs.writeJson('/project/eas.json', {});
 
   const reader = new EasJsonReader('/project');
-  const promise = reader.readBuildProfileAsync(Platform.ANDROID, 'release');
-  await expect(promise).rejects.toThrowError('There is no profile named release in eas.json');
+  const promise = reader.readBuildProfileAsync(Platform.ANDROID, 'production');
+  await expect(promise).rejects.toThrowError('There is no profile named production in eas.json');
 });
 
 test('invalid semver value', async () => {
   await fs.writeJson('/project/eas.json', {
     build: {
-      release: { node: '12.0.0-alpha' },
+      production: { node: '12.0.0-alpha' },
     },
   });
 
   const reader = new EasJsonReader('/project');
-  const promise = reader.readBuildProfileAsync(Platform.ANDROID, 'release');
+  const promise = reader.readBuildProfileAsync(Platform.ANDROID, 'production');
   await expect(promise).rejects.toThrowError(
-    'eas.json is not valid [ValidationError: "build.release.node" failed custom validation because 12.0.0-alpha is not a valid version]'
+    'eas.json is not valid [ValidationError: "build.production.node" failed custom validation because 12.0.0-alpha is not a valid version]'
   );
 });
 
 test('get profile names', async () => {
   await fs.writeJson('/project/eas.json', {
     build: {
-      release: { node: '12.0.0-alpha' },
+      production: { node: '12.0.0-alpha' },
       blah: { node: '12.0.0-alpha' },
     },
   });
 
   const reader = new EasJsonReader('/project');
   const allProfileNames = await reader.getBuildProfileNamesAsync();
-  expect(allProfileNames.sort()).toEqual(['blah', 'release'].sort());
+  expect(allProfileNames.sort()).toEqual(['blah', 'production'].sort());
 });

@@ -20,6 +20,7 @@ import { findProjectRootAsync, getProjectIdAsync } from '../project/projectUtils
 import { SubmitArchiveFlags, createSubmissionContextAsync } from '../submit/context';
 import { submitAsync, waitToCompleteAsync } from '../submit/submit';
 import { printSubmissionDetailsUrls } from '../submit/utils/urls';
+import { getProfilesAsync } from '../utils/profiles';
 
 interface RawFlags {
   platform?: string;
@@ -54,7 +55,7 @@ See how to configure submits with eas.json: ${link('https://docs.expo.dev/submit
     }),
     profile: flags.string({
       description:
-        'Name of the submit profile from eas.json. Defaults to "release" if defined in eas.json.',
+        'Name of the submit profile from eas.json. Defaults to "production" if defined in eas.json.',
     }),
     latest: flags.boolean({
       description: 'Submit the latest build for specified platform',
@@ -101,23 +102,30 @@ See how to configure submits with eas.json: ${link('https://docs.expo.dev/submit
       return;
     }
 
-    const easJsonReader = new EasJsonReader(projectDir);
     const platforms = toPlatforms(flags.requestedPlatform);
+    const easJsonReader = new EasJsonReader(projectDir);
+    const submissionProfiles = await getProfilesAsync({
+      platforms,
+      profileName: flags.profile,
+      async readProfileAsync(platform, profileName) {
+        return await easJsonReader.readSubmitProfileAsync(platform, profileName);
+      },
+    });
+
     const submissions: SubmissionFragment[] = [];
-    for (const platform of platforms) {
-      const profile = await easJsonReader.readSubmitProfileAsync(platform, flags.profile);
+    for (const submissionProfile of submissionProfiles) {
       const ctx = await createSubmissionContextAsync({
-        platform,
+        platform: submissionProfile.platform,
         projectDir,
         projectId,
-        profile,
+        profile: submissionProfile.profile,
         archiveFlags: flags.archiveFlags,
         nonInteractive: flags.nonInteractive,
       });
 
-      if (platforms.length > 1) {
+      if (submissionProfiles.length > 1) {
         Log.newLine();
-        const appPlatform = toAppPlatform(platform);
+        const appPlatform = toAppPlatform(submissionProfile.platform);
         Log.log(
           `${appPlatformEmojis[appPlatform]} ${chalk.bold(
             `${appPlatformDisplayNames[appPlatform]} submission`
