@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Skip the second prompt for Apple ID if the user is already signed in with Apple. ([#691](https://github.com/expo/eas-cli/pull/691) by [@dsokal](https://github.com/dsokal))
+
 ### 🧹 Chores
 
 ## [0.32.0](https://github.com/expo/eas-cli/releases/tag/0.32.0) - 2021-10-15
