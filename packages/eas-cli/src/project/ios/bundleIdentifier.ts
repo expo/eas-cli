@@ -5,6 +5,7 @@ import assert from 'assert';
 import chalk from 'chalk';
 import fs from 'fs-extra';
 
+import { readAppJson } from '../../build/utils/appJson';
 import Log, { learnMore } from '../../log';
 import { promptAsync } from '../../prompts';
 import { ensureLoggedInAsync } from '../../user/actions';
@@ -107,7 +108,7 @@ async function configureBundleIdentifierAsync(
     validate: value => (isBundleIdentifierValid(value) ? true : INVALID_BUNDLE_IDENTIFIER_MESSAGE),
   });
 
-  const rawStaticConfig = await fs.readJSON(paths.staticConfigPath);
+  const rawStaticConfig = readAppJson(paths.staticConfigPath);
   rawStaticConfig.expo = {
     ...rawStaticConfig.expo,
     ios: { ...rawStaticConfig.expo?.ios, bundleIdentifier },
