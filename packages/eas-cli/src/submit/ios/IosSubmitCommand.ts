@@ -177,6 +177,10 @@ export default class IosSubmitCommand {
       return result(envAppleId);
     }
 
+    if (this.ctx.credentialsCtx.appStore.authCtx?.appleId) {
+      return result(this.ctx.credentialsCtx.appStore.authCtx.appleId);
+    }
+
     // Get the email address that was last used and set it as
     // the default value for quicker authentication.
     const lastAppleId = await UserSettings.getAsync('appleId', null);
