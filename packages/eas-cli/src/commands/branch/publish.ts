@@ -1,4 +1,5 @@
 import { ExpoConfig, getConfig, getDefaultTarget } from '@expo/config';
+import { Updates } from '@expo/config-plugins';
 import { getRuntimeVersionForSDKVersion } from '@expo/sdk-runtime-versions';
 import { flags } from '@oclif/command';
 import assert from 'assert';
@@ -393,54 +394,36 @@ function getRuntimeVersionObject(
   platformFlag: string,
   projectDir: string
 ): Record<string, string> {
-  let { runtimeVersion: defaultRuntimeVersion, sdkVersion } = exp;
-
-  // When a SDK version is supplied instead of a runtime version and we're in the managed workflow
-  // construct the runtimeVersion with special meaning indicating that the runtime is an
-  // Expo SDK preset runtime that can be launched in Expo Go.
   const isManagedProject = getDefaultTarget(projectDir) === 'managed';
-  if (!defaultRuntimeVersion && sdkVersion && isManagedProject) {
-    Log.withTick('Generating runtime version from sdk version');
-    defaultRuntimeVersion = getRuntimeVersionForSDKVersion(sdkVersion);
+  if (
+    !isManagedProject &&
+    [exp.runtimeVersion, exp.ios?.runtimeVersion, exp.android?.runtimeVersion].map(
+      rtv => typeof rtv === 'object'
+    )
+  ) {
+    throw new Error('Runtime version policys are only supported in managed workflows.');
   }
-  const iOSRuntimeVersion = (exp as any).ios?.runtimeVersion; // TODO-JJ remove cast to any
-  const androidRuntimeVersion = (exp as any).android?.runtimeVersion; // TODO-JJ remove cast to any
-  let runtimeVersions: Record<string, string>;
+
   switch (platformFlag) {
     case 'ios': {
-      runtimeVersions = {
-        ios: iOSRuntimeVersion ?? defaultRuntimeVersion,
+      return {
+        ios: Updates.getRuntimeVersion(exp, 'ios'),
       };
-      break;
     }
     case 'android': {
-      runtimeVersions = {
-        android: androidRuntimeVersion ?? defaultRuntimeVersion,
+      return {
+        android: Updates.getRuntimeVersion(exp, 'android'),
       };
-      break;
     }
     case 'all': {
-      runtimeVersions = {
-        ios: iOSRuntimeVersion ?? defaultRuntimeVersion,
-        android: androidRuntimeVersion ?? defaultRuntimeVersion,
+      return {
+        ios: Updates.getRuntimeVersion(exp, 'ios'),
+        android: Updates.getRuntimeVersion(exp, 'android'),
       };
-      break;
     }
     default:
       throw new Error('Platform flag must be "ios", "android", or "all"');
   }
-  if (Object.values(runtimeVersions).some(runtime => !runtime)) {
-    throw new Error(
-      "Couldn't find a 'runtimeVersion' for every platform. Please specify it under the 'expo' key in 'app.json'"
-    );
-  }
-  if (Object.values(runtimeVersions).some(runtime => typeof runtime !== 'string')) {
-    throw new Error(
-      `Please ensure that all of the runtime versions defined in the app.json are strings.`
-    );
-  }
-
-  return runtimeVersions;
 }
 
 function formatUpdateTitle(
