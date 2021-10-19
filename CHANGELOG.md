@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Compute runtime version using config-plugins. ([#697](https://github.com/expo/eas-cli/pull/697) by [@jkhales](https://github.com/jkhales))
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores

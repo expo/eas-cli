@@ -1,6 +1,5 @@
 import { ExpoConfig, getConfig, getDefaultTarget } from '@expo/config';
 import { Updates } from '@expo/config-plugins';
-import { getRuntimeVersionForSDKVersion } from '@expo/sdk-runtime-versions';
 import { flags } from '@oclif/command';
 import assert from 'assert';
 import chalk from 'chalk';
@@ -398,7 +397,7 @@ function getRuntimeVersionObject(
   if (
     !isManagedProject &&
     [exp.runtimeVersion, exp.ios?.runtimeVersion, exp.android?.runtimeVersion].map(
-      rtv => typeof rtv === 'object'
+      runtimeValue => typeof runtimeValue === 'object'
     )
   ) {
     throw new Error('Runtime version policys are only supported in managed workflows.');
