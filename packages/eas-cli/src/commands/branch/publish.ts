@@ -1,5 +1,6 @@
-import { ExpoConfig, getConfig, getDefaultTarget } from '@expo/config';
+import { ExpoConfig, getConfig } from '@expo/config';
 import { Updates } from '@expo/config-plugins';
+import { Platform, Workflow } from '@expo/eas-build-job';
 import { flags } from '@oclif/command';
 import assert from 'assert';
 import chalk from 'chalk';
@@ -28,6 +29,7 @@ import {
   collectAssetsAsync,
   uploadAssetsAsync,
 } from '../../project/publish';
+import { resolveWorkflowAsync } from '../../project/workflow';
 import { promptAsync, selectAsync } from '../../prompts';
 import { formatUpdate } from '../../update/utils';
 import uniqBy from '../../utils/expodash/uniqBy';
@@ -168,7 +170,7 @@ export default class BranchPublish extends EasCommand {
       isPublicConfig: true,
     });
 
-    const runtimeVersions = getRuntimeVersionObject(exp, platformFlag, projectDir);
+    const runtimeVersions = await getRuntimeVersionObjectAsync(exp, platformFlag, projectDir);
 
     const projectId = await getProjectIdAsync(exp);
 
@@ -388,41 +390,26 @@ export default class BranchPublish extends EasCommand {
   }
 }
 
-function getRuntimeVersionObject(
+async function getRuntimeVersionObjectAsync(
   exp: ExpoConfig,
-  platformFlag: string,
+  platformFlag: PlatformFlag,
   projectDir: string
-): Record<string, string> {
-  const isManagedProject = getDefaultTarget(projectDir) === 'managed';
-  if (
-    !isManagedProject &&
-    [exp.runtimeVersion, exp.ios?.runtimeVersion, exp.android?.runtimeVersion].filter(
-      runtimeValue => typeof runtimeValue === 'object'
-    ).length > 0
-  ) {
-    throw new Error('Runtime version policies are only supported in managed workflow.');
+): Promise<Record<string, string>> {
+  const platforms = (platformFlag === 'all' ? ['android', 'ios'] : [platformFlag]) as Platform[];
+
+  for (const platform of platforms) {
+    const isPolicy = typeof (exp[platform]?.runtimeVersion ?? exp.runtimeVersion) === 'object';
+    if (isPolicy) {
+      const isManaged = (await resolveWorkflowAsync(projectDir, platform)) === Workflow.MANAGED;
+      if (!isManaged) {
+        throw new Error('Runtime version policies are only supported in the managed workflow.');
+      }
+    }
   }
 
-  switch (platformFlag) {
-    case 'ios': {
-      return {
-        ios: Updates.getRuntimeVersion(exp, 'ios'),
-      };
-    }
-    case 'android': {
-      return {
-        android: Updates.getRuntimeVersion(exp, 'android'),
-      };
-    }
-    case 'all': {
-      return {
-        ios: Updates.getRuntimeVersion(exp, 'ios'),
-        android: Updates.getRuntimeVersion(exp, 'android'),
-      };
-    }
-    default:
-      throw new Error('Platform flag must be "ios", "android", or "all"');
-  }
+  return Object.fromEntries(
+    platforms.map(platform => [platform, Updates.getRuntimeVersion(exp, platform)])
+  );
 }
 
 function formatUpdateTitle(
