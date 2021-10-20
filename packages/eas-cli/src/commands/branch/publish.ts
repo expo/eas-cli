@@ -1,5 +1,6 @@
-import { ExpoConfig, getConfig, getDefaultTarget } from '@expo/config';
-import { getRuntimeVersionForSDKVersion } from '@expo/sdk-runtime-versions';
+import { ExpoConfig, getConfig } from '@expo/config';
+import { Updates } from '@expo/config-plugins';
+import { Platform, Workflow } from '@expo/eas-build-job';
 import { flags } from '@oclif/command';
 import assert from 'assert';
 import chalk from 'chalk';
@@ -28,6 +29,7 @@ import {
   collectAssetsAsync,
   uploadAssetsAsync,
 } from '../../project/publish';
+import { resolveWorkflowAsync } from '../../project/workflow';
 import { promptAsync, selectAsync } from '../../prompts';
 import { formatUpdate } from '../../update/utils';
 import uniqBy from '../../utils/expodash/uniqBy';
@@ -168,7 +170,7 @@ export default class BranchPublish extends EasCommand {
       isPublicConfig: true,
     });
 
-    const runtimeVersions = getRuntimeVersionObject(exp, platformFlag, projectDir);
+    const runtimeVersions = await getRuntimeVersionObjectAsync(exp, platformFlag, projectDir);
 
     const projectId = await getProjectIdAsync(exp);
 
@@ -388,59 +390,26 @@ export default class BranchPublish extends EasCommand {
   }
 }
 
-function getRuntimeVersionObject(
+async function getRuntimeVersionObjectAsync(
   exp: ExpoConfig,
-  platformFlag: string,
+  platformFlag: PlatformFlag,
   projectDir: string
-): Record<string, string> {
-  let { runtimeVersion: defaultRuntimeVersion, sdkVersion } = exp;
+): Promise<Record<string, string>> {
+  const platforms = (platformFlag === 'all' ? ['android', 'ios'] : [platformFlag]) as Platform[];
 
-  // When a SDK version is supplied instead of a runtime version and we're in the managed workflow
-  // construct the runtimeVersion with special meaning indicating that the runtime is an
-  // Expo SDK preset runtime that can be launched in Expo Go.
-  const isManagedProject = getDefaultTarget(projectDir) === 'managed';
-  if (!defaultRuntimeVersion && sdkVersion && isManagedProject) {
-    Log.withTick('Generating runtime version from sdk version');
-    defaultRuntimeVersion = getRuntimeVersionForSDKVersion(sdkVersion);
-  }
-  const iOSRuntimeVersion = (exp as any).ios?.runtimeVersion; // TODO-JJ remove cast to any
-  const androidRuntimeVersion = (exp as any).android?.runtimeVersion; // TODO-JJ remove cast to any
-  let runtimeVersions: Record<string, string>;
-  switch (platformFlag) {
-    case 'ios': {
-      runtimeVersions = {
-        ios: iOSRuntimeVersion ?? defaultRuntimeVersion,
-      };
-      break;
+  for (const platform of platforms) {
+    const isPolicy = typeof (exp[platform]?.runtimeVersion ?? exp.runtimeVersion) === 'object';
+    if (isPolicy) {
+      const isManaged = (await resolveWorkflowAsync(projectDir, platform)) === Workflow.MANAGED;
+      if (!isManaged) {
+        throw new Error('Runtime version policies are only supported in the managed workflow.');
+      }
     }
-    case 'android': {
-      runtimeVersions = {
-        android: androidRuntimeVersion ?? defaultRuntimeVersion,
-      };
-      break;
-    }
-    case 'all': {
-      runtimeVersions = {
-        ios: iOSRuntimeVersion ?? defaultRuntimeVersion,
-        android: androidRuntimeVersion ?? defaultRuntimeVersion,
-      };
-      break;
-    }
-    default:
-      throw new Error('Platform flag must be "ios", "android", or "all"');
-  }
-  if (Object.values(runtimeVersions).some(runtime => !runtime)) {
-    throw new Error(
-      "Couldn't find a 'runtimeVersion' for every platform. Please specify it under the 'expo' key in 'app.json'"
-    );
-  }
-  if (Object.values(runtimeVersions).some(runtime => typeof runtime !== 'string')) {
-    throw new Error(
-      `Please ensure that all of the runtime versions defined in the app.json are strings.`
-    );
   }
 
-  return runtimeVersions;
+  return Object.fromEntries(
+    platforms.map(platform => [platform, Updates.getRuntimeVersion(exp, platform)])
+  );
 }
 
 function formatUpdateTitle(
