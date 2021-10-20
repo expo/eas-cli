@@ -396,9 +396,9 @@ function getRuntimeVersionObject(
   const isManagedProject = getDefaultTarget(projectDir) === 'managed';
   if (
     !isManagedProject &&
-    [exp.runtimeVersion, exp.ios?.runtimeVersion, exp.android?.runtimeVersion].map(
+    [exp.runtimeVersion, exp.ios?.runtimeVersion, exp.android?.runtimeVersion].filter(
       runtimeValue => typeof runtimeValue === 'object'
-    )
+    ).length > 0
   ) {
     throw new Error('Runtime version policies are only supported in managed workflow.');
   }
