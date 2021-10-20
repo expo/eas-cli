@@ -44,7 +44,7 @@ export interface IosBuildProfile extends IosBuilderEnvironment {
   scheme?: string;
   schemeBuildConfiguration?: string;
 
-  buildType?: Ios.BuildType;
+  buildType?: 'release' | 'development-client';
 }
 
 export type BuildProfile = AndroidBuildProfile | IosBuildProfile;

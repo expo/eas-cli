@@ -1,3 +1,4 @@
+import { EasJsonReader } from '@expo/eas-json';
 import { Command } from '@oclif/command';
 
 import {
@@ -6,6 +7,7 @@ import {
   initAsync as initAnalyticsAsync,
   logEvent,
 } from '../analytics';
+import Log from '../log';
 import { getUserAsync } from '../user/User';
 import { ensureLoggedInAsync } from '../user/actions';
 
@@ -20,6 +22,8 @@ export default abstract class EasCommand extends Command {
 
   // eslint-disable-next-line async-protect/async-suffix
   async run(): Promise<any> {
+    EasJsonReader.setLog(Log);
+
     await initAnalyticsAsync();
 
     if (this.requiresAuthentication) {

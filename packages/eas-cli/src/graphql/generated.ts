@@ -213,6 +213,7 @@ export type Account = {
   appleProvisioningProfiles: Array<AppleProvisioningProfile>;
   appleDevices: Array<AppleDevice>;
   appleAppSpecificPasswords: Array<AppleAppSpecificPassword>;
+  appStoreConnectApiKeys: Array<AppStoreConnectApiKey>;
   /** Android credentials for account */
   googleServiceAccountKeys: Array<GoogleServiceAccountKey>;
   /** Environment secrets for an account */
@@ -1112,6 +1113,7 @@ export type IosAppCredentials = {
   appleAppIdentifier: AppleAppIdentifier;
   iosAppBuildCredentialsList: Array<IosAppBuildCredentials>;
   pushKey?: Maybe<ApplePushKey>;
+  submissionAppStoreConnectApiKey?: Maybe<AppStoreConnectApiKey>;
   appSpecificPassword?: Maybe<AppleAppSpecificPassword>;
   /** @deprecated use iosAppBuildCredentialsList instead */
   iosAppBuildCredentialsArray: Array<IosAppBuildCredentials>;
@@ -1243,6 +1245,38 @@ export type ApplePushKey = {
 export type IosAppBuildCredentialsFilter = {
   iosDistributionType?: Maybe<IosDistributionType>;
 };
+
+export type AppStoreConnectApiKey = {
+  __typename?: 'AppStoreConnectApiKey';
+  id: Scalars['ID'];
+  account: Account;
+  appleTeam?: Maybe<AppleTeam>;
+  issuerIdentifier: Scalars['String'];
+  keyIdentifier: Scalars['String'];
+  name?: Maybe<Scalars['String']>;
+  roles?: Maybe<Array<AppStoreConnectUserRole>>;
+  createdAt: Scalars['DateTime'];
+  updatedAt: Scalars['DateTime'];
+};
+
+export enum AppStoreConnectUserRole {
+  Admin = 'ADMIN',
+  Finance = 'FINANCE',
+  Technical = 'TECHNICAL',
+  AccountHolder = 'ACCOUNT_HOLDER',
+  ReadOnly = 'READ_ONLY',
+  Sales = 'SALES',
+  Marketing = 'MARKETING',
+  AppManager = 'APP_MANAGER',
+  Developer = 'DEVELOPER',
+  AccessToReports = 'ACCESS_TO_REPORTS',
+  CustomerSupport = 'CUSTOMER_SUPPORT',
+  CreateApps = 'CREATE_APPS',
+  CloudManagedDeveloperId = 'CLOUD_MANAGED_DEVELOPER_ID',
+  CloudManagedAppDistribution = 'CLOUD_MANAGED_APP_DISTRIBUTION',
+  ImageManager = 'IMAGE_MANAGER',
+  Unknown = 'UNKNOWN'
+}
 
 export type AppleAppSpecificPassword = {
   __typename?: 'AppleAppSpecificPassword';
@@ -2526,6 +2560,7 @@ export type AndroidJobInput = {
   projectRootDirectory: Scalars['String'];
   releaseChannel?: Maybe<Scalars['String']>;
   updates?: Maybe<BuildUpdatesInput>;
+  useDevelopmentClient?: Maybe<Scalars['Boolean']>;
   secrets?: Maybe<AndroidJobSecretsInput>;
   builderEnvironment?: Maybe<AndroidBuilderEnvironmentInput>;
   cache?: Maybe<BuildCacheInput>;
@@ -2591,6 +2626,7 @@ export type BuildCacheInput = {
 export enum AndroidBuildType {
   Apk = 'APK',
   AppBundle = 'APP_BUNDLE',
+  /** @deprecated Use useDevelopmentClient option instead. */
   DevelopmentClient = 'DEVELOPMENT_CLIENT'
 }
 
@@ -2642,13 +2678,17 @@ export type IosJobInput = {
   projectRootDirectory: Scalars['String'];
   releaseChannel?: Maybe<Scalars['String']>;
   updates?: Maybe<BuildUpdatesInput>;
+  /** @deprecated */
   distribution?: Maybe<DistributionType>;
+  simulator?: Maybe<Scalars['Boolean']>;
+  useDevelopmentClient?: Maybe<Scalars['Boolean']>;
   secrets?: Maybe<IosJobSecretsInput>;
   builderEnvironment?: Maybe<IosBuilderEnvironmentInput>;
   cache?: Maybe<BuildCacheInput>;
   scheme?: Maybe<Scalars['String']>;
   buildConfiguration?: Maybe<Scalars['String']>;
   artifactPath?: Maybe<Scalars['String']>;
+  /** @deprecated */
   buildType?: Maybe<IosBuildType>;
   username?: Maybe<Scalars['String']>;
 };
@@ -2680,6 +2720,7 @@ export type IosBuilderEnvironmentInput = {
   env?: Maybe<Scalars['JSONObject']>;
 };
 
+/** @deprecated Use useDevelopmentClient option instead. */
 export enum IosBuildType {
   Release = 'RELEASE',
   DevelopmentClient = 'DEVELOPMENT_CLIENT'
@@ -3433,6 +3474,7 @@ export enum IosSchemeBuildConfiguration {
   Debug = 'DEBUG'
 }
 
+/** @deprecated Use useDevelopmentClient option instead. */
 export enum IosManagedBuildType {
   Release = 'RELEASE',
   DevelopmentClient = 'DEVELOPMENT_CLIENT'

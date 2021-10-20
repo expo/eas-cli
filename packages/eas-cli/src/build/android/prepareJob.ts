@@ -70,12 +70,11 @@ export async function prepareJobAsync(
     },
     releaseChannel: ctx.buildProfile.releaseChannel,
     updates: { channel: ctx.buildProfile.channel },
-
+    useDevelopmentClient: buildProfile.useDevelopmentClient,
     gradleCommand: buildProfile.gradleCommand,
     artifactPath: buildProfile.artifactPath,
-
+    buildType,
     username,
-    buildType: buildProfile.developmentClient ? Android.BuildType.DEVELOPMENT_CLIENT : buildType,
   };
 
   return sanitizeJob(job);

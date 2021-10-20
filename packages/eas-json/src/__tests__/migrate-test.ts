@@ -30,7 +30,7 @@ test('migration for default manged eas.json', async () => {
     },
   });
   expect(migrateProfile(easJson, 'development')).toEqual({
-    developmentClient: true,
+    useDevelopmentClient: true,
     distribution: 'internal',
   });
 });

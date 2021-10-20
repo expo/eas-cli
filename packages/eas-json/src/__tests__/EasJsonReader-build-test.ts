@@ -38,7 +38,7 @@ test('valid eas.json for development client builds', async () => {
     build: {
       production: {},
       debug: {
-        developmentClient: true,
+        useDevelopmentClient: true,
         android: {
           withoutCredentials: true,
         },
@@ -52,14 +52,14 @@ test('valid eas.json for development client builds', async () => {
   expect({
     credentialsSource: 'remote',
     distribution: 'store',
-    developmentClient: true,
+    useDevelopmentClient: true,
     withoutCredentials: true,
   }).toEqual(androidProfile);
 
   expect({
     credentialsSource: 'remote',
     distribution: 'store',
-    developmentClient: true,
+    useDevelopmentClient: true,
   }).toEqual(iosProfile);
 });
 

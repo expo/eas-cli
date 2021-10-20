@@ -5,11 +5,13 @@
   "author": "Expo <support@expo.dev>",
   "bugs": "https://github.com/expo/eas-cli/issues",
   "dependencies": {
-    "@expo/eas-build-job": "0.2.52",
+    "@expo/eas-build-job": "0.2.55",
     "@expo/json-file": "8.2.33",
+    "chalk": "4.1.2",
     "env-string": "1.0.1",
     "fs-extra": "10.0.0",
     "joi": "17.4.2",
+    "log-symbols": "4.1.0",
     "tslib": "2.3.1"
   },
   "devDependencies": {

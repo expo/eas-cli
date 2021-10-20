@@ -98,7 +98,7 @@ export async function configureAsync(options: {
 const EAS_JSON_MANAGED_DEFAULT: EasJson = {
   build: {
     development: {
-      developmentClient: true,
+      useDevelopmentClient: true,
       distribution: 'internal',
     },
     preview: {
