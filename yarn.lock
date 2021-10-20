@@ -869,6 +869,27 @@
     xcode "^3.0.1"
     xml2js "^0.4.23"
 
+"@expo/config-plugins@4.0.3":
+  version "4.0.3"
+  resolved "https://registry.yarnpkg.com/@expo/config-plugins/-/config-plugins-4.0.3.tgz#8680dea2709c70f3a9c9e77ca6057335758341a8"
+  integrity sha512-vJ+4YOXxAjznpIG0WQHNsbeeJQXS/ZxzVPHhOO3le8Lkl+WJ2eH7XypulPRalBI4E0WLFtzDzLIdnqYJyjzvaw==
+  dependencies:
+    "@expo/config-types" "^43.0.0"
+    "@expo/json-file" "8.2.33"
+    "@expo/plist" "0.0.15"
+    "@react-native/normalize-color" "^2.0.0"
+    chalk "^4.1.2"
+    debug "^4.3.1"
+    find-up "~5.0.0"
+    fs-extra "9.0.0"
+    getenv "^1.0.0"
+    glob "7.1.6"
+    resolve-from "^5.0.0"
+    semver "^7.3.5"
+    slash "^3.0.0"
+    xcode "^3.0.1"
+    xml2js "0.4.23"
+
 "@expo/config-types@^43.0.0":
   version "43.0.0"
   resolved "https://registry.yarnpkg.com/@expo/config-types/-/config-types-43.0.0.tgz#e283a4a1b72a655a6a2a745bd277caef58c8edb0"
@@ -10939,7 +10960,7 @@ xml-name-validator@^3.0.0:
   resolved "https://registry.yarnpkg.com/xml-name-validator/-/xml-name-validator-3.0.0.tgz#6ae73e06de4d8c6e47f9fb181f78d648ad457c6a"
   integrity sha512-A5CUptxDsvxKJEU3yO6DuWBSJz/qizqzJKOMIfUJHETbBw/sFaDxgd6fxm1ewUaM0jZ444Fc5vC5ROYurg/4Pw==
 
-xml2js@^0.4.23:
+xml2js@0.4.23, xml2js@^0.4.23:
   version "0.4.23"
   resolved "https://registry.yarnpkg.com/xml2js/-/xml2js-0.4.23.tgz#a0c69516752421eb2ac758ee4d4ccf58843eac66"
   integrity sha512-ySPiMjM0+pLDftHgXY4By0uswI3SPKLDw/i3UXbnO8M/p28zqexCUoPmQFrYD+/1BzhGJSs2i1ERWKJAtiLrug==
