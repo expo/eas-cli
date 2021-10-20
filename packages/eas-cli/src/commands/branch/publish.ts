@@ -400,7 +400,7 @@ function getRuntimeVersionObject(
       runtimeValue => typeof runtimeValue === 'object'
     )
   ) {
-    throw new Error('Runtime version policys are only supported in managed workflows.');
+    throw new Error('Runtime version policies are only supported in managed workflow.');
   }
 
   switch (platformFlag) {
