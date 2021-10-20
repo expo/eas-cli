@@ -326,16 +326,16 @@ async function handlePromptSourceAsync(source: ArchivePromptSource): Promise<Arc
     message: 'What would you like to submit?',
     choices: [
       {
-        title: 'Selected build from EAS',
+        title: 'Select a build from EAS',
         value: ArchiveSourceType.buildList,
       },
-      { title: 'I have a url to the app archive', value: ArchiveSourceType.url },
+      { title: 'Provide a URL to the app archive', value: ArchiveSourceType.url },
       {
-        title: 'Local app binary file',
+        title: 'Provie a path to a local app binary file',
         value: ArchiveSourceType.path,
       },
       {
-        title: 'A build identified by a build ID',
+        title: 'Provide a build ID to identify a build on EAS',
         value: ArchiveSourceType.buildId,
       },
     ],
