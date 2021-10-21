@@ -21,7 +21,10 @@ export const PublishQuery = {
           {
             storageKeys,
           },
-          { requestPolicy: 'network-only' } // Since we reptitively query this to monitor the asset upload, we need to ensure it is not cached.
+          {
+            requestPolicy: 'network-only',
+            additionalTypenames: ['AssetMetadataResult'],
+          } // Since we reptitively query this to monitor the asset upload, we need to ensure it is not cached.
         )
         .toPromise()
     );

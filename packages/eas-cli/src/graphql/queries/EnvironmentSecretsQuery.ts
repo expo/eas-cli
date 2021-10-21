@@ -37,7 +37,10 @@ export const EnvironmentSecretsQuery = {
             }
             ${print(EnvironmentSecretFragmentNode)}
           `,
-          { accountName }
+          { accountName },
+          {
+            additionalTypenames: ['EnvironmentSecret'],
+          }
         )
         .toPromise()
     );

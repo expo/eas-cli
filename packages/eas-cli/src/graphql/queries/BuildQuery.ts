@@ -89,7 +89,10 @@ export const BuildQuery = {
             }
             ${print(BuildFragmentNode)}
           `,
-          { appId, offset, limit, filter }
+          { appId, offset, limit, filter },
+          {
+            additionalTypenames: ['Build'],
+          }
         )
         .toPromise()
     );
