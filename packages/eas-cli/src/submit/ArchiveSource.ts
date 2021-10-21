@@ -331,7 +331,7 @@ async function handlePromptSourceAsync(source: ArchivePromptSource): Promise<Arc
       },
       { title: 'Provide a URL to the app archive', value: ArchiveSourceType.url },
       {
-        title: 'Provie a path to a local app binary file',
+        title: 'Provide a path to a local app binary file',
         value: ArchiveSourceType.path,
       },
       {
