@@ -26,6 +26,9 @@ export const ApplePushKeyQuery = {
           `,
           {
             accountName,
+          },
+          {
+            additionalTypenames: ['ApplePushKey'],
           }
         )
         .toPromise()

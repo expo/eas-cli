@@ -111,7 +111,10 @@ export const AppleDeviceQuery = {
               }
             }
           `,
-          { accountName, appleTeamIdentifier }
+          { accountName, appleTeamIdentifier },
+          {
+            additionalTypenames: ['AppleDevice', 'AppleTeam'],
+          }
         )
         .toPromise()
     );
@@ -147,7 +150,10 @@ export const AppleDeviceQuery = {
               }
             }
           `,
-          { accountName, identifier }
+          { accountName, identifier },
+          {
+            additionalTypenames: ['AppleDevice', 'AppleTeam'],
+          }
         )
         .toPromise()
     );

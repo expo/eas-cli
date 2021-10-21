@@ -60,7 +60,11 @@ export const AppleDistributionCertificateQuery = {
             iosDistributionType,
           },
           {
-            additionalTypenames: ['IosAppCredentials', 'IosAppBuildCredentials'],
+            additionalTypenames: [
+              'AppleDistributionCertificate',
+              'IosAppCredentials',
+              'IosAppBuildCredentials',
+            ],
           }
         )
         .toPromise()
@@ -93,6 +97,9 @@ export const AppleDistributionCertificateQuery = {
           `,
           {
             accountName,
+          },
+          {
+            additionalTypenames: ['AppleDistributionCertificate'],
           }
         )
         .toPromise()

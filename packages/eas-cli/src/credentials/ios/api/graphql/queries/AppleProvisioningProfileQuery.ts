@@ -77,7 +77,11 @@ export const AppleProvisioningProfileQuery = {
             iosDistributionType,
           },
           {
-            additionalTypenames: ['IosAppCredentials', 'IosAppBuildCredentials'],
+            additionalTypenames: [
+              'AppleProvisioningProfile',
+              'IosAppCredentials',
+              'IosAppBuildCredentials',
+            ],
           }
         )
         .toPromise()

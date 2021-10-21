@@ -29,6 +29,9 @@ export const GoogleServiceAccountKeyQuery = {
           `,
           {
             accountName,
+          },
+          {
+            additionalTypenames: ['GoogleServiceAccountKey'],
           }
         )
         .toPromise()
