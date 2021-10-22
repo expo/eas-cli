@@ -1,6 +1,5 @@
 import { ExpoConfig } from '@expo/config';
 import { AndroidConfig, AndroidManifest } from '@expo/config-plugins';
-import fs from 'fs-extra';
 
 import Log from '../../log';
 import { getProjectAccountName } from '../../project/projectUtils';
