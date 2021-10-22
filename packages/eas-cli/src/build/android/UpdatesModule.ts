@@ -10,17 +10,6 @@ import { ensureValidVersions } from '../utils/updates';
 export async function configureUpdatesAsync(projectDir: string, exp: ExpoConfig): Promise<void> {
   ensureValidVersions(exp);
   const accountName = getProjectAccountName(exp, await ensureLoggedInAsync());
-  const buildGradlePath = AndroidConfig.Paths.getAppBuildGradleFilePath(projectDir);
-  const buildGradleContents = await fs.readFile(buildGradlePath, 'utf8');
-
-  if (!AndroidConfig.Updates.isBuildGradleConfigured(projectDir, buildGradleContents)) {
-    const updatedBuildGradleContents =
-      AndroidConfig.Updates.ensureBuildGradleContainsConfigurationScript(
-        projectDir,
-        buildGradleContents
-      );
-    await fs.writeFile(buildGradlePath, updatedBuildGradleContents);
-  }
 
   const androidManifestPath = await AndroidConfig.Paths.getAndroidManifestAsync(projectDir);
   const androidManifest = await getAndroidManifestAsync(projectDir);
@@ -39,7 +28,7 @@ export async function syncUpdatesConfigurationAsync(
   ensureValidVersions(exp);
   const accountName = getProjectAccountName(exp, await ensureLoggedInAsync());
   try {
-    await ensureUpdatesConfiguredAsync(projectDir, exp);
+    await ensureUpdatesConfiguredAsync(projectDir);
   } catch (error) {
     Log.error(
       'expo-updates module is not configured. Please run "eas build:configure" first to configure the project'
@@ -62,15 +51,9 @@ export async function syncUpdatesConfigurationAsync(
   }
 }
 
-async function ensureUpdatesConfiguredAsync(projectDir: string, exp: ExpoConfig): Promise<void> {
-  const buildGradlePath = AndroidConfig.Paths.getAppBuildGradleFilePath(projectDir);
-  const buildGradleContents = await fs.readFile(buildGradlePath, 'utf8');
-
-  if (!AndroidConfig.Updates.isBuildGradleConfigured(projectDir, buildGradleContents)) {
-    const gradleScriptApply = AndroidConfig.Updates.formatApplyLineForBuildGradle(projectDir);
-    throw new Error(`Missing ${gradleScriptApply} in ${buildGradlePath}`);
-  }
-
+// Note: we assume here that Expo modules are properly configured in the project. Aside from that,
+// all that is needed on Expo SDK 43+ to configure expo-updates configuration in AndroidManifest.xml
+async function ensureUpdatesConfiguredAsync(projectDir: string): Promise<void> {
   const androidManifest = await getAndroidManifestAsync(projectDir);
 
   if (!AndroidConfig.Updates.isMainApplicationMetaDataSet(androidManifest)) {
