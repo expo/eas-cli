@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Better error message when eas.json is invalid. ([#707](https://github.com/expo/eas-cli/pull/707) by [@dsokal](https://github.com/dsokal))
+
 ### 🧹 Chores
 
 ## [0.33.1](https://github.com/expo/eas-cli/releases/tag/0.33.1) - 2021-10-22

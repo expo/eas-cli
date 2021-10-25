@@ -17,4 +17,5 @@ export {
   AndroidVersionAutoIncrement,
 } from './EasBuild.types';
 export { EasJsonReader } from './EasJsonReader';
+export * as errors from './errors';
 export { hasMismatchedExtendsAsync, isUsingDeprecatedFormatAsync, migrateAsync } from './migrate';
