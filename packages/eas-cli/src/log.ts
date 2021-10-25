@@ -24,11 +24,11 @@ export default class Log {
   }
 
   public static error(...args: any[]): void {
-    Log.consoleError(...Log.withTextColor(args, chalk.red));
+    Log.consoleLog(...Log.withTextColor(args, chalk.red));
   }
 
   public static warn(...args: any[]): void {
-    Log.consoleWarn(...Log.withTextColor(args, chalk.yellow));
+    Log.consoleLog(...Log.withTextColor(args, chalk.yellow));
   }
 
   public static debug(...args: any[]): void {
@@ -57,18 +57,6 @@ export default class Log {
     Log.updateIsLastLineNewLine(args);
     // eslint-disable-next-line no-console
     console.log(...args);
-  }
-
-  private static consoleWarn(...args: any[]): void {
-    Log.updateIsLastLineNewLine(args);
-    // eslint-disable-next-line no-console
-    console.warn(...args);
-  }
-
-  private static consoleError(...args: any[]): void {
-    Log.updateIsLastLineNewLine(args);
-    // eslint-disable-next-line no-console
-    console.error(...args);
   }
 
   private static withTextColor(args: any[], chalkColor: Color): string[] {

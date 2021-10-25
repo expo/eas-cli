@@ -1,6 +1,5 @@
 import { ExpoConfig } from '@expo/config';
 import { IOSConfig } from '@expo/config-plugins';
-import fs from 'fs-extra';
 
 import Log from '../../log';
 import { getProjectAccountName } from '../../project/projectUtils';
@@ -12,19 +11,6 @@ import { readPlistAsync, writePlistAsync } from './plist';
 export async function configureUpdatesAsync(projectDir: string, exp: ExpoConfig): Promise<void> {
   ensureValidVersions(exp);
   const accountName = getProjectAccountName(exp, await ensureLoggedInAsync());
-  let xcodeProject = IOSConfig.XcodeUtils.getPbxproj(projectDir);
-
-  if (!IOSConfig.Updates.isShellScriptBuildPhaseConfigured(projectDir, xcodeProject)) {
-    xcodeProject = IOSConfig.Updates.ensureBundleReactNativePhaseContainsConfigurationScript(
-      projectDir,
-      xcodeProject
-    );
-    await fs.writeFile(
-      IOSConfig.Paths.getPBXProjectPath(projectDir),
-      // eslint-disable-next-line node/no-sync
-      xcodeProject.writeSync()
-    );
-  }
 
   let expoPlist = await readExpoPlistAsync(projectDir);
   if (!IOSConfig.Updates.isPlistConfigurationSynced(exp, expoPlist, accountName)) {
@@ -41,7 +27,7 @@ export async function syncUpdatesConfigurationAsync(
   ensureValidVersions(exp);
   const accountName = getProjectAccountName(exp, await ensureLoggedInAsync());
   try {
-    await ensureUpdatesConfiguredAsync(projectDir, exp);
+    await ensureUpdatesConfiguredAsync(projectDir);
   } catch (error) {
     Log.error(
       'expo-updates module is not configured. Please run "eas build:configure" first to configure the project'
@@ -62,15 +48,9 @@ export async function syncUpdatesConfigurationAsync(
   }
 }
 
-async function ensureUpdatesConfiguredAsync(projectDir: string, exp: ExpoConfig): Promise<void> {
-  const xcodeProject = IOSConfig.XcodeUtils.getPbxproj(projectDir);
-
-  if (!IOSConfig.Updates.isShellScriptBuildPhaseConfigured(projectDir, xcodeProject)) {
-    const script = 'expo-updates/scripts/create-manifest-ios.sh';
-    const buildPhase = '"Bundle React Native code and images"';
-    throw new Error(`Path to ${script} is missing in a ${buildPhase} build phase.`);
-  }
-
+// Note: we assume here that Expo modules are properly configured in the project. Aside from that,
+// all that is needed on Expo SDK 43+ to configure expo-updates configuration in Expo.plist
+async function ensureUpdatesConfiguredAsync(projectDir: string): Promise<void> {
   const expoPlist = await readExpoPlistAsync(projectDir);
   if (!IOSConfig.Updates.isPlistConfigurationSet(expoPlist)) {
     throw new Error('Missing values in Expo.plist');

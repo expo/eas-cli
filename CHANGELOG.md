@@ -6,15 +6,27 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🛠 Breaking changes
 
+- `[EAS BUILD API]` Deprecate `developmentClient` in favor of `useDevelopmentClient`. Use new build job format. ([#701](https://github.com/expo/eas-cli/pull/701) by [@dsokal](https://github.com/dsokal))
+- Don't print logs to `stderr`. ([#708](https://github.com/expo/eas-cli/pull/708) by [@dsokal](https://github.com/dsokal))
+
+### 🎉 New features
+
+### 🐛 Bug fixes
+
+- Better error message when eas.json is invalid. ([#707](https://github.com/expo/eas-cli/pull/707) by [@dsokal](https://github.com/dsokal))
+- Fix credentials workflow for new users: add additionalTypenames for credentials. ([#703](https://github.com/expo/eas-cli/pull/703) by [@quinlanj](https://github.com/quinlanj))
+
+### 🧹 Chores
+
+## [0.33.1](https://github.com/expo/eas-cli/releases/tag/0.33.1) - 2021-10-22
+
 ### 🎉 New features
 
 - Compute runtime version using config-plugins. ([#697](https://github.com/expo/eas-cli/pull/697) by [@jkhales](https://github.com/jkhales))
 
 ### 🐛 Bug fixes
 
-- Fix credentials workflow for new users: add additionalTypenames for credentials. ([#703](https://github.com/expo/eas-cli/pull/703) by [@quinlanj](https://github.com/quinlanj))
-
-### 🧹 Chores
+- [eas-cli] Skip validating updates scripts integration, which no longer exist in SDK 43+ ([#706](https://github.com/expo/eas-cli/pull/706) by [@brentvatne](https://github.com/brentvatne))
 
 ## [0.33.0](https://github.com/expo/eas-cli/releases/tag/0.33.0) - 2021-10-20
 
@@ -24,14 +36,14 @@ This is the log of notable changes to EAS CLI and related packages.
   - Previously, the default profile when running `eas build` or `eas submit` was "release". We're changing it to a more recognizable name that is consistent with our docs, which is now "production". You can always specify a profile manually with the `--profile` flag. For this major version, if you do not have a profile named "production", and still have a profile named "release", we will fall back to the "release" profile as the default, however you'll see a warning as we're going to remove that behavior in the next major release of EAS CLI.
   - To upgrade, update **eas.json** to have a "production" profile in both the `build` and `submit` objects. If you already have a project set up, this will replace the existing "release" profile. After the change, eas.json should have the following profiles:
     ```json
-    {
-    "build": {
-      "production": { ... }
-    },
-    "submit": {
-      "production": { ... }
-    }
-    }
+      {
+        "build": {
+          "production": { ... }
+        },
+        "submit": {
+          "production": { ... }
+        }
+      }
     ```
 
 ### 🐛 Bug fixes

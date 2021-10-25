@@ -1,6 +1,8 @@
 import { Platform } from '@expo/eas-build-job';
 import JsonFile from '@expo/json-file';
+import chalk from 'chalk';
 import envString from 'env-string';
+import logSymbols from 'log-symbols';
 import path from 'path';
 
 import { BuildProfile } from './EasBuild.types';
@@ -16,6 +18,7 @@ import {
   IosSubmitProfileFieldsToEvaluate,
   SubmitProfile,
 } from './EasSubmit.types';
+import { InvalidEasJsonError } from './errors';
 
 interface EasJsonPreValidation {
   build: { [profile: string]: object };
@@ -27,9 +30,22 @@ const defaults = {
   credentialsSource: CredentialsSource.REMOTE,
 } as const;
 
+type LoggerFn = (...args: any[]) => void;
+
+interface Logger {
+  log: LoggerFn;
+  warn: LoggerFn;
+}
+
 export class EasJsonReader {
+  private static log?: Logger;
+
   public static formatEasJsonPath(projectDir: string): string {
     return path.join(projectDir, 'eas.json');
+  }
+
+  public static setLog(log: Logger): void {
+    this.log = log;
   }
 
   constructor(private projectDir: string) {}
@@ -70,10 +86,14 @@ export class EasJsonReader {
         resolvedProfile,
         resolvedAndroidSpecificValues ?? {}
       );
-      return profileMerge(defaults, profileWithoutDefaults) as BuildProfile<T>;
+      const profile = profileMerge(defaults, profileWithoutDefaults) as BuildProfile<T>;
+      this.handleDeprecatedFields(profile);
+      return profile;
     } else if (platform === Platform.IOS) {
       const profileWithoutDefaults = profileMerge(resolvedProfile, resolvedIosSpecificValues ?? {});
-      return profileMerge(defaults, profileWithoutDefaults) as BuildProfile<T>;
+      const profile = profileMerge(defaults, profileWithoutDefaults) as BuildProfile<T>;
+      this.handleDeprecatedFields(profile);
+      return profile;
     } else {
       throw new Error(`Unknown platform ${platform}`);
     }
@@ -121,7 +141,7 @@ export class EasJsonReader {
     });
 
     if (error) {
-      throw new Error(`eas.json is not valid [${error.toString()}]`);
+      throw new InvalidEasJsonError(`eas.json is not valid [${error.toString()}]`);
     }
     return value as EasJson;
   }
@@ -132,7 +152,7 @@ export class EasJsonReader {
       const rawEasJson = JsonFile.read(easJsonPath);
       const { value, error } = MinimalEasJsonSchema.validate(rawEasJson, { abortEarly: false });
       if (error) {
-        throw new Error(`eas.json is not valid [${error.toString()}]`);
+        throw new InvalidEasJsonError(`eas.json is not valid [${error.toString()}]`);
       }
       return value;
     } catch (err: any) {
@@ -190,6 +210,18 @@ export class EasJsonReader {
       }
     }
     return evaluatedProfile;
+  }
+
+  private handleDeprecatedFields<T extends Platform>(profile: BuildProfile<T>): void {
+    if (profile.developmentClient) {
+      EasJsonReader.log?.warn(
+        `${logSymbols.warning} eas.json validation: ${chalk.bold(
+          'developmentClient'
+        )} is deprecated, use ${chalk.bold('useDevelopmentClient')} instead`
+      );
+      profile.useDevelopmentClient = true;
+      delete profile.developmentClient;
+    }
   }
 }
 
