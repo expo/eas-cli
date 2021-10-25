@@ -27,7 +27,7 @@ export async function ensureExpoDevClientInstalledForDevClientBuildsAsync({
   }
 
   const buildProfilesWithDevelopmentClientRequired = buildProfiles.filter(
-    buildProfile => buildProfile.profile.developmentClient
+    buildProfile => buildProfile.profile.useDevelopmentClient
   );
 
   const isDevelopmentClientRequired = buildProfilesWithDevelopmentClientRequired.some(Boolean);

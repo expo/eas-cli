@@ -1,12 +1,7 @@
 import { Env, Ios } from '@expo/eas-build-job';
 import nullthrows from 'nullthrows';
 
-import {
-  DistributionType,
-  IosBuildType,
-  IosJobInput,
-  IosJobSecretsInput,
-} from '../../graphql/generated';
+import { IosJobInput, IosJobSecretsInput } from '../../graphql/generated';
 import { transformProjectArchive, transformWorkflow } from '../graphql';
 
 export function transformJob(job: Ios.Job): IosJobInput {
@@ -16,28 +11,16 @@ export function transformJob(job: Ios.Job): IosJobInput {
     projectRootDirectory: job.projectRootDirectory,
     releaseChannel: job.releaseChannel,
     updates: job.updates,
-    distribution: job.distribution && transformDistributionType(job.distribution),
     secrets: transformIosSecrets(job.secrets),
     builderEnvironment: job.builderEnvironment,
     cache: job.cache,
-
     scheme: job.scheme,
     buildConfiguration: job.buildConfiguration,
     artifactPath: job.artifactPath,
-
-    buildType: job.buildType && transformBuildType(job.buildType),
     username: job.username,
+    useDevelopmentClient: job.useDevelopmentClient,
+    simulator: job.simulator,
   };
-}
-
-function transformDistributionType(distributionType: Ios.DistributionType): DistributionType {
-  if (distributionType === 'store') {
-    return DistributionType.Store;
-  } else if (distributionType === 'internal') {
-    return DistributionType.Internal;
-  } else {
-    return DistributionType.Simulator;
-  }
 }
 
 function transformIosSecrets(secrets: {
@@ -60,12 +43,4 @@ function transformIosSecrets(secrets: {
     buildCredentials,
     environmentSecrets: secrets.env,
   };
-}
-
-function transformBuildType(buildType: Ios.BuildType): IosBuildType {
-  if (buildType === Ios.BuildType.DEVELOPMENT_CLIENT) {
-    return IosBuildType.DevelopmentClient;
-  } else {
-    return IosBuildType.Release;
-  }
 }

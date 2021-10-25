@@ -1,4 +1,4 @@
-import { Android, Ios } from '@expo/eas-build-job';
+import { Android } from '@expo/eas-build-job';
 import JsonFile, { JSONObject } from '@expo/json-file';
 import fs from 'fs-extra';
 import path from 'path';
@@ -121,20 +121,21 @@ export function migrateProfile(
   profile = migrateProperty('env', profile, iosCtx);
   profile = migrateProperty('cache', profile, iosCtx);
 
-  profile = migrateProperty('developmentClient', profile, {
+  profile = migrateProperty('useDevelopmentClient', profile, {
     androidProfile: {
       ...androidProfile,
-      developmentClient:
-        androidProfile.buildType === Android.BuildType.DEVELOPMENT_CLIENT || undefined,
+      useDevelopmentClient:
+        (androidProfile.buildType as Android.BuildType | 'development-client') ===
+          'development-client' || undefined,
     } as any,
     iosProfile: {
       ...iosProfile,
-      developmentClient: iosProfile.buildType === Ios.BuildType.DEVELOPMENT_CLIENT || undefined,
+      useDevelopmentClient: iosProfile.buildType === 'development-client' || undefined,
     } as any,
   });
   if (
     androidProfile.buildType &&
-    androidProfile.buildType !== Android.BuildType.DEVELOPMENT_CLIENT
+    (androidProfile.buildType as Android.BuildType | 'development-client') !== 'development-client'
   ) {
     profile.android!.buildType = androidProfile.buildType;
   }

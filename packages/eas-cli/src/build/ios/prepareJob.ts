@@ -40,7 +40,6 @@ export async function prepareJobAsync(
     platform: Platform.IOS,
     projectArchive: jobData.projectArchive,
     projectRootDirectory,
-    distribution: ctx.buildProfile.simulator ? 'simulator' : ctx.buildProfile.distribution,
     builderEnvironment: {
       image: ctx.buildProfile.image,
       node: ctx.buildProfile.node,
@@ -61,14 +60,11 @@ export async function prepareJobAsync(
     },
     releaseChannel: ctx.buildProfile.releaseChannel,
     updates: { channel: ctx.buildProfile.channel },
-
+    useDevelopmentClient: ctx.buildProfile.useDevelopmentClient,
+    simulator: ctx.buildProfile.simulator,
     scheme: jobData.buildScheme,
     buildConfiguration: ctx.buildProfile.buildConfiguration,
     artifactPath: ctx.buildProfile.artifactPath,
-
-    buildType: ctx.buildProfile.developmentClient
-      ? Ios.BuildType.DEVELOPMENT_CLIENT
-      : Ios.BuildType.RELEASE,
     username,
   };
   return sanitizeJob(job);

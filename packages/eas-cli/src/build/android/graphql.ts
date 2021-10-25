@@ -17,15 +17,14 @@ export function transformJob(job: Android.Job): AndroidJobInput {
     artifactPath: job.artifactPath,
     username: job.username,
     buildType: job.buildType && transformBuildType(job.buildType),
+    useDevelopmentClient: job.useDevelopmentClient,
   };
 }
 
 function transformBuildType(buildType: Android.BuildType): AndroidBuildType {
   if (buildType === Android.BuildType.APK) {
     return AndroidBuildType.Apk;
-  } else if (buildType === Android.BuildType.APP_BUNDLE) {
-    return AndroidBuildType.AppBundle;
   } else {
-    return AndroidBuildType.DevelopmentClient;
+    return AndroidBuildType.AppBundle;
   }
 }
