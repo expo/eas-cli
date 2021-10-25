@@ -7,6 +7,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🛠 Breaking changes
 
 - `[EAS BUILD API]` Deprecate `developmentClient` in favor of `useDevelopmentClient`. Use new build job format. ([#701](https://github.com/expo/eas-cli/pull/701) by [@dsokal](https://github.com/dsokal))
+- Don't print logs to `stderr`. ([#708](https://github.com/expo/eas-cli/pull/708) by [@dsokal](https://github.com/dsokal))
 
 ### 🎉 New features
 
