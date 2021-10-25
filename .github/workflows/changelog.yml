@@ -28,8 +28,8 @@ jobs:
             echo "Invalid /changelog-entry command"
             exit 1
           fi
-          CATEGORY=$( cut -d ' ' -f 1 <<< "$PARAMS" | xargs )
-          MESSAGE=$( cut -d ' ' -f 2- <<< "$PARAMS" | xargs )
+          CATEGORY=$( cut -d ' ' -f 1 <<< "$PARAMS" | sed -e 's/^[[:space:]]*//' )
+          MESSAGE=$( cut -d ' ' -f 2- <<< "$PARAMS" | sed -e 's/^[[:space:]]*//' )
           yarn changelog-entry "$CATEGORY" "$MESSAGE"
         env:
           GITHUB_PR_AUTHOR: ${{ github.event.issue.user.login }}
