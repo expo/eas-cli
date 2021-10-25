@@ -26,7 +26,11 @@ export const UserQuery = {
                 isExpoAdmin
               }
             }
-          `
+          `,
+          /* variables */ undefined,
+          {
+            additionalTypenames: ['User'],
+          }
         )
         .toPromise()
     );

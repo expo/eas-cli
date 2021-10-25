@@ -31,7 +31,10 @@ export const WebhookQuery = {
             }
             ${print(WebhookFragmentNode)}
           `,
-          { appId, webhookFilter }
+          { appId, webhookFilter },
+          {
+            additionalTypenames: ['Webhook'],
+          }
         )
         .toPromise()
     );
@@ -52,7 +55,10 @@ export const WebhookQuery = {
             }
             ${print(WebhookFragmentNode)}
           `,
-          { webhookId }
+          { webhookId },
+          {
+            additionalTypenames: ['Webhook'],
+          }
         )
         .toPromise()
     );

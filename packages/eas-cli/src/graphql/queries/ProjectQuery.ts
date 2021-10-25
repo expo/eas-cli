@@ -19,7 +19,10 @@ export const ProjectQuery = {
               }
             }
           `,
-          { username, slug }
+          { username, slug },
+          {
+            additionalTypenames: ['App', 'Snack'] /* typenames that use the Project type*/,
+          }
         )
         .toPromise()
     );
