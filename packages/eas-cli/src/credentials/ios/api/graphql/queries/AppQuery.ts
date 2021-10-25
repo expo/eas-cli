@@ -22,7 +22,10 @@ export const AppQuery = {
             }
             ${print(AppFragmentNode)}
           `,
-          { fullName }
+          { fullName },
+          {
+            additionalTypenames: ['App'],
+          }
         )
         .toPromise()
     );

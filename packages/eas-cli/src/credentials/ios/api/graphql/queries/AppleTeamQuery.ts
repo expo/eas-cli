@@ -28,7 +28,10 @@ export const AppleTeamQuery = {
               }
             }
           `,
-          { accountName }
+          { accountName },
+          {
+            additionalTypenames: ['AppleTeam'],
+          }
         )
         .toPromise()
     );
@@ -57,6 +60,9 @@ export const AppleTeamQuery = {
           {
             accountId,
             appleTeamIdentifier,
+          },
+          {
+            additionalTypenames: ['AppleTeam'],
           }
         )
         .toPromise()
