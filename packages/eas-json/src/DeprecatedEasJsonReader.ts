@@ -9,6 +9,7 @@ import {
   IosBuildProfile,
 } from './DeprecatedConfig.types';
 import { EasJsonSchema, schemaBuildProfileMap } from './DeprecatedEasJsonSchema';
+import { InvalidEasJsonError } from './errors';
 
 export interface EasJson {
   builds: {
@@ -107,7 +108,7 @@ export class EasJsonReader {
     });
 
     if (error) {
-      throw new Error(`eas.json is not valid [${error.toString()}]`);
+      throw new InvalidEasJsonError(`eas.json is not valid [${error.toString()}]`);
     }
     return value;
   }
@@ -126,7 +127,7 @@ export class EasJsonReader {
     });
 
     if (error) {
-      throw new Error(
+      throw new InvalidEasJsonError(
         `Object "${platform}.${buildProfileName}" in eas.json is not valid [${error.toString()}]`
       );
     }

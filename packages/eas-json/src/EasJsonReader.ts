@@ -18,6 +18,7 @@ import {
   IosSubmitProfileFieldsToEvaluate,
   SubmitProfile,
 } from './EasSubmit.types';
+import { InvalidEasJsonError } from './errors';
 
 interface EasJsonPreValidation {
   build: { [profile: string]: object };
@@ -140,7 +141,7 @@ export class EasJsonReader {
     });
 
     if (error) {
-      throw new Error(`eas.json is not valid [${error.toString()}]`);
+      throw new InvalidEasJsonError(`eas.json is not valid [${error.toString()}]`);
     }
     return value as EasJson;
   }
@@ -151,7 +152,7 @@ export class EasJsonReader {
       const rawEasJson = JsonFile.read(easJsonPath);
       const { value, error } = MinimalEasJsonSchema.validate(rawEasJson, { abortEarly: false });
       if (error) {
-        throw new Error(`eas.json is not valid [${error.toString()}]`);
+        throw new InvalidEasJsonError(`eas.json is not valid [${error.toString()}]`);
       }
       return value;
     } catch (err: any) {
