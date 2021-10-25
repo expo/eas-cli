@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Fix credentials workflow for new users: add additionalTypenames for credentials. ([#703](https://github.com/expo/eas-cli/pull/703) by [@quinlanj](https://github.com/quinlanj))
+
 ### 🧹 Chores
 
 ## [0.33.0](https://github.com/expo/eas-cli/releases/tag/0.33.0) - 2021-10-20
