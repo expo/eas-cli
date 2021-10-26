@@ -65,7 +65,8 @@ export const EnvironmentSecretsQuery = {
             }
             ${print(EnvironmentSecretFragmentNode)}
           `,
-          { appId }
+          { appId },
+          { additionalTypenames: ['EnvironmentSecret'] }
         )
         .toPromise()
     );
