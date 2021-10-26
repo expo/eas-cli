@@ -44,7 +44,8 @@ export async function listBranchesAsync({
         {
           appId: projectId,
           limit: BRANCHES_LIMIT,
-        }
+        },
+        { additionalTypenames: ['UpdateBranch'] }
       )
       .toPromise()
   );
