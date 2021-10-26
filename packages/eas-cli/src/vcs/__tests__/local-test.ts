@@ -9,7 +9,7 @@ beforeEach(() => {
 });
 
 describe(Ignore, () => {
-  it('reads gitignore from subdirectory', async () => {
+  it('reads .gitignore from subdirectory', async () => {
     vol.fromJSON(
       {
         '.gitignore': 'aaa',
@@ -26,7 +26,7 @@ describe(Ignore, () => {
     expect(ignore.ignores('dir/bbb')).toBe(true);
   });
 
-  it('it ignores .gitignore files if .easignore is present', async () => {
+  it('ignores .gitignore files if .easignore is present', async () => {
     vol.fromJSON(
       {
         '.gitignore': 'aaa',
@@ -44,7 +44,7 @@ describe(Ignore, () => {
     expect((ignore as any).ignoreMapping.map((i: any) => i[0])).toEqual(['', '']);
   });
 
-  it('it ignores .gitignore files in node_modules content', async () => {
+  it('ignores .gitignore files in node_modules content', async () => {
     vol.fromJSON(
       {
         '.gitignore': 'aaa',
@@ -59,11 +59,11 @@ describe(Ignore, () => {
     expect(ignore.ignores('aaa')).toBe(true);
     expect(ignore.ignores('bbb')).toBe(false);
     expect(ignore.ignores('node_modules/aaa')).toBe(true);
-    expect(ignore.ignores('node_modules/bbb')).toBe(false);
+    expect(ignore.ignores('node_modules/bbb')).toBe(true);
     expect((ignore as any).ignoreMapping.map((i: any) => i[0])).toEqual(['', '', 'dir/']);
   });
 
-  it('applies all gitignores in parent directories', async () => {
+  it('applies all gitignore files in parent directories', async () => {
     vol.fromJSON(
       {
         '.gitignore': 'dir/ccc',

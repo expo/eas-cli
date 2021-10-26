@@ -90,7 +90,7 @@ export default class BranchCreate extends EasCommand {
         name: 'name',
         message: 'Please name the branch:',
         initial:
-          (await vcs.getBranchNameAsync()) || `branch-${Math.random().toString(36).substr(2, 4)}`,
+          (await vcs().getBranchNameAsync()) || `branch-${Math.random().toString(36).substr(2, 4)}`,
         validate: value => (value ? true : validationMessage),
       }));
     }

@@ -26,7 +26,7 @@ export async function configureAndroidAsync(ctx: ConfigureContext): Promise<void
   await AndroidConfig.EasBuild.configureEasBuildAsync(ctx.projectDir);
 
   const easGradlePath = AndroidConfig.EasBuild.getEasBuildGradlePath(ctx.projectDir);
-  await vcs.trackFileAsync(easGradlePath);
+  await vcs().trackFileAsync(easGradlePath);
 
   if (isExpoUpdatesInstalled(ctx.projectDir)) {
     await configureUpdatesAsync(ctx.projectDir, ctx.exp);

@@ -34,7 +34,7 @@ export default class GitClient extends Client {
     }
     await spawnAsync('git', ['init']);
 
-    Log.log("We're going to make an initial commit for you repository.");
+    Log.log("We're going to make an initial commit for your repository.");
 
     const { message } = await promptAsync({
       type: 'text',
@@ -76,8 +76,8 @@ export default class GitClient extends Client {
 
   public async makeShallowCopyAsync(destinationPath: string): Promise<void> {
     if (await this.hasUncommittedChangesAsync()) {
-      // it should not happen, we need that to make sure that check before clone
-      // is always caused by case sensitivity
+      // it should already be checked before this function is called, but in case it didn't
+      // we want to ensure that any changes were introduced by call to `setGitCaseSensitivityAsync`
       throw new Error('You have some uncommitted changes in your repository.');
     }
     let gitRepoUri;

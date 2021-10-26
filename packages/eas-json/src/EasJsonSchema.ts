@@ -109,12 +109,19 @@ const EasJsonSubmitConfigurationSchema = Joi.object({
   ios: IosSubmitProfileSchema,
 });
 
+export const CliConfigSchema = Joi.object({
+  version: Joi.string(),
+  requireCommit: Joi.bool(),
+});
+
 export const MinimalEasJsonSchema = Joi.object({
+  cli: Joi.object(),
   build: Joi.object().pattern(Joi.string(), Joi.object()),
   submit: Joi.object().pattern(Joi.string(), Joi.object()),
 });
 
 export const EasJsonSchema = Joi.object({
+  cli: CliConfigSchema,
   build: Joi.object().pattern(Joi.string(), EasJsonBuildProfileSchema),
   submit: Joi.object().pattern(Joi.string(), EasJsonSubmitConfigurationSchema),
 });

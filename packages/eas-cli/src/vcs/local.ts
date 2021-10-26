@@ -3,8 +3,12 @@ import fs from 'fs-extra';
 import createIgnore, { Ignore as SingleFileIgnore } from 'ignore';
 import path from 'path';
 
+const EASIGNORE_FILENAME = '.easignore';
+const GITIGNORE_FILENAME = '.gitignore';
+
 const DEFAULT_IGNORE = `
 .git
+node_modules
 `;
 
 export function getRootPath(): string {
@@ -15,14 +19,15 @@ export function getRootPath(): string {
   return rootPath;
 }
 
-/*Ignore wraps ignore package to support multiple gitignore files
- * in subdirectories
+/**
+ * Ignore wraps ignore package to support multiple gitignore files
+ * in subdirectories.
  *
  * Inconsistencies with git behavior:
- * - if parent gitignore have ignore rule and child have exception to that rule,
- *   file still will be ignored
- * - gitignore files in node_modules are ignored even if node_modules itself is not.
- * - if .easignore exists, all .gitignore files are not used (TODO maybe only root?)
+ * - if parent .gitignore has ignore rule and child has exception to that rule,
+ *   file will still be ignored,
+ * - node_modules is always ignored,
+ * - if .easignore exists, .gitignore files are not used.
  */
 export class Ignore {
   private ignoreMapping: (readonly [string, SingleFileIgnore])[] = [];
@@ -30,7 +35,7 @@ export class Ignore {
   constructor(private rootDir: string) {}
 
   public async initIgnoreAsync(): Promise<void> {
-    const easIgnorePath = path.join(this.rootDir, '.easignore');
+    const easIgnorePath = path.join(this.rootDir, EASIGNORE_FILENAME);
     if (await fs.pathExists(easIgnorePath)) {
       this.ignoreMapping = [
         ['', createIgnore().add(DEFAULT_IGNORE)],
@@ -38,18 +43,17 @@ export class Ignore {
       ];
       return;
     }
-    const ignoreFileName = '.gitignore';
-    const ignoreFilePaths = (await fg(`**/${ignoreFileName}`, { cwd: this.rootDir }))
-      // ignoring node_modules when searching for gitignore files
-      .filter(i => !i.startsWith(`node_modules`))
+    const ignoreFilePaths = (
+      await fg(`**/${GITIGNORE_FILENAME}`, { cwd: this.rootDir, ignore: ['node_modules'] })
+    )
       // ensure that parent dir is before child directories
       .sort((a, b) => a.length - b.length && a.localeCompare(b));
 
     const ignoreMapping = await Promise.all(
-      ignoreFilePaths.map(async file => {
+      ignoreFilePaths.map(async filePath => {
         return [
-          file.slice(0, file.length - ignoreFileName.length),
-          createIgnore().add(await fs.readFile(path.join(this.rootDir, file), 'utf8')),
+          filePath.slice(0, filePath.length - GITIGNORE_FILENAME.length),
+          createIgnore().add(await fs.readFile(path.join(this.rootDir, filePath), 'utf8')),
         ] as const;
       })
     );

@@ -13,7 +13,7 @@ import { endTimer, formatMilliseconds, startTimer } from '../../utils/timer';
 import vcs from '../../vcs';
 
 export async function maybeBailOnRepoStatusAsync(): Promise<void> {
-  if (!(await vcs.isCommitRequiredAsync())) {
+  if (!(await vcs().isCommitRequiredAsync())) {
     return;
   }
   Log.addNewLineIfNone();
@@ -33,7 +33,7 @@ export async function maybeBailOnRepoStatusAsync(): Promise<void> {
 }
 
 export async function ensureRepoIsCleanAsync(nonInteractive = false): Promise<void> {
-  if (!(await vcs.isCommitRequiredAsync())) {
+  if (!(await vcs().isCommitRequiredAsync())) {
     return;
   }
   Log.addNewLineIfNone();
@@ -70,7 +70,7 @@ export async function commitPromptAsync({
     initial: initialCommitMessage,
     validate: (input: string) => input !== '',
   });
-  await vcs.commitAsync({ commitAllFiles, commitMessage: message });
+  await vcs().commitAsync({ commitAllFiles, commitMessage: message });
 }
 
 export async function makeProjectTarballAsync(): Promise<{ path: string; size: number }> {
@@ -95,7 +95,7 @@ export async function makeProjectTarballAsync(): Promise<{ path: string; size: n
   startTimer(compressTimerLabel);
 
   try {
-    await vcs.makeShallowCopyAsync(shallowClonePath);
+    await vcs().makeShallowCopyAsync(shallowClonePath);
     await tar.create({ cwd: shallowClonePath, file: tarPath, prefix: 'project', gzip: true }, [
       '.',
     ]);
@@ -133,7 +133,7 @@ export async function reviewAndCommitChangesAsync(
   { nonInteractive, askedFirstTime = true }: { nonInteractive: boolean; askedFirstTime?: boolean }
 ): Promise<void> {
   if (process.env.EAS_BUILD_AUTOCOMMIT) {
-    await vcs.commitAsync({ commitMessage: initialCommitMessage, commitAllFiles: false });
+    await vcs().commitAsync({ commitMessage: initialCommitMessage, commitAllFiles: false });
     Log.withTick('Committed changes.');
     return;
   }
@@ -166,7 +166,7 @@ export async function reviewAndCommitChangesAsync(
     await commitPromptAsync({ initialCommitMessage });
     Log.withTick('Committed changes.');
   } else if (selected === ShouldCommitChanges.ShowDiffFirst) {
-    await vcs.showDiffAsync();
+    await vcs().showDiffAsync();
     await reviewAndCommitChangesAsync(initialCommitMessage, {
       nonInteractive,
       askedFirstTime: false,

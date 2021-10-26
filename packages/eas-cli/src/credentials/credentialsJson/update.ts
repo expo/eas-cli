@@ -294,8 +294,9 @@ async function updateFileAsync(
 }
 
 async function isFileUntrackedAsync(path: string): Promise<boolean> {
-  if (vcs instanceof GitClient) {
-    return await vcs.isFileUntrackedAsync(path);
+  const vcsClient = vcs();
+  if (vcsClient instanceof GitClient) {
+    return await vcsClient.isFileUntrackedAsync(path);
   }
   return false;
 }

@@ -20,7 +20,7 @@ export async function resolveWorkflowAsync(
   }
 
   if (await fs.pathExists(platformWorkflowMarker)) {
-    return (await vcs.isFileIgnoredAsync(path.relative(projectDir, platformWorkflowMarker)))
+    return (await vcs().isFileIgnoredAsync(path.relative(projectDir, platformWorkflowMarker)))
       ? Workflow.MANAGED
       : Workflow.GENERIC;
   } else {

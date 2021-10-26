@@ -1,5 +1,6 @@
 import { EasJsonReader } from '@expo/eas-json';
 import { Command } from '@oclif/command';
+import semver from 'semver';
 
 import {
   AnalyticsEvent,
@@ -8,8 +9,12 @@ import {
   logEvent,
 } from '../analytics';
 import Log from '../log';
+import { findProjectRootAsync } from '../project/projectUtils';
 import { getUserAsync } from '../user/User';
 import { ensureLoggedInAsync } from '../user/actions';
+import { easCliVersion } from '../utils/cli';
+import { setVcsClient } from '../vcs';
+import GitClient from '../vcs/clients/git';
 
 export default abstract class EasCommand extends Command {
   /**
@@ -25,6 +30,7 @@ export default abstract class EasCommand extends Command {
     EasJsonReader.setLog(Log);
 
     await initAnalyticsAsync();
+    await this.applyCliConfigAsync();
 
     if (this.requiresAuthentication) {
       const { flags } = this.parse();
@@ -45,5 +51,17 @@ export default abstract class EasCommand extends Command {
   async finally(err: Error): Promise<any> {
     await flushAnalyticsAsync();
     return super.finally(err);
+  }
+
+  private async applyCliConfigAsync(): Promise<void> {
+    const projectDir = await findProjectRootAsync();
+    const easJsonReader = new EasJsonReader(projectDir);
+    const config = await easJsonReader.getCliConfigAsync();
+    if (config?.version && !semver.satisfies(easCliVersion, config.version)) {
+      throw new Error(`Version eas-cli@${easCliVersion} does not satisfy ${config?.version}`);
+    }
+    if (config?.requireCommit) {
+      setVcsClient(new GitClient());
+    }
   }
 }

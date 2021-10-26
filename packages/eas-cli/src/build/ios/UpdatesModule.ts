@@ -68,7 +68,7 @@ async function writeExpoPlistAsync(
 ): Promise<void> {
   const expoPlistPath = IOSConfig.Paths.getExpoPlistPath(projectDir);
   await writePlistAsync(expoPlistPath, expoPlist);
-  await vcs.trackFileAsync(expoPlistPath);
+  await vcs().trackFileAsync(expoPlistPath);
 }
 
 export async function readReleaseChannelSafelyAsync(projectDir: string): Promise<string | null> {

@@ -25,7 +25,7 @@ export async function prepareJobAsync(
   jobData: JobData
 ): Promise<Job> {
   const projectRootDirectory =
-    slash(path.relative(await vcs.getRootPathAsync(), ctx.projectDir)) || '.';
+    slash(path.relative(await vcs().getRootPathAsync(), ctx.projectDir)) || '.';
   const username = getUsername(ctx.exp, await ensureLoggedInAsync());
   const buildCredentials: Ios.Job['secrets']['buildCredentials'] = {};
   if (jobData.credentials) {

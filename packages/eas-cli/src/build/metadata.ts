@@ -7,6 +7,7 @@ import { GradleBuildContext } from '../project/android/gradle';
 import { getBundleIdentifierAsync } from '../project/ios/bundleIdentifier';
 import { getUsername } from '../project/projectUtils';
 import { ensureLoggedInAsync } from '../user/actions';
+import { easCliVersion } from '../utils/cli';
 import vcs from '../vcs';
 import {
   readChannelSafelyAsync as readAndroidChannelSafelyAsync,
@@ -20,13 +21,6 @@ import {
 } from './ios/UpdatesModule';
 import { maybeResolveVersionsAsync as maybeResolveIosVersionsAsync } from './ios/version';
 import { isExpoUpdatesInstalled } from './utils/updates';
-
-/**
- * We use require() to exclude package.json from TypeScript's analysis since it lives outside
- * the src directory and would change the directory structure of the emitted files
- * under the build directory
- */
-const packageJSON = require('../../package.json');
 
 export type MetadataContext<T extends Platform> = T extends Platform.ANDROID
   ? AndroidMetadataContext
@@ -53,7 +47,7 @@ export async function collectMetadataAsync<T extends Platform>(
   const metadata = {
     trackingContext: ctx.trackingCtx,
     ...(await maybeResolveVersionsAsync(ctx, platformContext)),
-    cliVersion: packageJSON.version,
+    cliVersion: easCliVersion,
     workflow: ctx.workflow,
     credentialsSource: ctx.buildProfile.credentialsSource,
     sdkVersion: ctx.exp.sdkVersion,
@@ -63,8 +57,8 @@ export async function collectMetadataAsync<T extends Platform>(
     appName: ctx.exp.name,
     appIdentifier: await resolveAppIdentifierAsync(ctx, platformContext),
     buildProfile: ctx.buildProfileName,
-    gitCommitHash: await vcs.getCommitHashAsync(),
-    gitWorkingTreeDirty: await vcs.hasUncommittedChangesAsync(),
+    gitCommitHash: await vcs().getCommitHashAsync(),
+    isGitWorkingTreeDirty: await vcs().hasUncommittedChangesAsync(),
     username: getUsername(ctx.exp, await ensureLoggedInAsync()),
     ...(ctx.platform === Platform.IOS && {
       iosEnterpriseProvisioning: resolveIosEnterpriseProvisioning(

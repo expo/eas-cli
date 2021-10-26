@@ -12,7 +12,7 @@ import { PresignedPost } from '../graphql/mutations/UploadSessionMutation';
 import { PublishQuery } from '../graphql/queries/PublishQuery';
 import Log from '../log';
 import { uploadWithPresignedPostAsync } from '../uploads';
-import { expoCommandAsync } from '../utils/expoCommand';
+import { expoCommandAsync } from '../utils/cli';
 import uniqBy from '../utils/expodash/uniqBy';
 
 export const TIMEOUT_LIMIT = 60_000; // 1 minute

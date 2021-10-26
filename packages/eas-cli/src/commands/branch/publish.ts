@@ -176,7 +176,7 @@ export default class BranchPublish extends EasCommand {
 
     if (!branchName && autoFlag) {
       branchName =
-        (await vcs.getBranchNameAsync()) || `branch-${Math.random().toString(36).substr(2, 4)}`;
+        (await vcs().getBranchNameAsync()) || `branch-${Math.random().toString(36).substr(2, 4)}`;
     }
 
     if (!branchName) {
@@ -299,7 +299,7 @@ export default class BranchPublish extends EasCommand {
     }
 
     if (!message && autoFlag) {
-      message = (await vcs.getLastCommitMessageAsync())?.trim();
+      message = (await vcs().getLastCommitMessageAsync())?.trim();
     }
 
     if (!message) {
@@ -313,7 +313,7 @@ export default class BranchPublish extends EasCommand {
         message: `Please enter a publication message.`,
         initial: republish
           ? `Republish "${oldMessage!}" - group: ${group}`
-          : (await vcs.getLastCommitMessageAsync())?.trim(),
+          : (await vcs().getLastCommitMessageAsync())?.trim(),
         validate: value => (value ? true : validationMessage),
       }));
     }
