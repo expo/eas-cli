@@ -58,7 +58,8 @@ export async function viewUpdateBranchAsync({
           appId,
           name,
           limit: PAGE_LIMIT,
-        }
+        },
+        { additionalTypenames: ['UpdateBranch', 'Update'] }
       )
       .toPromise()
   );

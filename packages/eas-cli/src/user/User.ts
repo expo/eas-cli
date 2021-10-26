@@ -75,6 +75,7 @@ export async function loginAsync({
             'expo-session': sessionSecret,
           },
         },
+        additionalTypenames: [] /* UserQuery has immutable fields */,
       }
     )
     .toPromise();
