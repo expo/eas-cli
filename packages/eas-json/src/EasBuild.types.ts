@@ -19,9 +19,7 @@ export interface CommonBuildProfile {
   cache?: Omit<Cache, 'clear'>;
   releaseChannel?: string;
   channel?: string;
-  /** @deprecated Use useDevelopmentClient instead */
   developmentClient?: boolean;
-  useDevelopmentClient?: boolean;
 
   node?: string;
   yarn?: string;

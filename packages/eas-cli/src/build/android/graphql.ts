@@ -17,7 +17,7 @@ export function transformJob(job: Android.Job): AndroidJobInput {
     artifactPath: job.artifactPath,
     username: job.username,
     buildType: job.buildType && transformBuildType(job.buildType),
-    useDevelopmentClient: job.useDevelopmentClient,
+    developmentClient: job.developmentClient,
   };
 }
 

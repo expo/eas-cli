@@ -1,8 +1,6 @@
 import { Platform } from '@expo/eas-build-job';
 import JsonFile from '@expo/json-file';
-import chalk from 'chalk';
 import envString from 'env-string';
-import logSymbols from 'log-symbols';
 import path from 'path';
 
 import { BuildProfile } from './EasBuild.types';
@@ -111,14 +109,10 @@ export class EasJsonReader {
         resolvedProfile,
         resolvedAndroidSpecificValues ?? {}
       );
-      const profile = profileMerge(defaults, profileWithoutDefaults) as BuildProfile<T>;
-      this.handleDeprecatedBuildProfileFields(profile);
-      return profile;
+      return profileMerge(defaults, profileWithoutDefaults) as BuildProfile<T>;
     } else if (platform === Platform.IOS) {
       const profileWithoutDefaults = profileMerge(resolvedProfile, resolvedIosSpecificValues ?? {});
-      const profile = profileMerge(defaults, profileWithoutDefaults) as BuildProfile<T>;
-      this.handleDeprecatedBuildProfileFields(profile);
-      return profile;
+      return profileMerge(defaults, profileWithoutDefaults) as BuildProfile<T>;
     } else {
       throw new Error(`Unknown platform ${platform}`);
     }
@@ -235,18 +229,6 @@ export class EasJsonReader {
       }
     }
     return evaluatedProfile;
-  }
-
-  private handleDeprecatedBuildProfileFields<T extends Platform>(profile: BuildProfile<T>): void {
-    if (profile.developmentClient) {
-      EasJsonReader.log?.warn(
-        `${logSymbols.warning} eas.json validation: ${chalk.bold(
-          'developmentClient'
-        )} is deprecated, use ${chalk.bold('useDevelopmentClient')} instead`
-      );
-      profile.useDevelopmentClient = true;
-      delete profile.developmentClient;
-    }
   }
 }
 

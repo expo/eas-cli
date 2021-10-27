@@ -18,7 +18,7 @@ export function transformJob(job: Ios.Job): IosJobInput {
     buildConfiguration: job.buildConfiguration,
     artifactPath: job.artifactPath,
     username: job.username,
-    useDevelopmentClient: job.useDevelopmentClient,
+    developmentClient: job.developmentClient,
     simulator: job.simulator,
   };
 }
