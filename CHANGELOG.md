@@ -6,7 +6,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🛠 Breaking changes
 
-- `[EAS BUILD API]` Use new build job format. ([#701](https://github.com/expo/eas-cli/pull/701) by [@dsokal](https://github.com/dsokal))
+- `[EAS BUILD API]` Use new build job format. ([#701](https://github.com/expo/eas-cli/pull/701) and [#711](https://github.com/expo/eas-cli/pull/711) by [@dsokal](https://github.com/dsokal))
 - Don't print logs to `stderr`. ([#708](https://github.com/expo/eas-cli/pull/708) by [@dsokal](https://github.com/dsokal))
 - Remove automatic migration for legacy `eas.json` format introduced in [v0.22.2](https://github.com/expo/eas-cli/releases/tag/v0.22.2). ([#695](https://github.com/expo/eas-cli/pull/695) by [@wkozyra95](https://github.com/wkozyra95))
 - Add required `cli` field in root of `eas.json` ([#695](https://github.com/expo/eas-cli/pull/695) by [@wkozyra95](https://github.com/wkozyra95))
