@@ -10,7 +10,7 @@ export class CreateDistributionCertificate {
   public async runAsync(
     ctx: CredentialsContext
   ): Promise<AppleDistributionCertificateMutationResult> {
-    const distCert = await provideOrGenerateDistributionCertificateAsync(ctx, this.account.name);
+    const distCert = await provideOrGenerateDistributionCertificateAsync(ctx);
     const result = await ctx.ios.createDistributionCertificateAsync(this.account, distCert);
     Log.succeed('Created distribution certificate');
     return result;
