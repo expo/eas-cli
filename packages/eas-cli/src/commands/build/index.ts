@@ -400,19 +400,19 @@ export async function handleDeprecatedEasJsonAsync(
     return;
   }
   Log.warn(
-    'The default workflow was changed to no longer require clean git working tree before build. You can still opt-in to keep current behavior.'
+    'The default workflow was changed to no longer require clean git working tree before build. You can still opt in to keep the old behavior.'
   );
   Log.warn(`See ${link('https://expo.fyi/eas-vcs-workflow')} for a list of changes.`);
   Log.newLine();
 
   if (nonInteractive) {
     error(
-      `eas.json  migration is not supported in "non-interactive" mode, re-run this command without "--non-interactive" flag.`,
+      `eas.json migration is not supported in non-interactive mode, re-run this command without the "--non-interactive" flag.`,
       { exit: 1 }
     );
   }
   const shouldRequireCommit = await confirmAsync({
-    message: 'Do you want to continue using the current workflow?',
+    message: 'Do you want to continue using the old workflow (which requires commits before builds)?',
   });
 
   rawEasJson.cli = shouldRequireCommit

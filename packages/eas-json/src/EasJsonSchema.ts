@@ -111,7 +111,7 @@ const EasJsonSubmitConfigurationSchema = Joi.object({
 
 export const CliConfigSchema = Joi.object({
   version: Joi.string(),
-  requireCommit: Joi.bool(),
+  requireCommit: Joi.boolean(),
 });
 
 export const MinimalEasJsonSchema = Joi.object({

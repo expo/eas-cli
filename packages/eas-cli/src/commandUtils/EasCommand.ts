@@ -58,7 +58,7 @@ export default abstract class EasCommand extends Command {
     const easJsonReader = new EasJsonReader(projectDir);
     const config = await easJsonReader.getCliConfigAsync();
     if (config?.version && !semver.satisfies(easCliVersion, config.version)) {
-      throw new Error(`Version eas-cli@${easCliVersion} does not satisfy ${config?.version}`);
+      throw new Error(`You are on eas-cli@${easCliVersion} which does not satisfy the CLI version constraint in eas.json (${config.version})`);
     }
     if (config?.requireCommit) {
       setVcsClient(new GitClient());

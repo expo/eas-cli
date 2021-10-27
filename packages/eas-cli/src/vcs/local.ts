@@ -20,7 +20,7 @@ export function getRootPath(): string {
 }
 
 /**
- * Ignore wraps ignore package to support multiple gitignore files
+ * Ignore wraps the 'ignore' package to support multiple .gitignore files
  * in subdirectories.
  *
  * Inconsistencies with git behavior:

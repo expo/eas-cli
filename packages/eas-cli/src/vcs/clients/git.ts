@@ -25,7 +25,7 @@ export default class GitClient extends Client {
     Log.warn('EAS Build requires you to use a git repository for your project.');
 
     const confirmInit = await confirmAsync({
-      message: `Would you like to run 'git init' in the current directory?`,
+      message: `Would you like to run 'git init' in the current directory for you?`,
     });
     if (!confirmInit) {
       throw new Error(
