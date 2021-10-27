@@ -17,7 +17,7 @@ import {
   getProjectIdAsync,
 } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
-import vcs from '../../vcs';
+import { getVcsClient } from '../../vcs';
 
 export async function createUpdateBranchOnAppAsync({
   appId,
@@ -90,7 +90,8 @@ export default class BranchCreate extends EasCommand {
         name: 'name',
         message: 'Please name the branch:',
         initial:
-          (await vcs().getBranchNameAsync()) || `branch-${Math.random().toString(36).substr(2, 4)}`,
+          (await getVcsClient().getBranchNameAsync()) ||
+          `branch-${Math.random().toString(36).substr(2, 4)}`,
         validate: value => (value ? true : validationMessage),
       }));
     }

@@ -7,8 +7,8 @@ import { GradleBuildContext } from '../project/android/gradle';
 import { getBundleIdentifierAsync } from '../project/ios/bundleIdentifier';
 import { getUsername } from '../project/projectUtils';
 import { ensureLoggedInAsync } from '../user/actions';
-import { easCliVersion } from '../utils/cli';
-import vcs from '../vcs';
+import { easCliVersion } from '../utils/easCli';
+import { getVcsClient } from '../vcs';
 import {
   readChannelSafelyAsync as readAndroidChannelSafelyAsync,
   readReleaseChannelSafelyAsync as readAndroidReleaseChannelSafelyAsync,
@@ -57,8 +57,8 @@ export async function collectMetadataAsync<T extends Platform>(
     appName: ctx.exp.name,
     appIdentifier: await resolveAppIdentifierAsync(ctx, platformContext),
     buildProfile: ctx.buildProfileName,
-    gitCommitHash: await vcs().getCommitHashAsync(),
-    isGitWorkingTreeDirty: await vcs().hasUncommittedChangesAsync(),
+    gitCommitHash: await getVcsClient().getCommitHashAsync(),
+    isGitWorkingTreeDirty: await getVcsClient().hasUncommittedChangesAsync(),
     username: getUsername(ctx.exp, await ensureLoggedInAsync()),
     ...(ctx.platform === Platform.IOS && {
       iosEnterpriseProvisioning: resolveIosEnterpriseProvisioning(

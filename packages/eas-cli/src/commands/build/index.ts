@@ -23,7 +23,7 @@ import {
   SubmissionFragment,
 } from '../../graphql/generated';
 import { toAppPlatform, toPlatform } from '../../graphql/types/AppPlatform';
-import Log, { link } from '../../log';
+import Log, { learnMore } from '../../log';
 import {
   RequestedPlatform,
   appPlatformDisplayNames,
@@ -37,17 +37,17 @@ import {
 } from '../../project/isEasEnabledForProject';
 import { validateMetroConfigForManagedWorkflowAsync } from '../../project/metroConfig';
 import { findProjectRootAsync } from '../../project/projectUtils';
-import { confirmAsync } from '../../prompts';
+import { selectAsync } from '../../prompts';
 import { createSubmissionContextAsync } from '../../submit/context';
 import {
   submitAsync,
   waitToCompleteAsync as waitForSubmissionsToCompleteAsync,
 } from '../../submit/submit';
 import { printSubmissionDetailsUrls } from '../../submit/utils/urls';
-import { easCliVersion } from '../../utils/cli';
+import { easCliVersion } from '../../utils/easCli';
 import { enableJsonOutput } from '../../utils/json';
 import { ProfileData, getProfilesAsync } from '../../utils/profiles';
-import vcs, { setVcsClient } from '../../vcs';
+import { getVcsClient, setVcsClient } from '../../vcs';
 import GitClient from '../../vcs/clients/git';
 
 interface RawBuildFlags {
@@ -145,7 +145,7 @@ export default class Build extends EasCommand {
     const projectDir = await findProjectRootAsync();
     await handleDeprecatedEasJsonAsync(projectDir, flags.nonInteractive);
 
-    await vcs().ensureRepoExistsAsync();
+    await getVcsClient().ensureRepoExistsAsync();
     await ensureRepoIsCleanAsync(flags.nonInteractive);
 
     await ensureProjectConfiguredAsync(projectDir, requestedPlatform);
@@ -399,10 +399,16 @@ export async function handleDeprecatedEasJsonAsync(
   if (rawEasJson?.cli) {
     return;
   }
-  Log.warn(
-    'The default workflow was changed to no longer require clean git working tree before build. You can still opt in to keep the old behavior.'
+  Log.log(
+    `${chalk.bold(
+      'eas-cli@>=0.34.0 no longer requires that you commit changes to Git before starting a build.'
+    )} ${learnMore('https://expo.fyi/eas-vcs-workflow')}`
   );
-  Log.warn(`See ${link('https://expo.fyi/eas-vcs-workflow')} for a list of changes.`);
+  Log.log(
+    `If you want to continue using the Git integration, you can opt-in with ${chalk.bold(
+      'cli.requireCommit'
+    )} in ${chalk.bold('eas.json')} or with the following prompt`
+  );
   Log.newLine();
 
   if (nonInteractive) {
@@ -411,15 +417,17 @@ export async function handleDeprecatedEasJsonAsync(
       { exit: 1 }
     );
   }
-  const shouldRequireCommit = await confirmAsync({
-    message: 'Do you want to continue using the old workflow (which requires commits before builds)?',
-  });
+  const mode = await selectAsync('Select your preferred Git integration', [
+    { title: 'Require changes to be committed in Git (old default)', value: 'requireCommit' },
+    { title: 'Allow builds with dirty Git working tree (new default)', value: 'noCommit' },
+  ]);
 
-  rawEasJson.cli = shouldRequireCommit
-    ? { version: `>= ${easCliVersion}`, requireCommit: true }
-    : { version: `>= ${easCliVersion}` };
+  rawEasJson.cli =
+    mode === 'requireCommit'
+      ? { version: `>= ${easCliVersion}`, requireCommit: true }
+      : { version: `>= ${easCliVersion}` };
   await fs.writeJSON(EasJsonReader.formatEasJsonPath(projectDir), rawEasJson, { spaces: 2 });
-  if (shouldRequireCommit) {
+  if (mode === 'requireCommit') {
     setVcsClient(new GitClient());
   }
 }

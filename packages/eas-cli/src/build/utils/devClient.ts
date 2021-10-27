@@ -9,7 +9,7 @@ import Log, { learnMore } from '../../log';
 import { appPlatformDisplayNames } from '../../platform';
 import { resolveWorkflowAsync } from '../../project/workflow';
 import { confirmAsync } from '../../prompts';
-import { expoCommandAsync } from '../../utils/cli';
+import { expoCommandAsync } from '../../utils/expoCli';
 import { ProfileData } from '../../utils/profiles';
 import { reviewAndCommitChangesAsync } from './repository';
 

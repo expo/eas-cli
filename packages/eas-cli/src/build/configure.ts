@@ -10,8 +10,8 @@ import { RequestedPlatform } from '../platform';
 import { resolveWorkflowAsync } from '../project/workflow';
 import { confirmAsync, promptAsync } from '../prompts';
 import { ensureLoggedInAsync } from '../user/actions';
-import { easCliVersion } from '../utils/cli';
-import vcs from '../vcs';
+import { easCliVersion } from '../utils/easCli';
+import { getVcsClient } from '../vcs';
 import { configureAndroidAsync } from './android/configure';
 import { ConfigureContext } from './context';
 import { configureIosAsync } from './ios/configure';
@@ -38,7 +38,7 @@ export async function ensureProjectConfiguredAsync(
       projectDir,
       platform: requestedPlatform,
     });
-    if (await vcs().isCommitRequiredAsync()) {
+    if (await getVcsClient().isCommitRequiredAsync()) {
       error(
         'Build process requires clean working tree, please commit all your changes and run `eas build` again',
         { exit: 1 }
@@ -58,7 +58,7 @@ export async function configureAsync(options: {
   platform: RequestedPlatform;
   projectDir: string;
 }): Promise<void> {
-  await vcs().ensureRepoExistsAsync();
+  await getVcsClient().ensureRepoExistsAsync();
   await maybeBailOnRepoStatusAsync();
 
   const { exp } = getConfig(options.projectDir, { skipSDKVersionRequirement: true });
@@ -87,10 +87,10 @@ export async function configureAsync(options: {
     await configureIosAsync(ctx);
   }
 
-  if (await vcs().isCommitRequiredAsync()) {
+  if (await getVcsClient().isCommitRequiredAsync()) {
     Log.newLine();
     await reviewAndCommitChangesAsync(configureCommitMessage[options.platform]);
-  } else if (!(await vcs().hasUncommittedChangesAsync())) {
+  } else if (!(await getVcsClient().hasUncommittedChangesAsync())) {
     Log.newLine();
     Log.withTick('No changes were necessary, the project is already configured correctly.');
   }
@@ -156,7 +156,7 @@ export async function ensureEasJsonExistsAsync(ctx: ConfigureContext): Promise<v
       : EAS_JSON_MANAGED_DEFAULT;
 
   await fs.writeFile(easJsonPath, `${JSON.stringify(easJson, null, 2)}\n`);
-  await vcs().trackFileAsync(easJsonPath);
+  await getVcsClient().trackFileAsync(easJsonPath);
   Log.withTick('Generated eas.json');
 }
 
@@ -190,7 +190,7 @@ async function reviewAndCommitChangesAsync(
     await commitPromptAsync({ initialCommitMessage });
     Log.withTick('Committed changes');
   } else if (selected === ShouldCommitChanges.ShowDiffFirst) {
-    await vcs().showDiffAsync();
+    await getVcsClient().showDiffAsync();
     await reviewAndCommitChangesAsync(initialCommitMessage, false);
   }
 }

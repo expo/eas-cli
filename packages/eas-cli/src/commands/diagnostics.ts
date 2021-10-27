@@ -2,7 +2,7 @@ import envinfo from 'envinfo';
 
 import EasCommand from '../commandUtils/EasCommand';
 import Log from '../log';
-import { easCliVersion } from '../utils/cli';
+import { easCliVersion } from '../utils/easCli';
 
 export default class Diagnostics extends EasCommand {
   static description = 'log environment info to the console';

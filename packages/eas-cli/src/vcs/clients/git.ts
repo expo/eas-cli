@@ -25,7 +25,7 @@ export default class GitClient extends Client {
     Log.warn('EAS Build requires you to use a git repository for your project.');
 
     const confirmInit = await confirmAsync({
-      message: `Would you like to run 'git init' in the current directory for you?`,
+      message: `Would you like us to run 'git init' in the current directory for you?`,
     });
     if (!confirmInit) {
       throw new Error(
@@ -76,7 +76,7 @@ export default class GitClient extends Client {
 
   public async makeShallowCopyAsync(destinationPath: string): Promise<void> {
     if (await this.hasUncommittedChangesAsync()) {
-      // it should already be checked before this function is called, but in case it didn't
+      // it should already be checked before this function is called, but in case it wasn't
       // we want to ensure that any changes were introduced by call to `setGitCaseSensitivityAsync`
       throw new Error('You have some uncommitted changes in your repository.');
     }

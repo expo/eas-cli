@@ -4,10 +4,6 @@ import resolveFrom from 'resolve-from';
 
 import Log from '../log';
 
-const packageJSON = require('../../package.json');
-
-export const easCliVersion: string = packageJSON.version;
-
 export async function expoCommandAsync(projectDir: string, args: string[]): Promise<void> {
   const expoCliPath = resolveFrom(projectDir, 'expo/bin/cli.js');
   const spawnPromise = spawnAsync(expoCliPath, args, {

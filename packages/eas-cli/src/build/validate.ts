@@ -3,7 +3,7 @@ import fs from 'fs-extra';
 import path from 'path';
 
 import Log, { learnMore } from '../log';
-import vcs from '../vcs';
+import { getVcsClient } from '../vcs';
 import { BuildContext } from './context';
 
 export function checkNodeEnvVariable(ctx: BuildContext<Platform>): void {
@@ -25,12 +25,12 @@ export async function checkGoogleServicesFileAsync<T extends Platform>(
   if (!googleServicesFilePath) {
     return;
   }
-  const rootDir = path.normalize(await vcs().getRootPathAsync());
+  const rootDir = path.normalize(await getVcsClient().getRootPathAsync());
   const absGoogleServicesFilePath = path.resolve(ctx.projectDir, googleServicesFilePath);
   if (
     (await fs.pathExists(absGoogleServicesFilePath)) &&
     (!isInsideDirectory(absGoogleServicesFilePath, rootDir) ||
-      (await vcs().isFileIgnoredAsync(path.relative(rootDir, absGoogleServicesFilePath))))
+      (await getVcsClient().isFileIgnoredAsync(path.relative(rootDir, absGoogleServicesFilePath))))
   ) {
     Log.warn(
       `File specified via "${ctx.platform}.googleServicesFile" field in your app.json is not checked in to your repository and won't be uploaded to the builder.`

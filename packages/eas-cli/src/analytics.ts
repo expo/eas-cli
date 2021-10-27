@@ -4,7 +4,7 @@ import { URL } from 'url';
 import { v4 as uuidv4 } from 'uuid';
 
 import UserSettings from './user/UserSettings';
-import { easCliVersion } from './utils/cli';
+import { easCliVersion } from './utils/easCli';
 
 const PLATFORM_TO_ANALYTICS_PLATFORM: { [platform: string]: string } = {
   darwin: 'Mac',

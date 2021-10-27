@@ -6,7 +6,7 @@ import slash from 'slash';
 import { AndroidCredentials } from '../../credentials/android/AndroidCredentialsProvider';
 import { getUsername } from '../../project/projectUtils';
 import { ensureLoggedInAsync } from '../../user/actions';
-import vcs from '../../vcs';
+import { getVcsClient } from '../../vcs';
 import { BuildContext } from '../context';
 
 interface JobData {
@@ -27,7 +27,7 @@ export async function prepareJobAsync(
   const username = getUsername(ctx.exp, await ensureLoggedInAsync());
   const buildProfile: AndroidBuildProfile = ctx.buildProfile;
   const projectRootDirectory =
-    slash(path.relative(await vcs().getRootPathAsync(), ctx.projectDir)) || '.';
+    slash(path.relative(await getVcsClient().getRootPathAsync(), ctx.projectDir)) || '.';
   const { credentials } = jobData;
   const buildCredentials = credentials
     ? {

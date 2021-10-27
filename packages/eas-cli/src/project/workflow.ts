@@ -3,7 +3,7 @@ import { Platform, Workflow } from '@expo/eas-build-job';
 import fs from 'fs-extra';
 import path from 'path';
 
-import vcs from '../vcs';
+import { getVcsClient } from '../vcs';
 
 export async function resolveWorkflowAsync(
   projectDir: string,
@@ -20,7 +20,9 @@ export async function resolveWorkflowAsync(
   }
 
   if (await fs.pathExists(platformWorkflowMarker)) {
-    return (await vcs().isFileIgnoredAsync(path.relative(projectDir, platformWorkflowMarker)))
+    return (await getVcsClient().isFileIgnoredAsync(
+      path.relative(projectDir, platformWorkflowMarker)
+    ))
       ? Workflow.MANAGED
       : Workflow.GENERIC;
   } else {

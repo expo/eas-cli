@@ -12,7 +12,7 @@ import Log from '../log';
 import { findProjectRootAsync } from '../project/projectUtils';
 import { getUserAsync } from '../user/User';
 import { ensureLoggedInAsync } from '../user/actions';
-import { easCliVersion } from '../utils/cli';
+import { easCliVersion } from '../utils/easCli';
 import { setVcsClient } from '../vcs';
 import GitClient from '../vcs/clients/git';
 
@@ -58,7 +58,9 @@ export default abstract class EasCommand extends Command {
     const easJsonReader = new EasJsonReader(projectDir);
     const config = await easJsonReader.getCliConfigAsync();
     if (config?.version && !semver.satisfies(easCliVersion, config.version)) {
-      throw new Error(`You are on eas-cli@${easCliVersion} which does not satisfy the CLI version constraint in eas.json (${config.version})`);
+      throw new Error(
+        `You are on eas-cli@${easCliVersion} which does not satisfy the CLI version constraint in eas.json (${config.version})`
+      );
     }
     if (config?.requireCommit) {
       setVcsClient(new GitClient());

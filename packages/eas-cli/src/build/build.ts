@@ -13,7 +13,7 @@ import { uploadAsync } from '../uploads';
 import { formatBytes } from '../utils/files';
 import { createProgressTracker } from '../utils/progress';
 import { sleepAsync } from '../utils/promise';
-import vcs from '../vcs';
+import { getVcsClient } from '../vcs';
 import { BuildContext } from './context';
 import { runLocalBuildAsync } from './local';
 import { MetadataContext, collectMetadataAsync } from './metadata';
@@ -68,7 +68,7 @@ export async function prepareBuildRequestForPlatformAsync<
     });
   }
 
-  if (await vcs().isCommitRequiredAsync()) {
+  if (await getVcsClient().isCommitRequiredAsync()) {
     Log.addNewLineIfNone();
     await reviewAndCommitChangesAsync(
       `[EAS Build] Run EAS Build for ${requestedPlatformDisplayNames[ctx.platform as Platform]}`,

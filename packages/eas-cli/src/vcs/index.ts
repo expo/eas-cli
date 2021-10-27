@@ -21,4 +21,6 @@ export function setVcsClient(client: Client): void {
   vcsClient = client;
 }
 
-export default (): Client => vcsClient;
+export function getVcsClient(): Client {
+  return vcsClient;
+}
