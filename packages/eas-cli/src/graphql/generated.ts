@@ -2605,7 +2605,7 @@ export type AndroidJobInput = {
   projectRootDirectory: Scalars['String'];
   releaseChannel?: Maybe<Scalars['String']>;
   updates?: Maybe<BuildUpdatesInput>;
-  useDevelopmentClient?: Maybe<Scalars['Boolean']>;
+  developmentClient?: Maybe<Scalars['Boolean']>;
   secrets?: Maybe<AndroidJobSecretsInput>;
   builderEnvironment?: Maybe<AndroidBuilderEnvironmentInput>;
   cache?: Maybe<BuildCacheInput>;
@@ -2671,7 +2671,7 @@ export type BuildCacheInput = {
 export enum AndroidBuildType {
   Apk = 'APK',
   AppBundle = 'APP_BUNDLE',
-  /** @deprecated Use useDevelopmentClient option instead. */
+  /** @deprecated Use developmentClient option instead. */
   DevelopmentClient = 'DEVELOPMENT_CLIENT'
 }
 
@@ -2727,7 +2727,7 @@ export type IosJobInput = {
   /** @deprecated */
   distribution?: Maybe<DistributionType>;
   simulator?: Maybe<Scalars['Boolean']>;
-  useDevelopmentClient?: Maybe<Scalars['Boolean']>;
+  developmentClient?: Maybe<Scalars['Boolean']>;
   secrets?: Maybe<IosJobSecretsInput>;
   builderEnvironment?: Maybe<IosBuilderEnvironmentInput>;
   cache?: Maybe<BuildCacheInput>;
@@ -2766,7 +2766,7 @@ export type IosBuilderEnvironmentInput = {
   env?: Maybe<Scalars['JSONObject']>;
 };
 
-/** @deprecated Use useDevelopmentClient option instead. */
+/** @deprecated Use developmentClient option instead. */
 export enum IosBuildType {
   Release = 'RELEASE',
   DevelopmentClient = 'DEVELOPMENT_CLIENT'
@@ -3520,7 +3520,7 @@ export enum IosSchemeBuildConfiguration {
   Debug = 'DEBUG'
 }
 
-/** @deprecated Use useDevelopmentClient option instead. */
+/** @deprecated Use developmentClient option instead. */
 export enum IosManagedBuildType {
   Release = 'RELEASE',
   DevelopmentClient = 'DEVELOPMENT_CLIENT'
