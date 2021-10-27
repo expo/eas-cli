@@ -231,7 +231,8 @@ export async function getBranchByNameAsync({
         {
           appId,
           name,
-        }
+        },
+        { additionalTypenames: ['UpdateBranch'] }
       )
       .toPromise()
   );

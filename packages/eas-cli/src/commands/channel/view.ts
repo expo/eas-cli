@@ -133,7 +133,8 @@ export async function getUpdateChannelByNameForAppAsync({
             }
           }
         `,
-        { appId, channelName }
+        { appId, channelName },
+        { additionalTypenames: ['UpdateChannel', 'UpdateBranch', 'Update'] }
       )
       .toPromise()
   );

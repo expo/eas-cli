@@ -54,6 +54,7 @@ export const BuildQuery = {
           { buildId },
           {
             requestPolicy: useCache ? 'cache-first' : 'network-only',
+            additionalTypenames: ['Build'],
           }
         )
         .toPromise()

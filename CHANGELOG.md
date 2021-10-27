@@ -20,6 +20,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - Add additionalTypenames for other queries. ([#704](https://github.com/expo/eas-cli/pull/704) by [@quinlanj](https://github.com/quinlanj))
 - Remove unneeded parameters. ([#710](https://github.com/expo/eas-cli/pull/710) by [@quinlanj](https://github.com/quinlanj))
+- Enforce additionalTypenames for graphql queries. ([#709](https://github.com/expo/eas-cli/pull/709) by [@quinlanj](https://github.com/quinlanj))
 
 ## [0.33.1](https://github.com/expo/eas-cli/releases/tag/0.33.1) - 2021-10-22
 

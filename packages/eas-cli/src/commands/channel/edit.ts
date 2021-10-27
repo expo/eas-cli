@@ -49,7 +49,8 @@ async function getChannelByNameForAppAsync({
             }
           }
         `,
-        { appId, channelName }
+        { appId, channelName },
+        { additionalTypenames: ['UpdateChannel', 'UpdateBranch'] }
       )
       .toPromise()
   );

@@ -1,12 +1,17 @@
 import {
+  Client,
   CombinedError as GraphqlError,
+  OperationContext,
   OperationResult,
+  PromisifiedSource,
+  TypedDocumentNode,
   cacheExchange,
   createClient as createUrqlClient,
   dedupExchange,
   fetchExchange,
 } from '@urql/core';
 import { retryExchange } from '@urql/exchange-retry';
+import { DocumentNode } from 'graphql';
 // node-fetch is used here because @urql/core uses the fetch API under the hood
 // don't use node-fetch elsewhere
 // eslint-disable-next-line
@@ -57,7 +62,17 @@ export const graphqlClient = createUrqlClient({
     }
     return {};
   },
-});
+}) as StricterClient;
+
+/* Please specify additionalTypenames in your Graphql queries */
+export interface StricterClient extends Client {
+  // eslint-disable-next-line @typescript-eslint/ban-types
+  query<Data = any, Variables extends object = {}>(
+    query: DocumentNode | TypedDocumentNode<Data, Variables> | string,
+    variables: Variables | undefined,
+    context: Partial<OperationContext> & { additionalTypenames: string[] }
+  ): PromisifiedSource<OperationResult<Data, Variables>>;
+}
 
 export async function withErrorHandlingAsync<T>(promise: Promise<OperationResult<T>>): Promise<T> {
   const { data, error } = await promise;

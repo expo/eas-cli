@@ -58,7 +58,8 @@ async function getAllUpdateChannelForAppAsync({
             }
           }
         `,
-        { appId, offset: 0, limit: CHANNEL_LIMIT }
+        { appId, offset: 0, limit: CHANNEL_LIMIT },
+        { additionalTypenames: ['UpdateChannel', 'UpdateBranch', 'Update'] }
       )
       .toPromise()
   );

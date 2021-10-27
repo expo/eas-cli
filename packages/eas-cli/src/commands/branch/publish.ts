@@ -62,7 +62,8 @@ async function getUpdateGroupAsync({
         `,
         {
           group,
-        }
+        },
+        { additionalTypenames: ['Update'] }
       )
       .toPromise()
   );

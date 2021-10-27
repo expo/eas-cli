@@ -39,7 +39,8 @@ export async function viewUpdateAsync({
         `,
         {
           groupId,
-        }
+        },
+        { additionalTypenames: ['Update'] }
       )
       .toPromise()
   );
