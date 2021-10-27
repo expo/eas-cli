@@ -5,7 +5,7 @@
   "author": "Expo <support@expo.dev>",
   "bugs": "https://github.com/expo/eas-cli/issues",
   "dependencies": {
-    "@expo/eas-build-job": "0.2.55",
+    "@expo/eas-build-job": "0.2.57",
     "@expo/json-file": "8.2.33",
     "chalk": "4.1.2",
     "env-string": "1.0.1",
