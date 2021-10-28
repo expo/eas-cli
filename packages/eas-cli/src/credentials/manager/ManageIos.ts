@@ -38,144 +38,16 @@ import { AppLookupParams } from '../ios/api/GraphqlClient';
 import { getManagedEntitlementsJsonAsync } from '../ios/appstore/entitlements';
 import { App, IosAppCredentialsMap, Target } from '../ios/types';
 import { displayIosCredentials } from '../ios/utils/printCredentials';
+import { ActionInfo, IosActionType, Scope } from './Actions';
 import { Action, PressAnyKeyToContinue } from './HelperActions';
+import {
+  credentialsJsonActions,
+  getBuildCredentialsActions,
+  getPushKeyActions,
+  highLevelActions,
+} from './IosActions';
 import { SelectBuildProfileFromEasJson } from './SelectBuildProfileFromEasJson';
 import { SelectIosDistributionTypeGraphqlFromBuildProfile } from './SelectIosDistributionTypeGraphqlFromBuildProfile';
-
-enum ActionType {
-  ManageCredentialsJson,
-  ManageBuildCredentials,
-  ManagePushKey,
-  GoBackToCaller,
-  GoBackToHighLevelActions,
-  SetupBuildCredentials,
-  SetupBuildCredentialsFromCredentialsJson,
-  UpdateCredentialsJson,
-  UseExistingDistributionCertificate,
-  RemoveProvisioningProfile,
-  CreateDistributionCertificate,
-  RemoveDistributionCertificate,
-  SetupPushKey,
-  CreatePushKey,
-  UseExistingPushKey,
-  RemovePushKey,
-}
-
-enum Scope {
-  Project,
-  Account,
-  Manager,
-}
-
-type ActionInfo = { value: ActionType; title: string; scope: Scope };
-
-const highLevelActions: ActionInfo[] = [
-  {
-    value: ActionType.ManageBuildCredentials,
-    title: 'Build Credentials: Manage everything needed to build your project',
-    scope: Scope.Manager,
-  },
-  {
-    value: ActionType.ManagePushKey,
-    title: 'Push Notifications: Manage your Apple Push Notifications Key',
-    scope: Scope.Manager,
-  },
-  {
-    value: ActionType.ManageCredentialsJson,
-    title: 'credentials.json: Upload/Download credentials between EAS servers and your local json ',
-    scope: Scope.Manager,
-  },
-  {
-    value: ActionType.GoBackToCaller,
-    title: 'Go back',
-    scope: Scope.Manager,
-  },
-];
-
-const credentialsJsonActions: ActionInfo[] = [
-  {
-    value: ActionType.UpdateCredentialsJson,
-    title: 'Download credentials from EAS to credentials.json',
-    scope: Scope.Project,
-  },
-  {
-    value: ActionType.SetupBuildCredentialsFromCredentialsJson,
-    title: 'Upload credentials from credentials.json to EAS',
-    scope: Scope.Project,
-  },
-  {
-    value: ActionType.GoBackToHighLevelActions,
-    title: 'Go back',
-    scope: Scope.Manager,
-  },
-];
-
-function getPushKeyActions(ctx: CredentialsContext): ActionInfo[] {
-  return [
-    {
-      value: ActionType.SetupPushKey,
-      title: 'Setup your project to use Push Notifications',
-      scope: Scope.Project,
-    },
-    {
-      value: ActionType.CreatePushKey,
-      title: 'Add a new push key',
-      scope: ctx.hasProjectContext ? Scope.Project : Scope.Account,
-    },
-    {
-      value: ActionType.UseExistingPushKey,
-      title: 'Use an existing push key',
-      scope: Scope.Project,
-    },
-    {
-      value: ActionType.RemovePushKey,
-      title: 'Remove a push key from your account',
-      scope: Scope.Account,
-    },
-    {
-      value: ActionType.GoBackToHighLevelActions,
-      title: 'Go back',
-      scope: Scope.Manager,
-    },
-  ];
-}
-
-function getBuildCredentialsActions(ctx: CredentialsContext): ActionInfo[] {
-  return [
-    {
-      // This command will be triggered during build to ensure all credentials are ready
-      // I'm leaving it here for now to simplify testing
-      value: ActionType.SetupBuildCredentials,
-      title: 'All: Set up all the required credentials to build your project',
-      scope: Scope.Project,
-    },
-    {
-      value: ActionType.UseExistingDistributionCertificate,
-      title: 'Distribution Certificate: Use an existing one for your project',
-      scope: Scope.Project,
-    },
-    {
-      value: ActionType.CreateDistributionCertificate,
-      title: `Distribution Certificate: Add a new one to your account`,
-      scope: ctx.hasProjectContext ? Scope.Project : Scope.Account,
-    },
-    {
-      value: ActionType.RemoveDistributionCertificate,
-      title: 'Distribution Certificate: Delete one from your account',
-      scope: Scope.Account,
-    },
-    {
-      value: ActionType.RemoveProvisioningProfile,
-      title: 'Provisioning Profile: Delete one from your project',
-      scope: Scope.Project,
-    },
-    {
-      value: ActionType.GoBackToHighLevelActions,
-      title: 'Go back',
-      scope: Scope.Manager,
-    },
-  ];
-}
 
 export class ManageIos {
   constructor(private callingAction: Action) {}
@@ -226,19 +98,19 @@ export class ManageIos {
           throw new Error('Action not supported yet');
         }
         if (actionInfo.scope === Scope.Manager) {
-          if (chosenAction === ActionType.ManageBuildCredentials) {
+          if (chosenAction === IosActionType.ManageBuildCredentials) {
             currentActions = buildCredentialsActions;
             continue;
-          } else if (chosenAction === ActionType.ManageCredentialsJson) {
+          } else if (chosenAction === IosActionType.ManageCredentialsJson) {
             currentActions = credentialsJsonActions;
             continue;
-          } else if (chosenAction === ActionType.ManagePushKey) {
+          } else if (chosenAction === IosActionType.ManagePushKey) {
             currentActions = pushKeyActions;
             continue;
-          } else if (chosenAction === ActionType.GoBackToHighLevelActions) {
+          } else if (chosenAction === IosActionType.GoBackToHighLevelActions) {
             currentActions = highLevelActions;
             continue;
-          } else if (chosenAction === ActionType.GoBackToCaller) {
+          } else if (chosenAction === IosActionType.GoBackToCaller) {
             return await this.callingAction.runAsync(ctx);
           }
         } else if (actionInfo.scope === Scope.Project) {
@@ -315,15 +187,15 @@ export class ManageIos {
   private async runAccountSpecificActionAsync(
     ctx: CredentialsContext,
     account: Account,
-    action: ActionType
+    action: IosActionType
   ): Promise<void> {
-    if (action === ActionType.RemoveDistributionCertificate) {
+    if (action === IosActionType.RemoveDistributionCertificate) {
       await new SelectAndRemoveDistributionCertificate(account).runAsync(ctx);
-    } else if (action === ActionType.CreateDistributionCertificate) {
+    } else if (action === IosActionType.CreateDistributionCertificate) {
       await new CreateDistributionCertificate(account).runAsync(ctx);
-    } else if (action === ActionType.CreatePushKey) {
+    } else if (action === IosActionType.CreatePushKey) {
       await new CreatePushKey(account).runAsync(ctx);
-    } else if (action === ActionType.RemovePushKey) {
+    } else if (action === IosActionType.RemovePushKey) {
       await new SelectAndRemovePushKey(account).runAsync(ctx);
     }
   }
@@ -333,9 +205,9 @@ export class ManageIos {
     app: App,
     targets: Target[],
     buildProfile: IosBuildProfile,
-    action: ActionType
+    action: IosActionType
   ): Promise<void> {
-    if (action === ActionType.SetupBuildCredentials) {
+    if (action === IosActionType.SetupBuildCredentials) {
       await new SetupBuildCredentials({
         app,
         targets,
@@ -352,12 +224,12 @@ export class ManageIos {
       buildProfile
     ).runAsync(ctx);
 
-    if (action === ActionType.SetupBuildCredentialsFromCredentialsJson) {
+    if (action === IosActionType.SetupBuildCredentialsFromCredentialsJson) {
       await new SetupBuildCredentialsFromCredentialsJson(app, targets, distributionType).runAsync(
         ctx
       );
       return;
-    } else if (action === ActionType.UpdateCredentialsJson) {
+    } else if (action === IosActionType.UpdateCredentialsJson) {
       await new UpdateCredentialsJson(app, targets, distributionType).runAsync(ctx);
       return;
     }
@@ -365,7 +237,7 @@ export class ManageIos {
     const target = await this.selectTargetAsync(targets);
     const appLookupParams = getAppLookupParamsFromContext(ctx, target);
     switch (action) {
-      case ActionType.UseExistingDistributionCertificate: {
+      case IosActionType.UseExistingDistributionCertificate: {
         const distCert = await selectValidDistributionCertificateAsync(ctx, appLookupParams);
         if (!distCert) {
           return;
@@ -378,7 +250,7 @@ export class ManageIos {
         );
         return;
       }
-      case ActionType.CreateDistributionCertificate: {
+      case IosActionType.CreateDistributionCertificate: {
         const distCert = await new CreateDistributionCertificate(appLookupParams.account).runAsync(
           ctx
         );
@@ -395,7 +267,7 @@ export class ManageIos {
         }
         return;
       }
-      case ActionType.RemoveProvisioningProfile: {
+      case IosActionType.RemoveProvisioningProfile: {
         const iosAppCredentials = await ctx.ios.getIosAppCredentialsWithCommonFieldsAsync(
           appLookupParams
         );
@@ -418,7 +290,7 @@ export class ManageIos {
         }
         return;
       }
-      case ActionType.SetupPushKey: {
+      case IosActionType.SetupPushKey: {
         const setupPushKeyAction = await new SetupPushKey(appLookupParams);
         const isPushKeySetup = await setupPushKeyAction.isPushKeySetupAsync(ctx);
         if (isPushKeySetup) {
@@ -430,7 +302,7 @@ export class ManageIos {
         }
         return;
       }
-      case ActionType.CreatePushKey: {
+      case IosActionType.CreatePushKey: {
         const pushKey = await new CreatePushKey(appLookupParams.account).runAsync(ctx);
         const confirm = await confirmAsync({
           message: `Do you want ${appLookupParams.projectName} to use the new Push Key?`,
@@ -440,7 +312,7 @@ export class ManageIos {
         }
         return;
       }
-      case ActionType.UseExistingPushKey: {
+      case IosActionType.UseExistingPushKey: {
         const selectedPushKey = await selectPushKeyAsync(ctx, appLookupParams.account);
         if (selectedPushKey) {
           await new AssignPushKey(appLookupParams).runAsync(ctx, selectedPushKey);
