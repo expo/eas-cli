@@ -706,6 +706,7 @@ export type Build = ActivityTimelineProjectActivity & BuildOrBuildJob & {
   iosEnterpriseProvisioning?: Maybe<BuildIosEnterpriseProvisioning>;
   buildProfile?: Maybe<Scalars['String']>;
   gitCommitHash?: Maybe<Scalars['String']>;
+  isGitWorkingTreeDirty?: Maybe<Scalars['Boolean']>;
   error?: Maybe<BuildError>;
   submissions: Array<Submission>;
 };
@@ -966,7 +967,7 @@ export type IosSubmissionConfig = {
   __typename?: 'IosSubmissionConfig';
   ascAppIdentifier: Scalars['String'];
   appleIdUsername: Scalars['String'];
-  appleAppSpecificPasswordId?: Maybe<Scalars['String']>;
+  ascApiKeyId?: Maybe<Scalars['String']>;
 };
 
 export type SubmissionError = {
@@ -1113,7 +1114,7 @@ export type IosAppCredentials = {
   appleAppIdentifier: AppleAppIdentifier;
   iosAppBuildCredentialsList: Array<IosAppBuildCredentials>;
   pushKey?: Maybe<ApplePushKey>;
-  submissionAppStoreConnectApiKey?: Maybe<AppStoreConnectApiKey>;
+  appStoreConnectApiKeyForSubmissions?: Maybe<AppStoreConnectApiKey>;
   appSpecificPassword?: Maybe<AppleAppSpecificPassword>;
   /** @deprecated use iosAppBuildCredentialsList instead */
   iosAppBuildCredentialsArray: Array<IosAppBuildCredentials>;
@@ -1460,6 +1461,7 @@ export type SubscriptionDetails = {
   planId?: Maybe<Scalars['String']>;
   addons: Array<AddonDetails>;
   name?: Maybe<Scalars['String']>;
+  price: Scalars['Int'];
   nextInvoice?: Maybe<Scalars['DateTime']>;
   cancelledAt?: Maybe<Scalars['DateTime']>;
   willCancel?: Maybe<Scalars['Boolean']>;
@@ -1889,6 +1891,8 @@ export type RootMutation = {
   applePushKey: ApplePushKeyMutation;
   /** Mutations that modify an Apple Team */
   appleTeam: AppleTeamMutation;
+  /** Mutations that modify an App Store Connect Api Key */
+  appStoreConnectApiKey: AppStoreConnectApiKeyMutation;
   /** Mutations that modify an App */
   app?: Maybe<AppMutation>;
   asset: AssetMutation;
@@ -1994,6 +1998,8 @@ export type AccountMutation = {
   subscribeToProduct?: Maybe<Account>;
   /** Cancels the active subscription */
   cancelSubscription?: Maybe<Account>;
+  /** Requests a refund for the specified charge. Returns true if auto-refund was possible, otherwise requests a manual refund from support and returns false. */
+  requestRefund?: Maybe<Scalars['Boolean']>;
   /**
    * Makes a one time purchase
    * @deprecated Build packs are no longer supported
@@ -2036,6 +2042,12 @@ export type AccountMutationSubscribeToProductArgs = {
 
 export type AccountMutationCancelSubscriptionArgs = {
   accountName: Scalars['ID'];
+};
+
+
+export type AccountMutationRequestRefundArgs = {
+  accountID: Scalars['ID'];
+  chargeIdentifier: Scalars['ID'];
 };
 
 
@@ -2454,6 +2466,39 @@ export type AppleTeamInput = {
   appleTeamName?: Maybe<Scalars['String']>;
 };
 
+export type AppStoreConnectApiKeyMutation = {
+  __typename?: 'AppStoreConnectApiKeyMutation';
+  /** Create an App Store Connect Api Key for an Apple Team */
+  createAppStoreConnectApiKey: AppStoreConnectApiKey;
+  /** Delete an App Store Connect Api Key */
+  deleteAppStoreConnectApiKey: DeleteAppStoreConnectApiKeyResult;
+};
+
+
+export type AppStoreConnectApiKeyMutationCreateAppStoreConnectApiKeyArgs = {
+  appStoreConnectApiKeyInput: AppStoreConnectApiKeyInput;
+  accountId: Scalars['ID'];
+};
+
+
+export type AppStoreConnectApiKeyMutationDeleteAppStoreConnectApiKeyArgs = {
+  id: Scalars['ID'];
+};
+
+export type AppStoreConnectApiKeyInput = {
+  issuerIdentifier: Scalars['String'];
+  keyIdentifier: Scalars['String'];
+  keyP8: Scalars['String'];
+  name?: Maybe<Scalars['String']>;
+  roles?: Maybe<Array<AppStoreConnectUserRole>>;
+  appleTeamId?: Maybe<Scalars['ID']>;
+};
+
+export type DeleteAppStoreConnectApiKeyResult = {
+  __typename?: 'deleteAppStoreConnectApiKeyResult';
+  id: Scalars['ID'];
+};
+
 export type AppMutation = {
   __typename?: 'AppMutation';
   /** Create an unpublished app */
@@ -2647,6 +2692,7 @@ export type BuildMetadataInput = {
   appIdentifier?: Maybe<Scalars['String']>;
   buildProfile?: Maybe<Scalars['String']>;
   gitCommitHash?: Maybe<Scalars['String']>;
+  isGitWorkingTreeDirty?: Maybe<Scalars['Boolean']>;
   username?: Maybe<Scalars['String']>;
 };
 
@@ -2766,8 +2812,8 @@ export type IosAppCredentialsMutation = {
   createIosAppCredentials: IosAppCredentials;
   /** Set the push key to be used in an iOS app */
   setPushKey: IosAppCredentials;
-  /** Set the app-specific password to be used for an iOS app */
-  setAppSpecificPassword: IosAppCredentials;
+  /** Set the App Store Connect Api Key to be used for submitting an iOS app */
+  setAppStoreConnectApiKeyForSubmissions: IosAppCredentials;
 };
 
 
@@ -2784,15 +2830,15 @@ export type IosAppCredentialsMutationSetPushKeyArgs = {
 };
 
 
-export type IosAppCredentialsMutationSetAppSpecificPasswordArgs = {
+export type IosAppCredentialsMutationSetAppStoreConnectApiKeyForSubmissionsArgs = {
   id: Scalars['ID'];
-  appSpecificPasswordId: Scalars['ID'];
+  ascApiKeyId: Scalars['ID'];
 };
 
 export type IosAppCredentialsInput = {
   appleTeamId?: Maybe<Scalars['ID']>;
   pushKeyId?: Maybe<Scalars['ID']>;
-  appSpecificPasswordId?: Maybe<Scalars['ID']>;
+  appStoreConnectApiKeyForSubmissionsId?: Maybe<Scalars['ID']>;
 };
 
 export type RobotMutation = {
@@ -2904,11 +2950,11 @@ export type CreateIosSubmissionInput = {
 };
 
 export type IosSubmissionConfigInput = {
-  appleAppSpecificPasswordId?: Maybe<Scalars['String']>;
   appleAppSpecificPassword?: Maybe<Scalars['String']>;
   ascApiKey?: Maybe<AscApiKeyInput>;
+  ascApiKeyId?: Maybe<Scalars['String']>;
   archiveUrl?: Maybe<Scalars['String']>;
-  appleIdUsername: Scalars['String'];
+  appleIdUsername?: Maybe<Scalars['String']>;
   ascAppIdentifier: Scalars['String'];
 };
 
