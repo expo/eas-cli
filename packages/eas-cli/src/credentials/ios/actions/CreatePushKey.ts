@@ -12,7 +12,7 @@ export class CreatePushKey {
       throw new Error(`A new push key cannot be created in non-interactive mode.`);
     }
 
-    const pushKey = await provideOrGeneratePushKeyAsync(ctx, this.account.name);
+    const pushKey = await provideOrGeneratePushKeyAsync(ctx);
     const result = await ctx.ios.createPushKeyAsync(this.account, pushKey);
     Log.succeed('Created push key');
     return result;

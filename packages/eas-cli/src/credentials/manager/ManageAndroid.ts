@@ -34,6 +34,14 @@ import {
   displayEmptyAndroidCredentials,
 } from '../android/utils/printCredentials';
 import { CredentialsContext } from '../context';
+import { ActionInfo, AndroidActionType, Scope } from './Actions';
+import {
+  buildCredentialsActions,
+  credentialsJsonActions,
+  fcmActions,
+  gsaKeyActions,
+  highLevelActions,
+} from './AndroidActions';
 import { Action, PressAnyKeyToContinue } from './HelperActions';
 import {
   SelectAndroidBuildCredentials,
@@ -41,148 +49,6 @@ import {
   SelectExistingAndroidBuildCredentials,
 } from './SelectAndroidBuildCredentials';
 import { SelectBuildProfileFromEasJson } from './SelectBuildProfileFromEasJson';
-
-enum ActionType {
-  ManageBuildCredentials,
-  ManageFcm,
-  ManageGoogleServiceAccountKey,
-  ManageCredentialsJson,
-  GoBackToCaller,
-  GoBackToHighLevelActions,
-  CreateKeystore,
-  DownloadKeystore,
-  RemoveKeystore,
-  CreateFcm,
-  RemoveFcm,
-  CreateGsaKey,
-  UseExistingGsaKey,
-  RemoveGsaKey,
-  SetupGsaKey,
-  UpdateCredentialsJson,
-  SetupBuildCredentialsFromCredentialsJson,
-}
-
-enum Scope {
-  Project,
-  Manager,
-}
-
-type ActionInfo = { value: ActionType; title: string; scope: Scope };
-
-const highLevelActions: ActionInfo[] = [
-  {
-    value: ActionType.ManageBuildCredentials,
-    title: 'Keystore: Manage everything needed to build your project',
-    scope: Scope.Manager,
-  },
-  {
-    value: ActionType.ManageFcm,
-    title: 'Push Notifications: Manage your FCM Api Key',
-    scope: Scope.Manager,
-  },
-  {
-    value: ActionType.ManageGoogleServiceAccountKey,
-    title: 'Google Service Account: Manage your Service Account Key',
-    scope: Scope.Manager,
-  },
-  {
-    value: ActionType.ManageCredentialsJson,
-    title: 'credentials.json: Upload/Download credentials between EAS servers and your local json ',
-    scope: Scope.Manager,
-  },
-  {
-    value: ActionType.GoBackToCaller,
-    title: 'Go back',
-    scope: Scope.Manager,
-  },
-];
-
-const credentialsJsonActions: ActionInfo[] = [
-  {
-    value: ActionType.UpdateCredentialsJson,
-    title: 'Download credentials from EAS to credentials.json',
-    scope: Scope.Project,
-  },
-  {
-    value: ActionType.SetupBuildCredentialsFromCredentialsJson,
-    title: 'Upload credentials from credentials.json to EAS',
-    scope: Scope.Project,
-  },
-  {
-    value: ActionType.GoBackToHighLevelActions,
-    title: 'Go back',
-    scope: Scope.Manager,
-  },
-];
-
-const buildCredentialsActions: ActionInfo[] = [
-  {
-    value: ActionType.CreateKeystore,
-    title: 'Set up a new keystore',
-    scope: Scope.Project,
-  },
-  {
-    value: ActionType.DownloadKeystore,
-    title: 'Download existing keystore',
-    scope: Scope.Project,
-  },
-  {
-    value: ActionType.RemoveKeystore,
-    title: 'Delete your keystore',
-    scope: Scope.Project,
-  },
-  {
-    value: ActionType.GoBackToHighLevelActions,
-    title: 'Go back',
-    scope: Scope.Manager,
-  },
-];
-
-const fcmActions: ActionInfo[] = [
-  {
-    value: ActionType.CreateFcm,
-    title: 'Upload an FCM Api Key',
-    scope: Scope.Project,
-  },
-  {
-    value: ActionType.RemoveFcm,
-    title: 'Delete your FCM Api Key',
-    scope: Scope.Project,
-  },
-  {
-    value: ActionType.GoBackToHighLevelActions,
-    title: 'Go back',
-    scope: Scope.Manager,
-  },
-];
-
-const gsaKeyActions: ActionInfo[] = [
-  {
-    value: ActionType.SetupGsaKey,
-    title: 'Setup a Google Service Account Key',
-    scope: Scope.Project,
-  },
-  {
-    value: ActionType.CreateGsaKey,
-    title: 'Upload a Google Service Account Key',
-    scope: Scope.Project,
-  },
-  {
-    value: ActionType.UseExistingGsaKey,
-    title: 'Use an existing Google Service Account Key',
-    scope: Scope.Project,
-  },
-  {
-    value: ActionType.RemoveGsaKey,
-    title: 'Delete a Google Service Account Key',
-    scope: Scope.Project,
-  },
-  {
-    value: ActionType.GoBackToHighLevelActions,
-    title: 'Go back',
-    scope: Scope.Manager,
-  },
-];
 
 export class ManageAndroid {
   constructor(private callingAction: Action) {}
@@ -242,22 +108,22 @@ export class ManageAndroid {
           throw new Error('Action not supported yet');
         }
         if (actionInfo.scope === Scope.Manager) {
-          if (chosenAction === ActionType.ManageBuildCredentials) {
+          if (chosenAction === AndroidActionType.ManageBuildCredentials) {
             currentActions = buildCredentialsActions;
             continue;
-          } else if (chosenAction === ActionType.ManageFcm) {
+          } else if (chosenAction === AndroidActionType.ManageFcm) {
             currentActions = fcmActions;
             continue;
-          } else if (chosenAction === ActionType.ManageGoogleServiceAccountKey) {
+          } else if (chosenAction === AndroidActionType.ManageGoogleServiceAccountKey) {
             currentActions = gsaKeyActions;
             continue;
-          } else if (chosenAction === ActionType.ManageCredentialsJson) {
+          } else if (chosenAction === AndroidActionType.ManageCredentialsJson) {
             currentActions = credentialsJsonActions;
             continue;
-          } else if (chosenAction === ActionType.GoBackToHighLevelActions) {
+          } else if (chosenAction === AndroidActionType.GoBackToHighLevelActions) {
             currentActions = highLevelActions;
             continue;
-          } else if (chosenAction === ActionType.GoBackToCaller) {
+          } else if (chosenAction === AndroidActionType.GoBackToCaller) {
             return await this.callingAction.runAsync(ctx);
           }
         }
@@ -302,7 +168,7 @@ export class ManageAndroid {
 
   private async runProjectSpecificActionAsync(
     ctx: CredentialsContext,
-    action: ActionType,
+    action: AndroidActionType,
     gradleContext?: GradleBuildContext
   ): Promise<void> {
     assert(
@@ -310,7 +176,7 @@ export class ManageAndroid {
       'You must be in your project directory in order to perform this action'
     );
     const appLookupParams = await getAppLookupParamsFromContextAsync(ctx, gradleContext);
-    if (action === ActionType.CreateKeystore) {
+    if (action === AndroidActionType.CreateKeystore) {
       const selectBuildCredentialsResult = await new SelectAndroidBuildCredentials(
         appLookupParams
       ).runAsync(ctx);
@@ -331,47 +197,47 @@ export class ManageAndroid {
           }
         );
       }
-    } else if (action === ActionType.DownloadKeystore) {
+    } else if (action === AndroidActionType.DownloadKeystore) {
       const buildCredentials = await new SelectExistingAndroidBuildCredentials(
         appLookupParams
       ).runAsync(ctx);
       if (buildCredentials) {
         await new DownloadKeystore({ app: appLookupParams }).runAsync(ctx, buildCredentials);
       }
-    } else if (action === ActionType.RemoveKeystore) {
+    } else if (action === AndroidActionType.RemoveKeystore) {
       const buildCredentials = await new SelectExistingAndroidBuildCredentials(
         appLookupParams
       ).runAsync(ctx);
       if (buildCredentials) {
         await new RemoveKeystore(appLookupParams).runAsync(ctx, buildCredentials);
       }
-    } else if (action === ActionType.CreateFcm) {
+    } else if (action === AndroidActionType.CreateFcm) {
       const fcm = await new CreateFcm(appLookupParams.account).runAsync(ctx);
       await new AssignFcm(appLookupParams).runAsync(ctx, fcm);
-    } else if (action === ActionType.RemoveFcm) {
+    } else if (action === AndroidActionType.RemoveFcm) {
       await new RemoveFcm(appLookupParams).runAsync(ctx);
-    } else if (action === ActionType.CreateGsaKey) {
+    } else if (action === AndroidActionType.CreateGsaKey) {
       const gsaKey = await new CreateGoogleServiceAccountKey(appLookupParams.account).runAsync(ctx);
       await new AssignGoogleServiceAccountKey(appLookupParams).runAsync(ctx, gsaKey);
-    } else if (action === ActionType.UseExistingGsaKey) {
+    } else if (action === AndroidActionType.UseExistingGsaKey) {
       const gsaKey = await new UseExistingGoogleServiceAccountKey(appLookupParams.account).runAsync(
         ctx
       );
       if (gsaKey) {
         await new AssignGoogleServiceAccountKey(appLookupParams).runAsync(ctx, gsaKey);
       }
-    } else if (action === ActionType.RemoveGsaKey) {
+    } else if (action === AndroidActionType.RemoveGsaKey) {
       await new SelectAndRemoveGoogleServiceAccountKey(appLookupParams.account).runAsync(ctx);
-    } else if (action === ActionType.SetupGsaKey) {
+    } else if (action === AndroidActionType.SetupGsaKey) {
       await new SetupGoogleServiceAccountKey(appLookupParams).runAsync(ctx);
-    } else if (action === ActionType.UpdateCredentialsJson) {
+    } else if (action === AndroidActionType.UpdateCredentialsJson) {
       const buildCredentials = await new SelectExistingAndroidBuildCredentials(
         appLookupParams
       ).runAsync(ctx);
       if (buildCredentials) {
         await new UpdateCredentialsJson().runAsync(ctx, buildCredentials);
       }
-    } else if (action === ActionType.SetupBuildCredentialsFromCredentialsJson) {
+    } else if (action === AndroidActionType.SetupBuildCredentialsFromCredentialsJson) {
       await new SetupBuildCredentialsFromCredentialsJson(appLookupParams).runAsync(ctx);
     }
   }

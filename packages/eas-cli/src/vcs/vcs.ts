@@ -1,29 +1,38 @@
 export abstract class Client {
   // makeShallowCopyAsync should copy current project (result of getRootPathAsync()) to the specified
   // destination, folder created this way will be uploaded "as is", so implementation should skip
-  // anything that is not commited to the repository. Most optimal solution is to create shallow clone
+  // anything that is not committed to the repository. Most optimal solution is to create shallow clone
   // using tooling provided by specific VCS, that respects all ignore rules
   public abstract makeShallowCopyAsync(destinationPath: string): Promise<void>;
 
   // Find root of the repository.
+  //
+  // On windows path might look different depending on implementation
+  // - git based clients will return "C:/path/to/repo"
+  // - non-git clients will return "C:\path\to\repo"
   public abstract getRootPathAsync(): Promise<string>;
 
   // (optional) ensureRepoExistsAsync should verify whether repository exists and tooling is installed
   // it's not required for minimal support, but lack of validation might cause the failure at a later stage.
   public async ensureRepoExistsAsync(): Promise<void> {}
 
-  // (optional) hasUncommittedChangesAsync should check whether there are changes in local repository
+  // (optional) checks whether commit is necessary before calling makeShallowCopyAsync
   //
-  // If it's not implemented method `makeShallowCopyAsync` needs to be able to include uncommited changes
+  // If it's not implemented method `makeShallowCopyAsync` needs to be able to include uncommitted changes
   // when creating copy
-  public async hasUncommittedChangesAsync(): Promise<boolean> {
+  public async isCommitRequiredAsync(): Promise<boolean> {
     return false;
+  }
+
+  // (optional) hasUncommittedChangesAsync should check whether there are changes in local repository
+  public async hasUncommittedChangesAsync(): Promise<boolean | undefined> {
+    return undefined;
   }
 
   // (optional) commitAsync commits changes
   //
   // - Should be implemented if hasUncommittedChangesAsync is implemented
-  // - If it's not implemented method `makeShallowCopyAsync` needs to be able to include uncommited changes
+  // - If it's not implemented method `makeShallowCopyAsync` needs to be able to include uncommitted changes
   // in project copy
   public async commitAsync(arg: {
     commitMessage: string;

@@ -152,8 +152,7 @@ Please remember that Apple Distribution Certificates are not application specifi
 `;
 
 export async function provideOrGenerateDistributionCertificateAsync(
-  ctx: CredentialsContext,
-  accountName: string
+  ctx: CredentialsContext
 ): Promise<DistributionCertificate> {
   if (!ctx.nonInteractive) {
     const userProvided = await promptForDistCertAsync(ctx);
@@ -168,13 +167,11 @@ export async function provideOrGenerateDistributionCertificateAsync(
         if (!isValid) {
           Log.warn("Provided Distribution Certificate is no longer valid on Apple's server");
         }
-        return isValid
-          ? userProvided
-          : await provideOrGenerateDistributionCertificateAsync(ctx, accountName);
+        return isValid ? userProvided : await provideOrGenerateDistributionCertificateAsync(ctx);
       }
     }
   }
-  return await generateDistributionCertificateAsync(ctx, accountName);
+  return await generateDistributionCertificateAsync(ctx);
 }
 
 async function promptForDistCertAsync(
@@ -200,8 +197,7 @@ async function promptForDistCertAsync(
 }
 
 async function generateDistributionCertificateAsync(
-  ctx: CredentialsContext,
-  accountName: string
+  ctx: CredentialsContext
 ): Promise<DistributionCertificate> {
   await ctx.appStore.ensureAuthenticatedAsync();
   try {
@@ -246,7 +242,7 @@ async function generateDistributionCertificateAsync(
       throw e;
     }
   }
-  return await generateDistributionCertificateAsync(ctx, accountName);
+  return await generateDistributionCertificateAsync(ctx);
 }
 
 function formatDistributionCertificateFromApple(

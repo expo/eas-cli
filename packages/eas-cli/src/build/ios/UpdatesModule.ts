@@ -4,7 +4,7 @@ import { IOSConfig } from '@expo/config-plugins';
 import Log from '../../log';
 import { getProjectAccountName } from '../../project/projectUtils';
 import { ensureLoggedInAsync } from '../../user/actions';
-import vcs from '../../vcs';
+import { getVcsClient } from '../../vcs';
 import { ensureValidVersions } from '../utils/updates';
 import { readPlistAsync, writePlistAsync } from './plist';
 
@@ -68,7 +68,7 @@ async function writeExpoPlistAsync(
 ): Promise<void> {
   const expoPlistPath = IOSConfig.Paths.getExpoPlistPath(projectDir);
   await writePlistAsync(expoPlistPath, expoPlist);
-  await vcs.trackFileAsync(expoPlistPath);
+  await getVcsClient().trackFileAsync(expoPlistPath);
 }
 
 export async function readReleaseChannelSafelyAsync(projectDir: string): Promise<string | null> {

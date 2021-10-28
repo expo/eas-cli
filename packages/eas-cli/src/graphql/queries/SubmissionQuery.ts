@@ -81,7 +81,8 @@ export const SubmissionQuery = {
             }
             ${print(SubmissionFragmentNode)}
           `,
-          { appId, offset, limit, status, platform }
+          { appId, offset, limit, status, platform },
+          { additionalTypenames: ['Submission'] }
         )
         .toPromise()
     );

@@ -14,10 +14,7 @@ import { pushKeySchema } from '../credentials';
 import { isPushKeyValidAndTrackedAsync } from '../validators/validatePushKey';
 import { formatAppleTeam } from './AppleTeamUtils';
 
-export async function provideOrGeneratePushKeyAsync(
-  ctx: CredentialsContext,
-  accountName: string
-): Promise<PushKey> {
+export async function provideOrGeneratePushKeyAsync(ctx: CredentialsContext): Promise<PushKey> {
   if (!ctx.nonInteractive) {
     const userProvided = await promptForPushKeyAsync(ctx);
     if (userProvided) {
@@ -36,11 +33,11 @@ export async function provideOrGeneratePushKeyAsync(
         if (useUserProvided) {
           return userProvided;
         }
-        return await provideOrGeneratePushKeyAsync(ctx, accountName);
+        return await provideOrGeneratePushKeyAsync(ctx);
       }
     }
   }
-  return await generatePushKeyAsync(ctx, accountName);
+  return await generatePushKeyAsync(ctx);
 }
 
 async function promptForPushKeyAsync(ctx: CredentialsContext): Promise<PushKey | null> {
@@ -63,10 +60,7 @@ async function promptForPushKeyAsync(ctx: CredentialsContext): Promise<PushKey |
   return userProvided;
 }
 
-async function generatePushKeyAsync(
-  ctx: CredentialsContext,
-  accountName: string
-): Promise<PushKey> {
+async function generatePushKeyAsync(ctx: CredentialsContext): Promise<PushKey> {
   await ctx.appStore.ensureAuthenticatedAsync();
   try {
     return await ctx.appStore.createPushKeyAsync();
@@ -106,7 +100,7 @@ async function generatePushKeyAsync(
       throw e;
     }
   }
-  return await generatePushKeyAsync(ctx, accountName);
+  return await generatePushKeyAsync(ctx);
 }
 
 function formatPushKeyFromApple(pushKey: PushKeyStoreInfo): string {

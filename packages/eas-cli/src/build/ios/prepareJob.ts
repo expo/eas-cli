@@ -5,7 +5,7 @@ import slash from 'slash';
 import { IosCredentials, TargetCredentials } from '../../credentials/ios/types';
 import { getUsername } from '../../project/projectUtils';
 import { ensureLoggedInAsync } from '../../user/actions';
-import vcs from '../../vcs';
+import { getVcsClient } from '../../vcs';
 import { BuildContext } from '../context';
 
 interface JobData {
@@ -25,7 +25,7 @@ export async function prepareJobAsync(
   jobData: JobData
 ): Promise<Job> {
   const projectRootDirectory =
-    slash(path.relative(await vcs.getRootPathAsync(), ctx.projectDir)) || '.';
+    slash(path.relative(await getVcsClient().getRootPathAsync(), ctx.projectDir)) || '.';
   const username = getUsername(ctx.exp, await ensureLoggedInAsync());
   const buildCredentials: Ios.Job['secrets']['buildCredentials'] = {};
   if (jobData.credentials) {

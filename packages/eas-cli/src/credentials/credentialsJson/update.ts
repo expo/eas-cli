@@ -6,8 +6,8 @@ import { AndroidAppBuildCredentialsFragment, IosDistributionType } from '../../g
 import Log from '../../log';
 import { findApplicationTarget, findTargetByName } from '../../project/ios/target';
 import zipObject from '../../utils/expodash/zipObject';
-import vcs from '../../vcs';
-import GitClient from '../../vcs/git';
+import { getVcsClient } from '../../vcs';
+import GitClient from '../../vcs/clients/git';
 import { CredentialsContext } from '../context';
 import { App, Target, TargetCredentials } from '../ios/types';
 import { readRawAsync } from './read';
@@ -294,8 +294,9 @@ async function updateFileAsync(
 }
 
 async function isFileUntrackedAsync(path: string): Promise<boolean> {
-  if (vcs instanceof GitClient) {
-    return await vcs.isFileUntrackedAsync(path);
+  const vcsClient = getVcsClient();
+  if (vcsClient instanceof GitClient) {
+    return await vcsClient.isFileUntrackedAsync(path);
   }
   return false;
 }
