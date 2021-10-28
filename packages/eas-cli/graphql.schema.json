@@ -4792,6 +4792,18 @@
             "deprecationReason": null
           },
           {
+            "name": "isGitWorkingTreeDirty",
+            "description": "",
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Boolean",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "error",
             "description": "",
             "args": [],
@@ -6791,7 +6803,7 @@
             "deprecationReason": null
           },
           {
-            "name": "appleAppSpecificPasswordId",
+            "name": "ascApiKeyId",
             "description": "",
             "args": [],
             "type": {
@@ -8066,7 +8078,7 @@
             "deprecationReason": null
           },
           {
-            "name": "submissionAppStoreConnectApiKey",
+            "name": "appStoreConnectApiKeyForSubmissions",
             "description": "",
             "args": [],
             "type": {
@@ -11185,6 +11197,22 @@
             "deprecationReason": null
           },
           {
+            "name": "price",
+            "description": "",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "Int",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "nextInvoice",
             "description": "",
             "args": [],
@@ -13633,6 +13661,22 @@
             "deprecationReason": null
           },
           {
+            "name": "appStoreConnectApiKey",
+            "description": "Mutations that modify an App Store Connect Api Key",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "OBJECT",
+                "name": "AppStoreConnectApiKeyMutation",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "app",
             "description": "Mutations that modify an App",
             "args": [
@@ -14372,6 +14416,51 @@
             "type": {
               "kind": "OBJECT",
               "name": "Account",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "requestRefund",
+            "description": "Requests a refund for the specified charge. Returns true if auto-refund was possible, otherwise requests a manual refund from support and returns false.",
+            "args": [
+              {
+                "name": "accountID",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "ID",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
+                "name": "chargeIdentifier",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "ID",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              }
+            ],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Boolean",
               "ofType": null
             },
             "isDeprecated": false,
@@ -16897,6 +16986,229 @@
       },
       {
         "kind": "OBJECT",
+        "name": "AppStoreConnectApiKeyMutation",
+        "description": "",
+        "fields": [
+          {
+            "name": "createAppStoreConnectApiKey",
+            "description": "Create an App Store Connect Api Key for an Apple Team",
+            "args": [
+              {
+                "name": "appStoreConnectApiKeyInput",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "INPUT_OBJECT",
+                    "name": "AppStoreConnectApiKeyInput",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
+                "name": "accountId",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "ID",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              }
+            ],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "OBJECT",
+                "name": "AppStoreConnectApiKey",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "deleteAppStoreConnectApiKey",
+            "description": "Delete an App Store Connect Api Key",
+            "args": [
+              {
+                "name": "id",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "ID",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              }
+            ],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "OBJECT",
+                "name": "deleteAppStoreConnectApiKeyResult",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "INPUT_OBJECT",
+        "name": "AppStoreConnectApiKeyInput",
+        "description": "",
+        "fields": null,
+        "inputFields": [
+          {
+            "name": "issuerIdentifier",
+            "description": "",
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              }
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "keyIdentifier",
+            "description": "",
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              }
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "keyP8",
+            "description": "",
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              }
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "name",
+            "description": "",
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "roles",
+            "description": "",
+            "type": {
+              "kind": "LIST",
+              "name": null,
+              "ofType": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "ENUM",
+                  "name": "AppStoreConnectUserRole",
+                  "ofType": null
+                }
+              }
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "appleTeamId",
+            "description": "",
+            "type": {
+              "kind": "SCALAR",
+              "name": "ID",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "interfaces": null,
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
+        "name": "deleteAppStoreConnectApiKeyResult",
+        "description": "",
+        "fields": [
+          {
+            "name": "id",
+            "description": "",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "ID",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
         "name": "AppMutation",
         "description": "",
         "fields": [
@@ -18239,6 +18551,18 @@
             "deprecationReason": null
           },
           {
+            "name": "isGitWorkingTreeDirty",
+            "description": "",
+            "type": {
+              "kind": "SCALAR",
+              "name": "Boolean",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "username",
             "description": "",
             "type": {
@@ -19206,8 +19530,8 @@
             "deprecationReason": null
           },
           {
-            "name": "setAppSpecificPassword",
-            "description": "Set the app-specific password to be used for an iOS app",
+            "name": "setAppStoreConnectApiKeyForSubmissions",
+            "description": "Set the App Store Connect Api Key to be used for submitting an iOS app",
             "args": [
               {
                 "name": "id",
@@ -19226,7 +19550,7 @@
                 "deprecationReason": null
               },
               {
-                "name": "appSpecificPasswordId",
+                "name": "ascApiKeyId",
                 "description": null,
                 "type": {
                   "kind": "NON_NULL",
@@ -19291,7 +19615,7 @@
             "deprecationReason": null
           },
           {
-            "name": "appSpecificPasswordId",
+            "name": "appStoreConnectApiKeyForSubmissionsId",
             "description": "",
             "type": {
               "kind": "SCALAR",
@@ -19947,18 +20271,6 @@
         "fields": null,
         "inputFields": [
           {
-            "name": "appleAppSpecificPasswordId",
-            "description": "",
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "defaultValue": null,
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
             "name": "appleAppSpecificPassword",
             "description": "",
             "type": {
@@ -19983,6 +20295,18 @@
             "deprecationReason": null
           },
           {
+            "name": "ascApiKeyId",
+            "description": "",
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "archiveUrl",
             "description": "",
             "type": {
@@ -19998,13 +20322,9 @@
             "name": "appleIdUsername",
             "description": "",
             "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "SCALAR",
-                "name": "String",
-                "ofType": null
-              }
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
             },
             "defaultValue": null,
             "isDeprecated": false,

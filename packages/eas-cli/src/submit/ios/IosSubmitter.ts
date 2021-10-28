@@ -109,7 +109,7 @@ export default class IosSubmitter extends BaseSubmitter<Platform.IOS, IosSubmiss
     // structuring order affects table rows order
     return {
       ascAppIdentifier,
-      appleIdUsername,
+      appleIdUsername: appleIdUsername ?? undefined,
       projectId,
       ...(ascApiKeyResult
         ? { formattedAscApiKey: formatServiceAccountSummary(ascApiKeyResult) }
@@ -121,7 +121,7 @@ export default class IosSubmitter extends BaseSubmitter<Platform.IOS, IosSubmiss
 
 type SummaryData = {
   ascAppIdentifier: string;
-  appleIdUsername: string;
+  appleIdUsername?: string;
   projectId: string;
   formattedAscApiKey?: string;
 } & ArchiveSourceSummaryFields;
