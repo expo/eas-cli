@@ -22,7 +22,8 @@ async function projectInfoByIdAsync(appId: string): Promise<AppInfoQuery> {
             }
           }
         `,
-        { appId }
+        { appId },
+        { additionalTypenames: ['App'] }
       )
       .toPromise()
   );

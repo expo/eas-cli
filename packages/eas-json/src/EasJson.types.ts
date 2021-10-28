@@ -19,7 +19,13 @@ export interface EasSubmitConfiguration {
   [Platform.IOS]?: IosSubmitProfile;
 }
 
+export interface CliConfig {
+  version?: string;
+  requireCommit?: boolean;
+}
+
 export interface EasJson {
+  cli?: CliConfig;
   build: { [profile: string]: RawBuildProfile };
   submit?: { [profile: string]: EasSubmitConfiguration };
 }

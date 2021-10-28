@@ -1,14 +1,10 @@
 import { Platform, Workflow } from '@expo/eas-build-job';
-import {
-  BuildProfile,
-  EasJsonReader,
-  hasMismatchedExtendsAsync,
-  isUsingDeprecatedFormatAsync,
-  migrateAsync,
-} from '@expo/eas-json';
+import { BuildProfile, EasJsonReader } from '@expo/eas-json';
 import { flags } from '@oclif/command';
 import { error } from '@oclif/errors';
 import chalk from 'chalk';
+import figures from 'figures';
+import fs from 'fs-extra';
 import nullthrows from 'nullthrows';
 
 import { prepareAndroidBuildAsync } from '../../build/android/build';
@@ -28,7 +24,7 @@ import {
   SubmissionFragment,
 } from '../../graphql/generated';
 import { toAppPlatform, toPlatform } from '../../graphql/types/AppPlatform';
-import Log from '../../log';
+import Log, { learnMore, link } from '../../log';
 import {
   RequestedPlatform,
   appPlatformDisplayNames,
@@ -42,16 +38,18 @@ import {
 } from '../../project/isEasEnabledForProject';
 import { validateMetroConfigForManagedWorkflowAsync } from '../../project/metroConfig';
 import { findProjectRootAsync } from '../../project/projectUtils';
-import { confirmAsync } from '../../prompts';
+import { selectAsync } from '../../prompts';
 import { createSubmissionContextAsync } from '../../submit/context';
 import {
   submitAsync,
   waitToCompleteAsync as waitForSubmissionsToCompleteAsync,
 } from '../../submit/submit';
 import { printSubmissionDetailsUrls } from '../../submit/utils/urls';
+import { easCliVersion } from '../../utils/easCli';
 import { enableJsonOutput } from '../../utils/json';
 import { ProfileData, getProfilesAsync } from '../../utils/profiles';
-import vcs from '../../vcs';
+import { getVcsClient, setVcsClient } from '../../vcs';
+import GitClient from '../../vcs/clients/git';
 
 interface RawBuildFlags {
   platform?: string;
@@ -148,7 +146,7 @@ export default class Build extends EasCommand {
     const projectDir = await findProjectRootAsync();
     await handleDeprecatedEasJsonAsync(projectDir, flags.nonInteractive);
 
-    await vcs.ensureRepoExistsAsync();
+    await getVcsClient().ensureRepoExistsAsync();
     await ensureRepoIsCleanAsync(flags.nonInteractive);
 
     await ensureProjectConfiguredAsync(projectDir, requestedPlatform);
@@ -394,36 +392,52 @@ export async function handleDeprecatedEasJsonAsync(
   projectDir: string,
   nonInteractive: boolean
 ): Promise<void> {
-  if (await isUsingDeprecatedFormatAsync(projectDir)) {
-    const hasMismatchedExtendsKeys = await hasMismatchedExtendsAsync(projectDir);
-    if (nonInteractive) {
-      Log.error('We detected that your eas.json is using a deprecated format.');
-      Log.error(
-        'We will convert it automatically if run this command without --non-interactive flag. Alternatively, you can update eas.json manually according to https://docs.expo.dev/build/eas-json'
-      );
-      error('Unsupported eas.json format', { exit: 1 });
-    }
+  if (!(await fs.pathExists(EasJsonReader.formatEasJsonPath(projectDir)))) {
+    return;
+  }
+  const easJsonReader = new EasJsonReader(projectDir);
+  const rawEasJson = await easJsonReader.readRawAsync();
+  if (rawEasJson?.cli) {
+    return;
+  }
 
-    const confirm = await confirmAsync({
-      message:
-        'We detected that your eas.json is using a deprecated format, do you want to migrate to the new format?',
-    });
-    if (confirm) {
-      await migrateAsync(projectDir);
-      if (hasMismatchedExtendsKeys) {
-        Log.warn(
-          '"extends" keyword can only be migrated automatically to the new format if both Android and iOS profiles extend base profiles with the same names for both platforms'
-        );
-        Log.warn(
-          'Migration was successful, but you need to manually adjust the extend rules for your profiles'
-        );
-        error('Fix eas.json manually', { exit: 1 });
-      }
-    } else {
-      Log.error(
-        "Aborting, update your eas.json according to https://docs.expo.dev/build/eas-json and run 'eas build' again"
-      );
-      error('Unsupported eas.json format', { exit: 1 });
-    }
+  if (nonInteractive) {
+    Log.warn(
+      `${
+        figures.warning
+      } Action required: the default behavior of EAS CLI has changed and your eas.json must be updated to remove ambiguity around which Git integration workflow to use. Refer to ${link(
+        'https://expo.fyi/eas-vcs-workflow'
+      )} for more information.`
+    );
+    Log.warn(
+      'This warning will become an error in an upcoming EAS CLI release. For now, we will proceed with the old default behavior to avoid disruption of your builds.'
+    );
+    setVcsClient(new GitClient());
+    return;
+  }
+  Log.log(
+    `${chalk.bold(
+      'eas-cli@>=0.34.0 no longer requires that you commit changes to Git before starting a build.'
+    )} ${learnMore('https://expo.fyi/eas-vcs-workflow')}`
+  );
+  Log.log(
+    `If you want to continue using the Git integration, you can opt in with ${chalk.bold(
+      'cli.requireCommit'
+    )} in ${chalk.bold('eas.json')} or with the following prompt`
+  );
+  Log.newLine();
+
+  const mode = await selectAsync('Select your preferred Git integration', [
+    { title: 'Require changes to be committed in Git (old default)', value: 'requireCommit' },
+    { title: 'Allow builds with dirty Git working tree (new default)', value: 'noCommit' },
+  ]);
+
+  rawEasJson.cli =
+    mode === 'requireCommit'
+      ? { version: `>= ${easCliVersion}`, requireCommit: true }
+      : { version: `>= ${easCliVersion}` };
+  await fs.writeJSON(EasJsonReader.formatEasJsonPath(projectDir), rawEasJson, { spaces: 2 });
+  if (mode === 'requireCommit') {
+    setVcsClient(new GitClient());
   }
 }

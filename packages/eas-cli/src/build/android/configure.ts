@@ -9,7 +9,7 @@ import {
   warnIfAndroidPackageDefinedInAppConfigForBareWorkflowProject,
 } from '../../project/android/applicationId';
 import { resolveWorkflowAsync } from '../../project/workflow';
-import vcs from '../../vcs';
+import { getVcsClient } from '../../vcs';
 import { ConfigureContext } from '../context';
 import { isExpoUpdatesInstalled } from '../utils/updates';
 import { configureUpdatesAsync, syncUpdatesConfigurationAsync } from './UpdatesModule';
@@ -26,7 +26,7 @@ export async function configureAndroidAsync(ctx: ConfigureContext): Promise<void
   await AndroidConfig.EasBuild.configureEasBuildAsync(ctx.projectDir);
 
   const easGradlePath = AndroidConfig.EasBuild.getEasBuildGradlePath(ctx.projectDir);
-  await vcs.trackFileAsync(easGradlePath);
+  await getVcsClient().trackFileAsync(easGradlePath);
 
   if (isExpoUpdatesInstalled(ctx.projectDir)) {
     await configureUpdatesAsync(ctx.projectDir, ctx.exp);

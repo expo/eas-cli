@@ -43,7 +43,8 @@ async function getBranchInfoAsync({
         {
           appId,
           name,
-        }
+        },
+        { additionalTypenames: ['UpdateBranch'] }
       )
       .toPromise()
   );

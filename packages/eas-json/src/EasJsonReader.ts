@@ -6,9 +6,10 @@ import logSymbols from 'log-symbols';
 import path from 'path';
 
 import { BuildProfile } from './EasBuild.types';
-import { CredentialsSource, EasJson, RawBuildProfile } from './EasJson.types';
+import { CliConfig, CredentialsSource, EasJson, RawBuildProfile } from './EasJson.types';
 import {
   AndroidSubmitProfileSchema,
+  CliConfigSchema,
   EasJsonSchema,
   IosSubmitProfileSchema,
   MinimalEasJsonSchema,
@@ -21,6 +22,7 @@ import {
 import { InvalidEasJsonError } from './errors';
 
 interface EasJsonPreValidation {
+  cli?: object;
   build: { [profile: string]: object };
   submit?: { [profile: string]: object };
 }
@@ -55,6 +57,29 @@ export class EasJsonReader {
     return Object.keys(easJson?.build ?? {});
   }
 
+  public async getCliConfigAsync(): Promise<CliConfig | null> {
+    try {
+      const easJson = await this.readRawAsync();
+      if (!easJson.cli) {
+        return null;
+      }
+      const { value, error } = CliConfigSchema.validate(easJson.cli, {
+        allowUnknown: false,
+        convert: true,
+        abortEarly: false,
+      });
+      if (error) {
+        throw new Error(`"cli" field in eas.json is not valid [${error.toString()}]`);
+      }
+      return value as CliConfig;
+    } catch (err: any) {
+      if (err.code === 'ENOENT') {
+        return null;
+      }
+      throw err;
+    }
+  }
+
   public async getSubmitProfileNamesAsync({ throwIfEasJsonDoesNotExist = true } = {}): Promise<
     string[]
   > {
@@ -87,12 +112,12 @@ export class EasJsonReader {
         resolvedAndroidSpecificValues ?? {}
       );
       const profile = profileMerge(defaults, profileWithoutDefaults) as BuildProfile<T>;
-      this.handleDeprecatedFields(profile);
+      this.handleDeprecatedBuildProfileFields(profile);
       return profile;
     } else if (platform === Platform.IOS) {
       const profileWithoutDefaults = profileMerge(resolvedProfile, resolvedIosSpecificValues ?? {});
       const profile = profileMerge(defaults, profileWithoutDefaults) as BuildProfile<T>;
-      this.handleDeprecatedFields(profile);
+      this.handleDeprecatedBuildProfileFields(profile);
       return profile;
     } else {
       throw new Error(`Unknown platform ${platform}`);
@@ -212,7 +237,7 @@ export class EasJsonReader {
     return evaluatedProfile;
   }
 
-  private handleDeprecatedFields<T extends Platform>(profile: BuildProfile<T>): void {
+  private handleDeprecatedBuildProfileFields<T extends Platform>(profile: BuildProfile<T>): void {
     if (profile.developmentClient) {
       EasJsonReader.log?.warn(
         `${logSymbols.warning} eas.json validation: ${chalk.bold(
