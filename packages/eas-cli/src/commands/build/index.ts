@@ -3,6 +3,7 @@ import { BuildProfile, EasJsonReader } from '@expo/eas-json';
 import { flags } from '@oclif/command';
 import { error } from '@oclif/errors';
 import chalk from 'chalk';
+import figures from 'figures';
 import fs from 'fs-extra';
 import nullthrows from 'nullthrows';
 
@@ -23,7 +24,7 @@ import {
   SubmissionFragment,
 } from '../../graphql/generated';
 import { toAppPlatform, toPlatform } from '../../graphql/types/AppPlatform';
-import Log, { learnMore } from '../../log';
+import Log, { learnMore, link } from '../../log';
 import {
   RequestedPlatform,
   appPlatformDisplayNames,
@@ -399,24 +400,33 @@ export async function handleDeprecatedEasJsonAsync(
   if (rawEasJson?.cli) {
     return;
   }
+
+  if (nonInteractive) {
+    Log.warn(
+      `${
+        figures.warning
+      } Action required: the default behavior of EAS CLI has changed and your eas.json must be updated to remove ambiguity around which Git integration workflow to use. Refer to ${link(
+        'https://expo.fyi/eas-vcs-workflow'
+      )} for more information.`
+    );
+    Log.warn(
+      'This warning will become an error in an upcoming EAS CLI release. For now, we will proceed with the old default behavior to avoid disruption of your builds.'
+    );
+    setVcsClient(new GitClient());
+    return;
+  }
   Log.log(
     `${chalk.bold(
       'eas-cli@>=0.34.0 no longer requires that you commit changes to Git before starting a build.'
     )} ${learnMore('https://expo.fyi/eas-vcs-workflow')}`
   );
   Log.log(
-    `If you want to continue using the Git integration, you can opt-in with ${chalk.bold(
+    `If you want to continue using the Git integration, you can opt in with ${chalk.bold(
       'cli.requireCommit'
     )} in ${chalk.bold('eas.json')} or with the following prompt`
   );
   Log.newLine();
 
-  if (nonInteractive) {
-    error(
-      `eas.json migration is not supported in non-interactive mode, re-run this command without the "--non-interactive" flag.`,
-      { exit: 1 }
-    );
-  }
   const mode = await selectAsync('Select your preferred Git integration', [
     { title: 'Require changes to be committed in Git (old default)', value: 'requireCommit' },
     { title: 'Allow builds with dirty Git working tree (new default)', value: 'noCommit' },
