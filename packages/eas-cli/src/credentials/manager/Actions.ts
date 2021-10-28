@@ -1,5 +1,5 @@
 export type ActionInfo = {
-  value: AndroidActionType /* | IosActionType */;
+  value: AndroidActionType | IosActionType;
   title: string;
   scope: Scope;
 };
@@ -28,4 +28,23 @@ export enum AndroidActionType {
   SetupGsaKey,
   UpdateCredentialsJson,
   SetupBuildCredentialsFromCredentialsJson,
+}
+
+export enum IosActionType {
+  ManageCredentialsJson,
+  ManageBuildCredentials,
+  ManagePushKey,
+  GoBackToCaller,
+  GoBackToHighLevelActions,
+  SetupBuildCredentials,
+  SetupBuildCredentialsFromCredentialsJson,
+  UpdateCredentialsJson,
+  UseExistingDistributionCertificate,
+  RemoveProvisioningProfile,
+  CreateDistributionCertificate,
+  RemoveDistributionCertificate,
+  SetupPushKey,
+  CreatePushKey,
+  UseExistingPushKey,
+  RemovePushKey,
 }
