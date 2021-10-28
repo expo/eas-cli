@@ -34,7 +34,7 @@ import { promptAsync, selectAsync } from '../../prompts';
 import { formatUpdate } from '../../update/utils';
 import uniqBy from '../../utils/expodash/uniqBy';
 import formatFields from '../../utils/formatFields';
-import vcs from '../../vcs';
+import { getVcsClient } from '../../vcs';
 import { createUpdateBranchOnAppAsync } from './create';
 import { listBranchesAsync } from './list';
 import { viewUpdateBranchAsync } from './view';
@@ -177,7 +177,8 @@ export default class BranchPublish extends EasCommand {
 
     if (!branchName && autoFlag) {
       branchName =
-        (await vcs.getBranchNameAsync()) || `branch-${Math.random().toString(36).substr(2, 4)}`;
+        (await getVcsClient().getBranchNameAsync()) ||
+        `branch-${Math.random().toString(36).substr(2, 4)}`;
     }
 
     if (!branchName) {
@@ -300,7 +301,7 @@ export default class BranchPublish extends EasCommand {
     }
 
     if (!message && autoFlag) {
-      message = (await vcs.getLastCommitMessageAsync())?.trim();
+      message = (await getVcsClient().getLastCommitMessageAsync())?.trim();
     }
 
     if (!message) {
@@ -314,7 +315,7 @@ export default class BranchPublish extends EasCommand {
         message: `Please enter a publication message.`,
         initial: republish
           ? `Republish "${oldMessage!}" - group: ${group}`
-          : (await vcs.getLastCommitMessageAsync())?.trim(),
+          : (await getVcsClient().getLastCommitMessageAsync())?.trim(),
         validate: value => (value ? true : validationMessage),
       }));
     }

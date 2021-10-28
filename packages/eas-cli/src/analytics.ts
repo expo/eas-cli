@@ -4,13 +4,7 @@ import { URL } from 'url';
 import { v4 as uuidv4 } from 'uuid';
 
 import UserSettings from './user/UserSettings';
-
-/**
- * We use require() to exclude package.json from TypeScript's analysis since it lives outside
- * the src directory and would change the directory structure of the emitted files
- * under the build directory
- */
-const packageJSON = require('../package.json');
+import { easCliVersion } from './utils/easCli';
 
 const PLATFORM_TO_ANALYTICS_PLATFORM: { [platform: string]: string } = {
   darwin: 'Mac',
@@ -97,7 +91,7 @@ export function logEvent(name: string, properties: Record<string, any> = {}): vo
   ensureUserIdentified();
 
   const { userId, deviceId } = identifyData ?? {};
-  const commonEventProperties = { source_version: packageJSON?.version, source: 'eas cli' };
+  const commonEventProperties = { source_version: easCliVersion, source: 'eas cli' };
 
   const identity = { userId: userId ?? undefined, anonymousId: deviceId ?? uuidv4() };
   rudderstackClient.track({
@@ -126,7 +120,7 @@ function getRudderStackContext(): Record<string, any> {
   return {
     os: { name: platform, version: os.release() },
     device: { type: platform, model: platform },
-    app: { name: 'eas cli', version: packageJSON?.version ?? undefined },
+    app: { name: 'eas cli', version: easCliVersion ?? undefined },
   };
 }
 

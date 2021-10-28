@@ -2,8 +2,7 @@ import envinfo from 'envinfo';
 
 import EasCommand from '../commandUtils/EasCommand';
 import Log from '../log';
-
-const packageJSON = require('../../package.json');
+import { easCliVersion } from '../utils/easCli';
 
 export default class Diagnostics extends EasCommand {
   static description = 'log environment info to the console';
@@ -30,7 +29,7 @@ export default class Diagnostics extends EasCommand {
         npmGlobalPackages: ['eas-cli', 'expo-cli'],
       },
       {
-        title: `EAS CLI ${packageJSON.version} environment info`,
+        title: `EAS CLI ${easCliVersion} environment info`,
       }
     );
     Log.log(info);
