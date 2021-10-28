@@ -19,6 +19,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🧹 Chores
 
 - Add additionalTypenames for other queries. ([#704](https://github.com/expo/eas-cli/pull/704) by [@quinlanj](https://github.com/quinlanj))
+- Fix errors after pulling down most recent graphql schema changes. ([#713](https://github.com/expo/eas-cli/pull/713) by [@quinlanj](https://github.com/quinlanj))
 
 ## [0.33.1](https://github.com/expo/eas-cli/releases/tag/0.33.1) - 2021-10-22
 
