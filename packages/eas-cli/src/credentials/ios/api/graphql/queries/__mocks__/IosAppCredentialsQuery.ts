@@ -30,6 +30,21 @@ export const IosAppCredentialsQuery = {
         },
         __typename: 'ApplePushKey',
       },
+      appStoreConnectApiKeyForSubmissions: {
+        id: 'b8fe2225-3024-4ebe-9e36-7b9022d3b13e',
+        appleTeam: {
+          id: 'ca27f9f6-c7cb-40d1-8c41-c168e8548261',
+          appleTeamIdentifier: '77KQ969CHE',
+          appleTeamName: null,
+          __typename: 'AppleTeam',
+        },
+        issuerIdentifier: '69a6de93-e4e4-47e3-e053-5b8c7c11a4d1',
+        keyIdentifier: 'NYN468XNN3',
+        name: 'Expo Submissions pl94k8_lnS',
+        roles: ['ADMIN'],
+        updatedAt: '2020-10-13T18:39:04.463Z',
+        __typename: 'AppStoreConnectApiKey',
+      },
       iosAppBuildCredentialsList: [
         {
           id: '6f8d0175-0caf-4922-b09b-eae757b83144',
