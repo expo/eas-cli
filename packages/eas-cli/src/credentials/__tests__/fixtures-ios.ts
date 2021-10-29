@@ -1,3 +1,5 @@
+import { UserRole } from '@expo/apple-utils';
+
 import {
   AppFragment,
   AppleAppIdentifierFragment,
@@ -10,11 +12,26 @@ import {
   IosDistributionType,
 } from '../../graphql/generated';
 import * as IosGraphqlClient from '../ios/api/GraphqlClient';
-import { DistributionCertificate, ProvisioningProfile } from '../ios/appstore/Credentials.types';
+import {
+  AscApiKey,
+  DistributionCertificate,
+  ProvisioningProfile,
+} from '../ios/appstore/Credentials.types';
 import { Target } from '../ios/types';
 import { testProvisioningProfileBase64 } from './fixtures-base64-data';
 
 const now = new Date();
+
+export const testAscApiKey: AscApiKey = {
+  keyId: 'test-id',
+  issuerId: 'test-issuer-id-from-apple',
+  teamId: 'test-team-id',
+  teamName: 'test-team-name',
+  name: 'test-name',
+  roles: [UserRole.ADMIN],
+  isRevoked: false,
+  keyP8: 'test-key-p8',
+};
 
 export const testProvisioningProfile: ProvisioningProfile = {
   provisioningProfileId: 'test-id',
@@ -139,6 +156,7 @@ export function getNewIosApiMock(): { [key in keyof typeof IosGraphqlClient]?: a
     createPushKeyAsync: jest.fn(),
     getPushKeyForAppAsync: jest.fn(),
     deletePushKeyAsync: jest.fn(),
+    createAscApiKeyAsync: jest.fn(),
   };
 }
 

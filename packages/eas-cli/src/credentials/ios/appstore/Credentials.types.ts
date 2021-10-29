@@ -76,6 +76,7 @@ export type AscApiKeyInfo = {
   name: string;
   teamName?: string;
   roles: UserRole[];
+  isRevoked: boolean;
 };
 
 export type AscApiKey = AscApiKeyInfo & {

@@ -1,8 +1,13 @@
+import { Platform } from '@expo/eas-build-job';
 import { vol } from 'memfs';
+import { v4 as uuidv4 } from 'uuid';
 
 import { asMock } from '../../../__tests__/utils';
+import { jester as mockJester } from '../../../credentials/__tests__/fixtures-constants';
 import { getCredentialsFromUserAsync } from '../../../credentials/utils/promptForCredentials';
+import { createTestProject } from '../../../project/__tests__/project-utils';
 import { promptAsync } from '../../../prompts';
+import { SubmissionContext, createSubmissionContextAsync } from '../../context';
 import {
   AscApiKeySource,
   AscApiKeySourceType,
@@ -13,6 +18,38 @@ import {
 jest.mock('fs');
 jest.mock('../../../prompts');
 jest.mock('../../../credentials/utils/promptForCredentials');
+jest.mock('../../../user/User', () => ({
+  getUserAsync: jest.fn(() => mockJester),
+}));
+jest.mock('../../../user/Account', () => ({
+  findAccountByName: jest.fn(() => mockJester.accounts[0]),
+}));
+
+const testProject = createTestProject(mockJester, {
+  android: {
+    package: 'com.expo.test.project',
+  },
+});
+const mockManifest = { exp: testProject.appJSON.expo };
+jest.mock('@expo/config', () => ({
+  getConfig: jest.fn(() => mockManifest),
+}));
+const projectId = uuidv4();
+
+async function getIosSubmissionContextAsync(): Promise<SubmissionContext<Platform.IOS>> {
+  return await createSubmissionContextAsync({
+    platform: Platform.IOS,
+    projectDir: testProject.projectRoot,
+    projectId,
+    archiveFlags: {
+      url: 'http://expo.dev/fake.apk',
+    },
+    profile: {
+      language: 'en-US',
+    },
+    nonInteractive: true,
+  });
+}
 
 beforeAll(() => {
   vol.fromJSON({
@@ -35,15 +72,16 @@ describe(getAscApiKeyPathAsync, () => {
       asMock(promptAsync).mockImplementationOnce(() => ({
         keyP8Path: '/asc-api-key.p8',
       }));
-      asMock(getCredentialsFromUserAsync).mockImplementationOnce(() => ({
+      asMock(getCredentialsFromUserAsync).mockImplementation(() => ({
         keyId: 'test-key-id',
         issuerId: 'test-issuer-id',
       }));
+      const ctx = await getIosSubmissionContextAsync();
       const source: AscApiKeySource = {
         sourceType: AscApiKeySourceType.path,
         path: { keyP8Path: '/doesnt-exist.p8', keyId: 'test-key-id', issuerId: 'test-issuer-id' },
       };
-      const ascApiKeyPath = await getAscApiKeyPathAsync(source);
+      const ascApiKeyPath = await getAscApiKeyPathAsync(ctx, source);
       expect(promptAsync).toHaveBeenCalled();
       expect(ascApiKeyPath).toEqual({
         keyP8Path: '/asc-api-key.p8',
@@ -53,20 +91,22 @@ describe(getAscApiKeyPathAsync, () => {
     });
 
     it("doesn't prompt for path if the provided file exists", async () => {
+      const ctx = await getIosSubmissionContextAsync();
       const source: AscApiKeySource = {
         sourceType: AscApiKeySourceType.path,
         path: { keyP8Path: '/asc-api-key.p8', keyId: 'test-key-id', issuerId: 'test-issuer-id' },
       };
-      await getAscApiKeyPathAsync(source);
+      await getAscApiKeyPathAsync(ctx, source);
       expect(promptAsync).not.toHaveBeenCalled();
     });
 
     it('returns the provided file path if the file exists', async () => {
+      const ctx = await getIosSubmissionContextAsync();
       const source: AscApiKeySource = {
         sourceType: AscApiKeySourceType.path,
         path: { keyP8Path: '/asc-api-key.p8', keyId: 'test-key-id', issuerId: 'test-issuer-id' },
       };
-      const ascApiKeyPath = await getAscApiKeyPathAsync(source);
+      const ascApiKeyPath = await getAscApiKeyPathAsync(ctx, source);
       expect(ascApiKeyPath).toEqual({
         issuerId: 'test-issuer-id',
         keyId: 'test-key-id',
@@ -80,14 +120,15 @@ describe(getAscApiKeyPathAsync, () => {
       asMock(promptAsync).mockImplementationOnce(() => ({
         keyP8Path: '/asc-api-key.p8',
       }));
-      asMock(getCredentialsFromUserAsync).mockImplementationOnce(() => ({
+      asMock(getCredentialsFromUserAsync).mockImplementation(() => ({
         keyId: 'test-key-id',
         issuerId: 'test-issuer-id',
       }));
+      const ctx = await getIosSubmissionContextAsync();
       const source: AscApiKeySource = {
         sourceType: AscApiKeySourceType.prompt,
       };
-      const ascApiKeyPath = await getAscApiKeyPathAsync(source);
+      const ascApiKeyPath = await getAscApiKeyPathAsync(ctx, source);
       expect(promptAsync).toHaveBeenCalled();
       expect(ascApiKeyPath).toEqual({
         keyP8Path: '/asc-api-key.p8',
@@ -111,10 +152,11 @@ describe(getAscApiKeyPathAsync, () => {
         keyId: 'test-key-id',
         issuerId: 'test-issuer-id',
       }));
+      const ctx = await getIosSubmissionContextAsync();
       const source: AscApiKeySource = {
         sourceType: AscApiKeySourceType.prompt,
       };
-      const ascApiKeyPath = await getAscApiKeyPathAsync(source);
+      const ascApiKeyPath = await getAscApiKeyPathAsync(ctx, source);
       expect(promptAsync).toHaveBeenCalledTimes(3);
       expect(ascApiKeyPath).toEqual({
         keyP8Path: '/asc-api-key.p8',
@@ -127,11 +169,12 @@ describe(getAscApiKeyPathAsync, () => {
 
 describe(getAscApiKeyLocallyAsync, () => {
   it('returns a local Asc Api Key file with a AscApiKeySourceType.path source', async () => {
+    const ctx = await getIosSubmissionContextAsync();
     const source: AscApiKeySource = {
       sourceType: AscApiKeySourceType.path,
       path: { keyP8Path: '/asc-api-key.p8', keyId: 'test-key-id', issuerId: 'test-issuer-id' },
     };
-    const ascApiKeyResult = await getAscApiKeyLocallyAsync(source);
+    const ascApiKeyResult = await getAscApiKeyLocallyAsync(ctx, source);
     expect(ascApiKeyResult).toMatchObject({
       result: {
         keyP8: 'super secret',
@@ -154,10 +197,11 @@ describe(getAscApiKeyLocallyAsync, () => {
       keyId: 'test-key-id',
       issuerId: 'test-issuer-id',
     }));
+    const ctx = await getIosSubmissionContextAsync();
     const source: AscApiKeySource = {
       sourceType: AscApiKeySourceType.prompt,
     };
-    const serviceAccountResult = await getAscApiKeyLocallyAsync(source);
+    const serviceAccountResult = await getAscApiKeyLocallyAsync(ctx, source);
     expect(serviceAccountResult).toMatchObject({
       result: {
         keyP8: 'super secret',

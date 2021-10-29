@@ -18,14 +18,22 @@ export async function listAscApiKeysAsync(authCtx: AuthCtx): Promise<AscApiKeyIn
   }
 }
 
-export async function getAscApiKeyAsync(authCtx: AuthCtx, keyId: string): Promise<AscApiKeyInfo> {
+export async function getAscApiKeyAsync(
+  authCtx: AuthCtx,
+  keyId: string
+): Promise<AscApiKeyInfo | null> {
   const spinner = ora(`Fetching App Store Connect API Key.`).start();
   try {
     const context = getRequestContext(authCtx);
     const apiKey = await ApiKey.infoAsync(context, { id: keyId });
     spinner.succeed(`Fetched App Store Connect API Key (ID: ${keyId}).`);
     return getAscApiKeyInfo(apiKey, authCtx);
-  } catch (error) {
+  } catch (error: any) {
+    const message = error?.message ?? '';
+    if (message.includes("There is no resource of type 'apiKeys' with id")) {
+      spinner.stop();
+      return null;
+    }
     Log.error(error);
     spinner.fail(`Failed to fetch App Store Connect API Key.`);
     throw error;
@@ -64,8 +72,11 @@ export async function createAscApiKeyAsync(
       }
       throw new Error(`Failed to download .p8 file of ${humanReadableKey}.`);
     }
+    // this object has more optional parameters populated
+    const fullKey = await ApiKey.infoAsync(context, { id: key.id });
+    spinner.succeed(`Created App Store Connect API Key.`);
     return {
-      ...getAscApiKeyInfo(key, authCtx),
+      ...getAscApiKeyInfo(fullKey, authCtx),
       keyP8,
     };
   } catch (err: any) {
@@ -100,5 +111,6 @@ export function getAscApiKeyInfo(apiKey: ApiKey, authCtx: AuthCtx): AscApiKeyInf
     teamId: authCtx.team.id,
     teamName: authCtx.team.name,
     roles: apiKey.attributes.roles,
+    isRevoked: !!apiKey.attributes.revokingDate,
   };
 }

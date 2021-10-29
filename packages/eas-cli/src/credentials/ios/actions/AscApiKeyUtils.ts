@@ -1,15 +1,123 @@
 import chalk from 'chalk';
 import fs from 'fs-extra';
+import { nanoid } from 'nanoid';
 import path from 'path';
-import * as uuid from 'uuid';
 
 import Log, { learnMore } from '../../../log';
-import { promptAsync } from '../../../prompts';
-import { getCredentialsFromUserAsync } from '../../utils/promptForCredentials';
+import { confirmAsync, promptAsync } from '../../../prompts';
+import { CredentialsContext } from '../../context';
+import {
+  getCredentialsFromUserAsync,
+  shouldAutoGenerateCredentialsAsync,
+} from '../../utils/promptForCredentials';
 import { AscApiKey } from '../appstore/Credentials.types';
-import { AscApiKeyPath, MinimalAscApiKey, ascApiKeyMetadataSchema } from '../credentials';
+import {
+  AscApiKeyPath,
+  MinimalAscApiKey,
+  ascApiKeyIdSchema,
+  ascApiKeyIssuerIdSchema,
+} from '../credentials';
+import { isAscApiKeyValidAndTrackedAsync } from '../validators/validateAscApiKey';
 
-export async function promptForAscApiKeyAsync(): Promise<AscApiKeyPath> {
+export enum AppStoreApiKeyPurpose {
+  SUBMISSIONS_SERVICE = 'Submissions',
+  UNKNOWN = 'Unknown',
+}
+
+export async function promptForAscApiKeyPathAsync(ctx: CredentialsContext): Promise<AscApiKeyPath> {
+  const { keyId, keyP8Path } = await promptForKeyP8AndIdAsync();
+
+  const bestEffortIssuerId = await getBestEffortIssuerIdAsync(ctx, keyId);
+  if (bestEffortIssuerId) {
+    Log.log(`Detected Issuer ID: ${bestEffortIssuerId}`);
+    return { keyId, issuerId: bestEffortIssuerId, keyP8Path };
+  }
+  const issuerId = await promptForIssuerIdAsync();
+  return { keyId, issuerId, keyP8Path };
+}
+
+export async function promptForIssuerIdAsync(): Promise<string> {
+  Log.log(chalk.bold('An App Store Connect Issuer ID is required'));
+  Log.log(
+    `If you're not sure what this is or how to find yours, ${learnMore(
+      'https://expo.fyi/asc-issuer-id'
+    )}`
+  );
+
+  // Do not perform uuid validation - Apple's issuerIds are not RFC4122 compliant
+  const { issuerId } = await getCredentialsFromUserAsync(ascApiKeyIssuerIdSchema, {});
+  return issuerId;
+}
+
+export async function getMinimalAscApiKeyAsync(ascApiKey: AscApiKey): Promise<MinimalAscApiKey> {
+  return {
+    ...ascApiKey,
+    issuerId: ascApiKey.issuerId ?? (await promptForIssuerIdAsync()),
+  };
+}
+
+export async function provideOrGenerateAscApiKeyAsync(
+  ctx: CredentialsContext,
+  purpose: AppStoreApiKeyPurpose
+): Promise<MinimalAscApiKey> {
+  if (ctx.nonInteractive) {
+    return await generateAscApiKeyAsync(ctx, purpose);
+  }
+
+  const userProvided = await promptForAscApiKeyAsync(ctx);
+  if (!userProvided) {
+    return await generateAscApiKeyAsync(ctx, purpose);
+  }
+
+  if (!ctx.appStore.authCtx) {
+    Log.warn('Unable to validate App Store Connect Api Key due to insufficient Apple Credentials');
+    return userProvided;
+  }
+
+  const isValidAndTracked = await isAscApiKeyValidAndTrackedAsync(ctx, userProvided);
+  if (isValidAndTracked) {
+    return userProvided;
+  }
+  const useUserProvided = await confirmAsync({
+    message: `App Store Connect Api Key with ID ${userProvided.keyId} is not valid on Apple's servers. Proceed anyway?`,
+  });
+  if (useUserProvided) {
+    return userProvided;
+  }
+  return await provideOrGenerateAscApiKeyAsync(ctx, purpose);
+}
+
+async function generateAscApiKeyAsync(
+  ctx: CredentialsContext,
+  purpose: AppStoreApiKeyPurpose
+): Promise<MinimalAscApiKey> {
+  await ctx.appStore.ensureAuthenticatedAsync();
+  const ascApiKey = await ctx.appStore.createAscApiKeyAsync({
+    nickname: getAscApiKeyName(purpose),
+  });
+  return await getMinimalAscApiKeyAsync(ascApiKey);
+}
+
+export function getAscApiKeyName(purpose: AppStoreApiKeyPurpose): string {
+  const nameParts = [
+    'Expo',
+    ...(purpose !== AppStoreApiKeyPurpose.UNKNOWN ? [purpose] : []),
+    nanoid(10),
+  ];
+  return nameParts.join(' ');
+}
+
+async function promptForAscApiKeyAsync(ctx: CredentialsContext): Promise<MinimalAscApiKey | null> {
+  const shouldAutoGenerateCredentials = await shouldAutoGenerateCredentialsAsync(ascApiKeyIdSchema);
+  if (shouldAutoGenerateCredentials) {
+    return null;
+  }
+  const ascApiKeyPath = await promptForAscApiKeyPathAsync(ctx);
+  const { keyP8Path, keyId, issuerId } = ascApiKeyPath;
+  return { keyP8: await fs.readFile(keyP8Path, 'utf-8'), keyId, issuerId };
+}
+
+async function promptForKeyP8AndIdAsync(): Promise<Pick<AscApiKeyPath, 'keyP8Path' | 'keyId'>> {
   Log.log(
     chalk.bold('An App Store Connect Api key is required to upload your app to the Apple App Store')
   );
@@ -39,33 +147,19 @@ export async function promptForAscApiKeyAsync(): Promise<AscApiKeyPath> {
   });
   const regex = /^AuthKey_(?<keyId>\w+)\.p8$/; // Common ASC Api file name downloaded from Apple
   const bestEffortKeyId = path.basename(keyP8Path).match(regex)?.groups?.keyId;
-  const ascApiKeyMetadata = await getCredentialsFromUserAsync(ascApiKeyMetadataSchema, {
+  const { keyId } = await getCredentialsFromUserAsync(ascApiKeyIdSchema, {
     keyId: bestEffortKeyId,
   });
-  return { ...ascApiKeyMetadata, keyP8Path };
+  return { keyId, keyP8Path };
 }
 
-export async function promptForIssuerIdAsync(): Promise<string> {
-  Log.log(chalk.bold('An App Store Connect Issuer ID is required'));
-  Log.log(
-    `If you're not sure what this is or how to find yours, ${learnMore(
-      'https://expo.fyi/asc-issuer-id'
-    )}`
-  );
-
-  const { issuerId } = await promptAsync({
-    type: 'text',
-    name: 'issuerId',
-    message: 'App Store Connect Issuer ID:',
-    validate: (input: string) => uuid.validate(input),
-  });
-
-  return issuerId;
-}
-
-export async function getMinimalAscApiKeyAsync(ascApiKey: AscApiKey): Promise<MinimalAscApiKey> {
-  return {
-    ...ascApiKey,
-    issuerId: ascApiKey.issuerId ?? (await promptForIssuerIdAsync()),
-  };
+async function getBestEffortIssuerIdAsync(
+  ctx: CredentialsContext,
+  ascApiKeyId: string
+): Promise<string | null> {
+  if (!ctx.appStore.authCtx) {
+    return null;
+  }
+  const ascApiKeyInfo = await ctx.appStore.getAscApiKeyAsync(ascApiKeyId);
+  return ascApiKeyInfo?.issuerId ?? null;
 }

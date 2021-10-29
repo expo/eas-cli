@@ -1,8 +1,10 @@
+import { Platform } from '@expo/eas-build-job';
 import fs from 'fs-extra';
 
-import { promptForAscApiKeyAsync } from '../../credentials/ios/actions/AscApiKeyUtils';
+import { promptForAscApiKeyPathAsync } from '../../credentials/ios/actions/AscApiKeyUtils';
 import { AscApiKeyPath, MinimalAscApiKey } from '../../credentials/ios/credentials';
 import Log from '../../log';
+import { SubmissionContext } from '../context';
 import { isExistingFileAsync } from '../utils/files';
 
 export enum AscApiKeySourceType {
@@ -36,8 +38,11 @@ export type AscApiKeyResult = {
   summary: AscApiKeySummary;
 };
 
-export async function getAscApiKeyLocallyAsync(source: AscApiKeySource): Promise<AscApiKeyResult> {
-  const ascApiKeyPath = await getAscApiKeyPathAsync(source);
+export async function getAscApiKeyLocallyAsync(
+  ctx: SubmissionContext<Platform.IOS>,
+  source: AscApiKeySource
+): Promise<AscApiKeyResult> {
+  const ascApiKeyPath = await getAscApiKeyPathAsync(ctx, source);
   const { keyP8Path, keyId, issuerId } = ascApiKeyPath;
   const keyP8 = await fs.readFile(keyP8Path, 'utf-8');
 
@@ -51,27 +56,36 @@ export async function getAscApiKeyLocallyAsync(source: AscApiKeySource): Promise
   };
 }
 
-export async function getAscApiKeyPathAsync(source: AscApiKeySource): Promise<AscApiKeyPath> {
+export async function getAscApiKeyPathAsync(
+  ctx: SubmissionContext<Platform.IOS>,
+  source: AscApiKeySource
+): Promise<AscApiKeyPath> {
   switch (source.sourceType) {
     case AscApiKeySourceType.path:
-      return await handlePathSourceAsync(source);
+      return await handlePathSourceAsync(ctx, source);
     case AscApiKeySourceType.prompt:
-      return await handlePromptSourceAsync(source);
+      return await handlePromptSourceAsync(ctx, source);
   }
 }
 
-async function handlePathSourceAsync(source: AscApiKeyEnvVarSource): Promise<AscApiKeyPath> {
+async function handlePathSourceAsync(
+  ctx: SubmissionContext<Platform.IOS>,
+  source: AscApiKeyEnvVarSource
+): Promise<AscApiKeyPath> {
   const { keyP8Path } = source.path;
   if (!(await isExistingFileAsync(keyP8Path))) {
     Log.warn(`File ${keyP8Path} doesn't exist.`);
-    return await getAscApiKeyPathAsync({ sourceType: AscApiKeySourceType.prompt });
+    return await getAscApiKeyPathAsync(ctx, { sourceType: AscApiKeySourceType.prompt });
   }
   return source.path;
 }
 
-async function handlePromptSourceAsync(_source: AscApiKeyPromptSource): Promise<AscApiKeyPath> {
-  const ascApiKeyPath = await promptForAscApiKeyAsync();
-  return await getAscApiKeyPathAsync({
+async function handlePromptSourceAsync(
+  ctx: SubmissionContext<Platform.IOS>,
+  _source: AscApiKeyPromptSource
+): Promise<AscApiKeyPath> {
+  const ascApiKeyPath = await promptForAscApiKeyPathAsync(ctx.credentialsCtx);
+  return await getAscApiKeyPathAsync(ctx, {
     sourceType: AscApiKeySourceType.path,
     path: ascApiKeyPath,
   });

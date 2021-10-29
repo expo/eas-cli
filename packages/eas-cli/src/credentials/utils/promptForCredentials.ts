@@ -63,7 +63,7 @@ export async function getCredentialsFromUserAsync<T>(
     : (results as T);
 }
 
-async function shouldAutoGenerateCredentialsAsync<T>(
+export async function shouldAutoGenerateCredentialsAsync<T>(
   schema: CredentialSchema<T>
 ): Promise<boolean> {
   const answer = await confirmAsync({

@@ -150,7 +150,7 @@ export default class AppStoreApi {
     return await listAscApiKeysAsync(ctx);
   }
 
-  public async getAscApiKeyAsync(keyId: string): Promise<AscApiKeyInfo> {
+  public async getAscApiKeyAsync(keyId: string): Promise<AscApiKeyInfo | null> {
     const ctx = await this.ensureAuthenticatedAsync();
     return await getAscApiKeyAsync(ctx, keyId);
   }
