@@ -41,7 +41,7 @@ export async function checkGoogleServicesFileAsync<T extends Platform>(
       )}`
     );
     Log.warn(
-      'If you are using that file for compatibility with the classic build service (expo build) you can silence this warning by setting GOOGLE_SERVICES_FILE in your build profile in eas.json to any non-falsy value.'
+      'If you are using that file for compatibility with the classic build service (expo build) you can silence this warning by setting GOOGLE_SERVICES_FILE in your build profile in eas.json to any string value.'
     );
     Log.newLine();
   }
