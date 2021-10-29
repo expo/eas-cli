@@ -19,8 +19,11 @@ import { confirmAsync, promptAsync, selectAsync } from '../../prompts';
 import { Account, findAccountByName } from '../../user/Account';
 import { ensureActorHasUsername } from '../../user/actions';
 import { CredentialsContext } from '../context';
+import { AppStoreApiKeyPurpose } from '../ios/actions/AscApiKeyUtils';
+import { AssignAscApiKey } from '../ios/actions/AssignAscApiKey';
 import { AssignPushKey } from '../ios/actions/AssignPushKey';
 import { getAppLookupParamsFromContext } from '../ios/actions/BuildCredentialsUtils';
+import { CreateAscApiKey } from '../ios/actions/CreateAscApiKey';
 import { CreateDistributionCertificate } from '../ios/actions/CreateDistributionCertificate';
 import { CreatePushKey } from '../ios/actions/CreatePushKey';
 import { selectValidDistributionCertificateAsync } from '../ios/actions/DistributionCertificateUtils';
@@ -42,6 +45,7 @@ import { ActionInfo, IosActionType, Scope } from './Actions';
 import { Action, PressAnyKeyToContinue } from './HelperActions';
 import {
   credentialsJsonActions,
+  getAscApiKeyActions,
   getBuildCredentialsActions,
   getPushKeyActions,
   highLevelActions,
@@ -58,9 +62,9 @@ export class ManageIos {
   ): Promise<void> {
     const buildCredentialsActions = getBuildCredentialsActions(ctx);
     const pushKeyActions = getPushKeyActions(ctx);
+    const ascApiKeyActions = getAscApiKeyActions(ctx);
 
     await ctx.bestEffortAppStoreAuthenticateAsync();
-
     const accountName = ctx.hasProjectContext
       ? getProjectAccountName(ctx.exp, ctx.user)
       : ensureActorHasUsername(ctx.user);
@@ -70,7 +74,6 @@ export class ManageIos {
       throw new Error(`You do not have access to account: ${accountName}`);
     }
     const { app, targets, buildProfile } = await this.createProjectContextAsync(ctx, account);
-
     while (true) {
       try {
         if (ctx.hasProjectContext) {
@@ -106,6 +109,9 @@ export class ManageIos {
             continue;
           } else if (chosenAction === IosActionType.ManagePushKey) {
             currentActions = pushKeyActions;
+            continue;
+          } else if (chosenAction === IosActionType.ManageAscApiKey) {
+            currentActions = ascApiKeyActions;
             continue;
           } else if (chosenAction === IosActionType.GoBackToHighLevelActions) {
             currentActions = highLevelActions;
@@ -195,6 +201,8 @@ export class ManageIos {
       await new CreateDistributionCertificate(account).runAsync(ctx);
     } else if (action === IosActionType.CreatePushKey) {
       await new CreatePushKey(account).runAsync(ctx);
+    } else if (action === IosActionType.CreateAscApiKeyForSubmissions) {
+      await new CreateAscApiKey(account).runAsync(ctx, AppStoreApiKeyPurpose.SUBMISSIONS_SERVICE);
     } else if (action === IosActionType.RemovePushKey) {
       await new SelectAndRemovePushKey(account).runAsync(ctx);
     }
@@ -316,6 +324,23 @@ export class ManageIos {
         const selectedPushKey = await selectPushKeyAsync(ctx, appLookupParams.account);
         if (selectedPushKey) {
           await new AssignPushKey(appLookupParams).runAsync(ctx, selectedPushKey);
+        }
+        return;
+      }
+      case IosActionType.CreateAscApiKeyForSubmissions: {
+        const ascApiKey = await new CreateAscApiKey(appLookupParams.account).runAsync(
+          ctx,
+          AppStoreApiKeyPurpose.SUBMISSIONS_SERVICE
+        );
+        const confirm = await confirmAsync({
+          message: `Do you want ${appLookupParams.projectName} to use the new Api Key?`,
+        });
+        if (confirm) {
+          await new AssignAscApiKey(appLookupParams).runAsync(
+            ctx,
+            ascApiKey,
+            AppStoreApiKeyPurpose.SUBMISSIONS_SERVICE
+          );
         }
         return;
       }

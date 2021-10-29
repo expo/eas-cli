@@ -13,6 +13,11 @@ export const highLevelActions: ActionInfo[] = [
     scope: Scope.Manager,
   },
   {
+    value: IosActionType.ManageAscApiKey,
+    title: 'App Store Connect: Manage your Api Key',
+    scope: Scope.Manager,
+  },
+  {
     value: IosActionType.ManageCredentialsJson,
     title: 'credentials.json: Upload/Download credentials between EAS servers and your local json ',
     scope: Scope.Manager,
@@ -63,6 +68,21 @@ export function getPushKeyActions(ctx: CredentialsContext): ActionInfo[] {
       value: IosActionType.RemovePushKey,
       title: 'Remove a push key from your account',
       scope: Scope.Account,
+    },
+    {
+      value: IosActionType.GoBackToHighLevelActions,
+      title: 'Go back',
+      scope: Scope.Manager,
+    },
+  ];
+}
+
+export function getAscApiKeyActions(ctx: CredentialsContext): ActionInfo[] {
+  return [
+    {
+      value: IosActionType.CreateAscApiKeyForSubmissions,
+      title: 'Add a new Api Key For EAS Submit',
+      scope: ctx.hasProjectContext ? Scope.Project : Scope.Account,
     },
     {
       value: IosActionType.GoBackToHighLevelActions,

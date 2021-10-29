@@ -34,6 +34,7 @@ export enum IosActionType {
   ManageCredentialsJson,
   ManageBuildCredentials,
   ManagePushKey,
+  ManageAscApiKey,
   GoBackToCaller,
   GoBackToHighLevelActions,
   SetupBuildCredentials,
@@ -47,4 +48,5 @@ export enum IosActionType {
   CreatePushKey,
   UseExistingPushKey,
   RemovePushKey,
+  CreateAscApiKeyForSubmissions,
 }

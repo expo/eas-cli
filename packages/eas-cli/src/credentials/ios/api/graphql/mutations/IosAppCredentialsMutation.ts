@@ -7,6 +7,7 @@ import {
   CommonIosAppCredentialsFragment,
   CreateIosAppCredentialsMutation,
   IosAppCredentialsInput,
+  SetAppStoreConnectApiKeyForSubmissionsMutation,
   SetPushKeyMutation,
 } from '../../../../../graphql/generated';
 import { CommonIosAppCredentialsFragmentNode } from '../../../../../graphql/types/credentials/IosAppCredentials';
@@ -79,5 +80,38 @@ export const IosAppCredentialsMutation = {
         .toPromise()
     );
     return data.iosAppCredentials.setPushKey;
+  },
+  async setAppStoreConnectApiKeyForSubmissionsAsync(
+    iosAppCredentialsId: string,
+    ascApiKeyId: string
+  ): Promise<CommonIosAppCredentialsFragment> {
+    const data = await withErrorHandlingAsync(
+      graphqlClient
+        .mutation<SetAppStoreConnectApiKeyForSubmissionsMutation>(
+          gql`
+            mutation SetAppStoreConnectApiKeyForSubmissionsMutation(
+              $iosAppCredentialsId: ID!
+              $ascApiKeyId: ID!
+            ) {
+              iosAppCredentials {
+                setAppStoreConnectApiKeyForSubmissions(
+                  id: $iosAppCredentialsId
+                  ascApiKeyId: $ascApiKeyId
+                ) {
+                  id
+                  ...CommonIosAppCredentialsFragment
+                }
+              }
+            }
+            ${print(CommonIosAppCredentialsFragmentNode)}
+          `,
+          {
+            iosAppCredentialsId,
+            ascApiKeyId,
+          }
+        )
+        .toPromise()
+    );
+    return data.iosAppCredentials.setAppStoreConnectApiKeyForSubmissions;
   },
 };

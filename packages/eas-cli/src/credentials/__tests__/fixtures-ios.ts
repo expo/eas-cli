@@ -2,6 +2,8 @@ import { UserRole } from '@expo/apple-utils';
 
 import {
   AppFragment,
+  AppStoreConnectApiKeyFragment,
+  AppStoreConnectUserRole,
   AppleAppIdentifierFragment,
   AppleDistributionCertificateFragment,
   AppleProvisioningProfileFragment,
@@ -53,6 +55,17 @@ export const testAppFragment: AppFragment = {
   id: 'test-app-id',
   fullName: '@testuser/testapp',
   slug: 'testapp',
+};
+
+export const testAscApiKeyFragment: AppStoreConnectApiKeyFragment = {
+  id: 'test-asc-api-key-id',
+  appleTeam: { ...testAppleTeamFragment },
+  issuerIdentifier: 'test-issuerIdentifier',
+  keyIdentifier: 'test-keyIdentifier',
+  name: 'test-name',
+  roles: [AppStoreConnectUserRole.Admin],
+  updatedAt: now,
+  createdAt: now,
 };
 
 export const testPushKey: ApplePushKeyFragment = {
