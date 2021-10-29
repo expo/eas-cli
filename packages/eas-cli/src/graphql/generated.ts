@@ -212,7 +212,6 @@ export type Account = {
   applePushKeys: Array<ApplePushKey>;
   appleProvisioningProfiles: Array<AppleProvisioningProfile>;
   appleDevices: Array<AppleDevice>;
-  appleAppSpecificPasswords: Array<AppleAppSpecificPassword>;
   appStoreConnectApiKeys: Array<AppStoreConnectApiKey>;
   /** Android credentials for account */
   googleServiceAccountKeys: Array<GoogleServiceAccountKey>;
@@ -436,6 +435,7 @@ export type App = Project & {
   privacySetting: AppPrivacy;
   latestReleaseId: Scalars['ID'];
   pushSecurityEnabled: Scalars['Boolean'];
+  releaseChannels: Array<Scalars['String']>;
   /** (EAS Build) Builds associated with this app */
   builds: Array<Build>;
   buildJobs: Array<BuildJob>;
@@ -591,6 +591,8 @@ export type AppActivityTimelineProjectActivitiesArgs = {
   limit: Scalars['Int'];
   createdBefore?: Maybe<Scalars['DateTime']>;
   filterTypes?: Maybe<Array<ActivityTimelineProjectActivityType>>;
+  filterPlatforms?: Maybe<Array<AppPlatform>>;
+  filterReleaseChannels?: Maybe<Array<Scalars['String']>>;
 };
 
 
@@ -1115,7 +1117,6 @@ export type IosAppCredentials = {
   iosAppBuildCredentialsList: Array<IosAppBuildCredentials>;
   pushKey?: Maybe<ApplePushKey>;
   appStoreConnectApiKeyForSubmissions?: Maybe<AppStoreConnectApiKey>;
-  appSpecificPassword?: Maybe<AppleAppSpecificPassword>;
   /** @deprecated use iosAppBuildCredentialsList instead */
   iosAppBuildCredentialsArray: Array<IosAppBuildCredentials>;
 };
@@ -1278,16 +1279,6 @@ export enum AppStoreConnectUserRole {
   ImageManager = 'IMAGE_MANAGER',
   Unknown = 'UNKNOWN'
 }
-
-export type AppleAppSpecificPassword = {
-  __typename?: 'AppleAppSpecificPassword';
-  id: Scalars['ID'];
-  account: Account;
-  appleIdUsername: Scalars['String'];
-  passwordLabel?: Maybe<Scalars['String']>;
-  createdAt: Scalars['DateTime'];
-  updatedAt: Scalars['DateTime'];
-};
 
 export type AndroidAppCredentialsFilter = {
   legacyOnly?: Maybe<Scalars['Boolean']>;
@@ -1877,8 +1868,6 @@ export type RootMutation = {
   googleServiceAccountKey: GoogleServiceAccountKeyMutation;
   /** Mutations that modify an Identifier for an iOS App */
   appleAppIdentifier: AppleAppIdentifierMutation;
-  /** Mutations that modify an App Specific Password for an Apple User Account */
-  appleAppSpecificPassword: AppleAppSpecificPasswordMutation;
   /** Mutations that modify an Apple Device */
   appleDevice: AppleDeviceMutation;
   /** Mutations that modify an Apple Device registration request */
@@ -2276,24 +2265,6 @@ export type AppleAppIdentifierInput = {
   bundleIdentifier: Scalars['String'];
   appleTeamId?: Maybe<Scalars['ID']>;
   parentAppleAppId?: Maybe<Scalars['ID']>;
-};
-
-export type AppleAppSpecificPasswordMutation = {
-  __typename?: 'AppleAppSpecificPasswordMutation';
-  /** Create an App Specific Password for an Apple User Account */
-  createAppleAppSpecificPassword: AppleAppSpecificPassword;
-};
-
-
-export type AppleAppSpecificPasswordMutationCreateAppleAppSpecificPasswordArgs = {
-  appleAppSpecificPasswordInput: AppleAppSpecificPasswordInput;
-  accountId: Scalars['ID'];
-};
-
-export type AppleAppSpecificPasswordInput = {
-  appleIdUsername: Scalars['String'];
-  passwordLabel?: Maybe<Scalars['String']>;
-  appSpecificPassword: Scalars['String'];
 };
 
 export type AppleDeviceMutation = {
@@ -5376,6 +5347,16 @@ export type AndroidKeystoreFragment = (
   & Pick<AndroidKeystore, 'id' | 'type' | 'keystore' | 'keystorePassword' | 'keyAlias' | 'keyPassword' | 'md5CertificateFingerprint' | 'sha1CertificateFingerprint' | 'sha256CertificateFingerprint' | 'createdAt' | 'updatedAt'>
 );
 
+export type AppStoreConnectApiKeyFragment = (
+  { __typename?: 'AppStoreConnectApiKey' }
+  & Pick<AppStoreConnectApiKey, 'id' | 'issuerIdentifier' | 'keyIdentifier' | 'name' | 'roles' | 'createdAt' | 'updatedAt'>
+  & { appleTeam?: Maybe<(
+    { __typename?: 'AppleTeam' }
+    & Pick<AppleTeam, 'id'>
+    & AppleTeamFragment
+  )> }
+);
+
 export type AppleAppIdentifierFragment = (
   { __typename?: 'AppleAppIdentifier' }
   & Pick<AppleAppIdentifier, 'id' | 'bundleIdentifier'>
@@ -5505,6 +5486,10 @@ export type CommonIosAppCredentialsWithoutBuildCredentialsFragment = (
     { __typename?: 'ApplePushKey' }
     & Pick<ApplePushKey, 'id'>
     & ApplePushKeyFragment
+  )>, appStoreConnectApiKeyForSubmissions?: Maybe<(
+    { __typename?: 'AppStoreConnectApiKey' }
+    & Pick<AppStoreConnectApiKey, 'id'>
+    & AppStoreConnectApiKeyFragment
   )> }
 );
 
