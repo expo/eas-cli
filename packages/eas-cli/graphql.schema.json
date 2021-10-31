@@ -17812,7 +17812,7 @@
             "deprecationReason": null
           },
           {
-            "name": "useDevelopmentClient",
+            "name": "developmentClient",
             "description": "",
             "type": {
               "kind": "SCALAR",
@@ -18345,7 +18345,7 @@
           },
           {
             "name": "DEVELOPMENT_CLIENT",
-            "description": "@deprecated Use useDevelopmentClient option instead.",
+            "description": "@deprecated Use developmentClient option instead.",
             "isDeprecated": false,
             "deprecationReason": null
           }
@@ -18810,7 +18810,7 @@
             "deprecationReason": null
           },
           {
-            "name": "useDevelopmentClient",
+            "name": "developmentClient",
             "description": "",
             "type": {
               "kind": "SCALAR",
@@ -19173,7 +19173,7 @@
       {
         "kind": "ENUM",
         "name": "IosBuildType",
-        "description": "@deprecated Use useDevelopmentClient option instead.",
+        "description": "@deprecated Use developmentClient option instead.",
         "fields": null,
         "inputFields": null,
         "interfaces": null,
@@ -23626,7 +23626,7 @@
       {
         "kind": "ENUM",
         "name": "IosManagedBuildType",
-        "description": "@deprecated Use useDevelopmentClient option instead.",
+        "description": "@deprecated Use developmentClient option instead.",
         "fields": null,
         "inputFields": null,
         "interfaces": null,

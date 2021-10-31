@@ -70,7 +70,7 @@ export async function prepareJobAsync(
     },
     releaseChannel: ctx.buildProfile.releaseChannel,
     updates: { channel: ctx.buildProfile.channel },
-    useDevelopmentClient: buildProfile.useDevelopmentClient,
+    developmentClient: buildProfile.developmentClient,
     gradleCommand: buildProfile.gradleCommand,
     artifactPath: buildProfile.artifactPath,
     buildType,

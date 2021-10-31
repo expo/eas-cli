@@ -60,7 +60,7 @@ export async function prepareJobAsync(
     },
     releaseChannel: ctx.buildProfile.releaseChannel,
     updates: { channel: ctx.buildProfile.channel },
-    useDevelopmentClient: ctx.buildProfile.useDevelopmentClient,
+    developmentClient: ctx.buildProfile.developmentClient,
     simulator: ctx.buildProfile.simulator,
     scheme: jobData.buildScheme,
     buildConfiguration: ctx.buildProfile.buildConfiguration,

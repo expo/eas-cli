@@ -24,9 +24,7 @@ const CommonBuildProfileSchema = Joi.object({
   cache: CacheSchema,
   releaseChannel: Joi.string(),
   channel: Joi.string(),
-  /** @deprecated use useDevelopmentClient instead */
   developmentClient: Joi.boolean(),
-  useDevelopmentClient: Joi.boolean(),
 
   node: Joi.string().empty(null).custom(semverSchemaCheck),
   yarn: Joi.string().empty(null).custom(semverSchemaCheck),

@@ -132,7 +132,7 @@ function getDevClientEventProperties({
     includesDevClient = Boolean(version && buildProfile.gradleCommand?.includes('Debug'));
   } else if (platform === Platform.IOS && 'buildConfiguration' in buildProfile) {
     includesDevClient = Boolean(version && buildProfile.buildConfiguration === 'Debug');
-  } else if (buildProfile.useDevelopmentClient) {
+  } else if (buildProfile.developmentClient) {
     includesDevClient = true;
   } else {
     includesDevClient = false;

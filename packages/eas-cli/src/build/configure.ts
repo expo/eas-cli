@@ -102,7 +102,7 @@ const EAS_JSON_MANAGED_DEFAULT: EasJson = {
   },
   build: {
     development: {
-      useDevelopmentClient: true,
+      developmentClient: true,
       distribution: 'internal',
     },
     preview: {
