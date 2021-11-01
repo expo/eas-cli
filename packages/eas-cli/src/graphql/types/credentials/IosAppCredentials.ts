@@ -1,6 +1,7 @@
 import gql from 'graphql-tag';
 
 import { AppFragmentNode } from '../App';
+import { AppStoreConnectApiKeyFragmentNode } from './AppStoreConnectApiKey';
 import { AppleAppIdentifierFragmentNode } from './AppleAppIdentifier';
 import { ApplePushKeyFragmentNode } from './ApplePushKey';
 import { AppleTeamFragmentNode } from './AppleTeam';
@@ -25,11 +26,16 @@ export const CommonIosAppCredentialsWithoutBuildCredentialsFragmentNode = gql`
       id
       ...ApplePushKeyFragment
     }
+    appStoreConnectApiKeyForSubmissions {
+      id
+      ...AppStoreConnectApiKeyFragment
+    }
   }
   ${AppFragmentNode}
   ${AppleTeamFragmentNode}
   ${AppleAppIdentifierFragmentNode}
   ${ApplePushKeyFragmentNode}
+  ${AppStoreConnectApiKeyFragmentNode}
 `;
 
 export const CommonIosAppCredentialsFragmentNode = gql`

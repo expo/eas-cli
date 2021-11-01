@@ -2,6 +2,7 @@ import chalk from 'chalk';
 import dateformat from 'dateformat';
 
 import {
+  AppStoreConnectApiKeyFragment,
   AppleDeviceFragment,
   ApplePushKeyFragment,
   IosAppBuildCredentialsFragment,
@@ -91,7 +92,7 @@ export function displayIosCredentials(
       continue;
     }
 
-    const { appleTeam, pushKey } = targetAppCredentials;
+    const { appleTeam, pushKey, appStoreConnectApiKeyForSubmissions } = targetAppCredentials;
     if (appleTeam) {
       const { appleTeamIdentifier, appleTeamName } = appleTeam;
       fields.push({
@@ -103,6 +104,10 @@ export function displayIosCredentials(
 
     if (pushKey) {
       displayApplePushKey(pushKey, fields);
+    }
+
+    if (appStoreConnectApiKeyForSubmissions) {
+      displayAscApiKey(appStoreConnectApiKeyForSubmissions, fields);
     }
 
     const sortedIosAppBuildCredentialsList = sortBuildCredentialsByDistributionType(
@@ -216,6 +221,35 @@ function displayApplePushKey(
   if (maybePushKey) {
     const { keyIdentifier, appleTeam, updatedAt } = maybePushKey;
     fields.push({ label: 'Developer Portal ID', value: keyIdentifier });
+    if (appleTeam) {
+      const { appleTeamIdentifier, appleTeamName } = appleTeam;
+      fields.push({
+        label: 'Apple Team',
+        value: `${appleTeamIdentifier} ${appleTeamName ? `(${appleTeamName})` : ''}`,
+      });
+    }
+    fields.push({ label: 'Updated', value: `${fromNow(new Date(updatedAt))} ago` });
+  } else {
+    fields.push({ label: '', value: 'None assigned yet' });
+  }
+  fields.push({ label: '', value: '' });
+}
+
+function displayAscApiKey(
+  maybeAscApiKey: AppStoreConnectApiKeyFragment | null,
+  fields: { label: string; value: string }[]
+): void {
+  fields.push({ label: 'App Store Connect Api Key', value: '' });
+  if (maybeAscApiKey) {
+    const { keyIdentifier, issuerIdentifier, appleTeam, name, roles, updatedAt } = maybeAscApiKey;
+    fields.push({ label: 'Developer Portal ID', value: keyIdentifier });
+    if (name) {
+      fields.push({ label: 'Name', value: name });
+    }
+    fields.push({ label: 'Issuer ID', value: issuerIdentifier });
+    if (roles) {
+      fields.push({ label: 'Roles', value: roles.join(',') });
+    }
     if (appleTeam) {
       const { appleTeamIdentifier, appleTeamName } = appleTeam;
       fields.push({
