@@ -423,7 +423,7 @@ export async function handleDeprecatedEasJsonAsync(
   Log.log(
     `If you want to continue using the Git integration, you can opt in with ${chalk.bold(
       'cli.requireCommit'
-    )} in ${chalk.bold('eas.json')} or with the following prompt`
+    )} in ${chalk.bold('eas.json')} or with the following prompt.`
   );
   Log.newLine();
 
