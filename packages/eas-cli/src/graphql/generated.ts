@@ -147,6 +147,11 @@ export type Actor = {
   firstName?: Maybe<Scalars['String']>;
   created: Scalars['DateTime'];
   isExpoAdmin: Scalars['Boolean'];
+  /**
+   * Best-effort human readable name for this actor for use in user interfaces during action attribution.
+   * For example, when displaying a sentence indicating that actor X created a build or published an update.
+   */
+  displayName: Scalars['String'];
   /** Associated accounts */
   accounts: Array<Account>;
   /** Access Tokens belonging to this actor */
@@ -736,6 +741,7 @@ export type User = Actor & {
   appetizeCode?: Maybe<Scalars['String']>;
   emailVerified: Scalars['Boolean'];
   isExpoAdmin: Scalars['Boolean'];
+  displayName: Scalars['String'];
   isSecondFactorAuthenticationEnabled: Scalars['Boolean'];
   /** Get all certified second factor authentication methods */
   secondFactorDevices: Array<UserSecondFactorDevice>;
@@ -1466,6 +1472,8 @@ export type AddonDetails = {
   id: Scalars['ID'];
   planId: Scalars['String'];
   name: Scalars['String'];
+  nextInvoice?: Maybe<Scalars['DateTime']>;
+  willCancel?: Maybe<Scalars['Boolean']>;
 };
 
 export type Charge = {
@@ -1541,7 +1549,10 @@ export type AppQuery = {
   /** Look up app by app id */
   byId: App;
   byFullName: App;
-  /** Public apps in the app directory */
+  /**
+   * Public apps in the app directory
+   * @deprecated App directory no longer supported
+   */
   all: Array<App>;
 };
 
@@ -2851,6 +2862,7 @@ export type Robot = Actor & {
   firstName?: Maybe<Scalars['String']>;
   created: Scalars['DateTime'];
   isExpoAdmin: Scalars['Boolean'];
+  displayName: Scalars['String'];
   /** Associated accounts */
   accounts: Array<Account>;
   /** Access Tokens belonging to this actor */
