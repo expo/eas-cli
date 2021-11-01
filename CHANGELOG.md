@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Add App Store Connect Api Key graphql type and print support. ([#717](https://github.com/expo/eas-cli/pull/717) by [@quinlanj](https://github.com/quinlanj))
+
 ## [0.34.0](https://github.com/expo/eas-cli/releases/tag/0.34.0) - 2021-11-01
 
 ### 🛠 Breaking changes
