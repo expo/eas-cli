@@ -10,6 +10,12 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+### 🧹 Chores
+
+## [0.34.1](https://github.com/expo/eas-cli/releases/tag/0.34.1) - 2021-11-02
+
+### 🐛 Bug fixes
+
 - Don't show commit prompt in no-commit workflow after installing `expo-dev-client`. ([#722](https://github.com/expo/eas-cli/pull/722) by [@wkozyra95](https://github.com/wkozyra95))
 
 ### 🧹 Chores
