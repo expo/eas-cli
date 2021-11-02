@@ -1,6 +1,6 @@
 {
   "name": "@expo/eas-json",
-  "description": "A library for interacting with the eas.json",
+  "description": "A library for interacting with eas.json",
   "version": "0.34.0",
   "author": "Expo <support@expo.dev>",
   "bugs": "https://github.com/expo/eas-cli/issues",
@@ -24,6 +24,7 @@
   "homepage": "https://github.com/expo/eas-cli",
   "license": "MIT",
   "main": "build/index.js",
+  "types": "build/index.d.ts",
   "repository": "expo/eas-cli",
   "scripts": {
     "build": "tsc --project tsconfig.build.json",

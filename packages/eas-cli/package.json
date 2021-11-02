@@ -113,7 +113,6 @@
     "cli"
   ],
   "license": "MIT",
-  "main": "build/index.js",
   "oclif": {
     "bin": "eas",
     "commands": "./build/commands",
