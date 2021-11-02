@@ -11,6 +11,7 @@ import { resolveWorkflowAsync } from '../../project/workflow';
 import { confirmAsync } from '../../prompts';
 import { expoCommandAsync } from '../../utils/expoCli';
 import { ProfileData } from '../../utils/profiles';
+import { getVcsClient } from '../../vcs';
 import { reviewAndCommitChangesAsync } from './repository';
 
 export async function ensureExpoDevClientInstalledForDevClientBuildsAsync({
@@ -107,7 +108,9 @@ async function installExpoDevClientAsync(
   Log.newLine();
   await expoCommandAsync(projectDir, ['install', 'expo-dev-client']);
   Log.newLine();
-  await reviewAndCommitChangesAsync('Install expo-dev-client', {
-    nonInteractive,
-  });
+  if (await getVcsClient().isCommitRequiredAsync()) {
+    await reviewAndCommitChangesAsync('Install expo-dev-client', {
+      nonInteractive,
+    });
+  }
 }
