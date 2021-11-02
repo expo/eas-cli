@@ -31,7 +31,8 @@
     "watch": "yarn build --watch --preserveWatchOutput",
     "typecheck": "tsc",
     "prepack": "rm -rf build && yarn build",
-    "test": "jest"
+    "test": "jest",
+    "clean": "rm -rf build node_modules yarn-error.log"
   },
   "publishConfig": {
     "access": "public"

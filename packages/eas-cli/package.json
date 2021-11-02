@@ -176,6 +176,7 @@
     "typecheck": "tsc",
     "test": "jest",
     "version": "yarn oclif-dev readme && node patch-readme && git add README.md",
-    "generate-graphql-code": "graphql-codegen --config graphql-codegen.yml"
+    "generate-graphql-code": "graphql-codegen --config graphql-codegen.yml",
+    "clean": "rm -rf dist build node_modules yarn-error.log"
   }
 }
