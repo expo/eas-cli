@@ -28,6 +28,7 @@ import { CreateDistributionCertificate } from '../ios/actions/CreateDistribution
 import { CreatePushKey } from '../ios/actions/CreatePushKey';
 import { selectValidDistributionCertificateAsync } from '../ios/actions/DistributionCertificateUtils';
 import { selectPushKeyAsync } from '../ios/actions/PushKeyUtils';
+import { SelectAndRemoveAscApiKey } from '../ios/actions/RemoveAscApiKey';
 import { SelectAndRemoveDistributionCertificate } from '../ios/actions/RemoveDistributionCertificate';
 import { RemoveProvisioningProfiles } from '../ios/actions/RemoveProvisioningProfile';
 import { SelectAndRemovePushKey } from '../ios/actions/RemovePushKey';
@@ -205,6 +206,8 @@ export class ManageIos {
       await new CreateAscApiKey(account).runAsync(ctx, AppStoreApiKeyPurpose.SUBMISSION_SERVICE);
     } else if (action === IosActionType.RemovePushKey) {
       await new SelectAndRemovePushKey(account).runAsync(ctx);
+    } else if (action === IosActionType.RemoveAscApiKey) {
+      await new SelectAndRemoveAscApiKey(account).runAsync(ctx);
     }
   }
 
