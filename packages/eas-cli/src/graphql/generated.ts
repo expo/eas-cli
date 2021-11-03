@@ -4428,6 +4428,24 @@ export type SetPushKeyMutation = (
   ) }
 );
 
+export type SetAppStoreConnectApiKeyForSubmissionsMutationVariables = Exact<{
+  iosAppCredentialsId: Scalars['ID'];
+  ascApiKeyId: Scalars['ID'];
+}>;
+
+
+export type SetAppStoreConnectApiKeyForSubmissionsMutation = (
+  { __typename?: 'RootMutation' }
+  & { iosAppCredentials: (
+    { __typename?: 'IosAppCredentialsMutation' }
+    & { setAppStoreConnectApiKeyForSubmissions: (
+      { __typename?: 'IosAppCredentials' }
+      & Pick<IosAppCredentials, 'id'>
+      & CommonIosAppCredentialsFragment
+    ) }
+  ) }
+);
+
 export type AppByFullNameQueryVariables = Exact<{
   fullName: Scalars['String'];
 }>;
