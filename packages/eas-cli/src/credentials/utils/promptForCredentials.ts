@@ -49,7 +49,7 @@ export async function askForUserProvidedAsync<T>(
 
 export async function getCredentialsFromUserAsync<T>(
   credentialsSchema: CredentialSchema<T>,
-  initialValues: Partial<T>
+  initialValues: Partial<T> = {}
 ): Promise<T> {
   const results: any = {};
   for (const question of credentialsSchema.questions) {

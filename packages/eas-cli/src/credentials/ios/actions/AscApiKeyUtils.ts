@@ -44,7 +44,7 @@ export async function promptForIssuerIdAsync(): Promise<string> {
   );
 
   // Do not perform uuid validation - Apple's issuerIds are not RFC4122 compliant
-  const { issuerId } = await getCredentialsFromUserAsync(ascApiKeyIssuerIdSchema, {});
+  const { issuerId } = await getCredentialsFromUserAsync(ascApiKeyIssuerIdSchema);
   return issuerId;
 }
 
