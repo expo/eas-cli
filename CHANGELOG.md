@@ -17,7 +17,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🧹 Chores
 
 - Bump @expo/apple-utils to 0.0.0-alpha.26. ([#723](https://github.com/expo/eas-cli/pull/723] by [@brentvatne](https://github.com/brentvatne))
-- Improve vcs workflow migration experience. ([#732](https://github.com/expo/eas-cli/pull/732) by [@wkozyra95](https://github.com/wkozyra95))
+- Improve VCS workflow migration experience. ([#732](https://github.com/expo/eas-cli/pull/732) by [@wkozyra95](https://github.com/wkozyra95))
 
 ## [0.34.1](https://github.com/expo/eas-cli/releases/tag/0.34.1) - 2021-11-02
 
