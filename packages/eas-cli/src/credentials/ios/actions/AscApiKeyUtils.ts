@@ -20,7 +20,7 @@ import {
 import { isAscApiKeyValidAndTrackedAsync } from '../validators/validateAscApiKey';
 
 export enum AppStoreApiKeyPurpose {
-  SUBMISSIONS_SERVICE = 'Submissions',
+  SUBMISSION_SERVICE = 'EAS Submit',
   UNKNOWN = 'Unknown',
 }
 
@@ -70,7 +70,7 @@ export async function provideOrGenerateAscApiKeyAsync(
   }
 
   if (!ctx.appStore.authCtx) {
-    Log.warn('Unable to validate App Store Connect Api Key due to insufficient Apple Credentials');
+    Log.warn('Unable to validate App Store Connect Api Key, you are not authenticated with Apple.');
     return userProvided;
   }
 

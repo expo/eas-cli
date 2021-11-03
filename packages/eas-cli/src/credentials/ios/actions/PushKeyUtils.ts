@@ -19,7 +19,7 @@ export async function provideOrGeneratePushKeyAsync(ctx: CredentialsContext): Pr
     const userProvided = await promptForPushKeyAsync(ctx);
     if (userProvided) {
       if (!ctx.appStore.authCtx) {
-        Log.warn('Unable to validate push key due to insufficient Apple Credentials');
+        Log.warn('Unable to validate push key, you are not authenticated with Apple.');
         return userProvided;
       } else {
         const isValidAndTracked = await isPushKeyValidAndTrackedAsync(ctx, userProvided);

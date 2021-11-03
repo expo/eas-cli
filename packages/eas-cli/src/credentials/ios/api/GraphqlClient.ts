@@ -450,12 +450,6 @@ export async function createAscApiKeyAsync(
   );
 }
 
-/* export async function getAscApiKeysForAccountAsync(
-  account: Account
-): Promise<ApplePushKeyFragment[]> {
-  return await AppStoreConnectApiKeyQuery.getAllForAccountAsync(account.name);
-} */
-
 export async function getAscApiKeyForAppSubmissionsAsync(
   appLookupParams: AppLookupParams
 ): Promise<AppStoreConnectApiKeyFragment | null> {
