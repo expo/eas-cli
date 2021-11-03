@@ -202,7 +202,7 @@ export class ManageIos {
     } else if (action === IosActionType.CreatePushKey) {
       await new CreatePushKey(account).runAsync(ctx);
     } else if (action === IosActionType.CreateAscApiKeyForSubmissions) {
-      await new CreateAscApiKey(account).runAsync(ctx, AppStoreApiKeyPurpose.SUBMISSIONS_SERVICE);
+      await new CreateAscApiKey(account).runAsync(ctx, AppStoreApiKeyPurpose.SUBMISSION_SERVICE);
     } else if (action === IosActionType.RemovePushKey) {
       await new SelectAndRemovePushKey(account).runAsync(ctx);
     }
@@ -330,7 +330,7 @@ export class ManageIos {
       case IosActionType.CreateAscApiKeyForSubmissions: {
         const ascApiKey = await new CreateAscApiKey(appLookupParams.account).runAsync(
           ctx,
-          AppStoreApiKeyPurpose.SUBMISSIONS_SERVICE
+          AppStoreApiKeyPurpose.SUBMISSION_SERVICE
         );
         const confirm = await confirmAsync({
           message: `Do you want ${appLookupParams.projectName} to use the new Api Key?`,
@@ -339,7 +339,7 @@ export class ManageIos {
           await new AssignAscApiKey(appLookupParams).runAsync(
             ctx,
             ascApiKey,
-            AppStoreApiKeyPurpose.SUBMISSIONS_SERVICE
+            AppStoreApiKeyPurpose.SUBMISSION_SERVICE
           );
         }
         return;

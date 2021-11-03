@@ -23,7 +23,7 @@ export class AssignAscApiKey {
       { appleTeam: appleTeam ?? undefined }
     );
     let updatedAppCredentials;
-    if (purpose === AppStoreApiKeyPurpose.SUBMISSIONS_SERVICE) {
+    if (purpose === AppStoreApiKeyPurpose.SUBMISSION_SERVICE) {
       updatedAppCredentials = await ctx.ios.updateIosAppCredentialsAsync(appCredentials, {
         ascApiKeyIdForSubmissions: ascApiKey.id,
       });

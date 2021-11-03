@@ -15,7 +15,7 @@ describe(AssignAscApiKey, () => {
     await assignAscApiKeyAction.runAsync(
       ctx,
       testAscApiKeyFragment,
-      AppStoreApiKeyPurpose.SUBMISSIONS_SERVICE
+      AppStoreApiKeyPurpose.SUBMISSION_SERVICE
     );
 
     // expect app credentials to be fetched/created, then updated
@@ -31,7 +31,7 @@ describe(AssignAscApiKey, () => {
     await assignAscApiKeyAction.runAsync(
       ctx,
       testAscApiKeyFragment,
-      AppStoreApiKeyPurpose.SUBMISSIONS_SERVICE
+      AppStoreApiKeyPurpose.SUBMISSION_SERVICE
     );
 
     // dont fail if users are running in non-interactive mode
@@ -39,7 +39,7 @@ describe(AssignAscApiKey, () => {
       assignAscApiKeyAction.runAsync(
         ctx,
         testAscApiKeyFragment,
-        AppStoreApiKeyPurpose.SUBMISSIONS_SERVICE
+        AppStoreApiKeyPurpose.SUBMISSION_SERVICE
       )
     ).resolves.not.toThrowError();
   });
