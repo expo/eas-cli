@@ -24,7 +24,7 @@ describe(CreateAscApiKey, () => {
     });
     const appLookupParams = getAppLookupParamsFromContext(ctx, findApplicationTarget(testTargets));
     const createAscApiKeyAction = new CreateAscApiKey(appLookupParams.account);
-    await createAscApiKeyAction.runAsync(ctx, AppStoreApiKeyPurpose.SUBMISSIONS_SERVICE);
+    await createAscApiKeyAction.runAsync(ctx, AppStoreApiKeyPurpose.SUBMISSION_SERVICE);
 
     // expect api key to be created on expo servers
     expect(asMock(ctx.ios.createAscApiKeyAsync).mock.calls.length).toBe(1);
@@ -38,7 +38,7 @@ describe(CreateAscApiKey, () => {
     const appLookupParams = getAppLookupParamsFromContext(ctx, findApplicationTarget(testTargets));
     const createAscApiKeyAction = new CreateAscApiKey(appLookupParams.account);
     await expect(
-      createAscApiKeyAction.runAsync(ctx, AppStoreApiKeyPurpose.SUBMISSIONS_SERVICE)
+      createAscApiKeyAction.runAsync(ctx, AppStoreApiKeyPurpose.SUBMISSION_SERVICE)
     ).rejects.toThrowError();
   });
 });

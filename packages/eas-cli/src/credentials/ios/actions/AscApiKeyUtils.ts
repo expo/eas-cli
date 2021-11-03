@@ -21,7 +21,6 @@ import { isAscApiKeyValidAndTrackedAsync } from '../validators/validateAscApiKey
 
 export enum AppStoreApiKeyPurpose {
   SUBMISSION_SERVICE = 'EAS Submit',
-  UNKNOWN = 'Unknown',
 }
 
 export async function promptForAscApiKeyPathAsync(ctx: CredentialsContext): Promise<AscApiKeyPath> {
@@ -99,11 +98,7 @@ async function generateAscApiKeyAsync(
 }
 
 export function getAscApiKeyName(purpose: AppStoreApiKeyPurpose): string {
-  const nameParts = [
-    'Expo',
-    ...(purpose !== AppStoreApiKeyPurpose.UNKNOWN ? [purpose] : []),
-    nanoid(10),
-  ];
+  const nameParts = ['[Expo]', purpose, nanoid(10)];
   return nameParts.join(' ');
 }
 
