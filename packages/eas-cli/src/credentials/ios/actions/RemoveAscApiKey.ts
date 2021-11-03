@@ -23,7 +23,7 @@ export class RemoveAscApiKey {
 
   public async runAsync(ctx: CredentialsContext): Promise<void> {
     if (ctx.nonInteractive) {
-      throw new Error(`Cannot remove App Store Connect Api Keys in non-interactive mode`);
+      throw new Error(`Cannot remove App Store Connect Api Keys in non-interactive mode.`);
     }
 
     // TODO(quin): add an extra edge on AppStoreConnectApiKey to find the apps using it
