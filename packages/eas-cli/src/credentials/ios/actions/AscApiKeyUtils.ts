@@ -195,7 +195,7 @@ async function selectAscApiKeysAsync(
   const { chosenAscApiKey } = await promptAsync({
     type: 'select',
     name: 'chosenAscApiKey',
-    message: 'Select an Api Key from the list.',
+    message: 'Select an Api Key from the list:',
     choices: sortedAscApiKeys.map(ascApiKey => ({
       title: formatAscApiKey(ascApiKey),
       value: ascApiKey,
