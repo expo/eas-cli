@@ -16,6 +16,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Clean up credentials prompt method. ([#728](https://github.com/expo/eas-cli/pull/728) by [@quinlanj](https://github.com/quinlanj))
 - Bump @expo/apple-utils to 0.0.0-alpha.26. ([#723](https://github.com/expo/eas-cli/pull/723] by [@brentvatne](https://github.com/brentvatne))
 
 ## [0.34.1](https://github.com/expo/eas-cli/releases/tag/0.34.1) - 2021-11-02
