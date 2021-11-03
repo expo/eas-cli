@@ -85,6 +85,11 @@ export function getAscApiKeyActions(ctx: CredentialsContext): ActionInfo[] {
       scope: ctx.hasProjectContext ? Scope.Project : Scope.Account,
     },
     {
+      value: IosActionType.RemoveAscApiKey,
+      title: 'Delete an Api Key',
+      scope: Scope.Account,
+    },
+    {
       value: IosActionType.GoBackToHighLevelActions,
       title: 'Go back',
       scope: Scope.Manager,
