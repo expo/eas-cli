@@ -3,8 +3,11 @@ import fs from 'fs-extra';
 import { nanoid } from 'nanoid';
 import path from 'path';
 
+import { AppStoreConnectApiKeyFragment } from '../../../graphql/generated';
 import Log, { learnMore } from '../../../log';
 import { confirmAsync, promptAsync } from '../../../prompts';
+import { Account } from '../../../user/Account';
+import { fromNow } from '../../../utils/date';
 import { CredentialsContext } from '../../context';
 import {
   getCredentialsFromUserAsync,
@@ -18,6 +21,7 @@ import {
   ascApiKeyIssuerIdSchema,
 } from '../credentials';
 import { isAscApiKeyValidAndTrackedAsync } from '../validators/validateAscApiKey';
+import { formatAppleTeam } from './AppleTeamUtils';
 
 export enum AppStoreApiKeyPurpose {
   SUBMISSION_SERVICE = 'EAS Submit',
@@ -157,4 +161,80 @@ async function getBestEffortIssuerIdAsync(
   }
   const ascApiKeyInfo = await ctx.appStore.getAscApiKeyAsync(ascApiKeyId);
   return ascApiKeyInfo?.issuerId ?? null;
+}
+
+export async function selectAscApiKeysFromAccountAsync(
+  ctx: CredentialsContext,
+  account: Account,
+  filterDifferentAppleTeam: boolean = false
+): Promise<AppStoreConnectApiKeyFragment | null> {
+  const ascApiKeysForAccount = await ctx.ios.getAscApiKeysForAccountAsync(account);
+  if (ascApiKeysForAccount.length === 0) {
+    Log.warn(`There are no App Store Connect Api Keys available in your EAS account.`);
+    return null;
+  }
+
+  if (!filterDifferentAppleTeam) {
+    return selectAscApiKeysAsync(ascApiKeysForAccount);
+  }
+
+  const filteredKeys = filterKeysFromDifferentAppleTeam(ctx, ascApiKeysForAccount);
+  if (filteredKeys.length === 0) {
+    Log.warn(
+      `There are no App Store Connect Api Keys in your EAS account matching Apple Team ID: ${ctx.appStore.authCtx?.team.id}`
+    );
+    return null;
+  }
+  return selectAscApiKeysAsync(filteredKeys);
+}
+
+async function selectAscApiKeysAsync(
+  ascApiKeys: AppStoreConnectApiKeyFragment[]
+): Promise<AppStoreConnectApiKeyFragment | null> {
+  const sortedAscApiKeys = sortAscApiKeysByUpdatedAtDesc(ascApiKeys);
+  const { chosenAscApiKey } = await promptAsync({
+    type: 'select',
+    name: 'chosenAscApiKey',
+    message: 'Select an Api Key from the list:',
+    choices: sortedAscApiKeys.map(ascApiKey => ({
+      title: formatAscApiKey(ascApiKey),
+      value: ascApiKey,
+    })),
+  });
+  return chosenAscApiKey;
+}
+
+function filterKeysFromDifferentAppleTeam(
+  ctx: CredentialsContext,
+  keys: AppStoreConnectApiKeyFragment[]
+): AppStoreConnectApiKeyFragment[] {
+  if (!ctx.appStore.authCtx) {
+    return keys;
+  }
+  const teamId = ctx.appStore.authCtx.team.id;
+  return keys.filter(key => !key.appleTeam || key.appleTeam?.id === teamId);
+}
+
+function sortAscApiKeysByUpdatedAtDesc(
+  keys: AppStoreConnectApiKeyFragment[]
+): AppStoreConnectApiKeyFragment[] {
+  return keys.sort(
+    (keyA, keyB) => new Date(keyB.updatedAt).getTime() - new Date(keyA.updatedAt).getTime()
+  );
+}
+
+function formatAscApiKey(ascApiKey: AppStoreConnectApiKeyFragment): string {
+  const { keyIdentifier, appleTeam, name, updatedAt } = ascApiKey;
+  let line: string = '';
+  line += `Key ID: ${keyIdentifier}`;
+
+  if (name) {
+    line += chalk.gray(`\n    Name: ${name}`);
+  }
+  if (appleTeam) {
+    line += chalk.gray(`\n    ${formatAppleTeam(appleTeam)}`);
+  }
+
+  line += chalk.gray(`\n    Updated: ${fromNow(new Date(updatedAt))} ago`);
+  return line;
 }

@@ -49,4 +49,5 @@ export enum IosActionType {
   UseExistingPushKey,
   RemovePushKey,
   CreateAscApiKeyForSubmissions,
+  RemoveAscApiKey,
 }

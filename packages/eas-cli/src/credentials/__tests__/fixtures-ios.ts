@@ -170,6 +170,7 @@ export function getNewIosApiMock(): { [key in keyof typeof IosGraphqlClient]?: a
     getPushKeyForAppAsync: jest.fn(),
     deletePushKeyAsync: jest.fn(),
     createAscApiKeyAsync: jest.fn(),
+    deleteAscApiKeyAsync: jest.fn(),
   };
 }
 

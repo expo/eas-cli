@@ -4463,6 +4463,27 @@ export type AppByFullNameQuery = (
   )> }
 );
 
+export type AppStoreConnectApiKeyByAccountQueryVariables = Exact<{
+  accountName: Scalars['String'];
+}>;
+
+
+export type AppStoreConnectApiKeyByAccountQuery = (
+  { __typename?: 'RootQuery' }
+  & { account: (
+    { __typename?: 'AccountQuery' }
+    & { byName: (
+      { __typename?: 'Account' }
+      & Pick<Account, 'id'>
+      & { appStoreConnectApiKeys: Array<(
+        { __typename?: 'AppStoreConnectApiKey' }
+        & Pick<AppStoreConnectApiKey, 'id'>
+        & AppStoreConnectApiKeyFragment
+      )> }
+    ) }
+  ) }
+);
+
 export type AppleAppIdentifierByBundleIdQueryVariables = Exact<{
   accountName: Scalars['String'];
   bundleIdentifier: Scalars['String'];

@@ -34,6 +34,7 @@ import { AppleTeamMutation } from './graphql/mutations/AppleTeamMutation';
 import { IosAppBuildCredentialsMutation } from './graphql/mutations/IosAppBuildCredentialsMutation';
 import { IosAppCredentialsMutation } from './graphql/mutations/IosAppCredentialsMutation';
 import { AppQuery } from './graphql/queries/AppQuery';
+import { AppStoreConnectApiKeyQuery } from './graphql/queries/AppStoreConnectApiKeyQuery';
 import { AppleAppIdentifierQuery } from './graphql/queries/AppleAppIdentifierQuery';
 import { AppleDeviceQuery } from './graphql/queries/AppleDeviceQuery';
 import { AppleDistributionCertificateQuery } from './graphql/queries/AppleDistributionCertificateQuery';
@@ -448,6 +449,12 @@ export async function createAscApiKeyAsync(
     },
     account.id
   );
+}
+
+export async function getAscApiKeysForAccountAsync(
+  account: Account
+): Promise<AppStoreConnectApiKeyFragment[]> {
+  return await AppStoreConnectApiKeyQuery.getAllForAccountAsync(account.name);
 }
 
 export async function getAscApiKeyForAppSubmissionsAsync(
