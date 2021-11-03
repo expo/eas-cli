@@ -15,6 +15,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Cleanup up credentials prompt method. ([#728](https://github.com/expo/eas-cli/pull/728) by [@quinlanj](https://github.com/quinlanj))
+
 ## [0.34.1](https://github.com/expo/eas-cli/releases/tag/0.34.1) - 2021-11-02
 
 ### 🐛 Bug fixes
