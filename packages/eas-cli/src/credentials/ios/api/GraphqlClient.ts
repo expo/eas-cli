@@ -1,7 +1,10 @@
+import { UserRole } from '@expo/apple-utils';
 import nullthrows from 'nullthrows';
 
 import {
   AppFragment,
+  AppStoreConnectApiKeyFragment,
+  AppStoreConnectUserRole,
   AppleAppIdentifierFragment,
   AppleDeviceFragment,
   AppleDistributionCertificateFragment,
@@ -14,7 +17,9 @@ import {
 import { isWildcardBundleIdentifier } from '../../../project/ios/bundleIdentifier';
 import { Account } from '../../../user/Account';
 import { DistributionCertificate, PushKey } from '../appstore/Credentials.types';
+import { MinimalAscApiKey } from '../credentials';
 import { AppleTeamMissingError } from '../errors';
+import { AppStoreConnectApiKeyMutation } from './graphql/mutations/AppStoreConnectApiKeyMutation';
 import { AppleAppIdentifierMutation } from './graphql/mutations/AppleAppIdentifierMutation';
 import {
   AppleDistributionCertificateMutation,
@@ -411,6 +416,73 @@ export async function getPushKeyForAppAsync(
 
 export async function deletePushKeyAsync(pushKeyId: string): Promise<void> {
   return await ApplePushKeyMutation.deleteApplePushKeyAsync(pushKeyId);
+}
+
+export async function createAscApiKeyAsync(
+  account: Account,
+  ascApiKey: MinimalAscApiKey
+): Promise<AppStoreConnectApiKeyFragment> {
+  const maybeAppleTeam = ascApiKey.teamId
+    ? await createOrGetExistingAppleTeamAsync(account, {
+        appleTeamIdentifier: ascApiKey.teamId,
+        appleTeamName: ascApiKey.teamName,
+      })
+    : null;
+  return await AppStoreConnectApiKeyMutation.createAppStoreConnectApiKeyAsync(
+    {
+      issuerIdentifier: ascApiKey.issuerId,
+      keyIdentifier: ascApiKey.keyId,
+      keyP8: ascApiKey.keyP8,
+      name: ascApiKey.name ?? null,
+      roles: ascApiKey.roles?.map(role => convertUserRoleToGraphqlType(role)) ?? null,
+      appleTeamId: maybeAppleTeam ? maybeAppleTeam.id : null,
+    },
+    account.id
+  );
+}
+
+export async function getAscApiKeyForAppSubmissionsAsync(
+  appLookupParams: AppLookupParams
+): Promise<AppStoreConnectApiKeyFragment | null> {
+  const maybeIosAppCredentials = await getIosAppCredentialsWithCommonFieldsAsync(appLookupParams);
+  return maybeIosAppCredentials?.appStoreConnectApiKeyForSubmissions ?? null;
+}
+
+export async function deleteAscApiKeyAsync(ascApiKeyId: string): Promise<void> {
+  return await AppStoreConnectApiKeyMutation.deleteAppStoreConnectApiKeyAsync(ascApiKeyId);
+}
+
+function convertUserRoleToGraphqlType(userRole: UserRole): AppStoreConnectUserRole {
+  switch (userRole) {
+    case UserRole.ADMIN:
+      return AppStoreConnectUserRole.Admin;
+    case UserRole.ACCESS_TO_REPORTS:
+      return AppStoreConnectUserRole.AccessToReports;
+    case UserRole.ACCOUNT_HOLDER:
+      return AppStoreConnectUserRole.AccountHolder;
+    case UserRole.APP_MANAGER:
+      return AppStoreConnectUserRole.AppManager;
+    case UserRole.CLOUD_MANAGED_APP_DISTRIBUTION:
+      return AppStoreConnectUserRole.CloudManagedAppDistribution;
+    case UserRole.CLOUD_MANAGED_DEVELOPER_ID:
+      return AppStoreConnectUserRole.CloudManagedDeveloperId;
+    case UserRole.CREATE_APPS:
+      return AppStoreConnectUserRole.CreateApps;
+    case UserRole.CUSTOMER_SUPPORT:
+      return AppStoreConnectUserRole.CustomerSupport;
+    case UserRole.DEVELOPER:
+      return AppStoreConnectUserRole.Developer;
+    case UserRole.FINANCE:
+      return AppStoreConnectUserRole.Finance;
+    case UserRole.MARKETING:
+      return AppStoreConnectUserRole.Marketing;
+    case UserRole.READ_ONLY:
+      return AppStoreConnectUserRole.ReadOnly;
+    case UserRole.SALES:
+      return AppStoreConnectUserRole.Sales;
+    case UserRole.TECHNICAL:
+      return AppStoreConnectUserRole.Technical;
+  }
 }
 
 const formatProjectFullName = ({ account, projectName }: AppLookupParams): string =>

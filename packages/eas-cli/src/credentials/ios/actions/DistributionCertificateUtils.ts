@@ -159,7 +159,7 @@ export async function provideOrGenerateDistributionCertificateAsync(
     if (userProvided) {
       if (!ctx.appStore.authCtx) {
         Log.warn(
-          'Unable to validate distribution certificate due to insufficient Apple Credentials'
+          'Unable to validate distribution certificate, you are not authenticated with Apple.'
         );
         return userProvided;
       } else {

@@ -6,28 +6,36 @@ import { AscApiKey, AscApiKeyInfo } from './Credentials.types';
 import { AuthCtx, getRequestContext } from './authenticate';
 
 export async function listAscApiKeysAsync(authCtx: AuthCtx): Promise<AscApiKeyInfo[]> {
-  const spinner = ora(`Fetching App Store Connect API Keys.`).start();
+  const spinner = ora(`Fetching App Store Connect Api Keys.`).start();
   try {
     const context = getRequestContext(authCtx);
     const keys = await ApiKey.getAsync(context);
-    spinner.succeed(`Fetched App Store Connect API Keys.`);
+    spinner.succeed(`Fetched App Store Connect Api Keys.`);
     return keys.map(key => getAscApiKeyInfo(key, authCtx));
   } catch (error) {
-    spinner.fail(`Failed to fetch App Store Connect API Keys.`);
+    spinner.fail(`Failed to fetch App Store Connect Api Keys.`);
     throw error;
   }
 }
 
-export async function getAscApiKeyAsync(authCtx: AuthCtx, keyId: string): Promise<AscApiKeyInfo> {
-  const spinner = ora(`Fetching App Store Connect API Key.`).start();
+export async function getAscApiKeyAsync(
+  authCtx: AuthCtx,
+  keyId: string
+): Promise<AscApiKeyInfo | null> {
+  const spinner = ora(`Fetching App Store Connect Api Key.`).start();
   try {
     const context = getRequestContext(authCtx);
     const apiKey = await ApiKey.infoAsync(context, { id: keyId });
-    spinner.succeed(`Fetched App Store Connect API Key (ID: ${keyId}).`);
+    spinner.succeed(`Fetched App Store Connect Api Key (ID: ${keyId}).`);
     return getAscApiKeyInfo(apiKey, authCtx);
-  } catch (error) {
+  } catch (error: any) {
+    const message = error?.message ?? '';
+    if (message.includes("There is no resource of type 'apiKeys' with id")) {
+      spinner.stop();
+      return null;
+    }
     Log.error(error);
-    spinner.fail(`Failed to fetch App Store Connect API Key.`);
+    spinner.fail(`Failed to fetch App Store Connect Api Key.`);
     throw error;
   }
 }
@@ -41,7 +49,7 @@ export async function createAscApiKeyAsync(
     keyType,
   }: Partial<Pick<ApiKeyProps, 'nickname' | 'roles' | 'allAppsVisible' | 'keyType'>>
 ): Promise<AscApiKey> {
-  const spinner = ora(`Creating App Store Connect API Key.`).start();
+  const spinner = ora(`Creating App Store Connect Api Key.`).start();
   try {
     const context = getRequestContext(authCtx);
     const key = await ApiKey.createAsync(context, {
@@ -64,12 +72,15 @@ export async function createAscApiKeyAsync(
       }
       throw new Error(`Failed to download .p8 file of ${humanReadableKey}.`);
     }
+    // this object has more optional parameters populated
+    const fullKey = await ApiKey.infoAsync(context, { id: key.id });
+    spinner.succeed(`Created App Store Connect Api Key.`);
     return {
-      ...getAscApiKeyInfo(key, authCtx),
+      ...getAscApiKeyInfo(fullKey, authCtx),
       keyP8,
     };
   } catch (err: any) {
-    spinner.fail('Failed to create App Store Connect API Key.');
+    spinner.fail('Failed to create App Store Connect Api Key.');
     throw err;
   }
 }
@@ -78,16 +89,16 @@ export async function revokeAscApiKeyAsync(
   authCtx: AuthCtx,
   keyId: string
 ): Promise<AscApiKeyInfo> {
-  const spinner = ora(`Revoking App Store Connect API Key.`).start();
+  const spinner = ora(`Revoking App Store Connect Api Key.`).start();
   try {
     const context = getRequestContext(authCtx);
     const apiKey = await ApiKey.infoAsync(context, { id: keyId });
     const revokedKey = await apiKey.revokeAsync();
-    spinner.succeed(`Revoked App Store Connect API Key.`);
+    spinner.succeed(`Revoked App Store Connect Api Key.`);
     return getAscApiKeyInfo(revokedKey, authCtx);
   } catch (error) {
     Log.error(error);
-    spinner.fail(`Failed to revoke App Store Connect API Key.`);
+    spinner.fail(`Failed to revoke App Store Connect Api Key.`);
     throw error;
   }
 }
@@ -100,5 +111,6 @@ export function getAscApiKeyInfo(apiKey: ApiKey, authCtx: AuthCtx): AscApiKeyInf
     teamId: authCtx.team.id,
     teamName: authCtx.team.name,
     roles: apiKey.attributes.roles,
+    isRevoked: !!apiKey.attributes.revokingDate,
   };
 }

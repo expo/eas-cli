@@ -47,6 +47,7 @@ const mockAscApiKeyInfo = {
   roles: ['ADMIN'],
   teamId: 'test-id',
   teamName: 'test-name',
+  isRevoked: false,
 };
 
 beforeEach(() => {

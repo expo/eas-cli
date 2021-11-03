@@ -118,14 +118,20 @@ export interface AscApiKeyPath {
   issuerId: string;
 }
 
-export const ascApiKeyMetadataSchema: CredentialSchema<Omit<MinimalAscApiKey, 'keyP8'>> = {
-  name: 'App Store Connect API Key',
+export const ascApiKeyIdSchema: CredentialSchema<Pick<MinimalAscApiKey, 'keyId'>> = {
+  name: 'App Store Connect Api Key',
   questions: [
     {
       field: 'keyId',
       type: 'string',
       question: 'Key ID:',
     },
+  ],
+};
+
+export const ascApiKeyIssuerIdSchema: CredentialSchema<Pick<MinimalAscApiKey, 'issuerId'>> = {
+  name: 'App Store Connect Api Key',
+  questions: [
     {
       field: 'issuerId',
       type: 'string',

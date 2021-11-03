@@ -22,5 +22,7 @@ export function getAppstoreMock(): AppStoreApi {
     createProvisioningProfileAsync: jest.fn(),
     revokeProvisioningProfileAsync: jest.fn(),
     createOrReuseAdhocProvisioningProfileAsync: jest.fn(),
+    createAscApiKeyAsync: jest.fn(),
+    getAscApiKeyAsync: jest.fn(),
   } as any;
 }

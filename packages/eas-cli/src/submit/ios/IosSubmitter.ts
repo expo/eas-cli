@@ -69,7 +69,7 @@ export default class IosSubmitter extends BaseSubmitter<Platform.IOS, IosSubmiss
       ? await getAppSpecificPasswordAsync(this.options.appSpecificPasswordSource)
       : null;
     const maybeAppStoreConnectApiKey = this.options.ascApiKeySource
-      ? await getAscApiKeyLocallyAsync(this.options.ascApiKeySource)
+      ? await getAscApiKeyLocallyAsync(this.ctx, this.options.ascApiKeySource)
       : null;
     return {
       archive,
