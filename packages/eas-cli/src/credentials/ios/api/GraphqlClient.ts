@@ -166,10 +166,8 @@ export async function updateIosAppCredentialsAsync(
   appCredentials: CommonIosAppCredentialsFragment,
   {
     applePushKeyId,
-    ascApiKeyIdForSubmissions,
   }: {
     applePushKeyId?: string;
-    ascApiKeyIdForSubmissions?: string;
   }
 ): Promise<CommonIosAppCredentialsFragment> {
   let updatedAppCredentials = appCredentials;
@@ -178,13 +176,6 @@ export async function updateIosAppCredentialsAsync(
       updatedAppCredentials.id,
       applePushKeyId
     );
-  }
-  if (ascApiKeyIdForSubmissions) {
-    updatedAppCredentials =
-      await IosAppCredentialsMutation.setAppStoreConnectApiKeyForSubmissionsAsync(
-        updatedAppCredentials.id,
-        ascApiKeyIdForSubmissions
-      );
   }
   return updatedAppCredentials;
 }
