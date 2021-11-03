@@ -364,7 +364,7 @@ OPTIONS
   --id=id  ID of the secret to delete
 
 DESCRIPTION
-  Unsure where to find the secret's ID? Run eas secrets:list
+  Unsure where to find the secret's ID? Run eas secret:list
 ```
 
 _See code: [src/commands/secret/delete.js](https://github.com/expo/eas-cli/blob/v0.34.1/packages/eas-cli/src/commands/secret/delete.js)_
