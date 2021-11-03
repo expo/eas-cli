@@ -5318,10 +5318,10 @@ export type BuildFragment = (
     & Pick<BuildArtifacts, 'buildUrl' | 'xcodeBuildLogsUrl'>
   )>, initiatingActor?: Maybe<(
     { __typename: 'User' }
-    & Pick<User, 'username' | 'id'>
+    & Pick<User, 'id' | 'displayName'>
   ) | (
     { __typename: 'Robot' }
-    & Pick<Robot, 'firstName' | 'id'>
+    & Pick<Robot, 'id' | 'displayName'>
   )>, project: (
     { __typename: 'Snack' }
     & Pick<Snack, 'id' | 'name'>
