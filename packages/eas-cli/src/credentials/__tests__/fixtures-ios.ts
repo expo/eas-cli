@@ -25,7 +25,7 @@ import { testProvisioningProfileBase64 } from './fixtures-base64-data';
 const now = new Date();
 
 export const testAscApiKey: AscApiKey = {
-  keyId: 'test-id',
+  keyId: 'test-keyIdentifier',
   issuerId: 'test-issuer-id-from-apple',
   teamId: 'test-team-id',
   teamName: 'test-team-name',
@@ -142,6 +142,7 @@ export const testCommonIosAppCredentialsFragment: CommonIosAppCredentialsFragmen
   appleAppIdentifier: testAppleAppIdentifierFragment,
   pushKey: testPushKey,
   iosAppBuildCredentialsList: [testIosAppBuildCredentialsFragment],
+  appStoreConnectApiKeyForSubmissions: testAscApiKeyFragment,
 };
 
 export const testAppleTeam = {
@@ -171,6 +172,7 @@ export function getNewIosApiMock(): { [key in keyof typeof IosGraphqlClient]?: a
     deletePushKeyAsync: jest.fn(),
     createAscApiKeyAsync: jest.fn(),
     deleteAscApiKeyAsync: jest.fn(),
+    getAscApiKeysForAccountAsync: jest.fn(() => []),
   };
 }
 
