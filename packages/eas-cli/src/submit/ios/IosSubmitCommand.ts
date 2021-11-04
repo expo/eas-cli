@@ -54,6 +54,7 @@ export default class IosSubmitCommand {
         : null;
     const maybeAscApiKeySource =
       'ascApiKeySource' in credentialsSource ? credentialsSource.ascApiKeySource : null;
+    const maybeCredentialsSource = null; // todo
     const ascAppIdentifier = await this.resolveAscAppIdentifierAsync();
     const appleIdUsername = await this.resolveAppleIdUsernameAsync();
 
