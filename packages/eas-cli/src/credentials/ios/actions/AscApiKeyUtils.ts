@@ -166,7 +166,7 @@ async function getBestEffortIssuerIdAsync(
 export async function getAscApiKeysFromAccountAsync(
   ctx: CredentialsContext,
   account: Account,
-  filterDifferentAppleTeam: boolean = false
+  { filterDifferentAppleTeam }: { filterDifferentAppleTeam?: boolean } = {}
 ): Promise<AppStoreConnectApiKeyFragment[]> {
   const ascApiKeysForAccount = await ctx.ios.getAscApiKeysForAccountAsync(account);
 
@@ -180,19 +180,17 @@ export async function getAscApiKeysFromAccountAsync(
 export async function selectAscApiKeysFromAccountAsync(
   ctx: CredentialsContext,
   account: Account,
-  filterDifferentAppleTeam: boolean = false
+  { filterDifferentAppleTeam }: { filterDifferentAppleTeam?: boolean } = {}
 ): Promise<AppStoreConnectApiKeyFragment | null> {
-  const ascApiKeysForAccount = await getAscApiKeysFromAccountAsync(
-    ctx,
-    account,
-    filterDifferentAppleTeam
-  );
+  const ascApiKeysForAccount = await getAscApiKeysFromAccountAsync(ctx, account, {
+    filterDifferentAppleTeam,
+  });
   if (ascApiKeysForAccount.length === 0) {
     if (filterDifferentAppleTeam) {
       const maybeAppleTeamId = ctx.appStore.authCtx?.team.id;
       Log.warn(
         `There are no App Store Connect Api Keys in your EAS account${
-          maybeAppleTeamId ? ` matching Apple Team ID: ${maybeAppleTeamId}` : ''
+          maybeAppleTeamId ? ` matching Apple Team ID: ${maybeAppleTeamId}.` : '.'
         }`
       );
     } else {

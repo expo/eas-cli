@@ -12,13 +12,13 @@ import {
 } from '../../../__tests__/fixtures-ios';
 import { AppStoreApiKeyPurpose } from '../AscApiKeyUtils';
 import { getAppLookupParamsFromContext } from '../BuildCredentialsUtils';
-import { SetUpAscApiKey, USE_EXISTING } from '../SetUpAscApiKey';
+import { SetUpAscApiKey, SetupAscApiKeyChoice } from '../SetUpAscApiKey';
 
 jest.mock('../../../../prompts');
 asMock(confirmAsync).mockImplementation(() => true);
 
 describe(SetUpAscApiKey, () => {
-  it('skips setting up a App Store Connect Api Key if it is already configured', async () => {
+  it('skips setting up a ASC Api Key if it is already configured', async () => {
     const ctx = createCtxMock({
       nonInteractive: false,
       ios: {
@@ -35,12 +35,12 @@ describe(SetUpAscApiKey, () => {
     );
     await setupAscApiKeyAction.runAsync(ctx);
 
-    // expect not to create a new App Store Connect Api Key on expo servers
+    // expect not to create a new ASC Api Key on expo servers
     expect(asMock(ctx.ios.createAscApiKeyAsync).mock.calls.length).toBe(0);
-    // expect configuration not to be updated with a new App Store Connect Api Key
+    // expect configuration not to be updated with a new ASC Api Key
     expect(asMock(ctx.ios.updateIosAppCredentialsAsync).mock.calls.length).toBe(0);
   });
-  it('sets up a App Store Connect Api Key, creating a new one if there are no existing App Store Connect Api Keys', async () => {
+  it('sets up a ASC Api Key, creating a new one if there are no existing ASC Api Keys', async () => {
     const ctx = createCtxMock({
       nonInteractive: false,
       appStore: {
@@ -60,12 +60,12 @@ describe(SetUpAscApiKey, () => {
     );
     await setupAscApiKeyAction.runAsync(ctx);
 
-    // expect to create a new App Store Connect Api Key on expo servers
+    // expect to create a new ASC Api Key on expo servers
     expect(asMock(ctx.ios.createAscApiKeyAsync).mock.calls.length).toBe(1);
-    // expect configuration to be updated with a new App Store Connect Api Key
+    // expect configuration to be updated with a new ASC Api Key
     expect(asMock(ctx.ios.updateIosAppCredentialsAsync).mock.calls.length).toBe(1);
   });
-  it('sets up a App Store Connect Api Key, use autoselected App Store Connect Api Key when there are existing keys', async () => {
+  it('sets up a ASC Api Key, use autoselected ASC Api Key when there are existing keys', async () => {
     const ctx = createCtxMock({
       nonInteractive: false,
       appStore: {
@@ -86,12 +86,12 @@ describe(SetUpAscApiKey, () => {
     );
     await setupAscApiKeyAction.runAsync(ctx);
 
-    // expect not to create a new App Store Connect Api Key on expo servers, we are using the existing one
+    // expect not to create a new ASC Api Key on expo servers, we are using the existing one
     expect(asMock(ctx.ios.createAscApiKeyAsync).mock.calls.length).toBe(0);
-    // expect configuration to be updated with a new App Store Connect Api Key
+    // expect configuration to be updated with a new ASC Api Key
     expect(asMock(ctx.ios.updateIosAppCredentialsAsync).mock.calls.length).toBe(1);
   });
-  it('sets up a App Store Connect Api Key, allowing user to choose existing keys', async () => {
+  it('sets up a ASC Api Key, allowing user to choose existing keys', async () => {
     const ctx = createCtxMock({
       nonInteractive: false,
       ios: {
@@ -100,7 +100,7 @@ describe(SetUpAscApiKey, () => {
       },
     });
     asMock(promptAsync).mockImplementation(() => ({
-      choice: USE_EXISTING,
+      choice: SetupAscApiKeyChoice.USE_EXISTING,
       chosenAscApiKey: testAscApiKeyFragment,
     }));
     const appLookupParams = getAppLookupParamsFromContext(ctx, findApplicationTarget(testTargets));
@@ -110,9 +110,9 @@ describe(SetUpAscApiKey, () => {
     );
     await setupAscApiKeyAction.runAsync(ctx);
 
-    // expect not to create a new App Store Connect Api Key on expo servers, we are using the existing one
+    // expect not to create a new ASC Api Key on expo servers, we are using the existing one
     expect(asMock(ctx.ios.createAscApiKeyAsync).mock.calls.length).toBe(0);
-    // expect configuration to be updated with a new App Store Connect Api Key
+    // expect configuration to be updated with a new ASC Api Key
     expect(asMock(ctx.ios.updateIosAppCredentialsAsync).mock.calls.length).toBe(1);
   });
   it('errors in Non Interactive Mode', async () => {

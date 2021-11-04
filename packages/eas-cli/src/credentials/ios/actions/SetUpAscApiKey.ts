@@ -1,4 +1,4 @@
-import { assert } from 'console';
+import assert from 'assert';
 import nullthrows from 'nullthrows';
 
 import {
@@ -24,15 +24,17 @@ import {
 import { AssignAscApiKey } from './AssignAscApiKey';
 import { CreateAscApiKey } from './CreateAscApiKey';
 
-const GENERATE = 'GENERATE';
-export const USE_EXISTING = 'USE_EXISTING';
+export enum SetupAscApiKeyChoice {
+  GENERATE = 'GENERATE',
+  USE_EXISTING = 'USE_EXISTING',
+}
 export class SetUpAscApiKey {
   public choices: { title: string; value: string }[] = [
     {
       title: '[Choose an existing key]',
-      value: USE_EXISTING,
+      value: SetupAscApiKeyChoice.USE_EXISTING,
     },
-    { title: '[Add a new key]', value: GENERATE },
+    { title: '[Add a new key]', value: SetupAscApiKeyChoice.GENERATE },
   ];
 
   constructor(private app: AppLookupParams, private purpose: AppStoreApiKeyPurpose) {}
@@ -52,20 +54,18 @@ export class SetUpAscApiKey {
       );
     }
 
-    const keysForAccount = await getAscApiKeysFromAccountAsync(
-      ctx,
-      this.app.account,
-      /* filterDifferentAppleTeam */ true
-    );
+    const keysForAccount = await getAscApiKeysFromAccountAsync(ctx, this.app.account, {
+      filterDifferentAppleTeam: true,
+    });
     const maybeAutoselectedKey = await this.doBestEffortAutoselectAsync(ctx, keysForAccount);
     if (maybeAutoselectedKey) {
       return await new AssignAscApiKey(this.app).runAsync(ctx, maybeAutoselectedKey, this.purpose);
     }
 
-    let availableChoices = this.choices;
-    if (keysForAccount.length === 0) {
-      availableChoices = this.choices.filter(choice => choice.value !== USE_EXISTING);
-    }
+    const availableChoices =
+      keysForAccount.length === 0
+        ? this.choices.filter(choice => choice.value !== SetupAscApiKeyChoice.USE_EXISTING)
+        : this.choices;
     const ascApiKey = await this.processChoicesAsync(ctx, this.purpose, availableChoices);
     return await new AssignAscApiKey(this.app).runAsync(ctx, ascApiKey, this.purpose);
   }
@@ -86,8 +86,7 @@ export class SetUpAscApiKey {
     if (validKeys.length === 0) {
       return null;
     }
-    const sortedValidKeys = sortAscApiKeysByUpdatedAtDesc(validKeys);
-    const autoselectedKey = sortedValidKeys[0];
+    const [autoselectedKey] = sortAscApiKeysByUpdatedAtDesc(validKeys);
     const useAutoselected = await confirmAsync({
       message: `Reuse this App Store Connect Api Key?\n${formatAscApiKey(autoselectedKey)}`,
     });
@@ -130,14 +129,12 @@ export class SetUpAscApiKey {
       choice = result.choice;
     }
 
-    if (choice === GENERATE) {
+    if (choice === SetupAscApiKeyChoice.GENERATE) {
       return await new CreateAscApiKey(this.app.account).runAsync(ctx, purpose);
-    } else if (choice === USE_EXISTING) {
-      const selectedAscApiKey = await selectAscApiKeysFromAccountAsync(
-        ctx,
-        this.app.account,
-        /* filterDifferentAppleTeam */ true
-      );
+    } else if (choice === SetupAscApiKeyChoice.USE_EXISTING) {
+      const selectedAscApiKey = await selectAscApiKeysFromAccountAsync(ctx, this.app.account, {
+        filterDifferentAppleTeam: true,
+      });
       if (!selectedAscApiKey) {
         return await this.processChoicesAsync(ctx, purpose, choices);
       }

@@ -35,12 +35,12 @@ import { SelectAndRemoveAscApiKey } from '../ios/actions/RemoveAscApiKey';
 import { SelectAndRemoveDistributionCertificate } from '../ios/actions/RemoveDistributionCertificate';
 import { RemoveProvisioningProfiles } from '../ios/actions/RemoveProvisioningProfile';
 import { SelectAndRemovePushKey } from '../ios/actions/RemovePushKey';
+import { SetUpAscApiKey } from '../ios/actions/SetUpAscApiKey';
 import { SetupAdhocProvisioningProfile } from '../ios/actions/SetupAdhocProvisioningProfile';
 import { SetupBuildCredentials } from '../ios/actions/SetupBuildCredentials';
 import { SetupBuildCredentialsFromCredentialsJson } from '../ios/actions/SetupBuildCredentialsFromCredentialsJson';
 import { SetupProvisioningProfile } from '../ios/actions/SetupProvisioningProfile';
 import { SetupPushKey } from '../ios/actions/SetupPushKey';
-import { SetUpAscApiKey } from '../ios/actions/SetUpAscApiKey';
 import { UpdateCredentialsJson } from '../ios/actions/UpdateCredentialsJson';
 import { AppLookupParams } from '../ios/api/GraphqlClient';
 import { getManagedEntitlementsJsonAsync } from '../ios/appstore/entitlements';
@@ -342,11 +342,9 @@ export class ManageIos {
         return;
       }
       case IosActionType.UseExistingAscApiKeyForSubmissions: {
-        const ascApiKey = await selectAscApiKeysFromAccountAsync(
-          ctx,
-          appLookupParams.account,
-          /* filterDifferentAppleTeam */ true
-        );
+        const ascApiKey = await selectAscApiKeysFromAccountAsync(ctx, appLookupParams.account, {
+          filterDifferentAppleTeam: true,
+        });
         if (ascApiKey) {
           await new AssignAscApiKey(appLookupParams).runAsync(
             ctx,
