@@ -19,7 +19,10 @@ import { confirmAsync, promptAsync, selectAsync } from '../../prompts';
 import { Account, findAccountByName } from '../../user/Account';
 import { ensureActorHasUsername } from '../../user/actions';
 import { CredentialsContext } from '../context';
-import { AppStoreApiKeyPurpose } from '../ios/actions/AscApiKeyUtils';
+import {
+  AppStoreApiKeyPurpose,
+  selectAscApiKeysFromAccountAsync,
+} from '../ios/actions/AscApiKeyUtils';
 import { AssignAscApiKey } from '../ios/actions/AssignAscApiKey';
 import { AssignPushKey } from '../ios/actions/AssignPushKey';
 import { getAppLookupParamsFromContext } from '../ios/actions/BuildCredentialsUtils';
@@ -33,6 +36,7 @@ import { SelectAndRemoveDistributionCertificate } from '../ios/actions/RemoveDis
 import { RemoveProvisioningProfiles } from '../ios/actions/RemoveProvisioningProfile';
 import { SelectAndRemovePushKey } from '../ios/actions/RemovePushKey';
 import { SetupAdhocProvisioningProfile } from '../ios/actions/SetupAdhocProvisioningProfile';
+import { SetupAscApiKey } from '../ios/actions/SetupAscApiKey';
 import { SetupBuildCredentials } from '../ios/actions/SetupBuildCredentials';
 import { SetupBuildCredentialsFromCredentialsJson } from '../ios/actions/SetupBuildCredentialsFromCredentialsJson';
 import { SetupProvisioningProfile } from '../ios/actions/SetupProvisioningProfile';
@@ -327,6 +331,28 @@ export class ManageIos {
         const selectedPushKey = await selectPushKeyAsync(ctx, appLookupParams.account);
         if (selectedPushKey) {
           await new AssignPushKey(appLookupParams).runAsync(ctx, selectedPushKey);
+        }
+        return;
+      }
+      case IosActionType.SetupAscApiKeyForSubmissions: {
+        await new SetupAscApiKey(
+          appLookupParams,
+          AppStoreApiKeyPurpose.SUBMISSION_SERVICE
+        ).runAsync(ctx);
+        return;
+      }
+      case IosActionType.UseExistingAscApiKeyForSubmissions: {
+        const ascApiKey = await selectAscApiKeysFromAccountAsync(
+          ctx,
+          appLookupParams.account,
+          /* filterDifferentAppleTeam */ true
+        );
+        if (ascApiKey) {
+          await new AssignAscApiKey(appLookupParams).runAsync(
+            ctx,
+            ascApiKey,
+            AppStoreApiKeyPurpose.SUBMISSION_SERVICE
+          );
         }
         return;
       }

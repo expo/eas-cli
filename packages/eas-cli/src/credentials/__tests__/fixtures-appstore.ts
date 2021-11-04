@@ -4,7 +4,7 @@ import { AuthCtx } from '../ios/appstore/authenticate';
 export const testAuthCtx: AuthCtx = {
   appleId: 'test-apple-id',
   appleIdPassword: 'test-apple-password',
-  team: { id: 'test-team-id', name: 'test-team-name', inHouse: false },
+  team: { id: 'test-apple-team-identifier', name: 'test-team-name', inHouse: false },
 };
 
 export function getAppstoreMock(): AppStoreApi {
@@ -25,5 +25,6 @@ export function getAppstoreMock(): AppStoreApi {
     createAscApiKeyAsync: jest.fn(),
     getAscApiKeyAsync: jest.fn(),
     revokeAscApiKeyAsync: jest.fn(),
+    listAscApiKeysAsync: jest.fn(),
   } as any;
 }

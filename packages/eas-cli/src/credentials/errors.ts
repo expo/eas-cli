@@ -11,3 +11,9 @@ export class MissingCredentialsError extends Error {
     super(message ?? 'Credentials are not set up.');
   }
 }
+
+export class UnsupportedCredentialsChoiceError extends Error {
+  constructor(message: string, public choice: string) {
+    super(message);
+  }
+}
