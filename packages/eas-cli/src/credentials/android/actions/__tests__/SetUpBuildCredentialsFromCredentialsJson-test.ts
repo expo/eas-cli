@@ -14,7 +14,7 @@ import {
   SelectAndroidBuildCredentialsResultType,
 } from '../../../manager/SelectAndroidBuildCredentials';
 import { getAppLookupParamsFromContextAsync } from '../BuildCredentialsUtils';
-import { SetupBuildCredentialsFromCredentialsJson } from '../SetupBuildCredentialsFromCredentialsJson';
+import { SetUpBuildCredentialsFromCredentialsJson } from '../SetUpBuildCredentialsFromCredentialsJson';
 
 jest.mock('fs');
 
@@ -26,7 +26,7 @@ beforeEach(() => {
   vol.reset();
 });
 
-describe(SetupBuildCredentialsFromCredentialsJson, () => {
+describe(SetUpBuildCredentialsFromCredentialsJson, () => {
   it('sets up a new build configuration from credentials.json upon user request', async () => {
     asMock(SelectAndroidBuildCredentials).mockImplementation(() => {
       return {
@@ -59,7 +59,7 @@ describe(SetupBuildCredentialsFromCredentialsJson, () => {
       'keystore.jks': 'some-binary-content',
     });
     const appLookupParams = await getAppLookupParamsFromContextAsync(ctx);
-    const setupBuildCredentialsAction = new SetupBuildCredentialsFromCredentialsJson(
+    const setupBuildCredentialsAction = new SetUpBuildCredentialsFromCredentialsJson(
       appLookupParams
     );
     await setupBuildCredentialsAction.runAsync(ctx);
@@ -109,7 +109,7 @@ describe(SetupBuildCredentialsFromCredentialsJson, () => {
       'keystore.jks': 'some-binary-content',
     });
     const appLookupParams = await getAppLookupParamsFromContextAsync(ctx);
-    const setupBuildCredentialsAction = new SetupBuildCredentialsFromCredentialsJson(
+    const setupBuildCredentialsAction = new SetUpBuildCredentialsFromCredentialsJson(
       appLookupParams
     );
     await setupBuildCredentialsAction.runAsync(ctx);
@@ -132,7 +132,7 @@ describe(SetupBuildCredentialsFromCredentialsJson, () => {
       nonInteractive: true,
     });
     const appLookupParams = await getAppLookupParamsFromContextAsync(ctx);
-    const setupBuildCredentialsAction = new SetupBuildCredentialsFromCredentialsJson(
+    const setupBuildCredentialsAction = new SetUpBuildCredentialsFromCredentialsJson(
       appLookupParams
     );
     await expect(setupBuildCredentialsAction.runAsync(ctx)).rejects.toThrowError();

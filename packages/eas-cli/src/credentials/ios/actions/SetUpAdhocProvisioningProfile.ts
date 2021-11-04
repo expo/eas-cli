@@ -21,7 +21,7 @@ import { validateProvisioningProfileAsync } from '../validators/validateProvisio
 import { resolveAppleTeamIfAuthenticatedAsync } from './AppleTeamUtils';
 import { assignBuildCredentialsAsync, getBuildCredentialsAsync } from './BuildCredentialsUtils';
 import { chooseDevicesAsync, formatDeviceLabel } from './DeviceUtils';
-import { SetupDistributionCertificate } from './SetupDistributionCertificate';
+import { SetUpDistributionCertificate } from './SetUpDistributionCertificate';
 
 enum ReuseAction {
   Yes,
@@ -29,11 +29,11 @@ enum ReuseAction {
   No,
 }
 
-export class SetupAdhocProvisioningProfile {
+export class SetUpAdhocProvisioningProfile {
   constructor(private app: AppLookupParams) {}
 
   async runAsync(ctx: CredentialsContext): Promise<IosAppBuildCredentialsFragment> {
-    const distCert = await new SetupDistributionCertificate(
+    const distCert = await new SetUpDistributionCertificate(
       this.app,
       IosDistributionType.AdHoc
     ).runAsync(ctx);

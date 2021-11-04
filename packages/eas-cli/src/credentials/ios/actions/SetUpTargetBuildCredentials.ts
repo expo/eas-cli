@@ -8,9 +8,9 @@ import Log from '../../../log';
 import { CredentialsContext } from '../../context';
 import { AppLookupParams as GraphQLAppLookupParams } from '../api/GraphqlClient';
 import { IosCapabilitiesOptions } from '../appstore/ensureAppExists';
-import { SetupAdhocProvisioningProfile } from './SetupAdhocProvisioningProfile';
-import { SetupInternalProvisioningProfile } from './SetupInternalProvisioningProfile';
-import { SetupProvisioningProfile } from './SetupProvisioningProfile';
+import { SetUpAdhocProvisioningProfile } from './SetUpAdhocProvisioningProfile';
+import { SetUpInternalProvisioningProfile } from './SetUpInternalProvisioningProfile';
+import { SetUpProvisioningProfile } from './SetUpProvisioningProfile';
 
 interface Options {
   app: GraphQLAppLookupParams;
@@ -18,7 +18,7 @@ interface Options {
   enterpriseProvisioning?: IosEnterpriseProvisioning;
   iosCapabilitiesOptions?: IosCapabilitiesOptions;
 }
-export class SetupTargetBuildCredentials {
+export class SetUpTargetBuildCredentials {
   constructor(private options: Options) {}
 
   async runAsync(ctx: CredentialsContext): Promise<IosAppBuildCredentialsFragment> {
@@ -50,17 +50,17 @@ export class SetupTargetBuildCredentials {
     const { app, distribution, enterpriseProvisioning } = this.options;
     if (distribution === 'internal') {
       if (enterpriseProvisioning === 'adhoc') {
-        return await new SetupAdhocProvisioningProfile(app).runAsync(ctx);
+        return await new SetUpAdhocProvisioningProfile(app).runAsync(ctx);
       } else if (enterpriseProvisioning === 'universal') {
-        return await new SetupProvisioningProfile(
+        return await new SetUpProvisioningProfile(
           app,
           GraphQLIosDistributionType.Enterprise
         ).runAsync(ctx);
       } else {
-        return await new SetupInternalProvisioningProfile(app).runAsync(ctx);
+        return await new SetUpInternalProvisioningProfile(app).runAsync(ctx);
       }
     } else {
-      return await new SetupProvisioningProfile(app, GraphQLIosDistributionType.AppStore).runAsync(
+      return await new SetUpProvisioningProfile(app, GraphQLIosDistributionType.AppStore).runAsync(
         ctx
       );
     }

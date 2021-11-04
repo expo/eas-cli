@@ -9,7 +9,7 @@ import { createCtxMock } from '../../../__tests__/fixtures-context';
 import { MissingCredentialsNonInteractiveError } from '../../../errors';
 import { generateRandomKeystoreAsync } from '../../utils/keystore';
 import { getAppLookupParamsFromContextAsync } from '../BuildCredentialsUtils';
-import { SetupBuildCredentials } from '../SetupBuildCredentials';
+import { SetUpBuildCredentials } from '../SetUpBuildCredentials';
 
 jest.mock('../../../../ora');
 jest.mock('../../../../project/ensureProjectExists');
@@ -17,7 +17,7 @@ jest.mock('../../../../user/actions', () => ({ ensureLoggedInAsync: jest.fn(() =
 jest.mock('../../../../prompts', () => ({ confirmAsync: jest.fn(() => true) }));
 jest.mock('../../utils/keystore', () => ({ generateRandomKeystoreAsync: jest.fn() }));
 
-describe('SetupBuildCredentials', () => {
+describe('SetUpBuildCredentials', () => {
   beforeEach(() => {
     asMock(generateRandomKeystoreAsync).mockReset();
   });
@@ -33,7 +33,7 @@ describe('SetupBuildCredentials', () => {
       },
     });
     const appLookupParams = await getAppLookupParamsFromContextAsync(ctx);
-    const setupBuildCredentialsAction = new SetupBuildCredentials({ app: appLookupParams });
+    const setupBuildCredentialsAction = new SetUpBuildCredentials({ app: appLookupParams });
     await setupBuildCredentialsAction.runAsync(ctx);
 
     // expect keystore not to be created
@@ -48,7 +48,7 @@ describe('SetupBuildCredentials', () => {
       },
     });
     const appLookupParams = await getAppLookupParamsFromContextAsync(ctx);
-    const setupBuildCredentialsAction = new SetupBuildCredentials({ app: appLookupParams });
+    const setupBuildCredentialsAction = new SetUpBuildCredentials({ app: appLookupParams });
     await setupBuildCredentialsAction.runAsync(ctx);
 
     // expect keystore to be created
@@ -63,7 +63,7 @@ describe('SetupBuildCredentials', () => {
       },
     });
     const appLookupParams = await getAppLookupParamsFromContextAsync(ctx);
-    const setupBuildCredentialsAction = new SetupBuildCredentials({ app: appLookupParams });
+    const setupBuildCredentialsAction = new SetUpBuildCredentials({ app: appLookupParams });
     await expect(setupBuildCredentialsAction.runAsync(ctx)).rejects.toThrowError(
       MissingCredentialsNonInteractiveError
     );

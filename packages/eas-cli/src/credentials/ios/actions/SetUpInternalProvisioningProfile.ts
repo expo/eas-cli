@@ -4,8 +4,8 @@ import { promptAsync } from '../../../prompts';
 import { CredentialsContext } from '../../context';
 import { AppLookupParams } from '../api/GraphqlClient';
 import { getAllBuildCredentialsAsync } from './BuildCredentialsUtils';
-import { SetupAdhocProvisioningProfile } from './SetupAdhocProvisioningProfile';
-import { SetupProvisioningProfile } from './SetupProvisioningProfile';
+import { SetUpAdhocProvisioningProfile } from './SetUpAdhocProvisioningProfile';
+import { SetUpProvisioningProfile } from './SetUpProvisioningProfile';
 
 /**
  * It's used when setting up credentials for internal distribution but `enterpriseProvisioning` is not set.
@@ -14,7 +14,7 @@ import { SetupProvisioningProfile } from './SetupProvisioningProfile';
  * to choose if they want to set up an adhoc or universal distribution provisioning profile. Otherwise, always
  * set up an adhoc provisioning profile.
  */
-export class SetupInternalProvisioningProfile {
+export class SetUpInternalProvisioningProfile {
   constructor(private app: AppLookupParams) {}
 
   async runAsync(ctx: CredentialsContext): Promise<IosAppBuildCredentialsFragment> {
@@ -82,13 +82,13 @@ export class SetupInternalProvisioningProfile {
   private async setupAdhocProvisioningProfileAsync(
     ctx: CredentialsContext
   ): Promise<IosAppBuildCredentialsFragment> {
-    return await new SetupAdhocProvisioningProfile(this.app).runAsync(ctx);
+    return await new SetUpAdhocProvisioningProfile(this.app).runAsync(ctx);
   }
 
   private async setupUniversalProvisioningProfileAsync(
     ctx: CredentialsContext
   ): Promise<IosAppBuildCredentialsFragment> {
-    return await new SetupProvisioningProfile(this.app, IosDistributionType.Enterprise).runAsync(
+    return await new SetUpProvisioningProfile(this.app, IosDistributionType.Enterprise).runAsync(
       ctx
     );
   }

@@ -4,13 +4,13 @@ import { promptAsync } from '../../../../prompts';
 import { getAppstoreMock, testAuthCtx } from '../../../__tests__/fixtures-appstore';
 import { createCtxMock } from '../../../__tests__/fixtures-context';
 import { getAllBuildCredentialsAsync } from '../BuildCredentialsUtils';
-import { SetupAdhocProvisioningProfile } from '../SetupAdhocProvisioningProfile';
-import { SetupInternalProvisioningProfile } from '../SetupInternalProvisioningProfile';
-import { SetupProvisioningProfile } from '../SetupProvisioningProfile';
+import { SetUpAdhocProvisioningProfile } from '../SetUpAdhocProvisioningProfile';
+import { SetUpInternalProvisioningProfile } from '../SetUpInternalProvisioningProfile';
+import { SetUpProvisioningProfile } from '../SetUpProvisioningProfile';
 
 jest.mock('../../../../prompts');
-jest.mock('../SetupAdhocProvisioningProfile');
-jest.mock('../SetupProvisioningProfile');
+jest.mock('../SetUpAdhocProvisioningProfile');
+jest.mock('../SetUpProvisioningProfile');
 jest.mock('../BuildCredentialsUtils', () => ({ getAllBuildCredentialsAsync: jest.fn() }));
 
 beforeEach(() => {
@@ -33,15 +33,15 @@ const testEnterpriseBuildCredentials: IosAppBuildCredentialsFragment = {
   iosDistributionType: IosDistributionType.Enterprise,
 };
 
-describe(SetupInternalProvisioningProfile, () => {
+describe(SetUpInternalProvisioningProfile, () => {
   describe('interactive mode', () => {
     describe('when authenticated with apple', () => {
-      it('runs the SetupAdhocProvisioningProfile action for non-enterprise team', async () => {
+      it('runs the SetUpAdhocProvisioningProfile action for non-enterprise team', async () => {
         asMock(getAllBuildCredentialsAsync).mockImplementationOnce(() => {
           const buildCredentials: IosAppBuildCredentialsFragment[] = [];
           return buildCredentials;
         });
-        const action = new SetupInternalProvisioningProfile({
+        const action = new SetUpInternalProvisioningProfile({
           account: { id: 'account-id', name: 'account-name' },
           bundleIdentifier: 'com.expo.test',
           projectName: 'testproject',
@@ -56,7 +56,7 @@ describe(SetupInternalProvisioningProfile, () => {
         });
 
         const runAsync = jest.fn();
-        SetupAdhocProvisioningProfile.prototype.runAsync = runAsync;
+        SetUpAdhocProvisioningProfile.prototype.runAsync = runAsync;
 
         await action.runAsync(ctx);
 
@@ -72,7 +72,7 @@ describe(SetupInternalProvisioningProfile, () => {
           return buildCredentials;
         });
 
-        const action = new SetupInternalProvisioningProfile({
+        const action = new SetUpInternalProvisioningProfile({
           account: { id: 'account-id', name: 'account-name' },
           bundleIdentifier: 'com.expo.test',
           projectName: 'testproject',
@@ -90,7 +90,7 @@ describe(SetupInternalProvisioningProfile, () => {
         });
 
         const runAsync = jest.fn();
-        SetupProvisioningProfile.prototype.runAsync = runAsync;
+        SetUpProvisioningProfile.prototype.runAsync = runAsync;
 
         await action.runAsync(ctx);
 
@@ -110,7 +110,7 @@ describe(SetupInternalProvisioningProfile, () => {
           return buildCredentials;
         });
 
-        const action = new SetupInternalProvisioningProfile({
+        const action = new SetUpInternalProvisioningProfile({
           account: { id: 'account-id', name: 'account-name' },
           bundleIdentifier: 'com.expo.test',
           projectName: 'testproject',
@@ -125,14 +125,14 @@ describe(SetupInternalProvisioningProfile, () => {
         });
 
         const runAsync = jest.fn();
-        SetupProvisioningProfile.prototype.runAsync = runAsync;
+        SetUpProvisioningProfile.prototype.runAsync = runAsync;
 
         await action.runAsync(ctx);
 
         expect(runAsync).toHaveBeenCalled();
       });
 
-      it('runs the SetupAdhocProvisioningProfile action when adhoc credentials exist', async () => {
+      it('runs the SetUpAdhocProvisioningProfile action when adhoc credentials exist', async () => {
         asMock(promptAsync).mockImplementationOnce(() => ({
           distributionType: IosDistributionType.Enterprise,
         }));
@@ -141,7 +141,7 @@ describe(SetupInternalProvisioningProfile, () => {
           return buildCredentials;
         });
 
-        const action = new SetupInternalProvisioningProfile({
+        const action = new SetUpInternalProvisioningProfile({
           account: { id: 'account-id', name: 'account-name' },
           bundleIdentifier: 'com.expo.test',
           projectName: 'testproject',
@@ -156,14 +156,14 @@ describe(SetupInternalProvisioningProfile, () => {
         });
 
         const runAsync = jest.fn();
-        SetupAdhocProvisioningProfile.prototype.runAsync = runAsync;
+        SetUpAdhocProvisioningProfile.prototype.runAsync = runAsync;
 
         await action.runAsync(ctx);
 
         expect(runAsync).toHaveBeenCalled();
       });
 
-      it('runs the SetupProvisioningProfile action when enterprise credentials exist', async () => {
+      it('runs the SetUpProvisioningProfile action when enterprise credentials exist', async () => {
         asMock(promptAsync).mockImplementationOnce(() => ({
           distributionType: IosDistributionType.Enterprise,
         }));
@@ -174,7 +174,7 @@ describe(SetupInternalProvisioningProfile, () => {
           return buildCredentials;
         });
 
-        const action = new SetupInternalProvisioningProfile({
+        const action = new SetUpInternalProvisioningProfile({
           account: { id: 'account-id', name: 'account-name' },
           bundleIdentifier: 'com.expo.test',
           projectName: 'testproject',
@@ -189,7 +189,7 @@ describe(SetupInternalProvisioningProfile, () => {
         });
 
         const runAsync = jest.fn();
-        SetupProvisioningProfile.prototype.runAsync = runAsync;
+        SetUpProvisioningProfile.prototype.runAsync = runAsync;
 
         await action.runAsync(ctx);
 
@@ -205,7 +205,7 @@ describe(SetupInternalProvisioningProfile, () => {
           return buildCredentials;
         });
 
-        const action = new SetupInternalProvisioningProfile({
+        const action = new SetUpInternalProvisioningProfile({
           account: { id: 'account-id', name: 'account-name' },
           bundleIdentifier: 'com.expo.test',
           projectName: 'testproject',
@@ -235,7 +235,7 @@ describe(SetupInternalProvisioningProfile, () => {
         ];
         return buildCredentials;
       });
-      const action = new SetupInternalProvisioningProfile({
+      const action = new SetUpInternalProvisioningProfile({
         account: { id: 'account-id', name: 'account-name' },
         bundleIdentifier: 'com.expo.test',
         projectName: 'testproject',
@@ -253,7 +253,7 @@ describe(SetupInternalProvisioningProfile, () => {
         const buildCredentials: IosAppBuildCredentialsFragment[] = [];
         return buildCredentials;
       });
-      const action = new SetupInternalProvisioningProfile({
+      const action = new SetUpInternalProvisioningProfile({
         account: { id: 'account-id', name: 'account-name' },
         bundleIdentifier: 'com.expo.test',
         projectName: 'testproject',
@@ -264,12 +264,12 @@ describe(SetupInternalProvisioningProfile, () => {
       await expect(action.runAsync(ctx)).rejects.toThrow(/couldn't find any credentials/);
     });
 
-    it('runs the SetupAdhocProvisioningProfile action when adhoc credentials exist', async () => {
+    it('runs the SetUpAdhocProvisioningProfile action when adhoc credentials exist', async () => {
       asMock(getAllBuildCredentialsAsync).mockImplementationOnce(() => {
         const buildCredentials: IosAppBuildCredentialsFragment[] = [testAdhocBuildCredentials];
         return buildCredentials;
       });
-      const action = new SetupInternalProvisioningProfile({
+      const action = new SetUpInternalProvisioningProfile({
         account: { id: 'account-id', name: 'account-name' },
         bundleIdentifier: 'com.expo.test',
         projectName: 'testproject',
@@ -279,19 +279,19 @@ describe(SetupInternalProvisioningProfile, () => {
       });
 
       const runAsync = jest.fn();
-      SetupAdhocProvisioningProfile.prototype.runAsync = runAsync;
+      SetUpAdhocProvisioningProfile.prototype.runAsync = runAsync;
 
       await action.runAsync(ctx);
 
       expect(runAsync).toHaveBeenCalled();
     });
 
-    it('runs the SetupProvisioningProfile action when enterprise credentials exist', async () => {
+    it('runs the SetUpProvisioningProfile action when enterprise credentials exist', async () => {
       asMock(getAllBuildCredentialsAsync).mockImplementationOnce(() => {
         const buildCredentials: IosAppBuildCredentialsFragment[] = [testEnterpriseBuildCredentials];
         return buildCredentials;
       });
-      const action = new SetupInternalProvisioningProfile({
+      const action = new SetUpInternalProvisioningProfile({
         account: { id: 'account-id', name: 'account-name' },
         bundleIdentifier: 'com.expo.test',
         projectName: 'testproject',
@@ -301,7 +301,7 @@ describe(SetupInternalProvisioningProfile, () => {
       });
 
       const runAsync = jest.fn();
-      SetupProvisioningProfile.prototype.runAsync = runAsync;
+      SetUpProvisioningProfile.prototype.runAsync = runAsync;
 
       await action.runAsync(ctx);
 

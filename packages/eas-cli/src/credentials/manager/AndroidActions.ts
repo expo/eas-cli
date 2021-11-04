@@ -35,7 +35,7 @@ export const credentialsJsonActions: ActionInfo[] = [
     scope: Scope.Project,
   },
   {
-    value: AndroidActionType.SetupBuildCredentialsFromCredentialsJson,
+    value: AndroidActionType.SetUpBuildCredentialsFromCredentialsJson,
     title: 'Upload credentials from credentials.json to EAS',
     scope: Scope.Project,
   },
@@ -89,8 +89,8 @@ export const fcmActions: ActionInfo[] = [
 
 export const gsaKeyActions: ActionInfo[] = [
   {
-    value: AndroidActionType.SetupGsaKey,
-    title: 'Setup a Google Service Account Key',
+    value: AndroidActionType.SetUpGsaKey,
+    title: 'Set up a Google Service Account Key',
     scope: Scope.Project,
   },
   {

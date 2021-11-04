@@ -5,12 +5,12 @@ import { getAppstoreMock, testAuthCtx } from '../../../__tests__/fixtures-appsto
 import { createCtxMock } from '../../../__tests__/fixtures-context';
 import { getNewIosApiMock, testPushKey, testTargets } from '../../../__tests__/fixtures-ios';
 import { getAppLookupParamsFromContext } from '../BuildCredentialsUtils';
-import { SetupPushKey } from '../SetupPushKey';
+import { SetUpPushKey } from '../SetUpPushKey';
 
 jest.mock('../../../../prompts');
 asMock(confirmAsync).mockImplementation(() => true);
 
-describe(SetupPushKey, () => {
+describe(SetUpPushKey, () => {
   it('skips setting up a Push Key if it is already configured', async () => {
     const ctx = createCtxMock({
       nonInteractive: false,
@@ -20,7 +20,7 @@ describe(SetupPushKey, () => {
       },
     });
     const appLookupParams = getAppLookupParamsFromContext(ctx, findApplicationTarget(testTargets));
-    const setupPushKeyAction = new SetupPushKey(appLookupParams);
+    const setupPushKeyAction = new SetUpPushKey(appLookupParams);
     await setupPushKeyAction.runAsync(ctx);
 
     // expect not to create a new push key on expo servers
@@ -38,7 +38,7 @@ describe(SetupPushKey, () => {
       },
     });
     const appLookupParams = getAppLookupParamsFromContext(ctx, findApplicationTarget(testTargets));
-    const setupPushKeyAction = new SetupPushKey(appLookupParams);
+    const setupPushKeyAction = new SetUpPushKey(appLookupParams);
     await setupPushKeyAction.runAsync(ctx);
 
     // expect to create a new push key on expo servers
@@ -62,7 +62,7 @@ describe(SetupPushKey, () => {
       },
     });
     const appLookupParams = getAppLookupParamsFromContext(ctx, findApplicationTarget(testTargets));
-    const setupPushKeyAction = new SetupPushKey(appLookupParams);
+    const setupPushKeyAction = new SetUpPushKey(appLookupParams);
     await setupPushKeyAction.runAsync(ctx);
 
     // expect not to create a new push key on expo servers, we are using the existing one
@@ -75,7 +75,7 @@ describe(SetupPushKey, () => {
       nonInteractive: true,
     });
     const appLookupParams = getAppLookupParamsFromContext(ctx, findApplicationTarget(testTargets));
-    const createPushKeyAction = new SetupPushKey(appLookupParams);
+    const createPushKeyAction = new SetUpPushKey(appLookupParams);
     await expect(createPushKeyAction.runAsync(ctx)).rejects.toThrowError();
   });
 });

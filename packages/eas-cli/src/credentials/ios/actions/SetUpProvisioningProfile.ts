@@ -20,12 +20,12 @@ import {
 import { ConfigureProvisioningProfile } from './ConfigureProvisioningProfile';
 import { CreateProvisioningProfile } from './CreateProvisioningProfile';
 import { formatProvisioningProfileFromApple } from './ProvisioningProfileUtils';
-import { SetupDistributionCertificate } from './SetupDistributionCertificate';
+import { SetUpDistributionCertificate } from './SetUpDistributionCertificate';
 
 /**
  * Sets up either APP_STORE or ENTERPRISE provisioning profiles
  */
-export class SetupProvisioningProfile {
+export class SetUpProvisioningProfile {
   constructor(private app: AppLookupParams, private distributionType: IosDistributionType) {}
 
   async areBuildCredentialsSetupAsync(ctx: CredentialsContext): Promise<boolean> {
@@ -84,7 +84,7 @@ export class SetupProvisioningProfile {
   }
 
   async runAsync(ctx: CredentialsContext): Promise<IosAppBuildCredentialsFragment> {
-    const distCert = await new SetupDistributionCertificate(
+    const distCert = await new SetUpDistributionCertificate(
       this.app,
       this.distributionType
     ).runAsync(ctx);

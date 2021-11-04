@@ -15,7 +15,7 @@ import {
 } from '../../../__tests__/fixtures-ios';
 import { IosTargetCredentials } from '../../../credentialsJson/types';
 import { getAppLookupParamsFromContext } from '../BuildCredentialsUtils';
-import { SetupTargetBuildCredentialsFromCredentialsJson } from '../SetupTargetBuildCredentialsFromCredentialsJson';
+import { SetUpTargetBuildCredentialsFromCredentialsJson } from '../SetUpTargetBuildCredentialsFromCredentialsJson';
 
 jest.mock('../../../../prompts');
 jest.mock('../../../credentialsJson/read');
@@ -25,7 +25,7 @@ beforeEach(() => {
   asMock(confirmAsync).mockImplementation(() => true);
 });
 
-describe('SetupTargetBuildCredentialsFromCredentialsJson', () => {
+describe('SetUpTargetBuildCredentialsFromCredentialsJson', () => {
   const targetCredentials: IosTargetCredentials = {
     distributionCertificate: {
       certificateP12: testDistCert.certP12,
@@ -53,7 +53,7 @@ describe('SetupTargetBuildCredentialsFromCredentialsJson', () => {
     });
     const appLookupParams = getAppLookupParamsFromContext(ctx, findApplicationTarget(testTargets));
     const setupBuildCredentialsFromCredentialsJsonAction =
-      new SetupTargetBuildCredentialsFromCredentialsJson(
+      new SetUpTargetBuildCredentialsFromCredentialsJson(
         appLookupParams,
         IosDistributionType.AppStore,
         targetCredentials
@@ -82,7 +82,7 @@ describe('SetupTargetBuildCredentialsFromCredentialsJson', () => {
     });
     const appLookupParams = getAppLookupParamsFromContext(ctx, findApplicationTarget(testTargets));
     const setupBuildCredentialsFromCredentialsJsonAction =
-      new SetupTargetBuildCredentialsFromCredentialsJson(
+      new SetUpTargetBuildCredentialsFromCredentialsJson(
         appLookupParams,
         IosDistributionType.AppStore,
         targetCredentials
@@ -115,7 +115,7 @@ describe('SetupTargetBuildCredentialsFromCredentialsJson', () => {
     });
     const appLookupParams = getAppLookupParamsFromContext(ctx, findApplicationTarget(testTargets));
     const setupBuildCredentialsFromCredentialsJsonAction =
-      new SetupTargetBuildCredentialsFromCredentialsJson(
+      new SetUpTargetBuildCredentialsFromCredentialsJson(
         appLookupParams,
         IosDistributionType.AppStore,
         targetCredentials
@@ -149,7 +149,7 @@ describe('SetupTargetBuildCredentialsFromCredentialsJson', () => {
     });
     const appLookupParams = getAppLookupParamsFromContext(ctx, findApplicationTarget(testTargets));
     const setupBuildCredentialsFromCredentialsJsonAction =
-      new SetupTargetBuildCredentialsFromCredentialsJson(
+      new SetUpTargetBuildCredentialsFromCredentialsJson(
         appLookupParams,
         IosDistributionType.AppStore,
         targetCredentials

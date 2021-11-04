@@ -13,7 +13,7 @@ import { AssignGoogleServiceAccountKey } from './AssignGoogleServiceAccountKey';
 import { CreateGoogleServiceAccountKey } from './CreateGoogleServiceAccountKey';
 import { UseExistingGoogleServiceAccountKey } from './UseExistingGoogleServiceAccountKey';
 
-export class SetupGoogleServiceAccountKey {
+export class SetUpGoogleServiceAccountKey {
   constructor(private app: AppLookupParams) {}
 
   public async runAsync(ctx: CredentialsContext): Promise<CommonAndroidAppCredentialsFragment> {

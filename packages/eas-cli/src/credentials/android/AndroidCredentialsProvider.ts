@@ -5,7 +5,7 @@ import nullthrows from 'nullthrows';
 import { AndroidAppBuildCredentialsFragment } from '../../graphql/generated';
 import { CredentialsContext } from '../context';
 import * as credentialsJsonReader from '../credentialsJson/read';
-import { SetupBuildCredentials } from './actions/SetupBuildCredentials';
+import { SetUpBuildCredentials } from './actions/SetUpBuildCredentials';
 import { AppLookupParams } from './api/GraphqlClient';
 import { Keystore } from './credentials';
 
@@ -34,7 +34,7 @@ export default class AndroidCredentialsProvider {
   }
 
   private async getRemoteAsync(): Promise<AndroidCredentials> {
-    const setupBuildCredentialsAction = new SetupBuildCredentials({ app: this.options.app });
+    const setupBuildCredentialsAction = new SetUpBuildCredentials({ app: this.options.app });
     const buildCredentials = await setupBuildCredentialsAction.runAsync(this.ctx);
     return this.toAndroidCredentials(buildCredentials);
   }

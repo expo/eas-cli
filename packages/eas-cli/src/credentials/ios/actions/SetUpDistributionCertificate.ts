@@ -18,7 +18,7 @@ import { resolveAppleTeamIfAuthenticatedAsync } from './AppleTeamUtils';
 import { CreateDistributionCertificate } from './CreateDistributionCertificate';
 import { formatDistributionCertificate } from './DistributionCertificateUtils';
 
-export class SetupDistributionCertificate {
+export class SetUpDistributionCertificate {
   private validDistCerts?: AppleDistributionCertificateFragment[];
 
   constructor(private app: AppLookupParams, private distributionType: IosDistributionType) {}
