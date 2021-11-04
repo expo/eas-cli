@@ -115,6 +115,23 @@ describe(SetUpAscApiKey, () => {
     // expect configuration to be updated with a new ASC Api Key
     expect(asMock(ctx.ios.updateIosAppCredentialsAsync).mock.calls.length).toBe(1);
   });
+  it('works in Non Interactive Mode if ASC Key is configured', async () => {
+    const ctx = createCtxMock({
+      nonInteractive: true,
+      ios: {
+        ...getNewIosApiMock(),
+        getIosAppCredentialsWithCommonFieldsAsync: jest.fn(
+          () => testCommonIosAppCredentialsFragment
+        ),
+      },
+    });
+    const appLookupParams = getAppLookupParamsFromContext(ctx, findApplicationTarget(testTargets));
+    const setupAscApiKeyAction = new SetUpAscApiKey(
+      appLookupParams,
+      AppStoreApiKeyPurpose.SUBMISSION_SERVICE
+    );
+    await expect(setupAscApiKeyAction.runAsync(ctx)).resolves.not.toThrowError();
+  });
   it('errors in Non Interactive Mode', async () => {
     const ctx = createCtxMock({
       nonInteractive: true,

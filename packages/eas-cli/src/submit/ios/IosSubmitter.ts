@@ -1,6 +1,7 @@
 import { Platform } from '@expo/eas-build-job';
 import chalk from 'chalk';
 
+import { MinimalAscApiKey } from '../../credentials/ios/credentials';
 import { IosSubmissionConfigInput, SubmissionFragment } from '../../graphql/generated';
 import { SubmissionMutation } from '../../graphql/mutations/SubmissionMutation';
 import formatFields from '../../utils/formatFields';
@@ -15,7 +16,16 @@ import {
   AppSpecificPasswordSource,
   getAppSpecificPasswordAsync,
 } from './AppSpecificPasswordSource';
-import { AscApiKeyResult, AscApiKeySource, getAscApiKeyLocallyAsync } from './AscApiKeySource';
+import {
+  AscApiKeyFromExpoServers,
+  AscApiKeyResult,
+  AscApiKeySource,
+  getAscApiKeyLocallyAsync,
+} from './AscApiKeySource';
+import {
+  CredentialsServiceSource,
+  getFromCredentialsServiceAsync,
+} from './CredentialsServiceSource';
 
 export interface IosSubmissionOptions
   extends Pick<IosSubmissionConfigInput, 'appleIdUsername' | 'ascAppIdentifier'> {
@@ -23,6 +33,7 @@ export interface IosSubmissionOptions
   archiveSource: ArchiveSource;
   appSpecificPasswordSource?: AppSpecificPasswordSource;
   ascApiKeySource?: AscApiKeySource;
+  credentialsServiceSource?: CredentialsServiceSource;
 }
 
 interface ResolvedSourceOptions {
@@ -71,10 +82,14 @@ export default class IosSubmitter extends BaseSubmitter<Platform.IOS, IosSubmiss
     const maybeAppStoreConnectApiKey = this.options.ascApiKeySource
       ? await getAscApiKeyLocallyAsync(this.ctx, this.options.ascApiKeySource)
       : null;
+    const maybeAscOrAspFromCredentialsService = this.options.credentialsServiceSource
+      ? await getFromCredentialsServiceAsync(this.ctx)
+      : null;
     return {
       archive,
       ...(maybeAppSpecificPassword ? { appSpecificPassword: maybeAppSpecificPassword } : null),
       ...(maybeAppStoreConnectApiKey ? { ascApiKeyResult: maybeAppStoreConnectApiKey } : null),
+      ...(maybeAscOrAspFromCredentialsService ? maybeAscOrAspFromCredentialsService : null),
     };
   }
 
@@ -88,16 +103,22 @@ export default class IosSubmitter extends BaseSubmitter<Platform.IOS, IosSubmiss
       appleIdUsername,
       archiveUrl: archive.url,
       appleAppSpecificPassword: appSpecificPassword,
-      ...(ascApiKeyResult?.result
-        ? {
-            ascApiKey: {
-              keyP8: ascApiKeyResult?.result.keyP8,
-              keyIdentifier: ascApiKeyResult?.result.keyId,
-              issuerIdentifier: ascApiKeyResult?.result.issuerId,
-            },
-          }
-        : null),
+      ...(ascApiKeyResult?.result ? this.formatAscApiKeyResult(ascApiKeyResult.result) : null),
     };
+  }
+
+  private formatAscApiKeyResult(
+    result: MinimalAscApiKey | AscApiKeyFromExpoServers
+  ): Pick<IosSubmissionConfigInput, 'ascApiKey'> | Pick<IosSubmissionConfigInput, 'ascApiKeyId'> {
+    return 'ascApiKeyId' in result
+      ? { ascApiKeyId: result.ascApiKeyId }
+      : {
+          ascApiKey: {
+            keyP8: result.keyP8,
+            keyIdentifier: result.keyId,
+            issuerIdentifier: result.issuerId,
+          },
+        };
   }
 
   private prepareSummaryData(
@@ -111,9 +132,7 @@ export default class IosSubmitter extends BaseSubmitter<Platform.IOS, IosSubmiss
       ascAppIdentifier,
       appleIdUsername: appleIdUsername ?? undefined,
       projectId,
-      ...(ascApiKeyResult
-        ? { formattedAscApiKey: formatServiceAccountSummary(ascApiKeyResult) }
-        : null),
+      ...(ascApiKeyResult ? { formattedAscApiKey: formatAscApiKeySummary(ascApiKeyResult) } : null),
       ...formatArchiveSourceSummary(archive),
     };
   }
@@ -136,8 +155,8 @@ const SummaryHumanReadableKeys: Record<keyof SummaryData, string> = {
   formattedAscApiKey: 'App Store Connect Api Key',
 };
 
-function formatServiceAccountSummary({ summary }: AscApiKeyResult): string {
-  const { source, path, keyId } = summary;
+function formatAscApiKeySummary({ summary }: AscApiKeyResult): string {
+  const { source, path, keyId, name } = summary;
 
   const fields = [
     {
@@ -151,6 +170,10 @@ function formatServiceAccountSummary({ summary }: AscApiKeyResult): string {
     {
       label: 'Key ID',
       value: keyId,
+    },
+    {
+      label: 'Key Name',
+      value: name,
     },
   ];
 

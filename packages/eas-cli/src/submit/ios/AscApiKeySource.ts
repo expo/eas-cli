@@ -31,10 +31,15 @@ type AscApiKeySummary = {
   source: 'local' | 'EAS servers';
   path?: string;
   keyId: string;
+  name?: string;
+};
+
+export type AscApiKeyFromExpoServers = {
+  ascApiKeyId: string;
 };
 
 export type AscApiKeyResult = {
-  result: MinimalAscApiKey;
+  result: MinimalAscApiKey | AscApiKeyFromExpoServers;
   summary: AscApiKeySummary;
 };
 
