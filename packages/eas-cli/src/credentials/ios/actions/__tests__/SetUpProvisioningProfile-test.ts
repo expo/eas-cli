@@ -20,7 +20,7 @@ import { SetUpProvisioningProfile } from '../SetUpProvisioningProfile';
 
 jest.mock('../../../../prompts');
 asMock(confirmAsync).mockImplementation(() => true);
-jest.mock('../SetupDistributionCertificate');
+jest.mock('../SetUpDistributionCertificate');
 jest.mock('../ConfigureProvisioningProfile');
 jest.mock('../CreateProvisioningProfile');
 jest.mock('../../validators/validateProvisioningProfile');
