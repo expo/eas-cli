@@ -11,6 +11,7 @@ This is the log of notable changes to EAS CLI and related packages.
 - Add ASC Api Key generation workflow. ([#718](https://github.com/expo/eas-cli/pull/718) by [@quinlanj](https://github.com/quinlanj))
 - Add support for removal of App Store Connect Api Keys. ([#721](https://github.com/expo/eas-cli/pull/721) by [@quinlanj](https://github.com/quinlanj))
 - Allow users to assign an ASC Api Key to their project. ([#719](https://github.com/expo/eas-cli/pull/719) by [@quinlanj](https://github.com/quinlanj))
+- Add setup support for ASC Api Keys. ([#733](https://github.com/expo/eas-cli/pull/733) by [@quinlanj](https://github.com/quinlanj))
 
 ### 🐛 Bug fixes
 
