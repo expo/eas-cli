@@ -80,8 +80,8 @@ export function getPushKeyActions(ctx: CredentialsContext): ActionInfo[] {
 export function getAscApiKeyActions(ctx: CredentialsContext): ActionInfo[] {
   return [
     {
-      value: IosActionType.SetupAscApiKeyForSubmissions,
-      title: 'Setup your project to use an Api Key for EAS Submit',
+      value: IosActionType.SetUpAscApiKeyForSubmissions,
+      title: 'Set up your project to use an Api Key for EAS Submit',
       scope: Scope.Project,
     },
     {

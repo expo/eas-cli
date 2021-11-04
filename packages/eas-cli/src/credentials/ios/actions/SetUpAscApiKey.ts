@@ -26,7 +26,7 @@ import { CreateAscApiKey } from './CreateAscApiKey';
 
 const GENERATE = 'GENERATE';
 export const USE_EXISTING = 'USE_EXISTING';
-export class SetupAscApiKey {
+export class SetUpAscApiKey {
   public choices: { title: string; value: string }[] = [
     {
       title: '[Choose an existing key]',

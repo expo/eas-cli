@@ -36,11 +36,11 @@ import { SelectAndRemoveDistributionCertificate } from '../ios/actions/RemoveDis
 import { RemoveProvisioningProfiles } from '../ios/actions/RemoveProvisioningProfile';
 import { SelectAndRemovePushKey } from '../ios/actions/RemovePushKey';
 import { SetupAdhocProvisioningProfile } from '../ios/actions/SetupAdhocProvisioningProfile';
-import { SetupAscApiKey } from '../ios/actions/SetupAscApiKey';
 import { SetupBuildCredentials } from '../ios/actions/SetupBuildCredentials';
 import { SetupBuildCredentialsFromCredentialsJson } from '../ios/actions/SetupBuildCredentialsFromCredentialsJson';
 import { SetupProvisioningProfile } from '../ios/actions/SetupProvisioningProfile';
 import { SetupPushKey } from '../ios/actions/SetupPushKey';
+import { SetUpAscApiKey } from '../ios/actions/SetUpAscApiKey';
 import { UpdateCredentialsJson } from '../ios/actions/UpdateCredentialsJson';
 import { AppLookupParams } from '../ios/api/GraphqlClient';
 import { getManagedEntitlementsJsonAsync } from '../ios/appstore/entitlements';
@@ -334,8 +334,8 @@ export class ManageIos {
         }
         return;
       }
-      case IosActionType.SetupAscApiKeyForSubmissions: {
-        await new SetupAscApiKey(
+      case IosActionType.SetUpAscApiKeyForSubmissions: {
+        await new SetUpAscApiKey(
           appLookupParams,
           AppStoreApiKeyPurpose.SUBMISSION_SERVICE
         ).runAsync(ctx);

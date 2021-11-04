@@ -12,12 +12,12 @@ import {
 } from '../../../__tests__/fixtures-ios';
 import { AppStoreApiKeyPurpose } from '../AscApiKeyUtils';
 import { getAppLookupParamsFromContext } from '../BuildCredentialsUtils';
-import { SetupAscApiKey, USE_EXISTING } from '../SetupAscApiKey';
+import { SetUpAscApiKey, USE_EXISTING } from '../SetUpAscApiKey';
 
 jest.mock('../../../../prompts');
 asMock(confirmAsync).mockImplementation(() => true);
 
-describe(SetupAscApiKey, () => {
+describe(SetUpAscApiKey, () => {
   it('skips setting up a App Store Connect Api Key if it is already configured', async () => {
     const ctx = createCtxMock({
       nonInteractive: false,
@@ -29,7 +29,7 @@ describe(SetupAscApiKey, () => {
       },
     });
     const appLookupParams = getAppLookupParamsFromContext(ctx, findApplicationTarget(testTargets));
-    const setupAscApiKeyAction = new SetupAscApiKey(
+    const setupAscApiKeyAction = new SetUpAscApiKey(
       appLookupParams,
       AppStoreApiKeyPurpose.SUBMISSION_SERVICE
     );
@@ -54,7 +54,7 @@ describe(SetupAscApiKey, () => {
       },
     });
     const appLookupParams = getAppLookupParamsFromContext(ctx, findApplicationTarget(testTargets));
-    const setupAscApiKeyAction = new SetupAscApiKey(
+    const setupAscApiKeyAction = new SetUpAscApiKey(
       appLookupParams,
       AppStoreApiKeyPurpose.SUBMISSION_SERVICE
     );
@@ -80,7 +80,7 @@ describe(SetupAscApiKey, () => {
       },
     });
     const appLookupParams = getAppLookupParamsFromContext(ctx, findApplicationTarget(testTargets));
-    const setupAscApiKeyAction = new SetupAscApiKey(
+    const setupAscApiKeyAction = new SetUpAscApiKey(
       appLookupParams,
       AppStoreApiKeyPurpose.SUBMISSION_SERVICE
     );
@@ -104,7 +104,7 @@ describe(SetupAscApiKey, () => {
       chosenAscApiKey: testAscApiKeyFragment,
     }));
     const appLookupParams = getAppLookupParamsFromContext(ctx, findApplicationTarget(testTargets));
-    const setupAscApiKeyAction = new SetupAscApiKey(
+    const setupAscApiKeyAction = new SetUpAscApiKey(
       appLookupParams,
       AppStoreApiKeyPurpose.SUBMISSION_SERVICE
     );
@@ -120,7 +120,7 @@ describe(SetupAscApiKey, () => {
       nonInteractive: true,
     });
     const appLookupParams = getAppLookupParamsFromContext(ctx, findApplicationTarget(testTargets));
-    const createAscApiKeyAction = new SetupAscApiKey(
+    const createAscApiKeyAction = new SetUpAscApiKey(
       appLookupParams,
       AppStoreApiKeyPurpose.SUBMISSION_SERVICE
     );
