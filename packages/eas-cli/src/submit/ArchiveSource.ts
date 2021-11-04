@@ -288,6 +288,7 @@ function formatBuildChoice(build: BuildFragment, expiryDate: Date): prompts.Choi
     buildProfile,
     appBuildVersion,
     releaseChannel,
+    initiatingActor,
   } = build;
 
   const formatValue = (field?: string | null): string =>
@@ -310,6 +311,7 @@ function formatBuildChoice(build: BuildFragment, expiryDate: Date): prompts.Choi
       .filter(it => it != null)
       .join(', '),
     `\tProfile: ${formatValue(buildProfile)}, Release channel: ${formatValue(releaseChannel)}`,
+    `\tAuthored by: ${formatValue(initiatingActor?.displayName)}`,
   ].join('\n');
 
   return {

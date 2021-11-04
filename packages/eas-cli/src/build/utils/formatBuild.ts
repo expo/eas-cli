@@ -120,11 +120,5 @@ export function formatGraphQLBuild(build: BuildFragment): string {
 }
 
 const getActorName = (build: BuildFragment): string => {
-  if (!build.initiatingActor) {
-    return 'unknown';
-  } else if (build.initiatingActor.__typename === 'User') {
-    return build.initiatingActor.username;
-  } else {
-    return build.initiatingActor.firstName ?? 'unknown';
-  }
+  return build.initiatingActor?.displayName || 'unknown';
 };

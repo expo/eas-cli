@@ -17,12 +17,7 @@ export const BuildFragmentNode = gql`
     initiatingActor {
       __typename
       id
-      ... on User {
-        username
-      }
-      ... on Robot {
-        firstName
-      }
+      displayName
     }
     project {
       __typename
