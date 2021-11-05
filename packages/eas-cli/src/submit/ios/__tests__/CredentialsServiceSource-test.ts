@@ -54,6 +54,7 @@ describe(getFromCredentialsServiceAsync, () => {
       .spyOn(SetUpSubmissionCredentials.prototype, 'runAsync')
       .mockImplementation(async _ctx => 'super secret');
     asMock(getBundleIdentifierAsync).mockImplementation(() => 'com.hello.world');
+
     const result = await getFromCredentialsServiceAsync(ctx);
     expect(result).toEqual({
       appSpecificPassword: 'super secret',
@@ -76,6 +77,7 @@ describe(getFromCredentialsServiceAsync, () => {
       .spyOn(SetUpSubmissionCredentials.prototype, 'runAsync')
       .mockImplementation(async _ctx => testCommonIosAppCredentialsFragment);
     asMock(getBundleIdentifierAsync).mockImplementation(() => 'com.hello.world');
+
     const result = await getFromCredentialsServiceAsync(ctx);
     expect(result).toEqual({
       ascApiKeyResult: {

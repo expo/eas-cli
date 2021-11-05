@@ -160,20 +160,20 @@ function formatAscApiKeySummary({ summary }: AscApiKeyResult): string {
 
   const fields = [
     {
-      label: 'Key Source',
-      value: source,
-    },
-    {
-      label: 'Key Path',
-      value: path,
+      label: 'Key Name',
+      value: name,
     },
     {
       label: 'Key ID',
       value: keyId,
     },
     {
-      label: 'Key Name',
-      value: name,
+      label: 'Key Source',
+      value: source,
+    },
+    {
+      label: 'Key Path',
+      value: path,
     },
   ];
 
