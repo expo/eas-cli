@@ -36,7 +36,7 @@ export const credentialsJsonActions: ActionInfo[] = [
     scope: Scope.Project,
   },
   {
-    value: IosActionType.SetupBuildCredentialsFromCredentialsJson,
+    value: IosActionType.SetUpBuildCredentialsFromCredentialsJson,
     title: 'Upload credentials from credentials.json to EAS',
     scope: Scope.Project,
   },
@@ -50,8 +50,8 @@ export const credentialsJsonActions: ActionInfo[] = [
 export function getPushKeyActions(ctx: CredentialsContext): ActionInfo[] {
   return [
     {
-      value: IosActionType.SetupPushKey,
-      title: 'Setup your project to use Push Notifications',
+      value: IosActionType.SetUpPushKey,
+      title: 'Set up your project to use Push Notifications',
       scope: Scope.Project,
     },
     {
@@ -112,7 +112,7 @@ export function getBuildCredentialsActions(ctx: CredentialsContext): ActionInfo[
     {
       // This command will be triggered during build to ensure all credentials are ready
       // I'm leaving it here for now to simplify testing
-      value: IosActionType.SetupBuildCredentials,
+      value: IosActionType.SetUpBuildCredentials,
       title: 'All: Set up all the required credentials to build your project',
       scope: Scope.Project,
     },

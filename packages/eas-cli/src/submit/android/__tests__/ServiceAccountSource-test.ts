@@ -6,7 +6,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { asMock } from '../../../__tests__/utils';
 import { testAndroidAppCredentialsFragment } from '../../../credentials/__tests__/fixtures-android';
 import { jester as mockJester } from '../../../credentials/__tests__/fixtures-constants';
-import { SetupGoogleServiceAccountKey } from '../../../credentials/android/actions/SetupGoogleServiceAccountKey';
+import { SetUpGoogleServiceAccountKey } from '../../../credentials/android/actions/SetUpGoogleServiceAccountKey';
 import { createTestProject } from '../../../project/__tests__/project-utils';
 import { promptAsync } from '../../../prompts';
 import { createSubmissionContextAsync } from '../../context';
@@ -20,7 +20,7 @@ import {
 jest.mock('fs');
 jest.mock('../../../prompts');
 jest.mock('../../../project/projectUtils');
-jest.mock('../../../credentials/android/actions/SetupGoogleServiceAccountKey');
+jest.mock('../../../credentials/android/actions/SetUpGoogleServiceAccountKey');
 jest.mock('../../../user/User', () => ({
   getUserAsync: jest.fn(() => mockJester),
 }));
@@ -52,7 +52,7 @@ beforeAll(() => {
     '/other_dir/invalid_file.txt': 'this is not even a JSON',
   });
   jest
-    .spyOn(SetupGoogleServiceAccountKey.prototype, 'runAsync')
+    .spyOn(SetUpGoogleServiceAccountKey.prototype, 'runAsync')
     .mockImplementation(async () => testAndroidAppCredentialsFragment);
 });
 afterAll(() => {

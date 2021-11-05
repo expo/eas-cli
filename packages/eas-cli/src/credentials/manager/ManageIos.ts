@@ -35,12 +35,12 @@ import { SelectAndRemoveAscApiKey } from '../ios/actions/RemoveAscApiKey';
 import { SelectAndRemoveDistributionCertificate } from '../ios/actions/RemoveDistributionCertificate';
 import { RemoveProvisioningProfiles } from '../ios/actions/RemoveProvisioningProfile';
 import { SelectAndRemovePushKey } from '../ios/actions/RemovePushKey';
+import { SetUpAdhocProvisioningProfile } from '../ios/actions/SetUpAdhocProvisioningProfile';
 import { SetUpAscApiKey } from '../ios/actions/SetUpAscApiKey';
-import { SetupAdhocProvisioningProfile } from '../ios/actions/SetupAdhocProvisioningProfile';
-import { SetupBuildCredentials } from '../ios/actions/SetupBuildCredentials';
-import { SetupBuildCredentialsFromCredentialsJson } from '../ios/actions/SetupBuildCredentialsFromCredentialsJson';
-import { SetupProvisioningProfile } from '../ios/actions/SetupProvisioningProfile';
-import { SetupPushKey } from '../ios/actions/SetupPushKey';
+import { SetUpBuildCredentials } from '../ios/actions/SetUpBuildCredentials';
+import { SetUpBuildCredentialsFromCredentialsJson } from '../ios/actions/SetUpBuildCredentialsFromCredentialsJson';
+import { SetUpProvisioningProfile } from '../ios/actions/SetUpProvisioningProfile';
+import { SetUpPushKey } from '../ios/actions/SetUpPushKey';
 import { UpdateCredentialsJson } from '../ios/actions/UpdateCredentialsJson';
 import { AppLookupParams } from '../ios/api/GraphqlClient';
 import { getManagedEntitlementsJsonAsync } from '../ios/appstore/entitlements';
@@ -222,8 +222,8 @@ export class ManageIos {
     buildProfile: IosBuildProfile,
     action: IosActionType
   ): Promise<void> {
-    if (action === IosActionType.SetupBuildCredentials) {
-      await new SetupBuildCredentials({
+    if (action === IosActionType.SetUpBuildCredentials) {
+      await new SetUpBuildCredentials({
         app,
         targets,
         distribution: buildProfile.distribution,
@@ -239,8 +239,8 @@ export class ManageIos {
       buildProfile
     ).runAsync(ctx);
 
-    if (action === IosActionType.SetupBuildCredentialsFromCredentialsJson) {
-      await new SetupBuildCredentialsFromCredentialsJson(app, targets, distributionType).runAsync(
+    if (action === IosActionType.SetUpBuildCredentialsFromCredentialsJson) {
+      await new SetUpBuildCredentialsFromCredentialsJson(app, targets, distributionType).runAsync(
         ctx
       );
       return;
@@ -305,15 +305,15 @@ export class ManageIos {
         }
         return;
       }
-      case IosActionType.SetupPushKey: {
-        const setupPushKeyAction = await new SetupPushKey(appLookupParams);
+      case IosActionType.SetUpPushKey: {
+        const setupPushKeyAction = await new SetUpPushKey(appLookupParams);
         const isPushKeySetup = await setupPushKeyAction.isPushKeySetupAsync(ctx);
         if (isPushKeySetup) {
           Log.log(
             `Push Key is already set up for ${appLookupParams.projectName} ${appLookupParams.bundleIdentifier}`
           );
         } else {
-          await new SetupPushKey(appLookupParams).runAsync(ctx);
+          await new SetUpPushKey(appLookupParams).runAsync(ctx);
         }
         return;
       }
@@ -385,11 +385,11 @@ export class ManageIos {
     Log.log(`Setting up ${appLookupParams.projectName} to use Distribution Certificate`);
     Log.log(`Creating provisioning profile...`);
     if (distributionType === IosDistributionTypeGraphql.AdHoc) {
-      return await new SetupAdhocProvisioningProfile(
+      return await new SetUpAdhocProvisioningProfile(
         appLookupParams
       ).runWithDistributionCertificateAsync(ctx, distCert);
     } else {
-      return await new SetupProvisioningProfile(
+      return await new SetUpProvisioningProfile(
         appLookupParams,
         distributionType
       ).createAndAssignProfileAsync(ctx, distCert);

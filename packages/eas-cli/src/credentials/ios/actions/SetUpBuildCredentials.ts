@@ -7,7 +7,7 @@ import { CredentialsContext } from '../../context';
 import { IosCapabilitiesOptions } from '../appstore/ensureAppExists';
 import { App, IosAppBuildCredentialsMap, IosCredentials, Target } from '../types';
 import { displayProjectCredentials } from '../utils/printCredentials';
-import { SetupTargetBuildCredentials } from './SetupTargetBuildCredentials';
+import { SetUpTargetBuildCredentials } from './SetUpTargetBuildCredentials';
 
 interface Options {
   app: App;
@@ -17,7 +17,7 @@ interface Options {
   iosCapabilitiesOptions?: IosCapabilitiesOptions;
 }
 
-export class SetupBuildCredentials {
+export class SetUpBuildCredentials {
   constructor(private options: Options) {}
 
   async runAsync(ctx: CredentialsContext): Promise<IosCredentials> {
@@ -49,7 +49,7 @@ export class SetupBuildCredentials {
       } else {
         Log.newLine();
       }
-      const action = new SetupTargetBuildCredentials({
+      const action = new SetUpTargetBuildCredentials({
         ...this.options,
         app: {
           ...this.options.app,

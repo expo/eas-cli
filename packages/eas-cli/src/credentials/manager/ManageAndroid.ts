@@ -25,8 +25,8 @@ import { DownloadKeystore } from '../android/actions/DownloadKeystore';
 import { RemoveFcm } from '../android/actions/RemoveFcm';
 import { SelectAndRemoveGoogleServiceAccountKey } from '../android/actions/RemoveGoogleServiceAccountKey';
 import { RemoveKeystore } from '../android/actions/RemoveKeystore';
-import { SetupBuildCredentialsFromCredentialsJson } from '../android/actions/SetupBuildCredentialsFromCredentialsJson';
-import { SetupGoogleServiceAccountKey } from '../android/actions/SetupGoogleServiceAccountKey';
+import { SetUpBuildCredentialsFromCredentialsJson } from '../android/actions/SetUpBuildCredentialsFromCredentialsJson';
+import { SetUpGoogleServiceAccountKey } from '../android/actions/SetUpGoogleServiceAccountKey';
 import { UpdateCredentialsJson } from '../android/actions/UpdateCredentialsJson';
 import { UseExistingGoogleServiceAccountKey } from '../android/actions/UseExistingGoogleServiceAccountKey';
 import {
@@ -228,8 +228,8 @@ export class ManageAndroid {
       }
     } else if (action === AndroidActionType.RemoveGsaKey) {
       await new SelectAndRemoveGoogleServiceAccountKey(appLookupParams.account).runAsync(ctx);
-    } else if (action === AndroidActionType.SetupGsaKey) {
-      await new SetupGoogleServiceAccountKey(appLookupParams).runAsync(ctx);
+    } else if (action === AndroidActionType.SetUpGsaKey) {
+      await new SetUpGoogleServiceAccountKey(appLookupParams).runAsync(ctx);
     } else if (action === AndroidActionType.UpdateCredentialsJson) {
       const buildCredentials = await new SelectExistingAndroidBuildCredentials(
         appLookupParams
@@ -237,8 +237,8 @@ export class ManageAndroid {
       if (buildCredentials) {
         await new UpdateCredentialsJson().runAsync(ctx, buildCredentials);
       }
-    } else if (action === AndroidActionType.SetupBuildCredentialsFromCredentialsJson) {
-      await new SetupBuildCredentialsFromCredentialsJson(appLookupParams).runAsync(ctx);
+    } else if (action === AndroidActionType.SetUpBuildCredentialsFromCredentialsJson) {
+      await new SetUpBuildCredentialsFromCredentialsJson(appLookupParams).runAsync(ctx);
     }
   }
 }

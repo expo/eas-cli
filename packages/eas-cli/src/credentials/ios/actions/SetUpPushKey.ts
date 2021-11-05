@@ -14,7 +14,7 @@ import {
   selectPushKeyAsync,
 } from './PushKeyUtils';
 
-export class SetupPushKey {
+export class SetUpPushKey {
   constructor(private app: AppLookupParams) {}
 
   async isPushKeySetupAsync(ctx: CredentialsContext): Promise<boolean> {

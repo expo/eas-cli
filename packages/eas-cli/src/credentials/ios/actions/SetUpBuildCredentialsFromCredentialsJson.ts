@@ -8,9 +8,9 @@ import { readIosCredentialsAsync } from '../../credentialsJson/read';
 import { IosCredentials } from '../../credentialsJson/types';
 import { ensureAllTargetsAreConfigured } from '../../credentialsJson/utils';
 import { App, Target } from '../types';
-import { SetupTargetBuildCredentialsFromCredentialsJson } from './SetupTargetBuildCredentialsFromCredentialsJson';
+import { SetUpTargetBuildCredentialsFromCredentialsJson } from './SetUpTargetBuildCredentialsFromCredentialsJson';
 
-export class SetupBuildCredentialsFromCredentialsJson {
+export class SetUpBuildCredentialsFromCredentialsJson {
   constructor(
     private app: App,
     private targets: Target[],
@@ -32,7 +32,7 @@ export class SetupBuildCredentialsFromCredentialsJson {
         );
         Log.newLine();
       }
-      await new SetupTargetBuildCredentialsFromCredentialsJson(
+      await new SetUpTargetBuildCredentialsFromCredentialsJson(
         {
           account: this.app.account,
           projectName: this.app.projectName,

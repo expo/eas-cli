@@ -10,7 +10,7 @@ import {
 import { createCtxMock } from '../../../__tests__/fixtures-context';
 import { MissingCredentialsNonInteractiveError } from '../../../errors';
 import { getAppLookupParamsFromContextAsync } from '../BuildCredentialsUtils';
-import { SetupGoogleServiceAccountKey } from '../SetupGoogleServiceAccountKey';
+import { SetUpGoogleServiceAccountKey } from '../SetUpGoogleServiceAccountKey';
 
 jest.mock('../../../../prompts');
 jest.mock('fs');
@@ -22,7 +22,7 @@ beforeEach(() => {
   vol.reset();
 });
 
-describe(SetupGoogleServiceAccountKey, () => {
+describe(SetUpGoogleServiceAccountKey, () => {
   it('skips setup when there is a Google Service Account Key already assigned to the project', async () => {
     const ctx = createCtxMock({
       nonInteractive: false,
@@ -34,7 +34,7 @@ describe(SetupGoogleServiceAccountKey, () => {
       },
     });
     const appLookupParams = await getAppLookupParamsFromContextAsync(ctx);
-    const setupGoogleServiceAccountKeyAction = new SetupGoogleServiceAccountKey(appLookupParams);
+    const setupGoogleServiceAccountKeyAction = new SetUpGoogleServiceAccountKey(appLookupParams);
     await setupGoogleServiceAccountKeyAction.runAsync(ctx);
 
     expect(ctx.android.createGoogleServiceAccountKeyAsync).not.toHaveBeenCalled();
@@ -57,7 +57,7 @@ describe(SetupGoogleServiceAccountKey, () => {
       },
     });
     const appLookupParams = await getAppLookupParamsFromContextAsync(ctx);
-    const setupGoogleServiceAccountKeyAction = new SetupGoogleServiceAccountKey(appLookupParams);
+    const setupGoogleServiceAccountKeyAction = new SetUpGoogleServiceAccountKey(appLookupParams);
     await setupGoogleServiceAccountKeyAction.runAsync(ctx);
 
     expect(ctx.android.createGoogleServiceAccountKeyAsync).toHaveBeenCalledTimes(1);
@@ -68,7 +68,7 @@ describe(SetupGoogleServiceAccountKey, () => {
       nonInteractive: true,
     });
     const appLookupParams = await getAppLookupParamsFromContextAsync(ctx);
-    const setupGoogleServiceAccountKeyAction = new SetupGoogleServiceAccountKey(appLookupParams);
+    const setupGoogleServiceAccountKeyAction = new SetUpGoogleServiceAccountKey(appLookupParams);
     await expect(setupGoogleServiceAccountKeyAction.runAsync(ctx)).rejects.toThrowError(
       MissingCredentialsNonInteractiveError
     );

@@ -9,8 +9,8 @@ import { CredentialsContext } from '../context';
 import * as credentialsJsonReader from '../credentialsJson/read';
 import { ensureAllTargetsAreConfigured } from '../credentialsJson/utils';
 import { getAppFromContext } from './actions/BuildCredentialsUtils';
-import { SetupBuildCredentials } from './actions/SetupBuildCredentials';
-import { SetupPushKey } from './actions/SetupPushKey';
+import { SetUpBuildCredentials } from './actions/SetUpBuildCredentials';
+import { SetUpPushKey } from './actions/SetUpPushKey';
 import { IosCapabilitiesOptions } from './appstore/ensureAppExists';
 import { App, IosCredentials, Target } from './types';
 import { isAdHocProfile } from './utils/provisioningProfile';
@@ -58,7 +58,7 @@ export default class IosCredentialsProvider {
   }
 
   private async getRemoteAsync(): Promise<IosCredentials> {
-    return await new SetupBuildCredentials({
+    return await new SetUpBuildCredentials({
       app: this.options.app,
       targets: this.options.targets,
       distribution: this.options.distribution,
@@ -83,7 +83,7 @@ export default class IosCredentialsProvider {
       parentBundleIdentifier: applicationTarget.parentBundleIdentifier,
     };
 
-    const setupPushKeyAction = new SetupPushKey(appLookupParams);
+    const setupPushKeyAction = new SetUpPushKey(appLookupParams);
     const isPushKeySetup = await setupPushKeyAction.isPushKeySetupAsync(ctx);
     if (isPushKeySetup) {
       Log.succeed(

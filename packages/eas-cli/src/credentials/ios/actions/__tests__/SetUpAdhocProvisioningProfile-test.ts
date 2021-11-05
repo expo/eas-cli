@@ -1,4 +1,4 @@
-import { doUDIDsMatch } from '../SetupAdhocProvisioningProfile';
+import { doUDIDsMatch } from '../SetUpAdhocProvisioningProfile';
 
 describe(doUDIDsMatch, () => {
   it('return false if UDIDs do not match', () => {

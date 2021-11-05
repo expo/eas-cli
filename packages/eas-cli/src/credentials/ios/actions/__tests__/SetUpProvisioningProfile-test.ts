@@ -16,16 +16,16 @@ import {
 import { MissingCredentialsNonInteractiveError } from '../../../errors';
 import { validateProvisioningProfileAsync } from '../../validators/validateProvisioningProfile';
 import { getAppLookupParamsFromContext } from '../BuildCredentialsUtils';
-import { SetupProvisioningProfile } from '../SetupProvisioningProfile';
+import { SetUpProvisioningProfile } from '../SetUpProvisioningProfile';
 
 jest.mock('../../../../prompts');
 asMock(confirmAsync).mockImplementation(() => true);
-jest.mock('../SetupDistributionCertificate');
+jest.mock('../SetUpDistributionCertificate');
 jest.mock('../ConfigureProvisioningProfile');
 jest.mock('../CreateProvisioningProfile');
 jest.mock('../../validators/validateProvisioningProfile');
 
-describe('SetupProvisioningProfile', () => {
+describe('SetUpProvisioningProfile', () => {
   it('repairs existing Provisioning Profile with bad build credentials in Interactive Mode', async () => {
     asMock(validateProvisioningProfileAsync).mockImplementation(() => false);
     const ctx = createCtxMock({
@@ -54,7 +54,7 @@ describe('SetupProvisioningProfile', () => {
       },
     });
     const appLookupParams = getAppLookupParamsFromContext(ctx, findApplicationTarget(testTargets));
-    const setupProvisioningProfileAction = new SetupProvisioningProfile(
+    const setupProvisioningProfileAction = new SetUpProvisioningProfile(
       appLookupParams,
       IosDistributionType.AppStore
     );
@@ -84,7 +84,7 @@ describe('SetupProvisioningProfile', () => {
       },
     });
     const appLookupParams = getAppLookupParamsFromContext(ctx, findApplicationTarget(testTargets));
-    const setupProvisioningProfileAction = new SetupProvisioningProfile(
+    const setupProvisioningProfileAction = new SetUpProvisioningProfile(
       appLookupParams,
       IosDistributionType.AppStore
     );
@@ -114,7 +114,7 @@ describe('SetupProvisioningProfile', () => {
       },
     });
     const appLookupParams = getAppLookupParamsFromContext(ctx, findApplicationTarget(testTargets));
-    const setupProvisioningProfileAction = new SetupProvisioningProfile(
+    const setupProvisioningProfileAction = new SetUpProvisioningProfile(
       appLookupParams,
       IosDistributionType.AppStore
     );
@@ -140,7 +140,7 @@ describe('SetupProvisioningProfile', () => {
       },
     });
     const appLookupParams = getAppLookupParamsFromContext(ctx, findApplicationTarget(testTargets));
-    const setupProvisioningProfileAction = new SetupProvisioningProfile(
+    const setupProvisioningProfileAction = new SetUpProvisioningProfile(
       appLookupParams,
       IosDistributionType.AppStore
     );
@@ -157,7 +157,7 @@ describe('SetupProvisioningProfile', () => {
       nonInteractive: true,
     });
     const appLookupParams = getAppLookupParamsFromContext(ctx, findApplicationTarget(testTargets));
-    const setupProvisioningProfileAction = new SetupProvisioningProfile(
+    const setupProvisioningProfileAction = new SetUpProvisioningProfile(
       appLookupParams,
       IosDistributionType.AppStore
     );

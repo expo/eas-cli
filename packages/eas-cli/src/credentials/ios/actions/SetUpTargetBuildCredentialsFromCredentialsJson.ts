@@ -22,7 +22,7 @@ import {
   getProvisioningProfileAsync,
 } from './BuildCredentialsUtils';
 
-export class SetupTargetBuildCredentialsFromCredentialsJson {
+export class SetUpTargetBuildCredentialsFromCredentialsJson {
   constructor(
     private app: AppLookupParams,
     private distributionType: IosDistributionType,

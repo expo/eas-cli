@@ -3,7 +3,7 @@ import chalk from 'chalk';
 import fs from 'fs-extra';
 import nullthrows from 'nullthrows';
 
-import { SetupGoogleServiceAccountKey } from '../../credentials/android/actions/SetupGoogleServiceAccountKey';
+import { SetUpGoogleServiceAccountKey } from '../../credentials/android/actions/SetUpGoogleServiceAccountKey';
 import { readAndValidateServiceAccountKey } from '../../credentials/android/utils/googleServiceAccountKey';
 import Log, { learnMore } from '../../log';
 import { promptAsync } from '../../prompts';
@@ -109,7 +109,7 @@ export async function getServiceAccountFromCredentialsServiceAsync(
     projectName: ctx.projectName,
     androidApplicationIdentifier,
   };
-  const setupGoogleServiceAccountKeyAction = new SetupGoogleServiceAccountKey(appLookupParams);
+  const setupGoogleServiceAccountKeyAction = new SetUpGoogleServiceAccountKey(appLookupParams);
   const androidAppCredentials = await setupGoogleServiceAccountKeyAction.runAsync(
     ctx.credentialsCtx
   );

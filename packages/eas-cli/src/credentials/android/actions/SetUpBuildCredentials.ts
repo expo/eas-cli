@@ -25,7 +25,7 @@ interface Options {
  * Sets up Build Credentials for Android
  * @name: sets up build credentials for the specified configuration. If no name is specified, the default configuration is setup
  */
-export class SetupBuildCredentials {
+export class SetUpBuildCredentials {
   constructor(private options: Options) {}
 
   async runAsync(ctx: CredentialsContext): Promise<AndroidAppBuildCredentialsFragment> {
