@@ -163,29 +163,42 @@ async function getBestEffortIssuerIdAsync(
   return ascApiKeyInfo?.issuerId ?? null;
 }
 
+export async function getAscApiKeysFromAccountAsync(
+  ctx: CredentialsContext,
+  account: Account,
+  { filterDifferentAppleTeam }: { filterDifferentAppleTeam?: boolean } = {}
+): Promise<AppStoreConnectApiKeyFragment[]> {
+  const ascApiKeysForAccount = await ctx.ios.getAscApiKeysForAccountAsync(account);
+
+  if (!filterDifferentAppleTeam) {
+    return ascApiKeysForAccount;
+  } else {
+    return filterKeysFromDifferentAppleTeam(ctx, ascApiKeysForAccount);
+  }
+}
+
 export async function selectAscApiKeysFromAccountAsync(
   ctx: CredentialsContext,
   account: Account,
-  filterDifferentAppleTeam: boolean = false
+  { filterDifferentAppleTeam }: { filterDifferentAppleTeam?: boolean } = {}
 ): Promise<AppStoreConnectApiKeyFragment | null> {
-  const ascApiKeysForAccount = await ctx.ios.getAscApiKeysForAccountAsync(account);
+  const ascApiKeysForAccount = await getAscApiKeysFromAccountAsync(ctx, account, {
+    filterDifferentAppleTeam,
+  });
   if (ascApiKeysForAccount.length === 0) {
-    Log.warn(`There are no App Store Connect Api Keys available in your EAS account.`);
+    if (filterDifferentAppleTeam) {
+      const maybeAppleTeamId = ctx.appStore.authCtx?.team.id;
+      Log.warn(
+        `There are no App Store Connect Api Keys in your EAS account${
+          maybeAppleTeamId ? ` matching Apple Team ID: ${maybeAppleTeamId}.` : '.'
+        }`
+      );
+    } else {
+      Log.warn(`There are no App Store Connect Api Keys available in your EAS account.`);
+    }
     return null;
   }
-
-  if (!filterDifferentAppleTeam) {
-    return selectAscApiKeysAsync(ascApiKeysForAccount);
-  }
-
-  const filteredKeys = filterKeysFromDifferentAppleTeam(ctx, ascApiKeysForAccount);
-  if (filteredKeys.length === 0) {
-    Log.warn(
-      `There are no App Store Connect Api Keys in your EAS account matching Apple Team ID: ${ctx.appStore.authCtx?.team.id}`
-    );
-    return null;
-  }
-  return selectAscApiKeysAsync(filteredKeys);
+  return selectAscApiKeysAsync(ascApiKeysForAccount);
 }
 
 async function selectAscApiKeysAsync(
@@ -212,10 +225,10 @@ function filterKeysFromDifferentAppleTeam(
     return keys;
   }
   const teamId = ctx.appStore.authCtx.team.id;
-  return keys.filter(key => !key.appleTeam || key.appleTeam?.id === teamId);
+  return keys.filter(key => !key.appleTeam || key.appleTeam?.appleTeamIdentifier === teamId);
 }
 
-function sortAscApiKeysByUpdatedAtDesc(
+export function sortAscApiKeysByUpdatedAtDesc(
   keys: AppStoreConnectApiKeyFragment[]
 ): AppStoreConnectApiKeyFragment[] {
   return keys.sort(
@@ -223,7 +236,7 @@ function sortAscApiKeysByUpdatedAtDesc(
   );
 }
 
-function formatAscApiKey(ascApiKey: AppStoreConnectApiKeyFragment): string {
+export function formatAscApiKey(ascApiKey: AppStoreConnectApiKeyFragment): string {
   const { keyIdentifier, appleTeam, name, updatedAt } = ascApiKey;
   let line: string = '';
   line += `Key ID: ${keyIdentifier}`;

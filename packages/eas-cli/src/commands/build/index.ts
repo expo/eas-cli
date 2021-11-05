@@ -14,7 +14,7 @@ import { BuildContext, createBuildContextAsync } from '../../build/context';
 import { prepareIosBuildAsync } from '../../build/ios/build';
 import { ensureExpoDevClientInstalledForDevClientBuildsAsync } from '../../build/utils/devClient';
 import { printBuildResults, printLogsUrls } from '../../build/utils/printBuildInfo';
-import { ensureRepoIsCleanAsync } from '../../build/utils/repository';
+import { ensureRepoIsCleanAsync, reviewAndCommitChangesAsync } from '../../build/utils/repository';
 import EasCommand from '../../commandUtils/EasCommand';
 import { CredentialsContext } from '../../credentials/context';
 import {
@@ -392,7 +392,8 @@ export async function handleDeprecatedEasJsonAsync(
   projectDir: string,
   nonInteractive: boolean
 ): Promise<void> {
-  if (!(await fs.pathExists(EasJsonReader.formatEasJsonPath(projectDir)))) {
+  const easJsonPath = EasJsonReader.formatEasJsonPath(projectDir);
+  if (!(await fs.pathExists(easJsonPath))) {
     return;
   }
   const easJsonReader = new EasJsonReader(projectDir);
@@ -432,12 +433,21 @@ export async function handleDeprecatedEasJsonAsync(
     { title: 'Allow builds with dirty Git working tree (new default)', value: 'noCommit' },
   ]);
 
+  if (mode === 'requireCommit') {
+    setVcsClient(new GitClient());
+    await ensureRepoIsCleanAsync(nonInteractive);
+  }
+
   rawEasJson.cli =
     mode === 'requireCommit'
       ? { version: `>= ${easCliVersion}`, requireCommit: true }
       : { version: `>= ${easCliVersion}` };
-  await fs.writeJSON(EasJsonReader.formatEasJsonPath(projectDir), rawEasJson, { spaces: 2 });
+  await fs.writeJSON(easJsonPath, rawEasJson, { spaces: 2 });
+  Log.withTick('Updated eas.json');
   if (mode === 'requireCommit') {
-    setVcsClient(new GitClient());
+    await getVcsClient().trackFileAsync(easJsonPath);
+    await reviewAndCommitChangesAsync('Set cli.requireCommit to true in eas.json', {
+      nonInteractive,
+    });
   }
 }
