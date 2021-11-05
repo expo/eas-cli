@@ -16,6 +16,7 @@ enum SubmissionErrorCode {
   IOS_INVALID_SIGNATURE = 'SUBMISSION_SERVICE_IOS_INVALID_SIGNATURE',
   IOS_INCORRECT_CREDENTIALS = 'SUBMISSION_SERVICE_IOS_INVALID_CREDENTIALS',
   IOS_IPAD_INVALID_ORIENTATION = 'SUBMISSION_SERVICE_IOS_IPAD_INVALID_ORIENTATION',
+  IOS_APPLE_MAINTENANCE = 'SUBMISSION_SERVICE_IOS_APPLE_MAINTENANCE',
 }
 
 const SubmissionErrorMessages: Record<SubmissionErrorCode, string> = {
@@ -62,6 +63,8 @@ const SubmissionErrorMessages: Record<SubmissionErrorCode, string> = {
     "Your app doesn't support iPad multitasking and has to require full screen.\n" +
     "If you're submitting a managed Expo project, set the `expo.ios.requireFullScreen` to true in app.json and build the project again.\n" +
     `${learnMore('https://expo.fyi/ipad-requires-fullscreen')}`,
+  [SubmissionErrorCode.IOS_APPLE_MAINTENANCE]:
+    'It looks like Apple servers are undergoing an unscheduled maintenance. Please try again later.',
 };
 
 export function printSubmissionError(error: SubmissionError): boolean {
