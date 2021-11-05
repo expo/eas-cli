@@ -20,12 +20,8 @@ import {
   AscApiKeyFromExpoServers,
   AscApiKeyResult,
   AscApiKeySource,
-  getAscApiKeyLocallyAsync,
+  getAscApiKeyResultAsync,
 } from './AscApiKeySource';
-import {
-  CredentialsServiceSource,
-  getFromCredentialsServiceAsync,
-} from './CredentialsServiceSource';
 
 export interface IosSubmissionOptions
   extends Pick<IosSubmissionConfigInput, 'appleIdUsername' | 'ascAppIdentifier'> {
@@ -33,7 +29,6 @@ export interface IosSubmissionOptions
   archiveSource: ArchiveSource;
   appSpecificPasswordSource?: AppSpecificPasswordSource;
   ascApiKeySource?: AscApiKeySource;
-  credentialsServiceSource?: CredentialsServiceSource;
 }
 
 interface ResolvedSourceOptions {
@@ -80,16 +75,12 @@ export default class IosSubmitter extends BaseSubmitter<Platform.IOS, IosSubmiss
       ? await getAppSpecificPasswordAsync(this.options.appSpecificPasswordSource)
       : null;
     const maybeAppStoreConnectApiKey = this.options.ascApiKeySource
-      ? await getAscApiKeyLocallyAsync(this.ctx, this.options.ascApiKeySource)
-      : null;
-    const maybeAscOrAspFromCredentialsService = this.options.credentialsServiceSource
-      ? await getFromCredentialsServiceAsync(this.ctx)
+      ? await getAscApiKeyResultAsync(this.ctx, this.options.ascApiKeySource)
       : null;
     return {
       archive,
       ...(maybeAppSpecificPassword ? { appSpecificPassword: maybeAppSpecificPassword } : null),
       ...(maybeAppStoreConnectApiKey ? { ascApiKeyResult: maybeAppStoreConnectApiKey } : null),
-      ...(maybeAscOrAspFromCredentialsService ? maybeAscOrAspFromCredentialsService : null),
     };
   }
 

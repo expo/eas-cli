@@ -18,7 +18,6 @@ import {
   AppSpecificPasswordSourceType,
 } from './AppSpecificPasswordSource';
 import { AscApiKeySource, AscApiKeySourceType } from './AscApiKeySource';
-import { CREDENTIALS_SERVICE_SOURCE, CredentialsServiceSource } from './CredentialsServiceSource';
 import IosSubmitter, { IosSubmissionOptions } from './IosSubmitter';
 
 export default class IosSubmitCommand {
@@ -34,15 +33,8 @@ export default class IosSubmitCommand {
   private async resolveCredentialSubmissionOptionsAsync(): Promise<
     | { appSpecificPasswordSource: Result<AppSpecificPasswordSource> }
     | { ascApiKeySource: Result<AscApiKeySource> }
-    | { credentialsServiceSource: Result<CredentialsServiceSource> }
   > {
-    const ascApiKeySource = this.resolveAscApiKeySource();
-    const shouldSkipAscApiKeySource =
-      !ascApiKeySource.ok && ascApiKeySource.enforceError() instanceof MissingCredentialsError;
-    if (!shouldSkipAscApiKeySource) {
-      return { ascApiKeySource };
-    }
-
+    // if an App Specific Password env var is not specified, use ASC Api Key
     const appSpecificPasswordSource = this.resolveAppSpecificPasswordSource();
     const shouldSkipAppSpecificPasswordSource =
       !appSpecificPasswordSource.ok &&
@@ -51,9 +43,8 @@ export default class IosSubmitCommand {
       return { appSpecificPasswordSource: this.resolveAppSpecificPasswordSource() };
     }
 
-    return {
-      credentialsServiceSource: result(CREDENTIALS_SERVICE_SOURCE),
-    };
+    const ascApiKeySource = this.resolveAscApiKeySource();
+    return { ascApiKeySource };
   }
 
   private async resolveSubmissionOptionsAsync(): Promise<IosSubmissionOptions> {
@@ -65,10 +56,6 @@ export default class IosSubmitCommand {
         : null;
     const maybeAscApiKeySource =
       'ascApiKeySource' in credentialsSource ? credentialsSource.ascApiKeySource : null;
-    const maybeCredentialsServiceSource =
-      'credentialsServiceSource' in credentialsSource
-        ? credentialsSource.credentialsServiceSource
-        : null;
     const ascAppIdentifier = await this.resolveAscAppIdentifierAsync();
     const appleIdUsername = await this.resolveAppleIdUsernameAsync();
 
@@ -76,7 +63,6 @@ export default class IosSubmitCommand {
       archiveSource,
       ...(maybeAppSpecificPasswordSource ? [maybeAppSpecificPasswordSource] : []),
       ...(maybeAscApiKeySource ? [maybeAscApiKeySource] : []),
-      ...(maybeCredentialsServiceSource ? [maybeCredentialsServiceSource] : []),
       ascAppIdentifier,
       appleIdUsername,
     ].filter(r => !r.ok);
@@ -99,11 +85,6 @@ export default class IosSubmitCommand {
       ...(maybeAscApiKeySource
         ? {
             ascApiKeySource: maybeAscApiKeySource.enforceValue(),
-          }
-        : null),
-      ...(maybeCredentialsServiceSource
-        ? {
-            credentialsServiceSource: maybeCredentialsServiceSource.enforceValue(),
           }
         : null),
     };
@@ -148,11 +129,7 @@ export default class IosSubmitCommand {
       });
     }
 
-    return result(
-      new MissingCredentialsError(
-        'Set the ascApiKeyPath, ascApiKeyIssuerId and ascApiKeyId fields in eas.json.'
-      )
-    );
+    return result({ sourceType: AscApiKeySourceType.credentialsService });
   }
 
   private resolveArchiveSource(): Result<ArchiveSource> {
