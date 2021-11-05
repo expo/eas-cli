@@ -31,10 +31,10 @@ export enum SetupAscApiKeyChoice {
 export class SetUpAscApiKey {
   public choices: { title: string; value: string }[] = [
     {
-      title: '[Choose an existing key]',
+      title: '[Choose an existing ASC Api Key]',
       value: SetupAscApiKeyChoice.USE_EXISTING,
     },
-    { title: '[Add a new key]', value: SetupAscApiKeyChoice.GENERATE },
+    { title: '[Add a new ASC Api Key]', value: SetupAscApiKeyChoice.GENERATE },
   ];
 
   constructor(private app: AppLookupParams, private purpose: AppStoreApiKeyPurpose) {}
@@ -123,8 +123,8 @@ export class SetUpAscApiKey {
       const result = await promptAsync({
         type: 'select',
         name: 'choice',
-        message: 'Select the App Store Connect Api Key to use for your project:',
-        choices: this.choices,
+        message: 'Select what to use for your project:',
+        choices,
       });
       choice = result.choice;
     }
