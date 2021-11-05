@@ -16,6 +16,7 @@ import {
 
 jest.mock('../../../../prompts');
 asMock(confirmAsync).mockImplementation(() => true);
+
 describe(SetUpSubmissionCredentials, () => {
   it('allows user to enter an App Specific Password', async () => {
     asMock(promptAsync)
@@ -40,15 +41,21 @@ describe(SetUpSubmissionCredentials, () => {
     expect(asp).toBe('super secret');
   });
   it('returns an ASC API key', async () => {
-    jest
-      .spyOn(SetUpAscApiKey.prototype, 'runAsync')
-      .mockImplementation(async _ctx => testCommonIosAppCredentialsFragment);
-    const ctx = createCtxMock();
-    const appLookupParams = getAppLookupParamsFromContext(ctx, findApplicationTarget(testTargets));
-    const setupAscApiKeyAction = new SetUpSubmissionCredentials(appLookupParams);
-    const asc = await setupAscApiKeyAction.runAsync(ctx);
+    try {
+      jest
+        .spyOn(SetUpAscApiKey.prototype, 'runAsync')
+        .mockImplementation(async _ctx => testCommonIosAppCredentialsFragment);
+      const ctx = createCtxMock();
+      const appLookupParams = getAppLookupParamsFromContext(
+        ctx,
+        findApplicationTarget(testTargets)
+      );
+      const setupAscApiKeyAction = new SetUpSubmissionCredentials(appLookupParams);
+      const asc = await setupAscApiKeyAction.runAsync(ctx);
 
-    expect(asc).toEqual(testCommonIosAppCredentialsFragment);
-    jest.restoreAllMocks();
+      expect(asc).toEqual(testCommonIosAppCredentialsFragment);
+    } finally {
+      jest.restoreAllMocks();
+    }
   });
 });

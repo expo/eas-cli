@@ -12,10 +12,13 @@ import { AppStoreApiKeyPurpose } from './AscApiKeyUtils';
 import { SetUpAscApiKey } from './SetUpAscApiKey';
 
 export const PROMPT_FOR_APP_SPECIFIC_PASSWORD = 'PROMPT_FOR_APP_SPECIFIC_PASSWORD';
+
 export class SetUpSubmissionCredentials {
   private setupAscApiKeyAction;
+
   constructor(app: AppLookupParams) {
     this.setupAscApiKeyAction = new SetUpAscApiKey(app, AppStoreApiKeyPurpose.SUBMISSION_SERVICE);
+    // Add this unrelated choice to ASC Api Key setup for legacy purposes -- we will deprecate it soon
     this.setupAscApiKeyAction.choices = this.setupAscApiKeyAction.choices.concat({
       title: '[Enter an App Specific Password]',
       value: PROMPT_FOR_APP_SPECIFIC_PASSWORD,
@@ -35,8 +38,7 @@ export class SetUpSubmissionCredentials {
       return iosAppCredentials;
     } catch (e) {
       if (e instanceof UnsupportedCredentialsChoiceError) {
-        const choice = e.choice;
-        if (choice === PROMPT_FOR_APP_SPECIFIC_PASSWORD) {
+        if (e.choice === PROMPT_FOR_APP_SPECIFIC_PASSWORD) {
           return await this.promptForAppSpecificPasswordAsync();
         }
       }
