@@ -22,7 +22,7 @@ export function getArtifactUrl(artifactId: string): string {
 
 export function getInternalDistributionInstallUrl(build: BuildFragment): string {
   if (build.platform === AppPlatform.Ios) {
-    return `itms-services://?action=download-manifest;url=${getExpoApiBaseUrl()}/--/api/v2/projects/${
+    return `itms-services://?action=download-manifest;url=${getExpoApiBaseUrl()}/v2/projects/${
       build.project.id
     }/builds/${build.id}/manifest.plist`;
   }

@@ -4,7 +4,7 @@ import ApiV2Error from './ApiV2Error';
 import { getAccessToken, getSessionSecret } from './user/sessionStorage';
 
 export const apiClient = got.extend({
-  prefixUrl: getExpoApiBaseUrl() + '/--/api/v2/',
+  prefixUrl: getExpoApiBaseUrl() + '/v2/',
   hooks: {
     beforeRequest: [
       (options: NormalizedOptions) => {
@@ -40,11 +40,11 @@ export const apiClient = got.extend({
 
 export function getExpoApiBaseUrl(): string {
   if (process.env.EXPO_STAGING) {
-    return `https://staging.exp.host`;
+    return `https://staging-api.expo.dev`;
   } else if (process.env.EXPO_LOCAL) {
     return `http://127.0.0.1:3000`;
   } else {
-    return `https://exp.host`;
+    return `https://api.expo.dev`;
   }
 }
 

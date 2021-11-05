@@ -8,7 +8,7 @@ import { apiClient, getExpoApiBaseUrl } from '../api';
 describe('apiClient', () => {
   it('converts Expo APIv2 error to ApiV2Error', async () => {
     nock(getExpoApiBaseUrl())
-      .post('/--/api/v2/test')
+      .post('/v2/test')
       .reply(400, {
         errors: [
           {
@@ -39,7 +39,7 @@ describe('apiClient', () => {
   });
 
   it('does not convert non-APIv2 error to ApiV2Error', async () => {
-    nock(getExpoApiBaseUrl()).post('/--/api/v2/test').reply(500, 'Something went wrong');
+    nock(getExpoApiBaseUrl()).post('/v2/test').reply(500, 'Something went wrong');
 
     let error: Error | null = null;
     try {
