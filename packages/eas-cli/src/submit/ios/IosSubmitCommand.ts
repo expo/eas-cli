@@ -7,8 +7,6 @@ import wrapAnsi from 'wrap-ansi';
 import { MissingCredentialsError } from '../../credentials/errors';
 import { SubmissionFragment } from '../../graphql/generated';
 import Log, { learnMore } from '../../log';
-import { promptAsync } from '../../prompts';
-import UserSettings from '../../user/UserSettings';
 import { ArchiveSource } from '../ArchiveSource';
 import { resolveArchiveSource } from '../commons';
 import { SubmissionContext } from '../context';
@@ -70,7 +68,6 @@ export default class IosSubmitCommand {
         ? credentialsSource.credentialsServiceSource
         : null;
     const ascAppIdentifier = await this.resolveAscAppIdentifierAsync();
-    const appleIdUsername = await this.resolveAppleIdUsernameAsync();
 
     const errored = [
       archiveSource,
@@ -78,7 +75,6 @@ export default class IosSubmitCommand {
       ...(maybeAscApiKeySource ? [maybeAscApiKeySource] : []),
       ...(maybeCredentialsServiceSource ? [maybeCredentialsServiceSource] : []),
       ascAppIdentifier,
-      appleIdUsername,
     ].filter(r => !r.ok);
     if (errored.length > 0) {
       const message = errored.map(err => err.reason?.message).join('\n');
@@ -88,7 +84,6 @@ export default class IosSubmitCommand {
 
     return {
       projectId: this.ctx.projectId,
-      appleIdUsername: appleIdUsername.enforceValue(),
       ascAppIdentifier: ascAppIdentifier.enforceValue(),
       archiveSource: archiveSource.enforceValue(),
       ...(maybeAppSpecificPasswordSource
@@ -186,41 +181,5 @@ export default class IosSubmitCommand {
         return result(err);
       }
     }
-  }
-
-  private async resolveAppleIdUsernameAsync(): Promise<Result<string>> {
-    if (this.ctx.profile.appleId) {
-      return result(this.ctx.profile.appleId);
-    }
-
-    const envAppleId = getenv.string('EXPO_APPLE_ID', '');
-    if (envAppleId) {
-      return result(envAppleId);
-    }
-
-    if (this.ctx.credentialsCtx.appStore.authCtx?.appleId) {
-      return result(this.ctx.credentialsCtx.appStore.authCtx.appleId);
-    }
-
-    // Get the email address that was last used and set it as
-    // the default value for quicker authentication.
-    const lastAppleId = await UserSettings.getAsync('appleId', null);
-
-    if (this.ctx.nonInteractive) {
-      if (lastAppleId) {
-        return result(lastAppleId);
-      } else {
-        return result(new Error('Set appleId in the submit profile (eas.json).'));
-      }
-    }
-
-    const { appleId } = await promptAsync({
-      type: 'text',
-      name: 'appleId',
-      message: `Enter your Apple ID:`,
-      validate: (val: string) => !!val,
-      initial: lastAppleId ?? undefined,
-    });
-    return result(appleId);
   }
 }

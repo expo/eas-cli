@@ -6,6 +6,7 @@ import Log from '../../log';
 import { getBundleIdentifierAsync } from '../../project/ios/bundleIdentifier';
 import { findAccountByName } from '../../user/Account';
 import { SubmissionContext } from '../context';
+import { AppSpecificPassword, getAppleIdUsernameAsync } from './AppSpecificPasswordSource';
 import { AscApiKeyResult } from './AscApiKeySource';
 
 /**
@@ -17,7 +18,7 @@ export type CredentialsServiceSource = typeof CREDENTIALS_SERVICE_SOURCE;
 
 export async function getFromCredentialsServiceAsync(
   ctx: SubmissionContext<Platform.IOS>
-): Promise<{ appSpecificPassword: string } | { ascApiKeyResult: AscApiKeyResult }> {
+): Promise<{ appSpecificPassword: AppSpecificPassword } | { ascApiKeyResult: AscApiKeyResult }> {
   const bundleIdentifier = await getBundleIdentifierAsync(ctx.projectDir, ctx.exp);
   Log.log(`Looking up credentials configuration for ${bundleIdentifier}...`);
 
@@ -33,7 +34,12 @@ export async function getFromCredentialsServiceAsync(
   const ascOrAsp = await setupSubmissionCredentialsAction.runAsync(ctx.credentialsCtx);
   const isAppSpecificPassword = typeof ascOrAsp === 'string';
   if (isAppSpecificPassword) {
-    return { appSpecificPassword: ascOrAsp };
+    return {
+      appSpecificPassword: {
+        password: ascOrAsp,
+        appleIdUsername: await getAppleIdUsernameAsync(ctx),
+      },
+    };
   } else {
     const ascKeyForSubmissions = nullthrows(
       ascOrAsp.appStoreConnectApiKeyForSubmissions,

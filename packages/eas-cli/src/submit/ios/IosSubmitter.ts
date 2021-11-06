@@ -13,6 +13,7 @@ import {
   printSummary,
 } from '../utils/summary';
 import {
+  AppSpecificPassword,
   AppSpecificPasswordSource,
   getAppSpecificPasswordAsync,
 } from './AppSpecificPasswordSource';
@@ -38,7 +39,7 @@ export interface IosSubmissionOptions
 
 interface ResolvedSourceOptions {
   archive: Archive;
-  appSpecificPassword?: string;
+  appSpecificPassword?: AppSpecificPassword;
   ascApiKeyResult?: AscApiKeyResult;
 }
 
@@ -77,7 +78,7 @@ export default class IosSubmitter extends BaseSubmitter<Platform.IOS, IosSubmiss
   private async resolveSourceOptionsAsync(): Promise<ResolvedSourceOptions> {
     const archive = await getArchiveAsync(this.options.archiveSource);
     const maybeAppSpecificPassword = this.options.appSpecificPasswordSource
-      ? await getAppSpecificPasswordAsync(this.options.appSpecificPasswordSource)
+      ? await getAppSpecificPasswordAsync(this.ctx, this.options.appSpecificPasswordSource)
       : null;
     const maybeAppStoreConnectApiKey = this.options.ascApiKeySource
       ? await getAscApiKeyLocallyAsync(this.ctx, this.options.ascApiKeySource)
@@ -102,8 +103,17 @@ export default class IosSubmitter extends BaseSubmitter<Platform.IOS, IosSubmiss
       ascAppIdentifier,
       appleIdUsername,
       archiveUrl: archive.url,
-      appleAppSpecificPassword: appSpecificPassword,
+      ...(appSpecificPassword ? this.formatAppSpecificPassword(appSpecificPassword) : null),
       ...(ascApiKeyResult?.result ? this.formatAscApiKeyResult(ascApiKeyResult.result) : null),
+    };
+  }
+
+  private formatAppSpecificPassword(
+    appSpecificPassword: AppSpecificPassword
+  ): Pick<IosSubmissionConfigInput, 'appleAppSpecificPassword' | 'appleIdUsername'> {
+    return {
+      appleAppSpecificPassword: appSpecificPassword.password,
+      appleIdUsername: appSpecificPassword.appleIdUsername,
     };
   }
 
@@ -123,15 +133,15 @@ export default class IosSubmitter extends BaseSubmitter<Platform.IOS, IosSubmiss
 
   private prepareSummaryData(
     options: IosSubmissionOptions,
-    { archive, ascApiKeyResult }: ResolvedSourceOptions
+    { archive, ascApiKeyResult, appSpecificPassword }: ResolvedSourceOptions
   ): SummaryData {
-    const { appleIdUsername, ascAppIdentifier, projectId } = options;
+    const { ascAppIdentifier, projectId } = options;
 
     // structuring order affects table rows order
     return {
       ascAppIdentifier,
-      appleIdUsername: appleIdUsername ?? undefined,
       projectId,
+      ...(appSpecificPassword ? { appleIdUsername: appSpecificPassword.appleIdUsername } : null),
       ...(ascApiKeyResult ? { formattedAscApiKey: formatAscApiKeySummary(ascApiKeyResult) } : null),
       ...formatArchiveSourceSummary(archive),
     };
