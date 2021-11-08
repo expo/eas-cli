@@ -6,7 +6,10 @@ import Log from '../../log';
 import { getBundleIdentifierAsync } from '../../project/ios/bundleIdentifier';
 import { findAccountByName } from '../../user/Account';
 import { SubmissionContext } from '../context';
-import { AppSpecificPassword, getAppleIdUsernameAsync } from './AppSpecificPasswordSource';
+import {
+  AppSpecificPasswordCredentials,
+  getAppleIdUsernameAsync,
+} from './AppSpecificPasswordSource';
 import { AscApiKeyResult } from './AscApiKeySource';
 
 /**
@@ -18,7 +21,9 @@ export type CredentialsServiceSource = typeof CREDENTIALS_SERVICE_SOURCE;
 
 export async function getFromCredentialsServiceAsync(
   ctx: SubmissionContext<Platform.IOS>
-): Promise<{ appSpecificPassword: AppSpecificPassword } | { ascApiKeyResult: AscApiKeyResult }> {
+): Promise<
+  { appSpecificPassword: AppSpecificPasswordCredentials } | { ascApiKeyResult: AscApiKeyResult }
+> {
   const bundleIdentifier = await getBundleIdentifierAsync(ctx.projectDir, ctx.exp);
   Log.log(`Looking up credentials configuration for ${bundleIdentifier}...`);
 

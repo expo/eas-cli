@@ -17,17 +17,17 @@ interface AppSpecificPasswordUserDefinedSource extends AppSpecificPasswordSource
   appSpecificPassword: string;
 }
 
-export type AppSpecificPassword = {
+export interface AppSpecificPasswordCredentials {
   password: string;
   appleIdUsername: string;
-};
+}
 
 export type AppSpecificPasswordSource = AppSpecificPasswordUserDefinedSource;
 
 export async function getAppSpecificPasswordAsync(
   ctx: SubmissionContext<Platform.IOS>,
   source: AppSpecificPasswordSource
-): Promise<AppSpecificPassword> {
+): Promise<AppSpecificPasswordCredentials> {
   if (source.sourceType === AppSpecificPasswordSourceType.userDefined) {
     return {
       password: source.appSpecificPassword,

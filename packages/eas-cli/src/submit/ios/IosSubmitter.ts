@@ -13,7 +13,7 @@ import {
   printSummary,
 } from '../utils/summary';
 import {
-  AppSpecificPassword,
+  AppSpecificPasswordCredentials,
   AppSpecificPasswordSource,
   getAppSpecificPasswordAsync,
 } from './AppSpecificPasswordSource';
@@ -39,7 +39,7 @@ export interface IosSubmissionOptions
 
 interface ResolvedSourceOptions {
   archive: Archive;
-  appSpecificPassword?: AppSpecificPassword;
+  appSpecificPassword?: AppSpecificPasswordCredentials;
   ascApiKeyResult?: AscApiKeyResult;
 }
 
@@ -109,7 +109,7 @@ export default class IosSubmitter extends BaseSubmitter<Platform.IOS, IosSubmiss
   }
 
   private formatAppSpecificPassword(
-    appSpecificPassword: AppSpecificPassword
+    appSpecificPassword: AppSpecificPasswordCredentials
   ): Pick<IosSubmissionConfigInput, 'appleAppSpecificPassword' | 'appleIdUsername'> {
     return {
       appleAppSpecificPassword: appSpecificPassword.password,
