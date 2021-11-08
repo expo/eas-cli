@@ -3,12 +3,12 @@ import { RequestError } from 'got/dist/source';
 import nock from 'nock';
 
 import ApiV2Error from '../ApiV2Error';
-import { apiClient, getExpoApiBaseUrl } from '../api';
+import { apiClient, getExpoApiV2Url } from '../api';
 
 describe('apiClient', () => {
   it('converts Expo APIv2 error to ApiV2Error', async () => {
-    nock(getExpoApiBaseUrl())
-      .post('/v2/test')
+    nock(getExpoApiV2Url())
+      .post('/test')
       .reply(400, {
         errors: [
           {
@@ -39,7 +39,7 @@ describe('apiClient', () => {
   });
 
   it('does not convert non-APIv2 error to ApiV2Error', async () => {
-    nock(getExpoApiBaseUrl()).post('/v2/test').reply(500, 'Something went wrong');
+    nock(getExpoApiV2Url()).post('/test').reply(500, 'Something went wrong');
 
     let error: Error | null = null;
     try {
