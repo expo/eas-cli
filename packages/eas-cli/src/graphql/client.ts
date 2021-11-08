@@ -30,7 +30,7 @@ type SessionHeaders = {
 };
 
 export const graphqlClient = createUrqlClient({
-  url: getExpoApiBaseUrl() + '/--/graphql',
+  url: getExpoApiBaseUrl() + '/graphql',
   exchanges: [
     dedupExchange,
     cacheExchange,
