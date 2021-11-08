@@ -12,7 +12,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
-## [0.35.0](https://github.com/expo/eas-cli/releases/tag/0.35.0) - 2021-11-08
+## [0.35.0](https://github.com/expo/eas-cli/releases/tag/v0.35.0) - 2021-11-08
 
 ### 🎉 New features
 
@@ -32,7 +32,7 @@ This is the log of notable changes to EAS CLI and related packages.
 - Grammar: replace setup with set up. ([#735](https://github.com/expo/eas-cli/pull/735) by [@quinlanj](https://github.com/quinlanj))
 - Improve VCS workflow migration experience. ([#732](https://github.com/expo/eas-cli/pull/732) by [@wkozyra95](https://github.com/wkozyra95))
 
-## [0.34.1](https://github.com/expo/eas-cli/releases/tag/0.34.1) - 2021-11-02
+## [0.34.1](https://github.com/expo/eas-cli/releases/tag/v0.34.1) - 2021-11-02
 
 ### 🐛 Bug fixes
 
@@ -42,14 +42,14 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - Add App Store Connect Api Key graphql type and print support. ([#717](https://github.com/expo/eas-cli/pull/717) by [@quinlanj](https://github.com/quinlanj))
 
-## [0.34.0](https://github.com/expo/eas-cli/releases/tag/0.34.0) - 2021-11-01
+## [0.34.0](https://github.com/expo/eas-cli/releases/tag/v0.34.0) - 2021-11-01
 
 ### 🛠 Breaking changes
 
 - `[EAS BUILD API]` Use new build job format. ([#701](https://github.com/expo/eas-cli/pull/701) and [#711](https://github.com/expo/eas-cli/pull/711) by [@dsokal](https://github.com/dsokal))
 - Don't print logs to `stderr`. ([#708](https://github.com/expo/eas-cli/pull/708) by [@dsokal](https://github.com/dsokal))
 - Remove automatic migration for legacy `eas.json` format introduced in [v0.22.2](https://github.com/expo/eas-cli/releases/tag/v0.22.2). ([#695](https://github.com/expo/eas-cli/pull/695) by [@wkozyra95](https://github.com/wkozyra95))
-- Add required `cli` field in root of `eas.json` ([#695](https://github.com/expo/eas-cli/pull/695) by [@wkozyra95](https://github.com/wkozyra95))
+- Implement no-commit build workflow. Add required `cli` field in root of `eas.json`. ([#695](https://github.com/expo/eas-cli/pull/695) by [@wkozyra95](https://github.com/wkozyra95))
 
 ### 🐛 Bug fixes
 
@@ -64,7 +64,7 @@ This is the log of notable changes to EAS CLI and related packages.
 - Remove unneeded parameters. ([#710](https://github.com/expo/eas-cli/pull/710) by [@quinlanj](https://github.com/quinlanj))
 - Enforce additionalTypenames for graphql queries. ([#709](https://github.com/expo/eas-cli/pull/709) by [@quinlanj](https://github.com/quinlanj))
 
-## [0.33.1](https://github.com/expo/eas-cli/releases/tag/0.33.1) - 2021-10-22
+## [0.33.1](https://github.com/expo/eas-cli/releases/tag/v0.33.1) - 2021-10-22
 
 ### 🎉 New features
 
@@ -74,7 +74,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - [eas-cli] Skip validating updates scripts integration, which no longer exist in SDK 43+ ([#706](https://github.com/expo/eas-cli/pull/706) by [@brentvatne](https://github.com/brentvatne))
 
-## [0.33.0](https://github.com/expo/eas-cli/releases/tag/0.33.0) - 2021-10-20
+## [0.33.0](https://github.com/expo/eas-cli/releases/tag/v0.33.0) - 2021-10-20
 
 ### 🎉 New features
 
@@ -97,7 +97,7 @@ This is the log of notable changes to EAS CLI and related packages.
 - Skip the second prompt for Apple ID if the user is already signed in with Apple. ([#691](https://github.com/expo/eas-cli/pull/691) by [@dsokal](https://github.com/dsokal))
 - Unify reading `app.json`. ([#692](https://github.com/expo/eas-cli/pull/692) by [@dsokal](https://github.com/dsokal))
 
-## [0.32.0](https://github.com/expo/eas-cli/releases/tag/0.32.0) - 2021-10-15
+## [0.32.0](https://github.com/expo/eas-cli/releases/tag/v0.32.0) - 2021-10-15
 
 ### 🎉 New features
 
@@ -114,13 +114,13 @@ This is the log of notable changes to EAS CLI and related packages.
 - Add App Store Connect Api Key fields to `eas.json`. ([#684](https://github.com/expo/eas-cli/pull/684) by [@quinlanj](https://github.com/quinlanj))
 - Enable no-underscore-dangle eslint rule. ([#686](https://github.com/expo/eas-cli/pull/686) by [@dsokal](https://github.com/dsokal))
 
-## [0.31.1](https://github.com/expo/eas-cli/releases/tag/0.31.1) - 2021-10-08
+## [0.31.1](https://github.com/expo/eas-cli/releases/tag/v0.31.1) - 2021-10-08
 
 ### 🐛 Bug fixes
 
 - Google Service Account Keys: Fix non-interactive bug in credentials service workflow ([#682](https://github.com/expo/eas-cli/pull/682) by [@quinlanj](https://github.com/quinlanj))
 
-## [0.31.0](https://github.com/expo/eas-cli/releases/tag/0.31.0) - 2021-10-08
+## [0.31.0](https://github.com/expo/eas-cli/releases/tag/v0.31.0) - 2021-10-08
 
 ### 🛠 Breaking changes
 
@@ -131,7 +131,7 @@ This is the log of notable changes to EAS CLI and related packages.
 - Integrate credentials service with Android submissions. ([#664](https://github.com/expo/eas-cli/pull/664) by [@quinlanj](https://github.com/quinlanj))
 - Add option to review ad-hoc devices when reusing provisioning profile. ([#673](https://github.com/expo/eas-cli/pull/673) by [@dsokal](https://github.com/dsokal))
 
-## [0.30.1](https://github.com/expo/eas-cli/releases/tag/0.30.1) - 2021-10-06
+## [0.30.1](https://github.com/expo/eas-cli/releases/tag/v0.30.1) - 2021-10-06
 
 ### 🐛 Bug fixes
 

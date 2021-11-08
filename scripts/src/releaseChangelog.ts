@@ -10,7 +10,7 @@ const MAIN_CATEGORIES = Object.values(CATEGORY_HEADERS).map(text =>
 );
 const FORMAT_RELEASE_HEADING = (version: string): markdown.Token =>
   markdown.createHeadingToken(
-    `[${version}](https://github.com/expo/eas-cli/releases/tag/${version}) - ${dateFormat(
+    `[${version}](https://github.com/expo/eas-cli/releases/tag/v${version}) - ${dateFormat(
       'isoDate'
     )}`,
     2
