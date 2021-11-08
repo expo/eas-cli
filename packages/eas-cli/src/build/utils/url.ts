@@ -1,6 +1,6 @@
 import assert from 'assert';
 
-import { getExpoApiBaseUrl, getExpoWebsiteBaseUrl } from '../../api';
+import { getExpoApiV2Url, getExpoWebsiteBaseUrl } from '../../api';
 import { AppPlatform, BuildFragment } from '../../graphql/generated';
 
 export function getProjectDashboardUrl(accountName: string, projectName: string): string {
@@ -22,7 +22,7 @@ export function getArtifactUrl(artifactId: string): string {
 
 export function getInternalDistributionInstallUrl(build: BuildFragment): string {
   if (build.platform === AppPlatform.Ios) {
-    return `itms-services://?action=download-manifest;url=${getExpoApiBaseUrl()}/v2/projects/${
+    return `itms-services://?action=download-manifest;url=${getExpoApiV2Url()}/projects/${
       build.project.id
     }/builds/${build.id}/manifest.plist`;
   }
