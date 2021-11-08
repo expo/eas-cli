@@ -274,7 +274,7 @@ export default class Build extends EasCommand {
       wait: flags['wait'],
       clearCache: flags['clear-cache'],
       json: flags['json'],
-      autoSubmit: flags['auto-submit'],
+      autoSubmit: flags['auto-submit'] || flags['auto-submit-with-profile'] !== undefined,
       submitProfile: flags['auto-submit-with-profile'] ?? profile,
     };
   }

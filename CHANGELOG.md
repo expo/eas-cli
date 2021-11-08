@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Fix auto-submitting with `--auto-submit-with-profile`. ([#748](https://github.com/expo/eas-cli/pull/748) by [@dsokal](https://github.com/dsokal))
+
 ### 🧹 Chores
 
 ## [0.35.0](https://github.com/expo/eas-cli/releases/tag/v0.35.0) - 2021-11-08
