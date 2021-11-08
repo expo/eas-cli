@@ -22,7 +22,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🧹 Chores
 
 - Clean up credentials prompt method. ([#728](https://github.com/expo/eas-cli/pull/728) by [@quinlanj](https://github.com/quinlanj))
-- Bump @expo/apple-utils to 0.0.0-alpha.26. ([#723](https://github.com/expo/eas-cli/pull/723] by [@brentvatne](https://github.com/brentvatne))
+- Bump @expo/apple-utils to 0.0.0-alpha.26. ([#723](https://github.com/expo/eas-cli/pull/723) by [@brentvatne](https://github.com/brentvatne))
 - Grammar: replace setup with set up. ([#735](https://github.com/expo/eas-cli/pull/735) by [@quinlanj](https://github.com/quinlanj))
 - Improve VCS workflow migration experience. ([#732](https://github.com/expo/eas-cli/pull/732) by [@wkozyra95](https://github.com/wkozyra95))
 
