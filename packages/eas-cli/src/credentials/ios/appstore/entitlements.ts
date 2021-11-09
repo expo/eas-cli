@@ -5,25 +5,38 @@ import plist from '@expo/plist';
 import { getPrebuildConfig } from '@expo/prebuild-config';
 import fs from 'fs-extra';
 
-export async function getManagedEntitlementsJsonAsync(projectDir: string): Promise<JSONObject> {
-  let { exp } = getPrebuildConfig(projectDir, { platforms: ['ios'] });
+export async function getManagedEntitlementsJsonAsync(
+  projectDir: string,
+  env: Record<string, string>
+): Promise<JSONObject> {
+  const originalProcessEnv: NodeJS.ProcessEnv = process.env;
+  try {
+    process.env = {
+      ...process.env,
+      ...env,
+    };
+    const { exp } = getPrebuildConfig(projectDir, { platforms: ['ios'] });
 
-  exp = await compileModsAsync(exp, {
-    projectRoot: projectDir,
-    platforms: ['ios'],
-    introspect: true,
-  });
-  return exp.ios?.entitlements || {};
+    const expWithMods = await compileModsAsync(exp, {
+      projectRoot: projectDir,
+      platforms: ['ios'],
+      introspect: true,
+    });
+    return expWithMods.ios?.entitlements || {};
+  } finally {
+    process.env = originalProcessEnv;
+  }
 }
 
 export async function resolveEntitlementsJsonAsync(
   projectDir: string,
-  workflow: Workflow
+  workflow: Workflow,
+  env: Record<string, string>
 ): Promise<JSONObject> {
   if (workflow === Workflow.GENERIC) {
     return (await getEntitlementsJsonAsync(projectDir)) || {};
   } else if (workflow === Workflow.MANAGED) {
-    return await getManagedEntitlementsJsonAsync(projectDir);
+    return await getManagedEntitlementsJsonAsync(projectDir, env);
   } else {
     throw new Error(`Unknown workflow: ${workflow}`);
   }

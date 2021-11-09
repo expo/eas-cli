@@ -11,6 +11,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 - Fix auto-submitting with `--auto-submit-with-profile`. ([#748](https://github.com/expo/eas-cli/pull/748) by [@dsokal](https://github.com/dsokal))
+- Pass env from build profile when resolving entitlements. ([#751](https://github.com/expo/eas-cli/pull/751) by [@wkozyra95](https://github.com/wkozyra95))
 
 ### 🧹 Chores
 
