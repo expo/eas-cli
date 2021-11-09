@@ -27,6 +27,8 @@ This is the log of notable changes to EAS CLI and related packages.
 - Integrate ASC Api Key with submissions workflow. ([#737](https://github.com/expo/eas-cli/pull/737) by [@quinlanj](https://github.com/quinlanj))
 - Change EAS API server domain. ([#744](https://github.com/expo/eas-cli/pull/744) by [@ide](https://github.com/ide))
 
+- Only prompt for Apple Id username if authenticating with an App Specific Password. ([#745](https://github.com/expo/eas-cli/pull/745) by [@quinlanj](https://github.com/quinlanj))
+
 ### 🧹 Chores
 
 - Clean up credentials prompt method. ([#728](https://github.com/expo/eas-cli/pull/728) by [@quinlanj](https://github.com/quinlanj))

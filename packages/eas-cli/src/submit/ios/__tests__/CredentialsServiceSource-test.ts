@@ -7,6 +7,7 @@ import { testCommonIosAppCredentialsFragment } from '../../../credentials/__test
 import { SetUpSubmissionCredentials } from '../../../credentials/ios/actions/SetUpSubmissionCredentials';
 import { createTestProject } from '../../../project/__tests__/project-utils';
 import { getBundleIdentifierAsync } from '../../../project/ios/bundleIdentifier';
+import { promptAsync } from '../../../prompts';
 import { createSubmissionContextAsync } from '../../context';
 import { getFromCredentialsServiceAsync } from '../CredentialsServiceSource';
 
@@ -48,16 +49,17 @@ describe(getFromCredentialsServiceAsync, () => {
       profile: {
         language: 'en-US',
       },
-      nonInteractive: true,
+      nonInteractive: false,
     });
     jest
       .spyOn(SetUpSubmissionCredentials.prototype, 'runAsync')
       .mockImplementation(async _ctx => 'super secret');
     asMock(getBundleIdentifierAsync).mockImplementation(() => 'com.hello.world');
+    asMock(promptAsync).mockImplementationOnce(() => ({ appleId: 'quin@expo.io' }));
 
     const result = await getFromCredentialsServiceAsync(ctx);
     expect(result).toEqual({
-      appSpecificPassword: 'super secret',
+      appSpecificPassword: { password: 'super secret', appleIdUsername: 'quin@expo.io' },
     });
   });
   it('returns an ASC Api Key from the credentialService source', async () => {
