@@ -7,7 +7,7 @@ import fs from 'fs-extra';
 
 export async function getManagedEntitlementsJsonAsync(
   projectDir: string,
-  env: Record<string, string>,
+  env: Record<string, string>
 ): Promise<JSONObject> {
   const originalProcessEnv: NodeJS.ProcessEnv = process.env;
   try {
@@ -15,14 +15,14 @@ export async function getManagedEntitlementsJsonAsync(
       ...process.env,
       ...env,
     };
-    let { exp } = getPrebuildConfig(projectDir, { platforms: ['ios'] });
+    const { exp } = getPrebuildConfig(projectDir, { platforms: ['ios'] });
 
-    exp = await compileModsAsync(exp, {
+    const expWithMods = await compileModsAsync(exp, {
       projectRoot: projectDir,
       platforms: ['ios'],
       introspect: true,
     });
-    return exp.ios?.entitlements || {};
+    return expWithMods.ios?.entitlements || {};
   } finally {
     process.env = originalProcessEnv;
   }
