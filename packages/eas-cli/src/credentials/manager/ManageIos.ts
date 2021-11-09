@@ -229,7 +229,10 @@ export class ManageIos {
         distribution: buildProfile.distribution,
         enterpriseProvisioning: buildProfile.enterpriseProvisioning,
         iosCapabilitiesOptions: {
-          entitlements: await getManagedEntitlementsJsonAsync(ctx.projectDir),
+          entitlements: await getManagedEntitlementsJsonAsync(
+            ctx.projectDir,
+            buildProfile.env ?? {}
+          ),
         },
       }).runAsync(ctx);
       return;
