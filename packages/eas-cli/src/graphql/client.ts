@@ -17,7 +17,7 @@ import { DocumentNode } from 'graphql';
 // eslint-disable-next-line
 import fetch from 'node-fetch';
 
-import { getExpoGraphqlUrl } from '../api';
+import { getExpoApiBaseUrl } from '../api';
 import Log from '../log';
 import { getAccessToken, getSessionSecret } from '../user/sessionStorage';
 
@@ -30,7 +30,7 @@ type SessionHeaders = {
 };
 
 export const graphqlClient = createUrqlClient({
-  url: getExpoGraphqlUrl(),
+  url: getExpoApiBaseUrl() + '/graphql',
   exchanges: [
     dedupExchange,
     cacheExchange,
