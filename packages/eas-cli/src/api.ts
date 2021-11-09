@@ -4,7 +4,7 @@ import ApiV2Error from './ApiV2Error';
 import { getAccessToken, getSessionSecret } from './user/sessionStorage';
 
 export const apiClient = got.extend({
-  prefixUrl: getExpoApiV2Url(),
+  prefixUrl: getExpoApiBaseUrl() + '/v2/',
   hooks: {
     beforeRequest: [
       (options: NormalizedOptions) => {
@@ -38,23 +38,13 @@ export const apiClient = got.extend({
   },
 });
 
-export function getExpoApiV2Url(): string {
+export function getExpoApiBaseUrl(): string {
   if (process.env.EXPO_STAGING) {
-    return `https://staging-api.expo.dev/v2`;
+    return `https://staging-api.expo.dev`;
   } else if (process.env.EXPO_LOCAL) {
-    return `http://127.0.0.1:3000/--/api/v2`;
+    return `http://127.0.0.1:3000`;
   } else {
-    return `https://api.expo.dev/v2`;
-  }
-}
-
-export function getExpoGraphqlUrl(): string {
-  if (process.env.EXPO_STAGING) {
-    return `https://staging-api.expo.dev/graphql`;
-  } else if (process.env.EXPO_LOCAL) {
-    return `http://127.0.0.1:3000/--/graphql`;
-  } else {
-    return `https://api.expo.dev/graphql`;
+    return `https://api.expo.dev`;
   }
 }
 
