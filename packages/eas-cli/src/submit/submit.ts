@@ -4,6 +4,7 @@ import chalk from 'chalk';
 import { AppPlatform, SubmissionFragment, SubmissionStatus } from '../graphql/generated';
 import Log, { link } from '../log';
 import { appPlatformDisplayNames, appPlatformEmojis } from '../platform';
+import { SubmissionEvent, withAnalyticsAsync } from '../utils/analytics';
 import AndroidSubmitCommand from './android/AndroidSubmitCommand';
 import { SubmissionContext } from './context';
 import IosSubmitCommand from './ios/IosSubmitCommand';
@@ -13,11 +14,20 @@ import { waitForSubmissionsEndAsync } from './utils/wait';
 export async function submitAsync<T extends Platform>(
   ctx: SubmissionContext<T>
 ): Promise<SubmissionFragment> {
-  const command =
-    ctx.platform === Platform.ANDROID
-      ? new AndroidSubmitCommand(ctx as SubmissionContext<Platform.ANDROID>)
-      : new IosSubmitCommand(ctx as SubmissionContext<Platform.IOS>);
-  return command.runAsync();
+  return await withAnalyticsAsync(
+    async () => {
+      const command =
+        ctx.platform === Platform.ANDROID
+          ? new AndroidSubmitCommand(ctx as SubmissionContext<Platform.ANDROID>)
+          : new IosSubmitCommand(ctx as SubmissionContext<Platform.IOS>);
+      return command.runAsync();
+    },
+    {
+      successEvent: SubmissionEvent.SUBMIT_COMMAND_SUCCESS,
+      failureEvent: SubmissionEvent.SUBMIT_COMMAND_FAIL,
+      trackingCtx: ctx.trackingCtx,
+    }
+  );
 }
 
 export async function waitToCompleteAsync(

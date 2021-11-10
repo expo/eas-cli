@@ -10,6 +10,7 @@ import Log, { learnMore } from '../log';
 import { ora } from '../ora';
 import { requestedPlatformDisplayNames } from '../platform';
 import { uploadAsync } from '../uploads';
+import { BuildEvent, withAnalyticsAsync } from '../utils/analytics';
 import { formatBytes } from '../utils/files';
 import { createProgressTracker } from '../utils/progress';
 import { sleepAsync } from '../utils/promise';
@@ -17,8 +18,6 @@ import { getVcsClient } from '../vcs';
 import { BuildContext } from './context';
 import { runLocalBuildAsync } from './local';
 import { MetadataContext, collectMetadataAsync } from './metadata';
-import { TrackingContext } from './types';
-import Analytics, { Event } from './utils/analytics';
 import { printDeprecationWarnings } from './utils/printBuildInfo';
 import { makeProjectTarballAsync, reviewAndCommitChangesAsync } from './utils/repository';
 
@@ -55,15 +54,15 @@ export async function prepareBuildRequestForPlatformAsync<
   const credentialsResult = await withAnalyticsAsync(
     async () => await builder.ensureCredentialsAsync(ctx),
     {
-      successEvent: Event.GATHER_CREDENTIALS_SUCCESS,
-      failureEvent: Event.GATHER_CREDENTIALS_FAIL,
+      successEvent: BuildEvent.GATHER_CREDENTIALS_SUCCESS,
+      failureEvent: BuildEvent.GATHER_CREDENTIALS_FAIL,
       trackingCtx: ctx.trackingCtx,
     }
   );
   if (!ctx.skipProjectConfiguration) {
     await withAnalyticsAsync(async () => await builder.ensureProjectConfiguredAsync(ctx), {
-      successEvent: Event.CONFIGURE_PROJECT_SUCCESS,
-      failureEvent: Event.CONFIGURE_PROJECT_FAIL,
+      successEvent: BuildEvent.CONFIGURE_PROJECT_SUCCESS,
+      failureEvent: BuildEvent.CONFIGURE_PROJECT_FAIL,
       trackingCtx: ctx.trackingCtx,
     });
   }
@@ -166,8 +165,8 @@ async function uploadProjectAsync<TPlatform extends Platform>(
         return bucketKey;
       },
       {
-        successEvent: Event.PROJECT_UPLOAD_SUCCESS,
-        failureEvent: Event.PROJECT_UPLOAD_FAIL,
+        successEvent: BuildEvent.PROJECT_UPLOAD_SUCCESS,
+        failureEvent: BuildEvent.PROJECT_UPLOAD_FAIL,
         trackingCtx: ctx.trackingCtx,
       }
     );
@@ -200,32 +199,11 @@ async function sendBuildRequestAsync<TPlatform extends Platform, Credentials, TJ
       return build;
     },
     {
-      successEvent: Event.BUILD_REQUEST_SUCCESS,
-      failureEvent: Event.BUILD_REQUEST_FAIL,
+      successEvent: BuildEvent.BUILD_REQUEST_SUCCESS,
+      failureEvent: BuildEvent.BUILD_REQUEST_FAIL,
       trackingCtx: ctx.trackingCtx,
     }
   );
-}
-
-async function withAnalyticsAsync<Result>(
-  fn: () => Promise<Result>,
-  analytics: {
-    successEvent: Event;
-    failureEvent: Event;
-    trackingCtx: TrackingContext;
-  }
-): Promise<Result> {
-  try {
-    const result = await fn();
-    Analytics.logEvent(analytics.successEvent, analytics.trackingCtx);
-    return result;
-  } catch (error: any) {
-    Analytics.logEvent(analytics.failureEvent, {
-      ...analytics.trackingCtx,
-      reason: error.message,
-    });
-    throw error;
-  }
 }
 
 export async function waitForBuildEndAsync(

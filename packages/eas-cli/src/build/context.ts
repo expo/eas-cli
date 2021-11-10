@@ -13,8 +13,7 @@ import { resolveWorkflowAsync } from '../project/workflow';
 import { findAccountByName } from '../user/Account';
 import { Actor } from '../user/User';
 import { ensureLoggedInAsync } from '../user/actions';
-import { TrackingContext } from './types';
-import Analytics, { Event } from './utils/analytics';
+import { Analytics, BuildEvent, TrackingContext } from '../utils/analytics';
 
 export interface ConfigureContext {
   user: Actor;
@@ -95,7 +94,7 @@ export async function createBuildContextAsync<T extends Platform>({
     project_type: workflow,
     ...devClientProperties,
   };
-  Analytics.logEvent(Event.BUILD_COMMAND, trackingCtx);
+  Analytics.logEvent(BuildEvent.BUILD_COMMAND, trackingCtx);
 
   return {
     accountName,

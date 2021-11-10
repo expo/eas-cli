@@ -54,6 +54,7 @@ export default class IosSubmitCommand {
     };
   }
 
+  // TODO analytics: resolve various sources
   private async resolveSubmissionOptionsAsync(): Promise<IosSubmissionOptions> {
     const archiveSource = this.resolveArchiveSource();
     const credentialsSource = await this.resolveCredentialSubmissionOptionsAsync();

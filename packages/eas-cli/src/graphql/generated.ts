@@ -41,7 +41,7 @@ export type RootQuery = {
   appleDeviceRegistrationRequest: AppleDeviceRegistrationRequestQuery;
   /** Top-level query object for querying Apple Teams. */
   appleTeam: AppleTeamQuery;
-  app?: Maybe<AppQuery>;
+  app: AppQuery;
   /**
    * Look up app by app id
    * @deprecated Use 'byId' field under 'app'.
@@ -60,6 +60,8 @@ export type RootQuery = {
   clientBuilds: ClientBuildQuery;
   /** Top-level query object for querying Experimentation configuration. */
   experimentation: ExperimentationQuery;
+  /** Top-level query object for querying Stripe Invoices. */
+  invoice: InvoiceQuery;
   project: ProjectQuery;
   snack: SnackQuery;
   submissions: SubmissionQuery;
@@ -428,19 +430,31 @@ export type App = Project & {
   fullName: Scalars['String'];
   description: Scalars['String'];
   slug: Scalars['String'];
-  updated: Scalars['DateTime'];
-  published: Scalars['Boolean'];
   ownerAccount: Account;
-  githubUrl?: Maybe<Scalars['String']>;
-  playStoreUrl?: Maybe<Scalars['String']>;
-  appStoreUrl?: Maybe<Scalars['String']>;
-  icon?: Maybe<AppIcon>;
-  sdkVersion: Scalars['String'];
-  isDeprecated: Scalars['Boolean'];
   privacySetting: AppPrivacy;
-  latestReleaseId: Scalars['ID'];
   pushSecurityEnabled: Scalars['Boolean'];
+  /** Whether there have been any classic update publishes */
+  published: Scalars['Boolean'];
+  /** Time of last classic update publish */
+  updated: Scalars['DateTime'];
+  /** ID of latest classic update release */
+  latestReleaseId: Scalars['ID'];
+  /** Whether the latest classic update publish is using a deprecated SDK version */
+  isDeprecated: Scalars['Boolean'];
+  /** SDK version of the latest classic update publish, 0.0.0 otherwise */
+  sdkVersion: Scalars['String'];
+  /** Classic update release channel names (to be removed) */
   releaseChannels: Array<Scalars['String']>;
+  /** Classic update release channel names that have at least one build */
+  buildsReleaseChannels: Array<Scalars['String']>;
+  /** githubUrl field from most recent classic update manifest */
+  githubUrl?: Maybe<Scalars['String']>;
+  /** android.playStoreUrl field from most recent classic update manifest */
+  playStoreUrl?: Maybe<Scalars['String']>;
+  /** ios.appStoreUrl field from most recent classic update manifest */
+  appStoreUrl?: Maybe<Scalars['String']>;
+  /** Info about the icon specified in the most recent classic update manifest */
+  icon?: Maybe<AppIcon>;
   /** (EAS Build) Builds associated with this app */
   builds: Array<Build>;
   buildJobs: Array<BuildJob>;
@@ -634,6 +648,12 @@ export type AppLatestReleaseForReleaseChannelArgs = {
   releaseChannel: Scalars['String'];
 };
 
+export enum AppPrivacy {
+  Public = 'PUBLIC',
+  Unlisted = 'UNLISTED',
+  Hidden = 'HIDDEN'
+}
+
 export type AppIcon = {
   __typename?: 'AppIcon';
   url: Scalars['String'];
@@ -643,12 +663,6 @@ export type AppIcon = {
   colorPalette?: Maybe<Scalars['JSON']>;
 };
 
-
-export enum AppPrivacy {
-  Public = 'PUBLIC',
-  Unlisted = 'UNLISTED',
-  Hidden = 'HIDDEN'
-}
 
 export type BuildFilter = {
   platform?: Maybe<AppPlatform>;
@@ -945,7 +959,8 @@ export enum SubmissionStatus {
 
 export type AndroidSubmissionConfig = {
   __typename?: 'AndroidSubmissionConfig';
-  applicationIdentifier: Scalars['String'];
+  /** @deprecated applicationIdentifier is deprecated and will be auto-detected on submit */
+  applicationIdentifier?: Maybe<Scalars['String']>;
   /** @deprecated archiveType is deprecated and will be null */
   archiveType?: Maybe<SubmissionAndroidArchiveType>;
   track: SubmissionAndroidTrack;
@@ -974,7 +989,7 @@ export enum SubmissionAndroidReleaseStatus {
 export type IosSubmissionConfig = {
   __typename?: 'IosSubmissionConfig';
   ascAppIdentifier: Scalars['String'];
-  appleIdUsername: Scalars['String'];
+  appleIdUsername?: Maybe<Scalars['String']>;
   ascApiKeyId?: Maybe<Scalars['String']>;
 };
 
@@ -1465,6 +1480,7 @@ export type SubscriptionDetails = {
   endedAt?: Maybe<Scalars['DateTime']>;
   trialEnd?: Maybe<Scalars['DateTime']>;
   status?: Maybe<Scalars['String']>;
+  isDowngrading?: Maybe<Scalars['Boolean']>;
 };
 
 export type AddonDetails = {
@@ -1745,6 +1761,51 @@ export type ExperimentationQuery = {
   deviceExperimentationUnit: Scalars['ID'];
 };
 
+export type InvoiceQuery = {
+  __typename?: 'InvoiceQuery';
+  /** Preview an upgrade subscription invoice, with proration */
+  previewInvoiceForSubscriptionUpdate: Invoice;
+};
+
+
+export type InvoiceQueryPreviewInvoiceForSubscriptionUpdateArgs = {
+  accountId: Scalars['String'];
+  newPlanIdentifier: Scalars['String'];
+};
+
+export type Invoice = {
+  __typename?: 'Invoice';
+  id: Scalars['ID'];
+  /** The total amount due for the invoice, in cents */
+  amountDue: Scalars['Int'];
+  /** The total amount that has been paid, considering any discounts or account credit. Value is in cents. */
+  amountPaid: Scalars['Int'];
+  /** The total amount that needs to be paid, considering any discounts or account credit. Value is in cents. */
+  amountRemaining: Scalars['Int'];
+  lineItems: Array<InvoiceLineItem>;
+  period: InvoicePeriod;
+  startingBalance: Scalars['Int'];
+  subtotal: Scalars['Int'];
+  total: Scalars['Int'];
+};
+
+export type InvoiceLineItem = {
+  __typename?: 'InvoiceLineItem';
+  id: Scalars['ID'];
+  description: Scalars['String'];
+  /** Line-item amount in cents */
+  amount: Scalars['Int'];
+  period: InvoicePeriod;
+  proration: Scalars['Boolean'];
+  quantity: Scalars['Int'];
+};
+
+export type InvoicePeriod = {
+  __typename?: 'InvoicePeriod';
+  start: Scalars['DateTime'];
+  end: Scalars['DateTime'];
+};
+
 export type ProjectQuery = {
   __typename?: 'ProjectQuery';
   byAccountNameAndSlug: Project;
@@ -1904,6 +1965,7 @@ export type RootMutation = {
   iosAppBuildCredentials: IosAppBuildCredentialsMutation;
   /** Mutations that modify the credentials for an iOS app */
   iosAppCredentials: IosAppCredentialsMutation;
+  keystoreGenerationUrl: KeystoreGenerationUrlMutation;
   /** Mutations that create, update, and delete Robots */
   robot: RobotMutation;
   /** Mutations that modify an EAS Submit submission */
@@ -1998,6 +2060,10 @@ export type AccountMutation = {
   subscribeToProduct?: Maybe<Account>;
   /** Cancels the active subscription */
   cancelSubscription?: Maybe<Account>;
+  /** Upgrades or downgrades the active subscription to the newPlanIdentifier, which must be one of the EAS plans (i.e., Production or Enterprise). */
+  changePlan: Account;
+  /** Cancel scheduled subscription change */
+  cancelScheduledSubscriptionChange: Account;
   /** Requests a refund for the specified charge. Returns true if auto-refund was possible, otherwise requests a manual refund from support and returns false. */
   requestRefund?: Maybe<Scalars['Boolean']>;
   /**
@@ -2042,6 +2108,17 @@ export type AccountMutationSubscribeToProductArgs = {
 
 export type AccountMutationCancelSubscriptionArgs = {
   accountName: Scalars['ID'];
+};
+
+
+export type AccountMutationChangePlanArgs = {
+  accountID: Scalars['ID'];
+  newPlanIdentifier: Scalars['String'];
+};
+
+
+export type AccountMutationCancelScheduledSubscriptionChangeArgs = {
+  accountID: Scalars['ID'];
 };
 
 
@@ -2823,6 +2900,18 @@ export type IosAppCredentialsInput = {
   appStoreConnectApiKeyForSubmissionsId?: Maybe<Scalars['ID']>;
 };
 
+export type KeystoreGenerationUrlMutation = {
+  __typename?: 'KeystoreGenerationUrlMutation';
+  /** Create a Keystore Generation URL */
+  createKeystoreGenerationUrl: KeystoreGenerationUrl;
+};
+
+export type KeystoreGenerationUrl = {
+  __typename?: 'KeystoreGenerationUrl';
+  id: Scalars['ID'];
+  url: Scalars['String'];
+};
+
 export type RobotMutation = {
   __typename?: 'RobotMutation';
   /** Create a Robot and grant it Permissions on an Account */
@@ -2957,7 +3046,7 @@ export type AndroidSubmissionConfigInput = {
   googleServiceAccountKeyId?: Maybe<Scalars['String']>;
   googleServiceAccountKeyJson?: Maybe<Scalars['String']>;
   archiveUrl?: Maybe<Scalars['String']>;
-  applicationIdentifier: Scalars['String'];
+  applicationIdentifier?: Maybe<Scalars['String']>;
   track: SubmissionAndroidTrack;
   releaseStatus?: Maybe<SubmissionAndroidReleaseStatus>;
   changesNotSentForReview?: Maybe<Scalars['Boolean']>;
@@ -3540,7 +3629,7 @@ export type GetBranchInfoQueryVariables = Exact<{
 
 export type GetBranchInfoQuery = (
   { __typename?: 'RootQuery' }
-  & { app?: Maybe<(
+  & { app: (
     { __typename?: 'AppQuery' }
     & { byId: (
       { __typename?: 'App' }
@@ -3550,7 +3639,7 @@ export type GetBranchInfoQuery = (
         & Pick<UpdateBranch, 'id' | 'name'>
       )> }
     ) }
-  )> }
+  ) }
 );
 
 export type DeleteUpdateBranchMutationVariables = Exact<{
@@ -3577,7 +3666,7 @@ export type BranchesByAppQueryVariables = Exact<{
 
 export type BranchesByAppQuery = (
   { __typename?: 'RootQuery' }
-  & { app?: Maybe<(
+  & { app: (
     { __typename?: 'AppQuery' }
     & { byId: (
       { __typename?: 'App' }
@@ -3588,7 +3677,7 @@ export type BranchesByAppQuery = (
         & UpdateBranchFragment
       )> }
     ) }
-  )> }
+  ) }
 );
 
 export type GetUpdateGroupAsyncQueryVariables = Exact<{
@@ -3629,7 +3718,7 @@ export type ViewBranchQueryVariables = Exact<{
 
 export type ViewBranchQuery = (
   { __typename?: 'RootQuery' }
-  & { app?: Maybe<(
+  & { app: (
     { __typename?: 'AppQuery' }
     & { byId: (
       { __typename?: 'App' }
@@ -3650,7 +3739,7 @@ export type ViewBranchQuery = (
         )> }
       )> }
     ) }
-  )> }
+  ) }
 );
 
 export type CancelBuildMutationVariables = Exact<{
@@ -3695,7 +3784,7 @@ export type GetChannelByNameToEditQueryVariables = Exact<{
 
 export type GetChannelByNameToEditQuery = (
   { __typename?: 'RootQuery' }
-  & { app?: Maybe<(
+  & { app: (
     { __typename?: 'AppQuery' }
     & { byId: (
       { __typename?: 'App' }
@@ -3709,7 +3798,7 @@ export type GetChannelByNameToEditQuery = (
         )> }
       )> }
     ) }
-  )> }
+  ) }
 );
 
 export type UpdateChannelBranchMappingMutationVariables = Exact<{
@@ -3738,7 +3827,7 @@ export type GetAllChannelsForAppQueryVariables = Exact<{
 
 export type GetAllChannelsForAppQuery = (
   { __typename?: 'RootQuery' }
-  & { app?: Maybe<(
+  & { app: (
     { __typename?: 'AppQuery' }
     & { byId: (
       { __typename?: 'App' }
@@ -3763,7 +3852,7 @@ export type GetAllChannelsForAppQuery = (
         )> }
       )> }
     ) }
-  )> }
+  ) }
 );
 
 export type GetChannelByNameForAppQueryVariables = Exact<{
@@ -3774,7 +3863,7 @@ export type GetChannelByNameForAppQueryVariables = Exact<{
 
 export type GetChannelByNameForAppQuery = (
   { __typename?: 'RootQuery' }
-  & { app?: Maybe<(
+  & { app: (
     { __typename?: 'AppQuery' }
     & { byId: (
       { __typename?: 'App' }
@@ -3799,7 +3888,7 @@ export type GetChannelByNameForAppQuery = (
         )> }
       )> }
     ) }
-  )> }
+  ) }
 );
 
 export type AppInfoQueryVariables = Exact<{
@@ -3809,13 +3898,13 @@ export type AppInfoQueryVariables = Exact<{
 
 export type AppInfoQuery = (
   { __typename?: 'RootQuery' }
-  & { app?: Maybe<(
+  & { app: (
     { __typename?: 'AppQuery' }
     & { byId: (
       { __typename?: 'App' }
       & Pick<App, 'id' | 'fullName'>
     ) }
-  )> }
+  ) }
 );
 
 export type DeleteUpdateGroupMutationVariables = Exact<{
@@ -4056,7 +4145,7 @@ export type CommonAndroidAppCredentialsWithBuildCredentialsByApplicationIdentifi
 
 export type CommonAndroidAppCredentialsWithBuildCredentialsByApplicationIdentifierQuery = (
   { __typename?: 'RootQuery' }
-  & { app?: Maybe<(
+  & { app: (
     { __typename?: 'AppQuery' }
     & { byFullName: (
       { __typename?: 'App' }
@@ -4067,7 +4156,7 @@ export type CommonAndroidAppCredentialsWithBuildCredentialsByApplicationIdentifi
         & CommonAndroidAppCredentialsFragment
       )> }
     ) }
-  )> }
+  ) }
 );
 
 export type GoogleServiceAccountKeyByAccountQueryVariables = Exact<{
@@ -4453,14 +4542,14 @@ export type AppByFullNameQueryVariables = Exact<{
 
 export type AppByFullNameQuery = (
   { __typename?: 'RootQuery' }
-  & { app?: Maybe<(
+  & { app: (
     { __typename?: 'AppQuery' }
     & { byFullName: (
       { __typename?: 'App' }
       & Pick<App, 'id'>
       & AppFragment
     ) }
-  )> }
+  ) }
 );
 
 export type AppStoreConnectApiKeyByAccountQueryVariables = Exact<{
@@ -4593,7 +4682,7 @@ export type AppleDistributionCertificateByAppQueryVariables = Exact<{
 
 export type AppleDistributionCertificateByAppQuery = (
   { __typename?: 'RootQuery' }
-  & { app?: Maybe<(
+  & { app: (
     { __typename?: 'AppQuery' }
     & { byFullName: (
       { __typename?: 'App' }
@@ -4617,7 +4706,7 @@ export type AppleDistributionCertificateByAppQuery = (
         )> }
       )> }
     ) }
-  )> }
+  ) }
 );
 
 export type AppleDistributionCertificateByAccountQueryVariables = Exact<{
@@ -4650,7 +4739,7 @@ export type AppleProvisioningProfilesByAppQueryVariables = Exact<{
 
 export type AppleProvisioningProfilesByAppQuery = (
   { __typename?: 'RootQuery' }
-  & { app?: Maybe<(
+  & { app: (
     { __typename?: 'AppQuery' }
     & { byFullName: (
       { __typename?: 'App' }
@@ -4682,7 +4771,7 @@ export type AppleProvisioningProfilesByAppQuery = (
         )> }
       )> }
     ) }
-  )> }
+  ) }
 );
 
 export type ApplePushKeyByAccountQueryVariables = Exact<{
@@ -4753,7 +4842,7 @@ export type IosAppBuildCredentialsByAppleAppIdentiferAndDistributionQueryVariabl
 
 export type IosAppBuildCredentialsByAppleAppIdentiferAndDistributionQuery = (
   { __typename?: 'RootQuery' }
-  & { app?: Maybe<(
+  & { app: (
     { __typename?: 'AppQuery' }
     & { byFullName: (
       { __typename?: 'App' }
@@ -4768,7 +4857,7 @@ export type IosAppBuildCredentialsByAppleAppIdentiferAndDistributionQuery = (
         )> }
       )> }
     ) }
-  )> }
+  ) }
 );
 
 export type IosAppCredentialsWithBuildCredentialsByAppIdentifierIdQueryVariables = Exact<{
@@ -4780,7 +4869,7 @@ export type IosAppCredentialsWithBuildCredentialsByAppIdentifierIdQueryVariables
 
 export type IosAppCredentialsWithBuildCredentialsByAppIdentifierIdQuery = (
   { __typename?: 'RootQuery' }
-  & { app?: Maybe<(
+  & { app: (
     { __typename?: 'AppQuery' }
     & { byFullName: (
       { __typename?: 'App' }
@@ -4796,7 +4885,7 @@ export type IosAppCredentialsWithBuildCredentialsByAppIdentifierIdQuery = (
         & CommonIosAppCredentialsWithoutBuildCredentialsFragment
       )> }
     ) }
-  )> }
+  ) }
 );
 
 export type CommonIosAppCredentialsWithBuildCredentialsByAppIdentifierIdQueryVariables = Exact<{
@@ -4807,7 +4896,7 @@ export type CommonIosAppCredentialsWithBuildCredentialsByAppIdentifierIdQueryVar
 
 export type CommonIosAppCredentialsWithBuildCredentialsByAppIdentifierIdQuery = (
   { __typename?: 'RootQuery' }
-  & { app?: Maybe<(
+  & { app: (
     { __typename?: 'AppQuery' }
     & { byFullName: (
       { __typename?: 'App' }
@@ -4818,7 +4907,7 @@ export type CommonIosAppCredentialsWithBuildCredentialsByAppIdentifierIdQuery = 
         & CommonIosAppCredentialsFragment
       )> }
     ) }
-  )> }
+  ) }
 );
 
 export type CreateAppMutationVariables = Exact<{
@@ -5107,7 +5196,7 @@ export type GetAllBuildsForAppQueryVariables = Exact<{
 
 export type GetAllBuildsForAppQuery = (
   { __typename?: 'RootQuery' }
-  & { app?: Maybe<(
+  & { app: (
     { __typename?: 'AppQuery' }
     & { byId: (
       { __typename?: 'App' }
@@ -5118,7 +5207,7 @@ export type GetAllBuildsForAppQuery = (
         & BuildFragment
       )> }
     ) }
-  )> }
+  ) }
 );
 
 export type EnvironmentSecretsByAccountNameQueryVariables = Exact<{
@@ -5149,7 +5238,7 @@ export type EnvironmentSecretsByAppIdQueryVariables = Exact<{
 
 export type EnvironmentSecretsByAppIdQuery = (
   { __typename?: 'RootQuery' }
-  & { app?: Maybe<(
+  & { app: (
     { __typename?: 'AppQuery' }
     & { byId: (
       { __typename?: 'App' }
@@ -5160,7 +5249,7 @@ export type EnvironmentSecretsByAppIdQuery = (
         & EnvironmentSecretFragment
       )> }
     ) }
-  )> }
+  ) }
 );
 
 export type ProjectByUsernameAndSlugQueryVariables = Exact<{
@@ -5227,7 +5316,7 @@ export type GetAllSubmissionsForAppQueryVariables = Exact<{
 
 export type GetAllSubmissionsForAppQuery = (
   { __typename?: 'RootQuery' }
-  & { app?: Maybe<(
+  & { app: (
     { __typename?: 'AppQuery' }
     & { byId: (
       { __typename?: 'App' }
@@ -5238,7 +5327,7 @@ export type GetAllSubmissionsForAppQuery = (
         & SubmissionFragment
       )> }
     ) }
-  )> }
+  ) }
 );
 
 export type CurrentUserQueryVariables = Exact<{ [key: string]: never; }>;
@@ -5271,7 +5360,7 @@ export type WebhooksByAppIdQueryVariables = Exact<{
 
 export type WebhooksByAppIdQuery = (
   { __typename?: 'RootQuery' }
-  & { app?: Maybe<(
+  & { app: (
     { __typename?: 'AppQuery' }
     & { byId: (
       { __typename?: 'App' }
@@ -5282,7 +5371,7 @@ export type WebhooksByAppIdQuery = (
         & WebhookFragment
       )> }
     ) }
-  )> }
+  ) }
 );
 
 export type WebhookByIdQueryVariables = Exact<{

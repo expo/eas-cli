@@ -126,7 +126,6 @@ describe(AndroidSubmitCommand, () => {
         appId: projectId,
         config: {
           archiveUrl: 'http://expo.dev/fake.apk',
-          applicationIdentifier: testProject.appJSON.expo.android?.package,
           googleServiceAccountKeyJson: fakeFiles['/google-service-account.json'],
           releaseStatus: SubmissionAndroidReleaseStatus.Draft,
           track: SubmissionAndroidTrack.Internal,
@@ -160,7 +159,6 @@ describe(AndroidSubmitCommand, () => {
       expect(SubmissionMutation.createAndroidSubmissionAsync).toHaveBeenCalledWith({
         appId: projectId,
         config: {
-          applicationIdentifier: testProject.appJSON.expo.android?.package,
           googleServiceAccountKeyJson: fakeFiles['/google-service-account.json'],
           releaseStatus: SubmissionAndroidReleaseStatus.Draft,
           track: SubmissionAndroidTrack.Internal,

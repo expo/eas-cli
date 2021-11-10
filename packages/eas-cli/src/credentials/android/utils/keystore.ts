@@ -4,9 +4,9 @@ import fs from 'fs-extra';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 
-import Analytics, { Event } from '../../../build/utils/analytics';
 import { AndroidKeystoreType } from '../../../graphql/generated';
 import Log from '../../../log';
+import { Analytics, BuildEvent } from '../../../utils/analytics';
 import { getTmpDirectory } from '../../../utils/paths';
 import { KeystoreWithType } from '../credentials';
 
@@ -51,7 +51,7 @@ async function createKeystoreAsync(
   },
   projectId: string
 ): Promise<KeystoreWithType> {
-  Analytics.logEvent(Event.ANDROID_KEYSTORE_CREATE, {
+  Analytics.logEvent(BuildEvent.ANDROID_KEYSTORE_CREATE, {
     project_id: projectId,
     step: KeystoreCreateStep.Attempt,
     type: AndroidKeystoreType.Jks,
@@ -60,7 +60,7 @@ async function createKeystoreAsync(
   try {
     await ensureKeytoolCommandExistsAsync();
   } catch (error: any) {
-    Analytics.logEvent(Event.ANDROID_KEYSTORE_CREATE, {
+    Analytics.logEvent(BuildEvent.ANDROID_KEYSTORE_CREATE, {
       project_id: projectId,
       step: KeystoreCreateStep.Fail,
       reason: error.message,
@@ -95,7 +95,7 @@ async function createKeystoreAsync(
       `CN=,OU=,O=,L=,S=,C=US`,
     ]);
 
-    Analytics.logEvent(Event.ANDROID_KEYSTORE_CREATE, {
+    Analytics.logEvent(BuildEvent.ANDROID_KEYSTORE_CREATE, {
       project_id: projectId,
       step: KeystoreCreateStep.Success,
       type: AndroidKeystoreType.Jks,
@@ -107,7 +107,7 @@ async function createKeystoreAsync(
       type: AndroidKeystoreType.Jks,
     };
   } catch (error: any) {
-    Analytics.logEvent(Event.ANDROID_KEYSTORE_CREATE, {
+    Analytics.logEvent(BuildEvent.ANDROID_KEYSTORE_CREATE, {
       project_id: projectId,
       step: KeystoreCreateStep.Fail,
       reason: error.message,

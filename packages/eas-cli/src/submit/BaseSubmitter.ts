@@ -9,6 +9,7 @@ import { toAppPlatform } from '../graphql/types/AppPlatform';
 import Log from '../log';
 import { ora } from '../ora';
 import { appPlatformDisplayNames } from '../platform';
+import { Analytics, Event, SubmissionEvent, withAnalyticsAsync } from '../utils/analytics';
 import { SubmissionContext } from './context';
 
 export interface SubmissionInput<P extends Platform> {
@@ -18,12 +19,58 @@ export interface SubmissionInput<P extends Platform> {
     : IosSubmissionConfigInput;
   buildId?: string;
 }
-export default abstract class BaseSubmitter<P extends Platform, SubmissionOptions> {
-  constructor(protected ctx: SubmissionContext<P>, protected options: SubmissionOptions) {}
 
-  public abstract submitAsync(): Promise<SubmissionFragment>;
+interface AnalyticEvents {
+  successEvent: Event;
+  failureEvent: Event;
+}
 
-  protected async createSubmissionAsync(
+export default abstract class BaseSubmitter<
+  P extends Platform,
+  ResolvedSourceOptions,
+  SubmissionOptions
+> {
+  constructor(
+    protected ctx: SubmissionContext<P>,
+    protected options: SubmissionOptions,
+    protected sourceOptionResolver: {
+      [K in keyof ResolvedSourceOptions]: () => Promise<ResolvedSourceOptions[K]>;
+    },
+    protected sourceOptionAnalytics: Record<keyof ResolvedSourceOptions, AnalyticEvents>
+  ) {}
+
+  private async getSourceOptionsAsync(): Promise<ResolvedSourceOptions> {
+    const resolvedSourceOptions: ResolvedSourceOptions = {} as ResolvedSourceOptions;
+    // Do not perform this in parallel as some of these require user interaction
+    for (const key in this.sourceOptionResolver) {
+      const sourceOptionKey = key as keyof ResolvedSourceOptions;
+      const sourceOptionAnalytics = this.sourceOptionAnalytics[sourceOptionKey];
+      try {
+        const sourceOption = await this.sourceOptionResolver[sourceOptionKey]();
+        resolvedSourceOptions[sourceOptionKey] = sourceOption;
+        Analytics.logEvent(sourceOptionAnalytics.successEvent, this.ctx.trackingCtx);
+      } catch (error: any) {
+        Analytics.logEvent(sourceOptionAnalytics.failureEvent, {
+          ...this.ctx.trackingCtx,
+          reason: error.message,
+        });
+        throw error;
+      }
+    }
+    return resolvedSourceOptions;
+  }
+
+  public async submitAsync(): Promise<SubmissionFragment> {
+    const resolvedSourceOptions = await this.getSourceOptionsAsync(); // todo: also run analytics
+    const input = await this.createSubmissionInputAsync(resolvedSourceOptions);
+    return await this.createSubmissionWithAnalyticsAsync(input);
+  }
+
+  public abstract createSubmissionInputAsync(
+    resolvedOptions: ResolvedSourceOptions
+  ): Promise<SubmissionInput<P>>;
+
+  private async createSubmissionAsync(
     submissionInput: SubmissionInput<P>
   ): Promise<SubmissionFragment> {
     Log.addNewLineIfNone();
@@ -37,6 +84,19 @@ export default abstract class BaseSubmitter<P extends Platform, SubmissionOption
       scheduleSpinner.fail(`Failed to schedule ${platformDisplayName} submission`);
       throw err;
     }
+  }
+
+  protected async createSubmissionWithAnalyticsAsync(
+    submissionInput: SubmissionInput<P>
+  ): Promise<SubmissionFragment> {
+    return await withAnalyticsAsync<SubmissionFragment>(
+      async () => this.createSubmissionAsync(submissionInput),
+      {
+        successEvent: SubmissionEvent.MUTATION_SUCCESS,
+        failureEvent: SubmissionEvent.MUTATION_FAIL,
+        trackingCtx: this.ctx.trackingCtx,
+      }
+    );
   }
 
   protected abstract createPlatformSubmissionAsync(
