@@ -28,7 +28,6 @@ export default class AndroidSubmitCommand {
     return await submitter.submitAsync();
   }
 
-  // todo: analytics
   private async getAndroidSubmissionOptionsAsync(): Promise<AndroidSubmissionOptions> {
     const androidPackageSource = await this.resolveAndroidPackageSourceAsync();
     const track = this.resolveTrack();
