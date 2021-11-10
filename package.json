@@ -9,7 +9,7 @@
     "watch": "yarn start",
     "eas": "packages/eas-cli/bin/run",
     "lint": "eslint . --ext .ts --ext .js",
-    "release": "lerna version",
+    "release": "./scripts/bin/run update-local-plugin && lerna version",
     "test": "jest",
     "clean": "lerna run clean && rm -rf node_modules coverage"
   },
