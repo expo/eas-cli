@@ -162,7 +162,7 @@ const SummaryHumanReadableKeys: Record<keyof SummaryData, string> = {
   archiveUrl: 'Archive URL',
   archivePath: 'Archive Path',
   formattedBuild: 'Build',
-  formattedAscApiKey: 'App Store Connect Api Key',
+  formattedAscApiKey: 'App Store Connect API Key',
 };
 
 function formatAscApiKeySummary({ summary }: AscApiKeyResult): string {

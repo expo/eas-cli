@@ -6,7 +6,7 @@ import { AssignAscApiKey } from '../AssignAscApiKey';
 import { getAppLookupParamsFromContext } from '../BuildCredentialsUtils';
 
 describe(AssignAscApiKey, () => {
-  it('assigns an App Store Connect Api Key in Interactive Mode for EAS Submit', async () => {
+  it('assigns an App Store Connect API Key in Interactive Mode for EAS Submit', async () => {
     const ctx = createCtxMock({
       nonInteractive: false,
     });

@@ -62,7 +62,7 @@ describe(getFromCredentialsServiceAsync, () => {
       appSpecificPassword: { password: 'super secret', appleIdUsername: 'quin@expo.io' },
     });
   });
-  it('returns an ASC Api Key from the credentialService source', async () => {
+  it('returns an ASC API Key from the credentialService source', async () => {
     const ctx = await createSubmissionContextAsync({
       platform: Platform.IOS,
       projectDir: testProject.projectRoot,

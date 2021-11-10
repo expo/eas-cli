@@ -31,7 +31,7 @@ export class AssignAscApiKey {
       throw new Error(`${purpose} is not yet supported.`);
     }
     Log.succeed(
-      `App Store Connect Api Key assigned to ${this.app.projectName}: ${this.app.bundleIdentifier} for ${purpose}.`
+      `App Store Connect API Key assigned to ${this.app.projectName}: ${this.app.bundleIdentifier} for ${purpose}.`
     );
     return updatedAppCredentials;
   }

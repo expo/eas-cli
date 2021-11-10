@@ -10,7 +10,7 @@ jest.mock('../../../../prompts');
 asMock(confirmAsync).mockImplementation(() => true);
 
 describe(RemoveAscApiKey, () => {
-  it('removes an Asc Api Key', async () => {
+  it('removes an Asc API Key', async () => {
     const ctx = createCtxMock({ nonInteractive: false });
     const appLookupParams = getAppLookupParamsFromContext(ctx, findApplicationTarget(testTargets));
     const removeAscApiKeyAction = new RemoveAscApiKey(

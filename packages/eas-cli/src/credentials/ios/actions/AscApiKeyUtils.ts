@@ -64,7 +64,7 @@ export async function provideOrGenerateAscApiKeyAsync(
   purpose: AppStoreApiKeyPurpose
 ): Promise<MinimalAscApiKey> {
   if (ctx.nonInteractive) {
-    return await generateAscApiKeyAsync(ctx, purpose);
+    throw new Error(`A new App Store Connect API Key cannot be created in non-interactive mode.`);
   }
 
   const userProvided = await promptForAscApiKeyAsync(ctx);
@@ -73,7 +73,7 @@ export async function provideOrGenerateAscApiKeyAsync(
   }
 
   if (!ctx.appStore.authCtx) {
-    Log.warn('Unable to validate App Store Connect Api Key, you are not authenticated with Apple.');
+    Log.warn('Unable to validate App Store Connect API Key, you are not authenticated with Apple.');
     return userProvided;
   }
 
@@ -82,7 +82,7 @@ export async function provideOrGenerateAscApiKeyAsync(
     return userProvided;
   }
   const useUserProvided = await confirmAsync({
-    message: `App Store Connect Api Key with ID ${userProvided.keyId} is not valid on Apple's servers. Proceed anyway?`,
+    message: `App Store Connect API Key with ID ${userProvided.keyId} is not valid on Apple's servers. Proceed anyway?`,
   });
   if (useUserProvided) {
     return userProvided;
@@ -94,6 +94,7 @@ async function generateAscApiKeyAsync(
   ctx: CredentialsContext,
   purpose: AppStoreApiKeyPurpose
 ): Promise<MinimalAscApiKey> {
+  //console.log('debug');
   await ctx.appStore.ensureAuthenticatedAsync();
   const ascApiKey = await ctx.appStore.createAscApiKeyAsync({
     nickname: getAscApiKeyName(purpose),
@@ -129,7 +130,7 @@ async function promptForKeyP8AndIdAsync(): Promise<Pick<AscApiKeyPath, 'keyP8Pat
   const { keyP8Path } = await promptAsync({
     type: 'text',
     name: 'keyP8Path',
-    message: 'Path to App Store Connect Api Key:',
+    message: 'Path to App Store Connect API Key:',
     initial: 'AuthKey_ABCD.p8',
     // eslint-disable-next-line async-protect/async-suffix
     validate: async (filePath: string) => {
@@ -189,12 +190,12 @@ export async function selectAscApiKeysFromAccountAsync(
     if (filterDifferentAppleTeam) {
       const maybeAppleTeamId = ctx.appStore.authCtx?.team.id;
       Log.warn(
-        `There are no App Store Connect Api Keys in your EAS account${
+        `There are no App Store Connect API Keys in your EAS account${
           maybeAppleTeamId ? ` matching Apple Team ID: ${maybeAppleTeamId}.` : '.'
         }`
       );
     } else {
-      Log.warn(`There are no App Store Connect Api Keys available in your EAS account.`);
+      Log.warn(`There are no App Store Connect API Keys available in your EAS account.`);
     }
     return null;
   }
@@ -208,7 +209,7 @@ async function selectAscApiKeysAsync(
   const { chosenAscApiKey } = await promptAsync({
     type: 'select',
     name: 'chosenAscApiKey',
-    message: 'Select an Api Key from the list:',
+    message: 'Select an API Key from the list:',
     choices: sortedAscApiKeys.map(ascApiKey => ({
       title: formatAscApiKey(ascApiKey),
       value: ascApiKey,

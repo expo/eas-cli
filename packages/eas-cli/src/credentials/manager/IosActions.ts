@@ -14,7 +14,7 @@ export const highLevelActions: ActionInfo[] = [
   },
   {
     value: IosActionType.ManageAscApiKey,
-    title: 'App Store Connect: Manage your Api Key',
+    title: 'App Store Connect: Manage your API Key',
     scope: Scope.Manager,
   },
   {
@@ -81,22 +81,22 @@ export function getAscApiKeyActions(ctx: CredentialsContext): ActionInfo[] {
   return [
     {
       value: IosActionType.SetUpAscApiKeyForSubmissions,
-      title: 'Set up your project to use an Api Key for EAS Submit',
+      title: 'Set up your project to use an API Key for EAS Submit',
       scope: Scope.Project,
     },
     {
       value: IosActionType.UseExistingAscApiKeyForSubmissions,
-      title: 'Use an existing Api Key for EAS Submit',
+      title: 'Use an existing API Key for EAS Submit',
       scope: Scope.Project,
     },
     {
       value: IosActionType.CreateAscApiKeyForSubmissions,
-      title: 'Add a new Api Key For EAS Submit',
+      title: 'Add a new API Key For EAS Submit',
       scope: ctx.hasProjectContext ? Scope.Project : Scope.Account,
     },
     {
       value: IosActionType.RemoveAscApiKey,
-      title: 'Delete an Api Key',
+      title: 'Delete an API Key',
       scope: Scope.Account,
     },
     {

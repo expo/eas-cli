@@ -13,7 +13,7 @@ import {
 import { AscApiKeyResult } from './AscApiKeySource';
 
 /**
- * The Credentials Service will either return an ASC Api Key or an App Specific Password
+ * The Credentials Service will either return an ASC API Key or an App Specific Password
  * When we no longer support the App Specific Password user prompt, refactor this into the AscApiKeySource
  */
 export const CREDENTIALS_SERVICE_SOURCE = 'CREDENTIALS_SERVICE_SOURCE';
@@ -48,7 +48,7 @@ export async function getFromCredentialsServiceAsync(
   } else {
     const ascKeyForSubmissions = nullthrows(
       ascOrAsp.appStoreConnectApiKeyForSubmissions,
-      `An EAS Submit ASC Api Key could not be found for ${ascOrAsp.appleAppIdentifier.bundleIdentifier}`
+      `An EAS Submit ASC API Key could not be found for ${ascOrAsp.appleAppIdentifier.bundleIdentifier}`
     );
     const { id, keyIdentifier, name } = ascKeyForSubmissions;
     return {

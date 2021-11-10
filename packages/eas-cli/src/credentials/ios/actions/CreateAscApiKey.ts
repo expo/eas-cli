@@ -12,12 +12,12 @@ export class CreateAscApiKey {
     purpose: AppStoreApiKeyPurpose
   ): Promise<AppStoreConnectApiKeyFragment> {
     if (ctx.nonInteractive) {
-      throw new Error(`A new App Store Connect Api Key cannot be created in non-interactive mode.`);
+      throw new Error(`A new App Store Connect API Key cannot be created in non-interactive mode.`);
     }
 
     const ascApiKey = await provideOrGenerateAscApiKeyAsync(ctx, purpose);
     const result = await ctx.ios.createAscApiKeyAsync(this.account, ascApiKey);
-    Log.succeed('Created App Store Connect Api Key');
+    Log.succeed('Created App Store Connect API Key');
     return result;
   }
 }

@@ -12,7 +12,7 @@ jest.mock('../../../../prompts');
 asMock(confirmAsync).mockImplementation(() => true);
 
 describe(RemoveFcm, () => {
-  it('removes an FCM Api Key', async () => {
+  it('removes an FCM API Key', async () => {
     const ctx = createCtxMock({
       nonInteractive: false,
       android: {
