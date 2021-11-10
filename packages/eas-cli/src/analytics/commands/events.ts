@@ -1,6 +1,5 @@
-import { logEvent } from '../analytics';
-
-export type TrackingContext = Record<string, string | number | boolean>;
+import { logEvent } from '../rudderstackClient';
+export type Event = BuildEvent | SubmissionEvent;
 
 export enum SubmissionEvent {
   SUBMIT_COMMAND = 'submit cli submit command',
@@ -10,8 +9,8 @@ export enum SubmissionEvent {
   GATHER_CREDENTIALS_FAIL = 'submit cli gather credentials fail',
   GATHER_ARCHIVE_SUCCESS = 'submit cli gather archive success',
   GATHER_ARCHIVE_FAIL = 'submit cli gather archive fail',
-  MUTATION_SUCCESS = 'submit cli server mutation success',
-  MUTATION_FAIL = 'submit cli server mutation fail',
+  SUBMIT_REQUEST_SUCCESS = 'submit cli request success',
+  SUBMIT_REQUEST_FAIL = 'submit cli request fail',
 }
 
 export enum BuildEvent {
@@ -34,28 +33,6 @@ export enum BuildEvent {
   CREDENTIALS_SYNC_UPDATE_REMOTE_FAIL = 'build cli credentials sync update remote fail',
 
   ANDROID_KEYSTORE_CREATE = 'build cli credentials keystore create',
-}
-
-export type Event = BuildEvent | SubmissionEvent;
-export async function withAnalyticsAsync<Result>(
-  fn: () => Promise<Result>,
-  analytics: {
-    successEvent: Event;
-    failureEvent: Event;
-    trackingCtx: TrackingContext;
-  }
-): Promise<Result> {
-  try {
-    const result = await fn();
-    Analytics.logEvent(analytics.successEvent, analytics.trackingCtx);
-    return result;
-  } catch (error: any) {
-    Analytics.logEvent(analytics.failureEvent, {
-      ...analytics.trackingCtx,
-      reason: error.message,
-    });
-    throw error;
-  }
 }
 
 export class Analytics {

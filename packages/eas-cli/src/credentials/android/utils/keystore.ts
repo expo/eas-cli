@@ -4,9 +4,9 @@ import fs from 'fs-extra';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 
+import { Analytics, BuildEvent } from '../../../analytics/commands/events';
 import { AndroidKeystoreType } from '../../../graphql/generated';
 import Log from '../../../log';
-import { Analytics, BuildEvent } from '../../../utils/analytics';
 import { getTmpDirectory } from '../../../utils/paths';
 import { KeystoreWithType } from '../credentials';
 

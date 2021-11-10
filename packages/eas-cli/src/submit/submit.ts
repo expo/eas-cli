@@ -1,10 +1,11 @@
 import { Platform } from '@expo/eas-build-job';
 import chalk from 'chalk';
 
+import { withAnalyticsAsync } from '../analytics/commands/common';
+import { SubmissionEvent } from '../analytics/commands/events';
 import { AppPlatform, SubmissionFragment, SubmissionStatus } from '../graphql/generated';
 import Log, { link } from '../log';
 import { appPlatformDisplayNames, appPlatformEmojis } from '../platform';
-import { SubmissionEvent, withAnalyticsAsync } from '../utils/analytics';
 import AndroidSubmitCommand from './android/AndroidSubmitCommand';
 import { SubmissionContext } from './context';
 import IosSubmitCommand from './ios/IosSubmitCommand';

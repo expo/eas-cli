@@ -1,5 +1,7 @@
 import { Platform } from '@expo/eas-build-job';
 
+import { withAnalyticsAsync } from '../analytics/commands/common';
+import { Analytics, Event, SubmissionEvent } from '../analytics/commands/events';
 import {
   AndroidSubmissionConfigInput,
   IosSubmissionConfigInput,
@@ -9,7 +11,6 @@ import { toAppPlatform } from '../graphql/types/AppPlatform';
 import Log from '../log';
 import { ora } from '../ora';
 import { appPlatformDisplayNames } from '../platform';
-import { Analytics, Event, SubmissionEvent, withAnalyticsAsync } from '../utils/analytics';
 import { SubmissionContext } from './context';
 
 export interface SubmissionInput<P extends Platform> {
@@ -86,14 +87,14 @@ export default abstract class BaseSubmitter<
     }
   }
 
-  protected async createSubmissionWithAnalyticsAsync(
+  private async createSubmissionWithAnalyticsAsync(
     submissionInput: SubmissionInput<P>
   ): Promise<SubmissionFragment> {
     return await withAnalyticsAsync<SubmissionFragment>(
       async () => this.createSubmissionAsync(submissionInput),
       {
-        successEvent: SubmissionEvent.MUTATION_SUCCESS,
-        failureEvent: SubmissionEvent.MUTATION_FAIL,
+        successEvent: SubmissionEvent.SUBMIT_REQUEST_SUCCESS,
+        failureEvent: SubmissionEvent.SUBMIT_REQUEST_FAIL,
         trackingCtx: this.ctx.trackingCtx,
       }
     );

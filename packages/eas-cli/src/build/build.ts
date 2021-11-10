@@ -3,6 +3,8 @@ import { CredentialsSource } from '@expo/eas-json';
 import chalk from 'chalk';
 import fs from 'fs-extra';
 
+import { withAnalyticsAsync } from '../analytics/commands/common';
+import { BuildEvent } from '../analytics/commands/events';
 import { BuildFragment, BuildStatus, UploadSessionType } from '../graphql/generated';
 import { BuildResult } from '../graphql/mutations/BuildMutation';
 import { BuildQuery } from '../graphql/queries/BuildQuery';
@@ -10,7 +12,6 @@ import Log, { learnMore } from '../log';
 import { ora } from '../ora';
 import { requestedPlatformDisplayNames } from '../platform';
 import { uploadAsync } from '../uploads';
-import { BuildEvent, withAnalyticsAsync } from '../utils/analytics';
 import { formatBytes } from '../utils/files';
 import { createProgressTracker } from '../utils/progress';
 import { sleepAsync } from '../utils/promise';

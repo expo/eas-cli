@@ -1,5 +1,5 @@
 import { asMock } from '../../__tests__/utils';
-import { flushAsync, initAsync, logEvent } from '../../analytics';
+import { flushAsync, initAsync, logEvent } from '../../analytics/rudderstackClient';
 import { jester as mockJester } from '../../credentials/__tests__/fixtures-constants';
 import { getUserAsync } from '../../user/User';
 import { ensureLoggedInAsync } from '../../user/actions';

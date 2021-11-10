@@ -1,6 +1,6 @@
 import gql from 'graphql-tag';
 
-import * as Analytics from '../analytics';
+import * as Analytics from '../analytics/rudderstackClient';
 import { apiClient } from '../api';
 import { graphqlClient } from '../graphql/client';
 import { CurrentUserQuery } from '../graphql/generated';

@@ -3,13 +3,14 @@ import { Platform } from '@expo/eas-build-job';
 import { SubmitProfile } from '@expo/eas-json';
 import { v4 as uuidv4 } from 'uuid';
 
+import { TrackingContext } from '../analytics/commands/common';
+import { Analytics, SubmissionEvent } from '../analytics/commands/events';
 import { CredentialsContext } from '../credentials/context';
 import { getExpoConfig } from '../project/expoConfig';
 import { getProjectAccountName } from '../project/projectUtils';
 import { findAccountByName } from '../user/Account';
 import { Actor } from '../user/User';
 import { ensureLoggedInAsync } from '../user/actions';
-import { Analytics, SubmissionEvent, TrackingContext } from '../utils/analytics';
 
 export interface SubmissionContext<T extends Platform> {
   accountName: string;
