@@ -8,7 +8,7 @@ export const highLevelActions: ActionInfo[] = [
   },
   {
     value: AndroidActionType.ManageFcm,
-    title: 'Push Notifications: Manage your FCM Api Key',
+    title: 'Push Notifications: Manage your FCM API Key',
     scope: Scope.Manager,
   },
   {
@@ -72,12 +72,12 @@ export const buildCredentialsActions: ActionInfo[] = [
 export const fcmActions: ActionInfo[] = [
   {
     value: AndroidActionType.CreateFcm,
-    title: 'Upload an FCM Api Key',
+    title: 'Upload an FCM API Key',
     scope: Scope.Project,
   },
   {
     value: AndroidActionType.RemoveFcm,
-    title: 'Delete your FCM Api Key',
+    title: 'Delete your FCM API Key',
     scope: Scope.Project,
   },
   {

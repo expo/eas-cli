@@ -239,7 +239,7 @@ function displayAscApiKey(
   maybeAscApiKey: AppStoreConnectApiKeyFragment | null,
   fields: { label: string; value: string }[]
 ): void {
-  fields.push({ label: 'App Store Connect Api Key', value: '' });
+  fields.push({ label: 'App Store Connect API Key', value: '' });
   if (maybeAscApiKey) {
     const { keyIdentifier, issuerIdentifier, appleTeam, name, roles, updatedAt } = maybeAscApiKey;
     fields.push({ label: 'Developer Portal ID', value: keyIdentifier });

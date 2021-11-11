@@ -363,7 +363,7 @@ export class ManageIos {
           AppStoreApiKeyPurpose.SUBMISSION_SERVICE
         );
         const confirm = await confirmAsync({
-          message: `Do you want ${appLookupParams.projectName} to use the new Api Key?`,
+          message: `Do you want ${appLookupParams.projectName} to use the new API Key?`,
         });
         if (confirm) {
           await new AssignAscApiKey(appLookupParams).runAsync(

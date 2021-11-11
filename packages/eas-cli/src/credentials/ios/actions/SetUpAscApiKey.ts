@@ -31,10 +31,10 @@ export enum SetupAscApiKeyChoice {
 export class SetUpAscApiKey {
   public choices: { title: string; value: string }[] = [
     {
-      title: '[Choose an existing ASC Api Key]',
+      title: '[Choose an existing ASC API Key]',
       value: SetupAscApiKeyChoice.USE_EXISTING,
     },
-    { title: '[Add a new ASC Api Key]', value: SetupAscApiKeyChoice.GENERATE },
+    { title: '[Add a new ASC API Key]', value: SetupAscApiKeyChoice.GENERATE },
   ];
 
   constructor(private app: AppLookupParams, private purpose: AppStoreApiKeyPurpose) {}
@@ -42,15 +42,15 @@ export class SetUpAscApiKey {
   public async runAsync(ctx: CredentialsContext): Promise<CommonIosAppCredentialsFragment> {
     const isKeySetup = await this.isAscApiKeySetupAsync(ctx, this.purpose);
     if (isKeySetup) {
-      Log.succeed('App Store Connect Api Key already set up.');
+      Log.succeed('App Store Connect API Key already set up.');
       return nullthrows(
         await ctx.ios.getIosAppCredentialsWithCommonFieldsAsync(this.app),
-        'iosAppCredentials cannot be null if App Store Connect Api Key is already set up'
+        'iosAppCredentials cannot be null if App Store Connect API Key is already set up'
       );
     }
     if (ctx.nonInteractive) {
       throw new MissingCredentialsNonInteractiveError(
-        'App Store Connect Api Keys cannot be set up in --non-interactive mode.'
+        'App Store Connect API Keys cannot be set up in --non-interactive mode.'
       );
     }
 
@@ -88,11 +88,11 @@ export class SetUpAscApiKey {
     }
     const [autoselectedKey] = sortAscApiKeysByUpdatedAtDesc(validKeys);
     const useAutoselected = await confirmAsync({
-      message: `Reuse this App Store Connect Api Key?\n${formatAscApiKey(autoselectedKey)}`,
+      message: `Reuse this App Store Connect API Key?\n${formatAscApiKey(autoselectedKey)}`,
     });
 
     if (useAutoselected) {
-      Log.log(`Using App Store Connect Api Key with ID ${autoselectedKey.keyIdentifier}`);
+      Log.log(`Using App Store Connect API Key with ID ${autoselectedKey.keyIdentifier}`);
       return autoselectedKey;
     } else {
       return null;
@@ -105,7 +105,7 @@ export class SetUpAscApiKey {
   ): Promise<boolean> {
     const appCredentials = await ctx.ios.getIosAppCredentialsWithCommonFieldsAsync(this.app);
     if (purpose !== AppStoreApiKeyPurpose.SUBMISSION_SERVICE) {
-      throw new Error(`App Store Connect Api Key setup is not yet supported for ${purpose}.`);
+      throw new Error(`App Store Connect API Key setup is not yet supported for ${purpose}.`);
     }
     return !!appCredentials?.appStoreConnectApiKeyForSubmissions;
   }

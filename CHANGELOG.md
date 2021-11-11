@@ -16,18 +16,19 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🧹 Chores
 
 - Use same URL paths for local development of EAS CLI as production. ([#750](https://github.com/expo/eas-cli/pull/750) by [@ide](https://github.com/ide))
+- Grammar: Api -> API. ([#755](https://github.com/expo/eas-cli/pull/755) by [@quinlanj](https://github.com/quinlanj))
 
 ## [0.35.0](https://github.com/expo/eas-cli/releases/tag/v0.35.0) - 2021-11-08
 
 ### 🎉 New features
 
-- Add ASC Api Key generation workflow. ([#718](https://github.com/expo/eas-cli/pull/718) by [@quinlanj](https://github.com/quinlanj))
-- Add support for removal of ASC Api Keys. ([#721](https://github.com/expo/eas-cli/pull/721) by [@quinlanj](https://github.com/quinlanj))
-- Allow users to assign an ASC Api Key to their project. ([#719](https://github.com/expo/eas-cli/pull/719) by [@quinlanj](https://github.com/quinlanj))
-- Add setup support for ASC Api Keys. ([#733](https://github.com/expo/eas-cli/pull/733) by [@quinlanj](https://github.com/quinlanj))
+- Add ASC API Key generation workflow. ([#718](https://github.com/expo/eas-cli/pull/718) by [@quinlanj](https://github.com/quinlanj))
+- Add support for removal of ASC API Keys. ([#721](https://github.com/expo/eas-cli/pull/721) by [@quinlanj](https://github.com/quinlanj))
+- Allow users to assign an ASC API Key to their project. ([#719](https://github.com/expo/eas-cli/pull/719) by [@quinlanj](https://github.com/quinlanj))
+- Add setup support for ASC API Keys. ([#733](https://github.com/expo/eas-cli/pull/733) by [@quinlanj](https://github.com/quinlanj))
 - Show initiating user display name when selecting a build to submit. ([#730](https://github.com/expo/eas-cli/pull/730) by [@barthap](https://github.com/barthap))
 - Handle Apple servers maintenance error in `eas submit`. ([#738](https://github.com/expo/eas-cli/pull/738) by [@barthap](https://github.com/barthap))
-- Integrate ASC Api Key with submissions workflow. ([#737](https://github.com/expo/eas-cli/pull/737) by [@quinlanj](https://github.com/quinlanj))
+- Integrate ASC API Key with submissions workflow. ([#737](https://github.com/expo/eas-cli/pull/737) by [@quinlanj](https://github.com/quinlanj))
 - Change EAS API server domain. ([#744](https://github.com/expo/eas-cli/pull/744) by [@ide](https://github.com/ide))
 - Only prompt for Apple Id username if authenticating with an App Specific Password. ([#745](https://github.com/expo/eas-cli/pull/745) by [@quinlanj](https://github.com/quinlanj))
 
@@ -46,7 +47,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
-- Add App Store Connect Api Key graphql type and print support. ([#717](https://github.com/expo/eas-cli/pull/717) by [@quinlanj](https://github.com/quinlanj))
+- Add App Store Connect API Key graphql type and print support. ([#717](https://github.com/expo/eas-cli/pull/717) by [@quinlanj](https://github.com/quinlanj))
 
 ## [0.34.0](https://github.com/expo/eas-cli/releases/tag/v0.34.0) - 2021-11-01
 
@@ -107,7 +108,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
-- Add App Store Connect Api Key support to iOS submissions. ([#678](https://github.com/expo/eas-cli/pull/678) by [@quinlanj](https://github.com/quinlanj))
+- Add App Store Connect API Key support to iOS submissions. ([#678](https://github.com/expo/eas-cli/pull/678) by [@quinlanj](https://github.com/quinlanj))
 - Create/list/revoke App Store Connect Api keys via Apple apis. ([#687](https://github.com/expo/eas-cli/pull/687) by [@quinlanj](https://github.com/quinlanj))
 - Add ability to select a build from a list in `eas submit` interactive mode. ([#688](https://github.com/expo/eas-cli/pull/688) by [@barthap](https://github.com/barthap))
 
@@ -117,7 +118,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
-- Add App Store Connect Api Key fields to `eas.json`. ([#684](https://github.com/expo/eas-cli/pull/684) by [@quinlanj](https://github.com/quinlanj))
+- Add App Store Connect API Key fields to `eas.json`. ([#684](https://github.com/expo/eas-cli/pull/684) by [@quinlanj](https://github.com/quinlanj))
 - Enable no-underscore-dangle eslint rule. ([#686](https://github.com/expo/eas-cli/pull/686) by [@dsokal](https://github.com/dsokal))
 
 ## [0.31.1](https://github.com/expo/eas-cli/releases/tag/v0.31.1) - 2021-10-08

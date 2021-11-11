@@ -12,7 +12,7 @@ jest.mock('../../../../prompts');
 asMock(confirmAsync).mockImplementation(() => true);
 
 describe(CreateAscApiKey, () => {
-  it('creates a App Store Api Key in Interactive Mode', async () => {
+  it('creates a App Store API Key in Interactive Mode', async () => {
     const ctx = createCtxMock({
       nonInteractive: false,
       appStore: {

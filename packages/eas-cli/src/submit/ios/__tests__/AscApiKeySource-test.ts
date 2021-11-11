@@ -168,7 +168,7 @@ describe(getAscApiKeyPathAsync, () => {
 });
 
 describe(getAscApiKeyLocallyAsync, () => {
-  it('returns a local Asc Api Key file with a AscApiKeySourceType.path source', async () => {
+  it('returns a local Asc API Key file with a AscApiKeySourceType.path source', async () => {
     const ctx = await getIosSubmissionContextAsync();
     const source: AscApiKeySource = {
       sourceType: AscApiKeySourceType.path,
@@ -189,7 +189,7 @@ describe(getAscApiKeyLocallyAsync, () => {
     });
   });
 
-  it('returns a local Asc Api Key file with a AscApiKeySourceType.prompt source', async () => {
+  it('returns a local Asc API Key file with a AscApiKeySourceType.prompt source', async () => {
     asMock(promptAsync).mockImplementationOnce(() => ({
       keyP8Path: '/asc-api-key.p8',
     }));

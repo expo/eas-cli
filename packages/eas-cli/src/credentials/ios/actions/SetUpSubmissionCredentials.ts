@@ -18,7 +18,7 @@ export class SetUpSubmissionCredentials {
 
   constructor(app: AppLookupParams) {
     this.setupAscApiKeyAction = new SetUpAscApiKey(app, AppStoreApiKeyPurpose.SUBMISSION_SERVICE);
-    // Add this unrelated choice to ASC Api Key setup for legacy purposes -- we will deprecate it soon
+    // Add this unrelated choice to ASC API Key setup for legacy purposes -- we will deprecate it soon
     this.setupAscApiKeyAction.choices = this.setupAscApiKeyAction.choices.concat({
       title: '[Enter an App Specific Password]',
       value: PROMPT_FOR_APP_SPECIFIC_PASSWORD,
@@ -32,9 +32,9 @@ export class SetUpSubmissionCredentials {
       const iosAppCredentials = await this.setupAscApiKeyAction.runAsync(ctx);
       const { keyIdentifier, name } = nullthrows(
         iosAppCredentials.appStoreConnectApiKeyForSubmissions,
-        'ASC Api Key must be defined for EAS Submit'
+        'ASC API Key must be defined for EAS Submit'
       );
-      Log.log(`Using Api Key ID: ${keyIdentifier}${name ? ` (${name})` : ''}`);
+      Log.log(`Using API Key ID: ${keyIdentifier}${name ? ` (${name})` : ''}`);
       return iosAppCredentials;
     } catch (e) {
       if (e instanceof UnsupportedCredentialsChoiceError) {
