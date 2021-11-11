@@ -10,8 +10,8 @@ TestEasCommand.prototype.authValue = jest.fn().mockImplementation(() => true);
 
 jest.mock('../../user/User');
 jest.mock('../../user/actions', () => ({ ensureLoggedInAsync: jest.fn() }));
-jest.mock('../../analytics', () => {
-  const { AnalyticsEvent } = jest.requireActual('../../analytics');
+jest.mock('../../analytics/rudderstackClient', () => {
+  const { AnalyticsEvent } = jest.requireActual('../../analytics/rudderstackClient');
   return {
     AnalyticsEvent,
     logEvent: jest.fn(),
