@@ -1,7 +1,7 @@
 import { Platform } from '@expo/eas-build-job';
 
-import { withAnalyticsAsync } from '../analytics/commands/common';
-import { Analytics, Event, SubmissionEvent } from '../analytics/commands/events';
+import { withAnalyticsAsync } from '../analytics/common';
+import { Analytics, Event, SubmissionEvent } from '../analytics/events';
 import {
   AndroidSubmissionConfigInput,
   IosSubmissionConfigInput,

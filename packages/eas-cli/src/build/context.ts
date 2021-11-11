@@ -5,8 +5,8 @@ import JsonFile from '@expo/json-file';
 import resolveFrom from 'resolve-from';
 import { v4 as uuidv4 } from 'uuid';
 
-import { TrackingContext } from '../analytics/commands/common';
-import { Analytics, BuildEvent } from '../analytics/commands/events';
+import { TrackingContext } from '../analytics/common';
+import { Analytics, BuildEvent } from '../analytics/events';
 import { CredentialsContext } from '../credentials/context';
 import { RequestedPlatform } from '../platform';
 import { getExpoConfig } from '../project/expoConfig';

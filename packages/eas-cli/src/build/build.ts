@@ -3,8 +3,8 @@ import { CredentialsSource } from '@expo/eas-json';
 import chalk from 'chalk';
 import fs from 'fs-extra';
 
-import { withAnalyticsAsync } from '../analytics/commands/common';
-import { BuildEvent } from '../analytics/commands/events';
+import { withAnalyticsAsync } from '../analytics/common';
+import { BuildEvent } from '../analytics/events';
 import { BuildFragment, BuildStatus, UploadSessionType } from '../graphql/generated';
 import { BuildResult } from '../graphql/mutations/BuildMutation';
 import { BuildQuery } from '../graphql/queries/BuildQuery';

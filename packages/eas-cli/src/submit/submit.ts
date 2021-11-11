@@ -1,8 +1,8 @@
 import { Platform } from '@expo/eas-build-job';
 import chalk from 'chalk';
 
-import { withAnalyticsAsync } from '../analytics/commands/common';
-import { SubmissionEvent } from '../analytics/commands/events';
+import { withAnalyticsAsync } from '../analytics/common';
+import { SubmissionEvent } from '../analytics/events';
 import { AppPlatform, SubmissionFragment, SubmissionStatus } from '../graphql/generated';
 import Log, { link } from '../log';
 import { appPlatformDisplayNames, appPlatformEmojis } from '../platform';

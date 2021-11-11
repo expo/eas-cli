@@ -1,4 +1,4 @@
-import { logEvent } from '../rudderstackClient';
+import { logEvent } from './rudderstackClient';
 export type Event = BuildEvent | SubmissionEvent;
 
 export enum SubmissionEvent {

@@ -1,7 +1,7 @@
 import { Platform } from '@expo/eas-build-job';
 import chalk from 'chalk';
 
-import { SubmissionEvent } from '../../analytics/commands/events';
+import { SubmissionEvent } from '../../analytics/events';
 import {
   AndroidSubmissionConfigInput,
   SubmissionAndroidReleaseStatus,

@@ -3,8 +3,8 @@ import { Platform } from '@expo/eas-build-job';
 import { SubmitProfile } from '@expo/eas-json';
 import { v4 as uuidv4 } from 'uuid';
 
-import { TrackingContext } from '../analytics/commands/common';
-import { Analytics, SubmissionEvent } from '../analytics/commands/events';
+import { TrackingContext } from '../analytics/common';
+import { Analytics, SubmissionEvent } from '../analytics/events';
 import { CredentialsContext } from '../credentials/context';
 import { getExpoConfig } from '../project/expoConfig';
 import { getProjectAccountName } from '../project/projectUtils';
