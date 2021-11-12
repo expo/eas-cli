@@ -24,6 +24,7 @@ export async function submitAsync<T extends Platform>(
       return command.runAsync();
     },
     {
+      attemptEvent: SubmissionEvent.SUBMIT_COMMAND_ATTEMPT,
       successEvent: SubmissionEvent.SUBMIT_COMMAND_SUCCESS,
       failureEvent: SubmissionEvent.SUBMIT_COMMAND_FAIL,
       trackingCtx: ctx.trackingCtx,
