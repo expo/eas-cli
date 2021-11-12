@@ -24,7 +24,7 @@ export interface AppSpecificPasswordCredentials {
 
 export type AppSpecificPasswordSource = AppSpecificPasswordUserDefinedSource;
 
-export async function getAppSpecificPasswordAsync(
+export async function getAppSpecificPasswordLocallyAsync(
   ctx: SubmissionContext<Platform.IOS>,
   source: AppSpecificPasswordSource
 ): Promise<AppSpecificPasswordCredentials> {

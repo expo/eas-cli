@@ -1,5 +1,5 @@
 import { asMock } from '../../__tests__/utils';
-import { flushAsync, initAsync, logEvent } from '../../analytics';
+import { flushAsync, initAsync, logEvent } from '../../analytics/rudderstackClient';
 import { jester as mockJester } from '../../credentials/__tests__/fixtures-constants';
 import { getUserAsync } from '../../user/User';
 import { ensureLoggedInAsync } from '../../user/actions';
@@ -10,8 +10,8 @@ TestEasCommand.prototype.authValue = jest.fn().mockImplementation(() => true);
 
 jest.mock('../../user/User');
 jest.mock('../../user/actions', () => ({ ensureLoggedInAsync: jest.fn() }));
-jest.mock('../../analytics', () => {
-  const { AnalyticsEvent } = jest.requireActual('../../analytics');
+jest.mock('../../analytics/rudderstackClient', () => {
+  const { AnalyticsEvent } = jest.requireActual('../../analytics/rudderstackClient');
   return {
     AnalyticsEvent,
     logEvent: jest.fn(),

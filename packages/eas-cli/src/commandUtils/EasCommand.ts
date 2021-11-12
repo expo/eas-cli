@@ -7,7 +7,7 @@ import {
   flushAsync as flushAnalyticsAsync,
   initAsync as initAnalyticsAsync,
   logEvent,
-} from '../analytics';
+} from '../analytics/rudderstackClient';
 import Log from '../log';
 import { findProjectRootAsync } from '../project/projectUtils';
 import { getUserAsync } from '../user/User';

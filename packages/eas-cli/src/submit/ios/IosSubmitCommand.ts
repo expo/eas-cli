@@ -29,11 +29,10 @@ export default class IosSubmitCommand {
     return await submitter.submitAsync();
   }
 
-  private async resolveCredentialSubmissionOptionsAsync(): Promise<
+  private resolveCredentialSubmissionOptions():
     | { appSpecificPasswordSource: Result<AppSpecificPasswordSource> }
     | { ascApiKeySource: Result<AscApiKeySource> }
-    | { credentialsServiceSource: Result<CredentialsServiceSource> }
-  > {
+    | { credentialsServiceSource: Result<CredentialsServiceSource> } {
     const ascApiKeySource = this.resolveAscApiKeySource();
     const shouldSkipAscApiKeySource =
       !ascApiKeySource.ok && ascApiKeySource.enforceError() instanceof MissingCredentialsError;
@@ -56,7 +55,7 @@ export default class IosSubmitCommand {
 
   private async resolveSubmissionOptionsAsync(): Promise<IosSubmissionOptions> {
     const archiveSource = this.resolveArchiveSource();
-    const credentialsSource = await this.resolveCredentialSubmissionOptionsAsync();
+    const credentialsSource = this.resolveCredentialSubmissionOptions();
     const maybeAppSpecificPasswordSource =
       'appSpecificPasswordSource' in credentialsSource
         ? credentialsSource.appSpecificPasswordSource

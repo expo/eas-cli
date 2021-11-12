@@ -1,6 +1,19 @@
-import { logEvent } from '../../analytics';
+import { logEvent } from './rudderstackClient';
+export type Event = BuildEvent | SubmissionEvent;
 
-export enum Event {
+export enum SubmissionEvent {
+  SUBMIT_COMMAND = 'submit cli submit command',
+  SUBMIT_COMMAND_SUCCESS = 'submit cli success',
+  SUBMIT_COMMAND_FAIL = 'submit cli fail',
+  GATHER_CREDENTIALS_SUCCESS = 'submit cli gather credentials success',
+  GATHER_CREDENTIALS_FAIL = 'submit cli gather credentials fail',
+  GATHER_ARCHIVE_SUCCESS = 'submit cli gather archive success',
+  GATHER_ARCHIVE_FAIL = 'submit cli gather archive fail',
+  SUBMIT_REQUEST_SUCCESS = 'submit cli request success',
+  SUBMIT_REQUEST_FAIL = 'submit cli request fail',
+}
+
+export enum BuildEvent {
   BUILD_COMMAND = 'build cli build command',
   PROJECT_UPLOAD_SUCCESS = 'build cli project upload success',
   PROJECT_UPLOAD_FAIL = 'build cli project upload fail',
@@ -22,8 +35,8 @@ export enum Event {
   ANDROID_KEYSTORE_CREATE = 'build cli credentials keystore create',
 }
 
-export default {
-  logEvent(name: Event, properties: Record<string, any>) {
+export class Analytics {
+  static logEvent(name: Event, properties: Record<string, any>): void {
     logEvent(name, properties);
-  },
-};
+  }
+}

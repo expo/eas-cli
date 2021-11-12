@@ -5,6 +5,8 @@ import JsonFile from '@expo/json-file';
 import resolveFrom from 'resolve-from';
 import { v4 as uuidv4 } from 'uuid';
 
+import { TrackingContext } from '../analytics/common';
+import { Analytics, BuildEvent } from '../analytics/events';
 import { CredentialsContext } from '../credentials/context';
 import { RequestedPlatform } from '../platform';
 import { getExpoConfig } from '../project/expoConfig';
@@ -13,8 +15,6 @@ import { resolveWorkflowAsync } from '../project/workflow';
 import { findAccountByName } from '../user/Account';
 import { Actor } from '../user/User';
 import { ensureLoggedInAsync } from '../user/actions';
-import { TrackingContext } from './types';
-import Analytics, { Event } from './utils/analytics';
 
 export interface ConfigureContext {
   user: Actor;
@@ -95,7 +95,7 @@ export async function createBuildContextAsync<T extends Platform>({
     project_type: workflow,
     ...devClientProperties,
   };
-  Analytics.logEvent(Event.BUILD_COMMAND, trackingCtx);
+  Analytics.logEvent(BuildEvent.BUILD_COMMAND, trackingCtx);
 
   return {
     accountName,

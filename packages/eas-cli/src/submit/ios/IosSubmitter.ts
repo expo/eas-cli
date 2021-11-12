@@ -1,12 +1,14 @@
 import { Platform } from '@expo/eas-build-job';
 import chalk from 'chalk';
 
+import { SubmissionEvent } from '../../analytics/events';
 import { MinimalAscApiKey } from '../../credentials/ios/credentials';
 import { IosSubmissionConfigInput, SubmissionFragment } from '../../graphql/generated';
 import { SubmissionMutation } from '../../graphql/mutations/SubmissionMutation';
 import formatFields from '../../utils/formatFields';
 import { Archive, ArchiveSource, getArchiveAsync } from '../ArchiveSource';
 import BaseSubmitter, { SubmissionInput } from '../BaseSubmitter';
+import { SubmissionContext } from '../context';
 import {
   ArchiveSourceSummaryFields,
   formatArchiveSourceSummary,
@@ -15,7 +17,7 @@ import {
 import {
   AppSpecificPasswordCredentials,
   AppSpecificPasswordSource,
-  getAppSpecificPasswordAsync,
+  getAppSpecificPasswordLocallyAsync,
 } from './AppSpecificPasswordSource';
 import {
   AscApiKeyFromExpoServers,
@@ -39,28 +41,70 @@ export interface IosSubmissionOptions
 
 interface ResolvedSourceOptions {
   archive: Archive;
-  appSpecificPassword?: AppSpecificPasswordCredentials;
-  ascApiKeyResult?: AscApiKeyResult;
+  credentials: {
+    appSpecificPassword?: AppSpecificPasswordCredentials;
+    ascApiKeyResult?: AscApiKeyResult;
+  };
 }
 
-export default class IosSubmitter extends BaseSubmitter<Platform.IOS, IosSubmissionOptions> {
-  async submitAsync(): Promise<SubmissionFragment> {
-    const resolvedSourceOptions = await this.resolveSourceOptionsAsync();
-    const submissionConfig = await this.formatSubmissionConfigAsync(
-      this.options,
-      resolvedSourceOptions
-    );
+export default class IosSubmitter extends BaseSubmitter<
+  Platform.IOS,
+  ResolvedSourceOptions,
+  IosSubmissionOptions
+> {
+  constructor(ctx: SubmissionContext<Platform.IOS>, options: IosSubmissionOptions) {
+    const sourceOptionsResolver = {
+      // eslint-disable-next-line async-protect/async-suffix
+      archive: async () => await getArchiveAsync(this.options.archiveSource),
+      // eslint-disable-next-line async-protect/async-suffix
+      credentials: async () => {
+        const maybeAppSpecificPassword = this.options.appSpecificPasswordSource
+          ? await getAppSpecificPasswordLocallyAsync(
+              this.ctx,
+              this.options.appSpecificPasswordSource
+            )
+          : null;
+        const maybeAppStoreConnectApiKey = this.options.ascApiKeySource
+          ? await getAscApiKeyLocallyAsync(this.ctx, this.options.ascApiKeySource)
+          : null;
+        const maybeAscOrAspFromCredentialsService = this.options.credentialsServiceSource
+          ? await getFromCredentialsServiceAsync(this.ctx)
+          : null;
+        return {
+          ...(maybeAppSpecificPassword ? { appSpecificPassword: maybeAppSpecificPassword } : null),
+          ...(maybeAppStoreConnectApiKey ? { ascApiKeyResult: maybeAppStoreConnectApiKey } : null),
+          ...(maybeAscOrAspFromCredentialsService ? maybeAscOrAspFromCredentialsService : null),
+        };
+      },
+    };
+    const sourceOptionsAnalytics = {
+      archive: {
+        successEvent: SubmissionEvent.GATHER_ARCHIVE_SUCCESS,
+        failureEvent: SubmissionEvent.GATHER_ARCHIVE_FAIL,
+      },
+      credentials: {
+        successEvent: SubmissionEvent.GATHER_CREDENTIALS_SUCCESS,
+        failureEvent: SubmissionEvent.GATHER_CREDENTIALS_FAIL,
+      },
+    };
+    super(ctx, options, sourceOptionsResolver, sourceOptionsAnalytics);
+  }
+
+  public async createSubmissionInputAsync(
+    resolvedSourceOptions: ResolvedSourceOptions
+  ): Promise<SubmissionInput<Platform.IOS>> {
+    const submissionConfig = this.formatSubmissionConfig(this.options, resolvedSourceOptions);
 
     printSummary(
       this.prepareSummaryData(this.options, resolvedSourceOptions),
       SummaryHumanReadableKeys
     );
 
-    return await this.createSubmissionAsync({
+    return {
       projectId: this.options.projectId,
       submissionConfig,
       buildId: resolvedSourceOptions.archive.build?.id,
-    });
+    };
   }
 
   protected async createPlatformSubmissionAsync({
@@ -75,29 +119,11 @@ export default class IosSubmitter extends BaseSubmitter<Platform.IOS, IosSubmiss
     });
   }
 
-  private async resolveSourceOptionsAsync(): Promise<ResolvedSourceOptions> {
-    const archive = await getArchiveAsync(this.options.archiveSource);
-    const maybeAppSpecificPassword = this.options.appSpecificPasswordSource
-      ? await getAppSpecificPasswordAsync(this.ctx, this.options.appSpecificPasswordSource)
-      : null;
-    const maybeAppStoreConnectApiKey = this.options.ascApiKeySource
-      ? await getAscApiKeyLocallyAsync(this.ctx, this.options.ascApiKeySource)
-      : null;
-    const maybeAscOrAspFromCredentialsService = this.options.credentialsServiceSource
-      ? await getFromCredentialsServiceAsync(this.ctx)
-      : null;
-    return {
-      archive,
-      ...(maybeAppSpecificPassword ? { appSpecificPassword: maybeAppSpecificPassword } : null),
-      ...(maybeAppStoreConnectApiKey ? { ascApiKeyResult: maybeAppStoreConnectApiKey } : null),
-      ...(maybeAscOrAspFromCredentialsService ? maybeAscOrAspFromCredentialsService : null),
-    };
-  }
-
-  private async formatSubmissionConfigAsync(
+  private formatSubmissionConfig(
     options: IosSubmissionOptions,
-    { archive, appSpecificPassword, ascApiKeyResult }: ResolvedSourceOptions
-  ): Promise<IosSubmissionConfigInput> {
+    { archive, credentials }: ResolvedSourceOptions
+  ): IosSubmissionConfigInput {
+    const { appSpecificPassword, ascApiKeyResult } = credentials;
     const { appleIdUsername, ascAppIdentifier } = options;
     return {
       ascAppIdentifier,
@@ -133,8 +159,9 @@ export default class IosSubmitter extends BaseSubmitter<Platform.IOS, IosSubmiss
 
   private prepareSummaryData(
     options: IosSubmissionOptions,
-    { archive, ascApiKeyResult, appSpecificPassword }: ResolvedSourceOptions
+    { archive, credentials }: ResolvedSourceOptions
   ): SummaryData {
+    const { ascApiKeyResult, appSpecificPassword } = credentials;
     const { ascAppIdentifier, projectId } = options;
 
     // structuring order affects table rows order

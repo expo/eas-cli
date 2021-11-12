@@ -12,5 +12,3 @@ export enum BuildDistributionType {
   INTERNAL = 'internal',
   SIMULATOR = 'simulator',
 }
-
-export type TrackingContext = Record<string, string | number | boolean>;

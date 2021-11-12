@@ -1,6 +1,7 @@
 import { Platform } from '@expo/eas-build-job';
 import chalk from 'chalk';
 
+import { SubmissionEvent } from '../../analytics/events';
 import {
   AndroidSubmissionConfigInput,
   SubmissionAndroidReleaseStatus,
@@ -11,6 +12,7 @@ import { SubmissionMutation } from '../../graphql/mutations/SubmissionMutation';
 import formatFields from '../../utils/formatFields';
 import { Archive, ArchiveSource, getArchiveAsync } from '../ArchiveSource';
 import BaseSubmitter, { SubmissionInput } from '../BaseSubmitter';
+import { SubmissionContext } from '../context';
 import {
   ArchiveSourceSummaryFields,
   formatArchiveSourceSummary,
@@ -22,7 +24,6 @@ import {
   ServiceAccountSource,
   getServiceAccountKeyResultAsync,
 } from './ServiceAccountSource';
-
 export interface AndroidSubmissionOptions
   extends Pick<
     AndroidSubmissionConfigInput,
@@ -35,32 +36,56 @@ export interface AndroidSubmissionOptions
 }
 
 interface ResolvedSourceOptions {
-  androidPackage: string;
   archive: Archive;
   serviceAccountKeyResult: ServiceAccountKeyResult;
 }
 
 export default class AndroidSubmitter extends BaseSubmitter<
   Platform.ANDROID,
+  ResolvedSourceOptions,
   AndroidSubmissionOptions
 > {
-  async submitAsync(): Promise<SubmissionFragment> {
-    const resolvedSourceOptions = await this.resolveSourceOptionsAsync();
-    const submissionConfig = await this.formatSubmissionConfigAsync(
-      this.options,
-      resolvedSourceOptions
-    );
+  constructor(ctx: SubmissionContext<Platform.ANDROID>, options: AndroidSubmissionOptions) {
+    const sourceOptionsResolver = {
+      // eslint-disable-next-line async-protect/async-suffix
+      archive: async () => await getArchiveAsync(this.options.archiveSource),
+      // eslint-disable-next-line async-protect/async-suffix
+      serviceAccountKeyResult: async () => {
+        const androidPackage = await getAndroidPackageAsync(this.options.androidPackageSource);
+        return await getServiceAccountKeyResultAsync(
+          this.ctx,
+          this.options.serviceAccountSource,
+          androidPackage
+        );
+      },
+    };
+    const sourceOptionsAnalytics = {
+      archive: {
+        successEvent: SubmissionEvent.GATHER_ARCHIVE_SUCCESS,
+        failureEvent: SubmissionEvent.GATHER_ARCHIVE_FAIL,
+      },
+      serviceAccountKeyResult: {
+        successEvent: SubmissionEvent.GATHER_CREDENTIALS_SUCCESS,
+        failureEvent: SubmissionEvent.GATHER_CREDENTIALS_FAIL,
+      },
+    };
+    super(ctx, options, sourceOptionsResolver, sourceOptionsAnalytics);
+  }
+
+  public async createSubmissionInputAsync(
+    resolvedSourceOptions: ResolvedSourceOptions
+  ): Promise<SubmissionInput<Platform.ANDROID>> {
+    const submissionConfig = await this.formatSubmissionConfig(this.options, resolvedSourceOptions);
 
     printSummary(
       this.prepareSummaryData(this.options, resolvedSourceOptions),
       SummaryHumanReadableKeys
     );
-
-    return await this.createSubmissionAsync({
+    return {
       projectId: this.options.projectId,
       submissionConfig,
       buildId: resolvedSourceOptions.archive.build?.id,
-    });
+    };
   }
 
   protected async createPlatformSubmissionAsync({
@@ -75,28 +100,12 @@ export default class AndroidSubmitter extends BaseSubmitter<
     });
   }
 
-  private async resolveSourceOptionsAsync(): Promise<ResolvedSourceOptions> {
-    const androidPackage = await getAndroidPackageAsync(this.options.androidPackageSource);
-    const archive = await getArchiveAsync(this.options.archiveSource);
-    const serviceAccountKeyResult = await getServiceAccountKeyResultAsync(
-      this.ctx,
-      this.options.serviceAccountSource,
-      androidPackage
-    );
-    return {
-      androidPackage,
-      archive,
-      serviceAccountKeyResult,
-    };
-  }
-
-  private async formatSubmissionConfigAsync(
+  private formatSubmissionConfig(
     options: AndroidSubmissionOptions,
-    { archive, androidPackage, serviceAccountKeyResult }: ResolvedSourceOptions
-  ): Promise<AndroidSubmissionConfigInput> {
+    { archive, serviceAccountKeyResult }: ResolvedSourceOptions
+  ): AndroidSubmissionConfigInput {
     const { track, releaseStatus, changesNotSentForReview } = options;
     return {
-      applicationIdentifier: androidPackage,
       archiveUrl: archive.url,
       track,
       changesNotSentForReview,
@@ -107,14 +116,13 @@ export default class AndroidSubmitter extends BaseSubmitter<
 
   private prepareSummaryData(
     options: AndroidSubmissionOptions,
-    { archive, androidPackage, serviceAccountKeyResult }: ResolvedSourceOptions
+    { archive, serviceAccountKeyResult }: ResolvedSourceOptions
   ): SummaryData {
     const { projectId, track, releaseStatus, changesNotSentForReview } = options;
 
     // structuring order affects table rows order
     return {
       projectId,
-      androidPackage,
       track,
       changesNotSentForReview: changesNotSentForReview ?? undefined,
       releaseStatus: releaseStatus ?? undefined,
@@ -125,7 +133,6 @@ export default class AndroidSubmitter extends BaseSubmitter<
 }
 
 type SummaryData = {
-  androidPackage: string;
   changesNotSentForReview?: boolean;
   formattedServiceAccount: string;
   projectId: string;
@@ -134,7 +141,6 @@ type SummaryData = {
 } & ArchiveSourceSummaryFields;
 
 const SummaryHumanReadableKeys: Record<keyof SummaryData, string> = {
-  androidPackage: 'Android package',
   archivePath: 'Archive path',
   archiveUrl: 'Download URL',
   changesNotSentForReview: 'Changes not sent for a review',
