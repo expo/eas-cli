@@ -79,10 +79,12 @@ export default class IosSubmitter extends BaseSubmitter<
     };
     const sourceOptionsAnalytics = {
       archive: {
+        attemptEvent: SubmissionEvent.GATHER_ARCHIVE_ATTEMPT,
         successEvent: SubmissionEvent.GATHER_ARCHIVE_SUCCESS,
         failureEvent: SubmissionEvent.GATHER_ARCHIVE_FAIL,
       },
       credentials: {
+        attemptEvent: SubmissionEvent.GATHER_CREDENTIALS_ATTEMPT,
         successEvent: SubmissionEvent.GATHER_CREDENTIALS_SUCCESS,
         failureEvent: SubmissionEvent.GATHER_CREDENTIALS_FAIL,
       },

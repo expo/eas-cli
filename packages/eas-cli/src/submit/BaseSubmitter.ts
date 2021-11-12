@@ -1,7 +1,7 @@
 import { Platform } from '@expo/eas-build-job';
 
 import { withAnalyticsAsync } from '../analytics/common';
-import { Analytics, Event, SubmissionEvent } from '../analytics/events';
+import { Event, SubmissionEvent } from '../analytics/events';
 import {
   AndroidSubmissionConfigInput,
   IosSubmissionConfigInput,
@@ -22,6 +22,7 @@ export interface SubmissionInput<P extends Platform> {
 }
 
 interface AnalyticEvents {
+  attemptEvent: Event;
   successEvent: Event;
   failureEvent: Event;
 }
@@ -46,17 +47,16 @@ export default abstract class BaseSubmitter<
     for (const key in this.sourceOptionResolver) {
       const sourceOptionKey = key as keyof ResolvedSourceOptions;
       const sourceOptionAnalytics = this.sourceOptionAnalytics[sourceOptionKey];
-      try {
-        const sourceOption = await this.sourceOptionResolver[sourceOptionKey]();
-        resolvedSourceOptions[sourceOptionKey] = sourceOption;
-        Analytics.logEvent(sourceOptionAnalytics.successEvent, this.ctx.trackingCtx);
-      } catch (error: any) {
-        Analytics.logEvent(sourceOptionAnalytics.failureEvent, {
-          ...this.ctx.trackingCtx,
-          reason: error.message,
-        });
-        throw error;
-      }
+
+      const sourceOption = await withAnalyticsAsync<
+        ResolvedSourceOptions[keyof ResolvedSourceOptions]
+      >(async () => await this.sourceOptionResolver[sourceOptionKey](), {
+        attemptEvent: sourceOptionAnalytics.attemptEvent,
+        successEvent: sourceOptionAnalytics.successEvent,
+        failureEvent: sourceOptionAnalytics.failureEvent,
+        trackingCtx: this.ctx.trackingCtx,
+      });
+      resolvedSourceOptions[sourceOptionKey] = sourceOption;
     }
     return resolvedSourceOptions;
   }
@@ -93,6 +93,7 @@ export default abstract class BaseSubmitter<
     return await withAnalyticsAsync<SubmissionFragment>(
       async () => this.createSubmissionAsync(submissionInput),
       {
+        attemptEvent: SubmissionEvent.SUBMIT_REQUEST_ATTEMPT,
         successEvent: SubmissionEvent.SUBMIT_REQUEST_SUCCESS,
         failureEvent: SubmissionEvent.SUBMIT_REQUEST_FAIL,
         trackingCtx: this.ctx.trackingCtx,

@@ -5,6 +5,7 @@ export type TrackingContext = Record<string, string | number | boolean>;
 export async function withAnalyticsAsync<Result>(
   fn: () => Promise<Result>,
   analytics: {
+    attemptEvent: Event;
     successEvent: Event;
     failureEvent: Event;
     trackingCtx: TrackingContext;
