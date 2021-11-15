@@ -11,6 +11,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 - Validate release channel in eas.json. ([#764](https://github.com/expo/eas-cli/pull/764) by [@dsokal](https://github.com/dsokal))
+- Make the missing profile error message more descriptive. ([#761](https://github.com/expo/eas-cli/pull/761) by [@dsokal](https://github.com/dsokal))
 
 ### 🧹 Chores
 

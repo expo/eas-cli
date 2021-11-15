@@ -1,5 +1,5 @@
 import { Platform, Workflow } from '@expo/eas-build-job';
-import { BuildProfile, EasJsonReader } from '@expo/eas-json';
+import { EasJsonReader } from '@expo/eas-json';
 import { flags } from '@oclif/command';
 import { error } from '@oclif/errors';
 import chalk from 'chalk';
@@ -152,13 +152,11 @@ export default class Build extends EasCommand {
     await ensureProjectConfiguredAsync(projectDir, requestedPlatform);
 
     const platforms = toPlatforms(requestedPlatform);
-    const easJsonReader = new EasJsonReader(projectDir);
     const buildProfiles = await getProfilesAsync({
+      type: 'build',
+      projectDir,
       platforms,
       profileName: flags.profile,
-      async readProfileAsync(platform, profileName) {
-        return await easJsonReader.readBuildProfileAsync(platform, profileName);
-      },
     });
 
     await ensureExpoDevClientInstalledForDevClientBuildsAsync({
@@ -169,7 +167,7 @@ export default class Build extends EasCommand {
 
     const startedBuilds: {
       build: BuildFragment;
-      buildProfile: ProfileData<BuildProfile>;
+      buildProfile: ProfileData<'build'>;
     }[] = [];
     const buildCtxByPlatform: { [p in AppPlatform]?: BuildContext<Platform> } = {};
 
@@ -288,7 +286,7 @@ export default class Build extends EasCommand {
     projectDir: string;
     flags: BuildFlags;
     moreBuilds: boolean;
-    buildProfile: ProfileData<BuildProfile>;
+    buildProfile: ProfileData<'build'>;
   }): Promise<{ build: BuildFragment | undefined; buildCtx: BuildContext<Platform> }> {
     const buildCtx = await createBuildContextAsync({
       buildProfileName: buildProfile.profileName,
@@ -350,7 +348,7 @@ export default class Build extends EasCommand {
     flags: BuildFlags;
     moreBuilds: boolean;
     projectDir: string;
-    buildProfile: ProfileData<BuildProfile>;
+    buildProfile: ProfileData<'build'>;
   }): Promise<SubmissionFragment> {
     const easJsonReader = new EasJsonReader(projectDir);
     const platform = toPlatform(build.platform);
