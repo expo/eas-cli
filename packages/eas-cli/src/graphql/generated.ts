@@ -5028,6 +5028,20 @@ export type DeleteEnvironmentSecretMutation = (
   ) }
 );
 
+export type CreateKeystoreGenerationUrlMutationVariables = Exact<{ [key: string]: never; }>;
+
+
+export type CreateKeystoreGenerationUrlMutation = (
+  { __typename?: 'RootMutation' }
+  & { keystoreGenerationUrl: (
+    { __typename?: 'KeystoreGenerationUrlMutation' }
+    & { createKeystoreGenerationUrl: (
+      { __typename?: 'KeystoreGenerationUrl' }
+      & Pick<KeystoreGenerationUrl, 'id' | 'url'>
+    ) }
+  ) }
+);
+
 export type GetSignedUploadMutationVariables = Exact<{
   contentTypes: Array<Scalars['String']>;
 }>;
