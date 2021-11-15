@@ -22,8 +22,8 @@ const CommonBuildProfileSchema = Joi.object({
   credentialsSource: Joi.string().valid('local', 'remote'),
   distribution: Joi.string().valid('store', 'internal'),
   cache: CacheSchema,
-  releaseChannel: Joi.string(),
-  channel: Joi.string(),
+  releaseChannel: Joi.string().regex(/^[a-z\d][a-z\d._-]*$/),
+  channel: Joi.string().regex(/^[a-z\d][a-z\d._-]*$/),
   developmentClient: Joi.boolean(),
 
   node: Joi.string().empty(null).custom(semverSchemaCheck),
