@@ -11,7 +11,6 @@ module.exports = {
         ignoreDeclarationSort: true,
       },
     ],
-    'flowtype/no-types-missing-file-annotation': 'off',
     curly: 'warn',
     'import/no-cycle': 'error',
     'import/no-extraneous-dependencies': [

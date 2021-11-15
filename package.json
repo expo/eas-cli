@@ -8,7 +8,7 @@
     "start": "lerna run watch --parallel",
     "watch": "yarn start",
     "eas": "packages/eas-cli/bin/run",
-    "lint": "eslint . --ext .ts --ext .js",
+    "lint": "eslint .",
     "release": "./scripts/bin/run update-local-plugin && lerna version",
     "test": "jest",
     "clean": "lerna run clean && rm -rf node_modules coverage"
@@ -24,7 +24,7 @@
     "jest": "27.1.0",
     "jest-watch-typeahead": "0.6.4",
     "lerna": "4.0.0",
-    "prettier": "2.3.2",
+    "prettier": "2.4.1",
     "ts-jest": "27.0.5",
     "typescript": "4.4.2"
   },

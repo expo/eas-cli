@@ -12,3 +12,4 @@ node_modules
 coverage
 .history
 .DS_Store
+.idea
