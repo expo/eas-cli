@@ -4,7 +4,8 @@
   "version": "0.31.0",
   "scripts": {
     "changelog-entry": "ts-node src/changelogEntry.ts",
-    "release-changelog": "ts-node src/releaseChangelog.ts"
+    "release-changelog": "ts-node src/releaseChangelog.ts",
+    "update-local-plugin": "./src/updateLocalPlugin.sh"
   },
   "author": "Expo <support@expo.dev>",
   "license": "MIT",
