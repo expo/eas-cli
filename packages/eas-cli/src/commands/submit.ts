@@ -1,5 +1,4 @@
 import { getConfig } from '@expo/config';
-import { EasJsonReader } from '@expo/eas-json';
 import { flags } from '@oclif/command';
 import { error } from '@oclif/errors';
 import chalk from 'chalk';
@@ -103,13 +102,11 @@ See how to configure submits with eas.json: ${link('https://docs.expo.dev/submit
     }
 
     const platforms = toPlatforms(flags.requestedPlatform);
-    const easJsonReader = new EasJsonReader(projectDir);
     const submissionProfiles = await getProfilesAsync({
+      type: 'submit',
+      projectDir,
       platforms,
       profileName: flags.profile,
-      async readProfileAsync(platform, profileName) {
-        return await easJsonReader.readSubmitProfileAsync(platform, profileName);
-      },
     });
 
     const submissions: SubmissionFragment[] = [];

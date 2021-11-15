@@ -1,5 +1,4 @@
 import { Workflow } from '@expo/eas-build-job';
-import { BuildProfile } from '@expo/eas-json';
 import { error } from '@oclif/errors';
 import chalk from 'chalk';
 import resolveFrom from 'resolve-from';
@@ -21,7 +20,7 @@ export async function ensureExpoDevClientInstalledForDevClientBuildsAsync({
 }: {
   projectDir: string;
   nonInteractive?: boolean;
-  buildProfiles?: ProfileData<BuildProfile>[];
+  buildProfiles?: ProfileData<'build'>[];
 }): Promise<void> {
   if (await isExpoDevClientInstalledAsync(projectDir)) {
     return;
