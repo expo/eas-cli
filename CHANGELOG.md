@@ -6,7 +6,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🛠 Breaking changes
 
-- Do not require manual `eas-cli-local-build-plugin` installation. ([#753](https://github.com/expo/eas-cli/pull/753) by [@dsokal](https://github.com/dsokal))
+- Do not require manual `eas-cli-local-build-plugin` installation. An existing global installation (either with `yarn global add` or `npm install -g`) will not be used anymore. ([#753](https://github.com/expo/eas-cli/pull/753) by [@dsokal](https://github.com/dsokal))
 
 ### 🎉 New features
 
