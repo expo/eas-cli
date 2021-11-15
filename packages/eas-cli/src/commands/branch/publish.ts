@@ -35,6 +35,7 @@ import { formatUpdate } from '../../update/utils';
 import uniqBy from '../../utils/expodash/uniqBy';
 import formatFields from '../../utils/formatFields';
 import { getVcsClient } from '../../vcs';
+import { createUpdateChannelOnAppAsync } from '../channel/create';
 import { createUpdateBranchOnAppAsync } from './create';
 import { listBranchesAsync } from './list';
 import { viewUpdateBranchAsync } from './view';
@@ -70,6 +71,34 @@ async function getUpdateGroupAsync({
   return updatesByGroup;
 }
 
+async function ensureChannelExistsAsync({
+  appId,
+  branchId,
+  channelName,
+}: {
+  appId: string;
+  branchId: string;
+  channelName: string;
+}): Promise<void> {
+  try {
+    await createUpdateChannelOnAppAsync({
+      appId,
+      channelName,
+      branchId,
+    });
+    Log.withTick(
+      `Created a channel: ${chalk.bold(channelName)} pointed at branch: ${chalk.bold(channelName)}.`
+    );
+  } catch (e: any) {
+    const isIgnorableError =
+      e.graphQLErrors?.length === 1 &&
+      e.graphQLErrors[0].extensions.errorCode === 'CHANNEL_ALREADY_EXISTS';
+    if (!isIgnorableError) {
+      throw e;
+    }
+  }
+}
+
 async function ensureBranchExistsAsync({
   appId,
   name: branchName,
@@ -90,10 +119,13 @@ async function ensureBranchExistsAsync({
   const updateBranch = app?.byId.updateBranchByName;
   if (updateBranch) {
     const { id, updates } = updateBranch;
+    await ensureChannelExistsAsync({ appId, branchId: id, channelName: branchName });
     return { id, updates };
   }
 
   const newUpdateBranch = await createUpdateBranchOnAppAsync({ appId, name: branchName });
+  Log.withTick(`Created branch: ${chalk.bold(branchName)}`);
+  await ensureChannelExistsAsync({ appId, branchId: newUpdateBranch.id, channelName: branchName });
   return { id: newUpdateBranch.id, updates: [] };
 }
 
