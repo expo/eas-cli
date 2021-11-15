@@ -26,7 +26,7 @@ export interface CredentialsJson {
   };
 }
 
-const IosTargetCredentials = Joi.object({
+const IosTargetCredentialsSchema = Joi.object({
   provisioningProfilePath: Joi.string().required(),
   distributionCertificate: Joi.object({
     path: Joi.string().required(),
@@ -44,8 +44,8 @@ const CredentialsJsonSchema = Joi.object({
     }).required(),
   }),
   ios: [
-    IosTargetCredentials,
-    Joi.object().pattern(Joi.string().required(), IosTargetCredentials.required()),
+    IosTargetCredentialsSchema,
+    Joi.object().pattern(Joi.string().required(), IosTargetCredentialsSchema.required()),
   ],
   experimental: Joi.object({
     npmToken: Joi.string(),
