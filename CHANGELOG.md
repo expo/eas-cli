@@ -10,9 +10,13 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
-- Fix `dateformat` import issue when building with `--local` flag. ([a520d](https://github.com/expo/eas-cli/commit/a520d1750736d61d6489da6487879f35ed3deb23) by [@dsokal](https://github.com/dsokal))
-
 ### 🧹 Chores
+
+## [0.36.1](https://github.com/expo/eas-cli/releases/tag/v0.36.1) - 2021-11-15
+
+### 🐛 Bug fixes
+
+- Fix `dateformat` import issue when building with `--local` flag. ([a520d](https://github.com/expo/eas-cli/commit/a520d1750736d61d6489da6487879f35ed3deb23) by [@dsokal](https://github.com/dsokal))
 
 ## [0.36.0](https://github.com/expo/eas-cli/releases/tag/v0.36.0) - 2021-11-15
 
