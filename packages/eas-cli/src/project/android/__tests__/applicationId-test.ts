@@ -112,7 +112,7 @@ describe(ensureApplicationIdIsDefinedForManagedProjectAsync, () => {
       );
       await expect(
         ensureApplicationIdIsDefinedForManagedProjectAsync('/app', {} as any)
-      ).rejects.toThrowError(/we can't update this file programatically/);
+      ).rejects.toThrowError(/we can't update this file programmatically/);
     });
     it('prompts for the Android package if using app.json', async () => {
       vol.fromJSON(

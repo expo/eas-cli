@@ -87,6 +87,7 @@ export const AndroidSubmitProfileSchema = Joi.object({
     .valid(...Object.values(AndroidReleaseStatus))
     .default(AndroidReleaseStatus.completed),
   changesNotSentForReview: Joi.boolean().default(false),
+  applicationId: Joi.string(),
 });
 
 export const IosSubmitProfileSchema = Joi.object({
@@ -100,6 +101,7 @@ export const IosSubmitProfileSchema = Joi.object({
   language: Joi.string().default('en-US'),
   companyName: Joi.string(),
   appName: Joi.string(),
+  bundleIdentifier: Joi.string(),
 });
 
 const EasJsonSubmitConfigurationSchema = Joi.object({

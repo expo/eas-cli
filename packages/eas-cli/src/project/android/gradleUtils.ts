@@ -12,6 +12,7 @@ interface GradleCommand {
 
 interface Config {
   applicationId?: string;
+  applicationIdSuffix?: string; // unsupported value
   versionCode?: string;
   versionName?: string;
 }

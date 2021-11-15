@@ -18,19 +18,18 @@ import {
   formatArchiveSourceSummary,
   printSummary,
 } from '../utils/summary';
-import { AndroidPackageSource, getAndroidPackageAsync } from './AndroidPackageSource';
 import {
   ServiceAccountKeyResult,
   ServiceAccountSource,
   getServiceAccountKeyResultAsync,
 } from './ServiceAccountSource';
+
 export interface AndroidSubmissionOptions
   extends Pick<
     AndroidSubmissionConfigInput,
     'track' | 'releaseStatus' | 'changesNotSentForReview'
   > {
   projectId: string;
-  androidPackageSource: AndroidPackageSource;
   archiveSource: ArchiveSource;
   serviceAccountSource: ServiceAccountSource;
 }
@@ -51,12 +50,7 @@ export default class AndroidSubmitter extends BaseSubmitter<
       archive: async () => await getArchiveAsync(this.options.archiveSource),
       // eslint-disable-next-line async-protect/async-suffix
       serviceAccountKeyResult: async () => {
-        const androidPackage = await getAndroidPackageAsync(this.options.androidPackageSource);
-        return await getServiceAccountKeyResultAsync(
-          this.ctx,
-          this.options.serviceAccountSource,
-          androidPackage
-        );
+        return await getServiceAccountKeyResultAsync(this.ctx, this.options.serviceAccountSource);
       },
     };
     const sourceOptionsAnalytics = {

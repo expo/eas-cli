@@ -3,7 +3,11 @@ import nullthrows from 'nullthrows';
 
 import { SetUpSubmissionCredentials } from '../../credentials/ios/actions/SetUpSubmissionCredentials';
 import Log from '../../log';
-import { getBundleIdentifierAsync } from '../../project/ios/bundleIdentifier';
+import {
+  INVALID_BUNDLE_IDENTIFIER_MESSAGE,
+  isBundleIdentifierValid,
+} from '../../project/ios/bundleIdentifier';
+import { promptAsync } from '../../prompts';
 import { findAccountByName } from '../../user/Account';
 import { SubmissionContext } from '../context';
 import {
@@ -16,15 +20,29 @@ import { AscApiKeyResult } from './AscApiKeySource';
  * The Credentials Service will either return an ASC API Key or an App Specific Password
  * When we no longer support the App Specific Password user prompt, refactor this into the AscApiKeySource
  */
-export const CREDENTIALS_SERVICE_SOURCE = 'CREDENTIALS_SERVICE_SOURCE';
-export type CredentialsServiceSource = typeof CREDENTIALS_SERVICE_SOURCE;
+export const CREDENTIALS_SERVICE_SOURCE = 'CREDENTIALS_SERVICE_SOURCE' as const;
+export interface CredentialsServiceSource {
+  sourceType: typeof CREDENTIALS_SERVICE_SOURCE;
+  bundleIdentifier?: string;
+}
+
+async function promptBundleIdentifierAsync(): Promise<string> {
+  const { bundleIdentifier } = await promptAsync({
+    name: 'bundleIdentifier',
+    message: 'Xcode bundle identifier:',
+    type: 'text',
+    validate: value => (isBundleIdentifierValid(value) ? true : INVALID_BUNDLE_IDENTIFIER_MESSAGE),
+  });
+  return bundleIdentifier;
+}
 
 export async function getFromCredentialsServiceAsync(
-  ctx: SubmissionContext<Platform.IOS>
+  ctx: SubmissionContext<Platform.IOS>,
+  source: CredentialsServiceSource
 ): Promise<
   { appSpecificPassword: AppSpecificPasswordCredentials } | { ascApiKeyResult: AscApiKeyResult }
 > {
-  const bundleIdentifier = await getBundleIdentifierAsync(ctx.projectDir, ctx.exp);
+  const bundleIdentifier = source.bundleIdentifier ?? (await promptBundleIdentifierAsync());
   Log.log(`Looking up credentials configuration for ${bundleIdentifier}...`);
 
   const appLookupParams = {

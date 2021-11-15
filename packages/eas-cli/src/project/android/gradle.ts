@@ -38,7 +38,8 @@ export async function resolveGradleBuildContextAsync(
         return { moduleName: gradleUtils.DEFAULT_MODULE_NAME };
       }
     } catch (err: any) {
-      Log.warn(`Unable to read project config from app/build.gradle: ${err.message}`);
+      Log.warn(`Unable to read gradle project config: ${err.message}`);
+      Log.warn('Values from app/build.gradle might be resolved incorrectly');
       return undefined;
     }
   } else {

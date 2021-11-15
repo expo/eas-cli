@@ -8,13 +8,14 @@ import {
   SubmissionFragment,
 } from '../../graphql/generated';
 import Log from '../../log';
-import { getApplicationIdAsync } from '../../project/android/applicationId';
-import * as gradleUtils from '../../project/android/gradleUtils';
+import {
+  AmbiguousApplicationIdError,
+  getApplicationIdAsync,
+} from '../../project/android/applicationId';
 import capitalize from '../../utils/expodash/capitalize';
 import { ArchiveSource } from '../ArchiveSource';
 import { resolveArchiveSource } from '../commons';
 import { SubmissionContext } from '../context';
-import { AndroidPackageSource, AndroidPackageSourceType } from './AndroidPackageSource';
 import AndroidSubmitter, { AndroidSubmissionOptions } from './AndroidSubmitter';
 import { ServiceAccountSource, ServiceAccountSourceType } from './ServiceAccountSource';
 
@@ -29,19 +30,12 @@ export default class AndroidSubmitCommand {
   }
 
   private async getAndroidSubmissionOptionsAsync(): Promise<AndroidSubmissionOptions> {
-    const androidPackageSource = await this.resolveAndroidPackageSourceAsync();
     const track = this.resolveTrack();
     const releaseStatus = this.resolveReleaseStatus();
     const archiveSource = this.resolveArchiveSource();
-    const serviceAccountSource = this.resolveServiceAccountSource();
+    const serviceAccountSource = await this.resolveServiceAccountSourceAsync();
 
-    const errored = [
-      androidPackageSource,
-      track,
-      releaseStatus,
-      archiveSource,
-      serviceAccountSource,
-    ].filter(r => !r.ok);
+    const errored = [track, releaseStatus, archiveSource, serviceAccountSource].filter(r => !r.ok);
     if (errored.length > 0) {
       const message = errored.map(err => err.reason?.message).join('\n');
       Log.error(message);
@@ -50,7 +44,6 @@ export default class AndroidSubmitCommand {
 
     return {
       projectId: this.ctx.projectId,
-      androidPackageSource: androidPackageSource.enforceValue(),
       track: track.enforceValue(),
       releaseStatus: releaseStatus.enforceValue(),
       archiveSource: archiveSource.enforceValue(),
@@ -59,29 +52,21 @@ export default class AndroidSubmitCommand {
     };
   }
 
-  private async maybeGetAndroidPackageFromCurrentProjectAsync(): Promise<string | undefined> {
+  private async maybeGetAndroidPackageFromCurrentProjectAsync(): Promise<
+    Result<string | undefined>
+  > {
     try {
-      return await getApplicationIdAsync(this.ctx.projectDir, this.ctx.exp, {
-        moduleName: gradleUtils.DEFAULT_MODULE_NAME,
-      });
-    } catch {
-      return undefined;
-    }
-  }
-
-  private async resolveAndroidPackageSourceAsync(): Promise<Result<AndroidPackageSource>> {
-    const androidPackage = await this.maybeGetAndroidPackageFromCurrentProjectAsync();
-    if (androidPackage) {
-      return result({
-        sourceType: AndroidPackageSourceType.userDefined,
-        androidPackage,
-      });
-    } else if (this.ctx.nonInteractive) {
-      return result(new Error("Couldn't resolve the Android package."));
-    } else {
-      return result({
-        sourceType: AndroidPackageSourceType.prompt,
-      });
+      return result(await getApplicationIdAsync(this.ctx.projectDir, this.ctx.exp));
+    } catch (error: any) {
+      if (error instanceof AmbiguousApplicationIdError) {
+        Log.warn(
+          '"applicationId" is ambiguous, specify it via "applicationId" field in the submit profile in the eas.json'
+        );
+        return result(undefined);
+      }
+      return result(
+        new Error(`Failed to resolve applicationId in Android project: ${error.message}`)
+      );
     }
   }
 
@@ -137,7 +122,7 @@ export default class AndroidSubmitCommand {
     }
   }
 
-  private resolveServiceAccountSource(): Result<ServiceAccountSource> {
+  private async resolveServiceAccountSourceAsync(): Promise<Result<ServiceAccountSource>> {
     const { serviceAccountKeyPath } = this.ctx.profile;
     if (serviceAccountKeyPath) {
       return result({
@@ -145,8 +130,18 @@ export default class AndroidSubmitCommand {
         path: serviceAccountKeyPath,
       });
     }
+    let androidApplicationIdentifier: string | undefined = this.ctx.profile.applicationId;
+    if (!androidApplicationIdentifier) {
+      const androidApplicationIdentifierResult =
+        await this.maybeGetAndroidPackageFromCurrentProjectAsync();
+      if (!androidApplicationIdentifierResult.ok) {
+        return result(androidApplicationIdentifierResult.reason);
+      }
+      androidApplicationIdentifier = androidApplicationIdentifierResult.enforceValue();
+    }
     return result({
       sourceType: ServiceAccountSourceType.credentialsService,
+      androidApplicationIdentifier,
     });
   }
 }
