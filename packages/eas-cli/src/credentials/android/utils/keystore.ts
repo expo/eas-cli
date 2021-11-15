@@ -139,7 +139,7 @@ async function createKeystoreInCloudAsync(
   { showKeytoolDetectionMsg = true } = {}
 ): Promise<KeystoreWithType> {
   if (showKeytoolDetectionMsg) {
-    Log.warn(`Detected that you do not have ${chalk.bold('keytool')} installed locally.`);
+    Log.log(`Detected that you do not have ${chalk.bold('keytool')} installed locally.`);
   }
   const spinner = ora('Generating keystore in the cloud...').start();
   try {
