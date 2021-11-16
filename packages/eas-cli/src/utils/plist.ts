@@ -3,12 +3,17 @@ import plist from '@expo/plist';
 import fs from 'fs-extra';
 import path from 'path';
 
-export async function readPlistAsync(plistPath: string): Promise<object> {
+export async function readPlistAsync(plistPath: string): Promise<object | null> {
   if (await fs.pathExists(plistPath)) {
     const expoPlistContent = await fs.readFile(plistPath, 'utf8');
-    return plist.parse(expoPlistContent);
+    try {
+      return plist.parse(expoPlistContent);
+    } catch (err: any) {
+      err.message = `Failed to parse ${plistPath}. ${err.message}`;
+      throw err;
+    }
   } else {
-    return {};
+    return null;
   }
 }
 

@@ -1,9 +1,9 @@
 import { IOSConfig, compileModsAsync } from '@expo/config-plugins';
 import { Workflow } from '@expo/eas-build-job';
 import { JSONObject } from '@expo/json-file';
-import plist from '@expo/plist';
 import { getPrebuildConfig } from '@expo/prebuild-config';
-import fs from 'fs-extra';
+
+import { readPlistAsync } from '../../../utils/plist';
 
 export async function getManagedEntitlementsJsonAsync(
   projectDir: string,
@@ -43,12 +43,11 @@ export async function resolveEntitlementsJsonAsync(
 }
 
 async function getEntitlementsJsonAsync(projectDir: string): Promise<JSONObject | null> {
-  try {
-    const entitlementsPath = IOSConfig.Paths.getEntitlementsPath(projectDir);
-    if (entitlementsPath) {
-      const entitlementsContents = await fs.readFile(entitlementsPath, 'utf8');
-      return plist.parse(entitlementsContents);
-    }
-  } catch {}
-  return null;
+  const entitlementsPath = IOSConfig.Paths.getEntitlementsPath(projectDir);
+  if (entitlementsPath) {
+    const plist = await readPlistAsync(entitlementsPath);
+    return plist ? (plist as unknown as JSONObject) : null;
+  } else {
+    return null;
+  }
 }

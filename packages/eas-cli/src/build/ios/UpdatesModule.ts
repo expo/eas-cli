@@ -4,9 +4,9 @@ import { IOSConfig } from '@expo/config-plugins';
 import Log from '../../log';
 import { getProjectAccountName } from '../../project/projectUtils';
 import { ensureLoggedInAsync } from '../../user/actions';
+import { readPlistAsync, writePlistAsync } from '../../utils/plist';
 import { getVcsClient } from '../../vcs';
 import { ensureValidVersions } from '../utils/updates';
-import { readPlistAsync, writePlistAsync } from './plist';
 
 export async function configureUpdatesAsync(projectDir: string, exp: ExpoConfig): Promise<void> {
   ensureValidVersions(exp);
@@ -59,7 +59,7 @@ async function ensureUpdatesConfiguredAsync(projectDir: string): Promise<void> {
 
 async function readExpoPlistAsync(projectDir: string): Promise<IOSConfig.ExpoPlist> {
   const expoPlistPath = IOSConfig.Paths.getExpoPlistPath(projectDir);
-  return (await readPlistAsync(expoPlistPath)) as IOSConfig.ExpoPlist;
+  return ((await readPlistAsync(expoPlistPath)) ?? {}) as IOSConfig.ExpoPlist;
 }
 
 async function writeExpoPlistAsync(
