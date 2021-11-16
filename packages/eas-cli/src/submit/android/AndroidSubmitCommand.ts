@@ -52,20 +52,18 @@ export default class AndroidSubmitCommand {
     };
   }
 
-  private async maybeGetAndroidPackageFromCurrentProjectAsync(): Promise<
-    Result<string | undefined>
-  > {
+  private async maybeGetAndroidPackageFromCurrentProjectAsync(): Promise<Result<string | null>> {
     try {
       return result(await getApplicationIdAsync(this.ctx.projectDir, this.ctx.exp));
     } catch (error: any) {
       if (error instanceof AmbiguousApplicationIdError) {
         Log.warn(
-          '"applicationId" is ambiguous, specify it via "applicationId" field in the submit profile in the eas.json'
+          '"applicationId" is ambiguous, specify it via "applicationId" field in the submit profile in the eas.json.'
         );
-        return result(undefined);
+        return result(null);
       }
       return result(
-        new Error(`Failed to resolve applicationId in Android project: ${error.message}`)
+        new Error(`Failed to resolve applicationId in Android project: ${error.message}.`)
       );
     }
   }
@@ -137,7 +135,10 @@ export default class AndroidSubmitCommand {
       if (!androidApplicationIdentifierResult.ok) {
         return result(androidApplicationIdentifierResult.reason);
       }
-      androidApplicationIdentifier = androidApplicationIdentifierResult.enforceValue();
+      const androidApplicationIdentifierValue = androidApplicationIdentifierResult.enforceValue();
+      if (androidApplicationIdentifierValue) {
+        androidApplicationIdentifier = androidApplicationIdentifierValue;
+      }
     }
     return result({
       sourceType: ServiceAccountSourceType.credentialsService,

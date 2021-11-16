@@ -101,7 +101,7 @@ export async function getServiceAccountKeyPathAsync(source: ServiceAccountSource
   }
 }
 
-async function promptApplicationIdAsync(): Promise<string> {
+async function promptForApplicationIdAsync(): Promise<string> {
   const { androidPackage } = await promptAsync({
     name: 'androidPackage',
     message: 'Android package name:',
@@ -122,8 +122,11 @@ export async function getServiceAccountFromCredentialsServiceAsync(
     ),
     projectName: ctx.projectName,
     androidApplicationIdentifier:
-      source.androidApplicationIdentifier ?? (await promptApplicationIdAsync()),
+      source.androidApplicationIdentifier ?? (await promptForApplicationIdAsync()),
   };
+  Log.log(
+    `Looking up credentials configuration for ${appLookupParams.androidApplicationIdentifier}...`
+  );
   const setupGoogleServiceAccountKeyAction = new SetUpGoogleServiceAccountKey(appLookupParams);
   const androidAppCredentials = await setupGoogleServiceAccountKeyAction.runAsync(
     ctx.credentialsCtx

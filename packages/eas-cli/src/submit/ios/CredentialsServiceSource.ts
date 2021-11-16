@@ -26,10 +26,10 @@ export interface CredentialsServiceSource {
   bundleIdentifier?: string;
 }
 
-async function promptBundleIdentifierAsync(): Promise<string> {
+async function promptForBundleIdentifierAsync(): Promise<string> {
   const { bundleIdentifier } = await promptAsync({
     name: 'bundleIdentifier',
-    message: 'Xcode bundle identifier:',
+    message: 'Bundle identifier:',
     type: 'text',
     validate: value => (isBundleIdentifierValid(value) ? true : INVALID_BUNDLE_IDENTIFIER_MESSAGE),
   });
@@ -42,7 +42,7 @@ export async function getFromCredentialsServiceAsync(
 ): Promise<
   { appSpecificPassword: AppSpecificPasswordCredentials } | { ascApiKeyResult: AscApiKeyResult }
 > {
-  const bundleIdentifier = source.bundleIdentifier ?? (await promptBundleIdentifierAsync());
+  const bundleIdentifier = source.bundleIdentifier ?? (await promptForBundleIdentifierAsync());
   Log.log(`Looking up credentials configuration for ${bundleIdentifier}...`);
 
   const appLookupParams = {

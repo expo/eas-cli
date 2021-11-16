@@ -43,7 +43,7 @@ export async function getApplicationIdFromBareAsync(
   projectDir: string,
   gradleContext?: GradleBuildContext
 ): Promise<string> {
-  const errorMessage = 'Could not read application id from Android project.';
+  const errorMessage = 'Could not read applicationId from Android project.';
 
   if (gradleContext) {
     const buildGradle = await gradleUtils.getAppBuildGradleAsync(projectDir);
@@ -53,7 +53,7 @@ export async function getApplicationIdFromBareAsync(
       gradleContext.flavor
     );
     if (applicationIdSuffix) {
-      throw new Error('applicationIdSuffix is not supported');
+      throw new Error('"applicationIdSuffix" in app/build.gradle is not supported.');
     }
     const applicationId = gradleUtils.resolveConfigValue(
       buildGradle,
@@ -63,21 +63,15 @@ export async function getApplicationIdFromBareAsync(
     return nullthrows(applicationId, errorMessage);
   } else {
     // should return value only if productFlavors are not used
-    let buildGradlePath = null;
-    try {
-      buildGradlePath = AndroidConfig.Paths.getAppBuildGradleFilePath(projectDir);
-    } catch {}
-    if (!buildGradlePath || !(await fs.pathExists(buildGradlePath))) {
-      throw new Error(errorMessage);
-    }
+    const buildGradlePath = AndroidConfig.Paths.getAppBuildGradleFilePath(projectDir);
     const buildGradle = await fs.readFile(buildGradlePath, 'utf8');
     const matchResult = buildGradle.match(/applicationId ['"](.*)['"]/);
     if (buildGradle.match(/applicationIdSuffix/)) {
-      throw new Error('"applicationIdSuffix is not supported');
+      throw new Error('"applicationIdSuffix" in app/build.gradle is not supported.');
     }
     if (buildGradle.match(/productFlavors/)) {
       throw new AmbiguousApplicationIdError(
-        'Failed to resolve applicationId in multi-flavor project'
+        'Failed to autodetect applicationId in multi-flavor project.'
       );
     }
     return nullthrows(matchResult?.[1], errorMessage);

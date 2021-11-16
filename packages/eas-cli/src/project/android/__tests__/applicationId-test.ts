@@ -54,7 +54,7 @@ describe(getApplicationIdAsync, () => {
         '/app'
       );
       await expect(getApplicationIdAsync('/app', {} as any, undefined)).rejects.toThrowError(
-        /Could not read application id/
+        /Failed to find 'build.gradle' /
       );
     });
 
@@ -69,7 +69,7 @@ describe(getApplicationIdAsync, () => {
 
       await expect(
         getApplicationIdAsync('/app', {} as any, { moduleName: 'app' })
-      ).rejects.toThrowError(/Could not read application id/);
+      ).rejects.toThrowError(/Could not read applicationId/);
     });
   });
 

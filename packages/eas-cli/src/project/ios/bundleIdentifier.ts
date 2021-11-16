@@ -30,7 +30,7 @@ export async function ensureBundleIdentifierIsDefinedForManagedProjectAsync(
 
 export class AmbiguousBundleIdentifierError extends Error {
   constructor(message?: string) {
-    super(message ?? 'Could not resolve bundleIdentifier.');
+    super(message ?? 'Could not resolve bundle identifier.');
   }
 }
 
@@ -45,12 +45,13 @@ export async function getBundleIdentifierAsync(
 
     const xcodeProject = IOSConfig.XcodeUtils.getPbxproj(projectDir);
     const isMultiScheme = IOSConfig.BuildScheme.getSchemesFromXcodeproj(projectDir).length > 1;
-    const isMultiTarget = IOSConfig.Target.getNativeTargets(xcodeProject).filter(([, target]) =>
-      IOSConfig.Target.isTargetOfType(target, IOSConfig.Target.TargetType.APPLICATION)
-    );
+    const isMultiTarget =
+      IOSConfig.Target.getNativeTargets(xcodeProject).filter(([, target]) =>
+        IOSConfig.Target.isTargetOfType(target, IOSConfig.Target.TargetType.APPLICATION)
+      ).length > 1;
     if (!xcodeContext && isMultiScheme && isMultiTarget) {
       throw new AmbiguousBundleIdentifierError(
-        "Multiple schemes and targets found in Xcode project, bundleIdentifier couldn't be resolved."
+        "Multiple schemes and targets found in Xcode project, bundle identifier couldn't be resolved."
       );
     }
     const bundleIdentifier = IOSConfig.BundleIdentifier.getBundleIdentifierFromPbxproj(
@@ -76,11 +77,11 @@ export async function getBundleIdentifierAsync(
     assert(
       !xcodeContext?.targetName ||
         xcodeContext?.targetName === IOSConfig.XcodeUtils.sanitizedName(exp.name),
-      'targetName cannot be set to an arbitrary value for managed projects'
+      'targetName cannot be set to an arbitrary value for managed projects.'
     );
     assert(
       !xcodeContext?.buildConfiguration,
-      'buildConfiguration cannot be passed for managed projects'
+      'buildConfiguration cannot be passed for managed projects.'
     );
     const bundleIdentifier = IOSConfig.BundleIdentifier.getBundleIdentifier(exp);
     if (!bundleIdentifier || !isBundleIdentifierValid(bundleIdentifier)) {

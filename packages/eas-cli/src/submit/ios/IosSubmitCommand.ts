@@ -83,18 +83,18 @@ export default class IosSubmitCommand {
     };
   }
 
-  private async maybeGetIosBundleIdentifierAsync(): Promise<Result<string | undefined>> {
+  private async maybeGetIosBundleIdentifierAsync(): Promise<Result<string | null>> {
     try {
       return result(await getBundleIdentifierAsync(this.ctx.projectDir, this.ctx.exp));
     } catch (error: any) {
       if (error instanceof AmbiguousBundleIdentifierError) {
         Log.warn(
-          'bundleIdentifier in the Xcode project is ambiguous, specify it via "bundleIdentifier" field in the submit profile in the eas.json'
+          'bundleIdentifier in the Xcode project is ambiguous, specify it via "bundleIdentifier" field in the submit profile in the eas.json.'
         );
-        return result(undefined);
+        return result(null);
       }
       return result(
-        new Error(`Failed to resolve bundleIdentifier in the Xcode project: ${error.message}`)
+        new Error(`Failed to resolve bundleIdentifier in the Xcode project: ${error.message}.`)
       );
     }
   }
@@ -127,7 +127,10 @@ export default class IosSubmitCommand {
           credentialsServiceSource: result(bundleIdentifierResult.reason),
         };
       }
-      bundleIdentifier = bundleIdentifierResult.enforceValue();
+      const bundleIdentifierValue = bundleIdentifierResult.enforceValue();
+      if (bundleIdentifierValue) {
+        bundleIdentifier = bundleIdentifierValue;
+      }
     }
     return {
       credentialsServiceSource: result({
