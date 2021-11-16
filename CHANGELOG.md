@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- auto create channel on publish. ([#766](https://github.com/expo/eas-cli/pull/766) by [@jkhales](https://github.com/jkhales))
+
 ### 🐛 Bug fixes
 
 - Validate release channel in eas.json. ([#764](https://github.com/expo/eas-cli/pull/764) by [@dsokal](https://github.com/dsokal))
