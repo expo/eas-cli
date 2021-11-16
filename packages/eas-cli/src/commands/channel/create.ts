@@ -20,7 +20,7 @@ import { promptAsync } from '../../prompts';
 import formatFields from '../../utils/formatFields';
 import { createUpdateBranchOnAppAsync } from '../branch/create';
 
-async function createUpdateChannelOnAppAsync({
+export async function createUpdateChannelOnAppAsync({
   appId,
   channelName,
   branchId,
