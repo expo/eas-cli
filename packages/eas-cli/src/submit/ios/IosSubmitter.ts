@@ -68,7 +68,7 @@ export default class IosSubmitter extends BaseSubmitter<
           ? await getAscApiKeyLocallyAsync(this.ctx, this.options.ascApiKeySource)
           : null;
         const maybeAscOrAspFromCredentialsService = this.options.credentialsServiceSource
-          ? await getFromCredentialsServiceAsync(this.ctx)
+          ? await getFromCredentialsServiceAsync(this.ctx, this.options.credentialsServiceSource)
           : null;
         return {
           ...(maybeAppSpecificPassword ? { appSpecificPassword: maybeAppSpecificPassword } : null),

@@ -15,7 +15,7 @@ import { resolveWorkflowAsync } from '../workflow';
 import { GradleBuildContext } from './gradle';
 import * as gradleUtils from './gradleUtils';
 
-const INVALID_APPLICATION_ID_MESSAGE = `Invalid format of Android applicationId. Only alphanumeric characters, '.' and '_' are allowed, and each '.' must be followed by a letter.`;
+export const INVALID_APPLICATION_ID_MESSAGE = `Invalid format of Android applicationId. Only alphanumeric characters, '.' and '_' are allowed, and each '.' must be followed by a letter.`;
 
 export async function ensureApplicationIdIsDefinedForManagedProjectAsync(
   projectDir: string,
@@ -33,6 +33,51 @@ export async function ensureApplicationIdIsDefinedForManagedProjectAsync(
   }
 }
 
+export class AmbiguousApplicationIdError extends Error {
+  constructor(message?: string) {
+    super(message ?? 'Could not resolve applicationId.');
+  }
+}
+
+export async function getApplicationIdFromBareAsync(
+  projectDir: string,
+  gradleContext?: GradleBuildContext
+): Promise<string> {
+  const errorMessage = 'Could not read applicationId from Android project.';
+
+  if (gradleContext) {
+    const buildGradle = await gradleUtils.getAppBuildGradleAsync(projectDir);
+    const applicationIdSuffix = gradleUtils.resolveConfigValue(
+      buildGradle,
+      'applicationIdSuffix',
+      gradleContext.flavor
+    );
+    if (applicationIdSuffix) {
+      throw new Error('"applicationIdSuffix" in app/build.gradle is not supported.');
+    }
+    const applicationId = gradleUtils.resolveConfigValue(
+      buildGradle,
+      'applicationId',
+      gradleContext.flavor
+    );
+    return nullthrows(applicationId, errorMessage);
+  } else {
+    // should return value only if productFlavors are not used
+    const buildGradlePath = AndroidConfig.Paths.getAppBuildGradleFilePath(projectDir);
+    const buildGradle = await fs.readFile(buildGradlePath, 'utf8');
+    const matchResult = buildGradle.match(/applicationId ['"](.*)['"]/);
+    if (buildGradle.match(/applicationIdSuffix/)) {
+      throw new Error('"applicationIdSuffix" in app/build.gradle is not supported.');
+    }
+    if (buildGradle.match(/productFlavors/)) {
+      throw new AmbiguousApplicationIdError(
+        'Failed to autodetect applicationId in multi-flavor project.'
+      );
+    }
+    return nullthrows(matchResult?.[1], errorMessage);
+  }
+}
+
 export async function getApplicationIdAsync(
   projectDir: string,
   exp: ExpoConfig,
@@ -42,33 +87,7 @@ export async function getApplicationIdAsync(
   if (workflow === Workflow.GENERIC) {
     warnIfAndroidPackageDefinedInAppConfigForBareWorkflowProject(projectDir, exp);
 
-    const errorMessage = 'Could not read application id from Android project.';
-    if (gradleContext) {
-      const buildGradle = await gradleUtils.getAppBuildGradleAsync(projectDir);
-      const applicationId = gradleUtils.resolveConfigValue(
-        buildGradle,
-        'applicationId',
-        gradleContext.flavor
-      );
-      return nullthrows(applicationId, errorMessage);
-    } else {
-      // fallback to best effort approach, this logic can be dropped when we start supporting
-      // modules different than 'app' and 'flavorDimensions'
-      let buildGradlePath = null;
-      try {
-        buildGradlePath = AndroidConfig.Paths.getAppBuildGradleFilePath(projectDir);
-      } catch {}
-      if (!buildGradlePath || !(await fs.pathExists(buildGradlePath))) {
-        throw new Error(errorMessage);
-      }
-      const buildGradle = await fs.readFile(buildGradlePath, 'utf8');
-      const matchResult = buildGradle.match(/applicationId ['"](.*)['"]/);
-      const applicationId = nullthrows(matchResult?.[1], errorMessage);
-
-      Log.warn(`Unable to detect applicationId`);
-      Log.warn(`Falling back to best effort approach, using applicationId ${applicationId}`);
-      return applicationId;
-    }
+    return getApplicationIdFromBareAsync(projectDir, gradleContext);
   } else {
     const applicationId = AndroidConfig.Package.getPackage(exp);
     if (!applicationId || !isApplicationIdValid(applicationId)) {
@@ -91,7 +110,7 @@ async function configureApplicationIdAsync(projectDir: string, exp: ExpoConfig):
   // we can't automatically update app.config.js
   if (paths.dynamicConfigPath) {
     throw new Error(
-      `"android.package" is not defined in your app.config.js and we can't update this file programatically. Add the value on your own and run this command again.`
+      `"android.package" is not defined in your app.config.js and we can't update this file programmatically. Add the value on your own and run this command again.`
     );
   }
 
@@ -125,7 +144,7 @@ async function configureApplicationIdAsync(projectDir: string, exp: ExpoConfig):
   return packageName;
 }
 
-function isApplicationIdValid(applicationId: string): boolean {
+export function isApplicationIdValid(applicationId: string): boolean {
   return /^[a-zA-Z][a-zA-Z0-9_]*(\.[a-zA-Z][a-zA-Z0-9_]*)+$/.test(applicationId);
 }
 

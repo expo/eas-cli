@@ -9,7 +9,10 @@ import { createTestProject } from '../../../project/__tests__/project-utils';
 import { getBundleIdentifierAsync } from '../../../project/ios/bundleIdentifier';
 import { promptAsync } from '../../../prompts';
 import { createSubmissionContextAsync } from '../../context';
-import { getFromCredentialsServiceAsync } from '../CredentialsServiceSource';
+import {
+  CREDENTIALS_SERVICE_SOURCE,
+  getFromCredentialsServiceAsync,
+} from '../CredentialsServiceSource';
 
 jest.mock('fs');
 jest.mock('../../../prompts');
@@ -57,7 +60,10 @@ describe(getFromCredentialsServiceAsync, () => {
     asMock(getBundleIdentifierAsync).mockImplementation(() => 'com.hello.world');
     asMock(promptAsync).mockImplementationOnce(() => ({ appleId: 'quin@expo.io' }));
 
-    const result = await getFromCredentialsServiceAsync(ctx);
+    const result = await getFromCredentialsServiceAsync(ctx, {
+      sourceType: CREDENTIALS_SERVICE_SOURCE,
+      bundleIdentifier: 'com.expo.test.project',
+    });
     expect(result).toEqual({
       appSpecificPassword: { password: 'super secret', appleIdUsername: 'quin@expo.io' },
     });
@@ -80,7 +86,10 @@ describe(getFromCredentialsServiceAsync, () => {
       .mockImplementation(async _ctx => testCommonIosAppCredentialsFragment);
     asMock(getBundleIdentifierAsync).mockImplementation(() => 'com.hello.world');
 
-    const result = await getFromCredentialsServiceAsync(ctx);
+    const result = await getFromCredentialsServiceAsync(ctx, {
+      sourceType: CREDENTIALS_SERVICE_SOURCE,
+      bundleIdentifier: 'com.expo.test.project',
+    });
     expect(result).toEqual({
       ascApiKeyResult: {
         result: {

@@ -6,6 +6,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🛠 Breaking changes
 
+- Require explicitly defined applicationId/bundleIdentifier for EAS Submit in case of bare projects consisting of multiple product flavors on Android or multiple schemes/targets on iOS. ([#765](https://github.com/expo/eas-cli/pull/765) by [@wkozyra95](https://github.com/wkozyra95))
+
 ### 🎉 New features
 
 ### 🐛 Bug fixes
@@ -30,6 +32,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🎉 New features
 
 - Use Keystore Service when `keytool` is not installed. ([#754](https://github.com/expo/eas-cli/pull/754) by [@dsokal](https://github.com/dsokal))
+- Add applicationId/bundleIdentifier fields to the submit profile. ([#765](https://github.com/expo/eas-cli/pull/765) by [@wkozyra95](https://github.com/wkozyra95))
 
 ### 🐛 Bug fixes
 

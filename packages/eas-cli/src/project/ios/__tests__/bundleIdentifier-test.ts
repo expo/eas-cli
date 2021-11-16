@@ -95,7 +95,7 @@ describe(ensureBundleIdentifierIsDefinedForManagedProjectAsync, () => {
       );
       await expect(
         ensureBundleIdentifierIsDefinedForManagedProjectAsync('/app', {} as any)
-      ).rejects.toThrowError(/we can't update this file programatically/);
+      ).rejects.toThrowError(/we can't update this file programmatically/);
     });
     it('prompts for the bundle identifier if using app.json', async () => {
       vol.fromJSON(

@@ -54,7 +54,7 @@ describe(getApplicationIdAsync, () => {
         '/app'
       );
       await expect(getApplicationIdAsync('/app', {} as any, undefined)).rejects.toThrowError(
-        /Could not read application id/
+        /Failed to find 'build.gradle' /
       );
     });
 
@@ -69,7 +69,7 @@ describe(getApplicationIdAsync, () => {
 
       await expect(
         getApplicationIdAsync('/app', {} as any, { moduleName: 'app' })
-      ).rejects.toThrowError(/Could not read application id/);
+      ).rejects.toThrowError(/Could not read applicationId/);
     });
   });
 
@@ -112,7 +112,7 @@ describe(ensureApplicationIdIsDefinedForManagedProjectAsync, () => {
       );
       await expect(
         ensureApplicationIdIsDefinedForManagedProjectAsync('/app', {} as any)
-      ).rejects.toThrowError(/we can't update this file programatically/);
+      ).rejects.toThrowError(/we can't update this file programmatically/);
     });
     it('prompts for the Android package if using app.json', async () => {
       vol.fromJSON(

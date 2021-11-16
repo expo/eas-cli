@@ -6,6 +6,10 @@ import nullthrows from 'nullthrows';
 import { SetUpGoogleServiceAccountKey } from '../../credentials/android/actions/SetUpGoogleServiceAccountKey';
 import { readAndValidateServiceAccountKey } from '../../credentials/android/utils/googleServiceAccountKey';
 import Log, { learnMore } from '../../log';
+import {
+  INVALID_APPLICATION_ID_MESSAGE,
+  isApplicationIdValid,
+} from '../../project/android/applicationId';
 import { promptAsync } from '../../prompts';
 import { findAccountByName } from '../../user/Account';
 import { SubmissionContext } from '../context';
@@ -32,6 +36,7 @@ interface ServiceAccountPromptSource extends ServiceAccountSourceBase {
 
 export interface ServiceAccountCredentialsServiceSource extends ServiceAccountSourceBase {
   sourceType: ServiceAccountSourceType.credentialsService;
+  androidApplicationIdentifier?: string;
 }
 
 export type ServiceAccountKeyResult = {
@@ -60,11 +65,10 @@ export type ServiceAccountSource =
 
 export async function getServiceAccountKeyResultAsync(
   ctx: SubmissionContext<Platform.ANDROID>,
-  source: ServiceAccountSource,
-  androidApplicationIdentifier: string
+  source: ServiceAccountSource
 ): Promise<ServiceAccountKeyResult> {
   if (source.sourceType === ServiceAccountSourceType.credentialsService) {
-    return await getServiceAccountFromCredentialsServiceAsync(ctx, androidApplicationIdentifier);
+    return await getServiceAccountFromCredentialsServiceAsync(ctx, source);
   } else {
     return await getServiceAccountLocallyAsync(source);
   }
@@ -97,9 +101,19 @@ export async function getServiceAccountKeyPathAsync(source: ServiceAccountSource
   }
 }
 
+async function promptForApplicationIdAsync(): Promise<string> {
+  const { androidPackage } = await promptAsync({
+    name: 'androidPackage',
+    message: 'Android package name:',
+    type: 'text',
+    validate: value => (isApplicationIdValid(value) ? true : INVALID_APPLICATION_ID_MESSAGE),
+  });
+  return androidPackage;
+}
+
 export async function getServiceAccountFromCredentialsServiceAsync(
   ctx: SubmissionContext<Platform.ANDROID>,
-  androidApplicationIdentifier: string
+  source: ServiceAccountCredentialsServiceSource
 ): Promise<ServiceAccountKeyResult> {
   const appLookupParams = {
     account: nullthrows(
@@ -107,8 +121,12 @@ export async function getServiceAccountFromCredentialsServiceAsync(
       `You do not have access to account: ${ctx.accountName}`
     ),
     projectName: ctx.projectName,
-    androidApplicationIdentifier,
+    androidApplicationIdentifier:
+      source.androidApplicationIdentifier ?? (await promptForApplicationIdAsync()),
   };
+  Log.log(
+    `Looking up credentials configuration for ${appLookupParams.androidApplicationIdentifier}...`
+  );
   const setupGoogleServiceAccountKeyAction = new SetUpGoogleServiceAccountKey(appLookupParams);
   const androidAppCredentials = await setupGoogleServiceAccountKeyAction.runAsync(
     ctx.credentialsCtx

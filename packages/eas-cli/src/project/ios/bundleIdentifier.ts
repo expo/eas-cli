@@ -12,7 +12,7 @@ import { ensureLoggedInAsync } from '../../user/actions';
 import { getProjectConfigDescription, getUsername } from '../projectUtils';
 import { resolveWorkflowAsync } from '../workflow';
 
-const INVALID_BUNDLE_IDENTIFIER_MESSAGE = `Invalid format of iOS bundle identifier. Only alphanumeric characters, '.' and '-' are allowed, and each '.' must be followed by a letter.`;
+export const INVALID_BUNDLE_IDENTIFIER_MESSAGE = `Invalid format of iOS bundle identifier. Only alphanumeric characters, '.' and '-' are allowed, and each '.' must be followed by a letter.`;
 
 export async function ensureBundleIdentifierIsDefinedForManagedProjectAsync(
   projectDir: string,
@@ -28,22 +28,39 @@ export async function ensureBundleIdentifierIsDefinedForManagedProjectAsync(
   }
 }
 
+export class AmbiguousBundleIdentifierError extends Error {
+  constructor(message?: string) {
+    super(message ?? 'Could not resolve bundle identifier.');
+  }
+}
+
 export async function getBundleIdentifierAsync(
   projectDir: string,
   exp: ExpoConfig,
-  { targetName, buildConfiguration }: { targetName?: string; buildConfiguration?: string } = {}
+  xcodeContext?: { targetName?: string; buildConfiguration?: string }
 ): Promise<string> {
   const workflow = await resolveWorkflowAsync(projectDir, Platform.IOS);
   if (workflow === Workflow.GENERIC) {
     warnIfBundleIdentifierDefinedInAppConfigForBareWorkflowProject(projectDir, exp);
 
-    const bundleIdentifier = IOSConfig.BundleIdentifier.getBundleIdentifierFromPbxproj(projectDir, {
-      targetName,
-      buildConfiguration,
-    });
+    const xcodeProject = IOSConfig.XcodeUtils.getPbxproj(projectDir);
+    const isMultiScheme = IOSConfig.BuildScheme.getSchemesFromXcodeproj(projectDir).length > 1;
+    const isMultiTarget =
+      IOSConfig.Target.getNativeTargets(xcodeProject).filter(([, target]) =>
+        IOSConfig.Target.isTargetOfType(target, IOSConfig.Target.TargetType.APPLICATION)
+      ).length > 1;
+    if (!xcodeContext && isMultiScheme && isMultiTarget) {
+      throw new AmbiguousBundleIdentifierError(
+        "Multiple schemes and targets found in Xcode project, bundle identifier couldn't be resolved."
+      );
+    }
+    const bundleIdentifier = IOSConfig.BundleIdentifier.getBundleIdentifierFromPbxproj(
+      projectDir,
+      xcodeContext ?? {}
+    );
     const buildConfigurationDesc =
-      targetName && buildConfiguration
-        ? ` (target = ${targetName}, build configuration = ${buildConfiguration})`
+      xcodeContext?.targetName && xcodeContext?.buildConfiguration
+        ? ` (target = ${xcodeContext.targetName}, build configuration = ${xcodeContext.buildConfiguration})`
         : '';
     assert(
       bundleIdentifier,
@@ -58,13 +75,17 @@ export async function getBundleIdentifierAsync(
   } else {
     // TODO: the following asserts are only temporary until we support app extensions in managed projects
     assert(
-      !targetName || targetName === IOSConfig.XcodeUtils.sanitizedName(exp.name),
-      'targetName cannot be set to an arbitrary value for managed projects'
+      !xcodeContext?.targetName ||
+        xcodeContext?.targetName === IOSConfig.XcodeUtils.sanitizedName(exp.name),
+      'targetName cannot be set to an arbitrary value for managed projects.'
     );
-    assert(!buildConfiguration, 'buildConfiguration cannot be passed for managed projects');
-    const bundleIdentifer = IOSConfig.BundleIdentifier.getBundleIdentifier(exp);
-    if (!bundleIdentifer || !isBundleIdentifierValid(bundleIdentifer)) {
-      if (bundleIdentifer) {
+    assert(
+      !xcodeContext?.buildConfiguration,
+      'buildConfiguration cannot be passed for managed projects.'
+    );
+    const bundleIdentifier = IOSConfig.BundleIdentifier.getBundleIdentifier(exp);
+    if (!bundleIdentifier || !isBundleIdentifierValid(bundleIdentifier)) {
+      if (bundleIdentifier) {
         Log.warn(INVALID_BUNDLE_IDENTIFIER_MESSAGE);
       }
       throw new Error(
@@ -73,7 +94,7 @@ export async function getBundleIdentifierAsync(
         )} and run this command again.`
       );
     } else {
-      return bundleIdentifer;
+      return bundleIdentifier;
     }
   }
 }
@@ -86,7 +107,7 @@ async function configureBundleIdentifierAsync(
   // we can't automatically update app.config.js
   if (paths.dynamicConfigPath) {
     throw new Error(
-      `"ios.bundleIdentifier" is not defined in your app.config.js and we can't update this file programatically. Add the value on your own and run this command again.`
+      `"ios.bundleIdentifier" is not defined in your app.config.js and we can't update this file programmatically. Add the value on your own and run this command again.`
     );
   }
 
@@ -120,7 +141,7 @@ async function configureBundleIdentifierAsync(
   return bundleIdentifier;
 }
 
-function isBundleIdentifierValid(bundleIdentifier: string): boolean {
+export function isBundleIdentifierValid(bundleIdentifier: string): boolean {
   return /^[a-zA-Z0-9-.]+$/.test(bundleIdentifier);
 }
 

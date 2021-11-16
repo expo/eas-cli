@@ -152,7 +152,7 @@ describe(getServiceAccountKeyResultAsync, () => {
       sourceType: ServiceAccountSourceType.path,
       path: '/project_dir/subdir/service-account.json',
     };
-    const serviceAccountResult = await getServiceAccountKeyResultAsync(ctx, source, 'test.sdf');
+    const serviceAccountResult = await getServiceAccountKeyResultAsync(ctx, source);
     expect(serviceAccountResult).toMatchObject({
       result: {
         googleServiceAccountKeyJson: mockDetectableServiceAccountJson,
@@ -186,7 +186,7 @@ describe(getServiceAccountKeyResultAsync, () => {
     const source: ServiceAccountSource = {
       sourceType: ServiceAccountSourceType.prompt,
     };
-    const serviceAccountResult = await getServiceAccountKeyResultAsync(ctx, source, 'test.sdf');
+    const serviceAccountResult = await getServiceAccountKeyResultAsync(ctx, source);
     expect(serviceAccountResult).toMatchObject({
       result: {
         googleServiceAccountKeyJson: mockDetectableServiceAccountJson,
@@ -214,13 +214,10 @@ describe(getServiceAccountKeyResultAsync, () => {
       },
       nonInteractive: true,
     });
-    const serviceAccountResult = await getServiceAccountKeyResultAsync(
-      ctx,
-      {
-        sourceType: ServiceAccountSourceType.credentialsService,
-      },
-      'test.application.identiifer'
-    );
+    const serviceAccountResult = await getServiceAccountKeyResultAsync(ctx, {
+      sourceType: ServiceAccountSourceType.credentialsService,
+      androidApplicationIdentifier: 'test.application.identiifer',
+    });
     expect(serviceAccountResult).toMatchObject({
       result: { googleServiceAccountKeyId: 'test-id' },
       summary: { source: 'EAS servers', email: 'quin@expo.io' },

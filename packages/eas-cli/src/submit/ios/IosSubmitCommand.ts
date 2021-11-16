@@ -7,6 +7,10 @@ import wrapAnsi from 'wrap-ansi';
 import { MissingCredentialsError } from '../../credentials/errors';
 import { SubmissionFragment } from '../../graphql/generated';
 import Log, { learnMore } from '../../log';
+import {
+  AmbiguousBundleIdentifierError,
+  getBundleIdentifierAsync,
+} from '../../project/ios/bundleIdentifier';
 import { ArchiveSource } from '../ArchiveSource';
 import { resolveArchiveSource } from '../commons';
 import { SubmissionContext } from '../context';
@@ -29,33 +33,9 @@ export default class IosSubmitCommand {
     return await submitter.submitAsync();
   }
 
-  private resolveCredentialSubmissionOptions():
-    | { appSpecificPasswordSource: Result<AppSpecificPasswordSource> }
-    | { ascApiKeySource: Result<AscApiKeySource> }
-    | { credentialsServiceSource: Result<CredentialsServiceSource> } {
-    const ascApiKeySource = this.resolveAscApiKeySource();
-    const shouldSkipAscApiKeySource =
-      !ascApiKeySource.ok && ascApiKeySource.enforceError() instanceof MissingCredentialsError;
-    if (!shouldSkipAscApiKeySource) {
-      return { ascApiKeySource };
-    }
-
-    const appSpecificPasswordSource = this.resolveAppSpecificPasswordSource();
-    const shouldSkipAppSpecificPasswordSource =
-      !appSpecificPasswordSource.ok &&
-      appSpecificPasswordSource.enforceError() instanceof MissingCredentialsError;
-    if (!shouldSkipAppSpecificPasswordSource) {
-      return { appSpecificPasswordSource: this.resolveAppSpecificPasswordSource() };
-    }
-
-    return {
-      credentialsServiceSource: result(CREDENTIALS_SERVICE_SOURCE),
-    };
-  }
-
   private async resolveSubmissionOptionsAsync(): Promise<IosSubmissionOptions> {
     const archiveSource = this.resolveArchiveSource();
-    const credentialsSource = this.resolveCredentialSubmissionOptions();
+    const credentialsSource = await this.resolveCredentialSubmissionOptionsAsync();
     const maybeAppSpecificPasswordSource =
       'appSpecificPasswordSource' in credentialsSource
         ? credentialsSource.appSpecificPasswordSource
@@ -100,6 +80,63 @@ export default class IosSubmitCommand {
             credentialsServiceSource: maybeCredentialsServiceSource.enforceValue(),
           }
         : null),
+    };
+  }
+
+  private async maybeGetIosBundleIdentifierAsync(): Promise<Result<string | null>> {
+    try {
+      return result(await getBundleIdentifierAsync(this.ctx.projectDir, this.ctx.exp));
+    } catch (error: any) {
+      if (error instanceof AmbiguousBundleIdentifierError) {
+        Log.warn(
+          'bundleIdentifier in the Xcode project is ambiguous, specify it via "bundleIdentifier" field in the submit profile in the eas.json.'
+        );
+        return result(null);
+      }
+      return result(
+        new Error(`Failed to resolve bundleIdentifier in the Xcode project: ${error.message}.`)
+      );
+    }
+  }
+
+  private async resolveCredentialSubmissionOptionsAsync(): Promise<
+    | { appSpecificPasswordSource: Result<AppSpecificPasswordSource> }
+    | { ascApiKeySource: Result<AscApiKeySource> }
+    | { credentialsServiceSource: Result<CredentialsServiceSource> }
+  > {
+    const ascApiKeySource = this.resolveAscApiKeySource();
+    const shouldSkipAscApiKeySource =
+      !ascApiKeySource.ok && ascApiKeySource.enforceError() instanceof MissingCredentialsError;
+    if (!shouldSkipAscApiKeySource) {
+      return { ascApiKeySource };
+    }
+
+    const appSpecificPasswordSource = this.resolveAppSpecificPasswordSource();
+    const shouldSkipAppSpecificPasswordSource =
+      !appSpecificPasswordSource.ok &&
+      appSpecificPasswordSource.enforceError() instanceof MissingCredentialsError;
+    if (!shouldSkipAppSpecificPasswordSource) {
+      return { appSpecificPasswordSource: this.resolveAppSpecificPasswordSource() };
+    }
+
+    let bundleIdentifier = this.ctx.profile.bundleIdentifier;
+    if (!bundleIdentifier) {
+      const bundleIdentifierResult = await this.maybeGetIosBundleIdentifierAsync();
+      if (!bundleIdentifierResult.ok) {
+        return {
+          credentialsServiceSource: result(bundleIdentifierResult.reason),
+        };
+      }
+      const bundleIdentifierValue = bundleIdentifierResult.enforceValue();
+      if (bundleIdentifierValue) {
+        bundleIdentifier = bundleIdentifierValue;
+      }
+    }
+    return {
+      credentialsServiceSource: result({
+        sourceType: CREDENTIALS_SERVICE_SOURCE,
+        bundleIdentifier,
+      }),
     };
   }
 
