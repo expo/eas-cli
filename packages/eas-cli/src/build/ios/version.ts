@@ -129,9 +129,9 @@ export async function maybeResolveVersionsAsync(
       appVersion: await readShortVersionAsync(projectDir, exp, buildSettings),
     };
   } catch (err: any) {
-    Log.error('Failed to read app versions.');
-    Log.error(err.message);
-    Log.error('Proceeding anyway...');
+    Log.warn('Failed to read app versions.');
+    Log.warn(err.message);
+    Log.warn('Proceeding anyway...');
     return {};
   }
 }
