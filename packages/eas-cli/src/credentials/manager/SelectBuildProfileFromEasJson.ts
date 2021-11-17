@@ -1,15 +1,14 @@
 import { Platform } from '@expo/eas-build-job';
 import { BuildProfile, EasJsonReader } from '@expo/eas-json';
-import fs from 'fs-extra';
 
-import Log, { learnMore } from '../../log';
+import Log from '../../log';
 import { promptAsync } from '../../prompts';
 import { CredentialsContext } from '../context';
 
 export class SelectBuildProfileFromEasJson<T extends Platform> {
   private easJsonReader: EasJsonReader;
 
-  constructor(private projectDir: string, private platform: T) {
+  constructor(projectDir: string, private platform: T) {
     this.easJsonReader = new EasJsonReader(projectDir);
   }
 
