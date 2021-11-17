@@ -1,18 +1,28 @@
 import { Platform } from '@expo/eas-build-job';
 import { BuildProfile, EasJsonReader } from '@expo/eas-json';
+import fs from 'fs-extra';
 
-import Log from '../../log';
+import Log, { learnMore } from '../../log';
 import { promptAsync } from '../../prompts';
 import { CredentialsContext } from '../context';
 
 export class SelectBuildProfileFromEasJson<T extends Platform> {
   private easJsonReader: EasJsonReader;
 
-  constructor(projectDir: string, private platform: T) {
+  constructor(private projectDir: string, private platform: T) {
     this.easJsonReader = new EasJsonReader(projectDir);
   }
 
   async runAsync(ctx: CredentialsContext): Promise<BuildProfile<T>> {
+    const easJsonPath = EasJsonReader.formatEasJsonPath(this.projectDir);
+    if (!(await fs.pathExists(easJsonPath))) {
+      throw new Error(
+        `An eas.json file could not be found at ${easJsonPath}. You must make one in order to proceed. ${learnMore(
+          'https://expo.fyi/eas-json'
+        )}`
+      );
+    }
+
     const profileName = await this.getProfileNameFromEasConfigAsync(ctx);
     const easConfig = await this.easJsonReader.readBuildProfileAsync<T>(this.platform, profileName);
     Log.succeed(`Using build profile: ${profileName}`);

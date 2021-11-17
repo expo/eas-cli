@@ -1,6 +1,7 @@
 import { Platform } from '@expo/eas-build-job';
 import JsonFile from '@expo/json-file';
 import envString from 'env-string';
+import fs from 'fs-extra';
 import path from 'path';
 
 import { BuildProfile } from './EasBuild.types';
@@ -168,6 +169,9 @@ export class EasJsonReader {
   public async readRawAsync(): Promise<EasJsonPreValidation> {
     try {
       const easJsonPath = EasJsonReader.formatEasJsonPath(this.projectDir);
+      if (!(await fs.pathExists(easJsonPath))) {
+        throw new Error(`An eas.json file could not be found at ${easJsonPath}.`);
+      }
       const rawEasJson = JsonFile.read(easJsonPath);
       const { value, error } = MinimalEasJsonSchema.validate(rawEasJson, { abortEarly: false });
       if (error) {
