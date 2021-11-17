@@ -18,7 +18,7 @@ import {
   IosSubmitProfileFieldsToEvaluate,
   SubmitProfile,
 } from './EasSubmit.types';
-import { InvalidEasJsonError } from './errors';
+import { InvalidEasJsonError, MissingEasJsonError } from './errors';
 
 interface EasJsonPreValidation {
   cli?: object;
@@ -72,7 +72,7 @@ export class EasJsonReader {
       }
       return value as CliConfig;
     } catch (err: any) {
-      if (err.code === 'ENOENT') {
+      if (err instanceof MissingEasJsonError) {
         return null;
       }
       throw err;
@@ -170,7 +170,7 @@ export class EasJsonReader {
     try {
       const easJsonPath = EasJsonReader.formatEasJsonPath(this.projectDir);
       if (!(await fs.pathExists(easJsonPath))) {
-        throw new Error(
+        throw new MissingEasJsonError(
           `An eas.json file could not be found at ${easJsonPath}. You must make one in order to proceed. Learn more at https://expo.fyi/eas-json`
         );
       }
