@@ -14,15 +14,6 @@ export class SelectBuildProfileFromEasJson<T extends Platform> {
   }
 
   async runAsync(ctx: CredentialsContext): Promise<BuildProfile<T>> {
-    const easJsonPath = EasJsonReader.formatEasJsonPath(this.projectDir);
-    if (!(await fs.pathExists(easJsonPath))) {
-      throw new Error(
-        `An eas.json file could not be found at ${easJsonPath}. You must make one in order to proceed. ${learnMore(
-          'https://expo.fyi/eas-json'
-        )}`
-      );
-    }
-
     const profileName = await this.getProfileNameFromEasConfigAsync(ctx);
     const easConfig = await this.easJsonReader.readBuildProfileAsync<T>(this.platform, profileName);
     Log.succeed(`Using build profile: ${profileName}`);

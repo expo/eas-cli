@@ -170,7 +170,9 @@ export class EasJsonReader {
     try {
       const easJsonPath = EasJsonReader.formatEasJsonPath(this.projectDir);
       if (!(await fs.pathExists(easJsonPath))) {
-        throw new Error(`An eas.json file could not be found at ${easJsonPath}.`);
+        throw new Error(
+          `An eas.json file could not be found at ${easJsonPath}. You must make one in order to proceed. Learn more at https://expo.fyi/eas-json`
+        );
       }
       const rawEasJson = JsonFile.read(easJsonPath);
       const { value, error } = MinimalEasJsonSchema.validate(rawEasJson, { abortEarly: false });
