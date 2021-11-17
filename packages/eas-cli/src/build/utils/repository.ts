@@ -136,6 +136,7 @@ export async function reviewAndCommitChangesAsync(
     await getVcsClient().commitAsync({
       commitMessage: initialCommitMessage,
       commitAllFiles: false,
+      nonInteractive,
     });
     Log.withTick('Committed changes.');
     return;

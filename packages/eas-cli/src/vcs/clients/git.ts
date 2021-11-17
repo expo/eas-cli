@@ -1,6 +1,8 @@
 import spawnAsync from '@expo/spawn-async';
+import chalk from 'chalk';
 
 import Log, { learnMore } from '../../log';
+import { ora } from '../../ora';
 import { confirmAsync, promptAsync } from '../../prompts';
 import {
   doesGitRepoExistAsync,
@@ -49,16 +51,30 @@ export default class GitClient extends Client {
   public async commitAsync({
     commitMessage,
     commitAllFiles,
+    nonInteractive = false,
   }: {
     commitMessage: string;
     commitAllFiles?: boolean;
+    nonInteractive?: boolean;
   }): Promise<void> {
+    await ensureGitConfiguredAsync({ nonInteractive });
+
     if (commitAllFiles) {
       await spawnAsync('git', ['add', '-A']);
     }
 
     await spawnAsync('git', ['add', '-u']);
-    await spawnAsync('git', ['commit', '-m', commitMessage]);
+    try {
+      await spawnAsync('git', ['commit', '-m', commitMessage]);
+    } catch (err: any) {
+      if (err?.stdout) {
+        Log.error(err.stdout);
+      }
+      if (err?.stderr) {
+        Log.error(err.stderr);
+      }
+      throw err;
+    }
   }
 
   public async isCommitRequiredAsync(): Promise<boolean> {
@@ -167,6 +183,76 @@ export default class GitClient extends Client {
       return true;
     } catch (e) {
       return false;
+    }
+  }
+}
+
+async function ensureGitConfiguredAsync({
+  nonInteractive,
+}: {
+  nonInteractive: boolean;
+}): Promise<void> {
+  let usernameConfigured = true;
+  let emailConfigured = true;
+  try {
+    await spawnAsync('git', ['config', '--get', 'user.name']);
+  } catch (err: any) {
+    Log.debug(err);
+    usernameConfigured = false;
+  }
+  try {
+    await spawnAsync('git', ['config', '--get', 'user.email']);
+  } catch (err: any) {
+    Log.debug(err);
+    emailConfigured = false;
+  }
+  if (usernameConfigured && emailConfigured) {
+    return;
+  }
+
+  Log.warn(
+    `You need to configure Git with your ${[
+      !usernameConfigured && 'username (user.name)',
+      !emailConfigured && 'email address (user.email)',
+    ]
+      .filter(i => i)
+      .join(' and ')}`
+  );
+  if (nonInteractive) {
+    throw new Error('Git cannot be configured automatically in non-interactive mode');
+  }
+  if (!usernameConfigured) {
+    const { username } = await promptAsync({
+      type: 'text',
+      name: 'username',
+      message: 'Username:',
+      validate: (input: string) => input !== '',
+    });
+    const spinner = ora(
+      `Running ${chalk.bold(`git config --local user.name ${username}`)}`
+    ).start();
+    try {
+      await spawnAsync('git', ['config', '--local', 'user.name', username]);
+      spinner.succeed();
+    } catch (err: any) {
+      spinner.fail();
+      throw err;
+    }
+  }
+  if (!emailConfigured) {
+    const { email } = await promptAsync({
+      type: 'text',
+      name: 'email',
+      message: 'Email address:',
+      validate: (input: string) => input !== '',
+    });
+    const spinner = ora(`Running ${chalk.bold(`git config --local user.email ${email}`)}`).start();
+    try {
+      await spawnAsync('git', ['config', '--local', 'user.email', email]);
+      spinner.succeed();
+    } catch (err: any) {
+      spinner.fail();
+      throw err;
     }
   }
 }
