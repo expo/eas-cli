@@ -27,9 +27,18 @@ export interface ConfigureContext {
   hasIosNativeProject: boolean;
 }
 
+export interface AndroidBuildContext {
+  applicationId: string;
+  buildProfile: BuildProfile<Platform.ANDROID>;
+}
+
+export interface IosBuildContext {
+  bundleIdentifier: string;
+  buildProfile: BuildProfile<Platform.IOS>;
+}
+
 export interface BuildContext<T extends Platform> {
   accountName: string;
-  buildProfile: BuildProfile<T>;
   buildProfileName: string;
   clearCache: boolean;
   credentialsCtx: CredentialsContext;
@@ -44,6 +53,8 @@ export interface BuildContext<T extends Platform> {
   trackingCtx: TrackingContext;
   user: Actor;
   workflow: Workflow;
+  android: T extends Platform.ANDROID ? AndroidBuildContext : undefined;
+  ios: T extends Platform.IOS ? IosBuildContext : undefined;
 }
 
 export async function createBuildContextAsync<T extends Platform>({
