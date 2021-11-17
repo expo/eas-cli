@@ -14,7 +14,6 @@ import {
   selectRequestedPlatformAsync,
   toPlatforms,
 } from '../platform';
-import { isEasEnabledForProjectAsync, warnEasUnavailable } from '../project/isEasEnabledForProject';
 import { findProjectRootAsync, getProjectIdAsync } from '../project/projectUtils';
 import { SubmitArchiveFlags, createSubmissionContextAsync } from '../submit/context';
 import { submitAsync, waitToCompleteAsync } from '../submit/submit';
@@ -94,12 +93,6 @@ See how to configure submits with eas.json: ${link('https://docs.expo.dev/submit
     const projectDir = await findProjectRootAsync();
     const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
     const projectId = await getProjectIdAsync(exp);
-
-    if (!(await isEasEnabledForProjectAsync(projectId))) {
-      warnEasUnavailable();
-      process.exitCode = 1;
-      return;
-    }
 
     const platforms = toPlatforms(flags.requestedPlatform);
     const submissionProfiles = await getProfilesAsync({

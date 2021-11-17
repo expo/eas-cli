@@ -32,10 +32,6 @@ import {
   selectRequestedPlatformAsync,
   toPlatforms,
 } from '../../platform';
-import {
-  EAS_UNAVAILABLE_MESSAGE,
-  isEasEnabledForProjectAsync,
-} from '../../project/isEasEnabledForProject';
 import { validateMetroConfigForManagedWorkflowAsync } from '../../project/metroConfig';
 import { findProjectRootAsync } from '../../project/projectUtils';
 import { selectAsync } from '../../prompts';
@@ -312,10 +308,6 @@ export default class Build extends EasCommand {
     if (buildCtx.workflow === Workflow.MANAGED && !this.metroConfigValidated) {
       await validateMetroConfigForManagedWorkflowAsync(buildCtx);
       this.metroConfigValidated = true;
-    }
-
-    if (!buildCtx.local && !(await isEasEnabledForProjectAsync(buildCtx.projectId))) {
-      error(EAS_UNAVAILABLE_MESSAGE, { exit: 1 });
     }
 
     const build = await this.startBuildAsync(buildCtx);
