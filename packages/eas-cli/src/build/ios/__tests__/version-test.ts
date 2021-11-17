@@ -4,7 +4,7 @@ import fs from 'fs-extra';
 import { vol } from 'memfs';
 import os from 'os';
 
-import { readPlistAsync } from '../plist';
+import { readPlistAsync } from '../../../utils/plist';
 import {
   BumpStrategy,
   bumpVersionAsync,

@@ -8,9 +8,9 @@ import type { XCBuildConfiguration } from 'xcode';
 import Log from '../../log';
 import { resolveWorkflowAsync } from '../../project/workflow';
 import { promptAsync } from '../../prompts';
+import { readPlistAsync, writePlistAsync } from '../../utils/plist';
 import { updateAppJsonConfigAsync } from '../utils/appJson';
 import { bumpAppVersionAsync } from '../utils/version';
-import { readPlistAsync, writePlistAsync } from './plist';
 
 export enum BumpStrategy {
   APP_VERSION,
@@ -128,7 +128,10 @@ export async function maybeResolveVersionsAsync(
       appBuildVersion: await readBuildNumberAsync(projectDir, exp, buildSettings),
       appVersion: await readShortVersionAsync(projectDir, exp, buildSettings),
     };
-  } catch {
+  } catch (err: any) {
+    Log.warn('Failed to read app versions.');
+    Log.warn(err.message);
+    Log.warn('Proceeding anyway...');
     return {};
   }
 }
@@ -174,7 +177,7 @@ async function readInfoPlistAsync(
   buildSettings: XCBuildConfiguration['buildSettings']
 ): Promise<IOSConfig.InfoPlist> {
   const infoPlistPath = getInfoPlistPath(projectDir, buildSettings);
-  return (await readPlistAsync(infoPlistPath)) as IOSConfig.InfoPlist;
+  return ((await readPlistAsync(infoPlistPath)) ?? {}) as IOSConfig.InfoPlist;
 }
 
 async function writeInfoPlistAsync({
