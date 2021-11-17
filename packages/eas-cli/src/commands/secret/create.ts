@@ -10,10 +10,6 @@ import {
 } from '../../graphql/queries/EnvironmentSecretsQuery';
 import Log from '../../log';
 import {
-  isEasEnabledForProjectAsync,
-  warnEasUnavailable,
-} from '../../project/isEasEnabledForProject';
-import {
   findProjectRootAsync,
   getProjectAccountNameAsync,
   getProjectIdAsync,
@@ -56,12 +52,6 @@ export default class EnvironmentSecretCreate extends EasCommand {
 
     const { slug } = exp;
     const projectId = await getProjectIdAsync(exp);
-
-    if (!(await isEasEnabledForProjectAsync(projectId))) {
-      warnEasUnavailable();
-      process.exitCode = 1;
-      return;
-    }
 
     if (!scope) {
       const validationMessage = 'Secret scope may not be empty.';

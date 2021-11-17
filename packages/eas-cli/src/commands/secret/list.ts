@@ -7,10 +7,6 @@ import EasCommand from '../../commandUtils/EasCommand';
 import { EnvironmentSecretsQuery } from '../../graphql/queries/EnvironmentSecretsQuery';
 import Log from '../../log';
 import {
-  isEasEnabledForProjectAsync,
-  warnEasUnavailable,
-} from '../../project/isEasEnabledForProject';
-import {
   findProjectRootAsync,
   getProjectAccountNameAsync,
   getProjectIdAsync,
@@ -24,12 +20,6 @@ export default class EnvironmentSecretList extends EasCommand {
     const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
     const projectId = await getProjectIdAsync(exp);
     const projectAccountName = await getProjectAccountNameAsync(exp);
-
-    if (!(await isEasEnabledForProjectAsync(projectId))) {
-      warnEasUnavailable();
-      process.exitCode = 1;
-      return;
-    }
 
     if (!projectDir) {
       throw new Error("Please run this command inside your project's directory");

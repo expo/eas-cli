@@ -11,10 +11,6 @@ import {
 } from '../../graphql/queries/EnvironmentSecretsQuery';
 import Log from '../../log';
 import {
-  isEasEnabledForProjectAsync,
-  warnEasUnavailable,
-} from '../../project/isEasEnabledForProject';
-import {
   findProjectRootAsync,
   getProjectAccountNameAsync,
   getProjectIdAsync,
@@ -36,12 +32,6 @@ Unsure where to find the secret's ID? Run ${chalk.bold('eas secret:list')}`;
     const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
     const projectId = await getProjectIdAsync(exp);
     const projectAccountName = await getProjectAccountNameAsync(exp);
-
-    if (!(await isEasEnabledForProjectAsync(projectId))) {
-      warnEasUnavailable();
-      process.exitCode = 1;
-      return;
-    }
 
     let {
       flags: { id },
