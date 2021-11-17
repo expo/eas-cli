@@ -19,6 +19,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Better error message when missing eas.json. ([#770](https://github.com/expo/eas-cli/pull/770) by [@quinlanj](https://github.com/quinlanj))
+
 ## [0.36.1](https://github.com/expo/eas-cli/releases/tag/v0.36.1) - 2021-11-15
 
 ### 🐛 Bug fixes
