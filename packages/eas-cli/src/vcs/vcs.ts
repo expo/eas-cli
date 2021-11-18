@@ -34,9 +34,10 @@ export abstract class Client {
   // - Should be implemented if hasUncommittedChangesAsync is implemented
   // - If it's not implemented method `makeShallowCopyAsync` needs to be able to include uncommitted changes
   // in project copy
-  public async commitAsync(arg: {
+  public async commitAsync(_arg: {
     commitMessage: string;
     commitAllFiles?: boolean;
+    nonInteractive?: boolean;
   }): Promise<void> {
     // it should not be called unless hasUncommittedChangesAsync is implemented
     throw new Error('commitAsync is not implemented');
@@ -44,7 +45,7 @@ export abstract class Client {
 
   // (optional) mark file as tracked, if this method is called on file, the next call to
   // `commitAsync({ commitAllFiles: false })` should commit that file
-  public async trackFileAsync(file: string): Promise<void> {}
+  public async trackFileAsync(_file: string): Promise<void> {}
 
   // (optional) print diff of the changes that will be commited in the next call to
   // `commitAsync({ commitAllFiles: false })`
@@ -74,7 +75,7 @@ export abstract class Client {
   //
   // @param filePath has to be a relative normalized path pointing to a file
   // located under the root of the repository
-  public async isFileIgnoredAsync(filePath: string): Promise<boolean> {
+  public async isFileIgnoredAsync(_filePath: string): Promise<boolean> {
     return false;
   }
 }
