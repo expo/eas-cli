@@ -59,12 +59,11 @@ export default class GitClient extends Client {
   }): Promise<void> {
     await ensureGitConfiguredAsync({ nonInteractive });
 
-    if (commitAllFiles) {
-      await spawnAsync('git', ['add', '-A']);
-    }
-
-    await spawnAsync('git', ['add', '-u']);
     try {
+      if (commitAllFiles) {
+        await spawnAsync('git', ['add', '-A']);
+      }
+      await spawnAsync('git', ['add', '-u']);
       await spawnAsync('git', ['commit', '-m', commitMessage]);
     } catch (err: any) {
       if (err?.stdout) {
