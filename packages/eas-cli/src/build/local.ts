@@ -2,7 +2,7 @@ import { Job } from '@expo/eas-build-job';
 import spawnAsync from '@expo/spawn-async';
 
 const PLUGIN_PACKAGE_NAME = 'eas-cli-local-build-plugin';
-const PLUGIN_PACKAGE_VERSION = '0.0.48';
+const PLUGIN_PACKAGE_VERSION = '0.0.50';
 
 export async function runLocalBuildAsync(job: Job): Promise<void> {
   const { command, args } = getCommandAndArgs(job);
