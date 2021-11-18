@@ -6,6 +6,16 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🛠 Breaking changes
 
+### 🎉 New features
+
+### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [0.37.0](https://github.com/expo/eas-cli/releases/tag/v0.37.0) - 2021-11-18
+
+### 🛠 Breaking changes
+
 - Require explicitly defined applicationId/bundleIdentifier for EAS Submit in case of bare projects consisting of multiple product flavors on Android or multiple schemes/targets on iOS. ([#765](https://github.com/expo/eas-cli/pull/765) by [@wkozyra95](https://github.com/wkozyra95))
 
 ### 🎉 New features
