@@ -150,6 +150,30 @@ describe(syncCapabilitiesForEntitlementsAsync, () => {
     expect(results.disabled).toStrictEqual([]);
   });
 
+  // It's unclear what is happening in this issue, so for now we can provide a more
+  // helpful error message until we can get a reproducible example.
+  // https://github.com/expo/eas-cli/issues/740
+  it('throw useful error message on unexpected error', async () => {
+    const bundleId = {
+      getBundleIdCapabilitiesAsync: jest.fn(() => []),
+      updateBundleIdCapabilityAsync: jest.fn(() => {
+        throw new Error(`bundle 'XXX333' cannot be deleted. Delete all the Apps`);
+      }),
+      attributes: {
+        identifier: 'dev.expo.app',
+      },
+      id: 'XXX333',
+    } as any;
+
+    await expect(
+      syncCapabilitiesForEntitlementsAsync(bundleId, {
+        'com.apple.developer.healthkit': true,
+      })
+    ).rejects.toThrowError(
+      `https://developer.apple.com/account/resources/identifiers/bundleId/edit/XXX333`
+    );
+  });
+
   it('cannot skip complex duplicates', async () => {
     const bundleId = {
       getBundleIdCapabilitiesAsync: jest.fn(() => [

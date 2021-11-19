@@ -11,6 +11,7 @@ import {
 } from '@expo/apple-utils';
 import { JSONObject, JSONValue } from '@expo/json-file';
 import getenv from 'getenv';
+import { inspect } from 'util';
 
 import Log from '../../../log';
 
@@ -93,14 +94,29 @@ export async function syncCapabilitiesForEntitlementsAsync(
     entitlements
   );
 
-  const { disabledCapabilityNames, request: modifiedRequest } = getCapabilitiesToDisable(
+  let { disabledCapabilityNames, request: modifiedRequest } = getCapabilitiesToDisable(
     bundleId,
     remainingCapabilities,
     request
   );
 
   if (modifiedRequest.length) {
-    await bundleId.updateBundleIdCapabilityAsync(modifiedRequest);
+    if (Log.isDebug) {
+      Log.log(`Patch Request:`, inspect(modifiedRequest, { depth: null, colors: true }));
+    }
+    try {
+      await bundleId.updateBundleIdCapabilityAsync(modifiedRequest);
+    } catch (error: any) {
+      if (error.message.match(/bundle '[\w\d]+' cannot be deleted. Delete all the Apps/)) {
+        Log.error(
+          'Failed to patch capabilities:',
+          inspect(modifiedRequest, { depth: null, colors: true })
+        );
+        throw new Error(
+          `Unexpected error occurred while attempting to update capabilities for app "${bundleId.attributes.identifier}".\nCapabilities can be modified manually in the Apple developer console at https://developer.apple.com/account/resources/identifiers/bundleId/edit/${bundleId.id}.\nAuto capability syncing can be disabled with the environment variable \`EXPO_NO_CAPABILITY_SYNC=1\`.\n${error.message}`
+        );
+      }
+    }
   }
 
   return { enabled: enabledCapabilityNames, disabled: disabledCapabilityNames };
