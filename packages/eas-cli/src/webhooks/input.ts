@@ -7,18 +7,35 @@ import { promptAsync } from '../prompts';
 
 export async function prepareInputParamsAsync(
   {
-    event,
+    event: maybeEvent,
     url: maybeUrl,
     secret: maybeSecret,
   }: {
-    event: WebhookType;
+    event?: WebhookType;
     url?: string;
     secret?: string;
   },
   existingWebhook?: WebhookFragment
 ): Promise<WebhookInput> {
+  let event: WebhookType | undefined = maybeEvent;
   let url: string | undefined = maybeUrl;
   let secret: string | undefined = maybeSecret;
+
+  if (!event) {
+    const choices = [
+      { title: 'Build', value: WebhookType.Build },
+      { title: 'Submit', value: WebhookType.Submit },
+    ];
+    ({ event } = await promptAsync({
+      type: 'select',
+      name: 'event',
+      message: 'Webhook event type:',
+      choices,
+      initial: existingWebhook?.event
+        ? choices.findIndex(choice => choice.value === existingWebhook.event)
+        : undefined,
+    }));
+  }
 
   if (!url || !validateURL(url)) {
     const urlValidationMessage =
@@ -50,7 +67,7 @@ export async function prepareInputParamsAsync(
   }
 
   return {
-    event,
+    event: nullthrows(event),
     url: nullthrows(url),
     secret: nullthrows(secret),
   };

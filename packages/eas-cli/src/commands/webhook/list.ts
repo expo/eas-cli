@@ -20,7 +20,7 @@ export default class WebhookList extends EasCommand {
   static flags = {
     event: flags.enum({
       description: 'Event type that triggers the webhook',
-      options: [WebhookType.Build],
+      options: [WebhookType.Build, WebhookType.Submit],
     }),
   };
 

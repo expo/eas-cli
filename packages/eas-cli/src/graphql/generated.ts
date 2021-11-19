@@ -1411,7 +1411,8 @@ export type WebhookFilter = {
 };
 
 export enum WebhookType {
-  Build = 'BUILD'
+  Build = 'BUILD',
+  Submit = 'SUBMIT'
 }
 
 export type Webhook = {

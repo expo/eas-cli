@@ -18,8 +18,7 @@ export default class WebhookUpdate extends EasCommand {
     }),
     event: flags.enum({
       description: 'Event type that triggers the webhook',
-      options: [WebhookType.Build],
-      default: WebhookType.Build,
+      options: [WebhookType.Build, WebhookType.Submit],
     }),
     url: flags.string({
       description: 'Webhook URL',
