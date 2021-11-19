@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Improve unknown capability syncing error message. ([#775](https://github.com/expo/eas-cli/pulls/775) by [@EvanBacon](https://github.com/EvanBacon))
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
