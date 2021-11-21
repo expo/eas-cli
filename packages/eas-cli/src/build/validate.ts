@@ -4,9 +4,9 @@ import path from 'path';
 
 import Log, { learnMore } from '../log';
 import { getVcsClient } from '../vcs';
-import { BuildContext } from './context';
+import { CommonContext } from './context';
 
-export function checkNodeEnvVariable(ctx: BuildContext<Platform>): void {
+export function checkNodeEnvVariable(ctx: CommonContext<Platform>): void {
   if (ctx.buildProfile.env?.NODE_ENV === 'production') {
     Log.warn(
       'You set NODE_ENV=production in the build profile. Remember that it will be available during the entire build process. In particular, it will make yarn/npm install only production packages.'
@@ -16,7 +16,7 @@ export function checkNodeEnvVariable(ctx: BuildContext<Platform>): void {
 }
 
 export async function checkGoogleServicesFileAsync<T extends Platform>(
-  ctx: BuildContext<T>
+  ctx: CommonContext<T>
 ): Promise<void> {
   if (ctx.workflow === Workflow.GENERIC || ctx.buildProfile?.env?.GOOGLE_SERVICES_FILE) {
     return;

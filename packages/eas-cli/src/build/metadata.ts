@@ -1,12 +1,18 @@
 import { Updates } from '@expo/config-plugins';
 import { Metadata, Platform, sanitizeMetadata } from '@expo/eas-build-job';
 import { IosEnterpriseProvisioning } from '@expo/eas-json';
-import type { XCBuildConfiguration } from 'xcode';
 
+<<<<<<< HEAD
 import Log from '../log';
 import { getApplicationIdAsync } from '../project/android/applicationId';
 import { GradleBuildContext } from '../project/android/gradle';
 import { getBundleIdentifierAsync } from '../project/ios/bundleIdentifier';
+||||||| parent of 26f2ab54 (pass identifier from build to submit)
+import { getApplicationIdAsync } from '../project/android/applicationId';
+import { GradleBuildContext } from '../project/android/gradle';
+import { getBundleIdentifierAsync } from '../project/ios/bundleIdentifier';
+=======
+>>>>>>> 26f2ab54 (pass identifier from build to submit)
 import { getUsername } from '../project/projectUtils';
 import { ensureLoggedInAsync } from '../user/actions';
 import { easCliVersion } from '../utils/easCli';
@@ -24,19 +30,6 @@ import {
 import { maybeResolveVersionsAsync as maybeResolveIosVersionsAsync } from './ios/version';
 import { isExpoUpdatesInstalled } from './utils/updates';
 
-export type MetadataContext<T extends Platform> = T extends Platform.ANDROID
-  ? AndroidMetadataContext
-  : IosMetadataContext;
-
-export interface AndroidMetadataContext {
-  gradleContext?: GradleBuildContext;
-}
-export interface IosMetadataContext {
-  buildSettings: XCBuildConfiguration['buildSettings'];
-  targetName?: string;
-  buildConfiguration?: string;
-}
-
 // TODO(JJ): Replace this with the getRuntimeVersionNullable function in @expo/config-plugins
 function getRuntimeVersionNullable(
   ...[config, platform]: Parameters<typeof Updates.getRuntimeVersion>
@@ -50,8 +43,7 @@ function getRuntimeVersionNullable(
 }
 
 export async function collectMetadataAsync<T extends Platform>(
-  ctx: BuildContext<T>,
-  platformContext: MetadataContext<T>
+  ctx: BuildContext<T>
 ): Promise<Metadata> {
   const channelOrReleaseChannel = await resolveChannelOrReleaseChannelAsync(ctx);
   const distribution =
@@ -60,7 +52,7 @@ export async function collectMetadataAsync<T extends Platform>(
       : ctx.buildProfile.distribution) ?? 'store';
   const metadata = {
     trackingContext: ctx.trackingCtx,
-    ...(await maybeResolveVersionsAsync(ctx, platformContext)),
+    ...(await maybeResolveVersionsAsync(ctx)),
     cliVersion: easCliVersion,
     workflow: ctx.workflow,
     credentialsSource: ctx.buildProfile.credentialsSource,
@@ -69,7 +61,7 @@ export async function collectMetadataAsync<T extends Platform>(
     ...channelOrReleaseChannel,
     distribution,
     appName: ctx.exp.name,
-    appIdentifier: await resolveAppIdentifierAsync(ctx, platformContext),
+    appIdentifier: resolveAppIdentifier(ctx),
     buildProfile: ctx.buildProfileName,
     gitCommitHash: await getVcsClient().getCommitHashAsync(),
     isGitWorkingTreeDirty: await getVcsClient().hasUncommittedChangesAsync(),
@@ -84,15 +76,14 @@ export async function collectMetadataAsync<T extends Platform>(
 }
 
 async function maybeResolveVersionsAsync<T extends Platform>(
-  ctx: BuildContext<T>,
-  platformContext: MetadataContext<T>
+  ctx: BuildContext<T>
 ): Promise<{ appBuildVersion?: string; appVersion?: string }> {
   if (ctx.platform === Platform.IOS) {
-    const iosContext = platformContext as IosMetadataContext;
+    const iosContext = ctx as BuildContext<Platform.IOS>;
     return await maybeResolveIosVersionsAsync(
       ctx.projectDir,
       ctx.exp,
-      iosContext?.buildSettings ?? {}
+      iosContext.ios.applicationTargetBuildSettings
     );
   } else if (ctx.platform === Platform.ANDROID) {
     const androidCtx = ctx as BuildContext<Platform.ANDROID>;
@@ -102,19 +93,11 @@ async function maybeResolveVersionsAsync<T extends Platform>(
   }
 }
 
-async function resolveAppIdentifierAsync<T extends Platform>(
-  ctx: BuildContext<T>,
-  platformContext: MetadataContext<T>
-): Promise<string> {
+function resolveAppIdentifier<T extends Platform>(ctx: BuildContext<T>): string {
   if (ctx.platform === Platform.IOS) {
-    const iosContext = platformContext as IosMetadataContext;
-    return await getBundleIdentifierAsync(ctx.projectDir, ctx.exp, {
-      targetName: iosContext.targetName,
-      buildConfiguration: iosContext.buildConfiguration,
-    });
+    return (ctx as BuildContext<Platform.IOS>).ios.bundleIdentifier;
   } else {
-    const androidContext = platformContext as AndroidMetadataContext;
-    return await getApplicationIdAsync(ctx.projectDir, ctx.exp, androidContext.gradleContext);
+    return (ctx as BuildContext<Platform.ANDROID>).android.applicationId;
   }
 }
 

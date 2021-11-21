@@ -8,24 +8,17 @@ import { ensureBundleIdentifierIsDefinedForManagedProjectAsync } from '../../pro
 import { resolveXcodeBuildContextAsync } from '../../project/ios/scheme';
 import { findApplicationTarget, resolveTargetsAsync } from '../../project/ios/target';
 import { BuildRequestSender, JobData, prepareBuildRequestForPlatformAsync } from '../build';
-import { BuildContext } from '../context';
+import { BuildContext, CommonContext, IosBuildContext } from '../context';
 import { transformMetadata } from '../graphql';
-import { IosMetadataContext } from '../metadata';
 import { checkGoogleServicesFileAsync, checkNodeEnvVariable } from '../validate';
 import { validateAndSyncProjectConfigurationAsync } from './configure';
 import { ensureIosCredentialsAsync } from './credentials';
 import { transformJob } from './graphql';
 import { prepareJobAsync } from './prepareJob';
 
-interface BuildConfiguration {
-  targetName?: string;
-  buildConfiguration?: string;
-  buildSettings: XCBuildConfiguration['buildSettings'];
-}
-
-export async function prepareIosBuildAsync(
-  ctx: BuildContext<Platform.IOS>
-): Promise<BuildRequestSender> {
+export async function createIosContextAsync(
+  ctx: CommonContext<Platform.IOS>
+): Promise<IosBuildContext> {
   const { buildProfile } = ctx;
 
   if (ctx.workflow === Workflow.MANAGED) {
@@ -50,29 +43,42 @@ export async function prepareIosBuildAsync(
     },
     xcodeBuildContext
   );
-  const buildConfiguration = resolveBuildConfiguration(ctx, targets);
+  const applicationTarget = findApplicationTarget(targets);
+  const applicationTargetBuildSettings = resolveBuildSettings(ctx, applicationTarget);
 
+  return {
+    bundleIdentifier: applicationTarget.bundleIdentifier,
+    applicationTarget,
+    applicationTargetBuildSettings,
+    targets,
+    xcodeBuildContext,
+  };
+}
+
+export async function prepareIosBuildAsync(
+  ctx: BuildContext<Platform.IOS>
+): Promise<BuildRequestSender> {
   return await prepareBuildRequestForPlatformAsync({
     ctx,
     ensureCredentialsAsync: async (ctx: BuildContext<Platform.IOS>) => {
-      return ensureIosCredentialsAsync(ctx, targets);
+      return ensureIosCredentialsAsync(ctx, ctx.ios.targets);
     },
     ensureProjectConfiguredAsync: async () => {
       await validateAndSyncProjectConfigurationAsync({
         projectDir: ctx.projectDir,
         exp: ctx.exp,
-        buildProfile,
-        buildSettings: buildConfiguration.buildSettings,
+        buildProfile: ctx.buildProfile,
+        buildSettings: ctx.ios.applicationTargetBuildSettings,
       });
-    },
-    getMetadataContext: (): IosMetadataContext => {
-      return buildConfiguration;
     },
     prepareJobAsync: async (
       ctx: BuildContext<Platform.IOS>,
       jobData: JobData<IosCredentials>
     ): Promise<Job> => {
-      return await prepareJobAsync(ctx, { ...jobData, buildScheme: xcodeBuildContext.buildScheme });
+      return await prepareJobAsync(ctx, {
+        ...jobData,
+        buildScheme: ctx.ios.xcodeBuildContext.buildScheme,
+      });
     },
     sendBuildRequestAsync: async (
       appId: string,
@@ -90,23 +96,17 @@ export async function prepareIosBuildAsync(
   });
 }
 
-function resolveBuildConfiguration(
-  ctx: BuildContext<Platform.IOS>,
-  targets: Target[]
-): BuildConfiguration {
+function resolveBuildSettings(
+  ctx: CommonContext<Platform.IOS>,
+  applicationTarget: Target
+): XCBuildConfiguration['buildSettings'] {
   if (ctx.workflow === Workflow.MANAGED) {
-    return { buildSettings: {} };
+    return {};
   }
-  const applicationTarget = findApplicationTarget(targets);
   const project = IOSConfig.XcodeUtils.getPbxproj(ctx.projectDir);
   const xcBuildConfiguration = IOSConfig.Target.getXCBuildConfigurationFromPbxproj(project, {
     targetName: applicationTarget.targetName,
     buildConfiguration: applicationTarget.buildConfiguration,
   });
-  const buildSettings = xcBuildConfiguration?.buildSettings ?? {};
-  return {
-    buildSettings,
-    targetName: applicationTarget.targetName,
-    buildConfiguration: applicationTarget.buildConfiguration,
-  };
+  return xcBuildConfiguration?.buildSettings ?? {};
 }

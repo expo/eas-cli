@@ -18,7 +18,7 @@ import { sleepAsync } from '../utils/promise';
 import { getVcsClient } from '../vcs';
 import { BuildContext } from './context';
 import { runLocalBuildAsync } from './local';
-import { MetadataContext, collectMetadataAsync } from './metadata';
+import { collectMetadataAsync } from './metadata';
 import { printDeprecationWarnings } from './utils/printBuildInfo';
 import { makeProjectTarballAsync, reviewAndCommitChangesAsync } from './utils/repository';
 
@@ -39,7 +39,6 @@ interface Builder<TPlatform extends Platform, Credentials, TJob extends Job> {
     ctx: BuildContext<TPlatform>
   ): Promise<CredentialsResult<Credentials> | undefined>;
   ensureProjectConfiguredAsync(ctx: BuildContext<TPlatform>): Promise<void>;
-  getMetadataContext: () => MetadataContext<TPlatform>;
   prepareJobAsync(ctx: BuildContext<TPlatform>, jobData: JobData<Credentials>): Promise<Job>;
   sendBuildRequestAsync(appId: string, job: TJob, metadata: Metadata): Promise<BuildResult>;
 }
@@ -88,8 +87,7 @@ export async function prepareBuildRequestForPlatformAsync<
         bucketKey: await uploadProjectAsync(ctx),
       } as const);
 
-  const metadataContext = builder.getMetadataContext();
-  const metadata = await collectMetadataAsync(ctx, metadataContext);
+  const metadata = await collectMetadataAsync(ctx);
   const job = await builder.prepareJobAsync(ctx, {
     projectArchive,
     credentials: credentialsResult?.credentials,
