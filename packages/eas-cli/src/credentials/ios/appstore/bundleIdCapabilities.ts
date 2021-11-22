@@ -94,7 +94,7 @@ export async function syncCapabilitiesForEntitlementsAsync(
     entitlements
   );
 
-  let { disabledCapabilityNames, request: modifiedRequest } = getCapabilitiesToDisable(
+  const { disabledCapabilityNames, request: modifiedRequest } = getCapabilitiesToDisable(
     bundleId,
     remainingCapabilities,
     request
