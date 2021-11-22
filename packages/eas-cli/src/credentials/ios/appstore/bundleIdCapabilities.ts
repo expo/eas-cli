@@ -101,9 +101,7 @@ export async function syncCapabilitiesForEntitlementsAsync(
   );
 
   if (modifiedRequest.length) {
-    if (Log.isDebug) {
-      Log.log(`Patch Request:`, inspect(modifiedRequest, { depth: null, colors: true }));
-    }
+    Log.debug(`Patch Request:`, inspect(modifiedRequest, { depth: null, colors: true }));
     try {
       await bundleId.updateBundleIdCapabilityAsync(modifiedRequest);
     } catch (error: any) {
