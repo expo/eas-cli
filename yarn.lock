@@ -848,27 +848,6 @@
     mv "~2"
     safe-json-stringify "~1"
 
-"@expo/config-plugins@4.0.3":
-  version "4.0.3"
-  resolved "https://registry.yarnpkg.com/@expo/config-plugins/-/config-plugins-4.0.3.tgz#8680dea2709c70f3a9c9e77ca6057335758341a8"
-  integrity sha512-vJ+4YOXxAjznpIG0WQHNsbeeJQXS/ZxzVPHhOO3le8Lkl+WJ2eH7XypulPRalBI4E0WLFtzDzLIdnqYJyjzvaw==
-  dependencies:
-    "@expo/config-types" "^43.0.0"
-    "@expo/json-file" "8.2.33"
-    "@expo/plist" "0.0.15"
-    "@react-native/normalize-color" "^2.0.0"
-    chalk "^4.1.2"
-    debug "^4.3.1"
-    find-up "~5.0.0"
-    fs-extra "9.0.0"
-    getenv "^1.0.0"
-    glob "7.1.6"
-    resolve-from "^5.0.0"
-    semver "^7.3.5"
-    slash "^3.0.0"
-    xcode "^3.0.1"
-    xml2js "0.4.23"
-
 "@expo/config-plugins@4.0.7":
   version "4.0.7"
   resolved "https://registry.yarnpkg.com/@expo/config-plugins/-/config-plugins-4.0.7.tgz#c3cd8d2297edd779576b71a8ad16fc8b80c08eda"
@@ -890,24 +869,19 @@
     xcode "^3.0.1"
     xml2js "0.4.23"
 
-"@expo/config-types@^43.0.0":
-  version "43.0.0"
-  resolved "https://registry.yarnpkg.com/@expo/config-types/-/config-types-43.0.0.tgz#e283a4a1b72a655a6a2a745bd277caef58c8edb0"
-  integrity sha512-GBbEtLdGX40DJ1wTixWtOHseupA5xWclV57KNZ58ebauWAOyK3Fyni7GD2OCOzxTIFi1nSjqgO9JlMp3ayP4Tw==
-
 "@expo/config-types@^43.0.1":
   version "43.0.1"
   resolved "https://registry.yarnpkg.com/@expo/config-types/-/config-types-43.0.1.tgz#3e047dccb371741a540980eaff26fb0c95039c30"
   integrity sha512-EtllpCGDdB/UdwAIs5YXJwBLpbFQNdlLLrxIvoILA9cXrpQMWkeDCT9lQPJzFRMFcLUaMuGvkzX2tR4tx5EQFQ==
 
-"@expo/config@6.0.3":
-  version "6.0.3"
-  resolved "https://registry.yarnpkg.com/@expo/config/-/config-6.0.3.tgz#48e5d453ae00ca090ea47799f4a9f352d5136a89"
-  integrity sha512-Qo2OVDfKbCyLiG3g2vqrPQXBBGRB2I3ADIB/8nZ3Ypy7QhqOA1L7WYhTQQr3T1zknHTMzy7u61ArHweiAnEEpw==
+"@expo/config@6.0.7":
+  version "6.0.7"
+  resolved "https://registry.yarnpkg.com/@expo/config/-/config-6.0.7.tgz#c84c76c907e65e0f92ebc67e11173c62de1ed513"
+  integrity sha512-aOsm+ZSqCgQrDf+UPHM62QGIpNdt+D3NJSFdHECnTUS6vWiTXhdVS23VQ4ris2thQS0ZRKKlX90S8CBUU49fIg==
   dependencies:
     "@babel/code-frame" "~7.10.4"
-    "@expo/config-plugins" "4.0.3"
-    "@expo/config-types" "^43.0.0"
+    "@expo/config-plugins" "4.0.7"
+    "@expo/config-types" "^43.0.1"
     "@expo/json-file" "8.2.33"
     getenv "^1.0.0"
     glob "7.1.6"
@@ -1011,14 +985,14 @@
     lodash.template "^4.4.0"
     semver "^7.3.2"
 
-"@expo/prebuild-config@3.0.3":
-  version "3.0.3"
-  resolved "https://registry.yarnpkg.com/@expo/prebuild-config/-/prebuild-config-3.0.3.tgz#448f48aab2a28af6b12dc1a95696dbd08f5668f3"
-  integrity sha512-7r/Wfzs2QNm8RvnbT1LFZ+Xkb3vrcLVGwkRt1BHPxmRFwq4SNwhkMyLPopQEjUhJU3AqLn6EKItS39+9c2f8vg==
+"@expo/prebuild-config@3.0.7":
+  version "3.0.7"
+  resolved "https://registry.yarnpkg.com/@expo/prebuild-config/-/prebuild-config-3.0.7.tgz#9d2e22b06ea61377331d561e5fb47a505d96757c"
+  integrity sha512-0lcgbqC5EP5f+SXu7jY0krLqqKfIbpp4LuDKJBpB7+ytM5W6VOURcCJA7BmwYD42kxsj9JOz/qjU1+OLr3g1qQ==
   dependencies:
-    "@expo/config" "6.0.3"
-    "@expo/config-plugins" "4.0.3"
-    "@expo/config-types" "^43.0.0"
+    "@expo/config" "6.0.7"
+    "@expo/config-plugins" "4.0.7"
+    "@expo/config-types" "^43.0.1"
     "@expo/image-utils" "0.3.17"
     "@expo/json-file" "8.2.33"
     debug "^4.3.1"
