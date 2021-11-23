@@ -1,3 +1,4 @@
+import { Updates } from '@expo/config-plugins';
 import { Metadata, Platform, sanitizeMetadata } from '@expo/eas-build-job';
 import { IosEnterpriseProvisioning } from '@expo/eas-json';
 import type { XCBuildConfiguration } from 'xcode';
@@ -51,7 +52,7 @@ export async function collectMetadataAsync<T extends Platform>(
     workflow: ctx.workflow,
     credentialsSource: ctx.buildProfile.credentialsSource,
     sdkVersion: ctx.exp.sdkVersion,
-    runtimeVersion: ctx.exp.runtimeVersion,
+    runtimeVersion: Updates.getRuntimeVersion(ctx.exp, ctx.platform),
     ...channelOrReleaseChannel,
     distribution,
     appName: ctx.exp.name,

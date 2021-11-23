@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Compute runtime version policies. ([#783](https://github.com/expo/eas-cli/pull/783) by [@jkhales](https://github.com/jkhales))
+
 ### 🧹 Chores
 
 - Upgrade `typescript` to 4.5.2. Upgrade oclif dependencies. ([#781](https://github.com/expo/eas-cli/pull/781) by [@dsokal](https://github.com/dsokal))
