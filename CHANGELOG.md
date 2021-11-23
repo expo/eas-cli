@@ -10,7 +10,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
-- compute runtimeVersion policies. ([#783](https://github.com/expo/eas-cli/pull/783) by [@jkhales](https://github.com/jkhales))
+- Compute runtime version policies. ([#783](https://github.com/expo/eas-cli/pull/783) by [@jkhales](https://github.com/jkhales))
 
 ### 🧹 Chores
 
