@@ -1,5 +1,4 @@
 import { Updates } from '@expo/config-plugins';
-import { Android, ExpoConfig, IOS } from '@expo/config-types';
 import { Metadata, Platform, sanitizeMetadata } from '@expo/eas-build-job';
 import { IosEnterpriseProvisioning } from '@expo/eas-json';
 import type { XCBuildConfiguration } from 'xcode';
@@ -37,13 +36,9 @@ export interface IosMetadataContext {
   buildConfiguration?: string;
 }
 
- // TODO: Replace this with the getRuntimeVersionNullableAsync function in config-plugins
-export function getRuntimeVersionNullable(
-  config: Pick<ExpoConfig, 'version' | 'runtimeVersion' | 'sdkVersion'> & {
-    android?: Pick<Android, 'versionCode' | 'runtimeVersion'>;
-    ios?: Pick<IOS, 'buildNumber' | 'runtimeVersion'>;
-  },
-  platform: 'android' | 'ios'
+// TODO: Replace this with the getRuntimeVersionNullableAsync function in @expo/config-plugins
+function getRuntimeVersionNullable(
+  ...[config, platform]: Parameters<typeof Updates.getRuntimeVersion>
 ): string | null {
   try {
     return Updates.getRuntimeVersion(config, platform);
