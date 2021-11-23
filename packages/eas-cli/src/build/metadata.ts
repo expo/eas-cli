@@ -3,6 +3,7 @@ import { Metadata, Platform, sanitizeMetadata } from '@expo/eas-build-job';
 import { IosEnterpriseProvisioning } from '@expo/eas-json';
 import type { XCBuildConfiguration } from 'xcode';
 
+import Log from '../log';
 import { getApplicationIdAsync } from '../project/android/applicationId';
 import { GradleBuildContext } from '../project/android/gradle';
 import { getBundleIdentifierAsync } from '../project/ios/bundleIdentifier';
@@ -36,6 +37,18 @@ export interface IosMetadataContext {
   buildConfiguration?: string;
 }
 
+// TODO(JJ): Replace this with the getRuntimeVersionNullable function in @expo/config-plugins
+function getRuntimeVersionNullable(
+  ...[config, platform]: Parameters<typeof Updates.getRuntimeVersion>
+): string | null {
+  try {
+    return Updates.getRuntimeVersion(config, platform);
+  } catch (e) {
+    Log.debug(e);
+    return null;
+  }
+}
+
 export async function collectMetadataAsync<T extends Platform>(
   ctx: BuildContext<T>,
   platformContext: MetadataContext<T>
@@ -52,7 +65,7 @@ export async function collectMetadataAsync<T extends Platform>(
     workflow: ctx.workflow,
     credentialsSource: ctx.buildProfile.credentialsSource,
     sdkVersion: ctx.exp.sdkVersion,
-    runtimeVersion: Updates.getRuntimeVersion(ctx.exp, ctx.platform),
+    runtimeVersion: getRuntimeVersionNullable(ctx.exp, ctx.platform) ?? undefined,
     ...channelOrReleaseChannel,
     distribution,
     appName: ctx.exp.name,
