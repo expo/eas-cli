@@ -869,7 +869,7 @@
     xcode "^3.0.1"
     xml2js "0.4.23"
 
-"@expo/config-types@^43.0.1":
+"@expo/config-types@43.0.1", "@expo/config-types@^43.0.1":
   version "43.0.1"
   resolved "https://registry.yarnpkg.com/@expo/config-types/-/config-types-43.0.1.tgz#3e047dccb371741a540980eaff26fb0c95039c30"
   integrity sha512-EtllpCGDdB/UdwAIs5YXJwBLpbFQNdlLLrxIvoILA9cXrpQMWkeDCT9lQPJzFRMFcLUaMuGvkzX2tR4tx5EQFQ==
