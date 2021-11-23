@@ -36,7 +36,7 @@ export interface IosMetadataContext {
   buildConfiguration?: string;
 }
 
-// TODO: Replace this with the getRuntimeVersionNullableAsync function in @expo/config-plugins
+// TODO: Replace this with the getRuntimeVersionNullable function in @expo/config-plugins
 function getRuntimeVersionNullable(
   ...[config, platform]: Parameters<typeof Updates.getRuntimeVersion>
 ): string | null {
