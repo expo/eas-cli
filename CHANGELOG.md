@@ -11,6 +11,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 - Compute runtime version policies. ([#783](https://github.com/expo/eas-cli/pull/783) by [@jkhales](https://github.com/jkhales))
+- fix accidentally requiring runtime version for all builds. ([#785](https://github.com/expo/eas-cli/pull/785) by [@jkhales](https://github.com/jkhales))
 
 ### 🧹 Chores
 
