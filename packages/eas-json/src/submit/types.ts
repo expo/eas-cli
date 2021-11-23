@@ -47,10 +47,10 @@ export const IosSubmitProfileFieldsToEvaluate: (keyof IosSubmitProfile)[] = [
 ];
 
 export type SubmitProfile<TPlatform extends Platform = Platform> =
-  TPlatform extends Platform.ANDROID
-    ? AndroidSubmitProfile
-    : TPlatform extends Platform.IOS
-    ? IosSubmitProfile
-    : TPlatform extends Platform
-    ? AndroidSubmitProfile | IosSubmitProfile
-    : never;
+  TPlatform extends Platform.ANDROID ? AndroidSubmitProfile : IosSubmitProfile;
+
+export interface EasJsonSubmitProfile {
+  extends?: string;
+  [Platform.ANDROID]?: AndroidSubmitProfile;
+  [Platform.IOS]?: IosSubmitProfile;
+}
