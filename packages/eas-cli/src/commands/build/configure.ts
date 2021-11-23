@@ -7,6 +7,7 @@ import Log, { learnMore } from '../../log';
 import { RequestedPlatform } from '../../platform';
 import { findProjectRootAsync } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
+import { getVcsClient } from '../../vcs';
 
 export default class BuildConfigure extends EasCommand {
   static description = 'Configure the project to support EAS Build.';
@@ -21,10 +22,13 @@ export default class BuildConfigure extends EasCommand {
 
   async runAsync(): Promise<void> {
     const { flags } = this.parse(BuildConfigure);
+
     Log.log(
       '💡 The following process will configure your iOS and/or Android project to be compatible with EAS Build. These changes only apply to your local project files and you can safely revert them at any time.'
     );
     Log.newLine();
+
+    await getVcsClient().ensureRepoExistsAsync();
 
     const platform =
       (flags.platform as RequestedPlatform | undefined) ?? (await promptForPlatformAsync());

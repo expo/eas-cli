@@ -58,7 +58,6 @@ export async function configureAsync(options: {
   platform: RequestedPlatform;
   projectDir: string;
 }): Promise<void> {
-  await getVcsClient().ensureRepoExistsAsync();
   await maybeBailOnRepoStatusAsync();
 
   const { exp } = getConfig(options.projectDir, { skipSDKVersionRequirement: true });
