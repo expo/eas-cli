@@ -3,6 +3,7 @@ import { Metadata, Platform, sanitizeMetadata } from '@expo/eas-build-job';
 import { IosEnterpriseProvisioning } from '@expo/eas-json';
 import type { XCBuildConfiguration } from 'xcode';
 
+import Log from '../log';
 import { getApplicationIdAsync } from '../project/android/applicationId';
 import { GradleBuildContext } from '../project/android/gradle';
 import { getBundleIdentifierAsync } from '../project/ios/bundleIdentifier';
@@ -43,6 +44,7 @@ function getRuntimeVersionNullable(
   try {
     return Updates.getRuntimeVersion(config, platform);
   } catch (e) {
+    Log.debug(e);
     return null;
   }
 }
