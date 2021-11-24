@@ -1,4 +1,5 @@
 import spawnAsync from '@expo/spawn-async';
+import { exit } from '@oclif/errors';
 import chalk from 'chalk';
 
 import Log, { learnMore } from '../../log';
@@ -16,7 +17,13 @@ import { Client } from '../vcs';
 export default class GitClient extends Client {
   public async ensureRepoExistsAsync(): Promise<void> {
     if (!(await isGitInstalledAsync())) {
-      throw new Error('git command not found, install it before proceeding');
+      Log.error(
+        `${chalk.bold('git')} command not found. Install it before proceeding or set ${chalk.bold(
+          'EAS_NO_VCS=1'
+        )} to use EAS CLI without Git (or any other version control system).`
+      );
+      Log.error(learnMore('https://expo.fyi/eas-vcs-workflow'));
+      exit(1);
     }
 
     if (await doesGitRepoExistAsync()) {

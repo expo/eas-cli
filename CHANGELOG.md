@@ -18,6 +18,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🧹 Chores
 
 - Upgrade `typescript` to 4.5.2. Upgrade oclif dependencies. ([#781](https://github.com/expo/eas-cli/pull/781) by [@dsokal](https://github.com/dsokal))
+- Make missing `git` command error message more descriptive. ([#784](https://github.com/expo/eas-cli/pull/784) by [@dsokal](https://github.com/dsokal))
 
 ## [0.37.0](https://github.com/expo/eas-cli/releases/tag/v0.37.0) - 2021-11-18
 
