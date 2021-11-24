@@ -11,7 +11,7 @@ import { prepareAndroidBuildAsync } from '../../build/android/build';
 import { BuildRequestSender, waitForBuildEndAsync } from '../../build/build';
 import { ensureProjectConfiguredAsync } from '../../build/configure';
 import { BuildContext } from '../../build/context';
-import createBuildContextAsync from '../../build/createContext';
+import { createBuildContextAsync } from '../../build/createContext';
 import { prepareIosBuildAsync } from '../../build/ios/build';
 import { ensureExpoDevClientInstalledForDevClientBuildsAsync } from '../../build/utils/devClient';
 import { printBuildResults, printLogsUrls } from '../../build/utils/printBuildInfo';

@@ -16,7 +16,7 @@ import { createAndroidContextAsync } from './android/build';
 import { BuildContext, CommonContext } from './context';
 import { createIosContextAsync } from './ios/build';
 
-export default async function createBuildContextAsync<T extends Platform>({
+export async function createBuildContextAsync<T extends Platform>({
   buildProfileName,
   buildProfile,
   clearCache = false,
@@ -69,7 +69,7 @@ export default async function createBuildContextAsync<T extends Platform>({
 
   const commonContext: CommonContext<T> = {
     accountName,
-    buildProfile, // TODO: move to android/ios object
+    buildProfile,
     buildProfileName,
     clearCache,
     credentialsCtx,

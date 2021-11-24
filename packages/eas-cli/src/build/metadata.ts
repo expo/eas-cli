@@ -2,17 +2,7 @@ import { Updates } from '@expo/config-plugins';
 import { Metadata, Platform, sanitizeMetadata } from '@expo/eas-build-job';
 import { IosEnterpriseProvisioning } from '@expo/eas-json';
 
-<<<<<<< HEAD
 import Log from '../log';
-import { getApplicationIdAsync } from '../project/android/applicationId';
-import { GradleBuildContext } from '../project/android/gradle';
-import { getBundleIdentifierAsync } from '../project/ios/bundleIdentifier';
-||||||| parent of 26f2ab54 (pass identifier from build to submit)
-import { getApplicationIdAsync } from '../project/android/applicationId';
-import { GradleBuildContext } from '../project/android/gradle';
-import { getBundleIdentifierAsync } from '../project/ios/bundleIdentifier';
-=======
->>>>>>> 26f2ab54 (pass identifier from build to submit)
 import { getUsername } from '../project/projectUtils';
 import { ensureLoggedInAsync } from '../user/actions';
 import { easCliVersion } from '../utils/easCli';
