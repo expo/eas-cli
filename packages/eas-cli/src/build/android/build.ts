@@ -11,7 +11,7 @@ import {
   ensureApplicationIdIsDefinedForManagedProjectAsync,
   getApplicationIdAsync,
 } from '../../project/android/applicationId';
-import { GradleBuildContext, resolveGradleBuildContextAsync } from '../../project/android/gradle';
+import { resolveGradleBuildContextAsync } from '../../project/android/gradle';
 import { toggleConfirmAsync } from '../../prompts';
 import { findAccountByName } from '../../user/Account';
 import {
@@ -20,7 +20,7 @@ import {
   JobData,
   prepareBuildRequestForPlatformAsync,
 } from '../build';
-import { BuildContext } from '../context';
+import { AndroidBuildContext, BuildContext, CommonContext } from '../context';
 import { transformMetadata } from '../graphql';
 import { logCredentialsSource } from '../utils/credentials';
 import { checkGoogleServicesFileAsync, checkNodeEnvVariable } from '../validate';
@@ -28,9 +28,9 @@ import { validateAndSyncProjectConfigurationAsync } from './configure';
 import { transformJob } from './graphql';
 import { prepareJobAsync } from './prepareJob';
 
-export async function prepareAndroidBuildAsync(
-  ctx: BuildContext<Platform.ANDROID>
-): Promise<BuildRequestSender> {
+export async function createAndroidContextAsync(
+  ctx: CommonContext<Platform.ANDROID>
+): Promise<AndroidBuildContext> {
   const { buildProfile } = ctx;
 
   if (buildProfile.distribution === 'internal' && buildProfile.gradleCommand?.match(/bundle/)) {
@@ -58,21 +58,26 @@ This means that it will most likely produce an AAB and you will not be able to i
     await ensureApplicationIdIsDefinedForManagedProjectAsync(ctx.projectDir, ctx.exp);
   }
 
+  const applicationId = await getApplicationIdAsync(ctx.projectDir, ctx.exp, gradleContext);
+
+  return { applicationId, gradleContext };
+}
+
+export async function prepareAndroidBuildAsync(
+  ctx: BuildContext<Platform.ANDROID>
+): Promise<BuildRequestSender> {
   return await prepareBuildRequestForPlatformAsync({
     ctx,
     ensureCredentialsAsync: async (ctx: BuildContext<Platform.ANDROID>) => {
-      return await ensureAndroidCredentialsAsync(ctx, gradleContext);
+      return await ensureAndroidCredentialsAsync(ctx);
     },
     ensureProjectConfiguredAsync: async () => {
       await validateAndSyncProjectConfigurationAsync({
         projectDir: ctx.projectDir,
         exp: ctx.exp,
-        buildProfile,
+        buildProfile: ctx.buildProfile,
       });
     },
-    getMetadataContext: () => ({
-      gradleContext,
-    }),
     prepareJobAsync: async (
       ctx: BuildContext<Platform.ANDROID>,
       jobData: JobData<AndroidCredentials>
@@ -100,8 +105,7 @@ function shouldProvideCredentials(ctx: BuildContext<Platform.ANDROID>): boolean 
 }
 
 async function ensureAndroidCredentialsAsync(
-  ctx: BuildContext<Platform.ANDROID>,
-  gradleContext?: GradleBuildContext
+  ctx: BuildContext<Platform.ANDROID>
 ): Promise<CredentialsResult<AndroidCredentials> | undefined> {
   if (!shouldProvideCredentials(ctx)) {
     return;
@@ -109,7 +113,7 @@ async function ensureAndroidCredentialsAsync(
   const androidApplicationIdentifier = await getApplicationIdAsync(
     ctx.projectDir,
     ctx.exp,
-    gradleContext
+    ctx.android.gradleContext
   );
   const provider = new AndroidCredentialsProvider(ctx.credentialsCtx, {
     app: {

@@ -25,6 +25,7 @@ export interface SubmissionContext<T extends Platform> {
   projectId: string;
   projectName: string;
   user: Actor;
+  applicationIdentifierOverride?: string;
 }
 
 export interface SubmitArchiveFlags {
@@ -43,8 +44,9 @@ export async function createSubmissionContextAsync<T extends Platform>(params: {
   profile: SubmitProfile<T>;
   projectDir: string;
   projectId: string;
+  applicationIdentifier?: string;
 }): Promise<SubmissionContext<T>> {
-  const { projectDir, nonInteractive } = params;
+  const { applicationIdentifier, projectDir, nonInteractive } = params;
   const exp = getExpoConfig(projectDir, { env: params.env });
   const { env, ...rest } = params;
   const user = await ensureLoggedInAsync();
@@ -74,5 +76,6 @@ export async function createSubmissionContextAsync<T extends Platform>(params: {
     projectName,
     user,
     trackingCtx,
+    applicationIdentifierOverride: applicationIdentifier,
   };
 }

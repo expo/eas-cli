@@ -128,7 +128,8 @@ export default class AndroidSubmitCommand {
         path: serviceAccountKeyPath,
       });
     }
-    let androidApplicationIdentifier: string | undefined = this.ctx.profile.applicationId;
+    let androidApplicationIdentifier: string | undefined =
+      this.ctx.applicationIdentifierOverride ?? this.ctx.profile.applicationId;
     if (!androidApplicationIdentifier) {
       const androidApplicationIdentifierResult =
         await this.maybeGetAndroidPackageFromCurrentProjectAsync();

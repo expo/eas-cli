@@ -10,13 +10,13 @@ import nullthrows from 'nullthrows';
 import { prepareAndroidBuildAsync } from '../../build/android/build';
 import { BuildRequestSender, waitForBuildEndAsync } from '../../build/build';
 import { ensureProjectConfiguredAsync } from '../../build/configure';
-import { BuildContext, createBuildContextAsync } from '../../build/context';
+import { BuildContext } from '../../build/context';
+import { createBuildContextAsync } from '../../build/createContext';
 import { prepareIosBuildAsync } from '../../build/ios/build';
 import { ensureExpoDevClientInstalledForDevClientBuildsAsync } from '../../build/utils/devClient';
 import { printBuildResults, printLogsUrls } from '../../build/utils/printBuildInfo';
 import { ensureRepoIsCleanAsync, reviewAndCommitChangesAsync } from '../../build/utils/repository';
 import EasCommand from '../../commandUtils/EasCommand';
-import { CredentialsContext } from '../../credentials/context';
 import {
   AppPlatform,
   BuildFragment,
@@ -193,9 +193,7 @@ export default class Build extends EasCommand {
       for (const startedBuild of startedBuilds) {
         const submission = await this.prepareAndStartSubmissionAsync({
           build: startedBuild.build,
-          credentialsCtx: nullthrows(
-            buildCtxByPlatform[startedBuild.build.platform]?.credentialsCtx
-          ),
+          buildCtx: nullthrows(buildCtxByPlatform[startedBuild.build.platform]),
           flags,
           moreBuilds: startedBuilds.length > 1,
           projectDir,
@@ -329,14 +327,14 @@ export default class Build extends EasCommand {
 
   private async prepareAndStartSubmissionAsync({
     build,
-    credentialsCtx,
+    buildCtx,
     flags,
     moreBuilds,
     projectDir,
     buildProfile,
   }: {
     build: BuildFragment;
-    credentialsCtx: CredentialsContext;
+    buildCtx: BuildContext<Platform>;
     flags: BuildFlags;
     moreBuilds: boolean;
     projectDir: string;
@@ -353,7 +351,8 @@ export default class Build extends EasCommand {
       archiveFlags: { id: build.id },
       nonInteractive: flags.nonInteractive,
       env: buildProfile.profile.env,
-      credentialsCtx,
+      credentialsCtx: buildCtx.credentialsCtx,
+      applicationIdentifier: buildCtx.android?.applicationId ?? buildCtx.ios?.bundleIdentifier,
     });
 
     if (moreBuilds) {

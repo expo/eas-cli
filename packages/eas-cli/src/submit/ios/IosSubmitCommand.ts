@@ -119,7 +119,8 @@ export default class IosSubmitCommand {
       return { appSpecificPasswordSource: this.resolveAppSpecificPasswordSource() };
     }
 
-    let bundleIdentifier = this.ctx.profile.bundleIdentifier;
+    let bundleIdentifier =
+      this.ctx.applicationIdentifierOverride ?? this.ctx.profile.bundleIdentifier;
     if (!bundleIdentifier) {
       const bundleIdentifierResult = await this.maybeGetIosBundleIdentifierAsync();
       if (!bundleIdentifierResult.ok) {

@@ -15,6 +15,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - Compute runtime version policies. ([#783](https://github.com/expo/eas-cli/pull/783), [#785](https://github.com/expo/eas-cli/pull/785) by [@jkhales](https://github.com/jkhales))
 - Fix local builds with npm < 7. ([#787](https://github.com/expo/eas-cli/pull/787) by [@dsokal](https://github.com/dsokal))
+- Override `applicationId`/`bundleIdentifier` when auto-submitting after build. ([#780](https://github.com/expo/eas-cli/pull/780) by [@wkozyra95](https://github.com/wkozyra95))
 
 ### 🧹 Chores
 
