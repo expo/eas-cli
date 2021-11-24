@@ -20,7 +20,7 @@ export default class GitClient extends Client {
       Log.error(
         `${chalk.bold('git')} command not found. Install it before proceeding or set ${chalk.bold(
           'EAS_NO_VCS=1'
-        )} to use EAS CLI without Git.`
+        )} to use EAS CLI without Git (or any other version control system).`
       );
       Log.error(learnMore('https://expo.fyi/eas-vcs-workflow'));
       exit(1);
