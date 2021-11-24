@@ -1,15 +1,18 @@
+# Build directories
+packages/*/build
+packages/eas-cli/dist
+
+# Code editors
+.idea
+.history
+
+# macOS
+.DS_Store
+
+# Node
+node_modules
 *-debug.log
 *-error.log
 
-**/build/**
-!packages/eas-cli/src/commands/build/**
-!packages/eas-cli/src/build/**
-
-dist
-/package-lock.json
-tmp
-node_modules
+# Tests
 coverage
-.history
-.DS_Store
-.idea
