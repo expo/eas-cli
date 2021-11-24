@@ -8,6 +8,14 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [0.38.0](https://github.com/expo/eas-cli/releases/tag/v0.38.0) - 2021-11-24
+
+### 🎉 New features
+
 - Improve unknown capability syncing error message. ([#775](https://github.com/expo/eas-cli/pulls/775) by [@EvanBacon](https://github.com/EvanBacon))
 - Add submit webhooks. ([#777](https://github.com/expo/eas-cli/pull/777) by [@dsokal](https://github.com/dsokal))
 
