@@ -14,8 +14,7 @@ export default class WebhookCreate extends EasCommand {
   static flags = {
     event: flags.enum({
       description: 'Event type that triggers the webhook',
-      options: [WebhookType.Build],
-      default: WebhookType.Build,
+      options: [WebhookType.Build, WebhookType.Submit],
     }),
     url: flags.string({
       description: 'Webhook URL',
