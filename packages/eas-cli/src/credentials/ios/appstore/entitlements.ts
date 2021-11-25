@@ -1,7 +1,7 @@
 import { IOSConfig, compileModsAsync } from '@expo/config-plugins';
 import { Workflow } from '@expo/eas-build-job';
 import { JSONObject } from '@expo/json-file';
-import { getPrebuildConfig } from '@expo/prebuild-config';
+import { getPrebuildConfigAsync } from '@expo/prebuild-config';
 
 import { readPlistAsync } from '../../../utils/plist';
 
@@ -15,7 +15,7 @@ export async function getManagedEntitlementsJsonAsync(
       ...process.env,
       ...env,
     };
-    const { exp } = getPrebuildConfig(projectDir, { platforms: ['ios'] });
+    const { exp } = await getPrebuildConfigAsync(projectDir, { platforms: ['ios'] });
 
     const expWithMods = await compileModsAsync(exp, {
       projectRoot: projectDir,
