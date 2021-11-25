@@ -10,9 +10,13 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
-- Fix building iOS projects with whitespace in the project name. ([#792](https://github.com/expo/eas-cli/pull/792) by [@dsokal](https://github.com/dsokal))
-
 ### 🧹 Chores
+
+## [0.38.1](https://github.com/expo/eas-cli/releases/tag/v0.38.1) - 2021-11-25
+
+### 🐛 Bug fixes
+
+- Fix building iOS projects with whitespace in the project name. ([#792](https://github.com/expo/eas-cli/pull/792) by [@dsokal](https://github.com/dsokal))
 
 ## [0.38.0](https://github.com/expo/eas-cli/releases/tag/v0.38.0) - 2021-11-24
 
