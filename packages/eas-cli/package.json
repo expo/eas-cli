@@ -96,7 +96,8 @@
     "mockdate": "^3.0.2",
     "nock": "^13.0.5",
     "tempy": "0.7.0",
-    "ts-deepmerge": "1.0.8"
+    "ts-deepmerge": "1.0.8",
+    "typescript": "4.5.2"
   },
   "engines": {
     "node": ">=12.0.0"
