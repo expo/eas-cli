@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Fix reading app version and app build version of iOS projects. ([#798](https://github.com/expo/eas-cli/pull/798) by [@dsokal](https://github.com/dsokal))
+
 ### 🧹 Chores
 
 ## [0.38.1](https://github.com/expo/eas-cli/releases/tag/v0.38.1) - 2021-11-25
