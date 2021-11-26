@@ -1,11 +1,11 @@
 import { ExpoConfig, getConfig, modifyConfigAsync } from '@expo/config';
-import { flags } from '@oclif/command';
+import { Platform, Workflow } from '@expo/eas-build-job';
 import chalk from 'chalk';
 
 import EasCommand from '../../commandUtils/EasCommand';
-import Log from '../../log';
-import { RequestedPlatform } from '../../platform';
+import Log, { learnMore } from '../../log';
 import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUtils';
+import { resolveWorkflowAsync } from '../../project/workflow';
 
 const EAS_UPDATE_URL = 'https://u.expo.dev';
 
@@ -54,19 +54,7 @@ async function ensureEASUrlSetAsync(projectDir: string, exp: ExpoConfig): Promis
 export default class UpdateConfigure extends EasCommand {
   static description = 'Configure the project to support EAS Update.';
 
-  // static flags = {
-  //   platform: flags.enum({
-  //     description: 'Platform to configure',
-  //     char: 'p',
-  //     options: ['android', 'ios', 'all'],
-  //   }),
-  // };
-
   async runAsync(): Promise<void> {
-    // const { flags } = this.parse(UpdateConfigure);
-    // const platform =
-    //   (flags.platform as RequestedPlatform | undefined) ?? (await promptForPlatformAsync());
-
     Log.log(
       '💡 The following process will configure your project to to run EAS Update. These changes only apply to your local project files and you can safely revert them at any time.'
     );
@@ -79,19 +67,20 @@ export default class UpdateConfigure extends EasCommand {
 
     await ensureEASUrlSetAsync(projectDir, exp);
 
-    // Log.log(`🎉 Your ${platformsText} ready to build.
+    const hasAndroidNativeProject =
+      (await resolveWorkflowAsync(projectDir, Platform.ANDROID)) === Workflow.GENERIC;
+    const hasIosNativeProject =
+      (await resolveWorkflowAsync(projectDir, Platform.IOS)) === Workflow.GENERIC;
 
-    // - Run ${chalk.bold('eas build')} when you are ready to create your first build.
-    // - Once the build is completed, run ${chalk.bold('eas submit')} to upload the app to ${storesText}
-    // - ${learnMore('https://docs.expo.dev/build/introduction', {
-    //     learnMoreMessage: 'Learn more about other capabilities of EAS Build',
-    //   })}`);
-    //   Log.log(`🎉 Your ${platformsText} ready to build.
-
-    // - Run ${chalk.bold('eas build')} when you are ready to create your first build.
-    // - Once the build is completed, run ${chalk.bold('eas submit')} to upload the app to ${storesText}
-    // - ${learnMore('https://docs.expo.dev/build/introduction', {
-    //     learnMoreMessage: 'Learn more about other capabilities of EAS Build',
-    //   })}`);
+    Log.addNewLineIfNone();
+    if (hasAndroidNativeProject || hasIosNativeProject) {
+      Log.log(
+        `🧐 It seems like you are on the bare workflow! Please be sure to also update your native files as well. You can do the by running 'eas build:configure' or manually editing the Expo.plist/AndroidManifest.xml. For details check: ${learnMore(
+          'https://expo.fyi/configure-eas-update'
+        )}`
+      );
+    } else {
+      Log.log(`🎉 Your app is configured to run EAS Update!`);
+    }
   }
 }
