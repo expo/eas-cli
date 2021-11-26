@@ -76,7 +76,7 @@ export default class UpdateConfigure extends EasCommand {
     if (hasAndroidNativeProject || hasIosNativeProject) {
       Log.log(
         `🧐 It seems like you are on the bare workflow! Please be sure to also update your native files as well. You can do the by running 'eas build:configure' or manually editing the Expo.plist/AndroidManifest.xml. For details check: ${learnMore(
-          'https://expo.fyi/configure-eas-update'
+          'https://expo.fyi/eas-update-config.md#native-configuration'
         )}`
       );
     } else {
