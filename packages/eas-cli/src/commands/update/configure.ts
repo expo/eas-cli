@@ -16,32 +16,33 @@ export async function getEASUpdateURLAsync(exp: ExpoConfig): Promise<string> {
 
 async function ensureEASUrlSetAsync(projectDir: string, exp: ExpoConfig): Promise<void> {
   const easUpdateURL = await getEASUpdateURLAsync(exp);
-  const currentURL = exp.updates?.url;
-  if (currentURL) {
-    Log.warn(
-      `Overwriting current updates.url value, "${currentURL}", with "${easUpdateURL}" in app.json`
-    );
-  }
-
   const result = await modifyConfigAsync(projectDir, {
     updates: { ...exp.updates, url: easUpdateURL },
   });
 
   switch (result.type) {
     case 'success':
+      if (exp.updates?.url) {
+        Log.withTick(
+          `Overwrote "${exp.updates?.url}" with "${easUpdateURL}" for the updates.url value in app.json`
+        );
+      } else {
+        Log.withTick(`Set updates.url value, to "${easUpdateURL}" in app.json`);
+      }
+
       break;
     case 'warn': {
-      Log.log();
-      Log.warn('It looks like you are using a dynamic configuration!');
-      Log.log(
-        chalk.dim(
-          'https://docs.expo.dev/workflow/configuration/#dynamic-configuration-with-appconfigjs)\n'
-        )
+      Log.addNewLineIfNone();
+      Log.warn(
+        `It looks like you are using a dynamic configuration! ${learnMore(
+          'https://docs.expo.dev/workflow/configuration/#dynamic-configuration-with-appconfigjs)'
+        )}`
       );
       Log.warn(
-        'In order to finish configuring your project for EAS Update, you are going to need manually add the following to your "extra" key:\n\n'
+        'In order to finish configuring your project for EAS Update, you are going to need manually add the following:\n\n'
       );
       Log.log(chalk.bold(`"updates": {\n    "url": "${easUpdateURL}"\n  }`));
+      Log.log(learnMore('https://expo.fyi/eas-update-config.md'));
       throw new Error(result.message);
     }
     case 'fail':
@@ -58,7 +59,6 @@ export default class UpdateConfigure extends EasCommand {
     Log.log(
       '💡 The following process will configure your project to to run EAS Update. These changes only apply to your local project files and you can safely revert them at any time.'
     );
-    Log.newLine();
 
     const projectDir = await findProjectRootAsync();
     const { exp } = getConfig(projectDir, {
@@ -75,7 +75,7 @@ export default class UpdateConfigure extends EasCommand {
     Log.addNewLineIfNone();
     if (hasAndroidNativeProject || hasIosNativeProject) {
       Log.log(
-        `🧐 It seems like you are on the bare workflow! Please be sure to also update your native files as well. You can do the by running 'eas build:configure' or manually editing the Expo.plist/AndroidManifest.xml. For details check: ${learnMore(
+        `🧐 It seems you are on the bare workflow! Please also update your native files. You can do this by either running 'eas build:configure' or manually editing the Expo.plist/AndroidManifest.xml. For details check: ${learnMore(
           'https://expo.fyi/eas-update-config.md#native-configuration'
         )}`
       );

@@ -485,4 +485,3 @@ async function checkEASUpdateURLIsSetAsync(exp: ExpoConfig): Promise<void> {
     );
   }
 }
-
