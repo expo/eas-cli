@@ -40,6 +40,8 @@ import { createUpdateBranchOnAppAsync } from './create';
 import { listBranchesAsync } from './list';
 import { viewUpdateBranchAsync } from './view';
 
+const EAS_UPDATE_URL = 'https://u.expo.dev';
+
 export const defaultPublishPlatforms: PublishPlatform[] = ['android', 'ios'];
 type PlatformFlag = PublishPlatform | 'all';
 
@@ -204,8 +206,8 @@ export default class BranchPublish extends EasCommand {
     });
 
     const runtimeVersions = await getRuntimeVersionObjectAsync(exp, platformFlag, projectDir);
-
     const projectId = await getProjectIdAsync(exp);
+    await checkEASUpdateURLIsSetAsync(exp);
 
     if (!branchName && autoFlag) {
       branchName =
@@ -472,4 +474,20 @@ function formatUpdateTitle(
     createdAt,
     'mmm dd HH:MM'
   )} by ${actorName}, runtimeVersion: ${runtimeVersion}] ${message}`;
+}
+
+async function getEASUpdateURLAsync(exp: ExpoConfig): Promise<string> {
+  const projectId = await getProjectIdAsync(exp);
+  return new URL(projectId, EAS_UPDATE_URL).href;
+}
+
+async function checkEASUpdateURLIsSetAsync(exp: ExpoConfig): Promise<void> {
+  const configuredURL = exp.updates?.url;
+  const expectedURL = await getEASUpdateURLAsync(exp);
+
+  if (configuredURL !== expectedURL) {
+    throw new Error(
+      `The update URL is incorrectly configured for EAS Update. Please set updates.url to ${expectedURL} in your app.json.`
+    );
+  }
 }
