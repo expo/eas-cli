@@ -1,5 +1,5 @@
 import { Platform } from '@expo/eas-build-job';
-import { BuildProfile, EasJsonReader, errors } from '@expo/eas-json';
+import { EasJsonReader, errors } from '@expo/eas-json';
 
 import { getProfilesAsync } from '../profiles';
 
