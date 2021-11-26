@@ -1,4 +1,4 @@
-import { BundleIdCapability, CapabilityType } from '@expo/apple-utils';
+import { BundleIdCapability } from '@expo/apple-utils';
 
 import {
   CapabilityMapping,
