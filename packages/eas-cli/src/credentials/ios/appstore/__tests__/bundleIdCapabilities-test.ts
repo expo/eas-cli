@@ -222,10 +222,6 @@ describe(syncCapabilitiesForEntitlementsAsync, () => {
     const bundleId = {
       getBundleIdCapabilitiesAsync: jest.fn(() => [
         new BundleIdCapability({}, 'XXX_IN_APP_PURCHASE', { settings: null }),
-        new BundleIdCapability({}, 'FOOBAR', {
-          settings: null,
-          capabilityType: CapabilityType.PUSH_NOTIFICATIONS,
-        }),
         new BundleIdCapability({}, 'XXX_GAME_CENTER', { settings: null }),
       ]),
       updateBundleIdCapabilityAsync: jest.fn(),
