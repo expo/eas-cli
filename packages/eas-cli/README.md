@@ -73,8 +73,6 @@ ALIASES
   $ eas login
 ```
 
-_See code: [src/commands/account/login.js](https://github.com/expo/eas-cli/blob/v0.38.1/packages/eas-cli/src/commands/account/login.js)_
-
 ## `eas account:logout`
 
 log out
@@ -86,8 +84,6 @@ USAGE
 ALIASES
   $ eas logout
 ```
-
-_See code: [src/commands/account/logout.js](https://github.com/expo/eas-cli/blob/v0.38.1/packages/eas-cli/src/commands/account/logout.js)_
 
 ## `eas account:view`
 
@@ -101,8 +97,6 @@ ALIASES
   $ eas whoami
 ```
 
-_See code: [src/commands/account/view.js](https://github.com/expo/eas-cli/blob/v0.38.1/packages/eas-cli/src/commands/account/view.js)_
-
 ## `eas analytics [STATUS]`
 
 view or change analytics settings
@@ -111,8 +105,6 @@ view or change analytics settings
 USAGE
   $ eas analytics [STATUS]
 ```
-
-_See code: [src/commands/analytics.js](https://github.com/expo/eas-cli/blob/v0.38.1/packages/eas-cli/src/commands/analytics.js)_
 
 ## `eas build`
 
@@ -146,8 +138,6 @@ OPTIONS
   --[no-]wait                              Wait for build(s) to complete
 ```
 
-_See code: [src/commands/build/index.js](https://github.com/expo/eas-cli/blob/v0.38.1/packages/eas-cli/src/commands/build/index.js)_
-
 ## `eas build:cancel [BUILD_ID]`
 
 Cancel a build.
@@ -156,8 +146,6 @@ Cancel a build.
 USAGE
   $ eas build:cancel [BUILD_ID]
 ```
-
-_See code: [src/commands/build/cancel.js](https://github.com/expo/eas-cli/blob/v0.38.1/packages/eas-cli/src/commands/build/cancel.js)_
 
 ## `eas build:configure`
 
@@ -170,8 +158,6 @@ USAGE
 OPTIONS
   -p, --platform=(android|ios|all)  Platform to configure
 ```
-
-_See code: [src/commands/build/configure.js](https://github.com/expo/eas-cli/blob/v0.38.1/packages/eas-cli/src/commands/build/configure.js)_
 
 ## `eas build:list`
 
@@ -204,8 +190,6 @@ OPTIONS
   --status=(new|in-queue|in-progress|errored|finished|canceled)
 ```
 
-_See code: [src/commands/build/list.js](https://github.com/expo/eas-cli/blob/v0.38.1/packages/eas-cli/src/commands/build/list.js)_
-
 ## `eas build:view [BUILD_ID]`
 
 view a build for your project
@@ -217,8 +201,6 @@ USAGE
 OPTIONS
   --json  Enable JSON output, non-JSON messages will be printed to stderr
 ```
-
-_See code: [src/commands/build/view.js](https://github.com/expo/eas-cli/blob/v0.38.1/packages/eas-cli/src/commands/build/view.js)_
 
 ## `eas config`
 
@@ -233,8 +215,6 @@ OPTIONS
   --profile=profile
 ```
 
-_See code: [src/commands/config.js](https://github.com/expo/eas-cli/blob/v0.38.1/packages/eas-cli/src/commands/config.js)_
-
 ## `eas credentials`
 
 manage your credentials
@@ -244,8 +224,6 @@ USAGE
   $ eas credentials
 ```
 
-_See code: [src/commands/credentials.js](https://github.com/expo/eas-cli/blob/v0.38.1/packages/eas-cli/src/commands/credentials.js)_
-
 ## `eas device:create`
 
 register new Apple Devices to use for internal distribution
@@ -254,8 +232,6 @@ register new Apple Devices to use for internal distribution
 USAGE
   $ eas device:create
 ```
-
-_See code: [src/commands/device/create.js](https://github.com/expo/eas-cli/blob/v0.38.1/packages/eas-cli/src/commands/device/create.js)_
 
 ## `eas device:list`
 
@@ -269,8 +245,6 @@ OPTIONS
   --apple-team-id=apple-team-id
 ```
 
-_See code: [src/commands/device/list.js](https://github.com/expo/eas-cli/blob/v0.38.1/packages/eas-cli/src/commands/device/list.js)_
-
 ## `eas device:view [UDID]`
 
 view a device for your project
@@ -280,8 +254,6 @@ USAGE
   $ eas device:view [UDID]
 ```
 
-_See code: [src/commands/device/view.js](https://github.com/expo/eas-cli/blob/v0.38.1/packages/eas-cli/src/commands/device/view.js)_
-
 ## `eas diagnostics`
 
 log environment info to the console
@@ -290,8 +262,6 @@ log environment info to the console
 USAGE
   $ eas diagnostics
 ```
-
-_See code: [src/commands/diagnostics.js](https://github.com/expo/eas-cli/blob/v0.38.1/packages/eas-cli/src/commands/diagnostics.js)_
 
 ## `eas help [COMMAND]`
 
@@ -319,8 +289,6 @@ USAGE
   $ eas project:info
 ```
 
-_See code: [src/commands/project/info.js](https://github.com/expo/eas-cli/blob/v0.38.1/packages/eas-cli/src/commands/project/info.js)_
-
 ## `eas project:init`
 
 create or link an EAS project
@@ -332,8 +300,6 @@ USAGE
 ALIASES
   $ eas init
 ```
-
-_See code: [src/commands/project/init.js](https://github.com/expo/eas-cli/blob/v0.38.1/packages/eas-cli/src/commands/project/init.js)_
 
 ## `eas secret:create`
 
@@ -350,8 +316,6 @@ OPTIONS
   --value=value              Value of the secret
 ```
 
-_See code: [src/commands/secret/create.js](https://github.com/expo/eas-cli/blob/v0.38.1/packages/eas-cli/src/commands/secret/create.js)_
-
 ## `eas secret:delete`
 
 Delete an environment secret by ID.
@@ -367,8 +331,6 @@ DESCRIPTION
   Unsure where to find the secret's ID? Run eas secret:list
 ```
 
-_See code: [src/commands/secret/delete.js](https://github.com/expo/eas-cli/blob/v0.38.1/packages/eas-cli/src/commands/secret/delete.js)_
-
 ## `eas secret:list`
 
 Lists environment secrets available for your current app
@@ -377,8 +339,6 @@ Lists environment secrets available for your current app
 USAGE
   $ eas secret:list
 ```
-
-_See code: [src/commands/secret/list.js](https://github.com/expo/eas-cli/blob/v0.38.1/packages/eas-cli/src/commands/secret/list.js)_
 
 ## `eas submit`
 
@@ -405,13 +365,12 @@ OPTIONS
   --[no-]wait                       Wait for submission to complete
 
 DESCRIPTION
-  See how to configure submits with eas.json: https://docs.expo.dev/submit/eas-json/
+  See how to configure submits with eas.json: 
+  https://docs.expo.dev/submit/eas-json/
 
 ALIASES
   $ eas build:submit
 ```
-
-_See code: [src/commands/submit.js](https://github.com/expo/eas-cli/blob/v0.38.1/packages/eas-cli/src/commands/submit.js)_
 
 ## `eas webhook:create`
 
@@ -430,8 +389,6 @@ OPTIONS
   --url=url               Webhook URL
 ```
 
-_See code: [src/commands/webhook/create.js](https://github.com/expo/eas-cli/blob/v0.38.1/packages/eas-cli/src/commands/webhook/create.js)_
-
 ## `eas webhook:delete [ID]`
 
 Delete a webhook on the current project.
@@ -444,8 +401,6 @@ ARGUMENTS
   ID  ID of the webhook to delete
 ```
 
-_See code: [src/commands/webhook/delete.js](https://github.com/expo/eas-cli/blob/v0.38.1/packages/eas-cli/src/commands/webhook/delete.js)_
-
 ## `eas webhook:list`
 
 List webhooks on the current project.
@@ -457,8 +412,6 @@ USAGE
 OPTIONS
   --event=(BUILD|SUBMIT)  Event type that triggers the webhook
 ```
-
-_See code: [src/commands/webhook/list.js](https://github.com/expo/eas-cli/blob/v0.38.1/packages/eas-cli/src/commands/webhook/list.js)_
 
 ## `eas webhook:update`
 
@@ -478,8 +431,6 @@ OPTIONS
   --url=url               Webhook URL
 ```
 
-_See code: [src/commands/webhook/update.js](https://github.com/expo/eas-cli/blob/v0.38.1/packages/eas-cli/src/commands/webhook/update.js)_
-
 ## `eas webhook:view ID`
 
 View a webhook on the current project.
@@ -491,6 +442,4 @@ USAGE
 ARGUMENTS
   ID  ID of the webhook to view
 ```
-
-_See code: [src/commands/webhook/view.js](https://github.com/expo/eas-cli/blob/v0.38.1/packages/eas-cli/src/commands/webhook/view.js)_
 <!-- commandsstop -->
