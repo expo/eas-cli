@@ -1,5 +1,5 @@
 import { Platform } from '@expo/eas-build-job';
-import { IosBuildProfile } from '@expo/eas-json';
+import { BuildProfile } from '@expo/eas-json';
 import assert from 'assert';
 import nullthrows from 'nullthrows';
 
@@ -155,7 +155,11 @@ export class ManageIos {
   private async createProjectContextAsync(
     ctx: CredentialsContext,
     account: Account
-  ): Promise<{ app: App | null; targets: Target[] | null; buildProfile: IosBuildProfile | null }> {
+  ): Promise<{
+    app: App | null;
+    targets: Target[] | null;
+    buildProfile: BuildProfile<Platform.IOS> | null;
+  }> {
     if (!ctx.hasProjectContext) {
       return {
         app: null,
@@ -219,7 +223,7 @@ export class ManageIos {
     ctx: CredentialsContext,
     app: App,
     targets: Target[],
-    buildProfile: IosBuildProfile,
+    buildProfile: BuildProfile<Platform.IOS>,
     action: IosActionType
   ): Promise<void> {
     if (action === IosActionType.SetUpBuildCredentials) {

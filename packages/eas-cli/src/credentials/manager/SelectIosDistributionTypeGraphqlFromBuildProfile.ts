@@ -1,11 +1,12 @@
-import { IosBuildProfile } from '@expo/eas-json';
+import { Platform } from '@expo/eas-build-job';
+import { BuildProfile } from '@expo/eas-json';
 
 import { IosDistributionType as IosDistributionTypeGraphql } from '../../graphql/generated';
 import { promptAsync } from '../../prompts';
 import { CredentialsContext } from '../context';
 
 export class SelectIosDistributionTypeGraphqlFromBuildProfile {
-  constructor(private buildProfile: IosBuildProfile) {}
+  constructor(private buildProfile: BuildProfile<Platform.IOS>) {}
 
   async runAsync(ctx: CredentialsContext): Promise<IosDistributionTypeGraphql> {
     const { distribution, simulator } = this.buildProfile;

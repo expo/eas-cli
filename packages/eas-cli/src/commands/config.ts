@@ -55,7 +55,7 @@ export default class Config extends EasCommand {
         },
       ]));
 
-    const profile = await reader.readBuildProfileAsync(platform, profileName);
+    const profile = await reader.getBuildProfileAsync(platform, profileName);
     const config = getExpoConfig(projectDir, { env: profile.env, isPublicConfig: true });
 
     Log.log(getProjectConfigDescription(projectDir));

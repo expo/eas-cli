@@ -1,7 +1,7 @@
 import { ExpoConfig } from '@expo/config';
 import { IOSConfig } from '@expo/config-plugins';
 import { Platform, Workflow } from '@expo/eas-build-job';
-import { IosBuildProfile } from '@expo/eas-json';
+import { BuildProfile } from '@expo/eas-json';
 import chalk from 'chalk';
 
 import Log from '../../log';
@@ -20,7 +20,7 @@ export async function resolveXcodeBuildContextAsync(
     projectDir,
     nonInteractive,
   }: { exp: ExpoConfig; projectDir: string; nonInteractive: boolean },
-  buildProfile: IosBuildProfile
+  buildProfile: BuildProfile<Platform.IOS>
 ): Promise<XcodeBuildContext> {
   const workflow = await resolveWorkflowAsync(projectDir, Platform.IOS);
   if (workflow === Workflow.GENERIC) {
