@@ -10,10 +10,14 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+### 🧹 Chores
+
+## [0.38.3](https://github.com/expo/eas-cli/releases/tag/v0.38.3) - 2021-11-29
+
+### 🐛 Bug fixes
+
 - Print warning about outdated version to stderr. ([#805](https://github.com/expo/eas-cli/pull/805) by [@wkozyra95](https://github.com/wkozyra95))
 - Fix Apple sign in capabilities. ([#806](https://github.com/expo/eas-cli/pull/806) by [@brentvatne](https://github.com/brentvatne))
-
-### 🧹 Chores
 
 ## [0.38.2](https://github.com/expo/eas-cli/releases/tag/v0.38.2) - 2021-11-26
 
