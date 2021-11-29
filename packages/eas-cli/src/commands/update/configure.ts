@@ -57,7 +57,7 @@ export default class UpdateConfigure extends EasCommand {
 
   async runAsync(): Promise<void> {
     Log.log(
-      '💡 The following process will configure your project to to run EAS Update. These changes only apply to your local project files and you can safely revert them at any time.'
+      '💡 The following process will configure your project to run EAS Update. These changes only apply to your local project files and you can safely revert them at any time.'
     );
 
     const projectDir = await findProjectRootAsync();
