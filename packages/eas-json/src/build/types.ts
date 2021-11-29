@@ -55,8 +55,10 @@ export interface IosBuildProfile extends CommonBuildProfile {
 
 export type BuildProfile<TPlatform extends Platform = Platform> = TPlatform extends Platform.ANDROID
   ? AndroidBuildProfile
-  : TPlatform extends Platform.IOS
-  ? IosBuildProfile
-  : TPlatform extends Platform
-  ? AndroidBuildProfile | IosBuildProfile
-  : never;
+  : IosBuildProfile;
+
+export interface EasJsonBuildProfile extends Partial<CommonBuildProfile> {
+  extends?: string;
+  [Platform.ANDROID]?: Partial<AndroidBuildProfile>;
+  [Platform.IOS]?: Partial<IosBuildProfile>;
+}

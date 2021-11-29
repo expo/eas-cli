@@ -143,7 +143,7 @@ export async function ensureEasJsonExistsAsync(ctx: ConfigureContext): Promise<v
 
   if (await fs.pathExists(easJsonPath)) {
     const reader = new EasJsonReader(ctx.projectDir);
-    await reader.readAndValidateAsync();
+    await reader.readAsync();
 
     Log.withTick('Validated eas.json');
     return;

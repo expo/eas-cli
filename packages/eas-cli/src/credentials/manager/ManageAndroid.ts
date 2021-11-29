@@ -1,5 +1,5 @@
 import { Platform } from '@expo/eas-build-job';
-import { AndroidBuildProfile } from '@expo/eas-json';
+import { BuildProfile } from '@expo/eas-json';
 import assert from 'assert';
 
 import Log, { learnMore } from '../../log';
@@ -142,7 +142,7 @@ export class ManageAndroid {
 
   private async createProjectContextAsync(ctx: CredentialsContext): Promise<{
     gradleContext?: GradleBuildContext;
-    buildProfile?: AndroidBuildProfile;
+    buildProfile?: BuildProfile<Platform.ANDROID>;
   }> {
     if (!ctx.hasProjectContext) {
       return {};

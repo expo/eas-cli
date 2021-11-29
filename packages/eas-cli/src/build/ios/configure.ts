@@ -1,6 +1,6 @@
 import { ExpoConfig } from '@expo/config';
 import { Platform, Workflow } from '@expo/eas-build-job';
-import { IosBuildProfile, IosVersionAutoIncrement } from '@expo/eas-json';
+import { BuildProfile, IosVersionAutoIncrement } from '@expo/eas-json';
 import type { XCBuildConfiguration } from 'xcode';
 
 import Log from '../../log';
@@ -36,7 +36,7 @@ export async function validateAndSyncProjectConfigurationAsync({
 }: {
   projectDir: string;
   exp: ExpoConfig;
-  buildProfile: IosBuildProfile;
+  buildProfile: BuildProfile<Platform.IOS>;
   buildSettings: XCBuildConfiguration['buildSettings'];
 }): Promise<void> {
   const workflow = await resolveWorkflowAsync(projectDir, Platform.IOS);

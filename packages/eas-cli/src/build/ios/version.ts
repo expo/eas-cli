@@ -130,6 +130,7 @@ export async function maybeResolveVersionsAsync(
     };
   } catch (err: any) {
     Log.warn('Failed to read app versions.');
+    Log.debug(err);
     Log.warn(err.message);
     Log.warn('Proceeding anyway...');
     return {};
@@ -200,7 +201,12 @@ function ensureStaticConfigExists(projectDir: string): void {
   }
 }
 
-export function evaluateTemplateString(s: string, vars: Record<string, any>): string {
+export function evaluateTemplateString(
+  s: string,
+  buildSettings: XCBuildConfiguration['buildSettings']
+): string {
+  // necessary because XCBuildConfiguration['buildSettings'] is not a plain object
+  const vars = { ...buildSettings };
   return s.replace(/\$\((\w+)\)/g, (match, key) => {
     if (vars.hasOwnProperty(key)) {
       const value = String(vars[key]);

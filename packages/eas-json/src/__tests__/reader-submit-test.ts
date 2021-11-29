@@ -2,7 +2,7 @@ import { Platform } from '@expo/eas-build-job';
 import fs from 'fs-extra';
 import { vol } from 'memfs';
 
-import { EasJsonReader } from '../EasJsonReader';
+import { EasJsonReader } from '../reader';
 
 jest.mock('fs');
 
@@ -19,8 +19,8 @@ test('minimal allowed eas.json for both platforms', async () => {
   });
 
   const reader = new EasJsonReader('/project');
-  const iosProfile = await reader.readSubmitProfileAsync(Platform.IOS, 'production');
-  const androidProfile = await reader.readSubmitProfileAsync(Platform.ANDROID, 'production');
+  const iosProfile = await reader.getSubmitProfileAsync(Platform.IOS, 'production');
+  const androidProfile = await reader.getSubmitProfileAsync(Platform.ANDROID, 'production');
 
   expect(androidProfile).toEqual({
     changesNotSentForReview: false,
@@ -46,7 +46,7 @@ test('android config with all required values', async () => {
   });
 
   const reader = new EasJsonReader('/project');
-  const androidProfile = await reader.readSubmitProfileAsync(Platform.ANDROID, 'production');
+  const androidProfile = await reader.getSubmitProfileAsync(Platform.ANDROID, 'production');
 
   expect(androidProfile).toEqual({
     serviceAccountKeyPath: './path.json',
@@ -72,7 +72,7 @@ test('android config with serviceAccountKeyPath set to env var', async () => {
   try {
     process.env.GOOGLE_SERVICE_ACCOUNT = './path.json';
     const reader = new EasJsonReader('/project');
-    const androidProfile = await reader.readSubmitProfileAsync(Platform.ANDROID, 'production');
+    const androidProfile = await reader.getSubmitProfileAsync(Platform.ANDROID, 'production');
 
     expect(androidProfile).toEqual({
       serviceAccountKeyPath: './path.json',
@@ -102,7 +102,7 @@ test('ios config with all required values', async () => {
   });
 
   const reader = new EasJsonReader('/project');
-  const iosProfile = await reader.readSubmitProfileAsync(Platform.IOS, 'production');
+  const iosProfile = await reader.getSubmitProfileAsync(Platform.IOS, 'production');
 
   expect(iosProfile).toEqual({
     appleId: 'some@email.com',
@@ -136,7 +136,7 @@ test('ios config with ascApiKey fields set to env var', async () => {
     process.env.ASC_API_KEY_ISSUER_ID = 'abc-123-def-456';
     process.env.ASC_API_KEY_ID = 'ABCD';
     const reader = new EasJsonReader('/project');
-    const iosProfile = await reader.readSubmitProfileAsync(Platform.IOS, 'release');
+    const iosProfile = await reader.getSubmitProfileAsync(Platform.IOS, 'release');
 
     expect(iosProfile).toEqual({
       appleId: 'some@email.com',
@@ -152,4 +152,46 @@ test('ios config with ascApiKey fields set to env var', async () => {
     process.env.ASC_API_KEY_ISSUER_ID = undefined;
     process.env.ASC_API_KEY_ID = undefined;
   }
+});
+
+test('valid profile extending other profile', async () => {
+  await fs.writeJson('/project/eas.json', {
+    submit: {
+      base: {
+        ios: {
+          appleId: 'some@email.com',
+          ascAppId: '1223423523',
+          appleTeamId: 'QWERTY',
+        },
+      },
+      extension: {
+        extends: 'base',
+        ios: {
+          appleTeamId: 'ABCDEF',
+          ascApiKeyPath: './path-ABCD.p8',
+          ascApiKeyIssuerId: 'abc-123-def-456',
+          ascApiKeyId: 'ABCD',
+        },
+      },
+    },
+  });
+
+  const reader = new EasJsonReader('/project');
+  const baseProfile = await reader.getSubmitProfileAsync(Platform.IOS, 'base');
+  const extendedProfile = await reader.getSubmitProfileAsync(Platform.IOS, 'extension');
+  expect(baseProfile).toEqual({
+    language: 'en-US',
+    appleId: 'some@email.com',
+    ascAppId: '1223423523',
+    appleTeamId: 'QWERTY',
+  });
+  expect(extendedProfile).toEqual({
+    language: 'en-US',
+    appleId: 'some@email.com',
+    ascAppId: '1223423523',
+    appleTeamId: 'ABCDEF',
+    ascApiKeyPath: './path-ABCD.p8',
+    ascApiKeyIssuerId: 'abc-123-def-456',
+    ascApiKeyId: 'ABCD',
+  });
 });

@@ -378,6 +378,7 @@ USAGE
   $ eas secret:list
 ```
 
+
 _See code: [src/commands/secret/list.ts](https://github.com/expo/eas-cli/blob/v0.38.0/packages/eas-cli/src/commands/secret/list.ts)_
 
 ## `eas submit`
@@ -405,7 +406,8 @@ OPTIONS
   --[no-]wait                       Wait for submission to complete
 
 DESCRIPTION
-  See how to configure submits with eas.json: https://docs.expo.dev/submit/eas-json/
+  See how to configure submits with eas.json: 
+  https://docs.expo.dev/submit/eas-json/
 
 ALIASES
   $ eas build:submit
@@ -493,4 +495,5 @@ ARGUMENTS
 ```
 
 _See code: [src/commands/webhook/view.ts](https://github.com/expo/eas-cli/blob/v0.38.0/packages/eas-cli/src/commands/webhook/view.ts)_
+
 <!-- commandsstop -->

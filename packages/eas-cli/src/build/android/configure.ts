@@ -1,7 +1,7 @@
 import { ExpoConfig } from '@expo/config';
 import { AndroidConfig } from '@expo/config-plugins';
 import { Platform, Workflow } from '@expo/eas-build-job';
-import { AndroidBuildProfile, AndroidVersionAutoIncrement } from '@expo/eas-json';
+import { AndroidVersionAutoIncrement, BuildProfile } from '@expo/eas-json';
 
 import Log from '../../log';
 import {
@@ -41,7 +41,7 @@ export async function validateAndSyncProjectConfigurationAsync({
 }: {
   projectDir: string;
   exp: ExpoConfig;
-  buildProfile: AndroidBuildProfile;
+  buildProfile: BuildProfile<Platform.ANDROID>;
 }): Promise<void> {
   const workflow = await resolveWorkflowAsync(projectDir, Platform.ANDROID);
   const { autoIncrement } = buildProfile;

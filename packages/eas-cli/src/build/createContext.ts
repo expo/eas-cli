@@ -1,5 +1,5 @@
 import { Platform } from '@expo/eas-build-job';
-import { AndroidBuildProfile, BuildProfile, IosBuildProfile } from '@expo/eas-json';
+import { BuildProfile } from '@expo/eas-json';
 import JsonFile from '@expo/json-file';
 import resolveFrom from 'resolve-from';
 import { v4 as uuidv4 } from 'uuid';
@@ -107,7 +107,7 @@ function getDevClientEventProperties({
 }: {
   platform: Platform;
   projectDir: string;
-  buildProfile: AndroidBuildProfile | IosBuildProfile;
+  buildProfile: BuildProfile;
 }): Partial<TrackingContext> {
   let includesDevClient;
   const version = tryGetDevClientVersion(projectDir);
