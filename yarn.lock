@@ -970,10 +970,10 @@
     base64-js "^1.2.3"
     xmlbuilder "^14.0.0"
 
-"@expo/plugin-warn-if-update-available@1.7.0":
-  version "1.7.0"
-  resolved "https://registry.yarnpkg.com/@expo/plugin-warn-if-update-available/-/plugin-warn-if-update-available-1.7.0.tgz#d47fb15c9b0c8af91b20c9472e5f848972b472d8"
-  integrity sha512-cOEVg43RusKOY/14SFmN+HCZllR+UEAr6Nv4kTI80vRpclSqn4WQaAqgSjZx5+i2cdVDfv9FeQwLdDwcmbkIIw==
+"@expo/plugin-warn-if-update-available@1.7.1":
+  version "1.7.1"
+  resolved "https://registry.yarnpkg.com/@expo/plugin-warn-if-update-available/-/plugin-warn-if-update-available-1.7.1.tgz#26e5dbf685801beb1e732dfa663944d280116e98"
+  integrity sha512-Fo4s9EDliMTBnfaoHOXBvHLQxrHQq34RqmfzZ3qQUPEOCT0hpElEcSXa2qOM0K0WPJzhciMGIEk2ZWhZeTVWxg==
   dependencies:
     "@oclif/command" "^1.6.0"
     "@oclif/config" "^1.12.8"
