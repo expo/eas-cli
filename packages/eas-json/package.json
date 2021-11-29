@@ -1,7 +1,7 @@
 {
   "name": "@expo/eas-json",
   "description": "A library for interacting with eas.json",
-  "version": "0.38.0",
+  "version": "0.38.2",
   "author": "Expo <support@expo.dev>",
   "bugs": "https://github.com/expo/eas-cli/issues",
   "dependencies": {
@@ -16,7 +16,8 @@
   },
   "devDependencies": {
     "@types/fs-extra": "9.0.12",
-    "memfs": "3.2.2"
+    "memfs": "3.2.2",
+    "typescript": "4.5.2"
   },
   "engines": {
     "node": ">=12.0.0"

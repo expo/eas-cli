@@ -10,7 +10,21 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Print warning about outdated version to stderr. ([#805](https://github.com/expo/eas-cli/pull/805) by [@wkozyra95](https://github.com/wkozyra95))
+
 ### 🧹 Chores
+
+## [0.38.2](https://github.com/expo/eas-cli/releases/tag/v0.38.2) - 2021-11-26
+
+### 🎉 New features
+
+- Add support for extending submit profiles. ([#794](https://github.com/expo/eas-cli/pull/794) by [@dsokal](https://github.com/dsokal))
+- Add command: 'eas update:configure'. ([#800](https://github.com/expo/eas-cli/pull/800) by [@jkhales](https://github.com/jkhales))
+
+### 🐛 Bug fixes
+
+- Fix reading app version and app build version of iOS projects. ([#798](https://github.com/expo/eas-cli/pull/798) by [@dsokal](https://github.com/dsokal))
+- Fix push notifications entitlements. ([#801](https://github.com/expo/eas-cli/pull/801) by [@brentvatne](https://github.com/brentvatne))
 
 ## [0.38.1](https://github.com/expo/eas-cli/releases/tag/v0.38.1) - 2021-11-25
 

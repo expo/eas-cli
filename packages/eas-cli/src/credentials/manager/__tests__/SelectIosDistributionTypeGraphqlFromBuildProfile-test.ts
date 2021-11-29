@@ -1,4 +1,5 @@
-import { IosBuildProfile } from '@expo/eas-json';
+import { Platform } from '@expo/eas-build-job';
+import { BuildProfile } from '@expo/eas-json';
 
 import { IosDistributionType as IosDistributionTypeGraphql } from '../../../graphql/generated';
 import { createCtxMock } from '../../__tests__/fixtures-context';
@@ -8,7 +9,7 @@ describe('SelectIosDistributionTypeGraphqlFromBuildProfile', () => {
   it('errors with a simulator distribution', async () => {
     const buildProfile = {
       simulator: true,
-    } as IosBuildProfile;
+    } as BuildProfile<Platform.IOS>;
 
     const ctx = createCtxMock({
       nonInteractive: false,
@@ -22,7 +23,7 @@ describe('SelectIosDistributionTypeGraphqlFromBuildProfile', () => {
   it('returns APP_STORE type with a store distribution', async () => {
     const buildProfile = {
       distribution: 'store',
-    } as IosBuildProfile;
+    } as BuildProfile<Platform.IOS>;
 
     const ctx = createCtxMock({
       nonInteractive: false,
@@ -37,7 +38,7 @@ describe('SelectIosDistributionTypeGraphqlFromBuildProfile', () => {
     const buildProfile = {
       distribution: 'internal',
       enterpriseProvisioning: 'universal',
-    } as IosBuildProfile;
+    } as BuildProfile<Platform.IOS>;
 
     const ctx = createCtxMock({
       nonInteractive: false,
@@ -52,7 +53,7 @@ describe('SelectIosDistributionTypeGraphqlFromBuildProfile', () => {
     const buildProfile = {
       distribution: 'internal',
       enterpriseProvisioning: 'adhoc',
-    } as IosBuildProfile;
+    } as BuildProfile<Platform.IOS>;
 
     const ctx = createCtxMock({
       nonInteractive: false,

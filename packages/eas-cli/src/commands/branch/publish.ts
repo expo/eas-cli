@@ -36,6 +36,7 @@ import uniqBy from '../../utils/expodash/uniqBy';
 import formatFields from '../../utils/formatFields';
 import { getVcsClient } from '../../vcs';
 import { createUpdateChannelOnAppAsync } from '../channel/create';
+import { getEASUpdateURLAsync } from '../update/configure';
 import { createUpdateBranchOnAppAsync } from './create';
 import { listBranchesAsync } from './list';
 import { viewUpdateBranchAsync } from './view';
@@ -204,8 +205,8 @@ export default class BranchPublish extends EasCommand {
     });
 
     const runtimeVersions = await getRuntimeVersionObjectAsync(exp, platformFlag, projectDir);
-
     const projectId = await getProjectIdAsync(exp);
+    await checkEASUpdateURLIsSetAsync(exp);
 
     if (!branchName && autoFlag) {
       branchName =
@@ -472,4 +473,15 @@ function formatUpdateTitle(
     createdAt,
     'mmm dd HH:MM'
   )} by ${actorName}, runtimeVersion: ${runtimeVersion}] ${message}`;
+}
+
+async function checkEASUpdateURLIsSetAsync(exp: ExpoConfig): Promise<void> {
+  const configuredURL = exp.updates?.url;
+  const expectedURL = await getEASUpdateURLAsync(exp);
+
+  if (configuredURL !== expectedURL) {
+    throw new Error(
+      `The update URL is incorrectly configured for EAS Update. Please set updates.url to ${expectedURL} in your app.json.`
+    );
+  }
 }

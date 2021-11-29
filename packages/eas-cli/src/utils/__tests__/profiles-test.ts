@@ -8,8 +8,8 @@ jest.mock('@expo/eas-json', () => {
 
   const EasJsonReaderMock = jest.fn();
   EasJsonReaderMock.prototype = {
-    readBuildProfileAsync: jest.fn(),
-    readSubmitProfileAsync: jest.fn(),
+    getBuildProfileAsync: jest.fn(),
+    getSubmitProfileAsync: jest.fn(),
   };
   return {
     ...actual,
@@ -17,11 +17,11 @@ jest.mock('@expo/eas-json', () => {
   };
 });
 
-const readBuildProfileAsync = jest.spyOn(EasJsonReader.prototype, 'readBuildProfileAsync');
+const getBuildProfileAsync = jest.spyOn(EasJsonReader.prototype, 'getBuildProfileAsync');
 
 describe(getProfilesAsync, () => {
   afterEach(() => {
-    readBuildProfileAsync.mockReset();
+    getBuildProfileAsync.mockReset();
   });
 
   it('defaults to production profile', async () => {
@@ -34,17 +34,17 @@ describe(getProfilesAsync, () => {
 
     expect(result[0].profileName).toBe('production');
     expect(result[1].profileName).toBe('production');
-    expect(readBuildProfileAsync).toBeCalledWith(Platform.ANDROID, 'production');
-    expect(readBuildProfileAsync).toBeCalledWith(Platform.IOS, 'production');
+    expect(getBuildProfileAsync).toBeCalledWith(Platform.ANDROID, 'production');
+    expect(getBuildProfileAsync).toBeCalledWith(Platform.IOS, 'production');
   });
 
   it('defaults to release profile when production profile is non-existent', async () => {
-    readBuildProfileAsync
-      .mockRejectedValueOnce(() => {
-        throw new Error();
+    getBuildProfileAsync
+      .mockImplementationOnce(() => {
+        throw new errors.MissingProfileError();
       })
-      .mockRejectedValueOnce(() => {
-        throw new Error();
+      .mockImplementationOnce(() => {
+        throw new errors.MissingProfileError();
       });
 
     const result = await getProfilesAsync({
@@ -56,20 +56,16 @@ describe(getProfilesAsync, () => {
 
     expect(result[0].profileName).toBe('release');
     expect(result[1].profileName).toBe('release');
-    expect(readBuildProfileAsync).toBeCalledWith(Platform.ANDROID, 'production');
-    expect(readBuildProfileAsync).toBeCalledWith(Platform.IOS, 'production');
-    expect(readBuildProfileAsync).toBeCalledWith(Platform.ANDROID, 'release');
-    expect(readBuildProfileAsync).toBeCalledWith(Platform.IOS, 'release');
+    expect(getBuildProfileAsync).toBeCalledWith(Platform.ANDROID, 'production');
+    expect(getBuildProfileAsync).toBeCalledWith(Platform.IOS, 'production');
+    expect(getBuildProfileAsync).toBeCalledWith(Platform.ANDROID, 'release');
+    expect(getBuildProfileAsync).toBeCalledWith(Platform.IOS, 'release');
   });
 
   it('fails when neither production or release profiles are present', async () => {
-    readBuildProfileAsync
-      .mockRejectedValueOnce(() => {
-        throw new Error();
-      })
-      .mockRejectedValueOnce(() => {
-        throw new Error();
-      });
+    getBuildProfileAsync.mockImplementation(() => {
+      throw new errors.MissingProfileError();
+    });
 
     await expect(
       getProfilesAsync({
@@ -78,7 +74,7 @@ describe(getProfilesAsync, () => {
         profileName: undefined,
         type: 'build',
       })
-    ).rejects.toThrowError(/There is no build profile named "production" in eas.json/);
+    ).rejects.toThrowError(errors.MissingProfileError);
   });
 
   it('gets a specific profile', async () => {
@@ -91,12 +87,12 @@ describe(getProfilesAsync, () => {
 
     expect(result[0].profileName).toBe('custom-profile');
     expect(result[1].profileName).toBe('custom-profile');
-    expect(readBuildProfileAsync).toBeCalledWith(Platform.ANDROID, 'custom-profile');
-    expect(readBuildProfileAsync).toBeCalledWith(Platform.IOS, 'custom-profile');
+    expect(getBuildProfileAsync).toBeCalledWith(Platform.ANDROID, 'custom-profile');
+    expect(getBuildProfileAsync).toBeCalledWith(Platform.IOS, 'custom-profile');
   });
 
   it('throws validation error if eas.json is invalid', async () => {
-    readBuildProfileAsync.mockImplementation(() => {
+    getBuildProfileAsync.mockImplementation(() => {
       throw new errors.InvalidEasJsonError('eas.json is not valid');
     });
 

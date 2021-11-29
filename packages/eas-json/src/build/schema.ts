@@ -1,16 +1,6 @@
 import { Android, Ios } from '@expo/eas-build-job';
 import Joi from 'joi';
 
-import { AndroidReleaseStatus, AndroidReleaseTrack } from './EasSubmit.types';
-
-const semverSchemaCheck = (value: any): any => {
-  if (/^[0-9]+\.[0-9]+\.[0-9]+$/.test(value)) {
-    return value;
-  } else {
-    throw new Error(`${value} is not a valid version`);
-  }
-};
-
 const CacheSchema = Joi.object({
   disabled: Joi.boolean(),
   key: Joi.string().max(128),
@@ -19,8 +9,8 @@ const CacheSchema = Joi.object({
 });
 
 const CommonBuildProfileSchema = Joi.object({
-  credentialsSource: Joi.string().valid('local', 'remote'),
-  distribution: Joi.string().valid('store', 'internal'),
+  credentialsSource: Joi.string().valid('local', 'remote').default('remote'),
+  distribution: Joi.string().valid('store', 'internal').default('store'),
   cache: CacheSchema,
   releaseChannel: Joi.string().regex(/^[a-z\d][a-z\d._-]*$/),
   channel: Joi.string().regex(/^[a-z\d][a-z\d._-]*$/),
@@ -34,6 +24,8 @@ const CommonBuildProfileSchema = Joi.object({
 
 const AndroidBuildProfileSchema = CommonBuildProfileSchema.concat(
   Joi.object({
+    credentialsSource: Joi.string().valid('local', 'remote'),
+    distribution: Joi.string().valid('store', 'internal'),
     withoutCredentials: Joi.boolean(),
 
     image: Joi.string().valid(...Android.builderBaseImages),
@@ -52,6 +44,8 @@ const AndroidBuildProfileSchema = CommonBuildProfileSchema.concat(
 
 const IosBuildProfileSchema = CommonBuildProfileSchema.concat(
   Joi.object({
+    credentialsSource: Joi.string().valid('local', 'remote'),
+    distribution: Joi.string().valid('store', 'internal'),
     enterpriseProvisioning: Joi.string().valid('adhoc', 'universal'),
     autoIncrement: Joi.alternatives().try(
       Joi.boolean(),
@@ -70,7 +64,7 @@ const IosBuildProfileSchema = CommonBuildProfileSchema.concat(
   })
 );
 
-const EasJsonBuildProfileSchema = CommonBuildProfileSchema.concat(
+export const BuildProfileSchema = CommonBuildProfileSchema.concat(
   Joi.object({
     extends: Joi.string(),
     android: AndroidBuildProfileSchema,
@@ -78,50 +72,10 @@ const EasJsonBuildProfileSchema = CommonBuildProfileSchema.concat(
   })
 );
 
-export const AndroidSubmitProfileSchema = Joi.object({
-  serviceAccountKeyPath: Joi.string(),
-  track: Joi.string()
-    .valid(...Object.values(AndroidReleaseTrack))
-    .default(AndroidReleaseTrack.internal),
-  releaseStatus: Joi.string()
-    .valid(...Object.values(AndroidReleaseStatus))
-    .default(AndroidReleaseStatus.completed),
-  changesNotSentForReview: Joi.boolean().default(false),
-  applicationId: Joi.string(),
-});
-
-export const IosSubmitProfileSchema = Joi.object({
-  ascApiKeyPath: Joi.string(),
-  ascApiKeyId: Joi.string(),
-  ascApiKeyIssuerId: Joi.string(),
-  appleId: Joi.string(),
-  ascAppId: Joi.string(),
-  appleTeamId: Joi.string(),
-  sku: Joi.string(),
-  language: Joi.string().default('en-US'),
-  companyName: Joi.string(),
-  appName: Joi.string(),
-  bundleIdentifier: Joi.string(),
-});
-
-const EasJsonSubmitConfigurationSchema = Joi.object({
-  android: AndroidSubmitProfileSchema,
-  ios: IosSubmitProfileSchema,
-});
-
-export const CliConfigSchema = Joi.object({
-  version: Joi.string(),
-  requireCommit: Joi.boolean(),
-});
-
-export const MinimalEasJsonSchema = Joi.object({
-  cli: Joi.object(),
-  build: Joi.object().pattern(Joi.string(), Joi.object()),
-  submit: Joi.object().pattern(Joi.string(), Joi.object()),
-});
-
-export const EasJsonSchema = Joi.object({
-  cli: CliConfigSchema,
-  build: Joi.object().pattern(Joi.string(), EasJsonBuildProfileSchema),
-  submit: Joi.object().pattern(Joi.string(), EasJsonSubmitConfigurationSchema),
-});
+function semverSchemaCheck(value: any): any {
+  if (/^[0-9]+\.[0-9]+\.[0-9]+$/.test(value)) {
+    return value;
+  } else {
+    throw new Error(`${value} is not a valid version`);
+  }
+}

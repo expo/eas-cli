@@ -8,7 +8,6 @@ import {
   initAsync as initAnalyticsAsync,
   logEvent,
 } from '../analytics/rudderstackClient';
-import Log from '../log';
 import { findProjectRootAsync } from '../project/projectUtils';
 import { getUserAsync } from '../user/User';
 import { ensureLoggedInAsync } from '../user/actions';
@@ -27,8 +26,6 @@ export default abstract class EasCommand extends Command {
 
   // eslint-disable-next-line async-protect/async-suffix
   async run(): Promise<any> {
-    EasJsonReader.setLog(Log);
-
     await initAnalyticsAsync();
     await this.applyCliConfigAsync();
 

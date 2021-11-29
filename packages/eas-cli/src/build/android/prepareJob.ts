@@ -1,5 +1,5 @@
 import { Android, ArchiveSource, Job, Platform, sanitizeJob } from '@expo/eas-build-job';
-import { AndroidBuildProfile } from '@expo/eas-json';
+import { BuildProfile } from '@expo/eas-json';
 import path from 'path';
 import slash from 'slash';
 
@@ -25,7 +25,7 @@ export async function prepareJobAsync(
   jobData: JobData
 ): Promise<Job> {
   const username = getUsername(ctx.exp, await ensureLoggedInAsync());
-  const buildProfile: AndroidBuildProfile = ctx.buildProfile;
+  const buildProfile: BuildProfile<Platform.ANDROID> = ctx.buildProfile;
   const projectRootDirectory =
     slash(path.relative(await getVcsClient().getRootPathAsync(), ctx.projectDir)) || '.';
   const { credentials } = jobData;
