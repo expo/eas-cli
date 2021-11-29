@@ -36,11 +36,10 @@ import uniqBy from '../../utils/expodash/uniqBy';
 import formatFields from '../../utils/formatFields';
 import { getVcsClient } from '../../vcs';
 import { createUpdateChannelOnAppAsync } from '../channel/create';
+import { getEASUpdateURLAsync } from '../update/configure';
 import { createUpdateBranchOnAppAsync } from './create';
 import { listBranchesAsync } from './list';
 import { viewUpdateBranchAsync } from './view';
-
-const EAS_UPDATE_URL = 'https://u.expo.dev';
 
 export const defaultPublishPlatforms: PublishPlatform[] = ['android', 'ios'];
 type PlatformFlag = PublishPlatform | 'all';
@@ -474,11 +473,6 @@ function formatUpdateTitle(
     createdAt,
     'mmm dd HH:MM'
   )} by ${actorName}, runtimeVersion: ${runtimeVersion}] ${message}`;
-}
-
-async function getEASUpdateURLAsync(exp: ExpoConfig): Promise<string> {
-  const projectId = await getProjectIdAsync(exp);
-  return new URL(projectId, EAS_UPDATE_URL).href;
 }
 
 async function checkEASUpdateURLIsSetAsync(exp: ExpoConfig): Promise<void> {
