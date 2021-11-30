@@ -20,6 +20,7 @@
     "@expo/prebuild-config": "3.0.10",
     "@expo/results": "1.0.0",
     "@expo/rudder-sdk-node": "1.1.1",
+    "@expo/sdk-runtime-versions": "1.0.0",
     "@expo/spawn-async": "1.5.0",
     "@expo/timeago.js": "1.0.0",
     "@oclif/command": "1.8.3",
