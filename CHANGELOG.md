@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Fix submit for multi-target projects where ascAppId is not specified. ([#809](https://github.com/expo/eas-cli/pull/809) by [@wkozyra95](https://github.com/wkozyra95))
+
 ### 🧹 Chores
 
 ## [0.38.3](https://github.com/expo/eas-cli/releases/tag/v0.38.3) - 2021-11-29
