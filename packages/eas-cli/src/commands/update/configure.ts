@@ -52,10 +52,16 @@ async function configureProjectForEASUpdateAsync(
         )}`
       );
       Log.warn(
-        'In order to finish configuring your project for EAS Update, you are going to need manually add the following:\n\n'
+        `In order to finish configuring your project for EAS Update, you are going to need manually add the following to your app.config.js:\n${learnMore(
+          'https://expo.fyi/eas-update-config.md'
+        )}\n`
       );
-      Log.log(chalk.bold(`"updates": {\n    "url": "${easUpdateURL}"\n  }`));
-      Log.log(learnMore('https://expo.fyi/eas-update-config.md'));
+      Log.log(
+        chalk.bold(
+          `{\n  updates": {\n    "url": "${easUpdateURL}"\n  },\n  "runtimeVersion": {\n    "policy": "sdkVersion"\n  }\n}`
+        )
+      );
+      Log.addNewLineIfNone();
       throw new Error(result.message);
     }
     case 'fail':
