@@ -8,26 +8,39 @@ import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUt
 import { resolveWorkflowAsync } from '../../project/workflow';
 
 const EAS_UPDATE_URL = 'https://u.expo.dev';
+const DEFAULT_RUNTIME_VERSION: { policy: 'sdkVersion' } = { policy: 'sdkVersion' };
 
 export async function getEASUpdateURLAsync(exp: ExpoConfig): Promise<string> {
   const projectId = await getProjectIdAsync(exp);
   return new URL(projectId, EAS_UPDATE_URL).href;
 }
 
-async function ensureEASUrlSetAsync(projectDir: string, exp: ExpoConfig): Promise<void> {
+async function configureProjectForEASUpdateAsync(
+  projectDir: string,
+  exp: ExpoConfig
+): Promise<void> {
   const easUpdateURL = await getEASUpdateURLAsync(exp);
+  const preexistingRuntimeVersion = exp.runtimeVersion;
   const result = await modifyConfigAsync(projectDir, {
+    runtimeVersion: preexistingRuntimeVersion ?? DEFAULT_RUNTIME_VERSION,
     updates: { ...exp.updates, url: easUpdateURL },
   });
 
   switch (result.type) {
     case 'success':
       if (exp.updates?.url) {
-        Log.withTick(
-          `Overwrote "${exp.updates?.url}" with "${easUpdateURL}" for the updates.url value in app.json`
-        );
+        if (exp.updates.url !== easUpdateURL) {
+          Log.withTick(
+            `Overwrote "${exp.updates?.url}" with "${easUpdateURL}" for the updates.url value in app.json`
+          );
+        }
       } else {
         Log.withTick(`Set updates.url value, to "${easUpdateURL}" in app.json`);
+      }
+      if (!preexistingRuntimeVersion) {
+        Log.withTick(
+          `Set runtimeVersion to "${JSON.stringify(DEFAULT_RUNTIME_VERSION)}" in app.json`
+        );
       }
 
       break;
@@ -65,7 +78,7 @@ export default class UpdateConfigure extends EasCommand {
       skipSDKVersionRequirement: true,
     });
 
-    await ensureEASUrlSetAsync(projectDir, exp);
+    await configureProjectForEASUpdateAsync(projectDir, exp);
 
     const hasAndroidNativeProject =
       (await resolveWorkflowAsync(projectDir, Platform.ANDROID)) === Workflow.GENERIC;
