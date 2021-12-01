@@ -181,7 +181,7 @@ export function logChannelDetails(channel: {
         : []),
       formatUpdate(update),
       update?.runtimeVersion ?? 'N/A',
-      update?.group ?? 'N/A,',
+      update?.group ?? 'N/A',
       getPlatformsForGroup({
         updates: branch.updates,
         group: branch.updates[0]?.group,
@@ -239,7 +239,7 @@ export default class ChannelView extends EasCommand {
     });
     const channel = getUpdateChannelByNameForAppresult.app?.byId.updateChannelByName;
     if (!channel) {
-      throw new Error(`Could not fine channel with name ${channelName}`);
+      throw new Error(`Could not find a channel with name: ${channelName}`);
     }
 
     if (jsonFlag) {
@@ -256,9 +256,7 @@ export default class ChannelView extends EasCommand {
       ])
     );
     Log.addNewLineIfNone();
-    Log.log(
-      chalk`{bold Branches, pointed at by this channel, and their most recent update group:}`
-    );
+    Log.log(chalk`{bold Branches pointed at this channel and their most recent update group:}`);
     logChannelDetails(channel);
   }
 }

@@ -89,7 +89,7 @@ export async function updateChannelBranchMappingAsync({
   );
   const channel = data.updateChannel.editUpdateChannel;
   if (!channel) {
-    throw new Error(`Could not fine channel with id ${channelId}`);
+    throw new Error(`Could not find a channel with id: ${channelId}`);
   }
   return data.updateChannel.editUpdateChannel!;
 }

@@ -29,7 +29,7 @@ export function getPlatformsForGroup({
   return groupedUpdates[group]
     .map(update => update.platform)
     .sort()
-    .join(',');
+    .join(', ');
 }
 
 export function formatUpdate(update: FormatUpdateParameter): string {
