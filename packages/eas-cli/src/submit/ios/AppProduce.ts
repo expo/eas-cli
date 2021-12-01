@@ -35,7 +35,10 @@ export async function ensureAppStoreConnectAppExistsAsync(
   const { appName, language } = ctx.profile;
   const options = {
     ...ctx.profile,
-    bundleIdentifier: await getBundleIdentifierAsync(ctx.projectDir, exp),
+    bundleIdentifier:
+      ctx.applicationIdentifierOverride ??
+      ctx.profile.bundleIdentifier ??
+      (await getBundleIdentifierAsync(ctx.projectDir, exp)),
     appName: appName ?? exp.name ?? (await promptForAppNameAsync()),
     language: sanitizeLanguage(language),
   };
