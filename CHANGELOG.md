@@ -13,7 +13,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 - Fix submit for multi-target projects where ascAppId is not specified. ([#809](https://github.com/expo/eas-cli/pull/809) by [@wkozyra95](https://github.com/wkozyra95))
-- Fix building iOS projects with Apple Watch companion app. ([#817](https://github.com/expo/eas-cli/pull/817), [#821](https://github.com/expo/eas-cli/pull/821) by [@jkhales](https://github.com/jkhales) + [@dsokal](https://github.com/dsokal))
+- Fix building iOS projects with Apple Watch companion app. ([#812](https://github.com/expo/eas-cli/pull/812), [#817](https://github.com/expo/eas-cli/pull/817), [#821](https://github.com/expo/eas-cli/pull/821) by [@jkhales](https://github.com/jkhales) + [@dsokal](https://github.com/dsokal))
 
 ### 🧹 Chores
 
