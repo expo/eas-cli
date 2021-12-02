@@ -202,7 +202,7 @@ export default class IosSubmitCommand {
     } else if (this.ctx.nonInteractive) {
       return result(
         new Error(
-          'Set ascAppId in the submit profile (eas.json) or re-run this command in non-interactive mode.'
+          'Set ascAppId in the submit profile (eas.json) or re-run this command in interactive mode.'
         )
       );
     } else {
