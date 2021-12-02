@@ -10,7 +10,9 @@ jobs:
     if: ${{ github.event.issue.pull_request && github.event.issue.user.login == github.event.comment.user.login && startsWith(github.event.comment.body, '/changelog-entry ') }}
     steps:
       - uses: actions/checkout@v2
-      - uses: actions/setup-node@v2
+      # DO NOT UPDATE TO setup-node@v2
+      # With setup-node@v2, pushes to the PR branch do not trigger Github Actions to run checks.
+      - uses: actions/setup-node@v1
         with:
           node-version: '16'
       - name: Checkout Pull Request
