@@ -8,7 +8,7 @@ import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUt
 import { resolveWorkflowAsync } from '../../project/workflow';
 
 const EAS_UPDATE_URL = 'https://u.expo.dev';
-const DEFAULT_RUNTIME_VERSION: { policy: 'sdkVersion' } = { policy: 'sdkVersion' };
+const DEFAULT_RUNTIME_VERSION = { policy: 'sdkVersion' } as const;
 
 export async function getEASUpdateURLAsync(exp: ExpoConfig): Promise<string> {
   const projectId = await getProjectIdAsync(exp);
