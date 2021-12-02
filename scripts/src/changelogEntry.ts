@@ -66,7 +66,10 @@ function addEntry(tokens: markdown.Tokens, entry: Entry): void {
 }
 
 function formatEntry({ message, prNumber, author }: Entry): string {
-  const messageWithDot = message.endsWith('.') ? message : `${message}.`;
+  const capitalizedMessage = `${message[0].toUpperCase()}${message.slice(1)}`;
+  const messageWithDot = capitalizedMessage.endsWith('.')
+    ? capitalizedMessage
+    : `${capitalizedMessage}.`;
   return `${messageWithDot} ([#${prNumber}](https://github.com/expo/eas-cli/pull/${prNumber}) by [@${author}](https://github.com/${author}))`;
 }
 
