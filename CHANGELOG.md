@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Set runtime version in eas update:configure. ([#811](https://github.com/expo/eas-cli/pull/811) by [@jkhales](https://github.com/jkhales))
+
 ### 🐛 Bug fixes
 
 - Fix submit for multi-target projects where ascAppId is not specified. ([#809](https://github.com/expo/eas-cli/pull/809) by [@wkozyra95](https://github.com/wkozyra95))
