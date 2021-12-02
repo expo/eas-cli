@@ -9,9 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     if: ${{ github.event.issue.pull_request && github.event.issue.user.login == github.event.comment.user.login && startsWith(github.event.comment.body, '/changelog-entry ') }}
     steps:
-      # DO NOT UPDATE TO checkout@v2
-      # With checkout@v2, pushes to the PR branch do not trigger Github Actions to run checks.
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v2
       - uses: actions/setup-node@v2
         with:
           node-version: '16'
