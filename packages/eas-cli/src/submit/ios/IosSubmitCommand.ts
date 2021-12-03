@@ -200,7 +200,11 @@ export default class IosSubmitCommand {
     if (ascAppId) {
       return result(ascAppId);
     } else if (this.ctx.nonInteractive) {
-      return result(new Error('Set ascAppId in the submit profile (eas.json).'));
+      return result(
+        new Error(
+          'Set ascAppId in the submit profile (eas.json) or re-run this command in interactive mode.'
+        )
+      );
     } else {
       Log.log(
         wrapAnsi(
