@@ -119,7 +119,9 @@ async function promptForAscApiKeyAsync(ctx: CredentialsContext): Promise<Minimal
 
 async function promptForKeyP8AndIdAsync(): Promise<Pick<AscApiKeyPath, 'keyP8Path' | 'keyId'>> {
   Log.log(
-    chalk.bold('An App Store Connect Api key is required to upload your app to the Apple App Store')
+    chalk.bold(
+      'An App Store Connect Api key is required to upload your app to the Apple App Store Connect'
+    )
   );
   Log.log(
     `If you're not sure what this is or how to create one, ${learnMore(

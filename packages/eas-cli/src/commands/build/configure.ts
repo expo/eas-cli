@@ -52,7 +52,7 @@ function logSuccess(platform: RequestedPlatform): void {
     storesText = 'the Google Play Store';
   } else if (platform === 'ios') {
     platformsText = 'iOS project is';
-    storesText = 'the Apple App Store';
+    storesText = 'the Apple App Store Connect';
   }
 
   Log.log(`🎉 Your ${platformsText} ready to build.

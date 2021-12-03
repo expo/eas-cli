@@ -8,7 +8,7 @@ import { sleepAsync } from '../../utils/promise';
 
 const APP_STORE_NAMES: Record<AppPlatform, string> = {
   [AppPlatform.Android]: 'Google Play Store',
-  [AppPlatform.Ios]: 'Apple App Store',
+  [AppPlatform.Ios]: 'Apple App Store Connect',
 };
 
 const CHECK_TIMEOUT_MS = 3600_000;
