@@ -10,7 +10,7 @@
   "dependencies": {
     "@expo/apple-utils": "0.0.0-alpha.26",
     "@expo/config": "6.0.10",
-    "@expo/config-plugins": "4.0.10",
+    "@expo/config-plugins": "4.0.11",
     "@expo/eas-build-job": "0.2.57",
     "@expo/eas-json": "^0.38.3",
     "@expo/json-file": "8.2.34",
@@ -20,7 +20,6 @@
     "@expo/prebuild-config": "3.0.10",
     "@expo/results": "1.0.0",
     "@expo/rudder-sdk-node": "1.1.1",
-    "@expo/sdk-runtime-versions": "1.0.0",
     "@expo/spawn-async": "1.5.0",
     "@expo/timeago.js": "1.0.0",
     "@oclif/command": "1.8.3",
