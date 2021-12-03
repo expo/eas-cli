@@ -3,7 +3,7 @@ import mockdate from 'mockdate';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 
-import { defaultPublishPlatforms } from '../../commands/branch/publish';
+import { defaultPublishPlatforms } from '../../commands/update/publish';
 import { AssetMetadataStatus } from '../../graphql/generated';
 import { PublishMutation } from '../../graphql/mutations/PublishMutation';
 import { PublishQuery } from '../../graphql/queries/PublishQuery';
