@@ -3,7 +3,7 @@ import spawnAsync from '@expo/spawn-async';
 import semver from 'semver';
 
 const PLUGIN_PACKAGE_NAME = 'eas-cli-local-build-plugin';
-const PLUGIN_PACKAGE_VERSION = '0.0.50';
+const PLUGIN_PACKAGE_VERSION = '0.0.54';
 
 export async function runLocalBuildAsync(job: Job): Promise<void> {
   const { command, args } = await getCommandAndArgsAsync(job);
