@@ -8,7 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
-- Set runtime version in eas update:configure. ([#811](https://github.com/expo/eas-cli/pull/811) by [@jkhales](https://github.com/jkhales))
+- Set runtime version in `eas update:configure`. ([#811](https://github.com/expo/eas-cli/pull/811) by [@jkhales](https://github.com/jkhales))
+- Print project workflow in `eas diagnostics`. ([#822](https://github.com/expo/eas-cli/pull/822) by [@dsokal](https://github.com/dsokal))
 
 ### 🐛 Bug fixes
 
@@ -31,7 +32,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🎉 New features
 
 - Add support for extending submit profiles. ([#794](https://github.com/expo/eas-cli/pull/794) by [@dsokal](https://github.com/dsokal))
-- Add command: 'eas update:configure'. ([#800](https://github.com/expo/eas-cli/pull/800) by [@jkhales](https://github.com/jkhales))
+- Add command: `eas update:configure`. ([#800](https://github.com/expo/eas-cli/pull/800) by [@jkhales](https://github.com/jkhales))
 
 ### 🐛 Bug fixes
 
