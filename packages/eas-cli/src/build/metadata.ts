@@ -148,9 +148,9 @@ async function getReactNativeVersionAsync(
   ctx: BuildContext<Platform>
 ): Promise<string | undefined> {
   try {
-    const expoCliPath = resolveFrom(ctx.projectDir, 'react-native/package.json');
-    return (await fs.readJson(expoCliPath)).version;
-  } catch {
+    const reactNativePackageJsonPath = resolveFrom(ctx.projectDir, 'react-native/package.json');
+    return (await fs.readJson(reactNativePackageJsonPath)).version;
+  } catch (err) {
     Log.debug('Failed to resolve react-native version:');
     Log.debug(err);
     return undefined;
