@@ -25,6 +25,13 @@ body:
     validations:
       required: true
     attributes:
+      label: Managed or bare?
+      description: See the [Workflows](https://docs.expo.dev/introduction/managed-vs-bare/) page for more information.
+      placeholder: Is your project managed or bare? Bare - Android and/or iOS native projects exist in your repo; Managed - you don't have native code (custom or 3rd party) in your project.
+  - type: textarea
+    validations:
+      required: true
+    attributes:
       label: Environment
       placeholder: Run `eas diagnostics` and paste the output here
   - type: textarea
