@@ -162,11 +162,13 @@ export async function ensureAppExistsAsync(
   }
 ): Promise<App> {
   const context = getRequestContext(authCtx);
-  const spinner = ora(`Linking to App Store ${chalk.dim(bundleIdentifier)}`).start();
+  const spinner = ora(`Linking to App Store Connect ${chalk.dim(bundleIdentifier)}`).start();
 
   let app = await App.findAsync(context, { bundleId: bundleIdentifier });
   if (!app) {
-    spinner.text = `Creating App Store app ${chalk.bold(name)} ${chalk.dim(bundleIdentifier)}`;
+    spinner.text = `Creating App Store Connect app ${chalk.bold(name)} ${chalk.dim(
+      bundleIdentifier
+    )}`;
     try {
       // Assert contract errors when the user needs to create an app.
       await assertContractMessagesAsync(context, spinner);
@@ -194,6 +196,8 @@ export async function ensureAppExistsAsync(
   } else {
     // TODO: Update app name when API gives us that possibility
   }
-  spinner.succeed(`Prepared App Store for ${chalk.bold(name)} ${chalk.dim(bundleIdentifier)}`);
+  spinner.succeed(
+    `Prepared App Store Connect for ${chalk.bold(name)} ${chalk.dim(bundleIdentifier)}`
+  );
   return app;
 }
