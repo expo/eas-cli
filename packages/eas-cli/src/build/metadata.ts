@@ -1,6 +1,8 @@
 import { Updates } from '@expo/config-plugins';
 import { Metadata, Platform, sanitizeMetadata } from '@expo/eas-build-job';
 import { IosEnterpriseProvisioning } from '@expo/eas-json';
+import fs from 'fs-extra';
+import resolveFrom from 'resolve-from';
 
 import Log from '../log';
 import { getUsername } from '../project/projectUtils';
@@ -48,6 +50,7 @@ export async function collectMetadataAsync<T extends Platform>(
     credentialsSource: ctx.buildProfile.credentialsSource,
     sdkVersion: ctx.exp.sdkVersion,
     runtimeVersion: getRuntimeVersionNullable(ctx.exp, ctx.platform) ?? undefined,
+    reactNativeVersion: await getReactNativeVersionAsync(ctx),
     ...channelOrReleaseChannel,
     distribution,
     appName: ctx.exp.name,
@@ -138,6 +141,16 @@ async function getNativeChannelAsync<T extends Platform>(
     }
   }
 
+  return undefined;
+}
+
+async function getReactNativeVersionAsync(
+  ctx: BuildContext<Platform>
+): Promise<string | undefined> {
+  try {
+    const expoCliPath = resolveFrom(ctx.projectDir, 'react-native/package.json');
+    return (await fs.readJson(expoCliPath)).version;
+  } catch {}
   return undefined;
 }
 
