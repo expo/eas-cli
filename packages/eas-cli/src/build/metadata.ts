@@ -150,8 +150,11 @@ async function getReactNativeVersionAsync(
   try {
     const expoCliPath = resolveFrom(ctx.projectDir, 'react-native/package.json');
     return (await fs.readJson(expoCliPath)).version;
-  } catch {}
-  return undefined;
+  } catch {
+    Log.debug('Failed to resolve react-native version:');
+    Log.debug(err);
+    return undefined;
+  }
 }
 
 function resolveIosEnterpriseProvisioning(
