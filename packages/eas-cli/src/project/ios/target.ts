@@ -24,17 +24,57 @@ export async function resolveTargetsAsync(
     buildConfiguration,
   });
 
-  if (applicationTarget.dependencies && applicationTarget.dependencies.length > 0) {
-    for (const dependency of applicationTarget.dependencies) {
+  const dependencies = await resolveDependenciesAsync({
+    exp,
+    projectDir,
+    buildConfiguration,
+    target: applicationTarget,
+    bundleIdentifier,
+  });
+  if (dependencies.length > 0) {
+    result.push(...dependencies);
+  }
+
+  return result;
+}
+
+async function resolveDependenciesAsync({
+  exp,
+  projectDir,
+  buildConfiguration,
+  target,
+  bundleIdentifier,
+}: {
+  exp: ExpoConfig;
+  projectDir: string;
+  buildConfiguration?: string;
+  target: IOSConfig.Target.Target;
+  bundleIdentifier: string;
+}): Promise<Target[]> {
+  const result: Target[] = [];
+
+  if (target.dependencies && target.dependencies.length > 0) {
+    for (const dependency of target.dependencies) {
+      const dependencyBundleIdentifier = await getBundleIdentifierAsync(projectDir, exp, {
+        targetName: dependency.name,
+        buildConfiguration,
+      });
       result.push({
         targetName: dependency.name,
         buildConfiguration,
-        bundleIdentifier: await getBundleIdentifierAsync(projectDir, exp, {
-          targetName: dependency.name,
-          buildConfiguration,
-        }),
+        bundleIdentifier: dependencyBundleIdentifier,
         parentBundleIdentifier: bundleIdentifier,
       });
+      const dependencyDependencies = await resolveDependenciesAsync({
+        exp,
+        projectDir,
+        buildConfiguration,
+        target: dependency,
+        bundleIdentifier: dependencyBundleIdentifier,
+      });
+      if (dependencyDependencies.length > 0) {
+        result.push(...dependencyDependencies);
+      }
     }
   }
 
