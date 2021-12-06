@@ -1,7 +1,10 @@
+import { Platform } from '@expo/eas-build-job';
 import envinfo from 'envinfo';
 
 import EasCommand from '../commandUtils/EasCommand';
 import Log from '../log';
+import { findProjectRootAsync } from '../project/projectUtils';
+import { resolveWorkflowAsync } from '../project/workflow';
 import { easCliVersion } from '../utils/easCli';
 
 export default class Diagnostics extends EasCommand {
@@ -32,6 +35,23 @@ export default class Diagnostics extends EasCommand {
         title: `EAS CLI ${easCliVersion} environment info`,
       }
     );
-    Log.log(info);
+
+    Log.log(info.trimEnd());
+    await this.printWorkflowAsync();
+    Log.newLine();
+  }
+
+  private async printWorkflowAsync(): Promise<void> {
+    const projectDir = await findProjectRootAsync();
+    const androidWorkflow = await resolveWorkflowAsync(projectDir, Platform.ANDROID);
+    const iosWorkflow = await resolveWorkflowAsync(projectDir, Platform.IOS);
+
+    if (androidWorkflow === iosWorkflow) {
+      Log.log(`    Project workflow: ${androidWorkflow}`);
+    } else {
+      Log.log(`    Project Workflow:`);
+      Log.log(`      Android: ${androidWorkflow}`);
+      Log.log(`      iOS: ${iosWorkflow}`);
+    }
   }
 }
