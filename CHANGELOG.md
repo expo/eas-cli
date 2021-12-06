@@ -18,6 +18,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🧹 Chores
 
 - Improve error message for missing ascAppId. ([#813](https://github.com/expo/eas-cli/pull/813) by [@wkozyra95](https://github.com/wkozyra95))
+- Add version of react-native to the metadata. ([#823](https://github.com/expo/eas-cli/pull/823) by [@wkozyra95](https://github.com/wkozyra95))
 
 ## [0.38.3](https://github.com/expo/eas-cli/releases/tag/v0.38.3) - 2021-11-29
 
