@@ -13,11 +13,11 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 - Fix submit for multi-target projects where ascAppId is not specified. ([#809](https://github.com/expo/eas-cli/pull/809) by [@wkozyra95](https://github.com/wkozyra95))
+- Fix building iOS projects with Apple Watch companion app. ([#817](https://github.com/expo/eas-cli/pull/817), [#821](https://github.com/expo/eas-cli/pull/821) by [@jkhales](https://github.com/jkhales) + [@dsokal](https://github.com/dsokal))
 
 ### 🧹 Chores
 
 - Improve error message for missing ascAppId. ([#813](https://github.com/expo/eas-cli/pull/813) by [@wkozyra95](https://github.com/wkozyra95))
-- Bump @expo/config-plugins to 4.0.11. ([#817](https://github.com/expo/eas-cli/pull/817) by [@jkhales](https://github.com/jkhales))
 
 ## [0.38.3](https://github.com/expo/eas-cli/releases/tag/v0.38.3) - 2021-11-29
 
