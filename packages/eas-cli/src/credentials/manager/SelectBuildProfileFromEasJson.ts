@@ -3,7 +3,6 @@ import { BuildProfile, EasJsonReader } from '@expo/eas-json';
 
 import Log from '../../log';
 import { promptAsync } from '../../prompts';
-import { CredentialsContext } from '../context';
 
 export class SelectBuildProfileFromEasJson<T extends Platform> {
   private easJsonReader: EasJsonReader;
@@ -12,14 +11,14 @@ export class SelectBuildProfileFromEasJson<T extends Platform> {
     this.easJsonReader = new EasJsonReader(projectDir);
   }
 
-  async runAsync(ctx: CredentialsContext): Promise<BuildProfile<T>> {
-    const profileName = await this.getProfileNameFromEasConfigAsync(ctx);
+  async runAsync(): Promise<BuildProfile<T>> {
+    const profileName = await this.getProfileNameFromEasConfigAsync();
     const easConfig = await this.easJsonReader.getBuildProfileAsync<T>(this.platform, profileName);
     Log.succeed(`Using build profile: ${profileName}`);
     return easConfig;
   }
 
-  async getProfileNameFromEasConfigAsync(ctx: CredentialsContext): Promise<string> {
+  async getProfileNameFromEasConfigAsync(): Promise<string> {
     const buildProfileNames = await this.easJsonReader.getBuildProfileNamesAsync();
     if (buildProfileNames.length === 0) {
       throw new Error(
@@ -27,11 +26,6 @@ export class SelectBuildProfileFromEasJson<T extends Platform> {
       );
     } else if (buildProfileNames.length === 1) {
       return buildProfileNames[0];
-    }
-    if (ctx.nonInteractive) {
-      throw new Error(
-        'You have multiple build profiles. Please run this command in interactive mode.'
-      );
     }
     const { profileName } = await promptAsync({
       type: 'select',
