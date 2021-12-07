@@ -312,6 +312,26 @@ export default class UpdatePublish extends EasCommand {
       oldMessage = updatesToRepublishFilteredByPlatform[0].message ?? '';
       oldRuntimeVersion = updatesToRepublishFilteredByPlatform[0].runtimeVersion;
     } else {
+      if (!message && autoFlag) {
+        message = (await getVcsClient().getLastCommitMessageAsync())?.trim();
+      }
+
+      if (!message) {
+        const validationMessage = 'publish message may not be empty.';
+        if (jsonFlag) {
+          throw new Error(validationMessage);
+        }
+        ({ publishMessage: message } = await promptAsync({
+          type: 'text',
+          name: 'publishMessage',
+          message: `Please enter a publication message.`,
+          initial: republish
+            ? `Republish "${oldMessage!}" - group: ${group}`
+            : (await getVcsClient().getLastCommitMessageAsync())?.trim(),
+          validate: (value: any) => (value ? true : validationMessage),
+        }));
+      }
+
       // build bundle and upload assets for a new publish
       if (!skipBundler) {
         await buildBundlesAsync({ projectDir, inputDir });
@@ -328,26 +348,6 @@ export default class UpdatePublish extends EasCommand {
         assetSpinner.fail('Failed to upload assets');
         throw e;
       }
-    }
-
-    if (!message && autoFlag) {
-      message = (await getVcsClient().getLastCommitMessageAsync())?.trim();
-    }
-
-    if (!message) {
-      const validationMessage = 'publish message may not be empty.';
-      if (jsonFlag) {
-        throw new Error(validationMessage);
-      }
-      ({ publishMessage: message } = await promptAsync({
-        type: 'text',
-        name: 'publishMessage',
-        message: `Please enter a publication message.`,
-        initial: republish
-          ? `Republish "${oldMessage!}" - group: ${group}`
-          : (await getVcsClient().getLastCommitMessageAsync())?.trim(),
-        validate: (value: any) => (value ? true : validationMessage),
-      }));
     }
 
     const runtimeToPlatformMapping: Record<string, string[]> = {};
