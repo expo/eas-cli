@@ -60,7 +60,6 @@ export async function createBuildContextAsync<T extends Platform>({
     tracking_id: uuidv4(),
     platform,
     ...(accountId && { account_id: accountId }),
-    account_name: accountName,
     project_id: projectId,
     project_type: workflow,
     ...devClientProperties,
