@@ -49,6 +49,7 @@ export async function createBuildContextAsync<T extends Platform>({
     nonInteractive,
     projectDir,
     user,
+    env: buildProfile.env,
   });
 
   const devClientProperties = getDevClientEventProperties({

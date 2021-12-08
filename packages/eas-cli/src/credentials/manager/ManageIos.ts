@@ -17,7 +17,7 @@ import {
 } from '../../project/projectUtils';
 import { confirmAsync, promptAsync, selectAsync } from '../../prompts';
 import { Account, findAccountByName } from '../../user/Account';
-import { ensureActorHasUsername } from '../../user/actions';
+import { ensureActorHasUsername, ensureLoggedInAsync } from '../../user/actions';
 import { CredentialsContext } from '../context';
 import {
   AppStoreApiKeyPurpose,
@@ -59,12 +59,18 @@ import { SelectBuildProfileFromEasJson } from './SelectBuildProfileFromEasJson';
 import { SelectIosDistributionTypeGraphqlFromBuildProfile } from './SelectIosDistributionTypeGraphqlFromBuildProfile';
 
 export class ManageIos {
-  constructor(private callingAction: Action) {}
+  constructor(private callingAction: Action, private projectDir: string) {}
 
-  async runAsync(
-    ctx: CredentialsContext,
-    currentActions: ActionInfo[] = highLevelActions
-  ): Promise<void> {
+  async runAsync(currentActions: ActionInfo[] = highLevelActions): Promise<void> {
+    const hasProjectContext = !!CredentialsContext.getExpoConfigInProject(this.projectDir);
+    const buildProfile = hasProjectContext
+      ? await new SelectBuildProfileFromEasJson(this.projectDir, Platform.IOS).runAsync()
+      : null;
+    const ctx = new CredentialsContext({
+      projectDir: process.cwd(),
+      user: await ensureLoggedInAsync(),
+      env: buildProfile?.env,
+    });
     const buildCredentialsActions = getBuildCredentialsActions(ctx);
     const pushKeyActions = getPushKeyActions(ctx);
     const ascApiKeyActions = getAscApiKeyActions(ctx);
@@ -78,7 +84,16 @@ export class ManageIos {
     if (!account) {
       throw new Error(`You do not have access to account: ${accountName}`);
     }
-    const { app, targets, buildProfile } = await this.createProjectContextAsync(ctx, account);
+
+    let app = null;
+    let targets = null;
+    if (ctx.hasProjectContext) {
+      assert(buildProfile, 'buildProfile must be defined in project context');
+      const projectContext = await this.createProjectContextAsync(ctx, account, buildProfile);
+      app = projectContext.app;
+      targets = projectContext.targets;
+    }
+
     while (true) {
       try {
         if (ctx.hasProjectContext) {
@@ -154,20 +169,13 @@ export class ManageIos {
 
   private async createProjectContextAsync(
     ctx: CredentialsContext,
-    account: Account
+    account: Account,
+    buildProfile: BuildProfile<Platform.IOS>
   ): Promise<{
-    app: App | null;
-    targets: Target[] | null;
-    buildProfile: BuildProfile<Platform.IOS> | null;
+    app: App;
+    targets: Target[];
   }> {
-    if (!ctx.hasProjectContext) {
-      return {
-        app: null,
-        targets: null,
-        buildProfile: null,
-      };
-    }
-
+    assert(ctx.hasProjectContext, 'createProjectContextAsync: must have project context.');
     const maybeProjectId = await promptToCreateProjectIfNotExistsAsync(ctx.exp);
     if (!maybeProjectId) {
       throw new Error(
@@ -176,10 +184,6 @@ export class ManageIos {
     }
 
     const app = { account, projectName: ctx.exp.slug };
-    const buildProfile = await new SelectBuildProfileFromEasJson(
-      ctx.projectDir,
-      Platform.IOS
-    ).runAsync(ctx);
     const xcodeBuildContext = await resolveXcodeBuildContextAsync(
       {
         projectDir: ctx.projectDir,
@@ -195,7 +199,6 @@ export class ManageIos {
     return {
       app,
       targets,
-      buildProfile,
     };
   }
 
