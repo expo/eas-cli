@@ -136,44 +136,43 @@ export default class UpdatePublish extends EasCommand {
 
   static flags = {
     branch: flags.string({
-      description: 'branch to publish the update group on',
+      description: 'Branch to publish the update group on',
       required: false,
     }),
     message: flags.string({
-      description: 'short message describing the updates.',
+      description: 'A short message describing the update',
       required: false,
     }),
     republish: flags.boolean({
-      description: 'republish an update group',
+      description: 'Republish an update group',
       exclusive: ['input-dir', 'skip-bundler'],
     }),
     group: flags.string({
-      description: 'update group to republish',
+      description: 'Update group to republish',
       exclusive: ['input-dir', 'skip-bundler'],
     }),
     'input-dir': flags.string({
-      description: 'location of the bundle',
+      description: 'Location of the bundle',
       default: 'dist',
       required: false,
     }),
     'skip-bundler': flags.boolean({
-      description: `skip running Expo CLI to bundle the app before publishing`,
+      description: `Skip running Expo CLI to bundle the app before publishing`,
       default: false,
     }),
     platform: flags.enum({
       char: 'p',
-      description: `only publish to a single platform`,
       options: [...defaultPublishPlatforms, 'all'],
       default: 'all',
       required: false,
     }),
     json: flags.boolean({
-      description: `return a json with the new update group.`,
+      description: 'Enable JSON output, non-JSON messages will be printed to stderr',
       default: false,
     }),
     auto: flags.boolean({
       description:
-        'use the current git branch and commit message for the EAS branch and update message',
+        'Use the current git branch and commit message for the EAS branch and update message',
       default: false,
     }),
   };
