@@ -77,6 +77,11 @@ export class EasJsonReader {
     }
   }
 
+  public async getSubmitProfileNamesAsync(): Promise<string[]> {
+    const easJson = await this.readAsync();
+    return Object.keys(easJson?.submit ?? {});
+  }
+
   public async getSubmitProfileAsync<T extends Platform>(
     platform: T,
     profileName: string

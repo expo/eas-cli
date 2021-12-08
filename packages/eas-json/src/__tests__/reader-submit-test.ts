@@ -195,3 +195,28 @@ test('valid profile extending other profile', async () => {
     ascApiKeyId: 'ABCD',
   });
 });
+
+test('get profile names', async () => {
+  await fs.writeJson('/project/eas.json', {
+    submit: {
+      production: {
+        android: {
+          serviceAccountKeyPath: './path.json',
+          track: 'beta',
+          releaseStatus: 'completed',
+        },
+      },
+      blah: {
+        android: {
+          serviceAccountKeyPath: './path.json',
+          track: 'internal',
+          releaseStatus: 'completed',
+        },
+      },
+    },
+  });
+
+  const reader = new EasJsonReader('/project');
+  const allProfileNames = await reader.getSubmitProfileNamesAsync();
+  expect(allProfileNames.sort()).toEqual(['production', 'blah'].sort());
+});

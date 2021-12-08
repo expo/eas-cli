@@ -48,7 +48,7 @@ function resolveProfile<T extends Platform>({
   const profile = easJson.submit?.[profileName];
   if (!profile) {
     if (depth === 0) {
-      throw new MissingProfileError(`There is no submit profile named ${profileName} in eas.json`);
+      throw new MissingProfileError(`Missing submit profile in eas.json: ${profileName}`);
     } else {
       throw new MissingParentProfileError(
         `Extending non-existent submit profile in eas.json: ${profileName}`

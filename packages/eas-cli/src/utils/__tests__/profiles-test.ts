@@ -1,15 +1,18 @@
 import { Platform } from '@expo/eas-build-job';
-import { EasJsonReader, errors } from '@expo/eas-json';
+import { BuildProfile, EasJsonReader, errors } from '@expo/eas-json';
 
+import { asMock } from '../../__tests__/utils';
+import { selectAsync } from '../../prompts';
 import { getProfilesAsync } from '../profiles';
 
+jest.mock('../../prompts');
 jest.mock('@expo/eas-json', () => {
   const actual = jest.requireActual('@expo/eas-json');
 
   const EasJsonReaderMock = jest.fn();
   EasJsonReaderMock.prototype = {
     getBuildProfileAsync: jest.fn(),
-    getSubmitProfileAsync: jest.fn(),
+    getBuildProfileNamesAsync: jest.fn(),
   };
   return {
     ...actual,
@@ -18,10 +21,13 @@ jest.mock('@expo/eas-json', () => {
 });
 
 const getBuildProfileAsync = jest.spyOn(EasJsonReader.prototype, 'getBuildProfileAsync');
+const getBuildProfileNamesAsync = jest.spyOn(EasJsonReader.prototype, 'getBuildProfileNamesAsync');
 
 describe(getProfilesAsync, () => {
   afterEach(() => {
     getBuildProfileAsync.mockReset();
+    getBuildProfileNamesAsync.mockReset();
+    asMock(selectAsync).mockReset();
   });
 
   it('defaults to production profile', async () => {
@@ -62,10 +68,32 @@ describe(getProfilesAsync, () => {
     expect(getBuildProfileAsync).toBeCalledWith(Platform.IOS, 'release');
   });
 
-  it('fails when neither production or release profiles are present', async () => {
-    getBuildProfileAsync.mockImplementation(() => {
+  it('asks the user to pick profile if "release" does not exist', async () => {
+    getBuildProfileAsync.mockImplementation(async (_, profileName) => {
+      if (profileName === 'foo') {
+        return {} as unknown as BuildProfile<Platform>;
+      }
       throw new errors.MissingProfileError();
     });
+    getBuildProfileNamesAsync.mockImplementation(() => Promise.resolve(['foo', 'bar']));
+    asMock(selectAsync).mockImplementation(() => 'foo');
+
+    const result = await getProfilesAsync({
+      projectDir: '/fake',
+      platforms: [Platform.ANDROID],
+      profileName: undefined,
+      type: 'build',
+    });
+    expect(selectAsync).toHaveBeenCalled();
+    expect(getBuildProfileAsync).toBeCalledWith(Platform.ANDROID, 'foo');
+    expect(result[0].profileName).toBe('foo');
+  });
+
+  it('throws an error if there are no profiles in eas.json', async () => {
+    getBuildProfileAsync.mockImplementation(async () => {
+      throw new errors.MissingProfileError();
+    });
+    getBuildProfileNamesAsync.mockImplementation(() => Promise.resolve([]));
 
     await expect(
       getProfilesAsync({
