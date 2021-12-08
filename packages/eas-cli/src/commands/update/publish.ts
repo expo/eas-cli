@@ -324,7 +324,7 @@ export default class UpdatePublish extends EasCommand {
         ({ publishMessage: message } = await promptAsync({
           type: 'text',
           name: 'publishMessage',
-          message: `Please enter a publication message.`,
+          message: `Please enter an update message.`,
           initial: republish
             ? `Republish "${oldMessage!}" - group: ${group}`
             : (await getVcsClient().getLastCommitMessageAsync())?.trim(),
