@@ -6,6 +6,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🛠 Breaking changes
 
+- [eas-cli] change eas update:publish to eas update. ([#830](https://github.com/expo/eas-cli/pull/830) by [@jkhales](https://github.com/jkhales))
+
 ### 🎉 New features
 
 ### 🐛 Bug fixes
