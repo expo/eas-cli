@@ -37,13 +37,18 @@ export class CredentialsContext {
 
     this.resolvedExp = options.exp;
     if (!this.resolvedExp) {
-      this.resolvedExp = CredentialsContext.getExpoConfigInProject(this.projectDir) ?? undefined;
+      this.resolvedExp =
+        CredentialsContext.getExpoConfigInProject(this.projectDir, { env: options.env }) ??
+        undefined;
     }
   }
 
-  static getExpoConfigInProject(projectDir: string): ExpoConfig | null {
+  static getExpoConfigInProject(
+    projectDir: string,
+    { env }: { env?: Env } = {}
+  ): ExpoConfig | null {
     try {
-      return getExpoConfig(projectDir);
+      return getExpoConfig(projectDir, { env });
     } catch (error) {
       // ignore error, context might be created outside of expo project
       return null;
