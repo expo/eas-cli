@@ -62,7 +62,6 @@ export async function createSubmissionContextAsync<T extends Platform>(params: {
     tracking_id: uuidv4(),
     platform: params.platform,
     ...(accountId && { account_id: accountId }),
-    account_name: accountName,
     project_id: params.projectId,
   };
 
