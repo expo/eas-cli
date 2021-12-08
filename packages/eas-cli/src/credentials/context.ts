@@ -1,5 +1,5 @@
 import { ExpoConfig, getConfig } from '@expo/config';
-import { BuildProfile } from '@expo/eas-json';
+import { Env } from '@expo/eas-build-job';
 import chalk from 'chalk';
 
 import Log from '../log';
@@ -28,7 +28,7 @@ export class CredentialsContext {
       nonInteractive?: boolean;
       projectDir: string;
       user: Actor;
-      buildProfile?: BuildProfile;
+      env?: Env;
     }
   ) {
     this.projectDir = options.projectDir;
@@ -37,11 +37,16 @@ export class CredentialsContext {
 
     this.resolvedExp = options.exp;
     if (!this.resolvedExp) {
-      try {
-        this.resolvedExp = getExpoConfig(options.projectDir, { env: options.buildProfile?.env });
-      } catch (error) {
-        // ignore error, context might be created outside of expo project
-      }
+      this.resolvedExp = CredentialsContext.getExpoConfigInProject(this.projectDir) ?? undefined;
+    }
+  }
+
+  static getExpoConfigInProject(projectDir: string): ExpoConfig | null {
+    try {
+      return getExpoConfig(projectDir);
+    } catch (error) {
+      // ignore error, context might be created outside of expo project
+      return null;
     }
   }
 
@@ -112,14 +117,5 @@ export class CredentialsContext {
       );
     }
     this.shouldAskAuthenticateAppStore = false;
-  }
-}
-
-export function hasProjectContext(projectDir: string): boolean {
-  try {
-    getExpoConfig(projectDir);
-    return true;
-  } catch (error) {
-    return false;
   }
 }

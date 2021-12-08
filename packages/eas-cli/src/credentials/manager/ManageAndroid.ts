@@ -33,7 +33,7 @@ import {
   displayAndroidAppCredentials,
   displayEmptyAndroidCredentials,
 } from '../android/utils/printCredentials';
-import { CredentialsContext, hasProjectContext } from '../context';
+import { CredentialsContext } from '../context';
 import { ActionInfo, AndroidActionType, Scope } from './Actions';
 import {
   buildCredentialsActions,
@@ -54,13 +54,14 @@ export class ManageAndroid {
   constructor(private callingAction: Action, private projectDir: string) {}
 
   async runAsync(currentActions: ActionInfo[] = highLevelActions): Promise<void> {
-    const buildProfile = hasProjectContext(this.projectDir)
+    const hasProjectContext = !!CredentialsContext.getExpoConfigInProject(this.projectDir);
+    const buildProfile = hasProjectContext
       ? await new SelectBuildProfileFromEasJson(this.projectDir, Platform.ANDROID).runAsync()
       : null;
     const ctx = new CredentialsContext({
       projectDir: process.cwd(),
       user: await ensureLoggedInAsync(),
-      buildProfile: buildProfile ?? undefined,
+      env: buildProfile?.env,
     });
     const accountName = ctx.hasProjectContext
       ? getProjectAccountName(ctx.exp, ctx.user)
@@ -69,9 +70,12 @@ export class ManageAndroid {
     if (!account) {
       throw new Error(`You do not have access to account: ${accountName}`);
     }
-    const { gradleContext } = await this.createProjectContextAsync(ctx, {
-      buildProfile: buildProfile ?? undefined,
-    });
+
+    let gradleContext;
+    if (ctx.hasProjectContext) {
+      assert(buildProfile, 'buildProfile must be defined in a project context');
+      gradleContext = await this.createProjectContextAsync(ctx, buildProfile);
+    }
 
     while (true) {
       try {
@@ -149,25 +153,16 @@ export class ManageAndroid {
 
   private async createProjectContextAsync(
     ctx: CredentialsContext,
-    { buildProfile }: { buildProfile?: BuildProfile<Platform.ANDROID> }
-  ): Promise<{
-    gradleContext?: GradleBuildContext;
-  }> {
-    if (!ctx.hasProjectContext) {
-      return {};
-    }
-
-    assert(buildProfile, 'buildProfile must be defined in project context');
+    buildProfile: BuildProfile<Platform.ANDROID>
+  ): Promise<GradleBuildContext | undefined> {
+    assert(ctx.hasProjectContext, 'createProjectContextAsync: must have project context.');
     const maybeProjectId = await promptToCreateProjectIfNotExistsAsync(ctx.exp);
     if (!maybeProjectId) {
       throw new Error(
         'Your project must be registered with EAS in order to use the credentials manager.'
       );
     }
-    const gradleContext = await resolveGradleBuildContextAsync(ctx.projectDir, buildProfile);
-    return {
-      gradleContext,
-    };
+    return await resolveGradleBuildContextAsync(ctx.projectDir, buildProfile);
   }
 
   private async runProjectSpecificActionAsync(
