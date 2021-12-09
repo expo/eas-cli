@@ -10,6 +10,7 @@ import { RequestedPlatform } from '../platform';
 import { GradleBuildContext } from '../project/android/gradle';
 import { XcodeBuildContext } from '../project/ios/scheme';
 import { Actor } from '../user/User';
+import { LocalBuildOptions } from './local';
 
 export interface ConfigureContext {
   user: Actor;
@@ -45,6 +46,7 @@ export interface BuildContext<T extends Platform> {
   credentialsCtx: CredentialsContext;
   exp: ExpoConfig;
   local: boolean;
+  localBuildOptions: LocalBuildOptions;
   nonInteractive: boolean;
   platform: T;
   projectDir: string;

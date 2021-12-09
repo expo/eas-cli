@@ -95,7 +95,7 @@ export async function prepareBuildRequestForPlatformAsync<
 
   return async () => {
     if (ctx.local) {
-      await runLocalBuildAsync(job);
+      await runLocalBuildAsync(job, ctx.localBuildOptions);
       return undefined;
     } else {
       try {
