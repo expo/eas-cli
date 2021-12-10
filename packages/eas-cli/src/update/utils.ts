@@ -9,10 +9,10 @@ export type FormatUpdateParameter = Pick<Update, 'id' | 'createdAt' | 'message'>
 };
 
 export const UPDATE_COLUMNS = [
-  'update description',
-  'update runtime version',
-  'update group ID',
-  'platforms',
+  'Update message',
+  'Update runtime version',
+  'Update group ID',
+  'Update platforms',
 ];
 
 export function getPlatformsForGroup({
