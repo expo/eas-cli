@@ -8,7 +8,8 @@ import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUt
 import { resolveWorkflowAsync } from '../../project/workflow';
 
 const EAS_UPDATE_URL = 'https://u.expo.dev';
-const DEFAULT_RUNTIME_VERSION = { policy: 'sdkVersion' } as const;
+const DEFAULT_MANAGED_RUNTIME_VERSION = { policy: 'sdkVersion' } as const;
+const DEFAULT_BARE_RUNTIME_VERSION = '1.0.0';
 
 export async function getEASUpdateURLAsync(exp: ExpoConfig): Promise<string> {
   const projectId = await getProjectIdAsync(exp);
@@ -17,12 +18,16 @@ export async function getEASUpdateURLAsync(exp: ExpoConfig): Promise<string> {
 
 async function configureProjectForEASUpdateAsync(
   projectDir: string,
-  exp: ExpoConfig
+  exp: ExpoConfig,
+  isBare: boolean
 ): Promise<void> {
   const easUpdateURL = await getEASUpdateURLAsync(exp);
   const preexistingRuntimeVersion = exp.runtimeVersion;
+  const defaultRuntimeVersion = isBare
+    ? DEFAULT_BARE_RUNTIME_VERSION
+    : DEFAULT_MANAGED_RUNTIME_VERSION;
   const result = await modifyConfigAsync(projectDir, {
-    runtimeVersion: preexistingRuntimeVersion ?? DEFAULT_RUNTIME_VERSION,
+    runtimeVersion: preexistingRuntimeVersion ?? defaultRuntimeVersion,
     updates: { ...exp.updates, url: easUpdateURL },
   });
 
@@ -39,7 +44,7 @@ async function configureProjectForEASUpdateAsync(
       }
       if (!preexistingRuntimeVersion) {
         Log.withTick(
-          `Set runtimeVersion to "${JSON.stringify(DEFAULT_RUNTIME_VERSION)}" in app.json`
+          `Set runtimeVersion to "${JSON.stringify(defaultRuntimeVersion)}" in app.json`
         );
       }
 
@@ -85,15 +90,16 @@ export default class UpdateConfigure extends EasCommand {
       skipSDKVersionRequirement: true,
     });
 
-    await configureProjectForEASUpdateAsync(projectDir, exp);
-
     const hasAndroidNativeProject =
       (await resolveWorkflowAsync(projectDir, Platform.ANDROID)) === Workflow.GENERIC;
     const hasIosNativeProject =
       (await resolveWorkflowAsync(projectDir, Platform.IOS)) === Workflow.GENERIC;
+    const isBare = hasAndroidNativeProject || hasIosNativeProject;
+
+    await configureProjectForEASUpdateAsync(projectDir, exp, isBare);
 
     Log.addNewLineIfNone();
-    if (hasAndroidNativeProject || hasIosNativeProject) {
+    if (isBare) {
       Log.log(
         `🧐 It seems you are on the bare workflow! Please also update your native files. You can do this by either running ${chalk.bold(
           'eas build:configure'
