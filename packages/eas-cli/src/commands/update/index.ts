@@ -211,24 +211,36 @@ export default class UpdatePublish extends EasCommand {
     }
 
     if (!branchName) {
-      const validationMessage = 'branch name may not be empty.';
+      const validationMessage = 'Branch name may not be empty.';
       if (jsonFlag) {
         throw new Error(validationMessage);
       }
 
       const branches = await listBranchesAsync({ projectId });
-      branchName = await selectAsync<string>(
-        'which branch would you like to publish on?',
-        branches.map(branch => {
-          return {
-            title: `${branch.name} ${chalk.grey(
-              `- current update: ${formatUpdate(branch.updates[0])}`
-            )}`,
-            value: branch.name,
-          };
-        })
-      );
-      assert(branchName, 'branch name must be specified.');
+      if (branches.length === 0) {
+        ({ name: branchName } = await promptAsync({
+          type: 'text',
+          name: 'name',
+          message: 'No branches found. Creating a new one. Please name the new branch:',
+          initial:
+            (await getVcsClient().getBranchNameAsync()) ||
+            `branch-${Math.random().toString(36).substr(2, 4)}`,
+          validate: value => (value ? true : validationMessage),
+        }));
+      } else {
+        branchName = await selectAsync<string>(
+          'Which branch would you like to publish on?',
+          branches.map(branch => {
+            return {
+              title: `${branch.name} ${chalk.grey(
+                `- current update: ${formatUpdate(branch.updates[0])}`
+              )}`,
+              value: branch.name,
+            };
+          })
+        );
+      }
+      assert(branchName, 'Branch name must be specified.');
     }
 
     const { id: branchId, updates } = await ensureBranchExistsAsync({
