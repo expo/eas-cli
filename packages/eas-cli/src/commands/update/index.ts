@@ -305,7 +305,7 @@ export default class UpdatePublish extends EasCommand {
         }
         publicationPlatformMessage = `The republished update will appear on the same plaforms it was originally published on: ${updatesToRepublishFilteredByPlatform
           .map(update => update.platform)
-          .join(',')}`;
+          .join(', ')}`;
       } else {
         publicationPlatformMessage = `The republished update will appear only on: ${platformFlag}`;
       }
@@ -322,6 +322,20 @@ export default class UpdatePublish extends EasCommand {
       group = updatesToRepublishFilteredByPlatform[0].group;
       oldMessage = updatesToRepublishFilteredByPlatform[0].message ?? '';
       oldRuntimeVersion = updatesToRepublishFilteredByPlatform[0].runtimeVersion;
+
+      if (!message) {
+        const validationMessage = 'publish message may not be empty.';
+        if (jsonFlag) {
+          throw new Error(validationMessage);
+        }
+        ({ publishMessage: message } = await promptAsync({
+          type: 'text',
+          name: 'publishMessage',
+          message: `Please enter an update message.`,
+          initial: `Republish "${oldMessage!}" - group: ${group}`,
+          validate: (value: any) => (value ? true : validationMessage),
+        }));
+      }
     } else {
       if (!message && autoFlag) {
         message = (await getVcsClient().getLastCommitMessageAsync())?.trim();
@@ -336,9 +350,7 @@ export default class UpdatePublish extends EasCommand {
           type: 'text',
           name: 'publishMessage',
           message: `Please enter an update message.`,
-          initial: republish
-            ? `Republish "${oldMessage!}" - group: ${group}`
-            : (await getVcsClient().getLastCommitMessageAsync())?.trim(),
+          initial: (await getVcsClient().getLastCommitMessageAsync())?.trim(),
           validate: (value: any) => (value ? true : validationMessage),
         }));
       }
