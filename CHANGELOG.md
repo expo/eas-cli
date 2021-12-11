@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Fix `eas submit` to display prompt in non-interactive mode when some ASC API credentials are missing. ([#841](https://github.com/expo/eas-cli/pull/841) by [@barthap](https://github.com/barthap))
+
 ### 🧹 Chores
 
 ## [0.41.0](https://github.com/expo/eas-cli/releases/tag/v0.41.0) - 2021-12-13
