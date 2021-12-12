@@ -76,7 +76,7 @@ export default class BranchList extends EasCommand {
       Log.log(JSON.stringify(branches, null, 2));
     } else {
       const table = new CliTable({
-        head: ['branch', ...UPDATE_COLUMNS],
+        head: ['Branch', ...UPDATE_COLUMNS],
         wordWrap: true,
       });
 
