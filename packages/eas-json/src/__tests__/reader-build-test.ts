@@ -253,14 +253,14 @@ test('empty json', async () => {
 test('invalid semver value', async () => {
   await fs.writeJson('/project/eas.json', {
     build: {
-      production: { node: '12.0.0-alpha' },
+      production: { node: 'alpha' },
     },
   });
 
   const reader = new EasJsonReader('/project');
   const promise = reader.getBuildProfileAsync(Platform.ANDROID, 'production');
   await expect(promise).rejects.toThrowError(
-    'eas.json is not valid [ValidationError: "build.production.node" failed custom validation because 12.0.0-alpha is not a valid version]'
+    'eas.json is not valid [ValidationError: "build.production.node" failed custom validation because alpha is not a valid version]'
   );
 });
 
@@ -279,7 +279,7 @@ test('invalid release channel', async () => {
 test('get profile names', async () => {
   await fs.writeJson('/project/eas.json', {
     build: {
-      production: { node: '12.0.0' },
+      production: { node: '12.0.0-alpha' },
       blah: { node: '12.0.0' },
     },
   });

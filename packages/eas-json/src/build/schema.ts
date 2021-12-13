@@ -1,5 +1,6 @@
 import { Android, Ios } from '@expo/eas-build-job';
 import Joi from 'joi';
+import semver from 'semver';
 
 const CacheSchema = Joi.object({
   disabled: Joi.boolean(),
@@ -16,9 +17,9 @@ const CommonBuildProfileSchema = Joi.object({
   channel: Joi.string().regex(/^[a-z\d][a-z\d._-]*$/),
   developmentClient: Joi.boolean(),
 
-  node: Joi.string().empty(null).custom(semverSchemaCheck),
-  yarn: Joi.string().empty(null).custom(semverSchemaCheck),
-  expoCli: Joi.string().empty(null).custom(semverSchemaCheck),
+  node: Joi.string().empty(null).custom(semverCheck),
+  yarn: Joi.string().empty(null).custom(semverCheck),
+  expoCli: Joi.string().empty(null).custom(semverCheck),
   env: Joi.object().pattern(Joi.string(), Joi.string().empty(null)),
 });
 
@@ -29,7 +30,7 @@ const AndroidBuildProfileSchema = CommonBuildProfileSchema.concat(
     withoutCredentials: Joi.boolean(),
 
     image: Joi.string().valid(...Android.builderBaseImages),
-    ndk: Joi.string().empty(null).custom(semverSchemaCheck),
+    ndk: Joi.string().empty(null).custom(semverCheck),
     autoIncrement: Joi.alternatives().try(
       Joi.boolean(),
       Joi.string().valid('version', 'versionCode')
@@ -54,9 +55,9 @@ const IosBuildProfileSchema = CommonBuildProfileSchema.concat(
     simulator: Joi.boolean(),
 
     image: Joi.string().valid(...Ios.builderBaseImages),
-    bundler: Joi.string().empty(null).custom(semverSchemaCheck),
-    fastlane: Joi.string().empty(null).custom(semverSchemaCheck),
-    cocoapods: Joi.string().empty(null).custom(semverSchemaCheck),
+    bundler: Joi.string().empty(null).custom(semverCheck),
+    fastlane: Joi.string().empty(null).custom(semverCheck),
+    cocoapods: Joi.string().empty(null).custom(semverCheck),
 
     artifactPath: Joi.string(),
     scheme: Joi.string(),
@@ -72,8 +73,8 @@ export const BuildProfileSchema = CommonBuildProfileSchema.concat(
   })
 );
 
-function semverSchemaCheck(value: any): any {
-  if (/^[0-9]+\.[0-9]+\.[0-9]+$/.test(value)) {
+function semverCheck(value: any): any {
+  if (semver.valid(value)) {
     return value;
   } else {
     throw new Error(`${value} is not a valid version`);

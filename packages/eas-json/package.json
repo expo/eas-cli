@@ -12,6 +12,7 @@
     "fs-extra": "10.0.0",
     "joi": "17.4.2",
     "log-symbols": "4.1.0",
+    "semver": "7.3.5",
     "tslib": "2.3.1"
   },
   "devDependencies": {
