@@ -94,17 +94,17 @@ export default class BuildInspect extends EasCommand {
       } catch (err) {
         if (!flags.verbose) {
           Log.error('Build failed');
-          Log.error('Re-run this command with "--verbose" flag to see the error');
+          Log.error(`Re-run this command with ${chalk.bold('--verbose')} flag to see the logs`);
         }
       } finally {
-        const spinner = ora().start('Copying project to output directory');
+        const spinner = ora().start(`Copying project build directory to ${outputDirectory}`);
         try {
           const tmpBuildDirectory = path.join(tmpWorkingdir, 'build');
           if (await fs.pathExists(tmpBuildDirectory)) {
             await fs.copy(tmpBuildDirectory, outputDirectory);
           }
           await fs.remove(tmpWorkingdir);
-          spinner.succeed(`Project written to ${outputDirectory}`);
+          spinner.succeed(`Project build directory saved to ${outputDirectory}`);
         } catch (err) {
           spinner.fail();
           throw err;
@@ -118,7 +118,7 @@ export default class BuildInspect extends EasCommand {
       if (force) {
         await fs.remove(outputDir);
       } else {
-        throw new Error(`File ${outputDir} already exists`);
+        throw new Error(`Directory ${outputDir} already exists`);
       }
     }
     await fs.mkdirp(outputDir);
