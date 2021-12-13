@@ -7,8 +7,10 @@ import {
   errors,
   getDefaultSubmitProfile,
 } from '@expo/eas-json';
+import chalk from 'chalk';
 
 import Log from '../log';
+import { ExpoChoice, selectAsync } from '../prompts';
 
 type EasProfile<T extends ProfileType> = T extends 'build'
   ? BuildProfile<Platform>
@@ -23,7 +25,7 @@ export type ProfileData<T extends ProfileType> = {
 export async function getProfilesAsync<T extends ProfileType>({
   projectDir,
   platforms,
-  profileName: profileNameArg,
+  profileName,
   type,
 }: {
   projectDir: string;
@@ -32,42 +34,98 @@ export async function getProfilesAsync<T extends ProfileType>({
   type: T;
 }): Promise<ProfileData<T>[]> {
   const results = platforms.map(async function (platform) {
-    let profile: EasProfile<T>;
-    let profileName = profileNameArg;
-
-    if (!profileName) {
-      try {
-        profileName = 'production';
-        profile = await readProfileAsync({ projectDir, platform, type, profileName });
-      } catch (errorOuter) {
-        if (!(errorOuter instanceof errors.MissingProfileError)) {
-          throw errorOuter;
-        }
-        try {
-          profileName = 'release';
-          profile = await readProfileAsync({ projectDir, platform, type, profileName });
-          Log.warn(
-            'The default profile changed from "release" to "production". We detected that you still have a "release" build profile, so we are using it. Update eas.json to have a profile named "production" under the `build` key, or specify which profile you\'d like to use with the --profile flag. This fallback behavior will be removed in the next major version of EAS CLI.'
-          );
-        } catch (errorInner) {
-          if (!(errorInner instanceof errors.MissingProfileError)) {
-            throw errorInner;
-          }
-          const defaultProfile = getDefaultProfile({ platform, type });
-          if (!defaultProfile) {
-            throw errorInner;
-          }
-          profileName = '__default__';
-          profile = defaultProfile;
-        }
-      }
-    } else {
-      profile = await readProfileAsync({ projectDir, platform, type, profileName });
+    if (profileName) {
+      const profile = await readProfileAsync({ projectDir, platform, type, profileName });
+      return {
+        profile,
+        profileName,
+        platform,
+      };
     }
 
+    try {
+      const profile = await readProfileAsync({
+        projectDir,
+        platform,
+        type,
+        profileName: 'production',
+      });
+      return {
+        profile,
+        profileName: 'production',
+        platform,
+      };
+    } catch (error) {
+      if (!(error instanceof errors.MissingProfileError)) {
+        throw error;
+      }
+    }
+
+    try {
+      const profile = await readProfileAsync({
+        projectDir,
+        platform,
+        type,
+        profileName: 'release',
+      });
+      Log.warn(
+        `The default profile changed from ${chalk.bold('release')} to ${chalk.bold(
+          'production'
+        )}. We detected that you still have a ${chalk.bold(
+          'release'
+        )} build profile, so we are using it. Update eas.json to have a profile named ${chalk.bold(
+          'production'
+        )} under the ${chalk.bold(
+          'build'
+        )} key, or specify which profile you'd like to use with the ${chalk.bold(
+          '--profile'
+        )} flag. This fallback behavior will be removed in the next major version of EAS CLI.`
+      );
+      return {
+        profile,
+        profileName: 'release',
+        platform,
+      };
+    } catch (error) {
+      if (!(error instanceof errors.MissingProfileError)) {
+        throw error;
+      }
+    }
+    const defaultProfile = getDefaultProfile({ platform, type });
+    if (defaultProfile) {
+      return {
+        profile: defaultProfile,
+        profileName: '__default__',
+        platform,
+      };
+    }
+
+    const profileNames = await readProfileNamesAsync({
+      projectDir,
+      type,
+    });
+    if (profileNames.length === 0) {
+      throw new errors.MissingProfileError(
+        `Missing profile in eas.json: ${profileName ?? 'production'}`
+      );
+    }
+    const choices: ExpoChoice<string>[] = profileNames.map(profileName => ({
+      title: profileName,
+      value: profileName,
+    }));
+    const chosenProfileName = await selectAsync(
+      'The "production" profile is missing in eas.json. Pick another profile:',
+      choices
+    );
+    const profile = await readProfileAsync({
+      projectDir,
+      platform,
+      type,
+      profileName: chosenProfileName,
+    });
     return {
       profile,
-      profileName,
+      profileName: chosenProfileName,
       platform,
     };
   });
@@ -105,5 +163,20 @@ function getDefaultProfile<T extends ProfileType>({
     return null;
   } else {
     return getDefaultSubmitProfile(platform) as EasProfile<T>;
+  }
+}
+
+async function readProfileNamesAsync({
+  projectDir,
+  type,
+}: {
+  projectDir: string;
+  type: ProfileType;
+}): Promise<string[]> {
+  const easJsonReader = new EasJsonReader(projectDir);
+  if (type === 'build') {
+    return await easJsonReader.getBuildProfileNamesAsync();
+  } else {
+    return await easJsonReader.getSubmitProfileNamesAsync();
   }
 }

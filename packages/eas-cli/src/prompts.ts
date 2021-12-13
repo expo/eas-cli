@@ -3,6 +3,10 @@ import prompts, { Answers, Choice, Options, PromptType, PromptObject as Question
 
 export { PromptType, Question, Choice };
 
+export interface ExpoChoice<T> extends Choice {
+  value: T;
+}
+
 type NamelessQuestion = Omit<Question<'value'>, 'name' | 'type'>;
 
 export async function promptAsync<T extends string = string>(
@@ -35,11 +39,6 @@ export async function confirmAsync(
   );
   return value;
 }
-
-interface ExpoChoice<T> extends Choice {
-  value: T;
-}
-
 export async function selectAsync<T>(
   message: string,
   choices: ExpoChoice<T>[],
