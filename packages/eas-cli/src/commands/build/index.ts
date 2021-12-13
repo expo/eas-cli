@@ -32,6 +32,7 @@ import {
   selectRequestedPlatformAsync,
   toPlatforms,
 } from '../../platform';
+import { checkExpoSdkIsSupportedAsync } from '../../project/expoSdk';
 import { validateMetroConfigForManagedWorkflowAsync } from '../../project/metroConfig';
 import { findProjectRootAsync } from '../../project/projectUtils';
 import { selectAsync } from '../../prompts';
@@ -130,6 +131,7 @@ export default class Build extends EasCommand {
   };
 
   private metroConfigValidated = false;
+  private sdkVersionChecked = false;
 
   async runAsync(): Promise<void> {
     const { flags: rawFlags } = this.parse(Build);
@@ -315,9 +317,15 @@ export default class Build extends EasCommand {
       );
     }
 
-    if (buildCtx.workflow === Workflow.MANAGED && !this.metroConfigValidated) {
-      await validateMetroConfigForManagedWorkflowAsync(buildCtx);
-      this.metroConfigValidated = true;
+    if (buildCtx.workflow === Workflow.MANAGED) {
+      if (!this.sdkVersionChecked) {
+        await checkExpoSdkIsSupportedAsync(buildCtx);
+        this.sdkVersionChecked = true;
+      }
+      if (!this.metroConfigValidated) {
+        await validateMetroConfigForManagedWorkflowAsync(buildCtx);
+        this.metroConfigValidated = true;
+      }
     }
 
     const build = await this.startBuildAsync(buildCtx);
