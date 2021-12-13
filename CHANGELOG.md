@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Fix validating tool versions in eas.json. ([#832](https://github.com/expo/eas-cli/pull/832) by [@dsokal](https://github.com/dsokal))
+
 ### 🧹 Chores
 
 ## [0.40.0](https://github.com/expo/eas-cli/releases/tag/v0.40.0) - 2021-12-08
