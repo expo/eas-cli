@@ -1,15 +1,54 @@
 import { Job } from '@expo/eas-build-job';
 import spawnAsync from '@expo/spawn-async';
+import { ChildProcess } from 'child_process';
 import semver from 'semver';
+
+import { ora } from '../ora';
 
 const PLUGIN_PACKAGE_NAME = 'eas-cli-local-build-plugin';
 const PLUGIN_PACKAGE_VERSION = '0.0.54';
 
-export async function runLocalBuildAsync(job: Job): Promise<void> {
+export interface LocalBuildOptions {
+  enable: boolean;
+  skipCleanup?: boolean;
+  skipNativeBuild?: boolean;
+  artifactsDir?: string;
+  workingdir?: string;
+  verbose?: boolean;
+}
+
+export async function runLocalBuildAsync(job: Job, options: LocalBuildOptions): Promise<void> {
   const { command, args } = await getCommandAndArgsAsync(job);
-  await spawnAsync(command, args, {
-    stdio: 'inherit',
-  });
+  let spinner;
+  if (!options.verbose) {
+    spinner = ora().start(options.skipNativeBuild ? 'Preparing project' : 'Building project');
+  }
+  let childProcess: ChildProcess | undefined;
+  const interruptHandler = (): void => {
+    if (childProcess) {
+      childProcess.kill();
+    }
+  };
+  process.on('SIGINT', interruptHandler);
+  try {
+    const spawnPromise = spawnAsync(command, args, {
+      stdio: options.verbose ? 'inherit' : 'pipe',
+      env: {
+        ...process.env,
+        EAS_LOCAL_BUILD_WORKINGDIR: options.workingdir ?? process.env.EAS_LOCAL_BUILD_WORKINGDIR,
+        ...(options.skipCleanup || options.skipNativeBuild
+          ? { EAS_LOCAL_BUILD_SKIP_CLEANUP: '1' }
+          : {}),
+        ...(options.skipNativeBuild ? { EAS_LOCAL_BUILD_SKIP_NATIVE_BUILD: '1' } : {}),
+        ...(options.artifactsDir ? { EAS_LOCAL_BUILD_ARTIFACTS_DIR: options.artifactsDir } : {}),
+      },
+    });
+    childProcess = spawnPromise.child;
+    await spawnPromise;
+  } finally {
+    process.removeListener('SIGINT', interruptHandler);
+    spinner?.stop();
+  }
 }
 
 async function getCommandAndArgsAsync(job: Job): Promise<{ command: string; args: string[] }> {

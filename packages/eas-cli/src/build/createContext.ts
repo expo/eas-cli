@@ -15,12 +15,13 @@ import { ensureLoggedInAsync } from '../user/actions';
 import { createAndroidContextAsync } from './android/build';
 import { BuildContext, CommonContext } from './context';
 import { createIosContextAsync } from './ios/build';
+import { LocalBuildOptions } from './local';
 
 export async function createBuildContextAsync<T extends Platform>({
   buildProfileName,
   buildProfile,
   clearCache = false,
-  local,
+  localBuildOptions,
   nonInteractive = false,
   platform,
   projectDir,
@@ -29,7 +30,7 @@ export async function createBuildContextAsync<T extends Platform>({
   buildProfileName: string;
   buildProfile: BuildProfile<T>;
   clearCache: boolean;
-  local: boolean;
+  localBuildOptions: LocalBuildOptions;
   nonInteractive: boolean;
   platform: T;
   projectDir: string;
@@ -74,7 +75,7 @@ export async function createBuildContextAsync<T extends Platform>({
     clearCache,
     credentialsCtx,
     exp,
-    local,
+    localBuildOptions,
     nonInteractive,
     platform,
     projectDir,

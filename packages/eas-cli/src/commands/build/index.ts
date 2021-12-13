@@ -1,50 +1,19 @@
-import { Platform, Workflow } from '@expo/eas-build-job';
-import { BuildProfile, EasJsonReader, SubmitProfile } from '@expo/eas-json';
+import { EasJsonReader } from '@expo/eas-json';
 import { flags } from '@oclif/command';
 import { error } from '@oclif/errors';
 import chalk from 'chalk';
 import figures from 'figures';
 import fs from 'fs-extra';
-import nullthrows from 'nullthrows';
 
-import { prepareAndroidBuildAsync } from '../../build/android/build';
-import { BuildRequestSender, waitForBuildEndAsync } from '../../build/build';
-import { ensureProjectConfiguredAsync } from '../../build/configure';
-import { BuildContext } from '../../build/context';
-import { createBuildContextAsync } from '../../build/createContext';
-import { prepareIosBuildAsync } from '../../build/ios/build';
-import { ensureExpoDevClientInstalledForDevClientBuildsAsync } from '../../build/utils/devClient';
-import { printBuildResults, printLogsUrls } from '../../build/utils/printBuildInfo';
+import { BuildFlags, runBuildAndSubmitAsync } from '../../build/runBuildAndSubmit';
 import { ensureRepoIsCleanAsync, reviewAndCommitChangesAsync } from '../../build/utils/repository';
 import EasCommand from '../../commandUtils/EasCommand';
-import {
-  AppPlatform,
-  BuildFragment,
-  BuildStatus,
-  SubmissionFragment,
-} from '../../graphql/generated';
-import { toAppPlatform, toPlatform } from '../../graphql/types/AppPlatform';
 import Log, { learnMore, link } from '../../log';
-import {
-  RequestedPlatform,
-  appPlatformDisplayNames,
-  appPlatformEmojis,
-  selectRequestedPlatformAsync,
-  toPlatforms,
-} from '../../platform';
-import { checkExpoSdkIsSupportedAsync } from '../../project/expoSdk';
-import { validateMetroConfigForManagedWorkflowAsync } from '../../project/metroConfig';
+import { RequestedPlatform, selectRequestedPlatformAsync } from '../../platform';
 import { findProjectRootAsync } from '../../project/projectUtils';
 import { selectAsync } from '../../prompts';
-import { createSubmissionContextAsync } from '../../submit/context';
-import {
-  submitAsync,
-  waitToCompleteAsync as waitForSubmissionsToCompleteAsync,
-} from '../../submit/submit';
-import { printSubmissionDetailsUrls } from '../../submit/utils/urls';
 import { easCliVersion } from '../../utils/easCli';
 import { enableJsonOutput } from '../../utils/json';
-import { ProfileData, getProfilesAsync } from '../../utils/profiles';
 import { getVcsClient, setVcsClient } from '../../vcs';
 import GitClient from '../../vcs/clients/git';
 
@@ -60,19 +29,6 @@ interface RawBuildFlags {
   json: boolean;
   'auto-submit': boolean;
   'auto-submit-with-profile'?: string;
-}
-
-interface BuildFlags {
-  requestedPlatform: RequestedPlatform;
-  skipProjectConfiguration: boolean;
-  profile?: string;
-  nonInteractive: boolean;
-  local: boolean;
-  wait: boolean;
-  clearCache: boolean;
-  json: boolean;
-  autoSubmit: boolean;
-  submitProfile?: string;
 }
 
 export default class Build extends EasCommand {
@@ -130,113 +86,17 @@ export default class Build extends EasCommand {
     }),
   };
 
-  private metroConfigValidated = false;
-  private sdkVersionChecked = false;
-
   async runAsync(): Promise<void> {
     const { flags: rawFlags } = this.parse(Build);
     if (rawFlags.json) {
       enableJsonOutput();
     }
     const flags = await this.sanitizeFlagsAsync(rawFlags);
-    const { requestedPlatform } = flags;
 
     const projectDir = await findProjectRootAsync();
     await handleDeprecatedEasJsonAsync(projectDir, flags.nonInteractive);
 
-    await getVcsClient().ensureRepoExistsAsync();
-    await ensureRepoIsCleanAsync(flags.nonInteractive);
-
-    await ensureProjectConfiguredAsync(projectDir, requestedPlatform);
-
-    const platforms = toPlatforms(requestedPlatform);
-    const buildProfiles = await getProfilesAsync({
-      type: 'build',
-      projectDir,
-      platforms,
-      profileName: flags.profile ?? undefined,
-    });
-
-    await ensureExpoDevClientInstalledForDevClientBuildsAsync({
-      projectDir,
-      nonInteractive: flags.nonInteractive,
-      buildProfiles,
-    });
-
-    const startedBuilds: {
-      build: BuildFragment;
-      buildProfile: ProfileData<'build'>;
-    }[] = [];
-    const buildCtxByPlatform: { [p in AppPlatform]?: BuildContext<Platform> } = {};
-
-    for (const buildProfile of buildProfiles) {
-      const { build: maybeBuild, buildCtx } = await this.prepareAndStartBuildAsync({
-        projectDir,
-        flags,
-        moreBuilds: platforms.length > 1,
-        buildProfile,
-      });
-      if (maybeBuild) {
-        startedBuilds.push({ build: maybeBuild, buildProfile });
-      }
-      buildCtxByPlatform[toAppPlatform(buildProfile.platform)] = buildCtx;
-    }
-
-    if (flags.local) {
-      return;
-    }
-
-    Log.newLine();
-    printLogsUrls(startedBuilds.map(startedBuild => startedBuild.build));
-    Log.newLine();
-
-    const submissions: SubmissionFragment[] = [];
-    if (flags.autoSubmit) {
-      const submitProfiles = await getProfilesAsync({
-        projectDir,
-        platforms,
-        profileName: flags.submitProfile,
-        type: 'submit',
-      });
-      for (const startedBuild of startedBuilds) {
-        const submitProfile = nullthrows(
-          submitProfiles.find(
-            ({ platform }) => toAppPlatform(platform) === startedBuild.build.platform
-          )
-        ).profile;
-        const submission = await this.prepareAndStartSubmissionAsync({
-          build: startedBuild.build,
-          buildCtx: nullthrows(buildCtxByPlatform[startedBuild.build.platform]),
-          moreBuilds: startedBuilds.length > 1,
-          projectDir,
-          buildProfile: startedBuild.buildProfile.profile,
-          submitProfile,
-          nonInteractive: flags.nonInteractive,
-        });
-        submissions.push(submission);
-      }
-
-      Log.newLine();
-      printSubmissionDetailsUrls(submissions);
-      Log.newLine();
-    }
-
-    if (!flags.wait) {
-      return;
-    }
-
-    const builds = await waitForBuildEndAsync(startedBuilds.map(({ build }) => build.id));
-    printBuildResults(builds, flags.json);
-
-    const haveAllBuildsFailedOrCanceled = builds.every(
-      build => build?.status && [BuildStatus.Errored, BuildStatus.Canceled].includes(build?.status)
-    );
-    if (haveAllBuildsFailedOrCanceled || !flags.autoSubmit) {
-      this.exitWithNonZeroCodeIfSomeBuildsFailed(builds);
-    } else {
-      // the following function also exits with non zero code if any of the submissions failed
-      await waitForSubmissionsToCompleteAsync(submissions);
-    }
+    await runBuildAndSubmitAsync(projectDir, flags);
   }
 
   private async sanitizeFlagsAsync(flags: RawBuildFlags): Promise<BuildFlags> {
@@ -276,124 +136,17 @@ export default class Build extends EasCommand {
       skipProjectConfiguration: flags['skip-project-configuration'],
       profile,
       nonInteractive,
-      local: flags['local'],
+      localBuildOptions: flags['local']
+        ? { enable: true, verbose: true }
+        : {
+            enable: false,
+          },
       wait: flags['wait'],
       clearCache: flags['clear-cache'],
       json: flags['json'],
       autoSubmit: flags['auto-submit'] || flags['auto-submit-with-profile'] !== undefined,
       submitProfile: flags['auto-submit-with-profile'] ?? profile,
     };
-  }
-
-  private async prepareAndStartBuildAsync({
-    projectDir,
-    flags,
-    moreBuilds,
-    buildProfile,
-  }: {
-    projectDir: string;
-    flags: BuildFlags;
-    moreBuilds: boolean;
-    buildProfile: ProfileData<'build'>;
-  }): Promise<{ build: BuildFragment | undefined; buildCtx: BuildContext<Platform> }> {
-    const buildCtx = await createBuildContextAsync({
-      buildProfileName: buildProfile.profileName,
-      clearCache: flags.clearCache,
-      buildProfile: buildProfile.profile,
-      local: flags.local,
-      nonInteractive: flags.nonInteractive,
-      platform: buildProfile.platform,
-      projectDir,
-      skipProjectConfiguration: flags.skipProjectConfiguration,
-    });
-
-    if (moreBuilds) {
-      Log.newLine();
-      const appPlatform = toAppPlatform(buildProfile.platform);
-      Log.log(
-        `${appPlatformEmojis[appPlatform]} ${chalk.bold(
-          `${appPlatformDisplayNames[appPlatform]} build`
-        )}`
-      );
-    }
-
-    if (buildCtx.workflow === Workflow.MANAGED) {
-      if (!this.sdkVersionChecked) {
-        await checkExpoSdkIsSupportedAsync(buildCtx);
-        this.sdkVersionChecked = true;
-      }
-      if (!this.metroConfigValidated) {
-        await validateMetroConfigForManagedWorkflowAsync(buildCtx);
-        this.metroConfigValidated = true;
-      }
-    }
-
-    const build = await this.startBuildAsync(buildCtx);
-    return {
-      build,
-      buildCtx,
-    };
-  }
-
-  private async startBuildAsync(ctx: BuildContext<Platform>): Promise<BuildFragment | undefined> {
-    let sendBuildRequestAsync: BuildRequestSender;
-    if (ctx.platform === Platform.ANDROID) {
-      sendBuildRequestAsync = await prepareAndroidBuildAsync(ctx as BuildContext<Platform.ANDROID>);
-    } else {
-      sendBuildRequestAsync = await prepareIosBuildAsync(ctx as BuildContext<Platform.IOS>);
-    }
-    return await sendBuildRequestAsync();
-  }
-
-  private async prepareAndStartSubmissionAsync({
-    build,
-    buildCtx,
-    moreBuilds,
-    projectDir,
-    buildProfile,
-    submitProfile,
-    nonInteractive,
-  }: {
-    build: BuildFragment;
-    buildCtx: BuildContext<Platform>;
-    moreBuilds: boolean;
-    projectDir: string;
-    buildProfile: BuildProfile;
-    submitProfile: SubmitProfile;
-    nonInteractive: boolean;
-  }): Promise<SubmissionFragment> {
-    const platform = toPlatform(build.platform);
-    const submissionCtx = await createSubmissionContextAsync({
-      platform,
-      projectDir,
-      projectId: build.project.id,
-      profile: submitProfile,
-      archiveFlags: { id: build.id },
-      nonInteractive,
-      env: buildProfile.env,
-      credentialsCtx: buildCtx.credentialsCtx,
-      applicationIdentifier: buildCtx.android?.applicationId ?? buildCtx.ios?.bundleIdentifier,
-    });
-
-    if (moreBuilds) {
-      Log.newLine();
-      Log.log(
-        `${appPlatformEmojis[build.platform]} ${chalk.bold(
-          `${appPlatformDisplayNames[build.platform]} submission`
-        )}`
-      );
-    }
-
-    return await submitAsync(submissionCtx);
-  }
-
-  private exitWithNonZeroCodeIfSomeBuildsFailed(maybeBuilds: (BuildFragment | null)[]): void {
-    const failedBuilds = (maybeBuilds.filter(i => i) as BuildFragment[]).filter(
-      i => i.status === BuildStatus.Errored
-    );
-    if (failedBuilds.length > 0) {
-      process.exit(1);
-    }
   }
 }
 
