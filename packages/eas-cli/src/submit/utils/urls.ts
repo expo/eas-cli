@@ -24,7 +24,7 @@ export function printSubmissionDetailsUrls(submissions: SubmissionFragment[]): v
 export function getSubmissionDetailsUrl(submission: SubmissionFragment): string {
   const { id, app } = submission;
   return new URL(
-    `/accounts/${app.ownerAccount.name}/projects/${app.name}/submissions/${id}`,
+    `/accounts/${app.ownerAccount.name}/projects/${app.slug}/submissions/${id}`,
     getExpoWebsiteBaseUrl()
   ).toString();
 }

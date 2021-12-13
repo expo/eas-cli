@@ -8,6 +8,7 @@ export const SubmissionFragmentNode = gql`
     app {
       id
       name
+      slug
       ownerAccount {
         id
         name

@@ -720,6 +720,7 @@ export type Build = ActivityTimelineProjectActivity & BuildOrBuildJob & {
   appBuildVersion?: Maybe<Scalars['String']>;
   sdkVersion?: Maybe<Scalars['String']>;
   runtimeVersion?: Maybe<Scalars['String']>;
+  reactNativeVersion?: Maybe<Scalars['String']>;
   releaseChannel?: Maybe<Scalars['String']>;
   channel?: Maybe<Scalars['String']>;
   metrics?: Maybe<BuildMetrics>;
@@ -1772,6 +1773,7 @@ export type InvoiceQuery = {
 export type InvoiceQueryPreviewInvoiceForSubscriptionUpdateArgs = {
   accountId: Scalars['String'];
   newPlanIdentifier: Scalars['String'];
+  couponCode?: Maybe<Scalars['String']>;
 };
 
 export type Invoice = {
@@ -1783,12 +1785,30 @@ export type Invoice = {
   amountPaid: Scalars['Int'];
   /** The total amount that needs to be paid, considering any discounts or account credit. Value is in cents. */
   amountRemaining: Scalars['Int'];
+  discount?: Maybe<InvoiceDiscount>;
+  totalDiscountedAmount: Scalars['Int'];
   lineItems: Array<InvoiceLineItem>;
   period: InvoicePeriod;
   startingBalance: Scalars['Int'];
   subtotal: Scalars['Int'];
   total: Scalars['Int'];
 };
+
+export type InvoiceDiscount = {
+  __typename?: 'InvoiceDiscount';
+  id: Scalars['ID'];
+  name: Scalars['String'];
+  type: InvoiceDiscountType;
+  duration: Scalars['String'];
+  durationInMonths?: Maybe<Scalars['Int']>;
+  /** The coupon's discount value, in percentage or in dollar amount */
+  amount: Scalars['Int'];
+};
+
+export enum InvoiceDiscountType {
+  Percentage = 'PERCENTAGE',
+  Amount = 'AMOUNT'
+}
 
 export type InvoiceLineItem = {
   __typename?: 'InvoiceLineItem';
@@ -2115,6 +2135,7 @@ export type AccountMutationCancelSubscriptionArgs = {
 export type AccountMutationChangePlanArgs = {
   accountID: Scalars['ID'];
   newPlanIdentifier: Scalars['String'];
+  couponCode?: Maybe<Scalars['String']>;
 };
 
 
@@ -2744,6 +2765,7 @@ export type BuildMetadataInput = {
   credentialsSource?: Maybe<BuildCredentialsSource>;
   sdkVersion?: Maybe<Scalars['String']>;
   runtimeVersion?: Maybe<Scalars['String']>;
+  reactNativeVersion?: Maybe<Scalars['String']>;
   releaseChannel?: Maybe<Scalars['String']>;
   channel?: Maybe<Scalars['String']>;
   distribution?: Maybe<DistributionType>;
@@ -3681,19 +3703,6 @@ export type BranchesByAppQuery = (
   ) }
 );
 
-export type GetUpdateGroupAsyncQueryVariables = Exact<{
-  group: Scalars['ID'];
-}>;
-
-
-export type GetUpdateGroupAsyncQuery = (
-  { __typename?: 'RootQuery' }
-  & { updatesByGroup: Array<(
-    { __typename?: 'Update' }
-    & Pick<Update, 'id' | 'group' | 'runtimeVersion' | 'manifestFragment' | 'platform' | 'message'>
-  )> }
-);
-
 export type EditUpdateBranchMutationVariables = Exact<{
   input: EditUpdateBranchInput;
 }>;
@@ -3922,6 +3931,19 @@ export type DeleteUpdateGroupMutation = (
       & Pick<DeleteUpdateGroupResult, 'group'>
     ) }
   ) }
+);
+
+export type GetUpdateGroupAsyncQueryVariables = Exact<{
+  group: Scalars['ID'];
+}>;
+
+
+export type GetUpdateGroupAsyncQuery = (
+  { __typename?: 'RootQuery' }
+  & { updatesByGroup: Array<(
+    { __typename?: 'Update' }
+    & Pick<Update, 'id' | 'group' | 'runtimeVersion' | 'manifestFragment' | 'platform' | 'message'>
+  )> }
 );
 
 export type UpdatesByGroupQueryVariables = Exact<{
@@ -5449,7 +5471,7 @@ export type SubmissionFragment = (
   & Pick<Submission, 'id' | 'status' | 'platform' | 'logsUrl'>
   & { app: (
     { __typename?: 'App' }
-    & Pick<App, 'id' | 'name'>
+    & Pick<App, 'id' | 'name' | 'slug'>
     & { ownerAccount: (
       { __typename?: 'Account' }
       & Pick<Account, 'id' | 'name'>

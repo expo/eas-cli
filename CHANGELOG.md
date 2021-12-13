@@ -13,6 +13,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 - Fix validating tool versions in eas.json. ([#832](https://github.com/expo/eas-cli/pull/832) by [@dsokal](https://github.com/dsokal))
+- Fix submission URL. ([#845](https://github.com/expo/eas-cli/pull/845) by [@dsokal](https://github.com/dsokal))
 
 ### 🧹 Chores
 
