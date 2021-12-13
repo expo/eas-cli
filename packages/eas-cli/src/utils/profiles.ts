@@ -106,7 +106,7 @@ export async function getProfilesAsync<T extends ProfileType>({
     });
     if (profileNames.length === 0) {
       throw new errors.MissingProfileError(
-        `Missing profile in eas.json: ${profileName ?? 'release'}`
+        `Missing profile in eas.json: ${profileName ?? 'production'}`
       );
     }
     const choices: ExpoChoice<string>[] = profileNames.map(profileName => ({
@@ -114,7 +114,7 @@ export async function getProfilesAsync<T extends ProfileType>({
       value: profileName,
     }));
     const chosenProfileName = await selectAsync(
-      'The "release" profile is missing in eas.json. Pick another profile:',
+      'The "production" profile is missing in eas.json. Pick another profile:',
       choices
     );
     const profile = await readProfileAsync({
