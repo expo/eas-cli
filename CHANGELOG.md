@@ -8,6 +8,14 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [0.41.0](https://github.com/expo/eas-cli/releases/tag/v0.41.0) - 2021-12-13
+
+### 🎉 New features
+
 - Ask user to select profile if `release` does not exist. ([#829](https://github.com/expo/eas-cli/pull/829) by [@dsokal](https://github.com/dsokal))
 - Add `build:inspect` command. ([#834](https://github.com/expo/eas-cli/pull/834) by [@wkozyra95](https://github.com/wkozyra95))
 
