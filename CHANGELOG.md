@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Warn when building managed project with  SDK < 41. ([#833](https://github.com/expo/eas-cli/pull/833) by [@dsokal](https://github.com/dsokal))
+
 ## [0.40.0](https://github.com/expo/eas-cli/releases/tag/v0.40.0) - 2021-12-08
 
 ### 🛠 Breaking changes
