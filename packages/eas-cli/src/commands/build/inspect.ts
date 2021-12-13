@@ -14,15 +14,15 @@ import { getTmpDirectory } from '../../utils/paths';
 import { getVcsClient } from '../../vcs';
 
 enum InspectStage {
-  UPLOAD = 'upload',
-  PREPARE = 'prepare',
-  POST_BUILD = 'postbuild',
+  ARCHIVE = 'archive'
+  PRE_BUILD = 'pre-build',
+  POST_BUILD = 'post-build',
 }
 
-const STAGE_DESCRIPTION = `Stage of the build you want to reproduce.
-    upload - copy of the project that would be uploaded to EAS when building.
-    prepare - state of the project just before gradle/xcode build is started.
-    postbuild - state of the workingdir after build (the same as "eas build --local").`;
+const STAGE_DESCRIPTION = `Stage of the build you want to inspect.
+    archive - builds the project archive that would be uploaded to EAS when building
+    pre-build - prepares the project to be built with Gradle/Xcode. Does not run the native build.
+    post-build - builds the native project and leaves the output directory for inspection`;
 
 export default class BuildInspect extends EasCommand {
   static description =
@@ -30,25 +30,27 @@ export default class BuildInspect extends EasCommand {
 
   static flags = {
     platform: flags.enum({
+      char: 'p',
       options: [RequestedPlatform.Android, RequestedPlatform.Ios],
       required: true,
     }),
     profile: flags.string({
-      description: 'Name of the build profile from eas.json.',
+      description: 'Name of the build profile from eas.json. Defaults to "production" if defined in eas.json.',
       helpValue: 'PROFILE_NAME',
     }),
     stage: flags.enum({
+      char: 's',
       description: STAGE_DESCRIPTION,
       options: [InspectStage.UPLOAD, InspectStage.PREPARE, InspectStage.POST_BUILD],
       required: true,
     }),
     output: flags.string({
-      description: 'Directory where results will be copied.',
+      description: 'Output directory.',
       required: true,
       helpValue: 'OUTPUT_DIRECTORY',
     }),
     force: flags.boolean({
-      description: 'Force override if "OUTPUT_DIRECTORY" directory already exists.',
+      description: 'Delete OUTPUT_DIRECTORY if it already exists.',
       default: false,
     }),
     verbose: flags.boolean({

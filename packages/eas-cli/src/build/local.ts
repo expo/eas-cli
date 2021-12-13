@@ -46,9 +46,7 @@ export async function runLocalBuildAsync(job: Job, options: LocalBuildOptions): 
     await spawnPromise;
   } finally {
     process.removeListener('SIGINT', interruptHandler);
-    if (spinner) {
-      spinner.stop();
-    }
+    spinner?.stop();
   }
 }
 
