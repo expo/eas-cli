@@ -9,8 +9,9 @@ const PLUGIN_PACKAGE_NAME = 'eas-cli-local-build-plugin';
 const PLUGIN_PACKAGE_VERSION = '0.0.54';
 
 export interface LocalBuildOptions {
+  enable: boolean;
   skipCleanup?: boolean;
-  prepareOnly?: boolean;
+  skipNativeBuild?: boolean;
   artifactsDir?: string;
   workingdir?: string;
   verbose?: boolean;
@@ -20,7 +21,7 @@ export async function runLocalBuildAsync(job: Job, options: LocalBuildOptions): 
   const { command, args } = await getCommandAndArgsAsync(job);
   let spinner;
   if (!options.verbose) {
-    spinner = ora().start(options.prepareOnly ? 'Preparing project' : 'Building project');
+    spinner = ora().start(options.skipNativeBuild ? 'Preparing project' : 'Building project');
   }
   let childProcess: ChildProcess | undefined;
   const interruptHandler = (): void => {
@@ -35,10 +36,10 @@ export async function runLocalBuildAsync(job: Job, options: LocalBuildOptions): 
       env: {
         ...process.env,
         EAS_LOCAL_BUILD_WORKINGDIR: options.workingdir ?? process.env.EAS_LOCAL_BUILD_WORKINGDIR,
-        ...(options.skipCleanup || options.prepareOnly
+        ...(options.skipCleanup || options.skipNativeBuild
           ? { EAS_LOCAL_BUILD_SKIP_CLEANUP: '1' }
           : {}),
-        ...(options.prepareOnly ? { EAS_LOCAL_BUILD_PREPARE_ONLY: '1' } : {}),
+        ...(options.skipNativeBuild ? { EAS_LOCAL_BUILD_SKIP_NATIVE_BUILD: '1' } : {}),
         ...(options.artifactsDir ? { EAS_LOCAL_BUILD_ARTIFACTS_DIR: options.artifactsDir } : {}),
       },
     });

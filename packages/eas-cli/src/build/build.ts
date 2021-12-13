@@ -77,7 +77,7 @@ export async function prepareBuildRequestForPlatformAsync<
     );
   }
 
-  const projectArchive = ctx.local
+  const projectArchive = ctx.localBuildOptions.enable
     ? ({
         type: ArchiveSourceType.PATH,
         path: (await makeProjectTarballAsync()).path,
@@ -94,7 +94,7 @@ export async function prepareBuildRequestForPlatformAsync<
   });
 
   return async () => {
-    if (ctx.local) {
+    if (ctx.localBuildOptions.enable) {
       await runLocalBuildAsync(job, ctx.localBuildOptions);
       return undefined;
     } else {

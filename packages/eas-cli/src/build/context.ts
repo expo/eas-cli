@@ -45,7 +45,6 @@ export interface BuildContext<T extends Platform> {
   clearCache: boolean;
   credentialsCtx: CredentialsContext;
   exp: ExpoConfig;
-  local: boolean;
   localBuildOptions: LocalBuildOptions;
   nonInteractive: boolean;
   platform: T;

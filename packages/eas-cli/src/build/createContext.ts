@@ -21,8 +21,7 @@ export async function createBuildContextAsync<T extends Platform>({
   buildProfileName,
   buildProfile,
   clearCache = false,
-  local,
-  localBuildOptions = {},
+  localBuildOptions,
   nonInteractive = false,
   platform,
   projectDir,
@@ -31,8 +30,7 @@ export async function createBuildContextAsync<T extends Platform>({
   buildProfileName: string;
   buildProfile: BuildProfile<T>;
   clearCache: boolean;
-  local: boolean;
-  localBuildOptions?: LocalBuildOptions;
+  localBuildOptions: LocalBuildOptions;
   nonInteractive: boolean;
   platform: T;
   projectDir: string;
@@ -77,7 +75,6 @@ export async function createBuildContextAsync<T extends Platform>({
     clearCache,
     credentialsCtx,
     exp,
-    local,
     localBuildOptions,
     nonInteractive,
     platform,

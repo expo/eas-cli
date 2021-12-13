@@ -14,7 +14,7 @@ import { getTmpDirectory } from '../../utils/paths';
 import { getVcsClient } from '../../vcs';
 
 enum InspectStage {
-  ARCHIVE = 'archive'
+  ARCHIVE = 'archive',
   PRE_BUILD = 'pre-build',
   POST_BUILD = 'post-build',
 }
@@ -35,13 +35,14 @@ export default class BuildInspect extends EasCommand {
       required: true,
     }),
     profile: flags.string({
-      description: 'Name of the build profile from eas.json. Defaults to "production" if defined in eas.json.',
+      description:
+        'Name of the build profile from eas.json. Defaults to "production" if defined in eas.json.',
       helpValue: 'PROFILE_NAME',
     }),
     stage: flags.enum({
       char: 's',
       description: STAGE_DESCRIPTION,
-      options: [InspectStage.UPLOAD, InspectStage.PREPARE, InspectStage.POST_BUILD],
+      options: [InspectStage.ARCHIVE, InspectStage.PRE_BUILD, InspectStage.POST_BUILD],
       required: true,
     }),
     output: flags.string({
@@ -60,12 +61,13 @@ export default class BuildInspect extends EasCommand {
 
   async runAsync(): Promise<void> {
     const { flags } = this.parse(BuildInspect);
-    const outputDirectory = path.resolve(flags.output);
+    const outputDirectory = path.resolve(process.cwd(), flags.output);
     await this.prepareOutputDirAsync(outputDirectory, flags.force);
-    if (flags.stage === InspectStage.UPLOAD) {
+    if (flags.stage === InspectStage.ARCHIVE) {
       const vcs = getVcsClient();
       await vcs.ensureRepoExistsAsync();
       await vcs.makeShallowCopyAsync(outputDirectory);
+      Log.withTick(`Project saved to ${outputDirectory}`);
     } else {
       const projectDir = await findProjectRootAsync();
       const tmpWorkingdir = path.join(getTmpDirectory(), uuidv4());
@@ -79,9 +81,9 @@ export default class BuildInspect extends EasCommand {
           autoSubmit: false,
           requestedPlatform: flags.platform,
           profile: flags.profile,
-          local: true,
           localBuildOptions: {
-            ...(flags.stage === InspectStage.PREPARE ? { prepareOnly: true } : {}),
+            enable: true,
+            ...(flags.stage === InspectStage.PRE_BUILD ? { skipNativeBuild: true } : {}),
             ...(flags.stage === InspectStage.POST_BUILD ? { skipCleanup: true } : {}),
             verbose: flags.verbose,
             workingdir: tmpWorkingdir,

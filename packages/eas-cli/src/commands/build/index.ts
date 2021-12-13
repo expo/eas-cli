@@ -136,10 +136,11 @@ export default class Build extends EasCommand {
       skipProjectConfiguration: flags['skip-project-configuration'],
       profile,
       nonInteractive,
-      local: flags['local'],
-      localBuildOptions: {
-        verbose: true,
-      },
+      localBuildOptions: flags['local']
+        ? { enable: true, verbose: true }
+        : {
+            enable: false,
+          },
       wait: flags['wait'],
       clearCache: flags['clear-cache'],
       json: flags['json'],

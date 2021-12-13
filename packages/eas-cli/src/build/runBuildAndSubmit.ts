@@ -41,13 +41,12 @@ export interface BuildFlags {
   skipProjectConfiguration: boolean;
   profile?: string;
   nonInteractive: boolean;
-  local: boolean;
   wait: boolean;
   clearCache: boolean;
   json: boolean;
   autoSubmit: boolean;
   submitProfile?: string;
-  localBuildOptions?: LocalBuildOptions;
+  localBuildOptions: LocalBuildOptions;
 }
 
 export async function runBuildAndSubmitAsync(projectDir: string, flags: BuildFlags): Promise<void> {
@@ -89,7 +88,7 @@ export async function runBuildAndSubmitAsync(projectDir: string, flags: BuildFla
     buildCtxByPlatform[toAppPlatform(buildProfile.platform)] = buildCtx;
   }
 
-  if (flags.local) {
+  if (flags.localBuildOptions.enable) {
     return;
   }
 
@@ -161,7 +160,6 @@ async function prepareAndStartBuildAsync({
     buildProfileName: buildProfile.profileName,
     clearCache: flags.clearCache,
     buildProfile: buildProfile.profile,
-    local: flags.local,
     nonInteractive: flags.nonInteractive,
     platform: buildProfile.platform,
     projectDir,
