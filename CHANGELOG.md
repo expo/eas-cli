@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Allow eas to be run outside of an expo project. ([#851](https://github.com/expo/eas-cli/pull/851) by [@jkhales](https://github.com/jkhales))
+
 ### 🧹 Chores
 
 ## [0.41.0](https://github.com/expo/eas-cli/releases/tag/v0.41.0) - 2021-12-13
