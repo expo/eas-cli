@@ -4,7 +4,11 @@ import resolveFrom from 'resolve-from';
 
 import Log from '../log';
 
-export async function expoCommandAsync(projectDir: string, args: string[]): Promise<void> {
+export async function expoCommandAsync(
+  projectDir: string,
+  args: string[],
+  silent?: boolean
+): Promise<void> {
   const expoCliPath = resolveFrom(projectDir, 'expo/bin/cli.js');
   const spawnPromise = spawnAsync(expoCliPath, args, {
     stdio: ['inherit', 'pipe', 'pipe'], // inherit stdin so user can install a missing expo-cli from inside this command
@@ -15,15 +19,17 @@ export async function expoCommandAsync(projectDir: string, args: string[]): Prom
   if (!(stdout && stderr)) {
     throw new Error('Failed to spawn expo-cli');
   }
-  stdout.on('data', data => {
-    for (const line of data.toString().trim().split('\n')) {
-      Log.log(`${chalk.gray('[expo-cli]')} ${line}`);
-    }
-  });
-  stderr.on('data', data => {
-    for (const line of data.toString().trim().split('\n')) {
-      Log.warn(`${chalk.gray('[expo-cli]')} ${line}`);
-    }
-  });
+  if (!silent) {
+    stdout.on('data', data => {
+      for (const line of data.toString().trim().split('\n')) {
+        Log.log(`${chalk.gray('[expo-cli]')} ${line}`);
+      }
+    });
+    stderr.on('data', data => {
+      for (const line of data.toString().trim().split('\n')) {
+        Log.warn(`${chalk.gray('[expo-cli]')} ${line}`);
+      }
+    });
+  }
   await spawnPromise;
 }
