@@ -83,7 +83,6 @@ export default class UpdateDelete extends EasCommand {
 
     if (jsonFlag) {
       printJsonOnlyOutput({ group });
-      return;
     }
 
     Log.withTick(`Deleted update group ${group}`);
