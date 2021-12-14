@@ -81,7 +81,6 @@ export default class UpdateView extends EasCommand {
 
     if (jsonFlag) {
       printJsonOnlyOutput(updatesByGroup);
-      return;
     }
 
     const groupTable = new Table({
