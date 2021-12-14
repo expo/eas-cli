@@ -1,5 +1,6 @@
 import { EasJsonReader } from '@expo/eas-json';
 import { Command } from '@oclif/command';
+import pkgDir from 'pkg-dir';
 import semver from 'semver';
 
 import {
@@ -27,7 +28,9 @@ export default abstract class EasCommand extends Command {
   // eslint-disable-next-line async-protect/async-suffix
   async run(): Promise<any> {
     await initAnalyticsAsync();
-    await this.applyCliConfigAsync();
+    if (await pkgDir()) {
+      await this.applyCliConfigAsync();
+    }
 
     if (this.requiresAuthentication) {
       const { flags } = this.parse();
