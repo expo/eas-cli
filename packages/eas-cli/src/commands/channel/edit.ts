@@ -20,6 +20,7 @@ import {
   getProjectIdAsync,
 } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
+import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
 async function getChannelByNameForAppAsync({
   appId,
@@ -120,6 +121,9 @@ export default class ChannelEdit extends EasCommand {
       args: { name: channelName },
       flags: { branch: branchName, json: jsonFlag },
     } = await this.parse(ChannelEdit);
+    if (jsonFlag) {
+      enableJsonOutput();
+    }
 
     const projectDir = await findProjectRootAsync();
     const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
@@ -169,8 +173,7 @@ export default class ChannelEdit extends EasCommand {
     });
 
     if (jsonFlag) {
-      Log.log(JSON.stringify(channel));
-      return;
+      printJsonOnlyOutput(channel);
     }
 
     Log.withTick(

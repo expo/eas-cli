@@ -11,6 +11,7 @@ import {
 import Log from '../../log';
 import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUtils';
 import formatFields from '../../utils/formatFields';
+import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 import { logChannelDetails } from './view';
 
 const CHANNEL_LIMIT = 10_000;
@@ -79,6 +80,9 @@ export default class ChannelList extends EasCommand {
     const {
       flags: { json: jsonFlag },
     } = await this.parse(ChannelList);
+    if (jsonFlag) {
+      enableJsonOutput();
+    }
 
     const projectDir = await findProjectRootAsync();
     const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
@@ -93,8 +97,7 @@ export default class ChannelList extends EasCommand {
     }
 
     if (jsonFlag) {
-      Log.log(JSON.stringify(channels));
-      return;
+      printJsonOnlyOutput(channels);
     }
 
     for (const channel of channels) {

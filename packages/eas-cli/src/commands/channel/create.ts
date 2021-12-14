@@ -18,6 +18,7 @@ import {
 } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
 import formatFields from '../../utils/formatFields';
+import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 import { createUpdateBranchOnAppAsync } from '../branch/create';
 
 export async function createUpdateChannelOnAppAsync({
@@ -82,6 +83,9 @@ export default class ChannelCreate extends EasCommand {
       args: { name: channelName },
       flags: { json: jsonFlag },
     } = await this.parse(ChannelCreate);
+    if (jsonFlag) {
+      enableJsonOutput();
+    }
 
     const projectDir = await findProjectRootAsync();
     const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
@@ -133,8 +137,7 @@ export default class ChannelCreate extends EasCommand {
     }
 
     if (jsonFlag) {
-      Log.log(JSON.stringify(newChannel));
-      return;
+      printJsonOnlyOutput(newChannel);
     }
 
     Log.addNewLineIfNone();

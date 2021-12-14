@@ -7,6 +7,7 @@ import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
 import { UpdatesByGroupQuery, UpdatesByGroupQueryVariables } from '../../graphql/generated';
 import Log from '../../log';
 import { UPDATE_COLUMNS, formatUpdate, getPlatformsForGroup } from '../../update/utils';
+import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
 export async function viewUpdateAsync({
   groupId,
@@ -72,11 +73,14 @@ export default class UpdateView extends EasCommand {
       args: { groupId },
       flags: { json: jsonFlag },
     } = await this.parse(UpdateView);
+    if (jsonFlag) {
+      enableJsonOutput();
+    }
 
     const { updatesByGroup } = await viewUpdateAsync({ groupId });
 
     if (jsonFlag) {
-      Log.log(JSON.stringify(updatesByGroup));
+      printJsonOnlyOutput(updatesByGroup);
       return;
     }
 

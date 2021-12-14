@@ -17,6 +17,7 @@ import {
   getProjectIdAsync,
 } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
+import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 import { getVcsClient } from '../../vcs';
 
 export async function createUpdateBranchOnAppAsync({
@@ -73,6 +74,9 @@ export default class BranchCreate extends EasCommand {
       args: { name },
       flags,
     } = await this.parse(BranchCreate);
+    if (flags.json) {
+      enableJsonOutput();
+    }
 
     const projectDir = await findProjectRootAsync();
     const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
@@ -98,8 +102,7 @@ export default class BranchCreate extends EasCommand {
     const newBranch = await createUpdateBranchOnAppAsync({ appId: projectId, name });
 
     if (flags.json) {
-      Log.log(newBranch);
-      return;
+      printJsonOnlyOutput(newBranch);
     }
 
     Log.withTick(
