@@ -18,6 +18,7 @@ import {
   getProjectIdAsync,
 } from '../../project/projectUtils';
 import { promptAsync, toggleConfirmAsync } from '../../prompts';
+import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
 async function getChannelInfoAsync({
   appId,
@@ -97,6 +98,9 @@ export default class ChannelDelete extends EasCommand {
       args: { name },
       flags: { json: jsonFlag },
     } = this.parse(ChannelDelete);
+    if (jsonFlag) {
+      enableJsonOutput();
+    }
 
     const projectDir = await findProjectRootAsync();
     const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
@@ -140,7 +144,7 @@ export default class ChannelDelete extends EasCommand {
     });
 
     if (jsonFlag) {
-      Log.log(JSON.stringify(deletionResult));
+      printJsonOnlyOutput(deletionResult);
     }
 
     Log.withTick(`️Deleted channel "${name}".`);
