@@ -67,7 +67,6 @@ export async function viewUpdateBranchAsync({
 }
 
 export default class BranchView extends EasCommand {
-  static hidden = true;
   static description = 'View a branch.';
 
   static args = [

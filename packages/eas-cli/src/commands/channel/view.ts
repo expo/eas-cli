@@ -192,7 +192,6 @@ export function logChannelDetails(channel: {
 }
 
 export default class ChannelView extends EasCommand {
-  static hidden = true;
   static description = 'View a channel on the current project.';
 
   static args = [

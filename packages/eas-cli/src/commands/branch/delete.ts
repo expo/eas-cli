@@ -76,7 +76,6 @@ async function deleteBranchOnAppAsync({
 }
 
 export default class BranchDelete extends EasCommand {
-  static hidden = true;
   static description = 'Delete a branch on the current project';
 
   static args = [
