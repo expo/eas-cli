@@ -971,6 +971,17 @@
     base64-js "^1.2.3"
     xmlbuilder "^14.0.0"
 
+"@expo/plugin-autocomplete@1.0.0":
+  version "1.0.0"
+  resolved "https://registry.yarnpkg.com/@expo/plugin-autocomplete/-/plugin-autocomplete-1.0.0.tgz#ee154a1f4f8320a9f5d22dbed8d83174647607e0"
+  integrity sha512-iUFb+h0K2woOy9wRFK9X1I+TZBOpIETkecin4Qcgdb7pxY0D9CsvTtUMTl7vON4uICph7J1r33M+OynW7/NCIA==
+  dependencies:
+    "@oclif/core" "^1.0.10"
+    chalk "^4.1.0"
+    cli-ux "^5.6.6"
+    debug "^4.0.0"
+    fs-extra "^9.0.1"
+
 "@expo/plugin-warn-if-update-available@1.7.1":
   version "1.7.1"
   resolved "https://registry.yarnpkg.com/@expo/plugin-warn-if-update-available/-/plugin-warn-if-update-available-1.7.1.tgz#26e5dbf685801beb1e732dfa663944d280116e98"
@@ -2541,18 +2552,6 @@
     "@oclif/linewrap" "^1.0.0"
     chalk "^4.1.0"
     tslib "^2.0.0"
-
-"@oclif/plugin-autocomplete@1.0.0":
-  version "1.0.0"
-  resolved "https://registry.yarnpkg.com/@oclif/plugin-autocomplete/-/plugin-autocomplete-1.0.0.tgz#12456e413d6e14d171672388a0287822227c4c57"
-  integrity sha512-UuuNo1AYTP0n72UAuOlZQ156E+cK71WOrO2Lata01D8BXlvZjiYsZF3B+DfyHEi7gmRNOKBHHLr5st+Lof3EYg==
-  dependencies:
-    "@oclif/core" "^1.0.10"
-    chalk "^4.1.0"
-    cli-ux "^5.6.6"
-    debug "^4.0.0"
-    fs-extra "^9.0.1"
-    moment "^2.22.1"
 
 "@oclif/plugin-help@3.2.5", "@oclif/plugin-help@^3.2.4":
   version "3.2.5"
@@ -8153,11 +8152,6 @@ modify-values@^1.0.0:
   version "1.0.1"
   resolved "https://registry.yarnpkg.com/modify-values/-/modify-values-1.0.1.tgz#b3939fa605546474e3e3e3c63d64bd43b4ee6022"
   integrity sha512-xV2bxeN6F7oYjZWTe/YPAy6MN2M+sL4u/Rlm2AHCIVGfo2p1yGmBHQ6vHehl4bRTZBdHu3TSkWdYgkwpYzAGSw==
-
-moment@^2.22.1:
-  version "2.29.1"
-  resolved "https://registry.yarnpkg.com/moment/-/moment-2.29.1.tgz#b2be769fa31940be9eeea6469c075e35006fa3d3"
-  integrity sha512-kHmoybcPV8Sqy59DwNDY3Jefr64lK/by/da0ViFcuA4DH0vQg5Q6Ze5VimxkfQNSC+Mls/Kx53s7TjP1RhFEDQ==
 
 ms@2.0.0:
   version "2.0.0"
