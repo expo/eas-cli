@@ -25,6 +25,7 @@
     "@oclif/command": "1.8.3",
     "@oclif/config": "1.17.1",
     "@oclif/errors": "1.3.5",
+    "@oclif/plugin-autocomplete": "1.0.0",
     "@oclif/plugin-help": "3.2.5",
     "@urql/core": "2.3.1",
     "@urql/exchange-retry": "0.3.0",
@@ -118,7 +119,8 @@
     "commands": "./build/commands",
     "plugins": [
       "@oclif/plugin-help",
-      "@expo/plugin-warn-if-update-available"
+      "@expo/plugin-warn-if-update-available",
+      "@oclif/plugin-autocomplete"
     ],
     "topics": {
       "account": {
