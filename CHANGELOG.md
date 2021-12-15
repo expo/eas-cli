@@ -8,6 +8,12 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Adds commands for EAS Update, which is now in preview for subscribers. EAS Update makes fixing small bugs and pushing quick fixes a snap in between app store submissions. It accomplishes this by allowing an end-user's app to swap out the non-native parts of their app (for example, JS, styling, and image changes) with a new update that contains bug fixes and other updates.
+  - Adds `eas update`, which can bundle and publish updates on a branch.
+  - Adds `eas branch`, which manages branches. Branches contain a list of updates and are linked to channels.
+  - Adds `eas channel`, which manages channels. Channels are specified inside builds and are linked to branches, allowing us to link specific updates with specific builds.
+  - Read more in our [feature preview docs](https://docs.expo.dev/eas-update/introduction/).
+
 ### 🐛 Bug fixes
 
 - Fix `eas submit` displaying a prompt in non-interactive mode when some ASC API credentials are missing in `eas.json`. ([#841](https://github.com/expo/eas-cli/pull/841) by [@barthap](https://github.com/barthap))
