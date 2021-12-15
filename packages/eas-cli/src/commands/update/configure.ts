@@ -2,34 +2,22 @@ import { ExpoConfig, getConfig, modifyConfigAsync } from '@expo/config';
 import { Platform, Workflow } from '@expo/eas-build-job';
 import chalk from 'chalk';
 
+import { getEASUpdateURLAsync } from '../../api';
 import EasCommand from '../../commandUtils/EasCommand';
 import Log, { learnMore } from '../../log';
 import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUtils';
 import { resolveWorkflowAsync } from '../../project/workflow';
 
-const EAS_UPDATE_URL_PROD = 'https://u.expo.dev';
-const EAS_UPDATE_URL_STAGING = 'https://staging-u.expo.dev';
-const EAS_UPDATE_URL_LOCAL = 'http://localhost:3000';
 const DEFAULT_MANAGED_RUNTIME_VERSION = { policy: 'sdkVersion' } as const;
 const DEFAULT_BARE_RUNTIME_VERSION = '1.0.0';
-
-export async function getEASUpdateURLAsync(exp: ExpoConfig): Promise<string> {
-  const projectId = await getProjectIdAsync(exp);
-  if (process.env.EXPO_LOCAL) {
-    return new URL(`expo-updates/${projectId}`, EAS_UPDATE_URL_LOCAL).href;
-  } else if (process.env.EXPO_STAGING) {
-    return new URL(projectId, EAS_UPDATE_URL_STAGING).href;
-  } else {
-    return new URL(projectId, EAS_UPDATE_URL_PROD).href;
-  }
-}
 
 async function configureProjectForEASUpdateAsync(
   projectDir: string,
   exp: ExpoConfig,
   isBare: boolean
 ): Promise<void> {
-  const easUpdateURL = await getEASUpdateURLAsync(exp);
+  const projectId = await getProjectIdAsync(exp);
+  const easUpdateURL = await getEASUpdateURLAsync(projectId);
   const preexistingRuntimeVersion = exp.runtimeVersion;
   const defaultRuntimeVersion = isBare
     ? DEFAULT_BARE_RUNTIME_VERSION
