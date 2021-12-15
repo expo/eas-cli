@@ -174,7 +174,14 @@ export default class IosSubmitCommand {
 
     // interpret this to mean the user had some intention of passing in ASC Api key
     if (ascApiKeyPath || ascApiKeyIssuerId || ascApiKeyId) {
-      Log.warn(`ascApiKeyPath, ascApiKeyIssuerId and ascApiKeyId must all be defined in eas.json`);
+      const message = `ascApiKeyPath, ascApiKeyIssuerId and ascApiKeyId must all be defined in eas.json`;
+
+      // in non-interactive mode, we should fail
+      if (this.ctx.nonInteractive) {
+        throw new Error(message);
+      }
+
+      Log.warn(message);
       return result({
         sourceType: AscApiKeySourceType.prompt,
       });
