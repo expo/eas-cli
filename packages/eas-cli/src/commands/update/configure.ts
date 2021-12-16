@@ -2,7 +2,7 @@ import { ExpoConfig, getConfig, modifyConfigAsync } from '@expo/config';
 import { Platform, Workflow } from '@expo/eas-build-job';
 import chalk from 'chalk';
 
-import { getEASUpdateURLAsync } from '../../api';
+import { getEASUpdateURL } from '../../api';
 import EasCommand from '../../commandUtils/EasCommand';
 import Log, { learnMore } from '../../log';
 import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUtils';
@@ -17,7 +17,7 @@ async function configureProjectForEASUpdateAsync(
   isBare: boolean
 ): Promise<void> {
   const projectId = await getProjectIdAsync(exp);
-  const easUpdateURL = await getEASUpdateURLAsync(projectId);
+  const easUpdateURL = getEASUpdateURL(projectId);
   const preexistingRuntimeVersion = exp.runtimeVersion;
   const defaultRuntimeVersion = isBare
     ? DEFAULT_BARE_RUNTIME_VERSION

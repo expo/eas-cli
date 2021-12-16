@@ -7,7 +7,7 @@ import chalk from 'chalk';
 import dateFormat from 'dateformat';
 import gql from 'graphql-tag';
 
-import { getEASUpdateURLAsync } from '../../api';
+import { getEASUpdateURL } from '../../api';
 import EasCommand from '../../commandUtils/EasCommand';
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
 import {
@@ -498,7 +498,7 @@ function formatUpdateTitle(
 async function checkEASUpdateURLIsSetAsync(exp: ExpoConfig): Promise<void> {
   const configuredURL = exp.updates?.url;
   const projectId = await getProjectIdAsync(exp);
-  const expectedURL = await getEASUpdateURLAsync(projectId);
+  const expectedURL = getEASUpdateURL(projectId);
 
   if (configuredURL !== expectedURL) {
     throw new Error(

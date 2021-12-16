@@ -58,7 +58,7 @@ export function getExpoWebsiteBaseUrl(): string {
   }
 }
 
-export async function getEASUpdateURLAsync(projectId: string): Promise<string> {
+export function getEASUpdateURL(projectId: string): string {
   if (process.env.EXPO_STAGING) {
     return new URL(projectId, `https://staging-u.expo.dev`).href;
   } else if (process.env.EXPO_LOCAL) {
