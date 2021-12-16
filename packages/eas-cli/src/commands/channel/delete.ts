@@ -94,8 +94,8 @@ export default class ChannelDelete extends EasCommand {
   };
 
   async runAsync(): Promise<void> {
-    let {
-      args: { name },
+    const {
+      args: { name: nameArg },
       flags: { json: jsonFlag },
     } = this.parse(ChannelDelete);
     if (jsonFlag) {
@@ -107,17 +107,22 @@ export default class ChannelDelete extends EasCommand {
     const fullName = await getProjectFullNameAsync(exp);
     const projectId = await getProjectIdAsync(exp);
 
-    if (!name) {
+    let name;
+    if (nameArg) {
+      name = nameArg;
+    } else {
       const validationMessage = 'Channel name may not be empty.';
       if (jsonFlag) {
         throw new Error(validationMessage);
       }
-      ({ name } = await promptAsync({
-        type: 'text',
-        name: 'name',
-        message: 'Please enter the name of the channel to delete:',
-        validate: value => (value ? true : validationMessage),
-      }));
+      name = (
+        await promptAsync({
+          type: 'text',
+          name: 'name',
+          message: 'Please enter the name of the channel to delete:',
+          validate: value => (value ? true : validationMessage),
+        })
+      ).name;
     }
 
     const data = await getChannelInfoAsync({ appId: projectId, name });
