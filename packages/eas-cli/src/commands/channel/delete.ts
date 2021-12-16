@@ -88,7 +88,7 @@ export default class ChannelDelete extends EasCommand {
   ];
   static flags = {
     json: flags.boolean({
-      description: `return JSON with the edited branch's ID and name.`,
+      description: `Delete a channel on the current project`,
       default: false,
     }),
   };
