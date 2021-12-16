@@ -131,7 +131,6 @@ async function ensureBranchExistsAsync({
 }
 
 export default class UpdatePublish extends EasCommand {
-  static hidden = true;
   static description = 'Publish an update group.';
 
   static flags = {

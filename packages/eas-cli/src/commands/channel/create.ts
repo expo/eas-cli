@@ -59,7 +59,6 @@ export async function createUpdateChannelOnAppAsync({
 }
 
 export default class ChannelCreate extends EasCommand {
-  static hidden = true;
   static description = 'Create a channel on the current project.';
 
   static args = [

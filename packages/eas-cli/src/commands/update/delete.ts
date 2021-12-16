@@ -35,7 +35,6 @@ async function deleteUpdateGroupAsync({
 }
 
 export default class UpdateDelete extends EasCommand {
-  static hidden = true;
   static description = 'Delete all the updates in an update Group.';
 
   static args = [
