@@ -20,61 +20,6 @@ import {
 import { promptAsync, toggleConfirmAsync } from '../../prompts';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
-async function getChannelInfoAsync({
-  appId,
-  name,
-}: GetChannelInfoQueryVariables): Promise<GetChannelInfoQuery> {
-  const data = await withErrorHandlingAsync(
-    graphqlClient
-      .query<GetChannelInfoQuery, GetChannelInfoQueryVariables>(
-        gql`
-          query GetChannelInfo($appId: String!, $name: String!) {
-            app {
-              byId(appId: $appId) {
-                id
-                updateChannelByName(name: $name) {
-                  id
-                  name
-                }
-              }
-            }
-          }
-        `,
-        {
-          appId,
-          name,
-        },
-        { additionalTypenames: ['UpdateChannel'] }
-      )
-      .toPromise()
-  );
-  return data;
-}
-
-async function deleteChannelOnAppAsync({
-  channelId,
-}: DeleteUpdateChannelMutationVariables): Promise<DeleteUpdateChannelResult> {
-  const data = await withErrorHandlingAsync(
-    graphqlClient
-      .mutation<DeleteUpdateChannelMutation, DeleteUpdateChannelMutationVariables>(
-        gql`
-          mutation DeleteUpdateChannel($channelId: ID!) {
-            updateChannel {
-              deleteUpdateChannel(channelId: $channelId) {
-                id
-              }
-            }
-          }
-        `,
-        {
-          channelId,
-        }
-      )
-      .toPromise()
-  );
-  return data.updateChannel.deleteUpdateChannel;
-}
-
 export default class ChannelDelete extends EasCommand {
   static hidden = true;
   static description = 'Delete a channel on the current project';
@@ -154,4 +99,59 @@ export default class ChannelDelete extends EasCommand {
 
     Log.withTick(`️Deleted channel "${name}".`);
   }
+}
+
+async function getChannelInfoAsync({
+  appId,
+  name,
+}: GetChannelInfoQueryVariables): Promise<GetChannelInfoQuery> {
+  const data = await withErrorHandlingAsync(
+    graphqlClient
+      .query<GetChannelInfoQuery, GetChannelInfoQueryVariables>(
+        gql`
+          query GetChannelInfo($appId: String!, $name: String!) {
+            app {
+              byId(appId: $appId) {
+                id
+                updateChannelByName(name: $name) {
+                  id
+                  name
+                }
+              }
+            }
+          }
+        `,
+        {
+          appId,
+          name,
+        },
+        { additionalTypenames: ['UpdateChannel'] }
+      )
+      .toPromise()
+  );
+  return data;
+}
+
+async function deleteChannelOnAppAsync({
+  channelId,
+}: DeleteUpdateChannelMutationVariables): Promise<DeleteUpdateChannelResult> {
+  const data = await withErrorHandlingAsync(
+    graphqlClient
+      .mutation<DeleteUpdateChannelMutation, DeleteUpdateChannelMutationVariables>(
+        gql`
+          mutation DeleteUpdateChannel($channelId: ID!) {
+            updateChannel {
+              deleteUpdateChannel(channelId: $channelId) {
+                id
+              }
+            }
+          }
+        `,
+        {
+          channelId,
+        }
+      )
+      .toPromise()
+  );
+  return data.updateChannel.deleteUpdateChannel;
 }
