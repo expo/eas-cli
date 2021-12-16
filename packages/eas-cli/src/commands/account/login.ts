@@ -6,6 +6,7 @@ export default class AccountLogin extends EasCommand {
   static description = 'log in with your Expo account';
   static aliases = ['login'];
 
+  protected mustBeRunInsideAnExpoProject = false;
   protected requiresAuthentication = false;
 
   async runAsync(): Promise<void> {
