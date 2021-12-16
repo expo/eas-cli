@@ -8,6 +8,14 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [0.41.1](https://github.com/expo/eas-cli/releases/tag/v0.41.1) - 2021-12-16
+
+### 🎉 New features
+
 - Adds commands for EAS Update, which is now in preview for subscribers. EAS Update makes fixing small bugs and pushing quick fixes a snap in between app store submissions. It accomplishes this by allowing an end-user's app to swap out the non-native parts of their app (for example, JS, styling, and image changes) with a new update that contains bug fixes and other updates.
   - Adds `eas update`, which can bundle and publish updates on a branch.
   - Adds `eas branch`, which manages branches. Branches contain a list of updates and are linked to channels.
@@ -17,8 +25,6 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 - Fix `eas submit` displaying a prompt in non-interactive mode when some ASC API credentials are missing in `eas.json`. ([#841](https://github.com/expo/eas-cli/pull/841) by [@barthap](https://github.com/barthap))
-
-### 🧹 Chores
 
 ## [0.41.0](https://github.com/expo/eas-cli/releases/tag/v0.41.0) - 2021-12-13
 
