@@ -21,6 +21,79 @@ import {
 } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
 
+async function getChannelByNameForAppAsync({
+  appId,
+  channelName,
+}: GetChannelByNameToEditQueryVariables): Promise<
+  Pick<UpdateChannel, 'id' | 'name'> & {
+    updateBranches: Pick<UpdateBranch, 'id' | 'name'>[];
+  }
+> {
+  const data = await withErrorHandlingAsync(
+    graphqlClient
+      .query<GetChannelByNameToEditQuery, GetChannelByNameToEditQueryVariables>(
+        gql`
+          query GetChannelByNameToEdit($appId: String!, $channelName: String!) {
+            app {
+              byId(appId: $appId) {
+                id
+                updateChannelByName(name: $channelName) {
+                  id
+                  name
+                  updateBranches(offset: 0, limit: 1) {
+                    id
+                    name
+                  }
+                }
+              }
+            }
+          }
+        `,
+        { appId, channelName },
+        { additionalTypenames: ['UpdateChannel', 'UpdateBranch'] }
+      )
+      .toPromise()
+  );
+  const updateChannelByNameResult = data.app?.byId.updateChannelByName;
+  if (!updateChannelByNameResult) {
+    throw new Error(`Could not find a channel named ${channelName} on app with id ${appId}`);
+  }
+  return updateChannelByNameResult;
+}
+
+export async function updateChannelBranchMappingAsync({
+  channelId,
+  branchMapping,
+}: UpdateChannelBranchMappingMutationVariables): Promise<{
+  id: string;
+  name: string;
+  branchMapping: string;
+}> {
+  const data = await withErrorHandlingAsync(
+    graphqlClient
+      .mutation<UpdateChannelBranchMappingMutation, UpdateChannelBranchMappingMutationVariables>(
+        gql`
+          mutation UpdateChannelBranchMapping($channelId: ID!, $branchMapping: String!) {
+            updateChannel {
+              editUpdateChannel(channelId: $channelId, branchMapping: $branchMapping) {
+                id
+                name
+                branchMapping
+              }
+            }
+          }
+        `,
+        { channelId, branchMapping }
+      )
+      .toPromise()
+  );
+  const channel = data.updateChannel.editUpdateChannel;
+  if (!channel) {
+    throw new Error(`Could not find a channel with id: ${channelId}`);
+  }
+  return data.updateChannel.editUpdateChannel!;
+}
+
 export default class ChannelEdit extends EasCommand {
   static hidden = true;
   static description = 'Point a channel at a new branch.';
@@ -109,77 +182,4 @@ export default class ChannelEdit extends EasCommand {
       chalk`Users with builds on channel {bold ${channel.name}} will now receive the active update on {bold ${branch.name}}.`
     );
   }
-}
-
-async function getChannelByNameForAppAsync({
-  appId,
-  channelName,
-}: GetChannelByNameToEditQueryVariables): Promise<
-  Pick<UpdateChannel, 'id' | 'name'> & {
-    updateBranches: Pick<UpdateBranch, 'id' | 'name'>[];
-  }
-> {
-  const data = await withErrorHandlingAsync(
-    graphqlClient
-      .query<GetChannelByNameToEditQuery, GetChannelByNameToEditQueryVariables>(
-        gql`
-          query GetChannelByNameToEdit($appId: String!, $channelName: String!) {
-            app {
-              byId(appId: $appId) {
-                id
-                updateChannelByName(name: $channelName) {
-                  id
-                  name
-                  updateBranches(offset: 0, limit: 1) {
-                    id
-                    name
-                  }
-                }
-              }
-            }
-          }
-        `,
-        { appId, channelName },
-        { additionalTypenames: ['UpdateChannel', 'UpdateBranch'] }
-      )
-      .toPromise()
-  );
-  const updateChannelByNameResult = data.app?.byId.updateChannelByName;
-  if (!updateChannelByNameResult) {
-    throw new Error(`Could not find a channel named ${channelName} on app with id ${appId}`);
-  }
-  return updateChannelByNameResult;
-}
-
-export async function updateChannelBranchMappingAsync({
-  channelId,
-  branchMapping,
-}: UpdateChannelBranchMappingMutationVariables): Promise<{
-  id: string;
-  name: string;
-  branchMapping: string;
-}> {
-  const data = await withErrorHandlingAsync(
-    graphqlClient
-      .mutation<UpdateChannelBranchMappingMutation, UpdateChannelBranchMappingMutationVariables>(
-        gql`
-          mutation UpdateChannelBranchMapping($channelId: ID!, $branchMapping: String!) {
-            updateChannel {
-              editUpdateChannel(channelId: $channelId, branchMapping: $branchMapping) {
-                id
-                name
-                branchMapping
-              }
-            }
-          }
-        `,
-        { channelId, branchMapping }
-      )
-      .toPromise()
-  );
-  const channel = data.updateChannel.editUpdateChannel;
-  if (!channel) {
-    throw new Error(`Could not find a channel with id: ${channelId}`);
-  }
-  return data.updateChannel.editUpdateChannel!;
 }
