@@ -7,6 +7,7 @@ import chalk from 'chalk';
 import dateFormat from 'dateformat';
 import gql from 'graphql-tag';
 
+import { getEASUpdateURL } from '../../api';
 import EasCommand from '../../commandUtils/EasCommand';
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
 import {
@@ -39,7 +40,6 @@ import { createUpdateBranchOnAppAsync } from '../branch/create';
 import { listBranchesAsync } from '../branch/list';
 import { viewUpdateBranchAsync } from '../branch/view';
 import { createUpdateChannelOnAppAsync } from '../channel/create';
-import { getEASUpdateURLAsync } from './configure';
 
 export const defaultPublishPlatforms: PublishPlatform[] = ['android', 'ios'];
 type PlatformFlag = PublishPlatform | 'all';
@@ -496,7 +496,8 @@ function formatUpdateTitle(
 
 async function checkEASUpdateURLIsSetAsync(exp: ExpoConfig): Promise<void> {
   const configuredURL = exp.updates?.url;
-  const expectedURL = await getEASUpdateURLAsync(exp);
+  const projectId = await getProjectIdAsync(exp);
+  const expectedURL = getEASUpdateURL(projectId);
 
   if (configuredURL !== expectedURL) {
     throw new Error(

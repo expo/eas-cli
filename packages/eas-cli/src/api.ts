@@ -57,3 +57,13 @@ export function getExpoWebsiteBaseUrl(): string {
     return `https://expo.dev`;
   }
 }
+
+export function getEASUpdateURL(projectId: string): string {
+  if (process.env.EXPO_STAGING) {
+    return new URL(projectId, `https://staging-u.expo.dev`).href;
+  } else if (process.env.EXPO_LOCAL) {
+    return new URL(`expo-updates/${projectId}`, `http://127.0.0.1:3000`).href;
+  } else {
+    return new URL(projectId, `https://u.expo.dev`).href;
+  }
+}

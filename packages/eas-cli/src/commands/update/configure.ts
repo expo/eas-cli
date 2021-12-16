@@ -2,26 +2,22 @@ import { ExpoConfig, getConfig, modifyConfigAsync } from '@expo/config';
 import { Platform, Workflow } from '@expo/eas-build-job';
 import chalk from 'chalk';
 
+import { getEASUpdateURL } from '../../api';
 import EasCommand from '../../commandUtils/EasCommand';
 import Log, { learnMore } from '../../log';
 import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUtils';
 import { resolveWorkflowAsync } from '../../project/workflow';
 
-const EAS_UPDATE_URL = 'https://u.expo.dev';
 const DEFAULT_MANAGED_RUNTIME_VERSION = { policy: 'sdkVersion' } as const;
 const DEFAULT_BARE_RUNTIME_VERSION = '1.0.0';
-
-export async function getEASUpdateURLAsync(exp: ExpoConfig): Promise<string> {
-  const projectId = await getProjectIdAsync(exp);
-  return new URL(projectId, EAS_UPDATE_URL).href;
-}
 
 async function configureProjectForEASUpdateAsync(
   projectDir: string,
   exp: ExpoConfig,
   isBare: boolean
 ): Promise<void> {
-  const easUpdateURL = await getEASUpdateURLAsync(exp);
+  const projectId = await getProjectIdAsync(exp);
+  const easUpdateURL = getEASUpdateURL(projectId);
   const preexistingRuntimeVersion = exp.runtimeVersion;
   const defaultRuntimeVersion = isBare
     ? DEFAULT_BARE_RUNTIME_VERSION
