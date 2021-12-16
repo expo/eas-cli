@@ -105,7 +105,7 @@ async function installExpoDevClientAsync(
   Log.newLine();
   Log.log(`Running ${chalk.bold('expo install expo-dev-client')}`);
   Log.newLine();
-  await expoCommandAsync(projectDir, ['install', 'expo-dev-client']);
+  await expoCommandAsync(projectDir, ['install', 'expo-dev-client'], {});
   Log.newLine();
   if (await getVcsClient().isCommitRequiredAsync()) {
     await reviewAndCommitChangesAsync('Install expo-dev-client', {

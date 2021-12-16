@@ -7,7 +7,7 @@ import Log from '../log';
 export async function expoCommandAsync(
   projectDir: string,
   args: string[],
-  silent?: boolean
+  { silent }: { silent?: boolean }
 ): Promise<void> {
   const expoCliPath = resolveFrom(projectDir, 'expo/bin/cli.js');
   const spawnPromise = spawnAsync(expoCliPath, args, {

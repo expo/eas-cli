@@ -358,8 +358,13 @@ export default class UpdatePublish extends EasCommand {
       // build bundle and upload assets for a new publish
       if (!skipBundler) {
         const bundleSpinner = ora().start('Building bundle...');
-        await buildBundlesAsync({ projectDir, inputDir });
-        bundleSpinner.succeed('Built bundle!');
+        try {
+          await buildBundlesAsync({ projectDir, inputDir });
+          bundleSpinner.succeed('Built bundle!');
+        } catch (e) {
+          bundleSpinner.fail('Failed to build bundle!');
+          throw e;
+        }
       }
 
       const assetSpinner = ora().start('Uploading assets...');
