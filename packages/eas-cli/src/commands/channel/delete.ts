@@ -134,7 +134,7 @@ export default class ChannelDelete extends EasCommand {
       Log.newLine();
       const confirmed = await toggleConfirmAsync({ message: 'Are you sure you wish to proceed?' });
       if (!confirmed) {
-        Log.error(`Cancelled deletion of channel: "${name}".`);
+        Log.error(`Canceled deletion of channel: "${name}".`);
         process.exit(1);
       }
     }
