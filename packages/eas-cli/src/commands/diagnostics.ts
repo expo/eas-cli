@@ -28,6 +28,7 @@ export default class Diagnostics extends EasCommand {
           'react-navigation',
           '@expo/webpack-config',
           'expo-dev-client',
+          'expo-updates',
         ],
         npmGlobalPackages: ['eas-cli', 'expo-cli'],
       },
