@@ -20,6 +20,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Add `requireCommit` setting information to warning displayed when git is not installed. ([#856](https://github.com/expo/eas-cli/pull/856) by [@kbrandwijk(https://github.com/kbrandwijk))
+
 ## [0.41.0](https://github.com/expo/eas-cli/releases/tag/v0.41.0) - 2021-12-13
 
 ### 🎉 New features
