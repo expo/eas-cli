@@ -1,5 +1,5 @@
 import { Workflow } from '@expo/eas-build-job';
-import { error } from '@oclif/errors';
+import { Errors } from '@oclif/core';
 import chalk from 'chalk';
 import resolveFrom from 'resolve-from';
 
@@ -64,7 +64,7 @@ export async function ensureExpoDevClientInstalledForDevClientBuildsAsync({
     if (install) {
       await installExpoDevClientAsync(projectDir, { nonInteractive });
     } else {
-      error(`Install ${chalk.bold('expo-dev-client')} manually and come back later.`, {
+      Errors.error(`Install ${chalk.bold('expo-dev-client')} manually and come back later.`, {
         exit: 1,
       });
     }
@@ -83,7 +83,7 @@ export async function ensureExpoDevClientInstalledForDevClientBuildsAsync({
       initial: false,
     });
     if (!shouldContinue) {
-      error('Come back later', { exit: 1 });
+      Errors.error('Come back later', { exit: 1 });
     }
   }
 }

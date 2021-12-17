@@ -1,5 +1,5 @@
 import { getConfig } from '@expo/config';
-import { flags } from '@oclif/command';
+import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 import gql from 'graphql-tag';
 
@@ -54,15 +54,15 @@ export default class BranchRename extends EasCommand {
   static description = 'Rename a branch.';
 
   static flags = {
-    from: flags.string({
+    from: Flags.string({
       description: 'current name of the branch.',
       required: false,
     }),
-    to: flags.string({
+    to: Flags.string({
       description: 'new name of the branch.',
       required: false,
     }),
-    json: flags.boolean({
+    json: Flags.boolean({
       description: `return a json with the edited branch's ID and name.`,
       default: false,
     }),
@@ -71,7 +71,7 @@ export default class BranchRename extends EasCommand {
   async runAsync(): Promise<void> {
     let {
       flags: { json: jsonFlag, from: currentName, to: newName },
-    } = this.parse(BranchRename);
+    } = await this.parse(BranchRename);
 
     const projectDir = await findProjectRootAsync();
     const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });

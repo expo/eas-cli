@@ -1,5 +1,5 @@
 import { getConfig } from '@expo/config';
-import { flags } from '@oclif/command';
+import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 import gql from 'graphql-tag';
 
@@ -106,10 +106,10 @@ export default class ChannelEdit extends EasCommand {
   ];
 
   static flags = {
-    branch: flags.string({
+    branch: Flags.string({
       description: 'Name of the branch to point to',
     }),
-    json: flags.boolean({
+    json: Flags.boolean({
       description: 'print output as a JSON object with the channel ID, name and branch mapping.',
       default: false,
     }),
@@ -119,7 +119,7 @@ export default class ChannelEdit extends EasCommand {
     let {
       args: { name: channelName },
       flags: { branch: branchName, json: jsonFlag },
-    } = this.parse(ChannelEdit);
+    } = await this.parse(ChannelEdit);
 
     const projectDir = await findProjectRootAsync();
     const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });

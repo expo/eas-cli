@@ -1,7 +1,7 @@
 import { getConfig } from '@expo/config';
 import { Platform, Workflow } from '@expo/eas-build-job';
 import { EasJson, EasJsonReader } from '@expo/eas-json';
-import { error } from '@oclif/errors';
+import { Errors } from '@oclif/core';
 import chalk from 'chalk';
 import fs from 'fs-extra';
 
@@ -39,13 +39,13 @@ export async function ensureProjectConfiguredAsync(
       platform: requestedPlatform,
     });
     if (await getVcsClient().isCommitRequiredAsync()) {
-      error(
+      Errors.error(
         'Build process requires clean working tree, please commit all your changes and run `eas build` again',
         { exit: 1 }
       );
     }
   } else {
-    error(
+    Errors.error(
       `Aborting, please run ${chalk.bold('eas build:configure')} or create eas.json (${learnMore(
         'https://docs.expo.dev/build/eas-json'
       )})`,

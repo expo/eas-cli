@@ -1,7 +1,7 @@
 import { getProjectConfigDescription } from '@expo/config';
 import { Platform } from '@expo/eas-build-job';
 import { EasJsonReader } from '@expo/eas-json';
-import { flags } from '@oclif/command';
+import { Flags } from '@oclif/core';
 
 import EasCommand from '../commandUtils/EasCommand';
 import Log from '../log';
@@ -14,14 +14,14 @@ export default class Config extends EasCommand {
   static description = 'show the eas.json config';
 
   static flags = {
-    platform: flags.enum({ char: 'p', options: ['android', 'ios'] }),
-    profile: flags.string(),
+    platform: Flags.enum({ char: 'p', options: ['android', 'ios'] }),
+    profile: Flags.string(),
   };
 
   protected requiresAuthentication = false;
 
   async runAsync(): Promise<void> {
-    const { flags } = this.parse(Config);
+    const { flags } = await this.parse(Config);
     const { platform: maybePlatform, profile: maybeProfile } = flags as {
       platform?: Platform;
       profile?: string;

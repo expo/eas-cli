@@ -13,7 +13,7 @@ export default class DeviceView extends EasCommand {
   static args = [{ name: 'UDID' }];
 
   async runAsync(): Promise<void> {
-    const { UDID } = this.parse(DeviceView).args;
+    const { UDID } = (await this.parse(DeviceView)).args;
 
     if (!UDID) {
       Log.log(

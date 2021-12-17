@@ -10,7 +10,7 @@ export default class AnalyticsView extends EasCommand {
   protected requiresAuthentication = false;
 
   async runAsync(): Promise<void> {
-    const { STATUS: status } = this.parse(AnalyticsView).args;
+    const { STATUS: status } = (await this.parse(AnalyticsView)).args;
     if (status) {
       await UserSettings.setAsync('analyticsEnabled', status === 'on');
       Log.withTick(`${status === 'on' ? 'Enabling' : 'Disabling'} analytics.`);

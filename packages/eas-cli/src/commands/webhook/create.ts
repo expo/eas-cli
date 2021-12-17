@@ -1,5 +1,5 @@
 import { getConfig } from '@expo/config';
-import { flags } from '@oclif/command';
+import { Flags } from '@oclif/core';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import { WebhookType } from '../../graphql/generated';
@@ -12,21 +12,21 @@ export default class WebhookCreate extends EasCommand {
   static description = 'Create a webhook on the current project.';
 
   static flags = {
-    event: flags.enum({
+    event: Flags.enum({
       description: 'Event type that triggers the webhook',
       options: [WebhookType.Build, WebhookType.Submit],
     }),
-    url: flags.string({
+    url: Flags.string({
       description: 'Webhook URL',
     }),
-    secret: flags.string({
+    secret: Flags.string({
       description:
         "Secret used to create a hash signature of the request payload, provided in the 'Expo-Signature' header.",
     }),
   };
 
   async runAsync(): Promise<void> {
-    const { flags } = this.parse(WebhookCreate);
+    const { flags } = await this.parse(WebhookCreate);
     const webhookInputParams = await prepareInputParamsAsync(flags);
 
     const projectDir = await findProjectRootAsync();
