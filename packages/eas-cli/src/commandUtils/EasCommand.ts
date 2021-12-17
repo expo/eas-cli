@@ -21,14 +21,14 @@ export default abstract class EasCommand extends Command {
    * force the user to log in
    */
   protected requiresAuthentication = true;
-  protected mustBeRunInsideAnExpoProject = true;
+  protected mustBeRunInsideProject = true;
 
   protected abstract runAsync(): Promise<any>;
 
   // eslint-disable-next-line async-protect/async-suffix
   async run(): Promise<any> {
     await initAnalyticsAsync();
-    if (this.mustBeRunInsideAnExpoProject) {
+    if (this.mustBeRunInsideProject) {
       await this.applyCliConfigAsync();
     }
 

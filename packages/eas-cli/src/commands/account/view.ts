@@ -8,7 +8,7 @@ export default class AccountView extends EasCommand {
   static description = 'show the username you are logged in as';
   static aliases = ['whoami'];
 
-  protected mustBeRunInsideAnExpoProject = false;
+  protected mustBeRunInsideProject = false;
   protected requiresAuthentication = false;
 
   async runAsync(): Promise<void> {
