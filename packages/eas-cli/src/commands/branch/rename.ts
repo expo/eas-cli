@@ -116,12 +116,12 @@ export default class BranchRename extends EasCommand {
 
     if (jsonFlag) {
       printJsonOnlyOutput(editedBranch);
+    } else {
+      Log.withTick(
+        `️Renamed branch from ${currentName} to ${chalk.bold(
+          editedBranch.name
+        )} on project ${chalk.bold(fullName)}.`
+      );
     }
-
-    Log.withTick(
-      `️Renamed branch from ${currentName} to ${chalk.bold(
-        editedBranch.name
-      )} on project ${chalk.bold(fullName)}.`
-    );
   }
 }

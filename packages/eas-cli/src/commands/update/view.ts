@@ -81,24 +81,24 @@ export default class UpdateView extends EasCommand {
 
     if (jsonFlag) {
       printJsonOnlyOutput(updatesByGroup);
+    } else {
+      const groupTable = new Table({
+        head: [...UPDATE_COLUMNS],
+        wordWrap: true,
+      });
+
+      const representativeUpdate = updatesByGroup[0];
+      groupTable.push([
+        formatUpdate(representativeUpdate),
+        representativeUpdate.runtimeVersion,
+        representativeUpdate.group,
+        getPlatformsForGroup({
+          updates: updatesByGroup,
+          group: updatesByGroup[0]?.group,
+        }),
+      ]);
+
+      Log.log(groupTable.toString());
     }
-
-    const groupTable = new Table({
-      head: [...UPDATE_COLUMNS],
-      wordWrap: true,
-    });
-
-    const representativeUpdate = updatesByGroup[0];
-    groupTable.push([
-      formatUpdate(representativeUpdate),
-      representativeUpdate.runtimeVersion,
-      representativeUpdate.group,
-      getPlatformsForGroup({
-        updates: updatesByGroup,
-        group: updatesByGroup[0]?.group,
-      }),
-    ]);
-
-    Log.log(groupTable.toString());
   }
 }

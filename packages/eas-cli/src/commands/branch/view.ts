@@ -126,35 +126,35 @@ export default class BranchView extends EasCommand {
 
     if (jsonFlag) {
       printJsonOnlyOutput({ ...UpdateBranch, updates });
+    } else {
+      const groupTable = new Table({
+        head: UPDATE_COLUMNS,
+        wordWrap: true,
+      });
+
+      for (const update of updates) {
+        groupTable.push([
+          formatUpdate(update),
+          update.runtimeVersion,
+          update.group,
+          getPlatformsForGroup({
+            updates: UpdateBranch.updates,
+            group: update.group,
+          }),
+        ]);
+      }
+
+      Log.addNewLineIfNone();
+      Log.log(chalk.bold('Branch:'));
+      Log.log(
+        formatFields([
+          { label: 'Name', value: UpdateBranch.name },
+          { label: 'ID', value: UpdateBranch.id },
+        ])
+      );
+      Log.addNewLineIfNone();
+      Log.log(chalk.bold('Recently published update groups:'));
+      Log.log(groupTable.toString());
     }
-
-    const groupTable = new Table({
-      head: UPDATE_COLUMNS,
-      wordWrap: true,
-    });
-
-    for (const update of updates) {
-      groupTable.push([
-        formatUpdate(update),
-        update.runtimeVersion,
-        update.group,
-        getPlatformsForGroup({
-          updates: UpdateBranch.updates,
-          group: update.group,
-        }),
-      ]);
-    }
-
-    Log.addNewLineIfNone();
-    Log.log(chalk.bold('Branch:'));
-    Log.log(
-      formatFields([
-        { label: 'Name', value: UpdateBranch.name },
-        { label: 'ID', value: UpdateBranch.id },
-      ])
-    );
-    Log.addNewLineIfNone();
-    Log.log(chalk.bold('Recently published update groups:'));
-    Log.log(groupTable.toString());
   }
 }

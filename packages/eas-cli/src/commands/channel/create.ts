@@ -138,28 +138,28 @@ export default class ChannelCreate extends EasCommand {
 
     if (jsonFlag) {
       printJsonOnlyOutput(newChannel);
+    } else {
+      Log.addNewLineIfNone();
+      Log.withTick(
+        `Created a new channel on project ${chalk.bold(await getProjectFullNameAsync(exp))}`
+      );
+      Log.log(
+        formatFields([
+          { label: 'Name', value: newChannel.name },
+          { label: 'ID', value: newChannel.id },
+        ])
+      );
+      Log.addNewLineIfNone();
+      Log.withTick(`${branchMessage} and have pointed the channel at it.`);
+      Log.log(
+        formatFields([
+          { label: 'Name', value: newChannel.name },
+          { label: 'ID', value: branchId },
+        ])
+      );
+
+      Log.addNewLineIfNone();
+      Log.log(chalk.bold('You can now update your app by publishing!'));
     }
-
-    Log.addNewLineIfNone();
-    Log.withTick(
-      `Created a new channel on project ${chalk.bold(await getProjectFullNameAsync(exp))}`
-    );
-    Log.log(
-      formatFields([
-        { label: 'Name', value: newChannel.name },
-        { label: 'ID', value: newChannel.id },
-      ])
-    );
-    Log.addNewLineIfNone();
-    Log.withTick(`${branchMessage} and have pointed the channel at it.`);
-    Log.log(
-      formatFields([
-        { label: 'Name', value: newChannel.name },
-        { label: 'ID', value: branchId },
-      ])
-    );
-
-    Log.addNewLineIfNone();
-    Log.log(chalk.bold('You can now update your app by publishing!'));
   }
 }

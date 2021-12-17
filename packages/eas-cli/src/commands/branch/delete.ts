@@ -146,10 +146,10 @@ export default class BranchDelete extends EasCommand {
 
     if (jsonFlag) {
       printJsonOnlyOutput(deletionResult);
+    } else {
+      Log.withTick(
+        `️Deleted branch "${name}" and all of its updates on project ${chalk.bold(fullName)}.`
+      );
     }
-
-    Log.withTick(
-      `️Deleted branch "${name}" and all of its updates on project ${chalk.bold(fullName)}.`
-    );
   }
 }

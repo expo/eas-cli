@@ -103,10 +103,10 @@ export default class BranchCreate extends EasCommand {
 
     if (flags.json) {
       printJsonOnlyOutput(newBranch);
+    } else {
+      Log.withTick(
+        `️Created a new branch: ${chalk.bold(newBranch.name)} on project ${chalk.bold(fullName)}.`
+      );
     }
-
-    Log.withTick(
-      `️Created a new branch: ${chalk.bold(newBranch.name)} on project ${chalk.bold(fullName)}.`
-    );
   }
 }

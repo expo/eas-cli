@@ -98,17 +98,17 @@ export default class ChannelList extends EasCommand {
 
     if (jsonFlag) {
       printJsonOnlyOutput(channels);
-    }
-
-    for (const channel of channels) {
-      Log.addNewLineIfNone();
-      Log.log(
-        formatFields([
-          { label: 'Name', value: channel.name },
-          { label: 'ID', value: channel.id },
-        ])
-      );
-      logChannelDetails(channel);
+    } else {
+      for (const channel of channels) {
+        Log.addNewLineIfNone();
+        Log.log(
+          formatFields([
+            { label: 'Name', value: channel.name },
+            { label: 'ID', value: channel.id },
+          ])
+        );
+        logChannelDetails(channel);
+      }
     }
   }
 }

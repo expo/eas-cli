@@ -422,7 +422,8 @@ export default class ChannelRollout extends EasCommand {
     const { newChannelInfo, logMessage } = rolloutMutationResult;
     if (jsonFlag) {
       printJsonOnlyOutput(newChannelInfo);
+    } else {
+      Log.withTick(logMessage);
     }
-    Log.withTick(logMessage);
   }
 }

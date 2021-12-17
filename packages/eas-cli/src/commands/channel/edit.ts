@@ -174,14 +174,14 @@ export default class ChannelEdit extends EasCommand {
 
     if (jsonFlag) {
       printJsonOnlyOutput(channel);
+    } else {
+      Log.withTick(
+        chalk`Channel {bold ${channel.name}} is now set to branch {bold ${branch.name}}.\n`
+      );
+      Log.addNewLineIfNone();
+      Log.log(
+        chalk`Users with builds on channel {bold ${channel.name}} will now receive the active update on {bold ${branch.name}}.`
+      );
     }
-
-    Log.withTick(
-      chalk`Channel {bold ${channel.name}} is now set to branch {bold ${branch.name}}.\n`
-    );
-    Log.addNewLineIfNone();
-    Log.log(
-      chalk`Users with builds on channel {bold ${channel.name}} will now receive the active update on {bold ${branch.name}}.`
-    );
   }
 }
