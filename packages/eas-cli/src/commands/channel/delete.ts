@@ -1,5 +1,6 @@
 import { getConfig } from '@expo/config';
 import { flags } from '@oclif/command';
+import { error } from '@oclif/errors';
 import gql from 'graphql-tag';
 
 import EasCommand from '../../commandUtils/EasCommand';
@@ -36,13 +37,20 @@ export default class ChannelDelete extends EasCommand {
       description: `Delete a channel on the current project`,
       default: false,
     }),
+    'non-interactive': flags.boolean({
+      default: false,
+      description: 'Run command in non-interactive mode',
+    }),
   };
 
   async runAsync(): Promise<void> {
     const {
       args: { name: nameArg },
-      flags: { json: jsonFlag },
+      flags: { json: jsonFlag, 'non-interactive': nonInteractiveFlag },
     } = this.parse(ChannelDelete);
+    if (jsonFlag && !nonInteractiveFlag) {
+      error('--json is allowed only in non-interactive mode', { exit: 1 });
+    }
     if (jsonFlag) {
       enableJsonOutput();
     }
@@ -56,16 +64,15 @@ export default class ChannelDelete extends EasCommand {
     if (nameArg) {
       name = nameArg;
     } else {
-      const validationMessage = 'Channel name may not be empty.';
-      if (jsonFlag) {
-        throw new Error(validationMessage);
+      if (nonInteractiveFlag) {
+        error('Channel name must be set when running in non-interactive mode', { exit: 1 });
       }
       name = (
         await promptAsync({
           type: 'text',
           name: 'name',
           message: 'Please enter the name of the channel to delete:',
-          validate: value => (value ? true : validationMessage),
+          validate: value => (value ? true : 'Channel name may not be empty.'),
         })
       ).name;
     }
@@ -73,10 +80,10 @@ export default class ChannelDelete extends EasCommand {
     const data = await getChannelInfoAsync({ appId: projectId, name });
     const channelId = data.app?.byId.updateChannelByName?.id;
     if (!channelId) {
-      throw new Error(`Could not find channel ${name} on ${fullName}`);
+      error(`Could not find channel ${name} on ${fullName}`, { exit: 1 });
     }
 
-    if (!jsonFlag) {
+    if (!nonInteractiveFlag) {
       Log.addNewLineIfNone();
       Log.warn(
         `You are about to permamently delete channel: "${name}".\nThis action is irreversible.`
@@ -95,9 +102,9 @@ export default class ChannelDelete extends EasCommand {
 
     if (jsonFlag) {
       printJsonOnlyOutput(deletionResult);
+    } else {
+      Log.withTick(`️Deleted channel "${name}".`);
     }
-
-    Log.withTick(`️Deleted channel "${name}".`);
   }
 }
 
