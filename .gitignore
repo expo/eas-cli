@@ -1,6 +1,7 @@
 # Build directories
 packages/*/build
 packages/eas-cli/dist
+packages/eas-cli/tmp
 
 # Code editors
 .idea

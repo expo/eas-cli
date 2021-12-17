@@ -1,5 +1,5 @@
 import { getConfig } from '@expo/config';
-import { flags } from '@oclif/command';
+import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 import Table from 'cli-table3';
 import gql from 'graphql-tag';
@@ -78,7 +78,7 @@ export default class BranchView extends EasCommand {
   ];
 
   static flags = {
-    json: flags.boolean({
+    json: Flags.boolean({
       description: `return a json with the branch's ID name and recent update groups.`,
       default: false,
     }),
@@ -88,7 +88,7 @@ export default class BranchView extends EasCommand {
     let {
       args: { name },
       flags: { json: jsonFlag },
-    } = this.parse(BranchView);
+    } = await this.parse(BranchView);
 
     const projectDir = await findProjectRootAsync();
     const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });

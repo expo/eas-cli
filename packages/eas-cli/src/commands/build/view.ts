@@ -1,5 +1,5 @@
 import { getConfig } from '@expo/config';
-import { flags } from '@oclif/command';
+import { Flags } from '@oclif/core';
 
 import { formatGraphQLBuild } from '../../build/utils/formatBuild';
 import EasCommand from '../../commandUtils/EasCommand';
@@ -20,7 +20,7 @@ export default class BuildView extends EasCommand {
   static args = [{ name: 'BUILD_ID' }];
 
   static flags = {
-    json: flags.boolean({
+    json: Flags.boolean({
       description: 'Enable JSON output, non-JSON messages will be printed to stderr',
     }),
   };
@@ -29,7 +29,7 @@ export default class BuildView extends EasCommand {
     const {
       args: { BUILD_ID: buildId },
       flags,
-    } = this.parse(BuildView);
+    } = await this.parse(BuildView);
     if (flags.json) {
       enableJsonOutput();
     }

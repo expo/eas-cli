@@ -115,7 +115,7 @@ export default class BuildCancel extends EasCommand {
   static args = [{ name: 'BUILD_ID' }];
 
   async runAsync(): Promise<void> {
-    const { BUILD_ID: buildIdFromArg } = this.parse(BuildCancel).args;
+    const { BUILD_ID: buildIdFromArg } = (await this.parse(BuildCancel)).args;
 
     const projectDir = await findProjectRootAsync();
     const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });

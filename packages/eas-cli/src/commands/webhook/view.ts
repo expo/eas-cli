@@ -18,7 +18,7 @@ export default class WebhookView extends EasCommand {
   async runAsync(): Promise<void> {
     const {
       args: { ID: webhookId },
-    } = this.parse(WebhookView);
+    } = await this.parse(WebhookView);
 
     const spinner = ora(`Fetching the webhook details for ID ${webhookId}`).start();
     try {

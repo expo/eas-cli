@@ -1,5 +1,5 @@
 import { getConfig } from '@expo/config';
-import { flags } from '@oclif/command';
+import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 
 import EasCommand from '../../commandUtils/EasCommand';
@@ -319,19 +319,19 @@ export default class ChannelRollout extends EasCommand {
   ];
 
   static flags = {
-    branch: flags.string({
+    branch: Flags.string({
       description: 'branch to rollout',
       required: false,
     }),
-    percent: flags.integer({
+    percent: Flags.integer({
       description: 'percent of traffic to redirect to the new branch',
       required: false,
     }),
-    end: flags.boolean({
+    end: Flags.boolean({
       description: 'end the rollout',
       default: false,
     }),
-    json: flags.boolean({
+    json: Flags.boolean({
       description: 'print output as a JSON object with the new channel ID, name and branch mapping',
       default: false,
     }),
@@ -340,11 +340,8 @@ export default class ChannelRollout extends EasCommand {
   async runAsync(): Promise<void> {
     const {
       args: { channel: channelName },
-      flags: { json: jsonFlag, end: endFlag },
-    } = this.parse(ChannelRollout);
-    const {
-      flags: { branch: branchName, percent },
-    } = this.parse(ChannelRollout);
+      flags: { json: jsonFlag, end: endFlag, branch: branchName, percent },
+    } = await this.parse(ChannelRollout);
 
     const projectDir = await findProjectRootAsync();
     const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });

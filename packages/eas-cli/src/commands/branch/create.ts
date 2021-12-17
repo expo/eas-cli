@@ -1,5 +1,5 @@
 import { getConfig } from '@expo/config';
-import { flags } from '@oclif/command';
+import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 import gql from 'graphql-tag';
 
@@ -62,7 +62,7 @@ export default class BranchCreate extends EasCommand {
   ];
 
   static flags = {
-    json: flags.boolean({
+    json: Flags.boolean({
       description: 'return a json with the new branch ID and name.',
       default: false,
     }),
@@ -72,7 +72,7 @@ export default class BranchCreate extends EasCommand {
     let {
       args: { name },
       flags,
-    } = this.parse(BranchCreate);
+    } = await this.parse(BranchCreate);
 
     const projectDir = await findProjectRootAsync();
     const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });

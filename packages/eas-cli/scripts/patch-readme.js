@@ -1,7 +1,7 @@
 const { promises: fs } = require('fs');
 
 (async () => {
-  // Patch `oclif-dev readme` path and link generation
+  // Patch `oclif readme` path and link generation
   let readmeContent = await fs.readFile('README.md', 'utf8');
   readmeContent = readmeContent.replace(/\[build\//g, '[src/');
   readmeContent = readmeContent.replace(/build\/commands/g, 'packages/eas-cli/src/commands');

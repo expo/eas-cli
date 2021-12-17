@@ -1,5 +1,5 @@
 import { getConfig } from '@expo/config';
-import { flags } from '@oclif/command';
+import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 
 import EasCommand from '../../commandUtils/EasCommand';
@@ -23,18 +23,18 @@ export default class EnvironmentSecretCreate extends EasCommand {
   static description = 'Create an environment secret on the current project or owner account.';
 
   static flags = {
-    scope: flags.enum({
+    scope: Flags.enum({
       description: 'Scope for the secret',
       options: [EnvironmentSecretScope.ACCOUNT, EnvironmentSecretScope.PROJECT],
       default: EnvironmentSecretScope.PROJECT,
     }),
-    name: flags.string({
+    name: Flags.string({
       description: 'Name of the secret',
     }),
-    value: flags.string({
+    value: Flags.string({
       description: 'Value of the secret',
     }),
-    force: flags.boolean({
+    force: Flags.boolean({
       description: 'Delete and recreate existing secrets',
       default: false,
     }),
@@ -44,7 +44,7 @@ export default class EnvironmentSecretCreate extends EasCommand {
     const actor = await ensureLoggedInAsync();
     let {
       flags: { name, value: secretValue, scope, force },
-    } = this.parse(EnvironmentSecretCreate);
+    } = await this.parse(EnvironmentSecretCreate);
 
     const projectDir = await findProjectRootAsync();
     const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });

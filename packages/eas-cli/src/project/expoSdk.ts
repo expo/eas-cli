@@ -1,5 +1,5 @@
 import { Platform, Workflow } from '@expo/eas-build-job';
-import { exit } from '@oclif/errors';
+import { Errors } from '@oclif/core';
 import assert from 'assert';
 import semver from 'semver';
 
@@ -30,6 +30,6 @@ export async function checkExpoSdkIsSupportedAsync(ctx: BuildContext<Platform>):
     message: `${unsupportedSdkMessage} Do you want to proceed?`,
   });
   if (!proceed) {
-    exit(1);
+    Errors.exit(1);
   }
 }

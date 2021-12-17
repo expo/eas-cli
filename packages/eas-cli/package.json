@@ -16,16 +16,13 @@
     "@expo/json-file": "8.2.34",
     "@expo/pkcs12": "0.0.6",
     "@expo/plist": "0.0.16",
-    "@expo/plugin-warn-if-update-available": "1.7.1",
+    "@expo/plugin-warn-if-update-available": "2.0.1",
     "@expo/prebuild-config": "3.0.11",
     "@expo/results": "1.0.0",
     "@expo/rudder-sdk-node": "1.1.1",
     "@expo/spawn-async": "1.5.0",
     "@expo/timeago.js": "1.0.0",
-    "@oclif/command": "1.8.3",
-    "@oclif/config": "1.17.1",
-    "@oclif/errors": "1.3.5",
-    "@oclif/plugin-help": "3.2.5",
+    "@oclif/core": "1.0.10",
     "@urql/core": "2.3.1",
     "@urql/exchange-retry": "0.3.0",
     "chalk": "4.1.2",
@@ -165,18 +162,20 @@
           }
         }
       }
-    }
+    },
+    "additionalHelpFlags": ["-h"],
+    "additionalVersionFlags": ["-v"]
   },
   "repository": "expo/eas-cli",
   "scripts": {
     "postpack": "rm -f oclif.manifest.json",
-    "prepack": "rm -rf build && yarn build && yarn oclif-dev manifest && yarn oclif-dev readme && node patch-readme",
+    "prepack": "./scripts/prepack.sh",
     "build": "tsc --project tsconfig.build.json",
     "watch": "yarn build --watch --preserveWatchOutput",
     "typecheck": "tsc",
     "test": "jest",
-    "version": "yarn oclif-dev readme && node patch-readme && git add README.md",
+    "version": "yarn oclif readme && node scripts/patch-readme && git add README.md",
     "generate-graphql-code": "graphql-codegen --config graphql-codegen.yml",
-    "clean": "rm -rf dist build node_modules yarn-error.log"
+    "clean": "rm -rf dist build tmp node_modules yarn-error.log"
   }
 }

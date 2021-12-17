@@ -1,5 +1,5 @@
 import { getConfig } from '@expo/config';
-import { flags } from '@oclif/command';
+import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 
 import { BuildDistributionType, BuildStatus } from '../../build/types';
@@ -25,13 +25,13 @@ export default class BuildList extends EasCommand {
   static description = 'list all builds for your project';
 
   static flags = {
-    platform: flags.enum({
+    platform: Flags.enum({
       options: [RequestedPlatform.All, RequestedPlatform.Android, RequestedPlatform.Ios],
     }),
-    json: flags.boolean({
+    json: Flags.boolean({
       description: 'Enable JSON output, non-JSON messages will be printed to stderr',
     }),
-    status: flags.enum({
+    status: Flags.enum({
       options: [
         BuildStatus.NEW,
         BuildStatus.IN_QUEUE,
@@ -41,26 +41,26 @@ export default class BuildList extends EasCommand {
         BuildStatus.CANCELED,
       ],
     }),
-    distribution: flags.enum({
+    distribution: Flags.enum({
       options: [
         BuildDistributionType.STORE,
         BuildDistributionType.INTERNAL,
         BuildDistributionType.SIMULATOR,
       ],
     }),
-    channel: flags.string(),
-    appVersion: flags.string(),
-    appBuildVersion: flags.string(),
-    sdkVersion: flags.string(),
-    runtimeVersion: flags.string(),
-    appIdentifier: flags.string(),
-    buildProfile: flags.string(),
-    gitCommitHash: flags.string(),
-    limit: flags.integer(),
+    channel: Flags.string(),
+    appVersion: Flags.string(),
+    appBuildVersion: Flags.string(),
+    sdkVersion: Flags.string(),
+    runtimeVersion: Flags.string(),
+    appIdentifier: Flags.string(),
+    buildProfile: Flags.string(),
+    gitCommitHash: Flags.string(),
+    limit: Flags.integer(),
   };
 
   async runAsync(): Promise<void> {
-    const { flags } = this.parse(BuildList);
+    const { flags } = await this.parse(BuildList);
     const {
       json,
       platform: requestedPlatform,

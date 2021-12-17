@@ -1,6 +1,5 @@
 import { EasJsonReader } from '@expo/eas-json';
-import { flags } from '@oclif/command';
-import { error } from '@oclif/errors';
+import { Errors, Flags } from '@oclif/core';
 import chalk from 'chalk';
 import figures from 'figures';
 import fs from 'fs-extra';
@@ -35,51 +34,51 @@ export default class Build extends EasCommand {
   static description = 'Start a build';
 
   static flags = {
-    platform: flags.enum({
+    platform: Flags.enum({
       char: 'p',
       options: ['android', 'ios', 'all'],
     }),
-    'skip-credentials-check': flags.boolean({
+    'skip-credentials-check': Flags.boolean({
       default: false,
       hidden: true,
     }),
-    json: flags.boolean({
+    json: Flags.boolean({
       description: 'Enable JSON output, non-JSON messages will be printed to stderr',
       default: false,
     }),
-    'skip-project-configuration': flags.boolean({
+    'skip-project-configuration': Flags.boolean({
       default: false,
       description: 'Skip project configuration',
     }),
-    profile: flags.string({
+    profile: Flags.string({
       description:
         'Name of the build profile from eas.json. Defaults to "production" if defined in eas.json.',
       helpValue: 'PROFILE_NAME',
     }),
-    'non-interactive': flags.boolean({
+    'non-interactive': Flags.boolean({
       default: false,
       description: 'Run command in non-interactive mode',
     }),
-    local: flags.boolean({
+    local: Flags.boolean({
       default: false,
       description: 'Run build locally [experimental]',
     }),
-    wait: flags.boolean({
+    wait: Flags.boolean({
       default: true,
       allowNo: true,
       description: 'Wait for build(s) to complete',
     }),
-    'clear-cache': flags.boolean({
+    'clear-cache': Flags.boolean({
       default: false,
       description: 'Clear cache before the build',
     }),
-    'auto-submit': flags.boolean({
+    'auto-submit': Flags.boolean({
       default: false,
       description:
         'Submit on build complete using the submit profile with the same name as the build profile',
       exclusive: ['auto-submit-with-profile'],
     }),
-    'auto-submit-with-profile': flags.string({
+    'auto-submit-with-profile': Flags.string({
       description: 'Submit on build complete using the submit profile with provided name',
       helpValue: 'PROFILE_NAME',
       exclusive: ['auto-submit'],
@@ -87,7 +86,7 @@ export default class Build extends EasCommand {
   };
 
   async runAsync(): Promise<void> {
-    const { flags: rawFlags } = this.parse(Build);
+    const { flags: rawFlags } = await this.parse(Build);
     if (rawFlags.json) {
       enableJsonOutput();
     }
@@ -102,23 +101,25 @@ export default class Build extends EasCommand {
   private async sanitizeFlagsAsync(flags: RawBuildFlags): Promise<BuildFlags> {
     const nonInteractive = flags['non-interactive'];
     if (!flags.platform && nonInteractive) {
-      error('--platform is required when building in non-interactive mode', { exit: 1 });
+      Errors.error('--platform is required when building in non-interactive mode', { exit: 1 });
     }
     if (flags.json && !nonInteractive) {
-      error('--json is allowed only when building in non-interactive mode', { exit: 1 });
+      Errors.error('--json is allowed only when building in non-interactive mode', { exit: 1 });
     }
 
     const requestedPlatform = await selectRequestedPlatformAsync(flags.platform);
     if (flags.local) {
       if (flags['auto-submit'] || flags['auto-submit-with-profile'] !== undefined) {
         // TODO: implement this
-        error('Auto-submits are not yet supported when building locally', { exit: 1 });
+        Errors.error('Auto-submits are not yet supported when building locally', { exit: 1 });
       }
 
       if (requestedPlatform === RequestedPlatform.All) {
-        error('Builds for multiple platforms are not supported with flag --local', { exit: 1 });
+        Errors.error('Builds for multiple platforms are not supported with flag --local', {
+          exit: 1,
+        });
       } else if (process.platform !== 'darwin' && requestedPlatform === RequestedPlatform.Ios) {
-        error('Unsupported platform, macOS is required to build apps for iOS', { exit: 1 });
+        Errors.error('Unsupported platform, macOS is required to build apps for iOS', { exit: 1 });
       }
     }
 

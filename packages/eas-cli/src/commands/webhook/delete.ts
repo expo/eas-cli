@@ -27,7 +27,7 @@ export default class WebhookDelete extends EasCommand {
   async runAsync(): Promise<void> {
     let {
       args: { ID: webhookId },
-    } = this.parse(WebhookDelete);
+    } = await this.parse(WebhookDelete);
 
     const projectDir = await findProjectRootAsync();
     const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });

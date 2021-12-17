@@ -1,5 +1,5 @@
 import { getConfig } from '@expo/config';
-import { flags } from '@oclif/command';
+import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 
 import EasCommand from '../../commandUtils/EasCommand';
@@ -18,7 +18,7 @@ export default class WebhookList extends EasCommand {
   static description = 'List webhooks on the current project.';
 
   static flags = {
-    event: flags.enum({
+    event: Flags.enum({
       description: 'Event type that triggers the webhook',
       options: [WebhookType.Build, WebhookType.Submit],
     }),
@@ -27,7 +27,7 @@ export default class WebhookList extends EasCommand {
   async runAsync(): Promise<void> {
     const {
       flags: { event },
-    } = this.parse(WebhookList);
+    } = await this.parse(WebhookList);
 
     const projectDir = await findProjectRootAsync();
     const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });

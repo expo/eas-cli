@@ -1,5 +1,5 @@
 import { EasJsonReader } from '@expo/eas-json';
-import { Command } from '@oclif/command';
+import { Command } from '@oclif/core';
 import semver from 'semver';
 
 import {
@@ -30,7 +30,7 @@ export default abstract class EasCommand extends Command {
     await this.applyCliConfigAsync();
 
     if (this.requiresAuthentication) {
-      const { flags } = this.parse();
+      const { flags } = await this.parse();
       const nonInteractive = (flags as any)['non-interactive'] ?? false;
       await ensureLoggedInAsync({ nonInteractive });
     } else {
