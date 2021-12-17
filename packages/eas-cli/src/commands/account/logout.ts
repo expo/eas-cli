@@ -6,6 +6,7 @@ export default class AccountLogout extends EasCommand {
   static description = 'log out';
   static aliases = ['logout'];
 
+  protected mustBeRunInsideProject = false;
   protected requiresAuthentication = false;
 
   async runAsync(): Promise<void> {
