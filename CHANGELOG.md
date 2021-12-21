@@ -10,9 +10,13 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
-- Add missing dependency - `@oclif/plugin-help`. ([#865](https://github.com/expo/eas-cli/pull/865) by [@dsokal](https://github.com/dsokal))
-
 ### 🧹 Chores
+
+## [0.42.4](https://github.com/expo/eas-cli/releases/tag/v0.42.4) - 2021-12-21
+
+### 🐛 Bug fixes
+
+- Add missing dependency - `@oclif/plugin-help`. ([#865](https://github.com/expo/eas-cli/pull/865) by [@dsokal](https://github.com/dsokal))
 
 ## [0.42.3](https://github.com/expo/eas-cli/releases/tag/v0.42.3) - 2021-12-21
 
