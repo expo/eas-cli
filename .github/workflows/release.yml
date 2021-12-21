@@ -32,7 +32,9 @@ jobs:
       - run: yarn build
       - name: Build tarballs
         working-directory: ${{ github.workspace }}/packages/eas-cli
-        run: yarn oclif pack:tarballs --no-xz --targets linux-x64,linux-arm
+        run: |
+          yarn pretarball-ci
+          yarn oclif pack:tarballs --no-xz --targets linux-x64,linux-arm
       - id: x64
         run: echo "::set-output name=filename::$(ls eas-*-x64.tar.gz)"
         working-directory: ${{ github.workspace }}/packages/eas-cli/dist
@@ -71,7 +73,9 @@ jobs:
       - run: yarn build
       - name: Build tarballs
         working-directory: ${{ github.workspace }}/packages/eas-cli
-        run: yarn oclif pack:tarballs --no-xz --targets darwin-x64
+        run: |
+          yarn pretarball-ci
+          yarn oclif pack:tarballs --no-xz --targets darwin-x64
       - id: x64
         run: echo "::set-output name=filename::$(ls eas-*-x64.tar.gz)"
         working-directory: ${{ github.workspace }}/packages/eas-cli/dist
@@ -96,7 +100,9 @@ jobs:
       - run: yarn install --frozen-lockfile --check-files
       - run: sudo apt-get install nsis
       - run: yarn build
-      - run: yarn oclif pack:win
+      - run: |
+          yarn pretarball-ci
+          yarn oclif pack:win
         working-directory: ${{ github.workspace }}/packages/eas-cli
       - id: x64
         run: echo "::set-output name=filename::$(ls eas-*-x64.exe)"

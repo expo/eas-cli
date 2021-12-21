@@ -6,13 +6,13 @@
   "scripts": {
     "build": "lerna run build",
     "build:tarballs:linux": "yarn build-for-size-check",
-    "build-for-size-check": "yarn build && CLI_SIZE_CHECK=1 yarn workspace eas-cli oclif pack:tarballs --no-xz --targets linux-x64",
+    "build-for-size-check": "yarn build && yarn workspace eas-cli pretarball-ci && CLI_SIZE_CHECK=1 yarn workspace eas-cli oclif pack:tarballs --no-xz --targets linux-x64",
     "typecheck": "lerna run typecheck",
     "start": "lerna run watch --parallel",
     "watch": "yarn start",
     "eas": "packages/eas-cli/bin/run",
     "lint": "eslint .",
-    "release": "./scripts/bin/run update-local-plugin && lerna version",
+    "release": "./scripts/bin/run update-local-plugin && lerna version --exact",
     "test": "jest",
     "clean": "lerna run clean && rm -rf node_modules coverage"
   },
