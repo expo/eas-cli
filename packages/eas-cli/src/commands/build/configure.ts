@@ -1,4 +1,4 @@
-import { flags } from '@oclif/command';
+import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 
 import { configureAsync } from '../../build/configure';
@@ -13,7 +13,7 @@ export default class BuildConfigure extends EasCommand {
   static description = 'Configure the project to support EAS Build.';
 
   static flags = {
-    platform: flags.enum({
+    platform: Flags.enum({
       description: 'Platform to configure',
       char: 'p',
       options: ['android', 'ios', 'all'],
@@ -21,7 +21,7 @@ export default class BuildConfigure extends EasCommand {
   };
 
   async runAsync(): Promise<void> {
-    const { flags } = this.parse(BuildConfigure);
+    const { flags } = await this.parse(BuildConfigure);
 
     Log.log(
       '💡 The following process will configure your iOS and/or Android project to be compatible with EAS Build. These changes only apply to your local project files and you can safely revert them at any time.'

@@ -1,5 +1,5 @@
 import { getConfig } from '@expo/config';
-import { flags } from '@oclif/command';
+import { Flags } from '@oclif/core';
 import assert from 'assert';
 import chalk from 'chalk';
 
@@ -16,11 +16,11 @@ export default class BuildList extends EasCommand {
   static description = 'list all registered devices for your account';
 
   static flags = {
-    'apple-team-id': flags.string(),
+    'apple-team-id': Flags.string(),
   };
 
   async runAsync(): Promise<void> {
-    let appleTeamIdentifier = this.parse(BuildList).flags['apple-team-id'];
+    let appleTeamIdentifier = (await this.parse(BuildList)).flags['apple-team-id'];
 
     const projectDir = await findProjectRootAsync();
     const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });

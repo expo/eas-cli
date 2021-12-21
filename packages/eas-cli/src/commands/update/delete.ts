@@ -1,4 +1,4 @@
-import { flags } from '@oclif/command';
+import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 import gql from 'graphql-tag';
 
@@ -46,7 +46,7 @@ export default class UpdateDelete extends EasCommand {
   ];
 
   static flags = {
-    json: flags.boolean({
+    json: Flags.boolean({
       description: `Return a json with the group ID of the deleted updates.`,
       default: false,
     }),
@@ -56,7 +56,7 @@ export default class UpdateDelete extends EasCommand {
     const {
       args: { groupId: group },
       flags: { json: jsonFlag },
-    } = this.parse(UpdateDelete);
+    } = await this.parse(UpdateDelete);
 
     if (!jsonFlag) {
       const shouldAbort = await confirmAsync({

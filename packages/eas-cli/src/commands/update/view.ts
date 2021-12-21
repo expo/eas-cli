@@ -1,4 +1,4 @@
-import { flags } from '@oclif/command';
+import { Flags } from '@oclif/core';
 import Table from 'cli-table3';
 import gql from 'graphql-tag';
 
@@ -61,7 +61,7 @@ export default class UpdateView extends EasCommand {
   ];
 
   static flags = {
-    json: flags.boolean({
+    json: Flags.boolean({
       description: `Return a json with the updates belonging to the group.`,
       default: false,
     }),
@@ -71,7 +71,7 @@ export default class UpdateView extends EasCommand {
     const {
       args: { groupId },
       flags: { json: jsonFlag },
-    } = this.parse(UpdateView);
+    } = await this.parse(UpdateView);
 
     const { updatesByGroup } = await viewUpdateAsync({ groupId });
 

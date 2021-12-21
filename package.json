@@ -5,7 +5,8 @@
   ],
   "scripts": {
     "build": "lerna run build",
-    "build:tarballs:linux": "yarn build && yarn workspace eas-cli oclif-dev pack --targets linux-x64",
+    "build:tarballs:linux": "yarn build-for-size-check",
+    "build-for-size-check": "yarn build && CLI_SIZE_CHECK=1 yarn workspace eas-cli oclif pack:tarballs --no-xz --targets linux-x64",
     "typecheck": "lerna run typecheck",
     "start": "lerna run watch --parallel",
     "watch": "yarn start",
@@ -16,7 +17,6 @@
     "clean": "lerna run clean && rm -rf node_modules coverage"
   },
   "devDependencies": {
-    "@expo/oclif-dev-cli": "1.24.0-expo",
     "@types/jest": "27.0.1",
     "@types/node": "16.7.8",
     "eslint": "7.32.0",
@@ -26,6 +26,7 @@
     "jest": "27.1.0",
     "jest-watch-typeahead": "0.6.4",
     "lerna": "4.0.0",
+    "oclif": "2.0.1",
     "prettier": "2.4.1",
     "ts-jest": "27.0.5",
     "typescript": "4.5.2"

@@ -1,5 +1,5 @@
 import spawnAsync from '@expo/spawn-async';
-import { exit } from '@oclif/errors';
+import { Errors } from '@oclif/core';
 import chalk from 'chalk';
 
 import Log, { learnMore } from '../../log';
@@ -23,7 +23,7 @@ export default class GitClient extends Client {
         )} to use EAS CLI without Git (or any other version control system).`
       );
       Log.error(learnMore('https://expo.fyi/eas-vcs-workflow'));
-      exit(1);
+      Errors.exit(1);
     }
 
     if (await doesGitRepoExistAsync()) {

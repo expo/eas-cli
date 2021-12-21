@@ -1,7 +1,7 @@
 import { ExpoConfig, getConfig } from '@expo/config';
 import { Updates } from '@expo/config-plugins';
 import { Platform, Workflow } from '@expo/eas-build-job';
-import { flags } from '@oclif/command';
+import { Flags } from '@oclif/core';
 import assert from 'assert';
 import chalk from 'chalk';
 import dateFormat from 'dateformat';
@@ -134,42 +134,42 @@ export default class UpdatePublish extends EasCommand {
   static description = 'Publish an update group.';
 
   static flags = {
-    branch: flags.string({
+    branch: Flags.string({
       description: 'Branch to publish the update group on',
       required: false,
     }),
-    message: flags.string({
+    message: Flags.string({
       description: 'A short message describing the update',
       required: false,
     }),
-    republish: flags.boolean({
+    republish: Flags.boolean({
       description: 'Republish an update group',
       exclusive: ['input-dir', 'skip-bundler'],
     }),
-    group: flags.string({
+    group: Flags.string({
       description: 'Update group to republish',
       exclusive: ['input-dir', 'skip-bundler'],
     }),
-    'input-dir': flags.string({
+    'input-dir': Flags.string({
       description: 'Location of the bundle',
       default: 'dist',
       required: false,
     }),
-    'skip-bundler': flags.boolean({
+    'skip-bundler': Flags.boolean({
       description: `Skip running Expo CLI to bundle the app before publishing`,
       default: false,
     }),
-    platform: flags.enum({
+    platform: Flags.enum({
       char: 'p',
       options: [...defaultPublishPlatforms, 'all'],
       default: 'all',
       required: false,
     }),
-    json: flags.boolean({
+    json: Flags.boolean({
       description: 'Enable JSON output, non-JSON messages will be printed to stderr',
       default: false,
     }),
-    auto: flags.boolean({
+    auto: Flags.boolean({
       description:
         'Use the current git branch and commit message for the EAS branch and update message',
       default: false,
@@ -187,9 +187,10 @@ export default class UpdatePublish extends EasCommand {
         group,
         'input-dir': inputDir,
         'skip-bundler': skipBundler,
+        platform,
       },
-    } = this.parse(UpdatePublish);
-    const platformFlag = this.parse(UpdatePublish).flags.platform as PlatformFlag;
+    } = await this.parse(UpdatePublish);
+    const platformFlag = platform as PlatformFlag;
     // If a group was specified, that means we are republishing it.
     republish = group ? true : republish;
 

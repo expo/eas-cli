@@ -1,5 +1,5 @@
 import { getConfig } from '@expo/config';
-import { flags } from '@oclif/command';
+import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 
 import EasCommand from '../../commandUtils/EasCommand';
@@ -22,7 +22,7 @@ export default class EnvironmentSecretDelete extends EasCommand {
 Unsure where to find the secret's ID? Run ${chalk.bold('eas secret:list')}`;
 
   static flags = {
-    id: flags.string({
+    id: Flags.string({
       description: 'ID of the secret to delete',
     }),
   };
@@ -35,7 +35,7 @@ Unsure where to find the secret's ID? Run ${chalk.bold('eas secret:list')}`;
 
     let {
       flags: { id },
-    } = this.parse(EnvironmentSecretDelete);
+    } = await this.parse(EnvironmentSecretDelete);
     let secret: EnvironmentSecretWithScope | undefined;
 
     if (!id) {

@@ -1,5 +1,5 @@
 import { getConfig } from '@expo/config';
-import { flags } from '@oclif/command';
+import { Flags } from '@oclif/core';
 import assert from 'assert';
 import chalk from 'chalk';
 import Table from 'cli-table3';
@@ -203,7 +203,7 @@ export default class ChannelView extends EasCommand {
   ];
 
   static flags = {
-    json: flags.boolean({
+    json: Flags.boolean({
       description: 'print output as a JSON object with the channel ID, name and branch mapping.',
       default: false,
     }),
@@ -213,7 +213,7 @@ export default class ChannelView extends EasCommand {
     let {
       args: { name: channelName },
       flags: { json: jsonFlag },
-    } = this.parse(ChannelView);
+    } = await this.parse(ChannelView);
 
     const projectDir = await findProjectRootAsync();
     const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });

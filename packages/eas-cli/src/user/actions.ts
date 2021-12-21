@@ -1,4 +1,4 @@
-import { error } from '@oclif/errors';
+import { Errors } from '@oclif/core';
 import chalk from 'chalk';
 import nullthrows from 'nullthrows';
 
@@ -13,7 +13,7 @@ export async function showLoginPromptAsync({
   printNewLine = false,
 } = {}): Promise<void> {
   if (nonInteractive) {
-    error(
+    Errors.error(
       `Either log in with ${chalk.bold('eas login')} or set the ${chalk.bold(
         'EXPO_TOKEN'
       )} environment variable if you're using EAS CLI on CI (${learnMore(

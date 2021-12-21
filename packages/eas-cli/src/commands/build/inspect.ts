@@ -1,4 +1,4 @@
-import { flags } from '@oclif/command';
+import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 import fs from 'fs-extra';
 import path from 'path';
@@ -29,38 +29,38 @@ export default class BuildInspect extends EasCommand {
     'Inspect the state of the project at specific build stages. Useful for troubleshooting.';
 
   static flags = {
-    platform: flags.enum({
+    platform: Flags.enum({
       char: 'p',
       options: [RequestedPlatform.Android, RequestedPlatform.Ios],
       required: true,
     }),
-    profile: flags.string({
+    profile: Flags.string({
       description:
         'Name of the build profile from eas.json. Defaults to "production" if defined in eas.json.',
       helpValue: 'PROFILE_NAME',
     }),
-    stage: flags.enum({
+    stage: Flags.enum({
       char: 's',
       description: STAGE_DESCRIPTION,
       options: [InspectStage.ARCHIVE, InspectStage.PRE_BUILD, InspectStage.POST_BUILD],
       required: true,
     }),
-    output: flags.string({
+    output: Flags.string({
       description: 'Output directory.',
       required: true,
       helpValue: 'OUTPUT_DIRECTORY',
     }),
-    force: flags.boolean({
+    force: Flags.boolean({
       description: 'Delete OUTPUT_DIRECTORY if it already exists.',
       default: false,
     }),
-    verbose: flags.boolean({
+    verbose: Flags.boolean({
       default: false,
     }),
   };
 
   async runAsync(): Promise<void> {
-    const { flags } = this.parse(BuildInspect);
+    const { flags } = await this.parse(BuildInspect);
     const outputDirectory = path.resolve(process.cwd(), flags.output);
     await this.prepareOutputDirAsync(outputDirectory, flags.force);
     if (flags.stage === InspectStage.ARCHIVE) {

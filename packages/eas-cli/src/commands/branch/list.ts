@@ -1,5 +1,5 @@
 import { getConfig } from '@expo/config';
-import { flags } from '@oclif/command';
+import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 import CliTable from 'cli-table3';
 import { print } from 'graphql';
@@ -57,14 +57,14 @@ export default class BranchList extends EasCommand {
   static description = 'List all branches on this project.';
 
   static flags = {
-    json: flags.boolean({
+    json: Flags.boolean({
       description: 'return output as JSON',
       default: false,
     }),
   };
 
   async runAsync(): Promise<void> {
-    const { flags } = this.parse(BranchList);
+    const { flags } = await this.parse(BranchList);
 
     const projectDir = await findProjectRootAsync();
     const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });

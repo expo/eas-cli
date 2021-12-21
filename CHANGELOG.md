@@ -14,6 +14,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Replace all oclif dependencies with `@oclif/core`. ([#858](https://github.com/expo/eas-cli/pull/858) by [@dsokal](https://github.com/dsokal))
+
 ## [0.41.1](https://github.com/expo/eas-cli/releases/tag/v0.41.1) - 2021-12-16
 
 ### 🎉 New features

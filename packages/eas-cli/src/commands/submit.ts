@@ -1,6 +1,5 @@
 import { getConfig } from '@expo/config';
-import { flags } from '@oclif/command';
-import { error } from '@oclif/errors';
+import { Errors, Flags } from '@oclif/core';
 import chalk from 'chalk';
 
 import EasCommand from '../commandUtils/EasCommand';
@@ -20,7 +19,7 @@ import { submitAsync, waitToCompleteAsync } from '../submit/submit';
 import { printSubmissionDetailsUrls } from '../submit/utils/urls';
 import { getProfilesAsync } from '../utils/profiles';
 
-interface RawFlags {
+interface RawCommandFlags {
   platform?: string;
   profile?: string;
   latest?: boolean;
@@ -32,7 +31,7 @@ interface RawFlags {
   'non-interactive': boolean;
 }
 
-interface Flags {
+interface CommandFlags {
   requestedPlatform: RequestedPlatform;
   profile?: string;
   archiveFlags: SubmitArchiveFlags;
@@ -47,47 +46,47 @@ See how to configure submits with eas.json: ${link('https://docs.expo.dev/submit
   static aliases = ['build:submit'];
 
   static flags = {
-    platform: flags.enum({
+    platform: Flags.enum({
       char: 'p',
       options: ['android', 'ios', 'all'],
     }),
-    profile: flags.string({
+    profile: Flags.string({
       description:
         'Name of the submit profile from eas.json. Defaults to "production" if defined in eas.json.',
     }),
-    latest: flags.boolean({
+    latest: Flags.boolean({
       description: 'Submit the latest build for specified platform',
       exclusive: ['id', 'path', 'url'],
     }),
-    id: flags.string({
+    id: Flags.string({
       description: 'ID of the build to submit',
       exclusive: ['latest, path, url'],
     }),
-    path: flags.string({
+    path: Flags.string({
       description: 'Path to the .apk/.aab/.ipa file',
       exclusive: ['latest', 'id', 'url'],
     }),
-    url: flags.string({
+    url: Flags.string({
       description: 'App archive url',
       exclusive: ['latest', 'id', 'path'],
     }),
-    verbose: flags.boolean({
+    verbose: Flags.boolean({
       description: 'Always print logs from Submission Service',
       default: false,
     }),
-    wait: flags.boolean({
+    wait: Flags.boolean({
       description: 'Wait for submission to complete',
       default: true,
       allowNo: true,
     }),
-    'non-interactive': flags.boolean({
+    'non-interactive': Flags.boolean({
       default: false,
       description: 'Run command in non-interactive mode',
     }),
   };
 
   async runAsync(): Promise<void> {
-    const { flags: rawFlags } = this.parse(Submit);
+    const { flags: rawFlags } = await this.parse(Submit);
     const flags = await this.sanitizeFlagsAsync(rawFlags);
 
     const projectDir = await findProjectRootAsync();
@@ -135,7 +134,7 @@ See how to configure submits with eas.json: ${link('https://docs.expo.dev/submit
     }
   }
 
-  private async sanitizeFlagsAsync(flags: RawFlags): Promise<Flags> {
+  private async sanitizeFlagsAsync(flags: RawCommandFlags): Promise<CommandFlags> {
     const {
       platform,
       verbose,
@@ -146,13 +145,13 @@ See how to configure submits with eas.json: ${link('https://docs.expo.dev/submit
     } = flags;
 
     if (!flags.platform && nonInteractive) {
-      error('--platform is required when building in non-interactive mode', { exit: 1 });
+      Errors.error('--platform is required when building in non-interactive mode', { exit: 1 });
     }
 
     const requestedPlatform = await selectRequestedPlatformAsync(flags.platform);
     if (requestedPlatform === RequestedPlatform.All) {
       if (archiveFlags.id || archiveFlags.path || archiveFlags.url) {
-        error(
+        Errors.error(
           '--id, --path, and --url params are only supported when performing a single-platform submit',
           { exit: 1 }
         );
