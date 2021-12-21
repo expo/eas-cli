@@ -3786,6 +3786,43 @@ export type CreateUpdateChannelOnAppMutation = (
   ) }
 );
 
+export type GetChannelInfoQueryVariables = Exact<{
+  appId: Scalars['String'];
+  name: Scalars['String'];
+}>;
+
+
+export type GetChannelInfoQuery = (
+  { __typename?: 'RootQuery' }
+  & { app: (
+    { __typename?: 'AppQuery' }
+    & { byId: (
+      { __typename?: 'App' }
+      & Pick<App, 'id'>
+      & { updateChannelByName?: Maybe<(
+        { __typename?: 'UpdateChannel' }
+        & Pick<UpdateChannel, 'id' | 'name'>
+      )> }
+    ) }
+  ) }
+);
+
+export type DeleteUpdateChannelMutationVariables = Exact<{
+  channelId: Scalars['ID'];
+}>;
+
+
+export type DeleteUpdateChannelMutation = (
+  { __typename?: 'RootMutation' }
+  & { updateChannel: (
+    { __typename?: 'UpdateChannelMutation' }
+    & { deleteUpdateChannel: (
+      { __typename?: 'DeleteUpdateChannelResult' }
+      & Pick<DeleteUpdateChannelResult, 'id'>
+    ) }
+  ) }
+);
+
 export type GetChannelByNameToEditQueryVariables = Exact<{
   appId: Scalars['String'];
   channelName: Scalars['String'];
