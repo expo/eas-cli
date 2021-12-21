@@ -15,4 +15,6 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - run: bash bin/install.sh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: eas --version

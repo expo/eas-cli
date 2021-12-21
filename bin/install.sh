@@ -11,7 +11,7 @@
 
   prefix="${EAS_PREFIX:-/usr/local}"
   temp_dir="$(mktemp -d)"
-  
+
   if  [ -t 1 ] && [ -z "${NO_COLOR:-}" ]
   then
     # Use colors when stdout is a terminal and NO_COLOR isn't set.
@@ -67,7 +67,7 @@
   if [[ ! ":$PATH:" == *":$prefix/bin:"* ]]; then
     abort "Your path is missing $prefix/bin, you need to add this to \$PATH use this installer."
   fi
-  
+
   hardware="$(uname -m)"
   case "$hardware" in
     x86_64)
@@ -95,13 +95,12 @@
       abort "This installer is supported only on macOS, Linux, and Windows Subsystem for Linux."
       ;;
   esac
-
-  url="https://github.com/expo/eas-cli/releases/latest/download/eas-$platform-$arch.tar.gz"
+  url=$(hub release -L 1 | xargs hub release show --show-downloads | grep "${platform}-${arch}.tar.gz")
   echo "Installing EAS CLI from $url"
 
   mkdir -p "$temp_dir"
   cd "$temp_dir"
-  
+
   echo
   echo "Downloading..."
   if [ "$(command -v curl)" ]
