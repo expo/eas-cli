@@ -18,6 +18,7 @@ import {
   getProjectIdAsync,
 } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
+import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
 async function renameUpdateBranchOnAppAsync({
   appId,
@@ -72,6 +73,9 @@ export default class BranchRename extends EasCommand {
     let {
       flags: { json: jsonFlag, from: currentName, to: newName },
     } = await this.parse(BranchRename);
+    if (jsonFlag) {
+      enableJsonOutput();
+    }
 
     const projectDir = await findProjectRootAsync();
     const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
@@ -111,14 +115,13 @@ export default class BranchRename extends EasCommand {
     });
 
     if (jsonFlag) {
-      Log.log(JSON.stringify(editedBranch));
-      return;
+      printJsonOnlyOutput(editedBranch);
+    } else {
+      Log.withTick(
+        `️Renamed branch from ${currentName} to ${chalk.bold(
+          editedBranch.name
+        )} on project ${chalk.bold(fullName)}.`
+      );
     }
-
-    Log.withTick(
-      `️Renamed branch from ${currentName} to ${chalk.bold(
-        editedBranch.name
-      )} on project ${chalk.bold(fullName)}.`
-    );
   }
 }

@@ -21,6 +21,7 @@ import {
   getPlatformsForGroup,
 } from '../../update/utils';
 import formatFields from '../../utils/formatFields';
+import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
 export type BranchMapping = {
   version: number;
@@ -214,6 +215,9 @@ export default class ChannelView extends EasCommand {
       args: { name: channelName },
       flags: { json: jsonFlag },
     } = await this.parse(ChannelView);
+    if (jsonFlag) {
+      enableJsonOutput();
+    }
 
     const projectDir = await findProjectRootAsync();
     const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
@@ -242,20 +246,19 @@ export default class ChannelView extends EasCommand {
     }
 
     if (jsonFlag) {
-      Log.log(JSON.stringify(channel));
-      return;
+      printJsonOnlyOutput(channel);
+    } else {
+      Log.addNewLineIfNone();
+      Log.log(chalk.bold('Channel:'));
+      Log.log(
+        formatFields([
+          { label: 'Name', value: channel.name },
+          { label: 'ID', value: channel.id },
+        ])
+      );
+      Log.addNewLineIfNone();
+      Log.log(chalk`{bold Branches pointed at this channel and their most recent update group:}`);
+      logChannelDetails(channel);
     }
-
-    Log.addNewLineIfNone();
-    Log.log(chalk.bold('Channel:'));
-    Log.log(
-      formatFields([
-        { label: 'Name', value: channel.name },
-        { label: 'ID', value: channel.id },
-      ])
-    );
-    Log.addNewLineIfNone();
-    Log.log(chalk`{bold Branches pointed at this channel and their most recent update group:}`);
-    logChannelDetails(channel);
   }
 }

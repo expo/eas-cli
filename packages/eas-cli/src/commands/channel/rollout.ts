@@ -12,6 +12,7 @@ import {
   getProjectIdAsync,
 } from '../../project/projectUtils';
 import { promptAsync, selectAsync } from '../../prompts';
+import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 import { updateChannelBranchMappingAsync } from './edit';
 import { BranchMapping, getBranchMapping, getUpdateChannelByNameForAppAsync } from './view';
 
@@ -342,6 +343,9 @@ export default class ChannelRollout extends EasCommand {
       args: { channel: channelName },
       flags: { json: jsonFlag, end: endFlag, branch: branchName, percent },
     } = await this.parse(ChannelRollout);
+    if (jsonFlag) {
+      enableJsonOutput();
+    }
 
     const projectDir = await findProjectRootAsync();
     const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
@@ -417,9 +421,9 @@ export default class ChannelRollout extends EasCommand {
     }
     const { newChannelInfo, logMessage } = rolloutMutationResult;
     if (jsonFlag) {
-      Log.log(JSON.stringify(newChannelInfo));
-      return;
+      printJsonOnlyOutput(newChannelInfo);
+    } else {
+      Log.withTick(logMessage);
     }
-    Log.withTick(logMessage);
   }
 }

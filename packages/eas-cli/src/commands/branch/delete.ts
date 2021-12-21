@@ -19,6 +19,7 @@ import {
   getProjectIdAsync,
 } from '../../project/projectUtils';
 import { promptAsync, toggleConfirmAsync } from '../../prompts';
+import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
 async function getBranchInfoAsync({
   appId,
@@ -97,6 +98,9 @@ export default class BranchDelete extends EasCommand {
       args: { name },
       flags: { json: jsonFlag },
     } = await this.parse(BranchDelete);
+    if (jsonFlag) {
+      enableJsonOutput();
+    }
 
     const projectDir = await findProjectRootAsync();
     const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
@@ -141,11 +145,11 @@ export default class BranchDelete extends EasCommand {
     });
 
     if (jsonFlag) {
-      Log.log(JSON.stringify(deletionResult));
+      printJsonOnlyOutput(deletionResult);
+    } else {
+      Log.withTick(
+        `️Deleted branch "${name}" and all of its updates on project ${chalk.bold(fullName)}.`
+      );
     }
-
-    Log.withTick(
-      `️Deleted branch "${name}" and all of its updates on project ${chalk.bold(fullName)}.`
-    );
   }
 }

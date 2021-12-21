@@ -10,6 +10,7 @@ import {
 } from '../../graphql/generated';
 import Log from '../../log';
 import { confirmAsync } from '../../prompts';
+import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
 async function deleteUpdateGroupAsync({
   group,
@@ -58,7 +59,9 @@ export default class UpdateDelete extends EasCommand {
       flags: { json: jsonFlag },
     } = await this.parse(UpdateDelete);
 
-    if (!jsonFlag) {
+    if (jsonFlag) {
+      enableJsonOutput();
+    } else {
       const shouldAbort = await confirmAsync({
         message:
           `🚨${chalk.red('CAUTION')}🚨\n\n` +
@@ -79,10 +82,9 @@ export default class UpdateDelete extends EasCommand {
     await deleteUpdateGroupAsync({ group });
 
     if (jsonFlag) {
-      Log.log(JSON.stringify({ group }));
-      return;
+      printJsonOnlyOutput({ group });
+    } else {
+      Log.withTick(`Deleted update group ${group}`);
     }
-
-    Log.withTick(`Deleted update group ${group}`);
   }
 }

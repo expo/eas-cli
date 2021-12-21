@@ -13,6 +13,7 @@ import { promptAsync } from '../../prompts';
 import { UPDATE_COLUMNS, formatUpdate, getPlatformsForGroup } from '../../update/utils';
 import groupBy from '../../utils/expodash/groupBy';
 import formatFields from '../../utils/formatFields';
+import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
 const PAGE_LIMIT = 10_000;
 
@@ -89,6 +90,9 @@ export default class BranchView extends EasCommand {
       args: { name },
       flags: { json: jsonFlag },
     } = await this.parse(BranchView);
+    if (jsonFlag) {
+      enableJsonOutput();
+    }
 
     const projectDir = await findProjectRootAsync();
     const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
@@ -121,37 +125,36 @@ export default class BranchView extends EasCommand {
     );
 
     if (jsonFlag) {
-      Log.log(JSON.stringify({ ...UpdateBranch, updates }));
-      return;
+      printJsonOnlyOutput({ ...UpdateBranch, updates });
+    } else {
+      const groupTable = new Table({
+        head: UPDATE_COLUMNS,
+        wordWrap: true,
+      });
+
+      for (const update of updates) {
+        groupTable.push([
+          formatUpdate(update),
+          update.runtimeVersion,
+          update.group,
+          getPlatformsForGroup({
+            updates: UpdateBranch.updates,
+            group: update.group,
+          }),
+        ]);
+      }
+
+      Log.addNewLineIfNone();
+      Log.log(chalk.bold('Branch:'));
+      Log.log(
+        formatFields([
+          { label: 'Name', value: UpdateBranch.name },
+          { label: 'ID', value: UpdateBranch.id },
+        ])
+      );
+      Log.addNewLineIfNone();
+      Log.log(chalk.bold('Recently published update groups:'));
+      Log.log(groupTable.toString());
     }
-
-    const groupTable = new Table({
-      head: UPDATE_COLUMNS,
-      wordWrap: true,
-    });
-
-    for (const update of updates) {
-      groupTable.push([
-        formatUpdate(update),
-        update.runtimeVersion,
-        update.group,
-        getPlatformsForGroup({
-          updates: UpdateBranch.updates,
-          group: update.group,
-        }),
-      ]);
-    }
-
-    Log.addNewLineIfNone();
-    Log.log(chalk.bold('Branch:'));
-    Log.log(
-      formatFields([
-        { label: 'Name', value: UpdateBranch.name },
-        { label: 'ID', value: UpdateBranch.id },
-      ])
-    );
-    Log.addNewLineIfNone();
-    Log.log(chalk.bold('Recently published update groups:'));
-    Log.log(groupTable.toString());
   }
 }

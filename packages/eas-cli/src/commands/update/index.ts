@@ -35,6 +35,7 @@ import { promptAsync, selectAsync } from '../../prompts';
 import { formatUpdate } from '../../update/utils';
 import uniqBy from '../../utils/expodash/uniqBy';
 import formatFields from '../../utils/formatFields';
+import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 import { getVcsClient } from '../../vcs';
 import { createUpdateBranchOnAppAsync } from '../branch/create';
 import { listBranchesAsync } from '../branch/list';
@@ -190,6 +191,9 @@ export default class UpdatePublish extends EasCommand {
         platform,
       },
     } = await this.parse(UpdatePublish);
+    if (jsonFlag) {
+      enableJsonOutput();
+    }
     const platformFlag = platform as PlatformFlag;
     // If a group was specified, that means we are republishing it.
     republish = group ? true : republish;
@@ -419,7 +423,7 @@ export default class UpdatePublish extends EasCommand {
     }
 
     if (jsonFlag) {
-      Log.log(JSON.stringify(newUpdates));
+      printJsonOnlyOutput(newUpdates);
     } else {
       if (new Set(newUpdates.map(update => update.group)).size > 1) {
         Log.addNewLineIfNone();

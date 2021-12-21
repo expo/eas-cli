@@ -16,6 +16,7 @@ import { UpdateBranchFragmentNode } from '../../graphql/types/UpdateBranch';
 import Log from '../../log';
 import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUtils';
 import { UPDATE_COLUMNS, formatUpdate, getPlatformsForGroup } from '../../update/utils';
+import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
 const BRANCHES_LIMIT = 10_000;
 
@@ -65,13 +66,16 @@ export default class BranchList extends EasCommand {
 
   async runAsync(): Promise<void> {
     const { flags } = await this.parse(BranchList);
+    if (flags.json) {
+      enableJsonOutput();
+    }
 
     const projectDir = await findProjectRootAsync();
     const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
     const projectId = await getProjectIdAsync(exp);
     const branches = await listBranchesAsync({ projectId });
     if (flags.json) {
-      Log.log(JSON.stringify(branches, null, 2));
+      printJsonOnlyOutput(branches);
     } else {
       const table = new CliTable({
         head: ['Branch', ...UPDATE_COLUMNS],
