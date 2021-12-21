@@ -116,7 +116,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ needs.release.outputs.upload_url }}
-          asset_path: packages/eas-cli/dist/win/${{ steps.x64.outputs.filename }}
+          asset_path: packages/eas-cli/dist/win32/${{ steps.x64.outputs.filename }}
           asset_name: ${{ steps.x64.outputs.filename }}
           asset_content_type: application/gzip
       - name: Upload x86 installer
@@ -125,7 +125,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ needs.release.outputs.upload_url }}
-          asset_path: packages/eas-cli/dist/win/${{ steps.x86.outputs.filename }}
+          asset_path: packages/eas-cli/dist/win32/${{ steps.x86.outputs.filename }}
           asset_name: ${{ steps.x86.outputs.filename }}
           asset_content_type: application/gzip
   publish-to-npm:
