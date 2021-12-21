@@ -48,7 +48,7 @@ jobs:
         with:
           upload_url: ${{ needs.release.outputs.upload_url }}
           asset_path: packages/eas-cli/dist/${{ steps.x64.outputs.filename }}
-          asset_name: eas-linux-x64.tar.gz
+          asset_name: ${{ steps.x64.outputs.filename }}
           asset_content_type: application/gzip
       - name: Upload linux-arm tarball
         uses: actions/upload-release-asset@v1
@@ -57,7 +57,7 @@ jobs:
         with:
           upload_url: ${{ needs.release.outputs.upload_url }}
           asset_path: packages/eas-cli/dist/${{ steps.arm.outputs.filename }}
-          asset_name: eas-linux-arm.tar.gz
+          asset_name: ${{ steps.arm.outputs.filename }}
           asset_content_type: application/gzip
   build-mac:
     name: Build for macOS
@@ -86,7 +86,7 @@ jobs:
         with:
           upload_url: ${{ needs.release.outputs.upload_url }}
           asset_path: packages/eas-cli/dist/${{ steps.x64.outputs.filename }}
-          asset_name: eas-darwin-x64.tar.gz
+          asset_name: ${{ steps.x64.outputs.filename }}
           asset_content_type: application/gzip
   build-windows:
     name: Build for Windows
@@ -106,10 +106,10 @@ jobs:
         working-directory: ${{ github.workspace }}/packages/eas-cli
       - id: x64
         run: echo "::set-output name=filename::$(ls eas-*-x64.exe)"
-        working-directory: ${{ github.workspace }}/packages/eas-cli/dist/win
+        working-directory: ${{ github.workspace }}/packages/eas-cli/dist/win32
       - id: x86
         run: echo "::set-output name=filename::$(ls eas-*-x86.exe)"
-        working-directory: ${{ github.workspace }}/packages/eas-cli/dist/win
+        working-directory: ${{ github.workspace }}/packages/eas-cli/dist/win32
       - name: Upload x64 installer
         uses: actions/upload-release-asset@v1
         env:
