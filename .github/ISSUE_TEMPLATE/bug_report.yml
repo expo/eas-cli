@@ -15,7 +15,7 @@ body:
     attributes:
       value: If you leave out sections there is a high likelihood your issue will be closed. If you have a question, not a bug report, please post it on our [forums](https://forums.expo.dev/) instead.
   - type: input
-    attribute:
+    attributes:
       label: Build/Submit details page URL
       description: If you're reporting an issue with EAS Build and/or EAS Submit, please provide the URL to the details page URL. The page can be only viewed by the Expo team members. Providing the URL is optional but it makes debugging the issue easier.
       placeholder: https://expo.dev/accounts/ACCOUNT_NAME/projects/PROJECT_NAME/builds/BUILD_ID
