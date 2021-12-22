@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Fix saving `build:inspect` results to project subdirectory. ([#863](https://github.com/expo/eas-cli/pull/863) by [@wkozyra95](https://github.com/wkozyra95))
+
 ### 🧹 Chores
 
 ## [0.42.4](https://github.com/expo/eas-cli/releases/tag/v0.42.4) - 2021-12-21

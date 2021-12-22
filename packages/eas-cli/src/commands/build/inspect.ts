@@ -46,6 +46,7 @@ export default class BuildInspect extends EasCommand {
       required: true,
     }),
     output: Flags.string({
+      char: 'o',
       description: 'Output directory.',
       required: true,
       helpValue: 'OUTPUT_DIRECTORY',
@@ -55,6 +56,7 @@ export default class BuildInspect extends EasCommand {
       default: false,
     }),
     verbose: Flags.boolean({
+      char: 'v',
       default: false,
     }),
   };
@@ -62,15 +64,23 @@ export default class BuildInspect extends EasCommand {
   async runAsync(): Promise<void> {
     const { flags } = await this.parse(BuildInspect);
     const outputDirectory = path.resolve(process.cwd(), flags.output);
+    const tmpWorkingdir = path.join(getTmpDirectory(), uuidv4());
+
+    if (flags.force && process.cwd().startsWith(outputDirectory)) {
+      throw new Error(
+        `This operation is not allowed, it would delete all files in ${outputDirectory} including the current project.`
+      );
+    }
+
     await this.prepareOutputDirAsync(outputDirectory, flags.force);
+
     if (flags.stage === InspectStage.ARCHIVE) {
       const vcs = getVcsClient();
       await vcs.ensureRepoExistsAsync();
-      await vcs.makeShallowCopyAsync(outputDirectory);
-      Log.withTick(`Project saved to ${outputDirectory}`);
+      await vcs.makeShallowCopyAsync(tmpWorkingdir);
+      await this.copyToOutputDirAsync(tmpWorkingdir, outputDirectory);
     } else {
       const projectDir = await findProjectRootAsync();
-      const tmpWorkingdir = path.join(getTmpDirectory(), uuidv4());
       try {
         await runBuildAndSubmitAsync(projectDir, {
           skipProjectConfiguration: false,
@@ -99,18 +109,7 @@ export default class BuildInspect extends EasCommand {
           Log.error(`Re-run this command with ${chalk.bold('--verbose')} flag to see the logs`);
         }
       } finally {
-        const spinner = ora().start(`Copying project build directory to ${outputDirectory}`);
-        try {
-          const tmpBuildDirectory = path.join(tmpWorkingdir, 'build');
-          if (await fs.pathExists(tmpBuildDirectory)) {
-            await fs.copy(tmpBuildDirectory, outputDirectory);
-          }
-          await fs.remove(tmpWorkingdir);
-          spinner.succeed(`Project build directory saved to ${outputDirectory}`);
-        } catch (err) {
-          spinner.fail();
-          throw err;
-        }
+        await this.copyToOutputDirAsync(path.join(tmpWorkingdir, 'build'), outputDirectory);
       }
     }
   }
@@ -124,5 +123,19 @@ export default class BuildInspect extends EasCommand {
       }
     }
     await fs.mkdirp(outputDir);
+  }
+
+  private async copyToOutputDirAsync(src: string, dst: string): Promise<void> {
+    const spinner = ora().start(`Copying project directory to ${dst}`);
+    try {
+      if (await fs.pathExists(src)) {
+        await fs.copy(src, dst);
+      }
+      await fs.remove(src);
+      spinner.succeed(`Project directory saved to ${dst}`);
+    } catch (err) {
+      spinner.fail();
+      throw err;
+    }
   }
 }
