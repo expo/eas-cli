@@ -17,19 +17,19 @@
     "clean": "lerna run clean && rm -rf node_modules coverage"
   },
   "devDependencies": {
-    "@types/jest": "27.0.1",
+    "@types/jest": "27.4.0",
     "@types/node": "16.7.8",
-    "eslint": "7.32.0",
-    "eslint-config-universe": "8.0.0",
+    "eslint": "8.7.0",
+    "eslint-config-universe": "10.0.0",
     "eslint-plugin-async-protect": "1.1.0",
     "eslint-plugin-node": "11.1.0",
-    "jest": "27.1.0",
-    "jest-watch-typeahead": "0.6.4",
+    "jest": "27.4.7",
+    "jest-watch-typeahead": "1.0.0",
     "lerna": "4.0.0",
-    "oclif": "2.1.5",
-    "prettier": "2.4.1",
-    "ts-jest": "27.0.5",
-    "typescript": "4.5.2"
+    "oclif": "2.2.0",
+    "prettier": "2.5.1",
+    "ts-jest": "27.1.3",
+    "typescript": "4.5.4"
   },
   "volta": {
     "node": "16.10.0",
