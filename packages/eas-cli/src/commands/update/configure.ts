@@ -59,7 +59,7 @@ async function configureProjectForEASUpdateAsync(
       );
       Log.log(
         chalk.bold(
-          `{\n  updates": {\n    "url": "${easUpdateURL}"\n  },\n  "runtimeVersion": {\n    "policy": "sdkVersion"\n  }\n}`
+          `{\n  "updates": {\n    "url": "${easUpdateURL}"\n  },\n  "runtimeVersion": {\n    "policy": "sdkVersion"\n  }\n}`
         )
       );
       Log.addNewLineIfNone();
