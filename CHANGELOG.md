@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Add update:list alias for branch:list command. ([#884](https://github.com/expo/eas-cli/pull/884) by [@jkhales](https://github.com/jkhales))
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
