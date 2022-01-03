@@ -66,7 +66,7 @@ export default class Build extends EasCommand {
       description: 'Run build locally [experimental]',
     }),
     output: Flags.string({
-      description: 'Output path for local build.',
+      description: 'Output path for local build',
     }),
     wait: Flags.boolean({
       default: true,
