@@ -14,6 +14,13 @@ import groupBy from '../../utils/expodash/groupBy';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 import { getVcsClient } from '../../vcs';
 
+type UpdateGroupDescription = FormatUpdateParameter & {
+  branch: string;
+  group: string;
+  platforms: string;
+  runtimeVersion: string;
+};
+
 export default class BranchView extends EasCommand {
   static description = 'View the recent updates for a branch';
 
@@ -45,7 +52,7 @@ export default class BranchView extends EasCommand {
     const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
     const projectId = await getProjectIdAsync(exp);
 
-    let updateGroupDescriptions: ReturnType<typeof getUpdateGroupDescriptions>;
+    let updateGroupDescriptions: UpdateGroupDescription[];
     if (all) {
       const branchesAndUpdates = await UpdateQuery.viewAllAsync({ appId: projectId });
       updateGroupDescriptions = getUpdateGroupDescriptions(
@@ -60,17 +67,17 @@ export default class BranchView extends EasCommand {
         ({ name: branch } = await promptAsync({
           type: 'text',
           name: 'name',
-          message: 'Please enter the name of the branch to view:',
+          message: 'Please enter the name of the branch whose updates you wish to view:',
           initial: (await getVcsClient().getBranchNameAsync()) ?? undefined,
           validate: (value: any) => (value ? true : validationMessage),
         }));
       }
 
-      const { app } = await UpdateQuery.viewBranchUpdatesAsync({
+      const branchesAndUpdates = await UpdateQuery.viewBranchAsync({
         appId: projectId,
         name: branch!,
       });
-      const UpdateBranch = app?.byId.updateBranchByName;
+      const UpdateBranch = branchesAndUpdates.app?.byId.updateBranchByName;
       if (!UpdateBranch) {
         throw new Error(`Could not find branch "${branch}"`);
       }
@@ -80,40 +87,35 @@ export default class BranchView extends EasCommand {
     if (jsonFlag) {
       printJsonOnlyOutput(updateGroupDescriptions);
     } else {
-      logOutput(updateGroupDescriptions);
+      logAsTable(updateGroupDescriptions);
     }
   }
 }
 
 function getUpdateGroupDescriptions(
   branchesAndUpdates: ViewAllUpdatesQuery['app']['byId']['updateBranches']
-): (FormatUpdateParameter & {
-  branch: string;
-  group: string;
-  platforms: string;
-  runtimeVersion: string;
-})[] {
+): UpdateGroupDescription[] {
   const flattenedBranchesAndUpdates = branchesAndUpdates.flatMap(branch =>
     branch.updates.map(update => {
       return { branch: branch.name, ...update };
     })
   );
-  const updateGroupRepresentative = Object.values(
-    groupBy(flattenedBranchesAndUpdates, u => u.group)
-  ).map(group => {
-    const platforms = group
-      .map(u => u.platform)
+  const updateGroupDescriptions = Object.values(
+    groupBy(flattenedBranchesAndUpdates, update => update.group)
+  ).map(updateGroup => {
+    const platforms = updateGroup
+      .map(update => update.platform)
       .sort()
       .join(', ');
-    return { ...group[0], platforms };
+    return { ...updateGroup[0], platforms };
   });
-  updateGroupRepresentative.sort(
+  updateGroupDescriptions.sort(
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
   );
-  return updateGroupRepresentative;
+  return updateGroupDescriptions;
 }
 
-function logOutput(updateGroupDescriptions: ReturnType<typeof getUpdateGroupDescriptions>): void {
+function logAsTable(updateGroupDescriptions: UpdateGroupDescription[]): void {
   const table = new CliTable({
     head: ['Branch', ...UPDATE_COLUMNS],
     wordWrap: true,

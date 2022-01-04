@@ -54,10 +54,7 @@ export const UpdateQuery = {
         .toPromise()
     );
   },
-  async viewBranchUpdatesAsync({
-    appId,
-    name,
-  }: Pick<ViewBranchUpdatesQueryVariables, 'appId' | 'name'>) {
+  async viewBranchAsync({ appId, name }: Pick<ViewBranchUpdatesQueryVariables, 'appId' | 'name'>) {
     return withErrorHandlingAsync<ViewBranchUpdatesQuery>(
       graphqlClient
         .query<ViewBranchUpdatesQuery, ViewBranchUpdatesQueryVariables>(
