@@ -3,6 +3,7 @@ import { Errors, Flags } from '@oclif/core';
 import chalk from 'chalk';
 import figures from 'figures';
 import fs from 'fs-extra';
+import path from 'path';
 
 import { BuildFlags, runBuildAndSubmitAsync } from '../../build/runBuildAndSubmit';
 import { ensureRepoIsCleanAsync, reviewAndCommitChangesAsync } from '../../build/utils/repository';
@@ -23,6 +24,7 @@ interface RawBuildFlags {
   profile?: string;
   'non-interactive': boolean;
   local: boolean;
+  output?: string;
   wait: boolean;
   'clear-cache': boolean;
   json: boolean;
@@ -63,6 +65,9 @@ export default class Build extends EasCommand {
       default: false,
       description: 'Run build locally [experimental]',
     }),
+    output: Flags.string({
+      description: 'Output path for local build',
+    }),
     wait: Flags.boolean({
       default: true,
       allowNo: true,
@@ -100,6 +105,9 @@ export default class Build extends EasCommand {
 
   private async sanitizeFlagsAsync(flags: RawBuildFlags): Promise<BuildFlags> {
     const nonInteractive = flags['non-interactive'];
+    if (!flags.local && flags.output) {
+      Errors.error('--output is allowed only for local builds', { exit: 1 });
+    }
     if (!flags.platform && nonInteractive) {
       Errors.error('--platform is required when building in non-interactive mode', { exit: 1 });
     }
@@ -138,7 +146,11 @@ export default class Build extends EasCommand {
       profile,
       nonInteractive,
       localBuildOptions: flags['local']
-        ? { enable: true, verbose: true }
+        ? {
+            enable: true,
+            verbose: true,
+            artifactPath: flags.output && path.resolve(process.cwd(), flags.output),
+          }
         : {
             enable: false,
           },

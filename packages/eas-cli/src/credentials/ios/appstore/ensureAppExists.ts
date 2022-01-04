@@ -67,7 +67,11 @@ export async function ensureBundleIdExistsWithNameAsync(
       spinner.fail(`Failed to register bundle identifier ${chalk.dim(bundleIdentifier)}`);
 
       // Assert contract errors for easier resolution when the user has an expired developer account.
-      if (err.message.match(/forbidden for security reasons/)) {
+      if (
+        err.message.match(/forbidden for security reasons/) ||
+        // Unable to process request - PLA Update available - You currently don't have access to this membership resource. To resolve this issue, agree to the latest Program License Agreement in your developer account.
+        err.message.match(/agree/)
+      ) {
         await assertContractMessagesAsync(context);
       }
     }
