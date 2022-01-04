@@ -9,7 +9,12 @@ import { UpdateQuery } from '../../graphql/queries/UpdateQuery';
 import Log from '../../log';
 import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
-import { UPDATE_COLUMNS, formatUpdate, getPlatformsForGroup } from '../../update/utils';
+import {
+  FormatUpdateParameter,
+  UPDATE_COLUMNS,
+  formatUpdate,
+  getPlatformsForGroup,
+} from '../../update/utils';
 import groupBy from '../../utils/expodash/groupBy';
 import formatFields from '../../utils/formatFields';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
@@ -45,27 +50,25 @@ export default class BranchView extends EasCommand {
     const projectDir = await findProjectRootAsync();
     const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
     const projectId = await getProjectIdAsync(exp);
-    if (all) {
-      const updatesAll = await UpdateQuery.viewAllUpdatesAsync({ appId: projectId });
-      const parsedUpdates = [];
-      for (const branch of updatesAll.app.byId.updateBranches) {
-        for (const update of branch.updates) {
-          parsedUpdates.push({
-            branch: branch.name,
-            ...update,
-          });
-        }
-      }
 
-      const groupedUpdates = groupBy(parsedUpdates, u => u.group);
-      const updateGroups = Object.values(groupedUpdates).map(group => {
+    if (all) {
+      const branchesAndUpdates = await UpdateQuery.viewAllUpdatesAsync({ appId: projectId });
+      const flattenedBranchesAndUpdates = branchesAndUpdates.app.byId.updateBranches.flatMap(
+        branch =>
+          branch.updates.map(update => {
+            return { branch: branch.name, ...update };
+          })
+      );
+      const updateGroupRepresentative = Object.values(
+        groupBy(flattenedBranchesAndUpdates, u => u.group)
+      ).map(group => {
         const platforms = group
           .map(u => u.platform)
           .sort()
           .join(', ');
         return { ...group[0], platforms };
       });
-      updateGroups.sort(
+      updateGroupRepresentative.sort(
         (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       );
 
@@ -74,16 +77,26 @@ export default class BranchView extends EasCommand {
         wordWrap: true,
       });
       table.push(
-        ...updateGroups.map((update: any) => [
-          update.branch,
-          formatUpdate(update),
-          update.runtimeVersion ?? 'N/A',
-          update.group ?? 'N/A',
-          update.platforms,
-        ])
+        ...updateGroupRepresentative.map(
+          (
+            update: FormatUpdateParameter & {
+              branch: string;
+              group: string;
+              platforms: string;
+              runtimeVersion: string;
+            }
+          ) => [
+            update.branch,
+            formatUpdate(update),
+            update.runtimeVersion,
+            update.group,
+            update.platforms,
+          ]
+        )
       );
-      console.log(table.toString());
-      process.exit();
+      Log.addNewLineIfNone();
+      Log.log(chalk.bold('Recently published update groups:'));
+      Log.log(table.toString());
       return;
     }
 

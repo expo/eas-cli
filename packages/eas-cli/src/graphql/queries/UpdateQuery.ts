@@ -1,15 +1,20 @@
 import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../client';
-import { ViewBranchUpdatesQuery, ViewBranchUpdatesQueryVariables } from '../generated';
+import {
+  ViewAllUpdatesQuery,
+  ViewAllUpdatesQueryVariables,
+  ViewBranchUpdatesQuery,
+  ViewBranchUpdatesQueryVariables,
+} from '../generated';
 
 const PAGE_LIMIT = 10_000;
 
 export const UpdateQuery = {
-  async viewAllUpdatesAsync({ appId }: { appId: string }): Promise<any> {
-    return withErrorHandlingAsync<any>(
+  async viewAllUpdatesAsync({ appId }: { appId: string }): Promise<ViewAllUpdatesQuery> {
+    return withErrorHandlingAsync(
       graphqlClient
-        .query<any, any>(
+        .query<ViewAllUpdatesQuery, ViewAllUpdatesQueryVariables>(
           gql`
             query ViewAllUpdates($appId: String!, $limit: Int!) {
               app {
@@ -25,7 +30,6 @@ export const UpdateQuery = {
                       createdAt
                       runtimeVersion
                       platform
-                      manifestFragment
                       actor {
                         id
                         ... on User {
