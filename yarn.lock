@@ -833,10 +833,10 @@
     minimatch "^3.0.4"
     strip-json-comments "^3.1.1"
 
-"@expo/apple-utils@0.0.0-alpha.26":
-  version "0.0.0-alpha.26"
-  resolved "https://registry.yarnpkg.com/@expo/apple-utils/-/apple-utils-0.0.0-alpha.26.tgz#cf5a893b7c9cc779af5b54a482196325dcde1426"
-  integrity sha512-t+xOhn4bYSAXkXamhDPUiI2Ol+QIwHRHLn/2QiCmNAGHolaVan/hMaVveSzvCYitpaJ16b4nthvcWFoJipxGlA==
+"@expo/apple-utils@0.0.0-alpha.27":
+  version "0.0.0-alpha.27"
+  resolved "https://registry.yarnpkg.com/@expo/apple-utils/-/apple-utils-0.0.0-alpha.27.tgz#5b77cd4522d19fa75a7801071c49da04b9162cd7"
+  integrity sha512-oprlh8UpNM5nqz6clGpCr7u8Uf1WjmnOkETKLEFDnW2JRcOkSrVwJrV4CfKfm3qvIoAwEk4ZONDMr0ZiI21dzQ==
 
 "@expo/bunyan@^4.0.0":
   version "4.0.0"
