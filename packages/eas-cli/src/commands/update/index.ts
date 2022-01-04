@@ -114,7 +114,7 @@ async function ensureBranchExistsAsync({
     null | undefined
   >['updates'];
 }> {
-  const { app } = await UpdateQuery.viewUpdateBranchAsync({
+  const { app } = await UpdateQuery.viewBranchAsync({
     appId,
     name: branchName,
   });

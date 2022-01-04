@@ -11,7 +11,7 @@ import {
 const PAGE_LIMIT = 10_000;
 
 export const UpdateQuery = {
-  async viewAllUpdatesAsync({ appId }: { appId: string }): Promise<ViewAllUpdatesQuery> {
+  async viewAllAsync({ appId }: { appId: string }): Promise<ViewAllUpdatesQuery> {
     return withErrorHandlingAsync(
       graphqlClient
         .query<ViewAllUpdatesQuery, ViewAllUpdatesQueryVariables>(
@@ -54,7 +54,7 @@ export const UpdateQuery = {
         .toPromise()
     );
   },
-  async viewUpdateBranchAsync({
+  async viewBranchUpdatesAsync({
     appId,
     name,
   }: Pick<ViewBranchUpdatesQueryVariables, 'appId' | 'name'>) {

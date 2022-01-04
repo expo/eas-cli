@@ -57,7 +57,7 @@ export default class BranchView extends EasCommand {
       }));
     }
 
-    const { app } = await UpdateQuery.viewUpdateBranchAsync({
+    const { app } = await UpdateQuery.viewBranchAsync({
       appId: projectId,
       name,
     });

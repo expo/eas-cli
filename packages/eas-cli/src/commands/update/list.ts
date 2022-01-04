@@ -47,7 +47,7 @@ export default class BranchView extends EasCommand {
 
     let updateGroupDescriptions: ReturnType<typeof getUpdateGroupDescriptions>;
     if (all) {
-      const branchesAndUpdates = await UpdateQuery.viewAllUpdatesAsync({ appId: projectId });
+      const branchesAndUpdates = await UpdateQuery.viewAllAsync({ appId: projectId });
       updateGroupDescriptions = getUpdateGroupDescriptions(
         branchesAndUpdates.app.byId.updateBranches
       );
@@ -66,7 +66,7 @@ export default class BranchView extends EasCommand {
         }));
       }
 
-      const { app } = await UpdateQuery.viewUpdateBranchAsync({
+      const { app } = await UpdateQuery.viewBranchUpdatesAsync({
         appId: projectId,
         name: branch!,
       });
