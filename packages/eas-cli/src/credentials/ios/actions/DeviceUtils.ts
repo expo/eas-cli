@@ -26,6 +26,23 @@ export async function chooseDevicesAsync(
   return devices;
 }
 
+export async function chooseSingleDeviceToDeleteAsync(
+  allDevices: AppleDeviceFragment[]
+): Promise<AppleDevice> {
+  const { device } = await promptAsync({
+    type: 'select',
+    name: 'device',
+    message: 'Which devices do you want to remove?',
+    choices: allDevices.map(device => ({
+      value: device,
+      title: formatDeviceLabel(device),
+      selected: false,
+    })),
+    instructions: false,
+  });
+  return device;
+}
+
 export function formatDeviceLabel(device: AppleDeviceFragment): string {
   const deviceDetails = formatDeviceDetails(device);
   return `${device.name ?? device.identifier}${deviceDetails !== '' ? ` ${deviceDetails}` : ''}`;

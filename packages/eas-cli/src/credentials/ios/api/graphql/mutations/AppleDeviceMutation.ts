@@ -6,6 +6,7 @@ import {
   AppleDeviceFragment,
   AppleDeviceInput,
   CreateAppleDeviceMutation,
+  DeleteAppleDeviceResult,
 } from '../../../../../graphql/generated';
 import { AppleDeviceFragmentNode } from '../../../../../graphql/types/credentials/AppleDevice';
 
@@ -39,5 +40,26 @@ export const AppleDeviceMutation = {
         .toPromise()
     );
     return data.appleDevice.createAppleDevice;
+  },
+  async deleteAppleDeviceAsync(deviceId: string): Promise<string> {
+    const data = await withErrorHandlingAsync(
+      graphqlClient
+        .mutation<DeleteAppleDeviceResult>(
+          gql`
+            mutation CreateAppleDeviceMutation($deviceId: ID!) {
+              appleDevice {
+                deleteAppleDevice(id: $deviceId) {
+                  id
+                }
+              }
+            }
+          `,
+          {
+            deviceId,
+          }
+        )
+        .toPromise()
+    );
+    return data.id;
   },
 };
