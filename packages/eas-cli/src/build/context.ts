@@ -11,13 +11,6 @@ import { XcodeBuildContext } from '../project/ios/scheme';
 import { Actor } from '../user/User';
 import { LocalBuildOptions } from './local';
 
-export interface ConfigureContext {
-  projectDir: string;
-  exp: ExpoConfig;
-  hasAndroidNativeProject: boolean;
-  hasIosNativeProject: boolean;
-}
-
 export type CommonContext<T extends Platform> = Omit<BuildContext<T>, 'android' | 'ios'>;
 
 export interface AndroidBuildContext {

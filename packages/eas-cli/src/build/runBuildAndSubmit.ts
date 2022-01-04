@@ -55,7 +55,6 @@ export async function runBuildAndSubmitAsync(projectDir: string, flags: BuildFla
 
   await ensureProjectConfiguredAsync({
     projectDir,
-    requestedPlatform: flags.requestedPlatform,
     nonInteractive: flags.nonInteractive,
   });
 
