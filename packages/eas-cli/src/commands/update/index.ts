@@ -17,9 +17,10 @@ import {
   Update,
   UpdateInfoGroup,
   User,
-  ViewBranchQuery,
+  ViewBranchUpdatesQuery,
 } from '../../graphql/generated';
 import { PublishMutation } from '../../graphql/mutations/PublishMutation';
+import { UpdateQuery } from '../../graphql/queries/UpdateQuery';
 import Log from '../../log';
 import { ora } from '../../ora';
 import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUtils';
@@ -39,7 +40,6 @@ import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 import { getVcsClient } from '../../vcs';
 import { createUpdateBranchOnAppAsync } from '../branch/create';
 import { listBranchesAsync } from '../branch/list';
-import { viewUpdateBranchAsync } from '../branch/view';
 import { createUpdateChannelOnAppAsync } from '../channel/create';
 
 export const defaultPublishPlatforms: PublishPlatform[] = ['android', 'ios'];
@@ -110,11 +110,11 @@ async function ensureBranchExistsAsync({
 }): Promise<{
   id: string;
   updates: Exclude<
-    Exclude<ViewBranchQuery['app'], null | undefined>['byId']['updateBranchByName'],
+    Exclude<ViewBranchUpdatesQuery['app'], null | undefined>['byId']['updateBranchByName'],
     null | undefined
   >['updates'];
 }> {
-  const { app } = await viewUpdateBranchAsync({
+  const { app } = await UpdateQuery.viewUpdateBranchAsync({
     appId,
     name: branchName,
   });
@@ -480,7 +480,7 @@ async function getRuntimeVersionObjectAsync(
 
 function formatUpdateTitle(
   update: Exclude<
-    Exclude<ViewBranchQuery['app'], null | undefined>['byId']['updateBranchByName'],
+    Exclude<ViewBranchUpdatesQuery['app'], null | undefined>['byId']['updateBranchByName'],
     null | undefined
   >['updates'][number]
 ): string {

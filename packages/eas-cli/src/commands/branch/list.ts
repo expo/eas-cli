@@ -55,8 +55,7 @@ export async function listBranchesAsync({
 }
 
 export default class BranchList extends EasCommand {
-  static description = 'List all of the branches and updates on this project.';
-  static aliases = ['update:list'];
+  static description = 'List all branches on this project.';
 
   static flags = {
     json: Flags.boolean({

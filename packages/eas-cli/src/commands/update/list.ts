@@ -1,6 +1,7 @@
 import { getConfig } from '@expo/config';
 import { Flags } from '@oclif/core';
 import chalk from 'chalk';
+import CliTable from 'cli-table3';
 import Table from 'cli-table3';
 
 import EasCommand from '../../commandUtils/EasCommand';
@@ -12,19 +13,21 @@ import { UPDATE_COLUMNS, formatUpdate, getPlatformsForGroup } from '../../update
 import groupBy from '../../utils/expodash/groupBy';
 import formatFields from '../../utils/formatFields';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
+import { getVcsClient } from '../../vcs';
 
 export default class BranchView extends EasCommand {
-  static description = 'View a branch.';
-
-  static args = [
-    {
-      name: 'name',
-      required: false,
-      description: 'Name of the branch to view',
-    },
-  ];
+  static description = 'View the recent updates for a branch';
 
   static flags = {
+    branch: Flags.string({
+      description: 'List all updates on this branch',
+      exclusive: ['all'],
+    }),
+    all: Flags.boolean({
+      description: `List all updates associated with this project.`,
+      exclusive: ['branch'],
+      default: false,
+    }),
     json: Flags.boolean({
       description: `return a json with the branch's ID name and recent update groups.`,
       default: false,
@@ -33,8 +36,7 @@ export default class BranchView extends EasCommand {
 
   async runAsync(): Promise<void> {
     let {
-      args: { name },
-      flags: { json: jsonFlag },
+      flags: { branch, all, json: jsonFlag },
     } = await this.parse(BranchView);
     if (jsonFlag) {
       enableJsonOutput();
@@ -43,27 +45,69 @@ export default class BranchView extends EasCommand {
     const projectDir = await findProjectRootAsync();
     const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
     const projectId = await getProjectIdAsync(exp);
+    if (all) {
+      const updatesAll = await UpdateQuery.viewAllUpdatesAsync({ appId: projectId });
+      const parsedUpdates = [];
+      for (const branch of updatesAll.app.byId.updateBranches) {
+        for (const update of branch.updates) {
+          parsedUpdates.push({
+            branch: branch.name,
+            ...update,
+          });
+        }
+      }
 
-    if (!name) {
+      const groupedUpdates = groupBy(parsedUpdates, u => u.group);
+      const updateGroups = Object.values(groupedUpdates).map(group => {
+        const platforms = group
+          .map(u => u.platform)
+          .sort()
+          .join(', ');
+        return { ...group[0], platforms };
+      });
+      updateGroups.sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+
+      const table = new CliTable({
+        head: ['Branch', ...UPDATE_COLUMNS],
+        wordWrap: true,
+      });
+      table.push(
+        ...updateGroups.map((update: any) => [
+          update.branch,
+          formatUpdate(update),
+          update.runtimeVersion ?? 'N/A',
+          update.group ?? 'N/A',
+          update.platforms,
+        ])
+      );
+      console.log(table.toString());
+      process.exit();
+      return;
+    }
+
+    if (!branch) {
       const validationMessage = 'Branch name may not be empty.';
       if (jsonFlag) {
         throw new Error(validationMessage);
       }
-      ({ name } = await promptAsync({
+      ({ name: branch } = await promptAsync({
         type: 'text',
         name: 'name',
         message: 'Please enter the name of the branch to view:',
-        validate: value => (value ? true : validationMessage),
+        initial: (await getVcsClient().getBranchNameAsync()) ?? undefined,
+        validate: (value: any) => (value ? true : validationMessage),
       }));
     }
 
     const { app } = await UpdateQuery.viewUpdateBranchAsync({
       appId: projectId,
-      name,
+      name: branch!,
     });
     const UpdateBranch = app?.byId.updateBranchByName;
     if (!UpdateBranch) {
-      throw new Error(`Could not find branch "${name}"`);
+      throw new Error(`Could not find branch "${branch}"`);
     }
 
     const updates = Object.values(groupBy(UpdateBranch.updates, u => u.group)).map(
