@@ -13,6 +13,7 @@ export interface LocalBuildOptions {
   skipCleanup?: boolean;
   skipNativeBuild?: boolean;
   artifactsDir?: string;
+  artifactPath?: string;
   workingdir?: string;
   verbose?: boolean;
 }
@@ -41,6 +42,7 @@ export async function runLocalBuildAsync(job: Job, options: LocalBuildOptions): 
           : {}),
         ...(options.skipNativeBuild ? { EAS_LOCAL_BUILD_SKIP_NATIVE_BUILD: '1' } : {}),
         ...(options.artifactsDir ? { EAS_LOCAL_BUILD_ARTIFACTS_DIR: options.artifactsDir } : {}),
+        ...(options.artifactPath ? { EAS_LOCAL_BUILD_ARTIFACT_PATH: options.artifactPath } : {}),
       },
     });
     childProcess = spawnPromise.child;
