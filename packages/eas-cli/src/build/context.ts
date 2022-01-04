@@ -6,19 +6,14 @@ import type { XCBuildConfiguration } from 'xcode';
 import { TrackingContext } from '../analytics/common';
 import { CredentialsContext } from '../credentials/context';
 import { Target } from '../credentials/ios/types';
-import { RequestedPlatform } from '../platform';
 import { GradleBuildContext } from '../project/android/gradle';
 import { XcodeBuildContext } from '../project/ios/scheme';
 import { Actor } from '../user/User';
 import { LocalBuildOptions } from './local';
 
 export interface ConfigureContext {
-  user: Actor;
   projectDir: string;
   exp: ExpoConfig;
-  requestedPlatform: RequestedPlatform;
-  shouldConfigureAndroid: boolean;
-  shouldConfigureIos: boolean;
   hasAndroidNativeProject: boolean;
   hasIosNativeProject: boolean;
 }

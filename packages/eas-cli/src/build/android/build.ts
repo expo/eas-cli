@@ -24,9 +24,9 @@ import { AndroidBuildContext, BuildContext, CommonContext } from '../context';
 import { transformMetadata } from '../graphql';
 import { logCredentialsSource } from '../utils/credentials';
 import { checkGoogleServicesFileAsync, checkNodeEnvVariable } from '../validate';
-import { validateAndSyncProjectConfigurationAsync } from './configure';
 import { transformJob } from './graphql';
 import { prepareJobAsync } from './prepareJob';
+import { syncProjectConfigurationAsync } from './syncProjectConfiguration';
 
 export async function createAndroidContextAsync(
   ctx: CommonContext<Platform.ANDROID>
@@ -71,8 +71,8 @@ export async function prepareAndroidBuildAsync(
     ensureCredentialsAsync: async (ctx: BuildContext<Platform.ANDROID>) => {
       return await ensureAndroidCredentialsAsync(ctx);
     },
-    ensureProjectConfiguredAsync: async () => {
-      await validateAndSyncProjectConfigurationAsync({
+    syncProjectConfigurationAsync: async () => {
+      await syncProjectConfigurationAsync({
         projectDir: ctx.projectDir,
         exp: ctx.exp,
         buildProfile: ctx.buildProfile,

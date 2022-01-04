@@ -11,10 +11,10 @@ import { BuildRequestSender, JobData, prepareBuildRequestForPlatformAsync } from
 import { BuildContext, CommonContext, IosBuildContext } from '../context';
 import { transformMetadata } from '../graphql';
 import { checkGoogleServicesFileAsync, checkNodeEnvVariable } from '../validate';
-import { validateAndSyncProjectConfigurationAsync } from './configure';
 import { ensureIosCredentialsAsync } from './credentials';
 import { transformJob } from './graphql';
 import { prepareJobAsync } from './prepareJob';
+import { syncProjectConfigurationAsync } from './syncProjectConfiguration';
 
 export async function createIosContextAsync(
   ctx: CommonContext<Platform.IOS>
@@ -63,8 +63,8 @@ export async function prepareIosBuildAsync(
     ensureCredentialsAsync: async (ctx: BuildContext<Platform.IOS>) => {
       return ensureIosCredentialsAsync(ctx, ctx.ios.targets);
     },
-    ensureProjectConfiguredAsync: async () => {
-      await validateAndSyncProjectConfigurationAsync({
+    syncProjectConfigurationAsync: async () => {
+      await syncProjectConfigurationAsync({
         projectDir: ctx.projectDir,
         exp: ctx.exp,
         buildProfile: ctx.buildProfile,

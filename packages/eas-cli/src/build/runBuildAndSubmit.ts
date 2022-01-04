@@ -53,7 +53,11 @@ export async function runBuildAndSubmitAsync(projectDir: string, flags: BuildFla
   await getVcsClient().ensureRepoExistsAsync();
   await ensureRepoIsCleanAsync(flags.nonInteractive);
 
-  await ensureProjectConfiguredAsync(projectDir, flags.requestedPlatform);
+  await ensureProjectConfiguredAsync({
+    projectDir,
+    requestedPlatform: flags.requestedPlatform,
+    nonInteractive: flags.nonInteractive,
+  });
 
   const platforms = toPlatforms(flags.requestedPlatform);
   const buildProfiles = await getProfilesAsync({
