@@ -14,15 +14,22 @@ interface ConfigureParams {
   nonInteractive: boolean;
 }
 
+/**
+ * Creates eas.json if it does not exist.
+ *
+ * Returns:
+ * - false - if eas.json already exists
+ * - true - if eas.json was created by the function
+ */
 export async function ensureProjectConfiguredAsync(
   configureParams: ConfigureParams
-): Promise<void> {
+): Promise<boolean> {
   if (await fs.pathExists(EasJsonReader.formatEasJsonPath(configureParams.projectDir))) {
-    return;
+    return false;
   }
 
-  Log.log('This project is not configured to build with EAS. Setting it up...');
   await configureAsync(configureParams);
+  return true;
 }
 
 async function configureAsync({ projectDir, nonInteractive }: ConfigureParams): Promise<void> {
