@@ -44,7 +44,11 @@ export class Ignore {
       return;
     }
     const ignoreFilePaths = (
-      await fg(`**/${GITIGNORE_FILENAME}`, { cwd: this.rootDir, ignore: ['node_modules'] })
+      await fg(`**/${GITIGNORE_FILENAME}`, {
+        cwd: this.rootDir,
+        ignore: ['node_modules'],
+        followSymbolicLinks: false,
+      })
     )
       // ensure that parent dir is before child directories
       .sort((a, b) => a.length - b.length && a.localeCompare(b));
