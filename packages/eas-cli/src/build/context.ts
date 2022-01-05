@@ -39,7 +39,6 @@ export interface BuildContext<T extends Platform> {
   projectDir: string;
   projectId: string;
   projectName: string;
-  skipProjectConfiguration: boolean;
   trackingCtx: TrackingContext;
   user: Actor;
   workflow: Workflow;

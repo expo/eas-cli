@@ -38,7 +38,6 @@ let sdkVersionChecked = false;
 
 export interface BuildFlags {
   requestedPlatform: RequestedPlatform;
-  skipProjectConfiguration: boolean;
   profile?: string;
   nonInteractive: boolean;
   wait: boolean;
@@ -166,7 +165,6 @@ async function prepareAndStartBuildAsync({
     nonInteractive: flags.nonInteractive,
     platform: buildProfile.platform,
     projectDir,
-    skipProjectConfiguration: flags.skipProjectConfiguration,
     localBuildOptions: flags.localBuildOptions,
   });
 

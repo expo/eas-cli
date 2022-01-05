@@ -60,14 +60,13 @@ export async function prepareBuildRequestForPlatformAsync<
       trackingCtx: ctx.trackingCtx,
     }
   );
-  if (!ctx.skipProjectConfiguration) {
-    await withAnalyticsAsync(async () => await builder.syncProjectConfigurationAsync(ctx), {
-      attemptEvent: BuildEvent.CONFIGURE_PROJECT_ATTEMPT,
-      successEvent: BuildEvent.CONFIGURE_PROJECT_SUCCESS,
-      failureEvent: BuildEvent.CONFIGURE_PROJECT_FAIL,
-      trackingCtx: ctx.trackingCtx,
-    });
-  }
+
+  await withAnalyticsAsync(async () => await builder.syncProjectConfigurationAsync(ctx), {
+    attemptEvent: BuildEvent.CONFIGURE_PROJECT_ATTEMPT,
+    successEvent: BuildEvent.CONFIGURE_PROJECT_SUCCESS,
+    failureEvent: BuildEvent.CONFIGURE_PROJECT_FAIL,
+    trackingCtx: ctx.trackingCtx,
+  });
 
   if (await getVcsClient().isCommitRequiredAsync()) {
     Log.addNewLineIfNone();
