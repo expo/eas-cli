@@ -47,7 +47,7 @@ function resolveVersionBumpStrategy(autoIncrement: AndroidVersionAutoIncrement):
 }
 
 // TODO: remove this after a few months
-async function cleanUpOldEasBuildGradleScriptAsync(projectDir: string): Promise<void> {
+export async function cleanUpOldEasBuildGradleScriptAsync(projectDir: string): Promise<void> {
   const easBuildGradlePath = path.join(projectDir, 'android', 'app', 'eas-build.gradle');
   if (await fs.pathExists(easBuildGradlePath)) {
     await fs.remove(easBuildGradlePath);

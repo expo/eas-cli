@@ -1,9 +1,9 @@
 import { getConfig } from '@expo/config';
 import { Flags } from '@oclif/core';
-import assert from 'assert';
 import chalk from 'chalk';
 
 import { syncUpdatesConfigurationAsync as syncAndroidUpdatesConfigurationAsync } from '../../build/android/UpdatesModule';
+import { cleanUpOldEasBuildGradleScriptAsync } from '../../build/android/syncProjectConfiguration';
 import { ensureProjectConfiguredAsync } from '../../build/configure';
 import { syncUpdatesConfigurationAsync as syncIosUpdatesConfigurationAsync } from '../../build/ios/UpdatesModule';
 import { isExpoUpdatesInstalled } from '../../build/utils/updates';
@@ -37,10 +37,12 @@ export default class BuildConfigure extends EasCommand {
     const projectDir = await findProjectRootAsync();
     const expoUpdatesIsInstalled = isExpoUpdatesInstalled(projectDir);
 
-    let platform: RequestedPlatform | undefined;
-    if (expoUpdatesIsInstalled) {
-      platform =
-        (flags.platform as RequestedPlatform | undefined) ?? (await promptForPlatformAsync());
+    const platform =
+      (flags.platform as RequestedPlatform | undefined) ?? (await promptForPlatformAsync());
+
+    // clean up old Android configuration
+    if ([RequestedPlatform.Android, RequestedPlatform.All].includes(platform)) {
+      await cleanUpOldEasBuildGradleScriptAsync(projectDir);
     }
 
     // ensure eas.json exists
@@ -52,8 +54,6 @@ export default class BuildConfigure extends EasCommand {
 
     // configure expo-updates
     if (expoUpdatesIsInstalled) {
-      assert(platform, 'platform must be defined here');
-
       const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
 
       if ([RequestedPlatform.Android, RequestedPlatform.All].includes(platform)) {
