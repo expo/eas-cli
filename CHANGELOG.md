@@ -8,7 +8,6 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
-- Add `eas device:delete`. ([#...](https://github.com/expo/eas-cli/pull/...) by [@kbrandwijk](https://github.com/kbrandwijk))
 - Improve error message for outdated Apple PLA error ([#889](https://github.com/expo/eas-cli/pull/889) by [@EvanBacon](https://github.com/EvanBacon))
 - Add `--output` flag to the build command. ([#885](https://github.com/expo/eas-cli/pull/885) by [@wkozyra95](https://github.com/wkozyra95))
 - Add `eas device:delete`. ([#890](https://github.com/expo/eas-cli/pull/890) by [@kbrandwijk](https://github.com/kbrandwijk))
