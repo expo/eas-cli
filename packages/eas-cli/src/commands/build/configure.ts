@@ -1,5 +1,6 @@
 import { getConfig } from '@expo/config';
 import { Flags } from '@oclif/core';
+import assert from 'assert';
 import chalk from 'chalk';
 
 import { syncUpdatesConfigurationAsync as syncAndroidUpdatesConfigurationAsync } from '../../build/android/UpdatesModule';
@@ -30,22 +31,28 @@ export default class BuildConfigure extends EasCommand {
     Log.log(
       '💡 The following process will configure your iOS and/or Android project to be compatible with EAS Build. These changes only apply to your local project files and you can safely revert them at any time.'
     );
-    Log.newLine();
 
     await getVcsClient().ensureRepoExistsAsync();
 
     const projectDir = await findProjectRootAsync();
+    const expoUpdatesIsInstalled = isExpoUpdatesInstalled(projectDir);
+
+    let platform: RequestedPlatform | undefined;
+    if (expoUpdatesIsInstalled) {
+      platform =
+        (flags.platform as RequestedPlatform | undefined) ?? (await promptForPlatformAsync());
+    }
 
     // ensure eas.json exists
+    Log.newLine();
     await ensureProjectConfiguredAsync({
       projectDir,
       nonInteractive: false,
     });
 
     // configure expo-updates
-    if (isExpoUpdatesInstalled(projectDir)) {
-      const platform =
-        (flags.platform as RequestedPlatform | undefined) ?? (await promptForPlatformAsync());
+    if (expoUpdatesIsInstalled) {
+      assert(platform, 'platform must be defined here');
 
       const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
 
@@ -58,7 +65,7 @@ export default class BuildConfigure extends EasCommand {
       }
     }
 
-    Log.newLine();
+    Log.addNewLineIfNone();
 
     Log.log(`🎉 Your project is ready to build.
 
@@ -71,6 +78,7 @@ export default class BuildConfigure extends EasCommand {
 }
 
 async function promptForPlatformAsync(): Promise<RequestedPlatform> {
+  Log.addNewLineIfNone();
   const { platform } = await promptAsync({
     type: 'select',
     message: 'Which platforms would you like to configure for EAS Build?',

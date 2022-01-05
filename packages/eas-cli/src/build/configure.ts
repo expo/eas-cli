@@ -35,7 +35,6 @@ export async function ensureProjectConfiguredAsync(
 async function configureAsync({ projectDir, nonInteractive }: ConfigureParams): Promise<void> {
   await maybeBailOnRepoStatusAsync();
 
-  Log.newLine();
   await createEasJsonAsync(projectDir);
 
   if (await getVcsClient().isCommitRequiredAsync()) {
