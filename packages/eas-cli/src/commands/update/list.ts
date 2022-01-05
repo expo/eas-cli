@@ -1,5 +1,6 @@
 import { getConfig } from '@expo/config';
 import { Flags } from '@oclif/core';
+import assert from 'assert';
 import chalk from 'chalk';
 import CliTable from 'cli-table3';
 
@@ -41,8 +42,8 @@ export default class BranchView extends EasCommand {
   };
 
   async runAsync(): Promise<void> {
-    let {
-      flags: { branch, all, json: jsonFlag },
+    const {
+      flags: { branch: branchFlag, all, json: jsonFlag },
     } = await this.parse(BranchView);
     if (jsonFlag) {
       enableJsonOutput();
@@ -59,12 +60,13 @@ export default class BranchView extends EasCommand {
         branchesAndUpdates.app.byId.updateBranches
       );
     } else {
-      if (!branch) {
+      let branchInteractive: string | undefined;
+      if (!branchFlag) {
         const validationMessage = 'Branch name may not be empty.';
         if (jsonFlag) {
           throw new Error(validationMessage);
         }
-        ({ name: branch } = await promptAsync({
+        ({ name: branchInteractive } = await promptAsync({
           type: 'text',
           name: 'name',
           message: 'Please enter the name of the branch whose updates you wish to view:',
@@ -72,10 +74,12 @@ export default class BranchView extends EasCommand {
           validate: (value: any) => (value ? true : validationMessage),
         }));
       }
+      const branch = branchFlag ?? branchInteractive;
+      assert(branch, 'Branch name may not be empty.');
 
       const branchesAndUpdates = await UpdateQuery.viewBranchAsync({
         appId: projectId,
-        name: branch!,
+        name: branch,
       });
       const UpdateBranch = branchesAndUpdates.app?.byId.updateBranchByName;
       if (!UpdateBranch) {
