@@ -14,6 +14,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Fix creating project archive with symlink cycle. ([#891](https://github.com/expo/eas-cli/pull/891) by [@wkozyra95](https://github.com/wkozyra95))
+
 ### 🧹 Chores
 
 ## [0.43.0](https://github.com/expo/eas-cli/releases/tag/v0.43.0) - 2022-01-03
