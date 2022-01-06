@@ -6,6 +6,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🛠 Breaking changes
 
+- No longer enable APNS (iOS Push Notifications) capability by default anymore. ([#797](https://github.com/expo/eas-cli/pull/797) by [@EvanBacon](https://github.com/EvanBacon))
+
 ### 🎉 New features
 
 - Add update:list command. ([#884](https://github.com/expo/eas-cli/pull/884) by [@jkhales](https://github.com/jkhales))
