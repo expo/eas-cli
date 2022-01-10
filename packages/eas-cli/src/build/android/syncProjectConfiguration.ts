@@ -2,9 +2,11 @@ import { ExpoConfig } from '@expo/config';
 import { AndroidConfig } from '@expo/config-plugins';
 import { Platform, Workflow } from '@expo/eas-build-job';
 import { AndroidVersionAutoIncrement, BuildProfile } from '@expo/eas-json';
+import chalk from 'chalk';
 import fs from 'fs-extra';
 import path from 'path';
 
+import Log from '../../log';
 import { resolveWorkflowAsync } from '../../project/workflow';
 import { isExpoUpdatesInstalled } from '../utils/updates';
 import { syncUpdatesConfigurationAsync } from './UpdatesModule';
@@ -50,13 +52,13 @@ function resolveVersionBumpStrategy(autoIncrement: AndroidVersionAutoIncrement):
 export async function cleanUpOldEasBuildGradleScriptAsync(projectDir: string): Promise<void> {
   const easBuildGradlePath = path.join(projectDir, 'android', 'app', 'eas-build.gradle');
   if (await fs.pathExists(easBuildGradlePath)) {
+    Log.withTick(`Removing ${chalk.bold('eas-build.gradle')} as it's not longer necessary`);
     await fs.remove(easBuildGradlePath);
 
     const buildGradlePath = AndroidConfig.Paths.getAppBuildGradleFilePath(projectDir);
     const buildGradleContents = await fs.readFile(buildGradlePath, 'utf-8');
-    const APPLY_EAS_BUILD_GRADLE_LINE = 'apply from: "./eas-build.gradle"';
     const buildGradleContentsWithoutApply = buildGradleContents.replace(
-      `${APPLY_EAS_BUILD_GRADLE_LINE}\n`,
+      /apply from: ["'].\/eas-build.gradle["']\n/,
       ''
     );
     if (buildGradleContentsWithoutApply !== buildGradleContents) {
