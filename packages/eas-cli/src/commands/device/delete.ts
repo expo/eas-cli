@@ -1,6 +1,7 @@
 import { getConfig } from '@expo/config';
 import { Flags } from '@oclif/core';
 import assert from 'assert';
+import { Device, DeviceStatus, RequestContext } from '@expo/apple-utils';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import { chooseDevicesToDeleteAsync } from '../../credentials/ios/actions/DeviceUtils';
@@ -16,6 +17,11 @@ import Log from '../../log';
 import { ora } from '../../ora';
 import { findProjectRootAsync, getProjectAccountNameAsync } from '../../project/projectUtils';
 import { promptAsync, toggleConfirmAsync } from '../../prompts';
+import { ensureLoggedInAsync } from '../../user/actions';
+import { createContextAsync } from '../../devices/context';
+import AppStoreApi from '../../credentials/ios/appstore/AppStoreApi';
+import DeviceManager from '../../devices/manager';
+import { authenticateAsync, getRequestContext } from '../../credentials/ios/appstore/authenticate';
 
 export default class DeviceDelete extends EasCommand {
   static description = 'remove a registered device from your account';
@@ -123,11 +129,6 @@ export default class DeviceDelete extends EasCommand {
               chosenDevices.length > 1 ? 's' : ''
             } listed above from your Expo account.`
           );
-          Log.warn(
-            `${
-              chosenDevices.length > 1 ? 'They' : 'It'
-            } will not be removed from your Apple team, only from your Expo account.`
-          );
           Log.newLine();
 
           const confirmed = await toggleConfirmAsync({
@@ -144,7 +145,33 @@ export default class DeviceDelete extends EasCommand {
               removalSpinner.fail();
               throw err;
             }
-            removalSpinner.succeed();
+            removalSpinner.succeed('Removed Apple devices from Expo');
+
+            Log.newLine();
+            const deleteOnApple = await toggleConfirmAsync({
+              message: 'Do you want to remove these devices from your Apple account as well?',
+            });
+
+            if (deleteOnApple) {
+              // Delete on Apple?
+              const ctx = await authenticateAsync({ teamId: appleTeamIdentifier });
+              const context: RequestContext = getRequestContext(ctx);
+
+              Log.addNewLineIfNone();
+              const removeAppleSpinner = ora('Removing devices from Apple').start();
+              try {
+                const realDevices = await Device.getAllIOSProfileDevicesAsync(context);
+                realDevices
+                  .filter(d => chosenDevices.map(cd => cd.identifier).includes(d.attributes.udid))
+                  .forEach(device => {
+                    device.updateAsync({ status: DeviceStatus.DISABLED });
+                  });
+              } catch (err) {
+                removeAppleSpinner.fail();
+                throw err;
+              }
+              removeAppleSpinner.succeed('Removed devices from Apple');
+            }
           }
         } else {
           Log.newLine();
