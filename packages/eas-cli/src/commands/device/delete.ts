@@ -13,7 +13,7 @@ import { AppleTeamQuery } from '../../credentials/ios/api/graphql/queries/AppleT
 import formatDevice from '../../devices/utils/formatDevice';
 import { AppleDevice } from '../../graphql/generated';
 import Log from '../../log';
-import { Ora, ora } from '../../ora';
+import { ora } from '../../ora';
 import { findProjectRootAsync, getProjectAccountNameAsync } from '../../project/projectUtils';
 import { promptAsync, toggleConfirmAsync } from '../../prompts';
 
@@ -33,16 +33,14 @@ export default class DeviceDelete extends EasCommand {
     const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
     const accountName = await getProjectAccountNameAsync(exp);
 
-    let spinner: Ora;
-
     if (!appleTeamIdentifier) {
-      spinner = ora().start('Fetching the list of teams for the project…');
+      const teamSpinner = ora().start('Fetching the list of teams for the project…');
 
       try {
         const teams = await AppleTeamQuery.getAllForAccountAsync(accountName);
 
         if (teams.length > 0) {
-          spinner.succeed();
+          teamSpinner.succeed();
 
           if (teams.length === 1) {
             appleTeamIdentifier = teams[0].appleTeamIdentifier;
@@ -62,17 +60,17 @@ export default class DeviceDelete extends EasCommand {
             appleTeamIdentifier = result.appleTeamIdentifier;
           }
         } else {
-          spinner.fail(`Couldn't find any teams for the account ${accountName}`);
+          teamSpinner.fail(`Couldn't find any teams for the account ${accountName}`);
         }
       } catch (e) {
-        spinner.fail(`Something went wrong and we couldn't fetch the list of teams`);
+        teamSpinner.fail(`Something went wrong and we couldn't fetch the list of teams`);
         throw e;
       }
     }
 
     assert(appleTeamIdentifier, 'No team identifier is specified');
 
-    spinner = ora().start('Fetching the list of devices for the team…');
+    const devicesSpinner = ora().start('Fetching the list of devices for the team…');
 
     try {
       const result = await AppleDeviceQuery.getAllForAppleTeamAsync(
@@ -85,7 +83,7 @@ export default class DeviceDelete extends EasCommand {
 
         let chosenDevices: (AppleDeviceQueryResult | AppleDevice)[] = [];
 
-        spinner.succeed(
+        devicesSpinner.succeed(
           `Found ${appleDevices.length} devices for team ${appleTeamName ?? appleTeamIdentifier}`
         );
 
@@ -104,11 +102,13 @@ export default class DeviceDelete extends EasCommand {
         if (chosenDevices.length === 0) {
           Log.addNewLineIfNone();
           chosenDevices = await chooseDevicesToDeleteAsync(appleDevices);
+          Log.newLine();
         }
 
-        chosenDevices.map(device => {
+        Log.addNewLineIfNone();
+        chosenDevices.forEach(device => {
           Log.log(
-            `\n${formatDevice(device, {
+            `${formatDevice(device, {
               appleTeamName,
               appleTeamIdentifier: appleTeamIdentifier!,
             })}`
@@ -120,7 +120,12 @@ export default class DeviceDelete extends EasCommand {
           Log.warn(
             `You are about to remove the Apple device${
               chosenDevices.length > 1 ? 's' : ''
-            } listed above from your account.`
+            } listed above from your Expo account.`
+          );
+          Log.warn(
+            `${
+              chosenDevices.length > 1 ? 'They' : 'It'
+            } will not be removed from your Apple team, only from your Expo account.`
           );
           Log.newLine();
 
@@ -129,26 +134,26 @@ export default class DeviceDelete extends EasCommand {
           });
 
           if (confirmed) {
-            spinner = ora(`Removing Apple devices on Expo`).start();
+            const removalSpinner = ora(`Removing Apple devices on Expo`).start();
             try {
               chosenDevices.forEach(async chosenDevice => {
                 await AppleDeviceMutation.deleteAppleDeviceAsync(chosenDevice.id);
               });
             } catch (err) {
-              spinner.fail();
+              removalSpinner.fail();
               throw err;
             }
-            spinner.succeed();
+            removalSpinner.succeed();
           }
         } else {
           Log.newLine();
           Log.warn('No devices were chosen to be removed.');
         }
       } else {
-        spinner.fail(`Couldn't find any devices for the team ${appleTeamIdentifier}`);
+        devicesSpinner.fail(`Couldn't find any devices for the team ${appleTeamIdentifier}`);
       }
     } catch (e) {
-      spinner.fail(`Something went wrong and we couldn't fetch the device list`);
+      devicesSpinner.fail(`Something went wrong and we couldn't fetch the device list`);
       throw e;
     }
   }
