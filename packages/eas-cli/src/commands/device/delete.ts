@@ -26,8 +26,9 @@ export default class DeviceDelete extends EasCommand {
   };
 
   async runAsync(): Promise<void> {
-    let appleTeamIdentifier = (await this.parse(DeviceDelete)).flags['apple-team-id'];
-    const udids = (await this.parse(DeviceDelete)).flags.udid;
+    let {
+      flags: { 'apple-team-id': appleTeamIdentifier, udid: udids },
+    } = await this.parse(DeviceDelete);
 
     const projectDir = await findProjectRootAsync();
     const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
