@@ -3,14 +3,15 @@ import { Flags } from '@oclif/core';
 import assert from 'assert';
 
 import EasCommand from '../../commandUtils/EasCommand';
-import {
-  chooseSingleDeviceToDeleteAsync,
-  formatDeviceLabel,
-} from '../../credentials/ios/actions/DeviceUtils';
+import { chooseDevicesToDeleteAsync } from '../../credentials/ios/actions/DeviceUtils';
 import { AppleDeviceMutation } from '../../credentials/ios/api/graphql/mutations/AppleDeviceMutation';
-import { AppleDeviceQuery } from '../../credentials/ios/api/graphql/queries/AppleDeviceQuery';
+import {
+  AppleDeviceQuery,
+  AppleDeviceQueryResult,
+} from '../../credentials/ios/api/graphql/queries/AppleDeviceQuery';
 import { AppleTeamQuery } from '../../credentials/ios/api/graphql/queries/AppleTeamQuery';
 import formatDevice from '../../devices/utils/formatDevice';
+import { AppleDevice } from '../../graphql/generated';
 import Log from '../../log';
 import { Ora, ora } from '../../ora';
 import { findProjectRootAsync, getProjectAccountNameAsync } from '../../project/projectUtils';
@@ -21,10 +22,12 @@ export default class DeviceDelete extends EasCommand {
 
   static flags = {
     'apple-team-id': Flags.string(),
+    udid: Flags.string({ multiple: true }),
   };
 
   async runAsync(): Promise<void> {
     let appleTeamIdentifier = (await this.parse(DeviceDelete)).flags['apple-team-id'];
+    const udids = (await this.parse(DeviceDelete)).flags.udid;
 
     const projectDir = await findProjectRootAsync();
     const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
@@ -38,7 +41,7 @@ export default class DeviceDelete extends EasCommand {
       try {
         const teams = await AppleTeamQuery.getAllForAccountAsync(accountName);
 
-        if (teams.length) {
+        if (teams.length > 0) {
           spinner.succeed();
 
           if (teams.length === 1) {
@@ -80,39 +83,66 @@ export default class DeviceDelete extends EasCommand {
       if (result?.appleDevices.length) {
         const { appleTeamName, appleDevices } = result;
 
+        let chosenDevices: (AppleDeviceQueryResult | AppleDevice)[] = [];
+
         spinner.succeed(
           `Found ${appleDevices.length} devices for team ${appleTeamName ?? appleTeamIdentifier}`
         );
 
-        const chosenDevice = await chooseSingleDeviceToDeleteAsync(appleDevices);
-
-        Log.log(
-          `\n${formatDevice(chosenDevice, {
-            appleTeamName,
-            appleTeamIdentifier: appleTeamIdentifier!,
-          })}`
-        );
         Log.newLine();
-        Log.warn(
-          `You are about to remove Apple device: "${formatDeviceLabel(
-            chosenDevice
-          )}" from your account.`
-        );
-        Log.newLine();
+        if (udids) {
+          udids.forEach(udid => {
+            const foundDevice = appleDevices.find(device => device.identifier === udid);
+            if (foundDevice) {
+              chosenDevices.push(foundDevice);
+            } else {
+              Log.warn(`No device found with UDID ${udid}.`);
+            }
+          });
+        }
 
-        const confirmed = await toggleConfirmAsync({
-          message: 'Are you sure you wish to proceed?',
+        if (chosenDevices.length === 0) {
+          Log.addNewLineIfNone();
+          chosenDevices = await chooseDevicesToDeleteAsync(appleDevices);
+        }
+
+        chosenDevices.map(device => {
+          Log.log(
+            `\n${formatDevice(device, {
+              appleTeamName,
+              appleTeamIdentifier: appleTeamIdentifier!,
+            })}`
+          );
+          Log.newLine();
         });
 
-        if (confirmed) {
-          spinner = ora(`Removing Apple device on Expo`).start();
-          try {
-            await AppleDeviceMutation.deleteAppleDeviceAsync(chosenDevice.id);
-          } catch (err) {
-            spinner.fail();
-            throw err;
+        if (chosenDevices.length > 0) {
+          Log.warn(
+            `You are about to remove the Apple device${
+              chosenDevices.length > 1 ? 's' : ''
+            } listed above from your account.`
+          );
+          Log.newLine();
+
+          const confirmed = await toggleConfirmAsync({
+            message: 'Are you sure you wish to proceed?',
+          });
+
+          if (confirmed) {
+            spinner = ora(`Removing Apple devices on Expo`).start();
+            try {
+              chosenDevices.forEach(async chosenDevice => {
+                await AppleDeviceMutation.deleteAppleDeviceAsync(chosenDevice.id);
+              });
+            } catch (err) {
+              spinner.fail();
+              throw err;
+            }
+            spinner.succeed();
           }
-          spinner.succeed();
+        } else {
+          Log.newLine();
+          Log.warn('No devices were chosen to be removed.');
         }
       } else {
         spinner.fail(`Couldn't find any devices for the team ${appleTeamIdentifier}`);

@@ -46,7 +46,7 @@ export const AppleDeviceMutation = {
       graphqlClient
         .mutation<DeleteAppleDeviceResult>(
           gql`
-            mutation CreateAppleDeviceMutation($deviceId: ID!) {
+            mutation DeleteAppleDeviceMutation($deviceId: ID!) {
               appleDevice {
                 deleteAppleDevice(id: $deviceId) {
                   id

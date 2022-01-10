@@ -34,7 +34,7 @@ export default class BuildList extends EasCommand {
       try {
         const teams = await AppleTeamQuery.getAllForAccountAsync(accountName);
 
-        if (teams.length) {
+        if (teams.length > 0) {
           spinner.succeed();
 
           if (teams.length === 1) {
