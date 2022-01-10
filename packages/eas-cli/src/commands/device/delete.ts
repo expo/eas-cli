@@ -1,7 +1,7 @@
+import { Device, DeviceStatus, RequestContext } from '@expo/apple-utils';
 import { getConfig } from '@expo/config';
 import { Flags } from '@oclif/core';
 import assert from 'assert';
-import { Device, DeviceStatus, RequestContext } from '@expo/apple-utils';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import { chooseDevicesToDeleteAsync } from '../../credentials/ios/actions/DeviceUtils';
@@ -11,17 +11,13 @@ import {
   AppleDeviceQueryResult,
 } from '../../credentials/ios/api/graphql/queries/AppleDeviceQuery';
 import { AppleTeamQuery } from '../../credentials/ios/api/graphql/queries/AppleTeamQuery';
+import { authenticateAsync, getRequestContext } from '../../credentials/ios/appstore/authenticate';
 import formatDevice from '../../devices/utils/formatDevice';
 import { AppleDevice } from '../../graphql/generated';
 import Log from '../../log';
 import { ora } from '../../ora';
 import { findProjectRootAsync, getProjectAccountNameAsync } from '../../project/projectUtils';
 import { promptAsync, toggleConfirmAsync } from '../../prompts';
-import { ensureLoggedInAsync } from '../../user/actions';
-import { createContextAsync } from '../../devices/context';
-import AppStoreApi from '../../credentials/ios/appstore/AppStoreApi';
-import DeviceManager from '../../devices/manager';
-import { authenticateAsync, getRequestContext } from '../../credentials/ios/appstore/authenticate';
 
 export default class DeviceDelete extends EasCommand {
   static description = 'remove a registered device from your account';
