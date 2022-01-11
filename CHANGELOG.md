@@ -10,6 +10,12 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+### 🧹 Chores
+
+## [0.44.1](https://github.com/expo/eas-cli/releases/tag/v0.44.1) - 2022-01-11
+
+### 🐛 Bug fixes
+
 - Fix build:configure expo-updates configuration to only run on generic projects. ([#904](https://github.com/expo/eas-cli/pull/904) by [@brentvatne](https://github.com/brentvatne))
 
 ### 🧹 Chores
