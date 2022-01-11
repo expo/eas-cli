@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Replace `@expo/plugin-autocomplete` with `@oclif/plugin-autocomplete`. Upgrade oclif deps. ([#903](https://github.com/expo/eas-cli/pull/903) by [@dsokal](https://github.com/dsokal))
+
 ## [0.44.0](https://github.com/expo/eas-cli/releases/tag/v0.44.0) - 2022-01-11
 
 ### 🛠 Breaking changes
