@@ -2,39 +2,17 @@ import { ExpoConfig } from '@expo/config';
 import { AndroidConfig } from '@expo/config-plugins';
 import { Platform, Workflow } from '@expo/eas-build-job';
 import { AndroidVersionAutoIncrement, BuildProfile } from '@expo/eas-json';
+import chalk from 'chalk';
+import fs from 'fs-extra';
+import path from 'path';
 
 import Log from '../../log';
-import {
-  ensureApplicationIdIsDefinedForManagedProjectAsync,
-  warnIfAndroidPackageDefinedInAppConfigForBareWorkflowProject,
-} from '../../project/android/applicationId';
 import { resolveWorkflowAsync } from '../../project/workflow';
-import { getVcsClient } from '../../vcs';
-import { ConfigureContext } from '../context';
 import { isExpoUpdatesInstalled } from '../utils/updates';
-import { configureUpdatesAsync, syncUpdatesConfigurationAsync } from './UpdatesModule';
+import { syncUpdatesConfigurationAsync } from './UpdatesModule';
 import { BumpStrategy, bumpVersionAsync, bumpVersionInAppJsonAsync } from './version';
 
-export async function configureAndroidAsync(ctx: ConfigureContext): Promise<void> {
-  if (!ctx.hasAndroidNativeProject) {
-    await ensureApplicationIdIsDefinedForManagedProjectAsync(ctx.projectDir, ctx.exp);
-    return;
-  }
-
-  warnIfAndroidPackageDefinedInAppConfigForBareWorkflowProject(ctx.projectDir, ctx.exp);
-
-  await AndroidConfig.EasBuild.configureEasBuildAsync(ctx.projectDir);
-
-  const easGradlePath = AndroidConfig.EasBuild.getEasBuildGradlePath(ctx.projectDir);
-  await getVcsClient().trackFileAsync(easGradlePath);
-
-  if (isExpoUpdatesInstalled(ctx.projectDir)) {
-    await configureUpdatesAsync(ctx.projectDir, ctx.exp);
-  }
-  Log.withTick('Android project configured');
-}
-
-export async function validateAndSyncProjectConfigurationAsync({
+export async function syncProjectConfigurationAsync({
   projectDir,
   exp,
   buildProfile,
@@ -48,11 +26,7 @@ export async function validateAndSyncProjectConfigurationAsync({
   const versionBumpStrategy = resolveVersionBumpStrategy(autoIncrement ?? false);
 
   if (workflow === Workflow.GENERIC) {
-    if (!(await AndroidConfig.EasBuild.isEasBuildGradleConfiguredAsync(projectDir))) {
-      throw new Error(
-        'Project is not configured. Please run "eas build:configure" to configure the project.'
-      );
-    }
+    await cleanUpOldEasBuildGradleScriptAsync(projectDir);
     if (isExpoUpdatesInstalled(projectDir)) {
       await syncUpdatesConfigurationAsync(projectDir, exp);
     }
@@ -71,5 +45,24 @@ function resolveVersionBumpStrategy(autoIncrement: AndroidVersionAutoIncrement):
     return BumpStrategy.VERSION_CODE;
   } else {
     return BumpStrategy.APP_VERSION;
+  }
+}
+
+// TODO: remove this after a few months
+export async function cleanUpOldEasBuildGradleScriptAsync(projectDir: string): Promise<void> {
+  const easBuildGradlePath = path.join(projectDir, 'android', 'app', 'eas-build.gradle');
+  if (await fs.pathExists(easBuildGradlePath)) {
+    Log.withTick(`Removing ${chalk.bold('eas-build.gradle')} as it's not longer necessary`);
+    await fs.remove(easBuildGradlePath);
+
+    const buildGradlePath = AndroidConfig.Paths.getAppBuildGradleFilePath(projectDir);
+    const buildGradleContents = await fs.readFile(buildGradlePath, 'utf-8');
+    const buildGradleContentsWithoutApply = buildGradleContents.replace(
+      /apply from: ["'].\/eas-build.gradle["']\n/,
+      ''
+    );
+    if (buildGradleContentsWithoutApply !== buildGradleContents) {
+      await fs.writeFile(buildGradlePath, buildGradleContentsWithoutApply);
+    }
   }
 }

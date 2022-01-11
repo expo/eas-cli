@@ -25,7 +25,6 @@ export async function createBuildContextAsync<T extends Platform>({
   nonInteractive = false,
   platform,
   projectDir,
-  skipProjectConfiguration = false,
 }: {
   buildProfileName: string;
   buildProfile: BuildProfile<T>;
@@ -34,7 +33,6 @@ export async function createBuildContextAsync<T extends Platform>({
   nonInteractive: boolean;
   platform: T;
   projectDir: string;
-  skipProjectConfiguration: boolean;
 }): Promise<BuildContext<T>> {
   const exp = getExpoConfig(projectDir, { env: buildProfile.env });
 
@@ -81,7 +79,6 @@ export async function createBuildContextAsync<T extends Platform>({
     projectDir,
     projectId,
     projectName,
-    skipProjectConfiguration,
     trackingCtx,
     user,
     workflow,
