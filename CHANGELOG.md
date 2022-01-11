@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Upgrade `node-forge` to 1.0.0. ([#902](https://github.com/expo/eas-cli/pull/902) by [@dependabot](https://github.com/apps/dependabot) + [@dsokal](https://github.com/dsokal))
+
 ## [0.44.0](https://github.com/expo/eas-cli/releases/tag/v0.44.0) - 2022-01-11
 
 ### 🛠 Breaking changes
