@@ -6,6 +6,16 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🛠 Breaking changes
 
+### 🎉 New features
+
+### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [0.44.0](https://github.com/expo/eas-cli/releases/tag/v0.44.0) - 2022-01-11
+
+### 🛠 Breaking changes
+
 - No longer enable APNS (iOS Push Notifications) capability by default anymore. ([#797](https://github.com/expo/eas-cli/pull/797) by [@EvanBacon](https://github.com/EvanBacon))
 - Don't configure Android projects locally. Clean up old Gradle signing config. Streamline `expo-updates` configuration. ([#888](https://github.com/expo/eas-cli/pull/888) by [@dsokal](https://github.com/dsokal))
 
@@ -19,8 +29,6 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - Fix creating project archive with symlink cycle. ([#891](https://github.com/expo/eas-cli/pull/891) by [@wkozyra95](https://github.com/wkozyra95))
 - Sign Android debug builds with the correct keystore. Previously, all debug builds would be signed with a default debug keystore. ([#888](https://github.com/expo/eas-cli/pull/888) by [@dsokal](https://github.com/dsokal))
-
-### 🧹 Chores
 
 ## [0.43.0](https://github.com/expo/eas-cli/releases/tag/v0.43.0) - 2022-01-03
 
