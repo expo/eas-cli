@@ -1,4 +1,5 @@
 import { getConfig } from '@expo/config';
+import { Platform, Workflow } from '@expo/eas-build-job';
 import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 
@@ -11,6 +12,7 @@ import EasCommand from '../../commandUtils/EasCommand';
 import Log, { learnMore } from '../../log';
 import { RequestedPlatform } from '../../platform';
 import { findProjectRootAsync } from '../../project/projectUtils';
+import { resolveWorkflowAsync } from '../../project/workflow';
 import { promptAsync } from '../../prompts';
 import { getVcsClient } from '../../vcs';
 
@@ -57,11 +59,17 @@ export default class BuildConfigure extends EasCommand {
       const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
 
       if ([RequestedPlatform.Android, RequestedPlatform.All].includes(platform)) {
-        await syncAndroidUpdatesConfigurationAsync(projectDir, exp);
+        const workflow = await resolveWorkflowAsync(projectDir, Platform.ANDROID);
+        if (workflow === Workflow.GENERIC) {
+          await syncAndroidUpdatesConfigurationAsync(projectDir, exp);
+        }
       }
 
       if ([RequestedPlatform.Ios, RequestedPlatform.All].includes(platform)) {
-        await syncIosUpdatesConfigurationAsync(projectDir, exp);
+        const workflow = await resolveWorkflowAsync(projectDir, Platform.IOS);
+        if (workflow === Workflow.GENERIC) {
+          await syncIosUpdatesConfigurationAsync(projectDir, exp);
+        }
       }
     }
 
