@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Fix build:configure expo-updates configuration to only run on generic projects. ([#904](https://github.com/expo/eas-cli/pull/904) by [@brentvatne](https://github.com/brentvatne))
+
 ### 🧹 Chores
 
 - Upgrade `node-forge` to 1.0.0. ([#902](https://github.com/expo/eas-cli/pull/902) by [@dependabot](https://github.com/apps/dependabot) + [@dsokal](https://github.com/dsokal))
