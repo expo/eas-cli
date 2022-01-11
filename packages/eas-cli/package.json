@@ -16,14 +16,14 @@
     "@expo/json-file": "8.2.34",
     "@expo/pkcs12": "0.0.6",
     "@expo/plist": "0.0.16",
-    "@expo/plugin-autocomplete": "1.0.2",
-    "@expo/plugin-warn-if-update-available": "2.0.1",
+    "@expo/plugin-warn-if-update-available": "2.0.4",
     "@expo/prebuild-config": "3.0.11",
     "@expo/results": "1.0.0",
     "@expo/rudder-sdk-node": "1.1.1",
     "@expo/spawn-async": "1.5.0",
     "@expo/timeago.js": "1.0.0",
-    "@oclif/core": "1.0.10",
+    "@oclif/core": "1.1.2",
+    "@oclif/plugin-autocomplete": "1.1.1",
     "@oclif/plugin-help": "5.1.10",
     "@urql/core": "2.3.1",
     "@urql/exchange-retry": "0.3.0",
@@ -116,9 +116,9 @@
     "bin": "eas",
     "commands": "./build/commands",
     "plugins": [
+      "@oclif/plugin-autocomplete",
       "@oclif/plugin-help",
-      "@expo/plugin-warn-if-update-available",
-      "@expo/plugin-autocomplete"
+      "@expo/plugin-warn-if-update-available"
     ],
     "topics": {
       "account": {
