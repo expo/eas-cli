@@ -142,7 +142,6 @@ export default class Build extends EasCommand {
     const profile = flags['profile'];
     return {
       requestedPlatform,
-      skipProjectConfiguration: flags['skip-project-configuration'],
       profile,
       nonInteractive,
       localBuildOptions: flags['local']

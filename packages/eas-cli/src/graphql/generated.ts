@@ -3741,39 +3741,6 @@ export type EditUpdateBranchMutation = (
   ) }
 );
 
-export type ViewBranchQueryVariables = Exact<{
-  appId: Scalars['String'];
-  name: Scalars['String'];
-  limit: Scalars['Int'];
-}>;
-
-
-export type ViewBranchQuery = (
-  { __typename?: 'RootQuery' }
-  & { app: (
-    { __typename?: 'AppQuery' }
-    & { byId: (
-      { __typename?: 'App' }
-      & Pick<App, 'id'>
-      & { updateBranchByName?: Maybe<(
-        { __typename?: 'UpdateBranch' }
-        & Pick<UpdateBranch, 'id' | 'name'>
-        & { updates: Array<(
-          { __typename?: 'Update' }
-          & Pick<Update, 'id' | 'group' | 'message' | 'createdAt' | 'runtimeVersion' | 'platform' | 'manifestFragment'>
-          & { actor?: Maybe<(
-            { __typename?: 'User' }
-            & Pick<User, 'username' | 'id'>
-          ) | (
-            { __typename?: 'Robot' }
-            & Pick<Robot, 'firstName' | 'id'>
-          )> }
-        )> }
-      )> }
-    ) }
-  ) }
-);
-
 export type CancelBuildMutationVariables = Exact<{
   buildId: Scalars['ID'];
 }>;
@@ -5437,6 +5404,71 @@ export type GetAllSubmissionsForAppQuery = (
         { __typename?: 'Submission' }
         & Pick<Submission, 'id'>
         & SubmissionFragment
+      )> }
+    ) }
+  ) }
+);
+
+export type ViewAllUpdatesQueryVariables = Exact<{
+  appId: Scalars['String'];
+  limit: Scalars['Int'];
+}>;
+
+
+export type ViewAllUpdatesQuery = (
+  { __typename?: 'RootQuery' }
+  & { app: (
+    { __typename?: 'AppQuery' }
+    & { byId: (
+      { __typename?: 'App' }
+      & Pick<App, 'id'>
+      & { updateBranches: Array<(
+        { __typename?: 'UpdateBranch' }
+        & Pick<UpdateBranch, 'id' | 'name'>
+        & { updates: Array<(
+          { __typename?: 'Update' }
+          & Pick<Update, 'id' | 'group' | 'message' | 'createdAt' | 'runtimeVersion' | 'platform'>
+          & { actor?: Maybe<(
+            { __typename?: 'User' }
+            & Pick<User, 'username' | 'id'>
+          ) | (
+            { __typename?: 'Robot' }
+            & Pick<Robot, 'firstName' | 'id'>
+          )> }
+        )> }
+      )> }
+    ) }
+  ) }
+);
+
+export type ViewBranchUpdatesQueryVariables = Exact<{
+  appId: Scalars['String'];
+  name: Scalars['String'];
+  limit: Scalars['Int'];
+}>;
+
+
+export type ViewBranchUpdatesQuery = (
+  { __typename?: 'RootQuery' }
+  & { app: (
+    { __typename?: 'AppQuery' }
+    & { byId: (
+      { __typename?: 'App' }
+      & Pick<App, 'id'>
+      & { updateBranchByName?: Maybe<(
+        { __typename?: 'UpdateBranch' }
+        & Pick<UpdateBranch, 'id' | 'name'>
+        & { updates: Array<(
+          { __typename?: 'Update' }
+          & Pick<Update, 'id' | 'group' | 'message' | 'createdAt' | 'runtimeVersion' | 'platform' | 'manifestFragment'>
+          & { actor?: Maybe<(
+            { __typename?: 'User' }
+            & Pick<User, 'username' | 'id'>
+          ) | (
+            { __typename?: 'Robot' }
+            & Pick<Robot, 'firstName' | 'id'>
+          )> }
+        )> }
       )> }
     ) }
   ) }

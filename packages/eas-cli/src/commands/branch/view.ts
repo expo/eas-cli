@@ -2,11 +2,9 @@ import { getConfig } from '@expo/config';
 import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 import Table from 'cli-table3';
-import gql from 'graphql-tag';
 
 import EasCommand from '../../commandUtils/EasCommand';
-import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
-import { ViewBranchQuery, ViewBranchQueryVariables } from '../../graphql/generated';
+import { UpdateQuery } from '../../graphql/queries/UpdateQuery';
 import Log from '../../log';
 import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
@@ -14,58 +12,6 @@ import { UPDATE_COLUMNS, formatUpdate, getPlatformsForGroup } from '../../update
 import groupBy from '../../utils/expodash/groupBy';
 import formatFields from '../../utils/formatFields';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
-
-const PAGE_LIMIT = 10_000;
-
-export async function viewUpdateBranchAsync({
-  appId,
-  name,
-}: Pick<ViewBranchQueryVariables, 'appId' | 'name'>): Promise<ViewBranchQuery> {
-  const data = await withErrorHandlingAsync(
-    graphqlClient
-      .query<ViewBranchQuery, ViewBranchQueryVariables>(
-        gql`
-          query ViewBranch($appId: String!, $name: String!, $limit: Int!) {
-            app {
-              byId(appId: $appId) {
-                id
-                updateBranchByName(name: $name) {
-                  id
-                  name
-                  updates(offset: 0, limit: $limit) {
-                    id
-                    group
-                    message
-                    createdAt
-                    runtimeVersion
-                    platform
-                    manifestFragment
-                    actor {
-                      id
-                      ... on User {
-                        username
-                      }
-                      ... on Robot {
-                        firstName
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        `,
-        {
-          appId,
-          name,
-          limit: PAGE_LIMIT,
-        },
-        { additionalTypenames: ['UpdateBranch', 'Update'] }
-      )
-      .toPromise()
-  );
-  return data;
-}
 
 export default class BranchView extends EasCommand {
   static description = 'View a branch.';
@@ -111,7 +57,7 @@ export default class BranchView extends EasCommand {
       }));
     }
 
-    const { app } = await viewUpdateBranchAsync({
+    const { app } = await UpdateQuery.viewBranchAsync({
       appId: projectId,
       name,
     });

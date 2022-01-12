@@ -38,7 +38,6 @@ let sdkVersionChecked = false;
 
 export interface BuildFlags {
   requestedPlatform: RequestedPlatform;
-  skipProjectConfiguration: boolean;
   profile?: string;
   nonInteractive: boolean;
   wait: boolean;
@@ -53,7 +52,10 @@ export async function runBuildAndSubmitAsync(projectDir: string, flags: BuildFla
   await getVcsClient().ensureRepoExistsAsync();
   await ensureRepoIsCleanAsync(flags.nonInteractive);
 
-  await ensureProjectConfiguredAsync(projectDir, flags.requestedPlatform);
+  await ensureProjectConfiguredAsync({
+    projectDir,
+    nonInteractive: flags.nonInteractive,
+  });
 
   const platforms = toPlatforms(flags.requestedPlatform);
   const buildProfiles = await getProfilesAsync({
@@ -163,7 +165,6 @@ async function prepareAndStartBuildAsync({
     nonInteractive: flags.nonInteractive,
     platform: buildProfile.platform,
     projectDir,
-    skipProjectConfiguration: flags.skipProjectConfiguration,
     localBuildOptions: flags.localBuildOptions,
   });
 

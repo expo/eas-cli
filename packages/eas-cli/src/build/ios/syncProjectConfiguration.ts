@@ -3,32 +3,12 @@ import { Platform, Workflow } from '@expo/eas-build-job';
 import { BuildProfile, IosVersionAutoIncrement } from '@expo/eas-json';
 import type { XCBuildConfiguration } from 'xcode';
 
-import Log from '../../log';
-import {
-  ensureBundleIdentifierIsDefinedForManagedProjectAsync,
-  warnIfBundleIdentifierDefinedInAppConfigForBareWorkflowProject,
-} from '../../project/ios/bundleIdentifier';
 import { resolveWorkflowAsync } from '../../project/workflow';
-import { ConfigureContext } from '../context';
 import { isExpoUpdatesInstalled } from '../utils/updates';
-import { configureUpdatesAsync, syncUpdatesConfigurationAsync } from './UpdatesModule';
+import { syncUpdatesConfigurationAsync } from './UpdatesModule';
 import { BumpStrategy, bumpVersionAsync, bumpVersionInAppJsonAsync } from './version';
 
-export async function configureIosAsync(ctx: ConfigureContext): Promise<void> {
-  if (!ctx.hasIosNativeProject) {
-    await ensureBundleIdentifierIsDefinedForManagedProjectAsync(ctx.projectDir, ctx.exp);
-    return;
-  }
-
-  warnIfBundleIdentifierDefinedInAppConfigForBareWorkflowProject(ctx.projectDir, ctx.exp);
-
-  if (isExpoUpdatesInstalled(ctx.projectDir)) {
-    await configureUpdatesAsync(ctx.projectDir, ctx.exp);
-  }
-  Log.withTick('iOS project configured');
-}
-
-export async function validateAndSyncProjectConfigurationAsync({
+export async function syncProjectConfigurationAsync({
   projectDir,
   exp,
   buildProfile,

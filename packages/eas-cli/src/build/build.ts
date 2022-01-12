@@ -38,7 +38,7 @@ interface Builder<TPlatform extends Platform, Credentials, TJob extends Job> {
   ensureCredentialsAsync(
     ctx: BuildContext<TPlatform>
   ): Promise<CredentialsResult<Credentials> | undefined>;
-  ensureProjectConfiguredAsync(ctx: BuildContext<TPlatform>): Promise<void>;
+  syncProjectConfigurationAsync(ctx: BuildContext<TPlatform>): Promise<void>;
   prepareJobAsync(ctx: BuildContext<TPlatform>, jobData: JobData<Credentials>): Promise<Job>;
   sendBuildRequestAsync(appId: string, job: TJob, metadata: Metadata): Promise<BuildResult>;
 }
@@ -60,14 +60,13 @@ export async function prepareBuildRequestForPlatformAsync<
       trackingCtx: ctx.trackingCtx,
     }
   );
-  if (!ctx.skipProjectConfiguration) {
-    await withAnalyticsAsync(async () => await builder.ensureProjectConfiguredAsync(ctx), {
-      attemptEvent: BuildEvent.CONFIGURE_PROJECT_ATTEMPT,
-      successEvent: BuildEvent.CONFIGURE_PROJECT_SUCCESS,
-      failureEvent: BuildEvent.CONFIGURE_PROJECT_FAIL,
-      trackingCtx: ctx.trackingCtx,
-    });
-  }
+
+  await withAnalyticsAsync(async () => await builder.syncProjectConfigurationAsync(ctx), {
+    attemptEvent: BuildEvent.CONFIGURE_PROJECT_ATTEMPT,
+    successEvent: BuildEvent.CONFIGURE_PROJECT_SUCCESS,
+    failureEvent: BuildEvent.CONFIGURE_PROJECT_FAIL,
+    trackingCtx: ctx.trackingCtx,
+  });
 
   if (await getVcsClient().isCommitRequiredAsync()) {
     Log.addNewLineIfNone();

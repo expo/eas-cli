@@ -8,13 +8,40 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
-- Improve error message for outdated Apple PLA error ([#889](https://github.com/expo/eas-cli/pull/889) by [@EvanBacon](https://github.com/EvanBacon))
-- Add `--output` flag to the build command. ([#885](https://github.com/expo/eas-cli/pull/885) by [@wkozyra95](https://github.com/wkozyra95))
 - Add `eas device:delete`. ([#890](https://github.com/expo/eas-cli/pull/890) by [@kbrandwijk](https://github.com/kbrandwijk))
 
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
+
+## [0.44.1](https://github.com/expo/eas-cli/releases/tag/v0.44.1) - 2022-01-11
+
+### 🐛 Bug fixes
+
+- Fix build:configure expo-updates configuration to only run on generic projects. ([#904](https://github.com/expo/eas-cli/pull/904) by [@brentvatne](https://github.com/brentvatne))
+
+### 🧹 Chores
+
+- Upgrade `node-forge` to 1.0.0. ([#902](https://github.com/expo/eas-cli/pull/902) by [@dependabot](https://github.com/apps/dependabot) + [@dsokal](https://github.com/dsokal))
+- Replace `@expo/plugin-autocomplete` with `@oclif/plugin-autocomplete`. Upgrade oclif deps. ([#903](https://github.com/expo/eas-cli/pull/903) by [@dsokal](https://github.com/dsokal))
+
+## [0.44.0](https://github.com/expo/eas-cli/releases/tag/v0.44.0) - 2022-01-11
+
+### 🛠 Breaking changes
+
+- No longer enable APNS (iOS Push Notifications) capability by default anymore. ([#797](https://github.com/expo/eas-cli/pull/797) by [@EvanBacon](https://github.com/EvanBacon))
+- Don't configure Android projects locally. Clean up old Gradle signing config. Streamline `expo-updates` configuration. ([#888](https://github.com/expo/eas-cli/pull/888) by [@dsokal](https://github.com/dsokal))
+
+### 🎉 New features
+
+- Add `update:list` command. ([#884](https://github.com/expo/eas-cli/pull/884) by [@jkhales](https://github.com/jkhales))
+- Improve error message for outdated Apple PLA error. ([#889](https://github.com/expo/eas-cli/pull/889) by [@EvanBacon](https://github.com/EvanBacon))
+- Add `--output` flag to the build command. ([#885](https://github.com/expo/eas-cli/pull/885) by [@wkozyra95](https://github.com/wkozyra95))
+
+### 🐛 Bug fixes
+
+- Fix creating project archive with symlink cycle. ([#891](https://github.com/expo/eas-cli/pull/891) by [@wkozyra95](https://github.com/wkozyra95))
+- Sign Android debug builds with the correct keystore. Previously, all debug builds would be signed with a default debug keystore. ([#888](https://github.com/expo/eas-cli/pull/888) by [@dsokal](https://github.com/dsokal))
 
 ## [0.43.0](https://github.com/expo/eas-cli/releases/tag/v0.43.0) - 2022-01-03
 

@@ -214,11 +214,9 @@ function getCapabilitiesToDisable(
   // might be enabling capabilities in modifiers.
 
   for (const existingCapability of currentCapabilities) {
-    // Special case APNS because it's always enabled in Expo,
     // GC and IAP are always enabled in apps by default so we should avoid modifying them.
     if (
       existingCapability.isType(CapabilityType.IN_APP_PURCHASE) ||
-      existingCapability.isType(CapabilityType.PUSH_NOTIFICATIONS) ||
       existingCapability.isType(CapabilityType.GAME_CENTER)
     ) {
       continue;

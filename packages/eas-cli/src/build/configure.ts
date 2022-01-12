@@ -1,97 +1,47 @@
-import { getConfig } from '@expo/config';
 import { Platform, Workflow } from '@expo/eas-build-job';
 import { EasJson, EasJsonReader } from '@expo/eas-json';
-import { Errors } from '@oclif/core';
 import chalk from 'chalk';
 import fs from 'fs-extra';
 
-import Log, { learnMore } from '../log';
-import { RequestedPlatform } from '../platform';
+import Log from '../log';
 import { resolveWorkflowAsync } from '../project/workflow';
-import { confirmAsync, promptAsync } from '../prompts';
-import { ensureLoggedInAsync } from '../user/actions';
 import { easCliVersion } from '../utils/easCli';
 import { getVcsClient } from '../vcs';
-import { configureAndroidAsync } from './android/configure';
-import { ConfigureContext } from './context';
-import { configureIosAsync } from './ios/configure';
-import { commitPromptAsync, maybeBailOnRepoStatusAsync } from './utils/repository';
+import { maybeBailOnRepoStatusAsync, reviewAndCommitChangesAsync } from './utils/repository';
 
-const configureCommitMessage = {
-  [RequestedPlatform.Android]: 'Configure EAS Build for Android',
-  [RequestedPlatform.Ios]: 'Configure EAS Build for iOS',
-  [RequestedPlatform.All]: 'Configure EAS Build',
-};
-
-export async function ensureProjectConfiguredAsync(
-  projectDir: string,
-  requestedPlatform: RequestedPlatform
-): Promise<void> {
-  if (await fs.pathExists(EasJsonReader.formatEasJsonPath(projectDir))) {
-    return;
-  }
-
-  const message = 'This project is not configured to build with EAS. Set it up now?';
-  const confirm = await confirmAsync({ message });
-  if (confirm) {
-    await configureAsync({
-      projectDir,
-      platform: requestedPlatform,
-    });
-    if (await getVcsClient().isCommitRequiredAsync()) {
-      Errors.error(
-        'Build process requires clean working tree, please commit all your changes and run `eas build` again',
-        { exit: 1 }
-      );
-    }
-  } else {
-    Errors.error(
-      `Aborting, please run ${chalk.bold('eas build:configure')} or create eas.json (${learnMore(
-        'https://docs.expo.dev/build/eas-json'
-      )})`,
-      { exit: 1 }
-    );
-  }
+interface ConfigureParams {
+  projectDir: string;
+  nonInteractive: boolean;
 }
 
-export async function configureAsync(options: {
-  platform: RequestedPlatform;
-  projectDir: string;
-}): Promise<void> {
+/**
+ * Creates eas.json if it does not exist.
+ *
+ * Returns:
+ * - false - if eas.json already exists
+ * - true - if eas.json was created by the function
+ */
+export async function ensureProjectConfiguredAsync(
+  configureParams: ConfigureParams
+): Promise<boolean> {
+  if (await fs.pathExists(EasJsonReader.formatEasJsonPath(configureParams.projectDir))) {
+    return false;
+  }
+
+  await configureAsync(configureParams);
+  return true;
+}
+
+async function configureAsync({ projectDir, nonInteractive }: ConfigureParams): Promise<void> {
   await maybeBailOnRepoStatusAsync();
 
-  const { exp } = getConfig(options.projectDir, { skipSDKVersionRequirement: true });
-
-  const ctx: ConfigureContext = {
-    user: await ensureLoggedInAsync(),
-    projectDir: options.projectDir,
-    exp,
-    requestedPlatform: options.platform,
-    shouldConfigureAndroid: [RequestedPlatform.All, RequestedPlatform.Android].includes(
-      options.platform
-    ),
-    shouldConfigureIos: [RequestedPlatform.All, RequestedPlatform.Ios].includes(options.platform),
-    hasAndroidNativeProject:
-      (await resolveWorkflowAsync(options.projectDir, Platform.ANDROID)) === Workflow.GENERIC,
-    hasIosNativeProject:
-      (await resolveWorkflowAsync(options.projectDir, Platform.IOS)) === Workflow.GENERIC,
-  };
-
-  Log.newLine();
-  await ensureEasJsonExistsAsync(ctx);
-  if (ctx.shouldConfigureAndroid) {
-    await configureAndroidAsync(ctx);
-  }
-  if (ctx.shouldConfigureIos) {
-    await configureIosAsync(ctx);
-  }
+  await createEasJsonAsync(projectDir);
 
   if (await getVcsClient().isCommitRequiredAsync()) {
     Log.newLine();
-    await reviewAndCommitChangesAsync(configureCommitMessage[options.platform]);
-  } else if (!(await getVcsClient().hasUncommittedChangesAsync())) {
-    Log.newLine();
-    Log.withTick('No changes were necessary, the project is already configured correctly.');
+    await reviewAndCommitChangesAsync('Configure EAS Build', {
+      nonInteractive,
+    });
   }
 }
 
@@ -138,58 +88,19 @@ const EAS_JSON_BARE_DEFAULT: EasJson = {
   },
 };
 
-export async function ensureEasJsonExistsAsync(ctx: ConfigureContext): Promise<void> {
-  const easJsonPath = EasJsonReader.formatEasJsonPath(ctx.projectDir);
+async function createEasJsonAsync(projectDir: string): Promise<void> {
+  const easJsonPath = EasJsonReader.formatEasJsonPath(projectDir);
 
-  if (await fs.pathExists(easJsonPath)) {
-    const reader = new EasJsonReader(ctx.projectDir);
-    await reader.readAsync();
-
-    Log.withTick('Validated eas.json');
-    return;
-  }
-
+  const hasAndroidNativeProject =
+    (await resolveWorkflowAsync(projectDir, Platform.ANDROID)) === Workflow.GENERIC;
+  const hasIosNativeProject =
+    (await resolveWorkflowAsync(projectDir, Platform.IOS)) === Workflow.GENERIC;
   const easJson =
-    ctx.hasAndroidNativeProject && ctx.hasIosNativeProject
+    hasAndroidNativeProject || hasIosNativeProject
       ? EAS_JSON_BARE_DEFAULT
       : EAS_JSON_MANAGED_DEFAULT;
 
   await fs.writeFile(easJsonPath, `${JSON.stringify(easJson, null, 2)}\n`);
   await getVcsClient().trackFileAsync(easJsonPath);
-  Log.withTick('Generated eas.json');
-}
-
-enum ShouldCommitChanges {
-  Yes,
-  ShowDiffFirst,
-  Skip,
-}
-
-async function reviewAndCommitChangesAsync(
-  initialCommitMessage: string,
-  askedFirstTime: boolean = true
-): Promise<void> {
-  const { selected } = await promptAsync({
-    type: 'select',
-    name: 'selected',
-    message: 'Can we commit these changes to git for you?',
-    choices: [
-      { title: 'Yes', value: ShouldCommitChanges.Yes },
-      ...(askedFirstTime
-        ? [{ title: 'Show the diff and ask me again', value: ShouldCommitChanges.ShowDiffFirst }]
-        : []),
-      {
-        title: 'Skip committing changes, I will do it later on my own',
-        value: ShouldCommitChanges.Skip,
-      },
-    ],
-  });
-
-  if (selected === ShouldCommitChanges.Yes) {
-    await commitPromptAsync({ initialCommitMessage });
-    Log.withTick('Committed changes');
-  } else if (selected === ShouldCommitChanges.ShowDiffFirst) {
-    await getVcsClient().showDiffAsync();
-    await reviewAndCommitChangesAsync(initialCommitMessage, false);
-  }
+  Log.withTick(`Generated ${chalk.bold('eas.json')}`);
 }

@@ -1,7 +1,7 @@
 {
   "name": "eas-cli",
   "description": "EAS command line tool",
-  "version": "0.43.0",
+  "version": "0.44.1",
   "author": "Expo <support@expo.dev>",
   "bin": {
     "eas": "./bin/run"
@@ -12,18 +12,18 @@
     "@expo/config": "6.0.11",
     "@expo/config-plugins": "4.0.11",
     "@expo/eas-build-job": "0.2.61",
-    "@expo/eas-json": "0.43.0",
+    "@expo/eas-json": "0.44.0",
     "@expo/json-file": "8.2.34",
     "@expo/pkcs12": "0.0.6",
     "@expo/plist": "0.0.16",
-    "@expo/plugin-autocomplete": "1.0.2",
-    "@expo/plugin-warn-if-update-available": "2.0.1",
+    "@expo/plugin-warn-if-update-available": "2.0.4",
     "@expo/prebuild-config": "3.0.11",
     "@expo/results": "1.0.0",
     "@expo/rudder-sdk-node": "1.1.1",
     "@expo/spawn-async": "1.5.0",
     "@expo/timeago.js": "1.0.0",
-    "@oclif/core": "1.0.10",
+    "@oclif/core": "1.1.2",
+    "@oclif/plugin-autocomplete": "1.1.1",
     "@oclif/plugin-help": "5.1.10",
     "@urql/core": "2.3.1",
     "@urql/exchange-retry": "0.3.0",
@@ -51,7 +51,7 @@
     "minimatch": "3.0.4",
     "nanoid": "3.1.25",
     "node-fetch": "2.6.1",
-    "node-forge": "0.10.0",
+    "node-forge": "1.0.0",
     "nullthrows": "1.1.1",
     "ora": "5.1.0",
     "pkg-dir": "4.2.0",
@@ -81,7 +81,7 @@
     "@types/getenv": "^1.0.0",
     "@types/mime": "2.0.3",
     "@types/node-fetch": "^2.5.7",
-    "@types/node-forge": "^0.9.5",
+    "@types/node-forge": "1.0.0",
     "@types/prompts": "^2.0.9",
     "@types/semver": "7.3.8",
     "@types/tar": "4.0.5",
@@ -116,9 +116,9 @@
     "bin": "eas",
     "commands": "./build/commands",
     "plugins": [
+      "@oclif/plugin-autocomplete",
       "@oclif/plugin-help",
-      "@expo/plugin-warn-if-update-available",
-      "@expo/plugin-autocomplete"
+      "@expo/plugin-warn-if-update-available"
     ],
     "topics": {
       "account": {

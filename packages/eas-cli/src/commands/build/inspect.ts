@@ -83,7 +83,6 @@ export default class BuildInspect extends EasCommand {
       const projectDir = await findProjectRootAsync();
       try {
         await runBuildAndSubmitAsync(projectDir, {
-          skipProjectConfiguration: false,
           nonInteractive: false,
           wait: true,
           clearCache: false,
