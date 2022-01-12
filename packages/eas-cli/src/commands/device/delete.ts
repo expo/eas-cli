@@ -143,10 +143,10 @@ export default class DeviceDelete extends EasCommand {
     Log.addNewLineIfNone();
     chosenDevices.forEach(device => {
       Log.log(
-        `${formatDevice(device, {
+        formatDevice(device, {
           appleTeamName,
           appleTeamIdentifier: appleTeamIdentifier!,
-        })}`
+        })
       );
       Log.newLine();
     });
