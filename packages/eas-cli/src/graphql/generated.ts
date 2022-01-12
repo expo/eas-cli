@@ -128,6 +128,7 @@ export type Update = ActivityTimelineProjectActivity & {
   branchId: Scalars['ID'];
   platform: Scalars['String'];
   manifestFragment: Scalars['String'];
+  codeSigningInfo?: Maybe<CodeSigningInfo>;
   runtimeVersion: Scalars['String'];
   group: Scalars['String'];
   updatedAt: Scalars['DateTime'];
@@ -1503,6 +1504,13 @@ export type Charge = {
   amount?: Maybe<Scalars['Int']>;
   wasRefunded?: Maybe<Scalars['Boolean']>;
   receiptUrl?: Maybe<Scalars['String']>;
+};
+
+export type CodeSigningInfo = {
+  __typename?: 'CodeSigningInfo';
+  keyid: Scalars['String'];
+  sig: Scalars['String'];
+  alg: Scalars['String'];
 };
 
 export type AccountQuery = {
@@ -3122,6 +3130,8 @@ export type UpdateMutation = {
   __typename?: 'UpdateMutation';
   /** Delete an EAS update group */
   deleteUpdateGroup: DeleteUpdateGroupResult;
+  /** Set code signing info for an update */
+  setCodeSigningInfo: Update;
 };
 
 
@@ -3129,9 +3139,21 @@ export type UpdateMutationDeleteUpdateGroupArgs = {
   group: Scalars['ID'];
 };
 
+
+export type UpdateMutationSetCodeSigningInfoArgs = {
+  updateId: Scalars['ID'];
+  codeSigningInfo: CodeSigningInfoInput;
+};
+
 export type DeleteUpdateGroupResult = {
   __typename?: 'DeleteUpdateGroupResult';
   group: Scalars['ID'];
+};
+
+export type CodeSigningInfoInput = {
+  sig: Scalars['String'];
+  keyid: Scalars['String'];
+  alg: Scalars['String'];
 };
 
 export type UpdateBranchMutation = {
@@ -4273,6 +4295,22 @@ export type CreateAppleDeviceMutation = (
       { __typename?: 'AppleDevice' }
       & Pick<AppleDevice, 'id'>
       & AppleDeviceFragment
+    ) }
+  ) }
+);
+
+export type DeleteAppleDeviceMutationVariables = Exact<{
+  deviceId: Scalars['ID'];
+}>;
+
+
+export type DeleteAppleDeviceMutation = (
+  { __typename?: 'RootMutation' }
+  & { appleDevice: (
+    { __typename?: 'AppleDeviceMutation' }
+    & { deleteAppleDevice: (
+      { __typename?: 'DeleteAppleDeviceResult' }
+      & Pick<DeleteAppleDeviceResult, 'id'>
     ) }
   ) }
 );

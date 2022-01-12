@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Add `eas device:delete`. ([#890](https://github.com/expo/eas-cli/pull/890) by [@kbrandwijk](https://github.com/kbrandwijk))
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
