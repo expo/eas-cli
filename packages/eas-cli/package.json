@@ -88,7 +88,7 @@
     "@types/tough-cookie": "4.0.1",
     "@types/uuid": "8.3.1",
     "@types/wrap-ansi": "3.0.0",
-    "axios": "0.21.4",
+    "axios": "0.24.0",
     "eslint-plugin-graphql": "4.0.0",
     "memfs": "3.2.2",
     "mockdate": "^3.0.2",
