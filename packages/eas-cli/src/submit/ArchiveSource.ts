@@ -256,7 +256,6 @@ async function handleBuildListSourceAsync(source: ArchiveBuildListSource): Promi
       type: 'select',
       message: 'Which build would you like to submit?',
       choices: choices.map(choice => ({ ...choice, title: `- ${choice.title}` })),
-      // @ts-expect-error field documented in npm, but not defined in typescript
       warn: 'This artifact has expired',
     });
 
