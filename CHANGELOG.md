@@ -8,10 +8,17 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
-- Add `eas device:delete`. ([#890](https://github.com/expo/eas-cli/pull/890) by [@kbrandwijk](https://github.com/kbrandwijk))
 - Add support to `eas build` for specifying a custom `prebuildCommand` in `eas.json`. ([#919](https://github.com/expo/eas-cli/pull/919) by [@kbrandwijk](https://github.com/kbrandwijk))
 
 ### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [0.45.0](https://github.com/expo/eas-cli/releases/tag/v0.45.0) - 2022-01-18
+
+### 🎉 New features
+
+- Add `eas device:delete`. ([#890](https://github.com/expo/eas-cli/pull/890) by [@kbrandwijk](https://github.com/kbrandwijk))
 
 ### 🧹 Chores
 
