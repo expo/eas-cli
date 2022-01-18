@@ -16,6 +16,7 @@ const CommonBuildProfileSchema = Joi.object({
   releaseChannel: Joi.string().regex(/^[a-z\d][a-z\d._-]*$/),
   channel: Joi.string().regex(/^[a-z\d][a-z\d._-]*$/),
   developmentClient: Joi.boolean(),
+  prebuildCommand: Joi.string(),
 
   node: Joi.string().empty(null).custom(semverCheck),
   yarn: Joi.string().empty(null).custom(semverCheck),
