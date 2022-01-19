@@ -20,6 +20,7 @@ import {
   waitToCompleteAsync as waitForSubmissionsToCompleteAsync,
 } from '../submit/submit';
 import { printSubmissionDetailsUrls } from '../submit/utils/urls';
+import { printJsonOnlyOutput } from '../utils/json';
 import { ProfileData, getProfilesAsync } from '../utils/profiles';
 import { getVcsClient } from '../vcs';
 import { prepareAndroidBuildAsync } from './android/build';
@@ -130,6 +131,9 @@ export async function runBuildAndSubmitAsync(projectDir: string, flags: BuildFla
   }
 
   if (!flags.wait) {
+    if (flags.json) {
+      printJsonOnlyOutput(startedBuilds);
+    }
     return;
   }
 
