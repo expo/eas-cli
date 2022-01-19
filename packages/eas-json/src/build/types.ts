@@ -20,6 +20,7 @@ export interface CommonBuildProfile {
   releaseChannel?: string;
   channel?: string;
   developmentClient?: boolean;
+  prebuildCommand?: string;
 
   node?: string;
   yarn?: string;
