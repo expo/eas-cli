@@ -132,7 +132,7 @@ export async function runBuildAndSubmitAsync(projectDir: string, flags: BuildFla
 
   if (!flags.wait) {
     if (flags.json) {
-      printJsonOnlyOutput(startedBuilds);
+      printJsonOnlyOutput(startedBuilds.map(buildInfo => buildInfo.build));
     }
     return;
   }
