@@ -20,6 +20,7 @@ export function transformJob(job: Ios.Job): IosJobInput {
     username: job.username,
     developmentClient: job.developmentClient,
     simulator: job.simulator,
+    experimental: job.experimental,
   };
 }
 

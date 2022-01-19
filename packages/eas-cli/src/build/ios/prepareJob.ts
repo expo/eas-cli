@@ -66,6 +66,9 @@ export async function prepareJobAsync(
     buildConfiguration: ctx.buildProfile.buildConfiguration,
     artifactPath: ctx.buildProfile.artifactPath,
     username,
+    experimental: {
+      prebuildCommand: ctx.buildProfile.prebuildCommand,
+    },
   };
   return sanitizeJob(job);
 }
