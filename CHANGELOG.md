@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Add macOS Monterey image. ([#922](https://github.com/expo/eas-cli/pull/922) by [@wkozyra95](https://github.com/wkozyra95))
+
 ## [0.45.0](https://github.com/expo/eas-cli/releases/tag/v0.45.0) - 2022-01-18
 
 ### 🎉 New features
