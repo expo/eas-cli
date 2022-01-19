@@ -8,10 +8,16 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [0.45.1](https://github.com/expo/eas-cli/releases/tag/v0.45.1) - 2022-01-19
+
+### 🎉 New features
+
 - Add json output for started builds when using `--no-wait`. ([#921](https://github.com/expo/eas-cli/pull/921) by [@kbrandwijk](https://github.com/kbrandwijk))
 - Add support to `eas build` for specifying a custom `prebuildCommand` in `eas.json`. ([#919](https://github.com/expo/eas-cli/pull/919) by [@kbrandwijk](https://github.com/kbrandwijk))
-
-### 🐛 Bug fixes
 
 ### 🧹 Chores
 
