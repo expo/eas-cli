@@ -73,7 +73,7 @@ async function configureProjectForEASUpdateAsync(
 }
 
 export default class UpdateConfigure extends EasCommand {
-  static description = 'Configure the project to support EAS Update.';
+  static description = 'configure the project to support EAS Update';
 
   async runAsync(): Promise<void> {
     Log.log(

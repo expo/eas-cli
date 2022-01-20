@@ -26,7 +26,7 @@ const STAGE_DESCRIPTION = `Stage of the build you want to inspect.
 
 export default class BuildInspect extends EasCommand {
   static description =
-    'Inspect the state of the project at specific build stages. Useful for troubleshooting.';
+    'inspect the state of the project at specific build stages, useful for troubleshooting';
 
   static flags = {
     platform: Flags.enum({

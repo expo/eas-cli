@@ -8,7 +8,7 @@ import { resolveWorkflowAsync } from '../project/workflow';
 import { easCliVersion } from '../utils/easCli';
 
 export default class Diagnostics extends EasCommand {
-  static description = 'log environment info to the console';
+  static description = 'display environment info';
 
   protected requiresAuthentication = false;
 

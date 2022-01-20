@@ -2,16 +2,19 @@ import { getProjectConfigDescription } from '@expo/config';
 import { Platform } from '@expo/eas-build-job';
 import { EasJsonReader } from '@expo/eas-json';
 import { Flags } from '@oclif/core';
+import chalk from 'chalk';
 
 import EasCommand from '../commandUtils/EasCommand';
+import { toAppPlatform } from '../graphql/types/AppPlatform';
 import Log from '../log';
+import { appPlatformEmojis } from '../platform';
 import { getExpoConfig } from '../project/expoConfig';
 import { findProjectRootAsync } from '../project/projectUtils';
 import { selectAsync } from '../prompts';
 import { handleDeprecatedEasJsonAsync } from './build';
 
 export default class Config extends EasCommand {
-  static description = 'show the eas.json config';
+  static description = 'display project configuration (app.json + eas.json)';
 
   static flags = {
     platform: Flags.enum({ char: 'p', options: ['android', 'ios'] }),
@@ -58,12 +61,15 @@ export default class Config extends EasCommand {
     const profile = await reader.getBuildProfileAsync(platform, profileName);
     const config = getExpoConfig(projectDir, { env: profile.env, isPublicConfig: true });
 
-    Log.log(getProjectConfigDescription(projectDir));
+    Log.addNewLineIfNone();
+    Log.log(chalk.bold(getProjectConfigDescription(projectDir)));
     Log.newLine();
     Log.log(JSON.stringify(config, null, 2));
     Log.newLine();
     Log.newLine();
-    Log.log(`Build profile "${profileName}" from eas.json for platform ${platform}`);
+    const appPlatform = toAppPlatform(platform);
+    const platformEmoji = appPlatformEmojis[appPlatform];
+    Log.log(`${platformEmoji} ${chalk.bold(`Build profile "${profileName}"`)}`);
     Log.newLine();
     Log.log(JSON.stringify(profile, null, 2));
   }

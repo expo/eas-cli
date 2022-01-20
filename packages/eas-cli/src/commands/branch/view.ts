@@ -14,7 +14,7 @@ import formatFields from '../../utils/formatFields';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
 export default class BranchView extends EasCommand {
-  static description = 'View a branch.';
+  static description = 'view a branch';
 
   static args = [
     {

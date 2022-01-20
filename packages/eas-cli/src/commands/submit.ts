@@ -41,8 +41,7 @@ interface CommandFlags {
 }
 
 export default class Submit extends EasCommand {
-  static description = `Submit build archive to App Store Connect
-See how to configure submits with eas.json: ${link('https://docs.expo.dev/submit/eas-json/')}`;
+  static description = `submit app binary to app store`;
   static aliases = ['build:submit'];
 
   static flags = {

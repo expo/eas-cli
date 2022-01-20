@@ -51,7 +51,7 @@ export async function viewUpdateAsync({
   return data;
 }
 export default class UpdateView extends EasCommand {
-  static description = 'Update group details.';
+  static description = 'update group details';
 
   static args = [
     {

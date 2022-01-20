@@ -121,7 +121,10 @@
     ],
     "topics": {
       "account": {
-        "description": "manage your account"
+        "description": "manage account"
+      },
+      "branch": {
+        "description": "manage update branches"
       },
       "build": {
         "description": "build app binaries"
@@ -130,10 +133,10 @@
         "description": "manage update channels"
       },
       "device": {
-        "description": "manage your Apple devices for internal distribution"
+        "description": "manage Apple devices for Internal Distribution"
       },
       "project": {
-        "description": "manage your project"
+        "description": "manage project"
       },
       "release": {
         "description": "manage update releases"
