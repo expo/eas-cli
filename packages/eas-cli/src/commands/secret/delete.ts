@@ -1,6 +1,5 @@
 import { getConfig } from '@expo/config';
 import { Flags } from '@oclif/core';
-import chalk from 'chalk';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import { EnvironmentSecretMutation } from '../../graphql/mutations/EnvironmentSecretMutation';

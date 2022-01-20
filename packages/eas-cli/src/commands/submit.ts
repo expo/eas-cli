@@ -5,7 +5,7 @@ import chalk from 'chalk';
 import EasCommand from '../commandUtils/EasCommand';
 import { SubmissionFragment } from '../graphql/generated';
 import { toAppPlatform } from '../graphql/types/AppPlatform';
-import Log, { link } from '../log';
+import Log from '../log';
 import {
   RequestedPlatform,
   appPlatformDisplayNames,
