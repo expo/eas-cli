@@ -9,7 +9,7 @@ import pick from '../../utils/expodash/pick';
 import { prepareInputParamsAsync } from '../../webhooks/input';
 
 export default class WebhookUpdate extends EasCommand {
-  static description = 'Update a webhook on the current project.';
+  static description = 'update a webhook';
 
   static flags = {
     id: Flags.string({

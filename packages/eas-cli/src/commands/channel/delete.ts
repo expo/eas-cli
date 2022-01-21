@@ -22,7 +22,7 @@ import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
 export default class ChannelDelete extends EasCommand {
   static hidden = true;
-  static description = 'Delete a channel on the current project';
+  static description = 'Delete a channel';
 
   static args = [
     {
@@ -33,7 +33,7 @@ export default class ChannelDelete extends EasCommand {
   ];
   static flags = {
     json: Flags.boolean({
-      description: `Delete a channel on the current project`,
+      description: 'print output as a JSON object',
       default: false,
     }),
     'non-interactive': Flags.boolean({

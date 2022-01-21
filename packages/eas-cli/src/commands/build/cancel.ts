@@ -110,7 +110,7 @@ async function ensureBuildExistsAsync(buildId: string): Promise<void> {
 }
 
 export default class BuildCancel extends EasCommand {
-  static description = 'Cancel a build.';
+  static description = 'cancel a build';
 
   static args = [{ name: 'BUILD_ID' }];
 

@@ -23,7 +23,7 @@ type UpdateGroupDescription = FormatUpdateParameter & {
 };
 
 export default class BranchView extends EasCommand {
-  static description = 'View the recent updates for a branch';
+  static description = 'view the recent updates for a branch';
 
   static flags = {
     branch: Flags.string({

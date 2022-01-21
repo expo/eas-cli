@@ -13,7 +13,7 @@ import {
 } from '../../project/projectUtils';
 
 export default class EnvironmentSecretList extends EasCommand {
-  static description = 'Lists environment secrets available for your current app';
+  static description = 'list environment secrets available for your current app';
 
   async runAsync(): Promise<void> {
     const projectDir = await findProjectRootAsync();

@@ -17,7 +17,7 @@ import { promptAsync } from '../../prompts';
 import { getVcsClient } from '../../vcs';
 
 export default class BuildConfigure extends EasCommand {
-  static description = 'Configure the project to support EAS Build.';
+  static description = 'configure the project to support EAS Build';
 
   static flags = {
     platform: Flags.enum({

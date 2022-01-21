@@ -96,7 +96,7 @@ export async function updateChannelBranchMappingAsync({
 }
 
 export default class ChannelEdit extends EasCommand {
-  static description = 'Point a channel at a new branch.';
+  static description = 'point a channel at a new branch';
 
   static args = [
     {

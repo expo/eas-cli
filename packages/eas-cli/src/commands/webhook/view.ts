@@ -5,7 +5,7 @@ import { ora } from '../../ora';
 import { formatWebhook } from '../../webhooks/formatWebhook';
 
 export default class WebhookView extends EasCommand {
-  static description = 'View a webhook on the current project.';
+  static description = 'view a webhook';
 
   static args = [
     {

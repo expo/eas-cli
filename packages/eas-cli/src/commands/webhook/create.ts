@@ -9,7 +9,7 @@ import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUt
 import { prepareInputParamsAsync } from '../../webhooks/input';
 
 export default class WebhookCreate extends EasCommand {
-  static description = 'Create a webhook on the current project.';
+  static description = 'create a webhook';
 
   static flags = {
     event: Flags.enum({

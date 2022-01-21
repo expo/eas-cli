@@ -15,7 +15,7 @@ import {
 import { formatWebhook } from '../../webhooks/formatWebhook';
 
 export default class WebhookList extends EasCommand {
-  static description = 'List webhooks on the current project.';
+  static description = 'list webhooks';
 
   static flags = {
     event: Flags.enum({
