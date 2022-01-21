@@ -366,8 +366,15 @@ export default class ChannelRollout extends EasCommand {
       appId: projectId,
       channelName: channelName!,
     });
+
+    const channel = getUpdateChannelByNameForAppResult.app?.byId.updateChannelByName;
+    if (!channel) {
+      throw new Error(
+        `Could not find a channel named "${channelName}". Please check what channels exist on this project with "eas channel:list".`
+      );
+    }
     const { branchMapping: currentBranchMapping, isRollout } = getBranchMapping(
-      getUpdateChannelByNameForAppResult.app?.byId.updateChannelByName?.branchMapping
+      channel.branchMapping
     );
 
     if (currentBranchMapping.data.length === 0) {
