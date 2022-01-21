@@ -1,12 +1,10 @@
 import { AppJSONConfig, ExpoConfig, getConfigFilePaths, modifyConfigAsync } from '@expo/config';
 import { Env } from '@expo/eas-build-job';
 import chalk from 'chalk';
-import gql from 'graphql-tag';
 import path from 'path';
 import pkgDir from 'pkg-dir';
 
-import { graphqlClient, withErrorHandlingAsync } from '../graphql/client';
-import { AppPrivacy, UpdateBranch } from '../graphql/generated';
+import { AppPrivacy } from '../graphql/generated';
 import Log from '../log';
 import { confirmAsync } from '../prompts';
 import { Actor } from '../user/User';
@@ -191,52 +189,6 @@ export function getProjectConfigDescription(projectDir: string): string {
     return path.relative(projectDir, paths.staticConfigPath);
   }
   return 'app.config.js/app.json';
-}
-
-export async function getBranchByNameAsync({
-  appId,
-  name,
-}: {
-  appId: string;
-  name: string;
-}): Promise<UpdateBranch> {
-  const data = await withErrorHandlingAsync(
-    graphqlClient
-      .query<
-        {
-          app: {
-            byId: {
-              updateBranchByName: UpdateBranch;
-            };
-          };
-        },
-        {
-          appId: string;
-          name: string;
-        }
-      >(
-        gql`
-          query ViewBranch($appId: String!, $name: String!) {
-            app {
-              byId(appId: $appId) {
-                id
-                updateBranchByName(name: $name) {
-                  id
-                  name
-                }
-              }
-            }
-          }
-        `,
-        {
-          appId,
-          name,
-        },
-        { additionalTypenames: ['UpdateBranch'] }
-      )
-      .toPromise()
-  );
-  return data.app.byId.updateBranchByName;
 }
 
 // return project id of existing/newly created project, or null if user declines

@@ -4273,6 +4273,14 @@ export type DeleteWebhookMutationVariables = Exact<{
 
 export type DeleteWebhookMutation = { __typename?: 'RootMutation', webhook: { __typename?: 'WebhookMutation', deleteWebhook: { __typename?: 'DeleteWebhookResult', id: string } } };
 
+export type ViewBranchQueryVariables = Exact<{
+  appId: Scalars['String'];
+  name: Scalars['String'];
+}>;
+
+
+export type ViewBranchQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, updateBranchByName?: { __typename?: 'UpdateBranch', id: string, name: string } | null | undefined } } };
+
 export type BuildsByIdQueryVariables = Exact<{
   buildId: Scalars['ID'];
 }>;

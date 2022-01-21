@@ -13,12 +13,9 @@ import {
   UpdateChannelBranchMappingMutation,
   UpdateChannelBranchMappingMutationVariables,
 } from '../../graphql/generated';
+import { BranchQuery } from '../../graphql/queries/BranchQuery';
 import Log from '../../log';
-import {
-  findProjectRootAsync,
-  getBranchByNameAsync,
-  getProjectIdAsync,
-} from '../../project/projectUtils';
+import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
@@ -157,12 +154,21 @@ export default class ChannelEdit extends EasCommand {
       ({ name: branchName } = await promptAsync({
         type: 'text',
         name: 'name',
-        message: chalk`What branch should it change to?`,
+        message: chalk`To which branch should the channel link?`,
         validate: value => (value ? true : validationMessage),
       }));
     }
 
-    const branch = await getBranchByNameAsync({ appId: projectId, name: branchName! });
+    const {
+      app: {
+        byId: { updateBranchByName: branch },
+      },
+    } = await BranchQuery.getBranchByNameAsync({ appId: projectId, name: branchName! });
+    if (!branch) {
+      throw new Error(
+        `Could not find a branch named "${branchName}". Please check what branches exist on this project with "eas branch:list".`
+      );
+    }
     const channel = await updateChannelBranchMappingAsync({
       channelId: existingChannel.id,
       // todo: move branch mapping logic to utility

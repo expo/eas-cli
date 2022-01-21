@@ -9,10 +9,10 @@ import {
   CreateUpdateChannelOnAppMutation,
   CreateUpdateChannelOnAppMutationVariables,
 } from '../../graphql/generated';
+import { BranchQuery } from '../../graphql/queries/BranchQuery';
 import Log from '../../log';
 import {
   findProjectRootAsync,
-  getBranchByNameAsync,
   getProjectFullNameAsync,
   getProjectIdAsync,
 } from '../../project/projectUtils';
@@ -106,14 +106,16 @@ export default class ChannelCreate extends EasCommand {
 
     let branchId: string;
     let branchMessage: string;
-    try {
-      const existingBranch = await getBranchByNameAsync({
-        appId: projectId,
-        name: channelName,
-      });
+    const {
+      app: {
+        byId: { updateBranchByName: existingBranch },
+      },
+    } = await BranchQuery.getBranchByNameAsync({ appId: projectId, name: channelName });
+
+    if (existingBranch) {
       branchId = existingBranch.id;
       branchMessage = `We found a branch with the same name`;
-    } catch (e) {
+    } else {
       const newBranch = await createUpdateBranchOnAppAsync({
         appId: projectId,
         name: channelName,

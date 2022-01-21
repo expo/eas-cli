@@ -4,10 +4,10 @@ import chalk from 'chalk';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import { GetChannelByNameForAppQuery, UpdateBranch } from '../../graphql/generated';
+import { BranchQuery } from '../../graphql/queries/BranchQuery';
 import Log from '../../log';
 import {
   findProjectRootAsync,
-  getBranchByNameAsync,
   getProjectFullNameAsync,
   getProjectIdAsync,
 } from '../../project/projectUtils';
@@ -105,7 +105,18 @@ async function startRolloutAsync({
       validate: value => (value ? true : validationMessage),
     }));
   }
-  const branch = await getBranchByNameAsync({ appId: projectId, name: branchName! });
+
+  const {
+    app: {
+      byId: { updateBranchByName: branch },
+    },
+  } = await BranchQuery.getBranchByNameAsync({ appId: projectId, name: branchName! });
+  if (!branch) {
+    throw new Error(
+      `Could not find a branch named "${branchName}". Please check what branches exist on this project with "eas branch:list".`
+    );
+  }
+
   const oldBranchId = currentBranchMapping.data[0].branchId;
   if (branch.id === oldBranchId) {
     throw new Error(
@@ -247,7 +258,17 @@ async function endRolloutAsync({
 
   let endOnNewBranch;
   if (branchName) {
-    const branch = await getBranchByNameAsync({ appId: projectId, name: branchName! });
+    const {
+      app: {
+        byId: { updateBranchByName: branch },
+      },
+    } = await BranchQuery.getBranchByNameAsync({ appId: projectId, name: branchName! });
+    if (!branch) {
+      throw new Error(
+        `Could not find a branch named "${branchName}". Please check what branches exist on this project with "eas branch:list".`
+      );
+    }
+
     switch (branch.id) {
       case newBranch.id:
         endOnNewBranch = true;
@@ -356,8 +377,15 @@ export default class ChannelRollout extends EasCommand {
       appId: projectId,
       channelName: channelName!,
     });
+
+    const channel = getUpdateChannelByNameForAppResult.app?.byId.updateChannelByName;
+    if (!channel) {
+      throw new Error(
+        `Could not find a channel named "${channelName}". Please check what channels exist on this project with "eas channel:list".`
+      );
+    }
     const { branchMapping: currentBranchMapping, isRollout } = getBranchMapping(
-      getUpdateChannelByNameForAppResult.app?.byId.updateChannelByName?.branchMapping
+      channel.branchMapping
     );
 
     if (currentBranchMapping.data.length === 0) {
