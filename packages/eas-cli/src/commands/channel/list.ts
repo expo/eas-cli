@@ -67,7 +67,7 @@ async function getAllUpdateChannelForAppAsync({
 }
 
 export default class ChannelList extends EasCommand {
-  static description = 'list all channels on the current project';
+  static description = 'list all channels';
 
   static flags = {
     json: Flags.boolean({

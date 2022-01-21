@@ -52,7 +52,7 @@ export async function createUpdateBranchOnAppAsync({
 }
 
 export default class BranchCreate extends EasCommand {
-  static description = 'create a branch on the current project';
+  static description = 'create a branch';
 
   static args = [
     {
