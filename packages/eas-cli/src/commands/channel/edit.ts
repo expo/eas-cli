@@ -1,5 +1,6 @@
 import { getConfig } from '@expo/config';
 import { Flags } from '@oclif/core';
+import assert from 'assert';
 import chalk from 'chalk';
 import gql from 'graphql-tag';
 
@@ -108,17 +109,14 @@ export default class ChannelEdit extends EasCommand {
       description: 'Name of the branch to point to',
     }),
     json: Flags.boolean({
-      description: 'print output as a JSON object with the channel ID, name and branch mapping.',
+      description: 'Print output as a JSON object with the channel ID, name and branch mapping',
       default: false,
     }),
   };
 
   async runAsync(): Promise<void> {
-    let {
-      args: { name: channelName },
-      flags: { branch: branchName, json: jsonFlag },
-    } = await this.parse(ChannelEdit);
-    if (jsonFlag) {
+    const { args, flags } = await this.parse(ChannelEdit);
+    if (flags.json) {
       enableJsonOutput();
     }
 
@@ -126,18 +124,7 @@ export default class ChannelEdit extends EasCommand {
     const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
     const projectId = await getProjectIdAsync(exp);
 
-    if (!channelName) {
-      const validationMessage = 'A channel name is required to edit a specific channel.';
-      if (jsonFlag) {
-        throw new Error(validationMessage);
-      }
-      ({ name: channelName } = await promptAsync({
-        type: 'text',
-        name: 'name',
-        message: 'Please enter the name of the channel to edit:',
-        validate: value => (value ? true : validationMessage),
-      }));
-    }
+    const channelName = args.name ?? (await promptForChannelAsync());
 
     const existingChannel = await getChannelByNameForAppAsync({ appId: projectId, channelName });
     if (existingChannel.updateBranches.length > 1) {
@@ -146,27 +133,18 @@ export default class ChannelEdit extends EasCommand {
       );
     }
 
-    if (!branchName) {
-      const validationMessage = 'branch name may not be empty.';
-      if (jsonFlag) {
-        throw new Error(validationMessage);
-      }
-      ({ name: branchName } = await promptAsync({
-        type: 'text',
-        name: 'name',
-        message: chalk`To which branch should the channel link?`,
-        validate: value => (value ? true : validationMessage),
-      }));
-    }
+    const branchName = flags.branch ?? (await promptForBranchAsync());
 
     const {
       app: {
         byId: { updateBranchByName: branch },
       },
-    } = await BranchQuery.getBranchByNameAsync({ appId: projectId, name: branchName! });
+    } = await BranchQuery.getBranchByNameAsync({ appId: projectId, name: branchName });
     if (!branch) {
       throw new Error(
-        `Could not find a branch named "${branchName}". Please check what branches exist on this project with "eas branch:list".`
+        `Could not find a branch named "${branchName}". Please check what branches exist on this project with ${chalk.bold(
+          'eas branch:list'
+        )}.`
       );
     }
     const channel = await updateChannelBranchMappingAsync({
@@ -178,7 +156,7 @@ export default class ChannelEdit extends EasCommand {
       }),
     });
 
-    if (jsonFlag) {
+    if (flags.json) {
       printJsonOnlyOutput(channel);
     } else {
       Log.withTick(
@@ -190,4 +168,26 @@ export default class ChannelEdit extends EasCommand {
       );
     }
   }
+}
+
+async function promptForChannelAsync(): Promise<string> {
+  Log.addNewLineIfNone();
+  const { name } = await promptAsync({
+    type: 'text',
+    name: 'name',
+    message: 'Please enter the name of the channel to edit:',
+    validate: value => (value ? true : 'A channel name is required to edit a specific channel.'),
+  });
+  return name;
+}
+
+async function promptForBranchAsync(): Promise<string> {
+  Log.addNewLineIfNone();
+  const { name } = await promptAsync({
+    type: 'text',
+    name: 'name',
+    message: `To which branch should the channel link?`,
+    validate: value => (value ? true : 'branch name may not be empty.'),
+  });
+  return name;
 }
