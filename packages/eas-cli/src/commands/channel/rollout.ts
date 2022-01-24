@@ -93,7 +93,7 @@ async function startRolloutAsync({
   };
   logMessage: string;
 }> {
-  const { updateBranchByName: branch } = await BranchQuery.getBranchByNameAsync({
+  const branch = await BranchQuery.getBranchByNameAsync({
     appId: projectId,
     name: branchName,
   });
@@ -246,7 +246,7 @@ async function endRolloutAsync({
 
   let endOnNewBranch;
   if (branchName) {
-    const { updateBranchByName: branch } = await BranchQuery.getBranchByNameAsync({
+    const branch = await BranchQuery.getBranchByNameAsync({
       appId: projectId,
       name: branchName,
     });

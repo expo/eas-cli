@@ -134,7 +134,7 @@ export default class ChannelEdit extends EasCommand {
 
     const branchName = flags.branch ?? (await promptForBranchAsync());
 
-    const { updateBranchByName: branch } = await BranchQuery.getBranchByNameAsync({
+    const branch = await BranchQuery.getBranchByNameAsync({
       appId: projectId,
       name: branchName,
     });

@@ -10,9 +10,11 @@ export const BranchQuery = {
   }: {
     appId: string;
     name: string;
-  }): Promise<ViewBranchQuery['app']['byId']> {
+  }): Promise<ViewBranchQuery['app']['byId']['updateBranchByName']> {
     const {
-      app: { byId },
+      app: {
+        byId: { updateBranchByName: branch },
+      },
     } = await withErrorHandlingAsync<ViewBranchQuery>(
       graphqlClient
         .query<ViewBranchQuery, ViewBranchQueryVariables>(
@@ -37,6 +39,6 @@ export const BranchQuery = {
         )
         .toPromise()
     );
-    return byId;
+    return branch;
   },
 };
