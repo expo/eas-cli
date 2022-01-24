@@ -106,11 +106,10 @@ export default class ChannelCreate extends EasCommand {
 
     let branchId: string;
     let branchMessage: string;
-    const {
-      app: {
-        byId: { updateBranchByName: existingBranch },
-      },
-    } = await BranchQuery.getBranchByNameAsync({ appId: projectId, name: channelName });
+    const { updateBranchByName: existingBranch } = await BranchQuery.getBranchByNameAsync({
+      appId: projectId,
+      name: channelName,
+    });
 
     if (existingBranch) {
       branchId = existingBranch.id;

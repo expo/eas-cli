@@ -78,7 +78,7 @@ async function startRolloutAsync({
   getUpdateChannelByNameForAppResult,
 }: {
   channelName?: string;
-  branchName?: string;
+  branchName: string;
   percent?: number;
   jsonFlag: boolean;
   projectId: string;
@@ -93,27 +93,15 @@ async function startRolloutAsync({
   };
   logMessage: string;
 }> {
-  if (!branchName) {
-    const validationMessage = 'A branch must be specified.';
-    if (jsonFlag) {
-      throw new Error(validationMessage);
-    }
-    ({ name: branchName } = await promptAsync({
-      type: 'text',
-      name: 'name',
-      message: `Select a branch to rollout onto ${channelName}`,
-      validate: value => (value ? true : validationMessage),
-    }));
-  }
-
-  const {
-    app: {
-      byId: { updateBranchByName: branch },
-    },
-  } = await BranchQuery.getBranchByNameAsync({ appId: projectId, name: branchName! });
+  const { updateBranchByName: branch } = await BranchQuery.getBranchByNameAsync({
+    appId: projectId,
+    name: branchName,
+  });
   if (!branch) {
     throw new Error(
-      `Could not find a branch named "${branchName}". Please check what branches exist on this project with "eas branch:list".`
+      `Could not find a branch named "${branchName}". Please check what branches exist on this project with ${chalk.bold(
+        'eas branch:list'
+      )}.`
     );
   }
 
@@ -258,14 +246,15 @@ async function endRolloutAsync({
 
   let endOnNewBranch;
   if (branchName) {
-    const {
-      app: {
-        byId: { updateBranchByName: branch },
-      },
-    } = await BranchQuery.getBranchByNameAsync({ appId: projectId, name: branchName! });
+    const { updateBranchByName: branch } = await BranchQuery.getBranchByNameAsync({
+      appId: projectId,
+      name: branchName,
+    });
     if (!branch) {
       throw new Error(
-        `Could not find a branch named "${branchName}". Please check what branches exist on this project with "eas branch:list".`
+        `Could not find a branch named "${branchName}". Please check what branches exist on this project with ${chalk.bold(
+          'eas branch:list'
+        )}.`
       );
     }
 
@@ -412,7 +401,7 @@ export default class ChannelRollout extends EasCommand {
     if (!isRollout) {
       rolloutMutationResult = await startRolloutAsync({
         channelName,
-        branchName,
+        branchName: branchName ?? (await promptForBranchNameAsync(channelName)),
         percent,
         jsonFlag,
         projectId,
@@ -447,4 +436,14 @@ export default class ChannelRollout extends EasCommand {
       Log.withTick(logMessage);
     }
   }
+}
+
+async function promptForBranchNameAsync(channelName: string): Promise<string> {
+  const { name } = await promptAsync({
+    type: 'text',
+    name: 'name',
+    message: `Select a branch to rollout onto ${channelName}`,
+    validate: value => (value ? true : 'A branch must be specified.'),
+  });
+  return name;
 }

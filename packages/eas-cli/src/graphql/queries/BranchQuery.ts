@@ -4,8 +4,16 @@ import { graphqlClient, withErrorHandlingAsync } from '../client';
 import { ViewBranchQuery, ViewBranchQueryVariables } from '../generated';
 
 export const BranchQuery = {
-  async getBranchByNameAsync({ appId, name }: { appId: string; name: string }) {
-    return await withErrorHandlingAsync<ViewBranchQuery>(
+  async getBranchByNameAsync({
+    appId,
+    name,
+  }: {
+    appId: string;
+    name: string;
+  }): Promise<ViewBranchQuery['app']['byId']> {
+    const {
+      app: { byId },
+    } = await withErrorHandlingAsync<ViewBranchQuery>(
       graphqlClient
         .query<ViewBranchQuery, ViewBranchQueryVariables>(
           gql`
@@ -29,5 +37,6 @@ export const BranchQuery = {
         )
         .toPromise()
     );
+    return byId;
   },
 };

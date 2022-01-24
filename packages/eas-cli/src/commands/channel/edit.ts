@@ -1,6 +1,5 @@
 import { getConfig } from '@expo/config';
 import { Flags } from '@oclif/core';
-import assert from 'assert';
 import chalk from 'chalk';
 import gql from 'graphql-tag';
 
@@ -135,11 +134,10 @@ export default class ChannelEdit extends EasCommand {
 
     const branchName = flags.branch ?? (await promptForBranchAsync());
 
-    const {
-      app: {
-        byId: { updateBranchByName: branch },
-      },
-    } = await BranchQuery.getBranchByNameAsync({ appId: projectId, name: branchName });
+    const { updateBranchByName: branch } = await BranchQuery.getBranchByNameAsync({
+      appId: projectId,
+      name: branchName,
+    });
     if (!branch) {
       throw new Error(
         `Could not find a branch named "${branchName}". Please check what branches exist on this project with ${chalk.bold(
