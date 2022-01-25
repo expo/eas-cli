@@ -6,6 +6,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🛠 Breaking changes
 
+- Drop support for building iOS builds on macOS Catalina. ([#939](https://github.com/expo/eas-cli/pull/939) by [@dsokal](https://github.com/dsokal))
+
 ### 🎉 New features
 
 ### 🐛 Bug fixes
@@ -13,6 +15,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🧹 Chores
 
 - Unify EAS command descriptions style. ([#925](https://github.com/expo/eas-cli/pull/925) by [@dsokal](https://github.com/dsokal))
+- Upgrade dependencies. ([#939](https://github.com/expo/eas-cli/pull/939) by [@dsokal](https://github.com/dsokal))
 
 ## [0.45.1](https://github.com/expo/eas-cli/releases/tag/v0.45.1) - 2022-01-19
 
