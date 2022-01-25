@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Fix URL placeholder for iOS submits. ([#941](https://github.com/expo/eas-cli/pull/941) by [@dsokal](https://github.com/dsokal))
+
 ### 🧹 Chores
 
 - Unify EAS command descriptions style. ([#925](https://github.com/expo/eas-cli/pull/925) by [@dsokal](https://github.com/dsokal))

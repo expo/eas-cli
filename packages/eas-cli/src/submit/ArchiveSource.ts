@@ -344,7 +344,7 @@ async function handlePromptSourceAsync(source: ArchivePromptSource): Promise<Arc
   const sourceType = sourceTypeRaw as ArchiveSourceType;
   switch (sourceType) {
     case ArchiveSourceType.url: {
-      const url = await askForArchiveUrlAsync();
+      const url = await askForArchiveUrlAsync(source.platform);
       return getArchiveAsync({
         ...source,
         sourceType: ArchiveSourceType.url,
@@ -378,8 +378,9 @@ async function handlePromptSourceAsync(source: ArchivePromptSource): Promise<Arc
   }
 }
 
-async function askForArchiveUrlAsync(): Promise<string> {
-  const defaultArchiveUrl = 'https://url.to/your/archive.aab';
+async function askForArchiveUrlAsync(platform: Platform): Promise<string> {
+  const isIos = platform === Platform.IOS;
+  const defaultArchiveUrl = `https://url.to/your/archive.${isIos ? 'ipa' : 'aab'}`;
   const { url } = await promptAsync({
     name: 'url',
     message: 'URL:',
