@@ -174,7 +174,7 @@ async function promptForChannelAsync(): Promise<string> {
     type: 'text',
     name: 'name',
     message: 'Please enter the name of the channel to edit:',
-    validate: value => (value ? true : 'A channel name is required to edit a specific channel.'),
+    validate: value => (value ? true : 'The channel name may not be empty.'),
   });
   return name;
 }
@@ -185,7 +185,7 @@ async function promptForBranchAsync(): Promise<string> {
     type: 'text',
     name: 'name',
     message: `To which branch should the channel link?`,
-    validate: value => (value ? true : 'branch name may not be empty.'),
+    validate: value => (value ? true : 'The branch name may not be empty.'),
   });
   return name;
 }
