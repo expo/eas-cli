@@ -3,14 +3,9 @@ import { Flags } from '@oclif/core';
 import assert from 'assert';
 import chalk from 'chalk';
 import Table from 'cli-table3';
-import gql from 'graphql-tag';
 
 import EasCommand from '../../commandUtils/EasCommand';
-import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
-import {
-  GetChannelByNameForAppQuery,
-  GetChannelByNameForAppQueryVariables,
-} from '../../graphql/generated';
+import { ChannelQuery } from '../../graphql/queries/ChannelQuery';
 import Log from '../../log';
 import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
@@ -89,56 +84,6 @@ export function getBranchMapping(branchMappingString?: string): {
   }
 
   return { branchMapping, isRollout, rolloutPercent };
-}
-
-export async function getUpdateChannelByNameForAppAsync({
-  appId,
-  channelName,
-}: GetChannelByNameForAppQueryVariables): Promise<GetChannelByNameForAppQuery> {
-  return await withErrorHandlingAsync(
-    graphqlClient
-      .query<GetChannelByNameForAppQuery, GetChannelByNameForAppQueryVariables>(
-        gql`
-          query GetChannelByNameForApp($appId: String!, $channelName: String!) {
-            app {
-              byId(appId: $appId) {
-                id
-                updateChannelByName(name: $channelName) {
-                  id
-                  name
-                  createdAt
-                  branchMapping
-                  updateBranches(offset: 0, limit: 1000) {
-                    id
-                    name
-                    updates(offset: 0, limit: 10) {
-                      id
-                      group
-                      message
-                      runtimeVersion
-                      createdAt
-                      platform
-                      actor {
-                        id
-                        ... on User {
-                          username
-                        }
-                        ... on Robot {
-                          firstName
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        `,
-        { appId, channelName },
-        { additionalTypenames: ['UpdateChannel', 'UpdateBranch', 'Update'] }
-      )
-      .toPromise()
-  );
 }
 
 export function logChannelDetails(channel: {
@@ -236,11 +181,10 @@ export default class ChannelView extends EasCommand {
       }));
     }
 
-    const getUpdateChannelByNameForAppresult = await getUpdateChannelByNameForAppAsync({
+    const channel = await ChannelQuery.getUpdateChannelByNameForAppAsync({
       appId: projectId,
       channelName,
     });
-    const channel = getUpdateChannelByNameForAppresult.app?.byId.updateChannelByName;
     if (!channel) {
       throw new Error(`Could not find a channel with name: ${channelName}`);
     }
