@@ -354,7 +354,9 @@ export default class ChannelRollout extends EasCommand {
     });
     if (!channel) {
       throw new Error(
-        `Could not find a channel named "${channelName}". Please check what channels exist on this project with "eas channel:list".`
+        `Could not find a channel named "${channelName}". Please check what channels exist on this project with ${chalk.bold(
+          'eas channel:list'
+        )}.`
       );
     }
 
