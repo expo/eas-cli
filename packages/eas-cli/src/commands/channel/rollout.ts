@@ -5,6 +5,7 @@ import chalk from 'chalk';
 import EasCommand from '../../commandUtils/EasCommand';
 import { GetChannelByNameForAppQuery, UpdateBranch } from '../../graphql/generated';
 import { BranchQuery } from '../../graphql/queries/BranchQuery';
+import { ChannelQuery } from '../../graphql/queries/ChannelQuery';
 import Log from '../../log';
 import {
   findProjectRootAsync,
@@ -14,7 +15,7 @@ import {
 import { promptAsync, selectAsync } from '../../prompts';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 import { updateChannelBranchMappingAsync } from './edit';
-import { BranchMapping, getBranchMapping, getUpdateChannelByNameForAppAsync } from './view';
+import { BranchMapping, getBranchMapping } from './view';
 
 async function promptForRolloutPercentAsync({
   promptMessage,
@@ -39,28 +40,20 @@ async function promptForRolloutPercentAsync({
   return rolloutPercent;
 }
 
-function getRolloutInfo(getUpdateChannelByNameForAppResult: GetChannelByNameForAppQuery): {
+function getRolloutInfo(
+  channel: NonNullable<GetChannelByNameForAppQuery['app']['byId']['updateChannelByName']>
+): {
   newBranch: Pick<UpdateBranch, 'name' | 'id'>;
   oldBranch: Pick<UpdateBranch, 'name' | 'id'>;
   currentPercent: number;
 } {
-  const { branchMapping } = getBranchMapping(
-    getUpdateChannelByNameForAppResult.app?.byId.updateChannelByName?.branchMapping
-  );
+  const { branchMapping } = getBranchMapping(channel.branchMapping);
   const [newBranchId, oldBranchId] = branchMapping.data.map(d => d.branchId);
-  const newBranch =
-    getUpdateChannelByNameForAppResult.app?.byId.updateChannelByName?.updateBranches.filter(
-      branch => branch.id === newBranchId
-    )[0];
-  const oldBranch =
-    getUpdateChannelByNameForAppResult.app?.byId.updateChannelByName?.updateBranches.filter(
-      branch => branch.id === oldBranchId
-    )[0];
+  const newBranch = channel.updateBranches.filter(branch => branch.id === newBranchId)[0];
+  const oldBranch = channel.updateBranches.filter(branch => branch.id === oldBranchId)[0];
 
   if (!newBranch || !oldBranch) {
-    throw new Error(
-      `Branch mapping rollout is missing a branch for channel "${getUpdateChannelByNameForAppResult.app?.byId.updateChannelByName?.name}".`
-    );
+    throw new Error(`Branch mapping rollout is missing a branch for channel "${channel.name}".`);
   }
 
   const currentPercent = 100 * branchMapping.data[0].branchMappingLogic.operand;
@@ -75,7 +68,7 @@ async function startRolloutAsync({
   projectId,
   fullName,
   currentBranchMapping,
-  getUpdateChannelByNameForAppResult,
+  channel,
 }: {
   channelName?: string;
   branchName: string;
@@ -84,7 +77,7 @@ async function startRolloutAsync({
   projectId: string;
   fullName: string;
   currentBranchMapping: BranchMapping;
-  getUpdateChannelByNameForAppResult: GetChannelByNameForAppQuery;
+  channel: NonNullable<GetChannelByNameForAppQuery['app']['byId']['updateChannelByName']>;
 }): Promise<{
   newChannelInfo: {
     id: string;
@@ -137,14 +130,11 @@ async function startRolloutAsync({
     ],
   };
   const newChannelInfo = await updateChannelBranchMappingAsync({
-    channelId: getUpdateChannelByNameForAppResult.app?.byId.updateChannelByName?.id!,
+    channelId: channel.id,
     branchMapping: JSON.stringify(newBranchMapping),
   });
 
-  const oldBranch =
-    getUpdateChannelByNameForAppResult.app?.byId.updateChannelByName?.updateBranches.filter(
-      branch => branch.id === oldBranchId
-    )[0];
+  const oldBranch = channel.updateBranches.filter(branch => branch.id === oldBranchId)[0];
   if (!oldBranch) {
     throw new Error(
       `Branch mapping is missing its only branch for channel "${channelName}" on app "${fullName}"`
@@ -167,13 +157,13 @@ async function editRolloutAsync({
   percent,
   jsonFlag,
   currentBranchMapping,
-  getUpdateChannelByNameForAppResult,
+  channel,
 }: {
   channelName?: string;
   percent?: number;
   jsonFlag: boolean;
   currentBranchMapping: BranchMapping;
-  getUpdateChannelByNameForAppResult: GetChannelByNameForAppQuery;
+  channel: NonNullable<GetChannelByNameForAppQuery['app']['byId']['updateChannelByName']>;
 }): Promise<{
   newChannelInfo: {
     id: string;
@@ -182,9 +172,7 @@ async function editRolloutAsync({
   };
   logMessage: string;
 }> {
-  const { newBranch, oldBranch, currentPercent } = getRolloutInfo(
-    getUpdateChannelByNameForAppResult
-  );
+  const { newBranch, oldBranch, currentPercent } = getRolloutInfo(channel);
 
   if (percent == null) {
     if (jsonFlag) {
@@ -204,7 +192,7 @@ async function editRolloutAsync({
   newBranchMapping.data[0].branchMappingLogic.operand = percent / 100;
 
   const newChannelInfo = await updateChannelBranchMappingAsync({
-    channelId: getUpdateChannelByNameForAppResult.app?.byId.updateChannelByName?.id!,
+    channelId: channel.id,
     branchMapping: JSON.stringify(newBranchMapping),
   });
 
@@ -224,13 +212,13 @@ async function endRolloutAsync({
   branchName,
   jsonFlag,
   projectId,
-  getUpdateChannelByNameForAppResult,
+  channel,
 }: {
   channelName?: string;
   branchName?: string;
   jsonFlag: boolean;
   projectId: string;
-  getUpdateChannelByNameForAppResult: GetChannelByNameForAppQuery;
+  channel: NonNullable<GetChannelByNameForAppQuery['app']['byId']['updateChannelByName']>;
 }): Promise<{
   newChannelInfo: {
     id: string;
@@ -240,9 +228,7 @@ async function endRolloutAsync({
   logMessage: string;
 }> {
   // end rollout
-  const { newBranch, oldBranch, currentPercent } = getRolloutInfo(
-    getUpdateChannelByNameForAppResult
-  );
+  const { newBranch, oldBranch, currentPercent } = getRolloutInfo(channel);
 
   let endOnNewBranch;
   if (branchName) {
@@ -305,7 +291,7 @@ async function endRolloutAsync({
   };
 
   const newChannelInfo = await updateChannelBranchMappingAsync({
-    channelId: getUpdateChannelByNameForAppResult.app?.byId.updateChannelByName?.id!,
+    channelId: channel.id,
     branchMapping: JSON.stringify(newBranchMapping),
   });
   const logMessage = `️Rollout on channel ${chalk.bold(
@@ -362,12 +348,20 @@ export default class ChannelRollout extends EasCommand {
     const fullName = await getProjectFullNameAsync(exp);
     const projectId = await getProjectIdAsync(exp);
 
-    const getUpdateChannelByNameForAppResult = await getUpdateChannelByNameForAppAsync({
+    const channel = await ChannelQuery.getUpdateChannelByNameForAppAsync({
       appId: projectId,
       channelName: channelName!,
     });
+    if (!channel) {
+      throw new Error(
+        `Could not find a channel named "${channelName}". Please check what channels exist on this project with ${chalk.bold(
+          'eas channel:list'
+        )}.`
+      );
+    }
+
     const { branchMapping: currentBranchMapping, isRollout } = getBranchMapping(
-      getUpdateChannelByNameForAppResult.app?.byId.updateChannelByName?.branchMapping
+      channel.branchMapping
     );
 
     if (currentBranchMapping.data.length === 0) {
@@ -407,7 +401,7 @@ export default class ChannelRollout extends EasCommand {
         projectId,
         fullName,
         currentBranchMapping,
-        getUpdateChannelByNameForAppResult,
+        channel,
       });
     } else if (endFlag) {
       rolloutMutationResult = await endRolloutAsync({
@@ -415,7 +409,7 @@ export default class ChannelRollout extends EasCommand {
         branchName,
         jsonFlag,
         projectId,
-        getUpdateChannelByNameForAppResult,
+        channel,
       });
     } else {
       rolloutMutationResult = await editRolloutAsync({
@@ -423,7 +417,7 @@ export default class ChannelRollout extends EasCommand {
         percent,
         jsonFlag,
         currentBranchMapping,
-        getUpdateChannelByNameForAppResult,
+        channel,
       });
     }
     if (!rolloutMutationResult) {
