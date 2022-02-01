@@ -1,11 +1,14 @@
 import { ExpoConfig, getConfig } from '@expo/config';
 import { Updates } from '@expo/config-plugins';
 import { Platform, Workflow } from '@expo/eas-build-job';
+import JsonFile from '@expo/json-file';
 import { Flags } from '@oclif/core';
 import assert from 'assert';
 import chalk from 'chalk';
 import dateFormat from 'dateformat';
 import gql from 'graphql-tag';
+import resolveFrom from 'resolve-from';
+import semver from 'semver';
 
 import { getEASUpdateURL } from '../../api';
 import EasCommand from '../../commandUtils/EasCommand';
@@ -203,6 +206,8 @@ export default class UpdatePublish extends EasCommand {
       skipSDKVersionRequirement: true,
       isPublicConfig: true,
     });
+
+    assertExpoUpdatesInstalled(projectDir, exp.sdkVersion);
 
     const runtimeVersions = await getRuntimeVersionObjectAsync(exp, platformFlag, projectDir);
     const projectId = await getProjectIdAsync(exp);
@@ -454,6 +459,25 @@ export default class UpdatePublish extends EasCommand {
       }
     }
   }
+}
+
+function assertExpoUpdatesInstalled(projectDir: string, sdkVersion?: string): void {
+  // before sdk 44, expo-update was included in with the expo module
+  if (sdkVersion && semver.lt(sdkVersion, '44.0.0')) {
+    return;
+  }
+
+  const packageJsonPath = resolveFrom.silent(projectDir, './package.json');
+  if (packageJsonPath) {
+    const expoPackageJson = JsonFile.read(packageJsonPath, { json5: true });
+    if (expoPackageJson.dependencies && (expoPackageJson.dependencies as any)['expo-updates']) {
+      return;
+    }
+  }
+
+  throw new Error(
+    `Expo CLI is not installed in this project. Please run "expo install expo-updates".`
+  );
 }
 
 async function getRuntimeVersionObjectAsync(
