@@ -68,8 +68,8 @@ export default class UpdateDelete extends EasCommand {
           `${chalk.yellow(`This will delete all of the updates in group "${group}".`)} ${chalk.red(
             'This is a permanent operation.'
           )}\n\n` +
-          `If you want to revert to a previous publish, you should use 'branch:publish --republish' targeted at the last working update group instead.\n\n` +
-          `An update group should only be deleted in an emergency like an accidental publish of a secret. In this case user 'branch:publish --republish' to revert to the last working update group first and then proceed with the deletion. Deleting an update group when it is the latest publish can lead to inconsistent cacheing behavior by clients.\n\n` +
+          `If you want to revert to a previous publish, you should use 'update --republish' targeted at the last working update group instead.\n\n` +
+          `An update group should only be deleted in an emergency like an accidental publish of a secret. In this case user 'update --republish' to revert to the last working update group first and then proceed with the deletion. Deleting an update group when it is the latest publish can lead to inconsistent cacheing behavior by clients.\n\n` +
           `Would you like to abort?`,
       });
 
