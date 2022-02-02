@@ -5,17 +5,21 @@ import { Errors, Flags } from '@oclif/core';
 import assert from 'assert';
 import chalk from 'chalk';
 import dateFormat from 'dateformat';
+import got from 'got/dist/source';
 import gql from 'graphql-tag';
+import nullthrows from 'nullthrows';
 
 import { getEASUpdateURL } from '../../api';
 import EasCommand from '../../commandUtils/EasCommand';
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
 import {
   GetUpdateGroupAsyncQuery,
+  PublishUpdateGroupInput,
   Robot,
   RootQueryUpdatesByGroupArgs,
   Update,
   UpdateInfoGroup,
+  UpdatePublishMutation,
   User,
   ViewBranchUpdatesQuery,
 } from '../../graphql/generated';
@@ -39,6 +43,12 @@ import {
 import { resolveWorkflowAsync } from '../../project/workflow';
 import { confirmAsync, promptAsync, selectAsync } from '../../prompts';
 import { formatUpdate } from '../../update/utils';
+import {
+  checkManifestBodyAgainstUpdateInfoGroup,
+  getKeyAndCertificateFromPathsAsync,
+  getManifestBodyAsync,
+  signManifestBody,
+} from '../../utils/code-signing';
 import uniqBy from '../../utils/expodash/uniqBy';
 import formatFields from '../../utils/formatFields';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
@@ -180,6 +190,11 @@ export default class UpdatePublish extends EasCommand {
         'Use the current git branch and commit message for the EAS branch and update message',
       default: false,
     }),
+    'private-key-path': Flags.string({
+      description:
+        'File containing the PEM-encoded private key corresponding to the certificate in expo-updates configuration',
+      required: false,
+    }),
   };
 
   async runAsync(): Promise<void> {
@@ -194,11 +209,13 @@ export default class UpdatePublish extends EasCommand {
         'input-dir': inputDir,
         'skip-bundler': skipBundler,
         platform,
+        'private-key-path': privateKeyPath,
       },
     } = await this.parse(UpdatePublish);
     if (jsonFlag) {
       enableJsonOutput();
     }
+
     const platformFlag = platform as PlatformFlag;
     // If a group was specified, that means we are republishing it.
     republish = group ? true : republish;
@@ -208,6 +225,19 @@ export default class UpdatePublish extends EasCommand {
       skipSDKVersionRequirement: true,
       isPublicConfig: true,
     });
+    const codeSigningCertificatePath = (exp.updates as any)?.codeSigningCertificate;
+    const codeSigningMetadata = (exp.updates as any)?.codeSigningMetadata;
+    if (codeSigningCertificatePath && !privateKeyPath) {
+      privateKeyPath = codeSigningCertificatePath.replace('certificate.pem', 'private-key.pem');
+    }
+
+    const { certificate, privateKey } =
+      codeSigningCertificatePath && privateKeyPath
+        ? await getKeyAndCertificateFromPathsAsync({
+            codeSigningCertificatePath,
+            privateKeyPath,
+          })
+        : { certificate: undefined, privateKey: undefined };
 
     if (!isExpoUpdatesInstalledOrAvailable(projectDir, exp.sdkVersion)) {
       const install = await confirmAsync({
@@ -413,30 +443,73 @@ export default class UpdatePublish extends EasCommand {
     }
 
     // Sort the updates into different groups based on their platform specific runtime versions
-    const updateGroups = Object.entries(runtimeToPlatformMapping).map(([runtime, platforms]) => {
-      const localUpdateInfoGroup = Object.fromEntries(
-        platforms.map(platform => [
-          platform,
-          unsortedUpdateInfoGroups[platform as keyof UpdateInfoGroup],
-        ])
-      );
-
-      if (republish && !oldRuntimeVersion) {
-        throw new Error(
-          'Can not find the runtime version of the update group that is being republished.'
+    const updateGroups: PublishUpdateGroupInput[] = Object.entries(runtimeToPlatformMapping).map(
+      ([runtime, platforms]) => {
+        const localUpdateInfoGroup = Object.fromEntries(
+          platforms.map(platform => [
+            platform,
+            unsortedUpdateInfoGroups[platform as keyof UpdateInfoGroup],
+          ])
         );
+
+        if (republish && !oldRuntimeVersion) {
+          throw new Error(
+            'Can not find the runtime version of the update group that is being republished.'
+          );
+        }
+        return {
+          branchId,
+          updateInfoGroup: localUpdateInfoGroup,
+          runtimeVersion: republish ? oldRuntimeVersion : runtime,
+          message,
+          awaitingCodeSigningInfo: !!certificate && !!privateKey,
+        };
       }
-      return {
-        branchId,
-        updateInfoGroup: localUpdateInfoGroup,
-        runtimeVersion: republish ? oldRuntimeVersion : runtime,
-        message,
-      };
-    });
-    let newUpdates;
+    );
+    let newUpdates: UpdatePublishMutation['updateBranch']['publishUpdateGroups'];
     const publishSpinner = ora('Publishing...').start();
     try {
       newUpdates = await PublishMutation.publishUpdateGroupAsync(updateGroups);
+
+      const updatesTemp = [...newUpdates];
+      const updateGroupsAndTheirUpdates = updateGroups.map((updateGroup, i) => {
+        const newUpdates = updatesTemp.splice(0, Object.keys(updateGroup.updateInfoGroup).length);
+        return {
+          updateGroup,
+          newUpdates,
+        };
+      });
+
+      if (certificate && privateKey) {
+        await Promise.all(
+          updateGroupsAndTheirUpdates.map(async ({ updateGroup, newUpdates }) => {
+            await Promise.all(
+              newUpdates.map(async newUpdate => {
+                const response = await got.get(newUpdate.manifestPermalink, {
+                  headers: { accept: 'multipart/mixed' },
+                });
+                const manifestBody = nullthrows(await getManifestBodyAsync(response));
+
+                checkManifestBodyAgainstUpdateInfoGroup(
+                  manifestBody,
+                  nullthrows(
+                    updateGroup.updateInfoGroup[newUpdate.platform as keyof UpdateInfoGroup]
+                  )
+                );
+
+                const manifestSignature = signManifestBody(manifestBody, certificate, privateKey);
+
+                await PublishMutation.setCodeSigningInfoAsync(newUpdate.id, {
+                  alg: nullthrows(codeSigningMetadata?.alg),
+                  keyid: nullthrows(codeSigningMetadata?.keyid),
+                  sig: manifestSignature,
+                });
+              })
+            );
+          })
+        );
+      }
+
       publishSpinner.succeed('Published!');
     } catch (e) {
       publishSpinner.fail('Failed to published updates');

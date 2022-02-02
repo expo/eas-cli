@@ -29,7 +29,7 @@ export type Scalars = {
 
 export type AcceptUserInvitationResult = {
   __typename?: 'AcceptUserInvitationResult';
-  success?: Maybe<Scalars['Boolean']>;
+  success: Scalars['Boolean'];
 };
 
 /** A method of authentication for an Actor */
@@ -261,28 +261,28 @@ export type AccountMutation = {
   /** Cancel scheduled subscription change */
   cancelScheduledSubscriptionChange: Account;
   /** Cancels the active subscription */
-  cancelSubscription?: Maybe<Account>;
+  cancelSubscription: Account;
   /** Upgrades or downgrades the active subscription to the newPlanIdentifier, which must be one of the EAS plans (i.e., Production or Enterprise). */
   changePlan: Account;
   /** Add specified account Permissions for Actor. Actor must already have at least one permission on the account. */
-  grantActorPermissions?: Maybe<Account>;
+  grantActorPermissions: Account;
   /** Rename this account and the primary user's username if this account is a personal account */
   rename: Account;
   /** Requests a refund for the specified charge. Returns true if auto-refund was possible, otherwise requests a manual refund from support and returns false. */
-  requestRefund?: Maybe<Scalars['Boolean']>;
+  requestRefund: Scalars['Boolean'];
   /** Revoke specified Permissions for Actor. Actor must already have at least one permission on the account. */
-  revokeActorPermissions?: Maybe<Account>;
+  revokeActorPermissions: Account;
   /**
    * Update setting to purchase new build packs when the current one is consumed
    * @deprecated Build packs are no longer supported
    */
   setBuildAutoRenew?: Maybe<Account>;
   /** Set payment details */
-  setPaymentSource?: Maybe<Account>;
+  setPaymentSource: Account;
   /** Require authorization to send push notifications for experiences owned by this account */
-  setPushSecurityEnabled?: Maybe<Account>;
+  setPushSecurityEnabled: Account;
   /** Add a subscription */
-  subscribeToProduct?: Maybe<Account>;
+  subscribeToProduct: Account;
 };
 
 
@@ -484,15 +484,15 @@ export type AndroidAppBuildCredentialsInput = {
 export type AndroidAppBuildCredentialsMutation = {
   __typename?: 'AndroidAppBuildCredentialsMutation';
   /** Create a set of build credentials for an Android app */
-  createAndroidAppBuildCredentials?: Maybe<AndroidAppBuildCredentials>;
+  createAndroidAppBuildCredentials: AndroidAppBuildCredentials;
   /** delete a set of build credentials for an Android app */
-  deleteAndroidAppBuildCredentials?: Maybe<DeleteAndroidAppBuildCredentialsResult>;
+  deleteAndroidAppBuildCredentials: DeleteAndroidAppBuildCredentialsResult;
   /** Set the build credentials to be the default for the Android app */
-  setDefault?: Maybe<AndroidAppBuildCredentials>;
+  setDefault: AndroidAppBuildCredentials;
   /** Set the keystore to be used for an Android app */
-  setKeystore?: Maybe<AndroidAppBuildCredentials>;
+  setKeystore: AndroidAppBuildCredentials;
   /** Set the name of a set of build credentials to be used for an Android app */
-  setName?: Maybe<AndroidAppBuildCredentials>;
+  setName: AndroidAppBuildCredentials;
 };
 
 
@@ -550,11 +550,11 @@ export type AndroidAppCredentialsInput = {
 export type AndroidAppCredentialsMutation = {
   __typename?: 'AndroidAppCredentialsMutation';
   /** Create a set of credentials for an Android app */
-  createAndroidAppCredentials?: Maybe<AndroidAppCredentials>;
+  createAndroidAppCredentials: AndroidAppCredentials;
   /** Set the FCM push key to be used in an Android app */
-  setFcm?: Maybe<AndroidAppCredentials>;
+  setFcm: AndroidAppCredentials;
   /** Set the Google Service Account Key to be used for submitting an Android app */
-  setGoogleServiceAccountKeyForSubmissions?: Maybe<AndroidAppCredentials>;
+  setGoogleServiceAccountKeyForSubmissions: AndroidAppCredentials;
 };
 
 
@@ -991,7 +991,7 @@ export type AppMutation = {
   /** @deprecated No longer supported */
   grantAccess?: Maybe<App>;
   /** Require api token to send push notifs for experience */
-  setPushSecurityEnabled?: Maybe<App>;
+  setPushSecurityEnabled: App;
 };
 
 
@@ -1151,7 +1151,7 @@ export type AppleAppIdentifierInput = {
 export type AppleAppIdentifierMutation = {
   __typename?: 'AppleAppIdentifierMutation';
   /** Create an Identifier for an iOS App */
-  createAppleAppIdentifier?: Maybe<AppleAppIdentifier>;
+  createAppleAppIdentifier: AppleAppIdentifier;
 };
 
 
@@ -1454,7 +1454,7 @@ export type AssetMutation = {
    * Returns an array of specifications for upload. Each URL is valid for an hour.
    * The content type of the asset you wish to upload must be specified.
    */
-  getSignedAssetUploadSpecifications?: Maybe<GetSignedAssetUploadSpecificationsResult>;
+  getSignedAssetUploadSpecifications: GetSignedAssetUploadSpecificationsResult;
 };
 
 
@@ -1598,9 +1598,9 @@ export enum BuildJobLogsFormat {
 
 export type BuildJobMutation = {
   __typename?: 'BuildJobMutation';
-  cancel?: Maybe<BuildJob>;
+  cancel: BuildJob;
   del?: Maybe<BuildJob>;
-  restart?: Maybe<BuildJob>;
+  restart: BuildJob;
 };
 
 export type BuildJobQuery = {
@@ -1864,9 +1864,9 @@ export type CreateAccessTokenInput = {
 export type CreateAccessTokenResponse = {
   __typename?: 'CreateAccessTokenResponse';
   /** AccessToken created */
-  accessToken?: Maybe<AccessToken>;
+  accessToken: AccessToken;
   /** Full token string to be used for authentication */
-  token?: Maybe<Scalars['String']>;
+  token: Scalars['String'];
 };
 
 export type CreateAndroidSubmissionInput = {
@@ -2016,7 +2016,7 @@ export type EditUpdateBranchInput = {
 
 export type EmailSubscriptionMutation = {
   __typename?: 'EmailSubscriptionMutation';
-  addUser?: Maybe<AddUserPayload>;
+  addUser: AddUserPayload;
 };
 
 
@@ -2098,7 +2098,7 @@ export enum Feature {
 
 export type GetSignedAssetUploadSpecificationsResult = {
   __typename?: 'GetSignedAssetUploadSpecificationsResult';
-  specifications: Array<Maybe<Scalars['String']>>;
+  specifications: Array<Scalars['String']>;
 };
 
 export type GoogleServiceAccountKey = {
@@ -2439,13 +2439,13 @@ export type MeMutation = {
   /** Certify an initiated second factor authentication method for the current user */
   certifySecondFactorDevice: SecondFactorBooleanResult;
   /** Create a new Account and grant this User the owner Role */
-  createAccount?: Maybe<Account>;
+  createAccount: Account;
   /** Delete an Account created via createAccount */
   deleteAccount: DeleteAccountResult;
   /** Delete a second factor device */
   deleteSecondFactorDevice: SecondFactorBooleanResult;
   /** Delete a Snack that the current user owns */
-  deleteSnack?: Maybe<Snack>;
+  deleteSnack: Snack;
   /** Disable all second factor authentication for the current user */
   disableSecondFactorAuthentication: SecondFactorBooleanResult;
   /** Initiate setup of two-factor authentication for the current user */
@@ -2463,11 +2463,11 @@ export type MeMutation = {
   /** Transfer project to a different Account */
   transferApp: App;
   /** Unpublish an App that the current user owns */
-  unpublishApp?: Maybe<App>;
+  unpublishApp: App;
   /** Update an App that the current user owns */
-  updateApp?: Maybe<App>;
+  updateApp: App;
   /** Update the current user's data */
-  updateProfile?: Maybe<User>;
+  updateProfile: User;
 };
 
 
@@ -2509,7 +2509,7 @@ export type MeMutationDisableSecondFactorAuthenticationArgs = {
 
 
 export type MeMutationInitiateSecondFactorAuthenticationArgs = {
-  deviceConfigurations: Array<InputMaybe<SecondFactorDeviceConfiguration>>;
+  deviceConfigurations: Array<SecondFactorDeviceConfiguration>;
   recaptchaResponseToken?: InputMaybe<Scalars['String']>;
 };
 
@@ -2680,6 +2680,7 @@ export type PublicArtifacts = {
 };
 
 export type PublishUpdateGroupInput = {
+  awaitingCodeSigningInfo?: InputMaybe<Scalars['Boolean']>;
   branchId: Scalars['String'];
   message?: InputMaybe<Scalars['String']>;
   runtimeVersion: Scalars['String'];
@@ -2768,7 +2769,7 @@ export type RootMutation = {
   /** Mutations that create, read, update, and delete AccessTokens for Actors */
   accessToken: AccessTokenMutation;
   /** Mutations that modify an Account */
-  account?: Maybe<AccountMutation>;
+  account: AccountMutation;
   /** Mutations that modify the build credentials for an Android app */
   androidAppBuildCredentials: AndroidAppBuildCredentialsMutation;
   /** Mutations that modify the credentials for an Android app */
@@ -2797,9 +2798,9 @@ export type RootMutation = {
   appleTeam: AppleTeamMutation;
   asset: AssetMutation;
   /** Mutations that modify an EAS Build */
-  build?: Maybe<BuildMutation>;
+  build: BuildMutation;
   /** Mutations that modify an BuildJob */
-  buildJob?: Maybe<BuildJobMutation>;
+  buildJob: BuildJobMutation;
   /** Mutations that modify an EmailSubscription */
   emailSubscription: EmailSubscriptionMutation;
   /** Mutations that create and delete EnvironmentSecrets */
@@ -2812,7 +2813,7 @@ export type RootMutation = {
   iosAppCredentials: IosAppCredentialsMutation;
   keystoreGenerationUrl: KeystoreGenerationUrlMutation;
   /** Mutations that modify the currently authenticated User */
-  me?: Maybe<MeMutation>;
+  me: MeMutation;
   /** Mutations that create, update, and delete Robots */
   robot: RobotMutation;
   /** Mutations that modify an EAS Submit submission */
@@ -2964,8 +2965,8 @@ export type SecondFactorDeviceConfigurationResult = {
 
 export type SecondFactorInitiationResult = {
   __typename?: 'SecondFactorInitiationResult';
-  configurationResults: Array<Maybe<SecondFactorDeviceConfigurationResult>>;
-  plaintextBackupCodes: Array<Maybe<Scalars['String']>>;
+  configurationResults: Array<SecondFactorDeviceConfigurationResult>;
+  plaintextBackupCodes: Array<Scalars['String']>;
 };
 
 export enum SecondFactorMethod {
@@ -2977,7 +2978,7 @@ export enum SecondFactorMethod {
 
 export type SecondFactorRegenerateBackupCodesResult = {
   __typename?: 'SecondFactorRegenerateBackupCodesResult';
-  plaintextBackupCodes: Array<Maybe<Scalars['String']>>;
+  plaintextBackupCodes: Array<Scalars['String']>;
 };
 
 export type Snack = Project & {
@@ -3152,6 +3153,7 @@ export type Update = ActivityTimelineProjectActivity & {
   __typename?: 'Update';
   activityTimestamp: Scalars['DateTime'];
   actor?: Maybe<Actor>;
+  awaitingCodeSigningInfo: Scalars['Boolean'];
   branch: UpdateBranch;
   branchId: Scalars['ID'];
   codeSigningInfo?: Maybe<CodeSigningInfo>;
@@ -3186,7 +3188,7 @@ export type UpdateBranchUpdatesArgs = {
 export type UpdateBranchMutation = {
   __typename?: 'UpdateBranchMutation';
   /** Create an EAS branch for an app */
-  createUpdateBranchForApp?: Maybe<UpdateBranch>;
+  createUpdateBranchForApp: UpdateBranch;
   /** Delete an EAS branch and all of its updates as long as the branch is not being used by any channels */
   deleteUpdateBranch: DeleteUpdateBranchResult;
   /**
@@ -3244,7 +3246,7 @@ export type UpdateChannelMutation = {
    * In order to work with GraphQL formatting, the branchMapping should be a
    * stringified JSON supplied to the mutation as a variable.
    */
-  createUpdateChannelForApp?: Maybe<UpdateChannel>;
+  createUpdateChannelForApp: UpdateChannel;
   /** delete an EAS channel that doesn't point to any branches */
   deleteUpdateChannel: DeleteUpdateChannelResult;
   /**
@@ -3253,7 +3255,7 @@ export type UpdateChannelMutation = {
    * In order to work with GraphQL formatting, the branchMapping should be a
    * stringified JSON supplied to the mutation as a variable.
    */
-  editUpdateChannel?: Maybe<UpdateChannel>;
+  editUpdateChannel: UpdateChannel;
 };
 
 
@@ -3656,7 +3658,7 @@ export type CreateUpdateBranchForAppMutationVariables = Exact<{
 }>;
 
 
-export type CreateUpdateBranchForAppMutation = { __typename?: 'RootMutation', updateBranch: { __typename?: 'UpdateBranchMutation', createUpdateBranchForApp?: { __typename?: 'UpdateBranch', id: string, name: string } | null | undefined } };
+export type CreateUpdateBranchForAppMutation = { __typename?: 'RootMutation', updateBranch: { __typename?: 'UpdateBranchMutation', createUpdateBranchForApp: { __typename?: 'UpdateBranch', id: string, name: string } } };
 
 export type GetBranchInfoQueryVariables = Exact<{
   appId: Scalars['String'];
@@ -3693,7 +3695,7 @@ export type CancelBuildMutationVariables = Exact<{
 }>;
 
 
-export type CancelBuildMutation = { __typename?: 'RootMutation', build?: { __typename?: 'BuildMutation', cancel: { __typename?: 'Build', id: string, status: BuildStatus } } | null | undefined };
+export type CancelBuildMutation = { __typename?: 'RootMutation', build: { __typename?: 'BuildMutation', cancel: { __typename?: 'Build', id: string, status: BuildStatus } } };
 
 export type CreateUpdateChannelOnAppMutationVariables = Exact<{
   appId: Scalars['ID'];
@@ -3702,7 +3704,7 @@ export type CreateUpdateChannelOnAppMutationVariables = Exact<{
 }>;
 
 
-export type CreateUpdateChannelOnAppMutation = { __typename?: 'RootMutation', updateChannel: { __typename?: 'UpdateChannelMutation', createUpdateChannelForApp?: { __typename?: 'UpdateChannel', id: string, name: string, branchMapping: string } | null | undefined } };
+export type CreateUpdateChannelOnAppMutation = { __typename?: 'RootMutation', updateChannel: { __typename?: 'UpdateChannelMutation', createUpdateChannelForApp: { __typename?: 'UpdateChannel', id: string, name: string, branchMapping: string } } };
 
 export type GetChannelInfoQueryVariables = Exact<{
   appId: Scalars['String'];
@@ -3733,7 +3735,7 @@ export type UpdateChannelBranchMappingMutationVariables = Exact<{
 }>;
 
 
-export type UpdateChannelBranchMappingMutation = { __typename?: 'RootMutation', updateChannel: { __typename?: 'UpdateChannelMutation', editUpdateChannel?: { __typename?: 'UpdateChannel', id: string, name: string, branchMapping: string } | null | undefined } };
+export type UpdateChannelBranchMappingMutation = { __typename?: 'RootMutation', updateChannel: { __typename?: 'UpdateChannelMutation', editUpdateChannel: { __typename?: 'UpdateChannel', id: string, name: string, branchMapping: string } } };
 
 export type GetAllChannelsForAppQueryVariables = Exact<{
   appId: Scalars['String'];
@@ -3743,14 +3745,6 @@ export type GetAllChannelsForAppQueryVariables = Exact<{
 
 
 export type GetAllChannelsForAppQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, updateChannels: Array<{ __typename?: 'UpdateChannel', id: string, name: string, branchMapping: string, updateBranches: Array<{ __typename?: 'UpdateBranch', id: string, name: string, updates: Array<{ __typename?: 'Update', id: string, group: string, message?: string | null | undefined, runtimeVersion: string, createdAt: any, platform: string, actor?: { __typename?: 'Robot', firstName?: string | null | undefined, id: string } | { __typename?: 'User', username: string, id: string } | null | undefined }> }> }> } } };
-
-export type GetChannelByNameForAppQueryVariables = Exact<{
-  appId: Scalars['String'];
-  channelName: Scalars['String'];
-}>;
-
-
-export type GetChannelByNameForAppQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, updateChannelByName?: { __typename?: 'UpdateChannel', id: string, name: string, createdAt: any, branchMapping: string, updateBranches: Array<{ __typename?: 'UpdateBranch', id: string, name: string, updates: Array<{ __typename?: 'Update', id: string, group: string, message?: string | null | undefined, runtimeVersion: string, createdAt: any, platform: string, actor?: { __typename?: 'Robot', firstName?: string | null | undefined, id: string } | { __typename?: 'User', username: string, id: string } | null | undefined }> }> } | null | undefined } } };
 
 export type AppInfoQueryVariables = Exact<{
   appId: Scalars['String'];
@@ -3786,7 +3780,7 @@ export type CreateAndroidAppBuildCredentialsMutationVariables = Exact<{
 }>;
 
 
-export type CreateAndroidAppBuildCredentialsMutation = { __typename?: 'RootMutation', androidAppBuildCredentials: { __typename?: 'AndroidAppBuildCredentialsMutation', createAndroidAppBuildCredentials?: { __typename?: 'AndroidAppBuildCredentials', id: string, isDefault: boolean, isLegacy: boolean, name: string, androidKeystore?: { __typename?: 'AndroidKeystore', id: string, type: AndroidKeystoreType, keystore: string, keystorePassword: string, keyAlias: string, keyPassword?: string | null | undefined, md5CertificateFingerprint?: string | null | undefined, sha1CertificateFingerprint?: string | null | undefined, sha256CertificateFingerprint?: string | null | undefined, createdAt: any, updatedAt: any } | null | undefined } | null | undefined } };
+export type CreateAndroidAppBuildCredentialsMutation = { __typename?: 'RootMutation', androidAppBuildCredentials: { __typename?: 'AndroidAppBuildCredentialsMutation', createAndroidAppBuildCredentials: { __typename?: 'AndroidAppBuildCredentials', id: string, isDefault: boolean, isLegacy: boolean, name: string, androidKeystore?: { __typename?: 'AndroidKeystore', id: string, type: AndroidKeystoreType, keystore: string, keystorePassword: string, keyAlias: string, keyPassword?: string | null | undefined, md5CertificateFingerprint?: string | null | undefined, sha1CertificateFingerprint?: string | null | undefined, sha256CertificateFingerprint?: string | null | undefined, createdAt: any, updatedAt: any } | null | undefined } } };
 
 export type SetKeystoreMutationVariables = Exact<{
   androidAppBuildCredentialsId: Scalars['ID'];
@@ -3794,7 +3788,7 @@ export type SetKeystoreMutationVariables = Exact<{
 }>;
 
 
-export type SetKeystoreMutation = { __typename?: 'RootMutation', androidAppBuildCredentials: { __typename?: 'AndroidAppBuildCredentialsMutation', setKeystore?: { __typename?: 'AndroidAppBuildCredentials', id: string, isDefault: boolean, isLegacy: boolean, name: string, androidKeystore?: { __typename?: 'AndroidKeystore', id: string, type: AndroidKeystoreType, keystore: string, keystorePassword: string, keyAlias: string, keyPassword?: string | null | undefined, md5CertificateFingerprint?: string | null | undefined, sha1CertificateFingerprint?: string | null | undefined, sha256CertificateFingerprint?: string | null | undefined, createdAt: any, updatedAt: any } | null | undefined } | null | undefined } };
+export type SetKeystoreMutation = { __typename?: 'RootMutation', androidAppBuildCredentials: { __typename?: 'AndroidAppBuildCredentialsMutation', setKeystore: { __typename?: 'AndroidAppBuildCredentials', id: string, isDefault: boolean, isLegacy: boolean, name: string, androidKeystore?: { __typename?: 'AndroidKeystore', id: string, type: AndroidKeystoreType, keystore: string, keystorePassword: string, keyAlias: string, keyPassword?: string | null | undefined, md5CertificateFingerprint?: string | null | undefined, sha1CertificateFingerprint?: string | null | undefined, sha256CertificateFingerprint?: string | null | undefined, createdAt: any, updatedAt: any } | null | undefined } } };
 
 export type CreateAndroidAppCredentialsMutationVariables = Exact<{
   androidAppCredentialsInput: AndroidAppCredentialsInput;
@@ -3803,7 +3797,7 @@ export type CreateAndroidAppCredentialsMutationVariables = Exact<{
 }>;
 
 
-export type CreateAndroidAppCredentialsMutation = { __typename?: 'RootMutation', androidAppCredentials: { __typename?: 'AndroidAppCredentialsMutation', createAndroidAppCredentials?: { __typename?: 'AndroidAppCredentials', id: string, applicationIdentifier?: string | null | undefined, isLegacy: boolean, app: { __typename?: 'App', id: string, fullName: string, slug: string }, androidFcm?: { __typename?: 'AndroidFcm', id: string, credential: any, version: AndroidFcmVersion, createdAt: any, updatedAt: any, snippet: { __typename?: 'FcmSnippetLegacy', firstFourCharacters: string, lastFourCharacters: string } | { __typename?: 'FcmSnippetV1', projectId: string, keyId: string, serviceAccountEmail: string, clientId?: string | null | undefined } } | null | undefined, googleServiceAccountKeyForSubmissions?: { __typename?: 'GoogleServiceAccountKey', id: string, projectIdentifier: string, privateKeyIdentifier: string, clientEmail: string, clientIdentifier: string, createdAt: any, updatedAt: any } | null | undefined, androidAppBuildCredentialsList: Array<{ __typename?: 'AndroidAppBuildCredentials', id: string, isDefault: boolean, isLegacy: boolean, name: string, androidKeystore?: { __typename?: 'AndroidKeystore', id: string, type: AndroidKeystoreType, keystore: string, keystorePassword: string, keyAlias: string, keyPassword?: string | null | undefined, md5CertificateFingerprint?: string | null | undefined, sha1CertificateFingerprint?: string | null | undefined, sha256CertificateFingerprint?: string | null | undefined, createdAt: any, updatedAt: any } | null | undefined }> } | null | undefined } };
+export type CreateAndroidAppCredentialsMutation = { __typename?: 'RootMutation', androidAppCredentials: { __typename?: 'AndroidAppCredentialsMutation', createAndroidAppCredentials: { __typename?: 'AndroidAppCredentials', id: string, applicationIdentifier?: string | null | undefined, isLegacy: boolean, app: { __typename?: 'App', id: string, fullName: string, slug: string }, androidFcm?: { __typename?: 'AndroidFcm', id: string, credential: any, version: AndroidFcmVersion, createdAt: any, updatedAt: any, snippet: { __typename?: 'FcmSnippetLegacy', firstFourCharacters: string, lastFourCharacters: string } | { __typename?: 'FcmSnippetV1', projectId: string, keyId: string, serviceAccountEmail: string, clientId?: string | null | undefined } } | null | undefined, googleServiceAccountKeyForSubmissions?: { __typename?: 'GoogleServiceAccountKey', id: string, projectIdentifier: string, privateKeyIdentifier: string, clientEmail: string, clientIdentifier: string, createdAt: any, updatedAt: any } | null | undefined, androidAppBuildCredentialsList: Array<{ __typename?: 'AndroidAppBuildCredentials', id: string, isDefault: boolean, isLegacy: boolean, name: string, androidKeystore?: { __typename?: 'AndroidKeystore', id: string, type: AndroidKeystoreType, keystore: string, keystorePassword: string, keyAlias: string, keyPassword?: string | null | undefined, md5CertificateFingerprint?: string | null | undefined, sha1CertificateFingerprint?: string | null | undefined, sha256CertificateFingerprint?: string | null | undefined, createdAt: any, updatedAt: any } | null | undefined }> } } };
 
 export type SetFcmMutationVariables = Exact<{
   androidAppCredentialsId: Scalars['ID'];
@@ -3811,7 +3805,7 @@ export type SetFcmMutationVariables = Exact<{
 }>;
 
 
-export type SetFcmMutation = { __typename?: 'RootMutation', androidAppCredentials: { __typename?: 'AndroidAppCredentialsMutation', setFcm?: { __typename?: 'AndroidAppCredentials', id: string, applicationIdentifier?: string | null | undefined, isLegacy: boolean, app: { __typename?: 'App', id: string, fullName: string, slug: string }, androidFcm?: { __typename?: 'AndroidFcm', id: string, credential: any, version: AndroidFcmVersion, createdAt: any, updatedAt: any, snippet: { __typename?: 'FcmSnippetLegacy', firstFourCharacters: string, lastFourCharacters: string } | { __typename?: 'FcmSnippetV1', projectId: string, keyId: string, serviceAccountEmail: string, clientId?: string | null | undefined } } | null | undefined, googleServiceAccountKeyForSubmissions?: { __typename?: 'GoogleServiceAccountKey', id: string, projectIdentifier: string, privateKeyIdentifier: string, clientEmail: string, clientIdentifier: string, createdAt: any, updatedAt: any } | null | undefined, androidAppBuildCredentialsList: Array<{ __typename?: 'AndroidAppBuildCredentials', id: string, isDefault: boolean, isLegacy: boolean, name: string, androidKeystore?: { __typename?: 'AndroidKeystore', id: string, type: AndroidKeystoreType, keystore: string, keystorePassword: string, keyAlias: string, keyPassword?: string | null | undefined, md5CertificateFingerprint?: string | null | undefined, sha1CertificateFingerprint?: string | null | undefined, sha256CertificateFingerprint?: string | null | undefined, createdAt: any, updatedAt: any } | null | undefined }> } | null | undefined } };
+export type SetFcmMutation = { __typename?: 'RootMutation', androidAppCredentials: { __typename?: 'AndroidAppCredentialsMutation', setFcm: { __typename?: 'AndroidAppCredentials', id: string, applicationIdentifier?: string | null | undefined, isLegacy: boolean, app: { __typename?: 'App', id: string, fullName: string, slug: string }, androidFcm?: { __typename?: 'AndroidFcm', id: string, credential: any, version: AndroidFcmVersion, createdAt: any, updatedAt: any, snippet: { __typename?: 'FcmSnippetLegacy', firstFourCharacters: string, lastFourCharacters: string } | { __typename?: 'FcmSnippetV1', projectId: string, keyId: string, serviceAccountEmail: string, clientId?: string | null | undefined } } | null | undefined, googleServiceAccountKeyForSubmissions?: { __typename?: 'GoogleServiceAccountKey', id: string, projectIdentifier: string, privateKeyIdentifier: string, clientEmail: string, clientIdentifier: string, createdAt: any, updatedAt: any } | null | undefined, androidAppBuildCredentialsList: Array<{ __typename?: 'AndroidAppBuildCredentials', id: string, isDefault: boolean, isLegacy: boolean, name: string, androidKeystore?: { __typename?: 'AndroidKeystore', id: string, type: AndroidKeystoreType, keystore: string, keystorePassword: string, keyAlias: string, keyPassword?: string | null | undefined, md5CertificateFingerprint?: string | null | undefined, sha1CertificateFingerprint?: string | null | undefined, sha256CertificateFingerprint?: string | null | undefined, createdAt: any, updatedAt: any } | null | undefined }> } } };
 
 export type SetGoogleServiceAccountKeyForSubmissionsMutationVariables = Exact<{
   androidAppCredentialsId: Scalars['ID'];
@@ -3819,7 +3813,7 @@ export type SetGoogleServiceAccountKeyForSubmissionsMutationVariables = Exact<{
 }>;
 
 
-export type SetGoogleServiceAccountKeyForSubmissionsMutation = { __typename?: 'RootMutation', androidAppCredentials: { __typename?: 'AndroidAppCredentialsMutation', setGoogleServiceAccountKeyForSubmissions?: { __typename?: 'AndroidAppCredentials', id: string, applicationIdentifier?: string | null | undefined, isLegacy: boolean, app: { __typename?: 'App', id: string, fullName: string, slug: string }, androidFcm?: { __typename?: 'AndroidFcm', id: string, credential: any, version: AndroidFcmVersion, createdAt: any, updatedAt: any, snippet: { __typename?: 'FcmSnippetLegacy', firstFourCharacters: string, lastFourCharacters: string } | { __typename?: 'FcmSnippetV1', projectId: string, keyId: string, serviceAccountEmail: string, clientId?: string | null | undefined } } | null | undefined, googleServiceAccountKeyForSubmissions?: { __typename?: 'GoogleServiceAccountKey', id: string, projectIdentifier: string, privateKeyIdentifier: string, clientEmail: string, clientIdentifier: string, createdAt: any, updatedAt: any } | null | undefined, androidAppBuildCredentialsList: Array<{ __typename?: 'AndroidAppBuildCredentials', id: string, isDefault: boolean, isLegacy: boolean, name: string, androidKeystore?: { __typename?: 'AndroidKeystore', id: string, type: AndroidKeystoreType, keystore: string, keystorePassword: string, keyAlias: string, keyPassword?: string | null | undefined, md5CertificateFingerprint?: string | null | undefined, sha1CertificateFingerprint?: string | null | undefined, sha256CertificateFingerprint?: string | null | undefined, createdAt: any, updatedAt: any } | null | undefined }> } | null | undefined } };
+export type SetGoogleServiceAccountKeyForSubmissionsMutation = { __typename?: 'RootMutation', androidAppCredentials: { __typename?: 'AndroidAppCredentialsMutation', setGoogleServiceAccountKeyForSubmissions: { __typename?: 'AndroidAppCredentials', id: string, applicationIdentifier?: string | null | undefined, isLegacy: boolean, app: { __typename?: 'App', id: string, fullName: string, slug: string }, androidFcm?: { __typename?: 'AndroidFcm', id: string, credential: any, version: AndroidFcmVersion, createdAt: any, updatedAt: any, snippet: { __typename?: 'FcmSnippetLegacy', firstFourCharacters: string, lastFourCharacters: string } | { __typename?: 'FcmSnippetV1', projectId: string, keyId: string, serviceAccountEmail: string, clientId?: string | null | undefined } } | null | undefined, googleServiceAccountKeyForSubmissions?: { __typename?: 'GoogleServiceAccountKey', id: string, projectIdentifier: string, privateKeyIdentifier: string, clientEmail: string, clientIdentifier: string, createdAt: any, updatedAt: any } | null | undefined, androidAppBuildCredentialsList: Array<{ __typename?: 'AndroidAppBuildCredentials', id: string, isDefault: boolean, isLegacy: boolean, name: string, androidKeystore?: { __typename?: 'AndroidKeystore', id: string, type: AndroidKeystoreType, keystore: string, keystorePassword: string, keyAlias: string, keyPassword?: string | null | undefined, md5CertificateFingerprint?: string | null | undefined, sha1CertificateFingerprint?: string | null | undefined, sha256CertificateFingerprint?: string | null | undefined, createdAt: any, updatedAt: any } | null | undefined }> } } };
 
 export type CreateAndroidFcmMutationVariables = Exact<{
   androidFcmInput: AndroidFcmInput;
@@ -3903,7 +3897,7 @@ export type CreateAppleAppIdentifierMutationVariables = Exact<{
 }>;
 
 
-export type CreateAppleAppIdentifierMutation = { __typename?: 'RootMutation', appleAppIdentifier: { __typename?: 'AppleAppIdentifierMutation', createAppleAppIdentifier?: { __typename?: 'AppleAppIdentifier', id: string, bundleIdentifier: string } | null | undefined } };
+export type CreateAppleAppIdentifierMutation = { __typename?: 'RootMutation', appleAppIdentifier: { __typename?: 'AppleAppIdentifierMutation', createAppleAppIdentifier: { __typename?: 'AppleAppIdentifier', id: string, bundleIdentifier: string } } };
 
 export type CreateAppleDeviceMutationVariables = Exact<{
   appleDeviceInput: AppleDeviceInput;
@@ -4172,7 +4166,7 @@ export type CreateAndroidBuildMutationVariables = Exact<{
 }>;
 
 
-export type CreateAndroidBuildMutation = { __typename?: 'RootMutation', build?: { __typename?: 'BuildMutation', createAndroidBuild: { __typename?: 'CreateBuildResult', build: { __typename?: 'Build', id: string, status: BuildStatus, platform: AppPlatform, channel?: string | null | undefined, releaseChannel?: string | null | undefined, distribution?: DistributionType | null | undefined, iosEnterpriseProvisioning?: BuildIosEnterpriseProvisioning | null | undefined, buildProfile?: string | null | undefined, sdkVersion?: string | null | undefined, appVersion?: string | null | undefined, appBuildVersion?: string | null | undefined, runtimeVersion?: string | null | undefined, gitCommitHash?: string | null | undefined, createdAt?: any | null | undefined, updatedAt?: any | null | undefined, error?: { __typename?: 'BuildError', errorCode: string, message: string, docsUrl?: string | null | undefined } | null | undefined, artifacts?: { __typename?: 'BuildArtifacts', buildUrl?: string | null | undefined, xcodeBuildLogsUrl?: string | null | undefined } | null | undefined, initiatingActor?: { __typename: 'Robot', id: string, displayName: string } | { __typename: 'User', id: string, displayName: string } | null | undefined, project: { __typename: 'App', id: string, name: string, ownerAccount: { __typename?: 'Account', id: string, name: string } } | { __typename: 'Snack', id: string, name: string } }, deprecationInfo?: { __typename?: 'EASBuildDeprecationInfo', type: EasBuildDeprecationInfoType, message: string } | null | undefined } } | null | undefined };
+export type CreateAndroidBuildMutation = { __typename?: 'RootMutation', build: { __typename?: 'BuildMutation', createAndroidBuild: { __typename?: 'CreateBuildResult', build: { __typename?: 'Build', id: string, status: BuildStatus, platform: AppPlatform, channel?: string | null | undefined, releaseChannel?: string | null | undefined, distribution?: DistributionType | null | undefined, iosEnterpriseProvisioning?: BuildIosEnterpriseProvisioning | null | undefined, buildProfile?: string | null | undefined, sdkVersion?: string | null | undefined, appVersion?: string | null | undefined, appBuildVersion?: string | null | undefined, runtimeVersion?: string | null | undefined, gitCommitHash?: string | null | undefined, createdAt?: any | null | undefined, updatedAt?: any | null | undefined, error?: { __typename?: 'BuildError', errorCode: string, message: string, docsUrl?: string | null | undefined } | null | undefined, artifacts?: { __typename?: 'BuildArtifacts', buildUrl?: string | null | undefined, xcodeBuildLogsUrl?: string | null | undefined } | null | undefined, initiatingActor?: { __typename: 'Robot', id: string, displayName: string } | { __typename: 'User', id: string, displayName: string } | null | undefined, project: { __typename: 'App', id: string, name: string, ownerAccount: { __typename?: 'Account', id: string, name: string } } | { __typename: 'Snack', id: string, name: string } }, deprecationInfo?: { __typename?: 'EASBuildDeprecationInfo', type: EasBuildDeprecationInfoType, message: string } | null | undefined } } };
 
 export type CreateIosBuildMutationVariables = Exact<{
   appId: Scalars['ID'];
@@ -4181,7 +4175,7 @@ export type CreateIosBuildMutationVariables = Exact<{
 }>;
 
 
-export type CreateIosBuildMutation = { __typename?: 'RootMutation', build?: { __typename?: 'BuildMutation', createIosBuild: { __typename?: 'CreateBuildResult', build: { __typename?: 'Build', id: string, status: BuildStatus, platform: AppPlatform, channel?: string | null | undefined, releaseChannel?: string | null | undefined, distribution?: DistributionType | null | undefined, iosEnterpriseProvisioning?: BuildIosEnterpriseProvisioning | null | undefined, buildProfile?: string | null | undefined, sdkVersion?: string | null | undefined, appVersion?: string | null | undefined, appBuildVersion?: string | null | undefined, runtimeVersion?: string | null | undefined, gitCommitHash?: string | null | undefined, createdAt?: any | null | undefined, updatedAt?: any | null | undefined, error?: { __typename?: 'BuildError', errorCode: string, message: string, docsUrl?: string | null | undefined } | null | undefined, artifacts?: { __typename?: 'BuildArtifacts', buildUrl?: string | null | undefined, xcodeBuildLogsUrl?: string | null | undefined } | null | undefined, initiatingActor?: { __typename: 'Robot', id: string, displayName: string } | { __typename: 'User', id: string, displayName: string } | null | undefined, project: { __typename: 'App', id: string, name: string, ownerAccount: { __typename?: 'Account', id: string, name: string } } | { __typename: 'Snack', id: string, name: string } }, deprecationInfo?: { __typename?: 'EASBuildDeprecationInfo', type: EasBuildDeprecationInfoType, message: string } | null | undefined } } | null | undefined };
+export type CreateIosBuildMutation = { __typename?: 'RootMutation', build: { __typename?: 'BuildMutation', createIosBuild: { __typename?: 'CreateBuildResult', build: { __typename?: 'Build', id: string, status: BuildStatus, platform: AppPlatform, channel?: string | null | undefined, releaseChannel?: string | null | undefined, distribution?: DistributionType | null | undefined, iosEnterpriseProvisioning?: BuildIosEnterpriseProvisioning | null | undefined, buildProfile?: string | null | undefined, sdkVersion?: string | null | undefined, appVersion?: string | null | undefined, appBuildVersion?: string | null | undefined, runtimeVersion?: string | null | undefined, gitCommitHash?: string | null | undefined, createdAt?: any | null | undefined, updatedAt?: any | null | undefined, error?: { __typename?: 'BuildError', errorCode: string, message: string, docsUrl?: string | null | undefined } | null | undefined, artifacts?: { __typename?: 'BuildArtifacts', buildUrl?: string | null | undefined, xcodeBuildLogsUrl?: string | null | undefined } | null | undefined, initiatingActor?: { __typename: 'Robot', id: string, displayName: string } | { __typename: 'User', id: string, displayName: string } | null | undefined, project: { __typename: 'App', id: string, name: string, ownerAccount: { __typename?: 'Account', id: string, name: string } } | { __typename: 'Snack', id: string, name: string } }, deprecationInfo?: { __typename?: 'EASBuildDeprecationInfo', type: EasBuildDeprecationInfoType, message: string } | null | undefined } } };
 
 export type CreateEnvironmentSecretForAccountMutationVariables = Exact<{
   input: CreateEnvironmentSecretInput;
@@ -4216,14 +4210,22 @@ export type GetSignedUploadMutationVariables = Exact<{
 }>;
 
 
-export type GetSignedUploadMutation = { __typename?: 'RootMutation', asset: { __typename?: 'AssetMutation', getSignedAssetUploadSpecifications?: { __typename?: 'GetSignedAssetUploadSpecificationsResult', specifications: Array<string | null | undefined> } | null | undefined } };
+export type GetSignedUploadMutation = { __typename?: 'RootMutation', asset: { __typename?: 'AssetMutation', getSignedAssetUploadSpecifications: { __typename?: 'GetSignedAssetUploadSpecificationsResult', specifications: Array<string> } } };
 
 export type UpdatePublishMutationVariables = Exact<{
   publishUpdateGroupsInput: Array<PublishUpdateGroupInput> | PublishUpdateGroupInput;
 }>;
 
 
-export type UpdatePublishMutation = { __typename?: 'RootMutation', updateBranch: { __typename?: 'UpdateBranchMutation', publishUpdateGroups: Array<{ __typename?: 'Update', id: string, group: string, runtimeVersion: string, platform: string }> } };
+export type UpdatePublishMutation = { __typename?: 'RootMutation', updateBranch: { __typename?: 'UpdateBranchMutation', publishUpdateGroups: Array<{ __typename?: 'Update', id: string, group: string, runtimeVersion: string, platform: string, manifestPermalink: string }> } };
+
+export type SetCodeSigningInfoMutationVariables = Exact<{
+  updateId: Scalars['ID'];
+  codeSigningInfo: CodeSigningInfoInput;
+}>;
+
+
+export type SetCodeSigningInfoMutation = { __typename?: 'RootMutation', update: { __typename?: 'UpdateMutation', setCodeSigningInfo: { __typename?: 'Update', id: string, group: string, awaitingCodeSigningInfo: boolean, codeSigningInfo?: { __typename?: 'CodeSigningInfo', keyid: string, alg: string, sig: string } | null | undefined } } };
 
 export type CreateAndroidSubmissionMutationVariables = Exact<{
   appId: Scalars['ID'];
@@ -4297,6 +4299,14 @@ export type GetAllBuildsForAppQueryVariables = Exact<{
 
 
 export type GetAllBuildsForAppQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, builds: Array<{ __typename?: 'Build', id: string, status: BuildStatus, platform: AppPlatform, channel?: string | null | undefined, releaseChannel?: string | null | undefined, distribution?: DistributionType | null | undefined, iosEnterpriseProvisioning?: BuildIosEnterpriseProvisioning | null | undefined, buildProfile?: string | null | undefined, sdkVersion?: string | null | undefined, appVersion?: string | null | undefined, appBuildVersion?: string | null | undefined, runtimeVersion?: string | null | undefined, gitCommitHash?: string | null | undefined, createdAt?: any | null | undefined, updatedAt?: any | null | undefined, error?: { __typename?: 'BuildError', errorCode: string, message: string, docsUrl?: string | null | undefined } | null | undefined, artifacts?: { __typename?: 'BuildArtifacts', buildUrl?: string | null | undefined, xcodeBuildLogsUrl?: string | null | undefined } | null | undefined, initiatingActor?: { __typename: 'Robot', id: string, displayName: string } | { __typename: 'User', id: string, displayName: string } | null | undefined, project: { __typename: 'App', id: string, name: string, ownerAccount: { __typename?: 'Account', id: string, name: string } } | { __typename: 'Snack', id: string, name: string } }> } } };
+
+export type GetChannelByNameForAppQueryVariables = Exact<{
+  appId: Scalars['String'];
+  channelName: Scalars['String'];
+}>;
+
+
+export type GetChannelByNameForAppQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, updateChannelByName?: { __typename?: 'UpdateChannel', id: string, name: string, createdAt: any, branchMapping: string, updateBranches: Array<{ __typename?: 'UpdateBranch', id: string, name: string, updates: Array<{ __typename?: 'Update', id: string, group: string, message?: string | null | undefined, runtimeVersion: string, createdAt: any, platform: string, actor?: { __typename?: 'Robot', firstName?: string | null | undefined, id: string } | { __typename?: 'User', username: string, id: string } | null | undefined }> }> } | null | undefined } } };
 
 export type EnvironmentSecretsByAccountNameQueryVariables = Exact<{
   accountName: Scalars['String'];
