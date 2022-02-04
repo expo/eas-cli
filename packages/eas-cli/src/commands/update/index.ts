@@ -1,14 +1,11 @@
 import { ExpoConfig, getConfig } from '@expo/config';
 import { Updates } from '@expo/config-plugins';
 import { Platform, Workflow } from '@expo/eas-build-job';
-import JsonFile from '@expo/json-file';
-import { Flags } from '@oclif/core';
+import { Errors, Flags } from '@oclif/core';
 import assert from 'assert';
 import chalk from 'chalk';
 import dateFormat from 'dateformat';
 import gql from 'graphql-tag';
-import resolveFrom from 'resolve-from';
-import semver from 'semver';
 
 import { getEASUpdateURL } from '../../api';
 import EasCommand from '../../commandUtils/EasCommand';
@@ -26,7 +23,12 @@ import { PublishMutation } from '../../graphql/mutations/PublishMutation';
 import { UpdateQuery } from '../../graphql/queries/UpdateQuery';
 import Log from '../../log';
 import { ora } from '../../ora';
-import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUtils';
+import {
+  findProjectRootAsync,
+  getProjectIdAsync,
+  installExpoUpdatesAsync,
+  isExpoUpdatesInstalledOrAvailable,
+} from '../../project/projectUtils';
 import {
   PublishPlatform,
   buildBundlesAsync,
@@ -35,7 +37,7 @@ import {
   uploadAssetsAsync,
 } from '../../project/publish';
 import { resolveWorkflowAsync } from '../../project/workflow';
-import { promptAsync, selectAsync } from '../../prompts';
+import { confirmAsync, promptAsync, selectAsync } from '../../prompts';
 import { formatUpdate } from '../../update/utils';
 import uniqBy from '../../utils/expodash/uniqBy';
 import formatFields from '../../utils/formatFields';
@@ -207,7 +209,20 @@ export default class UpdatePublish extends EasCommand {
       isPublicConfig: true,
     });
 
-    assertExpoUpdatesInstalled(projectDir, exp.sdkVersion);
+    if (!isExpoUpdatesInstalledOrAvailable(projectDir, exp.sdkVersion)) {
+      const install = await confirmAsync({
+        message:
+          'You are creating an update which requires expo-updates to be installed in your app.\n  Do you want EAS CLI to install it for you?',
+        instructions: 'The command will abort unless you agree.',
+      });
+      if (install) {
+        await installExpoUpdatesAsync(projectDir, { nonInteractive: false });
+      } else {
+        Errors.error(`Install ${chalk.bold('expo-updates')} manually and come back later.`, {
+          exit: 1,
+        });
+      }
+    }
 
     const runtimeVersions = await getRuntimeVersionObjectAsync(exp, platformFlag, projectDir);
     const projectId = await getProjectIdAsync(exp);
@@ -459,25 +474,6 @@ export default class UpdatePublish extends EasCommand {
       }
     }
   }
-}
-
-function assertExpoUpdatesInstalled(projectDir: string, sdkVersion?: string): void {
-  // before sdk 44, expo-update was included in with the expo module
-  if (sdkVersion && semver.lt(sdkVersion, '44.0.0')) {
-    return;
-  }
-
-  const packageJsonPath = resolveFrom.silent(projectDir, './package.json');
-  if (packageJsonPath) {
-    const expoPackageJson = JsonFile.read(packageJsonPath, { json5: true });
-    if (expoPackageJson.dependencies && (expoPackageJson.dependencies as any)['expo-updates']) {
-      return;
-    }
-  }
-
-  throw new Error(
-    `Expo CLI is not installed in this project. Please run "expo install expo-updates".`
-  );
 }
 
 async function getRuntimeVersionObjectAsync(

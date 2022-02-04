@@ -5,7 +5,7 @@ import fs from 'fs-extra';
 import resolveFrom from 'resolve-from';
 
 import Log from '../log';
-import { getUsername } from '../project/projectUtils';
+import { getUsername, isExpoUpdatesInstalled } from '../project/projectUtils';
 import { ensureLoggedInAsync } from '../user/actions';
 import { easCliVersion } from '../utils/easCli';
 import { getVcsClient } from '../vcs';
@@ -20,7 +20,6 @@ import {
   readReleaseChannelSafelyAsync as readIosReleaseChannelSafelyAsync,
 } from './ios/UpdatesModule';
 import { maybeResolveVersionsAsync as maybeResolveIosVersionsAsync } from './ios/version';
-import { isExpoUpdatesInstalled } from './utils/updates';
 
 // TODO(JJ): Replace this with the getRuntimeVersionNullable function in @expo/config-plugins
 function getRuntimeVersionNullable(

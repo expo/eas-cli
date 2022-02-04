@@ -7,11 +7,10 @@ import { syncUpdatesConfigurationAsync as syncAndroidUpdatesConfigurationAsync }
 import { cleanUpOldEasBuildGradleScriptAsync } from '../../build/android/syncProjectConfiguration';
 import { ensureProjectConfiguredAsync } from '../../build/configure';
 import { syncUpdatesConfigurationAsync as syncIosUpdatesConfigurationAsync } from '../../build/ios/UpdatesModule';
-import { isExpoUpdatesInstalled } from '../../build/utils/updates';
 import EasCommand from '../../commandUtils/EasCommand';
 import Log, { learnMore } from '../../log';
 import { RequestedPlatform } from '../../platform';
-import { findProjectRootAsync } from '../../project/projectUtils';
+import { findProjectRootAsync, isExpoUpdatesInstalled } from '../../project/projectUtils';
 import { resolveWorkflowAsync } from '../../project/workflow';
 import { promptAsync } from '../../prompts';
 import { getVcsClient } from '../../vcs';

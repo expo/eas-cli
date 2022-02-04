@@ -1,9 +1,4 @@
-import { ExpoConfig, getPackageJson } from '@expo/config';
-
-export function isExpoUpdatesInstalled(projectDir: string): boolean {
-  const packageJson = getPackageJson(projectDir);
-  return !!(packageJson.dependencies && 'expo-updates' in packageJson.dependencies);
-}
+import { ExpoConfig } from '@expo/config';
 
 export function ensureValidVersions(exp: ExpoConfig): void {
   if (!exp.runtimeVersion && !exp.sdkVersion) {
