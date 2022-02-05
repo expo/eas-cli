@@ -1,0 +1,39 @@
+{
+  "name": "@expo/code-signing-certificates",
+  "version": "1.0.0",
+  "description": "A module for working with expo-updates code signing certificates",
+  "main": "build/index.js",
+  "types": "build/index.d.ts",
+  "scripts": {
+    "build": "tsc --project tsconfig.build.json",
+    "watch": "yarn build --watch --preserveWatchOutput",
+    "typecheck": "tsc",
+    "prepack": "rm -rf build && yarn build",
+    "test": "jest",
+    "clean": "rm -rf build node_modules yarn-error.log"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/expo/eas-cli.git",
+    "directory": "packages/code-signing-certificates"
+  },
+  "keywords": [
+    "code signing"
+  ],
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/expo/eas-cli/issues"
+  },
+  "author": "Expo <support@expo.dev>",
+  "homepage": "https://github.com/expo/eas-cli/tree/main/packages/code-signing-certificates#readme",
+  "files": [
+    "build"
+  ],
+  "dependencies": {
+    "node-forge": "^1.2.1"
+  },
+  "devDependencies": {},
+  "publishConfig": {
+    "access": "public"
+  }
+}

@@ -15,3 +15,7 @@ coverage:
         informational: true
         paths:
           - packages/eas-json
+      code-signing-certificates:
+        informational: true
+        paths:
+          - packages/code-signing-certificates

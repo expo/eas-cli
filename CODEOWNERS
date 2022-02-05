@@ -5,3 +5,5 @@ packages/eas-cli/src/submit @barthap @dsokal
 packages/eas-cli/src/commands/submit.ts @barthap @dsokal
 
 packages/eas-json @dsokal @wkozyra95
+
+packages/code-signing-certificates @wschurman
