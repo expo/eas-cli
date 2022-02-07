@@ -10,7 +10,7 @@ function mockCapabilities(Apple: any): void {
     },
   ]);
 
-  Apple.MerchantId.createAsync = jest.fn((ctx, { identifier }) => ({
+  Apple.MerchantId.createAsync = jest.fn((_ctx, { identifier }) => ({
     id: 'XXX-merch-2',
     attributes: {
       identifier,
@@ -25,7 +25,7 @@ function mockCapabilities(Apple: any): void {
       },
     },
   ]);
-  Apple.AppGroup.createAsync = jest.fn((ctx, { identifier }) => ({
+  Apple.AppGroup.createAsync = jest.fn((_ctx, { identifier }) => ({
     id: 'XXX-group-2',
     attributes: {
       identifier,
@@ -41,7 +41,7 @@ function mockCapabilities(Apple: any): void {
     },
   ]);
 
-  Apple.CloudContainer.createAsync = jest.fn((ctx, { identifier }) => ({
+  Apple.CloudContainer.createAsync = jest.fn((_ctx, { identifier }) => ({
     id: 'XXX-icloud-2',
     attributes: {
       identifier,
@@ -150,7 +150,7 @@ describe(syncCapabilityIdentifiersForEntitlementsAsync, () => {
     const Apple = require('@expo/apple-utils');
     mockCapabilities(Apple);
     Apple.MerchantId.createAsync = jest.fn(
-      (ctx: any, { identifier }: { identifier: string }): any => {
+      (_ctx: any, { identifier }: { identifier: string }): any => {
         // e2e test with: merchant.expodemo
         throw new Error(
           `There is a problem with the request entity - A Merchant ID with Identifier '${identifier}' is not available. Please enter a different string.`

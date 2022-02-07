@@ -11,7 +11,7 @@ export class SelectAndRemoveAscApiKey {
   async runAsync(ctx: CredentialsContext): Promise<void> {
     const selected = await selectAscApiKeysFromAccountAsync(ctx, this.account);
     if (selected) {
-      await new RemoveAscApiKey(this.account, selected).runAsync(ctx);
+      await new RemoveAscApiKey(selected).runAsync(ctx);
       Log.succeed('Removed App Store Connect API Key');
       Log.newLine();
     }
@@ -19,7 +19,7 @@ export class SelectAndRemoveAscApiKey {
 }
 
 export class RemoveAscApiKey {
-  constructor(private account: Account, private ascApiKey: AppStoreConnectApiKeyFragment) {}
+  constructor(private ascApiKey: AppStoreConnectApiKeyFragment) {}
 
   public async runAsync(ctx: CredentialsContext): Promise<void> {
     if (ctx.nonInteractive) {

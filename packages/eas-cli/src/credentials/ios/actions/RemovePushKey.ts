@@ -11,7 +11,7 @@ export class SelectAndRemovePushKey {
   async runAsync(ctx: CredentialsContext): Promise<void> {
     const selected = await selectPushKeyAsync(ctx, this.account);
     if (selected) {
-      await new RemovePushKey(this.account, selected).runAsync(ctx);
+      await new RemovePushKey(selected).runAsync(ctx);
       Log.succeed('Removed push key');
       Log.newLine();
     }
@@ -19,7 +19,7 @@ export class SelectAndRemovePushKey {
 }
 
 export class RemovePushKey {
-  constructor(private account: Account, private pushKey: ApplePushKeyFragment) {}
+  constructor(private pushKey: ApplePushKeyFragment) {}
 
   public async runAsync(ctx: CredentialsContext): Promise<void> {
     if (ctx.nonInteractive) {

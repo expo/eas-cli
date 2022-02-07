@@ -77,8 +77,7 @@ export async function useExistingProvisioningProfileAsync(
   authCtx: AuthCtx,
   bundleIdentifier: string,
   provisioningProfile: ProvisioningProfile,
-  distCert: DistributionCertificate,
-  profileClass: ProfileClass = ProfileClass.General
+  distCert: DistributionCertificate
 ): Promise<ProvisioningProfile> {
   if (!provisioningProfile.provisioningProfileId) {
     throw new Error('Provisioning profile: cannot use existing profile, insufficient id');

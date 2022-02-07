@@ -217,7 +217,7 @@ export default class UpdatePublish extends EasCommand {
         instructions: 'The command will abort unless you agree.',
       });
       if (install) {
-        await installExpoUpdatesAsync(projectDir, { nonInteractive: false });
+        await installExpoUpdatesAsync(projectDir);
       } else {
         Errors.error(`Install ${chalk.bold('expo-updates')} manually and come back later.`, {
           exit: 1,
