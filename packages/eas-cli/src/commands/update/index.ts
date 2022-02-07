@@ -211,8 +211,9 @@ export default class UpdatePublish extends EasCommand {
 
     if (!isExpoUpdatesInstalledOrAvailable(projectDir, exp.sdkVersion)) {
       const install = await confirmAsync({
-        message:
-          'You are creating an update which requires expo-updates to be installed in your app.\n  Do you want EAS CLI to install it for you?',
+        message: `You are creating an update which requires ${chalk.bold(
+          'expo-updates'
+        )} to be installed in your app.\n  Do you want EAS CLI to install it for you?`,
         instructions: 'The command will abort unless you agree.',
       });
       if (install) {
