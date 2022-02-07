@@ -2,8 +2,8 @@ import { ExpoConfig } from '@expo/config';
 import { Platform, Workflow } from '@expo/eas-build-job';
 import { BuildProfile, IosVersionAutoIncrement } from '@expo/eas-json';
 import type { XCBuildConfiguration } from 'xcode';
-import { isExpoUpdatesInstalled } from '../../project/projectUtils';
 
+import { isExpoUpdatesInstalled } from '../../project/projectUtils';
 import { resolveWorkflowAsync } from '../../project/workflow';
 import { syncUpdatesConfigurationAsync } from './UpdatesModule';
 import { BumpStrategy, bumpVersionAsync, bumpVersionInAppJsonAsync } from './version';
