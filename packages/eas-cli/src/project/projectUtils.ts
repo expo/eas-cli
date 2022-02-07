@@ -11,14 +11,12 @@ import path from 'path';
 import pkgDir from 'pkg-dir';
 import semver from 'semver';
 
-import { reviewAndCommitChangesAsync } from '../build/utils/repository';
 import { AppPrivacy } from '../graphql/generated';
 import Log from '../log';
 import { confirmAsync } from '../prompts';
 import { Actor } from '../user/User';
 import { ensureLoggedInAsync } from '../user/actions';
 import { expoCommandAsync } from '../utils/expoCli';
-import { getVcsClient } from '../vcs';
 import {
   ensureProjectExistsAsync,
   findProjectIdByAccountNameAndSlugNullableAsync,
@@ -254,9 +252,4 @@ export async function installExpoUpdatesAsync(
   Log.newLine();
   await expoCommandAsync(projectDir, ['install', 'expo-updates']);
   Log.newLine();
-  if (await getVcsClient().isCommitRequiredAsync()) {
-    await reviewAndCommitChangesAsync('Install expo-updates', {
-      nonInteractive,
-    });
-  }
 }
