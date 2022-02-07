@@ -7,8 +7,8 @@ import fs from 'fs-extra';
 import path from 'path';
 
 import Log from '../../log';
+import { isExpoUpdatesInstalled } from '../../project/projectUtils';
 import { resolveWorkflowAsync } from '../../project/workflow';
-import { isExpoUpdatesInstalled } from '../utils/updates';
 import { syncUpdatesConfigurationAsync } from './UpdatesModule';
 import { BumpStrategy, bumpVersionAsync, bumpVersionInAppJsonAsync } from './version';
 

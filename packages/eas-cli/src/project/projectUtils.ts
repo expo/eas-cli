@@ -1,14 +1,22 @@
-import { AppJSONConfig, ExpoConfig, getConfigFilePaths, modifyConfigAsync } from '@expo/config';
+import {
+  AppJSONConfig,
+  ExpoConfig,
+  getConfigFilePaths,
+  getPackageJson,
+  modifyConfigAsync,
+} from '@expo/config';
 import { Env } from '@expo/eas-build-job';
 import chalk from 'chalk';
 import path from 'path';
 import pkgDir from 'pkg-dir';
+import semver from 'semver';
 
 import { AppPrivacy } from '../graphql/generated';
 import Log from '../log';
 import { confirmAsync } from '../prompts';
 import { Actor } from '../user/User';
 import { ensureLoggedInAsync } from '../user/actions';
+import { expoCommandAsync } from '../utils/expoCli';
 import {
   ensureProjectExistsAsync,
   findProjectIdByAccountNameAndSlugNullableAsync,
@@ -216,4 +224,32 @@ export async function promptToCreateProjectIfNotExistsAsync(
     projectName: exp.slug,
     privacy,
   });
+}
+
+export function isExpoUpdatesInstalled(projectDir: string): boolean {
+  const packageJson = getPackageJson(projectDir);
+  return !!(packageJson.dependencies && 'expo-updates' in packageJson.dependencies);
+}
+
+export function isExpoUpdatesInstalledOrAvailable(
+  projectDir: string,
+  sdkVersion?: string
+): boolean {
+  // before sdk 44, expo-updates was included in with the expo module
+  if (sdkVersion && semver.lt(sdkVersion, '44.0.0')) {
+    return true;
+  }
+
+  return isExpoUpdatesInstalled(projectDir);
+}
+
+export async function installExpoUpdatesAsync(
+  projectDir: string,
+  { nonInteractive }: { nonInteractive: boolean }
+): Promise<void> {
+  Log.newLine();
+  Log.log(`Running ${chalk.bold('expo install expo-updates')}`);
+  Log.newLine();
+  await expoCommandAsync(projectDir, ['install', 'expo-updates']);
+  Log.newLine();
 }
