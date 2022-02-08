@@ -10,6 +10,12 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+### 🧹 Chores
+
+## [0.47.0](https://github.com/expo/eas-cli/releases/tag/v0.47.0) - 2022-02-08
+
+### 🐛 Bug fixes
+
 - Return informative error when running `eas channel:rollout` with a channel that does not exist. ([#930](https://github.com/expo/eas-cli/pull/930) by [@jkhales](https://github.com/jkhales))
 - Check if `expo-updates` is installed before publish. ([#953](https://github.com/expo/eas-cli/pull/953) by [@jkhales](https://github.com/jkhales))
 
