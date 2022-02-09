@@ -5,6 +5,8 @@
     "module": "commonjs",
     "esModuleInterop": true,
     "noImplicitReturns": true,
+    "noUnusedParameters":true,
+    "noUnusedLocals":true,
     "strict": true,
     "target": "ES2019",
     "outDir": "build",

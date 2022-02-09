@@ -86,16 +86,14 @@ export default class AppStoreApi {
   public async useExistingProvisioningProfileAsync(
     bundleIdentifier: string,
     provisioningProfile: ProvisioningProfile,
-    distCert: DistributionCertificate,
-    profileClass?: ProfileClass
+    distCert: DistributionCertificate
   ): Promise<ProvisioningProfile> {
     const ctx = await this.ensureAuthenticatedAsync();
     return await useExistingProvisioningProfileAsync(
       ctx,
       bundleIdentifier,
       provisioningProfile,
-      distCert,
-      profileClass
+      distCert
     );
   }
 

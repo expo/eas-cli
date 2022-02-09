@@ -47,7 +47,7 @@ export class SetUpDistributionCertificate {
   }
 
   private async runNonInteractiveAsync(
-    ctx: CredentialsContext,
+    _ctx: CredentialsContext,
     currentCertificate: AppleDistributionCertificateFragment | null
   ): Promise<AppleDistributionCertificateFragment> {
     // TODO: implement validation

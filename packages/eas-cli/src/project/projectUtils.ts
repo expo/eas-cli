@@ -228,10 +228,7 @@ export function isExpoUpdatesInstalledOrAvailable(
   return isExpoUpdatesInstalled(projectDir);
 }
 
-export async function installExpoUpdatesAsync(
-  projectDir: string,
-  { nonInteractive }: { nonInteractive: boolean }
-): Promise<void> {
+export async function installExpoUpdatesAsync(projectDir: string): Promise<void> {
   Log.newLine();
   Log.log(`Running ${chalk.bold('expo install expo-updates')}`);
   Log.newLine();
