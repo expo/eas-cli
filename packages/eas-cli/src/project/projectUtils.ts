@@ -1,10 +1,4 @@
-import {
-  AppJSONConfig,
-  ExpoConfig,
-  getConfigFilePaths,
-  getPackageJson,
-  modifyConfigAsync,
-} from '@expo/config';
+import { ExpoConfig, getConfigFilePaths, getPackageJson, modifyConfigAsync } from '@expo/config';
 import { Env } from '@expo/eas-build-job';
 import chalk from 'chalk';
 import path from 'path';
@@ -118,16 +112,7 @@ export async function setProjectIdAsync(
   }
 
   Log.withTick(`Linked app.json to project with ID ${chalk.bold(projectId)}`);
-  /**
-   * result.config will always be an AppJSONConfig if result.type === 'success'
-   * PR to fix this typing: https://github.com/expo/expo-cli/pull/3482/files
-   *
-   * Code is written to safely handle the case where config type is not
-   * AppJSONConfig (namely there will be no expo key and the result will be undefined).
-   * TODO-JJ delete AppJSONConfig casting once typing is updated in the published @expo/config and
-   * remove undefined alternative from return type
-   */
-  return (result.config as AppJSONConfig)?.expo;
+  return result.config?.expo;
 }
 
 export async function getProjectIdAsync(
