@@ -21,18 +21,6 @@ import {
 } from './ios/UpdatesModule';
 import { maybeResolveVersionsAsync as maybeResolveIosVersionsAsync } from './ios/version';
 
-// TODO(JJ): Replace this with the getRuntimeVersionNullable function in @expo/config-plugins
-function getRuntimeVersionNullable(
-  ...[config, platform]: Parameters<typeof Updates.getRuntimeVersion>
-): string | null {
-  try {
-    return Updates.getRuntimeVersion(config, platform);
-  } catch (e) {
-    Log.debug(e);
-    return null;
-  }
-}
-
 export async function collectMetadataAsync<T extends Platform>(
   ctx: BuildContext<T>
 ): Promise<Metadata> {
@@ -48,7 +36,7 @@ export async function collectMetadataAsync<T extends Platform>(
     workflow: ctx.workflow,
     credentialsSource: ctx.buildProfile.credentialsSource,
     sdkVersion: ctx.exp.sdkVersion,
-    runtimeVersion: getRuntimeVersionNullable(ctx.exp, ctx.platform) ?? undefined,
+    runtimeVersion: Updates.getRuntimeVersionNullable(ctx.exp, ctx.platform) ?? undefined,
     reactNativeVersion: await getReactNativeVersionAsync(ctx),
     ...channelOrReleaseChannel,
     distribution,
