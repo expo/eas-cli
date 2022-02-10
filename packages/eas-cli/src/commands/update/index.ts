@@ -5,7 +5,7 @@ import { Errors, Flags } from '@oclif/core';
 import assert from 'assert';
 import chalk from 'chalk';
 import dateFormat from 'dateformat';
-import got from 'got/dist/source';
+import got from 'got';
 import gql from 'graphql-tag';
 import nullthrows from 'nullthrows';
 
@@ -45,7 +45,7 @@ import { confirmAsync, promptAsync, selectAsync } from '../../prompts';
 import { formatUpdate } from '../../update/utils';
 import {
   checkManifestBodyAgainstUpdateInfoGroup,
-  getKeyAndCertificateFromPathsAsync,
+  getCodeSigningInfoAsync,
   getManifestBodyAsync,
   signManifestBody,
 } from '../../utils/code-signing';
@@ -191,8 +191,7 @@ export default class UpdatePublish extends EasCommand {
       default: false,
     }),
     'private-key-path': Flags.string({
-      description:
-        'File containing the PEM-encoded private key corresponding to the certificate in expo-updates configuration',
+      description: `File containing the PEM-encoded private key corresponding to the certificate in expo-updates' configuration. Defaults to a file named "private-key.pem" in the certificate's directory.`,
       required: false,
     }),
   };
@@ -225,19 +224,8 @@ export default class UpdatePublish extends EasCommand {
       skipSDKVersionRequirement: true,
       isPublicConfig: true,
     });
-    const codeSigningCertificatePath = (exp.updates as any)?.codeSigningCertificate;
-    const codeSigningMetadata = (exp.updates as any)?.codeSigningMetadata;
-    if (codeSigningCertificatePath && !privateKeyPath) {
-      privateKeyPath = codeSigningCertificatePath.replace('certificate.pem', 'private-key.pem');
-    }
 
-    const { certificate, privateKey } =
-      codeSigningCertificatePath && privateKeyPath
-        ? await getKeyAndCertificateFromPathsAsync({
-            codeSigningCertificatePath,
-            privateKeyPath,
-          })
-        : { certificate: undefined, privateKey: undefined };
+    const codeSigningInfo = await getCodeSigningInfoAsync(exp, privateKeyPath);
 
     if (!isExpoUpdatesInstalledOrAvailable(projectDir, exp.sdkVersion)) {
       const install = await confirmAsync({
@@ -454,7 +442,7 @@ export default class UpdatePublish extends EasCommand {
 
         if (republish && !oldRuntimeVersion) {
           throw new Error(
-            'Can not find the runtime version of the update group that is being republished.'
+            'Cannot find the runtime version of the update group that is being republished.'
           );
         }
         return {
@@ -462,7 +450,7 @@ export default class UpdatePublish extends EasCommand {
           updateInfoGroup: localUpdateInfoGroup,
           runtimeVersion: republish ? oldRuntimeVersion : runtime,
           message,
-          awaitingCodeSigningInfo: !!certificate && !!privateKey,
+          awaitingCodeSigningInfo: !!codeSigningInfo,
         };
       }
     );
@@ -471,16 +459,18 @@ export default class UpdatePublish extends EasCommand {
     try {
       newUpdates = await PublishMutation.publishUpdateGroupAsync(updateGroups);
 
-      const updatesTemp = [...newUpdates];
-      const updateGroupsAndTheirUpdates = updateGroups.map((updateGroup, i) => {
-        const newUpdates = updatesTemp.splice(0, Object.keys(updateGroup.updateInfoGroup).length);
-        return {
-          updateGroup,
-          newUpdates,
-        };
-      });
+      if (codeSigningInfo) {
+        Log.log('🔒 Signing updates');
 
-      if (certificate && privateKey) {
+        const updatesTemp = [...newUpdates];
+        const updateGroupsAndTheirUpdates = updateGroups.map(updateGroup => {
+          const newUpdates = updatesTemp.splice(0, Object.keys(updateGroup.updateInfoGroup).length);
+          return {
+            updateGroup,
+            newUpdates,
+          };
+        });
+
         await Promise.all(
           updateGroupsAndTheirUpdates.map(async ({ updateGroup, newUpdates }) => {
             await Promise.all(
@@ -497,11 +487,11 @@ export default class UpdatePublish extends EasCommand {
                   )
                 );
 
-                const manifestSignature = signManifestBody(manifestBody, certificate, privateKey);
+                const manifestSignature = signManifestBody(manifestBody, codeSigningInfo);
 
                 await PublishMutation.setCodeSigningInfoAsync(newUpdate.id, {
-                  alg: nullthrows(codeSigningMetadata?.alg),
-                  keyid: nullthrows(codeSigningMetadata?.keyid),
+                  alg: codeSigningInfo.codeSigningMetadata.alg,
+                  keyid: codeSigningInfo.codeSigningMetadata.keyid,
                   sig: manifestSignature,
                 });
               })

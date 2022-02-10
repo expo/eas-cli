@@ -5,6 +5,7 @@ import path from 'path';
 import { PartialManifest } from '../../graphql/generated';
 import {
   checkManifestBodyAgainstUpdateInfoGroup,
+  getCodeSigningInfoAsync,
   getKeyAndCertificateFromPathsAsync,
   getManifestBodyAsync,
   parseMultipartMixedResponseAsync,
@@ -27,7 +28,49 @@ function generateMultipartBody(stringifiedManifest: string): FormData {
   return form;
 }
 
+describe(getCodeSigningInfoAsync, () => {
+  it('throws when codeSigningMetadata is not specified for EAS', async () => {
+    await expect(
+      getCodeSigningInfoAsync(
+        {
+          name: 'wat',
+          slug: 'test',
+          updates: {
+            codeSigningCertificate: 'wat',
+          } as any,
+        },
+        'test'
+      )
+    ).rejects.toThrow('Must specify codeSigningMetadata in config.updates for EAS code signing');
+  });
+});
+
 describe(getKeyAndCertificateFromPathsAsync, () => {
+  it('throws an informative error when file at either path does not exist', async () => {
+    const codeSigningCertificatePath = path.join(
+      __dirname,
+      './fixtures/certificate-path-not-exist.pem'
+    );
+    const privateKeyPath = path.join(__dirname, './fixtures/test-private-key.pem');
+    await expect(
+      getKeyAndCertificateFromPathsAsync({
+        codeSigningCertificatePath,
+        privateKeyPath,
+      })
+    ).rejects.toThrow(
+      `Code signing certificate can not be read from path: ${codeSigningCertificatePath}`
+    );
+
+    const codeSigningCertificatePath2 = path.join(__dirname, './fixtures/test-certificate.pem');
+    const privateKeyPath2 = path.join(__dirname, './fixtures/private-key-path-not-exist.pem');
+    await expect(
+      getKeyAndCertificateFromPathsAsync({
+        codeSigningCertificatePath: codeSigningCertificatePath2,
+        privateKeyPath: privateKeyPath2,
+      })
+    ).rejects.toThrow(`Code signing private key can not be read from path: ${privateKeyPath2}`);
+  });
+
   it('loads certifivate and private key', async () => {
     const result = await getKeyAndCertificateFromPathsAsync({
       codeSigningCertificatePath: path.join(__dirname, './fixtures/test-certificate.pem'),
@@ -161,7 +204,7 @@ describe(checkManifestBodyAgainstUpdateInfoGroup, () => {
     expect(() =>
       checkManifestBodyAgainstUpdateInfoGroup(manifestResponseBodyJSON, partialManifest)
     ).toThrow(
-      'Code signing manifest integrity error: Manifest extra.expoClient does not match uploaded manifest extra.expoClient'
+      `Code signing manifest integrity error: The manifest being signed contains an extra.expoClient field that does not match the initially uploaded manifest's extra.expoClient field`
     );
   });
 
@@ -202,7 +245,7 @@ describe(checkManifestBodyAgainstUpdateInfoGroup, () => {
     expect(() =>
       checkManifestBodyAgainstUpdateInfoGroup(manifestResponseBodyJSON, partialManifest)
     ).toThrow(
-      'Code signing manifest integrity error: Manifest assets differ in length from uploaded manifest assets'
+      'Code signing manifest integrity error: The manifest being signed has an assets array of differing length from the initially uploaded manifest'
     );
   });
 
@@ -250,7 +293,7 @@ describe(checkManifestBodyAgainstUpdateInfoGroup, () => {
     expect(() =>
       checkManifestBodyAgainstUpdateInfoGroup(manifestResponseBodyJSON, partialManifest)
     ).toThrow(
-      'Code signing manifest integrity error: Manifest asset not found in uploaded manifest: 3'
+      'Code signing manifest integrity error: The manifest being signed has is missing an asset specified in the initially uploaded manifest: 3'
     );
   });
 
@@ -297,6 +340,8 @@ describe(checkManifestBodyAgainstUpdateInfoGroup, () => {
     };
     expect(() =>
       checkManifestBodyAgainstUpdateInfoGroup(manifestResponseBodyJSON, partialManifest)
-    ).toThrow('Code signing manifest integrity error: Manifest asset tamper detected for asset: 2');
+    ).toThrow(
+      'Code signing manifest integrity error: Manifest asset tamper detected for asset: 2; field: contentType'
+    );
   });
 });
