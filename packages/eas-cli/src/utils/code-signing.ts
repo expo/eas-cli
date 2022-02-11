@@ -31,11 +31,13 @@ export async function getCodeSigningInfoAsync(
   const codeSigningMetadata = (config.updates as any)?.codeSigningMetadata;
 
   if (codeSigningCertificatePath && !privateKeyPath) {
-    privateKeyPath = path.join(path.dirname(codeSigningCertificatePath));
+    privateKeyPath = path.join(path.dirname(codeSigningCertificatePath), 'private-key.pem');
   }
 
   if (!codeSigningMetadata || !codeSigningMetadata.alg || !codeSigningMetadata.keyid) {
-    throw new Error('Must specify codeSigningMetadata in config.updates for EAS code signing');
+    throw new Error(
+      'Must specify codeSigningMetadata under the "updates" field of your app config file to use EAS code signing'
+    );
   }
 
   return codeSigningCertificatePath && privateKeyPath
@@ -67,11 +69,11 @@ export async function getKeyAndCertificateFromPathsAsync({
   const [codeSigningCertificatePEM, privateKeyPEM] = await Promise.all([
     readFileAsync(
       codeSigningCertificatePath,
-      `Code signing certificate can not be read from path: ${codeSigningCertificatePath}`
+      `Code signing certificate cannot be read from path: ${codeSigningCertificatePath}`
     ),
     readFileAsync(
       privateKeyPath,
-      `Code signing private key can not be read from path: ${privateKeyPath}`
+      `Code signing private key cannot be read from path: ${privateKeyPath}`
     ),
   ]);
 

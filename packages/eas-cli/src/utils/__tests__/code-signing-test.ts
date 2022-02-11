@@ -41,7 +41,9 @@ describe(getCodeSigningInfoAsync, () => {
         },
         'test'
       )
-    ).rejects.toThrow('Must specify codeSigningMetadata in config.updates for EAS code signing');
+    ).rejects.toThrow(
+      'Must specify codeSigningMetadata under the "updates" field of your app config file to use EAS code signing'
+    );
   });
 });
 
@@ -58,7 +60,7 @@ describe(getKeyAndCertificateFromPathsAsync, () => {
         privateKeyPath,
       })
     ).rejects.toThrow(
-      `Code signing certificate can not be read from path: ${codeSigningCertificatePath}`
+      `Code signing certificate cannot be read from path: ${codeSigningCertificatePath}`
     );
 
     const codeSigningCertificatePath2 = path.join(__dirname, './fixtures/test-certificate.pem');
@@ -68,7 +70,7 @@ describe(getKeyAndCertificateFromPathsAsync, () => {
         codeSigningCertificatePath: codeSigningCertificatePath2,
         privateKeyPath: privateKeyPath2,
       })
-    ).rejects.toThrow(`Code signing private key can not be read from path: ${privateKeyPath2}`);
+    ).rejects.toThrow(`Code signing private key cannot be read from path: ${privateKeyPath2}`);
   });
 
   it('loads certifivate and private key', async () => {
