@@ -27,16 +27,23 @@ export async function getCodeSigningInfoAsync(
   config: ExpoConfig,
   privateKeyPath: string | undefined
 ): Promise<CodeSigningInfo | undefined> {
-  const codeSigningCertificatePath = (config.updates as any)?.codeSigningCertificate;
-  const codeSigningMetadata = (config.updates as any)?.codeSigningMetadata;
+  const codeSigningCertificatePath = config.updates?.codeSigningCertificate;
+  const codeSigningMetadata = config.updates?.codeSigningMetadata;
 
   if (codeSigningCertificatePath && !privateKeyPath) {
     privateKeyPath = path.join(path.dirname(codeSigningCertificatePath), 'private-key.pem');
   }
 
-  if (!codeSigningMetadata || !codeSigningMetadata.alg || !codeSigningMetadata.keyid) {
+  if (!codeSigningMetadata) {
     throw new Error(
       'Must specify codeSigningMetadata under the "updates" field of your app config file to use EAS code signing'
+    );
+  }
+
+  const { alg, keyid } = codeSigningMetadata;
+  if (!alg || !keyid) {
+    throw new Error(
+      'Must specify keyid and alg in the codeSigningMetadata field under the "updates" field of your app config file to use EAS code signing'
     );
   }
 
@@ -46,7 +53,10 @@ export async function getCodeSigningInfoAsync(
           codeSigningCertificatePath,
           privateKeyPath,
         })),
-        codeSigningMetadata,
+        codeSigningMetadata: {
+          alg,
+          keyid,
+        },
       }
     : undefined;
 }
