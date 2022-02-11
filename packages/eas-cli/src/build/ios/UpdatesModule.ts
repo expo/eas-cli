@@ -14,7 +14,12 @@ export async function syncUpdatesConfigurationAsync(
   ensureValidVersions(exp);
   const accountName = getProjectAccountName(exp, await ensureLoggedInAsync());
   const expoPlist = await readExpoPlistAsync(projectDir);
-  const updatedExpoPlist = IOSConfig.Updates.setUpdatesConfig(exp, expoPlist, accountName);
+  const updatedExpoPlist = IOSConfig.Updates.setUpdatesConfig(
+    projectDir,
+    exp,
+    expoPlist,
+    accountName
+  );
   await writeExpoPlistAsync(projectDir, updatedExpoPlist);
 }
 

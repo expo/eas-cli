@@ -16,6 +16,7 @@ export async function syncUpdatesConfigurationAsync(
   const androidManifest = await getAndroidManifestAsync(projectDir);
 
   const updatedAndroidManifest = AndroidConfig.Updates.setUpdatesConfig(
+    projectDir,
     exp,
     androidManifest,
     accountName
