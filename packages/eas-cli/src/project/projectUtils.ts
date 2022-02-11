@@ -211,6 +211,15 @@ export async function promptToCreateProjectIfNotExistsAsync(
   });
 }
 
+export function getConfiguredExpoSdkVersion(projectDir: string): string {
+  const packageJson = getPackageJson(projectDir);
+  if (packageJson.dependencies && packageJson.dependencies['expo']) {
+    return packageJson.dependencies['expo'];
+  }
+
+  return '0';
+}
+
 export function isExpoUpdatesInstalled(projectDir: string): boolean {
   const packageJson = getPackageJson(projectDir);
   return !!(packageJson.dependencies && 'expo-updates' in packageJson.dependencies);

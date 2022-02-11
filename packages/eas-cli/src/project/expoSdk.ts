@@ -6,6 +6,7 @@ import semver from 'semver';
 import { BuildContext } from '../build/context';
 import Log from '../log';
 import { confirmAsync } from '../prompts';
+import { getConfiguredExpoSdkVersion } from './projectUtils';
 
 const SUPPORTED_EXPO_SDK_VERSIONS = '>= 41.0.0';
 assert(semver.validRange(SUPPORTED_EXPO_SDK_VERSIONS), 'Must be a valid version range');
@@ -14,6 +15,10 @@ export async function checkExpoSdkIsSupportedAsync(ctx: BuildContext<Platform>):
   assert(ctx.workflow === Workflow.MANAGED, 'Must be a managed workflow project');
 
   if (ctx.exp.sdkVersion && semver.satisfies(ctx.exp.sdkVersion, SUPPORTED_EXPO_SDK_VERSIONS)) {
+    return;
+  } else if (
+    semver.subset(getConfiguredExpoSdkVersion(ctx.projectDir), SUPPORTED_EXPO_SDK_VERSIONS)
+  ) {
     return;
   }
 
