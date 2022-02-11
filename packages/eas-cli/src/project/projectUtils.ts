@@ -68,14 +68,15 @@ export async function findProjectRootAsync({
       return process.cwd();
     }
   } else {
+    let vcsRoot;
     try {
-      const vcsRoot = path.normalize(await getVcsClient().getRootPathAsync());
-      if (vcsRoot.startsWith(projectRootDir) && vcsRoot !== projectRootDir) {
-        throw new Error(
-          `package.json is outside of the current git repository (project root: ${projectRootDir}, git root: ${vcsRoot}.`
-        );
-      }
+      vcsRoot = path.normalize(await getVcsClient().getRootPathAsync());
     } catch {}
+    if (vcsRoot && vcsRoot.startsWith(projectRootDir) && vcsRoot !== projectRootDir) {
+      throw new Error(
+        `package.json is outside of the current git repository (project root: ${projectRootDir}, git root: ${vcsRoot}.`
+      );
+    }
     return projectRootDir;
   }
 }
