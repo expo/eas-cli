@@ -11,6 +11,7 @@ import { confirmAsync } from '../prompts';
 import { Actor } from '../user/User';
 import { ensureLoggedInAsync } from '../user/actions';
 import { expoCommandAsync } from '../utils/expoCli';
+import { getVcsClient } from '../vcs';
 import {
   ensureProjectExistsAsync,
   findProjectIdByAccountNameAndSlugNullableAsync,
@@ -67,6 +68,15 @@ export async function findProjectRootAsync({
       return process.cwd();
     }
   } else {
+    let vcsRoot;
+    try {
+      vcsRoot = path.normalize(await getVcsClient().getRootPathAsync());
+    } catch {}
+    if (vcsRoot && vcsRoot.startsWith(projectRootDir) && vcsRoot !== projectRootDir) {
+      throw new Error(
+        `package.json is outside of the current git repository (project root: ${projectRootDir}, git root: ${vcsRoot}.`
+      );
+    }
     return projectRootDir;
   }
 }

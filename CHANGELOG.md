@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Add error message when package.json is outside git repository. ([#971](https://github.com/expo/eas-cli/pull/971) by [@wkozyra95](https://github.com/wkozyra95))
+
 ## [0.47.0](https://github.com/expo/eas-cli/releases/tag/v0.47.0) - 2022-02-08
 
 ### 🐛 Bug fixes
