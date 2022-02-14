@@ -5,7 +5,12 @@ import chalk from 'chalk';
 import { getEASUpdateURL } from '../../api';
 import EasCommand from '../../commandUtils/EasCommand';
 import Log, { learnMore } from '../../log';
-import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUtils';
+import {
+  findProjectRootAsync,
+  getProjectIdAsync,
+  installExpoUpdatesAsync,
+  isExpoUpdatesInstalledOrAvailable,
+} from '../../project/projectUtils';
 import { resolveWorkflowAsync } from '../../project/workflow';
 
 const DEFAULT_MANAGED_RUNTIME_VERSION = { policy: 'sdkVersion' } as const;
@@ -84,6 +89,10 @@ export default class UpdateConfigure extends EasCommand {
     const { exp } = getConfig(projectDir, {
       skipSDKVersionRequirement: true,
     });
+
+    if (!isExpoUpdatesInstalledOrAvailable(projectDir, exp.sdkVersion)) {
+      await installExpoUpdatesAsync(projectDir);
+    }
 
     const hasAndroidNativeProject =
       (await resolveWorkflowAsync(projectDir, Platform.ANDROID)) === Workflow.GENERIC;
