@@ -9,6 +9,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🎉 New features
 
 - Add code signing. ([#964](https://github.com/expo/eas-cli/pull/964) by [@wschurman](https://github.com/wschurman))
+- Install expo-updates when running update:configure. ([#977](https://github.com/expo/eas-cli/pull/977) by [@jkhales](https://github.com/jkhales))
 
 ### 🐛 Bug fixes
 
