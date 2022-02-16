@@ -22,58 +22,60 @@ import { syncUpdatesConfigurationAsync as syncIosUpdatesConfigurationAsync } fro
 const DEFAULT_MANAGED_RUNTIME_VERSION = { policy: 'sdkVersion' } as const;
 const DEFAULT_BARE_RUNTIME_VERSION = '1.0.0';
 
-async function configureAppJSONForEASUpdateAsync(
-  projectDir: string,
-  exp: ExpoConfig,
-  isBare: { ios: boolean; android: boolean },
-  platform: RequestedPlatform
-): Promise<ExpoConfig> {
+async function configureAppJSONForEASUpdateAsync({
+  projectDir,
+  exp,
+  platform,
+  defaultRuntimeVersions,
+}: {
+  projectDir: string;
+  exp: ExpoConfig;
+  platform: RequestedPlatform;
+  defaultRuntimeVersions: {
+    [key in RequestedPlatform.Android | RequestedPlatform.Ios]:
+      | string
+      | {
+          policy: 'sdkVersion';
+        };
+  };
+}): Promise<ExpoConfig> {
   const projectId = await getProjectIdAsync(exp);
   const easUpdateURL = getEASUpdateURL(projectId);
   const updates = { ...exp.updates, url: easUpdateURL };
 
   const prexistingAndroidRuntimeVersion = exp.android?.runtimeVersion ?? exp.runtimeVersion;
+  const android = {
+    ...exp.android,
+    runtimeVersion: prexistingAndroidRuntimeVersion ?? defaultRuntimeVersions['android'],
+  };
+
   const prexistingIosRuntimeVersion = exp.ios?.runtimeVersion ?? exp.runtimeVersion;
-  const defaultIosRuntimeVersion = isBare['ios']
-    ? DEFAULT_BARE_RUNTIME_VERSION
-    : DEFAULT_MANAGED_RUNTIME_VERSION;
-  const defaultAndroidRuntimeVersion = isBare['android']
-    ? DEFAULT_BARE_RUNTIME_VERSION
-    : DEFAULT_MANAGED_RUNTIME_VERSION;
+  const ios = {
+    ...exp.ios,
+    runtimeVersion: prexistingIosRuntimeVersion ?? defaultRuntimeVersions['ios'],
+  };
 
   let result;
   switch (platform) {
     case RequestedPlatform.All: {
       result = await modifyConfigAsync(projectDir, {
-        runtimeVersion: undefined,
-        android: {
-          ...exp.android,
-          runtimeVersion: prexistingAndroidRuntimeVersion ?? defaultAndroidRuntimeVersion,
-        },
-        ios: {
-          ...exp.ios,
-          runtimeVersion: prexistingIosRuntimeVersion ?? defaultIosRuntimeVersion,
-        },
+        runtimeVersion: undefined, // top level runtime is redundant if it is specified in both android and ios
+        android,
+        ios,
         updates,
       });
       break;
     }
     case RequestedPlatform.Android: {
       result = await modifyConfigAsync(projectDir, {
-        android: {
-          ...exp.android,
-          runtimeVersion: prexistingAndroidRuntimeVersion ?? defaultAndroidRuntimeVersion,
-        },
+        android,
         updates,
       });
       break;
     }
     case RequestedPlatform.Ios: {
       result = await modifyConfigAsync(projectDir, {
-        ios: {
-          ...exp.ios,
-          runtimeVersion: prexistingIosRuntimeVersion ?? defaultIosRuntimeVersion,
-        },
+        ios,
         updates,
       });
       break;
@@ -101,7 +103,7 @@ async function configureAppJSONForEASUpdateAsync(
       ) {
         Log.withTick(
           `Set ${appPlatformDisplayNames[AppPlatform.Android]} runtimeVersion to "${JSON.stringify(
-            defaultAndroidRuntimeVersion
+            defaultRuntimeVersions['android']
           )}" in app.json`
         );
       }
@@ -111,7 +113,7 @@ async function configureAppJSONForEASUpdateAsync(
       ) {
         Log.withTick(
           `Set ${appPlatformDisplayNames[AppPlatform.Ios]} runtimeVersion to "${JSON.stringify(
-            defaultIosRuntimeVersion
+            defaultRuntimeVersions['ios']
           )}" in app.json`
         );
       }
@@ -169,31 +171,45 @@ export default class UpdateConfigure extends EasCommand {
     const { exp } = getConfig(projectDir, {
       skipSDKVersionRequirement: true,
     });
-    const hasAndroidNativeProject =
-      (await resolveWorkflowAsync(projectDir, Platform.ANDROID)) === Workflow.GENERIC;
-    const hasIosNativeProject =
-      (await resolveWorkflowAsync(projectDir, Platform.IOS)) === Workflow.GENERIC;
 
     if (!isExpoUpdatesInstalledOrAvailable(projectDir, exp.sdkVersion)) {
       await installExpoUpdatesAsync(projectDir);
     }
 
-    const updatedExp = await configureAppJSONForEASUpdateAsync(
+    const [androidWorkflow, iosWorkflow] = await Promise.all([
+      resolveWorkflowAsync(projectDir, Platform.ANDROID),
+      resolveWorkflowAsync(projectDir, Platform.IOS),
+    ]);
+
+    const defaultRuntimeVersions = {
+      android:
+        androidWorkflow === Workflow.GENERIC
+          ? DEFAULT_BARE_RUNTIME_VERSION
+          : DEFAULT_MANAGED_RUNTIME_VERSION,
+      ios:
+        iosWorkflow === Workflow.GENERIC
+          ? DEFAULT_BARE_RUNTIME_VERSION
+          : DEFAULT_MANAGED_RUNTIME_VERSION,
+    };
+    const updatedExp = await configureAppJSONForEASUpdateAsync({
       projectDir,
       exp,
-      { android: hasIosNativeProject, ios: hasIosNativeProject },
-      platform
-    );
+      platform,
+      defaultRuntimeVersions,
+    });
 
     // configure native files for EAS Update
     const nativeFilesToSync = [];
     if (
       [RequestedPlatform.Android, RequestedPlatform.All].includes(platform) &&
-      hasAndroidNativeProject
+      androidWorkflow === Workflow.GENERIC
     ) {
       nativeFilesToSync.push(syncAndroidUpdatesConfigurationAsync(projectDir, updatedExp));
     }
-    if ([RequestedPlatform.Ios, RequestedPlatform.All].includes(platform) && hasIosNativeProject) {
+    if (
+      [RequestedPlatform.Ios, RequestedPlatform.All].includes(platform) &&
+      iosWorkflow === Workflow.GENERIC
+    ) {
       nativeFilesToSync.push(syncIosUpdatesConfigurationAsync(projectDir, updatedExp));
     }
     await Promise.all(nativeFilesToSync);
