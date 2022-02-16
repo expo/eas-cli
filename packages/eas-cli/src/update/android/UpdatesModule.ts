@@ -1,9 +1,9 @@
 import { ExpoConfig } from '@expo/config';
 import { AndroidConfig, AndroidManifest } from '@expo/config-plugins';
 
+import { ensureValidVersions } from '../../build/utils/updates';
 import { getProjectAccountName } from '../../project/projectUtils';
 import { ensureLoggedInAsync } from '../../user/actions';
-import { ensureValidVersions } from '../utils/updates';
 
 export async function syncUpdatesConfigurationAsync(
   projectDir: string,

@@ -6,19 +6,19 @@ import resolveFrom from 'resolve-from';
 
 import Log from '../log';
 import { getUsername, isExpoUpdatesInstalled } from '../project/projectUtils';
-import { ensureLoggedInAsync } from '../user/actions';
-import { easCliVersion } from '../utils/easCli';
-import { getVcsClient } from '../vcs';
 import {
   readChannelSafelyAsync as readAndroidChannelSafelyAsync,
   readReleaseChannelSafelyAsync as readAndroidReleaseChannelSafelyAsync,
-} from './android/UpdatesModule';
-import { maybeResolveVersionsAsync as maybeResolveAndroidVersionsAsync } from './android/version';
-import { BuildContext } from './context';
+} from '../update/android/UpdatesModule';
 import {
   readChannelSafelyAsync as readIosChannelSafelyAsync,
   readReleaseChannelSafelyAsync as readIosReleaseChannelSafelyAsync,
-} from './ios/UpdatesModule';
+} from '../update/ios/UpdatesModule';
+import { ensureLoggedInAsync } from '../user/actions';
+import { easCliVersion } from '../utils/easCli';
+import { getVcsClient } from '../vcs';
+import { maybeResolveVersionsAsync as maybeResolveAndroidVersionsAsync } from './android/version';
+import { BuildContext } from './context';
 import { maybeResolveVersionsAsync as maybeResolveIosVersionsAsync } from './ios/version';
 
 export async function collectMetadataAsync<T extends Platform>(

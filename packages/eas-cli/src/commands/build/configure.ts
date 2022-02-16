@@ -3,16 +3,16 @@ import { Platform, Workflow } from '@expo/eas-build-job';
 import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 
-import { syncUpdatesConfigurationAsync as syncAndroidUpdatesConfigurationAsync } from '../../build/android/UpdatesModule';
 import { cleanUpOldEasBuildGradleScriptAsync } from '../../build/android/syncProjectConfiguration';
 import { ensureProjectConfiguredAsync } from '../../build/configure';
-import { syncUpdatesConfigurationAsync as syncIosUpdatesConfigurationAsync } from '../../build/ios/UpdatesModule';
 import EasCommand from '../../commandUtils/EasCommand';
 import Log, { learnMore } from '../../log';
 import { RequestedPlatform } from '../../platform';
 import { findProjectRootAsync, isExpoUpdatesInstalled } from '../../project/projectUtils';
 import { resolveWorkflowAsync } from '../../project/workflow';
 import { promptAsync } from '../../prompts';
+import { syncUpdatesConfigurationAsync as syncAndroidUpdatesConfigurationAsync } from '../../update/android/UpdatesModule';
+import { syncUpdatesConfigurationAsync as syncIosUpdatesConfigurationAsync } from '../../update/ios/UpdatesModule';
 import { getVcsClient } from '../../vcs';
 
 export default class BuildConfigure extends EasCommand {

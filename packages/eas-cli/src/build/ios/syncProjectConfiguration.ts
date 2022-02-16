@@ -5,7 +5,7 @@ import type { XCBuildConfiguration } from 'xcode';
 
 import { isExpoUpdatesInstalled } from '../../project/projectUtils';
 import { resolveWorkflowAsync } from '../../project/workflow';
-import { syncUpdatesConfigurationAsync } from './UpdatesModule';
+import { syncUpdatesConfigurationAsync } from '../../update/ios/UpdatesModule';
 import { BumpStrategy, bumpVersionAsync, bumpVersionInAppJsonAsync } from './version';
 
 export async function syncProjectConfigurationAsync({
