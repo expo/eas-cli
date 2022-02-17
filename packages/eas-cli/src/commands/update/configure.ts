@@ -19,8 +19,10 @@ import { resolveWorkflowAsync } from '../../project/workflow';
 import { syncUpdatesConfigurationAsync as syncAndroidUpdatesConfigurationAsync } from '../../update/android/UpdatesModule';
 import { syncUpdatesConfigurationAsync as syncIosUpdatesConfigurationAsync } from '../../update/ios/UpdatesModule';
 
-const DEFAULT_MANAGED_RUNTIME_VERSION = { policy: 'sdkVersion' } as const;
-const DEFAULT_BARE_RUNTIME_VERSION = '1.0.0';
+type DefaultManagedRuntimeVersion = { policy: 'sdkVersion' };
+type DefaultBareRuntimeVersion = '1.0.0';
+const DEFAULT_MANAGED_RUNTIME_VERSION = { policy: 'sdkVersion' } as DefaultManagedRuntimeVersion;
+const DEFAULT_BARE_RUNTIME_VERSION = '1.0.0' as DefaultBareRuntimeVersion;
 
 async function configureAppJSONForEASUpdateAsync({
   projectDir,
@@ -33,10 +35,8 @@ async function configureAppJSONForEASUpdateAsync({
   platform: RequestedPlatform;
   defaultRuntimeVersions: {
     [key in RequestedPlatform.Android | RequestedPlatform.Ios]:
-      | string
-      | {
-          policy: 'sdkVersion';
-        };
+      | DefaultManagedRuntimeVersion
+      | DefaultBareRuntimeVersion;
   };
 }): Promise<ExpoConfig> {
   const projectId = await getProjectIdAsync(exp);
