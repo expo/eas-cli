@@ -1,17 +1,18 @@
 import { ExpoConfig } from '@expo/config';
 import { IOSConfig } from '@expo/config-plugins';
 
-import { ensureValidVersions } from '../../build/utils/updates';
+import { RequestedPlatform } from '../../platform';
 import { getProjectAccountName } from '../../project/projectUtils';
 import { ensureLoggedInAsync } from '../../user/actions';
 import { readPlistAsync, writePlistAsync } from '../../utils/plist';
 import { getVcsClient } from '../../vcs';
+import { ensureValidVersions } from '../utils';
 
 export async function syncUpdatesConfigurationAsync(
   projectDir: string,
   exp: ExpoConfig
 ): Promise<void> {
-  ensureValidVersions(exp);
+  ensureValidVersions(exp, RequestedPlatform.Ios);
   const accountName = getProjectAccountName(exp, await ensureLoggedInAsync());
   const expoPlist = await readExpoPlistAsync(projectDir);
   const updatedExpoPlist = IOSConfig.Updates.setUpdatesConfig(

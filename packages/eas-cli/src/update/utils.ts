@@ -1,6 +1,9 @@
+import { ExpoConfig } from '@expo/config';
 import { format } from '@expo/timeago.js';
 
 import { Maybe, Robot, Update, User } from '../graphql/generated';
+import { learnMore } from '../log';
+import { RequestedPlatform } from '../platform';
 import { getActorDisplayName } from '../user/User';
 import groupBy from '../utils/expodash/groupBy';
 
@@ -40,4 +43,27 @@ export function formatUpdate(update: FormatUpdateParameter): string {
   return `${message}(${format(update.createdAt, 'en_US')} by ${getActorDisplayName(
     update.actor as any
   )})`;
+}
+
+export function ensureValidVersions(exp: ExpoConfig, platform: RequestedPlatform): void {
+  const error = new Error(
+    `Couldn't find either 'runtimeVersion' or 'sdkVersion' to configure 'expo-updates'. Please specify at least one of these properties under the 'expo' key in 'app.json'. ${learnMore(
+      'https://docs.expo.dev/eas-update/runtime-versions/'
+    )}`
+  );
+
+  if (
+    [RequestedPlatform.Android, RequestedPlatform.All].includes(platform) &&
+    !(exp.android?.runtimeVersion || exp.runtimeVersion) &&
+    !exp.sdkVersion
+  ) {
+    throw error;
+  }
+  if (
+    [RequestedPlatform.Ios, RequestedPlatform.All].includes(platform) &&
+    !(exp.ios?.runtimeVersion || exp.runtimeVersion) &&
+    !exp.sdkVersion
+  ) {
+    throw error;
+  }
 }

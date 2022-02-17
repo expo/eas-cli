@@ -51,7 +51,7 @@ async function configureAppJSONForEASUpdateAsync({
   let newConfig: Partial<ExpoConfig>;
   switch (platform) {
     case RequestedPlatform.All: {
-      if (newAndroidRuntimeVersion === newIosRuntimeVersion) {
+      if (isRuntimeEqual(newAndroidRuntimeVersion, newIosRuntimeVersion)) {
         newConfig = {
           runtimeVersion: newAndroidRuntimeVersion,
           android: {
@@ -234,16 +234,31 @@ export default class UpdateConfigure extends EasCommand {
       androidWorkflow === Workflow.GENERIC
     ) {
       nativeFilesToSync.push(syncAndroidUpdatesConfigurationAsync(projectDir, updatedExp));
+      Log.withTick('Configured AndroidManifest.xml for EAS Update');
     }
     if (
       [RequestedPlatform.Ios, RequestedPlatform.All].includes(platform) &&
       iosWorkflow === Workflow.GENERIC
     ) {
       nativeFilesToSync.push(syncIosUpdatesConfigurationAsync(projectDir, updatedExp));
+      Log.withTick('Configured Expo.plist for EAS Update');
     }
     await Promise.all(nativeFilesToSync);
 
     Log.addNewLineIfNone();
     Log.log(`🎉 Your app is configured to run EAS Update!`);
   }
+}
+
+function isRuntimeEqual(
+  runtimeVersionA: string | { policy: 'sdkVersion' | 'nativeVersion' },
+  runtimeVersionB: string | { policy: 'sdkVersion' | 'nativeVersion' }
+): boolean {
+  if (typeof runtimeVersionA === 'string' && typeof runtimeVersionB === 'string') {
+    return runtimeVersionA === runtimeVersionB;
+  }
+  if (typeof runtimeVersionA === 'object' && typeof runtimeVersionB === 'object') {
+    return runtimeVersionA.policy === runtimeVersionB.policy;
+  }
+  return false;
 }
