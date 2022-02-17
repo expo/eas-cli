@@ -43,41 +43,58 @@ async function configureAppJSONForEASUpdateAsync({
   const easUpdateURL = getEASUpdateURL(projectId);
   const updates = { ...exp.updates, url: easUpdateURL };
 
-  const prexistingAndroidRuntimeVersion = exp.android?.runtimeVersion ?? exp.runtimeVersion;
-  const android = {
-    ...exp.android,
-    runtimeVersion: prexistingAndroidRuntimeVersion ?? defaultRuntimeVersions['android'],
-  };
+  const newAndroidRuntimeVersion =
+    exp.android?.runtimeVersion ?? exp.runtimeVersion ?? defaultRuntimeVersions['android'];
+  const newIosRuntimeVersion =
+    exp.ios?.runtimeVersion ?? exp.runtimeVersion ?? defaultRuntimeVersions['ios'];
 
-  const prexistingIosRuntimeVersion = exp.ios?.runtimeVersion ?? exp.runtimeVersion;
-  const ios = {
-    ...exp.ios,
-    runtimeVersion: prexistingIosRuntimeVersion ?? defaultRuntimeVersions['ios'],
-  };
-
-  let result;
+  let newConfig: Partial<ExpoConfig>;
   switch (platform) {
     case RequestedPlatform.All: {
-      result = await modifyConfigAsync(projectDir, {
-        runtimeVersion: undefined, // top level runtime is redundant if it is specified in both android and ios
-        android,
-        ios,
-        updates,
-      });
+      if (newAndroidRuntimeVersion === newIosRuntimeVersion) {
+        newConfig = {
+          runtimeVersion: newAndroidRuntimeVersion,
+          android: {
+            ...exp.android,
+            runtimeVersion: undefined,
+          },
+          ios: { ...exp.ios, runtimeVersion: undefined },
+          updates,
+        };
+      } else {
+        newConfig = {
+          runtimeVersion: undefined, // top level runtime is redundant if it is specified in both android and ios
+          android: {
+            ...exp.android,
+            runtimeVersion: newAndroidRuntimeVersion,
+          },
+          ios: {
+            ...exp.ios,
+            runtimeVersion: newIosRuntimeVersion,
+          },
+          updates,
+        };
+      }
       break;
     }
     case RequestedPlatform.Android: {
-      result = await modifyConfigAsync(projectDir, {
-        android,
+      newConfig = {
+        android: {
+          ...exp.android,
+          runtimeVersion: newAndroidRuntimeVersion,
+        },
         updates,
-      });
+      };
       break;
     }
     case RequestedPlatform.Ios: {
-      result = await modifyConfigAsync(projectDir, {
-        ios,
+      newConfig = {
+        ios: {
+          ...exp.ios,
+          runtimeVersion: newIosRuntimeVersion,
+        },
         updates,
-      });
+      };
       break;
     }
     default: {
@@ -85,6 +102,9 @@ async function configureAppJSONForEASUpdateAsync({
     }
   }
 
+  const result = await modifyConfigAsync(projectDir, newConfig);
+  const prexistingAndroidRuntimeVersion = exp.android?.runtimeVersion ?? exp.runtimeVersion;
+  const prexistingIosRuntimeVersion = exp.ios?.runtimeVersion ?? exp.runtimeVersion;
   switch (result.type) {
     case 'success':
       if (exp.updates?.url) {
@@ -103,7 +123,7 @@ async function configureAppJSONForEASUpdateAsync({
       ) {
         Log.withTick(
           `Set ${appPlatformDisplayNames[AppPlatform.Android]} runtimeVersion to "${JSON.stringify(
-            defaultRuntimeVersions['android']
+            newConfig.android?.runtimeVersion ?? newConfig.runtimeVersion
           )}" in app.json`
         );
       }
@@ -113,11 +133,10 @@ async function configureAppJSONForEASUpdateAsync({
       ) {
         Log.withTick(
           `Set ${appPlatformDisplayNames[AppPlatform.Ios]} runtimeVersion to "${JSON.stringify(
-            defaultRuntimeVersions['ios']
+            newConfig.ios?.runtimeVersion ?? newConfig.runtimeVersion
           )}" in app.json`
         );
       }
-
       break;
     case 'warn': {
       Log.addNewLineIfNone();
@@ -131,11 +150,7 @@ async function configureAppJSONForEASUpdateAsync({
           'https://expo.fyi/eas-update-config.md'
         )}\n`
       );
-      Log.log(
-        chalk.bold(
-          `{\n  "updates": {\n    "url": "${easUpdateURL}"\n  },\n  "runtimeVersion": {\n    "policy": "sdkVersion"\n  }\n}`
-        )
-      );
+      Log.log(chalk.bold(JSON.stringify(newConfig, null, 2)));
       Log.addNewLineIfNone();
       throw new Error(result.message);
     }
@@ -191,12 +206,26 @@ export default class UpdateConfigure extends EasCommand {
           ? DEFAULT_BARE_RUNTIME_VERSION
           : DEFAULT_MANAGED_RUNTIME_VERSION,
     };
-    const updatedExp = await configureAppJSONForEASUpdateAsync({
-      projectDir,
-      exp,
-      platform,
-      defaultRuntimeVersions,
-    });
+
+    let updatedExp: ExpoConfig;
+    try {
+      updatedExp = await configureAppJSONForEASUpdateAsync({
+        projectDir,
+        exp,
+        platform,
+        defaultRuntimeVersions,
+      });
+    } catch (e) {
+      if (androidWorkflow === Workflow.GENERIC || iosWorkflow === Workflow.GENERIC) {
+        Log.warn(
+          `You will also have to manually edit Expo.plist/AndroidManifest.xml. ${learnMore(
+            'https://expo.fyi/eas-update-config.md#native-configuration'
+          )}`
+        );
+      }
+      Log.addNewLineIfNone();
+      throw e;
+    }
 
     // configure native files for EAS Update
     const nativeFilesToSync = [];
