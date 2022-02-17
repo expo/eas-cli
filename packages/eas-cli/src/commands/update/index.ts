@@ -552,7 +552,9 @@ async function getRuntimeVersionObjectAsync(
     if (isPolicy) {
       const isManaged = (await resolveWorkflowAsync(projectDir, platform)) === Workflow.MANAGED;
       if (!isManaged) {
-        throw new Error('Runtime version policies are only supported in the managed workflow. In the bare workflow, runtime version needs to be set manually.');
+        throw new Error(
+          'Runtime version policies are only supported in the managed workflow. In the bare workflow, runtime version needs to be set manually.'
+        );
       }
     }
   }
