@@ -19,10 +19,92 @@ import { resolveWorkflowAsync } from '../../project/workflow';
 import { syncUpdatesConfigurationAsync as syncAndroidUpdatesConfigurationAsync } from '../../update/android/UpdatesModule';
 import { syncUpdatesConfigurationAsync as syncIosUpdatesConfigurationAsync } from '../../update/ios/UpdatesModule';
 
-type DefaultManagedRuntimeVersion = { policy: 'sdkVersion' };
-type DefaultBareRuntimeVersion = '1.0.0';
-const DEFAULT_MANAGED_RUNTIME_VERSION = { policy: 'sdkVersion' } as DefaultManagedRuntimeVersion;
-const DEFAULT_BARE_RUNTIME_VERSION = '1.0.0' as DefaultBareRuntimeVersion;
+const DEFAULT_MANAGED_RUNTIME_VERSION = { policy: 'sdkVersion' } as const;
+const DEFAULT_BARE_RUNTIME_VERSION = '1.0.0' as const;
+
+export default class UpdateConfigure extends EasCommand {
+  static description = 'configure the project to support EAS Update';
+
+  static flags = {
+    platform: Flags.enum({
+      description: 'Platform to configure',
+      char: 'p',
+      options: ['android', 'ios', 'all'],
+      default: 'all',
+    }),
+  };
+
+  async runAsync(): Promise<void> {
+    Log.log(
+      '💡 The following process will configure your project to run EAS Update. These changes only apply to your local project files and you can safely revert them at any time.'
+    );
+    const { flags } = await this.parse(UpdateConfigure);
+    const platform = flags.platform as RequestedPlatform;
+    const projectDir = await findProjectRootAsync();
+    const { exp } = getConfig(projectDir, {
+      skipSDKVersionRequirement: true,
+    });
+
+    if (!isExpoUpdatesInstalledOrAvailable(projectDir, exp.sdkVersion)) {
+      await installExpoUpdatesAsync(projectDir);
+    }
+
+    const [androidWorkflow, iosWorkflow] = await Promise.all([
+      resolveWorkflowAsync(projectDir, Platform.ANDROID),
+      resolveWorkflowAsync(projectDir, Platform.IOS),
+    ]);
+
+    const defaultRuntimeVersions = {
+      android:
+        androidWorkflow === Workflow.GENERIC
+          ? DEFAULT_BARE_RUNTIME_VERSION
+          : DEFAULT_MANAGED_RUNTIME_VERSION,
+      ios:
+        iosWorkflow === Workflow.GENERIC
+          ? DEFAULT_BARE_RUNTIME_VERSION
+          : DEFAULT_MANAGED_RUNTIME_VERSION,
+    };
+
+    let updatedExp: ExpoConfig;
+    try {
+      updatedExp = await configureAppJSONForEASUpdateAsync({
+        projectDir,
+        exp,
+        platform,
+        defaultRuntimeVersions,
+      });
+    } catch (e) {
+      if (androidWorkflow === Workflow.GENERIC || iosWorkflow === Workflow.GENERIC) {
+        Log.warn(
+          `You will also have to manually edit Expo.plist/AndroidManifest.xml. ${learnMore(
+            'https://expo.fyi/eas-update-config.md#native-configuration'
+          )}`
+        );
+      }
+      Log.addNewLineIfNone();
+      throw e;
+    }
+
+    // configure native files for EAS Update
+    if (
+      [RequestedPlatform.Android, RequestedPlatform.All].includes(platform) &&
+      androidWorkflow === Workflow.GENERIC
+    ) {
+      await syncAndroidUpdatesConfigurationAsync(projectDir, updatedExp);
+      Log.withTick('Configured AndroidManifest.xml for EAS Update');
+    }
+    if (
+      [RequestedPlatform.Ios, RequestedPlatform.All].includes(platform) &&
+      iosWorkflow === Workflow.GENERIC
+    ) {
+      await syncIosUpdatesConfigurationAsync(projectDir, updatedExp);
+      Log.withTick('Configured Expo.plist for EAS Update');
+    }
+
+    Log.addNewLineIfNone();
+    Log.log(`🎉 Your app is configured to run EAS Update!`);
+  }
+}
 
 async function configureAppJSONForEASUpdateAsync({
   projectDir,
@@ -35,8 +117,8 @@ async function configureAppJSONForEASUpdateAsync({
   platform: RequestedPlatform;
   defaultRuntimeVersions: {
     [key in RequestedPlatform.Android | RequestedPlatform.Ios]:
-      | DefaultManagedRuntimeVersion
-      | DefaultBareRuntimeVersion;
+      | typeof DEFAULT_MANAGED_RUNTIME_VERSION
+      | typeof DEFAULT_BARE_RUNTIME_VERSION;
   };
 }): Promise<ExpoConfig> {
   const projectId = await getProjectIdAsync(exp);
@@ -164,101 +246,15 @@ async function configureAppJSONForEASUpdateAsync({
   return result.config.expo;
 }
 
-export default class UpdateConfigure extends EasCommand {
-  static description = 'configure the project to support EAS Update';
-
-  static flags = {
-    platform: Flags.enum({
-      description: 'Platform to configure',
-      char: 'p',
-      options: ['android', 'ios', 'all'],
-      default: 'all',
-    }),
-  };
-
-  async runAsync(): Promise<void> {
-    Log.log(
-      '💡 The following process will configure your project to run EAS Update. These changes only apply to your local project files and you can safely revert them at any time.'
-    );
-    const { flags } = await this.parse(UpdateConfigure);
-    const platform = flags.platform as RequestedPlatform;
-    const projectDir = await findProjectRootAsync();
-    const { exp } = getConfig(projectDir, {
-      skipSDKVersionRequirement: true,
-    });
-
-    if (!isExpoUpdatesInstalledOrAvailable(projectDir, exp.sdkVersion)) {
-      await installExpoUpdatesAsync(projectDir);
-    }
-
-    const [androidWorkflow, iosWorkflow] = await Promise.all([
-      resolveWorkflowAsync(projectDir, Platform.ANDROID),
-      resolveWorkflowAsync(projectDir, Platform.IOS),
-    ]);
-
-    const defaultRuntimeVersions = {
-      android:
-        androidWorkflow === Workflow.GENERIC
-          ? DEFAULT_BARE_RUNTIME_VERSION
-          : DEFAULT_MANAGED_RUNTIME_VERSION,
-      ios:
-        iosWorkflow === Workflow.GENERIC
-          ? DEFAULT_BARE_RUNTIME_VERSION
-          : DEFAULT_MANAGED_RUNTIME_VERSION,
-    };
-
-    let updatedExp: ExpoConfig;
-    try {
-      updatedExp = await configureAppJSONForEASUpdateAsync({
-        projectDir,
-        exp,
-        platform,
-        defaultRuntimeVersions,
-      });
-    } catch (e) {
-      if (androidWorkflow === Workflow.GENERIC || iosWorkflow === Workflow.GENERIC) {
-        Log.warn(
-          `You will also have to manually edit Expo.plist/AndroidManifest.xml. ${learnMore(
-            'https://expo.fyi/eas-update-config.md#native-configuration'
-          )}`
-        );
-      }
-      Log.addNewLineIfNone();
-      throw e;
-    }
-
-    // configure native files for EAS Update
-    const nativeFilesToSync = [];
-    if (
-      [RequestedPlatform.Android, RequestedPlatform.All].includes(platform) &&
-      androidWorkflow === Workflow.GENERIC
-    ) {
-      nativeFilesToSync.push(syncAndroidUpdatesConfigurationAsync(projectDir, updatedExp));
-      Log.withTick('Configured AndroidManifest.xml for EAS Update');
-    }
-    if (
-      [RequestedPlatform.Ios, RequestedPlatform.All].includes(platform) &&
-      iosWorkflow === Workflow.GENERIC
-    ) {
-      nativeFilesToSync.push(syncIosUpdatesConfigurationAsync(projectDir, updatedExp));
-      Log.withTick('Configured Expo.plist for EAS Update');
-    }
-    await Promise.all(nativeFilesToSync);
-
-    Log.addNewLineIfNone();
-    Log.log(`🎉 Your app is configured to run EAS Update!`);
-  }
-}
-
 function isRuntimeEqual(
   runtimeVersionA: string | { policy: 'sdkVersion' | 'nativeVersion' },
   runtimeVersionB: string | { policy: 'sdkVersion' | 'nativeVersion' }
 ): boolean {
   if (typeof runtimeVersionA === 'string' && typeof runtimeVersionB === 'string') {
     return runtimeVersionA === runtimeVersionB;
-  }
-  if (typeof runtimeVersionA === 'object' && typeof runtimeVersionB === 'object') {
+  } else if (typeof runtimeVersionA === 'object' && typeof runtimeVersionB === 'object') {
     return runtimeVersionA.policy === runtimeVersionB.policy;
+  } else {
+    return false;
   }
-  return false;
 }

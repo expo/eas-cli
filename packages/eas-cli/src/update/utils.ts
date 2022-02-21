@@ -1,5 +1,6 @@
 import { ExpoConfig } from '@expo/config';
 import { format } from '@expo/timeago.js';
+import chalk from 'chalk';
 
 import { Maybe, Robot, Update, User } from '../graphql/generated';
 import { learnMore } from '../log';
@@ -47,7 +48,13 @@ export function formatUpdate(update: FormatUpdateParameter): string {
 
 export function ensureValidVersions(exp: ExpoConfig, platform: RequestedPlatform): void {
   const error = new Error(
-    `Couldn't find either 'runtimeVersion' or 'sdkVersion' to configure 'expo-updates'. Please specify at least one of these properties under the 'expo' key in 'app.json'. ${learnMore(
+    `Couldn't find either ${chalk.bold('runtimeVersion')} or ${chalk.bold(
+      'sdkVersion'
+    )} to configure ${chalk.bold(
+      'expo-updates'
+    )}. Please specify at least one of these properties under the ${chalk.bold(
+      'expo'
+    )} key in ${chalk.bold('app.json')}. ${learnMore(
       'https://docs.expo.dev/eas-update/runtime-versions/'
     )}`
   );
