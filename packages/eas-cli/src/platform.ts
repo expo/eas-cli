@@ -13,7 +13,7 @@ export const appPlatformEmojis = {
   [AppPlatform.Android]: '🤖',
 };
 
-// for `eas build` and `eas submit`
+// for `eas build`, `eas submit`, and `eas update`
 export enum RequestedPlatform {
   Android = 'android',
   Ios = 'ios',

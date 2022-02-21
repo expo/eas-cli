@@ -9,7 +9,7 @@ import path from 'path';
 import Log from '../../log';
 import { isExpoUpdatesInstalled } from '../../project/projectUtils';
 import { resolveWorkflowAsync } from '../../project/workflow';
-import { syncUpdatesConfigurationAsync } from './UpdatesModule';
+import { syncUpdatesConfigurationAsync } from '../../update/android/UpdatesModule';
 import { BumpStrategy, bumpVersionAsync, bumpVersionInAppJsonAsync } from './version';
 
 export async function syncProjectConfigurationAsync({
