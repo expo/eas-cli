@@ -54,36 +54,16 @@ export default class UpdateConfigure extends EasCommand {
       resolveWorkflowAsync(projectDir, Platform.IOS),
     ]);
 
-    const defaultRuntimeVersions = {
-      android:
-        androidWorkflow === Workflow.GENERIC
-          ? DEFAULT_BARE_RUNTIME_VERSION
-          : DEFAULT_MANAGED_RUNTIME_VERSION,
-      ios:
-        iosWorkflow === Workflow.GENERIC
-          ? DEFAULT_BARE_RUNTIME_VERSION
-          : DEFAULT_MANAGED_RUNTIME_VERSION,
-    };
-
-    let updatedExp: ExpoConfig;
-    try {
-      updatedExp = await configureAppJSONForEASUpdateAsync({
-        projectDir,
-        exp,
-        platform,
-        defaultRuntimeVersions,
-      });
-    } catch (e) {
-      if (androidWorkflow === Workflow.GENERIC || iosWorkflow === Workflow.GENERIC) {
-        Log.warn(
-          `You will also have to manually edit Expo.plist/AndroidManifest.xml. ${learnMore(
-            'https://expo.fyi/eas-update-config.md#native-configuration'
-          )}`
-        );
-      }
-      Log.addNewLineIfNone();
-      throw e;
-    }
+    const updatedExp = await configureAppJSONForEASUpdateAsync({
+      projectDir,
+      exp,
+      platform,
+      workflows: {
+        android: androidWorkflow,
+        ios: iosWorkflow,
+      },
+    });
+    Log.withTick(`Configured ${chalk.bold('app.json')} for EAS Update`);
 
     // configure native files for EAS Update
     if (
@@ -91,14 +71,14 @@ export default class UpdateConfigure extends EasCommand {
       androidWorkflow === Workflow.GENERIC
     ) {
       await syncAndroidUpdatesConfigurationAsync(projectDir, updatedExp);
-      Log.withTick('Configured AndroidManifest.xml for EAS Update');
+      Log.withTick(`Configured ${chalk.bold('AndroidManifest.xml')} for EAS Update`);
     }
     if (
       [RequestedPlatform.Ios, RequestedPlatform.All].includes(platform) &&
       iosWorkflow === Workflow.GENERIC
     ) {
       await syncIosUpdatesConfigurationAsync(projectDir, updatedExp);
-      Log.withTick('Configured Expo.plist for EAS Update');
+      Log.withTick(`Configured ${chalk.bold('Expo.plist')} for EAS Update`);
     }
 
     Log.addNewLineIfNone();
@@ -110,25 +90,32 @@ async function configureAppJSONForEASUpdateAsync({
   projectDir,
   exp,
   platform,
-  defaultRuntimeVersions,
+  workflows,
 }: {
   projectDir: string;
   exp: ExpoConfig;
   platform: RequestedPlatform;
-  defaultRuntimeVersions: {
-    [key in RequestedPlatform.Android | RequestedPlatform.Ios]:
-      | typeof DEFAULT_MANAGED_RUNTIME_VERSION
-      | typeof DEFAULT_BARE_RUNTIME_VERSION;
+  workflows: {
+    [key in RequestedPlatform.Android | RequestedPlatform.Ios]: Workflow;
   };
 }): Promise<ExpoConfig> {
   const projectId = await getProjectIdAsync(exp);
   const easUpdateURL = getEASUpdateURL(projectId);
   const updates = { ...exp.updates, url: easUpdateURL };
 
+  const androidDefaultRuntimeVersion =
+    workflows['android'] === Workflow.GENERIC
+      ? DEFAULT_BARE_RUNTIME_VERSION
+      : DEFAULT_MANAGED_RUNTIME_VERSION;
+  const iosDefaultRuntimeVersion =
+    workflows['ios'] === Workflow.GENERIC
+      ? DEFAULT_BARE_RUNTIME_VERSION
+      : DEFAULT_MANAGED_RUNTIME_VERSION;
+
   const newAndroidRuntimeVersion =
-    exp.android?.runtimeVersion ?? exp.runtimeVersion ?? defaultRuntimeVersions['android'];
+    exp.android?.runtimeVersion ?? exp.runtimeVersion ?? androidDefaultRuntimeVersion;
   const newIosRuntimeVersion =
-    exp.ios?.runtimeVersion ?? exp.runtimeVersion ?? defaultRuntimeVersions['ios'];
+    exp.ios?.runtimeVersion ?? exp.runtimeVersion ?? iosDefaultRuntimeVersion;
 
   let newConfig: Partial<ExpoConfig>;
   switch (platform) {
@@ -185,6 +172,7 @@ async function configureAppJSONForEASUpdateAsync({
   }
 
   const result = await modifyConfigAsync(projectDir, newConfig);
+
   const prexistingAndroidRuntimeVersion = exp.android?.runtimeVersion ?? exp.runtimeVersion;
   const prexistingIosRuntimeVersion = exp.ios?.runtimeVersion ?? exp.runtimeVersion;
   switch (result.type) {
@@ -233,6 +221,14 @@ async function configureAppJSONForEASUpdateAsync({
         )}\n`
       );
       Log.log(chalk.bold(JSON.stringify(newConfig, null, 2)));
+      Log.addNewLineIfNone();
+      if (workflows['android'] === Workflow.GENERIC || workflows['ios'] === Workflow.GENERIC) {
+        Log.warn(
+          `You will also have to manually edit the projects ${chalk.bold(
+            'Expo.plist/AndroidManifest.xml'
+          )}. ${learnMore('https://expo.fyi/eas-update-config.md#native-configuration')}`
+        );
+      }
       Log.addNewLineIfNone();
       throw new Error(result.message);
     }
