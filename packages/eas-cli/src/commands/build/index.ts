@@ -141,7 +141,7 @@ export default class Build extends EasCommand {
     if (flags['skip-project-configuration']) {
       Log.warnDeprecatedFlag(
         'skip-project-configuration',
-        'Automatic configuration of the native code is no longer optional.'
+        'Automatic configuration of native code is no longer optional.'
       );
       Log.newLine();
     }
