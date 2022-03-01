@@ -50,7 +50,7 @@ export default class Build extends EasCommand {
     }),
     'skip-project-configuration': Flags.boolean({
       default: false,
-      description: 'Skip project configuration',
+      hidden: true,
     }),
     profile: Flags.string({
       description:
@@ -135,6 +135,13 @@ export default class Build extends EasCommand {
       Log.warnDeprecatedFlag(
         'skip-credentials-check',
         'Build credentials validation is always skipped with the --non-interactive flag. You can also skip interactively.'
+      );
+      Log.newLine();
+    }
+    if (flags['skip-project-configuration']) {
+      Log.warnDeprecatedFlag(
+        'skip-project-configuration',
+        'Automatic configuration of the native code is no longer optional.'
       );
       Log.newLine();
     }
