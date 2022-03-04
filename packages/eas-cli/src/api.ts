@@ -63,7 +63,7 @@ class ApiV2 {
       let result: { [key: string]: any };
       try {
         result = await response.json();
-      } catch (err) {
+      } catch {
         throw new Error(`Malformed api response: ${await response.text()}`);
       }
       if (result.errors?.length) {
