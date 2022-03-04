@@ -1,7 +1,7 @@
 import FormData from 'form-data';
-import { Response } from 'got';
 import path from 'path';
 
+import { Headers, Response } from '../../fetch';
 import { PartialManifest } from '../../graphql/generated';
 import {
   checkManifestBodyAgainstUpdateInfoGroup,
@@ -73,7 +73,7 @@ describe(getKeyAndCertificateFromPathsAsync, () => {
     ).rejects.toThrow(`Code signing private key cannot be read from path: ${privateKeyPath2}`);
   });
 
-  it('loads certifivate and private key', async () => {
+  it('loads certificate and private key', async () => {
     const result = await getKeyAndCertificateFromPathsAsync({
       codeSigningCertificatePath: path.join(__dirname, './fixtures/test-certificate.pem'),
       privateKeyPath: path.join(__dirname, './fixtures/test-private-key.pem'),
@@ -97,10 +97,10 @@ describe(parseMultipartMixedResponseAsync, () => {
     const form = generateMultipartBody(JSON.stringify({ hello: 'world' }));
 
     const parts = await parseMultipartMixedResponseAsync({
-      rawBody: form.getBuffer(),
-      headers: {
+      arrayBuffer: () => Promise.resolve(form.getBuffer()),
+      headers: new Headers({
         'content-type': `multipart/mixed; boundary=${form.getBoundary()}`,
-      },
+      }),
     } as any as Response);
 
     expect(parts).toHaveLength(2);
@@ -113,10 +113,10 @@ describe(getManifestBodyAsync, () => {
     const form = generateMultipartBody(stringifiedManifest);
 
     const body = await getManifestBodyAsync({
-      rawBody: form.getBuffer(),
-      headers: {
+      arrayBuffer: () => Promise.resolve(form.getBuffer()),
+      headers: new Headers({
         'content-type': `multipart/mixed; boundary=${form.getBoundary()}`,
-      },
+      }),
     } as any as Response);
 
     expect(body).toEqual(stringifiedManifest);

@@ -1,42 +1,91 @@
-import got, { HTTPError, NormalizedOptions, RequestError } from 'got';
+import { JSONValue } from '@expo/json-file';
+import fetch, { RequestInit, Response } from 'node-fetch';
 
-import ApiV2Error from './ApiV2Error';
 import { getAccessToken, getSessionSecret } from './user/sessionStorage';
 
-export const apiClient = got.extend({
-  prefixUrl: getExpoApiBaseUrl() + '/v2/',
-  hooks: {
-    beforeRequest: [
-      (options: NormalizedOptions) => {
-        const token = getAccessToken();
-        if (token) {
-          options.headers.authorization = `Bearer ${token}`;
-          return;
-        }
-        const sessionSecret = getSessionSecret();
-        if (sessionSecret) {
-          options.headers['expo-session'] = sessionSecret;
-        }
+export class ApiV2Error extends Error {
+  readonly name = 'ApiV2Error';
+  readonly expoApiV2ErrorCode: string;
+  readonly expoApiV2ErrorDetails?: JSONValue;
+  readonly expoApiV2ErrorServerStack?: string;
+  readonly expoApiV2ErrorMetadata?: object;
+
+  constructor(response: {
+    message: string;
+    code: string;
+    stack?: string;
+    details?: JSONValue;
+    metadata?: object;
+  }) {
+    super(response.message);
+    this.expoApiV2ErrorCode = response.code;
+    this.expoApiV2ErrorDetails = response.details;
+    this.expoApiV2ErrorServerStack = response.stack;
+    this.expoApiV2ErrorMetadata = response.metadata;
+  }
+}
+
+interface RequestOptions {
+  body: JSONValue;
+}
+
+class ApiV2 {
+  public async putAsync(path: string, options: RequestOptions): Promise<any> {
+    return await this.requestAsync(path, { method: 'PUT', body: JSON.stringify(options.body) });
+  }
+
+  public async postAsync(path: string, options: RequestOptions): Promise<any> {
+    return await this.requestAsync(path, { method: 'POST', body: JSON.stringify(options.body) });
+  }
+
+  public async deleteAsync(path: string): Promise<any> {
+    return await this.requestAsync(path, { method: 'DELETE' });
+  }
+
+  public async getAsync(path: string): Promise<any> {
+    return await this.requestAsync(path, { method: 'GET' });
+  }
+
+  private async requestAsync(path: string, options: RequestInit): Promise<any> {
+    const response = await fetch(`${getExpoApiBaseUrl()}/v2/${path}`, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        ...this.getAuthHeaders(),
       },
-    ],
-    beforeError: [
-      (error: RequestError): RequestError => {
-        if (error instanceof HTTPError) {
-          let result: { [key: string]: any };
-          try {
-            result = JSON.parse(error.response.body as string);
-          } catch (e2) {
-            return error;
-          }
-          if (result.errors?.length) {
-            return new ApiV2Error(error, result.errors[0]);
-          }
-        }
-        return error;
-      },
-    ],
-  },
-});
+    });
+    await this.handleApiErrorAsync(response);
+    return await response.json();
+  }
+
+  private async handleApiErrorAsync(response: Response): Promise<void> {
+    if (response.status >= 400) {
+      let result: { [key: string]: any };
+      try {
+        result = await response.json();
+      } catch (err) {
+        throw new Error(`Malformed api response: ${await response.text()}`);
+      }
+      if (result.errors?.length) {
+        throw new ApiV2Error(result.errors[0]);
+      }
+    }
+  }
+
+  private getAuthHeaders(): Record<string, string> {
+    const token = getAccessToken();
+    if (token) {
+      return { authorization: `Bearer ${token}` };
+    }
+    const sessionSecret = getSessionSecret();
+    if (sessionSecret) {
+      return { 'expo-session': sessionSecret };
+    }
+    return {};
+  }
+}
+
+export const api = new ApiV2();
 
 export function getExpoApiBaseUrl(): string {
   if (process.env.EXPO_STAGING) {

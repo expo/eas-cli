@@ -41,7 +41,6 @@
     "form-data": "4.0.0",
     "fs-extra": "10.0.0",
     "getenv": "1.0.0",
-    "got": "11.8.2",
     "gradle-to-js": "2.0.0",
     "graphql": "16.3.0",
     "graphql-tag": "2.12.6",

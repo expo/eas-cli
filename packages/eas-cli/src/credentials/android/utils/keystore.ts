@@ -2,14 +2,11 @@ import spawnAsync from '@expo/spawn-async';
 import chalk from 'chalk';
 import crypto from 'crypto';
 import fs from 'fs-extra';
-// (dsokal) We actually want to use node-fetch but the change is in progress.
-// See https://github.com/expo/eas-cli/issues/32 for context.
-// eslint-disable-next-line no-restricted-imports
-import fetch from 'node-fetch';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 
 import { Analytics, BuildEvent } from '../../../analytics/events';
+import fetch from '../../../fetch';
 import { AndroidKeystoreType } from '../../../graphql/generated';
 import { KeystoreGenerationUrlMutation } from '../../../graphql/mutations/KeystoreGenerationUrlMutation';
 import Log from '../../../log';
@@ -149,7 +146,7 @@ async function createKeystoreInCloudAsync(
       body: JSON.stringify(keystoreParams),
       headers: { 'Content-Type': 'application/json' },
     });
-    const result: KeystoreServiceResult = await response.json();
+    const result = (await response.json()) as KeystoreServiceResult;
     spinner.succeed();
     return {
       type: AndroidKeystoreType.Jks,

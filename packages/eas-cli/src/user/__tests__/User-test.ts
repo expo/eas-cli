@@ -13,13 +13,10 @@ import {
 
 jest.mock('fs');
 jest.mock('../../api', () => ({
-  apiClient: {
-    post: jest.fn(() => {
-      return {
-        json: () => Promise.resolve({ data: { sessionSecret: 'SESSION_SECRET' } }),
-      };
-    }),
+  api: {
+    postAsync: jest.fn(() => Promise.resolve({ sessionSecret: 'SESSION_SECRET' })),
   },
+  ApiV2Error: jest.requireActual('../../api').ApiV2Error,
 }));
 jest.mock('../../graphql/client', () => ({
   graphqlClient: {

@@ -1,5 +1,5 @@
 import { asMock } from '../../__tests__/utils';
-import { apiClient } from '../../api';
+import { api } from '../../api';
 import Log from '../../log';
 import { promptAsync, selectAsync } from '../../prompts';
 import { loginAsync } from '../User';
@@ -186,9 +186,7 @@ describe(retryUsernamePasswordAuthWithOTPAsync, () => {
         throw new Error("shouldn't happen");
       });
 
-    asMock(apiClient.post).mockReturnValueOnce({
-      json: () => Promise.resolve({ data: { sessionSecret: 'SESSION_SECRET' } }),
-    });
+    asMock(api.postAsync).mockReturnValueOnce(Promise.resolve({ sessionSecret: 'SESSION_SECRET' }));
 
     await retryUsernamePasswordAuthWithOTPAsync('blah', 'blah', {
       secondFactorDevices: [
@@ -209,10 +207,10 @@ describe(retryUsernamePasswordAuthWithOTPAsync, () => {
     });
 
     expect(asMock(promptAsync).mock.calls.length).toBe(2); // first OTP, second OTP
-    expect(asMock(apiClient.post).mock.calls[0]).toEqual([
+    expect(asMock(api.postAsync).mock.calls[0]).toEqual([
       'auth/send-sms-otp',
       {
-        json: {
+        body: {
           username: 'blah',
           password: 'blah',
           secondFactorDeviceID: 'p2',

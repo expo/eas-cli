@@ -1,10 +1,15 @@
 import chalk from 'chalk';
-import { Progress } from 'got';
 
 import { Ora, ora } from '../ora';
 import { endTimer, formatMilliseconds, startTimer } from './timer';
 
-type ProgressHandler = (props: {
+export type Progress = {
+  total: number;
+  percent: number;
+  transferred: number;
+};
+
+export type ProgressHandler = (props: {
   progress?: Progress;
   isComplete?: boolean;
   error?: Error;

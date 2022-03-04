@@ -1,6 +1,6 @@
 import chalk from 'chalk';
-import got from 'got';
 
+import fetch from '../../fetch';
 import { SubmissionFragment, SubmissionStatus } from '../../graphql/generated';
 import Log from '../../log';
 import { printSubmissionError } from './errors';
@@ -25,8 +25,8 @@ async function downloadAndPrintSubmissionLogsAsync(submission: SubmissionFragmen
   if (!submission.logsUrl) {
     return;
   }
-  const { body: data } = await got.get(submission.logsUrl);
-  const logs = parseLogs(data);
+  const response = await fetch(submission.logsUrl);
+  const logs = parseLogs(await response.text());
   Log.addNewLineIfNone();
   const prefix = chalk.blueBright('[logs] ');
   for (const { level, msg } of logs) {

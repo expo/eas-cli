@@ -5,12 +5,12 @@ import { Errors, Flags } from '@oclif/core';
 import assert from 'assert';
 import chalk from 'chalk';
 import dateFormat from 'dateformat';
-import got from 'got';
 import gql from 'graphql-tag';
 import nullthrows from 'nullthrows';
 
 import { getEASUpdateURL } from '../../api';
 import EasCommand from '../../commandUtils/EasCommand';
+import fetch from '../../fetch';
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
 import {
   GetUpdateGroupAsyncQuery,
@@ -475,7 +475,8 @@ export default class UpdatePublish extends EasCommand {
           updateGroupsAndTheirUpdates.map(async ({ updateGroup, newUpdates }) => {
             await Promise.all(
               newUpdates.map(async newUpdate => {
-                const response = await got.get(newUpdate.manifestPermalink, {
+                const response = await fetch(newUpdate.manifestPermalink, {
+                  method: 'GET',
                   headers: { accept: 'multipart/mixed' },
                 });
                 const manifestBody = nullthrows(await getManifestBodyAsync(response));

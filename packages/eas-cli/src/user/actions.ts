@@ -2,7 +2,7 @@ import { Errors } from '@oclif/core';
 import chalk from 'chalk';
 import nullthrows from 'nullthrows';
 
-import ApiV2Error from '../ApiV2Error';
+import { ApiV2Error } from '../api';
 import Log, { learnMore } from '../log';
 import { promptAsync } from '../prompts';
 import { Actor, getUserAsync, loginAsync } from './User';

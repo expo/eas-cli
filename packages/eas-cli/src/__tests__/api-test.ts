@@ -1,9 +1,7 @@
 import assert from 'assert';
-import { RequestError } from 'got/dist/source';
 import nock from 'nock';
 
-import ApiV2Error from '../ApiV2Error';
-import { apiClient, getExpoApiBaseUrl } from '../api';
+import { ApiV2Error, api, getExpoApiBaseUrl } from '../api';
 
 describe('apiClient', () => {
   it('converts Expo APIv2 error to ApiV2Error', async () => {
@@ -23,7 +21,7 @@ describe('apiClient', () => {
 
     let error: Error | null = null;
     try {
-      await apiClient.post('test');
+      await api.postAsync('test', { body: {} });
     } catch (e: any) {
       error = e;
     }
@@ -43,11 +41,11 @@ describe('apiClient', () => {
 
     let error: Error | null = null;
     try {
-      await apiClient.post('test');
+      await api.postAsync('test', { body: {} });
     } catch (e: any) {
       error = e;
     }
-    expect(error).toBeInstanceOf(RequestError);
+    expect(error).not.toBeNull();
     expect(error).not.toBeInstanceOf(ApiV2Error);
   });
 });

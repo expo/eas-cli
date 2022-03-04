@@ -8,13 +8,13 @@ import { ExpoConfig } from '@expo/config';
 import Dicer from 'dicer';
 import isDeepEqual from 'fast-deep-equal';
 import { promises as fs } from 'fs';
-import { Response } from 'got';
 import { pki as PKI } from 'node-forge';
 import nullthrows from 'nullthrows';
 import path from 'path';
 import { Stream } from 'stream';
 import { parseItem } from 'structured-headers';
 
+import { Response } from '../fetch';
 import { PartialManifest, PartialManifestAsset } from '../graphql/generated';
 
 type CodeSigningInfo = {
@@ -103,7 +103,7 @@ export async function getKeyAndCertificateFromPathsAsync({
 export type MultipartPart = { headers: Map<string, string>; body: string };
 
 export async function parseMultipartMixedResponseAsync(res: Response): Promise<MultipartPart[]> {
-  const contentType = res.headers['content-type'];
+  const contentType = res.headers.get('content-type');
   if (!contentType) {
     throw new Error('The multipart manifest response is missing the content-type header');
   }
@@ -115,7 +115,7 @@ export async function parseMultipartMixedResponseAsync(res: Response): Promise<M
   }
   const boundary = matches[1] ?? matches[2];
 
-  const bodyBuffer = res.rawBody;
+  const bodyBuffer = await res.arrayBuffer();
   const bufferStream = new Stream.PassThrough();
   bufferStream.end(bodyBuffer);
 
