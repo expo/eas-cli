@@ -1,6 +1,6 @@
 import { JSONValue } from '@expo/json-file';
-import fetch, { RequestInit, Response } from 'node-fetch';
 
+import fetch, { RequestError, RequestInit } from './fetch';
 import { getAccessToken, getSessionSecret } from './user/sessionStorage';
 
 export class ApiV2Error extends Error {
@@ -47,28 +47,33 @@ class ApiV2 {
   }
 
   private async requestAsync(path: string, options: RequestInit): Promise<any> {
-    const response = await fetch(`${getExpoApiBaseUrl()}/v2/${path}`, {
-      ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        ...this.getAuthHeaders(),
-      },
-    });
-    await this.handleApiErrorAsync(response);
-    return await response.json();
+    try {
+      const response = await fetch(`${getExpoApiBaseUrl()}/v2/${path}`, {
+        ...options,
+        headers: {
+          'Content-Type': 'application/json',
+          ...this.getAuthHeaders(),
+        },
+      });
+      return await response.json();
+    } catch (err) {
+      await this.handleApiErrorAsync(err);
+    }
   }
 
-  private async handleApiErrorAsync(response: Response): Promise<void> {
-    if (response.status >= 400) {
+  private async handleApiErrorAsync(err: any): Promise<void> {
+    if (err instanceof RequestError) {
       let result: { [key: string]: any };
       try {
-        result = await response.json();
+        result = await err.response.json();
       } catch {
-        throw new Error(`Malformed api response: ${await response.text()}`);
+        throw new Error(`Malformed api response: ${await err.response.text()}`);
       }
       if (result.errors?.length) {
         throw new ApiV2Error(result.errors[0]);
       }
+    } else {
+      throw err;
     }
   }
 

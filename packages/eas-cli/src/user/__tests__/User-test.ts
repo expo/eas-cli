@@ -14,7 +14,7 @@ import {
 jest.mock('fs');
 jest.mock('../../api', () => ({
   api: {
-    postAsync: jest.fn(() => Promise.resolve({ sessionSecret: 'SESSION_SECRET' })),
+    postAsync: jest.fn(async () => ({ sessionSecret: 'SESSION_SECRET' })),
   },
   ApiV2Error: jest.requireActual('../../api').ApiV2Error,
 }));

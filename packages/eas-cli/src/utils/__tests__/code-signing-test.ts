@@ -97,7 +97,7 @@ describe(parseMultipartMixedResponseAsync, () => {
     const form = generateMultipartBody(JSON.stringify({ hello: 'world' }));
 
     const parts = await parseMultipartMixedResponseAsync({
-      arrayBuffer: () => Promise.resolve(form.getBuffer()),
+      arrayBuffer: async () => form.getBuffer(),
       headers: new Headers({
         'content-type': `multipart/mixed; boundary=${form.getBoundary()}`,
       }),
@@ -113,7 +113,7 @@ describe(getManifestBodyAsync, () => {
     const form = generateMultipartBody(stringifiedManifest);
 
     const body = await getManifestBodyAsync({
-      arrayBuffer: () => Promise.resolve(form.getBuffer()),
+      arrayBuffer: async () => form.getBuffer(),
       headers: new Headers({
         'content-type': `multipart/mixed; boundary=${form.getBoundary()}`,
       }),
