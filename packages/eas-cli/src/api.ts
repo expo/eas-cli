@@ -29,68 +29,66 @@ interface RequestOptions {
   body: JSONValue;
 }
 
-class ApiV2 {
-  public async putAsync(path: string, options: RequestOptions): Promise<any> {
-    return await this.requestAsync(path, { method: 'PUT', body: JSON.stringify(options.body) });
-  }
+export const api = {
+  async putAsync(path: string, options: RequestOptions): Promise<any> {
+    return await requestAsync(path, { method: 'PUT', body: JSON.stringify(options.body) });
+  },
 
-  public async postAsync(path: string, options: RequestOptions): Promise<any> {
-    return await this.requestAsync(path, { method: 'POST', body: JSON.stringify(options.body) });
-  }
+  async postAsync(path: string, options: RequestOptions): Promise<any> {
+    return await requestAsync(path, { method: 'POST', body: JSON.stringify(options.body) });
+  },
 
-  public async deleteAsync(path: string): Promise<any> {
-    return await this.requestAsync(path, { method: 'DELETE' });
-  }
+  async deleteAsync(path: string): Promise<any> {
+    return await requestAsync(path, { method: 'DELETE' });
+  },
 
-  public async getAsync(path: string): Promise<any> {
-    return await this.requestAsync(path, { method: 'GET' });
-  }
+  async getAsync(path: string): Promise<any> {
+    return await requestAsync(path, { method: 'GET' });
+  },
+};
 
-  private async requestAsync(path: string, options: RequestInit): Promise<any> {
-    try {
-      const response = await fetch(`${getExpoApiBaseUrl()}/v2/${path}`, {
-        ...options,
-        headers: {
-          'Content-Type': 'application/json',
-          ...this.getAuthHeaders(),
-        },
-      });
-      return await response.json();
-    } catch (err) {
-      await this.handleApiErrorAsync(err);
-    }
-  }
-
-  private async handleApiErrorAsync(err: any): Promise<void> {
-    if (err instanceof RequestError) {
-      let result: { [key: string]: any };
-      try {
-        result = await err.response.json();
-      } catch {
-        throw new Error(`Malformed api response: ${await err.response.text()}`);
-      }
-      if (result.errors?.length) {
-        throw new ApiV2Error(result.errors[0]);
-      }
-    } else {
-      throw err;
-    }
-  }
-
-  private getAuthHeaders(): Record<string, string> {
-    const token = getAccessToken();
-    if (token) {
-      return { authorization: `Bearer ${token}` };
-    }
-    const sessionSecret = getSessionSecret();
-    if (sessionSecret) {
-      return { 'expo-session': sessionSecret };
-    }
-    return {};
+async function requestAsync(path: string, options: RequestInit): Promise<any> {
+  try {
+    const response = await fetch(`${getExpoApiBaseUrl()}/v2/${path}`, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        ...getAuthHeaders(),
+      },
+    });
+    return await response.json();
+  } catch (err) {
+    await handleApiErrorAsync(err);
   }
 }
 
-export const api = new ApiV2();
+async function handleApiErrorAsync(err: any): Promise<void> {
+  if (err instanceof RequestError) {
+    let result: { [key: string]: any };
+    try {
+      result = await err.response.json();
+    } catch {
+      throw new Error(`Malformed api response: ${await err.response.text()}`);
+    }
+    if (result.errors?.length) {
+      throw new ApiV2Error(result.errors[0]);
+    }
+  } else {
+    throw err;
+  }
+}
+
+function getAuthHeaders(): Record<string, string> {
+  const token = getAccessToken();
+  if (token) {
+    return { authorization: `Bearer ${token}` };
+  }
+  const sessionSecret = getSessionSecret();
+  if (sessionSecret) {
+    return { 'expo-session': sessionSecret };
+  }
+  return {};
+}
 
 export function getExpoApiBaseUrl(): string {
   if (process.env.EXPO_STAGING) {
