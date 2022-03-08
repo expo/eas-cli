@@ -225,8 +225,6 @@ export default class UpdatePublish extends EasCommand {
       isPublicConfig: true,
     });
 
-    const codeSigningInfo = await getCodeSigningInfoAsync(exp, privateKeyPath);
-
     if (!isExpoUpdatesInstalledOrAvailable(projectDir, exp.sdkVersion)) {
       const install = await confirmAsync({
         message: `You are creating an update which requires ${chalk.bold(
@@ -429,6 +427,8 @@ export default class UpdatePublish extends EasCommand {
         .filter(pair => pair[1] === runtime)
         .map(pair => pair[0]);
     }
+
+    const codeSigningInfo = await getCodeSigningInfoAsync(exp, privateKeyPath);
 
     // Sort the updates into different groups based on their platform specific runtime versions
     const updateGroups: PublishUpdateGroupInput[] = Object.entries(runtimeToPlatformMapping).map(
