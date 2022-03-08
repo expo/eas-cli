@@ -277,7 +277,7 @@ export async function uploadAssetsAsync(assetsForUpdateInfoGroup: CollectedAsset
   await Promise.all(
     missingAssets.map((missingAsset, i) => {
       const presignedPost: PresignedPost = JSON.parse(specifications[i]);
-      return uploadWithPresignedPostAsync(fs.createReadStream(missingAsset.path), presignedPost);
+      return uploadWithPresignedPostAsync(missingAsset.path, presignedPost);
     })
   );
 

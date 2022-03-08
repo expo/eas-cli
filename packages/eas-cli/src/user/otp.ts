@@ -1,7 +1,7 @@
 import assert from 'assert';
 import chalk from 'chalk';
 
-import { apiClient } from '../api';
+import { api } from '../api';
 import Log from '../log';
 import { promptAsync, selectAsync } from '../prompts';
 import { loginAsync } from './User';
@@ -92,15 +92,13 @@ async function promptForBackupOTPAsync(
 
   const device = smsNonPrimarySecondFactorDevices[selectedValue];
 
-  await apiClient
-    .post('auth/send-sms-otp', {
-      json: {
-        username,
-        password,
-        secondFactorDeviceID: device.id,
-      },
-    })
-    .json();
+  await api.postAsync('auth/send-sms-otp', {
+    body: {
+      username,
+      password,
+      secondFactorDeviceID: device.id,
+    },
+  });
 
   return await promptForOTPAsync('cancel');
 }

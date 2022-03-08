@@ -1,17 +1,11 @@
 import assert from 'assert';
 import FormData from 'form-data';
 import fs from 'fs-extra';
-import got, { Progress } from 'got';
-import { Readable } from 'stream';
 
+import fetch from './fetch';
 import { UploadSessionType } from './graphql/generated';
 import { PresignedPost, UploadSessionMutation } from './graphql/mutations/UploadSessionMutation';
-
-type ProgressHandler = (props: {
-  progress?: Progress;
-  isComplete?: boolean;
-  error?: Error;
-}) => void;
+import { ProgressHandler } from './utils/progress';
 
 export async function uploadAsync(
   type: UploadSessionType,
@@ -19,42 +13,54 @@ export async function uploadAsync(
   handleProgressEvent: ProgressHandler
 ): Promise<{ url: string; bucketKey: string }> {
   const presignedPost = await UploadSessionMutation.createUploadSessionAsync(type);
-  const url = await uploadWithPresignedPostAsync(
-    fs.createReadStream(path),
-    presignedPost,
-    handleProgressEvent
-  );
+  const url = await uploadWithPresignedPostAsync(path, presignedPost, handleProgressEvent);
   assert(presignedPost.fields.key, 'key is not specified in in presigned post');
   return { url, bucketKey: presignedPost.fields.key };
 }
 
 export async function uploadWithPresignedPostAsync(
-  stream: Readable | Buffer,
+  file: string,
   presignedPost: PresignedPost,
   handleProgressEvent?: ProgressHandler
 ): Promise<string> {
+  const fileStat = await fs.stat(file);
+  const fileSize = fileStat.size;
   const form = new FormData();
   for (const [fieldKey, fieldValue] of Object.entries(presignedPost.fields)) {
     form.append(fieldKey, fieldValue);
   }
-  form.append('file', stream);
+  form.append('file', fs.createReadStream(file), { knownLength: fileSize });
   const formHeaders = form.getHeaders();
-  let uploadPromise = got.post(presignedPost.url, { body: form, headers: { ...formHeaders } });
+  const uploadPromise = fetch(presignedPost.url, {
+    method: 'POST',
+    body: form,
+    headers: {
+      ...formHeaders,
+    },
+  });
 
+  let currentSize = 0;
   if (handleProgressEvent) {
-    uploadPromise = uploadPromise.on('uploadProgress', progress =>
-      handleProgressEvent({ progress })
-    );
+    form.addListener('data', (chunk: Buffer) => {
+      currentSize += Buffer.byteLength(chunk);
+      handleProgressEvent({
+        progress: {
+          total: fileSize,
+          percent: currentSize / fileSize,
+          transferred: currentSize,
+        },
+      });
+    });
     try {
       const response = await uploadPromise;
       handleProgressEvent({ isComplete: true });
-      return String(response.headers.location);
+      return String(response.headers.get('location'));
     } catch (error: any) {
       handleProgressEvent({ isComplete: true, error });
       throw error;
     }
+  } else {
+    const response = await uploadPromise;
+    return String(response.headers.get('location'));
   }
-
-  const response = await uploadPromise;
-  return String(response.headers.location);
 }
