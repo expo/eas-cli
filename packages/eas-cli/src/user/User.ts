@@ -55,7 +55,7 @@ export async function loginAsync({
   otp?: string;
 }): Promise<void> {
   const body = await api.postAsync('auth/loginAsync', { body: { username, password, otp } });
-  const { sessionSecret } = body;
+  const { sessionSecret } = body.data;
   const result = await graphqlClient
     .query(
       gql`
