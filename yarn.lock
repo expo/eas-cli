@@ -1178,10 +1178,10 @@
     minimatch "^3.0.4"
     strip-json-comments "^3.1.1"
 
-"@expo/apple-utils@0.0.0-alpha.27":
-  version "0.0.0-alpha.27"
-  resolved "https://registry.yarnpkg.com/@expo/apple-utils/-/apple-utils-0.0.0-alpha.27.tgz#5b77cd4522d19fa75a7801071c49da04b9162cd7"
-  integrity sha512-oprlh8UpNM5nqz6clGpCr7u8Uf1WjmnOkETKLEFDnW2JRcOkSrVwJrV4CfKfm3qvIoAwEk4ZONDMr0ZiI21dzQ==
+"@expo/apple-utils@0.0.0-alpha.28":
+  version "0.0.0-alpha.28"
+  resolved "https://registry.yarnpkg.com/@expo/apple-utils/-/apple-utils-0.0.0-alpha.28.tgz#fd8045f25ae9000471ce000093080ccd319cfb59"
+  integrity sha512-0BgHkNlzF21MQccCoAZ9h331Xej2TKjs7UZkzktUlvdpAjnpj5LC58TMXTKuPrpGzPzrzESbUzXHkt4hB60NSg==
 
 "@expo/bunyan@^4.0.0":
   version "4.0.0"
@@ -7250,7 +7250,7 @@ http-signature@~1.2.0:
     jsprim "^1.2.2"
     sshpk "^1.7.0"
 
-https-proxy-agent@^5.0.0:
+https-proxy-agent@5.0.0, https-proxy-agent@^5.0.0:
   version "5.0.0"
   resolved "https://registry.yarnpkg.com/https-proxy-agent/-/https-proxy-agent-5.0.0.tgz#e2a90542abb68a762e0a0850f6c9edadfd8506b2"
   integrity sha512-EkYm5BcKUGiduxzSt3Eppko+PiNWNEpa4ySk9vTC6wDsQJW9rHSa+UhGNJoRYp7bz6Ht1eaRIa6QaJqO5rCFbA==
