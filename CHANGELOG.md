@@ -14,6 +14,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Fix `"Unknown status"` error when a build is canceled. ([#1012](https://github.com/expo/eas-cli/pull/1012) by [@wkozyra95](https://github.com/wkozyra95))
+
 ### 🧹 Chores
 
 - Add error message when package.json is outside git repository. ([#971](https://github.com/expo/eas-cli/pull/971) by [@wkozyra95](https://github.com/wkozyra95))
