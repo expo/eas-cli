@@ -8,6 +8,14 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [0.48.0](https://github.com/expo/eas-cli/releases/tag/v0.48.0) - 2022-03-14
+
+### 🎉 New features
+
 - Add code signing. ([#964](https://github.com/expo/eas-cli/pull/964) by [@wschurman](https://github.com/wschurman))
 - Install expo-updates when running update:configure. ([#977](https://github.com/expo/eas-cli/pull/977) by [@jkhales](https://github.com/jkhales))
 - Make `update:configure` work on native files. ([#978](https://github.com/expo/eas-cli/pull/978) by [@jkhales](https://github.com/jkhales))
