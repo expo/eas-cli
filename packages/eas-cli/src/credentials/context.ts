@@ -106,7 +106,7 @@ export class CredentialsContext {
     );
     Log.log(
       chalk.green(
-        'This is optional, but without Apple account access you will need to provide all the values manually and we can only run minimal validation on them.'
+        'This is optional, but without Apple account access you will need to provide all the missing values manually and we can only run minimal validation on them.'
       )
     );
     const confirm = await confirmAsync({
@@ -117,7 +117,7 @@ export class CredentialsContext {
     } else {
       Log.log(
         chalk.green(
-          'No problem! 👌 If you select an action that requires those credentials we will ask you again about it.'
+          'No problem! 👌 If any of the next steps will require Apple account access we will ask you again about it.'
         )
       );
     }
