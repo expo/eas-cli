@@ -561,7 +561,13 @@ async function getRuntimeVersionObjectAsync(
   }
 
   return Object.fromEntries(
-    platforms.map(platform => [platform, Updates.getRuntimeVersion(exp, platform)])
+    platforms.map(platform => [
+      platform,
+      nullthrows(
+        Updates.getRuntimeVersion(exp, platform),
+        `Unable to determine runtime version for ${platform}`
+      ),
+    ])
   );
 }
 

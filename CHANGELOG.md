@@ -22,6 +22,7 @@ This is the log of notable changes to EAS CLI and related packages.
 - Make runtime version policy warning on the update command more descriptive. ([#979](https://github.com/expo/eas-cli/pull/979) by [@kbrandwijk](https://github.com/kbrandwijk))
 - Remove unused flag. ([#995](https://github.com/expo/eas-cli/pull/995) by [@wkozyra95](https://github.com/wkozyra95))
 - Replace `got` with `node-fetch`. ([#1000](https://github.com/expo/eas-cli/pull/1000) by [@wkozyra95](https://github.com/wkozyra95))
+- Upgrade dependencies. ([#1015](https://github.com/expo/eas-cli/pull/1015) by [@dsokal](https://github.com/dsokal))
 
 ## [0.47.0](https://github.com/expo/eas-cli/releases/tag/v0.47.0) - 2022-02-08
 
