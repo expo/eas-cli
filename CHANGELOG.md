@@ -14,6 +14,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Improve apple login prompt for internal distribution builds. ([#1016](https://github.com/expo/eas-cli/pull/1016) by [@wkozyra95](https://github.com/wkozyra95))
+
 ## [0.48.0](https://github.com/expo/eas-cli/releases/tag/v0.48.0) - 2022-03-14
 
 ### 🎉 New features

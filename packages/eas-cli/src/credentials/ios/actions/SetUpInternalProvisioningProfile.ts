@@ -1,5 +1,5 @@
 import { IosAppBuildCredentialsFragment, IosDistributionType } from '../../../graphql/generated';
-import Log from '../../../log';
+import Log, { learnMore } from '../../../log';
 import { promptAsync } from '../../../prompts';
 import { CredentialsContext } from '../../context';
 import { AppLookupParams } from '../api/GraphqlClient';
@@ -51,6 +51,11 @@ export class SetUpInternalProvisioningProfile {
         } else if (enterpriseBuildCredentialsExist) {
           return await this.setupUniversalProvisioningProfileAsync(ctx);
         } else {
+          Log.addNewLineIfNone();
+          Log.log(
+            'You need to log in to your Apple Developer account to generate credentials for internal distribution builds, or provide credentials via credentials.json'
+          );
+          Log.log(learnMore('https://docs.expo.dev/app-signing/local-credentials/'));
           const { team } = await ctx.appStore.ensureAuthenticatedAsync();
           if (team.inHouse) {
             return await this.askForDistributionTypeAndSetupAsync(
