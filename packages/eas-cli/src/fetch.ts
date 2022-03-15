@@ -18,7 +18,7 @@ function createHttpAgent(): Agent | null {
   return createHttpsProxyAgent(httpProxyUrl);
 }
 
-export const maybeHttpAgent: Agent | null = createHttpAgent();
+export const httpProxyAgent: Agent | null = createHttpAgent();
 
 export default async function (url: RequestInfo, init?: RequestInit): Promise<Response> {
   const response = await fetch(url, init);
