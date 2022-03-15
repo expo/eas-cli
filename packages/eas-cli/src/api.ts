@@ -66,7 +66,7 @@ async function handleApiErrorAsync(err: any): Promise<void> {
   if (err instanceof RequestError) {
     let result: { [key: string]: any };
     try {
-      result = await err.response.json();
+      result = (await err.response.json()) as { [key: string]: any };
     } catch {
       throw new Error(`Malformed api response: ${await err.response.text()}`);
     }

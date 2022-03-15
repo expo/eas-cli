@@ -28,12 +28,15 @@ export async function getCodeSigningInfoAsync(
   privateKeyPath: string | undefined
 ): Promise<CodeSigningInfo | undefined> {
   const codeSigningCertificatePath = config.updates?.codeSigningCertificate;
-  const codeSigningMetadata = config.updates?.codeSigningMetadata;
+  if (!codeSigningCertificatePath) {
+    return undefined;
+  }
 
-  if (codeSigningCertificatePath && !privateKeyPath) {
+  if (!privateKeyPath) {
     privateKeyPath = path.join(path.dirname(codeSigningCertificatePath), 'private-key.pem');
   }
 
+  const codeSigningMetadata = config.updates?.codeSigningMetadata;
   if (!codeSigningMetadata) {
     throw new Error(
       'Must specify codeSigningMetadata under the "updates" field of your app config file to use EAS code signing'

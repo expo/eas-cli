@@ -8,6 +8,18 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+### 🐛 Bug fixes
+
+- Fix code signing error when not yet configured. ([#1018](https://github.com/expo/eas-cli/pull/1018) by [@wschurman](https://github.com/wschurman))
+
+### 🧹 Chores
+
+- Improve apple login prompt for internal distribution builds. ([#1016](https://github.com/expo/eas-cli/pull/1016) by [@wkozyra95](https://github.com/wkozyra95))
+
+## [0.48.0](https://github.com/expo/eas-cli/releases/tag/v0.48.0) - 2022-03-14
+
+### 🎉 New features
+
 - Add code signing. ([#964](https://github.com/expo/eas-cli/pull/964) by [@wschurman](https://github.com/wschurman))
 - Install expo-updates when running update:configure. ([#977](https://github.com/expo/eas-cli/pull/977) by [@jkhales](https://github.com/jkhales))
 - Make `update:configure` work on native files. ([#978](https://github.com/expo/eas-cli/pull/978) by [@jkhales](https://github.com/jkhales))
@@ -22,7 +34,7 @@ This is the log of notable changes to EAS CLI and related packages.
 - Make runtime version policy warning on the update command more descriptive. ([#979](https://github.com/expo/eas-cli/pull/979) by [@kbrandwijk](https://github.com/kbrandwijk))
 - Remove unused flag. ([#995](https://github.com/expo/eas-cli/pull/995) by [@wkozyra95](https://github.com/wkozyra95))
 - Replace `got` with `node-fetch`. ([#1000](https://github.com/expo/eas-cli/pull/1000) by [@wkozyra95](https://github.com/wkozyra95))
-- Improve apple login prompt for internal distribution builds. ([#1016](https://github.com/expo/eas-cli/pull/1016) by [@wkozyra95](https://github.com/wkozyra95))
+- Upgrade dependencies. ([#1015](https://github.com/expo/eas-cli/pull/1015) by [@dsokal](https://github.com/dsokal))
 
 ## [0.47.0](https://github.com/expo/eas-cli/releases/tag/v0.47.0) - 2022-02-08
 
