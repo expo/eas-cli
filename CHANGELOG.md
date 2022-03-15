@@ -10,6 +10,12 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+### 🧹 Chores
+
+## [0.48.1](https://github.com/expo/eas-cli/releases/tag/v0.48.1) - 2022-03-15
+
+### 🐛 Bug fixes
+
 - Fix code signing error when not yet configured. ([#1018](https://github.com/expo/eas-cli/pull/1018) by [@wschurman](https://github.com/wschurman))
 
 ### 🧹 Chores
