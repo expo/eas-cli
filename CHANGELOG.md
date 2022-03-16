@@ -17,6 +17,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 - Fix code signing error when not yet configured. ([#1018](https://github.com/expo/eas-cli/pull/1018) by [@wschurman](https://github.com/wschurman))
+- Fix link to build details page to use `project.slug`. ([#1021](https://github.com/expo/eas-cli/pull/1021) by [@giautm](https://github.com/giautm))
 
 ### 🧹 Chores
 
