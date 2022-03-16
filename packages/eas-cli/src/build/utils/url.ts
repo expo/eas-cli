@@ -4,22 +4,24 @@ import { getExpoApiBaseUrl, getExpoWebsiteBaseUrl } from '../../api';
 import { AppPlatform, BuildFragment } from '../../graphql/generated';
 
 export function getProjectDashboardUrl(accountName: string, projectName: string): string {
-  return `${getExpoWebsiteBaseUrl()}/accounts/${accountName}/projects/${projectName}`;
+  return new URL(
+    `/accounts/${accountName}/projects/${projectName}`,
+    getExpoWebsiteBaseUrl()
+  ).toString();
 }
 
 export function getBuildLogsUrl(build: BuildFragment): string {
   const { project } = build;
-  if (project.__typename === 'App') {
-    return `${getExpoWebsiteBaseUrl()}/accounts/${project.ownerAccount.name}/projects/${
-      project.slug
-    }/builds/${build.id}`;
-  } else {
-    return `${getExpoWebsiteBaseUrl()}/builds/${build.id}`;
-  }
+  const url =
+    project.__typename !== 'App'
+      ? `/builds/${build.id}`
+      : `/accounts/${project.ownerAccount.name}/projects/${project.slug}/builds/${build.id}`;
+
+  return new URL(url, getExpoWebsiteBaseUrl()).toString();
 }
 
 export function getArtifactUrl(artifactId: string): string {
-  return `${getExpoWebsiteBaseUrl()}/artifacts/${artifactId}`;
+  return new URL(`/artifacts/${artifactId}`, getExpoWebsiteBaseUrl()).toString();
 }
 
 export function getInternalDistributionInstallUrl(build: BuildFragment): string {
