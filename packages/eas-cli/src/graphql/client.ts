@@ -33,8 +33,13 @@ export const graphqlClient = createUrqlClient({
     cacheExchange,
     retryExchange({
       maxDelayMs: 4000,
-      retryIf: err =>
-        !!(err && (err.networkError || err.graphQLErrors.some(e => e?.extensions?.isTransient))),
+      retryIf: (err, operation) => {
+        return !!(
+          err &&
+          !operation.context.noRetry &&
+          (err.networkError || err.graphQLErrors.some(e => e?.extensions?.isTransient))
+        );
+      },
     }),
     fetchExchange,
   ],
@@ -81,7 +86,7 @@ export async function withErrorHandlingAsync<T>(promise: Promise<OperationResult
     throw error;
   }
 
-  // Check for malfolmed response. This only checks the root query existence,
+  // Check for malformed response. This only checks the root query existence,
   // It doesn't affect returning responses with empty resultset.
   if (!data) {
     throw new Error('Returned query result data is null!');
