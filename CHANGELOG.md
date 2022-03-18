@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Do not retry build requests. ([#1024](https://github.com/expo/eas-cli/pull/1024) by [@wkozyra95](https://github.com/wkozyra95))
+
 ### 🧹 Chores
 
 ## [0.48.1](https://github.com/expo/eas-cli/releases/tag/v0.48.1) - 2022-03-15

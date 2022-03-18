@@ -51,7 +51,8 @@ export const BuildMutation = {
             }
             ${print(BuildFragmentNode)}
           `,
-          input
+          input,
+          { noRetry: true }
         )
         .toPromise()
     );
@@ -86,7 +87,8 @@ export const BuildMutation = {
             }
             ${print(BuildFragmentNode)}
           `,
-          input
+          input,
+          { noRetry: true }
         )
         .toPromise()
     );
