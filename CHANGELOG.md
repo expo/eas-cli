@@ -8,13 +8,19 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [0.48.2](https://github.com/expo/eas-cli/releases/tag/v0.48.2) - 2022-03-21
+
+### 🎉 New features
+
 - Add proxy support. ([#1005](https://github.com/expo/eas-cli/pull/1005) by [@wkozyra95](https://github.com/wkozyra95))
 
 ### 🐛 Bug fixes
 
 - Do not retry build requests. ([#1024](https://github.com/expo/eas-cli/pull/1024) by [@wkozyra95](https://github.com/wkozyra95))
-
-### 🧹 Chores
 
 ## [0.48.1](https://github.com/expo/eas-cli/releases/tag/v0.48.1) - 2022-03-15
 
