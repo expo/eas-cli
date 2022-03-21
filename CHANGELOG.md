@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Add proxy support. ([#1005](https://github.com/expo/eas-cli/pull/1005) by [@wkozyra95](https://github.com/wkozyra95))
+
 ### 🐛 Bug fixes
 
 - Do not retry build requests. ([#1024](https://github.com/expo/eas-cli/pull/1024) by [@wkozyra95](https://github.com/wkozyra95))

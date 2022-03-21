@@ -8,7 +8,7 @@
   },
   "bugs": "https://github.com/expo/eas-cli/issues",
   "dependencies": {
-    "@expo/apple-utils": "0.0.0-alpha.27",
+    "@expo/apple-utils": "0.0.0-alpha.28",
     "@expo/code-signing-certificates": "0.0.2",
     "@expo/config": "6.0.19",
     "@expo/config-plugins": "4.1.0",
@@ -44,6 +44,7 @@
     "gradle-to-js": "2.0.0",
     "graphql": "16.3.0",
     "graphql-tag": "2.12.6",
+    "https-proxy-agent": "5.0.0",
     "ignore": "5.2.0",
     "indent-string": "4.0.0",
     "jks-js": "1.0.2",
