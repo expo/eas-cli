@@ -15,6 +15,10 @@ Please revoke the old ones or reuse existing from your other apps.
 Please remember that Apple Keys are not application specific!
 `;
 
+/**
+ * List all existing push keys on Apple servers.
+ * **Does not support App Store Connect API (CI).**
+ */
 export async function listPushKeysAsync(authCtx: AuthCtx): Promise<PushKeyStoreInfo[]> {
   const spinner = ora(`Fetching Apple push keys`).start();
   try {
@@ -28,6 +32,10 @@ export async function listPushKeysAsync(authCtx: AuthCtx): Promise<PushKeyStoreI
   }
 }
 
+/**
+ * Create a new push key on Apple servers.
+ * **Does not support App Store Connect API (CI).**
+ */
 export async function createPushKeyAsync(
   authCtx: AuthCtx,
   name: string = `Expo Push Notifications Key ${dateformat('yyyymmddHHMMss')}`
@@ -57,6 +65,10 @@ export async function createPushKeyAsync(
   }
 }
 
+/**
+ * Revoke an existing push key on Apple servers.
+ * **Does not support App Store Connect API (CI).**
+ */
 export async function revokePushKeyAsync(authCtx: AuthCtx, ids: string[]): Promise<void> {
   const name = `Apple push key${ids?.length === 1 ? '' : 's'}`;
 

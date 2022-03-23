@@ -89,7 +89,11 @@ async function findProfileByBundleIdAsync(
     }
     const profile = expoProfiles.sort(sortByExpiration)[expoProfiles.length - 1];
     profile.attributes.certificates = [distributionCertificate];
-    return { profile: await profile.regenerateAsync(), didUpdate: true };
+    return {
+      // This method does not support App Store Connect API.
+      profile: await profile.regenerateAsync(),
+      didUpdate: true,
+    };
   }
 
   // there is no valid provisioning profile available
@@ -173,6 +177,8 @@ async function manageAdHocProfilesAsync(
     }
     // We need to add new devices to the list and create a new provisioning profile.
     existingProfile.attributes.devices = devices;
+
+    // This method does not support App Store Connect API.
     await existingProfile.regenerateAsync();
 
     const updatedProfile = (await findProfileByBundleIdAsync(context, bundleId, certSerialNumber))
