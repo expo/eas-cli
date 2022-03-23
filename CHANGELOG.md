@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Add annotations regarding App Store Connect Token session support.
+
 ## [0.48.2](https://github.com/expo/eas-cli/releases/tag/v0.48.2) - 2022-03-21
 
 ### 🎉 New features
