@@ -1,5 +1,5 @@
 name: "\U0001F64B Enhancement"
-labels: 'enhancement'
+labels: 'enhancement,needs review'
 description: 'Want us to add something to EAS CLI?'
 body:
   - type: markdown

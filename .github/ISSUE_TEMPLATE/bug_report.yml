@@ -1,5 +1,5 @@
 name: "\U0001F41B Bug Report in EAS CLI"
-labels: 'bug'
+labels: 'needs review'
 description: 'You want to report a reproducible bug or regression in EAS CLI.'
 body:
   - type: markdown
