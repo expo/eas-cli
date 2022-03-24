@@ -70,6 +70,7 @@ async function addCertificateToProfileAsync(
 
   // Assign the new certificate
   profile.attributes.certificates = [cert];
+  // This method does not support App Store Connect API.
   return await profile.regenerateAsync();
 }
 

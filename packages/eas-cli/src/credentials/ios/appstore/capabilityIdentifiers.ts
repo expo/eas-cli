@@ -15,6 +15,8 @@ type UpdateCapabilityRequest = Parameters<BundleId['updateBundleIdCapabilityAsyn
  * If a capability identifier is missing, then attempt to create it.
  * Link all of the capability identifiers at the same time after parsing the entitlements file.
  *
+ * **Does not support App Store Connect API (CI).**
+ *
  * @param bundleId Bundle identifier object.
  * @param entitlements JSON representation of the iOS entitlements plist
  *
@@ -25,6 +27,15 @@ export async function syncCapabilityIdentifiersForEntitlementsAsync(
   entitlements: JSONObject = {}
 ): Promise<{ created: string[]; linked: string[] }> {
   if (EXPO_NO_CAPABILITY_SYNC) {
+    return { created: [], linked: [] };
+  }
+
+  // App Store Connect token authentication is not currently supported,
+  // the team ID is required to create capability identifiers.
+  if (bundleId.context.token && !bundleId.context.teamId) {
+    Log.warn(
+      `Skipping capability identifier syncing because the current Apple authentication session is not using Cookies (username/password).`
+    );
     return { created: [], linked: [] };
   }
 
