@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Fix proxy support. ([#1032](https://github.com/expo/eas-cli/pull/1032) by [@wkozyra95](https://github.com/wkozyra95))
+
 ### 🧹 Chores
 
 - Add annotations regarding App Store Connect Token session support.  ([#1029](https://github.com/expo/eas-cli/pull/1029) by [@EvanBacon](https://github.com/EvanBacon))

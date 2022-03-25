@@ -10,18 +10,21 @@ export class RequestError extends Error {
   }
 }
 
-function createHttpAgent(): Agent | null {
-  const httpProxyUrl = process.env.http_proxy;
-  if (!httpProxyUrl) {
+function createHttpsAgent(): Agent | null {
+  const httpsProxyUrl = process.env.https_proxy;
+  if (!httpsProxyUrl) {
     return null;
   }
-  return createHttpsProxyAgent(httpProxyUrl);
+  return createHttpsProxyAgent(httpsProxyUrl);
 }
 
-export const httpProxyAgent: Agent | null = createHttpAgent();
+export const httpsProxyAgent: Agent | null = createHttpsAgent();
 
 export default async function (url: RequestInfo, init?: RequestInit): Promise<Response> {
-  const response = await fetch(url, init);
+  const response = await fetch(url, {
+    ...init,
+    ...(httpsProxyAgent ? { agent: httpsProxyAgent } : {}),
+  });
   if (response.status >= 400) {
     throw new RequestError(`Request failed: ${response.status} (${response.statusText})`, response);
   }

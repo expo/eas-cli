@@ -15,7 +15,7 @@ import { DocumentNode } from 'graphql';
 import fetch from 'node-fetch';
 
 import { getExpoApiBaseUrl } from '../api';
-import { httpProxyAgent } from '../fetch';
+import { httpsProxyAgent } from '../fetch';
 import Log from '../log';
 import { getAccessToken, getSessionSecret } from '../user/sessionStorage';
 
@@ -49,7 +49,7 @@ export const graphqlClient = createUrqlClient({
       headers['expo-session'] = sessionSecret;
     }
     return {
-      ...(httpProxyAgent ? { agent: httpProxyAgent } : {}),
+      ...(httpsProxyAgent ? { agent: httpsProxyAgent } : {}),
       headers,
     };
   },
