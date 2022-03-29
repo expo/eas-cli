@@ -2,6 +2,7 @@ import { BundleId, CapabilityTypeOption } from '@expo/apple-utils';
 import { JSONObject } from '@expo/json-file';
 
 import Log from '../../../log';
+import { isAppStoreConnectTokenOnlyContext } from '../utils/authType';
 import {
   CapabilityMapping,
   EXPO_NO_CAPABILITY_SYNC,
@@ -32,7 +33,7 @@ export async function syncCapabilityIdentifiersForEntitlementsAsync(
 
   // App Store Connect token authentication is not currently supported,
   // the team ID is required to create capability identifiers.
-  if (bundleId.context.token && !bundleId.context.teamId) {
+  if (isAppStoreConnectTokenOnlyContext(bundleId.context)) {
     Log.warn(
       `Skipping capability identifier syncing because the current Apple authentication session is not using Cookies (username/password).`
     );

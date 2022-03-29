@@ -1,6 +1,7 @@
 import { Profile, ProfileType, RequestContext } from '@expo/apple-utils';
 
 import { ora } from '../../../ora';
+import { isAppStoreConnectTokenOnlyContext } from '../utils/authType';
 import { findP12CertSerialNumber } from '../utils/p12Certificate';
 import {
   DistributionCertificate,
@@ -72,7 +73,7 @@ async function addCertificateToProfileAsync(
   profile.attributes.certificates = [cert];
 
   // Experimentally regenerate the provisioning profile using App Store Connect API.
-  if (!profile.context.teamId && profile.context.token) {
+  if (isAppStoreConnectTokenOnlyContext(profile.context)) {
     return await profile.regenerateManuallyAsync();
   }
   // This method does not support App Store Connect API.
