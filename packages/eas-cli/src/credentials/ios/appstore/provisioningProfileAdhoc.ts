@@ -89,9 +89,14 @@ async function findProfileByBundleIdAsync(
     }
     const profile = expoProfiles.sort(sortByExpiration)[expoProfiles.length - 1];
     profile.attributes.certificates = [distributionCertificate];
+
+    const shouldUseASCRegenerate = !profile.context.teamId && profile.context.token;
     return {
-      // This method does not support App Store Connect API.
-      profile: await profile.regenerateAsync(),
+      profile: shouldUseASCRegenerate
+        ? // Experimentally regenerate the provisioning profile using App Store Connect API.
+          await profile.regenerateManuallyAsync()
+        : // This method does not support App Store Connect API.
+          await profile.regenerateAsync(),
       didUpdate: true,
     };
   }
@@ -178,8 +183,14 @@ async function manageAdHocProfilesAsync(
     // We need to add new devices to the list and create a new provisioning profile.
     existingProfile.attributes.devices = devices;
 
-    // This method does not support App Store Connect API.
-    await existingProfile.regenerateAsync();
+    const shouldUseASCRegenerate = !existingProfile.context.teamId && existingProfile.context.token;
+    if (shouldUseASCRegenerate) {
+      // Experimentally regenerate the provisioning profile using App Store Connect API.
+      await existingProfile.regenerateManuallyAsync();
+    } else {
+      // This method does not support App Store Connect API.
+      await existingProfile.regenerateAsync();
+    }
 
     const updatedProfile = (await findProfileByBundleIdAsync(context, bundleId, certSerialNumber))
       .profile;

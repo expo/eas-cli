@@ -70,6 +70,11 @@ async function addCertificateToProfileAsync(
 
   // Assign the new certificate
   profile.attributes.certificates = [cert];
+
+  // Experimentally regenerate the provisioning profile using App Store Connect API.
+  if (!profile.context.teamId && profile.context.token) {
+    return await profile.regenerateManuallyAsync();
+  }
   // This method does not support App Store Connect API.
   return await profile.regenerateAsync();
 }
