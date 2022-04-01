@@ -1,3 +1,4 @@
+import admzip from 'adm-zip';
 import chalk from 'chalk';
 import fs from 'fs-extra';
 import path from 'path';
@@ -122,6 +123,61 @@ export async function makeProjectTarballAsync(): Promise<{ path: string; size: n
   return { size, path: tarPath };
 }
 
+export async function makeProjectZipAsync(): Promise<{ path: string; size: number }> {
+  const spinner = ora('Compressing project files');
+
+  const tempDir = getTmpDirectory();
+  await fs.mkdirp(tempDir);
+  const shallowClonePath = path.join(getTmpDirectory(), `${uuidv4()}-shallow-clone`);
+  const zipPath = path.join(getTmpDirectory(), `${uuidv4()}.zip`);
+
+  // If the compression takes longer then a second, show the spinner.
+  // This can happen when the user has a lot of resources or doesn't ignore their CocoaPods.
+  // A basic project on a Mac can compress in roughly ~40ms.
+  // A fairly complex project without CocoaPods ignored can take up to 30s.
+  const timer = setTimeout(
+    () => {
+      spinner.start();
+    },
+    Log.isDebug ? 1 : 1000
+  );
+  // TODO: Possibly warn after more time about unoptimized assets.
+  const compressTimerLabel = 'makeProjectZipAsync';
+  startTimer(compressTimerLabel);
+
+  try {
+    await getVcsClient().makeShallowCopyAsync(shallowClonePath);
+    const zip = new admzip();
+    zip.addLocalFolder(shallowClonePath);
+    await zipAsync(zip, zipPath);
+  } catch (err) {
+    clearTimeout(timer);
+    if (spinner.isSpinning) {
+      spinner.fail();
+    }
+    throw err;
+  } finally {
+    await fs.remove(shallowClonePath);
+  }
+  clearTimeout(timer);
+
+  const { size } = await fs.stat(zipPath);
+  const duration = endTimer(compressTimerLabel);
+  if (spinner.isSpinning) {
+    const prettyTime = formatMilliseconds(duration);
+    spinner.succeed(
+      `Compressed project files ${chalk.dim(`${prettyTime} (${formatBytes(size)})`)}`
+    );
+  }
+
+  return { size, path: zipPath };
+}
+
+async function zipAsync(zip: admzip, targetFileName?: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    zip.writeZip(targetFileName, (error: Error | null) => (error ? reject(error) : resolve()));
+  });
+}
 enum ShouldCommitChanges {
   Yes,
   ShowDiffFirst,

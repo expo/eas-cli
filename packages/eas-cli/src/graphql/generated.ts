@@ -2019,6 +2019,11 @@ export type DeleteWebhookResult = {
   id: Scalars['ID'];
 };
 
+export type DeployFunctionResult = {
+  __typename?: 'DeployFunctionResult';
+  success: Scalars['Boolean'];
+};
+
 /** Represents a Deployment - a set of Builds with the same Runtime Version and Channel */
 export type Deployment = {
   __typename?: 'Deployment';
@@ -2148,6 +2153,27 @@ export enum Feature {
   /** Share access to projects */
   Teams = 'TEAMS'
 }
+
+export type FunctionMutation = {
+  __typename?: 'FunctionMutation';
+  createFunction: DeployFunctionResult;
+  getSignedFunctionUploadSpecification: GetFunctionUploadUrlResult;
+};
+
+
+export type FunctionMutationCreateFunctionArgs = {
+  bucketKey: Scalars['String'];
+};
+
+
+export type FunctionMutationGetSignedFunctionUploadSpecificationArgs = {
+  appId: Scalars['String'];
+};
+
+export type GetFunctionUploadUrlResult = {
+  __typename?: 'GetFunctionUploadUrlResult';
+  specification: Scalars['String'];
+};
 
 export type GetSignedAssetUploadSpecificationsResult = {
   __typename?: 'GetSignedAssetUploadSpecificationsResult';
@@ -2866,6 +2892,7 @@ export type RootMutation = {
   emailSubscription: EmailSubscriptionMutation;
   /** Mutations that create and delete EnvironmentSecrets */
   environmentSecret: EnvironmentSecretMutation;
+  function: FunctionMutation;
   /** Mutations that modify a Google Service Account Key */
   googleServiceAccountKey: GoogleServiceAccountKeyMutation;
   /** Mutations that modify the build credentials for an iOS app */
@@ -4290,6 +4317,20 @@ export type DeleteEnvironmentSecretMutationVariables = Exact<{
 
 
 export type DeleteEnvironmentSecretMutation = { __typename?: 'RootMutation', environmentSecret: { __typename?: 'EnvironmentSecretMutation', deleteEnvironmentSecret: { __typename?: 'DeleteEnvironmentSecretResult', id: string } } };
+
+export type GetSignedUploadFunctionMutationVariables = Exact<{
+  appId: Scalars['String'];
+}>;
+
+
+export type GetSignedUploadFunctionMutation = { __typename?: 'RootMutation', function: { __typename?: 'FunctionMutation', getSignedFunctionUploadSpecification: { __typename?: 'GetFunctionUploadUrlResult', specification: string } } };
+
+export type CreateFunctionMutationVariables = Exact<{
+  bucketKey: Scalars['String'];
+}>;
+
+
+export type CreateFunctionMutation = { __typename?: 'RootMutation', function: { __typename?: 'FunctionMutation', createFunction: { __typename?: 'DeployFunctionResult', success: boolean } } };
 
 export type CreateKeystoreGenerationUrlMutationVariables = Exact<{ [key: string]: never; }>;
 

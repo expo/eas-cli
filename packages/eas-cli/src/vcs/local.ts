@@ -78,11 +78,12 @@ export async function makeShallowCopyAsync(src: string, dst: string): Promise<vo
   const ignore = new Ignore(src);
   await ignore.initIgnoreAsync();
   await fs.copy(src, dst, {
-    filter: (srcFilePath: string) => {
-      if (srcFilePath === src) {
+    filter: (_srcFilePath: string) => {
+      return true; // TODO: handle ignored build folder
+      /*       if (srcFilePath === src) {
         return true;
       }
-      return !ignore.ignores(path.relative(src, srcFilePath));
+      return !ignore.ignores(path.relative(src, srcFilePath)); */
     },
   });
 }
