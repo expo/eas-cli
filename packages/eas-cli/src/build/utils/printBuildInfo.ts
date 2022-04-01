@@ -103,10 +103,7 @@ export function printDeprecationWarnings(deprecationInfo?: EasBuildDeprecationIn
     Log.warn("Changes won't affect your project config.");
     Log.warn(deprecationInfo.message);
   } else if (deprecationInfo.type === EasBuildDeprecationInfoType.UserFacing) {
-    Log.warn('This command is using API that soon will be deprecated, please update eas-cli.');
-    Log.warn(
-      'There might be some changes necessary to your project config, latest eas-cli will provide more specific error messages.'
-    );
+    Log.warn('This command is using API that soon will be deprecated.');
     Log.warn(deprecationInfo.message);
   } else {
     Log.warn('An unexpected warning was encountered. Please report it as a bug:');
