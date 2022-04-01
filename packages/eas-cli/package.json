@@ -8,12 +8,12 @@
   },
   "bugs": "https://github.com/expo/eas-cli/issues",
   "dependencies": {
-    "@expo/apple-utils": "0.0.0-alpha.29",
+    "@expo/apple-utils": "0.0.0-alpha.30",
     "@expo/code-signing-certificates": "0.0.2",
     "@expo/config": "6.0.19",
     "@expo/config-plugins": "4.1.0",
     "@expo/config-types": "44.0.0",
-    "@expo/eas-build-job": "0.2.66",
+    "@expo/eas-build-job": "0.2.68",
     "@expo/eas-json": "0.48.0",
     "@expo/json-file": "8.2.34",
     "@expo/pkcs12": "0.0.7",
@@ -24,7 +24,7 @@
     "@expo/rudder-sdk-node": "1.1.1",
     "@expo/spawn-async": "1.6.0",
     "@expo/timeago.js": "1.0.0",
-    "@oclif/core": "1.5.3",
+    "@oclif/core": "1.6.4",
     "@oclif/plugin-autocomplete": "1.2.0",
     "@oclif/plugin-help": "5.1.12",
     "@urql/core": "2.4.3",
@@ -53,9 +53,9 @@
     "log-symbols": "4.1.0",
     "mime": "3.0.0",
     "minimatch": "3.0.5",
-    "nanoid": "3.3.1",
+    "nanoid": "3.3.2",
     "node-fetch": "2.6.7",
-    "node-forge": "1.2.1",
+    "node-forge": "1.3.1",
     "nullthrows": "1.1.1",
     "ora": "5.1.0",
     "pkg-dir": "4.2.0",
@@ -77,8 +77,8 @@
   "devDependencies": {
     "@graphql-codegen/cli": "2.6.2",
     "@graphql-codegen/introspection": "2.1.1",
-    "@graphql-codegen/typescript": "2.4.7",
-    "@graphql-codegen/typescript-operations": "2.3.4",
+    "@graphql-codegen/typescript": "2.4.8",
+    "@graphql-codegen/typescript-operations": "2.3.5",
     "@types/dateformat": "3.0.1",
     "@types/dicer": "0.2.2",
     "@types/envinfo": "7.8.1",
@@ -101,7 +101,7 @@
     "nock": "13.2.4",
     "tempy": "0.7.0",
     "ts-deepmerge": "2.0.1",
-    "typescript": "4.6.2"
+    "typescript": "4.6.3"
   },
   "engines": {
     "node": ">=12.0.0"
