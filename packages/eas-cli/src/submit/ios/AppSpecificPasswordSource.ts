@@ -1,6 +1,7 @@
 import { Platform } from '@expo/eas-build-job';
 import getenv from 'getenv';
 
+import { isUserAuthCtx } from '../../credentials/ios/appstore/authenticate';
 import { promptAsync } from '../../prompts';
 import UserSettings from '../../user/UserSettings';
 import { SubmissionContext } from '../context';
@@ -51,7 +52,7 @@ export async function getAppleIdUsernameAsync(
     return envAppleId;
   }
 
-  if (ctx.credentialsCtx.appStore.authCtx?.appleId) {
+  if (isUserAuthCtx(ctx.credentialsCtx.appStore.authCtx)) {
     return ctx.credentialsCtx.appStore.authCtx.appleId;
   }
 

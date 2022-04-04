@@ -1,12 +1,14 @@
 import { Platform } from '@expo/eas-build-job';
 import { BuildProfile } from '@expo/eas-json';
 import JsonFile from '@expo/json-file';
+import fs from 'fs-extra';
 import resolveFrom from 'resolve-from';
 import { v4 as uuidv4 } from 'uuid';
 
 import { TrackingContext } from '../analytics/common';
 import { Analytics, BuildEvent } from '../analytics/events';
-import { CredentialsContext } from '../credentials/context';
+import { CredentialsContext, CredentialsContextOptions } from '../credentials/context';
+import { AuthenticationMode } from '../credentials/ios/appstore/authenticate';
 import { getExpoConfig } from '../project/expoConfig';
 import { getProjectAccountName, getProjectIdAsync } from '../project/projectUtils';
 import { resolveWorkflowAsync } from '../project/workflow';
@@ -43,13 +45,48 @@ export async function createBuildContextAsync<T extends Platform>({
   const workflow = await resolveWorkflowAsync(projectDir, platform);
   const accountId = findAccountByName(user.accounts, accountName)?.id;
 
-  const credentialsCtx = new CredentialsContext({
+  let credentialsCtxOptions = {
     exp,
     nonInteractive,
     projectDir,
     user,
     env: buildProfile.env,
-  });
+  } as CredentialsContextOptions;
+  if (platform === Platform.IOS) {
+    const iosBuildProfile = buildProfile as BuildProfile<Platform.IOS>;
+    const isPartialLocalAscApiKeyProvided =
+      iosBuildProfile.ascApiKeyPath ||
+      iosBuildProfile.ascApiKeyIssuerId ||
+      iosBuildProfile.ascApiKeyId;
+    const isEntireLocalAscApiKeyProvided =
+      iosBuildProfile.ascApiKeyPath &&
+      iosBuildProfile.ascApiKeyIssuerId &&
+      iosBuildProfile.ascApiKeyId &&
+      iosBuildProfile.appleTeamId &&
+      iosBuildProfile.appleTeamType;
+
+    if (isPartialLocalAscApiKeyProvided && !isEntireLocalAscApiKeyProvided) {
+      throw new Error(
+        'To authenticate with an App Store Connect API Key, you must provide the following fields in your build profile: ascApiKeyPath, ascApiKeyIssuerId, ascApiKeyId, appleTeamId, appleTeamType.'
+      );
+    } else if (isEntireLocalAscApiKeyProvided) {
+      const keyP8 = await fs.readFile(iosBuildProfile.ascApiKeyPath!, 'utf-8');
+      credentialsCtxOptions = {
+        ...credentialsCtxOptions,
+        defaultAppStoreAuthentication: {
+          mode: AuthenticationMode.API_KEY,
+          ascApiKey: {
+            keyP8,
+            keyId: iosBuildProfile.ascApiKeyId!,
+            issuerId: iosBuildProfile.ascApiKeyIssuerId!,
+          },
+          teamId: iosBuildProfile.appleTeamId!,
+          teamType: iosBuildProfile.appleTeamType!,
+        },
+      };
+    }
+  }
+  const credentialsCtx = new CredentialsContext(credentialsCtxOptions);
 
   const devClientProperties = getDevClientEventProperties({
     platform,

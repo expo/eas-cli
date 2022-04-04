@@ -12,6 +12,7 @@ export type IosEnterpriseProvisioning = 'adhoc' | 'universal';
 export type VersionAutoIncrement = boolean | 'version';
 export type IosVersionAutoIncrement = VersionAutoIncrement | 'buildNumber';
 export type AndroidVersionAutoIncrement = VersionAutoIncrement | 'versionCode';
+export type AppleTeamType = 'inHouse' | 'companyOrOrganization' | 'individual';
 
 export interface CommonBuildProfile {
   credentialsSource: CredentialsSource;
@@ -52,6 +53,12 @@ export interface IosBuildProfile extends CommonBuildProfile {
   artifactPath?: string;
   scheme?: string;
   buildConfiguration?: string;
+
+  ascApiKeyPath?: string;
+  ascApiKeyIssuerId?: string;
+  ascApiKeyId?: string;
+  appleTeamId?: string;
+  appleTeamType?: AppleTeamType;
 }
 
 export type BuildProfile<TPlatform extends Platform = Platform> = TPlatform extends Platform.ANDROID

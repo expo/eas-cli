@@ -63,6 +63,12 @@ const IosBuildProfileSchema = CommonBuildProfileSchema.concat(
     artifactPath: Joi.string(),
     scheme: Joi.string(),
     buildConfiguration: Joi.string(),
+
+    ascApiKeyPath: Joi.string(),
+    ascApiKeyId: Joi.string(),
+    ascApiKeyIssuerId: Joi.string(),
+    appleTeamId: Joi.string(),
+    appleTeamType: Joi.string().valid('inHouse', 'companyOrOrganization', 'individual'),
   })
 );
 

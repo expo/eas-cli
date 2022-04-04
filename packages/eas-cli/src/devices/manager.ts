@@ -97,7 +97,7 @@ export class AccountResolver {
 
 async function ensureAppleTeamExistsAsync(
   accountId: string,
-  { appleTeamIdentifier, appleTeamName }: { appleTeamIdentifier: string; appleTeamName: string }
+  { appleTeamIdentifier, appleTeamName }: { appleTeamIdentifier: string; appleTeamName?: string }
 ): Promise<AppleTeamFragment> {
   const appleTeam = await AppleTeamQuery.getByAppleTeamIdentifierAsync(
     accountId,

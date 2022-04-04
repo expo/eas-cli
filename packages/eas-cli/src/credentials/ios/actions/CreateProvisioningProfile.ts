@@ -68,7 +68,7 @@ export class CreateProvisioningProfile {
       certP12: this.distributionCertificate.certificateP12,
       certPassword: this.distributionCertificate.certificatePassword,
       distCertSerialNumber: this.distributionCertificate.serialNumber,
-      teamId: this.distributionCertificate.appleTeam?.appleTeamIdentifier ?? appleAuthCtx.appleId,
+      teamId: this.distributionCertificate.appleTeam?.appleTeamIdentifier ?? appleAuthCtx.team.id,
     });
   }
 }

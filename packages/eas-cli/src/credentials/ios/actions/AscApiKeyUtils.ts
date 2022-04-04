@@ -94,7 +94,6 @@ async function generateAscApiKeyAsync(
   ctx: CredentialsContext,
   purpose: AppStoreApiKeyPurpose
 ): Promise<MinimalAscApiKey> {
-  //console.log('debug');
   await ctx.appStore.ensureAuthenticatedAsync();
   const ascApiKey = await ctx.appStore.createAscApiKeyAsync({
     nickname: getAscApiKeyName(purpose),

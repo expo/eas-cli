@@ -84,7 +84,7 @@ export class ConfigureProvisioningProfile {
         certP12: certificateP12,
         certPassword: certificatePassword,
         distCertSerialNumber: serialNumber,
-        teamId: authCtx.appleId,
+        teamId: authCtx.team.id,
       }
     );
 

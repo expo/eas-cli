@@ -4,12 +4,15 @@ import {
   RequestContext,
   Session,
   Teams,
+  Token,
 } from '@expo/apple-utils';
+import { AppleTeamType } from '@expo/eas-json/build/build/types';
 import assert from 'assert';
 import chalk from 'chalk';
 
 import Log from '../../../log';
 import { toggleConfirmAsync } from '../../../prompts';
+import { MinimalAscApiKey } from '../credentials';
 import {
   deletePasswordAsync,
   promptPasswordAsync,
@@ -18,22 +21,31 @@ import {
 
 const APPLE_IN_HOUSE_TEAM_TYPE = 'in-house';
 
+export enum AuthenticationMode {
+  API_KEY,
+  USER,
+}
+
 export type Options = {
   appleId?: string;
   teamId?: string;
+  teamName?: string;
+  teamType?: AppleTeamType;
+  ascApiKey?: MinimalAscApiKey;
   /**
    * Can be used to restore the Apple auth state via apple-utils.
    */
   cookies?: Session.AuthState['cookies'];
+  mode?: AuthenticationMode;
 };
 
 export type Team = {
   id: string;
-  name: string;
+  name?: string;
   inHouse?: boolean;
 };
 
-export type AuthCtx = {
+export type UserAuthCtx = {
   appleId: string;
   appleIdPassword?: string;
   team: Team;
@@ -44,8 +56,30 @@ export type AuthCtx = {
   /**
    * Can be used to restore the Apple auth state via apple-utils.
    */
-  authState?: Session.AuthState;
+  authState?: Session.AuthState; // TODO: Modify auth state context upstream for cleaner type?
 };
+
+type ApiKeyAuthCtx = {
+  ascApiKey: MinimalAscApiKey;
+  team: Team;
+  /**
+   * Can be used to restore the Apple auth state via apple-utils.
+   */
+  authState?: Partial<Session.AuthState>;
+};
+
+export type AuthCtx = UserAuthCtx | ApiKeyAuthCtx;
+
+export function isUserAuthCtx(authCtx: AuthCtx | undefined): authCtx is UserAuthCtx {
+  return typeof (authCtx as UserAuthCtx).appleId === 'string';
+}
+
+export function assertUserAuthCtx(authCtx: AuthCtx | undefined): UserAuthCtx {
+  if (isUserAuthCtx(authCtx)) {
+    return authCtx;
+  }
+  throw new Error('Expected user authentication context (login/password).');
+}
 
 export function getRequestContext(authCtx: AuthCtx): RequestContext {
   assert(authCtx.authState?.context, 'Apple request context must be defined');
@@ -144,6 +178,40 @@ async function loginWithUserCredentialsAsync({
 }
 
 export async function authenticateAsync(options: Options = {}): Promise<AuthCtx> {
+  if (options.mode === AuthenticationMode.API_KEY) {
+    return await authenticateWithApiKeyAsync(options);
+  } else {
+    return await authenticateAsUserAsync(options);
+  }
+}
+
+// TODO: this may cause undefined behaviour in third party code
+async function authenticateWithApiKeyAsync(options: Options = {}): Promise<ApiKeyAuthCtx> {
+  const { ascApiKey, teamId, teamName, teamType } = options;
+  assert(ascApiKey, 'ascApiKey must be defined');
+  assert(teamId && teamType !== undefined, 'teamId and teamType must be defined');
+  const isInHouse = teamType === 'inHouse';
+  return {
+    team: {
+      id: teamId,
+      name: teamName,
+      inHouse: isInHouse,
+    },
+    authState: {
+      context: {
+        token: new Token({
+          key: ascApiKey.keyP8,
+          issuerId: ascApiKey.issuerId,
+          keyId: ascApiKey.keyId,
+          duration: 1200, // 20 minutes
+        }),
+      },
+    },
+    ascApiKey,
+  };
+}
+
+async function authenticateAsUserAsync(options: Options = {}): Promise<AuthCtx> {
   // help keep apple login visually apart from the other operations.
   Log.addNewLineIfNone();
 
