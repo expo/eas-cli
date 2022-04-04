@@ -1,11 +1,26 @@
 import { ExpoConfig } from '@expo/config';
 import { IOSConfig } from '@expo/config-plugins';
 import { Platform, Workflow } from '@expo/eas-build-job';
+import Joi from 'joi';
 
 import { Target } from '../../credentials/ios/types';
 import { resolveWorkflowAsync } from '../workflow';
 import { getBundleIdentifierAsync } from './bundleIdentifier';
 import { XcodeBuildContext } from './scheme';
+
+interface UserDefinedTarget {
+  targetName: string;
+  bundleIdentifier: string;
+  parentBundleIdentifier?: string;
+}
+
+const AppExtensionsConfigSchema = Joi.array().items(
+  Joi.object({
+    targetName: Joi.string().required(),
+    bundleIdentifier: Joi.string().required(),
+    parentBundleIdentifier: Joi.string(),
+  })
+);
 
 export async function resolveTargetsAsync(
   { exp, projectDir }: { exp: ExpoConfig; projectDir: string },
@@ -35,7 +50,52 @@ export async function resolveTargetsAsync(
     result.push(...dependencies);
   }
 
+  result.push(
+    ...(await resolveManagedAppExtensionsAsync({
+      exp,
+      projectDir,
+      buildConfiguration,
+      applicationTargetBundleIdentifier: bundleIdentifier,
+    }))
+  );
+
   return result;
+}
+
+async function resolveManagedAppExtensionsAsync({
+  exp,
+  projectDir,
+  buildConfiguration,
+  applicationTargetBundleIdentifier,
+}: {
+  exp: ExpoConfig;
+  projectDir: string;
+  buildConfiguration?: string;
+  applicationTargetBundleIdentifier: string;
+}): Promise<Target[]> {
+  const workflow = await resolveWorkflowAsync(projectDir, Platform.IOS);
+  const managedAppExtensions: UserDefinedTarget[] =
+    exp.extra?.eas?.build?.experimental?.ios?.appExtensions;
+  if (workflow === Workflow.GENERIC || !managedAppExtensions) {
+    return [];
+  }
+
+  const { error } = AppExtensionsConfigSchema.validate(managedAppExtensions, {
+    allowUnknown: false,
+    abortEarly: false,
+  });
+  if (error) {
+    throw new Error(
+      `Failed to validate "extra.eas.build.experimental.ios.appExtensions" in you app config\n${error.message}`
+    );
+  }
+
+  return managedAppExtensions.map(extension => ({
+    targetName: extension.targetName,
+    buildConfiguration,
+    bundleIdentifier: extension.bundleIdentifier,
+    parentBundleIdentifier: extension.parentBundleIdentifier ?? applicationTargetBundleIdentifier,
+  }));
 }
 
 async function resolveDependenciesAsync({

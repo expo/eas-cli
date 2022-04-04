@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Experimental support for iOS App Extensions in managed projects. ([#1039](https://github.com/expo/eas-cli/pull/1039) by [@wkozyra95](https://github.com/wkozyra95))
+
 ### 🐛 Bug fixes
 
 - Fix proxy support. ([#1032](https://github.com/expo/eas-cli/pull/1032) by [@wkozyra95](https://github.com/wkozyra95))
