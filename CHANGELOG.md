@@ -9,6 +9,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🎉 New features
 
 - Added experimental App Store Connect API provisioning profile regeneration. ([#1038](https://github.com/expo/eas-cli/pull/1038) by [@EvanBacon](https://github.com/EvanBacon))
+- Experimental support for iOS App Extensions in managed projects. ([#1039](https://github.com/expo/eas-cli/pull/1039) by [@wkozyra95](https://github.com/wkozyra95))
 
 ### 🐛 Bug fixes
 
@@ -17,6 +18,8 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🧹 Chores
 
 - Add annotations regarding App Store Connect Token session support. ([#1029](https://github.com/expo/eas-cli/pull/1029) by [@EvanBacon](https://github.com/EvanBacon))
+- Upgrade dependencies. ([#1043](https://github.com/expo/eas-cli/pull/1043) by [@dsokal](https://github.com/dsokal))
+- Make default deprecation message more generic. ([#1047](https://github.com/expo/eas-cli/pull/1047) by [@wkozyra95](https://github.com/wkozyra95))
 
 ## [0.48.2](https://github.com/expo/eas-cli/releases/tag/v0.48.2) - 2022-03-21
 
