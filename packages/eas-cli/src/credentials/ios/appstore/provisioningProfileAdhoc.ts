@@ -1,6 +1,7 @@
 import { Device, Profile, ProfileState, ProfileType, RequestContext } from '@expo/apple-utils';
 
 import { ora } from '../../../ora';
+import { isAppStoreConnectTokenOnlyContext } from '../utils/authType';
 import { ProvisioningProfile } from './Credentials.types';
 import { AuthCtx, getRequestContext } from './authenticate';
 import { getBundleIdForIdentifierAsync, getProfilesForBundleIdAsync } from './bundleId';
@@ -89,9 +90,13 @@ async function findProfileByBundleIdAsync(
     }
     const profile = expoProfiles.sort(sortByExpiration)[expoProfiles.length - 1];
     profile.attributes.certificates = [distributionCertificate];
+
     return {
-      // This method does not support App Store Connect API.
-      profile: await profile.regenerateAsync(),
+      profile: isAppStoreConnectTokenOnlyContext(profile.context)
+        ? // Experimentally regenerate the provisioning profile using App Store Connect API.
+          await profile.regenerateManuallyAsync()
+        : // This method does not support App Store Connect API.
+          await profile.regenerateAsync(),
       didUpdate: true,
     };
   }
@@ -178,8 +183,13 @@ async function manageAdHocProfilesAsync(
     // We need to add new devices to the list and create a new provisioning profile.
     existingProfile.attributes.devices = devices;
 
-    // This method does not support App Store Connect API.
-    await existingProfile.regenerateAsync();
+    if (isAppStoreConnectTokenOnlyContext(existingProfile.context)) {
+      // Experimentally regenerate the provisioning profile using App Store Connect API.
+      await existingProfile.regenerateManuallyAsync();
+    } else {
+      // This method does not support App Store Connect API.
+      await existingProfile.regenerateAsync();
+    }
 
     const updatedProfile = (await findProfileByBundleIdAsync(context, bundleId, certSerialNumber))
       .profile;
