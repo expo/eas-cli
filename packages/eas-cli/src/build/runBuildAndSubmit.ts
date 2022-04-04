@@ -137,7 +137,11 @@ export async function runBuildAndSubmitAsync(projectDir: string, flags: BuildFla
     return;
   }
 
-  const builds = await waitForBuildEndAsync(startedBuilds.map(({ build }) => build.id));
+  const { accountName } = Object.values(buildCtxByPlatform)[0];
+  const builds = await waitForBuildEndAsync({
+    buildIds: startedBuilds.map(({ build }) => build.id),
+    accountName,
+  });
   printBuildResults(builds, flags.json);
 
   const haveAllBuildsFailedOrCanceled = builds.every(

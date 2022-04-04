@@ -1,10 +1,12 @@
 import { ArchiveSource, ArchiveSourceType, Job, Metadata, Platform } from '@expo/eas-build-job';
 import { CredentialsSource } from '@expo/eas-json';
 import chalk from 'chalk';
+import cliProgress from 'cli-progress';
 import fs from 'fs-extra';
 
 import { withAnalyticsAsync } from '../analytics/common';
 import { BuildEvent } from '../analytics/events';
+import { getExpoWebsiteBaseUrl } from '../api';
 import { BuildFragment, BuildStatus, UploadSessionType } from '../graphql/generated';
 import { BuildResult } from '../graphql/mutations/BuildMutation';
 import { BuildQuery } from '../graphql/queries/BuildQuery';
@@ -209,7 +211,7 @@ async function sendBuildRequestAsync<TPlatform extends Platform, Credentials, TJ
 }
 
 export async function waitForBuildEndAsync(
-  buildIds: string[],
+  { buildIds, accountName }: { buildIds: string[]; accountName: string },
   { timeoutSec = 3600, intervalSec = 30 } = {}
 ): Promise<(BuildFragment | null)[]> {
   Log.log(
@@ -218,6 +220,11 @@ export async function waitForBuildEndAsync(
   const spinner = ora().start();
   let time = new Date().getTime();
   const endTime = time + timeoutSec * 1000;
+  let queueProgressBarStarted = false;
+  const queueProgressBar = new cliProgress.SingleBar(
+    { format: '|{bar}| {estimatedWaitTime}' },
+    cliProgress.Presets.rect
+  );
   while (time <= endTime) {
     const builds: (BuildFragment | null)[] = await Promise.all(
       buildIds.map(async buildId => {
@@ -232,19 +239,54 @@ export async function waitForBuildEndAsync(
     if (builds.length === 1) {
       const [build] = builds;
       if (build !== null) {
+        if (queueProgressBarStarted && build?.status && build.status !== BuildStatus.InQueue) {
+          if (build.status === BuildStatus.InProgress) {
+            queueProgressBar.update(queueProgressBar.getTotal());
+          }
+          queueProgressBar.stop();
+          Log.newLine();
+          queueProgressBarStarted = false;
+          spinner.start('Build is about to start');
+        }
+
         switch (build.status) {
           case BuildStatus.Finished:
             spinner.succeed('Build finished');
             return builds;
           case BuildStatus.New:
-            spinner.text = 'Build created';
+            spinner.text = `Build is waiting to enter the queue. Check your concurrency limit at ${chalk.underline(
+              formatAccountSubscriptionsUrl(accountName)
+            )}.`;
             break;
-          case BuildStatus.InQueue:
+          case BuildStatus.InQueue: {
             spinner.text = 'Build queued...';
+            const progressBarPayload =
+              typeof build.estimatedWaitTimeLeftSeconds === 'number'
+                ? { estimatedWaitTime: formatEstimatedWaitTime(build.estimatedWaitTimeLeftSeconds) }
+                : { estimatedWaitTime: '' };
+
+            if (
+              !queueProgressBarStarted &&
+              typeof build.initialQueuePosition === 'number' &&
+              typeof build.queuePosition === 'number'
+            ) {
+              spinner.stopAndPersist();
+              Log.newLine();
+              Log.log('Waiting in queue');
+              queueProgressBar.start(
+                build.initialQueuePosition + 1,
+                build.initialQueuePosition - build.queuePosition + 1,
+                progressBarPayload
+              );
+              queueProgressBarStarted = true;
+            }
+            if (typeof build.queuePosition === 'number') {
+              queueProgressBar.update(build.queuePosition, progressBarPayload);
+            }
             break;
+          }
           case BuildStatus.Canceled:
-            spinner.text = 'Build canceled';
-            spinner.stopAndPersist();
+            spinner.fail('Build canceled');
             return builds;
           case BuildStatus.InProgress:
             spinner.text = 'Build in progress...';
@@ -309,4 +351,20 @@ export async function waitForBuildEndAsync(
   throw new Error(
     'Timeout reached! It is taking longer than expected to finish the build, aborting...'
   );
+}
+
+function formatEstimatedWaitTime(estimatedWaitTimeLeftSeconds: number): string {
+  if (estimatedWaitTimeLeftSeconds < 5 * 60) {
+    return 'Starting soon...';
+  } else {
+    const n = Math.floor(estimatedWaitTimeLeftSeconds / (10 * 60)) + 1;
+    return `Starting in about ${n}0 minutes...`;
+  }
+}
+
+function formatAccountSubscriptionsUrl(accountName: string): string {
+  return new URL(
+    `/accounts/${accountName}/settings/subscriptions`,
+    getExpoWebsiteBaseUrl()
+  ).toString();
 }
