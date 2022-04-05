@@ -7,7 +7,7 @@ import fs from 'fs-extra';
 import { withAnalyticsAsync } from '../analytics/common';
 import { BuildEvent } from '../analytics/events';
 import { getExpoWebsiteBaseUrl } from '../api';
-import { BuildFragment, BuildStatus, UploadSessionType } from '../graphql/generated';
+import { BuildFragment, BuildPriority, BuildStatus, UploadSessionType } from '../graphql/generated';
 import { BuildResult } from '../graphql/mutations/BuildMutation';
 import { BuildQuery } from '../graphql/queries/BuildQuery';
 import Log, { learnMore } from '../log';
@@ -306,6 +306,15 @@ async function handleSingleBuildProgressAsync(
         typeof build.queuePosition === 'number'
       ) {
         spinner.stopAndPersist();
+        if (build.priority !== BuildPriority.High) {
+          Log.newLine();
+          Log.log('Start builds sooner in the priority queue.');
+          Log.log(
+            `Sign up for EAS Production or Enterprise at ${chalk.underline(
+              formatAccountSubscriptionsUrl(accountName)
+            )}`
+          );
+        }
         Log.newLine();
         Log.log('Waiting in queue');
         queueProgressBar.start(

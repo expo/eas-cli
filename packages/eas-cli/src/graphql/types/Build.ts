@@ -44,6 +44,7 @@ export const BuildFragmentNode = gql`
     initialQueuePosition
     queuePosition
     estimatedWaitTimeLeftSeconds
+    priority
     createdAt
     updatedAt
   }
