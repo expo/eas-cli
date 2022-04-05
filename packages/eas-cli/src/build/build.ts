@@ -274,7 +274,9 @@ async function handleSingleBuildProgressAsync(
 
   if (queueProgressBarStarted && build?.status && build.status !== BuildStatus.InQueue) {
     if (build.status === BuildStatus.InProgress) {
-      queueProgressBar.update(queueProgressBar.getTotal());
+      queueProgressBar.update(queueProgressBar.getTotal(), {
+        estimatedWaitTime: '',
+      });
     }
     queueProgressBar.stop();
     Log.newLine();
