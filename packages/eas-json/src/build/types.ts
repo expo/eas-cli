@@ -54,6 +54,7 @@ export interface IosBuildProfile extends CommonBuildProfile {
   scheme?: string;
   buildConfiguration?: string;
 
+  /** File path to the App Store Connect API key. */
   ascApiKeyPath?: string;
   ascApiKeyIssuerId?: string;
   ascApiKeyId?: string;
