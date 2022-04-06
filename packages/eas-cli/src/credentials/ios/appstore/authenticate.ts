@@ -24,6 +24,7 @@ const APPLE_IN_HOUSE_TEAM_TYPE = 'in-house';
 export enum AuthenticationMode {
   /** App Store API requests will be made using the official API via an API key, used for CI environments where 2FA cannot be performed. */
   API_KEY,
+  /** Uses cookies based authentication and the unofficial App Store web API, this provides more functionality than the official API but cannot be reliably used in CI because it requires 2FA. */
   USER,
 }
 
