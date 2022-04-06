@@ -5,7 +5,8 @@ import dateformat from 'dateformat';
 import Log from '../../../log';
 import { ora } from '../../../ora';
 import { PushKey, PushKeyStoreInfo } from './Credentials.types';
-import { UserAuthCtx, getRequestContext } from './authenticate';
+import { getRequestContext } from './authenticate';
+import { UserAuthCtx } from './authenticateTypes';
 
 const { MaxKeysCreatedError } = Keys;
 

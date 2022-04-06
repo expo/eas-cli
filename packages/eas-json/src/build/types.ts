@@ -12,7 +12,6 @@ export type IosEnterpriseProvisioning = 'adhoc' | 'universal';
 export type VersionAutoIncrement = boolean | 'version';
 export type IosVersionAutoIncrement = VersionAutoIncrement | 'buildNumber';
 export type AndroidVersionAutoIncrement = VersionAutoIncrement | 'versionCode';
-export type AppleTeamType = 'inHouse' | 'companyOrOrganization' | 'individual';
 
 export interface CommonBuildProfile {
   credentialsSource: CredentialsSource;
@@ -53,15 +52,6 @@ export interface IosBuildProfile extends CommonBuildProfile {
   artifactPath?: string;
   scheme?: string;
   buildConfiguration?: string;
-
-  /** File path to the App Store Connect API key. */
-  ascApiKeyPath?: string;
-  /** App Store Connect API issuer ID. This is a UUID v4 string (reserved variant). Example: `00x0xx00-0000-47e3-e053-0x0x0x00x0x0` */
-  ascApiKeyIssuerId?: string;
-  /** Opaque identifier for the App Store Connect API key. Example: `ZJZAAA11AA`*/
-  ascApiKeyId?: string;
-  appleTeamId?: string;
-  appleTeamType?: AppleTeamType;
 }
 
 export type BuildProfile<TPlatform extends Platform = Platform> = TPlatform extends Platform.ANDROID

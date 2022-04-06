@@ -4,7 +4,8 @@ import chalk from 'chalk';
 
 import Log from '../../../log';
 import { ora } from '../../../ora';
-import { AuthCtx, getRequestContext, isUserAuthCtx } from './authenticate';
+import { getRequestContext, isUserAuthCtx } from './authenticate';
+import { AuthCtx } from './authenticateTypes';
 import { syncCapabilitiesForEntitlementsAsync } from './bundleIdCapabilities';
 import { syncCapabilityIdentifiersForEntitlementsAsync } from './capabilityIdentifiers';
 import { assertContractMessagesAsync } from './contractMessages';

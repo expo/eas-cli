@@ -6,7 +6,6 @@ import {
   Teams,
   Token,
 } from '@expo/apple-utils';
-import { AppleTeamType } from '@expo/eas-json/build/build/types';
 import assert from 'assert';
 import chalk from 'chalk';
 
@@ -14,19 +13,22 @@ import Log from '../../../log';
 import { toggleConfirmAsync } from '../../../prompts';
 import { MinimalAscApiKey } from '../credentials';
 import {
+  ApiKeyAuthCtx,
+  AppleTeamType,
+  AuthCtx,
+  AuthenticationMode,
+  Team,
+  UserAuthCtx,
+} from './authenticateTypes';
+import {
   deletePasswordAsync,
   promptPasswordAsync,
-  resolveCredentialsAsync,
+  resolveAppleTeamAsync,
+  resolveAscApiKeyAsync,
+  resolveUserCredentialsAsync,
 } from './resolveCredentials';
 
 const APPLE_IN_HOUSE_TEAM_TYPE = 'in-house';
-
-export enum AuthenticationMode {
-  /** App Store API requests will be made using the official API via an API key, used for CI environments where 2FA cannot be performed. */
-  API_KEY,
-  /** Uses cookies based authentication and the unofficial App Store web API, this provides more functionality than the official API but cannot be reliably used in CI because it requires 2FA. */
-  USER,
-}
 
 export type Options = {
   appleId?: string;
@@ -42,40 +44,8 @@ export type Options = {
   mode?: AuthenticationMode;
 };
 
-export type Team = {
-  id: string;
-  /** Name of the development team, this is undefined when ASC API keys are used instead of cookies for authentication. */
-  name?: string;
-  inHouse?: boolean;
-};
-
-export type UserAuthCtx = {
-  appleId: string;
-  appleIdPassword?: string;
-  team: Team;
-  /**
-   * Defined when using Fastlane
-   */
-  fastlaneSession?: string;
-  /**
-   * Can be used to restore the Apple auth state via apple-utils.
-   */
-  authState?: Session.AuthState; // TODO: Modify auth state context upstream for cleaner type?
-};
-
-type ApiKeyAuthCtx = {
-  ascApiKey: MinimalAscApiKey;
-  team: Team;
-  /**
-   * Can be used to restore the Apple auth state via apple-utils.
-   */
-  authState?: Partial<Session.AuthState>;
-};
-
-export type AuthCtx = UserAuthCtx | ApiKeyAuthCtx;
-
 export function isUserAuthCtx(authCtx: AuthCtx | undefined): authCtx is UserAuthCtx {
-  return typeof (authCtx as UserAuthCtx).appleId === 'string';
+  return !!authCtx && typeof (authCtx as UserAuthCtx).appleId === 'string';
 }
 
 export function assertUserAuthCtx(authCtx: AuthCtx | undefined): UserAuthCtx {
@@ -105,7 +75,7 @@ async function loginAsync(
   }
 
   // Resolve the user credentials, optimizing for password-less login.
-  const { username, password } = await resolveCredentialsAsync(userCredentials);
+  const { username, password } = await resolveUserCredentialsAsync(userCredentials);
   assert(username);
 
   // Clear data
@@ -184,23 +154,16 @@ async function loginWithUserCredentialsAsync({
 export async function authenticateAsync(options: Options = {}): Promise<AuthCtx> {
   if (options.mode === AuthenticationMode.API_KEY) {
     return await authenticateWithApiKeyAsync(options);
-  } else {
-    return await authenticateAsUserAsync(options);
   }
+  return await authenticateAsUserAsync(options);
 }
 
-// TODO: this may cause undefined behaviour in third party code
 async function authenticateWithApiKeyAsync(options: Options = {}): Promise<ApiKeyAuthCtx> {
-  const { ascApiKey, teamId, teamName, teamType } = options;
-  assert(ascApiKey, 'ascApiKey must be defined');
-  assert(teamId && teamType !== undefined, 'teamId and teamType must be defined');
-  const isInHouse = teamType === 'inHouse';
+  // Resolve the user credentials, optimizing for password-less login.
+  const ascApiKey = await resolveAscApiKeyAsync(options.ascApiKey);
+  const team = await resolveAppleTeamAsync(options);
   return {
-    team: {
-      id: teamId,
-      name: teamName,
-      inHouse: isInHouse,
-    },
+    team,
     authState: {
       context: {
         token: new Token({

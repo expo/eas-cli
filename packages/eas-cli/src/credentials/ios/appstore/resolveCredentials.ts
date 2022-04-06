@@ -5,6 +5,8 @@ import wrapAnsi from 'wrap-ansi';
 
 import Log, { learnMore } from '../../../log';
 import { promptAsync } from '../../../prompts';
+import { MinimalAscApiKey } from '../credentials';
+import { AppleTeamType, Team } from './authenticateTypes';
 import * as Keychain from './keychain';
 
 /**
@@ -13,7 +15,7 @@ import * as Keychain from './keychain';
  *
  * @param options
  */
-export async function resolveCredentialsAsync(
+export async function resolveUserCredentialsAsync(
   options: Partial<Auth.UserCredentials>
 ): Promise<Partial<Auth.UserCredentials>> {
   const credentials = getAppleIdFromEnvironmentOrOptions(options);
@@ -23,6 +25,162 @@ export async function resolveCredentialsAsync(
   }
 
   return credentials;
+}
+
+export function hasAscEnvVars(): boolean {
+  return (
+    !!process.env.EXPO_ASC_API_KEY_PATH ||
+    !!process.env.EXPO_ASC_KEY_ID ||
+    !!process.env.EXPO_ASC_ISSUER_ID
+  );
+}
+
+export async function resolveAscApiKeyAsync(
+  ascApiKey?: MinimalAscApiKey
+): Promise<MinimalAscApiKey> {
+  const passedKeyP8 = await getAscKeyP8FromEnvironmentOrOptionsAsync(ascApiKey);
+  const passedKeyId = await getAscKeyIdFromEnvironmentOrOptionsAsync(ascApiKey);
+  const passedIssuerId = await getAscIssuerIdFromEnvironmentOrOptionsAsync(ascApiKey);
+
+  return {
+    keyP8: passedKeyP8,
+    keyId: passedKeyId,
+    issuerId: passedIssuerId,
+  };
+}
+
+async function getAscKeyP8FromEnvironmentOrOptionsAsync(
+  ascApiKey?: MinimalAscApiKey
+): Promise<string> {
+  if (ascApiKey?.keyP8) {
+    return ascApiKey?.keyP8;
+  } else if (process.env.EXPO_ASC_API_KEY_PATH) {
+    return await fs.readFile(process.env.EXPO_ASC_API_KEY_PATH, 'utf-8');
+  }
+
+  const { ascApiKeyPath } = await promptAsync({
+    type: 'text',
+    name: 'ascApiKeyPath',
+    message: `Path to ASC Api Key Path (.p8):`,
+    validate: (val: string) => val !== '',
+  });
+  return await fs.readFile(ascApiKeyPath, 'utf-8');
+}
+
+async function getAscKeyIdFromEnvironmentOrOptionsAsync(
+  ascApiKey?: MinimalAscApiKey
+): Promise<string> {
+  if (ascApiKey?.keyId) {
+    return ascApiKey?.keyId;
+  } else if (process.env.EXPO_ASC_KEY_ID) {
+    return process.env.EXPO_ASC_KEY_ID;
+  }
+
+  const { ascApiKeyId } = await promptAsync({
+    type: 'text',
+    name: 'ascApiKeyId',
+    message: `ASC Api Key ID:`,
+    validate: (val: string) => val !== '',
+  });
+  return ascApiKeyId;
+}
+
+async function getAscIssuerIdFromEnvironmentOrOptionsAsync(
+  ascApiKey?: MinimalAscApiKey
+): Promise<string> {
+  if (ascApiKey?.issuerId) {
+    return ascApiKey?.issuerId;
+  } else if (process.env.EXPO_ASC_ISSUER_ID) {
+    return process.env.EXPO_ASC_ISSUER_ID;
+  }
+
+  const { ascIssuerId } = await promptAsync({
+    type: 'text',
+    name: 'ascIssuerId',
+    message: `ASC Issuer ID:`,
+    validate: (val: string) => val !== '',
+  });
+  return ascIssuerId;
+}
+
+function isAppleTeamType(maybeTeamType: any): maybeTeamType is AppleTeamType {
+  return maybeTeamType in AppleTeamType;
+}
+
+function assertAppleTeamType(maybeTeamType: any): AppleTeamType {
+  if (!isAppleTeamType(maybeTeamType)) {
+    throw new Error(
+      `Invalid Apple Team Type: ${maybeTeamType}. Must be one of ${Object.keys(AppleTeamType).join(
+        ', '
+      )}`
+    );
+  }
+  return maybeTeamType;
+}
+
+function resolveAppleTeamTypeFromEnvironment(): AppleTeamType | undefined {
+  if (!process.env.EXPO_APPLE_TEAM_TYPE) {
+    return undefined;
+  }
+  return assertAppleTeamType(process.env.EXPO_APPLE_TEAM_TYPE);
+}
+
+async function getAppleTeamIdFromEnvironmentOrOptionsAsync(options: {
+  teamId?: string;
+}): Promise<string> {
+  if (options.teamId) {
+    return options.teamId;
+  } else if (process.env.EXPO_APPLE_TEAM_ID) {
+    return process.env.EXPO_APPLE_TEAM_ID;
+  }
+
+  const { appleTeamId } = await promptAsync({
+    type: 'text',
+    name: 'appleTeamId',
+    message: `Apple Team ID:`,
+    validate: (val: string) => val !== '',
+  });
+  return appleTeamId;
+}
+
+async function getAppleTeamTypeFromEnvironmentOrOptionsAsync(options: {
+  teamType?: AppleTeamType;
+}): Promise<string> {
+  if (options.teamType) {
+    return options.teamType;
+  }
+
+  const appleTeamTypeFromEnvironment = resolveAppleTeamTypeFromEnvironment();
+  if (appleTeamTypeFromEnvironment) {
+    return appleTeamTypeFromEnvironment;
+  }
+
+  const { appleTeamType } = await promptAsync({
+    type: 'select',
+    message: 'Select your Apple Team Type:',
+    name: 'appleTeamType',
+    choices: [
+      { title: 'Enterprise', value: AppleTeamType.IN_HOUSE },
+      { title: 'Company/Organization', value: AppleTeamType.COMPANY_OR_ORGANIZATION },
+      { title: 'Individual', value: AppleTeamType.INDIVIDUAL },
+    ],
+  });
+  return appleTeamType;
+}
+
+export async function resolveAppleTeamAsync(
+  options: {
+    teamId?: string;
+    teamName?: string;
+    teamType?: AppleTeamType;
+  } = {}
+): Promise<Team> {
+  const passedTeamType = await getAppleTeamTypeFromEnvironmentOrOptionsAsync(options);
+  return {
+    id: await getAppleTeamIdFromEnvironmentOrOptionsAsync(options),
+    name: options.teamName,
+    inHouse: passedTeamType === AppleTeamType.IN_HOUSE,
+  };
 }
 
 function getAppleIdFromEnvironmentOrOptions({

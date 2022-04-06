@@ -8,7 +8,8 @@ import {
   ProvisioningProfile,
   ProvisioningProfileStoreInfo,
 } from './Credentials.types';
-import { AuthCtx, getRequestContext } from './authenticate';
+import { getRequestContext } from './authenticate';
+import { AuthCtx } from './authenticateTypes';
 import { getBundleIdForIdentifierAsync, getProfilesForBundleIdAsync } from './bundleId';
 import { getCertificateBySerialNumberAsync, transformCertificate } from './distributionCertificate';
 

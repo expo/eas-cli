@@ -3,7 +3,8 @@ import { Device, Profile, ProfileState, ProfileType, RequestContext } from '@exp
 import { ora } from '../../../ora';
 import { isAppStoreConnectTokenOnlyContext } from '../utils/authType';
 import { ProvisioningProfile } from './Credentials.types';
-import { AuthCtx, getRequestContext } from './authenticate';
+import { getRequestContext } from './authenticate';
+import { AuthCtx } from './authenticateTypes';
 import { getBundleIdForIdentifierAsync, getProfilesForBundleIdAsync } from './bundleId';
 import { getDistributionCertificateAsync } from './distributionCertificate';
 

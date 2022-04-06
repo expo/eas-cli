@@ -16,14 +16,12 @@ import {
   revokeAscApiKeyAsync,
 } from './ascApiKey';
 import {
-  AuthCtx,
   Options as AuthenticateOptions,
-  AuthenticationMode,
-  UserAuthCtx,
   assertUserAuthCtx,
   authenticateAsync,
   isUserAuthCtx,
 } from './authenticate';
+import { AuthCtx, AuthenticationMode, UserAuthCtx } from './authenticateTypes';
 import {
   createDistributionCertificateAsync,
   listDistributionCertificatesAsync,
@@ -43,10 +41,17 @@ import {
 } from './provisioningProfile';
 import { createOrReuseAdhocProvisioningProfileAsync } from './provisioningProfileAdhoc';
 import { createPushKeyAsync, listPushKeysAsync, revokePushKeyAsync } from './pushKey';
+import { hasAscEnvVars } from './resolveCredentials';
 
 export default class AppStoreApi {
   public authCtx?: AuthCtx;
-  constructor(public defaultAuthenticateOptions?: AuthenticateOptions) {}
+  public defaultAuthenticationMode: AuthenticationMode;
+
+  constructor() {
+    this.defaultAuthenticationMode = hasAscEnvVars()
+      ? AuthenticationMode.API_KEY
+      : AuthenticationMode.USER;
+  }
 
   public async ensureUserAuthenticatedAsync(options?: AuthenticateOptions): Promise<UserAuthCtx> {
     if (this.authCtx && !isUserAuthCtx(this.authCtx)) {
@@ -64,7 +69,7 @@ export default class AppStoreApi {
 
   public async ensureAuthenticatedAsync(options?: AuthenticateOptions): Promise<AuthCtx> {
     if (!this.authCtx) {
-      this.authCtx = await authenticateAsync(options ?? this.defaultAuthenticateOptions);
+      this.authCtx = await authenticateAsync(options);
     }
     return this.authCtx;
   }

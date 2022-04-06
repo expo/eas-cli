@@ -3,7 +3,8 @@ import { ApiKey, ApiKeyProps, ApiKeyType, UserRole } from '@expo/apple-utils';
 import Log from '../../../log';
 import { ora } from '../../../ora';
 import { AscApiKey, AscApiKeyInfo } from './Credentials.types';
-import { AuthCtx, getRequestContext } from './authenticate';
+import { getRequestContext } from './authenticate';
+import { AuthCtx } from './authenticateTypes';
 
 export async function listAscApiKeysAsync(authCtx: AuthCtx): Promise<AscApiKeyInfo[]> {
   const spinner = ora(`Fetching App Store Connect API Keys.`).start();

@@ -10,16 +10,7 @@ import { Actor, getActorDisplayName } from '../user/User';
 import * as AndroidGraphqlClient from './android/api/GraphqlClient';
 import * as IosGraphqlClient from './ios/api/GraphqlClient';
 import AppStoreApi from './ios/appstore/AppStoreApi';
-import { Options as AuthenticateOptions, AuthenticationMode } from './ios/appstore/authenticate';
-
-export type CredentialsContextOptions = {
-  exp?: ExpoConfig;
-  nonInteractive?: boolean;
-  projectDir: string;
-  user: Actor;
-  env?: Env;
-  defaultAppStoreAuthentication?: AuthenticateOptions;
-};
+import { AuthenticationMode } from './ios/appstore/authenticateTypes';
 
 export class CredentialsContext {
   public readonly android = AndroidGraphqlClient;
@@ -32,7 +23,15 @@ export class CredentialsContext {
   private shouldAskAuthenticateAppStore: boolean = true;
   private resolvedExp?: ExpoConfig;
 
-  constructor(private options: CredentialsContextOptions) {
+  constructor(
+    private options: {
+      exp?: ExpoConfig;
+      nonInteractive?: boolean;
+      projectDir: string;
+      user: Actor;
+      env?: Env;
+    }
+  ) {
     this.projectDir = options.projectDir;
     this.user = options.user;
     this.nonInteractive = options.nonInteractive ?? false;
@@ -43,7 +42,7 @@ export class CredentialsContext {
         CredentialsContext.getExpoConfigInProject(this.projectDir, { env: options.env }) ??
         undefined;
     }
-    this.appStore = new AppStoreApi(options.defaultAppStoreAuthentication);
+    this.appStore = new AppStoreApi();
   }
 
   static getExpoConfigInProject(
@@ -102,8 +101,8 @@ export class CredentialsContext {
       return;
     }
 
-    if (this.appStore.defaultAuthenticateOptions?.mode === AuthenticationMode.API_KEY) {
-      await this.appStore.ensureAuthenticatedAsync();
+    if (this.appStore.defaultAuthenticationMode === AuthenticationMode.API_KEY) {
+      await this.appStore.ensureAuthenticatedAsync({ mode: AuthenticationMode.API_KEY });
       return;
     }
 
