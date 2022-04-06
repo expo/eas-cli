@@ -38,6 +38,7 @@ export type Options = {
    * Can be used to restore the Apple auth state via apple-utils.
    */
   cookies?: Session.AuthState['cookies'];
+  /** Indicates how Apple network requests will be made. */
   mode?: AuthenticationMode;
 };
 
