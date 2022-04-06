@@ -44,6 +44,7 @@ export type Options = {
 
 export type Team = {
   id: string;
+  /** Name of the development team, this is undefined when ASC API keys are used instead of cookies for authentication. */
   name?: string;
   inHouse?: boolean;
 };
