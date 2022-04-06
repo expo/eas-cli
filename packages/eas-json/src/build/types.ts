@@ -56,7 +56,9 @@ export interface IosBuildProfile extends CommonBuildProfile {
 
   /** File path to the App Store Connect API key. */
   ascApiKeyPath?: string;
+  /** App Store Connect API issuer ID. This is a UUID v4 string (reserved variant). Example: `00x0xx00-0000-47e3-e053-0x0x0x00x0x0` */
   ascApiKeyIssuerId?: string;
+  /** Opaque identifier for the App Store Connect API key. Example: `ZJZAAA11AA`*/
   ascApiKeyId?: string;
   appleTeamId?: string;
   appleTeamType?: AppleTeamType;
