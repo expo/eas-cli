@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Provide queue position progress and estimated wait time. ([#1049](https://github.com/expo/eas-cli/pull/1049) by [@dsokal](https://github.com/dsokal))
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
