@@ -1,7 +1,7 @@
 import { Platform } from '@expo/eas-build-job';
 import { BuildProfile } from '@expo/eas-json';
 import JsonFile from '@expo/json-file';
-import fs from 'fs-extra';
+import fs from 'fs/promises';
 import resolveFrom from 'resolve-from';
 import { v4 as uuidv4 } from 'uuid';
 
