@@ -1,5 +1,5 @@
 import AppStoreApi from '../ios/appstore/AppStoreApi';
-import { AuthCtx } from '../ios/appstore/authenticate';
+import { AuthCtx } from '../ios/appstore/authenticateTypes';
 
 export const testAuthCtx: AuthCtx = {
   appleId: 'test-apple-id',

@@ -9,7 +9,7 @@ import { askForUserProvidedAsync } from '../../utils/promptForCredentials';
 import { AppLookupParams } from '../api/GraphqlClient';
 import { AppleProvisioningProfileMutationResult } from '../api/graphql/mutations/AppleProvisioningProfileMutation';
 import { ProvisioningProfile } from '../appstore/Credentials.types';
-import { AuthCtx } from '../appstore/authenticate';
+import { AuthCtx } from '../appstore/authenticateTypes';
 import { provisioningProfileSchema } from '../credentials';
 import { resolveAppleTeamIfAuthenticatedAsync } from './AppleTeamUtils';
 import { generateProvisioningProfileAsync } from './ProvisioningProfileUtils';
@@ -68,7 +68,7 @@ export class CreateProvisioningProfile {
       certP12: this.distributionCertificate.certificateP12,
       certPassword: this.distributionCertificate.certificatePassword,
       distCertSerialNumber: this.distributionCertificate.serialNumber,
-      teamId: this.distributionCertificate.appleTeam?.appleTeamIdentifier ?? appleAuthCtx.appleId,
+      teamId: this.distributionCertificate.appleTeam?.appleTeamIdentifier ?? appleAuthCtx.team.id,
     });
   }
 }

@@ -7,7 +7,8 @@ import {
 
 import { ora } from '../../../ora';
 import { DistributionCertificate, DistributionCertificateStoreInfo } from './Credentials.types';
-import { AuthCtx, getRequestContext } from './authenticate';
+import { getRequestContext } from './authenticate';
+import { AuthCtx } from './authenticateTypes';
 
 export class AppleTooManyCertsError extends Error {}
 

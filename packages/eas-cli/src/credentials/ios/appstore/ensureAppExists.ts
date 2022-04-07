@@ -4,7 +4,8 @@ import chalk from 'chalk';
 
 import Log from '../../../log';
 import { ora } from '../../../ora';
-import { AuthCtx, getRequestContext } from './authenticate';
+import { getRequestContext, isUserAuthCtx } from './authenticate';
+import { AuthCtx } from './authenticateTypes';
 import { syncCapabilitiesForEntitlementsAsync } from './bundleIdCapabilities';
 import { syncCapabilityIdentifiersForEntitlementsAsync } from './capabilityIdentifiers';
 import { assertContractMessagesAsync } from './contractMessages';
@@ -186,9 +187,11 @@ export async function ensureAppExistsAsync(
       });
     } catch (error: any) {
       if (error.message.match(/An App ID with Identifier '(.*)' is not available/)) {
-        const providerName = authCtx.authState?.session.provider.name;
+        const entity = isUserAuthCtx(authCtx)
+          ? `provider "${authCtx.authState?.session.provider.name}"`
+          : `Apple Team: ${authCtx.team.id}`;
         throw new Error(
-          `\nThe bundle identifier "${bundleIdentifier}" is not available to provider "${providerName}". Please change it in your app config and try again.\n`
+          `\nThe bundle identifier "${bundleIdentifier}" is not available to ${entity}. Please change it in your app config and try again.\n`
         );
       }
 

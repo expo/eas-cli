@@ -10,6 +10,7 @@ import { Actor, getActorDisplayName } from '../user/User';
 import * as AndroidGraphqlClient from './android/api/GraphqlClient';
 import * as IosGraphqlClient from './ios/api/GraphqlClient';
 import AppStoreApi from './ios/appstore/AppStoreApi';
+import { AuthenticationMode } from './ios/appstore/authenticateTypes';
 
 export class CredentialsContext {
   public readonly android = AndroidGraphqlClient;
@@ -96,6 +97,11 @@ export class CredentialsContext {
     }
 
     if (this.nonInteractive) {
+      return;
+    }
+
+    if (this.appStore.defaultAuthenticationMode === AuthenticationMode.API_KEY) {
+      await this.appStore.ensureAuthenticatedAsync({ mode: AuthenticationMode.API_KEY });
       return;
     }
 

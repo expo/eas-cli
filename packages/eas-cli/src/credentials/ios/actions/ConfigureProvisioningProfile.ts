@@ -12,7 +12,7 @@ import { MissingCredentialsNonInteractiveError } from '../../errors';
 import { AppLookupParams } from '../api/GraphqlClient';
 import { AppleProvisioningProfileMutationResult } from '../api/graphql/mutations/AppleProvisioningProfileMutation';
 import { ProvisioningProfileStoreInfo } from '../appstore/Credentials.types';
-import { AuthCtx } from '../appstore/authenticate';
+import { AuthCtx } from '../appstore/authenticateTypes';
 
 export class ConfigureProvisioningProfile {
   constructor(
@@ -84,7 +84,7 @@ export class ConfigureProvisioningProfile {
         certP12: certificateP12,
         certPassword: certificatePassword,
         distCertSerialNumber: serialNumber,
-        teamId: authCtx.appleId,
+        teamId: authCtx.team.id,
       }
     );
 

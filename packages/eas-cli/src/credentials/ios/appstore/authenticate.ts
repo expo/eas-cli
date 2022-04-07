@@ -4,16 +4,28 @@ import {
   RequestContext,
   Session,
   Teams,
+  Token,
 } from '@expo/apple-utils';
 import assert from 'assert';
 import chalk from 'chalk';
 
 import Log from '../../../log';
 import { toggleConfirmAsync } from '../../../prompts';
+import { MinimalAscApiKey } from '../credentials';
+import {
+  ApiKeyAuthCtx,
+  AppleTeamType,
+  AuthCtx,
+  AuthenticationMode,
+  Team,
+  UserAuthCtx,
+} from './authenticateTypes';
 import {
   deletePasswordAsync,
   promptPasswordAsync,
-  resolveCredentialsAsync,
+  resolveAppleTeamAsync,
+  resolveAscApiKeyAsync,
+  resolveUserCredentialsAsync,
 } from './resolveCredentials';
 
 const APPLE_IN_HOUSE_TEAM_TYPE = 'in-house';
@@ -21,31 +33,27 @@ const APPLE_IN_HOUSE_TEAM_TYPE = 'in-house';
 export type Options = {
   appleId?: string;
   teamId?: string;
+  teamName?: string;
+  teamType?: AppleTeamType;
+  ascApiKey?: MinimalAscApiKey;
   /**
    * Can be used to restore the Apple auth state via apple-utils.
    */
   cookies?: Session.AuthState['cookies'];
+  /** Indicates how Apple network requests will be made. */
+  mode?: AuthenticationMode;
 };
 
-export type Team = {
-  id: string;
-  name: string;
-  inHouse?: boolean;
-};
+export function isUserAuthCtx(authCtx: AuthCtx | undefined): authCtx is UserAuthCtx {
+  return !!authCtx && typeof (authCtx as UserAuthCtx).appleId === 'string';
+}
 
-export type AuthCtx = {
-  appleId: string;
-  appleIdPassword?: string;
-  team: Team;
-  /**
-   * Defined when using Fastlane
-   */
-  fastlaneSession?: string;
-  /**
-   * Can be used to restore the Apple auth state via apple-utils.
-   */
-  authState?: Session.AuthState;
-};
+export function assertUserAuthCtx(authCtx: AuthCtx | undefined): UserAuthCtx {
+  if (isUserAuthCtx(authCtx)) {
+    return authCtx;
+  }
+  throw new Error('Expected user authentication context (login/password).');
+}
 
 export function getRequestContext(authCtx: AuthCtx): RequestContext {
   assert(authCtx.authState?.context, 'Apple request context must be defined');
@@ -67,7 +75,7 @@ async function loginAsync(
   }
 
   // Resolve the user credentials, optimizing for password-less login.
-  const { username, password } = await resolveCredentialsAsync(userCredentials);
+  const { username, password } = await resolveUserCredentialsAsync(userCredentials);
   assert(username);
 
   // Clear data
@@ -144,6 +152,35 @@ async function loginWithUserCredentialsAsync({
 }
 
 export async function authenticateAsync(options: Options = {}): Promise<AuthCtx> {
+  if (options.mode === AuthenticationMode.API_KEY) {
+    return await authenticateWithApiKeyAsync(options);
+  } else {
+    return await authenticateAsUserAsync(options);
+  }
+}
+
+async function authenticateWithApiKeyAsync(options: Options = {}): Promise<ApiKeyAuthCtx> {
+  // Resolve the user credentials, optimizing for password-less login.
+  const ascApiKey = await resolveAscApiKeyAsync(options.ascApiKey);
+  const team = await resolveAppleTeamAsync(options);
+  const jwtDurationSeconds = 1200; // 20 minutes
+  return {
+    team,
+    authState: {
+      context: {
+        token: new Token({
+          key: ascApiKey.keyP8,
+          issuerId: ascApiKey.issuerId,
+          keyId: ascApiKey.keyId,
+          duration: jwtDurationSeconds,
+        }),
+      },
+    },
+    ascApiKey,
+  };
+}
+
+async function authenticateAsUserAsync(options: Options = {}): Promise<AuthCtx> {
   // help keep apple login visually apart from the other operations.
   Log.addNewLineIfNone();
 

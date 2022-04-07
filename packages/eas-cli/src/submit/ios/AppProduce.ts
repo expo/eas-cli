@@ -2,7 +2,7 @@ import { App, RequestContext, Session, User } from '@expo/apple-utils';
 import { Platform } from '@expo/eas-build-job';
 import chalk from 'chalk';
 
-import { getRequestContext } from '../../credentials/ios/appstore/authenticate';
+import { getRequestContext, isUserAuthCtx } from '../../credentials/ios/appstore/authenticate';
 import {
   ensureAppExistsAsync,
   ensureBundleIdExistsWithNameAsync,
@@ -24,7 +24,6 @@ interface CreateAppOptions {
 }
 
 type AppStoreResult = {
-  appleIdUsername: string;
   ascAppIdentifier: string;
 };
 
@@ -81,9 +80,11 @@ async function createAppStoreConnectAppAsync(
       bundleIdentifier: bundleId,
     });
   } else {
-    Log.warn(
-      `Provisioning is not available for user "${authCtx.appleId}", skipping bundle identifier check.`
-    );
+    const entity = isUserAuthCtx(authCtx)
+      ? `Apple User: ${authCtx.appleId}`
+      : `API Key ID ${authCtx.ascApiKey.keyId} for Apple Team ${authCtx.team.id}`;
+
+    Log.warn(`Provisioning is not available for ${entity}, skipping bundle identifier check.`);
   }
 
   let app: App | null = null;
@@ -120,7 +121,6 @@ async function createAppStoreConnectAppAsync(
   }
 
   return {
-    appleIdUsername: authCtx.appleId,
     ascAppIdentifier: app.id,
   };
 }

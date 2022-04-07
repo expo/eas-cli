@@ -1,3 +1,4 @@
+import Log from '../../../log';
 import {
   AscApiKey,
   AscApiKeyInfo,
@@ -14,7 +15,13 @@ import {
   listAscApiKeysAsync,
   revokeAscApiKeyAsync,
 } from './ascApiKey';
-import { AuthCtx, Options as AuthenticateOptions, authenticateAsync } from './authenticate';
+import {
+  Options as AuthenticateOptions,
+  assertUserAuthCtx,
+  authenticateAsync,
+  isUserAuthCtx,
+} from './authenticate';
+import { AuthCtx, AuthenticationMode, UserAuthCtx } from './authenticateTypes';
 import {
   createDistributionCertificateAsync,
   listDistributionCertificatesAsync,
@@ -34,9 +41,31 @@ import {
 } from './provisioningProfile';
 import { createOrReuseAdhocProvisioningProfileAsync } from './provisioningProfileAdhoc';
 import { createPushKeyAsync, listPushKeysAsync, revokePushKeyAsync } from './pushKey';
+import { hasAscEnvVars } from './resolveCredentials';
 
 export default class AppStoreApi {
   public authCtx?: AuthCtx;
+  public defaultAuthenticationMode: AuthenticationMode;
+
+  constructor() {
+    this.defaultAuthenticationMode = hasAscEnvVars()
+      ? AuthenticationMode.API_KEY
+      : AuthenticationMode.USER;
+  }
+
+  public async ensureUserAuthenticatedAsync(options?: AuthenticateOptions): Promise<UserAuthCtx> {
+    if (this.authCtx && !isUserAuthCtx(this.authCtx)) {
+      // already authenticated, but with the wrong type
+      Log.log(`Only user authentication is supported. Reauthenticating as user...`);
+      this.authCtx = undefined;
+    }
+
+    const updatedAuthCtx = await this.ensureAuthenticatedAsync({
+      ...options,
+      mode: AuthenticationMode.USER,
+    });
+    return assertUserAuthCtx(updatedAuthCtx);
+  }
 
   public async ensureAuthenticatedAsync(options?: AuthenticateOptions): Promise<AuthCtx> {
     if (!this.authCtx) {
@@ -69,18 +98,18 @@ export default class AppStoreApi {
   }
 
   public async listPushKeysAsync(): Promise<PushKeyStoreInfo[]> {
-    const ctx = await this.ensureAuthenticatedAsync();
-    return await listPushKeysAsync(ctx);
+    const userCtx = await this.ensureUserAuthenticatedAsync();
+    return await listPushKeysAsync(userCtx);
   }
 
   public async createPushKeyAsync(name?: string): Promise<PushKey> {
-    const ctx = await this.ensureAuthenticatedAsync();
-    return await createPushKeyAsync(ctx, name);
+    const userCtx = await this.ensureUserAuthenticatedAsync();
+    return await createPushKeyAsync(userCtx, name);
   }
 
   public async revokePushKeyAsync(ids: string[]): Promise<void> {
-    const ctx = await this.ensureAuthenticatedAsync();
-    return await revokePushKeyAsync(ctx, ids);
+    const userCtx = await this.ensureUserAuthenticatedAsync();
+    return await revokePushKeyAsync(userCtx, ids);
   }
 
   public async useExistingProvisioningProfileAsync(
