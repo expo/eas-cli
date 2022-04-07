@@ -8,7 +8,6 @@ import {
   getCodeSigningInfoAsync,
   getKeyAndCertificateFromPathsAsync,
   getManifestBodyAsync,
-  parseMultipartMixedResponseAsync,
 } from '../code-signing';
 
 function generateMultipartBody(stringifiedManifest: string): FormData {
@@ -89,21 +88,6 @@ describe(getKeyAndCertificateFromPathsAsync, () => {
         privateKeyPath: path.join(__dirname, './fixtures/invalid-private-key.pem'),
       })
     ).rejects.toThrow('Certificate validity expired');
-  });
-});
-
-describe(parseMultipartMixedResponseAsync, () => {
-  it('parses multipart response', async () => {
-    const form = generateMultipartBody(JSON.stringify({ hello: 'world' }));
-
-    const parts = await parseMultipartMixedResponseAsync({
-      arrayBuffer: async () => form.getBuffer(),
-      headers: new Headers({
-        'content-type': `multipart/mixed; boundary=${form.getBoundary()}`,
-      }),
-    } as any as Response);
-
-    expect(parts).toHaveLength(2);
   });
 });
 
