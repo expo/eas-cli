@@ -9,6 +9,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🎉 New features
 
 - Provide queue position progress and estimated wait time. ([#1049](https://github.com/expo/eas-cli/pull/1049) by [@dsokal](https://github.com/dsokal))
+- Enable App Store authentication for ASC Api Keys with environment variables. ([#1051](https://github.com/expo/eas-cli/pull/1051) by [@quinlanj](https://github.com/quinlanj))
 
 ### 🐛 Bug fixes
 
@@ -20,7 +21,6 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - Added experimental App Store Connect API provisioning profile regeneration. ([#1038](https://github.com/expo/eas-cli/pull/1038) by [@EvanBacon](https://github.com/EvanBacon))
 - Experimental support for iOS App Extensions in managed projects. ([#1039](https://github.com/expo/eas-cli/pull/1039) by [@wkozyra95](https://github.com/wkozyra95))
-- Enable App Store authentication for ASC Api Keys with environment variables. ([#1051](https://github.com/expo/eas-cli/pull/1051) by [@quinlanj](https://github.com/quinlanj))
 
 ### 🐛 Bug fixes
 
