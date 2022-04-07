@@ -14,7 +14,7 @@ import { AuthenticationMode } from './ios/appstore/authenticateTypes';
 
 export class CredentialsContext {
   public readonly android = AndroidGraphqlClient;
-  public readonly appStore;
+  public readonly appStore = new AppStoreApi();
   public readonly ios = IosGraphqlClient;
   public readonly nonInteractive: boolean;
   public readonly projectDir: string;
@@ -42,7 +42,6 @@ export class CredentialsContext {
         CredentialsContext.getExpoConfigInProject(this.projectDir, { env: options.env }) ??
         undefined;
     }
-    this.appStore = new AppStoreApi();
   }
 
   static getExpoConfigInProject(
