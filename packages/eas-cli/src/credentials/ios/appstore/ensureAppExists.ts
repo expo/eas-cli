@@ -189,7 +189,7 @@ export async function ensureAppExistsAsync(
       if (error.message.match(/An App ID with Identifier '(.*)' is not available/)) {
         const entity = isUserAuthCtx(authCtx)
           ? `provider "${authCtx.authState?.session.provider.name}"`
-          : `apple team: ${authCtx.team.id}`;
+          : `Apple Team: ${authCtx.team.id}`;
         throw new Error(
           `\nThe bundle identifier "${bundleIdentifier}" is not available to ${entity}. Please change it in your app config and try again.\n`
         );
