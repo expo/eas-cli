@@ -5,14 +5,15 @@ import {
   validateSelfSignedCertificate,
 } from '@expo/code-signing-certificates';
 import { ExpoConfig } from '@expo/config';
-import Dicer from 'dicer';
+import {
+  isMultipartPartWithName,
+  parseMultipartMixedResponseAsync,
+} from '@expo/multipart-body-parser';
 import isDeepEqual from 'fast-deep-equal';
 import { promises as fs } from 'fs';
 import { pki as PKI } from 'node-forge';
 import nullthrows from 'nullthrows';
 import path from 'path';
-import { Stream } from 'stream';
-import { parseItem } from 'structured-headers';
 
 import { Response } from '../fetch';
 import { PartialManifest, PartialManifestAsset } from '../graphql/generated';
@@ -103,66 +104,17 @@ export async function getKeyAndCertificateFromPathsAsync({
   };
 }
 
-export type MultipartPart = { headers: Map<string, string>; body: string };
-
-export async function parseMultipartMixedResponseAsync(res: Response): Promise<MultipartPart[]> {
+export async function getManifestBodyAsync(res: Response): Promise<string | null> {
   const contentType = res.headers.get('content-type');
   if (!contentType) {
     throw new Error('The multipart manifest response is missing the content-type header');
   }
-
-  const boundaryRegex = /^multipart\/.+?; boundary=(?:"([^"]+)"|([^\s;]+))/i;
-  const matches = boundaryRegex.exec(contentType);
-  if (!matches) {
-    throw new Error('The content-type header in the HTTP response is not a multipart media type');
-  }
-  const boundary = matches[1] ?? matches[2];
-
   const bodyBuffer = await res.arrayBuffer();
-  const bufferStream = new Stream.PassThrough();
-  bufferStream.end(bodyBuffer);
-
-  return await new Promise((resolve, reject) => {
-    const parts: MultipartPart[] = [];
-    bufferStream.pipe(
-      new Dicer({ boundary })
-        .on('part', p => {
-          const part: MultipartPart = {
-            body: '',
-            headers: new Map(),
-          };
-
-          p.on('header', headers => {
-            for (const h in headers) {
-              part.headers.set(h, (headers as { [key: string]: string[] })[h][0]);
-            }
-          });
-          p.on('data', data => {
-            part.body += data.toString();
-          });
-          p.on('end', () => {
-            parts.push(part);
-          });
-        })
-        .on('finish', () => {
-          resolve(parts);
-        })
-        .on('error', error => {
-          reject(error);
-        })
-    );
-  });
-}
-
-function isManifestMultipartPart(multipartPart: MultipartPart): boolean {
-  const [, parameters] = parseItem(nullthrows(multipartPart.headers.get('content-disposition')));
-  const partName = parameters.get('name');
-  return partName === 'manifest';
-}
-
-export async function getManifestBodyAsync(res: Response): Promise<string | null> {
-  const multipartParts = await parseMultipartMixedResponseAsync(res);
-  const manifestPart = multipartParts.find(isManifestMultipartPart);
+  const multipartParts = await parseMultipartMixedResponseAsync(
+    contentType,
+    Buffer.from(bodyBuffer)
+  );
+  const manifestPart = multipartParts.find(part => isMultipartPartWithName(part, 'manifest'));
   return manifestPart?.body ?? null;
 }
 

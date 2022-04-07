@@ -8,7 +8,6 @@ import {
   getCodeSigningInfoAsync,
   getKeyAndCertificateFromPathsAsync,
   getManifestBodyAsync,
-  parseMultipartMixedResponseAsync,
 } from '../code-signing';
 
 function generateMultipartBody(stringifiedManifest: string): FormData {
@@ -92,28 +91,13 @@ describe(getKeyAndCertificateFromPathsAsync, () => {
   });
 });
 
-describe(parseMultipartMixedResponseAsync, () => {
-  it('parses multipart response', async () => {
-    const form = generateMultipartBody(JSON.stringify({ hello: 'world' }));
-
-    const parts = await parseMultipartMixedResponseAsync({
-      arrayBuffer: async () => form.getBuffer(),
-      headers: new Headers({
-        'content-type': `multipart/mixed; boundary=${form.getBoundary()}`,
-      }),
-    } as any as Response);
-
-    expect(parts).toHaveLength(2);
-  });
-});
-
 describe(getManifestBodyAsync, () => {
   it('gets multipart manifest body', async () => {
     const stringifiedManifest = JSON.stringify({ hello: 'world' });
     const form = generateMultipartBody(stringifiedManifest);
 
     const body = await getManifestBodyAsync({
-      arrayBuffer: async () => form.getBuffer(),
+      arrayBuffer: async () => new Uint8Array(form.getBuffer()).buffer,
       headers: new Headers({
         'content-type': `multipart/mixed; boundary=${form.getBoundary()}`,
       }),

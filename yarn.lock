@@ -1279,6 +1279,15 @@
     json5 "^1.0.1"
     write-file-atomic "^2.3.0"
 
+"@expo/multipart-body-parser@1.1.0":
+  version "1.1.0"
+  resolved "https://registry.yarnpkg.com/@expo/multipart-body-parser/-/multipart-body-parser-1.1.0.tgz#ba402b3047cf14ef17b4d785ec030dd6474ae6e4"
+  integrity sha512-XOaS79wFIJgx0J7oUzRb+kZsnZmFqGpisu0r8RPO3b0wjbW7xpWgiXmRR4RavKeGiVAPauZOi4vad7cJ3KCspg==
+  dependencies:
+    dicer "^0.3.1"
+    nullthrows "^1.1.1"
+    structured-headers "^0.4.1"
+
 "@expo/pkcs12@0.0.7":
   version "0.0.7"
   resolved "https://registry.yarnpkg.com/@expo/pkcs12/-/pkcs12-0.0.7.tgz#4938b4e1f28e4910cd6a73b9b1674c751579025c"
@@ -3510,13 +3519,6 @@
   resolved "https://registry.yarnpkg.com/@types/dateformat/-/dateformat-3.0.1.tgz#98d747a2e5e9a56070c6bf14e27bff56204e34cc"
   integrity sha512-KlPPdikagvL6ELjWsljbyDIPzNCeliYkqRpI+zea99vBBbCIA5JNshZAwQKTON139c87y9qvTFVgkFd14rtS4g==
 
-"@types/dicer@0.2.2":
-  version "0.2.2"
-  resolved "https://registry.yarnpkg.com/@types/dicer/-/dicer-0.2.2.tgz#61e3a26ea4bf41cd003fd6f7adb9c78649f753de"
-  integrity sha512-UPLqCYey+jn5Mf57KFDwxD/7VZYDsbYUi3iyTehLFVjlbvl/JcUTPaot8uKNYLO0EoZpey+rC/s5AF3VxfeC2Q==
-  dependencies:
-    "@types/node" "*"
-
 "@types/envinfo@7.8.1":
   version "7.8.1"
   resolved "https://registry.yarnpkg.com/@types/envinfo/-/envinfo-7.8.1.tgz#1915df82c16d637e92146645c70db9360eb099c6"
@@ -5634,7 +5636,7 @@ dezalgo@^1.0.0:
     asap "^2.0.0"
     wrappy "1"
 
-dicer@0.3.1:
+dicer@^0.3.1:
   version "0.3.1"
   resolved "https://registry.yarnpkg.com/dicer/-/dicer-0.3.1.tgz#abf28921e3475bc5e801e74e0159fd94f927ba97"
   integrity sha512-ObioMtXnmjYs3aRtpIJt9rgQSPCIhKVkFPip+E9GUDyWl8N435znUxK/JfNwGZJ2wnn5JKQ7Ly3vOK5Q5dylGA==
@@ -11840,7 +11842,7 @@ strong-log-transformer@^2.1.0:
     minimist "^1.2.0"
     through "^2.3.4"
 
-structured-headers@0.4.1:
+structured-headers@^0.4.1:
   version "0.4.1"
   resolved "https://registry.yarnpkg.com/structured-headers/-/structured-headers-0.4.1.tgz#77abd9410622c6926261c09b9d16cf10592694d1"
   integrity sha512-0MP/Cxx5SzeeZ10p/bZI0S6MpgD+yxAhi1BOQ34jgnMXsCq3j1t6tQnZu+KdlL7dvJTLT3g9xN8tl10TqgFMcg==
