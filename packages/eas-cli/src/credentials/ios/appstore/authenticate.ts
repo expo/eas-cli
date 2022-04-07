@@ -154,8 +154,9 @@ async function loginWithUserCredentialsAsync({
 export async function authenticateAsync(options: Options = {}): Promise<AuthCtx> {
   if (options.mode === AuthenticationMode.API_KEY) {
     return await authenticateWithApiKeyAsync(options);
+  } else {
+    return await authenticateAsUserAsync(options);
   }
-  return await authenticateAsUserAsync(options);
 }
 
 async function authenticateWithApiKeyAsync(options: Options = {}): Promise<ApiKeyAuthCtx> {
