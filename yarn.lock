@@ -1279,10 +1279,10 @@
     json5 "^1.0.1"
     write-file-atomic "^2.3.0"
 
-"@expo/multipart-body-parser@1.0.0":
-  version "1.0.0"
-  resolved "https://registry.yarnpkg.com/@expo/multipart-body-parser/-/multipart-body-parser-1.0.0.tgz#7227bab9cfe9d4baea925b748a3212e0239ba55d"
-  integrity sha512-ROR8PPuWZ6AcePdlmkzGmbniiScqQbyjFefb7Z8WZZOQkiIR/TdFA0vc0C9gmK1lJJp7IyXbW51XVG7eehyO3Q==
+"@expo/multipart-body-parser@1.1.0":
+  version "1.1.0"
+  resolved "https://registry.yarnpkg.com/@expo/multipart-body-parser/-/multipart-body-parser-1.1.0.tgz#ba402b3047cf14ef17b4d785ec030dd6474ae6e4"
+  integrity sha512-XOaS79wFIJgx0J7oUzRb+kZsnZmFqGpisu0r8RPO3b0wjbW7xpWgiXmRR4RavKeGiVAPauZOi4vad7cJ3KCspg==
   dependencies:
     dicer "^0.3.1"
     nullthrows "^1.1.1"
