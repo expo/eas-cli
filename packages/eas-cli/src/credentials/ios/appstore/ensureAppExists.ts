@@ -5,7 +5,7 @@ import chalk from 'chalk';
 import Log from '../../../log';
 import { ora } from '../../../ora';
 import { getRequestContext, isUserAuthCtx } from './authenticate';
-import { AuthCtx } from './authenticateTypes';
+import { AuthCtx, UserAuthCtx } from './authenticateTypes';
 import { syncCapabilitiesForEntitlementsAsync } from './bundleIdCapabilities';
 import { syncCapabilityIdentifiersForEntitlementsAsync } from './capabilityIdentifiers';
 import { assertContractMessagesAsync } from './contractMessages';
@@ -73,7 +73,13 @@ export async function ensureBundleIdExistsWithNameAsync(
         // Unable to process request - PLA Update available - You currently don't have access to this membership resource. To resolve this issue, agree to the latest Program License Agreement in your developer account.
         err.message.match(/agree/)
       ) {
-        await assertContractMessagesAsync(context);
+        if (isUserAuthCtx(authCtx)) {
+          await assertContractMessagesAsync(context);
+        } else {
+          Log.warn(
+            `You currently don't have access to this membership resource. To resolve this issue, agree to the latest Program License Agreement in your developer account.`
+          );
+        }
       }
     }
 
@@ -151,7 +157,7 @@ export async function syncCapabilityIdentifiersAsync(
 }
 
 export async function ensureAppExistsAsync(
-  authCtx: AuthCtx,
+  userAuthCtx: UserAuthCtx,
   {
     name,
     language,
@@ -166,7 +172,7 @@ export async function ensureAppExistsAsync(
     sku?: string;
   }
 ): Promise<App> {
-  const context = getRequestContext(authCtx);
+  const context = getRequestContext(userAuthCtx);
   const spinner = ora(`Linking to App Store Connect ${chalk.dim(bundleIdentifier)}`).start();
 
   let app = await App.findAsync(context, { bundleId: bundleIdentifier });
@@ -177,7 +183,9 @@ export async function ensureAppExistsAsync(
     try {
       // Assert contract errors when the user needs to create an app.
       await assertContractMessagesAsync(context, spinner);
-
+      /**
+       * **Does not support App Store Connect API (CI).**
+       */
       app = await App.createAsync(context, {
         bundleId: bundleIdentifier,
         name,
@@ -187,11 +195,8 @@ export async function ensureAppExistsAsync(
       });
     } catch (error: any) {
       if (error.message.match(/An App ID with Identifier '(.*)' is not available/)) {
-        const entity = isUserAuthCtx(authCtx)
-          ? `provider "${authCtx.authState?.session.provider.name}"`
-          : `Apple Team: ${authCtx.team.id}`;
         throw new Error(
-          `\nThe bundle identifier "${bundleIdentifier}" is not available to ${entity}. Please change it in your app config and try again.\n`
+          `\nThe bundle identifier "${bundleIdentifier}" is not available to provider "${userAuthCtx.authState?.session.provider.name}. Please change it in your app config and try again.\n`
         );
       }
 

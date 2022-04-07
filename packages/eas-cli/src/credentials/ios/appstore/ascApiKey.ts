@@ -4,31 +4,39 @@ import Log from '../../../log';
 import { ora } from '../../../ora';
 import { AscApiKey, AscApiKeyInfo } from './Credentials.types';
 import { getRequestContext } from './authenticate';
-import { AuthCtx } from './authenticateTypes';
+import { AuthCtx, UserAuthCtx } from './authenticateTypes';
 
-export async function listAscApiKeysAsync(authCtx: AuthCtx): Promise<AscApiKeyInfo[]> {
+/**
+ * List App Store Connect API Keys.
+ * **Does not support App Store Connect API (CI).**
+ */
+export async function listAscApiKeysAsync(userAuthCtx: UserAuthCtx): Promise<AscApiKeyInfo[]> {
   const spinner = ora(`Fetching App Store Connect API Keys.`).start();
   try {
-    const context = getRequestContext(authCtx);
+    const context = getRequestContext(userAuthCtx);
     const keys = await ApiKey.getAsync(context);
     spinner.succeed(`Fetched App Store Connect API Keys.`);
-    return keys.map(key => getAscApiKeyInfo(key, authCtx));
+    return keys.map(key => getAscApiKeyInfo(key, userAuthCtx));
   } catch (error) {
     spinner.fail(`Failed to fetch App Store Connect API Keys.`);
     throw error;
   }
 }
 
+/**
+ * Get an App Store Connect API Key.
+ * **Does not support App Store Connect API (CI).**
+ */
 export async function getAscApiKeyAsync(
-  authCtx: AuthCtx,
+  userAuthCtx: UserAuthCtx,
   keyId: string
 ): Promise<AscApiKeyInfo | null> {
   const spinner = ora(`Fetching App Store Connect API Key.`).start();
   try {
-    const context = getRequestContext(authCtx);
+    const context = getRequestContext(userAuthCtx);
     const apiKey = await ApiKey.infoAsync(context, { id: keyId });
     spinner.succeed(`Fetched App Store Connect API Key (ID: ${keyId}).`);
-    return getAscApiKeyInfo(apiKey, authCtx);
+    return getAscApiKeyInfo(apiKey, userAuthCtx);
   } catch (error: any) {
     const message = error?.message ?? '';
     if (message.includes("There is no resource of type 'apiKeys' with id")) {
@@ -41,8 +49,12 @@ export async function getAscApiKeyAsync(
   }
 }
 
+/**
+ * Create an App Store Connect API Key.
+ * **Does not support App Store Connect API (CI).**
+ */
 export async function createAscApiKeyAsync(
-  authCtx: AuthCtx,
+  userAuthCtx: UserAuthCtx,
   {
     nickname,
     allAppsVisible,
@@ -52,7 +64,7 @@ export async function createAscApiKeyAsync(
 ): Promise<AscApiKey> {
   const spinner = ora(`Creating App Store Connect API Key.`).start();
   try {
-    const context = getRequestContext(authCtx);
+    const context = getRequestContext(userAuthCtx);
     const key = await ApiKey.createAsync(context, {
       nickname: nickname ?? `[expo] ${new Date().getTime()}`,
       allAppsVisible: allAppsVisible ?? true,
@@ -77,7 +89,7 @@ export async function createAscApiKeyAsync(
     const fullKey = await ApiKey.infoAsync(context, { id: key.id });
     spinner.succeed(`Created App Store Connect API Key.`);
     return {
-      ...getAscApiKeyInfo(fullKey, authCtx),
+      ...getAscApiKeyInfo(fullKey, userAuthCtx),
       keyP8,
     };
   } catch (err: any) {
@@ -86,17 +98,21 @@ export async function createAscApiKeyAsync(
   }
 }
 
+/**
+ * Revoke an App Store Connect API Key.
+ * **Does not support App Store Connect API (CI).**
+ */
 export async function revokeAscApiKeyAsync(
-  authCtx: AuthCtx,
+  userAuthCtx: UserAuthCtx,
   keyId: string
 ): Promise<AscApiKeyInfo> {
   const spinner = ora(`Revoking App Store Connect API Key.`).start();
   try {
-    const context = getRequestContext(authCtx);
+    const context = getRequestContext(userAuthCtx);
     const apiKey = await ApiKey.infoAsync(context, { id: keyId });
     const revokedKey = await apiKey.revokeAsync();
     spinner.succeed(`Revoked App Store Connect API Key.`);
-    return getAscApiKeyInfo(revokedKey, authCtx);
+    return getAscApiKeyInfo(revokedKey, userAuthCtx);
   } catch (error) {
     Log.error(error);
     spinner.fail(`Failed to revoke App Store Connect API Key.`);
