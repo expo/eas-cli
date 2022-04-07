@@ -97,7 +97,7 @@ describe(getManifestBodyAsync, () => {
     const form = generateMultipartBody(stringifiedManifest);
 
     const body = await getManifestBodyAsync({
-      arrayBuffer: async () => form.getBuffer(),
+      arrayBuffer: async () => new Uint8Array(form.getBuffer()).buffer,
       headers: new Headers({
         'content-type': `multipart/mixed; boundary=${form.getBoundary()}`,
       }),

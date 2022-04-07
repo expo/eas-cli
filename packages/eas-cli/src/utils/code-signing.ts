@@ -104,15 +104,6 @@ export async function getKeyAndCertificateFromPathsAsync({
   };
 }
 
-function convertArrayBufferToBuffer(ab: ArrayBuffer): Buffer {
-  const buf = Buffer.alloc(ab.byteLength);
-  const view = new Uint8Array(ab);
-  for (let i = 0; i < buf.length; ++i) {
-    buf[i] = view[i];
-  }
-  return buf;
-}
-
 export async function getManifestBodyAsync(res: Response): Promise<string | null> {
   const contentType = res.headers.get('content-type');
   if (!contentType) {
@@ -121,7 +112,7 @@ export async function getManifestBodyAsync(res: Response): Promise<string | null
   const bodyBuffer = await res.arrayBuffer();
   const multipartParts = await parseMultipartMixedResponseAsync(
     contentType,
-    convertArrayBufferToBuffer(bodyBuffer)
+    Buffer.from(bodyBuffer)
   );
   const manifestPart = multipartParts.find(part => isMultipartPartWithName(part, 'manifest'));
   return manifestPart?.body ?? null;
