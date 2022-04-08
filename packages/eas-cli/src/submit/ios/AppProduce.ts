@@ -2,7 +2,7 @@ import { App, RequestContext, Session, User } from '@expo/apple-utils';
 import { Platform } from '@expo/eas-build-job';
 import chalk from 'chalk';
 
-import { getRequestContext, isUserAuthCtx } from '../../credentials/ios/appstore/authenticate';
+import { getRequestContext } from '../../credentials/ios/appstore/authenticate';
 import {
   ensureAppExistsAsync,
   ensureBundleIdExistsWithNameAsync,
@@ -66,31 +66,29 @@ async function createAppStoreConnectAppAsync(
     sku,
   } = options;
 
-  const authCtx = await ctx.credentialsCtx.appStore.ensureAuthenticatedAsync({
+  const userAuthCtx = await ctx.credentialsCtx.appStore.ensureUserAuthenticatedAsync({
     appleId,
     teamId: appleTeamId,
   });
-  const requestCtx = getRequestContext(authCtx);
+  const requestCtx = getRequestContext(userAuthCtx);
 
   Log.addNewLineIfNone();
 
   if (await isProvisioningAvailableAsync(requestCtx)) {
-    await ensureBundleIdExistsWithNameAsync(authCtx, {
+    await ensureBundleIdExistsWithNameAsync(userAuthCtx, {
       name: appName,
       bundleIdentifier: bundleId,
     });
   } else {
-    const entity = isUserAuthCtx(authCtx)
-      ? `Apple User: ${authCtx.appleId}`
-      : `API Key ID ${authCtx.ascApiKey.keyId} for Apple Team ${authCtx.team.id}`;
-
-    Log.warn(`Provisioning is not available for ${entity}, skipping bundle identifier check.`);
+    Log.warn(
+      `Provisioning is not available for Apple User: ${userAuthCtx.appleId}, skipping bundle identifier check.`
+    );
   }
 
   let app: App | null = null;
 
   try {
-    app = await ensureAppExistsAsync(authCtx, {
+    app = await ensureAppExistsAsync(userAuthCtx, {
       name: appName,
       language,
       companyName,

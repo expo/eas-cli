@@ -69,7 +69,8 @@ export default class AppStoreApi {
 
   public async ensureAuthenticatedAsync(options?: AuthenticateOptions): Promise<AuthCtx> {
     if (!this.authCtx) {
-      this.authCtx = await authenticateAsync(options);
+      const mode = options?.mode ?? this.defaultAuthenticationMode;
+      this.authCtx = await authenticateAsync({ mode, ...options });
     }
     return this.authCtx;
   }
@@ -173,22 +174,22 @@ export default class AppStoreApi {
   }
 
   public async listAscApiKeysAsync(): Promise<AscApiKeyInfo[]> {
-    const ctx = await this.ensureAuthenticatedAsync();
-    return await listAscApiKeysAsync(ctx);
+    const userCtx = await this.ensureUserAuthenticatedAsync();
+    return await listAscApiKeysAsync(userCtx);
   }
 
   public async getAscApiKeyAsync(keyId: string): Promise<AscApiKeyInfo | null> {
-    const ctx = await this.ensureAuthenticatedAsync();
-    return await getAscApiKeyAsync(ctx, keyId);
+    const userCtx = await this.ensureUserAuthenticatedAsync();
+    return await getAscApiKeyAsync(userCtx, keyId);
   }
 
   public async createAscApiKeyAsync({ nickname }: { nickname: string }): Promise<AscApiKey> {
-    const ctx = await this.ensureAuthenticatedAsync();
-    return await createAscApiKeyAsync(ctx, { nickname });
+    const userCtx = await this.ensureUserAuthenticatedAsync();
+    return await createAscApiKeyAsync(userCtx, { nickname });
   }
 
   public async revokeAscApiKeyAsync(keyId: string): Promise<AscApiKeyInfo> {
-    const ctx = await this.ensureAuthenticatedAsync();
-    return await revokeAscApiKeyAsync(ctx, keyId);
+    const userCtx = await this.ensureUserAuthenticatedAsync();
+    return await revokeAscApiKeyAsync(userCtx, keyId);
   }
 }

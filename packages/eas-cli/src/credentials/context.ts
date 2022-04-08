@@ -101,7 +101,7 @@ export class CredentialsContext {
     }
 
     if (this.appStore.defaultAuthenticationMode === AuthenticationMode.API_KEY) {
-      await this.appStore.ensureAuthenticatedAsync({ mode: AuthenticationMode.API_KEY });
+      await this.appStore.ensureAuthenticatedAsync();
       return;
     }
 

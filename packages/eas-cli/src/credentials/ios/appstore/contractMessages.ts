@@ -5,6 +5,9 @@ import Log from '../../../log';
 import type { Ora } from '../../../ora';
 import { convertHTMLToASCII } from '../utils/convertHTMLToASCII';
 
+/**
+ * **Does not support App Store Connect API (CI).**
+ */
 async function getContractStatusAsync(
   context: RequestContext
 ): Promise<ITCAgreements.ITCContractStatus | null> {
@@ -17,6 +20,9 @@ async function getContractStatusAsync(
   }
 }
 
+/**
+ * **Does not support App Store Connect API (CI).**
+ */
 async function getContractMessagesAsync(
   context: RequestContext
 ): Promise<ITCAgreements.ITCContractMessage[] | null> {
@@ -28,6 +34,9 @@ async function getContractMessagesAsync(
   }
 }
 
+/**
+ * **Does not support App Store Connect API (CI).**
+ */
 async function getRequiredContractMessagesAsync(
   context: RequestContext
 ): Promise<{ messages: ITCAgreements.ITCContractMessage[]; isFatal: boolean }> {
@@ -77,6 +86,9 @@ export function formatContractMessage(message: ITCAgreements.ITCContractMessage)
   });
 }
 
+/**
+ * **Does not support App Store Connect API (CI).**
+ */
 export async function assertContractMessagesAsync(
   context: RequestContext,
   spinner?: Ora

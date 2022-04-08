@@ -13,6 +13,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Prompt for user/password authentication where required. ([#1055](https://github.com/expo/eas-cli/pull/1055) by [@quinlanj](https://github.com/quinlanj))
+
 ### 🧹 Chores
 
 ## [0.49.0](https://github.com/expo/eas-cli/releases/tag/v0.49.0) - 2022-04-05
