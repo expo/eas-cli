@@ -36,7 +36,7 @@ describe(getCodeSigningInfoAsync, () => {
           slug: 'test',
           updates: {
             codeSigningCertificate: 'wat',
-          } as any,
+          },
         },
         'test'
       )

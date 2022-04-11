@@ -22,6 +22,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 - Prompt for user/password authentication where required. ([#1055](https://github.com/expo/eas-cli/pull/1055) by [@quinlanj](https://github.com/quinlanj))
+- Require private-key-path to be specified for updating when code signing configured. ([#1059](https://github.com/expo/eas-cli/pull/1059) by [@wschurman](https://github.com/wschurman))
 
 ## [0.49.0](https://github.com/expo/eas-cli/releases/tag/v0.49.0) - 2022-04-05
 

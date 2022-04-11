@@ -13,7 +13,6 @@ import isDeepEqual from 'fast-deep-equal';
 import { promises as fs } from 'fs';
 import { pki as PKI } from 'node-forge';
 import nullthrows from 'nullthrows';
-import path from 'path';
 
 import { Response } from '../fetch';
 import { PartialManifest, PartialManifestAsset } from '../graphql/generated';
@@ -34,7 +33,7 @@ export async function getCodeSigningInfoAsync(
   }
 
   if (!privateKeyPath) {
-    privateKeyPath = path.join(path.dirname(codeSigningCertificatePath), 'private-key.pem');
+    throw new Error('Must specify --private-key-path argument to sign update for code signing');
   }
 
   const codeSigningMetadata = config.updates?.codeSigningMetadata;
@@ -51,18 +50,16 @@ export async function getCodeSigningInfoAsync(
     );
   }
 
-  return codeSigningCertificatePath && privateKeyPath
-    ? {
-        ...(await getKeyAndCertificateFromPathsAsync({
-          codeSigningCertificatePath,
-          privateKeyPath,
-        })),
-        codeSigningMetadata: {
-          alg,
-          keyid,
-        },
-      }
-    : undefined;
+  return {
+    ...(await getKeyAndCertificateFromPathsAsync({
+      codeSigningCertificatePath,
+      privateKeyPath,
+    })),
+    codeSigningMetadata: {
+      alg,
+      keyid,
+    },
+  };
 }
 
 async function readFileAsync(path: string, errorMessage: string): Promise<string> {

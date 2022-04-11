@@ -225,7 +225,12 @@ export default class UpdatePublish extends EasCommand {
       isPublicConfig: true,
     });
 
-    const codeSigningInfo = await getCodeSigningInfoAsync(exp, privateKeyPath);
+    const { exp: expPrivate } = getConfig(projectDir, {
+      skipSDKVersionRequirement: true,
+      isPublicConfig: false,
+    });
+
+    const codeSigningInfo = await getCodeSigningInfoAsync(expPrivate, privateKeyPath);
 
     if (!isExpoUpdatesInstalledOrAvailable(projectDir, exp.sdkVersion)) {
       const install = await confirmAsync({
