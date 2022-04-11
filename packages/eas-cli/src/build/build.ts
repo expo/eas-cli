@@ -3,16 +3,27 @@ import { CredentialsSource } from '@expo/eas-json';
 import chalk from 'chalk';
 import cliProgress from 'cli-progress';
 import fs from 'fs-extra';
+import nullthrows from 'nullthrows';
 
 import { withAnalyticsAsync } from '../analytics/common';
 import { BuildEvent } from '../analytics/events';
 import { getExpoWebsiteBaseUrl } from '../api';
-import { BuildFragment, BuildPriority, BuildStatus, UploadSessionType } from '../graphql/generated';
+import {
+  AppPlatform,
+  BuildFragment,
+  BuildPriority,
+  BuildStatus,
+  UploadSessionType,
+} from '../graphql/generated';
 import { BuildResult } from '../graphql/mutations/BuildMutation';
 import { BuildQuery } from '../graphql/queries/BuildQuery';
 import Log, { learnMore } from '../log';
 import { Ora, ora } from '../ora';
-import { requestedPlatformDisplayNames } from '../platform';
+import {
+  appPlatformDisplayNames,
+  appPlatformEmojis,
+  requestedPlatformDisplayNames,
+} from '../platform';
 import { uploadAsync } from '../uploads';
 import { formatBytes } from '../utils/files';
 import { createProgressTracker } from '../utils/progress';
@@ -349,6 +360,17 @@ async function handleSingleBuildProgressAsync(
   return { refetch: true };
 }
 
+const statusToDisplayName: Record<BuildStatus, string> = {
+  [BuildStatus.New]: 'waiting to enter the queue (concurrency limit reached)',
+  [BuildStatus.InQueue]: 'in queue',
+  [BuildStatus.InProgress]: 'in progress',
+  [BuildStatus.Canceled]: 'canceled',
+  [BuildStatus.Finished]: 'finished',
+  [BuildStatus.Errored]: 'failed',
+};
+
+const platforms = [AppPlatform.Android, AppPlatform.Ios];
+
 async function handleMultipleBuildsProgressAsync(
   { builds: maybeBuilds }: { builds: MaybeBuildFragment[] },
   { spinner }: { spinner: Ora }
@@ -363,34 +385,60 @@ async function handleMultipleBuildsProgressAsync(
       [BuildStatus.Finished, BuildStatus.Errored, BuildStatus.Canceled].includes(build.status)
     ).length === buildCount;
 
-  if (allFinished) {
-    spinner.succeed('All builds have finished');
-    return { refetch: false };
-  } else if (allSettled) {
-    spinner.fail('Some of the builds were canceled or failed.');
+  if (allSettled) {
+    if (allFinished) {
+      spinner.succeed(formatSettledBuildsText(builds));
+    } else {
+      spinner.fail(formatSettledBuildsText(builds));
+    }
     return { refetch: false };
   } else {
-    const newBuilds = builds.filter(build => build.status === BuildStatus.New).length;
-    const inQueue = builds.filter(build => build.status === BuildStatus.InQueue).length;
-    const inProgress = builds.filter(build => build.status === BuildStatus.InProgress).length;
-    const errored = builds.filter(build => build.status === BuildStatus.Errored).length;
-    const finished = builds.filter(build => build.status === BuildStatus.Finished).length;
-    const canceled = builds.filter(build => build.status === BuildStatus.Canceled).length;
-    const unknown = buildCount - newBuilds - inQueue - inProgress - errored - finished - canceled;
-    const text = [
-      newBuilds && `Builds created: ${newBuilds}`,
-      inQueue && `Builds in queue: ${inQueue}`,
-      inProgress && `Builds in progress: ${inProgress}`,
-      canceled && `Builds canceled: ${canceled}`,
-      errored && chalk.red(`Builds failed: ${errored}`),
-      finished && chalk.green(`Builds finished: ${finished}`),
-      unknown && chalk.red(`Builds in unknown state: ${unknown}`),
-    ]
-      .filter(i => i)
-      .join('\t');
-    spinner.text = text;
+    spinner.text = formatPendingBuildsText(builds);
     return { refetch: true };
   }
+}
+
+function formatSettledBuildsText(builds: BuildFragment[]): string {
+  return platforms
+    .map(platform => {
+      const build = nullthrows(
+        builds.find(build => build.platform === platform),
+        `Build for platform ${platform} must be defined in this context`
+      );
+      return `${appPlatformEmojis[platform]} ${
+        appPlatformDisplayNames[platform]
+      } build - status: ${chalk.bold(statusToDisplayName[build.status])}`;
+    })
+    .join('\n  ');
+}
+
+function formatPendingBuildsText(builds: BuildFragment[]): string {
+  return platforms
+    .map(platform => {
+      const build = builds.find(build => build.platform === platform);
+      const status = build ? statusToDisplayName[build.status] : 'unknown';
+      let extraInfo = '';
+      if (
+        build?.status === BuildStatus.InQueue &&
+        typeof build.initialQueuePosition === 'number' &&
+        typeof build.queuePosition === 'number'
+      ) {
+        const percent = Math.floor(
+          ((build.initialQueuePosition - build.queuePosition + 1) /
+            (build.initialQueuePosition + 1)) *
+            100
+        );
+        const estimatedWaitTime =
+          typeof build.estimatedWaitTimeLeftSeconds === 'number'
+            ? ` - ${formatEstimatedWaitTime(build.estimatedWaitTimeLeftSeconds)}`
+            : '';
+        extraInfo = ` - queue progress: ${chalk.bold(`${percent}%`)}${estimatedWaitTime}`;
+      }
+      return `${appPlatformEmojis[platform]} ${
+        appPlatformDisplayNames[platform]
+      } build - status: ${chalk.bold(status)}${extraInfo}`;
+    })
+    .join('\n  ');
 }
 
 function isBuildFragment(maybeBuild: MaybeBuildFragment): maybeBuild is BuildFragment {
@@ -399,10 +447,10 @@ function isBuildFragment(maybeBuild: MaybeBuildFragment): maybeBuild is BuildFra
 
 function formatEstimatedWaitTime(estimatedWaitTimeLeftSeconds: number): string {
   if (estimatedWaitTimeLeftSeconds < 5 * 60) {
-    return 'Starting soon...';
+    return 'starting soon...';
   } else {
     const n = Math.floor(estimatedWaitTimeLeftSeconds / (10 * 60)) + 1;
-    return `Starting in about ${n}0 minutes...`;
+    return `starting in about ${n}0 minutes...`;
   }
 }
 

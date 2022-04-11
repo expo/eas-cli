@@ -8,7 +8,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
-- Provide queue position progress and estimated wait time. ([#1049](https://github.com/expo/eas-cli/pull/1049) by [@dsokal](https://github.com/dsokal))
+- Provide queue position progress and estimated wait time. ([#1049](https://github.com/expo/eas-cli/pull/1049), [#1058](https://github.com/expo/eas-cli/pull/1058) by [@dsokal](https://github.com/dsokal))
 - Enable App Store authentication for ASC Api Keys with environment variables. ([#1051](https://github.com/expo/eas-cli/pull/1051) by [@quinlanj](https://github.com/quinlanj))
 
 ### 🐛 Bug fixes
