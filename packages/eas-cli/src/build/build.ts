@@ -432,7 +432,7 @@ function formatPendingBuildsText(builds: BuildFragment[]): string {
           typeof build.estimatedWaitTimeLeftSeconds === 'number'
             ? ` - ${formatEstimatedWaitTime(build.estimatedWaitTimeLeftSeconds)}`
             : '';
-        extraInfo = ` - queue position: ${chalk.bold(`${percent}%`)}${estimatedWaitTime}`;
+        extraInfo = ` - queue progress: ${chalk.bold(`${percent}%`)}${estimatedWaitTime}`;
       }
       return `${appPlatformEmojis[platform]} ${
         appPlatformDisplayNames[platform]
