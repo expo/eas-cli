@@ -23,7 +23,7 @@ const SubmissionErrorMessages: Record<SubmissionErrorCode, string> = {
   [SubmissionErrorCode.ARCHIVE_DOWNLOAD_NOT_FOUND_ERROR]:
     "Failed to download the archive file (Response code: 404 Not Found). Please make sure the URL you've provided is correct.",
   [SubmissionErrorCode.ARCHIVE_DOWNLOAD_FORBIDDEN_ERROR]:
-    'Failed to download the archive file (Response code: 403 Forbidden). This is most probably caused by trying to upload an expired build artifact. All Expo build artifacts expire after 30 days.',
+    'Failed to download the archive file (Response code: 403 Forbidden). This is most probably caused by trying to upload an expired build artifact. All EAS build artifacts expire after 30 days.',
   [SubmissionErrorCode.ARCHIVE_EXTRACT_CORRUPT_ARCHIVE_ERROR]:
     'The compressed archive is corrupt, in an unsupported format, or contains an invalid application format. Supported files include .apk, .aab, and .ipa files and one of these files compressed into a .tar.gz archive.',
   [SubmissionErrorCode.ARCHIVE_EXTRACT_NO_FILES_FOUND_ERROR]:
@@ -37,7 +37,7 @@ const SubmissionErrorMessages: Record<SubmissionErrorCode, string> = {
   [SubmissionErrorCode.ANDROID_OLD_VERSION_CODE_ERROR]:
     "You've already submitted this version of the app.\n" +
     'Versions are identified by Android version code (expo.android.versionCode in app.json).\n' +
-    "If you're submitting a managed Expo project, increment the version code in app.json and build the project with expo build:android.\n" +
+    "If you're submitting a managed Expo project, increment the version code in app.json and build the project with eas build.\n" +
     `${learnMore('https://expo.fyi/bumping-android-version-code')}.`,
   [SubmissionErrorCode.ANDROID_MISSING_PRIVACY_POLICY]:
     'The app has permissions that require a privacy policy set for the app.\n' +
