@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Upgrade `@expo/apple-utils@0.0.0-alpha.31` (now with license).
+
 ## [0.50.0](https://github.com/expo/eas-cli/releases/tag/v0.50.0) - 2022-04-11
 
 ### 🎉 New features
