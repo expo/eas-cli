@@ -95,6 +95,7 @@ export async function bundleFunctionsAsync(entry: EntryObject, outputPath: strin
     }
   } catch (error) {
     Log.error(chalk.red('Failed to compile.\n'));
+    Log.error(error);
     throw error;
   }
 }

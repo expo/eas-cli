@@ -116,7 +116,10 @@ export default class FunctionsCreate extends EasCommand {
 
       if (lastLog === 'DONE' && status === 'ACTIVE') {
         Log.log(`🎉🎉🎉 Hooray! Your function is complete!`);
-        Log.log(`🎉🎉🎉 It is available at: ${publicUrl}`);
+        Log.log(`🎉🎉🎉 Your web-app is available at: ${publicUrl}`);
+        for (const submodule of Object.keys(functionEntries)) {
+          Log.log(`🎉🎉🎉 ${submodule} is available at: ${publicUrl}/functions/${submodule}`);
+        }
         break;
       } else if (status !== 'ACTIVE' && status !== 'DEPLOY_IN_PROGRESS') {
         Log.log(`🤔 Uh oh...your function is  ${status}`);
