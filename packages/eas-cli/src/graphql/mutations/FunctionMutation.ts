@@ -4,6 +4,8 @@ import { graphqlClient, withErrorHandlingAsync } from '../client';
 import {
   CreateFunctionMutation,
   CreateFunctionMutationVariables,
+  GetFunctionStatusMutation,
+  GetFunctionStatusMutationVariables,
   GetSignedUploadFunctionMutation,
   GetSignedUploadFunctionMutationVariables,
 } from '../generated';
@@ -30,14 +32,14 @@ export const FunctionMutation = {
     );
     return data.function.getSignedFunctionUploadSpecification.specification;
   },
-  async createAsync(bucketKey: string): Promise<boolean> {
+  async createAsync(bucketKey: string, appId: string): Promise<boolean> {
     const data = await withErrorHandlingAsync(
       graphqlClient
         .mutation<CreateFunctionMutation, CreateFunctionMutationVariables>(
           gql`
-            mutation CreateFunctionMutation($bucketKey: String!) {
+            mutation CreateFunctionMutation($bucketKey: String!, $appId: String!) {
               function {
-                createFunction(bucketKey: $bucketKey) {
+                createFunction(bucketKey: $bucketKey, appId: $appId) {
                   success
                 }
               }
@@ -45,10 +47,33 @@ export const FunctionMutation = {
           `,
           {
             bucketKey,
+            appId,
           }
         )
         .toPromise()
     );
     return data.function.createFunction.success;
+  },
+  async getStatusAsync(appId: string): Promise<{ status: string; logUrls: string[] }> {
+    const data = await withErrorHandlingAsync(
+      graphqlClient
+        .mutation<GetFunctionStatusMutation, GetFunctionStatusMutationVariables>(
+          gql`
+            mutation GetFunctionStatusMutation($appId: String!) {
+              function {
+                getFunctionStatus(appId: $appId) {
+                  status
+                  logUrls
+                }
+              }
+            }
+          `,
+          {
+            appId,
+          }
+        )
+        .toPromise()
+    );
+    return data.function.getFunctionStatus;
   },
 };

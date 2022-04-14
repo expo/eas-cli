@@ -401,7 +401,13 @@ export type AccountUsageMetric = {
 
 export type AccountUsageMetrics = {
   __typename?: 'AccountUsageMetrics';
+  byBillingPeriod: UsageMetricTotal;
   metricsForServiceMetric: Array<AccountUsageMetric>;
+};
+
+
+export type AccountUsageMetricsByBillingPeriodArgs = {
+  date: Scalars['DateTime'];
 };
 
 
@@ -2157,17 +2163,30 @@ export enum Feature {
 export type FunctionMutation = {
   __typename?: 'FunctionMutation';
   createFunction: DeployFunctionResult;
+  getFunctionStatus: FunctionStatusResult;
   getSignedFunctionUploadSpecification: GetFunctionUploadUrlResult;
 };
 
 
 export type FunctionMutationCreateFunctionArgs = {
+  appId: Scalars['String'];
   bucketKey: Scalars['String'];
+};
+
+
+export type FunctionMutationGetFunctionStatusArgs = {
+  appId: Scalars['String'];
 };
 
 
 export type FunctionMutationGetSignedFunctionUploadSpecificationArgs = {
   appId: Scalars['String'];
+};
+
+export type FunctionStatusResult = {
+  __typename?: 'FunctionStatusResult';
+  logUrls: Array<Scalars['String']>;
+  status: Scalars['String'];
 };
 
 export type GetFunctionUploadUrlResult = {
@@ -3422,6 +3441,13 @@ export enum UploadSessionType {
   EasSubmitAppArchive = 'EAS_SUBMIT_APP_ARCHIVE'
 }
 
+export type UsageMetricTotal = {
+  __typename?: 'UsageMetricTotal';
+  billingPeriod: BillingPeriod;
+  metrics: Array<AccountUsageMetric>;
+  total: Scalars['Float'];
+};
+
 export enum UsageMetricType {
   Request = 'REQUEST'
 }
@@ -4327,10 +4353,18 @@ export type GetSignedUploadFunctionMutation = { __typename?: 'RootMutation', fun
 
 export type CreateFunctionMutationVariables = Exact<{
   bucketKey: Scalars['String'];
+  appId: Scalars['String'];
 }>;
 
 
 export type CreateFunctionMutation = { __typename?: 'RootMutation', function: { __typename?: 'FunctionMutation', createFunction: { __typename?: 'DeployFunctionResult', success: boolean } } };
+
+export type GetFunctionStatusMutationVariables = Exact<{
+  appId: Scalars['String'];
+}>;
+
+
+export type GetFunctionStatusMutation = { __typename?: 'RootMutation', function: { __typename?: 'FunctionMutation', getFunctionStatus: { __typename?: 'FunctionStatusResult', status: string, logUrls: Array<string> } } };
 
 export type CreateKeystoreGenerationUrlMutationVariables = Exact<{ [key: string]: never; }>;
 

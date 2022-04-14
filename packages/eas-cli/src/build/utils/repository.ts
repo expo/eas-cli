@@ -123,12 +123,8 @@ export async function makeProjectTarballAsync(): Promise<{ path: string; size: n
   return { size, path: tarPath };
 }
 
-export async function makeProjectZipAsync(): Promise<{ path: string; size: number }> {
+export async function makeZipAsync(pathToZip: string): Promise<{ path: string; size: number }> {
   const spinner = ora('Compressing project files');
-
-  const tempDir = getTmpDirectory();
-  await fs.mkdirp(tempDir);
-  const shallowClonePath = path.join(getTmpDirectory(), `${uuidv4()}-shallow-clone`);
   const zipPath = path.join(getTmpDirectory(), `${uuidv4()}.zip`);
 
   // If the compression takes longer then a second, show the spinner.
@@ -146,9 +142,8 @@ export async function makeProjectZipAsync(): Promise<{ path: string; size: numbe
   startTimer(compressTimerLabel);
 
   try {
-    await getVcsClient().makeShallowCopyAsync(shallowClonePath);
     const zip = new admzip();
-    zip.addLocalFolder(shallowClonePath);
+    zip.addLocalFolder(pathToZip);
     await zipAsync(zip, zipPath);
   } catch (err) {
     clearTimeout(timer);
@@ -156,8 +151,6 @@ export async function makeProjectZipAsync(): Promise<{ path: string; size: numbe
       spinner.fail();
     }
     throw err;
-  } finally {
-    await fs.remove(shallowClonePath);
   }
   clearTimeout(timer);
 

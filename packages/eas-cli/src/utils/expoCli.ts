@@ -7,11 +7,15 @@ import Log from '../log';
 export async function expoCommandAsync(
   projectDir: string,
   args: string[],
-  { silent = false }: { silent?: boolean } = {}
+  { silent = false, env }: { silent?: boolean; env?: { [key: string]: string } } = {}
 ): Promise<void> {
   const expoCliPath = resolveFrom(projectDir, 'expo/bin/cli.js');
   const spawnPromise = spawnAsync(expoCliPath, args, {
     stdio: ['inherit', 'pipe', 'pipe'], // inherit stdin so user can install a missing expo-cli from inside this command
+    env: {
+      ...process.env,
+      ...env,
+    },
   });
   const {
     child: { stdout, stderr },
