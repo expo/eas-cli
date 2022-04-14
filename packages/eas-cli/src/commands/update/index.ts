@@ -275,7 +275,7 @@ export default class UpdatePublish extends EasCommand {
 
     if (!branchName) {
       if (nonInteractive) {
-        throw new Error('Must supply --branch when in non-interactive mode');
+        throw new Error('Must supply --branch or use --auto when in non-interactive mode');
       }
 
       const validationMessage = 'Branch name may not be empty.';
@@ -418,7 +418,7 @@ export default class UpdatePublish extends EasCommand {
 
       if (!message) {
         if (nonInteractive) {
-          throw new Error('Must supply --message when in non-interactive mode');
+          throw new Error('Must supply --message or use --auto when in non-interactive mode');
         }
 
         const validationMessage = 'publish message may not be empty.';
