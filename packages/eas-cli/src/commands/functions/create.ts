@@ -101,7 +101,7 @@ export default class FunctionsCreate extends EasCommand {
 
     Log.log('Streaming build logs....');
     const logsPrinted = new Set<string>();
-    let lastLog = null;
+    let sawLastLog = false;
     while (true) {
       const { status, logUrls } = await FunctionMutation.getStatusAsync(projectId);
       Log.log(`Function status: ${status}`);
@@ -112,9 +112,11 @@ export default class FunctionsCreate extends EasCommand {
       const logPayloads = logBodies.map(body => JSON.parse(body)).map(body => body.textPayload);
       logPayloads.forEach(response => Log.log(response));
       logsUrlsToPrint.forEach(logUrl => logsPrinted.add(logUrl));
-      lastLog = logPayloads.length > 0 ? logPayloads[logPayloads.length - 1] : lastLog;
+      if (!sawLastLog) {
+        sawLastLog = logPayloads.some(log => log === 'DONE');
+      }
 
-      if (lastLog === 'DONE' && status === 'ACTIVE') {
+      if (sawLastLog && status === 'ACTIVE') {
         Log.log(`🎉🎉🎉 Hooray! Your function is complete!`);
         Log.log(`🎉🎉🎉 Your web-app is available at: ${publicUrl}`);
         for (const submodule of Object.keys(functionEntries)) {
