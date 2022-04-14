@@ -169,7 +169,8 @@ async function askForServiceAccountPathAsync(): Promise<string> {
       'A Google Service Account JSON key is required to upload your app to Google Play Store'
     )}.\n` +
       `If you're not sure what this is or how to create one, ${learnMore(
-        'https://expo.fyi/creating-google-service-account'
+        'https://expo.fyi/creating-google-service-account',
+        { learnMoreMessage: 'learn more' }
       )}`
   );
   const { filePath } = await promptAsync({

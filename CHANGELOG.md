@@ -9,10 +9,13 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🎉 New features
 
 - Add non-interactive flag to eas update command. ([#1066](https://github.com/expo/eas-cli/pull/1066) by [@wschurman](https://github.com/wschurman))
+- Handle new EAS Submit common error - expired Apple's certificates. ([#1068](https://github.com/expo/eas-cli/pull/1068) by [@dsokal](https://github.com/dsokal))
 
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
+
+- Unify Google Service Account key prompts. ([#1063](https://github.com/expo/eas-cli/pull/1063) by [@dsokal](https://github.com/dsokal))
 
 ## [0.50.0](https://github.com/expo/eas-cli/releases/tag/v0.50.0) - 2022-04-11
 
