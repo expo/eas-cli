@@ -68,8 +68,8 @@ const SubmissionErrorMessages: Record<SubmissionErrorCode, string> = {
     'It looks like Apple servers are undergoing an unscheduled maintenance. Please try again later.',
   [SubmissionErrorCode.IOS_INVALID_PROVISIONING_PROFILE_SIGNATURE]:
     'Invalid Provisioning Profile Signature (ITMS-90165)\n' +
-    "Some of the Apple's certificates have expired.\n" +
-    'Please regenerate your Distribution Certificate and Provisioning Profile. Then rebuild the app, and try submitting it to App Store again.',
+    "Some of Apple's certificates have expired.\n" +
+    'Please delete your Provisioning Profile from your account. Then rebuild the app interactively to generate a new one, and try submitting it to the App Store again.',
 };
 
 export function printSubmissionError(error: SubmissionError): boolean {
