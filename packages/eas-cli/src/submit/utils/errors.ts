@@ -17,6 +17,7 @@ enum SubmissionErrorCode {
   IOS_INCORRECT_CREDENTIALS = 'SUBMISSION_SERVICE_IOS_INVALID_CREDENTIALS',
   IOS_IPAD_INVALID_ORIENTATION = 'SUBMISSION_SERVICE_IOS_IPAD_INVALID_ORIENTATION',
   IOS_APPLE_MAINTENANCE = 'SUBMISSION_SERVICE_IOS_APPLE_MAINTENANCE',
+  IOS_INVALID_PROVISIONING_PROFILE_SIGNATURE = 'SUBMISSION_SERVICE_IOS_INVALID_PROVISIONING_PROFILE_SIGNATURE',
 }
 
 const SubmissionErrorMessages: Record<SubmissionErrorCode, string> = {
@@ -65,6 +66,10 @@ const SubmissionErrorMessages: Record<SubmissionErrorCode, string> = {
     `${learnMore('https://expo.fyi/ipad-requires-fullscreen')}`,
   [SubmissionErrorCode.IOS_APPLE_MAINTENANCE]:
     'It looks like Apple servers are undergoing an unscheduled maintenance. Please try again later.',
+  [SubmissionErrorCode.IOS_INVALID_PROVISIONING_PROFILE_SIGNATURE]:
+    'Invalid Provisioning Profile Signature (ITMS-90165)\n' +
+    "Some of the Apple's certificates have expired.\n" +
+    'Please regenerate your Distribution Certificate and Provisioning Profile. Then rebuild the app, and try submitting it to App Store again.',
 };
 
 export function printSubmissionError(error: SubmissionError): boolean {
