@@ -15,7 +15,7 @@ import { SetUpGoogleServiceAccountKey } from '../SetUpGoogleServiceAccountKey';
 jest.mock('../../../../prompts');
 jest.mock('fs');
 asMock(promptAsync).mockImplementation(() => ({
-  keyJsonPath: '/google-service-account-key.json',
+  filePath: '/google-service-account-key.json',
 }));
 
 beforeEach(() => {

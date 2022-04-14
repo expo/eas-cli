@@ -8,11 +8,14 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Handle new EAS Submit common error - expired Apple's certificates. ([#1068](https://github.com/expo/eas-cli/pull/1068) by [@dsokal](https://github.com/dsokal))
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
 
 - Upgrade `@expo/apple-utils@0.0.0-alpha.31` (now with license). ([#1064](https://github.com/expo/eas-cli/pull/1064) by [@EvanBacon](https://github.com/EvanBacon))
+- Unify Google Service Account key prompts. ([#1063](https://github.com/expo/eas-cli/pull/1063) by [@dsokal](https://github.com/dsokal))
 
 ## [0.50.0](https://github.com/expo/eas-cli/releases/tag/v0.50.0) - 2022-04-11
 
