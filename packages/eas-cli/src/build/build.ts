@@ -226,7 +226,7 @@ type MaybeBuildFragment = BuildFragment | null;
 export async function waitForBuildEndAsync(
   { buildIds, accountName }: { buildIds: string[]; accountName: string },
   {
-    // 2 hours (max build time limit) + 10 minutes (possible queue time )
+    // 2 hours (max build time limit) + 10 minutes (possible queue time)
     timeoutSec = 2 * 60 * 60 + 10 * 60,
     intervalSec = 10,
   } = {}
