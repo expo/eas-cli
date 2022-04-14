@@ -194,6 +194,10 @@ export default class UpdatePublish extends EasCommand {
       description: `File containing the PEM-encoded private key corresponding to the certificate in expo-updates' configuration. Defaults to a file named "private-key.pem" in the certificate's directory.`,
       required: false,
     }),
+    'non-interactive': Flags.boolean({
+      default: false,
+      description: 'Run command in non-interactive mode',
+    }),
   };
 
   async runAsync(): Promise<void> {
@@ -209,6 +213,7 @@ export default class UpdatePublish extends EasCommand {
         'skip-bundler': skipBundler,
         platform,
         'private-key-path': privateKeyPath,
+        'non-interactive': nonInteractive,
       },
     } = await this.parse(UpdatePublish);
     if (jsonFlag) {
@@ -232,7 +237,17 @@ export default class UpdatePublish extends EasCommand {
 
     const codeSigningInfo = await getCodeSigningInfoAsync(expPrivate, privateKeyPath);
 
-    if (!isExpoUpdatesInstalledOrAvailable(projectDir, exp.sdkVersion)) {
+    const hasExpoUpdates = isExpoUpdatesInstalledOrAvailable(projectDir, exp.sdkVersion);
+    if (!hasExpoUpdates && nonInteractive) {
+      Errors.error(
+        `${chalk.bold(
+          'expo-updates'
+        )} must already be installed when executing in non-interactive mode`,
+        { exit: 1 }
+      );
+    }
+
+    if (!hasExpoUpdates) {
       const install = await confirmAsync({
         message: `You are creating an update which requires ${chalk.bold(
           'expo-updates'
@@ -259,6 +274,10 @@ export default class UpdatePublish extends EasCommand {
     }
 
     if (!branchName) {
+      if (nonInteractive) {
+        throw new Error('Must supply --branch when in non-interactive mode');
+      }
+
       const validationMessage = 'Branch name may not be empty.';
       if (jsonFlag) {
         throw new Error(validationMessage);
@@ -308,6 +327,10 @@ export default class UpdatePublish extends EasCommand {
       if (group) {
         updatesToRepublish = await getUpdateGroupAsync({ group });
       } else {
+        if (nonInteractive) {
+          throw new Error('Must supply --group when in non-interactive mode');
+        }
+
         // Drop into interactive mode if the user has not specified an update group to republish.
         if (jsonFlag) {
           throw new Error('You must specify the update group to republish.');
@@ -372,6 +395,10 @@ export default class UpdatePublish extends EasCommand {
       oldRuntimeVersion = updatesToRepublishFilteredByPlatform[0].runtimeVersion;
 
       if (!message) {
+        if (nonInteractive) {
+          throw new Error('Must supply --message when in non-interactive mode');
+        }
+
         const validationMessage = 'publish message may not be empty.';
         if (jsonFlag) {
           throw new Error(validationMessage);
@@ -390,6 +417,10 @@ export default class UpdatePublish extends EasCommand {
       }
 
       if (!message) {
+        if (nonInteractive) {
+          throw new Error('Must supply --message when in non-interactive mode');
+        }
+
         const validationMessage = 'publish message may not be empty.';
         if (jsonFlag) {
           throw new Error(validationMessage);
