@@ -8,6 +8,14 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [0.51.0](https://github.com/expo/eas-cli/releases/tag/v0.51.0) - 2022-04-19
+
+### 🎉 New features
+
 - Add non-interactive flag to eas update command. ([#1066](https://github.com/expo/eas-cli/pull/1066) by [@wschurman](https://github.com/wschurman))
 - Handle new EAS Submit common error - expired Apple's certificates. ([#1068](https://github.com/expo/eas-cli/pull/1068) by [@dsokal](https://github.com/dsokal))
 
