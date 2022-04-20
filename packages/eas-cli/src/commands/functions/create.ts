@@ -59,7 +59,7 @@ export default class FunctionsCreate extends EasCommand {
     const functionDirectory = path.join(projectDir, 'functions');
     const functionEntries = await prepareFunctionEntriesAsync(functionDirectory);
     const outputDirectory = path.join(projectDir, functionsBuild, 'functions');
-    await bundleFunctionsAsync(functionEntries, outputDirectory);
+    await bundleFunctionsAsync(projectDir, functionEntries, outputDirectory);
     Log.log('Successfully bundled functions...');
 
     Log.log('Doing web build...');

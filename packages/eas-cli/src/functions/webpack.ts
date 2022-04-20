@@ -1,12 +1,14 @@
 import chalk from 'chalk';
 import fs from 'fs/promises';
 import path from 'path';
+import PnpWebpackPlugin from 'pnp-webpack-plugin';
 import { Compiler, Configuration, EntryObject, webpack } from 'webpack';
 
 import Log from '../log';
 import { formatWebpackMessages } from './formatWebpackMessages';
 
 async function getWebpackFunctionConfigurationAsync(
+  projectDir: string,
   entry: EntryObject,
   outputPath: string
 ): Promise<Configuration> {
@@ -25,13 +27,23 @@ async function getWebpackFunctionConfigurationAsync(
       rules: [
         {
           test: /\.tsx?$/,
-          use: 'ts-loader',
+          use: {
+            loader: require.resolve('ts-loader'),
+            options: {
+              configFile: require.resolve('../../functions.tsconfig.webpack.json'),
+              context: projectDir,
+            },
+          },
           exclude: /node_modules/,
         },
       ],
     },
     resolve: {
+      plugins: [PnpWebpackPlugin],
       extensions: ['.tsx', '.ts', '.js'],
+    },
+    resolveLoader: {
+      plugins: [PnpWebpackPlugin.moduleLoader(module)],
     },
     output: {
       filename: '[name].js',
@@ -82,8 +94,12 @@ async function compileWebAppAsync(compiler: Compiler): Promise<any> {
   return { warnings };
 }
 
-export async function bundleFunctionsAsync(entry: EntryObject, outputPath: string): Promise<void> {
-  const config = await getWebpackFunctionConfigurationAsync(entry, outputPath);
+export async function bundleFunctionsAsync(
+  projectDir: string,
+  entry: EntryObject,
+  outputPath: string
+): Promise<void> {
+  const config = await getWebpackFunctionConfigurationAsync(projectDir, entry, outputPath);
   const compiler = webpack(config);
   try {
     const { warnings } = await compileWebAppAsync(compiler);
