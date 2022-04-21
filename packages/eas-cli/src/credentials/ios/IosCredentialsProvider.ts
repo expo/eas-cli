@@ -11,7 +11,6 @@ import { ensureAllTargetsAreConfigured } from '../credentialsJson/utils';
 import { getAppFromContext } from './actions/BuildCredentialsUtils';
 import { SetUpBuildCredentials } from './actions/SetUpBuildCredentials';
 import { SetUpPushKey } from './actions/SetUpPushKey';
-import { IosCapabilitiesOptions } from './appstore/ensureAppExists';
 import { App, IosCredentials, Target } from './types';
 import { isAdHocProfile } from './utils/provisioningProfile';
 
@@ -20,7 +19,6 @@ interface Options {
   targets: Target[];
   distribution: DistributionType;
   enterpriseProvisioning?: IosEnterpriseProvisioning;
-  iosCapabilitiesOptions?: IosCapabilitiesOptions;
 }
 
 export default class IosCredentialsProvider {
@@ -63,7 +61,6 @@ export default class IosCredentialsProvider {
       targets: this.options.targets,
       distribution: this.options.distribution,
       enterpriseProvisioning: this.options.enterpriseProvisioning,
-      iosCapabilitiesOptions: this.options.iosCapabilitiesOptions,
     }).runAsync(this.ctx);
   }
 

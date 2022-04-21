@@ -43,7 +43,6 @@ import { SetUpProvisioningProfile } from '../ios/actions/SetUpProvisioningProfil
 import { SetUpPushKey } from '../ios/actions/SetUpPushKey';
 import { UpdateCredentialsJson } from '../ios/actions/UpdateCredentialsJson';
 import { AppLookupParams } from '../ios/api/GraphqlClient';
-import { getManagedEntitlementsJsonAsync } from '../ios/appstore/entitlements';
 import { App, IosAppCredentialsMap, Target } from '../ios/types';
 import { displayIosCredentials } from '../ios/utils/printCredentials';
 import { ActionInfo, IosActionType, Scope } from './Actions';
@@ -192,10 +191,12 @@ export class ManageIos {
       },
       buildProfile
     );
-    const targets = await resolveTargetsAsync(
-      { exp: ctx.exp, projectDir: ctx.projectDir },
-      xcodeBuildContext
-    );
+    const targets = await resolveTargetsAsync({
+      exp: ctx.exp,
+      projectDir: ctx.projectDir,
+      xcodeBuildContext,
+      env: buildProfile.env ?? {},
+    });
     return {
       app,
       targets,
@@ -235,12 +236,6 @@ export class ManageIos {
         targets,
         distribution: buildProfile.distribution,
         enterpriseProvisioning: buildProfile.enterpriseProvisioning,
-        iosCapabilitiesOptions: {
-          entitlements: await getManagedEntitlementsJsonAsync(
-            ctx.projectDir,
-            buildProfile.env ?? {}
-          ),
-        },
       }).runAsync(ctx);
       return;
     }

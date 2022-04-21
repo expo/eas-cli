@@ -1,17 +1,30 @@
 import { ExpoConfig } from '@expo/config';
 import { IOSConfig } from '@expo/config-plugins';
 import { Platform, Workflow } from '@expo/eas-build-job';
+import { JSONObject } from '@expo/json-file';
 import Joi from 'joi';
 
 import { Target } from '../../credentials/ios/types';
 import { resolveWorkflowAsync } from '../workflow';
 import { getBundleIdentifierAsync } from './bundleIdentifier';
+import {
+  getManagedApplicationTargetEntitlementsAsync,
+  getNativeTargetEntitlementsAsync,
+} from './entitlements';
 import { XcodeBuildContext } from './scheme';
 
 interface UserDefinedTarget {
   targetName: string;
   bundleIdentifier: string;
   parentBundleIdentifier?: string;
+  entitlements: JSONObject;
+}
+
+interface ResolveTargetOptions {
+  projectDir: string;
+  exp: ExpoConfig;
+  env: Record<string, string>;
+  xcodeBuildContext: XcodeBuildContext;
 }
 
 const AppExtensionsConfigSchema = Joi.array().items(
@@ -19,17 +32,78 @@ const AppExtensionsConfigSchema = Joi.array().items(
     targetName: Joi.string().required(),
     bundleIdentifier: Joi.string().required(),
     parentBundleIdentifier: Joi.string(),
+    entitlements: Joi.object(),
   })
 );
 
-export async function resolveTargetsAsync(
-  { exp, projectDir }: { exp: ExpoConfig; projectDir: string },
-  { buildConfiguration, buildScheme }: XcodeBuildContext
-): Promise<Target[]> {
+export async function resolveMangedProjectTargetsAsync({
+  exp,
+  projectDir,
+  xcodeBuildContext,
+  env,
+}: ResolveTargetOptions): Promise<Target[]> {
+  const { buildScheme, buildConfiguration } = xcodeBuildContext;
+  const applicationTarget = {
+    name: buildScheme,
+    type: IOSConfig.Target.TargetType.APPLICATION,
+    dependencies: [],
+  };
+  const applicationTargetBundleIdentifier = await getBundleIdentifierAsync(projectDir, exp, {
+    targetName: applicationTarget.name,
+    buildConfiguration,
+  });
+  const applicationTargetEntitlements = await getManagedApplicationTargetEntitlementsAsync(
+    projectDir,
+    env
+  );
+  const appExtensions: UserDefinedTarget[] =
+    exp.extra?.eas?.build?.experimental?.ios?.appExtensions ?? [];
+
+  const { error } = AppExtensionsConfigSchema.validate(appExtensions, {
+    allowUnknown: false,
+    abortEarly: false,
+  });
+  if (error) {
+    throw new Error(
+      `Failed to validate "extra.eas.build.experimental.ios.appExtensions" in you app config\n${error.message}`
+    );
+  }
+
+  const extensionsTargets = appExtensions.map(extension => ({
+    targetName: extension.targetName,
+    buildConfiguration,
+    bundleIdentifier: extension.bundleIdentifier,
+    parentBundleIdentifier: extension.parentBundleIdentifier ?? applicationTargetBundleIdentifier,
+    entitlements: extension.entitlements ?? {},
+  }));
+  return [
+    {
+      targetName: applicationTarget.name,
+      bundleIdentifier: applicationTargetBundleIdentifier,
+      buildConfiguration,
+      entitlements: applicationTargetEntitlements,
+    },
+    ...extensionsTargets,
+  ];
+}
+
+export async function resolveBareProjectTargetsAsync({
+  exp,
+  projectDir,
+  xcodeBuildContext,
+}: ResolveTargetOptions): Promise<Target[]> {
+  const { buildScheme, buildConfiguration } = xcodeBuildContext;
   const result: Target[] = [];
 
-  const applicationTarget = await readApplicationTargetForSchemeAsync(projectDir, buildScheme);
+  const applicationTarget = await IOSConfig.Target.findApplicationTargetWithDependenciesAsync(
+    projectDir,
+    buildScheme
+  );
   const bundleIdentifier = await getBundleIdentifierAsync(projectDir, exp, {
+    targetName: applicationTarget.name,
+    buildConfiguration,
+  });
+  const entitlements = await getNativeTargetEntitlementsAsync(projectDir, {
     targetName: applicationTarget.name,
     buildConfiguration,
   });
@@ -37,9 +111,10 @@ export async function resolveTargetsAsync(
     targetName: applicationTarget.name,
     bundleIdentifier,
     buildConfiguration,
+    entitlements: entitlements ?? {},
   });
 
-  const dependencies = await resolveDependenciesAsync({
+  const dependencies = await resolveBareProjectDependenciesAsync({
     exp,
     projectDir,
     buildConfiguration,
@@ -50,55 +125,21 @@ export async function resolveTargetsAsync(
     result.push(...dependencies);
   }
 
-  result.push(
-    ...(await resolveManagedAppExtensionsAsync({
-      exp,
-      projectDir,
-      buildConfiguration,
-      applicationTargetBundleIdentifier: bundleIdentifier,
-    }))
-  );
-
   return result;
 }
 
-async function resolveManagedAppExtensionsAsync({
-  exp,
-  projectDir,
-  buildConfiguration,
-  applicationTargetBundleIdentifier,
-}: {
-  exp: ExpoConfig;
-  projectDir: string;
-  buildConfiguration?: string;
-  applicationTargetBundleIdentifier: string;
-}): Promise<Target[]> {
-  const workflow = await resolveWorkflowAsync(projectDir, Platform.IOS);
-  const managedAppExtensions: UserDefinedTarget[] =
-    exp.extra?.eas?.build?.experimental?.ios?.appExtensions;
-  if (workflow === Workflow.GENERIC || !managedAppExtensions) {
-    return [];
+export async function resolveTargetsAsync(opts: ResolveTargetOptions): Promise<Target[]> {
+  const workflow = await resolveWorkflowAsync(opts.projectDir, Platform.IOS);
+  if (workflow === Workflow.GENERIC) {
+    return await resolveBareProjectTargetsAsync(opts);
+  } else if (workflow === Workflow.MANAGED) {
+    return await resolveMangedProjectTargetsAsync(opts);
+  } else {
+    throw new Error(`Unknown workflow: ${workflow}`);
   }
-
-  const { error } = AppExtensionsConfigSchema.validate(managedAppExtensions, {
-    allowUnknown: false,
-    abortEarly: false,
-  });
-  if (error) {
-    throw new Error(
-      `Failed to validate "extra.eas.build.experimental.ios.appExtensions" in you app config\n${error.message}`
-    );
-  }
-
-  return managedAppExtensions.map(extension => ({
-    targetName: extension.targetName,
-    buildConfiguration,
-    bundleIdentifier: extension.bundleIdentifier,
-    parentBundleIdentifier: extension.parentBundleIdentifier ?? applicationTargetBundleIdentifier,
-  }));
 }
 
-async function resolveDependenciesAsync({
+async function resolveBareProjectDependenciesAsync({
   exp,
   projectDir,
   buildConfiguration,
@@ -119,13 +160,18 @@ async function resolveDependenciesAsync({
         targetName: dependency.name,
         buildConfiguration,
       });
+      const entitlements = await getNativeTargetEntitlementsAsync(projectDir, {
+        targetName: target.name,
+        buildConfiguration,
+      });
       result.push({
         targetName: dependency.name,
         buildConfiguration,
         bundleIdentifier: dependencyBundleIdentifier,
         parentBundleIdentifier: bundleIdentifier,
+        entitlements: entitlements ?? {},
       });
-      const dependencyDependencies = await resolveDependenciesAsync({
+      const dependencyDependencies = await resolveBareProjectDependenciesAsync({
         exp,
         projectDir,
         buildConfiguration,
@@ -139,22 +185,6 @@ async function resolveDependenciesAsync({
   }
 
   return result;
-}
-
-async function readApplicationTargetForSchemeAsync(
-  projectDir: string,
-  scheme: string
-): Promise<IOSConfig.Target.Target> {
-  const workflow = await resolveWorkflowAsync(projectDir, Platform.IOS);
-  if (workflow === Workflow.GENERIC) {
-    return await IOSConfig.Target.findApplicationTargetWithDependenciesAsync(projectDir, scheme);
-  } else {
-    return {
-      name: scheme,
-      type: IOSConfig.Target.TargetType.APPLICATION,
-      dependencies: [],
-    };
-  }
 }
 
 export function findApplicationTarget(targets: Target[]): Target {

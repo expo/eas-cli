@@ -4,7 +4,6 @@ import nullthrows from 'nullthrows';
 
 import Log from '../../../log';
 import { CredentialsContext } from '../../context';
-import { IosCapabilitiesOptions } from '../appstore/ensureAppExists';
 import { App, IosAppBuildCredentialsMap, IosCredentials, Target } from '../types';
 import { displayProjectCredentials } from '../utils/printCredentials';
 import { SetUpTargetBuildCredentials } from './SetUpTargetBuildCredentials';
@@ -14,7 +13,6 @@ interface Options {
   targets: Target[];
   distribution: DistributionType;
   enterpriseProvisioning?: IosEnterpriseProvisioning;
-  iosCapabilitiesOptions?: IosCapabilitiesOptions;
 }
 
 export class SetUpBuildCredentials {
@@ -50,7 +48,9 @@ export class SetUpBuildCredentials {
         Log.newLine();
       }
       const action = new SetUpTargetBuildCredentials({
-        ...this.options,
+        enterpriseProvisioning: this.options.enterpriseProvisioning,
+        distribution: this.options.distribution,
+        iosCapabilitiesOptions: { entitlements: target.entitlements },
         app: {
           ...this.options.app,
           bundleIdentifier: target.bundleIdentifier,
