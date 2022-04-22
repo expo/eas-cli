@@ -17,7 +17,7 @@ interface UserDefinedTarget {
   targetName: string;
   bundleIdentifier: string;
   parentBundleIdentifier?: string;
-  entitlements: JSONObject;
+  entitlements?: JSONObject;
 }
 
 interface ResolveTargetOptions {
@@ -43,13 +43,9 @@ export async function resolveMangedProjectTargetsAsync({
   env,
 }: ResolveTargetOptions): Promise<Target[]> {
   const { buildScheme, buildConfiguration } = xcodeBuildContext;
-  const applicationTarget = {
-    name: buildScheme,
-    type: IOSConfig.Target.TargetType.APPLICATION,
-    dependencies: [],
-  };
+  const applicationTargetName = buildScheme;
   const applicationTargetBundleIdentifier = await getBundleIdentifierAsync(projectDir, exp, {
-    targetName: applicationTarget.name,
+    targetName: applicationTargetName,
     buildConfiguration,
   });
   const applicationTargetEntitlements = await getManagedApplicationTargetEntitlementsAsync(
@@ -65,11 +61,11 @@ export async function resolveMangedProjectTargetsAsync({
   });
   if (error) {
     throw new Error(
-      `Failed to validate "extra.eas.build.experimental.ios.appExtensions" in you app config\n${error.message}`
+      `Failed to validate "extra.eas.build.experimental.ios.appExtensions" in you app config.\n${error.message}`
     );
   }
 
-  const extensionsTargets = appExtensions.map(extension => ({
+  const extensionsTargets: Target[] = appExtensions.map(extension => ({
     targetName: extension.targetName,
     buildConfiguration,
     bundleIdentifier: extension.bundleIdentifier,
@@ -78,7 +74,7 @@ export async function resolveMangedProjectTargetsAsync({
   }));
   return [
     {
-      targetName: applicationTarget.name,
+      targetName: applicationTargetName,
       bundleIdentifier: applicationTargetBundleIdentifier,
       buildConfiguration,
       entitlements: applicationTargetEntitlements,
