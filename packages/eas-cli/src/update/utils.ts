@@ -2,8 +2,8 @@ import { ExpoConfig, getConfig } from '@expo/config';
 import { EasJsonReader } from '@expo/eas-json';
 import { format } from '@expo/timeago.js';
 import chalk from 'chalk';
-import { getEASUpdateURL } from '../api';
 
+import { getEASUpdateURL } from '../api';
 import { Maybe, Robot, Update, User } from '../graphql/generated';
 import Log, { learnMore } from '../log';
 import { RequestedPlatform } from '../platform';
