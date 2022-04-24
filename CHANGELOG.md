@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Warn for misconfigured channel configuration when using EAS Update. ([#1082](https://github.com/expo/eas-cli/pull/1082)) by [@kbrandwijk](https://github.com/kbrandwijk))
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
