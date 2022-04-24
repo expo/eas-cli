@@ -1,6 +1,7 @@
 import { ExpoConfig, getConfig } from '@expo/config';
 import { Updates } from '@expo/config-plugins';
 import { Platform, Workflow } from '@expo/eas-build-job';
+import { EasJsonReader } from '@expo/eas-json';
 import { Errors, Flags } from '@oclif/core';
 import assert from 'assert';
 import chalk from 'chalk';
@@ -25,7 +26,7 @@ import {
 } from '../../graphql/generated';
 import { PublishMutation } from '../../graphql/mutations/PublishMutation';
 import { UpdateQuery } from '../../graphql/queries/UpdateQuery';
-import Log from '../../log';
+import Log, { learnMore } from '../../log';
 import { ora } from '../../ora';
 import {
   findProjectRootAsync,
@@ -314,6 +315,15 @@ export default class UpdatePublish extends EasCommand {
       appId: projectId,
       name: branchName,
     });
+
+    const easJson = await new EasJsonReader(projectDir).readAsync();
+    if (easJson.build && Object.entries(easJson.build).some(([, value]) => value.releaseChannel)) {
+      Log.warn(`One or more build profiles in your eas.json specify the "releaseChannel" property.
+For EAS Update, you need to specify the "channel" property, or your build will not be able to receive any updates.
+Update your eas.json manually, or run ${chalk.bold('eas update:configure')}.
+${learnMore('https://docs.expo.dev/eas-update/getting-started/#configure-your-project')}`);
+      Log.newLine();
+    }
 
     let unsortedUpdateInfoGroups: UpdateInfoGroup = {};
     let oldMessage: string, oldRuntimeVersion: string;
