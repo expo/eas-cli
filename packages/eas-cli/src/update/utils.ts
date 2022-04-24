@@ -1,12 +1,16 @@
-import { ExpoConfig } from '@expo/config';
+import { ExpoConfig, getConfig } from '@expo/config';
+import { EasJsonReader } from '@expo/eas-json';
 import { format } from '@expo/timeago.js';
 import chalk from 'chalk';
+import { getEASUpdateURL } from '../api';
 
 import { Maybe, Robot, Update, User } from '../graphql/generated';
-import { learnMore } from '../log';
+import Log, { learnMore } from '../log';
 import { RequestedPlatform } from '../platform';
+import { getProjectIdAsync } from '../project/projectUtils';
 import { getActorDisplayName } from '../user/User';
 import groupBy from '../utils/expodash/groupBy';
+import { ProfileData } from '../utils/profiles';
 
 export type FormatUpdateParameter = Pick<Update, 'id' | 'createdAt' | 'message'> & {
   actor?: Maybe<Pick<User, 'username' | 'id'> | Pick<Robot, 'firstName' | 'id'>>;
@@ -72,5 +76,62 @@ export function ensureValidVersions(exp: ExpoConfig, platform: RequestedPlatform
     !exp.sdkVersion
   ) {
     throw error;
+  }
+}
+
+export async function checkDeprecatedChannelConfigurationAsync(
+  projectDir: string
+): Promise<boolean> {
+  const easJson = await new EasJsonReader(projectDir).readAsync();
+  if (easJson.build && Object.entries(easJson.build).some(([, value]) => value.releaseChannel)) {
+    Log.warn(`» One or more build profiles in your eas.json specify the "releaseChannel" property.
+For EAS Update, you need to specify the "channel" property, or your build will not be able to receive any updates.
+Update your eas.json manually, or run ${chalk.bold('eas update:configure')}.
+${learnMore('https://docs.expo.dev/eas-update/getting-started/#configure-your-project')}`);
+    Log.newLine();
+    return true;
+  }
+
+  return false;
+}
+
+export async function checkBuildProfileConfigMatchesProjectConfigAsync(
+  projectDir: string,
+  buildProfile: ProfileData<'build'>
+): Promise<boolean> {
+  const { exp } = getConfig(projectDir, {
+    skipSDKVersionRequirement: true,
+    isPublicConfig: true,
+  });
+  if ((await checkEASUpdateURLIsSetAsync(exp)) && buildProfile.profile.releaseChannel) {
+    Log.warn(`» Build profile ${chalk.bold(
+      buildProfile.profileName
+    )} in your eas.json specifies the "releaseChannel" property.
+For EAS Update, you need to specify the "channel" property, or your build will not be able to receive any updates.
+Update your eas.json manually, or run ${chalk.bold('eas update:configure')}.
+${learnMore('https://docs.expo.dev/eas-update/getting-started/#configure-your-project')}`);
+    return true;
+  }
+
+  return false;
+}
+
+export async function checkEASUpdateURLIsSetAsync(exp: ExpoConfig): Promise<boolean> {
+  const configuredURL = exp.updates?.url;
+  const projectId = await getProjectIdAsync(exp);
+  const expectedURL = getEASUpdateURL(projectId);
+
+  return configuredURL === expectedURL;
+}
+
+export async function ensureEASUpdateURLIsSetAsync(exp: ExpoConfig): Promise<void> {
+  const configuredURL = exp.updates?.url;
+  const projectId = await getProjectIdAsync(exp);
+  const expectedURL = getEASUpdateURL(projectId);
+
+  if (configuredURL !== expectedURL) {
+    throw new Error(
+      `The update URL is incorrectly configured for EAS Update. Please set updates.url to ${expectedURL} in your app.json.`
+    );
   }
 }

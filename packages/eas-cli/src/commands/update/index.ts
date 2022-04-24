@@ -1,7 +1,6 @@
 import { ExpoConfig, getConfig } from '@expo/config';
 import { Updates } from '@expo/config-plugins';
 import { Platform, Workflow } from '@expo/eas-build-job';
-import { EasJsonReader } from '@expo/eas-json';
 import { Errors, Flags } from '@oclif/core';
 import assert from 'assert';
 import chalk from 'chalk';
@@ -9,7 +8,6 @@ import dateFormat from 'dateformat';
 import gql from 'graphql-tag';
 import nullthrows from 'nullthrows';
 
-import { getEASUpdateURL } from '../../api';
 import EasCommand from '../../commandUtils/EasCommand';
 import fetch from '../../fetch';
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
@@ -26,7 +24,7 @@ import {
 } from '../../graphql/generated';
 import { PublishMutation } from '../../graphql/mutations/PublishMutation';
 import { UpdateQuery } from '../../graphql/queries/UpdateQuery';
-import Log, { learnMore } from '../../log';
+import Log from '../../log';
 import { ora } from '../../ora';
 import {
   findProjectRootAsync,
@@ -43,7 +41,11 @@ import {
 } from '../../project/publish';
 import { resolveWorkflowAsync } from '../../project/workflow';
 import { confirmAsync, promptAsync, selectAsync } from '../../prompts';
-import { formatUpdate } from '../../update/utils';
+import {
+  checkDeprecatedChannelConfigurationAsync,
+  ensureEASUpdateURLIsSetAsync,
+  formatUpdate,
+} from '../../update/utils';
 import {
   checkManifestBodyAgainstUpdateInfoGroup,
   getCodeSigningInfoAsync,
@@ -266,7 +268,7 @@ export default class UpdatePublish extends EasCommand {
 
     const runtimeVersions = await getRuntimeVersionObjectAsync(exp, platformFlag, projectDir);
     const projectId = await getProjectIdAsync(exp);
-    await checkEASUpdateURLIsSetAsync(exp);
+    await ensureEASUpdateURLIsSetAsync(exp);
 
     if (!branchName && autoFlag) {
       branchName =
@@ -316,14 +318,7 @@ export default class UpdatePublish extends EasCommand {
       name: branchName,
     });
 
-    const easJson = await new EasJsonReader(projectDir).readAsync();
-    if (easJson.build && Object.entries(easJson.build).some(([, value]) => value.releaseChannel)) {
-      Log.warn(`One or more build profiles in your eas.json specify the "releaseChannel" property.
-For EAS Update, you need to specify the "channel" property, or your build will not be able to receive any updates.
-Update your eas.json manually, or run ${chalk.bold('eas update:configure')}.
-${learnMore('https://docs.expo.dev/eas-update/getting-started/#configure-your-project')}`);
-      Log.newLine();
-    }
+    await checkDeprecatedChannelConfigurationAsync(projectDir);
 
     let unsortedUpdateInfoGroups: UpdateInfoGroup = {};
     let oldMessage: string, oldRuntimeVersion: string;
@@ -643,16 +638,4 @@ function formatUpdateTitle(
     createdAt,
     'mmm dd HH:MM'
   )} by ${actorName}, runtimeVersion: ${runtimeVersion}] ${message}`;
-}
-
-async function checkEASUpdateURLIsSetAsync(exp: ExpoConfig): Promise<void> {
-  const configuredURL = exp.updates?.url;
-  const projectId = await getProjectIdAsync(exp);
-  const expectedURL = getEASUpdateURL(projectId);
-
-  if (configuredURL !== expectedURL) {
-    throw new Error(
-      `The update URL is incorrectly configured for EAS Update. Please set updates.url to ${expectedURL} in your app.json.`
-    );
-  }
 }
