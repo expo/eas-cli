@@ -1,8 +1,10 @@
 import { ExpoConfig, getConfig, modifyConfigAsync } from '@expo/config';
 import { Platform, Workflow } from '@expo/eas-build-job';
+import { EasJsonReader } from '@expo/eas-json';
 import { Flags } from '@oclif/core';
 import assert from 'assert';
 import chalk from 'chalk';
+import { promises as fs } from 'fs-extra';
 
 import { getEASUpdateURL } from '../../api';
 import EasCommand from '../../commandUtils/EasCommand';
@@ -64,6 +66,11 @@ export default class UpdateConfigure extends EasCommand {
       },
     });
     Log.withTick(`Configured ${chalk.bold('app.json')} for EAS Update`);
+
+    const madeChanges = await checkAndConfigureEasJsonReleaseChannelsAsync(projectDir);
+    if (madeChanges) {
+      Log.withTick(`Configured ${chalk.bold('eas.json')} for EAS Update`);
+    }
 
     // configure native files for EAS Update
     if (
@@ -240,6 +247,36 @@ async function configureAppJSONForEASUpdateAsync({
   assert(result.config, 'A successful result should have a config');
 
   return result.config.expo;
+}
+
+async function checkAndConfigureEasJsonReleaseChannelsAsync(projectDir: string): Promise<boolean> {
+  const reader = new EasJsonReader(projectDir);
+  const easJson = await reader.readAsync();
+
+  let releaseChannelsFound = false;
+
+  if (easJson.build) {
+    for (const [key, value] of Object.entries(easJson.build)) {
+      if (value.releaseChannel) {
+        releaseChannelsFound = true;
+        easJson.build[key].channel = value.releaseChannel;
+        delete easJson.build[key].releaseChannel;
+      }
+    }
+  }
+
+  if (releaseChannelsFound) {
+    try {
+      await fs.writeFile(
+        EasJsonReader.formatEasJsonPath(projectDir),
+        JSON.stringify(easJson, null, 2)
+      );
+    } catch {
+      throw new Error('Error occured updating eas.json file');
+    }
+  }
+
+  return releaseChannelsFound;
 }
 
 function isRuntimeEqual(
