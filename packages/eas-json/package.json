@@ -4,6 +4,7 @@
   "version": "0.51.0",
   "author": "Expo <support@expo.dev>",
   "bugs": "https://github.com/expo/eas-cli/issues",
+  "type": "module",
   "dependencies": {
     "@expo/eas-build-job": "0.2.68",
     "@expo/json-file": "8.2.34",
@@ -21,11 +22,11 @@
     "typescript": "4.6.3"
   },
   "engines": {
-    "node": ">=12.0.0"
+    "node": ">=14.16.0"
   },
   "homepage": "https://github.com/expo/eas-cli",
   "license": "MIT",
-  "main": "build/index.js",
+  "exports": "./build/index.js",
   "types": "build/index.d.ts",
   "repository": "expo/eas-cli",
   "scripts": {

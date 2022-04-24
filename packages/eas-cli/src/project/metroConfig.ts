@@ -54,7 +54,7 @@ export async function validateMetroConfigForManagedWorkflowAsync(
   }
 }
 
-function importMetroConfigFromProject(projectDir: string): typeof MetroConfig {
+async function importMetroConfigFromProjectAsync(projectDir: string): Promise<typeof MetroConfig> {
   const resolvedPath = resolveFrom.silent(projectDir, 'metro-config');
   if (!resolvedPath) {
     throw new MetroConfigPackageMissingError(
@@ -64,12 +64,12 @@ function importMetroConfigFromProject(projectDir: string): typeof MetroConfig {
         'and run `yarn` or `npm install`.'
     );
   }
-  return require(resolvedPath);
+  return await import(resolvedPath);
 }
 
 async function configExistsAsync(projectRoot: string): Promise<boolean> {
   try {
-    const MetroConfig = importMetroConfigFromProject(projectRoot);
+    const MetroConfig = await importMetroConfigFromProjectAsync(projectRoot);
     const result = await MetroConfig.resolveConfig(undefined, projectRoot);
     return !result.isEmpty;
   } catch (err) {
@@ -82,7 +82,7 @@ async function configExistsAsync(projectRoot: string): Promise<boolean> {
 }
 
 async function loadConfigAsync(projectDir: string): Promise<MetroConfig.ConfigT> {
-  const MetroConfig = importMetroConfigFromProject(projectDir);
+  const MetroConfig = await importMetroConfigFromProjectAsync(projectDir);
   return await MetroConfig.loadConfig({ cwd: projectDir }, {});
 }
 

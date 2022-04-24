@@ -4,8 +4,9 @@
   "version": "0.51.0",
   "author": "Expo <support@expo.dev>",
   "bin": {
-    "eas": "./bin/run"
+    "eas": "./bin/run.js"
   },
+  "type": "module",
   "bugs": "https://github.com/expo/eas-cli/issues",
   "dependencies": {
     "@expo/apple-utils": "0.0.0-alpha.31",
@@ -104,7 +105,7 @@
     "typescript": "4.6.3"
   },
   "engines": {
-    "node": ">=12.0.0"
+    "node": ">=14.16"
   },
   "files": [
     "/bin",
