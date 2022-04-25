@@ -38,6 +38,7 @@ export interface IosSubmitProfile {
   companyName?: string;
   appName?: string;
   bundleIdentifier?: string;
+  meta?: string;
 }
 
 export const IosSubmitProfileFieldsToEvaluate: (keyof IosSubmitProfile)[] = [

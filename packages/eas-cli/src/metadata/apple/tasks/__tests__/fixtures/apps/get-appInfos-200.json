@@ -1,0 +1,115 @@
+{
+  "data": [
+    {
+      "type": "appInfos",
+      "id": "APP_INFO_1",
+      "attributes": {
+        "appStoreState": "PREPARE_FOR_SUBMISSION",
+        "appStoreAgeRating": "NINE_PLUS",
+        "brazilAgeRating": "TEN",
+        "kidsAgeBand": null
+      },
+      "relationships": {
+        "ageRatingDeclaration": {
+          "links": {
+            "self": "https://appstoreconnect.apple.com/iris/v1/appInfos/APP_INFO_1/relationships/ageRatingDeclaration",
+            "related": "https://appstoreconnect.apple.com/iris/v1/appInfos/APP_INFO_1/ageRatingDeclaration"
+          }
+        },
+        "appInfoLocalizations": {
+          "links": {
+            "self": "https://appstoreconnect.apple.com/iris/v1/appInfos/APP_INFO_1/relationships/appInfoLocalizations",
+            "related": "https://appstoreconnect.apple.com/iris/v1/appInfos/APP_INFO_1/appInfoLocalizations"
+          }
+        },
+        "primaryCategory": {
+          "data": {
+            "type": "appCategories",
+            "id": "ENTERTAINMENT"
+          },
+          "links": {
+            "self": "https://appstoreconnect.apple.com/iris/v1/appInfos/APP_INFO_1/relationships/primaryCategory",
+            "related": "https://appstoreconnect.apple.com/iris/v1/appInfos/APP_INFO_1/primaryCategory"
+          }
+        },
+        "primarySubcategoryOne": {
+          "data": null,
+          "links": {
+            "self": "https://appstoreconnect.apple.com/iris/v1/appInfos/APP_INFO_1/relationships/primarySubcategoryOne",
+            "related": "https://appstoreconnect.apple.com/iris/v1/appInfos/APP_INFO_1/primarySubcategoryOne"
+          }
+        },
+        "primarySubcategoryTwo": {
+          "data": null,
+          "links": {
+            "self": "https://appstoreconnect.apple.com/iris/v1/appInfos/APP_INFO_1/relationships/primarySubcategoryTwo",
+            "related": "https://appstoreconnect.apple.com/iris/v1/appInfos/APP_INFO_1/primarySubcategoryTwo"
+          }
+        },
+        "secondaryCategory": {
+          "data": null,
+          "links": {
+            "self": "https://appstoreconnect.apple.com/iris/v1/appInfos/APP_INFO_1/relationships/secondaryCategory",
+            "related": "https://appstoreconnect.apple.com/iris/v1/appInfos/APP_INFO_1/secondaryCategory"
+          }
+        },
+        "secondarySubcategoryOne": {
+          "data": null,
+          "links": {
+            "self": "https://appstoreconnect.apple.com/iris/v1/appInfos/APP_INFO_1/relationships/secondarySubcategoryOne",
+            "related": "https://appstoreconnect.apple.com/iris/v1/appInfos/APP_INFO_1/secondarySubcategoryOne"
+          }
+        },
+        "secondarySubcategoryTwo": {
+          "data": null,
+          "links": {
+            "self": "https://appstoreconnect.apple.com/iris/v1/appInfos/APP_INFO_1/relationships/secondarySubcategoryTwo",
+            "related": "https://appstoreconnect.apple.com/iris/v1/appInfos/APP_INFO_1/secondarySubcategoryTwo"
+          }
+        }
+      },
+      "links": {
+        "self": "https://appstoreconnect.apple.com/iris/v1/appInfos/APP_INFO_1"
+      }
+    }
+  ],
+  "included": [
+    {
+      "type": "appCategories",
+      "id": "ENTERTAINMENT",
+      "attributes": {
+        "platforms": [
+          "IOS",
+          "MAC_OS",
+          "TV_OS"
+        ]
+      },
+      "relationships": {
+        "subcategories": {
+          "links": {
+            "self": "https://appstoreconnect.apple.com/iris/v1/appCategories/ENTERTAINMENT/relationships/subcategories",
+            "related": "https://appstoreconnect.apple.com/iris/v1/appCategories/ENTERTAINMENT/subcategories"
+          }
+        },
+        "parent": {
+          "links": {
+            "self": "https://appstoreconnect.apple.com/iris/v1/appCategories/ENTERTAINMENT/relationships/parent",
+            "related": "https://appstoreconnect.apple.com/iris/v1/appCategories/ENTERTAINMENT/parent"
+          }
+        }
+      },
+      "links": {
+        "self": "https://appstoreconnect.apple.com/iris/v1/appCategories/ENTERTAINMENT"
+      }
+    }
+  ],
+  "links": {
+    "self": "https://appstoreconnect.apple.com/iris/v1/apps/1611050397/appInfos?include=secondaryCategory%2CprimaryCategory%2CsecondarySubcategoryOne%2CprimarySubcategoryTwo%2CsecondarySubcategoryTwo%2CprimarySubcategoryOne"
+  },
+  "meta": {
+    "paging": {
+      "total": 1,
+      "limit": 50
+    }
+  }
+}
