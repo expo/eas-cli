@@ -8,11 +8,15 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
-- Support target specific entitlements. ([#1078](https://github.com/expo/eas-cli/pull/1078) by [@wkozyra95](https://github.com/wkozyra95))
-
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
+
+## [0.52.0](https://github.com/expo/eas-cli/releases/tag/v0.52.0) - 2022-04-26
+
+### 🎉 New features
+
+- Support target specific entitlements. ([#1078](https://github.com/expo/eas-cli/pull/1078) by [@wkozyra95](https://github.com/wkozyra95))
 
 ## [0.51.0](https://github.com/expo/eas-cli/releases/tag/v0.51.0) - 2022-04-19
 
