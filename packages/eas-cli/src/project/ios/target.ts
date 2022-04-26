@@ -23,7 +23,7 @@ interface UserDefinedTarget {
 interface ResolveTargetOptions {
   projectDir: string;
   exp: ExpoConfig;
-  env: Record<string, string>;
+  env?: Record<string, string>;
   xcodeBuildContext: XcodeBuildContext;
 }
 
@@ -50,7 +50,7 @@ export async function resolveMangedProjectTargetsAsync({
   });
   const applicationTargetEntitlements = await getManagedApplicationTargetEntitlementsAsync(
     projectDir,
-    env
+    env ?? {}
   );
   const appExtensions: UserDefinedTarget[] =
     exp.extra?.eas?.build?.experimental?.ios?.appExtensions ?? [];

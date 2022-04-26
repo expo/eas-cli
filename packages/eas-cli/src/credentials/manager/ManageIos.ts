@@ -195,7 +195,7 @@ export class ManageIos {
       exp: ctx.exp,
       projectDir: ctx.projectDir,
       xcodeBuildContext,
-      env: buildProfile.env ?? {},
+      env: buildProfile.env,
     });
     return {
       app,

@@ -40,7 +40,7 @@ export async function createIosContextAsync(
     projectDir: ctx.projectDir,
     exp: ctx.exp,
     xcodeBuildContext,
-    env: buildProfile.env ?? {},
+    env: buildProfile.env,
   });
   const applicationTarget = findApplicationTarget(targets);
   const applicationTargetBuildSettings = resolveBuildSettings(ctx, applicationTarget);

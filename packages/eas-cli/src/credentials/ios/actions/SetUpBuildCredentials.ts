@@ -50,7 +50,7 @@ export class SetUpBuildCredentials {
       const action = new SetUpTargetBuildCredentials({
         enterpriseProvisioning: this.options.enterpriseProvisioning,
         distribution: this.options.distribution,
-        iosCapabilitiesOptions: { entitlements: target.entitlements },
+        entitlements: target.entitlements,
         app: {
           ...this.options.app,
           bundleIdentifier: target.bundleIdentifier,
