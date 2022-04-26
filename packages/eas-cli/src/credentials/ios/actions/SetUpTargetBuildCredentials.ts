@@ -1,4 +1,5 @@
 import { DistributionType, IosEnterpriseProvisioning } from '@expo/eas-json';
+import { JSONObject } from '@expo/json-file';
 
 import {
   IosDistributionType as GraphQLIosDistributionType,
@@ -7,7 +8,6 @@ import {
 import Log from '../../../log';
 import { CredentialsContext } from '../../context';
 import { AppLookupParams as GraphQLAppLookupParams } from '../api/GraphqlClient';
-import { IosCapabilitiesOptions } from '../appstore/ensureAppExists';
 import { SetUpAdhocProvisioningProfile } from './SetUpAdhocProvisioningProfile';
 import { SetUpInternalProvisioningProfile } from './SetUpInternalProvisioningProfile';
 import { SetUpProvisioningProfile } from './SetUpProvisioningProfile';
@@ -16,13 +16,13 @@ interface Options {
   app: GraphQLAppLookupParams;
   distribution: DistributionType;
   enterpriseProvisioning?: IosEnterpriseProvisioning;
-  iosCapabilitiesOptions?: IosCapabilitiesOptions;
+  entitlements: JSONObject;
 }
 export class SetUpTargetBuildCredentials {
   constructor(private options: Options) {}
 
   async runAsync(ctx: CredentialsContext): Promise<IosAppBuildCredentialsFragment> {
-    const { app, iosCapabilitiesOptions } = this.options;
+    const { app, entitlements } = this.options;
 
     await ctx.bestEffortAppStoreAuthenticateAsync();
 
@@ -33,7 +33,7 @@ export class SetUpTargetBuildCredentials {
           bundleIdentifier: app.bundleIdentifier,
           projectName: app.projectName,
         },
-        iosCapabilitiesOptions
+        { entitlements }
       );
     }
     try {

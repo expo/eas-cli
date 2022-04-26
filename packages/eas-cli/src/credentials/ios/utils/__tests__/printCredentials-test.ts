@@ -29,7 +29,9 @@ describe('print credentials', () => {
     const appCredentials = {
       test52: nullthrows(testIosAppCredentialsData),
     };
-    const targets: Target[] = [{ targetName: 'test52', bundleIdentifier: 'com.quinlanj.test52' }];
+    const targets: Target[] = [
+      { targetName: 'test52', bundleIdentifier: 'com.quinlanj.test52', entitlements: {} },
+    ];
     displayIosCredentials(app, appCredentials, targets);
     const loggedSoFar = asMock(Log.log).mock.calls.reduce((acc, mockValue) => acc + mockValue);
     expect(loggedSoFar).toMatchSnapshot();

@@ -58,7 +58,13 @@ describe(IosCredentialsProvider, () => {
             },
             projectName: appLookupParams.projectName,
           },
-          targets: [{ targetName: 'testapp', bundleIdentifier: appLookupParams.bundleIdentifier }],
+          targets: [
+            {
+              targetName: 'testapp',
+              bundleIdentifier: appLookupParams.bundleIdentifier,
+              entitlements: {},
+            },
+          ],
           distribution: 'store',
         });
         await expect(provider.getCredentialsAsync(CredentialsSource.REMOTE)).rejects.toThrowError(
@@ -95,7 +101,13 @@ describe(IosCredentialsProvider, () => {
             },
             projectName: appLookupParams.projectName,
           },
-          targets: [{ targetName: 'testapp', bundleIdentifier: appLookupParams.bundleIdentifier }],
+          targets: [
+            {
+              targetName: 'testapp',
+              bundleIdentifier: appLookupParams.bundleIdentifier,
+              entitlements: {},
+            },
+          ],
           distribution: 'store',
         });
 

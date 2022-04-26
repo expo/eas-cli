@@ -123,7 +123,7 @@ export function displayIosCredentials(
 export function displayProjectCredentials(
   app: App,
   appBuildCredentials: IosAppBuildCredentialsMap,
-  targets: Target[]
+  targets: Omit<Target, 'entitlements'>[]
 ): void {
   const projectFullName = `@${app.account.name}/${app.projectName}`;
   const targetToBundleId = targets.reduce<Record<string, string>>((acc, target) => {

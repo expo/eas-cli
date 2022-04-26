@@ -1,3 +1,5 @@
+import { JSONObject } from '@expo/json-file';
+
 import {
   CommonIosAppCredentialsFragment,
   IosAppBuildCredentialsFragment,
@@ -14,6 +16,7 @@ export interface Target {
   buildConfiguration?: string;
   bundleIdentifier: string;
   parentBundleIdentifier?: string;
+  entitlements: JSONObject;
 }
 
 export interface TargetCredentials {

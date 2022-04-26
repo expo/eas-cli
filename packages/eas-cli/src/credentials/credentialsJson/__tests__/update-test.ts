@@ -176,6 +176,7 @@ describe('update credentials.json', () => {
       {
         targetName: 'testapp',
         bundleIdentifier: 'com.bundle.id',
+        entitlements: {},
       },
     ];
 

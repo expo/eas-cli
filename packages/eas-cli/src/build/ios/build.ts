@@ -36,13 +36,12 @@ export async function createIosContextAsync(
     },
     buildProfile
   );
-  const targets = await resolveTargetsAsync(
-    {
-      projectDir: ctx.projectDir,
-      exp: ctx.exp,
-    },
-    xcodeBuildContext
-  );
+  const targets = await resolveTargetsAsync({
+    projectDir: ctx.projectDir,
+    exp: ctx.exp,
+    xcodeBuildContext,
+    env: buildProfile.env,
+  });
   const applicationTarget = findApplicationTarget(targets);
   const applicationTargetBuildSettings = resolveBuildSettings(ctx, applicationTarget);
 
