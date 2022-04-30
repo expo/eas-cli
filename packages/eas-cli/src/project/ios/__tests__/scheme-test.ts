@@ -2,7 +2,6 @@ import fs from 'fs-extra';
 import { vol } from 'memfs';
 import os from 'os';
 
-import { asMock } from '../../../__tests__/utils';
 import { promptAsync } from '../../../prompts';
 import { selectSchemeAsync } from '../scheme';
 
@@ -16,7 +15,7 @@ beforeEach(async () => {
   // this fixes a weird error with tempy in @expo/image-utils
   await fs.mkdirp(os.tmpdir());
 
-  asMock(promptAsync).mockReset();
+  jest.mocked(promptAsync).mockReset();
 });
 
 describe(selectSchemeAsync, () => {
@@ -58,7 +57,7 @@ describe(selectSchemeAsync, () => {
         },
         projectDir
       );
-      asMock(promptAsync).mockImplementationOnce(() => ({
+      jest.mocked(promptAsync).mockImplementationOnce(async () => ({
         selectedScheme: 'scheme3',
       }));
 

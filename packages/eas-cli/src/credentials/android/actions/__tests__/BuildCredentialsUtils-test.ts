@@ -1,4 +1,3 @@
-import { asMock } from '../../../../__tests__/utils';
 import { confirmAsync, promptAsync } from '../../../../prompts';
 import {
   getNewAndroidApiMock,
@@ -17,7 +16,7 @@ import {
 
 jest.mock('../../../../ora');
 jest.mock('../../../../prompts');
-asMock(confirmAsync).mockImplementation(() => true);
+jest.mocked(confirmAsync).mockImplementation(async () => true);
 
 describe('BuildCredentialsUtils', () => {
   describe(canCopyLegacyCredentialsAsync, () => {
@@ -84,7 +83,9 @@ describe('BuildCredentialsUtils', () => {
   });
   describe(promptUserAndCopyLegacyCredentialsAsync, () => {
     it('copies all legacy credentials to EAS if the user is eligible', async () => {
-      asMock(promptAsync).mockImplementation(() => ({ providedName: 'test-provided-name' }));
+      jest
+        .mocked(promptAsync)
+        .mockImplementation(async () => ({ providedName: 'test-provided-name' }));
       const ctx = createCtxMock({
         nonInteractive: false,
         android: {

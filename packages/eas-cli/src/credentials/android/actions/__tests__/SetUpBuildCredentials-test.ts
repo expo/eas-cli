@@ -1,4 +1,3 @@
-import { asMock } from '../../../../__tests__/utils';
 import {
   getNewAndroidApiMock,
   testAndroidBuildCredentialsFragment,
@@ -19,7 +18,7 @@ jest.mock('../../utils/keystore', () => ({ generateRandomKeystoreAsync: jest.fn(
 
 describe('SetUpBuildCredentials', () => {
   beforeEach(() => {
-    asMock(generateRandomKeystoreAsync).mockReset();
+    jest.mocked(generateRandomKeystoreAsync).mockReset();
   });
 
   it('skips setup when there are prior credentials', async () => {

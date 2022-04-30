@@ -1,4 +1,3 @@
-import { asMock } from '../../../../__tests__/utils';
 import { findApplicationTarget } from '../../../../project/ios/target';
 import { createCtxMock } from '../../../__tests__/fixtures-context';
 import { testTargets } from '../../../__tests__/fixtures-ios';
@@ -20,6 +19,6 @@ describe('RemoveProvisioningProfile', () => {
     await removeProfilesAction.runAsync(ctx);
 
     // expect provisioning profile to be deleted from servers
-    expect(asMock(ctx.ios.deleteProvisioningProfilesAsync).mock.calls.length).toBe(1);
+    expect(jest.mocked(ctx.ios.deleteProvisioningProfilesAsync).mock.calls.length).toBe(1);
   });
 });

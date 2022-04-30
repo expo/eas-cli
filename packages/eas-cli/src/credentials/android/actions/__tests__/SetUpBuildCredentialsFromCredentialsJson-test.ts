@@ -1,6 +1,5 @@
 import { vol } from 'memfs';
 
-import { asMock } from '../../../../__tests__/utils';
 import { AndroidKeystoreType } from '../../../../graphql/generated';
 import { confirmAsync } from '../../../../prompts';
 import {
@@ -13,13 +12,14 @@ import {
   SelectAndroidBuildCredentials,
   SelectAndroidBuildCredentialsResultType,
 } from '../../../manager/SelectAndroidBuildCredentials';
+import { AppLookupParams } from '../../api/GraphqlClient';
 import { getAppLookupParamsFromContextAsync } from '../BuildCredentialsUtils';
 import { SetUpBuildCredentialsFromCredentialsJson } from '../SetUpBuildCredentialsFromCredentialsJson';
 
 jest.mock('fs');
 
 jest.mock('../../../../prompts');
-asMock(confirmAsync).mockImplementation(() => true);
+jest.mocked(confirmAsync).mockImplementation(async () => true);
 jest.mock('../../../manager/SelectAndroidBuildCredentials');
 
 beforeEach(() => {
@@ -28,7 +28,7 @@ beforeEach(() => {
 
 describe(SetUpBuildCredentialsFromCredentialsJson, () => {
   it('sets up a new build configuration from credentials.json upon user request', async () => {
-    asMock(SelectAndroidBuildCredentials).mockImplementation(() => {
+    jest.mocked(SelectAndroidBuildCredentials).mockImplementation((() => {
       return {
         runAsync: () => {
           return {
@@ -37,7 +37,7 @@ describe(SetUpBuildCredentialsFromCredentialsJson, () => {
           };
         },
       };
-    });
+    }) as any as (app: AppLookupParams) => SelectAndroidBuildCredentials);
     const ctx = createCtxMock({
       nonInteractive: false,
       android: {
@@ -78,7 +78,7 @@ describe(SetUpBuildCredentialsFromCredentialsJson, () => {
     expect(ctx.android.createAndroidAppBuildCredentialsAsync).toHaveBeenCalledTimes(1);
   });
   it('uses an existing build configuration upon user request', async () => {
-    asMock(SelectAndroidBuildCredentials).mockImplementation(() => {
+    jest.mocked(SelectAndroidBuildCredentials).mockImplementation((() => {
       return {
         runAsync: () => {
           return {
@@ -87,7 +87,7 @@ describe(SetUpBuildCredentialsFromCredentialsJson, () => {
           };
         },
       };
-    });
+    }) as any as (app: AppLookupParams) => SelectAndroidBuildCredentials);
     const ctx = createCtxMock({
       nonInteractive: false,
       android: {

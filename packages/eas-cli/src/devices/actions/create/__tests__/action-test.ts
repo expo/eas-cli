@@ -1,6 +1,5 @@
 import prompts from 'prompts';
 
-import { asMock } from '../../../../__tests__/utils';
 import { Account } from '../../../../user/Account';
 import DeviceCreateAction, { RegistrationMethod } from '../action';
 import { runInputMethodAsync } from '../inputMethod';
@@ -11,19 +10,19 @@ jest.mock('../registrationUrlMethod');
 jest.mock('../inputMethod');
 
 beforeEach(() => {
-  const promptsMock = asMock(prompts);
+  const promptsMock = jest.mocked(prompts);
   promptsMock.mockReset();
   promptsMock.mockImplementation(() => {
     throw new Error(`unhandled prompts call - this shouldn't happen - fix tests!`);
   });
-  asMock(runRegistrationUrlMethodAsync).mockClear();
-  asMock(runInputMethodAsync).mockClear();
+  jest.mocked(runRegistrationUrlMethodAsync).mockClear();
+  jest.mocked(runInputMethodAsync).mockClear();
 });
 
 describe(DeviceCreateAction, () => {
   describe('#runAsync', () => {
     it('calls runRegistrationUrlMethodAsync if user chooses the website method', async () => {
-      asMock(prompts).mockImplementationOnce(() => ({
+      jest.mocked(prompts).mockImplementationOnce(async () => ({
         method: RegistrationMethod.WEBSITE,
       }));
 
@@ -43,7 +42,7 @@ describe(DeviceCreateAction, () => {
     });
 
     it('calls runInputMethodAsync if user chooses the input method', async () => {
-      asMock(prompts).mockImplementationOnce(() => ({
+      jest.mocked(prompts).mockImplementationOnce(async () => ({
         method: RegistrationMethod.INPUT,
       }));
 

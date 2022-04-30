@@ -1,4 +1,3 @@
-import { asMock } from '../../__tests__/utils';
 import { api } from '../../api';
 import Log from '../../log';
 import { promptAsync, selectAsync } from '../../prompts';
@@ -13,24 +12,25 @@ jest.mock('../User', () => ({
 jest.mock('../../log');
 
 beforeEach(() => {
-  asMock(promptAsync).mockReset();
-  asMock(promptAsync).mockImplementation(() => {
+  jest.mocked(promptAsync).mockReset();
+  jest.mocked(promptAsync).mockImplementation(async () => {
     throw new Error('Should not be called');
   });
 
-  asMock(selectAsync).mockReset();
-  asMock(selectAsync).mockImplementation(() => {
+  jest.mocked(selectAsync).mockReset();
+  jest.mocked(selectAsync).mockImplementation(() => {
     throw new Error('Should not be called');
   });
 
-  asMock(loginAsync).mockReset();
-  asMock(Log.log).mockReset();
+  jest.mocked(loginAsync).mockReset();
+  jest.mocked(Log.log).mockReset();
 });
 
 describe(retryUsernamePasswordAuthWithOTPAsync, () => {
   it('shows SMS OTP prompt when SMS is primary and code was automatically sent', async () => {
-    asMock(promptAsync)
-      .mockImplementationOnce(() => ({ otp: 'hello' }))
+    jest
+      .mocked(promptAsync)
+      .mockImplementationOnce(async () => ({ otp: 'hello' }))
       .mockImplementation(() => {
         throw new Error("shouldn't happen");
       });
@@ -51,12 +51,13 @@ describe(retryUsernamePasswordAuthWithOTPAsync, () => {
       'One-time password was sent to the phone number ending in testphone.'
     );
 
-    expect(asMock(loginAsync)).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(loginAsync)).toHaveBeenCalledTimes(1);
   });
 
   it('shows authenticator OTP prompt when authenticator is primary', async () => {
-    asMock(promptAsync)
-      .mockImplementationOnce(() => ({ otp: 'hello' }))
+    jest
+      .mocked(promptAsync)
+      .mockImplementationOnce(async () => ({ otp: 'hello' }))
       .mockImplementation(() => {
         throw new Error("shouldn't happen");
       });
@@ -74,19 +75,21 @@ describe(retryUsernamePasswordAuthWithOTPAsync, () => {
     });
 
     expect(Log.log).toHaveBeenCalledWith('One-time password from authenticator required.');
-    expect(asMock(loginAsync)).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(loginAsync)).toHaveBeenCalledTimes(1);
   });
 
   it('shows menu when user bails on primary', async () => {
-    asMock(promptAsync)
-      .mockImplementationOnce(() => ({ otp: null }))
-      .mockImplementationOnce(() => ({ otp: 'hello' })) // second time it is prompted after selecting backup code
+    jest
+      .mocked(promptAsync)
+      .mockImplementationOnce(async () => ({ otp: null }))
+      .mockImplementationOnce(async () => ({ otp: 'hello' })) // second time it is prompted after selecting backup code
       .mockImplementation(() => {
         throw new Error("shouldn't happen");
       });
 
-    asMock(selectAsync)
-      .mockImplementationOnce(() => -1)
+    jest
+      .mocked(selectAsync)
+      .mockImplementationOnce(async () => -1)
       .mockImplementation(() => {
         throw new Error("shouldn't happen");
       });
@@ -109,13 +112,14 @@ describe(retryUsernamePasswordAuthWithOTPAsync, () => {
       smsAutomaticallySent: false,
     });
 
-    expect(asMock(selectAsync).mock.calls.length).toEqual(1);
-    expect(asMock(loginAsync)).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(selectAsync).mock.calls.length).toEqual(1);
+    expect(jest.mocked(loginAsync)).toHaveBeenCalledTimes(1);
   });
 
   it('shows a warning when when user bails on primary and does not have any secondary set up', async () => {
-    asMock(promptAsync)
-      .mockImplementationOnce(() => ({ otp: null }))
+    jest
+      .mocked(promptAsync)
+      .mockImplementationOnce(async () => ({ otp: null }))
       .mockImplementation(() => {
         throw new Error("shouldn't happen");
       });
@@ -138,15 +142,17 @@ describe(retryUsernamePasswordAuthWithOTPAsync, () => {
   });
 
   it('prompts for authenticator OTP when user selects authenticator secondary', async () => {
-    asMock(promptAsync)
-      .mockImplementationOnce(() => ({ otp: null }))
-      .mockImplementationOnce(() => ({ otp: 'hello' })) // second time it is prompted after selecting backup code
+    jest
+      .mocked(promptAsync)
+      .mockImplementationOnce(async () => ({ otp: null }))
+      .mockImplementationOnce(async () => ({ otp: 'hello' })) // second time it is prompted after selecting backup code
       .mockImplementation(() => {
         throw new Error("shouldn't happen");
       });
 
-    asMock(selectAsync)
-      .mockImplementationOnce(() => -1)
+    jest
+      .mocked(selectAsync)
+      .mockImplementationOnce(async () => -1)
       .mockImplementation(() => {
         throw new Error("shouldn't happen");
       });
@@ -169,24 +175,28 @@ describe(retryUsernamePasswordAuthWithOTPAsync, () => {
       smsAutomaticallySent: false,
     });
 
-    expect(asMock(promptAsync).mock.calls.length).toBe(2); // first OTP, second OTP
+    expect(jest.mocked(promptAsync).mock.calls.length).toBe(2); // first OTP, second OTP
   });
 
   it('requests SMS OTP and prompts for SMS OTP when user selects SMS secondary', async () => {
-    asMock(promptAsync)
-      .mockImplementationOnce(() => ({ otp: null }))
-      .mockImplementationOnce(() => ({ otp: 'hello' })) // second time it is prompted after selecting backup code
+    jest
+      .mocked(promptAsync)
+      .mockImplementationOnce(async () => ({ otp: null }))
+      .mockImplementationOnce(async () => ({ otp: 'hello' })) // second time it is prompted after selecting backup code
       .mockImplementation(() => {
         throw new Error("shouldn't happen");
       });
 
-    asMock(selectAsync)
-      .mockImplementationOnce(() => 0)
+    jest
+      .mocked(selectAsync)
+      .mockImplementationOnce(async () => 0)
       .mockImplementation(() => {
         throw new Error("shouldn't happen");
       });
 
-    asMock(api.postAsync).mockReturnValueOnce(Promise.resolve({ sessionSecret: 'SESSION_SECRET' }));
+    jest
+      .mocked(api.postAsync)
+      .mockReturnValueOnce(Promise.resolve({ sessionSecret: 'SESSION_SECRET' }));
 
     await retryUsernamePasswordAuthWithOTPAsync('blah', 'blah', {
       secondFactorDevices: [
@@ -206,8 +216,8 @@ describe(retryUsernamePasswordAuthWithOTPAsync, () => {
       smsAutomaticallySent: false,
     });
 
-    expect(asMock(promptAsync).mock.calls.length).toBe(2); // first OTP, second OTP
-    expect(asMock(api.postAsync).mock.calls[0]).toEqual([
+    expect(jest.mocked(promptAsync).mock.calls.length).toBe(2); // first OTP, second OTP
+    expect(jest.mocked(api.postAsync).mock.calls[0]).toEqual([
       'auth/send-sms-otp',
       {
         body: {
@@ -220,14 +230,16 @@ describe(retryUsernamePasswordAuthWithOTPAsync, () => {
   });
 
   it('exits when user bails on primary and backup', async () => {
-    asMock(promptAsync)
-      .mockImplementationOnce(() => ({ otp: null }))
+    jest
+      .mocked(promptAsync)
+      .mockImplementationOnce(async () => ({ otp: null }))
       .mockImplementation(() => {
         throw new Error("shouldn't happen");
       });
 
-    asMock(selectAsync)
-      .mockImplementationOnce(() => -2)
+    jest
+      .mocked(selectAsync)
+      .mockImplementationOnce(async () => -2)
       .mockImplementation(() => {
         throw new Error("shouldn't happen");
       });

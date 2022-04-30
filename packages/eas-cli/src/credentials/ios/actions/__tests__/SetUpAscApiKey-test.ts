@@ -1,4 +1,3 @@
-import { asMock } from '../../../../__tests__/utils';
 import { findApplicationTarget } from '../../../../project/ios/target';
 import { confirmAsync, promptAsync } from '../../../../prompts';
 import { getAppstoreMock, testAuthCtx } from '../../../__tests__/fixtures-appstore';
@@ -15,7 +14,7 @@ import { getAppLookupParamsFromContext } from '../BuildCredentialsUtils';
 import { SetUpAscApiKey, SetupAscApiKeyChoice } from '../SetUpAscApiKey';
 
 jest.mock('../../../../prompts');
-asMock(confirmAsync).mockImplementation(() => true);
+jest.mocked(confirmAsync).mockImplementation(async () => true);
 
 describe(SetUpAscApiKey, () => {
   it('skips setting up a ASC API Key if it is already configured', async () => {
@@ -36,9 +35,9 @@ describe(SetUpAscApiKey, () => {
     await setupAscApiKeyAction.runAsync(ctx);
 
     // expect not to create a new ASC API Key on expo servers
-    expect(asMock(ctx.ios.createAscApiKeyAsync).mock.calls.length).toBe(0);
+    expect(jest.mocked(ctx.ios.createAscApiKeyAsync).mock.calls.length).toBe(0);
     // expect configuration not to be updated with a new ASC API Key
-    expect(asMock(ctx.ios.updateIosAppCredentialsAsync).mock.calls.length).toBe(0);
+    expect(jest.mocked(ctx.ios.updateIosAppCredentialsAsync).mock.calls.length).toBe(0);
   });
   it('sets up a ASC API Key, creating a new one if there are no existing ASC API Keys', async () => {
     const ctx = createCtxMock({
@@ -61,9 +60,9 @@ describe(SetUpAscApiKey, () => {
     await setupAscApiKeyAction.runAsync(ctx);
 
     // expect to create a new ASC API Key on expo servers
-    expect(asMock(ctx.ios.createAscApiKeyAsync).mock.calls.length).toBe(1);
+    expect(jest.mocked(ctx.ios.createAscApiKeyAsync).mock.calls.length).toBe(1);
     // expect configuration to be updated with a new ASC API Key
-    expect(asMock(ctx.ios.updateIosAppCredentialsAsync).mock.calls.length).toBe(1);
+    expect(jest.mocked(ctx.ios.updateIosAppCredentialsAsync).mock.calls.length).toBe(1);
   });
   it('sets up a ASC API Key, use autoselected ASC API Key when there are existing keys', async () => {
     const ctx = createCtxMock({
@@ -87,9 +86,9 @@ describe(SetUpAscApiKey, () => {
     await setupAscApiKeyAction.runAsync(ctx);
 
     // expect not to create a new ASC API Key on expo servers, we are using the existing one
-    expect(asMock(ctx.ios.createAscApiKeyAsync).mock.calls.length).toBe(0);
+    expect(jest.mocked(ctx.ios.createAscApiKeyAsync).mock.calls.length).toBe(0);
     // expect configuration to be updated with a new ASC API Key
-    expect(asMock(ctx.ios.updateIosAppCredentialsAsync).mock.calls.length).toBe(1);
+    expect(jest.mocked(ctx.ios.updateIosAppCredentialsAsync).mock.calls.length).toBe(1);
   });
   it('sets up a ASC API Key, allowing user to choose existing keys', async () => {
     const ctx = createCtxMock({
@@ -99,7 +98,7 @@ describe(SetUpAscApiKey, () => {
         getAscApiKeysForAccountAsync: jest.fn(() => [testAscApiKeyFragment]),
       },
     });
-    asMock(promptAsync).mockImplementation(() => ({
+    jest.mocked(promptAsync).mockImplementation(async () => ({
       choice: SetupAscApiKeyChoice.USE_EXISTING,
       chosenAscApiKey: testAscApiKeyFragment,
     }));
@@ -111,9 +110,9 @@ describe(SetUpAscApiKey, () => {
     await setupAscApiKeyAction.runAsync(ctx);
 
     // expect not to create a new ASC API Key on expo servers, we are using the existing one
-    expect(asMock(ctx.ios.createAscApiKeyAsync).mock.calls.length).toBe(0);
+    expect(jest.mocked(ctx.ios.createAscApiKeyAsync).mock.calls.length).toBe(0);
     // expect configuration to be updated with a new ASC API Key
-    expect(asMock(ctx.ios.updateIosAppCredentialsAsync).mock.calls.length).toBe(1);
+    expect(jest.mocked(ctx.ios.updateIosAppCredentialsAsync).mock.calls.length).toBe(1);
   });
   it('works in Non Interactive Mode if ASC Key is configured', async () => {
     const ctx = createCtxMock({

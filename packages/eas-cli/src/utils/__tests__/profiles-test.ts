@@ -1,7 +1,6 @@
 import { Platform } from '@expo/eas-build-job';
 import { BuildProfile, EasJsonReader, errors } from '@expo/eas-json';
 
-import { asMock } from '../../__tests__/utils';
 import { selectAsync } from '../../prompts';
 import { getProfilesAsync } from '../profiles';
 
@@ -27,7 +26,7 @@ describe(getProfilesAsync, () => {
   afterEach(() => {
     getBuildProfileAsync.mockReset();
     getBuildProfileNamesAsync.mockReset();
-    asMock(selectAsync).mockReset();
+    jest.mocked(selectAsync).mockReset();
   });
 
   it('defaults to production profile', async () => {
@@ -76,7 +75,7 @@ describe(getProfilesAsync, () => {
       throw new errors.MissingProfileError();
     });
     getBuildProfileNamesAsync.mockImplementation(() => Promise.resolve(['foo', 'bar']));
-    asMock(selectAsync).mockImplementation(() => 'foo');
+    jest.mocked(selectAsync).mockImplementation(async () => 'foo');
 
     const result = await getProfilesAsync({
       projectDir: '/fake',
