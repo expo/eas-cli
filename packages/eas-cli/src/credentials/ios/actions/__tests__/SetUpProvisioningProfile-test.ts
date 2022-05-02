@@ -1,6 +1,5 @@
 import nullthrows from 'nullthrows';
 
-import { asMock } from '../../../../__tests__/utils';
 import { IosDistributionType } from '../../../../graphql/generated';
 import { findApplicationTarget } from '../../../../project/ios/target';
 import { confirmAsync } from '../../../../prompts';
@@ -19,7 +18,7 @@ import { getAppLookupParamsFromContext } from '../BuildCredentialsUtils';
 import { SetUpProvisioningProfile } from '../SetUpProvisioningProfile';
 
 jest.mock('../../../../prompts');
-asMock(confirmAsync).mockImplementation(() => true);
+jest.mocked(confirmAsync).mockImplementation(async () => true);
 jest.mock('../SetUpDistributionCertificate');
 jest.mock('../ConfigureProvisioningProfile');
 jest.mock('../CreateProvisioningProfile');
@@ -27,7 +26,7 @@ jest.mock('../../validators/validateProvisioningProfile');
 
 describe('SetUpProvisioningProfile', () => {
   it('repairs existing Provisioning Profile with bad build credentials in Interactive Mode', async () => {
-    asMock(validateProvisioningProfileAsync).mockImplementation(() => false);
+    jest.mocked(validateProvisioningProfileAsync).mockImplementation(async () => false);
     const ctx = createCtxMock({
       nonInteractive: false,
       appStore: {
@@ -61,12 +60,14 @@ describe('SetUpProvisioningProfile', () => {
     await setupProvisioningProfileAction.runAsync(ctx);
 
     // expect build credentials to be created or updated on expo servers
-    expect(asMock(ctx.ios.createOrUpdateIosAppBuildCredentialsAsync).mock.calls.length).toBe(1);
+    expect(jest.mocked(ctx.ios.createOrUpdateIosAppBuildCredentialsAsync).mock.calls.length).toBe(
+      1
+    );
     // expect provisioning profile not to be deleted on expo servers
-    expect(asMock(ctx.ios.deleteProvisioningProfilesAsync).mock.calls.length).toBe(0);
+    expect(jest.mocked(ctx.ios.deleteProvisioningProfilesAsync).mock.calls.length).toBe(0);
   });
   it('sets up a new Provisioning Profile with bad build credentials in Interactive Mode', async () => {
-    asMock(validateProvisioningProfileAsync).mockImplementation(() => false);
+    jest.mocked(validateProvisioningProfileAsync).mockImplementation(async () => false);
     const ctx = createCtxMock({
       nonInteractive: false,
       appStore: {
@@ -91,12 +92,14 @@ describe('SetUpProvisioningProfile', () => {
     await setupProvisioningProfileAction.runAsync(ctx);
 
     // expect build credentials to be created or updated on expo servers
-    expect(asMock(ctx.ios.createOrUpdateIosAppBuildCredentialsAsync).mock.calls.length).toBe(1);
+    expect(jest.mocked(ctx.ios.createOrUpdateIosAppBuildCredentialsAsync).mock.calls.length).toBe(
+      1
+    );
     // expect provisioning profile to be deleted on expo servers
-    expect(asMock(ctx.ios.deleteProvisioningProfilesAsync).mock.calls.length).toBe(1);
+    expect(jest.mocked(ctx.ios.deleteProvisioningProfilesAsync).mock.calls.length).toBe(1);
   });
   it('skips setting up a Provisioning Profile with prior build credentials configured properly in Interactive Mode', async () => {
-    asMock(validateProvisioningProfileAsync).mockImplementation(() => true);
+    jest.mocked(validateProvisioningProfileAsync).mockImplementation(async () => true);
     const ctx = createCtxMock({
       nonInteractive: false,
       appStore: {
@@ -121,12 +124,14 @@ describe('SetUpProvisioningProfile', () => {
     await setupProvisioningProfileAction.runAsync(ctx);
 
     // expect build credentials not to be created or updated on expo servers
-    expect(asMock(ctx.ios.createOrUpdateIosAppBuildCredentialsAsync).mock.calls.length).toBe(0);
+    expect(jest.mocked(ctx.ios.createOrUpdateIosAppBuildCredentialsAsync).mock.calls.length).toBe(
+      0
+    );
     // expect provisioning profile not to be deleted on expo servers
-    expect(asMock(ctx.ios.deleteProvisioningProfilesAsync).mock.calls.length).toBe(0);
+    expect(jest.mocked(ctx.ios.deleteProvisioningProfilesAsync).mock.calls.length).toBe(0);
   });
   it('sets up a Provisioning Profile with no prior build credentials configured in Interactive Mode', async () => {
-    asMock(validateProvisioningProfileAsync).mockImplementation(() => false);
+    jest.mocked(validateProvisioningProfileAsync).mockImplementation(async () => false);
     const ctx = createCtxMock({
       nonInteractive: false,
       appStore: {
@@ -147,12 +152,14 @@ describe('SetUpProvisioningProfile', () => {
     await setupProvisioningProfileAction.runAsync(ctx);
 
     // expect build credentials to be created or updated on expo servers
-    expect(asMock(ctx.ios.createOrUpdateIosAppBuildCredentialsAsync).mock.calls.length).toBe(1);
+    expect(jest.mocked(ctx.ios.createOrUpdateIosAppBuildCredentialsAsync).mock.calls.length).toBe(
+      1
+    );
     // expect provisioning profile not to be deleted on expo servers
-    expect(asMock(ctx.ios.deleteProvisioningProfilesAsync).mock.calls.length).toBe(0);
+    expect(jest.mocked(ctx.ios.deleteProvisioningProfilesAsync).mock.calls.length).toBe(0);
   });
   it('errors in Non Interactive Mode', async () => {
-    asMock(validateProvisioningProfileAsync).mockImplementation(() => false);
+    jest.mocked(validateProvisioningProfileAsync).mockImplementation(async () => false);
     const ctx = createCtxMock({
       nonInteractive: true,
     });
@@ -166,8 +173,10 @@ describe('SetUpProvisioningProfile', () => {
     );
 
     // expect build credentials not to be created or updated on expo servers
-    expect(asMock(ctx.ios.createOrUpdateIosAppBuildCredentialsAsync).mock.calls.length).toBe(0);
+    expect(jest.mocked(ctx.ios.createOrUpdateIosAppBuildCredentialsAsync).mock.calls.length).toBe(
+      0
+    );
     // expect provisioning profile not to be deleted on expo servers
-    expect(asMock(ctx.ios.deleteProvisioningProfilesAsync).mock.calls.length).toBe(0);
+    expect(jest.mocked(ctx.ios.deleteProvisioningProfilesAsync).mock.calls.length).toBe(0);
   });
 });

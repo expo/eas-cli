@@ -1,6 +1,5 @@
 import { ApiKey, ApiKeyType, UserRole } from '@expo/apple-utils';
 
-import { asMock } from '../../../../__tests__/utils';
 import {
   createAscApiKeyAsync,
   getAscApiKeyAsync,
@@ -57,7 +56,7 @@ beforeEach(() => {
 test(`listAscApiKeysAsync`, async () => {
   const mockRequestContext = {};
   jest.spyOn(ApiKey, 'getAsync').mockImplementation(async () => []);
-  asMock(getRequestContext).mockImplementation(() => mockRequestContext);
+  jest.mocked(getRequestContext).mockImplementation(() => mockRequestContext);
   const result = await listAscApiKeysAsync(mockAuthCtx);
   expect(ApiKey.getAsync).toHaveBeenLastCalledWith(mockRequestContext);
   expect(result).toEqual([]);
@@ -66,7 +65,7 @@ test(`listAscApiKeysAsync`, async () => {
 test(`getAscApiKeyAsync`, async () => {
   const mockRequestContext = {};
   jest.spyOn(ApiKey, 'infoAsync').mockImplementation(async () => mockApiKey);
-  asMock(getRequestContext).mockImplementation(() => mockRequestContext);
+  jest.mocked(getRequestContext).mockImplementation(() => mockRequestContext);
   const result = await getAscApiKeyAsync(mockAuthCtx, 'test-key-id');
   expect(ApiKey.infoAsync).toHaveBeenLastCalledWith(mockRequestContext, { id: 'test-key-id' });
   expect(result).toEqual(mockAscApiKeyInfo);
@@ -75,7 +74,7 @@ test(`getAscApiKeyAsync`, async () => {
 test(`createAscApiKeyAsync`, async () => {
   const mockRequestContext = {};
   jest.spyOn(ApiKey, 'createAsync').mockImplementation(async () => mockApiKey);
-  asMock(getRequestContext).mockImplementation(() => mockRequestContext);
+  jest.mocked(getRequestContext).mockImplementation(() => mockRequestContext);
   const result = await createAscApiKeyAsync(mockAuthCtx, { nickname: 'test-name' });
   expect(ApiKey.createAsync).toHaveBeenLastCalledWith(mockRequestContext, {
     nickname: 'test-name',
@@ -89,7 +88,7 @@ test(`createAscApiKeyAsync`, async () => {
 test(`revokeAscApiKeyAsync`, async () => {
   const mockRequestContext = {};
   jest.spyOn(ApiKey, 'infoAsync').mockImplementation(async () => mockApiKey);
-  asMock(getRequestContext).mockImplementation(() => mockRequestContext);
+  jest.mocked(getRequestContext).mockImplementation(() => mockRequestContext);
   const result = await revokeAscApiKeyAsync(mockAuthCtx, 'test-key-id');
   expect(ApiKey.infoAsync).toHaveBeenLastCalledWith(mockRequestContext, {
     id: 'test-key-id',

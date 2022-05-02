@@ -1,4 +1,3 @@
-import { asMock } from '../../../../__tests__/utils';
 import { confirmAsync } from '../../../../prompts';
 import {
   getNewAndroidApiMock,
@@ -9,7 +8,7 @@ import { getAppLookupParamsFromContextAsync } from '../BuildCredentialsUtils';
 import { RemoveFcm } from '../RemoveFcm';
 
 jest.mock('../../../../prompts');
-asMock(confirmAsync).mockImplementation(() => true);
+jest.mocked(confirmAsync).mockImplementation(async () => true);
 
 describe(RemoveFcm, () => {
   it('removes an FCM API Key', async () => {

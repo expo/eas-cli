@@ -2,7 +2,6 @@ import { Platform } from '@expo/eas-build-job';
 import { vol } from 'memfs';
 import { v4 as uuidv4 } from 'uuid';
 
-import { asMock } from '../../../__tests__/utils';
 import { jester as mockJester } from '../../../credentials/__tests__/fixtures-constants';
 import { getCredentialsFromUserAsync } from '../../../credentials/utils/promptForCredentials';
 import { createTestProject } from '../../../project/__tests__/project-utils';
@@ -63,16 +62,16 @@ afterAll(() => {
 });
 
 afterEach(() => {
-  asMock(promptAsync).mockClear();
+  jest.mocked(promptAsync).mockClear();
 });
 
 describe(getAscApiKeyPathAsync, () => {
   describe('when source is AscApiKeySourceType.path', () => {
     it("prompts for path if the provided file doesn't exist", async () => {
-      asMock(promptAsync).mockImplementationOnce(() => ({
+      jest.mocked(promptAsync).mockImplementationOnce(async () => ({
         keyP8Path: '/asc-api-key.p8',
       }));
-      asMock(getCredentialsFromUserAsync).mockImplementation(() => ({
+      jest.mocked(getCredentialsFromUserAsync).mockImplementation(async () => ({
         keyId: 'test-key-id',
         issuerId: 'test-issuer-id',
       }));
@@ -117,10 +116,10 @@ describe(getAscApiKeyPathAsync, () => {
 
   describe('when source is AscApiKeySourceType.prompt', () => {
     it('prompts for path', async () => {
-      asMock(promptAsync).mockImplementationOnce(() => ({
+      jest.mocked(promptAsync).mockImplementationOnce(async () => ({
         keyP8Path: '/asc-api-key.p8',
       }));
-      asMock(getCredentialsFromUserAsync).mockImplementation(() => ({
+      jest.mocked(getCredentialsFromUserAsync).mockImplementation(async () => ({
         keyId: 'test-key-id',
         issuerId: 'test-issuer-id',
       }));
@@ -138,17 +137,18 @@ describe(getAscApiKeyPathAsync, () => {
     });
 
     it('prompts for path until the user provides an existing file', async () => {
-      asMock(promptAsync)
-        .mockImplementationOnce(() => ({
+      jest
+        .mocked(promptAsync)
+        .mockImplementationOnce(async () => ({
           keyP8Path: '/doesnt-exist.p8',
         }))
-        .mockImplementationOnce(() => ({
+        .mockImplementationOnce(async () => ({
           keyP8Path: '/blah.p8',
         }))
-        .mockImplementationOnce(() => ({
+        .mockImplementationOnce(async () => ({
           keyP8Path: '/asc-api-key.p8',
         }));
-      asMock(getCredentialsFromUserAsync).mockImplementation(() => ({
+      jest.mocked(getCredentialsFromUserAsync).mockImplementation(async () => ({
         keyId: 'test-key-id',
         issuerId: 'test-issuer-id',
       }));
@@ -190,10 +190,10 @@ describe(getAscApiKeyLocallyAsync, () => {
   });
 
   it('returns a local Asc API Key file with a AscApiKeySourceType.prompt source', async () => {
-    asMock(promptAsync).mockImplementationOnce(() => ({
+    jest.mocked(promptAsync).mockImplementationOnce(async () => ({
       keyP8Path: '/asc-api-key.p8',
     }));
-    asMock(getCredentialsFromUserAsync).mockImplementationOnce(() => ({
+    jest.mocked(getCredentialsFromUserAsync).mockImplementationOnce(async () => ({
       keyId: 'test-key-id',
       issuerId: 'test-issuer-id',
     }));

@@ -1,4 +1,3 @@
-import { asMock } from '../../../../__tests__/utils';
 import { findApplicationTarget } from '../../../../project/ios/target';
 import { confirmAsync } from '../../../../prompts';
 import { getAppstoreMock, testAuthCtx } from '../../../__tests__/fixtures-appstore';
@@ -15,7 +14,7 @@ import { ConfigureProvisioningProfile } from '../ConfigureProvisioningProfile';
 
 jest.mock('../../../../ora');
 jest.mock('../../../../prompts');
-asMock(confirmAsync).mockImplementation(() => true);
+jest.mocked(confirmAsync).mockImplementation(async () => true);
 
 describe('ConfigureProvisioningProfile', () => {
   it('configures a Provisioning Profile in Interactive Mode', async () => {
@@ -43,9 +42,9 @@ describe('ConfigureProvisioningProfile', () => {
     await provProfConfigurator.runAsync(ctx);
 
     // expect provisioning profile not to be updated on expo servers
-    expect(asMock(ctx.ios.updateProvisioningProfileAsync).mock.calls.length).toBe(1);
+    expect(jest.mocked(ctx.ios.updateProvisioningProfileAsync).mock.calls.length).toBe(1);
     // expect provisioning profile not to be updated on apple portal
-    expect(asMock(ctx.appStore.useExistingProvisioningProfileAsync).mock.calls.length).toBe(1);
+    expect(jest.mocked(ctx.appStore.useExistingProvisioningProfileAsync).mock.calls.length).toBe(1);
   });
   it('errors in Non Interactive Mode', async () => {
     const ctx = createCtxMock({
@@ -62,8 +61,8 @@ describe('ConfigureProvisioningProfile', () => {
     );
 
     // expect provisioning profile not to be updated on expo servers
-    expect(asMock(ctx.ios.updateProvisioningProfileAsync).mock.calls.length).toBe(0);
+    expect(jest.mocked(ctx.ios.updateProvisioningProfileAsync).mock.calls.length).toBe(0);
     // expect provisioning profile not to be updated on apple portal
-    expect(asMock(ctx.appStore.useExistingProvisioningProfileAsync).mock.calls.length).toBe(0);
+    expect(jest.mocked(ctx.appStore.useExistingProvisioningProfileAsync).mock.calls.length).toBe(0);
   });
 });

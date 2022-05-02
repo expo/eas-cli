@@ -1,4 +1,3 @@
-import { asMock } from '../../../__tests__/utils';
 import { promptAsync } from '../../../prompts';
 import {
   getNewAndroidApiMock,
@@ -15,12 +14,12 @@ const TEST_STRING = 'TEST_STRING';
 jest.mock('../../../prompts');
 
 beforeEach(() => {
-  asMock(promptAsync).mockReset();
+  jest.mocked(promptAsync).mockReset();
 });
 
 describe(SelectAndroidBuildCredentials, () => {
   it('returns a request to make default build credentials when there are no credentials', async () => {
-    asMock(promptAsync).mockImplementation(() => ({
+    jest.mocked(promptAsync).mockImplementation(async () => ({
       providedName: TEST_STRING,
     }));
     const ctx = createCtxMock({
@@ -38,7 +37,7 @@ describe(SelectAndroidBuildCredentials, () => {
     });
   });
   it('returns a request to make build credentials when the user chooses to make a new one', async () => {
-    asMock(promptAsync).mockImplementation(() => ({
+    jest.mocked(promptAsync).mockImplementation(async () => ({
       buildCredentialsResultOrRequestToCreateNew:
         SelectAndroidBuildCredentialsResultType.CREATE_REQUEST,
       providedName: TEST_STRING,
@@ -60,7 +59,7 @@ describe(SelectAndroidBuildCredentials, () => {
     });
   });
   it('returns a request to make default build credentials when the user chooses to make a new one, and if they have no existing credentials', async () => {
-    asMock(promptAsync).mockImplementation(() => ({
+    jest.mocked(promptAsync).mockImplementation(async () => ({
       buildCredentialsResultOrRequestToCreateNew:
         SelectAndroidBuildCredentialsResultType.CREATE_REQUEST,
       providedName: TEST_STRING,
@@ -80,7 +79,7 @@ describe(SelectAndroidBuildCredentials, () => {
     });
   });
   it('returns buildCredentials of the users choice', async () => {
-    asMock(promptAsync).mockImplementation(() => ({
+    jest.mocked(promptAsync).mockImplementation(async () => ({
       buildCredentialsResultOrRequestToCreateNew: testAndroidBuildCredentialsFragment,
     }));
     const ctx = createCtxMock({

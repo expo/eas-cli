@@ -3,7 +3,6 @@ import { vol } from 'memfs';
 import os from 'os';
 import path from 'path';
 
-import { asMock } from '../../../__tests__/utils';
 import { jester as mockJester } from '../../../credentials/__tests__/fixtures-constants';
 import { promptAsync } from '../../../prompts';
 import {
@@ -23,7 +22,7 @@ beforeEach(async () => {
   // this fixes a weird error with tempy in @expo/image-utils
   await fs.mkdirp(os.tmpdir());
 
-  asMock(promptAsync).mockReset();
+  jest.mocked(promptAsync).mockReset();
 });
 
 const originalFs = jest.requireActual('fs') as typeof fs;
@@ -105,7 +104,7 @@ describe(ensureBundleIdentifierIsDefinedForManagedProjectAsync, () => {
         '/app'
       );
 
-      asMock(promptAsync).mockImplementationOnce(() => ({
+      jest.mocked(promptAsync).mockImplementationOnce(async () => ({
         bundleIdentifier: 'com.expo.notdominik',
       }));
 
@@ -122,7 +121,7 @@ describe(ensureBundleIdentifierIsDefinedForManagedProjectAsync, () => {
         '/app'
       );
 
-      asMock(promptAsync).mockImplementationOnce(() => ({
+      jest.mocked(promptAsync).mockImplementationOnce(async () => ({
         bundleIdentifier: 'com.expo.notdominik',
       }));
 

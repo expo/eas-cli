@@ -1,6 +1,5 @@
 import prompts from 'prompts';
 
-import { asMock } from '../../__tests__/utils';
 import Log from '../../log';
 import { Actor } from '../../user/User';
 import { AccountResolver } from '../manager';
@@ -15,8 +14,8 @@ jest.mock('../../project/projectUtils', () => {
 jest.mock('../../credentials/ios/api/graphql/queries/AppleTeamQuery');
 
 beforeEach(() => {
-  asMock(prompts).mockReset();
-  asMock(prompts).mockImplementation(() => {
+  jest.mocked(prompts).mockReset();
+  jest.mocked(prompts).mockImplementation(() => {
     throw new Error(`unhandled prompts call - this shouldn't happen - fix tests!`);
   });
 });
@@ -38,7 +37,7 @@ describe(AccountResolver, () => {
       const exp = {} as any;
 
       it('returns the account defined in app.json/app.config.js if user confirms', async () => {
-        asMock(prompts).mockImplementationOnce(() => ({
+        jest.mocked(prompts).mockImplementationOnce(async () => ({
           value: true,
         }));
 
@@ -48,10 +47,10 @@ describe(AccountResolver, () => {
       });
 
       it('asks the user to choose the account from his account list if he rejects to use the one defined in app.json / app.config.js', async () => {
-        asMock(prompts).mockImplementationOnce(() => ({
+        jest.mocked(prompts).mockImplementationOnce(async () => ({
           useProjectAccount: false,
         }));
-        asMock(prompts).mockImplementationOnce(() => ({
+        jest.mocked(prompts).mockImplementationOnce(async () => ({
           account: user.accounts[0],
         }));
 
@@ -61,7 +60,7 @@ describe(AccountResolver, () => {
       });
 
       it(`asks the user to choose the account from his account list if he doesn't have access to the account defined in app.json / app.config.js`, async () => {
-        asMock(prompts).mockImplementationOnce(() => ({
+        jest.mocked(prompts).mockImplementationOnce(async () => ({
           account: user.accounts[0],
         }));
 
@@ -80,7 +79,7 @@ describe(AccountResolver, () => {
 
     describe('when outside project dir', () => {
       it('asks the user to choose the account from his account list', async () => {
-        asMock(prompts).mockImplementationOnce(() => ({
+        jest.mocked(prompts).mockImplementationOnce(async () => ({
           account: user.accounts[0],
         }));
 

@@ -1,4 +1,3 @@
-import { asMock } from '../../../../__tests__/utils';
 import { jester as mockJester } from '../../../../credentials/__tests__/fixtures-constants';
 import { testKeystore } from '../../../__tests__/fixtures-android';
 import { createCtxMock } from '../../../__tests__/fixtures-context';
@@ -15,7 +14,7 @@ jest.mock('../../utils/keystore', () => ({ generateRandomKeystoreAsync: jest.fn(
 
 describe('CreateKeystore', () => {
   beforeEach(() => {
-    asMock(generateRandomKeystoreAsync).mockReset();
+    jest.mocked(generateRandomKeystoreAsync).mockReset();
   });
   it('creates a keystore in Interactive Mode', async () => {
     const ctx = createCtxMock({ nonInteractive: false });
@@ -28,7 +27,7 @@ describe('CreateKeystore', () => {
     expect(generateRandomKeystoreAsync).toHaveBeenCalled();
   });
   it('creates a keystore by uploading', async () => {
-    asMock(askForUserProvidedAsync).mockImplementationOnce(() => testKeystore);
+    jest.mocked(askForUserProvidedAsync).mockImplementationOnce(async () => testKeystore);
     const ctx = createCtxMock({ nonInteractive: false });
     const appLookupParams = await getAppLookupParamsFromContextAsync(ctx);
     const createKeystoreAction = new CreateKeystore(appLookupParams.account);

@@ -2,7 +2,6 @@ import fs from 'fs-extra';
 import { vol } from 'memfs';
 import prompts from 'prompts';
 
-import { asMock } from '../../../__tests__/utils';
 import { IosDistributionType } from '../../../graphql/generated';
 import {
   testKeystore,
@@ -25,8 +24,8 @@ jest.mock('prompts');
 describe('update credentials.json', () => {
   beforeEach(() => {
     vol.reset();
-    asMock(prompts).mockReset();
-    asMock(prompts).mockImplementation(() => {
+    jest.mocked(prompts).mockReset();
+    jest.mocked(prompts).mockImplementation(() => {
       throw new Error(`unhandled prompts call - this shouldn't happen - fix tests!`);
     });
   });

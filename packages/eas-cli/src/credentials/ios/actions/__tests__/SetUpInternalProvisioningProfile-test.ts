@@ -1,4 +1,3 @@
-import { asMock } from '../../../../__tests__/utils';
 import { IosAppBuildCredentialsFragment, IosDistributionType } from '../../../../graphql/generated';
 import { promptAsync } from '../../../../prompts';
 import { getAppstoreMock, testAuthCtx } from '../../../__tests__/fixtures-appstore';
@@ -14,10 +13,10 @@ jest.mock('../SetUpProvisioningProfile');
 jest.mock('../BuildCredentialsUtils', () => ({ getAllBuildCredentialsAsync: jest.fn() }));
 
 beforeEach(() => {
-  asMock(promptAsync).mockReset();
+  jest.mocked(promptAsync).mockReset();
 
-  asMock(getAllBuildCredentialsAsync).mockReset();
-  asMock(getAllBuildCredentialsAsync).mockImplementation(() => {
+  jest.mocked(getAllBuildCredentialsAsync).mockReset();
+  jest.mocked(getAllBuildCredentialsAsync).mockImplementation(() => {
     throw new Error(
       `unhandled getAllBuildCredentialsAsync call - this shouldn't happen - fix tests!`
     );
@@ -37,7 +36,7 @@ describe(SetUpInternalProvisioningProfile, () => {
   describe('interactive mode', () => {
     describe('when authenticated with apple', () => {
       it('runs the SetUpAdhocProvisioningProfile action for non-enterprise team', async () => {
-        asMock(getAllBuildCredentialsAsync).mockImplementationOnce(() => {
+        jest.mocked(getAllBuildCredentialsAsync).mockImplementationOnce(async () => {
           const buildCredentials: IosAppBuildCredentialsFragment[] = [];
           return buildCredentials;
         });
@@ -64,10 +63,10 @@ describe(SetUpInternalProvisioningProfile, () => {
       });
 
       it('asks the user for an action to run when they have access to an enterprise team', async () => {
-        asMock(promptAsync).mockImplementationOnce(() => ({
+        jest.mocked(promptAsync).mockImplementationOnce(async () => ({
           distributionType: IosDistributionType.Enterprise,
         }));
-        asMock(getAllBuildCredentialsAsync).mockImplementationOnce(() => {
+        jest.mocked(getAllBuildCredentialsAsync).mockImplementationOnce(async () => {
           const buildCredentials: IosAppBuildCredentialsFragment[] = [];
           return buildCredentials;
         });
@@ -99,10 +98,10 @@ describe(SetUpInternalProvisioningProfile, () => {
     });
     describe('when not authenticated with apple', () => {
       it('asks the user for an action to run when both adhoc and universal distribution credentials exist', async () => {
-        asMock(promptAsync).mockImplementationOnce(() => ({
+        jest.mocked(promptAsync).mockImplementationOnce(async () => ({
           distributionType: IosDistributionType.Enterprise,
         }));
-        asMock(getAllBuildCredentialsAsync).mockImplementationOnce(() => {
+        jest.mocked(getAllBuildCredentialsAsync).mockImplementationOnce(async () => {
           const buildCredentials: IosAppBuildCredentialsFragment[] = [
             testAdhocBuildCredentials,
             testEnterpriseBuildCredentials,
@@ -133,10 +132,10 @@ describe(SetUpInternalProvisioningProfile, () => {
       });
 
       it('runs the SetUpAdhocProvisioningProfile action when adhoc credentials exist', async () => {
-        asMock(promptAsync).mockImplementationOnce(() => ({
+        jest.mocked(promptAsync).mockImplementationOnce(async () => ({
           distributionType: IosDistributionType.Enterprise,
         }));
-        asMock(getAllBuildCredentialsAsync).mockImplementationOnce(() => {
+        jest.mocked(getAllBuildCredentialsAsync).mockImplementationOnce(async () => {
           const buildCredentials: IosAppBuildCredentialsFragment[] = [testAdhocBuildCredentials];
           return buildCredentials;
         });
@@ -164,10 +163,10 @@ describe(SetUpInternalProvisioningProfile, () => {
       });
 
       it('runs the SetUpProvisioningProfile action when enterprise credentials exist', async () => {
-        asMock(promptAsync).mockImplementationOnce(() => ({
+        jest.mocked(promptAsync).mockImplementationOnce(async () => ({
           distributionType: IosDistributionType.Enterprise,
         }));
-        asMock(getAllBuildCredentialsAsync).mockImplementationOnce(() => {
+        jest.mocked(getAllBuildCredentialsAsync).mockImplementationOnce(async () => {
           const buildCredentials: IosAppBuildCredentialsFragment[] = [
             testEnterpriseBuildCredentials,
           ];
@@ -197,10 +196,10 @@ describe(SetUpInternalProvisioningProfile, () => {
       });
 
       it('forces the apple authentication when neither adhoc nor enterprise credentials exist', async () => {
-        asMock(promptAsync).mockImplementationOnce(() => ({
+        jest.mocked(promptAsync).mockImplementationOnce(async () => ({
           distributionType: IosDistributionType.Enterprise,
         }));
-        asMock(getAllBuildCredentialsAsync).mockImplementationOnce(() => {
+        jest.mocked(getAllBuildCredentialsAsync).mockImplementationOnce(async () => {
           const buildCredentials: IosAppBuildCredentialsFragment[] = [];
           return buildCredentials;
         });
@@ -228,7 +227,7 @@ describe(SetUpInternalProvisioningProfile, () => {
 
   describe('non-interactive mode', () => {
     it('throws an error when both adhoc and enterprise credentials are set up', async () => {
-      asMock(getAllBuildCredentialsAsync).mockImplementationOnce(() => {
+      jest.mocked(getAllBuildCredentialsAsync).mockImplementationOnce(async () => {
         const buildCredentials: IosAppBuildCredentialsFragment[] = [
           testAdhocBuildCredentials,
           testEnterpriseBuildCredentials,
@@ -249,7 +248,7 @@ describe(SetUpInternalProvisioningProfile, () => {
     });
 
     it('throws an error when neither adhoc nor enterprise credentials are set up', async () => {
-      asMock(getAllBuildCredentialsAsync).mockImplementationOnce(() => {
+      jest.mocked(getAllBuildCredentialsAsync).mockImplementationOnce(async () => {
         const buildCredentials: IosAppBuildCredentialsFragment[] = [];
         return buildCredentials;
       });
@@ -265,7 +264,7 @@ describe(SetUpInternalProvisioningProfile, () => {
     });
 
     it('runs the SetUpAdhocProvisioningProfile action when adhoc credentials exist', async () => {
-      asMock(getAllBuildCredentialsAsync).mockImplementationOnce(() => {
+      jest.mocked(getAllBuildCredentialsAsync).mockImplementationOnce(async () => {
         const buildCredentials: IosAppBuildCredentialsFragment[] = [testAdhocBuildCredentials];
         return buildCredentials;
       });
@@ -287,7 +286,7 @@ describe(SetUpInternalProvisioningProfile, () => {
     });
 
     it('runs the SetUpProvisioningProfile action when enterprise credentials exist', async () => {
-      asMock(getAllBuildCredentialsAsync).mockImplementationOnce(() => {
+      jest.mocked(getAllBuildCredentialsAsync).mockImplementationOnce(async () => {
         const buildCredentials: IosAppBuildCredentialsFragment[] = [testEnterpriseBuildCredentials];
         return buildCredentials;
       });

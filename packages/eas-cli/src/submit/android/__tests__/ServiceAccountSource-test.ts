@@ -3,7 +3,6 @@ import { AndroidReleaseStatus, AndroidReleaseTrack } from '@expo/eas-json';
 import { vol } from 'memfs';
 import { v4 as uuidv4 } from 'uuid';
 
-import { asMock } from '../../../__tests__/utils';
 import { testAndroidAppCredentialsFragment } from '../../../credentials/__tests__/fixtures-android';
 import { jester as mockJester } from '../../../credentials/__tests__/fixtures-constants';
 import { SetUpGoogleServiceAccountKey } from '../../../credentials/android/actions/SetUpGoogleServiceAccountKey';
@@ -60,14 +59,14 @@ afterAll(() => {
 });
 
 afterEach(() => {
-  asMock(promptAsync).mockClear();
+  jest.mocked(promptAsync).mockClear();
   jest.restoreAllMocks();
 });
 
 describe(getServiceAccountKeyPathAsync, () => {
   describe('when source is ServiceAccountSourceType.path', () => {
     it("prompts for path if the provided file doesn't exist", async () => {
-      asMock(promptAsync).mockImplementationOnce(() => ({
+      jest.mocked(promptAsync).mockImplementationOnce(async () => ({
         filePath: '/google-service-account.json',
       }));
       const source: ServiceAccountSource = {
@@ -100,7 +99,7 @@ describe(getServiceAccountKeyPathAsync, () => {
 
   describe('when source is ServiceAccountSourceType.prompt', () => {
     it('prompts for path', async () => {
-      asMock(promptAsync).mockImplementationOnce(() => ({
+      jest.mocked(promptAsync).mockImplementationOnce(async () => ({
         filePath: '/google-service-account.json',
       }));
       const source: ServiceAccountSource = {
@@ -112,14 +111,15 @@ describe(getServiceAccountKeyPathAsync, () => {
     });
 
     it('prompts for path until the user provides an existing file', async () => {
-      asMock(promptAsync)
-        .mockImplementationOnce(() => ({
+      jest
+        .mocked(promptAsync)
+        .mockImplementationOnce(async () => ({
           filePath: '/doesnt-exist.json',
         }))
-        .mockImplementationOnce(() => ({
+        .mockImplementationOnce(async () => ({
           filePath: '/googl-service-account.json',
         }))
-        .mockImplementationOnce(() => ({
+        .mockImplementationOnce(async () => ({
           filePath: '/google-service-account.json',
         }));
       const source: ServiceAccountSource = {
@@ -166,7 +166,7 @@ describe(getServiceAccountKeyResultAsync, () => {
   });
 
   it('returns a local Service Account Key file with a ServiceAccountSourceType.prompt source', async () => {
-    asMock(promptAsync).mockImplementationOnce(() => ({
+    jest.mocked(promptAsync).mockImplementationOnce(async () => ({
       filePath: '/project_dir/subdir/service-account.json',
     }));
     const ctx = await createSubmissionContextAsync({

@@ -1,6 +1,5 @@
 import { vol } from 'memfs';
 
-import { asMock } from '../../../../__tests__/utils';
 import { promptAsync } from '../../../../prompts';
 import { createCtxMock } from '../../../__tests__/fixtures-context';
 import { getAppLookupParamsFromContextAsync } from '../BuildCredentialsUtils';
@@ -8,7 +7,7 @@ import { CreateGoogleServiceAccountKey } from '../CreateGoogleServiceAccountKey'
 
 jest.mock('../../../../prompts');
 jest.mock('fs');
-asMock(promptAsync).mockImplementation(() => ({
+jest.mocked(promptAsync).mockImplementation(async () => ({
   filePath: '/google-service-account-key.json',
 }));
 

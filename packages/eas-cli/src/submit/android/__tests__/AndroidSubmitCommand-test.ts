@@ -3,7 +3,6 @@ import { AndroidReleaseStatus, AndroidReleaseTrack } from '@expo/eas-json';
 import { vol } from 'memfs';
 import { v4 as uuidv4 } from 'uuid';
 
-import { asMock } from '../../../__tests__/utils';
 import { jester as mockJester } from '../../../credentials/__tests__/fixtures-constants';
 import {
   AppPlatform,
@@ -74,7 +73,7 @@ describe(AndroidSubmitCommand, () => {
   });
 
   afterEach(() => {
-    asMock(getProjectIdAsync).mockClear();
+    jest.mocked(getProjectIdAsync).mockClear();
   });
 
   describe('non-interactive mode', () => {
@@ -136,7 +135,9 @@ describe(AndroidSubmitCommand, () => {
 
     it('assigns the build ID to submission', async () => {
       const projectId = uuidv4();
-      asMock(getRecentBuildsForSubmissionAsync).mockResolvedValueOnce([fakeBuildFragment]);
+      jest
+        .mocked(getRecentBuildsForSubmissionAsync)
+        .mockResolvedValueOnce([fakeBuildFragment as BuildFragment]);
 
       const ctx = await createSubmissionContextAsync({
         platform: Platform.ANDROID,
