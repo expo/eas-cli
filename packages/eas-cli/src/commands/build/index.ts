@@ -37,6 +37,7 @@ export default class Build extends EasCommand {
 
   static flags = {
     platform: Flags.enum({
+      default: 'all',
       char: 'p',
       options: ['android', 'ios', 'all'],
     }),
