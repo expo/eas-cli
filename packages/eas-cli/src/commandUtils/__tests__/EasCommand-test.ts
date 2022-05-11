@@ -107,7 +107,7 @@ describe(EasCommand.name, () => {
         await TestEasCommand.run().then(() => {
           throw new Error('foo');
         });
-      } catch (error) {}
+      } catch {}
 
       expect(flushAsync).toHaveBeenCalled();
     });

@@ -24,7 +24,7 @@ function isPKCSKeystore(keystore: Keystore): boolean {
   try {
     parsePKCS12(keystore.keystore, keystore.keystorePassword);
     return true;
-  } catch (e) {
+  } catch {
     return false;
   }
 }
@@ -33,7 +33,7 @@ function isJKSKeystore(keystore: Keystore): boolean {
   try {
     jks.parseJks(Buffer.from(keystore.keystore, 'base64'), keystore.keystorePassword);
     return true;
-  } catch (e) {
+  } catch {
     return false;
   }
 }

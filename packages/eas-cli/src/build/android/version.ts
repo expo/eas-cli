@@ -105,7 +105,7 @@ export async function maybeResolveVersionsAsync(
         appBuildVersion:
           resolveConfigValue(buildGradle, 'versionCode', parsedGradleCommand?.flavor) ?? '1',
       };
-    } catch (err: any) {
+    } catch {
       return {};
     }
   } else {

@@ -23,7 +23,7 @@ export async function ensureBundleIdentifierIsDefinedForManagedProjectAsync(
 
   try {
     return await getBundleIdentifierAsync(projectDir, exp);
-  } catch (err) {
+  } catch {
     return await configureBundleIdentifierAsync(projectDir, exp);
   }
 }

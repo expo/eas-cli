@@ -62,7 +62,7 @@ export async function ensureLoggedInAsync({ nonInteractive = false } = {}): Prom
   let user: Actor | undefined;
   try {
     user = await getUserAsync();
-  } catch (_) {}
+  } catch {}
 
   if (!user) {
     Log.warn('An Expo user account is required to proceed.');

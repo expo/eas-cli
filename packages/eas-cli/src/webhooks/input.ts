@@ -78,7 +78,7 @@ export function validateURL(url: string): boolean {
     // eslint-disable-next-line no-new
     new URL(url);
     return true;
-  } catch (err) {
+  } catch {
     return false;
   }
 }

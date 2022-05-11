@@ -104,7 +104,7 @@ async function selectBuildToCancelAsync(
 async function ensureBuildExistsAsync(buildId: string): Promise<void> {
   try {
     await BuildQuery.byIdAsync(buildId);
-  } catch (err) {
+  } catch {
     throw new Error(`Couldn't find a build matching the id ${buildId}`);
   }
 }

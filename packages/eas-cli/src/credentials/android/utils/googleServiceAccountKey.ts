@@ -20,7 +20,7 @@ function fileIsServiceAccountKey(keyJsonPath: string): boolean {
   try {
     readAndValidateServiceAccountKey(keyJsonPath);
     return true;
-  } catch (err: any) {
+  } catch {
     return false;
   }
 }
