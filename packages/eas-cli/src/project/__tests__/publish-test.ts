@@ -412,9 +412,9 @@ describe(uploadAssetsAsync, () => {
     return { specifications: ['{}', '{}', '{}'] };
   });
 
-  beforeEach(() => {
-    jest.useFakeTimers();
-  });
+  // beforeEach(() => {
+  //   jest.useFakeTimers();
+  // });
   it('throws an error if the upload exceeds TIMEOUT_LIMIT', async () => {
     jest.spyOn(PublishQuery, 'getAssetMetadataAsync').mockImplementation(async () => {
       const status = AssetMetadataStatus.DoesNotExist;
