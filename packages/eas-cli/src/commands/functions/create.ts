@@ -1,4 +1,5 @@
 import { getConfig } from '@expo/config';
+import spawnAsync, { SpawnOptions, SpawnResult } from '@expo/spawn-async';
 import admzip from 'adm-zip';
 import fs from 'fs';
 import fsPromise from 'fs/promises';
@@ -54,6 +55,23 @@ export default class FunctionsCreate extends EasCommand {
       fsPromise.rm(path.join(projectDir, functionsBuildZip)),
     ]);
     downloadSpinner.succeed('Downloaded functions template');
+
+    const permissionSpinner = ora('Modifying permissions...').start();
+    const promises = [];
+    for (const file of await fsPromise.readdir(path.join(projectDir, functionsBuild, 'scripts'))) {
+      promises.push(fsPromise.chmod(path.join(projectDir, functionsBuild, 'scripts', file), 0o777));
+    }
+    await Promise.all(promises);
+    permissionSpinner.succeed('Modified permissions');
+
+    const gitSpinner = ora('Initializing inner git...').start();
+    process.chdir(path.join(projectDir, functionsBuild));
+    const { status, stderr } = await spawnAsync('git', ['init']);
+    if (status !== 0) {
+      throw new Error('Failed to initialize git: ' + stderr);
+    }
+    process.chdir('..');
+    gitSpinner.succeed('Initialized inner git');
 
     Log.log('Bundling functions...');
     const functionDirectory = path.join(projectDir, 'functions');
