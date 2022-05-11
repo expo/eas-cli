@@ -50,7 +50,7 @@ export class CredentialsContext {
   ): ExpoConfig | null {
     try {
       return getExpoConfig(projectDir, { env });
-    } catch (error) {
+    } catch {
       // ignore error, context might be created outside of expo project
       return null;
     }

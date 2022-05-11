@@ -24,7 +24,7 @@ export async function keytoolCommandExistsAsync(): Promise<boolean> {
   try {
     await spawnAsync('keytool');
     return true;
-  } catch (error) {
+  } catch {
     return false;
   }
 }

@@ -94,7 +94,7 @@ export type Account = {
   apps: Array<App>;
   /** @deprecated Build packs are no longer supported */
   availableBuilds?: Maybe<Scalars['Int']>;
-  /** Billing information */
+  /** Billing information. Only visible to members with the ADMIN or OWNER role. */
   billing?: Maybe<Billing>;
   billingPeriod: BillingPeriod;
   /** Build Jobs associated with this account */
@@ -338,7 +338,9 @@ export type AccountMutationRenameArgs = {
 
 export type AccountMutationRequestRefundArgs = {
   accountID: Scalars['ID'];
-  chargeIdentifier: Scalars['ID'];
+  chargeID: Scalars['ID'];
+  description?: InputMaybe<Scalars['String']>;
+  reason?: InputMaybe<Scalars['String']>;
 };
 
 
@@ -393,21 +395,40 @@ export type AccountQueryByNameArgs = {
 
 export type AccountUsageMetric = {
   __typename?: 'AccountUsageMetric';
-  metric: EasServiceMetric;
+  id: Scalars['ID'];
   metricType: UsageMetricType;
+  serviceMetric: EasServiceMetric;
   timestamp: Scalars['DateTime'];
+  value: Scalars['Float'];
+};
+
+export type AccountUsageMetricAndCost = {
+  __typename?: 'AccountUsageMetricAndCost';
+  id: Scalars['ID'];
+  /** The limit, in units, allowed by this plan */
+  limit: Scalars['Float'];
+  metricType: UsageMetricType;
+  serviceMetric: EasServiceMetric;
+  /** Total cost of this particular metric, in cents */
+  totalCost: Scalars['Float'];
   value: Scalars['Float'];
 };
 
 export type AccountUsageMetrics = {
   __typename?: 'AccountUsageMetrics';
+  byBillingPeriod: UsageMetricTotal;
   metricsForServiceMetric: Array<AccountUsageMetric>;
+};
+
+
+export type AccountUsageMetricsByBillingPeriodArgs = {
+  date: Scalars['DateTime'];
 };
 
 
 export type AccountUsageMetricsMetricsForServiceMetricArgs = {
   granularity: UsageMetricsGranularity;
-  metric: EasServiceMetric;
+  serviceMetric: EasServiceMetric;
   timespan: UsageMetricsTimespan;
 };
 
@@ -1002,15 +1023,20 @@ export type AppDataInput = {
 
 export type AppIcon = {
   __typename?: 'AppIcon';
-  /** Nullable color palette of the app icon. If null, color palette couldn't be retrieved from external service (imgix) */
+  /** @deprecated No longer supported */
   colorPalette?: Maybe<Scalars['JSON']>;
   originalUrl: Scalars['String'];
   primaryColor?: Maybe<Scalars['String']>;
   url: Scalars['String'];
 };
 
+export type AppInfoInput = {
+  displayName?: InputMaybe<Scalars['String']>;
+};
+
 export type AppInput = {
   accountId: Scalars['ID'];
+  appInfo?: InputMaybe<AppInfoInput>;
   privacy: AppPrivacy;
   projectName: Scalars['String'];
 };
@@ -1021,6 +1047,8 @@ export type AppMutation = {
   createApp: App;
   /** @deprecated No longer supported */
   grantAccess?: Maybe<App>;
+  /** Set display info for app */
+  setAppInfo: App;
   /** Require api token to send push notifs for experience */
   setPushSecurityEnabled: App;
 };
@@ -1034,6 +1062,12 @@ export type AppMutationCreateAppArgs = {
 export type AppMutationGrantAccessArgs = {
   accessLevel?: InputMaybe<Scalars['String']>;
   toUser: Scalars['ID'];
+};
+
+
+export type AppMutationSetAppInfoArgs = {
+  appId: Scalars['ID'];
+  appInfo: AppInfoInput;
 };
 
 
@@ -1905,6 +1939,13 @@ export type CodeSigningInfoInput = {
   sig: Scalars['String'];
 };
 
+export type Concurrencies = {
+  __typename?: 'Concurrencies';
+  android: Scalars['Int'];
+  ios: Scalars['Int'];
+  total: Scalars['Int'];
+};
+
 export type CreateAccessTokenInput = {
   actorID: Scalars['ID'];
   note?: InputMaybe<Scalars['String']>;
@@ -1920,6 +1961,7 @@ export type CreateAccessTokenResponse = {
 
 export type CreateAndroidSubmissionInput = {
   appId: Scalars['ID'];
+  archiveUrl?: InputMaybe<Scalars['String']>;
   config: AndroidSubmissionConfigInput;
   submittedBuildId?: InputMaybe<Scalars['ID']>;
 };
@@ -1937,14 +1979,8 @@ export type CreateEnvironmentSecretInput = {
 
 export type CreateIosSubmissionInput = {
   appId: Scalars['ID'];
+  archiveUrl?: InputMaybe<Scalars['String']>;
   config: IosSubmissionConfigInput;
-  submittedBuildId?: InputMaybe<Scalars['ID']>;
-};
-
-export type CreateSubmissionInput = {
-  appId: Scalars['ID'];
-  config: Scalars['JSONObject'];
-  platform: AppPlatform;
   submittedBuildId?: InputMaybe<Scalars['ID']>;
 };
 
@@ -2057,7 +2093,10 @@ export enum EasBuildDeprecationInfoType {
 }
 
 export enum EasServiceMetric {
-  ManifestRequests = 'MANIFEST_REQUESTS'
+  AssetsRequests = 'ASSETS_REQUESTS',
+  BandwidthUsage = 'BANDWIDTH_USAGE',
+  ManifestRequests = 'MANIFEST_REQUESTS',
+  UniqueUsers = 'UNIQUE_USERS'
 }
 
 export type EditUpdateBranchInput = {
@@ -3108,6 +3147,8 @@ export type Submission = ActivityTimelineProjectActivity & {
   actor?: Maybe<Actor>;
   androidConfig?: Maybe<AndroidSubmissionConfig>;
   app: App;
+  archiveUrl?: Maybe<Scalars['String']>;
+  canRetry: Scalars['Boolean'];
   cancelingActor?: Maybe<Actor>;
   createdAt: Scalars['DateTime'];
   error?: Maybe<SubmissionError>;
@@ -3115,6 +3156,7 @@ export type Submission = ActivityTimelineProjectActivity & {
   initiatingActor?: Maybe<Actor>;
   iosConfig?: Maybe<IosSubmissionConfig>;
   logsUrl?: Maybe<Scalars['String']>;
+  parentSubmission?: Maybe<Submission>;
   platform: AppPlatform;
   status: SubmissionStatus;
   submittedBuild?: Maybe<Build>;
@@ -3159,16 +3201,13 @@ export type SubmissionMutation = {
   createAndroidSubmission: CreateSubmissionResult;
   /** Create an iOS EAS Submit submission */
   createIosSubmission: CreateSubmissionResult;
-  /**
-   * Create an EAS Submit submission
-   * @deprecated Use createIosSubmission / createAndroidSubmission instead
-   */
-  createSubmission: CreateSubmissionResult;
+  /** Retry an EAS Submit submission */
+  retrySubmission: CreateSubmissionResult;
 };
 
 
 export type SubmissionMutationCancelSubmissionArgs = {
-  submissionId?: InputMaybe<Scalars['ID']>;
+  submissionId: Scalars['ID'];
 };
 
 
@@ -3182,8 +3221,8 @@ export type SubmissionMutationCreateIosSubmissionArgs = {
 };
 
 
-export type SubmissionMutationCreateSubmissionArgs = {
-  input: CreateSubmissionInput;
+export type SubmissionMutationRetrySubmissionArgs = {
+  parentSubmissionId: Scalars['ID'];
 };
 
 export type SubmissionQuery = {
@@ -3210,6 +3249,7 @@ export type SubscriptionDetails = {
   __typename?: 'SubscriptionDetails';
   addons: Array<AddonDetails>;
   cancelledAt?: Maybe<Scalars['DateTime']>;
+  concurrencies?: Maybe<Concurrencies>;
   endedAt?: Maybe<Scalars['DateTime']>;
   id: Scalars['ID'];
   isDowngrading?: Maybe<Scalars['Boolean']>;
@@ -3395,8 +3435,20 @@ export enum UploadSessionType {
   EasSubmitAppArchive = 'EAS_SUBMIT_APP_ARCHIVE'
 }
 
+export type UsageMetricTotal = {
+  __typename?: 'UsageMetricTotal';
+  billingPeriod: BillingPeriod;
+  id: Scalars['ID'];
+  overageMetrics: Array<AccountUsageMetricAndCost>;
+  planMetrics: Array<AccountUsageMetricAndCost>;
+  /** Total cost of overages, in cents */
+  totalCost: Scalars['Float'];
+};
+
 export enum UsageMetricType {
-  Request = 'REQUEST'
+  Bandwidth = 'BANDWIDTH',
+  Request = 'REQUEST',
+  User = 'USER'
 }
 
 export enum UsageMetricsGranularity {

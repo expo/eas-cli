@@ -16,7 +16,7 @@ export async function doesGitRepoExistAsync(): Promise<boolean> {
   try {
     await spawnAsync('git', ['rev-parse', '--git-dir']);
     return true;
-  } catch (err) {
+  } catch {
     return false;
   }
 }

@@ -143,7 +143,7 @@ export default class GitClient extends Client {
   public async getCommitHashAsync(): Promise<string | undefined> {
     try {
       return (await spawnAsync('git', ['rev-parse', 'HEAD'])).stdout.trim();
-    } catch (err) {
+    } catch {
       return undefined;
     }
   }
@@ -155,7 +155,7 @@ export default class GitClient extends Client {
   public async getBranchNameAsync(): Promise<string | null> {
     try {
       return (await spawnAsync('git', ['rev-parse', '--abbrev-ref', 'HEAD'])).stdout.trim();
-    } catch (e) {
+    } catch {
       return null;
     }
   }
@@ -163,7 +163,7 @@ export default class GitClient extends Client {
   public async getLastCommitMessageAsync(): Promise<string | null> {
     try {
       return (await spawnAsync('git', ['--no-pager', 'log', '-1', '--pretty=%B'])).stdout.trim();
-    } catch (e) {
+    } catch {
       return null;
     }
   }
@@ -187,7 +187,7 @@ export default class GitClient extends Client {
     try {
       await spawnAsync('git', ['check-ignore', '-q', filePath]);
       return true;
-    } catch (e) {
+    } catch {
       return false;
     }
   }
@@ -284,7 +284,7 @@ export async function isGitCaseSensitiveAsync(): Promise<boolean | undefined> {
     } else {
       return true;
     }
-  } catch (e) {
+  } catch {
     return undefined;
   }
 }

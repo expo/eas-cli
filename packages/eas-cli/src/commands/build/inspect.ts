@@ -102,7 +102,7 @@ export default class BuildInspect extends EasCommand {
         if (!flags.verbose) {
           Log.log(chalk.green('Build successful'));
         }
-      } catch (err) {
+      } catch {
         if (!flags.verbose) {
           Log.error('Build failed');
           Log.error(`Re-run this command with ${chalk.bold('--verbose')} flag to see the logs`);

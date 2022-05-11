@@ -35,7 +35,7 @@ export async function readReleaseChannelSafelyAsync(projectDir: string): Promise
       androidManifest,
       AndroidConfig.Updates.Config.RELEASE_CHANNEL
     );
-  } catch (err) {
+  } catch {
     return null;
   }
 }
@@ -51,7 +51,7 @@ export async function readChannelSafelyAsync(projectDir: string): Promise<string
       return null;
     }
     return JSON.parse(stringifiedRequestHeaders)['expo-channel-name'] ?? null;
-  } catch (err) {
+  } catch {
     return null;
   }
 }

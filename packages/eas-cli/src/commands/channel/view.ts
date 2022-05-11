@@ -45,7 +45,7 @@ export function getBranchMapping(branchMappingString?: string): {
   let branchMapping: BranchMapping;
   try {
     branchMapping = JSON.parse(branchMappingString);
-  } catch (e) {
+  } catch {
     throw new Error(`Could not parse branchMapping string into a JSON: "${branchMappingString}"`);
   }
   assert(branchMapping, 'Branch Mapping must be defined.');

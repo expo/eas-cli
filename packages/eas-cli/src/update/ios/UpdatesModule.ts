@@ -42,7 +42,7 @@ export async function readReleaseChannelSafelyAsync(projectDir: string): Promise
   try {
     const expoPlist = await readExpoPlistAsync(projectDir);
     return expoPlist[IOSConfig.Updates.Config.RELEASE_CHANNEL] ?? null;
-  } catch (err) {
+  } catch {
     return null;
   }
 }
@@ -52,7 +52,7 @@ export async function readChannelSafelyAsync(projectDir: string): Promise<string
     const expoPlist = await readExpoPlistAsync(projectDir);
     const updatesRequestHeaders = expoPlist['EXUpdatesRequestHeaders'];
     return updatesRequestHeaders['expo-channel-name'] ?? null;
-  } catch (err) {
+  } catch {
     return null;
   }
 }

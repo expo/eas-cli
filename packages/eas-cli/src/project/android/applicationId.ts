@@ -28,7 +28,7 @@ export async function ensureApplicationIdIsDefinedForManagedProjectAsync(
     return await getApplicationIdAsync(projectDir, exp, {
       moduleName: gradleUtils.DEFAULT_MODULE_NAME,
     });
-  } catch (err) {
+  } catch {
     return await configureApplicationIdAsync(projectDir, exp);
   }
 }
