@@ -13,6 +13,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🧹 Chores
 
 - Update dependencies. ([#1095](https://github.com/expo/eas-cli/pull/1095) by [@dsokal](https://github.com/dsokal))
+- Better spinner placement for multiple builds. ([#1105](https://github.com/expo/eas-cli/pull/1105) by [@dsokal](https://github.com/dsokal))
 
 ## [0.52.0](https://github.com/expo/eas-cli/releases/tag/v0.52.0) - 2022-04-26
 
