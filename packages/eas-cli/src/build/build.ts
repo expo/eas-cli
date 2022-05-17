@@ -231,16 +231,23 @@ export async function waitForBuildEndAsync(
     intervalSec = 10,
   } = {}
 ): Promise<MaybeBuildFragment[]> {
-  const b = `build${buildIds.length > 1 ? 's' : ''}`;
-  Log.log(`Waiting for ${b} to complete. You can press Ctrl+C to exit.`);
-  const spinner = ora(`Waiting for ${b} to complete.`).start();
+  let spinner;
+  let originalSpinnerText;
+  if (buildIds.length === 1) {
+    Log.log('Waiting for build to complete. You can press Ctrl+C to exit.');
+    originalSpinnerText = 'Waiting for build to complete.';
+    spinner = ora(originalSpinnerText).start();
+  } else {
+    originalSpinnerText = 'Waiting for builds to complete. You can press Ctrl+C to exit.';
+    spinner = ora('Waiting for builds to complete. You can press Ctrl+C to exit.').start();
+  }
   const endTime = new Date().getTime() + timeoutSec * 1000;
   while (new Date().getTime() <= endTime) {
     const builds = await getBuildsSafelyAsync(buildIds);
     const { refetch } =
       builds.length === 1
         ? await handleSingleBuildProgressAsync({ build: builds[0], accountName }, { spinner })
-        : await handleMultipleBuildsProgressAsync({ builds }, { spinner });
+        : await handleMultipleBuildsProgressAsync({ builds }, { spinner, originalSpinnerText });
     if (!refetch) {
       return builds;
     }
@@ -373,7 +380,7 @@ const platforms = [AppPlatform.Android, AppPlatform.Ios];
 
 async function handleMultipleBuildsProgressAsync(
   { builds: maybeBuilds }: { builds: MaybeBuildFragment[] },
-  { spinner }: { spinner: Ora }
+  { spinner, originalSpinnerText }: { spinner: Ora; originalSpinnerText: string }
 ): Promise<BuildProgressResult> {
   const buildCount = maybeBuilds.length;
   const builds = maybeBuilds.filter<BuildFragment>(isBuildFragment);
@@ -393,7 +400,7 @@ async function handleMultipleBuildsProgressAsync(
     }
     return { refetch: false };
   } else {
-    spinner.text = formatPendingBuildsText(builds);
+    spinner.text = formatPendingBuildsText(originalSpinnerText, builds);
     return { refetch: true };
   }
 }
@@ -412,9 +419,10 @@ function formatSettledBuildsText(builds: BuildFragment[]): string {
     .join('\n  ');
 }
 
-function formatPendingBuildsText(builds: BuildFragment[]): string {
-  return platforms
-    .map(platform => {
+function formatPendingBuildsText(originalSpinnerText: string, builds: BuildFragment[]): string {
+  return [
+    originalSpinnerText,
+    ...platforms.map(platform => {
       const build = builds.find(build => build.platform === platform);
       const status = build ? statusToDisplayName[build.status] : 'unknown';
       let extraInfo = '';
@@ -437,8 +445,8 @@ function formatPendingBuildsText(builds: BuildFragment[]): string {
       return `${appPlatformEmojis[platform]} ${
         appPlatformDisplayNames[platform]
       } build - status: ${chalk.bold(status)}${extraInfo}`;
-    })
-    .join('\n  ');
+    }),
+  ].join('\n  ');
 }
 
 function isBuildFragment(maybeBuild: MaybeBuildFragment): maybeBuild is BuildFragment {
