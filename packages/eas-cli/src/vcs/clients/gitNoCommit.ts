@@ -25,4 +25,13 @@ export default class GitNoCommitClient extends GitClient {
     await ignore.initIgnoreAsync();
     return ignore.ignores(filePath);
   }
+
+  public async trackFileAsync(file: string): Promise<void> {
+    try {
+      await super.trackFileAsync(file);
+    } catch {
+      // In the no commit workflow it doesn't matter if we fail to track changes,
+      // so we can ignore if this throws an exception
+    }
+  }
 }
