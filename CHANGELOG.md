@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Rebind `console.info` correctly after `ora` instance stops. ([#1113](https://github.com/expo/eas-cli/pull/1113) by [@EvanBacon](https://github.com/EvanBacon))
+
 ### 🧹 Chores
 
 - Update dependencies. ([#1095](https://github.com/expo/eas-cli/pull/1095) by [@dsokal](https://github.com/dsokal))
