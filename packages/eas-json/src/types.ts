@@ -15,6 +15,7 @@ export interface EasJson {
   cli?: {
     version?: string;
     requireCommit?: boolean;
+    enableManagedVersions?: boolean;
   };
   build?: { [profileName: string]: EasJsonBuildProfile };
   submit?: { [profileName: string]: EasJsonSubmitProfile };

@@ -116,7 +116,7 @@ export async function maybeResolveVersionsAsync(
   }
 }
 
-async function writeVersionsToBuildGradleAsync({
+export async function writeVersionsToBuildGradleAsync({
   projectDir,
   exp,
 }: {

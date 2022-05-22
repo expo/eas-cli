@@ -1,7 +1,6 @@
 import { ExpoConfig } from '@expo/config';
 import { Platform, Workflow } from '@expo/eas-build-job';
 import { BuildProfile } from '@expo/eas-json';
-import type { XCBuildConfiguration } from 'xcode';
 
 import { TrackingContext } from '../analytics/common';
 import { CredentialsContext } from '../credentials/context';
@@ -20,7 +19,6 @@ export interface AndroidBuildContext {
 
 export interface IosBuildContext {
   bundleIdentifier: string;
-  applicationTargetBuildSettings: XCBuildConfiguration['buildSettings'];
   applicationTarget: Target;
   targets: Target[];
   xcodeBuildContext: XcodeBuildContext;

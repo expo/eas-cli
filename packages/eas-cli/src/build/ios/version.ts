@@ -5,9 +5,12 @@ import chalk from 'chalk';
 import path from 'path';
 import type { XCBuildConfiguration } from 'xcode';
 
+import { Target } from '../../credentials/ios/types';
 import Log from '../../log';
+import { findApplicationTarget } from '../../project/ios/target';
 import { resolveWorkflowAsync } from '../../project/workflow';
 import { promptAsync } from '../../prompts';
+import uniqBy from '../../utils/expodash/uniqBy';
 import { readPlistAsync, writePlistAsync } from '../../utils/plist';
 import { updateAppJsonConfigAsync } from '../utils/appJson';
 import { bumpAppVersionAsync } from '../utils/version';
@@ -22,21 +25,25 @@ export async function bumpVersionAsync({
   bumpStrategy,
   projectDir,
   exp,
-  buildSettings,
+  targets,
 }: {
   projectDir: string;
   exp: ExpoConfig;
   bumpStrategy: BumpStrategy;
-  buildSettings: XCBuildConfiguration['buildSettings'];
+  targets: Target[];
 }): Promise<void> {
   if (bumpStrategy === BumpStrategy.NOOP) {
     return;
   }
   ensureStaticConfigExists(projectDir);
-  const infoPlist = await readInfoPlistAsync(projectDir, buildSettings);
   await bumpVersionInAppJsonAsync({ bumpStrategy, projectDir, exp });
   Log.log('Updated versions in app.json');
-  await writeVersionsToInfoPlistAsync({ projectDir, exp, infoPlist, buildSettings });
+  await updateNativeVersionsAsync({
+    projectDir,
+    version: exp.version,
+    buildNumber: exp.ios?.buildNumber,
+    targets,
+  });
   Log.log('Synchronized versions with Info.plist');
 }
 
@@ -121,12 +128,21 @@ export async function readBuildNumberAsync(
 export async function maybeResolveVersionsAsync(
   projectDir: string,
   exp: ExpoConfig,
-  buildSettings: XCBuildConfiguration['buildSettings']
+  targets: Target[]
 ): Promise<{ appVersion?: string; appBuildVersion?: string }> {
+  const applicationTarget = findApplicationTarget(targets);
   try {
     return {
-      appBuildVersion: await readBuildNumberAsync(projectDir, exp, buildSettings),
-      appVersion: await readShortVersionAsync(projectDir, exp, buildSettings),
+      appBuildVersion: await readBuildNumberAsync(
+        projectDir,
+        exp,
+        applicationTarget.buildSettings ?? {}
+      ),
+      appVersion: await readShortVersionAsync(
+        projectDir,
+        exp,
+        applicationTarget.buildSettings ?? {}
+      ),
     };
   } catch (err: any) {
     Log.warn('Failed to read app versions.');
@@ -135,23 +151,6 @@ export async function maybeResolveVersionsAsync(
     Log.warn('Proceeding anyway...');
     return {};
   }
-}
-
-async function writeVersionsToInfoPlistAsync({
-  projectDir,
-  exp,
-  infoPlist,
-  buildSettings,
-}: {
-  projectDir: string;
-  exp: ExpoConfig;
-  infoPlist: IOSConfig.InfoPlist;
-  buildSettings: XCBuildConfiguration['buildSettings'];
-}): Promise<IOSConfig.InfoPlist> {
-  let updatedInfoPlist = IOSConfig.Version.setVersion(exp, infoPlist);
-  updatedInfoPlist = IOSConfig.Version.setBuildNumber(exp, updatedInfoPlist);
-  await writeInfoPlistAsync({ projectDir, infoPlist: updatedInfoPlist, buildSettings });
-  return updatedInfoPlist;
 }
 
 export function getInfoPlistPath(
@@ -181,24 +180,62 @@ async function readInfoPlistAsync(
   return ((await readPlistAsync(infoPlistPath)) ?? {}) as IOSConfig.InfoPlist;
 }
 
-async function writeInfoPlistAsync({
-  projectDir,
-  infoPlist,
-  buildSettings,
-}: {
-  projectDir: string;
-  infoPlist: IOSConfig.InfoPlist;
-  buildSettings: XCBuildConfiguration['buildSettings'];
-}): Promise<void> {
-  const infoPlistPath = getInfoPlistPath(projectDir, buildSettings);
-  await writePlistAsync(infoPlistPath, infoPlist);
-}
-
 function ensureStaticConfigExists(projectDir: string): void {
   const paths = getConfigFilePaths(projectDir);
   if (!paths.staticConfigPath) {
     throw new Error('autoIncrement option is not supported when using app.config.js');
   }
+}
+
+export async function updateNativeVersionsAsync({
+  projectDir,
+  version,
+  buildNumber,
+  targets,
+}: {
+  projectDir: string;
+  version?: string;
+  buildNumber?: string;
+  targets: Target[];
+}): Promise<void> {
+  const project = IOSConfig.XcodeUtils.getPbxproj(projectDir);
+  const iosDir = path.join(projectDir, 'ios');
+
+  const infoPlistFiles: string[] = [];
+  for (const target of targets) {
+    const { targetName, buildConfiguration } = target;
+    const xcBuildConfiguration = IOSConfig.Target.getXCBuildConfigurationFromPbxproj(project, {
+      targetName,
+      buildConfiguration,
+    });
+    const infoPlist = xcBuildConfiguration?.buildSettings?.INFOPLIST_FILE;
+    if (infoPlist) {
+      const evaluatedInfoPlistPath = trimQuotes(
+        evaluateTemplateString(infoPlist, {
+          SRCROOT: iosDir,
+        })
+      );
+      const absolutePath = path.isAbsolute(evaluatedInfoPlistPath)
+        ? evaluatedInfoPlistPath
+        : path.join(iosDir, evaluatedInfoPlistPath);
+      infoPlistFiles.push(path.normalize(absolutePath));
+    }
+  }
+  const uniqueInfoPlistPaths = uniqBy(infoPlistFiles, i => i);
+  for (const infoPlistPath of uniqueInfoPlistPaths) {
+    const infoPlist = (await readPlistAsync(infoPlistPath)) as IOSConfig.InfoPlist;
+    if (buildNumber) {
+      infoPlist.CFBundleShortVersionString = buildNumber;
+    }
+    if (version) {
+      infoPlist.CFBundleVersion = version;
+    }
+    await writePlistAsync(infoPlistPath, infoPlist);
+  }
+}
+
+function trimQuotes(s: string): string {
+  return s?.startsWith('"') && s.endsWith('"') ? s.slice(1, -1) : s;
 }
 
 export function evaluateTemplateString(

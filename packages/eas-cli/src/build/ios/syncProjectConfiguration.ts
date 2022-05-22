@@ -1,8 +1,8 @@
 import { ExpoConfig } from '@expo/config';
 import { Platform, Workflow } from '@expo/eas-build-job';
-import { BuildProfile, IosVersionAutoIncrement } from '@expo/eas-json';
-import type { XCBuildConfiguration } from 'xcode';
+import { BuildProfile, EasJsonReader, IosVersionAutoIncrement } from '@expo/eas-json';
 
+import { Target } from '../../credentials/ios/types';
 import { isExpoUpdatesInstalled } from '../../project/projectUtils';
 import { resolveWorkflowAsync } from '../../project/workflow';
 import { syncUpdatesConfigurationAsync } from '../../update/ios/UpdatesModule';
@@ -12,12 +12,12 @@ export async function syncProjectConfigurationAsync({
   projectDir,
   exp,
   buildProfile,
-  buildSettings,
+  targets,
 }: {
   projectDir: string;
   exp: ExpoConfig;
   buildProfile: BuildProfile<Platform.IOS>;
-  buildSettings: XCBuildConfiguration['buildSettings'];
+  targets: Target[];
 }): Promise<void> {
   const workflow = await resolveWorkflowAsync(projectDir, Platform.IOS);
   const { autoIncrement } = buildProfile;
@@ -27,10 +27,16 @@ export async function syncProjectConfigurationAsync({
     if (isExpoUpdatesInstalled(projectDir)) {
       await syncUpdatesConfigurationAsync(projectDir, exp);
     }
-    await bumpVersionAsync({ projectDir, exp, bumpStrategy: versionBumpStrategy, buildSettings });
+    await bumpVersionAsync({ projectDir, exp, bumpStrategy: versionBumpStrategy, targets });
   } else {
     await bumpVersionInAppJsonAsync({ projectDir, exp, bumpStrategy: versionBumpStrategy });
   }
+}
+
+export async function isUsingManagedVersioningAsync(projectDir: string): Promise<boolean> {
+  const easJsonReader = new EasJsonReader(projectDir);
+  const config = await easJsonReader.getCliConfigAsync();
+  return config?.enableManagedVersions ?? false;
 }
 
 function resolveVersionBumpStrategy(autoIncrement: IosVersionAutoIncrement): BumpStrategy {

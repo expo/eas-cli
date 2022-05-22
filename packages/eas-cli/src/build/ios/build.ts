@@ -1,8 +1,6 @@
-import { IOSConfig } from '@expo/config-plugins';
 import { Ios, Job, Metadata, Platform, Workflow } from '@expo/eas-build-job';
-import type { XCBuildConfiguration } from 'xcode';
 
-import { IosCredentials, Target } from '../../credentials/ios/types';
+import { IosCredentials } from '../../credentials/ios/types';
 import { BuildMutation, BuildResult } from '../../graphql/mutations/BuildMutation';
 import { ensureBundleIdentifierIsDefinedForManagedProjectAsync } from '../../project/ios/bundleIdentifier';
 import { resolveXcodeBuildContextAsync } from '../../project/ios/scheme';
@@ -43,12 +41,10 @@ export async function createIosContextAsync(
     env: buildProfile.env,
   });
   const applicationTarget = findApplicationTarget(targets);
-  const applicationTargetBuildSettings = resolveBuildSettings(ctx, applicationTarget);
 
   return {
     bundleIdentifier: applicationTarget.bundleIdentifier,
     applicationTarget,
-    applicationTargetBuildSettings,
     targets,
     xcodeBuildContext,
   };
@@ -67,7 +63,7 @@ export async function prepareIosBuildAsync(
         projectDir: ctx.projectDir,
         exp: ctx.exp,
         buildProfile: ctx.buildProfile,
-        buildSettings: ctx.ios.applicationTargetBuildSettings,
+        targets: ctx.ios.targets,
       });
     },
     prepareJobAsync: async (
@@ -93,19 +89,4 @@ export async function prepareIosBuildAsync(
       });
     },
   });
-}
-
-function resolveBuildSettings(
-  ctx: CommonContext<Platform.IOS>,
-  applicationTarget: Target
-): XCBuildConfiguration['buildSettings'] {
-  if (ctx.workflow === Workflow.MANAGED) {
-    return {};
-  }
-  const project = IOSConfig.XcodeUtils.getPbxproj(ctx.projectDir);
-  const xcBuildConfiguration = IOSConfig.Target.getXCBuildConfigurationFromPbxproj(project, {
-    targetName: applicationTarget.targetName,
-    buildConfiguration: applicationTarget.buildConfiguration,
-  });
-  return xcBuildConfiguration?.buildSettings ?? {};
 }

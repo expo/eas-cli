@@ -34,7 +34,7 @@ const AndroidBuildProfileSchema = CommonBuildProfileSchema.concat(
     ndk: Joi.string().empty(null).custom(semverCheck),
     autoIncrement: Joi.alternatives().try(
       Joi.boolean(),
-      Joi.string().valid('version', 'versionCode')
+      Joi.string().valid('version', 'versionCode', 'managed')
     ),
 
     artifactPath: Joi.string(),
@@ -51,7 +51,7 @@ const IosBuildProfileSchema = CommonBuildProfileSchema.concat(
     enterpriseProvisioning: Joi.string().valid('adhoc', 'universal'),
     autoIncrement: Joi.alternatives().try(
       Joi.boolean(),
-      Joi.string().valid('version', 'buildNumber')
+      Joi.string().valid('version', 'buildNumber', 'managed')
     ),
     simulator: Joi.boolean(),
 
