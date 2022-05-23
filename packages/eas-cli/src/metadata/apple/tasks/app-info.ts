@@ -5,7 +5,7 @@ import chalk from 'chalk';
 import Log from '../../../log';
 import { logAsync } from '../../utils/log';
 import { retryIfNullAsync } from '../../utils/retry';
-import { AppleTask, TaskPrepareOptions, TaskUploadOptions } from '../task';
+import { AppleTask, TaskDownloadOptions, TaskPrepareOptions, TaskUploadOptions } from '../task';
 
 export type AppInfoContext = {
   /** The current app info that should be edited */
@@ -17,12 +17,24 @@ export type AppInfoContext = {
 export class AppInfoTask extends AppleTask {
   name = (): string => 'app information';
 
-  async preuploadAsync({ context }: TaskPrepareOptions): Promise<void> {
+  async prepareAsync({ context }: TaskPrepareOptions): Promise<void> {
     const info = await retryIfNullAsync(() => context.app.getEditAppInfoAsync());
     assert(info, 'Could not resolve the editable app info to update');
 
     context.info = info;
     context.infoLocales = await info.getLocalizationsAsync();
+  }
+
+  async downloadAsync({ config, context }: TaskDownloadOptions): Promise<void> {
+    assert(context.info, `App info not initialized, can't download info`);
+
+    // TODO: see why this type mismatch occurs
+    // @ts-ignore
+    config.setCategories(context.info.attributes);
+
+    for (const locale of context.infoLocales) {
+      config.setInfoLocale(locale.attributes);
+    }
   }
 
   async uploadAsync({ config, context }: TaskUploadOptions): Promise<void> {

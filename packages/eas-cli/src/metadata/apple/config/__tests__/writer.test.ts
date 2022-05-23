@@ -8,7 +8,10 @@ import { primaryAndSecondaryCategory, secondaryOnlyCategory } from './fixtures/c
 describe('toSchema', () => {
   it('returns object with apple schema', () => {
     const writer = new AppleConfigWriter();
-    expect(writer.toSchema()).toHaveProperty('apple');
+    expect(writer.toSchema()).toMatchObject({
+      configVersion: 0,
+      apple: expect.any(Object),
+    });
   });
 });
 

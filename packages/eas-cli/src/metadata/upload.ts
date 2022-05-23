@@ -51,7 +51,7 @@ export async function uploadAppleMetadataAsync({
   // Start preparation task sequence
   try {
     for (const task of tasks) {
-      await task.preuploadAsync({ config, context: ctx });
+      await task.prepareAsync({ context: ctx });
     }
   } catch (error: any) {
     logTaskError(error);

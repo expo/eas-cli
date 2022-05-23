@@ -5,7 +5,7 @@ import chalk from 'chalk';
 import Log from '../../../log';
 import { logAsync } from '../../utils/log';
 import { retryIfNullAsync } from '../../utils/retry';
-import { AppleTask, TaskPrepareOptions, TaskUploadOptions } from '../task';
+import { AppleTask, TaskDownloadOptions, TaskPrepareOptions, TaskUploadOptions } from '../task';
 
 export type AppVersionOptions = {
   /** If we should use the live version of the app (if available - defaults to false) */
@@ -38,7 +38,7 @@ export class AppVersionTask extends AppleTask {
 
   name = (): string => (this.options.editLive ? 'live app version' : 'editable app version');
 
-  async preuploadAsync({ context }: TaskPrepareOptions): Promise<void> {
+  async prepareAsync({ context }: TaskPrepareOptions): Promise<void> {
     const { version, versionIsFirst, versionIsLive } = await resolveVersionAsync(
       context.app,
       this.options
@@ -50,6 +50,17 @@ export class AppVersionTask extends AppleTask {
     context.versionIsFirst = versionIsFirst;
     context.versionIsLive = versionIsLive;
     context.versionLocales = await version.getLocalizationsAsync();
+  }
+
+  async downloadAsync({ config, context }: TaskDownloadOptions): Promise<void> {
+    assert(context.version, `App version not initialized, can't download version`);
+
+    config.setVersion(context.version.attributes);
+    config.setVersionRelease(context.version.attributes);
+
+    for (const locale of context.versionLocales) {
+      config.setVersionLocale(locale.attributes);
+    }
   }
 
   async uploadAsync({ config, context }: TaskUploadOptions): Promise<void> {

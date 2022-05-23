@@ -26,7 +26,7 @@ describe(AppInfoTask, () => {
         app: new App(requestContext, 'stub-id', {} as any),
       };
 
-      await new AppInfoTask().preuploadAsync({ context, config: new AppleConfigReader({}) });
+      await new AppInfoTask().prepareAsync({ context, config: new AppleConfigReader({}) });
 
       expect(context.info).toBeInstanceOf(AppInfo);
       expect(context.infoLocales).toBeInstanceOf(Array);

@@ -34,7 +34,7 @@ describe(AppVersionTask, () => {
         app: new App(requestContext, 'stub-id', {} as any),
       };
 
-      await new AppVersionTask({ editLive: true }).preuploadAsync({
+      await new AppVersionTask({ editLive: true }).prepareAsync({
         context,
         config: new AppleConfigReader({}),
       });
@@ -70,7 +70,7 @@ describe(AppVersionTask, () => {
         app: new App(requestContext, 'stub-id', {} as any),
       };
 
-      await new AppVersionTask({ editLive: true }).preuploadAsync({
+      await new AppVersionTask({ editLive: true }).prepareAsync({
         context,
         config: new AppleConfigReader({}),
       });
@@ -102,7 +102,7 @@ describe(AppVersionTask, () => {
         app: new App(requestContext, 'stub-id', {} as any),
       };
 
-      await new AppVersionTask().preuploadAsync({ context, config: new AppleConfigReader({}) });
+      await new AppVersionTask().prepareAsync({ context, config: new AppleConfigReader({}) });
 
       expect(context.version).toBeInstanceOf(AppStoreVersion);
       expect(context.versionIsLive).toBeFalsy();
@@ -131,7 +131,7 @@ describe(AppVersionTask, () => {
         app: new App(requestContext, 'stub-id', {} as any),
       };
 
-      await new AppVersionTask().preuploadAsync({ context, config: new AppleConfigReader({}) });
+      await new AppVersionTask().prepareAsync({ context, config: new AppleConfigReader({}) });
 
       expect(context.versionIsFirst).toBeFalsy();
       expect(scope.isDone()).toBeTruthy();

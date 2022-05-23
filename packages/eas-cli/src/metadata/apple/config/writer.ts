@@ -18,8 +18,11 @@ export class AppleConfigWriter {
   constructor(public readonly schema: Partial<AppleMetadata> = {}) {}
 
   /** Get the schema result to write it to the config file */
-  toSchema(): { apple: Partial<AppleMetadata> } {
-    return { apple: this.schema };
+  toSchema(): { configVersion: number; apple: Partial<AppleMetadata> } {
+    return {
+      configVersion: 0,
+      apple: this.schema,
+    };
   }
 
   setAgeRating(attributes: AttributesOf<AgeRatingDeclaration>): void {

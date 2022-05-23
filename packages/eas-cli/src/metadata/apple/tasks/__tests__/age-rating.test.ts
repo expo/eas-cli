@@ -14,7 +14,7 @@ const requestContext = {
 describe(AgeRatingTask, () => {
   describe('preuploadAsync', () => {
     it('aborts when version is not loaded', async () => {
-      const promise = new AgeRatingTask().preuploadAsync({
+      const promise = new AgeRatingTask().prepareAsync({
         context: {} as any,
         config: new AppleConfigReader({}),
       });
@@ -31,7 +31,7 @@ describe(AgeRatingTask, () => {
         version: new AppStoreVersion(requestContext, 'stub-id', {} as any),
       };
 
-      await new AgeRatingTask().preuploadAsync({ context, config: new AppleConfigReader({}) });
+      await new AgeRatingTask().prepareAsync({ context, config: new AppleConfigReader({}) });
 
       expect(context.ageRating).toBeInstanceOf(AgeRatingDeclaration);
       expect(scope.isDone()).toBeTruthy();

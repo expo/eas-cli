@@ -2,6 +2,7 @@ import Ajv from 'ajv';
 import assert from 'assert';
 
 import { AppleConfigReader } from './apple/config/reader';
+import { AppleConfigWriter } from './apple/config/writer';
 import { Metadata } from './schema';
 
 /**
@@ -27,4 +28,11 @@ export function validateConfig(config: unknown): {
 export function createAppleReader(config: Metadata): AppleConfigReader {
   assert(config.apple, 'No apple configuration found');
   return new AppleConfigReader(config.apple);
+}
+
+/**
+ * Create the latest
+ */
+export function createAppleWriter(): AppleConfigWriter {
+  return new AppleConfigWriter();
 }
