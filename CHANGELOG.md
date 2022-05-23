@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Match bundle identifier capabilities more accurately. ([#1112](https://github.com/expo/eas-cli/pull/1112) by [@EvanBacon](https://github.com/EvanBacon))
+
 ### 🧹 Chores
 
 - Update dependencies. ([#1095](https://github.com/expo/eas-cli/pull/1095) by [@dsokal](https://github.com/dsokal))
