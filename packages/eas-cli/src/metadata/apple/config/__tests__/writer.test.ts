@@ -3,7 +3,7 @@ import { kidsSixToEightAdvisory } from './fixtures/ageRatingDeclaration';
 import { dutchInfo, englishInfo } from './fixtures/appInfoLocalization';
 import { automaticRelease, manualRelease, scheduledRelease } from './fixtures/appStoreVersion';
 import { dutchVersion, englishVersion } from './fixtures/appStoreVersionLocalization';
-import { primaryAndSecondaryCategory, secondaryOnlyCategory } from './fixtures/categoryIds';
+import { primaryAndSecondaryCategory, secondaryOnlyCategory } from './fixtures/appInfo';
 
 describe('toSchema', () => {
   it('returns object with apple schema', () => {
@@ -57,17 +57,19 @@ describe('setInfoLocale', () => {
 describe('setCategories', () => {
   it('modifies the categories', () => {
     const writer = new AppleConfigWriter();
-    writer.setCategories(primaryAndSecondaryCategory);
+    writer.setCategories(primaryAndSecondaryCategory as any);
     expect(writer.schema.categories).toHaveLength(2);
-    expect((writer.schema.categories as any)[0]).toBe(primaryAndSecondaryCategory.primaryCategory);
+    expect((writer.schema.categories as any)[0]).toBe(
+      primaryAndSecondaryCategory.primaryCategory?.id
+    );
     expect((writer.schema.categories as any)[1]).toBe(
-      primaryAndSecondaryCategory.secondaryCategory
+      primaryAndSecondaryCategory.secondaryCategory?.id
     );
   });
 
   it('skips secondary category without primary category', () => {
     const writer = new AppleConfigWriter();
-    writer.setCategories(secondaryOnlyCategory);
+    writer.setCategories(secondaryOnlyCategory as any);
     expect(writer.schema.categories).toHaveLength(0);
   });
 });

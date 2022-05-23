@@ -1,6 +1,6 @@
 import { App } from '@expo/apple-utils';
-import chalk from 'chalk';
 import fs from 'fs-extra';
+import path from 'path';
 
 import Log from '../log';
 import { AppleContext } from './apple/context';
@@ -15,9 +15,10 @@ export async function downloadAppleMetadataAsync(
   metaFile: string,
   app: App
 ): Promise<void> {
-  if (await fs.pathExists(metaFile)) {
-    throw new Error(`❌ File already exists at "${metaFile}"`);
-  }
+  const absoluteMetaFile = path.resolve(projectDir, metaFile);
+  // if (await fs.pathExists(absoluteMetaFile)) {
+  //   throw new Error(`❌ File already exists at "${metaFile}"`);
+  // }
 
   // Create an apple config writer
   const config = createAppleWriter();
@@ -35,19 +36,17 @@ export async function downloadAppleMetadataAsync(
     handleTaskError(error);
   }
 
-  // Start upload task sequence
+  // Start download task sequence
   try {
     for (const task of tasks) {
-      Log.log(chalk`{bold Syncing ${task.name()}}`);
       await task.downloadAsync({ config, context: ctx as AppleContext });
-      Log.log();
     }
   } catch (error) {
     handleTaskError(error);
   }
 
   // Write the config file
-  await fs.writeJson(metaFile, config.toSchema());
+  await fs.writeJson(absoluteMetaFile, config.toSchema(), { spaces: 2 });
 }
 
 function handleTaskError(error: any): void {

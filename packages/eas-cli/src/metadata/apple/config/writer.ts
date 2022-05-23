@@ -1,9 +1,9 @@
 import {
   AgeRatingDeclaration,
+  AppInfo,
   AppInfoLocalization,
   AppStoreVersion,
   AppStoreVersionLocalization,
-  CategoryIds,
   ReleaseType,
 } from '@expo/apple-utils';
 
@@ -43,13 +43,14 @@ export class AppleConfigWriter {
     };
   }
 
-  setCategories({ primaryCategory, secondaryCategory }: CategoryIds): void {
+  setCategories({ primaryCategory, secondaryCategory }: AttributesOf<AppInfo>): void {
     this.schema.categories = [];
 
+    // TODO: see why these types are conflicting
     if (primaryCategory) {
-      this.schema.categories.push(primaryCategory);
+      this.schema.categories.push(primaryCategory.id as any);
       if (secondaryCategory) {
-        this.schema.categories.push(secondaryCategory);
+        this.schema.categories.push(secondaryCategory.id as any);
       }
     }
   }
