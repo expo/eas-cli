@@ -13,7 +13,7 @@ export function validateConfig(config: unknown): {
 } {
   const validator = new Ajv({ allErrors: true, useDefaults: true })
     .addMetaSchema(require('ajv/lib/refs/json-schema-draft-06.json'))
-    .compile(require('../schemas/config-0.json'));
+    .compile(require('../../schema/metadata-0.json'));
 
   const valid = validator(config) as boolean;
 
