@@ -5,3 +5,5 @@ export class MissingEasJsonError extends Error {}
 export class MissingProfileError extends Error {}
 
 export class MissingParentProfileError extends Error {}
+
+export class InvalidResourceClassError extends Error {}

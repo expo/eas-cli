@@ -12,3 +12,8 @@ export enum BuildDistributionType {
   INTERNAL = 'internal',
   SIMULATOR = 'simulator',
 }
+
+export enum UserInputResourceClass {
+  DEFAULT = 'default',
+  LARGE = 'large',
+}

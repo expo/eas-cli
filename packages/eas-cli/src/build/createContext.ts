@@ -7,6 +7,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { TrackingContext } from '../analytics/common';
 import { Analytics, BuildEvent } from '../analytics/events';
 import { CredentialsContext } from '../credentials/context';
+import { BuildResourceClass } from '../graphql/generated';
 import { getExpoConfig } from '../project/expoConfig';
 import { getProjectAccountName, getProjectIdAsync } from '../project/projectUtils';
 import { resolveWorkflowAsync } from '../project/workflow';
@@ -25,6 +26,7 @@ export async function createBuildContextAsync<T extends Platform>({
   nonInteractive = false,
   platform,
   projectDir,
+  resourceClass,
 }: {
   buildProfileName: string;
   buildProfile: BuildProfile<T>;
@@ -33,6 +35,7 @@ export async function createBuildContextAsync<T extends Platform>({
   nonInteractive: boolean;
   platform: T;
   projectDir: string;
+  resourceClass?: BuildResourceClass;
 }): Promise<BuildContext<T>> {
   const exp = getExpoConfig(projectDir, { env: buildProfile.env });
 
@@ -70,6 +73,7 @@ export async function createBuildContextAsync<T extends Platform>({
     accountName,
     buildProfile,
     buildProfileName,
+    resourceClass,
     clearCache,
     credentialsCtx,
     exp,

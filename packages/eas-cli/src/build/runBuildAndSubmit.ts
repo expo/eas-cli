@@ -30,6 +30,7 @@ import { BuildContext } from './context';
 import { createBuildContextAsync } from './createContext';
 import { prepareIosBuildAsync } from './ios/build';
 import { LocalBuildOptions } from './local';
+import { UserInputResourceClass } from './types';
 import { ensureExpoDevClientInstalledForDevClientBuildsAsync } from './utils/devClient';
 import { printBuildResults, printLogsUrls } from './utils/printBuildInfo';
 import { ensureRepoIsCleanAsync } from './utils/repository';
@@ -47,6 +48,7 @@ export interface BuildFlags {
   autoSubmit: boolean;
   submitProfile?: string;
   localBuildOptions: LocalBuildOptions;
+  resourceClass?: UserInputResourceClass;
 }
 
 export async function runBuildAndSubmitAsync(projectDir: string, flags: BuildFlags): Promise<void> {
@@ -65,6 +67,7 @@ export async function runBuildAndSubmitAsync(projectDir: string, flags: BuildFla
     easJsonReader,
     platforms,
     profileName: flags.profile ?? undefined,
+    userInputResourceClass: flags.resourceClass,
   });
 
   await ensureExpoDevClientInstalledForDevClientBuildsAsync({
@@ -169,6 +172,7 @@ async function prepareAndStartBuildAsync({
 }): Promise<{ build: BuildFragment | undefined; buildCtx: BuildContext<Platform> }> {
   const buildCtx = await createBuildContextAsync({
     buildProfileName: buildProfile.profileName,
+    resourceClass: buildProfile.resourceClass,
     clearCache: flags.clearCache,
     buildProfile: buildProfile.profile,
     nonInteractive: flags.nonInteractive,

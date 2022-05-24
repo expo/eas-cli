@@ -10884,6 +10884,18 @@
             "deprecationReason": null
           },
           {
+            "name": "resourceClass",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "ENUM",
+              "name": "BuildResourceClass",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "runtimeVersion",
             "description": null,
             "args": [],
@@ -12281,6 +12293,18 @@
                 "deprecationReason": null
               },
               {
+                "name": "buildParams",
+                "description": null,
+                "type": {
+                  "kind": "INPUT_OBJECT",
+                  "name": "BuildParamsInput",
+                  "ofType": null
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
                 "name": "job",
                 "description": null,
                 "type": {
@@ -12336,6 +12360,18 @@
                     "name": "ID",
                     "ofType": null
                   }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
+                "name": "buildParams",
+                "description": null,
+                "type": {
+                  "kind": "INPUT_OBJECT",
+                  "name": "BuildParamsInput",
+                  "ofType": null
                 },
                 "defaultValue": null,
                 "isDeprecated": false,
@@ -12491,6 +12527,33 @@
             "ofType": null
           }
         ]
+      },
+      {
+        "kind": "INPUT_OBJECT",
+        "name": "BuildParamsInput",
+        "description": null,
+        "fields": null,
+        "inputFields": [
+          {
+            "name": "resourceClass",
+            "description": null,
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "ENUM",
+                "name": "BuildResourceClass",
+                "ofType": null
+              }
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "interfaces": null,
+        "enumValues": null,
+        "possibleTypes": null
       },
       {
         "kind": "ENUM",
@@ -12866,6 +12929,47 @@
         "inputFields": null,
         "interfaces": [],
         "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "ENUM",
+        "name": "BuildResourceClass",
+        "description": null,
+        "fields": null,
+        "inputFields": null,
+        "interfaces": null,
+        "enumValues": [
+          {
+            "name": "ANDROID_DEFAULT",
+            "description": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "ANDROID_LARGE",
+            "description": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "IOS_DEFAULT",
+            "description": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "IOS_LARGE",
+            "description": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "LEGACY",
+            "description": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
         "possibleTypes": null
       },
       {

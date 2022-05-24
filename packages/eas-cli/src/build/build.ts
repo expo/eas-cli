@@ -11,6 +11,7 @@ import { getExpoWebsiteBaseUrl } from '../api';
 import {
   AppPlatform,
   BuildFragment,
+  BuildParamsInput,
   BuildPriority,
   BuildStatus,
   UploadSessionType,
@@ -53,10 +54,25 @@ interface Builder<TPlatform extends Platform, Credentials, TJob extends Job> {
   ): Promise<CredentialsResult<Credentials> | undefined>;
   syncProjectConfigurationAsync(ctx: BuildContext<TPlatform>): Promise<void>;
   prepareJobAsync(ctx: BuildContext<TPlatform>, jobData: JobData<Credentials>): Promise<Job>;
-  sendBuildRequestAsync(appId: string, job: TJob, metadata: Metadata): Promise<BuildResult>;
+  sendBuildRequestAsync(
+    appId: string,
+    job: TJob,
+    metadata: Metadata,
+    buildParams?: BuildParamsInput
+  ): Promise<BuildResult>;
 }
 
 export type BuildRequestSender = () => Promise<BuildFragment | undefined>;
+
+function resolveBuildParamsInput<T extends Platform>(
+  ctx: BuildContext<T>
+): BuildParamsInput | undefined {
+  return ctx.resourceClass
+    ? {
+        resourceClass: ctx.resourceClass,
+      }
+    : undefined;
+}
 
 export async function prepareBuildRequestForPlatformAsync<
   TPlatform extends Platform,
@@ -100,6 +116,7 @@ export async function prepareBuildRequestForPlatformAsync<
       } as const);
 
   const metadata = await collectMetadataAsync(ctx);
+  const buildParams = resolveBuildParamsInput(ctx);
   const job = await builder.prepareJobAsync(ctx, {
     projectArchive,
     credentials: credentialsResult?.credentials,
@@ -111,7 +128,7 @@ export async function prepareBuildRequestForPlatformAsync<
       return undefined;
     } else {
       try {
-        return await sendBuildRequestAsync(builder, job, metadata);
+        return await sendBuildRequestAsync(builder, job, metadata, buildParams);
       } catch (error: any) {
         handleBuildRequestError(error, job.platform);
       }
@@ -197,7 +214,8 @@ async function uploadProjectAsync<TPlatform extends Platform>(
 async function sendBuildRequestAsync<TPlatform extends Platform, Credentials, TJob extends Job>(
   builder: Builder<TPlatform, Credentials, TJob>,
   job: TJob,
-  metadata: Metadata
+  metadata: Metadata,
+  buildParams?: BuildParamsInput
 ): Promise<BuildFragment> {
   const { ctx } = builder;
   return await withAnalyticsAsync(
@@ -209,7 +227,8 @@ async function sendBuildRequestAsync<TPlatform extends Platform, Credentials, TJ
       const { build, deprecationInfo } = await builder.sendBuildRequestAsync(
         ctx.projectId,
         job,
-        metadata
+        metadata,
+        buildParams
       );
 
       printDeprecationWarnings(deprecationInfo);
