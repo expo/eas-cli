@@ -1,4 +1,3 @@
-import { getConfig } from '@expo/config';
 import { Flags } from '@oclif/core';
 import gql from 'graphql-tag';
 
@@ -12,6 +11,7 @@ import {
   GetChannelInfoQueryVariables,
 } from '../../graphql/generated';
 import Log from '../../log';
+import { getExpoConfig } from '../../project/expoConfig';
 import {
   findProjectRootAsync,
   getProjectFullNameAsync,
@@ -55,7 +55,7 @@ export default class ChannelDelete extends EasCommand {
     }
 
     const projectDir = await findProjectRootAsync();
-    const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
+    const exp = getExpoConfig(projectDir);
     const fullName = await getProjectFullNameAsync(exp);
     const projectId = await getProjectIdAsync(exp);
 

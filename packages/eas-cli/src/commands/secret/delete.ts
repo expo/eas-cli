@@ -1,4 +1,3 @@
-import { getConfig } from '@expo/config';
 import { Flags } from '@oclif/core';
 
 import EasCommand from '../../commandUtils/EasCommand';
@@ -9,6 +8,7 @@ import {
   EnvironmentSecretsQuery,
 } from '../../graphql/queries/EnvironmentSecretsQuery';
 import Log from '../../log';
+import { getExpoConfig } from '../../project/expoConfig';
 import {
   findProjectRootAsync,
   getProjectAccountNameAsync,
@@ -27,7 +27,7 @@ export default class EnvironmentSecretDelete extends EasCommand {
 
   async runAsync(): Promise<void> {
     const projectDir = await findProjectRootAsync();
-    const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
+    const exp = getExpoConfig(projectDir);
     const projectId = await getProjectIdAsync(exp);
     const projectAccountName = await getProjectAccountNameAsync(exp);
 

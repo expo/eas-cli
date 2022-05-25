@@ -1,5 +1,4 @@
 import { Device, DeviceStatus } from '@expo/apple-utils';
-import { getConfig } from '@expo/config';
 import { Flags } from '@oclif/core';
 import assert from 'assert';
 
@@ -17,6 +16,7 @@ import formatDevice from '../../devices/utils/formatDevice';
 import { AppleDevice, Maybe } from '../../graphql/generated';
 import Log from '../../log';
 import { ora } from '../../ora';
+import { getExpoConfig } from '../../project/expoConfig';
 import { findProjectRootAsync, getProjectAccountNameAsync } from '../../project/projectUtils';
 import { promptAsync, toggleConfirmAsync } from '../../prompts';
 
@@ -34,7 +34,7 @@ export default class DeviceDelete extends EasCommand {
     } = await this.parse(DeviceDelete);
 
     const projectDir = await findProjectRootAsync();
-    const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
+    const exp = getExpoConfig(projectDir);
     const accountName = await getProjectAccountNameAsync(exp);
 
     if (!appleTeamIdentifier) {

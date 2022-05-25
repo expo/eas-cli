@@ -1,10 +1,10 @@
-import { getConfig } from '@expo/config';
 import gql from 'graphql-tag';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
 import { AppInfoQuery, AppInfoQueryVariables } from '../../graphql/generated';
 import Log from '../../log';
+import { getExpoConfig } from '../../project/expoConfig';
 import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUtils';
 import formatFields from '../../utils/formatFields';
 
@@ -36,7 +36,7 @@ export default class ProjectInfo extends EasCommand {
 
   async runAsync(): Promise<void> {
     const projectDir = await findProjectRootAsync();
-    const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
+    const exp = getExpoConfig(projectDir);
     const projectId = await getProjectIdAsync(exp);
     const { app } = await projectInfoByIdAsync(projectId);
     if (!app) {
