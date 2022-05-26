@@ -1,4 +1,3 @@
-import { getConfig } from '@expo/config';
 import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 
@@ -9,6 +8,7 @@ import {
   EnvironmentSecretsQuery,
 } from '../../graphql/queries/EnvironmentSecretsQuery';
 import Log from '../../log';
+import { getExpoConfig } from '../../project/expoConfig';
 import {
   findProjectRootAsync,
   getProjectAccountNameAsync,
@@ -47,7 +47,7 @@ export default class EnvironmentSecretCreate extends EasCommand {
     } = await this.parse(EnvironmentSecretCreate);
 
     const projectDir = await findProjectRootAsync();
-    const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
+    const exp = getExpoConfig(projectDir);
     const accountName = await getProjectAccountNameAsync(exp);
 
     const { slug } = exp;

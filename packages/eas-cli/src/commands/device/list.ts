@@ -1,4 +1,3 @@
-import { getConfig } from '@expo/config';
 import { Flags } from '@oclif/core';
 import assert from 'assert';
 import chalk from 'chalk';
@@ -9,6 +8,7 @@ import { AppleTeamQuery } from '../../credentials/ios/api/graphql/queries/AppleT
 import formatDevice from '../../devices/utils/formatDevice';
 import Log from '../../log';
 import { Ora, ora } from '../../ora';
+import { getExpoConfig } from '../../project/expoConfig';
 import { findProjectRootAsync, getProjectAccountNameAsync } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
 
@@ -23,7 +23,7 @@ export default class BuildList extends EasCommand {
     let appleTeamIdentifier = (await this.parse(BuildList)).flags['apple-team-id'];
 
     const projectDir = await findProjectRootAsync();
-    const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
+    const exp = getExpoConfig(projectDir);
     const accountName = await getProjectAccountNameAsync(exp);
 
     let spinner: Ora;

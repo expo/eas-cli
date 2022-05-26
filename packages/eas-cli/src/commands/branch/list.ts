@@ -1,4 +1,3 @@
-import { getConfig } from '@expo/config';
 import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 import CliTable from 'cli-table3';
@@ -14,6 +13,7 @@ import {
 } from '../../graphql/generated';
 import { UpdateBranchFragmentNode } from '../../graphql/types/UpdateBranch';
 import Log from '../../log';
+import { getExpoConfig } from '../../project/expoConfig';
 import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUtils';
 import { UPDATE_COLUMNS, formatUpdate, getPlatformsForGroup } from '../../update/utils';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
@@ -71,7 +71,7 @@ export default class BranchList extends EasCommand {
     }
 
     const projectDir = await findProjectRootAsync();
-    const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
+    const exp = getExpoConfig(projectDir);
     const projectId = await getProjectIdAsync(exp);
     const branches = await listBranchesAsync({ projectId });
     if (flags.json) {

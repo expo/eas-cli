@@ -1,4 +1,4 @@
-import { ExpoConfig, getConfig } from '@expo/config';
+import { ExpoConfig } from '@expo/config';
 import { Updates } from '@expo/config-plugins';
 import { Platform, Workflow } from '@expo/eas-build-job';
 import { Errors, Flags } from '@oclif/core';
@@ -27,6 +27,7 @@ import { PublishMutation } from '../../graphql/mutations/PublishMutation';
 import { UpdateQuery } from '../../graphql/queries/UpdateQuery';
 import Log from '../../log';
 import { ora } from '../../ora';
+import { getExpoConfig } from '../../project/expoConfig';
 import {
   findProjectRootAsync,
   getProjectIdAsync,
@@ -225,13 +226,11 @@ export default class UpdatePublish extends EasCommand {
     republish = group ? true : republish;
 
     const projectDir = await findProjectRootAsync();
-    const { exp } = getConfig(projectDir, {
-      skipSDKVersionRequirement: true,
+    const exp = getExpoConfig(projectDir, {
       isPublicConfig: true,
     });
 
-    const { exp: expPrivate } = getConfig(projectDir, {
-      skipSDKVersionRequirement: true,
+    const expPrivate = getExpoConfig(projectDir, {
       isPublicConfig: false,
     });
 
