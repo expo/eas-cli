@@ -1355,6 +1355,23 @@
     base64-js "^1.2.3"
     xmlbuilder "^14.0.0"
 
+"@expo/plugin-autocomplete@1.4.0":
+  version "1.4.0"
+  resolved "https://registry.yarnpkg.com/@expo/plugin-autocomplete/-/plugin-autocomplete-1.4.0.tgz#c5e18638c9bb2c494c57d358b888f900f23072bb"
+  integrity sha512-HK+lq5kWXvP2NOg/mME9ZlbCWRzwvslIZmVvYHnoRmIGvPUXku7eoOtlSEpmOk77wM+wu/IoFRAY8kBYeAZEbQ==
+  dependencies:
+    "@oclif/core" "^1.9.0"
+    chalk "^4.1.0"
+    debug "^4.3.4"
+    fs-extra "^10.1.0"
+
+"@expo/plugin-help@5.2.0":
+  version "5.2.0"
+  resolved "https://registry.yarnpkg.com/@expo/plugin-help/-/plugin-help-5.2.0.tgz#c73dab76c7e95f82efc0ed8055c6ad1c291f82a2"
+  integrity sha512-YOI+D93hqAQHxOhlbGXXeQZX8FwWE338vk22GQNmVdVEBafrBHqvCWm0uEQKorf1mNwl8p0hcb/9NrGov5p5Lw==
+  dependencies:
+    "@oclif/core" "^1.9.0"
+
 "@expo/plugin-warn-if-update-available@2.1.0":
   version "2.1.0"
   resolved "https://registry.yarnpkg.com/@expo/plugin-warn-if-update-available/-/plugin-warn-if-update-available-2.1.0.tgz#a075ca71c5fc5cb2dc3316e6c6cefabd9f8ff8cf"
@@ -3081,7 +3098,7 @@
     supports-color "^8.1.1"
     tslib "^2"
 
-"@oclif/core@1.9.0":
+"@oclif/core@1.9.0", "@oclif/core@^1.9.0":
   version "1.9.0"
   resolved "https://registry.yarnpkg.com/@oclif/core/-/core-1.9.0.tgz#bb2a7820a9176f28921f449c0f577d39c15e74d0"
   integrity sha512-duvlaRQf4JM+mKuwwos1DNa/Q9x6tnF3khV5RU0fy5hhETF7THlTmxioKlIvKMyQDVpySqtZXZ0OKHeCi2EWuQ==
@@ -3243,57 +3260,12 @@
     widest-line "^3.1.0"
     wrap-ansi "^7.0.0"
 
-"@oclif/core@^1.7.0":
-  version "1.8.0"
-  resolved "https://registry.yarnpkg.com/@oclif/core/-/core-1.8.0.tgz#ac1e63aebf8ddaf157d3664911d4a0eb2f013b6f"
-  integrity sha512-XAaqkacs4JiCOKWAX43jhuWcs7IdVMQaYWkeRiD8wan/wlmd7/WlvTFzpNeLOwylbty7uwiPQOFVYHdKj6UPvQ==
-  dependencies:
-    "@oclif/linewrap" "^1.0.0"
-    "@oclif/screen" "^3.0.2"
-    ansi-escapes "^4.3.2"
-    ansi-styles "^4.3.0"
-    cardinal "^2.1.1"
-    chalk "^4.1.2"
-    clean-stack "^3.0.1"
-    cli-progress "^3.10.0"
-    debug "^4.3.4"
-    ejs "^3.1.6"
-    fs-extra "^9.1.0"
-    get-package-type "^0.1.0"
-    globby "^11.1.0"
-    hyperlinker "^1.0.0"
-    indent-string "^4.0.0"
-    is-wsl "^2.2.0"
-    js-yaml "^3.14.1"
-    lodash "^4.17.21"
-    natural-orderby "^2.0.3"
-    object-treeify "^1.1.33"
-    password-prompt "^1.1.2"
-    semver "^7.3.5"
-    string-width "^4.2.3"
-    strip-ansi "^6.0.1"
-    supports-color "^8.1.1"
-    supports-hyperlinks "^2.2.0"
-    tslib "^2.3.1"
-    widest-line "^3.1.0"
-    wrap-ansi "^7.0.0"
-
 "@oclif/linewrap@^1.0.0":
   version "1.0.0"
   resolved "https://registry.yarnpkg.com/@oclif/linewrap/-/linewrap-1.0.0.tgz#aedcb64b479d4db7be24196384897b5000901d91"
   integrity sha512-Ups2dShK52xXa8w6iBWLgcjPJWjais6KPJQq3gQ/88AY6BXoTX+MIGFPrWQO1KLMiQfoTpcLnUwloN4brrVUHw==
 
-"@oclif/plugin-autocomplete@1.3.0":
-  version "1.3.0"
-  resolved "https://registry.yarnpkg.com/@oclif/plugin-autocomplete/-/plugin-autocomplete-1.3.0.tgz#ee03fe517e015cfe9e7ab4636a029a23515ceac4"
-  integrity sha512-N2DRWKvuSXTGuaYf4buRbRfh5yNybb1cjQmPl9viY0BIqTwZgtQdzSD6ZSOkwda51RbGcQomYcc/h8T+ZFAkMQ==
-  dependencies:
-    "@oclif/core" "^1.7.0"
-    chalk "^4.1.0"
-    debug "^4.3.4"
-    fs-extra "^9.0.1"
-
-"@oclif/plugin-help@5.1.12", "@oclif/plugin-help@^5.1.12":
+"@oclif/plugin-help@^5.1.12":
   version "5.1.12"
   resolved "https://registry.yarnpkg.com/@oclif/plugin-help/-/plugin-help-5.1.12.tgz#24a18631eb9b22cb55e1a3b8e4f6039fd42727e6"
   integrity sha512-HvH/RubJxqCinP0vUWQLTOboT+SfjfL8h40s+PymkWaldIcXlpoRaJX50vz+SjZIs7uewZwEk8fzLqpF/BWXlg==
@@ -6628,7 +6600,7 @@ fs-constants@^1.0.0:
   resolved "https://registry.yarnpkg.com/fs-constants/-/fs-constants-1.0.0.tgz#6be0de9be998ce16af8afc24497b9ee9b7ccd9ad"
   integrity sha512-y6OAwoSIf7FyjMIv94u+b5rdheZEjzR63GTyZJm5qh4Bi+2YgwLCcI/fPFZkL5PSixOt6ZNKm+w+Hfp/Bciwow==
 
-fs-extra@10.1.0:
+fs-extra@10.1.0, fs-extra@^10.1.0:
   version "10.1.0"
   resolved "https://registry.yarnpkg.com/fs-extra/-/fs-extra-10.1.0.tgz#02873cfbc4084dde127eaa5f9905eef2325d1abf"
   integrity sha512-oRXApq54ETRj4eMiFzGnHWGy+zo5raudjuxN0b8H7s/RU2oW0Wvsx9O0ACRN/kRq9E8Vu/ReskGB5o3ji+FzHQ==
