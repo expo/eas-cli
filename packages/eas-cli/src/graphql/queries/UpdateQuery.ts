@@ -8,7 +8,7 @@ import {
   ViewBranchUpdatesQueryVariables,
 } from '../generated';
 
-const PAGE_LIMIT = 500;
+const PAGE_LIMIT = 300;
 
 export const UpdateQuery = {
   async viewAllAsync({ appId }: { appId: string }): Promise<ViewAllUpdatesQuery> {
