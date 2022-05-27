@@ -14,7 +14,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
-- Update dependencies. ([#1095](https://github.com/expo/eas-cli/pull/1095) by [@dsokal](https://github.com/dsokal))
+- Update dependencies. ([#1095](https://github.com/expo/eas-cli/pull/1095), [#1115](https://github.com/expo/eas-cli/pull/1115) by [@dsokal](https://github.com/dsokal))
 - Better spinner placement for multiple builds. ([#1105](https://github.com/expo/eas-cli/pull/1105) by [@dsokal](https://github.com/dsokal))
 - Use getExpoConfig to access config. ([#1122](https://github.com/expo/eas-cli/pull/1122) by [@wkozyra95](https://github.com/wkozyra95))
 
