@@ -7,3 +7,6 @@ export const ora = jest.fn().mockReturnValue({
   stopAndPersist: jest.fn(),
   succeed: jest.fn(),
 });
+
+// Ora is imported as default import
+export default ora;
