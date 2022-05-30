@@ -9,7 +9,7 @@ import nock from 'nock';
 import { AppleConfigReader } from '../../config/reader';
 import { AppleContext, PartialAppleContext } from '../../context';
 import { AppVersionTask } from '../app-version';
-import { requestContext } from './utils';
+import { requestContext } from './fixtures/requestContext';
 
 describe(AppVersionTask, () => {
   describe('preuploadAsync', () => {
@@ -34,10 +34,7 @@ describe(AppVersionTask, () => {
         app: new App(requestContext, 'stub-id', {} as any),
       };
 
-      await new AppVersionTask({ editLive: true }).prepareAsync({
-        context,
-        config: new AppleConfigReader({}),
-      });
+      await new AppVersionTask({ editLive: true }).prepareAsync({ context });
 
       expect(context.version).toBeInstanceOf(AppStoreVersion);
       expect(context.versionIsLive).toBeTruthy();
@@ -70,10 +67,7 @@ describe(AppVersionTask, () => {
         app: new App(requestContext, 'stub-id', {} as any),
       };
 
-      await new AppVersionTask({ editLive: true }).prepareAsync({
-        context,
-        config: new AppleConfigReader({}),
-      });
+      await new AppVersionTask({ editLive: true }).prepareAsync({ context });
 
       expect(context.version).toBeInstanceOf(AppStoreVersion);
       expect(context.versionIsLive).toBeFalsy();
@@ -102,7 +96,7 @@ describe(AppVersionTask, () => {
         app: new App(requestContext, 'stub-id', {} as any),
       };
 
-      await new AppVersionTask().prepareAsync({ context, config: new AppleConfigReader({}) });
+      await new AppVersionTask().prepareAsync({ context });
 
       expect(context.version).toBeInstanceOf(AppStoreVersion);
       expect(context.versionIsLive).toBeFalsy();
@@ -131,7 +125,7 @@ describe(AppVersionTask, () => {
         app: new App(requestContext, 'stub-id', {} as any),
       };
 
-      await new AppVersionTask().prepareAsync({ context, config: new AppleConfigReader({}) });
+      await new AppVersionTask().prepareAsync({ context });
 
       expect(context.versionIsFirst).toBeFalsy();
       expect(scope.isDone()).toBeTruthy();

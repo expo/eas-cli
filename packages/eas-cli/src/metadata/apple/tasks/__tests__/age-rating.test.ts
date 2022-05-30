@@ -4,20 +4,12 @@ import nock from 'nock';
 import { AppleConfigReader } from '../../config/reader';
 import { AppleContext } from '../../context';
 import { AgeRatingTask } from '../age-rating';
-
-const requestContext = {
-  providerId: 1337,
-  teamId: 'test-team-id',
-  token: 'test-token',
-};
+import { requestContext } from './fixtures/requestContext';
 
 describe(AgeRatingTask, () => {
   describe('preuploadAsync', () => {
     it('aborts when version is not loaded', async () => {
-      const promise = new AgeRatingTask().prepareAsync({
-        context: {} as any,
-        config: new AppleConfigReader({}),
-      });
+      const promise = new AgeRatingTask().prepareAsync({ context: {} as any });
 
       await expect(promise).rejects.toThrow('not prepared');
     });
@@ -31,7 +23,7 @@ describe(AgeRatingTask, () => {
         version: new AppStoreVersion(requestContext, 'stub-id', {} as any),
       };
 
-      await new AgeRatingTask().prepareAsync({ context, config: new AppleConfigReader({}) });
+      await new AgeRatingTask().prepareAsync({ context });
 
       expect(context.ageRating).toBeInstanceOf(AgeRatingDeclaration);
       expect(scope.isDone()).toBeTruthy();

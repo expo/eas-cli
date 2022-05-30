@@ -4,12 +4,7 @@ import nock from 'nock';
 import { AppleConfigReader } from '../../config/reader';
 import { AppleContext, PartialAppleContext } from '../../context';
 import { AppInfoTask } from '../app-info';
-
-const requestContext = {
-  providerId: 1337,
-  teamId: 'test-team-id',
-  token: 'test-token',
-};
+import { requestContext } from './fixtures/requestContext';
 
 describe(AppInfoTask, () => {
   describe('preuploadAsync', () => {
@@ -26,7 +21,7 @@ describe(AppInfoTask, () => {
         app: new App(requestContext, 'stub-id', {} as any),
       };
 
-      await new AppInfoTask().prepareAsync({ context, config: new AppleConfigReader({}) });
+      await new AppInfoTask().prepareAsync({ context });
 
       expect(context.info).toBeInstanceOf(AppInfo);
       expect(context.infoLocales).toBeInstanceOf(Array);
