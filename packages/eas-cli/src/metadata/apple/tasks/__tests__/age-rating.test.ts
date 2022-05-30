@@ -6,6 +6,8 @@ import { AppleContext } from '../../context';
 import { AgeRatingTask } from '../age-rating';
 import { requestContext } from './fixtures/requestContext';
 
+jest.mock('../../../../ora');
+
 describe(AgeRatingTask, () => {
   describe('preuploadAsync', () => {
     it('aborts when version is not loaded', async () => {

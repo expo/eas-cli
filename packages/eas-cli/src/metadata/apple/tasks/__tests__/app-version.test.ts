@@ -11,6 +11,8 @@ import { AppleContext, PartialAppleContext } from '../../context';
 import { AppVersionTask } from '../app-version';
 import { requestContext } from './fixtures/requestContext';
 
+jest.mock('../../../../ora');
+
 describe(AppVersionTask, () => {
   describe('preuploadAsync', () => {
     it('loads live version', async () => {

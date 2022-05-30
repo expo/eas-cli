@@ -1,9 +1,9 @@
 import { AppleConfigWriter } from '../writer';
 import { kidsSixToEightAdvisory } from './fixtures/ageRatingDeclaration';
+import { primaryAndSecondaryCategory, secondaryOnlyCategory } from './fixtures/appInfo';
 import { dutchInfo, englishInfo } from './fixtures/appInfoLocalization';
 import { automaticRelease, manualRelease, scheduledRelease } from './fixtures/appStoreVersion';
 import { dutchVersion, englishVersion } from './fixtures/appStoreVersionLocalization';
-import { primaryAndSecondaryCategory, secondaryOnlyCategory } from './fixtures/appInfo';
 
 describe('toSchema', () => {
   it('returns object with apple schema', () => {

@@ -6,6 +6,8 @@ import { AppleContext, PartialAppleContext } from '../../context';
 import { AppInfoTask } from '../app-info';
 import { requestContext } from './fixtures/requestContext';
 
+jest.mock('../../../../ora');
+
 describe(AppInfoTask, () => {
   describe('preuploadAsync', () => {
     it('loads editable app info and locales from app instance', async () => {
