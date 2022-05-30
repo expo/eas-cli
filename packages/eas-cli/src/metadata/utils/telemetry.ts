@@ -1,5 +1,4 @@
-import { Auth, getRequestClient } from '@expo/apple-utils';
-import { App } from 'AppStoreConnect';
+import { App, Auth, getRequestClient } from '@expo/apple-utils';
 import type { AxiosError } from 'axios';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -64,7 +63,8 @@ export function subscribeTelemetry(options: TelemetryContext): {
   return { unsubscribeTelemetry, executionId };
 }
 
-function makeDataScrubber({ app, auth }: TelemetryContext): <T>(data: T) => string {
+/** Exposed for testing */
+export function makeDataScrubber({ app, auth }: TelemetryContext): <T>(data: T) => string {
   const token =
     typeof auth.context.token === 'object' ? auth.context.token.getToken() : auth.context.token;
 
