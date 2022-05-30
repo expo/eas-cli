@@ -9,6 +9,7 @@ import EasCommand from '../commandUtils/EasCommand';
 import { SubmissionFragment } from '../graphql/generated';
 import { toAppPlatform } from '../graphql/types/AppPlatform';
 import Log from '../log';
+import { MetadataUploadError, MetadataValidationError } from '../metadata/errors';
 import { uploadAppleMetadataAsync } from '../metadata/upload';
 import {
   RequestedPlatform,
@@ -211,6 +212,29 @@ export default class Submit extends EasCommand {
       return Log.warn(`Could not find the App Store Conntect App`);
     }
 
-    await uploadAppleMetadataAsync(projectDir, metaFile, app);
+    try {
+      await uploadAppleMetadataAsync({
+        app,
+        auth,
+        projectDir,
+        metadataFile: metaFile,
+      });
+    } catch (error: any) {
+      if (error instanceof MetadataValidationError) {
+        const entries = error.errors?.map(err => `  - ${err.dataPath} ${err.message}`).join('\n');
+        Errors.error(`❌ ${error.message}${entries ? `\n${entries}` : ''}`, { exit: 1 });
+      } else if (error instanceof MetadataUploadError) {
+        Errors.error(
+          `⚠️ ${error.message}
+
+          Please check the logs for any configuration issues.
+          If this issue persists, please open a new bug report at https://github.com/expo/eas-cli
+          and include ID "${error.executionId}" to help us track down the issue.`,
+          { exit: 1 }
+        );
+      } else {
+        throw error;
+      }
+    }
   }
 }
