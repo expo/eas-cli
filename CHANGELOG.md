@@ -14,6 +14,10 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ## [0.53.0](https://github.com/expo/eas-cli/releases/tag/v0.53.0) - 2022-05-30
 
+### 🛠 Breaking changes
+
+- Drop support for Node < 14. ([#1098](https://github.com/expo/eas-cli/pull/1098) by [@dsokal](https://github.com/dsokal))
+
 ### 🐛 Bug fixes
 
 - Match bundle identifier capabilities more accurately. ([#1112](https://github.com/expo/eas-cli/pull/1112) by [@EvanBacon](https://github.com/EvanBacon))
