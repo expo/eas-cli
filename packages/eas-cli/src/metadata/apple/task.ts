@@ -21,4 +21,3 @@ export type TaskUploadOptions = {
   config: AppleConfigReader;
   context: AppleContext;
 };
-
