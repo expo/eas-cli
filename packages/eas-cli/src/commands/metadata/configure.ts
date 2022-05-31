@@ -22,6 +22,7 @@ type CommandFlags = {
 };
 
 export default class MetadataConfigure extends EasCommand {
+  static hidden = true;
   static description = 'upload metadata configuration to the app stores';
 
   static flags = {
