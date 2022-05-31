@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Add metadata functionality to sync store properties using store configuration files ([#1136])(https://github.com/expo/eas-cli/pull/1136) by [@bycedric](https://github.com/bycedric))
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
