@@ -72,7 +72,7 @@ const SubmissionErrorMessages: Record<SubmissionErrorCode, string> = {
     "Some of Apple's certificates have expired.\n" +
     'Please delete your Provisioning Profile from your account. Then rebuild the app interactively to generate a new one, and try submitting it to the App Store again.',
   [SubmissionErrorCode.UPLOAD_TAKING_TOO_LONG_ERROR]:
-    'Fastlane run has reached the timeout limit. Please try again.',
+    'Submission has reached the timeout limit. Please try again.',
 };
 
 export function printSubmissionError(error: SubmissionError): boolean {
