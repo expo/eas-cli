@@ -2,14 +2,11 @@ import { App, AppCategoryId, AppInfo, AppInfoLocalization } from '@expo/apple-ut
 import nock from 'nock';
 
 import { AppleConfigReader } from '../../config/reader';
-import { AppleContext, PartialAppleContext } from '../../context';
+import { AppleData, PartialAppleData } from '../../data';
 import { AppInfoTask } from '../app-info';
+import { requestContext } from './fixtures/requestContext';
 
-const requestContext = {
-  providerId: 1337,
-  teamId: 'test-team-id',
-  token: 'test-token',
-};
+jest.mock('../../../../ora');
 
 describe(AppInfoTask, () => {
   describe('preuploadAsync', () => {
@@ -22,11 +19,11 @@ describe(AppInfoTask, () => {
         .get(/\/v1\/appInfos\/.*\/appInfoLocalizations/) // allow any id from fixture
         .reply(200, require('./fixtures/appInfos/get-appInfoLocalizations-200.json'));
 
-      const context: PartialAppleContext = {
+      const context: PartialAppleData = {
         app: new App(requestContext, 'stub-id', {} as any),
       };
 
-      await new AppInfoTask().preuploadAsync({ context, config: new AppleConfigReader({}) });
+      await new AppInfoTask().prepareAsync({ context });
 
       expect(context.info).toBeInstanceOf(AppInfo);
       expect(context.infoLocales).toBeInstanceOf(Array);
@@ -54,7 +51,7 @@ describe(AppInfoTask, () => {
         config: new AppleConfigReader({ categories: undefined }),
         context: {
           info: new AppInfo(requestContext, 'stub-id', {} as any),
-        } as AppleContext,
+        } as AppleData,
       });
 
       expect(scope.isDone()).toBeFalsy();
@@ -70,7 +67,7 @@ describe(AppInfoTask, () => {
         config: new AppleConfigReader({ info: undefined }),
         context: {
           info: new AppInfo(requestContext, 'stub-id', {} as any),
-        } as AppleContext,
+        } as AppleData,
       });
 
       expect(scope.isDone()).toBeFalsy();
@@ -105,7 +102,7 @@ describe(AppInfoTask, () => {
         }),
         context: {
           info: new AppInfo(requestContext, 'stub-id', {} as any),
-        } as AppleContext,
+        } as AppleData,
       });
 
       expect(updateCategoryScope.isDone()).toBeTruthy();

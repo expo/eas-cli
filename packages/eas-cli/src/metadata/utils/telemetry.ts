@@ -1,4 +1,4 @@
-import { App, Auth, getRequestClient } from '@expo/apple-utils';
+import { App, Session, getRequestClient } from '@expo/apple-utils';
 import type { AxiosError } from 'axios';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -6,7 +6,7 @@ import { Analytics, MetadataEvent } from '../../analytics/events';
 
 export type TelemetryContext = {
   app: App;
-  auth: Awaited<ReturnType<typeof Auth.loginAsync>>;
+  auth: Partial<Session.AuthState>;
 };
 
 /**
@@ -14,7 +14,10 @@ export type TelemetryContext = {
  * When providing the app and auth info, we can scrub that data from the telemetry.
  * Returns an execution ID to group all events of a single run together, and a unsubscribe function.
  */
-export function subscribeTelemetry(options: TelemetryContext): {
+export function subscribeTelemetry(
+  event: MetadataEvent,
+  options: TelemetryContext
+): {
   /** Unsubscribe the telemetry from all apple-utils events */
   unsubscribeTelemetry: () => void;
   /** The unique id added to all telemetry events from a single execution */
@@ -26,7 +29,7 @@ export function subscribeTelemetry(options: TelemetryContext): {
 
   const responseInterceptorId = interceptors.response.use(
     response => {
-      Analytics.logEvent(MetadataEvent.APPLE_METADATA_RESPONSE, {
+      Analytics.logEvent(event, {
         executionId,
         type: 'response',
         phase: 'resolved',
@@ -39,7 +42,7 @@ export function subscribeTelemetry(options: TelemetryContext): {
       return response;
     },
     (error: AxiosError) => {
-      Analytics.logEvent(MetadataEvent.APPLE_METADATA_RESPONSE, {
+      Analytics.logEvent(event, {
         executionId,
         type: 'response',
         phase: 'rejected',
@@ -65,16 +68,14 @@ export function subscribeTelemetry(options: TelemetryContext): {
 
 /** Exposed for testing */
 export function makeDataScrubber({ app, auth }: TelemetryContext): <T>(data: T) => string {
-  const token =
-    typeof auth.context.token === 'object' ? auth.context.token.getToken() : auth.context.token;
-
+  const token = getAuthTokenString(auth);
   const patterns: Record<string, RegExp | null> = {
     APPLE_APP_ID: new RegExp(app.id, 'gi'),
-    APPLE_USERNAME: new RegExp(auth.username, 'gi'),
+    APPLE_USERNAME: auth.username ? new RegExp(auth.username, 'gi') : null,
     APPLE_PASSWORD: auth.password ? new RegExp(auth.password, 'gi') : null,
     APPLE_TOKEN: token ? new RegExp(token, 'gi') : null,
-    APPLE_TEAM_ID: auth.context.teamId ? new RegExp(auth.context.teamId, 'gi') : null,
-    APPLE_PROVIDER_ID: auth.context.providerId
+    APPLE_TEAM_ID: auth.context?.teamId ? new RegExp(auth.context.teamId, 'gi') : null,
+    APPLE_PROVIDER_ID: auth.context?.providerId
       ? new RegExp(String(auth.context.providerId), 'gi')
       : null,
   };
@@ -94,4 +95,16 @@ export function makeDataScrubber({ app, auth }: TelemetryContext): <T>(data: T) 
     }
     return value;
   };
+}
+
+function getAuthTokenString(auth: TelemetryContext['auth']): string | null {
+  if (!auth.context?.token) {
+    return null;
+  }
+
+  if (typeof auth.context.token === 'object') {
+    return auth.context.token.getToken();
+  }
+
+  return auth.context.token;
 }

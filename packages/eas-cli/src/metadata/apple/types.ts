@@ -1,9 +1,5 @@
 import type { AgeRatingDeclarationProps, AppCategoryId, AppSubcategoryId } from '@expo/apple-utils';
 
-export interface Metadata {
-  apple?: AppleMetadata;
-}
-
 export type AppleLocale = string;
 
 export interface AppleMetadata {

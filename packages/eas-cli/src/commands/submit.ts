@@ -1,7 +1,4 @@
-import { App, Auth } from '@expo/apple-utils';
 import { getConfig } from '@expo/config';
-import { Platform } from '@expo/eas-build-job';
-import { IosSubmitProfile } from '@expo/eas-json/build/submit/types';
 import { Errors, Flags } from '@oclif/core';
 import chalk from 'chalk';
 
@@ -9,8 +6,6 @@ import EasCommand from '../commandUtils/EasCommand';
 import { SubmissionFragment } from '../graphql/generated';
 import { toAppPlatform } from '../graphql/types/AppPlatform';
 import Log from '../log';
-import { MetadataUploadError, MetadataValidationError } from '../metadata/errors';
-import { uploadAppleMetadataAsync } from '../metadata/upload';
 import {
   RequestedPlatform,
   appPlatformDisplayNames,
@@ -22,7 +17,7 @@ import { findProjectRootAsync, getProjectIdAsync } from '../project/projectUtils
 import { SubmitArchiveFlags, createSubmissionContextAsync } from '../submit/context';
 import { submitAsync, waitToCompleteAsync } from '../submit/submit';
 import { printSubmissionDetailsUrls } from '../submit/utils/urls';
-import { ProfileData, getProfilesAsync } from '../utils/profiles';
+import { getProfilesAsync } from '../utils/profiles';
 
 interface RawCommandFlags {
   platform?: string;
@@ -33,7 +28,6 @@ interface RawCommandFlags {
   url?: string;
   verbose: boolean;
   wait: boolean;
-  metadata: boolean;
   'non-interactive': boolean;
 }
 
@@ -43,7 +37,6 @@ interface CommandFlags {
   archiveFlags: SubmitArchiveFlags;
   verbose: boolean;
   wait: boolean;
-  metadata: boolean;
   nonInteractive: boolean;
 }
 
@@ -83,11 +76,6 @@ export default class Submit extends EasCommand {
     wait: Flags.boolean({
       description: 'Wait for submission to complete',
       default: true,
-      allowNo: true,
-    }),
-    metadata: Flags.boolean({
-      description: 'Uploading the local metadata configuration to the stores with the submission',
-      default: false,
       allowNo: true,
     }),
     'non-interactive': Flags.boolean({
@@ -143,14 +131,6 @@ export default class Submit extends EasCommand {
     if (flags.wait) {
       await waitToCompleteAsync(submissions, { verbose: flags.verbose });
     }
-
-    if (flags.metadata) {
-      await this.maybeUploadMetadataAsync(
-        projectDir,
-        submissionProfiles,
-        exp.ios?.bundleIdentifier || ''
-      );
-    }
   }
 
   private async sanitizeFlagsAsync(flags: RawCommandFlags): Promise<CommandFlags> {
@@ -159,7 +139,6 @@ export default class Submit extends EasCommand {
       verbose,
       wait,
       profile,
-      metadata,
       'non-interactive': nonInteractive,
       ...archiveFlags
     } = flags;
@@ -185,56 +164,6 @@ export default class Submit extends EasCommand {
       wait,
       profile,
       nonInteractive,
-      metadata,
     };
-  }
-
-  private async maybeUploadMetadataAsync(
-    projectDir: string,
-    submissionProfiles: ProfileData<'submit'>[],
-    bundleId: string
-  ): Promise<void> {
-    // Only load the supported iOS profile to prepare the metadata
-    const iosSubmissionProfile = submissionProfiles.filter(
-      profile => profile.platform === Platform.IOS
-    )[0];
-    const { meta: metaFile } = iosSubmissionProfile.profile as IosSubmitProfile;
-    if (!metaFile) {
-      return Log.warn(
-        `Metadata not configured for submission profile ${iosSubmissionProfile.profileName}`
-      );
-    }
-
-    // TODO: find a better way to hook into the submission information to select the ASC App
-    const auth = await Auth.loginAsync();
-    const app = await App.findAsync(auth.context, { bundleId });
-    if (!app) {
-      return Log.warn(`Could not find the App Store Conntect App`);
-    }
-
-    try {
-      await uploadAppleMetadataAsync({
-        app,
-        auth,
-        projectDir,
-        metadataFile: metaFile,
-      });
-    } catch (error: any) {
-      if (error instanceof MetadataValidationError) {
-        const entries = error.errors?.map(err => `  - ${err.dataPath} ${err.message}`).join('\n');
-        Errors.error(`❌ ${error.message}${entries ? `\n${entries}` : ''}`, { exit: 1 });
-      } else if (error instanceof MetadataUploadError) {
-        Errors.error(
-          `⚠️ ${error.message}
-
-          Please check the logs for any configuration issues.
-          If this issue persists, please open a new bug report at https://github.com/expo/eas-cli
-          and include ID "${error.executionId}" to help us track down the issue.`,
-          { exit: 1 }
-        );
-      } else {
-        throw error;
-      }
-    }
   }
 }

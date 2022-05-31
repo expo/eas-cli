@@ -1,13 +1,13 @@
 import { getConfig } from '@expo/config';
 import { Errors, Flags } from '@oclif/core';
 
-import EasCommand from '../commandUtils/EasCommand';
-import Log from '../log';
-import { createMetadataContextAsync } from '../metadata/context';
-import { handleMetadataError } from '../metadata/errors';
-import { uploadMetadataAsync } from '../metadata/upload';
-import { RequestedPlatform } from '../platform';
-import { findProjectRootAsync, getProjectIdAsync } from '../project/projectUtils';
+import EasCommand from '../../commandUtils/EasCommand';
+import Log, { learnMore } from '../../log';
+import { createMetadataContextAsync } from '../../metadata/context';
+import { downloadMetadataAsync } from '../../metadata/download';
+import { handleMetadataError } from '../../metadata/errors';
+import { RequestedPlatform } from '../../platform';
+import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUtils';
 
 type RawCommandFlags = {
   platform?: string;
@@ -21,7 +21,7 @@ type CommandFlags = {
   nonInteractive: boolean;
 };
 
-export default class Metadata extends EasCommand {
+export default class MetadataConfigure extends EasCommand {
   static description = 'upload metadata configuration to the app stores';
 
   static flags = {
@@ -42,7 +42,7 @@ export default class Metadata extends EasCommand {
   static args = [];
 
   async runAsync(): Promise<void> {
-    const { flags: rawFlags } = await this.parse(Metadata);
+    const { flags: rawFlags } = await this.parse(MetadataConfigure);
     const flags = await this.sanitizeFlagsAsync(rawFlags);
 
     const projectDir = await findProjectRootAsync();
@@ -58,9 +58,12 @@ export default class Metadata extends EasCommand {
 
     try {
       Log.addNewLineIfNone();
-      await uploadMetadataAsync(metadataContext);
+      const filePath = await downloadMetadataAsync(metadataContext);
       Log.addNewLineIfNone();
-      Log.succeed(`Store has been updated with your ${metadataContext.metadataFile} configuration`);
+
+      Log.succeed('Your store configuration has been generated!');
+      Log.log(filePath);
+      Log.log(learnMore('https://docs.expo.dev/eas-metadata/introduction/'));
     } catch (error: any) {
       handleMetadataError(error);
     }

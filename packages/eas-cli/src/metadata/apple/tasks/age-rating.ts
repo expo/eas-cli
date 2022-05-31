@@ -4,9 +4,9 @@ import chalk from 'chalk';
 
 import Log from '../../../log';
 import { logAsync } from '../../utils/log';
-import { AppleTask, TaskPrepareOptions, TaskUploadOptions } from '../task';
+import { AppleTask, TaskDownloadOptions, TaskPrepareOptions, TaskUploadOptions } from '../task';
 
-export type AgeRatingContext = {
+export type AgeRatingData = {
   /** The app age rating declaration for the app version */
   ageRating: AgeRatingDeclaration;
 };
@@ -14,9 +14,15 @@ export type AgeRatingContext = {
 export class AgeRatingTask extends AppleTask {
   name = (): string => 'age rating declarations';
 
-  async preuploadAsync({ context }: TaskPrepareOptions): Promise<void> {
+  async prepareAsync({ context }: TaskPrepareOptions): Promise<void> {
     assert(context.version, `App version information is not prepared, can't update age rating`);
     context.ageRating = (await context.version.getAgeRatingDeclarationAsync()) || undefined;
+  }
+
+  async downloadAsync({ config, context }: TaskDownloadOptions): Promise<void> {
+    if (context.ageRating) {
+      config.setAgeRating(context.ageRating.attributes);
+    }
   }
 
   async uploadAsync({ config, context }: TaskUploadOptions): Promise<void> {

@@ -2,22 +2,16 @@ import { AgeRatingDeclaration, AppStoreVersion, Rating } from '@expo/apple-utils
 import nock from 'nock';
 
 import { AppleConfigReader } from '../../config/reader';
-import { AppleContext } from '../../context';
+import { AppleData } from '../../data';
 import { AgeRatingTask } from '../age-rating';
+import { requestContext } from './fixtures/requestContext';
 
-const requestContext = {
-  providerId: 1337,
-  teamId: 'test-team-id',
-  token: 'test-token',
-};
+jest.mock('../../../../ora');
 
 describe(AgeRatingTask, () => {
   describe('preuploadAsync', () => {
     it('aborts when version is not loaded', async () => {
-      const promise = new AgeRatingTask().preuploadAsync({
-        context: {} as any,
-        config: new AppleConfigReader({}),
-      });
+      const promise = new AgeRatingTask().prepareAsync({ context: {} as any });
 
       await expect(promise).rejects.toThrow('not prepared');
     });
@@ -31,7 +25,7 @@ describe(AgeRatingTask, () => {
         version: new AppStoreVersion(requestContext, 'stub-id', {} as any),
       };
 
-      await new AgeRatingTask().preuploadAsync({ context, config: new AppleConfigReader({}) });
+      await new AgeRatingTask().prepareAsync({ context });
 
       expect(context.ageRating).toBeInstanceOf(AgeRatingDeclaration);
       expect(scope.isDone()).toBeTruthy();
@@ -57,7 +51,7 @@ describe(AgeRatingTask, () => {
         config: new AppleConfigReader({ advisory: undefined }),
         context: {
           ageRating: new AgeRatingDeclaration(requestContext, 'stub-id', {} as any),
-        } as AppleContext,
+        } as AppleData,
       });
 
       expect(scope.isDone()).toBeFalsy();
@@ -80,7 +74,7 @@ describe(AgeRatingTask, () => {
             horrorOrFearThemes: Rating.INFREQUENT_OR_MILD,
           },
         }),
-        context: context as AppleContext,
+        context: context as AppleData,
       });
 
       expect(context.ageRating.id).not.toMatch('stub-id');

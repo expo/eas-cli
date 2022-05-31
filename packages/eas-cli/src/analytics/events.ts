@@ -46,8 +46,8 @@ export enum BuildEvent {
 }
 
 export enum MetadataEvent {
-  APPLE_METADATA_REQUEST = 'metadata cli apple metadata request',
-  APPLE_METADATA_RESPONSE = 'metadata cli apple metadata response',
+  APPLE_METADATA_DOWNLOAD = 'metadata cli download apple response',
+  APPLE_METADATA_UPLOAD = 'metadata cli upload apple response',
 }
 
 export class Analytics {
