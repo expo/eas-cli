@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Display project archive docs before compressing/uploading to EAS Build. ([#1127](https://github.com/expo/eas-cli/pull/1127) by [@dsokal](https://github.com/dsokal))
+
 ## [0.53.0](https://github.com/expo/eas-cli/releases/tag/v0.53.0) - 2022-05-30
 
 ### 🛠 Breaking changes
