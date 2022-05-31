@@ -7,7 +7,7 @@ import { logAsync } from '../../utils/log';
 import { retryIfNullAsync } from '../../utils/retry';
 import { AppleTask, TaskDownloadOptions, TaskPrepareOptions, TaskUploadOptions } from '../task';
 
-export type AppInfoContext = {
+export type AppInfoData = {
   /** The current app info that should be edited */
   info: AppInfo;
   /** All info locales that are enabled */

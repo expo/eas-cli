@@ -7,10 +7,10 @@ import {
   ReleaseType,
 } from '@expo/apple-utils';
 
-import { AppleMetadata } from '../../schema';
 import { unique } from '../../utils/array';
 import { AttributesOf } from '../../utils/asc';
 import { removeDatePrecision } from '../../utils/date';
+import { AppleMetadata } from '../types';
 
 type PartialExcept<T, K extends keyof T> = Pick<T, K> & Partial<Omit<T, K>>;
 

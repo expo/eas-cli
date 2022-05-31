@@ -7,7 +7,7 @@ import {
 import nock from 'nock';
 
 import { AppleConfigReader } from '../../config/reader';
-import { AppleContext, PartialAppleContext } from '../../context';
+import { AppleData, PartialAppleData } from '../../data';
 import { AppVersionTask } from '../app-version';
 import { requestContext } from './fixtures/requestContext';
 
@@ -32,7 +32,7 @@ describe(AppVersionTask, () => {
           require('./fixtures/appStoreVersions/get-appStoreVersionLocalizations-200.json')
         );
 
-      const context: PartialAppleContext = {
+      const context: PartialAppleData = {
         app: new App(requestContext, 'stub-id', {} as any),
       };
 
@@ -65,7 +65,7 @@ describe(AppVersionTask, () => {
           require('./fixtures/appStoreVersions/get-appStoreVersionLocalizations-200.json')
         );
 
-      const context: PartialAppleContext = {
+      const context: PartialAppleData = {
         app: new App(requestContext, 'stub-id', {} as any),
       };
 
@@ -94,7 +94,7 @@ describe(AppVersionTask, () => {
           require('./fixtures/appStoreVersions/get-appStoreVersionLocalizations-200.json')
         );
 
-      const context: PartialAppleContext = {
+      const context: PartialAppleData = {
         app: new App(requestContext, 'stub-id', {} as any),
       };
 
@@ -123,7 +123,7 @@ describe(AppVersionTask, () => {
           require('./fixtures/appStoreVersions/get-appStoreVersionLocalizations-200.json')
         );
 
-      const context: PartialAppleContext = {
+      const context: PartialAppleData = {
         app: new App(requestContext, 'stub-id', {} as any),
       };
 
@@ -162,12 +162,12 @@ describe(AppVersionTask, () => {
           },
         });
 
-      const context: PartialAppleContext = {
+      const context: PartialAppleData = {
         app: new App(requestContext, 'stub-id', {} as any),
         version: new AppStoreVersion(requestContext, 'APP_STORE_VERSION_1', {} as any),
       };
 
-      await new AppVersionTask().uploadAsync({ context: context as AppleContext, config });
+      await new AppVersionTask().uploadAsync({ context: context as AppleData, config });
 
       expect(context.version?.attributes).toMatchObject(attributes);
       expect(scope.isDone()).toBeTruthy();

@@ -1,5 +1,5 @@
 /**
- * Remove extra precision, otherwise an error will be thrown:
+ * Remove time precision from a date to avoid potential errors with the App Store.
  *
  * "status": "409",
  * "code": "ENTITY_ERROR.ATTRIBUTE.INVALID",

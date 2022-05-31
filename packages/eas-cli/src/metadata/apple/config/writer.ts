@@ -7,8 +7,8 @@ import {
   ReleaseType,
 } from '@expo/apple-utils';
 
-import { AppleMetadata } from '../../schema';
 import { AttributesOf } from '../../utils/asc';
+import { AppleMetadata } from '../types';
 
 /**
  * Serializes the Apple ASC entities into the metadata configuration schema.

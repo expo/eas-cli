@@ -6,7 +6,7 @@ import Log from '../../../log';
 import { logAsync } from '../../utils/log';
 import { AppleTask, TaskDownloadOptions, TaskPrepareOptions, TaskUploadOptions } from '../task';
 
-export type AgeRatingContext = {
+export type AgeRatingData = {
   /** The app age rating declaration for the app version */
   ageRating: AgeRatingDeclaration;
 };

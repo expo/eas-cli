@@ -14,7 +14,7 @@ export type AppVersionOptions = {
   platform: Platform;
 };
 
-export type AppVersionContext = {
+export type AppVersionData = {
   /** The current selected app store version to update */
   version: AppStoreVersion;
   /** If the current selected version is a live version, where not all properties are editable */

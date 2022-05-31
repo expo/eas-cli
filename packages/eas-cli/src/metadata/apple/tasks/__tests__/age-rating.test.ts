@@ -2,7 +2,7 @@ import { AgeRatingDeclaration, AppStoreVersion, Rating } from '@expo/apple-utils
 import nock from 'nock';
 
 import { AppleConfigReader } from '../../config/reader';
-import { AppleContext } from '../../context';
+import { AppleData } from '../../data';
 import { AgeRatingTask } from '../age-rating';
 import { requestContext } from './fixtures/requestContext';
 
@@ -51,7 +51,7 @@ describe(AgeRatingTask, () => {
         config: new AppleConfigReader({ advisory: undefined }),
         context: {
           ageRating: new AgeRatingDeclaration(requestContext, 'stub-id', {} as any),
-        } as AppleContext,
+        } as AppleData,
       });
 
       expect(scope.isDone()).toBeFalsy();
@@ -74,7 +74,7 @@ describe(AgeRatingTask, () => {
             horrorOrFearThemes: Rating.INFREQUENT_OR_MILD,
           },
         }),
-        context: context as AppleContext,
+        context: context as AppleData,
       });
 
       expect(context.ageRating.id).not.toMatch('stub-id');

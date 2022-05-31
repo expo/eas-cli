@@ -3,10 +3,11 @@ import assert from 'assert';
 
 import { AppleConfigReader } from './apple/config/reader';
 import { AppleConfigWriter } from './apple/config/writer';
-import { Metadata } from './schema';
+import { Metadata } from './types';
 
 /**
  * Run the JSON Schema validation to normalize defaults and flag early config errors.
+ * This includes validating the known store limitations for every configurable property.
  */
 export function validateConfig(config: unknown): {
   valid: boolean;
@@ -21,18 +22,14 @@ export function validateConfig(config: unknown): {
   return { valid, errors: validator.errors || [] };
 }
 
-/**
- * Create a versioned apple reader instance, based on the loaded config.
- * @todo Add versioning based on the configSchema property of the schema.
- */
+/** Create a versioned deserializer to fetch App Store data from the store configuration. */
 export function createAppleReader(config: Metadata): AppleConfigReader {
+  assert(config.configVersion === 0, 'Unsupported store configuration version');
   assert(config.apple, 'No apple configuration found');
   return new AppleConfigReader(config.apple);
 }
 
-/**
- * Create the latest
- */
+/** Create the serializer to write the App Store to the store configuration. */
 export function createAppleWriter(): AppleConfigWriter {
   return new AppleConfigWriter();
 }

@@ -1,86 +1,60 @@
-import chalk from 'chalk';
 import fs from 'fs-extra';
 import path from 'path';
 
-import Log from '../log';
-import { AppleContext } from './apple/context';
+import { MetadataEvent } from '../analytics/events';
+import { AppleData } from './apple/data';
 import { createAppleTasks } from './apple/tasks';
 import { createAppleReader, validateConfig } from './config';
+import { MetadataContext, ensureMetadataAppStoreAuthenticatedAsync } from './context';
 import { MetadataUploadError, MetadataValidationError } from './errors';
-import { TelemetryContext, subscribeTelemetry } from './utils/telemetry';
-
-type UploadAppleMetadataOptions = TelemetryContext & {
-  /** The root location of the project, used to load the metadata */
-  projectDir: string;
-  /** The relative metadata file path */
-  metadataFile: string;
-};
+import { subscribeTelemetry } from './utils/telemetry';
 
 /**
- * Start syncing the local metadata configuration to the App store.
+ * Sync a local store configuration with the stores.
+ * Note, only App Store is supported at this time.
  */
-export async function uploadAppleMetadataAsync({
-  projectDir,
-  metadataFile,
-  app,
-  auth,
-}: UploadAppleMetadataOptions): Promise<void> {
-  const { unsubscribeTelemetry, executionId } = subscribeTelemetry({ app, auth });
-
-  const metaFile = path.resolve(projectDir, metadataFile);
-  if (!(await fs.pathExists(metaFile))) {
-    throw new MetadataValidationError(`Metadata config file not found "${metaFile}"`);
+export async function uploadMetadataAsync(metadataContext: MetadataContext): Promise<void> {
+  const filePath = path.resolve(metadataContext.projectDir, metadataContext.metadataFile);
+  if (!(await fs.pathExists(filePath))) {
+    throw new MetadataValidationError(`Store configuration file not found "${filePath}"`);
   }
 
-  const metaData = await fs.readJson(metaFile);
-  const { valid, errors: validationErrors } = validateConfig(metaData);
+  const { app, auth } = await ensureMetadataAppStoreAuthenticatedAsync(metadataContext);
+  const { unsubscribeTelemetry, executionId } = subscribeTelemetry(
+    MetadataEvent.APPLE_METADATA_UPLOAD,
+    { app, auth }
+  );
+
+  const fileData = await fs.readJson(filePath);
+  const { valid, errors: validationErrors } = validateConfig(fileData);
   if (!valid) {
-    throw new MetadataValidationError(`Metadata config errors found`, validationErrors);
+    throw new MetadataValidationError(`Store configuration errors found`, validationErrors);
   }
 
-  // Keep track of encountered errors to log them at the end.
   const errors: Error[] = [];
+  const config = createAppleReader(fileData);
+  const tasks = createAppleTasks(metadataContext);
+  const taskCtx = { app };
 
-  // Create a versioned apple config reader
-  const config = createAppleReader(metaData);
-
-  // Initialize the task sequence
-  const tasks = createAppleTasks({ projectDir });
-  const ctx = { app };
-
-  // Start preparation task sequence
-  try {
-    for (const task of tasks) {
-      await task.prepareAsync({ context: ctx });
+  for (const task of tasks) {
+    try {
+      await task.prepareAsync({ context: taskCtx });
+    } catch (error: any) {
+      errors.push(error);
     }
-  } catch (error: any) {
-    logTaskError(error);
-    errors.push(error);
   }
 
-  // Start upload task sequence
-  try {
-    for (const task of tasks) {
-      Log.log(chalk`{bold Syncing ${task.name()}}`);
-      await task.uploadAsync({ config, context: ctx as AppleContext });
-      Log.log();
+  for (const task of tasks) {
+    try {
+      await task.uploadAsync({ config, context: taskCtx as AppleData });
+    } catch (error: any) {
+      errors.push(error);
     }
-  } catch (error: any) {
-    logTaskError(error);
-    errors.push(error);
   }
 
   unsubscribeTelemetry();
 
   if (errors.length > 0) {
     throw new MetadataUploadError(errors, executionId);
-  }
-}
-
-function logTaskError(error: any): void {
-  if (error.code === 'ERR_ASSERTION') {
-    Log.error('- AssertError:', error.message);
-  } else {
-    Log.error(error);
   }
 }
