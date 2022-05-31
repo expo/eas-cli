@@ -157,6 +157,12 @@ async function uploadProjectAsync<TPlatform extends Platform>(
   try {
     return await withAnalyticsAsync(
       async () => {
+        Log.newLine();
+        Log.log(
+          `Compressing project files and uploading to EAS Build. ${learnMore(
+            'https://expo.fyi/eas-build-archive'
+          )}`
+        );
         const projectTarball = await makeProjectTarballAsync();
         projectTarballPath = projectTarball.path;
 
@@ -169,10 +175,7 @@ async function uploadProjectAsync<TPlatform extends Platform>(
               `Uploading to EAS Build (${formatBytes(projectTarball.size * ratio)} / ${formatBytes(
                 projectTarball.size
               )})`,
-            completedMessage: (duration: string) =>
-              `Uploaded to EAS ${chalk.dim(duration)} ${learnMore(
-                'https://expo.fyi/eas-build-archive'
-              )}`,
+            completedMessage: (duration: string) => `Uploaded to EAS ${chalk.dim(duration)}`,
           })
         );
         return bucketKey;
