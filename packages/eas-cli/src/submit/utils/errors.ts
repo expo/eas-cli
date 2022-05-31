@@ -6,6 +6,7 @@ enum SubmissionErrorCode {
   ARCHIVE_DOWNLOAD_FORBIDDEN_ERROR = 'SUBMISSION_SERVICE_COMMON_ARCHIVE_DOWNLOAD_FORBIDDEN_ERROR',
   ARCHIVE_EXTRACT_NO_FILES_FOUND_ERROR = 'SUBMISSION_SERVICE_COMMON_ARCHIVE_EXTRACT_NO_FILES_FOUND_ERROR',
   ARCHIVE_EXTRACT_CORRUPT_ARCHIVE_ERROR = 'SUBMISSION_SERVICE_COMMON_ARCHIVE_EXTRACT_CORRUPT_ARCHIVE_ERROR',
+  UPLOAD_TAKING_TOO_LONG_ERROR = 'SUBMISSION_SERVICE_COMMON_UPLOAD_TAKING_TOO_LONG_ERROR',
   ANDROID_UNKNOWN_ERROR = 'SUBMISSION_SERVICE_ANDROID_UNKNOWN_ERROR',
   ANDROID_FIRST_UPLOAD_ERROR = 'SUBMISSION_SERVICE_ANDROID_FIRST_UPLOAD_ERROR',
   ANDROID_OLD_VERSION_CODE_ERROR = 'SUBMISSION_SERVICE_ANDROID_OLD_VERSION_CODE_ERROR',
@@ -70,6 +71,8 @@ const SubmissionErrorMessages: Record<SubmissionErrorCode, string> = {
     'Invalid Provisioning Profile Signature (ITMS-90165)\n' +
     "Some of Apple's certificates have expired.\n" +
     'Please delete your Provisioning Profile from your account. Then rebuild the app interactively to generate a new one, and try submitting it to the App Store again.',
+  [SubmissionErrorCode.UPLOAD_TAKING_TOO_LONG_ERROR]:
+    'Fastlane run has reached the timeout limit. Please try again.',
 };
 
 export function printSubmissionError(error: SubmissionError): boolean {
