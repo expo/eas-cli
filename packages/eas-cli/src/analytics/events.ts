@@ -1,5 +1,5 @@
 import { logEvent } from './rudderstackClient';
-export type Event = BuildEvent | SubmissionEvent;
+export type Event = BuildEvent | SubmissionEvent | MetadataEvent;
 
 export enum SubmissionEvent {
   SUBMIT_COMMAND = 'submit cli submit command',
@@ -43,6 +43,11 @@ export enum BuildEvent {
   CREDENTIALS_SYNC_UPDATE_REMOTE_FAIL = 'build cli credentials sync update remote fail',
 
   ANDROID_KEYSTORE_CREATE = 'build cli credentials keystore create',
+}
+
+export enum MetadataEvent {
+  APPLE_METADATA_DOWNLOAD = 'metadata cli download apple response',
+  APPLE_METADATA_UPLOAD = 'metadata cli upload apple response',
 }
 
 export class Analytics {
