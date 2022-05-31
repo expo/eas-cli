@@ -1,0 +1,11 @@
+{
+  "errors": [
+    {
+      "id": "9901eeb2-81e7-4562-9beb-c5f72010ab71",
+      "status": "404",
+      "code": "NOT_FOUND",
+      "title": "The specified resource does not exist",
+      "detail": "There is no resource of type 'appStoreVersions' with id 'non-existing'"
+    }
+  ]
+}

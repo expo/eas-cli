@@ -1,0 +1,43 @@
+{
+	"data": [
+		{
+			"type": "appInfoLocalizations",
+			"id": "APP_INFO_LOCALE_1",
+			"attributes": {
+				"locale": "en-US",
+				"name": "Rexpo Square App",
+				"subtitle": "144 fps red squares",
+				"privacyPolicyUrl": "https://github.com/bycedric/red-square-app",
+				"privacyChoicesUrl": null,
+				"privacyPolicyText": null
+			},
+			"links": {
+				"self": "https://appstoreconnect.apple.com/iris/v1/appInfoLocalizations/APP_INFO_LOCALE_1"
+			}
+		},
+		{
+			"type": "appInfoLocalizations",
+			"id": "APP_INFO_LOCALE_2",
+			"attributes": {
+				"locale": "nl-NL",
+				"name": "Rexpo Vierkant App",
+				"subtitle": "144 fps red vierkant",
+				"privacyPolicyUrl": "https://github.com/bycedric/red-square-app",
+				"privacyChoicesUrl": null,
+				"privacyPolicyText": null
+			},
+			"links": {
+				"self": "https://appstoreconnect.apple.com/iris/v1/appInfoLocalizations/APP_INFO_LOCALE_2"
+			}
+		}
+	],
+	"links": {
+		"self": "https://appstoreconnect.apple.com/iris/v1/appInfos/a9c2ad6a-182f-4021-9456-6b609ebc5eab/appInfoLocalizations"
+	},
+	"meta": {
+		"paging": {
+			"total": 2,
+			"limit": 50
+		}
+	}
+}

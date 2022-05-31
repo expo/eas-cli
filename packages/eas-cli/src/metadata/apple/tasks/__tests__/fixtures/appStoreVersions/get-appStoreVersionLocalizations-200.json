@@ -1,0 +1,70 @@
+{
+	"data": [{
+		"type": "appStoreVersionLocalizations",
+		"id": "4bad54bc-3810-401a-a7f4-b02ef8206c41",
+		"attributes": {
+			"description": "Some of the best apps",
+			"locale": "nl-NL",
+			"keywords": "meme, red, square, x2",
+			"marketingUrl": "https://github.com/bycedric/red-square-app",
+			"promotionalText": null,
+			"supportUrl": "https://github.com/bycedric/red-square-app/issues",
+			"whatsNew": null
+		},
+		"relationships": {
+			"appScreenshotSets": {
+				"links": {
+					"self": "https://appstoreconnect.apple.com/iris/v1/appStoreVersionLocalizations/4bad54bc-3810-401a-a7f4-b02ef8206c41/relationships/appScreenshotSets",
+					"related": "https://appstoreconnect.apple.com/iris/v1/appStoreVersionLocalizations/4bad54bc-3810-401a-a7f4-b02ef8206c41/appScreenshotSets"
+				}
+			},
+			"appPreviewSets": {
+				"links": {
+					"self": "https://appstoreconnect.apple.com/iris/v1/appStoreVersionLocalizations/4bad54bc-3810-401a-a7f4-b02ef8206c41/relationships/appPreviewSets",
+					"related": "https://appstoreconnect.apple.com/iris/v1/appStoreVersionLocalizations/4bad54bc-3810-401a-a7f4-b02ef8206c41/appPreviewSets"
+				}
+			}
+		},
+		"links": {
+			"self": "https://appstoreconnect.apple.com/iris/v1/appStoreVersionLocalizations/4bad54bc-3810-401a-a7f4-b02ef8206c41"
+		}
+	}, {
+		"type": "appStoreVersionLocalizations",
+		"id": "61153520-c5df-40a1-bb2b-e09cbfc33fe9",
+		"attributes": {
+			"description": "Some of the best apps",
+			"locale": "en-US",
+			"keywords": "meme, red, square, x2",
+			"marketingUrl": "https://github.com/bycedric/red-square-app",
+			"promotionalText": null,
+			"supportUrl": "https://github.com/bycedric/red-square-app/issues",
+			"whatsNew": null
+		},
+		"relationships": {
+			"appScreenshotSets": {
+				"links": {
+					"self": "https://appstoreconnect.apple.com/iris/v1/appStoreVersionLocalizations/61153520-c5df-40a1-bb2b-e09cbfc33fe9/relationships/appScreenshotSets",
+					"related": "https://appstoreconnect.apple.com/iris/v1/appStoreVersionLocalizations/61153520-c5df-40a1-bb2b-e09cbfc33fe9/appScreenshotSets"
+				}
+			},
+			"appPreviewSets": {
+				"links": {
+					"self": "https://appstoreconnect.apple.com/iris/v1/appStoreVersionLocalizations/61153520-c5df-40a1-bb2b-e09cbfc33fe9/relationships/appPreviewSets",
+					"related": "https://appstoreconnect.apple.com/iris/v1/appStoreVersionLocalizations/61153520-c5df-40a1-bb2b-e09cbfc33fe9/appPreviewSets"
+				}
+			}
+		},
+		"links": {
+			"self": "https://appstoreconnect.apple.com/iris/v1/appStoreVersionLocalizations/61153520-c5df-40a1-bb2b-e09cbfc33fe9"
+		}
+	}],
+	"links": {
+		"self": "https://appstoreconnect.apple.com/iris/v1/appStoreVersions/949768f6-58e5-46b4-b046-23861f61831a/appStoreVersionLocalizations"
+	},
+	"meta": {
+		"paging": {
+			"total": 2,
+			"limit": 50
+		}
+	}
+}

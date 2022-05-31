@@ -1,0 +1,68 @@
+{
+  "data": {
+    "type": "appInfos",
+    "id": "APP_INFO_1",
+    "attributes": {
+      "appStoreState": "PREPARE_FOR_SUBMISSION",
+      "appStoreAgeRating": "NINE_PLUS",
+      "brazilAgeRating": "TEN",
+      "kidsAgeBand": null
+    },
+    "relationships": {
+      "ageRatingDeclaration": {
+        "links": {
+          "self": "https://appstoreconnect.apple.com/iris/v1/appInfos/APP_INFO_1/relationships/ageRatingDeclaration",
+          "related": "https://appstoreconnect.apple.com/iris/v1/appInfos/APP_INFO_1/ageRatingDeclaration"
+        }
+      },
+      "appInfoLocalizations": {
+        "links": {
+          "self": "https://appstoreconnect.apple.com/iris/v1/appInfos/APP_INFO_1/relationships/appInfoLocalizations",
+          "related": "https://appstoreconnect.apple.com/iris/v1/appInfos/APP_INFO_1/appInfoLocalizations"
+        }
+      },
+      "primaryCategory": {
+        "links": {
+          "self": "https://appstoreconnect.apple.com/iris/v1/appInfos/APP_INFO_1/relationships/primaryCategory",
+          "related": "https://appstoreconnect.apple.com/iris/v1/appInfos/APP_INFO_1/primaryCategory"
+        }
+      },
+      "primarySubcategoryOne": {
+        "links": {
+          "self": "https://appstoreconnect.apple.com/iris/v1/appInfos/APP_INFO_1/relationships/primarySubcategoryOne",
+          "related": "https://appstoreconnect.apple.com/iris/v1/appInfos/APP_INFO_1/primarySubcategoryOne"
+        }
+      },
+      "primarySubcategoryTwo": {
+        "links": {
+          "self": "https://appstoreconnect.apple.com/iris/v1/appInfos/APP_INFO_1/relationships/primarySubcategoryTwo",
+          "related": "https://appstoreconnect.apple.com/iris/v1/appInfos/APP_INFO_1/primarySubcategoryTwo"
+        }
+      },
+      "secondaryCategory": {
+        "links": {
+          "self": "https://appstoreconnect.apple.com/iris/v1/appInfos/APP_INFO_1/relationships/secondaryCategory",
+          "related": "https://appstoreconnect.apple.com/iris/v1/appInfos/APP_INFO_1/secondaryCategory"
+        }
+      },
+      "secondarySubcategoryOne": {
+        "links": {
+          "self": "https://appstoreconnect.apple.com/iris/v1/appInfos/APP_INFO_1/relationships/secondarySubcategoryOne",
+          "related": "https://appstoreconnect.apple.com/iris/v1/appInfos/APP_INFO_1/secondarySubcategoryOne"
+        }
+      },
+      "secondarySubcategoryTwo": {
+        "links": {
+          "self": "https://appstoreconnect.apple.com/iris/v1/appInfos/APP_INFO_1/relationships/secondarySubcategoryTwo",
+          "related": "https://appstoreconnect.apple.com/iris/v1/appInfos/APP_INFO_1/secondarySubcategoryTwo"
+        }
+      }
+    },
+    "links": {
+      "self": "https://appstoreconnect.apple.com/iris/v1/appInfos/APP_INFO_1"
+    }
+  },
+  "links": {
+    "self": "https://appstoreconnect.apple.com/iris/v1/appInfos/APP_INFO_1"
+  }
+}
