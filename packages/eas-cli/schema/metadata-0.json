@@ -236,7 +236,7 @@
             "description": "A URL that links to your privacy policy. A privacy policy is required for all apps.",
             "type": "string"
           },
-          "privacyChoiceUrl": {
+          "privacyChoicesUrl": {
             "meta": {
               "versioned": true,
               "liveEdits": true,
