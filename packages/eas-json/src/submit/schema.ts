@@ -26,7 +26,7 @@ export const IosSubmitProfileSchema = Joi.object({
   companyName: Joi.string(),
   appName: Joi.string(),
   bundleIdentifier: Joi.string(),
-  meta: Joi.string(),
+  metadataPath: Joi.string(),
 });
 
 export const SubmitProfileSchema = Joi.object({
