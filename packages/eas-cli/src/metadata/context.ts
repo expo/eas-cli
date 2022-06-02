@@ -49,6 +49,7 @@ export type MetadataAppStoreAuthentication = {
  */
 export async function createMetadataContextAsync(params: {
   projectDir: string;
+  credentialsCtx: CredentialsContext;
   exp?: ExpoConfig;
   profileName?: string;
   nonInteractive?: boolean;
@@ -71,19 +72,12 @@ export async function createMetadataContextAsync(params: {
   const user = await ensureLoggedInAsync({ nonInteractive: params.nonInteractive });
   const bundleIdentifier = await getBundleIdentifierAsync(params.projectDir, exp);
 
-  const credentialsCtx = new CredentialsContext({
-    user,
-    exp: params.exp,
-    nonInteractive: params.nonInteractive,
-    projectDir: params.projectDir,
-  });
-
   return {
     platform: Platform.IOS,
     profile: iosSubmissionProfile,
     metadataFilename: iosSubmissionProfile.meta ?? 'store.config.json',
     user,
-    credentialsCtx,
+    credentialsCtx: params.credentialsCtx,
     bundleIdentifier,
     projectDir: params.projectDir,
     exp,
