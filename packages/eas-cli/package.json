@@ -30,6 +30,7 @@
     "@oclif/core": "1.9.0",
     "@urql/core": "2.4.4",
     "@urql/exchange-retry": "0.3.3",
+    "ajv": "^6.12.6",
     "chalk": "4.1.2",
     "cli-progress": "3.11.0",
     "cli-table3": "0.6.2",
