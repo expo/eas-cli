@@ -29,7 +29,7 @@ export class AppInfoTask extends AppleTask {
     assert(context.info, `App info not initialized, can't download info`);
 
     // TODO: see why this type mismatch occurs
-    // @ts-ignore
+    // @ts-expect-error
     config.setCategories(context.info.attributes);
 
     for (const locale of context.infoLocales) {
