@@ -28,8 +28,6 @@ export class AppInfoTask extends AppleTask {
   async downloadAsync({ config, context }: TaskDownloadOptions): Promise<void> {
     assert(context.info, `App info not initialized, can't download info`);
 
-    // TODO: see why this type mismatch occurs
-    // @ts-expect-error
     config.setCategories(context.info.attributes);
 
     for (const locale of context.infoLocales) {
