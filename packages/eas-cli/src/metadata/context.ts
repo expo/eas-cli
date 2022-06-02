@@ -23,7 +23,7 @@ export type MetadataContext = {
   user: Actor;
   /** The store credentials manager */
   credentialsCtx: CredentialsContext;
-  /** The app bundle identifier to use for the stores */
+  /** The app bundle identifier to use for the store */
   bundleIdentifier: string;
   /** Root of the Expo project directory */
   projectDir: string;
