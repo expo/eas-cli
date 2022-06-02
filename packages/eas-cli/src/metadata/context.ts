@@ -86,7 +86,7 @@ export async function createMetadataContextAsync(params: {
     credentialsCtx,
     bundleIdentifier,
     projectDir: params.projectDir,
-    exp: params.exp,
+    exp,
     nonInteractive: params.nonInteractive ?? false,
   };
 }
