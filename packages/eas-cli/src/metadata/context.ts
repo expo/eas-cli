@@ -15,7 +15,7 @@ import { getProfilesAsync } from '../utils/profiles';
 export type MetadataContext = {
   /** Submission profile platform to use */
   platform: Platform.IOS;
-  /** Submission profile name to use */
+  /** Resolved submission profile configuration */
   profile: IosSubmitProfile;
   /** Configured store configuration file name (defaults to store.config.json) */
   metadataFile: string;
