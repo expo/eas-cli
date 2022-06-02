@@ -29,11 +29,6 @@ export type MetadataContext = {
   projectDir: string;
   /** Resolved Expo app configuration */
   exp: ExpoConfig;
-  /**
-   * If we should run in non-interactive mode, as much as we can.
-   * The store authentication requires a fully configured ASC environment, or interactive mode.
-   */
-  nonInteractive: boolean;
 };
 
 export type MetadataAppStoreAuthentication = {
@@ -52,7 +47,6 @@ export async function createMetadataContextAsync(params: {
   credentialsCtx: CredentialsContext;
   exp?: ExpoConfig;
   profileName?: string;
-  nonInteractive?: boolean;
 }): Promise<MetadataContext> {
   const submissionProfiles = await getProfilesAsync({
     type: 'submit',
@@ -69,7 +63,7 @@ export async function createMetadataContextAsync(params: {
   const iosSubmissionProfile = submissionProfile.profile as SubmitProfile<Platform.IOS>;
 
   const exp = params.exp ?? getExpoConfig(params.projectDir);
-  const user = await ensureLoggedInAsync({ nonInteractive: params.nonInteractive });
+  const user = await ensureLoggedInAsync();
   const bundleIdentifier = await getBundleIdentifierAsync(params.projectDir, exp);
 
   return {
@@ -81,7 +75,6 @@ export async function createMetadataContextAsync(params: {
     bundleIdentifier,
     projectDir: params.projectDir,
     exp,
-    nonInteractive: params.nonInteractive ?? false,
   };
 }
 
