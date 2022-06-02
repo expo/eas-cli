@@ -18,7 +18,7 @@ export type MetadataContext = {
   /** Resolved submission profile configuration */
   profile: SubmitProfile<Platform.IOS>;
   /** Configured store configuration file name (defaults to store.config.json) */
-  metadataFile: string;
+  metadataFilename: string;
   /** Authenticated Expo account */
   user: Actor;
   /** The store credentials manager */
@@ -81,7 +81,7 @@ export async function createMetadataContextAsync(params: {
   return {
     platform: Platform.IOS,
     profile: iosSubmissionProfile,
-    metadataFile: iosSubmissionProfile.meta ?? 'store.config.json',
+    metadataFilename: iosSubmissionProfile.meta ?? 'store.config.json',
     user,
     credentialsCtx,
     bundleIdentifier,
