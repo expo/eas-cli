@@ -49,7 +49,7 @@ export type MetadataAppStoreAuthentication = {
  */
 export async function createMetadataContextAsync(params: {
   projectDir: string;
-  exp: ExpoConfig;
+  exp?: ExpoConfig;
   profileName?: string;
   nonInteractive?: boolean;
 }): Promise<MetadataContext> {
