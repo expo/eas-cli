@@ -16,7 +16,10 @@ export function removeDatePrecision(date: any): null | Date {
       result.setMinutes(0);
       result.setSeconds(0);
       result.setMilliseconds(0);
-      return result;
+
+      if (!isNaN(result.getTime())) {
+        return result;
+      }
     } catch {}
   }
   return null;
