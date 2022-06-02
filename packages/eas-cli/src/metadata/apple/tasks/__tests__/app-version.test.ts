@@ -7,14 +7,16 @@ import {
 import nock from 'nock';
 
 import { AppleConfigReader } from '../../config/reader';
+import { AppleConfigWriter } from '../../config/writer';
 import { AppleData, PartialAppleData } from '../../data';
 import { AppVersionTask } from '../app-version';
 import { requestContext } from './fixtures/requestContext';
 
 jest.mock('../../../../ora');
+jest.mock('../../config/writer');
 
 describe(AppVersionTask, () => {
-  describe('preuploadAsync', () => {
+  describe('prepareAsync', () => {
     it('loads live version', async () => {
       const scope = nock('https://api.appstoreconnect.apple.com')
         // Respond to app.getLiveAppStoreVersionAsync
@@ -134,7 +136,75 @@ describe(AppVersionTask, () => {
     });
   });
 
-  describe('upload', () => {
+  describe('downloadAsync', () => {
+    it('aborts when version is not loaded', async () => {
+      const promise = new AppVersionTask().downloadAsync({
+        config: new AppleConfigWriter(),
+        context: { version: undefined } as any,
+      });
+
+      await expect(promise).rejects.toThrow('not initialized');
+    });
+
+    it('sets version when loaded', async () => {
+      const writer = new AppleConfigWriter();
+      const version = new AppStoreVersion(requestContext, 'stub-id', {} as any);
+
+      await new AppVersionTask().downloadAsync({
+        config: writer,
+        context: { version, versionLocales: [] } as any,
+      });
+
+      expect(writer.setVersion).toBeCalledWith(version.attributes);
+    });
+
+    it('sets version release when loaded', async () => {
+      const writer = new AppleConfigWriter();
+      const version = new AppStoreVersion(requestContext, 'stub-id', {} as any);
+
+      await new AppVersionTask().downloadAsync({
+        config: writer,
+        context: { version, versionLocales: [] } as any,
+      });
+
+      expect(writer.setVersionRelease).toBeCalledWith(version.attributes);
+    });
+
+    it('skips when no locales are loaded', async () => {
+      const writer = jest.mocked(new AppleConfigWriter());
+
+      await new AppVersionTask().downloadAsync({
+        config: writer,
+        context: {
+          version: new AppStoreVersion(requestContext, 'stub-id', {} as any),
+          versionLocales: [],
+        } as any,
+      });
+
+      expect(writer.setInfoLocale).not.toBeCalled();
+    });
+
+    it('sets locales when loaded', async () => {
+      const writer = jest.mocked(new AppleConfigWriter());
+      const versionLocales = [
+        new AppStoreVersionLocalization(requestContext, 'stub-id-1', {} as any),
+        new AppStoreVersionLocalization(requestContext, 'stub-id-2', {} as any),
+      ];
+
+      await new AppVersionTask().downloadAsync({
+        config: writer,
+        context: {
+          version: new AppStoreVersion(requestContext, 'stub-id', {} as any),
+          versionLocales,
+        } as any,
+      });
+
+      expect(writer.setVersionLocale).toBeCalledWith(versionLocales[0].attributes);
+      expect(writer.setVersionLocale).toBeCalledWith(versionLocales[1].attributes);
+    });
+  });
+
+  describe('uploadAsync', () => {
     it('aborts when version is not loaded', async () => {
       const promise = new AppVersionTask().uploadAsync({
         context: {} as any,

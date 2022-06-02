@@ -2,14 +2,16 @@ import { App, AppCategoryId, AppInfo, AppInfoLocalization } from '@expo/apple-ut
 import nock from 'nock';
 
 import { AppleConfigReader } from '../../config/reader';
+import { AppleConfigWriter } from '../../config/writer';
 import { AppleData, PartialAppleData } from '../../data';
 import { AppInfoTask } from '../app-info';
 import { requestContext } from './fixtures/requestContext';
 
 jest.mock('../../../../ora');
+jest.mock('../../config/writer');
 
 describe(AppInfoTask, () => {
-  describe('preuploadAsync', () => {
+  describe('prepareAsync', () => {
     it('loads editable app info and locales from app instance', async () => {
       const scopeInfo = nock('https://api.appstoreconnect.apple.com')
         .get(uri => uri.startsWith(`/v1/${App.type}/stub-id/${AppInfo.type}`)) // allow any query params
@@ -29,6 +31,63 @@ describe(AppInfoTask, () => {
       expect(context.infoLocales).toBeInstanceOf(Array);
       expect(scopeInfo.isDone()).toBeTruthy();
       expect(scopeLocales.isDone()).toBeTruthy();
+    });
+  });
+
+  describe('downloadAsync', () => {
+    it('aborts when app info is not loaded', async () => {
+      const writer = jest.mocked(new AppleConfigWriter());
+      const promise = new AppInfoTask().downloadAsync({
+        config: writer,
+        context: { info: undefined, infoLocales: [] } as any,
+      });
+
+      await expect(promise).rejects.toThrow('info not initialized');
+    });
+
+    it('sets categories when info is loaded', async () => {
+      const writer = jest.mocked(new AppleConfigWriter());
+      const info = new AppInfo(requestContext, 'stub-id', {} as any);
+
+      await new AppInfoTask().downloadAsync({
+        config: writer,
+        context: { info, infoLocales: [] } as any,
+      });
+
+      expect(writer.setCategories).toBeCalledWith(info.attributes);
+    });
+
+    it('skips when no locales are loaded', async () => {
+      const writer = jest.mocked(new AppleConfigWriter());
+
+      await new AppInfoTask().downloadAsync({
+        config: writer,
+        context: {
+          info: new AppInfo(requestContext, 'stub-id', {} as any),
+          infoLocales: [],
+        } as any,
+      });
+
+      expect(writer.setInfoLocale).not.toBeCalled();
+    });
+
+    it('sets locales when loaded', async () => {
+      const writer = jest.mocked(new AppleConfigWriter());
+      const infoLocales = [
+        new AppInfoLocalization(requestContext, 'stub-id-1', {} as any),
+        new AppInfoLocalization(requestContext, 'stub-id-2', {} as any),
+      ];
+
+      await new AppInfoTask().downloadAsync({
+        config: writer,
+        context: {
+          info: new AppInfo(requestContext, 'stub-id', {} as any),
+          infoLocales,
+        } as any,
+      });
+
+      expect(writer.setInfoLocale).toBeCalledWith(infoLocales[0].attributes);
+      expect(writer.setInfoLocale).toBeCalledWith(infoLocales[1].attributes);
     });
   });
 

@@ -2,14 +2,16 @@ import { AgeRatingDeclaration, AppStoreVersion, Rating } from '@expo/apple-utils
 import nock from 'nock';
 
 import { AppleConfigReader } from '../../config/reader';
+import { AppleConfigWriter } from '../../config/writer';
 import { AppleData } from '../../data';
 import { AgeRatingTask } from '../age-rating';
 import { requestContext } from './fixtures/requestContext';
 
 jest.mock('../../../../ora');
+jest.mock('../../config/writer');
 
 describe(AgeRatingTask, () => {
-  describe('preuploadAsync', () => {
+  describe('prepareAsync', () => {
     it('aborts when version is not loaded', async () => {
       const promise = new AgeRatingTask().prepareAsync({ context: {} as any });
 
@@ -29,6 +31,31 @@ describe(AgeRatingTask, () => {
 
       expect(context.ageRating).toBeInstanceOf(AgeRatingDeclaration);
       expect(scope.isDone()).toBeTruthy();
+    });
+  });
+
+  describe('downloadAsync', () => {
+    it('skips age rating when not prepared', async () => {
+      const writer = jest.mocked(new AppleConfigWriter());
+
+      await new AgeRatingTask().downloadAsync({
+        config: writer,
+        context: { ageRating: undefined } as any,
+      });
+
+      expect(writer.setAgeRating).not.toBeCalled();
+    });
+
+    it('sets age rating when prepared', async () => {
+      const writer = jest.mocked(new AppleConfigWriter());
+      const ageRating = new AgeRatingDeclaration(requestContext, 'stub-id', {} as any);
+
+      await new AgeRatingTask().downloadAsync({
+        config: writer,
+        context: { ageRating } as any,
+      });
+
+      expect(writer.setAgeRating).toBeCalledWith(ageRating.attributes);
     });
   });
 
