@@ -1,7 +1,7 @@
 import { App, Session } from '@expo/apple-utils';
 import { ExpoConfig } from '@expo/config';
 import { Platform } from '@expo/eas-build-job';
-import { IosSubmitProfile } from '@expo/eas-json/build/submit/types';
+import { SubmitProfile } from '@expo/eas-json';
 import assert from 'assert';
 
 import { CredentialsContext } from '../credentials/context';
@@ -16,7 +16,7 @@ export type MetadataContext = {
   /** Submission profile platform to use */
   platform: Platform.IOS;
   /** Resolved submission profile configuration */
-  profile: IosSubmitProfile;
+  profile: SubmitProfile<Platform.IOS>;
   /** Configured store configuration file name (defaults to store.config.json) */
   metadataFile: string;
   /** Authenticated Expo account */
@@ -65,7 +65,7 @@ export async function createMetadataContextAsync(params: {
     submissionProfile,
     'Could not resolve the iOS submission profile, only iOS is supported for metadata'
   );
-  const iosSubmissionProfile = submissionProfile.profile as IosSubmitProfile;
+  const iosSubmissionProfile = submissionProfile.profile as SubmitProfile<Platform.IOS>;
 
   const exp = params.exp ?? getExpoConfig(params.projectDir);
   const user = await ensureLoggedInAsync({ nonInteractive: params.nonInteractive });
