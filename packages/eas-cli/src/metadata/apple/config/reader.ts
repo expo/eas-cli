@@ -62,6 +62,7 @@ export class AppleConfigReader {
     return null;
   }
 
+  /** Get the `AppStoreVersion` object. */
   getVersion(): Partial<
     Omit<AttributesOf<AppStoreVersion>, 'releaseType' | 'earliestReleaseDate'>
   > | null {
