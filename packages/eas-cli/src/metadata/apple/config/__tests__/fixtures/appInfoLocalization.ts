@@ -16,6 +16,6 @@ export const dutchInfo: AttributesOf<AppInfoLocalization> = {
   name: 'Geweldige test app',
   subtitle: 'Dit is maar een test',
   privacyPolicyUrl: 'https://example.com/nl/privacy-policy',
-  privacyChoicesUrl: 'https://exmaple.com/nl/privacy-choices',
+  privacyChoicesUrl: 'https://example.com/nl/privacy-choices',
   privacyPolicyText: 'Dit is wat privacy policy tekst',
 };
