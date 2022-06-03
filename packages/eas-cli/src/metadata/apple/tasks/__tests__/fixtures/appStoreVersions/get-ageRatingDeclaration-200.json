@@ -1,0 +1,31 @@
+{
+	"data": {
+		"type": "ageRatingDeclarations",
+		"id": "a9c2ad6a-182f-4021-9456-6b609ebc5eab",
+		"attributes": {
+			"alcoholTobaccoOrDrugUseOrReferences": "NONE",
+			"contests": "NONE",
+			"gamblingAndContests": false,
+			"gambling": false,
+			"gamblingSimulated": "NONE",
+			"kidsAgeBand": null,
+			"medicalOrTreatmentInformation": "NONE",
+			"profanityOrCrudeHumor": "NONE",
+			"sexualContentGraphicAndNudity": "NONE",
+			"sexualContentOrNudity": "NONE",
+			"seventeenPlus": false,
+			"horrorOrFearThemes": "NONE",
+			"matureOrSuggestiveThemes": "NONE",
+			"unrestrictedWebAccess": false,
+			"violenceCartoonOrFantasy": "NONE",
+			"violenceRealisticProlongedGraphicOrSadistic": "NONE",
+			"violenceRealistic": "NONE"
+		},
+		"links": {
+			"self": "https://appstoreconnect.apple.com/iris/v1/ageRatingDeclarations/a9c2ad6a-182f-4021-9456-6b609ebc5eab"
+		}
+	},
+	"links": {
+		"self": "https://appstoreconnect.apple.com/iris/v1/appStoreVersions/949768f6-58e5-46b4-b046-23861f61831a/ageRatingDeclaration"
+	}
+}

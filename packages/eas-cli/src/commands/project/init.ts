@@ -1,8 +1,8 @@
-import { getConfig } from '@expo/config';
 import chalk from 'chalk';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import Log from '../../log';
+import { getExpoConfig } from '../../project/expoConfig';
 import { findProjectRootAsync, setProjectIdAsync } from '../../project/projectUtils';
 
 export default class ProjectInit extends EasCommand {
@@ -11,7 +11,7 @@ export default class ProjectInit extends EasCommand {
 
   async runAsync(): Promise<void> {
     const projectDir = await findProjectRootAsync();
-    const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
+    const exp = getExpoConfig(projectDir);
 
     if (exp.extra?.eas?.projectId) {
       Log.error(

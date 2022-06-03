@@ -1,4 +1,3 @@
-import { getConfig } from '@expo/config';
 import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 import Table from 'cli-table3';
@@ -6,6 +5,7 @@ import Table from 'cli-table3';
 import EasCommand from '../../commandUtils/EasCommand';
 import { UpdateQuery } from '../../graphql/queries/UpdateQuery';
 import Log from '../../log';
+import { getExpoConfig } from '../../project/expoConfig';
 import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
 import { UPDATE_COLUMNS, formatUpdate, getPlatformsForGroup } from '../../update/utils';
@@ -41,7 +41,7 @@ export default class BranchView extends EasCommand {
     }
 
     const projectDir = await findProjectRootAsync();
-    const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
+    const exp = getExpoConfig(projectDir);
     const projectId = await getProjectIdAsync(exp);
 
     if (!name) {

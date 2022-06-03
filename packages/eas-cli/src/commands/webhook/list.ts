@@ -1,4 +1,3 @@
-import { getConfig } from '@expo/config';
 import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 
@@ -7,6 +6,7 @@ import { WebhookType } from '../../graphql/generated';
 import { WebhookQuery } from '../../graphql/queries/WebhookQuery';
 import Log from '../../log';
 import { ora } from '../../ora';
+import { getExpoConfig } from '../../project/expoConfig';
 import {
   findProjectRootAsync,
   getProjectFullNameAsync,
@@ -30,7 +30,7 @@ export default class WebhookList extends EasCommand {
     } = await this.parse(WebhookList);
 
     const projectDir = await findProjectRootAsync();
-    const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
+    const exp = getExpoConfig(projectDir);
     const projectId = await getProjectIdAsync(exp);
     const projectFullName = await getProjectFullNameAsync(exp);
 

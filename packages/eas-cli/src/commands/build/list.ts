@@ -1,4 +1,3 @@
-import { getConfig } from '@expo/config';
 import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 
@@ -14,6 +13,7 @@ import { BuildQuery } from '../../graphql/queries/BuildQuery';
 import Log from '../../log';
 import { ora } from '../../ora';
 import { RequestedPlatform } from '../../platform';
+import { getExpoConfig } from '../../project/expoConfig';
 import {
   findProjectRootAsync,
   getProjectFullNameAsync,
@@ -77,7 +77,7 @@ export default class BuildList extends EasCommand {
     const graphqlBuildDistribution = toGraphQLBuildDistribution(buildDistribution);
 
     const projectDir = await findProjectRootAsync();
-    const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
+    const exp = getExpoConfig(projectDir);
     const projectId = await getProjectIdAsync(exp);
     const projectName = await getProjectFullNameAsync(exp);
 

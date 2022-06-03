@@ -1,4 +1,3 @@
-import { getConfig } from '@expo/config';
 import { Flags } from '@oclif/core';
 import gql from 'graphql-tag';
 
@@ -9,6 +8,7 @@ import {
   GetAllChannelsForAppQueryVariables,
 } from '../../graphql/generated';
 import Log from '../../log';
+import { getExpoConfig } from '../../project/expoConfig';
 import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUtils';
 import formatFields from '../../utils/formatFields';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
@@ -85,7 +85,7 @@ export default class ChannelList extends EasCommand {
     }
 
     const projectDir = await findProjectRootAsync();
-    const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
+    const exp = getExpoConfig(projectDir);
     const projectId = await getProjectIdAsync(exp);
 
     const getAllUpdateChannelForAppResult = await getAllUpdateChannelForAppAsync({

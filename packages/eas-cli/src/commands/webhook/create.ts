@@ -1,10 +1,10 @@
-import { getConfig } from '@expo/config';
 import { Flags } from '@oclif/core';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import { WebhookType } from '../../graphql/generated';
 import { WebhookMutation } from '../../graphql/mutations/WebhookMutation';
 import { ora } from '../../ora';
+import { getExpoConfig } from '../../project/expoConfig';
 import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUtils';
 import { prepareInputParamsAsync } from '../../webhooks/input';
 
@@ -30,7 +30,7 @@ export default class WebhookCreate extends EasCommand {
     const webhookInputParams = await prepareInputParamsAsync(flags);
 
     const projectDir = await findProjectRootAsync();
-    const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
+    const exp = getExpoConfig(projectDir);
     const projectId = await getProjectIdAsync(exp);
 
     const spinner = ora('Creating a webhook').start();

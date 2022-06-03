@@ -1,10 +1,9 @@
-import { getConfig } from '@expo/config';
-
 import EasCommand from '../../commandUtils/EasCommand';
 import { AppleDeviceQuery } from '../../credentials/ios/api/graphql/queries/AppleDeviceQuery';
 import formatDevice from '../../devices/utils/formatDevice';
 import Log from '../../log';
 import { ora } from '../../ora';
+import { getExpoConfig } from '../../project/expoConfig';
 import { findProjectRootAsync, getProjectAccountNameAsync } from '../../project/projectUtils';
 
 export default class DeviceView extends EasCommand {
@@ -30,7 +29,7 @@ If you are not sure what is the UDID of the device you are looking for, run:
     }
 
     const projectDir = await findProjectRootAsync();
-    const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
+    const exp = getExpoConfig(projectDir);
     const accountName = await getProjectAccountNameAsync(exp);
 
     const spinner = ora().start(`Fetching device details for ${UDID}…`);

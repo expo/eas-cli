@@ -1,4 +1,3 @@
-import { getConfig } from '@expo/config';
 import chalk from 'chalk';
 import gql from 'graphql-tag';
 
@@ -14,6 +13,7 @@ import { BuildQuery } from '../../graphql/queries/BuildQuery';
 import Log from '../../log';
 import { ora } from '../../ora';
 import { appPlatformEmojis } from '../../platform';
+import { getExpoConfig } from '../../project/expoConfig';
 import {
   findProjectRootAsync,
   getProjectFullNameAsync,
@@ -118,7 +118,7 @@ export default class BuildCancel extends EasCommand {
     const { BUILD_ID: buildIdFromArg } = (await this.parse(BuildCancel)).args;
 
     const projectDir = await findProjectRootAsync();
-    const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
+    const exp = getExpoConfig(projectDir);
     const projectId = await getProjectIdAsync(exp);
     const projectFullName = await getProjectFullNameAsync(exp);
 

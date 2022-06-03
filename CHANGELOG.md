@@ -11,12 +11,27 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 - Rebind `console.info` correctly after `ora` instance stops. ([#1113](https://github.com/expo/eas-cli/pull/1113) by [@EvanBacon](https://github.com/EvanBacon))
+
+### 🧹 Chores
+
+- Display project archive docs before compressing/uploading to EAS Build. ([#1127](https://github.com/expo/eas-cli/pull/1127) by [@dsokal](https://github.com/dsokal))
+- Add new common error code for submits. ([#1129](https://github.com/expo/eas-cli/pull/1129) by [@dsokal](https://github.com/dsokal))
+
+## [0.53.0](https://github.com/expo/eas-cli/releases/tag/v0.53.0) - 2022-05-30
+
+### 🛠 Breaking changes
+
+- Drop support for Node < 14. ([#1098](https://github.com/expo/eas-cli/pull/1098) by [@dsokal](https://github.com/dsokal))
+
+### 🐛 Bug fixes
+
 - Match bundle identifier capabilities more accurately. ([#1112](https://github.com/expo/eas-cli/pull/1112) by [@EvanBacon](https://github.com/EvanBacon))
 
 ### 🧹 Chores
 
-- Update dependencies. ([#1095](https://github.com/expo/eas-cli/pull/1095) by [@dsokal](https://github.com/dsokal))
+- Update dependencies. ([#1095](https://github.com/expo/eas-cli/pull/1095), [#1115](https://github.com/expo/eas-cli/pull/1115) by [@dsokal](https://github.com/dsokal))
 - Better spinner placement for multiple builds. ([#1105](https://github.com/expo/eas-cli/pull/1105) by [@dsokal](https://github.com/dsokal))
+- Use getExpoConfig to access config. ([#1122](https://github.com/expo/eas-cli/pull/1122) by [@wkozyra95](https://github.com/wkozyra95))
 
 ## [0.52.0](https://github.com/expo/eas-cli/releases/tag/v0.52.0) - 2022-04-26
 
