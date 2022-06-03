@@ -14,22 +14,20 @@ import { subscribeTelemetry } from './utils/telemetry';
  * Generate a local store configuration from the stores.
  * Note, only App Store is supported at this time.
  */
-export async function downloadMetadataAsync(metadataContext: MetadataContext): Promise<string> {
-  const filePath = path.resolve(metadataContext.projectDir, metadataContext.metadataFile);
+export async function downloadMetadataAsync(metadataCtx: MetadataContext): Promise<string> {
+  const filePath = path.resolve(metadataCtx.projectDir, metadataCtx.metadataPath);
   const fileExists = await fs.pathExists(filePath);
 
-  if (fileExists && metadataContext.nonInteractive) {
-    throw new MetadataValidationError(`Store configuration already exists at "${filePath}"`);
-  } else if (fileExists) {
+  if (fileExists) {
     const overwrite = await confirmAsync({
-      message: `Do you want to overwrite the existing store configuration "${metadataContext.metadataFile}"?`,
+      message: `Do you want to overwrite the existing store configuration "${metadataCtx.metadataPath}"?`,
     });
     if (!overwrite) {
       throw new MetadataValidationError(`Store configuration already exists at "${filePath}"`);
     }
   }
 
-  const { app, auth } = await ensureMetadataAppStoreAuthenticatedAsync(metadataContext);
+  const { app, auth } = await ensureMetadataAppStoreAuthenticatedAsync(metadataCtx);
   const { unsubscribeTelemetry, executionId } = subscribeTelemetry(
     MetadataEvent.APPLE_METADATA_DOWNLOAD,
     { app, auth }
@@ -37,7 +35,7 @@ export async function downloadMetadataAsync(metadataContext: MetadataContext): P
 
   const errors: Error[] = [];
   const config = createAppleWriter();
-  const tasks = createAppleTasks(metadataContext);
+  const tasks = createAppleTasks(metadataCtx);
   const taskCtx = { app };
 
   for (const task of tasks) {

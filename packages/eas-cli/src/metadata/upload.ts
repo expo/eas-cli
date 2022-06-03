@@ -13,13 +13,13 @@ import { subscribeTelemetry } from './utils/telemetry';
  * Sync a local store configuration with the stores.
  * Note, only App Store is supported at this time.
  */
-export async function uploadMetadataAsync(metadataContext: MetadataContext): Promise<void> {
-  const filePath = path.resolve(metadataContext.projectDir, metadataContext.metadataFile);
+export async function uploadMetadataAsync(metadataCtx: MetadataContext): Promise<void> {
+  const filePath = path.resolve(metadataCtx.projectDir, metadataCtx.metadataPath);
   if (!(await fs.pathExists(filePath))) {
     throw new MetadataValidationError(`Store configuration file not found "${filePath}"`);
   }
 
-  const { app, auth } = await ensureMetadataAppStoreAuthenticatedAsync(metadataContext);
+  const { app, auth } = await ensureMetadataAppStoreAuthenticatedAsync(metadataCtx);
   const { unsubscribeTelemetry, executionId } = subscribeTelemetry(
     MetadataEvent.APPLE_METADATA_UPLOAD,
     { app, auth }
@@ -33,7 +33,7 @@ export async function uploadMetadataAsync(metadataContext: MetadataContext): Pro
 
   const errors: Error[] = [];
   const config = createAppleReader(fileData);
-  const tasks = createAppleTasks(metadataContext);
+  const tasks = createAppleTasks(metadataCtx);
   const taskCtx = { app };
 
   for (const task of tasks) {
