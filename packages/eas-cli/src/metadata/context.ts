@@ -32,7 +32,7 @@ export type MetadataContext = {
 };
 
 export type MetadataAppStoreAuthentication = {
-  /** The root entity of the App store  */
+  /** The root entity of the App store */
   app: App;
   /** The authentication state we used to fetch the root entity */
   auth: Partial<Session.AuthState>;
