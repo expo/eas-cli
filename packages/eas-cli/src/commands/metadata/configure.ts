@@ -1,5 +1,5 @@
 import { getConfig } from '@expo/config';
-import { Errors, Flags } from '@oclif/core';
+import { Flags } from '@oclif/core';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import Log, { learnMore } from '../../log';
@@ -12,13 +12,11 @@ import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUt
 type RawCommandFlags = {
   platform?: string;
   profile?: string;
-  'non-interactive': boolean;
 };
 
 type CommandFlags = {
   requestedPlatforms: RequestedPlatform;
   profile?: string;
-  nonInteractive: boolean;
 };
 
 export default class MetadataConfigure extends EasCommand {
@@ -33,10 +31,6 @@ export default class MetadataConfigure extends EasCommand {
     profile: Flags.string({
       description:
         'Name of the submit profile from eas.json. Defaults to "production" if defined in eas.json.',
-    }),
-    'non-interactive': Flags.boolean({
-      default: false,
-      description: 'Run command in non-interactive mode',
     }),
   };
 
@@ -54,7 +48,6 @@ export default class MetadataConfigure extends EasCommand {
       projectDir,
       exp,
       profileName: flags.profile,
-      nonInteractive: flags.nonInteractive,
     });
 
     try {
@@ -71,17 +64,12 @@ export default class MetadataConfigure extends EasCommand {
   }
 
   private async sanitizeFlagsAsync(flags: RawCommandFlags): Promise<CommandFlags> {
-    const { platform, profile, 'non-interactive': nonInteractive } = flags;
-
-    if (!platform && nonInteractive) {
-      Errors.error('--platform is required when building in non-interactive mode', { exit: 1 });
-    }
+    const { profile } = flags;
 
     return {
       // TODO: add support for multiple platforms, right now we only support ios
       requestedPlatforms: RequestedPlatform.Ios, // enforced by the flag options
       profile,
-      nonInteractive,
     };
   }
 }
