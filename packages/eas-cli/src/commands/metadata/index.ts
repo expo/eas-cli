@@ -34,10 +34,6 @@ export default class Metadata extends EasCommand {
       description:
         'Name of the submit profile from eas.json. Defaults to "production" if defined in eas.json.',
     }),
-    'non-interactive': Flags.boolean({
-      default: false,
-      description: 'Run command in non-interactive mode',
-    }),
   };
 
   static args = [];
