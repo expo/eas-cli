@@ -12,13 +12,11 @@ import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUt
 type RawCommandFlags = {
   platform?: string;
   profile?: string;
-  'non-interactive': boolean;
 };
 
 type CommandFlags = {
   requestedPlatforms: RequestedPlatform;
   profile?: string;
-  nonInteractive: boolean;
 };
 
 export default class Metadata extends EasCommand {
@@ -54,7 +52,6 @@ export default class Metadata extends EasCommand {
       projectDir,
       exp,
       profileName: flags.profile,
-      nonInteractive: flags.nonInteractive,
     });
 
     try {
@@ -68,17 +65,12 @@ export default class Metadata extends EasCommand {
   }
 
   private async sanitizeFlagsAsync(flags: RawCommandFlags): Promise<CommandFlags> {
-    const { platform, profile, 'non-interactive': nonInteractive } = flags;
-
-    if (!platform && nonInteractive) {
-      Errors.error('--platform is required when building in non-interactive mode', { exit: 1 });
-    }
+    const { profile } = flags;
 
     return {
       // TODO: add support for multiple platforms, right now we only support ios
       requestedPlatforms: RequestedPlatform.Ios, // enforced by the flag options
       profile,
-      nonInteractive,
     };
   }
 }
