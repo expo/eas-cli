@@ -1,13 +1,15 @@
 import { getConfig } from '@expo/config';
-import { Errors, Flags } from '@oclif/core';
+import { Flags } from '@oclif/core';
 
 import EasCommand from '../../commandUtils/EasCommand';
+import { CredentialsContext } from '../../credentials/context';
 import Log from '../../log';
 import { createMetadataContextAsync } from '../../metadata/context';
 import { handleMetadataError } from '../../metadata/errors';
 import { uploadMetadataAsync } from '../../metadata/upload';
 import { RequestedPlatform } from '../../platform';
 import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUtils';
+import { ensureLoggedInAsync } from '../../user/actions';
 
 type RawCommandFlags = {
   platform?: string;
@@ -48,7 +50,15 @@ export default class Metadata extends EasCommand {
     const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
     await getProjectIdAsync(exp);
 
-    const metadataContext = await createMetadataContextAsync({
+    const credentialsCtx = new CredentialsContext({
+      exp,
+      projectDir,
+      user: await ensureLoggedInAsync(),
+      nonInteractive: false,
+    });
+
+    const metadataCtx = await createMetadataContextAsync({
+      credentialsCtx,
       projectDir,
       exp,
       profileName: flags.profile,
@@ -56,9 +66,9 @@ export default class Metadata extends EasCommand {
 
     try {
       Log.addNewLineIfNone();
-      await uploadMetadataAsync(metadataContext);
+      await uploadMetadataAsync(metadataCtx);
       Log.addNewLineIfNone();
-      Log.succeed(`Store has been updated with your ${metadataContext.metadataFile} configuration`);
+      Log.succeed(`Store has been updated with your ${metadataCtx.metadataPath} configuration`);
     } catch (error: any) {
       handleMetadataError(error);
     }

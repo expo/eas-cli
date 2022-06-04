@@ -2,12 +2,14 @@ import { getConfig } from '@expo/config';
 import { Flags } from '@oclif/core';
 
 import EasCommand from '../../commandUtils/EasCommand';
+import { CredentialsContext } from '../../credentials/context';
 import Log, { learnMore } from '../../log';
 import { createMetadataContextAsync } from '../../metadata/context';
 import { downloadMetadataAsync } from '../../metadata/download';
 import { handleMetadataError } from '../../metadata/errors';
 import { RequestedPlatform } from '../../platform';
 import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUtils';
+import { ensureLoggedInAsync } from '../../user/actions';
 
 type RawCommandFlags = {
   platform?: string;
@@ -44,7 +46,15 @@ export default class MetadataConfigure extends EasCommand {
     const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
     await getProjectIdAsync(exp);
 
-    const metadataContext = await createMetadataContextAsync({
+    const credentialsCtx = new CredentialsContext({
+      exp,
+      projectDir,
+      user: await ensureLoggedInAsync(),
+      nonInteractive: false,
+    });
+
+    const metadataCtx = await createMetadataContextAsync({
+      credentialsCtx,
       projectDir,
       exp,
       profileName: flags.profile,
@@ -52,7 +62,7 @@ export default class MetadataConfigure extends EasCommand {
 
     try {
       Log.addNewLineIfNone();
-      const filePath = await downloadMetadataAsync(metadataContext);
+      const filePath = await downloadMetadataAsync(metadataCtx);
       Log.addNewLineIfNone();
 
       Log.succeed('Your store configuration has been generated!');
