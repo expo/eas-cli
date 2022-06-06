@@ -10,6 +10,9 @@ import {
 
 const PAGE_LIMIT = 300;
 
+type ViewBranchUpdatesQueryVariablesWithOptionalLimit = Partial<ViewBranchUpdatesQueryVariables> &
+  Pick<ViewBranchUpdatesQueryVariables, 'appId' | 'name'>;
+
 export const UpdateQuery = {
   async viewAllAsync({ appId }: { appId: string }): Promise<ViewAllUpdatesQuery> {
     return withErrorHandlingAsync(
@@ -54,7 +57,7 @@ export const UpdateQuery = {
         .toPromise()
     );
   },
-  async viewBranchAsync({ appId, name }: Pick<ViewBranchUpdatesQueryVariables, 'appId' | 'name'>) {
+  async viewBranchAsync({ appId, name, limit }: ViewBranchUpdatesQueryVariablesWithOptionalLimit) {
     return withErrorHandlingAsync<ViewBranchUpdatesQuery>(
       graphqlClient
         .query<ViewBranchUpdatesQuery, ViewBranchUpdatesQueryVariables>(
@@ -92,7 +95,7 @@ export const UpdateQuery = {
           {
             appId,
             name,
-            limit: PAGE_LIMIT,
+            limit: limit ?? PAGE_LIMIT,
           },
           { additionalTypenames: ['UpdateBranch', 'Update'] }
         )
