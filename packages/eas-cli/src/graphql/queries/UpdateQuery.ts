@@ -57,7 +57,11 @@ export const UpdateQuery = {
         .toPromise()
     );
   },
-  async viewBranchAsync({ appId, name, limit }: ViewBranchUpdatesQueryVariablesWithOptionalLimit) {
+  async viewBranchAsync({
+    appId,
+    name,
+    limit = PAGE_LIMIT,
+  }: ViewBranchUpdatesQueryVariablesWithOptionalLimit) {
     return withErrorHandlingAsync<ViewBranchUpdatesQuery>(
       graphqlClient
         .query<ViewBranchUpdatesQuery, ViewBranchUpdatesQueryVariables>(
@@ -95,7 +99,7 @@ export const UpdateQuery = {
           {
             appId,
             name,
-            limit: limit ?? PAGE_LIMIT,
+            limit,
           },
           { additionalTypenames: ['UpdateBranch', 'Update'] }
         )
