@@ -12,20 +12,20 @@ export type AgeRatingData = {
 };
 
 export class AgeRatingTask extends AppleTask {
-  name = (): string => 'age rating declarations';
+  public name = (): string => 'age rating declarations';
 
-  async prepareAsync({ context }: TaskPrepareOptions): Promise<void> {
+  public async prepareAsync({ context }: TaskPrepareOptions): Promise<void> {
     assert(context.version, `App version information is not prepared, can't update age rating`);
     context.ageRating = (await context.version.getAgeRatingDeclarationAsync()) || undefined;
   }
 
-  async downloadAsync({ config, context }: TaskDownloadOptions): Promise<void> {
+  public async downloadAsync({ config, context }: TaskDownloadOptions): Promise<void> {
     if (context.ageRating) {
       config.setAgeRating(context.ageRating.attributes);
     }
   }
 
-  async uploadAsync({ config, context }: TaskUploadOptions): Promise<void> {
+  public async uploadAsync({ config, context }: TaskUploadOptions): Promise<void> {
     assert(context.ageRating, `Age rating not initialized, can't update age rating`);
 
     const ageRating = config.getAgeRating();
