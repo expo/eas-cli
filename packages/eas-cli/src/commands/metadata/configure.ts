@@ -36,8 +36,6 @@ export default class MetadataConfigure extends EasCommand {
     }),
   };
 
-  static args = [];
-
   async runAsync(): Promise<void> {
     const { flags: rawFlags } = await this.parse(MetadataConfigure);
     const flags = await this.sanitizeFlagsAsync(rawFlags);
