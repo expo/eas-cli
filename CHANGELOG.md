@@ -24,6 +24,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 - Match bundle identifier capabilities more accurately. ([#1112](https://github.com/expo/eas-cli/pull/1112) by [@EvanBacon](https://github.com/EvanBacon))
+- No longer timeout on publishing updates for branches with many updates. ([#1119](https://github.com/expo/eas-cli/pull/1119)) by [@kgc00](https://github.com/kgc00/)
 
 ### 🧹 Chores
 
