@@ -8,7 +8,7 @@ import {
   ViewBranchUpdatesQueryVariables,
 } from '../generated';
 
-const PAGE_LIMIT = 300;
+export const PAGE_LIMIT = 300;
 
 type ViewBranchUpdatesQueryVariablesWithOptionalLimit = Partial<ViewBranchUpdatesQueryVariables> &
   Pick<ViewBranchUpdatesQueryVariables, 'appId' | 'name'>;

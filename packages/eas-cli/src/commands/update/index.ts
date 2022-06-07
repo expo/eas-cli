@@ -117,7 +117,7 @@ async function ensureChannelExistsAsync({
   }
 }
 
-async function ensureBranchExistsAsync({
+export async function ensureBranchExistsAsync({
   appId,
   name: branchName,
   limit,
