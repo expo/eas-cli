@@ -4523,6 +4523,7 @@ export type ViewBranchUpdatesQueryVariables = Exact<{
   appId: Scalars['String'];
   name: Scalars['String'];
   limit: Scalars['Int'];
+  offset: Scalars['Int'];
 }>;
 
 

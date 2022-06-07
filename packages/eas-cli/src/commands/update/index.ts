@@ -25,7 +25,7 @@ import {
   ViewBranchUpdatesQuery,
 } from '../../graphql/generated';
 import { PublishMutation } from '../../graphql/mutations/PublishMutation';
-import { UpdateQuery } from '../../graphql/queries/UpdateQuery';
+import { UpdateQuery, viewBranchUpdatesQueryUpdateLimit } from '../../graphql/queries/UpdateQuery';
 import Log, { link } from '../../log';
 import { ora } from '../../ora';
 import { getExpoConfig } from '../../project/expoConfig';
@@ -124,10 +124,12 @@ export async function ensureBranchExistsAsync({
   appId,
   name: branchName,
   limit,
+  offset,
 }: {
   appId: string;
   name: string;
   limit?: number;
+  offset?: number;
 }): Promise<{
   id: string;
   updates: Exclude<
@@ -139,6 +141,7 @@ export async function ensureBranchExistsAsync({
     appId,
     name: branchName,
     limit,
+    offset,
   });
   const updateBranch = app?.byId.updateBranchByName;
   if (updateBranch) {
@@ -338,30 +341,11 @@ export default class UpdatePublish extends EasCommand {
           throw new Error('You must specify the update group to republish.');
         }
 
-        const { updates } = await ensureBranchExistsAsync({
-          appId: projectId,
-          name: branchName,
-        });
-        const updateGroups = uniqBy(updates, u => u.group)
-          .filter(update => {
-            // Only show groups that have updates on the specified platform(s).
-            return platformFlag === 'all' || update.platform === platformFlag;
-          })
-          .map(update => ({
-            title: formatUpdateTitle(update),
-            value: update.group,
-          }));
-        if (updateGroups.length === 0) {
-          throw new Error(
-            `There are no updates on branch "${branchName}" published on the platform(s) ${platformFlag}. Did you mean to publish a new update instead?`
-          );
-        }
-
-        const selectedUpdateGroup = await selectAsync<string>(
-          'which update would you like to republish?',
-          updateGroups
+        updatesToRepublish = await getUpdatesToRepublishInteractiveAsync(
+          projectId,
+          branchName,
+          platformFlag
         );
-        updatesToRepublish = updates.filter(update => update.group === selectedUpdateGroup);
       }
       const updatesToRepublishFilteredByPlatform = updatesToRepublish.filter(
         // Only republish to the specified platforms
@@ -610,6 +594,59 @@ export default class UpdatePublish extends EasCommand {
       }
     }
   }
+}
+
+export async function getUpdatesToRepublishInteractiveAsync(
+  projectId: string,
+  branchName: string,
+  platformFlag: string,
+  cumulativeUpdates: Exclude<
+    Exclude<ViewBranchUpdatesQuery['app'], null | undefined>['byId']['updateBranchByName'],
+    null | undefined
+  >['updates'] = [],
+  offset: number = 0
+): Promise<any> {
+  const fetchMoreValue = '_fetchMore';
+
+  const { updates } = await ensureBranchExistsAsync({
+    appId: projectId,
+    name: branchName,
+    offset,
+  });
+  cumulativeUpdates = [...cumulativeUpdates, ...updates];
+  const updateGroups = uniqBy(cumulativeUpdates, u => u.group)
+    .filter(update => {
+      // Only show groups that have updates on the specified platform(s).
+      return platformFlag === 'all' || update.platform === platformFlag;
+    })
+    .map(update => ({
+      title: formatUpdateTitle(update),
+      value: update.group,
+    }));
+  if (!updateGroups.length) {
+    throw new Error(
+      `There are no updates on branch "${branchName}" published on the platform(s) ${platformFlag}. Did you mean to publish a new update instead?`
+    );
+  }
+
+  if (updates.length && updates.length === viewBranchUpdatesQueryUpdateLimit) {
+    updateGroups.push({ title: 'Next page...', value: fetchMoreValue });
+  }
+
+  const selectedUpdateGroup = await selectAsync<string>(
+    'which update would you like to republish?',
+    updateGroups
+  );
+  if (selectedUpdateGroup === fetchMoreValue) {
+    return await getUpdatesToRepublishInteractiveAsync(
+      projectId,
+      branchName,
+      platformFlag,
+      cumulativeUpdates,
+      offset + 1 * viewBranchUpdatesQueryUpdateLimit
+    );
+  }
+  return cumulativeUpdates.filter(update => update.group === selectedUpdateGroup);
 }
 
 async function getRuntimeVersionObjectAsync(

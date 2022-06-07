@@ -60,7 +60,7 @@ describe('UpdatePublish', () => {
       jest.mocked(graphqlClient.mutation).mockClear();
     });
 
-    it('defaults to the PAGE_LIMIT when no limit is provided', async () => {
+    it('defaults limit to PAGE_LIMIT and offset to 0 when none are provided', async () => {
       await ensureBranchExistsAsync({ appId, name: appName });
       const [[, bindings]] = jest.mocked(graphqlClient.query).mock.calls;
 
@@ -68,17 +68,24 @@ describe('UpdatePublish', () => {
         appId,
         name: appName,
         limit: viewBranchUpdatesQueryUpdateLimit,
+        offset: 0,
       });
     });
 
-    it.each([0, 10, 100, 1000])('sets the limit to %s when asked', async limit => {
-      await ensureBranchExistsAsync({ appId, name: appName, limit });
+    it.each([
+      [0, 0],
+      [10, 50],
+      [100, 3],
+      [1000, 77],
+    ])('sets the limit to %s and offset to %s when asked', async (limit, offset) => {
+      await ensureBranchExistsAsync({ appId, name: appName, limit, offset });
       const [[, bindings]] = jest.mocked(graphqlClient.query).mock.calls;
 
       expect(bindings).toEqual({
         appId,
         name: appName,
         limit,
+        offset,
       });
     });
   });

@@ -10,8 +10,9 @@ import {
 
 export const viewBranchUpdatesQueryUpdateLimit = 300;
 
-type ViewBranchUpdatesQueryVariablesWithOptionalLimit = Partial<ViewBranchUpdatesQueryVariables> &
-  Pick<ViewBranchUpdatesQueryVariables, 'appId' | 'name'>;
+type ViewBranchUpdatesQueryVariablesWithOptionalLimitAndOffset =
+  Partial<ViewBranchUpdatesQueryVariables> &
+    Pick<ViewBranchUpdatesQueryVariables, 'appId' | 'name'>;
 
 export const UpdateQuery = {
   async viewAllAsync({ appId }: { appId: string }): Promise<ViewAllUpdatesQuery> {
@@ -61,19 +62,20 @@ export const UpdateQuery = {
     appId,
     name,
     limit = viewBranchUpdatesQueryUpdateLimit,
-  }: ViewBranchUpdatesQueryVariablesWithOptionalLimit) {
+    offset = 0,
+  }: ViewBranchUpdatesQueryVariablesWithOptionalLimitAndOffset) {
     return withErrorHandlingAsync<ViewBranchUpdatesQuery>(
       graphqlClient
         .query<ViewBranchUpdatesQuery, ViewBranchUpdatesQueryVariables>(
           gql`
-            query ViewBranchUpdates($appId: String!, $name: String!, $limit: Int!) {
+            query ViewBranchUpdates($appId: String!, $name: String!, $limit: Int!, $offset: Int!) {
               app {
                 byId(appId: $appId) {
                   id
                   updateBranchByName(name: $name) {
                     id
                     name
-                    updates(offset: 0, limit: $limit) {
+                    updates(offset: $offset, limit: $limit) {
                       id
                       group
                       message
@@ -100,6 +102,7 @@ export const UpdateQuery = {
             appId,
             name,
             limit,
+            offset,
           },
           { additionalTypenames: ['UpdateBranch', 'Update'] }
         )
