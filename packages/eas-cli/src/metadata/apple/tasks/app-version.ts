@@ -97,10 +97,11 @@ export class AppVersionTask extends AppleTask {
 
         const oldModel = context.versionLocales.find(model => model.attributes.locale === locale);
         await logAsync(
-          () =>
-            oldModel
-              ? oldModel.updateAsync(attributes)
-              : context.version.createLocalizationAsync({ ...attributes, locale }),
+          async () => {
+            return oldModel
+              ? await oldModel.updateAsync(attributes)
+              : await context.version.createLocalizationAsync({ ...attributes, locale });
+          },
           {
             pending: `${oldModel ? 'Updating' : 'Creating'} localized version for ${locale}...`,
             success: `${oldModel ? 'Updated' : 'Created'} localized version for ${locale}`,

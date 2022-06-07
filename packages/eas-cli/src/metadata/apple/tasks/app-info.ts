@@ -68,10 +68,11 @@ export class AppInfoTask extends AppleTask {
 
         const model = context.infoLocales.find(model => model.attributes.locale === locale);
         await logAsync(
-          () =>
-            model
-              ? model.updateAsync(attributes)
-              : context.info.createLocalizationAsync({ ...attributes, locale }),
+          async () => {
+            return model
+              ? await model.updateAsync(attributes)
+              : await context.info.createLocalizationAsync({ ...attributes, locale });
+          },
           {
             pending: `${model ? 'Updating' : 'Creating'} localized info for ${locale}...`,
             success: `${model ? 'Updated' : 'Created'} localized info for ${locale}`,
