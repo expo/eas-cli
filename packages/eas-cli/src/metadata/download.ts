@@ -54,8 +54,13 @@ export async function downloadMetadataAsync(metadataCtx: MetadataContext): Promi
     }
   }
 
-  await fs.writeJson(filePath, config.toSchema(), { spaces: 2 });
-  unsubscribeTelemetry();
+  try {
+    await fs.writeJson(filePath, config.toSchema(), { spaces: 2 });
+  } catch (error) {
+    throw error;
+  } finally {
+    unsubscribeTelemetry();
+  }
 
   if (errors.length > 0) {
     throw new MetadataDownloadError(errors, executionId);
