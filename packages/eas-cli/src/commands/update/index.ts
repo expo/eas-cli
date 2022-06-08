@@ -117,12 +117,14 @@ async function ensureChannelExistsAsync({
   }
 }
 
-async function ensureBranchExistsAsync({
+export async function ensureBranchExistsAsync({
   appId,
   name: branchName,
+  limit,
 }: {
   appId: string;
   name: string;
+  limit?: number;
 }): Promise<{
   id: string;
   updates: Exclude<
@@ -133,6 +135,7 @@ async function ensureBranchExistsAsync({
   const { app } = await UpdateQuery.viewBranchAsync({
     appId,
     name: branchName,
+    limit,
   });
   const updateBranch = app?.byId.updateBranchByName;
   if (updateBranch) {
@@ -309,11 +312,6 @@ export default class UpdatePublish extends EasCommand {
       assert(branchName, 'Branch name must be specified.');
     }
 
-    const { id: branchId, updates } = await ensureBranchExistsAsync({
-      appId: projectId,
-      name: branchName,
-    });
-
     let unsortedUpdateInfoGroups: UpdateInfoGroup = {};
     let oldMessage: string, oldRuntimeVersion: string;
     if (republish) {
@@ -335,6 +333,10 @@ export default class UpdatePublish extends EasCommand {
           throw new Error('You must specify the update group to republish.');
         }
 
+        const { updates } = await ensureBranchExistsAsync({
+          appId: projectId,
+          name: branchName,
+        });
         const updateGroups = uniqBy(updates, u => u.group)
           .filter(update => {
             // Only show groups that have updates on the specified platform(s).
@@ -464,6 +466,12 @@ export default class UpdatePublish extends EasCommand {
         .filter(pair => pair[1] === runtime)
         .map(pair => pair[0]);
     }
+
+    const { id: branchId } = await ensureBranchExistsAsync({
+      appId: projectId,
+      name: branchName,
+      limit: 0,
+    });
 
     // Sort the updates into different groups based on their platform specific runtime versions
     const updateGroups: PublishUpdateGroupInput[] = Object.entries(runtimeToPlatformMapping).map(

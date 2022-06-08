@@ -6,6 +6,7 @@ packages/eas-cli/tmp
 # Code editors
 .idea
 .history
+.vscode
 
 # macOS
 .DS_Store
