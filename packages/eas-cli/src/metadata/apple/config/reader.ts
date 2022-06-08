@@ -7,7 +7,7 @@ import {
   ReleaseType,
 } from '@expo/apple-utils';
 
-import { unique } from '../../utils/array';
+import uniq from '../../../utils/expodash/uniq';
 import { AttributesOf } from '../../utils/asc';
 import { removeDatePrecision } from '../../utils/date';
 import { AppleMetadata } from '../types';
@@ -30,7 +30,7 @@ export class AppleConfigReader {
 
   public getLocales(): string[] {
     // TODO: filter "default" locales, add option to add non-localized info to the config
-    return unique(Object.keys(this.schema.info || {}));
+    return uniq(Object.keys(this.schema.info || {}));
   }
 
   public getInfoLocale(
