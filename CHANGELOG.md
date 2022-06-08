@@ -16,7 +16,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
-- No longer timeout on publishing updates for branches with many updates. ([#1119](https://github.com/expo/eas-cli/pull/1119)) by [@kgc00](https://github.com/kgc00/)
+- No longer timeout on publishing updates for branches with many updates. ([#1119](https://github.com/expo/eas-cli/pull/1119) by [@kgc00](https://github.com/kgc00/))
 
 ### 🧹 Chores
 
