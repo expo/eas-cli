@@ -1,6 +1,6 @@
 import { ensureBranchExistsAsync } from '../../commands/update';
 import { graphqlClient } from '../../graphql/client';
-import { PAGE_LIMIT } from '../../graphql/queries/UpdateQuery';
+import { viewBranchUpdatesQueryUpdateLimit } from '../../graphql/queries/UpdateQuery';
 
 const appId = '6c94sxe6-37d2-4700-52fa-1b813204dad2';
 const branchId = '5e84e3cb-563e-4022-a65e-6e7a42fe4ed3';
@@ -53,7 +53,7 @@ jest.mock('../../graphql/client', () => ({
   },
 }));
 
-describe.only('UpdatePublish', () => {
+describe('UpdatePublish', () => {
   describe('ensureBranchExistsAsync', () => {
     beforeEach(() => {
       jest.mocked(graphqlClient.query).mockClear();
@@ -67,7 +67,7 @@ describe.only('UpdatePublish', () => {
       expect(bindings).toEqual({
         appId,
         name: appName,
-        limit: PAGE_LIMIT,
+        limit: viewBranchUpdatesQueryUpdateLimit,
       });
     });
 
