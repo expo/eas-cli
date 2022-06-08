@@ -4,7 +4,6 @@ describe(removeDatePrecision, () => {
   it('returns null for falsy values', () => {
     expect(removeDatePrecision(null)).toBeNull();
     expect(removeDatePrecision(undefined)).toBeNull();
-    expect(removeDatePrecision(false)).toBeNull();
   });
 
   it('returns null for invalid dates', () => {
