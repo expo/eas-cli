@@ -8,7 +8,8 @@ import {
   ViewBranchUpdatesQueryVariables,
 } from '../generated';
 
-export const viewBranchUpdatesQueryUpdateLimit = 300;
+// used for changing the value during testing
+export const getViewBranchUpdatesQueryUpdateLimit = (): number => 300;
 
 type ViewBranchUpdatesQueryVariablesWithOptionalLimitAndOffset =
   Partial<ViewBranchUpdatesQueryVariables> &
@@ -51,7 +52,7 @@ export const UpdateQuery = {
           `,
           {
             appId,
-            limit: viewBranchUpdatesQueryUpdateLimit,
+            limit: getViewBranchUpdatesQueryUpdateLimit(),
           },
           { additionalTypenames: ['UpdateBranch', 'Update'] }
         )
@@ -61,7 +62,7 @@ export const UpdateQuery = {
   async viewBranchAsync({
     appId,
     name,
-    limit = viewBranchUpdatesQueryUpdateLimit,
+    limit = getViewBranchUpdatesQueryUpdateLimit(),
     offset = 0,
   }: ViewBranchUpdatesQueryVariablesWithOptionalLimitAndOffset) {
     return withErrorHandlingAsync<ViewBranchUpdatesQuery>(

@@ -25,7 +25,10 @@ import {
   ViewBranchUpdatesQuery,
 } from '../../graphql/generated';
 import { PublishMutation } from '../../graphql/mutations/PublishMutation';
-import { UpdateQuery, viewBranchUpdatesQueryUpdateLimit } from '../../graphql/queries/UpdateQuery';
+import {
+  UpdateQuery,
+  getViewBranchUpdatesQueryUpdateLimit,
+} from '../../graphql/queries/UpdateQuery';
 import Log, { link } from '../../log';
 import { ora } from '../../ora';
 import { getExpoConfig } from '../../project/expoConfig';
@@ -62,7 +65,7 @@ import { listBranchesAsync } from '../branch/list';
 import { createUpdateChannelOnAppAsync } from '../channel/create';
 
 export const defaultPublishPlatforms: PublishPlatform[] = ['android', 'ios'];
-type PlatformFlag = PublishPlatform | 'all';
+export type PlatformFlag = PublishPlatform | 'all';
 
 async function getUpdateGroupAsync({
   group,
@@ -629,7 +632,7 @@ export async function getUpdatesToRepublishInteractiveAsync(
     );
   }
 
-  if (updates.length && updates.length === viewBranchUpdatesQueryUpdateLimit) {
+  if (updates.length && updates.length === getViewBranchUpdatesQueryUpdateLimit()) {
     updateGroups.push({ title: 'Next page...', value: fetchMoreValue });
   }
 
@@ -643,7 +646,7 @@ export async function getUpdatesToRepublishInteractiveAsync(
       branchName,
       platformFlag,
       cumulativeUpdates,
-      offset + 1 * viewBranchUpdatesQueryUpdateLimit
+      (offset + 1) * getViewBranchUpdatesQueryUpdateLimit()
     );
   }
   return cumulativeUpdates.filter(update => update.group === selectedUpdateGroup);
