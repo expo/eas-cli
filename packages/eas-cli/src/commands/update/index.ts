@@ -9,6 +9,7 @@ import gql from 'graphql-tag';
 import nullthrows from 'nullthrows';
 
 import { getEASUpdateURL } from '../../api';
+import { getUpdateGroupUrl } from '../../build/utils/url';
 import EasCommand from '../../commandUtils/EasCommand';
 import fetch from '../../fetch';
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
@@ -25,25 +26,29 @@ import {
 } from '../../graphql/generated';
 import { PublishMutation } from '../../graphql/mutations/PublishMutation';
 import { UpdateQuery } from '../../graphql/queries/UpdateQuery';
-import Log from '../../log';
+import Log, { learnMore, link } from '../../log';
 import { ora } from '../../ora';
 import { getExpoConfig } from '../../project/expoConfig';
 import {
   findProjectRootAsync,
+  getProjectAccountName,
   getProjectIdAsync,
   installExpoUpdatesAsync,
   isExpoUpdatesInstalledOrAvailable,
 } from '../../project/projectUtils';
 import {
+  MAX_ASSETS_PER_UPLOAD,
   PublishPlatform,
   buildBundlesAsync,
   buildUnsortedUpdateInfoGroupAsync,
   collectAssetsAsync,
   uploadAssetsAsync,
+  uploadedAssetCountIsAboveWarningThreshold,
 } from '../../project/publish';
 import { resolveWorkflowAsync } from '../../project/workflow';
 import { confirmAsync, promptAsync, selectAsync } from '../../prompts';
 import { formatUpdate } from '../../update/utils';
+import { ensureLoggedInAsync } from '../../user/actions';
 import {
   checkManifestBodyAgainstUpdateInfoGroup,
   getCodeSigningInfoAsync,
@@ -314,6 +319,8 @@ export default class UpdatePublish extends EasCommand {
 
     let unsortedUpdateInfoGroups: UpdateInfoGroup = {};
     let oldMessage: string, oldRuntimeVersion: string;
+    let uploadedAssetCount = 0;
+
     if (republish) {
       // If we are republishing, we don't need to worry about building the bundle or uploading the assets.
       // Instead we get the `updateInfoGroup` from the update we wish to republish.
@@ -451,9 +458,12 @@ export default class UpdatePublish extends EasCommand {
       try {
         const platforms = platformFlag === 'all' ? defaultPublishPlatforms : [platformFlag];
         const assets = await collectAssetsAsync({ inputDir: inputDir!, platforms });
-        await uploadAssetsAsync(assets);
+        uploadedAssetCount = await uploadAssetsAsync(assets);
         unsortedUpdateInfoGroups = await buildUnsortedUpdateInfoGroupAsync(assets, exp);
-        assetSpinner.succeed('Uploaded assets!');
+        const uploadAssetSuccessMessage = uploadedAssetCount
+          ? `Uploaded ${uploadedAssetCount} assets!`
+          : `Uploading assets skipped -- no new assets were found!`;
+        assetSpinner.succeed(uploadAssetSuccessMessage);
       } catch (e) {
         assetSpinner.fail('Failed to upload assets');
         throw e;
@@ -562,23 +572,49 @@ export default class UpdatePublish extends EasCommand {
 
       Log.addNewLineIfNone();
       for (const runtime of new Set(Object.values(runtimeVersions))) {
-        const platforms = newUpdates
-          .filter(update => update.runtimeVersion === runtime)
-          .map(update => update.platform);
-        const newUpdate = newUpdates.find(update => update.runtimeVersion === runtime);
-        if (!newUpdate) {
+        const newUpdatesForRuntimeVersion = newUpdates.filter(
+          update => update.runtimeVersion === runtime
+        );
+        if (!newUpdatesForRuntimeVersion.length) {
           throw new Error(`Publish response is missing updates with runtime ${runtime}.`);
         }
+        const platforms = newUpdatesForRuntimeVersion.map(update => update.platform);
+        const newAndroidUpdate = newUpdatesForRuntimeVersion.find(
+          update => update.platform === 'android'
+        );
+        const newIosUpdate = newUpdatesForRuntimeVersion.find(update => update.platform === 'ios');
+        const updateGroupId = newUpdatesForRuntimeVersion[0].group;
+
+        const projectName = exp.slug;
+        const accountName = getProjectAccountName(exp, await ensureLoggedInAsync());
+        const updateGroupUrl = getUpdateGroupUrl(accountName, projectName, updateGroupId);
+        const updateGroupLink = link(updateGroupUrl, { dim: false });
+
         Log.log(
           formatFields([
-            { label: 'branch', value: branchName },
-            { label: 'runtime version', value: runtime },
-            { label: 'platform', value: platforms.join(', ') },
-            { label: 'update group ID', value: newUpdate.group },
-            { label: 'message', value: message! },
+            { label: 'Branch', value: branchName },
+            { label: 'Runtime version', value: runtime },
+            { label: 'Platform', value: platforms.join(', ') },
+            { label: 'Update group ID', value: updateGroupId },
+            ...(newAndroidUpdate
+              ? [{ label: 'Android update ID', value: newAndroidUpdate.id }]
+              : []),
+            ...(newIosUpdate ? [{ label: 'iOS update ID', value: newIosUpdate.id }] : []),
+            { label: 'Message', value: message! },
+            { label: 'Website link', value: updateGroupLink },
           ])
         );
         Log.addNewLineIfNone();
+        if (uploadedAssetCountIsAboveWarningThreshold(uploadedAssetCount)) {
+          Log.warn(
+            `This update group contains ${uploadedAssetCount} assets and is nearing the server cap of ${MAX_ASSETS_PER_UPLOAD}\n` +
+              `${learnMore('https://docs.expo.dev/eas-update/optimize-assets/', {
+                learnMoreMessage: 'Consider optimizing your usage of assets',
+                dim: false,
+              })}`
+          );
+          Log.addNewLineIfNone();
+        }
       }
     }
   }

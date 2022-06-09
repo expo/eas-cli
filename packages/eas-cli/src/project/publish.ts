@@ -16,6 +16,10 @@ import { expoCommandAsync } from '../utils/expoCli';
 import uniqBy from '../utils/expodash/uniqBy';
 
 export const TIMEOUT_LIMIT = 60_000; // 1 minute
+export const MAX_ASSETS_PER_UPLOAD = 600; // https://github.com/expo/universe/blob/main/server/www/src/graphql/mutations/AssetMutation.ts#L14
+const MAX_ASSETS_PER_UPLOAD_WARNING_THRESHOLD = Math.floor(MAX_ASSETS_PER_UPLOAD * 0.75);
+export const uploadedAssetCountIsAboveWarningThreshold = (uploadedAssetCount: number): boolean =>
+  uploadedAssetCount > MAX_ASSETS_PER_UPLOAD_WARNING_THRESHOLD;
 
 export type PublishPlatform = Extract<'android' | 'ios', Platform>;
 type Metadata = {
@@ -245,7 +249,9 @@ export async function filterOutAssetsThatAlreadyExistAsync(
   return missingAssets;
 }
 
-export async function uploadAssetsAsync(assetsForUpdateInfoGroup: CollectedAssets): Promise<void> {
+export async function uploadAssetsAsync(
+  assetsForUpdateInfoGroup: CollectedAssets
+): Promise<number> {
   let assets: RawAsset[] = [];
   let platform: keyof CollectedAssets;
   for (platform in assetsForUpdateInfoGroup) {
@@ -271,6 +277,7 @@ export async function uploadAssetsAsync(assetsForUpdateInfoGroup: CollectedAsset
   >(assetsWithStorageKey, asset => asset.storageKey);
 
   let missingAssets = await filterOutAssetsThatAlreadyExistAsync(uniqueAssets);
+  const uniqueUploadedAssetCount = missingAssets.length;
   const { specifications } = await PublishMutation.getUploadURLsAsync(
     missingAssets.map(ma => ma.contentType)
   );
@@ -295,4 +302,5 @@ export async function uploadAssetsAsync(assetsForUpdateInfoGroup: CollectedAsset
       throw new Error('Asset upload timed out. Please try again.');
     }
   }
+  return uniqueUploadedAssetCount;
 }

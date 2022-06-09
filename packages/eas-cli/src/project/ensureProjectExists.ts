@@ -35,7 +35,10 @@ export async function ensureProjectExistsAsync(projectInfo: ProjectInfo): Promis
   assert(account, `You must have access to the ${accountName} account to run this command`);
 
   const projectDashboardUrl = getProjectDashboardUrl(accountName, projectName);
-  const projectLink = terminalLink(projectFullName, projectDashboardUrl);
+  const projectLink = terminalLink(projectFullName, projectDashboardUrl, {
+    // https://github.com/sindresorhus/terminal-link/issues/18#issuecomment-1068020361
+    fallback: () => `${projectFullName} (${projectDashboardUrl})`,
+  });
 
   const spinner = ora(`Linking to project ${chalk.bold(projectFullName)}`).start();
 
