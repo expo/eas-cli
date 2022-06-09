@@ -468,7 +468,7 @@ describe(uploadAssetsAsync, () => {
     });
 
     mockdate.set(0);
-    await expect(uploadAssetsAsync(assetsForUpdateInfoGroup)).resolves.toBe(undefined);
+    await expect(uploadAssetsAsync(assetsForUpdateInfoGroup)).resolves.toBe(0);
   });
   it('resolves if the assets are eventually uploaded', async () => {
     jest.spyOn(PublishQuery, 'getAssetMetadataAsync').mockImplementation(async () => {
@@ -496,6 +496,6 @@ describe(uploadAssetsAsync, () => {
     });
 
     mockdate.set(0);
-    await expect(uploadAssetsAsync(assetsForUpdateInfoGroup)).resolves.toBe(undefined);
+    await expect(uploadAssetsAsync(assetsForUpdateInfoGroup)).resolves.toBe(2);
   });
 });
