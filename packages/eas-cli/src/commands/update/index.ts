@@ -454,11 +454,15 @@ export default class UpdatePublish extends EasCommand {
         }
       }
 
-      const assetSpinner = ora().start('Uploading assets...');
+      const assetSpinner = ora().start();
       try {
         const platforms = platformFlag === 'all' ? defaultPublishPlatforms : [platformFlag];
         const assets = await collectAssetsAsync({ inputDir: inputDir!, platforms });
-        uploadedAssetCount = await uploadAssetsAsync(assets);
+        const { uniqueUploadedAssetCount } = await uploadAssetsAsync(
+          assets,
+          spinnerText => (assetSpinner.text = `Uploading assets... ${spinnerText}`)
+        );
+        uploadedAssetCount = uniqueUploadedAssetCount;
         unsortedUpdateInfoGroups = await buildUnsortedUpdateInfoGroupAsync(assets, exp);
         const uploadAssetSuccessMessage = uploadedAssetCount
           ? `Uploaded ${uploadedAssetCount} assets!`

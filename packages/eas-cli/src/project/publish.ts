@@ -249,9 +249,16 @@ export async function filterOutAssetsThatAlreadyExistAsync(
   return missingAssets;
 }
 
+type AssetUploadResult = {
+  assetCount: number;
+  uniqueAssetCount: number;
+  uniqueUploadedAssetCount: number;
+};
+
 export async function uploadAssetsAsync(
-  assetsForUpdateInfoGroup: CollectedAssets
-): Promise<number> {
+  assetsForUpdateInfoGroup: CollectedAssets,
+  updateSpinnerText?: (updatedText: string) => void
+): Promise<AssetUploadResult> {
   let assets: RawAsset[] = [];
   let platform: keyof CollectedAssets;
   for (platform in assetsForUpdateInfoGroup) {
@@ -261,6 +268,7 @@ export async function uploadAssetsAsync(
       ...assetsForUpdateInfoGroup[platform]!.assets,
     ];
   }
+  updateSpinnerText?.(`${assets.length} present`);
 
   const assetsWithStorageKey = await Promise.all(
     assets.map(async asset => {
@@ -275,6 +283,7 @@ export async function uploadAssetsAsync(
       storageKey: string;
     }
   >(assetsWithStorageKey, asset => asset.storageKey);
+  updateSpinnerText?.(`${uniqueAssets.length} unique assets found`);
 
   let missingAssets = await filterOutAssetsThatAlreadyExistAsync(uniqueAssets);
   const uniqueUploadedAssetCount = missingAssets.length;
@@ -289,6 +298,7 @@ export async function uploadAssetsAsync(
     })
   );
 
+  updateSpinnerText?.(`${missingAssets.length} missing assets being uploaded`);
   // Wait up to TIMEOUT_LIMIT for assets to be uploaded and processed
   const start = Date.now();
   let timeout = 1;
@@ -302,5 +312,9 @@ export async function uploadAssetsAsync(
       throw new Error('Asset upload timed out. Please try again.');
     }
   }
-  return uniqueUploadedAssetCount;
+  return {
+    assetCount: assets.length,
+    uniqueAssetCount: uniqueAssets.length,
+    uniqueUploadedAssetCount,
+  };
 }
