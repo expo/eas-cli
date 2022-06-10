@@ -1,7 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 
 import {
-  PlatformFlag,
+  PublishPlatformFlag,
   ensureBranchExistsAsync,
   getUpdatesToRepublishInteractiveAsync,
 } from '../../commands/update';
@@ -86,7 +86,7 @@ function createMockUpdate(
     platformFlag = 'all',
     group = uuidv4(),
   }: Partial<{
-    platformFlag: PlatformFlag;
+    platformFlag: PublishPlatformFlag;
     group: string;
   }> = {
     platformFlag: 'all',

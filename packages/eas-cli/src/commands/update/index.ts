@@ -65,7 +65,7 @@ import { listBranchesAsync } from '../branch/list';
 import { createUpdateChannelOnAppAsync } from '../channel/create';
 
 export const defaultPublishPlatforms: PublishPlatform[] = ['android', 'ios'];
-export type PlatformFlag = PublishPlatform | 'all';
+export type PublishPlatformFlag = PublishPlatform | 'all';
 
 async function getUpdateGroupAsync({
   group,
@@ -233,7 +233,7 @@ export default class UpdatePublish extends EasCommand {
       enableJsonOutput();
     }
 
-    const platformFlag = platform as PlatformFlag;
+    const platformFlag = platform as PublishPlatformFlag;
     // If a group was specified, that means we are republishing it.
     republish = group ? true : republish;
 
@@ -356,7 +356,7 @@ export default class UpdatePublish extends EasCommand {
       );
       if (updatesToRepublishFilteredByPlatform.length === 0) {
         throw new Error(
-          `There are no updates on branch "${branchName}" published on the platform(s) "${platformFlag}" with group ID "${
+          `There are no updates on branch "${branchName}" published for the platform(s) "${platformFlag}" with group ID "${
             group ? group : updatesToRepublish[0].group
           }". Did you mean to publish a new update instead?`
         );
@@ -617,27 +617,29 @@ export async function getUpdatesToRepublishInteractiveAsync(
     offset,
   });
   cumulativeUpdates = [...cumulativeUpdates, ...updates];
-  const updateGroups = uniqBy(cumulativeUpdates, u => u.group)
-    .filter(update => {
-      // Only show groups that have updates on the specified platform(s).
-      return platformFlag === 'all' || update.platform === platformFlag;
-    })
-    .map(update => ({
-      title: formatUpdateTitle(update),
-      value: update.group,
-    }));
+  const cumulativeUpdatesForTargetPlatforms =
+    platformFlag === 'all'
+      ? cumulativeUpdates
+      : cumulativeUpdates.filter(update => {
+          // Only show groups that have updates on the specified platform(s).
+          return update.platform === platformFlag;
+        });
+  const updateGroups = uniqBy(cumulativeUpdatesForTargetPlatforms, u => u.group).map(update => ({
+    title: formatUpdateTitle(update),
+    value: update.group,
+  }));
   if (!updateGroups.length) {
     throw new Error(
       `There are no updates on branch "${branchName}" published on the platform(s) ${platformFlag}. Did you mean to publish a new update instead?`
     );
   }
 
-  if (updates.length && updates.length === getViewBranchUpdatesQueryUpdateLimit()) {
+  if (updates.length === getViewBranchUpdatesQueryUpdateLimit()) {
     updateGroups.push({ title: 'Next page...', value: fetchMoreValue });
   }
 
   const selectedUpdateGroup = await selectAsync<string>(
-    'which update would you like to republish?',
+    'Which update would you like to republish?',
     updateGroups
   );
   if (selectedUpdateGroup === fetchMoreValue) {
@@ -654,7 +656,7 @@ export async function getUpdatesToRepublishInteractiveAsync(
 
 async function getRuntimeVersionObjectAsync(
   exp: ExpoConfig,
-  platformFlag: PlatformFlag,
+  platformFlag: PublishPlatformFlag,
   projectDir: string
 ): Promise<Record<string, string>> {
   const platforms = (platformFlag === 'all' ? ['android', 'ios'] : [platformFlag]) as Platform[];
