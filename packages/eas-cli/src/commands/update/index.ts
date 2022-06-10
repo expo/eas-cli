@@ -25,10 +25,7 @@ import {
   ViewBranchUpdatesQuery,
 } from '../../graphql/generated';
 import { PublishMutation } from '../../graphql/mutations/PublishMutation';
-import {
-  UpdateQuery,
-  getViewBranchUpdatesQueryUpdateLimit,
-} from '../../graphql/queries/UpdateQuery';
+import { UpdateQuery } from '../../graphql/queries/UpdateQuery';
 import Log, { link } from '../../log';
 import { ora } from '../../ora';
 import { getExpoConfig } from '../../project/expoConfig';
@@ -347,7 +344,8 @@ export default class UpdatePublish extends EasCommand {
         updatesToRepublish = await getUpdatesToRepublishInteractiveAsync(
           projectId,
           branchName,
-          platformFlag
+          platformFlag,
+          50
         );
       }
       const updatesToRepublishFilteredByPlatform = updatesToRepublish.filter(
@@ -603,20 +601,26 @@ export async function getUpdatesToRepublishInteractiveAsync(
   projectId: string,
   branchName: string,
   platformFlag: string,
+  pageSize: number,
+  offset: number = 0,
   cumulativeUpdates: Exclude<
     Exclude<ViewBranchUpdatesQuery['app'], null | undefined>['byId']['updateBranchByName'],
     null | undefined
-  >['updates'] = [],
-  offset: number = 0
+  >['updates'] = []
 ): Promise<any> {
   const fetchMoreValue = '_fetchMore';
 
   const { updates } = await ensureBranchExistsAsync({
     appId: projectId,
     name: branchName,
+    limit: pageSize + 1, // fetch an extra item so we know if there are additional updates to fetch
     offset,
   });
-  cumulativeUpdates = [...cumulativeUpdates, ...updates];
+  cumulativeUpdates = [
+    ...cumulativeUpdates,
+    // drop that extra item used for pagination from our render logic
+    ...updates.slice(0, updates.length - 1),
+  ];
   const cumulativeUpdatesForTargetPlatforms =
     platformFlag === 'all'
       ? cumulativeUpdates
@@ -630,11 +634,11 @@ export async function getUpdatesToRepublishInteractiveAsync(
   }));
   if (!updateGroups.length) {
     throw new Error(
-      `There are no updates on branch "${branchName}" published on the platform(s) ${platformFlag}. Did you mean to publish a new update instead?`
+      `There are no updates on branch "${branchName}" published for the platform(s) ${platformFlag}. Did you mean to publish a new update instead?`
     );
   }
 
-  if (updates.length === getViewBranchUpdatesQueryUpdateLimit()) {
+  if (updates.length > pageSize) {
     updateGroups.push({ title: 'Next page...', value: fetchMoreValue });
   }
 
@@ -647,8 +651,9 @@ export async function getUpdatesToRepublishInteractiveAsync(
       projectId,
       branchName,
       platformFlag,
-      cumulativeUpdates,
-      (offset + 1) * getViewBranchUpdatesQueryUpdateLimit()
+      pageSize,
+      (offset + 1) * pageSize,
+      cumulativeUpdates
     );
   }
   return cumulativeUpdates.filter(update => update.group === selectedUpdateGroup);

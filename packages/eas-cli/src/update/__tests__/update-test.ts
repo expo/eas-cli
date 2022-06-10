@@ -7,7 +7,7 @@ import {
 } from '../../commands/update';
 import { graphqlClient } from '../../graphql/client';
 import { ViewBranchUpdatesQuery } from '../../graphql/generated';
-import { getViewBranchUpdatesQueryUpdateLimit } from '../../graphql/queries/UpdateQuery';
+import { viewBranchUpdatesQueryUpdateLimit } from '../../graphql/queries/UpdateQuery';
 import { selectAsync } from '../../prompts';
 
 const appId = '6c94sxe6-37d2-4700-52fa-1b813204dad2';
@@ -81,47 +81,68 @@ jest.mock('../../graphql/client', () => ({
   },
 }));
 
-function createMockUpdate(
+function createMockUpdates(
   {
+    updateCount = 1,
     platformFlag = 'all',
-    group = uuidv4(),
+    groupId,
   }: Partial<{
+    updateCount: number;
     platformFlag: PublishPlatformFlag;
-    group: string;
+    groupId: string;
   }> = {
+    updateCount: 1,
     platformFlag: 'all',
-    group: uuidv4(),
   }
 ): Exclude<
   Exclude<ViewBranchUpdatesQuery['app'], null | undefined>['byId']['updateBranchByName'],
   null | undefined
 >['updates'] {
-  const androidUpdate = {
-    id: uuidv4(),
-    group,
-    message: 'default test message',
-    createdAt: new Date(),
-    runtimeVersion: 'exposdk:44.0.0',
-    platform: 'ios',
-    manifestFragment: '',
-  };
-  const iosUpdate = {
-    id: uuidv4(),
-    group,
-    message: 'default test message',
-    createdAt: new Date(),
-    runtimeVersion: 'exposdk:44.0.0',
-    platform: 'android',
-    manifestFragment: '',
-  };
-  switch (platformFlag) {
-    case 'all':
-      return [androidUpdate, iosUpdate];
-    case 'android':
-      return [androidUpdate];
-    case 'ios':
-      return [iosUpdate];
+  let updates: Exclude<
+    Exclude<ViewBranchUpdatesQuery['app'], null | undefined>['byId']['updateBranchByName'],
+    null | undefined
+  >['updates'] = [];
+  if (platformFlag === 'all') {
+    updateCount = Math.ceil(updateCount / 2);
   }
+  for (let i = 0; i < updateCount; i++) {
+    const androidUpdate = {
+      id: uuidv4(),
+      group: uuidv4(),
+      message: 'default test message',
+      createdAt: new Date(),
+      runtimeVersion: 'exposdk:44.0.0',
+      platform: 'android',
+      manifestFragment: '',
+    };
+    const iosUpdate = {
+      ...androidUpdate,
+      id: uuidv4(),
+      platform: 'ios',
+    };
+    if (!i && groupId) {
+      androidUpdate.group = groupId;
+      iosUpdate.group = groupId;
+    }
+    const isOddNumberedUpdateCount = !(updateCount % 2);
+    const isFinalLoop = i === updateCount - 1;
+    switch (platformFlag) {
+      case 'all':
+        updates = [
+          ...updates,
+          androidUpdate,
+          ...(isFinalLoop && isOddNumberedUpdateCount ? [] : [iosUpdate]),
+        ];
+        break;
+      case 'android':
+        updates = [...updates, androidUpdate];
+        break;
+      case 'ios':
+        updates = [...updates, iosUpdate];
+        break;
+    }
+  }
+  return updates;
 }
 
 describe('UpdatePublish', () => {
@@ -138,7 +159,7 @@ describe('UpdatePublish', () => {
       expect(bindings).toEqual({
         appId,
         name: appName,
-        limit: getViewBranchUpdatesQueryUpdateLimit(),
+        limit: viewBranchUpdatesQueryUpdateLimit,
         offset: 0,
       });
     });
@@ -167,24 +188,26 @@ describe('UpdatePublish', () => {
       jest.mocked(graphqlClient.mutation).mockClear();
       jest.mocked(getUpdatesToRepublishInteractiveAsync).mockClear();
       jest.mocked(selectAsync).mockClear();
-      jest.mocked(getViewBranchUpdatesQueryUpdateLimit).mockReturnValue(2);
     });
 
     it('throws when there are no updates', async () => {
       const platformFlag = 'all';
       await expect(
         async () =>
-          await getUpdatesToRepublishInteractiveAsync('test-project', branchName, platformFlag)
+          await getUpdatesToRepublishInteractiveAsync('test-project', branchName, platformFlag, 50)
       ).rejects.toThrow(
-        `There are no updates on branch "${branchName}" published on the platform(s) ${platformFlag}. Did you mean to publish a new update instead?`
+        `There are no updates on branch "${branchName}" published for the platform(s) ${platformFlag}. Did you mean to publish a new update instead?`
       );
     });
 
     it('fetches multiple pages of updates and can republish an update from the most recent page', async () => {
       const mockSelectedGroupId = uuidv4();
+      const pageSize = 2;
       updatesToResolve
-        .mockReturnValueOnce(createMockUpdate())
-        .mockReturnValueOnce(createMockUpdate({ group: mockSelectedGroupId }));
+        .mockReturnValueOnce(createMockUpdates({ updateCount: pageSize + 1 }))
+        .mockReturnValueOnce(
+          createMockUpdates({ updateCount: pageSize + 1, groupId: mockSelectedGroupId })
+        );
       jest
         .mocked(selectAsync)
         .mockResolvedValueOnce('_fetchMore')
@@ -193,16 +216,23 @@ describe('UpdatePublish', () => {
       const selectedUpdates: Exclude<
         Exclude<ViewBranchUpdatesQuery['app'], null | undefined>['byId']['updateBranchByName'],
         null | undefined
-      >['updates'] = await getUpdatesToRepublishInteractiveAsync('test-project', branchName, 'all');
+      >['updates'] = await getUpdatesToRepublishInteractiveAsync(
+        'test-project',
+        branchName,
+        'all',
+        pageSize
+      );
       expect(selectedUpdates.every(update => update.group === mockSelectedGroupId)).toBeTruthy();
     });
 
     it('fetches multiple pages of updates and can republish an update from the previous page', async () => {
       const mockSelectedGroupId = uuidv4();
-
+      const pageSize = 5;
       updatesToResolve
-        .mockReturnValueOnce(createMockUpdate({ group: mockSelectedGroupId }))
-        .mockReturnValueOnce(createMockUpdate());
+        .mockReturnValueOnce(
+          createMockUpdates({ updateCount: pageSize + 1, groupId: mockSelectedGroupId })
+        )
+        .mockReturnValueOnce(createMockUpdates({ updateCount: pageSize + 1 }));
       jest
         .mocked(selectAsync)
         .mockResolvedValueOnce('_fetchMore')
@@ -211,32 +241,41 @@ describe('UpdatePublish', () => {
       const selectedUpdates: Exclude<
         Exclude<ViewBranchUpdatesQuery['app'], null | undefined>['byId']['updateBranchByName'],
         null | undefined
-      >['updates'] = await getUpdatesToRepublishInteractiveAsync('test-project', branchName, 'all');
+      >['updates'] = await getUpdatesToRepublishInteractiveAsync(
+        'test-project',
+        branchName,
+        'all',
+        pageSize
+      );
       expect(selectedUpdates.every(update => update.group === mockSelectedGroupId)).toBeTruthy();
     });
 
     it('displays the option to fetch more as long as there are unfetched updates left', async () => {
       const mockSelectedGroupId = uuidv4();
+      const pageSize = 10;
       updatesToResolve
-        .mockReturnValueOnce(createMockUpdate({ group: mockSelectedGroupId }))
-        .mockReturnValueOnce(createMockUpdate())
-        .mockReturnValueOnce(createMockUpdate({ platformFlag: 'android' }));
+        .mockReturnValueOnce(
+          createMockUpdates({ updateCount: pageSize + 1, groupId: mockSelectedGroupId })
+        )
+        .mockReturnValueOnce(createMockUpdates({ updateCount: pageSize + 1 }))
+        .mockReturnValueOnce(createMockUpdates({ updateCount: pageSize }));
       jest
         .mocked(selectAsync)
         .mockResolvedValueOnce('_fetchMore')
         .mockResolvedValueOnce('_fetchMore')
         .mockResolvedValueOnce(mockSelectedGroupId);
 
-      await getUpdatesToRepublishInteractiveAsync('test-project', branchName, 'all');
+      await getUpdatesToRepublishInteractiveAsync('test-project', branchName, 'all', pageSize);
       const { calls } = jest.mocked(selectAsync).mock;
       expect(calls.length).toEqual(3);
       const [[, firstOptions], [, secondOptions], [, thirdOptions]] = calls;
       const fetchMoreValue = '_fetchMore';
       expect(firstOptions[firstOptions.length - 1].value).toEqual(fetchMoreValue);
-      expect(firstOptions.length).toEqual(2);
+      expect(firstOptions.length).toEqual(pageSize / 2 + 1); // + 1 === fetch more object
       expect(secondOptions[secondOptions.length - 1].value).toEqual(fetchMoreValue);
-      expect(secondOptions.length).toEqual(3);
+      expect(secondOptions.length).toEqual((pageSize / 2) * 2 + 1);
       expect(thirdOptions.every(update => update.value !== fetchMoreValue)).toBeTruthy();
+      expect(thirdOptions.length).toEqual((pageSize / 2) * 3);
     });
   });
 });
