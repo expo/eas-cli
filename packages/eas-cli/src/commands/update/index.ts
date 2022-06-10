@@ -26,7 +26,7 @@ import {
 } from '../../graphql/generated';
 import { PublishMutation } from '../../graphql/mutations/PublishMutation';
 import { UpdateQuery } from '../../graphql/queries/UpdateQuery';
-import Log, { learnMore, link } from '../../log';
+import Log, { link } from '../../log';
 import { ora } from '../../ora';
 import { getExpoConfig } from '../../project/expoConfig';
 import {
@@ -37,13 +37,11 @@ import {
   isExpoUpdatesInstalledOrAvailable,
 } from '../../project/projectUtils';
 import {
-  MAX_ASSETS_PER_UPLOAD,
   PublishPlatform,
   buildBundlesAsync,
   buildUnsortedUpdateInfoGroupAsync,
   collectAssetsAsync,
   uploadAssetsAsync,
-  uploadedAssetCountIsAboveWarningThreshold,
 } from '../../project/publish';
 import { resolveWorkflowAsync } from '../../project/workflow';
 import { confirmAsync, promptAsync, selectAsync } from '../../prompts';
@@ -454,7 +452,7 @@ export default class UpdatePublish extends EasCommand {
         }
       }
 
-      const assetSpinner = ora().start();
+      const assetSpinner = ora().start('Uploading assets...');
       try {
         const platforms = platformFlag === 'all' ? defaultPublishPlatforms : [platformFlag];
         const assets = await collectAssetsAsync({ inputDir: inputDir!, platforms });
@@ -465,8 +463,8 @@ export default class UpdatePublish extends EasCommand {
         uploadedAssetCount = uniqueUploadedAssetCount;
         unsortedUpdateInfoGroups = await buildUnsortedUpdateInfoGroupAsync(assets, exp);
         const uploadAssetSuccessMessage = uploadedAssetCount
-          ? `Uploaded ${uploadedAssetCount} assets!`
-          : `Uploading assets skipped -- no new assets were found!`;
+          ? `Uploaded ${uploadedAssetCount} ${uploadedAssetCount === 1 ? 'asset' : 'assets'}!`
+          : `Uploading assets skipped -- no new assets found!`;
         assetSpinner.succeed(uploadAssetSuccessMessage);
       } catch (e) {
         assetSpinner.fail('Failed to upload assets');
@@ -609,16 +607,6 @@ export default class UpdatePublish extends EasCommand {
           ])
         );
         Log.addNewLineIfNone();
-        if (uploadedAssetCountIsAboveWarningThreshold(uploadedAssetCount)) {
-          Log.warn(
-            `This update group contains ${uploadedAssetCount} assets and is nearing the server cap of ${MAX_ASSETS_PER_UPLOAD}\n` +
-              `${learnMore('https://docs.expo.dev/eas-update/optimize-assets/', {
-                learnMoreMessage: 'Consider optimizing your usage of assets',
-                dim: false,
-              })}`
-          );
-          Log.addNewLineIfNone();
-        }
       }
     }
   }

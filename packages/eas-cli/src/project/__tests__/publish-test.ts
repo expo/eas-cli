@@ -536,9 +536,9 @@ describe(uploadAssetsAsync, () => {
     await uploadAssetsAsync(assetsForUpdateInfoGroup, updateSpinnerFn);
     const calls = updateSpinnerFn.mock.calls;
     expect(calls).toEqual([
-      ['6 present'],
+      ['6 assets present'],
       ['3 unique assets found'],
-      ['2 missing assets being uploaded'],
+      ['2 new assets uploading'],
     ]);
   });
 });

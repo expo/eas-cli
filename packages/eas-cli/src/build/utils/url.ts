@@ -42,7 +42,9 @@ export function getUpdateGroupUrl(
   updateGroupId: string
 ): string {
   return new URL(
-    `/accounts/${accountName}/projects/${projectName}/updates/${updateGroupId}`,
+    `/accounts/${encodeURIComponent(accountName)}/projects/${encodeURIComponent(
+      projectName
+    )}/updates/${encodeURIComponent(updateGroupId)}`,
     getExpoWebsiteBaseUrl()
   ).toString();
 }

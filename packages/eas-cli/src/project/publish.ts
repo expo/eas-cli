@@ -16,10 +16,6 @@ import { expoCommandAsync } from '../utils/expoCli';
 import uniqBy from '../utils/expodash/uniqBy';
 
 export const TIMEOUT_LIMIT = 60_000; // 1 minute
-export const MAX_ASSETS_PER_UPLOAD = 600; // https://github.com/expo/universe/blob/main/server/www/src/graphql/mutations/AssetMutation.ts#L14
-const MAX_ASSETS_PER_UPLOAD_WARNING_THRESHOLD = Math.floor(MAX_ASSETS_PER_UPLOAD * 0.75);
-export const uploadedAssetCountIsAboveWarningThreshold = (uploadedAssetCount: number): boolean =>
-  uploadedAssetCount > MAX_ASSETS_PER_UPLOAD_WARNING_THRESHOLD;
 
 export type PublishPlatform = Extract<'android' | 'ios', Platform>;
 type Metadata = {
@@ -268,7 +264,7 @@ export async function uploadAssetsAsync(
       ...assetsForUpdateInfoGroup[platform]!.assets,
     ];
   }
-  updateSpinnerText?.(`${assets.length} present`);
+  updateSpinnerText?.(`${assets.length} ${assets.length === 1 ? 'asset' : 'assets'} present`);
 
   const assetsWithStorageKey = await Promise.all(
     assets.map(async asset => {
@@ -283,7 +279,9 @@ export async function uploadAssetsAsync(
       storageKey: string;
     }
   >(assetsWithStorageKey, asset => asset.storageKey);
-  updateSpinnerText?.(`${uniqueAssets.length} unique assets found`);
+  updateSpinnerText?.(
+    `${uniqueAssets.length} unique ${uniqueAssets.length === 1 ? 'asset' : 'assets'} found`
+  );
 
   let missingAssets = await filterOutAssetsThatAlreadyExistAsync(uniqueAssets);
   const uniqueUploadedAssetCount = missingAssets.length;
@@ -298,7 +296,9 @@ export async function uploadAssetsAsync(
     })
   );
 
-  updateSpinnerText?.(`${missingAssets.length} missing assets being uploaded`);
+  updateSpinnerText?.(
+    `${missingAssets.length} new ${missingAssets.length === 1 ? 'asset' : 'assets'} uploading`
+  );
   // Wait up to TIMEOUT_LIMIT for assets to be uploaded and processed
   const start = Date.now();
   let timeout = 1;
