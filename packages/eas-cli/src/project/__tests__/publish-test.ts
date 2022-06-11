@@ -468,7 +468,11 @@ describe(uploadAssetsAsync, () => {
     });
 
     mockdate.set(0);
-    await expect(uploadAssetsAsync(assetsForUpdateInfoGroup)).resolves.toBe(undefined);
+    await expect(uploadAssetsAsync(assetsForUpdateInfoGroup)).resolves.toEqual({
+      assetCount: 6,
+      uniqueAssetCount: 3,
+      uniqueUploadedAssetCount: 0,
+    });
   });
   it('resolves if the assets are eventually uploaded', async () => {
     jest.spyOn(PublishQuery, 'getAssetMetadataAsync').mockImplementation(async () => {
@@ -496,6 +500,45 @@ describe(uploadAssetsAsync, () => {
     });
 
     mockdate.set(0);
-    await expect(uploadAssetsAsync(assetsForUpdateInfoGroup)).resolves.toBe(undefined);
+    await expect(uploadAssetsAsync(assetsForUpdateInfoGroup)).resolves.toEqual({
+      assetCount: 6,
+      uniqueAssetCount: 3,
+      uniqueUploadedAssetCount: 2,
+    });
+  });
+  it('updates spinner text throughout execution', async () => {
+    jest.spyOn(PublishQuery, 'getAssetMetadataAsync').mockImplementation(async () => {
+      const status =
+        Date.now() === 0 ? AssetMetadataStatus.DoesNotExist : AssetMetadataStatus.Exists;
+      mockdate.set(Date.now() + 1);
+      jest.runAllTimers();
+      return [
+        {
+          storageKey: 'qbgckgkgfdjnNuf9dQd7FDTWUmlEEzg7l1m1sKzQaq0',
+          status,
+          __typename: 'AssetMetadataResult',
+        }, // userDefinedAsset
+        {
+          storageKey: 'bbjgXFSIXtjviGwkaPFY0HG4dVVIGiXHAboRFQEqVa4',
+          status,
+          __typename: 'AssetMetadataResult',
+        }, // android.code
+        {
+          storageKey: 'dP-nC8EJXKz42XKh_Rc9tYxiGAT-ilpkRltEi6HIKeQ',
+          status,
+          __typename: 'AssetMetadataResult',
+        }, // ios.code
+      ];
+    });
+    const updateSpinnerFn = jest.fn(_text => {});
+
+    mockdate.set(0);
+    await uploadAssetsAsync(assetsForUpdateInfoGroup, updateSpinnerFn);
+    const calls = updateSpinnerFn.mock.calls;
+    expect(calls).toEqual([
+      ['6 assets present'],
+      ['3 unique assets found'],
+      ['2 new assets uploading'],
+    ]);
   });
 });

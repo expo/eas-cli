@@ -245,7 +245,16 @@ export async function filterOutAssetsThatAlreadyExistAsync(
   return missingAssets;
 }
 
-export async function uploadAssetsAsync(assetsForUpdateInfoGroup: CollectedAssets): Promise<void> {
+type AssetUploadResult = {
+  assetCount: number;
+  uniqueAssetCount: number;
+  uniqueUploadedAssetCount: number;
+};
+
+export async function uploadAssetsAsync(
+  assetsForUpdateInfoGroup: CollectedAssets,
+  updateSpinnerText?: (updatedText: string) => void
+): Promise<AssetUploadResult> {
   let assets: RawAsset[] = [];
   let platform: keyof CollectedAssets;
   for (platform in assetsForUpdateInfoGroup) {
@@ -255,6 +264,7 @@ export async function uploadAssetsAsync(assetsForUpdateInfoGroup: CollectedAsset
       ...assetsForUpdateInfoGroup[platform]!.assets,
     ];
   }
+  updateSpinnerText?.(`${assets.length} ${assets.length === 1 ? 'asset' : 'assets'} present`);
 
   const assetsWithStorageKey = await Promise.all(
     assets.map(async asset => {
@@ -269,8 +279,12 @@ export async function uploadAssetsAsync(assetsForUpdateInfoGroup: CollectedAsset
       storageKey: string;
     }
   >(assetsWithStorageKey, asset => asset.storageKey);
+  updateSpinnerText?.(
+    `${uniqueAssets.length} unique ${uniqueAssets.length === 1 ? 'asset' : 'assets'} found`
+  );
 
   let missingAssets = await filterOutAssetsThatAlreadyExistAsync(uniqueAssets);
+  const uniqueUploadedAssetCount = missingAssets.length;
   const { specifications } = await PublishMutation.getUploadURLsAsync(
     missingAssets.map(ma => ma.contentType)
   );
@@ -282,6 +296,9 @@ export async function uploadAssetsAsync(assetsForUpdateInfoGroup: CollectedAsset
     })
   );
 
+  updateSpinnerText?.(
+    `${missingAssets.length} new ${missingAssets.length === 1 ? 'asset' : 'assets'} uploading`
+  );
   // Wait up to TIMEOUT_LIMIT for assets to be uploaded and processed
   const start = Date.now();
   let timeout = 1;
@@ -295,4 +312,9 @@ export async function uploadAssetsAsync(assetsForUpdateInfoGroup: CollectedAsset
       throw new Error('Asset upload timed out. Please try again.');
     }
   }
+  return {
+    assetCount: assets.length,
+    uniqueAssetCount: uniqueAssets.length,
+    uniqueUploadedAssetCount,
+  };
 }
