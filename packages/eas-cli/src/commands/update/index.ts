@@ -607,13 +607,18 @@ export async function getUpdatesToRepublishInteractiveAsync(
     Exclude<ViewBranchUpdatesQuery['app'], null | undefined>['byId']['updateBranchByName'],
     null | undefined
   >['updates'] = []
-): Promise<any> {
+): Promise<
+  Exclude<
+    Exclude<ViewBranchUpdatesQuery['app'], null | undefined>['byId']['updateBranchByName'],
+    null | undefined
+  >['updates']
+> {
   const fetchMoreValue = '_fetchMore';
 
   const { updates } = await ensureBranchExistsAsync({
     appId: projectId,
     name: branchName,
-    limit: pageSize + 1, // fetch an extra item so we know if there are additional updates to fetch
+    limit: pageSize + 1, // fetch an extra item so we know if there are additional pages
     offset,
   });
   cumulativeUpdates = [
@@ -652,7 +657,7 @@ export async function getUpdatesToRepublishInteractiveAsync(
       branchName,
       platformFlag,
       pageSize,
-      (offset + 1) * pageSize,
+      offset + pageSize,
       cumulativeUpdates
     );
   }

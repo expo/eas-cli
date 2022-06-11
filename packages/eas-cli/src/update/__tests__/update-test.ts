@@ -14,6 +14,7 @@ const appId = '6c94sxe6-37d2-4700-52fa-1b813204dad2';
 const branchId = '5e84e3cb-563e-4022-a65e-6e7a42fe4ed3';
 const appName = '@tester/test';
 const branchName = 'test-branch';
+const projectName = 'test-project';
 
 jest.mock('../../graphql/queries/UpdateQuery', () => {
   const actual = jest.requireActual('../../graphql/queries/UpdateQuery');
@@ -152,7 +153,7 @@ describe('UpdatePublish', () => {
       jest.mocked(graphqlClient.mutation).mockClear();
     });
 
-    it('defaults limit to PAGE_LIMIT and offset to 0 when none are provided', async () => {
+    it('defaults limit to viewBranchUpdatesQueryUpdateLimit and offset to 0 when none are provided', async () => {
       await ensureBranchExistsAsync({ appId, name: appName });
       const [[, bindings]] = jest.mocked(graphqlClient.query).mock.calls;
 
@@ -169,7 +170,7 @@ describe('UpdatePublish', () => {
       [10, 50],
       [100, 3],
       [1000, 77],
-    ])('sets the limit to %s and offset to %s when asked', async (limit, offset) => {
+    ])('sets the limit to %s and offset to %s when provided', async (limit, offset) => {
       await ensureBranchExistsAsync({ appId, name: appName, limit, offset });
       const [[, bindings]] = jest.mocked(graphqlClient.query).mock.calls;
 
@@ -194,13 +195,13 @@ describe('UpdatePublish', () => {
       const platformFlag = 'all';
       await expect(
         async () =>
-          await getUpdatesToRepublishInteractiveAsync('test-project', branchName, platformFlag, 50)
+          await getUpdatesToRepublishInteractiveAsync(projectName, branchName, platformFlag, 50)
       ).rejects.toThrow(
         `There are no updates on branch "${branchName}" published for the platform(s) ${platformFlag}. Did you mean to publish a new update instead?`
       );
     });
 
-    it('fetches multiple pages of updates and can republish an update from the most recent page', async () => {
+    it('fetches multiple pages of updates and can select an update from the most recent page', async () => {
       const mockSelectedGroupId = uuidv4();
       const pageSize = 2;
       updatesToResolve
@@ -213,11 +214,8 @@ describe('UpdatePublish', () => {
         .mockResolvedValueOnce('_fetchMore')
         .mockResolvedValueOnce(mockSelectedGroupId);
 
-      const selectedUpdates: Exclude<
-        Exclude<ViewBranchUpdatesQuery['app'], null | undefined>['byId']['updateBranchByName'],
-        null | undefined
-      >['updates'] = await getUpdatesToRepublishInteractiveAsync(
-        'test-project',
+      const selectedUpdates = await getUpdatesToRepublishInteractiveAsync(
+        projectName,
         branchName,
         'all',
         pageSize
@@ -225,7 +223,7 @@ describe('UpdatePublish', () => {
       expect(selectedUpdates.every(update => update.group === mockSelectedGroupId)).toBeTruthy();
     });
 
-    it('fetches multiple pages of updates and can republish an update from the previous page', async () => {
+    it('fetches multiple pages of updates and can return an update from a previous page', async () => {
       const mockSelectedGroupId = uuidv4();
       const pageSize = 5;
       updatesToResolve
@@ -238,11 +236,8 @@ describe('UpdatePublish', () => {
         .mockResolvedValueOnce('_fetchMore')
         .mockResolvedValueOnce(mockSelectedGroupId);
 
-      const selectedUpdates: Exclude<
-        Exclude<ViewBranchUpdatesQuery['app'], null | undefined>['byId']['updateBranchByName'],
-        null | undefined
-      >['updates'] = await getUpdatesToRepublishInteractiveAsync(
-        'test-project',
+      const selectedUpdates = await getUpdatesToRepublishInteractiveAsync(
+        projectName,
         branchName,
         'all',
         pageSize
@@ -250,7 +245,7 @@ describe('UpdatePublish', () => {
       expect(selectedUpdates.every(update => update.group === mockSelectedGroupId)).toBeTruthy();
     });
 
-    it('displays the option to fetch more as long as there are unfetched updates left', async () => {
+    it('displays the option to fetch more pages as long as there are unfetched updates left', async () => {
       const mockSelectedGroupId = uuidv4();
       const pageSize = 10;
       updatesToResolve
@@ -265,7 +260,7 @@ describe('UpdatePublish', () => {
         .mockResolvedValueOnce('_fetchMore')
         .mockResolvedValueOnce(mockSelectedGroupId);
 
-      await getUpdatesToRepublishInteractiveAsync('test-project', branchName, 'all', pageSize);
+      await getUpdatesToRepublishInteractiveAsync(projectName, branchName, 'all', pageSize);
       const { calls } = jest.mocked(selectAsync).mock;
       expect(calls.length).toEqual(3);
       const [[, firstOptions], [, secondOptions], [, thirdOptions]] = calls;
@@ -276,6 +271,33 @@ describe('UpdatePublish', () => {
       expect(secondOptions.length).toEqual((pageSize / 2) * 2 + 1);
       expect(thirdOptions.every(update => update.value !== fetchMoreValue)).toBeTruthy();
       expect(thirdOptions.length).toEqual((pageSize / 2) * 3);
+    });
+
+    it('paginates update requests as expected', async () => {
+      const mockSelectedGroupId = uuidv4();
+      const pageSize = 50;
+      updatesToResolve
+        .mockReturnValueOnce(
+          createMockUpdates({ updateCount: pageSize + 1, groupId: mockSelectedGroupId })
+        )
+        .mockReturnValueOnce(createMockUpdates({ updateCount: pageSize + 1 }))
+        .mockReturnValueOnce(createMockUpdates({ updateCount: pageSize + 1 }))
+        .mockReturnValueOnce(createMockUpdates({ updateCount: pageSize }));
+      jest
+        .mocked(selectAsync)
+        .mockResolvedValueOnce('_fetchMore')
+        .mockResolvedValueOnce('_fetchMore')
+        .mockResolvedValueOnce('_fetchMore')
+        .mockResolvedValueOnce(mockSelectedGroupId);
+
+      await getUpdatesToRepublishInteractiveAsync(projectName, branchName, 'all', pageSize);
+      const gqlBindings = jest.mocked(graphqlClient.query).mock.calls.map(call => call[1]);
+      expect(gqlBindings).toEqual([
+        expect.objectContaining({ limit: pageSize + 1, offset: pageSize * 0 }),
+        expect.objectContaining({ limit: pageSize + 1, offset: pageSize * 1 }),
+        expect.objectContaining({ limit: pageSize + 1, offset: pageSize * 2 }),
+        expect.objectContaining({ limit: pageSize + 1, offset: pageSize * 3 }),
+      ]);
     });
   });
 });
