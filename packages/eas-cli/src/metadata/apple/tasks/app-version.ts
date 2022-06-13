@@ -31,8 +31,8 @@ export class AppVersionTask extends AppleTask {
   public constructor(options: Partial<AppVersionOptions> = {}) {
     super();
     this.options = {
-      platform: options.platform || Platform.IOS,
-      editLive: options.editLive || false,
+      platform: options.platform ?? Platform.IOS,
+      editLive: options.editLive ?? false,
     };
   }
 

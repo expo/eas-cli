@@ -43,7 +43,7 @@ export class AppleConfigReader {
 
     return {
       locale,
-      name: info.title || 'no name provided',
+      name: info.title ?? 'no name provided',
       subtitle: info.subtitle,
       privacyChoicesUrl: info.privacyChoicesUrl,
       privacyPolicyText: info.privacyPolicyText,
