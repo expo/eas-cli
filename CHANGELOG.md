@@ -11,7 +11,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 - Match bundle identifier capabilities more accurately. ([#1112](https://github.com/expo/eas-cli/pull/1112) by [@EvanBacon](https://github.com/EvanBacon))
-- Limit concurrent asset uploads to google. ([#1153](https://github.com/expo/eas-cli/pull/1153) by [@wschurman](https://github.com/wschurman))
+- Limit concurrent asset uploads. ([#1153](https://github.com/expo/eas-cli/pull/1153) by [@wschurman](https://github.com/wschurman))
 
 ### 🧹 Chores
 
