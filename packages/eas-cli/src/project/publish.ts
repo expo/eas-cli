@@ -276,7 +276,7 @@ export async function uploadAssetsAsync(assetsForUpdateInfoGroup: CollectedAsset
     missingAssets.map(ma => ma.contentType)
   );
 
-  const assetUploadPromiseLimit = promiseLimit(50);
+  const assetUploadPromiseLimit = promiseLimit(15);
 
   await Promise.all(
     missingAssets.map((missingAsset, i) => {
