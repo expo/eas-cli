@@ -5,6 +5,7 @@ import fs from 'fs-extra';
 import Joi from 'joi';
 import mime from 'mime';
 import path from 'path';
+import promiseLimit from 'promise-limit';
 
 import { AssetMetadataStatus, PartialManifestAsset } from '../graphql/generated';
 import { PublishMutation } from '../graphql/mutations/PublishMutation';
@@ -289,10 +290,14 @@ export async function uploadAssetsAsync(
     missingAssets.map(ma => ma.contentType)
   );
 
+  const assetUploadPromiseLimit = promiseLimit(15);
+
   await Promise.all(
     missingAssets.map((missingAsset, i) => {
-      const presignedPost: PresignedPost = JSON.parse(specifications[i]);
-      return uploadWithPresignedPostAsync(missingAsset.path, presignedPost);
+      assetUploadPromiseLimit(async () => {
+        const presignedPost: PresignedPost = JSON.parse(specifications[i]);
+        return uploadWithPresignedPostAsync(missingAsset.path, presignedPost);
+      });
     })
   );
 
