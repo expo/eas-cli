@@ -28,17 +28,17 @@ export type AppVersionData = {
 export class AppVersionTask extends AppleTask {
   private options: AppVersionOptions;
 
-  constructor(options: Partial<AppVersionOptions> = {}) {
+  public constructor(options: Partial<AppVersionOptions> = {}) {
     super();
     this.options = {
-      platform: options.platform || Platform.IOS,
-      editLive: options.editLive || false,
+      platform: options.platform ?? Platform.IOS,
+      editLive: options.editLive ?? false,
     };
   }
 
-  name = (): string => (this.options.editLive ? 'live app version' : 'editable app version');
+  public name = (): string => (this.options.editLive ? 'live app version' : 'editable app version');
 
-  async prepareAsync({ context }: TaskPrepareOptions): Promise<void> {
+  public async prepareAsync({ context }: TaskPrepareOptions): Promise<void> {
     const { version, versionIsFirst, versionIsLive } = await resolveVersionAsync(
       context.app,
       this.options
@@ -52,7 +52,7 @@ export class AppVersionTask extends AppleTask {
     context.versionLocales = await version.getLocalizationsAsync();
   }
 
-  async downloadAsync({ config, context }: TaskDownloadOptions): Promise<void> {
+  public async downloadAsync({ config, context }: TaskDownloadOptions): Promise<void> {
     assert(context.version, `App version not initialized, can't download version`);
 
     config.setVersion(context.version.attributes);
@@ -63,7 +63,7 @@ export class AppVersionTask extends AppleTask {
     }
   }
 
-  async uploadAsync({ config, context }: TaskUploadOptions): Promise<void> {
+  public async uploadAsync({ config, context }: TaskUploadOptions): Promise<void> {
     assert(context.version, `App version not initialized, can't update version`);
 
     const version = config.getVersion();
@@ -97,10 +97,11 @@ export class AppVersionTask extends AppleTask {
 
         const oldModel = context.versionLocales.find(model => model.attributes.locale === locale);
         await logAsync(
-          () =>
-            oldModel
-              ? oldModel.updateAsync(attributes)
-              : context.version.createLocalizationAsync({ ...attributes, locale }),
+          async () => {
+            return oldModel
+              ? await oldModel.updateAsync(attributes)
+              : await context.version.createLocalizationAsync({ ...attributes, locale });
+          },
           {
             pending: `${oldModel ? 'Updating' : 'Creating'} localized version for ${locale}...`,
             success: `${oldModel ? 'Updated' : 'Created'} localized version for ${locale}`,

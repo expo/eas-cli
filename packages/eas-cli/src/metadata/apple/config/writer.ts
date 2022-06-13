@@ -18,18 +18,18 @@ export class AppleConfigWriter {
   constructor(public readonly schema: Partial<AppleMetadata> = {}) {}
 
   /** Get the schema result to write it to the config file */
-  toSchema(): { configVersion: number; apple: Partial<AppleMetadata> } {
+  public toSchema(): { configVersion: number; apple: Partial<AppleMetadata> } {
     return {
       configVersion: 0,
       apple: this.schema,
     };
   }
 
-  setAgeRating(attributes: AttributesOf<AgeRatingDeclaration>): void {
+  public setAgeRating(attributes: AttributesOf<AgeRatingDeclaration>): void {
     this.schema.advisory = attributes;
   }
 
-  setInfoLocale(attributes: AttributesOf<AppInfoLocalization>): void {
+  public setInfoLocale(attributes: AttributesOf<AppInfoLocalization>): void {
     this.schema.info = this.schema.info ?? {};
     const existing = this.schema.info[attributes.locale] ?? {};
 
@@ -43,7 +43,7 @@ export class AppleConfigWriter {
     };
   }
 
-  setCategories({ primaryCategory, secondaryCategory }: AttributesOf<AppInfo>): void {
+  public setCategories({ primaryCategory, secondaryCategory }: AttributesOf<AppInfo>): void {
     this.schema.categories = [];
 
     // TODO: see why these types are conflicting
@@ -55,13 +55,13 @@ export class AppleConfigWriter {
     }
   }
 
-  setVersion(
+  public setVersion(
     attributes: Omit<AttributesOf<AppStoreVersion>, 'releaseType' | 'earliestReleaseDate'>
   ): void {
     this.schema.copyright = optional(attributes.copyright);
   }
 
-  setVersionRelease(
+  public setVersionRelease(
     attributes: Pick<AttributesOf<AppStoreVersion>, 'releaseType' | 'earliestReleaseDate'>
   ): void {
     if (attributes.releaseType === ReleaseType.SCHEDULED) {
@@ -83,7 +83,7 @@ export class AppleConfigWriter {
     }
   }
 
-  setVersionLocale(attributes: AttributesOf<AppStoreVersionLocalization>): void {
+  public setVersionLocale(attributes: AttributesOf<AppStoreVersionLocalization>): void {
     this.schema.info = this.schema.info ?? {};
     const existing = this.schema.info[attributes.locale] ?? {};
 

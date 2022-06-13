@@ -15,9 +15,9 @@ export type AppInfoData = {
 };
 
 export class AppInfoTask extends AppleTask {
-  name = (): string => 'app information';
+  public name = (): string => 'app information';
 
-  async prepareAsync({ context }: TaskPrepareOptions): Promise<void> {
+  public async prepareAsync({ context }: TaskPrepareOptions): Promise<void> {
     const info = await retryIfNullAsync(() => context.app.getEditAppInfoAsync());
     assert(info, 'Could not resolve the editable app info to update');
 
@@ -25,7 +25,7 @@ export class AppInfoTask extends AppleTask {
     context.infoLocales = await info.getLocalizationsAsync();
   }
 
-  async downloadAsync({ config, context }: TaskDownloadOptions): Promise<void> {
+  public async downloadAsync({ config, context }: TaskDownloadOptions): Promise<void> {
     assert(context.info, `App info not initialized, can't download info`);
 
     config.setCategories(context.info.attributes);
@@ -35,7 +35,7 @@ export class AppInfoTask extends AppleTask {
     }
   }
 
-  async uploadAsync({ config, context }: TaskUploadOptions): Promise<void> {
+  public async uploadAsync({ config, context }: TaskUploadOptions): Promise<void> {
     assert(context.info, `App info not initialized, can't update info`);
 
     const categories = config.getCategories();
@@ -68,10 +68,11 @@ export class AppInfoTask extends AppleTask {
 
         const model = context.infoLocales.find(model => model.attributes.locale === locale);
         await logAsync(
-          () =>
-            model
-              ? model.updateAsync(attributes)
-              : context.info.createLocalizationAsync({ ...attributes, locale }),
+          async () => {
+            return model
+              ? await model.updateAsync(attributes)
+              : await context.info.createLocalizationAsync({ ...attributes, locale });
+          },
           {
             pending: `${model ? 'Updating' : 'Creating'} localized info for ${locale}...`,
             success: `${model ? 'Updated' : 'Created'} localized info for ${locale}`,

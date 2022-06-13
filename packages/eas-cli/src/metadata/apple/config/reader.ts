@@ -7,7 +7,7 @@ import {
   ReleaseType,
 } from '@expo/apple-utils';
 
-import { unique } from '../../utils/array';
+import uniq from '../../../utils/expodash/uniq';
 import { AttributesOf } from '../../utils/asc';
 import { removeDatePrecision } from '../../utils/date';
 import { AppleMetadata } from '../types';
@@ -22,18 +22,18 @@ export const DEFAULT_WHATSNEW = 'Bug fixes and improved stability';
  * This uses version 0 of the config schema.
  */
 export class AppleConfigReader {
-  constructor(public readonly schema: AppleMetadata) {}
+  public constructor(public readonly schema: AppleMetadata) {}
 
-  getAgeRating(): Partial<AttributesOf<AgeRatingDeclaration>> | null {
+  public getAgeRating(): Partial<AttributesOf<AgeRatingDeclaration>> | null {
     return this.schema.advisory || null;
   }
 
-  getLocales(): string[] {
+  public getLocales(): string[] {
     // TODO: filter "default" locales, add option to add non-localized info to the config
-    return unique(Object.keys(this.schema.info || {}));
+    return uniq(Object.keys(this.schema.info || {}));
   }
 
-  getInfoLocale(
+  public getInfoLocale(
     locale: string
   ): PartialExcept<AttributesOf<AppInfoLocalization>, 'locale' | 'name'> | null {
     const info = this.schema.info?.[locale];
@@ -43,7 +43,7 @@ export class AppleConfigReader {
 
     return {
       locale,
-      name: info.title || 'no name provided',
+      name: info.title ?? 'no name provided',
       subtitle: info.subtitle,
       privacyChoicesUrl: info.privacyChoicesUrl,
       privacyPolicyText: info.privacyPolicyText,
@@ -51,7 +51,7 @@ export class AppleConfigReader {
     };
   }
 
-  getCategories(): CategoryIds | null {
+  public getCategories(): CategoryIds | null {
     if (Array.isArray(this.schema.categories) && this.schema.categories.length > 0) {
       return {
         primaryCategory: this.schema.categories[0],
@@ -63,13 +63,13 @@ export class AppleConfigReader {
   }
 
   /** Get the `AppStoreVersion` object. */
-  getVersion(): Partial<
+  public getVersion(): Partial<
     Omit<AttributesOf<AppStoreVersion>, 'releaseType' | 'earliestReleaseDate'>
   > | null {
     return this.schema.copyright ? { copyright: this.schema.copyright } : null;
   }
 
-  getVersionRelease(): Partial<
+  public getVersionRelease(): Partial<
     Pick<AttributesOf<AppStoreVersion>, 'releaseType' | 'earliestReleaseDate'>
   > | null {
     const { release } = this.schema;
@@ -99,7 +99,7 @@ export class AppleConfigReader {
     return null;
   }
 
-  getVersionLocale(
+  public getVersionLocale(
     locale: string,
     context: { versionIsFirst: boolean }
   ): Partial<AttributesOf<AppStoreVersionLocalization>> | null {

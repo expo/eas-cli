@@ -9,7 +9,7 @@
  *   "pointer": "/data/attributes/earliestReleaseDate"
  * }
  */
-export function removeDatePrecision(date: any): null | Date {
+export function removeDatePrecision(date: null | undefined | string | number | Date): null | Date {
   if (date) {
     try {
       const result = new Date(date);
