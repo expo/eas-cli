@@ -19,13 +19,21 @@ export function resolveSubmitProfile<T extends Platform>({
   platform: T;
   profileName: string;
 }): SubmitProfile<T> {
-  const submitProfile = resolveProfile({
-    easJson,
-    platform,
-    profileName,
-  });
-  const unevaluatedProfile = mergeProfiles(getDefaultProfile(platform), submitProfile);
-  return evaluateFields(platform, unevaluatedProfile);
+  try {
+    const submitProfile = resolveProfile({
+      easJson,
+      platform,
+      profileName,
+    });
+    const unevaluatedProfile = mergeProfiles(getDefaultProfile(platform), submitProfile);
+    return evaluateFields(platform, unevaluatedProfile);
+  } catch (err: any) {
+    if (err instanceof MissingProfileError) {
+      return getDefaultProfile(platform);
+    } else {
+      throw err;
+    }
+  }
 }
 
 function resolveProfile<T extends Platform>({

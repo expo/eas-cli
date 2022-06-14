@@ -1,7 +1,7 @@
 import { App, Session } from '@expo/apple-utils';
 import { ExpoConfig } from '@expo/config';
 import { Platform } from '@expo/eas-build-job';
-import { SubmitProfile } from '@expo/eas-json';
+import { EasJsonReader, SubmitProfile } from '@expo/eas-json';
 import assert from 'assert';
 
 import { CredentialsContext } from '../credentials/context';
@@ -10,7 +10,6 @@ import { getExpoConfig } from '../project/expoConfig';
 import { getBundleIdentifierAsync } from '../project/ios/bundleIdentifier';
 import { Actor } from '../user/User';
 import { ensureLoggedInAsync } from '../user/actions';
-import { getProfilesAsync } from '../utils/profiles';
 
 export type MetadataContext = {
   /** Submission profile platform to use */
@@ -48,19 +47,11 @@ export async function createMetadataContextAsync(params: {
   exp?: ExpoConfig;
   profileName?: string;
 }): Promise<MetadataContext> {
-  const submissionProfiles = await getProfilesAsync({
-    type: 'submit',
-    platforms: [Platform.IOS],
-    projectDir: params.projectDir,
-    profileName: params.profileName,
-  });
-
-  const submissionProfile = submissionProfiles.find(profile => profile.platform === Platform.IOS);
-  assert(
-    submissionProfile,
-    'Could not resolve the iOS submission profile, only iOS is supported for metadata'
+  const easJsonReader = new EasJsonReader(params.projectDir);
+  const submitProfile = await easJsonReader.getSubmitProfileAsync(
+    Platform.IOS,
+    params.profileName ?? 'production'
   );
-  const iosSubmissionProfile = submissionProfile.profile as SubmitProfile<Platform.IOS>;
 
   const exp = params.exp ?? getExpoConfig(params.projectDir);
   const user = await ensureLoggedInAsync();
@@ -68,8 +59,8 @@ export async function createMetadataContextAsync(params: {
 
   return {
     platform: Platform.IOS,
-    profile: iosSubmissionProfile,
-    metadataPath: iosSubmissionProfile.metadataPath ?? 'store.config.json',
+    profile: submitProfile,
+    metadataPath: submitProfile.metadataPath ?? 'store.config.json',
     user,
     credentialsCtx: params.credentialsCtx,
     bundleIdentifier,

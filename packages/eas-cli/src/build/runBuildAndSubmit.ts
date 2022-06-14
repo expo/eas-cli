@@ -1,5 +1,5 @@
 import { Platform, Workflow } from '@expo/eas-build-job';
-import { BuildProfile, SubmitProfile } from '@expo/eas-json';
+import { BuildProfile, EasJsonReader, SubmitProfile } from '@expo/eas-json';
 import chalk from 'chalk';
 import nullthrows from 'nullthrows';
 
@@ -57,11 +57,12 @@ export async function runBuildAndSubmitAsync(projectDir: string, flags: BuildFla
     projectDir,
     nonInteractive: flags.nonInteractive,
   });
+  const easJsonReader = new EasJsonReader(projectDir);
 
   const platforms = toPlatforms(flags.requestedPlatform);
   const buildProfiles = await getProfilesAsync({
     type: 'build',
-    projectDir,
+    easJsonReader,
     platforms,
     profileName: flags.profile ?? undefined,
   });
@@ -102,7 +103,7 @@ export async function runBuildAndSubmitAsync(projectDir: string, flags: BuildFla
   const submissions: SubmissionFragment[] = [];
   if (flags.autoSubmit) {
     const submitProfiles = await getProfilesAsync({
-      projectDir,
+      easJsonReader,
       platforms,
       profileName: flags.submitProfile,
       type: 'submit',

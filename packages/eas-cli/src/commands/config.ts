@@ -11,7 +11,6 @@ import { appPlatformEmojis } from '../platform';
 import { getExpoConfig } from '../project/expoConfig';
 import { findProjectRootAsync } from '../project/projectUtils';
 import { selectAsync } from '../prompts';
-import { handleDeprecatedEasJsonAsync } from './build';
 
 export default class Config extends EasCommand {
   static description = 'display project configuration (app.json + eas.json)';
@@ -31,7 +30,6 @@ export default class Config extends EasCommand {
     };
 
     const projectDir = await findProjectRootAsync();
-    await handleDeprecatedEasJsonAsync(projectDir, false);
 
     const reader = new EasJsonReader(projectDir);
     const profileName =
