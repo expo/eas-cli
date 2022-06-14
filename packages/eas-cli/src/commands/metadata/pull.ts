@@ -1,6 +1,7 @@
 import { getConfig } from '@expo/config';
 import { Flags } from '@oclif/core';
 
+import { ensureProjectConfiguredAsync } from '../../build/configure';
 import EasCommand from '../../commandUtils/EasCommand';
 import { CredentialsContext } from '../../credentials/context';
 import Log, { learnMore } from '../../log';
@@ -26,6 +27,7 @@ export default class MetadataPull extends EasCommand {
     const projectDir = await findProjectRootAsync();
     const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
     await getProjectIdAsync(exp);
+    await ensureProjectConfiguredAsync({ projectDir, nonInteractive: false });
 
     const credentialsCtx = new CredentialsContext({
       exp,
