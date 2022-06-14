@@ -143,6 +143,9 @@
       "device": {
         "description": "manage Apple devices for Internal Distribution"
       },
+      "metadata": {
+        "description": "manage store configuration"
+      },
       "project": {
         "description": "manage project"
       },
