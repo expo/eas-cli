@@ -3,10 +3,10 @@ import { Flags } from '@oclif/core';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import { CredentialsContext } from '../../credentials/context';
-import Log from '../../log';
+import Log, { learnMore } from '../../log';
 import { createMetadataContextAsync } from '../../metadata/context';
+import { downloadMetadataAsync } from '../../metadata/download';
 import { handleMetadataError } from '../../metadata/errors';
-import { uploadMetadataAsync } from '../../metadata/upload';
 import { RequestedPlatform } from '../../platform';
 import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUtils';
 import { ensureLoggedInAsync } from '../../user/actions';
@@ -21,9 +21,9 @@ type CommandFlags = {
   profile?: string;
 };
 
-export default class Metadata extends EasCommand {
+export default class MetadataPull extends EasCommand {
   static hidden = true;
-  static description = 'upload metadata configuration to the app stores';
+  static description = 'configure the store configuration file in your project';
 
   static flags = {
     platform: Flags.enum({
@@ -36,10 +36,8 @@ export default class Metadata extends EasCommand {
     }),
   };
 
-  static args = [];
-
   async runAsync(): Promise<void> {
-    const { flags: rawFlags } = await this.parse(Metadata);
+    const { flags: rawFlags } = await this.parse(MetadataPull);
     const flags = await this.sanitizeFlagsAsync(rawFlags);
 
     const projectDir = await findProjectRootAsync();
@@ -62,9 +60,12 @@ export default class Metadata extends EasCommand {
 
     try {
       Log.addNewLineIfNone();
-      await uploadMetadataAsync(metadataCtx);
+      const filePath = await downloadMetadataAsync(metadataCtx);
       Log.addNewLineIfNone();
-      Log.succeed(`Store has been updated with your ${metadataCtx.metadataPath} configuration`);
+
+      Log.succeed('Your store configuration has been generated!');
+      Log.log(filePath);
+      Log.log(learnMore('https://docs.expo.dev/eas-metadata/introduction/'));
     } catch (error: any) {
       handleMetadataError(error);
     }

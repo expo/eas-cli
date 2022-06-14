@@ -3,10 +3,10 @@ import { Flags } from '@oclif/core';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import { CredentialsContext } from '../../credentials/context';
-import Log, { learnMore } from '../../log';
+import Log from '../../log';
 import { createMetadataContextAsync } from '../../metadata/context';
-import { downloadMetadataAsync } from '../../metadata/download';
 import { handleMetadataError } from '../../metadata/errors';
+import { uploadMetadataAsync } from '../../metadata/upload';
 import { RequestedPlatform } from '../../platform';
 import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUtils';
 import { ensureLoggedInAsync } from '../../user/actions';
@@ -21,9 +21,10 @@ type CommandFlags = {
   profile?: string;
 };
 
-export default class MetadataConfigure extends EasCommand {
+export default class MetadataPush extends EasCommand {
   static hidden = true;
-  static description = 'configure the store configuration file in your project';
+  static description = 'upload metadata configuration to the app stores';
+  static aliases = ['metadata'];
 
   static flags = {
     platform: Flags.enum({
@@ -36,8 +37,10 @@ export default class MetadataConfigure extends EasCommand {
     }),
   };
 
+  static args = [];
+
   async runAsync(): Promise<void> {
-    const { flags: rawFlags } = await this.parse(MetadataConfigure);
+    const { flags: rawFlags } = await this.parse(MetadataPush);
     const flags = await this.sanitizeFlagsAsync(rawFlags);
 
     const projectDir = await findProjectRootAsync();
@@ -60,12 +63,9 @@ export default class MetadataConfigure extends EasCommand {
 
     try {
       Log.addNewLineIfNone();
-      const filePath = await downloadMetadataAsync(metadataCtx);
+      await uploadMetadataAsync(metadataCtx);
       Log.addNewLineIfNone();
-
-      Log.succeed('Your store configuration has been generated!');
-      Log.log(filePath);
-      Log.log(learnMore('https://docs.expo.dev/eas-metadata/introduction/'));
+      Log.succeed(`Store has been updated with your ${metadataCtx.metadataPath} configuration`);
     } catch (error: any) {
       handleMetadataError(error);
     }
