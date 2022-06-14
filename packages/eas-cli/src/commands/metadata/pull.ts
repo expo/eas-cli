@@ -7,29 +7,14 @@ import Log, { learnMore } from '../../log';
 import { createMetadataContextAsync } from '../../metadata/context';
 import { downloadMetadataAsync } from '../../metadata/download';
 import { handleMetadataError } from '../../metadata/errors';
-import { RequestedPlatform } from '../../platform';
 import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUtils';
 import { ensureLoggedInAsync } from '../../user/actions';
-
-type RawCommandFlags = {
-  platform?: string;
-  profile?: string;
-};
-
-type CommandFlags = {
-  requestedPlatforms: RequestedPlatform;
-  profile?: string;
-};
 
 export default class MetadataPull extends EasCommand {
   static hidden = true;
   static description = 'configure the store configuration file in your project';
 
   static flags = {
-    platform: Flags.enum({
-      char: 'p',
-      options: ['ios'],
-    }),
     profile: Flags.string({
       description:
         'Name of the submit profile from eas.json. Defaults to "production" if defined in eas.json.',
@@ -37,9 +22,7 @@ export default class MetadataPull extends EasCommand {
   };
 
   async runAsync(): Promise<void> {
-    const { flags: rawFlags } = await this.parse(MetadataPull);
-    const flags = await this.sanitizeFlagsAsync(rawFlags);
-
+    const { flags } = await this.parse(MetadataPull);
     const projectDir = await findProjectRootAsync();
     const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
     await getProjectIdAsync(exp);
@@ -69,15 +52,5 @@ export default class MetadataPull extends EasCommand {
     } catch (error: any) {
       handleMetadataError(error);
     }
-  }
-
-  private async sanitizeFlagsAsync(flags: RawCommandFlags): Promise<CommandFlags> {
-    const { profile } = flags;
-
-    return {
-      // TODO: add support for multiple platforms, right now we only support ios
-      requestedPlatforms: RequestedPlatform.Ios, // enforced by the flag options
-      profile,
-    };
   }
 }
