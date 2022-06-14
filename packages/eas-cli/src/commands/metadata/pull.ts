@@ -14,7 +14,6 @@ import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUt
 import { ensureLoggedInAsync } from '../../user/actions';
 
 export default class MetadataPull extends EasCommand {
-  static hidden = true;
   static description = 'generate the local store configuration from the app stores';
 
   static flags = {
