@@ -12,8 +12,7 @@ import { ensureLoggedInAsync } from '../../user/actions';
 
 export default class MetadataPush extends EasCommand {
   static hidden = true;
-  static description = 'upload metadata configuration to the app stores';
-  static aliases = ['metadata'];
+  static description = 'sync the local store configuration to the app stores';
 
   static flags = {
     profile: Flags.string({

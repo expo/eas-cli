@@ -12,7 +12,7 @@ import { ensureLoggedInAsync } from '../../user/actions';
 
 export default class MetadataPull extends EasCommand {
   static hidden = true;
-  static description = 'configure the store configuration file in your project';
+  static description = 'generate the local store configuration from the app stores';
 
   static flags = {
     profile: Flags.string({
