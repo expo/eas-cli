@@ -55,7 +55,7 @@ export default class MetadataPull extends EasCommand {
 
 - Update the ${chalk.bold(relativePath)} file to prepare the app information.
 - Run ${chalk.bold('eas submit')} or manually upload a new app version to the app stores.
-- Once the app is uploaded, run ${chalk.bold('eas metadata')} to sync the store information.
+- Once the app is uploaded, run ${chalk.bold('eas metadata:push')} to sync the store configuration.
 - ${learnMore('https://docs.expo.dev/eas-metadata/introduction/')}`);
     } catch (error: any) {
       handleMetadataError(error);
