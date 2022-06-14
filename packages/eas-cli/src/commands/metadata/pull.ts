@@ -25,6 +25,8 @@ export default class MetadataPull extends EasCommand {
   };
 
   async runAsync(): Promise<void> {
+    Log.warn('EAS Metadata is in beta and subject to breaking changes.');
+
     const { flags } = await this.parse(MetadataPull);
     const projectDir = await findProjectRootAsync();
     const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });

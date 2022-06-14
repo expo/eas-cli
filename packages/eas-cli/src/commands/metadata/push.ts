@@ -25,6 +25,8 @@ export default class MetadataPush extends EasCommand {
   static args = [];
 
   async runAsync(): Promise<void> {
+    Log.warn('EAS Metadata is in beta and subject to breaking changes.');
+
     const { flags } = await this.parse(MetadataPush);
     const projectDir = await findProjectRootAsync();
     const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
