@@ -46,10 +46,9 @@ export default class MetadataPush extends EasCommand {
     });
 
     try {
-      Log.addNewLineIfNone();
       await uploadMetadataAsync(metadataCtx);
       Log.addNewLineIfNone();
-      Log.succeed(`Store has been updated with your ${metadataCtx.metadataPath} configuration`);
+      Log.log(`🎉 Store configuration is synced with the app stores.`);
     } catch (error: any) {
       handleMetadataError(error);
     }

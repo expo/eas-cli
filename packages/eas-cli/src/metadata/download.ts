@@ -2,6 +2,7 @@ import fs from 'fs-extra';
 import path from 'path';
 
 import { MetadataEvent } from '../analytics/events';
+import Log from '../log';
 import { confirmAsync } from '../prompts';
 import { AppleData } from './apple/data';
 import { createAppleTasks } from './apple/tasks';
@@ -32,6 +33,9 @@ export async function downloadMetadataAsync(metadataCtx: MetadataContext): Promi
     MetadataEvent.APPLE_METADATA_DOWNLOAD,
     { app, auth }
   );
+
+  Log.addNewLineIfNone();
+  Log.log('Downloading App Store configuration...');
 
   const errors: Error[] = [];
   const config = createAppleWriter();

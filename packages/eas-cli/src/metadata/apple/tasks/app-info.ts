@@ -74,9 +74,13 @@ export class AppInfoTask extends AppleTask {
               : await context.info.createLocalizationAsync({ ...attributes, locale });
           },
           {
-            pending: `${model ? 'Updating' : 'Creating'} localized info for ${locale}...`,
-            success: `${model ? 'Updated' : 'Created'} localized info for ${locale}`,
-            failure: `Failed ${model ? 'updating' : 'creating'} localized info for ${locale}`,
+            pending: `${model ? 'Updating' : 'Creating'} localized info for ${chalk.bold(
+              locale
+            )}...`,
+            success: `${model ? 'Updated' : 'Created'} localized info for ${chalk.bold(locale)}`,
+            failure: `Failed ${model ? 'updating' : 'creating'} localized info for ${chalk.bold(
+              locale
+            )}`,
           }
         );
       }

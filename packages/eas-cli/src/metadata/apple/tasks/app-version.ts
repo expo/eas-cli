@@ -71,16 +71,17 @@ export class AppVersionTask extends AppleTask {
     if (!version && !release) {
       Log.log(chalk`{dim - Skipped version and release update, not configured}`);
     } else {
-      const description = [version && 'version info', release && 'release info']
+      const { versionString } = context.version.attributes;
+      const description = [version && 'version', release && 'release']
         .filter(Boolean)
         .join(' and ');
 
       context.version = await logAsync(
         () => context.version.updateAsync({ ...version, ...release }),
         {
-          pending: `Updating ${description}...`,
-          success: `Updated ${description}`,
-          failure: `Failed updating ${description}`,
+          pending: `Updating ${description} info for ${chalk.bold(versionString)}...`,
+          success: `Updated ${description} info for ${chalk.bold(versionString)}...`,
+          failure: `Failed updating ${description} info for ${chalk.bold(versionString)}...`,
         }
       );
     }
@@ -103,9 +104,15 @@ export class AppVersionTask extends AppleTask {
               : await context.version.createLocalizationAsync({ ...attributes, locale });
           },
           {
-            pending: `${oldModel ? 'Updating' : 'Creating'} localized version for ${locale}...`,
-            success: `${oldModel ? 'Updated' : 'Created'} localized version for ${locale}`,
-            failure: `Failed ${oldModel ? 'updating' : 'creating'} localized version for ${locale}`,
+            pending: `${oldModel ? 'Updating' : 'Creating'} localized version for ${chalk.bold(
+              locale
+            )}...`,
+            success: `${oldModel ? 'Updated' : 'Created'} localized version for ${chalk.bold(
+              locale
+            )}`,
+            failure: `Failed ${
+              oldModel ? 'updating' : 'creating'
+            } localized version for ${chalk.bold(locale)}`,
           }
         );
       }

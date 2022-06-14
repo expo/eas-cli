@@ -1,5 +1,7 @@
 import { getConfig } from '@expo/config';
 import { Flags } from '@oclif/core';
+import chalk from 'chalk';
+import path from 'path';
 
 import { ensureProjectConfiguredAsync } from '../../build/configure';
 import EasCommand from '../../commandUtils/EasCommand';
@@ -44,13 +46,16 @@ export default class MetadataPull extends EasCommand {
     });
 
     try {
-      Log.addNewLineIfNone();
       const filePath = await downloadMetadataAsync(metadataCtx);
-      Log.addNewLineIfNone();
+      const relativePath = path.relative(process.cwd(), filePath);
 
-      Log.succeed('Your store configuration has been generated!');
-      Log.log(filePath);
-      Log.log(learnMore('https://docs.expo.dev/eas-metadata/introduction/'));
+      Log.addNewLineIfNone();
+      Log.log(`🎉 Your store configuration is ready.
+
+- Update the ${chalk.bold(relativePath)} file to prepare the app information.
+- Run ${chalk.bold('eas submit')} or manually upload a new app version to the app stores.
+- Once the app is uploaded, run ${chalk.bold('eas metadata')} to sync the store information.
+- ${learnMore('https://docs.expo.dev/eas-metadata/introduction/')}`);
     } catch (error: any) {
       handleMetadataError(error);
     }

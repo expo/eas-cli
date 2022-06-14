@@ -8,7 +8,7 @@ import Log, { link } from '../log';
  * and should contain useful information for the user to solve before trying again.
  */
 export class MetadataValidationError extends Error {
-  public constructor(message?: string, public readonly errors?: ErrorObject[]) {
+  public constructor(message?: string, public readonly errors: ErrorObject[] = []) {
     super(message ?? 'Store configuration validation failed');
   }
 }
@@ -52,7 +52,9 @@ export class MetadataDownloadError extends Error {
 export function handleMetadataError(error: Error): void {
   if (error instanceof MetadataValidationError) {
     Log.error(error.message);
-    Log.log(error.errors?.map(err => `  - ${err.dataPath} ${err.message}`).join('\n'));
+    if (error.errors?.length > 0) {
+      Log.log(error.errors.map(err => `  - ${err.dataPath} ${err.message}`).join('\n'));
+    }
     return;
   }
 
