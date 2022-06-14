@@ -103,9 +103,15 @@ export class AppVersionTask extends AppleTask {
               : await context.version.createLocalizationAsync({ ...attributes, locale });
           },
           {
-            pending: `${oldModel ? 'Updating' : 'Creating'} localized version for ${locale}...`,
-            success: `${oldModel ? 'Updated' : 'Created'} localized version for ${locale}`,
-            failure: `Failed ${oldModel ? 'updating' : 'creating'} localized version for ${locale}`,
+            pending: `${oldModel ? 'Updating' : 'Creating'} localized version for ${chalk.bold(
+              locale
+            )}...`,
+            success: `${oldModel ? 'Updated' : 'Created'} localized version for ${chalk.bold(
+              locale
+            )}`,
+            failure: `Failed ${
+              oldModel ? 'updating' : 'creating'
+            } localized version for ${chalk.bold(locale)}`,
           }
         );
       }
