@@ -2,6 +2,7 @@ import fs from 'fs-extra';
 import path from 'path';
 
 import { MetadataEvent } from '../analytics/events';
+import Log from '../log';
 import { confirmAsync } from '../prompts';
 import { AppleData } from './apple/data';
 import { createAppleTasks } from './apple/tasks';
@@ -33,6 +34,9 @@ export async function downloadMetadataAsync(metadataCtx: MetadataContext): Promi
     { app, auth }
   );
 
+  Log.addNewLineIfNone();
+  Log.log('Downloading App Store configuration...');
+
   const errors: Error[] = [];
   const config = createAppleWriter();
   const tasks = createAppleTasks(metadataCtx);
@@ -54,8 +58,11 @@ export async function downloadMetadataAsync(metadataCtx: MetadataContext): Promi
     }
   }
 
-  await fs.writeJson(filePath, config.toSchema(), { spaces: 2 });
-  unsubscribeTelemetry();
+  try {
+    await fs.writeJson(filePath, config.toSchema(), { spaces: 2 });
+  } finally {
+    unsubscribeTelemetry();
+  }
 
   if (errors.length > 0) {
     throw new MetadataDownloadError(errors, executionId);

@@ -2,6 +2,7 @@ import fs from 'fs-extra';
 import path from 'path';
 
 import { MetadataEvent } from '../analytics/events';
+import Log from '../log';
 import { AppleData } from './apple/data';
 import { createAppleTasks } from './apple/tasks';
 import { createAppleReader, validateConfig } from './config';
@@ -30,6 +31,9 @@ export async function uploadMetadataAsync(metadataCtx: MetadataContext): Promise
   if (!valid) {
     throw new MetadataValidationError(`Store configuration errors found`, validationErrors);
   }
+
+  Log.addNewLineIfNone();
+  Log.log('Uploading App Store configuration...');
 
   const errors: Error[] = [];
   const config = createAppleReader(fileData);

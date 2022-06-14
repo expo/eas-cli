@@ -8,7 +8,7 @@ import Log, { link } from '../log';
  * and should contain useful information for the user to solve before trying again.
  */
 export class MetadataValidationError extends Error {
-  constructor(message?: string, public readonly errors?: ErrorObject[]) {
+  public constructor(message?: string, public readonly errors: ErrorObject[] = []) {
     super(message ?? 'Store configuration validation failed');
   }
 }
@@ -20,7 +20,7 @@ export class MetadataValidationError extends Error {
  * It contains that list of encountered errors to present to the user.
  */
 export class MetadataUploadError extends Error {
-  constructor(public readonly errors: Error[], public readonly executionId: string) {
+  public constructor(public readonly errors: Error[], public readonly executionId: string) {
     super(
       `Store configuration upload encountered ${
         errors.length === 1 ? 'an error' : `${errors.length} errors`
@@ -36,7 +36,7 @@ export class MetadataUploadError extends Error {
  * It contains that list of encountered errors to present to the user.
  */
 export class MetadataDownloadError extends Error {
-  constructor(public readonly errors: Error[], public readonly executionId: string) {
+  public constructor(public readonly errors: Error[], public readonly executionId: string) {
     super(
       `Store configuration download encountered ${
         errors.length === 1 ? 'an error' : `${errors.length} errors`
@@ -52,7 +52,9 @@ export class MetadataDownloadError extends Error {
 export function handleMetadataError(error: Error): void {
   if (error instanceof MetadataValidationError) {
     Log.error(error.message);
-    Log.log(error.errors?.map(err => `  - ${err.dataPath} ${err.message}`).join('\n'));
+    if (error.errors?.length > 0) {
+      Log.log(error.errors.map(err => `  - ${err.dataPath} ${err.message}`).join('\n'));
+    }
     return;
   }
 
