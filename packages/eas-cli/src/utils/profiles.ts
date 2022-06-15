@@ -27,7 +27,7 @@ export async function getProfilesAsync<T extends ProfileType>({
       easJsonReader,
       platform,
       type,
-      profileName: profileName ?? 'production',
+      profileName,
     });
     return {
       profile,
@@ -48,7 +48,7 @@ async function readProfileAsync<T extends ProfileType>({
   easJsonReader: EasJsonReader;
   platform: Platform;
   type: T;
-  profileName: string;
+  profileName?: string;
 }): Promise<EasProfile<T>> {
   if (type === 'build') {
     return (await easJsonReader.getBuildProfileAsync(platform, profileName)) as EasProfile<T>;
