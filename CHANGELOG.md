@@ -8,13 +8,19 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [0.54.1](https://github.com/expo/eas-cli/releases/tag/v0.54.1) - 2022-06-15
+
+### 🎉 New features
+
 - Add App Store Connect link after `eas metadata:push`. ([#1168](https://github.com/expo/eas-cli/pull/1168) by [@byCedric](https://github.com/byCedric))
 
 ### 🐛 Bug fixes
 
 - Surface ASC errors in metadata for normal API rejections. ([#1167](https://github.com/expo/eas-cli/pull/1167) by [@byCedric](https://github.com/byCedric))
-
-### 🧹 Chores
 
 ## [0.54.0](https://github.com/expo/eas-cli/releases/tag/v0.54.0) - 2022-06-15
 
