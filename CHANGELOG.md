@@ -20,6 +20,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Update `eas-build-job`. ([#1162](https://github.com/expo/eas-cli/pull/1162) by [@wkozyra95](https://github.com/wkozyra95))
+
 ## [0.53.1](https://github.com/expo/eas-cli/releases/tag/v0.53.1) - 2022-06-07
 
 ### 🐛 Bug fixes
