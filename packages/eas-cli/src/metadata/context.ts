@@ -56,8 +56,7 @@ export async function createMetadataContextAsync(params: {
   const exp = params.exp ?? getExpoConfig(params.projectDir);
   const user = await ensureLoggedInAsync();
   const bundleIdentifier =
-    iosSubmissionProfile.bundleIdentifier ??
-    (await getBundleIdentifierAsync(params.projectDir, exp));
+    submitProfile.bundleIdentifier ?? (await getBundleIdentifierAsync(params.projectDir, exp));
 
   return {
     platform: Platform.IOS,
