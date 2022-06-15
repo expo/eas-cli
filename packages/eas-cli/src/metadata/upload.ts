@@ -14,7 +14,9 @@ import { subscribeTelemetry } from './utils/telemetry';
  * Sync a local store configuration with the stores.
  * Note, only App Store is supported at this time.
  */
-export async function uploadMetadataAsync(metadataCtx: MetadataContext): Promise<void> {
+export async function uploadMetadataAsync(
+  metadataCtx: MetadataContext
+): Promise<{ appleLink: string }> {
   const filePath = path.resolve(metadataCtx.projectDir, metadataCtx.metadataPath);
   if (!(await fs.pathExists(filePath))) {
     throw new MetadataValidationError(`Store configuration file not found "${filePath}"`);
@@ -61,4 +63,6 @@ export async function uploadMetadataAsync(metadataCtx: MetadataContext): Promise
   if (errors.length > 0) {
     throw new MetadataUploadError(errors, executionId);
   }
+
+  return { appleLink: `https://appstoreconnect.apple.com/apps/${app.id}/appstore` };
 }
