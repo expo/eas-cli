@@ -4,7 +4,7 @@ import { Flags } from '@oclif/core';
 import { ensureProjectConfiguredAsync } from '../../build/configure';
 import EasCommand from '../../commandUtils/EasCommand';
 import { CredentialsContext } from '../../credentials/context';
-import Log from '../../log';
+import Log, { learnMore } from '../../log';
 import { createMetadataContextAsync } from '../../metadata/context';
 import { handleMetadataError } from '../../metadata/errors';
 import { uploadMetadataAsync } from '../../metadata/upload';
@@ -45,9 +45,11 @@ export default class MetadataPush extends EasCommand {
     });
 
     try {
-      await uploadMetadataAsync(metadataCtx);
+      const { appleLink } = await uploadMetadataAsync(metadataCtx);
       Log.addNewLineIfNone();
-      Log.log(`🎉 Store configuration is synced with the app stores.`);
+      Log.log(`🎉 Store configuration is synced with the app stores.
+
+${learnMore(appleLink, { learnMoreMessage: 'See the changes in App Store Connect' })}`);
     } catch (error: any) {
       handleMetadataError(error);
     }
