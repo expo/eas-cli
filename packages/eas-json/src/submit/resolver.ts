@@ -17,18 +17,18 @@ export function resolveSubmitProfile<T extends Platform>({
 }: {
   easJson: EasJson;
   platform: T;
-  profileName: string;
+  profileName?: string;
 }): SubmitProfile<T> {
   try {
     const submitProfile = resolveProfile({
       easJson,
       platform,
-      profileName,
+      profileName: profileName ?? 'production',
     });
     const unevaluatedProfile = mergeProfiles(getDefaultProfile(platform), submitProfile);
     return evaluateFields(platform, unevaluatedProfile);
   } catch (err: any) {
-    if (err instanceof MissingProfileError) {
+    if (err instanceof MissingProfileError && !profileName) {
       return getDefaultProfile(platform);
     } else {
       throw err;

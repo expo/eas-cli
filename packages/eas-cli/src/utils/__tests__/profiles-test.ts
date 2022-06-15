@@ -39,8 +39,8 @@ describe(getProfilesAsync, () => {
 
     expect(result[0].profileName).toBe('production');
     expect(result[1].profileName).toBe('production');
-    expect(getBuildProfileAsync).toBeCalledWith(Platform.ANDROID, 'production');
-    expect(getBuildProfileAsync).toBeCalledWith(Platform.IOS, 'production');
+    expect(getBuildProfileAsync).toBeCalledWith(Platform.ANDROID, undefined);
+    expect(getBuildProfileAsync).toBeCalledWith(Platform.IOS, undefined);
   });
 
   it('throws an error if there are no profiles in eas.json', async () => {

@@ -48,10 +48,7 @@ export async function createMetadataContextAsync(params: {
   profileName?: string;
 }): Promise<MetadataContext> {
   const easJsonReader = new EasJsonReader(params.projectDir);
-  const submitProfile = await easJsonReader.getSubmitProfileAsync(
-    Platform.IOS,
-    params.profileName ?? 'production'
-  );
+  const submitProfile = await easJsonReader.getSubmitProfileAsync(Platform.IOS, params.profileName);
 
   const exp = params.exp ?? getExpoConfig(params.projectDir);
   const user = await ensureLoggedInAsync();

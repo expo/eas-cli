@@ -14,11 +14,11 @@ export function resolveBuildProfile<T extends Platform>({
 }: {
   easJson: EasJson;
   platform: T;
-  profileName: string;
+  profileName?: string;
 }): BuildProfile<T> {
   const easJsonProfile = resolveProfile({
     easJson,
-    profileName,
+    profileName: profileName ?? 'production',
   });
   const { android, ios, ...base } = easJsonProfile;
   const withoutDefaults = mergeProfiles(base, easJsonProfile[platform] ?? {});
