@@ -6,6 +6,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🛠 Breaking changes
 
+- Remove fallback for legacy format in `eas.json`. ([#1158](https://github.com/expo/eas-cli/pull/1158) by [@wkozyra95](https://github.com/wkozyra95))
+
 ### 🎉 New features
 
 - `eas update` now provides more information about the publish process including real-time feedback on asset uploads, update ids, and website links. ([#1152](https://github.com/expo/eas-cli/pull/1152) by [@kgc00](https://github.com/kgc00/))
