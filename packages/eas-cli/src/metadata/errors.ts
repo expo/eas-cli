@@ -1,4 +1,5 @@
 import type { ErrorObject } from 'ajv';
+import chalk from 'chalk';
 
 import Log, { link } from '../log';
 
@@ -51,7 +52,8 @@ export class MetadataDownloadError extends Error {
  */
 export function handleMetadataError(error: Error): void {
   if (error instanceof MetadataValidationError) {
-    Log.error(error.message);
+    Log.newLine();
+    Log.error(chalk.bold(error.message));
     if (error.errors?.length > 0) {
       Log.log(error.errors.map(err => `  - ${err.dataPath} ${err.message}`).join('\n'));
     }
@@ -59,7 +61,13 @@ export function handleMetadataError(error: Error): void {
   }
 
   if (error instanceof MetadataDownloadError || error instanceof MetadataUploadError) {
-    Log.error(error.message);
+    Log.newLine();
+    Log.error(chalk.bold(error.message));
+    if (error.errors?.length > 0) {
+      Log.newLine();
+      Log.error(error.errors.map(err => err.message).join('\n\n'));
+    }
+    Log.newLine();
     Log.log('Please check the logs for any configuration issues.');
     Log.log('If this issue persists, please open a new issue at:');
     // TODO: add execution ID to the issue template link

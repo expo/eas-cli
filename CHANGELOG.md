@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Surface ASC errors in metadata for normal API rejections. ([#1167](https://github.com/expo/eas-cli/pull/1167) by [@byCedric](https://github.com/byCedric))
+
 ### 🧹 Chores
 
 ## [0.54.0](https://github.com/expo/eas-cli/releases/tag/v0.54.0) - 2022-06-15
