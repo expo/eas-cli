@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Add App Store Connect link after `eas metadata:push`. ([#1168](https://github.com/expo/eas-cli/pull/1168) by [@byCedric](https://github.com/byCedric))
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
