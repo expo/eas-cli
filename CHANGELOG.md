@@ -9,7 +9,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🎉 New features
 
 - `eas update` now provides more information about the publish process including real-time feedback on asset uploads, update ids, and website links. ([#1152](https://github.com/expo/eas-cli/pull/1152) by [@kgc00](https://github.com/kgc00/))
-- Added first beta of `eas metadata` to sync store information using store configuration files ([#1136])(https://github.com/expo/eas-cli/pull/1136) by [@bycedric](https://github.com/bycedric))
+- Added first beta of `eas metadata` to sync store information using store configuration files ([#1136](https://github.com/expo/eas-cli/pull/1136) by [@bycedric](https://github.com/bycedric))
 
 ### 🐛 Bug fixes
 
