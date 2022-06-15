@@ -6,6 +6,16 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🛠 Breaking changes
 
+### 🎉 New features
+
+### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [0.54.0](https://github.com/expo/eas-cli/releases/tag/v0.54.0) - 2022-06-15
+
+### 🛠 Breaking changes
+
 - Remove fallback for legacy format in `eas.json`. ([#1158](https://github.com/expo/eas-cli/pull/1158), [#1163](https://github.com/expo/eas-cli/pull/1163) by [@wkozyra95](https://github.com/wkozyra95))
 
 ### 🎉 New features
