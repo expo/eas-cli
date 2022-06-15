@@ -111,7 +111,8 @@
   "files": [
     "/bin",
     "/build",
-    "/oclif.manifest.json"
+    "/oclif.manifest.json",
+    "/schema"
   ],
   "homepage": "https://github.com/expo/eas-cli",
   "keywords": [
