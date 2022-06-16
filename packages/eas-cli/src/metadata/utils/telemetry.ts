@@ -1,5 +1,6 @@
 import { App, Session, getRequestClient } from '@expo/apple-utils';
 import type { AxiosError } from 'axios';
+import getenv from 'getenv';
 import { v4 as uuidv4 } from 'uuid';
 
 import { Analytics, MetadataEvent } from '../../analytics/events';
@@ -9,20 +10,15 @@ export type TelemetryContext = {
   auth: Partial<Session.AuthState>;
 };
 
-/**
- * Subscribe the telemetry to the ongoing metadata requests and responses.
- * When providing the app and auth info, we can scrub that data from the telemetry.
- * Returns an execution ID to group all events of a single run together, and a unsubscribe function.
- */
-export function subscribeTelemetry(
+export async function withTelemetryAsync<T>(
   event: MetadataEvent,
-  options: TelemetryContext
-): {
-  /** Unsubscribe the telemetry from all apple-utils events */
-  unsubscribeTelemetry: () => void;
-  /** The unique id added to all telemetry events from a single execution */
-  executionId: string;
-} {
+  options: TelemetryContext,
+  action: () => Promise<T>
+): Promise<T> {
+  if (getenv.boolish('EXPO_NO_TELEMETRY', false)) {
+    return await action();
+  }
+
   const executionId = uuidv4();
   const scrubber = makeDataScrubber(options);
   const { interceptors } = getRequestClient();
@@ -59,11 +55,14 @@ export function subscribeTelemetry(
     }
   );
 
-  function unsubscribeTelemetry(): void {
+  try {
+    return await action();
+  } catch (error: any) {
+    error.executionId = executionId;
+    throw error;
+  } finally {
     interceptors.response.eject(responseInterceptorId);
   }
-
-  return { unsubscribeTelemetry, executionId };
 }
 
 /** Exposed for testing */
