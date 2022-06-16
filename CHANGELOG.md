@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Refactor metadata telemetry with opt-out. ([#1169](https://github.com/expo/eas-cli/pull/1169) by [@byCedric](https://github.com/byCedric))
+
 ## [0.54.1](https://github.com/expo/eas-cli/releases/tag/v0.54.1) - 2022-06-15
 
 ### 🎉 New features
