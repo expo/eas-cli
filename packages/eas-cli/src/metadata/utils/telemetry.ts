@@ -4,6 +4,7 @@ import getenv from 'getenv';
 import { v4 as uuidv4 } from 'uuid';
 
 import { Analytics, MetadataEvent } from '../../analytics/events';
+import { MetadataTelemetryError } from '../errors';
 
 export type TelemetryContext = {
   app: App;
@@ -58,8 +59,7 @@ export async function withTelemetryAsync<T>(
   try {
     return await action();
   } catch (error: any) {
-    error.executionId = executionId;
-    throw error;
+    throw new MetadataTelemetryError(error, executionId);
   } finally {
     interceptors.response.eject(responseInterceptorId);
   }

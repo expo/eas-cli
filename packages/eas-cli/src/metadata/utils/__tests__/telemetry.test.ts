@@ -1,6 +1,7 @@
 import { App, getRequestClient } from '@expo/apple-utils';
 
 import { MetadataEvent } from '../../../analytics/events';
+import { MetadataTelemetryError } from '../../errors';
 import { TelemetryContext, makeDataScrubber, withTelemetryAsync } from '../telemetry';
 
 const stub: TelemetryContext = {
@@ -89,8 +90,9 @@ describe(withTelemetryAsync, () => {
       caughtError = error;
     }
 
-    expect(caughtError).toBeInstanceOf(Error);
+    expect(caughtError).toBeInstanceOf(MetadataTelemetryError);
     expect(caughtError).toHaveProperty('executionId', expect.any(String));
+    expect(caughtError).toHaveProperty('originalError', expect.any(Error));
   });
 });
 

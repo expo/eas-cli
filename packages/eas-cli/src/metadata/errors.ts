@@ -15,13 +15,24 @@ export class MetadataValidationError extends Error {
 }
 
 /**
+ * During telemetry actions, a random exection ID is generated.
+ * This ID should be communicated to users and reported to us.
+ * With that ID, we can look up the failed requests and help solve the issue.
+ */
+export class MetadataTelemetryError extends Error {
+  public constructor(public readonly originalError: Error, public readonly executionId: string) {
+    super(originalError.message);
+  }
+}
+
+/**
  * If a single entity failed to update, we don't block the other entities from uploading.
  * We still attempt to update the data in the stores as much as possible.
  * Because of that, we keep track of any errors encountered and throw this generic error.
  * It contains that list of encountered errors to present to the user.
  */
 export class MetadataUploadError extends Error {
-  public constructor(public readonly errors: Error[], public readonly executionId: string) {
+  public constructor(public readonly errors: Error[]) {
     super(
       `Store configuration upload encountered ${
         errors.length === 1 ? 'an error' : `${errors.length} errors`
@@ -32,12 +43,12 @@ export class MetadataUploadError extends Error {
 
 /**
  * If a single entity failed to download, we don't block the other entities from downloading.
- * We sill attempt to pull in the data from the stores as much as possible.
- * Because of that, we keep track of any errors envountered and throw this generic error.
+ * We still attempt to pull in the data from the stores as much as possible.
+ * Because of that, we keep track of any errors encountered and throw this generic error.
  * It contains that list of encountered errors to present to the user.
  */
 export class MetadataDownloadError extends Error {
-  public constructor(public readonly errors: Error[], public readonly executionId: string) {
+  public constructor(public readonly errors: Error[]) {
     super(
       `Store configuration download encountered ${
         errors.length === 1 ? 'an error' : `${errors.length} errors`
@@ -50,7 +61,10 @@ export class MetadataDownloadError extends Error {
  * Handle a thrown metadata error by informing the user what went wrong.
  * If a normal error is thrown, this method will re-throw that error to avoid consuming it.
  */
-export function handleMetadataError(error: Error): void {
+export function handleMetadataError(thrownError: Error): void {
+  const error =
+    thrownError instanceof MetadataTelemetryError ? thrownError.originalError : thrownError;
+
   if (error instanceof MetadataValidationError) {
     Log.newLine();
     Log.error(chalk.bold(error.message));

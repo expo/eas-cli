@@ -9,7 +9,7 @@ import { createAppleTasks } from './apple/tasks';
 import { createAppleWriter } from './config';
 import { MetadataContext, ensureMetadataAppStoreAuthenticatedAsync } from './context';
 import { MetadataDownloadError, MetadataValidationError } from './errors';
-import { subscribeTelemetry } from './utils/telemetry';
+import { withTelemetryAsync } from './utils/telemetry';
 
 /**
  * Generate a local store configuration from the stores.
@@ -29,44 +29,38 @@ export async function downloadMetadataAsync(metadataCtx: MetadataContext): Promi
   }
 
   const { app, auth } = await ensureMetadataAppStoreAuthenticatedAsync(metadataCtx);
-  const { unsubscribeTelemetry, executionId } = subscribeTelemetry(
-    MetadataEvent.APPLE_METADATA_DOWNLOAD,
-    { app, auth }
-  );
 
   Log.addNewLineIfNone();
   Log.log('Downloading App Store configuration...');
 
-  const errors: Error[] = [];
-  const config = createAppleWriter();
-  const tasks = createAppleTasks(metadataCtx);
-  const taskCtx = { app };
+  await withTelemetryAsync(MetadataEvent.APPLE_METADATA_DOWNLOAD, { app, auth }, async () => {
+    const errors: Error[] = [];
+    const config = createAppleWriter();
+    const tasks = createAppleTasks(metadataCtx);
+    const taskCtx = { app };
 
-  for (const task of tasks) {
-    try {
-      await task.prepareAsync({ context: taskCtx });
-    } catch (error: any) {
-      errors.push(error);
+    for (const task of tasks) {
+      try {
+        await task.prepareAsync({ context: taskCtx });
+      } catch (error: any) {
+        errors.push(error);
+      }
     }
-  }
 
-  for (const task of tasks) {
-    try {
-      await task.downloadAsync({ config, context: taskCtx as AppleData });
-    } catch (error: any) {
-      errors.push(error);
+    for (const task of tasks) {
+      try {
+        await task.downloadAsync({ config, context: taskCtx as AppleData });
+      } catch (error: any) {
+        errors.push(error);
+      }
     }
-  }
 
-  try {
     await fs.writeJson(filePath, config.toSchema(), { spaces: 2 });
-  } finally {
-    unsubscribeTelemetry();
-  }
 
-  if (errors.length > 0) {
-    throw new MetadataDownloadError(errors, executionId);
-  }
+    if (errors.length > 0) {
+      throw new MetadataDownloadError(errors);
+    }
+  });
 
   return filePath;
 }
