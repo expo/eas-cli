@@ -21,6 +21,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 - Surface ASC errors in metadata for normal API rejections. ([#1167](https://github.com/expo/eas-cli/pull/1167) by [@byCedric](https://github.com/byCedric))
+- Add metadata schema to bundled eas-cli package. ([#1166](https://github.com/expo/eas-cli/pull/1166) by [@byCedric](https://github.com/byCedric))
 
 ## [0.54.0](https://github.com/expo/eas-cli/releases/tag/v0.54.0) - 2022-06-15
 
@@ -37,7 +38,6 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - Improved support for working on branches with many updates. ([#1144](https://github.com/expo/eas-cli/pull/1144), [#1148](https://github.com/expo/eas-cli/pull/1148) by [@kgc00](https://github.com/kgc00/))
 - `eas update` project links no longer contain a `)` on unsupported terminals. ([#1152](https://github.com/expo/eas-cli/pull/1152) by [@kgc00](https://github.com/kgc00/))
-- Add metadata schema to bundled eas-cli package. ([#1166](https://github.com/expo/eas-cli/pull/1166) by [@byCedric](https://github.com/byCedric))
 
 ### 🧹 Chores
 
