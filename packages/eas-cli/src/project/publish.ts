@@ -11,7 +11,6 @@ import { AssetMetadataStatus, PartialManifestAsset } from '../graphql/generated'
 import { PublishMutation } from '../graphql/mutations/PublishMutation';
 import { PresignedPost } from '../graphql/mutations/UploadSessionMutation';
 import { PublishQuery } from '../graphql/queries/PublishQuery';
-import Log from '../log';
 import { uploadWithPresignedPostAsync } from '../uploads';
 import { expoCommandAsync } from '../utils/expoCli';
 import uniqBy from '../utils/expodash/uniqBy';
@@ -161,7 +160,7 @@ export async function buildBundlesAsync({
   await expoCommandAsync(
     projectDir,
     ['export', '--output-dir', inputDir, '--experimental-bundle'],
-    { silent: !Log.isDebug }
+    { silent: false }
   );
 }
 
