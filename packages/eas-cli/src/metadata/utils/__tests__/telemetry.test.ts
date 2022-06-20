@@ -20,37 +20,8 @@ const stub: TelemetryContext = {
 };
 
 describe(withTelemetryAsync, () => {
-  const originalEnv = { ...process.env };
-
   afterEach(() => {
-    process.env = originalEnv;
     jest.clearAllMocks();
-  });
-
-  it('disables telemetry when EXPO_NO_TELEMETRY is true', async () => {
-    const { interceptors } = getRequestClient();
-    const useInterceptor = jest.spyOn(interceptors.response, 'use');
-
-    process.env['EXPO_NO_TELEMETRY'] = 'true';
-
-    await withTelemetryAsync(MetadataEvent.APPLE_METADATA_UPLOAD, stub, async () => {
-      return 'testing telemetry';
-    });
-
-    expect(useInterceptor).not.toBeCalled();
-  });
-
-  it('enables telemetry when EXPO_NO_TELEMETRY is undefined', async () => {
-    const { interceptors } = getRequestClient();
-    const useInterceptor = jest.spyOn(interceptors.response, 'use');
-
-    process.env['EXPO_NO_TELEMETRY'] = undefined;
-
-    await withTelemetryAsync(MetadataEvent.APPLE_METADATA_DOWNLOAD, stub, async () => {
-      return 'testing telemetry';
-    });
-
-    expect(useInterceptor).toBeCalled();
   });
 
   it('detaches interceptors after action resolved', async () => {

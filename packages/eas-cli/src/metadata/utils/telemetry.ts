@@ -1,6 +1,5 @@
 import { App, Session, getRequestClient } from '@expo/apple-utils';
 import type { AxiosError } from 'axios';
-import getenv from 'getenv';
 import { v4 as uuidv4 } from 'uuid';
 
 import { Analytics, MetadataEvent } from '../../analytics/events';
@@ -16,10 +15,6 @@ export async function withTelemetryAsync<T>(
   options: TelemetryContext,
   action: () => Promise<T>
 ): Promise<T> {
-  if (getenv.boolish('EXPO_NO_TELEMETRY', false)) {
-    return await action();
-  }
-
   const executionId = uuidv4();
   const scrubber = makeDataScrubber(options);
   const { interceptors } = getRequestClient();
