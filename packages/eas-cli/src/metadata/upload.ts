@@ -34,7 +34,6 @@ export async function uploadMetadataAsync(
     );
     const attempt = await confirmAsync({
       message: 'Do you want to still want to attempt syncing the store configuration?',
-      instructions: '',
     });
     if (!attempt) {
       throw error;
