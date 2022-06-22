@@ -6,6 +6,7 @@ packages/eas-cli/src/commands/build @dsokal @wkozyra95
 packages/eas-cli/src/submit @barthap @dsokal
 packages/eas-cli/src/commands/submit.ts @barthap @dsokal
 
+packages/eas-cli/src/schema @bycedric
 packages/eas-cli/src/metadata @bycedric
 packages/eas-cli/src/commands/metadata @bycedric
 
