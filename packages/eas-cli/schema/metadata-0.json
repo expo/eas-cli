@@ -123,128 +123,133 @@
         "additionalProperties": false,
         "required": [
           "title",
-          "subtitle",
-          "description",
-          "keywords",
-          "marketingUrl",
-          "supportUrl",
           "privacyPolicyUrl"
         ],
         "defaultSnippets": [
           {
             "label": "Basic",
+            "description": "Create the minimum required locale properties",
             "body": {
+              "title": "${1:App title}",
+              "privacyPolicyUrl": "https://${3:www.}"
             }
           },
           {
-            "label": "Interactive",
-            "description": "Creates localized app info",
+            "label": "Full",
+            "description": "Create all available locale properties",
             "body": {
-              "title": "$1",
-              "subtitle": "$2",
-              "description": "$3",
-              "keywords": [],
-              "marketingUrl": "",
-              "supportUrl": "",
-              "privacyPolicyUrl": ""
+              "title": "${1:App title}",
+              "subtitle": "${2:Subtitle for your app}",
+              "description": "${3:A longer description of what your app does}",
+              "keywords": ["${4:keyword}"],
+              "whatsNew": "${5:Bug fixes and improved stability}",
+              "promoText": "${6:Short tagline for your app}",
+              "marketingUrl": "https://${7:www.}",
+              "supportUrl": "https://${8:www.}",
+              "privacyPolicyUrl": "https://${9:www.}",
+              "privacyChoicesUrl": "https://${10:www.}"
             }
           }
         ],
         "properties": {
           "title": {
-            "description": "Name of the app in the store. This should be similar to the installed app name.",
             "type": "string",
+            "description": "Name of the app in the store. This should be similar to the installed app name.",
+            "minLength": 2,
             "maxLength": 30,
             "meta": {
               "storeInfo": "The name will be reviewed before it is made available on the App Store."
             }
           },
           "subtitle": {
-            "description": "Subtext for the app. Example: 'A Fun Game For Friends'",
             "type": "string",
+            "description": "Subtext for the app. Example: 'A Fun Game For Friends'",
             "maxLength": 30,
             "meta": {
               "storeInfo": "The subtitle will be reviewed before it is made available on the App Store."
             }
           },
           "description": {
+            "type": "string",
+            "description": "Main description of what the app does",
+            "minLength": 10,
+            "maxLength": 4000,
             "meta": {
               "versioned": true,
               "liveEdits": true
-            },
-            "maxLength": 4000,
-            "description": "Main description of what the app does",
-            "type": "string"
-          },
-          "promoText": {
-            "meta": {
-              "versioned": true,
-              "liveEdits": true,
-              "aso": false
-            },
-            "maxLength": 170,
-            "description": "Short tagline for the app",
-            "type": "string"
+            }
           },
           "keywords": {
-            "meta": {
-              "versioned": true
-            },
-            "description": "List of keywords to help users find the app in the App Store",
             "type": "array",
+            "description": "List of keywords to help users find the app in the App Store",
             "uniqueItems": true,
             "items": {
               "maxLength": 100,
               "type": "string"
+            },
+            "meta": {
+              "versioned": true
+            }
+          },
+          "whatsNew": {
+            "type": "string",
+            "description": "Changes since the last public version",
+            "maxLength": 4000,
+            "meta": {
+              "versioned": true,
+              "liveEdits": true
+            }
+          },
+          "promoText": {
+            "type": "string",
+            "description": "Short tagline for the app",
+            "maxLength": 170,
+            "meta": {
+              "versioned": true,
+              "liveEdits": true,
+              "aso": false
+            }
+          },
+          "marketingUrl": {
+            "type": "string",
+            "description": "URL to the app marketing page",
+            "maxLength": 255,
+            "meta": {
+              "versioned": true,
+              "liveEdits": true
+            }
+          },
+          "supportUrl": {
+            "type": "string",
+            "description": "URL to the app support page",
+            "maxLength": 255,
+            "meta": {
+              "versioned": true,
+              "liveEdits": true
             }
           },
           "privacyPolicyText": {
             "type": "string",
             "description": "Privacy policy for Apple TV"
           },
-          "whatsNew": {
-            "meta": {
-              "versioned": true,
-              "liveEdits": true
-            },
-            "maxLength": 4000,
-            "description": "Changes since the last public version",
-            "type": "string"
-          },
-          "marketingUrl": {
-            "meta": {
-              "versioned": true,
-              "liveEdits": true
-            },
-            "description": "URL to the app marketing page",
-            "type": "string"
-          },
-          "supportUrl": {
-            "meta": {
-              "versioned": true,
-              "liveEdits": true
-            },
-            "description": "URL to the app support page",
-            "type": "string"
-          },
           "privacyPolicyUrl": {
+            "type": "string",
+            "description": "A URL that links to your privacy policy. A privacy policy is required for all apps.",
+            "maxLength": 255,
             "meta": {
               "versioned": true,
               "liveEdits": true
-            },
-            "maxLength": 255,
-            "description": "A URL that links to your privacy policy. A privacy policy is required for all apps.",
-            "type": "string"
+            }
           },
           "privacyChoicesUrl": {
+            "type": "string",
+            "description": "A URL where users can modify and delete the data collected from the app, or decide how their data is used and shared.",
+            "maxLength": 255,
             "meta": {
               "versioned": true,
               "liveEdits": true,
               "optional": true
-            },
-            "maxLength": 255,
-            "description": "A URL where users can modify and delete the data collected from the app, or decide how their data is used and shared.",
-            "type": "string"
+            }
           }
         }
       },
