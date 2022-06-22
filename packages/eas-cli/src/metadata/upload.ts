@@ -29,11 +29,12 @@ export async function uploadMetadataAsync(
     const error = new MetadataValidationError(`Store configuration errors found`, validationErrors);
     logMetadataValidationError(error);
     Log.newLine();
-
+    Log.warn(
+      'The current store configuration might fail during syncing or could fail review when submitted without additional changes.'
+    );
     const attempt = await confirmAsync({
       message: 'Do you want to still want to attempt syncing the store configuration?',
-      instructions:
-        'This might fail or could cause a review rejection when submitted without additional changes.',
+      instructions: '',
     });
     if (!attempt) {
       throw error;
