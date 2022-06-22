@@ -47,17 +47,25 @@ export class MetadataDownloadError extends Error {
 }
 
 /**
+ * Log the encountered metadata validation error in detail for the user.
+ * This should help communicate any possible configuration error and help the user resolve it.
+ */
+export function logMetadataValidationError(error: MetadataValidationError): void {
+  Log.newLine();
+  Log.error(chalk.bold(error.message));
+  if (error.errors?.length > 0) {
+    // TODO(cedric): group errors by property to make multiple errors for same property more readable
+    Log.log(error.errors.map(err => `  - ${chalk.bold(err.dataPath)} ${err.message}`).join('\n'));
+  }
+}
+
+/**
  * Handle a thrown metadata error by informing the user what went wrong.
  * If a normal error is thrown, this method will re-throw that error to avoid consuming it.
  */
 export function handleMetadataError(error: Error): void {
   if (error instanceof MetadataValidationError) {
-    Log.newLine();
-    Log.error(chalk.bold(error.message));
-    if (error.errors?.length > 0) {
-      Log.log(error.errors.map(err => `  - ${err.dataPath} ${err.message}`).join('\n'));
-    }
-    return;
+    return logMetadataValidationError(error);
   }
 
   if (error instanceof MetadataDownloadError || error instanceof MetadataUploadError) {

@@ -3,11 +3,12 @@ import path from 'path';
 
 import { MetadataEvent } from '../analytics/events';
 import Log from '../log';
+import { confirmAsync } from '../prompts';
 import { AppleData } from './apple/data';
 import { createAppleTasks } from './apple/tasks';
 import { createAppleReader, validateConfig } from './config';
 import { MetadataContext, ensureMetadataAppStoreAuthenticatedAsync } from './context';
-import { MetadataUploadError, MetadataValidationError } from './errors';
+import { MetadataUploadError, MetadataValidationError, logMetadataValidationError } from './errors';
 import { subscribeTelemetry } from './utils/telemetry';
 
 /**
@@ -22,17 +23,28 @@ export async function uploadMetadataAsync(
     throw new MetadataValidationError(`Store configuration file not found "${filePath}"`);
   }
 
+  const fileData = await fs.readJson(filePath);
+  const { valid, errors: validationErrors } = validateConfig(fileData);
+  if (!valid) {
+    const error = new MetadataValidationError(`Store configuration errors found`, validationErrors);
+    logMetadataValidationError(error);
+    Log.newLine();
+
+    const attempt = await confirmAsync({
+      message: 'Do you want to still want to attempt syncing the store configuration?',
+      instructions:
+        'This might fail or could cause a review rejection when submitted without additional changes.',
+    });
+    if (!attempt) {
+      throw error;
+    }
+  }
+
   const { app, auth } = await ensureMetadataAppStoreAuthenticatedAsync(metadataCtx);
   const { unsubscribeTelemetry, executionId } = subscribeTelemetry(
     MetadataEvent.APPLE_METADATA_UPLOAD,
     { app, auth }
   );
-
-  const fileData = await fs.readJson(filePath);
-  const { valid, errors: validationErrors } = validateConfig(fileData);
-  if (!valid) {
-    throw new MetadataValidationError(`Store configuration errors found`, validationErrors);
-  }
 
   Log.addNewLineIfNone();
   Log.log('Uploading App Store configuration...');
