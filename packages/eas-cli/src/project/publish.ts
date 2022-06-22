@@ -157,11 +157,13 @@ export async function buildBundlesAsync({
     throw new Error('Could not locate package.json');
   }
 
-  await expoCommandAsync(
-    projectDir,
-    ['export', '--output-dir', inputDir, '--experimental-bundle', '--non-interactive'],
-    { silent: false }
-  );
+  await expoCommandAsync(projectDir, [
+    'export',
+    '--output-dir',
+    inputDir,
+    '--experimental-bundle',
+    '--non-interactive',
+  ]);
 }
 
 export async function resolveInputDirectoryAsync(customInputDirectory: string): Promise<string> {
