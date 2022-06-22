@@ -159,7 +159,7 @@ export async function buildBundlesAsync({
 
   await expoCommandAsync(
     projectDir,
-    ['export', '--output-dir', inputDir, '--experimental-bundle'],
+    ['export', '--output-dir', inputDir, '--experimental-bundle', '--non-interactive'],
     { silent: false }
   );
 }
