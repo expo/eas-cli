@@ -11,7 +11,6 @@ import { AssetMetadataStatus, PartialManifestAsset } from '../graphql/generated'
 import { PublishMutation } from '../graphql/mutations/PublishMutation';
 import { PresignedPost } from '../graphql/mutations/UploadSessionMutation';
 import { PublishQuery } from '../graphql/queries/PublishQuery';
-import Log from '../log';
 import { uploadWithPresignedPostAsync } from '../uploads';
 import { expoCommandAsync } from '../utils/expoCli';
 import uniqBy from '../utils/expodash/uniqBy';
@@ -158,11 +157,13 @@ export async function buildBundlesAsync({
     throw new Error('Could not locate package.json');
   }
 
-  await expoCommandAsync(
-    projectDir,
-    ['export', '--output-dir', inputDir, '--experimental-bundle'],
-    { silent: !Log.isDebug }
-  );
+  await expoCommandAsync(projectDir, [
+    'export',
+    '--output-dir',
+    inputDir,
+    '--experimental-bundle',
+    '--non-interactive',
+  ]);
 }
 
 export async function resolveInputDirectoryAsync(customInputDirectory: string): Promise<string> {
