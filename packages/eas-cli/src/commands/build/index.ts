@@ -142,14 +142,8 @@ export default class Build extends EasCommand {
       );
       Log.newLine();
     }
-    if (flags['resource-class']) {
-      switch (flags['resource-class']) {
-        case UserInputResourceClass.DEFAULT:
-        case UserInputResourceClass.LARGE:
-          break;
-        default:
-          Errors.error(`Invalid resource-class: '${flags['resource-class']}'`, { exit: 1 });
-      }
+    if (flags['resource-class'] && !Object.values(UserInputResourceClass).includes(flags['resource-class'])) {
+      Errors.error(`Invalid resource-class: '${flags['resource-class']}'`, { exit: 1 });
     }
 
     const profile = flags['profile'];
