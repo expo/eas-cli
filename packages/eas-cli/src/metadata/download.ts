@@ -4,7 +4,7 @@ import path from 'path';
 import { MetadataEvent } from '../analytics/events';
 import Log from '../log';
 import { confirmAsync } from '../prompts';
-import { AppleData } from './apple/data';
+import { AppleData, PartialAppleData } from './apple/data';
 import { createAppleTasks } from './apple/tasks';
 import { createAppleWriter } from './config';
 import { MetadataContext, ensureMetadataAppStoreAuthenticatedAsync } from './context';
@@ -37,7 +37,7 @@ export async function downloadMetadataAsync(metadataCtx: MetadataContext): Promi
     const errors: Error[] = [];
     const config = createAppleWriter();
     const tasks = createAppleTasks(metadataCtx);
-    const taskCtx = { app };
+    const taskCtx: PartialAppleData = { app };
 
     for (const task of tasks) {
       try {
