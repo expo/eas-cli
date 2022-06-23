@@ -30,7 +30,7 @@ export async function uploadMetadataAsync(
     logMetadataValidationError(error);
     Log.newLine();
     Log.warn(
-      'The current store configuration might fail during syncing or could fail review when submitted without additional changes.'
+      'Without further updates, the current store configuration may fail to be synchronized with the App Store or pass App Store review.'
     );
     const attempt = await confirmAsync({
       message: 'Do you still want to attempt syncing the store configuration?',
