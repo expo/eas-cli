@@ -33,7 +33,7 @@ export async function uploadMetadataAsync(
       'The current store configuration might fail during syncing or could fail review when submitted without additional changes.'
     );
     const attempt = await confirmAsync({
-      message: 'Do you want to still want to attempt syncing the store configuration?',
+      message: 'Do you still want to attempt syncing the store configuration?',
     });
     if (!attempt) {
       throw error;
