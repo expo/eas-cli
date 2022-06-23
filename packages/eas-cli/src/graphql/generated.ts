@@ -4334,6 +4334,7 @@ export type CreateAndroidBuildMutationVariables = Exact<{
   appId: Scalars['ID'];
   job: AndroidJobInput;
   metadata?: InputMaybe<BuildMetadataInput>;
+  buildParams?: InputMaybe<BuildParamsInput>;
 }>;
 
 
@@ -4343,6 +4344,7 @@ export type CreateIosBuildMutationVariables = Exact<{
   appId: Scalars['ID'];
   job: IosJobInput;
   metadata?: InputMaybe<BuildMetadataInput>;
+  buildParams?: InputMaybe<BuildParamsInput>;
 }>;
 
 
