@@ -31,7 +31,7 @@ export interface BuildContext<T extends Platform> {
   accountName: string;
   buildProfile: BuildProfile<T>;
   buildProfileName: string;
-  resourceClass?: BuildResourceClass;
+  resourceClass: BuildResourceClass;
   clearCache: boolean;
   credentialsCtx: CredentialsContext;
   exp: ExpoConfig;

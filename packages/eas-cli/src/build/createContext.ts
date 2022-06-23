@@ -35,7 +35,7 @@ export async function createBuildContextAsync<T extends Platform>({
   nonInteractive: boolean;
   platform: T;
   projectDir: string;
-  resourceClass?: BuildResourceClass;
+  resourceClass: BuildResourceClass;
 }): Promise<BuildContext<T>> {
   const exp = getExpoConfig(projectDir, { env: buildProfile.env });
 

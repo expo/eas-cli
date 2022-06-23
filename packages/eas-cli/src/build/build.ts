@@ -58,20 +58,16 @@ interface Builder<TPlatform extends Platform, Credentials, TJob extends Job> {
     appId: string,
     job: TJob,
     metadata: Metadata,
-    buildParams?: BuildParamsInput
+    buildParams: BuildParamsInput
   ): Promise<BuildResult>;
 }
 
 export type BuildRequestSender = () => Promise<BuildFragment | undefined>;
 
-function resolveBuildParamsInput<T extends Platform>(
-  ctx: BuildContext<T>
-): BuildParamsInput | undefined {
-  return ctx.resourceClass
-    ? {
-        resourceClass: ctx.resourceClass,
-      }
-    : undefined;
+function resolveBuildParamsInput<T extends Platform>(ctx: BuildContext<T>): BuildParamsInput {
+  return {
+    resourceClass: ctx.resourceClass,
+  };
 }
 
 export async function prepareBuildRequestForPlatformAsync<
@@ -215,7 +211,7 @@ async function sendBuildRequestAsync<TPlatform extends Platform, Credentials, TJ
   builder: Builder<TPlatform, Credentials, TJob>,
   job: TJob,
   metadata: Metadata,
-  buildParams?: BuildParamsInput
+  buildParams: BuildParamsInput
 ): Promise<BuildFragment> {
   const { ctx } = builder;
   return await withAnalyticsAsync(

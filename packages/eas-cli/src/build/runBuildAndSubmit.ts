@@ -3,7 +3,13 @@ import { BuildProfile, EasJsonReader, SubmitProfile } from '@expo/eas-json';
 import chalk from 'chalk';
 import nullthrows from 'nullthrows';
 
-import { AppPlatform, BuildFragment, BuildStatus, SubmissionFragment } from '../graphql/generated';
+import {
+  AppPlatform,
+  BuildFragment,
+  BuildResourceClass,
+  BuildStatus,
+  SubmissionFragment,
+} from '../graphql/generated';
 import { toAppPlatform, toPlatform } from '../graphql/types/AppPlatform';
 import Log from '../log';
 import {
@@ -48,8 +54,22 @@ export interface BuildFlags {
   autoSubmit: boolean;
   submitProfile?: string;
   localBuildOptions: LocalBuildOptions;
-  resourceClass?: UserInputResourceClass;
+  userInputResourceClass?: UserInputResourceClass;
 }
+
+const platformToGraphQLResourceClassMapping: Record<
+  Platform,
+  Record<UserInputResourceClass, BuildResourceClass>
+> = {
+  [Platform.ANDROID]: {
+    [UserInputResourceClass.DEFAULT]: BuildResourceClass.AndroidDefault,
+    [UserInputResourceClass.LARGE]: BuildResourceClass.AndroidLarge,
+  },
+  [Platform.IOS]: {
+    [UserInputResourceClass.DEFAULT]: BuildResourceClass.IosDefault,
+    [UserInputResourceClass.LARGE]: BuildResourceClass.IosLarge,
+  },
+};
 
 export async function runBuildAndSubmitAsync(projectDir: string, flags: BuildFlags): Promise<void> {
   await getVcsClient().ensureRepoExistsAsync();
@@ -67,7 +87,6 @@ export async function runBuildAndSubmitAsync(projectDir: string, flags: BuildFla
     easJsonReader,
     platforms,
     profileName: flags.profile ?? undefined,
-    userInputResourceClass: flags.resourceClass,
   });
 
   await ensureExpoDevClientInstalledForDevClientBuildsAsync({
@@ -88,6 +107,10 @@ export async function runBuildAndSubmitAsync(projectDir: string, flags: BuildFla
       flags,
       moreBuilds: platforms.length > 1,
       buildProfile,
+      resourceClass:
+        platformToGraphQLResourceClassMapping[buildProfile.platform][
+          flags.userInputResourceClass ?? UserInputResourceClass.DEFAULT
+        ],
     });
     if (maybeBuild) {
       startedBuilds.push({ build: maybeBuild, buildProfile });
@@ -164,15 +187,17 @@ async function prepareAndStartBuildAsync({
   flags,
   moreBuilds,
   buildProfile,
+  resourceClass,
 }: {
   projectDir: string;
   flags: BuildFlags;
   moreBuilds: boolean;
   buildProfile: ProfileData<'build'>;
+  resourceClass: BuildResourceClass;
 }): Promise<{ build: BuildFragment | undefined; buildCtx: BuildContext<Platform> }> {
   const buildCtx = await createBuildContextAsync({
     buildProfileName: buildProfile.profileName,
-    resourceClass: buildProfile.resourceClass,
+    resourceClass,
     clearCache: flags.clearCache,
     buildProfile: buildProfile.profile,
     nonInteractive: flags.nonInteractive,
