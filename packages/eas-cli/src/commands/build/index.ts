@@ -84,7 +84,7 @@ export default class Build extends EasCommand {
     'resource-class': Flags.enum({
       options: Object.values(UserInputResourceClass),
       hidden: true,
-      description: 'The resource class that will be used to run this build [experimental] ',
+      description: 'The resource class that will be used to run this build [experimental]',
     }),
   };
 
@@ -165,7 +165,7 @@ export default class Build extends EasCommand {
       json: flags['json'],
       autoSubmit: flags['auto-submit'] || flags['auto-submit-with-profile'] !== undefined,
       submitProfile: flags['auto-submit-with-profile'] ?? profile,
-      resourceClass: flags['resource-class'],
+      userInputResourceClass: flags['resource-class'],
     };
   }
 }
