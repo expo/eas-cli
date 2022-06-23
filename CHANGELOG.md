@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Show bundler output by default for eas update command. ([#1171](https://github.com/expo/eas-cli/pull/1171) by [@kgc00](https://github.com/kgc00/))
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
