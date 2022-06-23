@@ -457,6 +457,8 @@ export default class UpdatePublish extends EasCommand {
       }
     }
 
+    const truncatedMessage = truncatePublishUpdateMessage(message!);
+
     const runtimeToPlatformMapping: Record<string, string[]> = {};
     for (const runtime of new Set(Object.values(runtimeVersions))) {
       runtimeToPlatformMapping[runtime] = Object.entries(runtimeVersions)
@@ -489,7 +491,7 @@ export default class UpdatePublish extends EasCommand {
           branchId,
           updateInfoGroup: localUpdateInfoGroup,
           runtimeVersion: republish ? oldRuntimeVersion : runtime,
-          message,
+          message: truncatedMessage,
           awaitingCodeSigningInfo: !!codeSigningInfo,
         };
       }
@@ -587,7 +589,7 @@ export default class UpdatePublish extends EasCommand {
               ? [{ label: 'Android update ID', value: newAndroidUpdate.id }]
               : []),
             ...(newIosUpdate ? [{ label: 'iOS update ID', value: newIosUpdate.id }] : []),
-            { label: 'Message', value: message! },
+            { label: 'Message', value: truncatedMessage },
             { label: 'Website link', value: updateGroupLink },
           ])
         );
@@ -733,3 +735,11 @@ async function checkEASUpdateURLIsSetAsync(exp: ExpoConfig): Promise<void> {
     );
   }
 }
+
+export const truncatePublishUpdateMessage = (originalMessage: string): string => {
+  if (originalMessage.length > 1024) {
+    Log.warn('Update message exceeds the allowed 1024 character limit. Truncating message...');
+    return originalMessage.substring(0, 1021) + '...';
+  }
+  return originalMessage;
+};
