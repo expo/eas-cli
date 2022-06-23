@@ -25,7 +25,7 @@ jobs:
       - run: yarn typecheck
       - run: yarn test
         if: ${{ !matrix.coverage }}
-      - run: yarn test --coverage
+      - run: yarn test --coverage --runInBand
         if: ${{ matrix.coverage }}
       - run: yarn lint --max-warnings=0
       - run: shellcheck bin/*.sh
