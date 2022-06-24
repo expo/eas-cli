@@ -111,7 +111,7 @@ export function logChannelDetails(channel: {
     }
 
     const { branchId } = branchMapping.data[index];
-    const branch = channel.updateBranches.filter(branch => branch.id === branchId)[0];
+    const branch = channel.updateBranches.find(branch => branch.id === branchId);
     if (!branch) {
       throw new Error('Branch mapping is pointing at a missing branch.');
     }
@@ -184,6 +184,8 @@ export default class ChannelView extends EasCommand {
     const channel = await ChannelQuery.getUpdateChannelByNameForAppAsync({
       appId: projectId,
       channelName,
+      offset: 0,
+      limit: 50,
     });
     if (!channel) {
       throw new Error(`Could not find a channel with name: ${channelName}`);

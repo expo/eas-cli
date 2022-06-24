@@ -49,6 +49,10 @@ export default class Log {
     Log.log(`${chalk.green(logSymbols.success)} ${message}`);
   }
 
+  public static withCross(...args: any[]): void {
+    Log.consoleLog(chalk.red(figures.cross), ...args);
+  }
+
   public static withTick(...args: any[]): void {
     Log.consoleLog(chalk.green(figures.tick), ...args);
   }

@@ -6,12 +6,12 @@ import { formatGraphQLBuild } from '../../build/utils/formatBuild';
 import EasCommand from '../../commandUtils/EasCommand';
 import {
   AppPlatform,
+  BuildFragment,
   DistributionType,
   BuildStatus as GraphQLBuildStatus,
 } from '../../graphql/generated';
-import { BuildQuery } from '../../graphql/queries/BuildQuery';
+import { BuildQuery, BuildsQuery } from '../../graphql/queries/BuildQuery';
 import Log from '../../log';
-import { ora } from '../../ora';
 import { RequestedPlatform } from '../../platform';
 import { getExpoConfig } from '../../project/expoConfig';
 import {
@@ -20,6 +20,7 @@ import {
   getProjectIdAsync,
 } from '../../project/projectUtils';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
+import { PaginatedQueryResponse, performPaginatedQueryAsync } from '../../utils/queries';
 
 export default class BuildList extends EasCommand {
   static description = 'list all builds for your project';
@@ -56,7 +57,6 @@ export default class BuildList extends EasCommand {
     appIdentifier: Flags.string(),
     buildProfile: Flags.string(),
     gitCommitHash: Flags.string(),
-    limit: Flags.integer(),
   };
 
   async runAsync(): Promise<void> {
@@ -66,7 +66,6 @@ export default class BuildList extends EasCommand {
       platform: requestedPlatform,
       status: buildStatus,
       distribution: buildDistribution,
-      limit = 10,
     } = flags;
     if (json) {
       enableJsonOutput();
@@ -81,51 +80,24 @@ export default class BuildList extends EasCommand {
     const projectId = await getProjectIdAsync(exp);
     const projectName = await getProjectFullNameAsync(exp);
 
-    const spinner = ora().start('Fetching the build list for the project…');
-
-    try {
-      const builds = await BuildQuery.allForAppAsync(projectId, {
-        limit,
-        filter: {
-          platform,
-          status: graphqlBuildStatus,
-          distribution: graphqlBuildDistribution,
-          channel: flags.channel,
-          appVersion: flags.appVersion,
-          appBuildVersion: flags.appBuildVersion,
-          sdkVersion: flags.sdkVersion,
-          runtimeVersion: flags.runtimeVersion,
-          appIdentifier: flags.appIdentifier,
-          buildProfile: flags.buildProfile,
-          gitCommitHash: flags.gitCommitHash,
-        },
-      });
-
-      if (builds.length) {
-        if (platform || graphqlBuildStatus) {
-          spinner.succeed(
-            `Showing ${builds.length} matching builds for the project ${projectName}`
-          );
-        } else {
-          spinner.succeed(`Showing last ${builds.length} builds for the project ${projectName}`);
-        }
-
-        if (json) {
-          printJsonOnlyOutput(builds);
-        } else {
-          const list = builds
-            .map(build => formatGraphQLBuild(build))
-            .join(`\n\n${chalk.dim('———')}\n\n`);
-
-          Log.log(`\n${list}`);
-        }
-      } else {
-        spinner.fail(`Couldn't find any builds for the project ${projectName}`);
-      }
-    } catch (e) {
-      spinner.fail(`Something went wrong and we couldn't fetch the build list ${projectName}`);
-      throw e;
-    }
+    await queryForPaginatedBuildsAsync(
+      projectId,
+      projectName,
+      {
+        platform,
+        status: graphqlBuildStatus,
+        distribution: graphqlBuildDistribution,
+        channel: flags.channel,
+        appVersion: flags.appVersion,
+        appBuildVersion: flags.appBuildVersion,
+        sdkVersion: flags.sdkVersion,
+        runtimeVersion: flags.runtimeVersion,
+        appIdentifier: flags.appIdentifier,
+        buildProfile: flags.buildProfile,
+        gitCommitHash: flags.gitCommitHash,
+      },
+      flags
+    );
   }
 }
 
@@ -170,3 +142,57 @@ const toGraphQLBuildDistribution = (
     return undefined;
   }
 };
+
+async function queryForPaginatedBuildsAsync(
+  projectId: string,
+  projectName: string,
+  filter: BuildsQuery['filter'],
+  flags: { json: boolean } & { json: boolean | undefined }
+): Promise<void> {
+  const queryAdditionalBuildsAsync = async (
+    pageSize: number,
+    offset: number
+  ): Promise<PaginatedQueryResponse<BuildFragment>> => {
+    const builds = await BuildQuery.allForAppAsync(projectId, {
+      limit: pageSize,
+      offset,
+      filter,
+    });
+
+    return {
+      queryResponse: builds,
+      queryResponseRawLength: builds.length,
+    };
+  };
+
+  const renderPageOfBuilds = (currentPage: BuildFragment[]): void => {
+    if (flags.json) {
+      printJsonOnlyOutput(currentPage);
+    } else {
+      if (currentPage.length) {
+        const list = currentPage
+          .map(build => formatGraphQLBuild(build))
+          .join(`\n\n${chalk.dim('———')}\n\n`);
+
+        Log.addNewLineIfNone();
+        Log.withTick(chalk.bold(`Builds for ${projectName}:`));
+        Log.log(`\n${list}`);
+        Log.addNewLineIfNone();
+      } else {
+        Log.withCross(chalk.bold(`Couldn't find any builds for the project ${projectName}`));
+        Log.addNewLineIfNone();
+      }
+    }
+  };
+
+  await performPaginatedQueryAsync({
+    pageSize: 50,
+    offset: 0,
+    queryToPerform: queryAdditionalBuildsAsync,
+    promptOptions: {
+      type: 'confirm',
+      title: 'Fetch next page of builds?',
+      renderListItems: renderPageOfBuilds,
+    },
+  });
+}

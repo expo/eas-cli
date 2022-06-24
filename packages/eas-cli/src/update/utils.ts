@@ -36,11 +36,18 @@ export function getPlatformsForGroup({
     .join(', ');
 }
 
+export const truncateUpdateMessage = (originalMessage: string, length: number = 512): string => {
+  if (originalMessage.length > length) {
+    return originalMessage.substring(0, length - 3) + '...';
+  }
+  return originalMessage;
+};
+
 export function formatUpdate(update: FormatUpdateParameter): string {
   if (!update) {
     return 'N/A';
   }
-  const message = update.message ? `"${update.message}" ` : '';
+  const message = update.message ? `"${truncateUpdateMessage(update.message)}" ` : '';
   return `${message}(${format(update.createdAt, 'en_US')} by ${getActorDisplayName(
     update.actor as any
   )})`;

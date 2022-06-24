@@ -351,6 +351,8 @@ export default class ChannelRollout extends EasCommand {
     const channel = await ChannelQuery.getUpdateChannelByNameForAppAsync({
       appId: projectId,
       channelName: channelName!,
+      offset: 0,
+      limit: 50,
     });
     if (!channel) {
       throw new Error(

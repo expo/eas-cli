@@ -4,7 +4,7 @@ export const UpdateBranchFragmentNode = gql`
   fragment UpdateBranchFragment on UpdateBranch {
     id
     name
-    updates(offset: 0, limit: 10) {
+    updates(offset: 0, limit: 1) {
       id
       actor {
         __typename

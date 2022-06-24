@@ -14,7 +14,7 @@ import {
 } from '../generated';
 import { BuildFragmentNode } from '../types/Build';
 
-type BuildsQuery = {
+export type BuildsQuery = {
   offset?: number;
   limit?: number;
   filter?: {

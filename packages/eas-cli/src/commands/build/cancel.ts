@@ -5,6 +5,7 @@ import EasCommand from '../../commandUtils/EasCommand';
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
 import {
   Build,
+  BuildFragment,
   BuildStatus,
   CancelBuildMutation,
   CancelBuildMutationVariables,
@@ -19,7 +20,8 @@ import {
   getProjectFullNameAsync,
   getProjectIdAsync,
 } from '../../project/projectUtils';
-import { confirmAsync, selectAsync } from '../../prompts';
+import { confirmAsync } from '../../prompts';
+import { PaginatedQueryResponse, performPaginatedQueryAsync } from '../../utils/queries';
 
 async function cancelBuildAsync(buildId: string): Promise<Pick<Build, 'id' | 'status'>> {
   const data = await withErrorHandlingAsync(
@@ -59,48 +61,6 @@ function formatUnfinishedBuild(
   return `${platform} Started at: ${startTime}, Status: ${status}, Id: ${build.id}`;
 }
 
-async function selectBuildToCancelAsync(
-  projectId: string,
-  projectFullName: string
-): Promise<string | null> {
-  const spinner = ora().start('Fetching the uncompleted builds…');
-  let builds;
-  try {
-    const [newBuilds, inQueueBuilds, inProgressBuilds] = await Promise.all([
-      BuildQuery.allForAppAsync(projectId, { filter: { status: BuildStatus.New } }),
-      BuildQuery.allForAppAsync(projectId, { filter: { status: BuildStatus.InQueue } }),
-      BuildQuery.allForAppAsync(projectId, { filter: { status: BuildStatus.InProgress } }),
-    ]);
-    spinner.stop();
-    builds = [...newBuilds, ...inQueueBuilds, ...inProgressBuilds];
-  } catch (error) {
-    spinner.fail(
-      `Something went wrong and we couldn't fetch the builds for the project ${projectFullName}.`
-    );
-    throw error;
-  }
-  if (builds.length === 0) {
-    Log.warn(`There aren't any uncompleted builds for the project ${projectFullName}.`);
-    return null;
-  } else if (builds.length === 1) {
-    Log.log('Found one build');
-    Log.log(formatUnfinishedBuild(builds[0]));
-    await confirmAsync({
-      message: 'Do you want to cancel it?',
-    });
-    return builds[0].id;
-  } else {
-    const buildId = await selectAsync<string>(
-      'Which build do you want to cancel?',
-      builds.map(build => ({
-        title: formatUnfinishedBuild(build),
-        value: build.id,
-      }))
-    );
-    return buildId;
-  }
-}
-
 async function ensureBuildExistsAsync(buildId: string): Promise<void> {
   try {
     await BuildQuery.byIdAsync(buildId);
@@ -126,7 +86,8 @@ export default class BuildCancel extends EasCommand {
       await ensureBuildExistsAsync(buildIdFromArg);
     }
 
-    const buildId = buildIdFromArg || (await selectBuildToCancelAsync(projectId, projectFullName));
+    const buildId =
+      buildIdFromArg || (await queryForBuildToCancelAsync(projectId, projectFullName));
     if (!buildId) {
       return;
     }
@@ -145,4 +106,70 @@ export default class BuildCancel extends EasCommand {
       throw error;
     }
   }
+}
+
+async function queryForBuildToCancelAsync(
+  projectId: string,
+  projectFullName: string
+): Promise<string | null> {
+  const queryToPerformAsync = async (
+    pageSize: number,
+    offset: number
+  ): Promise<PaginatedQueryResponse<BuildFragment>> => {
+    const [newBuilds, inQueueBuilds, inProgressBuilds] = await Promise.all([
+      BuildQuery.allForAppAsync(projectId, {
+        limit: pageSize,
+        offset,
+        filter: { status: BuildStatus.New },
+      }),
+      BuildQuery.allForAppAsync(projectId, {
+        limit: pageSize,
+        offset,
+        filter: { status: BuildStatus.InQueue },
+      }),
+      BuildQuery.allForAppAsync(projectId, {
+        limit: pageSize,
+        offset,
+        filter: { status: BuildStatus.InProgress },
+      }),
+    ]);
+
+    // this variable controls whether performPaginatedQueryAsync will query the next page.
+    // force another query if we have hit the query limit for any of these 3 queries.
+    const queryResponseLength =
+      newBuilds.length < pageSize &&
+      inQueueBuilds.length < pageSize &&
+      inProgressBuilds.length < pageSize
+        ? pageSize - 1
+        : pageSize;
+
+    return {
+      queryResponse: [...newBuilds, ...inQueueBuilds, ...inProgressBuilds],
+      queryResponseRawLength: queryResponseLength,
+    };
+  };
+  const getIdentifierForQueryItem = (buildFragment: BuildFragment): string => buildFragment.id;
+  const selectedBuild = (
+    await performPaginatedQueryAsync({
+      pageSize: 50,
+      offset: 0,
+      queryToPerform: queryToPerformAsync,
+      promptOptions: {
+        type: 'select',
+        title: 'Which build would you like to cancel?',
+        getIdentifierForQueryItem,
+        createDisplayTextForSelectionPromptListItem: formatUnfinishedBuild,
+      },
+    })
+  ).pop();
+
+  if (!selectedBuild) {
+    Log.warn(`There aren't any uncompleted builds for the project ${projectFullName}.`);
+    return null;
+  }
+
+  const userConfirmedCancellation = await confirmAsync({
+    message: `Are you sure you want to cancel ${formatUnfinishedBuild(selectedBuild)}?`,
+  });
+  return userConfirmedCancellation ? selectedBuild.id : null;
 }

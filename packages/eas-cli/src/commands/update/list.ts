@@ -4,7 +4,7 @@ import chalk from 'chalk';
 import CliTable from 'cli-table3';
 
 import EasCommand from '../../commandUtils/EasCommand';
-import { ViewAllUpdatesQuery } from '../../graphql/generated';
+import { ViewAllUpdatesQuery, ViewBranchUpdatesQuery } from '../../graphql/generated';
 import { UpdateQuery } from '../../graphql/queries/UpdateQuery';
 import Log from '../../log';
 import { getExpoConfig } from '../../project/expoConfig';
@@ -13,6 +13,7 @@ import { promptAsync } from '../../prompts';
 import { FormatUpdateParameter, UPDATE_COLUMNS, formatUpdate } from '../../update/utils';
 import groupBy from '../../utils/expodash/groupBy';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
+import { PaginatedQueryResponse, performPaginatedQueryAsync } from '../../utils/queries';
 import { getVcsClient } from '../../vcs';
 
 type UpdateGroupDescription = FormatUpdateParameter & {
@@ -53,12 +54,8 @@ export default class BranchView extends EasCommand {
     const exp = getExpoConfig(projectDir);
     const projectId = await getProjectIdAsync(exp);
 
-    let updateGroupDescriptions: UpdateGroupDescription[];
     if (all) {
-      const branchesAndUpdates = await UpdateQuery.viewAllAsync({ appId: projectId });
-      updateGroupDescriptions = getUpdateGroupDescriptions(
-        branchesAndUpdates.app.byId.updateBranches
-      );
+      await fetchAllUpdatesForAppAsync(projectId, jsonFlag);
     } else {
       let branchInteractive: string | undefined;
       if (!branchFlag) {
@@ -77,46 +74,120 @@ export default class BranchView extends EasCommand {
       const branch = branchFlag ?? branchInteractive;
       assert(branch, 'Branch name may not be empty.');
 
-      const branchesAndUpdates = await UpdateQuery.viewBranchAsync({
-        appId: projectId,
-        name: branch,
-      });
-      const UpdateBranch = branchesAndUpdates.app?.byId.updateBranchByName;
-      if (!UpdateBranch) {
-        throw new Error(`Could not find branch "${branch}"`);
-      }
-      updateGroupDescriptions = getUpdateGroupDescriptions([UpdateBranch]);
+      fetchAllUpdatesForBranchAsync(projectId, branch, jsonFlag);
     }
+  }
+}
+
+type BranchUpdateObject = Exclude<
+  ViewBranchUpdatesQuery['app']['byId']['updateBranchByName'],
+  null | undefined
+>['updates'][0];
+type AppUpdateObject = ViewAllUpdatesQuery['app']['byId']['updates'][0];
+
+async function fetchAllUpdatesForBranchAsync(
+  projectId: string,
+  branchName: string,
+  jsonFlag: boolean
+): Promise<void> {
+  const queryToPerformAsync = async (
+    pageSize: number,
+    offset: number
+  ): Promise<PaginatedQueryResponse<BranchUpdateObject>> => {
+    const branchesAndUpdates = await UpdateQuery.viewBranchAsync({
+      appId: projectId,
+      name: branchName,
+      limit: pageSize,
+      offset,
+    });
+    const UpdateBranch = branchesAndUpdates.app?.byId.updateBranchByName;
+    if (!UpdateBranch) {
+      throw new Error(`Could not find branch "${branchName}"`);
+    }
+
+    return {
+      queryResponse: UpdateBranch.updates,
+      queryResponseRawLength: UpdateBranch.updates.length,
+    };
+  };
+
+  const renderListItems = (currentPage: BranchUpdateObject[]): void => {
+    const updateGroupDescriptions = getUpdateGroupDescriptions(currentPage);
 
     if (jsonFlag) {
       printJsonOnlyOutput(updateGroupDescriptions);
     } else {
       logAsTable(updateGroupDescriptions);
     }
-  }
+  };
+
+  await performPaginatedQueryAsync({
+    pageSize: 50,
+    offset: 0,
+    queryToPerform: queryToPerformAsync,
+    promptOptions: {
+      type: 'confirm',
+      title: 'View next page of updates?',
+      renderListItems,
+    },
+  });
+}
+
+async function fetchAllUpdatesForAppAsync(projectId: string, jsonFlag: boolean): Promise<void> {
+  const queryToPerformAsync = async (
+    pageSize: number,
+    offset: number
+  ): Promise<PaginatedQueryResponse<AppUpdateObject>> => {
+    const viewAllUpdates = await UpdateQuery.viewAllAsync({
+      appId: projectId,
+      limit: pageSize,
+      offset,
+    });
+    const { updates } = viewAllUpdates.app.byId;
+
+    return {
+      queryResponse: updates,
+      queryResponseRawLength: updates.length,
+    };
+  };
+
+  const renderListItems = (currentPage: AppUpdateObject[]): void => {
+    const updateGroupDescriptions = getUpdateGroupDescriptions(currentPage);
+
+    if (jsonFlag) {
+      printJsonOnlyOutput(updateGroupDescriptions);
+    } else {
+      logAsTable(updateGroupDescriptions);
+    }
+  };
+
+  await performPaginatedQueryAsync({
+    pageSize: 50,
+    offset: 0,
+    queryToPerform: queryToPerformAsync,
+    promptOptions: {
+      type: 'confirm',
+      title: 'View next page of updates?',
+      renderListItems,
+    },
+  });
 }
 
 function getUpdateGroupDescriptions(
-  branchesAndUpdates: ViewAllUpdatesQuery['app']['byId']['updateBranches']
+  updates: (BranchUpdateObject | AppUpdateObject)[]
 ): UpdateGroupDescription[] {
-  const flattenedBranchesAndUpdates = branchesAndUpdates.flatMap(branch =>
-    branch.updates.map(update => {
-      return { branch: branch.name, ...update };
+  return Object.values(groupBy(updates, update => update.group))
+    .map(updateGroup => {
+      return {
+        platforms: updateGroup
+          .map(update => update.platform)
+          .sort()
+          .join(', '),
+        ...updateGroup[0],
+        branch: updateGroup[0].branch.name,
+      } as UpdateGroupDescription;
     })
-  );
-  const updateGroupDescriptions = Object.values(
-    groupBy(flattenedBranchesAndUpdates, update => update.group)
-  ).map(updateGroup => {
-    const platforms = updateGroup
-      .map(update => update.platform)
-      .sort()
-      .join(', ');
-    return { ...updateGroup[0], platforms };
-  });
-  updateGroupDescriptions.sort(
-    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-  );
-  return updateGroupDescriptions;
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 }
 
 function logAsTable(updateGroupDescriptions: UpdateGroupDescription[]): void {

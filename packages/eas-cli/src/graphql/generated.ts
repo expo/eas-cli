@@ -1584,6 +1584,7 @@ export type Build = ActivityTimelineProjectActivity & BuildOrBuildJob & {
   iosEnterpriseProvisioning?: Maybe<BuildIosEnterpriseProvisioning>;
   isGitWorkingTreeDirty?: Maybe<Scalars['Boolean']>;
   logFiles: Array<Scalars['String']>;
+  maxBuildTimeSeconds: Scalars['Int'];
   metrics?: Maybe<BuildMetrics>;
   parentBuild?: Maybe<Build>;
   platform: AppPlatform;
@@ -1817,7 +1818,8 @@ export type BuildParamsInput = {
 
 export enum BuildPriority {
   High = 'HIGH',
-  Normal = 'NORMAL'
+  Normal = 'NORMAL',
+  NormalPlus = 'NORMAL_PLUS'
 }
 
 /** Publicly visible data for a Build. */
@@ -3849,6 +3851,7 @@ export type DeleteUpdateBranchMutation = { __typename?: 'RootMutation', updateBr
 export type BranchesByAppQueryVariables = Exact<{
   appId: Scalars['String'];
   limit: Scalars['Int'];
+  offset: Scalars['Int'];
 }>;
 
 
@@ -3910,8 +3913,10 @@ export type UpdateChannelBranchMappingMutation = { __typename?: 'RootMutation', 
 
 export type GetAllChannelsForAppQueryVariables = Exact<{
   appId: Scalars['String'];
-  offset: Scalars['Int'];
-  limit: Scalars['Int'];
+  channelOffset: Scalars['Int'];
+  channelLimit: Scalars['Int'];
+  branchLimit: Scalars['Int'];
+  branchOffset: Scalars['Int'];
 }>;
 
 
@@ -4476,6 +4481,8 @@ export type GetAllBuildsForAppQuery = { __typename?: 'RootQuery', app: { __typen
 export type GetChannelByNameForAppQueryVariables = Exact<{
   appId: Scalars['String'];
   channelName: Scalars['String'];
+  limit: Scalars['Int'];
+  offset: Scalars['Int'];
 }>;
 
 
@@ -4531,10 +4538,11 @@ export type GetAllSubmissionsForAppQuery = { __typename?: 'RootQuery', app: { __
 export type ViewAllUpdatesQueryVariables = Exact<{
   appId: Scalars['String'];
   limit: Scalars['Int'];
+  offset: Scalars['Int'];
 }>;
 
 
-export type ViewAllUpdatesQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, updateBranches: Array<{ __typename?: 'UpdateBranch', id: string, name: string, updates: Array<{ __typename?: 'Update', id: string, group: string, message?: string | null, createdAt: any, runtimeVersion: string, platform: string, actor?: { __typename?: 'Robot', firstName?: string | null, id: string } | { __typename?: 'User', username: string, id: string } | null }> }> } } };
+export type ViewAllUpdatesQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, updates: Array<{ __typename?: 'Update', id: string, group: string, message?: string | null, createdAt: any, runtimeVersion: string, platform: string, actor?: { __typename?: 'Robot', firstName?: string | null, id: string } | { __typename?: 'User', username: string, id: string } | null, branch: { __typename?: 'UpdateBranch', id: string, name: string } }> } } };
 
 export type ViewBranchUpdatesQueryVariables = Exact<{
   appId: Scalars['String'];
@@ -4544,7 +4552,7 @@ export type ViewBranchUpdatesQueryVariables = Exact<{
 }>;
 
 
-export type ViewBranchUpdatesQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, updateBranchByName?: { __typename?: 'UpdateBranch', id: string, name: string, updates: Array<{ __typename?: 'Update', id: string, group: string, message?: string | null, createdAt: any, runtimeVersion: string, platform: string, manifestFragment: string, actor?: { __typename?: 'Robot', firstName?: string | null, id: string } | { __typename?: 'User', username: string, id: string } | null }> } | null } } };
+export type ViewBranchUpdatesQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, updateBranchByName?: { __typename?: 'UpdateBranch', id: string, name: string, updates: Array<{ __typename?: 'Update', id: string, group: string, message?: string | null, createdAt: any, runtimeVersion: string, platform: string, manifestFragment: string, actor?: { __typename?: 'Robot', firstName?: string | null, id: string } | { __typename?: 'User', username: string, id: string } | null, branch: { __typename?: 'UpdateBranch', id: string, name: string } }> } | null } } };
 
 export type CurrentUserQueryVariables = Exact<{ [key: string]: never; }>;
 

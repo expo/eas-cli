@@ -17,23 +17,24 @@ import { getExpoConfig } from '../../project/expoConfig';
 import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUtils';
 import { UPDATE_COLUMNS, formatUpdate, getPlatformsForGroup } from '../../update/utils';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
+import { PaginatedQueryResponse, performPaginatedQueryAsync } from '../../utils/queries';
 
-const BRANCHES_LIMIT = 10_000;
+export const BRANCHES_LIMIT = 50;
 
 export async function listBranchesAsync({
-  projectId,
-}: {
-  projectId: string;
-}): Promise<UpdateBranchFragment[]> {
+  appId,
+  limit = BRANCHES_LIMIT,
+  offset = 0,
+}: BranchesByAppQueryVariables): Promise<UpdateBranchFragment[]> {
   const data = await withErrorHandlingAsync(
     graphqlClient
       .query<BranchesByAppQuery, BranchesByAppQueryVariables>(
         gql`
-          query BranchesByAppQuery($appId: String!, $limit: Int!) {
+          query BranchesByAppQuery($appId: String!, $limit: Int!, $offset: Int!) {
             app {
               byId(appId: $appId) {
                 id
-                updateBranches(offset: 0, limit: $limit) {
+                updateBranches(offset: $offset, limit: $limit) {
                   id
                   ...UpdateBranchFragment
                 }
@@ -43,8 +44,9 @@ export async function listBranchesAsync({
           ${print(UpdateBranchFragmentNode)}
         `,
         {
-          appId: projectId,
-          limit: BRANCHES_LIMIT,
+          appId,
+          limit,
+          offset,
         },
         { additionalTypenames: ['UpdateBranch'] }
       )
@@ -73,9 +75,28 @@ export default class BranchList extends EasCommand {
     const projectDir = await findProjectRootAsync();
     const exp = getExpoConfig(projectDir);
     const projectId = await getProjectIdAsync(exp);
-    const branches = await listBranchesAsync({ projectId });
+    await queryForPaginatedBranchesAsync(projectId, flags);
+  }
+}
+
+async function queryForPaginatedBranchesAsync(
+  projectId: string,
+  flags: { json: boolean } & { json: boolean | undefined }
+): Promise<void> {
+  const queryAdditionalBranchesAsync = async (
+    pageSize: number,
+    offset: number
+  ): Promise<PaginatedQueryResponse<UpdateBranchFragment>> => {
+    const branches = await listBranchesAsync({ appId: projectId, limit: pageSize, offset });
+    return {
+      queryResponse: branches,
+      queryResponseRawLength: branches.length,
+    };
+  };
+
+  const renderPageOfBranches = (currentPage: UpdateBranchFragment[]): void => {
     if (flags.json) {
-      printJsonOnlyOutput(branches);
+      printJsonOnlyOutput(currentPage);
     } else {
       const table = new CliTable({
         head: ['Branch', ...UPDATE_COLUMNS],
@@ -83,7 +104,7 @@ export default class BranchList extends EasCommand {
       });
 
       table.push(
-        ...branches.map(branch => [
+        ...currentPage.map(branch => [
           branch.name,
           formatUpdate(branch.updates[0]),
           branch.updates[0]?.runtimeVersion ?? 'N/A',
@@ -96,11 +117,20 @@ export default class BranchList extends EasCommand {
       );
 
       Log.addNewLineIfNone();
-      Log.log(chalk.bold('Branches with their most recent update group:'));
+      Log.log(chalk.bold('Branches:'));
+      Log.addNewLineIfNone();
       Log.log(table.toString());
-      if (branches.length >= BRANCHES_LIMIT) {
-        Log.warn(`Showing first ${BRANCHES_LIMIT} branches, some results might be omitted.`);
-      }
     }
-  }
+  };
+
+  await performPaginatedQueryAsync({
+    pageSize: 50,
+    offset: 0,
+    queryToPerform: queryAdditionalBranchesAsync,
+    promptOptions: {
+      type: 'confirm',
+      title: 'Fetch next page of branches?',
+      renderListItems: renderPageOfBranches,
+    },
+  });
 }

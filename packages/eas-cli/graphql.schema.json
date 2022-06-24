@@ -10209,7 +10209,7 @@
             "args": [
               {
                 "name": "assetContentTypes",
-                "description": "max 600",
+                "description": "max 1400",
                 "type": {
                   "kind": "NON_NULL",
                   "name": null,
@@ -10758,6 +10758,22 @@
                     "ofType": null
                   }
                 }
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "maxBuildTimeSeconds",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "Int",
+                "ofType": null
               }
             },
             "isDeprecated": false,
@@ -12571,6 +12587,12 @@
           },
           {
             "name": "NORMAL",
+            "description": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "NORMAL_PLUS",
             "description": null,
             "isDeprecated": false,
             "deprecationReason": null
