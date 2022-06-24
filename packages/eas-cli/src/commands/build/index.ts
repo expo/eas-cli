@@ -2,6 +2,7 @@ import { Errors, Flags } from '@oclif/core';
 import path from 'path';
 
 import { BuildFlags, runBuildAndSubmitAsync } from '../../build/runBuildAndSubmit';
+import { UserInputResourceClass } from '../../build/types';
 import EasCommand from '../../commandUtils/EasCommand';
 import Log from '../../log';
 import { RequestedPlatform, selectRequestedPlatformAsync } from '../../platform';
@@ -21,6 +22,7 @@ interface RawBuildFlags {
   json: boolean;
   'auto-submit': boolean;
   'auto-submit-with-profile'?: string;
+  'resource-class'?: UserInputResourceClass;
 }
 
 export default class Build extends EasCommand {
@@ -78,6 +80,11 @@ export default class Build extends EasCommand {
       description: 'Submit on build complete using the submit profile with provided name',
       helpValue: 'PROFILE_NAME',
       exclusive: ['auto-submit'],
+    }),
+    'resource-class': Flags.enum({
+      options: Object.values(UserInputResourceClass),
+      hidden: true,
+      description: 'The instance type that will be used to run this build [experimental]',
     }),
   };
 
@@ -155,6 +162,7 @@ export default class Build extends EasCommand {
       json: flags['json'],
       autoSubmit: flags['auto-submit'] || flags['auto-submit-with-profile'] !== undefined,
       submitProfile: flags['auto-submit-with-profile'] ?? profile,
+      userInputResourceClass: flags['resource-class'] ?? UserInputResourceClass.DEFAULT,
     };
   }
 }

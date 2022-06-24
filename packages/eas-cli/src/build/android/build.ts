@@ -5,6 +5,7 @@ import nullthrows from 'nullthrows';
 import AndroidCredentialsProvider, {
   AndroidCredentials,
 } from '../../credentials/android/AndroidCredentialsProvider';
+import { BuildParamsInput } from '../../graphql/generated';
 import { BuildMutation, BuildResult } from '../../graphql/mutations/BuildMutation';
 import Log from '../../log';
 import {
@@ -87,7 +88,8 @@ export async function prepareAndroidBuildAsync(
     sendBuildRequestAsync: async (
       appId: string,
       job: Android.Job,
-      metadata: Metadata
+      metadata: Metadata,
+      buildParams: BuildParamsInput
     ): Promise<BuildResult> => {
       const graphqlMetadata = transformMetadata(metadata);
       const graphqlJob = transformJob(job);
@@ -95,6 +97,7 @@ export async function prepareAndroidBuildAsync(
         appId,
         job: graphqlJob,
         metadata: graphqlMetadata,
+        buildParams,
       });
     },
   });

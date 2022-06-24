@@ -6,6 +6,7 @@ import type { XCBuildConfiguration } from 'xcode';
 import { TrackingContext } from '../analytics/common';
 import { CredentialsContext } from '../credentials/context';
 import { Target } from '../credentials/ios/types';
+import { BuildResourceClass } from '../graphql/generated';
 import { GradleBuildContext } from '../project/android/gradle';
 import { XcodeBuildContext } from '../project/ios/scheme';
 import { Actor } from '../user/User';
@@ -30,6 +31,7 @@ export interface BuildContext<T extends Platform> {
   accountName: string;
   buildProfile: BuildProfile<T>;
   buildProfileName: string;
+  resourceClass: BuildResourceClass;
   clearCache: boolean;
   credentialsCtx: CredentialsContext;
   exp: ExpoConfig;

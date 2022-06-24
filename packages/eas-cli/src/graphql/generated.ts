@@ -1594,6 +1594,7 @@ export type Build = ActivityTimelineProjectActivity & BuildOrBuildJob & {
   queuePosition?: Maybe<Scalars['Int']>;
   reactNativeVersion?: Maybe<Scalars['String']>;
   releaseChannel?: Maybe<Scalars['String']>;
+  resourceClass?: Maybe<BuildResourceClass>;
   runtimeVersion?: Maybe<Scalars['String']>;
   sdkVersion?: Maybe<Scalars['String']>;
   status: BuildStatus;
@@ -1783,6 +1784,7 @@ export type BuildMutationCancelBuildArgs = {
 
 export type BuildMutationCreateAndroidBuildArgs = {
   appId: Scalars['ID'];
+  buildParams?: InputMaybe<BuildParamsInput>;
   job: AndroidJobInput;
   metadata?: InputMaybe<BuildMetadataInput>;
 };
@@ -1790,6 +1792,7 @@ export type BuildMutationCreateAndroidBuildArgs = {
 
 export type BuildMutationCreateIosBuildArgs = {
   appId: Scalars['ID'];
+  buildParams?: InputMaybe<BuildParamsInput>;
   job: IosJobInput;
   metadata?: InputMaybe<BuildMetadataInput>;
 };
@@ -1806,6 +1809,10 @@ export type BuildMutationRetryBuildArgs = {
 
 export type BuildOrBuildJob = {
   id: Scalars['ID'];
+};
+
+export type BuildParamsInput = {
+  resourceClass: BuildResourceClass;
 };
 
 export enum BuildPriority {
@@ -1874,6 +1881,14 @@ export type BuildQueryAllForAppArgs = {
 export type BuildQueryByIdArgs = {
   buildId: Scalars['ID'];
 };
+
+export enum BuildResourceClass {
+  AndroidDefault = 'ANDROID_DEFAULT',
+  AndroidLarge = 'ANDROID_LARGE',
+  IosDefault = 'IOS_DEFAULT',
+  IosLarge = 'IOS_LARGE',
+  Legacy = 'LEGACY'
+}
 
 export enum BuildStatus {
   Canceled = 'CANCELED',
@@ -4319,6 +4334,7 @@ export type CreateAndroidBuildMutationVariables = Exact<{
   appId: Scalars['ID'];
   job: AndroidJobInput;
   metadata?: InputMaybe<BuildMetadataInput>;
+  buildParams?: InputMaybe<BuildParamsInput>;
 }>;
 
 
@@ -4328,6 +4344,7 @@ export type CreateIosBuildMutationVariables = Exact<{
   appId: Scalars['ID'];
   job: IosJobInput;
   metadata?: InputMaybe<BuildMetadataInput>;
+  buildParams?: InputMaybe<BuildParamsInput>;
 }>;
 
 

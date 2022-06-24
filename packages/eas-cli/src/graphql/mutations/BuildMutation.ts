@@ -7,6 +7,7 @@ import {
   AndroidJobInput,
   BuildFragment,
   BuildMetadataInput,
+  BuildParamsInput,
   CreateAndroidBuildMutation,
   CreateAndroidBuildMutationVariables,
   CreateIosBuildMutation,
@@ -26,6 +27,7 @@ export const BuildMutation = {
     appId: string;
     job: AndroidJobInput;
     metadata: BuildMetadataInput;
+    buildParams: BuildParamsInput;
   }): Promise<BuildResult> {
     const data = await withErrorHandlingAsync(
       graphqlClient
@@ -35,9 +37,15 @@ export const BuildMutation = {
               $appId: ID!
               $job: AndroidJobInput!
               $metadata: BuildMetadataInput
+              $buildParams: BuildParamsInput
             ) {
               build {
-                createAndroidBuild(appId: $appId, job: $job, metadata: $metadata) {
+                createAndroidBuild(
+                  appId: $appId
+                  job: $job
+                  metadata: $metadata
+                  buildParams: $buildParams
+                ) {
                   build {
                     id
                     ...BuildFragment
@@ -62,6 +70,7 @@ export const BuildMutation = {
     appId: string;
     job: IosJobInput;
     metadata: BuildMetadataInput;
+    buildParams: BuildParamsInput;
   }): Promise<BuildResult> {
     const data = await withErrorHandlingAsync(
       graphqlClient
@@ -71,9 +80,15 @@ export const BuildMutation = {
               $appId: ID!
               $job: IosJobInput!
               $metadata: BuildMetadataInput
+              $buildParams: BuildParamsInput
             ) {
               build {
-                createIosBuild(appId: $appId, job: $job, metadata: $metadata) {
+                createIosBuild(
+                  appId: $appId
+                  job: $job
+                  metadata: $metadata
+                  buildParams: $buildParams
+                ) {
                   build {
                     id
                     ...BuildFragment

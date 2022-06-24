@@ -3,6 +3,7 @@ import { Ios, Job, Metadata, Platform, Workflow } from '@expo/eas-build-job';
 import type { XCBuildConfiguration } from 'xcode';
 
 import { IosCredentials, Target } from '../../credentials/ios/types';
+import { BuildParamsInput } from '../../graphql/generated';
 import { BuildMutation, BuildResult } from '../../graphql/mutations/BuildMutation';
 import { ensureBundleIdentifierIsDefinedForManagedProjectAsync } from '../../project/ios/bundleIdentifier';
 import { resolveXcodeBuildContextAsync } from '../../project/ios/scheme';
@@ -82,7 +83,8 @@ export async function prepareIosBuildAsync(
     sendBuildRequestAsync: async (
       appId: string,
       job: Ios.Job,
-      metadata: Metadata
+      metadata: Metadata,
+      buildParams: BuildParamsInput
     ): Promise<BuildResult> => {
       const graphqlMetadata = transformMetadata(metadata);
       const graphqlJob = transformJob(job);
@@ -90,6 +92,7 @@ export async function prepareIosBuildAsync(
         appId,
         job: graphqlJob,
         metadata: graphqlMetadata,
+        buildParams,
       });
     },
   });
