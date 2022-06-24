@@ -1,6 +1,7 @@
 import assert from 'assert';
 import FormData from 'form-data';
 import fs from 'fs-extra';
+import { URL } from 'url';
 
 import fetch from './fetch';
 import { UploadSessionType } from './graphql/generated';
@@ -54,13 +55,24 @@ export async function uploadWithPresignedPostAsync(
     try {
       const response = await uploadPromise;
       handleProgressEvent({ isComplete: true });
-      return String(response.headers.get('location'));
+      return fixArchiveUrl(String(response.headers.get('location')));
     } catch (error: any) {
       handleProgressEvent({ isComplete: true, error });
       throw error;
     }
   } else {
     const response = await uploadPromise;
-    return String(response.headers.get('location'));
+    return fixArchiveUrl(String(response.headers.get('location')));
   }
+}
+
+/**
+ * S3 returns broken URLs, sth like:
+ * https://submission-service-archives.s3.amazonaws.com/production%2Fdc98ca84-1473-4cb3-ae81-8c7b291cb27e%2F4424aa95-b985-4e2f-8755-9507b1037c1c
+ * This function replaces %2F with /.
+ */
+export function fixArchiveUrl(archiveUrl: string): string {
+  const parsed = new URL(archiveUrl);
+  parsed.pathname = decodeURIComponent(parsed.pathname);
+  return parsed.toString();
 }
