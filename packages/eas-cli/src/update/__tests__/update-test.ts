@@ -4,10 +4,12 @@ import {
   PublishPlatformFlag,
   ensureBranchExistsAsync,
   getUpdatesToRepublishInteractiveAsync,
+  truncatePublishUpdateMessage,
 } from '../../commands/update';
 import { graphqlClient } from '../../graphql/client';
 import { ViewBranchUpdatesQuery } from '../../graphql/generated';
 import { viewBranchUpdatesQueryUpdateLimit } from '../../graphql/queries/UpdateQuery';
+import Log from '../../log';
 import { selectAsync } from '../../prompts';
 
 const appId = '6c94sxe6-37d2-4700-52fa-1b813204dad2';
@@ -298,6 +300,30 @@ describe('UpdatePublish', () => {
         expect.objectContaining({ limit: pageSize + 1, offset: pageSize * 2 }),
         expect.objectContaining({ limit: pageSize + 1, offset: pageSize * 3 }),
       ]);
+    });
+  });
+
+  describe(truncatePublishUpdateMessage.name, () => {
+    const warnSpy = jest.spyOn(Log, 'warn');
+    beforeEach(() => {
+      warnSpy.mockClear();
+    });
+
+    it('does not alter messages with less than 1024 characters', () => {
+      const message = 'Small message =)';
+      const truncatedMessage = truncatePublishUpdateMessage(message);
+      expect(truncatedMessage).toEqual(message);
+      expect(warnSpy).not.toBeCalled();
+    });
+
+    it('truncates messages to a length of 1024, including ellipses', () => {
+      const longMessage = Array.from({ length: 2024 }, () => 'a').join('');
+      const truncatedMessage = truncatePublishUpdateMessage(longMessage);
+      expect(truncatedMessage.length).toEqual(1024);
+      expect(truncatedMessage.slice(-3)).toEqual('...');
+      expect(warnSpy).toBeCalledWith(
+        'Update message exceeds the allowed 1024 character limit. Truncating message...'
+      );
     });
   });
 });
