@@ -14,6 +14,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Fix submission archive URLs. ([#1179](https://github.com/expo/eas-cli/pull/1179) by [@dsokal](https://github.com/dsokal))
+
 ### 🧹 Chores
 
 - Update validation rules for metadata info locales. ([#1174](https://github.com/expo/eas-cli/pull/1174) by [@byCedric](https://github.com/byCedric))
