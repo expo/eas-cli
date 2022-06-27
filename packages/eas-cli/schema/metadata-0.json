@@ -273,7 +273,6 @@
                 "violenceCartoonOrFantasy": "NONE",
                 "violenceRealisticProlongedGraphicOrSadistic": "NONE",
                 "violenceRealistic": "NONE",
-                "gamblingAndContests":false,
                 "gambling": false,
                 "kidsAgeBand": null,
                 "seventeenPlus": false,
@@ -296,7 +295,6 @@
                 "violenceCartoonOrFantasy": "${10|NONE,INFREQUENT_OR_MILD,FREQUENT_OR_INTENSE|}",
                 "violenceRealisticProlongedGraphicOrSadistic": "${11|NONE,INFREQUENT_OR_MILD,FREQUENT_OR_INTENSE|}",
                 "violenceRealistic": "${12|NONE,INFREQUENT_OR_MILD,FREQUENT_OR_INTENSE|}",
-                "gamblingAndContests":false,
                 "gambling": false,
                 "kidsAgeBand": null,
                 "seventeenPlus": false,
@@ -310,9 +308,6 @@
           },
           "contests": {
             "$ref": "#/definitions/apple/AppleRating"
-          },
-          "gamblingAndContests": {
-            "type": "boolean"
           },
           "gambling": {
             "type": "boolean"
