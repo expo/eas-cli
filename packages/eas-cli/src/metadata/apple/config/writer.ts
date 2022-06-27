@@ -77,9 +77,9 @@ export class AppleConfigWriter {
     }
 
     if (attributes.releaseType === ReleaseType.MANUAL) {
-      this.schema.release = {
-        automaticRelease: false,
-      };
+      // ReleaseType.MANUAL is the default behavior, so we don't need to configure it.
+      // Setting `"automaticRelease": false` is a bit confusing for people who don't know what automaticRelease does.
+      this.schema.release = undefined;
     }
   }
 

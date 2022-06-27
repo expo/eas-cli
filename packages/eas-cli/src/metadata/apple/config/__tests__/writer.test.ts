@@ -99,18 +99,16 @@ describe('setVersionRelease', () => {
     });
   });
 
-  it('modifies manual release', () => {
+  it('does not modify manual release', () => {
     const writer = new AppleConfigWriter();
     writer.setVersionRelease(manualRelease);
-    expect(writer.schema.release).toMatchObject({
-      automaticRelease: false,
-    });
+    expect(writer.schema.release).toBeUndefined();
   });
 
   it('overwrites all release fields', () => {
     const writer = new AppleConfigWriter();
     writer.setVersionRelease(scheduledRelease);
-    writer.setVersionRelease(manualRelease);
+    writer.setVersionRelease(automaticRelease);
     expect(writer.schema.release).not.toHaveProperty('autoReleaseDate');
   });
 });
