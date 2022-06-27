@@ -4,6 +4,7 @@ import {
   AppInfoLocalization,
   AppStoreVersion,
   AppStoreVersionLocalization,
+  Rating,
   ReleaseType,
 } from '@expo/apple-utils';
 
@@ -26,7 +27,26 @@ export class AppleConfigWriter {
   }
 
   public setAgeRating(attributes: AttributesOf<AgeRatingDeclaration>): void {
-    this.schema.advisory = attributes;
+    this.schema.advisory = {
+      alcoholTobaccoOrDrugUseOrReferences:
+        attributes.alcoholTobaccoOrDrugUseOrReferences ?? Rating.NONE,
+      contests: attributes.contests ?? Rating.NONE,
+      gamblingSimulated: attributes.gamblingSimulated ?? Rating.NONE,
+      horrorOrFearThemes: attributes.horrorOrFearThemes ?? Rating.NONE,
+      matureOrSuggestiveThemes: attributes.matureOrSuggestiveThemes ?? Rating.NONE,
+      medicalOrTreatmentInformation: attributes.medicalOrTreatmentInformation ?? Rating.NONE,
+      profanityOrCrudeHumor: attributes.profanityOrCrudeHumor ?? Rating.NONE,
+      sexualContentGraphicAndNudity: attributes.sexualContentGraphicAndNudity ?? Rating.NONE,
+      sexualContentOrNudity: attributes.sexualContentOrNudity ?? Rating.NONE,
+      violenceCartoonOrFantasy: attributes.violenceCartoonOrFantasy ?? Rating.NONE,
+      violenceRealistic: attributes.violenceRealistic ?? Rating.NONE,
+      violenceRealisticProlongedGraphicOrSadistic:
+        attributes.violenceRealisticProlongedGraphicOrSadistic ?? Rating.NONE,
+      gambling: attributes.gambling ?? false,
+      unrestrictedWebAccess: attributes.unrestrictedWebAccess ?? false,
+      kidsAgeBand: attributes.kidsAgeBand ?? null,
+      seventeenPlus: attributes.seventeenPlus ?? false,
+    };
   }
 
   public setInfoLocale(attributes: AttributesOf<AppInfoLocalization>): void {

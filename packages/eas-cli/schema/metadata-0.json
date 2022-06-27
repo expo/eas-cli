@@ -19,9 +19,11 @@
         ]
       },
       "AppleKidsAge": {
+        "type": "string",
         "enum": ["FIVE_AND_UNDER", "SIX_TO_EIGHT", "NINE_TO_ELEVEN"]
       },
       "AppleRating": {
+        "type": "string",
         "enum": ["NONE", "INFREQUENT_OR_MILD", "FREQUENT_OR_INTENSE"]
       },
       "AppleCategory": {
@@ -256,107 +258,139 @@
       "AppleAdvisory": {
         "type": "object",
         "additionalProperties": false,
+        "required": [
+          "alcoholTobaccoOrDrugUseOrReferences",
+          "contests",
+          "gamblingSimulated",
+          "horrorOrFearThemes",
+          "matureOrSuggestiveThemes",
+          "medicalOrTreatmentInformation",
+          "profanityOrCrudeHumor",
+          "sexualContentGraphicAndNudity",
+          "sexualContentOrNudity",
+          "violenceCartoonOrFantasy",
+          "violenceRealistic",
+          "violenceRealisticProlongedGraphicOrSadistic",
+          "gambling",
+          "unrestrictedWebAccess",
+          "kidsAgeBand",
+          "seventeenPlus"
+        ],
         "defaultSnippets": [
-            {
-              "label": "Minimum",
-              "description": "The bare minimum rating, your app does nothing",
-              "body": {
-                "alcoholTobaccoOrDrugUseOrReferences": "NONE",
-                "contests": "NONE",
-                "gamblingSimulated": "NONE",
-                "medicalOrTreatmentInformation": "NONE",
-                "profanityOrCrudeHumor": "NONE",
-                "sexualContentGraphicAndNudity": "NONE",
-                "sexualContentOrNudity": "NONE",
-                "horrorOrFearThemes": "NONE",
-                "matureOrSuggestiveThemes": "NONE",
-                "violenceCartoonOrFantasy": "NONE",
-                "violenceRealisticProlongedGraphicOrSadistic": "NONE",
-                "violenceRealistic": "NONE",
-                "gambling": false,
-                "kidsAgeBand": null,
-                "seventeenPlus": false,
-                "unrestrictedWebAccess": false
-              }
-            },
-            {
-              "label": "Interactive",
-              "description": "Step through options",
-              "body": {
-                "alcoholTobaccoOrDrugUseOrReferences": "${1|NONE,INFREQUENT_OR_MILD,FREQUENT_OR_INTENSE|}",
-                "contests": "${2|NONE,INFREQUENT_OR_MILD,FREQUENT_OR_INTENSE|}",
-                "gamblingSimulated": "${3|NONE,INFREQUENT_OR_MILD,FREQUENT_OR_INTENSE|}",
-                "medicalOrTreatmentInformation": "${4|NONE,INFREQUENT_OR_MILD,FREQUENT_OR_INTENSE|}",
-                "profanityOrCrudeHumor": "${5|NONE,INFREQUENT_OR_MILD,FREQUENT_OR_INTENSE|}",
-                "sexualContentGraphicAndNudity": "${6|NONE,INFREQUENT_OR_MILD,FREQUENT_OR_INTENSE|}",
-                "sexualContentOrNudity": "${7|NONE,INFREQUENT_OR_MILD,FREQUENT_OR_INTENSE|}",
-                "horrorOrFearThemes": "${8|NONE,INFREQUENT_OR_MILD,FREQUENT_OR_INTENSE|}",
-                "matureOrSuggestiveThemes": "${9|NONE,INFREQUENT_OR_MILD,FREQUENT_OR_INTENSE|}",
-                "violenceCartoonOrFantasy": "${10|NONE,INFREQUENT_OR_MILD,FREQUENT_OR_INTENSE|}",
-                "violenceRealisticProlongedGraphicOrSadistic": "${11|NONE,INFREQUENT_OR_MILD,FREQUENT_OR_INTENSE|}",
-                "violenceRealistic": "${12|NONE,INFREQUENT_OR_MILD,FREQUENT_OR_INTENSE|}",
-                "gambling": false,
-                "kidsAgeBand": null,
-                "seventeenPlus": false,
-                "unrestrictedWebAccess": false
-              }
+          {
+            "label": "Basic",
+            "description": "Create an advisory that disables all age-rated properties, for when your app does nothing",
+            "body": {
+              "alcoholTobaccoOrDrugUseOrReferences": "NONE",
+              "contests": "NONE",
+              "gamblingSimulated": "NONE",
+              "horrorOrFearThemes": "NONE",
+              "matureOrSuggestiveThemes": "NONE",
+              "medicalOrTreatmentInformation": "NONE",
+              "profanityOrCrudeHumor": "NONE",
+              "sexualContentGraphicAndNudity": "NONE",
+              "sexualContentOrNudity": "NONE",
+              "violenceCartoonOrFantasy": "NONE",
+              "violenceRealistic": "NONE",
+              "violenceRealisticProlongedGraphicOrSadistic": "NONE",
+              "gambling": false,
+              "unrestrictedWebAccess": false,
+              "kidsAgeBand": null,
+              "seventeenPlus": false
             }
-          ],
+          },
+          {
+            "label": "Full",
+            "description": "Create an advisory that enables some of the age-rated properties",
+            "body": {
+              "alcoholTobaccoOrDrugUseOrReferences": "${1|NONE,INFREQUENT_OR_MILD,FREQUENT_OR_INTENSE|}",
+              "contests": "${2|NONE,INFREQUENT_OR_MILD,FREQUENT_OR_INTENSE|}",
+              "gamblingSimulated": "${3|NONE,INFREQUENT_OR_MILD,FREQUENT_OR_INTENSE|}",
+              "horrorOrFearThemes": "${4|NONE,INFREQUENT_OR_MILD,FREQUENT_OR_INTENSE|}",
+              "matureOrSuggestiveThemes": "${5|NONE,INFREQUENT_OR_MILD,FREQUENT_OR_INTENSE|}",
+              "medicalOrTreatmentInformation": "${6|NONE,INFREQUENT_OR_MILD,FREQUENT_OR_INTENSE|}",
+              "profanityOrCrudeHumor": "${7|NONE,INFREQUENT_OR_MILD,FREQUENT_OR_INTENSE|}",
+              "sexualContentGraphicAndNudity": "${8|NONE,INFREQUENT_OR_MILD,FREQUENT_OR_INTENSE|}",
+              "sexualContentOrNudity": "${9|NONE,INFREQUENT_OR_MILD,FREQUENT_OR_INTENSE|}",
+              "violenceCartoonOrFantasy": "${10|NONE,INFREQUENT_OR_MILD,FREQUENT_OR_INTENSE|}",
+              "violenceRealistic": "${11|NONE,INFREQUENT_OR_MILD,FREQUENT_OR_INTENSE|}",
+              "violenceRealisticProlongedGraphicOrSadistic": "${12|NONE,INFREQUENT_OR_MILD,FREQUENT_OR_INTENSE|}",
+              "unrestrictedWebAccess": false,
+              "gambling": false,
+              "kidsAgeBand": null,
+              "seventeenPlus": false
+            }
+          }
+        ],
         "properties": {
           "alcoholTobaccoOrDrugUseOrReferences": {
-            "$ref": "#/definitions/apple/AppleRating"
+            "allOf": [{ "$ref": "#/definitions/apple/AppleRating" }],
+            "description": "Does the app contain alcohol, tobacco, or drug use or references?"
           },
           "contests": {
-            "$ref": "#/definitions/apple/AppleRating"
-          },
-          "gambling": {
-            "type": "boolean"
+            "allOf": [{ "$ref": "#/definitions/apple/AppleRating" }],
+            "description": "Does the app contain contests?"
           },
           "gamblingSimulated": {
-            "$ref": "#/definitions/apple/AppleRating"
-          },
-          "kidsAgeBand": {
-            "anyOf": [
-              {
-                "$ref": "#/definitions/apple/AppleKidsAge"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "allOf": [{ "$ref": "#/definitions/apple/AppleRating" }],
+            "description": "Does the app contain simulated gambling?"
           },
           "medicalOrTreatmentInformation": {
-            "$ref": "#/definitions/apple/AppleRating"
+            "allOf": [{ "$ref": "#/definitions/apple/AppleRating" }],
+            "description": "Does the app contain medical or treatment information?"
           },
           "profanityOrCrudeHumor": {
-            "$ref": "#/definitions/apple/AppleRating"
+            "allOf": [{ "$ref": "#/definitions/apple/AppleRating" }],
+            "description": "Does the app contain profanity or crude humor?"
           },
           "sexualContentGraphicAndNudity": {
-            "$ref": "#/definitions/apple/AppleRating"
+            "allOf": [{ "$ref": "#/definitions/apple/AppleRating" }],
+            "description": "Does the app contain graphic sexual content and nudity?"
           },
           "sexualContentOrNudity": {
-            "$ref": "#/definitions/apple/AppleRating"
-          },
-          "seventeenPlus": {
-            "type": "boolean"
+            "allOf": [{ "$ref": "#/definitions/apple/AppleRating" }],
+            "description": "Does the app contain sexual content or nudity?"
           },
           "horrorOrFearThemes": {
-            "$ref": "#/definitions/apple/AppleRating"
+            "allOf": [{ "$ref": "#/definitions/apple/AppleRating" }],
+            "description": "Does the app contain horror or fear themes?"
           },
           "matureOrSuggestiveThemes": {
-            "$ref": "#/definitions/apple/AppleRating"
-          },
-          "unrestrictedWebAccess": {
-            "type": "boolean"
+            "allOf": [{ "$ref": "#/definitions/apple/AppleRating" }],
+            "description": "Does the app contain mature or suggestive themes?"
           },
           "violenceCartoonOrFantasy": {
-            "$ref": "#/definitions/apple/AppleRating"
+            "allOf": [{ "$ref": "#/definitions/apple/AppleRating" }],
+            "description": "Does the app contain cartoon or fantasy violence?"
           },
           "violenceRealisticProlongedGraphicOrSadistic": {
-            "$ref": "#/definitions/apple/AppleRating"
+            "allOf": [{ "$ref": "#/definitions/apple/AppleRating" }],
+            "description": "Does the app contain prolonged graphic or sadistic realistic violence?"
           },
           "violenceRealistic": {
-            "$ref": "#/definitions/apple/AppleRating"
+            "allOf": [{ "$ref": "#/definitions/apple/AppleRating" }],
+            "description": "Does the app contain realistic violence?"
+          },
+          "unrestrictedWebAccess": {
+            "type": "boolean",
+            "description": "Does your app contain unrestricted web access, such as with an embedded browser?"
+          },
+          "gambling": {
+            "type": "boolean",
+            "description": "Does your app contain gambling?"
+          },
+          "kidsAgeBand": {
+            "oneOf": [
+              { "type": "null" },
+              { "$ref": "#/definitions/apple/AppleKidsAge" }
+            ],
+            "description": "The Kids category is a great way for people to easily find apps that are designed for children. Keep in mind that once your Made for Kids app is approved by App Review, the app and all subsequent updates will need to follow the Kids category guidelines unless you create a new app in App Store Connect.\n@see https://developer.apple.com/news/?id=091202019a",
+            "markdownDescription": "The Kids category is a great way for people to easily find apps that are designed for children. Keep in mind that once your Made for Kids app is approved by App Review, the app and all subsequent updates will need to follow the Kids category guidelines unless you create a new app in App Store Connect.\n\n[Learn more](https://developer.apple.com/news/?id=091202019a)"
+          },
+          "seventeenPlus": {
+            "type": "boolean",
+            "description": "If your app rates 12+ or lower, and you believe its content may not be suitable for children under 17, you can manually set the age rating to 17+.\n@see https://help.apple.com/app-store-connect/#/dev599d50efb",
+            "markdownDescription": "If your app rates 12+ or lower, and you believe its content may not be suitable for children under 17, you can manually set the age rating to 17+.\n\n[Learn more](https://help.apple.com/app-store-connect/#/dev599d50efb)"
           }
         }
       },

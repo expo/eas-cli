@@ -1,5 +1,10 @@
 import { AppleConfigWriter } from '../writer';
-import { kidsSixToEightAdvisory } from './fixtures/ageRatingDeclaration';
+import {
+  emptyAdvisory,
+  kidsSixToEightAdvisory,
+  leastRestrictiveAdvisory,
+  mostRestrictiveAdvisory,
+} from './fixtures/ageRatingDeclaration';
 import { primaryAndSecondaryCategory, secondaryOnlyCategory } from './fixtures/appInfo';
 import { dutchInfo, englishInfo } from './fixtures/appInfoLocalization';
 import { automaticRelease, manualRelease, scheduledRelease } from './fixtures/appStoreVersion';
@@ -16,10 +21,22 @@ describe('toSchema', () => {
 });
 
 describe('setAgeRating', () => {
-  it('modifies the advisory', () => {
+  it('auto-fills least restrictive advisory', () => {
+    const writer = new AppleConfigWriter();
+    writer.setAgeRating(emptyAdvisory);
+    expect(writer.schema.advisory).toMatchObject(leastRestrictiveAdvisory);
+  });
+
+  it('modifies kids band rating', () => {
     const writer = new AppleConfigWriter();
     writer.setAgeRating(kidsSixToEightAdvisory);
     expect(writer.schema.advisory).toMatchObject(kidsSixToEightAdvisory);
+  });
+
+  it('modifies most restrictive advisory', () => {
+    const writer = new AppleConfigWriter();
+    writer.setAgeRating(mostRestrictiveAdvisory);
+    expect(writer.schema.advisory).toMatchObject(mostRestrictiveAdvisory);
   });
 });
 
