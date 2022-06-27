@@ -142,7 +142,7 @@
               "subtitle": "${2:Subtitle for your app}",
               "description": "${3:A longer description of what your app does}",
               "keywords": ["${4:keyword}"],
-              "whatsNew": "${5:Bug fixes and improved stability}",
+              "releaseNotes": "${5:Bug fixes and improved stability}",
               "promoText": "${6:Short tagline for your app}",
               "marketingUrl": "https://${7:www.}",
               "supportUrl": "https://${8:www.}",
@@ -191,7 +191,7 @@
               "versioned": true
             }
           },
-          "whatsNew": {
+          "releaseNotes": {
             "type": "string",
             "description": "Changes since the last public version",
             "maxLength": 4000,
