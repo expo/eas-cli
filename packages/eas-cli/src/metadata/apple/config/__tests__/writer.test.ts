@@ -173,8 +173,8 @@ describe('setReviewDetails', () => {
     expect(writer.schema.review).toMatchObject({
       firstName: nameOnlyReviewDetails.contactFirstName,
       lastName: nameOnlyReviewDetails.contactLastName,
-      email: undefined,
-      phone: undefined,
+      email: nameOnlyReviewDetails.contactEmail,
+      phone: nameOnlyReviewDetails.contactPhone,
       demoUsername: undefined,
       demoPassword: undefined,
       demoRequired: undefined,
@@ -188,11 +188,11 @@ describe('setReviewDetails', () => {
     expect(writer.schema.review).toMatchObject({
       firstName: nameAndDemoReviewDetails.contactFirstName,
       lastName: nameAndDemoReviewDetails.contactLastName,
+      email: nameAndDemoReviewDetails.contactEmail,
+      phone: nameAndDemoReviewDetails.contactPhone,
       demoUsername: nameAndDemoReviewDetails.demoAccountName,
       demoPassword: nameAndDemoReviewDetails.demoAccountPassword,
       demoRequired: nameAndDemoReviewDetails.demoAccountRequired,
-      email: undefined,
-      phone: undefined,
       notes: undefined,
     });
   });

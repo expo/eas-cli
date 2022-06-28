@@ -5,8 +5,8 @@ import { AttributesOf } from '../../../../utils/asc';
 export const nameOnlyReviewDetails: AttributesOf<AppStoreReviewDetail> = {
   contactFirstName: 'Evan',
   contactLastName: 'Bacon',
-  contactEmail: null,
-  contactPhone: null,
+  contactEmail: 'apple@example.com',
+  contactPhone: '+1 (555) 555-5555',
   demoAccountName: null,
   demoAccountPassword: null,
   demoAccountRequired: null,
@@ -16,8 +16,8 @@ export const nameOnlyReviewDetails: AttributesOf<AppStoreReviewDetail> = {
 export const nameAndDemoReviewDetails: AttributesOf<AppStoreReviewDetail> = {
   contactFirstName: 'Evan',
   contactLastName: 'Bacon',
-  contactEmail: null,
-  contactPhone: null,
+  contactEmail: 'apple@example.com',
+  contactPhone: '+1 (555) 555-5555',
   demoAccountName: 'demo@apple.com',
   demoAccountPassword: 'secretpassword',
   demoAccountRequired: true,
