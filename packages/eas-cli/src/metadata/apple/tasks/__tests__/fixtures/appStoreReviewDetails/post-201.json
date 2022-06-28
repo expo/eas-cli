@@ -1,0 +1,36 @@
+{
+  "data": {
+    "type": "appStoreReviewDetails",
+    "id": "APP_STORE_REVIEW_DETAILS_1",
+    "attributes": {
+      "contactFirstName": "Evan",
+      "contactLastName": "Bacon",
+      "contactPhone": "+1-555-555-5555",
+      "contactEmail": "review@myapp.com",
+      "demoAccountName": null,
+      "demoAccountPassword": null,
+      "demoAccountRequired": false,
+      "notes": ""
+    },
+    "relationships": {
+      "appStoreReviewAttachments": {
+        "links": {
+          "self": "https://appstoreconnect.apple.com/iris/v1/appStoreReviewDetails/APP_STORE_REVIEW_DETAILS_1/relationships/appStoreReviewAttachments",
+          "related": "https://appstoreconnect.apple.com/iris/v1/appStoreReviewDetails/APP_STORE_REVIEW_DETAILS_1/appStoreReviewAttachments"
+        }
+      },
+      "appSandboxEntitlementUsages": {
+        "links": {
+          "self": "https://appstoreconnect.apple.com/iris/v1/appStoreReviewDetails/APP_STORE_REVIEW_DETAILS_1/relationships/appSandboxEntitlementUsages",
+          "related": "https://appstoreconnect.apple.com/iris/v1/appStoreReviewDetails/APP_STORE_REVIEW_DETAILS_1/appSandboxEntitlementUsages"
+        }
+      }
+    },
+    "links": {
+      "self": "https://appstoreconnect.apple.com/iris/v1/appStoreReviewDetails/APP_STORE_REVIEW_DETAILS_1"
+    }
+  },
+  "links": {
+    "self": "https://appstoreconnect.apple.com/iris/v1/appStoreReviewDetails"
+  }
+}

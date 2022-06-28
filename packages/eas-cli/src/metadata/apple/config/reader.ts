@@ -1,6 +1,7 @@
 import {
   AgeRatingDeclaration,
   AppInfoLocalization,
+  AppStoreReviewDetail,
   AppStoreVersion,
   AppStoreVersionLocalization,
   CategoryIds,
@@ -142,6 +143,25 @@ export class AppleConfigReader {
       marketingUrl: info.marketingUrl,
       promotionalText: info.promoText,
       supportUrl: info.supportUrl,
+    };
+  }
+
+  public getReviewDetails(): Partial<AttributesOf<AppStoreReviewDetail>> | null {
+    const review = this.schema.review;
+    if (!review) {
+      return null;
+    }
+
+    return {
+      contactFirstName: review.firstName,
+      contactLastName: review.lastName,
+      contactEmail: review.email,
+      contactPhone: review.phone,
+      demoAccountName: review.demoUsername,
+      demoAccountPassword: review.demoPassword,
+      demoAccountRequired: review.demoRequired,
+      notes: review.notes,
+      // TODO: add attachment
     };
   }
 }
