@@ -538,6 +538,7 @@
           "notes": {
             "type": "string",
             "description": "Additional information about your app that can help during the review process. Do not include demo account details.",
+            "markdownDescription": "Additional information about your app that can help during the review process.\n\n**Do not include demo account details.**",
             "minLength": 2,
             "maxLength": 4000
           }
