@@ -19,11 +19,9 @@
         ]
       },
       "AppleKidsAge": {
-        "type": "string",
         "enum": ["FIVE_AND_UNDER", "SIX_TO_EIGHT", "NINE_TO_ELEVEN"]
       },
       "AppleRating": {
-        "type": "string",
         "enum": ["NONE", "INFREQUENT_OR_MILD", "FREQUENT_OR_INTENSE"]
       },
       "AppleCategory": {
