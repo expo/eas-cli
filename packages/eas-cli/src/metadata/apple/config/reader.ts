@@ -4,6 +4,7 @@ import {
   AppStoreVersion,
   AppStoreVersionLocalization,
   CategoryIds,
+  Rating,
   ReleaseType,
 } from '@expo/apple-utils';
 
@@ -25,7 +26,31 @@ export class AppleConfigReader {
   public constructor(public readonly schema: AppleMetadata) {}
 
   public getAgeRating(): Partial<AttributesOf<AgeRatingDeclaration>> | null {
-    return this.schema.advisory || null;
+    const attributes = this.schema.advisory;
+    if (!attributes) {
+      return null;
+    }
+
+    return {
+      alcoholTobaccoOrDrugUseOrReferences:
+        attributes.alcoholTobaccoOrDrugUseOrReferences ?? Rating.NONE,
+      contests: attributes.contests ?? Rating.NONE,
+      gamblingSimulated: attributes.gamblingSimulated ?? Rating.NONE,
+      horrorOrFearThemes: attributes.horrorOrFearThemes ?? Rating.NONE,
+      matureOrSuggestiveThemes: attributes.matureOrSuggestiveThemes ?? Rating.NONE,
+      medicalOrTreatmentInformation: attributes.medicalOrTreatmentInformation ?? Rating.NONE,
+      profanityOrCrudeHumor: attributes.profanityOrCrudeHumor ?? Rating.NONE,
+      sexualContentGraphicAndNudity: attributes.sexualContentGraphicAndNudity ?? Rating.NONE,
+      sexualContentOrNudity: attributes.sexualContentOrNudity ?? Rating.NONE,
+      violenceCartoonOrFantasy: attributes.violenceCartoonOrFantasy ?? Rating.NONE,
+      violenceRealistic: attributes.violenceRealistic ?? Rating.NONE,
+      violenceRealisticProlongedGraphicOrSadistic:
+        attributes.violenceRealisticProlongedGraphicOrSadistic ?? Rating.NONE,
+      gambling: attributes.gambling ?? false,
+      unrestrictedWebAccess: attributes.unrestrictedWebAccess ?? false,
+      kidsAgeBand: attributes.kidsAgeBand ?? null,
+      seventeenPlus: attributes.seventeenPlus ?? false,
+    };
   }
 
   public getLocales(): string[] {
@@ -43,7 +68,7 @@ export class AppleConfigReader {
 
     return {
       locale,
-      name: info.title ?? 'no name provided',
+      name: info.title,
       subtitle: info.subtitle,
       privacyChoicesUrl: info.privacyChoicesUrl,
       privacyPolicyText: info.privacyPolicyText,
