@@ -396,8 +396,8 @@
                 "$ref": "#/definitions/apple/AppleKidsAge"
               }
             ],
-            "description": "The Kids category is a great way for people to easily find apps that are designed for children. Keep in mind that once your Made for Kids app is approved by App Review, the app and all subsequent updates will need to follow the Kids category guidelines unless you create a new app in App Store Connect.\n@see https://developer.apple.com/news/?id=091202019a",
-            "markdownDescription": "The Kids category is a great way for people to easily find apps that are designed for children. Keep in mind that once your Made for Kids app is approved by App Review, the app and all subsequent updates will need to follow the Kids category guidelines unless you create a new app in App Store Connect.\n\n[Learn more](https://developer.apple.com/news/?id=091202019a)"
+            "description": "When parents visit the Kids category on the App Store, they expect the apps they find will protect their children’s data, provide only age-appropriate content, and require a parental gate in order to link out of the app, request permissions, or present purchasing opportunities. It’s critical that no personally identifiable information or device information be transmitted to third parties, and that advertisements are human-reviewed for age appropriateness in order to be displayed.\n@see https://developer.apple.com/news/?id=091202019a",
+            "markdownDescription": "When parents visit the Kids category on the App Store, they expect the apps they find will protect their children’s data, provide only age-appropriate content, and require a parental gate in order to link out of the app, request permissions, or present purchasing opportunities. It’s critical that no personally identifiable information or device information be transmitted to third parties, and that advertisements are human-reviewed for age appropriateness in order to be displayed.\n\n[Learn more](https://developer.apple.com/news/?id=091202019a)"
           },
           "seventeenPlus": {
             "type": "boolean",
