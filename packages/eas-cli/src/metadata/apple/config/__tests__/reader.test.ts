@@ -5,7 +5,7 @@ describe('setAgeRating', () => {
   it('ignores advisory when not set', () => {
     const reader = new AppleConfigReader({ advisory: undefined });
     expect(reader.getAgeRating()).toBeNull();
-  })
+  });
 
   it('auto-fills least restrictive advisory', () => {
     const reader = new AppleConfigReader({ advisory: {} });

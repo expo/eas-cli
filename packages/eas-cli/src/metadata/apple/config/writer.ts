@@ -55,7 +55,7 @@ export class AppleConfigWriter {
 
     this.schema.info[attributes.locale] = {
       ...existing,
-      title: attributes.name ?? 'App title', // see schema #/definitions/apple/AppleInfo/defaultSnippets
+      title: attributes.name ?? '',
       subtitle: optional(attributes.subtitle),
       privacyPolicyUrl: optional(attributes.privacyPolicyUrl),
       privacyPolicyText: optional(attributes.privacyPolicyText),

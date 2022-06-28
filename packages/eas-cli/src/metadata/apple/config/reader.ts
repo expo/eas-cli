@@ -68,7 +68,7 @@ export class AppleConfigReader {
 
     return {
       locale,
-      name: info.title ?? 'App title', // see schema #/definitions/apple/AppleInfo/defaultSnippets
+      name: info.title,
       subtitle: info.subtitle,
       privacyChoicesUrl: info.privacyChoicesUrl,
       privacyPolicyText: info.privacyPolicyText,
