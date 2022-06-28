@@ -11,6 +11,7 @@ export type AppReviewData = {
   reviewDetail: AppStoreReviewDetail;
 };
 
+/** Handle all contact, demo account, or instruction info that are required for the App Store review team. */
 export class AppReviewDetailTask extends AppleTask {
   public name = (): string => 'app review detail';
 
