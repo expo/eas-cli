@@ -83,7 +83,7 @@ export class AppleConfigReader {
       return null;
     }
 
-    const categoryIds: CategoryIds = {};
+    const categoryIds: Partial<Record<keyof CategoryIds, string>> = {};
 
     // If primary category is an array and has subcategories
     if (Array.isArray(categories[0])) {
@@ -103,7 +103,9 @@ export class AppleConfigReader {
       categoryIds.secondaryCategory = categories[1];
     }
 
-    return categoryIds;
+    // Because we handle categories as normal strings,
+    // the type doesn't match with the actual CategoryIds types.
+    return categoryIds as CategoryIds;
   }
 
   /** Get the `AppStoreVersion` object. */
