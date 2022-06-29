@@ -5,7 +5,7 @@ export type AppleLocale = string;
 export interface AppleMetadata {
   copyright?: string;
   info?: Record<AppleLocale, AppleInfo>;
-  categories?: AppCategoryId[] | AppleCategory;
+  categories?: AppleCategory;
   release?: AppleRelease;
   advisory?: AppleAdvisory;
   preview?: Record<string, string[]>;
@@ -14,10 +14,14 @@ export interface AppleMetadata {
 
 export type AppleAdvisory = Partial<AgeRatingDeclarationProps>;
 
-export interface AppleCategory {
-  category: AppCategoryId;
-  subcategory?: AppSubcategoryId[];
-}
+/** Apps can define up to two categories, or category with subcategories */
+export type AppleCategory = [
+  AppCategoryId | AppleCategoryWithSubcategory,
+  (AppCategoryId | AppleCategoryWithSubcategory)?
+];
+
+/** Categories with subcategories can define up to two subcategories */
+export type AppleCategoryWithSubcategory = [AppCategoryId, AppSubcategoryId?, AppSubcategoryId?];
 
 export interface AppleRelease {
   isPhasedReleaseEnabled?: boolean;
