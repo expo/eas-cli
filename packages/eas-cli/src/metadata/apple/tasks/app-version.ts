@@ -80,8 +80,8 @@ export class AppVersionTask extends AppleTask {
         () => context.version.updateAsync({ ...version, ...release }),
         {
           pending: `Updating ${description} info for ${chalk.bold(versionString)}...`,
-          success: `Updated ${description} info for ${chalk.bold(versionString)}...`,
-          failure: `Failed updating ${description} info for ${chalk.bold(versionString)}...`,
+          success: `Updated ${description} info for ${chalk.bold(versionString)}`,
+          failure: `Failed updating ${description} info for ${chalk.bold(versionString)}`,
         }
       );
     }

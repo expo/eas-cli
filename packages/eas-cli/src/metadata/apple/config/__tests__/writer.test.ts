@@ -7,6 +7,7 @@ import {
 } from './fixtures/ageRatingDeclaration';
 import { primaryAndSecondaryCategory, secondaryOnlyCategory } from './fixtures/appInfo';
 import { dutchInfo, englishInfo } from './fixtures/appInfoLocalization';
+import { nameAndDemoReviewDetails, nameOnlyReviewDetails } from './fixtures/appStoreReviewDetail';
 import { automaticRelease, manualRelease, scheduledRelease } from './fixtures/appStoreVersion';
 import { dutchVersion, englishVersion } from './fixtures/appStoreVersionLocalization';
 
@@ -161,6 +162,49 @@ describe('setVersionLocale', () => {
     expect(writer.schema.info?.[englishVersion.locale]).toMatchObject({
       description: 'This is now different',
       releaseNotes: undefined,
+    });
+  });
+});
+
+describe('setReviewDetails', () => {
+  it('modifies name only review details', () => {
+    const writer = new AppleConfigWriter();
+    writer.setReviewDetails(nameOnlyReviewDetails);
+    expect(writer.schema.review).toMatchObject({
+      firstName: nameOnlyReviewDetails.contactFirstName,
+      lastName: nameOnlyReviewDetails.contactLastName,
+      email: nameOnlyReviewDetails.contactEmail,
+      phone: nameOnlyReviewDetails.contactPhone,
+      demoUsername: undefined,
+      demoPassword: undefined,
+      demoRequired: undefined,
+      notes: undefined,
+    });
+  });
+
+  it('modifies name and demo review details', () => {
+    const writer = new AppleConfigWriter();
+    writer.setReviewDetails(nameAndDemoReviewDetails);
+    expect(writer.schema.review).toMatchObject({
+      firstName: nameAndDemoReviewDetails.contactFirstName,
+      lastName: nameAndDemoReviewDetails.contactLastName,
+      email: nameAndDemoReviewDetails.contactEmail,
+      phone: nameAndDemoReviewDetails.contactPhone,
+      demoUsername: nameAndDemoReviewDetails.demoAccountName,
+      demoPassword: nameAndDemoReviewDetails.demoAccountPassword,
+      demoRequired: nameAndDemoReviewDetails.demoAccountRequired,
+      notes: undefined,
+    });
+  });
+
+  it('replaces existing review details', () => {
+    const writer = new AppleConfigWriter();
+    writer.setReviewDetails(nameAndDemoReviewDetails);
+    writer.setReviewDetails(nameOnlyReviewDetails);
+    expect(writer.schema.review).toMatchObject({
+      demoUsername: undefined,
+      demoPassword: undefined,
+      demoRequired: undefined,
     });
   });
 });

@@ -2,6 +2,7 @@ import {
   AgeRatingDeclaration,
   AppInfo,
   AppInfoLocalization,
+  AppStoreReviewDetail,
   AppStoreVersion,
   AppStoreVersionLocalization,
   Rating,
@@ -117,6 +118,20 @@ export class AppleConfigWriter {
       marketingUrl: optional(attributes.marketingUrl),
       promoText: optional(attributes.promotionalText),
       supportUrl: optional(attributes.supportUrl),
+    };
+  }
+
+  public setReviewDetails(attributes: AttributesOf<AppStoreReviewDetail>): void {
+    this.schema.review = {
+      firstName: attributes.contactFirstName ?? '',
+      lastName: attributes.contactLastName ?? '',
+      email: attributes.contactEmail ?? '',
+      phone: attributes.contactPhone ?? '',
+      demoUsername: optional(attributes.demoAccountName),
+      demoPassword: optional(attributes.demoAccountPassword),
+      demoRequired: optional(attributes.demoAccountRequired),
+      notes: optional(attributes.notes),
+      // TODO: add attachment
     };
   }
 }

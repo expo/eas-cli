@@ -45,12 +45,13 @@ export interface AppleInfo {
 }
 
 export interface AppleReview {
-  firstName?: string;
-  lastName?: string;
-  phone?: string;
-  email?: string;
+  firstName: string;
+  lastName: string;
+  phone: string;
+  email: string;
   demoUsername?: string;
   demoPassword?: string;
+  demoRequired?: boolean;
   notes?: string;
-  attachment?: string;
+  // attachment?: string;
 }

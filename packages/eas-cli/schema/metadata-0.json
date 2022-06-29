@@ -472,49 +472,75 @@
         "description": "Info provided to the App Store review team to help them understand how to use your app.",
         "required": [
           "firstName",
-          "lastName"
+          "lastName",
+          "email",
+          "phone"
         ],
         "defaultSnippets": [
           {
+            "label": "Basic",
+            "description": "Only define the contact details in case communcation is needed with the App Store review team.",
             "body": {
               "firstName": "$1",
-              "lastName": "$2"
+              "lastName": "$2",
+              "email": "$3",
+              "phone": "+$4"
+            }
+          },
+          {
+            "label": "Full",
+            "description": "Define the demo account credentials, additional info, and contact details for the App Store review team.",
+            "body": {
+              "firstName": "$1",
+              "lastName": "$2",
+              "email": "$3",
+              "phone": "+$4",
+              "demoUsername": "$5",
+              "demoPassword": "$6",
+              "demoRequired": true,
+              "notes": "$7"
             }
           }
         ],
         "properties": {
-          "demoUsername": {
-            "type": "string",
-            "description": "Optional username for testing the app."
-          },
-          "demoPassword": {
-            "type": "string",
-            "description": "Optional password for testing the app."
-          },
-          "attachment": {
-            "type": "string",
-            "description": "Local file path to upload to the review team."
-          },
           "firstName": {
             "type": "string",
-            "description": "Developer first name for the reviewer to contact."
+            "description": "First name of contact in case communication is needed with the App Store review team.",
+            "minLength": 1
           },
           "lastName": {
             "type": "string",
-            "description": "Developer last name (surname) for the reviewer to contact."
-          },
-          "phone": {
-            "type": "string",
-            "description": "Developer phone number for the reviewer to contact."
+            "description": "Last name of contact in case communication is needed with the App Store review team.",
+            "minLength": 1
           },
           "email": {
             "type": "string",
-            "description": "Developer email address for the reviewer to contact.",
+            "description": "Email address of contact in case communication is needed with the App Store review team.",
             "format": "email"
+          },
+          "phone": {
+            "type": "string",
+            "description": "Phone number of contact in case communication is needed with the App Store review team. Preface the phone number with ‘+’ followed by the country code (for example, +44 844 209 0611)"
+          },
+          "demoUsername": {
+            "type": "string",
+            "description": "The user name to sign in to your app to review its features."
+          },
+          "demoPassword": {
+            "type": "string",
+            "description": "The password to sign in to your app to review its features."
+          },
+          "demoRequired": {
+            "type": "boolean",
+            "description": "A Boolean value that indicates if sign-in information is required to review all the features of your app. If users sign in using social media, provide information for an account for review. Credentials must be valid and active for duration of review.",
+            "markdownDescription": "A Boolean value that indicates if sign-in information is required to review all the features of your app. If users sign in using social media, provide information for an account for review.\n\n**Credentials must be valid and active for duration of review.**"
           },
           "notes": {
             "type": "string",
-            "description": "Any additional notes for the App Store reviewer."
+            "description": "Additional information about your app that can help during the review process. Do not include demo account details.",
+            "markdownDescription": "Additional information about your app that can help during the review process.\n\n**Do not include demo account details.**",
+            "minLength": 2,
+            "maxLength": 4000
           }
         }
       }
