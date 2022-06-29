@@ -82,13 +82,7 @@ export class AppleConfigWriter {
       return;
     }
 
-    const PARENT_CATEGORIES = [AppCategoryId.GAMES, AppCategoryId.STICKERS];
-
-    // If primary category is a parent category, or has subcategories, store it in a nested array
-    if (
-      PARENT_CATEGORIES.includes(attributes.primaryCategory.id as AppCategoryId) ||
-      attributes.primarySubcategoryOne
-    ) {
+    if (attributes.primarySubcategoryOne) {
       this.schema.categories = [
         [
           attributes.primaryCategory.id as AppCategoryId,
@@ -100,21 +94,13 @@ export class AppleConfigWriter {
       this.schema.categories = [attributes.primaryCategory.id as AppCategoryId];
     }
 
-    if (!attributes.secondaryCategory) {
-      return;
-    }
-
-    // If secondary category is a parent category, or has subcategories, store it in a nested array
-    if (
-      PARENT_CATEGORIES.includes(attributes.primaryCategory.id as AppCategoryId) ||
-      attributes.secondarySubcategoryOne
-    ) {
+    if (attributes.secondaryCategory && attributes.secondarySubcategoryOne) {
       this.schema.categories.push([
         attributes.secondaryCategory.id as AppCategoryId,
         attributes.secondarySubcategoryOne?.id as AppSubcategoryId | undefined,
         attributes.secondarySubcategoryTwo?.id as AppSubcategoryId | undefined,
       ]);
-    } else {
+    } else if (attributes.secondaryCategory) {
       this.schema.categories.push(attributes.secondaryCategory.id as AppCategoryId);
     }
   }

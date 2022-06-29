@@ -111,7 +111,7 @@ describe('setCategories', () => {
   it('modifies primary category without subcategories', () => {
     const writer = new AppleConfigWriter();
     writer.setCategories(makeCategoryInfo({ primaryCategory: AppCategoryId.GAMES }));
-    expect(writer.schema.categories).toEqual([[AppCategoryId.GAMES]]);
+    expect(writer.schema.categories).toEqual([AppCategoryId.GAMES]);
   });
 
   it('modifies primary category with two subcategories', () => {

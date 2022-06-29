@@ -28,7 +28,7 @@ describe('getCategories', () => {
   });
 
   it('returns primary category without subcategory', () => {
-    const reader = new AppleConfigReader({ categories: [[AppCategoryId.GAMES]] });
+    const reader = new AppleConfigReader({ categories: [AppCategoryId.GAMES] });
     expect(reader.getCategories()).toMatchObject({
       primaryCategory: AppCategoryId.GAMES,
       secondaryCategory: undefined,

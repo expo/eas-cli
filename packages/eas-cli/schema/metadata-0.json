@@ -35,7 +35,7 @@
       "AppleCategory": {
         "type": "array",
         "description": "App Store categories for the app, can add up to two categories. The first item in this list is the primary category, the second is the secondary and optional category. `STICKERS` and `GAMES` categories can add up to two additional subcategories, written as nested array.",
-        "markdownDescription": "App Store categories for the app, can add up to two categories. The first item in this list is the primary category, the second is the secondary and optional category. `STICKERS` and `GAMES` categories can add up to two additional subcategories, written as nested array. E.g.\n\n- `[\"SPORTS\"]`\n- `[\"SPORTS\", \"LIFESTYLE\"]`\n- `[[\"GAMES\", \"GAMES_CARD\"], \"ENTERTAINMENT\"]`\n- `[[\"STICKERS\"], \"WEATHER\"]`",
+        "markdownDescription": "App Store categories for the app, can add up to two categories. The first item in this list is the primary category, the second is the secondary and optional category. `STICKERS` and `GAMES` categories can add up to two additional subcategories, written as nested array. E.g.\n\n- `[\"SPORTS\"]`\n- `[\"SPORTS\", \"LIFESTYLE\"]`\n- `[[\"GAMES\", \"GAMES_CARD\"], \"ENTERTAINMENT\"]`\n- `[\"GAMES\", \"WEATHER\"]`",
         "minItems": 1,
         "maxItems": 2,
         "uniqueItems": true,
@@ -64,6 +64,9 @@
           "oneOf": [
             {
               "$ref": "#/definitions/apple/AppleCategory/categories/root"
+            },
+            {
+              "$ref": "#/definitions/apple/AppleCategory/categories/parent"
             },
             {
               "type": "array",
@@ -130,6 +133,12 @@
               "NEWS",
               "PHOTO_AND_VIDEO",
               "NAVIGATION"
+            ]
+          },
+          "parent": {
+            "enum": [
+              "GAMES",
+              "STICKERS"
             ]
           },
           "games": {
