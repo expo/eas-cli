@@ -1,18 +1,16 @@
 import {
   AgeRatingDeclaration,
-  AppCategoryId,
   AppInfo,
   AppInfoLocalization,
   AppStoreReviewDetail,
   AppStoreVersion,
   AppStoreVersionLocalization,
-  AppSubcategoryId,
   Rating,
   ReleaseType,
 } from '@expo/apple-utils';
 
 import { AttributesOf } from '../../utils/asc';
-import { AppleCategoryWithSubcategory, AppleMetadata } from '../types';
+import { AppleMetadata } from '../types';
 
 /**
  * Serializes the Apple ASC entities into the metadata configuration schema.
@@ -78,41 +76,32 @@ export class AppleConfigWriter {
     >
   ): void {
     this.schema.categories = undefined;
-    if (!attributes.primaryCategory) {
+    if (!attributes.primaryCategory && !attributes.secondaryCategory) {
       return;
     }
 
-    // We are receiving strings, but need AppCategoryId or AppSubcategoryId.
-    // These are returned by the ASC API and should be valid categories.
-    const primaryCat = attributes.primaryCategory.id as AppCategoryId;
-    const primarySubOne = attributes.primarySubcategoryOne?.id as AppSubcategoryId | undefined;
-    const primarySubTwo = attributes.primarySubcategoryTwo?.id as AppSubcategoryId | undefined;
-    const secondaryCat = attributes.secondaryCategory?.id as AppCategoryId | undefined;
-    const secondarySubOne = attributes.secondarySubcategoryOne?.id as AppSubcategoryId | undefined;
-    const secondarySubTwo = attributes.secondarySubcategoryTwo?.id as AppSubcategoryId | undefined;
+    this.schema.categories = [];
 
-    if (primarySubOne) {
-      const primaryCategories: AppleCategoryWithSubcategory = [primaryCat, primarySubOne];
-      if (primarySubTwo) {
-        // Due to JSON serialization constraints, we need to add it ONLY when it has a value (avoiding [A, B, null]).
-        primaryCategories.push(primarySubTwo);
-      }
-
-      this.schema.categories = [primaryCategories];
+    if (attributes.primaryCategory && attributes.primarySubcategoryOne) {
+      this.schema.categories[0] = [
+        attributes.primaryCategory.id,
+        attributes.primarySubcategoryOne?.id,
+        attributes.primarySubcategoryTwo?.id,
+      ].filter(Boolean) as string[];
     } else {
-      this.schema.categories = [primaryCat];
+      // If only the secondaryCategory was provided,
+      // autofill with an empty string and cause a store config error.
+      this.schema.categories[0] = attributes.primaryCategory?.id ?? '';
     }
 
-    if (secondaryCat && secondarySubOne) {
-      const secondaryCategories: AppleCategoryWithSubcategory = [secondaryCat, secondarySubOne];
-      if (secondarySubTwo) {
-        // Due to JSON serialization constraints, we need to add it ONLY when it has a value (avoiding [A, B, null]).
-        secondaryCategories.push(secondarySubTwo);
-      }
-
-      this.schema.categories.push(secondaryCategories);
-    } else if (secondaryCat) {
-      this.schema.categories.push(secondaryCat);
+    if (attributes.secondaryCategory && attributes.secondarySubcategoryOne) {
+      this.schema.categories[1] = [
+        attributes.secondaryCategory.id,
+        attributes.secondarySubcategoryOne?.id,
+        attributes.secondarySubcategoryTwo?.id,
+      ].filter(Boolean) as string[];
+    } else if (attributes.secondaryCategory) {
+      this.schema.categories[1] = attributes.secondaryCategory.id;
     }
   }
 

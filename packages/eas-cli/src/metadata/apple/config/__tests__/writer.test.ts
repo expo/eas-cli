@@ -173,6 +173,12 @@ describe('setCategories', () => {
       [AppCategoryId.GAMES, AppSubcategoryId.GAMES_CARD, AppSubcategoryId.GAMES_ADVENTURE],
     ]);
   });
+
+  it('modifies secondary category without primary', () => {
+    const writer = new AppleConfigWriter();
+    writer.setCategories(makeCategoryInfo({ secondaryCategory: AppCategoryId.GAMES }));
+    expect(writer.schema.categories).toEqual(['', AppCategoryId.GAMES]);
+  });
 });
 
 describe('setVersion', () => {
