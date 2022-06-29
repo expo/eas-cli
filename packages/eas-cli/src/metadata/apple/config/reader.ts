@@ -83,9 +83,9 @@ export class AppleConfigReader {
       return null;
     }
 
+    // We validate the categories based on enums, but they will still be strings here.
     const categoryIds: Partial<Record<keyof CategoryIds, string>> = {};
 
-    // If primary category is an array and has subcategories
     if (Array.isArray(categories[0])) {
       categoryIds.primaryCategory = categories[0][0];
       categoryIds.primarySubcategoryOne = categories[0][1];
@@ -94,7 +94,6 @@ export class AppleConfigReader {
       categoryIds.primaryCategory = categories[0];
     }
 
-    // If secondary category is an array and has subcategories
     if (Array.isArray(categories[1])) {
       categoryIds.secondaryCategory = categories[1][0];
       categoryIds.secondarySubcategoryOne = categories[1][1];
