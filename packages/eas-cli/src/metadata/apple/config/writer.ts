@@ -1,10 +1,12 @@
 import {
   AgeRatingDeclaration,
+  AppCategoryId,
   AppInfo,
   AppInfoLocalization,
   AppStoreReviewDetail,
   AppStoreVersion,
   AppStoreVersionLocalization,
+  AppSubcategoryId,
   Rating,
   ReleaseType,
 } from '@expo/apple-utils';
@@ -64,15 +66,56 @@ export class AppleConfigWriter {
     };
   }
 
-  public setCategories({ primaryCategory, secondaryCategory }: AttributesOf<AppInfo>): void {
-    this.schema.categories = [];
+  public setCategories(
+    attributes: Pick<
+      AttributesOf<AppInfo>,
+      | 'primaryCategory'
+      | 'primarySubcategoryOne'
+      | 'primarySubcategoryTwo'
+      | 'secondaryCategory'
+      | 'secondarySubcategoryOne'
+      | 'secondarySubcategoryTwo'
+    >
+  ): void {
+    this.schema.categories = undefined;
+    if (!attributes.primaryCategory) {
+      return;
+    }
 
-    // TODO: see why these types are conflicting
-    if (primaryCategory) {
-      this.schema.categories.push(primaryCategory.id as any);
-      if (secondaryCategory) {
-        this.schema.categories.push(secondaryCategory.id as any);
-      }
+    const PARENT_CATEGORIES = [AppCategoryId.GAMES, AppCategoryId.STICKERS];
+
+    // If primary category is a parent category, or has subcategories, store it in a nested array
+    if (
+      PARENT_CATEGORIES.includes(attributes.primaryCategory.id as AppCategoryId) ||
+      attributes.primarySubcategoryOne
+    ) {
+      this.schema.categories = [
+        [
+          attributes.primaryCategory.id as AppCategoryId,
+          attributes.primarySubcategoryOne?.id as AppSubcategoryId | undefined,
+          attributes.primarySubcategoryTwo?.id as AppSubcategoryId | undefined,
+        ],
+      ];
+    } else {
+      this.schema.categories = [attributes.primaryCategory.id as AppCategoryId];
+    }
+
+    if (!attributes.secondaryCategory) {
+      return;
+    }
+
+    // If secondary category is a parent category, or has subcategories, store it in a nested array
+    if (
+      PARENT_CATEGORIES.includes(attributes.primaryCategory.id as AppCategoryId) ||
+      attributes.secondarySubcategoryOne
+    ) {
+      this.schema.categories.push([
+        attributes.secondaryCategory.id as AppCategoryId,
+        attributes.secondarySubcategoryOne?.id as AppSubcategoryId | undefined,
+        attributes.secondarySubcategoryTwo?.id as AppSubcategoryId | undefined,
+      ]);
+    } else {
+      this.schema.categories.push(attributes.secondaryCategory.id as AppCategoryId);
     }
   }
 

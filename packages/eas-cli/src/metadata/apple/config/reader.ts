@@ -78,14 +78,32 @@ export class AppleConfigReader {
   }
 
   public getCategories(): CategoryIds | null {
-    if (Array.isArray(this.schema.categories) && this.schema.categories.length > 0) {
-      return {
-        primaryCategory: this.schema.categories[0],
-        secondaryCategory: this.schema.categories[1],
-      };
+    const { categories } = this.schema;
+    if (!categories || categories.length <= 0) {
+      return null;
     }
 
-    return null;
+    const categoryIds: CategoryIds = {};
+
+    // If primary category is an array and has subcategories
+    if (Array.isArray(categories[0])) {
+      categoryIds.primaryCategory = categories[0][0];
+      categoryIds.primarySubcategoryOne = categories[0][1];
+      categoryIds.primarySubcategoryTwo = categories[0][2];
+    } else {
+      categoryIds.primaryCategory = categories[0];
+    }
+
+    // If secondary category is an array and has subcategories
+    if (Array.isArray(categories[1])) {
+      categoryIds.secondaryCategory = categories[1][0];
+      categoryIds.secondarySubcategoryOne = categories[1][1];
+      categoryIds.secondarySubcategoryTwo = categories[1][2];
+    } else {
+      categoryIds.secondaryCategory = categories[1];
+    }
+
+    return categoryIds;
   }
 
   /** Get the `AppStoreVersion` object. */
