@@ -12,7 +12,7 @@ import {
 } from '@expo/apple-utils';
 
 import { AttributesOf } from '../../utils/asc';
-import { AppleMetadata } from '../types';
+import { AppleCategoryWithSubcategory, AppleMetadata } from '../types';
 
 /**
  * Serializes the Apple ASC entities into the metadata configuration schema.
@@ -82,26 +82,37 @@ export class AppleConfigWriter {
       return;
     }
 
-    if (attributes.primarySubcategoryOne) {
-      this.schema.categories = [
-        [
-          attributes.primaryCategory.id as AppCategoryId,
-          attributes.primarySubcategoryOne?.id as AppSubcategoryId | undefined,
-          attributes.primarySubcategoryTwo?.id as AppSubcategoryId | undefined,
-        ],
-      ];
+    // We are receiving strings, but need AppCategoryId or AppSubcategoryId.
+    // These are returned by the ASC API and should be valid categories.
+    const primaryCat = attributes.primaryCategory.id as AppCategoryId;
+    const primarySubOne = attributes.primarySubcategoryOne?.id as AppSubcategoryId | undefined;
+    const primarySubTwo = attributes.primarySubcategoryTwo?.id as AppSubcategoryId | undefined;
+    const secondaryCat = attributes.secondaryCategory?.id as AppCategoryId | undefined;
+    const secondarySubOne = attributes.secondarySubcategoryOne?.id as AppSubcategoryId | undefined;
+    const secondarySubTwo = attributes.secondarySubcategoryTwo?.id as AppSubcategoryId | undefined;
+
+    if (primarySubOne) {
+      const primaryCategories: AppleCategoryWithSubcategory = [primaryCat, primarySubOne];
+      if (primarySubTwo) {
+        // Due to JSON serialization constraints, we need to add it ONLY when it has a value (avoiding [A, B, null]).
+        primaryCategories.push(primarySubTwo);
+      }
+
+      this.schema.categories = [primaryCategories];
     } else {
-      this.schema.categories = [attributes.primaryCategory.id as AppCategoryId];
+      this.schema.categories = [primaryCat];
     }
 
-    if (attributes.secondaryCategory && attributes.secondarySubcategoryOne) {
-      this.schema.categories.push([
-        attributes.secondaryCategory.id as AppCategoryId,
-        attributes.secondarySubcategoryOne?.id as AppSubcategoryId | undefined,
-        attributes.secondarySubcategoryTwo?.id as AppSubcategoryId | undefined,
-      ]);
-    } else if (attributes.secondaryCategory) {
-      this.schema.categories.push(attributes.secondaryCategory.id as AppCategoryId);
+    if (secondaryCat && secondarySubOne) {
+      const secondaryCategories: AppleCategoryWithSubcategory = [secondaryCat, secondarySubOne];
+      if (secondarySubTwo) {
+        // Due to JSON serialization constraints, we need to add it ONLY when it has a value (avoiding [A, B, null]).
+        secondaryCategories.push(secondarySubTwo);
+      }
+
+      this.schema.categories.push(secondaryCategories);
+    } else if (secondaryCat) {
+      this.schema.categories.push(secondaryCat);
     }
   }
 

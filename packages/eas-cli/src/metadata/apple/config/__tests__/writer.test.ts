@@ -114,6 +114,19 @@ describe('setCategories', () => {
     expect(writer.schema.categories).toEqual([AppCategoryId.GAMES]);
   });
 
+  it('modifies primary category with one subcategories', () => {
+    const writer = new AppleConfigWriter();
+    writer.setCategories(
+      makeCategoryInfo({
+        primaryCategory: AppCategoryId.GAMES,
+        primarySubcategoryOne: AppSubcategoryId.GAMES_CARD,
+      })
+    );
+    expect(writer.schema.categories).toEqual([[AppCategoryId.GAMES, AppSubcategoryId.GAMES_CARD]]);
+    // We need to filter the lists to avoid writing `[GAMES, GAMES_CARD, null]`
+    expect(writer.schema.categories![0]).toHaveLength(2);
+  });
+
   it('modifies primary category with two subcategories', () => {
     const writer = new AppleConfigWriter();
     writer.setCategories(
@@ -126,6 +139,23 @@ describe('setCategories', () => {
     expect(writer.schema.categories).toEqual([
       [AppCategoryId.GAMES, AppSubcategoryId.GAMES_CARD, AppSubcategoryId.GAMES_ADVENTURE],
     ]);
+  });
+
+  it('modifies primary and secondary categories with one subcategories', () => {
+    const writer = new AppleConfigWriter();
+    writer.setCategories(
+      makeCategoryInfo({
+        primaryCategory: AppCategoryId.ENTERTAINMENT,
+        secondaryCategory: AppCategoryId.GAMES,
+        secondarySubcategoryOne: AppSubcategoryId.GAMES_CARD,
+      })
+    );
+    expect(writer.schema.categories).toEqual([
+      AppCategoryId.ENTERTAINMENT,
+      [AppCategoryId.GAMES, AppSubcategoryId.GAMES_CARD],
+    ]);
+    // We need to filter the lists to avoid writing `[GAMES, GAMES_CARD, null]`
+    expect(writer.schema.categories![1]).toHaveLength(2);
   });
 
   it('modifies primary and secondary categories with two subcategories', () => {

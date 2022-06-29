@@ -14,7 +14,7 @@ export interface AppleMetadata {
 
 export type AppleAdvisory = Partial<AgeRatingDeclarationProps>;
 
-/** Apps can define up to two categories, or category with subcategories */
+/** Apps can define up to two categories, or categories with subcategories */
 export type AppleCategory = [
   AppCategoryId | AppleCategoryWithSubcategory,
   (AppCategoryId | AppleCategoryWithSubcategory)?
