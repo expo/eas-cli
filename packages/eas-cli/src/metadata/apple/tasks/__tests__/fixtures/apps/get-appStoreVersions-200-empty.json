@@ -1,0 +1,12 @@
+{
+  "data": null,
+  "links": {
+    "self": "https://appstoreconnect.apple.com/iris/v1/apps/1611050397/appStoreVersions?include=appStoreVersionSubmission&filter%5Bplatform%5D=IOS&filter%5BappStoreState%5D=DEVELOPER_REJECTED%2CINVALID_BINARY%2CMETADATA_REJECTED%2CPREPARE_FOR_SUBMISSION%2CREJECTED%2CWAITING_FOR_REVIEW"
+  },
+  "meta": {
+    "paging": {
+      "total": 0,
+      "limit": 50
+    }
+  }
+}

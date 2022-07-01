@@ -1,5 +1,6 @@
 import {
   App,
+  AppStoreState,
   AppStoreVersion,
   AppStoreVersionLocalization,
   AppStoreVersionPhasedRelease,
@@ -19,6 +20,8 @@ export type AppVersionOptions = {
   editLive: boolean;
   /** The platform to use (defaults to IOS) */
   platform: Platform;
+  /** A version to create or select, if defined in the store configuration */
+  version: string | null;
 };
 
 export type AppVersionData = {
@@ -42,6 +45,7 @@ export class AppVersionTask extends AppleTask {
     this.options = {
       platform: options.platform ?? Platform.IOS,
       editLive: options.editLive ?? false,
+      version: options.version ?? null,
     };
   }
 
@@ -75,11 +79,27 @@ export class AppVersionTask extends AppleTask {
   }
 
   public async uploadAsync({ config, context }: TaskUploadOptions): Promise<void> {
-    assert(context.version, `App version not initialized, can't update version`);
+    const version = config.getVersion();
 
+    if (!context.version && version?.versionString) {
+      context.version = await logAsync(
+        () => {
+          return context.app.createVersionAsync({
+            versionString: version.versionString!,
+            platform: this.options.platform,
+          });
+        },
+        {
+          pending: `Creating new version ${chalk.bold(version.versionString)}...`,
+          success: `Created new version ${chalk.bold(version.versionString)}`,
+          failure: `Failed creating new version ${chalk.bold(version.versionString)}`,
+        }
+      );
+    }
+
+    assert(context.version, `App version not initialized, can't update version`);
     const { versionString } = context.version.attributes;
 
-    const version = config.getVersion();
     const release = config.getVersionReleaseType();
     if (!version && !release) {
       Log.log(chalk`{dim - Skipped version and release update, not configured}`);
@@ -156,12 +176,12 @@ export class AppVersionTask extends AppleTask {
 }
 
 /**
- * Resolve the AppStoreVersion instance, either from live or editable version.
+ * Resolve the AppStoreVersion instance, either from the store config, live, or editable version.
  * This also checks if this is the first version, which disallow release notes.
  */
 async function resolveVersionAsync(
   app: App,
-  { editLive, platform }: AppVersionOptions
+  { editLive, platform, version: versionString }: AppVersionOptions
 ): Promise<{
   version: AppStoreVersion | null;
   versionIsLive: boolean;
@@ -170,7 +190,19 @@ async function resolveVersionAsync(
   let version: AppStoreVersion | null = null;
   let versionIsLive = false;
 
-  if (editLive) {
+  if (versionString) {
+    version = await findEditAppStoreVersionAsync(app, { platform, version: versionString });
+    if (!version) {
+      version = await createOrUpdateEditAppStoreVersionAsync(app, {
+        platform,
+        version: versionString,
+      });
+    }
+
+    versionIsLive = version?.attributes.appStoreState === AppStoreState.READY_FOR_SALE;
+  }
+
+  if (!version && editLive) {
     version = await app.getLiveAppStoreVersionAsync({ platform });
     versionIsLive = !!version;
   }
@@ -206,4 +238,59 @@ function shouldDeletePhasedRelease(phasedRelease: AppStoreVersionPhasedRelease |
   }
 
   return true;
+}
+
+/*
+ * Search for editable app store versions that matches the `versionString` option.
+ * When nothing is found, it will return `null`, and a new version should be created.
+ */
+async function findEditAppStoreVersionAsync(
+  app: App,
+  options: { version: string; platform: Platform }
+): Promise<AppStoreVersion | null> {
+  if (options.version) {
+    const versions = await app.getAppStoreVersionsAsync({
+      query: {
+        limit: 200,
+        filter: {
+          platform: options.platform,
+          appStoreState: [
+            AppStoreState.PREPARE_FOR_SUBMISSION,
+            AppStoreState.DEVELOPER_REJECTED,
+            AppStoreState.REJECTED,
+            AppStoreState.METADATA_REJECTED,
+            AppStoreState.WAITING_FOR_REVIEW,
+            AppStoreState.INVALID_BINARY,
+          ].join(','),
+        },
+      },
+    });
+
+    const version = versions.find(model => model.attributes.versionString === options.version);
+    if (version) {
+      return version;
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Check if we can reuse an existing editable app version that has not been published yet.
+ * If not, it creates a new version based on the version string.
+ */
+async function createOrUpdateEditAppStoreVersionAsync(
+  app: App,
+  options: { version: string; platform: Platform }
+): Promise<AppStoreVersion> {
+  const version = await app.getEditAppStoreVersionAsync({ platform: options.platform });
+
+  if (version) {
+    return await version.updateAsync({ versionString: options.version });
+  }
+
+  return await app.createVersionAsync({
+    versionString: options.version,
+    platform: options.platform,
+  });
 }

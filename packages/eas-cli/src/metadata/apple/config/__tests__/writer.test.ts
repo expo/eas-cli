@@ -183,9 +183,10 @@ describe('setCategories', () => {
 });
 
 describe('setVersion', () => {
-  it('modifies the copyright', () => {
+  it('modifies the copyright and version string', () => {
     const writer = new AppleConfigWriter();
     writer.setVersion(manualRelease);
+    expect(writer.schema.version).toBe(manualRelease.versionString);
     expect(writer.schema.copyright).toBe(manualRelease.copyright);
   });
 });

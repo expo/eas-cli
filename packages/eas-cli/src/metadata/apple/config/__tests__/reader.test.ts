@@ -158,3 +158,21 @@ describe('getVersionReleasePhased', () => {
     expect(reader.getVersionReleasePhased()).toBeNull();
   });
 });
+
+describe('getVersion', () => {
+  it('ignores version when not set', () => {
+    const reader = new AppleConfigReader({});
+    expect(reader.getVersion()).toBeNull();
+  });
+
+  it('returns version and copyright when set', () => {
+    const reader = new AppleConfigReader({
+      version: '2.0',
+      copyright: '2022 - ACME',
+    });
+    expect(reader.getVersion()).toMatchObject({
+      versionString: '2.0',
+      copyright: '2022 - ACME',
+    });
+  });
+});

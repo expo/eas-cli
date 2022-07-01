@@ -3,6 +3,7 @@ import type { AgeRatingDeclarationProps } from '@expo/apple-utils';
 export type AppleLocale = string;
 
 export interface AppleMetadata {
+  version?: string;
   copyright?: string;
   info?: Record<AppleLocale, AppleInfo>;
   categories?: AppleCategory;
