@@ -1,10 +1,11 @@
 {
   "name": "scripts",
   "private": true,
+  "type": "module",
   "version": "0.31.0",
   "scripts": {
-    "changelog-entry": "ts-node src/changelogEntry.ts",
-    "release-changelog": "ts-node src/releaseChangelog.ts",
+    "changelog-entry": "ts-node-esm src/changelogEntry.ts",
+    "release-changelog": "ts-node-esm src/releaseChangelog.ts",
     "update-local-plugin": "./src/updateLocalPlugin.sh"
   },
   "author": "Expo <support@expo.dev>",
