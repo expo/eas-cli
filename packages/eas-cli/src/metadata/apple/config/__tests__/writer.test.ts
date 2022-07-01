@@ -189,34 +189,29 @@ describe('setVersion', () => {
   });
 });
 
-describe('setVersionRelease', () => {
+describe('setVersionReleaseType', () => {
   it('modifies scheduled release', () => {
     const writer = new AppleConfigWriter();
-    writer.setVersionRelease(scheduledRelease);
+    writer.setVersionReleaseType(scheduledRelease);
     expect(writer.schema.release).toMatchObject({
-      autoReleaseDate: scheduledRelease.earliestReleaseDate,
+      automaticRelease: scheduledRelease.earliestReleaseDate,
     });
   });
 
   it('modifies automatic release', () => {
     const writer = new AppleConfigWriter();
-    writer.setVersionRelease(automaticRelease);
+    writer.setVersionReleaseType(automaticRelease);
     expect(writer.schema.release).toMatchObject({
       automaticRelease: true,
     });
   });
 
-  it('does not modify manual release', () => {
+  it('modifies manual release', () => {
     const writer = new AppleConfigWriter();
-    writer.setVersionRelease(manualRelease);
-    expect(writer.schema.release).toBeUndefined();
-  });
-
-  it('overwrites all release fields', () => {
-    const writer = new AppleConfigWriter();
-    writer.setVersionRelease(scheduledRelease);
-    writer.setVersionRelease(automaticRelease);
-    expect(writer.schema.release).not.toHaveProperty('autoReleaseDate');
+    writer.setVersionReleaseType(manualRelease);
+    expect(writer.schema.release).toMatchObject({
+      automaticRelease: false,
+    });
   });
 });
 

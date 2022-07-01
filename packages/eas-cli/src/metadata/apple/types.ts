@@ -18,13 +18,8 @@ export type AppleAdvisory = Partial<AgeRatingDeclarationProps>;
 export type AppleCategory = (string | string[])[];
 
 export interface AppleRelease {
-  isPhasedReleaseEnabled?: boolean;
-  shouldResetRatings?: boolean;
-  autoReleaseDate?: number | string;
-  automaticRelease?: boolean;
-  usesThirdPartyContent?: boolean;
-  /** Alternative to setting `ITSAppUsesNonExemptEncryption` in the binary's `Info.plist`. */
-  usesNonExemptEncryption?: boolean;
+  automaticRelease?: boolean | string;
+  phasedRelease?: boolean;
 }
 
 export interface AppleInfo {

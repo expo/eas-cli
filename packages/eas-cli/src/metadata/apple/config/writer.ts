@@ -111,25 +111,19 @@ export class AppleConfigWriter {
     this.schema.copyright = optional(attributes.copyright);
   }
 
-  public setVersionRelease(
+  public setVersionReleaseType(
     attributes: Pick<AttributesOf<AppStoreVersion>, 'releaseType' | 'earliestReleaseDate'>
   ): void {
-    if (attributes.releaseType === ReleaseType.SCHEDULED) {
-      this.schema.release = {
-        autoReleaseDate: optional(attributes.earliestReleaseDate),
-      };
+    if (attributes.releaseType === ReleaseType.SCHEDULED && attributes.earliestReleaseDate) {
+      this.schema.release = { automaticRelease: attributes.earliestReleaseDate };
     }
 
     if (attributes.releaseType === ReleaseType.AFTER_APPROVAL) {
-      this.schema.release = {
-        automaticRelease: true,
-      };
+      this.schema.release = { automaticRelease: true };
     }
 
     if (attributes.releaseType === ReleaseType.MANUAL) {
-      // ReleaseType.MANUAL is the default behavior, so we don't need to configure it.
-      // Setting `"automaticRelease": false` is a bit confusing for people who don't know what automaticRelease does.
-      this.schema.release = undefined;
+      this.schema.release = { automaticRelease: false };
     }
   }
 

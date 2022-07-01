@@ -1,4 +1,4 @@
-import { AppCategoryId, AppSubcategoryId } from '@expo/apple-utils';
+import { AppCategoryId, AppSubcategoryId, ReleaseType } from '@expo/apple-utils';
 
 import { AppleConfigReader } from '../reader';
 import { leastRestrictiveAdvisory, mostRestrictiveAdvisory } from './fixtures/ageRatingDeclaration';
@@ -81,5 +81,57 @@ describe('getAgeRating', () => {
   it('returns most restrictive advisory', () => {
     const reader = new AppleConfigReader({ advisory: mostRestrictiveAdvisory });
     expect(reader.getAgeRating()).toMatchObject(mostRestrictiveAdvisory);
+  });
+});
+
+describe('getVersionReleaseType', () => {
+  it('ignores release when not set', () => {
+    const reader = new AppleConfigReader({ release: undefined });
+    expect(reader.getVersionReleaseType()).toBeNull();
+  });
+
+  it('ignores release when automaticRelease not set', () => {
+    const reader = new AppleConfigReader({ release: {} });
+    expect(reader.getVersionReleaseType()).toBeNull();
+  });
+
+  it('returns scheduled release date with iso string', () => {
+    const reader = new AppleConfigReader({
+      release: { automaticRelease: '2020-06-17T12:00:00-00:00' },
+    });
+    expect(reader.getVersionReleaseType()).toMatchObject({
+      releaseType: ReleaseType.SCHEDULED,
+      earliestReleaseDate: '2020-06-17T12:00:00.000Z',
+    });
+  });
+
+  it('returns scheduled release with unparsable date string', () => {
+    const reader = new AppleConfigReader({
+      release: { automaticRelease: '2020-06-17-12:00:00' },
+    });
+    expect(reader.getVersionReleaseType()).toMatchObject({
+      releaseType: ReleaseType.SCHEDULED,
+      earliestReleaseDate: '2020-06-17-12:00:00',
+    });
+  });
+
+  it('returns automatic release', () => {
+    const reader = new AppleConfigReader({
+      release: { automaticRelease: true },
+    });
+    expect(reader.getVersionReleaseType()).toMatchObject({
+      releaseType: ReleaseType.AFTER_APPROVAL,
+      earliestReleaseDate: null,
+    });
+  });
+
+  it('returns manual release', () => {
+    const reader = new AppleConfigReader({
+      release: { automaticRelease: false },
+    });
+    expect(reader.getVersionReleaseType()).toMatchObject({
+      releaseType: ReleaseType.MANUAL,
+      earliestReleaseDate: null,
+    });
   });
 });

@@ -167,7 +167,7 @@ describe(AppVersionTask, () => {
         context: { version, versionLocales: [] } as any,
       });
 
-      expect(writer.setVersionRelease).toBeCalledWith(version.attributes);
+      expect(writer.setVersionReleaseType).toBeCalledWith(version.attributes);
     });
 
     it('skips when no locales are loaded', async () => {
@@ -220,7 +220,7 @@ describe(AppVersionTask, () => {
         release: { automaticRelease: true },
       });
 
-      const attributes = { ...config.getVersion(), ...config.getVersionRelease() };
+      const attributes = { ...config.getVersion(), ...config.getVersionReleaseType() };
       const scope = nock('https://api.appstoreconnect.apple.com')
         // Respond to version.updateAsync
         .patch(`/v1/${AppStoreVersion.type}/APP_STORE_VERSION_1`)

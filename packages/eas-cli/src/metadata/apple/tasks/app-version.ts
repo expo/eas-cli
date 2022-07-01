@@ -56,7 +56,7 @@ export class AppVersionTask extends AppleTask {
     assert(context.version, `App version not initialized, can't download version`);
 
     config.setVersion(context.version.attributes);
-    config.setVersionRelease(context.version.attributes);
+    config.setVersionReleaseType(context.version.attributes);
 
     for (const locale of context.versionLocales) {
       config.setVersionLocale(locale.attributes);
@@ -67,7 +67,7 @@ export class AppVersionTask extends AppleTask {
     assert(context.version, `App version not initialized, can't update version`);
 
     const version = config.getVersion();
-    const release = config.getVersionRelease();
+    const release = config.getVersionReleaseType();
     if (!version && !release) {
       Log.log(chalk`{dim - Skipped version and release update, not configured}`);
     } else {

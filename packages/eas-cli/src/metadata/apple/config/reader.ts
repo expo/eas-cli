@@ -114,16 +114,17 @@ export class AppleConfigReader {
     return this.schema.copyright ? { copyright: this.schema.copyright } : null;
   }
 
-  public getVersionRelease(): Partial<
+  public getVersionReleaseType(): Partial<
     Pick<AttributesOf<AppStoreVersion>, 'releaseType' | 'earliestReleaseDate'>
   > | null {
     const { release } = this.schema;
 
-    if (release?.autoReleaseDate) {
+    if (typeof release?.automaticRelease === 'string') {
       return {
         releaseType: ReleaseType.SCHEDULED,
-        // Convert time format to 2020-06-17T12:00:00-07:00
-        earliestReleaseDate: removeDatePrecision(release.autoReleaseDate)?.toISOString() ?? null,
+        // Convert time format to 2020-06-17T12:00:00-07:00, if that fails, try the date anyways.
+        earliestReleaseDate:
+          removeDatePrecision(release.automaticRelease)?.toISOString() ?? release.automaticRelease,
       };
     }
 
