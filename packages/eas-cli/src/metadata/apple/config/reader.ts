@@ -4,7 +4,9 @@ import {
   AppStoreReviewDetail,
   AppStoreVersion,
   AppStoreVersionLocalization,
+  AppStoreVersionPhasedRelease,
   CategoryIds,
+  PhasedReleaseState,
   Rating,
   ReleaseType,
 } from '@expo/apple-utils';
@@ -142,6 +144,21 @@ export class AppleConfigReader {
       };
     }
 
+    return null;
+  }
+
+  public getVersionReleasePhased(): Pick<
+    AttributesOf<AppStoreVersionPhasedRelease>,
+    'phasedReleaseState'
+  > | null {
+    if (this.schema.release?.phasedRelease === true) {
+      return {
+        phasedReleaseState: PhasedReleaseState.ACTIVE,
+      };
+    }
+
+    // When phased release is turned off, we need to delete the phased release request.
+    // There is no concept (yet) of pausing the phased release through EAS metadata.
     return null;
   }
 

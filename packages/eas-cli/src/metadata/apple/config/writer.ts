@@ -5,6 +5,7 @@ import {
   AppStoreReviewDetail,
   AppStoreVersion,
   AppStoreVersionLocalization,
+  AppStoreVersionPhasedRelease,
   Rating,
   ReleaseType,
 } from '@expo/apple-utils';
@@ -115,15 +116,38 @@ export class AppleConfigWriter {
     attributes: Pick<AttributesOf<AppStoreVersion>, 'releaseType' | 'earliestReleaseDate'>
   ): void {
     if (attributes.releaseType === ReleaseType.SCHEDULED && attributes.earliestReleaseDate) {
-      this.schema.release = { automaticRelease: attributes.earliestReleaseDate };
+      this.schema.release = {
+        ...this.schema.release,
+        automaticRelease: attributes.earliestReleaseDate,
+      };
     }
 
     if (attributes.releaseType === ReleaseType.AFTER_APPROVAL) {
-      this.schema.release = { automaticRelease: true };
+      this.schema.release = {
+        ...this.schema.release,
+        automaticRelease: true,
+      };
     }
 
     if (attributes.releaseType === ReleaseType.MANUAL) {
-      this.schema.release = { automaticRelease: false };
+      this.schema.release = {
+        ...this.schema.release,
+        automaticRelease: false,
+      };
+    }
+  }
+
+  public setVersionReleasePhased(attributes?: AttributesOf<AppStoreVersionPhasedRelease>): void {
+    if (!attributes) {
+      this.schema.release = {
+        ...this.schema.release,
+        phasedRelease: false,
+      };
+    } else {
+      this.schema.release = {
+        ...this.schema.release,
+        phasedRelease: true,
+      };
     }
   }
 

@@ -12,6 +12,7 @@ import { dutchInfo, englishInfo } from './fixtures/appInfoLocalization';
 import { nameAndDemoReviewDetails, nameOnlyReviewDetails } from './fixtures/appStoreReviewDetail';
 import { automaticRelease, manualRelease, scheduledRelease } from './fixtures/appStoreVersion';
 import { dutchVersion, englishVersion } from './fixtures/appStoreVersionLocalization';
+import { phasedRelease } from './fixtures/appStoreVersionPhasedRelease';
 
 describe('toSchema', () => {
   it('returns object with apple schema', () => {
@@ -211,6 +212,47 @@ describe('setVersionReleaseType', () => {
     writer.setVersionReleaseType(manualRelease);
     expect(writer.schema.release).toMatchObject({
       automaticRelease: false,
+    });
+  });
+
+  it('does not overwrite phasedRelease', () => {
+    const writer = new AppleConfigWriter();
+    writer.setVersionReleasePhased(phasedRelease);
+    writer.setVersionReleaseType(manualRelease);
+    expect(writer.schema.release).toMatchObject({
+      automaticRelease: false,
+      phasedRelease: false,
+    });
+  });
+});
+
+describe('setVersionReleasePhased', () => {
+  it('modifies enabled phased release', () => {
+    const writer = new AppleConfigWriter();
+    writer.setVersionReleasePhased(phasedRelease);
+    expect(writer.schema.release).toHaveProperty('phasedRelease', true);
+  });
+
+  it('modifies disabled phased release', () => {
+    const writer = new AppleConfigWriter();
+    writer.setVersionReleasePhased(undefined);
+    expect(writer.schema.release).toHaveProperty('phasedRelease', false);
+  });
+
+  it('deletes phased release when undefined', () => {
+    const writer = new AppleConfigWriter();
+    writer.setVersionReleasePhased(phasedRelease);
+    writer.setVersionReleasePhased(undefined);
+    expect(writer.schema.release).not.toHaveProperty('phasedRelease');
+  });
+
+  it('does not overwrite automaticRelease', () => {
+    const writer = new AppleConfigWriter();
+    writer.setVersionReleaseType(automaticRelease);
+    writer.setVersionReleasePhased(phasedRelease);
+    expect(writer.schema.release).toMatchObject({
+      automaticRelease: true,
+      phasedRelease: true,
     });
   });
 });
