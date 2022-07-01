@@ -967,10 +967,6 @@
         "review": {
           "$ref": "#/definitions/apple/AppleReview",
           "description": "Info for the App Store reviewer"
-        },
-        "priceTier": {
-          "type": "number",
-          "description": "App price tier. 0 is Free."
         }
       }
     }
