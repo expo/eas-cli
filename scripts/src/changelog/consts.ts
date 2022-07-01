@@ -1,4 +1,4 @@
-import { URL } from 'url';
+import { URL } from 'node:url';
 
 export enum EntryCategory {
   BreakingChange = 'breaking-change',
