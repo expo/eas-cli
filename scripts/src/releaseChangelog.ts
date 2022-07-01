@@ -1,9 +1,9 @@
 import dateFormat from 'dateformat';
 import semver from 'semver';
 
-import { CATEGORY_HEADERS } from './changelog/consts';
-import { readAndParseChangelogAsync, writeChangelogAsync } from './changelog/file';
-import * as markdown from './markdown';
+import { CATEGORY_HEADERS } from './changelog/consts.js';
+import { readAndParseChangelogAsync, writeChangelogAsync } from './changelog/file.js';
+import * as markdown from './markdown.js';
 
 const MAIN_CATEGORIES = Object.values(CATEGORY_HEADERS).map(text =>
   markdown.createHeadingToken(text, 3)
