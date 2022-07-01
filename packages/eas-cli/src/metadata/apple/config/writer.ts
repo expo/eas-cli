@@ -139,10 +139,7 @@ export class AppleConfigWriter {
 
   public setVersionReleasePhased(attributes?: AttributesOf<AppStoreVersionPhasedRelease>): void {
     if (!attributes) {
-      this.schema.release = {
-        ...this.schema.release,
-        phasedRelease: false,
-      };
+      delete this.schema.release?.phasedRelease;
     } else {
       this.schema.release = {
         ...this.schema.release,

@@ -221,7 +221,7 @@ describe('setVersionReleaseType', () => {
     writer.setVersionReleaseType(manualRelease);
     expect(writer.schema.release).toMatchObject({
       automaticRelease: false,
-      phasedRelease: false,
+      phasedRelease: true,
     });
   });
 });
@@ -231,12 +231,6 @@ describe('setVersionReleasePhased', () => {
     const writer = new AppleConfigWriter();
     writer.setVersionReleasePhased(phasedRelease);
     expect(writer.schema.release).toHaveProperty('phasedRelease', true);
-  });
-
-  it('modifies disabled phased release', () => {
-    const writer = new AppleConfigWriter();
-    writer.setVersionReleasePhased(undefined);
-    expect(writer.schema.release).toHaveProperty('phasedRelease', false);
   });
 
   it('deletes phased release when undefined', () => {
