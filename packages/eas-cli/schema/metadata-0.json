@@ -182,35 +182,6 @@
           }
         }
       },
-      "AppleIdfa": {
-        "description": "Identifier for Advertisers",
-        "type": "object",
-        "additionalProperties": false,
-        "defaultSnippets": [
-          {
-            "body": {
-              "servesAds": false,
-              "attributesAppInstallationToPreviousAd": false,
-              "attributesActionWithPreviousAd": false,
-              "honorsLimitedAdTracking": false
-            }
-          }
-        ],
-        "properties": {
-          "servesAds": {
-            "type": "boolean"
-          },
-          "attributesAppInstallationToPreviousAd": {
-            "type": "boolean"
-          },
-          "attributesActionWithPreviousAd": {
-            "type": "boolean"
-          },
-          "honorsLimitedAdTracking": {
-            "type": "boolean"
-          }
-        }
-      },
       "AppleInfo": {
         "type": "object",
         "additionalProperties": false,
@@ -655,9 +626,6 @@
             "storeInfo": "The name of the person or entity that owns the exclusive rights to your app, preceded by the year the rights were obtained (for example, \"2008 Acme Inc.\"). Do not provide a URL."
           }
         },
-        "idfa": {
-          "$ref": "#/definitions/apple/AppleIdfa"
-        },
         "info": {
           "description": "Localized core app info",
           "type": "object",
@@ -999,10 +967,6 @@
         "review": {
           "$ref": "#/definitions/apple/AppleReview",
           "description": "Info for the App Store reviewer"
-        },
-        "priceTier": {
-          "type": "number",
-          "description": "App price tier. 0 is Free."
         }
       }
     }
