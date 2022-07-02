@@ -33,69 +33,154 @@
         ]
       },
       "AppleCategory": {
-        "enum": [
-          "FOOD_AND_DRINK",
-          "BUSINESS",
-          "EDUCATION",
-          "SOCIAL_NETWORKING",
-          "BOOKS",
-          "SPORTS",
-          "FINANCE",
-          "REFERENCE",
-          "GRAPHICS_AND_DESIGN",
-          "DEVELOPER_TOOLS",
-          "HEALTH_AND_FITNESS",
-          "MUSIC",
-          "WEATHER",
-          "TRAVEL",
-          "ENTERTAINMENT",
-          "STICKERS",
-          "GAMES",
-          "LIFESTYLE",
-          "MEDICAL",
-          "MAGAZINES_AND_NEWSPAPERS",
-          "UTILITIES",
-          "SHOPPING",
-          "PRODUCTIVITY",
-          "NEWS",
-          "PHOTO_AND_VIDEO",
-          "NAVIGATION"
-        ]
-      },
-      "AppleSubcategory": {
-        "enum": [
-          "STICKERS_PLACES_AND_OBJECTS",
-          "STICKERS_EMOJI_AND_EXPRESSIONS",
-          "STICKERS_CELEBRATIONS",
-          "STICKERS_CELEBRITIES",
-          "STICKERS_MOVIES_AND_TV",
-          "STICKERS_SPORTS_AND_ACTIVITIES",
-          "STICKERS_EATING_AND_DRINKING",
-          "STICKERS_CHARACTERS",
-          "STICKERS_ANIMALS",
-          "STICKERS_FASHION",
-          "STICKERS_ART",
-          "STICKERS_GAMING",
-          "STICKERS_KIDS_AND_FAMILY",
-          "STICKERS_PEOPLE",
-          "STICKERS_MUSIC",
-          "GAMES_SPORTS",
-          "GAMES_WORD",
-          "GAMES_MUSIC",
-          "GAMES_ADVENTURE",
-          "GAMES_ACTION",
-          "GAMES_ROLE_PLAYING",
-          "GAMES_CASUAL",
-          "GAMES_BOARD",
-          "GAMES_TRIVIA",
-          "GAMES_CARD",
-          "GAMES_PUZZLE",
-          "GAMES_CASINO",
-          "GAMES_STRATEGY",
-          "GAMES_SIMULATION",
-          "GAMES_RACING",
-          "GAMES_FAMILY"
-        ]
+        "type": "array",
+        "description": "App Store categories for the app, can add up to two categories. The first item in this list is the primary category, the second is the secondary and optional category. `STICKERS` and `GAMES` categories can add up to two additional subcategories, written as nested array.",
+        "markdownDescription": "App Store categories for the app, can add up to two categories. The first item in this list is the primary category, the second is the secondary and optional category. `STICKERS` and `GAMES` categories can add up to two additional subcategories, written as nested array. E.g.\n\n- `[\"SPORTS\"]`\n- `[\"SPORTS\", \"LIFESTYLE\"]`\n- `[[\"GAMES\", \"GAMES_CARD\"], \"ENTERTAINMENT\"]`\n- `[\"GAMES\", \"WEATHER\"]`",
+        "minItems": 1,
+        "maxItems": 2,
+        "uniqueItems": true,
+        "defaultSnippets": [
+          {
+            "label": "Basic categories",
+            "description": "Add two simple categories",
+            "body": [
+              "$1",
+              "$2"
+            ]
+          },
+          {
+            "label": "Category with subcategories",
+            "description": "Add a category containing subcategories",
+            "body": [
+              [
+                "${1|GAMES,STICKERS|}",
+                "$3",
+                "$4"
+              ]
+            ]
+          }
+        ],
+        "items": {
+          "oneOf": [
+            {
+              "$ref": "#/definitions/apple/AppleCategory/categories/root"
+            },
+            {
+              "$ref": "#/definitions/apple/AppleCategory/categories/parent"
+            },
+            {
+              "type": "array",
+              "description": "The GAMES category can have additional subcategories",
+              "minItems": 1,
+              "maxItems": 3,
+              "uniqueItems": true,
+              "items": [
+                {
+                  "const": "GAMES"
+                },
+                {
+                  "$ref": "#/definitions/apple/AppleCategory/categories/games"
+                },
+                {
+                  "$ref": "#/definitions/apple/AppleCategory/categories/games"
+                }
+              ]
+            },
+            {
+              "type": "array",
+              "description": "The STICKERS category can have additional subcategories",
+              "minItems": 1,
+              "maxItems": 3,
+              "uniqueItems": true,
+              "items": [
+                {
+                  "const": "STICKERS"
+                },
+                {
+                  "$ref": "#/definitions/apple/AppleCategory/categories/stickers"
+                },
+                {
+                  "$ref": "#/definitions/apple/AppleCategory/categories/stickers"
+                }
+              ]
+            }
+          ]
+        },
+        "categories": {
+          "root": {
+            "enum": [
+              "BUSINESS",
+              "SOCIAL_NETWORKING",
+              "MEDICAL",
+              "FOOD_AND_DRINK",
+              "EDUCATION",
+              "BOOKS",
+              "SPORTS",
+              "FINANCE",
+              "REFERENCE",
+              "GRAPHICS_AND_DESIGN",
+              "DEVELOPER_TOOLS",
+              "HEALTH_AND_FITNESS",
+              "MUSIC",
+              "WEATHER",
+              "TRAVEL",
+              "ENTERTAINMENT",
+              "LIFESTYLE",
+              "MAGAZINES_AND_NEWSPAPERS",
+              "UTILITIES",
+              "SHOPPING",
+              "PRODUCTIVITY",
+              "NEWS",
+              "PHOTO_AND_VIDEO",
+              "NAVIGATION"
+            ]
+          },
+          "parent": {
+            "enum": [
+              "GAMES",
+              "STICKERS"
+            ]
+          },
+          "games": {
+            "enum": [
+              "GAMES_SPORTS",
+              "GAMES_WORD",
+              "GAMES_MUSIC",
+              "GAMES_ADVENTURE",
+              "GAMES_ACTION",
+              "GAMES_ROLE_PLAYING",
+              "GAMES_CASUAL",
+              "GAMES_BOARD",
+              "GAMES_TRIVIA",
+              "GAMES_CARD",
+              "GAMES_PUZZLE",
+              "GAMES_CASINO",
+              "GAMES_STRATEGY",
+              "GAMES_SIMULATION",
+              "GAMES_RACING",
+              "GAMES_FAMILY"
+            ]
+          },
+          "stickers": {
+            "enum": [
+              "STICKERS_PLACES_AND_OBJECTS",
+              "STICKERS_EMOJI_AND_EXPRESSIONS",
+              "STICKERS_CELEBRATIONS",
+              "STICKERS_CELEBRITIES",
+              "STICKERS_MOVIES_AND_TV",
+              "STICKERS_SPORTS_AND_ACTIVITIES",
+              "STICKERS_EATING_AND_DRINKING",
+              "STICKERS_CHARACTERS",
+              "STICKERS_ANIMALS",
+              "STICKERS_FASHION",
+              "STICKERS_ART",
+              "STICKERS_GAMING",
+              "STICKERS_KIDS_AND_FAMILY",
+              "STICKERS_PEOPLE",
+              "STICKERS_MUSIC"
+            ]
+          }
+        }
       },
       "AppleIdfa": {
         "description": "Identifier for Advertisers",
@@ -554,79 +639,7 @@
           "$ref": "#/definitions/apple/AppleAdvisory"
         },
         "categories": {
-          "type": "array",
-          "maxItems": 2,
-          "description": "App Store categories for the app. Can add up to two categories. STICKERS and GAMES categories can add an additional subcategory.",
-          "items": {
-            "anyOf": [
-              {
-                "$ref": "#/definitions/apple/AppleCategory"
-              },
-              {
-                "type": "array",
-                "maxItems": 2,
-                "items": [
-                  {
-                    "enum": [
-                      "GAMES"
-                    ]
-                  },
-                  {
-                    "enum": [
-                      "GAMES_SPORTS",
-                      "GAMES_WORD",
-                      "GAMES_MUSIC",
-                      "GAMES_ADVENTURE",
-                      "GAMES_ACTION",
-                      "GAMES_ROLE_PLAYING",
-                      "GAMES_CASUAL",
-                      "GAMES_BOARD",
-                      "GAMES_TRIVIA",
-                      "GAMES_CARD",
-                      "GAMES_PUZZLE",
-                      "GAMES_CASINO",
-                      "GAMES_STRATEGY",
-                      "GAMES_SIMULATION",
-                      "GAMES_RACING",
-                      "GAMES_FAMILY"
-                    ]
-                  }
-                ],
-                "additionalItems": false
-              },
-              {
-                "type": "array",
-                "maxItems": 2,
-                "items": [
-                  {
-                    "enum": [
-                      "STICKERS"
-                    ]
-                  },
-                  {
-                    "enum": [
-                      "STICKERS_PLACES_AND_OBJECTS",
-                      "STICKERS_EMOJI_AND_EXPRESSIONS",
-                      "STICKERS_CELEBRATIONS",
-                      "STICKERS_CELEBRITIES",
-                      "STICKERS_MOVIES_AND_TV",
-                      "STICKERS_SPORTS_AND_ACTIVITIES",
-                      "STICKERS_EATING_AND_DRINKING",
-                      "STICKERS_CHARACTERS",
-                      "STICKERS_ANIMALS",
-                      "STICKERS_FASHION",
-                      "STICKERS_ART",
-                      "STICKERS_GAMING",
-                      "STICKERS_KIDS_AND_FAMILY",
-                      "STICKERS_PEOPLE",
-                      "STICKERS_MUSIC"
-                    ]
-                  }
-                ],
-                "additionalItems": false
-              }
-            ]
-          }
+          "$ref": "#/definitions/apple/AppleCategory"
         },
         "copyright": {
           "type": "string",

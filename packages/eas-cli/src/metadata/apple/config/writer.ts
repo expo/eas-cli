@@ -64,15 +64,44 @@ export class AppleConfigWriter {
     };
   }
 
-  public setCategories({ primaryCategory, secondaryCategory }: AttributesOf<AppInfo>): void {
+  public setCategories(
+    attributes: Pick<
+      AttributesOf<AppInfo>,
+      | 'primaryCategory'
+      | 'primarySubcategoryOne'
+      | 'primarySubcategoryTwo'
+      | 'secondaryCategory'
+      | 'secondarySubcategoryOne'
+      | 'secondarySubcategoryTwo'
+    >
+  ): void {
+    this.schema.categories = undefined;
+    if (!attributes.primaryCategory && !attributes.secondaryCategory) {
+      return;
+    }
+
     this.schema.categories = [];
 
-    // TODO: see why these types are conflicting
-    if (primaryCategory) {
-      this.schema.categories.push(primaryCategory.id as any);
-      if (secondaryCategory) {
-        this.schema.categories.push(secondaryCategory.id as any);
-      }
+    if (attributes.primaryCategory && attributes.primarySubcategoryOne) {
+      this.schema.categories[0] = [
+        attributes.primaryCategory.id,
+        attributes.primarySubcategoryOne?.id,
+        attributes.primarySubcategoryTwo?.id,
+      ].filter(Boolean) as string[];
+    } else {
+      // If only the secondaryCategory was provided,
+      // autofill with an empty string and cause a store config error.
+      this.schema.categories[0] = attributes.primaryCategory?.id ?? '';
+    }
+
+    if (attributes.secondaryCategory && attributes.secondarySubcategoryOne) {
+      this.schema.categories[1] = [
+        attributes.secondaryCategory.id,
+        attributes.secondarySubcategoryOne?.id,
+        attributes.secondarySubcategoryTwo?.id,
+      ].filter(Boolean) as string[];
+    } else if (attributes.secondaryCategory) {
+      this.schema.categories[1] = attributes.secondaryCategory.id;
     }
   }
 

@@ -1,11 +1,11 @@
-import type { AgeRatingDeclarationProps, AppCategoryId, AppSubcategoryId } from '@expo/apple-utils';
+import type { AgeRatingDeclarationProps } from '@expo/apple-utils';
 
 export type AppleLocale = string;
 
 export interface AppleMetadata {
   copyright?: string;
   info?: Record<AppleLocale, AppleInfo>;
-  categories?: AppCategoryId[] | AppleCategory;
+  categories?: AppleCategory;
   release?: AppleRelease;
   advisory?: AppleAdvisory;
   preview?: Record<string, string[]>;
@@ -14,10 +14,8 @@ export interface AppleMetadata {
 
 export type AppleAdvisory = Partial<AgeRatingDeclarationProps>;
 
-export interface AppleCategory {
-  category: AppCategoryId;
-  subcategory?: AppSubcategoryId[];
-}
+/** Apps can define up to two categories, or categories with up to two subcategories */
+export type AppleCategory = (string | string[])[];
 
 export interface AppleRelease {
   isPhasedReleaseEnabled?: boolean;

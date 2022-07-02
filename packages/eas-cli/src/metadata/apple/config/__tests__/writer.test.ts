@@ -1,3 +1,5 @@
+import { AppCategoryId, AppSubcategoryId } from '@expo/apple-utils';
+
 import { AppleConfigWriter } from '../writer';
 import {
   emptyAdvisory,
@@ -5,7 +7,7 @@ import {
   leastRestrictiveAdvisory,
   mostRestrictiveAdvisory,
 } from './fixtures/ageRatingDeclaration';
-import { primaryAndSecondaryCategory, secondaryOnlyCategory } from './fixtures/appInfo';
+import { makeCategoryInfo } from './fixtures/appInfo';
 import { dutchInfo, englishInfo } from './fixtures/appInfoLocalization';
 import { nameAndDemoReviewDetails, nameOnlyReviewDetails } from './fixtures/appStoreReviewDetail';
 import { automaticRelease, manualRelease, scheduledRelease } from './fixtures/appStoreVersion';
@@ -73,22 +75,109 @@ describe('setInfoLocale', () => {
 });
 
 describe('setCategories', () => {
-  it('modifies the categories', () => {
-    const writer = new AppleConfigWriter();
-    writer.setCategories(primaryAndSecondaryCategory as any);
-    expect(writer.schema.categories).toHaveLength(2);
-    expect((writer.schema.categories as any)[0]).toBe(
-      primaryAndSecondaryCategory.primaryCategory?.id
-    );
-    expect((writer.schema.categories as any)[1]).toBe(
-      primaryAndSecondaryCategory.secondaryCategory?.id
-    );
-  });
-
   it('skips secondary category without primary category', () => {
     const writer = new AppleConfigWriter();
-    writer.setCategories(secondaryOnlyCategory as any);
-    expect(writer.schema.categories).toHaveLength(0);
+    writer.setCategories(makeCategoryInfo({}));
+    expect(writer.schema.categories).toBeUndefined();
+  });
+
+  it('removes existing values when undefined', () => {
+    const writer = new AppleConfigWriter();
+    writer.setCategories(makeCategoryInfo({ primaryCategory: AppCategoryId.BUSINESS }));
+    writer.setCategories(makeCategoryInfo({}));
+    expect(writer.schema.categories).toBeUndefined();
+  });
+
+  it('modifies primary category only', () => {
+    const writer = new AppleConfigWriter();
+    writer.setCategories(makeCategoryInfo({ primaryCategory: AppCategoryId.ENTERTAINMENT }));
+    expect(writer.schema.categories).toEqual([AppCategoryId.ENTERTAINMENT]);
+  });
+
+  it('modifies primary and secondary categories', () => {
+    const writer = new AppleConfigWriter();
+    writer.setCategories(
+      makeCategoryInfo({
+        primaryCategory: AppCategoryId.ENTERTAINMENT,
+        secondaryCategory: AppCategoryId.FOOD_AND_DRINK,
+      })
+    );
+    expect(writer.schema.categories).toEqual([
+      AppCategoryId.ENTERTAINMENT,
+      AppCategoryId.FOOD_AND_DRINK,
+    ]);
+  });
+
+  it('modifies primary category without subcategories', () => {
+    const writer = new AppleConfigWriter();
+    writer.setCategories(makeCategoryInfo({ primaryCategory: AppCategoryId.GAMES }));
+    expect(writer.schema.categories).toEqual([AppCategoryId.GAMES]);
+  });
+
+  it('modifies primary category with one subcategories', () => {
+    const writer = new AppleConfigWriter();
+    writer.setCategories(
+      makeCategoryInfo({
+        primaryCategory: AppCategoryId.GAMES,
+        primarySubcategoryOne: AppSubcategoryId.GAMES_CARD,
+      })
+    );
+    expect(writer.schema.categories).toEqual([[AppCategoryId.GAMES, AppSubcategoryId.GAMES_CARD]]);
+    // We need to filter the lists to avoid writing `[GAMES, GAMES_CARD, null]`
+    expect(writer.schema.categories![0]).toHaveLength(2);
+  });
+
+  it('modifies primary category with two subcategories', () => {
+    const writer = new AppleConfigWriter();
+    writer.setCategories(
+      makeCategoryInfo({
+        primaryCategory: AppCategoryId.GAMES,
+        primarySubcategoryOne: AppSubcategoryId.GAMES_CARD,
+        primarySubcategoryTwo: AppSubcategoryId.GAMES_ADVENTURE,
+      })
+    );
+    expect(writer.schema.categories).toEqual([
+      [AppCategoryId.GAMES, AppSubcategoryId.GAMES_CARD, AppSubcategoryId.GAMES_ADVENTURE],
+    ]);
+  });
+
+  it('modifies primary and secondary categories with one subcategories', () => {
+    const writer = new AppleConfigWriter();
+    writer.setCategories(
+      makeCategoryInfo({
+        primaryCategory: AppCategoryId.ENTERTAINMENT,
+        secondaryCategory: AppCategoryId.GAMES,
+        secondarySubcategoryOne: AppSubcategoryId.GAMES_CARD,
+      })
+    );
+    expect(writer.schema.categories).toEqual([
+      AppCategoryId.ENTERTAINMENT,
+      [AppCategoryId.GAMES, AppSubcategoryId.GAMES_CARD],
+    ]);
+    // We need to filter the lists to avoid writing `[GAMES, GAMES_CARD, null]`
+    expect(writer.schema.categories![1]).toHaveLength(2);
+  });
+
+  it('modifies primary and secondary categories with two subcategories', () => {
+    const writer = new AppleConfigWriter();
+    writer.setCategories(
+      makeCategoryInfo({
+        primaryCategory: AppCategoryId.ENTERTAINMENT,
+        secondaryCategory: AppCategoryId.GAMES,
+        secondarySubcategoryOne: AppSubcategoryId.GAMES_CARD,
+        secondarySubcategoryTwo: AppSubcategoryId.GAMES_ADVENTURE,
+      })
+    );
+    expect(writer.schema.categories).toEqual([
+      AppCategoryId.ENTERTAINMENT,
+      [AppCategoryId.GAMES, AppSubcategoryId.GAMES_CARD, AppSubcategoryId.GAMES_ADVENTURE],
+    ]);
+  });
+
+  it('modifies secondary category without primary', () => {
+    const writer = new AppleConfigWriter();
+    writer.setCategories(makeCategoryInfo({ secondaryCategory: AppCategoryId.GAMES }));
+    expect(writer.schema.categories).toEqual(['', AppCategoryId.GAMES]);
   });
 });
 
