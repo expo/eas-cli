@@ -23,6 +23,7 @@ This is the log of notable changes to EAS CLI and related packages.
 - Update validation rules for metadata info locales. ([#1174](https://github.com/expo/eas-cli/pull/1174) by [@byCedric](https://github.com/byCedric))
 - Improve store configuration defaults and schema documentation. ([#1183](https://github.com/expo/eas-cli/pull/1183) by [@byCedric](https://github.com/byCedric))
 - Improve store config categories configuration. ([#1187](https://github.com/expo/eas-cli/pull/1187) by [@byCedric](https://github.com/byCedric))
+- Remove deprecated idfa and price tier from store config. ([#1193](https://github.com/expo/eas-cli/pull/1193) by [@byCedric](https://github.com/byCedric))
 
 ## [0.54.1](https://github.com/expo/eas-cli/releases/tag/v0.54.1) - 2022-06-15
 
