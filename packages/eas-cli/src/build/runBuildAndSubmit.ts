@@ -26,6 +26,7 @@ import {
 } from '../project/remoteVersionSource';
 import { createSubmissionContextAsync } from '../submit/context';
 import {
+  exitWithNonZeroCodeIfSomeSubmissionsDidntFinish,
   submitAsync,
   waitToCompleteAsync as waitForSubmissionsToCompleteAsync,
 } from '../submit/submit';
@@ -106,7 +107,7 @@ export async function runBuildAndSubmitAsync(projectDir: string, flags: BuildFla
   }
 
   const startedBuilds: {
-    build: BuildFragment;
+    build: BuildFragment & { submission?: SubmissionFragment };
     buildProfile: ProfileData<'build'>;
   }[] = [];
   const buildCtxByPlatform: { [p in AppPlatform]?: BuildContext<Platform> } = {};
@@ -160,6 +161,7 @@ export async function runBuildAndSubmitAsync(projectDir: string, flags: BuildFla
         submitProfile,
         nonInteractive: flags.nonInteractive,
       });
+      startedBuild.build.submission = submission;
       submissions.push(submission);
     }
 
@@ -180,16 +182,31 @@ export async function runBuildAndSubmitAsync(projectDir: string, flags: BuildFla
     buildIds: startedBuilds.map(({ build }) => build.id),
     accountName,
   });
-  printBuildResults(builds, flags.json);
+  if (!flags.json) {
+    printBuildResults(builds);
+  }
 
   const haveAllBuildsFailedOrCanceled = builds.every(
     build => build?.status && [BuildStatus.Errored, BuildStatus.Canceled].includes(build?.status)
   );
   if (haveAllBuildsFailedOrCanceled || !flags.autoSubmit) {
+    if (flags.json) {
+      printJsonOnlyOutput(builds);
+    }
     exitWithNonZeroCodeIfSomeBuildsFailed(builds);
   } else {
-    // the following function also exits with non zero code if any of the submissions failed
-    await waitForSubmissionsToCompleteAsync(submissions);
+    const completedSubmissions = await waitForSubmissionsToCompleteAsync(submissions);
+    if (flags.json) {
+      printJsonOnlyOutput(
+        builds.map(build => ({
+          ...build,
+          submission: completedSubmissions.find(
+            submission => submission.platform === build?.platform
+          ),
+        }))
+      );
+    }
+    exitWithNonZeroCodeIfSomeSubmissionsDidntFinish(completedSubmissions);
   }
 }
 
