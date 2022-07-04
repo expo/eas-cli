@@ -1,6 +1,6 @@
 // this is mostly copy-pasted from https://github.com/expo/expo/blob/master/tools/src/Markdown.ts
 
-import _ from 'lodash';
+import { unescape } from 'lodash-es';
 import marked from 'marked';
 
 export enum TokenType {
@@ -84,7 +84,7 @@ export function lexify(text: string): Tokens {
 export function render(tokens: Tokens, renderer: Renderer = new MarkdownRenderer()): string {
   // `marked` module is good enough in terms of lexifying, but its main purpose is to
   // convert markdown to html, so we need to write our own renderer for changelogs.
-  return _.unescape(renderer.render(tokens).trim() + EOL);
+  return unescape(renderer.render(tokens).trim() + EOL);
 }
 
 /**
