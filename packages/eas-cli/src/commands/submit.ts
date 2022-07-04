@@ -16,7 +16,11 @@ import {
 import { getExpoConfig } from '../project/expoConfig';
 import { findProjectRootAsync, getProjectIdAsync } from '../project/projectUtils';
 import { SubmitArchiveFlags, createSubmissionContextAsync } from '../submit/context';
-import { submitAsync, waitToCompleteAsync } from '../submit/submit';
+import {
+  exitWithNonZeroCodeIfSomeSubmissionsDidntFinish,
+  submitAsync,
+  waitToCompleteAsync,
+} from '../submit/submit';
 import { printSubmissionDetailsUrls } from '../submit/utils/urls';
 import { getProfilesAsync } from '../utils/profiles';
 
@@ -130,7 +134,10 @@ export default class Submit extends EasCommand {
     printSubmissionDetailsUrls(submissions);
 
     if (flags.wait) {
-      await waitToCompleteAsync(submissions, { verbose: flags.verbose });
+      const completedSubmissions = await waitToCompleteAsync(submissions, {
+        verbose: flags.verbose,
+      });
+      exitWithNonZeroCodeIfSomeSubmissionsDidntFinish(completedSubmissions);
     }
   }
 
