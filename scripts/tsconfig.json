@@ -3,6 +3,7 @@
     "declaration": true,
     "module": "node16",
     "moduleResolution": "node16",
+    "esModuleInterop": true,
     "noImplicitReturns": true,
     "strict": true,
     "target": "ES2020",

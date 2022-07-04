@@ -1,5 +1,6 @@
 {
   "name": "eas-cli",
+  "type": "module",
   "description": "EAS command line tool",
   "version": "0.54.1",
   "author": "Expo <support@expo.dev>",
