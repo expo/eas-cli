@@ -1,4 +1,4 @@
-const rootEslintrc = require('../.eslintrc.js');
+const rootEslintrc = require('../.eslintrc.cjs');
 
 module.exports = {
   rules: {
