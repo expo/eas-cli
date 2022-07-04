@@ -5,18 +5,18 @@ import path from 'path';
 import pkgDir from 'pkg-dir';
 import semver from 'semver';
 
-import { AppPrivacy } from '../graphql/generated';
-import Log from '../log';
-import { confirmAsync } from '../prompts';
-import { Actor } from '../user/User';
-import { ensureLoggedInAsync } from '../user/actions';
-import { expoCommandAsync } from '../utils/expoCli';
-import { getVcsClient } from '../vcs';
+import { AppPrivacy } from '../graphql/generated.js';
+import Log from '../log.js';
+import { confirmAsync } from '../prompts.js';
+import { Actor } from '../user/User.js';
+import { ensureLoggedInAsync } from '../user/actions.js';
+import { expoCommandAsync } from '../utils/expoCli.js';
+import { getVcsClient } from '../vcs/index.js';
 import {
   ensureProjectExistsAsync,
   findProjectIdByAccountNameAndSlugNullableAsync,
-} from './ensureProjectExists';
-import { getExpoConfig } from './expoConfig';
+} from './ensureProjectExists.js';
+import { getExpoConfig } from './expoConfig.js';
 
 export function getProjectAccountName(exp: ExpoConfig, user: Actor): string {
   switch (user.__typename) {

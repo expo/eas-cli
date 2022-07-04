@@ -1,6 +1,6 @@
-import { CredentialsContext } from '../../context';
-import { DistributionCertificate } from '../appstore/Credentials.types';
-import { filterRevokedDistributionCerts } from '../appstore/CredentialsUtils';
+import { CredentialsContext } from '../../context.js';
+import { DistributionCertificate } from '../appstore/Credentials.types.js';
+import { filterRevokedDistributionCerts } from '../appstore/CredentialsUtils.js';
 
 export async function validateDistributionCertificateAsync(
   ctx: CredentialsContext,

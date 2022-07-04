@@ -1,20 +1,20 @@
 import { vol } from 'memfs';
 
-import { AndroidKeystoreType } from '../../../../graphql/generated';
-import { confirmAsync } from '../../../../prompts';
+import { AndroidKeystoreType } from '../../../../graphql/generated.js';
+import { confirmAsync } from '../../../../prompts.js';
 import {
   getNewAndroidApiMock,
   testAndroidBuildCredentialsFragment,
   testJksAndroidKeystoreFragment,
-} from '../../../__tests__/fixtures-android';
-import { createCtxMock } from '../../../__tests__/fixtures-context';
+} from '../../../__tests__/fixtures-android.js';
+import { createCtxMock } from '../../../__tests__/fixtures-context.js';
 import {
   SelectAndroidBuildCredentials,
   SelectAndroidBuildCredentialsResultType,
-} from '../../../manager/SelectAndroidBuildCredentials';
-import { AppLookupParams } from '../../api/GraphqlClient';
-import { getAppLookupParamsFromContextAsync } from '../BuildCredentialsUtils';
-import { SetUpBuildCredentialsFromCredentialsJson } from '../SetUpBuildCredentialsFromCredentialsJson';
+} from '../../../manager/SelectAndroidBuildCredentials.js';
+import { AppLookupParams } from '../../api/GraphqlClient.js';
+import { getAppLookupParamsFromContextAsync } from '../BuildCredentialsUtils.js';
+import { SetUpBuildCredentialsFromCredentialsJson } from '../SetUpBuildCredentialsFromCredentialsJson.js';
 
 jest.mock('fs');
 

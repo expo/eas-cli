@@ -1,4 +1,4 @@
-import groupBy from '../groupBy';
+import groupBy from '../groupBy.js';
 
 describe(groupBy, () => {
   it('groups the objects from the list', () => {

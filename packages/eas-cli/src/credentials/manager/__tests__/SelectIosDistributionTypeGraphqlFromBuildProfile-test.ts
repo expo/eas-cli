@@ -1,9 +1,9 @@
 import { Platform } from '@expo/eas-build-job';
 import { BuildProfile } from '@expo/eas-json';
 
-import { IosDistributionType as IosDistributionTypeGraphql } from '../../../graphql/generated';
-import { createCtxMock } from '../../__tests__/fixtures-context';
-import { SelectIosDistributionTypeGraphqlFromBuildProfile } from '../SelectIosDistributionTypeGraphqlFromBuildProfile';
+import { IosDistributionType as IosDistributionTypeGraphql } from '../../../graphql/generated.js';
+import { createCtxMock } from '../../__tests__/fixtures-context.js';
+import { SelectIosDistributionTypeGraphqlFromBuildProfile } from '../SelectIosDistributionTypeGraphqlFromBuildProfile.js';
 
 describe('SelectIosDistributionTypeGraphqlFromBuildProfile', () => {
   it('errors with a simulator distribution', async () => {

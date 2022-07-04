@@ -1,6 +1,6 @@
-import { promptAsync } from '../../prompts';
-import { ManageAndroid } from './ManageAndroid';
-import { ManageIos } from './ManageIos';
+import { promptAsync } from '../../prompts.js';
+import { ManageAndroid } from './ManageAndroid.js';
+import { ManageIos } from './ManageIos.js';
 
 export class SelectPlatform {
   async runAsync(): Promise<void> {

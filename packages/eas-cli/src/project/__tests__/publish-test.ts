@@ -3,10 +3,10 @@ import mockdate from 'mockdate';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 
-import { defaultPublishPlatforms } from '../../commands/update';
-import { AssetMetadataStatus } from '../../graphql/generated';
-import { PublishMutation } from '../../graphql/mutations/PublishMutation';
-import { PublishQuery } from '../../graphql/queries/PublishQuery';
+import { defaultPublishPlatforms } from '../../commands/update/index.js';
+import { AssetMetadataStatus } from '../../graphql/generated.js';
+import { PublishMutation } from '../../graphql/mutations/PublishMutation.js';
+import { PublishQuery } from '../../graphql/queries/PublishQuery.js';
 import {
   MetadataJoi,
   TIMEOUT_LIMIT,
@@ -20,7 +20,7 @@ import {
   guessContentTypeFromExtension,
   resolveInputDirectoryAsync,
   uploadAssetsAsync,
-} from '../publish';
+} from '../publish.js';
 
 jest.mock('../../uploads');
 jest.mock('fs');

@@ -1,21 +1,23 @@
-import {
+import AppleUtils from '@expo/apple-utils';
+
+import { ora } from '../../../ora.js';
+import { DistributionCertificate, DistributionCertificateStoreInfo } from './Credentials.types.js';
+import { getRequestContext } from './authenticate.js';
+import { AuthCtx } from './authenticateTypes.js';
+
+const {
   Certificate,
   CertificateType,
-  RequestContext,
+  // eslint-disable-next-line async-protect/async-suffix
   createCertificateAndP12Async,
-} from '@expo/apple-utils';
-
-import { ora } from '../../../ora';
-import { DistributionCertificate, DistributionCertificateStoreInfo } from './Credentials.types';
-import { getRequestContext } from './authenticate';
-import { AuthCtx } from './authenticateTypes';
+} = AppleUtils;
 
 export class AppleTooManyCertsError extends Error {}
 
 export async function getCertificateBySerialNumberAsync(
-  context: RequestContext,
+  context: AppleUtils.RequestContext,
   serialNumber: string
-): Promise<Certificate> {
+): Promise<AppleUtils.Certificate> {
   const cert = (await Certificate.getAsync(context)).find(
     item => item.attributes.serialNumber === serialNumber
   );
@@ -26,9 +28,9 @@ export async function getCertificateBySerialNumberAsync(
 }
 
 export async function getDistributionCertificateAsync(
-  context: RequestContext,
+  context: AppleUtils.RequestContext,
   serialNumber: string
-): Promise<Certificate | null> {
+): Promise<AppleUtils.Certificate | null> {
   // At most, this returns 2 values.
   const certificates = await Certificate.getAsync(context, {
     query: {
@@ -42,7 +44,9 @@ export async function getDistributionCertificateAsync(
   );
 }
 
-export function transformCertificate(cert: Certificate): DistributionCertificateStoreInfo {
+export function transformCertificate(
+  cert: AppleUtils.Certificate
+): DistributionCertificateStoreInfo {
   return {
     id: cert.id,
     name: cert.attributes.name,

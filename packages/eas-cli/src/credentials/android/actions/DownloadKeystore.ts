@@ -1,13 +1,13 @@
 import chalk from 'chalk';
 import fs from 'fs-extra';
 
-import { AndroidAppBuildCredentialsFragment } from '../../../graphql/generated';
-import Log from '../../../log';
-import { confirmAsync } from '../../../prompts';
-import { maybeRenameExistingFileAsync } from '../../../utils/files';
-import { CredentialsContext } from '../../context';
-import { AppLookupParams, formatProjectFullName } from '../api/GraphqlClient';
-import { displayAndroidKeystore } from '../utils/printCredentials';
+import { AndroidAppBuildCredentialsFragment } from '../../../graphql/generated.js';
+import Log from '../../../log.js';
+import { confirmAsync } from '../../../prompts.js';
+import { maybeRenameExistingFileAsync } from '../../../utils/files.js';
+import { CredentialsContext } from '../../context.js';
+import { AppLookupParams, formatProjectFullName } from '../api/GraphqlClient.js';
+import { displayAndroidKeystore } from '../utils/printCredentials.js';
 
 interface DownloadKeystoreOptions {
   app: AppLookupParams;

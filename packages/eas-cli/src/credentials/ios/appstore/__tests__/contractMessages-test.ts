@@ -1,6 +1,6 @@
 import chalk from 'chalk';
 
-import { formatContractMessage } from '../contractMessages';
+import { formatContractMessage } from '../contractMessages.js';
 
 const expiredMembership = {
   subject: 'Developer Program Membership Expired',

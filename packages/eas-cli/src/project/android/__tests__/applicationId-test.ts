@@ -2,12 +2,12 @@ import fs from 'fs-extra';
 import { vol } from 'memfs';
 import os from 'os';
 
-import { jester as mockJester } from '../../../credentials/__tests__/fixtures-constants';
-import { promptAsync } from '../../../prompts';
+import { jester as mockJester } from '../../../credentials/__tests__/fixtures-constants.js';
+import { promptAsync } from '../../../prompts.js';
 import {
   ensureApplicationIdIsDefinedForManagedProjectAsync,
   getApplicationIdAsync,
-} from '../applicationId';
+} from '../applicationId.js';
 
 jest.mock('fs');
 jest.mock('../../../prompts');

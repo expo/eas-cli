@@ -1,12 +1,12 @@
-import gql from 'graphql-tag';
+import { gql } from 'graphql-tag';
 
-import { graphqlClient, withErrorHandlingAsync } from '../client';
+import { graphqlClient, withErrorHandlingAsync } from '../client.js';
 import {
   ViewAllUpdatesQuery,
   ViewAllUpdatesQueryVariables,
   ViewBranchUpdatesQuery,
   ViewBranchUpdatesQueryVariables,
-} from '../generated';
+} from '../generated.js';
 
 export const viewBranchUpdatesQueryUpdateLimit = 300;
 

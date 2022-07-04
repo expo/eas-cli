@@ -3,20 +3,20 @@ import assert from 'assert';
 import chalk from 'chalk';
 import Table from 'cli-table3';
 
-import EasCommand from '../../commandUtils/EasCommand';
-import { ChannelQuery } from '../../graphql/queries/ChannelQuery';
-import Log from '../../log';
-import { getExpoConfig } from '../../project/expoConfig';
-import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUtils';
-import { promptAsync } from '../../prompts';
+import EasCommand from '../../commandUtils/EasCommand.js';
+import { ChannelQuery } from '../../graphql/queries/ChannelQuery.js';
+import Log from '../../log.js';
+import { getExpoConfig } from '../../project/expoConfig.js';
+import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUtils.js';
+import { promptAsync } from '../../prompts.js';
 import {
   FormatUpdateParameter,
   UPDATE_COLUMNS,
   formatUpdate,
   getPlatformsForGroup,
-} from '../../update/utils';
-import formatFields from '../../utils/formatFields';
-import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
+} from '../../update/utils.js';
+import formatFields from '../../utils/formatFields.js';
+import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json.js';
 
 export type BranchMapping = {
   version: number;

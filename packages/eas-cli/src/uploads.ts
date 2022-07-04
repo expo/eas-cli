@@ -3,10 +3,10 @@ import FormData from 'form-data';
 import fs from 'fs-extra';
 import { URL } from 'url';
 
-import fetch from './fetch';
-import { UploadSessionType } from './graphql/generated';
-import { PresignedPost, UploadSessionMutation } from './graphql/mutations/UploadSessionMutation';
-import { ProgressHandler } from './utils/progress';
+import fetch from './fetch.js';
+import { UploadSessionType } from './graphql/generated.js';
+import { PresignedPost, UploadSessionMutation } from './graphql/mutations/UploadSessionMutation.js';
+import { ProgressHandler } from './utils/progress.js';
 
 export async function uploadAsync(
   type: UploadSessionType,

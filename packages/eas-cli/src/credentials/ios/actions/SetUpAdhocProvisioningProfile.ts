@@ -1,8 +1,7 @@
 import assert from 'assert';
 import chalk from 'chalk';
-import nullthrows from 'nullthrows';
 
-import DeviceCreateAction, { RegistrationMethod } from '../../../devices/actions/create/action';
+import DeviceCreateAction, { RegistrationMethod } from '../../../devices/actions/create/action.js';
 import {
   AppleDeviceFragment,
   AppleDistributionCertificateFragment,
@@ -10,18 +9,19 @@ import {
   AppleTeamFragment,
   IosAppBuildCredentialsFragment,
   IosDistributionType,
-} from '../../../graphql/generated';
-import Log from '../../../log';
-import { confirmAsync, pressAnyKeyToContinueAsync, promptAsync } from '../../../prompts';
-import differenceBy from '../../../utils/expodash/differenceBy';
-import { CredentialsContext } from '../../context';
-import { MissingCredentialsNonInteractiveError } from '../../errors';
-import { AppLookupParams } from '../api/GraphqlClient';
-import { validateProvisioningProfileAsync } from '../validators/validateProvisioningProfile';
-import { resolveAppleTeamIfAuthenticatedAsync } from './AppleTeamUtils';
-import { assignBuildCredentialsAsync, getBuildCredentialsAsync } from './BuildCredentialsUtils';
-import { chooseDevicesAsync, formatDeviceLabel } from './DeviceUtils';
-import { SetUpDistributionCertificate } from './SetUpDistributionCertificate';
+} from '../../../graphql/generated.js';
+import Log from '../../../log.js';
+import { confirmAsync, pressAnyKeyToContinueAsync, promptAsync } from '../../../prompts.js';
+import differenceBy from '../../../utils/expodash/differenceBy.js';
+import { nullthrows } from '../../../utils/nullthrows.js';
+import { CredentialsContext } from '../../context.js';
+import { MissingCredentialsNonInteractiveError } from '../../errors.js';
+import { AppLookupParams } from '../api/GraphqlClient.js';
+import { validateProvisioningProfileAsync } from '../validators/validateProvisioningProfile.js';
+import { resolveAppleTeamIfAuthenticatedAsync } from './AppleTeamUtils.js';
+import { assignBuildCredentialsAsync, getBuildCredentialsAsync } from './BuildCredentialsUtils.js';
+import { chooseDevicesAsync, formatDeviceLabel } from './DeviceUtils.js';
+import { SetUpDistributionCertificate } from './SetUpDistributionCertificate.js';
 
 enum ReuseAction {
   Yes,

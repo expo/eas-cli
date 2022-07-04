@@ -1,7 +1,7 @@
 import { JSONValue } from '@expo/json-file';
 
-import fetch, { RequestError, RequestInit } from './fetch';
-import { getAccessToken, getSessionSecret } from './user/sessionStorage';
+import fetch, { RequestError, RequestInit } from './fetch.js';
+import { getAccessToken, getSessionSecret } from './user/sessionStorage.js';
 
 export class ApiV2Error extends Error {
   readonly name = 'ApiV2Error';

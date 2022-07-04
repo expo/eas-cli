@@ -1,21 +1,20 @@
-import nullthrows from 'nullthrows';
-
-import { IosDistributionType } from '../../../../graphql/generated';
-import { findApplicationTarget } from '../../../../project/ios/target';
-import { confirmAsync } from '../../../../prompts';
-import { getAppstoreMock, testAuthCtx } from '../../../__tests__/fixtures-appstore';
-import { createCtxMock } from '../../../__tests__/fixtures-context';
+import { IosDistributionType } from '../../../../graphql/generated.js';
+import { findApplicationTarget } from '../../../../project/ios/target.js';
+import { confirmAsync } from '../../../../prompts.js';
+import { nullthrows } from '../../../../utils/nullthrows.js';
+import { getAppstoreMock, testAuthCtx } from '../../../__tests__/fixtures-appstore.js';
+import { createCtxMock } from '../../../__tests__/fixtures-context.js';
 import {
   getNewIosApiMock,
   testAppleAppIdentifierFragment,
   testCommonIosAppCredentialsFragment,
   testIosAppBuildCredentialsFragment,
   testTargets,
-} from '../../../__tests__/fixtures-ios';
-import { MissingCredentialsNonInteractiveError } from '../../../errors';
-import { validateProvisioningProfileAsync } from '../../validators/validateProvisioningProfile';
-import { getAppLookupParamsFromContext } from '../BuildCredentialsUtils';
-import { SetUpProvisioningProfile } from '../SetUpProvisioningProfile';
+} from '../../../__tests__/fixtures-ios.js';
+import { MissingCredentialsNonInteractiveError } from '../../../errors.js';
+import { validateProvisioningProfileAsync } from '../../validators/validateProvisioningProfile.js';
+import { getAppLookupParamsFromContext } from '../BuildCredentialsUtils.js';
+import { SetUpProvisioningProfile } from '../SetUpProvisioningProfile.js';
 
 jest.mock('../../../../prompts');
 jest.mocked(confirmAsync).mockImplementation(async () => true);

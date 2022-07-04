@@ -1,16 +1,16 @@
-import { findApplicationTarget } from '../../../../project/ios/target';
-import { confirmAsync } from '../../../../prompts';
-import { getAppstoreMock, testAuthCtx } from '../../../__tests__/fixtures-appstore';
-import { createCtxMock } from '../../../__tests__/fixtures-context';
+import { findApplicationTarget } from '../../../../project/ios/target.js';
+import { confirmAsync } from '../../../../prompts.js';
+import { getAppstoreMock, testAuthCtx } from '../../../__tests__/fixtures-appstore.js';
+import { createCtxMock } from '../../../__tests__/fixtures-context.js';
 import {
   testDistCertFragmentNoDependencies,
   testProvisioningProfile,
   testProvisioningProfileFragment,
   testTargets,
-} from '../../../__tests__/fixtures-ios';
-import { MissingCredentialsNonInteractiveError } from '../../../errors';
-import { getAppLookupParamsFromContext } from '../BuildCredentialsUtils';
-import { ConfigureProvisioningProfile } from '../ConfigureProvisioningProfile';
+} from '../../../__tests__/fixtures-ios.js';
+import { MissingCredentialsNonInteractiveError } from '../../../errors.js';
+import { getAppLookupParamsFromContext } from '../BuildCredentialsUtils.js';
+import { ConfigureProvisioningProfile } from '../ConfigureProvisioningProfile.js';
 
 jest.mock('../../../../ora');
 jest.mock('../../../../prompts');

@@ -1,16 +1,18 @@
 import { ExpoConfig, getConfigFilePaths } from '@expo/config';
-import { IOSConfig } from '@expo/config-plugins';
+import ConfigPlugins, { InfoPlist } from '@expo/config-plugins';
 import { Platform, Workflow } from '@expo/eas-build-job';
 import chalk from 'chalk';
 import path from 'path';
 import type { XCBuildConfiguration } from 'xcode';
 
-import Log from '../../log';
-import { resolveWorkflowAsync } from '../../project/workflow';
-import { promptAsync } from '../../prompts';
-import { readPlistAsync, writePlistAsync } from '../../utils/plist';
-import { updateAppJsonConfigAsync } from '../utils/appJson';
-import { bumpAppVersionAsync } from '../utils/version';
+import Log from '../../log.js';
+import { resolveWorkflowAsync } from '../../project/workflow.js';
+import { promptAsync } from '../../prompts.js';
+import { readPlistAsync, writePlistAsync } from '../../utils/plist.js';
+import { updateAppJsonConfigAsync } from '../utils/appJson.js';
+import { bumpAppVersionAsync } from '../utils/version.js';
+
+const { IOSConfig } = ConfigPlugins;
 
 export enum BumpStrategy {
   APP_VERSION,
@@ -145,9 +147,9 @@ async function writeVersionsToInfoPlistAsync({
 }: {
   projectDir: string;
   exp: ExpoConfig;
-  infoPlist: IOSConfig.InfoPlist;
+  infoPlist: InfoPlist;
   buildSettings: XCBuildConfiguration['buildSettings'];
-}): Promise<IOSConfig.InfoPlist> {
+}): Promise<InfoPlist> {
   let updatedInfoPlist = IOSConfig.Version.setVersion(exp, infoPlist);
   updatedInfoPlist = IOSConfig.Version.setBuildNumber(exp, updatedInfoPlist);
   await writeInfoPlistAsync({ projectDir, infoPlist: updatedInfoPlist, buildSettings });
@@ -176,9 +178,9 @@ export function getInfoPlistPath(
 async function readInfoPlistAsync(
   projectDir: string,
   buildSettings: XCBuildConfiguration['buildSettings']
-): Promise<IOSConfig.InfoPlist> {
+): Promise<InfoPlist> {
   const infoPlistPath = getInfoPlistPath(projectDir, buildSettings);
-  return ((await readPlistAsync(infoPlistPath)) ?? {}) as IOSConfig.InfoPlist;
+  return ((await readPlistAsync(infoPlistPath)) ?? {}) as InfoPlist;
 }
 
 async function writeInfoPlistAsync({
@@ -187,7 +189,7 @@ async function writeInfoPlistAsync({
   buildSettings,
 }: {
   projectDir: string;
-  infoPlist: IOSConfig.InfoPlist;
+  infoPlist: InfoPlist;
   buildSettings: XCBuildConfiguration['buildSettings'];
 }): Promise<void> {
   const infoPlistPath = getInfoPlistPath(projectDir, buildSettings);

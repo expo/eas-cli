@@ -1,14 +1,14 @@
 import { print } from 'graphql';
-import gql from 'graphql-tag';
+import { gql } from 'graphql-tag';
 
-import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
+import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client.js';
 import {
   AppleTeamFragment,
   AppleTeamInput,
   CreateAppleTeamMutation,
-} from '../../../../../graphql/generated';
-import { AppleTeamFragmentNode } from '../../../../../graphql/types/credentials/AppleTeam';
-import { Account } from '../../../../../user/Account';
+} from '../../../../../graphql/generated.js';
+import { AppleTeamFragmentNode } from '../../../../../graphql/types/credentials/AppleTeam.js';
+import { Account } from '../../../../../user/Account.js';
 
 export type AppleTeamMutationResult = AppleTeamFragment & {
   account: Account;

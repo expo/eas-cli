@@ -1,8 +1,8 @@
 import { print } from 'graphql';
-import gql from 'graphql-tag';
-import nullthrows from 'nullthrows';
+import { gql } from 'graphql-tag';
 
-import { graphqlClient, withErrorHandlingAsync } from '../client';
+import { nullthrows } from '../../utils/nullthrows.js';
+import { graphqlClient, withErrorHandlingAsync } from '../client.js';
 import {
   CreateAndroidSubmissionInput,
   CreateAndroidSubmissionMutation,
@@ -11,8 +11,8 @@ import {
   CreateIosSubmissionMutation,
   CreateIosSubmissionMutationVariables,
   SubmissionFragment,
-} from '../generated';
-import { SubmissionFragmentNode } from '../types/Submission';
+} from '../generated.js';
+import { SubmissionFragmentNode } from '../types/Submission.js';
 
 export const SubmissionMutation = {
   async createAndroidSubmissionAsync(

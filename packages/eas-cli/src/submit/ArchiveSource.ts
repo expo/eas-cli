@@ -4,14 +4,14 @@ import prompts from 'prompts';
 import { URL } from 'url';
 import * as uuid from 'uuid';
 
-import { AppPlatform, BuildFragment } from '../graphql/generated';
-import { BuildQuery } from '../graphql/queries/BuildQuery';
-import { toAppPlatform } from '../graphql/types/AppPlatform';
-import Log, { learnMore } from '../log';
-import { appPlatformDisplayNames } from '../platform';
-import { confirmAsync, promptAsync } from '../prompts';
-import { getRecentBuildsForSubmissionAsync } from './utils/builds';
-import { isExistingFileAsync, uploadAppArchiveAsync } from './utils/files';
+import { AppPlatform, BuildFragment } from '../graphql/generated.js';
+import { BuildQuery } from '../graphql/queries/BuildQuery.js';
+import { toAppPlatform } from '../graphql/types/AppPlatform.js';
+import Log, { learnMore } from '../log.js';
+import { appPlatformDisplayNames } from '../platform.js';
+import { confirmAsync, promptAsync } from '../prompts.js';
+import { getRecentBuildsForSubmissionAsync } from './utils/builds.js';
+import { isExistingFileAsync, uploadAppArchiveAsync } from './utils/files.js';
 
 export const BUILD_LIST_ITEM_COUNT = 4;
 

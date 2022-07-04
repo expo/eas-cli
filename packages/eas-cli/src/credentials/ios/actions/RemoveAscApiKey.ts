@@ -1,9 +1,9 @@
-import { AppStoreConnectApiKeyFragment } from '../../../graphql/generated';
-import Log from '../../../log';
-import { confirmAsync } from '../../../prompts';
-import { Account } from '../../../user/Account';
-import { CredentialsContext } from '../../context';
-import { selectAscApiKeysFromAccountAsync } from './AscApiKeyUtils';
+import { AppStoreConnectApiKeyFragment } from '../../../graphql/generated.js';
+import Log from '../../../log.js';
+import { confirmAsync } from '../../../prompts.js';
+import { Account } from '../../../user/Account.js';
+import { CredentialsContext } from '../../context.js';
+import { selectAscApiKeysFromAccountAsync } from './AscApiKeyUtils.js';
 
 export class SelectAndRemoveAscApiKey {
   constructor(private account: Account) {}

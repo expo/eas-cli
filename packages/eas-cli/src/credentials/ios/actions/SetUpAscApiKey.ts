@@ -1,28 +1,28 @@
 import assert from 'assert';
-import nullthrows from 'nullthrows';
 
 import {
   AppStoreConnectApiKeyFragment,
   CommonIosAppCredentialsFragment,
-} from '../../../graphql/generated';
-import Log from '../../../log';
-import { confirmAsync, promptAsync } from '../../../prompts';
-import { CredentialsContext } from '../../context';
+} from '../../../graphql/generated.js';
+import Log from '../../../log.js';
+import { confirmAsync, promptAsync } from '../../../prompts.js';
+import { nullthrows } from '../../../utils/nullthrows.js';
+import { CredentialsContext } from '../../context.js';
 import {
   MissingCredentialsNonInteractiveError,
   UnsupportedCredentialsChoiceError,
-} from '../../errors';
-import { AppLookupParams } from '../api/GraphqlClient';
-import { getValidAndTrackedAscApiKeysAsync } from '../validators/validateAscApiKey';
+} from '../../errors.js';
+import { AppLookupParams } from '../api/GraphqlClient.js';
+import { getValidAndTrackedAscApiKeysAsync } from '../validators/validateAscApiKey.js';
 import {
   AppStoreApiKeyPurpose,
   formatAscApiKey,
   getAscApiKeysFromAccountAsync,
   selectAscApiKeysFromAccountAsync,
   sortAscApiKeysByUpdatedAtDesc,
-} from './AscApiKeyUtils';
-import { AssignAscApiKey } from './AssignAscApiKey';
-import { CreateAscApiKey } from './CreateAscApiKey';
+} from './AscApiKeyUtils.js';
+import { AssignAscApiKey } from './AssignAscApiKey.js';
+import { CreateAscApiKey } from './CreateAscApiKey.js';
 
 export enum SetupAscApiKeyChoice {
   GENERATE = 'GENERATE',

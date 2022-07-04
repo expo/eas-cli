@@ -1,7 +1,7 @@
-import { testGoogleServiceAccountKeyFragment } from '../../../__tests__/fixtures-android';
-import { createCtxMock } from '../../../__tests__/fixtures-context';
-import { AssignGoogleServiceAccountKey } from '../AssignGoogleServiceAccountKey';
-import { getAppLookupParamsFromContextAsync } from '../BuildCredentialsUtils';
+import { testGoogleServiceAccountKeyFragment } from '../../../__tests__/fixtures-android.js';
+import { createCtxMock } from '../../../__tests__/fixtures-context.js';
+import { AssignGoogleServiceAccountKey } from '../AssignGoogleServiceAccountKey.js';
+import { getAppLookupParamsFromContextAsync } from '../BuildCredentialsUtils.js';
 
 describe(AssignGoogleServiceAccountKey, () => {
   it('assigns a Google Service Account key in Interactive Mode', async () => {

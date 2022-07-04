@@ -1,15 +1,15 @@
-import { UserRole } from '@expo/apple-utils';
+import AppleUtils from '@expo/apple-utils';
 
-import { AppleDevice } from '../../graphql/generated';
-import Log from '../../log';
-import { CredentialSchema } from '../utils/promptForCredentials';
+import { AppleDevice } from '../../graphql/generated.js';
+import Log from '../../log.js';
+import { CredentialSchema } from '../utils/promptForCredentials.js';
 import {
   DistributionCertificate,
   ProvisioningProfile,
   PushKey,
-} from './appstore/Credentials.types';
-import { findP12CertSerialNumber } from './utils/p12Certificate';
-import { readAppleTeam as readAppleTeamFromProvisioningProfile } from './utils/provisioningProfile';
+} from './appstore/Credentials.types.js';
+import { findP12CertSerialNumber } from './utils/p12Certificate.js';
+import { readAppleTeam as readAppleTeamFromProvisioningProfile } from './utils/provisioningProfile.js';
 
 export interface AppLookupParams {
   accountName: string;
@@ -108,7 +108,7 @@ export type MinimalAscApiKey = {
   issuerId: string;
   teamId?: string;
   teamName?: string;
-  roles?: UserRole[];
+  roles?: AppleUtils.UserRole[];
   name?: string;
 };
 

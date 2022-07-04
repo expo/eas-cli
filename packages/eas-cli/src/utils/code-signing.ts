@@ -12,10 +12,10 @@ import {
 import isDeepEqual from 'fast-deep-equal';
 import { promises as fs } from 'fs';
 import { pki as PKI } from 'node-forge';
-import nullthrows from 'nullthrows';
 
-import { Response } from '../fetch';
-import { PartialManifest, PartialManifestAsset } from '../graphql/generated';
+import { Response } from '../fetch.js';
+import { PartialManifest, PartialManifestAsset } from '../graphql/generated.js';
+import { nullthrows } from './nullthrows.js';
 
 type CodeSigningInfo = {
   privateKey: PKI.rsa.PrivateKey;

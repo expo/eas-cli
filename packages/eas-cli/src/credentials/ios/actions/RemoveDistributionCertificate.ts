@@ -1,14 +1,14 @@
 import {
   AppleDistributionCertificateFragment,
   AppleProvisioningProfileIdentifiersFragment,
-} from '../../../graphql/generated';
-import Log from '../../../log';
-import { confirmAsync } from '../../../prompts';
-import { Account } from '../../../user/Account';
-import { CredentialsContext } from '../../context';
-import { AppLookupParams } from '../api/GraphqlClient';
-import { selectDistributionCertificateWithDependenciesAsync } from './DistributionCertificateUtils';
-import { RemoveProvisioningProfiles } from './RemoveProvisioningProfile';
+} from '../../../graphql/generated.js';
+import Log from '../../../log.js';
+import { confirmAsync } from '../../../prompts.js';
+import { Account } from '../../../user/Account.js';
+import { CredentialsContext } from '../../context.js';
+import { AppLookupParams } from '../api/GraphqlClient.js';
+import { selectDistributionCertificateWithDependenciesAsync } from './DistributionCertificateUtils.js';
+import { RemoveProvisioningProfiles } from './RemoveProvisioningProfile.js';
 
 export class SelectAndRemoveDistributionCertificate {
   constructor(private account: Account) {}

@@ -1,6 +1,6 @@
-export { AndroidReleaseStatus, AndroidReleaseTrack, SubmitProfile } from './submit/types';
-export { getDefaultProfile as getDefaultSubmitProfile } from './submit/resolver';
-export { EasJson, ProfileType } from './types';
+export { AndroidReleaseStatus, AndroidReleaseTrack, SubmitProfile } from './submit/types.js';
+export { getDefaultProfile as getDefaultSubmitProfile } from './submit/resolver.js';
+export { EasJson, ProfileType } from './types.js';
 export {
   AndroidVersionAutoIncrement,
   BuildProfile,
@@ -8,6 +8,6 @@ export {
   DistributionType,
   IosEnterpriseProvisioning,
   IosVersionAutoIncrement,
-} from './build/types';
-export { EasJsonReader } from './reader';
-export * as errors from './errors';
+} from './build/types.js';
+export { EasJsonReader } from './reader.js';
+export * as errors from './errors.js';

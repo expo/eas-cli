@@ -1,25 +1,25 @@
 import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 
-import { BuildDistributionType, BuildStatus } from '../../build/types';
-import { formatGraphQLBuild } from '../../build/utils/formatBuild';
-import EasCommand from '../../commandUtils/EasCommand';
+import { BuildDistributionType, BuildStatus } from '../../build/types.js';
+import { formatGraphQLBuild } from '../../build/utils/formatBuild.js';
+import EasCommand from '../../commandUtils/EasCommand.js';
 import {
   AppPlatform,
   DistributionType,
   BuildStatus as GraphQLBuildStatus,
-} from '../../graphql/generated';
-import { BuildQuery } from '../../graphql/queries/BuildQuery';
-import Log from '../../log';
-import { ora } from '../../ora';
-import { RequestedPlatform } from '../../platform';
-import { getExpoConfig } from '../../project/expoConfig';
+} from '../../graphql/generated.js';
+import { BuildQuery } from '../../graphql/queries/BuildQuery.js';
+import Log from '../../log.js';
+import { ora } from '../../ora.js';
+import { RequestedPlatform } from '../../platform.js';
+import { getExpoConfig } from '../../project/expoConfig.js';
 import {
   findProjectRootAsync,
   getProjectFullNameAsync,
   getProjectIdAsync,
-} from '../../project/projectUtils';
-import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
+} from '../../project/projectUtils.js';
+import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json.js';
 
 export default class BuildList extends EasCommand {
   static description = 'list all builds for your project';

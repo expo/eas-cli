@@ -1,8 +1,8 @@
-import { IosDistributionType } from '../../../graphql/generated';
-import Log from '../../../log';
-import { CredentialsContext } from '../../context';
-import { updateIosCredentialsAsync } from '../../credentialsJson/update';
-import { App, Target } from '../types';
+import { IosDistributionType } from '../../../graphql/generated.js';
+import Log from '../../../log.js';
+import { CredentialsContext } from '../../context.js';
+import { updateIosCredentialsAsync } from '../../credentialsJson/update.js';
+import { App, Target } from '../types.js';
 
 export class UpdateCredentialsJson {
   constructor(

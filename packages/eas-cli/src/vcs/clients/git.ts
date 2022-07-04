@@ -1,18 +1,18 @@
-import spawnAsync from '@expo/spawn-async';
+import { default as spawnAsync } from '@expo/spawn-async';
 import { Errors } from '@oclif/core';
 import chalk from 'chalk';
 
-import Log, { learnMore } from '../../log';
-import { ora } from '../../ora';
-import { confirmAsync, promptAsync } from '../../prompts';
+import Log, { learnMore } from '../../log.js';
+import { ora } from '../../ora.js';
+import { confirmAsync, promptAsync } from '../../prompts.js';
 import {
   doesGitRepoExistAsync,
   getGitDiffOutputAsync,
   gitDiffAsync,
   gitStatusAsync,
   isGitInstalledAsync,
-} from '../git';
-import { Client } from '../vcs';
+} from '../git.js';
+import { Client } from '../vcs.js';
 
 export default class GitClient extends Client {
   public async ensureRepoExistsAsync(): Promise<void> {

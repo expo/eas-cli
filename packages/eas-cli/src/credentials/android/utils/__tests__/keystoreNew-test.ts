@@ -1,10 +1,10 @@
-import { AndroidKeystoreType } from '../../../../graphql/generated';
+import { AndroidKeystoreType } from '../../../../graphql/generated.js';
 import {
   testKeystore,
   testPKCS12EmptyPasswordKeystore,
   testPKCS12Keystore,
-} from '../../../__tests__/fixtures-android';
-import { getKeystoreType, getKeystoreWithType, validateKeystore } from '../keystoreNew';
+} from '../../../__tests__/fixtures-android.js';
+import { getKeystoreType, getKeystoreWithType, validateKeystore } from '../keystoreNew.js';
 
 describe('getKeystoreType', () => {
   it('identifies a valid jks keystore', async () => {

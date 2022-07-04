@@ -1,12 +1,12 @@
 import chalk from 'chalk';
 import Table from 'cli-table3';
 
-import { AppleDeviceMutation } from '../../../credentials/ios/api/graphql/mutations/AppleDeviceMutation';
-import { AppleDeviceClass, AppleTeam } from '../../../graphql/generated';
-import Log from '../../../log';
-import { ora } from '../../../ora';
-import { confirmAsync, promptAsync } from '../../../prompts';
-import { isValidUDID, normalizeUDID } from '../../udids';
+import { AppleDeviceMutation } from '../../../credentials/ios/api/graphql/mutations/AppleDeviceMutation.js';
+import { AppleDeviceClass, AppleTeam } from '../../../graphql/generated.js';
+import Log from '../../../log.js';
+import { ora } from '../../../ora.js';
+import { confirmAsync, promptAsync } from '../../../prompts.js';
+import { isValidUDID, normalizeUDID } from '../../udids.js';
 
 interface DeviceData {
   udid: string;

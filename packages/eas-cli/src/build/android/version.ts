@@ -1,19 +1,21 @@
 import { ExpoConfig } from '@expo/config';
-import { AndroidConfig } from '@expo/config-plugins';
+import ConfigPlugins from '@expo/config-plugins';
 import { Platform, Workflow } from '@expo/eas-build-job';
 import { BuildProfile } from '@expo/eas-json';
 import chalk from 'chalk';
 import fs from 'fs-extra';
 
-import Log from '../../log';
+import Log from '../../log.js';
 import {
   getAppBuildGradleAsync,
   parseGradleCommand,
   resolveConfigValue,
-} from '../../project/android/gradleUtils';
-import { resolveWorkflowAsync } from '../../project/workflow';
-import { updateAppJsonConfigAsync } from '../utils/appJson';
-import { bumpAppVersionAsync, ensureStaticConfigExists } from '../utils/version';
+} from '../../project/android/gradleUtils.js';
+import { resolveWorkflowAsync } from '../../project/workflow.js';
+import { updateAppJsonConfigAsync } from '../utils/appJson.js';
+import { bumpAppVersionAsync, ensureStaticConfigExists } from '../utils/version.js';
+
+const { AndroidConfig } = ConfigPlugins;
 
 export enum BumpStrategy {
   APP_VERSION,

@@ -1,4 +1,4 @@
-import { ActionInfo, AndroidActionType, Scope } from './Actions';
+import { ActionInfo, AndroidActionType, Scope } from './Actions.js';
 
 export const highLevelActions: ActionInfo[] = [
   {

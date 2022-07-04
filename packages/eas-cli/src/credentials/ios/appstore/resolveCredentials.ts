@@ -1,13 +1,15 @@
-import { Auth, JsonFileCache } from '@expo/apple-utils';
+import AppleUtils from '@expo/apple-utils';
 import chalk from 'chalk';
 import * as fs from 'fs-extra';
 import wrapAnsi from 'wrap-ansi';
 
-import Log, { learnMore } from '../../../log';
-import { promptAsync } from '../../../prompts';
-import { MinimalAscApiKey } from '../credentials';
-import { AppleTeamType, Team } from './authenticateTypes';
-import * as Keychain from './keychain';
+import Log, { learnMore } from '../../../log.js';
+import { promptAsync } from '../../../prompts.js';
+import { MinimalAscApiKey } from '../credentials.js';
+import { AppleTeamType, Team } from './authenticateTypes.js';
+import * as Keychain from './keychain.js';
+
+const { JsonFileCache } = AppleUtils;
 
 /**
  * Get the username and possibly the password from the environment variables or the supplied options.
@@ -16,8 +18,8 @@ import * as Keychain from './keychain';
  * @param options
  */
 export async function resolveUserCredentialsAsync(
-  options: Partial<Auth.UserCredentials>
-): Promise<Partial<Auth.UserCredentials>> {
+  options: Partial<AppleUtils.Auth.UserCredentials>
+): Promise<Partial<AppleUtils.Auth.UserCredentials>> {
   const credentials = getAppleIdFromEnvironmentOrOptions(options);
 
   if (!credentials.username) {
@@ -187,7 +189,7 @@ function getAppleIdFromEnvironmentOrOptions({
   username,
   password,
   ...userCredentials
-}: Partial<Auth.UserCredentials>): Partial<Auth.UserCredentials> {
+}: Partial<AppleUtils.Auth.UserCredentials>): Partial<AppleUtils.Auth.UserCredentials> {
   const passedAppleId = username || process.env.EXPO_APPLE_ID;
   // Only resolve the password if the username was provided.
   const passedAppleIdPassword = passedAppleId
@@ -234,7 +236,7 @@ async function cacheUsernameAsync(username: string): Promise<void> {
 
 export async function promptPasswordAsync({
   username,
-}: Pick<Auth.UserCredentials, 'username'>): Promise<string> {
+}: Pick<AppleUtils.Auth.UserCredentials, 'username'>): Promise<string> {
   const cachedPassword = await getCachedPasswordAsync({ username });
 
   if (cachedPassword) {
@@ -289,7 +291,7 @@ function getKeychainServiceName(appleId: string): string {
 
 export async function deletePasswordAsync({
   username,
-}: Pick<Auth.UserCredentials, 'username'>): Promise<boolean> {
+}: Pick<AppleUtils.Auth.UserCredentials, 'username'>): Promise<boolean> {
   const serviceName = getKeychainServiceName(username);
   const success = await Keychain.deletePasswordAsync({ username, serviceName });
   if (success) {
@@ -300,7 +302,7 @@ export async function deletePasswordAsync({
 
 async function getCachedPasswordAsync({
   username,
-}: Pick<Auth.UserCredentials, 'username'>): Promise<string | null> {
+}: Pick<AppleUtils.Auth.UserCredentials, 'username'>): Promise<string | null> {
   // If the user opts out, delete the password.
   if (Keychain.EXPO_NO_KEYCHAIN) {
     await deletePasswordAsync({ username });
@@ -311,7 +313,10 @@ async function getCachedPasswordAsync({
   return Keychain.getPasswordAsync({ username, serviceName });
 }
 
-async function cachePasswordAsync({ username, password }: Auth.UserCredentials): Promise<boolean> {
+async function cachePasswordAsync({
+  username,
+  password,
+}: AppleUtils.Auth.UserCredentials): Promise<boolean> {
   if (Keychain.EXPO_NO_KEYCHAIN) {
     Log.log('\u203A Skip storing Apple ID password in the local Keychain.');
     return false;

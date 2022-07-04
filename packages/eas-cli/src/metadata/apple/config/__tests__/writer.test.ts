@@ -1,17 +1,22 @@
-import { AppCategoryId, AppSubcategoryId } from '@expo/apple-utils';
+import AppleUtils from '@expo/apple-utils';
 
-import { AppleConfigWriter } from '../writer';
+import { AppleConfigWriter } from '../writer.js';
 import {
   emptyAdvisory,
   kidsSixToEightAdvisory,
   leastRestrictiveAdvisory,
   mostRestrictiveAdvisory,
-} from './fixtures/ageRatingDeclaration';
-import { makeCategoryInfo } from './fixtures/appInfo';
-import { dutchInfo, englishInfo } from './fixtures/appInfoLocalization';
-import { nameAndDemoReviewDetails, nameOnlyReviewDetails } from './fixtures/appStoreReviewDetail';
-import { automaticRelease, manualRelease, scheduledRelease } from './fixtures/appStoreVersion';
-import { dutchVersion, englishVersion } from './fixtures/appStoreVersionLocalization';
+} from './fixtures/ageRatingDeclaration.js';
+import { makeCategoryInfo } from './fixtures/appInfo.js';
+import { dutchInfo, englishInfo } from './fixtures/appInfoLocalization.js';
+import {
+  nameAndDemoReviewDetails,
+  nameOnlyReviewDetails,
+} from './fixtures/appStoreReviewDetail.js';
+import { automaticRelease, manualRelease, scheduledRelease } from './fixtures/appStoreVersion.js';
+import { dutchVersion, englishVersion } from './fixtures/appStoreVersionLocalization.js';
+
+const { AppCategoryId, AppSubcategoryId } = AppleUtils;
 
 describe('toSchema', () => {
   it('returns object with apple schema', () => {

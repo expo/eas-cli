@@ -1,10 +1,10 @@
-import { jester as mockJester } from '../../../../credentials/__tests__/fixtures-constants';
-import { testKeystore } from '../../../__tests__/fixtures-android';
-import { createCtxMock } from '../../../__tests__/fixtures-context';
-import { askForUserProvidedAsync } from '../../../utils/promptForCredentials';
-import { generateRandomKeystoreAsync } from '../../utils/keystore';
-import { getAppLookupParamsFromContextAsync } from '../BuildCredentialsUtils';
-import { CreateKeystore } from '../CreateKeystore';
+import { jester as mockJester } from '../../../../credentials/__tests__/fixtures-constants.js';
+import { testKeystore } from '../../../__tests__/fixtures-android.js';
+import { createCtxMock } from '../../../__tests__/fixtures-context.js';
+import { askForUserProvidedAsync } from '../../../utils/promptForCredentials.js';
+import { generateRandomKeystoreAsync } from '../../utils/keystore.js';
+import { getAppLookupParamsFromContextAsync } from '../BuildCredentialsUtils.js';
+import { CreateKeystore } from '../CreateKeystore.js';
 
 jest.mock('../../../../project/ensureProjectExists');
 jest.mock('../../../../prompts', () => ({ confirmAsync: jest.fn(() => true) }));

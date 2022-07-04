@@ -1,4 +1,4 @@
-import sortBy from '../sortBy';
+import sortBy from '../sortBy.js';
 
 describe(sortBy, () => {
   it('sorts in ascending order by default', () => {

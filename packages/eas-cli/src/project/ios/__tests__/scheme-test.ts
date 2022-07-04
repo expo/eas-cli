@@ -2,8 +2,8 @@ import fs from 'fs-extra';
 import { vol } from 'memfs';
 import os from 'os';
 
-import { promptAsync } from '../../../prompts';
-import { selectSchemeAsync } from '../scheme';
+import { promptAsync } from '../../../prompts.js';
+import { selectSchemeAsync } from '../scheme.js';
 
 jest.mock('fs');
 jest.mock('../../../prompts');

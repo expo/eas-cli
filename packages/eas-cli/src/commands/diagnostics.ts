@@ -1,11 +1,11 @@
 import { Platform } from '@expo/eas-build-job';
 import envinfo from 'envinfo';
 
-import EasCommand from '../commandUtils/EasCommand';
-import Log from '../log';
-import { findProjectRootAsync } from '../project/projectUtils';
-import { resolveWorkflowAsync } from '../project/workflow';
-import { easCliVersion } from '../utils/easCli';
+import EasCommand from '../commandUtils/EasCommand.js';
+import Log from '../log.js';
+import { findProjectRootAsync } from '../project/projectUtils.js';
+import { resolveWorkflowAsync } from '../project/workflow.js';
+import { easCliVersion } from '../utils/easCli.js';
 
 export default class Diagnostics extends EasCommand {
   static description = 'display environment info';

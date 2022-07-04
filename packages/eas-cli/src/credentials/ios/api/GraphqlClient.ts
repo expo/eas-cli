@@ -1,5 +1,4 @@
-import { UserRole } from '@expo/apple-utils';
-import nullthrows from 'nullthrows';
+import AppleUtils from '@expo/apple-utils';
 
 import {
   AppFragment,
@@ -13,38 +12,41 @@ import {
   CommonIosAppCredentialsFragment,
   IosAppBuildCredentialsFragment,
   IosDistributionType,
-} from '../../../graphql/generated';
-import { isWildcardBundleIdentifier } from '../../../project/ios/bundleIdentifier';
-import { Account } from '../../../user/Account';
-import { DistributionCertificate, PushKey } from '../appstore/Credentials.types';
-import { MinimalAscApiKey } from '../credentials';
-import { AppleTeamMissingError } from '../errors';
-import { AppStoreConnectApiKeyMutation } from './graphql/mutations/AppStoreConnectApiKeyMutation';
-import { AppleAppIdentifierMutation } from './graphql/mutations/AppleAppIdentifierMutation';
+} from '../../../graphql/generated.js';
+import { isWildcardBundleIdentifier } from '../../../project/ios/bundleIdentifier.js';
+import { Account } from '../../../user/Account.js';
+import { nullthrows } from '../../../utils/nullthrows.js';
+import { DistributionCertificate, PushKey } from '../appstore/Credentials.types.js';
+import { MinimalAscApiKey } from '../credentials.js';
+import { AppleTeamMissingError } from '../errors.js';
+import { AppStoreConnectApiKeyMutation } from './graphql/mutations/AppStoreConnectApiKeyMutation.js';
+import { AppleAppIdentifierMutation } from './graphql/mutations/AppleAppIdentifierMutation.js';
 import {
   AppleDistributionCertificateMutation,
   AppleDistributionCertificateMutationResult,
-} from './graphql/mutations/AppleDistributionCertificateMutation';
+} from './graphql/mutations/AppleDistributionCertificateMutation.js';
 import {
   AppleProvisioningProfileMutation,
   AppleProvisioningProfileMutationResult,
-} from './graphql/mutations/AppleProvisioningProfileMutation';
-import { ApplePushKeyMutation } from './graphql/mutations/ApplePushKeyMutation';
-import { AppleTeamMutation } from './graphql/mutations/AppleTeamMutation';
-import { IosAppBuildCredentialsMutation } from './graphql/mutations/IosAppBuildCredentialsMutation';
-import { IosAppCredentialsMutation } from './graphql/mutations/IosAppCredentialsMutation';
-import { AppQuery } from './graphql/queries/AppQuery';
-import { AppStoreConnectApiKeyQuery } from './graphql/queries/AppStoreConnectApiKeyQuery';
-import { AppleAppIdentifierQuery } from './graphql/queries/AppleAppIdentifierQuery';
-import { AppleDeviceQuery } from './graphql/queries/AppleDeviceQuery';
-import { AppleDistributionCertificateQuery } from './graphql/queries/AppleDistributionCertificateQuery';
+} from './graphql/mutations/AppleProvisioningProfileMutation.js';
+import { ApplePushKeyMutation } from './graphql/mutations/ApplePushKeyMutation.js';
+import { AppleTeamMutation } from './graphql/mutations/AppleTeamMutation.js';
+import { IosAppBuildCredentialsMutation } from './graphql/mutations/IosAppBuildCredentialsMutation.js';
+import { IosAppCredentialsMutation } from './graphql/mutations/IosAppCredentialsMutation.js';
+import { AppQuery } from './graphql/queries/AppQuery.js';
+import { AppStoreConnectApiKeyQuery } from './graphql/queries/AppStoreConnectApiKeyQuery.js';
+import { AppleAppIdentifierQuery } from './graphql/queries/AppleAppIdentifierQuery.js';
+import { AppleDeviceQuery } from './graphql/queries/AppleDeviceQuery.js';
+import { AppleDistributionCertificateQuery } from './graphql/queries/AppleDistributionCertificateQuery.js';
 import {
   AppleProvisioningProfileQuery,
   AppleProvisioningProfileQueryResult,
-} from './graphql/queries/AppleProvisioningProfileQuery';
-import { ApplePushKeyQuery } from './graphql/queries/ApplePushKeyQuery';
-import { AppleTeamQuery } from './graphql/queries/AppleTeamQuery';
-import { IosAppCredentialsQuery } from './graphql/queries/IosAppCredentialsQuery';
+} from './graphql/queries/AppleProvisioningProfileQuery.js';
+import { ApplePushKeyQuery } from './graphql/queries/ApplePushKeyQuery.js';
+import { AppleTeamQuery } from './graphql/queries/AppleTeamQuery.js';
+import { IosAppCredentialsQuery } from './graphql/queries/IosAppCredentialsQuery.js';
+
+const { UserRole } = AppleUtils;
 
 export interface AppLookupParams {
   account: Account;
@@ -468,7 +470,7 @@ export async function deleteAscApiKeyAsync(ascApiKeyId: string): Promise<void> {
   return await AppStoreConnectApiKeyMutation.deleteAppStoreConnectApiKeyAsync(ascApiKeyId);
 }
 
-function convertUserRoleToGraphqlType(userRole: UserRole): AppStoreConnectUserRole {
+function convertUserRoleToGraphqlType(userRole: AppleUtils.UserRole): AppStoreConnectUserRole {
   switch (userRole) {
     case UserRole.ADMIN:
       return AppStoreConnectUserRole.Admin;

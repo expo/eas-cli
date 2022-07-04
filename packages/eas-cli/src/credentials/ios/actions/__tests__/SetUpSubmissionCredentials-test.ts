@@ -1,17 +1,17 @@
-import { findApplicationTarget } from '../../../../project/ios/target';
-import { confirmAsync, promptAsync } from '../../../../prompts';
-import { createCtxMock } from '../../../__tests__/fixtures-context';
+import { findApplicationTarget } from '../../../../project/ios/target.js';
+import { confirmAsync, promptAsync } from '../../../../prompts.js';
+import { createCtxMock } from '../../../__tests__/fixtures-context.js';
 import {
   getNewIosApiMock,
   testCommonIosAppCredentialsFragment,
   testTargets,
-} from '../../../__tests__/fixtures-ios';
-import { getAppLookupParamsFromContext } from '../BuildCredentialsUtils';
-import { SetUpAscApiKey } from '../SetUpAscApiKey';
+} from '../../../__tests__/fixtures-ios.js';
+import { getAppLookupParamsFromContext } from '../BuildCredentialsUtils.js';
+import { SetUpAscApiKey } from '../SetUpAscApiKey.js';
 import {
   PROMPT_FOR_APP_SPECIFIC_PASSWORD,
   SetUpSubmissionCredentials,
-} from '../SetUpSubmissionCredentials';
+} from '../SetUpSubmissionCredentials.js';
 
 jest.mock('../../../../prompts');
 jest.mocked(confirmAsync).mockImplementation(async () => true);

@@ -1,34 +1,34 @@
 import { Platform } from '@expo/eas-build-job';
 import chalk from 'chalk';
 
-import { SubmissionEvent } from '../../analytics/events';
-import { MinimalAscApiKey } from '../../credentials/ios/credentials';
-import { IosSubmissionConfigInput, SubmissionFragment } from '../../graphql/generated';
-import { SubmissionMutation } from '../../graphql/mutations/SubmissionMutation';
-import formatFields from '../../utils/formatFields';
-import { Archive, ArchiveSource, getArchiveAsync } from '../ArchiveSource';
-import BaseSubmitter, { SubmissionInput } from '../BaseSubmitter';
-import { SubmissionContext } from '../context';
+import { SubmissionEvent } from '../../analytics/events.js';
+import { MinimalAscApiKey } from '../../credentials/ios/credentials.js';
+import { IosSubmissionConfigInput, SubmissionFragment } from '../../graphql/generated.js';
+import { SubmissionMutation } from '../../graphql/mutations/SubmissionMutation.js';
+import formatFields from '../../utils/formatFields.js';
+import { Archive, ArchiveSource, getArchiveAsync } from '../ArchiveSource.js';
+import BaseSubmitter, { SubmissionInput } from '../BaseSubmitter.js';
+import { SubmissionContext } from '../context.js';
 import {
   ArchiveSourceSummaryFields,
   formatArchiveSourceSummary,
   printSummary,
-} from '../utils/summary';
+} from '../utils/summary.js';
 import {
   AppSpecificPasswordCredentials,
   AppSpecificPasswordSource,
   getAppSpecificPasswordLocallyAsync,
-} from './AppSpecificPasswordSource';
+} from './AppSpecificPasswordSource.js';
 import {
   AscApiKeyFromExpoServers,
   AscApiKeyResult,
   AscApiKeySource,
   getAscApiKeyLocallyAsync,
-} from './AscApiKeySource';
+} from './AscApiKeySource.js';
 import {
   CredentialsServiceSource,
   getFromCredentialsServiceAsync,
-} from './CredentialsServiceSource';
+} from './CredentialsServiceSource.js';
 
 export interface IosSubmissionOptions
   extends Pick<IosSubmissionConfigInput, 'appleIdUsername' | 'ascAppIdentifier'> {

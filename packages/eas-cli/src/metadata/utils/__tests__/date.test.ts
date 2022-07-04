@@ -1,4 +1,4 @@
-import { removeDatePrecision } from '../date';
+import { removeDatePrecision } from '../date.js';
 
 describe(removeDatePrecision, () => {
   it('returns null for falsy values', () => {

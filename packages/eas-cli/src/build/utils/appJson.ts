@@ -1,6 +1,8 @@
 import * as ExpoConfig from '@expo/config';
-import JsonFile from '@expo/json-file';
+import JsonFileModule from '@expo/json-file';
 import assert from 'assert';
+
+const JsonFile = JsonFileModule.default;
 
 export async function updateAppJsonConfigAsync(
   {

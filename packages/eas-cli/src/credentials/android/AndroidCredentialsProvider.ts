@@ -1,13 +1,13 @@
 import { Platform } from '@expo/eas-build-job';
 import { CredentialsSource } from '@expo/eas-json';
-import nullthrows from 'nullthrows';
 
-import { AndroidAppBuildCredentialsFragment } from '../../graphql/generated';
-import { CredentialsContext } from '../context';
-import * as credentialsJsonReader from '../credentialsJson/read';
-import { SetUpBuildCredentials } from './actions/SetUpBuildCredentials';
-import { AppLookupParams } from './api/GraphqlClient';
-import { Keystore } from './credentials';
+import { AndroidAppBuildCredentialsFragment } from '../../graphql/generated.js';
+import { nullthrows } from '../../utils/nullthrows.js';
+import { CredentialsContext } from '../context.js';
+import * as credentialsJsonReader from '../credentialsJson/read.js';
+import { SetUpBuildCredentials } from './actions/SetUpBuildCredentials.js';
+import { AppLookupParams } from './api/GraphqlClient.js';
+import { Keystore } from './credentials.js';
 
 export interface AndroidCredentials {
   keystore: Keystore;

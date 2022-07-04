@@ -1,14 +1,14 @@
 import chalk from 'chalk';
 
-import { IosDistributionType } from '../../../graphql/generated';
-import Log from '../../../log';
-import { findApplicationTarget } from '../../../project/ios/target';
-import { CredentialsContext } from '../../context';
-import { readIosCredentialsAsync } from '../../credentialsJson/read';
-import { IosCredentials } from '../../credentialsJson/types';
-import { ensureAllTargetsAreConfigured } from '../../credentialsJson/utils';
-import { App, Target } from '../types';
-import { SetUpTargetBuildCredentialsFromCredentialsJson } from './SetUpTargetBuildCredentialsFromCredentialsJson';
+import { IosDistributionType } from '../../../graphql/generated.js';
+import Log from '../../../log.js';
+import { findApplicationTarget } from '../../../project/ios/target.js';
+import { CredentialsContext } from '../../context.js';
+import { readIosCredentialsAsync } from '../../credentialsJson/read.js';
+import { IosCredentials } from '../../credentialsJson/types.js';
+import { ensureAllTargetsAreConfigured } from '../../credentialsJson/utils.js';
+import { App, Target } from '../types.js';
+import { SetUpTargetBuildCredentialsFromCredentialsJson } from './SetUpTargetBuildCredentialsFromCredentialsJson.js';
 
 export class SetUpBuildCredentialsFromCredentialsJson {
   constructor(

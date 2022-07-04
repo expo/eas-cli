@@ -1,11 +1,11 @@
-import gql from 'graphql-tag';
+import { gql } from 'graphql-tag';
 
-import { graphqlClient, withErrorHandlingAsync } from '../client';
+import { graphqlClient, withErrorHandlingAsync } from '../client.js';
 import {
   CreateUploadSessionMutation,
   CreateUploadSessionMutationVariables,
   UploadSessionType,
-} from '../generated';
+} from '../generated.js';
 
 export interface PresignedPost {
   url: string;

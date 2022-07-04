@@ -1,10 +1,9 @@
-import nullthrows from 'nullthrows';
-
-import { AppPlatform, SubmissionFragment, SubmissionStatus } from '../../graphql/generated';
-import { SubmissionQuery } from '../../graphql/queries/SubmissionQuery';
-import Log from '../../log';
-import { ora } from '../../ora';
-import { sleepAsync } from '../../utils/promise';
+import { AppPlatform, SubmissionFragment, SubmissionStatus } from '../../graphql/generated.js';
+import { SubmissionQuery } from '../../graphql/queries/SubmissionQuery.js';
+import Log from '../../log.js';
+import { ora } from '../../ora.js';
+import { nullthrows } from '../../utils/nullthrows.js';
+import { sleepAsync } from '../../utils/promise.js';
 
 const APP_STORE_NAMES: Record<AppPlatform, string> = {
   [AppPlatform.Android]: 'Google Play Store',

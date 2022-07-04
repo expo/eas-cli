@@ -1,8 +1,8 @@
 import prompts from 'prompts';
 
-import { AppleDeviceMutation } from '../../../../credentials/ios/api/graphql/mutations/AppleDeviceMutation';
-import { AppleDeviceClass, AppleTeam } from '../../../../graphql/generated';
-import { runInputMethodAsync } from '../inputMethod';
+import { AppleDeviceMutation } from '../../../../credentials/ios/api/graphql/mutations/AppleDeviceMutation.js';
+import { AppleDeviceClass, AppleTeam } from '../../../../graphql/generated.js';
+import { runInputMethodAsync } from '../inputMethod.js';
 
 jest.mock('../../../../credentials/ios/api/graphql/mutations/AppleDeviceMutation');
 jest.mock('../../../../ora');

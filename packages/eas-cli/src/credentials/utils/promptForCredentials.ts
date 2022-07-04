@@ -2,8 +2,8 @@ import fs from 'fs-extra';
 import path from 'path';
 import untildify from 'untildify';
 
-import Log from '../../log';
-import { Question as PromptQuestion, confirmAsync, promptAsync } from '../../prompts';
+import Log from '../../log.js';
+import { Question as PromptQuestion, confirmAsync, promptAsync } from '../../prompts.js';
 
 export type Question = {
   field: string;

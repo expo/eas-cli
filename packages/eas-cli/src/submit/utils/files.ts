@@ -1,8 +1,8 @@
 import fs from 'fs-extra';
 
-import { UploadSessionType } from '../../graphql/generated';
-import { uploadAsync } from '../../uploads';
-import { createProgressTracker } from '../../utils/progress';
+import { UploadSessionType } from '../../graphql/generated.js';
+import { uploadAsync } from '../../uploads.js';
+import { createProgressTracker } from '../../utils/progress.js';
 
 export async function isExistingFileAsync(filePath: string): Promise<boolean> {
   try {

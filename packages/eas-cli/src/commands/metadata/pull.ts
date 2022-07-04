@@ -3,15 +3,15 @@ import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 import path from 'path';
 
-import { ensureProjectConfiguredAsync } from '../../build/configure';
-import EasCommand from '../../commandUtils/EasCommand';
-import { CredentialsContext } from '../../credentials/context';
-import Log, { learnMore } from '../../log';
-import { createMetadataContextAsync } from '../../metadata/context';
-import { downloadMetadataAsync } from '../../metadata/download';
-import { handleMetadataError } from '../../metadata/errors';
-import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUtils';
-import { ensureLoggedInAsync } from '../../user/actions';
+import { ensureProjectConfiguredAsync } from '../../build/configure.js';
+import EasCommand from '../../commandUtils/EasCommand.js';
+import { CredentialsContext } from '../../credentials/context.js';
+import Log, { learnMore } from '../../log.js';
+import { createMetadataContextAsync } from '../../metadata/context.js';
+import { downloadMetadataAsync } from '../../metadata/download.js';
+import { handleMetadataError } from '../../metadata/errors.js';
+import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUtils.js';
+import { ensureLoggedInAsync } from '../../user/actions.js';
 
 export default class MetadataPull extends EasCommand {
   static description = 'generate the local store configuration from the app stores';

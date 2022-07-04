@@ -1,6 +1,6 @@
-import { CredentialsContext } from '../../context';
-import { PushKey } from '../appstore/Credentials.types';
-import { filterRevokedAndUntrackedPushKeysAsync } from '../appstore/CredentialsUtils';
+import { CredentialsContext } from '../../context.js';
+import { PushKey } from '../appstore/Credentials.types.js';
+import { filterRevokedAndUntrackedPushKeysAsync } from '../appstore/CredentialsUtils.js';
 
 export async function isPushKeyValidAndTrackedAsync(
   ctx: CredentialsContext,

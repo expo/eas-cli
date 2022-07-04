@@ -1,7 +1,9 @@
-import JsonFile from '@expo/json-file';
+import JsonFileModule from '@expo/json-file';
 import path from 'path';
 
-import { getConfigDirectory } from '../utils/paths';
+import { getConfigDirectory } from '../utils/paths.js';
+
+const JsonFile = JsonFileModule.default;
 
 const SETTINGS_FILE_PATH = path.join(getConfigDirectory(), 'user-settings.json');
 

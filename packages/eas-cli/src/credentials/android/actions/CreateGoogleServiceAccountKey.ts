@@ -1,16 +1,16 @@
 import chalk from 'chalk';
 import fs from 'fs-extra';
 
-import { GoogleServiceAccountKeyFragment } from '../../../graphql/generated';
-import Log, { learnMore } from '../../../log';
-import { promptAsync } from '../../../prompts';
-import { Account } from '../../../user/Account';
-import { CredentialsContext } from '../../context';
-import { GoogleServiceAccountKey } from '../credentials';
+import { GoogleServiceAccountKeyFragment } from '../../../graphql/generated.js';
+import Log, { learnMore } from '../../../log.js';
+import { promptAsync } from '../../../prompts.js';
+import { Account } from '../../../user/Account.js';
+import { CredentialsContext } from '../../context.js';
+import { GoogleServiceAccountKey } from '../credentials.js';
 import {
   detectGoogleServiceAccountKeyPathAsync,
   readAndValidateServiceAccountKey,
-} from '../utils/googleServiceAccountKey';
+} from '../utils/googleServiceAccountKey.js';
 
 export class CreateGoogleServiceAccountKey {
   constructor(private account: Account) {}

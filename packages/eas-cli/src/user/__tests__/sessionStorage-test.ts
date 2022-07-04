@@ -2,8 +2,13 @@ import fs from 'fs-extra';
 import { vol } from 'memfs';
 import path from 'path';
 
-import { getStateJsonPath } from '../../utils/paths';
-import { getAccessToken, getSession, getSessionSecret, setSessionAsync } from '../sessionStorage';
+import { getStateJsonPath } from '../../utils/paths.js';
+import {
+  getAccessToken,
+  getSession,
+  getSessionSecret,
+  setSessionAsync,
+} from '../sessionStorage.js';
 
 jest.mock('fs');
 

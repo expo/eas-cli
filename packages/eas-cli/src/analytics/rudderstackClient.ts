@@ -1,10 +1,12 @@
-import RudderAnalytics from '@expo/rudder-sdk-node';
+import RudderAnalyticsModule from '@expo/rudder-sdk-node';
 import os from 'os';
 import { URL } from 'url';
 import { v4 as uuidv4 } from 'uuid';
 
-import UserSettings from '../user/UserSettings';
-import { easCliVersion } from '../utils/easCli';
+import UserSettings from '../user/UserSettings.js';
+import { easCliVersion } from '../utils/easCli.js';
+
+const RudderAnalytics = RudderAnalyticsModule.default;
 
 const PLATFORM_TO_ANALYTICS_PLATFORM: { [platform: string]: string } = {
   darwin: 'Mac',
@@ -12,7 +14,7 @@ const PLATFORM_TO_ANALYTICS_PLATFORM: { [platform: string]: string } = {
   linux: 'Linux',
 };
 
-let rudderstackClient: RudderAnalytics | null = null;
+let rudderstackClient: RudderAnalyticsModule.default | null = null;
 let userIdentified = false;
 let identifyData: {
   userId: string;

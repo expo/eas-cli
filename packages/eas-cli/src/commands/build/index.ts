@@ -1,13 +1,13 @@
 import { Errors, Flags } from '@oclif/core';
 import path from 'path';
 
-import { BuildFlags, runBuildAndSubmitAsync } from '../../build/runBuildAndSubmit';
-import { UserInputResourceClass } from '../../build/types';
-import EasCommand from '../../commandUtils/EasCommand';
-import Log from '../../log';
-import { RequestedPlatform, selectRequestedPlatformAsync } from '../../platform';
-import { findProjectRootAsync } from '../../project/projectUtils';
-import { enableJsonOutput } from '../../utils/json';
+import { BuildFlags, runBuildAndSubmitAsync } from '../../build/runBuildAndSubmit.js';
+import { UserInputResourceClass } from '../../build/types.js';
+import EasCommand from '../../commandUtils/EasCommand.js';
+import Log from '../../log.js';
+import { RequestedPlatform, selectRequestedPlatformAsync } from '../../platform.js';
+import { findProjectRootAsync } from '../../project/projectUtils.js';
+import { enableJsonOutput } from '../../utils/json.js';
 
 interface RawBuildFlags {
   platform?: string;

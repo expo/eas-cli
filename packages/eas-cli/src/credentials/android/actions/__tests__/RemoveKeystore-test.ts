@@ -1,8 +1,8 @@
-import { confirmAsync } from '../../../../prompts';
-import { testAndroidBuildCredentialsFragment } from '../../../__tests__/fixtures-android';
-import { createCtxMock } from '../../../__tests__/fixtures-context';
-import { getAppLookupParamsFromContextAsync } from '../BuildCredentialsUtils';
-import { RemoveKeystore } from '../RemoveKeystore';
+import { confirmAsync } from '../../../../prompts.js';
+import { testAndroidBuildCredentialsFragment } from '../../../__tests__/fixtures-android.js';
+import { createCtxMock } from '../../../__tests__/fixtures-context.js';
+import { getAppLookupParamsFromContextAsync } from '../BuildCredentialsUtils.js';
+import { RemoveKeystore } from '../RemoveKeystore.js';
 
 jest.mock('fs-extra');
 jest.mock('../../../../prompts');

@@ -1,15 +1,18 @@
 import assert from 'assert';
 import { nanoid } from 'nanoid';
 
-import { AndroidAppBuildCredentialsFragment } from '../../../graphql/generated';
-import { ora } from '../../../ora';
-import { getApplicationIdAsync } from '../../../project/android/applicationId';
-import { GradleBuildContext } from '../../../project/android/gradle';
-import { getProjectAccountName, getProjectConfigDescription } from '../../../project/projectUtils';
-import { promptAsync } from '../../../prompts';
-import { findAccountByName } from '../../../user/Account';
-import { CredentialsContext } from '../../context';
-import { AppLookupParams } from '../api/GraphqlClient';
+import { AndroidAppBuildCredentialsFragment } from '../../../graphql/generated.js';
+import { ora } from '../../../ora.js';
+import { getApplicationIdAsync } from '../../../project/android/applicationId.js';
+import { GradleBuildContext } from '../../../project/android/gradle.js';
+import {
+  getProjectAccountName,
+  getProjectConfigDescription,
+} from '../../../project/projectUtils.js';
+import { promptAsync } from '../../../prompts.js';
+import { findAccountByName } from '../../../user/Account.js';
+import { CredentialsContext } from '../../context.js';
+import { AppLookupParams } from '../api/GraphqlClient.js';
 
 /**
  * Legacy credentials can be copied over to EAS if the user does not have

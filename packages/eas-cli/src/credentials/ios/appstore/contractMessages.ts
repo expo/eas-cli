@@ -1,16 +1,18 @@
-import { ITCAgreements, RequestContext } from '@expo/apple-utils';
+import AppleUtils from '@expo/apple-utils';
 import chalk from 'chalk';
 
-import Log from '../../../log';
-import type { Ora } from '../../../ora';
-import { convertHTMLToASCII } from '../utils/convertHTMLToASCII';
+import Log from '../../../log.js';
+import type { Ora } from '../../../ora.js';
+import { convertHTMLToASCII } from '../utils/convertHTMLToASCII.js';
+
+const { ITCAgreements } = AppleUtils;
 
 /**
  * **Does not support App Store Connect API (CI).**
  */
 async function getContractStatusAsync(
-  context: RequestContext
-): Promise<ITCAgreements.ITCContractStatus | null> {
+  context: AppleUtils.RequestContext
+): Promise<AppleUtils.ITCAgreements.ITCContractStatus | null> {
   try {
     const capabilities = await ITCAgreements.getCapabilitiesAsync(context);
     return capabilities?.contractStatus ?? null;
@@ -24,8 +26,8 @@ async function getContractStatusAsync(
  * **Does not support App Store Connect API (CI).**
  */
 async function getContractMessagesAsync(
-  context: RequestContext
-): Promise<ITCAgreements.ITCContractMessage[] | null> {
+  context: AppleUtils.RequestContext
+): Promise<AppleUtils.ITCAgreements.ITCContractMessage[] | null> {
   try {
     return await ITCAgreements.getContractMessagesAsync(context);
   } catch (error: any) {
@@ -38,8 +40,8 @@ async function getContractMessagesAsync(
  * **Does not support App Store Connect API (CI).**
  */
 async function getRequiredContractMessagesAsync(
-  context: RequestContext
-): Promise<{ messages: ITCAgreements.ITCContractMessage[]; isFatal: boolean }> {
+  context: AppleUtils.RequestContext
+): Promise<{ messages: AppleUtils.ITCAgreements.ITCContractMessage[]; isFatal: boolean }> {
   // This emulates the check that's performed on the ASC website's "apps"
   // page before presenting the (+) create app button.
   const status = await getContractStatusAsync(context);
@@ -75,7 +77,9 @@ async function getRequiredContractMessagesAsync(
 
 const rootUrl = 'https://appstoreconnect.apple.com';
 
-export function formatContractMessage(message: ITCAgreements.ITCContractMessage): string {
+export function formatContractMessage(
+  message: AppleUtils.ITCAgreements.ITCContractMessage
+): string {
   return convertHTMLToASCII({
     content:
       '\u203A ' +
@@ -90,7 +94,7 @@ export function formatContractMessage(message: ITCAgreements.ITCContractMessage)
  * **Does not support App Store Connect API (CI).**
  */
 export async function assertContractMessagesAsync(
-  context: RequestContext,
+  context: AppleUtils.RequestContext,
   spinner?: Ora
 ): Promise<void> {
   const { messages, isFatal } = await getRequiredContractMessagesAsync(context);

@@ -1,6 +1,6 @@
-import EasCommand from '../commandUtils/EasCommand';
-import Log from '../log';
-import UserSettings from '../user/UserSettings';
+import EasCommand from '../commandUtils/EasCommand.js';
+import Log from '../log.js';
+import UserSettings from '../user/UserSettings.js';
 
 export default class AnalyticsView extends EasCommand {
   static description = 'display or change analytics settings';

@@ -1,7 +1,7 @@
 import fs from 'fs-extra';
 import { vol } from 'memfs';
 
-import { getStateJsonPath } from '../../utils/paths';
+import { getStateJsonPath } from '../../utils/paths.js';
 import {
   Actor,
   getActorDisplayName,
@@ -9,7 +9,7 @@ import {
   getUserAsync,
   loginAsync,
   logoutAsync,
-} from '../User';
+} from '../User.js';
 
 jest.mock('fs');
 jest.mock('../../api', () => ({

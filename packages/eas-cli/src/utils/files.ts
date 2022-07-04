@@ -1,7 +1,7 @@
 import fs from 'fs-extra';
 import path from 'path';
 
-import Log from '../log';
+import Log from '../log.js';
 
 function getRenamedFilename(filename: string, num: number): string {
   const ext = path.extname(filename);

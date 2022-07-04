@@ -3,8 +3,8 @@ import { JSONObject } from '@expo/json-file';
 import {
   CommonIosAppCredentialsFragment,
   IosAppBuildCredentialsFragment,
-} from '../../graphql/generated';
-import { Account } from '../../user/Account';
+} from '../../graphql/generated.js';
+import { Account } from '../../user/Account.js';
 
 export interface App {
   account: Account;

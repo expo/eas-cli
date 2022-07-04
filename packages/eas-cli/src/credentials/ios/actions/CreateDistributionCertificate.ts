@@ -1,8 +1,8 @@
-import Log from '../../../log';
-import { Account } from '../../../user/Account';
-import { CredentialsContext } from '../../context';
-import { AppleDistributionCertificateMutationResult } from '../api/graphql/mutations/AppleDistributionCertificateMutation';
-import { provideOrGenerateDistributionCertificateAsync } from './DistributionCertificateUtils';
+import Log from '../../../log.js';
+import { Account } from '../../../user/Account.js';
+import { CredentialsContext } from '../../context.js';
+import { AppleDistributionCertificateMutationResult } from '../api/graphql/mutations/AppleDistributionCertificateMutation.js';
+import { provideOrGenerateDistributionCertificateAsync } from './DistributionCertificateUtils.js';
 
 export class CreateDistributionCertificate {
   constructor(private account: Account) {}

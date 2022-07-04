@@ -1,8 +1,8 @@
 import { vol } from 'memfs';
 
-import { findApplicationTarget } from '../../../project/ios/target';
-import { testTargets } from '../../__tests__/fixtures-ios';
-import * as credentialsJsonReader from '../read';
+import { findApplicationTarget } from '../../../project/ios/target.js';
+import { testTargets } from '../../__tests__/fixtures-ios.js';
+import * as credentialsJsonReader from '../read.js';
 
 jest.mock('fs');
 

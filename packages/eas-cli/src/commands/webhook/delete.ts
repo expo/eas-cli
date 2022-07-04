@@ -1,17 +1,17 @@
 import assert from 'assert';
 import chalk from 'chalk';
-import nullthrows from 'nullthrows';
 
-import EasCommand from '../../commandUtils/EasCommand';
-import { WebhookFragment } from '../../graphql/generated';
-import { WebhookMutation } from '../../graphql/mutations/WebhookMutation';
-import { WebhookQuery } from '../../graphql/queries/WebhookQuery';
-import Log from '../../log';
-import { ora } from '../../ora';
-import { getExpoConfig } from '../../project/expoConfig';
-import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUtils';
-import { promptAsync, toggleConfirmAsync } from '../../prompts';
-import { formatWebhook } from '../../webhooks/formatWebhook';
+import EasCommand from '../../commandUtils/EasCommand.js';
+import { WebhookFragment } from '../../graphql/generated.js';
+import { WebhookMutation } from '../../graphql/mutations/WebhookMutation.js';
+import { WebhookQuery } from '../../graphql/queries/WebhookQuery.js';
+import Log from '../../log.js';
+import { ora } from '../../ora.js';
+import { getExpoConfig } from '../../project/expoConfig.js';
+import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUtils.js';
+import { promptAsync, toggleConfirmAsync } from '../../prompts.js';
+import { nullthrows } from '../../utils/nullthrows.js';
+import { formatWebhook } from '../../webhooks/formatWebhook.js';
 
 export default class WebhookDelete extends EasCommand {
   static description = 'delete a webhook';

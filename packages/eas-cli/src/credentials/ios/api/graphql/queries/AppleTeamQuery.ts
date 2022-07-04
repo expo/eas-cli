@@ -1,13 +1,13 @@
 import { print } from 'graphql';
-import gql from 'graphql-tag';
+import { gql } from 'graphql-tag';
 
-import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
+import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client.js';
 import {
   AppleTeamByIdentifierQuery,
   AppleTeamFragment,
   AppleTeamsByAccountNameQuery,
-} from '../../../../../graphql/generated';
-import { AppleTeamFragmentNode } from '../../../../../graphql/types/credentials/AppleTeam';
+} from '../../../../../graphql/generated.js';
+import { AppleTeamFragmentNode } from '../../../../../graphql/types/credentials/AppleTeam.js';
 
 export const AppleTeamQuery = {
   async getAllForAccountAsync(accountName: string): Promise<AppleTeamFragment[]> {

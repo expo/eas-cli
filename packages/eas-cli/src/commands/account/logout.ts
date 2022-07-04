@@ -1,6 +1,6 @@
-import EasCommand from '../../commandUtils/EasCommand';
-import Log from '../../log';
-import { logoutAsync } from '../../user/User';
+import EasCommand from '../../commandUtils/EasCommand.js';
+import Log from '../../log.js';
+import { logoutAsync } from '../../user/User.js';
 
 export default class AccountLogout extends EasCommand {
   static description = 'log out';

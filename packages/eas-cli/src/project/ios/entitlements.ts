@@ -1,13 +1,24 @@
-import { IOSConfig, compileModsAsync } from '@expo/config-plugins';
+import ConfigPlugins from '@expo/config-plugins';
 import { JSONObject } from '@expo/json-file';
-import { getPrebuildConfigAsync } from '@expo/prebuild-config';
+import PrebuildConfig from '@expo/prebuild-config';
 
-import { readPlistAsync } from '../../utils/plist';
+import { readPlistAsync } from '../../utils/plist.js';
+
+const {
+  IOSConfig,
+  // eslint-disable-next-line async-protect/async-suffix
+  compileModsAsync,
+} = ConfigPlugins;
+const {
+  // eslint-disable-next-line async-protect/async-suffix
+  getPrebuildConfigAsync,
+} = PrebuildConfig;
 
 interface Target {
   buildConfiguration?: string;
   targetName: string;
 }
+
 export async function getManagedApplicationTargetEntitlementsAsync(
   projectDir: string,
   env: Record<string, string>

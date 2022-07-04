@@ -2,12 +2,12 @@ import { Platform } from '@expo/eas-build-job';
 import { vol } from 'memfs';
 import { v4 as uuidv4 } from 'uuid';
 
-import { jester as mockJester } from '../../../credentials/__tests__/fixtures-constants';
-import { SubmissionMutation } from '../../../graphql/mutations/SubmissionMutation';
-import { createTestProject } from '../../../project/__tests__/project-utils';
-import { getProjectIdAsync } from '../../../project/projectUtils';
-import { createSubmissionContextAsync } from '../../context';
-import IosSubmitCommand from '../IosSubmitCommand';
+import { jester as mockJester } from '../../../credentials/__tests__/fixtures-constants.js';
+import { SubmissionMutation } from '../../../graphql/mutations/SubmissionMutation.js';
+import { createTestProject } from '../../../project/__tests__/project-utils.js';
+import { getProjectIdAsync } from '../../../project/projectUtils.js';
+import { createSubmissionContextAsync } from '../../context.js';
+import IosSubmitCommand from '../IosSubmitCommand.js';
 
 jest.mock('fs');
 jest.mock('../../../ora');

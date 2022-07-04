@@ -1,7 +1,7 @@
 import { print } from 'graphql';
-import gql from 'graphql-tag';
+import { gql } from 'graphql-tag';
 
-import { AndroidKeystoreFragmentNode } from './AndroidKeystore';
+import { AndroidKeystoreFragmentNode } from './AndroidKeystore.js';
 
 export const AndroidAppBuildCredentialsFragmentNode = gql`
   fragment AndroidAppBuildCredentialsFragment on AndroidAppBuildCredentials {

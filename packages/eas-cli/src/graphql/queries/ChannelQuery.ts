@@ -1,7 +1,7 @@
-import gql from 'graphql-tag';
+import { gql } from 'graphql-tag';
 
-import { graphqlClient, withErrorHandlingAsync } from '../client';
-import { GetChannelByNameForAppQuery, GetChannelByNameForAppQueryVariables } from '../generated';
+import { graphqlClient, withErrorHandlingAsync } from '../client.js';
+import { GetChannelByNameForAppQuery, GetChannelByNameForAppQueryVariables } from '../generated.js';
 
 export const ChannelQuery = {
   async getUpdateChannelByNameForAppAsync({

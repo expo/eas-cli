@@ -1,6 +1,6 @@
-import { Session } from '@expo/apple-utils';
+import AppleUtils from '@expo/apple-utils';
 
-import { MinimalAscApiKey } from '../credentials';
+import { MinimalAscApiKey } from '../credentials.js';
 
 export enum AuthenticationMode {
   /** App Store API requests will be made using the official API via an API key, used for CI environments where 2FA cannot be performed. */
@@ -33,7 +33,7 @@ export type UserAuthCtx = {
   /**
    * Can be used to restore the Apple auth state via apple-utils.
    */
-  authState?: Session.AuthState;
+  authState?: AppleUtils.Session.AuthState;
 };
 
 export type ApiKeyAuthCtx = {
@@ -42,7 +42,7 @@ export type ApiKeyAuthCtx = {
   /**
    * Can be used to restore the Apple auth state via apple-utils.
    */
-  authState?: Partial<Session.AuthState>;
+  authState?: Partial<AppleUtils.Session.AuthState>;
 };
 
 export type AuthCtx = UserAuthCtx | ApiKeyAuthCtx;

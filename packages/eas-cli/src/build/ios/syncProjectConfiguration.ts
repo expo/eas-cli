@@ -3,10 +3,10 @@ import { Platform, Workflow } from '@expo/eas-build-job';
 import { BuildProfile, IosVersionAutoIncrement } from '@expo/eas-json';
 import type { XCBuildConfiguration } from 'xcode';
 
-import { isExpoUpdatesInstalled } from '../../project/projectUtils';
-import { resolveWorkflowAsync } from '../../project/workflow';
-import { syncUpdatesConfigurationAsync } from '../../update/ios/UpdatesModule';
-import { BumpStrategy, bumpVersionAsync, bumpVersionInAppJsonAsync } from './version';
+import { isExpoUpdatesInstalled } from '../../project/projectUtils.js';
+import { resolveWorkflowAsync } from '../../project/workflow.js';
+import { syncUpdatesConfigurationAsync } from '../../update/ios/UpdatesModule.js';
+import { BumpStrategy, bumpVersionAsync, bumpVersionInAppJsonAsync } from './version.js';
 
 export async function syncProjectConfigurationAsync({
   projectDir,

@@ -1,7 +1,7 @@
-import { AndroidAppBuildCredentialsFragment } from '../../../graphql/generated';
-import Log from '../../../log';
-import { CredentialsContext } from '../../context';
-import { updateAndroidCredentialsAsync } from '../../credentialsJson/update';
+import { AndroidAppBuildCredentialsFragment } from '../../../graphql/generated.js';
+import Log from '../../../log.js';
+import { CredentialsContext } from '../../context.js';
+import { updateAndroidCredentialsAsync } from '../../credentialsJson/update.js';
 
 export class UpdateCredentialsJson {
   async runAsync(

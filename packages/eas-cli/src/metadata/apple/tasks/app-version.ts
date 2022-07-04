@@ -1,28 +1,30 @@
-import { App, AppStoreVersion, AppStoreVersionLocalization, Platform } from '@expo/apple-utils';
+import AppleUtils from '@expo/apple-utils';
 import assert from 'assert';
 import chalk from 'chalk';
 
-import Log from '../../../log';
-import { logAsync } from '../../utils/log';
-import { retryIfNullAsync } from '../../utils/retry';
-import { AppleTask, TaskDownloadOptions, TaskPrepareOptions, TaskUploadOptions } from '../task';
+import Log from '../../../log.js';
+import { logAsync } from '../../utils/log.js';
+import { retryIfNullAsync } from '../../utils/retry.js';
+import { AppleTask, TaskDownloadOptions, TaskPrepareOptions, TaskUploadOptions } from '../task.js';
+
+const { Platform } = AppleUtils;
 
 export type AppVersionOptions = {
   /** If we should use the live version of the app (if available - defaults to false) */
   editLive: boolean;
   /** The platform to use (defaults to IOS) */
-  platform: Platform;
+  platform: AppleUtils.Platform;
 };
 
 export type AppVersionData = {
   /** The current selected app store version to update */
-  version: AppStoreVersion;
+  version: AppleUtils.AppStoreVersion;
   /** If the current selected version is a live version, where not all properties are editable */
   versionIsLive: boolean;
   /** If the current selected version is the first version to be created */
   versionIsFirst: boolean;
   /** All version locales that should be, or are enabled */
-  versionLocales: AppStoreVersionLocalization[];
+  versionLocales: AppleUtils.AppStoreVersionLocalization[];
 };
 
 export class AppVersionTask extends AppleTask {
@@ -127,14 +129,14 @@ export class AppVersionTask extends AppleTask {
  * This also checks if this is the first version, which disallow release notes.
  */
 async function resolveVersionAsync(
-  app: App,
+  app: AppleUtils.App,
   { editLive, platform }: AppVersionOptions
 ): Promise<{
-  version: AppStoreVersion | null;
+  version: AppleUtils.AppStoreVersion | null;
   versionIsLive: boolean;
   versionIsFirst: boolean;
 }> {
-  let version: AppStoreVersion | null = null;
+  let version: AppleUtils.AppStoreVersion | null = null;
   let versionIsLive = false;
 
   if (editLive) {

@@ -1,8 +1,10 @@
-import { AppStoreState, AppStoreVersion, Platform, ReleaseType } from '@expo/apple-utils';
+import AppleUtils from '@expo/apple-utils';
 
-import { AttributesOf } from '../../../../utils/asc';
+import { AttributesOf } from '../../../../utils/asc.js';
 
-export const manualRelease: AttributesOf<AppStoreVersion> = {
+const { AppStoreState, Platform, ReleaseType } = AppleUtils;
+
+export const manualRelease: AttributesOf<AppleUtils.AppStoreVersion> = {
   platform: Platform.IOS,
   versionString: '1.0.0',
   appStoreState: AppStoreState.WAITING_FOR_REVIEW,
@@ -17,7 +19,7 @@ export const manualRelease: AttributesOf<AppStoreVersion> = {
   createdDate: '2022-05-23T00:00:00.000Z',
 };
 
-export const automaticRelease: AttributesOf<AppStoreVersion> = {
+export const automaticRelease: AttributesOf<AppleUtils.AppStoreVersion> = {
   platform: Platform.IOS,
   versionString: '2.0.0',
   appStoreState: AppStoreState.WAITING_FOR_REVIEW,
@@ -32,7 +34,7 @@ export const automaticRelease: AttributesOf<AppStoreVersion> = {
   createdDate: '2022-05-23T00:00:00.000Z',
 };
 
-export const scheduledRelease: AttributesOf<AppStoreVersion> = {
+export const scheduledRelease: AttributesOf<AppleUtils.AppStoreVersion> = {
   platform: Platform.IOS,
   versionString: '3.0.0',
   appStoreState: AppStoreState.READY_FOR_SALE,

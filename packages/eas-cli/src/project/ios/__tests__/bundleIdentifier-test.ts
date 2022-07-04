@@ -3,13 +3,13 @@ import { vol } from 'memfs';
 import os from 'os';
 import path from 'path';
 
-import { jester as mockJester } from '../../../credentials/__tests__/fixtures-constants';
-import { promptAsync } from '../../../prompts';
+import { jester as mockJester } from '../../../credentials/__tests__/fixtures-constants.js';
+import { promptAsync } from '../../../prompts.js';
 import {
   ensureBundleIdentifierIsDefinedForManagedProjectAsync,
   getBundleIdentifierAsync,
   isWildcardBundleIdentifier,
-} from '../bundleIdentifier';
+} from '../bundleIdentifier.js';
 
 jest.mock('fs');
 jest.mock('../../../prompts');

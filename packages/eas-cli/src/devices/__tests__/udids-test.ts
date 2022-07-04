@@ -1,4 +1,4 @@
-import { isValidUDID, normalizeUDID } from '../udids';
+import { isValidUDID, normalizeUDID } from '../udids.js';
 
 describe(isValidUDID, () => {
   test('valid 40-character UDID', () => {

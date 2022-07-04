@@ -1,10 +1,13 @@
-import { AndroidAppBuildCredentialsFragment } from '../../graphql/generated';
-import Log from '../../log';
-import { promptAsync } from '../../prompts';
-import { promptForNameAsync, sortBuildCredentials } from '../android/actions/BuildCredentialsUtils';
-import { AppLookupParams } from '../android/api/GraphqlClient';
-import { AndroidAppBuildCredentialsMetadataInput } from '../android/api/graphql/mutations/AndroidAppBuildCredentialsMutation';
-import { CredentialsContext } from '../context';
+import { AndroidAppBuildCredentialsFragment } from '../../graphql/generated.js';
+import Log from '../../log.js';
+import { promptAsync } from '../../prompts.js';
+import {
+  promptForNameAsync,
+  sortBuildCredentials,
+} from '../android/actions/BuildCredentialsUtils.js';
+import { AppLookupParams } from '../android/api/GraphqlClient.js';
+import { AndroidAppBuildCredentialsMetadataInput } from '../android/api/graphql/mutations/AndroidAppBuildCredentialsMutation.js';
+import { CredentialsContext } from '../context.js';
 
 export enum SelectAndroidBuildCredentialsResultType {
   CREATE_REQUEST,

@@ -1,17 +1,17 @@
-import { findApplicationTarget } from '../../../../project/ios/target';
-import { confirmAsync, promptAsync } from '../../../../prompts';
-import { getAppstoreMock, testAuthCtx } from '../../../__tests__/fixtures-appstore';
-import { createCtxMock } from '../../../__tests__/fixtures-context';
+import { findApplicationTarget } from '../../../../project/ios/target.js';
+import { confirmAsync, promptAsync } from '../../../../prompts.js';
+import { getAppstoreMock, testAuthCtx } from '../../../__tests__/fixtures-appstore.js';
+import { createCtxMock } from '../../../__tests__/fixtures-context.js';
 import {
   getNewIosApiMock,
   testAscApiKey,
   testAscApiKeyFragment,
   testCommonIosAppCredentialsFragment,
   testTargets,
-} from '../../../__tests__/fixtures-ios';
-import { AppStoreApiKeyPurpose } from '../AscApiKeyUtils';
-import { getAppLookupParamsFromContext } from '../BuildCredentialsUtils';
-import { SetUpAscApiKey, SetupAscApiKeyChoice } from '../SetUpAscApiKey';
+} from '../../../__tests__/fixtures-ios.js';
+import { AppStoreApiKeyPurpose } from '../AscApiKeyUtils.js';
+import { getAppLookupParamsFromContext } from '../BuildCredentialsUtils.js';
+import { SetUpAscApiKey, SetupAscApiKeyChoice } from '../SetUpAscApiKey.js';
 
 jest.mock('../../../../prompts');
 jest.mocked(confirmAsync).mockImplementation(async () => true);

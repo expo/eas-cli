@@ -1,12 +1,12 @@
 import { Errors } from '@oclif/core';
 import chalk from 'chalk';
-import nullthrows from 'nullthrows';
 
-import { ApiV2Error } from '../api';
-import Log, { learnMore } from '../log';
-import { promptAsync } from '../prompts';
-import { Actor, getUserAsync, loginAsync } from './User';
-import { retryUsernamePasswordAuthWithOTPAsync } from './otp';
+import { ApiV2Error } from '../api.js';
+import Log, { learnMore } from '../log.js';
+import { promptAsync } from '../prompts.js';
+import { nullthrows } from '../utils/nullthrows.js';
+import { Actor, getUserAsync, loginAsync } from './User.js';
+import { retryUsernamePasswordAuthWithOTPAsync } from './otp.js';
 
 export async function showLoginPromptAsync({
   nonInteractive = false,

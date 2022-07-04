@@ -1,9 +1,12 @@
 import { print } from 'graphql';
-import gql from 'graphql-tag';
+import { gql } from 'graphql-tag';
 
-import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
-import { ApplePushKeyByAccountQuery, ApplePushKeyFragment } from '../../../../../graphql/generated';
-import { ApplePushKeyFragmentNode } from '../../../../../graphql/types/credentials/ApplePushKey';
+import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client.js';
+import {
+  ApplePushKeyByAccountQuery,
+  ApplePushKeyFragment,
+} from '../../../../../graphql/generated.js';
+import { ApplePushKeyFragmentNode } from '../../../../../graphql/types/credentials/ApplePushKey.js';
 
 export const ApplePushKeyQuery = {
   async getAllForAccountAsync(accountName: string): Promise<ApplePushKeyFragment[]> {

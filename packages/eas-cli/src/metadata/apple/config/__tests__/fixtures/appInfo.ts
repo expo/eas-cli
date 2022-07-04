@@ -1,6 +1,8 @@
-import { AppCategory, AppCategoryId, AppSubcategoryId, BundleIdPlatform } from '@expo/apple-utils';
+import AppleUtils from '@expo/apple-utils';
 
-import { AppleConfigWriter } from '../../writer';
+import { AppleConfigWriter } from '../../writer.js';
+
+const { AppCategory, BundleIdPlatform } = AppleUtils;
 
 /** Infered type of the AppleConfigWriter.setCategories attributes */
 type CategoryInfoProps = Parameters<typeof AppleConfigWriter.prototype.setCategories>[0];
@@ -10,7 +12,9 @@ type CategoryInfoProps = Parameters<typeof AppleConfigWriter.prototype.setCatego
  * In the tests, we need to create a couple of different categories,
  * adding them here as fixed objects won't be readable.
  */
-export function makeCategory(id?: AppCategoryId | AppSubcategoryId): AppCategory | undefined {
+export function makeCategory(
+  id?: AppleUtils.AppCategoryId | AppleUtils.AppSubcategoryId
+): AppleUtils.AppCategory | undefined {
   if (!id) {
     return undefined;
   }
@@ -24,7 +28,9 @@ export function makeCategory(id?: AppCategoryId | AppSubcategoryId): AppCategory
  * Export a helper method to create the AppInfo object, using only AppCategoryIds or AppSubcategoryId.
  */
 export function makeCategoryInfo(
-  attributes: Partial<Record<keyof CategoryInfoProps, AppCategoryId | AppSubcategoryId>>
+  attributes: Partial<
+    Record<keyof CategoryInfoProps, AppleUtils.AppCategoryId | AppleUtils.AppSubcategoryId>
+  >
 ): CategoryInfoProps {
   return {
     primaryCategory: makeCategory(attributes.primaryCategory),

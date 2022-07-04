@@ -1,7 +1,9 @@
 import { IOSConfig } from '@expo/config-plugins';
-import plist from '@expo/plist';
+import Plist from '@expo/plist';
 import fs from 'fs-extra';
 import path from 'path';
+
+const plist = Plist.default;
 
 export async function readPlistAsync(plistPath: string): Promise<object | null> {
   if (await fs.pathExists(plistPath)) {

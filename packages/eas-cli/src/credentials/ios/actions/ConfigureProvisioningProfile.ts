@@ -4,15 +4,15 @@ import chalk from 'chalk';
 import {
   AppleDistributionCertificateFragment,
   AppleProvisioningProfileFragment,
-} from '../../../graphql/generated';
-import Log from '../../../log';
-import { ora } from '../../../ora';
-import { CredentialsContext } from '../../context';
-import { MissingCredentialsNonInteractiveError } from '../../errors';
-import { AppLookupParams } from '../api/GraphqlClient';
-import { AppleProvisioningProfileMutationResult } from '../api/graphql/mutations/AppleProvisioningProfileMutation';
-import { ProvisioningProfileStoreInfo } from '../appstore/Credentials.types';
-import { AuthCtx } from '../appstore/authenticateTypes';
+} from '../../../graphql/generated.js';
+import Log from '../../../log.js';
+import { ora } from '../../../ora.js';
+import { CredentialsContext } from '../../context.js';
+import { MissingCredentialsNonInteractiveError } from '../../errors.js';
+import { AppLookupParams } from '../api/GraphqlClient.js';
+import { AppleProvisioningProfileMutationResult } from '../api/graphql/mutations/AppleProvisioningProfileMutation.js';
+import { ProvisioningProfileStoreInfo } from '../appstore/Credentials.types.js';
+import { AuthCtx } from '../appstore/authenticateTypes.js';
 
 export class ConfigureProvisioningProfile {
   constructor(

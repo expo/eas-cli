@@ -1,5 +1,4 @@
 import chalk from 'chalk';
-import nullthrows from 'nullthrows';
 
 import {
   AppleDistributionCertificateFragment,
@@ -7,20 +6,21 @@ import {
   AppleTeamFragment,
   IosAppBuildCredentialsFragment,
   IosDistributionType,
-} from '../../../graphql/generated';
-import Log from '../../../log';
-import { confirmAsync } from '../../../prompts';
-import { CredentialsContext } from '../../context';
-import { IosTargetCredentials } from '../../credentialsJson/types';
-import { AppLookupParams } from '../api/GraphqlClient';
-import { displayProjectCredentials } from '../utils/printCredentials';
-import { readAppleTeam } from '../utils/provisioningProfile';
+} from '../../../graphql/generated.js';
+import Log from '../../../log.js';
+import { confirmAsync } from '../../../prompts.js';
+import { nullthrows } from '../../../utils/nullthrows.js';
+import { CredentialsContext } from '../../context.js';
+import { IosTargetCredentials } from '../../credentialsJson/types.js';
+import { AppLookupParams } from '../api/GraphqlClient.js';
+import { displayProjectCredentials } from '../utils/printCredentials.js';
+import { readAppleTeam } from '../utils/provisioningProfile.js';
 import {
   assignBuildCredentialsAsync,
   getBuildCredentialsAsync,
   getDistributionCertificateAsync,
   getProvisioningProfileAsync,
-} from './BuildCredentialsUtils';
+} from './BuildCredentialsUtils.js';
 
 export class SetUpTargetBuildCredentialsFromCredentialsJson {
   constructor(

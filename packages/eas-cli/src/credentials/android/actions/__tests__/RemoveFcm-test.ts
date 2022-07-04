@@ -1,11 +1,11 @@
-import { confirmAsync } from '../../../../prompts';
+import { confirmAsync } from '../../../../prompts.js';
 import {
   getNewAndroidApiMock,
   testAndroidAppCredentialsFragment,
-} from '../../../__tests__/fixtures-android';
-import { createCtxMock } from '../../../__tests__/fixtures-context';
-import { getAppLookupParamsFromContextAsync } from '../BuildCredentialsUtils';
-import { RemoveFcm } from '../RemoveFcm';
+} from '../../../__tests__/fixtures-android.js';
+import { createCtxMock } from '../../../__tests__/fixtures-context.js';
+import { getAppLookupParamsFromContextAsync } from '../BuildCredentialsUtils.js';
+import { RemoveFcm } from '../RemoveFcm.js';
 
 jest.mock('../../../../prompts');
 jest.mocked(confirmAsync).mockImplementation(async () => true);

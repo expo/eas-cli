@@ -1,4 +1,4 @@
-import differenceBy from '../differenceBy';
+import differenceBy from '../differenceBy.js';
 
 describe(differenceBy, () => {
   it('removes items from the first list that also appear on the second list', () => {

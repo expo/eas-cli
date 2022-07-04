@@ -1,7 +1,12 @@
-import { AppCategoryId, AppSubcategoryId } from '@expo/apple-utils';
+import AppleUtils from '@expo/apple-utils';
 
-import { AppleConfigReader } from '../reader';
-import { leastRestrictiveAdvisory, mostRestrictiveAdvisory } from './fixtures/ageRatingDeclaration';
+import { AppleConfigReader } from '../reader.js';
+import {
+  leastRestrictiveAdvisory,
+  mostRestrictiveAdvisory,
+} from './fixtures/ageRatingDeclaration.js';
+
+const { AppCategoryId, AppSubcategoryId } = AppleUtils;
 
 describe('getCategories', () => {
   it('ignores categories when not set', () => {

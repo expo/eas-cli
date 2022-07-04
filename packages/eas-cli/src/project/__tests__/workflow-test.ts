@@ -1,7 +1,7 @@
 import { Platform, Workflow } from '@expo/eas-build-job';
 import { vol } from 'memfs';
 
-import { resolveWorkflowAsync } from '../workflow';
+import { resolveWorkflowAsync } from '../workflow.js';
 
 jest.mock('fs');
 

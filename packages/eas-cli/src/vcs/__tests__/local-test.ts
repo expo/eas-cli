@@ -1,6 +1,6 @@
 import { vol } from 'memfs';
 
-import { Ignore } from '../local';
+import { Ignore } from '../local.js';
 
 jest.mock('fs');
 

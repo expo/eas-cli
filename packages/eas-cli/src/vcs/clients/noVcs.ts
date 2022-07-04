@@ -1,5 +1,5 @@
-import { Ignore, getRootPath, makeShallowCopyAsync } from '../local';
-import { Client } from '../vcs';
+import { Ignore, getRootPath, makeShallowCopyAsync } from '../local.js';
+import { Client } from '../vcs.js';
 
 export default class NoVcsClient extends Client {
   public async getRootPathAsync(): Promise<string> {

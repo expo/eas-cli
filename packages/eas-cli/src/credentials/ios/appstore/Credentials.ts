@@ -5,7 +5,7 @@ import {
   DistributionCertificateStoreInfo,
   PushKey,
   PushKeyStoreInfo,
-} from './Credentials.types';
+} from './Credentials.types.js';
 
 export function formatDistributionCertificate({
   name,

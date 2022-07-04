@@ -1,7 +1,7 @@
 import path from 'path';
 
-import { Target } from '../ios/types';
-import { IosCredentials } from './types';
+import { Target } from '../ios/types.js';
+import { IosCredentials } from './types.js';
 
 export function getCredentialsJsonPath(projectDir: string): string {
   return path.join(projectDir, 'credentials.json');

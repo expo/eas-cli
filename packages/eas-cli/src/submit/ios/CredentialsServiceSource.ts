@@ -1,20 +1,20 @@
 import { Platform } from '@expo/eas-build-job';
-import nullthrows from 'nullthrows';
 
-import { SetUpSubmissionCredentials } from '../../credentials/ios/actions/SetUpSubmissionCredentials';
-import Log from '../../log';
+import { SetUpSubmissionCredentials } from '../../credentials/ios/actions/SetUpSubmissionCredentials.js';
+import Log from '../../log.js';
 import {
   INVALID_BUNDLE_IDENTIFIER_MESSAGE,
   isBundleIdentifierValid,
-} from '../../project/ios/bundleIdentifier';
-import { promptAsync } from '../../prompts';
-import { findAccountByName } from '../../user/Account';
-import { SubmissionContext } from '../context';
+} from '../../project/ios/bundleIdentifier.js';
+import { promptAsync } from '../../prompts.js';
+import { findAccountByName } from '../../user/Account.js';
+import { nullthrows } from '../../utils/nullthrows.js';
+import { SubmissionContext } from '../context.js';
 import {
   AppSpecificPasswordCredentials,
   getAppleIdUsernameAsync,
-} from './AppSpecificPasswordSource';
-import { AscApiKeyResult } from './AscApiKeySource';
+} from './AppSpecificPasswordSource.js';
+import { AscApiKeyResult } from './AscApiKeySource.js';
 
 /**
  * The Credentials Service will either return an ASC API Key or an App Specific Password

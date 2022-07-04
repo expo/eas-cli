@@ -1,7 +1,7 @@
 import { print } from 'graphql';
-import gql from 'graphql-tag';
+import { gql } from 'graphql-tag';
 
-import { graphqlClient, withErrorHandlingAsync } from '../client';
+import { graphqlClient, withErrorHandlingAsync } from '../client.js';
 import {
   AppPlatform,
   BuildFragment,
@@ -11,8 +11,8 @@ import {
   DistributionType,
   GetAllBuildsForAppQuery,
   GetAllBuildsForAppQueryVariables,
-} from '../generated';
-import { BuildFragmentNode } from '../types/Build';
+} from '../generated.js';
+import { BuildFragmentNode } from '../types/Build.js';
 
 type BuildsQuery = {
   offset?: number;

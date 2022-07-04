@@ -1,10 +1,12 @@
-import { AgeRatingDeclaration, KidsAge, Rating } from '@expo/apple-utils';
+import AppleUtils from '@expo/apple-utils';
 
-import { AttributesOf } from '../../../../utils/asc';
+import { AttributesOf } from '../../../../utils/asc.js';
+
+const { KidsAge, Rating } = AppleUtils;
 
 // @ts-expect-error: Deprecated property `gamblingAndContests` needs to be deleted from the types
 // These attributes is what we get from the API when no questions are answered
-export const emptyAdvisory: AttributesOf<AgeRatingDeclaration> = {
+export const emptyAdvisory: AttributesOf<AppleUtils.AgeRatingDeclaration> = {
   alcoholTobaccoOrDrugUseOrReferences: null,
   contests: null,
   gamblingSimulated: null,
@@ -24,7 +26,7 @@ export const emptyAdvisory: AttributesOf<AgeRatingDeclaration> = {
 };
 
 // @ts-expect-error: Deprecated property `gamblingAndContests` needs to be deleted from the types
-export const leastRestrictiveAdvisory: AttributesOf<AgeRatingDeclaration> = {
+export const leastRestrictiveAdvisory: AttributesOf<AppleUtils.AgeRatingDeclaration> = {
   alcoholTobaccoOrDrugUseOrReferences: Rating.NONE,
   contests: Rating.NONE,
   gamblingSimulated: Rating.NONE,
@@ -44,7 +46,7 @@ export const leastRestrictiveAdvisory: AttributesOf<AgeRatingDeclaration> = {
 };
 
 // @ts-expect-error: Deprecated property `gamblingAndContests` needs to be deleted from the types
-export const mostRestrictiveAdvisory: AttributesOf<AgeRatingDeclaration> = {
+export const mostRestrictiveAdvisory: AttributesOf<AppleUtils.AgeRatingDeclaration> = {
   alcoholTobaccoOrDrugUseOrReferences: Rating.FREQUENT_OR_INTENSE,
   contests: Rating.FREQUENT_OR_INTENSE,
   gamblingSimulated: Rating.FREQUENT_OR_INTENSE,
@@ -64,7 +66,7 @@ export const mostRestrictiveAdvisory: AttributesOf<AgeRatingDeclaration> = {
 };
 
 // @ts-expect-error: Deprecated property `gamblingAndContests` needs to be deleted from the types
-export const kidsSixToEightAdvisory: AttributesOf<AgeRatingDeclaration> = {
+export const kidsSixToEightAdvisory: AttributesOf<AppleUtils.AgeRatingDeclaration> = {
   alcoholTobaccoOrDrugUseOrReferences: Rating.NONE,
   contests: Rating.NONE,
   gamblingSimulated: Rating.NONE,

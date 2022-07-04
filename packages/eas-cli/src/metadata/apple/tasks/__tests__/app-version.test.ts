@@ -1,16 +1,13 @@
-import {
-  App,
-  AppStoreState,
-  AppStoreVersion,
-  AppStoreVersionLocalization,
-} from '@expo/apple-utils';
+import AppleUtils from '@expo/apple-utils';
 import nock from 'nock';
 
-import { AppleConfigReader } from '../../config/reader';
-import { AppleConfigWriter } from '../../config/writer';
-import { AppleData, PartialAppleData } from '../../data';
-import { AppVersionTask } from '../app-version';
-import { requestContext } from './fixtures/requestContext';
+import { AppleConfigReader } from '../../config/reader.js';
+import { AppleConfigWriter } from '../../config/writer.js';
+import { AppleData, PartialAppleData } from '../../data.js';
+import { AppVersionTask } from '../app-version.js';
+import { requestContext } from './fixtures/requestContext.js';
+
+const { App, AppStoreState, AppStoreVersion, AppStoreVersionLocalization } = AppleUtils;
 
 jest.mock('../../../../ora');
 jest.mock('../../config/writer');

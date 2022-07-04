@@ -1,16 +1,16 @@
 import assert from 'assert';
 import { print } from 'graphql';
-import gql from 'graphql-tag';
+import { gql } from 'graphql-tag';
 
-import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
+import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client.js';
 import {
   AppleDistributionCertificateByAccountQuery,
   AppleDistributionCertificateByAppQuery,
   AppleDistributionCertificateFragment,
   IosDistributionType,
-} from '../../../../../graphql/generated';
-import { AppleDistributionCertificateFragmentNode } from '../../../../../graphql/types/credentials/AppleDistributionCertificate';
-import { AppleTeamFragmentNode } from '../../../../../graphql/types/credentials/AppleTeam';
+} from '../../../../../graphql/generated.js';
+import { AppleDistributionCertificateFragmentNode } from '../../../../../graphql/types/credentials/AppleDistributionCertificate.js';
+import { AppleTeamFragmentNode } from '../../../../../graphql/types/credentials/AppleTeam.js';
 
 export const AppleDistributionCertificateQuery = {
   async getForAppAsync(

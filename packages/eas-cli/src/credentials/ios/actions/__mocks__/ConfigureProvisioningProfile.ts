@@ -1,6 +1,6 @@
-import { testProvisioningProfileFragment } from '../../../__tests__/fixtures-ios';
-import { CredentialsContext } from '../../../context';
-import { AppleProvisioningProfileMutationResult } from '../../api/graphql/mutations/AppleProvisioningProfileMutation';
+import { testProvisioningProfileFragment } from '../../../__tests__/fixtures-ios.js';
+import { CredentialsContext } from '../../../context.js';
+import { AppleProvisioningProfileMutationResult } from '../../api/graphql/mutations/AppleProvisioningProfileMutation.js';
 
 export class ConfigureProvisioningProfile {
   public async runAsync(

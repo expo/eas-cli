@@ -1,15 +1,15 @@
 import assert from 'assert';
 import { print } from 'graphql';
-import gql from 'graphql-tag';
+import { gql } from 'graphql-tag';
 
-import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
+import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client.js';
 import {
   AndroidAppBuildCredentialsFragment,
   AndroidAppBuildCredentialsInput,
   CreateAndroidAppBuildCredentialsMutation,
   SetKeystoreMutation,
-} from '../../../../../graphql/generated';
-import { AndroidAppBuildCredentialsFragmentNode } from '../../../../../graphql/types/credentials/AndroidAppBuildCredentials';
+} from '../../../../../graphql/generated.js';
+import { AndroidAppBuildCredentialsFragmentNode } from '../../../../../graphql/types/credentials/AndroidAppBuildCredentials.js';
 
 export type AndroidAppBuildCredentialsMetadataInput = Omit<
   AndroidAppBuildCredentialsInput,

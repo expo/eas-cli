@@ -1,4 +1,4 @@
-import gql from 'graphql-tag';
+import { gql } from 'graphql-tag';
 
 export const AndroidKeystoreFragmentNode = gql`
   fragment AndroidKeystoreFragment on AndroidKeystore {

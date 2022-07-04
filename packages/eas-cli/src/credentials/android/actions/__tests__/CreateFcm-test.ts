@@ -1,7 +1,7 @@
-import { promptAsync } from '../../../../prompts';
-import { createCtxMock } from '../../../__tests__/fixtures-context';
-import { getAppLookupParamsFromContextAsync } from '../BuildCredentialsUtils';
-import { CreateFcm } from '../CreateFcm';
+import { promptAsync } from '../../../../prompts.js';
+import { createCtxMock } from '../../../__tests__/fixtures-context.js';
+import { getAppLookupParamsFromContextAsync } from '../BuildCredentialsUtils.js';
+import { CreateFcm } from '../CreateFcm.js';
 
 jest.mock('../../../../prompts');
 jest.mocked(promptAsync).mockImplementation(async () => ({ fcmApiKey: 'blah' }));

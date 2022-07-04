@@ -1,4 +1,4 @@
-import uniqBy from '../uniqBy';
+import uniqBy from '../uniqBy.js';
 
 describe(uniqBy, () => {
   it('returns unique items from the list', () => {

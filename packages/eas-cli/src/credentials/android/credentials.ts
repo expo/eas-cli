@@ -1,5 +1,5 @@
-import { AndroidKeystoreType } from '../../graphql/generated';
-import { CredentialSchema } from '../utils/promptForCredentials';
+import { AndroidKeystoreType } from '../../graphql/generated.js';
+import { CredentialSchema } from '../utils/promptForCredentials.js';
 
 export interface FcmCredentials {
   fcmApiKey: string;

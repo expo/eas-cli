@@ -1,14 +1,14 @@
 import FormData from 'form-data';
 import path from 'path';
 
-import { Headers, Response } from '../../fetch';
-import { PartialManifest } from '../../graphql/generated';
+import { Headers, Response } from '../../fetch.js';
+import { PartialManifest } from '../../graphql/generated.js';
 import {
   checkManifestBodyAgainstUpdateInfoGroup,
   getCodeSigningInfoAsync,
   getKeyAndCertificateFromPathsAsync,
   getManifestBodyAsync,
-} from '../code-signing';
+} from '../code-signing.js';
 
 function generateMultipartBody(stringifiedManifest: string): FormData {
   const form = new FormData();

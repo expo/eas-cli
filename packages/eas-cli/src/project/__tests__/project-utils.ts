@@ -1,4 +1,4 @@
-import { Actor } from '../../user/User';
+import { Actor } from '../../user/User.js';
 
 interface MockProject {
   projectRoot: string;

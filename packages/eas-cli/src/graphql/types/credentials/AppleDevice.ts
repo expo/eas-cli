@@ -1,6 +1,6 @@
-import gql from 'graphql-tag';
+import { gql } from 'graphql-tag';
 
-import { AppleDeviceClass } from '../../generated';
+import { AppleDeviceClass } from '../../generated.js';
 
 export const APPLE_DEVICE_CLASS_LABELS: Record<AppleDeviceClass, string> = {
   [AppleDeviceClass.Ipad]: 'iPad',

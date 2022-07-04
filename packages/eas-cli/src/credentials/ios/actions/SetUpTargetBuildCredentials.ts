@@ -4,13 +4,13 @@ import { JSONObject } from '@expo/json-file';
 import {
   IosDistributionType as GraphQLIosDistributionType,
   IosAppBuildCredentialsFragment,
-} from '../../../graphql/generated';
-import Log from '../../../log';
-import { CredentialsContext } from '../../context';
-import { AppLookupParams as GraphQLAppLookupParams } from '../api/GraphqlClient';
-import { SetUpAdhocProvisioningProfile } from './SetUpAdhocProvisioningProfile';
-import { SetUpInternalProvisioningProfile } from './SetUpInternalProvisioningProfile';
-import { SetUpProvisioningProfile } from './SetUpProvisioningProfile';
+} from '../../../graphql/generated.js';
+import Log from '../../../log.js';
+import { CredentialsContext } from '../../context.js';
+import { AppLookupParams as GraphQLAppLookupParams } from '../api/GraphqlClient.js';
+import { SetUpAdhocProvisioningProfile } from './SetUpAdhocProvisioningProfile.js';
+import { SetUpInternalProvisioningProfile } from './SetUpInternalProvisioningProfile.js';
+import { SetUpProvisioningProfile } from './SetUpProvisioningProfile.js';
 
 interface Options {
   app: GraphQLAppLookupParams;

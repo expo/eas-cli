@@ -1,24 +1,24 @@
 import { Flags } from '@oclif/core';
 import chalk from 'chalk';
-import gql from 'graphql-tag';
+import { gql } from 'graphql-tag';
 
-import EasCommand from '../../commandUtils/EasCommand';
-import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
+import EasCommand from '../../commandUtils/EasCommand.js';
+import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client.js';
 import {
   CreateUpdateBranchForAppMutation,
   CreateUpdateBranchForAppMutationVariables,
   UpdateBranch,
-} from '../../graphql/generated';
-import Log from '../../log';
-import { getExpoConfig } from '../../project/expoConfig';
+} from '../../graphql/generated.js';
+import Log from '../../log.js';
+import { getExpoConfig } from '../../project/expoConfig.js';
 import {
   findProjectRootAsync,
   getProjectFullNameAsync,
   getProjectIdAsync,
-} from '../../project/projectUtils';
-import { promptAsync } from '../../prompts';
-import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
-import { getVcsClient } from '../../vcs';
+} from '../../project/projectUtils.js';
+import { promptAsync } from '../../prompts.js';
+import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json.js';
+import { getVcsClient } from '../../vcs/index.js';
 
 export async function createUpdateBranchOnAppAsync({
   appId,

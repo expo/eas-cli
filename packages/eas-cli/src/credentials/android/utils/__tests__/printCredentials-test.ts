@@ -1,14 +1,14 @@
 import mockdate from 'mockdate';
 
-import Log from '../../../../log';
+import Log from '../../../../log.js';
 import {
   testAndroidAppCredentialsFragment,
   testGoogleServiceAccountKeyFragment,
   testLegacyAndroidFcmFragment,
-} from '../../../__tests__/fixtures-android';
-import { createCtxMock } from '../../../__tests__/fixtures-context';
-import { getAppLookupParamsFromContextAsync } from '../../actions/BuildCredentialsUtils';
-import { displayAndroidAppCredentials } from '../printCredentials';
+} from '../../../__tests__/fixtures-android.js';
+import { createCtxMock } from '../../../__tests__/fixtures-context.js';
+import { getAppLookupParamsFromContextAsync } from '../../actions/BuildCredentialsUtils.js';
+import { displayAndroidAppCredentials } from '../printCredentials.js';
 
 jest.mock('../../../../log');
 jest.mock('chalk', () => ({ bold: jest.fn(log => log), cyan: { bold: jest.fn(log => log) } }));

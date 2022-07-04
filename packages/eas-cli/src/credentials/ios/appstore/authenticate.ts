@@ -1,17 +1,10 @@
-import {
-  Auth,
-  InvalidUserCredentialsError,
-  RequestContext,
-  Session,
-  Teams,
-  Token,
-} from '@expo/apple-utils';
+import AppleUtils from '@expo/apple-utils';
 import assert from 'assert';
 import chalk from 'chalk';
 
-import Log from '../../../log';
-import { toggleConfirmAsync } from '../../../prompts';
-import { MinimalAscApiKey } from '../credentials';
+import Log from '../../../log.js';
+import { toggleConfirmAsync } from '../../../prompts.js';
+import { MinimalAscApiKey } from '../credentials.js';
 import {
   ApiKeyAuthCtx,
   AppleTeamType,
@@ -19,14 +12,16 @@ import {
   AuthenticationMode,
   Team,
   UserAuthCtx,
-} from './authenticateTypes';
+} from './authenticateTypes.js';
 import {
   deletePasswordAsync,
   promptPasswordAsync,
   resolveAppleTeamAsync,
   resolveAscApiKeyAsync,
   resolveUserCredentialsAsync,
-} from './resolveCredentials';
+} from './resolveCredentials.js';
+
+const { Auth, InvalidUserCredentialsError, Session, Teams, Token } = AppleUtils;
 
 const APPLE_IN_HOUSE_TEAM_TYPE = 'in-house';
 
@@ -39,7 +34,7 @@ export type Options = {
   /**
    * Can be used to restore the Apple auth state via apple-utils.
    */
-  cookies?: Session.AuthState['cookies'];
+  cookies?: AppleUtils.Session.AuthState['cookies'];
   /** Indicates how Apple network requests will be made. */
   mode?: AuthenticationMode;
 };
@@ -55,15 +50,15 @@ export function assertUserAuthCtx(authCtx: AuthCtx | undefined): UserAuthCtx {
   throw new Error('Expected user authentication context (login/password).');
 }
 
-export function getRequestContext(authCtx: AuthCtx): RequestContext {
+export function getRequestContext(authCtx: AuthCtx): AppleUtils.RequestContext {
   assert(authCtx.authState?.context, 'Apple request context must be defined');
   return authCtx.authState.context;
 }
 
 async function loginAsync(
-  userCredentials: Partial<Auth.UserCredentials> = {},
-  options: Auth.LoginOptions
-): Promise<Session.AuthState> {
+  userCredentials: Partial<AppleUtils.Auth.UserCredentials> = {},
+  options: AppleUtils.Auth.LoginOptions
+): Promise<AppleUtils.Session.AuthState> {
   // First try login with cookies JSON
   if (userCredentials.cookies) {
     const session = await Auth.loginWithCookiesAsync(userCredentials);
@@ -135,7 +130,7 @@ async function loginWithUserCredentialsAsync({
   password?: string;
   teamId?: string;
   providerId?: number;
-}): Promise<Session.AuthState> {
+}): Promise<AppleUtils.Session.AuthState> {
   // Start a new login flow
   const newSession = await Auth.loginWithUserCredentialsAsync({
     username,
@@ -224,7 +219,7 @@ async function authenticateAsUserAsync(options: Options = {}): Promise<AuthCtx> 
   }
 }
 
-function formatTeam({ teamId, name, type }: Teams.AppStoreTeam): Team {
+function formatTeam({ teamId, name, type }: AppleUtils.Teams.AppStoreTeam): Team {
   return {
     id: teamId,
     name: `${name} (${type})`,

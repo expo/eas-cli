@@ -1,13 +1,13 @@
 import assert from 'assert';
 import { print } from 'graphql';
-import gql from 'graphql-tag';
+import { gql } from 'graphql-tag';
 
-import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
+import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client.js';
 import {
   CommonAndroidAppCredentialsFragment,
   CommonAndroidAppCredentialsWithBuildCredentialsByApplicationIdentifierQuery,
-} from '../../../../../graphql/generated';
-import { CommonAndroidAppCredentialsFragmentNode } from '../../../../../graphql/types/credentials/AndroidAppCredentials';
+} from '../../../../../graphql/generated.js';
+import { CommonAndroidAppCredentialsFragmentNode } from '../../../../../graphql/types/credentials/AndroidAppCredentials.js';
 
 export const AndroidAppCredentialsQuery = {
   async withCommonFieldsByApplicationIdentifierAsync(

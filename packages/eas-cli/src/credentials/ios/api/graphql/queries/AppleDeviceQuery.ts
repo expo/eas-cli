@@ -1,8 +1,8 @@
 import assert from 'assert';
 import { print } from 'graphql';
-import gql from 'graphql-tag';
+import { gql } from 'graphql-tag';
 
-import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
+import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client.js';
 import {
   AppleDevice,
   AppleDeviceFragment,
@@ -10,9 +10,9 @@ import {
   AppleDevicesByIdentifierQuery,
   AppleDevicesByTeamIdentifierQuery,
   AppleTeamFragment,
-} from '../../../../../graphql/generated';
-import { AppleDeviceFragmentNode } from '../../../../../graphql/types/credentials/AppleDevice';
-import { AppleTeamFragmentNode } from '../../../../../graphql/types/credentials/AppleTeam';
+} from '../../../../../graphql/generated.js';
+import { AppleDeviceFragmentNode } from '../../../../../graphql/types/credentials/AppleDevice.js';
+import { AppleTeamFragmentNode } from '../../../../../graphql/types/credentials/AppleTeam.js';
 
 export type AppleDeviceFragmentWithAppleTeam = AppleDeviceFragment & {
   appleTeam: AppleTeamFragment;

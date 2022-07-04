@@ -1,7 +1,7 @@
 // eslint-disable-next-line
 import oraReal, { Options, Ora } from 'ora';
 
-import Log from './log';
+import Log from './log.js';
 
 export { Ora, Options };
 

@@ -3,18 +3,18 @@ import { AndroidReleaseStatus, AndroidReleaseTrack } from '@expo/eas-json';
 import { vol } from 'memfs';
 import { v4 as uuidv4 } from 'uuid';
 
-import { testAndroidAppCredentialsFragment } from '../../../credentials/__tests__/fixtures-android';
-import { jester as mockJester } from '../../../credentials/__tests__/fixtures-constants';
-import { SetUpGoogleServiceAccountKey } from '../../../credentials/android/actions/SetUpGoogleServiceAccountKey';
-import { createTestProject } from '../../../project/__tests__/project-utils';
-import { promptAsync } from '../../../prompts';
-import { createSubmissionContextAsync } from '../../context';
+import { testAndroidAppCredentialsFragment } from '../../../credentials/__tests__/fixtures-android.js';
+import { jester as mockJester } from '../../../credentials/__tests__/fixtures-constants.js';
+import { SetUpGoogleServiceAccountKey } from '../../../credentials/android/actions/SetUpGoogleServiceAccountKey.js';
+import { createTestProject } from '../../../project/__tests__/project-utils.js';
+import { promptAsync } from '../../../prompts.js';
+import { createSubmissionContextAsync } from '../../context.js';
 import {
   ServiceAccountSource,
   ServiceAccountSourceType,
   getServiceAccountKeyPathAsync,
   getServiceAccountKeyResultAsync,
-} from '../ServiceAccountSource';
+} from '../ServiceAccountSource.js';
 
 jest.mock('fs');
 jest.mock('../../../prompts');

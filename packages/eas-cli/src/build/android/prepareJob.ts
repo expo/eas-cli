@@ -3,11 +3,11 @@ import { BuildProfile } from '@expo/eas-json';
 import path from 'path';
 import slash from 'slash';
 
-import { AndroidCredentials } from '../../credentials/android/AndroidCredentialsProvider';
-import { getUsername } from '../../project/projectUtils';
-import { ensureLoggedInAsync } from '../../user/actions';
-import { getVcsClient } from '../../vcs';
-import { BuildContext } from '../context';
+import { AndroidCredentials } from '../../credentials/android/AndroidCredentialsProvider.js';
+import { getUsername } from '../../project/projectUtils.js';
+import { ensureLoggedInAsync } from '../../user/actions.js';
+import { getVcsClient } from '../../vcs/index.js';
+import { BuildContext } from '../context.js';
 
 interface JobData {
   projectArchive: ArchiveSource;

@@ -1,11 +1,14 @@
-import { IosAppBuildCredentialsFragment, IosDistributionType } from '../../../../graphql/generated';
-import { promptAsync } from '../../../../prompts';
-import { getAppstoreMock, testAuthCtx } from '../../../__tests__/fixtures-appstore';
-import { createCtxMock } from '../../../__tests__/fixtures-context';
-import { getAllBuildCredentialsAsync } from '../BuildCredentialsUtils';
-import { SetUpAdhocProvisioningProfile } from '../SetUpAdhocProvisioningProfile';
-import { SetUpInternalProvisioningProfile } from '../SetUpInternalProvisioningProfile';
-import { SetUpProvisioningProfile } from '../SetUpProvisioningProfile';
+import {
+  IosAppBuildCredentialsFragment,
+  IosDistributionType,
+} from '../../../../graphql/generated.js';
+import { promptAsync } from '../../../../prompts.js';
+import { getAppstoreMock, testAuthCtx } from '../../../__tests__/fixtures-appstore.js';
+import { createCtxMock } from '../../../__tests__/fixtures-context.js';
+import { getAllBuildCredentialsAsync } from '../BuildCredentialsUtils.js';
+import { SetUpAdhocProvisioningProfile } from '../SetUpAdhocProvisioningProfile.js';
+import { SetUpInternalProvisioningProfile } from '../SetUpInternalProvisioningProfile.js';
+import { SetUpProvisioningProfile } from '../SetUpProvisioningProfile.js';
 
 jest.mock('../../../../prompts');
 jest.mock('../SetUpAdhocProvisioningProfile');

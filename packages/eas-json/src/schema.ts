@@ -1,7 +1,7 @@
 import Joi from 'joi';
 
-import { BuildProfileSchema } from './build/schema';
-import { SubmitProfileSchema } from './submit/schema';
+import { BuildProfileSchema } from './build/schema.js';
+import { SubmitProfileSchema } from './submit/schema.js';
 
 export const EasJsonSchema = Joi.object({
   cli: Joi.object({

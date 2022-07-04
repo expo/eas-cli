@@ -1,10 +1,12 @@
 import { ExpoConfig } from '@expo/config';
-import { AndroidConfig, AndroidManifest } from '@expo/config-plugins';
+import ConfigPlugins, { AndroidManifest } from '@expo/config-plugins';
 
-import { RequestedPlatform } from '../../platform';
-import { getProjectAccountName } from '../../project/projectUtils';
-import { ensureLoggedInAsync } from '../../user/actions';
-import { ensureValidVersions } from '../utils';
+import { RequestedPlatform } from '../../platform.js';
+import { getProjectAccountName } from '../../project/projectUtils.js';
+import { ensureLoggedInAsync } from '../../user/actions.js';
+import { ensureValidVersions } from '../utils.js';
+
+const { AndroidConfig } = ConfigPlugins;
 
 export async function syncUpdatesConfigurationAsync(
   projectDir: string,

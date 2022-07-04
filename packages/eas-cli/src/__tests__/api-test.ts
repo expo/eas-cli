@@ -1,7 +1,7 @@
 import assert from 'assert';
 import nock from 'nock';
 
-import { ApiV2Error, api, getExpoApiBaseUrl } from '../api';
+import { ApiV2Error, api, getExpoApiBaseUrl } from '../api.js';
 
 describe('apiClient', () => {
   it('converts Expo APIv2 error to ApiV2Error', async () => {

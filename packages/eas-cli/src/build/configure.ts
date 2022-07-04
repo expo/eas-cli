@@ -3,11 +3,11 @@ import { EasJson, EasJsonReader } from '@expo/eas-json';
 import chalk from 'chalk';
 import fs from 'fs-extra';
 
-import Log from '../log';
-import { resolveWorkflowAsync } from '../project/workflow';
-import { easCliVersion } from '../utils/easCli';
-import { getVcsClient } from '../vcs';
-import { maybeBailOnRepoStatusAsync, reviewAndCommitChangesAsync } from './utils/repository';
+import Log from '../log.js';
+import { resolveWorkflowAsync } from '../project/workflow.js';
+import { easCliVersion } from '../utils/easCli.js';
+import { getVcsClient } from '../vcs/index.js';
+import { maybeBailOnRepoStatusAsync, reviewAndCommitChangesAsync } from './utils/repository.js';
 
 interface ConfigureParams {
   projectDir: string;

@@ -1,18 +1,18 @@
 import { Flags } from '@oclif/core';
-import gql from 'graphql-tag';
+import { gql } from 'graphql-tag';
 
-import EasCommand from '../../commandUtils/EasCommand';
-import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
+import EasCommand from '../../commandUtils/EasCommand.js';
+import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client.js';
 import {
   GetAllChannelsForAppQuery,
   GetAllChannelsForAppQueryVariables,
-} from '../../graphql/generated';
-import Log from '../../log';
-import { getExpoConfig } from '../../project/expoConfig';
-import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUtils';
-import formatFields from '../../utils/formatFields';
-import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
-import { logChannelDetails } from './view';
+} from '../../graphql/generated.js';
+import Log from '../../log.js';
+import { getExpoConfig } from '../../project/expoConfig.js';
+import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUtils.js';
+import formatFields from '../../utils/formatFields.js';
+import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json.js';
+import { logChannelDetails } from './view.js';
 
 const CHANNEL_LIMIT = 10_000;
 

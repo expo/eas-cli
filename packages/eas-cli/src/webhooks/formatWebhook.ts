@@ -1,5 +1,5 @@
-import { WebhookFragment } from '../graphql/generated';
-import formatFields from '../utils/formatFields';
+import { WebhookFragment } from '../graphql/generated.js';
+import formatFields from '../utils/formatFields.js';
 
 export function formatWebhook(webhook: WebhookFragment): string {
   return formatFields([

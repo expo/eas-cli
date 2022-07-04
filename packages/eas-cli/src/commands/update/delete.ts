@@ -1,16 +1,16 @@
 import { Flags } from '@oclif/core';
 import chalk from 'chalk';
-import gql from 'graphql-tag';
+import { gql } from 'graphql-tag';
 
-import EasCommand from '../../commandUtils/EasCommand';
-import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
+import EasCommand from '../../commandUtils/EasCommand.js';
+import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client.js';
 import {
   DeleteUpdateGroupMutation,
   UpdateMutationDeleteUpdateGroupArgs,
-} from '../../graphql/generated';
-import Log from '../../log';
-import { confirmAsync } from '../../prompts';
-import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
+} from '../../graphql/generated.js';
+import Log from '../../log.js';
+import { confirmAsync } from '../../prompts.js';
+import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json.js';
 
 async function deleteUpdateGroupAsync({
   group,

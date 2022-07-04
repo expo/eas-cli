@@ -1,20 +1,19 @@
-import nullthrows from 'nullthrows';
-
 import {
   AndroidAppBuildCredentialsFragment,
   AndroidKeystoreFragment,
-} from '../../../graphql/generated';
-import Log from '../../../log';
-import { ora } from '../../../ora';
-import { CredentialsContext } from '../../context';
-import { MissingCredentialsNonInteractiveError } from '../../errors';
-import { AppLookupParams } from '../api/GraphqlClient';
+} from '../../../graphql/generated.js';
+import Log from '../../../log.js';
+import { ora } from '../../../ora.js';
+import { nullthrows } from '../../../utils/nullthrows.js';
+import { CredentialsContext } from '../../context.js';
+import { MissingCredentialsNonInteractiveError } from '../../errors.js';
+import { AppLookupParams } from '../api/GraphqlClient.js';
 import {
   canCopyLegacyCredentialsAsync,
   createOrUpdateDefaultAndroidAppBuildCredentialsAsync,
   promptUserAndCopyLegacyCredentialsAsync,
-} from './BuildCredentialsUtils';
-import { CreateKeystore } from './CreateKeystore';
+} from './BuildCredentialsUtils.js';
+import { CreateKeystore } from './CreateKeystore.js';
 
 interface Options {
   app: AppLookupParams;

@@ -1,10 +1,10 @@
 import {
   CommonAndroidAppCredentialsFragment,
   GoogleServiceAccountKeyFragment,
-} from '../../../graphql/generated';
-import Log from '../../../log';
-import { CredentialsContext } from '../../context';
-import { AppLookupParams } from '../api/GraphqlClient';
+} from '../../../graphql/generated.js';
+import Log from '../../../log.js';
+import { CredentialsContext } from '../../context.js';
+import { AppLookupParams } from '../api/GraphqlClient.js';
 
 export class AssignGoogleServiceAccountKey {
   constructor(private app: AppLookupParams) {}

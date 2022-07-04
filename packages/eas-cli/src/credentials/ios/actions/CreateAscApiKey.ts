@@ -1,8 +1,8 @@
-import { AppStoreConnectApiKeyFragment } from '../../../graphql/generated';
-import Log from '../../../log';
-import { Account } from '../../../user/Account';
-import { CredentialsContext } from '../../context';
-import { AppStoreApiKeyPurpose, provideOrGenerateAscApiKeyAsync } from './AscApiKeyUtils';
+import { AppStoreConnectApiKeyFragment } from '../../../graphql/generated.js';
+import Log from '../../../log.js';
+import { Account } from '../../../user/Account.js';
+import { CredentialsContext } from '../../context.js';
+import { AppStoreApiKeyPurpose, provideOrGenerateAscApiKeyAsync } from './AscApiKeyUtils.js';
 
 export class CreateAscApiKey {
   constructor(private account: Account) {}

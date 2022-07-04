@@ -1,8 +1,8 @@
-import { flushAsync, initAsync, logEvent } from '../../analytics/rudderstackClient';
-import { jester as mockJester } from '../../credentials/__tests__/fixtures-constants';
-import { getUserAsync } from '../../user/User';
-import { ensureLoggedInAsync } from '../../user/actions';
-import EasCommand from '../EasCommand';
+import { flushAsync, initAsync, logEvent } from '../../analytics/rudderstackClient.js';
+import { jester as mockJester } from '../../credentials/__tests__/fixtures-constants.js';
+import { getUserAsync } from '../../user/User.js';
+import { ensureLoggedInAsync } from '../../user/actions.js';
+import EasCommand from '../EasCommand.js';
 
 jest.mock('../../user/User');
 jest.mock('../../user/actions', () => ({ ensureLoggedInAsync: jest.fn() }));

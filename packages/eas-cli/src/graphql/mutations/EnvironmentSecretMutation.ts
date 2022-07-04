@@ -1,14 +1,14 @@
 import { print } from 'graphql';
-import gql from 'graphql-tag';
+import { gql } from 'graphql-tag';
 
-import { graphqlClient, withErrorHandlingAsync } from '../client';
+import { graphqlClient, withErrorHandlingAsync } from '../client.js';
 import {
   CreateEnvironmentSecretForAccountMutation,
   CreateEnvironmentSecretForAppMutation,
   DeleteEnvironmentSecretMutation,
   EnvironmentSecretFragment,
-} from '../generated';
-import { EnvironmentSecretFragmentNode } from '../types/EnvironmentSecret';
+} from '../generated.js';
+import { EnvironmentSecretFragmentNode } from '../types/EnvironmentSecret.js';
 
 export const EnvironmentSecretMutation = {
   async createForAccountAsync(

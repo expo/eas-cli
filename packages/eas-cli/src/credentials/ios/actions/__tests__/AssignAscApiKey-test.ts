@@ -1,9 +1,9 @@
-import { findApplicationTarget } from '../../../../project/ios/target';
-import { createCtxMock } from '../../../__tests__/fixtures-context';
-import { testAscApiKeyFragment, testTargets } from '../../../__tests__/fixtures-ios';
-import { AppStoreApiKeyPurpose } from '../AscApiKeyUtils';
-import { AssignAscApiKey } from '../AssignAscApiKey';
-import { getAppLookupParamsFromContext } from '../BuildCredentialsUtils';
+import { findApplicationTarget } from '../../../../project/ios/target.js';
+import { createCtxMock } from '../../../__tests__/fixtures-context.js';
+import { testAscApiKeyFragment, testTargets } from '../../../__tests__/fixtures-ios.js';
+import { AppStoreApiKeyPurpose } from '../AscApiKeyUtils.js';
+import { AssignAscApiKey } from '../AssignAscApiKey.js';
+import { getAppLookupParamsFromContext } from '../BuildCredentialsUtils.js';
 
 describe(AssignAscApiKey, () => {
   it('assigns an App Store Connect API Key in Interactive Mode for EAS Submit', async () => {

@@ -1,18 +1,18 @@
 import assert from 'assert';
-import nullthrows from 'nullthrows';
 
-import { AppleDistributionCertificateFragment } from '../../../graphql/generated';
-import Log from '../../../log';
-import { CredentialsContext } from '../../context';
-import { MissingCredentialsNonInteractiveError } from '../../errors';
-import { askForUserProvidedAsync } from '../../utils/promptForCredentials';
-import { AppLookupParams } from '../api/GraphqlClient';
-import { AppleProvisioningProfileMutationResult } from '../api/graphql/mutations/AppleProvisioningProfileMutation';
-import { ProvisioningProfile } from '../appstore/Credentials.types';
-import { AuthCtx } from '../appstore/authenticateTypes';
-import { provisioningProfileSchema } from '../credentials';
-import { resolveAppleTeamIfAuthenticatedAsync } from './AppleTeamUtils';
-import { generateProvisioningProfileAsync } from './ProvisioningProfileUtils';
+import { AppleDistributionCertificateFragment } from '../../../graphql/generated.js';
+import Log from '../../../log.js';
+import { nullthrows } from '../../../utils/nullthrows.js';
+import { CredentialsContext } from '../../context.js';
+import { MissingCredentialsNonInteractiveError } from '../../errors.js';
+import { askForUserProvidedAsync } from '../../utils/promptForCredentials.js';
+import { AppLookupParams } from '../api/GraphqlClient.js';
+import { AppleProvisioningProfileMutationResult } from '../api/graphql/mutations/AppleProvisioningProfileMutation.js';
+import { ProvisioningProfile } from '../appstore/Credentials.types.js';
+import { AuthCtx } from '../appstore/authenticateTypes.js';
+import { provisioningProfileSchema } from '../credentials.js';
+import { resolveAppleTeamIfAuthenticatedAsync } from './AppleTeamUtils.js';
+import { generateProvisioningProfileAsync } from './ProvisioningProfileUtils.js';
 
 export class CreateProvisioningProfile {
   constructor(

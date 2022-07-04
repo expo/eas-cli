@@ -1,15 +1,15 @@
 import assert from 'assert';
 import { print } from 'graphql';
-import gql from 'graphql-tag';
+import { gql } from 'graphql-tag';
 
-import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
+import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client.js';
 import {
   AppStoreConnectApiKeyFragment,
   AppStoreConnectApiKeyInput,
   CreateAppStoreConnectApiKeyMutation,
   DeleteAppStoreConnectApiKeyMutation,
-} from '../../../../../graphql/generated';
-import { AppStoreConnectApiKeyFragmentNode } from '../../../../../graphql/types/credentials/AppStoreConnectApiKey';
+} from '../../../../../graphql/generated.js';
+import { AppStoreConnectApiKeyFragmentNode } from '../../../../../graphql/types/credentials/AppStoreConnectApiKey.js';
 
 export const AppStoreConnectApiKeyMutation = {
   async createAppStoreConnectApiKeyAsync(

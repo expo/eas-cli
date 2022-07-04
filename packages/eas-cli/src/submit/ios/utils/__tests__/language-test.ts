@@ -1,4 +1,4 @@
-import { sanitizeLanguage } from '../language';
+import { sanitizeLanguage } from '../language.js';
 
 describe(sanitizeLanguage, () => {
   it('throws when language not found', () => {

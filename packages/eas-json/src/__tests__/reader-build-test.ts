@@ -2,7 +2,7 @@ import { Platform } from '@expo/eas-build-job';
 import fs from 'fs-extra';
 import { vol } from 'memfs';
 
-import { EasJsonReader } from '../reader';
+import { EasJsonReader } from '../reader.js';
 
 jest.mock('fs');
 

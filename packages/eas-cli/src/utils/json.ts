@@ -1,6 +1,6 @@
 import assert from 'assert';
 
-import Log from '../log';
+import Log from '../log.js';
 
 let stdoutWrite: NodeJS.WriteStream['write'] | undefined;
 

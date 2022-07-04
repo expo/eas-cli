@@ -1,21 +1,23 @@
-import { IOSConfig } from '@expo/config-plugins';
+import ConfigPlugins from '@expo/config-plugins';
 import { Ios, Job, Metadata, Platform, Workflow } from '@expo/eas-build-job';
 import type { XCBuildConfiguration } from 'xcode';
 
-import { IosCredentials, Target } from '../../credentials/ios/types';
-import { BuildParamsInput } from '../../graphql/generated';
-import { BuildMutation, BuildResult } from '../../graphql/mutations/BuildMutation';
-import { ensureBundleIdentifierIsDefinedForManagedProjectAsync } from '../../project/ios/bundleIdentifier';
-import { resolveXcodeBuildContextAsync } from '../../project/ios/scheme';
-import { findApplicationTarget, resolveTargetsAsync } from '../../project/ios/target';
-import { BuildRequestSender, JobData, prepareBuildRequestForPlatformAsync } from '../build';
-import { BuildContext, CommonContext, IosBuildContext } from '../context';
-import { transformMetadata } from '../graphql';
-import { checkGoogleServicesFileAsync, checkNodeEnvVariable } from '../validate';
-import { ensureIosCredentialsAsync } from './credentials';
-import { transformJob } from './graphql';
-import { prepareJobAsync } from './prepareJob';
-import { syncProjectConfigurationAsync } from './syncProjectConfiguration';
+import { IosCredentials, Target } from '../../credentials/ios/types.js';
+import { BuildParamsInput } from '../../graphql/generated.js';
+import { BuildMutation, BuildResult } from '../../graphql/mutations/BuildMutation.js';
+import { ensureBundleIdentifierIsDefinedForManagedProjectAsync } from '../../project/ios/bundleIdentifier.js';
+import { resolveXcodeBuildContextAsync } from '../../project/ios/scheme.js';
+import { findApplicationTarget, resolveTargetsAsync } from '../../project/ios/target.js';
+import { BuildRequestSender, JobData, prepareBuildRequestForPlatformAsync } from '../build.js';
+import { BuildContext, CommonContext, IosBuildContext } from '../context.js';
+import { transformMetadata } from '../graphql.js';
+import { checkGoogleServicesFileAsync, checkNodeEnvVariable } from '../validate.js';
+import { ensureIosCredentialsAsync } from './credentials.js';
+import { transformJob } from './graphql.js';
+import { prepareJobAsync } from './prepareJob.js';
+import { syncProjectConfigurationAsync } from './syncProjectConfiguration.js';
+
+const { IOSConfig } = ConfigPlugins;
 
 export async function createIosContextAsync(
   ctx: CommonContext<Platform.IOS>

@@ -7,13 +7,16 @@ import { vol } from 'memfs';
 import os from 'os';
 import path from 'path';
 
-import { getAppBuildGradleAsync, resolveConfigValue } from '../../../project/android/gradleUtils';
+import {
+  getAppBuildGradleAsync,
+  resolveConfigValue,
+} from '../../../project/android/gradleUtils.js';
 import {
   BumpStrategy,
   bumpVersionAsync,
   bumpVersionInAppJsonAsync,
   maybeResolveVersionsAsync,
-} from '../version';
+} from '../version.js';
 
 const fsReal = jest.requireActual('fs').promises as typeof fs;
 jest.mock('fs');

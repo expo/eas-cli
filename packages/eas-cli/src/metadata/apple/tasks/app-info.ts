@@ -1,17 +1,17 @@
-import { AppInfo, AppInfoLocalization } from '@expo/apple-utils';
+import AppleUtils from '@expo/apple-utils';
 import assert from 'assert';
 import chalk from 'chalk';
 
-import Log from '../../../log';
-import { logAsync } from '../../utils/log';
-import { retryIfNullAsync } from '../../utils/retry';
-import { AppleTask, TaskDownloadOptions, TaskPrepareOptions, TaskUploadOptions } from '../task';
+import Log from '../../../log.js';
+import { logAsync } from '../../utils/log.js';
+import { retryIfNullAsync } from '../../utils/retry.js';
+import { AppleTask, TaskDownloadOptions, TaskPrepareOptions, TaskUploadOptions } from '../task.js';
 
 export type AppInfoData = {
   /** The current app info that should be edited */
-  info: AppInfo;
+  info: AppleUtils.AppInfo;
   /** All info locales that are enabled */
-  infoLocales: AppInfoLocalization[];
+  infoLocales: AppleUtils.AppInfoLocalization[];
 };
 
 export class AppInfoTask extends AppleTask {

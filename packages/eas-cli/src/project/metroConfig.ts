@@ -4,9 +4,9 @@ import chalk from 'chalk';
 import type MetroConfig from 'metro-config';
 import resolveFrom from 'resolve-from';
 
-import { BuildContext } from '../build/context';
-import Log, { learnMore } from '../log';
-import { confirmAsync } from '../prompts';
+import { BuildContext } from '../build/context.js';
+import Log, { learnMore } from '../log.js';
+import { confirmAsync } from '../prompts.js';
 
 export async function validateMetroConfigForManagedWorkflowAsync(
   ctx: BuildContext<Platform>

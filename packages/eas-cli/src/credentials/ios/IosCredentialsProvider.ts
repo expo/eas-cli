@@ -1,18 +1,18 @@
 import { Platform } from '@expo/eas-build-job';
 import { CredentialsSource, DistributionType, IosEnterpriseProvisioning } from '@expo/eas-json';
 
-import { CommonIosAppCredentialsFragment } from '../../graphql/generated';
-import Log from '../../log';
-import { findApplicationTarget } from '../../project/ios/target';
-import { confirmAsync } from '../../prompts';
-import { CredentialsContext } from '../context';
-import * as credentialsJsonReader from '../credentialsJson/read';
-import { ensureAllTargetsAreConfigured } from '../credentialsJson/utils';
-import { getAppFromContext } from './actions/BuildCredentialsUtils';
-import { SetUpBuildCredentials } from './actions/SetUpBuildCredentials';
-import { SetUpPushKey } from './actions/SetUpPushKey';
-import { App, IosCredentials, Target } from './types';
-import { isAdHocProfile } from './utils/provisioningProfile';
+import { CommonIosAppCredentialsFragment } from '../../graphql/generated.js';
+import Log from '../../log.js';
+import { findApplicationTarget } from '../../project/ios/target.js';
+import { confirmAsync } from '../../prompts.js';
+import { CredentialsContext } from '../context.js';
+import * as credentialsJsonReader from '../credentialsJson/read.js';
+import { ensureAllTargetsAreConfigured } from '../credentialsJson/utils.js';
+import { getAppFromContext } from './actions/BuildCredentialsUtils.js';
+import { SetUpBuildCredentials } from './actions/SetUpBuildCredentials.js';
+import { SetUpPushKey } from './actions/SetUpPushKey.js';
+import { App, IosCredentials, Target } from './types.js';
+import { isAdHocProfile } from './utils/provisioningProfile.js';
 
 interface Options {
   app: App;

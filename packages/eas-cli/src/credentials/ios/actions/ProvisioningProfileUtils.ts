@@ -1,11 +1,11 @@
 import chalk from 'chalk';
 
-import { CredentialsContext } from '../../context';
+import { CredentialsContext } from '../../context.js';
 import {
   DistributionCertificate,
   ProvisioningProfile,
   ProvisioningProfileStoreInfo,
-} from '../appstore/Credentials.types';
+} from '../appstore/Credentials.types.js';
 
 export function formatProvisioningProfileFromApple(
   appleInfo: ProvisioningProfileStoreInfo

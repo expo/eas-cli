@@ -1,8 +1,8 @@
-import { findApplicationTarget } from '../../../../project/ios/target';
-import { createCtxMock } from '../../../__tests__/fixtures-context';
-import { testPushKey, testTargets } from '../../../__tests__/fixtures-ios';
-import { AssignPushKey } from '../AssignPushKey';
-import { getAppLookupParamsFromContext } from '../BuildCredentialsUtils';
+import { findApplicationTarget } from '../../../../project/ios/target.js';
+import { createCtxMock } from '../../../__tests__/fixtures-context.js';
+import { testPushKey, testTargets } from '../../../__tests__/fixtures-ios.js';
+import { AssignPushKey } from '../AssignPushKey.js';
+import { getAppLookupParamsFromContext } from '../BuildCredentialsUtils.js';
 
 describe(AssignPushKey, () => {
   it('assigns a push key in Interactive Mode', async () => {

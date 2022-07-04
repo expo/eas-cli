@@ -1,12 +1,12 @@
 import {
   AppStoreConnectApiKeyFragment,
   CommonIosAppCredentialsFragment,
-} from '../../../graphql/generated';
-import Log from '../../../log';
-import { CredentialsContext } from '../../context';
-import { AppLookupParams } from '../api/GraphqlClient';
-import { resolveAppleTeamIfAuthenticatedAsync } from './AppleTeamUtils';
-import { AppStoreApiKeyPurpose } from './AscApiKeyUtils';
+} from '../../../graphql/generated.js';
+import Log from '../../../log.js';
+import { CredentialsContext } from '../../context.js';
+import { AppLookupParams } from '../api/GraphqlClient.js';
+import { resolveAppleTeamIfAuthenticatedAsync } from './AppleTeamUtils.js';
+import { AppStoreApiKeyPurpose } from './AscApiKeyUtils.js';
 
 export class AssignAscApiKey {
   constructor(private app: AppLookupParams) {}

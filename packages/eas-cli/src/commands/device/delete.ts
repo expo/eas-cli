@@ -1,24 +1,29 @@
-import { Device, DeviceStatus } from '@expo/apple-utils';
+import AppleUtils from '@expo/apple-utils';
 import { Flags } from '@oclif/core';
 import assert from 'assert';
 
-import EasCommand from '../../commandUtils/EasCommand';
-import { chooseDevicesToDeleteAsync } from '../../credentials/ios/actions/DeviceUtils';
-import { AppleDeviceMutation } from '../../credentials/ios/api/graphql/mutations/AppleDeviceMutation';
+import EasCommand from '../../commandUtils/EasCommand.js';
+import { chooseDevicesToDeleteAsync } from '../../credentials/ios/actions/DeviceUtils.js';
+import { AppleDeviceMutation } from '../../credentials/ios/api/graphql/mutations/AppleDeviceMutation.js';
 import {
   AppleDeviceQuery,
   AppleDeviceQueryResult,
   AppleDevicesByTeamIdentifierQueryResult,
-} from '../../credentials/ios/api/graphql/queries/AppleDeviceQuery';
-import { AppleTeamQuery } from '../../credentials/ios/api/graphql/queries/AppleTeamQuery';
-import { authenticateAsync, getRequestContext } from '../../credentials/ios/appstore/authenticate';
-import formatDevice from '../../devices/utils/formatDevice';
-import { AppleDevice, Maybe } from '../../graphql/generated';
-import Log from '../../log';
-import { ora } from '../../ora';
-import { getExpoConfig } from '../../project/expoConfig';
-import { findProjectRootAsync, getProjectAccountNameAsync } from '../../project/projectUtils';
-import { promptAsync, toggleConfirmAsync } from '../../prompts';
+} from '../../credentials/ios/api/graphql/queries/AppleDeviceQuery.js';
+import { AppleTeamQuery } from '../../credentials/ios/api/graphql/queries/AppleTeamQuery.js';
+import {
+  authenticateAsync,
+  getRequestContext,
+} from '../../credentials/ios/appstore/authenticate.js';
+import formatDevice from '../../devices/utils/formatDevice.js';
+import { AppleDevice, Maybe } from '../../graphql/generated.js';
+import Log from '../../log.js';
+import { ora } from '../../ora.js';
+import { getExpoConfig } from '../../project/expoConfig.js';
+import { findProjectRootAsync, getProjectAccountNameAsync } from '../../project/projectUtils.js';
+import { promptAsync, toggleConfirmAsync } from '../../prompts.js';
+
+const { Device, DeviceStatus } = AppleUtils;
 
 export default class DeviceDelete extends EasCommand {
   static description = 'remove a registered device from your account';

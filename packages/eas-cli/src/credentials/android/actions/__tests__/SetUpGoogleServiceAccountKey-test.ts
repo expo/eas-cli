@@ -1,15 +1,15 @@
 import { vol } from 'memfs';
 
-import { promptAsync } from '../../../../prompts';
+import { promptAsync } from '../../../../prompts.js';
 import {
   getNewAndroidApiMock,
   testAndroidAppCredentialsFragment,
   testGoogleServiceAccountKeyFragment,
-} from '../../../__tests__/fixtures-android';
-import { createCtxMock } from '../../../__tests__/fixtures-context';
-import { MissingCredentialsNonInteractiveError } from '../../../errors';
-import { getAppLookupParamsFromContextAsync } from '../BuildCredentialsUtils';
-import { SetUpGoogleServiceAccountKey } from '../SetUpGoogleServiceAccountKey';
+} from '../../../__tests__/fixtures-android.js';
+import { createCtxMock } from '../../../__tests__/fixtures-context.js';
+import { MissingCredentialsNonInteractiveError } from '../../../errors.js';
+import { getAppLookupParamsFromContextAsync } from '../BuildCredentialsUtils.js';
+import { SetUpGoogleServiceAccountKey } from '../SetUpGoogleServiceAccountKey.js';
 
 jest.mock('../../../../prompts');
 jest.mock('fs');

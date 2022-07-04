@@ -1,13 +1,13 @@
 import { Flags } from '@oclif/core';
 import Table from 'cli-table3';
-import gql from 'graphql-tag';
+import { gql } from 'graphql-tag';
 
-import EasCommand from '../../commandUtils/EasCommand';
-import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
-import { UpdatesByGroupQuery, UpdatesByGroupQueryVariables } from '../../graphql/generated';
-import Log from '../../log';
-import { UPDATE_COLUMNS, formatUpdate, getPlatformsForGroup } from '../../update/utils';
-import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
+import EasCommand from '../../commandUtils/EasCommand.js';
+import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client.js';
+import { UpdatesByGroupQuery, UpdatesByGroupQueryVariables } from '../../graphql/generated.js';
+import Log from '../../log.js';
+import { UPDATE_COLUMNS, formatUpdate, getPlatformsForGroup } from '../../update/utils.js';
+import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json.js';
 
 export async function viewUpdateAsync({
   groupId,

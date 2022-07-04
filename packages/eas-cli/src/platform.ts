@@ -1,7 +1,7 @@
 import { Platform } from '@expo/eas-build-job';
 
-import { AppPlatform } from './graphql/generated';
-import { promptAsync } from './prompts';
+import { AppPlatform } from './graphql/generated.js';
+import { promptAsync } from './prompts.js';
 
 export const appPlatformDisplayNames: Record<AppPlatform, string> = {
   [AppPlatform.Android]: 'Android',

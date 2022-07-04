@@ -1,19 +1,19 @@
 import { Platform } from '@expo/eas-build-job';
 import chalk from 'chalk';
 import fs from 'fs-extra';
-import nullthrows from 'nullthrows';
 
-import { SetUpGoogleServiceAccountKey } from '../../credentials/android/actions/SetUpGoogleServiceAccountKey';
-import { readAndValidateServiceAccountKey } from '../../credentials/android/utils/googleServiceAccountKey';
-import Log, { learnMore } from '../../log';
+import { SetUpGoogleServiceAccountKey } from '../../credentials/android/actions/SetUpGoogleServiceAccountKey.js';
+import { readAndValidateServiceAccountKey } from '../../credentials/android/utils/googleServiceAccountKey.js';
+import Log, { learnMore } from '../../log.js';
 import {
   INVALID_APPLICATION_ID_MESSAGE,
   isApplicationIdValid,
-} from '../../project/android/applicationId';
-import { promptAsync } from '../../prompts';
-import { findAccountByName } from '../../user/Account';
-import { SubmissionContext } from '../context';
-import { isExistingFileAsync } from '../utils/files';
+} from '../../project/android/applicationId.js';
+import { promptAsync } from '../../prompts.js';
+import { findAccountByName } from '../../user/Account.js';
+import { nullthrows } from '../../utils/nullthrows.js';
+import { SubmissionContext } from '../context.js';
+import { isExistingFileAsync } from '../utils/files.js';
 
 export enum ServiceAccountSourceType {
   path,

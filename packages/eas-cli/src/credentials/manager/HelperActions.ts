@@ -1,6 +1,6 @@
-import Log from '../../log';
-import { pressAnyKeyToContinueAsync } from '../../prompts';
-import { CredentialsContext } from '../context';
+import Log from '../../log.js';
+import { pressAnyKeyToContinueAsync } from '../../prompts.js';
+import { CredentialsContext } from '../context.js';
 
 export interface Action<T = void> {
   runAsync(ctx: CredentialsContext): Promise<T>;

@@ -1,6 +1,6 @@
-import { AppleDistributionCertificateFragment } from '../../../../graphql/generated';
-import { testDistCertFragmentOneDependency } from '../../../__tests__/fixtures-ios';
-import { CredentialsContext } from '../../../context';
+import { AppleDistributionCertificateFragment } from '../../../../graphql/generated.js';
+import { testDistCertFragmentOneDependency } from '../../../__tests__/fixtures-ios.js';
+import { CredentialsContext } from '../../../context.js';
 export class SetUpDistributionCertificate {
   public async runAsync(_ctx: CredentialsContext): Promise<AppleDistributionCertificateFragment> {
     return testDistCertFragmentOneDependency;

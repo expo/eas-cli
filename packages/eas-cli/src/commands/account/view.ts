@@ -1,8 +1,8 @@
 import chalk from 'chalk';
 
-import EasCommand from '../../commandUtils/EasCommand';
-import Log from '../../log';
-import { getActorDisplayName, getUserAsync } from '../../user/User';
+import EasCommand from '../../commandUtils/EasCommand.js';
+import Log from '../../log.js';
+import { getActorDisplayName, getUserAsync } from '../../user/User.js';
 
 export default class AccountView extends EasCommand {
   static description = 'show the username you are logged in as';

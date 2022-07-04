@@ -1,33 +1,33 @@
 import { Android, Job, Metadata, Platform, Workflow } from '@expo/eas-build-job';
 import chalk from 'chalk';
-import nullthrows from 'nullthrows';
 
 import AndroidCredentialsProvider, {
   AndroidCredentials,
-} from '../../credentials/android/AndroidCredentialsProvider';
-import { BuildParamsInput } from '../../graphql/generated';
-import { BuildMutation, BuildResult } from '../../graphql/mutations/BuildMutation';
-import Log from '../../log';
+} from '../../credentials/android/AndroidCredentialsProvider.js';
+import { BuildParamsInput } from '../../graphql/generated.js';
+import { BuildMutation, BuildResult } from '../../graphql/mutations/BuildMutation.js';
+import Log from '../../log.js';
 import {
   ensureApplicationIdIsDefinedForManagedProjectAsync,
   getApplicationIdAsync,
-} from '../../project/android/applicationId';
-import { resolveGradleBuildContextAsync } from '../../project/android/gradle';
-import { toggleConfirmAsync } from '../../prompts';
-import { findAccountByName } from '../../user/Account';
+} from '../../project/android/applicationId.js';
+import { resolveGradleBuildContextAsync } from '../../project/android/gradle.js';
+import { toggleConfirmAsync } from '../../prompts.js';
+import { findAccountByName } from '../../user/Account.js';
+import { nullthrows } from '../../utils/nullthrows.js';
 import {
   BuildRequestSender,
   CredentialsResult,
   JobData,
   prepareBuildRequestForPlatformAsync,
-} from '../build';
-import { AndroidBuildContext, BuildContext, CommonContext } from '../context';
-import { transformMetadata } from '../graphql';
-import { logCredentialsSource } from '../utils/credentials';
-import { checkGoogleServicesFileAsync, checkNodeEnvVariable } from '../validate';
-import { transformJob } from './graphql';
-import { prepareJobAsync } from './prepareJob';
-import { syncProjectConfigurationAsync } from './syncProjectConfiguration';
+} from '../build.js';
+import { AndroidBuildContext, BuildContext, CommonContext } from '../context.js';
+import { transformMetadata } from '../graphql.js';
+import { logCredentialsSource } from '../utils/credentials.js';
+import { checkGoogleServicesFileAsync, checkNodeEnvVariable } from '../validate.js';
+import { transformJob } from './graphql.js';
+import { prepareJobAsync } from './prepareJob.js';
+import { syncProjectConfigurationAsync } from './syncProjectConfiguration.js';
 
 export async function createAndroidContextAsync(
   ctx: CommonContext<Platform.ANDROID>

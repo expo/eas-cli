@@ -2,11 +2,11 @@ import { ExpoConfig } from '@expo/config';
 import { format } from '@expo/timeago.js';
 import chalk from 'chalk';
 
-import { Maybe, Robot, Update, User } from '../graphql/generated';
-import { learnMore } from '../log';
-import { RequestedPlatform } from '../platform';
-import { getActorDisplayName } from '../user/User';
-import groupBy from '../utils/expodash/groupBy';
+import { Maybe, Robot, Update, User } from '../graphql/generated.js';
+import { learnMore } from '../log.js';
+import { RequestedPlatform } from '../platform.js';
+import { getActorDisplayName } from '../user/User.js';
+import groupBy from '../utils/expodash/groupBy.js';
 
 export type FormatUpdateParameter = Pick<Update, 'id' | 'createdAt' | 'message'> & {
   actor?: Maybe<Pick<User, 'username' | 'id'> | Pick<Robot, 'firstName' | 'id'>>;

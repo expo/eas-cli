@@ -1,28 +1,28 @@
 import { Platform } from '@expo/eas-build-job';
 import chalk from 'chalk';
 
-import { SubmissionEvent } from '../../analytics/events';
+import { SubmissionEvent } from '../../analytics/events.js';
 import {
   AndroidSubmissionConfigInput,
   SubmissionAndroidReleaseStatus,
   SubmissionAndroidTrack,
   SubmissionFragment,
-} from '../../graphql/generated';
-import { SubmissionMutation } from '../../graphql/mutations/SubmissionMutation';
-import formatFields from '../../utils/formatFields';
-import { Archive, ArchiveSource, getArchiveAsync } from '../ArchiveSource';
-import BaseSubmitter, { SubmissionInput } from '../BaseSubmitter';
-import { SubmissionContext } from '../context';
+} from '../../graphql/generated.js';
+import { SubmissionMutation } from '../../graphql/mutations/SubmissionMutation.js';
+import formatFields from '../../utils/formatFields.js';
+import { Archive, ArchiveSource, getArchiveAsync } from '../ArchiveSource.js';
+import BaseSubmitter, { SubmissionInput } from '../BaseSubmitter.js';
+import { SubmissionContext } from '../context.js';
 import {
   ArchiveSourceSummaryFields,
   formatArchiveSourceSummary,
   printSummary,
-} from '../utils/summary';
+} from '../utils/summary.js';
 import {
   ServiceAccountKeyResult,
   ServiceAccountSource,
   getServiceAccountKeyResultAsync,
-} from './ServiceAccountSource';
+} from './ServiceAccountSource.js';
 
 export interface AndroidSubmissionOptions
   extends Pick<

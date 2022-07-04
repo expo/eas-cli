@@ -1,16 +1,18 @@
 import { ExpoConfig } from '@expo/config';
-import { AndroidConfig } from '@expo/config-plugins';
+import ConfigPlugins from '@expo/config-plugins';
 import { Platform, Workflow } from '@expo/eas-build-job';
 import { AndroidVersionAutoIncrement, BuildProfile } from '@expo/eas-json';
 import chalk from 'chalk';
 import fs from 'fs-extra';
 import path from 'path';
 
-import Log from '../../log';
-import { isExpoUpdatesInstalled } from '../../project/projectUtils';
-import { resolveWorkflowAsync } from '../../project/workflow';
-import { syncUpdatesConfigurationAsync } from '../../update/android/UpdatesModule';
-import { BumpStrategy, bumpVersionAsync, bumpVersionInAppJsonAsync } from './version';
+import Log from '../../log.js';
+import { isExpoUpdatesInstalled } from '../../project/projectUtils.js';
+import { resolveWorkflowAsync } from '../../project/workflow.js';
+import { syncUpdatesConfigurationAsync } from '../../update/android/UpdatesModule.js';
+import { BumpStrategy, bumpVersionAsync, bumpVersionInAppJsonAsync } from './version.js';
+
+const { AndroidConfig } = ConfigPlugins;
 
 export async function syncProjectConfigurationAsync({
   projectDir,

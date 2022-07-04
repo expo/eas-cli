@@ -1,13 +1,13 @@
-import { findApplicationTarget } from '../../../../project/ios/target';
-import { confirmAsync } from '../../../../prompts';
-import { createCtxMock } from '../../../__tests__/fixtures-context';
+import { findApplicationTarget } from '../../../../project/ios/target.js';
+import { confirmAsync } from '../../../../prompts.js';
+import { createCtxMock } from '../../../__tests__/fixtures-context.js';
 import {
   testDistCertFragmentNoDependencies,
   testDistCertFragmentOneDependency,
   testTargets,
-} from '../../../__tests__/fixtures-ios';
-import { getAppLookupParamsFromContext } from '../BuildCredentialsUtils';
-import { RemoveDistributionCertificate } from '../RemoveDistributionCertificate';
+} from '../../../__tests__/fixtures-ios.js';
+import { getAppLookupParamsFromContext } from '../BuildCredentialsUtils.js';
+import { RemoveDistributionCertificate } from '../RemoveDistributionCertificate.js';
 
 jest.mock('../../../../prompts');
 jest.mocked(confirmAsync).mockImplementation(async () => true);

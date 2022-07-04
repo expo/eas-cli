@@ -1,6 +1,6 @@
 import fg from 'fast-glob';
 import fs from 'fs-extra';
-import createIgnore, { Ignore as SingleFileIgnore } from 'ignore';
+import { Ignore as SingleFileIgnore, default as createIgnore } from 'ignore';
 import path from 'path';
 
 const EASIGNORE_FILENAME = '.easignore';

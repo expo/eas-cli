@@ -1,7 +1,7 @@
-import { confirmAsync } from '../../../../prompts';
-import { createCtxMock } from '../../../__tests__/fixtures-context';
-import { testAscApiKeyFragment } from '../../../__tests__/fixtures-ios';
-import { RemoveAscApiKey } from '../RemoveAscApiKey';
+import { confirmAsync } from '../../../../prompts.js';
+import { createCtxMock } from '../../../__tests__/fixtures-context.js';
+import { testAscApiKeyFragment } from '../../../__tests__/fixtures-ios.js';
+import { RemoveAscApiKey } from '../RemoveAscApiKey.js';
 
 jest.mock('../../../../prompts');
 jest.mocked(confirmAsync).mockImplementation(async () => true);

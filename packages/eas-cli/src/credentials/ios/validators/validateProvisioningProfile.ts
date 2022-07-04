@@ -2,15 +2,15 @@ import { PlistArray, PlistObject } from '@expo/plist';
 import assert from 'assert';
 import crypto from 'crypto';
 import minimatch from 'minimatch';
-import nullthrows from 'nullthrows';
 
-import { IosAppBuildCredentialsFragment, IosDistributionType } from '../../../graphql/generated';
-import Log from '../../../log';
-import { CredentialsContext } from '../../context';
-import { AppLookupParams } from '../api/GraphqlClient';
-import { ProfileClass } from '../appstore/provisioningProfile';
-import { getP12CertFingerprint } from '../utils/p12Certificate';
-import { parse as parseProvisioningProfile } from '../utils/provisioningProfile';
+import { IosAppBuildCredentialsFragment, IosDistributionType } from '../../../graphql/generated.js';
+import Log from '../../../log.js';
+import { nullthrows } from '../../../utils/nullthrows.js';
+import { CredentialsContext } from '../../context.js';
+import { AppLookupParams } from '../api/GraphqlClient.js';
+import { ProfileClass } from '../appstore/provisioningProfile.js';
+import { getP12CertFingerprint } from '../utils/p12Certificate.js';
+import { parse as parseProvisioningProfile } from '../utils/provisioningProfile.js';
 
 export async function validateProvisioningProfileAsync(
   ctx: CredentialsContext,

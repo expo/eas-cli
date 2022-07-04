@@ -1,10 +1,12 @@
-import { BundleIdCapability } from '@expo/apple-utils';
+import AppleUtils from '@expo/apple-utils';
 
 import {
   CapabilityMapping,
   assertValidOptions,
   syncCapabilitiesForEntitlementsAsync,
-} from '../bundleIdCapabilities';
+} from '../bundleIdCapabilities.js';
+
+const { BundleIdCapability } = AppleUtils;
 
 describe(assertValidOptions, () => {
   it(`adds a reason for asserting capability identifiers`, () => {

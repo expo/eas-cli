@@ -1,14 +1,14 @@
 import { Platform } from '@expo/eas-build-job';
 import envString from 'env-string';
 
-import { MissingParentProfileError, MissingProfileError } from '../errors';
-import { EasJson } from '../types';
-import { AndroidSubmitProfileSchema, IosSubmitProfileSchema } from './schema';
+import { MissingParentProfileError, MissingProfileError } from '../errors.js';
+import { EasJson } from '../types.js';
+import { AndroidSubmitProfileSchema, IosSubmitProfileSchema } from './schema.js';
 import {
   AndroidSubmitProfileFieldsToEvaluate,
   IosSubmitProfileFieldsToEvaluate,
   SubmitProfile,
-} from './types';
+} from './types.js';
 
 export function resolveSubmitProfile<T extends Platform>({
   easJson,

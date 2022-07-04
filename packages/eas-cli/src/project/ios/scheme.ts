@@ -1,14 +1,15 @@
 import { ExpoConfig } from '@expo/config';
-import { IOSConfig } from '@expo/config-plugins';
+import ConfigPlugins from '@expo/config-plugins';
 import { Platform, Workflow } from '@expo/eas-build-job';
 import { BuildProfile } from '@expo/eas-json';
 import chalk from 'chalk';
 
-import Log from '../../log';
-import { promptAsync } from '../../prompts';
-import sortBy from '../../utils/expodash/sortBy';
-import { resolveWorkflowAsync } from '../workflow';
+import Log from '../../log.js';
+import { promptAsync } from '../../prompts.js';
+import sortBy from '../../utils/expodash/sortBy.js';
+import { resolveWorkflowAsync } from '../workflow.js';
 
+const { IOSConfig } = ConfigPlugins;
 export interface XcodeBuildContext {
   buildScheme: string;
   buildConfiguration?: string;

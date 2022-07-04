@@ -1,7 +1,7 @@
-import gql from 'graphql-tag';
+import { gql } from 'graphql-tag';
 
-import { graphqlClient, withErrorHandlingAsync } from '../client';
-import { ViewBranchQuery, ViewBranchQueryVariables } from '../generated';
+import { graphqlClient, withErrorHandlingAsync } from '../client.js';
+import { ViewBranchQuery, ViewBranchQueryVariables } from '../generated.js';
 
 export const BranchQuery = {
   async getBranchByNameAsync({

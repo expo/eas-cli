@@ -1,7 +1,7 @@
 import { Android } from '@expo/eas-build-job';
 
-import { AndroidBuildType, AndroidJobInput } from '../../graphql/generated';
-import { transformProjectArchive, transformWorkflow } from '../graphql';
+import { AndroidBuildType, AndroidJobInput } from '../../graphql/generated.js';
+import { transformProjectArchive, transformWorkflow } from '../graphql.js';
 
 export function transformJob(job: Android.Job): AndroidJobInput {
   return {

@@ -1,10 +1,12 @@
-import { ApiKey, ApiKeyProps, ApiKeyType, UserRole } from '@expo/apple-utils';
+import AppleUtils from '@expo/apple-utils';
 
-import Log from '../../../log';
-import { ora } from '../../../ora';
-import { AscApiKey, AscApiKeyInfo } from './Credentials.types';
-import { getRequestContext } from './authenticate';
-import { AuthCtx, UserAuthCtx } from './authenticateTypes';
+import Log from '../../../log.js';
+import { ora } from '../../../ora.js';
+import { AscApiKey, AscApiKeyInfo } from './Credentials.types.js';
+import { getRequestContext } from './authenticate.js';
+import { AuthCtx, UserAuthCtx } from './authenticateTypes.js';
+
+const { ApiKey, UserRole } = AppleUtils;
 
 /**
  * List App Store Connect API Keys.
@@ -60,7 +62,7 @@ export async function createAscApiKeyAsync(
     allAppsVisible,
     roles,
     keyType,
-  }: Partial<Pick<ApiKeyProps, 'nickname' | 'roles' | 'allAppsVisible' | 'keyType'>>
+  }: Partial<Pick<AppleUtils.ApiKeyProps, 'nickname' | 'roles' | 'allAppsVisible' | 'keyType'>>
 ): Promise<AscApiKey> {
   const spinner = ora(`Creating App Store Connect API Key.`).start();
   try {
@@ -69,7 +71,7 @@ export async function createAscApiKeyAsync(
       nickname: nickname ?? `[expo] ${new Date().getTime()}`,
       allAppsVisible: allAppsVisible ?? true,
       roles: roles ?? [UserRole.ADMIN],
-      keyType: keyType ?? ApiKeyType.PUBLIC_API,
+      keyType: keyType ?? AppleUtils.ApiKeyType.PUBLIC_API,
     });
     const keyP8 = await key.downloadAsync();
     if (!keyP8) {
@@ -120,7 +122,7 @@ export async function revokeAscApiKeyAsync(
   }
 }
 
-export function getAscApiKeyInfo(apiKey: ApiKey, authCtx: AuthCtx): AscApiKeyInfo {
+export function getAscApiKeyInfo(apiKey: AppleUtils.ApiKey, authCtx: AuthCtx): AscApiKeyInfo {
   return {
     name: apiKey.attributes.nickname,
     keyId: apiKey.id,

@@ -1,8 +1,8 @@
-import { AppStoreReviewDetail } from '@expo/apple-utils';
+import AppleUtils from '@expo/apple-utils';
 
-import { AttributesOf } from '../../../../utils/asc';
+import { AttributesOf } from '../../../../utils/asc.js';
 
-export const nameOnlyReviewDetails: AttributesOf<AppStoreReviewDetail> = {
+export const nameOnlyReviewDetails: AttributesOf<AppleUtils.AppStoreReviewDetail> = {
   contactFirstName: 'Evan',
   contactLastName: 'Bacon',
   contactEmail: 'apple@example.com',
@@ -13,7 +13,7 @@ export const nameOnlyReviewDetails: AttributesOf<AppStoreReviewDetail> = {
   notes: null,
 };
 
-export const nameAndDemoReviewDetails: AttributesOf<AppStoreReviewDetail> = {
+export const nameAndDemoReviewDetails: AttributesOf<AppleUtils.AppStoreReviewDetail> = {
   contactFirstName: 'Evan',
   contactLastName: 'Bacon',
   contactEmail: 'apple@example.com',

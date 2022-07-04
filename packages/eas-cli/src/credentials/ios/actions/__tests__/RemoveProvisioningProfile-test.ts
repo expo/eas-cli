@@ -1,8 +1,8 @@
-import { findApplicationTarget } from '../../../../project/ios/target';
-import { createCtxMock } from '../../../__tests__/fixtures-context';
-import { testTargets } from '../../../__tests__/fixtures-ios';
-import { getAppLookupParamsFromContext } from '../BuildCredentialsUtils';
-import { RemoveProvisioningProfiles } from '../RemoveProvisioningProfile';
+import { findApplicationTarget } from '../../../../project/ios/target.js';
+import { createCtxMock } from '../../../__tests__/fixtures-context.js';
+import { testTargets } from '../../../__tests__/fixtures-ios.js';
+import { getAppLookupParamsFromContext } from '../BuildCredentialsUtils.js';
+import { RemoveProvisioningProfiles } from '../RemoveProvisioningProfile.js';
 
 describe('RemoveProvisioningProfile', () => {
   it('Basic Case', async () => {

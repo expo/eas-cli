@@ -2,21 +2,21 @@ import fs from 'fs-extra';
 import { vol } from 'memfs';
 import prompts from 'prompts';
 
-import { IosDistributionType } from '../../../graphql/generated';
+import { IosDistributionType } from '../../../graphql/generated.js';
 import {
   testKeystore,
   testLegacyAndroidBuildCredentialsFragment,
-} from '../../__tests__/fixtures-android';
-import { createCtxMock } from '../../__tests__/fixtures-context';
+} from '../../__tests__/fixtures-android.js';
+import { createCtxMock } from '../../__tests__/fixtures-context.js';
 import {
   getNewIosApiMock,
   testCommonIosAppCredentialsFragment,
   testDistCertFragmentNoDependencies,
   testProvisioningProfileFragment,
-} from '../../__tests__/fixtures-ios';
-import { getAppFromContext } from '../../ios/actions/BuildCredentialsUtils';
-import { Target } from '../../ios/types';
-import { updateAndroidCredentialsAsync, updateIosCredentialsAsync } from '../update';
+} from '../../__tests__/fixtures-ios.js';
+import { getAppFromContext } from '../../ios/actions/BuildCredentialsUtils.js';
+import { Target } from '../../ios/types.js';
+import { updateAndroidCredentialsAsync, updateIosCredentialsAsync } from '../update.js';
 
 jest.mock('fs');
 jest.mock('prompts');

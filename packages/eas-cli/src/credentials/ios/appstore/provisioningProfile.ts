@@ -1,24 +1,32 @@
-import { Profile, ProfileType, RequestContext } from '@expo/apple-utils';
+import AppleUtils from '@expo/apple-utils';
 
-import { ora } from '../../../ora';
-import { isAppStoreConnectTokenOnlyContext } from '../utils/authType';
-import { findP12CertSerialNumber } from '../utils/p12Certificate';
+import { ora } from '../../../ora.js';
+import { isAppStoreConnectTokenOnlyContext } from '../utils/authType.js';
+import { findP12CertSerialNumber } from '../utils/p12Certificate.js';
 import {
   DistributionCertificate,
   ProvisioningProfile,
   ProvisioningProfileStoreInfo,
-} from './Credentials.types';
-import { getRequestContext } from './authenticate';
-import { AuthCtx } from './authenticateTypes';
-import { getBundleIdForIdentifierAsync, getProfilesForBundleIdAsync } from './bundleId';
-import { getCertificateBySerialNumberAsync, transformCertificate } from './distributionCertificate';
+} from './Credentials.types.js';
+import { getRequestContext } from './authenticate.js';
+import { AuthCtx } from './authenticateTypes.js';
+import { getBundleIdForIdentifierAsync, getProfilesForBundleIdAsync } from './bundleId.js';
+import {
+  getCertificateBySerialNumberAsync,
+  transformCertificate,
+} from './distributionCertificate.js';
+
+const { Profile, ProfileType } = AppleUtils;
 
 export enum ProfileClass {
   Adhoc = 'ad_hoc',
   General = 'general',
 }
 
-function resolveProfileType(profileClass: ProfileClass, isEnterprise?: boolean): ProfileType {
+function resolveProfileType(
+  profileClass: ProfileClass,
+  isEnterprise?: boolean
+): AppleUtils.ProfileType {
   if (isEnterprise) {
     return profileClass === ProfileClass.Adhoc
       ? ProfileType.IOS_APP_ADHOC
@@ -31,7 +39,7 @@ function resolveProfileType(profileClass: ProfileClass, isEnterprise?: boolean):
 }
 
 async function transformProfileAsync(
-  cert: Profile,
+  cert: AppleUtils.Profile,
   authCtx: AuthCtx
 ): Promise<ProvisioningProfileStoreInfo> {
   return {
@@ -49,7 +57,7 @@ async function transformProfileAsync(
 }
 
 async function addCertificateToProfileAsync(
-  context: RequestContext,
+  context: AppleUtils.RequestContext,
   {
     serialNumber,
     profileId,
@@ -59,7 +67,7 @@ async function addCertificateToProfileAsync(
     profileId: string;
     bundleIdentifier: string;
   }
-): Promise<Profile> {
+): Promise<AppleUtils.Profile> {
   const cert = await getCertificateBySerialNumberAsync(context, serialNumber);
 
   const profiles = await getProfilesForBundleIdAsync(context, bundleIdentifier);

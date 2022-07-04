@@ -1,10 +1,10 @@
 import assert from 'assert';
 import chalk from 'chalk';
 
-import { api } from '../api';
-import Log from '../log';
-import { promptAsync, selectAsync } from '../prompts';
-import { loginAsync } from './User';
+import { api } from '../api.js';
+import Log from '../log.js';
+import { promptAsync, selectAsync } from '../prompts.js';
+import { loginAsync } from './User.js';
 
 export enum UserSecondFactorDeviceMethod {
   AUTHENTICATOR = 'authenticator',

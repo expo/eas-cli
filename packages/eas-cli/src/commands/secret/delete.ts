@@ -1,20 +1,20 @@
 import { Flags } from '@oclif/core';
 
-import EasCommand from '../../commandUtils/EasCommand';
-import { EnvironmentSecretMutation } from '../../graphql/mutations/EnvironmentSecretMutation';
+import EasCommand from '../../commandUtils/EasCommand.js';
+import { EnvironmentSecretMutation } from '../../graphql/mutations/EnvironmentSecretMutation.js';
 import {
   EnvironmentSecretScope,
   EnvironmentSecretWithScope,
   EnvironmentSecretsQuery,
-} from '../../graphql/queries/EnvironmentSecretsQuery';
-import Log from '../../log';
-import { getExpoConfig } from '../../project/expoConfig';
+} from '../../graphql/queries/EnvironmentSecretsQuery.js';
+import Log from '../../log.js';
+import { getExpoConfig } from '../../project/expoConfig.js';
 import {
   findProjectRootAsync,
   getProjectAccountNameAsync,
   getProjectIdAsync,
-} from '../../project/projectUtils';
-import { promptAsync, toggleConfirmAsync } from '../../prompts';
+} from '../../project/projectUtils.js';
+import { promptAsync, toggleConfirmAsync } from '../../prompts.js';
 
 export default class EnvironmentSecretDelete extends EasCommand {
   static description = 'delete an environment secret by ID';

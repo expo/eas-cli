@@ -1,11 +1,11 @@
 import { ExpoConfig, getConfigFilePaths } from '@expo/config';
 import chalk from 'chalk';
-import nullthrows from 'nullthrows';
 import semver from 'semver';
 
-import Log from '../../log';
-import { promptAsync } from '../../prompts';
-import { updateAppJsonConfigAsync } from './appJson';
+import Log from '../../log.js';
+import { promptAsync } from '../../prompts.js';
+import { nullthrows } from '../../utils/nullthrows.js';
+import { updateAppJsonConfigAsync } from './appJson.js';
 
 export function ensureStaticConfigExists(projectDir: string): void {
   const paths = getConfigFilePaths(projectDir);

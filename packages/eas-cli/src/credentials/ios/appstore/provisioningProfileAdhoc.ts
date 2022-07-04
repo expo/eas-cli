@@ -1,12 +1,14 @@
-import { Device, Profile, ProfileState, ProfileType, RequestContext } from '@expo/apple-utils';
+import AppleUtils from '@expo/apple-utils';
 
-import { ora } from '../../../ora';
-import { isAppStoreConnectTokenOnlyContext } from '../utils/authType';
-import { ProvisioningProfile } from './Credentials.types';
-import { getRequestContext } from './authenticate';
-import { AuthCtx } from './authenticateTypes';
-import { getBundleIdForIdentifierAsync, getProfilesForBundleIdAsync } from './bundleId';
-import { getDistributionCertificateAsync } from './distributionCertificate';
+import { ora } from '../../../ora.js';
+import { isAppStoreConnectTokenOnlyContext } from '../utils/authType.js';
+import { ProvisioningProfile } from './Credentials.types.js';
+import { getRequestContext } from './authenticate.js';
+import { AuthCtx } from './authenticateTypes.js';
+import { getBundleIdForIdentifierAsync, getProfilesForBundleIdAsync } from './bundleId.js';
+import { getDistributionCertificateAsync } from './distributionCertificate.js';
+
+const { Device, Profile, ProfileState, ProfileType } = AppleUtils;
 
 interface ProfileResults {
   didUpdate?: boolean;
@@ -22,9 +24,9 @@ function uniqueItems<T = any>(items: T[]): T[] {
 }
 
 async function registerMissingDevicesAsync(
-  context: RequestContext,
+  context: AppleUtils.RequestContext,
   udids: string[]
-): Promise<Device[]> {
+): Promise<AppleUtils.Device[]> {
   const allIosProfileDevices = await Device.getAllIOSProfileDevicesAsync(context);
   const alreadyAdded = allIosProfileDevices.filter(device =>
     udids.includes(device.attributes.udid)
@@ -47,11 +49,11 @@ async function registerMissingDevicesAsync(
 }
 
 async function findProfileByBundleIdAsync(
-  context: RequestContext,
+  context: AppleUtils.RequestContext,
   bundleId: string,
   certSerialNumber: string
 ): Promise<{
-  profile: Profile | null;
+  profile: AppleUtils.Profile | null;
   didUpdate: boolean;
 }> {
   const expoProfiles = (await getProfilesForBundleIdAsync(context, bundleId)).filter(profile => {
@@ -62,7 +64,7 @@ async function findProfileByBundleIdAsync(
     );
   });
 
-  const expoProfilesWithCertificate: Profile[] = [];
+  const expoProfilesWithCertificate: AppleUtils.Profile[] = [];
   // find profiles associated with our development cert
   for (const profile of expoProfiles) {
     const certificates = await profile.getCertificatesAsync();
@@ -106,7 +108,7 @@ async function findProfileByBundleIdAsync(
   return { profile: null, didUpdate: false };
 }
 
-function sortByExpiration(a: Profile, b: Profile): number {
+function sortByExpiration(a: AppleUtils.Profile, b: AppleUtils.Profile): number {
   return (
     new Date(a.attributes.expirationDate).getTime() -
     new Date(b.attributes.expirationDate).getTime()
@@ -114,10 +116,10 @@ function sortByExpiration(a: Profile, b: Profile): number {
 }
 
 async function findProfileByIdAsync(
-  context: RequestContext,
+  context: AppleUtils.RequestContext,
   profileId: string,
   bundleId: string
-): Promise<Profile | null> {
+): Promise<AppleUtils.Profile | null> {
   let profiles = await getProfilesForBundleIdAsync(context, bundleId);
   profiles = profiles.filter(
     profile => profile.attributes.profileType === ProfileType.IOS_APP_ADHOC
@@ -126,7 +128,7 @@ async function findProfileByIdAsync(
 }
 
 async function manageAdHocProfilesAsync(
-  context: RequestContext,
+  context: AppleUtils.RequestContext,
   {
     udids,
     bundleId,
@@ -142,7 +144,7 @@ async function manageAdHocProfilesAsync(
   // We register all missing devices on the Apple Developer Portal. They are identified by UDIDs.
   const devices = await registerMissingDevicesAsync(context, udids);
 
-  let existingProfile: Profile | null;
+  let existingProfile: AppleUtils.Profile | null;
   let didUpdate = false;
 
   if (profileId) {

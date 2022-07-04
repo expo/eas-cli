@@ -1,17 +1,17 @@
 import { Platform } from '@expo/eas-build-job';
 
-import { withAnalyticsAsync } from '../analytics/common';
-import { Event, SubmissionEvent } from '../analytics/events';
+import { withAnalyticsAsync } from '../analytics/common.js';
+import { Event, SubmissionEvent } from '../analytics/events.js';
 import {
   AndroidSubmissionConfigInput,
   IosSubmissionConfigInput,
   SubmissionFragment,
-} from '../graphql/generated';
-import { toAppPlatform } from '../graphql/types/AppPlatform';
-import Log from '../log';
-import { ora } from '../ora';
-import { appPlatformDisplayNames } from '../platform';
-import { SubmissionContext } from './context';
+} from '../graphql/generated.js';
+import { toAppPlatform } from '../graphql/types/AppPlatform.js';
+import Log from '../log.js';
+import { ora } from '../ora.js';
+import { appPlatformDisplayNames } from '../platform.js';
+import { SubmissionContext } from './context.js';
 
 export interface SubmissionInput<P extends Platform> {
   projectId: string;

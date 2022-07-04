@@ -1,11 +1,11 @@
-import gql from 'graphql-tag';
+import { gql } from 'graphql-tag';
 
-import * as Analytics from '../analytics/rudderstackClient';
-import { api } from '../api';
-import { graphqlClient } from '../graphql/client';
-import { CurrentUserQuery } from '../graphql/generated';
-import { UserQuery } from '../graphql/queries/UserQuery';
-import { getAccessToken, getSessionSecret, setSessionAsync } from './sessionStorage';
+import * as Analytics from '../analytics/rudderstackClient.js';
+import { api } from '../api.js';
+import { graphqlClient } from '../graphql/client.js';
+import { CurrentUserQuery } from '../graphql/generated.js';
+import { UserQuery } from '../graphql/queries/UserQuery.js';
+import { getAccessToken, getSessionSecret, setSessionAsync } from './sessionStorage.js';
 
 // Re-export, but keep in separate file to avoid dependency cycle
 export { getSessionSecret, getAccessToken };

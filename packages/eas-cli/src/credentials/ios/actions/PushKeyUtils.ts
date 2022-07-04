@@ -1,18 +1,18 @@
 import chalk from 'chalk';
 
-import { ApplePushKeyFragment } from '../../../graphql/generated';
-import Log, { learnMore } from '../../../log';
-import { confirmAsync, promptAsync } from '../../../prompts';
-import { Account } from '../../../user/Account';
-import { fromNow } from '../../../utils/date';
-import { CredentialsContext } from '../../context';
-import { askForUserProvidedAsync } from '../../utils/promptForCredentials';
-import { PushKey, PushKeyStoreInfo } from '../appstore/Credentials.types';
-import { filterRevokedAndUntrackedPushKeysFromEasServersAsync } from '../appstore/CredentialsUtils';
-import { APPLE_KEYS_TOO_MANY_GENERATED_ERROR } from '../appstore/pushKey';
-import { pushKeySchema } from '../credentials';
-import { isPushKeyValidAndTrackedAsync } from '../validators/validatePushKey';
-import { formatAppleTeam } from './AppleTeamUtils';
+import { ApplePushKeyFragment } from '../../../graphql/generated.js';
+import Log, { learnMore } from '../../../log.js';
+import { confirmAsync, promptAsync } from '../../../prompts.js';
+import { Account } from '../../../user/Account.js';
+import { fromNow } from '../../../utils/date.js';
+import { CredentialsContext } from '../../context.js';
+import { askForUserProvidedAsync } from '../../utils/promptForCredentials.js';
+import { PushKey, PushKeyStoreInfo } from '../appstore/Credentials.types.js';
+import { filterRevokedAndUntrackedPushKeysFromEasServersAsync } from '../appstore/CredentialsUtils.js';
+import { APPLE_KEYS_TOO_MANY_GENERATED_ERROR } from '../appstore/pushKey.js';
+import { pushKeySchema } from '../credentials.js';
+import { isPushKeyValidAndTrackedAsync } from '../validators/validatePushKey.js';
+import { formatAppleTeam } from './AppleTeamUtils.js';
 
 export async function provideOrGeneratePushKeyAsync(ctx: CredentialsContext): Promise<PushKey> {
   if (!ctx.nonInteractive) {

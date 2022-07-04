@@ -1,15 +1,19 @@
 import fs from 'fs-extra';
 import path from 'path';
 
-import { MetadataEvent } from '../analytics/events';
-import Log from '../log';
-import { confirmAsync } from '../prompts';
-import { AppleData } from './apple/data';
-import { createAppleTasks } from './apple/tasks';
-import { createAppleReader, validateConfig } from './config';
-import { MetadataContext, ensureMetadataAppStoreAuthenticatedAsync } from './context';
-import { MetadataUploadError, MetadataValidationError, logMetadataValidationError } from './errors';
-import { subscribeTelemetry } from './utils/telemetry';
+import { MetadataEvent } from '../analytics/events.js';
+import Log from '../log.js';
+import { confirmAsync } from '../prompts.js';
+import { AppleData } from './apple/data.js';
+import { createAppleTasks } from './apple/tasks/index.js';
+import { createAppleReader, validateConfig } from './config.js';
+import { MetadataContext, ensureMetadataAppStoreAuthenticatedAsync } from './context.js';
+import {
+  MetadataUploadError,
+  MetadataValidationError,
+  logMetadataValidationError,
+} from './errors.js';
+import { subscribeTelemetry } from './utils/telemetry.js';
 
 /**
  * Sync a local store configuration with the stores.

@@ -1,9 +1,9 @@
 import chalk from 'chalk';
 
-import EasCommand from '../../commandUtils/EasCommand';
-import Log from '../../log';
-import { getExpoConfig } from '../../project/expoConfig';
-import { findProjectRootAsync, setProjectIdAsync } from '../../project/projectUtils';
+import EasCommand from '../../commandUtils/EasCommand.js';
+import Log from '../../log.js';
+import { getExpoConfig } from '../../project/expoConfig.js';
+import { findProjectRootAsync, setProjectIdAsync } from '../../project/projectUtils.js';
 
 export default class ProjectInit extends EasCommand {
   static description = 'create or link an EAS project';

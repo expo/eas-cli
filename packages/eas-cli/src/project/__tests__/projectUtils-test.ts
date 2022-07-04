@@ -1,17 +1,17 @@
 import { vol } from 'memfs';
 
-import { confirmAsync } from '../../prompts';
-import { Actor, getUserAsync } from '../../user/User';
+import { confirmAsync } from '../../prompts.js';
+import { Actor, getUserAsync } from '../../user/User.js';
 import {
   ensureProjectExistsAsync,
   findProjectIdByAccountNameAndSlugNullableAsync,
-} from '../ensureProjectExists';
+} from '../ensureProjectExists.js';
 import {
   findProjectRootAsync,
   getProjectAccountName,
   getProjectAccountNameAsync,
   promptToCreateProjectIfNotExistsAsync,
-} from '../projectUtils';
+} from '../projectUtils.js';
 
 jest.mock('@expo/config');
 jest.mock('fs');

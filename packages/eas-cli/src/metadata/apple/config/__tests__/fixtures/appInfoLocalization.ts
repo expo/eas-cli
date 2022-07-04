@@ -1,8 +1,8 @@
-import { AppInfoLocalization } from '@expo/apple-utils';
+import AppleUtils from '@expo/apple-utils';
 
-import { AttributesOf } from '../../../../utils/asc';
+import { AttributesOf } from '../../../../utils/asc.js';
 
-export const englishInfo: AttributesOf<AppInfoLocalization> = {
+export const englishInfo: AttributesOf<AppleUtils.AppInfoLocalization> = {
   locale: 'en-US',
   name: 'Awesome test app',
   subtitle: 'This is just a test',
@@ -11,7 +11,7 @@ export const englishInfo: AttributesOf<AppInfoLocalization> = {
   privacyPolicyText: 'This is some privacy policy text',
 };
 
-export const dutchInfo: AttributesOf<AppInfoLocalization> = {
+export const dutchInfo: AttributesOf<AppleUtils.AppInfoLocalization> = {
   locale: 'nl-NL',
   name: 'Geweldige test app',
   subtitle: 'Dit is maar een test',

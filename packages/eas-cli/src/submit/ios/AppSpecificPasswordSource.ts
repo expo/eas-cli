@@ -1,10 +1,10 @@
 import { Platform } from '@expo/eas-build-job';
 import getenv from 'getenv';
 
-import { isUserAuthCtx } from '../../credentials/ios/appstore/authenticate';
-import { promptAsync } from '../../prompts';
-import UserSettings from '../../user/UserSettings';
-import { SubmissionContext } from '../context';
+import { isUserAuthCtx } from '../../credentials/ios/appstore/authenticate.js';
+import { promptAsync } from '../../prompts.js';
+import UserSettings from '../../user/UserSettings.js';
+import { SubmissionContext } from '../context.js';
 export enum AppSpecificPasswordSourceType {
   userDefined,
 }

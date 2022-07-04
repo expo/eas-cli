@@ -1,11 +1,11 @@
 import chalk from 'chalk';
 
-import { AppleTeam } from '../../../graphql/generated';
-import Log from '../../../log';
-import { promptAsync } from '../../../prompts';
-import { Account } from '../../../user/Account';
-import { runInputMethodAsync } from './inputMethod';
-import { runRegistrationUrlMethodAsync } from './registrationUrlMethod';
+import { AppleTeam } from '../../../graphql/generated.js';
+import Log from '../../../log.js';
+import { promptAsync } from '../../../prompts.js';
+import { Account } from '../../../user/Account.js';
+import { runInputMethodAsync } from './inputMethod.js';
+import { runRegistrationUrlMethodAsync } from './registrationUrlMethod.js';
 
 export enum RegistrationMethod {
   WEBSITE,

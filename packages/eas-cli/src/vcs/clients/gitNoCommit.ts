@@ -1,8 +1,8 @@
-import spawnAsync from '@expo/spawn-async';
+import { default as spawnAsync } from '@expo/spawn-async';
 import path from 'path';
 
-import { Ignore, makeShallowCopyAsync } from '../local';
-import GitClient from './git';
+import { Ignore, makeShallowCopyAsync } from '../local.js';
+import GitClient from './git.js';
 
 export default class GitNoCommitClient extends GitClient {
   public async isCommitRequiredAsync(): Promise<boolean> {

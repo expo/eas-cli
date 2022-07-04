@@ -14,10 +14,10 @@ import { retryExchange } from '@urql/exchange-retry';
 import { DocumentNode } from 'graphql';
 import fetch from 'node-fetch';
 
-import { getExpoApiBaseUrl } from '../api';
-import { httpsProxyAgent } from '../fetch';
-import Log from '../log';
-import { getAccessToken, getSessionSecret } from '../user/sessionStorage';
+import { getExpoApiBaseUrl } from '../api.js';
+import { httpsProxyAgent } from '../fetch.js';
+import Log from '../log.js';
+import { getAccessToken, getSessionSecret } from '../user/sessionStorage.js';
 
 export const graphqlClient = createUrqlClient({
   url: getExpoApiBaseUrl() + '/graphql',

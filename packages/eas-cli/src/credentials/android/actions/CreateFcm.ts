@@ -1,8 +1,8 @@
-import { AndroidFcmFragment, AndroidFcmVersion } from '../../../graphql/generated';
-import Log from '../../../log';
-import { promptAsync } from '../../../prompts';
-import { Account } from '../../../user/Account';
-import { CredentialsContext } from '../../context';
+import { AndroidFcmFragment, AndroidFcmVersion } from '../../../graphql/generated.js';
+import Log from '../../../log.js';
+import { promptAsync } from '../../../prompts.js';
+import { Account } from '../../../user/Account.js';
+import { CredentialsContext } from '../../context.js';
 
 export class CreateFcm {
   constructor(private account: Account) {}

@@ -1,6 +1,8 @@
-import JsonFile from '@expo/json-file';
+import JsonFileModule from '@expo/json-file';
 
-import { getStateJsonPath } from '../utils/paths';
+import { getStateJsonPath } from '../utils/paths.js';
+
+const JsonFile = JsonFileModule.default;
 
 type UserSettingsData = {
   auth?: SessionData;

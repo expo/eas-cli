@@ -1,18 +1,17 @@
 import { ExpoConfig } from '@expo/config';
-import { Updates } from '@expo/config-plugins';
+import ConfigPlugins from '@expo/config-plugins';
 import { Platform, Workflow } from '@expo/eas-build-job';
 import { Errors, Flags } from '@oclif/core';
 import assert from 'assert';
 import chalk from 'chalk';
 import dateFormat from 'dateformat';
-import gql from 'graphql-tag';
-import nullthrows from 'nullthrows';
+import { gql } from 'graphql-tag';
 
-import { getEASUpdateURL } from '../../api';
-import { getUpdateGroupUrl } from '../../build/utils/url';
-import EasCommand from '../../commandUtils/EasCommand';
-import fetch from '../../fetch';
-import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
+import { getEASUpdateURL } from '../../api.js';
+import { getUpdateGroupUrl } from '../../build/utils/url.js';
+import EasCommand from '../../commandUtils/EasCommand.js';
+import fetch from '../../fetch.js';
+import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client.js';
 import {
   GetUpdateGroupAsyncQuery,
   PublishUpdateGroupInput,
@@ -23,43 +22,46 @@ import {
   UpdatePublishMutation,
   User,
   ViewBranchUpdatesQuery,
-} from '../../graphql/generated';
-import { PublishMutation } from '../../graphql/mutations/PublishMutation';
-import { UpdateQuery } from '../../graphql/queries/UpdateQuery';
-import Log, { link } from '../../log';
-import { ora } from '../../ora';
-import { getExpoConfig } from '../../project/expoConfig';
+} from '../../graphql/generated.js';
+import { PublishMutation } from '../../graphql/mutations/PublishMutation.js';
+import { UpdateQuery } from '../../graphql/queries/UpdateQuery.js';
+import Log, { link } from '../../log.js';
+import { ora } from '../../ora.js';
+import { getExpoConfig } from '../../project/expoConfig.js';
 import {
   findProjectRootAsync,
   getProjectAccountName,
   getProjectIdAsync,
   installExpoUpdatesAsync,
   isExpoUpdatesInstalledOrAvailable,
-} from '../../project/projectUtils';
+} from '../../project/projectUtils.js';
 import {
   PublishPlatform,
   buildBundlesAsync,
   buildUnsortedUpdateInfoGroupAsync,
   collectAssetsAsync,
   uploadAssetsAsync,
-} from '../../project/publish';
-import { resolveWorkflowAsync } from '../../project/workflow';
-import { confirmAsync, promptAsync, selectAsync } from '../../prompts';
-import { formatUpdate } from '../../update/utils';
-import { ensureLoggedInAsync } from '../../user/actions';
+} from '../../project/publish.js';
+import { resolveWorkflowAsync } from '../../project/workflow.js';
+import { confirmAsync, promptAsync, selectAsync } from '../../prompts.js';
+import { formatUpdate } from '../../update/utils.js';
+import { ensureLoggedInAsync } from '../../user/actions.js';
 import {
   checkManifestBodyAgainstUpdateInfoGroup,
   getCodeSigningInfoAsync,
   getManifestBodyAsync,
   signManifestBody,
-} from '../../utils/code-signing';
-import uniqBy from '../../utils/expodash/uniqBy';
-import formatFields from '../../utils/formatFields';
-import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
-import { getVcsClient } from '../../vcs';
-import { createUpdateBranchOnAppAsync } from '../branch/create';
-import { listBranchesAsync } from '../branch/list';
-import { createUpdateChannelOnAppAsync } from '../channel/create';
+} from '../../utils/code-signing.js';
+import uniqBy from '../../utils/expodash/uniqBy.js';
+import formatFields from '../../utils/formatFields.js';
+import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json.js';
+import { nullthrows } from '../../utils/nullthrows.js';
+import { getVcsClient } from '../../vcs/index.js';
+import { createUpdateBranchOnAppAsync } from '../branch/create.js';
+import { listBranchesAsync } from '../branch/list.js';
+import { createUpdateChannelOnAppAsync } from '../channel/create.js';
+
+const { Updates } = ConfigPlugins;
 
 export const defaultPublishPlatforms: PublishPlatform[] = ['android', 'ios'];
 export type PublishPlatformFlag = PublishPlatform | 'all';

@@ -1,18 +1,17 @@
-import nullthrows from 'nullthrows';
-
 import {
   AppleDistributionCertificateFragment,
   AppleProvisioningProfileFragment,
   AppleTeamFragment,
   IosDistributionType as GraphQLIosDistributionType,
   IosAppBuildCredentialsFragment,
-} from '../../../graphql/generated';
-import { getProjectAccountName } from '../../../project/projectUtils';
-import { findAccountByName } from '../../../user/Account';
-import { CredentialsContext } from '../../context';
-import { AppLookupParams } from '../api/GraphqlClient';
-import { App, Target } from '../types';
-import { resolveAppleTeamIfAuthenticatedAsync } from './AppleTeamUtils';
+} from '../../../graphql/generated.js';
+import { getProjectAccountName } from '../../../project/projectUtils.js';
+import { findAccountByName } from '../../../user/Account.js';
+import { nullthrows } from '../../../utils/nullthrows.js';
+import { CredentialsContext } from '../../context.js';
+import { AppLookupParams } from '../api/GraphqlClient.js';
+import { App, Target } from '../types.js';
+import { resolveAppleTeamIfAuthenticatedAsync } from './AppleTeamUtils.js';
 
 export async function getAllBuildCredentialsAsync(
   ctx: CredentialsContext,

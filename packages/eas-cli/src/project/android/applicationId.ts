@@ -1,19 +1,21 @@
 import { ExpoConfig, getConfigFilePaths } from '@expo/config';
-import { AndroidConfig, IOSConfig } from '@expo/config-plugins';
+import ConfigPlugins from '@expo/config-plugins';
 import { Platform, Workflow } from '@expo/eas-build-job';
 import assert from 'assert';
 import chalk from 'chalk';
 import fs from 'fs-extra';
-import nullthrows from 'nullthrows';
 
-import { readAppJson } from '../../build/utils/appJson';
-import Log, { learnMore } from '../../log';
-import { getProjectConfigDescription, getUsername } from '../../project/projectUtils';
-import { promptAsync } from '../../prompts';
-import { ensureLoggedInAsync } from '../../user/actions';
-import { resolveWorkflowAsync } from '../workflow';
-import { GradleBuildContext } from './gradle';
-import * as gradleUtils from './gradleUtils';
+import { readAppJson } from '../../build/utils/appJson.js';
+import Log, { learnMore } from '../../log.js';
+import { getProjectConfigDescription, getUsername } from '../../project/projectUtils.js';
+import { promptAsync } from '../../prompts.js';
+import { ensureLoggedInAsync } from '../../user/actions.js';
+import { nullthrows } from '../../utils/nullthrows.js';
+import { resolveWorkflowAsync } from '../workflow.js';
+import { GradleBuildContext } from './gradle.js';
+import * as gradleUtils from './gradleUtils.js';
+
+const { AndroidConfig, IOSConfig } = ConfigPlugins;
 
 export const INVALID_APPLICATION_ID_MESSAGE = `Invalid format of Android applicationId. Only alphanumeric characters, '.' and '_' are allowed, and each '.' must be followed by a letter.`;
 

@@ -1,22 +1,25 @@
 import fs from 'fs-extra';
-import nullthrows from 'nullthrows';
 import path from 'path';
 
-import { AndroidAppBuildCredentialsFragment, IosDistributionType } from '../../graphql/generated';
-import Log from '../../log';
-import { findApplicationTarget, findTargetByName } from '../../project/ios/target';
-import zipObject from '../../utils/expodash/zipObject';
-import { getVcsClient } from '../../vcs';
-import GitClient from '../../vcs/clients/git';
-import { CredentialsContext } from '../context';
-import { App, Target, TargetCredentials } from '../ios/types';
-import { readRawAsync } from './read';
+import {
+  AndroidAppBuildCredentialsFragment,
+  IosDistributionType,
+} from '../../graphql/generated.js';
+import Log from '../../log.js';
+import { findApplicationTarget, findTargetByName } from '../../project/ios/target.js';
+import zipObject from '../../utils/expodash/zipObject.js';
+import { nullthrows } from '../../utils/nullthrows.js';
+import GitClient from '../../vcs/clients/git.js';
+import { getVcsClient } from '../../vcs/index.js';
+import { CredentialsContext } from '../context.js';
+import { App, Target, TargetCredentials } from '../ios/types.js';
+import { readRawAsync } from './read.js';
 import {
   CredentialsJson,
   CredentialsJsonIosCredentials,
   CredentialsJsonIosTargetCredentials,
-} from './types';
-import { getCredentialsJsonPath } from './utils';
+} from './types.js';
+import { getCredentialsJsonPath } from './utils.js';
 
 /**
  * Update Android credentials.json with values from www, content of credentials.json

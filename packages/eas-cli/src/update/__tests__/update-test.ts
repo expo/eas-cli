@@ -5,12 +5,12 @@ import {
   ensureBranchExistsAsync,
   getUpdatesToRepublishInteractiveAsync,
   truncatePublishUpdateMessage,
-} from '../../commands/update';
-import { graphqlClient } from '../../graphql/client';
-import { ViewBranchUpdatesQuery } from '../../graphql/generated';
-import { viewBranchUpdatesQueryUpdateLimit } from '../../graphql/queries/UpdateQuery';
-import Log from '../../log';
-import { selectAsync } from '../../prompts';
+} from '../../commands/update/index.js';
+import { graphqlClient } from '../../graphql/client.js';
+import { ViewBranchUpdatesQuery } from '../../graphql/generated.js';
+import { viewBranchUpdatesQueryUpdateLimit } from '../../graphql/queries/UpdateQuery.js';
+import Log from '../../log.js';
+import { selectAsync } from '../../prompts.js';
 
 const appId = '6c94sxe6-37d2-4700-52fa-1b813204dad2';
 const branchId = '5e84e3cb-563e-4022-a65e-6e7a42fe4ed3';

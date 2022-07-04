@@ -1,9 +1,11 @@
-import { AndroidConfig, IOSConfig } from '@expo/config-plugins';
+import ConfigPlugins from '@expo/config-plugins';
 import { Platform, Workflow } from '@expo/eas-build-job';
 import fs from 'fs-extra';
 import path from 'path';
 
-import { getVcsClient } from '../vcs';
+import { getVcsClient } from '../vcs/index.js';
+
+const { AndroidConfig, IOSConfig } = ConfigPlugins;
 
 export async function resolveWorkflowAsync(
   projectDir: string,

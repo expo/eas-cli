@@ -1,15 +1,15 @@
 import assert from 'assert';
 import { print } from 'graphql';
-import gql from 'graphql-tag';
+import { gql } from 'graphql-tag';
 
-import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
+import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client.js';
 import {
   AndroidKeystoreFragment,
   AndroidKeystoreInput,
   CreateAndroidKeystoreMutation,
   DeleteAndroidKeystoreMutation,
-} from '../../../../../graphql/generated';
-import { AndroidKeystoreFragmentNode } from '../../../../../graphql/types/credentials/AndroidKeystore';
+} from '../../../../../graphql/generated.js';
+import { AndroidKeystoreFragmentNode } from '../../../../../graphql/types/credentials/AndroidKeystore.js';
 
 export const AndroidKeystoreMutation = {
   async createAndroidKeystoreAsync(

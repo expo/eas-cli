@@ -4,13 +4,13 @@ import path from 'path';
 import tar from 'tar';
 import { v4 as uuidv4 } from 'uuid';
 
-import Log from '../../log';
-import { ora } from '../../ora';
-import { confirmAsync, promptAsync } from '../../prompts';
-import { formatBytes } from '../../utils/files';
-import { getTmpDirectory } from '../../utils/paths';
-import { endTimer, formatMilliseconds, startTimer } from '../../utils/timer';
-import { getVcsClient } from '../../vcs';
+import Log from '../../log.js';
+import { ora } from '../../ora.js';
+import { confirmAsync, promptAsync } from '../../prompts.js';
+import { formatBytes } from '../../utils/files.js';
+import { getTmpDirectory } from '../../utils/paths.js';
+import { endTimer, formatMilliseconds, startTimer } from '../../utils/timer.js';
+import { getVcsClient } from '../../vcs/index.js';
 
 export async function maybeBailOnRepoStatusAsync(): Promise<void> {
   if (!(await getVcsClient().isCommitRequiredAsync())) {

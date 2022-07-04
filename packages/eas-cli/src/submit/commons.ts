@@ -1,7 +1,7 @@
 import { Platform } from '@expo/eas-build-job';
 
-import { ArchiveSource, ArchiveSourceType, isUuidV4 } from './ArchiveSource';
-import { SubmissionContext } from './context';
+import { ArchiveSource, ArchiveSourceType, isUuidV4 } from './ArchiveSource.js';
+import { SubmissionContext } from './context.js';
 
 export function resolveArchiveSource<T extends Platform>(
   ctx: SubmissionContext<T>,

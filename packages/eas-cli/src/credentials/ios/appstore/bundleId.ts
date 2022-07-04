@@ -1,9 +1,11 @@
-import { BundleId, Profile, RequestContext } from '@expo/apple-utils';
+import AppleUtils, { type RequestContext } from '@expo/apple-utils';
+
+const { BundleId } = AppleUtils;
 
 async function getProfilesForBundleIdDangerousAsync(
   context: RequestContext,
   bundleIdentifier: string
-): Promise<Profile[]> {
+): Promise<AppleUtils.Profile[]> {
   const bundleId = await BundleId.findAsync(context, { identifier: bundleIdentifier });
   if (bundleId) {
     return bundleId.getProfilesAsync();
@@ -14,7 +16,7 @@ async function getProfilesForBundleIdDangerousAsync(
 export async function getProfilesForBundleIdAsync(
   context: RequestContext,
   bundleIdentifier: string
-): Promise<Profile[]> {
+): Promise<AppleUtils.Profile[]> {
   const profiles = await getProfilesForBundleIdDangerousAsync(context, bundleIdentifier);
   // users sometimes have a poisoned Apple cache and receive stale data from the API
   // we call an arbitrary method, `getBundleIdAsync` on each profile
@@ -43,7 +45,7 @@ export async function getProfilesForBundleIdAsync(
 export async function getBundleIdForIdentifierAsync(
   context: RequestContext,
   bundleIdentifier: string
-): Promise<BundleId> {
+): Promise<AppleUtils.BundleId> {
   const bundleId = await BundleId.findAsync(context, { identifier: bundleIdentifier });
   if (!bundleId) {
     throw new Error(`Failed to find Bundle ID item with identifier "${bundleIdentifier}"`);

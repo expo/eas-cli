@@ -2,9 +2,9 @@ import { getX509Asn1ByFriendlyName, parsePKCS12 } from '@expo/pkcs12';
 import jks from 'jks-js';
 import { asn1 } from 'node-forge';
 
-import { AndroidKeystoreType } from '../../../graphql/generated';
-import Log from '../../../log';
-import { Keystore, KeystoreWithType } from '../credentials';
+import { AndroidKeystoreType } from '../../../graphql/generated.js';
+import Log from '../../../log.js';
+import { Keystore, KeystoreWithType } from '../credentials.js';
 
 export function getKeystoreWithType(keystore: Keystore): KeystoreWithType {
   const type = getKeystoreType(keystore);

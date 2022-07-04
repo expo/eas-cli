@@ -7,15 +7,15 @@ import {
   AppFragment,
   CommonAndroidAppCredentialsFragment,
   GoogleServiceAccountKeyFragment,
-} from '../../graphql/generated';
-import * as AndroidGraphqlClient from '../android/api/GraphqlClient';
-import { Keystore } from '../android/credentials';
+} from '../../graphql/generated.js';
+import * as AndroidGraphqlClient from '../android/api/GraphqlClient.js';
+import { Keystore } from '../android/credentials.js';
 import {
   testKeystore2Base64,
   testKeystoreBase64,
   testPKCS12KeystoreBase64,
   testPKCS12KeystoreEmptyPasswordBase64,
-} from './fixtures-base64-data';
+} from './fixtures-base64-data.js';
 
 const now = new Date();
 

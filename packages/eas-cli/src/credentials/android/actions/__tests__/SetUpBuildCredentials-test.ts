@@ -2,13 +2,13 @@ import {
   getNewAndroidApiMock,
   testAndroidBuildCredentialsFragment,
   testJksAndroidKeystoreFragment,
-} from '../../../__tests__/fixtures-android';
-import { jester as mockJester } from '../../../__tests__/fixtures-constants';
-import { createCtxMock } from '../../../__tests__/fixtures-context';
-import { MissingCredentialsNonInteractiveError } from '../../../errors';
-import { generateRandomKeystoreAsync } from '../../utils/keystore';
-import { getAppLookupParamsFromContextAsync } from '../BuildCredentialsUtils';
-import { SetUpBuildCredentials } from '../SetUpBuildCredentials';
+} from '../../../__tests__/fixtures-android.js';
+import { jester as mockJester } from '../../../__tests__/fixtures-constants.js';
+import { createCtxMock } from '../../../__tests__/fixtures-context.js';
+import { MissingCredentialsNonInteractiveError } from '../../../errors.js';
+import { generateRandomKeystoreAsync } from '../../utils/keystore.js';
+import { getAppLookupParamsFromContextAsync } from '../BuildCredentialsUtils.js';
+import { SetUpBuildCredentials } from '../SetUpBuildCredentials.js';
 
 jest.mock('../../../../ora');
 jest.mock('../../../../project/ensureProjectExists');

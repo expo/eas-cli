@@ -3,8 +3,8 @@ import forge from 'node-forge';
 import {
   testDistributionCertificateEmptyPasswordBase64,
   testPKCS12KeystoreEmptyPasswordBase64,
-} from '../../../__tests__/fixtures-base64-data';
-import { getCertData } from '../p12Certificate';
+} from '../../../__tests__/fixtures-base64-data.js';
+import { getCertData } from '../p12Certificate.js';
 
 describe(getCertData, () => {
   it('does not throw if p12 file with empty password was created with keychain', async () => {

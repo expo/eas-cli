@@ -1,9 +1,9 @@
-import { ApplePushKeyFragment } from '../../../graphql/generated';
-import Log from '../../../log';
-import { confirmAsync } from '../../../prompts';
-import { Account } from '../../../user/Account';
-import { CredentialsContext } from '../../context';
-import { selectPushKeyAsync } from './PushKeyUtils';
+import { ApplePushKeyFragment } from '../../../graphql/generated.js';
+import Log from '../../../log.js';
+import { confirmAsync } from '../../../prompts.js';
+import { Account } from '../../../user/Account.js';
+import { CredentialsContext } from '../../context.js';
+import { selectPushKeyAsync } from './PushKeyUtils.js';
 
 export class SelectAndRemovePushKey {
   constructor(private account: Account) {}

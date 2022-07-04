@@ -1,18 +1,18 @@
 import {
   AndroidAppBuildCredentialsFragment,
   AndroidKeystoreType,
-} from '../../../graphql/generated';
-import Log from '../../../log';
-import { confirmAsync } from '../../../prompts';
-import { CredentialsContext } from '../../context';
-import { readAndroidCredentialsAsync } from '../../credentialsJson/read';
+} from '../../../graphql/generated.js';
+import Log from '../../../log.js';
+import { confirmAsync } from '../../../prompts.js';
+import { CredentialsContext } from '../../context.js';
+import { readAndroidCredentialsAsync } from '../../credentialsJson/read.js';
 import {
   SelectAndroidBuildCredentials,
   SelectAndroidBuildCredentialsResultType,
-} from '../../manager/SelectAndroidBuildCredentials';
-import { AppLookupParams } from '../api/GraphqlClient';
-import { getKeystoreWithType } from '../utils/keystoreNew';
-import { BackupKeystore } from './DownloadKeystore';
+} from '../../manager/SelectAndroidBuildCredentials.js';
+import { AppLookupParams } from '../api/GraphqlClient.js';
+import { getKeystoreWithType } from '../utils/keystoreNew.js';
+import { BackupKeystore } from './DownloadKeystore.js';
 
 export class SetUpBuildCredentialsFromCredentialsJson {
   constructor(private app: AppLookupParams) {}

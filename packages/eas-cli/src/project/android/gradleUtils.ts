@@ -1,6 +1,8 @@
-import { AndroidConfig } from '@expo/config-plugins';
+import ConfigPlugins from '@expo/config-plugins';
 import fs from 'fs-extra';
-import g2js from 'gradle-to-js/lib/parser';
+import g2js from 'gradle-to-js/lib/parser.js';
+
+const { AndroidConfig } = ConfigPlugins;
 
 // represents gradle command
 // e.g. for `:app:buildExampleDebug` -> { moduleName: app, flavor: example, buildType: debug }

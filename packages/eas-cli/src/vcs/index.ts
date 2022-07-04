@@ -1,7 +1,7 @@
-import log from '../log';
-import GitNoCommitClient from './clients/gitNoCommit';
-import NoVcsClient from './clients/noVcs';
-import { Client } from './vcs';
+import log from '../log.js';
+import GitNoCommitClient from './clients/gitNoCommit.js';
+import NoVcsClient from './clients/noVcs.js';
+import { Client } from './vcs.js';
 
 const NO_VCS_WARNING = `Using EAS CLI without version control system is not recommended, use this mode only if you know what you are doing.`;
 

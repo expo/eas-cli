@@ -1,10 +1,10 @@
-import EasCommand from '../../commandUtils/EasCommand';
-import { AppleDeviceQuery } from '../../credentials/ios/api/graphql/queries/AppleDeviceQuery';
-import formatDevice from '../../devices/utils/formatDevice';
-import Log from '../../log';
-import { ora } from '../../ora';
-import { getExpoConfig } from '../../project/expoConfig';
-import { findProjectRootAsync, getProjectAccountNameAsync } from '../../project/projectUtils';
+import EasCommand from '../../commandUtils/EasCommand.js';
+import { AppleDeviceQuery } from '../../credentials/ios/api/graphql/queries/AppleDeviceQuery.js';
+import formatDevice from '../../devices/utils/formatDevice.js';
+import Log from '../../log.js';
+import { ora } from '../../ora.js';
+import { getExpoConfig } from '../../project/expoConfig.js';
+import { findProjectRootAsync, getProjectAccountNameAsync } from '../../project/projectUtils.js';
 
 export default class DeviceView extends EasCommand {
   static description = 'view a device for your project';

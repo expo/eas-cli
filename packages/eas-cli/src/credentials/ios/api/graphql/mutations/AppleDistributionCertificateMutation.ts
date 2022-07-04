@@ -1,17 +1,17 @@
 import assert from 'assert';
 import { print } from 'graphql';
-import gql from 'graphql-tag';
+import { gql } from 'graphql-tag';
 
-import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
+import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client.js';
 import {
   AppleDistributionCertificateFragment,
   AppleDistributionCertificateInput,
   AppleTeamFragment,
   CreateAppleDistributionCertificateMutation,
   DeleteAppleDistributionCertificateMutation,
-} from '../../../../../graphql/generated';
-import { AppleDistributionCertificateFragmentNode } from '../../../../../graphql/types/credentials/AppleDistributionCertificate';
-import { AppleTeamFragmentNode } from '../../../../../graphql/types/credentials/AppleTeam';
+} from '../../../../../graphql/generated.js';
+import { AppleDistributionCertificateFragmentNode } from '../../../../../graphql/types/credentials/AppleDistributionCertificate.js';
+import { AppleTeamFragmentNode } from '../../../../../graphql/types/credentials/AppleTeam.js';
 
 export type AppleDistributionCertificateMutationResult = AppleDistributionCertificateFragment & {
   appleTeam?: AppleTeamFragment | null;

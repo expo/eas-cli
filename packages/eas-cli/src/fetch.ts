@@ -1,6 +1,6 @@
 import { Agent } from 'https';
 import createHttpsProxyAgent from 'https-proxy-agent';
-import fetch, { RequestInfo, RequestInit, Response } from 'node-fetch';
+import { RequestInfo, RequestInit, Response, default as fetch } from 'node-fetch';
 
 export * from 'node-fetch';
 

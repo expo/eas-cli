@@ -1,6 +1,6 @@
-import { AppleConfigReader } from './config/reader';
-import { AppleConfigWriter } from './config/writer';
-import { AppleData, PartialAppleData } from './data';
+import { AppleConfigReader } from './config/reader.js';
+import { AppleConfigWriter } from './config/writer.js';
+import { AppleData, PartialAppleData } from './data.js';
 
 export abstract class AppleTask {
   /** Get a description from the task to use as section headings in the log */

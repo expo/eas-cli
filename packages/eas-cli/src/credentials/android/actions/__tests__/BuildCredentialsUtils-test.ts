@@ -1,4 +1,4 @@
-import { confirmAsync, promptAsync } from '../../../../prompts';
+import { confirmAsync, promptAsync } from '../../../../prompts.js';
 import {
   getNewAndroidApiMock,
   testAndroidAppCredentialsFragment,
@@ -6,13 +6,13 @@ import {
   testLegacyAndroidAppCredentialsFragment,
   testLegacyAndroidBuildCredentialsFragment,
   testLegacyAndroidFcmFragment,
-} from '../../../__tests__/fixtures-android';
-import { createCtxMock } from '../../../__tests__/fixtures-context';
+} from '../../../__tests__/fixtures-android.js';
+import { createCtxMock } from '../../../__tests__/fixtures-context.js';
 import {
   canCopyLegacyCredentialsAsync,
   getAppLookupParamsFromContextAsync,
   promptUserAndCopyLegacyCredentialsAsync,
-} from '../BuildCredentialsUtils';
+} from '../BuildCredentialsUtils.js';
 
 jest.mock('../../../../ora');
 jest.mock('../../../../prompts');

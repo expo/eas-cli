@@ -1,8 +1,8 @@
 import assert from 'assert';
 import { print } from 'graphql';
-import gql from 'graphql-tag';
+import { gql } from 'graphql-tag';
 
-import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
+import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client.js';
 import {
   AppleAppIdentifierFragment,
   AppleDeviceFragment,
@@ -10,11 +10,11 @@ import {
   AppleProvisioningProfilesByAppQuery,
   AppleTeamFragment,
   IosDistributionType,
-} from '../../../../../graphql/generated';
-import { AppleAppIdentifierFragmentNode } from '../../../../../graphql/types/credentials/AppleAppIdentifier';
-import { AppleDeviceFragmentNode } from '../../../../../graphql/types/credentials/AppleDevice';
-import { AppleProvisioningProfileFragmentNode } from '../../../../../graphql/types/credentials/AppleProvisioningProfile';
-import { AppleTeamFragmentNode } from '../../../../../graphql/types/credentials/AppleTeam';
+} from '../../../../../graphql/generated.js';
+import { AppleAppIdentifierFragmentNode } from '../../../../../graphql/types/credentials/AppleAppIdentifier.js';
+import { AppleDeviceFragmentNode } from '../../../../../graphql/types/credentials/AppleDevice.js';
+import { AppleProvisioningProfileFragmentNode } from '../../../../../graphql/types/credentials/AppleProvisioningProfile.js';
+import { AppleTeamFragmentNode } from '../../../../../graphql/types/credentials/AppleTeam.js';
 
 export type AppleProvisioningProfileQueryResult = AppleProvisioningProfileFragment & {
   appleTeam?: AppleTeamFragment | null;

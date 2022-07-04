@@ -1,14 +1,14 @@
-import { AgeRatingDeclaration } from '@expo/apple-utils';
+import AppleUtils from '@expo/apple-utils';
 import assert from 'assert';
 import chalk from 'chalk';
 
-import Log from '../../../log';
-import { logAsync } from '../../utils/log';
-import { AppleTask, TaskDownloadOptions, TaskPrepareOptions, TaskUploadOptions } from '../task';
+import Log from '../../../log.js';
+import { logAsync } from '../../utils/log.js';
+import { AppleTask, TaskDownloadOptions, TaskPrepareOptions, TaskUploadOptions } from '../task.js';
 
 export type AgeRatingData = {
   /** The app age rating declaration for the app version */
-  ageRating: AgeRatingDeclaration;
+  ageRating: AppleUtils.AgeRatingDeclaration;
 };
 
 export class AgeRatingTask extends AppleTask {

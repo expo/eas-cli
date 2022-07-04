@@ -7,13 +7,13 @@ import {
   ApplePushKeyFragment,
   IosAppBuildCredentialsFragment,
   IosDistributionType,
-} from '../../../graphql/generated';
-import { APPLE_DEVICE_CLASS_LABELS } from '../../../graphql/types/credentials/AppleDevice';
-import Log from '../../../log';
-import { fromNow } from '../../../utils/date';
-import formatFields from '../../../utils/formatFields';
-import { AppLookupParams } from '../api/GraphqlClient';
-import { App, IosAppBuildCredentialsMap, IosAppCredentialsMap, Target } from '../types';
+} from '../../../graphql/generated.js';
+import { APPLE_DEVICE_CLASS_LABELS } from '../../../graphql/types/credentials/AppleDevice.js';
+import Log from '../../../log.js';
+import { fromNow } from '../../../utils/date.js';
+import formatFields from '../../../utils/formatFields.js';
+import { AppLookupParams } from '../api/GraphqlClient.js';
+import { App, IosAppBuildCredentialsMap, IosAppCredentialsMap, Target } from '../types.js';
 
 function prettyIosDistributionType(distributionType: IosDistributionType): string {
   switch (distributionType) {

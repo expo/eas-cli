@@ -1,9 +1,9 @@
-import { GoogleServiceAccountKeyFragment } from '../../../graphql/generated';
-import Log from '../../../log';
-import { confirmAsync } from '../../../prompts';
-import { Account } from '../../../user/Account';
-import { CredentialsContext } from '../../context';
-import { selectGoogleServiceAccountKeyAsync } from '../utils/googleServiceAccountKey';
+import { GoogleServiceAccountKeyFragment } from '../../../graphql/generated.js';
+import Log from '../../../log.js';
+import { confirmAsync } from '../../../prompts.js';
+import { Account } from '../../../user/Account.js';
+import { CredentialsContext } from '../../context.js';
+import { selectGoogleServiceAccountKeyAsync } from '../utils/googleServiceAccountKey.js';
 
 export class SelectAndRemoveGoogleServiceAccountKey {
   constructor(private account: Account) {}

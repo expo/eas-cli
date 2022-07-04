@@ -2,16 +2,16 @@ import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 import Table from 'cli-table3';
 
-import EasCommand from '../../commandUtils/EasCommand';
-import { UpdateQuery } from '../../graphql/queries/UpdateQuery';
-import Log from '../../log';
-import { getExpoConfig } from '../../project/expoConfig';
-import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUtils';
-import { promptAsync } from '../../prompts';
-import { UPDATE_COLUMNS, formatUpdate, getPlatformsForGroup } from '../../update/utils';
-import groupBy from '../../utils/expodash/groupBy';
-import formatFields from '../../utils/formatFields';
-import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
+import EasCommand from '../../commandUtils/EasCommand.js';
+import { UpdateQuery } from '../../graphql/queries/UpdateQuery.js';
+import Log from '../../log.js';
+import { getExpoConfig } from '../../project/expoConfig.js';
+import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUtils.js';
+import { promptAsync } from '../../prompts.js';
+import { UPDATE_COLUMNS, formatUpdate, getPlatformsForGroup } from '../../update/utils.js';
+import groupBy from '../../utils/expodash/groupBy.js';
+import formatFields from '../../utils/formatFields.js';
+import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json.js';
 
 export default class BranchView extends EasCommand {
   static description = 'view a branch';

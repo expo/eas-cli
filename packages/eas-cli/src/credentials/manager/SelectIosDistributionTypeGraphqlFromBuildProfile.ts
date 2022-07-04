@@ -1,9 +1,9 @@
 import { Platform } from '@expo/eas-build-job';
 import { BuildProfile } from '@expo/eas-json';
 
-import { IosDistributionType as IosDistributionTypeGraphql } from '../../graphql/generated';
-import { promptAsync } from '../../prompts';
-import { CredentialsContext } from '../context';
+import { IosDistributionType as IosDistributionTypeGraphql } from '../../graphql/generated.js';
+import { promptAsync } from '../../prompts.js';
+import { CredentialsContext } from '../context.js';
 
 export class SelectIosDistributionTypeGraphqlFromBuildProfile {
   constructor(private buildProfile: BuildProfile<Platform.IOS>) {}

@@ -6,17 +6,17 @@ import {
   AppFragment,
   CommonAndroidAppCredentialsFragment,
   GoogleServiceAccountKeyFragment,
-} from '../../../graphql/generated';
-import { Account } from '../../../user/Account';
-import { AppQuery } from '../../ios/api/graphql/queries/AppQuery';
-import { GoogleServiceAccountKey, KeystoreWithType } from '../credentials';
-import { AndroidAppBuildCredentialsMutation } from './graphql/mutations/AndroidAppBuildCredentialsMutation';
-import { AndroidAppCredentialsMutation } from './graphql/mutations/AndroidAppCredentialsMutation';
-import { AndroidFcmMutation } from './graphql/mutations/AndroidFcmMutation';
-import { AndroidKeystoreMutation } from './graphql/mutations/AndroidKeystoreMutation';
-import { GoogleServiceAccountKeyMutation } from './graphql/mutations/GoogleServiceAccountKeyMutation';
-import { AndroidAppCredentialsQuery } from './graphql/queries/AndroidAppCredentialsQuery';
-import { GoogleServiceAccountKeyQuery } from './graphql/queries/GoogleServiceAccountKeyQuery';
+} from '../../../graphql/generated.js';
+import { Account } from '../../../user/Account.js';
+import { AppQuery } from '../../ios/api/graphql/queries/AppQuery.js';
+import { GoogleServiceAccountKey, KeystoreWithType } from '../credentials.js';
+import { AndroidAppBuildCredentialsMutation } from './graphql/mutations/AndroidAppBuildCredentialsMutation.js';
+import { AndroidAppCredentialsMutation } from './graphql/mutations/AndroidAppCredentialsMutation.js';
+import { AndroidFcmMutation } from './graphql/mutations/AndroidFcmMutation.js';
+import { AndroidKeystoreMutation } from './graphql/mutations/AndroidKeystoreMutation.js';
+import { GoogleServiceAccountKeyMutation } from './graphql/mutations/GoogleServiceAccountKeyMutation.js';
+import { AndroidAppCredentialsQuery } from './graphql/queries/AndroidAppCredentialsQuery.js';
+import { GoogleServiceAccountKeyQuery } from './graphql/queries/GoogleServiceAccountKeyQuery.js';
 
 export interface AppLookupParams {
   account: Account;

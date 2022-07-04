@@ -1,8 +1,8 @@
 import prompts from 'prompts';
 
-import Log from '../../log';
-import { Actor } from '../../user/User';
-import { AccountResolver } from '../manager';
+import Log from '../../log.js';
+import { Actor } from '../../user/User.js';
+import { AccountResolver } from '../manager.js';
 
 jest.mock('prompts');
 

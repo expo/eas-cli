@@ -1,14 +1,16 @@
-import JsonFile from '@expo/json-file';
+import JsonFileModule from '@expo/json-file';
 import chalk from 'chalk';
 import glob from 'fast-glob';
 import Joi from 'joi';
 import path from 'path';
 
-import { GoogleServiceAccountKeyFragment } from '../../../graphql/generated';
-import Log, { learnMore } from '../../../log';
-import { confirmAsync, promptAsync } from '../../../prompts';
-import { fromNow } from '../../../utils/date';
-import { GoogleServiceAccountKey } from '../credentials';
+import { GoogleServiceAccountKeyFragment } from '../../../graphql/generated.js';
+import Log, { learnMore } from '../../../log.js';
+import { confirmAsync, promptAsync } from '../../../prompts.js';
+import { fromNow } from '../../../utils/date.js';
+import { GoogleServiceAccountKey } from '../credentials.js';
+
+const JsonFile = JsonFileModule.default;
 
 export const MinimalGoogleServiceAccountKeySchema = Joi.object({
   type: Joi.string().required(),

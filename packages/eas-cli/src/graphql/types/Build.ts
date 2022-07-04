@@ -1,4 +1,4 @@
-import gql from 'graphql-tag';
+import { gql } from 'graphql-tag';
 
 export const BuildFragmentNode = gql`
   fragment BuildFragment on Build {

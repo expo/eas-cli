@@ -1,12 +1,12 @@
 import { print } from 'graphql';
-import gql from 'graphql-tag';
+import { gql } from 'graphql-tag';
 
-import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
+import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client.js';
 import {
   AppStoreConnectApiKeyByAccountQuery,
   AppStoreConnectApiKeyFragment,
-} from '../../../../../graphql/generated';
-import { AppStoreConnectApiKeyFragmentNode } from '../../../../../graphql/types/credentials/AppStoreConnectApiKey';
+} from '../../../../../graphql/generated.js';
+import { AppStoreConnectApiKeyFragmentNode } from '../../../../../graphql/types/credentials/AppStoreConnectApiKey.js';
 
 export const AppStoreConnectApiKeyQuery = {
   async getAllForAccountAsync(accountName: string): Promise<AppStoreConnectApiKeyFragment[]> {

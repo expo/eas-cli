@@ -1,7 +1,7 @@
-import gql from 'graphql-tag';
+import { gql } from 'graphql-tag';
 
-import { graphqlClient, withErrorHandlingAsync } from '../client';
-import { Project, ProjectByUsernameAndSlugQuery } from '../generated';
+import { graphqlClient, withErrorHandlingAsync } from '../client.js';
+import { Project, ProjectByUsernameAndSlugQuery } from '../generated.js';
 
 type ProjectQueryResult = Pick<Project, 'id'>;
 

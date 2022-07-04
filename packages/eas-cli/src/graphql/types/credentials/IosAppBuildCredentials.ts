@@ -1,8 +1,8 @@
 import { print } from 'graphql';
-import gql from 'graphql-tag';
+import { gql } from 'graphql-tag';
 
-import { AppleDistributionCertificateFragmentNode } from './AppleDistributionCertificate';
-import { AppleProvisioningProfileFragmentNode } from './AppleProvisioningProfile';
+import { AppleDistributionCertificateFragmentNode } from './AppleDistributionCertificate.js';
+import { AppleProvisioningProfileFragmentNode } from './AppleProvisioningProfile.js';
 
 export const IosAppBuildCredentialsFragmentNode = gql`
   fragment IosAppBuildCredentialsFragment on IosAppBuildCredentials {

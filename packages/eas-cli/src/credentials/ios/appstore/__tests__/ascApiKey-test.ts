@@ -1,12 +1,14 @@
-import { ApiKey, ApiKeyType, UserRole } from '@expo/apple-utils';
+import AppleUtils from '@expo/apple-utils';
 
 import {
   createAscApiKeyAsync,
   getAscApiKeyAsync,
   listAscApiKeysAsync,
   revokeAscApiKeyAsync,
-} from '../ascApiKey';
-import { getRequestContext } from '../authenticate';
+} from '../ascApiKey.js';
+import { getRequestContext } from '../authenticate.js';
+
+const { ApiKey, ApiKeyType, UserRole } = AppleUtils;
 
 jest.mock('@expo/apple-utils');
 jest.mock('../authenticate');
@@ -37,7 +39,7 @@ const mockApiKey = {
   },
   downloadAsync: jest.fn(() => 'super secret'),
   revokeAsync: jest.fn(() => mockApiKey),
-} as unknown as ApiKey;
+} as unknown as AppleUtils.ApiKey;
 
 const mockAscApiKeyInfo = {
   issuerId: undefined,

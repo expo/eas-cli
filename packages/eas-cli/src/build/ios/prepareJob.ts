@@ -2,11 +2,11 @@ import { ArchiveSource, Ios, Job, Platform, sanitizeJob } from '@expo/eas-build-
 import path from 'path';
 import slash from 'slash';
 
-import { IosCredentials, TargetCredentials } from '../../credentials/ios/types';
-import { getUsername } from '../../project/projectUtils';
-import { ensureLoggedInAsync } from '../../user/actions';
-import { getVcsClient } from '../../vcs';
-import { BuildContext } from '../context';
+import { IosCredentials, TargetCredentials } from '../../credentials/ios/types.js';
+import { getUsername } from '../../project/projectUtils.js';
+import { ensureLoggedInAsync } from '../../user/actions.js';
+import { getVcsClient } from '../../vcs/index.js';
+import { BuildContext } from '../context.js';
 
 interface JobData {
   projectArchive: ArchiveSource;

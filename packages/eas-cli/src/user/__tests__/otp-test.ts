@@ -1,8 +1,8 @@
-import { api } from '../../api';
-import Log from '../../log';
-import { promptAsync, selectAsync } from '../../prompts';
-import { loginAsync } from '../User';
-import { UserSecondFactorDeviceMethod, retryUsernamePasswordAuthWithOTPAsync } from '../otp';
+import { api } from '../../api.js';
+import Log from '../../log.js';
+import { promptAsync, selectAsync } from '../../prompts.js';
+import { loginAsync } from '../User.js';
+import { UserSecondFactorDeviceMethod, retryUsernamePasswordAuthWithOTPAsync } from '../otp.js';
 
 jest.mock('../../prompts');
 jest.mock('../../api');

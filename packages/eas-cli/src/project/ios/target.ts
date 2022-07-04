@@ -1,17 +1,19 @@
 import { ExpoConfig } from '@expo/config';
-import { IOSConfig } from '@expo/config-plugins';
+import ConfigPlugins from '@expo/config-plugins';
 import { Platform, Workflow } from '@expo/eas-build-job';
 import { JSONObject } from '@expo/json-file';
 import Joi from 'joi';
 
-import { Target } from '../../credentials/ios/types';
-import { resolveWorkflowAsync } from '../workflow';
-import { getBundleIdentifierAsync } from './bundleIdentifier';
+import { Target } from '../../credentials/ios/types.js';
+import { resolveWorkflowAsync } from '../workflow.js';
+import { getBundleIdentifierAsync } from './bundleIdentifier.js';
 import {
   getManagedApplicationTargetEntitlementsAsync,
   getNativeTargetEntitlementsAsync,
-} from './entitlements';
-import { XcodeBuildContext } from './scheme';
+} from './entitlements.js';
+import { XcodeBuildContext } from './scheme.js';
+
+const { IOSConfig } = ConfigPlugins;
 
 interface UserDefinedTarget {
   targetName: string;
@@ -145,7 +147,7 @@ async function resolveBareProjectDependenciesAsync({
   exp: ExpoConfig;
   projectDir: string;
   buildConfiguration?: string;
-  target: IOSConfig.Target.Target;
+  target: ConfigPlugins.IOSConfig.Target.Target;
   bundleIdentifier: string;
 }): Promise<Target[]> {
   const result: Target[] = [];

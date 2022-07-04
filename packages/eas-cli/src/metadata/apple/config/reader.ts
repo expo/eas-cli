@@ -1,18 +1,11 @@
-import {
-  AgeRatingDeclaration,
-  AppInfoLocalization,
-  AppStoreReviewDetail,
-  AppStoreVersion,
-  AppStoreVersionLocalization,
-  CategoryIds,
-  Rating,
-  ReleaseType,
-} from '@expo/apple-utils';
+import AppleUtils from '@expo/apple-utils';
 
-import uniq from '../../../utils/expodash/uniq';
-import { AttributesOf } from '../../utils/asc';
-import { removeDatePrecision } from '../../utils/date';
-import { AppleMetadata } from '../types';
+import uniq from '../../../utils/expodash/uniq.js';
+import { AttributesOf } from '../../utils/asc.js';
+import { removeDatePrecision } from '../../utils/date.js';
+import { AppleMetadata } from '../types.js';
+
+const { Rating, ReleaseType } = AppleUtils;
 
 type PartialExcept<T, K extends keyof T> = Pick<T, K> & Partial<Omit<T, K>>;
 
@@ -26,7 +19,7 @@ export const DEFAULT_WHATSNEW = 'Bug fixes and improved stability';
 export class AppleConfigReader {
   public constructor(public readonly schema: AppleMetadata) {}
 
-  public getAgeRating(): Partial<AttributesOf<AgeRatingDeclaration>> | null {
+  public getAgeRating(): Partial<AttributesOf<AppleUtils.AgeRatingDeclaration>> | null {
     const attributes = this.schema.advisory;
     if (!attributes) {
       return null;
@@ -61,7 +54,7 @@ export class AppleConfigReader {
 
   public getInfoLocale(
     locale: string
-  ): PartialExcept<AttributesOf<AppInfoLocalization>, 'locale' | 'name'> | null {
+  ): PartialExcept<AttributesOf<AppleUtils.AppInfoLocalization>, 'locale' | 'name'> | null {
     const info = this.schema.info?.[locale];
     if (!info) {
       return null;
@@ -77,14 +70,14 @@ export class AppleConfigReader {
     };
   }
 
-  public getCategories(): CategoryIds | null {
+  public getCategories(): AppleUtils.CategoryIds | null {
     const { categories } = this.schema;
     if (!categories || categories.length <= 0) {
       return null;
     }
 
     // We validate the categories based on enums, but they will still be strings here.
-    const categoryIds: Partial<Record<keyof CategoryIds, string>> = {};
+    const categoryIds: Partial<Record<keyof AppleUtils.CategoryIds, string>> = {};
 
     if (Array.isArray(categories[0])) {
       categoryIds.primaryCategory = categories[0][0];
@@ -104,18 +97,18 @@ export class AppleConfigReader {
 
     // Because we handle categories as normal strings,
     // the type doesn't match with the actual CategoryIds types.
-    return categoryIds as CategoryIds;
+    return categoryIds as AppleUtils.CategoryIds;
   }
 
   /** Get the `AppStoreVersion` object. */
   public getVersion(): Partial<
-    Omit<AttributesOf<AppStoreVersion>, 'releaseType' | 'earliestReleaseDate'>
+    Omit<AttributesOf<AppleUtils.AppStoreVersion>, 'releaseType' | 'earliestReleaseDate'>
   > | null {
     return this.schema.copyright ? { copyright: this.schema.copyright } : null;
   }
 
   public getVersionRelease(): Partial<
-    Pick<AttributesOf<AppStoreVersion>, 'releaseType' | 'earliestReleaseDate'>
+    Pick<AttributesOf<AppleUtils.AppStoreVersion>, 'releaseType' | 'earliestReleaseDate'>
   > | null {
     const { release } = this.schema;
 
@@ -147,7 +140,7 @@ export class AppleConfigReader {
   public getVersionLocale(
     locale: string,
     context: { versionIsFirst: boolean }
-  ): Partial<AttributesOf<AppStoreVersionLocalization>> | null {
+  ): Partial<AttributesOf<AppleUtils.AppStoreVersionLocalization>> | null {
     const info = this.schema.info?.[locale];
     if (!info) {
       return null;
@@ -165,7 +158,7 @@ export class AppleConfigReader {
     };
   }
 
-  public getReviewDetails(): Partial<AttributesOf<AppStoreReviewDetail>> | null {
+  public getReviewDetails(): Partial<AttributesOf<AppleUtils.AppStoreReviewDetail>> | null {
     const review = this.schema.review;
     if (!review) {
       return null;

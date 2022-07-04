@@ -1,7 +1,7 @@
-import Log from '../../../log';
-import { confirmAsync } from '../../../prompts';
-import { CredentialsContext } from '../../context';
-import { AppLookupParams, formatProjectFullName } from '../api/GraphqlClient';
+import Log from '../../../log.js';
+import { confirmAsync } from '../../../prompts.js';
+import { CredentialsContext } from '../../context.js';
+import { AppLookupParams, formatProjectFullName } from '../api/GraphqlClient.js';
 
 export class RemoveFcm {
   constructor(private app: AppLookupParams) {}

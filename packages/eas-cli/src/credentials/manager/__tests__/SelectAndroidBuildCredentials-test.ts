@@ -1,14 +1,14 @@
-import { promptAsync } from '../../../prompts';
+import { promptAsync } from '../../../prompts.js';
 import {
   getNewAndroidApiMock,
   testAndroidBuildCredentialsFragment,
-} from '../../__tests__/fixtures-android';
-import { createCtxMock } from '../../__tests__/fixtures-context';
-import { getAppLookupParamsFromContextAsync } from '../../android/actions/BuildCredentialsUtils';
+} from '../../__tests__/fixtures-android.js';
+import { createCtxMock } from '../../__tests__/fixtures-context.js';
+import { getAppLookupParamsFromContextAsync } from '../../android/actions/BuildCredentialsUtils.js';
 import {
   SelectAndroidBuildCredentials,
   SelectAndroidBuildCredentialsResultType,
-} from '../SelectAndroidBuildCredentials';
+} from '../SelectAndroidBuildCredentials.js';
 
 const TEST_STRING = 'TEST_STRING';
 jest.mock('../../../prompts');

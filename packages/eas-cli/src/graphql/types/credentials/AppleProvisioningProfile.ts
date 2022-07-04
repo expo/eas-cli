@@ -1,8 +1,8 @@
 import { print } from 'graphql';
-import gql from 'graphql-tag';
+import { gql } from 'graphql-tag';
 
-import { AppleDeviceFragmentNode } from './AppleDevice';
-import { AppleTeamFragmentNode } from './AppleTeam';
+import { AppleDeviceFragmentNode } from './AppleDevice.js';
+import { AppleTeamFragmentNode } from './AppleTeam.js';
 
 export const AppleProvisioningProfileFragmentNode = gql`
   fragment AppleProvisioningProfileFragment on AppleProvisioningProfile {

@@ -1,16 +1,16 @@
 import { print } from 'graphql';
-import gql from 'graphql-tag';
+import { gql } from 'graphql-tag';
 
-import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
+import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client.js';
 import {
   AppleProvisioningProfileFragment,
   AppleProvisioningProfileInput,
   AppleTeamFragment,
   CreateAppleProvisioningProfileMutation,
   UpdateAppleProvisioningProfileMutation,
-} from '../../../../../graphql/generated';
-import { AppleProvisioningProfileFragmentNode } from '../../../../../graphql/types/credentials/AppleProvisioningProfile';
-import { AppleTeamFragmentNode } from '../../../../../graphql/types/credentials/AppleTeam';
+} from '../../../../../graphql/generated.js';
+import { AppleProvisioningProfileFragmentNode } from '../../../../../graphql/types/credentials/AppleProvisioningProfile.js';
+import { AppleTeamFragmentNode } from '../../../../../graphql/types/credentials/AppleTeam.js';
 
 export type AppleProvisioningProfileMutationResult = AppleProvisioningProfileFragment & {
   appleTeam?: AppleTeamFragment | null;

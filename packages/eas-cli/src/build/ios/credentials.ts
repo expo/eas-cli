@@ -1,11 +1,11 @@
 import { Platform } from '@expo/eas-build-job';
 
-import IosCredentialsProvider from '../../credentials/ios/IosCredentialsProvider';
-import { getAppFromContext } from '../../credentials/ios/actions/BuildCredentialsUtils';
-import { IosCredentials, Target } from '../../credentials/ios/types';
-import { CredentialsResult } from '../build';
-import { BuildContext } from '../context';
-import { logCredentialsSource } from '../utils/credentials';
+import IosCredentialsProvider from '../../credentials/ios/IosCredentialsProvider.js';
+import { getAppFromContext } from '../../credentials/ios/actions/BuildCredentialsUtils.js';
+import { IosCredentials, Target } from '../../credentials/ios/types.js';
+import { CredentialsResult } from '../build.js';
+import { BuildContext } from '../context.js';
+import { logCredentialsSource } from '../utils/credentials.js';
 
 export async function ensureIosCredentialsAsync(
   buildCtx: BuildContext<Platform.IOS>,

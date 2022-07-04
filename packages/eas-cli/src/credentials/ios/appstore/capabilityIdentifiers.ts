@@ -1,15 +1,17 @@
-import { BundleId, CapabilityTypeOption } from '@expo/apple-utils';
+import AppleUtils from '@expo/apple-utils';
 import { JSONObject } from '@expo/json-file';
 
-import Log from '../../../log';
-import { isAppStoreConnectTokenOnlyContext } from '../utils/authType';
+import Log from '../../../log.js';
+import { isAppStoreConnectTokenOnlyContext } from '../utils/authType.js';
 import {
   CapabilityMapping,
   EXPO_NO_CAPABILITY_SYNC,
   assertValidOptions,
-} from './bundleIdCapabilities';
+} from './bundleIdCapabilities.js';
 
-type UpdateCapabilityRequest = Parameters<BundleId['updateBundleIdCapabilityAsync']>[0];
+const { CapabilityTypeOption } = AppleUtils;
+
+type UpdateCapabilityRequest = Parameters<AppleUtils.BundleId['updateBundleIdCapabilityAsync']>[0];
 
 /**
  * Sync the capability identifiers with the bundle identifier capabilities.
@@ -24,7 +26,7 @@ type UpdateCapabilityRequest = Parameters<BundleId['updateBundleIdCapabilityAsyn
  * @returns an object specifying the capabilities that were linked, and created.
  */
 export async function syncCapabilityIdentifiersForEntitlementsAsync(
-  bundleId: BundleId,
+  bundleId: AppleUtils.BundleId,
   entitlements: JSONObject = {}
 ): Promise<{ created: string[]; linked: string[] }> {
   if (EXPO_NO_CAPABILITY_SYNC) {

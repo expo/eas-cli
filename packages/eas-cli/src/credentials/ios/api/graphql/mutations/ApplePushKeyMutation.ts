@@ -1,15 +1,15 @@
 import assert from 'assert';
 import { print } from 'graphql';
-import gql from 'graphql-tag';
+import { gql } from 'graphql-tag';
 
-import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
+import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client.js';
 import {
   ApplePushKeyFragment,
   ApplePushKeyInput,
   CreateApplePushKeyMutation,
   DeleteApplePushKeyMutation,
-} from '../../../../../graphql/generated';
-import { ApplePushKeyFragmentNode } from '../../../../../graphql/types/credentials/ApplePushKey';
+} from '../../../../../graphql/generated.js';
+import { ApplePushKeyFragmentNode } from '../../../../../graphql/types/credentials/ApplePushKey.js';
 
 export const ApplePushKeyMutation = {
   async createApplePushKeyAsync(

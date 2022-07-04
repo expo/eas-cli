@@ -1,9 +1,9 @@
 import { Platform } from '@expo/eas-build-job';
 
-import { MissingParentProfileError, MissingProfileError } from '../errors';
-import { EasJson } from '../types';
-import { BuildProfileSchema } from './schema';
-import { BuildProfile, EasJsonBuildProfile } from './types';
+import { MissingParentProfileError, MissingProfileError } from '../errors.js';
+import { EasJson } from '../types.js';
+import { BuildProfileSchema } from './schema.js';
+import { BuildProfile, EasJsonBuildProfile } from './types.js';
 
 type EasJsonBuildProfileResolved = Omit<EasJsonBuildProfile, 'extends'>;
 

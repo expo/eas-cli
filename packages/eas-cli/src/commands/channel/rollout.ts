@@ -1,21 +1,21 @@
 import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 
-import EasCommand from '../../commandUtils/EasCommand';
-import { GetChannelByNameForAppQuery, UpdateBranch } from '../../graphql/generated';
-import { BranchQuery } from '../../graphql/queries/BranchQuery';
-import { ChannelQuery } from '../../graphql/queries/ChannelQuery';
-import Log from '../../log';
-import { getExpoConfig } from '../../project/expoConfig';
+import EasCommand from '../../commandUtils/EasCommand.js';
+import { GetChannelByNameForAppQuery, UpdateBranch } from '../../graphql/generated.js';
+import { BranchQuery } from '../../graphql/queries/BranchQuery.js';
+import { ChannelQuery } from '../../graphql/queries/ChannelQuery.js';
+import Log from '../../log.js';
+import { getExpoConfig } from '../../project/expoConfig.js';
 import {
   findProjectRootAsync,
   getProjectFullNameAsync,
   getProjectIdAsync,
-} from '../../project/projectUtils';
-import { promptAsync, selectAsync } from '../../prompts';
-import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
-import { updateChannelBranchMappingAsync } from './edit';
-import { BranchMapping, getBranchMapping } from './view';
+} from '../../project/projectUtils.js';
+import { promptAsync, selectAsync } from '../../prompts.js';
+import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json.js';
+import { updateChannelBranchMappingAsync } from './edit.js';
+import { BranchMapping, getBranchMapping } from './view.js';
 
 async function promptForRolloutPercentAsync({
   promptMessage,

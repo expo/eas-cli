@@ -1,15 +1,15 @@
 import assert from 'assert';
 import { print } from 'graphql';
-import gql from 'graphql-tag';
+import { gql } from 'graphql-tag';
 
-import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
+import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client.js';
 import {
   AndroidFcmFragment,
   AndroidFcmInput,
   CreateAndroidFcmMutation,
   DeleteAndroidFcmMutation,
-} from '../../../../../graphql/generated';
-import { AndroidFcmFragmentNode } from '../../../../../graphql/types/credentials/AndroidFcm';
+} from '../../../../../graphql/generated.js';
+import { AndroidFcmFragmentNode } from '../../../../../graphql/types/credentials/AndroidFcm.js';
 
 export const AndroidFcmMutation = {
   async createAndroidFcmAsync(

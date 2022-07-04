@@ -4,21 +4,21 @@ import { Flags } from '@oclif/core';
 import assert from 'assert';
 import chalk from 'chalk';
 
-import { getEASUpdateURL } from '../../api';
-import EasCommand from '../../commandUtils/EasCommand';
-import { AppPlatform } from '../../graphql/generated';
-import Log, { learnMore } from '../../log';
-import { RequestedPlatform, appPlatformDisplayNames } from '../../platform';
-import { getExpoConfig } from '../../project/expoConfig';
+import { getEASUpdateURL } from '../../api.js';
+import EasCommand from '../../commandUtils/EasCommand.js';
+import { AppPlatform } from '../../graphql/generated.js';
+import Log, { learnMore } from '../../log.js';
+import { RequestedPlatform, appPlatformDisplayNames } from '../../platform.js';
+import { getExpoConfig } from '../../project/expoConfig.js';
 import {
   findProjectRootAsync,
   getProjectIdAsync,
   installExpoUpdatesAsync,
   isExpoUpdatesInstalledOrAvailable,
-} from '../../project/projectUtils';
-import { resolveWorkflowAsync } from '../../project/workflow';
-import { syncUpdatesConfigurationAsync as syncAndroidUpdatesConfigurationAsync } from '../../update/android/UpdatesModule';
-import { syncUpdatesConfigurationAsync as syncIosUpdatesConfigurationAsync } from '../../update/ios/UpdatesModule';
+} from '../../project/projectUtils.js';
+import { resolveWorkflowAsync } from '../../project/workflow.js';
+import { syncUpdatesConfigurationAsync as syncAndroidUpdatesConfigurationAsync } from '../../update/android/UpdatesModule.js';
+import { syncUpdatesConfigurationAsync as syncIosUpdatesConfigurationAsync } from '../../update/ios/UpdatesModule.js';
 
 const DEFAULT_MANAGED_RUNTIME_VERSION = { policy: 'sdkVersion' } as const;
 const DEFAULT_BARE_RUNTIME_VERSION = '1.0.0' as const;

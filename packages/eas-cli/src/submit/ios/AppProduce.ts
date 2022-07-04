@@ -1,17 +1,19 @@
-import { App, RequestContext, Session, User } from '@expo/apple-utils';
+import AppleUtils from '@expo/apple-utils';
 import { Platform } from '@expo/eas-build-job';
 import chalk from 'chalk';
 
-import { getRequestContext } from '../../credentials/ios/appstore/authenticate';
+import { getRequestContext } from '../../credentials/ios/appstore/authenticate.js';
 import {
   ensureAppExistsAsync,
   ensureBundleIdExistsWithNameAsync,
-} from '../../credentials/ios/appstore/ensureAppExists';
-import Log from '../../log';
-import { getBundleIdentifierAsync } from '../../project/ios/bundleIdentifier';
-import { promptAsync } from '../../prompts';
-import { SubmissionContext } from '../context';
-import { sanitizeLanguage } from './utils/language';
+} from '../../credentials/ios/appstore/ensureAppExists.js';
+import Log from '../../log.js';
+import { getBundleIdentifierAsync } from '../../project/ios/bundleIdentifier.js';
+import { promptAsync } from '../../prompts.js';
+import { SubmissionContext } from '../context.js';
+import { sanitizeLanguage } from './utils/language.js';
+
+const { Session, User } = AppleUtils;
 
 interface CreateAppOptions {
   appleId?: string;
@@ -44,7 +46,9 @@ export async function ensureAppStoreConnectAppExistsAsync(
   return await createAppStoreConnectAppAsync(ctx, options);
 }
 
-async function isProvisioningAvailableAsync(requestCtx: RequestContext): Promise<boolean> {
+async function isProvisioningAvailableAsync(
+  requestCtx: AppleUtils.RequestContext
+): Promise<boolean> {
   const session = Session.getAnySessionInfo();
   // TODO: Investigate if username and email can be different
   const username = session?.user.emailAddress;
@@ -85,7 +89,7 @@ async function createAppStoreConnectAppAsync(
     );
   }
 
-  let app: App | null = null;
+  let app: AppleUtils.App | null = null;
 
   try {
     app = await ensureAppExistsAsync(userAuthCtx, {

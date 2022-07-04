@@ -1,7 +1,7 @@
 import fs from 'fs-extra';
 import path from 'path';
 
-import { Target } from '../ios/types';
+import { Target } from '../ios/types.js';
 import {
   AndroidCredentials,
   CredentialsJson,
@@ -10,8 +10,8 @@ import {
   CredentialsJsonSchema,
   IosCredentials,
   IosTargetCredentials,
-} from './types';
-import { getCredentialsJsonPath } from './utils';
+} from './types.js';
+import { getCredentialsJsonPath } from './utils.js';
 
 export async function readAndroidCredentialsAsync(projectDir: string): Promise<AndroidCredentials> {
   const credentialsJson = await readAsync(projectDir);

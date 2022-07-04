@@ -1,15 +1,15 @@
 import assert from 'assert';
 import { print } from 'graphql';
-import gql from 'graphql-tag';
+import { gql } from 'graphql-tag';
 
-import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
+import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client.js';
 import {
   CreateGoogleServiceAccountKeyMutation,
   DeleteGoogleServiceAccountKeyMutation,
   GoogleServiceAccountKeyFragment,
   GoogleServiceAccountKeyInput,
-} from '../../../../../graphql/generated';
-import { GoogleServiceAccountKeyFragmentNode } from '../../../../../graphql/types/credentials/GoogleServiceAccountKey';
+} from '../../../../../graphql/generated.js';
+import { GoogleServiceAccountKeyFragmentNode } from '../../../../../graphql/types/credentials/GoogleServiceAccountKey.js';
 
 export const GoogleServiceAccountKeyMutation = {
   async createGoogleServiceAccountKeyAsync(

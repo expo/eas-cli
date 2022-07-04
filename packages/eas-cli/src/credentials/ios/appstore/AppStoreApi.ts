@@ -1,4 +1,4 @@
-import Log from '../../../log';
+import Log from '../../../log.js';
 import {
   AscApiKey,
   AscApiKeyInfo,
@@ -8,40 +8,40 @@ import {
   ProvisioningProfileStoreInfo,
   PushKey,
   PushKeyStoreInfo,
-} from './Credentials.types';
+} from './Credentials.types.js';
 import {
   createAscApiKeyAsync,
   getAscApiKeyAsync,
   listAscApiKeysAsync,
   revokeAscApiKeyAsync,
-} from './ascApiKey';
+} from './ascApiKey.js';
 import {
   Options as AuthenticateOptions,
   assertUserAuthCtx,
   authenticateAsync,
   isUserAuthCtx,
-} from './authenticate';
-import { AuthCtx, AuthenticationMode, UserAuthCtx } from './authenticateTypes';
+} from './authenticate.js';
+import { AuthCtx, AuthenticationMode, UserAuthCtx } from './authenticateTypes.js';
 import {
   createDistributionCertificateAsync,
   listDistributionCertificatesAsync,
   revokeDistributionCertificateAsync,
-} from './distributionCertificate';
+} from './distributionCertificate.js';
 import {
   AppLookupParams,
   IosCapabilitiesOptions,
   ensureBundleIdExistsAsync,
-} from './ensureAppExists';
+} from './ensureAppExists.js';
 import {
   ProfileClass,
   createProvisioningProfileAsync,
   listProvisioningProfilesAsync,
   revokeProvisioningProfileAsync,
   useExistingProvisioningProfileAsync,
-} from './provisioningProfile';
-import { createOrReuseAdhocProvisioningProfileAsync } from './provisioningProfileAdhoc';
-import { createPushKeyAsync, listPushKeysAsync, revokePushKeyAsync } from './pushKey';
-import { hasAscEnvVars } from './resolveCredentials';
+} from './provisioningProfile.js';
+import { createOrReuseAdhocProvisioningProfileAsync } from './provisioningProfileAdhoc.js';
+import { createPushKeyAsync, listPushKeysAsync, revokePushKeyAsync } from './pushKey.js';
+import { hasAscEnvVars } from './resolveCredentials.js';
 
 export default class AppStoreApi {
   public authCtx?: AuthCtx;

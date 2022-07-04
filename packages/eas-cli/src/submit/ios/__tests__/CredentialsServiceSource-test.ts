@@ -1,17 +1,17 @@
 import { Platform } from '@expo/eas-build-job';
 import { v4 as uuidv4 } from 'uuid';
 
-import { jester as mockJester } from '../../../credentials/__tests__/fixtures-constants';
-import { testCommonIosAppCredentialsFragment } from '../../../credentials/__tests__/fixtures-ios';
-import { SetUpSubmissionCredentials } from '../../../credentials/ios/actions/SetUpSubmissionCredentials';
-import { createTestProject } from '../../../project/__tests__/project-utils';
-import { getBundleIdentifierAsync } from '../../../project/ios/bundleIdentifier';
-import { promptAsync } from '../../../prompts';
-import { createSubmissionContextAsync } from '../../context';
+import { jester as mockJester } from '../../../credentials/__tests__/fixtures-constants.js';
+import { testCommonIosAppCredentialsFragment } from '../../../credentials/__tests__/fixtures-ios.js';
+import { SetUpSubmissionCredentials } from '../../../credentials/ios/actions/SetUpSubmissionCredentials.js';
+import { createTestProject } from '../../../project/__tests__/project-utils.js';
+import { getBundleIdentifierAsync } from '../../../project/ios/bundleIdentifier.js';
+import { promptAsync } from '../../../prompts.js';
+import { createSubmissionContextAsync } from '../../context.js';
 import {
   CREDENTIALS_SERVICE_SOURCE,
   getFromCredentialsServiceAsync,
-} from '../CredentialsServiceSource';
+} from '../CredentialsServiceSource.js';
 
 jest.mock('fs');
 jest.mock('../../../prompts');

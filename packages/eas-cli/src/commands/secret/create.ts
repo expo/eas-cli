@@ -1,23 +1,23 @@
 import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 
-import EasCommand from '../../commandUtils/EasCommand';
-import { EnvironmentSecretMutation } from '../../graphql/mutations/EnvironmentSecretMutation';
+import EasCommand from '../../commandUtils/EasCommand.js';
+import { EnvironmentSecretMutation } from '../../graphql/mutations/EnvironmentSecretMutation.js';
 import {
   EnvironmentSecretScope,
   EnvironmentSecretsQuery,
-} from '../../graphql/queries/EnvironmentSecretsQuery';
-import Log from '../../log';
-import { getExpoConfig } from '../../project/expoConfig';
+} from '../../graphql/queries/EnvironmentSecretsQuery.js';
+import Log from '../../log.js';
+import { getExpoConfig } from '../../project/expoConfig.js';
 import {
   findProjectRootAsync,
   getProjectAccountNameAsync,
   getProjectIdAsync,
-} from '../../project/projectUtils';
-import { promptAsync } from '../../prompts';
-import { findAccountByName } from '../../user/Account';
-import { getActorDisplayName } from '../../user/User';
-import { ensureLoggedInAsync } from '../../user/actions';
+} from '../../project/projectUtils.js';
+import { promptAsync } from '../../prompts.js';
+import { findAccountByName } from '../../user/Account.js';
+import { getActorDisplayName } from '../../user/User.js';
+import { ensureLoggedInAsync } from '../../user/actions.js';
 
 export default class EnvironmentSecretCreate extends EasCommand {
   static description = 'create an environment secret on the current project or owner account';

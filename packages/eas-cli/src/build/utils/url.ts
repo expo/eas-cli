@@ -1,7 +1,7 @@
 import assert from 'assert';
 
-import { getExpoApiBaseUrl, getExpoWebsiteBaseUrl } from '../../api';
-import { AppPlatform, BuildFragment } from '../../graphql/generated';
+import { getExpoApiBaseUrl, getExpoWebsiteBaseUrl } from '../../api.js';
+import { AppPlatform, BuildFragment } from '../../graphql/generated.js';
 
 export function getProjectDashboardUrl(accountName: string, projectName: string): string {
   return new URL(

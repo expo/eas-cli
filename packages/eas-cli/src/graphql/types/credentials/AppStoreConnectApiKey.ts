@@ -1,7 +1,7 @@
 import { print } from 'graphql';
-import gql from 'graphql-tag';
+import { gql } from 'graphql-tag';
 
-import { AppleTeamFragmentNode } from './AppleTeam';
+import { AppleTeamFragmentNode } from './AppleTeam.js';
 
 export const AppStoreConnectApiKeyFragmentNode = gql`
   fragment AppStoreConnectApiKeyFragment on AppStoreConnectApiKey {

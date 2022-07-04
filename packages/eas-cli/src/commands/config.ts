@@ -4,13 +4,13 @@ import { EasJsonReader } from '@expo/eas-json';
 import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 
-import EasCommand from '../commandUtils/EasCommand';
-import { toAppPlatform } from '../graphql/types/AppPlatform';
-import Log from '../log';
-import { appPlatformEmojis } from '../platform';
-import { getExpoConfig } from '../project/expoConfig';
-import { findProjectRootAsync } from '../project/projectUtils';
-import { selectAsync } from '../prompts';
+import EasCommand from '../commandUtils/EasCommand.js';
+import { toAppPlatform } from '../graphql/types/AppPlatform.js';
+import Log from '../log.js';
+import { appPlatformEmojis } from '../platform.js';
+import { getExpoConfig } from '../project/expoConfig.js';
+import { findProjectRootAsync } from '../project/projectUtils.js';
+import { selectAsync } from '../prompts.js';
 
 export default class Config extends EasCommand {
   static description = 'display project configuration (app.json + eas.json)';

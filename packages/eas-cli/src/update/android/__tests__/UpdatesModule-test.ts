@@ -2,7 +2,7 @@ import fs from 'fs-extra';
 import { vol } from 'memfs';
 import os from 'os';
 
-import { readChannelSafelyAsync } from '../UpdatesModule';
+import { readChannelSafelyAsync } from '../UpdatesModule.js';
 
 jest.mock('fs');
 

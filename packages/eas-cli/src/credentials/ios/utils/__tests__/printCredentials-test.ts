@@ -1,10 +1,10 @@
 import mockdate from 'mockdate';
-import nullthrows from 'nullthrows';
 
-import Log from '../../../../log';
-import { IosAppCredentialsQuery } from '../../api/graphql/queries/IosAppCredentialsQuery';
-import { App, Target } from '../../types';
-import { displayIosCredentials } from '../printCredentials';
+import Log from '../../../../log.js';
+import { nullthrows } from '../../../../utils/nullthrows.js';
+import { IosAppCredentialsQuery } from '../../api/graphql/queries/IosAppCredentialsQuery.js';
+import { App, Target } from '../../types.js';
+import { displayIosCredentials } from '../printCredentials.js';
 
 jest.mock('../../../../log');
 jest.mock('chalk', () => ({ bold: jest.fn(log => log), cyan: { bold: jest.fn(log => log) } }));

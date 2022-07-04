@@ -2,16 +2,16 @@ import { ExpoConfig } from '@expo/config';
 import assert from 'assert';
 import chalk from 'chalk';
 
-import { AppleTeamMutation } from '../credentials/ios/api/graphql/mutations/AppleTeamMutation';
-import { AppleTeamQuery } from '../credentials/ios/api/graphql/queries/AppleTeamQuery';
-import { AppleTeamFragment } from '../graphql/generated';
-import Log from '../log';
-import { getProjectAccountNameAsync } from '../project/projectUtils';
-import { Choice, confirmAsync, promptAsync } from '../prompts';
-import { Account, findAccountByName } from '../user/Account';
-import { Actor, getActorDisplayName } from '../user/User';
-import DeviceCreateAction from './actions/create/action';
-import { DeviceManagerContext } from './context';
+import { AppleTeamMutation } from '../credentials/ios/api/graphql/mutations/AppleTeamMutation.js';
+import { AppleTeamQuery } from '../credentials/ios/api/graphql/queries/AppleTeamQuery.js';
+import { AppleTeamFragment } from '../graphql/generated.js';
+import Log from '../log.js';
+import { getProjectAccountNameAsync } from '../project/projectUtils.js';
+import { Choice, confirmAsync, promptAsync } from '../prompts.js';
+import { Account, findAccountByName } from '../user/Account.js';
+import { Actor, getActorDisplayName } from '../user/User.js';
+import DeviceCreateAction from './actions/create/action.js';
+import { DeviceManagerContext } from './context.js';
 
 const CREATE_COMMAND_DESCRIPTION = `This command lets you register your Apple devices (iPhones and iPads) for internal distribution of your app.
 Internal distribution means that you won't need upload your app archive to App Store / Testflight.

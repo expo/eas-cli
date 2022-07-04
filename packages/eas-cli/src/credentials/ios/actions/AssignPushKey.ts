@@ -1,8 +1,11 @@
-import { ApplePushKeyFragment, CommonIosAppCredentialsFragment } from '../../../graphql/generated';
-import Log from '../../../log';
-import { CredentialsContext } from '../../context';
-import { AppLookupParams } from '../api/GraphqlClient';
-import { resolveAppleTeamIfAuthenticatedAsync } from './AppleTeamUtils';
+import {
+  ApplePushKeyFragment,
+  CommonIosAppCredentialsFragment,
+} from '../../../graphql/generated.js';
+import Log from '../../../log.js';
+import { CredentialsContext } from '../../context.js';
+import { AppLookupParams } from '../api/GraphqlClient.js';
+import { resolveAppleTeamIfAuthenticatedAsync } from './AppleTeamUtils.js';
 
 export class AssignPushKey {
   constructor(private app: AppLookupParams) {}

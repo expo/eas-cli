@@ -1,9 +1,9 @@
 import type { App } from '@expo/apple-utils';
 
-import type { AgeRatingData } from './tasks/age-rating';
-import type { AppInfoData } from './tasks/app-info';
-import type { AppReviewData } from './tasks/app-review-detail';
-import type { AppVersionData } from './tasks/app-version';
+import type { AgeRatingData } from './tasks/age-rating.js';
+import type { AppInfoData } from './tasks/app-info.js';
+import type { AppReviewData } from './tasks/app-review-detail.js';
+import type { AppVersionData } from './tasks/app-version.js';
 
 /**
  * The fully prepared apple data, used within the `downloadAsync` or `uploadAsync` tasks.

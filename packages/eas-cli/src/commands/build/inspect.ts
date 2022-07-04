@@ -4,14 +4,14 @@ import fs from 'fs-extra';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 
-import { runBuildAndSubmitAsync } from '../../build/runBuildAndSubmit';
-import EasCommand from '../../commandUtils/EasCommand';
-import Log from '../../log';
-import { ora } from '../../ora';
-import { RequestedPlatform } from '../../platform';
-import { findProjectRootAsync } from '../../project/projectUtils';
-import { getTmpDirectory } from '../../utils/paths';
-import { getVcsClient } from '../../vcs';
+import { runBuildAndSubmitAsync } from '../../build/runBuildAndSubmit.js';
+import EasCommand from '../../commandUtils/EasCommand.js';
+import Log from '../../log.js';
+import { ora } from '../../ora.js';
+import { RequestedPlatform } from '../../platform.js';
+import { findProjectRootAsync } from '../../project/projectUtils.js';
+import { getTmpDirectory } from '../../utils/paths.js';
+import { getVcsClient } from '../../vcs/index.js';
 
 enum InspectStage {
   ARCHIVE = 'archive',

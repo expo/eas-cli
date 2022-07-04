@@ -1,13 +1,13 @@
 import {
   AppleDistributionCertificateFragment,
   ApplePushKeyFragment,
-} from '../../../graphql/generated';
+} from '../../../graphql/generated.js';
 import {
   DistributionCertificate,
   DistributionCertificateStoreInfo,
   PushKey,
   PushKeyStoreInfo,
-} from './Credentials.types';
+} from './Credentials.types.js';
 
 /**
  * Edge case: Uploaded push keys rely on the user to provide the keyIdentifier, which could be incorrect

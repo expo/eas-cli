@@ -1,9 +1,9 @@
-import nullthrows from 'nullthrows';
 import { URL } from 'url';
 
-import { WebhookFragment, WebhookInput, WebhookType } from '../graphql/generated';
-import Log from '../log';
-import { promptAsync } from '../prompts';
+import { WebhookFragment, WebhookInput, WebhookType } from '../graphql/generated.js';
+import Log from '../log.js';
+import { promptAsync } from '../prompts.js';
+import { nullthrows } from '../utils/nullthrows.js';
 
 export async function prepareInputParamsAsync(
   {

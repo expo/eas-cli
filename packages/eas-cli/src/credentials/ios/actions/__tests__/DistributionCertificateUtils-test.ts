@@ -1,7 +1,7 @@
 import mockdate from 'mockdate';
 
-import { AppleDistributionCertificateQuery } from '../../api/graphql/queries/AppleDistributionCertificateQuery';
-import { formatDistributionCertificate } from '../DistributionCertificateUtils';
+import { AppleDistributionCertificateQuery } from '../../api/graphql/queries/AppleDistributionCertificateQuery.js';
+import { formatDistributionCertificate } from '../DistributionCertificateUtils.js';
 jest.mock('../../api/graphql/queries/AppleDistributionCertificateQuery');
 jest.mock('chalk', () => {
   return {

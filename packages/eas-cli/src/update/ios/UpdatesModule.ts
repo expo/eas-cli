@@ -1,12 +1,14 @@
 import { ExpoConfig } from '@expo/config';
-import { IOSConfig } from '@expo/config-plugins';
+import ConfigPlugins, { ExpoPlist } from '@expo/config-plugins';
 
-import { RequestedPlatform } from '../../platform';
-import { getProjectAccountName } from '../../project/projectUtils';
-import { ensureLoggedInAsync } from '../../user/actions';
-import { readPlistAsync, writePlistAsync } from '../../utils/plist';
-import { getVcsClient } from '../../vcs';
-import { ensureValidVersions } from '../utils';
+import { RequestedPlatform } from '../../platform.js';
+import { getProjectAccountName } from '../../project/projectUtils.js';
+import { ensureLoggedInAsync } from '../../user/actions.js';
+import { readPlistAsync, writePlistAsync } from '../../utils/plist.js';
+import { getVcsClient } from '../../vcs/index.js';
+import { ensureValidVersions } from '../utils.js';
+
+const { IOSConfig } = ConfigPlugins;
 
 export async function syncUpdatesConfigurationAsync(
   projectDir: string,
@@ -24,15 +26,12 @@ export async function syncUpdatesConfigurationAsync(
   await writeExpoPlistAsync(projectDir, updatedExpoPlist);
 }
 
-async function readExpoPlistAsync(projectDir: string): Promise<IOSConfig.ExpoPlist> {
+async function readExpoPlistAsync(projectDir: string): Promise<ExpoPlist> {
   const expoPlistPath = IOSConfig.Paths.getExpoPlistPath(projectDir);
-  return ((await readPlistAsync(expoPlistPath)) ?? {}) as IOSConfig.ExpoPlist;
+  return ((await readPlistAsync(expoPlistPath)) ?? {}) as ExpoPlist;
 }
 
-async function writeExpoPlistAsync(
-  projectDir: string,
-  expoPlist: IOSConfig.ExpoPlist
-): Promise<void> {
+async function writeExpoPlistAsync(projectDir: string, expoPlist: ExpoPlist): Promise<void> {
   const expoPlistPath = IOSConfig.Paths.getExpoPlistPath(projectDir);
   await writePlistAsync(expoPlistPath, expoPlist);
   await getVcsClient().trackFileAsync(expoPlistPath);

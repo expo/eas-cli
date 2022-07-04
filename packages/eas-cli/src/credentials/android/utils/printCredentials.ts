@@ -7,12 +7,12 @@ import {
   CommonAndroidAppCredentialsFragment,
   FcmSnippetLegacy,
   FcmSnippetV1,
-} from '../../../graphql/generated';
-import Log from '../../../log';
-import { fromNow } from '../../../utils/date';
-import formatFields from '../../../utils/formatFields';
-import { sortBuildCredentials } from '../actions/BuildCredentialsUtils';
-import { AppLookupParams } from '../api/GraphqlClient';
+} from '../../../graphql/generated.js';
+import Log from '../../../log.js';
+import { fromNow } from '../../../utils/date.js';
+import formatFields from '../../../utils/formatFields.js';
+import { sortBuildCredentials } from '../actions/BuildCredentialsUtils.js';
+import { AppLookupParams } from '../api/GraphqlClient.js';
 
 export function displayEmptyAndroidCredentials(appLookupParams: AppLookupParams): void {
   const { projectName, androidApplicationIdentifier } = appLookupParams;

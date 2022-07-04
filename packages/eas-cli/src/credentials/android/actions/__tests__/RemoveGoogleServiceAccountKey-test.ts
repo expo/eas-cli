@@ -1,10 +1,10 @@
-import { confirmAsync } from '../../../../prompts';
+import { confirmAsync } from '../../../../prompts.js';
 import {
   getNewAndroidApiMock,
   testGoogleServiceAccountKeyFragment,
-} from '../../../__tests__/fixtures-android';
-import { createCtxMock } from '../../../__tests__/fixtures-context';
-import { RemoveGoogleServiceAccountKey } from '../RemoveGoogleServiceAccountKey';
+} from '../../../__tests__/fixtures-android.js';
+import { createCtxMock } from '../../../__tests__/fixtures-context.js';
+import { RemoveGoogleServiceAccountKey } from '../RemoveGoogleServiceAccountKey.js';
 
 jest.mock('../../../../prompts');
 jest.mocked(confirmAsync).mockImplementation(async () => true);

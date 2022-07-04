@@ -2,23 +2,23 @@ import { EasJsonReader } from '@expo/eas-json';
 import { Errors, Flags } from '@oclif/core';
 import chalk from 'chalk';
 
-import EasCommand from '../commandUtils/EasCommand';
-import { SubmissionFragment } from '../graphql/generated';
-import { toAppPlatform } from '../graphql/types/AppPlatform';
-import Log from '../log';
+import EasCommand from '../commandUtils/EasCommand.js';
+import { SubmissionFragment } from '../graphql/generated.js';
+import { toAppPlatform } from '../graphql/types/AppPlatform.js';
+import Log from '../log.js';
 import {
   RequestedPlatform,
   appPlatformDisplayNames,
   appPlatformEmojis,
   selectRequestedPlatformAsync,
   toPlatforms,
-} from '../platform';
-import { getExpoConfig } from '../project/expoConfig';
-import { findProjectRootAsync, getProjectIdAsync } from '../project/projectUtils';
-import { SubmitArchiveFlags, createSubmissionContextAsync } from '../submit/context';
-import { submitAsync, waitToCompleteAsync } from '../submit/submit';
-import { printSubmissionDetailsUrls } from '../submit/utils/urls';
-import { getProfilesAsync } from '../utils/profiles';
+} from '../platform.js';
+import { getExpoConfig } from '../project/expoConfig.js';
+import { findProjectRootAsync, getProjectIdAsync } from '../project/projectUtils.js';
+import { SubmitArchiveFlags, createSubmissionContextAsync } from '../submit/context.js';
+import { submitAsync, waitToCompleteAsync } from '../submit/submit.js';
+import { printSubmissionDetailsUrls } from '../submit/utils/urls.js';
+import { getProfilesAsync } from '../utils/profiles.js';
 
 interface RawCommandFlags {
   platform?: string;

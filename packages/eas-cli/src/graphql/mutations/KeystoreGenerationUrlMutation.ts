@@ -1,7 +1,7 @@
-import gql from 'graphql-tag';
+import { gql } from 'graphql-tag';
 
-import { graphqlClient, withErrorHandlingAsync } from '../client';
-import { CreateKeystoreGenerationUrlMutation } from '../generated';
+import { graphqlClient, withErrorHandlingAsync } from '../client.js';
+import { CreateKeystoreGenerationUrlMutation } from '../generated.js';
 
 export const KeystoreGenerationUrlMutation = {
   async createKeystoreGenerationUrlAsync(): Promise<string> {

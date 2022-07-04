@@ -4,24 +4,27 @@ import chalk from 'chalk';
 import getenv from 'getenv';
 import wrapAnsi from 'wrap-ansi';
 
-import { MissingCredentialsError } from '../../credentials/errors';
-import { SubmissionFragment } from '../../graphql/generated';
-import Log, { learnMore } from '../../log';
+import { MissingCredentialsError } from '../../credentials/errors.js';
+import { SubmissionFragment } from '../../graphql/generated.js';
+import Log, { learnMore } from '../../log.js';
 import {
   AmbiguousBundleIdentifierError,
   getBundleIdentifierAsync,
-} from '../../project/ios/bundleIdentifier';
-import { ArchiveSource } from '../ArchiveSource';
-import { resolveArchiveSource } from '../commons';
-import { SubmissionContext } from '../context';
-import { ensureAppStoreConnectAppExistsAsync } from './AppProduce';
+} from '../../project/ios/bundleIdentifier.js';
+import { ArchiveSource } from '../ArchiveSource.js';
+import { resolveArchiveSource } from '../commons.js';
+import { SubmissionContext } from '../context.js';
+import { ensureAppStoreConnectAppExistsAsync } from './AppProduce.js';
 import {
   AppSpecificPasswordSource,
   AppSpecificPasswordSourceType,
-} from './AppSpecificPasswordSource';
-import { AscApiKeySource, AscApiKeySourceType } from './AscApiKeySource';
-import { CREDENTIALS_SERVICE_SOURCE, CredentialsServiceSource } from './CredentialsServiceSource';
-import IosSubmitter, { IosSubmissionOptions } from './IosSubmitter';
+} from './AppSpecificPasswordSource.js';
+import { AscApiKeySource, AscApiKeySourceType } from './AscApiKeySource.js';
+import {
+  CREDENTIALS_SERVICE_SOURCE,
+  CredentialsServiceSource,
+} from './CredentialsServiceSource.js';
+import IosSubmitter, { IosSubmissionOptions } from './IosSubmitter.js';
 
 export default class IosSubmitCommand {
   constructor(private ctx: SubmissionContext<Platform.IOS>) {}

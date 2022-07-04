@@ -1,7 +1,6 @@
 import { Platform, Workflow } from '@expo/eas-build-job';
 import { BuildProfile, EasJsonReader, SubmitProfile } from '@expo/eas-json';
 import chalk from 'chalk';
-import nullthrows from 'nullthrows';
 
 import {
   AppPlatform,
@@ -9,37 +8,38 @@ import {
   BuildResourceClass,
   BuildStatus,
   SubmissionFragment,
-} from '../graphql/generated';
-import { toAppPlatform, toPlatform } from '../graphql/types/AppPlatform';
-import Log from '../log';
+} from '../graphql/generated.js';
+import { toAppPlatform, toPlatform } from '../graphql/types/AppPlatform.js';
+import Log from '../log.js';
 import {
   RequestedPlatform,
   appPlatformDisplayNames,
   appPlatformEmojis,
   toPlatforms,
-} from '../platform';
-import { checkExpoSdkIsSupportedAsync } from '../project/expoSdk';
-import { validateMetroConfigForManagedWorkflowAsync } from '../project/metroConfig';
-import { createSubmissionContextAsync } from '../submit/context';
+} from '../platform.js';
+import { checkExpoSdkIsSupportedAsync } from '../project/expoSdk.js';
+import { validateMetroConfigForManagedWorkflowAsync } from '../project/metroConfig.js';
+import { createSubmissionContextAsync } from '../submit/context.js';
 import {
   submitAsync,
   waitToCompleteAsync as waitForSubmissionsToCompleteAsync,
-} from '../submit/submit';
-import { printSubmissionDetailsUrls } from '../submit/utils/urls';
-import { printJsonOnlyOutput } from '../utils/json';
-import { ProfileData, getProfilesAsync } from '../utils/profiles';
-import { getVcsClient } from '../vcs';
-import { prepareAndroidBuildAsync } from './android/build';
-import { BuildRequestSender, waitForBuildEndAsync } from './build';
-import { ensureProjectConfiguredAsync } from './configure';
-import { BuildContext } from './context';
-import { createBuildContextAsync } from './createContext';
-import { prepareIosBuildAsync } from './ios/build';
-import { LocalBuildOptions } from './local';
-import { UserInputResourceClass } from './types';
-import { ensureExpoDevClientInstalledForDevClientBuildsAsync } from './utils/devClient';
-import { printBuildResults, printLogsUrls } from './utils/printBuildInfo';
-import { ensureRepoIsCleanAsync } from './utils/repository';
+} from '../submit/submit.js';
+import { printSubmissionDetailsUrls } from '../submit/utils/urls.js';
+import { printJsonOnlyOutput } from '../utils/json.js';
+import { nullthrows } from '../utils/nullthrows.js';
+import { ProfileData, getProfilesAsync } from '../utils/profiles.js';
+import { getVcsClient } from '../vcs/index.js';
+import { prepareAndroidBuildAsync } from './android/build.js';
+import { BuildRequestSender, waitForBuildEndAsync } from './build.js';
+import { ensureProjectConfiguredAsync } from './configure.js';
+import { BuildContext } from './context.js';
+import { createBuildContextAsync } from './createContext.js';
+import { prepareIosBuildAsync } from './ios/build.js';
+import { LocalBuildOptions } from './local.js';
+import { UserInputResourceClass } from './types.js';
+import { ensureExpoDevClientInstalledForDevClientBuildsAsync } from './utils/devClient.js';
+import { printBuildResults, printLogsUrls } from './utils/printBuildInfo.js';
+import { ensureRepoIsCleanAsync } from './utils/repository.js';
 
 let metroConfigValidated = false;
 let sdkVersionChecked = false;

@@ -1,4 +1,4 @@
-import { Ora, ora } from '../../ora';
+import { Ora, ora } from '../../ora.js';
 
 type LogAsyncOptions = {
   /** If the spinner representing the async action should be hidden, e.g. for JSON output */

@@ -2,8 +2,8 @@ import { Platform } from '@expo/eas-build-job';
 import { CredentialsSource } from '@expo/eas-json';
 import chalk from 'chalk';
 
-import Log from '../../log';
-import { requestedPlatformDisplayNames } from '../../platform';
+import Log from '../../log.js';
+import { requestedPlatformDisplayNames } from '../../platform.js';
 
 export function logCredentialsSource(
   credentialsSource: CredentialsSource,

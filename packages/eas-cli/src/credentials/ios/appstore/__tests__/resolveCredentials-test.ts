@@ -1,8 +1,8 @@
 import { vol } from 'memfs';
 
-import { promptAsync } from '../../../../prompts';
-import { AppleTeamType } from '../authenticateTypes';
-import { resolveAppleTeamAsync, resolveAscApiKeyAsync } from '../resolveCredentials';
+import { promptAsync } from '../../../../prompts.js';
+import { AppleTeamType } from '../authenticateTypes.js';
+import { resolveAppleTeamAsync, resolveAscApiKeyAsync } from '../resolveCredentials.js';
 
 jest.mock('../../../../prompts');
 jest.mock('fs');

@@ -1,9 +1,9 @@
 import { Job } from '@expo/eas-build-job';
-import spawnAsync from '@expo/spawn-async';
+import { default as spawnAsync } from '@expo/spawn-async';
 import { ChildProcess } from 'child_process';
 import semver from 'semver';
 
-import { ora } from '../ora';
+import { ora } from '../ora.js';
 
 const PLUGIN_PACKAGE_NAME = 'eas-cli-local-build-plugin';
 const PLUGIN_PACKAGE_VERSION = '0.0.85';

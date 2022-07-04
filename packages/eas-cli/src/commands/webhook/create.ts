@@ -1,12 +1,12 @@
 import { Flags } from '@oclif/core';
 
-import EasCommand from '../../commandUtils/EasCommand';
-import { WebhookType } from '../../graphql/generated';
-import { WebhookMutation } from '../../graphql/mutations/WebhookMutation';
-import { ora } from '../../ora';
-import { getExpoConfig } from '../../project/expoConfig';
-import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUtils';
-import { prepareInputParamsAsync } from '../../webhooks/input';
+import EasCommand from '../../commandUtils/EasCommand.js';
+import { WebhookType } from '../../graphql/generated.js';
+import { WebhookMutation } from '../../graphql/mutations/WebhookMutation.js';
+import { ora } from '../../ora.js';
+import { getExpoConfig } from '../../project/expoConfig.js';
+import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUtils.js';
+import { prepareInputParamsAsync } from '../../webhooks/input.js';
 
 export default class WebhookCreate extends EasCommand {
   static description = 'create a webhook';

@@ -3,17 +3,17 @@ import assert from 'assert';
 import chalk from 'chalk';
 import CliTable from 'cli-table3';
 
-import EasCommand from '../../commandUtils/EasCommand';
-import { ViewAllUpdatesQuery } from '../../graphql/generated';
-import { UpdateQuery } from '../../graphql/queries/UpdateQuery';
-import Log from '../../log';
-import { getExpoConfig } from '../../project/expoConfig';
-import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUtils';
-import { promptAsync } from '../../prompts';
-import { FormatUpdateParameter, UPDATE_COLUMNS, formatUpdate } from '../../update/utils';
-import groupBy from '../../utils/expodash/groupBy';
-import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
-import { getVcsClient } from '../../vcs';
+import EasCommand from '../../commandUtils/EasCommand.js';
+import { ViewAllUpdatesQuery } from '../../graphql/generated.js';
+import { UpdateQuery } from '../../graphql/queries/UpdateQuery.js';
+import Log from '../../log.js';
+import { getExpoConfig } from '../../project/expoConfig.js';
+import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUtils.js';
+import { promptAsync } from '../../prompts.js';
+import { FormatUpdateParameter, UPDATE_COLUMNS, formatUpdate } from '../../update/utils.js';
+import groupBy from '../../utils/expodash/groupBy.js';
+import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json.js';
+import { getVcsClient } from '../../vcs/index.js';
 
 type UpdateGroupDescription = FormatUpdateParameter & {
   branch: string;

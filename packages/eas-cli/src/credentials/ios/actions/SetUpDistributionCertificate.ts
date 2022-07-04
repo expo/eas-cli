@@ -4,19 +4,19 @@ import {
   AppleDistributionCertificate,
   AppleDistributionCertificateFragment,
   IosDistributionType,
-} from '../../../graphql/generated';
-import Log from '../../../log';
-import { confirmAsync, promptAsync } from '../../../prompts';
-import sortBy from '../../../utils/expodash/sortBy';
-import { CredentialsContext } from '../../context';
-import { MissingCredentialsNonInteractiveError } from '../../errors';
-import { AppLookupParams } from '../api/GraphqlClient';
-import { AppleDistributionCertificateMutationResult } from '../api/graphql/mutations/AppleDistributionCertificateMutation';
-import { getValidCertSerialNumbers } from '../appstore/CredentialsUtils';
-import { AppleTeamMissingError } from '../errors';
-import { resolveAppleTeamIfAuthenticatedAsync } from './AppleTeamUtils';
-import { CreateDistributionCertificate } from './CreateDistributionCertificate';
-import { formatDistributionCertificate } from './DistributionCertificateUtils';
+} from '../../../graphql/generated.js';
+import Log from '../../../log.js';
+import { confirmAsync, promptAsync } from '../../../prompts.js';
+import sortBy from '../../../utils/expodash/sortBy.js';
+import { CredentialsContext } from '../../context.js';
+import { MissingCredentialsNonInteractiveError } from '../../errors.js';
+import { AppLookupParams } from '../api/GraphqlClient.js';
+import { AppleDistributionCertificateMutationResult } from '../api/graphql/mutations/AppleDistributionCertificateMutation.js';
+import { getValidCertSerialNumbers } from '../appstore/CredentialsUtils.js';
+import { AppleTeamMissingError } from '../errors.js';
+import { resolveAppleTeamIfAuthenticatedAsync } from './AppleTeamUtils.js';
+import { CreateDistributionCertificate } from './CreateDistributionCertificate.js';
+import { formatDistributionCertificate } from './DistributionCertificateUtils.js';
 
 export class SetUpDistributionCertificate {
   private validDistCerts?: AppleDistributionCertificateFragment[];

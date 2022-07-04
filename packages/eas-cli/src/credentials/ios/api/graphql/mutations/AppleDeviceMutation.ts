@@ -1,14 +1,14 @@
 import { print } from 'graphql';
-import gql from 'graphql-tag';
+import { gql } from 'graphql-tag';
 
-import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
+import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client.js';
 import {
   AppleDeviceFragment,
   AppleDeviceInput,
   CreateAppleDeviceMutation,
   DeleteAppleDeviceResult,
-} from '../../../../../graphql/generated';
-import { AppleDeviceFragmentNode } from '../../../../../graphql/types/credentials/AppleDevice';
+} from '../../../../../graphql/generated.js';
+import { AppleDeviceFragmentNode } from '../../../../../graphql/types/credentials/AppleDevice.js';
 
 export const AppleDeviceMutation = {
   async createAppleDeviceAsync(

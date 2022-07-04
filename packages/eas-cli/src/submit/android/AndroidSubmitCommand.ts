@@ -6,18 +6,18 @@ import {
   SubmissionAndroidReleaseStatus,
   SubmissionAndroidTrack,
   SubmissionFragment,
-} from '../../graphql/generated';
-import Log from '../../log';
+} from '../../graphql/generated.js';
+import Log from '../../log.js';
 import {
   AmbiguousApplicationIdError,
   getApplicationIdAsync,
-} from '../../project/android/applicationId';
-import capitalize from '../../utils/expodash/capitalize';
-import { ArchiveSource } from '../ArchiveSource';
-import { resolveArchiveSource } from '../commons';
-import { SubmissionContext } from '../context';
-import AndroidSubmitter, { AndroidSubmissionOptions } from './AndroidSubmitter';
-import { ServiceAccountSource, ServiceAccountSourceType } from './ServiceAccountSource';
+} from '../../project/android/applicationId.js';
+import capitalize from '../../utils/expodash/capitalize.js';
+import { ArchiveSource } from '../ArchiveSource.js';
+import { resolveArchiveSource } from '../commons.js';
+import { SubmissionContext } from '../context.js';
+import AndroidSubmitter, { AndroidSubmissionOptions } from './AndroidSubmitter.js';
+import { ServiceAccountSource, ServiceAccountSourceType } from './ServiceAccountSource.js';
 
 export default class AndroidSubmitCommand {
   constructor(private ctx: SubmissionContext<Platform.ANDROID>) {}

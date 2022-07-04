@@ -3,10 +3,10 @@ import indentString from 'indent-string';
 import qrcodeTerminal from 'qrcode-terminal';
 import { URL } from 'url';
 
-import { getExpoWebsiteBaseUrl } from '../../../api';
-import { AppleDeviceRegistrationRequestMutation } from '../../../credentials/ios/api/graphql/mutations/AppleDeviceRegistrationRequestMutation';
-import { AppleTeam } from '../../../graphql/generated';
-import Log from '../../../log';
+import { getExpoWebsiteBaseUrl } from '../../../api.js';
+import { AppleDeviceRegistrationRequestMutation } from '../../../credentials/ios/api/graphql/mutations/AppleDeviceRegistrationRequestMutation.js';
+import { AppleTeam } from '../../../graphql/generated.js';
+import Log from '../../../log.js';
 
 export async function runRegistrationUrlMethodAsync(
   accountId: string,

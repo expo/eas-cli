@@ -1,4 +1,4 @@
-import spawnAsync from '@expo/spawn-async';
+import { default as spawnAsync } from '@expo/spawn-async';
 
 export async function isGitInstalledAsync(): Promise<boolean> {
   try {

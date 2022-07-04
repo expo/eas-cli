@@ -1,4 +1,4 @@
-import Log from '../../../log';
+import Log from '../../../log.js';
 
 type Language = {
   locale: string;

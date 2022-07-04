@@ -1,10 +1,10 @@
-import { findApplicationTarget } from '../../../../project/ios/target';
-import { confirmAsync } from '../../../../prompts';
-import { getAppstoreMock, testAuthCtx } from '../../../__tests__/fixtures-appstore';
-import { createCtxMock } from '../../../__tests__/fixtures-context';
-import { getNewIosApiMock, testPushKey, testTargets } from '../../../__tests__/fixtures-ios';
-import { getAppLookupParamsFromContext } from '../BuildCredentialsUtils';
-import { SetUpPushKey } from '../SetUpPushKey';
+import { findApplicationTarget } from '../../../../project/ios/target.js';
+import { confirmAsync } from '../../../../prompts.js';
+import { getAppstoreMock, testAuthCtx } from '../../../__tests__/fixtures-appstore.js';
+import { createCtxMock } from '../../../__tests__/fixtures-context.js';
+import { getNewIosApiMock, testPushKey, testTargets } from '../../../__tests__/fixtures-ios.js';
+import { getAppLookupParamsFromContext } from '../BuildCredentialsUtils.js';
+import { SetUpPushKey } from '../SetUpPushKey.js';
 
 jest.mock('../../../../prompts');
 jest.mocked(confirmAsync).mockImplementation(async () => true);

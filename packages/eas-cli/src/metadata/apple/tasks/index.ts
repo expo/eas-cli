@@ -1,9 +1,9 @@
-import { MetadataContext } from '../../context';
-import { AppleTask } from '../task';
-import { AgeRatingTask } from './age-rating';
-import { AppInfoTask } from './app-info';
-import { AppReviewDetailTask } from './app-review-detail';
-import { AppVersionTask } from './app-version';
+import { MetadataContext } from '../../context.js';
+import { AppleTask } from '../task.js';
+import { AgeRatingTask } from './age-rating.js';
+import { AppInfoTask } from './app-info.js';
+import { AppReviewDetailTask } from './app-review-detail.js';
+import { AppVersionTask } from './app-version.js';
 
 /**
  * List of all eligible tasks to sync local store configuration to the App store.

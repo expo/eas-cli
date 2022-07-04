@@ -1,8 +1,8 @@
 import { ExpoConfig, getConfig } from '@expo/config';
 
-import AppStoreApi from '../credentials/ios/appstore/AppStoreApi';
-import { findProjectRootAsync } from '../project/projectUtils';
-import { Actor } from '../user/User';
+import AppStoreApi from '../credentials/ios/appstore/AppStoreApi.js';
+import { findProjectRootAsync } from '../project/projectUtils.js';
+import { Actor } from '../user/User.js';
 
 export interface DeviceManagerContext {
   appStore: AppStoreApi;

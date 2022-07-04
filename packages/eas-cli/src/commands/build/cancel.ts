@@ -1,25 +1,25 @@
 import chalk from 'chalk';
-import gql from 'graphql-tag';
+import { gql } from 'graphql-tag';
 
-import EasCommand from '../../commandUtils/EasCommand';
-import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
+import EasCommand from '../../commandUtils/EasCommand.js';
+import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client.js';
 import {
   Build,
   BuildStatus,
   CancelBuildMutation,
   CancelBuildMutationVariables,
-} from '../../graphql/generated';
-import { BuildQuery } from '../../graphql/queries/BuildQuery';
-import Log from '../../log';
-import { ora } from '../../ora';
-import { appPlatformEmojis } from '../../platform';
-import { getExpoConfig } from '../../project/expoConfig';
+} from '../../graphql/generated.js';
+import { BuildQuery } from '../../graphql/queries/BuildQuery.js';
+import Log from '../../log.js';
+import { ora } from '../../ora.js';
+import { appPlatformEmojis } from '../../platform.js';
+import { getExpoConfig } from '../../project/expoConfig.js';
 import {
   findProjectRootAsync,
   getProjectFullNameAsync,
   getProjectIdAsync,
-} from '../../project/projectUtils';
-import { confirmAsync, selectAsync } from '../../prompts';
+} from '../../project/projectUtils.js';
+import { confirmAsync, selectAsync } from '../../prompts.js';
 
 async function cancelBuildAsync(buildId: string): Promise<Pick<Build, 'id' | 'status'>> {
   const data = await withErrorHandlingAsync(

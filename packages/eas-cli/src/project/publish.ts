@@ -1,5 +1,5 @@
 import { ExpoConfig, Platform } from '@expo/config';
-import JsonFile from '@expo/json-file';
+import JsonFileModule from '@expo/json-file';
 import crypto from 'crypto';
 import fs from 'fs-extra';
 import Joi from 'joi';
@@ -7,13 +7,15 @@ import mime from 'mime';
 import path from 'path';
 import promiseLimit from 'promise-limit';
 
-import { AssetMetadataStatus, PartialManifestAsset } from '../graphql/generated';
-import { PublishMutation } from '../graphql/mutations/PublishMutation';
-import { PresignedPost } from '../graphql/mutations/UploadSessionMutation';
-import { PublishQuery } from '../graphql/queries/PublishQuery';
-import { uploadWithPresignedPostAsync } from '../uploads';
-import { expoCommandAsync } from '../utils/expoCli';
-import uniqBy from '../utils/expodash/uniqBy';
+import { AssetMetadataStatus, PartialManifestAsset } from '../graphql/generated.js';
+import { PublishMutation } from '../graphql/mutations/PublishMutation.js';
+import { PresignedPost } from '../graphql/mutations/UploadSessionMutation.js';
+import { PublishQuery } from '../graphql/queries/PublishQuery.js';
+import { uploadWithPresignedPostAsync } from '../uploads.js';
+import { expoCommandAsync } from '../utils/expoCli.js';
+import uniqBy from '../utils/expodash/uniqBy.js';
+
+const JsonFile = JsonFileModule.default;
 
 export const TIMEOUT_LIMIT = 60_000; // 1 minute
 

@@ -1,16 +1,18 @@
 import { ExpoConfig, getConfigFilePaths } from '@expo/config';
-import { AndroidConfig, IOSConfig } from '@expo/config-plugins';
+import ConfigPlugins from '@expo/config-plugins';
 import { Platform, Workflow } from '@expo/eas-build-job';
 import assert from 'assert';
 import chalk from 'chalk';
 import fs from 'fs-extra';
 
-import { readAppJson } from '../../build/utils/appJson';
-import Log, { learnMore } from '../../log';
-import { promptAsync } from '../../prompts';
-import { ensureLoggedInAsync } from '../../user/actions';
-import { getProjectConfigDescription, getUsername } from '../projectUtils';
-import { resolveWorkflowAsync } from '../workflow';
+import { readAppJson } from '../../build/utils/appJson.js';
+import Log, { learnMore } from '../../log.js';
+import { promptAsync } from '../../prompts.js';
+import { ensureLoggedInAsync } from '../../user/actions.js';
+import { getProjectConfigDescription, getUsername } from '../projectUtils.js';
+import { resolveWorkflowAsync } from '../workflow.js';
+
+const { AndroidConfig, IOSConfig } = ConfigPlugins;
 
 export const INVALID_BUNDLE_IDENTIFIER_MESSAGE = `Invalid format of iOS bundle identifier. Only alphanumeric characters, '.' and '-' are allowed, and each '.' must be followed by a letter.`;
 

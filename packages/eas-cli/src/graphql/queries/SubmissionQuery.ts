@@ -1,7 +1,7 @@
 import { print } from 'graphql';
-import gql from 'graphql-tag';
+import { gql } from 'graphql-tag';
 
-import { graphqlClient, withErrorHandlingAsync } from '../client';
+import { graphqlClient, withErrorHandlingAsync } from '../client.js';
 import {
   AppPlatform,
   GetAllSubmissionsForAppQuery,
@@ -10,8 +10,8 @@ import {
   SubmissionStatus,
   SubmissionsByIdQuery,
   SubmissionsByIdQueryVariables,
-} from '../generated';
-import { SubmissionFragmentNode } from '../types/Submission';
+} from '../generated.js';
+import { SubmissionFragmentNode } from '../types/Submission.js';
 
 type Filters = {
   platform?: AppPlatform;

@@ -1,26 +1,25 @@
-import {
+import AppleUtils from '@expo/apple-utils';
+import { JSONObject, JSONValue } from '@expo/json-file';
+import getenv from 'getenv';
+import { inspect } from 'util';
+
+import Log from '../../../log.js';
+
+const {
   AppGroup,
-  BundleId,
-  BundleIdCapability,
-  CapabilityOptionMap,
   CapabilityType,
   CapabilityTypeDataProtectionOption,
   CapabilityTypeOption,
   CloudContainer,
   MerchantId,
-} from '@expo/apple-utils';
-import { JSONObject, JSONValue } from '@expo/json-file';
-import getenv from 'getenv';
-import { inspect } from 'util';
-
-import Log from '../../../log';
+} = AppleUtils;
 
 export const EXPO_NO_CAPABILITY_SYNC = getenv.boolish('EXPO_NO_CAPABILITY_SYNC', false);
 
-type GetOptionsMethod<T extends CapabilityType = any> = (
+type GetOptionsMethod<T extends AppleUtils.CapabilityType = any> = (
   entitlement: JSONValue,
   entitlementsJson: JSONObject
-) => CapabilityOptionMap[T];
+) => AppleUtils.CapabilityOptionMap[T];
 
 const validateBooleanOptions = (options: any): boolean => {
   return typeof options === 'boolean';
@@ -77,7 +76,7 @@ const getDefinedOptions: GetOptionsMethod = entitlement => {
  * @returns
  */
 export async function syncCapabilitiesForEntitlementsAsync(
-  bundleId: BundleId,
+  bundleId: AppleUtils.BundleId,
   entitlements: JSONObject = {}
 ): Promise<{ enabled: string[]; disabled: string[] }> {
   if (EXPO_NO_CAPABILITY_SYNC) {
@@ -121,20 +120,20 @@ export async function syncCapabilitiesForEntitlementsAsync(
 }
 
 interface CapabilitiesRequest {
-  capabilityType: CapabilityType;
+  capabilityType: AppleUtils.CapabilityType;
   option: any;
 }
 
 function getCapabilitiesToEnable(
-  currentCapabilities: BundleIdCapability[],
+  currentCapabilities: AppleUtils.BundleIdCapability[],
   entitlements: JSONObject
 ): {
   enabledCapabilityNames: string[];
   request: CapabilitiesRequest[];
-  remainingCapabilities: BundleIdCapability[];
+  remainingCapabilities: AppleUtils.BundleIdCapability[];
 } {
   const enabledCapabilityNames: string[] = [];
-  const request: { capabilityType: CapabilityType; option: any }[] = [];
+  const request: { capabilityType: AppleUtils.CapabilityType; option: any }[] = [];
   const remainingCapabilities = [...currentCapabilities];
   for (const [key, value] of Object.entries(entitlements)) {
     const staticCapabilityInfo = CapabilityMapping.find(
@@ -198,8 +197,8 @@ export function assertValidOptions(classifier: CapabilityClassifier, value: any)
 }
 
 function getCapabilitiesToDisable(
-  bundleId: BundleId,
-  currentCapabilities: BundleIdCapability[],
+  bundleId: AppleUtils.BundleId,
+  currentCapabilities: AppleUtils.BundleIdCapability[],
   request: CapabilitiesRequest[]
 ): { disabledCapabilityNames: string[]; request: CapabilitiesRequest[] } {
   if (Log.isDebug) {
@@ -256,10 +255,10 @@ function getCapabilitiesToDisable(
 type CapabilityClassifier = {
   name: string;
   entitlement: string;
-  capability: CapabilityType;
+  capability: AppleUtils.CapabilityType;
   validateOptions: (options: any) => boolean;
   getOptions: GetOptionsMethod;
-  capabilityIdModel?: typeof MerchantId;
+  capabilityIdModel?: typeof AppleUtils.MerchantId;
   capabilityIdPrefix?: string;
   options?: undefined;
 };

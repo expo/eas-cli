@@ -1,8 +1,8 @@
-import EasCommand from '../../commandUtils/EasCommand';
-import { WebhookQuery } from '../../graphql/queries/WebhookQuery';
-import Log from '../../log';
-import { ora } from '../../ora';
-import { formatWebhook } from '../../webhooks/formatWebhook';
+import EasCommand from '../../commandUtils/EasCommand.js';
+import { WebhookQuery } from '../../graphql/queries/WebhookQuery.js';
+import Log from '../../log.js';
+import { ora } from '../../ora.js';
+import { formatWebhook } from '../../webhooks/formatWebhook.js';
 
 export default class WebhookView extends EasCommand {
   static description = 'view a webhook';

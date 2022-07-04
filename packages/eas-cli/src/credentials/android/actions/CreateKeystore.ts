@@ -1,12 +1,12 @@
-import { AndroidKeystoreFragment } from '../../../graphql/generated';
-import Log from '../../../log';
-import { getProjectIdAsync } from '../../../project/projectUtils';
-import { Account } from '../../../user/Account';
-import { CredentialsContext } from '../../context';
-import { askForUserProvidedAsync } from '../../utils/promptForCredentials';
-import { KeystoreWithType, keystoreSchema } from '../credentials';
-import { generateRandomKeystoreAsync } from '../utils/keystore';
-import { getKeystoreWithType, validateKeystore } from '../utils/keystoreNew';
+import { AndroidKeystoreFragment } from '../../../graphql/generated.js';
+import Log from '../../../log.js';
+import { getProjectIdAsync } from '../../../project/projectUtils.js';
+import { Account } from '../../../user/Account.js';
+import { CredentialsContext } from '../../context.js';
+import { askForUserProvidedAsync } from '../../utils/promptForCredentials.js';
+import { KeystoreWithType, keystoreSchema } from '../credentials.js';
+import { generateRandomKeystoreAsync } from '../utils/keystore.js';
+import { getKeystoreWithType, validateKeystore } from '../utils/keystoreNew.js';
 
 export class CreateKeystore {
   constructor(private account: Account) {}

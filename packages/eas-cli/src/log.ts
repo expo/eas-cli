@@ -1,13 +1,13 @@
 import chalk from 'chalk';
 import figures from 'figures';
-import { boolish } from 'getenv';
+import getenv from 'getenv';
 import logSymbols from 'log-symbols';
 import terminalLink from 'terminal-link';
 
 type Color = (...text: string[]) => string;
 
 export default class Log {
-  public static readonly isDebug = boolish('EXPO_DEBUG', false);
+  public static readonly isDebug = getenv.boolish('EXPO_DEBUG', false);
 
   public static log(...args: any[]): void {
     Log.consoleLog(...args);

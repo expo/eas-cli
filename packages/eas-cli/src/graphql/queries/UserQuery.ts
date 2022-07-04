@@ -1,7 +1,7 @@
-import gql from 'graphql-tag';
+import { gql } from 'graphql-tag';
 
-import { graphqlClient, withErrorHandlingAsync } from '../client';
-import { CurrentUserQuery } from '../generated';
+import { graphqlClient, withErrorHandlingAsync } from '../client.js';
+import { CurrentUserQuery } from '../generated.js';
 
 export const UserQuery = {
   async currentUserAsync(): Promise<CurrentUserQuery['meActor']> {

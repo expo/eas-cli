@@ -1,9 +1,9 @@
 import { vol } from 'memfs';
 
-import { promptAsync } from '../../../../prompts';
-import { createCtxMock } from '../../../__tests__/fixtures-context';
-import { getAppLookupParamsFromContextAsync } from '../BuildCredentialsUtils';
-import { CreateGoogleServiceAccountKey } from '../CreateGoogleServiceAccountKey';
+import { promptAsync } from '../../../../prompts.js';
+import { createCtxMock } from '../../../__tests__/fixtures-context.js';
+import { getAppLookupParamsFromContextAsync } from '../BuildCredentialsUtils.js';
+import { CreateGoogleServiceAccountKey } from '../CreateGoogleServiceAccountKey.js';
 
 jest.mock('../../../../prompts');
 jest.mock('fs');

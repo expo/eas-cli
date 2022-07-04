@@ -1,4 +1,4 @@
-import { AppleDevice } from '../../../../../../graphql/generated';
+import { AppleDevice } from '../../../../../../graphql/generated.js';
 
 export const AppleDeviceMutation = {
   createAppleDeviceAsync: jest.fn().mockImplementation(() => {

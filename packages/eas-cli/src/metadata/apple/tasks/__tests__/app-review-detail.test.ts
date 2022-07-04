@@ -1,10 +1,12 @@
-import { AppStoreReviewAttachment, AppStoreReviewDetail, AppStoreVersion } from '@expo/apple-utils';
+import AppleUtils from '@expo/apple-utils';
 import nock from 'nock';
 
-import { AppleConfigReader } from '../../config/reader';
-import { AppleConfigWriter } from '../../config/writer';
-import { AppReviewDetailTask } from '../app-review-detail';
-import { requestContext } from './fixtures/requestContext';
+import { AppleConfigReader } from '../../config/reader.js';
+import { AppleConfigWriter } from '../../config/writer.js';
+import { AppReviewDetailTask } from '../app-review-detail.js';
+import { requestContext } from './fixtures/requestContext.js';
+
+const { AppStoreReviewAttachment, AppStoreReviewDetail, AppStoreVersion } = AppleUtils;
 
 jest.mock('../../../../ora');
 jest.mock('../../config/writer');

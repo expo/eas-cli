@@ -1,9 +1,9 @@
 import { Flags } from '@oclif/core';
 import chalk from 'chalk';
-import gql from 'graphql-tag';
+import { gql } from 'graphql-tag';
 
-import EasCommand from '../../commandUtils/EasCommand';
-import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
+import EasCommand from '../../commandUtils/EasCommand.js';
+import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client.js';
 import {
   GetChannelByNameToEditQuery,
   GetChannelByNameToEditQueryVariables,
@@ -11,13 +11,13 @@ import {
   UpdateChannel,
   UpdateChannelBranchMappingMutation,
   UpdateChannelBranchMappingMutationVariables,
-} from '../../graphql/generated';
-import { BranchQuery } from '../../graphql/queries/BranchQuery';
-import Log from '../../log';
-import { getExpoConfig } from '../../project/expoConfig';
-import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUtils';
-import { promptAsync } from '../../prompts';
-import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
+} from '../../graphql/generated.js';
+import { BranchQuery } from '../../graphql/queries/BranchQuery.js';
+import Log from '../../log.js';
+import { getExpoConfig } from '../../project/expoConfig.js';
+import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUtils.js';
+import { promptAsync } from '../../prompts.js';
+import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json.js';
 
 async function getChannelByNameForAppAsync({
   appId,

@@ -1,25 +1,27 @@
-import { Updates } from '@expo/config-plugins';
+import ConfigPlugins from '@expo/config-plugins';
 import { Metadata, Platform, sanitizeMetadata } from '@expo/eas-build-job';
 import { IosEnterpriseProvisioning } from '@expo/eas-json';
 import fs from 'fs-extra';
 import resolveFrom from 'resolve-from';
 
-import Log from '../log';
-import { getUsername, isExpoUpdatesInstalled } from '../project/projectUtils';
+import Log from '../log.js';
+import { getUsername, isExpoUpdatesInstalled } from '../project/projectUtils.js';
 import {
   readChannelSafelyAsync as readAndroidChannelSafelyAsync,
   readReleaseChannelSafelyAsync as readAndroidReleaseChannelSafelyAsync,
-} from '../update/android/UpdatesModule';
+} from '../update/android/UpdatesModule.js';
 import {
   readChannelSafelyAsync as readIosChannelSafelyAsync,
   readReleaseChannelSafelyAsync as readIosReleaseChannelSafelyAsync,
-} from '../update/ios/UpdatesModule';
-import { ensureLoggedInAsync } from '../user/actions';
-import { easCliVersion } from '../utils/easCli';
-import { getVcsClient } from '../vcs';
-import { maybeResolveVersionsAsync as maybeResolveAndroidVersionsAsync } from './android/version';
-import { BuildContext } from './context';
-import { maybeResolveVersionsAsync as maybeResolveIosVersionsAsync } from './ios/version';
+} from '../update/ios/UpdatesModule.js';
+import { ensureLoggedInAsync } from '../user/actions.js';
+import { easCliVersion } from '../utils/easCli.js';
+import { getVcsClient } from '../vcs/index.js';
+import { maybeResolveVersionsAsync as maybeResolveAndroidVersionsAsync } from './android/version.js';
+import { BuildContext } from './context.js';
+import { maybeResolveVersionsAsync as maybeResolveIosVersionsAsync } from './ios/version.js';
+
+const { Updates } = ConfigPlugins;
 
 export async function collectMetadataAsync<T extends Platform>(
   ctx: BuildContext<T>

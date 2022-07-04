@@ -2,9 +2,9 @@ import { Platform, Workflow } from '@expo/eas-build-job';
 import fs from 'fs-extra';
 import path from 'path';
 
-import Log, { learnMore } from '../log';
-import { getVcsClient } from '../vcs';
-import { CommonContext } from './context';
+import Log, { learnMore } from '../log.js';
+import { getVcsClient } from '../vcs/index.js';
+import { CommonContext } from './context.js';
 
 export function checkNodeEnvVariable(ctx: CommonContext<Platform>): void {
   if (ctx.buildProfile.env?.NODE_ENV === 'production') {

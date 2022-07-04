@@ -2,15 +2,15 @@ import { ExpoConfig } from '@expo/config';
 import { Env } from '@expo/eas-build-job';
 import chalk from 'chalk';
 
-import Log from '../log';
-import { getExpoConfig } from '../project/expoConfig';
-import { getProjectAccountName } from '../project/projectUtils';
-import { confirmAsync } from '../prompts';
-import { Actor, getActorDisplayName } from '../user/User';
-import * as AndroidGraphqlClient from './android/api/GraphqlClient';
-import * as IosGraphqlClient from './ios/api/GraphqlClient';
-import AppStoreApi from './ios/appstore/AppStoreApi';
-import { AuthenticationMode } from './ios/appstore/authenticateTypes';
+import Log from '../log.js';
+import { getExpoConfig } from '../project/expoConfig.js';
+import { getProjectAccountName } from '../project/projectUtils.js';
+import { confirmAsync } from '../prompts.js';
+import { Actor, getActorDisplayName } from '../user/User.js';
+import * as AndroidGraphqlClient from './android/api/GraphqlClient.js';
+import * as IosGraphqlClient from './ios/api/GraphqlClient.js';
+import AppStoreApi from './ios/appstore/AppStoreApi.js';
+import { AuthenticationMode } from './ios/appstore/authenticateTypes.js';
 
 export class CredentialsContext {
   public readonly android = AndroidGraphqlClient;

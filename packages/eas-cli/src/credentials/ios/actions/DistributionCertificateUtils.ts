@@ -2,23 +2,23 @@ import assert from 'assert';
 import chalk from 'chalk';
 import dateformat from 'dateformat';
 
-import { AppleDistributionCertificateFragment } from '../../../graphql/generated';
-import Log, { learnMore } from '../../../log';
-import { promptAsync } from '../../../prompts';
-import { Account } from '../../../user/Account';
-import { fromNow } from '../../../utils/date';
-import { CredentialsContext } from '../../context';
-import { askForUserProvidedAsync } from '../../utils/promptForCredentials';
-import { AppLookupParams } from '../api/GraphqlClient';
+import { AppleDistributionCertificateFragment } from '../../../graphql/generated.js';
+import Log, { learnMore } from '../../../log.js';
+import { promptAsync } from '../../../prompts.js';
+import { Account } from '../../../user/Account.js';
+import { fromNow } from '../../../utils/date.js';
+import { CredentialsContext } from '../../context.js';
+import { askForUserProvidedAsync } from '../../utils/promptForCredentials.js';
+import { AppLookupParams } from '../api/GraphqlClient.js';
 import {
   DistributionCertificate,
   DistributionCertificateStoreInfo,
-} from '../appstore/Credentials.types';
-import { filterRevokedDistributionCertsFromEasServers } from '../appstore/CredentialsUtils';
-import { AppleTooManyCertsError } from '../appstore/distributionCertificate';
-import { distributionCertificateSchema } from '../credentials';
-import { validateDistributionCertificateAsync } from '../validators/validateDistributionCertificate';
-import { formatAppleTeam } from './AppleTeamUtils';
+} from '../appstore/Credentials.types.js';
+import { filterRevokedDistributionCertsFromEasServers } from '../appstore/CredentialsUtils.js';
+import { AppleTooManyCertsError } from '../appstore/distributionCertificate.js';
+import { distributionCertificateSchema } from '../credentials.js';
+import { validateDistributionCertificateAsync } from '../validators/validateDistributionCertificate.js';
+import { formatAppleTeam } from './AppleTeamUtils.js';
 
 export function formatDistributionCertificate(
   distributionCertificate: AppleDistributionCertificateFragment,

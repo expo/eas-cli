@@ -1,4 +1,4 @@
-import { syncCapabilityIdentifiersForEntitlementsAsync } from '../capabilityIdentifiers';
+import { syncCapabilityIdentifiersForEntitlementsAsync } from '../capabilityIdentifiers.js';
 
 function mockCapabilities(Apple: any): void {
   Apple.MerchantId.getAsync = jest.fn(() => [

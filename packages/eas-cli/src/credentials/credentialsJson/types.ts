@@ -1,6 +1,6 @@
 import Joi from 'joi';
 
-import { Keystore } from '../android/credentials';
+import { Keystore } from '../android/credentials.js';
 
 export interface CredentialsJson {
   android?: CredentialsJsonAndroidCredentials;

@@ -1,16 +1,16 @@
 import assert from 'assert';
 import { print } from 'graphql';
-import gql from 'graphql-tag';
+import { gql } from 'graphql-tag';
 
-import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
+import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client.js';
 import {
   CommonIosAppCredentialsFragment,
   CreateIosAppCredentialsMutation,
   IosAppCredentialsInput,
   SetAppStoreConnectApiKeyForSubmissionsMutation,
   SetPushKeyMutation,
-} from '../../../../../graphql/generated';
-import { CommonIosAppCredentialsFragmentNode } from '../../../../../graphql/types/credentials/IosAppCredentials';
+} from '../../../../../graphql/generated.js';
+import { CommonIosAppCredentialsFragmentNode } from '../../../../../graphql/types/credentials/IosAppCredentials.js';
 
 export const IosAppCredentialsMutation = {
   async createIosAppCredentialsAsync(

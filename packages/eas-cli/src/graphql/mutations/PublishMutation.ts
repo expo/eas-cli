@@ -1,12 +1,12 @@
-import gql from 'graphql-tag';
+import { gql } from 'graphql-tag';
 
-import { graphqlClient, withErrorHandlingAsync } from '../client';
+import { graphqlClient, withErrorHandlingAsync } from '../client.js';
 import {
   CodeSigningInfoInput,
   PublishUpdateGroupInput,
   SetCodeSigningInfoMutation,
   UpdatePublishMutation,
-} from '../generated';
+} from '../generated.js';
 
 export const PublishMutation = {
   async getUploadURLsAsync(contentTypes: string[]): Promise<{ specifications: string[] }> {

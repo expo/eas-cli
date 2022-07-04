@@ -1,12 +1,12 @@
 import { print } from 'graphql';
-import gql from 'graphql-tag';
+import { gql } from 'graphql-tag';
 
-import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
+import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client.js';
 import {
   GoogleServiceAccountKeyByAccountQuery,
   GoogleServiceAccountKeyFragment,
-} from '../../../../../graphql/generated';
-import { GoogleServiceAccountKeyFragmentNode } from '../../../../../graphql/types/credentials/GoogleServiceAccountKey';
+} from '../../../../../graphql/generated.js';
+import { GoogleServiceAccountKeyFragmentNode } from '../../../../../graphql/types/credentials/GoogleServiceAccountKey.js';
 
 export const GoogleServiceAccountKeyQuery = {
   async getAllForAccountAsync(accountName: string): Promise<GoogleServiceAccountKeyFragment[]> {

@@ -1,15 +1,17 @@
-import { App, Session } from '@expo/apple-utils';
+import AppleUtils from '@expo/apple-utils';
 import { ExpoConfig } from '@expo/config';
 import { Platform } from '@expo/eas-build-job';
 import { EasJsonReader, SubmitProfile } from '@expo/eas-json';
 import assert from 'assert';
 
-import { CredentialsContext } from '../credentials/context';
-import { getRequestContext } from '../credentials/ios/appstore/authenticate';
-import { getExpoConfig } from '../project/expoConfig';
-import { getBundleIdentifierAsync } from '../project/ios/bundleIdentifier';
-import { Actor } from '../user/User';
-import { ensureLoggedInAsync } from '../user/actions';
+import { CredentialsContext } from '../credentials/context.js';
+import { getRequestContext } from '../credentials/ios/appstore/authenticate.js';
+import { getExpoConfig } from '../project/expoConfig.js';
+import { getBundleIdentifierAsync } from '../project/ios/bundleIdentifier.js';
+import { Actor } from '../user/User.js';
+import { ensureLoggedInAsync } from '../user/actions.js';
+
+const { App } = AppleUtils;
 
 export type MetadataContext = {
   /** Submission profile platform to use */
@@ -32,9 +34,9 @@ export type MetadataContext = {
 
 export type MetadataAppStoreAuthentication = {
   /** The root entity of the App store */
-  app: App;
+  app: AppleUtils.App;
   /** The authentication state we used to fetch the root entity */
-  auth: Partial<Session.AuthState>;
+  auth: Partial<AppleUtils.Session.AuthState>;
 };
 
 /**

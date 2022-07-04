@@ -1,4 +1,4 @@
-import EasCommand from '../../commandUtils/EasCommand';
+import EasCommand from '../../commandUtils/EasCommand.js';
 
 export default class BranchPublish extends EasCommand {
   static description = 'deprecated, use "eas update"';

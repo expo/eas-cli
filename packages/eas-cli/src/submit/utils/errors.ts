@@ -1,5 +1,5 @@
-import { SubmissionError } from '../../graphql/generated';
-import Log, { learnMore } from '../../log';
+import { SubmissionError } from '../../graphql/generated.js';
+import Log, { learnMore } from '../../log.js';
 
 enum SubmissionErrorCode {
   ARCHIVE_DOWNLOAD_NOT_FOUND_ERROR = 'SUBMISSION_SERVICE_COMMON_ARCHIVE_DOWNLOAD_NOT_FOUND_ERROR',

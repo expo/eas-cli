@@ -1,15 +1,15 @@
 import { getConfig } from '@expo/config';
 import { Flags } from '@oclif/core';
 
-import { ensureProjectConfiguredAsync } from '../../build/configure';
-import EasCommand from '../../commandUtils/EasCommand';
-import { CredentialsContext } from '../../credentials/context';
-import Log, { learnMore } from '../../log';
-import { createMetadataContextAsync } from '../../metadata/context';
-import { handleMetadataError } from '../../metadata/errors';
-import { uploadMetadataAsync } from '../../metadata/upload';
-import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUtils';
-import { ensureLoggedInAsync } from '../../user/actions';
+import { ensureProjectConfiguredAsync } from '../../build/configure.js';
+import EasCommand from '../../commandUtils/EasCommand.js';
+import { CredentialsContext } from '../../credentials/context.js';
+import Log, { learnMore } from '../../log.js';
+import { createMetadataContextAsync } from '../../metadata/context.js';
+import { handleMetadataError } from '../../metadata/errors.js';
+import { uploadMetadataAsync } from '../../metadata/upload.js';
+import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUtils.js';
+import { ensureLoggedInAsync } from '../../user/actions.js';
 
 export default class MetadataPush extends EasCommand {
   static description = 'sync the local store configuration to the app stores';

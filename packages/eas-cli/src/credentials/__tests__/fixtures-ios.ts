@@ -1,4 +1,4 @@
-import { UserRole } from '@expo/apple-utils';
+import AppleUtils from '@expo/apple-utils';
 
 import {
   AppFragment,
@@ -12,15 +12,17 @@ import {
   CommonIosAppCredentialsFragment,
   IosAppBuildCredentialsFragment,
   IosDistributionType,
-} from '../../graphql/generated';
-import * as IosGraphqlClient from '../ios/api/GraphqlClient';
+} from '../../graphql/generated.js';
+import * as IosGraphqlClient from '../ios/api/GraphqlClient.js';
 import {
   AscApiKey,
   DistributionCertificate,
   ProvisioningProfile,
-} from '../ios/appstore/Credentials.types';
-import { Target } from '../ios/types';
-import { testProvisioningProfileBase64 } from './fixtures-base64-data';
+} from '../ios/appstore/Credentials.types.js';
+import { Target } from '../ios/types.js';
+import { testProvisioningProfileBase64 } from './fixtures-base64-data.js';
+
+const { UserRole } = AppleUtils;
 
 const now = new Date();
 

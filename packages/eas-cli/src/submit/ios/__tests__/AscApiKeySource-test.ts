@@ -2,17 +2,17 @@ import { Platform } from '@expo/eas-build-job';
 import { vol } from 'memfs';
 import { v4 as uuidv4 } from 'uuid';
 
-import { jester as mockJester } from '../../../credentials/__tests__/fixtures-constants';
-import { getCredentialsFromUserAsync } from '../../../credentials/utils/promptForCredentials';
-import { createTestProject } from '../../../project/__tests__/project-utils';
-import { promptAsync } from '../../../prompts';
-import { SubmissionContext, createSubmissionContextAsync } from '../../context';
+import { jester as mockJester } from '../../../credentials/__tests__/fixtures-constants.js';
+import { getCredentialsFromUserAsync } from '../../../credentials/utils/promptForCredentials.js';
+import { createTestProject } from '../../../project/__tests__/project-utils.js';
+import { promptAsync } from '../../../prompts.js';
+import { SubmissionContext, createSubmissionContextAsync } from '../../context.js';
 import {
   AscApiKeySource,
   AscApiKeySourceType,
   getAscApiKeyLocallyAsync,
   getAscApiKeyPathAsync,
-} from '../AscApiKeySource';
+} from '../AscApiKeySource.js';
 
 jest.mock('fs');
 jest.mock('../../../prompts');

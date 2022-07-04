@@ -1,11 +1,11 @@
-import { IosAppBuildCredentialsFragment, IosDistributionType } from '../../../graphql/generated';
-import Log, { learnMore } from '../../../log';
-import { promptAsync } from '../../../prompts';
-import { CredentialsContext } from '../../context';
-import { AppLookupParams } from '../api/GraphqlClient';
-import { getAllBuildCredentialsAsync } from './BuildCredentialsUtils';
-import { SetUpAdhocProvisioningProfile } from './SetUpAdhocProvisioningProfile';
-import { SetUpProvisioningProfile } from './SetUpProvisioningProfile';
+import { IosAppBuildCredentialsFragment, IosDistributionType } from '../../../graphql/generated.js';
+import Log, { learnMore } from '../../../log.js';
+import { promptAsync } from '../../../prompts.js';
+import { CredentialsContext } from '../../context.js';
+import { AppLookupParams } from '../api/GraphqlClient.js';
+import { getAllBuildCredentialsAsync } from './BuildCredentialsUtils.js';
+import { SetUpAdhocProvisioningProfile } from './SetUpAdhocProvisioningProfile.js';
+import { SetUpProvisioningProfile } from './SetUpProvisioningProfile.js';
 
 /**
  * It's used when setting up credentials for internal distribution but `enterpriseProvisioning` is not set.

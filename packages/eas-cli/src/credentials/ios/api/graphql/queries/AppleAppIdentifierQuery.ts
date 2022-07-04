@@ -1,12 +1,12 @@
 import { print } from 'graphql';
-import gql from 'graphql-tag';
+import { gql } from 'graphql-tag';
 
-import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
+import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client.js';
 import {
   AppleAppIdentifierByBundleIdQuery,
   AppleAppIdentifierFragment,
-} from '../../../../../graphql/generated';
-import { AppleAppIdentifierFragmentNode } from '../../../../../graphql/types/credentials/AppleAppIdentifier';
+} from '../../../../../graphql/generated.js';
+import { AppleAppIdentifierFragmentNode } from '../../../../../graphql/types/credentials/AppleAppIdentifier.js';
 
 export const AppleAppIdentifierQuery = {
   async byBundleIdentifierAsync(

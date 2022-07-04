@@ -1,18 +1,18 @@
 import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 
-import EasCommand from '../../commandUtils/EasCommand';
-import { WebhookType } from '../../graphql/generated';
-import { WebhookQuery } from '../../graphql/queries/WebhookQuery';
-import Log from '../../log';
-import { ora } from '../../ora';
-import { getExpoConfig } from '../../project/expoConfig';
+import EasCommand from '../../commandUtils/EasCommand.js';
+import { WebhookType } from '../../graphql/generated.js';
+import { WebhookQuery } from '../../graphql/queries/WebhookQuery.js';
+import Log from '../../log.js';
+import { ora } from '../../ora.js';
+import { getExpoConfig } from '../../project/expoConfig.js';
 import {
   findProjectRootAsync,
   getProjectFullNameAsync,
   getProjectIdAsync,
-} from '../../project/projectUtils';
-import { formatWebhook } from '../../webhooks/formatWebhook';
+} from '../../project/projectUtils.js';
+import { formatWebhook } from '../../webhooks/formatWebhook.js';
 
 export default class WebhookList extends EasCommand {
   static description = 'list webhooks';

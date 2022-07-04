@@ -1,15 +1,17 @@
 import { Platform } from '@expo/eas-build-job';
-import JsonFile from '@expo/json-file';
+import JsonFileModule from '@expo/json-file';
 import fs from 'fs-extra';
 import path from 'path';
 
-import { resolveBuildProfile } from './build/resolver';
-import { BuildProfile } from './build/types';
-import { InvalidEasJsonError, MissingEasJsonError } from './errors';
-import { EasJsonSchema } from './schema';
-import { resolveSubmitProfile } from './submit/resolver';
-import { SubmitProfile } from './submit/types';
-import { EasJson } from './types';
+import { resolveBuildProfile } from './build/resolver.js';
+import { BuildProfile } from './build/types.js';
+import { InvalidEasJsonError, MissingEasJsonError } from './errors.js';
+import { EasJsonSchema } from './schema.js';
+import { resolveSubmitProfile } from './submit/resolver.js';
+import { SubmitProfile } from './submit/types.js';
+import { EasJson } from './types.js';
+
+const JsonFile = JsonFileModule.default;
 
 export class EasJsonReader {
   private easJson: EasJson | undefined;

@@ -1,8 +1,8 @@
-import { ApiV2Error } from '../../api';
-import { promptAsync } from '../../prompts';
-import { Actor, loginAsync } from '../User';
-import { ensureActorHasUsername, showLoginPromptAsync } from '../actions';
-import { UserSecondFactorDeviceMethod, retryUsernamePasswordAuthWithOTPAsync } from '../otp';
+import { ApiV2Error } from '../../api.js';
+import { promptAsync } from '../../prompts.js';
+import { Actor, loginAsync } from '../User.js';
+import { ensureActorHasUsername, showLoginPromptAsync } from '../actions.js';
+import { UserSecondFactorDeviceMethod, retryUsernamePasswordAuthWithOTPAsync } from '../otp.js';
 
 jest.mock('../../prompts');
 jest.mock('../../api', () => ({

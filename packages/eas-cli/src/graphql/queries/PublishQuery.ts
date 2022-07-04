@@ -1,7 +1,7 @@
-import gql from 'graphql-tag';
+import { gql } from 'graphql-tag';
 
-import { graphqlClient, withErrorHandlingAsync } from '../client';
-import { AssetMetadataResult, GetAssetMetadataQuery } from '../generated';
+import { graphqlClient, withErrorHandlingAsync } from '../client.js';
+import { AssetMetadataResult, GetAssetMetadataQuery } from '../generated.js';
 
 export const PublishQuery = {
   async getAssetMetadataAsync(storageKeys: string[]): Promise<AssetMetadataResult[]> {

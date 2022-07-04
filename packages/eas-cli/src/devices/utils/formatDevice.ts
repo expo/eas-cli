@@ -1,5 +1,5 @@
-import { AppleDevice, AppleTeam } from '../../graphql/generated';
-import formatFields from '../../utils/formatFields';
+import { AppleDevice, AppleTeam } from '../../graphql/generated.js';
+import formatFields from '../../utils/formatFields.js';
 
 type Device = Pick<AppleDevice, 'id' | 'identifier' | 'name' | 'deviceClass' | 'enabled'>;
 

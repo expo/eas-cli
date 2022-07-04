@@ -1,16 +1,9 @@
-import {
-  AgeRatingDeclaration,
-  AppInfo,
-  AppInfoLocalization,
-  AppStoreReviewDetail,
-  AppStoreVersion,
-  AppStoreVersionLocalization,
-  Rating,
-  ReleaseType,
-} from '@expo/apple-utils';
+import AppleUtils from '@expo/apple-utils';
 
-import { AttributesOf } from '../../utils/asc';
-import { AppleMetadata } from '../types';
+import { AttributesOf } from '../../utils/asc.js';
+import { AppleMetadata } from '../types.js';
+
+const { Rating, ReleaseType } = AppleUtils;
 
 /**
  * Serializes the Apple ASC entities into the metadata configuration schema.
@@ -27,7 +20,7 @@ export class AppleConfigWriter {
     };
   }
 
-  public setAgeRating(attributes: AttributesOf<AgeRatingDeclaration>): void {
+  public setAgeRating(attributes: AttributesOf<AppleUtils.AgeRatingDeclaration>): void {
     this.schema.advisory = {
       alcoholTobaccoOrDrugUseOrReferences:
         attributes.alcoholTobaccoOrDrugUseOrReferences ?? Rating.NONE,
@@ -50,7 +43,7 @@ export class AppleConfigWriter {
     };
   }
 
-  public setInfoLocale(attributes: AttributesOf<AppInfoLocalization>): void {
+  public setInfoLocale(attributes: AttributesOf<AppleUtils.AppInfoLocalization>): void {
     this.schema.info = this.schema.info ?? {};
     const existing = this.schema.info[attributes.locale] ?? {};
 
@@ -66,7 +59,7 @@ export class AppleConfigWriter {
 
   public setCategories(
     attributes: Pick<
-      AttributesOf<AppInfo>,
+      AttributesOf<AppleUtils.AppInfo>,
       | 'primaryCategory'
       | 'primarySubcategoryOne'
       | 'primarySubcategoryTwo'
@@ -106,13 +99,19 @@ export class AppleConfigWriter {
   }
 
   public setVersion(
-    attributes: Omit<AttributesOf<AppStoreVersion>, 'releaseType' | 'earliestReleaseDate'>
+    attributes: Omit<
+      AttributesOf<AppleUtils.AppStoreVersion>,
+      'releaseType' | 'earliestReleaseDate'
+    >
   ): void {
     this.schema.copyright = optional(attributes.copyright);
   }
 
   public setVersionRelease(
-    attributes: Pick<AttributesOf<AppStoreVersion>, 'releaseType' | 'earliestReleaseDate'>
+    attributes: Pick<
+      AttributesOf<AppleUtils.AppStoreVersion>,
+      'releaseType' | 'earliestReleaseDate'
+    >
   ): void {
     if (attributes.releaseType === ReleaseType.SCHEDULED) {
       this.schema.release = {
@@ -133,7 +132,7 @@ export class AppleConfigWriter {
     }
   }
 
-  public setVersionLocale(attributes: AttributesOf<AppStoreVersionLocalization>): void {
+  public setVersionLocale(attributes: AttributesOf<AppleUtils.AppStoreVersionLocalization>): void {
     this.schema.info = this.schema.info ?? {};
     const existing = this.schema.info[attributes.locale] ?? {};
 
@@ -150,7 +149,7 @@ export class AppleConfigWriter {
     };
   }
 
-  public setReviewDetails(attributes: AttributesOf<AppStoreReviewDetail>): void {
+  public setReviewDetails(attributes: AttributesOf<AppleUtils.AppStoreReviewDetail>): void {
     this.schema.review = {
       firstName: attributes.contactFirstName ?? '',
       lastName: attributes.contactLastName ?? '',

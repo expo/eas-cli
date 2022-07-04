@@ -1,7 +1,7 @@
 import type { ErrorObject } from 'ajv';
 import chalk from 'chalk';
 
-import Log, { link } from '../log';
+import Log, { link } from '../log.js';
 
 /**
  * Before syncing data to the ASC API, we need to validate the metadata config.

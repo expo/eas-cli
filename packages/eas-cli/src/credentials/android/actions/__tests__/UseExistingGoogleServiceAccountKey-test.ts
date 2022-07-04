@@ -1,11 +1,11 @@
-import { promptAsync } from '../../../../prompts';
+import { promptAsync } from '../../../../prompts.js';
 import {
   getNewAndroidApiMock,
   testGoogleServiceAccountKeyFragment,
-} from '../../../__tests__/fixtures-android';
-import { createCtxMock } from '../../../__tests__/fixtures-context';
-import { getAppLookupParamsFromContextAsync } from '../BuildCredentialsUtils';
-import { UseExistingGoogleServiceAccountKey } from '../UseExistingGoogleServiceAccountKey';
+} from '../../../__tests__/fixtures-android.js';
+import { createCtxMock } from '../../../__tests__/fixtures-context.js';
+import { getAppLookupParamsFromContextAsync } from '../BuildCredentialsUtils.js';
+import { UseExistingGoogleServiceAccountKey } from '../UseExistingGoogleServiceAccountKey.js';
 
 jest.mock('../../../../prompts');
 jest

@@ -1,4 +1,4 @@
-import zipObject from '../zipObject';
+import zipObject from '../zipObject.js';
 
 describe(zipObject, () => {
   it('throws if the number of items does not match', () => {

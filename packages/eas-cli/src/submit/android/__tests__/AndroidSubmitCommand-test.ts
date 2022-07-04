@@ -3,19 +3,19 @@ import { AndroidReleaseStatus, AndroidReleaseTrack } from '@expo/eas-json';
 import { vol } from 'memfs';
 import { v4 as uuidv4 } from 'uuid';
 
-import { jester as mockJester } from '../../../credentials/__tests__/fixtures-constants';
+import { jester as mockJester } from '../../../credentials/__tests__/fixtures-constants.js';
 import {
   AppPlatform,
   BuildFragment,
   SubmissionAndroidReleaseStatus,
   SubmissionAndroidTrack,
-} from '../../../graphql/generated';
-import { SubmissionMutation } from '../../../graphql/mutations/SubmissionMutation';
-import { createTestProject } from '../../../project/__tests__/project-utils';
-import { getProjectIdAsync } from '../../../project/projectUtils';
-import { createSubmissionContextAsync } from '../../context';
-import { getRecentBuildsForSubmissionAsync } from '../../utils/builds';
-import AndroidSubmitCommand from '../AndroidSubmitCommand';
+} from '../../../graphql/generated.js';
+import { SubmissionMutation } from '../../../graphql/mutations/SubmissionMutation.js';
+import { createTestProject } from '../../../project/__tests__/project-utils.js';
+import { getProjectIdAsync } from '../../../project/projectUtils.js';
+import { createSubmissionContextAsync } from '../../context.js';
+import { getRecentBuildsForSubmissionAsync } from '../../utils/builds.js';
+import AndroidSubmitCommand from '../AndroidSubmitCommand.js';
 
 jest.mock('fs');
 jest.mock('../../../ora');

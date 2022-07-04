@@ -1,9 +1,9 @@
 import chalk from 'chalk';
 
-import fetch from '../../fetch';
-import { SubmissionFragment, SubmissionStatus } from '../../graphql/generated';
-import Log from '../../log';
-import { printSubmissionError } from './errors';
+import fetch from '../../fetch.js';
+import { SubmissionFragment, SubmissionStatus } from '../../graphql/generated.js';
+import Log from '../../log.js';
+import { printSubmissionError } from './errors.js';
 
 export async function displayLogsAsync(
   submission: SubmissionFragment,

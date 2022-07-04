@@ -1,6 +1,8 @@
-import { App } from '@expo/apple-utils';
+import AppleUtils from '@expo/apple-utils';
 
-import { TelemetryContext, makeDataScrubber } from '../telemetry';
+import { TelemetryContext, makeDataScrubber } from '../telemetry.js';
+
+const { App } = AppleUtils;
 
 describe(makeDataScrubber, () => {
   const stub: TelemetryContext = {

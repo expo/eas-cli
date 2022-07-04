@@ -1,4 +1,4 @@
-import { Account as GraphQLAccount } from '../graphql/generated';
+import { Account as GraphQLAccount } from '../graphql/generated.js';
 
 export type Account = Pick<GraphQLAccount, 'id' | 'name'>;
 

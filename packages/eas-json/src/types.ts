@@ -1,5 +1,5 @@
-import { EasJsonBuildProfile } from './build/types';
-import { EasJsonSubmitProfile } from './submit/types';
+import { EasJsonBuildProfile } from './build/types.js';
+import { EasJsonSubmitProfile } from './submit/types.js';
 
 export type ProfileType = 'build' | 'submit';
 export type EasJsonProfile<T extends ProfileType> = T extends 'build'

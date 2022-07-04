@@ -1,13 +1,13 @@
 import { print } from 'graphql';
-import gql from 'graphql-tag';
+import { gql } from 'graphql-tag';
 
-import { graphqlClient, withErrorHandlingAsync } from '../client';
+import { graphqlClient, withErrorHandlingAsync } from '../client.js';
 import {
   EnvironmentSecretFragment,
   EnvironmentSecretsByAccountNameQuery,
   EnvironmentSecretsByAppIdQuery,
-} from '../generated';
-import { EnvironmentSecretFragmentNode } from '../types/EnvironmentSecret';
+} from '../generated.js';
+import { EnvironmentSecretFragmentNode } from '../types/EnvironmentSecret.js';
 
 export enum EnvironmentSecretScope {
   ACCOUNT = 'account',

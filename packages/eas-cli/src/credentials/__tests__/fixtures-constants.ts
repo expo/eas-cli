@@ -1,4 +1,4 @@
-import { Actor } from '../../user/User';
+import { Actor } from '../../user/User.js';
 
 export const jester: Actor = {
   __typename: 'User',

@@ -1,7 +1,7 @@
-import { confirmAsync } from '../../../../prompts';
-import { createCtxMock } from '../../../__tests__/fixtures-context';
-import { testPushKey } from '../../../__tests__/fixtures-ios';
-import { RemovePushKey } from '../RemovePushKey';
+import { confirmAsync } from '../../../../prompts.js';
+import { createCtxMock } from '../../../__tests__/fixtures-context.js';
+import { testPushKey } from '../../../__tests__/fixtures-ios.js';
+import { RemovePushKey } from '../RemovePushKey.js';
 
 jest.mock('../../../../prompts');
 jest.mocked(confirmAsync).mockImplementation(async () => true);

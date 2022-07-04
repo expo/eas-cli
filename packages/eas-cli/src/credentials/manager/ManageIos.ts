@@ -1,61 +1,61 @@
 import { Platform } from '@expo/eas-build-job';
 import { BuildProfile } from '@expo/eas-json';
 import assert from 'assert';
-import nullthrows from 'nullthrows';
 
 import {
   AppleDistributionCertificateFragment,
   IosAppBuildCredentialsFragment,
   IosDistributionType as IosDistributionTypeGraphql,
-} from '../../graphql/generated';
-import Log, { learnMore } from '../../log';
-import { resolveXcodeBuildContextAsync } from '../../project/ios/scheme';
-import { resolveTargetsAsync } from '../../project/ios/target';
+} from '../../graphql/generated.js';
+import Log, { learnMore } from '../../log.js';
+import { resolveXcodeBuildContextAsync } from '../../project/ios/scheme.js';
+import { resolveTargetsAsync } from '../../project/ios/target.js';
 import {
   getProjectAccountName,
   promptToCreateProjectIfNotExistsAsync,
-} from '../../project/projectUtils';
-import { confirmAsync, promptAsync, selectAsync } from '../../prompts';
-import { Account, findAccountByName } from '../../user/Account';
-import { ensureActorHasUsername, ensureLoggedInAsync } from '../../user/actions';
-import { CredentialsContext } from '../context';
+} from '../../project/projectUtils.js';
+import { confirmAsync, promptAsync, selectAsync } from '../../prompts.js';
+import { Account, findAccountByName } from '../../user/Account.js';
+import { ensureActorHasUsername, ensureLoggedInAsync } from '../../user/actions.js';
+import { nullthrows } from '../../utils/nullthrows.js';
+import { CredentialsContext } from '../context.js';
 import {
   AppStoreApiKeyPurpose,
   selectAscApiKeysFromAccountAsync,
-} from '../ios/actions/AscApiKeyUtils';
-import { AssignAscApiKey } from '../ios/actions/AssignAscApiKey';
-import { AssignPushKey } from '../ios/actions/AssignPushKey';
-import { getAppLookupParamsFromContext } from '../ios/actions/BuildCredentialsUtils';
-import { CreateAscApiKey } from '../ios/actions/CreateAscApiKey';
-import { CreateDistributionCertificate } from '../ios/actions/CreateDistributionCertificate';
-import { CreatePushKey } from '../ios/actions/CreatePushKey';
-import { selectValidDistributionCertificateAsync } from '../ios/actions/DistributionCertificateUtils';
-import { selectPushKeyAsync } from '../ios/actions/PushKeyUtils';
-import { SelectAndRemoveAscApiKey } from '../ios/actions/RemoveAscApiKey';
-import { SelectAndRemoveDistributionCertificate } from '../ios/actions/RemoveDistributionCertificate';
-import { RemoveProvisioningProfiles } from '../ios/actions/RemoveProvisioningProfile';
-import { SelectAndRemovePushKey } from '../ios/actions/RemovePushKey';
-import { SetUpAdhocProvisioningProfile } from '../ios/actions/SetUpAdhocProvisioningProfile';
-import { SetUpAscApiKey } from '../ios/actions/SetUpAscApiKey';
-import { SetUpBuildCredentials } from '../ios/actions/SetUpBuildCredentials';
-import { SetUpBuildCredentialsFromCredentialsJson } from '../ios/actions/SetUpBuildCredentialsFromCredentialsJson';
-import { SetUpProvisioningProfile } from '../ios/actions/SetUpProvisioningProfile';
-import { SetUpPushKey } from '../ios/actions/SetUpPushKey';
-import { UpdateCredentialsJson } from '../ios/actions/UpdateCredentialsJson';
-import { AppLookupParams } from '../ios/api/GraphqlClient';
-import { App, IosAppCredentialsMap, Target } from '../ios/types';
-import { displayIosCredentials } from '../ios/utils/printCredentials';
-import { ActionInfo, IosActionType, Scope } from './Actions';
-import { Action, PressAnyKeyToContinue } from './HelperActions';
+} from '../ios/actions/AscApiKeyUtils.js';
+import { AssignAscApiKey } from '../ios/actions/AssignAscApiKey.js';
+import { AssignPushKey } from '../ios/actions/AssignPushKey.js';
+import { getAppLookupParamsFromContext } from '../ios/actions/BuildCredentialsUtils.js';
+import { CreateAscApiKey } from '../ios/actions/CreateAscApiKey.js';
+import { CreateDistributionCertificate } from '../ios/actions/CreateDistributionCertificate.js';
+import { CreatePushKey } from '../ios/actions/CreatePushKey.js';
+import { selectValidDistributionCertificateAsync } from '../ios/actions/DistributionCertificateUtils.js';
+import { selectPushKeyAsync } from '../ios/actions/PushKeyUtils.js';
+import { SelectAndRemoveAscApiKey } from '../ios/actions/RemoveAscApiKey.js';
+import { SelectAndRemoveDistributionCertificate } from '../ios/actions/RemoveDistributionCertificate.js';
+import { RemoveProvisioningProfiles } from '../ios/actions/RemoveProvisioningProfile.js';
+import { SelectAndRemovePushKey } from '../ios/actions/RemovePushKey.js';
+import { SetUpAdhocProvisioningProfile } from '../ios/actions/SetUpAdhocProvisioningProfile.js';
+import { SetUpAscApiKey } from '../ios/actions/SetUpAscApiKey.js';
+import { SetUpBuildCredentials } from '../ios/actions/SetUpBuildCredentials.js';
+import { SetUpBuildCredentialsFromCredentialsJson } from '../ios/actions/SetUpBuildCredentialsFromCredentialsJson.js';
+import { SetUpProvisioningProfile } from '../ios/actions/SetUpProvisioningProfile.js';
+import { SetUpPushKey } from '../ios/actions/SetUpPushKey.js';
+import { UpdateCredentialsJson } from '../ios/actions/UpdateCredentialsJson.js';
+import { AppLookupParams } from '../ios/api/GraphqlClient.js';
+import { App, IosAppCredentialsMap, Target } from '../ios/types.js';
+import { displayIosCredentials } from '../ios/utils/printCredentials.js';
+import { ActionInfo, IosActionType, Scope } from './Actions.js';
+import { Action, PressAnyKeyToContinue } from './HelperActions.js';
 import {
   credentialsJsonActions,
   getAscApiKeyActions,
   getBuildCredentialsActions,
   getPushKeyActions,
   highLevelActions,
-} from './IosActions';
-import { SelectBuildProfileFromEasJson } from './SelectBuildProfileFromEasJson';
-import { SelectIosDistributionTypeGraphqlFromBuildProfile } from './SelectIosDistributionTypeGraphqlFromBuildProfile';
+} from './IosActions.js';
+import { SelectBuildProfileFromEasJson } from './SelectBuildProfileFromEasJson.js';
+import { SelectIosDistributionTypeGraphqlFromBuildProfile } from './SelectIosDistributionTypeGraphqlFromBuildProfile.js';
 
 export class ManageIos {
   constructor(private callingAction: Action, private projectDir: string) {}

@@ -7,13 +7,13 @@ import {
   flushAsync as flushAnalyticsAsync,
   initAsync as initAnalyticsAsync,
   logEvent,
-} from '../analytics/rudderstackClient';
-import { findProjectRootAsync } from '../project/projectUtils';
-import { getUserAsync } from '../user/User';
-import { ensureLoggedInAsync } from '../user/actions';
-import { easCliVersion } from '../utils/easCli';
-import { setVcsClient } from '../vcs';
-import GitClient from '../vcs/clients/git';
+} from '../analytics/rudderstackClient.js';
+import { findProjectRootAsync } from '../project/projectUtils.js';
+import { getUserAsync } from '../user/User.js';
+import { ensureLoggedInAsync } from '../user/actions.js';
+import { easCliVersion } from '../utils/easCli.js';
+import GitClient from '../vcs/clients/git.js';
+import { setVcsClient } from '../vcs/index.js';
 
 export default abstract class EasCommand extends Command {
   /**

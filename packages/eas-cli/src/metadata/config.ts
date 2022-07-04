@@ -1,9 +1,9 @@
 import Ajv from 'ajv';
 import assert from 'assert';
 
-import { AppleConfigReader } from './apple/config/reader';
-import { AppleConfigWriter } from './apple/config/writer';
-import { AppleMetadata } from './apple/types';
+import { AppleConfigReader } from './apple/config/reader.js';
+import { AppleConfigWriter } from './apple/config/writer.js';
+import { AppleMetadata } from './apple/types.js';
 
 export interface MetadataConfig {
   /** The store configuration version */

@@ -1,15 +1,15 @@
 import chalk from 'chalk';
-import nullthrows from 'nullthrows';
 import wrapAnsi from 'wrap-ansi';
 
-import { CommonIosAppCredentialsFragment } from '../../../graphql/generated';
-import Log, { learnMore } from '../../../log';
-import { promptAsync } from '../../../prompts';
-import { CredentialsContext } from '../../context';
-import { UnsupportedCredentialsChoiceError } from '../../errors';
-import { AppLookupParams } from '../api/GraphqlClient';
-import { AppStoreApiKeyPurpose } from './AscApiKeyUtils';
-import { SetUpAscApiKey } from './SetUpAscApiKey';
+import { CommonIosAppCredentialsFragment } from '../../../graphql/generated.js';
+import Log, { learnMore } from '../../../log.js';
+import { promptAsync } from '../../../prompts.js';
+import { nullthrows } from '../../../utils/nullthrows.js';
+import { CredentialsContext } from '../../context.js';
+import { UnsupportedCredentialsChoiceError } from '../../errors.js';
+import { AppLookupParams } from '../api/GraphqlClient.js';
+import { AppStoreApiKeyPurpose } from './AscApiKeyUtils.js';
+import { SetUpAscApiKey } from './SetUpAscApiKey.js';
 
 export const PROMPT_FOR_APP_SPECIFIC_PASSWORD = 'PROMPT_FOR_APP_SPECIFIC_PASSWORD';
 

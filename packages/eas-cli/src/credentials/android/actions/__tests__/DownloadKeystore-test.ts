@@ -1,9 +1,9 @@
 import fs from 'fs-extra';
 
-import { testAndroidBuildCredentialsFragment } from '../../../__tests__/fixtures-android';
-import { createCtxMock } from '../../../__tests__/fixtures-context';
-import { getAppLookupParamsFromContextAsync } from '../BuildCredentialsUtils';
-import { DownloadKeystore } from '../DownloadKeystore';
+import { testAndroidBuildCredentialsFragment } from '../../../__tests__/fixtures-android.js';
+import { createCtxMock } from '../../../__tests__/fixtures-context.js';
+import { getAppLookupParamsFromContextAsync } from '../BuildCredentialsUtils.js';
+import { DownloadKeystore } from '../DownloadKeystore.js';
 
 jest.mock('fs-extra');
 

@@ -1,5 +1,10 @@
-import { AppPlatform, BuildFragment, BuildStatus, DistributionType } from '../../graphql/generated';
-import { BuildQuery } from '../../graphql/queries/BuildQuery';
+import {
+  AppPlatform,
+  BuildFragment,
+  BuildStatus,
+  DistributionType,
+} from '../../graphql/generated.js';
+import { BuildQuery } from '../../graphql/queries/BuildQuery.js';
 
 export async function getRecentBuildsForSubmissionAsync(
   platform: AppPlatform,

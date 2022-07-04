@@ -8,7 +8,7 @@ import {
   DistributionType,
   ProjectArchiveSourceInput,
   ProjectArchiveSourceType,
-} from '../graphql/generated';
+} from '../graphql/generated.js';
 
 export function transformProjectArchive(archiveSource: ArchiveSource): ProjectArchiveSourceInput {
   if (archiveSource.type === ArchiveSourceType.S3) {

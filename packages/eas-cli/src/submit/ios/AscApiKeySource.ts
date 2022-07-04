@@ -1,11 +1,11 @@
 import { Platform } from '@expo/eas-build-job';
 import fs from 'fs-extra';
 
-import { promptForAscApiKeyPathAsync } from '../../credentials/ios/actions/AscApiKeyUtils';
-import { AscApiKeyPath, MinimalAscApiKey } from '../../credentials/ios/credentials';
-import Log from '../../log';
-import { SubmissionContext } from '../context';
-import { isExistingFileAsync } from '../utils/files';
+import { promptForAscApiKeyPathAsync } from '../../credentials/ios/actions/AscApiKeyUtils.js';
+import { AscApiKeyPath, MinimalAscApiKey } from '../../credentials/ios/credentials.js';
+import Log from '../../log.js';
+import { SubmissionContext } from '../context.js';
+import { isExistingFileAsync } from '../utils/files.js';
 
 export enum AscApiKeySourceType {
   path,

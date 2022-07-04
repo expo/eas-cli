@@ -4,10 +4,10 @@ import {
   AppPlatform,
   BuildFragment,
   BuildStatus as GraphQLBuildStatus,
-} from '../../graphql/generated';
-import { appPlatformDisplayNames } from '../../platform';
-import formatFields from '../../utils/formatFields';
-import { getBuildLogsUrl } from './url';
+} from '../../graphql/generated.js';
+import { appPlatformDisplayNames } from '../../platform.js';
+import formatFields from '../../utils/formatFields.js';
+import { getBuildLogsUrl } from './url.js';
 
 export function formatGraphQLBuild(build: BuildFragment): string {
   const actor = getActorName(build);

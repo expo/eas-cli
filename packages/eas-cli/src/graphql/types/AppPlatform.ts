@@ -1,6 +1,6 @@
 import { Platform } from '@expo/eas-build-job';
 
-import { AppPlatform } from '../generated';
+import { AppPlatform } from '../generated.js';
 
 export function toAppPlatform(platform: Platform): AppPlatform {
   if (platform === Platform.ANDROID) {

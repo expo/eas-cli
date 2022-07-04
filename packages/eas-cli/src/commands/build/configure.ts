@@ -2,18 +2,18 @@ import { Platform, Workflow } from '@expo/eas-build-job';
 import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 
-import { cleanUpOldEasBuildGradleScriptAsync } from '../../build/android/syncProjectConfiguration';
-import { ensureProjectConfiguredAsync } from '../../build/configure';
-import EasCommand from '../../commandUtils/EasCommand';
-import Log, { learnMore } from '../../log';
-import { RequestedPlatform } from '../../platform';
-import { getExpoConfig } from '../../project/expoConfig';
-import { findProjectRootAsync, isExpoUpdatesInstalled } from '../../project/projectUtils';
-import { resolveWorkflowAsync } from '../../project/workflow';
-import { promptAsync } from '../../prompts';
-import { syncUpdatesConfigurationAsync as syncAndroidUpdatesConfigurationAsync } from '../../update/android/UpdatesModule';
-import { syncUpdatesConfigurationAsync as syncIosUpdatesConfigurationAsync } from '../../update/ios/UpdatesModule';
-import { getVcsClient } from '../../vcs';
+import { cleanUpOldEasBuildGradleScriptAsync } from '../../build/android/syncProjectConfiguration.js';
+import { ensureProjectConfiguredAsync } from '../../build/configure.js';
+import EasCommand from '../../commandUtils/EasCommand.js';
+import Log, { learnMore } from '../../log.js';
+import { RequestedPlatform } from '../../platform.js';
+import { getExpoConfig } from '../../project/expoConfig.js';
+import { findProjectRootAsync, isExpoUpdatesInstalled } from '../../project/projectUtils.js';
+import { resolveWorkflowAsync } from '../../project/workflow.js';
+import { promptAsync } from '../../prompts.js';
+import { syncUpdatesConfigurationAsync as syncAndroidUpdatesConfigurationAsync } from '../../update/android/UpdatesModule.js';
+import { syncUpdatesConfigurationAsync as syncIosUpdatesConfigurationAsync } from '../../update/ios/UpdatesModule.js';
+import { getVcsClient } from '../../vcs/index.js';
 
 export default class BuildConfigure extends EasCommand {
   static description = 'configure the project to support EAS Build';

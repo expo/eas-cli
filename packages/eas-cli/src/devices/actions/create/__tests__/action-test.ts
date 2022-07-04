@@ -1,9 +1,9 @@
 import prompts from 'prompts';
 
-import { Account } from '../../../../user/Account';
-import DeviceCreateAction, { RegistrationMethod } from '../action';
-import { runInputMethodAsync } from '../inputMethod';
-import { runRegistrationUrlMethodAsync } from '../registrationUrlMethod';
+import { Account } from '../../../../user/Account.js';
+import DeviceCreateAction, { RegistrationMethod } from '../action.js';
+import { runInputMethodAsync } from '../inputMethod.js';
+import { runRegistrationUrlMethodAsync } from '../registrationUrlMethod.js';
 
 jest.mock('prompts');
 jest.mock('../registrationUrlMethod');

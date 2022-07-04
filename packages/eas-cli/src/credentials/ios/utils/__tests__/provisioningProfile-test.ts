@@ -1,5 +1,5 @@
-import { testProvisioningProfileBase64 } from '../../../__tests__/fixtures-base64-data';
-import * as provisioningProfileUtils from '../provisioningProfile';
+import { testProvisioningProfileBase64 } from '../../../__tests__/fixtures-base64-data.js';
+import * as provisioningProfileUtils from '../provisioningProfile.js';
 
 const MALFORMED_PROVISIONING_PROFILE = 'aWV5Zmd3eXVlZmdl';
 

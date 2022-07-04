@@ -2,53 +2,56 @@ import { Platform } from '@expo/eas-build-job';
 import { BuildProfile } from '@expo/eas-json';
 import assert from 'assert';
 
-import Log, { learnMore } from '../../log';
-import { GradleBuildContext, resolveGradleBuildContextAsync } from '../../project/android/gradle';
+import Log, { learnMore } from '../../log.js';
+import {
+  GradleBuildContext,
+  resolveGradleBuildContextAsync,
+} from '../../project/android/gradle.js';
 import {
   getProjectAccountName,
   promptToCreateProjectIfNotExistsAsync,
-} from '../../project/projectUtils';
-import { promptAsync } from '../../prompts';
-import { findAccountByName } from '../../user/Account';
-import { ensureActorHasUsername, ensureLoggedInAsync } from '../../user/actions';
-import { AssignFcm } from '../android/actions/AssignFcm';
-import { AssignGoogleServiceAccountKey } from '../android/actions/AssignGoogleServiceAccountKey';
+} from '../../project/projectUtils.js';
+import { promptAsync } from '../../prompts.js';
+import { findAccountByName } from '../../user/Account.js';
+import { ensureActorHasUsername, ensureLoggedInAsync } from '../../user/actions.js';
+import { AssignFcm } from '../android/actions/AssignFcm.js';
+import { AssignGoogleServiceAccountKey } from '../android/actions/AssignGoogleServiceAccountKey.js';
 import {
   canCopyLegacyCredentialsAsync,
   getAppLookupParamsFromContextAsync,
   promptUserAndCopyLegacyCredentialsAsync,
-} from '../android/actions/BuildCredentialsUtils';
-import { CreateFcm } from '../android/actions/CreateFcm';
-import { CreateGoogleServiceAccountKey } from '../android/actions/CreateGoogleServiceAccountKey';
-import { CreateKeystore } from '../android/actions/CreateKeystore';
-import { DownloadKeystore } from '../android/actions/DownloadKeystore';
-import { RemoveFcm } from '../android/actions/RemoveFcm';
-import { SelectAndRemoveGoogleServiceAccountKey } from '../android/actions/RemoveGoogleServiceAccountKey';
-import { RemoveKeystore } from '../android/actions/RemoveKeystore';
-import { SetUpBuildCredentialsFromCredentialsJson } from '../android/actions/SetUpBuildCredentialsFromCredentialsJson';
-import { SetUpGoogleServiceAccountKey } from '../android/actions/SetUpGoogleServiceAccountKey';
-import { UpdateCredentialsJson } from '../android/actions/UpdateCredentialsJson';
-import { UseExistingGoogleServiceAccountKey } from '../android/actions/UseExistingGoogleServiceAccountKey';
+} from '../android/actions/BuildCredentialsUtils.js';
+import { CreateFcm } from '../android/actions/CreateFcm.js';
+import { CreateGoogleServiceAccountKey } from '../android/actions/CreateGoogleServiceAccountKey.js';
+import { CreateKeystore } from '../android/actions/CreateKeystore.js';
+import { DownloadKeystore } from '../android/actions/DownloadKeystore.js';
+import { RemoveFcm } from '../android/actions/RemoveFcm.js';
+import { SelectAndRemoveGoogleServiceAccountKey } from '../android/actions/RemoveGoogleServiceAccountKey.js';
+import { RemoveKeystore } from '../android/actions/RemoveKeystore.js';
+import { SetUpBuildCredentialsFromCredentialsJson } from '../android/actions/SetUpBuildCredentialsFromCredentialsJson.js';
+import { SetUpGoogleServiceAccountKey } from '../android/actions/SetUpGoogleServiceAccountKey.js';
+import { UpdateCredentialsJson } from '../android/actions/UpdateCredentialsJson.js';
+import { UseExistingGoogleServiceAccountKey } from '../android/actions/UseExistingGoogleServiceAccountKey.js';
 import {
   displayAndroidAppCredentials,
   displayEmptyAndroidCredentials,
-} from '../android/utils/printCredentials';
-import { CredentialsContext } from '../context';
-import { ActionInfo, AndroidActionType, Scope } from './Actions';
+} from '../android/utils/printCredentials.js';
+import { CredentialsContext } from '../context.js';
+import { ActionInfo, AndroidActionType, Scope } from './Actions.js';
 import {
   buildCredentialsActions,
   credentialsJsonActions,
   fcmActions,
   gsaKeyActions,
   highLevelActions,
-} from './AndroidActions';
-import { Action, PressAnyKeyToContinue } from './HelperActions';
+} from './AndroidActions.js';
+import { Action, PressAnyKeyToContinue } from './HelperActions.js';
 import {
   SelectAndroidBuildCredentials,
   SelectAndroidBuildCredentialsResultType,
   SelectExistingAndroidBuildCredentials,
-} from './SelectAndroidBuildCredentials';
-import { SelectBuildProfileFromEasJson } from './SelectBuildProfileFromEasJson';
+} from './SelectAndroidBuildCredentials.js';
+import { SelectBuildProfileFromEasJson } from './SelectBuildProfileFromEasJson.js';
 
 export class ManageAndroid {
   constructor(private callingAction: Action, private projectDir: string) {}

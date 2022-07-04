@@ -1,12 +1,12 @@
 import { DistributionType, IosEnterpriseProvisioning } from '@expo/eas-json';
 import chalk from 'chalk';
-import nullthrows from 'nullthrows';
 
-import Log from '../../../log';
-import { CredentialsContext } from '../../context';
-import { App, IosAppBuildCredentialsMap, IosCredentials, Target } from '../types';
-import { displayProjectCredentials } from '../utils/printCredentials';
-import { SetUpTargetBuildCredentials } from './SetUpTargetBuildCredentials';
+import Log from '../../../log.js';
+import { nullthrows } from '../../../utils/nullthrows.js';
+import { CredentialsContext } from '../../context.js';
+import { App, IosAppBuildCredentialsMap, IosCredentials, Target } from '../types.js';
+import { displayProjectCredentials } from '../utils/printCredentials.js';
+import { SetUpTargetBuildCredentials } from './SetUpTargetBuildCredentials.js';
 
 interface Options {
   app: App;

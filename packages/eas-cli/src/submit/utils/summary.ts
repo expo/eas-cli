@@ -1,9 +1,9 @@
 import chalk from 'chalk';
 
-import { AppPlatform, BuildFragment } from '../../graphql/generated';
-import Log from '../../log';
-import formatFields from '../../utils/formatFields';
-import { Archive, ArchiveSourceType } from '../ArchiveSource';
+import { AppPlatform, BuildFragment } from '../../graphql/generated.js';
+import Log from '../../log.js';
+import formatFields from '../../utils/formatFields.js';
+import { Archive, ArchiveSourceType } from '../ArchiveSource.js';
 export interface ArchiveSourceSummaryFields {
   archiveUrl?: string;
   archivePath?: string;

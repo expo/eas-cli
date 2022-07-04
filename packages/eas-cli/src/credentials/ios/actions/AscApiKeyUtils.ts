@@ -3,25 +3,25 @@ import fs from 'fs-extra';
 import { nanoid } from 'nanoid';
 import path from 'path';
 
-import { AppStoreConnectApiKeyFragment } from '../../../graphql/generated';
-import Log, { learnMore } from '../../../log';
-import { confirmAsync, promptAsync } from '../../../prompts';
-import { Account } from '../../../user/Account';
-import { fromNow } from '../../../utils/date';
-import { CredentialsContext } from '../../context';
+import { AppStoreConnectApiKeyFragment } from '../../../graphql/generated.js';
+import Log, { learnMore } from '../../../log.js';
+import { confirmAsync, promptAsync } from '../../../prompts.js';
+import { Account } from '../../../user/Account.js';
+import { fromNow } from '../../../utils/date.js';
+import { CredentialsContext } from '../../context.js';
 import {
   getCredentialsFromUserAsync,
   shouldAutoGenerateCredentialsAsync,
-} from '../../utils/promptForCredentials';
-import { AscApiKey } from '../appstore/Credentials.types';
+} from '../../utils/promptForCredentials.js';
+import { AscApiKey } from '../appstore/Credentials.types.js';
 import {
   AscApiKeyPath,
   MinimalAscApiKey,
   ascApiKeyIdSchema,
   ascApiKeyIssuerIdSchema,
-} from '../credentials';
-import { isAscApiKeyValidAndTrackedAsync } from '../validators/validateAscApiKey';
-import { formatAppleTeam } from './AppleTeamUtils';
+} from '../credentials.js';
+import { isAscApiKeyValidAndTrackedAsync } from '../validators/validateAscApiKey.js';
+import { formatAppleTeam } from './AppleTeamUtils.js';
 
 export enum AppStoreApiKeyPurpose {
   SUBMISSION_SERVICE = 'EAS Submit',

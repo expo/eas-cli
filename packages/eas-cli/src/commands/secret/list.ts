@@ -2,15 +2,15 @@ import chalk from 'chalk';
 import Table from 'cli-table3';
 import dateFormat from 'dateformat';
 
-import EasCommand from '../../commandUtils/EasCommand';
-import { EnvironmentSecretsQuery } from '../../graphql/queries/EnvironmentSecretsQuery';
-import Log from '../../log';
-import { getExpoConfig } from '../../project/expoConfig';
+import EasCommand from '../../commandUtils/EasCommand.js';
+import { EnvironmentSecretsQuery } from '../../graphql/queries/EnvironmentSecretsQuery.js';
+import Log from '../../log.js';
+import { getExpoConfig } from '../../project/expoConfig.js';
 import {
   findProjectRootAsync,
   getProjectAccountNameAsync,
   getProjectIdAsync,
-} from '../../project/projectUtils';
+} from '../../project/projectUtils.js';
 
 export default class EnvironmentSecretList extends EasCommand {
   static description = 'list environment secrets available for your current app';

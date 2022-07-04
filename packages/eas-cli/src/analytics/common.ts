@@ -1,4 +1,4 @@
-import { Analytics, Event } from './events';
+import { Analytics, Event } from './events.js';
 
 export type TrackingContext = Record<string, string | number | boolean>;
 

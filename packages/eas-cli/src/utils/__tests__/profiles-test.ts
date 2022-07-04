@@ -1,8 +1,8 @@
 import { Platform } from '@expo/eas-build-job';
 import { EasJsonReader, errors } from '@expo/eas-json';
 
-import { selectAsync } from '../../prompts';
-import { getProfilesAsync } from '../profiles';
+import { selectAsync } from '../../prompts.js';
+import { getProfilesAsync } from '../profiles.js';
 
 jest.mock('../../prompts');
 jest.mock('@expo/eas-json', () => {

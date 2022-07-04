@@ -1,4 +1,4 @@
-import { UserRole } from '@expo/apple-utils';
+import AppleUtils from '@expo/apple-utils';
 
 export interface Device {
   id: string;
@@ -75,7 +75,7 @@ export type AscApiKeyInfo = {
   teamId: string;
   name: string;
   teamName?: string;
-  roles: UserRole[];
+  roles: AppleUtils.UserRole[];
   isRevoked: boolean;
 };
 

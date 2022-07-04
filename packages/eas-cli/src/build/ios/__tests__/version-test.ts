@@ -1,10 +1,10 @@
 import { ExpoConfig } from '@expo/config';
-import { IOSConfig } from '@expo/config-plugins';
+import { InfoPlist } from '@expo/config-plugins';
 import fs from 'fs-extra';
 import { vol } from 'memfs';
 import os from 'os';
 
-import { readPlistAsync } from '../../../utils/plist';
+import { readPlistAsync } from '../../../utils/plist.js';
 import {
   BumpStrategy,
   bumpVersionAsync,
@@ -13,7 +13,7 @@ import {
   getInfoPlistPath,
   readBuildNumberAsync,
   readShortVersionAsync,
-} from '../version';
+} from '../version.js';
 
 jest.mock('fs');
 
@@ -62,9 +62,7 @@ describe(bumpVersionAsync, () => {
     });
 
     const appJSON = await fs.readJSON('/repo/app.json');
-    const infoPlist = (await readPlistAsync(
-      '/repo/ios/myproject/Info.plist'
-    )) as IOSConfig.InfoPlist;
+    const infoPlist = (await readPlistAsync('/repo/ios/myproject/Info.plist')) as InfoPlist;
     expect(fakeExp.version).toBe('1.0.0');
     expect(fakeExp.ios?.buildNumber).toBe('2');
     expect(appJSON.expo.version).toBe('1.0.0');
@@ -86,9 +84,7 @@ describe(bumpVersionAsync, () => {
     });
 
     const appJSON = await fs.readJSON('/repo/app.json');
-    const infoPlist = (await readPlistAsync(
-      '/repo/ios/myproject/Info2.plist'
-    )) as IOSConfig.InfoPlist;
+    const infoPlist = (await readPlistAsync('/repo/ios/myproject/Info2.plist')) as InfoPlist;
     expect(fakeExp.version).toBe('1.0.0');
     expect(fakeExp.ios?.buildNumber).toBe('2');
     expect(appJSON.expo.version).toBe('1.0.0');
@@ -108,9 +104,7 @@ describe(bumpVersionAsync, () => {
     });
 
     const appJSON = await fs.readJSON('/repo/app.json');
-    const infoPlist = (await readPlistAsync(
-      '/repo/ios/myproject/Info.plist'
-    )) as IOSConfig.InfoPlist;
+    const infoPlist = (await readPlistAsync('/repo/ios/myproject/Info.plist')) as InfoPlist;
     expect(fakeExp.version).toBe('1.0.1');
     expect(fakeExp.ios?.buildNumber).toBe('1');
     expect(appJSON.expo.version).toBe('1.0.1');
@@ -130,9 +124,7 @@ describe(bumpVersionAsync, () => {
     });
 
     const appJSON = await fs.readJSON('/repo/app.json');
-    const infoPlist = (await readPlistAsync(
-      '/repo/ios/myproject/Info.plist'
-    )) as IOSConfig.InfoPlist;
+    const infoPlist = (await readPlistAsync('/repo/ios/myproject/Info.plist')) as InfoPlist;
     expect(fakeExp.version).toBe('1.0.0');
     expect(fakeExp.ios?.buildNumber).toBe('1');
     expect(appJSON.expo.version).toBe('1.0.0');

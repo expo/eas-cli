@@ -1,13 +1,14 @@
-import { Keys } from '@expo/apple-utils';
+import AppleUtils from '@expo/apple-utils';
 import chalk from 'chalk';
 import dateformat from 'dateformat';
 
-import Log from '../../../log';
-import { ora } from '../../../ora';
-import { PushKey, PushKeyStoreInfo } from './Credentials.types';
-import { getRequestContext } from './authenticate';
-import { UserAuthCtx } from './authenticateTypes';
+import Log from '../../../log.js';
+import { ora } from '../../../ora.js';
+import { PushKey, PushKeyStoreInfo } from './Credentials.types.js';
+import { getRequestContext } from './authenticate.js';
+import { UserAuthCtx } from './authenticateTypes.js';
 
+const { Keys } = AppleUtils;
 const { MaxKeysCreatedError } = Keys;
 
 export const APPLE_KEYS_TOO_MANY_GENERATED_ERROR = `

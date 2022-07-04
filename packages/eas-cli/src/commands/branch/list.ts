@@ -2,21 +2,21 @@ import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 import CliTable from 'cli-table3';
 import { print } from 'graphql';
-import gql from 'graphql-tag';
+import { gql } from 'graphql-tag';
 
-import EasCommand from '../../commandUtils/EasCommand';
-import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
+import EasCommand from '../../commandUtils/EasCommand.js';
+import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client.js';
 import {
   BranchesByAppQuery,
   BranchesByAppQueryVariables,
   UpdateBranchFragment,
-} from '../../graphql/generated';
-import { UpdateBranchFragmentNode } from '../../graphql/types/UpdateBranch';
-import Log from '../../log';
-import { getExpoConfig } from '../../project/expoConfig';
-import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUtils';
-import { UPDATE_COLUMNS, formatUpdate, getPlatformsForGroup } from '../../update/utils';
-import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
+} from '../../graphql/generated.js';
+import { UpdateBranchFragmentNode } from '../../graphql/types/UpdateBranch.js';
+import Log from '../../log.js';
+import { getExpoConfig } from '../../project/expoConfig.js';
+import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUtils.js';
+import { UPDATE_COLUMNS, formatUpdate, getPlatformsForGroup } from '../../update/utils.js';
+import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json.js';
 
 const BRANCHES_LIMIT = 10_000;
 

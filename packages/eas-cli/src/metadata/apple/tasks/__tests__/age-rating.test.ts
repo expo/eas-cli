@@ -1,14 +1,16 @@
-import { AgeRatingDeclaration, AppStoreVersion, Rating } from '@expo/apple-utils';
+import AppleUtils from '@expo/apple-utils';
 import nock from 'nock';
 
-import { AppleConfigReader } from '../../config/reader';
-import { AppleConfigWriter } from '../../config/writer';
-import { AppleData } from '../../data';
-import { AgeRatingTask } from '../age-rating';
-import { requestContext } from './fixtures/requestContext';
+import { AppleConfigReader } from '../../config/reader.js';
+import { AppleConfigWriter } from '../../config/writer.js';
+import { AppleData } from '../../data.js';
+import { AgeRatingTask } from '../age-rating.js';
+import { requestContext } from './fixtures/requestContext.js';
 
 jest.mock('../../../../ora');
 jest.mock('../../config/writer');
+
+const { AgeRatingDeclaration, AppStoreVersion, Rating } = AppleUtils;
 
 describe(AgeRatingTask, () => {
   describe('prepareAsync', () => {

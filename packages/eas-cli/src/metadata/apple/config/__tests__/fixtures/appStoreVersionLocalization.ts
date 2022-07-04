@@ -1,8 +1,8 @@
-import { AppStoreVersionLocalization } from '@expo/apple-utils';
+import AppleUtils from '@expo/apple-utils';
 
-import { AttributesOf } from '../../../../utils/asc';
+import { AttributesOf } from '../../../../utils/asc.js';
 
-export const englishVersion: AttributesOf<AppStoreVersionLocalization> = {
+export const englishVersion: AttributesOf<AppleUtils.AppStoreVersionLocalization> = {
   locale: 'en-US',
   description: 'This is a description of this version',
   keywords: 'some, description',
@@ -12,7 +12,7 @@ export const englishVersion: AttributesOf<AppStoreVersionLocalization> = {
   whatsNew: 'Bugfixes and improvements',
 };
 
-export const dutchVersion: AttributesOf<AppStoreVersionLocalization> = {
+export const dutchVersion: AttributesOf<AppleUtils.AppStoreVersionLocalization> = {
   locale: 'nl-NL',
   description: 'Dit is een beschrijving van deze versie',
   keywords: 'een, beschrijving',

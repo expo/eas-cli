@@ -1,7 +1,7 @@
-import { IosDistributionType } from '../../../../graphql/generated';
-import { findApplicationTarget } from '../../../../project/ios/target';
-import { confirmAsync } from '../../../../prompts';
-import { createCtxMock } from '../../../__tests__/fixtures-context';
+import { IosDistributionType } from '../../../../graphql/generated.js';
+import { findApplicationTarget } from '../../../../project/ios/target.js';
+import { confirmAsync } from '../../../../prompts.js';
+import { createCtxMock } from '../../../__tests__/fixtures-context.js';
 import {
   getNewIosApiMock,
   testAppleAppIdentifierFragment,
@@ -11,10 +11,10 @@ import {
   testProvisioningProfile,
   testProvisioningProfileFragment,
   testTargets,
-} from '../../../__tests__/fixtures-ios';
-import { IosTargetCredentials } from '../../../credentialsJson/types';
-import { getAppLookupParamsFromContext } from '../BuildCredentialsUtils';
-import { SetUpTargetBuildCredentialsFromCredentialsJson } from '../SetUpTargetBuildCredentialsFromCredentialsJson';
+} from '../../../__tests__/fixtures-ios.js';
+import { IosTargetCredentials } from '../../../credentialsJson/types.js';
+import { getAppLookupParamsFromContext } from '../BuildCredentialsUtils.js';
+import { SetUpTargetBuildCredentialsFromCredentialsJson } from '../SetUpTargetBuildCredentialsFromCredentialsJson.js';
 
 jest.mock('../../../../prompts');
 jest.mock('../../../credentialsJson/read');

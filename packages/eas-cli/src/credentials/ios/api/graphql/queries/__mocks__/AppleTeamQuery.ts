@@ -1,4 +1,4 @@
-import { AppleTeam } from '../../../../../../graphql/generated';
+import { AppleTeam } from '../../../../../../graphql/generated.js';
 
 export const AppleTeamQuery = {
   byAppleTeamIdentifierAsync: jest.fn().mockImplementation(() => {

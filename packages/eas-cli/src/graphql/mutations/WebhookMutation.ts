@@ -1,7 +1,7 @@
 import { print } from 'graphql';
-import gql from 'graphql-tag';
+import { gql } from 'graphql-tag';
 
-import { graphqlClient, withErrorHandlingAsync } from '../client';
+import { graphqlClient, withErrorHandlingAsync } from '../client.js';
 import {
   CreateWebhookMutation,
   CreateWebhookMutationVariables,
@@ -11,8 +11,8 @@ import {
   UpdateWebhookMutationVariables,
   WebhookFragment,
   WebhookInput,
-} from '../generated';
-import { WebhookFragmentNode } from '../types/Webhook';
+} from '../generated.js';
+import { WebhookFragmentNode } from '../types/Webhook.js';
 
 export const WebhookMutation = {
   async createWebhookAsync(appId: string, webhookInput: WebhookInput): Promise<WebhookFragment> {

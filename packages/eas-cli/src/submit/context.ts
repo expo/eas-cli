@@ -3,14 +3,14 @@ import { Platform } from '@expo/eas-build-job';
 import { SubmitProfile } from '@expo/eas-json';
 import { v4 as uuidv4 } from 'uuid';
 
-import { TrackingContext } from '../analytics/common';
-import { Analytics, SubmissionEvent } from '../analytics/events';
-import { CredentialsContext } from '../credentials/context';
-import { getExpoConfig } from '../project/expoConfig';
-import { getProjectAccountName } from '../project/projectUtils';
-import { findAccountByName } from '../user/Account';
-import { Actor } from '../user/User';
-import { ensureLoggedInAsync } from '../user/actions';
+import { TrackingContext } from '../analytics/common.js';
+import { Analytics, SubmissionEvent } from '../analytics/events.js';
+import { CredentialsContext } from '../credentials/context.js';
+import { getExpoConfig } from '../project/expoConfig.js';
+import { getProjectAccountName } from '../project/projectUtils.js';
+import { findAccountByName } from '../user/Account.js';
+import { Actor } from '../user/User.js';
+import { ensureLoggedInAsync } from '../user/actions.js';
 
 export interface SubmissionContext<T extends Platform> {
   accountName: string;

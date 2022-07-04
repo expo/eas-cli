@@ -1,14 +1,16 @@
-import { App, BundleId } from '@expo/apple-utils';
+import AppleUtils from '@expo/apple-utils';
 import { JSONObject } from '@expo/json-file';
 import chalk from 'chalk';
 
-import Log from '../../../log';
-import { ora } from '../../../ora';
-import { getRequestContext, isUserAuthCtx } from './authenticate';
-import { AuthCtx, UserAuthCtx } from './authenticateTypes';
-import { syncCapabilitiesForEntitlementsAsync } from './bundleIdCapabilities';
-import { syncCapabilityIdentifiersForEntitlementsAsync } from './capabilityIdentifiers';
-import { assertContractMessagesAsync } from './contractMessages';
+import Log from '../../../log.js';
+import { ora } from '../../../ora.js';
+import { getRequestContext, isUserAuthCtx } from './authenticate.js';
+import { AuthCtx, UserAuthCtx } from './authenticateTypes.js';
+import { syncCapabilitiesForEntitlementsAsync } from './bundleIdCapabilities.js';
+import { syncCapabilityIdentifiersForEntitlementsAsync } from './capabilityIdentifiers.js';
+import { assertContractMessagesAsync } from './contractMessages.js';
+
+const { App, BundleId } = AppleUtils;
 
 export interface IosCapabilitiesOptions {
   entitlements: JSONObject;
@@ -43,7 +45,7 @@ export async function ensureBundleIdExistsWithNameAsync(
   const context = getRequestContext(authCtx);
   const spinner = ora(`Linking bundle identifier ${chalk.dim(bundleIdentifier)}`).start();
 
-  let bundleId: BundleId | null;
+  let bundleId: AppleUtils.BundleId | null;
   try {
     // Get the bundle id
     bundleId = await BundleId.findAsync(context, { identifier: bundleIdentifier });
@@ -92,7 +94,7 @@ export async function ensureBundleIdExistsWithNameAsync(
 }
 
 export async function syncCapabilitiesAsync(
-  bundleId: BundleId,
+  bundleId: AppleUtils.BundleId,
   { entitlements }: IosCapabilitiesOptions
 ): Promise<void> {
   const spinner = ora(`Syncing capabilities`).start();
@@ -126,7 +128,7 @@ const buildMessage = (title: string, items: string[]): string =>
   items.length ? `${title}: ${items.join(', ')}` : '';
 
 export async function syncCapabilityIdentifiersAsync(
-  bundleId: BundleId,
+  bundleId: AppleUtils.BundleId,
   { entitlements }: IosCapabilitiesOptions
 ): Promise<void> {
   const spinner = ora(`Syncing capabilities identifiers`).start();
@@ -171,7 +173,7 @@ export async function ensureAppExistsAsync(
     bundleIdentifier: string;
     sku?: string;
   }
-): Promise<App> {
+): Promise<AppleUtils.App> {
   const context = getRequestContext(userAuthCtx);
   const spinner = ora(`Linking to App Store Connect ${chalk.dim(bundleIdentifier)}`).start();
 

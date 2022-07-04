@@ -1,8 +1,8 @@
 import { print } from 'graphql';
-import gql from 'graphql-tag';
-import nullthrows from 'nullthrows';
+import { gql } from 'graphql-tag';
 
-import { graphqlClient, withErrorHandlingAsync } from '../client';
+import { nullthrows } from '../../utils/nullthrows.js';
+import { graphqlClient, withErrorHandlingAsync } from '../client.js';
 import {
   AndroidJobInput,
   BuildFragment,
@@ -14,8 +14,8 @@ import {
   CreateIosBuildMutationVariables,
   EasBuildDeprecationInfo,
   IosJobInput,
-} from '../generated';
-import { BuildFragmentNode } from '../types/Build';
+} from '../generated.js';
+import { BuildFragmentNode } from '../types/Build.js';
 
 export interface BuildResult {
   build: BuildFragment;

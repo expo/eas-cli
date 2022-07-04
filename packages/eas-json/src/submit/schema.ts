@@ -1,6 +1,6 @@
 import Joi from 'joi';
 
-import { AndroidReleaseStatus, AndroidReleaseTrack } from './types';
+import { AndroidReleaseStatus, AndroidReleaseTrack } from './types.js';
 
 export const AndroidSubmitProfileSchema = Joi.object({
   serviceAccountKeyPath: Joi.string(),

@@ -1,7 +1,7 @@
 import { vol } from 'memfs';
 
-import { confirmAsync, promptAsync } from '../../../../prompts';
-import { detectGoogleServiceAccountKeyPathAsync } from '../googleServiceAccountKey';
+import { confirmAsync, promptAsync } from '../../../../prompts.js';
+import { detectGoogleServiceAccountKeyPathAsync } from '../googleServiceAccountKey.js';
 
 jest.mock('fs');
 jest.mock('../../../../prompts');

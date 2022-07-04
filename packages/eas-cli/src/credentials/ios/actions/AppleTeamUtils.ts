@@ -1,6 +1,6 @@
-import { AppleTeamFragment } from '../../../graphql/generated';
-import { CredentialsContext } from '../../context';
-import { AppLookupParams } from '../api/GraphqlClient';
+import { AppleTeamFragment } from '../../../graphql/generated.js';
+import { CredentialsContext } from '../../context.js';
+import { AppLookupParams } from '../api/GraphqlClient.js';
 
 export async function resolveAppleTeamIfAuthenticatedAsync(
   ctx: CredentialsContext,

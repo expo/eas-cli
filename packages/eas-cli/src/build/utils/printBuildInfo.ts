@@ -11,11 +11,11 @@ import {
   DistributionType,
   EasBuildDeprecationInfo,
   EasBuildDeprecationInfoType,
-} from '../../graphql/generated';
-import Log, { learnMore } from '../../log';
-import { appPlatformDisplayNames, appPlatformEmojis } from '../../platform';
-import { printJsonOnlyOutput } from '../../utils/json';
-import { getBuildLogsUrl, getInternalDistributionInstallUrl } from './url';
+} from '../../graphql/generated.js';
+import Log, { learnMore } from '../../log.js';
+import { appPlatformDisplayNames, appPlatformEmojis } from '../../platform.js';
+import { printJsonOnlyOutput } from '../../utils/json.js';
+import { getBuildLogsUrl, getInternalDistributionInstallUrl } from './url.js';
 
 export function printLogsUrls(builds: BuildFragment[]): void {
   if (builds.length === 1) {

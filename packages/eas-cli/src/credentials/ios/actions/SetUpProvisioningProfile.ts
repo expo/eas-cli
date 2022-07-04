@@ -1,26 +1,25 @@
-import nullthrows from 'nullthrows';
-
 import {
   AppleDistributionCertificateFragment,
   AppleProvisioningProfileFragment,
   IosAppBuildCredentialsFragment,
   IosDistributionType,
-} from '../../../graphql/generated';
-import { confirmAsync } from '../../../prompts';
-import { CredentialsContext } from '../../context';
-import { MissingCredentialsNonInteractiveError } from '../../errors';
-import { AppLookupParams } from '../api/GraphqlClient';
-import { ProvisioningProfileStoreInfo } from '../appstore/Credentials.types';
-import { validateProvisioningProfileAsync } from '../validators/validateProvisioningProfile';
+} from '../../../graphql/generated.js';
+import { confirmAsync } from '../../../prompts.js';
+import { nullthrows } from '../../../utils/nullthrows.js';
+import { CredentialsContext } from '../../context.js';
+import { MissingCredentialsNonInteractiveError } from '../../errors.js';
+import { AppLookupParams } from '../api/GraphqlClient.js';
+import { ProvisioningProfileStoreInfo } from '../appstore/Credentials.types.js';
+import { validateProvisioningProfileAsync } from '../validators/validateProvisioningProfile.js';
 import {
   assignBuildCredentialsAsync,
   getBuildCredentialsAsync,
   getProvisioningProfileAsync,
-} from './BuildCredentialsUtils';
-import { ConfigureProvisioningProfile } from './ConfigureProvisioningProfile';
-import { CreateProvisioningProfile } from './CreateProvisioningProfile';
-import { formatProvisioningProfileFromApple } from './ProvisioningProfileUtils';
-import { SetUpDistributionCertificate } from './SetUpDistributionCertificate';
+} from './BuildCredentialsUtils.js';
+import { ConfigureProvisioningProfile } from './ConfigureProvisioningProfile.js';
+import { CreateProvisioningProfile } from './CreateProvisioningProfile.js';
+import { formatProvisioningProfileFromApple } from './ProvisioningProfileUtils.js';
+import { SetUpDistributionCertificate } from './SetUpDistributionCertificate.js';
 
 /**
  * Sets up either APP_STORE or ENTERPRISE provisioning profiles

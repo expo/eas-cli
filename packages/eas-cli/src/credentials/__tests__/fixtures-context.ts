@@ -1,10 +1,10 @@
-import merge from 'ts-deepmerge';
+import { default as merge } from 'ts-deepmerge';
 
-import { CredentialsContext } from '../context';
-import { getNewAndroidApiMock } from './fixtures-android';
-import { getAppstoreMock } from './fixtures-appstore';
-import { testAppJson, testUsername } from './fixtures-constants';
-import { getNewIosApiMock } from './fixtures-ios';
+import { CredentialsContext } from '../context.js';
+import { getNewAndroidApiMock } from './fixtures-android.js';
+import { getAppstoreMock } from './fixtures-appstore.js';
+import { testAppJson, testUsername } from './fixtures-constants.js';
+import { getNewIosApiMock } from './fixtures-ios.js';
 
 export function createCtxMock(mockOverride: Record<string, any> = {}): CredentialsContext {
   const defaultMock = {

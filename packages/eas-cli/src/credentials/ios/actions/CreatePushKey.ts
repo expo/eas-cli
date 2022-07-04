@@ -1,8 +1,8 @@
-import { ApplePushKeyFragment } from '../../../graphql/generated';
-import Log from '../../../log';
-import { Account } from '../../../user/Account';
-import { CredentialsContext } from '../../context';
-import { provideOrGeneratePushKeyAsync } from './PushKeyUtils';
+import { ApplePushKeyFragment } from '../../../graphql/generated.js';
+import Log from '../../../log.js';
+import { Account } from '../../../user/Account.js';
+import { CredentialsContext } from '../../context.js';
+import { provideOrGeneratePushKeyAsync } from './PushKeyUtils.js';
 
 export class CreatePushKey {
   constructor(private account: Account) {}

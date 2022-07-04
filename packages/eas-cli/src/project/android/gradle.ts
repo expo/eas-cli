@@ -1,9 +1,9 @@
 import { Platform, Workflow } from '@expo/eas-build-job';
 import { BuildProfile } from '@expo/eas-json';
 
-import Log from '../../log';
-import { resolveWorkflowAsync } from '../../project/workflow';
-import * as gradleUtils from './gradleUtils';
+import Log from '../../log.js';
+import { resolveWorkflowAsync } from '../../project/workflow.js';
+import * as gradleUtils from './gradleUtils.js';
 
 export interface GradleBuildContext {
   moduleName?: string;

@@ -1,12 +1,14 @@
-import { App, Session, getRequestClient } from '@expo/apple-utils';
+import AppleUtils from '@expo/apple-utils';
 import type { AxiosError } from 'axios';
 import { v4 as uuidv4 } from 'uuid';
 
-import { Analytics, MetadataEvent } from '../../analytics/events';
+import { Analytics, MetadataEvent } from '../../analytics/events.js';
+
+const { getRequestClient } = AppleUtils;
 
 export type TelemetryContext = {
-  app: App;
-  auth: Partial<Session.AuthState>;
+  app: AppleUtils.App;
+  auth: Partial<AppleUtils.Session.AuthState>;
 };
 
 /**

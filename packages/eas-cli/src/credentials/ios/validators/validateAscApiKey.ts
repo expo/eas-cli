@@ -1,7 +1,7 @@
-import { AppStoreConnectApiKeyFragment } from '../../../graphql/generated';
-import { CredentialsContext } from '../../context';
-import { AscApiKeyInfo } from '../appstore/Credentials.types';
-import { MinimalAscApiKey } from '../credentials';
+import { AppStoreConnectApiKeyFragment } from '../../../graphql/generated.js';
+import { CredentialsContext } from '../../context.js';
+import { AscApiKeyInfo } from '../appstore/Credentials.types.js';
+import { MinimalAscApiKey } from '../credentials.js';
 
 export async function isAscApiKeyValidAndTrackedAsync(
   ctx: CredentialsContext,

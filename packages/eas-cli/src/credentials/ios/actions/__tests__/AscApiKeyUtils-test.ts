@@ -1,13 +1,13 @@
-import { promptAsync } from '../../../../prompts';
-import { getAppstoreMock, testAuthCtx } from '../../../__tests__/fixtures-appstore';
-import { createCtxMock } from '../../../__tests__/fixtures-context';
-import { testAscApiKey } from '../../../__tests__/fixtures-ios';
-import { getCredentialsFromUserAsync } from '../../../utils/promptForCredentials';
+import { promptAsync } from '../../../../prompts.js';
+import { getAppstoreMock, testAuthCtx } from '../../../__tests__/fixtures-appstore.js';
+import { createCtxMock } from '../../../__tests__/fixtures-context.js';
+import { testAscApiKey } from '../../../__tests__/fixtures-ios.js';
+import { getCredentialsFromUserAsync } from '../../../utils/promptForCredentials.js';
 import {
   AppStoreApiKeyPurpose,
   getAscApiKeyName,
   promptForAscApiKeyPathAsync,
-} from '../AscApiKeyUtils';
+} from '../AscApiKeyUtils.js';
 
 jest.mock('../../../../prompts');
 jest.mock('../../../utils/promptForCredentials');

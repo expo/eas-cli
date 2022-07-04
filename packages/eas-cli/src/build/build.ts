@@ -3,11 +3,10 @@ import { CredentialsSource } from '@expo/eas-json';
 import chalk from 'chalk';
 import cliProgress from 'cli-progress';
 import fs from 'fs-extra';
-import nullthrows from 'nullthrows';
 
-import { withAnalyticsAsync } from '../analytics/common';
-import { BuildEvent } from '../analytics/events';
-import { getExpoWebsiteBaseUrl } from '../api';
+import { withAnalyticsAsync } from '../analytics/common.js';
+import { BuildEvent } from '../analytics/events.js';
+import { getExpoWebsiteBaseUrl } from '../api.js';
 import {
   AppPlatform,
   BuildFragment,
@@ -15,26 +14,27 @@ import {
   BuildPriority,
   BuildStatus,
   UploadSessionType,
-} from '../graphql/generated';
-import { BuildResult } from '../graphql/mutations/BuildMutation';
-import { BuildQuery } from '../graphql/queries/BuildQuery';
-import Log, { learnMore } from '../log';
-import { Ora, ora } from '../ora';
+} from '../graphql/generated.js';
+import { BuildResult } from '../graphql/mutations/BuildMutation.js';
+import { BuildQuery } from '../graphql/queries/BuildQuery.js';
+import Log, { learnMore } from '../log.js';
+import { Ora, ora } from '../ora.js';
 import {
   appPlatformDisplayNames,
   appPlatformEmojis,
   requestedPlatformDisplayNames,
-} from '../platform';
-import { uploadAsync } from '../uploads';
-import { formatBytes } from '../utils/files';
-import { createProgressTracker } from '../utils/progress';
-import { sleepAsync } from '../utils/promise';
-import { getVcsClient } from '../vcs';
-import { BuildContext } from './context';
-import { runLocalBuildAsync } from './local';
-import { collectMetadataAsync } from './metadata';
-import { printDeprecationWarnings } from './utils/printBuildInfo';
-import { makeProjectTarballAsync, reviewAndCommitChangesAsync } from './utils/repository';
+} from '../platform.js';
+import { uploadAsync } from '../uploads.js';
+import { formatBytes } from '../utils/files.js';
+import { nullthrows } from '../utils/nullthrows.js';
+import { createProgressTracker } from '../utils/progress.js';
+import { sleepAsync } from '../utils/promise.js';
+import { getVcsClient } from '../vcs/index.js';
+import { BuildContext } from './context.js';
+import { runLocalBuildAsync } from './local.js';
+import { collectMetadataAsync } from './metadata.js';
+import { printDeprecationWarnings } from './utils/printBuildInfo.js';
+import { makeProjectTarballAsync, reviewAndCommitChangesAsync } from './utils/repository.js';
 
 export interface CredentialsResult<Credentials> {
   source: CredentialsSource.LOCAL | CredentialsSource.REMOTE;

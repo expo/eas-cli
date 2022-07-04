@@ -1,8 +1,8 @@
-import spawnAsync from '@expo/spawn-async';
+import { default as spawnAsync } from '@expo/spawn-async';
 import chalk from 'chalk';
 import resolveFrom from 'resolve-from';
 
-import Log from '../log';
+import Log from '../log.js';
 
 export async function expoCommandAsync(
   projectDir: string,

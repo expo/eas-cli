@@ -1,19 +1,19 @@
 import assert from 'assert';
 import { print } from 'graphql';
-import gql from 'graphql-tag';
+import { gql } from 'graphql-tag';
 
-import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
+import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client.js';
 import {
   CommonIosAppCredentialsFragment,
   CommonIosAppCredentialsWithBuildCredentialsByAppIdentifierIdQuery,
   IosAppCredentialsWithBuildCredentialsByAppIdentifierIdQuery,
   IosDistributionType,
-} from '../../../../../graphql/generated';
-import { IosAppBuildCredentialsFragmentNode } from '../../../../../graphql/types/credentials/IosAppBuildCredentials';
+} from '../../../../../graphql/generated.js';
+import { IosAppBuildCredentialsFragmentNode } from '../../../../../graphql/types/credentials/IosAppBuildCredentials.js';
 import {
   CommonIosAppCredentialsFragmentNode,
   CommonIosAppCredentialsWithoutBuildCredentialsFragmentNode,
-} from '../../../../../graphql/types/credentials/IosAppCredentials';
+} from '../../../../../graphql/types/credentials/IosAppCredentials.js';
 
 export const IosAppCredentialsQuery = {
   async withBuildCredentialsByAppIdentifierIdAsync(

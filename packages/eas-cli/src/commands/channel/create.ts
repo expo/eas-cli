@@ -1,25 +1,25 @@
 import { Flags } from '@oclif/core';
 import chalk from 'chalk';
-import gql from 'graphql-tag';
+import { gql } from 'graphql-tag';
 
-import EasCommand from '../../commandUtils/EasCommand';
-import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
+import EasCommand from '../../commandUtils/EasCommand.js';
+import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client.js';
 import {
   CreateUpdateChannelOnAppMutation,
   CreateUpdateChannelOnAppMutationVariables,
-} from '../../graphql/generated';
-import { BranchQuery } from '../../graphql/queries/BranchQuery';
-import Log from '../../log';
-import { getExpoConfig } from '../../project/expoConfig';
+} from '../../graphql/generated.js';
+import { BranchQuery } from '../../graphql/queries/BranchQuery.js';
+import Log from '../../log.js';
+import { getExpoConfig } from '../../project/expoConfig.js';
 import {
   findProjectRootAsync,
   getProjectFullNameAsync,
   getProjectIdAsync,
-} from '../../project/projectUtils';
-import { promptAsync } from '../../prompts';
-import formatFields from '../../utils/formatFields';
-import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
-import { createUpdateBranchOnAppAsync } from '../branch/create';
+} from '../../project/projectUtils.js';
+import { promptAsync } from '../../prompts.js';
+import formatFields from '../../utils/formatFields.js';
+import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json.js';
+import { createUpdateBranchOnAppAsync } from '../branch/create.js';
 
 export async function createUpdateChannelOnAppAsync({
   appId,

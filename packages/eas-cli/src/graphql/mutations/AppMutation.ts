@@ -1,8 +1,8 @@
 import assert from 'assert';
-import gql from 'graphql-tag';
+import { gql } from 'graphql-tag';
 
-import { graphqlClient, withErrorHandlingAsync } from '../client';
-import { AppPrivacy, CreateAppMutation, CreateAppMutationVariables } from '../generated';
+import { graphqlClient, withErrorHandlingAsync } from '../client.js';
+import { AppPrivacy, CreateAppMutation, CreateAppMutationVariables } from '../generated.js';
 
 export const AppMutation = {
   async createAppAsync(appInput: {

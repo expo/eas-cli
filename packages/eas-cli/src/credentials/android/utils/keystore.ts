@@ -1,18 +1,18 @@
-import spawnAsync from '@expo/spawn-async';
+import { default as spawnAsync } from '@expo/spawn-async';
 import chalk from 'chalk';
 import crypto from 'crypto';
 import fs from 'fs-extra';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 
-import { Analytics, BuildEvent } from '../../../analytics/events';
-import fetch from '../../../fetch';
-import { AndroidKeystoreType } from '../../../graphql/generated';
-import { KeystoreGenerationUrlMutation } from '../../../graphql/mutations/KeystoreGenerationUrlMutation';
-import Log from '../../../log';
-import { ora } from '../../../ora';
-import { getTmpDirectory } from '../../../utils/paths';
-import { KeystoreWithType } from '../credentials';
+import { Analytics, BuildEvent } from '../../../analytics/events.js';
+import fetch from '../../../fetch.js';
+import { AndroidKeystoreType } from '../../../graphql/generated.js';
+import { KeystoreGenerationUrlMutation } from '../../../graphql/mutations/KeystoreGenerationUrlMutation.js';
+import Log from '../../../log.js';
+import { ora } from '../../../ora.js';
+import { getTmpDirectory } from '../../../utils/paths.js';
+import { KeystoreWithType } from '../credentials.js';
 
 interface KeystoreParams {
   keystorePassword: string;

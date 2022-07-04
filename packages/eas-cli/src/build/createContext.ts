@@ -1,22 +1,24 @@
 import { Platform } from '@expo/eas-build-job';
 import { BuildProfile } from '@expo/eas-json';
-import JsonFile from '@expo/json-file';
+import JsonFileModule from '@expo/json-file';
 import resolveFrom from 'resolve-from';
 import { v4 as uuidv4 } from 'uuid';
 
-import { TrackingContext } from '../analytics/common';
-import { Analytics, BuildEvent } from '../analytics/events';
-import { CredentialsContext } from '../credentials/context';
-import { BuildResourceClass } from '../graphql/generated';
-import { getExpoConfig } from '../project/expoConfig';
-import { getProjectAccountName, getProjectIdAsync } from '../project/projectUtils';
-import { resolveWorkflowAsync } from '../project/workflow';
-import { findAccountByName } from '../user/Account';
-import { ensureLoggedInAsync } from '../user/actions';
-import { createAndroidContextAsync } from './android/build';
-import { BuildContext, CommonContext } from './context';
-import { createIosContextAsync } from './ios/build';
-import { LocalBuildOptions } from './local';
+import { TrackingContext } from '../analytics/common.js';
+import { Analytics, BuildEvent } from '../analytics/events.js';
+import { CredentialsContext } from '../credentials/context.js';
+import { BuildResourceClass } from '../graphql/generated.js';
+import { getExpoConfig } from '../project/expoConfig.js';
+import { getProjectAccountName, getProjectIdAsync } from '../project/projectUtils.js';
+import { resolveWorkflowAsync } from '../project/workflow.js';
+import { findAccountByName } from '../user/Account.js';
+import { ensureLoggedInAsync } from '../user/actions.js';
+import { createAndroidContextAsync } from './android/build.js';
+import { BuildContext, CommonContext } from './context.js';
+import { createIosContextAsync } from './ios/build.js';
+import { LocalBuildOptions } from './local.js';
+
+const JsonFile = JsonFileModule.default;
 
 export async function createBuildContextAsync<T extends Platform>({
   buildProfileName,

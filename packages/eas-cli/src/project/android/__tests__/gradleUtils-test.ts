@@ -2,8 +2,8 @@ import fs from 'fs';
 import { vol } from 'memfs';
 import path from 'path';
 
-import pick from '../../../utils/expodash/pick';
-import { getAppBuildGradleAsync, parseGradleCommand, resolveConfigValue } from '../gradleUtils';
+import pick from '../../../utils/expodash/pick.js';
+import { getAppBuildGradleAsync, parseGradleCommand, resolveConfigValue } from '../gradleUtils.js';
 
 const fsReal = jest.requireActual('fs') as typeof fs;
 

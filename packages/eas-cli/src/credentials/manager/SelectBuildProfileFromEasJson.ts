@@ -1,8 +1,8 @@
 import { Platform } from '@expo/eas-build-job';
 import { BuildProfile, EasJsonReader } from '@expo/eas-json';
 
-import Log from '../../log';
-import { promptAsync } from '../../prompts';
+import Log from '../../log.js';
+import { promptAsync } from '../../prompts.js';
 
 export class SelectBuildProfileFromEasJson<T extends Platform> {
   private easJsonReader: EasJsonReader;

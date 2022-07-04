@@ -1,10 +1,10 @@
 import chalk from 'chalk';
 import { URL } from 'url';
 
-import { getExpoWebsiteBaseUrl } from '../../api';
-import { SubmissionFragment } from '../../graphql/generated';
-import Log from '../../log';
-import { appPlatformDisplayNames } from '../../platform';
+import { getExpoWebsiteBaseUrl } from '../../api.js';
+import { SubmissionFragment } from '../../graphql/generated.js';
+import Log from '../../log.js';
+import { appPlatformDisplayNames } from '../../platform.js';
 
 export function printSubmissionDetailsUrls(submissions: SubmissionFragment[]): void {
   if (submissions.length === 1) {
