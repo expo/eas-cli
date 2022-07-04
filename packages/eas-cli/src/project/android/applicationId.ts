@@ -55,7 +55,7 @@ export async function getApplicationIdFromBareAsync(
     if (applicationIdSuffix) {
       throw new Error('"applicationIdSuffix" in app/build.gradle is not supported.');
     }
-    const applicationId = gradleUtils.resolveConfigValue(
+    const applicationId = process.env.EAS_BUILD_APPLICATION_ID_OVERRIDES ?? gradleUtils.resolveConfigValue(
       buildGradle,
       'applicationId',
       gradleContext.flavor

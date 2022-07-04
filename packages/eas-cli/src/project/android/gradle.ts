@@ -40,7 +40,7 @@ export async function resolveGradleBuildContextAsync(
     } catch (err: any) {
       Log.warn(`Unable to read gradle project config: ${err.message}.`);
       Log.warn('Values from app/build.gradle might be resolved incorrectly.');
-      return undefined;
+      return { moduleName: gradleUtils.DEFAULT_MODULE_NAME, flavor: 'versioning' };
     }
   } else {
     return { moduleName: gradleUtils.DEFAULT_MODULE_NAME };
