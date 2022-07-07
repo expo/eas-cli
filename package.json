@@ -15,7 +15,8 @@
     "lint": "eslint .",
     "release": "./scripts/bin/run update-local-plugin && lerna version --exact",
     "test": "jest",
-    "clean": "lerna run clean && rm -rf node_modules coverage"
+    "clean": "lerna run clean && rm -rf node_modules coverage",
+    "test-esm-imports": "lerna run test-esm-imports"
   },
   "devDependencies": {
     "@types/jest": "27.5.0",

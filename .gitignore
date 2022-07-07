@@ -19,3 +19,6 @@ node_modules
 
 # Tests
 coverage
+
+# Copies of script for testing ESM imports
+packages/*/scripts/testESMImports.ts
