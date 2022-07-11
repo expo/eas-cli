@@ -8,6 +8,14 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [0.55.0](https://github.com/expo/eas-cli/releases/tag/v0.55.0) - 2022-07-11
+
+### 🎉 New features
+
 - Show bundler output by default for eas update command. ([#1171](https://github.com/expo/eas-cli/pull/1171) by [@kgc00](https://github.com/kgc00/))
 - Allow users to skip metadata validation. ([#1175](https://github.com/expo/eas-cli/pull/1175) by [@byCedric](https://github.com/byCedric))
 - Add experimental `--resource-class` flag for Build commands. ([#1138](https://github.com/expo/eas-cli/pull/1138) by [@christopherwalter](https://github.com/christopherwalter))
