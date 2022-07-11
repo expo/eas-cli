@@ -1,3 +1,5 @@
+import { jest } from '@jest/globals';
+
 /* eslint-disable no-console */
 beforeAll(() => {
   console.log = jest.fn();

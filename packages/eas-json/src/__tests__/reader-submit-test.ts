@@ -1,4 +1,5 @@
 import { Platform } from '@expo/eas-build-job';
+import { jest } from '@jest/globals';
 import fs from 'fs-extra';
 import { vol } from 'memfs';
 

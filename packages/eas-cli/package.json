@@ -82,6 +82,7 @@
     "@graphql-codegen/introspection": "2.1.1",
     "@graphql-codegen/typescript": "2.4.11",
     "@graphql-codegen/typescript-operations": "2.4.0",
+    "@jest/globals": "28.1.2",
     "@types/cli-progress": "3.9.2",
     "@types/dateformat": "3.0.1",
     "@types/envinfo": "7.8.1",

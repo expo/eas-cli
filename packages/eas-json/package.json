@@ -17,6 +17,7 @@
     "tslib": "2.4.0"
   },
   "devDependencies": {
+    "@jest/globals": "28.1.2",
     "@types/fs-extra": "9.0.13",
     "globby": "13.1.2",
     "memfs": "3.4.3",
@@ -36,7 +37,7 @@
     "watch": "yarn build --watch --preserveWatchOutput",
     "typecheck": "tsc",
     "prepack": "rm -rf build && yarn build",
-    "test": "NODE_OPTIONS=--experimental-vm-modules jest",
+    "test": "NODE_OPTIONS=\"--experimental-vm-modules --es-module-specifier-resolution=node\" jest",
     "clean": "rm -rf build node_modules yarn-error.log",
     "test-esm-imports": "cp ../../scripts/src/testESMImports.ts scripts/ && ts-node-esm ./scripts/testESMImports.ts 'build/**/*.js'"
   },
