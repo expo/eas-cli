@@ -1,4 +1,4 @@
-import { IOSConfig } from '@expo/config-plugins';
+import { AndroidConfig, IOSConfig } from '@expo/config-plugins';
 import { Platform, Workflow } from '@expo/eas-build-job';
 import fs from 'fs-extra';
 import path from 'path';
@@ -9,23 +9,26 @@ export async function resolveWorkflowAsync(
   projectDir: string,
   platform: Platform
 ): Promise<Workflow> {
-  let platformWorkflowMarker;
+  let platformWorkflowMarkers: string[];
   try {
-    platformWorkflowMarker =
+    platformWorkflowMarkers =
       platform === Platform.ANDROID
-        ? path.join(projectDir, 'android/app/build.gradle')
-        : IOSConfig.Paths.getPBXProjectPath(projectDir);
+        ? [
+            path.join(projectDir, 'android/app/build.gradle'),
+            await AndroidConfig.Paths.getAndroidManifestAsync(projectDir),
+          ]
+        : [IOSConfig.Paths.getPBXProjectPath(projectDir)];
   } catch {
     return Workflow.MANAGED;
   }
 
-  if (await fs.pathExists(platformWorkflowMarker)) {
-    return (await getVcsClient().isFileIgnoredAsync(
-      path.relative(projectDir, platformWorkflowMarker)
-    ))
-      ? Workflow.MANAGED
-      : Workflow.GENERIC;
-  } else {
-    return Workflow.MANAGED;
+  for (const marker of platformWorkflowMarkers) {
+    if (
+      (await fs.pathExists(marker)) &&
+      !(await getVcsClient().isFileIgnoredAsync(path.relative(projectDir, marker)))
+    ) {
+      return Workflow.GENERIC;
+    }
   }
+  return Workflow.MANAGED;
 }

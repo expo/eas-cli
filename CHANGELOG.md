@@ -6,8 +6,6 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🛠 Breaking changes
 
-- Use `android/app/build.gradle` file to detect project workflow. ([#1203](https://github.com/expo/eas-cli/pull/1203) by [@wkozyra95](https://github.com/wkozyra95))
-
 ### 🎉 New features
 
 - Show bundler output by default for eas update command. ([#1171](https://github.com/expo/eas-cli/pull/1171) by [@kgc00](https://github.com/kgc00/))
