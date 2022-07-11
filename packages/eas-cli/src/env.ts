@@ -4,8 +4,8 @@ export default {
    */
 
   /**
-   * Overrides applicationId read from android project, setting this option will also
-   * ignore failures when parsing build.gradle
+   * Overrides applicationId from Android project, setting this option will also
+   * ignore failures when parsing build.gradle.
    */
   overrideAndroidApplicationId: process.env.EAS_DANGEROUS_OVERRIDE_ANDROID_APPLICATION_ID,
 };
