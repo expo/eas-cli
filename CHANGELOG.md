@@ -15,6 +15,7 @@ This is the log of notable changes to EAS CLI and related packages.
 - Add experimental `--resource-class` flag for Build commands. ([#1138](https://github.com/expo/eas-cli/pull/1138) by [@christopherwalter](https://github.com/christopherwalter))
 - Truncate long messages for `eas update` command, rather than failing. ([#1178](https://github.com/expo/eas-cli/pull/1178) by [@kgc00](https://github.com/kgc00))
 - Add review details to metadata store configuration. ([#1184](https://github.com/expo/eas-cli/pull/1184) by [@byCedric](https://github.com/byCedric))
+- Override applicationId via env. ([#1203](https://github.com/expo/eas-cli/pull/1203) by [@wkozyra95](https://github.com/wkozyra95))
 
 ### 🐛 Bug fixes
 
