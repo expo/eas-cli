@@ -36,7 +36,7 @@
     "watch": "yarn build --watch --preserveWatchOutput",
     "typecheck": "tsc",
     "prepack": "rm -rf build && yarn build",
-    "test": "jest",
+    "test": "NODE_OPTIONS=--experimental-vm-modules jest",
     "clean": "rm -rf build node_modules yarn-error.log",
     "test-esm-imports": "cp ../../scripts/src/testESMImports.ts scripts/ && ts-node-esm ./scripts/testESMImports.ts 'build/**/*.js'"
   },
