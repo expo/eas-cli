@@ -1,4 +1,4 @@
-import { fixArchiveUrl } from '../uploads';
+import { fixArchiveUrl } from '../files';
 
 describe(fixArchiveUrl, () => {
   it('fixes broken links', () => {

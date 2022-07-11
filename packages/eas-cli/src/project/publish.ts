@@ -297,7 +297,7 @@ export async function uploadAssetsAsync(
     missingAssets.map((missingAsset, i) => {
       assetUploadPromiseLimit(async () => {
         const presignedPost: PresignedPost = JSON.parse(specifications[i]);
-        return uploadWithPresignedPostAsync(missingAsset.path, presignedPost);
+        await uploadWithPresignedPostAsync(missingAsset.path, presignedPost);
       });
     })
   );
