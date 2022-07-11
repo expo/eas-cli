@@ -27,6 +27,10 @@ jobs:
         if: ${{ !matrix.coverage }}
       - run: yarn test --coverage
         if: ${{ matrix.coverage }}
+        env:
+          # Oclif seems to cause OOM errors when testing with coverage enabled.
+          # Remove this whenever we solved those OOM errors.
+          NODE_OPTIONS: --max-old-space-size=4096
       - run: yarn lint --max-warnings=0
       - run: shellcheck bin/*.sh
       - uses: codecov/codecov-action@v1
