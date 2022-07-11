@@ -1,4 +1,4 @@
-import { AndroidConfig, IOSConfig } from '@expo/config-plugins';
+import { IOSConfig } from '@expo/config-plugins';
 import { Platform, Workflow } from '@expo/eas-build-job';
 import fs from 'fs-extra';
 import path from 'path';
@@ -13,7 +13,7 @@ export async function resolveWorkflowAsync(
   try {
     platformWorkflowMarker =
       platform === Platform.ANDROID
-        ? await AndroidConfig.Paths.getAndroidManifestAsync(projectDir)
+        ? path.join(projectDir, 'android/app/build.gradle')
         : IOSConfig.Paths.getPBXProjectPath(projectDir);
   } catch {
     return Workflow.MANAGED;

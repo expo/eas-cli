@@ -7,6 +7,7 @@ import fs from 'fs-extra';
 import nullthrows from 'nullthrows';
 
 import { readAppJson } from '../../build/utils/appJson';
+import env from '../../env';
 import Log, { learnMore } from '../../log';
 import { getProjectConfigDescription, getUsername } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
@@ -43,6 +44,9 @@ export async function getApplicationIdFromBareAsync(
   projectDir: string,
   gradleContext?: GradleBuildContext
 ): Promise<string> {
+  if (env.overrideAndroidApplicationId) {
+    return env.overrideAndroidApplicationId;
+  }
   const errorMessage = 'Could not read applicationId from Android project.';
 
   if (gradleContext) {
