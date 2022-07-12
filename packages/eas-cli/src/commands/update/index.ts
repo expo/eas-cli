@@ -437,7 +437,7 @@ export default class UpdatePublish extends EasCommand {
         }
       }
 
-      const assetSpinner = ora({ isEnabled: true }).start('Uploading assets...');
+      const assetSpinner = ora().start('Uploading assets...');
       try {
         const platforms = platformFlag === 'all' ? defaultPublishPlatforms : [platformFlag];
         const assets = await collectAssetsAsync({ inputDir: inputDir!, platforms });

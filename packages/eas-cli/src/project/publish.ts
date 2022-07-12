@@ -304,7 +304,9 @@ export async function uploadAssetsAsync(
 
   let timeout = 1;
   while (missingAssets.length > 0) {
-    const timeoutPromise = new Promise(resolve => setTimeout(resolve, timeout * 1000)); // linear backoff
+    const timeoutPromise = new Promise(resolve =>
+      setTimeout(resolve, Math.min(timeout * 1000, 5000))
+    ); // linear backoff
     missingAssets = await filterOutAssetsThatAlreadyExistAsync(missingAssets);
     await timeoutPromise; // await after filterOutAssetsThatAlreadyExistAsync for easy mocking with jest.runAllTimers
     timeout += 1;
