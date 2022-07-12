@@ -34,7 +34,7 @@ function resolveProfile({
   profileName: string;
   depth?: number;
 }): EasJsonBuildProfileResolved {
-  if (depth >= 2) {
+  if (depth >= 5) {
     throw new Error(
       'Too long chain of profile extensions, make sure "extends" keys do not make a cycle'
     );
