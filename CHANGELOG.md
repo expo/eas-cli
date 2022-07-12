@@ -10,9 +10,13 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
-- Fix asset upload crash. ([#1205](https://github.com/expo/eas-cli/pull/1205) by [@wschurman](https://github.com/wschurman))
-
 ### 🧹 Chores
+
+## [0.55.1](https://github.com/expo/eas-cli/releases/tag/v0.55.1) - 2022-07-12
+
+### 🐛 Bug fixes
+
+- Fix asset upload crash. ([#1205](https://github.com/expo/eas-cli/pull/1205) by [@wschurman](https://github.com/wschurman))
 
 ## [0.55.0](https://github.com/expo/eas-cli/releases/tag/v0.55.0) - 2022-07-11
 
