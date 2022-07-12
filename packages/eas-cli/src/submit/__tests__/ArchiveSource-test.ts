@@ -1,7 +1,6 @@
 import { Platform } from '@expo/eas-build-job';
 import fs from 'fs-extra';
 import { vol } from 'memfs';
-import { Headers, Response } from 'node-fetch';
 import { v4 as uuidv4 } from 'uuid';
 
 import { AppPlatform, BuildFragment, UploadSessionType } from '../../graphql/generated';
@@ -244,8 +243,7 @@ describe(getArchiveAsync, () => {
     const path = '/archive.apk';
     await fs.writeFile(path, 'some content');
 
-    const response = new Response(undefined, { headers: new Headers([['location', ARCHIVE_URL]]) });
-    jest.mocked(uploadAsync).mockResolvedValueOnce({ response, bucketKey: 'wat' });
+    jest.mocked(uploadAsync).mockResolvedValueOnce({ url: ARCHIVE_URL, bucketKey: 'wat' });
 
     const archive = await getArchiveAsync({
       ...SOURCE_STUB_INPUT,

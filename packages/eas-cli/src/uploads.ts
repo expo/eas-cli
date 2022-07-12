@@ -2,6 +2,8 @@ import assert from 'assert';
 import FormData from 'form-data';
 import fs from 'fs-extra';
 import { Response } from 'node-fetch';
+import nullthrows from 'nullthrows';
+import { URL } from 'url';
 
 import fetch from './fetch';
 import { UploadSessionType } from './graphql/generated';
@@ -12,12 +14,17 @@ export async function uploadAsync(
   type: UploadSessionType,
   path: string,
   handleProgressEvent: ProgressHandler
-): Promise<{ response: Response; bucketKey: string }> {
+): Promise<{ url: string; bucketKey: string }> {
   const presignedPost = await UploadSessionMutation.createUploadSessionAsync(type);
   assert(presignedPost.fields.key, 'key is not specified in in presigned post');
 
   const response = await uploadWithPresignedPostAsync(path, presignedPost, handleProgressEvent);
-  return { response, bucketKey: presignedPost.fields.key };
+  const location = nullthrows(
+    response.headers.get('location'),
+    `location does not exist in response headers (make sure you're uploading to AWS S3)`
+  );
+  const url = fixS3Url(location);
+  return { url, bucketKey: presignedPost.fields.key };
 }
 
 export async function uploadWithPresignedPostAsync(
@@ -64,4 +71,15 @@ export async function uploadWithPresignedPostAsync(
   } else {
     return await uploadPromise;
   }
+}
+
+/**
+ * S3 returns broken URLs, sth like:
+ * https://submission-service-archives.s3.amazonaws.com/production%2Fdc98ca84-1473-4cb3-ae81-8c7b291cb27e%2F4424aa95-b985-4e2f-8755-9507b1037c1c
+ * This function replaces %2F with /.
+ */
+export function fixS3Url(archiveUrl: string): string {
+  const parsed = new URL(archiveUrl);
+  parsed.pathname = decodeURIComponent(parsed.pathname);
+  return parsed.toString();
 }
