@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Show spinner instead of silently timing out during asset upload. ([#1206](https://github.com/expo/eas-cli/pull/1206) by [@wschurman](https://github.com/wschurman))
+
 ### 🧹 Chores
 
 - Increase max number of chained "extends" in build profiles. ([#1208](https://github.com/expo/eas-cli/pull/1208) by [@wkozyra95](https://github.com/wkozyra95))
