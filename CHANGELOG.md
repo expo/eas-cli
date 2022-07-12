@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Increase max number of chained "extends" in build profiles. ([#1208](https://github.com/expo/eas-cli/pull/1208) by [@wkozyra95](https://github.com/wkozyra95))
+
 ## [0.55.1](https://github.com/expo/eas-cli/releases/tag/v0.55.1) - 2022-07-12
 
 ### 🐛 Bug fixes
