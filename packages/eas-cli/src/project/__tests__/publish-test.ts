@@ -9,7 +9,6 @@ import { PublishMutation } from '../../graphql/mutations/PublishMutation';
 import { PublishQuery } from '../../graphql/queries/PublishQuery';
 import {
   MetadataJoi,
-  TIMEOUT_LIMIT,
   buildUnsortedUpdateInfoGroupAsync,
   collectAssetsAsync,
   convertAssetToUpdateInfoGroupFormatAsync,
@@ -412,38 +411,6 @@ describe(uploadAssetsAsync, () => {
     return { specifications: ['{}', '{}', '{}'] };
   });
 
-  // beforeEach(() => {
-  //   jest.useFakeTimers();
-  // });
-  it('throws an error if the upload exceeds TIMEOUT_LIMIT', async () => {
-    jest.spyOn(PublishQuery, 'getAssetMetadataAsync').mockImplementation(async () => {
-      const status = AssetMetadataStatus.DoesNotExist;
-      mockdate.set(Date.now() + TIMEOUT_LIMIT + 1);
-      jest.runAllTimers();
-      return [
-        {
-          storageKey: 'qbgckgkgfdjnNuf9dQd7FDTWUmlEEzg7l1m1sKzQaq0',
-          status,
-          __typename: 'AssetMetadataResult',
-        }, // userDefinedAsset
-        {
-          storageKey: 'bbjgXFSIXtjviGwkaPFY0HG4dVVIGiXHAboRFQEqVa4',
-          status,
-          __typename: 'AssetMetadataResult',
-        }, // android.code
-        {
-          storageKey: 'dP-nC8EJXKz42XKh_Rc9tYxiGAT-ilpkRltEi6HIKeQ',
-          status,
-          __typename: 'AssetMetadataResult',
-        }, // ios.code
-      ];
-    });
-
-    mockdate.set(0);
-    await expect(uploadAssetsAsync(assetsForUpdateInfoGroup)).rejects.toThrow(
-      'Asset upload timed out. Please try again.'
-    );
-  });
   it('resolves if the assets are already uploaded', async () => {
     jest.spyOn(PublishQuery, 'getAssetMetadataAsync').mockImplementation(async () => {
       const status = AssetMetadataStatus.Exists;
@@ -530,15 +497,15 @@ describe(uploadAssetsAsync, () => {
         }, // ios.code
       ];
     });
-    const updateSpinnerFn = jest.fn(_text => {});
+    const updateSpinnerFn = jest.fn((_totalAssets, _missingAssets) => {});
 
     mockdate.set(0);
     await uploadAssetsAsync(assetsForUpdateInfoGroup, updateSpinnerFn);
     const calls = updateSpinnerFn.mock.calls;
     expect(calls).toEqual([
-      ['6 assets present'],
-      ['3 unique assets found'],
-      ['2 new assets uploading'],
+      [3, 3],
+      [3, 2],
+      [3, 0],
     ]);
   });
 });

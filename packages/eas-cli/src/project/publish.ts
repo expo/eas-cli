@@ -15,8 +15,6 @@ import { uploadWithPresignedPostAsync } from '../uploads';
 import { expoCommandAsync } from '../utils/expoCli';
 import uniqBy from '../utils/expodash/uniqBy';
 
-export const TIMEOUT_LIMIT = 60_000; // 1 minute
-
 export type PublishPlatform = Extract<'android' | 'ios', Platform>;
 type Metadata = {
   version: number;
@@ -255,7 +253,7 @@ type AssetUploadResult = {
 
 export async function uploadAssetsAsync(
   assetsForUpdateInfoGroup: CollectedAssets,
-  updateSpinnerText?: (updatedText: string) => void
+  updateSpinnerText?: (totalAssets: number, missingAssets: number) => void
 ): Promise<AssetUploadResult> {
   let assets: RawAsset[] = [];
   let platform: keyof CollectedAssets;
@@ -266,7 +264,6 @@ export async function uploadAssetsAsync(
       ...assetsForUpdateInfoGroup[platform]!.assets,
     ];
   }
-  updateSpinnerText?.(`${assets.length} ${assets.length === 1 ? 'asset' : 'assets'} present`);
 
   const assetsWithStorageKey = await Promise.all(
     assets.map(async asset => {
@@ -281,15 +278,18 @@ export async function uploadAssetsAsync(
       storageKey: string;
     }
   >(assetsWithStorageKey, asset => asset.storageKey);
-  updateSpinnerText?.(
-    `${uniqueAssets.length} unique ${uniqueAssets.length === 1 ? 'asset' : 'assets'} found`
-  );
+
+  const totalAssets = uniqueAssets.length;
+
+  updateSpinnerText?.(totalAssets, totalAssets);
 
   let missingAssets = await filterOutAssetsThatAlreadyExistAsync(uniqueAssets);
   const uniqueUploadedAssetCount = missingAssets.length;
   const { specifications } = await PublishMutation.getUploadURLsAsync(
     missingAssets.map(ma => ma.contentType)
   );
+
+  updateSpinnerText?.(totalAssets, missingAssets.length);
 
   const assetUploadPromiseLimit = promiseLimit(15);
 
@@ -302,21 +302,15 @@ export async function uploadAssetsAsync(
     })
   );
 
-  updateSpinnerText?.(
-    `${missingAssets.length} new ${missingAssets.length === 1 ? 'asset' : 'assets'} uploading`
-  );
-  // Wait up to TIMEOUT_LIMIT for assets to be uploaded and processed
-  const start = Date.now();
   let timeout = 1;
   while (missingAssets.length > 0) {
-    const timeoutPromise = new Promise(resolve => setTimeout(resolve, timeout * 1000)); // linear backoff
+    const timeoutPromise = new Promise(resolve =>
+      setTimeout(resolve, Math.min(timeout * 1000, 5000))
+    ); // linear backoff
     missingAssets = await filterOutAssetsThatAlreadyExistAsync(missingAssets);
     await timeoutPromise; // await after filterOutAssetsThatAlreadyExistAsync for easy mocking with jest.runAllTimers
     timeout += 1;
-
-    if (Date.now() - start > TIMEOUT_LIMIT) {
-      throw new Error('Asset upload timed out. Please try again.');
-    }
+    updateSpinnerText?.(totalAssets, missingAssets.length);
   }
   return {
     assetCount: assets.length,

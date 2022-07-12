@@ -443,7 +443,11 @@ export default class UpdatePublish extends EasCommand {
         const assets = await collectAssetsAsync({ inputDir: inputDir!, platforms });
         const { uniqueUploadedAssetCount } = await uploadAssetsAsync(
           assets,
-          spinnerText => (assetSpinner.text = `Uploading assets... ${spinnerText}`)
+          (totalAssets, missingAssets) => {
+            assetSpinner.text = `Uploading assets. Finished (${
+              totalAssets - missingAssets
+            }/${totalAssets})`;
+          }
         );
         uploadedAssetCount = uniqueUploadedAssetCount;
         unsortedUpdateInfoGroups = await buildUnsortedUpdateInfoGroupAsync(assets, exp);
