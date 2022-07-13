@@ -834,6 +834,7 @@ export type App = Project & {
   isLikedByMe: Scalars['Boolean'];
   /** @deprecated No longer supported */
   lastPublishedTime: Scalars['DateTime'];
+  latestAppVersionByPlatformAndApplicationIdentifier?: Maybe<AppVersion>;
   latestReleaseForReleaseChannel?: Maybe<AppRelease>;
   /** ID of latest classic update release */
   latestReleaseId: Scalars['ID'];
@@ -953,6 +954,13 @@ export type AppEnvironmentSecretsArgs = {
 /** Represents an Exponent App (or Experience in legacy terms) */
 export type AppIosAppCredentialsArgs = {
   filter?: InputMaybe<IosAppCredentialsFilter>;
+};
+
+
+/** Represents an Exponent App (or Experience in legacy terms) */
+export type AppLatestAppVersionByPlatformAndApplicationIdentifierArgs = {
+  applicationIdentifier: Scalars['String'];
+  platform: AppPlatform;
 };
 
 
@@ -1198,6 +1206,52 @@ export enum AppStoreConnectUserRole {
   Unknown = 'UNKNOWN'
 }
 
+/** Represents Playstore/Appstore version of an application */
+export type AppVersion = {
+  __typename?: 'AppVersion';
+  /**
+   * Store identifier for an application
+   *  - for Android applicationId
+   *  - for iOS bundle identifier
+   */
+  applicationIdentifier: Scalars['String'];
+  /**
+   * Value that identifies build in a store (it's visible to developers, but not to end users)
+   * - Android - versionCode in build.gradle ("android.versionCode" field in app.json)
+   * - iOS - CFBundleVersion in Info.plist ("ios.buildNumber" field in app.json)
+   */
+  buildVersion: Scalars['String'];
+  id: Scalars['ID'];
+  platform: AppPlatform;
+  runtimeVersion?: Maybe<Scalars['String']>;
+  /**
+   * User-facing version in a store
+   * - Android - versionName in build.gradle ("version" field in app.json)
+   * - iOS - CFBundleShortVersionString in Info.plist ("version" field in app.json)
+   */
+  storeVersion: Scalars['String'];
+};
+
+export type AppVersionInput = {
+  appId: Scalars['ID'];
+  applicationIdentifier: Scalars['String'];
+  buildVersion: Scalars['String'];
+  platform: AppPlatform;
+  runtimeVersion?: InputMaybe<Scalars['String']>;
+  storeVersion: Scalars['String'];
+};
+
+export type AppVersionMutation = {
+  __typename?: 'AppVersionMutation';
+  /** Create an app version */
+  createAppVersion: AppVersion;
+};
+
+
+export type AppVersionMutationCreateAppVersionArgs = {
+  appVersionInput: AppVersionInput;
+};
+
 export type AppleAppIdentifier = {
   __typename?: 'AppleAppIdentifier';
   account: Account;
@@ -1414,7 +1468,7 @@ export type ApplePushKey = {
 };
 
 export type ApplePushKeyInput = {
-  appleTeamId?: InputMaybe<Scalars['ID']>;
+  appleTeamId: Scalars['ID'];
   keyIdentifier: Scalars['String'];
   keyP8: Scalars['String'];
 };
@@ -1584,6 +1638,7 @@ export type Build = ActivityTimelineProjectActivity & BuildOrBuildJob & {
   iosEnterpriseProvisioning?: Maybe<BuildIosEnterpriseProvisioning>;
   isGitWorkingTreeDirty?: Maybe<Scalars['Boolean']>;
   logFiles: Array<Scalars['String']>;
+  maxBuildTimeSeconds: Scalars['Int'];
   metrics?: Maybe<BuildMetrics>;
   parentBuild?: Maybe<Build>;
   platform: AppPlatform;
@@ -1817,7 +1872,8 @@ export type BuildParamsInput = {
 
 export enum BuildPriority {
   High = 'HIGH',
-  Normal = 'NORMAL'
+  Normal = 'NORMAL',
+  NormalPlus = 'NORMAL_PLUS'
 }
 
 /** Publicly visible data for a Build. */
@@ -2910,6 +2966,8 @@ export type RootMutation = {
   app?: Maybe<AppMutation>;
   /** Mutations that modify an App Store Connect Api Key */
   appStoreConnectApiKey: AppStoreConnectApiKeyMutation;
+  /** Mutations that modify an AppVersion */
+  appVersion?: Maybe<AppVersionMutation>;
   /** Mutations that modify an Identifier for an iOS App */
   appleAppIdentifier: AppleAppIdentifierMutation;
   /** Mutations that modify an Apple Device */
@@ -2964,6 +3022,11 @@ export type RootMutationAccountArgs = {
 
 export type RootMutationAppArgs = {
   appId?: InputMaybe<Scalars['ID']>;
+};
+
+
+export type RootMutationAppVersionArgs = {
+  appVersionId?: InputMaybe<Scalars['ID']>;
 };
 
 
@@ -4330,6 +4393,13 @@ export type CreateAppMutationVariables = Exact<{
 
 export type CreateAppMutation = { __typename?: 'RootMutation', app?: { __typename?: 'AppMutation', createApp: { __typename?: 'App', id: string } } | null };
 
+export type CreateAppVersionMutationVariables = Exact<{
+  appVersionInput: AppVersionInput;
+}>;
+
+
+export type CreateAppVersionMutation = { __typename?: 'RootMutation', appVersion?: { __typename?: 'AppVersionMutation', createAppVersion: { __typename?: 'AppVersion', id: string } } | null };
+
 export type CreateAndroidBuildMutationVariables = Exact<{
   appId: Scalars['ID'];
   job: AndroidJobInput;
@@ -4447,6 +4517,15 @@ export type DeleteWebhookMutationVariables = Exact<{
 
 
 export type DeleteWebhookMutation = { __typename?: 'RootMutation', webhook: { __typename?: 'WebhookMutation', deleteWebhook: { __typename?: 'DeleteWebhookResult', id: string } } };
+
+export type LatestAppVersionQueryVariables = Exact<{
+  appId: Scalars['String'];
+  platform: AppPlatform;
+  applicationIdentifier: Scalars['String'];
+}>;
+
+
+export type LatestAppVersionQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', latestAppVersionByPlatformAndApplicationIdentifier?: { __typename?: 'AppVersion', storeVersion: string, buildVersion: string } | null } } };
 
 export type ViewBranchQueryVariables = Exact<{
   appId: Scalars['String'];
