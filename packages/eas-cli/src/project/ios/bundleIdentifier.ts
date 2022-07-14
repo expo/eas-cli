@@ -152,10 +152,10 @@ export function warnIfBundleIdentifierDefinedInAppConfigForBareWorkflowProject(
 ): void {
   if (IOSConfig.BundleIdentifier.getBundleIdentifier(exp) && !warnPrinted) {
     Log.warn(
-      `Specifying "ios.bundleIdentifier" in ${getProjectConfigDescription(
+      `Specified value for "ios.bundleIdentifier" in ${getProjectConfigDescription(
         projectDir
-      )} is deprecated for bare workflow projects.\n` +
-        'EAS Build depends only on the value in the native code. Please remove the deprecated configuration.'
+      )} is ignored if native project folders are detected.\n` +
+        'EAS Build will use the value found in the native code.'
     );
     warnPrinted = true;
   }
