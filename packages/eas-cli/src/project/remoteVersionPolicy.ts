@@ -6,7 +6,7 @@ import fs from 'fs-extra';
 import Log from '../log';
 import { confirmAsync } from '../prompts';
 
-export async function ensureRemoteAppVersionPolicyAsync(
+export async function ensureRemoteVersionPolicyAsync(
   projectDir: string,
   easJsonReader: EasJsonReader
 ): Promise<void> {
@@ -15,47 +15,48 @@ export async function ensureRemoteAppVersionPolicyAsync(
     return;
   }
 
+  Log.log(
+    `Version policy defines whether version of your app should be based on your local project or values stored on EAS servers (remote). To use this command, you will need to enable remote version policy by adding ${chalk.bold(
+      '{"cli": { "appVersionPolicy": "remote" }}'
+    )} in eas.json.`
+  );
+  // TODO: add link to docs
   const confirm = await confirmAsync({
-    message: 'Do you want to enable remote appVersionPolicy in your eas.json? ',
+    message: 'Do you want us to enable it for you?',
   });
   if (!confirm) {
-    Log.log(
-      `To enable remote version policy add ${chalk.bold(
-        '{"cli": { "appVersionPolicy": "remote" }}'
-      )} in eas.json`
-    );
-    throw new Error('Aborting ...');
+    throw new Error('Aborting...');
   }
 
   const easJsonPath = EasJsonReader.formatEasJsonPath(projectDir);
   const easJson = await fs.readJSON(easJsonPath);
-  easJson.cli = { ...easJson?.cli, appVersionPolicy: 'remote' };
+  easJson.cli = { ...easJson?.cli, appVersionPolicy: AppVersionPolicy.REMOTE };
   await fs.writeFile(easJsonPath, `${JSON.stringify(easJson, null, 2)}\n`);
   Log.withTick('Updated eas.json');
 }
 
-export async function validateAppConfigForManagedVersionsAsync(exp: ExpoConfig): Promise<void> {
+export async function validateAppConfigForRemoteVersionPolicyAsync(exp: ExpoConfig): Promise<void> {
   if (typeof exp.runtimeVersion === 'object' && exp.runtimeVersion?.policy === 'nativeVersion') {
     throw new Error(
       `${chalk.bold('nativeVersion')} policy for ${chalk.bold(
         'runtimeVersion'
-      )} is not supported when managed versions are enabled. Switch policy e.g. to ${chalk.bold(
+      )} is currently not supported when remote version policy is enabled. Switch policy e.g. to ${chalk.bold(
         'appVersion'
-      )} or define version explicitly`
+      )} or define version explicitly.`
     );
   }
   if (exp.ios?.buildNumber !== undefined) {
     throw new Error(
       `${chalk.bold(
         'ios.buildNumber'
-      )} field in app config is not supported when managed versions are enabled, remove it and rerun the command.`
+      )} field in app config is not supported when remote version policy enabled, remove it and re-run the command.`
     );
   }
   if (exp.android?.versionCode !== undefined) {
     throw new Error(
       `${chalk.bold(
         'android.versionCode'
-      )} field in app config is not supported when managed versions are enabled, remove it and rerun the command.`
+      )} field in app config is not supported when remote version policy is enabled, remove it and re-run the command.`
     );
   }
 }

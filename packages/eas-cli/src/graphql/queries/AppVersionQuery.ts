@@ -25,10 +25,12 @@ export const AppVersionQuery = {
             ) {
               app {
                 byId(appId: $appId) {
+                  id
                   latestAppVersionByPlatformAndApplicationIdentifier(
                     platform: $platform
                     applicationIdentifier: $applicationIdentifier
                   ) {
+                    id
                     storeVersion
                     buildVersion
                   }

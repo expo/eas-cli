@@ -1,7 +1,9 @@
 import assert from 'assert';
 
+export const INVALID_BUILD_NUMBER_ERROR_MESSAGE = `Invalid value, buildNumber needs to consist only of up to 3 dot-separated positive integers.`;
+
 export function isValidBuildNumber(buildNumber: string): boolean {
-  return !!buildNumber.match(/^\d+(\.\d+)*$/);
+  return !!buildNumber.match(/^\d+(\.\d+)?(\.\d+)?$/);
 }
 
 export function getNextBuildNumber(buildNumber: string): string {

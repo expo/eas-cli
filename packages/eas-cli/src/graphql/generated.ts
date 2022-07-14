@@ -1206,13 +1206,13 @@ export enum AppStoreConnectUserRole {
   Unknown = 'UNKNOWN'
 }
 
-/** Represents Playstore/Appstore version of an application */
+/** Represents Play Store/App Store version of an application */
 export type AppVersion = {
   __typename?: 'AppVersion';
   /**
    * Store identifier for an application
-   *  - for Android applicationId
-   *  - for iOS bundle identifier
+   *  - Android - applicationId
+   *  - iOS - bundle identifier
    */
   applicationIdentifier: Scalars['String'];
   /**
@@ -2967,7 +2967,7 @@ export type RootMutation = {
   /** Mutations that modify an App Store Connect Api Key */
   appStoreConnectApiKey: AppStoreConnectApiKeyMutation;
   /** Mutations that modify an AppVersion */
-  appVersion?: Maybe<AppVersionMutation>;
+  appVersion: AppVersionMutation;
   /** Mutations that modify an Identifier for an iOS App */
   appleAppIdentifier: AppleAppIdentifierMutation;
   /** Mutations that modify an Apple Device */
@@ -3022,11 +3022,6 @@ export type RootMutationAccountArgs = {
 
 export type RootMutationAppArgs = {
   appId?: InputMaybe<Scalars['ID']>;
-};
-
-
-export type RootMutationAppVersionArgs = {
-  appVersionId?: InputMaybe<Scalars['ID']>;
 };
 
 
@@ -4398,7 +4393,7 @@ export type CreateAppVersionMutationVariables = Exact<{
 }>;
 
 
-export type CreateAppVersionMutation = { __typename?: 'RootMutation', appVersion?: { __typename?: 'AppVersionMutation', createAppVersion: { __typename?: 'AppVersion', id: string } } | null };
+export type CreateAppVersionMutation = { __typename?: 'RootMutation', appVersion: { __typename?: 'AppVersionMutation', createAppVersion: { __typename?: 'AppVersion', id: string } } };
 
 export type CreateAndroidBuildMutationVariables = Exact<{
   appId: Scalars['ID'];
@@ -4525,7 +4520,7 @@ export type LatestAppVersionQueryVariables = Exact<{
 }>;
 
 
-export type LatestAppVersionQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', latestAppVersionByPlatformAndApplicationIdentifier?: { __typename?: 'AppVersion', storeVersion: string, buildVersion: string } | null } } };
+export type LatestAppVersionQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, latestAppVersionByPlatformAndApplicationIdentifier?: { __typename?: 'AppVersion', id: string, storeVersion: string, buildVersion: string } | null } } };
 
 export type ViewBranchQueryVariables = Exact<{
   appId: Scalars['String'];

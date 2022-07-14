@@ -15,26 +15,32 @@ import {
   getApplicationIdAsync,
 } from '../../../project/android/applicationId';
 import { resolveGradleBuildContextAsync } from '../../../project/android/gradle';
-import { isValidVersionCode } from '../../../project/android/versions';
+import {
+  INVALID_VERSION_CODE_ERROR_MESSAGE,
+  isValidVersionCode,
+} from '../../../project/android/versions';
 import { getExpoConfig } from '../../../project/expoConfig';
 import { getBundleIdentifierAsync } from '../../../project/ios/bundleIdentifier';
 import { resolveXcodeBuildContextAsync } from '../../../project/ios/scheme';
 import { findApplicationTarget, resolveTargetsAsync } from '../../../project/ios/target';
-import { isValidBuildNumber } from '../../../project/ios/versions';
 import {
-  ensureRemoteAppVersionPolicyAsync,
-  validateAppConfigForManagedVersionsAsync,
-} from '../../../project/managedVersions';
+  INVALID_BUILD_NUMBER_ERROR_MESSAGE,
+  isValidBuildNumber,
+} from '../../../project/ios/versions';
 import {
   findProjectRootAsync,
   getProjectFullNameAsync,
   getProjectIdAsync,
 } from '../../../project/projectUtils';
+import {
+  ensureRemoteVersionPolicyAsync,
+  validateAppConfigForRemoteVersionPolicyAsync,
+} from '../../../project/remoteVersionPolicy';
 import { resolveWorkflowAsync } from '../../../project/workflow';
 import { promptAsync } from '../../../prompts';
 
 export default class BuildVersionSetView extends EasCommand {
-  static description = 'Set managed version for the app.';
+  static description = 'Update version of an app with remote version policy enabled.';
   static hidden = true;
 
   static flags = {
@@ -56,13 +62,13 @@ export default class BuildVersionSetView extends EasCommand {
 
     const platform = await selectPlatformAsync(flags.platform);
     const easJsonReader = new EasJsonReader(projectDir);
-    await ensureRemoteAppVersionPolicyAsync(projectDir, easJsonReader);
+    await ensureRemoteVersionPolicyAsync(projectDir, easJsonReader);
     const profile = await easJsonReader.getBuildProfileAsync(platform, flags.profile ?? undefined);
 
     const exp = getExpoConfig(projectDir, { env: profile.env });
     const projectId = await getProjectIdAsync(exp);
     const projectFullName = await getProjectFullNameAsync(exp);
-    await validateAppConfigForManagedVersionsAsync(exp);
+    await validateAppConfigForRemoteVersionPolicyAsync(exp);
 
     const applicationIdentifier = await getApplicationIdentifierAsync(
       projectDir,
@@ -79,11 +85,13 @@ export default class BuildVersionSetView extends EasCommand {
       ? `Project ${chalk.bold(projectFullName)} with ${getApplicationIdentifierName(
           platform
         )} "${applicationIdentifier}" is configured with ${getBuildVersionName(platform)} ${
-          remoteVersions?.buildVersion
-        }`
+          remoteVersions.buildVersion
+        }.`
       : `Project ${chalk.bold(projectFullName)} with ${getApplicationIdentifierName(
           platform
-        )} "${applicationIdentifier}" does not have any managed version configured`;
+        )} "${applicationIdentifier}" does not have any ${getBuildVersionName(
+          platform
+        )} configured.`;
 
     const versionPromptMessage = remoteVersions?.buildVersion
       ? `What version would you like to set?`
@@ -94,7 +102,10 @@ export default class BuildVersionSetView extends EasCommand {
       type: platform === Platform.ANDROID ? 'number' : 'text',
       name: 'version',
       message: versionPromptMessage,
-      validate: platform === Platform.ANDROID ? isValidVersionCode : isValidBuildNumber,
+      validate:
+        platform === Platform.ANDROID
+          ? value => isValidVersionCode(value) || INVALID_VERSION_CODE_ERROR_MESSAGE
+          : value => isValidBuildNumber(value) || INVALID_BUILD_NUMBER_ERROR_MESSAGE,
     });
     await AppVersionMutation.createAppVersionAsync({
       appId: projectId,
