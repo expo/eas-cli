@@ -4,23 +4,20 @@ import chalk from 'chalk';
 import CliTable from 'cli-table3';
 
 import EasCommand from '../../commandUtils/EasCommand';
-import { ViewAllUpdatesQuery } from '../../graphql/generated';
 import { UpdateQuery } from '../../graphql/queries/UpdateQuery';
 import Log from '../../log';
 import { getExpoConfig } from '../../project/expoConfig';
 import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
-import { FormatUpdateParameter, UPDATE_COLUMNS, formatUpdate } from '../../update/utils';
-import groupBy from '../../utils/expodash/groupBy';
+import { UPDATES_LIMIT } from '../../update/queries';
+import {
+  UPDATE_COLUMNS,
+  UpdateGroupDescription,
+  formatUpdate,
+  getUpdateGroupsWithPlatforms,
+} from '../../update/utils';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 import { getVcsClient } from '../../vcs';
-
-type UpdateGroupDescription = FormatUpdateParameter & {
-  branch: string;
-  group: string;
-  platforms: string;
-  runtimeVersion: string;
-};
 
 export default class BranchView extends EasCommand {
   static description = 'view the recent updates for a branch';
@@ -55,10 +52,17 @@ export default class BranchView extends EasCommand {
 
     let updateGroupDescriptions: UpdateGroupDescription[];
     if (all) {
-      const branchesAndUpdates = await UpdateQuery.viewAllAsync({ appId: projectId });
-      updateGroupDescriptions = getUpdateGroupDescriptions(
-        branchesAndUpdates.app.byId.updateBranches
-      );
+      const branchesAndUpdates = await UpdateQuery.viewAllAsync({
+        appId: projectId,
+        limit: UPDATES_LIMIT,
+        offset: 0,
+      });
+      updateGroupDescriptions = getUpdateGroupsWithPlatforms(
+        branchesAndUpdates.app.byId.updates.map(update => ({
+          ...update,
+          branch: update.branch.name,
+        }))
+      ).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     } else {
       let branchInteractive: string | undefined;
       if (!branchFlag) {
@@ -80,12 +84,16 @@ export default class BranchView extends EasCommand {
       const branchesAndUpdates = await UpdateQuery.viewBranchAsync({
         appId: projectId,
         name: branch,
+        limit: UPDATES_LIMIT,
+        offset: 0,
       });
       const UpdateBranch = branchesAndUpdates.app?.byId.updateBranchByName;
       if (!UpdateBranch) {
         throw new Error(`Could not find branch "${branch}"`);
       }
-      updateGroupDescriptions = getUpdateGroupDescriptions([UpdateBranch]);
+      updateGroupDescriptions = getUpdateGroupsWithPlatforms(
+        UpdateBranch.updates.map(update => ({ ...update, branch }))
+      ).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     }
 
     if (jsonFlag) {
@@ -94,29 +102,6 @@ export default class BranchView extends EasCommand {
       logAsTable(updateGroupDescriptions);
     }
   }
-}
-
-function getUpdateGroupDescriptions(
-  branchesAndUpdates: ViewAllUpdatesQuery['app']['byId']['updateBranches']
-): UpdateGroupDescription[] {
-  const flattenedBranchesAndUpdates = branchesAndUpdates.flatMap(branch =>
-    branch.updates.map(update => {
-      return { branch: branch.name, ...update };
-    })
-  );
-  const updateGroupDescriptions = Object.values(
-    groupBy(flattenedBranchesAndUpdates, update => update.group)
-  ).map(updateGroup => {
-    const platforms = updateGroup
-      .map(update => update.platform)
-      .sort()
-      .join(', ');
-    return { ...updateGroup[0], platforms };
-  });
-  updateGroupDescriptions.sort(
-    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-  );
-  return updateGroupDescriptions;
 }
 
 function logAsTable(updateGroupDescriptions: UpdateGroupDescription[]): void {

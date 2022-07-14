@@ -8,7 +8,6 @@ import {
 } from '../../commands/update';
 import { graphqlClient } from '../../graphql/client';
 import { ViewBranchUpdatesQuery } from '../../graphql/generated';
-import { viewBranchUpdatesQueryUpdateLimit } from '../../graphql/queries/UpdateQuery';
 import Log from '../../log';
 import { selectAsync } from '../../prompts';
 
@@ -153,18 +152,6 @@ describe('UpdatePublish', () => {
     beforeEach(() => {
       jest.mocked(graphqlClient.query).mockClear();
       jest.mocked(graphqlClient.mutation).mockClear();
-    });
-
-    it('defaults limit to viewBranchUpdatesQueryUpdateLimit and offset to 0 when none are provided', async () => {
-      await ensureBranchExistsAsync({ appId, name: appName });
-      const [[, bindings]] = jest.mocked(graphqlClient.query).mock.calls;
-
-      expect(bindings).toEqual({
-        appId,
-        name: appName,
-        limit: viewBranchUpdatesQueryUpdateLimit,
-        offset: 0,
-      });
     });
 
     it.each([
