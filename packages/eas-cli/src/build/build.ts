@@ -25,7 +25,7 @@ import {
   appPlatformEmojis,
   requestedPlatformDisplayNames,
 } from '../platform';
-import { uploadAsync } from '../uploads';
+import { uploadFileAtPathToS3Async } from '../uploads';
 import { formatBytes } from '../utils/files';
 import { createProgressTracker } from '../utils/progress';
 import { sleepAsync } from '../utils/promise';
@@ -179,7 +179,7 @@ async function uploadProjectAsync<TPlatform extends Platform>(
         const projectTarball = await makeProjectTarballAsync();
         projectTarballPath = projectTarball.path;
 
-        const { bucketKey } = await uploadAsync(
+        const { bucketKey } = await uploadFileAtPathToS3Async(
           UploadSessionType.EasBuildProjectSources,
           projectTarball.path,
           createProgressTracker({
