@@ -10,7 +10,7 @@ import { UploadSessionType } from './graphql/generated';
 import { PresignedPost, UploadSessionMutation } from './graphql/mutations/UploadSessionMutation';
 import { ProgressHandler } from './utils/progress';
 
-export async function uploadAsync(
+export async function uploadFileAtPathToS3Async(
   type: UploadSessionType,
   path: string,
   handleProgressEvent: ProgressHandler

@@ -7,7 +7,7 @@ import { AppPlatform, BuildFragment, UploadSessionType } from '../../graphql/gen
 import { BuildQuery } from '../../graphql/queries/BuildQuery';
 import { toAppPlatform } from '../../graphql/types/AppPlatform';
 import { confirmAsync, promptAsync } from '../../prompts';
-import { uploadAsync } from '../../uploads';
+import { uploadFileAtPathToS3Async } from '../../uploads';
 import {
   Archive,
   ArchiveSourceType,
@@ -243,7 +243,9 @@ describe(getArchiveAsync, () => {
     const path = '/archive.apk';
     await fs.writeFile(path, 'some content');
 
-    jest.mocked(uploadAsync).mockResolvedValueOnce({ url: ARCHIVE_URL, bucketKey: 'wat' });
+    jest
+      .mocked(uploadFileAtPathToS3Async)
+      .mockResolvedValueOnce({ url: ARCHIVE_URL, bucketKey: 'wat' });
 
     const archive = await getArchiveAsync({
       ...SOURCE_STUB_INPUT,
@@ -251,7 +253,7 @@ describe(getArchiveAsync, () => {
       path,
     });
 
-    expect(uploadAsync).toBeCalledWith(
+    expect(uploadFileAtPathToS3Async).toBeCalledWith(
       UploadSessionType.EasSubmitAppArchive,
       path,
       expect.anything()
