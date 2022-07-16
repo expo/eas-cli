@@ -159,10 +159,10 @@ export function warnIfAndroidPackageDefinedInAppConfigForBareWorkflowProject(
 ): void {
   if (AndroidConfig.Package.getPackage(exp) && !warnPrinted) {
     Log.warn(
-      `Specifying "android.package" in ${getProjectConfigDescription(
+      `Specified value for "android.package" in ${getProjectConfigDescription(
         projectDir
-      )} is deprecated for bare workflow projects.\n` +
-        'EAS Build depends only on the value in the native code. Please remove the deprecated configuration.'
+      )} is ignored because an ${chalk.bold('android')} directory was detected in the project.\n` +
+        'EAS Build will use the value found in the native code.'
     );
     warnPrinted = true;
   }
