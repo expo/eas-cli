@@ -161,7 +161,7 @@ export function warnIfAndroidPackageDefinedInAppConfigForBareWorkflowProject(
     Log.warn(
       `Specified value for "android.package" in ${getProjectConfigDescription(
         projectDir
-      )} is ignored if native project folders are detected.\n` +
+      )} is ignored because native project folders were detected.\n` +
         'EAS Build will use the value found in the native code.'
     );
     warnPrinted = true;
