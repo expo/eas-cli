@@ -154,7 +154,7 @@ export function warnIfBundleIdentifierDefinedInAppConfigForBareWorkflowProject(
     Log.warn(
       `Specified value for "ios.bundleIdentifier" in ${getProjectConfigDescription(
         projectDir
-      )} is ignored if native project folders are detected.\n` +
+      )} is ignored because an ${chalk.bold('ios')} directory was detected in the project.\n` +
         'EAS Build will use the value found in the native code.'
     );
     warnPrinted = true;
