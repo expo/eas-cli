@@ -1,5 +1,5 @@
 import { ExpoConfig } from '@expo/config';
-import { AppVersionPolicy, EasJsonReader } from '@expo/eas-json';
+import { AppVersionSource, EasJsonReader } from '@expo/eas-json';
 import chalk from 'chalk';
 import fs from 'fs-extra';
 
@@ -11,18 +11,18 @@ export async function ensureRemoteVersionPolicyAsync(
   easJsonReader: EasJsonReader
 ): Promise<void> {
   const easJsonCliConfig = await easJsonReader.getCliConfigAsync();
-  if (easJsonCliConfig?.appVersionPolicy === AppVersionPolicy.REMOTE) {
+  if (easJsonCliConfig?.appVersionSource === AppVersionSource.REMOTE) {
     return;
   }
 
   Log.log(
-    `Version policy defines whether version of your app should be based on your local project or values stored on EAS servers (remote). To use this command, you will need to enable remote version policy by adding ${chalk.bold(
-      '{"cli": { "appVersionPolicy": "remote" }}'
+    `The app version source defines whether the app version is stored locally in your project source (e.g. in app.json, Info.plist, or build.gradle) or remotely on EAS servers and only applied to the project at build time. To use this command, you will need to enable the remote version policy by adding  ${chalk.bold(
+      '{"cli": { "appVersionSource": "remote" }}'
     )} in eas.json.`
   );
   // TODO: add link to docs
   const confirm = await confirmAsync({
-    message: 'Do you want us to enable it for you?',
+    message: 'Do you want to set app version source to remote now?',
   });
   if (!confirm) {
     throw new Error('Aborting...');
@@ -30,7 +30,7 @@ export async function ensureRemoteVersionPolicyAsync(
 
   const easJsonPath = EasJsonReader.formatEasJsonPath(projectDir);
   const easJson = await fs.readJSON(easJsonPath);
-  easJson.cli = { ...easJson?.cli, appVersionPolicy: AppVersionPolicy.REMOTE };
+  easJson.cli = { ...easJson?.cli, appVersionSource: AppVersionSource.REMOTE };
   await fs.writeFile(easJsonPath, `${JSON.stringify(easJson, null, 2)}\n`);
   Log.withTick('Updated eas.json');
 }
@@ -40,7 +40,7 @@ export async function validateAppConfigForRemoteVersionPolicyAsync(exp: ExpoConf
     throw new Error(
       `${chalk.bold('nativeVersion')} policy for ${chalk.bold(
         'runtimeVersion'
-      )} is currently not supported when remote version policy is enabled. Switch policy e.g. to ${chalk.bold(
+      )} is currently not supported when version source is set to remote. Switch policy e.g. to ${chalk.bold(
         'appVersion'
       )} or define version explicitly.`
     );
@@ -49,14 +49,14 @@ export async function validateAppConfigForRemoteVersionPolicyAsync(exp: ExpoConf
     throw new Error(
       `${chalk.bold(
         'ios.buildNumber'
-      )} field in app config is not supported when remote version policy enabled, remove it and re-run the command.`
+      )} field in app config is not supported when version source is set to remote, remove it and re-run the command.`
     );
   }
   if (exp.android?.versionCode !== undefined) {
     throw new Error(
       `${chalk.bold(
         'android.versionCode'
-      )} field in app config is not supported when remote version policy is enabled, remove it and re-run the command.`
+      )} field in app config is not supported when version source is set to remote, remove it and re-run the command.`
     );
   }
 }

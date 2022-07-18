@@ -2,13 +2,13 @@ import Joi from 'joi';
 
 import { BuildProfileSchema } from './build/schema';
 import { SubmitProfileSchema } from './submit/schema';
-import { AppVersionPolicy } from './types';
+import { AppVersionSource } from './types';
 
 export const EasJsonSchema = Joi.object({
   cli: Joi.object({
     version: Joi.string(),
     requireCommit: Joi.boolean(),
-    appVersionPolicy: Joi.string().valid(...Object.values(AppVersionPolicy)),
+    appVersionSource: Joi.string().valid(...Object.values(AppVersionSource)),
   }),
   build: Joi.object().pattern(Joi.string(), BuildProfileSchema),
   submit: Joi.object().pattern(Joi.string(), SubmitProfileSchema),

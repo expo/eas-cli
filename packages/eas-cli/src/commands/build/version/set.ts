@@ -40,7 +40,7 @@ import { resolveWorkflowAsync } from '../../../project/workflow';
 import { promptAsync } from '../../../prompts';
 
 export default class BuildVersionSetView extends EasCommand {
-  static description = 'Update version of an app with remote version policy enabled.';
+  static description = 'Update version of an app.';
   static hidden = true;
 
   static flags = {
@@ -120,7 +120,7 @@ export default class BuildVersionSetView extends EasCommand {
 
 function getApplicationIdentifierName(platform: Platform): string {
   if (platform === Platform.ANDROID) {
-    return 'applicationId';
+    return 'application ID';
   } else {
     return 'bundle identifier';
   }

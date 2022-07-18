@@ -11,7 +11,7 @@ export enum CredentialsSource {
   REMOTE = 'remote',
 }
 
-export enum AppVersionPolicy {
+export enum AppVersionSource {
   LOCAL = 'local',
   REMOTE = 'remote',
 }
@@ -20,7 +20,7 @@ export interface EasJson {
   cli?: {
     version?: string;
     requireCommit?: boolean;
-    appVersionPolicy?: AppVersionPolicy;
+    appVersionSource?: AppVersionSource;
   };
   build?: { [profileName: string]: EasJsonBuildProfile };
   submit?: { [profileName: string]: EasJsonSubmitProfile };
