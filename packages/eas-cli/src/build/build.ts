@@ -352,7 +352,7 @@ async function handleSingleBuildProgressAsync(
           );
         }
         Log.newLine();
-        Log.log('Waiting in queue');
+        Log.log(`Waiting in ${priorityToQueueDisplayName[build.priority]}`);
         queueProgressBar.start(
           build.initialQueuePosition + 1,
           build.initialQueuePosition - build.queuePosition + 1,
@@ -384,6 +384,12 @@ async function handleSingleBuildProgressAsync(
   }
   return { refetch: true };
 }
+
+const priorityToQueueDisplayName: Record<BuildPriority, string> = {
+  [BuildPriority.Normal]: 'Low Priority Queue',
+  [BuildPriority.NormalPlus]: 'High Priority Queue (free upgrade)',
+  [BuildPriority.High]: 'High Priority Queue',
+};
 
 const statusToDisplayName: Record<BuildStatus, string> = {
   [BuildStatus.New]: 'waiting to enter the queue (concurrency limit reached)',
