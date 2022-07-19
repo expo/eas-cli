@@ -386,9 +386,9 @@ async function handleSingleBuildProgressAsync(
 }
 
 const priorityToQueueDisplayName: Record<BuildPriority, string> = {
-  [BuildPriority.Normal]: 'Low Priority Queue',
-  [BuildPriority.NormalPlus]: 'High Priority Queue (free upgrade)',
-  [BuildPriority.High]: 'High Priority Queue',
+  [BuildPriority.Normal]: 'queue',
+  [BuildPriority.NormalPlus]: 'queue',
+  [BuildPriority.High]: 'priority queue',
 };
 
 const statusToDisplayName: Record<BuildStatus, string> = {
