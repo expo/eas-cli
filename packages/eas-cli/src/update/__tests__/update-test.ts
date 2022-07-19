@@ -1,15 +1,15 @@
 import { v4 as uuidv4 } from 'uuid';
 
 import {
-  PublishPlatformFlag,
   ensureBranchExistsAsync,
   getUpdatesToRepublishInteractiveAsync,
   truncatePublishUpdateMessage,
 } from '../../commands/update';
 import { graphqlClient } from '../../graphql/client';
-import { ViewBranchUpdatesQuery } from '../../graphql/generated';
+import { UpdateObject } from '../../graphql/queries/UpdateQuery';
 import Log from '../../log';
 import { selectAsync } from '../../prompts';
+import { createMockUpdates } from './fixtures/updates';
 
 const appId = '6c94sxe6-37d2-4700-52fa-1b813204dad2';
 const branchId = '5e84e3cb-563e-4022-a65e-6e7a42fe4ed3';
@@ -35,12 +35,7 @@ jest.mock('../../commands/update', () => {
     getUpdatesToRepublishInteractiveAsync: jest.fn(actual.getUpdatesToRepublishInteractiveAsync),
   };
 });
-const updatesToResolve = jest.fn(
-  (): Exclude<
-    Exclude<ViewBranchUpdatesQuery['app'], null | undefined>['byId']['updateBranchByName'],
-    null | undefined
-  >['updates'] => []
-);
+const updatesToResolve = jest.fn((): UpdateObject[] => []);
 jest.mock('../../graphql/client', () => ({
   ...jest.requireActual('../../graphql/client'),
   graphqlClient: {
@@ -82,70 +77,6 @@ jest.mock('../../graphql/client', () => ({
     })),
   },
 }));
-
-function createMockUpdates(
-  {
-    updateCount = 1,
-    platformFlag = 'all',
-    groupId,
-  }: Partial<{
-    updateCount: number;
-    platformFlag: PublishPlatformFlag;
-    groupId: string;
-  }> = {
-    updateCount: 1,
-    platformFlag: 'all',
-  }
-): Exclude<
-  Exclude<ViewBranchUpdatesQuery['app'], null | undefined>['byId']['updateBranchByName'],
-  null | undefined
->['updates'] {
-  let updates: Exclude<
-    Exclude<ViewBranchUpdatesQuery['app'], null | undefined>['byId']['updateBranchByName'],
-    null | undefined
-  >['updates'] = [];
-  if (platformFlag === 'all') {
-    updateCount = Math.ceil(updateCount / 2);
-  }
-  for (let i = 0; i < updateCount; i++) {
-    const androidUpdate = {
-      id: uuidv4(),
-      group: uuidv4(),
-      message: 'default test message',
-      createdAt: new Date(),
-      runtimeVersion: 'exposdk:44.0.0',
-      platform: 'android',
-      manifestFragment: '',
-    };
-    const iosUpdate = {
-      ...androidUpdate,
-      id: uuidv4(),
-      platform: 'ios',
-    };
-    if (!i && groupId) {
-      androidUpdate.group = groupId;
-      iosUpdate.group = groupId;
-    }
-    const isOddNumberedUpdateCount = !(updateCount % 2);
-    const isFinalLoop = i === updateCount - 1;
-    switch (platformFlag) {
-      case 'all':
-        updates = [
-          ...updates,
-          androidUpdate,
-          ...(isFinalLoop && isOddNumberedUpdateCount ? [] : [iosUpdate]),
-        ];
-        break;
-      case 'android':
-        updates = [...updates, androidUpdate];
-        break;
-      case 'ios':
-        updates = [...updates, iosUpdate];
-        break;
-    }
-  }
-  return updates;
-}
 
 describe('UpdatePublish', () => {
   describe('ensureBranchExistsAsync', () => {
