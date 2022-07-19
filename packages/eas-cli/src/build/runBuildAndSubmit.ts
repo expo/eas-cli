@@ -1,5 +1,5 @@
 import { Platform, Workflow } from '@expo/eas-build-job';
-import { BuildProfile, EasJsonReader, SubmitProfile } from '@expo/eas-json';
+import { BuildProfile, EasJson, EasJsonReader, SubmitProfile } from '@expo/eas-json';
 import chalk from 'chalk';
 import nullthrows from 'nullthrows';
 
@@ -80,6 +80,7 @@ export async function runBuildAndSubmitAsync(projectDir: string, flags: BuildFla
     nonInteractive: flags.nonInteractive,
   });
   const easJsonReader = new EasJsonReader(projectDir);
+  const easJsonCliConfig: EasJson['cli'] = (await easJsonReader.getCliConfigAsync()) ?? {};
 
   const platforms = toPlatforms(flags.requestedPlatform);
   const buildProfiles = await getProfilesAsync({
@@ -111,6 +112,7 @@ export async function runBuildAndSubmitAsync(projectDir: string, flags: BuildFla
         platformToGraphQLResourceClassMapping[buildProfile.platform][
           flags.userInputResourceClass ?? UserInputResourceClass.DEFAULT
         ],
+      easJsonCliConfig,
     });
     if (maybeBuild) {
       startedBuilds.push({ build: maybeBuild, buildProfile });
@@ -188,12 +190,14 @@ async function prepareAndStartBuildAsync({
   moreBuilds,
   buildProfile,
   resourceClass,
+  easJsonCliConfig,
 }: {
   projectDir: string;
   flags: BuildFlags;
   moreBuilds: boolean;
   buildProfile: ProfileData<'build'>;
   resourceClass: BuildResourceClass;
+  easJsonCliConfig: EasJson['cli'];
 }): Promise<{ build: BuildFragment | undefined; buildCtx: BuildContext<Platform> }> {
   const buildCtx = await createBuildContextAsync({
     buildProfileName: buildProfile.profileName,
@@ -204,6 +208,7 @@ async function prepareAndStartBuildAsync({
     platform: buildProfile.platform,
     projectDir,
     localBuildOptions: flags.localBuildOptions,
+    easJsonCliConfig,
   });
 
   if (moreBuilds) {

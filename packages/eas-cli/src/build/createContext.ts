@@ -1,5 +1,5 @@
 import { Platform } from '@expo/eas-build-job';
-import { BuildProfile } from '@expo/eas-json';
+import { BuildProfile, EasJson } from '@expo/eas-json';
 import JsonFile from '@expo/json-file';
 import resolveFrom from 'resolve-from';
 import { v4 as uuidv4 } from 'uuid';
@@ -21,6 +21,7 @@ import { LocalBuildOptions } from './local';
 export async function createBuildContextAsync<T extends Platform>({
   buildProfileName,
   buildProfile,
+  easJsonCliConfig,
   clearCache = false,
   localBuildOptions,
   nonInteractive = false,
@@ -30,6 +31,7 @@ export async function createBuildContextAsync<T extends Platform>({
 }: {
   buildProfileName: string;
   buildProfile: BuildProfile<T>;
+  easJsonCliConfig: EasJson['cli'];
   clearCache: boolean;
   localBuildOptions: LocalBuildOptions;
   nonInteractive: boolean;
@@ -74,6 +76,7 @@ export async function createBuildContextAsync<T extends Platform>({
     buildProfile,
     buildProfileName,
     resourceClass,
+    easJsonCliConfig,
     clearCache,
     credentialsCtx,
     exp,

@@ -1,7 +1,6 @@
-import { ExpoConfig } from '@expo/config';
 import { getRuntimeVersionNullable } from '@expo/config-plugins/build/utils/Updates';
-import { Platform, Workflow } from '@expo/eas-build-job';
-import { BuildProfile, EasJsonReader } from '@expo/eas-json';
+import { Platform } from '@expo/eas-build-job';
+import { EasJsonReader } from '@expo/eas-json';
 import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 
@@ -10,23 +9,11 @@ import { AppVersionMutation } from '../../../graphql/mutations/AppVersionMutatio
 import { AppVersionQuery } from '../../../graphql/queries/AppVersionQuery';
 import { toAppPlatform } from '../../../graphql/types/AppPlatform';
 import Log from '../../../log';
-import {
-  ensureApplicationIdIsDefinedForManagedProjectAsync,
-  getApplicationIdAsync,
-} from '../../../project/android/applicationId';
-import { resolveGradleBuildContextAsync } from '../../../project/android/gradle';
-import {
-  INVALID_VERSION_CODE_ERROR_MESSAGE,
-  isValidVersionCode,
-} from '../../../project/android/versions';
+import { selectPlatformAsync } from '../../../platform';
+import { VERSION_CODE_REQUIREMENTS, isValidVersionCode } from '../../../project/android/versions';
+import { getApplicationIdentifierAsync } from '../../../project/applicationIdentifier';
 import { getExpoConfig } from '../../../project/expoConfig';
-import { getBundleIdentifierAsync } from '../../../project/ios/bundleIdentifier';
-import { resolveXcodeBuildContextAsync } from '../../../project/ios/scheme';
-import { findApplicationTarget, resolveTargetsAsync } from '../../../project/ios/target';
-import {
-  INVALID_BUILD_NUMBER_ERROR_MESSAGE,
-  isValidBuildNumber,
-} from '../../../project/ios/versions';
+import { BUILD_NUMBER_REQUIREMENTS, isValidBuildNumber } from '../../../project/ios/versions';
 import {
   findProjectRootAsync,
   getProjectFullNameAsync,
@@ -35,8 +22,7 @@ import {
 import {
   ensureRemoteVersionPolicyAsync,
   validateAppConfigForRemoteVersionPolicyAsync,
-} from '../../../project/remoteVersionPolicy';
-import { resolveWorkflowAsync } from '../../../project/workflow';
+} from '../../../project/remoteVersionSource';
 import { promptAsync } from '../../../prompts';
 
 export default class BuildVersionSetView extends EasCommand {
@@ -104,8 +90,8 @@ export default class BuildVersionSetView extends EasCommand {
       message: versionPromptMessage,
       validate:
         platform === Platform.ANDROID
-          ? value => isValidVersionCode(value) || INVALID_VERSION_CODE_ERROR_MESSAGE
-          : value => isValidBuildNumber(value) || INVALID_BUILD_NUMBER_ERROR_MESSAGE,
+          ? value => isValidVersionCode(value) || `Invalid value, ${VERSION_CODE_REQUIREMENTS}.`
+          : value => isValidBuildNumber(value) || `Invalid value, ${BUILD_NUMBER_REQUIREMENTS}.`,
     });
     await AppVersionMutation.createAppVersionAsync({
       appId: projectId,
@@ -132,57 +118,4 @@ function getBuildVersionName(platform: Platform): string {
   } else {
     return 'buildNumber';
   }
-}
-
-async function getApplicationIdentifierAsync(
-  projectDir: string,
-  exp: ExpoConfig,
-  buildProfile: BuildProfile,
-  platform: Platform
-): Promise<string> {
-  if (platform === Platform.ANDROID) {
-    const profile = buildProfile as BuildProfile<Platform.ANDROID>;
-    const workflow = await resolveWorkflowAsync(projectDir, Platform.ANDROID);
-    const gradleContext = await resolveGradleBuildContextAsync(projectDir, profile);
-
-    if (workflow === Workflow.MANAGED) {
-      await ensureApplicationIdIsDefinedForManagedProjectAsync(projectDir, exp);
-    }
-
-    return await getApplicationIdAsync(projectDir, exp, gradleContext);
-  } else {
-    const profile = buildProfile as BuildProfile<Platform.IOS>;
-    const xcodeBuildContext = await resolveXcodeBuildContextAsync(
-      { exp, projectDir, nonInteractive: false },
-      profile
-    );
-    const targets = await resolveTargetsAsync({
-      projectDir,
-      exp,
-      xcodeBuildContext,
-      env: profile.env,
-    });
-    const applicationTarget = findApplicationTarget(targets);
-    return await getBundleIdentifierAsync(projectDir, exp, {
-      targetName: applicationTarget.targetName,
-      buildConfiguration: applicationTarget.buildConfiguration,
-    });
-  }
-}
-
-async function selectPlatformAsync(platform?: string): Promise<Platform> {
-  if (platform && Object.values(Platform).includes(platform.toLowerCase() as Platform)) {
-    return platform.toLowerCase() as Platform;
-  }
-
-  const { requestedPlatform } = await promptAsync({
-    type: 'select',
-    message: 'Select platform',
-    name: 'requestedPlatform',
-    choices: [
-      { title: 'Android', value: Platform.ANDROID },
-      { title: 'iOS', value: Platform.IOS },
-    ],
-  });
-  return requestedPlatform;
 }
