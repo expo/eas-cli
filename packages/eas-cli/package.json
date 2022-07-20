@@ -166,7 +166,7 @@
     },
     "warn-if-update-available": {
       "timeoutInDays": 0.5,
-      "message": "<%= chalk.bold('★') %> <%= chalk.bold(config.name + '@' + latest) %> <%= chalk.bold('is now available.') %>\n<%= chalk('* To upgrade, run ') %><%= chalk.bold('npm install -g eas-cli') %><%= chalk('.') %>\n\n<%= chalk.dim('Proceeding with outdated version') %>"
+      "message": "<%= chalk('★') %> <%= chalk.bold(config.name + '@' + latest) %> <%= chalk.bold('is now available.') %>\n<%= chalk('* To upgrade, run ') %><%= chalk.bold('npm install -g eas-cli') %><%= chalk('.') %>\n\n<%= chalk.dim('Proceeding with outdated version') %>"
     },
     "update": {
       "node": {
