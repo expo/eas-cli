@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Display build queue type when waiting. ([#1217](https://github.com/expo/eas-cli/pull/1217) by [@dsokal](https://github.com/dsokal))
+
 ### 🐛 Bug fixes
 
 - Show spinner instead of silently timing out during asset upload. ([#1206](https://github.com/expo/eas-cli/pull/1206) by [@wschurman](https://github.com/wschurman))
