@@ -90,8 +90,8 @@ export default class BuildVersionSetView extends EasCommand {
       message: versionPromptMessage,
       validate:
         platform === Platform.ANDROID
-          ? value => isValidVersionCode(value) || `Invalid value, ${VERSION_CODE_REQUIREMENTS}.`
-          : value => isValidBuildNumber(value) || `Invalid value, ${BUILD_NUMBER_REQUIREMENTS}.`,
+          ? value => isValidVersionCode(value) || `Invalid value: ${VERSION_CODE_REQUIREMENTS}.`
+          : value => isValidBuildNumber(value) || `Invalid value: ${BUILD_NUMBER_REQUIREMENTS}.`,
     });
     await AppVersionMutation.createAppVersionAsync({
       appId: projectId,

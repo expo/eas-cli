@@ -38,7 +38,7 @@ interface SyncContext<T extends Platform> {
 }
 
 export default class BuildVersionSyncView extends EasCommand {
-  public static description = 'Update a version in native code with a value stored on Expo servers';
+  public static description = 'Update a version in native code with a value stored on EAS servers';
   static hidden = true;
 
   public static flags = {
@@ -138,7 +138,7 @@ export default class BuildVersionSyncView extends EasCommand {
     });
 
     if (!isValidBuildNumber(buildVersion)) {
-      throw new Error(`Invalid value configured(${buildVersion}), ${BUILD_NUMBER_REQUIREMENTS}.`);
+      throw new Error(`Invalid buildNumber (${buildVersion}), ${BUILD_NUMBER_REQUIREMENTS}.`);
     }
 
     if (workflow === Workflow.GENERIC) {
@@ -156,7 +156,7 @@ export default class BuildVersionSyncView extends EasCommand {
     buildVersion,
   }: SyncContext<Platform.ANDROID>): Promise<void> {
     if (!isValidVersionCode(buildVersion)) {
-      throw new Error(`Invalid value configured (${buildVersion}), ${VERSION_CODE_REQUIREMENTS}.`);
+      throw new Error(`Invalid versionCode (${buildVersion}), ${VERSION_CODE_REQUIREMENTS}.`);
     }
 
     if (workflow === Workflow.GENERIC) {
@@ -165,7 +165,7 @@ export default class BuildVersionSyncView extends EasCommand {
         buildGradle.android?.productFlavors || buildGradle.android?.flavorDimensions;
       if (isMultiFlavor) {
         throw new Error(
-          "Versions in native code can't be automatically synced in multi-flavor Android projects, but if you are using EAS Build with app version source set to remote, the correct values will be injected at a build time."
+          "Versions in native code can't be automatically synced in multi-flavor Android projects. If you are using EAS Build with app version source set to remote, the correct values will be injected at the build time."
         );
       }
       await updateAndroidNativeVersionsAsync({ projectDir, versionCode: Number(buildVersion) });

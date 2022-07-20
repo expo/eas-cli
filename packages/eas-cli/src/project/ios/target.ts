@@ -92,7 +92,7 @@ export async function resolveBareProjectTargetsAsync({
   const { buildScheme, buildConfiguration } = xcodeBuildContext;
   const result: Target[] = [];
 
-  const project = IOSConfig.XcodeUtils.getPbxproj(projectDir);
+  const pbxProject = IOSConfig.XcodeUtils.getPbxproj(projectDir);
   const applicationTarget = await IOSConfig.Target.findApplicationTargetWithDependenciesAsync(
     projectDir,
     buildScheme
@@ -111,7 +111,7 @@ export async function resolveBareProjectTargetsAsync({
     buildConfiguration,
     entitlements: entitlements ?? {},
     buildSettings: resolveBareProjectBuildSettings(
-      project,
+      pbxProject,
       applicationTarget.name,
       buildConfiguration
     ),
@@ -123,6 +123,7 @@ export async function resolveBareProjectTargetsAsync({
     buildConfiguration,
     target: applicationTarget,
     bundleIdentifier,
+    pbxProject,
   });
   if (dependencies.length > 0) {
     result.push(...dependencies);
@@ -148,12 +149,14 @@ async function resolveBareProjectDependenciesAsync({
   buildConfiguration,
   target,
   bundleIdentifier,
+  pbxProject,
 }: {
   exp: ExpoConfig;
   projectDir: string;
   buildConfiguration?: string;
   target: IOSConfig.Target.Target;
   bundleIdentifier: string;
+  pbxProject: XcodeProject;
 }): Promise<Target[]> {
   const result: Target[] = [];
 
@@ -173,6 +176,11 @@ async function resolveBareProjectDependenciesAsync({
         bundleIdentifier: dependencyBundleIdentifier,
         parentBundleIdentifier: bundleIdentifier,
         entitlements: entitlements ?? {},
+        buildSettings: resolveBareProjectBuildSettings(
+          pbxProject,
+          dependency.name,
+          buildConfiguration
+        ),
       });
       const dependencyDependencies = await resolveBareProjectDependenciesAsync({
         exp,
@@ -180,6 +188,7 @@ async function resolveBareProjectDependenciesAsync({
         buildConfiguration,
         target: dependency,
         bundleIdentifier: dependencyBundleIdentifier,
+        pbxProject,
       });
       if (dependencyDependencies.length > 0) {
         result.push(...dependencyDependencies);
