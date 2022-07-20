@@ -52,7 +52,7 @@ export function formatPlatformForUpdateGroup(
     platform: string;
   }[]
 ): string {
-  return !updateGroup.length
+  return updateGroup.length === 0
     ? 'N/A'
     : updateGroup
         .map(update => update.platform)

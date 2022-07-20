@@ -1,114 +1,110 @@
 import chalk from 'chalk';
 import CliTable from 'cli-table3';
 
-import { PaginatedQueryFlags } from '../commandUtils/flagHelpers';
+import { PaginatedQueryOptions } from '../commandUtils/pagination';
 import { UpdateBranchFragment } from '../graphql/generated';
 import { BranchQuery } from '../graphql/queries/BranchQuery';
 import Log from '../log';
 import { UPDATE_COLUMNS, formatUpdate, getPlatformsForGroup } from '../update/utils';
 import { printJsonOnlyOutput } from '../utils/json';
 import {
-  PaginatedQueryPromptOptions,
-  PaginatedQueryPromptType,
-  PaginatedQueryResponse,
-  performPaginatedQueryAsync,
+  paginatedQueryWithConfirmPromptAsync,
+  paginatedQueryWithSelectPromptAsync,
 } from '../utils/queries';
 
 export const BRANCHES_LIMIT = 50;
 
-export async function selectBranchForProjectAsync(
+export async function selectBranchFromPaginatedQueryAsync(
   projectId: string,
   promptTitle: string,
-  flags: PaginatedQueryFlags
+  options: PaginatedQueryOptions
 ): Promise<UpdateBranchFragment> {
-  if (flags['non-interactive']) {
+  if (options.nonInteractive) {
     throw new Error('Unable to select a branch in non-interactive mode.');
   }
 
-  const fromatUpdateBranchFragment = (updateBranchFragment: UpdateBranchFragment): string =>
-    updateBranchFragment.name;
-  const getIdentifierForQueryItem = (updateBranchFragment: UpdateBranchFragment): string =>
-    updateBranchFragment.id;
-
-  const branch = await performPaginatedQueryAsync({
-    pageSize: flags.limit ?? BRANCHES_LIMIT,
-    offset: flags.offset ?? 0,
-    queryToPerform: queryBranchesForProject(projectId),
+  const selectedBranch = await paginatedQueryWithSelectPromptAsync({
+    limit: options.limit ?? BRANCHES_LIMIT,
+    offset: options.offset,
+    queryToPerform: (pageSize, offset) => queryBranchesForProjectAsync(pageSize, offset, projectId),
     promptOptions: {
-      type: PaginatedQueryPromptType.select,
       title: promptTitle,
-      getIdentifierForQueryItem,
-      createDisplayTextForSelectionPromptListItem: fromatUpdateBranchFragment,
+      getIdentifierForQueryItem: updateBranchFragment => updateBranchFragment.id,
+      createDisplayTextForSelectionPromptListItem: updateBranchFragment =>
+        updateBranchFragment.name,
     },
   });
-  return branch.pop()!;
+  if (!selectedBranch) {
+    throw new Error(`Could not find any branches for project "${projectId}"`);
+  }
+  return selectedBranch;
 }
 
-export async function queryForBranchesAsync(
+export async function listAndRenderPaginatedBranchesAsync(
   projectId: string,
-  flags: PaginatedQueryFlags
+  options: PaginatedQueryOptions
 ): Promise<void> {
-  const promptOptions: PaginatedQueryPromptOptions<UpdateBranchFragment> =
-    flags['non-interactive'] || flags.limit
-      ? { type: PaginatedQueryPromptType.none, renderQueryResults: renderPageOfBranches(flags) }
-      : {
-          type: PaginatedQueryPromptType.confirm,
-          title: 'Load more branches?',
-          renderListItems: renderPageOfBranches(flags),
-        };
+  if (options.nonInteractive || options.limit) {
+    const branches = await queryBranchesForProjectAsync(
+      options.limit ?? BRANCHES_LIMIT,
+      options.offset,
+      projectId
+    );
+    renderPageOfBranches(branches, options);
+  } else {
+    await paginatedQueryWithConfirmPromptAsync({
+      limit: options.limit ?? BRANCHES_LIMIT,
+      offset: options.offset,
+      queryToPerform: (pageSize, offset) =>
+        queryBranchesForProjectAsync(pageSize, offset, projectId),
+      promptOptions: {
+        title: 'Load more branches?',
+        renderListItems: branches => renderPageOfBranches(branches, options),
+      },
+    });
+  }
+}
 
-  await performPaginatedQueryAsync({
-    pageSize: flags.limit ?? BRANCHES_LIMIT,
-    offset: flags.offset ?? 0,
-    queryToPerform: queryBranchesForProject(projectId),
-    promptOptions,
+async function queryBranchesForProjectAsync(
+  pageSize: number,
+  offset: number,
+  projectId: string
+): Promise<UpdateBranchFragment[]> {
+  return await BranchQuery.listBranchesAsync({
+    appId: projectId,
+    limit: pageSize,
+    offset,
   });
 }
 
-const queryBranchesForProject =
-  (projectId: string) =>
-  async (
-    pageSize: number,
-    offset: number
-  ): Promise<PaginatedQueryResponse<UpdateBranchFragment>> => {
-    const branches = await BranchQuery.listBranchesAsync({
-      appId: projectId,
-      limit: pageSize,
-      offset,
+function renderPageOfBranches(
+  currentPage: UpdateBranchFragment[],
+  { json }: PaginatedQueryOptions
+): void {
+  if (json) {
+    printJsonOnlyOutput(currentPage);
+  } else {
+    const table = new CliTable({
+      head: ['Branch', ...UPDATE_COLUMNS],
+      wordWrap: true,
     });
-    return {
-      queryResponse: branches,
-      queryResponseRawLength: branches.length,
-    };
-  };
 
-const renderPageOfBranches =
-  (flags: PaginatedQueryFlags) =>
-  (currentPage: UpdateBranchFragment[]): void => {
-    if (flags.json) {
-      printJsonOnlyOutput(currentPage);
-    } else {
-      const table = new CliTable({
-        head: ['Branch', ...UPDATE_COLUMNS],
-        wordWrap: true,
-      });
+    table.push(
+      ...currentPage.map(branch => [
+        branch.name,
+        formatUpdate(branch.updates[0]),
+        branch.updates[0]?.runtimeVersion ?? 'N/A',
+        branch.updates[0]?.group ?? 'N/A',
+        getPlatformsForGroup({
+          updates: branch.updates,
+          group: branch.updates[0]?.group,
+        }),
+      ])
+    );
 
-      table.push(
-        ...currentPage.map(branch => [
-          branch.name,
-          formatUpdate(branch.updates[0]),
-          branch.updates[0]?.runtimeVersion ?? 'N/A',
-          branch.updates[0]?.group ?? 'N/A',
-          getPlatformsForGroup({
-            updates: branch.updates,
-            group: branch.updates[0]?.group,
-          }),
-        ])
-      );
-
-      Log.addNewLineIfNone();
-      Log.log(chalk.bold('Branches:'));
-      Log.addNewLineIfNone();
-      Log.log(table.toString());
-    }
-  };
+    Log.addNewLineIfNone();
+    Log.log(chalk.bold('Branches:'));
+    Log.addNewLineIfNone();
+    Log.log(table.toString());
+  }
+}

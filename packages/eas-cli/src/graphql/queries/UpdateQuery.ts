@@ -91,6 +91,10 @@ export const UpdateQuery = {
                           firstName
                         }
                       }
+                      branch {
+                        id
+                        name
+                      }
                     }
                   }
                 }

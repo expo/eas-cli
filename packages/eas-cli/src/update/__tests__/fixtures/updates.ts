@@ -46,15 +46,15 @@ export function createMockUpdates(
       case 'all':
         updates = [
           ...updates,
-          androidUpdate,
-          ...(isFinalLoop && isOddNumberedUpdateCount ? [] : [iosUpdate]),
+          androidUpdate as UpdateObject,
+          ...(isFinalLoop && isOddNumberedUpdateCount ? [] : [iosUpdate as UpdateObject]),
         ];
         break;
       case 'android':
-        updates = [...updates, androidUpdate];
+        updates = [...updates, androidUpdate as UpdateObject];
         break;
       case 'ios':
-        updates = [...updates, iosUpdate];
+        updates = [...updates, iosUpdate as UpdateObject];
         break;
     }
   }

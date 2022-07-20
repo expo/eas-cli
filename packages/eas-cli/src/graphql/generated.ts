@@ -4757,7 +4757,7 @@ export type ViewBranchUpdatesQueryVariables = Exact<{
 }>;
 
 
-export type ViewBranchUpdatesQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, updateBranchByName?: { __typename?: 'UpdateBranch', id: string, name: string, updates: Array<{ __typename?: 'Update', id: string, group: string, message?: string | null, createdAt: any, runtimeVersion: string, platform: string, manifestFragment: string, actor?: { __typename?: 'Robot', firstName?: string | null, id: string } | { __typename?: 'User', username: string, id: string } | null }> } | null } } };
+export type ViewBranchUpdatesQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, updateBranchByName?: { __typename?: 'UpdateBranch', id: string, name: string, updates: Array<{ __typename?: 'Update', id: string, group: string, message?: string | null, createdAt: any, runtimeVersion: string, platform: string, manifestFragment: string, actor?: { __typename?: 'Robot', firstName?: string | null, id: string } | { __typename?: 'User', username: string, id: string } | null, branch: { __typename?: 'UpdateBranch', id: string, name: string } }> } | null } } };
 
 export type CurrentUserQueryVariables = Exact<{ [key: string]: never; }>;
 

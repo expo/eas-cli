@@ -1,129 +1,133 @@
 import { confirmAsync, selectAsync } from '../prompts';
 import uniqBy from './expodash/uniqBy';
 
-export type PaginatedQueryResponse<QueryReturnType extends Record<string, any>> = {
-  queryResponse: QueryReturnType[];
-  queryResponseRawLength: number;
-};
+const fetchMoreValue = '_fetchMore';
 
-export type PromptSelectionListItem = {
-  title: string;
-  value: string;
-};
-
-export type PaginatedQueryArguments<QueryReturnType extends Record<string, any>> = {
-  pageSize: number;
+type BasePaginatedQueryArgs<QueryReturnType extends Record<string, any>> = {
+  limit: number;
   offset: number;
-  queryToPerform: (
-    pageSize: number,
-    offset: number
-  ) => Promise<PaginatedQueryResponse<QueryReturnType>>;
-  promptOptions: PaginatedQueryPromptOptions<QueryReturnType>;
+  queryToPerform: (limit: number, offset: number) => Promise<QueryReturnType[]>;
 };
 
-export enum PaginatedQueryPromptType {
-  select,
-  confirm,
-  none,
+type PaginatedQueryWithConfirmPromptArgs<QueryReturnType extends Record<string, any>> =
+  BasePaginatedQueryArgs<QueryReturnType> & {
+    promptOptions: {
+      readonly title: string;
+      renderListItems: (currentPage: QueryReturnType[]) => void;
+    };
+  };
+
+type PaginatedQueryWithSelectPromptArgs<QueryReturnType extends Record<string, any>> =
+  BasePaginatedQueryArgs<QueryReturnType> & {
+    promptOptions: {
+      readonly title: string;
+      createDisplayTextForSelectionPromptListItem: (queryItem: QueryReturnType) => string;
+      getIdentifierForQueryItem: (queryItem: QueryReturnType) => string;
+    };
+  };
+
+export async function paginatedQueryWithConfirmPromptAsync<
+  QueryReturnType extends Record<string, any>
+>(queryArgs: PaginatedQueryWithConfirmPromptArgs<QueryReturnType>): Promise<void> {
+  return await paginatedQueryWithConfirmPromptInternalAsync(queryArgs, []);
 }
 
-export interface PaginatedQuerySelectPrompt<QueryReturnType extends Record<string, any>> {
-  readonly type: PaginatedQueryPromptType.select;
-  readonly title: string;
-  createDisplayTextForSelectionPromptListItem: (queryItem: QueryReturnType) => string;
-  getIdentifierForQueryItem: (queryItem: QueryReturnType) => string;
-}
-
-export interface PaginatedQueryConfirmPrompt<QueryReturnType extends Record<string, any>> {
-  readonly type: PaginatedQueryPromptType.confirm;
-  readonly title: string;
-  renderListItems: (currentPage: QueryReturnType[]) => void;
-}
-export interface PaginatedQueryNoPrompt<QueryReturnType extends Record<string, any>> {
-  readonly type: PaginatedQueryPromptType.none;
-  renderQueryResults: (queryResults: QueryReturnType[]) => void;
-}
-
-export type PaginatedQueryPromptOptions<QueryReturnType extends Record<string, any>> =
-  | PaginatedQueryConfirmPrompt<QueryReturnType>
-  | PaginatedQuerySelectPrompt<QueryReturnType>
-  | PaginatedQueryNoPrompt<QueryReturnType>;
-
-/**
- * Return an empty array when the promptOptions type is PaginatedQueryConfirmPrompt
- * Returns an array of the selected items when the promptOptions type is PaginatedQuerySelectPrompt
- */
-export async function performPaginatedQueryAsync<QueryReturnType extends Record<string, any>>(
-  { pageSize, offset, queryToPerform, promptOptions }: PaginatedQueryArguments<QueryReturnType>,
-  accumulator?: QueryReturnType[]
-): Promise<QueryReturnType[]> {
-  const fetchMoreValue = '_fetchMore';
-
+async function paginatedQueryWithConfirmPromptInternalAsync<
+  QueryReturnType extends Record<string, any>
+>(
+  {
+    limit,
+    offset,
+    queryToPerform,
+    promptOptions,
+  }: PaginatedQueryWithConfirmPromptArgs<QueryReturnType>,
+  accumulator: QueryReturnType[]
+): Promise<void> {
   // query an extra item to determine if there are more pages left
-  const { queryResponse: items, queryResponseRawLength } = await queryToPerform(
-    pageSize + 1,
-    offset
-  );
-  const areMorePagesAvailable = queryResponseRawLength > pageSize;
-  // drop that extra item used for pagination from our render logic when extra pages are available
-  const currentPage = items.slice(0, areMorePagesAvailable ? items.length - 1 : undefined);
-  accumulator = [...(accumulator ?? []), ...currentPage];
+  const paginatedItems = await queryToPerform(limit + 1, offset);
+  const areMorePagesAvailable = paginatedItems.length > limit;
+  // drop that extra item used for pagination from our render logic
+  const currentPage = paginatedItems.slice(0, limit);
+  const newAccumulator = [...accumulator, ...currentPage];
 
-  let valueOfUserSelectedListItem = '';
-  switch (promptOptions.type) {
-    case PaginatedQueryPromptType.select: {
-      const selectionPromptListItems = uniqBy(accumulator, queryItem =>
-        promptOptions.getIdentifierForQueryItem(queryItem)
-      ).map(queryItem => ({
-        title: promptOptions.createDisplayTextForSelectionPromptListItem(queryItem),
-        value: promptOptions.getIdentifierForQueryItem(queryItem),
-      }));
-      if (areMorePagesAvailable) {
-        selectionPromptListItems.push({ title: 'Next page...', value: fetchMoreValue });
-      }
-      if (selectionPromptListItems.length) {
-        valueOfUserSelectedListItem = await selectAsync<string>(
-          promptOptions.title,
-          selectionPromptListItems
-        );
-      }
-      break;
-    }
+  promptOptions.renderListItems(currentPage);
 
-    case PaginatedQueryPromptType.confirm:
-      promptOptions.renderListItems(currentPage);
-      if (areMorePagesAvailable) {
-        valueOfUserSelectedListItem = (await confirmAsync({ message: promptOptions.title }))
-          ? fetchMoreValue
-          : '';
-      }
-      break;
-
-    case PaginatedQueryPromptType.none:
-      break;
+  if (!areMorePagesAvailable) {
+    return;
   }
 
-  if (valueOfUserSelectedListItem === fetchMoreValue) {
-    return await performPaginatedQueryAsync(
+  if (await confirmAsync({ message: promptOptions.title })) {
+    return await paginatedQueryWithConfirmPromptInternalAsync(
       {
-        pageSize,
-        offset: offset + pageSize,
+        limit,
+        offset: offset + limit,
         queryToPerform,
         promptOptions,
       },
-      accumulator
+      newAccumulator
+    );
+  }
+}
+
+/**
+ * Returns an array of item(s) where the id is equal to the id of the user's selected item
+ * If no items are available for a user to select, this will return an empty array.
+ */
+export async function paginatedQueryWithSelectPromptAsync<
+  QueryReturnType extends Record<string, any>
+>(queryArgs: PaginatedQueryWithSelectPromptArgs<QueryReturnType>): Promise<QueryReturnType | void> {
+  return await paginatedQueryWithSelectPromptInternalAsync(queryArgs, []);
+}
+
+export async function paginatedQueryWithSelectPromptInternalAsync<
+  QueryReturnType extends Record<string, any>
+>(
+  {
+    limit,
+    offset,
+    queryToPerform,
+    promptOptions,
+  }: PaginatedQueryWithSelectPromptArgs<QueryReturnType>,
+  accumulator: QueryReturnType[]
+): Promise<QueryReturnType | void> {
+  // query an extra item to determine if there are more pages left
+  const paginatedItems = await queryToPerform(limit + 1, offset);
+  const areMorePagesAvailable = paginatedItems.length > limit;
+  // drop that extra item used for pagination from our render logic
+  const currentPage = paginatedItems.slice(0, limit);
+  const newAccumulator = [...accumulator, ...currentPage];
+
+  const selectionPromptListItems = uniqBy(newAccumulator, queryItem =>
+    promptOptions.getIdentifierForQueryItem(queryItem)
+  ).map(queryItem => ({
+    title: promptOptions.createDisplayTextForSelectionPromptListItem(queryItem),
+    value: promptOptions.getIdentifierForQueryItem(queryItem),
+  }));
+  if (areMorePagesAvailable) {
+    selectionPromptListItems.push({ title: 'Next page...', value: fetchMoreValue });
+  }
+  if (selectionPromptListItems.length === 0) {
+    return;
+  }
+
+  const valueOfUserSelectedListItem = await selectAsync<string>(
+    promptOptions.title,
+    selectionPromptListItems
+  );
+
+  if (valueOfUserSelectedListItem === fetchMoreValue) {
+    return await paginatedQueryWithSelectPromptInternalAsync(
+      {
+        limit,
+        offset: offset + limit,
+        queryToPerform,
+        promptOptions,
+      },
+      newAccumulator
     );
   }
 
-  switch (promptOptions.type) {
-    case PaginatedQueryPromptType.select:
-      return accumulator.filter(
-        update => promptOptions.getIdentifierForQueryItem(update) === valueOfUserSelectedListItem
-      );
-    case PaginatedQueryPromptType.none:
-      promptOptions.renderQueryResults(accumulator);
-    // falls through
-    case PaginatedQueryPromptType.confirm:
-      return [];
-  }
+  return newAccumulator.find(
+    items => promptOptions.getIdentifierForQueryItem(items) === valueOfUserSelectedListItem
+  );
 }

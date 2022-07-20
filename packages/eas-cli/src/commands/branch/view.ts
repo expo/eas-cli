@@ -1,9 +1,9 @@
-import { BRANCHES_LIMIT, selectBranchForProjectAsync } from '../../branch/queries';
+import { selectBranchFromPaginatedQueryAsync } from '../../branch/queries';
 import EasCommand from '../../commandUtils/EasCommand';
-import { EasFlags } from '../../commandUtils/flagHelpers';
+import { EasPaginatedQueryFlags, getPaginatedQueryOptions } from '../../commandUtils/pagination';
 import { getExpoConfig } from '../../project/expoConfig';
 import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUtils';
-import { queryUpdatesOnBranchByNameAsync } from '../../update/queries';
+import { listAndRenderUpdatesOnBranchByNameAsync } from '../../update/queries';
 import { enableJsonOutput } from '../../utils/json';
 
 export default class BranchView extends EasCommand {
@@ -18,10 +18,7 @@ export default class BranchView extends EasCommand {
   ];
 
   static flags = {
-    'non-interactive': EasFlags['non-interactive'],
-    json: EasFlags.json,
-    limit: EasFlags.limit,
-    offset: EasFlags.offset,
+    ...EasPaginatedQueryFlags,
   };
 
   async runAsync(): Promise<void> {
@@ -29,7 +26,9 @@ export default class BranchView extends EasCommand {
       args: { name: branchName },
       flags,
     } = await this.parse(BranchView);
-    if (flags.json) {
+    const options = getPaginatedQueryOptions(flags);
+
+    if (options.json) {
       enableJsonOutput();
     }
 
@@ -37,14 +36,16 @@ export default class BranchView extends EasCommand {
     const exp = getExpoConfig(projectDir);
     const projectId = await getProjectIdAsync(exp);
 
+    // provide help to a user if they ran the command with missing args
     if (!branchName) {
-      ({ name: branchName } = await selectBranchForProjectAsync(
+      ({ name: branchName } = await selectBranchFromPaginatedQueryAsync(
         projectId,
         'Which branch would you like to view?',
-        { ...flags, offset: 0, limit: BRANCHES_LIMIT }
+        // discard limit and offset because this query is not those flag's intended target
+        { json: options.json, nonInteractive: options.nonInteractive, offset: 0 }
       ));
     }
 
-    await queryUpdatesOnBranchByNameAsync(projectId, branchName, flags);
+    await listAndRenderUpdatesOnBranchByNameAsync(projectId, branchName, options);
   }
 }

@@ -574,7 +574,7 @@ export default class UpdatePublish extends EasCommand {
         const newUpdatesForRuntimeVersion = newUpdates.filter(
           update => update.runtimeVersion === runtime
         );
-        if (!newUpdatesForRuntimeVersion.length) {
+        if (newUpdatesForRuntimeVersion.length === 0) {
           throw new Error(`Publish response is missing updates with runtime ${runtime}.`);
         }
         const platforms = newUpdatesForRuntimeVersion.map(update => update.platform);
@@ -649,7 +649,7 @@ export async function getUpdatesToRepublishInteractiveAsync(
     title: formatUpdateTitle(update),
     value: update.group,
   }));
-  if (!updateGroups.length) {
+  if (updateGroups.length === 0) {
     throw new Error(
       `There are no updates on branch "${branchName}" published for the platform(s) ${platformFlag}. Did you mean to publish a new update instead?`
     );
