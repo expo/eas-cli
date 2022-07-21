@@ -1,4 +1,5 @@
 import { ExpoConfig } from '@expo/config';
+import { Platform } from '@expo/eas-build-job';
 import { AppVersionSource, EasJsonReader } from '@expo/eas-json';
 import chalk from 'chalk';
 import fs from 'fs-extra';
@@ -58,5 +59,13 @@ export async function validateAppConfigForRemoteVersionPolicyAsync(exp: ExpoConf
         'android.versionCode'
       )} field in app config is not supported when version source is set to remote, remove it and re-run the command.`
     );
+  }
+}
+
+export function getBuildVersionName(platform: Platform): string {
+  if (platform === Platform.ANDROID) {
+    return 'versionCode';
+  } else {
+    return 'buildNumber';
   }
 }

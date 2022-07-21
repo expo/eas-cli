@@ -11,6 +11,7 @@ import {
   parseGradleCommand,
   resolveConfigValue,
 } from '../../project/android/gradleUtils';
+import { getNextVersionCode } from '../../project/android/versions';
 import { resolveWorkflowAsync } from '../../project/workflow';
 import { updateAppJsonConfigAsync } from '../utils/appJson';
 import { bumpAppVersionAsync, ensureStaticConfigExists } from '../utils/version';
@@ -46,9 +47,10 @@ export async function bumpVersionAsync({
 
   await bumpVersionInAppJsonAsync({ bumpStrategy, projectDir, exp });
   Log.log('Updated versions in app.json');
-  await writeVersionsToBuildGradleAsync({
+  await updateNativeVersionsAsync({
     projectDir,
-    exp,
+    version: exp.version,
+    versionCode: exp.android?.versionCode,
   });
   Log.log('Synchronized versions with build gradle');
 }
@@ -74,7 +76,7 @@ export async function bumpVersionInAppJsonAsync({
     await bumpAppVersionAsync({ appVersion, projectDir, exp });
   } else {
     const versionCode = AndroidConfig.Version.getVersionCode(exp);
-    const bumpedVersionCode = versionCode + 1;
+    const bumpedVersionCode = getNextVersionCode(versionCode);
     Log.log(
       `Bumping ${chalk.bold('expo.android.versionCode')} from ${chalk.bold(
         versionCode
@@ -116,21 +118,33 @@ export async function maybeResolveVersionsAsync(
   }
 }
 
-async function writeVersionsToBuildGradleAsync({
+export async function updateNativeVersionsAsync({
   projectDir,
-  exp,
+  version,
+  versionCode,
 }: {
   projectDir: string;
-  exp: ExpoConfig;
-}): Promise<string> {
+  version?: string;
+  versionCode?: number;
+}): Promise<void> {
   const buildGradle = await readBuildGradleAsync(projectDir);
   if (!buildGradle) {
     throw new Error('This project is missing a build.gradle file.');
   }
-  let updatedBuildGradle = AndroidConfig.Version.setVersionName(exp, buildGradle);
-  updatedBuildGradle = AndroidConfig.Version.setVersionCode(exp, updatedBuildGradle);
+  let updatedBuildGradle = buildGradle;
+  if (version !== undefined) {
+    updatedBuildGradle = updatedBuildGradle.replace(
+      new RegExp(`versionName ".*"`),
+      `versionName "${version}"`
+    );
+  }
+  if (versionCode !== undefined) {
+    updatedBuildGradle = updatedBuildGradle.replace(
+      new RegExp(`versionCode.*`),
+      `versionCode ${versionCode}`
+    );
+  }
   await writeBuildGradleAsync({ projectDir, buildGradle: updatedBuildGradle });
-  return updatedBuildGradle;
 }
 
 async function readBuildGradleAsync(projectDir: string): Promise<string | undefined> {

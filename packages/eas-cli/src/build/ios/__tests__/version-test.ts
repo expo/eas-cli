@@ -3,6 +3,7 @@ import { IOSConfig } from '@expo/config-plugins';
 import fs from 'fs-extra';
 import { vol } from 'memfs';
 import os from 'os';
+import type { XCBuildConfiguration } from 'xcode';
 
 import { readPlistAsync } from '../../../utils/plist';
 import {
@@ -16,6 +17,12 @@ import {
 } from '../version';
 
 jest.mock('fs');
+
+const getXCBuildConfigurationFromPbxproj = jest.spyOn(
+  IOSConfig.Target,
+  'getXCBuildConfigurationFromPbxproj'
+);
+const getPbxproj = jest.spyOn(IOSConfig.XcodeUtils, 'getPbxproj');
 
 afterAll(async () => {
   // do not remove the following line
@@ -51,14 +58,34 @@ describe(evaluateTemplateString, () => {
 
 // bare workflow
 describe(bumpVersionAsync, () => {
+  beforeEach(() => {
+    getPbxproj.mockImplementation(() => ({} as any));
+  });
+  afterEach(() => {
+    getXCBuildConfigurationFromPbxproj.mockReset();
+    getPbxproj.mockReset();
+  });
   it('bumps expo.ios.buildNumber and CFBundleVersion when strategy = BumpStrategy.BUILD_NUMBER', async () => {
     const fakeExp = initBareWorkflowProject();
-
+    getXCBuildConfigurationFromPbxproj.mockImplementation(
+      () =>
+        ({
+          buildSettings: {
+            INFOPLIST_FILE: 'myproject/Info.plist',
+          },
+        } as XCBuildConfiguration)
+    );
     await bumpVersionAsync({
       bumpStrategy: BumpStrategy.BUILD_NUMBER,
       projectDir: '/repo',
       exp: fakeExp,
-      buildSettings: {},
+      targets: [
+        {
+          targetName: 'example',
+          bundleIdentifier: 'example.com',
+          entitlements: {},
+        },
+      ],
     });
 
     const appJSON = await fs.readJSON('/repo/app.json');
@@ -76,13 +103,25 @@ describe(bumpVersionAsync, () => {
   it('bumps expo.ios.buildNumber and CFBundleVersion for non default Info.plist location', async () => {
     const fakeExp = initBareWorkflowProject({ infoPlistName: 'Info2.plist' });
 
+    getXCBuildConfigurationFromPbxproj.mockImplementation(
+      () =>
+        ({
+          buildSettings: {
+            INFOPLIST_FILE: '$(SRCROOT)/myproject/Info2.plist',
+          },
+        } as XCBuildConfiguration)
+    );
     await bumpVersionAsync({
       bumpStrategy: BumpStrategy.BUILD_NUMBER,
       projectDir: '/repo',
       exp: fakeExp,
-      buildSettings: {
-        INFOPLIST_FILE: '$(SRCROOT)/myproject/Info2.plist',
-      },
+      targets: [
+        {
+          targetName: 'example',
+          bundleIdentifier: 'example.com',
+          entitlements: {},
+        },
+      ],
     });
 
     const appJSON = await fs.readJSON('/repo/app.json');
@@ -97,14 +136,27 @@ describe(bumpVersionAsync, () => {
     expect(infoPlist['CFBundleVersion']).toBe('2');
   });
 
-  it('bumps expo.version and CFBundleShortVersionString when strategy = BumpStrategy.SHORT_VERSION', async () => {
+  it('bumps expo.version and CFBundleShortVersionString when strategy = BumpStrategy.APP_VERSION', async () => {
     const fakeExp = initBareWorkflowProject();
-
+    getXCBuildConfigurationFromPbxproj.mockImplementation(
+      () =>
+        ({
+          buildSettings: {
+            INFOPLIST_FILE: 'myproject/Info.plist',
+          },
+        } as XCBuildConfiguration)
+    );
     await bumpVersionAsync({
       bumpStrategy: BumpStrategy.APP_VERSION,
       projectDir: '/repo',
       exp: fakeExp,
-      buildSettings: {},
+      targets: [
+        {
+          targetName: 'example',
+          bundleIdentifier: 'example.com',
+          entitlements: {},
+        },
+      ],
     });
 
     const appJSON = await fs.readJSON('/repo/app.json');
@@ -121,12 +173,25 @@ describe(bumpVersionAsync, () => {
 
   it('does not bump any version when strategy = BumpStrategy.NOOP', async () => {
     const fakeExp = initBareWorkflowProject();
-
+    getXCBuildConfigurationFromPbxproj.mockImplementation(
+      () =>
+        ({
+          buildSettings: {
+            INFOPLIST_FILE: 'myproject/Info.plist',
+          },
+        } as XCBuildConfiguration)
+    );
     await bumpVersionAsync({
       bumpStrategy: BumpStrategy.NOOP,
       projectDir: '/repo',
       exp: fakeExp,
-      buildSettings: {},
+      targets: [
+        {
+          targetName: 'example',
+          bundleIdentifier: 'example.com',
+          entitlements: {},
+        },
+      ],
     });
 
     const appJSON = await fs.readJSON('/repo/app.json');
@@ -288,9 +353,9 @@ describe(getInfoPlistPath, () => {
 
 function initBareWorkflowProject({
   appVersion = '1.0.0',
-  version = '1',
+  buildNumber = '1',
   infoPlistName = 'Info.plist',
-}: { appVersion?: string; version?: string; infoPlistName?: string } = {}): ExpoConfig {
+}: { appVersion?: string; buildNumber?: string; infoPlistName?: string } = {}): ExpoConfig {
   const fakeExp: ExpoConfig = {
     name: 'myproject',
     slug: 'myproject',
@@ -311,7 +376,7 @@ function initBareWorkflowProject({
   <key>CFBundleShortVersionString</key>
   <string>${appVersion}</string>
   <key>CFBundleVersion</key>
-  <string>${version}</string>
+  <string>${buildNumber}</string>
 </dict>
 </plist>`,
     },

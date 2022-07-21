@@ -1,8 +1,9 @@
 import { ExpoConfig } from '@expo/config';
-import { IOSConfig } from '@expo/config-plugins';
+import { IOSConfig, XcodeProject } from '@expo/config-plugins';
 import { Platform, Workflow } from '@expo/eas-build-job';
 import { JSONObject } from '@expo/json-file';
 import Joi from 'joi';
+import type { XCBuildConfiguration } from 'xcode';
 
 import { Target } from '../../credentials/ios/types';
 import { resolveWorkflowAsync } from '../workflow';
@@ -91,6 +92,7 @@ export async function resolveBareProjectTargetsAsync({
   const { buildScheme, buildConfiguration } = xcodeBuildContext;
   const result: Target[] = [];
 
+  const pbxProject = IOSConfig.XcodeUtils.getPbxproj(projectDir);
   const applicationTarget = await IOSConfig.Target.findApplicationTargetWithDependenciesAsync(
     projectDir,
     buildScheme
@@ -108,6 +110,11 @@ export async function resolveBareProjectTargetsAsync({
     bundleIdentifier,
     buildConfiguration,
     entitlements: entitlements ?? {},
+    buildSettings: resolveBareProjectBuildSettings(
+      pbxProject,
+      applicationTarget.name,
+      buildConfiguration
+    ),
   });
 
   const dependencies = await resolveBareProjectDependenciesAsync({
@@ -116,6 +123,7 @@ export async function resolveBareProjectTargetsAsync({
     buildConfiguration,
     target: applicationTarget,
     bundleIdentifier,
+    pbxProject,
   });
   if (dependencies.length > 0) {
     result.push(...dependencies);
@@ -141,12 +149,14 @@ async function resolveBareProjectDependenciesAsync({
   buildConfiguration,
   target,
   bundleIdentifier,
+  pbxProject,
 }: {
   exp: ExpoConfig;
   projectDir: string;
   buildConfiguration?: string;
   target: IOSConfig.Target.Target;
   bundleIdentifier: string;
+  pbxProject: XcodeProject;
 }): Promise<Target[]> {
   const result: Target[] = [];
 
@@ -166,6 +176,11 @@ async function resolveBareProjectDependenciesAsync({
         bundleIdentifier: dependencyBundleIdentifier,
         parentBundleIdentifier: bundleIdentifier,
         entitlements: entitlements ?? {},
+        buildSettings: resolveBareProjectBuildSettings(
+          pbxProject,
+          dependency.name,
+          buildConfiguration
+        ),
       });
       const dependencyDependencies = await resolveBareProjectDependenciesAsync({
         exp,
@@ -173,6 +188,7 @@ async function resolveBareProjectDependenciesAsync({
         buildConfiguration,
         target: dependency,
         bundleIdentifier: dependencyBundleIdentifier,
+        pbxProject,
       });
       if (dependencyDependencies.length > 0) {
         result.push(...dependencyDependencies);
@@ -197,4 +213,16 @@ export function findTargetByName(targets: Target[], name: string): Target {
     throw new Error(`Could not find target '${name}'`);
   }
   return target;
+}
+
+function resolveBareProjectBuildSettings(
+  project: XcodeProject,
+  targetName: string,
+  buildConfiguration?: string
+): XCBuildConfiguration['buildSettings'] {
+  const xcBuildConfiguration = IOSConfig.Target.getXCBuildConfigurationFromPbxproj(project, {
+    targetName,
+    buildConfiguration,
+  });
+  return xcBuildConfiguration?.buildSettings ?? {};
 }

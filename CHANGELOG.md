@@ -15,6 +15,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - Show spinner instead of silently timing out during asset upload. ([#1206](https://github.com/expo/eas-cli/pull/1206) by [@wschurman](https://github.com/wschurman))
 - Fix build archive S3 URLs. ([#1207](https://github.com/expo/eas-cli/pull/1207) by [@dsokal](https://github.com/dsokal))
+- `autoIncrement` option on iOS will update versions of all targets that depend on an application target. ([#1219](https://github.com/expo/eas-cli/pull/1219) by [@wkozyra95](https://github.com/wkozyra95))
 
 ### 🧹 Chores
 

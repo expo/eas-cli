@@ -60,11 +60,7 @@ async function maybeResolveVersionsAsync<T extends Platform>(
 ): Promise<{ appBuildVersion?: string; appVersion?: string }> {
   if (ctx.platform === Platform.IOS) {
     const iosContext = ctx as BuildContext<Platform.IOS>;
-    return await maybeResolveIosVersionsAsync(
-      ctx.projectDir,
-      ctx.exp,
-      iosContext.ios.applicationTargetBuildSettings
-    );
+    return await maybeResolveIosVersionsAsync(ctx.projectDir, ctx.exp, iosContext.ios.targets);
   } else if (ctx.platform === Platform.ANDROID) {
     const androidCtx = ctx as BuildContext<Platform.ANDROID>;
     return await maybeResolveAndroidVersionsAsync(ctx.projectDir, ctx.exp, androidCtx.buildProfile);
