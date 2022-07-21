@@ -1,4 +1,4 @@
-import { ExpoConfig, getConfigFilePaths } from '@expo/config';
+import { ExpoConfig } from '@expo/config';
 import { IOSConfig } from '@expo/config-plugins';
 import { Platform, Workflow } from '@expo/eas-build-job';
 import chalk from 'chalk';
@@ -14,7 +14,7 @@ import { promptAsync } from '../../prompts';
 import uniqBy from '../../utils/expodash/uniqBy';
 import { readPlistAsync, writePlistAsync } from '../../utils/plist';
 import { updateAppJsonConfigAsync } from '../utils/appJson';
-import { bumpAppVersionAsync } from '../utils/version';
+import { bumpAppVersionAsync, ensureStaticConfigExists } from '../utils/version';
 
 export enum BumpStrategy {
   APP_VERSION,
@@ -177,13 +177,6 @@ async function readInfoPlistAsync(
 ): Promise<IOSConfig.InfoPlist> {
   const infoPlistPath = getInfoPlistPath(projectDir, buildSettings);
   return ((await readPlistAsync(infoPlistPath)) ?? {}) as IOSConfig.InfoPlist;
-}
-
-function ensureStaticConfigExists(projectDir: string): void {
-  const paths = getConfigFilePaths(projectDir);
-  if (!paths.staticConfigPath) {
-    throw new Error('autoIncrement option is not supported when using app.config.js');
-  }
 }
 
 export async function updateNativeVersionsAsync({

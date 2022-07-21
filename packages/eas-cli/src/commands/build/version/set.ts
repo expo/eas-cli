@@ -112,4 +112,3 @@ function getApplicationIdentifierName(platform: Platform): string {
     return 'bundle identifier';
   }
 }
-
