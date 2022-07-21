@@ -6,6 +6,7 @@ import { getProjectDashboardUrl } from '../build/utils/url';
 import { AppPrivacy } from '../graphql/generated';
 import { AppMutation } from '../graphql/mutations/AppMutation';
 import { ProjectQuery } from '../graphql/queries/ProjectQuery';
+import Log from '../log';
 import { ora } from '../ora';
 import { findAccountByName } from '../user/Account';
 import { ensureLoggedInAsync } from '../user/actions';
@@ -40,9 +41,11 @@ export async function ensureProjectExistsAsync(projectInfo: ProjectInfo): Promis
     fallback: () => `${projectFullName} (${projectDashboardUrl})`,
   });
 
-  const spinner = ora(`Linking to project ${chalk.bold(projectFullName)}`).start();
+  Log.addNewLineIfNone();
 
+  const spinner = ora(`Linking to project ${chalk.bold(projectFullName)}`).start();
   const maybeId = await findProjectIdByAccountNameAndSlugNullableAsync(accountName, projectName);
+
   if (maybeId) {
     spinner.succeed(`Linked to project ${chalk.bold(projectLink)}`);
     projectCache[projectFullName] = maybeId;
