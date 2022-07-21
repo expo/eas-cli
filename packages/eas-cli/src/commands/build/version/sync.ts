@@ -2,6 +2,7 @@ import { ExpoConfig } from '@expo/config';
 import { Platform, Workflow } from '@expo/eas-build-job';
 import { BuildProfile, EasJsonReader } from '@expo/eas-json';
 import { Flags } from '@oclif/core';
+import chalk from 'chalk';
 
 import { updateNativeVersionsAsync as updateAndroidNativeVersionsAsync } from '../../../build/android/version';
 import { updateNativeVersionsAsync as updateIosNativeVersionsAsync } from '../../../build/ios/version';
@@ -24,6 +25,7 @@ import { BUILD_NUMBER_REQUIREMENTS, isValidBuildNumber } from '../../../project/
 import { findProjectRootAsync, getProjectIdAsync } from '../../../project/projectUtils';
 import {
   ensureRemoteVersionPolicyAsync,
+  getBuildVersionName,
   validateAppConfigForRemoteVersionPolicyAsync,
 } from '../../../project/remoteVersionSource';
 import { resolveWorkflowAsync } from '../../../project/workflow';
@@ -94,7 +96,11 @@ export default class BuildVersionSyncView extends EasCommand {
       }
       if (workflow === Workflow.MANAGED) {
         Log.warn(
-          `Skipping versions sync for ${platformDisplayName}. This command will have no effect on projects using managed workflow.`
+          `The remote value for the ${platformDisplayName} ${getBuildVersionName(
+            profileInfo.platform
+          )} is ${chalk.bold(
+            remoteVersions?.buildVersion
+          )}, but it was not synced to the local project. This command has no effect on projects using managed workflow.`
         );
         continue;
       }
@@ -115,7 +121,11 @@ export default class BuildVersionSyncView extends EasCommand {
           buildVersion: remoteVersions.buildVersion,
         });
       }
-      Log.withTick(`Successfully updated versions in native code for ${platformDisplayName}.`);
+      Log.withTick(
+        `Successfully updated the ${platformDisplayName} ${getBuildVersionName(
+          profileInfo.platform
+        )} in native code to ${chalk.bold(remoteVersions?.buildVersion)}.`
+      );
     }
   }
 

@@ -21,6 +21,7 @@ import {
 } from '../../../project/projectUtils';
 import {
   ensureRemoteVersionPolicyAsync,
+  getBuildVersionName,
   validateAppConfigForRemoteVersionPolicyAsync,
 } from '../../../project/remoteVersionSource';
 import { promptAsync } from '../../../prompts';
@@ -112,10 +113,3 @@ function getApplicationIdentifierName(platform: Platform): string {
   }
 }
 
-function getBuildVersionName(platform: Platform): string {
-  if (platform === Platform.ANDROID) {
-    return 'versionCode';
-  } else {
-    return 'buildNumber';
-  }
-}
