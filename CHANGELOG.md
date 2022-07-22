@@ -10,6 +10,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - Display build queue type when waiting. ([#1217](https://github.com/expo/eas-cli/pull/1217) by [@dsokal](https://github.com/dsokal))
 - Add better message on how to upgrade EAS CLI. ([#1222](https://github.com/expo/eas-cli/pull/1222) by [@jeremybarbet](https://github.com/jeremybarbet))
+- Invoke export with sourcemaps on update and build. ([#1228](https://github.com/expo/eas-cli/pull/1228) by [@kbrandwijk](https://github.com/kbrandwijk))
 
 ### 🐛 Bug fixes
 
