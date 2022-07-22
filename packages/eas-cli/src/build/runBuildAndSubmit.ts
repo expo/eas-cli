@@ -12,6 +12,7 @@ import {
 } from '../graphql/generated';
 import { toAppPlatform, toPlatform } from '../graphql/types/AppPlatform';
 import Log from '../log';
+import { ora } from '../ora';
 import {
   RequestedPlatform,
   appPlatformDisplayNames,
@@ -20,6 +21,7 @@ import {
 } from '../platform';
 import { checkExpoSdkIsSupportedAsync } from '../project/expoSdk';
 import { validateMetroConfigForManagedWorkflowAsync } from '../project/metroConfig';
+import { buildBundlesAsync } from '../project/publish';
 import { createSubmissionContextAsync } from '../submit/context';
 import {
   submitAsync,
@@ -55,6 +57,7 @@ export interface BuildFlags {
   submitProfile?: string;
   localBuildOptions: LocalBuildOptions;
   userInputResourceClass?: UserInputResourceClass;
+  skipBundler: boolean;
 }
 
 const platformToGraphQLResourceClassMapping: Record<
@@ -122,6 +125,18 @@ export async function runBuildAndSubmitAsync(projectDir: string, flags: BuildFla
 
   if (flags.localBuildOptions.enable) {
     return;
+  }
+
+  // build bundle
+  if (!flags.skipBundler) {
+    const bundleSpinner = ora().start('Building bundle...');
+    try {
+      await buildBundlesAsync({ projectDir, inputDir: '' });
+      bundleSpinner.succeed('Built bundle!');
+    } catch (e) {
+      bundleSpinner.fail('Failed to build bundle!');
+      throw e;
+    }
   }
 
   Log.newLine();

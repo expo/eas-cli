@@ -161,6 +161,7 @@ export async function buildBundlesAsync({
     inputDir,
     '--experimental-bundle',
     '--non-interactive',
+    '--dump-sourcemap',
   ]);
 }
 
