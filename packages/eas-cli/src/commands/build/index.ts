@@ -23,7 +23,6 @@ interface RawBuildFlags {
   'auto-submit': boolean;
   'auto-submit-with-profile'?: string;
   'resource-class'?: UserInputResourceClass;
-  'skip-bundler': boolean;
 }
 
 export default class Build extends EasCommand {
@@ -86,15 +85,6 @@ export default class Build extends EasCommand {
       options: Object.values(UserInputResourceClass),
       hidden: true,
       description: 'The instance type that will be used to run this build [experimental]',
-    }),
-    'skip-bundler': Flags.boolean({
-      description: `Skip running Expo CLI to bundle the app before the build`,
-      default: false,
-    }),
-    'input-dir': Flags.string({
-      description: 'Location of the bundle',
-      default: 'dist',
-      required: false,
     }),
   };
 
@@ -173,7 +163,6 @@ export default class Build extends EasCommand {
       autoSubmit: flags['auto-submit'] || flags['auto-submit-with-profile'] !== undefined,
       submitProfile: flags['auto-submit-with-profile'] ?? profile,
       userInputResourceClass: flags['resource-class'] ?? UserInputResourceClass.DEFAULT,
-      skipBundler: flags['skip-bundler'],
     };
   }
 }
