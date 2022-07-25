@@ -75,6 +75,11 @@ export async function prepareJobAsync(
     artifactPath: buildProfile.artifactPath,
     buildType,
     username,
+    ...(ctx.android.overrideVersionCode && {
+      version: {
+        versionCode: ctx.android.overrideVersionCode,
+      },
+    }),
     experimental: {
       prebuildCommand: ctx.buildProfile.prebuildCommand,
     },

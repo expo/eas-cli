@@ -66,6 +66,11 @@ export async function prepareJobAsync(
     buildConfiguration: ctx.buildProfile.buildConfiguration,
     artifactPath: ctx.buildProfile.artifactPath,
     username,
+    ...(ctx.ios.overrideBuildNumber && {
+      version: {
+        buildNumber: ctx.ios.overrideBuildNumber,
+      },
+    }),
     experimental: {
       prebuildCommand: ctx.buildProfile.prebuildCommand,
     },

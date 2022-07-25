@@ -14,6 +14,7 @@ export function transformJob(job: Ios.Job): IosJobInput {
     secrets: transformIosSecrets(job.secrets),
     builderEnvironment: job.builderEnvironment,
     cache: job.cache,
+    version: job.version?.buildNumber ? { buildNumber: job.version.buildNumber } : undefined,
     scheme: job.scheme,
     buildConfiguration: job.buildConfiguration,
     artifactPath: job.artifactPath,

@@ -1,10 +1,14 @@
 import { ExpoConfig } from '@expo/config';
-import { AndroidConfig } from '@expo/config-plugins';
+import { AndroidConfig, Updates } from '@expo/config-plugins';
 import { Platform, Workflow } from '@expo/eas-build-job';
 import { BuildProfile } from '@expo/eas-json';
+import assert from 'assert';
 import chalk from 'chalk';
 import fs from 'fs-extra';
 
+import { AppPlatform } from '../../graphql/generated';
+import { AppVersionMutation } from '../../graphql/mutations/AppVersionMutation';
+import { AppVersionQuery } from '../../graphql/queries/AppVersionQuery';
 import Log from '../../log';
 import {
   getAppBuildGradleAsync,
@@ -164,4 +168,54 @@ async function writeBuildGradleAsync({
 }): Promise<void> {
   const buildGradlePath = AndroidConfig.Paths.getAppBuildGradleFilePath(projectDir);
   await fs.writeFile(buildGradlePath, buildGradle);
+}
+
+export async function updateToNextVersionCodeAsync({
+  projectDir,
+  projectId,
+  exp,
+  applicationId,
+  buildProfile,
+}: {
+  projectDir: string;
+  projectId: string;
+  exp: ExpoConfig;
+  applicationId: string;
+  buildProfile: BuildProfile<Platform.ANDROID>;
+}): Promise<string> {
+  const remoteVersions = await AppVersionQuery.latestVersionAsync(
+    projectId,
+    AppPlatform.Android,
+    applicationId
+  );
+
+  const localVersions = await maybeResolveVersionsAsync(projectDir, exp, buildProfile);
+  let currentBuildVersion: string;
+  if (!remoteVersions?.buildVersion && !localVersions.appBuildVersion) {
+    Log.error(
+      `Remote versions are not configured and we were not able to read the current version from the local project. Use "eas build:version:set" to initialize remote versions.`
+    );
+    throw new Error('Remote versions are not configured.');
+  } else if (!remoteVersions?.buildVersion && localVersions.appBuildVersion) {
+    Log.warn(
+      'No remote versions are configured for this project, versionCode will be initialized based on the value from the local project.'
+    );
+    currentBuildVersion = localVersions.appBuildVersion;
+  } else {
+    assert(remoteVersions?.buildVersion);
+    currentBuildVersion = remoteVersions.buildVersion;
+  }
+
+  const nextBuildVersion = getNextVersionCode(currentBuildVersion);
+  Log.log(`Incrementing versionCode ${currentBuildVersion} -> ${nextBuildVersion}.`);
+
+  await AppVersionMutation.createAppVersionAsync({
+    appId: projectId,
+    platform: AppPlatform.Android,
+    applicationIdentifier: applicationId,
+    storeVersion: localVersions.appVersion ?? exp.version ?? '1.0.0',
+    buildVersion: String(nextBuildVersion),
+    runtimeVersion: Updates.getRuntimeVersionNullable(exp, Platform.ANDROID) ?? undefined,
+  });
+  return String(nextBuildVersion);
 }

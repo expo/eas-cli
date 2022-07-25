@@ -1,11 +1,15 @@
 import { ExpoConfig } from '@expo/config';
-import { IOSConfig } from '@expo/config-plugins';
+import { IOSConfig, Updates } from '@expo/config-plugins';
 import { Platform, Workflow } from '@expo/eas-build-job';
+import assert from 'assert';
 import chalk from 'chalk';
 import path from 'path';
 import type { XCBuildConfiguration } from 'xcode';
 
 import { Target } from '../../credentials/ios/types';
+import { AppPlatform } from '../../graphql/generated';
+import { AppVersionMutation } from '../../graphql/mutations/AppVersionMutation';
+import { AppVersionQuery } from '../../graphql/queries/AppVersionQuery';
 import Log from '../../log';
 import { findApplicationTarget } from '../../project/ios/target';
 import { getNextBuildNumber, isValidBuildNumber } from '../../project/ios/versions';
@@ -244,4 +248,61 @@ export function evaluateTemplateString(
       return match;
     }
   });
+}
+
+export async function updateToNextBuildNumberAsync({
+  projectDir,
+  projectId,
+  exp,
+  applicationTarget,
+}: {
+  projectDir: string;
+  projectId: string;
+  exp: ExpoConfig;
+  applicationTarget: Target;
+}): Promise<string> {
+  const remoteVersions = await AppVersionQuery.latestVersionAsync(
+    projectId,
+    AppPlatform.Ios,
+    applicationTarget.bundleIdentifier
+  );
+
+  const localBuildNumber = await readBuildNumberAsync(
+    projectDir,
+    exp,
+    applicationTarget.buildSettings ?? {}
+  );
+  const localShortVersion = await readShortVersionAsync(
+    projectDir,
+    exp,
+    applicationTarget.buildSettings ?? {}
+  );
+  let currentBuildVersion: string;
+  if (!remoteVersions?.buildVersion && !localBuildNumber) {
+    Log.error(
+      `Remote versions are not configured and we were not able to read the current version from the local project. Use "eas build:version:set" to initialize remote versions.`
+    );
+    throw new Error('Remote versions are not configured.');
+  } else if (!remoteVersions?.buildVersion && localBuildNumber) {
+    Log.warn(
+      'No remote versions are configured for this project, buildNumber will be initialized based on the value from the local project.'
+    );
+    currentBuildVersion = localBuildNumber;
+  } else {
+    assert(remoteVersions?.buildVersion);
+    currentBuildVersion = remoteVersions.buildVersion;
+  }
+
+  const nextBuildVersion = getNextBuildNumber(currentBuildVersion);
+  Log.log(`Incrementing buildNumber ${currentBuildVersion} -> ${nextBuildVersion}.`);
+
+  await AppVersionMutation.createAppVersionAsync({
+    appId: projectId,
+    platform: AppPlatform.Ios,
+    applicationIdentifier: applicationTarget.bundleIdentifier,
+    storeVersion: localShortVersion ?? '1.0.0',
+    buildVersion: nextBuildVersion,
+    runtimeVersion: Updates.getRuntimeVersionNullable(exp, Platform.IOS) ?? undefined,
+  });
+  return nextBuildVersion;
 }

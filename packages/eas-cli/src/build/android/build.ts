@@ -1,4 +1,5 @@
 import { Android, Job, Metadata, Platform, Workflow } from '@expo/eas-build-job';
+import { AppVersionSource } from '@expo/eas-json';
 import chalk from 'chalk';
 import nullthrows from 'nullthrows';
 
@@ -28,6 +29,7 @@ import { checkGoogleServicesFileAsync, checkNodeEnvVariable } from '../validate'
 import { transformJob } from './graphql';
 import { prepareJobAsync } from './prepareJob';
 import { syncProjectConfigurationAsync } from './syncProjectConfiguration';
+import { updateToNextVersionCodeAsync } from './version';
 
 export async function createAndroidContextAsync(
   ctx: CommonContext<Platform.ANDROID>
@@ -60,8 +62,18 @@ This means that it will most likely produce an AAB and you will not be able to i
   }
 
   const applicationId = await getApplicationIdAsync(ctx.projectDir, ctx.exp, gradleContext);
+  const overrideVersionCode =
+    ctx.easJsonCliConfig?.appVersionSource === AppVersionSource.REMOTE && buildProfile.autoIncrement
+      ? await updateToNextVersionCodeAsync({
+          projectDir: ctx.projectDir,
+          projectId: ctx.projectId,
+          exp: ctx.exp,
+          applicationId,
+          buildProfile,
+        })
+      : undefined;
 
-  return { applicationId, gradleContext };
+  return { applicationId, gradleContext, overrideVersionCode };
 }
 
 export async function prepareAndroidBuildAsync(
