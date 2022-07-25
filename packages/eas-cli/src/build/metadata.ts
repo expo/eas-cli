@@ -70,10 +70,10 @@ async function maybeResolveVersionsAsync<T extends Platform>(
       ctx.exp,
       iosContext.ios.targets
     );
-    if (iosContext.ios.overrideBuildNumber) {
+    if (iosContext.ios.buildNumberOverride) {
       return {
         ...resolvedVersion,
-        appBuildVersion: iosContext.ios.overrideBuildNumber,
+        appBuildVersion: iosContext.ios.buildNumberOverride,
       };
     }
     return resolvedVersion;
@@ -84,10 +84,10 @@ async function maybeResolveVersionsAsync<T extends Platform>(
       ctx.exp,
       androidCtx.buildProfile
     );
-    if (androidCtx.android.overrideVersionCode) {
+    if (androidCtx.android.versionCodeOverride) {
       return {
         ...resolvedVersion,
-        appBuildVersion: androidCtx.android.overrideVersionCode,
+        appBuildVersion: androidCtx.android.versionCodeOverride,
       };
     }
     return resolvedVersion;

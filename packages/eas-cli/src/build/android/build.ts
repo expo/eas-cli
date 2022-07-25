@@ -29,7 +29,7 @@ import { checkGoogleServicesFileAsync, checkNodeEnvVariable } from '../validate'
 import { transformJob } from './graphql';
 import { prepareJobAsync } from './prepareJob';
 import { syncProjectConfigurationAsync } from './syncProjectConfiguration';
-import { updateToNextVersionCodeAsync } from './version';
+import { resolveRemoteVersionCodeAsync } from './version';
 
 export async function createAndroidContextAsync(
   ctx: CommonContext<Platform.ANDROID>
@@ -62,9 +62,9 @@ This means that it will most likely produce an AAB and you will not be able to i
   }
 
   const applicationId = await getApplicationIdAsync(ctx.projectDir, ctx.exp, gradleContext);
-  const overrideVersionCode =
-    ctx.easJsonCliConfig?.appVersionSource === AppVersionSource.REMOTE && buildProfile.autoIncrement
-      ? await updateToNextVersionCodeAsync({
+  const versionCodeOverride =
+    ctx.easJsonCliConfig?.appVersionSource === AppVersionSource.REMOTE
+      ? await resolveRemoteVersionCodeAsync({
           projectDir: ctx.projectDir,
           projectId: ctx.projectId,
           exp: ctx.exp,
@@ -73,7 +73,7 @@ This means that it will most likely produce an AAB and you will not be able to i
         })
       : undefined;
 
-  return { applicationId, gradleContext, overrideVersionCode };
+  return { applicationId, gradleContext, versionCodeOverride };
 }
 
 export async function prepareAndroidBuildAsync(

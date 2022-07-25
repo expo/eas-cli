@@ -8,7 +8,7 @@ import Log from '../log';
 import { confirmAsync } from '../prompts';
 import { ProfileData } from '../utils/profiles';
 
-export async function ensureRemoteVersionSourceAsync(
+export async function ensureVersionSourceIsRemoteAsync(
   projectDir: string,
   easJsonReader: EasJsonReader
 ): Promise<void> {

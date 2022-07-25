@@ -1,7 +1,7 @@
 import { ExpoConfig } from '@expo/config';
 import { IOSConfig, Updates } from '@expo/config-plugins';
 import { Platform, Workflow } from '@expo/eas-build-job';
-import assert from 'assert';
+import { BuildProfile } from '@expo/eas-json';
 import chalk from 'chalk';
 import path from 'path';
 import type { XCBuildConfiguration } from 'xcode';
@@ -250,16 +250,22 @@ export function evaluateTemplateString(
   });
 }
 
-export async function updateToNextBuildNumberAsync({
+/**
+ * Returns buildNumber that will be used for the next build. If current build profile
+ * has an 'autoIncrement' option set, it increments the version on server.
+ */
+export async function resolveRemoteBuildNumberAsync({
   projectDir,
   projectId,
   exp,
   applicationTarget,
+  buildProfile,
 }: {
   projectDir: string;
   projectId: string;
   exp: ExpoConfig;
   applicationTarget: Target;
+  buildProfile: BuildProfile<Platform.IOS>;
 }): Promise<string> {
   const remoteVersions = await AppVersionQuery.latestVersionAsync(
     projectId,
@@ -278,19 +284,23 @@ export async function updateToNextBuildNumberAsync({
     applicationTarget.buildSettings ?? {}
   );
   let currentBuildVersion: string;
-  if (!remoteVersions?.buildVersion && !localBuildNumber) {
-    Log.error(
-      `Remote versions are not configured and we were not able to read the current version from the local project. Use "eas build:version:set" to initialize remote versions.`
-    );
-    throw new Error('Remote versions are not configured.');
-  } else if (!remoteVersions?.buildVersion && localBuildNumber) {
-    Log.warn(
-      'No remote versions are configured for this project, buildNumber will be initialized based on the value from the local project.'
-    );
-    currentBuildVersion = localBuildNumber;
-  } else {
-    assert(remoteVersions?.buildVersion);
+  if (remoteVersions?.buildVersion) {
     currentBuildVersion = remoteVersions.buildVersion;
+  } else {
+    if (localBuildNumber) {
+      Log.warn(
+        'No remote versions are configured for this project, buildNumber will be initialized based on the value from the local project.'
+      );
+      currentBuildVersion = localBuildNumber;
+    } else {
+      Log.error(
+        `Remote versions are not configured and EAS CLI was not able to read the current version from your project. Use "eas build:version:set" to initialize remote versions.`
+      );
+      throw new Error('Remote versions are not configured.');
+    }
+  }
+  if (!buildProfile.autoIncrement) {
+    return currentBuildVersion;
   }
 
   const nextBuildVersion = getNextBuildNumber(currentBuildVersion);

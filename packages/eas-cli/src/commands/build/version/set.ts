@@ -20,7 +20,7 @@ import {
   getProjectIdAsync,
 } from '../../../project/projectUtils';
 import {
-  ensureRemoteVersionSourceAsync,
+  ensureVersionSourceIsRemoteAsync,
   getBuildVersionName,
   validateAppConfigForRemoteVersionSource,
 } from '../../../project/remoteVersionSource';
@@ -48,7 +48,7 @@ export default class BuildVersionSetView extends EasCommand {
 
     const platform = await selectPlatformAsync(flags.platform);
     const easJsonReader = new EasJsonReader(projectDir);
-    await ensureRemoteVersionSourceAsync(projectDir, easJsonReader);
+    await ensureVersionSourceIsRemoteAsync(projectDir, easJsonReader);
     const profile = await easJsonReader.getBuildProfileAsync(platform, flags.profile ?? undefined);
 
     const exp = getExpoConfig(projectDir, { env: profile.env });

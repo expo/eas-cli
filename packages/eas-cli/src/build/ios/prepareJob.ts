@@ -66,9 +66,9 @@ export async function prepareJobAsync(
     buildConfiguration: ctx.buildProfile.buildConfiguration,
     artifactPath: ctx.buildProfile.artifactPath,
     username,
-    ...(ctx.ios.overrideBuildNumber && {
+    ...(ctx.ios.buildNumberOverride && {
       version: {
-        buildNumber: ctx.ios.overrideBuildNumber,
+        buildNumber: ctx.ios.buildNumberOverride,
       },
     }),
     experimental: {

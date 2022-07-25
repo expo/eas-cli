@@ -15,7 +15,7 @@ import { ensureIosCredentialsAsync } from './credentials';
 import { transformJob } from './graphql';
 import { prepareJobAsync } from './prepareJob';
 import { syncProjectConfigurationAsync } from './syncProjectConfiguration';
-import { updateToNextBuildNumberAsync } from './version';
+import { resolveRemoteBuildNumberAsync } from './version';
 
 export async function createIosContextAsync(
   ctx: CommonContext<Platform.IOS>
@@ -44,13 +44,14 @@ export async function createIosContextAsync(
     env: buildProfile.env,
   });
   const applicationTarget = findApplicationTarget(targets);
-  const overrideBuildNumber =
-    ctx.easJsonCliConfig?.appVersionSource === AppVersionSource.REMOTE && buildProfile.autoIncrement
-      ? await updateToNextBuildNumberAsync({
+  const buildNumberOverride =
+    ctx.easJsonCliConfig?.appVersionSource === AppVersionSource.REMOTE
+      ? await resolveRemoteBuildNumberAsync({
           projectDir: ctx.projectDir,
           projectId: ctx.projectId,
           exp: ctx.exp,
           applicationTarget,
+          buildProfile,
         })
       : undefined;
   return {
@@ -58,7 +59,7 @@ export async function createIosContextAsync(
     applicationTarget,
     targets,
     xcodeBuildContext,
-    overrideBuildNumber,
+    buildNumberOverride,
   };
 }
 

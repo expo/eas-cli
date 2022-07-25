@@ -24,7 +24,7 @@ import { resolveTargetsAsync } from '../../../project/ios/target';
 import { BUILD_NUMBER_REQUIREMENTS, isValidBuildNumber } from '../../../project/ios/versions';
 import { findProjectRootAsync, getProjectIdAsync } from '../../../project/projectUtils';
 import {
-  ensureRemoteVersionSourceAsync,
+  ensureVersionSourceIsRemoteAsync,
   getBuildVersionName,
   validateAppConfigForRemoteVersionSource,
 } from '../../../project/remoteVersionSource';
@@ -60,7 +60,7 @@ export default class BuildVersionSyncView extends EasCommand {
 
     const requestedPlatform = await selectRequestedPlatformAsync(flags.platform);
     const easJsonReader = new EasJsonReader(projectDir);
-    await ensureRemoteVersionSourceAsync(projectDir, easJsonReader);
+    await ensureVersionSourceIsRemoteAsync(projectDir, easJsonReader);
 
     const platforms = toPlatforms(requestedPlatform);
     const buildProfiles = await getProfilesAsync({
