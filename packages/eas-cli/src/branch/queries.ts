@@ -44,7 +44,7 @@ export async function listAndRenderPaginatedBranchesAsync(
   projectId: string,
   options: PaginatedQueryOptions
 ): Promise<void> {
-  if (options.nonInteractive || options.limit) {
+  if (options.nonInteractive) {
     const branches = await queryBranchesForProjectAsync(
       options.limit ?? BRANCHES_LIMIT,
       options.offset,

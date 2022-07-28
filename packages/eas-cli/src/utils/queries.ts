@@ -79,7 +79,7 @@ export async function paginatedQueryWithSelectPromptAsync<
   return await paginatedQueryWithSelectPromptInternalAsync(queryArgs, []);
 }
 
-export async function paginatedQueryWithSelectPromptInternalAsync<
+async function paginatedQueryWithSelectPromptInternalAsync<
   QueryReturnType extends Record<string, any>
 >(
   {

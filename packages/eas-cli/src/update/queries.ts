@@ -16,7 +16,7 @@ export async function listAndRenderUpdatesOnBranchByNameAsync(
   branchName: string,
   options: PaginatedQueryOptions
 ): Promise<void> {
-  if (options.nonInteractive || options.limit) {
+  if (options.nonInteractive) {
     const updates = await queryUpdateGroupsForBranchAsync(
       options.limit ?? UPDATES_LIMIT,
       options.offset,
