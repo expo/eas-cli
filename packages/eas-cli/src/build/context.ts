@@ -40,6 +40,7 @@ export interface BuildContext<T extends Platform> {
   projectDir: string;
   projectId: string;
   projectName: string;
+  message?: string;
   trackingCtx: TrackingContext;
   user: Actor;
   workflow: Workflow;

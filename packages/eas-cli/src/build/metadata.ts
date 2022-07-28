@@ -46,6 +46,7 @@ export async function collectMetadataAsync<T extends Platform>(
     gitCommitHash: await getVcsClient().getCommitHashAsync(),
     isGitWorkingTreeDirty: await getVcsClient().hasUncommittedChangesAsync(),
     username: getUsername(ctx.exp, await ensureLoggedInAsync()),
+    message: ctx.message,
     ...(ctx.platform === Platform.IOS && {
       iosEnterpriseProvisioning: resolveIosEnterpriseProvisioning(
         ctx as BuildContext<Platform.IOS>

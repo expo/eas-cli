@@ -28,6 +28,7 @@ export async function createBuildContextAsync<T extends Platform>({
   platform,
   projectDir,
   resourceClass,
+  message,
 }: {
   buildProfileName: string;
   buildProfile: BuildProfile<T>;
@@ -38,6 +39,7 @@ export async function createBuildContextAsync<T extends Platform>({
   platform: T;
   projectDir: string;
   resourceClass: BuildResourceClass;
+  message?: string;
 }): Promise<BuildContext<T>> {
   const exp = getExpoConfig(projectDir, { env: buildProfile.env });
 
@@ -89,6 +91,7 @@ export async function createBuildContextAsync<T extends Platform>({
     trackingCtx,
     user,
     workflow,
+    message,
   };
   if (platform === Platform.ANDROID) {
     const common = commonContext as CommonContext<Platform.ANDROID>;

@@ -55,6 +55,7 @@ export interface BuildFlags {
   submitProfile?: string;
   localBuildOptions: LocalBuildOptions;
   userInputResourceClass?: UserInputResourceClass;
+  message?: string;
 }
 
 const platformToGraphQLResourceClassMapping: Record<
@@ -209,6 +210,7 @@ async function prepareAndStartBuildAsync({
     projectDir,
     localBuildOptions: flags.localBuildOptions,
     easJsonCliConfig,
+    message: flags.message,
   });
 
   if (moreBuilds) {
