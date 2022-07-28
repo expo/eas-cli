@@ -29,12 +29,12 @@ export default class DeviceManager {
     Log.addNewLineIfNone();
 
     const account = await this.resolveAccountAsync();
-    const { team } = await this.ctx.appStore.ensureAuthenticatedAsync();
+    const appleAuthCtx = await this.ctx.appStore.ensureAuthenticatedAsync();
     const appleTeam = await ensureAppleTeamExistsAsync(account.id, {
-      appleTeamIdentifier: team.id,
-      appleTeamName: team.name,
+      appleTeamIdentifier: appleAuthCtx.team.id,
+      appleTeamName: appleAuthCtx.team.name,
     });
-    const action = new DeviceCreateAction(account, appleTeam);
+    const action = new DeviceCreateAction(this.ctx.appStore, account, appleTeam);
     await action.runAsync();
   }
 
