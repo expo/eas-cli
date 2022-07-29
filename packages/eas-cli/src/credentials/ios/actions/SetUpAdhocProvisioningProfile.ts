@@ -254,11 +254,11 @@ export class SetUpAdhocProvisioningProfile {
     ctx: CredentialsContext,
     appleTeam: AppleTeamFragment
   ): Promise<AppleDeviceFragment[]> {
-    const action = new DeviceCreateAction(this.app.account, appleTeam);
+    const action = new DeviceCreateAction(ctx.appStore, this.app.account, appleTeam);
     const method = await action.runAsync();
 
     while (true) {
-      if (method !== RegistrationMethod.INPUT) {
+      if (method === RegistrationMethod.WEBSITE) {
         Log.newLine();
         Log.log(chalk.bold("Press any key if you've already finished device registration."));
         await pressAnyKeyToContinueAsync();

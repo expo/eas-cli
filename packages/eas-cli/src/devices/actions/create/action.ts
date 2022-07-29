@@ -1,20 +1,24 @@
 import chalk from 'chalk';
 
+import AppStoreApi from '../../../credentials/ios/appstore/AppStoreApi';
 import { AppleTeam } from '../../../graphql/generated';
 import Log from '../../../log';
 import { promptAsync } from '../../../prompts';
 import { Account } from '../../../user/Account';
+import { runDeveloperPortalMethodAsync } from './developerPortalMethod';
 import { runInputMethodAsync } from './inputMethod';
 import { runRegistrationUrlMethodAsync } from './registrationUrlMethod';
 
 export enum RegistrationMethod {
   WEBSITE,
   INPUT,
+  DEVELOPER_PORTAL,
   EXIT,
 }
 
 export default class DeviceCreateAction {
   constructor(
+    private appStoreApi: AppStoreApi,
     private account: Account,
     private appleTeam: Pick<AppleTeam, 'appleTeamIdentifier' | 'appleTeamName' | 'id'>
   ) {}
@@ -23,6 +27,8 @@ export default class DeviceCreateAction {
     const method = await this.askForRegistrationMethodAsync();
     if (method === RegistrationMethod.WEBSITE) {
       await runRegistrationUrlMethodAsync(this.account.id, this.appleTeam);
+    } else if (method === RegistrationMethod.DEVELOPER_PORTAL) {
+      await runDeveloperPortalMethodAsync(this.appStoreApi, this.account.id, this.appleTeam);
     } else if (method === RegistrationMethod.INPUT) {
       await runInputMethodAsync(this.account.id, this.appleTeam);
     } else if (method === RegistrationMethod.EXIT) {
@@ -43,6 +49,12 @@ export default class DeviceCreateAction {
             'Website'
           )} - generates a registration URL to be opened on your devices`,
           value: RegistrationMethod.WEBSITE,
+        },
+        {
+          title: `${chalk.bold(
+            'Developer Portal'
+          )} - import devices already registered on Apple Developer Portal`,
+          value: RegistrationMethod.DEVELOPER_PORTAL,
         },
         {
           title: `${chalk.bold('Input')} - allows you to type in UDIDs (advanced option)`,
