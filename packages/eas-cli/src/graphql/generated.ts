@@ -123,6 +123,8 @@ export type Account = {
   requiresAccessTokenForPushSecurity: Scalars['Boolean'];
   /** Snacks associated with this account */
   snacks: Array<Snack>;
+  /** SSO configuration for this account */
+  ssoConfiguration?: Maybe<AccountSsoConfiguration>;
   /** Subscription info visible to members that have VIEWER role */
   subscription?: Maybe<SubscriptionDetails>;
   /** @deprecated No longer needed */
@@ -393,6 +395,90 @@ export type AccountQueryByNameArgs = {
   accountName: Scalars['String'];
 };
 
+/** Auth configuration data for an SSO account. */
+export type AccountSsoConfiguration = {
+  __typename?: 'AccountSSOConfiguration';
+  authEndpoint?: Maybe<Scalars['String']>;
+  authProtocol: AuthProtocolType;
+  authProviderIdentifier: Scalars['String'];
+  clientIdentifier: Scalars['String'];
+  clientSecret: Scalars['String'];
+  createdAt: Scalars['DateTime'];
+  id: Scalars['ID'];
+  issuer?: Maybe<Scalars['String']>;
+  jwksEndpoint?: Maybe<Scalars['String']>;
+  redirectUri: Scalars['String'];
+  tokenEndpoint?: Maybe<Scalars['String']>;
+  updatedAt: Scalars['DateTime'];
+  userInfoEndpoint?: Maybe<Scalars['String']>;
+};
+
+export type AccountSsoConfigurationData = {
+  authEndpoint?: InputMaybe<Scalars['String']>;
+  authProtocol: AuthProtocolType;
+  authProviderIdentifier: Scalars['String'];
+  clientIdentifier: Scalars['String'];
+  clientSecret: Scalars['String'];
+  issuer?: InputMaybe<Scalars['String']>;
+  jwksEndpoint?: InputMaybe<Scalars['String']>;
+  redirectUri: Scalars['String'];
+  tokenEndpoint?: InputMaybe<Scalars['String']>;
+  userInfoEndpoint?: InputMaybe<Scalars['String']>;
+};
+
+export type AccountSsoConfigurationMutation = {
+  __typename?: 'AccountSSOConfigurationMutation';
+  /** Create an AccountSSOConfiguration for an Account */
+  createAccountSSOConfiguration: AccountSsoConfiguration;
+  /** Delete an AccountSSOConfiguration */
+  deleteAccountSSOConfiguration: DeleteAccountSsoConfigurationResult;
+  /** Update an AccountSSOConfiguration */
+  updateAccountSSOConfiguration: AccountSsoConfiguration;
+};
+
+
+export type AccountSsoConfigurationMutationCreateAccountSsoConfigurationArgs = {
+  accountId: Scalars['ID'];
+  accountSSOConfigurationData: AccountSsoConfigurationData;
+};
+
+
+export type AccountSsoConfigurationMutationDeleteAccountSsoConfigurationArgs = {
+  id: Scalars['ID'];
+};
+
+
+export type AccountSsoConfigurationMutationUpdateAccountSsoConfigurationArgs = {
+  accountSSOConfigurationData: AccountSsoConfigurationData;
+  id: Scalars['ID'];
+};
+
+/** Public auth configuration data for an SSO account. */
+export type AccountSsoConfigurationPublicData = {
+  __typename?: 'AccountSSOConfigurationPublicData';
+  authEndpoint?: Maybe<Scalars['String']>;
+  authProtocol: AuthProtocolType;
+  authProviderIdentifier: Scalars['String'];
+  clientIdentifier: Scalars['String'];
+  id: Scalars['ID'];
+  issuer?: Maybe<Scalars['String']>;
+  jwksEndpoint?: Maybe<Scalars['String']>;
+  redirectUri: Scalars['String'];
+  tokenEndpoint?: Maybe<Scalars['String']>;
+  userInfoEndpoint?: Maybe<Scalars['String']>;
+};
+
+export type AccountSsoConfigurationPublicDataQuery = {
+  __typename?: 'AccountSSOConfigurationPublicDataQuery';
+  /** Get AccountSSOConfiguration public data by account name */
+  publicDataByAccountName: AccountSsoConfigurationPublicData;
+};
+
+
+export type AccountSsoConfigurationPublicDataQueryPublicDataByAccountNameArgs = {
+  accountName: Scalars['String'];
+};
+
 export type AccountUsageMetric = {
   __typename?: 'AccountUsageMetric';
   id: Scalars['ID'];
@@ -427,6 +513,7 @@ export type AccountUsageMetricsByBillingPeriodArgs = {
 
 
 export type AccountUsageMetricsMetricsForServiceMetricArgs = {
+  filterParams?: InputMaybe<Scalars['JSONObject']>;
   granularity: UsageMetricsGranularity;
   serviceMetric: EasServiceMetric;
   timespan: UsageMetricsTimespan;
@@ -708,6 +795,7 @@ export type AndroidJobInput = {
   type: BuildWorkflow;
   updates?: InputMaybe<BuildUpdatesInput>;
   username?: InputMaybe<Scalars['String']>;
+  version?: InputMaybe<AndroidJobVersionInput>;
 };
 
 export type AndroidJobKeystoreInput = {
@@ -720,6 +808,10 @@ export type AndroidJobKeystoreInput = {
 export type AndroidJobSecretsInput = {
   buildCredentials?: InputMaybe<AndroidJobBuildCredentialsInput>;
   environmentSecrets?: InputMaybe<Scalars['JSONObject']>;
+};
+
+export type AndroidJobVersionInput = {
+  versionCode: Scalars['String'];
 };
 
 export type AndroidKeystore = {
@@ -1593,6 +1685,10 @@ export type AssetQueryMetadataArgs = {
   storageKeys: Array<Scalars['String']>;
 };
 
+export enum AuthProtocolType {
+  Oidc = 'OIDC'
+}
+
 export type Billing = {
   __typename?: 'Billing';
   /** History of invoices */
@@ -1621,6 +1717,7 @@ export type Build = ActivityTimelineProjectActivity & BuildOrBuildJob & {
   canRetry: Scalars['Boolean'];
   cancelingActor?: Maybe<Actor>;
   channel?: Maybe<Scalars['String']>;
+  childBuild?: Maybe<Build>;
   completedAt?: Maybe<Scalars['DateTime']>;
   createdAt: Scalars['DateTime'];
   distribution?: Maybe<DistributionType>;
@@ -1639,6 +1736,9 @@ export type Build = ActivityTimelineProjectActivity & BuildOrBuildJob & {
   isGitWorkingTreeDirty?: Maybe<Scalars['Boolean']>;
   logFiles: Array<Scalars['String']>;
   maxBuildTimeSeconds: Scalars['Int'];
+  /** Retry time starts after completedAt */
+  maxRetryTimeMinutes: Scalars['Int'];
+  message?: Maybe<Scalars['String']>;
   metrics?: Maybe<BuildMetrics>;
   parentBuild?: Maybe<Build>;
   platform: AppPlatform;
@@ -1796,6 +1896,7 @@ export type BuildMetadataInput = {
   gitCommitHash?: InputMaybe<Scalars['String']>;
   iosEnterpriseProvisioning?: InputMaybe<BuildIosEnterpriseProvisioning>;
   isGitWorkingTreeDirty?: InputMaybe<Scalars['Boolean']>;
+  message?: InputMaybe<Scalars['String']>;
   reactNativeVersion?: InputMaybe<Scalars['String']>;
   releaseChannel?: InputMaybe<Scalars['String']>;
   runtimeVersion?: InputMaybe<Scalars['String']>;
@@ -2084,6 +2185,11 @@ export type DeleteAccountResult = {
   id: Scalars['ID'];
 };
 
+export type DeleteAccountSsoConfigurationResult = {
+  __typename?: 'DeleteAccountSSOConfigurationResult';
+  id: Scalars['ID'];
+};
+
 export type DeleteAndroidKeystoreResult = {
   __typename?: 'DeleteAndroidKeystoreResult';
   id: Scalars['ID'];
@@ -2179,6 +2285,7 @@ export enum EasBuildDeprecationInfoType {
 export enum EasServiceMetric {
   AssetsRequests = 'ASSETS_REQUESTS',
   BandwidthUsage = 'BANDWIDTH_USAGE',
+  Builds = 'BUILDS',
   ManifestRequests = 'MANIFEST_REQUESTS',
   UniqueUsers = 'UNIQUE_USERS'
 }
@@ -2271,6 +2378,15 @@ export enum Feature {
   /** Share access to projects */
   Teams = 'TEAMS'
 }
+
+export type FutureSubscription = {
+  __typename?: 'FutureSubscription';
+  createdAt: Scalars['DateTime'];
+  id: Scalars['ID'];
+  meteredBillingStatus: MeteredBillingStatus;
+  planId: Scalars['String'];
+  startDate: Scalars['DateTime'];
+};
 
 export type GetSignedAssetUploadSpecificationsResult = {
   __typename?: 'GetSignedAssetUploadSpecificationsResult';
@@ -2544,6 +2660,7 @@ export type IosJobInput = {
   type: BuildWorkflow;
   updates?: InputMaybe<BuildUpdatesInput>;
   username?: InputMaybe<Scalars['String']>;
+  version?: InputMaybe<IosJobVersionInput>;
 };
 
 export type IosJobSecretsInput = {
@@ -2555,6 +2672,10 @@ export type IosJobTargetCredentialsInput = {
   distributionCertificate: IosJobDistributionCertificateInput;
   provisioningProfileBase64: Scalars['String'];
   targetName: Scalars['String'];
+};
+
+export type IosJobVersionInput = {
+  buildNumber: Scalars['String'];
 };
 
 /** @deprecated Use developmentClient option instead. */
@@ -2736,6 +2857,11 @@ export type MeMutationUpdateAppArgs = {
 
 export type MeMutationUpdateProfileArgs = {
   userData: UserDataInput;
+};
+
+export type MeteredBillingStatus = {
+  __typename?: 'MeteredBillingStatus';
+  EAS_UPDATE: Scalars['Boolean'];
 };
 
 export type Offer = {
@@ -2954,6 +3080,8 @@ export type RootMutation = {
   accessToken: AccessTokenMutation;
   /** Mutations that modify an Account */
   account: AccountMutation;
+  /** Mutations that create, update, and delete an AccountSSOConfiguration */
+  accountSSOConfiguration: AccountSsoConfigurationMutation;
   /** Mutations that modify the build credentials for an Android app */
   androidAppBuildCredentials: AndroidAppBuildCredentialsMutation;
   /** Mutations that modify the credentials for an Android app */
@@ -3043,6 +3171,8 @@ export type RootQuery = {
   _doNotUse?: Maybe<Scalars['String']>;
   /** Top-level query object for querying Accounts. */
   account: AccountQuery;
+  /** Top-level query object for querying AccountSSOConfigurationPublicData */
+  accountSSOConfigurationPublicData: AccountSsoConfigurationPublicDataQuery;
   /** Top-level query object for querying Actors. */
   actor: ActorQuery;
   /**
@@ -3236,12 +3366,16 @@ export type Submission = ActivityTimelineProjectActivity & {
   archiveUrl?: Maybe<Scalars['String']>;
   canRetry: Scalars['Boolean'];
   cancelingActor?: Maybe<Actor>;
+  childSubmission?: Maybe<Submission>;
+  completedAt?: Maybe<Scalars['DateTime']>;
   createdAt: Scalars['DateTime'];
   error?: Maybe<SubmissionError>;
   id: Scalars['ID'];
   initiatingActor?: Maybe<Actor>;
   iosConfig?: Maybe<IosSubmissionConfig>;
   logsUrl?: Maybe<Scalars['String']>;
+  /** Retry time starts after completedAt */
+  maxRetryTimeMinutes: Scalars['Int'];
   parentSubmission?: Maybe<Submission>;
   platform: AppPlatform;
   status: SubmissionStatus;
@@ -3337,8 +3471,10 @@ export type SubscriptionDetails = {
   cancelledAt?: Maybe<Scalars['DateTime']>;
   concurrencies?: Maybe<Concurrencies>;
   endedAt?: Maybe<Scalars['DateTime']>;
+  futureSubscription?: Maybe<FutureSubscription>;
   id: Scalars['ID'];
   isDowngrading?: Maybe<Scalars['Boolean']>;
+  meteredBillingStatus: MeteredBillingStatus;
   name?: Maybe<Scalars['String']>;
   nextInvoice?: Maybe<Scalars['DateTime']>;
   planId?: Maybe<Scalars['String']>;
@@ -3533,6 +3669,7 @@ export type UsageMetricTotal = {
 
 export enum UsageMetricType {
   Bandwidth = 'BANDWIDTH',
+  Build = 'BUILD',
   Request = 'REQUEST',
   User = 'USER'
 }

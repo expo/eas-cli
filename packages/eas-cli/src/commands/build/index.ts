@@ -23,6 +23,7 @@ interface RawBuildFlags {
   'auto-submit': boolean;
   'auto-submit-with-profile'?: string;
   'resource-class'?: UserInputResourceClass;
+  message?: string;
 }
 
 export default class Build extends EasCommand {
@@ -86,6 +87,10 @@ export default class Build extends EasCommand {
       hidden: true,
       description: 'The instance type that will be used to run this build [experimental]',
     }),
+    message: Flags.string({
+      char: 'm',
+      description: 'A short message describing the build',
+    }),
   };
 
   async runAsync(): Promise<void> {
@@ -143,6 +148,11 @@ export default class Build extends EasCommand {
       Log.newLine();
     }
 
+    const message = flags['message'];
+    if (message && message.length > 1024) {
+      Errors.error('Message cannot be longer than 1024 characters.', { exit: 1 });
+    }
+
     const profile = flags['profile'];
     return {
       requestedPlatform,
@@ -163,6 +173,7 @@ export default class Build extends EasCommand {
       autoSubmit: flags['auto-submit'] || flags['auto-submit-with-profile'] !== undefined,
       submitProfile: flags['auto-submit-with-profile'] ?? profile,
       userInputResourceClass: flags['resource-class'] ?? UserInputResourceClass.DEFAULT,
+      message,
     };
   }
 }

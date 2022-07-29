@@ -29,7 +29,7 @@ export async function collectMetadataAsync<T extends Platform>(
     ('simulator' in ctx.buildProfile && ctx.buildProfile.simulator
       ? 'simulator'
       : ctx.buildProfile.distribution) ?? 'store';
-  const metadata = {
+  const metadata: Metadata = {
     trackingContext: ctx.trackingCtx,
     ...(await maybeResolveVersionsAsync(ctx)),
     cliVersion: easCliVersion,
@@ -46,6 +46,7 @@ export async function collectMetadataAsync<T extends Platform>(
     gitCommitHash: await getVcsClient().getCommitHashAsync(),
     isGitWorkingTreeDirty: await getVcsClient().hasUncommittedChangesAsync(),
     username: getUsername(ctx.exp, await ensureLoggedInAsync()),
+    message: ctx.message,
     ...(ctx.platform === Platform.IOS && {
       iosEnterpriseProvisioning: resolveIosEnterpriseProvisioning(
         ctx as BuildContext<Platform.IOS>
