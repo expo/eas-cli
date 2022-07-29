@@ -17,6 +17,7 @@ import {
 import { ensureLoggedInAsync } from '../user/actions';
 import { easCliVersion } from '../utils/easCli';
 import { getVcsClient } from '../vcs';
+import { Client } from '../vcs/vcs';
 import { maybeResolveVersionsAsync as maybeResolveAndroidVersionsAsync } from './android/version';
 import { BuildContext } from './context';
 import { maybeResolveVersionsAsync as maybeResolveIosVersionsAsync } from './ios/version';
@@ -48,7 +49,7 @@ export async function collectMetadataAsync<T extends Platform>(
     gitCommitHash: await vcsClient.getCommitHashAsync(),
     isGitWorkingTreeDirty: await vcsClient.hasUncommittedChangesAsync(),
     username: getUsername(ctx.exp, await ensureLoggedInAsync()),
-    message: ctx.message ?? (await vcsClient.getLastCommitMessageAsync())?.trim() ?? undefined,
+    message: ctx.message ?? (await getFormattedCommitMessageAsync(vcsClient)),
     ...(ctx.platform === Platform.IOS && {
       iosEnterpriseProvisioning: resolveIosEnterpriseProvisioning(
         ctx as BuildContext<Platform.IOS>
@@ -147,4 +148,17 @@ function resolveIosEnterpriseProvisioning(
   ctx: BuildContext<Platform.IOS>
 ): IosEnterpriseProvisioning | undefined {
   return ctx.buildProfile.enterpriseProvisioning;
+}
+
+export async function getFormattedCommitMessageAsync(
+  vcsClient: Client
+): Promise<string | undefined> {
+  const maybeCommitMessage = (await vcsClient.getLastCommitMessageAsync())?.trim();
+  if (!maybeCommitMessage) {
+    return undefined;
+  }
+  const lines = maybeCommitMessage.split('\n');
+  const withoutEmptyLines = lines.filter(i => i);
+  const message = withoutEmptyLines.join(' ');
+  return message.length > 1024 ? message.substring(0, 1021) + '...' : message;
 }
