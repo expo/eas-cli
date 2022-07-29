@@ -29,7 +29,7 @@ export async function collectMetadataAsync<T extends Platform>(
     ('simulator' in ctx.buildProfile && ctx.buildProfile.simulator
       ? 'simulator'
       : ctx.buildProfile.distribution) ?? 'store';
-  const metadata = {
+  const metadata: Metadata = {
     trackingContext: ctx.trackingCtx,
     ...(await maybeResolveVersionsAsync(ctx)),
     cliVersion: easCliVersion,
