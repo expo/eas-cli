@@ -38,6 +38,10 @@ export default class BranchView extends EasCommand {
 
     // provide help to a user if they ran the command with missing args
     if (!branchName) {
+      if (options.nonInteractive) {
+        throw new Error('Branch name may not be empty.');
+      }
+
       ({ name: branchName } = await selectBranchFromPaginatedQueryAsync(
         projectId,
         'Which branch would you like to view?',

@@ -26,7 +26,7 @@ export async function selectBranchFromPaginatedQueryAsync(
   const selectedBranch = await paginatedQueryWithSelectPromptAsync({
     limit: options.limit ?? BRANCHES_LIMIT,
     offset: options.offset,
-    queryToPerform: (pageSize, offset) => queryBranchesForProjectAsync(pageSize, offset, projectId),
+    queryToPerform: (limit, offset) => queryBranchesForProjectAsync(limit, offset, projectId),
     promptOptions: {
       title: promptTitle,
       getIdentifierForQueryItem: updateBranchFragment => updateBranchFragment.id,
@@ -55,8 +55,7 @@ export async function listAndRenderPaginatedBranchesAsync(
     await paginatedQueryWithConfirmPromptAsync({
       limit: options.limit ?? BRANCHES_LIMIT,
       offset: options.offset,
-      queryToPerform: (pageSize, offset) =>
-        queryBranchesForProjectAsync(pageSize, offset, projectId),
+      queryToPerform: (limit, offset) => queryBranchesForProjectAsync(limit, offset, projectId),
       promptOptions: {
         title: 'Load more branches?',
         renderListItems: branches => renderPageOfBranches(branches, options),
@@ -66,13 +65,13 @@ export async function listAndRenderPaginatedBranchesAsync(
 }
 
 async function queryBranchesForProjectAsync(
-  pageSize: number,
+  limit: number,
   offset: number,
   projectId: string
 ): Promise<UpdateBranchFragment[]> {
   return await BranchQuery.listBranchesAsync({
     appId: projectId,
-    limit: pageSize,
+    limit,
     offset,
   });
 }

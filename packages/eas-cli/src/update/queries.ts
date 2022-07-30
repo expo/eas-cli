@@ -28,8 +28,8 @@ export async function listAndRenderUpdatesOnBranchByNameAsync(
     await paginatedQueryWithConfirmPromptAsync({
       limit: options.limit ?? UPDATES_LIMIT,
       offset: options.offset,
-      queryToPerform: (pageSize, offset) =>
-        queryUpdateGroupsForBranchAsync(pageSize, offset, projectId, branchName),
+      queryToPerform: (limit, offset) =>
+        queryUpdateGroupsForBranchAsync(limit, offset, projectId, branchName),
       promptOptions: {
         title: 'Load more branches?',
         renderListItems: updates => renderUpdateGroups(updates, options, branchName),
@@ -39,7 +39,7 @@ export async function listAndRenderUpdatesOnBranchByNameAsync(
 }
 
 async function queryUpdateGroupsForBranchAsync(
-  pageSize: number,
+  limit: number,
   offset: number,
   projectId: string,
   branchName: string
@@ -47,7 +47,7 @@ async function queryUpdateGroupsForBranchAsync(
   const { app } = await UpdateQuery.viewBranchAsync({
     appId: projectId,
     name: branchName,
-    limit: pageSize,
+    limit,
     offset,
   });
 
