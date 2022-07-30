@@ -9,6 +9,7 @@ import gql from 'graphql-tag';
 import nullthrows from 'nullthrows';
 
 import { getEASUpdateURL } from '../../api';
+import { BRANCHES_LIMIT } from '../../branch/queries';
 import { getUpdateGroupUrl } from '../../build/utils/url';
 import EasCommand from '../../commandUtils/EasCommand';
 import fetch from '../../fetch';
@@ -25,6 +26,7 @@ import {
   ViewBranchUpdatesQuery,
 } from '../../graphql/generated';
 import { PublishMutation } from '../../graphql/mutations/PublishMutation';
+import { BranchQuery } from '../../graphql/queries/BranchQuery';
 import { UpdateQuery } from '../../graphql/queries/UpdateQuery';
 import Log, { link } from '../../log';
 import { ora } from '../../ora';
@@ -58,7 +60,6 @@ import formatFields from '../../utils/formatFields';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 import { getVcsClient } from '../../vcs';
 import { createUpdateBranchOnAppAsync } from '../branch/create';
-import { listBranchesAsync } from '../branch/list';
 import { createUpdateChannelOnAppAsync } from '../channel/create';
 
 export const defaultPublishPlatforms: PublishPlatform[] = ['android', 'ios'];
@@ -128,8 +129,8 @@ export async function ensureBranchExistsAsync({
 }: {
   appId: string;
   name: string;
-  limit?: number;
-  offset?: number;
+  limit: number;
+  offset: number;
 }): Promise<{
   id: string;
   updates: Exclude<
@@ -291,7 +292,11 @@ export default class UpdatePublish extends EasCommand {
         throw new Error(validationMessage);
       }
 
-      const branches = await listBranchesAsync({ projectId });
+      const branches = await BranchQuery.listBranchesAsync({
+        appId: projectId,
+        limit: BRANCHES_LIMIT,
+        offset: 0,
+      });
       if (branches.length === 0) {
         ({ name: branchName } = await promptAsync({
           type: 'text',
@@ -474,6 +479,7 @@ export default class UpdatePublish extends EasCommand {
       appId: projectId,
       name: branchName,
       limit: 0,
+      offset: 0,
     });
 
     // Sort the updates into different groups based on their platform specific runtime versions
@@ -568,7 +574,7 @@ export default class UpdatePublish extends EasCommand {
         const newUpdatesForRuntimeVersion = newUpdates.filter(
           update => update.runtimeVersion === runtime
         );
-        if (!newUpdatesForRuntimeVersion.length) {
+        if (newUpdatesForRuntimeVersion.length === 0) {
           throw new Error(`Publish response is missing updates with runtime ${runtime}.`);
         }
         const platforms = newUpdatesForRuntimeVersion.map(update => update.platform);
@@ -643,7 +649,7 @@ export async function getUpdatesToRepublishInteractiveAsync(
     title: formatUpdateTitle(update),
     value: update.group,
   }));
-  if (!updateGroups.length) {
+  if (updateGroups.length === 0) {
     throw new Error(
       `There are no updates on branch "${branchName}" published for the platform(s) ${platformFlag}. Did you mean to publish a new update instead?`
     );
