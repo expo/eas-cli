@@ -89,7 +89,7 @@ describe(paginatedQueryWithSelectPromptAsync.name, () => {
     jest.mocked(selectAsync).mockClear();
   });
 
-  it.only.each([
+  it.each([
     [10, 50],
     [77, 30],
   ])(
