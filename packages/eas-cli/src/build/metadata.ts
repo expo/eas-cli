@@ -24,6 +24,7 @@ import { maybeResolveVersionsAsync as maybeResolveIosVersionsAsync } from './ios
 export async function collectMetadataAsync<T extends Platform>(
   ctx: BuildContext<T>
 ): Promise<Metadata> {
+  const vcsClient = getVcsClient();
   const channelOrReleaseChannel = await resolveChannelOrReleaseChannelAsync(ctx);
   const distribution =
     ('simulator' in ctx.buildProfile && ctx.buildProfile.simulator
@@ -43,8 +44,11 @@ export async function collectMetadataAsync<T extends Platform>(
     appName: ctx.exp.name,
     appIdentifier: resolveAppIdentifier(ctx),
     buildProfile: ctx.buildProfileName,
-    gitCommitHash: await getVcsClient().getCommitHashAsync(),
-    isGitWorkingTreeDirty: await getVcsClient().hasUncommittedChangesAsync(),
+    gitCommitHash: await vcsClient.getCommitHashAsync(),
+    gitCommitMessage: truncateGitCommitMessage(
+      (await vcsClient.getLastCommitMessageAsync()) ?? undefined
+    ),
+    isGitWorkingTreeDirty: await vcsClient.hasUncommittedChangesAsync(),
     username: getUsername(ctx.exp, await ensureLoggedInAsync()),
     message: ctx.message,
     ...(ctx.platform === Platform.IOS && {
@@ -145,4 +149,14 @@ function resolveIosEnterpriseProvisioning(
   ctx: BuildContext<Platform.IOS>
 ): IosEnterpriseProvisioning | undefined {
   return ctx.buildProfile.enterpriseProvisioning;
+}
+
+export function truncateGitCommitMessage(
+  msg: string | undefined,
+  maxLength: number = 4096
+): string | undefined {
+  if (msg === undefined) {
+    return undefined;
+  }
+  return msg.length > maxLength ? `${msg.substring(0, maxLength - 3)}...` : msg;
 }
