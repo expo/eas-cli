@@ -1726,6 +1726,7 @@ export type Build = ActivityTimelineProjectActivity & BuildOrBuildJob & {
   estimatedWaitTimeLeftSeconds?: Maybe<Scalars['Int']>;
   expirationDate?: Maybe<Scalars['DateTime']>;
   gitCommitHash?: Maybe<Scalars['String']>;
+  gitCommitMessage?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
   /** Queue position is 1-indexed */
   initialQueuePosition?: Maybe<Scalars['Int']>;
@@ -1894,6 +1895,7 @@ export type BuildMetadataInput = {
   credentialsSource?: InputMaybe<BuildCredentialsSource>;
   distribution?: InputMaybe<DistributionType>;
   gitCommitHash?: InputMaybe<Scalars['String']>;
+  gitCommitMessage?: InputMaybe<Scalars['String']>;
   iosEnterpriseProvisioning?: InputMaybe<BuildIosEnterpriseProvisioning>;
   isGitWorkingTreeDirty?: InputMaybe<Scalars['Boolean']>;
   message?: InputMaybe<Scalars['String']>;
