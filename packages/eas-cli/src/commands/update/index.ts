@@ -43,8 +43,8 @@ import {
   buildBundlesAsync,
   buildUnsortedUpdateInfoGroupAsync,
   collectAssetsAsync,
+  isUploadedAssetCountAboveWarningThreshold,
   uploadAssetsAsync,
-  uploadedAssetCountIsAboveWarningThreshold,
 } from '../../project/publish';
 import { resolveWorkflowAsync } from '../../project/workflow';
 import { confirmAsync, promptAsync, selectAsync } from '../../prompts';
@@ -605,14 +605,14 @@ export default class UpdatePublish extends EasCommand {
         );
         Log.addNewLineIfNone();
         if (
-          uploadedAssetCountIsAboveWarningThreshold(uploadedAssetCount, assetLimitPerUpdateGroup)
+          isUploadedAssetCountAboveWarningThreshold(uploadedAssetCount, assetLimitPerUpdateGroup)
         ) {
           Log.warn(
-            `This update group contains ${uploadedAssetCount} assets and is nearing or beyond the server cap of ${assetLimitPerUpdateGroup}\n` +
+            `This update group contains ${uploadedAssetCount} assets and is nearing or beyond the server cap of ${assetLimitPerUpdateGroup}.\n` +
               `${learnMore('https://docs.expo.dev/eas-update/optimize-assets/', {
                 learnMoreMessage: 'Consider optimizing your usage of assets',
                 dim: false,
-              })}`
+              })}.`
           );
           Log.addNewLineIfNone();
         }

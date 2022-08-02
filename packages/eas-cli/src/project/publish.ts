@@ -7,7 +7,7 @@ import mime from 'mime';
 import path from 'path';
 import promiseLimit from 'promise-limit';
 
-import { AppPlatform, AssetMetadataStatus, PartialManifestAsset } from '../graphql/generated';
+import { AssetMetadataStatus, PartialManifestAsset } from '../graphql/generated';
 import { PublishMutation } from '../graphql/mutations/PublishMutation';
 import { PresignedPost } from '../graphql/mutations/UploadSessionMutation';
 import { PublishQuery } from '../graphql/queries/PublishQuery';
@@ -322,7 +322,7 @@ export async function uploadAssetsAsync(
   };
 }
 
-export function uploadedAssetCountIsAboveWarningThreshold(
+export function isUploadedAssetCountAboveWarningThreshold(
   uploadedAssetCount: number,
   maxAssetsPerUpdate: number
 ): boolean {
