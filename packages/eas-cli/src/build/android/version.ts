@@ -9,6 +9,7 @@ import { AppPlatform } from '../../graphql/generated';
 import { AppVersionMutation } from '../../graphql/mutations/AppVersionMutation';
 import { AppVersionQuery } from '../../graphql/queries/AppVersionQuery';
 import Log from '../../log';
+import { ora } from '../../ora';
 import {
   getAppBuildGradleAsync,
   parseGradleCommand,
@@ -214,15 +215,22 @@ export async function resolveRemoteVersionCodeAsync({
   }
 
   const nextBuildVersion = getNextVersionCode(currentBuildVersion);
-  Log.log(`Incrementing versionCode ${currentBuildVersion} -> ${nextBuildVersion}.`);
-
-  await AppVersionMutation.createAppVersionAsync({
-    appId: projectId,
-    platform: AppPlatform.Android,
-    applicationIdentifier: applicationId,
-    storeVersion: localVersions.appVersion ?? exp.version ?? '1.0.0',
-    buildVersion: String(nextBuildVersion),
-    runtimeVersion: Updates.getRuntimeVersionNullable(exp, Platform.ANDROID) ?? undefined,
-  });
+  const spinner = ora(
+    `Incrementing versionCode ${currentBuildVersion} -> ${nextBuildVersion}.`
+  ).start();
+  try {
+    await AppVersionMutation.createAppVersionAsync({
+      appId: projectId,
+      platform: AppPlatform.Android,
+      applicationIdentifier: applicationId,
+      storeVersion: localVersions.appVersion ?? exp.version ?? '1.0.0',
+      buildVersion: String(nextBuildVersion),
+      runtimeVersion: Updates.getRuntimeVersionNullable(exp, Platform.ANDROID) ?? undefined,
+    });
+    spinner.succeed(`Incremented versionCode ${currentBuildVersion} -> ${nextBuildVersion}.`);
+  } catch (err) {
+    spinner.fail(`Failed to increment versionCode ${currentBuildVersion} -> ${nextBuildVersion}.`);
+    throw err;
+  }
   return String(nextBuildVersion);
 }

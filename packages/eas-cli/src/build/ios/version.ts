@@ -11,6 +11,7 @@ import { AppPlatform } from '../../graphql/generated';
 import { AppVersionMutation } from '../../graphql/mutations/AppVersionMutation';
 import { AppVersionQuery } from '../../graphql/queries/AppVersionQuery';
 import Log from '../../log';
+import { ora } from '../../ora';
 import { findApplicationTarget } from '../../project/ios/target';
 import { getNextBuildNumber, isValidBuildNumber } from '../../project/ios/versions';
 import { resolveWorkflowAsync } from '../../project/workflow';
@@ -304,15 +305,22 @@ export async function resolveRemoteBuildNumberAsync({
   }
 
   const nextBuildVersion = getNextBuildNumber(currentBuildVersion);
-  Log.log(`Incrementing buildNumber ${currentBuildVersion} -> ${nextBuildVersion}.`);
-
-  await AppVersionMutation.createAppVersionAsync({
-    appId: projectId,
-    platform: AppPlatform.Ios,
-    applicationIdentifier: applicationTarget.bundleIdentifier,
-    storeVersion: localShortVersion ?? '1.0.0',
-    buildVersion: nextBuildVersion,
-    runtimeVersion: Updates.getRuntimeVersionNullable(exp, Platform.IOS) ?? undefined,
-  });
+  const spinner = ora(
+    `Incrementing buildNumber ${currentBuildVersion} -> ${nextBuildVersion}.`
+  ).start();
+  try {
+    await AppVersionMutation.createAppVersionAsync({
+      appId: projectId,
+      platform: AppPlatform.Ios,
+      applicationIdentifier: applicationTarget.bundleIdentifier,
+      storeVersion: localShortVersion ?? '1.0.0',
+      buildVersion: nextBuildVersion,
+      runtimeVersion: Updates.getRuntimeVersionNullable(exp, Platform.IOS) ?? undefined,
+    });
+    spinner.succeed(`Incremented buildNumber ${currentBuildVersion} -> ${nextBuildVersion}.`);
+  } catch (err) {
+    spinner.fail(`Failed to increment buildNumber ${currentBuildVersion} -> ${nextBuildVersion}.`);
+    throw err;
+  }
   return nextBuildVersion;
 }

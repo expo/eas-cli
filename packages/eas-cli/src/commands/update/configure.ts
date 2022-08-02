@@ -242,8 +242,8 @@ async function configureAppJSONForEASUpdateAsync({
 }
 
 function isRuntimeEqual(
-  runtimeVersionA: string | { policy: 'sdkVersion' | 'nativeVersion' },
-  runtimeVersionB: string | { policy: 'sdkVersion' | 'nativeVersion' }
+  runtimeVersionA: string | { policy: 'sdkVersion' | 'nativeVersion' | 'appVersion' },
+  runtimeVersionB: string | { policy: 'sdkVersion' | 'nativeVersion' | 'appVersion' }
 ): boolean {
   if (typeof runtimeVersionA === 'string' && typeof runtimeVersionB === 'string') {
     return runtimeVersionA === runtimeVersionB;
