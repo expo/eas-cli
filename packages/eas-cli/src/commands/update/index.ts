@@ -28,7 +28,7 @@ import {
 import { PublishMutation } from '../../graphql/mutations/PublishMutation';
 import { BranchQuery } from '../../graphql/queries/BranchQuery';
 import { UpdateQuery } from '../../graphql/queries/UpdateQuery';
-import Log, { link } from '../../log';
+import Log, { learnMore, link } from '../../log';
 import { ora } from '../../ora';
 import { getExpoConfig } from '../../project/expoConfig';
 import {
@@ -44,6 +44,7 @@ import {
   buildUnsortedUpdateInfoGroupAsync,
   collectAssetsAsync,
   uploadAssetsAsync,
+  uploadedAssetCountIsAboveWarningThreshold,
 } from '../../project/publish';
 import { resolveWorkflowAsync } from '../../project/workflow';
 import { confirmAsync, promptAsync, selectAsync } from '../../prompts';
@@ -326,6 +327,7 @@ export default class UpdatePublish extends EasCommand {
     let unsortedUpdateInfoGroups: UpdateInfoGroup = {};
     let oldMessage: string, oldRuntimeVersion: string;
     let uploadedAssetCount = 0;
+    let assetLimitPerUpdateGroup = 0;
 
     if (republish) {
       // If we are republishing, we don't need to worry about building the bundle or uploading the assets.
@@ -446,15 +448,13 @@ export default class UpdatePublish extends EasCommand {
       try {
         const platforms = platformFlag === 'all' ? defaultPublishPlatforms : [platformFlag];
         const assets = await collectAssetsAsync({ inputDir: inputDir!, platforms });
-        const { uniqueUploadedAssetCount } = await uploadAssetsAsync(
-          assets,
-          (totalAssets, missingAssets) => {
-            assetSpinner.text = `Uploading assets. Finished (${
-              totalAssets - missingAssets
-            }/${totalAssets})`;
-          }
-        );
-        uploadedAssetCount = uniqueUploadedAssetCount;
+        const uploadResults = await uploadAssetsAsync(assets, (totalAssets, missingAssets) => {
+          assetSpinner.text = `Uploading assets. Finished (${
+            totalAssets - missingAssets
+          }/${totalAssets})`;
+        });
+        uploadedAssetCount = uploadResults.uniqueUploadedAssetCount;
+        assetLimitPerUpdateGroup = uploadResults.assetLimitPerUpdateGroup;
         unsortedUpdateInfoGroups = await buildUnsortedUpdateInfoGroupAsync(assets, exp);
         const uploadAssetSuccessMessage = uploadedAssetCount
           ? `Uploaded ${uploadedAssetCount} ${uploadedAssetCount === 1 ? 'asset' : 'assets'}!`
@@ -604,6 +604,18 @@ export default class UpdatePublish extends EasCommand {
           ])
         );
         Log.addNewLineIfNone();
+        if (
+          uploadedAssetCountIsAboveWarningThreshold(uploadedAssetCount, assetLimitPerUpdateGroup)
+        ) {
+          Log.warn(
+            `This update group contains ${uploadedAssetCount} assets and is nearing or beyond the server cap of ${assetLimitPerUpdateGroup}\n` +
+              `${learnMore('https://docs.expo.dev/eas-update/optimize-assets/', {
+                learnMoreMessage: 'Consider optimizing your usage of assets',
+                dim: false,
+              })}`
+          );
+          Log.addNewLineIfNone();
+        }
       }
     }
   }

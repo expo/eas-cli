@@ -1661,6 +1661,7 @@ export enum AssetMetadataStatus {
 
 export type AssetMutation = {
   __typename?: 'AssetMutation';
+  assetLimitPerUpdateGroup: Scalars['Int'];
   /**
    * Returns an array of specifications for upload. Each URL is valid for an hour.
    * The content type of the asset you wish to upload must be specified.
@@ -4581,7 +4582,7 @@ export type GetSignedUploadMutationVariables = Exact<{
 }>;
 
 
-export type GetSignedUploadMutation = { __typename?: 'RootMutation', asset: { __typename?: 'AssetMutation', getSignedAssetUploadSpecifications: { __typename?: 'GetSignedAssetUploadSpecificationsResult', specifications: Array<string> } } };
+export type GetSignedUploadMutation = { __typename?: 'RootMutation', asset: { __typename?: 'AssetMutation', assetLimitPerUpdateGroup: number, getSignedAssetUploadSpecifications: { __typename?: 'GetSignedAssetUploadSpecificationsResult', specifications: Array<string> } } };
 
 export type UpdatePublishMutationVariables = Exact<{
   publishUpdateGroupsInput: Array<PublishUpdateGroupInput> | PublishUpdateGroupInput;

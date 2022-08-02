@@ -7,7 +7,7 @@ import mime from 'mime';
 import path from 'path';
 import promiseLimit from 'promise-limit';
 
-import { AssetMetadataStatus, PartialManifestAsset } from '../graphql/generated';
+import { AppPlatform, AssetMetadataStatus, PartialManifestAsset } from '../graphql/generated';
 import { PublishMutation } from '../graphql/mutations/PublishMutation';
 import { PresignedPost } from '../graphql/mutations/UploadSessionMutation';
 import { PublishQuery } from '../graphql/queries/PublishQuery';
@@ -250,6 +250,7 @@ type AssetUploadResult = {
   assetCount: number;
   uniqueAssetCount: number;
   uniqueUploadedAssetCount: number;
+  assetLimitPerUpdateGroup: number;
 };
 
 export async function uploadAssetsAsync(
@@ -286,9 +287,9 @@ export async function uploadAssetsAsync(
 
   let missingAssets = await filterOutAssetsThatAlreadyExistAsync(uniqueAssets);
   const uniqueUploadedAssetCount = missingAssets.length;
-  const { specifications } = await PublishMutation.getUploadURLsAsync(
-    missingAssets.map(ma => ma.contentType)
-  );
+  const { assetLimitPerUpdateGroup, getSignedAssetUploadSpecifications } =
+    await PublishMutation.getUploadURLsAsync(missingAssets.map(ma => ma.contentType));
+  const { specifications } = getSignedAssetUploadSpecifications;
 
   updateSpinnerText?.(totalAssets, missingAssets.length);
 
@@ -317,5 +318,14 @@ export async function uploadAssetsAsync(
     assetCount: assets.length,
     uniqueAssetCount: uniqueAssets.length,
     uniqueUploadedAssetCount,
+    assetLimitPerUpdateGroup,
   };
+}
+
+export function uploadedAssetCountIsAboveWarningThreshold(
+  uploadedAssetCount: number,
+  maxAssetsPerUpdate: number
+): boolean {
+  const warningThreshold = Math.floor(maxAssetsPerUpdate * 0.75);
+  return uploadedAssetCount > warningThreshold;
 }
