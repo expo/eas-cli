@@ -36,6 +36,7 @@ export interface BuildContext<T extends Platform> {
   exp: ExpoConfig;
   localBuildOptions: LocalBuildOptions;
   nonInteractive: boolean;
+  noWait: boolean;
   platform: T;
   projectDir: string;
   projectId: string;

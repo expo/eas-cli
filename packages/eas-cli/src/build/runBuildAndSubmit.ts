@@ -206,6 +206,7 @@ async function prepareAndStartBuildAsync({
     clearCache: flags.clearCache,
     buildProfile: buildProfile.profile,
     nonInteractive: flags.nonInteractive,
+    noWait: !flags.wait,
     platform: buildProfile.platform,
     projectDir,
     localBuildOptions: flags.localBuildOptions,

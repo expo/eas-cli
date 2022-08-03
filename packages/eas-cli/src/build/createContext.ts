@@ -24,7 +24,8 @@ export async function createBuildContextAsync<T extends Platform>({
   easJsonCliConfig,
   clearCache = false,
   localBuildOptions,
-  nonInteractive = false,
+  nonInteractive,
+  noWait,
   platform,
   projectDir,
   resourceClass,
@@ -36,6 +37,7 @@ export async function createBuildContextAsync<T extends Platform>({
   clearCache: boolean;
   localBuildOptions: LocalBuildOptions;
   nonInteractive: boolean;
+  noWait: boolean;
   platform: T;
   projectDir: string;
   resourceClass: BuildResourceClass;
@@ -84,6 +86,7 @@ export async function createBuildContextAsync<T extends Platform>({
     exp,
     localBuildOptions,
     nonInteractive,
+    noWait,
     platform,
     projectDir,
     projectId,
