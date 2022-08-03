@@ -74,8 +74,8 @@ export async function createBuildContextAsync<T extends Platform>({
     project_id: projectId,
     project_type: workflow,
     ...devClientProperties,
-    noWait,
-    runFromCI,
+    no_wait: noWait,
+    run_from_ci: runFromCI,
   };
   Analytics.logEvent(BuildEvent.BUILD_COMMAND, trackingCtx);
 
