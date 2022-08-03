@@ -1,12 +1,17 @@
 import { ExpoConfig } from '@expo/config';
-import { IOSConfig } from '@expo/config-plugins';
+import { IOSConfig, Updates } from '@expo/config-plugins';
 import { Platform, Workflow } from '@expo/eas-build-job';
+import { BuildProfile } from '@expo/eas-json';
 import chalk from 'chalk';
 import path from 'path';
 import type { XCBuildConfiguration } from 'xcode';
 
 import { Target } from '../../credentials/ios/types';
+import { AppPlatform } from '../../graphql/generated';
+import { AppVersionMutation } from '../../graphql/mutations/AppVersionMutation';
+import { AppVersionQuery } from '../../graphql/queries/AppVersionQuery';
 import Log from '../../log';
+import { ora } from '../../ora';
 import { findApplicationTarget } from '../../project/ios/target';
 import { getNextBuildNumber, isValidBuildNumber } from '../../project/ios/versions';
 import { resolveWorkflowAsync } from '../../project/workflow';
@@ -244,4 +249,97 @@ export function evaluateTemplateString(
       return match;
     }
   });
+}
+
+/**
+ * Returns buildNumber that will be used for the next build. If current build profile
+ * has an 'autoIncrement' option set, it increments the version on server.
+ */
+export async function resolveRemoteBuildNumberAsync({
+  projectDir,
+  projectId,
+  exp,
+  applicationTarget,
+  buildProfile,
+}: {
+  projectDir: string;
+  projectId: string;
+  exp: ExpoConfig;
+  applicationTarget: Target;
+  buildProfile: BuildProfile<Platform.IOS>;
+}): Promise<string> {
+  const remoteVersions = await AppVersionQuery.latestVersionAsync(
+    projectId,
+    AppPlatform.Ios,
+    applicationTarget.bundleIdentifier
+  );
+
+  const localBuildNumber = await readBuildNumberAsync(
+    projectDir,
+    exp,
+    applicationTarget.buildSettings ?? {}
+  );
+  const localShortVersion = await readShortVersionAsync(
+    projectDir,
+    exp,
+    applicationTarget.buildSettings ?? {}
+  );
+  let currentBuildVersion: string;
+  if (remoteVersions?.buildVersion) {
+    currentBuildVersion = remoteVersions.buildVersion;
+  } else {
+    if (localBuildNumber) {
+      Log.warn(
+        'No remote versions are configured for this project, buildNumber will be initialized based on the value from the local project.'
+      );
+      currentBuildVersion = localBuildNumber;
+    } else {
+      Log.error(
+        `Remote versions are not configured and EAS CLI was not able to read the current version from your project. Use "eas build:version:set" to initialize remote versions.`
+      );
+      throw new Error('Remote versions are not configured.');
+    }
+  }
+  if (!buildProfile.autoIncrement && remoteVersions?.buildVersion) {
+    return currentBuildVersion;
+  } else if (!buildProfile.autoIncrement && !remoteVersions?.buildVersion) {
+    const spinner = ora(`Initializing the buildNumber with ${currentBuildVersion}.`).start();
+    try {
+      await AppVersionMutation.createAppVersionAsync({
+        appId: projectId,
+        platform: AppPlatform.Ios,
+        applicationIdentifier: applicationTarget.bundleIdentifier,
+        storeVersion: localShortVersion ?? '1.0.0',
+        buildVersion: currentBuildVersion,
+        runtimeVersion: Updates.getRuntimeVersionNullable(exp, Platform.IOS) ?? undefined,
+      });
+      spinner.succeed(`Initialized the buildNumber with ${currentBuildVersion}.`);
+    } catch (err) {
+      spinner.fail(`Failed to initialize the buildNumber with ${currentBuildVersion}.`);
+      throw err;
+    }
+    return currentBuildVersion;
+  } else {
+    const nextBuildVersion = getNextBuildNumber(currentBuildVersion);
+    const spinner = ora(
+      `Incrementing buildNumber ${currentBuildVersion} -> ${nextBuildVersion}.`
+    ).start();
+    try {
+      await AppVersionMutation.createAppVersionAsync({
+        appId: projectId,
+        platform: AppPlatform.Ios,
+        applicationIdentifier: applicationTarget.bundleIdentifier,
+        storeVersion: localShortVersion ?? '1.0.0',
+        buildVersion: nextBuildVersion,
+        runtimeVersion: Updates.getRuntimeVersionNullable(exp, Platform.IOS) ?? undefined,
+      });
+      spinner.succeed(`Incremented buildNumber ${currentBuildVersion} -> ${nextBuildVersion}.`);
+    } catch (err) {
+      spinner.fail(
+        `Failed to increment buildNumber ${currentBuildVersion} -> ${nextBuildVersion}.`
+      );
+      throw err;
+    }
+    return nextBuildVersion;
+  }
 }

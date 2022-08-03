@@ -1,11 +1,15 @@
 import { ExpoConfig } from '@expo/config';
-import { AndroidConfig } from '@expo/config-plugins';
+import { AndroidConfig, Updates } from '@expo/config-plugins';
 import { Platform, Workflow } from '@expo/eas-build-job';
 import { BuildProfile } from '@expo/eas-json';
 import chalk from 'chalk';
 import fs from 'fs-extra';
 
+import { AppPlatform } from '../../graphql/generated';
+import { AppVersionMutation } from '../../graphql/mutations/AppVersionMutation';
+import { AppVersionQuery } from '../../graphql/queries/AppVersionQuery';
 import Log from '../../log';
+import { ora } from '../../ora';
 import {
   getAppBuildGradleAsync,
   parseGradleCommand,
@@ -164,4 +168,88 @@ async function writeBuildGradleAsync({
 }): Promise<void> {
   const buildGradlePath = AndroidConfig.Paths.getAppBuildGradleFilePath(projectDir);
   await fs.writeFile(buildGradlePath, buildGradle);
+}
+
+/**
+ * Returns buildNumber that will be used for the next build. If current build profile
+ * has an 'autoIncrement' option set, it increments the version on server.
+ */
+export async function resolveRemoteVersionCodeAsync({
+  projectDir,
+  projectId,
+  exp,
+  applicationId,
+  buildProfile,
+}: {
+  projectDir: string;
+  projectId: string;
+  exp: ExpoConfig;
+  applicationId: string;
+  buildProfile: BuildProfile<Platform.ANDROID>;
+}): Promise<string> {
+  const remoteVersions = await AppVersionQuery.latestVersionAsync(
+    projectId,
+    AppPlatform.Android,
+    applicationId
+  );
+
+  const localVersions = await maybeResolveVersionsAsync(projectDir, exp, buildProfile);
+  let currentBuildVersion: string;
+  if (remoteVersions?.buildVersion) {
+    currentBuildVersion = remoteVersions.buildVersion;
+  } else {
+    if (localVersions.appBuildVersion) {
+      Log.warn(
+        'No remote versions are configured for this project, versionCode will be initialized based on the value from the local project.'
+      );
+      currentBuildVersion = localVersions.appBuildVersion;
+    } else {
+      Log.error(
+        `Remote versions are not configured and EAS CLI was not able to read the current version from your project. Use "eas build:version:set" to initialize remote versions.`
+      );
+      throw new Error('Remote versions are not configured.');
+    }
+  }
+  if (!buildProfile.autoIncrement && remoteVersions?.buildVersion) {
+    return currentBuildVersion;
+  } else if (!buildProfile.autoIncrement && !remoteVersions?.buildVersion) {
+    const spinner = ora(`Initializing the versionCode with ${currentBuildVersion}.`).start();
+    try {
+      await AppVersionMutation.createAppVersionAsync({
+        appId: projectId,
+        platform: AppPlatform.Android,
+        applicationIdentifier: applicationId,
+        storeVersion: localVersions.appVersion ?? exp.version ?? '1.0.0',
+        buildVersion: currentBuildVersion,
+        runtimeVersion: Updates.getRuntimeVersionNullable(exp, Platform.ANDROID) ?? undefined,
+      });
+      spinner.succeed(`Initialized the versionCode with ${currentBuildVersion}.`);
+    } catch (err) {
+      spinner.fail(`Failed to initialize the versionCode with ${currentBuildVersion}.`);
+      throw err;
+    }
+    return currentBuildVersion;
+  } else {
+    const nextBuildVersion = getNextVersionCode(currentBuildVersion);
+    const spinner = ora(
+      `Incrementing the versionCode ${currentBuildVersion} -> ${nextBuildVersion}.`
+    ).start();
+    try {
+      await AppVersionMutation.createAppVersionAsync({
+        appId: projectId,
+        platform: AppPlatform.Android,
+        applicationIdentifier: applicationId,
+        storeVersion: localVersions.appVersion ?? exp.version ?? '1.0.0',
+        buildVersion: String(nextBuildVersion),
+        runtimeVersion: Updates.getRuntimeVersionNullable(exp, Platform.ANDROID) ?? undefined,
+      });
+      spinner.succeed(`Incremented the versionCode ${currentBuildVersion} -> ${nextBuildVersion}.`);
+    } catch (err) {
+      spinner.fail(
+        `Failed to increment the versionCode ${currentBuildVersion} -> ${nextBuildVersion}.`
+      );
+      throw err;
+    }
+    return String(nextBuildVersion);
+  }
 }

@@ -24,9 +24,9 @@ import { resolveTargetsAsync } from '../../../project/ios/target';
 import { BUILD_NUMBER_REQUIREMENTS, isValidBuildNumber } from '../../../project/ios/versions';
 import { findProjectRootAsync, getProjectIdAsync } from '../../../project/projectUtils';
 import {
-  ensureRemoteVersionPolicyAsync,
+  ensureVersionSourceIsRemoteAsync,
   getBuildVersionName,
-  validateAppConfigForRemoteVersionPolicyAsync,
+  validateAppConfigForRemoteVersionSource,
 } from '../../../project/remoteVersionSource';
 import { resolveWorkflowAsync } from '../../../project/workflow';
 import { getProfilesAsync } from '../../../utils/profiles';
@@ -41,7 +41,6 @@ interface SyncContext<T extends Platform> {
 
 export default class BuildVersionSyncView extends EasCommand {
   public static description = 'Update a version in native code with a value stored on EAS servers';
-  static hidden = true;
 
   public static flags = {
     platform: Flags.enum({
@@ -61,7 +60,7 @@ export default class BuildVersionSyncView extends EasCommand {
 
     const requestedPlatform = await selectRequestedPlatformAsync(flags.platform);
     const easJsonReader = new EasJsonReader(projectDir);
-    await ensureRemoteVersionPolicyAsync(projectDir, easJsonReader);
+    await ensureVersionSourceIsRemoteAsync(projectDir, easJsonReader);
 
     const platforms = toPlatforms(requestedPlatform);
     const buildProfiles = await getProfilesAsync({
@@ -73,7 +72,7 @@ export default class BuildVersionSyncView extends EasCommand {
     for (const profileInfo of buildProfiles) {
       const exp = getExpoConfig(projectDir, { env: profileInfo.profile.env });
       const projectId = await getProjectIdAsync(exp);
-      await validateAppConfigForRemoteVersionPolicyAsync(exp);
+      validateAppConfigForRemoteVersionSource(exp, profileInfo.platform);
       const platformDisplayName = appPlatformDisplayNames[toAppPlatform(profileInfo.platform)];
 
       const applicationIdentifier = await getApplicationIdentifierAsync(

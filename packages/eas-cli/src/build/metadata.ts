@@ -65,10 +65,32 @@ async function maybeResolveVersionsAsync<T extends Platform>(
 ): Promise<{ appBuildVersion?: string; appVersion?: string }> {
   if (ctx.platform === Platform.IOS) {
     const iosContext = ctx as BuildContext<Platform.IOS>;
-    return await maybeResolveIosVersionsAsync(ctx.projectDir, ctx.exp, iosContext.ios.targets);
+    const resolvedVersion = await maybeResolveIosVersionsAsync(
+      ctx.projectDir,
+      ctx.exp,
+      iosContext.ios.targets
+    );
+    if (iosContext.ios.buildNumberOverride) {
+      return {
+        ...resolvedVersion,
+        appBuildVersion: iosContext.ios.buildNumberOverride,
+      };
+    }
+    return resolvedVersion;
   } else if (ctx.platform === Platform.ANDROID) {
     const androidCtx = ctx as BuildContext<Platform.ANDROID>;
-    return await maybeResolveAndroidVersionsAsync(ctx.projectDir, ctx.exp, androidCtx.buildProfile);
+    const resolvedVersion = await maybeResolveAndroidVersionsAsync(
+      ctx.projectDir,
+      ctx.exp,
+      androidCtx.buildProfile
+    );
+    if (androidCtx.android.versionCodeOverride) {
+      return {
+        ...resolvedVersion,
+        appBuildVersion: androidCtx.android.versionCodeOverride,
+      };
+    }
+    return resolvedVersion;
   } else {
     throw new Error(`Unsupported platform ${ctx.platform}`);
   }

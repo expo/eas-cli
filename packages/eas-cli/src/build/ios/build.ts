@@ -1,4 +1,5 @@
 import { Ios, Job, Metadata, Platform, Workflow } from '@expo/eas-build-job';
+import { AppVersionSource } from '@expo/eas-json';
 
 import { IosCredentials } from '../../credentials/ios/types';
 import { BuildParamsInput } from '../../graphql/generated';
@@ -14,6 +15,7 @@ import { ensureIosCredentialsAsync } from './credentials';
 import { transformJob } from './graphql';
 import { prepareJobAsync } from './prepareJob';
 import { syncProjectConfigurationAsync } from './syncProjectConfiguration';
+import { resolveRemoteBuildNumberAsync } from './version';
 
 export async function createIosContextAsync(
   ctx: CommonContext<Platform.IOS>
@@ -42,12 +44,22 @@ export async function createIosContextAsync(
     env: buildProfile.env,
   });
   const applicationTarget = findApplicationTarget(targets);
-
+  const buildNumberOverride =
+    ctx.easJsonCliConfig?.appVersionSource === AppVersionSource.REMOTE
+      ? await resolveRemoteBuildNumberAsync({
+          projectDir: ctx.projectDir,
+          projectId: ctx.projectId,
+          exp: ctx.exp,
+          applicationTarget,
+          buildProfile,
+        })
+      : undefined;
   return {
     bundleIdentifier: applicationTarget.bundleIdentifier,
     applicationTarget,
     targets,
     xcodeBuildContext,
+    buildNumberOverride,
   };
 }
 
@@ -63,8 +75,11 @@ export async function prepareIosBuildAsync(
       await syncProjectConfigurationAsync({
         projectDir: ctx.projectDir,
         exp: ctx.exp,
-        buildProfile: ctx.buildProfile,
         targets: ctx.ios.targets,
+        localAutoIncrement:
+          ctx.easJsonCliConfig?.appVersionSource === AppVersionSource.REMOTE
+            ? false
+            : ctx.buildProfile.autoIncrement,
       });
     },
     prepareJobAsync: async (

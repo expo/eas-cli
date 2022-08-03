@@ -20,15 +20,14 @@ import {
   getProjectIdAsync,
 } from '../../../project/projectUtils';
 import {
-  ensureRemoteVersionPolicyAsync,
+  ensureVersionSourceIsRemoteAsync,
   getBuildVersionName,
-  validateAppConfigForRemoteVersionPolicyAsync,
+  validateAppConfigForRemoteVersionSource,
 } from '../../../project/remoteVersionSource';
 import { promptAsync } from '../../../prompts';
 
 export default class BuildVersionSetView extends EasCommand {
   static description = 'Update version of an app.';
-  static hidden = true;
 
   static flags = {
     platform: Flags.enum({
@@ -49,13 +48,13 @@ export default class BuildVersionSetView extends EasCommand {
 
     const platform = await selectPlatformAsync(flags.platform);
     const easJsonReader = new EasJsonReader(projectDir);
-    await ensureRemoteVersionPolicyAsync(projectDir, easJsonReader);
+    await ensureVersionSourceIsRemoteAsync(projectDir, easJsonReader);
     const profile = await easJsonReader.getBuildProfileAsync(platform, flags.profile ?? undefined);
 
     const exp = getExpoConfig(projectDir, { env: profile.env });
     const projectId = await getProjectIdAsync(exp);
     const projectFullName = await getProjectFullNameAsync(exp);
-    await validateAppConfigForRemoteVersionPolicyAsync(exp);
+    validateAppConfigForRemoteVersionSource(exp, platform);
 
     const applicationIdentifier = await getApplicationIdentifierAsync(
       projectDir,

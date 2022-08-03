@@ -16,6 +16,7 @@ export type CommonContext<T extends Platform> = Omit<BuildContext<T>, 'android' 
 export interface AndroidBuildContext {
   applicationId: string;
   gradleContext?: GradleBuildContext;
+  versionCodeOverride?: string;
 }
 
 export interface IosBuildContext {
@@ -23,6 +24,7 @@ export interface IosBuildContext {
   applicationTarget: Target;
   targets: Target[];
   xcodeBuildContext: XcodeBuildContext;
+  buildNumberOverride?: string;
 }
 
 export interface BuildContext<T extends Platform> {

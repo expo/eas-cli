@@ -1,13 +1,14 @@
 import { ExpoConfig } from '@expo/config';
 import { Platform } from '@expo/eas-build-job';
-import { AppVersionSource, EasJsonReader } from '@expo/eas-json';
+import { AppVersionSource, EasJson, EasJsonReader } from '@expo/eas-json';
 import chalk from 'chalk';
 import fs from 'fs-extra';
 
 import Log from '../log';
 import { confirmAsync } from '../prompts';
+import { ProfileData } from '../utils/profiles';
 
-export async function ensureRemoteVersionPolicyAsync(
+export async function ensureVersionSourceIsRemoteAsync(
   projectDir: string,
   easJsonReader: EasJsonReader
 ): Promise<void> {
@@ -36,7 +37,23 @@ export async function ensureRemoteVersionPolicyAsync(
   Log.withTick('Updated eas.json');
 }
 
-export async function validateAppConfigForRemoteVersionPolicyAsync(exp: ExpoConfig): Promise<void> {
+export function validateBuildProfileVersionSettings(
+  profileInfo: ProfileData<'build'>,
+  cliConfig: EasJson['cli']
+): void {
+  if (cliConfig?.appVersionSource !== AppVersionSource.REMOTE) {
+    return;
+  }
+  if (profileInfo.profile.autoIncrement === 'version') {
+    throw new Error(
+      `${chalk.bold(
+        '{"autoIncrement": "version"}'
+      )} is not supported when app version source is set to remote.`
+    );
+  }
+}
+
+export function validateAppConfigForRemoteVersionSource(exp: ExpoConfig, platform: Platform): void {
   if (typeof exp.runtimeVersion === 'object' && exp.runtimeVersion?.policy === 'nativeVersion') {
     throw new Error(
       `${chalk.bold('nativeVersion')} policy for ${chalk.bold(
@@ -46,18 +63,22 @@ export async function validateAppConfigForRemoteVersionPolicyAsync(exp: ExpoConf
       )} or define version explicitly.`
     );
   }
-  if (exp.ios?.buildNumber !== undefined) {
-    throw new Error(
+  if (platform === Platform.IOS && exp.ios?.buildNumber !== undefined) {
+    Log.warn(
       `${chalk.bold(
         'ios.buildNumber'
-      )} field in app config is not supported when version source is set to remote, remove it and re-run the command.`
+      )} field in app config is ignored when version source is set to remote, but this value will still be in the manifest available via ${chalk.bold(
+        'expo-constants'
+      )}. It's recommended to remove this value from app config.`
     );
   }
-  if (exp.android?.versionCode !== undefined) {
-    throw new Error(
+  if (platform === Platform.ANDROID && exp.android?.versionCode !== undefined) {
+    Log.warn(
       `${chalk.bold(
         'android.versionCode'
-      )} field in app config is not supported when version source is set to remote, remove it and re-run the command.`
+      )} field in app config is ignored when version source is set to remote, but this value will still be in the manifest available via ${chalk.bold(
+        'expo-constants'
+      )}. It's recommended to remove this value from app config.`
     );
   }
 }

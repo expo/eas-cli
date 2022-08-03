@@ -20,6 +20,10 @@ import {
 } from '../platform';
 import { checkExpoSdkIsSupportedAsync } from '../project/expoSdk';
 import { validateMetroConfigForManagedWorkflowAsync } from '../project/metroConfig';
+import {
+  validateAppConfigForRemoteVersionSource,
+  validateBuildProfileVersionSettings,
+} from '../project/remoteVersionSource';
 import { createSubmissionContextAsync } from '../submit/context';
 import {
   submitAsync,
@@ -96,6 +100,10 @@ export async function runBuildAndSubmitAsync(projectDir: string, flags: BuildFla
     nonInteractive: flags.nonInteractive,
     buildProfiles,
   });
+
+  for (const buildProfile of buildProfiles) {
+    validateBuildProfileVersionSettings(buildProfile, easJsonCliConfig);
+  }
 
   const startedBuilds: {
     build: BuildFragment;
@@ -223,6 +231,7 @@ async function prepareAndStartBuildAsync({
     );
   }
 
+  validateAppConfigForRemoteVersionSource(buildCtx.exp, buildProfile.platform);
   if (buildCtx.workflow === Workflow.MANAGED) {
     if (!sdkVersionChecked) {
       await checkExpoSdkIsSupportedAsync(buildCtx);
