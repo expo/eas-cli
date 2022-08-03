@@ -2,7 +2,6 @@ import { Updates } from '@expo/config-plugins';
 import { Metadata, Platform, sanitizeMetadata } from '@expo/eas-build-job';
 import { IosEnterpriseProvisioning } from '@expo/eas-json';
 import fs from 'fs-extra';
-import getenv from 'getenv';
 import resolveFrom from 'resolve-from';
 
 import Log from '../log';
@@ -58,7 +57,7 @@ export async function collectMetadataAsync<T extends Platform>(
       ),
     }),
     runWithNoWaitFlag: ctx.noWait,
-    runFromCI: getenv.boolish('CI', false),
+    runFromCI: ctx.runFromCI,
   };
   return sanitizeMetadata(metadata);
 }

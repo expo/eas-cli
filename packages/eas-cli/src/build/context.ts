@@ -37,6 +37,7 @@ export interface BuildContext<T extends Platform> {
   localBuildOptions: LocalBuildOptions;
   nonInteractive: boolean;
   noWait: boolean;
+  runFromCI: boolean;
   platform: T;
   projectDir: string;
   projectId: string;

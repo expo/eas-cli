@@ -29,6 +29,8 @@ export enum BuildEvent {
   CONFIGURE_PROJECT_SUCCESS = 'build cli configure project success',
   CONFIGURE_PROJECT_FAIL = 'build cli configure project fail',
   BUILD_REQUEST_ATTEMPT = 'build cli build request attempt',
+  BUILD_REQUEST_CI = 'build cli build request ci',
+  BUILD_REQUEST_NO_WAIT = 'build cli build request no wait',
   BUILD_REQUEST_SUCCESS = 'build cli build request success',
   BUILD_REQUEST_FAIL = 'build cli build request fail',
 
