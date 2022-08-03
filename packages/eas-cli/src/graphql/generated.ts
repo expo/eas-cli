@@ -2289,6 +2289,7 @@ export enum EasServiceMetric {
   BandwidthUsage = 'BANDWIDTH_USAGE',
   Builds = 'BUILDS',
   ManifestRequests = 'MANIFEST_REQUESTS',
+  UniqueUpdaters = 'UNIQUE_UPDATERS',
   UniqueUsers = 'UNIQUE_USERS'
 }
 
@@ -3673,6 +3674,7 @@ export enum UsageMetricType {
   Bandwidth = 'BANDWIDTH',
   Build = 'BUILD',
   Request = 'REQUEST',
+  Update = 'UPDATE',
   User = 'USER'
 }
 
