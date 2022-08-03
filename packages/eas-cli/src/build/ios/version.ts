@@ -300,27 +300,46 @@ export async function resolveRemoteBuildNumberAsync({
       throw new Error('Remote versions are not configured.');
     }
   }
-  if (!buildProfile.autoIncrement) {
+  if (!buildProfile.autoIncrement && remoteVersions?.buildVersion) {
     return currentBuildVersion;
+  } else if (!buildProfile.autoIncrement && !remoteVersions?.buildVersion) {
+    const spinner = ora(`Initializing the buildNumber with ${currentBuildVersion}.`).start();
+    try {
+      await AppVersionMutation.createAppVersionAsync({
+        appId: projectId,
+        platform: AppPlatform.Ios,
+        applicationIdentifier: applicationTarget.bundleIdentifier,
+        storeVersion: localShortVersion ?? '1.0.0',
+        buildVersion: currentBuildVersion,
+        runtimeVersion: Updates.getRuntimeVersionNullable(exp, Platform.IOS) ?? undefined,
+      });
+      spinner.succeed(`Initialized the buildNumber with ${currentBuildVersion}.`);
+    } catch (err) {
+      spinner.fail(`Failed to initialize the buildNumber with ${currentBuildVersion}.`);
+      throw err;
+    }
+    return currentBuildVersion;
+  } else {
+    const nextBuildVersion = getNextBuildNumber(currentBuildVersion);
+    const spinner = ora(
+      `Incrementing buildNumber ${currentBuildVersion} -> ${nextBuildVersion}.`
+    ).start();
+    try {
+      await AppVersionMutation.createAppVersionAsync({
+        appId: projectId,
+        platform: AppPlatform.Ios,
+        applicationIdentifier: applicationTarget.bundleIdentifier,
+        storeVersion: localShortVersion ?? '1.0.0',
+        buildVersion: nextBuildVersion,
+        runtimeVersion: Updates.getRuntimeVersionNullable(exp, Platform.IOS) ?? undefined,
+      });
+      spinner.succeed(`Incremented buildNumber ${currentBuildVersion} -> ${nextBuildVersion}.`);
+    } catch (err) {
+      spinner.fail(
+        `Failed to increment buildNumber ${currentBuildVersion} -> ${nextBuildVersion}.`
+      );
+      throw err;
+    }
+    return nextBuildVersion;
   }
-
-  const nextBuildVersion = getNextBuildNumber(currentBuildVersion);
-  const spinner = ora(
-    `Incrementing buildNumber ${currentBuildVersion} -> ${nextBuildVersion}.`
-  ).start();
-  try {
-    await AppVersionMutation.createAppVersionAsync({
-      appId: projectId,
-      platform: AppPlatform.Ios,
-      applicationIdentifier: applicationTarget.bundleIdentifier,
-      storeVersion: localShortVersion ?? '1.0.0',
-      buildVersion: nextBuildVersion,
-      runtimeVersion: Updates.getRuntimeVersionNullable(exp, Platform.IOS) ?? undefined,
-    });
-    spinner.succeed(`Incremented buildNumber ${currentBuildVersion} -> ${nextBuildVersion}.`);
-  } catch (err) {
-    spinner.fail(`Failed to increment buildNumber ${currentBuildVersion} -> ${nextBuildVersion}.`);
-    throw err;
-  }
-  return nextBuildVersion;
 }

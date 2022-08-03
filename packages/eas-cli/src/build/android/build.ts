@@ -88,7 +88,10 @@ export async function prepareAndroidBuildAsync(
       await syncProjectConfigurationAsync({
         projectDir: ctx.projectDir,
         exp: ctx.exp,
-        buildProfile: ctx.buildProfile,
+        localAutoIncrement:
+          ctx.easJsonCliConfig?.appVersionSource === AppVersionSource.REMOTE
+            ? false
+            : ctx.buildProfile.autoIncrement,
       });
     },
     prepareJobAsync: async (

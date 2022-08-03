@@ -210,27 +210,46 @@ export async function resolveRemoteVersionCodeAsync({
       throw new Error('Remote versions are not configured.');
     }
   }
-  if (!buildProfile.autoIncrement) {
+  if (!buildProfile.autoIncrement && remoteVersions?.buildVersion) {
     return currentBuildVersion;
+  } else if (!buildProfile.autoIncrement && !remoteVersions?.buildVersion) {
+    const spinner = ora(`Initializing the versionCode with ${currentBuildVersion}.`).start();
+    try {
+      await AppVersionMutation.createAppVersionAsync({
+        appId: projectId,
+        platform: AppPlatform.Android,
+        applicationIdentifier: applicationId,
+        storeVersion: localVersions.appVersion ?? exp.version ?? '1.0.0',
+        buildVersion: currentBuildVersion,
+        runtimeVersion: Updates.getRuntimeVersionNullable(exp, Platform.ANDROID) ?? undefined,
+      });
+      spinner.succeed(`Initialized the versionCode with ${currentBuildVersion}.`);
+    } catch (err) {
+      spinner.fail(`Failed to initialize the versionCode with ${currentBuildVersion}.`);
+      throw err;
+    }
+    return currentBuildVersion;
+  } else {
+    const nextBuildVersion = getNextVersionCode(currentBuildVersion);
+    const spinner = ora(
+      `Incrementing the versionCode ${currentBuildVersion} -> ${nextBuildVersion}.`
+    ).start();
+    try {
+      await AppVersionMutation.createAppVersionAsync({
+        appId: projectId,
+        platform: AppPlatform.Android,
+        applicationIdentifier: applicationId,
+        storeVersion: localVersions.appVersion ?? exp.version ?? '1.0.0',
+        buildVersion: String(nextBuildVersion),
+        runtimeVersion: Updates.getRuntimeVersionNullable(exp, Platform.ANDROID) ?? undefined,
+      });
+      spinner.succeed(`Incremented the versionCode ${currentBuildVersion} -> ${nextBuildVersion}.`);
+    } catch (err) {
+      spinner.fail(
+        `Failed to increment the versionCode ${currentBuildVersion} -> ${nextBuildVersion}.`
+      );
+      throw err;
+    }
+    return String(nextBuildVersion);
   }
-
-  const nextBuildVersion = getNextVersionCode(currentBuildVersion);
-  const spinner = ora(
-    `Incrementing versionCode ${currentBuildVersion} -> ${nextBuildVersion}.`
-  ).start();
-  try {
-    await AppVersionMutation.createAppVersionAsync({
-      appId: projectId,
-      platform: AppPlatform.Android,
-      applicationIdentifier: applicationId,
-      storeVersion: localVersions.appVersion ?? exp.version ?? '1.0.0',
-      buildVersion: String(nextBuildVersion),
-      runtimeVersion: Updates.getRuntimeVersionNullable(exp, Platform.ANDROID) ?? undefined,
-    });
-    spinner.succeed(`Incremented versionCode ${currentBuildVersion} -> ${nextBuildVersion}.`);
-  } catch (err) {
-    spinner.fail(`Failed to increment versionCode ${currentBuildVersion} -> ${nextBuildVersion}.`);
-    throw err;
-  }
-  return String(nextBuildVersion);
 }
