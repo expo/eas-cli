@@ -8,13 +8,17 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
-- Add new option to `eas device:create` - allow importing devices from Apple Developer Portal. ([#1236](https://github.com/expo/eas-cli/pull/1236) by [@dsokal](https://github.com/dsokal))
-- Add support for attaching messages to builds. ([#1237](https://github.com/expo/eas-cli/pull/1237) by [@dsokal](https://github.com/dsokal))
-- Introduce interactive pagination for `branch` commands. ([#1213](https://github.com/expo/eas-cli/pull/1213) by [@kgc00](https://github.com/kgc00))
-
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
+
+## [0.57.0](https://github.com/expo/eas-cli/releases/tag/v0.57.0) - 2022-08-03
+
+### 🎉 New features
+
+- Add new option to `eas device:create` - allow importing devices from Apple Developer Portal. ([#1236](https://github.com/expo/eas-cli/pull/1236) by [@dsokal](https://github.com/dsokal))
+- Add support for attaching messages to builds. ([#1237](https://github.com/expo/eas-cli/pull/1237) by [@dsokal](https://github.com/dsokal))
+- Introduce interactive pagination for `branch` commands. ([#1213](https://github.com/expo/eas-cli/pull/1213) by [@kgc00](https://github.com/kgc00))
 
 ## [0.56.0](https://github.com/expo/eas-cli/releases/tag/v0.56.0) - 2022-07-28
 
