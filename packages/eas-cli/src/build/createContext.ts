@@ -74,14 +74,10 @@ export async function createBuildContextAsync<T extends Platform>({
     project_id: projectId,
     project_type: workflow,
     ...devClientProperties,
+    noWait,
+    runFromCI,
   };
   Analytics.logEvent(BuildEvent.BUILD_COMMAND, trackingCtx);
-  if (noWait) {
-    Analytics.logEvent(BuildEvent.BUILD_REQUEST_NO_WAIT, trackingCtx);
-  }
-  if (runFromCI) {
-    Analytics.logEvent(BuildEvent.BUILD_REQUEST_CI, trackingCtx);
-  }
 
   const commonContext: CommonContext<T> = {
     accountName,
