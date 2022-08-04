@@ -14,6 +14,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Do not include sources in `eas-json` npm package. ([#1248](https://github.com/expo/eas-cli/pull/1248) by [@wkozyra95](https://github.com/wkozyra95))
+
 ## [0.57.0](https://github.com/expo/eas-cli/releases/tag/v0.57.0) - 2022-08-03
 
 ### 🎉 New features
