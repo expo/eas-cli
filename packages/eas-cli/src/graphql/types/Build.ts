@@ -1,4 +1,7 @@
+import { print } from 'graphql';
 import gql from 'graphql-tag';
+
+import { SubmissionFragmentNode } from './Submission';
 
 export const BuildFragmentNode = gql`
   fragment BuildFragment on Build {
@@ -47,5 +50,19 @@ export const BuildFragmentNode = gql`
     priority
     createdAt
     updatedAt
+  }
+`;
+
+export const BuildFragmentWithSubmissionsNode = gql`
+  ${print(SubmissionFragmentNode)}
+  ${print(BuildFragmentNode)}
+
+  fragment BuildWithSubmissionsFragment on Build {
+    id
+    ...BuildFragment
+    submissions {
+      id
+      ...SubmissionFragment
+    }
   }
 `;

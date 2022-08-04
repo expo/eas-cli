@@ -8,8 +8,10 @@ import {
   BuildFragment,
   BuildResourceClass,
   BuildStatus,
+  BuildWithSubmissionsFragment,
   SubmissionFragment,
 } from '../graphql/generated';
+import { BuildQuery } from '../graphql/queries/BuildQuery';
 import { toAppPlatform, toPlatform } from '../graphql/types/AppPlatform';
 import Log from '../log';
 import {
@@ -107,7 +109,7 @@ export async function runBuildAndSubmitAsync(projectDir: string, flags: BuildFla
   }
 
   const startedBuilds: {
-    build: BuildFragment & { submission?: SubmissionFragment };
+    build: BuildWithSubmissionsFragment | BuildFragment;
     buildProfile: ProfileData<'build'>;
   }[] = [];
   const buildCtxByPlatform: { [p in AppPlatform]?: BuildContext<Platform> } = {};
@@ -161,7 +163,7 @@ export async function runBuildAndSubmitAsync(projectDir: string, flags: BuildFla
         submitProfile,
         nonInteractive: flags.nonInteractive,
       });
-      startedBuild.build.submission = submission;
+      startedBuild.build = await BuildQuery.withSubmissionsByIdAsync(startedBuild.build.id);
       submissions.push(submission);
     }
 
@@ -198,12 +200,11 @@ export async function runBuildAndSubmitAsync(projectDir: string, flags: BuildFla
     const completedSubmissions = await waitForSubmissionsToCompleteAsync(submissions);
     if (flags.json) {
       printJsonOnlyOutput(
-        builds.map(build => ({
-          ...build,
-          submission: completedSubmissions.find(
-            submission => submission.platform === build?.platform
-          ),
-        }))
+        await Promise.all(
+          builds
+            .filter((i): i is BuildWithSubmissionsFragment => !!i)
+            .map(build => BuildQuery.withSubmissionsByIdAsync(build.id))
+        )
       );
     }
     exitWithNonZeroCodeIfSomeSubmissionsDidntFinish(completedSubmissions);
