@@ -176,7 +176,21 @@ describe(AppVersionTask, () => {
         .reply(
           200,
           require('./fixtures/appStoreVersions/get-appStoreVersionLocalizations-200.json')
-        );
+        )
+        // Respond to version.getPhasedReleaseAsync
+        .get(`/v1/${AppStoreVersion.type}/APP_STORE_VERSION_2/appStoreVersionPhasedRelease`)
+        .reply(200, {
+          data: {
+            id: 'APP_STORE_VERSION_PHASED_RELEASE_1',
+            type: AppStoreVersionPhasedRelease.type,
+            attributes: {
+              phasedReleaseState: PhasedReleaseState.INACTIVE,
+              currentDayNumber: null,
+              startDate: null,
+              totalPauseDuration: null,
+            },
+          },
+        });
 
       const context: PartialAppleData = {
         app: new App(requestContext, 'stub-id', {} as any),
@@ -211,7 +225,21 @@ describe(AppVersionTask, () => {
         .reply(
           200,
           require('./fixtures/appStoreVersions/get-appStoreVersionLocalizations-200.json')
-        );
+        )
+        // Respond to version.getPhasedReleaseAsync (for version 3.0)
+        .get(`/v1/${AppStoreVersion.type}/APP_STORE_VERSION_3/appStoreVersionPhasedRelease`)
+        .reply(200, {
+          data: {
+            id: 'APP_STORE_VERSION_PHASED_RELEASE_1',
+            type: AppStoreVersionPhasedRelease.type,
+            attributes: {
+              phasedReleaseState: PhasedReleaseState.INACTIVE,
+              currentDayNumber: null,
+              startDate: null,
+              totalPauseDuration: null,
+            },
+          },
+        });
 
       const context: PartialAppleData = {
         app: new App(requestContext, 'stub-id', {} as any),
