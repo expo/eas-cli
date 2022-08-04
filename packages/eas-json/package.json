@@ -36,6 +36,9 @@
     "test": "jest",
     "clean": "rm -rf build node_modules yarn-error.log"
   },
+  "files": [
+    "/build"
+  ],
   "publishConfig": {
     "access": "public"
   },
