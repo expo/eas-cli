@@ -449,62 +449,43 @@
       },
       "AppleRelease": {
         "type": "object",
+        "description": "Configure how the app is released in the app store.",
         "additionalProperties": false,
-        "defaultSnippets": [
-          {
-            "body": {
-              "automaticRelease": true,
-              "usesThirdPartyContent": false,
-              "usesNonExemptEncryption": false
-            }
-          }
-        ],
         "properties": {
-          "autoReleaseDate": {
-            "description": "ISO Date to release the app automatically. Leave undefined to manually release the app to the public.",
-            "defaultSnippets": [
-              {
-                "body": "$CURRENT_YEAR-${1:$CURRENT_MONTH}-${2:$CURRENT_DATE}"
-              }
-            ],
-            "anyOf": [
+          "automaticRelease": {
+            "description": "If and how the app should automatically be released when approved by App Store review.",
+            "markdownDescription": "If and how the app should automatically be released when approved by App Store review.\n- `false` - Manually release the app after store approval. (default behavior)\n- `true` - Automatically release after store approval.\n- `Date` - Automatically schedule release on this date, after store approval.\n\nApple does not guarantee that your app is available at the chosen scheduled release date.",
+            "oneOf": [
               {
                 "type": "string",
                 "format": "date-time"
               },
               {
-                "type": "string",
-                "format": "date"
+                "type": "boolean"
+              }
+            ],
+            "defaultSnippets": [
+              {
+                "label": "Manual release",
+                "description": "Manually release the app after store approval",
+                "body": false
               },
               {
-                "type": "number"
+                "label": "Automatic release",
+                "description": "Automatically release the app after store approval",
+                "body": true
+              },
+              {
+                "label": "Scheduled release",
+                "description": "Automatically release the app on this date, and store approval",
+                "body": "$CURRENT_YEAR-${1:$CURRENT_MONTH}-${2:$CURRENT_DATE}T${3:$CURRENT_HOUR}:00:00+00:00"
               }
             ]
           },
-          "isPhasedReleaseEnabled": {
+          "phasedRelease": {
             "type": "boolean",
-            "description": "Release update over 7-day period instead of instantly.",
-            "meta": {
-              "storeInfo": "Phased release for automatic updates lets you gradually release this update over a 7-day period to users who have turned on automatic updates. Keep in mind that this version will still be available to all users as a manual update from the App Store. You can pause the phased release for up to 30 days or release this update to all users at any time. [Learn More](https://help.apple.com/app-store-connect/#/dev3d65fcee1)."
-            }
-          },
-          "shouldResetRatings": {
-            "type": "boolean",
-            "description": "Should App Store ratings be reset for this version of the app.",
-            "meta": {
-              "storeInfo": "You can reset your app’s summary rating for all countries or regions when you release this version. Keep in mind that once this version is released, you won’t be able to restore the rating. Your app’s existing customer reviews will still appear on the App Store."
-            }
-          },
-          "usesThirdPartyContent": {
-            "type": "boolean"
-          },
-          "automaticRelease": {
-            "type": "boolean",
-            "description": "Should the app automatically be released when approved by App Store review."
-          },
-          "usesNonExemptEncryption": {
-            "type": "boolean",
-            "description": "Alternative to setting `ITSAppUsesNonExemptEncryption` in the binary's `Info.plist`."
+            "description": "Phased release for automatic updates lets you gradually release this update over a 7-day period to users who have turned on automatic updates. Keep in mind that this version will still be available to all users as a manual update from the App Store. You can pause the phased release for up to 30 days or release this update to all users at any time.\n@see https://help.apple.com/app-store-connect/#/dev3d65fcee1",
+            "markdownDescription": "Phased release for automatic updates lets you gradually release this update over a 7-day period to users who have turned on automatic updates.\n\nKeep in mind that this version will still be available to all users as a manual update from the App Store.\n\nYou can pause the phased release for up to 30 days or release this update to all users at any time.\n\n[Learn More](https://help.apple.com/app-store-connect/#/dev3d65fcee1)"
           }
         }
       },

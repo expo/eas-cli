@@ -3,6 +3,8 @@ import {
   AppStoreState,
   AppStoreVersion,
   AppStoreVersionLocalization,
+  AppStoreVersionPhasedRelease,
+  PhasedReleaseState,
 } from '@expo/apple-utils';
 import nock from 'nock';
 
@@ -27,6 +29,12 @@ describe(AppVersionTask, () => {
         .get(`/v1/${App.type}/stub-id/${AppStoreVersion.type}`)
         .query((params: any) => params['filter[appStoreState]'] !== AppStoreState.READY_FOR_SALE)
         .reply(200, require('./fixtures/apps/get-appStoreVersions-count-200.json'))
+        // Respond to version.getPhasedReleaseAsync
+        .get(`/v1/${AppStoreVersion.type}/APP_STORE_VERSION_1/appStoreVersionPhasedRelease`)
+        .reply(
+          200,
+          require('./fixtures/appStoreVersions/get-appStoreVersionPhasedRelease-200-empty.json')
+        )
         // Respond to version.getLocalizationsAsync
         .get(`/v1/${AppStoreVersion.type}/APP_STORE_VERSION_1/${AppStoreVersionLocalization.type}`)
         .reply(
@@ -60,6 +68,12 @@ describe(AppVersionTask, () => {
         .get(`/v1/${App.type}/stub-id/${AppStoreVersion.type}`)
         .query(true)
         .reply(200, require('./fixtures/apps/get-appStoreVersions-count-200.json'))
+        // Respond to version.getPhasedReleaseAsync
+        .get(`/v1/${AppStoreVersion.type}/APP_STORE_VERSION_1/appStoreVersionPhasedRelease`)
+        .reply(
+          200,
+          require('./fixtures/appStoreVersions/get-appStoreVersionPhasedRelease-200-empty.json')
+        )
         // Respond to version.getLocalizationsAsync
         .get(`/v1/${AppStoreVersion.type}/APP_STORE_VERSION_1/${AppStoreVersionLocalization.type}`)
         .reply(
@@ -89,6 +103,12 @@ describe(AppVersionTask, () => {
         .get(`/v1/${App.type}/stub-id/${AppStoreVersion.type}`)
         .query((params: any) => params['filter[appStoreState]'] !== AppStoreState.READY_FOR_SALE)
         .reply(200, require('./fixtures/apps/get-appStoreVersions-count-200.json'))
+        // Respond to version.getPhasedReleaseAsync
+        .get(`/v1/${AppStoreVersion.type}/APP_STORE_VERSION_1/appStoreVersionPhasedRelease`)
+        .reply(
+          200,
+          require('./fixtures/appStoreVersions/get-appStoreVersionPhasedRelease-200-empty.json')
+        )
         // Respond to version.getLocalizationsAsync
         .get(`/v1/${AppStoreVersion.type}/APP_STORE_VERSION_1/${AppStoreVersionLocalization.type}`)
         .reply(
@@ -118,6 +138,12 @@ describe(AppVersionTask, () => {
         .get(`/v1/${App.type}/stub-id/${AppStoreVersion.type}`)
         .query((params: any) => params['filter[appStoreState]'] !== AppStoreState.READY_FOR_SALE)
         .reply(200, require('./fixtures/apps/get-appStoreVersions-count-multiple-200.json'))
+        // Respond to version.getPhasedReleaseAsync
+        .get(`/v1/${AppStoreVersion.type}/APP_STORE_VERSION_1/appStoreVersionPhasedRelease`)
+        .reply(
+          200,
+          require('./fixtures/appStoreVersions/get-appStoreVersionPhasedRelease-200-empty.json')
+        )
         // Respond to version.getLocalizationsAsync
         .get(`/v1/${AppStoreVersion.type}/APP_STORE_VERSION_1/${AppStoreVersionLocalization.type}`)
         .reply(
@@ -158,7 +184,7 @@ describe(AppVersionTask, () => {
       expect(writer.setVersion).toBeCalledWith(version.attributes);
     });
 
-    it('sets version release when loaded', async () => {
+    it('sets version release type when loaded', async () => {
       const writer = new AppleConfigWriter();
       const version = new AppStoreVersion(requestContext, 'stub-id', {} as any);
 
@@ -167,7 +193,24 @@ describe(AppVersionTask, () => {
         context: { version, versionLocales: [] } as any,
       });
 
-      expect(writer.setVersionRelease).toBeCalledWith(version.attributes);
+      expect(writer.setVersionReleaseType).toBeCalledWith(version.attributes);
+    });
+
+    it('sets version phased release when loaded', async () => {
+      const writer = new AppleConfigWriter();
+      const version = new AppStoreVersion(requestContext, 'stub-id', {} as any);
+      const versionPhasedRelease = new AppStoreVersionPhasedRelease(
+        requestContext,
+        'stub-id',
+        {} as any
+      );
+
+      await new AppVersionTask().downloadAsync({
+        config: writer,
+        context: { version, versionPhasedRelease, versionLocales: [] } as any,
+      });
+
+      expect(writer.setVersionReleasePhased).toBeCalledWith(versionPhasedRelease.attributes);
     });
 
     it('skips when no locales are loaded', async () => {
@@ -220,7 +263,7 @@ describe(AppVersionTask, () => {
         release: { automaticRelease: true },
       });
 
-      const attributes = { ...config.getVersion(), ...config.getVersionRelease() };
+      const attributes = { ...config.getVersion(), ...config.getVersionReleaseType() };
       const scope = nock('https://api.appstoreconnect.apple.com')
         // Respond to version.updateAsync
         .patch(`/v1/${AppStoreVersion.type}/APP_STORE_VERSION_1`)
@@ -241,6 +284,82 @@ describe(AppVersionTask, () => {
 
       expect(context.version?.attributes).toMatchObject(attributes);
       expect(scope.isDone()).toBeTruthy();
+    });
+
+    it('creates phased release when enabled in config', async () => {
+      const config = new AppleConfigReader({ release: { phasedRelease: true } });
+      const scope = nock('https://api.appstoreconnect.apple.com')
+        .post(`/v1/${AppStoreVersionPhasedRelease.type}`)
+        .reply(201, {
+          data: {
+            id: 'APP_STORE_VERSION_PHASED_RELEASE_1',
+            type: AppStoreVersionPhasedRelease.type,
+            attributes: {
+              phasedReleaseState: PhasedReleaseState.ACTIVE,
+              currentDayNumber: null,
+              startDate: null,
+              totalPauseDuration: null,
+            },
+          },
+        });
+
+      const context: PartialAppleData = {
+        app: new App(requestContext, 'stub-id', {} as any),
+        version: new AppStoreVersion(requestContext, 'APP_STORE_VERSION_1', {} as any),
+        versionPhasedRelease: null, // Not enabled yet
+      };
+
+      await new AppVersionTask().uploadAsync({ context: context as AppleData, config });
+
+      expect(context.versionPhasedRelease).toBeInstanceOf(AppStoreVersionPhasedRelease);
+      expect(scope.isDone()).toBeTruthy();
+    });
+
+    it('deletes active phased release when disabled in config', async () => {
+      const config = new AppleConfigReader({ release: { phasedRelease: false } });
+      const scope = nock('https://api.appstoreconnect.apple.com')
+        .delete(`/v1/${AppStoreVersionPhasedRelease.type}/APP_STORE_VERSION_PHASED_RELEASE_1`)
+        .reply(204);
+
+      const context: PartialAppleData = {
+        app: new App(requestContext, 'stub-id', {} as any),
+        version: new AppStoreVersion(requestContext, 'APP_STORE_VERSION_1', {} as any),
+        // Enabled, and not completed yet
+        versionPhasedRelease: new AppStoreVersionPhasedRelease(
+          requestContext,
+          'APP_STORE_VERSION_PHASED_RELEASE_1',
+          { phasedReleaseState: PhasedReleaseState.ACTIVE } as any
+        ),
+      };
+
+      await new AppVersionTask().uploadAsync({ context: context as AppleData, config });
+
+      expect(context.versionPhasedRelease).toBeNull();
+      expect(scope.isDone()).toBeTruthy();
+    });
+
+    it('does not delete completed phased release when disabled in config', async () => {
+      const config = new AppleConfigReader({ release: { phasedRelease: false } });
+      const scope = nock('https://api.appstoreconnect.apple.com')
+        .delete(`/v1/${AppStoreVersionPhasedRelease.type}/APP_STORE_VERSION_PHASED_RELEASE_1`)
+        .reply(204);
+
+      const context: PartialAppleData = {
+        app: new App(requestContext, 'stub-id', {} as any),
+        version: new AppStoreVersion(requestContext, 'APP_STORE_VERSION_1', {} as any),
+        // Enabled, and not completed yet
+        versionPhasedRelease: new AppStoreVersionPhasedRelease(
+          requestContext,
+          'APP_STORE_VERSION_PHASED_RELEASE_1',
+          { phasedReleaseState: PhasedReleaseState.COMPLETE } as any
+        ),
+      };
+
+      await new AppVersionTask().uploadAsync({ context: context as AppleData, config });
+
+      expect(context.versionPhasedRelease).toBe(context.versionPhasedRelease);
+      expect(scope.isDone()).toBeFalsy();
+      nock.cleanAll();
     });
   });
 });

@@ -1,4 +1,11 @@
-import { App, AppStoreVersion, AppStoreVersionLocalization, Platform } from '@expo/apple-utils';
+import {
+  App,
+  AppStoreVersion,
+  AppStoreVersionLocalization,
+  AppStoreVersionPhasedRelease,
+  PhasedReleaseState,
+  Platform,
+} from '@expo/apple-utils';
 import assert from 'assert';
 import chalk from 'chalk';
 
@@ -23,6 +30,8 @@ export type AppVersionData = {
   versionIsFirst: boolean;
   /** All version locales that should be, or are enabled */
   versionLocales: AppStoreVersionLocalization[];
+  /** The (existing) phased release configuration, when set */
+  versionPhasedRelease: AppStoreVersionPhasedRelease | null;
 };
 
 export class AppVersionTask extends AppleTask {
@@ -50,13 +59,15 @@ export class AppVersionTask extends AppleTask {
     context.versionIsFirst = versionIsFirst;
     context.versionIsLive = versionIsLive;
     context.versionLocales = await version.getLocalizationsAsync();
+    context.versionPhasedRelease = await version.getPhasedReleaseAsync();
   }
 
   public async downloadAsync({ config, context }: TaskDownloadOptions): Promise<void> {
     assert(context.version, `App version not initialized, can't download version`);
 
     config.setVersion(context.version.attributes);
-    config.setVersionRelease(context.version.attributes);
+    config.setVersionReleaseType(context.version.attributes);
+    config.setVersionReleasePhased(context.versionPhasedRelease?.attributes);
 
     for (const locale of context.versionLocales) {
       config.setVersionLocale(locale.attributes);
@@ -66,12 +77,13 @@ export class AppVersionTask extends AppleTask {
   public async uploadAsync({ config, context }: TaskUploadOptions): Promise<void> {
     assert(context.version, `App version not initialized, can't update version`);
 
+    const { versionString } = context.version.attributes;
+
     const version = config.getVersion();
-    const release = config.getVersionRelease();
+    const release = config.getVersionReleaseType();
     if (!version && !release) {
       Log.log(chalk`{dim - Skipped version and release update, not configured}`);
     } else {
-      const { versionString } = context.version.attributes;
       const description = [version && 'version', release && 'release']
         .filter(Boolean)
         .join(' and ');
@@ -82,6 +94,27 @@ export class AppVersionTask extends AppleTask {
           pending: `Updating ${description} info for ${chalk.bold(versionString)}...`,
           success: `Updated ${description} info for ${chalk.bold(versionString)}`,
           failure: `Failed updating ${description} info for ${chalk.bold(versionString)}`,
+        }
+      );
+    }
+
+    const phasedRelease = config.getVersionReleasePhased();
+    if (!phasedRelease && shouldDeletePhasedRelease(context.versionPhasedRelease)) {
+      // if phased release was enabled, but now disabled, we need to remove it
+      await logAsync(() => context.versionPhasedRelease!.deleteAsync(), {
+        pending: `Disabling phased release for ${chalk.bold(versionString)}...`,
+        success: `Disabled phased release for ${chalk.bold(versionString)}`,
+        failure: `Failed disabling phased release for ${chalk.bold(versionString)}`,
+      });
+      context.versionPhasedRelease = null;
+    } else if (phasedRelease && !context.versionPhasedRelease) {
+      // if phased release was not yet set, but now enabled, we need to create it
+      context.versionPhasedRelease = await logAsync(
+        () => context.version.createPhasedReleaseAsync({ state: phasedRelease.phasedReleaseState }),
+        {
+          pending: `Enabling phased release for ${chalk.bold(versionString)}...`,
+          success: `Enabled phased release for ${chalk.bold(versionString)}`,
+          failure: `Failed enabling phased release for ${chalk.bold(versionString)}`,
         }
       );
     }
@@ -155,4 +188,22 @@ async function resolveVersionAsync(
     versionIsLive,
     versionIsFirst: versions.length === 1,
   };
+}
+
+/**
+ * Determine if we can, and should, delete the phased release instance.
+ * This returns true if the instance exist, and has one of the states below:
+ *   - PhasedReleaseState.INACTIVE
+ *   - PhasedReleaseState.ACTIVE
+ *   - PhasedReleaseState.PAUSED
+ */
+function shouldDeletePhasedRelease(phasedRelease: AppStoreVersionPhasedRelease | null): boolean {
+  if (
+    !phasedRelease ||
+    phasedRelease.attributes.phasedReleaseState === PhasedReleaseState.COMPLETE
+  ) {
+    return false;
+  }
+
+  return true;
 }
