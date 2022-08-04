@@ -894,6 +894,7 @@ export type App = Project & {
   androidAppCredentials: Array<AndroidAppCredentials>;
   /** ios.appStoreUrl field from most recent classic update manifest */
   appStoreUrl?: Maybe<Scalars['String']>;
+  assetLimitPerUpdateGroup: Scalars['Int'];
   buildJobs: Array<BuildJob>;
   /**
    * Coalesced Build (EAS) or BuildJob (Classic) items for this app.
@@ -1661,7 +1662,6 @@ export enum AssetMetadataStatus {
 
 export type AssetMutation = {
   __typename?: 'AssetMutation';
-  assetLimitPerUpdateGroup: Scalars['Int'];
   /**
    * Returns an array of specifications for upload. Each URL is valid for an hour.
    * The content type of the asset you wish to upload must be specified.
@@ -1752,6 +1752,7 @@ export type Build = ActivityTimelineProjectActivity & BuildOrBuildJob & {
   reactNativeVersion?: Maybe<Scalars['String']>;
   releaseChannel?: Maybe<Scalars['String']>;
   resourceClass?: Maybe<BuildResourceClass>;
+  runFromCI?: Maybe<Scalars['Boolean']>;
   runtimeVersion?: Maybe<Scalars['String']>;
   sdkVersion?: Maybe<Scalars['String']>;
   status: BuildStatus;
@@ -1902,6 +1903,8 @@ export type BuildMetadataInput = {
   message?: InputMaybe<Scalars['String']>;
   reactNativeVersion?: InputMaybe<Scalars['String']>;
   releaseChannel?: InputMaybe<Scalars['String']>;
+  runFromCI?: InputMaybe<Scalars['Boolean']>;
+  runWithNoWaitFlag?: InputMaybe<Scalars['Boolean']>;
   runtimeVersion?: InputMaybe<Scalars['String']>;
   sdkVersion?: InputMaybe<Scalars['String']>;
   trackingContext?: InputMaybe<Scalars['JSONObject']>;
@@ -4582,7 +4585,7 @@ export type GetSignedUploadMutationVariables = Exact<{
 }>;
 
 
-export type GetSignedUploadMutation = { __typename?: 'RootMutation', asset: { __typename?: 'AssetMutation', assetLimitPerUpdateGroup: number, getSignedAssetUploadSpecifications: { __typename?: 'GetSignedAssetUploadSpecificationsResult', specifications: Array<string> } } };
+export type GetSignedUploadMutation = { __typename?: 'RootMutation', asset: { __typename?: 'AssetMutation', getSignedAssetUploadSpecifications: { __typename?: 'GetSignedAssetUploadSpecificationsResult', specifications: Array<string> } } };
 
 export type UpdatePublishMutationVariables = Exact<{
   publishUpdateGroupsInput: Array<PublishUpdateGroupInput> | PublishUpdateGroupInput;
@@ -4726,6 +4729,13 @@ export type GetAssetMetadataQueryVariables = Exact<{
 
 
 export type GetAssetMetadataQuery = { __typename?: 'RootQuery', asset: { __typename?: 'AssetQuery', metadata: Array<{ __typename?: 'AssetMetadataResult', storageKey: string, status: AssetMetadataStatus }> } };
+
+export type GetAssetLimitForAppQueryVariables = Exact<{
+  appId: Scalars['String'];
+}>;
+
+
+export type GetAssetLimitForAppQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, assetLimitPerUpdateGroup: number } } };
 
 export type SubmissionsByIdQueryVariables = Exact<{
   submissionId: Scalars['ID'];

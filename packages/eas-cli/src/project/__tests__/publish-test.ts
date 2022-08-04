@@ -88,6 +88,7 @@ describe('MetadataJoi', () => {
     expect(error).toBe(undefined);
   });
 });
+
 describe(guessContentTypeFromExtension, () => {
   it('returns the correct content type for jpg', () => {
     expect(guessContentTypeFromExtension('jpg')).toBe('image/jpeg');
@@ -368,20 +369,8 @@ describe(uploadAssetsAsync, () => {
   const iosBundlePath = uuidv4();
   const dummyFilePath = uuidv4();
   const userDefinedPath = uuidv4();
-
-  beforeAll(async () => {
-    await fs.writeFile(androidBundlePath, publishBundles.android.code);
-    await fs.writeFile(iosBundlePath, publishBundles.ios.code);
-    await fs.writeFile(dummyFilePath, dummyFileBuffer);
-    await fs.writeFile(userDefinedPath, 'I am an octet stream');
-  });
-
-  afterAll(async () => {
-    await fs.remove(androidBundlePath);
-    await fs.remove(iosBundlePath);
-    await fs.remove(dummyFilePath);
-    await fs.remove(userDefinedPath);
-  });
+  const testProjectId = uuidv4();
+  const expectedAssetLimit = 1400;
 
   const userDefinedAsset = {
     type: 'bundle',
@@ -407,9 +396,26 @@ describe(uploadAssetsAsync, () => {
       assets: [userDefinedAsset, { type: 'jpg', contentType: 'image/jpeg', path: dummyFilePath }],
     },
   };
+
+  beforeAll(async () => {
+    await fs.writeFile(androidBundlePath, publishBundles.android.code);
+    await fs.writeFile(iosBundlePath, publishBundles.ios.code);
+    await fs.writeFile(dummyFilePath, dummyFileBuffer);
+    await fs.writeFile(userDefinedPath, 'I am an octet stream');
+  });
+
+  afterAll(async () => {
+    await fs.remove(androidBundlePath);
+    await fs.remove(iosBundlePath);
+    await fs.remove(dummyFilePath);
+    await fs.remove(userDefinedPath);
+  });
+
   jest.spyOn(PublishMutation, 'getUploadURLsAsync').mockImplementation(async () => {
     return { specifications: ['{}', '{}', '{}'] };
   });
+
+  jest.spyOn(PublishQuery, 'getAssetLimitAsync').mockImplementation(async () => expectedAssetLimit);
 
   it('resolves if the assets are already uploaded', async () => {
     jest.spyOn(PublishQuery, 'getAssetMetadataAsync').mockImplementation(async () => {
@@ -435,10 +441,11 @@ describe(uploadAssetsAsync, () => {
     });
 
     mockdate.set(0);
-    await expect(uploadAssetsAsync(assetsForUpdateInfoGroup)).resolves.toEqual({
+    await expect(uploadAssetsAsync(assetsForUpdateInfoGroup, testProjectId)).resolves.toEqual({
       assetCount: 6,
       uniqueAssetCount: 3,
       uniqueUploadedAssetCount: 0,
+      assetLimitPerUpdateGroup: expectedAssetLimit,
     });
   });
   it('resolves if the assets are eventually uploaded', async () => {
@@ -467,12 +474,14 @@ describe(uploadAssetsAsync, () => {
     });
 
     mockdate.set(0);
-    await expect(uploadAssetsAsync(assetsForUpdateInfoGroup)).resolves.toEqual({
+    await expect(uploadAssetsAsync(assetsForUpdateInfoGroup, testProjectId)).resolves.toEqual({
       assetCount: 6,
       uniqueAssetCount: 3,
       uniqueUploadedAssetCount: 2,
+      assetLimitPerUpdateGroup: expectedAssetLimit,
     });
   });
+
   it('updates spinner text throughout execution', async () => {
     jest.spyOn(PublishQuery, 'getAssetMetadataAsync').mockImplementation(async () => {
       const status =
@@ -500,7 +509,7 @@ describe(uploadAssetsAsync, () => {
     const updateSpinnerFn = jest.fn((_totalAssets, _missingAssets) => {});
 
     mockdate.set(0);
-    await uploadAssetsAsync(assetsForUpdateInfoGroup, updateSpinnerFn);
+    await uploadAssetsAsync(assetsForUpdateInfoGroup, testProjectId, updateSpinnerFn);
     const calls = updateSpinnerFn.mock.calls;
     expect(calls).toEqual([
       [3, 3],

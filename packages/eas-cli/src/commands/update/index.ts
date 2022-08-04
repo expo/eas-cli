@@ -448,11 +448,15 @@ export default class UpdatePublish extends EasCommand {
       try {
         const platforms = platformFlag === 'all' ? defaultPublishPlatforms : [platformFlag];
         const assets = await collectAssetsAsync({ inputDir: inputDir!, platforms });
-        const uploadResults = await uploadAssetsAsync(assets, (totalAssets, missingAssets) => {
-          assetSpinner.text = `Uploading assets. Finished (${
-            totalAssets - missingAssets
-          }/${totalAssets})`;
-        });
+        const uploadResults = await uploadAssetsAsync(
+          assets,
+          projectId,
+          (totalAssets, missingAssets) => {
+            assetSpinner.text = `Uploading assets. Finished (${
+              totalAssets - missingAssets
+            }/${totalAssets})`;
+          }
+        );
         uploadedAssetCount = uploadResults.uniqueUploadedAssetCount;
         assetLimitPerUpdateGroup = uploadResults.assetLimitPerUpdateGroup;
         unsortedUpdateInfoGroups = await buildUnsortedUpdateInfoGroupAsync(assets, exp);

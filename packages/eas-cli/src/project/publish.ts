@@ -255,6 +255,7 @@ type AssetUploadResult = {
 
 export async function uploadAssetsAsync(
   assetsForUpdateInfoGroup: CollectedAssets,
+  projectId: string,
   updateSpinnerText?: (totalAssets: number, missingAssets: number) => void
 ): Promise<AssetUploadResult> {
   let assets: RawAsset[] = [];
@@ -287,22 +288,22 @@ export async function uploadAssetsAsync(
 
   let missingAssets = await filterOutAssetsThatAlreadyExistAsync(uniqueAssets);
   const uniqueUploadedAssetCount = missingAssets.length;
-  const { assetLimitPerUpdateGroup, getSignedAssetUploadSpecifications } =
-    await PublishMutation.getUploadURLsAsync(missingAssets.map(ma => ma.contentType));
-  const { specifications } = getSignedAssetUploadSpecifications;
-
+  const { specifications } = await PublishMutation.getUploadURLsAsync(
+    missingAssets.map(ma => ma.contentType)
+  );
   updateSpinnerText?.(totalAssets, missingAssets.length);
 
   const assetUploadPromiseLimit = promiseLimit(15);
 
-  await Promise.all(
+  const [assetLimitPerUpdateGroup] = await Promise.all([
+    PublishQuery.getAssetLimitAsync(projectId),
     missingAssets.map((missingAsset, i) => {
       assetUploadPromiseLimit(async () => {
         const presignedPost: PresignedPost = JSON.parse(specifications[i]);
         await uploadWithPresignedPostAsync(missingAsset.path, presignedPost);
       });
-    })
-  );
+    }),
+  ]);
 
   let timeout = 1;
   while (missingAssets.length > 0) {

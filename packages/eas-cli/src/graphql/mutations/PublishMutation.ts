@@ -11,7 +11,9 @@ import {
 } from '../generated';
 
 export const PublishMutation = {
-  async getUploadURLsAsync(contentTypes: string[]): Promise<GetSignedUploadMutation['asset']> {
+  async getUploadURLsAsync(
+    contentTypes: string[]
+  ): Promise<GetSignedUploadMutation['asset']['getSignedAssetUploadSpecifications']> {
     const data = await withErrorHandlingAsync(
       graphqlClient
         .mutation<GetSignedUploadMutation, GetSignedUploadMutationVariables>(
@@ -21,7 +23,6 @@ export const PublishMutation = {
                 getSignedAssetUploadSpecifications(assetContentTypes: $contentTypes) {
                   specifications
                 }
-                assetLimitPerUpdateGroup
               }
             }
           `,
@@ -31,9 +32,8 @@ export const PublishMutation = {
         )
         .toPromise()
     );
-    return data.asset;
+    return data.asset.getSignedAssetUploadSpecifications;
   },
-
   async publishUpdateGroupAsync(
     publishUpdateGroupsInput: PublishUpdateGroupInput[]
   ): Promise<UpdatePublishMutation['updateBranch']['publishUpdateGroups']> {
