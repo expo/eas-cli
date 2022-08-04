@@ -325,8 +325,8 @@ export async function uploadAssetsAsync(
 
 export function isUploadedAssetCountAboveWarningThreshold(
   uploadedAssetCount: number,
-  maxAssetsPerUpdate: number
+  assetLimitPerUpdateGroup: number
 ): boolean {
-  const warningThreshold = Math.floor(maxAssetsPerUpdate * 0.75);
+  const warningThreshold = Math.floor(assetLimitPerUpdateGroup * 0.75);
   return uploadedAssetCount > warningThreshold;
 }
