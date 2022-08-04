@@ -572,11 +572,15 @@
       "description": "Configuration that is specific to the Apple App Store.",
       "additionalProperties": false,
       "properties": {
-        "advisory": {
-          "$ref": "#/definitions/apple/AppleAdvisory"
-        },
-        "categories": {
-          "$ref": "#/definitions/apple/AppleCategory"
+        "version": {
+          "type": "string",
+          "description": "The version string to edit, or create, if it doesn't exist. All the metadata will be stored on this app version.",
+          "minLength": 1,
+          "defaultSnippets": [
+            {
+              "body": "${1:1}.${2:0}"
+            }
+          ]
         },
         "copyright": {
           "type": "string",
@@ -591,6 +595,12 @@
             "liveEdits": true,
             "storeInfo": "The name of the person or entity that owns the exclusive rights to your app, preceded by the year the rights were obtained (for example, \"2008 Acme Inc.\"). Do not provide a URL."
           }
+        },
+        "advisory": {
+          "$ref": "#/definitions/apple/AppleAdvisory"
+        },
+        "categories": {
+          "$ref": "#/definitions/apple/AppleCategory"
         },
         "info": {
           "description": "Localized core app info",

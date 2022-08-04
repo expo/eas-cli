@@ -160,6 +160,97 @@ describe(AppVersionTask, () => {
       expect(context.versionIsFirst).toBeFalsy();
       expect(scope.isDone()).toBeTruthy();
     });
+
+    it('fetches the existing version from options', async () => {
+      const scope = nock('https://api.appstoreconnect.apple.com')
+        // Respond to app.getAppStoreVersionsAsync in findEditAppStoreVersionAsync
+        .get(`/v1/${App.type}/stub-id/${AppStoreVersion.type}`)
+        .query(true)
+        .reply(200, require('./fixtures/apps/get-appStoreVersions-count-multiple-200'))
+        // Respond to app.getAppStoreVersionsAsync
+        .get(`/v1/${App.type}/stub-id/${AppStoreVersion.type}`)
+        .query((params: any) => params['filter[appStoreState]'] !== AppStoreState.READY_FOR_SALE)
+        .reply(200, require('./fixtures/apps/get-appStoreVersions-count-multiple-200.json'))
+        // Respond to version.getLocalizationsAsync (for version 2.0)
+        .get(`/v1/${AppStoreVersion.type}/APP_STORE_VERSION_2/${AppStoreVersionLocalization.type}`)
+        .reply(
+          200,
+          require('./fixtures/appStoreVersions/get-appStoreVersionLocalizations-200.json')
+        )
+        // Respond to version.getPhasedReleaseAsync
+        .get(`/v1/${AppStoreVersion.type}/APP_STORE_VERSION_2/appStoreVersionPhasedRelease`)
+        .reply(200, {
+          data: {
+            id: 'APP_STORE_VERSION_PHASED_RELEASE_1',
+            type: AppStoreVersionPhasedRelease.type,
+            attributes: {
+              phasedReleaseState: PhasedReleaseState.INACTIVE,
+              currentDayNumber: null,
+              startDate: null,
+              totalPauseDuration: null,
+            },
+          },
+        });
+
+      const context: PartialAppleData = {
+        app: new App(requestContext, 'stub-id', {} as any),
+      };
+
+      await new AppVersionTask({ version: '2.0' }).prepareAsync({ context });
+
+      expect(context.version).toBeInstanceOf(AppStoreVersion);
+      expect(context.version?.attributes).toHaveProperty('versionString', '2.0');
+      expect(scope.isDone()).toBeTruthy();
+    });
+
+    it('creates the non-existing version from options', async () => {
+      const scope = nock('https://api.appstoreconnect.apple.com')
+        // Respond to app.getAppStoreVersionsAsync in findEditAppStoreVersionAsync
+        .get(`/v1/${App.type}/stub-id/${AppStoreVersion.type}`)
+        .query(true)
+        .reply(200, require('./fixtures/apps/get-appStoreVersions-count-multiple-200.json'))
+        // Respond to app.getAppStoreVersionsAsync in createOrUpdateEditAppStoreVersionAsync
+        .get(`/v1/${App.type}/stub-id/${AppStoreVersion.type}`)
+        .query(true)
+        .reply(200, require('./fixtures/apps/get-appStoreVersions-200-empty.json'))
+        // Respond to app.createVersionAsync in createOrUpdateEditAppStoreVersionAsync
+        .post(`/v1/${AppStoreVersion.type}`)
+        .reply(201, require('./fixtures/appStoreVersions/post-201.json'))
+        // Respond to app.getAppStoreVersionsAsync
+        .get(`/v1/${App.type}/stub-id/${AppStoreVersion.type}`)
+        .query((params: any) => params['filter[appStoreState]'] !== AppStoreState.READY_FOR_SALE)
+        .reply(200, require('./fixtures/apps/get-appStoreVersions-count-multiple-200.json'))
+        // Respond to version.getLocalizationsAsync (for version 3.0)
+        .get(`/v1/${AppStoreVersion.type}/APP_STORE_VERSION_3/${AppStoreVersionLocalization.type}`)
+        .reply(
+          200,
+          require('./fixtures/appStoreVersions/get-appStoreVersionLocalizations-200.json')
+        )
+        // Respond to version.getPhasedReleaseAsync (for version 3.0)
+        .get(`/v1/${AppStoreVersion.type}/APP_STORE_VERSION_3/appStoreVersionPhasedRelease`)
+        .reply(200, {
+          data: {
+            id: 'APP_STORE_VERSION_PHASED_RELEASE_1',
+            type: AppStoreVersionPhasedRelease.type,
+            attributes: {
+              phasedReleaseState: PhasedReleaseState.INACTIVE,
+              currentDayNumber: null,
+              startDate: null,
+              totalPauseDuration: null,
+            },
+          },
+        });
+
+      const context: PartialAppleData = {
+        app: new App(requestContext, 'stub-id', {} as any),
+      };
+
+      await new AppVersionTask({ version: '3.0' }).prepareAsync({ context });
+
+      expect(context.version).toBeInstanceOf(AppStoreVersion);
+      expect(context.version?.attributes).toHaveProperty('versionString', '3.0');
+      expect(scope.isDone()).toBeTruthy();
+    });
   });
 
   describe('downloadAsync', () => {

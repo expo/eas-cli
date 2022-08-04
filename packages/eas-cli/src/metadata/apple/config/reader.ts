@@ -113,7 +113,13 @@ export class AppleConfigReader {
   public getVersion(): Partial<
     Omit<AttributesOf<AppStoreVersion>, 'releaseType' | 'earliestReleaseDate'>
   > | null {
-    return this.schema.copyright ? { copyright: this.schema.copyright } : null;
+    const attributes: Pick<AttributesOf<AppStoreVersion>, 'versionString' | 'copyright'> = {
+      versionString: this.schema.version ?? '',
+      copyright: this.schema.copyright ?? null,
+    };
+
+    const hasValues = Object.values(attributes).some(Boolean);
+    return hasValues ? attributes : null;
   }
 
   public getVersionReleaseType(): Partial<

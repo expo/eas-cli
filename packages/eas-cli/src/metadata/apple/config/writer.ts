@@ -109,6 +109,7 @@ export class AppleConfigWriter {
   public setVersion(
     attributes: Omit<AttributesOf<AppStoreVersion>, 'releaseType' | 'earliestReleaseDate'>
   ): void {
+    this.schema.version = optional(attributes.versionString);
     this.schema.copyright = optional(attributes.copyright);
   }
 
