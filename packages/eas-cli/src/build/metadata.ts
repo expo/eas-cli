@@ -56,6 +56,8 @@ export async function collectMetadataAsync<T extends Platform>(
         ctx as BuildContext<Platform.IOS>
       ),
     }),
+    runWithNoWaitFlag: ctx.noWait,
+    runFromCI: ctx.runFromCI,
   };
   return sanitizeMetadata(metadata);
 }

@@ -1,6 +1,7 @@
 import { Platform } from '@expo/eas-build-job';
 import { BuildProfile, EasJson } from '@expo/eas-json';
 import JsonFile from '@expo/json-file';
+import getenv from 'getenv';
 import resolveFrom from 'resolve-from';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -24,7 +25,8 @@ export async function createBuildContextAsync<T extends Platform>({
   easJsonCliConfig,
   clearCache = false,
   localBuildOptions,
-  nonInteractive = false,
+  nonInteractive,
+  noWait,
   platform,
   projectDir,
   resourceClass,
@@ -36,6 +38,7 @@ export async function createBuildContextAsync<T extends Platform>({
   clearCache: boolean;
   localBuildOptions: LocalBuildOptions;
   nonInteractive: boolean;
+  noWait: boolean;
   platform: T;
   projectDir: string;
   resourceClass: BuildResourceClass;
@@ -49,6 +52,7 @@ export async function createBuildContextAsync<T extends Platform>({
   const projectId = await getProjectIdAsync(exp, { env: buildProfile.env });
   const workflow = await resolveWorkflowAsync(projectDir, platform);
   const accountId = findAccountByName(user.accounts, accountName)?.id;
+  const runFromCI = getenv.boolish('CI', false);
 
   const credentialsCtx = new CredentialsContext({
     exp,
@@ -70,6 +74,8 @@ export async function createBuildContextAsync<T extends Platform>({
     project_id: projectId,
     project_type: workflow,
     ...devClientProperties,
+    no_wait: noWait,
+    run_from_ci: runFromCI,
   };
   Analytics.logEvent(BuildEvent.BUILD_COMMAND, trackingCtx);
 
@@ -84,6 +90,7 @@ export async function createBuildContextAsync<T extends Platform>({
     exp,
     localBuildOptions,
     nonInteractive,
+    noWait,
     platform,
     projectDir,
     projectId,
@@ -92,6 +99,7 @@ export async function createBuildContextAsync<T extends Platform>({
     user,
     workflow,
     message,
+    runFromCI,
   };
   if (platform === Platform.ANDROID) {
     const common = commonContext as CommonContext<Platform.ANDROID>;
