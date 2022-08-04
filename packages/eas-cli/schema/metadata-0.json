@@ -574,8 +574,13 @@
       "properties": {
         "version": {
           "type": "string",
-          "description": "The version string to edit, or create, if it doesn't exist.",
-          "minLength": 1
+          "description": "The version string to edit, or create, if it doesn't exist. All the metadata will be stored on this app version.",
+          "minLength": 1,
+          "defaultSnippets": [
+            {
+              "body": "${1:1}.${2:0}"
+            }
+          ]
         },
         "copyright": {
           "type": "string",
