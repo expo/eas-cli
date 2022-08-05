@@ -3,19 +3,20 @@ import gql from 'graphql-tag';
 import { graphqlClient, withErrorHandlingAsync } from '../client';
 import {
   CodeSigningInfoInput,
+  GetSignedUploadMutation,
+  GetSignedUploadMutationVariables,
   PublishUpdateGroupInput,
   SetCodeSigningInfoMutation,
   UpdatePublishMutation,
 } from '../generated';
 
 export const PublishMutation = {
-  async getUploadURLsAsync(contentTypes: string[]): Promise<{ specifications: string[] }> {
+  async getUploadURLsAsync(
+    contentTypes: string[]
+  ): Promise<GetSignedUploadMutation['asset']['getSignedAssetUploadSpecifications']> {
     const data = await withErrorHandlingAsync(
       graphqlClient
-        .mutation<
-          { asset: { getSignedAssetUploadSpecifications: { specifications: string[] } } },
-          { contentTypes: string[] }
-        >(
+        .mutation<GetSignedUploadMutation, GetSignedUploadMutationVariables>(
           gql`
             mutation GetSignedUploadMutation($contentTypes: [String!]!) {
               asset {
@@ -33,7 +34,6 @@ export const PublishMutation = {
     );
     return data.asset.getSignedAssetUploadSpecifications;
   },
-
   async publishUpdateGroupAsync(
     publishUpdateGroupsInput: PublishUpdateGroupInput[]
   ): Promise<UpdatePublishMutation['updateBranch']['publishUpdateGroups']> {

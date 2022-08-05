@@ -894,6 +894,7 @@ export type App = Project & {
   androidAppCredentials: Array<AndroidAppCredentials>;
   /** ios.appStoreUrl field from most recent classic update manifest */
   appStoreUrl?: Maybe<Scalars['String']>;
+  assetLimitPerUpdateGroup: Scalars['Int'];
   buildJobs: Array<BuildJob>;
   /**
    * Coalesced Build (EAS) or BuildJob (Classic) items for this app.
@@ -1751,6 +1752,7 @@ export type Build = ActivityTimelineProjectActivity & BuildOrBuildJob & {
   reactNativeVersion?: Maybe<Scalars['String']>;
   releaseChannel?: Maybe<Scalars['String']>;
   resourceClass?: Maybe<BuildResourceClass>;
+  runFromCI?: Maybe<Scalars['Boolean']>;
   runtimeVersion?: Maybe<Scalars['String']>;
   sdkVersion?: Maybe<Scalars['String']>;
   status: BuildStatus;
@@ -1901,6 +1903,8 @@ export type BuildMetadataInput = {
   message?: InputMaybe<Scalars['String']>;
   reactNativeVersion?: InputMaybe<Scalars['String']>;
   releaseChannel?: InputMaybe<Scalars['String']>;
+  runFromCI?: InputMaybe<Scalars['Boolean']>;
+  runWithNoWaitFlag?: InputMaybe<Scalars['Boolean']>;
   runtimeVersion?: InputMaybe<Scalars['String']>;
   sdkVersion?: InputMaybe<Scalars['String']>;
   trackingContext?: InputMaybe<Scalars['JSONObject']>;
@@ -2169,6 +2173,12 @@ export type CreateIosSubmissionInput = {
   archiveUrl?: InputMaybe<Scalars['String']>;
   config: IosSubmissionConfigInput;
   submittedBuildId?: InputMaybe<Scalars['ID']>;
+};
+
+export type CreateServerlessFunctionUploadUrlResult = {
+  __typename?: 'CreateServerlessFunctionUploadUrlResult';
+  formDataFields: Scalars['JSONObject'];
+  url: Scalars['String'];
 };
 
 export type CreateSubmissionResult = {
@@ -3133,6 +3143,7 @@ export type RootMutation = {
   me: MeMutation;
   /** Mutations that create, update, and delete Robots */
   robot: RobotMutation;
+  serverlessFunction: ServerlessFunctionMutation;
   /** Mutations that modify an EAS Submit submission */
   submission: SubmissionMutation;
   update: UpdateMutation;
@@ -3298,6 +3309,21 @@ export enum SecondFactorMethod {
 export type SecondFactorRegenerateBackupCodesResult = {
   __typename?: 'SecondFactorRegenerateBackupCodesResult';
   plaintextBackupCodes: Array<Scalars['String']>;
+};
+
+export type ServerlessFunctionIdentifierInput = {
+  gitCommitSHA1: Scalars['String'];
+};
+
+export type ServerlessFunctionMutation = {
+  __typename?: 'ServerlessFunctionMutation';
+  createUploadPresignedUrl: CreateServerlessFunctionUploadUrlResult;
+};
+
+
+export type ServerlessFunctionMutationCreateUploadPresignedUrlArgs = {
+  appId: Scalars['ID'];
+  serverlessFunctionIdentifierInput: ServerlessFunctionIdentifierInput;
 };
 
 export type Snack = Project & {
@@ -4725,6 +4751,13 @@ export type GetAssetMetadataQueryVariables = Exact<{
 
 
 export type GetAssetMetadataQuery = { __typename?: 'RootQuery', asset: { __typename?: 'AssetQuery', metadata: Array<{ __typename?: 'AssetMetadataResult', storageKey: string, status: AssetMetadataStatus }> } };
+
+export type GetAssetLimitPerUpdateGroupForAppQueryVariables = Exact<{
+  appId: Scalars['String'];
+}>;
+
+
+export type GetAssetLimitPerUpdateGroupForAppQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, assetLimitPerUpdateGroup: number } } };
 
 export type SubmissionsByIdQueryVariables = Exact<{
   submissionId: Scalars['ID'];
