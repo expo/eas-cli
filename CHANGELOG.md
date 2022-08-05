@@ -9,6 +9,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🎉 New features
 
 - Managed app versions support. ([#1209](https://github.com/expo/eas-cli/pull/1209), [#1219](https://github.com/expo/eas-cli/pull/1219), [#1232](https://github.com/expo/eas-cli/pull/1232) by [@wkozyra95](https://github.com/wkozyra95))
+- Add a warning when publishing an update with too many assets. ([#1243](https://github.com/expo/eas-cli/pull/1243) by [@kgc00](https://github.com/kgc00))
 
 ### 🐛 Bug fixes
 
