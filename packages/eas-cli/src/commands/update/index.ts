@@ -612,7 +612,7 @@ export default class UpdatePublish extends EasCommand {
           isUploadedAssetCountAboveWarningThreshold(uploadedAssetCount, assetLimitPerUpdateGroup)
         ) {
           Log.warn(
-            `This update group contains ${uploadedAssetCount} assets and is nearing or beyond the server cap of ${assetLimitPerUpdateGroup}.\n` +
+            `This update group contains ${uploadedAssetCount} assets and is nearing the server cap of ${assetLimitPerUpdateGroup}.\n` +
               `${learnMore('https://docs.expo.dev/eas-update/optimize-assets/', {
                 learnMoreMessage: 'Consider optimizing your usage of assets',
                 dim: false,

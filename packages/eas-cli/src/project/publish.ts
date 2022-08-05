@@ -296,7 +296,7 @@ export async function uploadAssetsAsync(
   const assetUploadPromiseLimit = promiseLimit(15);
 
   const [assetLimitPerUpdateGroup] = await Promise.all([
-    PublishQuery.getAssetLimitAsync(projectId),
+    PublishQuery.getAssetLimitPerUpdateGroupAsync(projectId),
     missingAssets.map((missingAsset, i) => {
       assetUploadPromiseLimit(async () => {
         const presignedPost: PresignedPost = JSON.parse(specifications[i]);

@@ -2175,6 +2175,12 @@ export type CreateIosSubmissionInput = {
   submittedBuildId?: InputMaybe<Scalars['ID']>;
 };
 
+export type CreateServerlessFunctionUploadUrlResult = {
+  __typename?: 'CreateServerlessFunctionUploadUrlResult';
+  formDataFields: Scalars['JSONObject'];
+  url: Scalars['String'];
+};
+
 export type CreateSubmissionResult = {
   __typename?: 'CreateSubmissionResult';
   /** Created submission */
@@ -3137,6 +3143,7 @@ export type RootMutation = {
   me: MeMutation;
   /** Mutations that create, update, and delete Robots */
   robot: RobotMutation;
+  serverlessFunction: ServerlessFunctionMutation;
   /** Mutations that modify an EAS Submit submission */
   submission: SubmissionMutation;
   update: UpdateMutation;
@@ -3302,6 +3309,21 @@ export enum SecondFactorMethod {
 export type SecondFactorRegenerateBackupCodesResult = {
   __typename?: 'SecondFactorRegenerateBackupCodesResult';
   plaintextBackupCodes: Array<Scalars['String']>;
+};
+
+export type ServerlessFunctionIdentifierInput = {
+  gitCommitSHA1: Scalars['String'];
+};
+
+export type ServerlessFunctionMutation = {
+  __typename?: 'ServerlessFunctionMutation';
+  createUploadPresignedUrl: CreateServerlessFunctionUploadUrlResult;
+};
+
+
+export type ServerlessFunctionMutationCreateUploadPresignedUrlArgs = {
+  appId: Scalars['ID'];
+  serverlessFunctionIdentifierInput: ServerlessFunctionIdentifierInput;
 };
 
 export type Snack = Project & {
@@ -4730,12 +4752,12 @@ export type GetAssetMetadataQueryVariables = Exact<{
 
 export type GetAssetMetadataQuery = { __typename?: 'RootQuery', asset: { __typename?: 'AssetQuery', metadata: Array<{ __typename?: 'AssetMetadataResult', storageKey: string, status: AssetMetadataStatus }> } };
 
-export type GetAssetLimitForAppQueryVariables = Exact<{
+export type GetAssetLimitPerUpdateGroupForAppQueryVariables = Exact<{
   appId: Scalars['String'];
 }>;
 
 
-export type GetAssetLimitForAppQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, assetLimitPerUpdateGroup: number } } };
+export type GetAssetLimitPerUpdateGroupForAppQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, assetLimitPerUpdateGroup: number } } };
 
 export type SubmissionsByIdQueryVariables = Exact<{
   submissionId: Scalars['ID'];

@@ -415,7 +415,9 @@ describe(uploadAssetsAsync, () => {
     return { specifications: ['{}', '{}', '{}'] };
   });
 
-  jest.spyOn(PublishQuery, 'getAssetLimitAsync').mockImplementation(async () => expectedAssetLimit);
+  jest
+    .spyOn(PublishQuery, 'getAssetLimitPerUpdateGroupAsync')
+    .mockImplementation(async () => expectedAssetLimit);
 
   it('resolves if the assets are already uploaded', async () => {
     jest.spyOn(PublishQuery, 'getAssetMetadataAsync').mockImplementation(async () => {
