@@ -67,7 +67,7 @@ async function getRequiredContractMessagesAsync(
   // prompt the user to open an issue so we can address the new contract state if it ever appears.
   // TODO: Maybe a silent analytic would be better
   Log.error(
-    `\nUnexpected Apple developer contract status "${status}". Please open an issue on https://github.com/expo/eas-cli`
+    `\nUnexpected Apple developer contract status "${status}". Open an issue on https://github.com/expo/eas-cli`
   );
   Log.newLine();
   return { messages: (await getContractMessagesAsync(context)) ?? [], isFatal: false };

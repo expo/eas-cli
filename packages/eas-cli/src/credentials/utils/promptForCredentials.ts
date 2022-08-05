@@ -28,7 +28,7 @@ const EXPERT_PROMPT = (): void => {
   }
   Log.warn(`
 In this mode, we won't be able to make sure that your credentials are valid.
-Please double check that you're uploading valid files for your app otherwise you may encounter strange errors!
+Double check that you're uploading valid files for your app otherwise you may encounter strange errors!
 When building for IOS make sure you've created your App ID on the Apple Developer Portal, that your App ID
 is in app.json as \`bundleIdentifier\`, and that the provisioning profile you
 upload matches that Team ID and App ID.

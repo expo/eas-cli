@@ -28,7 +28,7 @@ export async function maybeBailOnRepoStatusAsync(): Promise<void> {
   });
 
   if (!answer) {
-    throw new Error('Please commit all changes. Aborting...');
+    throw new Error('Commit all changes. Aborting...');
   }
 }
 
@@ -39,12 +39,12 @@ export async function ensureRepoIsCleanAsync(nonInteractive = false): Promise<vo
   Log.addNewLineIfNone();
   Log.warn(`${chalk.bold('Warning!')} Your repository working tree is dirty.`);
   Log.log(
-    `This operation needs to be run on a clean working tree, please ${chalk.bold(
-      'commit all your changes before proceeding'
+    `This operation needs to be run on a clean working tree. ${chalk.bold(
+      'Commit all your changes before proceeding'
     )}.`
   );
   if (nonInteractive) {
-    throw new Error('Please commit all changes. Aborting...');
+    throw new Error('Commit all changes. Aborting...');
   }
   const answer = await confirmAsync({
     message: `Commit changes to git?`,
@@ -52,7 +52,7 @@ export async function ensureRepoIsCleanAsync(nonInteractive = false): Promise<vo
   if (answer) {
     await commitPromptAsync({ commitAllFiles: true });
   } else {
-    throw new Error('Please commit all changes. Aborting...');
+    throw new Error('Commit all changes. Aborting...');
   }
 }
 

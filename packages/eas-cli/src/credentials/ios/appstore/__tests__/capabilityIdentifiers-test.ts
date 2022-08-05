@@ -153,7 +153,7 @@ describe(syncCapabilityIdentifiersForEntitlementsAsync, () => {
       (_ctx: any, { identifier }: { identifier: string }): any => {
         // e2e test with: merchant.expodemo
         throw new Error(
-          `There is a problem with the request entity - A Merchant ID with Identifier '${identifier}' is not available. Please enter a different string.`
+          `There is a problem with the request entity - A Merchant ID with Identifier '${identifier}' is not available. Enter a different string.`
         );
       }
     );
@@ -167,6 +167,6 @@ describe(syncCapabilityIdentifiersForEntitlementsAsync, () => {
       syncCapabilityIdentifiersForEntitlementsAsync(bundleId, {
         'com.apple.developer.in-app-payments': ['merchant.bacon'],
       })
-    ).rejects.toThrow(/is not available. Please enter a different string/);
+    ).rejects.toThrow(/is not available. Enter a different string/);
   });
 });

@@ -99,14 +99,14 @@ export function printDeprecationWarnings(deprecationInfo?: EasBuildDeprecationIn
     return;
   }
   if (deprecationInfo.type === EasBuildDeprecationInfoType.Internal) {
-    Log.warn('This command is using API that soon will be deprecated, please update eas-cli.');
+    Log.warn('This command is using API that soon will be deprecated. Update EAS CLI.');
     Log.warn("Changes won't affect your project config.");
     Log.warn(deprecationInfo.message);
   } else if (deprecationInfo.type === EasBuildDeprecationInfoType.UserFacing) {
     Log.warn('This command is using API that soon will be deprecated.');
     Log.warn(deprecationInfo.message);
   } else {
-    Log.warn('An unexpected warning was encountered. Please report it as a bug:');
+    Log.warn('An unexpected warning was encountered. Report it as a bug:');
     Log.warn(deprecationInfo);
   }
 }

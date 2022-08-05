@@ -55,7 +55,7 @@ export const graphqlClient = createUrqlClient({
   },
 }) as StricterClient;
 
-/* Please specify additionalTypenames in your Graphql queries */
+/* Specify additionalTypenames in your Graphql queries */
 export interface StricterClient extends Client {
   // eslint-disable-next-line @typescript-eslint/ban-types
   query<Data = any, Variables extends object = {}>(
@@ -70,7 +70,7 @@ export async function withErrorHandlingAsync<T>(promise: Promise<OperationResult
 
   if (error) {
     if (error.graphQLErrors.some(e => e?.extensions?.isTransient)) {
-      Log.error(`We've encountered a transient error, please try again shortly.`);
+      Log.error(`We've encountered a transient error. Try again shortly.`);
     }
     throw error;
   }

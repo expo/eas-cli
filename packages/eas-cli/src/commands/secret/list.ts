@@ -22,7 +22,7 @@ export default class EnvironmentSecretList extends EasCommand {
     const projectAccountName = await getProjectAccountNameAsync(exp);
 
     if (!projectDir) {
-      throw new Error("Please run this command inside your project's directory");
+      throw new Error("Run this command inside your project's directory");
     }
 
     const secrets = await EnvironmentSecretsQuery.allAsync(projectAccountName, projectId);
