@@ -9,6 +9,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🎉 New features
 
 - Managed app versions support. ([#1209](https://github.com/expo/eas-cli/pull/1209), [#1219](https://github.com/expo/eas-cli/pull/1219), [#1232](https://github.com/expo/eas-cli/pull/1232) by [@wkozyra95](https://github.com/wkozyra95))
+- Add submission info when building with `--json` option. ([#1246](https://github.com/expo/eas-cli/pull/1246) by [@wkozyra95](https://github.com/wkozyra95))
 
 ### 🐛 Bug fixes
 
