@@ -3,6 +3,7 @@ import type { AgeRatingDeclarationProps } from '@expo/apple-utils';
 export type AppleLocale = string;
 
 export interface AppleMetadata {
+  version?: string;
   copyright?: string;
   info?: Record<AppleLocale, AppleInfo>;
   categories?: AppleCategory;
@@ -18,13 +19,8 @@ export type AppleAdvisory = Partial<AgeRatingDeclarationProps>;
 export type AppleCategory = (string | string[])[];
 
 export interface AppleRelease {
-  isPhasedReleaseEnabled?: boolean;
-  shouldResetRatings?: boolean;
-  autoReleaseDate?: number | string;
-  automaticRelease?: boolean;
-  usesThirdPartyContent?: boolean;
-  /** Alternative to setting `ITSAppUsesNonExemptEncryption` in the binary's `Info.plist`. */
-  usesNonExemptEncryption?: boolean;
+  automaticRelease?: boolean | string;
+  phasedRelease?: boolean;
 }
 
 export interface AppleInfo {

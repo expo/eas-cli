@@ -1,7 +1,12 @@
 import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../client';
-import { AssetMetadataResult, GetAssetMetadataQuery } from '../generated';
+import {
+  AssetMetadataResult,
+  GetAssetLimitPerUpdateGroupForAppQuery,
+  GetAssetLimitPerUpdateGroupForAppQueryVariables,
+  GetAssetMetadataQuery,
+} from '../generated';
 
 export const PublishQuery = {
   async getAssetMetadataAsync(storageKeys: string[]): Promise<AssetMetadataResult[]> {
@@ -29,5 +34,31 @@ export const PublishQuery = {
         .toPromise()
     );
     return data.asset.metadata;
+  },
+  async getAssetLimitPerUpdateGroupAsync(
+    appId: string
+  ): Promise<GetAssetLimitPerUpdateGroupForAppQuery['app']['byId']['assetLimitPerUpdateGroup']> {
+    const data = await withErrorHandlingAsync(
+      graphqlClient
+        .query<
+          GetAssetLimitPerUpdateGroupForAppQuery,
+          GetAssetLimitPerUpdateGroupForAppQueryVariables
+        >(
+          gql`
+            query GetAssetLimitPerUpdateGroupForApp($appId: String!) {
+              app {
+                byId(appId: $appId) {
+                  id
+                  assetLimitPerUpdateGroup
+                }
+              }
+            }
+          `,
+          { appId },
+          { additionalTypenames: [] } // required arg
+        )
+        .toPromise()
+    );
+    return data.app.byId.assetLimitPerUpdateGroup;
   },
 };

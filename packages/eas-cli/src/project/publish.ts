@@ -250,10 +250,12 @@ type AssetUploadResult = {
   assetCount: number;
   uniqueAssetCount: number;
   uniqueUploadedAssetCount: number;
+  assetLimitPerUpdateGroup: number;
 };
 
 export async function uploadAssetsAsync(
   assetsForUpdateInfoGroup: CollectedAssets,
+  projectId: string,
   updateSpinnerText?: (totalAssets: number, missingAssets: number) => void
 ): Promise<AssetUploadResult> {
   let assets: RawAsset[] = [];
@@ -289,19 +291,19 @@ export async function uploadAssetsAsync(
   const { specifications } = await PublishMutation.getUploadURLsAsync(
     missingAssets.map(ma => ma.contentType)
   );
-
   updateSpinnerText?.(totalAssets, missingAssets.length);
 
   const assetUploadPromiseLimit = promiseLimit(15);
 
-  await Promise.all(
+  const [assetLimitPerUpdateGroup] = await Promise.all([
+    PublishQuery.getAssetLimitPerUpdateGroupAsync(projectId),
     missingAssets.map((missingAsset, i) => {
       assetUploadPromiseLimit(async () => {
         const presignedPost: PresignedPost = JSON.parse(specifications[i]);
         await uploadWithPresignedPostAsync(missingAsset.path, presignedPost);
       });
-    })
-  );
+    }),
+  ]);
 
   let timeout = 1;
   while (missingAssets.length > 0) {
@@ -317,5 +319,14 @@ export async function uploadAssetsAsync(
     assetCount: assets.length,
     uniqueAssetCount: uniqueAssets.length,
     uniqueUploadedAssetCount,
+    assetLimitPerUpdateGroup,
   };
+}
+
+export function isUploadedAssetCountAboveWarningThreshold(
+  uploadedAssetCount: number,
+  assetLimitPerUpdateGroup: number
+): boolean {
+  const warningThreshold = Math.floor(assetLimitPerUpdateGroup * 0.75);
+  return uploadedAssetCount > warningThreshold;
 }

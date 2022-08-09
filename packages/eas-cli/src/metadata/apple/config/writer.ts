@@ -5,6 +5,7 @@ import {
   AppStoreReviewDetail,
   AppStoreVersion,
   AppStoreVersionLocalization,
+  AppStoreVersionPhasedRelease,
   Rating,
   ReleaseType,
 } from '@expo/apple-utils';
@@ -108,28 +109,43 @@ export class AppleConfigWriter {
   public setVersion(
     attributes: Omit<AttributesOf<AppStoreVersion>, 'releaseType' | 'earliestReleaseDate'>
   ): void {
+    this.schema.version = optional(attributes.versionString);
     this.schema.copyright = optional(attributes.copyright);
   }
 
-  public setVersionRelease(
+  public setVersionReleaseType(
     attributes: Pick<AttributesOf<AppStoreVersion>, 'releaseType' | 'earliestReleaseDate'>
   ): void {
-    if (attributes.releaseType === ReleaseType.SCHEDULED) {
+    if (attributes.releaseType === ReleaseType.SCHEDULED && attributes.earliestReleaseDate) {
       this.schema.release = {
-        autoReleaseDate: optional(attributes.earliestReleaseDate),
+        ...this.schema.release,
+        automaticRelease: attributes.earliestReleaseDate,
       };
     }
 
     if (attributes.releaseType === ReleaseType.AFTER_APPROVAL) {
       this.schema.release = {
+        ...this.schema.release,
         automaticRelease: true,
       };
     }
 
     if (attributes.releaseType === ReleaseType.MANUAL) {
-      // ReleaseType.MANUAL is the default behavior, so we don't need to configure it.
-      // Setting `"automaticRelease": false` is a bit confusing for people who don't know what automaticRelease does.
-      this.schema.release = undefined;
+      this.schema.release = {
+        ...this.schema.release,
+        automaticRelease: false,
+      };
+    }
+  }
+
+  public setVersionReleasePhased(attributes?: AttributesOf<AppStoreVersionPhasedRelease>): void {
+    if (!attributes) {
+      delete this.schema.release?.phasedRelease;
+    } else {
+      this.schema.release = {
+        ...this.schema.release,
+        phasedRelease: true,
+      };
     }
   }
 

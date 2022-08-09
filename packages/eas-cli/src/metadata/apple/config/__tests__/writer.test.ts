@@ -12,6 +12,7 @@ import { dutchInfo, englishInfo } from './fixtures/appInfoLocalization';
 import { nameAndDemoReviewDetails, nameOnlyReviewDetails } from './fixtures/appStoreReviewDetail';
 import { automaticRelease, manualRelease, scheduledRelease } from './fixtures/appStoreVersion';
 import { dutchVersion, englishVersion } from './fixtures/appStoreVersionLocalization';
+import { phasedRelease } from './fixtures/appStoreVersionPhasedRelease';
 
 describe('toSchema', () => {
   it('returns object with apple schema', () => {
@@ -182,41 +183,72 @@ describe('setCategories', () => {
 });
 
 describe('setVersion', () => {
-  it('modifies the copyright', () => {
+  it('modifies the copyright and version string', () => {
     const writer = new AppleConfigWriter();
     writer.setVersion(manualRelease);
+    expect(writer.schema.version).toBe(manualRelease.versionString);
     expect(writer.schema.copyright).toBe(manualRelease.copyright);
   });
 });
 
-describe('setVersionRelease', () => {
+describe('setVersionReleaseType', () => {
   it('modifies scheduled release', () => {
     const writer = new AppleConfigWriter();
-    writer.setVersionRelease(scheduledRelease);
+    writer.setVersionReleaseType(scheduledRelease);
     expect(writer.schema.release).toMatchObject({
-      autoReleaseDate: scheduledRelease.earliestReleaseDate,
+      automaticRelease: scheduledRelease.earliestReleaseDate,
     });
   });
 
   it('modifies automatic release', () => {
     const writer = new AppleConfigWriter();
-    writer.setVersionRelease(automaticRelease);
+    writer.setVersionReleaseType(automaticRelease);
     expect(writer.schema.release).toMatchObject({
       automaticRelease: true,
     });
   });
 
-  it('does not modify manual release', () => {
+  it('modifies manual release', () => {
     const writer = new AppleConfigWriter();
-    writer.setVersionRelease(manualRelease);
-    expect(writer.schema.release).toBeUndefined();
+    writer.setVersionReleaseType(manualRelease);
+    expect(writer.schema.release).toMatchObject({
+      automaticRelease: false,
+    });
   });
 
-  it('overwrites all release fields', () => {
+  it('does not overwrite phasedRelease', () => {
     const writer = new AppleConfigWriter();
-    writer.setVersionRelease(scheduledRelease);
-    writer.setVersionRelease(automaticRelease);
-    expect(writer.schema.release).not.toHaveProperty('autoReleaseDate');
+    writer.setVersionReleasePhased(phasedRelease);
+    writer.setVersionReleaseType(manualRelease);
+    expect(writer.schema.release).toMatchObject({
+      automaticRelease: false,
+      phasedRelease: true,
+    });
+  });
+});
+
+describe('setVersionReleasePhased', () => {
+  it('modifies enabled phased release', () => {
+    const writer = new AppleConfigWriter();
+    writer.setVersionReleasePhased(phasedRelease);
+    expect(writer.schema.release).toHaveProperty('phasedRelease', true);
+  });
+
+  it('deletes phased release when undefined', () => {
+    const writer = new AppleConfigWriter();
+    writer.setVersionReleasePhased(phasedRelease);
+    writer.setVersionReleasePhased(undefined);
+    expect(writer.schema.release).not.toHaveProperty('phasedRelease');
+  });
+
+  it('does not overwrite automaticRelease', () => {
+    const writer = new AppleConfigWriter();
+    writer.setVersionReleaseType(automaticRelease);
+    writer.setVersionReleasePhased(phasedRelease);
+    expect(writer.schema.release).toMatchObject({
+      automaticRelease: true,
+      phasedRelease: true,
+    });
   });
 });
 

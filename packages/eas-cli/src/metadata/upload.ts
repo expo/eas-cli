@@ -51,7 +51,12 @@ export async function uploadMetadataAsync(
 
   const errors: Error[] = [];
   const config = createAppleReader(fileData);
-  const tasks = createAppleTasks(metadataCtx);
+  const tasks = createAppleTasks(metadataCtx, {
+    // We need to resolve a different version as soon as possible.
+    // This version is the parent model of all changes we are going to push.
+    version: config.getVersion()?.versionString,
+  });
+
   const taskCtx = { app };
 
   for (const task of tasks) {
