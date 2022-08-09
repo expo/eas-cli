@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Fix building Android projects locally that don't have execute permissions set for `gradlew`. ([82231](https://github.com/expo/eas-cli/commit/822313e90e94bd6ddd3872061a0c25a8aa4db7cd) by [@dsokal](https://github.com/dsokal))
+
 ### 🧹 Chores
 
 ## [0.58.0](https://github.com/expo/eas-cli/releases/tag/v0.58.0) - 2022-08-09
