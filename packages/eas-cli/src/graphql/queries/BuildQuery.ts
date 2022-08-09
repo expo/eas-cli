@@ -6,13 +6,16 @@ import {
   AppPlatform,
   BuildFragment,
   BuildStatus,
+  BuildWithSubmissionsFragment,
   BuildsByIdQuery,
   BuildsByIdQueryVariables,
+  BuildsWithSubmissionsByIdQuery,
+  BuildsWithSubmissionsByIdQueryVariables,
   DistributionType,
   GetAllBuildsForAppQuery,
   GetAllBuildsForAppQueryVariables,
 } from '../generated';
-import { BuildFragmentNode } from '../types/Build';
+import { BuildFragmentNode, BuildFragmentWithSubmissionsNode } from '../types/Build';
 
 type BuildsQuery = {
   offset?: number;
@@ -63,6 +66,35 @@ export const BuildQuery = {
     return data.builds.byId;
   },
 
+  async withSubmissionsByIdAsync(
+    buildId: string,
+    { useCache = true }: { useCache?: boolean } = {}
+  ): Promise<BuildWithSubmissionsFragment> {
+    const data = await withErrorHandlingAsync(
+      graphqlClient
+        .query<BuildsWithSubmissionsByIdQuery, BuildsWithSubmissionsByIdQueryVariables>(
+          gql`
+            query BuildsWithSubmissionsByIdQuery($buildId: ID!) {
+              builds {
+                byId(buildId: $buildId) {
+                  id
+                  ...BuildWithSubmissionsFragment
+                }
+              }
+            }
+            ${print(BuildFragmentWithSubmissionsNode)}
+          `,
+          { buildId },
+          {
+            requestPolicy: useCache ? 'cache-first' : 'network-only',
+            additionalTypenames: ['Build'],
+          }
+        )
+        .toPromise()
+    );
+
+    return data.builds.byId;
+  },
   async allForAppAsync(
     appId: string,
     { limit = 10, offset = 0, filter }: BuildsQuery

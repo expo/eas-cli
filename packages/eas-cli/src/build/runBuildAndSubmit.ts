@@ -8,8 +8,10 @@ import {
   BuildFragment,
   BuildResourceClass,
   BuildStatus,
+  BuildWithSubmissionsFragment,
   SubmissionFragment,
 } from '../graphql/generated';
+import { BuildQuery } from '../graphql/queries/BuildQuery';
 import { toAppPlatform, toPlatform } from '../graphql/types/AppPlatform';
 import Log from '../log';
 import {
@@ -26,6 +28,7 @@ import {
 } from '../project/remoteVersionSource';
 import { createSubmissionContextAsync } from '../submit/context';
 import {
+  exitWithNonZeroCodeIfSomeSubmissionsDidntFinish,
   submitAsync,
   waitToCompleteAsync as waitForSubmissionsToCompleteAsync,
 } from '../submit/submit';
@@ -106,7 +109,7 @@ export async function runBuildAndSubmitAsync(projectDir: string, flags: BuildFla
   }
 
   const startedBuilds: {
-    build: BuildFragment;
+    build: BuildWithSubmissionsFragment | BuildFragment;
     buildProfile: ProfileData<'build'>;
   }[] = [];
   const buildCtxByPlatform: { [p in AppPlatform]?: BuildContext<Platform> } = {};
@@ -160,6 +163,7 @@ export async function runBuildAndSubmitAsync(projectDir: string, flags: BuildFla
         submitProfile,
         nonInteractive: flags.nonInteractive,
       });
+      startedBuild.build = await BuildQuery.withSubmissionsByIdAsync(startedBuild.build.id);
       submissions.push(submission);
     }
 
@@ -180,16 +184,30 @@ export async function runBuildAndSubmitAsync(projectDir: string, flags: BuildFla
     buildIds: startedBuilds.map(({ build }) => build.id),
     accountName,
   });
-  printBuildResults(builds, flags.json);
+  if (!flags.json) {
+    printBuildResults(builds);
+  }
 
   const haveAllBuildsFailedOrCanceled = builds.every(
     build => build?.status && [BuildStatus.Errored, BuildStatus.Canceled].includes(build?.status)
   );
   if (haveAllBuildsFailedOrCanceled || !flags.autoSubmit) {
+    if (flags.json) {
+      printJsonOnlyOutput(builds);
+    }
     exitWithNonZeroCodeIfSomeBuildsFailed(builds);
   } else {
-    // the following function also exits with non zero code if any of the submissions failed
-    await waitForSubmissionsToCompleteAsync(submissions);
+    const completedSubmissions = await waitForSubmissionsToCompleteAsync(submissions);
+    if (flags.json) {
+      printJsonOnlyOutput(
+        await Promise.all(
+          builds
+            .filter((i): i is BuildWithSubmissionsFragment => !!i)
+            .map(build => BuildQuery.withSubmissionsByIdAsync(build.id))
+        )
+      );
+    }
+    exitWithNonZeroCodeIfSomeSubmissionsDidntFinish(completedSubmissions);
   }
 }
 
