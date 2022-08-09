@@ -6,7 +6,7 @@ import semver from 'semver';
 import { ora } from '../ora';
 
 const PLUGIN_PACKAGE_NAME = 'eas-cli-local-build-plugin';
-const PLUGIN_PACKAGE_VERSION = '0.0.85';
+const PLUGIN_PACKAGE_VERSION = '0.0.98';
 
 export interface LocalBuildOptions {
   enable: boolean;
