@@ -11,6 +11,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 - Fix building Android projects locally that don't have execute permissions set for `gradlew`. ([82231](https://github.com/expo/eas-cli/commit/822313e90e94bd6ddd3872061a0c25a8aa4db7cd) by [@dsokal](https://github.com/dsokal))
+- Disable `nativeVersion` policy only for remote version source. ([#1261](https://github.com/expo/eas-cli/pull/1261) by [@wkozyra95](https://github.com/wkozyra95))
 
 ### 🧹 Chores
 
