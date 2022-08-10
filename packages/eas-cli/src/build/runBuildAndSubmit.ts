@@ -1,5 +1,5 @@
 import { Platform, Workflow } from '@expo/eas-build-job';
-import { BuildProfile, EasJson, EasJsonReader, SubmitProfile } from '@expo/eas-json';
+import { AppVersionSource, BuildProfile, EasJson, EasJsonReader, SubmitProfile } from '@expo/eas-json';
 import chalk from 'chalk';
 import nullthrows from 'nullthrows';
 
@@ -249,8 +249,9 @@ async function prepareAndStartBuildAsync({
       )}`
     );
   }
-
-  validateAppConfigForRemoteVersionSource(buildCtx.exp, buildProfile.platform);
+  if (easJsonCliConfig?.appVersionSource === AppVersionSource.REMOTE) {
+    validateAppConfigForRemoteVersionSource(buildCtx.exp, buildProfile.platform);
+  }
   if (buildCtx.workflow === Workflow.MANAGED) {
     if (!sdkVersionChecked) {
       await checkExpoSdkIsSupportedAsync(buildCtx);
