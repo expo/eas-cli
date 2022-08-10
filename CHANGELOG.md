@@ -14,6 +14,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Improve wording on version auto-increment. ([#1260](https://github.com/expo/eas-cli/pull/1260) by [@wkozyra95](https://github.com/wkozyra95))
+
 ## [0.58.0](https://github.com/expo/eas-cli/releases/tag/v0.58.0) - 2022-08-09
 
 ### 🎉 New features
