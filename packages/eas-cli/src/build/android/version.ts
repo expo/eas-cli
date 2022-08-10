@@ -213,7 +213,9 @@ export async function resolveRemoteVersionCodeAsync({
   if (!buildProfile.autoIncrement && remoteVersions?.buildVersion) {
     return currentBuildVersion;
   } else if (!buildProfile.autoIncrement && !remoteVersions?.buildVersion) {
-    const spinner = ora(`Initializing the versionCode with ${currentBuildVersion}.`).start();
+    const spinner = ora(
+      `Initializing versionCode with ${chalk.bold(currentBuildVersion)}.`
+    ).start();
     try {
       await AppVersionMutation.createAppVersionAsync({
         appId: projectId,
@@ -223,16 +225,18 @@ export async function resolveRemoteVersionCodeAsync({
         buildVersion: currentBuildVersion,
         runtimeVersion: Updates.getRuntimeVersionNullable(exp, Platform.ANDROID) ?? undefined,
       });
-      spinner.succeed(`Initialized the versionCode with ${currentBuildVersion}.`);
+      spinner.succeed(`Initialized versionCode with ${chalk.bold(currentBuildVersion)}.`);
     } catch (err) {
-      spinner.fail(`Failed to initialize the versionCode with ${currentBuildVersion}.`);
+      spinner.fail(`Failed to initialize versionCode with ${chalk.bold(currentBuildVersion)}.`);
       throw err;
     }
     return currentBuildVersion;
   } else {
     const nextBuildVersion = getNextVersionCode(currentBuildVersion);
     const spinner = ora(
-      `Incrementing the versionCode ${currentBuildVersion} -> ${nextBuildVersion}.`
+      `Incrementing versionCode from ${chalk.bold(currentBuildVersion)} to ${chalk.bold(
+        nextBuildVersion
+      )}.`
     ).start();
     try {
       await AppVersionMutation.createAppVersionAsync({
@@ -243,10 +247,16 @@ export async function resolveRemoteVersionCodeAsync({
         buildVersion: String(nextBuildVersion),
         runtimeVersion: Updates.getRuntimeVersionNullable(exp, Platform.ANDROID) ?? undefined,
       });
-      spinner.succeed(`Incremented the versionCode ${currentBuildVersion} -> ${nextBuildVersion}.`);
+      spinner.succeed(
+        `Incremented versionCode from ${chalk.bold(currentBuildVersion)} to ${chalk.bold(
+          nextBuildVersion
+        )}.`
+      );
     } catch (err) {
       spinner.fail(
-        `Failed to increment the versionCode ${currentBuildVersion} -> ${nextBuildVersion}.`
+        `Failed to increment versionCode from ${chalk.bold(currentBuildVersion)} to ${chalk.bold(
+          nextBuildVersion
+        )}.`
       );
       throw err;
     }
