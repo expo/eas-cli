@@ -17,13 +17,9 @@ export type Scalars = {
   Boolean: boolean;
   Int: number;
   Float: number;
-  /** Date custom scalar type */
   DateTime: any;
-  /** The `JSON` scalar type represents JSON values as specified by [ECMA-404](http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-404.pdf). */
   JSON: any;
-  /** The `JSONObject` scalar type represents JSON objects as specified by [ECMA-404](http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-404.pdf). */
   JSONObject: any;
-  /** The `Upload` scalar type represents a file upload. */
   Upload: any;
 };
 
@@ -3385,6 +3381,16 @@ export enum StandardOffer {
   YearlySub = 'YEARLY_SUB'
 }
 
+export type StripeCoupon = {
+  __typename?: 'StripeCoupon';
+  amountOff?: Maybe<Scalars['String']>;
+  appliesTo?: Maybe<Scalars['String']>;
+  id: Scalars['ID'];
+  name: Scalars['String'];
+  percentOff?: Maybe<Scalars['Float']>;
+  valid: Scalars['Boolean'];
+};
+
 /** Represents an EAS Submission */
 export type Submission = ActivityTimelineProjectActivity & {
   __typename?: 'Submission';
@@ -3499,6 +3505,7 @@ export type SubscriptionDetails = {
   addons: Array<AddonDetails>;
   cancelledAt?: Maybe<Scalars['DateTime']>;
   concurrencies?: Maybe<Concurrencies>;
+  coupon?: Maybe<StripeCoupon>;
   endedAt?: Maybe<Scalars['DateTime']>;
   futureSubscription?: Maybe<FutureSubscription>;
   id: Scalars['ID'];
