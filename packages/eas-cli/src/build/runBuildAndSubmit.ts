@@ -1,5 +1,11 @@
 import { Platform, Workflow } from '@expo/eas-build-job';
-import { AppVersionSource, BuildProfile, EasJson, EasJsonReader, SubmitProfile } from '@expo/eas-json';
+import {
+  AppVersionSource,
+  BuildProfile,
+  EasJson,
+  EasJsonReader,
+  SubmitProfile,
+} from '@expo/eas-json';
 import chalk from 'chalk';
 import nullthrows from 'nullthrows';
 
