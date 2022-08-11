@@ -1,4 +1,3 @@
-import Ajv from 'ajv';
 import assert from 'assert';
 import fs from 'fs-extra';
 import path from 'path';
@@ -7,6 +6,7 @@ import { AppleConfigReader } from './apple/config/reader';
 import { AppleConfigWriter } from './apple/config/writer';
 import { AppleMetadata } from './apple/types';
 import { MetadataValidationError } from './errors';
+import { validateStoreSchema } from './validate';
 
 export interface MetadataConfig {
   /** The store configuration version */
@@ -67,7 +67,7 @@ export async function loadConfigAsync({
   const configData = await resolveDynamicConfigAsync(configFile);
 
   if (!skipValidation) {
-    const { valid, errors: validationErrors } = validateConfig(configData);
+    const { valid, errors: validationErrors } = validateStoreSchema(configData);
 
     if (!valid) {
       throw new MetadataValidationError(`Metadata store config errors found`, validationErrors);
@@ -75,23 +75,6 @@ export async function loadConfigAsync({
   }
 
   return configData as MetadataConfig;
-}
-
-/**
- * Run the JSON Schema validation to normalize defaults and flag early config errors.
- * This includes validating the known store limitations for every configurable property.
- */
-export function validateConfig(config: unknown): {
-  valid: boolean;
-  errors: Ajv.ErrorObject[];
-} {
-  const validator = new Ajv({ allErrors: true, useDefaults: true })
-    .addMetaSchema(require('ajv/lib/refs/json-schema-draft-06.json'))
-    .compile(require('../../schema/metadata-0.json'));
-
-  const valid = validator(config) as boolean;
-
-  return { valid, errors: validator.errors || [] };
 }
 
 /** Create a versioned deserializer to fetch App Store data from the store configuration. */
