@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Add JSON Schema `metadataPath` to iOS submission profile. ([#1269](https://github.com/expo/eas-cli/pull/1269) by [@byCedric](https://github.com/byCedric))
+
 ## [0.59.0](https://github.com/expo/eas-cli/releases/tag/v0.59.0) - 2022-08-10
 
 ### 🐛 Bug fixes
