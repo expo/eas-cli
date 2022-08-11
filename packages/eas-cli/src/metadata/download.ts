@@ -6,7 +6,7 @@ import Log from '../log';
 import { confirmAsync } from '../prompts';
 import { AppleData } from './apple/data';
 import { createAppleTasks } from './apple/tasks';
-import { createAppleWriter } from './config';
+import { createAppleWriter, saveConfigAsync } from './config';
 import { MetadataContext, ensureMetadataAppStoreAuthenticatedAsync } from './context';
 import { MetadataDownloadError, MetadataValidationError } from './errors';
 import { subscribeTelemetry } from './utils/telemetry';
@@ -59,7 +59,7 @@ export async function downloadMetadataAsync(metadataCtx: MetadataContext): Promi
   }
 
   try {
-    await fs.writeJson(filePath, config.toSchema(), { spaces: 2 });
+    await saveConfigAsync(config.toSchema(), metadataCtx);
   } finally {
     unsubscribeTelemetry();
   }

@@ -1,7 +1,9 @@
+import fs from 'fs';
 import path from 'path';
+import tempy from 'tempy';
 
 import { confirmAsync } from '../../prompts';
-import { loadConfigAsync } from '../config';
+import { loadConfigAsync, saveConfigAsync } from '../config';
 
 jest.mock('../../prompts', () => ({ confirmAsync: jest.fn(() => true) }));
 
@@ -46,5 +48,42 @@ describe(loadConfigAsync, () => {
     await expect(
       loadConfigAsync({ projectDir, metadataPath: 'invalid.config.js' })
     ).resolves.toMatchObject({ configVersion: -1 });
+  });
+});
+
+describe(saveConfigAsync, () => {
+  const config = require('./fixtures/store.config');
+  let projectDir: string;
+
+  beforeAll(async () => {
+    // We can't use memfs in this case, because we are evaluating js modules.
+    // Instead, we will write the files to the temporary directory and use that instead.
+    projectDir = tempy.directory({ prefix: 'saveConfigAsync' });
+  });
+
+  afterAll(async () => {
+    await fs.promises.rm(projectDir, { recursive: true });
+  });
+
+  it(`throws for unknown extensions`, async () => {
+    await expect(
+      saveConfigAsync(config, { projectDir, metadataPath: 'not.supported.mjs' })
+    ).rejects.toThrow('Unkown store config extension');
+  });
+
+  it(`saves valid json config`, async () => {
+    await saveConfigAsync(config, { projectDir, metadataPath: 'store.config.json' });
+    const savedConfig = await fs.promises
+      .readFile(path.join(projectDir, 'store.config.json'))
+      .then(content => JSON.parse(content.toString()));
+
+    expect(savedConfig).toMatchObject(config);
+  });
+
+  it(`saves valid js config`, async () => {
+    await saveConfigAsync(config, { projectDir, metadataPath: 'store.config.js' });
+    const savedConfig = require(path.join(projectDir, 'store.config.js'));
+
+    expect(savedConfig).toMatchObject(config);
   });
 });

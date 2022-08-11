@@ -2,6 +2,7 @@ import Ajv from 'ajv';
 import assert from 'assert';
 import fs from 'fs-extra';
 import path from 'path';
+import util from 'util';
 
 import Log from '../log';
 import { confirmAsync } from '../prompts';
@@ -56,6 +57,34 @@ export async function loadConfigAsync({
   }
 
   return configData;
+}
+
+/**
+ * Save the store config file, based on the file type extension.
+ * It supports both `.js` and `.json` files, where:
+ *   - JSON files are stringified
+ *   - JS files have a `module.exports = {inspect(config)};` template
+ */
+export async function saveConfigAsync(
+  config: MetadataConfig,
+  { projectDir, metadataPath }: Pick<MetadataContext, 'projectDir' | 'metadataPath'>
+): Promise<void> {
+  const configFile = path.join(projectDir, metadataPath);
+  const configExtension = path.extname(configFile);
+
+  switch (configExtension) {
+    case '.json':
+      return await fs.writeJson(configFile, config, { spaces: 2 });
+    case '.js':
+      return await fs.writeFile(
+        configFile,
+        `module.exports = ${util.inspect(config, { depth: null })};\n`
+      );
+    default:
+      throw new MetadataValidationError(
+        `Unkown store config extension: "${configExtension}" for "${metadataPath}". Use ".json" or ".js" instead.`
+      );
+  }
 }
 
 /**
