@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Add metadata support for dynamic store.config.js files. ([#1270](https://github.com/expo/eas-cli/pull/1270) by [@byCedric](https://github.com/byCedric))
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
