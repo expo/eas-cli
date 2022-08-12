@@ -1,4 +1,5 @@
 import fs from 'fs-extra';
+import path from 'path';
 
 import { MetadataEvent } from '../analytics/events';
 import Log from '../log';
@@ -19,11 +20,12 @@ export async function downloadMetadataAsync(metadataCtx: MetadataContext): Promi
   const fileExists = await fs.pathExists(filePath);
 
   if (fileExists) {
+    const filePathRelative = path.relative(metadataCtx.projectDir, filePath);
     const overwrite = await confirmAsync({
-      message: `Do you want to overwrite the existing store configuration "${metadataCtx.metadataPath}"?`,
+      message: `Do you want to overwrite the existing "${filePathRelative}"?`,
     });
     if (!overwrite) {
-      throw new MetadataValidationError(`Store configuration already exists at "${filePath}"`);
+      throw new MetadataValidationError(`Store config already exists at "${filePath}"`);
     }
   }
 
@@ -34,7 +36,7 @@ export async function downloadMetadataAsync(metadataCtx: MetadataContext): Promi
   );
 
   Log.addNewLineIfNone();
-  Log.log('Downloading App Store configuration...');
+  Log.log('Downloading App Store config...');
 
   const errors: Error[] = [];
   const config = createAppleWriter();
