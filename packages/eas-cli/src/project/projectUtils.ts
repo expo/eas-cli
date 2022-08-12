@@ -1,8 +1,10 @@
 import { ExpoConfig, getConfigFilePaths, getPackageJson, modifyConfigAsync } from '@expo/config';
 import { Env } from '@expo/eas-build-job';
 import chalk from 'chalk';
+import fs from 'fs-extra';
 import path from 'path';
 import pkgDir from 'pkg-dir';
+import resolveFrom from 'resolve-from';
 import semver from 'semver';
 
 import { AppPrivacy } from '../graphql/generated';
@@ -236,6 +238,27 @@ export function isExpoUpdatesInstalledOrAvailable(
   }
 
   return isExpoUpdatesInstalled(projectDir);
+}
+
+export async function validateAppVersionRuntimePolicySupportAsync(
+  projectDir: string,
+  exp: ExpoConfig
+): Promise<void> {
+  if (typeof exp.runtimeVersion !== 'object' || exp.runtimeVersion?.policy !== 'appVersion') {
+    return;
+  }
+
+  const maybePackageJson = resolveFrom.silent(projectDir, 'expo-updates/package.json');
+  if (maybePackageJson) {
+    const { version } = await fs.readJson(maybePackageJson);
+    if (semver.gte(version, '0.14.4')) {
+      return;
+    }
+  }
+
+  Log.warn(
+    `You need to be on SDK 46 or higher and use expo-updates >= 0.14.4 to use appVersion runtime policy.`
+  );
 }
 
 export async function installExpoUpdatesAsync(projectDir: string): Promise<void> {

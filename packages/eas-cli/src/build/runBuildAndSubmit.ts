@@ -28,6 +28,7 @@ import {
 } from '../platform';
 import { checkExpoSdkIsSupportedAsync } from '../project/expoSdk';
 import { validateMetroConfigForManagedWorkflowAsync } from '../project/metroConfig';
+import { validateAppVersionRuntimePolicySupportAsync } from '../project/projectUtils';
 import {
   validateAppConfigForRemoteVersionSource,
   validateBuildProfileVersionSettings,
@@ -255,6 +256,7 @@ async function prepareAndStartBuildAsync({
       )}`
     );
   }
+  await validateAppVersionRuntimePolicySupportAsync(buildCtx.projectDir, buildCtx.exp);
   if (easJsonCliConfig?.appVersionSource === AppVersionSource.REMOTE) {
     validateAppConfigForRemoteVersionSource(buildCtx.exp, buildProfile.platform);
   }
