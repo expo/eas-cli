@@ -5,7 +5,7 @@ if (process.env.CLI_SIZE_CHECK) {
     if (error || stderr) {
       // eslint-disable-next-line no-console
       console.error(error?.message || stderr);
-      return;
+      process.exit(1);
     }
 
     // eslint-disable-next-line no-console
