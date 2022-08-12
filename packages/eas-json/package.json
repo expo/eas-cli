@@ -18,6 +18,7 @@
   "devDependencies": {
     "@types/fs-extra": "9.0.13",
     "memfs": "3.4.7",
+    "rimraf": "^3.0.2",
     "typescript": "4.7.4"
   },
   "engines": {
@@ -32,9 +33,9 @@
     "build": "tsc --project tsconfig.build.json",
     "watch": "yarn build --watch --preserveWatchOutput",
     "typecheck": "tsc",
-    "prepack": "rm -rf build && yarn build",
+    "prepack": "rimraf build && yarn build",
     "test": "jest",
-    "clean": "rm -rf build node_modules yarn-error.log"
+    "clean": "rimraf build node_modules yarn-error.log"
   },
   "files": [
     "/build"

@@ -1,13 +1,15 @@
-#!/usr/bin/env sh
+const { promises: fs } = require('fs');
 
-OUTFILE="src/graphql/generated.ts"
+const path = './src/graphql/generated.ts';
 
-content="/**
+(async () => {
+  const generatedCode = await fs.readFile(path, 'utf8');
+  const comment = `/**
  * This file was generated using GraphQL Codegen
  * Command: yarn generate-graphql-code
  * Run this during development for automatic type generation when editing GraphQL documents
  * For more info and docs, visit https://graphql-code-generator.com/
- */
-"
+ */\n\n`;
 
-printf '%s\n%s\n' "$content" "$(cat $OUTFILE)" > $OUTFILE
+  await fs.writeFile(path, comment + generatedCode);
+})();
