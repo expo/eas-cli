@@ -257,7 +257,7 @@ export async function validateAppVersionRuntimePolicySupportAsync(
   }
 
   Log.warn(
-    `You need to be on SDK 46 or higher and use expo-updates >= 0.14.4 to use appVersion runtime policy.`
+    `You need to be on SDK 46 or higher, and use expo-updates >= 0.14.4 to use appVersion runtime policy.`
   );
 }
 
