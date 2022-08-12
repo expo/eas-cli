@@ -1,4 +1,4 @@
-const { promises: fs } = require('fs');
+const fs = require('fs/promises');
 
 const path = './src/graphql/generated.ts';
 
