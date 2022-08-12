@@ -1,12 +1,11 @@
 import fs from 'fs-extra';
-import path from 'path';
 
 import { MetadataEvent } from '../analytics/events';
 import Log from '../log';
 import { confirmAsync } from '../prompts';
 import { AppleData } from './apple/data';
 import { createAppleTasks } from './apple/tasks';
-import { createAppleWriter, saveConfigAsync } from './config';
+import { createAppleWriter, getStaticConfigFile } from './config';
 import { MetadataContext, ensureMetadataAppStoreAuthenticatedAsync } from './context';
 import { MetadataDownloadError, MetadataValidationError } from './errors';
 import { subscribeTelemetry } from './utils/telemetry';
@@ -16,7 +15,7 @@ import { subscribeTelemetry } from './utils/telemetry';
  * Note, only App Store is supported at this time.
  */
 export async function downloadMetadataAsync(metadataCtx: MetadataContext): Promise<string> {
-  const filePath = path.resolve(metadataCtx.projectDir, metadataCtx.metadataPath);
+  const filePath = getStaticConfigFile(metadataCtx);
   const fileExists = await fs.pathExists(filePath);
 
   if (fileExists) {
@@ -59,7 +58,7 @@ export async function downloadMetadataAsync(metadataCtx: MetadataContext): Promi
   }
 
   try {
-    await saveConfigAsync(config.toSchema(), metadataCtx);
+    await fs.writeJSON(filePath, config.toSchema(), { spaces: 2 });
   } finally {
     unsubscribeTelemetry();
   }
