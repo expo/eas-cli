@@ -101,7 +101,7 @@
     "memfs": "3.4.7",
     "mockdate": "3.0.5",
     "nock": "13.2.9",
-    "rimraf": "^3.0.2",
+    "rimraf": "3.0.2",
     "tempy": "0.7.0",
     "ts-deepmerge": "2.0.5",
     "ts-mockito": "2.6.1",
