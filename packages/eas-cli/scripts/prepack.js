@@ -1,14 +1,7 @@
-const { exec } = require('child_process');
+const spawn = require('@expo/spawn-async');
 
-if (process.env.CLI_SIZE_CHECK) {
-  exec('yarn oclif manifest', (error, stdout, stderr) => {
-    if (error || stderr) {
-      // eslint-disable-next-line no-console
-      console.error(error?.message || stderr);
-      process.exit(1);
-    }
-
-    // eslint-disable-next-line no-console
-    console.log(stdout);
-  });
-}
+(async () => {
+  if (!process.env.CLI_SIZE_CHECK) {
+    await spawn('yarn', ['oclif', 'manifest'], { stdio: 'inherit' });
+  }
+})();
