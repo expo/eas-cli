@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Add `appVersion` runtime policy. ([#1267](https://github.com/expo/eas-cli/pull/1267) by [@wkozyra95](https://github.com/wkozyra95))
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
