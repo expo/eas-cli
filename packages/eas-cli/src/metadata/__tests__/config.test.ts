@@ -108,4 +108,30 @@ describe(loadConfigAsync, () => {
       loadConfigAsync({ projectDir, metadataPath: 'invalid.async.js' })
     ).resolves.toMatchObject({ configVersion: -1 });
   });
+
+  it(`throws invalid config type from "invalid-type.config.json"`, async () => {
+    await expect(
+      loadConfigAsync({ projectDir, metadataPath: 'invalid-type.config.json' })
+    ).rejects.toThrow(
+      `store config returned an unkown value, should be an object: "${[{ configVersion: -1 }]}"`
+    );
+  });
+
+  it(`throws invalid config type from "invalid-type.config.js"`, async () => {
+    await expect(
+      loadConfigAsync({ projectDir, metadataPath: 'invalid-type.config.js' })
+    ).rejects.toThrow(`store config returned an unkown value, should be an object: "${1337}"`);
+  });
+
+  it(`throws invalid config type from "invalid-type.function.js"`, async () => {
+    await expect(
+      loadConfigAsync({ projectDir, metadataPath: 'invalid-type.function.js' })
+    ).rejects.toThrow(`store config returned an unkown value, should be an object: "${true}"`);
+  });
+
+  it(`throws invalid config type from "invalid-type.async.js"`, async () => {
+    await expect(
+      loadConfigAsync({ projectDir, metadataPath: 'invalid-type.async.js' })
+    ).rejects.toThrow(`store config returned an unkown value, should be an object: "${null}"`);
+  });
 });

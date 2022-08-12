@@ -24,16 +24,18 @@ export interface MetadataConfig {
  */
 async function resolveDynamicConfigAsync(configFile: string): Promise<unknown> {
   const userConfigContent = await import(configFile);
-  const userConfig = userConfigContent.default || userConfigContent;
+  let userConfig = userConfigContent.default || userConfigContent;
 
   if (typeof userConfig === 'function') {
-    return await userConfig();
-  } else if (typeof userConfig === 'object') {
+    userConfig = await userConfig();
+  }
+
+  if (typeof userConfig === 'object' && userConfig !== null && !Array.isArray(userConfig)) {
     return userConfig;
   }
 
   throw new MetadataValidationError(
-    `Metadata store config returned an unkown object: "${typeof userConfig}"`
+    `Metadata store config returned an unkown value, should be an object: "${userConfig}"`
   );
 }
 
