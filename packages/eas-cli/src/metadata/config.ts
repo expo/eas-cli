@@ -19,6 +19,39 @@ export interface MetadataConfig {
 }
 
 /**
+ * Resolve the dynamic config from the user.
+ * It supports methods, async methods, or objects (json).
+ */
+async function resolveDynamicConfigAsync(configFile: string): Promise<unknown> {
+  const userConfigContent = await import(configFile);
+  const userConfig = userConfigContent.default || userConfigContent;
+
+  if (typeof userConfig === 'function') {
+    return await userConfig();
+  } else if (typeof userConfig === 'object') {
+    return userConfig;
+  }
+
+  throw new MetadataValidationError(
+    `Metadata store config returned an unkown object: "${typeof userConfig}"`
+  );
+}
+
+/**
+ * Get the static configuration file path, based on the metadata context.
+ * This uses any custom name provided, but swaps out the extension for `.json`.
+ */
+export function getStaticConfigFile({
+  projectDir,
+  metadataPath,
+}: Pick<MetadataContext, 'projectDir' | 'metadataPath'>): string {
+  const configFile = path.join(projectDir, metadataPath);
+  const configExtension = path.extname(configFile);
+
+  return path.join(projectDir, `${path.basename(configFile, configExtension)}.json`);
+}
+
+/**
  * Load the store configuration from a metadata context.
  * This can load `.json` and `.js` config files, using `require`.
  * It throws MetadataValidationErrors when the file doesn't exist, or contains errors.
@@ -33,7 +66,7 @@ export async function loadConfigAsync({
     throw new MetadataValidationError(`Metadata store config file not found: "${configFile}"`);
   }
 
-  const configData = require(configFile);
+  const configData = await resolveDynamicConfigAsync(configFile);
   const { valid, errors: validationErrors } = validateConfig(configData);
 
   if (!valid) {
@@ -49,27 +82,15 @@ export async function loadConfigAsync({
     );
 
     if (await confirmAsync({ message: 'Do you still want to push the store configuration?' })) {
-      return configData;
+      // Risky, types don't match but user is warned
+      return configData as any;
     } else {
       throw error;
     }
   }
 
-  return configData;
-}
-
-/**
- * Get the static configuration file path, based on the metadata context.
- * This uses any custom name provided, but swaps out the extension for `.json`.
- */
-export function getStaticConfigFile({
-  projectDir,
-  metadataPath,
-}: Pick<MetadataContext, 'projectDir' | 'metadataPath'>): string {
-  const configFile = path.join(projectDir, metadataPath);
-  const configExtension = path.extname(configFile);
-
-  return path.join(projectDir, `${path.basename(configFile, configExtension)}.json`);
+  // Normal, types match validation
+  return configData as any;
 }
 
 /**

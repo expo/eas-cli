@@ -54,30 +54,58 @@ describe(loadConfigAsync, () => {
     ).rejects.toThrow('errors found');
   });
 
-  it(`returns json config`, async () => {
+  it(`returns config from "store.config.json"`, async () => {
     await expect(
       loadConfigAsync({ projectDir, metadataPath: 'store.config.json' })
-    ).resolves.toHaveProperty('apple.copyright', '2022 ACME');
+    ).resolves.toHaveProperty('apple.copyright', 'ACME');
   });
 
-  it(`returns js config`, async () => {
+  it(`returns config from "store.config.js"`, async () => {
     const year = new Date().getFullYear();
     await expect(
       loadConfigAsync({ projectDir, metadataPath: 'store.config.js' })
     ).resolves.toHaveProperty('apple.copyright', `${year} ACME`);
   });
 
-  it(`returns json config when skipping validation`, async () => {
+  it(`returns config from "store.function.js"`, async () => {
+    const year = new Date().getFullYear();
+    await expect(
+      loadConfigAsync({ projectDir, metadataPath: 'store.function.js' })
+    ).resolves.toHaveProperty('apple.copyright', `${year} ACME`);
+  });
+
+  it(`returns config from "store.async.js"`, async () => {
+    const year = new Date().getFullYear();
+    await expect(
+      loadConfigAsync({ projectDir, metadataPath: 'store.async.js' })
+    ).resolves.toHaveProperty('apple.copyright', `${year} ACME`);
+  });
+
+  it(`returns invalid config from "invalid.config.json`, async () => {
     jest.mocked(confirmAsync).mockResolvedValue(true);
     await expect(
       loadConfigAsync({ projectDir, metadataPath: 'invalid.config.json' })
     ).resolves.toMatchObject({ configVersion: -1 });
   });
 
-  it(`returns js config when skipping validation`, async () => {
+  it(`returns invalid config from "invalid.config.js`, async () => {
     jest.mocked(confirmAsync).mockResolvedValue(true);
     await expect(
       loadConfigAsync({ projectDir, metadataPath: 'invalid.config.js' })
+    ).resolves.toMatchObject({ configVersion: -1 });
+  });
+
+  it(`returns invalid config from "invalid.function.js`, async () => {
+    jest.mocked(confirmAsync).mockResolvedValue(true);
+    await expect(
+      loadConfigAsync({ projectDir, metadataPath: 'invalid.function.js' })
+    ).resolves.toMatchObject({ configVersion: -1 });
+  });
+
+  it(`returns invalid config from "invalid.async.js`, async () => {
+    jest.mocked(confirmAsync).mockResolvedValue(true);
+    await expect(
+      loadConfigAsync({ projectDir, metadataPath: 'invalid.async.js' })
     ).resolves.toMatchObject({ configVersion: -1 });
   });
 });
