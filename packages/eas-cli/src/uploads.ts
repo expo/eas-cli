@@ -3,6 +3,7 @@ import FormData from 'form-data';
 import fs from 'fs-extra';
 import { Response } from 'node-fetch';
 import nullthrows from 'nullthrows';
+import promiseRetry from 'promise-retry';
 import { URL } from 'url';
 
 import fetch from './fetch';
@@ -28,6 +29,37 @@ export async function uploadFileAtPathToS3Async(
 }
 
 export async function uploadWithPresignedPostAsync(
+  file: string,
+  presignedPost: PresignedPost,
+  handleProgressEvent?: ProgressHandler
+): Promise<Response> {
+  return await promiseRetry(
+    async retry => {
+      let response: Response;
+      try {
+        response = await uploadWithPresignedPostInternalAsync(
+          file,
+          presignedPost,
+          handleProgressEvent
+        );
+      } catch (e: any) {
+        return retry(e);
+      }
+
+      if (!response.ok) {
+        return retry(new Error(`Presigned post responded with a ${response.status}`));
+      }
+
+      return response;
+    },
+    {
+      retries: 3,
+      factor: 2,
+    }
+  );
+}
+
+export async function uploadWithPresignedPostInternalAsync(
   file: string,
   presignedPost: PresignedPost,
   handleProgressEvent?: ProgressHandler
