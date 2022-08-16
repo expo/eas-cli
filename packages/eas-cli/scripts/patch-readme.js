@@ -1,4 +1,4 @@
-const { promises: fs } = require('fs');
+const fs = require('fs/promises');
 
 (async () => {
   // Patch `oclif readme` path and link generation
