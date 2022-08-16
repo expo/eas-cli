@@ -19,7 +19,11 @@ export async function uploadFileAtPathToS3Async(
   const presignedPost = await UploadSessionMutation.createUploadSessionAsync(type);
   assert(presignedPost.fields.key, 'key is not specified in in presigned post');
 
-  const response = await uploadWithPresignedPostAsync(path, presignedPost, handleProgressEvent);
+  const response = await uploadWithPresignedPostWithProgressAsync(
+    path,
+    presignedPost,
+    handleProgressEvent
+  );
   const location = nullthrows(
     response.headers.get('location'),
     `location does not exist in response headers (make sure you're uploading to AWS S3)`
@@ -28,30 +32,37 @@ export async function uploadFileAtPathToS3Async(
   return { url, bucketKey: presignedPost.fields.key };
 }
 
-export async function uploadWithPresignedPostAsync(
+export async function uploadWithPresignedPostWithRetryAsync(
   file: string,
-  presignedPost: PresignedPost,
-  handleProgressEvent?: ProgressHandler
+  presignedPost: PresignedPost
 ): Promise<Response> {
   return await promiseRetry(
     async retry => {
+      // retry fetch errors (usually connection or DNS errors)
       let response: Response;
       try {
-        response = await uploadWithPresignedPostInternalAsync(
-          file,
-          presignedPost,
-          handleProgressEvent
-        );
+        response = await uploadWithPresignedPostAsync(file, presignedPost);
       } catch (e: any) {
         return retry(e);
       }
 
+      // retry 408, 429, 5xx as suggested by google
+      if (
+        response.status === 408 ||
+        response.status === 429 ||
+        Math.floor(response.status / 100) === 5 // 5xx errors
+      ) {
+        return retry(new Error(`Presigned upload responded with a ${response.status} status`));
+      }
+
+      // don't retry other errors
       if (!response.ok) {
-        return retry(new Error(`Presigned post responded with a ${response.status}`));
+        throw new Error(`Presigned upload responded with a ${response.status} status`);
       }
 
       return response;
     },
+    // retry parameters match google suggested defaults: https://cloud.google.com/storage/docs/retry-strategy#node.js
     {
       retries: 3,
       factor: 2,
@@ -59,10 +70,32 @@ export async function uploadWithPresignedPostAsync(
   );
 }
 
-export async function uploadWithPresignedPostInternalAsync(
+async function uploadWithPresignedPostAsync(
+  file: string,
+  presignedPost: PresignedPost
+): Promise<Response> {
+  const fileStat = await fs.stat(file);
+  const fileSize = fileStat.size;
+  const form = new FormData();
+  for (const [fieldKey, fieldValue] of Object.entries(presignedPost.fields)) {
+    form.append(fieldKey, fieldValue);
+  }
+  form.append('file', fs.createReadStream(file), { knownLength: fileSize });
+  const formHeaders = form.getHeaders();
+
+  return await fetch(presignedPost.url, {
+    method: 'POST',
+    body: form,
+    headers: {
+      ...formHeaders,
+    },
+  });
+}
+
+async function uploadWithPresignedPostWithProgressAsync(
   file: string,
   presignedPost: PresignedPost,
-  handleProgressEvent?: ProgressHandler
+  handleProgressEvent: ProgressHandler
 ): Promise<Response> {
   const fileStat = await fs.stat(file);
   const fileSize = fileStat.size;
@@ -81,27 +114,23 @@ export async function uploadWithPresignedPostInternalAsync(
   });
 
   let currentSize = 0;
-  if (handleProgressEvent) {
-    form.addListener('data', (chunk: Buffer) => {
-      currentSize += Buffer.byteLength(chunk);
-      handleProgressEvent({
-        progress: {
-          total: fileSize,
-          percent: currentSize / fileSize,
-          transferred: currentSize,
-        },
-      });
+  form.addListener('data', (chunk: Buffer) => {
+    currentSize += Buffer.byteLength(chunk);
+    handleProgressEvent({
+      progress: {
+        total: fileSize,
+        percent: currentSize / fileSize,
+        transferred: currentSize,
+      },
     });
-    try {
-      const response = await uploadPromise;
-      handleProgressEvent({ isComplete: true });
-      return response;
-    } catch (error: any) {
-      handleProgressEvent({ isComplete: true, error });
-      throw error;
-    }
-  } else {
-    return await uploadPromise;
+  });
+  try {
+    const response = await uploadPromise;
+    handleProgressEvent({ isComplete: true });
+    return response;
+  } catch (error: any) {
+    handleProgressEvent({ isComplete: true, error });
+    throw error;
   }
 }
 
