@@ -1,3 +1,6 @@
+import { JSONObject } from '@expo/json-file';
+import type { XCBuildConfiguration } from 'xcode';
+
 import {
   CommonIosAppCredentialsFragment,
   IosAppBuildCredentialsFragment,
@@ -14,6 +17,8 @@ export interface Target {
   buildConfiguration?: string;
   bundleIdentifier: string;
   parentBundleIdentifier?: string;
+  entitlements: JSONObject;
+  buildSettings?: XCBuildConfiguration['buildSettings'];
 }
 
 export interface TargetCredentials {

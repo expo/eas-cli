@@ -1,4 +1,3 @@
-import { asMock } from '../../../../__tests__/utils';
 import { promptAsync } from '../../../../prompts';
 import {
   getNewAndroidApiMock,
@@ -9,7 +8,9 @@ import { getAppLookupParamsFromContextAsync } from '../BuildCredentialsUtils';
 import { UseExistingGoogleServiceAccountKey } from '../UseExistingGoogleServiceAccountKey';
 
 jest.mock('../../../../prompts');
-asMock(promptAsync).mockImplementation(() => ({ chosenKey: testGoogleServiceAccountKeyFragment }));
+jest
+  .mocked(promptAsync)
+  .mockImplementation(async () => ({ chosenKey: testGoogleServiceAccountKeyFragment }));
 
 describe(UseExistingGoogleServiceAccountKey, () => {
   it('uses an existing Google Service Account Key in Interactive Mode', async () => {

@@ -1,3 +1,4 @@
+import * as PackageManagerUtils from '@expo/package-manager';
 import spawnAsync from '@expo/spawn-async';
 import { Errors } from '@oclif/core';
 import chalk from 'chalk';
@@ -33,15 +34,17 @@ export default class GitClient extends Client {
     Log.warn("It looks like you haven't initialized the git repository yet.");
     Log.warn('EAS Build requires you to use a git repository for your project.');
 
+    const cwd = process.cwd();
+    const repoRoot = PackageManagerUtils.findWorkspaceRoot(cwd) ?? cwd;
     const confirmInit = await confirmAsync({
-      message: `Would you like us to run 'git init' in the current directory for you?`,
+      message: `Would you like us to run 'git init' in ${repoRoot} for you?`,
     });
     if (!confirmInit) {
       throw new Error(
         'A git repository is required for building your project. Initialize it and run this command again.'
       );
     }
-    await spawnAsync('git', ['init']);
+    await spawnAsync('git', ['init'], { cwd: repoRoot });
 
     Log.log("We're going to make an initial commit for your repository.");
 
@@ -143,7 +146,7 @@ export default class GitClient extends Client {
   public async getCommitHashAsync(): Promise<string | undefined> {
     try {
       return (await spawnAsync('git', ['rev-parse', 'HEAD'])).stdout.trim();
-    } catch (err) {
+    } catch {
       return undefined;
     }
   }
@@ -155,7 +158,7 @@ export default class GitClient extends Client {
   public async getBranchNameAsync(): Promise<string | null> {
     try {
       return (await spawnAsync('git', ['rev-parse', '--abbrev-ref', 'HEAD'])).stdout.trim();
-    } catch (e) {
+    } catch {
       return null;
     }
   }
@@ -163,7 +166,7 @@ export default class GitClient extends Client {
   public async getLastCommitMessageAsync(): Promise<string | null> {
     try {
       return (await spawnAsync('git', ['--no-pager', 'log', '-1', '--pretty=%B'])).stdout.trim();
-    } catch (e) {
+    } catch {
       return null;
     }
   }
@@ -187,7 +190,7 @@ export default class GitClient extends Client {
     try {
       await spawnAsync('git', ['check-ignore', '-q', filePath]);
       return true;
-    } catch (e) {
+    } catch {
       return false;
     }
   }
@@ -284,7 +287,7 @@ export async function isGitCaseSensitiveAsync(): Promise<boolean | undefined> {
     } else {
       return true;
     }
-  } catch (e) {
+  } catch {
     return undefined;
   }
 }

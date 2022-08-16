@@ -11,6 +11,7 @@ import { getExpoWebsiteBaseUrl } from '../api';
 import {
   AppPlatform,
   BuildFragment,
+  BuildParamsInput,
   BuildPriority,
   BuildStatus,
   UploadSessionType,
@@ -24,7 +25,7 @@ import {
   appPlatformEmojis,
   requestedPlatformDisplayNames,
 } from '../platform';
-import { uploadAsync } from '../uploads';
+import { uploadFileAtPathToS3Async } from '../uploads';
 import { formatBytes } from '../utils/files';
 import { createProgressTracker } from '../utils/progress';
 import { sleepAsync } from '../utils/promise';
@@ -53,10 +54,21 @@ interface Builder<TPlatform extends Platform, Credentials, TJob extends Job> {
   ): Promise<CredentialsResult<Credentials> | undefined>;
   syncProjectConfigurationAsync(ctx: BuildContext<TPlatform>): Promise<void>;
   prepareJobAsync(ctx: BuildContext<TPlatform>, jobData: JobData<Credentials>): Promise<Job>;
-  sendBuildRequestAsync(appId: string, job: TJob, metadata: Metadata): Promise<BuildResult>;
+  sendBuildRequestAsync(
+    appId: string,
+    job: TJob,
+    metadata: Metadata,
+    buildParams: BuildParamsInput
+  ): Promise<BuildResult>;
 }
 
 export type BuildRequestSender = () => Promise<BuildFragment | undefined>;
+
+function resolveBuildParamsInput<T extends Platform>(ctx: BuildContext<T>): BuildParamsInput {
+  return {
+    resourceClass: ctx.resourceClass,
+  };
+}
 
 export async function prepareBuildRequestForPlatformAsync<
   TPlatform extends Platform,
@@ -100,6 +112,7 @@ export async function prepareBuildRequestForPlatformAsync<
       } as const);
 
   const metadata = await collectMetadataAsync(ctx);
+  const buildParams = resolveBuildParamsInput(ctx);
   const job = await builder.prepareJobAsync(ctx, {
     projectArchive,
     credentials: credentialsResult?.credentials,
@@ -107,11 +120,11 @@ export async function prepareBuildRequestForPlatformAsync<
 
   return async () => {
     if (ctx.localBuildOptions.enable) {
-      await runLocalBuildAsync(job, ctx.localBuildOptions);
+      await runLocalBuildAsync(job, metadata, ctx.localBuildOptions);
       return undefined;
     } else {
       try {
-        return await sendBuildRequestAsync(builder, job, metadata);
+        return await sendBuildRequestAsync(builder, job, metadata, buildParams);
       } catch (error: any) {
         handleBuildRequestError(error, job.platform);
       }
@@ -157,10 +170,16 @@ async function uploadProjectAsync<TPlatform extends Platform>(
   try {
     return await withAnalyticsAsync(
       async () => {
+        Log.newLine();
+        Log.log(
+          `Compressing project files and uploading to EAS Build. ${learnMore(
+            'https://expo.fyi/eas-build-archive'
+          )}`
+        );
         const projectTarball = await makeProjectTarballAsync();
         projectTarballPath = projectTarball.path;
 
-        const { bucketKey } = await uploadAsync(
+        const { bucketKey } = await uploadFileAtPathToS3Async(
           UploadSessionType.EasBuildProjectSources,
           projectTarball.path,
           createProgressTracker({
@@ -169,10 +188,7 @@ async function uploadProjectAsync<TPlatform extends Platform>(
               `Uploading to EAS Build (${formatBytes(projectTarball.size * ratio)} / ${formatBytes(
                 projectTarball.size
               )})`,
-            completedMessage: (duration: string) =>
-              `Uploaded to EAS ${chalk.dim(duration)} ${learnMore(
-                'https://expo.fyi/eas-build-archive'
-              )}`,
+            completedMessage: (duration: string) => `Uploaded to EAS ${chalk.dim(duration)}`,
           })
         );
         return bucketKey;
@@ -194,7 +210,8 @@ async function uploadProjectAsync<TPlatform extends Platform>(
 async function sendBuildRequestAsync<TPlatform extends Platform, Credentials, TJob extends Job>(
   builder: Builder<TPlatform, Credentials, TJob>,
   job: TJob,
-  metadata: Metadata
+  metadata: Metadata,
+  buildParams: BuildParamsInput
 ): Promise<BuildFragment> {
   const { ctx } = builder;
   return await withAnalyticsAsync(
@@ -206,7 +223,8 @@ async function sendBuildRequestAsync<TPlatform extends Platform, Credentials, TJ
       const { build, deprecationInfo } = await builder.sendBuildRequestAsync(
         ctx.projectId,
         job,
-        metadata
+        metadata,
+        buildParams
       );
 
       printDeprecationWarnings(deprecationInfo);
@@ -231,16 +249,23 @@ export async function waitForBuildEndAsync(
     intervalSec = 10,
   } = {}
 ): Promise<MaybeBuildFragment[]> {
-  const b = `build${buildIds.length > 1 ? 's' : ''}`;
-  Log.log(`Waiting for ${b} to complete. You can press Ctrl+C to exit.`);
-  const spinner = ora(`Waiting for ${b} to complete.`).start();
+  let spinner;
+  let originalSpinnerText;
+  if (buildIds.length === 1) {
+    Log.log('Waiting for build to complete. You can press Ctrl+C to exit.');
+    originalSpinnerText = 'Waiting for build to complete.';
+    spinner = ora(originalSpinnerText).start();
+  } else {
+    originalSpinnerText = 'Waiting for builds to complete. You can press Ctrl+C to exit.';
+    spinner = ora('Waiting for builds to complete. You can press Ctrl+C to exit.').start();
+  }
   const endTime = new Date().getTime() + timeoutSec * 1000;
   while (new Date().getTime() <= endTime) {
     const builds = await getBuildsSafelyAsync(buildIds);
     const { refetch } =
       builds.length === 1
         ? await handleSingleBuildProgressAsync({ build: builds[0], accountName }, { spinner })
-        : await handleMultipleBuildsProgressAsync({ builds }, { spinner });
+        : await handleMultipleBuildsProgressAsync({ builds }, { spinner, originalSpinnerText });
     if (!refetch) {
       return builds;
     }
@@ -327,7 +352,7 @@ async function handleSingleBuildProgressAsync(
           );
         }
         Log.newLine();
-        Log.log('Waiting in queue');
+        Log.log(`Waiting in ${priorityToQueueDisplayName[build.priority]}`);
         queueProgressBar.start(
           build.initialQueuePosition + 1,
           build.initialQueuePosition - build.queuePosition + 1,
@@ -360,6 +385,12 @@ async function handleSingleBuildProgressAsync(
   return { refetch: true };
 }
 
+const priorityToQueueDisplayName: Record<BuildPriority, string> = {
+  [BuildPriority.Normal]: 'queue',
+  [BuildPriority.NormalPlus]: 'queue',
+  [BuildPriority.High]: 'priority queue',
+};
+
 const statusToDisplayName: Record<BuildStatus, string> = {
   [BuildStatus.New]: 'waiting to enter the queue (concurrency limit reached)',
   [BuildStatus.InQueue]: 'in queue',
@@ -373,7 +404,7 @@ const platforms = [AppPlatform.Android, AppPlatform.Ios];
 
 async function handleMultipleBuildsProgressAsync(
   { builds: maybeBuilds }: { builds: MaybeBuildFragment[] },
-  { spinner }: { spinner: Ora }
+  { spinner, originalSpinnerText }: { spinner: Ora; originalSpinnerText: string }
 ): Promise<BuildProgressResult> {
   const buildCount = maybeBuilds.length;
   const builds = maybeBuilds.filter<BuildFragment>(isBuildFragment);
@@ -393,7 +424,7 @@ async function handleMultipleBuildsProgressAsync(
     }
     return { refetch: false };
   } else {
-    spinner.text = formatPendingBuildsText(builds);
+    spinner.text = formatPendingBuildsText(originalSpinnerText, builds);
     return { refetch: true };
   }
 }
@@ -412,9 +443,10 @@ function formatSettledBuildsText(builds: BuildFragment[]): string {
     .join('\n  ');
 }
 
-function formatPendingBuildsText(builds: BuildFragment[]): string {
-  return platforms
-    .map(platform => {
+function formatPendingBuildsText(originalSpinnerText: string, builds: BuildFragment[]): string {
+  return [
+    originalSpinnerText,
+    ...platforms.map(platform => {
       const build = builds.find(build => build.platform === platform);
       const status = build ? statusToDisplayName[build.status] : 'unknown';
       let extraInfo = '';
@@ -437,8 +469,8 @@ function formatPendingBuildsText(builds: BuildFragment[]): string {
       return `${appPlatformEmojis[platform]} ${
         appPlatformDisplayNames[platform]
       } build - status: ${chalk.bold(status)}${extraInfo}`;
-    })
-    .join('\n  ');
+    }),
+  ].join('\n  ');
 }
 
 function isBuildFragment(maybeBuild: MaybeBuildFragment): maybeBuild is BuildFragment {

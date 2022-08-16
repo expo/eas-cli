@@ -1,12 +1,8 @@
-import { asMock } from '../../__tests__/utils';
 import { flushAsync, initAsync, logEvent } from '../../analytics/rudderstackClient';
 import { jester as mockJester } from '../../credentials/__tests__/fixtures-constants';
 import { getUserAsync } from '../../user/User';
 import { ensureLoggedInAsync } from '../../user/actions';
 import EasCommand from '../EasCommand';
-import TestEasCommand from './TestEasCommand';
-
-TestEasCommand.prototype.authValue = jest.fn().mockImplementation(() => true);
 
 jest.mock('../../user/User');
 jest.mock('../../user/actions', () => ({ ensureLoggedInAsync: jest.fn() }));
@@ -32,16 +28,29 @@ afterAll(() => {
 });
 
 beforeEach(() => {
-  asMock(getUserAsync)
+  jest
+    .mocked(getUserAsync)
     .mockReset()
-    .mockImplementation(() => mockJester);
-  asMock(ensureLoggedInAsync)
+    .mockImplementation(async () => mockJester);
+  jest
+    .mocked(ensureLoggedInAsync)
     .mockReset()
-    .mockImplementation(() => mockJester);
-  asMock(initAsync).mockReset();
-  asMock(flushAsync).mockReset();
-  asMock(logEvent).mockReset();
+    .mockImplementation(async () => mockJester);
+  jest.mocked(initAsync).mockReset();
+  jest.mocked(flushAsync).mockReset();
+  jest.mocked(logEvent).mockReset();
 });
+
+const createTestEasCommand = (authValue: boolean): typeof EasCommand => {
+  class TestEasCommand extends EasCommand {
+    requiresAuthentication = authValue;
+
+    async runAsync(): Promise<void> {}
+  }
+
+  TestEasCommand.id = 'TestEasCommand'; // normally oclif will assign ids, but b/c this is located outside the commands folder it will not
+  return TestEasCommand;
+};
 
 describe(EasCommand.name, () => {
   describe('without exceptions', () => {
@@ -53,32 +62,36 @@ describe(EasCommand.name, () => {
     // See https://github.com/oclif/command/blob/master/src/command.ts#L80
     // and look for "Config.load"
     it('ensures the user is logged in', async () => {
+      const TestEasCommand = createTestEasCommand(true);
       await TestEasCommand.run();
 
       expect(ensureLoggedInAsync).toHaveBeenCalled();
     }, 15_000);
 
     it('ensures the user data is read from cache', async () => {
-      asMock(TestEasCommand.prototype.authValue).mockImplementationOnce(() => false);
-
+      const TestEasCommand = createTestEasCommand(false);
       await TestEasCommand.run();
 
-      expect(getUserAsync).toHaveReturnedWith(mockJester);
+      expect(jest.mocked(getUserAsync)).toBeCalledTimes(1);
+      expect(jest.mocked(ensureLoggedInAsync)).not.toBeCalled();
     });
 
     it('initializes analytics', async () => {
+      const TestEasCommand = createTestEasCommand(true);
       await TestEasCommand.run();
 
       expect(initAsync).toHaveBeenCalled();
     });
 
     it('flushes analytics', async () => {
+      const TestEasCommand = createTestEasCommand(true);
       await TestEasCommand.run();
 
       expect(flushAsync).toHaveBeenCalled();
     });
 
     it('logs events', async () => {
+      const TestEasCommand = createTestEasCommand(true);
       await TestEasCommand.run();
 
       expect(logEvent).toHaveBeenCalledWith('action', {
@@ -89,11 +102,12 @@ describe(EasCommand.name, () => {
 
   describe('after exceptions', () => {
     it('flushes analytics', async () => {
+      const TestEasCommand = createTestEasCommand(true);
       try {
         await TestEasCommand.run().then(() => {
           throw new Error('foo');
         });
-      } catch (error) {}
+      } catch {}
 
       expect(flushAsync).toHaveBeenCalled();
     });

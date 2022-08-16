@@ -15,7 +15,7 @@ describe(getCertData, () => {
   });
 });
 
-describe(forge.pkcs12.pkcs12FromAsn1, () => {
+describe('forge.pkcs12.pkcs12FromAsn1', () => {
   describe('when using p12 created from keychain', () => {
     it('throws if empty string is passed', async () => {
       const p12Der = forge.util.decode64(testDistributionCertificateEmptyPasswordBase64);

@@ -482,7 +482,7 @@ function validateUrl(url: string): boolean {
         ? protocols.map(x => `${x.toLowerCase()}:`).includes(parsed.protocol)
         : false
       : true;
-  } catch (err) {
+  } catch {
     return false;
   }
 }

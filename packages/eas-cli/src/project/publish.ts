@@ -5,17 +5,15 @@ import fs from 'fs-extra';
 import Joi from 'joi';
 import mime from 'mime';
 import path from 'path';
+import promiseLimit from 'promise-limit';
 
 import { AssetMetadataStatus, PartialManifestAsset } from '../graphql/generated';
 import { PublishMutation } from '../graphql/mutations/PublishMutation';
 import { PresignedPost } from '../graphql/mutations/UploadSessionMutation';
 import { PublishQuery } from '../graphql/queries/PublishQuery';
-import Log from '../log';
 import { uploadWithPresignedPostAsync } from '../uploads';
 import { expoCommandAsync } from '../utils/expoCli';
 import uniqBy from '../utils/expodash/uniqBy';
-
-export const TIMEOUT_LIMIT = 60_000; // 1 minute
 
 export type PublishPlatform = Extract<'android' | 'ios', Platform>;
 type Metadata = {
@@ -157,11 +155,14 @@ export async function buildBundlesAsync({
     throw new Error('Could not locate package.json');
   }
 
-  await expoCommandAsync(
-    projectDir,
-    ['export', '--output-dir', inputDir, '--experimental-bundle'],
-    { silent: !Log.isDebug }
-  );
+  await expoCommandAsync(projectDir, [
+    'export',
+    '--output-dir',
+    inputDir,
+    '--experimental-bundle',
+    '--non-interactive',
+    '--dump-sourcemap',
+  ]);
 }
 
 export async function resolveInputDirectoryAsync(customInputDirectory: string): Promise<string> {
@@ -245,7 +246,18 @@ export async function filterOutAssetsThatAlreadyExistAsync(
   return missingAssets;
 }
 
-export async function uploadAssetsAsync(assetsForUpdateInfoGroup: CollectedAssets): Promise<void> {
+type AssetUploadResult = {
+  assetCount: number;
+  uniqueAssetCount: number;
+  uniqueUploadedAssetCount: number;
+  assetLimitPerUpdateGroup: number;
+};
+
+export async function uploadAssetsAsync(
+  assetsForUpdateInfoGroup: CollectedAssets,
+  projectId: string,
+  updateSpinnerText?: (totalAssets: number, missingAssets: number) => void
+): Promise<AssetUploadResult> {
   let assets: RawAsset[] = [];
   let platform: keyof CollectedAssets;
   for (platform in assetsForUpdateInfoGroup) {
@@ -270,29 +282,51 @@ export async function uploadAssetsAsync(assetsForUpdateInfoGroup: CollectedAsset
     }
   >(assetsWithStorageKey, asset => asset.storageKey);
 
+  const totalAssets = uniqueAssets.length;
+
+  updateSpinnerText?.(totalAssets, totalAssets);
+
   let missingAssets = await filterOutAssetsThatAlreadyExistAsync(uniqueAssets);
+  const uniqueUploadedAssetCount = missingAssets.length;
   const { specifications } = await PublishMutation.getUploadURLsAsync(
     missingAssets.map(ma => ma.contentType)
   );
+  updateSpinnerText?.(totalAssets, missingAssets.length);
 
-  await Promise.all(
+  const assetUploadPromiseLimit = promiseLimit(15);
+
+  const [assetLimitPerUpdateGroup] = await Promise.all([
+    PublishQuery.getAssetLimitPerUpdateGroupAsync(projectId),
     missingAssets.map((missingAsset, i) => {
-      const presignedPost: PresignedPost = JSON.parse(specifications[i]);
-      return uploadWithPresignedPostAsync(missingAsset.path, presignedPost);
-    })
-  );
+      assetUploadPromiseLimit(async () => {
+        const presignedPost: PresignedPost = JSON.parse(specifications[i]);
+        await uploadWithPresignedPostAsync(missingAsset.path, presignedPost);
+      });
+    }),
+  ]);
 
-  // Wait up to TIMEOUT_LIMIT for assets to be uploaded and processed
-  const start = Date.now();
   let timeout = 1;
   while (missingAssets.length > 0) {
-    const timeoutPromise = new Promise(resolve => setTimeout(resolve, timeout * 1000)); // linear backoff
+    const timeoutPromise = new Promise(resolve =>
+      setTimeout(resolve, Math.min(timeout * 1000, 5000))
+    ); // linear backoff
     missingAssets = await filterOutAssetsThatAlreadyExistAsync(missingAssets);
     await timeoutPromise; // await after filterOutAssetsThatAlreadyExistAsync for easy mocking with jest.runAllTimers
     timeout += 1;
-
-    if (Date.now() - start > TIMEOUT_LIMIT) {
-      throw new Error('Asset upload timed out. Please try again.');
-    }
+    updateSpinnerText?.(totalAssets, missingAssets.length);
   }
+  return {
+    assetCount: assets.length,
+    uniqueAssetCount: uniqueAssets.length,
+    uniqueUploadedAssetCount,
+    assetLimitPerUpdateGroup,
+  };
+}
+
+export function isUploadedAssetCountAboveWarningThreshold(
+  uploadedAssetCount: number,
+  assetLimitPerUpdateGroup: number
+): boolean {
+  const warningThreshold = Math.floor(assetLimitPerUpdateGroup * 0.75);
+  return uploadedAssetCount > warningThreshold;
 }

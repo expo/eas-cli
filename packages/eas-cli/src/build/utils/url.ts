@@ -35,3 +35,16 @@ export function getInternalDistributionInstallUrl(build: BuildFragment): string 
 
   return build.artifacts.buildUrl;
 }
+
+export function getUpdateGroupUrl(
+  accountName: string,
+  projectName: string,
+  updateGroupId: string
+): string {
+  return new URL(
+    `/accounts/${encodeURIComponent(accountName)}/projects/${encodeURIComponent(
+      projectName
+    )}/updates/${encodeURIComponent(updateGroupId)}`,
+    getExpoWebsiteBaseUrl()
+  ).toString();
+}

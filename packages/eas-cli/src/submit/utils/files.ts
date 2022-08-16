@@ -1,21 +1,21 @@
 import fs from 'fs-extra';
 
 import { UploadSessionType } from '../../graphql/generated';
-import { uploadAsync } from '../../uploads';
+import { uploadFileAtPathToS3Async } from '../../uploads';
 import { createProgressTracker } from '../../utils/progress';
 
 export async function isExistingFileAsync(filePath: string): Promise<boolean> {
   try {
     const stats = await fs.stat(filePath);
     return stats.isFile();
-  } catch (e) {
+  } catch {
     return false;
   }
 }
 
 export async function uploadAppArchiveAsync(path: string): Promise<string> {
   const fileSize = (await fs.stat(path)).size;
-  const { url } = await uploadAsync(
+  const { url } = await uploadFileAtPathToS3Async(
     UploadSessionType.EasSubmitAppArchive,
     path,
     createProgressTracker({

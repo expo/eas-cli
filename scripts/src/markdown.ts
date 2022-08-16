@@ -1,6 +1,6 @@
 // this is mostly copy-pasted from https://github.com/expo/expo/blob/master/tools/src/Markdown.ts
 
-import { unescape } from 'lodash';
+import { unescape } from 'lodash-es';
 import marked from 'marked';
 
 export enum TokenType {

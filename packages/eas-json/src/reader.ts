@@ -59,7 +59,7 @@ export class EasJsonReader {
 
   public async getBuildProfileAsync<T extends Platform>(
     platform: T,
-    profileName: string
+    profileName?: string
   ): Promise<BuildProfile<T>> {
     const easJson = await this.readAsync();
     return resolveBuildProfile({ easJson, platform, profileName });
@@ -84,7 +84,7 @@ export class EasJsonReader {
 
   public async getSubmitProfileAsync<T extends Platform>(
     platform: T,
-    profileName: string
+    profileName?: string
   ): Promise<SubmitProfile<T>> {
     const easJson = await this.readAsync();
     return resolveSubmitProfile({ easJson, platform, profileName });

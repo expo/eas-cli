@@ -1,4 +1,3 @@
-import { asMock } from '../../../../__tests__/utils';
 import { promptAsync } from '../../../../prompts';
 import { getAppstoreMock, testAuthCtx } from '../../../__tests__/fixtures-appstore';
 import { createCtxMock } from '../../../__tests__/fixtures-context';
@@ -18,8 +17,8 @@ function enumKeys<O extends object, K extends keyof O = keyof O>(obj: O): K[] {
 }
 
 afterEach(() => {
-  asMock(promptAsync).mockClear();
-  asMock(getCredentialsFromUserAsync).mockClear();
+  jest.mocked(promptAsync).mockClear();
+  jest.mocked(getCredentialsFromUserAsync).mockClear();
 });
 
 describe(getAscApiKeyName, () => {
@@ -35,10 +34,10 @@ describe(getAscApiKeyName, () => {
 
 describe(promptForAscApiKeyPathAsync, () => {
   it('prompts for keyId, keyP8Path and issuerId when user is not authenticated to Apple', async () => {
-    asMock(promptAsync).mockImplementationOnce(() => ({
+    jest.mocked(promptAsync).mockImplementationOnce(async () => ({
       keyP8Path: '/asc-api-key.p8',
     }));
-    asMock(getCredentialsFromUserAsync).mockImplementation(() => ({
+    jest.mocked(getCredentialsFromUserAsync).mockImplementation(async () => ({
       keyId: 'test-key-id',
       issuerId: 'test-issuer-id',
     }));
@@ -62,10 +61,10 @@ describe(promptForAscApiKeyPathAsync, () => {
     expect(getCredentialsFromUserAsync).toHaveBeenCalledTimes(2); // keyId, issuerId
   });
   it('prompts for keyId, keyP8Path and detects issuerId when user is authenticated to Apple', async () => {
-    asMock(promptAsync).mockImplementationOnce(() => ({
+    jest.mocked(promptAsync).mockImplementationOnce(async () => ({
       keyP8Path: '/asc-api-key.p8',
     }));
-    asMock(getCredentialsFromUserAsync).mockImplementation(() => ({
+    jest.mocked(getCredentialsFromUserAsync).mockImplementation(async () => ({
       keyId: 'test-key-id',
     }));
     const ctx = createCtxMock({
@@ -85,6 +84,6 @@ describe(promptForAscApiKeyPathAsync, () => {
     });
     expect(promptAsync).toHaveBeenCalledTimes(1); // keyP8Path
     expect(getCredentialsFromUserAsync).toHaveBeenCalledTimes(1); // keyId
-    expect(asMock(ctx.appStore.getAscApiKeyAsync).mock.calls.length).toBe(1); // issuerId
+    expect(jest.mocked(ctx.appStore.getAscApiKeyAsync).mock.calls.length).toBe(1); // issuerId
   });
 });

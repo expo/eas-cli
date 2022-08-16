@@ -1,11 +1,10 @@
-import { asMock } from '../../../../__tests__/utils';
 import { promptAsync } from '../../../../prompts';
 import { createCtxMock } from '../../../__tests__/fixtures-context';
 import { getAppLookupParamsFromContextAsync } from '../BuildCredentialsUtils';
 import { CreateFcm } from '../CreateFcm';
 
 jest.mock('../../../../prompts');
-asMock(promptAsync).mockImplementation(() => ({ fcmApiKey: 'blah' }));
+jest.mocked(promptAsync).mockImplementation(async () => ({ fcmApiKey: 'blah' }));
 
 describe(CreateFcm, () => {
   it('creates an fcm api key in Interactive Mode', async () => {

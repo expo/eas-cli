@@ -1,4 +1,3 @@
-import { asMock } from '../../../../__tests__/utils';
 import { findApplicationTarget } from '../../../../project/ios/target';
 import { confirmAsync, promptAsync } from '../../../../prompts';
 import { createCtxMock } from '../../../__tests__/fixtures-context';
@@ -15,15 +14,16 @@ import {
 } from '../SetUpSubmissionCredentials';
 
 jest.mock('../../../../prompts');
-asMock(confirmAsync).mockImplementation(() => true);
+jest.mocked(confirmAsync).mockImplementation(async () => true);
 
 describe(SetUpSubmissionCredentials, () => {
   it('allows user to enter an App Specific Password', async () => {
-    asMock(promptAsync)
-      .mockImplementationOnce(() => ({
+    jest
+      .mocked(promptAsync)
+      .mockImplementationOnce(async () => ({
         choice: PROMPT_FOR_APP_SPECIFIC_PASSWORD,
       }))
-      .mockImplementationOnce(() => ({
+      .mockImplementationOnce(async () => ({
         appSpecificPassword: 'super secret',
       }));
     const ctx = createCtxMock({
@@ -37,7 +37,7 @@ describe(SetUpSubmissionCredentials, () => {
     const asp = await setupAscApiKeyAction.runAsync(ctx);
 
     // prompt to choose ASP, then prompt to input ASP
-    expect(asMock(promptAsync).mock.calls.length).toBe(2);
+    expect(jest.mocked(promptAsync).mock.calls.length).toBe(2);
     expect(asp).toBe('super secret');
   });
   it('returns an ASC API key', async () => {

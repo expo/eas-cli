@@ -1,7 +1,6 @@
 import { Platform } from '@expo/eas-build-job';
 import { v4 as uuidv4 } from 'uuid';
 
-import { asMock } from '../../../__tests__/utils';
 import { jester as mockJester } from '../../../credentials/__tests__/fixtures-constants';
 import { testCommonIosAppCredentialsFragment } from '../../../credentials/__tests__/fixtures-ios';
 import { SetUpSubmissionCredentials } from '../../../credentials/ios/actions/SetUpSubmissionCredentials';
@@ -57,8 +56,8 @@ describe(getFromCredentialsServiceAsync, () => {
     jest
       .spyOn(SetUpSubmissionCredentials.prototype, 'runAsync')
       .mockImplementation(async _ctx => 'super secret');
-    asMock(getBundleIdentifierAsync).mockImplementation(() => 'com.hello.world');
-    asMock(promptAsync).mockImplementationOnce(() => ({ appleId: 'quin@expo.io' }));
+    jest.mocked(getBundleIdentifierAsync).mockImplementation(async () => 'com.hello.world');
+    jest.mocked(promptAsync).mockImplementationOnce(async () => ({ appleId: 'quin@expo.io' }));
 
     const result = await getFromCredentialsServiceAsync(ctx, {
       sourceType: CREDENTIALS_SERVICE_SOURCE,
@@ -84,7 +83,7 @@ describe(getFromCredentialsServiceAsync, () => {
     jest
       .spyOn(SetUpSubmissionCredentials.prototype, 'runAsync')
       .mockImplementation(async _ctx => testCommonIosAppCredentialsFragment);
-    asMock(getBundleIdentifierAsync).mockImplementation(() => 'com.hello.world');
+    jest.mocked(getBundleIdentifierAsync).mockImplementation(async () => 'com.hello.world');
 
     const result = await getFromCredentialsServiceAsync(ctx, {
       sourceType: CREDENTIALS_SERVICE_SOURCE,

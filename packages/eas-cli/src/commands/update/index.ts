@@ -1,4 +1,4 @@
-import { ExpoConfig, getConfig } from '@expo/config';
+import { ExpoConfig } from '@expo/config';
 import { Updates } from '@expo/config-plugins';
 import { Platform, Workflow } from '@expo/eas-build-job';
 import { Errors, Flags } from '@oclif/core';
@@ -8,6 +8,9 @@ import dateFormat from 'dateformat';
 import gql from 'graphql-tag';
 import nullthrows from 'nullthrows';
 
+import { getEASUpdateURL } from '../../api';
+import { BRANCHES_LIMIT } from '../../branch/queries';
+import { getUpdateGroupUrl } from '../../build/utils/url';
 import EasCommand from '../../commandUtils/EasCommand';
 import fetch from '../../fetch';
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
@@ -23,11 +26,14 @@ import {
   ViewBranchUpdatesQuery,
 } from '../../graphql/generated';
 import { PublishMutation } from '../../graphql/mutations/PublishMutation';
+import { BranchQuery } from '../../graphql/queries/BranchQuery';
 import { UpdateQuery } from '../../graphql/queries/UpdateQuery';
-import Log from '../../log';
+import Log, { learnMore, link } from '../../log';
 import { ora } from '../../ora';
+import { getExpoConfig } from '../../project/expoConfig';
 import {
   findProjectRootAsync,
+  getProjectAccountName,
   getProjectIdAsync,
   installExpoUpdatesAsync,
   isExpoUpdatesInstalledOrAvailable,
@@ -37,6 +43,7 @@ import {
   buildBundlesAsync,
   buildUnsortedUpdateInfoGroupAsync,
   collectAssetsAsync,
+  isUploadedAssetCountAboveWarningThreshold,
   uploadAssetsAsync,
 } from '../../project/publish';
 import { resolveWorkflowAsync } from '../../project/workflow';
@@ -46,6 +53,7 @@ import {
   ensureEASUpdateURLIsSetAsync,
   formatUpdate,
 } from '../../update/utils';
+import { ensureLoggedInAsync } from '../../user/actions';
 import {
   checkManifestBodyAgainstUpdateInfoGroup,
   getCodeSigningInfoAsync,
@@ -57,11 +65,10 @@ import formatFields from '../../utils/formatFields';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 import { getVcsClient } from '../../vcs';
 import { createUpdateBranchOnAppAsync } from '../branch/create';
-import { listBranchesAsync } from '../branch/list';
 import { createUpdateChannelOnAppAsync } from '../channel/create';
 
 export const defaultPublishPlatforms: PublishPlatform[] = ['android', 'ios'];
-type PlatformFlag = PublishPlatform | 'all';
+export type PublishPlatformFlag = PublishPlatform | 'all';
 
 async function getUpdateGroupAsync({
   group,
@@ -119,12 +126,16 @@ async function ensureChannelExistsAsync({
   }
 }
 
-async function ensureBranchExistsAsync({
+export async function ensureBranchExistsAsync({
   appId,
   name: branchName,
+  limit,
+  offset,
 }: {
   appId: string;
   name: string;
+  limit: number;
+  offset: number;
 }): Promise<{
   id: string;
   updates: Exclude<
@@ -135,6 +146,8 @@ async function ensureBranchExistsAsync({
   const { app } = await UpdateQuery.viewBranchAsync({
     appId,
     name: branchName,
+    limit,
+    offset,
   });
   const updateBranch = app?.byId.updateBranchByName;
   if (updateBranch) {
@@ -223,18 +236,16 @@ export default class UpdatePublish extends EasCommand {
       enableJsonOutput();
     }
 
-    const platformFlag = platform as PlatformFlag;
+    const platformFlag = platform as PublishPlatformFlag;
     // If a group was specified, that means we are republishing it.
     republish = group ? true : republish;
 
     const projectDir = await findProjectRootAsync();
-    const { exp } = getConfig(projectDir, {
-      skipSDKVersionRequirement: true,
+    const exp = getExpoConfig(projectDir, {
       isPublicConfig: true,
     });
 
-    const { exp: expPrivate } = getConfig(projectDir, {
-      skipSDKVersionRequirement: true,
+    const expPrivate = getExpoConfig(projectDir, {
       isPublicConfig: false,
     });
 
@@ -286,7 +297,11 @@ export default class UpdatePublish extends EasCommand {
         throw new Error(validationMessage);
       }
 
-      const branches = await listBranchesAsync({ projectId });
+      const branches = await BranchQuery.listBranchesAsync({
+        appId: projectId,
+        limit: BRANCHES_LIMIT,
+        offset: 0,
+      });
       if (branches.length === 0) {
         ({ name: branchName } = await promptAsync({
           type: 'text',
@@ -322,6 +337,9 @@ export default class UpdatePublish extends EasCommand {
 
     let unsortedUpdateInfoGroups: UpdateInfoGroup = {};
     let oldMessage: string, oldRuntimeVersion: string;
+    let uploadedAssetCount = 0;
+    let assetLimitPerUpdateGroup = 0;
+
     if (republish) {
       // If we are republishing, we don't need to worry about building the bundle or uploading the assets.
       // Instead we get the `updateInfoGroup` from the update we wish to republish.
@@ -341,26 +359,12 @@ export default class UpdatePublish extends EasCommand {
           throw new Error('You must specify the update group to republish.');
         }
 
-        const updateGroups = uniqBy(updates, u => u.group)
-          .filter(update => {
-            // Only show groups that have updates on the specified platform(s).
-            return platformFlag === 'all' || update.platform === platformFlag;
-          })
-          .map(update => ({
-            title: formatUpdateTitle(update),
-            value: update.group,
-          }));
-        if (updateGroups.length === 0) {
-          throw new Error(
-            `There are no updates on branch "${branchName}" published on the platform(s) ${platformFlag}. Did you mean to publish a new update instead?`
-          );
-        }
-
-        const selectedUpdateGroup = await selectAsync<string>(
-          'which update would you like to republish?',
-          updateGroups
+        updatesToRepublish = await getUpdatesToRepublishInteractiveAsync(
+          projectId,
+          branchName,
+          platformFlag,
+          50
         );
-        updatesToRepublish = updates.filter(update => update.group === selectedUpdateGroup);
       }
       const updatesToRepublishFilteredByPlatform = updatesToRepublish.filter(
         // Only republish to the specified platforms
@@ -368,7 +372,7 @@ export default class UpdatePublish extends EasCommand {
       );
       if (updatesToRepublishFilteredByPlatform.length === 0) {
         throw new Error(
-          `There are no updates on branch "${branchName}" published on the platform(s) "${platformFlag}" with group ID "${
+          `There are no updates on branch "${branchName}" published for the platform(s) "${platformFlag}" with group ID "${
             group ? group : updatesToRepublish[0].group
           }". Did you mean to publish a new update instead?`
         );
@@ -455,14 +459,29 @@ export default class UpdatePublish extends EasCommand {
       try {
         const platforms = platformFlag === 'all' ? defaultPublishPlatforms : [platformFlag];
         const assets = await collectAssetsAsync({ inputDir: inputDir!, platforms });
-        await uploadAssetsAsync(assets);
+        const uploadResults = await uploadAssetsAsync(
+          assets,
+          projectId,
+          (totalAssets, missingAssets) => {
+            assetSpinner.text = `Uploading assets. Finished (${
+              totalAssets - missingAssets
+            }/${totalAssets})`;
+          }
+        );
+        uploadedAssetCount = uploadResults.uniqueUploadedAssetCount;
+        assetLimitPerUpdateGroup = uploadResults.assetLimitPerUpdateGroup;
         unsortedUpdateInfoGroups = await buildUnsortedUpdateInfoGroupAsync(assets, exp);
-        assetSpinner.succeed('Uploaded assets!');
+        const uploadAssetSuccessMessage = uploadedAssetCount
+          ? `Uploaded ${uploadedAssetCount} ${uploadedAssetCount === 1 ? 'asset' : 'assets'}!`
+          : `Uploading assets skipped -- no new assets found!`;
+        assetSpinner.succeed(uploadAssetSuccessMessage);
       } catch (e) {
         assetSpinner.fail('Failed to upload assets');
         throw e;
       }
     }
+
+    const truncatedMessage = truncatePublishUpdateMessage(message!);
 
     const runtimeToPlatformMapping: Record<string, string[]> = {};
     for (const runtime of new Set(Object.values(runtimeVersions))) {
@@ -470,6 +489,13 @@ export default class UpdatePublish extends EasCommand {
         .filter(pair => pair[1] === runtime)
         .map(pair => pair[0]);
     }
+
+    const { id: branchId } = await ensureBranchExistsAsync({
+      appId: projectId,
+      name: branchName,
+      limit: 0,
+      offset: 0,
+    });
 
     // Sort the updates into different groups based on their platform specific runtime versions
     const updateGroups: PublishUpdateGroupInput[] = Object.entries(runtimeToPlatformMapping).map(
@@ -490,7 +516,7 @@ export default class UpdatePublish extends EasCommand {
           branchId,
           updateInfoGroup: localUpdateInfoGroup,
           runtimeVersion: republish ? oldRuntimeVersion : runtime,
-          message,
+          message: truncatedMessage,
           awaitingCodeSigningInfo: !!codeSigningInfo,
         };
       }
@@ -560,31 +586,126 @@ export default class UpdatePublish extends EasCommand {
 
       Log.addNewLineIfNone();
       for (const runtime of new Set(Object.values(runtimeVersions))) {
-        const platforms = newUpdates
-          .filter(update => update.runtimeVersion === runtime)
-          .map(update => update.platform);
-        const newUpdate = newUpdates.find(update => update.runtimeVersion === runtime);
-        if (!newUpdate) {
+        const newUpdatesForRuntimeVersion = newUpdates.filter(
+          update => update.runtimeVersion === runtime
+        );
+        if (newUpdatesForRuntimeVersion.length === 0) {
           throw new Error(`Publish response is missing updates with runtime ${runtime}.`);
         }
+        const platforms = newUpdatesForRuntimeVersion.map(update => update.platform);
+        const newAndroidUpdate = newUpdatesForRuntimeVersion.find(
+          update => update.platform === 'android'
+        );
+        const newIosUpdate = newUpdatesForRuntimeVersion.find(update => update.platform === 'ios');
+        const updateGroupId = newUpdatesForRuntimeVersion[0].group;
+
+        const projectName = exp.slug;
+        const accountName = getProjectAccountName(exp, await ensureLoggedInAsync());
+        const updateGroupUrl = getUpdateGroupUrl(accountName, projectName, updateGroupId);
+        const updateGroupLink = link(updateGroupUrl, { dim: false });
+
         Log.log(
           formatFields([
-            { label: 'branch', value: branchName },
-            { label: 'runtime version', value: runtime },
-            { label: 'platform', value: platforms.join(', ') },
-            { label: 'update group ID', value: newUpdate.group },
-            { label: 'message', value: message! },
+            { label: 'Branch', value: branchName },
+            { label: 'Runtime version', value: runtime },
+            { label: 'Platform', value: platforms.join(', ') },
+            { label: 'Update group ID', value: updateGroupId },
+            ...(newAndroidUpdate
+              ? [{ label: 'Android update ID', value: newAndroidUpdate.id }]
+              : []),
+            ...(newIosUpdate ? [{ label: 'iOS update ID', value: newIosUpdate.id }] : []),
+            { label: 'Message', value: truncatedMessage },
+            { label: 'Website link', value: updateGroupLink },
           ])
         );
         Log.addNewLineIfNone();
+        if (
+          isUploadedAssetCountAboveWarningThreshold(uploadedAssetCount, assetLimitPerUpdateGroup)
+        ) {
+          Log.warn(
+            `This update group contains ${uploadedAssetCount} assets and is nearing the server cap of ${assetLimitPerUpdateGroup}.\n` +
+              `${learnMore('https://docs.expo.dev/eas-update/optimize-assets/', {
+                learnMoreMessage: 'Consider optimizing your usage of assets',
+                dim: false,
+              })}.`
+          );
+          Log.addNewLineIfNone();
+        }
       }
     }
   }
 }
 
+export async function getUpdatesToRepublishInteractiveAsync(
+  projectId: string,
+  branchName: string,
+  platformFlag: string,
+  pageSize: number,
+  offset: number = 0,
+  cumulativeUpdates: Exclude<
+    Exclude<ViewBranchUpdatesQuery['app'], null | undefined>['byId']['updateBranchByName'],
+    null | undefined
+  >['updates'] = []
+): Promise<
+  Exclude<
+    Exclude<ViewBranchUpdatesQuery['app'], null | undefined>['byId']['updateBranchByName'],
+    null | undefined
+  >['updates']
+> {
+  const fetchMoreValue = '_fetchMore';
+
+  const { updates } = await ensureBranchExistsAsync({
+    appId: projectId,
+    name: branchName,
+    limit: pageSize + 1, // fetch an extra item so we know if there are additional pages
+    offset,
+  });
+  cumulativeUpdates = [
+    ...cumulativeUpdates,
+    // drop that extra item used for pagination from our render logic
+    ...updates.slice(0, updates.length - 1),
+  ];
+  const cumulativeUpdatesForTargetPlatforms =
+    platformFlag === 'all'
+      ? cumulativeUpdates
+      : cumulativeUpdates.filter(update => {
+          // Only show groups that have updates on the specified platform(s).
+          return update.platform === platformFlag;
+        });
+  const updateGroups = uniqBy(cumulativeUpdatesForTargetPlatforms, u => u.group).map(update => ({
+    title: formatUpdateTitle(update),
+    value: update.group,
+  }));
+  if (updateGroups.length === 0) {
+    throw new Error(
+      `There are no updates on branch "${branchName}" published for the platform(s) ${platformFlag}. Did you mean to publish a new update instead?`
+    );
+  }
+
+  if (updates.length > pageSize) {
+    updateGroups.push({ title: 'Next page...', value: fetchMoreValue });
+  }
+
+  const selectedUpdateGroup = await selectAsync<string>(
+    'Which update would you like to republish?',
+    updateGroups
+  );
+  if (selectedUpdateGroup === fetchMoreValue) {
+    return await getUpdatesToRepublishInteractiveAsync(
+      projectId,
+      branchName,
+      platformFlag,
+      pageSize,
+      offset + pageSize,
+      cumulativeUpdates
+    );
+  }
+  return cumulativeUpdates.filter(update => update.group === selectedUpdateGroup);
+}
+
 async function getRuntimeVersionObjectAsync(
   exp: ExpoConfig,
-  platformFlag: PlatformFlag,
+  platformFlag: PublishPlatformFlag,
   projectDir: string
 ): Promise<Record<string, string>> {
   const platforms = (platformFlag === 'all' ? ['android', 'ios'] : [platformFlag]) as Platform[];
@@ -639,3 +760,25 @@ function formatUpdateTitle(
     'mmm dd HH:MM'
   )} by ${actorName}, runtimeVersion: ${runtimeVersion}] ${message}`;
 }
+<<<<<<< HEAD
+=======
+
+async function checkEASUpdateURLIsSetAsync(exp: ExpoConfig): Promise<void> {
+  const configuredURL = exp.updates?.url;
+  const projectId = await getProjectIdAsync(exp);
+  const expectedURL = getEASUpdateURL(projectId);
+
+  if (configuredURL !== expectedURL) {
+    throw new Error(
+      `The update URL is incorrectly configured for EAS Update. Please set updates.url to ${expectedURL} in your app.json.`
+    );
+  }
+}
+
+export const truncatePublishUpdateMessage = (originalMessage: string): string => {
+  if (originalMessage.length > 1024) {
+    Log.warn('Update message exceeds the allowed 1024 character limit. Truncating message...');
+    return originalMessage.substring(0, 1021) + '...';
+  }
+  return originalMessage;
+};

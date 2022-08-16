@@ -1,9 +1,23 @@
 import { Platform, Workflow } from '@expo/eas-build-job';
-import { BuildProfile, SubmitProfile } from '@expo/eas-json';
+import {
+  AppVersionSource,
+  BuildProfile,
+  EasJson,
+  EasJsonReader,
+  SubmitProfile,
+} from '@expo/eas-json';
 import chalk from 'chalk';
 import nullthrows from 'nullthrows';
 
-import { AppPlatform, BuildFragment, BuildStatus, SubmissionFragment } from '../graphql/generated';
+import {
+  AppPlatform,
+  BuildFragment,
+  BuildResourceClass,
+  BuildStatus,
+  BuildWithSubmissionsFragment,
+  SubmissionFragment,
+} from '../graphql/generated';
+import { BuildQuery } from '../graphql/queries/BuildQuery';
 import { toAppPlatform, toPlatform } from '../graphql/types/AppPlatform';
 import Log from '../log';
 import {
@@ -14,8 +28,14 @@ import {
 } from '../platform';
 import { checkExpoSdkIsSupportedAsync } from '../project/expoSdk';
 import { validateMetroConfigForManagedWorkflowAsync } from '../project/metroConfig';
+import { validateAppVersionRuntimePolicySupportAsync } from '../project/projectUtils';
+import {
+  validateAppConfigForRemoteVersionSource,
+  validateBuildProfileVersionSettings,
+} from '../project/remoteVersionSource';
 import { createSubmissionContextAsync } from '../submit/context';
 import {
+  exitWithNonZeroCodeIfSomeSubmissionsDidntFinish,
   submitAsync,
   waitToCompleteAsync as waitForSubmissionsToCompleteAsync,
 } from '../submit/submit';
@@ -31,6 +51,7 @@ import { BuildContext } from './context';
 import { createBuildContextAsync } from './createContext';
 import { prepareIosBuildAsync } from './ios/build';
 import { LocalBuildOptions } from './local';
+import { UserInputResourceClass } from './types';
 import { ensureExpoDevClientInstalledForDevClientBuildsAsync } from './utils/devClient';
 import { printBuildResults, printLogsUrls } from './utils/printBuildInfo';
 import { ensureRepoIsCleanAsync } from './utils/repository';
@@ -48,7 +69,23 @@ export interface BuildFlags {
   autoSubmit: boolean;
   submitProfile?: string;
   localBuildOptions: LocalBuildOptions;
+  userInputResourceClass?: UserInputResourceClass;
+  message?: string;
 }
+
+const platformToGraphQLResourceClassMapping: Record<
+  Platform,
+  Record<UserInputResourceClass, BuildResourceClass>
+> = {
+  [Platform.ANDROID]: {
+    [UserInputResourceClass.DEFAULT]: BuildResourceClass.AndroidDefault,
+    [UserInputResourceClass.LARGE]: BuildResourceClass.AndroidLarge,
+  },
+  [Platform.IOS]: {
+    [UserInputResourceClass.DEFAULT]: BuildResourceClass.IosDefault,
+    [UserInputResourceClass.LARGE]: BuildResourceClass.IosLarge,
+  },
+};
 
 export async function runBuildAndSubmitAsync(projectDir: string, flags: BuildFlags): Promise<void> {
   await getVcsClient().ensureRepoExistsAsync();
@@ -58,11 +95,13 @@ export async function runBuildAndSubmitAsync(projectDir: string, flags: BuildFla
     projectDir,
     nonInteractive: flags.nonInteractive,
   });
+  const easJsonReader = new EasJsonReader(projectDir);
+  const easJsonCliConfig: EasJson['cli'] = (await easJsonReader.getCliConfigAsync()) ?? {};
 
   const platforms = toPlatforms(flags.requestedPlatform);
   const buildProfiles = await getProfilesAsync({
     type: 'build',
-    projectDir,
+    easJsonReader,
     platforms,
     profileName: flags.profile ?? undefined,
   });
@@ -73,8 +112,12 @@ export async function runBuildAndSubmitAsync(projectDir: string, flags: BuildFla
     buildProfiles,
   });
 
+  for (const buildProfile of buildProfiles) {
+    validateBuildProfileVersionSettings(buildProfile, easJsonCliConfig);
+  }
+
   const startedBuilds: {
-    build: BuildFragment;
+    build: BuildWithSubmissionsFragment | BuildFragment;
     buildProfile: ProfileData<'build'>;
   }[] = [];
   const buildCtxByPlatform: { [p in AppPlatform]?: BuildContext<Platform> } = {};
@@ -91,6 +134,11 @@ export async function runBuildAndSubmitAsync(projectDir: string, flags: BuildFla
       flags,
       moreBuilds: platforms.length > 1,
       buildProfile,
+      resourceClass:
+        platformToGraphQLResourceClassMapping[buildProfile.platform][
+          flags.userInputResourceClass ?? UserInputResourceClass.DEFAULT
+        ],
+      easJsonCliConfig,
     });
     if (maybeBuild) {
       startedBuilds.push({ build: maybeBuild, buildProfile });
@@ -109,7 +157,7 @@ export async function runBuildAndSubmitAsync(projectDir: string, flags: BuildFla
   const submissions: SubmissionFragment[] = [];
   if (flags.autoSubmit) {
     const submitProfiles = await getProfilesAsync({
-      projectDir,
+      easJsonReader,
       platforms,
       profileName: flags.submitProfile,
       type: 'submit',
@@ -129,6 +177,7 @@ export async function runBuildAndSubmitAsync(projectDir: string, flags: BuildFla
         submitProfile,
         nonInteractive: flags.nonInteractive,
       });
+      startedBuild.build = await BuildQuery.withSubmissionsByIdAsync(startedBuild.build.id);
       submissions.push(submission);
     }
 
@@ -149,16 +198,30 @@ export async function runBuildAndSubmitAsync(projectDir: string, flags: BuildFla
     buildIds: startedBuilds.map(({ build }) => build.id),
     accountName,
   });
-  printBuildResults(builds, flags.json);
+  if (!flags.json) {
+    printBuildResults(builds);
+  }
 
   const haveAllBuildsFailedOrCanceled = builds.every(
     build => build?.status && [BuildStatus.Errored, BuildStatus.Canceled].includes(build?.status)
   );
   if (haveAllBuildsFailedOrCanceled || !flags.autoSubmit) {
+    if (flags.json) {
+      printJsonOnlyOutput(builds);
+    }
     exitWithNonZeroCodeIfSomeBuildsFailed(builds);
   } else {
-    // the following function also exits with non zero code if any of the submissions failed
-    await waitForSubmissionsToCompleteAsync(submissions);
+    const completedSubmissions = await waitForSubmissionsToCompleteAsync(submissions);
+    if (flags.json) {
+      printJsonOnlyOutput(
+        await Promise.all(
+          builds
+            .filter((i): i is BuildWithSubmissionsFragment => !!i)
+            .map(build => BuildQuery.withSubmissionsByIdAsync(build.id))
+        )
+      );
+    }
+    exitWithNonZeroCodeIfSomeSubmissionsDidntFinish(completedSubmissions);
   }
 }
 
@@ -167,20 +230,28 @@ async function prepareAndStartBuildAsync({
   flags,
   moreBuilds,
   buildProfile,
+  resourceClass,
+  easJsonCliConfig,
 }: {
   projectDir: string;
   flags: BuildFlags;
   moreBuilds: boolean;
   buildProfile: ProfileData<'build'>;
+  resourceClass: BuildResourceClass;
+  easJsonCliConfig: EasJson['cli'];
 }): Promise<{ build: BuildFragment | undefined; buildCtx: BuildContext<Platform> }> {
   const buildCtx = await createBuildContextAsync({
     buildProfileName: buildProfile.profileName,
+    resourceClass,
     clearCache: flags.clearCache,
     buildProfile: buildProfile.profile,
     nonInteractive: flags.nonInteractive,
+    noWait: !flags.wait,
     platform: buildProfile.platform,
     projectDir,
     localBuildOptions: flags.localBuildOptions,
+    easJsonCliConfig,
+    message: flags.message,
   });
 
   if (moreBuilds) {
@@ -192,7 +263,10 @@ async function prepareAndStartBuildAsync({
       )}`
     );
   }
-
+  await validateAppVersionRuntimePolicySupportAsync(buildCtx.projectDir, buildCtx.exp);
+  if (easJsonCliConfig?.appVersionSource === AppVersionSource.REMOTE) {
+    validateAppConfigForRemoteVersionSource(buildCtx.exp, buildProfile.platform);
+  }
   if (buildCtx.workflow === Workflow.MANAGED) {
     if (!sdkVersionChecked) {
       await checkExpoSdkIsSupportedAsync(buildCtx);

@@ -13,6 +13,7 @@ export function transformJob(job: Android.Job): AndroidJobInput {
     secrets: job.secrets,
     builderEnvironment: job.builderEnvironment,
     cache: job.cache,
+    version: job.version?.versionCode ? { versionCode: job.version.versionCode } : undefined,
     gradleCommand: job.gradleCommand,
     artifactPath: job.artifactPath,
     username: job.username,

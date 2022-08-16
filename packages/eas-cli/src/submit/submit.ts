@@ -35,7 +35,7 @@ export async function submitAsync<T extends Platform>(
 export async function waitToCompleteAsync(
   submissions: SubmissionFragment[],
   { verbose = false }: { verbose?: boolean } = {}
-): Promise<void> {
+): Promise<SubmissionFragment[]> {
   Log.newLine();
   const completedSubmissions = await waitForSubmissionsEndAsync(submissions);
   const moreSubmissions = completedSubmissions.length > 1;
@@ -60,7 +60,7 @@ export async function waitToCompleteAsync(
       Log.newLine();
     }
   }
-  exitWithNonZeroCodeIfSomeSubmissionsDidntFinish(completedSubmissions);
+  return completedSubmissions;
 }
 
 function printInstructionsForAndroidSubmission(submission: SubmissionFragment): void {
@@ -78,7 +78,7 @@ function printInstructionsForIosSubmission(submission: SubmissionFragment): void
       '- It usually takes about 5-10 minutes depending on how busy Apple servers are.',
       // ascAppIdentifier should be always available for ios submissions but check it anyway
       submission.iosConfig?.ascAppIdentifier &&
-        `- When it’s done, you can see your build here: ${link(
+        `- When it's done, you can see your build here: ${link(
           `https://appstoreconnect.apple.com/apps/${submission.iosConfig?.ascAppIdentifier}/appstore/ios`
         )}`,
     ].join('\n');
@@ -87,7 +87,9 @@ function printInstructionsForIosSubmission(submission: SubmissionFragment): void
   }
 }
 
-function exitWithNonZeroCodeIfSomeSubmissionsDidntFinish(submissions: SubmissionFragment[]): void {
+export function exitWithNonZeroCodeIfSomeSubmissionsDidntFinish(
+  submissions: SubmissionFragment[]
+): void {
   const nonFinishedSubmissions = submissions.filter(
     ({ status }) => status !== SubmissionStatus.Finished
   );

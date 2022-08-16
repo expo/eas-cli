@@ -1,8 +1,8 @@
 import { ExpoConfig } from '@expo/config';
 import { Platform, Workflow } from '@expo/eas-build-job';
-import { BuildProfile, IosVersionAutoIncrement } from '@expo/eas-json';
-import type { XCBuildConfiguration } from 'xcode';
+import { IosVersionAutoIncrement } from '@expo/eas-json';
 
+import { Target } from '../../credentials/ios/types';
 import { isExpoUpdatesInstalled } from '../../project/projectUtils';
 import { resolveWorkflowAsync } from '../../project/workflow';
 import { syncUpdatesConfigurationAsync } from '../../update/ios/UpdatesModule';
@@ -11,23 +11,22 @@ import { BumpStrategy, bumpVersionAsync, bumpVersionInAppJsonAsync } from './ver
 export async function syncProjectConfigurationAsync({
   projectDir,
   exp,
-  buildProfile,
-  buildSettings,
+  targets,
+  localAutoIncrement,
 }: {
   projectDir: string;
   exp: ExpoConfig;
-  buildProfile: BuildProfile<Platform.IOS>;
-  buildSettings: XCBuildConfiguration['buildSettings'];
+  targets: Target[];
+  localAutoIncrement?: IosVersionAutoIncrement;
 }): Promise<void> {
   const workflow = await resolveWorkflowAsync(projectDir, Platform.IOS);
-  const { autoIncrement } = buildProfile;
-  const versionBumpStrategy = resolveVersionBumpStrategy(autoIncrement ?? false);
+  const versionBumpStrategy = resolveVersionBumpStrategy(localAutoIncrement ?? false);
 
   if (workflow === Workflow.GENERIC) {
     if (isExpoUpdatesInstalled(projectDir)) {
       await syncUpdatesConfigurationAsync(projectDir, exp);
     }
-    await bumpVersionAsync({ projectDir, exp, bumpStrategy: versionBumpStrategy, buildSettings });
+    await bumpVersionAsync({ projectDir, exp, bumpStrategy: versionBumpStrategy, targets });
   } else {
     await bumpVersionInAppJsonAsync({ projectDir, exp, bumpStrategy: versionBumpStrategy });
   }

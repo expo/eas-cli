@@ -1,10 +1,12 @@
 import { Android, Job, Metadata, Platform, Workflow } from '@expo/eas-build-job';
+import { AppVersionSource } from '@expo/eas-json';
 import chalk from 'chalk';
 import nullthrows from 'nullthrows';
 
 import AndroidCredentialsProvider, {
   AndroidCredentials,
 } from '../../credentials/android/AndroidCredentialsProvider';
+import { BuildParamsInput } from '../../graphql/generated';
 import { BuildMutation, BuildResult } from '../../graphql/mutations/BuildMutation';
 import Log from '../../log';
 import {
@@ -27,6 +29,7 @@ import { checkGoogleServicesFileAsync, checkNodeEnvVariable } from '../validate'
 import { transformJob } from './graphql';
 import { prepareJobAsync } from './prepareJob';
 import { syncProjectConfigurationAsync } from './syncProjectConfiguration';
+import { resolveRemoteVersionCodeAsync } from './version';
 
 export async function createAndroidContextAsync(
   ctx: CommonContext<Platform.ANDROID>
@@ -59,8 +62,18 @@ This means that it will most likely produce an AAB and you will not be able to i
   }
 
   const applicationId = await getApplicationIdAsync(ctx.projectDir, ctx.exp, gradleContext);
+  const versionCodeOverride =
+    ctx.easJsonCliConfig?.appVersionSource === AppVersionSource.REMOTE
+      ? await resolveRemoteVersionCodeAsync({
+          projectDir: ctx.projectDir,
+          projectId: ctx.projectId,
+          exp: ctx.exp,
+          applicationId,
+          buildProfile,
+        })
+      : undefined;
 
-  return { applicationId, gradleContext };
+  return { applicationId, gradleContext, versionCodeOverride };
 }
 
 export async function prepareAndroidBuildAsync(
@@ -75,7 +88,10 @@ export async function prepareAndroidBuildAsync(
       await syncProjectConfigurationAsync({
         projectDir: ctx.projectDir,
         exp: ctx.exp,
-        buildProfile: ctx.buildProfile,
+        localAutoIncrement:
+          ctx.easJsonCliConfig?.appVersionSource === AppVersionSource.REMOTE
+            ? false
+            : ctx.buildProfile.autoIncrement,
       });
     },
     prepareJobAsync: async (
@@ -87,7 +103,8 @@ export async function prepareAndroidBuildAsync(
     sendBuildRequestAsync: async (
       appId: string,
       job: Android.Job,
-      metadata: Metadata
+      metadata: Metadata,
+      buildParams: BuildParamsInput
     ): Promise<BuildResult> => {
       const graphqlMetadata = transformMetadata(metadata);
       const graphqlJob = transformJob(job);
@@ -95,6 +112,7 @@ export async function prepareAndroidBuildAsync(
         appId,
         job: graphqlJob,
         metadata: graphqlMetadata,
+        buildParams,
       });
     },
   });

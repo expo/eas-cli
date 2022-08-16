@@ -2,7 +2,6 @@ import { Platform } from '@expo/eas-build-job';
 import { vol } from 'memfs';
 import { v4 as uuidv4 } from 'uuid';
 
-import { asMock } from '../../../__tests__/utils';
 import { jester as mockJester } from '../../../credentials/__tests__/fixtures-constants';
 import { SubmissionMutation } from '../../../graphql/mutations/SubmissionMutation';
 import { createTestProject } from '../../../project/__tests__/project-utils';
@@ -50,7 +49,7 @@ describe(IosSubmitCommand, () => {
   });
 
   afterEach(() => {
-    asMock(getProjectIdAsync).mockClear();
+    jest.mocked(getProjectIdAsync).mockClear();
   });
 
   describe('non-interactive mode', () => {

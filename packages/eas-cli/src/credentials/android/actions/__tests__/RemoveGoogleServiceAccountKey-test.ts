@@ -1,4 +1,3 @@
-import { asMock } from '../../../../__tests__/utils';
 import { confirmAsync } from '../../../../prompts';
 import {
   getNewAndroidApiMock,
@@ -8,7 +7,7 @@ import { createCtxMock } from '../../../__tests__/fixtures-context';
 import { RemoveGoogleServiceAccountKey } from '../RemoveGoogleServiceAccountKey';
 
 jest.mock('../../../../prompts');
-asMock(confirmAsync).mockImplementation(() => true);
+jest.mocked(confirmAsync).mockImplementation(async () => true);
 
 describe(RemoveGoogleServiceAccountKey, () => {
   it('removes an Google Service Account Key', async () => {

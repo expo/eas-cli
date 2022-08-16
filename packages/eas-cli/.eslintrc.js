@@ -2,6 +2,24 @@ const rootEslintrc = require('../../.eslintrc.js');
 
 module.exports = {
   rules: {
+    'no-restricted-properties': [
+      'warn',
+      {
+        object: 'it',
+        property: 'only',
+        message: 'it.only should not be committed to main.',
+      },
+      {
+        object: 'test',
+        property: 'only',
+        message: 'test.only should not be committed to main.',
+      },
+      {
+        object: 'describe',
+        property: 'only',
+        message: 'describe.only should not be committed to main.',
+      },
+    ],
     'no-restricted-imports': [
       'error',
       {

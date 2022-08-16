@@ -1,6 +1,5 @@
 import { vol } from 'memfs';
 
-import { asMock } from '../../../../__tests__/utils';
 import { promptAsync } from '../../../../prompts';
 import { AppleTeamType } from '../authenticateTypes';
 import { resolveAppleTeamAsync, resolveAscApiKeyAsync } from '../resolveCredentials';
@@ -17,7 +16,7 @@ const testAscApiKey = {
 beforeEach(() => {
   vol.reset();
   process.env = {};
-  asMock(promptAsync).mockReset();
+  jest.mocked(promptAsync).mockReset();
 });
 
 describe(resolveAscApiKeyAsync, () => {
@@ -44,7 +43,7 @@ describe(resolveAscApiKeyAsync, () => {
     vol.fromJSON({
       '/test-asc-key.p8': testAscApiKey.keyP8,
     });
-    asMock(promptAsync).mockImplementation(() => ({
+    jest.mocked(promptAsync).mockImplementation(async () => ({
       ascApiKeyPath: '/test-asc-key.p8',
       ascIssuerId: testAscApiKey.issuerId,
       ascApiKeyId: testAscApiKey.keyId,
@@ -78,7 +77,7 @@ describe(resolveAppleTeamAsync, () => {
     });
   });
   it(`prompts the user if it can't find anything else`, async () => {
-    asMock(promptAsync).mockImplementation(() => ({
+    jest.mocked(promptAsync).mockImplementation(async () => ({
       appleTeamId: testTeam.teamId,
       appleTeamType: testTeam.teamType,
     }));

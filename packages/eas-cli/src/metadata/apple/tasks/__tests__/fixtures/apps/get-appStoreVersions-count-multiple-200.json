@@ -1,0 +1,219 @@
+{
+	"data": [
+		{
+			"type": "appStoreVersions",
+			"id": "APP_STORE_VERSION_1",
+			"attributes": {
+				"platform": "IOS",
+				"versionString": "1.0",
+				"appStoreState": "PREPARE_FOR_SUBMISSION",
+				"storeIcon": null,
+				"watchStoreIcon": null,
+				"copyright": "2022 name",
+				"releaseType": "SCHEDULED",
+				"earliestReleaseDate": "2022-03-14T17:00:00-07:00",
+				"usesIdfa": null,
+				"isWatchOnly": false,
+				"downloadable": true,
+				"createdDate": "2022-02-21T09:26:24-08:00",
+				"promotedDate": null
+			},
+			"relationships": {
+				"ageRatingDeclaration": {
+					"links": {
+						"self": "https://appstoreconnect.apple.com/iris/v1/appStoreVersions/APP_STORE_VERSION_1/relationships/ageRatingDeclaration",
+						"related": "https://appstoreconnect.apple.com/iris/v1/appStoreVersions/APP_STORE_VERSION_1/ageRatingDeclaration"
+					}
+				},
+				"appStoreVersionLocalizations": {
+					"links": {
+						"self": "https://appstoreconnect.apple.com/iris/v1/appStoreVersions/APP_STORE_VERSION_1/relationships/appStoreVersionLocalizations",
+						"related": "https://appstoreconnect.apple.com/iris/v1/appStoreVersions/APP_STORE_VERSION_1/appStoreVersionLocalizations"
+					}
+				},
+				"build": {
+					"links": {
+						"self": "https://appstoreconnect.apple.com/iris/v1/appStoreVersions/APP_STORE_VERSION_1/relationships/build",
+						"related": "https://appstoreconnect.apple.com/iris/v1/appStoreVersions/APP_STORE_VERSION_1/build"
+					}
+				},
+				"appStoreVersionPhasedRelease": {
+					"links": {
+						"self": "https://appstoreconnect.apple.com/iris/v1/appStoreVersions/APP_STORE_VERSION_1/relationships/appStoreVersionPhasedRelease",
+						"related": "https://appstoreconnect.apple.com/iris/v1/appStoreVersions/APP_STORE_VERSION_1/appStoreVersionPhasedRelease"
+					}
+				},
+				"gameCenterConfiguration": {
+					"links": {
+						"self": "https://appstoreconnect.apple.com/iris/v1/appStoreVersions/APP_STORE_VERSION_1/relationships/gameCenterConfiguration",
+						"related": "https://appstoreconnect.apple.com/iris/v1/appStoreVersions/APP_STORE_VERSION_1/gameCenterConfiguration"
+					}
+				},
+				"routingAppCoverage": {
+					"links": {
+						"self": "https://appstoreconnect.apple.com/iris/v1/appStoreVersions/APP_STORE_VERSION_1/relationships/routingAppCoverage",
+						"related": "https://appstoreconnect.apple.com/iris/v1/appStoreVersions/APP_STORE_VERSION_1/routingAppCoverage"
+					}
+				},
+				"appStoreReviewDetail": {
+					"links": {
+						"self": "https://appstoreconnect.apple.com/iris/v1/appStoreVersions/APP_STORE_VERSION_1/relationships/appStoreReviewDetail",
+						"related": "https://appstoreconnect.apple.com/iris/v1/appStoreVersions/APP_STORE_VERSION_1/appStoreReviewDetail"
+					}
+				},
+				"appStoreVersionSubmission": {
+					"data": null,
+					"links": {
+						"self": "https://appstoreconnect.apple.com/iris/v1/appStoreVersions/APP_STORE_VERSION_1/relationships/appStoreVersionSubmission",
+						"related": "https://appstoreconnect.apple.com/iris/v1/appStoreVersions/APP_STORE_VERSION_1/appStoreVersionSubmission"
+					}
+				},
+				"resetRatingsRequest": {
+					"links": {
+						"self": "https://appstoreconnect.apple.com/iris/v1/appStoreVersions/APP_STORE_VERSION_1/relationships/resetRatingsRequest",
+						"related": "https://appstoreconnect.apple.com/iris/v1/appStoreVersions/APP_STORE_VERSION_1/resetRatingsRequest"
+					}
+				},
+				"idfaDeclaration": {
+					"links": {
+						"self": "https://appstoreconnect.apple.com/iris/v1/appStoreVersions/APP_STORE_VERSION_1/relationships/idfaDeclaration",
+						"related": "https://appstoreconnect.apple.com/iris/v1/appStoreVersions/APP_STORE_VERSION_1/idfaDeclaration"
+					}
+				},
+				"appClipDefaultExperience": {
+					"links": {
+						"self": "https://appstoreconnect.apple.com/iris/v1/appStoreVersions/APP_STORE_VERSION_1/relationships/appClipDefaultExperience",
+						"related": "https://appstoreconnect.apple.com/iris/v1/appStoreVersions/APP_STORE_VERSION_1/appClipDefaultExperience"
+					}
+				},
+				"appStoreVersionStateChanges": {
+					"links": {
+						"self": "https://appstoreconnect.apple.com/iris/v1/appStoreVersions/APP_STORE_VERSION_1/relationships/appStoreVersionStateChanges",
+						"related": "https://appstoreconnect.apple.com/iris/v1/appStoreVersions/APP_STORE_VERSION_1/appStoreVersionStateChanges"
+					}
+				},
+				"appStoreVersionExperiments": {
+					"links": {
+						"self": "https://appstoreconnect.apple.com/iris/v1/appStoreVersions/APP_STORE_VERSION_1/relationships/appStoreVersionExperiments",
+						"related": "https://appstoreconnect.apple.com/iris/v1/appStoreVersions/APP_STORE_VERSION_1/appStoreVersionExperiments"
+					}
+				}
+			},
+			"links": {
+				"self": "https://appstoreconnect.apple.com/iris/v1/appStoreVersions/APP_STORE_VERSION_1"
+			}
+		},
+		{
+			"type": "appStoreVersions",
+			"id": "APP_STORE_VERSION_2",
+			"attributes": {
+				"platform": "IOS",
+				"versionString": "2.0",
+				"appStoreState": "PREPARE_FOR_SUBMISSION",
+				"storeIcon": null,
+				"watchStoreIcon": null,
+				"copyright": "2022 name",
+				"releaseType": "SCHEDULED",
+				"earliestReleaseDate": "2022-03-14T17:00:00-07:00",
+				"usesIdfa": null,
+				"isWatchOnly": false,
+				"downloadable": true,
+				"createdDate": "2022-02-21T09:26:24-08:00",
+				"promotedDate": null
+			},
+			"relationships": {
+				"ageRatingDeclaration": {
+					"links": {
+						"self": "https://appstoreconnect.apple.com/iris/v1/appStoreVersions/APP_STORE_VERSION_2/relationships/ageRatingDeclaration",
+						"related": "https://appstoreconnect.apple.com/iris/v1/appStoreVersions/APP_STORE_VERSION_2/ageRatingDeclaration"
+					}
+				},
+				"appStoreVersionLocalizations": {
+					"links": {
+						"self": "https://appstoreconnect.apple.com/iris/v1/appStoreVersions/APP_STORE_VERSION_2/relationships/appStoreVersionLocalizations",
+						"related": "https://appstoreconnect.apple.com/iris/v1/appStoreVersions/APP_STORE_VERSION_2/appStoreVersionLocalizations"
+					}
+				},
+				"build": {
+					"links": {
+						"self": "https://appstoreconnect.apple.com/iris/v1/appStoreVersions/APP_STORE_VERSION_2/relationships/build",
+						"related": "https://appstoreconnect.apple.com/iris/v1/appStoreVersions/APP_STORE_VERSION_2/build"
+					}
+				},
+				"appStoreVersionPhasedRelease": {
+					"links": {
+						"self": "https://appstoreconnect.apple.com/iris/v1/appStoreVersions/APP_STORE_VERSION_2/relationships/appStoreVersionPhasedRelease",
+						"related": "https://appstoreconnect.apple.com/iris/v1/appStoreVersions/APP_STORE_VERSION_2/appStoreVersionPhasedRelease"
+					}
+				},
+				"gameCenterConfiguration": {
+					"links": {
+						"self": "https://appstoreconnect.apple.com/iris/v1/appStoreVersions/APP_STORE_VERSION_2/relationships/gameCenterConfiguration",
+						"related": "https://appstoreconnect.apple.com/iris/v1/appStoreVersions/APP_STORE_VERSION_2/gameCenterConfiguration"
+					}
+				},
+				"routingAppCoverage": {
+					"links": {
+						"self": "https://appstoreconnect.apple.com/iris/v1/appStoreVersions/APP_STORE_VERSION_2/relationships/routingAppCoverage",
+						"related": "https://appstoreconnect.apple.com/iris/v1/appStoreVersions/APP_STORE_VERSION_2/routingAppCoverage"
+					}
+				},
+				"appStoreReviewDetail": {
+					"links": {
+						"self": "https://appstoreconnect.apple.com/iris/v1/appStoreVersions/APP_STORE_VERSION_2/relationships/appStoreReviewDetail",
+						"related": "https://appstoreconnect.apple.com/iris/v1/appStoreVersions/APP_STORE_VERSION_2/appStoreReviewDetail"
+					}
+				},
+				"appStoreVersionSubmission": {
+					"data": null,
+					"links": {
+						"self": "https://appstoreconnect.apple.com/iris/v1/appStoreVersions/APP_STORE_VERSION_2/relationships/appStoreVersionSubmission",
+						"related": "https://appstoreconnect.apple.com/iris/v1/appStoreVersions/APP_STORE_VERSION_2/appStoreVersionSubmission"
+					}
+				},
+				"resetRatingsRequest": {
+					"links": {
+						"self": "https://appstoreconnect.apple.com/iris/v1/appStoreVersions/APP_STORE_VERSION_2/relationships/resetRatingsRequest",
+						"related": "https://appstoreconnect.apple.com/iris/v1/appStoreVersions/APP_STORE_VERSION_2/resetRatingsRequest"
+					}
+				},
+				"idfaDeclaration": {
+					"links": {
+						"self": "https://appstoreconnect.apple.com/iris/v1/appStoreVersions/APP_STORE_VERSION_2/relationships/idfaDeclaration",
+						"related": "https://appstoreconnect.apple.com/iris/v1/appStoreVersions/APP_STORE_VERSION_2/idfaDeclaration"
+					}
+				},
+				"appClipDefaultExperience": {
+					"links": {
+						"self": "https://appstoreconnect.apple.com/iris/v1/appStoreVersions/APP_STORE_VERSION_2/relationships/appClipDefaultExperience",
+						"related": "https://appstoreconnect.apple.com/iris/v1/appStoreVersions/APP_STORE_VERSION_2/appClipDefaultExperience"
+					}
+				},
+				"appStoreVersionStateChanges": {
+					"links": {
+						"self": "https://appstoreconnect.apple.com/iris/v1/appStoreVersions/APP_STORE_VERSION_2/relationships/appStoreVersionStateChanges",
+						"related": "https://appstoreconnect.apple.com/iris/v1/appStoreVersions/APP_STORE_VERSION_2/appStoreVersionStateChanges"
+					}
+				},
+				"appStoreVersionExperiments": {
+					"links": {
+						"self": "https://appstoreconnect.apple.com/iris/v1/appStoreVersions/APP_STORE_VERSION_2/relationships/appStoreVersionExperiments",
+						"related": "https://appstoreconnect.apple.com/iris/v1/appStoreVersions/APP_STORE_VERSION_2/appStoreVersionExperiments"
+					}
+				}
+			},
+			"links": {
+				"self": "https://appstoreconnect.apple.com/iris/v1/appStoreVersions/APP_STORE_VERSION_2"
+			}
+		}
+	],
+	"links": {
+		"self": "https://appstoreconnect.apple.com/iris/v1/apps/1611050397/appStoreVersions?include=appStoreVersionSubmission&filter%5Bplatform%5D=IOS&limit=2"
+	},
+	"meta": {
+		"paging": {
+			"total": 1,
+			"limit": 2
+		}
+	}
+}

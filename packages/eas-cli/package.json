@@ -1,38 +1,40 @@
 {
   "name": "eas-cli",
   "description": "EAS command line tool",
-  "version": "0.51.0",
+  "version": "0.60.0",
   "author": "Expo <support@expo.dev>",
   "bin": {
     "eas": "./bin/run"
   },
   "bugs": "https://github.com/expo/eas-cli/issues",
   "dependencies": {
-    "@expo/apple-utils": "0.0.0-alpha.31",
+    "@expo/apple-utils": "0.0.0-alpha.33",
     "@expo/code-signing-certificates": "0.0.2",
-    "@expo/config": "6.0.19",
-    "@expo/config-plugins": "4.1.0",
-    "@expo/config-types": "44.0.0",
-    "@expo/eas-build-job": "0.2.68",
-    "@expo/eas-json": "0.51.0",
-    "@expo/json-file": "8.2.34",
+    "@expo/config": "7.0.1",
+    "@expo/config-plugins": "5.0.1",
+    "@expo/config-types": "46.0.2",
+    "@expo/eas-build-job": "0.2.85",
+    "@expo/eas-json": "0.60.0",
+    "@expo/json-file": "8.2.36",
     "@expo/multipart-body-parser": "1.1.0",
-    "@expo/pkcs12": "0.0.7",
-    "@expo/plist": "0.0.17",
-    "@expo/plugin-warn-if-update-available": "2.1.0",
-    "@expo/prebuild-config": "3.1.0",
+    "@expo/package-manager": "0.0.56",
+    "@expo/pkcs12": "0.0.8",
+    "@expo/plist": "0.0.18",
+    "@expo/plugin-autocomplete": "1.4.0",
+    "@expo/plugin-help": "5.2.0",
+    "@expo/plugin-warn-if-update-available": "2.3.0",
+    "@expo/prebuild-config": "5.0.3",
     "@expo/results": "1.0.0",
     "@expo/rudder-sdk-node": "1.1.1",
-    "@expo/spawn-async": "1.6.0",
+    "@expo/spawn-async": "1.7.0",
     "@expo/timeago.js": "1.0.0",
-    "@oclif/core": "1.6.4",
-    "@oclif/plugin-autocomplete": "1.2.0",
-    "@oclif/plugin-help": "5.1.12",
-    "@urql/core": "2.4.3",
-    "@urql/exchange-retry": "0.3.2",
+    "@oclif/core": "1.13.10",
+    "@urql/core": "2.6.1",
+    "@urql/exchange-retry": "0.3.3",
+    "ajv": "^6.12.6",
     "chalk": "4.1.2",
-    "cli-progress": "3.10.0",
-    "cli-table3": "0.6.1",
+    "cli-progress": "3.11.2",
+    "cli-table3": "0.6.2",
     "dateformat": "4.6.3",
     "env-paths": "2.2.0",
     "envinfo": "7.8.1",
@@ -40,12 +42,12 @@
     "fast-glob": "3.2.11",
     "figures": "3.2.0",
     "form-data": "4.0.0",
-    "fs-extra": "10.0.1",
+    "fs-extra": "10.1.0",
     "getenv": "1.0.0",
-    "gradle-to-js": "2.0.0",
-    "graphql": "16.3.0",
+    "gradle-to-js": "2.0.1",
+    "graphql": "16.5.0",
     "graphql-tag": "2.12.6",
-    "https-proxy-agent": "5.0.0",
+    "https-proxy-agent": "5.0.1",
     "ignore": "5.2.0",
     "indent-string": "4.0.0",
     "jks-js": "1.0.2",
@@ -53,63 +55,68 @@
     "keychain": "1.3.0",
     "log-symbols": "4.1.0",
     "mime": "3.0.0",
-    "minimatch": "3.0.5",
-    "nanoid": "3.3.2",
+    "minimatch": "5.1.0",
+    "nanoid": "3.3.4",
     "node-fetch": "2.6.7",
     "node-forge": "1.3.1",
     "nullthrows": "1.1.1",
     "ora": "5.1.0",
     "pkg-dir": "4.2.0",
+    "promise-limit": "2.7.0",
     "prompts": "2.4.2",
     "qrcode-terminal": "0.12.0",
     "resolve-from": "5.0.0",
-    "semver": "7.3.5",
+    "semver": "7.3.7",
     "slash": "3.0.0",
     "strip-ansi": "6.0.0",
     "tar": "6.1.11",
     "terminal-link": "2.1.1",
-    "tslib": "2.3.1",
+    "tslib": "2.4.0",
     "turndown": "7.1.1",
     "untildify": "4.0.0",
     "uuid": "8.3.2",
     "wrap-ansi": "7.0.0"
   },
   "devDependencies": {
-    "@graphql-codegen/cli": "2.6.2",
-    "@graphql-codegen/introspection": "2.1.1",
-    "@graphql-codegen/typescript": "2.4.8",
-    "@graphql-codegen/typescript-operations": "2.3.5",
-    "@types/cli-progress": "3.9.2",
+    "@graphql-codegen/cli": "2.11.5",
+    "@graphql-codegen/introspection": "2.2.1",
+    "@graphql-codegen/typescript": "2.7.3",
+    "@graphql-codegen/typescript-operations": "2.5.3",
+    "@types/cli-progress": "3.11.0",
     "@types/dateformat": "3.0.1",
     "@types/envinfo": "7.8.1",
     "@types/fs-extra": "9.0.13",
     "@types/getenv": "^1.0.0",
     "@types/mime": "2.0.3",
-    "@types/node-fetch": "^2.5.7",
-    "@types/node-forge": "1.0.1",
+    "@types/node-fetch": "2.6.2",
+    "@types/node-forge": "1.0.4",
     "@types/prompts": "2.0.14",
-    "@types/semver": "7.3.9",
-    "@types/tar": "6.1.1",
-    "@types/tough-cookie": "4.0.1",
+    "@types/semver": "7.3.10",
+    "@types/tar": "6.1.2",
+    "@types/tough-cookie": "4.0.2",
     "@types/uuid": "8.3.4",
     "@types/wrap-ansi": "3.0.0",
-    "axios": "0.26.1",
+    "axios": "0.27.2",
     "eslint-plugin-graphql": "4.0.0",
     "form-data": "4.0.0",
-    "memfs": "3.4.1",
+    "memfs": "3.4.7",
     "mockdate": "3.0.5",
-    "nock": "13.2.4",
+    "nock": "13.2.9",
+    "rimraf": "3.0.2",
     "tempy": "0.7.0",
-    "ts-deepmerge": "2.0.1",
-    "typescript": "4.6.3"
+    "ts-deepmerge": "2.0.5",
+    "ts-mockito": "2.6.1",
+    "ts-node": "10.9.1",
+    "typescript": "4.7.4"
   },
   "engines": {
-    "node": ">=12.0.0"
+    "node": ">=14.0.0"
   },
   "files": [
     "/bin",
     "/build",
-    "/oclif.manifest.json"
+    "/oclif.manifest.json",
+    "/schema"
   ],
   "homepage": "https://github.com/expo/eas-cli",
   "keywords": [
@@ -122,8 +129,8 @@
     "bin": "eas",
     "commands": "./build/commands",
     "plugins": [
-      "@oclif/plugin-autocomplete",
-      "@oclif/plugin-help",
+      "@expo/plugin-autocomplete",
+      "@expo/plugin-help",
       "@expo/plugin-warn-if-update-available"
     ],
     "topics": {
@@ -141,6 +148,9 @@
       },
       "device": {
         "description": "manage Apple devices for Internal Distribution"
+      },
+      "metadata": {
+        "description": "manage store configuration"
       },
       "project": {
         "description": "manage project"
@@ -160,11 +170,11 @@
     },
     "warn-if-update-available": {
       "timeoutInDays": 0.5,
-      "message": "<%= chalk.bold('★') %> <%= chalk.bold(config.name + '@' + latest) %> <%= chalk.bold('is now available, please upgrade.') %>\n<%= chalk.dim('Proceeding with outdated version') %>\n"
+      "message": "<%= chalk('★') %> <%= chalk.bold(config.name + '@' + latest) %> <%= chalk.bold('is now available.') %>\n<%= chalk.dim('To upgrade, run ') %><%= chalk.dim(chalk.bold('npm install -g eas-cli')) %><%= chalk.dim('.') %>\n<%= chalk.dim('Proceeding with outdated version.') %>\n"
     },
     "update": {
       "node": {
-        "version": "12.13.0"
+        "version": "18.6.0"
       },
       "s3": {
         "templates": {
@@ -184,8 +194,8 @@
   },
   "repository": "expo/eas-cli",
   "scripts": {
-    "postpack": "rm -f oclif.manifest.json",
-    "prepack": "./scripts/prepack.sh",
+    "postpack": "rimraf oclif.manifest.json",
+    "prepack": "rimraf build && yarn build && node ./scripts/prepack.js",
     "pretarball-ci": "./scripts/pretarball-ci.sh",
     "build": "tsc --project tsconfig.build.json",
     "watch": "yarn build --watch --preserveWatchOutput",
@@ -193,6 +203,10 @@
     "test": "jest",
     "version": "yarn oclif readme && node scripts/patch-readme && git add README.md",
     "generate-graphql-code": "graphql-codegen --config graphql-codegen.yml",
-    "clean": "rm -rf dist build tmp node_modules yarn-error.log"
+    "clean": "rimraf dist build tmp node_modules yarn-error.log"
+  },
+  "volta": {
+    "node": "18.6.0",
+    "yarn": "1.22.19"
   }
 }

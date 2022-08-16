@@ -7,6 +7,7 @@ import fs from 'fs-extra';
 import nullthrows from 'nullthrows';
 
 import { readAppJson } from '../../build/utils/appJson';
+import env from '../../env';
 import Log, { learnMore } from '../../log';
 import { getProjectConfigDescription, getUsername } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
@@ -28,7 +29,7 @@ export async function ensureApplicationIdIsDefinedForManagedProjectAsync(
     return await getApplicationIdAsync(projectDir, exp, {
       moduleName: gradleUtils.DEFAULT_MODULE_NAME,
     });
-  } catch (err) {
+  } catch {
     return await configureApplicationIdAsync(projectDir, exp);
   }
 }
@@ -43,6 +44,9 @@ export async function getApplicationIdFromBareAsync(
   projectDir: string,
   gradleContext?: GradleBuildContext
 ): Promise<string> {
+  if (env.overrideAndroidApplicationId) {
+    return env.overrideAndroidApplicationId;
+  }
   const errorMessage = 'Could not read applicationId from Android project.';
 
   if (gradleContext) {
@@ -155,10 +159,10 @@ export function warnIfAndroidPackageDefinedInAppConfigForBareWorkflowProject(
 ): void {
   if (AndroidConfig.Package.getPackage(exp) && !warnPrinted) {
     Log.warn(
-      `Specifying "android.package" in ${getProjectConfigDescription(
+      `Specified value for "android.package" in ${getProjectConfigDescription(
         projectDir
-      )} is deprecated for bare workflow projects.\n` +
-        'EAS Build depends only on the value in the native code. Please remove the deprecated configuration.'
+      )} is ignored because an ${chalk.bold('android')} directory was detected in the project.\n` +
+        'EAS Build will use the value found in the native code.'
     );
     warnPrinted = true;
   }

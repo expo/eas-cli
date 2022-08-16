@@ -2,10 +2,12 @@
 packages/*/build
 packages/eas-cli/dist
 packages/eas-cli/tmp
+scripts/build
 
 # Code editors
 .idea
 .history
+.vscode
 
 # macOS
 .DS_Store

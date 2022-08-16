@@ -24,12 +24,13 @@ import { maybeResolveVersionsAsync as maybeResolveIosVersionsAsync } from './ios
 export async function collectMetadataAsync<T extends Platform>(
   ctx: BuildContext<T>
 ): Promise<Metadata> {
+  const vcsClient = getVcsClient();
   const channelOrReleaseChannel = await resolveChannelOrReleaseChannelAsync(ctx);
   const distribution =
     ('simulator' in ctx.buildProfile && ctx.buildProfile.simulator
       ? 'simulator'
       : ctx.buildProfile.distribution) ?? 'store';
-  const metadata = {
+  const metadata: Metadata = {
     trackingContext: ctx.trackingCtx,
     ...(await maybeResolveVersionsAsync(ctx)),
     cliVersion: easCliVersion,
@@ -43,14 +44,20 @@ export async function collectMetadataAsync<T extends Platform>(
     appName: ctx.exp.name,
     appIdentifier: resolveAppIdentifier(ctx),
     buildProfile: ctx.buildProfileName,
-    gitCommitHash: await getVcsClient().getCommitHashAsync(),
-    isGitWorkingTreeDirty: await getVcsClient().hasUncommittedChangesAsync(),
+    gitCommitHash: await vcsClient.getCommitHashAsync(),
+    gitCommitMessage: truncateGitCommitMessage(
+      (await vcsClient.getLastCommitMessageAsync()) ?? undefined
+    ),
+    isGitWorkingTreeDirty: await vcsClient.hasUncommittedChangesAsync(),
     username: getUsername(ctx.exp, await ensureLoggedInAsync()),
+    message: ctx.message,
     ...(ctx.platform === Platform.IOS && {
       iosEnterpriseProvisioning: resolveIosEnterpriseProvisioning(
         ctx as BuildContext<Platform.IOS>
       ),
     }),
+    runWithNoWaitFlag: ctx.noWait,
+    runFromCI: ctx.runFromCI,
   };
   return sanitizeMetadata(metadata);
 }
@@ -60,14 +67,32 @@ async function maybeResolveVersionsAsync<T extends Platform>(
 ): Promise<{ appBuildVersion?: string; appVersion?: string }> {
   if (ctx.platform === Platform.IOS) {
     const iosContext = ctx as BuildContext<Platform.IOS>;
-    return await maybeResolveIosVersionsAsync(
+    const resolvedVersion = await maybeResolveIosVersionsAsync(
       ctx.projectDir,
       ctx.exp,
-      iosContext.ios.applicationTargetBuildSettings
+      iosContext.ios.targets
     );
+    if (iosContext.ios.buildNumberOverride) {
+      return {
+        ...resolvedVersion,
+        appBuildVersion: iosContext.ios.buildNumberOverride,
+      };
+    }
+    return resolvedVersion;
   } else if (ctx.platform === Platform.ANDROID) {
     const androidCtx = ctx as BuildContext<Platform.ANDROID>;
-    return await maybeResolveAndroidVersionsAsync(ctx.projectDir, ctx.exp, androidCtx.buildProfile);
+    const resolvedVersion = await maybeResolveAndroidVersionsAsync(
+      ctx.projectDir,
+      ctx.exp,
+      androidCtx.buildProfile
+    );
+    if (androidCtx.android.versionCodeOverride) {
+      return {
+        ...resolvedVersion,
+        appBuildVersion: androidCtx.android.versionCodeOverride,
+      };
+    }
+    return resolvedVersion;
   } else {
     throw new Error(`Unsupported platform ${ctx.platform}`);
   }
@@ -148,4 +173,14 @@ function resolveIosEnterpriseProvisioning(
   ctx: BuildContext<Platform.IOS>
 ): IosEnterpriseProvisioning | undefined {
   return ctx.buildProfile.enterpriseProvisioning;
+}
+
+export function truncateGitCommitMessage(
+  msg: string | undefined,
+  maxLength: number = 4096
+): string | undefined {
+  if (msg === undefined) {
+    return undefined;
+  }
+  return msg.length > maxLength ? `${msg.substring(0, maxLength - 3)}...` : msg;
 }

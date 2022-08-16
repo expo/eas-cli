@@ -1,0 +1,20 @@
+{
+	"data": {
+		"type": "appInfoLocalizations",
+		"id": "APP_INFO_LOCALE_1",
+		"attributes": {
+			"locale": "en-US",
+			"name": "Rexpo Square App",
+			"subtitle": "144 fps red squares",
+			"privacyPolicyUrl": "https://github.com/bycedric/red-square-app",
+			"privacyChoicesUrl": null,
+			"privacyPolicyText": null
+		},
+		"links": {
+			"self": "https://appstoreconnect.apple.com/iris/v1/appInfoLocalizations/APP_INFO_LOCALE_1"
+		}
+	},
+	"links": {
+		"self": "https://appstoreconnect.apple.com/iris/v1/appInfoLocalizations/APP_INFO_LOCALE_1"
+	}
+}

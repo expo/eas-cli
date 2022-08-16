@@ -1,4 +1,4 @@
-import { getConfig } from '@expo/config';
+import { EasJsonReader } from '@expo/eas-json';
 import { Errors, Flags } from '@oclif/core';
 import chalk from 'chalk';
 
@@ -13,9 +13,14 @@ import {
   selectRequestedPlatformAsync,
   toPlatforms,
 } from '../platform';
+import { getExpoConfig } from '../project/expoConfig';
 import { findProjectRootAsync, getProjectIdAsync } from '../project/projectUtils';
 import { SubmitArchiveFlags, createSubmissionContextAsync } from '../submit/context';
-import { submitAsync, waitToCompleteAsync } from '../submit/submit';
+import {
+  exitWithNonZeroCodeIfSomeSubmissionsDidntFinish,
+  submitAsync,
+  waitToCompleteAsync,
+} from '../submit/submit';
 import { printSubmissionDetailsUrls } from '../submit/utils/urls';
 import { getProfilesAsync } from '../utils/profiles';
 
@@ -89,13 +94,13 @@ export default class Submit extends EasCommand {
     const flags = await this.sanitizeFlagsAsync(rawFlags);
 
     const projectDir = await findProjectRootAsync();
-    const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
+    const exp = getExpoConfig(projectDir);
     const projectId = await getProjectIdAsync(exp);
 
     const platforms = toPlatforms(flags.requestedPlatform);
     const submissionProfiles = await getProfilesAsync({
       type: 'submit',
-      projectDir,
+      easJsonReader: new EasJsonReader(projectDir),
       platforms,
       profileName: flags.profile,
     });
@@ -129,7 +134,10 @@ export default class Submit extends EasCommand {
     printSubmissionDetailsUrls(submissions);
 
     if (flags.wait) {
-      await waitToCompleteAsync(submissions, { verbose: flags.verbose });
+      const completedSubmissions = await waitToCompleteAsync(submissions, {
+        verbose: flags.verbose,
+      });
+      exitWithNonZeroCodeIfSomeSubmissionsDidntFinish(completedSubmissions);
     }
   }
 

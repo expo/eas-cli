@@ -1,8 +1,8 @@
-import { IOSConfig } from '@expo/config-plugins';
 import { Ios, Job, Metadata, Platform, Workflow } from '@expo/eas-build-job';
-import type { XCBuildConfiguration } from 'xcode';
+import { AppVersionSource } from '@expo/eas-json';
 
-import { IosCredentials, Target } from '../../credentials/ios/types';
+import { IosCredentials } from '../../credentials/ios/types';
+import { BuildParamsInput } from '../../graphql/generated';
 import { BuildMutation, BuildResult } from '../../graphql/mutations/BuildMutation';
 import { ensureBundleIdentifierIsDefinedForManagedProjectAsync } from '../../project/ios/bundleIdentifier';
 import { resolveXcodeBuildContextAsync } from '../../project/ios/scheme';
@@ -15,6 +15,7 @@ import { ensureIosCredentialsAsync } from './credentials';
 import { transformJob } from './graphql';
 import { prepareJobAsync } from './prepareJob';
 import { syncProjectConfigurationAsync } from './syncProjectConfiguration';
+import { resolveRemoteBuildNumberAsync } from './version';
 
 export async function createIosContextAsync(
   ctx: CommonContext<Platform.IOS>
@@ -36,22 +37,29 @@ export async function createIosContextAsync(
     },
     buildProfile
   );
-  const targets = await resolveTargetsAsync(
-    {
-      projectDir: ctx.projectDir,
-      exp: ctx.exp,
-    },
-    xcodeBuildContext
-  );
+  const targets = await resolveTargetsAsync({
+    projectDir: ctx.projectDir,
+    exp: ctx.exp,
+    xcodeBuildContext,
+    env: buildProfile.env,
+  });
   const applicationTarget = findApplicationTarget(targets);
-  const applicationTargetBuildSettings = resolveBuildSettings(ctx, applicationTarget);
-
+  const buildNumberOverride =
+    ctx.easJsonCliConfig?.appVersionSource === AppVersionSource.REMOTE
+      ? await resolveRemoteBuildNumberAsync({
+          projectDir: ctx.projectDir,
+          projectId: ctx.projectId,
+          exp: ctx.exp,
+          applicationTarget,
+          buildProfile,
+        })
+      : undefined;
   return {
     bundleIdentifier: applicationTarget.bundleIdentifier,
     applicationTarget,
-    applicationTargetBuildSettings,
     targets,
     xcodeBuildContext,
+    buildNumberOverride,
   };
 }
 
@@ -67,8 +75,11 @@ export async function prepareIosBuildAsync(
       await syncProjectConfigurationAsync({
         projectDir: ctx.projectDir,
         exp: ctx.exp,
-        buildProfile: ctx.buildProfile,
-        buildSettings: ctx.ios.applicationTargetBuildSettings,
+        targets: ctx.ios.targets,
+        localAutoIncrement:
+          ctx.easJsonCliConfig?.appVersionSource === AppVersionSource.REMOTE
+            ? false
+            : ctx.buildProfile.autoIncrement,
       });
     },
     prepareJobAsync: async (
@@ -83,7 +94,8 @@ export async function prepareIosBuildAsync(
     sendBuildRequestAsync: async (
       appId: string,
       job: Ios.Job,
-      metadata: Metadata
+      metadata: Metadata,
+      buildParams: BuildParamsInput
     ): Promise<BuildResult> => {
       const graphqlMetadata = transformMetadata(metadata);
       const graphqlJob = transformJob(job);
@@ -91,22 +103,8 @@ export async function prepareIosBuildAsync(
         appId,
         job: graphqlJob,
         metadata: graphqlMetadata,
+        buildParams,
       });
     },
   });
-}
-
-function resolveBuildSettings(
-  ctx: CommonContext<Platform.IOS>,
-  applicationTarget: Target
-): XCBuildConfiguration['buildSettings'] {
-  if (ctx.workflow === Workflow.MANAGED) {
-    return {};
-  }
-  const project = IOSConfig.XcodeUtils.getPbxproj(ctx.projectDir);
-  const xcBuildConfiguration = IOSConfig.Target.getXCBuildConfigurationFromPbxproj(project, {
-    targetName: applicationTarget.targetName,
-    buildConfiguration: applicationTarget.buildConfiguration,
-  });
-  return xcBuildConfiguration?.buildSettings ?? {};
 }

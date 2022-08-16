@@ -1,21 +1,13 @@
-import { EasJsonReader } from '@expo/eas-json';
 import { Errors, Flags } from '@oclif/core';
-import chalk from 'chalk';
-import figures from 'figures';
-import fs from 'fs-extra';
 import path from 'path';
 
 import { BuildFlags, runBuildAndSubmitAsync } from '../../build/runBuildAndSubmit';
-import { ensureRepoIsCleanAsync, reviewAndCommitChangesAsync } from '../../build/utils/repository';
+import { UserInputResourceClass } from '../../build/types';
 import EasCommand from '../../commandUtils/EasCommand';
-import Log, { learnMore, link } from '../../log';
+import Log from '../../log';
 import { RequestedPlatform, selectRequestedPlatformAsync } from '../../platform';
 import { findProjectRootAsync } from '../../project/projectUtils';
-import { selectAsync } from '../../prompts';
-import { easCliVersion } from '../../utils/easCli';
 import { enableJsonOutput } from '../../utils/json';
-import { getVcsClient, setVcsClient } from '../../vcs';
-import GitClient from '../../vcs/clients/git';
 
 interface RawBuildFlags {
   platform?: string;
@@ -30,6 +22,8 @@ interface RawBuildFlags {
   json: boolean;
   'auto-submit': boolean;
   'auto-submit-with-profile'?: string;
+  'resource-class'?: UserInputResourceClass;
+  message?: string;
 }
 
 export default class Build extends EasCommand {
@@ -88,6 +82,15 @@ export default class Build extends EasCommand {
       helpValue: 'PROFILE_NAME',
       exclusive: ['auto-submit'],
     }),
+    'resource-class': Flags.enum({
+      options: Object.values(UserInputResourceClass),
+      hidden: true,
+      description: 'The instance type that will be used to run this build [experimental]',
+    }),
+    message: Flags.string({
+      char: 'm',
+      description: 'A short message describing the build',
+    }),
   };
 
   async runAsync(): Promise<void> {
@@ -98,7 +101,6 @@ export default class Build extends EasCommand {
     const flags = await this.sanitizeFlagsAsync(rawFlags);
 
     const projectDir = await findProjectRootAsync();
-    await handleDeprecatedEasJsonAsync(projectDir, flags.nonInteractive);
 
     await runBuildAndSubmitAsync(projectDir, flags);
   }
@@ -146,6 +148,11 @@ export default class Build extends EasCommand {
       Log.newLine();
     }
 
+    const message = flags['message'];
+    if (message && message.length > 1024) {
+      Errors.error('Message cannot be longer than 1024 characters.', { exit: 1 });
+    }
+
     const profile = flags['profile'];
     return {
       requestedPlatform,
@@ -165,70 +172,8 @@ export default class Build extends EasCommand {
       json: flags['json'],
       autoSubmit: flags['auto-submit'] || flags['auto-submit-with-profile'] !== undefined,
       submitProfile: flags['auto-submit-with-profile'] ?? profile,
+      userInputResourceClass: flags['resource-class'] ?? UserInputResourceClass.DEFAULT,
+      message,
     };
-  }
-}
-
-export async function handleDeprecatedEasJsonAsync(
-  projectDir: string,
-  nonInteractive: boolean
-): Promise<void> {
-  const easJsonPath = EasJsonReader.formatEasJsonPath(projectDir);
-  if (!(await fs.pathExists(easJsonPath))) {
-    return;
-  }
-  const easJsonReader = new EasJsonReader(projectDir);
-  const rawEasJson = await easJsonReader.readAsync();
-  if (rawEasJson?.cli) {
-    return;
-  }
-
-  if (nonInteractive) {
-    Log.warn(
-      `${
-        figures.warning
-      } Action required: the default behavior of EAS CLI has changed and your eas.json must be updated to remove ambiguity around which Git integration workflow to use. Refer to ${link(
-        'https://expo.fyi/eas-vcs-workflow'
-      )} for more information.`
-    );
-    Log.warn(
-      'This warning will become an error in an upcoming EAS CLI release. For now, we will proceed with the old default behavior to avoid disruption of your builds.'
-    );
-    setVcsClient(new GitClient());
-    return;
-  }
-  Log.log(
-    `${chalk.bold(
-      'eas-cli@>=0.34.0 no longer requires that you commit changes to Git before starting a build.'
-    )} ${learnMore('https://expo.fyi/eas-vcs-workflow')}`
-  );
-  Log.log(
-    `If you want to continue using the Git integration, you can opt in with ${chalk.bold(
-      'cli.requireCommit'
-    )} in ${chalk.bold('eas.json')} or with the following prompt.`
-  );
-  Log.newLine();
-
-  const mode = await selectAsync('Select your preferred Git integration', [
-    { title: 'Require changes to be committed in Git (old default)', value: 'requireCommit' },
-    { title: 'Allow builds with dirty Git working tree (new default)', value: 'noCommit' },
-  ]);
-
-  if (mode === 'requireCommit') {
-    setVcsClient(new GitClient());
-    await ensureRepoIsCleanAsync(nonInteractive);
-  }
-
-  rawEasJson.cli =
-    mode === 'requireCommit'
-      ? { version: `>= ${easCliVersion}`, requireCommit: true }
-      : { version: `>= ${easCliVersion}` };
-  await fs.writeJSON(easJsonPath, rawEasJson, { spaces: 2 });
-  Log.withTick('Updated eas.json');
-  if (mode === 'requireCommit') {
-    await getVcsClient().trackFileAsync(easJsonPath);
-    await reviewAndCommitChangesAsync('Set cli.requireCommit to true in eas.json', {
-      nonInteractive,
-    });
   }
 }

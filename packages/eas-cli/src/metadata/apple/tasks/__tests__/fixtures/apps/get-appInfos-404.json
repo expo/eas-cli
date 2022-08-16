@@ -1,0 +1,11 @@
+{
+  "errors": [
+    {
+      "id": "APP_INFO_0",
+      "status": "404",
+      "code": "NOT_FOUND",
+      "title": "The specified resource does not exist",
+      "detail": "There is no resource of type 'appInfo' with id 'non-existing'"
+    }
+  ]
+}

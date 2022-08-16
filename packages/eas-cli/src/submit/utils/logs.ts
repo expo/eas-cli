@@ -53,7 +53,7 @@ function parseLogs(logs: string): LogLine[] {
     let parsedLine;
     try {
       parsedLine = JSON.parse(line);
-    } catch (error) {
+    } catch {
       continue;
     }
     let level: LogLine['level'];

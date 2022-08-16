@@ -18,6 +18,43 @@ describe(assertValidOptions, () => {
 });
 
 describe(syncCapabilitiesForEntitlementsAsync, () => {
+  it(`does not disable associated domains when MDM managed domains is active`, async () => {
+    const ctx = { providerId: 123195, teamId: 'MyteamId' };
+    // https://forums.expo.dev/t/eas-build-failed-on-ios-associated-domains-capability/61662/5
+    const capabilities = [
+      {
+        id: 'U78L9459DG_MDM_MANAGED_ASSOCIATED_DOMAINS',
+        attributes: {
+          ownerType: 'BUNDLE',
+          settings: null,
+          editable: true,
+          inputs: null,
+          enabled: true,
+          responseId: '77eb74ad-7c24-48de-9d35-1fabb4c5afd9',
+        },
+      },
+    ].map(({ id, attributes }) => new BundleIdCapability(ctx, id, attributes as any));
+
+    const entitlements = {
+      'com.apple.developer.associated-domains': ['applinks:packagename.fr'],
+    };
+
+    const bundleId = {
+      getBundleIdCapabilitiesAsync: jest.fn(() => capabilities),
+      updateBundleIdCapabilityAsync: jest.fn(),
+      id: 'XXX',
+    } as any;
+
+    await syncCapabilitiesForEntitlementsAsync(bundleId, entitlements);
+
+    expect(bundleId.updateBundleIdCapabilityAsync).toBeCalledWith([
+      {
+        capabilityType: 'ASSOCIATED_DOMAINS',
+        option: 'ON',
+      },
+    ]);
+  });
+
   it('enables all capabilities', async () => {
     const bundleId = {
       getBundleIdCapabilitiesAsync: jest.fn(() => []),

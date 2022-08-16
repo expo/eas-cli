@@ -1,4 +1,3 @@
-import { getConfig } from '@expo/config';
 import { Flags } from '@oclif/core';
 import assert from 'assert';
 import chalk from 'chalk';
@@ -7,6 +6,7 @@ import Table from 'cli-table3';
 import EasCommand from '../../commandUtils/EasCommand';
 import { ChannelQuery } from '../../graphql/queries/ChannelQuery';
 import Log from '../../log';
+import { getExpoConfig } from '../../project/expoConfig';
 import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
 import {
@@ -45,7 +45,7 @@ export function getBranchMapping(branchMappingString?: string): {
   let branchMapping: BranchMapping;
   try {
     branchMapping = JSON.parse(branchMappingString);
-  } catch (e) {
+  } catch {
     throw new Error(`Could not parse branchMapping string into a JSON: "${branchMappingString}"`);
   }
   assert(branchMapping, 'Branch Mapping must be defined.');
@@ -165,7 +165,7 @@ export default class ChannelView extends EasCommand {
     }
 
     const projectDir = await findProjectRootAsync();
-    const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
+    const exp = getExpoConfig(projectDir);
     const projectId = await getProjectIdAsync(exp);
 
     if (!channelName) {

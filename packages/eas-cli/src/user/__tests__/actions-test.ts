@@ -1,4 +1,3 @@
-import { asMock } from '../../__tests__/utils';
 import { ApiV2Error } from '../../api';
 import { promptAsync } from '../../prompts';
 import { Actor, loginAsync } from '../User';
@@ -16,12 +15,12 @@ jest.mock('../User', () => ({
 }));
 
 beforeEach(() => {
-  asMock(promptAsync).mockReset();
-  asMock(promptAsync).mockImplementation(() => {
+  jest.mocked(promptAsync).mockReset();
+  jest.mocked(promptAsync).mockImplementation(async () => {
     throw new Error('Should not be called');
   });
 
-  asMock(loginAsync).mockReset();
+  jest.mocked(loginAsync).mockReset();
 });
 
 const userStub: Actor = {
@@ -52,13 +51,15 @@ describe('ensureActorHasUsername', () => {
 
 describe(showLoginPromptAsync, () => {
   it('prompts for OTP when 2FA is enabled', async () => {
-    asMock(promptAsync)
-      .mockImplementationOnce(() => ({ username: 'hello', password: 'world' }))
-      .mockImplementationOnce(() => ({ otp: '123456' }))
-      .mockImplementation(() => {
+    jest
+      .mocked(promptAsync)
+      .mockImplementationOnce(async () => ({ username: 'hello', password: 'world' }))
+      .mockImplementationOnce(async () => ({ otp: '123456' }))
+      .mockImplementation(async () => {
         throw new Error("shouldn't happen");
       });
-    asMock(loginAsync)
+    jest
+      .mocked(loginAsync)
       .mockImplementationOnce(async () => {
         throw new ApiV2Error({
           message: 'An OTP is required',
@@ -76,7 +77,7 @@ describe(showLoginPromptAsync, () => {
           },
         });
       })
-      .mockImplementation(() => {});
+      .mockImplementation(async () => {});
 
     await showLoginPromptAsync();
 

@@ -89,7 +89,7 @@ describe(bumpVersionAsync, () => {
     expect(resolveConfigValue(buildGradle, 'versionName')).toBe('3.0.0');
   });
 
-  it('bumps expo.version and gradle versionCode when strategy = BumpStrategy.SHORT_VERSION', async () => {
+  it('bumps expo.version and gradle versionCode when strategy = BumpStrategy.APP_VERSION', async () => {
     const nativeVersionName = '1.0.0'; // this should be overwritten by bumpVersionAsync
     const fakeExp = initBareWorkflowProject({ versionName: nativeVersionName });
 

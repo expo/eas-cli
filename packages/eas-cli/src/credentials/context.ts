@@ -1,4 +1,4 @@
-import { ExpoConfig, getConfig } from '@expo/config';
+import { ExpoConfig } from '@expo/config';
 import { Env } from '@expo/eas-build-job';
 import chalk from 'chalk';
 
@@ -50,7 +50,7 @@ export class CredentialsContext {
   ): ExpoConfig | null {
     try {
       return getExpoConfig(projectDir, { env });
-    } catch (error) {
+    } catch {
       // ignore error, context might be created outside of expo project
       return null;
     }
@@ -70,7 +70,7 @@ export class CredentialsContext {
       return;
     }
     // trigger getConfig error
-    getConfig(this.options.projectDir, { skipSDKVersionRequirement: true });
+    getExpoConfig(this.options.projectDir);
   }
 
   public logOwnerAndProject(): void {

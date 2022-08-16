@@ -14,11 +14,11 @@ export function resolveBuildProfile<T extends Platform>({
 }: {
   easJson: EasJson;
   platform: T;
-  profileName: string;
+  profileName?: string;
 }): BuildProfile<T> {
   const easJsonProfile = resolveProfile({
     easJson,
-    profileName,
+    profileName: profileName ?? 'production',
   });
   const { android, ios, ...base } = easJsonProfile;
   const withoutDefaults = mergeProfiles(base, easJsonProfile[platform] ?? {});
@@ -34,7 +34,7 @@ function resolveProfile({
   profileName: string;
   depth?: number;
 }): EasJsonBuildProfileResolved {
-  if (depth >= 2) {
+  if (depth >= 5) {
     throw new Error(
       'Too long chain of profile extensions, make sure "extends" keys do not make a cycle'
     );

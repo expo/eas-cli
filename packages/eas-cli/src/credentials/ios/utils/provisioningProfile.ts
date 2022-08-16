@@ -31,7 +31,7 @@ export function parse(dataBase64: string): PlistObject {
     const buffer = Buffer.from(dataBase64, 'base64');
     const profile = buffer.toString('utf8');
     return plist.parse(profile) as PlistObject;
-  } catch (error) {
+  } catch {
     throw new Error('Provisioning profile is malformed');
   }
 }

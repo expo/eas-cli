@@ -2,7 +2,6 @@ import fs from 'fs-extra';
 import { vol } from 'memfs';
 import os from 'os';
 
-import { asMock } from '../../../__tests__/utils';
 import { jester as mockJester } from '../../../credentials/__tests__/fixtures-constants';
 import { promptAsync } from '../../../prompts';
 import { resolveGradleBuildContextAsync } from '../gradle';
@@ -17,7 +16,7 @@ beforeEach(async () => {
   // this fixes a weird error with tempy in @expo/image-utils
   await fs.mkdirp(os.tmpdir());
 
-  asMock(promptAsync).mockReset();
+  jest.mocked(promptAsync).mockReset();
 });
 
 describe(resolveGradleBuildContextAsync, () => {

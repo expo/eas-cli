@@ -1,16 +1,25 @@
-import { ExpoConfig, getConfigFilePaths } from '@expo/config';
-import { IOSConfig } from '@expo/config-plugins';
+import { ExpoConfig } from '@expo/config';
+import { IOSConfig, Updates } from '@expo/config-plugins';
 import { Platform, Workflow } from '@expo/eas-build-job';
+import { BuildProfile } from '@expo/eas-json';
 import chalk from 'chalk';
 import path from 'path';
 import type { XCBuildConfiguration } from 'xcode';
 
+import { Target } from '../../credentials/ios/types';
+import { AppPlatform } from '../../graphql/generated';
+import { AppVersionMutation } from '../../graphql/mutations/AppVersionMutation';
+import { AppVersionQuery } from '../../graphql/queries/AppVersionQuery';
 import Log from '../../log';
+import { ora } from '../../ora';
+import { findApplicationTarget } from '../../project/ios/target';
+import { getNextBuildNumber, isValidBuildNumber } from '../../project/ios/versions';
 import { resolveWorkflowAsync } from '../../project/workflow';
 import { promptAsync } from '../../prompts';
+import uniqBy from '../../utils/expodash/uniqBy';
 import { readPlistAsync, writePlistAsync } from '../../utils/plist';
 import { updateAppJsonConfigAsync } from '../utils/appJson';
-import { bumpAppVersionAsync } from '../utils/version';
+import { bumpAppVersionAsync, ensureStaticConfigExists } from '../utils/version';
 
 export enum BumpStrategy {
   APP_VERSION,
@@ -22,21 +31,25 @@ export async function bumpVersionAsync({
   bumpStrategy,
   projectDir,
   exp,
-  buildSettings,
+  targets,
 }: {
   projectDir: string;
   exp: ExpoConfig;
   bumpStrategy: BumpStrategy;
-  buildSettings: XCBuildConfiguration['buildSettings'];
+  targets: Target[];
 }): Promise<void> {
   if (bumpStrategy === BumpStrategy.NOOP) {
     return;
   }
   ensureStaticConfigExists(projectDir);
-  const infoPlist = await readInfoPlistAsync(projectDir, buildSettings);
   await bumpVersionInAppJsonAsync({ bumpStrategy, projectDir, exp });
   Log.log('Updated versions in app.json');
-  await writeVersionsToInfoPlistAsync({ projectDir, exp, infoPlist, buildSettings });
+  await updateNativeVersionsAsync({
+    projectDir,
+    version: exp.version,
+    buildNumber: exp.ios?.buildNumber,
+    targets,
+  });
   Log.log('Synchronized versions with Info.plist');
 }
 
@@ -59,10 +72,8 @@ export async function bumpVersionInAppJsonAsync({
     await bumpAppVersionAsync({ appVersion, projectDir, exp });
   } else {
     const buildNumber = IOSConfig.Version.getBuildNumber(exp);
-    if (buildNumber.match(/^\d+(\.\d+)*$/)) {
-      const comps = buildNumber.split('.');
-      comps[comps.length - 1] = String(Number(comps[comps.length - 1]) + 1);
-      const bumpedBuildNumber = comps.join('.');
+    if (isValidBuildNumber(buildNumber)) {
+      const bumpedBuildNumber = getNextBuildNumber(buildNumber);
       Log.log(
         `Bumping ${chalk.bold('expo.ios.buildNumber')} from ${chalk.bold(
           buildNumber
@@ -121,12 +132,21 @@ export async function readBuildNumberAsync(
 export async function maybeResolveVersionsAsync(
   projectDir: string,
   exp: ExpoConfig,
-  buildSettings: XCBuildConfiguration['buildSettings']
+  targets: Target[]
 ): Promise<{ appVersion?: string; appBuildVersion?: string }> {
+  const applicationTarget = findApplicationTarget(targets);
   try {
     return {
-      appBuildVersion: await readBuildNumberAsync(projectDir, exp, buildSettings),
-      appVersion: await readShortVersionAsync(projectDir, exp, buildSettings),
+      appBuildVersion: await readBuildNumberAsync(
+        projectDir,
+        exp,
+        applicationTarget.buildSettings ?? {}
+      ),
+      appVersion: await readShortVersionAsync(
+        projectDir,
+        exp,
+        applicationTarget.buildSettings ?? {}
+      ),
     };
   } catch (err: any) {
     Log.warn('Failed to read app versions.');
@@ -135,23 +155,6 @@ export async function maybeResolveVersionsAsync(
     Log.warn('Proceeding anyway...');
     return {};
   }
-}
-
-async function writeVersionsToInfoPlistAsync({
-  projectDir,
-  exp,
-  infoPlist,
-  buildSettings,
-}: {
-  projectDir: string;
-  exp: ExpoConfig;
-  infoPlist: IOSConfig.InfoPlist;
-  buildSettings: XCBuildConfiguration['buildSettings'];
-}): Promise<IOSConfig.InfoPlist> {
-  let updatedInfoPlist = IOSConfig.Version.setVersion(exp, infoPlist);
-  updatedInfoPlist = IOSConfig.Version.setBuildNumber(exp, updatedInfoPlist);
-  await writeInfoPlistAsync({ projectDir, infoPlist: updatedInfoPlist, buildSettings });
-  return updatedInfoPlist;
 }
 
 export function getInfoPlistPath(
@@ -181,24 +184,55 @@ async function readInfoPlistAsync(
   return ((await readPlistAsync(infoPlistPath)) ?? {}) as IOSConfig.InfoPlist;
 }
 
-async function writeInfoPlistAsync({
+export async function updateNativeVersionsAsync({
   projectDir,
-  infoPlist,
-  buildSettings,
+  version,
+  buildNumber,
+  targets,
 }: {
   projectDir: string;
-  infoPlist: IOSConfig.InfoPlist;
-  buildSettings: XCBuildConfiguration['buildSettings'];
+  version?: string;
+  buildNumber?: string;
+  targets: Target[];
 }): Promise<void> {
-  const infoPlistPath = getInfoPlistPath(projectDir, buildSettings);
-  await writePlistAsync(infoPlistPath, infoPlist);
+  const project = IOSConfig.XcodeUtils.getPbxproj(projectDir);
+  const iosDir = path.join(projectDir, 'ios');
+
+  const infoPlistFiles: string[] = [];
+  for (const target of targets) {
+    const { targetName, buildConfiguration } = target;
+    const xcBuildConfiguration = IOSConfig.Target.getXCBuildConfigurationFromPbxproj(project, {
+      targetName,
+      buildConfiguration,
+    });
+    const infoPlist = xcBuildConfiguration?.buildSettings?.INFOPLIST_FILE;
+    if (infoPlist) {
+      const evaluatedInfoPlistPath = trimQuotes(
+        evaluateTemplateString(infoPlist, {
+          SRCROOT: iosDir,
+        })
+      );
+      const absolutePath = path.isAbsolute(evaluatedInfoPlistPath)
+        ? evaluatedInfoPlistPath
+        : path.join(iosDir, evaluatedInfoPlistPath);
+      infoPlistFiles.push(path.normalize(absolutePath));
+    }
+  }
+  const uniqueInfoPlistPaths = uniqBy(infoPlistFiles, i => i);
+  for (const infoPlistPath of uniqueInfoPlistPaths) {
+    const infoPlist = (await readPlistAsync(infoPlistPath)) as IOSConfig.InfoPlist;
+    if (buildNumber) {
+      infoPlist.CFBundleVersion = buildNumber;
+    }
+    if (version) {
+      infoPlist.CFBundleShortVersionString = version;
+    }
+    await writePlistAsync(infoPlistPath, infoPlist);
+  }
 }
 
-function ensureStaticConfigExists(projectDir: string): void {
-  const paths = getConfigFilePaths(projectDir);
-  if (!paths.staticConfigPath) {
-    throw new Error('autoIncrement option is not supported when using app.config.js');
-  }
+function trimQuotes(s: string): string {
+  return s?.startsWith('"') && s.endsWith('"') ? s.slice(1, -1) : s;
 }
 
 export function evaluateTemplateString(
@@ -215,4 +249,107 @@ export function evaluateTemplateString(
       return match;
     }
   });
+}
+
+/**
+ * Returns buildNumber that will be used for the next build. If current build profile
+ * has an 'autoIncrement' option set, it increments the version on server.
+ */
+export async function resolveRemoteBuildNumberAsync({
+  projectDir,
+  projectId,
+  exp,
+  applicationTarget,
+  buildProfile,
+}: {
+  projectDir: string;
+  projectId: string;
+  exp: ExpoConfig;
+  applicationTarget: Target;
+  buildProfile: BuildProfile<Platform.IOS>;
+}): Promise<string> {
+  const remoteVersions = await AppVersionQuery.latestVersionAsync(
+    projectId,
+    AppPlatform.Ios,
+    applicationTarget.bundleIdentifier
+  );
+
+  const localBuildNumber = await readBuildNumberAsync(
+    projectDir,
+    exp,
+    applicationTarget.buildSettings ?? {}
+  );
+  const localShortVersion = await readShortVersionAsync(
+    projectDir,
+    exp,
+    applicationTarget.buildSettings ?? {}
+  );
+  let currentBuildVersion: string;
+  if (remoteVersions?.buildVersion) {
+    currentBuildVersion = remoteVersions.buildVersion;
+  } else {
+    if (localBuildNumber) {
+      Log.warn(
+        'No remote versions are configured for this project, buildNumber will be initialized based on the value from the local project.'
+      );
+      currentBuildVersion = localBuildNumber;
+    } else {
+      Log.error(
+        `Remote versions are not configured and EAS CLI was not able to read the current version from your project. Use "eas build:version:set" to initialize remote versions.`
+      );
+      throw new Error('Remote versions are not configured.');
+    }
+  }
+  if (!buildProfile.autoIncrement && remoteVersions?.buildVersion) {
+    return currentBuildVersion;
+  } else if (!buildProfile.autoIncrement && !remoteVersions?.buildVersion) {
+    const spinner = ora(
+      `Initializing buildNumber with ${chalk.bold(currentBuildVersion)}.`
+    ).start();
+    try {
+      await AppVersionMutation.createAppVersionAsync({
+        appId: projectId,
+        platform: AppPlatform.Ios,
+        applicationIdentifier: applicationTarget.bundleIdentifier,
+        storeVersion: localShortVersion ?? '1.0.0',
+        buildVersion: currentBuildVersion,
+        runtimeVersion: Updates.getRuntimeVersionNullable(exp, Platform.IOS) ?? undefined,
+      });
+      spinner.succeed(`Initialized buildNumber with ${chalk.bold(currentBuildVersion)}.`);
+    } catch (err) {
+      spinner.fail(`Failed to initialize buildNumber with ${chalk.bold(currentBuildVersion)}.`);
+      throw err;
+    }
+    return currentBuildVersion;
+  } else {
+    const nextBuildVersion = getNextBuildNumber(currentBuildVersion);
+    const spinner = ora(
+      `Incrementing buildNumber from ${chalk.bold(currentBuildVersion)} to ${chalk.bold(
+        nextBuildVersion
+      )}.`
+    ).start();
+    try {
+      await AppVersionMutation.createAppVersionAsync({
+        appId: projectId,
+        platform: AppPlatform.Ios,
+        applicationIdentifier: applicationTarget.bundleIdentifier,
+        storeVersion: localShortVersion ?? '1.0.0',
+        buildVersion: nextBuildVersion,
+        runtimeVersion: Updates.getRuntimeVersionNullable(exp, Platform.IOS) ?? undefined,
+      });
+      spinner.succeed(
+        `Incremented buildNumber from ${chalk.bold(currentBuildVersion)} to ${chalk.bold(
+          nextBuildVersion
+        )}.`
+      );
+    } catch (err) {
+      spinner.fail(
+        `Failed to increment buildNumber from ${chalk.bold(currentBuildVersion)} to ${chalk.bold(
+          nextBuildVersion
+        )}.`
+      );
+      throw err;
+    }
+    return nextBuildVersion;
+  }
 }

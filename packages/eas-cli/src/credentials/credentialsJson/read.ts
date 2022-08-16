@@ -114,7 +114,7 @@ export async function readRawAsync(
   try {
     const credentialsJSONContents = await fs.readFile(credentialsJsonFilePath, 'utf8');
     return JSON.parse(credentialsJSONContents);
-  } catch (err) {
+  } catch {
     throw new Error(
       `credentials.json must exist in the project root directory and contain a valid JSON`
     );

@@ -12,7 +12,169 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Rebind `console.info` correctly after `ora` instance stops. ([#1113](https://github.com/expo/eas-cli/pull/1113) by [@EvanBacon](https://github.com/EvanBacon))
+- Fix initializing git repository in monorepo. ([#1279](https://github.com/expo/eas-cli/pull/1279) by [@dsokal](https://github.com/dsokal))
+
 ### 🧹 Chores
+
+- Remove unused install script. ([#1280](https://github.com/expo/eas-cli/pull/1280), [#1281](https://github.com/expo/eas-cli/pull/1281) by [@wkozyra95](https://github.com/wkozyra95))
+
+## [0.60.0](https://github.com/expo/eas-cli/releases/tag/v0.60.0) - 2022-08-12
+
+### 🎉 New features
+
+- Add `appVersion` runtime policy. ([#1267](https://github.com/expo/eas-cli/pull/1267) by [@wkozyra95](https://github.com/wkozyra95))
+
+### 🧹 Chores
+
+- Add JSON Schema `metadataPath` to iOS submission profile. ([#1269](https://github.com/expo/eas-cli/pull/1269) by [@byCedric](https://github.com/byCedric))
+- Add warning when `appVersion` runtime policy is not supported. ([#1271](https://github.com/expo/eas-cli/pull/1271) by [@wkozyra95](https://github.com/wkozyra95))
+
+## [0.59.0](https://github.com/expo/eas-cli/releases/tag/v0.59.0) - 2022-08-10
+
+### 🐛 Bug fixes
+
+- Fix building Android projects locally that don't have execute permissions set for `gradlew`. ([82231](https://github.com/expo/eas-cli/commit/822313e90e94bd6ddd3872061a0c25a8aa4db7cd) by [@dsokal](https://github.com/dsokal))
+- Disable `nativeVersion` policy only for remote version source. ([#1261](https://github.com/expo/eas-cli/pull/1261) by [@wkozyra95](https://github.com/wkozyra95))
+
+### 🧹 Chores
+
+- Improve wording on version auto-increment. ([#1260](https://github.com/expo/eas-cli/pull/1260) by [@wkozyra95](https://github.com/wkozyra95))
+- Upgrade dependencies. ([#1262](https://github.com/expo/eas-cli/pull/1262) by [@dsokal](https://github.com/dsokal))
+
+## [0.58.0](https://github.com/expo/eas-cli/releases/tag/v0.58.0) - 2022-08-09
+
+### 🎉 New features
+
+- Managed app versions support. ([#1209](https://github.com/expo/eas-cli/pull/1209), [#1219](https://github.com/expo/eas-cli/pull/1219), [#1232](https://github.com/expo/eas-cli/pull/1232) by [@wkozyra95](https://github.com/wkozyra95))
+- Add a warning when publishing an update with too many assets. ([#1243](https://github.com/expo/eas-cli/pull/1243) by [@kgc00](https://github.com/kgc00))
+- Add submission info when building with `--json` option. ([#1246](https://github.com/expo/eas-cli/pull/1246) by [@wkozyra95](https://github.com/wkozyra95))
+- Set all environment variables (documented in https://docs.expo.dev/build-reference/variables/) when running local build. ([#1256](https://github.com/expo/eas-cli/pull/1256) by [@dsokal](https://github.com/dsokal))
+
+### 🧹 Chores
+
+- Do not include sources in `eas-json` npm package. ([#1248](https://github.com/expo/eas-cli/pull/1248) by [@wkozyra95](https://github.com/wkozyra95))
+- Swallow error when unable to track file in no commit workflow. ([#1109](https://github.com/expo/eas-cli/pull/1109) by [@brentvatne](https://github.com/brentvatne))
+
+## [0.57.0](https://github.com/expo/eas-cli/releases/tag/v0.57.0) - 2022-08-03
+
+### 🎉 New features
+
+- Add new option to `eas device:create` - allow importing devices from Apple Developer Portal. ([#1236](https://github.com/expo/eas-cli/pull/1236) by [@dsokal](https://github.com/dsokal))
+- Add support for attaching messages to builds. ([#1237](https://github.com/expo/eas-cli/pull/1237) by [@dsokal](https://github.com/dsokal))
+- Introduce interactive pagination for `branch` commands. ([#1213](https://github.com/expo/eas-cli/pull/1213) by [@kgc00](https://github.com/kgc00))
+
+## [0.56.0](https://github.com/expo/eas-cli/releases/tag/v0.56.0) - 2022-07-28
+
+### 🎉 New features
+
+- Display build queue type when waiting. ([#1217](https://github.com/expo/eas-cli/pull/1217) by [@dsokal](https://github.com/dsokal))
+- Add better message on how to upgrade EAS CLI. ([#1222](https://github.com/expo/eas-cli/pull/1222) by [@jeremybarbet](https://github.com/jeremybarbet), [#1231](https://github.com/expo/eas-cli/pull/1231) by [@wkozyra95](https://github.com/wkozyra95))
+- Invoke export with sourcemaps on update. ([#1228](https://github.com/expo/eas-cli/pull/1228) by [@kbrandwijk](https://github.com/kbrandwijk))
+
+### 🐛 Bug fixes
+
+- Show spinner instead of silently timing out during asset upload. ([#1206](https://github.com/expo/eas-cli/pull/1206) by [@wschurman](https://github.com/wschurman))
+- Fix build archive S3 URLs. ([#1207](https://github.com/expo/eas-cli/pull/1207) by [@dsokal](https://github.com/dsokal))
+- `autoIncrement` option on iOS will update versions of all targets that depend on an application target. ([#1219](https://github.com/expo/eas-cli/pull/1219) by [@wkozyra95](https://github.com/wkozyra95))
+
+### 🧹 Chores
+
+- Increase max number of chained "extends" in build profiles. ([#1208](https://github.com/expo/eas-cli/pull/1208) by [@wkozyra95](https://github.com/wkozyra95))
+- Change wording on build warning for bundle id/package name. ([#1211](https://github.com/expo/eas-cli/pull/1211) by [@kbrandwijk](https://github.com/kbrandwijk))
+
+## [0.55.1](https://github.com/expo/eas-cli/releases/tag/v0.55.1) - 2022-07-12
+
+### 🐛 Bug fixes
+
+- Fix asset upload crash. ([#1205](https://github.com/expo/eas-cli/pull/1205) by [@wschurman](https://github.com/wschurman))
+
+## [0.55.0](https://github.com/expo/eas-cli/releases/tag/v0.55.0) - 2022-07-11
+
+### 🎉 New features
+
+- Show bundler output by default for eas update command. ([#1171](https://github.com/expo/eas-cli/pull/1171) by [@kgc00](https://github.com/kgc00/))
+- Allow users to skip metadata validation. ([#1175](https://github.com/expo/eas-cli/pull/1175) by [@byCedric](https://github.com/byCedric))
+- Add experimental `--resource-class` flag for Build commands. ([#1138](https://github.com/expo/eas-cli/pull/1138) by [@christopherwalter](https://github.com/christopherwalter))
+- Truncate long messages for `eas update` command, rather than failing. ([#1178](https://github.com/expo/eas-cli/pull/1178) by [@kgc00](https://github.com/kgc00))
+- Add review details to metadata store configuration. ([#1184](https://github.com/expo/eas-cli/pull/1184) by [@byCedric](https://github.com/byCedric))
+- Override applicationId via env. ([#1203](https://github.com/expo/eas-cli/pull/1203) by [@wkozyra95](https://github.com/wkozyra95))
+
+### 🐛 Bug fixes
+
+- Fix submission archive URLs. ([#1179](https://github.com/expo/eas-cli/pull/1179) by [@dsokal](https://github.com/dsokal))
+
+### 🧹 Chores
+
+- Update validation rules for metadata info locales. ([#1174](https://github.com/expo/eas-cli/pull/1174) by [@byCedric](https://github.com/byCedric))
+- Improve store configuration defaults and schema documentation. ([#1183](https://github.com/expo/eas-cli/pull/1183) by [@byCedric](https://github.com/byCedric))
+- Improve store config categories configuration. ([#1187](https://github.com/expo/eas-cli/pull/1187) by [@byCedric](https://github.com/byCedric))
+- Remove deprecated idfa and price tier from store config. ([#1193](https://github.com/expo/eas-cli/pull/1193) by [@byCedric](https://github.com/byCedric))
+
+## [0.54.1](https://github.com/expo/eas-cli/releases/tag/v0.54.1) - 2022-06-15
+
+### 🎉 New features
+
+- Add App Store Connect link after `eas metadata:push`. ([#1168](https://github.com/expo/eas-cli/pull/1168) by [@byCedric](https://github.com/byCedric))
+
+### 🐛 Bug fixes
+
+- Surface ASC errors in metadata for normal API rejections. ([#1167](https://github.com/expo/eas-cli/pull/1167) by [@byCedric](https://github.com/byCedric))
+- Add metadata schema to bundled eas-cli package. ([#1166](https://github.com/expo/eas-cli/pull/1166) by [@byCedric](https://github.com/byCedric))
+
+## [0.54.0](https://github.com/expo/eas-cli/releases/tag/v0.54.0) - 2022-06-15
+
+### 🛠 Breaking changes
+
+- Remove fallback for legacy format in `eas.json`. ([#1158](https://github.com/expo/eas-cli/pull/1158), [#1163](https://github.com/expo/eas-cli/pull/1163) by [@wkozyra95](https://github.com/wkozyra95))
+
+### 🎉 New features
+
+- `eas update` now provides more information about the publish process including real-time feedback on asset uploads, update ids, and website links. ([#1152](https://github.com/expo/eas-cli/pull/1152) by [@kgc00](https://github.com/kgc00/))
+- Added first beta of `eas metadata` to sync store information using store configuration files ([#1136](https://github.com/expo/eas-cli/pull/1136) by [@bycedric](https://github.com/bycedric))
+
+### 🐛 Bug fixes
+
+- Improved support for working on branches with many updates. ([#1144](https://github.com/expo/eas-cli/pull/1144), [#1148](https://github.com/expo/eas-cli/pull/1148) by [@kgc00](https://github.com/kgc00/))
+- `eas update` project links no longer contain a `)` on unsupported terminals. ([#1152](https://github.com/expo/eas-cli/pull/1152) by [@kgc00](https://github.com/kgc00/))
+
+### 🧹 Chores
+
+- Update `eas-build-job`. ([#1162](https://github.com/expo/eas-cli/pull/1162) by [@wkozyra95](https://github.com/wkozyra95))
+
+## [0.53.1](https://github.com/expo/eas-cli/releases/tag/v0.53.1) - 2022-06-07
+
+### 🐛 Bug fixes
+
+- No longer timeout on publishing updates for branches with many updates. ([#1119](https://github.com/expo/eas-cli/pull/1119) by [@kgc00](https://github.com/kgc00/))
+
+### 🧹 Chores
+
+- Display project archive docs before compressing/uploading to EAS Build. ([#1127](https://github.com/expo/eas-cli/pull/1127) by [@dsokal](https://github.com/dsokal))
+- Add new common error code for submits. ([#1129](https://github.com/expo/eas-cli/pull/1129) by [@dsokal](https://github.com/dsokal))
+
+## [0.53.0](https://github.com/expo/eas-cli/releases/tag/v0.53.0) - 2022-05-30
+
+### 🛠 Breaking changes
+
+- Drop support for Node < 14. ([#1098](https://github.com/expo/eas-cli/pull/1098) by [@dsokal](https://github.com/dsokal))
+
+### 🐛 Bug fixes
+
+- Match bundle identifier capabilities more accurately. ([#1112](https://github.com/expo/eas-cli/pull/1112) by [@EvanBacon](https://github.com/EvanBacon))
+- Limit concurrent asset uploads. ([#1153](https://github.com/expo/eas-cli/pull/1153) by [@wschurman](https://github.com/wschurman))
+
+### 🧹 Chores
+
+- Update dependencies. ([#1095](https://github.com/expo/eas-cli/pull/1095), [#1115](https://github.com/expo/eas-cli/pull/1115) by [@dsokal](https://github.com/dsokal))
+- Better spinner placement for multiple builds. ([#1105](https://github.com/expo/eas-cli/pull/1105) by [@dsokal](https://github.com/dsokal))
+- Use getExpoConfig to access config. ([#1122](https://github.com/expo/eas-cli/pull/1122) by [@wkozyra95](https://github.com/wkozyra95))
+
+## [0.52.0](https://github.com/expo/eas-cli/releases/tag/v0.52.0) - 2022-04-26
+
+### 🎉 New features
+
+- Support target specific entitlements. ([#1078](https://github.com/expo/eas-cli/pull/1078) by [@wkozyra95](https://github.com/wkozyra95))
 
 ## [0.51.0](https://github.com/expo/eas-cli/releases/tag/v0.51.0) - 2022-04-19
 

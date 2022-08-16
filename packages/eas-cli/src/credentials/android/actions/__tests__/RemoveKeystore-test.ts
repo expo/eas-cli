@@ -1,4 +1,3 @@
-import { asMock } from '../../../../__tests__/utils';
 import { confirmAsync } from '../../../../prompts';
 import { testAndroidBuildCredentialsFragment } from '../../../__tests__/fixtures-android';
 import { createCtxMock } from '../../../__tests__/fixtures-context';
@@ -7,7 +6,7 @@ import { RemoveKeystore } from '../RemoveKeystore';
 
 jest.mock('fs-extra');
 jest.mock('../../../../prompts');
-asMock(confirmAsync).mockImplementation(() => true);
+jest.mocked(confirmAsync).mockImplementation(async () => true);
 
 describe(RemoveKeystore, () => {
   it('removes a keystore', async () => {

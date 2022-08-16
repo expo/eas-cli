@@ -3,12 +3,11 @@ import fs from 'fs-extra';
 import { vol } from 'memfs';
 import { v4 as uuidv4 } from 'uuid';
 
-import { asMock } from '../../__tests__/utils';
 import { AppPlatform, BuildFragment, UploadSessionType } from '../../graphql/generated';
 import { BuildQuery } from '../../graphql/queries/BuildQuery';
 import { toAppPlatform } from '../../graphql/types/AppPlatform';
 import { confirmAsync, promptAsync } from '../../prompts';
-import { uploadAsync } from '../../uploads';
+import { uploadFileAtPathToS3Async } from '../../uploads';
 import {
   Archive,
   ArchiveSourceType,
@@ -51,13 +50,13 @@ describe(getArchiveAsync, () => {
   beforeEach(() => {
     vol.reset();
 
-    asMock(promptAsync).mockReset();
-    asMock(promptAsync).mockImplementation(() => {
+    jest.mocked(promptAsync).mockReset();
+    jest.mocked(promptAsync).mockImplementation(async () => {
       throw new Error(`unhandled prompts call - this shouldn't happen - fix tests!`);
     });
 
-    asMock(confirmAsync).mockReset();
-    asMock(confirmAsync).mockImplementation(() => {
+    jest.mocked(confirmAsync).mockReset();
+    jest.mocked(confirmAsync).mockImplementation(async () => {
       throw new Error(`unhandled prompts call - this shouldn't happen - fix tests!`);
     });
   });
@@ -73,7 +72,8 @@ describe(getArchiveAsync, () => {
   });
 
   it('prompts again if provided URL is invalid', async () => {
-    asMock(promptAsync)
+    jest
+      .mocked(promptAsync)
       .mockResolvedValueOnce({ sourceType: ArchiveSourceType.url })
       .mockResolvedValueOnce({ url: ARCHIVE_URL });
 
@@ -88,8 +88,8 @@ describe(getArchiveAsync, () => {
   });
 
   it('asks the user if use build id instead of build details page url', async () => {
-    asMock(confirmAsync).mockResolvedValueOnce(true);
-    asMock(BuildQuery.byIdAsync).mockResolvedValueOnce(MOCK_BUILD_FRAGMENT);
+    jest.mocked(confirmAsync).mockResolvedValueOnce(true);
+    jest.mocked(BuildQuery.byIdAsync).mockResolvedValueOnce(MOCK_BUILD_FRAGMENT as BuildFragment);
 
     const archive = await getArchiveAsync({
       ...SOURCE_STUB_INPUT,
@@ -103,7 +103,8 @@ describe(getArchiveAsync, () => {
   });
 
   it('handles prompt source', async () => {
-    asMock(promptAsync)
+    jest
+      .mocked(promptAsync)
       .mockResolvedValueOnce({ sourceType: ArchiveSourceType.url })
       .mockResolvedValueOnce({ url: ARCHIVE_URL });
 
@@ -117,7 +118,7 @@ describe(getArchiveAsync, () => {
 
   it('handles Build ID source', async () => {
     const buildId = uuidv4();
-    asMock(BuildQuery.byIdAsync).mockResolvedValueOnce(MOCK_BUILD_FRAGMENT);
+    jest.mocked(BuildQuery.byIdAsync).mockResolvedValueOnce(MOCK_BUILD_FRAGMENT as BuildFragment);
 
     const archive = await getArchiveAsync({
       ...SOURCE_STUB_INPUT,
@@ -130,8 +131,9 @@ describe(getArchiveAsync, () => {
   });
 
   it('prompts again if build with provided ID doesnt exist', async () => {
-    asMock(BuildQuery.byIdAsync).mockRejectedValue(new Error('Build doesnt exist'));
-    asMock(promptAsync)
+    jest.mocked(BuildQuery.byIdAsync).mockRejectedValue(new Error('Build doesnt exist'));
+    jest
+      .mocked(promptAsync)
       .mockResolvedValueOnce({ sourceType: ArchiveSourceType.url })
       .mockResolvedValueOnce({ url: ARCHIVE_URL });
 
@@ -146,7 +148,9 @@ describe(getArchiveAsync, () => {
 
   it('handles latest build source', async () => {
     const projectId = uuidv4();
-    asMock(getRecentBuildsForSubmissionAsync).mockResolvedValueOnce([MOCK_BUILD_FRAGMENT]);
+    jest
+      .mocked(getRecentBuildsForSubmissionAsync)
+      .mockResolvedValueOnce([MOCK_BUILD_FRAGMENT as BuildFragment]);
 
     const archive = await getArchiveAsync({
       ...SOURCE_STUB_INPUT,
@@ -162,8 +166,9 @@ describe(getArchiveAsync, () => {
   });
 
   it('prompts again if no builds exists when selected latest', async () => {
-    asMock(getRecentBuildsForSubmissionAsync).mockResolvedValueOnce([]);
-    asMock(promptAsync)
+    jest.mocked(getRecentBuildsForSubmissionAsync).mockResolvedValueOnce([]);
+    jest
+      .mocked(promptAsync)
       .mockResolvedValueOnce({ sourceType: ArchiveSourceType.url })
       .mockResolvedValueOnce({ url: ARCHIVE_URL });
 
@@ -177,8 +182,10 @@ describe(getArchiveAsync, () => {
 
   it('handles build-list-select source', async () => {
     const projectId = uuidv4();
-    asMock(getRecentBuildsForSubmissionAsync).mockResolvedValueOnce([MOCK_BUILD_FRAGMENT]);
-    asMock(promptAsync).mockResolvedValueOnce({ selectedBuild: MOCK_BUILD_FRAGMENT });
+    jest
+      .mocked(getRecentBuildsForSubmissionAsync)
+      .mockResolvedValueOnce([MOCK_BUILD_FRAGMENT as BuildFragment]);
+    jest.mocked(promptAsync).mockResolvedValueOnce({ selectedBuild: MOCK_BUILD_FRAGMENT });
 
     const archive = await getArchiveAsync({
       ...SOURCE_STUB_INPUT,
@@ -195,13 +202,14 @@ describe(getArchiveAsync, () => {
   });
 
   it('prompts again if all builds have expired', async () => {
-    asMock(getRecentBuildsForSubmissionAsync).mockResolvedValueOnce([
+    jest.mocked(getRecentBuildsForSubmissionAsync).mockResolvedValueOnce([
       {
         ...MOCK_BUILD_FRAGMENT,
         updatedAt: new Date(Date.now() - 31 * 24 * 3600 * 1000),
-      },
+      } as BuildFragment,
     ]);
-    asMock(promptAsync)
+    jest
+      .mocked(promptAsync)
       .mockResolvedValueOnce({ sourceType: ArchiveSourceType.url })
       .mockResolvedValueOnce({ url: ARCHIVE_URL });
 
@@ -214,8 +222,11 @@ describe(getArchiveAsync, () => {
   });
 
   it('falls back to prompt if user selected "None of the above"', async () => {
-    asMock(getRecentBuildsForSubmissionAsync).mockResolvedValueOnce([MOCK_BUILD_FRAGMENT]);
-    asMock(promptAsync)
+    jest
+      .mocked(getRecentBuildsForSubmissionAsync)
+      .mockResolvedValueOnce([MOCK_BUILD_FRAGMENT as BuildFragment]);
+    jest
+      .mocked(promptAsync)
       .mockResolvedValueOnce({ selectedBuild: null })
       .mockResolvedValueOnce({ sourceType: ArchiveSourceType.url })
       .mockResolvedValueOnce({ url: ARCHIVE_URL });
@@ -231,7 +242,10 @@ describe(getArchiveAsync, () => {
   it('handles path source', async () => {
     const path = '/archive.apk';
     await fs.writeFile(path, 'some content');
-    asMock(uploadAsync).mockResolvedValueOnce({ url: ARCHIVE_URL });
+
+    jest
+      .mocked(uploadFileAtPathToS3Async)
+      .mockResolvedValueOnce({ url: ARCHIVE_URL, bucketKey: 'wat' });
 
     const archive = await getArchiveAsync({
       ...SOURCE_STUB_INPUT,
@@ -239,7 +253,7 @@ describe(getArchiveAsync, () => {
       path,
     });
 
-    expect(uploadAsync).toBeCalledWith(
+    expect(uploadFileAtPathToS3Async).toBeCalledWith(
       UploadSessionType.EasSubmitAppArchive,
       path,
       expect.anything()
@@ -248,7 +262,8 @@ describe(getArchiveAsync, () => {
   });
 
   it('prompts again if provided path doesnt exist', async () => {
-    asMock(promptAsync)
+    jest
+      .mocked(promptAsync)
       .mockResolvedValueOnce({ sourceType: ArchiveSourceType.url })
       .mockResolvedValueOnce({ url: ARCHIVE_URL });
 

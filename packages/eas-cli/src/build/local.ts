@@ -1,4 +1,4 @@
-import { Job } from '@expo/eas-build-job';
+import { Job, Metadata } from '@expo/eas-build-job';
 import spawnAsync from '@expo/spawn-async';
 import { ChildProcess } from 'child_process';
 import semver from 'semver';
@@ -6,7 +6,7 @@ import semver from 'semver';
 import { ora } from '../ora';
 
 const PLUGIN_PACKAGE_NAME = 'eas-cli-local-build-plugin';
-const PLUGIN_PACKAGE_VERSION = '0.0.74';
+const PLUGIN_PACKAGE_VERSION = '0.0.99';
 
 export interface LocalBuildOptions {
   enable: boolean;
@@ -18,8 +18,12 @@ export interface LocalBuildOptions {
   verbose?: boolean;
 }
 
-export async function runLocalBuildAsync(job: Job, options: LocalBuildOptions): Promise<void> {
-  const { command, args } = await getCommandAndArgsAsync(job);
+export async function runLocalBuildAsync(
+  job: Job,
+  metadata: Metadata,
+  options: LocalBuildOptions
+): Promise<void> {
+  const { command, args } = await getCommandAndArgsAsync(job, metadata);
   let spinner;
   if (!options.verbose) {
     spinner = ora().start(options.skipNativeBuild ? 'Preparing project' : 'Building project');
@@ -53,15 +57,18 @@ export async function runLocalBuildAsync(job: Job, options: LocalBuildOptions): 
   }
 }
 
-async function getCommandAndArgsAsync(job: Job): Promise<{ command: string; args: string[] }> {
-  const jobBase64 = Buffer.from(JSON.stringify({ job })).toString('base64');
+async function getCommandAndArgsAsync(
+  job: Job,
+  metadata: Metadata
+): Promise<{ command: string; args: string[] }> {
+  const jobAndMetadataBase64 = Buffer.from(JSON.stringify({ job, metadata })).toString('base64');
   if (process.env.EAS_LOCAL_BUILD_PLUGIN_PATH) {
     return {
       command: process.env.EAS_LOCAL_BUILD_PLUGIN_PATH,
-      args: [jobBase64],
+      args: [jobAndMetadataBase64],
     };
   } else {
-    const args = [`${PLUGIN_PACKAGE_NAME}@${PLUGIN_PACKAGE_VERSION}`, jobBase64];
+    const args = [`${PLUGIN_PACKAGE_NAME}@${PLUGIN_PACKAGE_VERSION}`, jobAndMetadataBase64];
     if (await isAtLeastNpm7Async()) {
       // npx shipped with npm >= 7.0.0 requires the "-y" flag to run commands without
       // prompting the user to install a package that is used for the first time

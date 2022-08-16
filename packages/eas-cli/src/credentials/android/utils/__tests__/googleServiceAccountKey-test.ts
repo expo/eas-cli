@@ -1,6 +1,5 @@
 import { vol } from 'memfs';
 
-import { asMock } from '../../../../__tests__/utils';
 import { confirmAsync, promptAsync } from '../../../../prompts';
 import { detectGoogleServiceAccountKeyPathAsync } from '../googleServiceAccountKey';
 
@@ -25,13 +24,13 @@ afterAll(() => {
 });
 
 afterEach(() => {
-  asMock(promptAsync).mockClear();
-  asMock(confirmAsync).mockClear();
+  jest.mocked(promptAsync).mockClear();
+  jest.mocked(confirmAsync).mockClear();
 });
 
 describe('Google Service Account Key path detection', () => {
   it('detects a single google-services file and prompts for confirmation', async () => {
-    asMock(confirmAsync).mockResolvedValueOnce(true);
+    jest.mocked(confirmAsync).mockResolvedValueOnce(true);
     const serviceAccountPath = await detectGoogleServiceAccountKeyPathAsync('/project_dir/subdir');
     expect(confirmAsync).toHaveBeenCalledWith(
       expect.objectContaining({ message: 'Would you like to use this file?' })
@@ -46,7 +45,7 @@ describe('Google Service Account Key path detection', () => {
   });
 
   it('returns null, when user rejects to use detected file', async () => {
-    asMock(confirmAsync).mockResolvedValueOnce(false);
+    jest.mocked(confirmAsync).mockResolvedValueOnce(false);
     const serviceAccountPath = await detectGoogleServiceAccountKeyPathAsync('/project_dir/subdir');
     expect(confirmAsync).toHaveBeenCalledTimes(1);
     expect(confirmAsync).toHaveBeenCalledWith(
@@ -56,7 +55,7 @@ describe('Google Service Account Key path detection', () => {
   });
 
   it('displays a chooser, when multiple files are found', async () => {
-    asMock(promptAsync).mockResolvedValueOnce({
+    jest.mocked(promptAsync).mockResolvedValueOnce({
       selectedPath: '/project_dir/another-service-account.json',
     });
     const serviceAccountPath = await detectGoogleServiceAccountKeyPathAsync('/project_dir'); // should find 2 files here
@@ -76,7 +75,7 @@ describe('Google Service Account Key path detection', () => {
   });
 
   it('returns null, when user selects the "None of above"', async () => {
-    asMock(promptAsync).mockResolvedValueOnce({
+    jest.mocked(promptAsync).mockResolvedValueOnce({
       selectedPath: false,
     });
 

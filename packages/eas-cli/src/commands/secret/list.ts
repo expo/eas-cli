@@ -1,4 +1,3 @@
-import { getConfig } from '@expo/config';
 import chalk from 'chalk';
 import Table from 'cli-table3';
 import dateFormat from 'dateformat';
@@ -6,6 +5,7 @@ import dateFormat from 'dateformat';
 import EasCommand from '../../commandUtils/EasCommand';
 import { EnvironmentSecretsQuery } from '../../graphql/queries/EnvironmentSecretsQuery';
 import Log from '../../log';
+import { getExpoConfig } from '../../project/expoConfig';
 import {
   findProjectRootAsync,
   getProjectAccountNameAsync,
@@ -17,7 +17,7 @@ export default class EnvironmentSecretList extends EasCommand {
 
   async runAsync(): Promise<void> {
     const projectDir = await findProjectRootAsync();
-    const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
+    const exp = getExpoConfig(projectDir);
     const projectId = await getProjectIdAsync(exp);
     const projectAccountName = await getProjectAccountNameAsync(exp);
 

@@ -1,11 +1,14 @@
 import { IOSConfig, compileModsAsync } from '@expo/config-plugins';
-import { Workflow } from '@expo/eas-build-job';
 import { JSONObject } from '@expo/json-file';
 import { getPrebuildConfigAsync } from '@expo/prebuild-config';
 
-import { readPlistAsync } from '../../../utils/plist';
+import { readPlistAsync } from '../../utils/plist';
 
-export async function getManagedEntitlementsJsonAsync(
+interface Target {
+  buildConfiguration?: string;
+  targetName: string;
+}
+export async function getManagedApplicationTargetEntitlementsAsync(
   projectDir: string,
   env: Record<string, string>
 ): Promise<JSONObject> {
@@ -28,22 +31,11 @@ export async function getManagedEntitlementsJsonAsync(
   }
 }
 
-export async function resolveEntitlementsJsonAsync(
+export async function getNativeTargetEntitlementsAsync(
   projectDir: string,
-  workflow: Workflow,
-  env: Record<string, string>
-): Promise<JSONObject> {
-  if (workflow === Workflow.GENERIC) {
-    return (await getEntitlementsJsonAsync(projectDir)) || {};
-  } else if (workflow === Workflow.MANAGED) {
-    return await getManagedEntitlementsJsonAsync(projectDir, env);
-  } else {
-    throw new Error(`Unknown workflow: ${workflow}`);
-  }
-}
-
-async function getEntitlementsJsonAsync(projectDir: string): Promise<JSONObject | null> {
-  const entitlementsPath = IOSConfig.Paths.getEntitlementsPath(projectDir);
+  target: Target
+): Promise<JSONObject | null> {
+  const entitlementsPath = IOSConfig.Entitlements.getEntitlementsPath(projectDir, target);
   if (entitlementsPath) {
     const plist = await readPlistAsync(entitlementsPath);
     return plist ? (plist as unknown as JSONObject) : null;

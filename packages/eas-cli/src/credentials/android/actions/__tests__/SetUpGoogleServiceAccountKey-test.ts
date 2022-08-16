@@ -1,6 +1,5 @@
 import { vol } from 'memfs';
 
-import { asMock } from '../../../../__tests__/utils';
 import { promptAsync } from '../../../../prompts';
 import {
   getNewAndroidApiMock,
@@ -14,7 +13,7 @@ import { SetUpGoogleServiceAccountKey } from '../SetUpGoogleServiceAccountKey';
 
 jest.mock('../../../../prompts');
 jest.mock('fs');
-asMock(promptAsync).mockImplementation(() => ({
+jest.mocked(promptAsync).mockImplementation(async () => ({
   filePath: '/google-service-account-key.json',
 }));
 

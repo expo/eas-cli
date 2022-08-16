@@ -1,4 +1,4 @@
-import { ExpoConfig, getConfig, modifyConfigAsync } from '@expo/config';
+import { ExpoConfig, modifyConfigAsync } from '@expo/config';
 import { Platform, Workflow } from '@expo/eas-build-job';
 import { EasJsonReader } from '@expo/eas-json';
 import { Flags } from '@oclif/core';
@@ -11,6 +11,7 @@ import EasCommand from '../../commandUtils/EasCommand';
 import { AppPlatform } from '../../graphql/generated';
 import Log, { learnMore } from '../../log';
 import { RequestedPlatform, appPlatformDisplayNames } from '../../platform';
+import { getExpoConfig } from '../../project/expoConfig';
 import {
   findProjectRootAsync,
   getProjectIdAsync,
@@ -43,9 +44,7 @@ export default class UpdateConfigure extends EasCommand {
     const { flags } = await this.parse(UpdateConfigure);
     const platform = flags.platform as RequestedPlatform;
     const projectDir = await findProjectRootAsync();
-    const { exp } = getConfig(projectDir, {
-      skipSDKVersionRequirement: true,
-    });
+    const exp = getExpoConfig(projectDir);
 
     if (!isExpoUpdatesInstalledOrAvailable(projectDir, exp.sdkVersion)) {
       await installExpoUpdatesAsync(projectDir);
@@ -280,8 +279,8 @@ async function checkAndConfigureEasJsonReleaseChannelsAsync(projectDir: string):
 }
 
 function isRuntimeEqual(
-  runtimeVersionA: string | { policy: 'sdkVersion' | 'nativeVersion' },
-  runtimeVersionB: string | { policy: 'sdkVersion' | 'nativeVersion' }
+  runtimeVersionA: string | { policy: 'sdkVersion' | 'nativeVersion' | 'appVersion' },
+  runtimeVersionB: string | { policy: 'sdkVersion' | 'nativeVersion' | 'appVersion' }
 ): boolean {
   if (typeof runtimeVersionA === 'string' && typeof runtimeVersionB === 'string') {
     return runtimeVersionA === runtimeVersionB;

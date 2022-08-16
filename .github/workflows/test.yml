@@ -10,9 +10,9 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node: ['12', '14', '16']
+        node: ['14', '16', '18']
         include:
-          - node: '16'
+          - node: '18'
             coverage: true
     name: Test with Node ${{ matrix.node }}
     steps:
@@ -27,8 +27,11 @@ jobs:
         if: ${{ !matrix.coverage }}
       - run: yarn test --coverage
         if: ${{ matrix.coverage }}
+        env:
+          # Oclif seems to cause OOM errors when testing with coverage enabled.
+          # Remove this whenever we solved those OOM errors.
+          NODE_OPTIONS: --max-old-space-size=4096
       - run: yarn lint --max-warnings=0
-      - run: shellcheck bin/*.sh
       - uses: codecov/codecov-action@v1
         if: ${{ matrix.coverage }}
         with:

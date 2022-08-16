@@ -1,8 +1,7 @@
-import nullthrows from 'nullthrows';
-
-import { CATEGORY_HEADERS, EntryCategory } from './changelog/consts';
-import { readAndParseChangelogAsync, writeChangelogAsync } from './changelog/file';
-import * as markdown from './markdown';
+import { CATEGORY_HEADERS, EntryCategory } from './changelog/consts.js';
+import { readAndParseChangelogAsync, writeChangelogAsync } from './changelog/file.js';
+import * as markdown from './markdown.js';
+import { nullthrows } from './nullthrows.js';
 
 const [rawCategory, ...rest] = process.argv.slice(2);
 const message = rest.join(' ');

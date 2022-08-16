@@ -16,12 +16,28 @@ export type FormatUpdateParameter = Pick<Update, 'id' | 'createdAt' | 'message'>
   actor?: Maybe<Pick<User, 'username' | 'id'> | Pick<Robot, 'firstName' | 'id'>>;
 };
 
+export type UpdateGroupDescription = FormatUpdateParameter & {
+  branch: string;
+  group: string;
+  platforms: string;
+  runtimeVersion: string;
+};
+
 export const UPDATE_COLUMNS = [
   'Update message',
   'Update runtime version',
   'Update group ID',
   'Update platforms',
 ];
+
+export function getUpdateGroupsWithPlatforms<
+  UpdateFragment extends Pick<Update, 'platform' | 'group'>
+>(updates: UpdateFragment[]): (UpdateFragment & { platforms: string })[] {
+  return Object.values(groupBy(updates, updates => updates.group)).map(updateGroup => ({
+    ...updateGroup[0],
+    platforms: formatPlatformForUpdateGroup(updateGroup),
+  }));
+}
 
 export function getPlatformsForGroup({
   group,
@@ -31,20 +47,35 @@ export function getPlatformsForGroup({
   updates: { group: string; platform: string }[];
 }): string {
   const groupedUpdates = groupBy(updates, update => update.group);
-  if (Object.keys(groupedUpdates).length === 0) {
-    return 'N/A';
+  return formatPlatformForUpdateGroup(groupedUpdates[group]);
+}
+
+export function formatPlatformForUpdateGroup(
+  updateGroup: {
+    group: string;
+    platform: string;
+  }[]
+): string {
+  return updateGroup.length === 0
+    ? 'N/A'
+    : updateGroup
+        .map(update => update.platform)
+        .sort()
+        .join(', ');
+}
+
+export function truncateString(originalMessage: string, length: number = 512): string {
+  if (originalMessage.length > length) {
+    return originalMessage.substring(0, length - 3) + '...';
   }
-  return groupedUpdates[group]
-    .map(update => update.platform)
-    .sort()
-    .join(', ');
+  return originalMessage;
 }
 
 export function formatUpdate(update: FormatUpdateParameter): string {
   if (!update) {
     return 'N/A';
   }
-  const message = update.message ? `"${update.message}" ` : '';
+  const message = update.message ? `"${truncateString(update.message)}" ` : '';
   return `${message}(${format(update.createdAt, 'en_US')} by ${getActorDisplayName(
     update.actor as any
   )})`;

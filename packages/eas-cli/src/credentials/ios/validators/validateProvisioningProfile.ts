@@ -75,7 +75,7 @@ function validateProvisioningProfileWithoutApple(
       Log.warn('Provisioning Profile has expired.');
       return false;
     }
-  } catch (error) {
+  } catch {
     Log.warn('Provisioning Profile is malformed.');
     return false;
   }
