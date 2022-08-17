@@ -6,7 +6,7 @@ import Log from '../log';
 import { confirmAsync } from '../prompts';
 import { AppleData } from './apple/data';
 import { createAppleTasks } from './apple/tasks';
-import { createAppleWriter, getStaticConfigFile } from './config';
+import { createAppleWriter, getStaticConfigFilePath } from './config';
 import { MetadataContext, ensureMetadataAppStoreAuthenticatedAsync } from './context';
 import { MetadataDownloadError, MetadataValidationError } from './errors';
 import { subscribeTelemetry } from './utils/telemetry';
@@ -16,7 +16,7 @@ import { subscribeTelemetry } from './utils/telemetry';
  * Note, only App Store is supported at this time.
  */
 export async function downloadMetadataAsync(metadataCtx: MetadataContext): Promise<string> {
-  const filePath = getStaticConfigFile(metadataCtx);
+  const filePath = getStaticConfigFilePath(metadataCtx);
   const fileExists = await fs.pathExists(filePath);
 
   if (fileExists) {
