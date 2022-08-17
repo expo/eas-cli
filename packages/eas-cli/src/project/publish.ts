@@ -11,7 +11,7 @@ import { AssetMetadataStatus, PartialManifestAsset } from '../graphql/generated'
 import { PublishMutation } from '../graphql/mutations/PublishMutation';
 import { PresignedPost } from '../graphql/mutations/UploadSessionMutation';
 import { PublishQuery } from '../graphql/queries/PublishQuery';
-import { uploadWithPresignedPostAsync } from '../uploads';
+import { uploadWithPresignedPostWithRetryAsync } from '../uploads';
 import { expoCommandAsync } from '../utils/expoCli';
 import uniqBy from '../utils/expodash/uniqBy';
 
@@ -300,7 +300,7 @@ export async function uploadAssetsAsync(
     missingAssets.map((missingAsset, i) => {
       assetUploadPromiseLimit(async () => {
         const presignedPost: PresignedPost = JSON.parse(specifications[i]);
-        await uploadWithPresignedPostAsync(missingAsset.path, presignedPost);
+        await uploadWithPresignedPostWithRetryAsync(missingAsset.path, presignedPost);
       });
     }),
   ]);
