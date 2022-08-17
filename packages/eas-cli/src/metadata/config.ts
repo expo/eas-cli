@@ -35,7 +35,7 @@ async function resolveDynamicConfigAsync(configFile: string): Promise<unknown> {
   }
 
   throw new MetadataValidationError(
-    `Metadata store config returned an unkown value, should be an object: "${userConfig}"`
+    `Metadata store config returned an unknown value, should be an object: "${userConfig}"`
   );
 }
 
@@ -80,7 +80,7 @@ export async function loadConfigAsync({
     logMetadataValidationError(error);
     Log.newLine();
     Log.warn(
-      'Without further updates, the current store configuration may fail to be synchronized with the App Store or pass App Store review.'
+      'Without further updates, the current store configuration can fail to be synchronized with the App Store or pass App Store review.'
     );
 
     if (await confirmAsync({ message: 'Do you still want to push the store configuration?' })) {

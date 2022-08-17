@@ -41,9 +41,9 @@ describe(getStaticConfigFile, () => {
 describe(loadConfigAsync, () => {
   const projectDir = path.resolve(__dirname, 'fixtures');
 
-  it(`throws when file doesn't exists`, async () => {
+  it(`throws when file doesn't exist`, async () => {
     await expect(
-      loadConfigAsync({ projectDir, metadataPath: 'doesnt-exists.json' })
+      loadConfigAsync({ projectDir, metadataPath: 'doesnt-exist.json' })
     ).rejects.toThrow('file not found');
   });
 
