@@ -50,7 +50,7 @@ export async function uploadWithPresignedPostWithRetryAsync(
       if (
         response.status === 408 ||
         response.status === 429 ||
-        Math.floor(response.status / 100) === 5 // 5xx errors
+        (response.status >= 500 && response.status <= 599)
       ) {
         return retry(new Error(`Presigned upload responded with a ${response.status} status`));
       }
@@ -70,10 +70,10 @@ export async function uploadWithPresignedPostWithRetryAsync(
   );
 }
 
-async function uploadWithPresignedPostAsync(
+async function createPresignedPostFormDataAsync(
   file: string,
   presignedPost: PresignedPost
-): Promise<Response> {
+): Promise<{ form: FormData; fileSize: number }> {
   const fileStat = await fs.stat(file);
   const fileSize = fileStat.size;
   const form = new FormData();
@@ -81,8 +81,15 @@ async function uploadWithPresignedPostAsync(
     form.append(fieldKey, fieldValue);
   }
   form.append('file', fs.createReadStream(file), { knownLength: fileSize });
-  const formHeaders = form.getHeaders();
+  return { form, fileSize };
+}
 
+async function uploadWithPresignedPostAsync(
+  file: string,
+  presignedPost: PresignedPost
+): Promise<Response> {
+  const { form } = await createPresignedPostFormDataAsync(file, presignedPost);
+  const formHeaders = form.getHeaders();
   return await fetch(presignedPost.url, {
     method: 'POST',
     body: form,
@@ -97,13 +104,7 @@ async function uploadWithPresignedPostWithProgressAsync(
   presignedPost: PresignedPost,
   handleProgressEvent: ProgressHandler
 ): Promise<Response> {
-  const fileStat = await fs.stat(file);
-  const fileSize = fileStat.size;
-  const form = new FormData();
-  for (const [fieldKey, fieldValue] of Object.entries(presignedPost.fields)) {
-    form.append(fieldKey, fieldValue);
-  }
-  form.append('file', fs.createReadStream(file), { knownLength: fileSize });
+  const { form, fileSize } = await createPresignedPostFormDataAsync(file, presignedPost);
   const formHeaders = form.getHeaders();
   const uploadPromise = fetch(presignedPost.url, {
     method: 'POST',
