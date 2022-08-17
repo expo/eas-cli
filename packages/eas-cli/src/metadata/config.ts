@@ -24,7 +24,7 @@ export interface MetadataConfig {
  */
 async function resolveDynamicConfigAsync(configFile: string): Promise<unknown> {
   const userConfigContent = await import(configFile);
-  let userConfig = userConfigContent.default || userConfigContent;
+  let userConfig = userConfigContent.default ?? userConfigContent;
 
   if (typeof userConfig === 'function') {
     userConfig = await userConfig();
@@ -43,10 +43,10 @@ async function resolveDynamicConfigAsync(configFile: string): Promise<unknown> {
  * Get the static configuration file path, based on the metadata context.
  * This uses any custom name provided, but swaps out the extension for `.json`.
  */
-export function getStaticConfigFile({
+export function getStaticConfigFilePath({
   projectDir,
   metadataPath,
-}: Pick<MetadataContext, 'projectDir' | 'metadataPath'>): string {
+}: { projectDir: string, metadataPath: string }): string {
   const configFile = path.join(projectDir, metadataPath);
   const configExtension = path.extname(configFile);
 
