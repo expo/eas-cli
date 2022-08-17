@@ -3,13 +3,10 @@ import assert from 'assert';
 import fs from 'fs-extra';
 import path from 'path';
 
-import Log from '../log';
-import { confirmAsync } from '../prompts';
 import { AppleConfigReader } from './apple/config/reader';
 import { AppleConfigWriter } from './apple/config/writer';
 import { AppleMetadata } from './apple/types';
-import { MetadataContext } from './context';
-import { MetadataValidationError, logMetadataValidationError } from './errors';
+import { MetadataValidationError } from './errors';
 
 export interface MetadataConfig {
   /** The store configuration version */
@@ -23,20 +20,11 @@ export interface MetadataConfig {
  * It supports methods, async methods, or objects (json).
  */
 async function resolveDynamicConfigAsync(configFile: string): Promise<unknown> {
-  const userConfigContent = await import(configFile);
-  let userConfig = userConfigContent.default ?? userConfigContent;
+  const userConfigOrFunction = await import(configFile).then(file => file.default ?? file);
 
-  if (typeof userConfig === 'function') {
-    userConfig = await userConfig();
-  }
-
-  if (typeof userConfig === 'object' && userConfig !== null && !Array.isArray(userConfig)) {
-    return userConfig;
-  }
-
-  throw new MetadataValidationError(
-    `Metadata store config returned an unknown value, should be an object: "${userConfig}"`
-  );
+  return typeof userConfigOrFunction === 'function'
+    ? await userConfigOrFunction()
+    : userConfigOrFunction;
 }
 
 /**
@@ -46,7 +34,10 @@ async function resolveDynamicConfigAsync(configFile: string): Promise<unknown> {
 export function getStaticConfigFilePath({
   projectDir,
   metadataPath,
-}: { projectDir: string, metadataPath: string }): string {
+}: {
+  projectDir: string;
+  metadataPath: string;
+}): string {
   const configFile = path.join(projectDir, metadataPath);
   const configExtension = path.extname(configFile);
 
@@ -62,37 +53,28 @@ export function getStaticConfigFilePath({
 export async function loadConfigAsync({
   projectDir,
   metadataPath,
-}: Pick<MetadataContext, 'projectDir' | 'metadataPath'>): Promise<MetadataConfig> {
+  skipValidation = false,
+}: {
+  projectDir: string;
+  metadataPath: string;
+  skipValidation?: boolean;
+}): Promise<MetadataConfig> {
   const configFile = path.join(projectDir, metadataPath);
   if (!(await fs.pathExists(configFile))) {
     throw new MetadataValidationError(`Metadata store config file not found: "${configFile}"`);
   }
 
   const configData = await resolveDynamicConfigAsync(configFile);
-  const { valid, errors: validationErrors } = validateConfig(configData);
 
-  if (!valid) {
-    const error = new MetadataValidationError(
-      `Metadata store config errors found`,
-      validationErrors
-    );
+  if (!skipValidation) {
+    const { valid, errors: validationErrors } = validateConfig(configData);
 
-    logMetadataValidationError(error);
-    Log.newLine();
-    Log.warn(
-      'Without further updates, the current store configuration can fail to be synchronized with the App Store or pass App Store review.'
-    );
-
-    if (await confirmAsync({ message: 'Do you still want to push the store configuration?' })) {
-      // Risky, types don't match but user is warned
-      return configData as any;
-    } else {
-      throw error;
+    if (!valid) {
+      throw new MetadataValidationError(`Metadata store config errors found`, validationErrors);
     }
   }
 
-  // Normal, types match validation
-  return configData as any;
+  return configData as MetadataConfig;
 }
 
 /**

@@ -1,10 +1,11 @@
 import { MetadataEvent } from '../analytics/events';
 import Log from '../log';
+import { confirmAsync } from '../prompts';
 import { AppleData } from './apple/data';
 import { createAppleTasks } from './apple/tasks';
-import { createAppleReader, loadConfigAsync } from './config';
+import { MetadataConfig, createAppleReader, loadConfigAsync } from './config';
 import { MetadataContext, ensureMetadataAppStoreAuthenticatedAsync } from './context';
-import { MetadataUploadError } from './errors';
+import { MetadataUploadError, MetadataValidationError, logMetadataValidationError } from './errors';
 import { subscribeTelemetry } from './utils/telemetry';
 
 /**
@@ -14,7 +15,7 @@ import { subscribeTelemetry } from './utils/telemetry';
 export async function uploadMetadataAsync(
   metadataCtx: MetadataContext
 ): Promise<{ appleLink: string }> {
-  const storeConfig = await loadConfigAsync(metadataCtx);
+  const storeConfig = await loadConfigWithValidationPromptAsync(metadataCtx);
   const { app, auth } = await ensureMetadataAppStoreAuthenticatedAsync(metadataCtx);
   const { unsubscribeTelemetry, executionId } = subscribeTelemetry(
     MetadataEvent.APPLE_METADATA_UPLOAD,
@@ -57,4 +58,26 @@ export async function uploadMetadataAsync(
   }
 
   return { appleLink: `https://appstoreconnect.apple.com/apps/${app.id}/appstore` };
+}
+
+async function loadConfigWithValidationPromptAsync(
+  metadataCtx: MetadataContext
+): Promise<MetadataConfig> {
+  try {
+    return await loadConfigAsync(metadataCtx);
+  } catch (error) {
+    if (error instanceof MetadataValidationError) {
+      logMetadataValidationError(error);
+      Log.newLine();
+      Log.warn(
+        'Without further updates, the current store configuration can fail to be synchronized with the App Store or pass App Store review.'
+      );
+
+      if (await confirmAsync({ message: 'Do you still want to push the store configuration?' })) {
+        return await loadConfigAsync({ ...metadataCtx, skipValidation: true });
+      }
+    }
+
+    throw error;
+  }
 }
