@@ -10,7 +10,7 @@ import { findAccountByName } from '../../../../user/Account';
 import { ensureActorHasUsername, ensureLoggedInAsync } from '../../../../user/actions';
 
 export default class CredentialsAndroidPushUpload extends EasCommand {
-  static description = 'upload ios push notification credentials';
+  static description = 'upload android push notification credentials';
 
   static flags = {
     'api-key': Flags.string({
