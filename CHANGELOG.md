@@ -6,6 +6,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🛠 Breaking changes
 
+- Remove timeout when waiting for build / submission. ([#1289](https://github.com/expo/eas-cli/pull/1289) by [@dsokal](https://github.com/dsokal))
+
 ### 🎉 New features
 
 - Add metadata support for dynamic store.config.js files. ([#1270](https://github.com/expo/eas-cli/pull/1270) by [@byCedric](https://github.com/byCedric))
