@@ -243,11 +243,7 @@ type MaybeBuildFragment = BuildFragment | null;
 
 export async function waitForBuildEndAsync(
   { buildIds, accountName }: { buildIds: string[]; accountName: string },
-  {
-    // 2 hours (max build time limit) + 10 minutes (possible queue time)
-    timeoutSec = 2 * 60 * 60 + 10 * 60,
-    intervalSec = 10,
-  } = {}
+  { intervalSec = 10 } = {}
 ): Promise<MaybeBuildFragment[]> {
   let spinner;
   let originalSpinnerText;
@@ -259,8 +255,7 @@ export async function waitForBuildEndAsync(
     originalSpinnerText = 'Waiting for builds to complete. You can press Ctrl+C to exit.';
     spinner = ora('Waiting for builds to complete. You can press Ctrl+C to exit.').start();
   }
-  const endTime = new Date().getTime() + timeoutSec * 1000;
-  while (new Date().getTime() <= endTime) {
+  while (true) {
     const builds = await getBuildsSafelyAsync(buildIds);
     const { refetch } =
       builds.length === 1
@@ -271,10 +266,6 @@ export async function waitForBuildEndAsync(
     }
     await sleepAsync(intervalSec * 1000);
   }
-  spinner.fail('Timed out');
-  throw new Error(
-    'Timeout reached! It is taking longer than expected to finish the build, aborting...'
-  );
 }
 
 async function getBuildsSafelyAsync(buildIds: string[]): Promise<MaybeBuildFragment[]> {
