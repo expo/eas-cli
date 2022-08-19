@@ -7,12 +7,12 @@ import { promptAsync } from '../../prompts';
 export class SelectBuildProfileFromEasJson<T extends Platform> {
   private easJsonReader: EasJsonReader;
 
-  constructor(projectDir: string, private platform: T) {
+  constructor(projectDir: string, private platform: T, private nonInteractive?: boolean) {
     this.easJsonReader = new EasJsonReader(projectDir);
   }
 
-  async runAsync(): Promise<BuildProfile<T>> {
-    const profileName = await this.getProfileNameFromEasConfigAsync();
+  async runAsync(maybeProfileName?: string): Promise<BuildProfile<T>> {
+    const profileName = maybeProfileName || (await this.getProfileNameFromEasConfigAsync());
     const easConfig = await this.easJsonReader.getBuildProfileAsync<T>(this.platform, profileName);
     Log.succeed(`Using build profile: ${profileName}`);
     return easConfig;
@@ -26,6 +26,8 @@ export class SelectBuildProfileFromEasJson<T extends Platform> {
       );
     } else if (buildProfileNames.length === 1) {
       return buildProfileNames[0];
+    } else if (this.nonInteractive) {
+      throw new Error('Must supply --profile when in non-interactive mode');
     }
     const { profileName } = await promptAsync({
       type: 'select',

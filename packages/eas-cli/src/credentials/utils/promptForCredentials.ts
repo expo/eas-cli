@@ -110,7 +110,7 @@ function buildQuestionObject({ type, question }: Question, initialValue?: string
   }
 }
 
-async function processAnswerAsync(
+export async function processAnswerAsync(
   { type, base64Encode }: Question,
   input: string
 ): Promise<string> {
@@ -121,7 +121,7 @@ async function processAnswerAsync(
   }
 }
 
-function produceAbsolutePath(filePath: string): string {
+export function produceAbsolutePath(filePath: string): string {
   const untildified = untildify(filePath.trim());
   return !path.isAbsolute(untildified) ? path.resolve(untildified) : untildified;
 }
