@@ -1,12 +1,9 @@
-import fs from 'fs-extra';
-import path from 'path';
-
 import { MetadataEvent } from '../analytics/events';
 import Log from '../log';
 import { confirmAsync } from '../prompts';
 import { AppleData } from './apple/data';
 import { createAppleTasks } from './apple/tasks';
-import { createAppleReader, validateConfig } from './config';
+import { MetadataConfig, createAppleReader, loadConfigAsync } from './config';
 import { MetadataContext, ensureMetadataAppStoreAuthenticatedAsync } from './context';
 import { MetadataUploadError, MetadataValidationError, logMetadataValidationError } from './errors';
 import { subscribeTelemetry } from './utils/telemetry';
@@ -18,28 +15,7 @@ import { subscribeTelemetry } from './utils/telemetry';
 export async function uploadMetadataAsync(
   metadataCtx: MetadataContext
 ): Promise<{ appleLink: string }> {
-  const filePath = path.resolve(metadataCtx.projectDir, metadataCtx.metadataPath);
-  if (!(await fs.pathExists(filePath))) {
-    throw new MetadataValidationError(`Store configuration file not found "${filePath}"`);
-  }
-
-  const fileData = await fs.readJson(filePath);
-  const { valid, errors: validationErrors } = validateConfig(fileData);
-  if (!valid) {
-    const error = new MetadataValidationError(`Store configuration errors found`, validationErrors);
-    logMetadataValidationError(error);
-    Log.newLine();
-    Log.warn(
-      'Without further updates, the current store configuration may fail to be synchronized with the App Store or pass App Store review.'
-    );
-    const attempt = await confirmAsync({
-      message: 'Do you still want to push the store configuration?',
-    });
-    if (!attempt) {
-      throw error;
-    }
-  }
-
+  const storeConfig = await loadConfigWithValidationPromptAsync(metadataCtx);
   const { app, auth } = await ensureMetadataAppStoreAuthenticatedAsync(metadataCtx);
   const { unsubscribeTelemetry, executionId } = subscribeTelemetry(
     MetadataEvent.APPLE_METADATA_UPLOAD,
@@ -50,7 +26,7 @@ export async function uploadMetadataAsync(
   Log.log('Uploading App Store configuration...');
 
   const errors: Error[] = [];
-  const config = createAppleReader(fileData);
+  const config = createAppleReader(storeConfig);
   const tasks = createAppleTasks(metadataCtx, {
     // We need to resolve a different version as soon as possible.
     // This version is the parent model of all changes we are going to push.
@@ -82,4 +58,26 @@ export async function uploadMetadataAsync(
   }
 
   return { appleLink: `https://appstoreconnect.apple.com/apps/${app.id}/appstore` };
+}
+
+async function loadConfigWithValidationPromptAsync(
+  metadataCtx: MetadataContext
+): Promise<MetadataConfig> {
+  try {
+    return await loadConfigAsync(metadataCtx);
+  } catch (error) {
+    if (error instanceof MetadataValidationError) {
+      logMetadataValidationError(error);
+      Log.newLine();
+      Log.warn(
+        'Without further updates, the current store configuration can fail to be synchronized with the App Store or pass App Store review.'
+      );
+
+      if (await confirmAsync({ message: 'Do you still want to push the store configuration?' })) {
+        return await loadConfigAsync({ ...metadataCtx, skipValidation: true });
+      }
+    }
+
+    throw error;
+  }
 }

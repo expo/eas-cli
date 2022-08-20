@@ -8,15 +8,56 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
-- Managed app versions support. ([#1209](https://github.com/expo/eas-cli/pull/1209), [#1219](https://github.com/expo/eas-cli/pull/1219), [#1232](https://github.com/expo/eas-cli/pull/1232) by [@wkozyra95](https://github.com/wkozyra95))
-- Add a warning when publishing an update with too many assets. ([#1243](https://github.com/expo/eas-cli/pull/1243) by [@kgc00](https://github.com/kgc00))
+- Add metadata support for dynamic store.config.js files. ([#1270](https://github.com/expo/eas-cli/pull/1270) by [@byCedric](https://github.com/byCedric))
+- Improve reliability of update asset presigned upload requests. ([#1278](https://github.com/expo/eas-cli/pull/1278) by [@wschurman](https://github.com/wschurman))
 
 ### 🐛 Bug fixes
+
+- Rebind `console.info` correctly after `ora` instance stops. ([#1113](https://github.com/expo/eas-cli/pull/1113) by [@EvanBacon](https://github.com/EvanBacon))
+- Fix initializing git repository in monorepo. ([#1279](https://github.com/expo/eas-cli/pull/1279) by [@dsokal](https://github.com/dsokal))
+- Limit the number of SignedAssetUploadSpecifications fetched at a time. ([#1287](https://github.com/expo/eas-cli/pull/1287) by [@wschurman](https://github.com/wschurman))
+
+### 🧹 Chores
+
+- Remove unused install script. ([#1280](https://github.com/expo/eas-cli/pull/1280), [#1281](https://github.com/expo/eas-cli/pull/1281) by [@wkozyra95](https://github.com/wkozyra95))
+- Remove "please" from output ([#1250](https://github.com/expo/eas-cli/pull/1250) by [@jonsamp](https://github.com/jonsamp))
+
+## [0.60.0](https://github.com/expo/eas-cli/releases/tag/v0.60.0) - 2022-08-12
+
+### 🎉 New features
+
+- Add `appVersion` runtime policy. ([#1267](https://github.com/expo/eas-cli/pull/1267) by [@wkozyra95](https://github.com/wkozyra95))
+
+### 🧹 Chores
+
+- Add JSON Schema `metadataPath` to iOS submission profile. ([#1269](https://github.com/expo/eas-cli/pull/1269) by [@byCedric](https://github.com/byCedric))
+- Add warning when `appVersion` runtime policy is not supported. ([#1271](https://github.com/expo/eas-cli/pull/1271) by [@wkozyra95](https://github.com/wkozyra95))
+
+## [0.59.0](https://github.com/expo/eas-cli/releases/tag/v0.59.0) - 2022-08-10
+
+### 🐛 Bug fixes
+
+- Fix building Android projects locally that don't have execute permissions set for `gradlew`. ([82231](https://github.com/expo/eas-cli/commit/822313e90e94bd6ddd3872061a0c25a8aa4db7cd) by [@dsokal](https://github.com/dsokal))
+- Disable `nativeVersion` policy only for remote version source. ([#1261](https://github.com/expo/eas-cli/pull/1261) by [@wkozyra95](https://github.com/wkozyra95))
+
+### 🧹 Chores
+
+- Improve wording on version auto-increment. ([#1260](https://github.com/expo/eas-cli/pull/1260) by [@wkozyra95](https://github.com/wkozyra95))
+- Upgrade dependencies. ([#1262](https://github.com/expo/eas-cli/pull/1262) by [@dsokal](https://github.com/dsokal))
+
+## [0.58.0](https://github.com/expo/eas-cli/releases/tag/v0.58.0) - 2022-08-09
+
+### 🎉 New features
+
+- Managed app versions support. ([#1209](https://github.com/expo/eas-cli/pull/1209), [#1219](https://github.com/expo/eas-cli/pull/1219), [#1232](https://github.com/expo/eas-cli/pull/1232) by [@wkozyra95](https://github.com/wkozyra95))
+- Add a warning when publishing an update with too many assets. ([#1243](https://github.com/expo/eas-cli/pull/1243) by [@kgc00](https://github.com/kgc00))
+- Add submission info when building with `--json` option. ([#1246](https://github.com/expo/eas-cli/pull/1246) by [@wkozyra95](https://github.com/wkozyra95))
+- Set all environment variables (documented in https://docs.expo.dev/build-reference/variables/) when running local build. ([#1256](https://github.com/expo/eas-cli/pull/1256) by [@dsokal](https://github.com/dsokal))
 
 ### 🧹 Chores
 
 - Do not include sources in `eas-json` npm package. ([#1248](https://github.com/expo/eas-cli/pull/1248) by [@wkozyra95](https://github.com/wkozyra95))
-- Remove "please" from output ([#1250](https://github.com/expo/eas-cli/pull/1250) by [@jonsamp](https://github.com/jonsamp))
+- Swallow error when unable to track file in no commit workflow. ([#1109](https://github.com/expo/eas-cli/pull/1109) by [@brentvatne](https://github.com/brentvatne))
 
 ## [0.57.0](https://github.com/expo/eas-cli/releases/tag/v0.57.0) - 2022-08-03
 

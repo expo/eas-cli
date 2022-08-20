@@ -1,3 +1,4 @@
+import { getConfig, modifyConfigAsync } from '@expo/config';
 import { vol } from 'memfs';
 
 import { confirmAsync } from '../../prompts';
@@ -10,6 +11,7 @@ import {
   findProjectRootAsync,
   getProjectAccountName,
   getProjectAccountNameAsync,
+  getProjectIdAsync,
   promptToCreateProjectIfNotExistsAsync,
 } from '../projectUtils';
 
@@ -246,5 +248,30 @@ describe(promptToCreateProjectIfNotExistsAsync, () => {
     const exp: any = {};
     const projectId = await promptToCreateProjectIfNotExistsAsync(exp);
     expect(projectId).toBe(null);
+  });
+});
+
+describe(getProjectIdAsync, () => {
+  it('gets the project ID from app config if exists', async () => {
+    await expect(
+      getProjectIdAsync({ name: 'test', slug: 'test', extra: { eas: { projectId: '1234' } } })
+    ).resolves.toEqual('1234');
+  });
+
+  it('fetches the project ID when not in app config, and sets it in the config', async () => {
+    jest.mocked(getConfig).mockReturnValue({ exp: { name: 'test', slug: 'test' } } as any);
+    jest.mocked(modifyConfigAsync).mockResolvedValue({
+      type: 'success',
+      config: { expo: { name: 'test', slug: 'test', extra: { eas: { projectId: '2345' } } } },
+    });
+    jest.mocked(ensureProjectExistsAsync).mockImplementation(async () => '2345');
+
+    const projectId = await getProjectIdAsync({ name: 'test', slug: 'test' }, {}, { cwd: '/app' });
+    expect(projectId).toBe('2345');
+
+    expect(modifyConfigAsync).toHaveBeenCalledTimes(1);
+    expect(modifyConfigAsync).toHaveBeenCalledWith('/app', {
+      extra: { eas: { projectId: '2345' } },
+    });
   });
 });

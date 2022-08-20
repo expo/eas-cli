@@ -1,8 +1,10 @@
 import { ExpoConfig, getConfigFilePaths, getPackageJson, modifyConfigAsync } from '@expo/config';
 import { Env } from '@expo/eas-build-job';
 import chalk from 'chalk';
+import fs from 'fs-extra';
 import path from 'path';
 import pkgDir from 'pkg-dir';
+import resolveFrom from 'resolve-from';
 import semver from 'semver';
 
 import { AppPrivacy } from '../graphql/generated';
@@ -127,24 +129,19 @@ export async function setProjectIdAsync(
 
 export async function getProjectIdAsync(
   exp: ExpoConfig,
-  options: { env?: Env } = {}
+  options: { env?: Env } = {},
+  findProjectRootOptions: {
+    cwd?: string;
+    defaultToProcessCwd?: boolean;
+  } = {}
 ): Promise<string> {
-  if (!process.env.EAS_ENABLE_PROJECT_ID) {
-    const privacy = toAppPrivacy(exp.privacy);
-    return await ensureProjectExistsAsync({
-      accountName: getProjectAccountName(exp, await ensureLoggedInAsync()),
-      projectName: exp.slug,
-      privacy,
-    });
-  }
-
   const localProjectId = exp.extra?.eas?.projectId;
   if (localProjectId) {
     return localProjectId;
   }
 
   // Set the project ID if it is missing.
-  const projectDir = await findProjectRootAsync();
+  const projectDir = await findProjectRootAsync(findProjectRootOptions);
   if (!projectDir) {
     throw new Error('Run this command inside a project directory.');
   }
@@ -236,6 +233,27 @@ export function isExpoUpdatesInstalledOrAvailable(
   }
 
   return isExpoUpdatesInstalled(projectDir);
+}
+
+export async function validateAppVersionRuntimePolicySupportAsync(
+  projectDir: string,
+  exp: ExpoConfig
+): Promise<void> {
+  if (typeof exp.runtimeVersion !== 'object' || exp.runtimeVersion?.policy !== 'appVersion') {
+    return;
+  }
+
+  const maybePackageJson = resolveFrom.silent(projectDir, 'expo-updates/package.json');
+  if (maybePackageJson) {
+    const { version } = await fs.readJson(maybePackageJson);
+    if (semver.gte(version, '0.14.4')) {
+      return;
+    }
+  }
+
+  Log.warn(
+    `You need to be on SDK 46 or higher, and use expo-updates >= 0.14.4 to use appVersion runtime policy.`
+  );
 }
 
 export async function installExpoUpdatesAsync(projectDir: string): Promise<void> {

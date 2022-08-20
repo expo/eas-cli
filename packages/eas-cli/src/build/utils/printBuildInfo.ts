@@ -14,7 +14,6 @@ import {
 } from '../../graphql/generated';
 import Log, { learnMore } from '../../log';
 import { appPlatformDisplayNames, appPlatformEmojis } from '../../platform';
-import { printJsonOnlyOutput } from '../../utils/json';
 import { getBuildLogsUrl, getInternalDistributionInstallUrl } from './url';
 
 export function printLogsUrls(builds: BuildFragment[]): void {
@@ -32,18 +31,14 @@ export function printLogsUrls(builds: BuildFragment[]): void {
   }
 }
 
-export function printBuildResults(builds: (BuildFragment | null)[], json: boolean): void {
-  if (json) {
-    printJsonOnlyOutput(builds);
+export function printBuildResults(builds: (BuildFragment | null)[]): void {
+  Log.newLine();
+  if (builds.length === 1) {
+    const [build] = builds;
+    assert(build, 'Build should be defined');
+    printBuildResult(build);
   } else {
-    Log.newLine();
-    if (builds.length === 1) {
-      const [build] = builds;
-      assert(build, 'Build should be defined');
-      printBuildResult(build);
-    } else {
-      (builds.filter(i => i) as BuildFragment[]).forEach(build => printBuildResult(build));
-    }
+    (builds.filter(i => i) as BuildFragment[]).forEach(build => printBuildResult(build));
   }
 }
 

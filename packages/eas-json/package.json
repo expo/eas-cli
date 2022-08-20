@@ -1,7 +1,7 @@
 {
   "name": "@expo/eas-json",
   "description": "A library for interacting with eas.json",
-  "version": "0.57.0",
+  "version": "0.60.0",
   "author": "Expo <support@expo.dev>",
   "bugs": "https://github.com/expo/eas-cli/issues",
   "dependencies": {
@@ -17,7 +17,8 @@
   },
   "devDependencies": {
     "@types/fs-extra": "9.0.13",
-    "memfs": "3.4.3",
+    "memfs": "3.4.7",
+    "rimraf": "3.0.2",
     "typescript": "4.7.4"
   },
   "engines": {
@@ -32,9 +33,9 @@
     "build": "tsc --project tsconfig.build.json",
     "watch": "yarn build --watch --preserveWatchOutput",
     "typecheck": "tsc",
-    "prepack": "rm -rf build && yarn build",
+    "prepack": "rimraf build && yarn build",
     "test": "jest",
-    "clean": "rm -rf build node_modules yarn-error.log"
+    "clean": "rimraf build node_modules yarn-error.log"
   },
   "files": [
     "/build"

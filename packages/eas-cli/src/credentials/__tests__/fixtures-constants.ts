@@ -18,6 +18,7 @@ export const jester2: Actor = {
 
 export const testUsername = jester.username;
 export const testSlug = 'testApp';
+export const testProjectId = '7ef93448-3bc7-4b57-be32-99326dcf24f0';
 export const testBundleIdentifier = 'test.com.app';
 export const testPackageName = 'test.com.app';
 export const testExperienceName = `@${testUsername}/${testSlug}`;
@@ -35,6 +36,11 @@ export const testAppJson = {
   sdkVersion: '38.0.0',
   ios: { bundleIdentifier: testBundleIdentifier },
   android: { package: testPackageName },
+  extra: {
+    eas: {
+      projectId: testProjectId,
+    },
+  },
 };
 
 export const testAppJsonWithDifferentOwner = {

@@ -120,7 +120,7 @@ export async function prepareBuildRequestForPlatformAsync<
 
   return async () => {
     if (ctx.localBuildOptions.enable) {
-      await runLocalBuildAsync(job, ctx.localBuildOptions);
+      await runLocalBuildAsync(job, metadata, ctx.localBuildOptions);
       return undefined;
     } else {
       try {

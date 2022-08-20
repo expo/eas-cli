@@ -14,7 +14,7 @@ generates:
       dedupeOperationSuffix: true
     hooks:
       afterOneFileWrite:
-        - ./annotate-graphql-codegen.sh
+        - 'node ./scripts/annotate-graphql-codegen.js'
   ./graphql.schema.json:
     plugins:
       - 'introspection'
