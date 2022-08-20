@@ -78,7 +78,7 @@ export class SetUpInternalProvisioningProfile {
         return await this.setupUniversalProvisioningProfileAsync(ctx);
       } else {
         throw new Error(
-          `You're in non-interactive mode. EAS CLI couldn't find any credentials suitable for internal distribution. Run again in interactive mode.`
+          `You're in non-interactive mode. EAS CLI couldn't find any credentials suitable for internal distribution. Run this command again in interactive mode.`
         );
       }
     }
