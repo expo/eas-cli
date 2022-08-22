@@ -21,7 +21,7 @@ export interface CommonBuildProfile {
   channel?: string;
   developmentClient?: boolean;
   prebuildCommand?: string;
-  autoIncrement: VersionAutoIncrement;
+  autoIncrement?: VersionAutoIncrement;
 
   node?: string;
   yarn?: string;
@@ -29,7 +29,7 @@ export interface CommonBuildProfile {
   env?: Record<string, string>;
 }
 
-export type AndroidBuildProfile = {
+export interface AndroidBuildProfile extends Omit<CommonBuildProfile, 'autoIncrement'> {
   withoutCredentials?: boolean;
   image?: Android.BuilderEnvironment['image'];
   ndk?: string;
@@ -39,9 +39,9 @@ export type AndroidBuildProfile = {
 
   gradleCommand?: string;
   artifactPath?: string;
-} & CommonBuildProfile;
+}
 
-export type IosBuildProfile = {
+export interface IosBuildProfile extends Omit<CommonBuildProfile, 'autoIncrement'> {
   enterpriseProvisioning?: IosEnterpriseProvisioning;
   autoIncrement?: IosVersionAutoIncrement;
   simulator?: boolean;
@@ -53,14 +53,14 @@ export type IosBuildProfile = {
   artifactPath?: string;
   scheme?: string;
   buildConfiguration?: string;
-} & CommonBuildProfile;
+}
 
 export type BuildProfile<TPlatform extends Platform = Platform> = TPlatform extends Platform.ANDROID
   ? AndroidBuildProfile
   : IosBuildProfile;
 
 export type EasJsonBuildProfile =
-  | Partial<CommonBuildProfile> & {
+  | Partial<Omit<CommonBuildProfile, 'autoIncrement'>> & {
       extends?: string;
       [Platform.ANDROID]?: Partial<AndroidBuildProfile>;
       [Platform.IOS]?: Partial<IosBuildProfile>;
