@@ -21,7 +21,7 @@ export interface CommonBuildProfile {
   channel?: string;
   developmentClient?: boolean;
   prebuildCommand?: string;
-  autoIncrement?: VersionAutoIncrement;
+  autoIncrement?: VersionAutoIncrement; // in reality in can only have boolean | 'version' values
 
   node?: string;
   yarn?: string;
@@ -59,9 +59,8 @@ export type BuildProfile<TPlatform extends Platform = Platform> = TPlatform exte
   ? AndroidBuildProfile
   : IosBuildProfile;
 
-export type EasJsonBuildProfile =
-  | Partial<Omit<CommonBuildProfile, 'autoIncrement'>> & {
-      extends?: string;
-      [Platform.ANDROID]?: Partial<AndroidBuildProfile>;
-      [Platform.IOS]?: Partial<IosBuildProfile>;
-    };
+export type EasJsonBuildProfile = Partial<CommonBuildProfile> & {
+  extends?: string;
+  [Platform.ANDROID]?: Partial<AndroidBuildProfile>;
+  [Platform.IOS]?: Partial<IosBuildProfile>;
+};
