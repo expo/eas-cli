@@ -115,7 +115,7 @@ export default class BranchDelete extends EasCommand {
       ({ name } = await promptAsync({
         type: 'text',
         name: 'name',
-        message: 'Please enter the name of the branch to delete:',
+        message: 'Provide the name of the branch to delete:',
         validate: value => (value ? true : validationMessage),
       }));
     }

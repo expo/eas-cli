@@ -36,6 +36,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🧹 Chores
 
 - Remove unused install script. ([#1280](https://github.com/expo/eas-cli/pull/1280), [#1281](https://github.com/expo/eas-cli/pull/1281) by [@wkozyra95](https://github.com/wkozyra95))
+- Remove "please" from output ([#1250](https://github.com/expo/eas-cli/pull/1250) by [@jonsamp](https://github.com/jonsamp))
 
 ## [0.60.0](https://github.com/expo/eas-cli/releases/tag/v0.60.0) - 2022-08-12
 

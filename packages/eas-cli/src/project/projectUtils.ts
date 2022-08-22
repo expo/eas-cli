@@ -65,7 +65,7 @@ export async function findProjectRootAsync({
   const projectRootDir = await pkgDir(cwd);
   if (!projectRootDir) {
     if (!defaultToProcessCwd) {
-      throw new Error('Please run this command inside a project directory.');
+      throw new Error('Run this command inside a project directory.');
     } else {
       return process.cwd();
     }
@@ -143,7 +143,7 @@ export async function getProjectIdAsync(
   // Set the project ID if it is missing.
   const projectDir = await findProjectRootAsync(findProjectRootOptions);
   if (!projectDir) {
-    throw new Error('Please run this command inside a project directory.');
+    throw new Error('Run this command inside a project directory.');
   }
   const newExp = await setProjectIdAsync(projectDir, options);
 

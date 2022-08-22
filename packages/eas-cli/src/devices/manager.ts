@@ -18,7 +18,7 @@ Internal distribution means that you won't need upload your app archive to App S
 Your app archive (.ipa) will be installable on your equipment as long as you sign your application with an adhoc provisiong profile.
 The provisioning profile needs to contain the UDIDs (unique identifiers) of your iPhones and iPads.
 
-First of all, please choose the Expo account under which you want to register your devices.
+First of all, choose the Expo account under which you want to register your devices.
 Later, authenticate with Apple and choose your desired Apple Team (if your Apple ID has access to multiple teams).`;
 
 export default class DeviceManager {

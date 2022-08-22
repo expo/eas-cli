@@ -35,7 +35,7 @@ describe(findProjectRootAsync, () => {
       '/app'
     );
     await expect(findProjectRootAsync({ cwd: '/app' })).rejects.toThrow(
-      'Please run this command inside a project directory.'
+      'Run this command inside a project directory.'
     );
   });
 

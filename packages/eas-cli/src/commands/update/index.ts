@@ -302,7 +302,7 @@ export default class UpdatePublish extends EasCommand {
         ({ name: branchName } = await promptAsync({
           type: 'text',
           name: 'name',
-          message: 'No branches found. Creating a new one. Please name the new branch:',
+          message: 'No branches found. Provide a branch name:',
           initial:
             (await getVcsClient().getBranchNameAsync()) ||
             `branch-${Math.random().toString(36).substr(2, 4)}`,
@@ -404,7 +404,7 @@ export default class UpdatePublish extends EasCommand {
         ({ publishMessage: message } = await promptAsync({
           type: 'text',
           name: 'publishMessage',
-          message: `Please enter an update message.`,
+          message: `Provide an update message.`,
           initial: `Republish "${oldMessage!}" - group: ${group}`,
           validate: (value: any) => (value ? true : validationMessage),
         }));
@@ -426,7 +426,7 @@ export default class UpdatePublish extends EasCommand {
         ({ publishMessage: message } = await promptAsync({
           type: 'text',
           name: 'publishMessage',
-          message: `Please enter an update message.`,
+          message: `Provide an update message.`,
           initial: (await getVcsClient().getLastCommitMessageAsync())?.trim(),
           validate: (value: any) => (value ? true : validationMessage),
         }));
@@ -757,7 +757,9 @@ async function checkEASUpdateURLIsSetAsync(exp: ExpoConfig): Promise<void> {
 
   if (configuredURL !== expectedURL) {
     throw new Error(
-      `The update URL is incorrectly configured for EAS Update. Please set updates.url to ${expectedURL} in your app.json.`
+      `The update URL is incorrectly configured for EAS Update. Set updates.url to ${expectedURL} in your ${chalk.bold(
+        'app.json'
+      )}.`
     );
   }
 }

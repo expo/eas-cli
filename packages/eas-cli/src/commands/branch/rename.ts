@@ -90,7 +90,7 @@ export default class BranchRename extends EasCommand {
       ({ currentName } = await promptAsync({
         type: 'text',
         name: 'currentName',
-        message: 'Please enter the current name of the branch to rename:',
+        message: "Provide the name of the branch you'd like to rename:",
         validate: value => (value ? true : validationMessage),
       }));
     }
@@ -103,7 +103,7 @@ export default class BranchRename extends EasCommand {
       ({ newName } = await promptAsync({
         type: 'text',
         name: 'newName',
-        message: `Please rename ${currentName}`,
+        message: `Rename ${currentName}`,
         validate: value => (value ? true : validationMessage),
       }));
     }

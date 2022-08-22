@@ -45,7 +45,7 @@ export class SelectIosDistributionTypeGraphqlFromBuildProfile {
 
     if (ctx.nonInteractive) {
       throw new Error(
-        'Unable to determine type of internal distribution. Please run this command in interactive mode.'
+        'Unable to determine type of internal distribution. Run this command in interactive mode.'
       );
     }
 

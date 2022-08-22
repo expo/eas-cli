@@ -62,7 +62,7 @@ export async function ensureBundleIdExistsWithNameAsync(
       spinner.fail(
         `The bundle identifier ${chalk.bold(bundleIdentifier)} is not available to team "${
           authCtx.team.name
-        }" (${authCtx.team.id}), please change it in your app config and try again.`
+        }" (${authCtx.team.id}), change it in your app config and try again.`
       );
     } else {
       spinner.fail(`Failed to register bundle identifier ${chalk.dim(bundleIdentifier)}`);
@@ -196,13 +196,13 @@ export async function ensureAppExistsAsync(
     } catch (error: any) {
       if (error.message.match(/An App ID with Identifier '(.*)' is not available/)) {
         throw new Error(
-          `\nThe bundle identifier "${bundleIdentifier}" is not available to provider "${userAuthCtx.authState?.session.provider.name}. Please change it in your app config and try again.\n`
+          `\nThe bundle identifier "${bundleIdentifier}" is not available to provider "${userAuthCtx.authState?.session.provider.name}. Change it in your app config and try again.\n`
         );
       }
 
       spinner.fail(`Failed to create App Store app ${chalk.dim(name)}`);
       error.message +=
-        '\nPlease visit https://appstoreconnect.apple.com and resolve any warnings, then try again.';
+        '\nVisit https://appstoreconnect.apple.com and resolve any warnings, then try again.';
       throw error;
     }
   } else {
