@@ -162,7 +162,10 @@ export async function getProjectIdAsync(
   try {
     await saveProjectIdToAppConfigAsync(projectDir, projectId, options);
   } catch (e: any) {
-    Log.warn(`Failed to save EAS project ID to app config: ${e.message}`);
+    // saveProjectIdToAppConfigAsync already printed out a set of detailed errors and
+    // instructions on how to fix it. To mimic throwing the error but not halting
+    // execution, just warn here with the error message.
+    Log.warn(e.message);
   }
 
   return projectId;
