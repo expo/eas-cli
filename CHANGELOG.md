@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Add support for passing platform flag to `credentials` command. ([#1277](https://github.com/expo/eas-cli/pull/1277) by [@Simek](https://github.com/Simek))
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
@@ -22,7 +24,6 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - Add metadata support for dynamic store.config.js files. ([#1270](https://github.com/expo/eas-cli/pull/1270) by [@byCedric](https://github.com/byCedric))
 - Improve reliability of update asset presigned upload requests. ([#1278](https://github.com/expo/eas-cli/pull/1278) by [@wschurman](https://github.com/wschurman))
-- Add support for passing platform flag to `credentials` command. ([#1277](https://github.com/expo/eas-cli/pull/1277) by [@Simek](https://github.com/Simek))
 
 ### 🐛 Bug fixes
 
