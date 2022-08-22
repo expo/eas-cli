@@ -94,6 +94,30 @@ describe(syncCapabilitiesForEntitlementsAsync, () => {
       'com.apple.security.application-groups': [
         'group.CY-A5149AC2-49FC-11E7-B3F3-0335A16FFB8D.com.cydia.Extender',
       ],
+
+      'com.apple.developer.fileprovider.testing-mode': true,
+      'com.apple.developer.healthkit.recalibrate-estimates': true,
+      'com.apple.developer.maps': true,
+      'com.apple.developer.user-management': true,
+      'com.apple.developer.networking.custom-protocol': true,
+      'com.apple.developer.system-extension.install': true,
+      'com.apple.developer.push-to-talk': true,
+      'com.apple.developer.driverkit.transport.usb': true,
+      'com.apple.developer.kernel.increased-memory-limit': true,
+      'com.apple.developer.driverkit.communicates-with-drivers': true,
+      'com.apple.developer.media-device-discovery-extension': true,
+      'com.apple.developer.driverkit.allow-third-party-userclients': true,
+      'com.apple.developer.weatherkit': true,
+      'com.apple.developer.on-demand-install-capable': true,
+      'com.apple.developer.driverkit.family.scsicontroller': true,
+      'com.apple.developer.driverkit.family.serial': true,
+      'com.apple.developer.driverkit.family.networking': true,
+      'com.apple.developer.driverkit.family.hid.eventservice': true,
+      'com.apple.developer.driverkit.family.hid.device': true,
+      'com.apple.developer.driverkit': true,
+      'com.apple.developer.driverkit.transport.hid': true,
+      'com.apple.developer.driverkit.family.audio': true,
+      'com.apple.developer.shared-with-you': true,
     });
 
     expect(bundleId.updateBundleIdCapabilityAsync).toBeCalledWith([

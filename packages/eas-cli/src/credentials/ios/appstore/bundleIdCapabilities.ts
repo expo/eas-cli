@@ -580,7 +580,6 @@ export const CapabilityMapping: CapabilityClassifier[] = [
     validateOptions: validateBooleanOptions,
     getOptions: getBooleanOptions,
   },
-
   {
     entitlement: 'com.apple.developer.push-to-talk',
     name: 'Push to Talk',
@@ -644,7 +643,6 @@ export const CapabilityMapping: CapabilityClassifier[] = [
     validateOptions: validateBooleanOptions,
     getOptions: getBooleanOptions,
   },
-
   {
     entitlement: 'com.apple.developer.driverkit.family.serial',
     name: 'DriverKit Family Serial (development)',
