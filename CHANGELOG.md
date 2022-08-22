@@ -14,6 +14,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Remove unused dependency and devDependency from the CLI. ([#1297](https://github.com/expo/eas-cli/pull/1297) by [@Simek](https://github.com/Simek))
+
 ## [1.0.0](https://github.com/expo/eas-cli/releases/tag/v1.0.0) - 2022-08-22
 
 ### 🛠 Breaking changes
