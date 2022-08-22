@@ -6,6 +6,16 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🛠 Breaking changes
 
+### 🎉 New features
+
+### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [1.0.0](https://github.com/expo/eas-cli/releases/tag/v1.0.0) - 2022-08-22
+
+### 🛠 Breaking changes
+
 - Remove timeout when waiting for build / submission. ([#1289](https://github.com/expo/eas-cli/pull/1289) by [@dsokal](https://github.com/dsokal))
 
 ### 🎉 New features
