@@ -3,9 +3,7 @@ import { ManageAndroid } from './ManageAndroid';
 import { ManageIos } from './ManageIos';
 
 export class SelectPlatform {
-  constructor(private readonly flagPlatform?: string) {
-    this.flagPlatform = flagPlatform;
-  }
+  constructor(private readonly flagPlatform?: string) {}
 
   async runAsync(): Promise<void> {
     const platform = await selectPlatformAsync(this.flagPlatform);
