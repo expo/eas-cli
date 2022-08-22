@@ -129,24 +129,19 @@ export async function setProjectIdAsync(
 
 export async function getProjectIdAsync(
   exp: ExpoConfig,
-  options: { env?: Env } = {}
+  options: { env?: Env } = {},
+  findProjectRootOptions: {
+    cwd?: string;
+    defaultToProcessCwd?: boolean;
+  } = {}
 ): Promise<string> {
-  if (!process.env.EAS_ENABLE_PROJECT_ID) {
-    const privacy = toAppPrivacy(exp.privacy);
-    return await ensureProjectExistsAsync({
-      accountName: getProjectAccountName(exp, await ensureLoggedInAsync()),
-      projectName: exp.slug,
-      privacy,
-    });
-  }
-
   const localProjectId = exp.extra?.eas?.projectId;
   if (localProjectId) {
     return localProjectId;
   }
 
   // Set the project ID if it is missing.
-  const projectDir = await findProjectRootAsync();
+  const projectDir = await findProjectRootAsync(findProjectRootOptions);
   if (!projectDir) {
     throw new Error('Please run this command inside a project directory.');
   }

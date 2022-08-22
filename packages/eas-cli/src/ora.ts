@@ -56,7 +56,7 @@ export function ora(options?: Options | string): Ora {
     // eslint-disable-next-line no-console
     console.log = logReal;
     // eslint-disable-next-line no-console
-    console.info = logReal;
+    console.info = infoReal;
     // eslint-disable-next-line no-console
     console.warn = warnReal;
     // eslint-disable-next-line no-console

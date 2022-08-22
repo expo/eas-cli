@@ -6,13 +6,23 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🛠 Breaking changes
 
+- Remove timeout when waiting for build / submission. ([#1289](https://github.com/expo/eas-cli/pull/1289) by [@dsokal](https://github.com/dsokal))
+
 ### 🎉 New features
 
+- Add metadata support for dynamic store.config.js files. ([#1270](https://github.com/expo/eas-cli/pull/1270) by [@byCedric](https://github.com/byCedric))
+- Improve reliability of update asset presigned upload requests. ([#1278](https://github.com/expo/eas-cli/pull/1278) by [@wschurman](https://github.com/wschurman))
 - Add support for passing platform flag to `credentials` command. ([#1277](https://github.com/expo/eas-cli/pull/1277) by [@Simek](https://github.com/Simek))
 
 ### 🐛 Bug fixes
 
+- Rebind `console.info` correctly after `ora` instance stops. ([#1113](https://github.com/expo/eas-cli/pull/1113) by [@EvanBacon](https://github.com/EvanBacon))
+- Fix initializing git repository in monorepo. ([#1279](https://github.com/expo/eas-cli/pull/1279) by [@dsokal](https://github.com/dsokal))
+- Limit the number of SignedAssetUploadSpecifications fetched at a time. ([#1287](https://github.com/expo/eas-cli/pull/1287) by [@wschurman](https://github.com/wschurman))
+
 ### 🧹 Chores
+
+- Remove unused install script. ([#1280](https://github.com/expo/eas-cli/pull/1280), [#1281](https://github.com/expo/eas-cli/pull/1281) by [@wkozyra95](https://github.com/wkozyra95))
 
 ## [0.60.0](https://github.com/expo/eas-cli/releases/tag/v0.60.0) - 2022-08-12
 

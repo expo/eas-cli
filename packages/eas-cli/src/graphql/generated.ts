@@ -105,6 +105,8 @@ export type Account = {
   createdAt: Scalars['DateTime'];
   /** Environment secrets for an account */
   environmentSecrets: Array<EnvironmentSecret>;
+  /** GitHub App installations for an account */
+  githubAppInstallations: Array<GitHubAppInstallation>;
   /** Android credentials for account */
   googleServiceAccountKeys: Array<GoogleServiceAccountKey>;
   id: Scalars['ID'];
@@ -2164,6 +2166,11 @@ export type CreateEnvironmentSecretInput = {
   value: Scalars['String'];
 };
 
+export type CreateGitHubAppInstallationInput = {
+  accountId: Scalars['ID'];
+  installationIdentifier: Scalars['Int'];
+};
+
 export type CreateIosSubmissionInput = {
   appId: Scalars['ID'];
   archiveUrl?: InputMaybe<Scalars['String']>;
@@ -2400,6 +2407,38 @@ export type FutureSubscription = {
 export type GetSignedAssetUploadSpecificationsResult = {
   __typename?: 'GetSignedAssetUploadSpecificationsResult';
   specifications: Array<Scalars['String']>;
+};
+
+export type GitHubAppInstallation = {
+  __typename?: 'GitHubAppInstallation';
+  account: Account;
+  actor?: Maybe<Actor>;
+  id: Scalars['ID'];
+  installationIdentifier: Scalars['Int'];
+};
+
+export type GitHubAppInstallationMutation = {
+  __typename?: 'GitHubAppInstallationMutation';
+  /** Create a GitHub App installation for an Account */
+  createGitHubAppInstallationForAccount: GitHubAppInstallation;
+  /** Delete a GitHub App installation by ID */
+  deleteGitHubAppInstallation: GitHubAppInstallation;
+};
+
+
+export type GitHubAppInstallationMutationCreateGitHubAppInstallationForAccountArgs = {
+  githubAppInstallationData: CreateGitHubAppInstallationInput;
+};
+
+
+export type GitHubAppInstallationMutationDeleteGitHubAppInstallationArgs = {
+  githubAppInstallationId: Scalars['ID'];
+};
+
+export type GitHubAppQuery = {
+  __typename?: 'GitHubAppQuery';
+  appIdentifier: Scalars['String'];
+  clientIdentifier: Scalars['String'];
 };
 
 export type GoogleServiceAccountKey = {
@@ -3128,6 +3167,8 @@ export type RootMutation = {
   emailSubscription: EmailSubscriptionMutation;
   /** Mutations that create and delete EnvironmentSecrets */
   environmentSecret: EnvironmentSecretMutation;
+  /** Mutations for GitHub App installations */
+  githubAppInstallation: GitHubAppInstallationMutation;
   /** Mutations that modify a Google Service Account Key */
   googleServiceAccountKey: GoogleServiceAccountKeyMutation;
   /** Mutations that modify the build credentials for an iOS app */
@@ -3174,6 +3215,8 @@ export type RootMutationBuildJobArgs = {
 
 export type RootQuery = {
   __typename?: 'RootQuery';
+  /** Top-level query object for querying GitHub App information and resources it has access to. */
+  GitHubApp: GitHubAppQuery;
   /**
    * This is a placeholder field
    * @deprecated Not used.

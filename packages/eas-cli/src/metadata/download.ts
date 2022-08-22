@@ -6,7 +6,7 @@ import Log from '../log';
 import { confirmAsync } from '../prompts';
 import { AppleData } from './apple/data';
 import { createAppleTasks } from './apple/tasks';
-import { createAppleWriter } from './config';
+import { createAppleWriter, getStaticConfigFilePath } from './config';
 import { MetadataContext, ensureMetadataAppStoreAuthenticatedAsync } from './context';
 import { MetadataDownloadError, MetadataValidationError } from './errors';
 import { subscribeTelemetry } from './utils/telemetry';
@@ -16,15 +16,16 @@ import { subscribeTelemetry } from './utils/telemetry';
  * Note, only App Store is supported at this time.
  */
 export async function downloadMetadataAsync(metadataCtx: MetadataContext): Promise<string> {
-  const filePath = path.resolve(metadataCtx.projectDir, metadataCtx.metadataPath);
+  const filePath = getStaticConfigFilePath(metadataCtx);
   const fileExists = await fs.pathExists(filePath);
 
   if (fileExists) {
+    const filePathRelative = path.relative(metadataCtx.projectDir, filePath);
     const overwrite = await confirmAsync({
-      message: `Do you want to overwrite the existing store configuration "${metadataCtx.metadataPath}"?`,
+      message: `Do you want to overwrite the existing "${filePathRelative}"?`,
     });
     if (!overwrite) {
-      throw new MetadataValidationError(`Store configuration already exists at "${filePath}"`);
+      throw new MetadataValidationError(`Store config already exists at "${filePath}"`);
     }
   }
 
@@ -35,7 +36,7 @@ export async function downloadMetadataAsync(metadataCtx: MetadataContext): Promi
   );
 
   Log.addNewLineIfNone();
-  Log.log('Downloading App Store configuration...');
+  Log.log('Downloading App Store config...');
 
   const errors: Error[] = [];
   const config = createAppleWriter();
@@ -59,7 +60,7 @@ export async function downloadMetadataAsync(metadataCtx: MetadataContext): Promi
   }
 
   try {
-    await fs.writeJson(filePath, config.toSchema(), { spaces: 2 });
+    await fs.writeJSON(filePath, config.toSchema(), { spaces: 2 });
   } finally {
     unsubscribeTelemetry();
   }
