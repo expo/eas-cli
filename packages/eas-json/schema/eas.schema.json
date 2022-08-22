@@ -169,7 +169,7 @@
           "default": false,
           "markdownEnumDescriptions": [
             "Versions won't be bumped automatically (default).",
-            "for iOS the last component of `expo.ios.buildNumber` is bumped (e.g. `1.2.3.39` -> `1.2.3.40`) and for Android `expo.android.versionCode` is bumped (e.g. `3` -> `4`).",
+            "For iOS the last component of `expo.ios.buildNumber` is bumped (e.g. `1.2.3.39` -> `1.2.3.40`) and for Android `expo.android.versionCode` is bumped (e.g. `3` -> `4`).",
             "The patch of `expo.version` is bumped (e.g. `1.2.3` -> `1.2.4`)."
           ]
         },
