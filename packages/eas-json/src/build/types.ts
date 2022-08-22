@@ -21,7 +21,7 @@ export interface CommonBuildProfile {
   channel?: string;
   developmentClient?: boolean;
   prebuildCommand?: string;
-  autoIncrement?: VersionAutoIncrement; // in reality in can only have boolean | 'version' values
+  autoIncrement?: VersionAutoIncrement;
 
   node?: string;
   yarn?: string;
