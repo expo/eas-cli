@@ -63,4 +63,4 @@ export interface EasJsonBuildProfile extends Partial<CommonBuildProfile> {
   extends?: string;
   [Platform.ANDROID]?: Partial<AndroidBuildProfile>;
   [Platform.IOS]?: Partial<IosBuildProfile>;
-};
+}
