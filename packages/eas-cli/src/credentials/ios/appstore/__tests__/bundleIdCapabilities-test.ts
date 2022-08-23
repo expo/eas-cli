@@ -159,6 +159,98 @@ describe(syncCapabilitiesForEntitlementsAsync, () => {
       },
       { capabilityType: 'AUTOFILL_CREDENTIAL_PROVIDER', option: 'ON' },
       { capabilityType: 'APP_GROUPS', option: 'ON' },
+      {
+        capabilityType: 'FILEPROVIDER_TESTINGMODE',
+        option: 'ON',
+      },
+      {
+        capabilityType: 'HEALTHKIT_RECALIBRATE_ESTIMATES',
+        option: 'ON',
+      },
+      {
+        capabilityType: 'MAPS',
+        option: 'ON',
+      },
+      {
+        capabilityType: 'USER_MANAGEMENT',
+        option: 'ON',
+      },
+      {
+        capabilityType: 'NETWORK_CUSTOM_PROTOCOL',
+        option: 'ON',
+      },
+      {
+        capabilityType: 'SYSTEM_EXTENSION_INSTALL',
+        option: 'ON',
+      },
+      {
+        capabilityType: 'PUSH_TO_TALK',
+        option: 'ON',
+      },
+      {
+        capabilityType: 'DRIVERKIT_USBTRANSPORT_PUB',
+        option: 'ON',
+      },
+      {
+        capabilityType: 'INCREASED_MEMORY_LIMIT',
+        option: 'ON',
+      },
+      {
+        capabilityType: 'DRIVERKIT_COMMUNICATESWITHDRIVERS',
+        option: 'ON',
+      },
+      {
+        capabilityType: 'MEDIA_DEVICE_DISCOVERY',
+        option: 'ON',
+      },
+      {
+        capabilityType: 'DRIVERKIT_ALLOWTHIRDPARTY_USERCLIENTS',
+        option: 'ON',
+      },
+      {
+        capabilityType: 'WEATHERKIT',
+        option: 'ON',
+      },
+      {
+        capabilityType: 'ONDEMANDINSTALL_EXTENSIONS',
+        option: 'ON',
+      },
+      {
+        capabilityType: 'DRIVERKIT_FAMILY_SCSICONTROLLER_PUB',
+        option: 'ON',
+      },
+      {
+        capabilityType: 'DRIVERKIT_FAMILY_SERIAL_PUB',
+        option: 'ON',
+      },
+      {
+        capabilityType: 'DRIVERKIT_FAMILY_NETWORKING_PUB',
+        option: 'ON',
+      },
+      {
+        capabilityType: 'DRIVERKIT_FAMILY_HIDEVENTSERVICE_PUB',
+        option: 'ON',
+      },
+      {
+        capabilityType: 'DRIVERKIT_FAMILY_HIDDEVICE_PUB',
+        option: 'ON',
+      },
+      {
+        capabilityType: 'DRIVERKIT_PUBLIC',
+        option: 'ON',
+      },
+      {
+        capabilityType: 'DRIVERKIT_TRANSPORT_HID_PUB',
+        option: 'ON',
+      },
+      {
+        capabilityType: 'DRIVERKIT_FAMILY_AUDIO_PUB',
+        option: 'ON',
+      },
+      {
+        capabilityType: 'SHARED_WITH_YOU',
+        option: 'ON',
+      },
     ]);
 
     expect(results.enabled).toStrictEqual([
@@ -188,6 +280,29 @@ describe(syncCapabilitiesForEntitlementsAsync, () => {
       'Family Controls',
       'AutoFill Credential Provider',
       'App Groups',
+      'FileProvider TestingMode',
+      'Recalibrate Estimates',
+      'Maps',
+      'TV Services',
+      'Custom Network Protocol',
+      'System Extension',
+      'Push to Talk',
+      'DriverKit USB Transport (development)',
+      'Increased Memory Limit entitlement',
+      'Communicates with Drivers entitlement',
+      'Media Device Discovery',
+      'DriverKit Allow Third Party UserClients',
+      'WeatherKit',
+      'On Demand Install Capable for App Clip Extensions',
+      'DriverKit Family SCSIController (development)',
+      'DriverKit Family Serial (development)',
+      'DriverKit Family Networking (development)',
+      'DriverKit Family HID EventService (development)',
+      'DriverKit Family HID Device (development)',
+      'DriverKit for Development entitlement',
+      'DriverKit Transport HID (development)',
+      'DriverKit Family Audio (development)',
+      'Shared with You entitlement',
     ]);
     expect(results.disabled).toStrictEqual([]);
   });

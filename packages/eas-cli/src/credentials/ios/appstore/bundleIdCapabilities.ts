@@ -544,7 +544,6 @@ export const CapabilityMapping: CapabilityClassifier[] = [
     validateOptions: validateBooleanOptions,
     getOptions: getBooleanOptions,
   },
-
   {
     entitlement: 'com.apple.developer.healthkit.recalibrate-estimates',
     name: 'Recalibrate Estimates',
@@ -561,21 +560,21 @@ export const CapabilityMapping: CapabilityClassifier[] = [
   },
   {
     entitlement: 'com.apple.developer.user-management',
-    name: 'TV Services API Entitlement',
+    name: 'TV Services',
     capability: CapabilityType.USER_MANAGEMENT,
     validateOptions: validateBooleanOptions,
     getOptions: getBooleanOptions,
   },
   {
     entitlement: 'com.apple.developer.networking.custom-protocol',
-    name: 'Custom Network Protocol Entitlement',
+    name: 'Custom Network Protocol',
     capability: CapabilityType.NETWORK_CUSTOM_PROTOCOL,
     validateOptions: validateBooleanOptions,
     getOptions: getBooleanOptions,
   },
   {
     entitlement: 'com.apple.developer.system-extension.install',
-    name: 'System Extension Entitlement',
+    name: 'System Extension',
     capability: CapabilityType.SYSTEM_EXTENSION_INSTALL,
     validateOptions: validateBooleanOptions,
     getOptions: getBooleanOptions,
