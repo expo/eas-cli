@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Add support for autoIncrement option at the root of the build profile. ([#1298](https://github.com/expo/eas-cli/pull/1298) by [@szdziedzic](https://github.com/szdziedzic))
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
