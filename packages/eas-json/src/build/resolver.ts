@@ -3,7 +3,7 @@ import { Platform } from '@expo/eas-build-job';
 import { MissingParentProfileError, MissingProfileError } from '../errors';
 import { EasJson } from '../types';
 import { BuildProfileSchema } from './schema';
-import { AndroidBuildProfile, BuildProfile, EasJsonBuildProfile, IosBuildProfile } from './types';
+import { BuildProfile, EasJsonBuildProfile } from './types';
 
 type EasJsonBuildProfileResolved = Omit<EasJsonBuildProfile, 'extends'>;
 

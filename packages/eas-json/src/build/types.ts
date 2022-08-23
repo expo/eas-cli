@@ -21,7 +21,7 @@ export interface CommonBuildProfile {
   channel?: string;
   developmentClient?: boolean;
   prebuildCommand?: string;
-  autoIncrement?: VersionAutoIncrement;
+  autoIncrement?: boolean;
 
   node?: string;
   yarn?: string;
