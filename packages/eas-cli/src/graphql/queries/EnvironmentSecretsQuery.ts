@@ -75,11 +75,11 @@ export const EnvironmentSecretsQuery = {
   },
   async allAsync(
     projectAccountName: string,
-    projectFullName: string
+    projectId: string
   ): Promise<EnvironmentSecretWithScope[]> {
     const [accountSecrets, appSecrets] = await Promise.all([
       this.byAccountNameAsync(projectAccountName),
-      this.byAppIdAsync(projectFullName),
+      this.byAppIdAsync(projectId),
     ]);
 
     return [
