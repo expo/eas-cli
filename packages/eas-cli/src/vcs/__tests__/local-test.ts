@@ -84,4 +84,17 @@ describe(Ignore, () => {
     await ignore.initIgnoreAsync();
     expect(ignore.ignores('.git')).toBe(true);
   });
+
+  it('does not throw an error if there is a trailing backslash in the gitignore', async () => {
+    vol.fromJSON(
+      {
+        '.gitignore': 'dir\\',
+      },
+      '/root'
+    );
+
+    const ignore = new Ignore('/root');
+    await ignore.initIgnoreAsync();
+    expect(() => ignore.ignores('dir/test')).not.toThrowError();
+  });
 });

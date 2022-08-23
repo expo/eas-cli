@@ -83,19 +83,15 @@ export async function findProjectRootAsync({
   }
 }
 
-export async function setProjectIdAsync(
+/**
+ * Save an EAS project ID to the appropriate field in the app config.
+ */
+export async function saveProjectIdToAppConfigAsync(
   projectDir: string,
+  projectId: string,
   options: { env?: Env } = {}
-): Promise<ExpoConfig | undefined> {
+): Promise<void> {
   const exp = getExpoConfig(projectDir, options);
-
-  const privacy = toAppPrivacy(exp.privacy);
-  const projectId = await ensureProjectExistsAsync({
-    accountName: getProjectAccountName(exp, await ensureLoggedInAsync()),
-    projectName: exp.slug,
-    privacy,
-  });
-
   const result = await modifyConfigAsync(projectDir, {
     extra: { ...exp.extra, eas: { ...exp.extra?.eas, projectId } },
   });
@@ -122,11 +118,27 @@ export async function setProjectIdAsync(
     default:
       throw new Error('Unexpected result type from modifyConfigAsync');
   }
-
-  Log.withTick(`Linked app.json to project with ID ${chalk.bold(projectId)}`);
-  return result.config?.expo;
 }
 
+/**
+ * Use the owner/slug to identify an EAS project on the server.
+ *
+ * @returns the EAS project ID from the server
+ */
+export async function fetchProjectIdFromServerAsync(exp: ExpoConfig): Promise<string> {
+  const privacy = toAppPrivacy(exp.privacy);
+  return await ensureProjectExistsAsync({
+    accountName: getProjectAccountName(exp, await ensureLoggedInAsync()),
+    projectName: exp.slug,
+    privacy,
+  });
+}
+
+/**
+ * Get the EAS project ID from the app config. If the project ID is not set in the config.
+ * use the owner/slug to identify an EAS project on the server, and attempt to save the
+ * EAS project ID to the appropriate field in the app config.
+ */
 export async function getProjectIdAsync(
   exp: ExpoConfig,
   options: { env?: Env } = {},
@@ -140,19 +152,23 @@ export async function getProjectIdAsync(
     return localProjectId;
   }
 
-  // Set the project ID if it is missing.
   const projectDir = await findProjectRootAsync(findProjectRootOptions);
   if (!projectDir) {
     throw new Error('Run this command inside a project directory.');
   }
-  const newExp = await setProjectIdAsync(projectDir, options);
 
-  const newLocalProjectId = newExp?.extra?.eas?.projectId;
-  if (!newLocalProjectId) {
-    // throw if we still can't locate the projectId
-    throw new Error('Could not retrieve project ID from app.json');
+  const projectId = await fetchProjectIdFromServerAsync(exp);
+
+  try {
+    await saveProjectIdToAppConfigAsync(projectDir, projectId, options);
+  } catch (e: any) {
+    // saveProjectIdToAppConfigAsync already printed out a set of detailed errors and
+    // instructions on how to fix it. To mimic throwing the error but not halting
+    // execution, just warn here with the error message.
+    Log.warn(e.message);
   }
-  return newLocalProjectId;
+
+  return projectId;
 }
 
 const toAppPrivacy = (privacy: ExpoConfig['privacy']): AppPrivacy => {
