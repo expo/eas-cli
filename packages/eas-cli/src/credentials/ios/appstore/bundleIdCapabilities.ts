@@ -595,14 +595,14 @@ export const CapabilityMapping: CapabilityClassifier[] = [
   },
   {
     entitlement: 'com.apple.developer.kernel.increased-memory-limit',
-    name: 'Increased Memory Limit entitlement',
+    name: 'Increased Memory Limit',
     capability: CapabilityType.INCREASED_MEMORY_LIMIT,
     validateOptions: validateBooleanOptions,
     getOptions: getBooleanOptions,
   },
   {
     entitlement: 'com.apple.developer.driverkit.communicates-with-drivers',
-    name: 'Communicates with Drivers entitlement',
+    name: 'Communicates with Drivers',
     capability: CapabilityType.DRIVER_KIT_COMMUNICATES_WITH_DRIVERS,
     validateOptions: validateBooleanOptions,
     getOptions: getBooleanOptions,
@@ -672,7 +672,7 @@ export const CapabilityMapping: CapabilityClassifier[] = [
   },
   {
     entitlement: 'com.apple.developer.driverkit',
-    name: 'DriverKit for Development entitlement',
+    name: 'DriverKit for Development',
     capability: CapabilityType.DRIVER_KIT_PUBLIC,
     validateOptions: validateBooleanOptions,
     getOptions: getBooleanOptions,
@@ -693,7 +693,7 @@ export const CapabilityMapping: CapabilityClassifier[] = [
   },
   {
     entitlement: 'com.apple.developer.shared-with-you',
-    name: 'Shared with You entitlement',
+    name: 'Shared with You',
     capability: CapabilityType.SHARED_WITH_YOU,
     validateOptions: validateBooleanOptions,
     getOptions: getBooleanOptions,
