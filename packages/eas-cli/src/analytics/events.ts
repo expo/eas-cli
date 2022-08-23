@@ -15,6 +15,7 @@ export enum SubmissionEvent {
   SUBMIT_REQUEST_ATTEMPT = 'submit cli request attempt',
   SUBMIT_REQUEST_SUCCESS = 'submit cli request success',
   SUBMIT_REQUEST_FAIL = 'submit cli request fail',
+  CREDENTIALS_API_KEY_DOWNLOAD = 'submit cli credentials api key download',
 }
 
 export enum BuildEvent {

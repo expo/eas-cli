@@ -1,6 +1,8 @@
 import { ApiKey, ApiKeyProps, ApiKeyType, UserRole } from '@expo/apple-utils';
+import promiseRetry from 'promise-retry';
 
-import Log from '../../../log';
+import { Analytics, SubmissionEvent } from '../../../analytics/events';
+import Log, { learnMore } from '../../../log';
 import { ora } from '../../../ora';
 import { AscApiKey, AscApiKeyInfo } from './Credentials.types';
 import { getRequestContext } from './authenticate';
@@ -49,6 +51,64 @@ export async function getAscApiKeyAsync(
   }
 }
 
+export async function downloadWithRetryAsync(
+  key: ApiKey,
+  options: { minTimeout?: number } = {}
+): Promise<string | null> {
+  const retries = 6;
+  const factor = 2;
+  const minTimeout = options.minTimeout ?? 1000;
+  const RESOURCE_DOES_NOT_EXIST_MESSAGE =
+    'The specified resource does not exist - There is no resource of type';
+  try {
+    return await promiseRetry(
+      async (retry, number) => {
+        try {
+          return await key.downloadAsync();
+        } catch (e: any) {
+          if (
+            e.name === 'UnexpectedAppleResponse' &&
+            e.message.includes(RESOURCE_DOES_NOT_EXIST_MESSAGE)
+          ) {
+            const secondsToRetry = Math.pow(factor, number);
+            Log.log(
+              `Received an unexpected response from Apple, retrying in ${secondsToRetry} seconds...`
+            );
+            Analytics.logEvent(SubmissionEvent.CREDENTIALS_API_KEY_DOWNLOAD, {
+              errorName: e.name,
+              reason: e.message,
+              retry: number,
+            });
+            return retry(e);
+          }
+          throw e;
+        }
+      },
+      {
+        retries,
+        factor,
+        minTimeout,
+      }
+    );
+  } catch (e: any) {
+    if (
+      e.name === 'UnexpectedAppleResponse' &&
+      e.message.includes(RESOURCE_DOES_NOT_EXIST_MESSAGE)
+    ) {
+      Log.warn(
+        `Unable to download Api Key from Apple at this time. Please create and upload your key manually by running 'eas credentials' ${learnMore(
+          'https://expo.fyi/creating-asc-api-key'
+        )}`
+      );
+    }
+    Analytics.logEvent(SubmissionEvent.CREDENTIALS_API_KEY_DOWNLOAD, {
+      errorName: e.name,
+      reason: e.message,
+    });
+    throw e;
+  }
+}
+
 /**
  * Create an App Store Connect API Key.
  * **Does not support App Store Connect API (CI).**
@@ -71,7 +131,7 @@ export async function createAscApiKeyAsync(
       roles: roles ?? [UserRole.ADMIN],
       keyType: keyType ?? ApiKeyType.PUBLIC_API,
     });
-    const keyP8 = await key.downloadAsync();
+    const keyP8 = await downloadWithRetryAsync(key);
     if (!keyP8) {
       const { nickname, roles } = key.attributes;
       const humanReadableKey = `App Store Connect Key '${nickname}' (${
