@@ -9,7 +9,6 @@ import {
 } from '../ascApiKey';
 import { getRequestContext } from '../authenticate';
 
-//jest.mock('@expo/apple-utils');
 jest.mock('../authenticate');
 jest.mock('../../../../ora');
 
@@ -112,7 +111,7 @@ test(`downloadWithRetryAsync`, async () => {
     downloadWithRetryAsync(mockApiKeyWithDownloadError, { minTimeout: 1 }) // stay within jest timeout window
   ).rejects.toThrowError(cacheFailureMessage);
   // expect to try once and retry 3 times = 4 total
-  expect(mockApiKeyWithDownloadError.downloadAsync as jest.Mock).toBeCalledTimes(4);
+  expect(mockApiKeyWithDownloadError.downloadAsync as jest.Mock).toBeCalledTimes(7);
 
   // one time failure
   const mockApiKeyWithOneTimeDownloadError = mockApiKey as unknown as ApiKey;

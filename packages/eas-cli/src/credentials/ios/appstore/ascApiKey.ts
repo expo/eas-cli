@@ -51,6 +51,12 @@ export async function getAscApiKeyAsync(
   }
 }
 
+/**
+ * There is a bug in Apple's infrastructure that does not propagate newly created objects for a
+ * while. If the key has not propagated and you try to download it, Apple will error saying that
+ * the resource does not exist. We retry with exponential backoff until the key propagates and
+ * is available for download.
+ * */
 export async function downloadWithRetryAsync(
   key: ApiKey,
   options: { minTimeout?: number } = {}
