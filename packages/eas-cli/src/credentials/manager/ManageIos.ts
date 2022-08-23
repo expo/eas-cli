@@ -11,10 +11,7 @@ import {
 import Log, { learnMore } from '../../log';
 import { resolveXcodeBuildContextAsync } from '../../project/ios/scheme';
 import { resolveTargetsAsync } from '../../project/ios/target';
-import {
-  getProjectAccountName,
-  promptToCreateProjectIfNotExistsAsync,
-} from '../../project/projectUtils';
+import { getProjectAccountName, getProjectIdAsync } from '../../project/projectUtils';
 import { confirmAsync, promptAsync, selectAsync } from '../../prompts';
 import { Account, findAccountByName } from '../../user/Account';
 import { ensureActorHasUsername, ensureLoggedInAsync } from '../../user/actions';
@@ -175,12 +172,9 @@ export class ManageIos {
     targets: Target[];
   }> {
     assert(ctx.hasProjectContext, 'createProjectContextAsync: must have project context.');
-    const maybeProjectId = await promptToCreateProjectIfNotExistsAsync(ctx.exp);
-    if (!maybeProjectId) {
-      throw new Error(
-        'Your project must be registered with EAS in order to use the credentials manager.'
-      );
-    }
+
+    // ensure the project exists on the EAS server
+    await getProjectIdAsync(ctx.exp);
 
     const app = { account, projectName: ctx.exp.slug };
     const xcodeBuildContext = await resolveXcodeBuildContextAsync(
