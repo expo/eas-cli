@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Retry ASC Api Key Downloads if it has not fully propagated on Apple's infrastructure. ([#1302](https://github.com/expo/eas-cli/pull/1302) by [@quinlanj](https://github.com/quinlanj))
+
 ### 🧹 Chores
 
 - Remove unused dependency and devDependency from the CLI. ([#1297](https://github.com/expo/eas-cli/pull/1297) by [@Simek](https://github.com/Simek))
