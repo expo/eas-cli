@@ -158,14 +158,10 @@
           "markdownDescription": "Cache configuration. This feature is intended for caching values that require a lot of computation, e.g. compilation results (both final binaries and any intermediate files), but it wouldn't work well for `node_modules` because the cache is not local to the machine, so the download speed is similar to downloading from the npm registry."
         },
         "autoIncrement": {
-          "enum": [false, true],
+          "type": "boolean",
           "description": "Controls how EAS CLI bumps your application build version.",
-          "markdownDescription": "Controls how EAS CLI bumps your application build version.\n\nAllowed values:\n- `\"true\"` - for iOS, bumps the last component of `expo.ios.buildNumber` (e.g. `1.2.3.39` -> `1.2.3.40`) and for Android, bumps `expo.android.versionCode` (e.g. `3` -> `4`).\n- `false` - versions won't be bumped automatically (default)\n\nIn the case of a bare project, it also updates versions in native code. For Android, `expo.version` corresponds to `versionName` and `expo.android.versionCode` to `versionCode` in the `build.gradle`. Google Play uses these values to identify the app build, `versionName` is the version visible to users, whereas `versionCode` defines the version number. The combination of those needs to be unique, so you can bump either of them.\nFor iOS, `expo.version` corresponds to `CFBundleShortVersionString` and `expo.ios.buildNumber` to `CFBundleVersion` in the `Info.plist`. The App Store is using those values to identify the app build, `CFBundleShortVersionString` is the version visible to users, whereas `CFBundleVersion` defines the build number. The combination of those needs to be unique, so you can bump either of them.",
-          "default": false,
-          "markdownEnumDescriptions": [
-            "Versions won't be bumped automatically (default).",
-            "For iOS, bumps the last component of `expo.ios.buildNumber` (e.g. `1.2.3.39` -> `1.2.3.40`) and for Android, bumps `expo.android.versionCode` (e.g. `3` -> `4`)."
-          ]
+          "markdownDescription": "When enabled, for iOS, bumps the last component of `expo.ios.buildNumber` (e.g. `1.2.3.39` -> `1.2.3.40`) and for Android, bumps `expo.android.versionCode` (e.g. `3` -> `4`).",
+          "default": false
         },
         "android": {
           "$ref": "#/definitions/BuildProfileAndroid"
