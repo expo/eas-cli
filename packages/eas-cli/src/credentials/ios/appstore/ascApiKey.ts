@@ -59,15 +59,16 @@ export async function getAscApiKeyAsync(
  * */
 export async function downloadWithRetryAsync(
   key: ApiKey,
-  options: { minTimeout?: number } = {}
+  {
+    minTimeout = 1000,
+    retries = 6,
+    factor = 2,
+  }: { minTimeout?: number; retries?: number; factor?: number } = {}
 ): Promise<string | null> {
-  const retries = 6;
-  const factor = 2;
-  const minTimeout = options.minTimeout ?? 1000;
   const RESOURCE_DOES_NOT_EXIST_MESSAGE =
     'The specified resource does not exist - There is no resource of type';
   try {
-    return await promiseRetry(
+    const keyP8 = await promiseRetry(
       async (retry, number) => {
         try {
           return await key.downloadAsync();
@@ -80,7 +81,7 @@ export async function downloadWithRetryAsync(
             Log.log(
               `Received an unexpected response from Apple, retrying in ${secondsToRetry} seconds...`
             );
-            Analytics.logEvent(SubmissionEvent.CREDENTIALS_API_KEY_DOWNLOAD, {
+            Analytics.logEvent(SubmissionEvent.API_KEY_DOWNLOAD_RETRY, {
               errorName: e.name,
               reason: e.message,
               retry: number,
@@ -96,18 +97,20 @@ export async function downloadWithRetryAsync(
         minTimeout,
       }
     );
+    Analytics.logEvent(SubmissionEvent.API_KEY_DOWNLOAD_SUCCESS, {});
+    return keyP8;
   } catch (e: any) {
     if (
       e.name === 'UnexpectedAppleResponse' &&
       e.message.includes(RESOURCE_DOES_NOT_EXIST_MESSAGE)
     ) {
       Log.warn(
-        `Unable to download Api Key from Apple at this time. Please create and upload your key manually by running 'eas credentials' ${learnMore(
+        `Unable to download Api Key from Apple at this time. Create and upload your key manually by running 'eas credentials' ${learnMore(
           'https://expo.fyi/creating-asc-api-key'
         )}`
       );
     }
-    Analytics.logEvent(SubmissionEvent.CREDENTIALS_API_KEY_DOWNLOAD, {
+    Analytics.logEvent(SubmissionEvent.API_KEY_DOWNLOAD_FAIL, {
       errorName: e.name,
       reason: e.message,
     });
