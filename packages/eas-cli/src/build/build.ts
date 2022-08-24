@@ -14,6 +14,7 @@ import {
   BuildParamsInput,
   BuildPriority,
   BuildStatus,
+  StatuspageServiceName,
   UploadSessionType,
 } from '../graphql/generated';
 import { BuildResult } from '../graphql/mutations/BuildMutation';
@@ -29,6 +30,7 @@ import { uploadFileAtPathToS3Async } from '../uploads';
 import { formatBytes } from '../utils/files';
 import { createProgressTracker } from '../utils/progress';
 import { sleepAsync } from '../utils/promise';
+import { warnIfStatuspageServiceIsntOperationalAsync } from '../utils/statuspageService';
 import { getVcsClient } from '../vcs';
 import { BuildContext } from './context';
 import { runLocalBuildAsync } from './local';
@@ -126,13 +128,14 @@ export async function prepareBuildRequestForPlatformAsync<
       try {
         return await sendBuildRequestAsync(builder, job, metadata, buildParams);
       } catch (error: any) {
-        handleBuildRequestError(error, job.platform);
+        await handleBuildRequestErrorAsync(error, job.platform);
+        throw error;
       }
     }
   };
 }
 
-function handleBuildRequestError(error: any, platform: Platform): never {
+async function handleBuildRequestErrorAsync(error: any, platform: Platform): Promise<void> {
   if (error?.graphQLErrors?.[0]?.extensions?.errorCode === 'TURTLE_DEPRECATED_JOB_FORMAT') {
     Log.error('EAS Build API has changed. Upgrade to the latest eas-cli version.');
     throw new Error('Build request failed.');
@@ -159,8 +162,11 @@ function handleBuildRequestError(error: any, platform: Platform): never {
     Log.error(
       'Build request failed. Make sure you are using the latest eas-cli version. If the problem persists, report the issue.'
     );
+
+    await warnIfStatuspageServiceIsntOperationalAsync(StatuspageServiceName.EasBuild);
+  } else {
+    await warnIfStatuspageServiceIsntOperationalAsync(StatuspageServiceName.EasBuild);
   }
-  throw error;
 }
 
 async function uploadProjectAsync<TPlatform extends Platform>(

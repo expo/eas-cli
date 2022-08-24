@@ -1,4 +1,4 @@
-import { Env, Ios } from '@expo/eas-build-job';
+import { Ios } from '@expo/eas-build-job';
 import nullthrows from 'nullthrows';
 
 import { IosJobInput, IosJobSecretsInput } from '../../graphql/generated';
@@ -27,7 +27,6 @@ export function transformJob(job: Ios.Job): IosJobInput {
 
 function transformIosSecrets(secrets: {
   buildCredentials?: Ios.BuildCredentials;
-  env?: Env;
 }): IosJobSecretsInput {
   const buildCredentials: IosJobSecretsInput['buildCredentials'] = [];
 

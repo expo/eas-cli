@@ -3317,6 +3317,8 @@ export type RootQuery = {
   meActor?: Maybe<Actor>;
   project: ProjectQuery;
   snack: SnackQuery;
+  /** Top-level query object for querying Expo status page services. */
+  statuspageService: StatuspageServiceQuery;
   submissions: SubmissionQuery;
   /** fetch all updates in a group */
   updatesByGroup: Array<Update>;
@@ -3474,6 +3476,100 @@ export enum StandardOffer {
   YcDeals = 'YC_DEALS',
   /** $348 USD per year, 30 day trial */
   YearlySub = 'YEARLY_SUB'
+}
+
+/** Incident for a given component from Expo status page API. */
+export type StatuspageIncident = {
+  __typename?: 'StatuspageIncident';
+  createdAt: Scalars['DateTime'];
+  id: Scalars['ID'];
+  /** Impact of an incident from Expo status page. */
+  impact: StatuspageIncidentImpact;
+  name: Scalars['String'];
+  resolvedAt?: Maybe<Scalars['DateTime']>;
+  /** Shortlink to the incident from Expo status page. */
+  shortlink: Scalars['String'];
+  /** Current status of an incident from Expo status page. */
+  status: StatuspageIncidentStatus;
+  updatedAt: Scalars['DateTime'];
+  /** List of all updates for an incident from Expo status page. */
+  updates: Array<StatuspageIncidentUpdate>;
+};
+
+/** Possible Incident impact values from Expo status page API. */
+export enum StatuspageIncidentImpact {
+  Critical = 'CRITICAL',
+  Maintenance = 'MAINTENANCE',
+  Major = 'MAJOR',
+  Minor = 'MINOR',
+  None = 'NONE'
+}
+
+/** Possible Incident statuses from Expo status page API. */
+export enum StatuspageIncidentStatus {
+  Completed = 'COMPLETED',
+  Identified = 'IDENTIFIED',
+  Investigating = 'INVESTIGATING',
+  InProgress = 'IN_PROGRESS',
+  Monitoring = 'MONITORING',
+  Resolved = 'RESOLVED',
+  Scheduled = 'SCHEDULED',
+  Verifying = 'VERIFYING'
+}
+
+/** Update for an Incident from Expo status page API. */
+export type StatuspageIncidentUpdate = {
+  __typename?: 'StatuspageIncidentUpdate';
+  /** Text of an update from Expo status page. */
+  body: Scalars['String'];
+  createdAt: Scalars['DateTime'];
+  id: Scalars['ID'];
+  /** Status set at the moment of update. */
+  status: StatuspageIncidentStatus;
+};
+
+/** Service monitored by Expo status page. */
+export type StatuspageService = {
+  __typename?: 'StatuspageService';
+  /** Description of a service from Expo status page. */
+  description?: Maybe<Scalars['String']>;
+  id: Scalars['ID'];
+  /**
+   * List of last inicdents for a service from Expo status page (we always query for 50 latest incidents for all services)
+   * sorted by createdAt field in descending order.
+   */
+  incidents: Array<StatuspageIncident>;
+  /** Name of a service monitored by Expo status page. */
+  name: StatuspageServiceName;
+  /** Current status of a service from Expo status page. */
+  status: StatuspageServiceStatus;
+};
+
+/** Name of a service monitored by Expo status page. */
+export enum StatuspageServiceName {
+  EasBuild = 'EAS_BUILD',
+  EasSubmit = 'EAS_SUBMIT',
+  EasUpdate = 'EAS_UPDATE'
+}
+
+export type StatuspageServiceQuery = {
+  __typename?: 'StatuspageServiceQuery';
+  /** Query services from Expo status page by names. */
+  byServiceNames: Array<StatuspageService>;
+};
+
+
+export type StatuspageServiceQueryByServiceNamesArgs = {
+  serviceNames: Array<StatuspageServiceName>;
+};
+
+/** Possible statuses for a service. */
+export enum StatuspageServiceStatus {
+  DegradedPerformance = 'DEGRADED_PERFORMANCE',
+  MajorOutage = 'MAJOR_OUTAGE',
+  Operational = 'OPERATIONAL',
+  PartialOutage = 'PARTIAL_OUTAGE',
+  UnderMaintenance = 'UNDER_MAINTENANCE'
 }
 
 export type StripeCoupon = {
@@ -4860,6 +4956,13 @@ export type GetAssetLimitPerUpdateGroupForAppQueryVariables = Exact<{
 
 export type GetAssetLimitPerUpdateGroupForAppQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, assetLimitPerUpdateGroup: number } } };
 
+export type StatuspageServiceByServiceNamesQueryVariables = Exact<{
+  serviceNames: Array<StatuspageServiceName> | StatuspageServiceName;
+}>;
+
+
+export type StatuspageServiceByServiceNamesQuery = { __typename?: 'RootQuery', statuspageService: { __typename?: 'StatuspageServiceQuery', byServiceNames: Array<{ __typename?: 'StatuspageService', id: string, name: StatuspageServiceName, status: StatuspageServiceStatus, incidents: Array<{ __typename?: 'StatuspageIncident', id: string, status: StatuspageIncidentStatus, name: string, impact: StatuspageIncidentImpact, shortlink: string }> }> } };
+
 export type SubmissionsByIdQueryVariables = Exact<{
   submissionId: Scalars['ID'];
 }>;
@@ -4924,6 +5027,8 @@ export type BuildFragment = { __typename?: 'Build', id: string, status: BuildSta
 export type BuildWithSubmissionsFragment = { __typename?: 'Build', id: string, status: BuildStatus, platform: AppPlatform, channel?: string | null, releaseChannel?: string | null, distribution?: DistributionType | null, iosEnterpriseProvisioning?: BuildIosEnterpriseProvisioning | null, buildProfile?: string | null, sdkVersion?: string | null, appVersion?: string | null, appBuildVersion?: string | null, runtimeVersion?: string | null, gitCommitHash?: string | null, initialQueuePosition?: number | null, queuePosition?: number | null, estimatedWaitTimeLeftSeconds?: number | null, priority: BuildPriority, createdAt: any, updatedAt: any, submissions: Array<{ __typename?: 'Submission', id: string, status: SubmissionStatus, platform: AppPlatform, logsUrl?: string | null, app: { __typename?: 'App', id: string, name: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } }, androidConfig?: { __typename?: 'AndroidSubmissionConfig', applicationIdentifier?: string | null, track: SubmissionAndroidTrack, releaseStatus?: SubmissionAndroidReleaseStatus | null } | null, iosConfig?: { __typename?: 'IosSubmissionConfig', ascAppIdentifier: string, appleIdUsername?: string | null } | null, error?: { __typename?: 'SubmissionError', errorCode?: string | null, message?: string | null } | null }>, error?: { __typename?: 'BuildError', errorCode: string, message: string, docsUrl?: string | null } | null, artifacts?: { __typename?: 'BuildArtifacts', buildUrl?: string | null, xcodeBuildLogsUrl?: string | null } | null, initiatingActor?: { __typename: 'Robot', id: string, displayName: string } | { __typename: 'User', id: string, displayName: string } | null, project: { __typename: 'App', id: string, name: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } } | { __typename: 'Snack', id: string, name: string, slug: string } };
 
 export type EnvironmentSecretFragment = { __typename?: 'EnvironmentSecret', id: string, name: string, createdAt: any };
+
+export type StatuspageServiceFragment = { __typename?: 'StatuspageService', id: string, name: StatuspageServiceName, status: StatuspageServiceStatus, incidents: Array<{ __typename?: 'StatuspageIncident', id: string, status: StatuspageIncidentStatus, name: string, impact: StatuspageIncidentImpact, shortlink: string }> };
 
 export type SubmissionFragment = { __typename?: 'Submission', id: string, status: SubmissionStatus, platform: AppPlatform, logsUrl?: string | null, app: { __typename?: 'App', id: string, name: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } }, androidConfig?: { __typename?: 'AndroidSubmissionConfig', applicationIdentifier?: string | null, track: SubmissionAndroidTrack, releaseStatus?: SubmissionAndroidReleaseStatus | null } | null, iosConfig?: { __typename?: 'IosSubmissionConfig', ascAppIdentifier: string, appleIdUsername?: string | null } | null, error?: { __typename?: 'SubmissionError', errorCode?: string | null, message?: string | null } | null };
 
