@@ -5,7 +5,7 @@ import terminalLink from 'terminal-link';
 import { getProjectDashboardUrl } from '../build/utils/url';
 import { AppPrivacy } from '../graphql/generated';
 import { AppMutation } from '../graphql/mutations/AppMutation';
-import { ProjectQuery } from '../graphql/queries/ProjectQuery';
+import { AppQuery } from '../graphql/queries/AppQuery';
 import { ora } from '../ora';
 import { findAccountByName } from '../user/Account';
 import { ensureLoggedInAsync } from '../user/actions';
@@ -71,32 +71,19 @@ export async function ensureProjectExistsAsync(projectInfo: ProjectInfo): Promis
  * @param slug project slug
  * @returns A promise resolving to Project ID, null if it doesn't exist
  */
-export async function findProjectIdByAccountNameAndSlugNullableAsync(
+async function findProjectIdByAccountNameAndSlugNullableAsync(
   accountName: string,
   slug: string
 ): Promise<string | null> {
   try {
-    return await findProjectIdByAccountNameAndSlugAsync(accountName, slug);
+    const { id } = await AppQuery.byFullNameAsync(`@${accountName}/${slug}`);
+    return id;
   } catch (err: any) {
     if (err.graphQLErrors?.some((it: any) => it.extensions?.errorCode !== 'EXPERIENCE_NOT_FOUND')) {
       throw err;
     }
     return null;
   }
-}
-
-/**
- * Finds project by `@accountName/slug` and returns its ID
- * @param accountName account name
- * @param slug project slug
- * @returns A promise resolving to Project ID
- */
-async function findProjectIdByAccountNameAndSlugAsync(
-  accountName: string,
-  slug: string
-): Promise<string> {
-  const { id } = await ProjectQuery.byUsernameAndSlugAsync(accountName, slug);
-  return id;
 }
 
 /**

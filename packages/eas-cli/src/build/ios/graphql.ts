@@ -43,6 +43,5 @@ function transformIosSecrets(secrets: {
 
   return {
     buildCredentials,
-    environmentSecrets: secrets.env,
   };
 }

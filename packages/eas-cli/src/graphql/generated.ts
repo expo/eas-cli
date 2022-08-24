@@ -280,8 +280,8 @@ export type AccountMutation = {
   grantActorPermissions: Account;
   /** Rename this account and the primary user's username if this account is a personal account */
   rename: Account;
-  /** Requests a refund for the specified charge. Returns true if auto-refund was possible, otherwise requests a manual refund from support and returns false. */
-  requestRefund: Scalars['Boolean'];
+  /** Requests a refund for the specified charge by requesting a manual refund from support */
+  requestRefund?: Maybe<Scalars['Boolean']>;
   /** Revoke specified Permissions for Actor. Actor must already have at least one permission on the account. */
   revokeActorPermissions: Account;
   /**
@@ -803,9 +803,23 @@ export type AndroidJobKeystoreInput = {
   keystorePassword: Scalars['String'];
 };
 
+export type AndroidJobOverridesInput = {
+  artifactPath?: InputMaybe<Scalars['String']>;
+  buildType?: InputMaybe<AndroidBuildType>;
+  builderEnvironment?: InputMaybe<AndroidBuilderEnvironmentInput>;
+  cache?: InputMaybe<BuildCacheInput>;
+  developmentClient?: InputMaybe<Scalars['Boolean']>;
+  experimental?: InputMaybe<Scalars['JSONObject']>;
+  gradleCommand?: InputMaybe<Scalars['String']>;
+  releaseChannel?: InputMaybe<Scalars['String']>;
+  secrets?: InputMaybe<AndroidJobSecretsInput>;
+  updates?: InputMaybe<BuildUpdatesInput>;
+  username?: InputMaybe<Scalars['String']>;
+  version?: InputMaybe<AndroidJobVersionInput>;
+};
+
 export type AndroidJobSecretsInput = {
   buildCredentials?: InputMaybe<AndroidJobBuildCredentialsInput>;
-  environmentSecrets?: InputMaybe<Scalars['JSONObject']>;
 };
 
 export type AndroidJobVersionInput = {
@@ -1932,8 +1946,15 @@ export type BuildMutation = {
   createIosBuild: CreateBuildResult;
   /** Delete an EAS Build build */
   deleteBuild: Build;
-  /** Retry an EAS Build build */
+  /** Retry an Android EAS Build */
+  retryAndroidBuild: Build;
+  /**
+   * Retry an EAS Build build
+   * @deprecated Use retryAndroidBuild and retryIosBuild instead
+   */
   retryBuild: Build;
+  /** Retry an iOS EAS Build */
+  retryIosBuild: Build;
 };
 
 
@@ -1963,8 +1984,20 @@ export type BuildMutationDeleteBuildArgs = {
 };
 
 
+export type BuildMutationRetryAndroidBuildArgs = {
+  buildId: Scalars['ID'];
+  jobOverrides?: InputMaybe<AndroidJobOverridesInput>;
+};
+
+
 export type BuildMutationRetryBuildArgs = {
   buildId: Scalars['ID'];
+};
+
+
+export type BuildMutationRetryIosBuildArgs = {
+  buildId: Scalars['ID'];
+  jobOverrides?: InputMaybe<IosJobOverridesInput>;
 };
 
 export type BuildOrBuildJob = {
@@ -2711,9 +2744,28 @@ export type IosJobInput = {
   version?: InputMaybe<IosJobVersionInput>;
 };
 
+export type IosJobOverridesInput = {
+  artifactPath?: InputMaybe<Scalars['String']>;
+  buildConfiguration?: InputMaybe<Scalars['String']>;
+  /** @deprecated */
+  buildType?: InputMaybe<IosBuildType>;
+  builderEnvironment?: InputMaybe<IosBuilderEnvironmentInput>;
+  cache?: InputMaybe<BuildCacheInput>;
+  developmentClient?: InputMaybe<Scalars['Boolean']>;
+  /** @deprecated */
+  distribution?: InputMaybe<DistributionType>;
+  experimental?: InputMaybe<Scalars['JSONObject']>;
+  releaseChannel?: InputMaybe<Scalars['String']>;
+  scheme?: InputMaybe<Scalars['String']>;
+  secrets?: InputMaybe<IosJobSecretsInput>;
+  simulator?: InputMaybe<Scalars['Boolean']>;
+  updates?: InputMaybe<BuildUpdatesInput>;
+  username?: InputMaybe<Scalars['String']>;
+  version?: InputMaybe<IosJobVersionInput>;
+};
+
 export type IosJobSecretsInput = {
   buildCredentials?: InputMaybe<Array<InputMaybe<IosJobTargetCredentialsInput>>>;
-  environmentSecrets?: InputMaybe<Scalars['JSONObject']>;
 };
 
 export type IosJobTargetCredentialsInput = {
@@ -3215,8 +3267,6 @@ export type RootMutationBuildJobArgs = {
 
 export type RootQuery = {
   __typename?: 'RootQuery';
-  /** Top-level query object for querying GitHub App information and resources it has access to. */
-  GitHubApp: GitHubAppQuery;
   /**
    * This is a placeholder field
    * @deprecated Not used.
@@ -3251,6 +3301,8 @@ export type RootQuery = {
   clientBuilds: ClientBuildQuery;
   /** Top-level query object for querying Experimentation configuration. */
   experimentation: ExperimentationQuery;
+  /** Top-level query object for querying GitHub App information and resources it has access to. */
+  githubApp: GitHubAppQuery;
   /** Top-level query object for querying Stripe Invoices. */
   invoice: InvoiceQuery;
   /**
@@ -4471,13 +4523,6 @@ export type SetAppStoreConnectApiKeyForSubmissionsMutationVariables = Exact<{
 
 export type SetAppStoreConnectApiKeyForSubmissionsMutation = { __typename?: 'RootMutation', iosAppCredentials: { __typename?: 'IosAppCredentialsMutation', setAppStoreConnectApiKeyForSubmissions: { __typename?: 'IosAppCredentials', id: string, iosAppBuildCredentialsList: Array<{ __typename?: 'IosAppBuildCredentials', id: string, iosDistributionType: IosDistributionType, distributionCertificate?: { __typename?: 'AppleDistributionCertificate', id: string, certificateP12?: string | null, certificatePassword?: string | null, serialNumber: string, developerPortalIdentifier?: string | null, validityNotBefore: any, validityNotAfter: any, updatedAt: any, appleTeam?: { __typename?: 'AppleTeam', id: string, appleTeamIdentifier: string, appleTeamName?: string | null } | null, iosAppBuildCredentialsList: Array<{ __typename?: 'IosAppBuildCredentials', id: string, iosAppCredentials: { __typename?: 'IosAppCredentials', id: string, app: { __typename?: 'App', id: string, fullName: string, slug: string }, appleAppIdentifier: { __typename?: 'AppleAppIdentifier', id: string, bundleIdentifier: string } }, provisioningProfile?: { __typename?: 'AppleProvisioningProfile', id: string, developerPortalIdentifier?: string | null } | null }> } | null, provisioningProfile?: { __typename?: 'AppleProvisioningProfile', id: string, expiration: any, developerPortalIdentifier?: string | null, provisioningProfile?: string | null, updatedAt: any, status: string, appleTeam?: { __typename?: 'AppleTeam', id: string, appleTeamIdentifier: string, appleTeamName?: string | null } | null, appleDevices: Array<{ __typename?: 'AppleDevice', id: string, identifier: string, name?: string | null, model?: string | null, deviceClass?: AppleDeviceClass | null }> } | null }>, app: { __typename?: 'App', id: string, fullName: string, slug: string }, appleTeam?: { __typename?: 'AppleTeam', id: string, appleTeamIdentifier: string, appleTeamName?: string | null } | null, appleAppIdentifier: { __typename?: 'AppleAppIdentifier', id: string, bundleIdentifier: string }, pushKey?: { __typename?: 'ApplePushKey', id: string, keyIdentifier: string, updatedAt: any, appleTeam?: { __typename?: 'AppleTeam', id: string, appleTeamIdentifier: string, appleTeamName?: string | null } | null, iosAppCredentialsList: Array<{ __typename?: 'IosAppCredentials', id: string, app: { __typename?: 'App', id: string, fullName: string, slug: string }, appleAppIdentifier: { __typename?: 'AppleAppIdentifier', id: string, bundleIdentifier: string } }> } | null, appStoreConnectApiKeyForSubmissions?: { __typename?: 'AppStoreConnectApiKey', id: string, issuerIdentifier: string, keyIdentifier: string, name?: string | null, roles?: Array<AppStoreConnectUserRole> | null, createdAt: any, updatedAt: any, appleTeam?: { __typename?: 'AppleTeam', id: string, appleTeamIdentifier: string, appleTeamName?: string | null } | null } | null } } };
 
-export type AppByFullNameQueryVariables = Exact<{
-  fullName: Scalars['String'];
-}>;
-
-
-export type AppByFullNameQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byFullName: { __typename?: 'App', id: string, fullName: string, slug: string } } };
-
 export type AppStoreConnectApiKeyByAccountQueryVariables = Exact<{
   accountName: Scalars['String'];
 }>;
@@ -4722,6 +4767,13 @@ export type DeleteWebhookMutationVariables = Exact<{
 
 export type DeleteWebhookMutation = { __typename?: 'RootMutation', webhook: { __typename?: 'WebhookMutation', deleteWebhook: { __typename?: 'DeleteWebhookResult', id: string } } };
 
+export type AppByFullNameQueryVariables = Exact<{
+  fullName: Scalars['String'];
+}>;
+
+
+export type AppByFullNameQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byFullName: { __typename?: 'App', id: string, fullName: string, slug: string } } };
+
 export type LatestAppVersionQueryVariables = Exact<{
   appId: Scalars['String'];
   platform: AppPlatform;
@@ -4793,14 +4845,6 @@ export type EnvironmentSecretsByAppIdQueryVariables = Exact<{
 
 
 export type EnvironmentSecretsByAppIdQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, environmentSecrets: Array<{ __typename?: 'EnvironmentSecret', id: string, name: string, createdAt: any }> } } };
-
-export type ProjectByUsernameAndSlugQueryVariables = Exact<{
-  username: Scalars['String'];
-  slug: Scalars['String'];
-}>;
-
-
-export type ProjectByUsernameAndSlugQuery = { __typename?: 'RootQuery', project: { __typename?: 'ProjectQuery', byUsernameAndSlug: { __typename?: 'App', id: string } | { __typename?: 'Snack', id: string } } };
 
 export type GetAssetMetadataQueryVariables = Exact<{
   storageKeys: Array<Scalars['String']> | Scalars['String'];

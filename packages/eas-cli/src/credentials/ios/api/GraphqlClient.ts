@@ -14,6 +14,7 @@ import {
   IosAppBuildCredentialsFragment,
   IosDistributionType,
 } from '../../../graphql/generated';
+import { AppQuery } from '../../../graphql/queries/AppQuery';
 import { isWildcardBundleIdentifier } from '../../../project/ios/bundleIdentifier';
 import { Account } from '../../../user/Account';
 import { DistributionCertificate, PushKey } from '../appstore/Credentials.types';
@@ -33,7 +34,6 @@ import { ApplePushKeyMutation } from './graphql/mutations/ApplePushKeyMutation';
 import { AppleTeamMutation } from './graphql/mutations/AppleTeamMutation';
 import { IosAppBuildCredentialsMutation } from './graphql/mutations/IosAppBuildCredentialsMutation';
 import { IosAppCredentialsMutation } from './graphql/mutations/IosAppCredentialsMutation';
-import { AppQuery } from './graphql/queries/AppQuery';
 import { AppStoreConnectApiKeyQuery } from './graphql/queries/AppStoreConnectApiKeyQuery';
 import { AppleAppIdentifierQuery } from './graphql/queries/AppleAppIdentifierQuery';
 import { AppleDeviceQuery } from './graphql/queries/AppleDeviceQuery';
