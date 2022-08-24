@@ -13,6 +13,7 @@ import { PresignedPost } from '../graphql/mutations/UploadSessionMutation';
 import { PublishQuery } from '../graphql/queries/PublishQuery';
 import { uploadWithPresignedPostWithRetryAsync } from '../uploads';
 import { expoCommandAsync } from '../utils/expoCli';
+import chunk from '../utils/expodash/chunk';
 import uniqBy from '../utils/expodash/uniqBy';
 
 export type PublishPlatform = Extract<'android' | 'ios', Platform>;
@@ -285,12 +286,18 @@ export async function uploadAssetsAsync(
   const totalAssets = uniqueAssets.length;
 
   updateSpinnerText?.(totalAssets, totalAssets);
-
   let missingAssets = await filterOutAssetsThatAlreadyExistAsync(uniqueAssets);
   const uniqueUploadedAssetCount = missingAssets.length;
-  const { specifications } = await PublishMutation.getUploadURLsAsync(
-    missingAssets.map(ma => ma.contentType)
-  );
+
+  const missingAssetChunks = chunk(missingAssets, 100);
+  const specifications: string[] = [];
+  for (const missingAssets of missingAssetChunks) {
+    const { specifications: chunkSpecifications } = await PublishMutation.getUploadURLsAsync(
+      missingAssets.map(ma => ma.contentType)
+    );
+    specifications.push(...chunkSpecifications);
+  }
+
   updateSpinnerText?.(totalAssets, missingAssets.length);
 
   const assetUploadPromiseLimit = promiseLimit(15);

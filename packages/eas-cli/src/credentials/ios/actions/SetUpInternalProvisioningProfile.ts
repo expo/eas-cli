@@ -70,7 +70,7 @@ export class SetUpInternalProvisioningProfile {
     } else {
       if (adhocBuildCredentialsExist && enterpriseBuildCredentialsExist) {
         throw new Error(
-          `You're in non-interactive mode. You have set up both adhoc and universal distribution credentials. Please set the 'enterpriseProvisioning' property (to 'adhoc' or 'universal') in eas.json to choose the credentials to use.`
+          `You're in non-interactive mode. You have set up both adhoc and universal distribution credentials. Set the 'enterpriseProvisioning' property (to 'adhoc' or 'universal') in eas.json to choose the credentials to use.`
         );
       } else if (adhocBuildCredentialsExist) {
         return await this.setupAdhocProvisioningProfileAsync(ctx);
@@ -78,7 +78,7 @@ export class SetUpInternalProvisioningProfile {
         return await this.setupUniversalProvisioningProfileAsync(ctx);
       } else {
         throw new Error(
-          `You're in non-interactive mode. EAS CLI couldn't find any credentials suitable for internal distribution. Please run again in interactive mode.`
+          `You're in non-interactive mode. EAS CLI couldn't find any credentials suitable for internal distribution. Run this command again in interactive mode.`
         );
       }
     }

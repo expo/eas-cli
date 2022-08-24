@@ -73,7 +73,7 @@ export default class BranchView extends EasCommand {
         ({ name: branchInteractive } = await promptAsync({
           type: 'text',
           name: 'name',
-          message: 'Please enter the name of the branch whose updates you wish to view:',
+          message: 'Provide the name of the branch whose updates you wish to view:',
           initial: (await getVcsClient().getBranchNameAsync()) ?? undefined,
           validate: (value: any) => (value ? true : validationMessage),
         }));

@@ -83,7 +83,7 @@ export function ensureValidVersions(exp: ExpoConfig, platform: RequestedPlatform
       'sdkVersion'
     )} to configure ${chalk.bold(
       'expo-updates'
-    )}. Please specify at least one of these properties under the ${chalk.bold(
+    )}. Specify at least one of these properties under the ${chalk.bold(
       'expo'
     )} key in ${chalk.bold('app.json')}. ${learnMore(
       'https://docs.expo.dev/eas-update/runtime-versions/'

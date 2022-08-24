@@ -76,8 +76,8 @@ export function handleMetadataError(error: Error): void {
       Log.error(error.errors.map(err => err.message).join('\n\n'));
     }
     Log.newLine();
-    Log.log('Please check the logs for any configuration issues.');
-    Log.log('If this issue persists, please open a new issue at:');
+    Log.log('Check the logs for any configuration issues.');
+    Log.log('If this issue persists, open a new issue at:');
     // TODO: add execution ID to the issue template link
     Log.log(link('https://github.com/expo/eas-cli'));
     return;

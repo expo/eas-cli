@@ -45,7 +45,7 @@ export class SetUpAdhocProvisioningProfile {
         return nullthrows(await getBuildCredentialsAsync(ctx, this.app, IosDistributionType.AdHoc));
       } else {
         throw new MissingCredentialsNonInteractiveError(
-          'Provisioning profile is not configured correctly. Please run this command again in interactive mode.'
+          'Provisioning profile is not configured correctly. Run this command again in interactive mode.'
         );
       }
     }

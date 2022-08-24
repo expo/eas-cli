@@ -147,8 +147,8 @@ const APPLE_DIST_CERTS_TOO_MANY_GENERATED_ERROR = `
 You can have only ${chalk.underline(
   'three'
 )} Apple Distribution Certificates generated on your Apple Developer account.
-Please revoke the old ones or reuse existing from your other apps.
-Please remember that Apple Distribution Certificates are not application specific!
+Revoke the old ones or reuse existing from your other apps.
+Remember that Apple Distribution Certificates are not application specific!
 `;
 
 export async function provideOrGenerateDistributionCertificateAsync(

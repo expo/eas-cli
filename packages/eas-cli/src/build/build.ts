@@ -134,18 +134,18 @@ export async function prepareBuildRequestForPlatformAsync<
 
 function handleBuildRequestError(error: any, platform: Platform): never {
   if (error?.graphQLErrors?.[0]?.extensions?.errorCode === 'TURTLE_DEPRECATED_JOB_FORMAT') {
-    Log.error('EAS Build API has changed, please upgrade to the latest eas-cli version.');
+    Log.error('EAS Build API has changed. Upgrade to the latest eas-cli version.');
     throw new Error('Build request failed.');
   } else if (
     error?.graphQLErrors?.[0]?.extensions?.errorCode === 'EAS_BUILD_DOWN_FOR_MAINTENANCE'
   ) {
     Log.error(
-      'EAS Build is down for maintenance, please try again later. Check https://status.expo.dev/ for updates.'
+      'EAS Build is down for maintenance. Try again later. Check https://status.expo.dev/ for updates.'
     );
     throw new Error('Build request failed.');
   } else if (error?.graphQLErrors?.[0]?.extensions?.errorCode === 'EAS_BUILD_FREE_TIER_DISABLED') {
     Log.error(
-      'EAS Build free tier is temporarily disabled, please try again later. Check https://status.expo.dev/ for updates.'
+      'EAS Build free tier is temporarily disabled. Try again later. Check https://status.expo.dev/ for updates.'
     );
     throw new Error('Build request failed.');
   } else if (
@@ -157,7 +157,7 @@ function handleBuildRequestError(error: any, platform: Platform): never {
     throw new Error('Build request failed.');
   } else if (error?.graphQLErrors) {
     Log.error(
-      'Build request failed. Make sure you are using the latest eas-cli version. If the problem persists, please report the issue.'
+      'Build request failed. Make sure you are using the latest eas-cli version. If the problem persists, report the issue.'
     );
   }
   throw error;
@@ -243,11 +243,7 @@ type MaybeBuildFragment = BuildFragment | null;
 
 export async function waitForBuildEndAsync(
   { buildIds, accountName }: { buildIds: string[]; accountName: string },
-  {
-    // 2 hours (max build time limit) + 10 minutes (possible queue time)
-    timeoutSec = 2 * 60 * 60 + 10 * 60,
-    intervalSec = 10,
-  } = {}
+  { intervalSec = 10 } = {}
 ): Promise<MaybeBuildFragment[]> {
   let spinner;
   let originalSpinnerText;
@@ -259,8 +255,7 @@ export async function waitForBuildEndAsync(
     originalSpinnerText = 'Waiting for builds to complete. You can press Ctrl+C to exit.';
     spinner = ora('Waiting for builds to complete. You can press Ctrl+C to exit.').start();
   }
-  const endTime = new Date().getTime() + timeoutSec * 1000;
-  while (new Date().getTime() <= endTime) {
+  while (true) {
     const builds = await getBuildsSafelyAsync(buildIds);
     const { refetch } =
       builds.length === 1
@@ -271,10 +266,6 @@ export async function waitForBuildEndAsync(
     }
     await sleepAsync(intervalSec * 1000);
   }
-  spinner.fail('Timed out');
-  throw new Error(
-    'Timeout reached! It is taking longer than expected to finish the build, aborting...'
-  );
 }
 
 async function getBuildsSafelyAsync(buildIds: string[]): Promise<MaybeBuildFragment[]> {

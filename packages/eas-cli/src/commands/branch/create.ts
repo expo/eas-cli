@@ -91,7 +91,7 @@ export default class BranchCreate extends EasCommand {
       ({ name } = await promptAsync({
         type: 'text',
         name: 'name',
-        message: 'Please name the branch:',
+        message: 'Provide a branch name:',
         initial:
           (await getVcsClient().getBranchNameAsync()) ||
           `branch-${Math.random().toString(36).substr(2, 4)}`,

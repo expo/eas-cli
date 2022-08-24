@@ -48,7 +48,7 @@ export class SetUpSubmissionCredentials {
 
   async promptForAppSpecificPasswordAsync(): Promise<string> {
     Log.addNewLineIfNone();
-    Log.log(`Please enter your Apple app-specific password.`);
+    Log.log(`Enter your Apple app-specific password.`);
     Log.log(learnMore('https://expo.fyi/apple-app-specific-password'));
     Log.warn(
       wrapAnsi(

@@ -23,7 +23,7 @@ enum SubmissionErrorCode {
 
 const SubmissionErrorMessages: Record<SubmissionErrorCode, string> = {
   [SubmissionErrorCode.ARCHIVE_DOWNLOAD_NOT_FOUND_ERROR]:
-    "Failed to download the archive file (Response code: 404 Not Found). Please make sure the URL you've provided is correct.",
+    "Failed to download the archive file (Response code: 404 Not Found). Make sure the URL you've provided is correct.",
   [SubmissionErrorCode.ARCHIVE_DOWNLOAD_FORBIDDEN_ERROR]:
     'Failed to download the archive file (Response code: 403 Forbidden). This is most probably caused by trying to upload an expired build artifact. All EAS build artifacts expire after 30 days.',
   [SubmissionErrorCode.ARCHIVE_EXTRACT_CORRUPT_ARCHIVE_ERROR]:
@@ -32,7 +32,7 @@ const SubmissionErrorMessages: Record<SubmissionErrorCode, string> = {
     "EAS Submit couldn't find a valid build artifact within provided compressed archive.\n" +
     'If you provide a tar.gz archive, it should contain at least one .apk/.aab/.ipa file, depending on the submission platform.',
   [SubmissionErrorCode.ANDROID_UNKNOWN_ERROR]:
-    "We couldn't figure out what went wrong. Please see logs to learn more.",
+    "We couldn't figure out what went wrong. See logs to learn more.",
   [SubmissionErrorCode.ANDROID_FIRST_UPLOAD_ERROR]:
     "You haven't submitted this app to Google Play Store yet. The first submission of the app needs to be performed manually.\n" +
     `${learnMore('https://expo.fyi/first-android-submission')}.`,
@@ -50,29 +50,29 @@ const SubmissionErrorMessages: Record<SubmissionErrorCode, string> = {
     "If you're submitting an Expo project built with EAS Build, increment the build number in app.json and build the project again.\n" +
     `${learnMore('https://expo.fyi/bumping-ios-build-number')}.`,
   [SubmissionErrorCode.IOS_UNKNOWN_ERROR]:
-    "We couldn't figure out what went wrong. Please see logs to learn more.",
+    "We couldn't figure out what went wrong. See logs to learn more.",
   [SubmissionErrorCode.IOS_MISSING_APP_ICON]:
     'Your iOS app icon is missing or is an invalid format. The icon must be a 1024x1024 PNG image with no transparency.\n' +
-    'Please check your icon image and icon configuration in app.json.\n' +
+    'Check your icon image and icon configuration in app.json.\n' +
     `${learnMore('https://docs.expo.dev/guides/app-icons/')}`,
   [SubmissionErrorCode.IOS_INVALID_SIGNATURE]:
     'Your app signature seems to be invalid.\n' +
-    "Please check your iOS Distribution Certificate and your app's Provisioning Profile.\n" +
+    "Check your iOS Distribution Certificate and your app's Provisioning Profile.\n" +
     `${learnMore('https://docs.expo.dev/distribution/app-signing')}`,
   [SubmissionErrorCode.IOS_INCORRECT_CREDENTIALS]:
-    'Your Apple ID or app-specific password is incorrect. Please verify that you entered them correctly and try again.',
+    'Your Apple ID or app-specific password is incorrect. Verify that you entered them correctly and try again.',
   [SubmissionErrorCode.IOS_IPAD_INVALID_ORIENTATION]:
     "Your app doesn't support iPad multitasking and has to require full screen.\n" +
     "If you're submitting a managed Expo project, set the `expo.ios.requireFullScreen` to true in app.json and build the project again.\n" +
     `${learnMore('https://expo.fyi/ipad-requires-fullscreen')}`,
   [SubmissionErrorCode.IOS_APPLE_MAINTENANCE]:
-    'It looks like Apple servers are undergoing an unscheduled maintenance. Please try again later.',
+    'It looks like Apple servers are undergoing an unscheduled maintenance. Try again later.',
   [SubmissionErrorCode.IOS_INVALID_PROVISIONING_PROFILE_SIGNATURE]:
     'Invalid Provisioning Profile Signature (ITMS-90165)\n' +
     "Some of Apple's certificates have expired.\n" +
-    'Please delete your Provisioning Profile from your account. Then rebuild the app interactively to generate a new one, and try submitting it to the App Store again.',
+    'Delete your Provisioning Profile from your account. Then rebuild the app interactively to generate a new one, and try submitting it to the App Store again.',
   [SubmissionErrorCode.UPLOAD_TAKING_TOO_LONG_ERROR]:
-    'Submission has reached the timeout limit. Please try again.',
+    'Submission has reached the timeout limit. Try again.',
 };
 
 export function printSubmissionError(error: SubmissionError): boolean {

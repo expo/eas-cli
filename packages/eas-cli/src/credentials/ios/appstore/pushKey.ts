@@ -12,8 +12,8 @@ const { MaxKeysCreatedError } = Keys;
 
 export const APPLE_KEYS_TOO_MANY_GENERATED_ERROR = `
 You can have only ${chalk.underline('two')} Apple Keys generated on your Apple Developer account.
-Please revoke the old ones or reuse existing from your other apps.
-Please remember that Apple Keys are not application specific!
+Revoke the old ones or reuse existing from your other apps.
+Remember that Apple Keys are not application specific!
 `;
 
 /**
