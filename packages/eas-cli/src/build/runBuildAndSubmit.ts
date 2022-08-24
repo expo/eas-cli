@@ -184,6 +184,13 @@ export async function runBuildAndSubmitAsync(projectDir: string, flags: BuildFla
     Log.newLine();
     printSubmissionDetailsUrls(submissions);
     Log.newLine();
+
+    const warned = await warnIfStatuspageServiceIsntOperationalAsync(
+      StatuspageServiceName.EasSubmit
+    );
+    if (warned) {
+      Log.newLine();
+    }
   }
 
   if (!flags.wait) {

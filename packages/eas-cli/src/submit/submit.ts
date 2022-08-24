@@ -36,7 +36,6 @@ export async function waitToCompleteAsync(
   submissions: SubmissionFragment[],
   { verbose = false }: { verbose?: boolean } = {}
 ): Promise<SubmissionFragment[]> {
-  Log.newLine();
   const completedSubmissions = await waitForSubmissionsEndAsync(submissions);
   const moreSubmissions = completedSubmissions.length > 1;
   if (moreSubmissions) {

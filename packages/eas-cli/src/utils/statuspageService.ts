@@ -1,11 +1,15 @@
-import { StatuspageServiceName, StatuspageServiceStatus } from '../graphql/generated';
+import {
+  StatuspageServiceFragment,
+  StatuspageServiceName,
+  StatuspageServiceStatus,
+} from '../graphql/generated';
 import { StatuspageServiceQuery } from '../graphql/queries/StatuspageServiceQuery';
 import Log from '../log';
 
 export async function warnIfStatuspageServiceIsntOperationalAsync(
   serviceName: StatuspageServiceName
 ): Promise<boolean> {
-  const service = await StatuspageServiceQuery.statuspageServicesAsync(serviceName);
+  const service = await getStatuspageServiceAsync(serviceName);
 
   const humanReadableServiceName: Record<StatuspageServiceName, string> = {
     [StatuspageServiceName.EasBuild]: 'EAS Build',
@@ -28,4 +32,14 @@ export async function warnIfStatuspageServiceIsntOperationalAsync(
     return true;
   }
   return false;
+}
+
+async function getStatuspageServiceAsync(
+  serviceName: StatuspageServiceName
+): Promise<StatuspageServiceFragment | null> {
+  try {
+    return await StatuspageServiceQuery.statuspageServicesAsync(serviceName);
+  } catch {
+    return null;
+  }
 }

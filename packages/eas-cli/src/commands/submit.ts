@@ -3,7 +3,7 @@ import { Errors, Flags } from '@oclif/core';
 import chalk from 'chalk';
 
 import EasCommand from '../commandUtils/EasCommand';
-import { SubmissionFragment } from '../graphql/generated';
+import { StatuspageServiceName, SubmissionFragment } from '../graphql/generated';
 import { toAppPlatform } from '../graphql/types/AppPlatform';
 import Log from '../log';
 import {
@@ -23,6 +23,7 @@ import {
 } from '../submit/submit';
 import { printSubmissionDetailsUrls } from '../submit/utils/urls';
 import { getProfilesAsync } from '../utils/profiles';
+import { warnIfStatuspageServiceIsntOperationalAsync } from '../utils/statuspageService';
 
 interface RawCommandFlags {
   platform?: string;
@@ -132,6 +133,14 @@ export default class Submit extends EasCommand {
 
     Log.newLine();
     printSubmissionDetailsUrls(submissions);
+    Log.newLine();
+
+    const warned = await warnIfStatuspageServiceIsntOperationalAsync(
+      StatuspageServiceName.EasSubmit
+    );
+    if (warned) {
+      Log.newLine();
+    }
 
     if (flags.wait) {
       const completedSubmissions = await waitToCompleteAsync(submissions, {
