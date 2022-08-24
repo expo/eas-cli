@@ -21,6 +21,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 - Handle trailing backslash in `.gitignore`. ([#1306](https://github.com/expo/eas-cli/pull/1306) by [@wkozyra95](https://github.com/wkozyra95))
+- Retry ASC Api Key downloads if it has not fully propagated on Apple's infrastructure. ([#1302](https://github.com/expo/eas-cli/pull/1302) by [@quinlanj](https://github.com/quinlanj))
 
 ## [1.1.0](https://github.com/expo/eas-cli/releases/tag/v1.1.0) - 2022-08-23
 
@@ -30,7 +31,6 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
-- Retry ASC Api Key downloads if it has not fully propagated on Apple's infrastructure. ([#1302](https://github.com/expo/eas-cli/pull/1302) by [@quinlanj](https://github.com/quinlanj))
 - Prevent throwing dynamic app config write error when configuring project ID. ([#1301](https://github.com/expo/eas-cli/pull/1301) by [@wschurman](https://github.com/wschurman))
 
 ### 🧹 Chores
