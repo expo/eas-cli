@@ -1,18 +1,13 @@
 import { getConfig, modifyConfigAsync } from '@expo/config';
 import { vol } from 'memfs';
 
-import { confirmAsync } from '../../prompts';
 import { Actor, getUserAsync } from '../../user/User';
-import {
-  ensureProjectExistsAsync,
-  findProjectIdByAccountNameAndSlugNullableAsync,
-} from '../ensureProjectExists';
+import { ensureProjectExistsAsync } from '../ensureProjectExists';
 import {
   findProjectRootAsync,
   getProjectAccountName,
   getProjectAccountNameAsync,
   getProjectIdAsync,
-  promptToCreateProjectIfNotExistsAsync,
 } from '../projectUtils';
 
 jest.mock('@expo/config');
@@ -183,75 +178,6 @@ describe(getProjectAccountNameAsync, () => {
     await expect(getProjectAccountNameAsync(expWithoutOwner)).rejects.toThrow(
       'manifest property is required'
     );
-  });
-});
-
-describe(promptToCreateProjectIfNotExistsAsync, () => {
-  beforeEach(() => {
-    jest.mocked(getUserAsync).mockReset();
-    jest.mocked(findProjectIdByAccountNameAndSlugNullableAsync).mockReset();
-  });
-
-  it('returns the existing project', async () => {
-    jest.mocked(getUserAsync).mockImplementation(
-      async (): Promise<Actor> => ({
-        __typename: 'User',
-        id: 'user_id',
-        username: 'quin',
-        accounts: [{ id: 'account_id_1', name: 'quin' }],
-        isExpoAdmin: false,
-      })
-    );
-    jest
-      .mocked(findProjectIdByAccountNameAndSlugNullableAsync)
-      .mockImplementation(async () => 'already-existing-project-id');
-    const exp: any = {};
-    const projectId = await promptToCreateProjectIfNotExistsAsync(exp);
-    expect(projectId).toBe('already-existing-project-id');
-  });
-  it('makes a new project if none exists', async () => {
-    jest.mock('../../prompts');
-    jest.mocked(getUserAsync).mockImplementation(
-      async (): Promise<Actor> => ({
-        __typename: 'User',
-        id: 'user_id',
-        username: 'quin',
-        accounts: [{ id: 'account_id_1', name: 'quin' }],
-        isExpoAdmin: false,
-      })
-    );
-    jest
-      .mocked(findProjectIdByAccountNameAndSlugNullableAsync)
-      .mockImplementation(async () => null);
-    jest.mocked(ensureProjectExistsAsync).mockImplementation(async () => 'new-project-id');
-
-    // user agrees to make new project
-    jest.mocked(confirmAsync).mockImplementation(async () => true);
-    const exp: any = {};
-    const projectId = await promptToCreateProjectIfNotExistsAsync(exp);
-    expect(projectId).toBe('new-project-id');
-  });
-  it('aborts making a new project if the user declines', async () => {
-    jest.mock('../../prompts');
-    jest.mocked(getUserAsync).mockImplementation(
-      async (): Promise<Actor> => ({
-        __typename: 'User',
-        id: 'user_id',
-        username: 'quin',
-        accounts: [{ id: 'account_id_1', name: 'quin' }],
-        isExpoAdmin: false,
-      })
-    );
-    jest
-      .mocked(findProjectIdByAccountNameAndSlugNullableAsync)
-      .mockImplementation(async () => null);
-    jest.mocked(ensureProjectExistsAsync).mockImplementation(async () => 'new-project-id');
-
-    // user doesnt agree to make new project
-    jest.mocked(confirmAsync).mockImplementation(async () => false);
-    const exp: any = {};
-    const projectId = await promptToCreateProjectIfNotExistsAsync(exp);
-    expect(projectId).toBe(null);
   });
 });
 

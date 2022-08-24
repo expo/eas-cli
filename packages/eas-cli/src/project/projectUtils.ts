@@ -9,15 +9,11 @@ import semver from 'semver';
 
 import { AppPrivacy } from '../graphql/generated';
 import Log from '../log';
-import { confirmAsync } from '../prompts';
 import { Actor } from '../user/User';
 import { ensureLoggedInAsync } from '../user/actions';
 import { expoCommandAsync } from '../utils/expoCli';
 import { getVcsClient } from '../vcs';
-import {
-  ensureProjectExistsAsync,
-  findProjectIdByAccountNameAndSlugNullableAsync,
-} from './ensureProjectExists';
+import { ensureProjectExistsAsync } from './ensureProjectExists';
 import { getExpoConfig } from './expoConfig';
 
 export function getProjectAccountName(exp: ExpoConfig, user: Actor): string {
@@ -205,33 +201,6 @@ export function getProjectConfigDescription(projectDir: string): string {
     return path.relative(projectDir, paths.staticConfigPath);
   }
   return 'app.config.js/app.json';
-}
-
-// return project id of existing/newly created project, or null if user declines
-export async function promptToCreateProjectIfNotExistsAsync(
-  exp: ExpoConfig
-): Promise<string | null> {
-  const accountName = getProjectAccountName(exp, await ensureLoggedInAsync());
-  const maybeProjectId = await findProjectIdByAccountNameAndSlugNullableAsync(
-    accountName,
-    exp.slug
-  );
-  if (maybeProjectId) {
-    return maybeProjectId;
-  }
-  const fullName = await getProjectFullNameAsync(exp);
-  const shouldCreateProject = await confirmAsync({
-    message: `Looks like ${fullName} is new. Register it with EAS?`,
-  });
-  if (!shouldCreateProject) {
-    return null;
-  }
-  const privacy = toAppPrivacy(exp.privacy);
-  return await ensureProjectExistsAsync({
-    accountName,
-    projectName: exp.slug,
-    privacy,
-  });
 }
 
 export function isExpoUpdatesInstalled(projectDir: string): boolean {

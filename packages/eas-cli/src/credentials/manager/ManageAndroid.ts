@@ -4,10 +4,7 @@ import assert from 'assert';
 
 import Log, { learnMore } from '../../log';
 import { GradleBuildContext, resolveGradleBuildContextAsync } from '../../project/android/gradle';
-import {
-  getProjectAccountName,
-  promptToCreateProjectIfNotExistsAsync,
-} from '../../project/projectUtils';
+import { getProjectAccountName, getProjectIdAsync } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
 import { findAccountByName } from '../../user/Account';
 import { ensureActorHasUsername, ensureLoggedInAsync } from '../../user/actions';
@@ -80,12 +77,6 @@ export class ManageAndroid {
     while (true) {
       try {
         if (ctx.hasProjectContext) {
-          const maybeProjectId = await promptToCreateProjectIfNotExistsAsync(ctx.exp);
-          if (!maybeProjectId) {
-            throw new Error(
-              'Your project must be registered with EAS in order to use the credentials manager.'
-            );
-          }
           const appLookupParams = await getAppLookupParamsFromContextAsync(ctx, gradleContext);
           const appCredentials = await ctx.android.getAndroidAppCredentialsWithCommonFieldsAsync(
             appLookupParams
@@ -156,12 +147,10 @@ export class ManageAndroid {
     buildProfile: BuildProfile<Platform.ANDROID>
   ): Promise<GradleBuildContext | undefined> {
     assert(ctx.hasProjectContext, 'createProjectContextAsync: must have project context.');
-    const maybeProjectId = await promptToCreateProjectIfNotExistsAsync(ctx.exp);
-    if (!maybeProjectId) {
-      throw new Error(
-        'Your project must be registered with EAS in order to use the credentials manager.'
-      );
-    }
+
+    // ensure the project exists on the EAS server
+    await getProjectIdAsync(ctx.exp);
+
     return await resolveGradleBuildContextAsync(ctx.projectDir, buildProfile);
   }
 
