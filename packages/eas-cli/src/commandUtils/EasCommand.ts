@@ -12,7 +12,7 @@ import {
   initAsync as initAnalyticsAsync,
   logEvent,
 } from '../analytics/rudderstackClient';
-import Log, { learnMore } from '../log';
+import { learnMore } from '../log';
 import { findProjectRootAsync } from '../project/projectUtils';
 import { getUserAsync } from '../user/User';
 import { ensureLoggedInAsync } from '../user/actions';
@@ -77,27 +77,37 @@ export default abstract class EasCommand extends Command {
   private async ensureEasCliIsNotInDependenciesAsync(projectDir: string): Promise<void> {
     let printCliVersionWarning = false;
 
+    const consoleWarn = (msg?: string): void => {
+      if (msg) {
+        // eslint-disable-next-line no-console
+        console.warn(chalk.yellow(msg));
+      } else {
+        // eslint-disable-next-line no-console
+        console.warn();
+      }
+    };
+
     if (await this.isEasCliInDependenciesAsync(projectDir)) {
       printCliVersionWarning = true;
-      Log.warn(`${chalk.bold('eas-cli')} is added to the project dependencies.`);
+      consoleWarn(`${chalk.bold('eas-cli')} is added to the project dependencies.`);
     }
 
     const maybeRepoRoot = PackageManagerUtils.findWorkspaceRoot(projectDir) ?? projectDir;
     if (maybeRepoRoot !== projectDir && (await this.isEasCliInDependenciesAsync(maybeRepoRoot))) {
       printCliVersionWarning = true;
-      Log.warn(`${chalk.bold('eas-cli')} is added to the monorepo dependencies.`);
+      consoleWarn(`${chalk.bold('eas-cli')} is added to the monorepo dependencies.`);
     }
 
     if (printCliVersionWarning) {
-      Log.warn(
+      consoleWarn(
         `It's recommended to use the ${chalk.bold(
           '"cli.version"'
         )} field in eas.json instead. Use it to enforce the ${chalk.bold(
           'eas-cli'
         )} version for your project.`
       );
-      Log.warn(learnMore('https://docs.expo.dev/build-reference/eas-json/'));
-      Log.newLine();
+      consoleWarn(learnMore('https://docs.expo.dev/build-reference/eas-json/'));
+      consoleWarn();
     }
   }
 
