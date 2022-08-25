@@ -19,6 +19,7 @@ enum SubmissionErrorCode {
   IOS_IPAD_INVALID_ORIENTATION = 'SUBMISSION_SERVICE_IOS_IPAD_INVALID_ORIENTATION',
   IOS_APPLE_MAINTENANCE = 'SUBMISSION_SERVICE_IOS_APPLE_MAINTENANCE',
   IOS_INVALID_PROVISIONING_PROFILE_SIGNATURE = 'SUBMISSION_SERVICE_IOS_INVALID_PROVISIONING_PROFILE_SIGNATURE',
+  IOS_SIGNED_WITH_ADHOC_PROFILE = 'SUBMISSION_SERVICE_IOS_SIGNED_WITH_ADHOC_PROFILE',
 }
 
 const SubmissionErrorMessages: Record<SubmissionErrorCode, string> = {
@@ -73,6 +74,8 @@ const SubmissionErrorMessages: Record<SubmissionErrorCode, string> = {
     'Delete your Provisioning Profile from your account. Then rebuild the app interactively to generate a new one, and try submitting it to the App Store again.',
   [SubmissionErrorCode.UPLOAD_TAKING_TOO_LONG_ERROR]:
     'Submission has reached the timeout limit. Try again.',
+  [SubmissionErrorCode.IOS_SIGNED_WITH_ADHOC_PROFILE]:
+    'Invalid Provisioning Profile for Apple App Store distribution. The application was signed with an Ad Hoc/Enterprise Provisioning Profile, which is meant for "Internal Distribution". In order to distribute an app on the store, it must be signed with a Distribution Provisioning Profile. Ensure that you are submitting the correct build, or rebuild the application with a Distribution Provisioning Profile and submit that new build.',
 };
 
 export function printSubmissionError(error: SubmissionError): boolean {
