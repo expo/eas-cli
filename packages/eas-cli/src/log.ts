@@ -53,6 +53,10 @@ export default class Log {
     Log.consoleLog(chalk.green(figures.tick), ...args);
   }
 
+  public static warnWithWarningSign(...args: any[]): void {
+    Log.warn(chalk.yellow(figures.warning), ...args);
+  }
+
   private static consoleLog(...args: any[]): void {
     Log.updateIsLastLineNewLine(args);
     // eslint-disable-next-line no-console

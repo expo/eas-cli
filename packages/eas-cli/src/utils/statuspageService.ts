@@ -1,10 +1,12 @@
+import chalk from 'chalk';
+
 import {
   StatuspageServiceFragment,
   StatuspageServiceName,
   StatuspageServiceStatus,
 } from '../graphql/generated';
 import { StatuspageServiceQuery } from '../graphql/queries/StatuspageServiceQuery';
-import Log from '../log';
+import Log, { link } from '../log';
 
 export async function maybeWarnAboutEasOutagesAsync(
   serviceNames: StatuspageServiceName[]
@@ -24,10 +26,10 @@ function warnAboutServiceOutage(service: StatuspageServiceFragment): void {
   };
 
   if (service.status !== StatuspageServiceStatus.Operational) {
-    Log.warn(
-      `⚠️  ${
+    Log.warnWithWarningSign(
+      `${chalk.bold(
         humanReadableServiceName[service.name]
-      } is currently in a degraded state. The service may temporarily not function as expected.`
+      )} is currently in a degraded state. The service may temporarily not function as expected.`
     );
 
     if (service.incidents.length > 0) {
@@ -35,7 +37,7 @@ function warnAboutServiceOutage(service: StatuspageServiceFragment): void {
       Log.warn(`Reason: ${currentIncident.name}`);
     }
 
-    Log.warn('Check https://status.expo.dev/ for more information.');
+    Log.warn(`Check ${link('https://status.expo.dev/')} for more information.`);
     Log.newLine();
   }
 }
