@@ -6,11 +6,15 @@ import {
 import { StatuspageServiceQuery } from '../graphql/queries/StatuspageServiceQuery';
 import Log from '../log';
 
-export async function warnIfStatuspageServiceIsntOperationalAsync(
-  serviceName: StatuspageServiceName
-): Promise<boolean> {
-  const service = await getStatuspageServiceAsync(serviceName);
+export async function warnAboutEasOutagesAsync(
+  serviceNames: StatuspageServiceName[]
+): Promise<void> {
+  const services = await getStatuspageServiceAsync(serviceNames);
 
+  services.forEach(warnAboutServiceOutage);
+}
+
+function warnAboutServiceOutage(service: StatuspageServiceFragment): void {
   const humanReadableServiceName: Record<StatuspageServiceName, string> = {
     [StatuspageServiceName.EasBuild]: 'EAS Build',
     [StatuspageServiceName.EasSubmit]: 'EAS Submit',
@@ -19,27 +23,27 @@ export async function warnIfStatuspageServiceIsntOperationalAsync(
 
   if (service && service.status !== StatuspageServiceStatus.Operational) {
     Log.warn(
-      `⚠️  ${humanReadableServiceName[serviceName]} is currently in a degraded state. The service may temporarily not function as expected.`
+      `⚠️  ${
+        humanReadableServiceName[service.name]
+      } is currently in a degraded state. The service may temporarily not function as expected.`
     );
 
     if (service.incidents.length > 0) {
-      const [latestIncident] = service.incidents;
-      Log.warn(`Reason: ${latestIncident.name}`);
+      const [currentIncident] = service.incidents;
+      Log.warn(`Reason: ${currentIncident.name}`);
     }
 
     Log.warn('Please check https://status.expo.dev/ for more information.');
-
-    return true;
+    Log.newLine();
   }
-  return false;
 }
 
 async function getStatuspageServiceAsync(
-  serviceName: StatuspageServiceName
-): Promise<StatuspageServiceFragment | null> {
+  serviceNames: StatuspageServiceName[]
+): Promise<StatuspageServiceFragment[]> {
   try {
-    return await StatuspageServiceQuery.statuspageServicesAsync(serviceName);
+    return await StatuspageServiceQuery.statuspageServicesAsync(serviceNames);
   } catch {
-    return null;
+    return [];
   }
 }

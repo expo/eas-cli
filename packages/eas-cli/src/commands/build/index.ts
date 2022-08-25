@@ -4,10 +4,12 @@ import path from 'path';
 import { BuildFlags, runBuildAndSubmitAsync } from '../../build/runBuildAndSubmit';
 import { UserInputResourceClass } from '../../build/types';
 import EasCommand from '../../commandUtils/EasCommand';
+import { StatuspageServiceName } from '../../graphql/generated';
 import Log from '../../log';
 import { RequestedPlatform, selectRequestedPlatformAsync } from '../../platform';
 import { findProjectRootAsync } from '../../project/projectUtils';
 import { enableJsonOutput } from '../../utils/json';
+import { warnAboutEasOutagesAsync } from '../../utils/statuspageService';
 
 interface RawBuildFlags {
   platform?: string;
@@ -95,6 +97,13 @@ export default class Build extends EasCommand {
 
   async runAsync(): Promise<void> {
     const { flags: rawFlags } = await this.parse(Build);
+
+    await warnAboutEasOutagesAsync(
+      rawFlags['auto-submit'] || rawFlags['auto-submit-with-profile']
+        ? [StatuspageServiceName.EasBuild, StatuspageServiceName.EasSubmit]
+        : [StatuspageServiceName.EasBuild]
+    );
+
     if (rawFlags.json) {
       enableJsonOutput();
     }

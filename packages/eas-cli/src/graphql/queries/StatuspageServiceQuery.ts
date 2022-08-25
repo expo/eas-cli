@@ -12,8 +12,8 @@ import { StatuspageServiceFragmentNode } from '../types/StatuspageService';
 
 export const StatuspageServiceQuery = {
   async statuspageServicesAsync(
-    serviceName: StatuspageServiceName
-  ): Promise<StatuspageServiceFragment | null> {
+    serviceNames: StatuspageServiceName[]
+  ): Promise<StatuspageServiceFragment[]> {
     const data = await withErrorHandlingAsync(
       graphqlClient
         .query<StatuspageServiceByServiceNamesQuery, StatuspageServiceByServiceNamesQueryVariables>(
@@ -28,7 +28,7 @@ export const StatuspageServiceQuery = {
             }
             ${print(StatuspageServiceFragmentNode)}
           `,
-          { serviceNames: serviceName },
+          { serviceNames },
           {
             additionalTypenames: ['StatuspageService', 'StatuspageIncident'],
           }
@@ -36,8 +36,6 @@ export const StatuspageServiceQuery = {
         .toPromise()
     );
 
-    return (
-      data.statuspageService.byServiceNames.find(service => service.name === serviceName) ?? null
-    );
+    return data.statuspageService.byServiceNames ?? null;
   },
 };

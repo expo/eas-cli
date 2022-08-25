@@ -15,7 +15,6 @@ import {
   BuildResourceClass,
   BuildStatus,
   BuildWithSubmissionsFragment,
-  StatuspageServiceName,
   SubmissionFragment,
 } from '../graphql/generated';
 import { BuildQuery } from '../graphql/queries/BuildQuery';
@@ -43,7 +42,6 @@ import {
 import { printSubmissionDetailsUrls } from '../submit/utils/urls';
 import { printJsonOnlyOutput } from '../utils/json';
 import { ProfileData, getProfilesAsync } from '../utils/profiles';
-import { warnIfStatuspageServiceIsntOperationalAsync } from '../utils/statuspageService';
 import { getVcsClient } from '../vcs';
 import { prepareAndroidBuildAsync } from './android/build';
 import { BuildRequestSender, waitForBuildEndAsync } from './build';
@@ -149,11 +147,6 @@ export async function runBuildAndSubmitAsync(projectDir: string, flags: BuildFla
   printLogsUrls(startedBuilds.map(startedBuild => startedBuild.build));
   Log.newLine();
 
-  const warned = await warnIfStatuspageServiceIsntOperationalAsync(StatuspageServiceName.EasBuild);
-  if (warned) {
-    Log.newLine();
-  }
-
   const submissions: SubmissionFragment[] = [];
   if (flags.autoSubmit) {
     const submitProfiles = await getProfilesAsync({
@@ -184,13 +177,6 @@ export async function runBuildAndSubmitAsync(projectDir: string, flags: BuildFla
     Log.newLine();
     printSubmissionDetailsUrls(submissions);
     Log.newLine();
-
-    const warned = await warnIfStatuspageServiceIsntOperationalAsync(
-      StatuspageServiceName.EasSubmit
-    );
-    if (warned) {
-      Log.newLine();
-    }
   }
 
   if (!flags.wait) {

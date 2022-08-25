@@ -5,14 +5,12 @@ import { Event, SubmissionEvent } from '../analytics/events';
 import {
   AndroidSubmissionConfigInput,
   IosSubmissionConfigInput,
-  StatuspageServiceName,
   SubmissionFragment,
 } from '../graphql/generated';
 import { toAppPlatform } from '../graphql/types/AppPlatform';
 import Log from '../log';
 import { ora } from '../ora';
 import { appPlatformDisplayNames } from '../platform';
-import { warnIfStatuspageServiceIsntOperationalAsync } from '../utils/statuspageService';
 import { SubmissionContext } from './context';
 
 export interface SubmissionInput<P extends Platform> {
@@ -85,8 +83,6 @@ export default abstract class BaseSubmitter<
       return submission;
     } catch (err) {
       scheduleSpinner.fail(`Failed to schedule ${platformDisplayName} submission`);
-      Log.newLine();
-      await warnIfStatuspageServiceIsntOperationalAsync(StatuspageServiceName.EasSubmit);
       throw err;
     }
   }

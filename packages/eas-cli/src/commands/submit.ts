@@ -23,7 +23,7 @@ import {
 } from '../submit/submit';
 import { printSubmissionDetailsUrls } from '../submit/utils/urls';
 import { getProfilesAsync } from '../utils/profiles';
-import { warnIfStatuspageServiceIsntOperationalAsync } from '../utils/statuspageService';
+import { warnAboutEasOutagesAsync } from '../utils/statuspageService';
 
 interface RawCommandFlags {
   platform?: string;
@@ -92,6 +92,9 @@ export default class Submit extends EasCommand {
 
   async runAsync(): Promise<void> {
     const { flags: rawFlags } = await this.parse(Submit);
+
+    await warnAboutEasOutagesAsync([StatuspageServiceName.EasSubmit]);
+
     const flags = await this.sanitizeFlagsAsync(rawFlags);
 
     const projectDir = await findProjectRootAsync();
@@ -133,14 +136,6 @@ export default class Submit extends EasCommand {
 
     Log.newLine();
     printSubmissionDetailsUrls(submissions);
-    Log.newLine();
-
-    const warned = await warnIfStatuspageServiceIsntOperationalAsync(
-      StatuspageServiceName.EasSubmit
-    );
-    if (warned) {
-      Log.newLine();
-    }
 
     if (flags.wait) {
       const completedSubmissions = await waitToCompleteAsync(submissions, {
