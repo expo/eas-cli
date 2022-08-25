@@ -96,17 +96,19 @@ export async function saveProjectIdToAppConfigAsync(
     case 'success':
       break;
     case 'warn': {
-      Log.log();
+      Log.warn();
       Log.warn('It looks like you are using a dynamic configuration!');
-      Log.log(
+      Log.warn(
         chalk.dim(
           'https://docs.expo.dev/workflow/configuration/#dynamic-configuration-with-appconfigjs)\n'
         )
       );
       Log.warn(
-        'In order to finish setting up your project you are going to need manually add the following to your "extra" key:\n\n'
+        'In order to finish setting up your project you are going to need manually edit app.json/app.config.js and add the following to your "extra" key:'
       );
-      Log.log(chalk.bold(`"extra": {\n  ...\n  "eas": {\n    "projectId": "${projectId}"\n  }\n}`));
+      Log.warn();
+      Log.warn(chalk.bold(JSON.stringify({ expo: { extra: { eas: { projectId } } } }, null, 2)));
+      Log.warn();
       throw new Error(result.message);
     }
     case 'fail':
