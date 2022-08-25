@@ -89,20 +89,20 @@ export default abstract class EasCommand extends Command {
 
     if (await this.isEasCliInDependenciesAsync(projectDir)) {
       printCliVersionWarning = true;
-      consoleWarn(`${chalk.bold('eas-cli')} is added to the project dependencies.`);
+      consoleWarn(`Found ${chalk.bold('eas-cli')} in your project dependencies.`);
     }
 
     const maybeRepoRoot = PackageManagerUtils.findWorkspaceRoot(projectDir) ?? projectDir;
     if (maybeRepoRoot !== projectDir && (await this.isEasCliInDependenciesAsync(maybeRepoRoot))) {
       printCliVersionWarning = true;
-      consoleWarn(`${chalk.bold('eas-cli')} is added to the monorepo dependencies.`);
+      consoleWarn(`Found ${chalk.bold('eas-cli')} in your monorepo dependencies.`);
     }
 
     if (printCliVersionWarning) {
       consoleWarn(
         `It's recommended to use the ${chalk.bold(
           '"cli.version"'
-        )} field in eas.json instead. Use it to enforce the ${chalk.bold(
+        )} field in eas.json to enforce the ${chalk.bold(
           'eas-cli'
         )} version for your project.`
       );
