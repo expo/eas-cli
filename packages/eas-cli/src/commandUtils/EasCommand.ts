@@ -102,11 +102,11 @@ export default abstract class EasCommand extends Command {
       consoleWarn(
         `It's recommended to use the ${chalk.bold(
           '"cli.version"'
-        )} field in eas.json to enforce the ${chalk.bold(
-          'eas-cli'
-        )} version for your project.`
+        )} field in eas.json to enforce the ${chalk.bold('eas-cli')} version for your project.`
       );
-      consoleWarn(learnMore('https://docs.expo.dev/build-reference/eas-json/'));
+      consoleWarn(
+        learnMore('https://github.com/expo/eas-cli#enforcing-eas-cli-version-for-your-project')
+      );
       consoleWarn();
     }
   }

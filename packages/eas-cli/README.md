@@ -19,6 +19,28 @@ npm install -g eas-cli
 yarn global add eas-cli
 ```
 
+## Enforcing eas-cli version for your project
+
+If you want to enforce the **eas-cli** version for your project, use the `"cli.version"` field in eas.json. Installing **eas-cli** as your project dependency is strongly discouraged.
+
+An example of `eas.json` that enforces `eas-cli` in version `1.0.0` or newer:
+
+```json
+{
+  "cli": {
+    "version": ">=1.0.0"
+  },
+  "build": {
+    // build profiles
+  }
+  "submit": {
+    // submit profiles
+  }
+}
+```
+
+Learn more: https://docs.expo.dev/build-reference/eas-json/
+
 # Usage
 
 ```sh
@@ -33,61 +55,62 @@ eas --help COMMAND
 # Commands
 
 <!-- commands -->
-* [`eas account:login`](#eas-accountlogin)
-* [`eas account:logout`](#eas-accountlogout)
-* [`eas account:view`](#eas-accountview)
-* [`eas analytics [STATUS]`](#eas-analytics-status)
-* [`eas autocomplete [SHELL]`](#eas-autocomplete-shell)
-* [`eas branch:create [NAME]`](#eas-branchcreate-name)
-* [`eas branch:delete [NAME]`](#eas-branchdelete-name)
-* [`eas branch:list`](#eas-branchlist)
-* [`eas branch:rename`](#eas-branchrename)
-* [`eas branch:view [NAME]`](#eas-branchview-name)
-* [`eas build`](#eas-build)
-* [`eas build:cancel [BUILD_ID]`](#eas-buildcancel-build_id)
-* [`eas build:configure`](#eas-buildconfigure)
-* [`eas build:inspect`](#eas-buildinspect)
-* [`eas build:list`](#eas-buildlist)
-* [`eas build:submit`](#eas-buildsubmit)
-* [`eas build:version:set`](#eas-buildversionset)
-* [`eas build:version:sync`](#eas-buildversionsync)
-* [`eas build:view [BUILD_ID]`](#eas-buildview-build_id)
-* [`eas channel:create [NAME]`](#eas-channelcreate-name)
-* [`eas channel:edit [NAME]`](#eas-channeledit-name)
-* [`eas channel:list`](#eas-channellist)
-* [`eas channel:view [NAME]`](#eas-channelview-name)
-* [`eas config`](#eas-config)
-* [`eas credentials`](#eas-credentials)
-* [`eas database:create`](#eas-databasecreate)
-* [`eas device:create`](#eas-devicecreate)
-* [`eas device:delete`](#eas-devicedelete)
-* [`eas device:list`](#eas-devicelist)
-* [`eas device:view [UDID]`](#eas-deviceview-udid)
-* [`eas diagnostics`](#eas-diagnostics)
-* [`eas functions:start`](#eas-functionsstart)
-* [`eas help [COMMAND]`](#eas-help-command)
-* [`eas init`](#eas-init)
-* [`eas login`](#eas-login)
-* [`eas logout`](#eas-logout)
-* [`eas metadata:pull`](#eas-metadatapull)
-* [`eas metadata:push`](#eas-metadatapush)
-* [`eas project:info`](#eas-projectinfo)
-* [`eas project:init`](#eas-projectinit)
-* [`eas secret:create`](#eas-secretcreate)
-* [`eas secret:delete`](#eas-secretdelete)
-* [`eas secret:list`](#eas-secretlist)
-* [`eas submit`](#eas-submit)
-* [`eas update`](#eas-update)
-* [`eas update:configure`](#eas-updateconfigure)
-* [`eas update:delete GROUPID`](#eas-updatedelete-groupid)
-* [`eas update:list`](#eas-updatelist)
-* [`eas update:view GROUPID`](#eas-updateview-groupid)
-* [`eas webhook:create`](#eas-webhookcreate)
-* [`eas webhook:delete [ID]`](#eas-webhookdelete-id)
-* [`eas webhook:list`](#eas-webhooklist)
-* [`eas webhook:update`](#eas-webhookupdate)
-* [`eas webhook:view ID`](#eas-webhookview-id)
-* [`eas whoami`](#eas-whoami)
+
+- [`eas account:login`](#eas-accountlogin)
+- [`eas account:logout`](#eas-accountlogout)
+- [`eas account:view`](#eas-accountview)
+- [`eas analytics [STATUS]`](#eas-analytics-status)
+- [`eas autocomplete [SHELL]`](#eas-autocomplete-shell)
+- [`eas branch:create [NAME]`](#eas-branchcreate-name)
+- [`eas branch:delete [NAME]`](#eas-branchdelete-name)
+- [`eas branch:list`](#eas-branchlist)
+- [`eas branch:rename`](#eas-branchrename)
+- [`eas branch:view [NAME]`](#eas-branchview-name)
+- [`eas build`](#eas-build)
+- [`eas build:cancel [BUILD_ID]`](#eas-buildcancel-build_id)
+- [`eas build:configure`](#eas-buildconfigure)
+- [`eas build:inspect`](#eas-buildinspect)
+- [`eas build:list`](#eas-buildlist)
+- [`eas build:submit`](#eas-buildsubmit)
+- [`eas build:version:set`](#eas-buildversionset)
+- [`eas build:version:sync`](#eas-buildversionsync)
+- [`eas build:view [BUILD_ID]`](#eas-buildview-build_id)
+- [`eas channel:create [NAME]`](#eas-channelcreate-name)
+- [`eas channel:edit [NAME]`](#eas-channeledit-name)
+- [`eas channel:list`](#eas-channellist)
+- [`eas channel:view [NAME]`](#eas-channelview-name)
+- [`eas config`](#eas-config)
+- [`eas credentials`](#eas-credentials)
+- [`eas database:create`](#eas-databasecreate)
+- [`eas device:create`](#eas-devicecreate)
+- [`eas device:delete`](#eas-devicedelete)
+- [`eas device:list`](#eas-devicelist)
+- [`eas device:view [UDID]`](#eas-deviceview-udid)
+- [`eas diagnostics`](#eas-diagnostics)
+- [`eas functions:start`](#eas-functionsstart)
+- [`eas help [COMMAND]`](#eas-help-command)
+- [`eas init`](#eas-init)
+- [`eas login`](#eas-login)
+- [`eas logout`](#eas-logout)
+- [`eas metadata:pull`](#eas-metadatapull)
+- [`eas metadata:push`](#eas-metadatapush)
+- [`eas project:info`](#eas-projectinfo)
+- [`eas project:init`](#eas-projectinit)
+- [`eas secret:create`](#eas-secretcreate)
+- [`eas secret:delete`](#eas-secretdelete)
+- [`eas secret:list`](#eas-secretlist)
+- [`eas submit`](#eas-submit)
+- [`eas update`](#eas-update)
+- [`eas update:configure`](#eas-updateconfigure)
+- [`eas update:delete GROUPID`](#eas-updatedelete-groupid)
+- [`eas update:list`](#eas-updatelist)
+- [`eas update:view GROUPID`](#eas-updateview-groupid)
+- [`eas webhook:create`](#eas-webhookcreate)
+- [`eas webhook:delete [ID]`](#eas-webhookdelete-id)
+- [`eas webhook:list`](#eas-webhooklist)
+- [`eas webhook:update`](#eas-webhookupdate)
+- [`eas webhook:view ID`](#eas-webhookview-id)
+- [`eas whoami`](#eas-whoami)
 
 ## `eas account:login`
 
@@ -1140,4 +1163,5 @@ DESCRIPTION
 ALIASES
   $ eas whoami
 ```
+
 <!-- commandsstop -->
