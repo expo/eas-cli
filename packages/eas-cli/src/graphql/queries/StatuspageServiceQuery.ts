@@ -36,6 +36,6 @@ export const StatuspageServiceQuery = {
         .toPromise()
     );
 
-    return data.statuspageService.byServiceNames ?? null;
+    return data.statuspageService.byServiceNames;
   },
 };
