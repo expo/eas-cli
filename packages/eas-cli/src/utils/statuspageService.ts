@@ -6,12 +6,14 @@ import {
 import { StatuspageServiceQuery } from '../graphql/queries/StatuspageServiceQuery';
 import Log from '../log';
 
-export async function warnAboutEasOutagesAsync(
+export async function maybeWarnAboutEasOutagesAsync(
   serviceNames: StatuspageServiceName[]
 ): Promise<void> {
   const services = await getStatuspageServiceAsync(serviceNames);
 
-  services.forEach(warnAboutServiceOutage);
+  for (const service of services) {
+    warnAboutServiceOutage(service);
+  }
 }
 
 function warnAboutServiceOutage(service: StatuspageServiceFragment): void {
@@ -33,7 +35,7 @@ function warnAboutServiceOutage(service: StatuspageServiceFragment): void {
       Log.warn(`Reason: ${currentIncident.name}`);
     }
 
-    Log.warn('Please check https://status.expo.dev/ for more information.');
+    Log.warn('Check https://status.expo.dev/ for more information.');
     Log.newLine();
   }
 }

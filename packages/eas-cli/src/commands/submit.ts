@@ -23,7 +23,7 @@ import {
 } from '../submit/submit';
 import { printSubmissionDetailsUrls } from '../submit/utils/urls';
 import { getProfilesAsync } from '../utils/profiles';
-import { warnAboutEasOutagesAsync } from '../utils/statuspageService';
+import { maybeWarnAboutEasOutagesAsync } from '../utils/statuspageService';
 
 interface RawCommandFlags {
   platform?: string;
@@ -93,7 +93,7 @@ export default class Submit extends EasCommand {
   async runAsync(): Promise<void> {
     const { flags: rawFlags } = await this.parse(Submit);
 
-    await warnAboutEasOutagesAsync([StatuspageServiceName.EasSubmit]);
+    await maybeWarnAboutEasOutagesAsync([StatuspageServiceName.EasSubmit]);
 
     const flags = await this.sanitizeFlagsAsync(rawFlags);
 

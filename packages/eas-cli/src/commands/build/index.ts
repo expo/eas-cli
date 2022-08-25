@@ -9,7 +9,7 @@ import Log from '../../log';
 import { RequestedPlatform, selectRequestedPlatformAsync } from '../../platform';
 import { findProjectRootAsync } from '../../project/projectUtils';
 import { enableJsonOutput } from '../../utils/json';
-import { warnAboutEasOutagesAsync } from '../../utils/statuspageService';
+import { maybeWarnAboutEasOutagesAsync } from '../../utils/statuspageService';
 
 interface RawBuildFlags {
   platform?: string;
@@ -98,7 +98,7 @@ export default class Build extends EasCommand {
   async runAsync(): Promise<void> {
     const { flags: rawFlags } = await this.parse(Build);
 
-    await warnAboutEasOutagesAsync(
+    await maybeWarnAboutEasOutagesAsync(
       rawFlags['auto-submit'] || rawFlags['auto-submit-with-profile']
         ? [StatuspageServiceName.EasBuild, StatuspageServiceName.EasSubmit]
         : [StatuspageServiceName.EasBuild]
