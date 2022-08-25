@@ -1,88 +1,92 @@
-import { v4 as uuidv4 } from 'uuid';
-
-import {
-  ensureBranchExistsAsync,
-  getUpdatesToRepublishInteractiveAsync,
-  truncatePublishUpdateMessage,
-} from '../../commands/update';
+import { ensureBranchExistsAsync, truncatePublishUpdateMessage } from '../../commands/update';
 import { graphqlClient } from '../../graphql/client';
-import { UpdateObject } from '../../graphql/queries/UpdateQuery';
+import { UpdateQuery } from '../../graphql/queries/UpdateQuery';
 import Log from '../../log';
-import { selectAsync } from '../../prompts';
-import { createMockUpdates } from './fixtures/updates';
+import { selectUpdateGroupOnBranchAsync } from '../queries';
 
+const appName = 'test';
 const appId = '6c94sxe6-37d2-4700-52fa-1b813204dad2';
 const branchId = '5e84e3cb-563e-4022-a65e-6e7a42fe4ed3';
-const appName = '@tester/test';
+const appFullName = '@tester/test';
 const branchName = 'test-branch';
-const projectName = 'test-project';
 
+jest.mock('../../prompts', () => ({
+  selectAsync: jest.fn(),
+}));
 jest.mock('../../graphql/queries/UpdateQuery', () => {
   const actual = jest.requireActual('../../graphql/queries/UpdateQuery');
   return {
     ...actual,
-    getViewBranchUpdatesQueryUpdateLimit: jest.fn(actual.getViewBranchUpdatesQueryUpdateLimit),
+    UpdateQuery: {
+      ...actual.UpdateQuery,
+      viewUpdateGroupsOnBranchAsync: jest.fn(),
+    },
   };
 });
-jest.mock('../../prompts', () => ({
-  selectAsync: jest.fn(),
-}));
-jest.mock('../../commands/update', () => {
-  const actual = jest.requireActual('../../commands/update');
-  return {
-    ...actual,
-    ensureBranchExistsAsync: jest.fn(actual.ensureBranchExistsAsync),
-    getUpdatesToRepublishInteractiveAsync: jest.fn(actual.getUpdatesToRepublishInteractiveAsync),
-  };
-});
-const updatesToResolve = jest.fn((): UpdateObject[] => []);
+
 jest.mock('../../graphql/client', () => ({
   ...jest.requireActual('../../graphql/client'),
   graphqlClient: {
-    query: jest.fn(() => ({
-      toPromise: () =>
-        Promise.resolve({
-          data: {
-            __typename: 'RootQuery',
-            app: {
-              __typename: 'AppQuery',
-              byId: {
-                __typename: 'App',
-                id: appId,
-                updateBranchByName: {
-                  __typename: 'UpdateBranch',
-                  id: branchId,
-                  name: branchName,
-                  updates: updatesToResolve(),
-                },
-              },
-            },
-          },
-        }),
-    })),
-    mutation: jest.fn(() => ({
-      toPromise: () => ({
-        error: {
-          graphQLErrors: [
-            {
-              GraphQLError: `A channel already exists with (app_id, name) = (${appId}, ${appName})`,
-              extensions: {
-                code: 'INTERNAL_SERVER_ERROR',
-                errorCode: 'CHANNEL_ALREADY_EXISTS',
-              },
-            },
-          ],
-        },
-      }),
-    })),
+    query: jest.fn(),
+    mutation: jest.fn(),
   },
 }));
 
 describe('UpdatePublish', () => {
   describe('ensureBranchExistsAsync', () => {
+    beforeAll(() => {
+      jest.mocked(graphqlClient.query).mockImplementation(
+        () =>
+          ({
+            toPromise: () =>
+              Promise.resolve({
+                data: {
+                  __typename: 'RootQuery',
+                  app: {
+                    __typename: 'AppQuery',
+                    byId: {
+                      __typename: 'App',
+                      id: appId,
+                      updateBranchByName: {
+                        __typename: 'UpdateBranch',
+                        id: branchId,
+                        name: branchName,
+                        updates: [],
+                      },
+                    },
+                  },
+                },
+              }),
+          } as any)
+      );
+      jest.mocked(graphqlClient.mutation).mockImplementation(
+        () =>
+          ({
+            toPromise: () => ({
+              error: {
+                graphQLErrors: [
+                  {
+                    GraphQLError: `A channel already exists with (app_id, name) = (${appId}, ${appName})`,
+                    extensions: {
+                      code: 'INTERNAL_SERVER_ERROR',
+                      errorCode: 'CHANNEL_ALREADY_EXISTS',
+                    },
+                  },
+                ],
+              },
+            }),
+          } as any)
+      );
+    });
+
     beforeEach(() => {
       jest.mocked(graphqlClient.query).mockClear();
       jest.mocked(graphqlClient.mutation).mockClear();
+    });
+
+    afterAll(() => {
+      jest.mocked(graphqlClient.query).mockReset();
+      jest.mocked(graphqlClient.mutation).mockReset();
     });
 
     it.each([
@@ -91,133 +95,15 @@ describe('UpdatePublish', () => {
       [100, 3],
       [1000, 77],
     ])('sets the limit to %s and offset to %s when provided', async (limit, offset) => {
-      await ensureBranchExistsAsync({ appId, name: appName, limit, offset });
+      await ensureBranchExistsAsync({ appId, name: appFullName, limit, offset });
       const [[, bindings]] = jest.mocked(graphqlClient.query).mock.calls;
 
       expect(bindings).toEqual({
         appId,
-        name: appName,
+        name: appFullName,
         limit,
         offset,
       });
-    });
-  });
-
-  describe('getUpdatesToRepublishInteractiveAsync', () => {
-    beforeEach(() => {
-      jest.mocked(graphqlClient.query).mockClear();
-      jest.mocked(graphqlClient.mutation).mockClear();
-      jest.mocked(getUpdatesToRepublishInteractiveAsync).mockClear();
-      jest.mocked(selectAsync).mockClear();
-    });
-
-    it('throws when there are no updates', async () => {
-      const platformFlag = 'all';
-      await expect(
-        async () =>
-          await getUpdatesToRepublishInteractiveAsync(projectName, branchName, platformFlag, 50)
-      ).rejects.toThrow(
-        `There are no updates on branch "${branchName}" published for the platform(s) ${platformFlag}. Did you mean to publish a new update instead?`
-      );
-    });
-
-    it('fetches multiple pages of updates and can select an update from the most recent page', async () => {
-      const mockSelectedGroupId = uuidv4();
-      const pageSize = 2;
-      updatesToResolve
-        .mockReturnValueOnce(createMockUpdates({ updateCount: pageSize + 1 }))
-        .mockReturnValueOnce(
-          createMockUpdates({ updateCount: pageSize + 1, groupId: mockSelectedGroupId })
-        );
-      jest
-        .mocked(selectAsync)
-        .mockResolvedValueOnce('_fetchMore')
-        .mockResolvedValueOnce(mockSelectedGroupId);
-
-      const selectedUpdates = await getUpdatesToRepublishInteractiveAsync(
-        projectName,
-        branchName,
-        'all',
-        pageSize
-      );
-      expect(selectedUpdates.every(update => update.group === mockSelectedGroupId)).toBeTruthy();
-    });
-
-    it('fetches multiple pages of updates and can return an update from a previous page', async () => {
-      const mockSelectedGroupId = uuidv4();
-      const pageSize = 5;
-      updatesToResolve
-        .mockReturnValueOnce(
-          createMockUpdates({ updateCount: pageSize + 1, groupId: mockSelectedGroupId })
-        )
-        .mockReturnValueOnce(createMockUpdates({ updateCount: pageSize + 1 }));
-      jest
-        .mocked(selectAsync)
-        .mockResolvedValueOnce('_fetchMore')
-        .mockResolvedValueOnce(mockSelectedGroupId);
-
-      const selectedUpdates = await getUpdatesToRepublishInteractiveAsync(
-        projectName,
-        branchName,
-        'all',
-        pageSize
-      );
-      expect(selectedUpdates.every(update => update.group === mockSelectedGroupId)).toBeTruthy();
-    });
-
-    it('displays the option to fetch more pages as long as there are unfetched updates left', async () => {
-      const mockSelectedGroupId = uuidv4();
-      const pageSize = 10;
-      updatesToResolve
-        .mockReturnValueOnce(
-          createMockUpdates({ updateCount: pageSize + 1, groupId: mockSelectedGroupId })
-        )
-        .mockReturnValueOnce(createMockUpdates({ updateCount: pageSize + 1 }))
-        .mockReturnValueOnce(createMockUpdates({ updateCount: pageSize }));
-      jest
-        .mocked(selectAsync)
-        .mockResolvedValueOnce('_fetchMore')
-        .mockResolvedValueOnce('_fetchMore')
-        .mockResolvedValueOnce(mockSelectedGroupId);
-
-      await getUpdatesToRepublishInteractiveAsync(projectName, branchName, 'all', pageSize);
-      const { calls } = jest.mocked(selectAsync).mock;
-      expect(calls.length).toEqual(3);
-      const [[, firstOptions], [, secondOptions], [, thirdOptions]] = calls;
-      const fetchMoreValue = '_fetchMore';
-      expect(firstOptions[firstOptions.length - 1].value).toEqual(fetchMoreValue);
-      expect(firstOptions.length).toEqual(pageSize / 2 + 1); // + 1 === fetch more object
-      expect(secondOptions[secondOptions.length - 1].value).toEqual(fetchMoreValue);
-      expect(secondOptions.length).toEqual((pageSize / 2) * 2 + 1);
-      expect(thirdOptions.every(update => update.value !== fetchMoreValue)).toBeTruthy();
-      expect(thirdOptions.length).toEqual((pageSize / 2) * 3);
-    });
-
-    it('paginates update requests as expected', async () => {
-      const mockSelectedGroupId = uuidv4();
-      const pageSize = 50;
-      updatesToResolve
-        .mockReturnValueOnce(
-          createMockUpdates({ updateCount: pageSize + 1, groupId: mockSelectedGroupId })
-        )
-        .mockReturnValueOnce(createMockUpdates({ updateCount: pageSize + 1 }))
-        .mockReturnValueOnce(createMockUpdates({ updateCount: pageSize + 1 }))
-        .mockReturnValueOnce(createMockUpdates({ updateCount: pageSize }));
-      jest
-        .mocked(selectAsync)
-        .mockResolvedValueOnce('_fetchMore')
-        .mockResolvedValueOnce('_fetchMore')
-        .mockResolvedValueOnce('_fetchMore')
-        .mockResolvedValueOnce(mockSelectedGroupId);
-
-      await getUpdatesToRepublishInteractiveAsync(projectName, branchName, 'all', pageSize);
-      const gqlBindings = jest.mocked(graphqlClient.query).mock.calls.map(call => call[1]);
-      expect(gqlBindings).toEqual([
-        expect.objectContaining({ limit: pageSize + 1, offset: pageSize * 0 }),
-        expect.objectContaining({ limit: pageSize + 1, offset: pageSize * 1 }),
-        expect.objectContaining({ limit: pageSize + 1, offset: pageSize * 2 }),
-        expect.objectContaining({ limit: pageSize + 1, offset: pageSize * 3 }),
-      ]);
     });
   });
 
@@ -242,6 +128,44 @@ describe('UpdatePublish', () => {
       expect(warnSpy).toBeCalledWith(
         'Update message exceeds the allowed 1024 character limit. Truncating message...'
       );
+    });
+  });
+
+  describe(selectUpdateGroupOnBranchAsync.name, () => {
+    beforeEach(() => {
+      jest.mocked(UpdateQuery.viewUpdateGroupsOnBranchAsync).mockImplementation(async () => ({
+        app: { byId: { id: appId, updateBranchByName: { id: branchId, updateGroups: [] } } },
+      }));
+    });
+
+    it('to throw when no items are available', async () => {
+      expect(async () => {
+        await selectUpdateGroupOnBranchAsync({
+          branchName,
+          projectId: appId,
+          paginatedQueryOptions: {
+            json: false,
+            nonInteractive: false,
+            offset: 0,
+            limit: 50,
+          },
+        });
+      }).rejects.toThrowError(`Could not find any branches for project "${appId}`);
+    });
+
+    it('to throw when in non-interactive mode', async () => {
+      expect(async () => {
+        await selectUpdateGroupOnBranchAsync({
+          branchName,
+          projectId: appId,
+          paginatedQueryOptions: {
+            json: false,
+            nonInteractive: true,
+            offset: 0,
+            limit: 50,
+          },
+        });
+      }).rejects.toThrowError(`Unable to select an update in non-interactive mode.`);
     });
   });
 });

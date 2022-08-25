@@ -101,7 +101,7 @@ describe(paginatedQueryWithSelectPromptAsync.name, () => {
       };
       mockQuery
         .mockResolvedValueOnce(createPaginatedQueryResponse(limit + 1, 'first'))
-        // we need to insert a the last item from the previous query
+        // we need to insert the last item from the previous query
         // as the first item in the following query.
         // the id is used for grouping items, so it must match an id in the previous query
         .mockResolvedValueOnce(
@@ -133,10 +133,8 @@ describe(paginatedQueryWithSelectPromptAsync.name, () => {
         },
       });
 
-      // return value
       expect(selectedQueryItem).toEqual({ id: selectedItem.value, value: selectedItem.value });
 
-      // query
       const { calls: queryCalls } = mockQuery.mock;
       const finalQueryResults = await mockQuery.mock.results.pop()?.value;
       expect(mockQuery.mock.calls.length).toEqual(3);

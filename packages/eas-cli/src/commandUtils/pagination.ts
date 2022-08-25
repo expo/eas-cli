@@ -1,7 +1,7 @@
 import { Flags } from '@oclif/core';
 
 export const getPaginatedQueryOptions = (
-  flags: Record<keyof typeof EasPaginatedQueryFlags, any>
+  flags: Partial<Record<keyof typeof EasPaginatedQueryFlags, any>>
 ): PaginatedQueryOptions => {
   return {
     json: flags.json ?? false,
@@ -27,6 +27,19 @@ const parseFlagInputStringAsInteger = (
   return inputAsNumber;
 };
 
+export const getLimitFlagWithCustomValues = ({
+  defaultTo,
+  limit,
+}: {
+  defaultTo: number;
+  limit: number;
+}): any =>
+  Flags.integer({
+    description: `The number of items to fetch each query. Defaults to ${defaultTo} and is capped at ${limit}.`,
+    // eslint-disable-next-line async-protect/async-suffix
+    parse: async input => parseFlagInputStringAsInteger(input, 'limit', 1, limit),
+  });
+
 export const EasPaginatedQueryFlags = {
   offset: Flags.integer({
     description: 'Start queries from specified index. Use for paginating results. Defaults to 0.',
@@ -34,12 +47,7 @@ export const EasPaginatedQueryFlags = {
     parse: async input =>
       parseFlagInputStringAsInteger(input, 'offset', 0, Number.MAX_SAFE_INTEGER),
   }),
-  limit: Flags.integer({
-    description:
-      'The number of query items to list at once. The default value is 50 (the maximum is 100). Using a lower value may help increase command speed.',
-    // eslint-disable-next-line async-protect/async-suffix
-    parse: async input => parseFlagInputStringAsInteger(input, 'limit', 1, 100),
-  }),
+  limit: getLimitFlagWithCustomValues({ defaultTo: 50, limit: 100 }),
   json: Flags.boolean({
     description: 'Enable JSON output, non-JSON messages will be printed to stderr.',
   }),
