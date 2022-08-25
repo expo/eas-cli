@@ -21,7 +21,7 @@ function warnAboutServiceOutage(service: StatuspageServiceFragment): void {
     [StatuspageServiceName.EasUpdate]: 'EAS Update',
   };
 
-  if (service && service.status !== StatuspageServiceStatus.Operational) {
+  if (service.status !== StatuspageServiceStatus.Operational) {
     Log.warn(
       `⚠️  ${
         humanReadableServiceName[service.name]
