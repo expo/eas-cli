@@ -22,6 +22,7 @@ const CommonBuildProfileSchema = Joi.object({
   yarn: Joi.string().empty(null).custom(semverCheck),
   expoCli: Joi.string().empty(null).custom(semverCheck),
   env: Joi.object().pattern(Joi.string(), Joi.string().empty(null)),
+  autoIncrement: Joi.alternatives().try(Joi.boolean()),
 });
 
 const AndroidBuildProfileSchema = CommonBuildProfileSchema.concat(

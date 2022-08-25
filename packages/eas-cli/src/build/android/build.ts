@@ -47,7 +47,7 @@ This means that it will most likely produce an AAB and you will not be able to i
     Log.newLine();
     const confirmed = await toggleConfirmAsync({ message: 'Would you like to proceed?' });
     if (!confirmed) {
-      Log.error('Please update eas.json and come back again.');
+      Log.error('Update eas.json and come back again.');
       process.exit(1);
     }
   }

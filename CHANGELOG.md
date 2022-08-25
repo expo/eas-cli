@@ -8,10 +8,34 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+### 🐛 Bug fixes
+
+- Replace promptToCreateProjectIfNotExistsAsync with getProjectIdAsync. ([#1303](https://github.com/expo/eas-cli/pull/1303) by [@wschurman](https://github.com/wschurman))
+- Use AppQuery instead of ProjectQuery. ([#1304](https://github.com/expo/eas-cli/pull/1304) by [@wschurman](https://github.com/wschurman))
+
+### 🧹 Chores
+
+## [1.1.1](https://github.com/expo/eas-cli/releases/tag/v1.1.1) - 2022-08-23
+
+### 🎉 New features
+
+- Add support for `autoIncrement` option at the root of the build profile. ([#1298](https://github.com/expo/eas-cli/pull/1298) by [@szdziedzic](https://github.com/szdziedzic))
+
+### 🐛 Bug fixes
+
+- Handle trailing backslash in `.gitignore`. ([#1306](https://github.com/expo/eas-cli/pull/1306) by [@wkozyra95](https://github.com/wkozyra95))
+- Retry ASC Api Key downloads if it has not fully propagated on Apple's infrastructure. ([#1302](https://github.com/expo/eas-cli/pull/1302) by [@quinlanj](https://github.com/quinlanj))
+
+## [1.1.0](https://github.com/expo/eas-cli/releases/tag/v1.1.0) - 2022-08-23
+
+### 🎉 New features
+
 - Add support for passing platform flag to `credentials` command. ([#1277](https://github.com/expo/eas-cli/pull/1277) by [@Simek](https://github.com/Simek))
 - Add 2022 Apple capabilities. ([#1307](https://github.com/expo/eas-cli/pull/1307) by [@EvanBacon](https://github.com/EvanBacon))
 
 ### 🐛 Bug fixes
+
+- Prevent throwing dynamic app config write error when configuring project ID. ([#1301](https://github.com/expo/eas-cli/pull/1301) by [@wschurman](https://github.com/wschurman))
 
 ### 🧹 Chores
 
@@ -37,6 +61,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🧹 Chores
 
 - Remove unused install script. ([#1280](https://github.com/expo/eas-cli/pull/1280), [#1281](https://github.com/expo/eas-cli/pull/1281) by [@wkozyra95](https://github.com/wkozyra95))
+- Remove "please" from output ([#1250](https://github.com/expo/eas-cli/pull/1250) by [@jonsamp](https://github.com/jonsamp))
 
 ## [0.60.0](https://github.com/expo/eas-cli/releases/tag/v0.60.0) - 2022-08-12
 

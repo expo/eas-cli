@@ -70,7 +70,7 @@ export default class ChannelDelete extends EasCommand {
         await promptAsync({
           type: 'text',
           name: 'name',
-          message: 'Please enter the name of the channel to delete:',
+          message: 'Provide the name of the channel to delete:',
           validate: (value: any) => (value ? true : 'Channel name may not be empty.'),
         })
       ).name;

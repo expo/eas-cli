@@ -21,6 +21,7 @@ export interface CommonBuildProfile {
   channel?: string;
   developmentClient?: boolean;
   prebuildCommand?: string;
+  autoIncrement?: boolean;
 
   node?: string;
   yarn?: string;
@@ -28,7 +29,7 @@ export interface CommonBuildProfile {
   env?: Record<string, string>;
 }
 
-export interface AndroidBuildProfile extends CommonBuildProfile {
+export interface AndroidBuildProfile extends Omit<CommonBuildProfile, 'autoIncrement'> {
   withoutCredentials?: boolean;
   image?: Android.BuilderEnvironment['image'];
   ndk?: string;
@@ -40,7 +41,7 @@ export interface AndroidBuildProfile extends CommonBuildProfile {
   artifactPath?: string;
 }
 
-export interface IosBuildProfile extends CommonBuildProfile {
+export interface IosBuildProfile extends Omit<CommonBuildProfile, 'autoIncrement'> {
   enterpriseProvisioning?: IosEnterpriseProvisioning;
   autoIncrement?: IosVersionAutoIncrement;
   simulator?: boolean;

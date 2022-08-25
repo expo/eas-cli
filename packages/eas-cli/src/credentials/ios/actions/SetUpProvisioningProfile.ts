@@ -95,7 +95,7 @@ export class SetUpProvisioningProfile {
     }
     if (ctx.nonInteractive) {
       throw new MissingCredentialsNonInteractiveError(
-        'Provisioning profile is not configured correctly. Please run this command again in interactive mode.'
+        'Provisioning profile is not configured correctly. Run this command again in interactive mode.'
       );
     }
 

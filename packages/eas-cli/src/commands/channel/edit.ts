@@ -127,9 +127,7 @@ export default class ChannelEdit extends EasCommand {
 
     const existingChannel = await getChannelByNameForAppAsync({ appId: projectId, channelName });
     if (existingChannel.updateBranches.length > 1) {
-      throw new Error(
-        'There is a rollout in progress. Please manage it with "channel:rollout" instead.'
-      );
+      throw new Error('There is a rollout in progress. Manage it with "channel:rollout" instead.');
     }
 
     const branchName = flags.branch ?? (await promptForBranchAsync());
@@ -140,7 +138,7 @@ export default class ChannelEdit extends EasCommand {
     });
     if (!branch) {
       throw new Error(
-        `Could not find a branch named "${branchName}". Please check what branches exist on this project with ${chalk.bold(
+        `Could not find a branch named "${branchName}". Check what branches exist on this project with ${chalk.bold(
           'eas branch:list'
         )}.`
       );
@@ -173,7 +171,7 @@ async function promptForChannelAsync(): Promise<string> {
   const { name } = await promptAsync({
     type: 'text',
     name: 'name',
-    message: 'Please enter the name of the channel to edit:',
+    message: 'Provide the name of the channel to edit:',
     validate: value => (value ? true : 'The channel name may not be empty.'),
   });
   return name;

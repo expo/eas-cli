@@ -63,6 +63,31 @@ test('valid eas.json for development client builds', async () => {
   });
 });
 
+test(`valid eas.json with autoIncrement flag at build profile root`, async () => {
+  await fs.writeJson('/project/eas.json', {
+    build: {
+      production: {
+        autoIncrement: true,
+      },
+    },
+  });
+
+  const reader = new EasJsonReader('/project');
+  const iosProfile = await reader.getBuildProfileAsync(Platform.IOS, 'production');
+  const androidProfile = await reader.getBuildProfileAsync(Platform.ANDROID, 'production');
+  expect(androidProfile).toEqual({
+    autoIncrement: true,
+    credentialsSource: 'remote',
+    distribution: 'store',
+  });
+
+  expect(iosProfile).toEqual({
+    autoIncrement: true,
+    credentialsSource: 'remote',
+    distribution: 'store',
+  });
+});
+
 test('valid profile for internal distribution on Android', async () => {
   await fs.writeJson('/project/eas.json', {
     build: {

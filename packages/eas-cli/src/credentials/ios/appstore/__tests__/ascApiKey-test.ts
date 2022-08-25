@@ -1,14 +1,14 @@
-import { ApiKey, ApiKeyType, UserRole } from '@expo/apple-utils';
+import { ApiKey, ApiKeyType, UnexpectedResponse, UserRole } from '@expo/apple-utils';
 
 import {
   createAscApiKeyAsync,
+  downloadWithRetryAsync,
   getAscApiKeyAsync,
   listAscApiKeysAsync,
   revokeAscApiKeyAsync,
 } from '../ascApiKey';
 import { getRequestContext } from '../authenticate';
 
-jest.mock('@expo/apple-utils');
 jest.mock('../authenticate');
 jest.mock('../../../../ora');
 
@@ -95,4 +95,39 @@ test(`revokeAscApiKeyAsync`, async () => {
   });
   expect(mockApiKey.revokeAsync).toBeCalled();
   expect(result).toEqual(mockAscApiKeyInfo);
+});
+
+test(`downloadWithRetryAsync`, async () => {
+  const cacheFailureMessage = `The specified resource does not exist - There is no resource of type 'apiKeys' with id 'TEST-ID'`;
+
+  // complete failure
+  const mockApiKeyWithDownloadError = {
+    ...mockApiKey,
+    downloadAsync: jest.fn(() => {
+      throw new UnexpectedResponse(cacheFailureMessage);
+    }),
+  } as unknown as ApiKey;
+  await expect(
+    downloadWithRetryAsync(mockApiKeyWithDownloadError, { minTimeout: 1 }) // stay within jest timeout window
+  ).rejects.toThrowError(cacheFailureMessage);
+  // expect to try once and retry 3 times = 4 total
+  expect(mockApiKeyWithDownloadError.downloadAsync as jest.Mock).toBeCalledTimes(7);
+
+  // one time failure
+  const mockApiKeyWithOneTimeDownloadError = mockApiKey as unknown as ApiKey;
+  (mockApiKeyWithOneTimeDownloadError.downloadAsync as jest.Mock).mockClear();
+  (mockApiKeyWithOneTimeDownloadError.downloadAsync as jest.Mock).mockImplementationOnce(() => {
+    throw new UnexpectedResponse(cacheFailureMessage);
+  });
+  const keyP8AfterOneFailure = await downloadWithRetryAsync(mockApiKeyWithOneTimeDownloadError, {
+    minTimeout: 1,
+  });
+  expect(keyP8AfterOneFailure).toBe('super secret');
+
+  // successful case
+  (mockApiKey.downloadAsync as jest.Mock).mockClear();
+  const keyP8NoFailure = await downloadWithRetryAsync(mockApiKeyWithOneTimeDownloadError, {
+    minTimeout: 1,
+  });
+  expect(keyP8NoFailure).toBe('super secret');
 });

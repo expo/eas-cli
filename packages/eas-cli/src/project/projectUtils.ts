@@ -9,15 +9,11 @@ import semver from 'semver';
 
 import { AppPrivacy } from '../graphql/generated';
 import Log from '../log';
-import { confirmAsync } from '../prompts';
 import { Actor } from '../user/User';
 import { ensureLoggedInAsync } from '../user/actions';
 import { expoCommandAsync } from '../utils/expoCli';
 import { getVcsClient } from '../vcs';
-import {
-  ensureProjectExistsAsync,
-  findProjectIdByAccountNameAndSlugNullableAsync,
-} from './ensureProjectExists';
+import { ensureProjectExistsAsync } from './ensureProjectExists';
 import { getExpoConfig } from './expoConfig';
 
 export function getProjectAccountName(exp: ExpoConfig, user: Actor): string {
@@ -65,7 +61,7 @@ export async function findProjectRootAsync({
   const projectRootDir = await pkgDir(cwd);
   if (!projectRootDir) {
     if (!defaultToProcessCwd) {
-      throw new Error('Please run this command inside a project directory.');
+      throw new Error('Run this command inside a project directory.');
     } else {
       return process.cwd();
     }
@@ -83,19 +79,15 @@ export async function findProjectRootAsync({
   }
 }
 
-export async function setProjectIdAsync(
+/**
+ * Save an EAS project ID to the appropriate field in the app config.
+ */
+export async function saveProjectIdToAppConfigAsync(
   projectDir: string,
+  projectId: string,
   options: { env?: Env } = {}
-): Promise<ExpoConfig | undefined> {
+): Promise<void> {
   const exp = getExpoConfig(projectDir, options);
-
-  const privacy = toAppPrivacy(exp.privacy);
-  const projectId = await ensureProjectExistsAsync({
-    accountName: getProjectAccountName(exp, await ensureLoggedInAsync()),
-    projectName: exp.slug,
-    privacy,
-  });
-
   const result = await modifyConfigAsync(projectDir, {
     extra: { ...exp.extra, eas: { ...exp.extra?.eas, projectId } },
   });
@@ -122,11 +114,27 @@ export async function setProjectIdAsync(
     default:
       throw new Error('Unexpected result type from modifyConfigAsync');
   }
-
-  Log.withTick(`Linked app.json to project with ID ${chalk.bold(projectId)}`);
-  return result.config?.expo;
 }
 
+/**
+ * Use the owner/slug to identify an EAS project on the server.
+ *
+ * @returns the EAS project ID from the server
+ */
+export async function fetchProjectIdFromServerAsync(exp: ExpoConfig): Promise<string> {
+  const privacy = toAppPrivacy(exp.privacy);
+  return await ensureProjectExistsAsync({
+    accountName: getProjectAccountName(exp, await ensureLoggedInAsync()),
+    projectName: exp.slug,
+    privacy,
+  });
+}
+
+/**
+ * Get the EAS project ID from the app config. If the project ID is not set in the config.
+ * use the owner/slug to identify an EAS project on the server, and attempt to save the
+ * EAS project ID to the appropriate field in the app config.
+ */
 export async function getProjectIdAsync(
   exp: ExpoConfig,
   options: { env?: Env } = {},
@@ -140,19 +148,23 @@ export async function getProjectIdAsync(
     return localProjectId;
   }
 
-  // Set the project ID if it is missing.
   const projectDir = await findProjectRootAsync(findProjectRootOptions);
   if (!projectDir) {
-    throw new Error('Please run this command inside a project directory.');
+    throw new Error('Run this command inside a project directory.');
   }
-  const newExp = await setProjectIdAsync(projectDir, options);
 
-  const newLocalProjectId = newExp?.extra?.eas?.projectId;
-  if (!newLocalProjectId) {
-    // throw if we still can't locate the projectId
-    throw new Error('Could not retrieve project ID from app.json');
+  const projectId = await fetchProjectIdFromServerAsync(exp);
+
+  try {
+    await saveProjectIdToAppConfigAsync(projectDir, projectId, options);
+  } catch (e: any) {
+    // saveProjectIdToAppConfigAsync already printed out a set of detailed errors and
+    // instructions on how to fix it. To mimic throwing the error but not halting
+    // execution, just warn here with the error message.
+    Log.warn(e.message);
   }
-  return newLocalProjectId;
+
+  return projectId;
 }
 
 const toAppPrivacy = (privacy: ExpoConfig['privacy']): AppPrivacy => {
@@ -189,33 +201,6 @@ export function getProjectConfigDescription(projectDir: string): string {
     return path.relative(projectDir, paths.staticConfigPath);
   }
   return 'app.config.js/app.json';
-}
-
-// return project id of existing/newly created project, or null if user declines
-export async function promptToCreateProjectIfNotExistsAsync(
-  exp: ExpoConfig
-): Promise<string | null> {
-  const accountName = getProjectAccountName(exp, await ensureLoggedInAsync());
-  const maybeProjectId = await findProjectIdByAccountNameAndSlugNullableAsync(
-    accountName,
-    exp.slug
-  );
-  if (maybeProjectId) {
-    return maybeProjectId;
-  }
-  const fullName = await getProjectFullNameAsync(exp);
-  const shouldCreateProject = await confirmAsync({
-    message: `Looks like ${fullName} is new. Register it with EAS?`,
-  });
-  if (!shouldCreateProject) {
-    return null;
-  }
-  const privacy = toAppPrivacy(exp.privacy);
-  return await ensureProjectExistsAsync({
-    accountName,
-    projectName: exp.slug,
-    privacy,
-  });
 }
 
 export function isExpoUpdatesInstalled(projectDir: string): boolean {

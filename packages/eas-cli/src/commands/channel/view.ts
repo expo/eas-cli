@@ -176,7 +176,7 @@ export default class ChannelView extends EasCommand {
       ({ name: channelName } = await promptAsync({
         type: 'text',
         name: 'name',
-        message: 'Please name the channel:',
+        message: 'Provide a channel name:',
         validate: value => (value ? true : validationMessage),
       }));
     }

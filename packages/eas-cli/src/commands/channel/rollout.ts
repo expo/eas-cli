@@ -92,7 +92,7 @@ async function startRolloutAsync({
   });
   if (!branch) {
     throw new Error(
-      `Could not find a branch named "${branchName}". Please check what branches exist on this project with ${chalk.bold(
+      `Could not find a branch named "${branchName}". Check which branches exist on this project with ${chalk.bold(
         'eas branch:list'
       )}.`
     );
@@ -238,7 +238,7 @@ async function endRolloutAsync({
     });
     if (!branch) {
       throw new Error(
-        `Could not find a branch named "${branchName}". Please check what branches exist on this project with ${chalk.bold(
+        `Could not find a branch named "${branchName}". Check which branches exist on this project with ${chalk.bold(
           'eas branch:list'
         )}.`
       );
@@ -354,7 +354,7 @@ export default class ChannelRollout extends EasCommand {
     });
     if (!channel) {
       throw new Error(
-        `Could not find a channel named "${channelName}". Please check what channels exist on this project with ${chalk.bold(
+        `Could not find a channel named "${channelName}". Check which channels exist on this project with ${chalk.bold(
           'eas channel:list'
         )}.`
       );
