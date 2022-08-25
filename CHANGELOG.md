@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Add 2022 Apple capabilities. ([#1307](https://github.com/expo/eas-cli/pull/1307) by [@EvanBacon](https://github.com/EvanBacon))
+
 ### 🐛 Bug fixes
 
 - Replace promptToCreateProjectIfNotExistsAsync with getProjectIdAsync. ([#1303](https://github.com/expo/eas-cli/pull/1303) by [@wschurman](https://github.com/wschurman))
@@ -31,7 +33,6 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🎉 New features
 
 - Add support for passing platform flag to `credentials` command. ([#1277](https://github.com/expo/eas-cli/pull/1277) by [@Simek](https://github.com/Simek))
-- Add 2022 Apple capabilities. ([#1307](https://github.com/expo/eas-cli/pull/1307) by [@EvanBacon](https://github.com/EvanBacon))
 
 ### 🐛 Bug fixes
 
