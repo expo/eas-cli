@@ -60,6 +60,7 @@ export async function createBuildContextAsync<T extends Platform>({
     projectDir,
     user,
     env: buildProfile.env,
+    easJsonCliConfig,
   });
 
   const devClientProperties = getDevClientEventProperties({

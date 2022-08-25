@@ -1,10 +1,16 @@
 import { Platform } from '@expo/eas-build-job';
-import { CredentialsSource, DistributionType, IosEnterpriseProvisioning } from '@expo/eas-json';
+import {
+  CredentialsSource,
+  DistributionType,
+  EasJsonReader,
+  IosEnterpriseProvisioning,
+} from '@expo/eas-json';
+import fs from 'fs-extra';
 
 import { CommonIosAppCredentialsFragment } from '../../graphql/generated';
 import Log from '../../log';
 import { findApplicationTarget } from '../../project/ios/target';
-import { confirmAsync } from '../../prompts';
+import { selectAsync } from '../../prompts';
 import { CredentialsContext } from '../context';
 import * as credentialsJsonReader from '../credentialsJson/read';
 import { ensureAllTargetsAreConfigured } from '../credentialsJson/utils';
@@ -19,6 +25,12 @@ interface Options {
   targets: Target[];
   distribution: DistributionType;
   enterpriseProvisioning?: IosEnterpriseProvisioning;
+}
+
+enum PushNotificationSetupOption {
+  YES,
+  NO,
+  NO_DONT_ASK_AGAIN,
 }
 
 export default class IosCredentialsProvider {
@@ -89,13 +101,39 @@ export default class IosCredentialsProvider {
       return null;
     }
 
-    const confirmSetup = await confirmAsync({
-      message: `Would you like to set up Push Notifications for your project?`,
-    });
-    if (!confirmSetup) {
+    if (ctx.easJsonCliConfig?.setUpPushNotifications === false) {
       return null;
     }
-    return await setupPushKeyAction.runAsync(ctx);
+
+    const setupOption = await selectAsync(
+      `Would you like to set up Push Notifications for your project?`,
+      [
+        { title: 'Yes', value: PushNotificationSetupOption.YES },
+        { title: 'No', value: PushNotificationSetupOption.NO },
+        {
+          title: `No, don't ask again (updates eas.json)`,
+          value: PushNotificationSetupOption.NO_DONT_ASK_AGAIN,
+        },
+      ]
+    );
+    if (setupOption === PushNotificationSetupOption.YES) {
+      return await setupPushKeyAction.runAsync(ctx);
+    } else {
+      if (setupOption === PushNotificationSetupOption.NO_DONT_ASK_AGAIN) {
+        await this.disablePushNotificationsSetupInEasJsonAsync(ctx);
+      }
+      return null;
+    }
+  }
+
+  private async disablePushNotificationsSetupInEasJsonAsync(
+    ctx: CredentialsContext
+  ): Promise<void> {
+    const easJsonPath = EasJsonReader.formatEasJsonPath(ctx.projectDir);
+    const easJson = await fs.readJSON(easJsonPath);
+    easJson.cli = { ...easJson?.cli, setUpPushNotifications: false };
+    await fs.writeFile(easJsonPath, `${JSON.stringify(easJson, null, 2)}\n`);
+    Log.withTick('Updated eas.json');
   }
 
   private assertProvisioningProfileType(provisioningProfile: string, targetName?: string): void {
