@@ -97,14 +97,19 @@ export async function saveProjectIdToAppConfigAsync(
       break;
     case 'warn': {
       Log.warn();
-      Log.warn('It looks like you are using a dynamic configuration!');
       Log.warn(
-        chalk.dim(
-          'https://docs.expo.dev/workflow/configuration/#dynamic-configuration-with-appconfigjs)\n'
-        )
+        `Warning: Your project uses dynamic app configuration, and the EAS project ID can't automatically be added to it.`
       );
       Log.warn(
-        'In order to finish setting up your project you are going to need manually edit app.json/app.config.js and add the following to your "extra" key:'
+        chalk.dim(
+          'https://docs.expo.dev/workflow/configuration/#dynamic-configuration-with-appconfigjs'
+        )
+      );
+      Log.warn();
+      Log.warn(
+        `To complete the setup process, set the ${chalk.bold(
+          'extra.eas.projectId'
+        )} in your ${chalk.bold(getProjectConfigDescription(projectDir))}:`
       );
       Log.warn();
       Log.warn(chalk.bold(JSON.stringify({ expo: { extra: { eas: { projectId } } } }, null, 2)));
