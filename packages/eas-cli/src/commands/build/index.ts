@@ -98,23 +98,30 @@ export default class Build extends EasCommand {
   async runAsync(): Promise<void> {
     const { flags: rawFlags } = await this.parse(Build);
 
+    if (rawFlags.json) {
+      enableJsonOutput();
+    }
+    const flags = Build.sanitizeFlags(rawFlags);
+
+    const projectDir = await findProjectRootAsync();
+
     await maybeWarnAboutEasOutagesAsync(
-      rawFlags['auto-submit'] || rawFlags['auto-submit-with-profile']
+      flags.autoSubmit
         ? [StatuspageServiceName.EasBuild, StatuspageServiceName.EasSubmit]
         : [StatuspageServiceName.EasBuild]
     );
 
-    if (rawFlags.json) {
-      enableJsonOutput();
+    if (!flags.requestedPlatform) {
+      flags.requestedPlatform = await selectRequestedPlatformAsync();
+      Build.sanitizePlatform(rawFlags, flags.requestedPlatform);
     }
-    const flags = await this.sanitizeFlagsAsync(rawFlags);
 
-    const projectDir = await findProjectRootAsync();
-
-    await runBuildAndSubmitAsync(projectDir, flags);
+    await runBuildAndSubmitAsync(projectDir, flags as BuildFlags);
   }
 
-  private async sanitizeFlagsAsync(flags: RawBuildFlags): Promise<BuildFlags> {
+  private static sanitizeFlags(
+    flags: RawBuildFlags
+  ): Omit<BuildFlags, 'requestedPlatform'> & { requestedPlatform?: RequestedPlatform } {
     const nonInteractive = flags['non-interactive'];
     if (!flags.local && flags.output) {
       Errors.error('--output is allowed only for local builds', { exit: 1 });
@@ -126,20 +133,13 @@ export default class Build extends EasCommand {
       Errors.error('--json is allowed only when building in non-interactive mode', { exit: 1 });
     }
 
-    const requestedPlatform = await selectRequestedPlatformAsync(flags.platform);
-    if (flags.local) {
-      if (flags['auto-submit'] || flags['auto-submit-with-profile'] !== undefined) {
-        // TODO: implement this
-        Errors.error('Auto-submits are not yet supported when building locally', { exit: 1 });
-      }
-
-      if (requestedPlatform === RequestedPlatform.All) {
-        Errors.error('Builds for multiple platforms are not supported with flag --local', {
-          exit: 1,
-        });
-      } else if (process.platform !== 'darwin' && requestedPlatform === RequestedPlatform.Ios) {
-        Errors.error('Unsupported platform, macOS is required to build apps for iOS', { exit: 1 });
-      }
+    const requestedPlatform =
+      flags.platform &&
+      Object.values(RequestedPlatform).includes(flags.platform.toLowerCase() as RequestedPlatform)
+        ? (flags.platform.toLowerCase() as RequestedPlatform)
+        : undefined;
+    if (requestedPlatform) {
+      Build.sanitizePlatform(flags, requestedPlatform);
     }
 
     if (flags['skip-credentials-check']) {
@@ -184,5 +184,22 @@ export default class Build extends EasCommand {
       userInputResourceClass: flags['resource-class'] ?? UserInputResourceClass.DEFAULT,
       message,
     };
+  }
+
+  private static sanitizePlatform(flags: RawBuildFlags, platform: RequestedPlatform): void {
+    if (flags.local) {
+      if (flags['auto-submit'] || flags['auto-submit-with-profile'] !== undefined) {
+        // TODO: implement this
+        Errors.error('Auto-submits are not yet supported when building locally', { exit: 1 });
+      }
+
+      if (platform === RequestedPlatform.All) {
+        Errors.error('Builds for multiple platforms are not supported with flag --local', {
+          exit: 1,
+        });
+      } else if (process.platform !== 'darwin' && platform === RequestedPlatform.Ios) {
+        Errors.error('Unsupported platform, macOS is required to build apps for iOS', { exit: 1 });
+      }
+    }
   }
 }

@@ -231,8 +231,6 @@ export default class UpdatePublish extends EasCommand {
       },
     } = await this.parse(UpdatePublish);
 
-    await maybeWarnAboutEasOutagesAsync([StatuspageServiceName.EasUpdate]);
-
     if (jsonFlag) {
       enableJsonOutput();
     }
@@ -249,6 +247,8 @@ export default class UpdatePublish extends EasCommand {
     const expPrivate = getExpoConfig(projectDir, {
       isPublicConfig: false,
     });
+
+    await maybeWarnAboutEasOutagesAsync([StatuspageServiceName.EasUpdate]);
 
     const codeSigningInfo = await getCodeSigningInfoAsync(expPrivate, privateKeyPath);
 

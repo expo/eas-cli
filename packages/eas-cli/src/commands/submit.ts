@@ -93,13 +93,18 @@ export default class Submit extends EasCommand {
   async runAsync(): Promise<void> {
     const { flags: rawFlags } = await this.parse(Submit);
 
-    await maybeWarnAboutEasOutagesAsync([StatuspageServiceName.EasSubmit]);
-
-    const flags = await this.sanitizeFlagsAsync(rawFlags);
+    const flags = await Submit.sanitizeFlags(rawFlags);
 
     const projectDir = await findProjectRootAsync();
     const exp = getExpoConfig(projectDir);
     const projectId = await getProjectIdAsync(exp);
+
+    await maybeWarnAboutEasOutagesAsync([StatuspageServiceName.EasSubmit]);
+
+    if (!flags.requestedPlatform) {
+      flags.requestedPlatform = await selectRequestedPlatformAsync();
+      Submit.sanitizePlatform(rawFlags, flags.requestedPlatform);
+    }
 
     const platforms = toPlatforms(flags.requestedPlatform);
     const submissionProfiles = await getProfilesAsync({
@@ -145,7 +150,9 @@ export default class Submit extends EasCommand {
     }
   }
 
-  private async sanitizeFlagsAsync(flags: RawCommandFlags): Promise<CommandFlags> {
+  private static sanitizeFlags(
+    flags: RawCommandFlags
+  ): Omit<CommandFlags, 'requestedPlatform'> & { requestedPlatform?: RequestedPlatform } {
     const {
       platform,
       verbose,
@@ -159,14 +166,13 @@ export default class Submit extends EasCommand {
       Errors.error('--platform is required when building in non-interactive mode', { exit: 1 });
     }
 
-    const requestedPlatform = await selectRequestedPlatformAsync(flags.platform);
-    if (requestedPlatform === RequestedPlatform.All) {
-      if (archiveFlags.id || archiveFlags.path || archiveFlags.url) {
-        Errors.error(
-          '--id, --path, and --url params are only supported when performing a single-platform submit',
-          { exit: 1 }
-        );
-      }
+    const requestedPlatform =
+      flags.platform &&
+      Object.values(RequestedPlatform).includes(flags.platform.toLowerCase() as RequestedPlatform)
+        ? (flags.platform.toLowerCase() as RequestedPlatform)
+        : undefined;
+    if (requestedPlatform) {
+      Submit.sanitizePlatform(archiveFlags, requestedPlatform);
     }
 
     return {
@@ -177,5 +183,24 @@ export default class Submit extends EasCommand {
       profile,
       nonInteractive,
     };
+  }
+
+  private static sanitizePlatform(
+    archiveFlags: {
+      latest?: boolean | undefined;
+      id?: string | undefined;
+      path?: string | undefined;
+      url?: string | undefined;
+    },
+    requestedPlatform: RequestedPlatform
+  ): void {
+    if (requestedPlatform === RequestedPlatform.All) {
+      if (archiveFlags.id || archiveFlags.path || archiveFlags.url) {
+        Errors.error(
+          '--id, --path, and --url params are only supported when performing a single-platform submit',
+          { exit: 1 }
+        );
+      }
+    }
   }
 }
