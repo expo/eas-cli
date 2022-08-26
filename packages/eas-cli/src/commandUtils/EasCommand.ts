@@ -1,5 +1,9 @@
 import { EasJsonReader } from '@expo/eas-json';
+import * as PackageManagerUtils from '@expo/package-manager';
 import { Command } from '@oclif/core';
+import chalk from 'chalk';
+import fs from 'fs-extra';
+import path from 'path';
 import semver from 'semver';
 
 import {
@@ -8,6 +12,7 @@ import {
   initAsync as initAnalyticsAsync,
   logEvent,
 } from '../analytics/rudderstackClient';
+import { learnMore } from '../log';
 import { findProjectRootAsync } from '../project/projectUtils';
 import { getUserAsync } from '../user/User';
 import { ensureLoggedInAsync } from '../user/actions';
@@ -28,8 +33,11 @@ export default abstract class EasCommand extends Command {
   // eslint-disable-next-line async-protect/async-suffix
   async run(): Promise<any> {
     await initAnalyticsAsync();
+
     if (this.mustBeRunInsideProject) {
-      await this.applyCliConfigAsync();
+      const projectDir = await findProjectRootAsync();
+      await this.applyCliConfigAsync(projectDir);
+      await this.ensureEasCliIsNotInDependenciesAsync(projectDir);
     }
 
     if (this.requiresAuthentication) {
@@ -53,8 +61,7 @@ export default abstract class EasCommand extends Command {
     return super.finally(err);
   }
 
-  private async applyCliConfigAsync(): Promise<void> {
-    const projectDir = await findProjectRootAsync();
+  private async applyCliConfigAsync(projectDir: string): Promise<void> {
     const easJsonReader = new EasJsonReader(projectDir);
     const config = await easJsonReader.getCliConfigAsync();
     if (config?.version && !semver.satisfies(easCliVersion, config.version)) {
@@ -65,5 +72,51 @@ export default abstract class EasCommand extends Command {
     if (config?.requireCommit) {
       setVcsClient(new GitClient());
     }
+  }
+
+  private async ensureEasCliIsNotInDependenciesAsync(projectDir: string): Promise<void> {
+    let printCliVersionWarning = false;
+
+    const consoleWarn = (msg?: string): void => {
+      if (msg) {
+        // eslint-disable-next-line no-console
+        console.warn(chalk.yellow(msg));
+      } else {
+        // eslint-disable-next-line no-console
+        console.warn();
+      }
+    };
+
+    if (await this.isEasCliInDependenciesAsync(projectDir)) {
+      printCliVersionWarning = true;
+      consoleWarn(`Found ${chalk.bold('eas-cli')} in your project dependencies.`);
+    }
+
+    const maybeRepoRoot = PackageManagerUtils.findWorkspaceRoot(projectDir) ?? projectDir;
+    if (maybeRepoRoot !== projectDir && (await this.isEasCliInDependenciesAsync(maybeRepoRoot))) {
+      printCliVersionWarning = true;
+      consoleWarn(`Found ${chalk.bold('eas-cli')} in your monorepo dependencies.`);
+    }
+
+    if (printCliVersionWarning) {
+      consoleWarn(
+        `It's recommended to use the ${chalk.bold(
+          '"cli.version"'
+        )} field in eas.json to enforce the ${chalk.bold('eas-cli')} version for your project.`
+      );
+      consoleWarn(
+        learnMore('https://github.com/expo/eas-cli#enforcing-eas-cli-version-for-your-project')
+      );
+      consoleWarn();
+    }
+  }
+
+  private async isEasCliInDependenciesAsync(dir: string): Promise<boolean> {
+    const packageJsonPath = path.join(dir, 'package.json');
+    const packageJson = JSON.parse(await fs.readFile(packageJsonPath, 'utf8'));
+    return (
+      packageJson?.dependencies?.['eas-cli'] !== undefined ||
+      packageJson?.devDependencies?.['eas-cli'] !== undefined
+    );
   }
 }
