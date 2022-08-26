@@ -18,18 +18,20 @@ export async function maybeWarnAboutEasOutagesAsync(
   }
 }
 
-function warnAboutServiceOutage(service: StatuspageServiceFragment): void {
-  const humanReadableServiceName: Record<StatuspageServiceName, string> = {
-    [StatuspageServiceName.EasBuild]: 'EAS Build',
-    [StatuspageServiceName.EasSubmit]: 'EAS Submit',
-    [StatuspageServiceName.EasUpdate]: 'EAS Update',
-  };
+const humanReadableServiceName: Record<StatuspageServiceName, string> = {
+  [StatuspageServiceName.EasBuild]: 'EAS Build',
+  [StatuspageServiceName.EasSubmit]: 'EAS Submit',
+  [StatuspageServiceName.EasUpdate]: 'EAS Update',
+};
 
+function warnAboutServiceOutage(service: StatuspageServiceFragment): void {
   if (service.status !== StatuspageServiceStatus.Operational) {
-    Log.warnWithWarningSign(
-      `${chalk.bold(
+    const outageType = service.status === StatuspageServiceStatus.MajorOutage ? 'major' : 'partial';
+
+    Log.warn(
+      `Service status warning: ${chalk.bold(
         humanReadableServiceName[service.name]
-      )} is currently in a degraded state. The service may temporarily not function as expected.`
+      )} is experiencing a ${outageType} outage. The service may temporarily not function as expected.`
     );
 
     if (service.incidents.length > 0) {
@@ -37,7 +39,11 @@ function warnAboutServiceOutage(service: StatuspageServiceFragment): void {
       Log.warn(`Reason: ${currentIncident.name}`);
     }
 
-    Log.warn(`Check ${link('https://status.expo.dev/')} for more information.`);
+    Log.warn(
+      `All information on service status and incidents available at ${link(
+        'https://status.expo.dev/'
+      )}.`
+    );
     Log.newLine();
   }
 }
