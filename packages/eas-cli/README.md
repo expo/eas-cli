@@ -21,9 +21,9 @@ yarn global add eas-cli
 
 ## Enforcing eas-cli version for your project
 
-If you want to enforce the **eas-cli** version for your project, use the `"cli.version"` field in eas.json. Installing **eas-cli** as your project dependency is strongly discouraged.
+If you want to enforce the `eas-cli` version for your project, use the `"cli.version"` field in **eas.json**. Installing `eas-cli` to your project dependencies is strongly discouraged because it may cause dependency conflicts that are difficult to debug.
 
-An example of `eas.json` that enforces `eas-cli` in version `1.0.0` or newer:
+An example of **eas.json** that enforces `eas-cli` in version `1.0.0` or newer:
 
 ```json
 {
