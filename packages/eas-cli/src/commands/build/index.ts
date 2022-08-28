@@ -101,25 +101,25 @@ export default class Build extends EasCommand {
     if (rawFlags.json) {
       enableJsonOutput();
     }
-    const flags = Build.sanitizeFlags(rawFlags);
+    const flags = this.sanitizeFlags(rawFlags);
 
     const projectDir = await findProjectRootAsync();
 
-    await maybeWarnAboutEasOutagesAsync(
-      flags.autoSubmit
-        ? [StatuspageServiceName.EasBuild, StatuspageServiceName.EasSubmit]
-        : [StatuspageServiceName.EasBuild]
-    );
-
-    if (!flags.requestedPlatform) {
-      flags.requestedPlatform = await selectRequestedPlatformAsync();
-      Build.sanitizePlatform(rawFlags, flags.requestedPlatform);
+    if (!flags.localBuildOptions.enable) {
+      await maybeWarnAboutEasOutagesAsync(
+        flags.autoSubmit
+          ? [StatuspageServiceName.EasBuild, StatuspageServiceName.EasSubmit]
+          : [StatuspageServiceName.EasBuild]
+      );
     }
+
+    flags.requestedPlatform = await selectRequestedPlatformAsync(flags.requestedPlatform);
+    this.validateFlagsWithPlatform(rawFlags, flags.requestedPlatform);
 
     await runBuildAndSubmitAsync(projectDir, flags as BuildFlags);
   }
 
-  private static sanitizeFlags(
+  private sanitizeFlags(
     flags: RawBuildFlags
   ): Omit<BuildFlags, 'requestedPlatform'> & { requestedPlatform?: RequestedPlatform } {
     const nonInteractive = flags['non-interactive'];
@@ -138,9 +138,8 @@ export default class Build extends EasCommand {
       Object.values(RequestedPlatform).includes(flags.platform.toLowerCase() as RequestedPlatform)
         ? (flags.platform.toLowerCase() as RequestedPlatform)
         : undefined;
-    if (requestedPlatform) {
-      Build.sanitizePlatform(flags, requestedPlatform);
-    }
+
+    this.validateFlagsWithPlatform(flags, requestedPlatform);
 
     if (flags['skip-credentials-check']) {
       Log.warnDeprecatedFlag(
@@ -186,7 +185,7 @@ export default class Build extends EasCommand {
     };
   }
 
-  private static sanitizePlatform(flags: RawBuildFlags, platform: RequestedPlatform): void {
+  private validateFlagsWithPlatform(flags: RawBuildFlags, platform?: RequestedPlatform): void {
     if (flags.local) {
       if (flags['auto-submit'] || flags['auto-submit-with-profile'] !== undefined) {
         // TODO: implement this

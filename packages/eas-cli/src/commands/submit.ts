@@ -93,7 +93,7 @@ export default class Submit extends EasCommand {
   async runAsync(): Promise<void> {
     const { flags: rawFlags } = await this.parse(Submit);
 
-    const flags = await Submit.sanitizeFlags(rawFlags);
+    const flags = this.sanitizeFlags(rawFlags);
 
     const projectDir = await findProjectRootAsync();
     const exp = getExpoConfig(projectDir);
@@ -101,10 +101,8 @@ export default class Submit extends EasCommand {
 
     await maybeWarnAboutEasOutagesAsync([StatuspageServiceName.EasSubmit]);
 
-    if (!flags.requestedPlatform) {
-      flags.requestedPlatform = await selectRequestedPlatformAsync();
-      Submit.sanitizePlatform(rawFlags, flags.requestedPlatform);
-    }
+    flags.requestedPlatform = await selectRequestedPlatformAsync(flags.requestedPlatform);
+    this.validateFlagsWithPlatform(rawFlags, flags.requestedPlatform);
 
     const platforms = toPlatforms(flags.requestedPlatform);
     const submissionProfiles = await getProfilesAsync({
@@ -150,7 +148,7 @@ export default class Submit extends EasCommand {
     }
   }
 
-  private static sanitizeFlags(
+  private sanitizeFlags(
     flags: RawCommandFlags
   ): Omit<CommandFlags, 'requestedPlatform'> & { requestedPlatform?: RequestedPlatform } {
     const {
@@ -171,9 +169,8 @@ export default class Submit extends EasCommand {
       Object.values(RequestedPlatform).includes(flags.platform.toLowerCase() as RequestedPlatform)
         ? (flags.platform.toLowerCase() as RequestedPlatform)
         : undefined;
-    if (requestedPlatform) {
-      Submit.sanitizePlatform(archiveFlags, requestedPlatform);
-    }
+
+    this.validateFlagsWithPlatform(archiveFlags, requestedPlatform);
 
     return {
       archiveFlags,
@@ -185,14 +182,14 @@ export default class Submit extends EasCommand {
     };
   }
 
-  private static sanitizePlatform(
+  private validateFlagsWithPlatform(
     archiveFlags: {
       latest?: boolean | undefined;
       id?: string | undefined;
       path?: string | undefined;
       url?: string | undefined;
     },
-    requestedPlatform: RequestedPlatform
+    requestedPlatform?: RequestedPlatform
   ): void {
     if (requestedPlatform === RequestedPlatform.All) {
       if (archiveFlags.id || archiveFlags.path || archiveFlags.url) {
