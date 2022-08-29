@@ -182,31 +182,26 @@ export default class Build extends EasCommand {
     };
   }
 
-  private validateFlagsWithPlatform(
-    flags: Omit<BuildFlags, 'requestedPlatform'> & { requestedPlatform?: RequestedPlatform },
-    platform?: RequestedPlatform
-  ): void {
+  private async ensurePlatformSelectedAsync(
+    flags: Omit<BuildFlags, 'requestedPlatform'> & { requestedPlatform?: RequestedPlatform }
+  ): Promise<BuildFlags> {
+    const requestedPlatform = await selectRequestedPlatformAsync(flags.requestedPlatform);
+
     if (flags.localBuildOptions.enable) {
       if (flags.autoSubmit) {
         // TODO: implement this
         Errors.error('Auto-submits are not yet supported when building locally', { exit: 1 });
       }
 
-      if (platform === RequestedPlatform.All) {
+      if (requestedPlatform === RequestedPlatform.All) {
         Errors.error('Builds for multiple platforms are not supported with flag --local', {
           exit: 1,
         });
-      } else if (process.platform !== 'darwin' && platform === RequestedPlatform.Ios) {
+      } else if (process.platform !== 'darwin' && requestedPlatform === RequestedPlatform.Ios) {
         Errors.error('Unsupported platform, macOS is required to build apps for iOS', { exit: 1 });
       }
     }
-  }
 
-  private async ensurePlatformSelectedAsync(
-    flags: Omit<BuildFlags, 'requestedPlatform'> & { requestedPlatform?: RequestedPlatform }
-  ): Promise<BuildFlags> {
-    const requestedPlatform = await selectRequestedPlatformAsync(flags.requestedPlatform);
-    this.validateFlagsWithPlatform(flags, requestedPlatform);
     return {
       ...flags,
       requestedPlatform,

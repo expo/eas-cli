@@ -101,15 +101,14 @@ export default class Submit extends EasCommand {
 
     await maybeWarnAboutEasOutagesAsync([StatuspageServiceName.EasSubmit]);
 
-    flags.requestedPlatform = await selectRequestedPlatformAsync(flags.requestedPlatform);
-    this.validateFlagsWithPlatform(rawFlags, flags.requestedPlatform);
+    const flagsWithPlatform = await this.ensurePlatformSelectedAsync(flags);
 
-    const platforms = toPlatforms(flags.requestedPlatform);
+    const platforms = toPlatforms(flagsWithPlatform.requestedPlatform);
     const submissionProfiles = await getProfilesAsync({
       type: 'submit',
       easJsonReader: new EasJsonReader(projectDir),
       platforms,
-      profileName: flags.profile,
+      profileName: flagsWithPlatform.profile,
     });
 
     const submissions: SubmissionFragment[] = [];
@@ -119,8 +118,8 @@ export default class Submit extends EasCommand {
         projectDir,
         projectId,
         profile: submissionProfile.profile,
-        archiveFlags: flags.archiveFlags,
-        nonInteractive: flags.nonInteractive,
+        archiveFlags: flagsWithPlatform.archiveFlags,
+        nonInteractive: flagsWithPlatform.nonInteractive,
       });
 
       if (submissionProfiles.length > 1) {
@@ -140,9 +139,9 @@ export default class Submit extends EasCommand {
     Log.newLine();
     printSubmissionDetailsUrls(submissions);
 
-    if (flags.wait) {
+    if (flagsWithPlatform.wait) {
       const completedSubmissions = await waitToCompleteAsync(submissions, {
-        verbose: flags.verbose,
+        verbose: flagsWithPlatform.verbose,
       });
       exitWithNonZeroCodeIfSomeSubmissionsDidntFinish(completedSubmissions);
     }
@@ -170,8 +169,6 @@ export default class Submit extends EasCommand {
         ? (flags.platform.toLowerCase() as RequestedPlatform)
         : undefined;
 
-    this.validateFlagsWithPlatform(archiveFlags, requestedPlatform);
-
     return {
       archiveFlags,
       requestedPlatform,
@@ -182,22 +179,23 @@ export default class Submit extends EasCommand {
     };
   }
 
-  private validateFlagsWithPlatform(
-    archiveFlags: {
-      latest?: boolean | undefined;
-      id?: string | undefined;
-      path?: string | undefined;
-      url?: string | undefined;
-    },
-    requestedPlatform?: RequestedPlatform
-  ): void {
+  private async ensurePlatformSelectedAsync(
+    flags: Omit<CommandFlags, 'requestedPlatform'> & { requestedPlatform?: RequestedPlatform }
+  ): Promise<CommandFlags> {
+    const requestedPlatform = await selectRequestedPlatformAsync(flags.requestedPlatform);
+
     if (requestedPlatform === RequestedPlatform.All) {
-      if (archiveFlags.id || archiveFlags.path || archiveFlags.url) {
+      if (flags.archiveFlags.id || flags.archiveFlags.path || flags.archiveFlags.url) {
         Errors.error(
           '--id, --path, and --url params are only supported when performing a single-platform submit',
           { exit: 1 }
         );
       }
     }
+
+    return {
+      ...flags,
+      requestedPlatform,
+    };
   }
 }
