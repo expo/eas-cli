@@ -9,6 +9,8 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🎉 New features
 
 - Add 2022 Apple capabilities. ([#1307](https://github.com/expo/eas-cli/pull/1307) by [@EvanBacon](https://github.com/EvanBacon))
+- Print warning when eas-cli is installed as project dependency. ([#1310](https://github.com/expo/eas-cli/pull/1310) by [@dsokal](https://github.com/dsokal))
+- Add eas.json to skip push notifications credentials setup. ([#1315](https://github.com/expo/eas-cli/pull/1315) by [@dsokal](https://github.com/dsokal))
 
 ### 🐛 Bug fixes
 
@@ -16,6 +18,9 @@ This is the log of notable changes to EAS CLI and related packages.
 - Use AppQuery instead of ProjectQuery. ([#1304](https://github.com/expo/eas-cli/pull/1304) by [@wschurman](https://github.com/wschurman))
 
 ### 🧹 Chores
+
+- Improve instructions on setting `extra.eas.projectId` in app configuration. ([#1316](https://github.com/expo/eas-cli/pull/1316) by [@dsokal](https://github.com/dsokal))
+- Improve copy in EAS Submit - "e-mail" -> email, and make the link to app on App Store go directly to the TestFlight tab. ([#1318](https://github.com/expo/eas-cli/pull/1318) by [@brentvatne](https://github.com/brentvatne))
 
 ## [1.1.1](https://github.com/expo/eas-cli/releases/tag/v1.1.1) - 2022-08-23
 

@@ -1,5 +1,6 @@
 import { ExpoConfig } from '@expo/config';
 import { Env } from '@expo/eas-build-job';
+import { EasJson } from '@expo/eas-json';
 import chalk from 'chalk';
 
 import Log from '../log';
@@ -19,6 +20,7 @@ export class CredentialsContext {
   public readonly nonInteractive: boolean;
   public readonly projectDir: string;
   public readonly user: Actor;
+  public readonly easJsonCliConfig?: EasJson['cli'];
 
   private shouldAskAuthenticateAppStore: boolean = true;
   private resolvedExp?: ExpoConfig;
@@ -26,12 +28,14 @@ export class CredentialsContext {
   constructor(
     private options: {
       exp?: ExpoConfig;
+      easJsonCliConfig?: EasJson['cli'];
       nonInteractive?: boolean;
       projectDir: string;
       user: Actor;
       env?: Env;
     }
   ) {
+    this.easJsonCliConfig = options.easJsonCliConfig;
     this.projectDir = options.projectDir;
     this.user = options.user;
     this.nonInteractive = options.nonInteractive ?? false;
