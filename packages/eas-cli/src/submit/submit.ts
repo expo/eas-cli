@@ -74,12 +74,12 @@ function printInstructionsForIosSubmission(submission: SubmissionFragment): void
   if (submission.status === SubmissionStatus.Finished) {
     const logMsg = [
       chalk.bold('Your binary has been successfully uploaded to App Store Connect!'),
-      '- It is now being processed by Apple - you will receive an e-mail when the processing finishes.',
+      '- It is now being processed by Apple - you will receive an email when the processing finishes.',
       '- It usually takes about 5-10 minutes depending on how busy Apple servers are.',
       // ascAppIdentifier should be always available for ios submissions but check it anyway
       submission.iosConfig?.ascAppIdentifier &&
         `- When it's done, you can see your build here: ${link(
-          `https://appstoreconnect.apple.com/apps/${submission.iosConfig?.ascAppIdentifier}/appstore/ios`
+          `https://appstoreconnect.apple.com/apps/${submission.iosConfig?.ascAppIdentifier}/testflight/ios`
         )}`,
     ].join('\n');
     Log.addNewLineIfNone();
