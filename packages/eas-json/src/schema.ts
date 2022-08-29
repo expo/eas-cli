@@ -9,6 +9,7 @@ export const EasJsonSchema = Joi.object({
     version: Joi.string(),
     requireCommit: Joi.boolean(),
     appVersionSource: Joi.string().valid(...Object.values(AppVersionSource)),
+    promptToConfigurePushNotfications: Joi.boolean(),
   }),
   build: Joi.object().pattern(Joi.string(), BuildProfileSchema),
   submit: Joi.object().pattern(Joi.string(), SubmitProfileSchema),
