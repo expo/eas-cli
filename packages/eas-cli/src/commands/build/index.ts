@@ -113,10 +113,9 @@ export default class Build extends EasCommand {
       );
     }
 
-    flags.requestedPlatform = await selectRequestedPlatformAsync(flags.requestedPlatform);
-    this.validateFlagsWithPlatform(rawFlags, flags.requestedPlatform);
+    const flagsWithPlatform = await this.ensurePlatformSelectedAsync(flags);
 
-    await runBuildAndSubmitAsync(projectDir, flags as BuildFlags);
+    await runBuildAndSubmitAsync(projectDir, flagsWithPlatform);
   }
 
   private sanitizeFlags(
@@ -138,8 +137,6 @@ export default class Build extends EasCommand {
       Object.values(RequestedPlatform).includes(flags.platform.toLowerCase() as RequestedPlatform)
         ? (flags.platform.toLowerCase() as RequestedPlatform)
         : undefined;
-
-    this.validateFlagsWithPlatform(flags, requestedPlatform);
 
     if (flags['skip-credentials-check']) {
       Log.warnDeprecatedFlag(
@@ -185,9 +182,12 @@ export default class Build extends EasCommand {
     };
   }
 
-  private validateFlagsWithPlatform(flags: RawBuildFlags, platform?: RequestedPlatform): void {
-    if (flags.local) {
-      if (flags['auto-submit'] || flags['auto-submit-with-profile'] !== undefined) {
+  private validateFlagsWithPlatform(
+    flags: Omit<BuildFlags, 'requestedPlatform'> & { requestedPlatform?: RequestedPlatform },
+    platform?: RequestedPlatform
+  ): void {
+    if (flags.localBuildOptions.enable) {
+      if (flags.autoSubmit) {
         // TODO: implement this
         Errors.error('Auto-submits are not yet supported when building locally', { exit: 1 });
       }
@@ -200,5 +200,16 @@ export default class Build extends EasCommand {
         Errors.error('Unsupported platform, macOS is required to build apps for iOS', { exit: 1 });
       }
     }
+  }
+
+  private async ensurePlatformSelectedAsync(
+    flags: Omit<BuildFlags, 'requestedPlatform'> & { requestedPlatform?: RequestedPlatform }
+  ): Promise<BuildFlags> {
+    const requestedPlatform = await selectRequestedPlatformAsync(flags.requestedPlatform);
+    this.validateFlagsWithPlatform(flags, requestedPlatform);
+    return {
+      ...flags,
+      requestedPlatform,
+    };
   }
 }
