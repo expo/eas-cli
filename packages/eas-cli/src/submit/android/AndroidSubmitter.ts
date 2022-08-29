@@ -164,7 +164,7 @@ function formatServiceAccountSummary({ summary }: ServiceAccountKeyResult): stri
       value: serviceAccountKeyPath,
     },
     {
-      label: 'Account E-mail',
+      label: 'Account Email',
       value: serviceAccountEmail,
     },
   ];
