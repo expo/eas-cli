@@ -79,7 +79,7 @@ function printInstructionsForIosSubmission(submission: SubmissionFragment): void
       // ascAppIdentifier should be always available for ios submissions but check it anyway
       submission.iosConfig?.ascAppIdentifier &&
         `- When it's done, you can see your build here: ${link(
-          `https://appstoreconnect.apple.com/apps/${submission.iosConfig?.ascAppIdentifier}/appstore/ios`
+          `https://appstoreconnect.apple.com/apps/${submission.iosConfig?.ascAppIdentifier}/testflight/ios`
         )}`,
     ].join('\n');
     Log.addNewLineIfNone();
