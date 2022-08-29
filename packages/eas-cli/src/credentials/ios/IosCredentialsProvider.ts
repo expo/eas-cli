@@ -101,7 +101,7 @@ export default class IosCredentialsProvider {
       return null;
     }
 
-    if (ctx.easJsonCliConfig?.setUpPushNotifications === false) {
+    if (ctx.easJsonCliConfig?.promptToConfigurePushNotfications === false) {
       return null;
     }
 
@@ -111,7 +111,7 @@ export default class IosCredentialsProvider {
         { title: 'Yes', value: PushNotificationSetupOption.YES },
         { title: 'No', value: PushNotificationSetupOption.NO },
         {
-          title: `No, don't ask again (updates eas.json)`,
+          title: `No, don't ask again (preference will be saved to eas.json)`,
           value: PushNotificationSetupOption.NO_DONT_ASK_AGAIN,
         },
       ]
@@ -131,7 +131,7 @@ export default class IosCredentialsProvider {
   ): Promise<void> {
     const easJsonPath = EasJsonReader.formatEasJsonPath(ctx.projectDir);
     const easJson = await fs.readJSON(easJsonPath);
-    easJson.cli = { ...easJson?.cli, setUpPushNotifications: false };
+    easJson.cli = { ...easJson?.cli, promptToConfigurePushNotfications: false };
     await fs.writeFile(easJsonPath, `${JSON.stringify(easJson, null, 2)}\n`);
     Log.withTick('Updated eas.json');
   }
