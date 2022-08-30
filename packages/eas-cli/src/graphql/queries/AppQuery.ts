@@ -2,9 +2,9 @@ import assert from 'assert';
 import { print } from 'graphql';
 import gql from 'graphql-tag';
 
-import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
-import { AppByFullNameQuery, AppFragment } from '../../../../../graphql/generated';
-import { AppFragmentNode } from '../../../../../graphql/types/App';
+import { graphqlClient, withErrorHandlingAsync } from '../client';
+import { AppByFullNameQuery, AppFragment } from '../generated';
+import { AppFragmentNode } from '../types/App';
 
 export const AppQuery = {
   async byFullNameAsync(fullName: string): Promise<AppFragment> {

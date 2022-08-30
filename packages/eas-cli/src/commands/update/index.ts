@@ -19,6 +19,7 @@ import {
   PublishUpdateGroupInput,
   Robot,
   RootQueryUpdatesByGroupArgs,
+  StatuspageServiceName,
   Update,
   UpdateInfoGroup,
   UpdatePublishMutation,
@@ -59,6 +60,7 @@ import {
 import uniqBy from '../../utils/expodash/uniqBy';
 import formatFields from '../../utils/formatFields';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
+import { maybeWarnAboutEasOutagesAsync } from '../../utils/statuspageService';
 import { getVcsClient } from '../../vcs';
 import { createUpdateBranchOnAppAsync } from '../branch/create';
 import { createUpdateChannelOnAppAsync } from '../channel/create';
@@ -228,6 +230,7 @@ export default class UpdatePublish extends EasCommand {
         'non-interactive': nonInteractive,
       },
     } = await this.parse(UpdatePublish);
+
     if (jsonFlag) {
       enableJsonOutput();
     }
@@ -244,6 +247,8 @@ export default class UpdatePublish extends EasCommand {
     const expPrivate = getExpoConfig(projectDir, {
       isPublicConfig: false,
     });
+
+    await maybeWarnAboutEasOutagesAsync([StatuspageServiceName.EasUpdate]);
 
     const codeSigningInfo = await getCodeSigningInfoAsync(expPrivate, privateKeyPath);
 

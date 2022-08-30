@@ -7,8 +7,8 @@ import {
   CommonAndroidAppCredentialsFragment,
   GoogleServiceAccountKeyFragment,
 } from '../../../graphql/generated';
+import { AppQuery } from '../../../graphql/queries/AppQuery';
 import { Account } from '../../../user/Account';
-import { AppQuery } from '../../ios/api/graphql/queries/AppQuery';
 import { GoogleServiceAccountKey, KeystoreWithType } from '../credentials';
 import { AndroidAppBuildCredentialsMutation } from './graphql/mutations/AndroidAppBuildCredentialsMutation';
 import { AndroidAppCredentialsMutation } from './graphql/mutations/AndroidAppCredentialsMutation';

@@ -1277,10 +1277,10 @@
     minimatch "^3.1.2"
     strip-json-comments "^3.1.1"
 
-"@expo/apple-utils@0.0.0-alpha.33":
-  version "0.0.0-alpha.33"
-  resolved "https://registry.yarnpkg.com/@expo/apple-utils/-/apple-utils-0.0.0-alpha.33.tgz#ca3bd7c5b50c200161d27e173e6ac3389ac9ee98"
-  integrity sha512-4tG9Vou0ruvZgBFhMzTVtRPk5IH/hUU6fdpXcdRYPsULGI2QvB15CV6C+ee8utd4lmw/FIX8W9jLB8RehBBsJw==
+"@expo/apple-utils@0.0.0-alpha.34":
+  version "0.0.0-alpha.34"
+  resolved "https://registry.yarnpkg.com/@expo/apple-utils/-/apple-utils-0.0.0-alpha.34.tgz#b36547de894e69a73290b8e43a8ef48ffe0ce240"
+  integrity sha512-GRHN1xhI3Yjb76aFVLhxE7o/Pdx8D78Gm2HaRHxdFRSSdYK5lPw2/1y1/GhDH7DoXqqGwo2uQSevd6ywlj657g==
 
 "@expo/bunyan@^4.0.0":
   version "4.0.0"

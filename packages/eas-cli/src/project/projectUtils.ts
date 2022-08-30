@@ -9,15 +9,11 @@ import semver from 'semver';
 
 import { AppPrivacy } from '../graphql/generated';
 import Log from '../log';
-import { confirmAsync } from '../prompts';
 import { Actor } from '../user/User';
 import { ensureLoggedInAsync } from '../user/actions';
 import { expoCommandAsync } from '../utils/expoCli';
 import { getVcsClient } from '../vcs';
-import {
-  ensureProjectExistsAsync,
-  findProjectIdByAccountNameAndSlugNullableAsync,
-} from './ensureProjectExists';
+import { ensureProjectExistsAsync } from './ensureProjectExists';
 import { getExpoConfig } from './expoConfig';
 
 export function getProjectAccountName(exp: ExpoConfig, user: Actor): string {
@@ -100,17 +96,24 @@ export async function saveProjectIdToAppConfigAsync(
     case 'success':
       break;
     case 'warn': {
-      Log.log();
-      Log.warn('It looks like you are using a dynamic configuration!');
-      Log.log(
-        chalk.dim(
-          'https://docs.expo.dev/workflow/configuration/#dynamic-configuration-with-appconfigjs)\n'
-        )
+      Log.warn();
+      Log.warn(
+        `Warning: Your project uses dynamic app configuration, and the EAS project ID can't automatically be added to it.`
       );
       Log.warn(
-        'In order to finish setting up your project you are going to need manually add the following to your "extra" key:\n\n'
+        chalk.dim(
+          'https://docs.expo.dev/workflow/configuration/#dynamic-configuration-with-appconfigjs'
+        )
       );
-      Log.log(chalk.bold(`"extra": {\n  ...\n  "eas": {\n    "projectId": "${projectId}"\n  }\n}`));
+      Log.warn();
+      Log.warn(
+        `To complete the setup process, set the ${chalk.bold(
+          'extra.eas.projectId'
+        )} in your ${chalk.bold(getProjectConfigDescription(projectDir))}:`
+      );
+      Log.warn();
+      Log.warn(chalk.bold(JSON.stringify({ expo: { extra: { eas: { projectId } } } }, null, 2)));
+      Log.warn();
       throw new Error(result.message);
     }
     case 'fail':
@@ -205,33 +208,6 @@ export function getProjectConfigDescription(projectDir: string): string {
     return path.relative(projectDir, paths.staticConfigPath);
   }
   return 'app.config.js/app.json';
-}
-
-// return project id of existing/newly created project, or null if user declines
-export async function promptToCreateProjectIfNotExistsAsync(
-  exp: ExpoConfig
-): Promise<string | null> {
-  const accountName = getProjectAccountName(exp, await ensureLoggedInAsync());
-  const maybeProjectId = await findProjectIdByAccountNameAndSlugNullableAsync(
-    accountName,
-    exp.slug
-  );
-  if (maybeProjectId) {
-    return maybeProjectId;
-  }
-  const fullName = await getProjectFullNameAsync(exp);
-  const shouldCreateProject = await confirmAsync({
-    message: `Looks like ${fullName} is new. Register it with EAS?`,
-  });
-  if (!shouldCreateProject) {
-    return null;
-  }
-  const privacy = toAppPrivacy(exp.privacy);
-  return await ensureProjectExistsAsync({
-    accountName,
-    projectName: exp.slug,
-    privacy,
-  });
 }
 
 export function isExpoUpdatesInstalled(projectDir: string): boolean {

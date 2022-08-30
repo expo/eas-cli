@@ -280,8 +280,8 @@ export type AccountMutation = {
   grantActorPermissions: Account;
   /** Rename this account and the primary user's username if this account is a personal account */
   rename: Account;
-  /** Requests a refund for the specified charge. Returns true if auto-refund was possible, otherwise requests a manual refund from support and returns false. */
-  requestRefund: Scalars['Boolean'];
+  /** Requests a refund for the specified charge by requesting a manual refund from support */
+  requestRefund?: Maybe<Scalars['Boolean']>;
   /** Revoke specified Permissions for Actor. Actor must already have at least one permission on the account. */
   revokeActorPermissions: Account;
   /**
@@ -803,9 +803,23 @@ export type AndroidJobKeystoreInput = {
   keystorePassword: Scalars['String'];
 };
 
+export type AndroidJobOverridesInput = {
+  artifactPath?: InputMaybe<Scalars['String']>;
+  buildType?: InputMaybe<AndroidBuildType>;
+  builderEnvironment?: InputMaybe<AndroidBuilderEnvironmentInput>;
+  cache?: InputMaybe<BuildCacheInput>;
+  developmentClient?: InputMaybe<Scalars['Boolean']>;
+  experimental?: InputMaybe<Scalars['JSONObject']>;
+  gradleCommand?: InputMaybe<Scalars['String']>;
+  releaseChannel?: InputMaybe<Scalars['String']>;
+  secrets?: InputMaybe<AndroidJobSecretsInput>;
+  updates?: InputMaybe<BuildUpdatesInput>;
+  username?: InputMaybe<Scalars['String']>;
+  version?: InputMaybe<AndroidJobVersionInput>;
+};
+
 export type AndroidJobSecretsInput = {
   buildCredentials?: InputMaybe<AndroidJobBuildCredentialsInput>;
-  environmentSecrets?: InputMaybe<Scalars['JSONObject']>;
 };
 
 export type AndroidJobVersionInput = {
@@ -1932,8 +1946,15 @@ export type BuildMutation = {
   createIosBuild: CreateBuildResult;
   /** Delete an EAS Build build */
   deleteBuild: Build;
-  /** Retry an EAS Build build */
+  /** Retry an Android EAS Build */
+  retryAndroidBuild: Build;
+  /**
+   * Retry an EAS Build build
+   * @deprecated Use retryAndroidBuild and retryIosBuild instead
+   */
   retryBuild: Build;
+  /** Retry an iOS EAS Build */
+  retryIosBuild: Build;
 };
 
 
@@ -1963,8 +1984,20 @@ export type BuildMutationDeleteBuildArgs = {
 };
 
 
+export type BuildMutationRetryAndroidBuildArgs = {
+  buildId: Scalars['ID'];
+  jobOverrides?: InputMaybe<AndroidJobOverridesInput>;
+};
+
+
 export type BuildMutationRetryBuildArgs = {
   buildId: Scalars['ID'];
+};
+
+
+export type BuildMutationRetryIosBuildArgs = {
+  buildId: Scalars['ID'];
+  jobOverrides?: InputMaybe<IosJobOverridesInput>;
 };
 
 export type BuildOrBuildJob = {
@@ -2711,9 +2744,28 @@ export type IosJobInput = {
   version?: InputMaybe<IosJobVersionInput>;
 };
 
+export type IosJobOverridesInput = {
+  artifactPath?: InputMaybe<Scalars['String']>;
+  buildConfiguration?: InputMaybe<Scalars['String']>;
+  /** @deprecated */
+  buildType?: InputMaybe<IosBuildType>;
+  builderEnvironment?: InputMaybe<IosBuilderEnvironmentInput>;
+  cache?: InputMaybe<BuildCacheInput>;
+  developmentClient?: InputMaybe<Scalars['Boolean']>;
+  /** @deprecated */
+  distribution?: InputMaybe<DistributionType>;
+  experimental?: InputMaybe<Scalars['JSONObject']>;
+  releaseChannel?: InputMaybe<Scalars['String']>;
+  scheme?: InputMaybe<Scalars['String']>;
+  secrets?: InputMaybe<IosJobSecretsInput>;
+  simulator?: InputMaybe<Scalars['Boolean']>;
+  updates?: InputMaybe<BuildUpdatesInput>;
+  username?: InputMaybe<Scalars['String']>;
+  version?: InputMaybe<IosJobVersionInput>;
+};
+
 export type IosJobSecretsInput = {
   buildCredentials?: InputMaybe<Array<InputMaybe<IosJobTargetCredentialsInput>>>;
-  environmentSecrets?: InputMaybe<Scalars['JSONObject']>;
 };
 
 export type IosJobTargetCredentialsInput = {
@@ -3215,8 +3267,6 @@ export type RootMutationBuildJobArgs = {
 
 export type RootQuery = {
   __typename?: 'RootQuery';
-  /** Top-level query object for querying GitHub App information and resources it has access to. */
-  GitHubApp: GitHubAppQuery;
   /**
    * This is a placeholder field
    * @deprecated Not used.
@@ -3251,6 +3301,8 @@ export type RootQuery = {
   clientBuilds: ClientBuildQuery;
   /** Top-level query object for querying Experimentation configuration. */
   experimentation: ExperimentationQuery;
+  /** Top-level query object for querying GitHub App information and resources it has access to. */
+  githubApp: GitHubAppQuery;
   /** Top-level query object for querying Stripe Invoices. */
   invoice: InvoiceQuery;
   /**
@@ -3265,6 +3317,8 @@ export type RootQuery = {
   meActor?: Maybe<Actor>;
   project: ProjectQuery;
   snack: SnackQuery;
+  /** Top-level query object for querying Expo status page services. */
+  statuspageService: StatuspageServiceQuery;
   submissions: SubmissionQuery;
   /** fetch all updates in a group */
   updatesByGroup: Array<Update>;
@@ -3422,6 +3476,100 @@ export enum StandardOffer {
   YcDeals = 'YC_DEALS',
   /** $348 USD per year, 30 day trial */
   YearlySub = 'YEARLY_SUB'
+}
+
+/** Incident for a given component from Expo status page API. */
+export type StatuspageIncident = {
+  __typename?: 'StatuspageIncident';
+  createdAt: Scalars['DateTime'];
+  id: Scalars['ID'];
+  /** Impact of an incident from Expo status page. */
+  impact: StatuspageIncidentImpact;
+  name: Scalars['String'];
+  resolvedAt?: Maybe<Scalars['DateTime']>;
+  /** Shortlink to the incident from Expo status page. */
+  shortlink: Scalars['String'];
+  /** Current status of an incident from Expo status page. */
+  status: StatuspageIncidentStatus;
+  updatedAt: Scalars['DateTime'];
+  /** List of all updates for an incident from Expo status page. */
+  updates: Array<StatuspageIncidentUpdate>;
+};
+
+/** Possible Incident impact values from Expo status page API. */
+export enum StatuspageIncidentImpact {
+  Critical = 'CRITICAL',
+  Maintenance = 'MAINTENANCE',
+  Major = 'MAJOR',
+  Minor = 'MINOR',
+  None = 'NONE'
+}
+
+/** Possible Incident statuses from Expo status page API. */
+export enum StatuspageIncidentStatus {
+  Completed = 'COMPLETED',
+  Identified = 'IDENTIFIED',
+  Investigating = 'INVESTIGATING',
+  InProgress = 'IN_PROGRESS',
+  Monitoring = 'MONITORING',
+  Resolved = 'RESOLVED',
+  Scheduled = 'SCHEDULED',
+  Verifying = 'VERIFYING'
+}
+
+/** Update for an Incident from Expo status page API. */
+export type StatuspageIncidentUpdate = {
+  __typename?: 'StatuspageIncidentUpdate';
+  /** Text of an update from Expo status page. */
+  body: Scalars['String'];
+  createdAt: Scalars['DateTime'];
+  id: Scalars['ID'];
+  /** Status set at the moment of update. */
+  status: StatuspageIncidentStatus;
+};
+
+/** Service monitored by Expo status page. */
+export type StatuspageService = {
+  __typename?: 'StatuspageService';
+  /** Description of a service from Expo status page. */
+  description?: Maybe<Scalars['String']>;
+  id: Scalars['ID'];
+  /**
+   * List of last inicdents for a service from Expo status page (we always query for 50 latest incidents for all services)
+   * sorted by createdAt field in descending order.
+   */
+  incidents: Array<StatuspageIncident>;
+  /** Name of a service monitored by Expo status page. */
+  name: StatuspageServiceName;
+  /** Current status of a service from Expo status page. */
+  status: StatuspageServiceStatus;
+};
+
+/** Name of a service monitored by Expo status page. */
+export enum StatuspageServiceName {
+  EasBuild = 'EAS_BUILD',
+  EasSubmit = 'EAS_SUBMIT',
+  EasUpdate = 'EAS_UPDATE'
+}
+
+export type StatuspageServiceQuery = {
+  __typename?: 'StatuspageServiceQuery';
+  /** Query services from Expo status page by names. */
+  byServiceNames: Array<StatuspageService>;
+};
+
+
+export type StatuspageServiceQueryByServiceNamesArgs = {
+  serviceNames: Array<StatuspageServiceName>;
+};
+
+/** Possible statuses for a service. */
+export enum StatuspageServiceStatus {
+  DegradedPerformance = 'DEGRADED_PERFORMANCE',
+  MajorOutage = 'MAJOR_OUTAGE',
+  Operational = 'OPERATIONAL',
+  PartialOutage = 'PARTIAL_OUTAGE',
+  UnderMaintenance = 'UNDER_MAINTENANCE'
 }
 
 export type StripeCoupon = {
@@ -4471,13 +4619,6 @@ export type SetAppStoreConnectApiKeyForSubmissionsMutationVariables = Exact<{
 
 export type SetAppStoreConnectApiKeyForSubmissionsMutation = { __typename?: 'RootMutation', iosAppCredentials: { __typename?: 'IosAppCredentialsMutation', setAppStoreConnectApiKeyForSubmissions: { __typename?: 'IosAppCredentials', id: string, iosAppBuildCredentialsList: Array<{ __typename?: 'IosAppBuildCredentials', id: string, iosDistributionType: IosDistributionType, distributionCertificate?: { __typename?: 'AppleDistributionCertificate', id: string, certificateP12?: string | null, certificatePassword?: string | null, serialNumber: string, developerPortalIdentifier?: string | null, validityNotBefore: any, validityNotAfter: any, updatedAt: any, appleTeam?: { __typename?: 'AppleTeam', id: string, appleTeamIdentifier: string, appleTeamName?: string | null } | null, iosAppBuildCredentialsList: Array<{ __typename?: 'IosAppBuildCredentials', id: string, iosAppCredentials: { __typename?: 'IosAppCredentials', id: string, app: { __typename?: 'App', id: string, fullName: string, slug: string }, appleAppIdentifier: { __typename?: 'AppleAppIdentifier', id: string, bundleIdentifier: string } }, provisioningProfile?: { __typename?: 'AppleProvisioningProfile', id: string, developerPortalIdentifier?: string | null } | null }> } | null, provisioningProfile?: { __typename?: 'AppleProvisioningProfile', id: string, expiration: any, developerPortalIdentifier?: string | null, provisioningProfile?: string | null, updatedAt: any, status: string, appleTeam?: { __typename?: 'AppleTeam', id: string, appleTeamIdentifier: string, appleTeamName?: string | null } | null, appleDevices: Array<{ __typename?: 'AppleDevice', id: string, identifier: string, name?: string | null, model?: string | null, deviceClass?: AppleDeviceClass | null }> } | null }>, app: { __typename?: 'App', id: string, fullName: string, slug: string }, appleTeam?: { __typename?: 'AppleTeam', id: string, appleTeamIdentifier: string, appleTeamName?: string | null } | null, appleAppIdentifier: { __typename?: 'AppleAppIdentifier', id: string, bundleIdentifier: string }, pushKey?: { __typename?: 'ApplePushKey', id: string, keyIdentifier: string, updatedAt: any, appleTeam?: { __typename?: 'AppleTeam', id: string, appleTeamIdentifier: string, appleTeamName?: string | null } | null, iosAppCredentialsList: Array<{ __typename?: 'IosAppCredentials', id: string, app: { __typename?: 'App', id: string, fullName: string, slug: string }, appleAppIdentifier: { __typename?: 'AppleAppIdentifier', id: string, bundleIdentifier: string } }> } | null, appStoreConnectApiKeyForSubmissions?: { __typename?: 'AppStoreConnectApiKey', id: string, issuerIdentifier: string, keyIdentifier: string, name?: string | null, roles?: Array<AppStoreConnectUserRole> | null, createdAt: any, updatedAt: any, appleTeam?: { __typename?: 'AppleTeam', id: string, appleTeamIdentifier: string, appleTeamName?: string | null } | null } | null } } };
 
-export type AppByFullNameQueryVariables = Exact<{
-  fullName: Scalars['String'];
-}>;
-
-
-export type AppByFullNameQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byFullName: { __typename?: 'App', id: string, fullName: string, slug: string } } };
-
 export type AppStoreConnectApiKeyByAccountQueryVariables = Exact<{
   accountName: Scalars['String'];
 }>;
@@ -4722,6 +4863,13 @@ export type DeleteWebhookMutationVariables = Exact<{
 
 export type DeleteWebhookMutation = { __typename?: 'RootMutation', webhook: { __typename?: 'WebhookMutation', deleteWebhook: { __typename?: 'DeleteWebhookResult', id: string } } };
 
+export type AppByFullNameQueryVariables = Exact<{
+  fullName: Scalars['String'];
+}>;
+
+
+export type AppByFullNameQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byFullName: { __typename?: 'App', id: string, fullName: string, slug: string } } };
+
 export type LatestAppVersionQueryVariables = Exact<{
   appId: Scalars['String'];
   platform: AppPlatform;
@@ -4794,14 +4942,6 @@ export type EnvironmentSecretsByAppIdQueryVariables = Exact<{
 
 export type EnvironmentSecretsByAppIdQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, environmentSecrets: Array<{ __typename?: 'EnvironmentSecret', id: string, name: string, createdAt: any }> } } };
 
-export type ProjectByUsernameAndSlugQueryVariables = Exact<{
-  username: Scalars['String'];
-  slug: Scalars['String'];
-}>;
-
-
-export type ProjectByUsernameAndSlugQuery = { __typename?: 'RootQuery', project: { __typename?: 'ProjectQuery', byUsernameAndSlug: { __typename?: 'App', id: string } | { __typename?: 'Snack', id: string } } };
-
 export type GetAssetMetadataQueryVariables = Exact<{
   storageKeys: Array<Scalars['String']> | Scalars['String'];
 }>;
@@ -4815,6 +4955,13 @@ export type GetAssetLimitPerUpdateGroupForAppQueryVariables = Exact<{
 
 
 export type GetAssetLimitPerUpdateGroupForAppQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, assetLimitPerUpdateGroup: number } } };
+
+export type StatuspageServiceByServiceNamesQueryVariables = Exact<{
+  serviceNames: Array<StatuspageServiceName> | StatuspageServiceName;
+}>;
+
+
+export type StatuspageServiceByServiceNamesQuery = { __typename?: 'RootQuery', statuspageService: { __typename?: 'StatuspageServiceQuery', byServiceNames: Array<{ __typename?: 'StatuspageService', id: string, name: StatuspageServiceName, status: StatuspageServiceStatus, incidents: Array<{ __typename?: 'StatuspageIncident', id: string, status: StatuspageIncidentStatus, name: string, impact: StatuspageIncidentImpact, shortlink: string }> }> } };
 
 export type SubmissionsByIdQueryVariables = Exact<{
   submissionId: Scalars['ID'];
@@ -4880,6 +5027,8 @@ export type BuildFragment = { __typename?: 'Build', id: string, status: BuildSta
 export type BuildWithSubmissionsFragment = { __typename?: 'Build', id: string, status: BuildStatus, platform: AppPlatform, channel?: string | null, releaseChannel?: string | null, distribution?: DistributionType | null, iosEnterpriseProvisioning?: BuildIosEnterpriseProvisioning | null, buildProfile?: string | null, sdkVersion?: string | null, appVersion?: string | null, appBuildVersion?: string | null, runtimeVersion?: string | null, gitCommitHash?: string | null, initialQueuePosition?: number | null, queuePosition?: number | null, estimatedWaitTimeLeftSeconds?: number | null, priority: BuildPriority, createdAt: any, updatedAt: any, submissions: Array<{ __typename?: 'Submission', id: string, status: SubmissionStatus, platform: AppPlatform, logsUrl?: string | null, app: { __typename?: 'App', id: string, name: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } }, androidConfig?: { __typename?: 'AndroidSubmissionConfig', applicationIdentifier?: string | null, track: SubmissionAndroidTrack, releaseStatus?: SubmissionAndroidReleaseStatus | null } | null, iosConfig?: { __typename?: 'IosSubmissionConfig', ascAppIdentifier: string, appleIdUsername?: string | null } | null, error?: { __typename?: 'SubmissionError', errorCode?: string | null, message?: string | null } | null }>, error?: { __typename?: 'BuildError', errorCode: string, message: string, docsUrl?: string | null } | null, artifacts?: { __typename?: 'BuildArtifacts', buildUrl?: string | null, xcodeBuildLogsUrl?: string | null } | null, initiatingActor?: { __typename: 'Robot', id: string, displayName: string } | { __typename: 'User', id: string, displayName: string } | null, project: { __typename: 'App', id: string, name: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } } | { __typename: 'Snack', id: string, name: string, slug: string } };
 
 export type EnvironmentSecretFragment = { __typename?: 'EnvironmentSecret', id: string, name: string, createdAt: any };
+
+export type StatuspageServiceFragment = { __typename?: 'StatuspageService', id: string, name: StatuspageServiceName, status: StatuspageServiceStatus, incidents: Array<{ __typename?: 'StatuspageIncident', id: string, status: StatuspageIncidentStatus, name: string, impact: StatuspageIncidentImpact, shortlink: string }> };
 
 export type SubmissionFragment = { __typename?: 'Submission', id: string, status: SubmissionStatus, platform: AppPlatform, logsUrl?: string | null, app: { __typename?: 'App', id: string, name: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } }, androidConfig?: { __typename?: 'AndroidSubmissionConfig', applicationIdentifier?: string | null, track: SubmissionAndroidTrack, releaseStatus?: SubmissionAndroidReleaseStatus | null } | null, iosConfig?: { __typename?: 'IosSubmissionConfig', ascAppIdentifier: string, appleIdUsername?: string | null } | null, error?: { __typename?: 'SubmissionError', errorCode?: string | null, message?: string | null } | null };
 

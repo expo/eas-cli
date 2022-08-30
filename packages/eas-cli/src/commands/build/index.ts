@@ -4,10 +4,12 @@ import path from 'path';
 import { BuildFlags, runBuildAndSubmitAsync } from '../../build/runBuildAndSubmit';
 import { UserInputResourceClass } from '../../build/types';
 import EasCommand from '../../commandUtils/EasCommand';
+import { StatuspageServiceName } from '../../graphql/generated';
 import Log from '../../log';
 import { RequestedPlatform, selectRequestedPlatformAsync } from '../../platform';
 import { findProjectRootAsync } from '../../project/projectUtils';
 import { enableJsonOutput } from '../../utils/json';
+import { maybeWarnAboutEasOutagesAsync } from '../../utils/statuspageService';
 
 interface RawBuildFlags {
   platform?: string;
@@ -95,17 +97,30 @@ export default class Build extends EasCommand {
 
   async runAsync(): Promise<void> {
     const { flags: rawFlags } = await this.parse(Build);
+
     if (rawFlags.json) {
       enableJsonOutput();
     }
-    const flags = await this.sanitizeFlagsAsync(rawFlags);
+    const flags = this.sanitizeFlags(rawFlags);
 
     const projectDir = await findProjectRootAsync();
 
-    await runBuildAndSubmitAsync(projectDir, flags);
+    if (!flags.localBuildOptions.enable) {
+      await maybeWarnAboutEasOutagesAsync(
+        flags.autoSubmit
+          ? [StatuspageServiceName.EasBuild, StatuspageServiceName.EasSubmit]
+          : [StatuspageServiceName.EasBuild]
+      );
+    }
+
+    const flagsWithPlatform = await this.ensurePlatformSelectedAsync(flags);
+
+    await runBuildAndSubmitAsync(projectDir, flagsWithPlatform);
   }
 
-  private async sanitizeFlagsAsync(flags: RawBuildFlags): Promise<BuildFlags> {
+  private sanitizeFlags(
+    flags: RawBuildFlags
+  ): Omit<BuildFlags, 'requestedPlatform'> & { requestedPlatform?: RequestedPlatform } {
     const nonInteractive = flags['non-interactive'];
     if (!flags.local && flags.output) {
       Errors.error('--output is allowed only for local builds', { exit: 1 });
@@ -117,21 +132,11 @@ export default class Build extends EasCommand {
       Errors.error('--json is allowed only when building in non-interactive mode', { exit: 1 });
     }
 
-    const requestedPlatform = await selectRequestedPlatformAsync(flags.platform);
-    if (flags.local) {
-      if (flags['auto-submit'] || flags['auto-submit-with-profile'] !== undefined) {
-        // TODO: implement this
-        Errors.error('Auto-submits are not yet supported when building locally', { exit: 1 });
-      }
-
-      if (requestedPlatform === RequestedPlatform.All) {
-        Errors.error('Builds for multiple platforms are not supported with flag --local', {
-          exit: 1,
-        });
-      } else if (process.platform !== 'darwin' && requestedPlatform === RequestedPlatform.Ios) {
-        Errors.error('Unsupported platform, macOS is required to build apps for iOS', { exit: 1 });
-      }
-    }
+    const requestedPlatform =
+      flags.platform &&
+      Object.values(RequestedPlatform).includes(flags.platform.toLowerCase() as RequestedPlatform)
+        ? (flags.platform.toLowerCase() as RequestedPlatform)
+        : undefined;
 
     if (flags['skip-credentials-check']) {
       Log.warnDeprecatedFlag(
@@ -174,6 +179,32 @@ export default class Build extends EasCommand {
       submitProfile: flags['auto-submit-with-profile'] ?? profile,
       userInputResourceClass: flags['resource-class'] ?? UserInputResourceClass.DEFAULT,
       message,
+    };
+  }
+
+  private async ensurePlatformSelectedAsync(
+    flags: Omit<BuildFlags, 'requestedPlatform'> & { requestedPlatform?: RequestedPlatform }
+  ): Promise<BuildFlags> {
+    const requestedPlatform = await selectRequestedPlatformAsync(flags.requestedPlatform);
+
+    if (flags.localBuildOptions.enable) {
+      if (flags.autoSubmit) {
+        // TODO: implement this
+        Errors.error('Auto-submits are not yet supported when building locally', { exit: 1 });
+      }
+
+      if (requestedPlatform === RequestedPlatform.All) {
+        Errors.error('Builds for multiple platforms are not supported with flag --local', {
+          exit: 1,
+        });
+      } else if (process.platform !== 'darwin' && requestedPlatform === RequestedPlatform.Ios) {
+        Errors.error('Unsupported platform, macOS is required to build apps for iOS', { exit: 1 });
+      }
+    }
+
+    return {
+      ...flags,
+      requestedPlatform,
     };
   }
 }

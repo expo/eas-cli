@@ -12,6 +12,25 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+## [1.2.0](https://github.com/expo/eas-cli/releases/tag/v1.2.0) - 2022-08-29
+
+### 🎉 New features
+
+- Add 2022 Apple capabilities. ([#1307](https://github.com/expo/eas-cli/pull/1307) by [@EvanBacon](https://github.com/EvanBacon))
+- Print warning when eas-cli is installed as project dependency. ([#1310](https://github.com/expo/eas-cli/pull/1310) by [@dsokal](https://github.com/dsokal))
+- Add eas.json to skip push notifications credentials setup. ([#1315](https://github.com/expo/eas-cli/pull/1315) by [@dsokal](https://github.com/dsokal))
+- Warn about EAS outages when running `build`, `submit`, and `update` commands. ([#1312](https://github.com/expo/eas-cli/pull/1312) by [@szdziedzic](https://github.com/szdziedzic))
+
+### 🐛 Bug fixes
+
+- Replace promptToCreateProjectIfNotExistsAsync with getProjectIdAsync. ([#1303](https://github.com/expo/eas-cli/pull/1303) by [@wschurman](https://github.com/wschurman))
+- Use AppQuery instead of ProjectQuery. ([#1304](https://github.com/expo/eas-cli/pull/1304) by [@wschurman](https://github.com/wschurman))
+
+### 🧹 Chores
+
+- Improve instructions on setting `extra.eas.projectId` in app configuration. ([#1316](https://github.com/expo/eas-cli/pull/1316) by [@dsokal](https://github.com/dsokal))
+- Improve copy in EAS Submit - "e-mail" -> email, and make the link to app on App Store go directly to the TestFlight tab. ([#1318](https://github.com/expo/eas-cli/pull/1318) by [@brentvatne](https://github.com/brentvatne))
+
 ## [1.1.1](https://github.com/expo/eas-cli/releases/tag/v1.1.1) - 2022-08-23
 
 ### 🎉 New features
@@ -21,6 +40,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 - Handle trailing backslash in `.gitignore`. ([#1306](https://github.com/expo/eas-cli/pull/1306) by [@wkozyra95](https://github.com/wkozyra95))
+- Retry ASC Api Key downloads if it has not fully propagated on Apple's infrastructure. ([#1302](https://github.com/expo/eas-cli/pull/1302) by [@quinlanj](https://github.com/quinlanj))
 
 ## [1.1.0](https://github.com/expo/eas-cli/releases/tag/v1.1.0) - 2022-08-23
 
@@ -30,7 +50,6 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
-- Retry ASC Api Key downloads if it has not fully propagated on Apple's infrastructure. ([#1302](https://github.com/expo/eas-cli/pull/1302) by [@quinlanj](https://github.com/quinlanj))
 - Prevent throwing dynamic app config write error when configuring project ID. ([#1301](https://github.com/expo/eas-cli/pull/1301) by [@wschurman](https://github.com/wschurman))
 
 ### 🧹 Chores
