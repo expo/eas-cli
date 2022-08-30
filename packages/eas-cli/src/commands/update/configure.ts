@@ -117,6 +117,7 @@ async function configureAppJSONForEASUpdateAsync({
     exp.ios?.runtimeVersion ?? exp.runtimeVersion ?? iosDefaultRuntimeVersion;
 
   let newConfig: Partial<ExpoConfig>;
+  let newConfigOnlyAddedValues: Partial<ExpoConfig>;
   switch (platform) {
     case RequestedPlatform.All: {
       if (isRuntimeEqual(newAndroidRuntimeVersion, newIosRuntimeVersion)) {
@@ -128,6 +129,26 @@ async function configureAppJSONForEASUpdateAsync({
           },
           ios: { ...exp.ios, runtimeVersion: undefined },
           updates,
+        };
+        newConfigOnlyAddedValues = {
+          runtimeVersion: newAndroidRuntimeVersion,
+          ...(exp.android && 'runtimeVersion' in exp.android
+            ? {
+                android: {
+                  runtimeVersion: '<remove this key>',
+                },
+              }
+            : {}),
+          ...(exp.ios && 'runtimeVersion' in exp.ios
+            ? {
+                ios: {
+                  runtimeVersion: '<remove this key>',
+                },
+              }
+            : {}),
+          updates: {
+            url: easUpdateURL,
+          },
         };
       } else {
         newConfig = {
@@ -142,6 +163,22 @@ async function configureAppJSONForEASUpdateAsync({
           },
           updates,
         };
+        newConfigOnlyAddedValues = {
+          ...('runtimeVersion' in exp
+            ? {
+                runtimeVersion: undefined, // top level runtime is redundant if it is specified in both android and ios
+              }
+            : {}),
+          android: {
+            runtimeVersion: newAndroidRuntimeVersion,
+          },
+          ios: {
+            runtimeVersion: newIosRuntimeVersion,
+          },
+          updates: {
+            url: easUpdateURL,
+          },
+        };
       }
       break;
     }
@@ -153,6 +190,14 @@ async function configureAppJSONForEASUpdateAsync({
         },
         updates,
       };
+      newConfigOnlyAddedValues = {
+        android: {
+          runtimeVersion: newAndroidRuntimeVersion,
+        },
+        updates: {
+          url: easUpdateURL,
+        },
+      };
       break;
     }
     case RequestedPlatform.Ios: {
@@ -162,6 +207,14 @@ async function configureAppJSONForEASUpdateAsync({
           runtimeVersion: newIosRuntimeVersion,
         },
         updates,
+      };
+      newConfigOnlyAddedValues = {
+        ios: {
+          runtimeVersion: newIosRuntimeVersion,
+        },
+        updates: {
+          url: easUpdateURL,
+        },
       };
       break;
     }
@@ -219,7 +272,7 @@ async function configureAppJSONForEASUpdateAsync({
           'https://expo.fyi/eas-update-config.md'
         )}\n`
       );
-      Log.log(chalk.bold(JSON.stringify(newConfig, null, 2)));
+      Log.log(chalk.bold(JSON.stringify(newConfigOnlyAddedValues, null, 2)));
       Log.addNewLineIfNone();
       if (workflows['android'] === Workflow.GENERIC || workflows['ios'] === Workflow.GENERIC) {
         Log.warn(
