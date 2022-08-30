@@ -779,7 +779,9 @@ export type AndroidJobBuildCredentialsInput = {
 };
 
 export type AndroidJobInput = {
+  applicationArchivePath?: InputMaybe<Scalars['String']>;
   artifactPath?: InputMaybe<Scalars['String']>;
+  buildArtifactsPaths?: InputMaybe<Array<Scalars['String']>>;
   buildType?: InputMaybe<AndroidBuildType>;
   builderEnvironment?: InputMaybe<AndroidBuilderEnvironmentInput>;
   cache?: InputMaybe<BuildCacheInput>;
@@ -804,7 +806,9 @@ export type AndroidJobKeystoreInput = {
 };
 
 export type AndroidJobOverridesInput = {
+  applicationArchivePath?: InputMaybe<Scalars['String']>;
   artifactPath?: InputMaybe<Scalars['String']>;
+  buildArtifactsPaths?: InputMaybe<Array<Scalars['String']>>;
   buildType?: InputMaybe<AndroidBuildType>;
   builderEnvironment?: InputMaybe<AndroidBuilderEnvironmentInput>;
   cache?: InputMaybe<BuildCacheInput>;
@@ -980,6 +984,8 @@ export type App = Project & {
   updateChannelByName?: Maybe<UpdateChannel>;
   /** EAS channels owned by an app */
   updateChannels: Array<UpdateChannel>;
+  /** EAS updates owned by an app grouped by update group */
+  updateGroups: Array<Array<Update>>;
   /** Time of last classic update publish */
   updated: Scalars['DateTime'];
   /** EAS updates owned by an app */
@@ -996,6 +1002,7 @@ export type App = Project & {
 /** Represents an Exponent App (or Experience in legacy terms) */
 export type AppActivityTimelineProjectActivitiesArgs = {
   createdBefore?: InputMaybe<Scalars['DateTime']>;
+  filterChannels?: InputMaybe<Array<Scalars['String']>>;
   filterPlatforms?: InputMaybe<Array<AppPlatform>>;
   filterReleaseChannels?: InputMaybe<Array<Scalars['String']>>;
   filterTypes?: InputMaybe<Array<ActivityTimelineProjectActivityType>>;
@@ -1112,6 +1119,14 @@ export type AppUpdateChannelByNameArgs = {
 
 /** Represents an Exponent App (or Experience in legacy terms) */
 export type AppUpdateChannelsArgs = {
+  limit: Scalars['Int'];
+  offset: Scalars['Int'];
+};
+
+
+/** Represents an Exponent App (or Experience in legacy terms) */
+export type AppUpdateGroupsArgs = {
+  filter?: InputMaybe<UpdatesFilter>;
   limit: Scalars['Int'];
   offset: Scalars['Int'];
 };
@@ -2293,6 +2308,11 @@ export type DeleteWebhookResult = {
   id: Scalars['ID'];
 };
 
+export type DeployServerlessFunctionResult = {
+  __typename?: 'DeployServerlessFunctionResult';
+  url: Scalars['String'];
+};
+
 /** Represents a Deployment - a set of Builds with the same Runtime Version and Channel */
 export type Deployment = {
   __typename?: 'Deployment';
@@ -2722,7 +2742,10 @@ export type IosJobDistributionCertificateInput = {
 };
 
 export type IosJobInput = {
+  applicationArchivePath?: InputMaybe<Scalars['String']>;
+  /** @deprecated */
   artifactPath?: InputMaybe<Scalars['String']>;
+  buildArtifactsPaths?: InputMaybe<Array<Scalars['String']>>;
   buildConfiguration?: InputMaybe<Scalars['String']>;
   /** @deprecated */
   buildType?: InputMaybe<IosBuildType>;
@@ -2745,7 +2768,10 @@ export type IosJobInput = {
 };
 
 export type IosJobOverridesInput = {
+  applicationArchivePath?: InputMaybe<Scalars['String']>;
+  /** @deprecated */
   artifactPath?: InputMaybe<Scalars['String']>;
+  buildArtifactsPaths?: InputMaybe<Array<Scalars['String']>>;
   buildConfiguration?: InputMaybe<Scalars['String']>;
   /** @deprecated */
   buildType?: InputMaybe<IosBuildType>;
@@ -3410,7 +3436,14 @@ export type ServerlessFunctionIdentifierInput = {
 
 export type ServerlessFunctionMutation = {
   __typename?: 'ServerlessFunctionMutation';
+  createDeployment: DeployServerlessFunctionResult;
   createUploadPresignedUrl: CreateServerlessFunctionUploadUrlResult;
+};
+
+
+export type ServerlessFunctionMutationCreateDeploymentArgs = {
+  appId: Scalars['String'];
+  serverlessFunctionIdentifierInput: ServerlessFunctionIdentifierInput;
 };
 
 
@@ -3736,8 +3769,16 @@ export type UpdateBranch = {
   createdAt: Scalars['DateTime'];
   id: Scalars['ID'];
   name: Scalars['String'];
+  updateGroups: Array<Array<Update>>;
   updatedAt: Scalars['DateTime'];
   updates: Array<Update>;
+};
+
+
+export type UpdateBranchUpdateGroupsArgs = {
+  filter?: InputMaybe<UpdatesFilter>;
+  limit: Scalars['Int'];
+  offset: Scalars['Int'];
 };
 
 

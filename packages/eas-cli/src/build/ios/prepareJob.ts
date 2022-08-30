@@ -64,7 +64,8 @@ export async function prepareJobAsync(
     simulator: ctx.buildProfile.simulator,
     scheme: jobData.buildScheme,
     buildConfiguration: ctx.buildProfile.buildConfiguration,
-    artifactPath: ctx.buildProfile.artifactPath,
+    applicationArchivePath: ctx.buildProfile.applicationArchivePath,
+    buildArtifactsPaths: ctx.buildProfile.buildArtifactsPaths,
     username,
     ...(ctx.ios.buildNumberOverride && {
       version: {
