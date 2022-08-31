@@ -11,7 +11,9 @@ import { XcodeBuildContext } from '../project/ios/scheme';
 import { Actor } from '../user/User';
 import { LocalBuildOptions } from './local';
 
-export type CommonContext<T extends Platform> = Omit<BuildContext<T>, 'android' | 'ios'>;
+export type AndroidCommonContext = Omit<BuildContextAndroid, 'android'>;
+export type IosCommonContext = Omit<BuildContextIos, 'ios'>;
+export type CommonContext = AndroidCommonContext | IosCommonContext;
 
 export interface AndroidBuildContext {
   applicationId: string;
@@ -27,10 +29,9 @@ export interface IosBuildContext {
   buildNumberOverride?: string;
 }
 
-export interface BuildContext<T extends Platform> {
+interface BuildContextBase {
   accountName: string;
   easJsonCliConfig: EasJson['cli'];
-  buildProfile: BuildProfile<T>;
   buildProfileName: string;
   resourceClass: BuildResourceClass;
   clearCache: boolean;
@@ -40,7 +41,6 @@ export interface BuildContext<T extends Platform> {
   nonInteractive: boolean;
   noWait: boolean;
   runFromCI: boolean;
-  platform: T;
   projectDir: string;
   projectId: string;
   projectName: string;
@@ -48,6 +48,18 @@ export interface BuildContext<T extends Platform> {
   trackingCtx: TrackingContext;
   user: Actor;
   workflow: Workflow;
-  android: T extends Platform.ANDROID ? AndroidBuildContext : undefined;
-  ios: T extends Platform.IOS ? IosBuildContext : undefined;
 }
+
+export interface BuildContextAndroid extends BuildContextBase {
+  buildProfile: BuildProfile<Platform.ANDROID>;
+  platform: Platform.ANDROID;
+  android: AndroidBuildContext;
+}
+
+export interface BuildContextIos extends BuildContextBase {
+  buildProfile: BuildProfile<Platform.IOS>;
+  platform: Platform.IOS;
+  ios: IosBuildContext;
+}
+
+export type BuildContext = BuildContextAndroid | BuildContextIos;

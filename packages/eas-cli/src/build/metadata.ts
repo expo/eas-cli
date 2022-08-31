@@ -18,12 +18,10 @@ import { ensureLoggedInAsync } from '../user/actions';
 import { easCliVersion } from '../utils/easCli';
 import { getVcsClient } from '../vcs';
 import { maybeResolveVersionsAsync as maybeResolveAndroidVersionsAsync } from './android/version';
-import { BuildContext } from './context';
+import { BuildContext, BuildContextIos } from './context';
 import { maybeResolveVersionsAsync as maybeResolveIosVersionsAsync } from './ios/version';
 
-export async function collectMetadataAsync<T extends Platform>(
-  ctx: BuildContext<T>
-): Promise<Metadata> {
+export async function collectMetadataAsync(ctx: BuildContext): Promise<Metadata> {
   const vcsClient = getVcsClient();
   const channelOrReleaseChannel = await resolveChannelOrReleaseChannelAsync(ctx);
   const distribution =
@@ -52,9 +50,7 @@ export async function collectMetadataAsync<T extends Platform>(
     username: getUsername(ctx.exp, await ensureLoggedInAsync()),
     message: ctx.message,
     ...(ctx.platform === Platform.IOS && {
-      iosEnterpriseProvisioning: resolveIosEnterpriseProvisioning(
-        ctx as BuildContext<Platform.IOS>
-      ),
+      iosEnterpriseProvisioning: resolveIosEnterpriseProvisioning(ctx),
     }),
     runWithNoWaitFlag: ctx.noWait,
     runFromCI: ctx.runFromCI,
@@ -62,52 +58,48 @@ export async function collectMetadataAsync<T extends Platform>(
   return sanitizeMetadata(metadata);
 }
 
-async function maybeResolveVersionsAsync<T extends Platform>(
-  ctx: BuildContext<T>
+async function maybeResolveVersionsAsync(
+  ctx: BuildContext
 ): Promise<{ appBuildVersion?: string; appVersion?: string }> {
   if (ctx.platform === Platform.IOS) {
-    const iosContext = ctx as BuildContext<Platform.IOS>;
     const resolvedVersion = await maybeResolveIosVersionsAsync(
       ctx.projectDir,
       ctx.exp,
-      iosContext.ios.targets
+      ctx.ios.targets
     );
-    if (iosContext.ios.buildNumberOverride) {
+    if (ctx.ios.buildNumberOverride) {
       return {
         ...resolvedVersion,
-        appBuildVersion: iosContext.ios.buildNumberOverride,
+        appBuildVersion: ctx.ios.buildNumberOverride,
       };
     }
     return resolvedVersion;
-  } else if (ctx.platform === Platform.ANDROID) {
-    const androidCtx = ctx as BuildContext<Platform.ANDROID>;
+  } else {
     const resolvedVersion = await maybeResolveAndroidVersionsAsync(
       ctx.projectDir,
       ctx.exp,
-      androidCtx.buildProfile
+      ctx.buildProfile
     );
-    if (androidCtx.android.versionCodeOverride) {
+    if (ctx.android.versionCodeOverride) {
       return {
         ...resolvedVersion,
-        appBuildVersion: androidCtx.android.versionCodeOverride,
+        appBuildVersion: ctx.android.versionCodeOverride,
       };
     }
     return resolvedVersion;
-  } else {
-    throw new Error(`Unsupported platform ${ctx.platform}`);
   }
 }
 
-function resolveAppIdentifier<T extends Platform>(ctx: BuildContext<T>): string {
+function resolveAppIdentifier(ctx: BuildContext): string {
   if (ctx.platform === Platform.IOS) {
-    return (ctx as BuildContext<Platform.IOS>).ios.bundleIdentifier;
+    return ctx.ios.bundleIdentifier;
   } else {
-    return (ctx as BuildContext<Platform.ANDROID>).android.applicationId;
+    return ctx.android.applicationId;
   }
 }
 
-async function resolveChannelOrReleaseChannelAsync<T extends Platform>(
-  ctx: BuildContext<T>
+async function resolveChannelOrReleaseChannelAsync(
+  ctx: BuildContext
 ): Promise<{ channel: string } | { releaseChannel: string } | null> {
   if (!isExpoUpdatesInstalled(ctx.projectDir)) {
     return null;
@@ -126,9 +118,7 @@ async function resolveChannelOrReleaseChannelAsync<T extends Platform>(
   return { releaseChannel };
 }
 
-async function getNativeReleaseChannelAsync<T extends Platform>(
-  ctx: BuildContext<T>
-): Promise<string> {
+async function getNativeReleaseChannelAsync(ctx: BuildContext): Promise<string> {
   switch (ctx.platform) {
     case Platform.ANDROID: {
       return (await readAndroidReleaseChannelSafelyAsync(ctx.projectDir)) ?? 'default';
@@ -141,9 +131,7 @@ async function getNativeReleaseChannelAsync<T extends Platform>(
   }
 }
 
-async function getNativeChannelAsync<T extends Platform>(
-  ctx: BuildContext<T>
-): Promise<string | undefined> {
+async function getNativeChannelAsync(ctx: BuildContext): Promise<string | undefined> {
   switch (ctx.platform) {
     case Platform.ANDROID: {
       return (await readAndroidChannelSafelyAsync(ctx.projectDir)) ?? undefined;
@@ -156,9 +144,7 @@ async function getNativeChannelAsync<T extends Platform>(
   return undefined;
 }
 
-async function getReactNativeVersionAsync(
-  ctx: BuildContext<Platform>
-): Promise<string | undefined> {
+async function getReactNativeVersionAsync(ctx: BuildContext): Promise<string | undefined> {
   try {
     const reactNativePackageJsonPath = resolveFrom(ctx.projectDir, 'react-native/package.json');
     return (await fs.readJson(reactNativePackageJsonPath)).version;
@@ -170,7 +156,7 @@ async function getReactNativeVersionAsync(
 }
 
 function resolveIosEnterpriseProvisioning(
-  ctx: BuildContext<Platform.IOS>
+  ctx: BuildContextIos
 ): IosEnterpriseProvisioning | undefined {
   return ctx.buildProfile.enterpriseProvisioning;
 }

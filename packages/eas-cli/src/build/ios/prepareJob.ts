@@ -6,7 +6,7 @@ import { IosCredentials, TargetCredentials } from '../../credentials/ios/types';
 import { getUsername } from '../../project/projectUtils';
 import { ensureLoggedInAsync } from '../../user/actions';
 import { getVcsClient } from '../../vcs';
-import { BuildContext } from '../context';
+import { BuildContextIos } from '../context';
 
 interface JobData {
   projectArchive: ArchiveSource;
@@ -20,10 +20,7 @@ const cacheDefaults = {
   cacheDefaultPaths: true,
 };
 
-export async function prepareJobAsync(
-  ctx: BuildContext<Platform.IOS>,
-  jobData: JobData
-): Promise<Job> {
+export async function prepareJobAsync(ctx: BuildContextIos, jobData: JobData): Promise<Job> {
   const projectRootDirectory =
     slash(path.relative(await getVcsClient().getRootPathAsync(), ctx.projectDir)) || '.';
   const username = getUsername(ctx.exp, await ensureLoggedInAsync());

@@ -1,4 +1,3 @@
-import { Platform } from '@expo/eas-build-job';
 import { Errors } from '@oclif/core';
 import chalk from 'chalk';
 import type MetroConfig from 'metro-config';
@@ -8,9 +7,7 @@ import { BuildContext } from '../build/context';
 import Log, { learnMore } from '../log';
 import { confirmAsync } from '../prompts';
 
-export async function validateMetroConfigForManagedWorkflowAsync(
-  ctx: BuildContext<Platform>
-): Promise<void> {
+export async function validateMetroConfigForManagedWorkflowAsync(ctx: BuildContext): Promise<void> {
   if (!(await configExistsAsync(ctx.projectDir))) {
     return;
   }

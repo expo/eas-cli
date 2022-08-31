@@ -46,14 +46,12 @@ export interface JobData<Credentials> {
   projectArchive: ArchiveSource;
 }
 
-interface Builder<TPlatform extends Platform, Credentials, TJob extends Job> {
-  ctx: BuildContext<TPlatform>;
+interface Builder<Credentials, TJob extends Job> {
+  ctx: BuildContext;
 
-  ensureCredentialsAsync(
-    ctx: BuildContext<TPlatform>
-  ): Promise<CredentialsResult<Credentials> | undefined>;
-  syncProjectConfigurationAsync(ctx: BuildContext<TPlatform>): Promise<void>;
-  prepareJobAsync(ctx: BuildContext<TPlatform>, jobData: JobData<Credentials>): Promise<Job>;
+  ensureCredentialsAsync(ctx: BuildContext): Promise<CredentialsResult<Credentials> | undefined>;
+  syncProjectConfigurationAsync(ctx: BuildContext): Promise<void>;
+  prepareJobAsync(ctx: BuildContext, jobData: JobData<Credentials>): Promise<Job>;
   sendBuildRequestAsync(
     appId: string,
     job: TJob,
@@ -64,17 +62,15 @@ interface Builder<TPlatform extends Platform, Credentials, TJob extends Job> {
 
 export type BuildRequestSender = () => Promise<BuildFragment | undefined>;
 
-function resolveBuildParamsInput<T extends Platform>(ctx: BuildContext<T>): BuildParamsInput {
+function resolveBuildParamsInput(ctx: BuildContext): BuildParamsInput {
   return {
     resourceClass: ctx.resourceClass,
   };
 }
 
-export async function prepareBuildRequestForPlatformAsync<
-  TPlatform extends Platform,
-  Credentials,
-  TJob extends Job
->(builder: Builder<TPlatform, Credentials, TJob>): Promise<BuildRequestSender> {
+export async function prepareBuildRequestForPlatformAsync<Credentials, TJob extends Job>(
+  builder: Builder<Credentials, TJob>
+): Promise<BuildRequestSender> {
   const { ctx } = builder;
   const credentialsResult = await withAnalyticsAsync(
     async () => await builder.ensureCredentialsAsync(ctx),
@@ -163,9 +159,7 @@ function handleBuildRequestError(error: any, platform: Platform): never {
   throw error;
 }
 
-async function uploadProjectAsync<TPlatform extends Platform>(
-  ctx: BuildContext<TPlatform>
-): Promise<string> {
+async function uploadProjectAsync(ctx: BuildContext): Promise<string> {
   let projectTarballPath;
   try {
     return await withAnalyticsAsync(
@@ -207,8 +201,8 @@ async function uploadProjectAsync<TPlatform extends Platform>(
   }
 }
 
-async function sendBuildRequestAsync<TPlatform extends Platform, Credentials, TJob extends Job>(
-  builder: Builder<TPlatform, Credentials, TJob>,
+async function sendBuildRequestAsync<Credentials, TJob extends Job>(
+  builder: Builder<Credentials, TJob>,
   job: TJob,
   metadata: Metadata,
   buildParams: BuildParamsInput

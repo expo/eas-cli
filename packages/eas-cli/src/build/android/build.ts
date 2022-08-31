@@ -22,7 +22,7 @@ import {
   JobData,
   prepareBuildRequestForPlatformAsync,
 } from '../build';
-import { AndroidBuildContext, BuildContext, CommonContext } from '../context';
+import { AndroidBuildContext, AndroidCommonContext, BuildContextAndroid } from '../context';
 import { transformMetadata } from '../graphql';
 import { logCredentialsSource } from '../utils/credentials';
 import { checkGoogleServicesFileAsync, checkNodeEnvVariable } from '../validate';
@@ -32,7 +32,7 @@ import { syncProjectConfigurationAsync } from './syncProjectConfiguration';
 import { resolveRemoteVersionCodeAsync } from './version';
 
 export async function createAndroidContextAsync(
-  ctx: CommonContext<Platform.ANDROID>
+  ctx: AndroidCommonContext
 ): Promise<AndroidBuildContext> {
   const { buildProfile } = ctx;
 
@@ -77,11 +77,11 @@ This means that it will most likely produce an AAB and you will not be able to i
 }
 
 export async function prepareAndroidBuildAsync(
-  ctx: BuildContext<Platform.ANDROID>
+  ctx: BuildContextAndroid
 ): Promise<BuildRequestSender> {
   return await prepareBuildRequestForPlatformAsync({
     ctx,
-    ensureCredentialsAsync: async (ctx: BuildContext<Platform.ANDROID>) => {
+    ensureCredentialsAsync: async (ctx: BuildContextAndroid) => {
       return await ensureAndroidCredentialsAsync(ctx);
     },
     syncProjectConfigurationAsync: async () => {
@@ -95,7 +95,7 @@ export async function prepareAndroidBuildAsync(
       });
     },
     prepareJobAsync: async (
-      ctx: BuildContext<Platform.ANDROID>,
+      ctx: BuildContextAndroid,
       jobData: JobData<AndroidCredentials>
     ): Promise<Job> => {
       return await prepareJobAsync(ctx, jobData);
@@ -118,12 +118,12 @@ export async function prepareAndroidBuildAsync(
   });
 }
 
-function shouldProvideCredentials(ctx: BuildContext<Platform.ANDROID>): boolean {
+function shouldProvideCredentials(ctx: BuildContextAndroid): boolean {
   return !ctx.buildProfile.withoutCredentials;
 }
 
 async function ensureAndroidCredentialsAsync(
-  ctx: BuildContext<Platform.ANDROID>
+  ctx: BuildContextAndroid
 ): Promise<CredentialsResult<AndroidCredentials> | undefined> {
   if (!shouldProvideCredentials(ctx)) {
     return;

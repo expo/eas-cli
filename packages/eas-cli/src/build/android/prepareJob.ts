@@ -7,7 +7,7 @@ import { AndroidCredentials } from '../../credentials/android/AndroidCredentials
 import { getUsername } from '../../project/projectUtils';
 import { ensureLoggedInAsync } from '../../user/actions';
 import { getVcsClient } from '../../vcs';
-import { BuildContext } from '../context';
+import { BuildContextAndroid } from '../context';
 
 interface JobData {
   projectArchive: ArchiveSource;
@@ -20,10 +20,7 @@ const cacheDefaults = {
   cacheDefaultPaths: true,
 };
 
-export async function prepareJobAsync(
-  ctx: BuildContext<Platform.ANDROID>,
-  jobData: JobData
-): Promise<Job> {
+export async function prepareJobAsync(ctx: BuildContextAndroid, jobData: JobData): Promise<Job> {
   const username = getUsername(ctx.exp, await ensureLoggedInAsync());
   const buildProfile: BuildProfile<Platform.ANDROID> = ctx.buildProfile;
   const projectRootDirectory =

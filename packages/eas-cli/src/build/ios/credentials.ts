@@ -4,11 +4,11 @@ import IosCredentialsProvider from '../../credentials/ios/IosCredentialsProvider
 import { getAppFromContext } from '../../credentials/ios/actions/BuildCredentialsUtils';
 import { IosCredentials, Target } from '../../credentials/ios/types';
 import { CredentialsResult } from '../build';
-import { BuildContext } from '../context';
+import { BuildContextIos } from '../context';
 import { logCredentialsSource } from '../utils/credentials';
 
 export async function ensureIosCredentialsAsync(
-  buildCtx: BuildContext<Platform.IOS>,
+  buildCtx: BuildContextIos,
   targets: Target[]
 ): Promise<CredentialsResult<IosCredentials> | undefined> {
   if (!shouldProvideCredentials(buildCtx)) {
@@ -31,6 +31,6 @@ export async function ensureIosCredentialsAsync(
   };
 }
 
-function shouldProvideCredentials(buildCtx: BuildContext<Platform.IOS>): boolean {
+function shouldProvideCredentials(buildCtx: BuildContextIos): boolean {
   return !buildCtx.buildProfile.simulator;
 }

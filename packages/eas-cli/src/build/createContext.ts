@@ -15,7 +15,7 @@ import { resolveWorkflowAsync } from '../project/workflow';
 import { findAccountByName } from '../user/Account';
 import { ensureLoggedInAsync } from '../user/actions';
 import { createAndroidContextAsync } from './android/build';
-import { BuildContext, CommonContext } from './context';
+import { AndroidCommonContext, BuildContext, IosCommonContext } from './context';
 import { createIosContextAsync } from './ios/build';
 import { LocalBuildOptions } from './local';
 
@@ -43,7 +43,7 @@ export async function createBuildContextAsync<T extends Platform>({
   projectDir: string;
   resourceClass: BuildResourceClass;
   message?: string;
-}): Promise<BuildContext<T>> {
+}): Promise<BuildContext> {
   const exp = getExpoConfig(projectDir, { env: buildProfile.env });
 
   const user = await ensureLoggedInAsync();
@@ -80,7 +80,7 @@ export async function createBuildContextAsync<T extends Platform>({
   };
   Analytics.logEvent(BuildEvent.BUILD_COMMAND, trackingCtx);
 
-  const commonContext: CommonContext<T> = {
+  const commonContext = {
     accountName,
     buildProfile,
     buildProfileName,
@@ -103,17 +103,17 @@ export async function createBuildContextAsync<T extends Platform>({
     runFromCI,
   };
   if (platform === Platform.ANDROID) {
-    const common = commonContext as CommonContext<Platform.ANDROID>;
+    const common = commonContext as AndroidCommonContext;
     return {
       ...common,
       android: await createAndroidContextAsync(common),
-    } as BuildContext<T>;
+    };
   } else {
-    const common = commonContext as CommonContext<Platform.IOS>;
+    const common = commonContext as IosCommonContext;
     return {
       ...common,
       ios: await createIosContextAsync(common),
-    } as BuildContext<T>;
+    };
   }
 }
 

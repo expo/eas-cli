@@ -1,4 +1,4 @@
-import { Platform, Workflow } from '@expo/eas-build-job';
+import { Workflow } from '@expo/eas-build-job';
 import { Errors } from '@oclif/core';
 import assert from 'assert';
 import semver from 'semver';
@@ -10,7 +10,7 @@ import { confirmAsync } from '../prompts';
 const SUPPORTED_EXPO_SDK_VERSIONS = '>= 41.0.0';
 assert(semver.validRange(SUPPORTED_EXPO_SDK_VERSIONS), 'Must be a valid version range');
 
-export async function checkExpoSdkIsSupportedAsync(ctx: BuildContext<Platform>): Promise<void> {
+export async function checkExpoSdkIsSupportedAsync(ctx: BuildContext): Promise<void> {
   assert(ctx.workflow === Workflow.MANAGED, 'Must be a managed workflow project');
 
   if (ctx.exp.sdkVersion && semver.satisfies(ctx.exp.sdkVersion, SUPPORTED_EXPO_SDK_VERSIONS)) {

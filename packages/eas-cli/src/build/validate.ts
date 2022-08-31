@@ -1,4 +1,4 @@
-import { Platform, Workflow } from '@expo/eas-build-job';
+import { Workflow } from '@expo/eas-build-job';
 import fs from 'fs-extra';
 import path from 'path';
 
@@ -6,7 +6,7 @@ import Log, { learnMore } from '../log';
 import { getVcsClient } from '../vcs';
 import { CommonContext } from './context';
 
-export function checkNodeEnvVariable(ctx: CommonContext<Platform>): void {
+export function checkNodeEnvVariable(ctx: CommonContext): void {
   if (ctx.buildProfile.env?.NODE_ENV === 'production') {
     Log.warn(
       'You set NODE_ENV=production in the build profile. Remember that it will be available during the entire build process. In particular, it will make yarn/npm install only production packages.'
@@ -15,9 +15,7 @@ export function checkNodeEnvVariable(ctx: CommonContext<Platform>): void {
   }
 }
 
-export async function checkGoogleServicesFileAsync<T extends Platform>(
-  ctx: CommonContext<T>
-): Promise<void> {
+export async function checkGoogleServicesFileAsync(ctx: CommonContext): Promise<void> {
   if (ctx.workflow === Workflow.GENERIC || ctx.buildProfile?.env?.GOOGLE_SERVICES_FILE) {
     return;
   }

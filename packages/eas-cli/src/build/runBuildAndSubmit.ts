@@ -119,7 +119,7 @@ export async function runBuildAndSubmitAsync(projectDir: string, flags: BuildFla
     build: BuildWithSubmissionsFragment | BuildFragment;
     buildProfile: ProfileData<'build'>;
   }[] = [];
-  const buildCtxByPlatform: { [p in AppPlatform]?: BuildContext<Platform> } = {};
+  const buildCtxByPlatform: { [p in AppPlatform]?: BuildContext } = {};
 
   for (const buildProfile of buildProfiles) {
     const { build: maybeBuild, buildCtx } = await prepareAndStartBuildAsync({
@@ -232,7 +232,7 @@ async function prepareAndStartBuildAsync({
   buildProfile: ProfileData<'build'>;
   resourceClass: BuildResourceClass;
   easJsonCliConfig: EasJson['cli'];
-}): Promise<{ build: BuildFragment | undefined; buildCtx: BuildContext<Platform> }> {
+}): Promise<{ build: BuildFragment | undefined; buildCtx: BuildContext }> {
   const buildCtx = await createBuildContextAsync({
     buildProfileName: buildProfile.profileName,
     resourceClass,
@@ -278,12 +278,12 @@ async function prepareAndStartBuildAsync({
   };
 }
 
-async function startBuildAsync(ctx: BuildContext<Platform>): Promise<BuildFragment | undefined> {
+async function startBuildAsync(ctx: BuildContext): Promise<BuildFragment | undefined> {
   let sendBuildRequestAsync: BuildRequestSender;
   if (ctx.platform === Platform.ANDROID) {
-    sendBuildRequestAsync = await prepareAndroidBuildAsync(ctx as BuildContext<Platform.ANDROID>);
+    sendBuildRequestAsync = await prepareAndroidBuildAsync(ctx);
   } else {
-    sendBuildRequestAsync = await prepareIosBuildAsync(ctx as BuildContext<Platform.IOS>);
+    sendBuildRequestAsync = await prepareIosBuildAsync(ctx);
   }
   return await sendBuildRequestAsync();
 }
@@ -298,7 +298,7 @@ async function prepareAndStartSubmissionAsync({
   nonInteractive,
 }: {
   build: BuildFragment;
-  buildCtx: BuildContext<Platform>;
+  buildCtx: BuildContext;
   moreBuilds: boolean;
   projectDir: string;
   buildProfile: BuildProfile;
@@ -315,7 +315,10 @@ async function prepareAndStartSubmissionAsync({
     nonInteractive,
     env: buildProfile.env,
     credentialsCtx: buildCtx.credentialsCtx,
-    applicationIdentifier: buildCtx.android?.applicationId ?? buildCtx.ios?.bundleIdentifier,
+    applicationIdentifier:
+      buildCtx.platform === Platform.ANDROID
+        ? buildCtx.android.applicationId
+        : buildCtx.ios.bundleIdentifier,
   });
 
   if (moreBuilds) {

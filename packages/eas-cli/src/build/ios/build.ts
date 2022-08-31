@@ -1,4 +1,4 @@
-import { Ios, Job, Metadata, Platform, Workflow } from '@expo/eas-build-job';
+import { Ios, Job, Metadata, Workflow } from '@expo/eas-build-job';
 import { AppVersionSource } from '@expo/eas-json';
 
 import { IosCredentials } from '../../credentials/ios/types';
@@ -8,7 +8,7 @@ import { ensureBundleIdentifierIsDefinedForManagedProjectAsync } from '../../pro
 import { resolveXcodeBuildContextAsync } from '../../project/ios/scheme';
 import { findApplicationTarget, resolveTargetsAsync } from '../../project/ios/target';
 import { BuildRequestSender, JobData, prepareBuildRequestForPlatformAsync } from '../build';
-import { BuildContext, CommonContext, IosBuildContext } from '../context';
+import { BuildContextIos, IosBuildContext, IosCommonContext } from '../context';
 import { transformMetadata } from '../graphql';
 import { checkGoogleServicesFileAsync, checkNodeEnvVariable } from '../validate';
 import { ensureIosCredentialsAsync } from './credentials';
@@ -17,9 +17,7 @@ import { prepareJobAsync } from './prepareJob';
 import { syncProjectConfigurationAsync } from './syncProjectConfiguration';
 import { resolveRemoteBuildNumberAsync } from './version';
 
-export async function createIosContextAsync(
-  ctx: CommonContext<Platform.IOS>
-): Promise<IosBuildContext> {
+export async function createIosContextAsync(ctx: IosCommonContext): Promise<IosBuildContext> {
   const { buildProfile } = ctx;
 
   if (ctx.workflow === Workflow.MANAGED) {
@@ -63,12 +61,10 @@ export async function createIosContextAsync(
   };
 }
 
-export async function prepareIosBuildAsync(
-  ctx: BuildContext<Platform.IOS>
-): Promise<BuildRequestSender> {
+export async function prepareIosBuildAsync(ctx: BuildContextIos): Promise<BuildRequestSender> {
   return await prepareBuildRequestForPlatformAsync({
     ctx,
-    ensureCredentialsAsync: async (ctx: BuildContext<Platform.IOS>) => {
+    ensureCredentialsAsync: async (ctx: BuildContextIos) => {
       return ensureIosCredentialsAsync(ctx, ctx.ios.targets);
     },
     syncProjectConfigurationAsync: async () => {
@@ -83,7 +79,7 @@ export async function prepareIosBuildAsync(
       });
     },
     prepareJobAsync: async (
-      ctx: BuildContext<Platform.IOS>,
+      ctx: BuildContextIos,
       jobData: JobData<IosCredentials>
     ): Promise<Job> => {
       return await prepareJobAsync(ctx, {
