@@ -16,7 +16,7 @@ import {
 import { Client } from '../vcs';
 
 export default class GitClient extends Client {
-  public async ensureRepoExistsAsync(): Promise<void> {
+  public override async ensureRepoExistsAsync(): Promise<void> {
     if (!(await isGitInstalledAsync())) {
       Log.error(
         `${chalk.bold('git')} command not found. Install it before proceeding or set ${chalk.bold(
@@ -58,7 +58,7 @@ export default class GitClient extends Client {
     await this.commitAsync({ commitAllFiles: true, commitMessage: message });
   }
 
-  public async commitAsync({
+  public override async commitAsync({
     commitMessage,
     commitAllFiles,
     nonInteractive = false,
@@ -86,11 +86,11 @@ export default class GitClient extends Client {
     }
   }
 
-  public async isCommitRequiredAsync(): Promise<boolean> {
+  public override async isCommitRequiredAsync(): Promise<boolean> {
     return await this.hasUncommittedChangesAsync();
   }
 
-  public async hasUncommittedChangesAsync(): Promise<boolean> {
+  public override async hasUncommittedChangesAsync(): Promise<boolean> {
     const changes = await gitStatusAsync({ showUntracked: true });
     return changes.length > 0;
   }
@@ -143,7 +143,7 @@ export default class GitClient extends Client {
     }
   }
 
-  public async getCommitHashAsync(): Promise<string | undefined> {
+  public override async getCommitHashAsync(): Promise<string | undefined> {
     try {
       return (await spawnAsync('git', ['rev-parse', 'HEAD'])).stdout.trim();
     } catch {
@@ -151,11 +151,11 @@ export default class GitClient extends Client {
     }
   }
 
-  public async trackFileAsync(file: string): Promise<void> {
+  public override async trackFileAsync(file: string): Promise<void> {
     await spawnAsync('git', ['add', '--intent-to-add', file]);
   }
 
-  public async getBranchNameAsync(): Promise<string | null> {
+  public override async getBranchNameAsync(): Promise<string | null> {
     try {
       return (await spawnAsync('git', ['rev-parse', '--abbrev-ref', 'HEAD'])).stdout.trim();
     } catch {
@@ -163,7 +163,7 @@ export default class GitClient extends Client {
     }
   }
 
-  public async getLastCommitMessageAsync(): Promise<string | null> {
+  public override async getLastCommitMessageAsync(): Promise<string | null> {
     try {
       return (await spawnAsync('git', ['--no-pager', 'log', '-1', '--pretty=%B'])).stdout.trim();
     } catch {
@@ -171,7 +171,7 @@ export default class GitClient extends Client {
     }
   }
 
-  public async showDiffAsync(): Promise<void> {
+  public override async showDiffAsync(): Promise<void> {
     const outputTooLarge = (await getGitDiffOutputAsync()).split(/\r\n|\r|\n/).length > 100;
     await gitDiffAsync({ withPager: outputTooLarge });
   }
@@ -186,7 +186,7 @@ export default class GitClient extends Client {
     );
   }
 
-  public async isFileIgnoredAsync(filePath: string): Promise<boolean> {
+  public override async isFileIgnoredAsync(filePath: string): Promise<boolean> {
     try {
       await spawnAsync('git', ['check-ignore', '-q', filePath]);
       return true;

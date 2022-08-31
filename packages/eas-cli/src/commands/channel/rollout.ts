@@ -304,10 +304,10 @@ async function endRolloutAsync({
 }
 
 export default class ChannelRollout extends EasCommand {
-  static hidden = true;
-  static description = 'Rollout a new branch out to a channel incrementally.';
+  static override hidden = true;
+  static override description = 'Rollout a new branch out to a channel incrementally.';
 
-  static args = [
+  static override args = [
     {
       name: 'channel',
       required: true,
@@ -315,7 +315,7 @@ export default class ChannelRollout extends EasCommand {
     },
   ];
 
-  static flags = {
+  static override flags = {
     branch: Flags.string({
       description: 'branch to rollout',
       required: false,

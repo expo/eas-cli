@@ -17,9 +17,9 @@ import {
 import { promptAsync, toggleConfirmAsync } from '../../prompts';
 
 export default class EnvironmentSecretDelete extends EasCommand {
-  static description = 'delete an environment secret by ID';
+  static override description = 'delete an environment secret by ID';
 
-  static flags = {
+  static override flags = {
     id: Flags.string({
       description: 'ID of the secret to delete',
     }),

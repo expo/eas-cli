@@ -22,9 +22,9 @@ import {
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
 export default class BuildList extends EasCommand {
-  static description = 'list all builds for your project';
+  static override description = 'list all builds for your project';
 
-  static flags = {
+  static override flags = {
     platform: Flags.enum({
       options: [RequestedPlatform.All, RequestedPlatform.Android, RequestedPlatform.Ios],
     }),

@@ -7,9 +7,9 @@ import { getExpoConfig } from '../../project/expoConfig';
 import { findProjectRootAsync, getProjectAccountNameAsync } from '../../project/projectUtils';
 
 export default class DeviceView extends EasCommand {
-  static description = 'view a device for your project';
+  static override description = 'view a device for your project';
 
-  static args = [{ name: 'UDID' }];
+  static override args = [{ name: 'UDID' }];
 
   async runAsync(): Promise<void> {
     const { UDID } = (await this.parse(DeviceView)).args;

@@ -36,9 +36,9 @@ async function deleteUpdateGroupAsync({
 }
 
 export default class UpdateDelete extends EasCommand {
-  static description = 'delete all the updates in an update group';
+  static override description = 'delete all the updates in an update group';
 
-  static args = [
+  static override args = [
     {
       name: 'groupId',
       required: true,
@@ -46,7 +46,7 @@ export default class UpdateDelete extends EasCommand {
     },
   ];
 
-  static flags = {
+  static override flags = {
     json: Flags.boolean({
       description: `Return a json with the group ID of the deleted updates.`,
       default: false,

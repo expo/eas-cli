@@ -60,9 +60,9 @@ export async function createUpdateChannelOnAppAsync({
 }
 
 export default class ChannelCreate extends EasCommand {
-  static description = 'create a channel';
+  static override description = 'create a channel';
 
-  static args = [
+  static override args = [
     {
       name: 'name',
       required: false,
@@ -70,7 +70,7 @@ export default class ChannelCreate extends EasCommand {
     },
   ];
 
-  static flags = {
+  static override flags = {
     json: Flags.boolean({
       description:
         'print output as a JSON object with the new channel ID, name and branch mapping.',

@@ -51,9 +51,9 @@ export async function viewUpdateAsync({
   return data;
 }
 export default class UpdateView extends EasCommand {
-  static description = 'update group details';
+  static override description = 'update group details';
 
-  static args = [
+  static override args = [
     {
       name: 'groupId',
       required: true,
@@ -61,7 +61,7 @@ export default class UpdateView extends EasCommand {
     },
   ];
 
-  static flags = {
+  static override flags = {
     json: Flags.boolean({
       description: `Return a json with the updates belonging to the group.`,
       default: false,

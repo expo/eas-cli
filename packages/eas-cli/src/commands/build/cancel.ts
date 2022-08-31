@@ -110,9 +110,9 @@ async function ensureBuildExistsAsync(buildId: string): Promise<void> {
 }
 
 export default class BuildCancel extends EasCommand {
-  static description = 'cancel a build';
+  static override description = 'cancel a build';
 
-  static args = [{ name: 'BUILD_ID' }];
+  static override args = [{ name: 'BUILD_ID' }];
 
   async runAsync(): Promise<void> {
     const { BUILD_ID: buildIdFromArg } = (await this.parse(BuildCancel)).args;

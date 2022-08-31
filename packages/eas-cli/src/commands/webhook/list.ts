@@ -15,9 +15,9 @@ import {
 import { formatWebhook } from '../../webhooks/formatWebhook';
 
 export default class WebhookList extends EasCommand {
-  static description = 'list webhooks';
+  static override description = 'list webhooks';
 
-  static flags = {
+  static override flags = {
     event: Flags.enum({
       description: 'Event type that triggers the webhook',
       options: [WebhookType.Build, WebhookType.Submit],

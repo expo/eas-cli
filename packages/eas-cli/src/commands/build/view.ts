@@ -15,11 +15,11 @@ import {
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
 export default class BuildView extends EasCommand {
-  static description = 'view a build for your project';
+  static override description = 'view a build for your project';
 
-  static args = [{ name: 'BUILD_ID' }];
+  static override args = [{ name: 'BUILD_ID' }];
 
-  static flags = {
+  static override flags = {
     json: Flags.boolean({
       description: 'Enable JSON output, non-JSON messages will be printed to stderr',
     }),

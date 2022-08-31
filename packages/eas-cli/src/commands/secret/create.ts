@@ -20,9 +20,10 @@ import { getActorDisplayName } from '../../user/User';
 import { ensureLoggedInAsync } from '../../user/actions';
 
 export default class EnvironmentSecretCreate extends EasCommand {
-  static description = 'create an environment secret on the current project or owner account';
+  static override description =
+    'create an environment secret on the current project or owner account';
 
-  static flags = {
+  static override flags = {
     scope: Flags.enum({
       description: 'Scope for the secret',
       options: [EnvironmentSecretScope.ACCOUNT, EnvironmentSecretScope.PROJECT],

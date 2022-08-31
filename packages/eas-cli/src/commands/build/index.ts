@@ -29,9 +29,9 @@ interface RawBuildFlags {
 }
 
 export default class Build extends EasCommand {
-  static description = 'start a build';
+  static override description = 'start a build';
 
-  static flags = {
+  static override flags = {
     platform: Flags.enum({
       char: 'p',
       options: ['android', 'ios', 'all'],

@@ -4,7 +4,7 @@ import fetch, { RequestError, RequestInit } from './fetch';
 import { getAccessToken, getSessionSecret } from './user/sessionStorage';
 
 export class ApiV2Error extends Error {
-  readonly name = 'ApiV2Error';
+  override readonly name = 'ApiV2Error';
   readonly expoApiV2ErrorCode: string;
   readonly expoApiV2ErrorDetails?: JSONValue;
   readonly expoApiV2ErrorServerStack?: string;

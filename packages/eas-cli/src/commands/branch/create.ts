@@ -52,9 +52,9 @@ export async function createUpdateBranchOnAppAsync({
 }
 
 export default class BranchCreate extends EasCommand {
-  static description = 'create a branch';
+  static override description = 'create a branch';
 
-  static args = [
+  static override args = [
     {
       name: 'name',
       required: false,
@@ -62,7 +62,7 @@ export default class BranchCreate extends EasCommand {
     },
   ];
 
-  static flags = {
+  static override flags = {
     json: Flags.boolean({
       description: 'return a json with the new branch ID and name.',
       default: false,
