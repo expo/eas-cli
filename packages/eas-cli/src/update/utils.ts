@@ -47,14 +47,14 @@ export function getPlatformsForGroup({
 }
 
 export function formatPlatformForUpdateGroup(
-  updateGroup: {
+  updateGroup?: {
     group: string;
     platform: string;
   }[]
 ): string {
-  return updateGroup.length === 0
+  return !!updateGroup || updateGroup!.length === 0
     ? 'N/A'
-    : updateGroup
+    : updateGroup!
         .map(update => update.platform)
         .sort()
         .join(', ');

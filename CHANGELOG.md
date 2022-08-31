@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Fix viewing branch list when a branch has no associated platforms
+
 ### 🧹 Chores
 
 ## [1.2.0](https://github.com/expo/eas-cli/releases/tag/v1.2.0) - 2022-08-29

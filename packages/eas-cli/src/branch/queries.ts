@@ -96,7 +96,7 @@ function renderPageOfBranches(
         branch.updates[0]?.group ?? 'N/A',
         getPlatformsForGroup({
           updates: branch.updates,
-          group: branch.updates[0]?.group,
+          group: branch.updates[0]?.group ?? [],
         }),
       ])
     );
