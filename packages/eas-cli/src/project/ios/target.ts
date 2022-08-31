@@ -1,3 +1,4 @@
+import { Platform as ApplePlatform } from '@expo/apple-utils';
 import { ExpoConfig } from '@expo/config';
 import { IOSConfig, XcodeProject } from '@expo/config-plugins';
 import { Platform, Workflow } from '@expo/eas-build-job';
@@ -225,4 +226,24 @@ function resolveBareProjectBuildSettings(
     buildConfiguration,
   });
   return xcBuildConfiguration?.buildSettings ?? {};
+}
+
+/**
+ * Get Apple Platform from the Xcode SDKROOT where possible.
+ * @returns - Apple Platform when known, otherwise null
+ */
+export function getApplePlatformFromSdkRoot(target: Target): ApplePlatform | null {
+  const sdkRoot = target.buildSettings?.SDKROOT;
+  if (!sdkRoot) {
+    return null;
+  }
+  if (sdkRoot.includes('iphoneos')) {
+    return ApplePlatform.IOS;
+  } else if (sdkRoot.includes('tvos')) {
+    return ApplePlatform.TV_OS;
+  } else if (sdkRoot.includes('macosx')) {
+    return ApplePlatform.MAC_OS;
+  } else {
+    return null;
+  }
 }

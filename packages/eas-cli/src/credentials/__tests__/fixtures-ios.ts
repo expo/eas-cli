@@ -76,9 +76,13 @@ export const testPushKey: ApplePushKeyFragment = {
   iosAppCredentialsList: [],
 };
 
-export const testTargets: Target[] = [
-  { targetName: 'testapp', bundleIdentifier: 'foo.bar.com', entitlements: {} },
-];
+export const testTarget = {
+  targetName: 'testapp',
+  bundleIdentifier: 'foo.bar.com',
+  entitlements: {},
+};
+
+export const testTargets: Target[] = [testTarget];
 
 export const testProvisioningProfileFragment: AppleProvisioningProfileFragment = {
   id: 'test-prov-prof-id-1',

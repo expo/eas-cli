@@ -1,3 +1,4 @@
+import { Platform as ApplePlatform, ProfileType } from '@expo/apple-utils';
 import assert from 'assert';
 import chalk from 'chalk';
 import nullthrows from 'nullthrows';
@@ -12,9 +13,10 @@ import {
   IosDistributionType,
 } from '../../../graphql/generated';
 import Log from '../../../log';
+import { getApplePlatformFromSdkRoot } from '../../../project/ios/target';
 import { confirmAsync, pressAnyKeyToContinueAsync, promptAsync } from '../../../prompts';
 import differenceBy from '../../../utils/expodash/differenceBy';
-import { CredentialsContext } from '../../context';
+import { CredentialsContext, TargetCredentialsContext } from '../../context';
 import { MissingCredentialsNonInteractiveError } from '../../errors';
 import { AppLookupParams } from '../api/GraphqlClient';
 import { validateProvisioningProfileAsync } from '../validators/validateProvisioningProfile';
@@ -32,7 +34,7 @@ enum ReuseAction {
 export class SetUpAdhocProvisioningProfile {
   constructor(private app: AppLookupParams) {}
 
-  async runAsync(ctx: CredentialsContext): Promise<IosAppBuildCredentialsFragment> {
+  async runAsync(ctx: TargetCredentialsContext): Promise<IosAppBuildCredentialsFragment> {
     const distCert = await new SetUpDistributionCertificate(
       this.app,
       IosDistributionType.AdHoc
@@ -66,7 +68,7 @@ export class SetUpAdhocProvisioningProfile {
   }
 
   async runWithDistributionCertificateAsync(
-    ctx: CredentialsContext,
+    ctx: TargetCredentialsContext,
     distCert: AppleDistributionCertificateFragment
   ): Promise<IosAppBuildCredentialsFragment> {
     const currentBuildCredentials = await getBuildCredentialsAsync(
@@ -109,11 +111,17 @@ export class SetUpAdhocProvisioningProfile {
     );
 
     // 4. Reuse or create the profile on Apple Developer Portal
+    const applePlatform = await getApplePlatformFromSdkRoot(ctx.target);
+    const profileType =
+      applePlatform === ApplePlatform.TV_OS
+        ? ProfileType.TVOS_APP_ADHOC
+        : ProfileType.IOS_APP_ADHOC;
     const provisioningProfileStoreInfo =
       await ctx.appStore.createOrReuseAdhocProvisioningProfileAsync(
         chosenDevices.map(({ identifier }) => identifier),
         this.app.bundleIdentifier,
-        distCert.serialNumber
+        distCert.serialNumber,
+        profileType
       );
 
     // 5. Create or update the profile on servers
@@ -164,7 +172,7 @@ export class SetUpAdhocProvisioningProfile {
     );
   }
 
-  private async areBuildCredentialsSetupAsync(ctx: CredentialsContext): Promise<boolean> {
+  private async areBuildCredentialsSetupAsync(ctx: TargetCredentialsContext): Promise<boolean> {
     const buildCredentials = await getBuildCredentialsAsync(
       ctx,
       this.app,

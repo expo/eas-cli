@@ -1,3 +1,6 @@
+import { ProfileType } from '@expo/app-store';
+import { Platform as ApplePlatform } from '@expo/apple-utils';
+
 import Log from '../../../log';
 import {
   AscApiKey,
@@ -129,16 +132,18 @@ export default class AppStoreApi {
 
   public async listProvisioningProfilesAsync(
     bundleIdentifier: string,
+    applePlatform: ApplePlatform,
     profileClass?: ProfileClass
   ): Promise<ProvisioningProfileStoreInfo[]> {
     const ctx = await this.ensureAuthenticatedAsync();
-    return await listProvisioningProfilesAsync(ctx, bundleIdentifier, profileClass);
+    return await listProvisioningProfilesAsync(ctx, bundleIdentifier, applePlatform, profileClass);
   }
 
   public async createProvisioningProfileAsync(
     bundleIdentifier: string,
     distCert: DistributionCertificate,
     profileName: string,
+    applePlatform: ApplePlatform,
     profileClass?: ProfileClass
   ): Promise<ProvisioningProfile> {
     const ctx = await this.ensureAuthenticatedAsync();
@@ -147,29 +152,33 @@ export default class AppStoreApi {
       bundleIdentifier,
       distCert,
       profileName,
+      applePlatform,
       profileClass
     );
   }
 
   public async revokeProvisioningProfileAsync(
     bundleIdentifier: string,
+    applePlatform: ApplePlatform,
     profileClass?: ProfileClass
   ): Promise<void> {
     const ctx = await this.ensureAuthenticatedAsync();
-    return await revokeProvisioningProfileAsync(ctx, bundleIdentifier, profileClass);
+    return await revokeProvisioningProfileAsync(ctx, bundleIdentifier, applePlatform, profileClass);
   }
 
   public async createOrReuseAdhocProvisioningProfileAsync(
     udids: string[],
     bundleIdentifier: string,
-    distCertSerialNumber: string
+    distCertSerialNumber: string,
+    profileType: ProfileType
   ): Promise<ProvisioningProfile> {
     const ctx = await this.ensureAuthenticatedAsync();
     return await createOrReuseAdhocProvisioningProfileAsync(
       ctx,
       udids,
       bundleIdentifier,
-      distCertSerialNumber
+      distCertSerialNumber,
+      profileType
     );
   }
 

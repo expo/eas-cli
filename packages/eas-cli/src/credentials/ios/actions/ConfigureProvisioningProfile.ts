@@ -1,3 +1,4 @@
+import { Platform as ApplePlatform } from '@expo/apple-utils';
 import assert from 'assert';
 import chalk from 'chalk';
 
@@ -7,7 +8,8 @@ import {
 } from '../../../graphql/generated';
 import Log from '../../../log';
 import { ora } from '../../../ora';
-import { CredentialsContext } from '../../context';
+import { getApplePlatformFromSdkRoot } from '../../../project/ios/target';
+import { CredentialsContext, TargetCredentialsContext } from '../../context';
 import { MissingCredentialsNonInteractiveError } from '../../errors';
 import { AppLookupParams } from '../api/GraphqlClient';
 import { AppleProvisioningProfileMutationResult } from '../api/graphql/mutations/AppleProvisioningProfileMutation';
@@ -22,7 +24,7 @@ export class ConfigureProvisioningProfile {
   ) {}
 
   public async runAsync(
-    ctx: CredentialsContext
+    ctx: TargetCredentialsContext
   ): Promise<AppleProvisioningProfileMutationResult | null> {
     if (ctx.nonInteractive) {
       throw new MissingCredentialsNonInteractiveError(
@@ -43,8 +45,10 @@ export class ConfigureProvisioningProfile {
       return null;
     }
 
+    const applePlatform = (await getApplePlatformFromSdkRoot(ctx.target)) ?? ApplePlatform.IOS;
     const profilesFromApple = await ctx.appStore.listProvisioningProfilesAsync(
-      this.app.bundleIdentifier
+      this.app.bundleIdentifier,
+      applePlatform
     );
     const [matchingProfile] = profilesFromApple.filter(appleInfo =>
       developerPortalIdentifier

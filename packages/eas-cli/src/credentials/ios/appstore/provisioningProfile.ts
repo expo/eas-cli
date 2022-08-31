@@ -1,4 +1,4 @@
-import { Profile, ProfileType, RequestContext } from '@expo/apple-utils';
+import { Platform as ApplePlatform, Profile, ProfileType, RequestContext } from '@expo/apple-utils';
 
 import { ora } from '../../../ora';
 import { isAppStoreConnectTokenOnlyContext } from '../utils/authType';
@@ -18,7 +18,37 @@ export enum ProfileClass {
   General = 'general',
 }
 
-function resolveProfileType(profileClass: ProfileClass, isEnterprise?: boolean): ProfileType {
+function resolveProfileType(
+  applePlatform: ApplePlatform,
+  profileClass: ProfileClass,
+  isEnterprise?: boolean
+): ProfileType {
+  switch (applePlatform) {
+    case ApplePlatform.IOS:
+      return resolveProfileTypeIos(profileClass, isEnterprise);
+    case ApplePlatform.TV_OS:
+      return resolveProfileTypeAppleTv(profileClass, isEnterprise);
+    case ApplePlatform.MAC_OS:
+      throw new Error(`${applePlatform} profiles are not supported`);
+  }
+}
+
+function resolveProfileTypeAppleTv(
+  profileClass: ProfileClass,
+  isEnterprise?: boolean
+): ProfileType {
+  if (isEnterprise) {
+    return profileClass === ProfileClass.Adhoc
+      ? ProfileType.TVOS_APP_ADHOC
+      : ProfileType.TVOS_APP_INHOUSE;
+  } else {
+    return profileClass === ProfileClass.Adhoc
+      ? ProfileType.TVOS_APP_ADHOC
+      : ProfileType.TVOS_APP_STORE;
+  }
+}
+
+function resolveProfileTypeIos(profileClass: ProfileClass, isEnterprise?: boolean): ProfileType {
   if (isEnterprise) {
     return profileClass === ProfileClass.Adhoc
       ? ProfileType.IOS_APP_ADHOC
@@ -141,12 +171,13 @@ export async function useExistingProvisioningProfileAsync(
 export async function listProvisioningProfilesAsync(
   authCtx: AuthCtx,
   bundleIdentifier: string,
+  applePlatform: ApplePlatform,
   profileClass: ProfileClass = ProfileClass.General
 ): Promise<ProvisioningProfileStoreInfo[]> {
   const spinner = ora(`Fetching Apple provisioning profiles`).start();
   try {
     const context = getRequestContext(authCtx);
-    const profileType = resolveProfileType(profileClass, authCtx.team.inHouse);
+    const profileType = resolveProfileType(applePlatform, profileClass, authCtx.team.inHouse);
     const profiles = (await getProfilesForBundleIdAsync(context, bundleIdentifier)).filter(
       profile => profile.attributes.profileType === profileType
     );
@@ -168,6 +199,7 @@ export async function createProvisioningProfileAsync(
   bundleIdentifier: string,
   distCert: DistributionCertificate,
   profileName: string,
+  applePlatform: ApplePlatform,
   profileClass: ProfileClass = ProfileClass.General
 ): Promise<ProvisioningProfile> {
   const spinner = ora(`Creating Apple provisioning profile`).start();
@@ -180,7 +212,7 @@ export async function createProvisioningProfileAsync(
     }
 
     const context = getRequestContext(authCtx);
-    const profileType = resolveProfileType(profileClass, authCtx.team.inHouse);
+    const profileType = resolveProfileType(applePlatform, profileClass, authCtx.team.inHouse);
 
     const certificate = await getCertificateBySerialNumberAsync(
       context,
@@ -210,6 +242,7 @@ export async function createProvisioningProfileAsync(
 export async function revokeProvisioningProfileAsync(
   authCtx: AuthCtx,
   bundleIdentifier: string,
+  applePlatform: ApplePlatform,
   profileClass: ProfileClass = ProfileClass.General
 ): Promise<void> {
   const spinner = ora(`Revoking Apple provisioning profile`).start();
@@ -217,7 +250,7 @@ export async function revokeProvisioningProfileAsync(
     const context = getRequestContext(authCtx);
 
     const profiles = await getProfilesForBundleIdAsync(context, bundleIdentifier);
-    const profileType = resolveProfileType(profileClass, authCtx.team.inHouse);
+    const profileType = resolveProfileType(applePlatform, profileClass, authCtx.team.inHouse);
     await Promise.all(
       profiles
         .filter(profile => profile.attributes.profileType === profileType)

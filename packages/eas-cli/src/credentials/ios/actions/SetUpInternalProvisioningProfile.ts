@@ -1,7 +1,7 @@
 import { IosAppBuildCredentialsFragment, IosDistributionType } from '../../../graphql/generated';
 import Log, { learnMore } from '../../../log';
 import { promptAsync } from '../../../prompts';
-import { CredentialsContext } from '../../context';
+import { TargetCredentialsContext } from '../../context';
 import { AppLookupParams } from '../api/GraphqlClient';
 import { getAllBuildCredentialsAsync } from './BuildCredentialsUtils';
 import { SetUpAdhocProvisioningProfile } from './SetUpAdhocProvisioningProfile';
@@ -17,7 +17,7 @@ import { SetUpProvisioningProfile } from './SetUpProvisioningProfile';
 export class SetUpInternalProvisioningProfile {
   constructor(private app: AppLookupParams) {}
 
-  async runAsync(ctx: CredentialsContext): Promise<IosAppBuildCredentialsFragment> {
+  async runAsync(ctx: TargetCredentialsContext): Promise<IosAppBuildCredentialsFragment> {
     const buildCredentials = await getAllBuildCredentialsAsync(ctx, this.app);
 
     const adhocBuildCredentialsExist =
@@ -85,13 +85,13 @@ export class SetUpInternalProvisioningProfile {
   }
 
   private async setupAdhocProvisioningProfileAsync(
-    ctx: CredentialsContext
+    ctx: TargetCredentialsContext
   ): Promise<IosAppBuildCredentialsFragment> {
     return await new SetUpAdhocProvisioningProfile(this.app).runAsync(ctx);
   }
 
   private async setupUniversalProvisioningProfileAsync(
-    ctx: CredentialsContext
+    ctx: TargetCredentialsContext
   ): Promise<IosAppBuildCredentialsFragment> {
     return await new SetUpProvisioningProfile(this.app, IosDistributionType.Enterprise).runAsync(
       ctx
@@ -99,7 +99,7 @@ export class SetUpInternalProvisioningProfile {
   }
 
   private async askForDistributionTypeAndSetupAsync(
-    ctx: CredentialsContext,
+    ctx: TargetCredentialsContext,
     message: string
   ): Promise<IosAppBuildCredentialsFragment> {
     const { distributionType } = await promptAsync({
