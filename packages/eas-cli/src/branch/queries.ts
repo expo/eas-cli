@@ -89,16 +89,21 @@ function renderPageOfBranches(
     });
 
     table.push(
-      ...currentPage.map(branch => [
-        branch.name,
-        formatUpdate(branch.updates[0]),
-        branch.updates[0]?.runtimeVersion ?? 'N/A',
-        branch.updates[0]?.group ?? 'N/A',
-        getPlatformsForGroup({
-          updates: branch.updates,
-          group: branch.updates[0]?.group ?? [],
-        }),
-      ])
+      ...currentPage.map(branch => {
+        const update: UpdateBranchFragment['updates'][0] | undefined = branch.updates[0];
+        return [
+          branch.name,
+          formatUpdate(update),
+          update?.runtimeVersion ?? 'N/A',
+          update?.group ?? 'N/A',
+          update?.group
+            ? getPlatformsForGroup({
+                updates: branch.updates,
+                group: update?.group ?? '',
+              })
+            : 'N/A',
+        ];
+      })
     );
 
     Log.addNewLineIfNone();
