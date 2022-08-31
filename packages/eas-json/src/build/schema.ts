@@ -45,7 +45,7 @@ const AndroidBuildProfileSchema = CommonBuildProfileSchema.concat(
     gradleCommand: Joi.string(),
 
     buildType: Joi.string().valid('apk', 'app-bundle'),
-  })
+  }).oxor('artifactPath', 'applicationArchivePath')
 );
 
 const IosBuildProfileSchema = CommonBuildProfileSchema.concat(
@@ -69,7 +69,7 @@ const IosBuildProfileSchema = CommonBuildProfileSchema.concat(
     buildArtifactsPaths: Joi.array().items(Joi.string()),
     scheme: Joi.string(),
     buildConfiguration: Joi.string(),
-  })
+  }).oxor('artifactPath', 'applicationArchivePath')
 );
 
 export const BuildProfileSchema = CommonBuildProfileSchema.concat(

@@ -1,13 +1,20 @@
+import { Platform } from '@expo/eas-build-job';
+import { EasJsonReader } from '@expo/eas-json';
 import { Errors, Flags } from '@oclif/core';
+import chalk from 'chalk';
+import figures from 'figures';
+import fs from 'fs-extra';
 import path from 'path';
 
 import { BuildFlags, runBuildAndSubmitAsync } from '../../build/runBuildAndSubmit';
 import { UserInputResourceClass } from '../../build/types';
 import EasCommand from '../../commandUtils/EasCommand';
 import { StatuspageServiceName } from '../../graphql/generated';
-import Log from '../../log';
+import Log, { link } from '../../log';
 import { RequestedPlatform, selectRequestedPlatformAsync } from '../../platform';
 import { findProjectRootAsync } from '../../project/projectUtils';
+import { selectAsync } from '../../prompts';
+import uniq from '../../utils/expodash/uniq';
 import { enableJsonOutput } from '../../utils/json';
 import { maybeWarnAboutEasOutagesAsync } from '../../utils/statuspageService';
 
@@ -104,6 +111,8 @@ export default class Build extends EasCommand {
     const flags = this.sanitizeFlags(rawFlags);
 
     const projectDir = await findProjectRootAsync();
+
+    await handleDeprecatedEasJsonAsync(projectDir, flags.nonInteractive);
 
     if (!flags.localBuildOptions.enable) {
       await maybeWarnAboutEasOutagesAsync(
@@ -207,4 +216,72 @@ export default class Build extends EasCommand {
       requestedPlatform,
     };
   }
+}
+
+async function handleDeprecatedEasJsonAsync(
+  projectDir: string,
+  nonInteractive: boolean
+): Promise<void> {
+  const reader = new EasJsonReader(projectDir);
+  const profileNames = await reader.getBuildProfileNamesAsync();
+  const platformAndProfileNames: [Platform, string][] = profileNames.flatMap(profileName => [
+    [Platform.ANDROID, profileName],
+    [Platform.IOS, profileName],
+  ]);
+
+  const deprecatedProfiles: [Platform, string][] = [];
+
+  for (const [platform, profileName] of platformAndProfileNames) {
+    const buildProfile = await reader.getBuildProfileAsync(platform, profileName);
+    if (buildProfile.artifactPath) {
+      deprecatedProfiles.push([platform, profileName]);
+    }
+  }
+
+  if (deprecatedProfiles.length === 0) {
+    return;
+  }
+
+  const deprecatedProfileNames = uniq(deprecatedProfiles.map(([, profileName]) => profileName));
+  Log.warn(`Some of your build profiles use deprecated ${chalk.bold('artifactPath')} field:`);
+  for (const profileName of deprecatedProfileNames) {
+    Log.warn(`- ${profileName}`);
+  }
+  Log.newLine();
+
+  if (nonInteractive) {
+    Log.warn(
+      `${figures.warning} Action required: rename ${chalk.bold('artifactPath')} to ${chalk.bold(
+        'applicationArchivePath'
+      )} in all of the build profiles listed above.`
+    );
+    Log.warn(
+      `See ${link('https://docs.expo.dev/build-reference/eas-json/')} for more information.`
+    );
+    Log.warn(
+      'This warning will become an error in an upcoming EAS CLI release. For now, we will proceed to avoid disruption of your builds.'
+    );
+    return;
+  }
+
+  const rename = await selectAsync('Do you want to handle renaming the field for you?', [
+    { title: 'Yes', value: true },
+    { title: 'No, I will edit eas.json on my own (EAS CLI exits)', value: false },
+  ]);
+
+  if (!rename) {
+    Errors.exit(1);
+  }
+
+  const easJsonPath = EasJsonReader.formatEasJsonPath(projectDir);
+  const easJson = await fs.readJSON(easJsonPath);
+
+  for (const [platform, profileName] of deprecatedProfiles) {
+    easJson.build[profileName][platform].applicationArchivePath =
+      easJson.build[profileName][platform].artifactPath;
+    delete easJson.build[profileName][platform].artifactPath;
+  }
+
+  await fs.writeFile(easJsonPath, `${JSON.stringify(easJson, null, 2)}\n`);
+  Log.withTick('Updated eas.json');
 }
