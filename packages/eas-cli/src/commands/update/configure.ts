@@ -166,7 +166,7 @@ async function configureAppJSONForEASUpdateAsync({
         newConfigOnlyAddedValues = {
           ...('runtimeVersion' in exp
             ? {
-                runtimeVersion: undefined, // top level runtime is redundant if it is specified in both android and ios
+                runtimeVersion: '<remove this key>', // top level runtime is redundant if it is specified in both android and ios
               }
             : {}),
           android: {
