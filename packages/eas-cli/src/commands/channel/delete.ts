@@ -85,7 +85,7 @@ export default class ChannelDelete extends EasCommand {
     if (!nonInteractiveFlag) {
       Log.addNewLineIfNone();
       Log.warn(
-        `You are about to permamently delete channel: "${name}".\nThis action is irreversible.`
+        `You are about to permanently delete channel: "${name}".\nThis action is irreversible.`
       );
       Log.newLine();
       const confirmed = await toggleConfirmAsync({ message: 'Are you sure you wish to proceed?' });

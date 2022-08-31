@@ -2,7 +2,7 @@ import { AppCategory, AppCategoryId, AppSubcategoryId, BundleIdPlatform } from '
 
 import { AppleConfigWriter } from '../../writer';
 
-/** Infered type of the AppleConfigWriter.setCategories attributes */
+/** Inferred type of the AppleConfigWriter.setCategories attributes */
 type CategoryInfoProps = Parameters<typeof AppleConfigWriter.prototype.setCategories>[0];
 
 /**

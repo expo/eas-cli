@@ -172,8 +172,8 @@ async function configureAppJSONForEASUpdateAsync({
 
   const result = await modifyConfigAsync(projectDir, newConfig);
 
-  const prexistingAndroidRuntimeVersion = exp.android?.runtimeVersion ?? exp.runtimeVersion;
-  const prexistingIosRuntimeVersion = exp.ios?.runtimeVersion ?? exp.runtimeVersion;
+  const preexistingAndroidRuntimeVersion = exp.android?.runtimeVersion ?? exp.runtimeVersion;
+  const preexistingIosRuntimeVersion = exp.ios?.runtimeVersion ?? exp.runtimeVersion;
   switch (result.type) {
     case 'success':
       if (exp.updates?.url) {
@@ -187,7 +187,7 @@ async function configureAppJSONForEASUpdateAsync({
       }
 
       if (
-        !prexistingAndroidRuntimeVersion &&
+        !preexistingAndroidRuntimeVersion &&
         [RequestedPlatform.Android, RequestedPlatform.All].includes(platform)
       ) {
         Log.withTick(
@@ -197,7 +197,7 @@ async function configureAppJSONForEASUpdateAsync({
         );
       }
       if (
-        !prexistingIosRuntimeVersion &&
+        !preexistingIosRuntimeVersion &&
         [RequestedPlatform.Ios, RequestedPlatform.All].includes(platform)
       ) {
         Log.withTick(

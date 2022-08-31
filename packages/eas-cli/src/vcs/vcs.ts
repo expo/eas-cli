@@ -47,7 +47,7 @@ export abstract class Client {
   // `commitAsync({ commitAllFiles: false })` should commit that file
   public async trackFileAsync(_file: string): Promise<void> {}
 
-  // (optional) print diff of the changes that will be commited in the next call to
+  // (optional) print diff of the changes that will be committed in the next call to
   // `commitAsync({ commitAllFiles: false })`
   public async showDiffAsync(): Promise<void> {}
 

@@ -377,7 +377,7 @@ export default class UpdatePublish extends EasCommand {
         if (updatesToRepublishFilteredByPlatform.length !== defaultPublishPlatforms.length) {
           Log.warn(`You are republishing an update that wasn't published for all platforms.`);
         }
-        publicationPlatformMessage = `The republished update will appear on the same plaforms it was originally published on: ${updatesToRepublishFilteredByPlatform
+        publicationPlatformMessage = `The republished update will appear on the same platforms it was originally published on: ${updatesToRepublishFilteredByPlatform
           .map(update => update.platform)
           .join(', ')}`;
       } else {

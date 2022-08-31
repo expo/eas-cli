@@ -32,8 +32,8 @@ export class MetadataUploadError extends Error {
 
 /**
  * If a single entity failed to download, we don't block the other entities from downloading.
- * We sill attempt to pull in the data from the stores as much as possible.
- * Because of that, we keep track of any errors envountered and throw this generic error.
+ * We still attempt to pull in the data from the stores as much as possible.
+ * Because of that, we keep track of any errors encountered and throw this generic error.
  * It contains that list of encountered errors to present to the user.
  */
 export class MetadataDownloadError extends Error {

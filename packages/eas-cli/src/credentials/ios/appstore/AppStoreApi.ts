@@ -56,7 +56,7 @@ export default class AppStoreApi {
   public async ensureUserAuthenticatedAsync(options?: AuthenticateOptions): Promise<UserAuthCtx> {
     if (this.authCtx && !isUserAuthCtx(this.authCtx)) {
       // already authenticated, but with the wrong type
-      Log.log(`Only user authentication is supported. Reauthenticating as user...`);
+      Log.log(`Only user authentication is supported. Re-authenticating as user...`);
       this.authCtx = undefined;
     }
 

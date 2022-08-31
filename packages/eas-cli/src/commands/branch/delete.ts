@@ -91,12 +91,16 @@ export default class BranchDelete extends EasCommand {
       description: `return JSON with the edited branch's ID and name.`,
       default: false,
     }),
+    'non-interactive': Flags.boolean({
+      default: false,
+      description: 'Run command in non-interactive mode',
+    }),
   };
 
   async runAsync(): Promise<void> {
     let {
       args: { name },
-      flags: { json: jsonFlag },
+      flags: { json: jsonFlag, 'non-interactive': nonInteractiveFlag },
     } = await this.parse(BranchDelete);
     if (jsonFlag) {
       enableJsonOutput();
@@ -126,10 +130,10 @@ export default class BranchDelete extends EasCommand {
       throw new Error(`Could not find branch ${name} on ${fullName}`);
     }
 
-    if (!jsonFlag) {
+    if (!jsonFlag || !nonInteractiveFlag) {
       Log.addNewLineIfNone();
       Log.warn(
-        `You are about to permamently delete branch: "${name}" and all of the updates published on it.` +
+        `You are about to permanently delete branch: "${name}" and all of the updates published on it.` +
           `\nThis action is irreversible.`
       );
       Log.newLine();

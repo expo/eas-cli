@@ -15,7 +15,7 @@ import { DeviceManagerContext } from './context';
 
 const CREATE_COMMAND_DESCRIPTION = `This command lets you register your Apple devices (iPhones and iPads) for internal distribution of your app.
 Internal distribution means that you won't need upload your app archive to App Store / Testflight.
-Your app archive (.ipa) will be installable on your equipment as long as you sign your application with an adhoc provisiong profile.
+Your app archive (.ipa) will be installable on your equipment as long as you sign your application with an adhoc provisioning profile.
 The provisioning profile needs to contain the UDIDs (unique identifiers) of your iPhones and iPads.
 
 First of all, choose the Expo account under which you want to register your devices.

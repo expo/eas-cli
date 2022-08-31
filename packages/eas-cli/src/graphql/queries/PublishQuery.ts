@@ -29,7 +29,7 @@ export const PublishQuery = {
           {
             requestPolicy: 'network-only',
             additionalTypenames: ['AssetMetadataResult'],
-          } // Since we reptitively query this to monitor the asset upload, we need to ensure it is not cached.
+          } // Since we repetitively query this to monitor the asset upload, we need to ensure it is not cached.
         )
         .toPromise()
     );

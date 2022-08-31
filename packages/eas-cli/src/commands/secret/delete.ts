@@ -60,7 +60,7 @@ export default class EnvironmentSecretDelete extends EasCommand {
 
     Log.addNewLineIfNone();
     Log.warn(
-      `You are about to permamently delete secret${
+      `You are about to permanently delete secret${
         secret?.name ? ` "${secret?.name}"` : ''
       } with id: "${id}".\nThis action is irreversible.`
     );
