@@ -168,6 +168,14 @@
           "markdownDescription": "When enabled, for iOS, bumps the last component of `expo.ios.buildNumber` (e.g. `1.2.3.39` -> `1.2.3.40`) and for Android, bumps `expo.android.versionCode` (e.g. `3` -> `4`).",
           "default": false
         },
+        "buildArtifactsPaths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "List of paths (or patterns) where EAS Build is going to look for the build artifacts. Use `applicationArchivePath` for specifying the path for uploading the application archive. Build artifacts are uploaded even if the build fails. See: https://github.com/mrmlnc/fast-glob#pattern-syntax",
+          "markdownDescription": "List of paths (or patterns) where EAS Build is going to look for the build artifacts. Use `applicationArchivePath` for specifying the path for uploading the application archive. Build artifacts are uploaded even if the build fails. EAS Build uses the `fast-glob` npm package for pattern matching ([see their README to learn more about the syntax you can use](https://github.com/mrmlnc/fast-glob#pattern-syntax))."
+        },
         "android": {
           "$ref": "#/definitions/BuildProfileAndroid"
         },
@@ -244,10 +252,10 @@
           "description": "Gradle task that will be used to build your project, e.g. `:app:assembleDebug` to build a debug binary.",
           "markdownDescription": "Gradle task that will be used to build your project, e.g. `:app:assembleDebug` to build a debug binary.\n\nIt's not recommended unless you need to run a task that `buildType` does not support, it takes priority over `buildType` and `developmentClient`."
         },
-        "artifactPath": {
+        "applicationArchivePath": {
           "type": "string",
-          "description": "Path (or pattern) where EAS Build is going to look for the build artifacts. See: https://github.com/mrmlnc/fast-glob#pattern-syntax",
-          "markdownDescription": "Path (or pattern) where EAS Build is going to look for the build artifacts. EAS Build uses the `fast-glob` npm package for pattern matching ([see their README to learn more about the syntax you can use](https://github.com/mrmlnc/fast-glob#pattern-syntax)).",
+          "description": "Path (or pattern) where EAS Build is going to look for the application archive. See: https://github.com/mrmlnc/fast-glob#pattern-syntax",
+          "markdownDescription": "Path (or pattern) where EAS Build is going to look for the application archive. EAS Build uses the `fast-glob` npm package for pattern matching ([see their README to learn more about the syntax you can use](https://github.com/mrmlnc/fast-glob#pattern-syntax)).",
           "default": "android/app/build/outputs/**/*.{apk,aab}"
         }
       }
@@ -332,10 +340,10 @@
           "description": "Xcode project's Build Configuration.",
           "markdownDescription": "Xcode project's Build Configuration.\n- managed project: \"Release\" or \"Debug\", defaults to \"Release\"\n- bare project: defaults to the value specified in the scheme\n\nIt takes priority over `developmentClient` field."
         },
-        "artifactPath": {
+        "applicationArchivePath": {
           "type": "string",
-          "description": "Path (or pattern) where EAS Build is going to look for the build artifacts. See: https://github.com/mrmlnc/fast-glob#pattern-syntax",
-          "markdownDescription": "Path (or pattern) where EAS Build is going to look for the build artifacts.\n\nEAS Build uses the `fast-glob` npm package for pattern matching, ([See their README to learn more about the syntax you can use](https://github.com/mrmlnc/fast-glob#pattern-syntax)).\n\nYou should modify that path only if you are using a custom `Gymfile`.\n\nThe default is `ios/build/Build/Products/*-iphonesimulator/*.app` when building for simulator and `ios/build/*.ipa` in other cases."
+          "description": "Path (or pattern) where EAS Build is going to look for the application archive. See: https://github.com/mrmlnc/fast-glob#pattern-syntax",
+          "markdownDescription": "Path (or pattern) where EAS Build is going to look for the application archive.\n\nEAS Build uses the `fast-glob` npm package for pattern matching, ([See their README to learn more about the syntax you can use](https://github.com/mrmlnc/fast-glob#pattern-syntax)).\n\nYou should modify that path only if you are using a custom `Gymfile`.\n\nThe default is `ios/build/Build/Products/*-iphonesimulator/*.app` when building for simulator and `ios/build/*.ipa` in other cases."
         }
       }
     },
