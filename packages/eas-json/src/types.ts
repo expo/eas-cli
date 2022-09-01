@@ -21,7 +21,7 @@ export interface EasJson {
     version?: string;
     requireCommit?: boolean;
     appVersionSource?: AppVersionSource;
-    promptToConfigurePushNotfications?: boolean;
+    promptToConfigurePushNotifications?: boolean;
   };
   build?: { [profileName: string]: EasJsonBuildProfile };
   submit?: { [profileName: string]: EasJsonSubmitProfile };
