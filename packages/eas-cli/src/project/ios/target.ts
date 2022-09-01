@@ -1,4 +1,3 @@
-import { Platform as ApplePlatform } from '@expo/apple-utils';
 import { ExpoConfig } from '@expo/config';
 import { IOSConfig, XcodeProject } from '@expo/config-plugins';
 import { Platform, Workflow } from '@expo/eas-build-job';
@@ -6,6 +5,7 @@ import { JSONObject } from '@expo/json-file';
 import Joi from 'joi';
 import type { XCBuildConfiguration } from 'xcode';
 
+import { ApplePlatform } from '../../credentials/ios/appstore/constants';
 import { Target } from '../../credentials/ios/types';
 import { resolveWorkflowAsync } from '../workflow';
 import { getBundleIdentifierAsync } from './bundleIdentifier';
@@ -230,12 +230,12 @@ function resolveBareProjectBuildSettings(
 
 /**
  * Get Apple Platform from the Xcode SDKROOT where possible.
- * @returns - Apple Platform when known, otherwise null
+ * @returns - Apple Platform when known, defaults to IOS when unknown
  */
-export function getApplePlatformFromSdkRoot(target: Target): ApplePlatform | null {
+export function getApplePlatformFromSdkRoot(target: Target): ApplePlatform {
   const sdkRoot = target.buildSettings?.SDKROOT;
   if (!sdkRoot) {
-    return null;
+    return ApplePlatform.IOS;
   }
   if (sdkRoot.includes('iphoneos')) {
     return ApplePlatform.IOS;
@@ -244,6 +244,6 @@ export function getApplePlatformFromSdkRoot(target: Target): ApplePlatform | nul
   } else if (sdkRoot.includes('macosx')) {
     return ApplePlatform.MAC_OS;
   } else {
-    return null;
+    return ApplePlatform.IOS;
   }
 }

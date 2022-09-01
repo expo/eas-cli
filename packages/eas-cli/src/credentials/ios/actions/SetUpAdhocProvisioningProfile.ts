@@ -1,4 +1,4 @@
-import { Platform as ApplePlatform, ProfileType } from '@expo/apple-utils';
+import { ProfileType } from '@expo/apple-utils';
 import assert from 'assert';
 import chalk from 'chalk';
 import nullthrows from 'nullthrows';
@@ -19,6 +19,7 @@ import differenceBy from '../../../utils/expodash/differenceBy';
 import { CredentialsContext, TargetCredentialsContext } from '../../context';
 import { MissingCredentialsNonInteractiveError } from '../../errors';
 import { AppLookupParams } from '../api/GraphqlClient';
+import { ApplePlatform } from '../appstore/constants';
 import { validateProvisioningProfileAsync } from '../validators/validateProvisioningProfile';
 import { resolveAppleTeamIfAuthenticatedAsync } from './AppleTeamUtils';
 import { assignBuildCredentialsAsync, getBuildCredentialsAsync } from './BuildCredentialsUtils';

@@ -1,5 +1,4 @@
 import { ProfileType } from '@expo/app-store';
-import { Platform as ApplePlatform } from '@expo/apple-utils';
 
 import Log from '../../../log';
 import {
@@ -25,6 +24,7 @@ import {
   isUserAuthCtx,
 } from './authenticate';
 import { AuthCtx, AuthenticationMode, UserAuthCtx } from './authenticateTypes';
+import { ApplePlatform } from './constants';
 import {
   createDistributionCertificateAsync,
   listDistributionCertificatesAsync,

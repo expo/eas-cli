@@ -1,4 +1,3 @@
-import { Platform as ApplePlatform } from '@expo/apple-utils';
 import assert from 'assert';
 import chalk from 'chalk';
 
@@ -15,6 +14,7 @@ import { AppLookupParams } from '../api/GraphqlClient';
 import { AppleProvisioningProfileMutationResult } from '../api/graphql/mutations/AppleProvisioningProfileMutation';
 import { ProvisioningProfileStoreInfo } from '../appstore/Credentials.types';
 import { AuthCtx } from '../appstore/authenticateTypes';
+import { ApplePlatform } from '../appstore/constants';
 
 export class ConfigureProvisioningProfile {
   constructor(
@@ -45,7 +45,7 @@ export class ConfigureProvisioningProfile {
       return null;
     }
 
-    const applePlatform = (await getApplePlatformFromSdkRoot(ctx.target)) ?? ApplePlatform.IOS;
+    const applePlatform = await getApplePlatformFromSdkRoot(ctx.target);
     const profilesFromApple = await ctx.appStore.listProvisioningProfilesAsync(
       this.app.bundleIdentifier,
       applePlatform

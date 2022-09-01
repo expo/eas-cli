@@ -1,4 +1,4 @@
-import { Platform as ApplePlatform, Profile, ProfileType, RequestContext } from '@expo/apple-utils';
+import { Profile, ProfileType, RequestContext } from '@expo/apple-utils';
 
 import { ora } from '../../../ora';
 import { isAppStoreConnectTokenOnlyContext } from '../utils/authType';
@@ -11,6 +11,7 @@ import {
 import { getRequestContext } from './authenticate';
 import { AuthCtx } from './authenticateTypes';
 import { getBundleIdForIdentifierAsync, getProfilesForBundleIdAsync } from './bundleId';
+import { ApplePlatform } from './constants';
 import { getCertificateBySerialNumberAsync, transformCertificate } from './distributionCertificate';
 
 export enum ProfileClass {

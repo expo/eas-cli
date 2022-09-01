@@ -1,4 +1,3 @@
-import { Platform as ApplePlatform } from '@expo/apple-utils';
 import { PlistArray, PlistObject } from '@expo/plist';
 import assert from 'assert';
 import crypto from 'crypto';
@@ -10,6 +9,7 @@ import Log from '../../../log';
 import { getApplePlatformFromSdkRoot } from '../../../project/ios/target';
 import { TargetCredentialsContext } from '../../context';
 import { AppLookupParams } from '../api/GraphqlClient';
+import { ApplePlatform } from '../appstore/constants';
 import { ProfileClass } from '../appstore/provisioningProfile';
 import { getP12CertFingerprint } from '../utils/p12Certificate';
 import { parse as parseProvisioningProfile } from '../utils/provisioningProfile';
@@ -92,7 +92,7 @@ async function validateProvisioningProfileWithAppleAsync(
   assert(buildCredentials.provisioningProfile, 'Provisioning Profile must be defined');
   const { developerPortalIdentifier, provisioningProfile } = buildCredentials.provisioningProfile;
 
-  const applePlatform = (await getApplePlatformFromSdkRoot(ctx.target)) ?? ApplePlatform.IOS;
+  const applePlatform = await getApplePlatformFromSdkRoot(ctx.target);
   const profilesFromApple = await ctx.appStore.listProvisioningProfilesAsync(
     app.bundleIdentifier,
     applePlatform,

@@ -44,11 +44,13 @@ async function registerMissingDevicesAsync(
   return alreadyAdded;
 }
 
-async function findProfileByBundleIdAsync(
+async function findProfileAsync(
   context: RequestContext,
-  bundleId: string,
-  certSerialNumber: string,
-  profileType: ProfileType
+  {
+    bundleId,
+    certSerialNumber,
+    profileType,
+  }: { bundleId: string; certSerialNumber: string; profileType: ProfileType }
 ): Promise<{
   profile: Profile | null;
   didUpdate: boolean;
@@ -156,12 +158,7 @@ async function manageAdHocProfilesAsync(
     }
   } else {
     // If no profile id is passed, try to find a suitable provisioning profile for the App ID.
-    const results = await findProfileByBundleIdAsync(
-      context,
-      bundleId,
-      certSerialNumber,
-      profileType
-    );
+    const results = await findProfileAsync(context, { bundleId, certSerialNumber, profileType });
     existingProfile = results.profile;
     didUpdate = results.didUpdate;
   }
@@ -199,7 +196,7 @@ async function manageAdHocProfilesAsync(
     }
 
     const updatedProfile = (
-      await findProfileByBundleIdAsync(context, bundleId, certSerialNumber, profileType)
+      await findProfileAsync(context, { bundleId, certSerialNumber, profileType })
     ).profile;
     if (!updatedProfile) {
       throw new Error(

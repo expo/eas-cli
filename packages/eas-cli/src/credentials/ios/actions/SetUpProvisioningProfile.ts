@@ -1,4 +1,3 @@
-import { Platform as ApplePlatform } from '@expo/apple-utils';
 import nullthrows from 'nullthrows';
 
 import {
@@ -13,6 +12,7 @@ import { TargetCredentialsContext } from '../../context';
 import { MissingCredentialsNonInteractiveError } from '../../errors';
 import { AppLookupParams } from '../api/GraphqlClient';
 import { ProvisioningProfileStoreInfo } from '../appstore/Credentials.types';
+import { ApplePlatform } from '../appstore/constants';
 import { validateProvisioningProfileAsync } from '../validators/validateProvisioningProfile';
 import {
   assignBuildCredentialsAsync,
@@ -107,7 +107,7 @@ export class SetUpProvisioningProfile {
     }
 
     // See if the profile we have exists on the Apple Servers
-    const applePlatform = (await getApplePlatformFromSdkRoot(ctx.target)) ?? ApplePlatform.IOS;
+    const applePlatform = await getApplePlatformFromSdkRoot(ctx.target);
     const existingProfiles = await ctx.appStore.listProvisioningProfilesAsync(
       this.app.bundleIdentifier,
       applePlatform
