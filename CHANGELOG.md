@@ -6,6 +6,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🛠 Breaking changes
 
+- Fix typo in `cli.promptToConfigurePushNotifications` field in **eas.json**. EAS CLI will throw an error if the old field name is in **eas.json**. ([#1332](https://github.com/expo/eas-cli/pull/1332) by [@dsokal](https://github.com/dsokal))
+
 ### 🎉 New features
 
 ### 🐛 Bug fixes
