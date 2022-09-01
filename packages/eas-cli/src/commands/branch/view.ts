@@ -1,5 +1,6 @@
 import { selectBranchOnAppAsync } from '../../branch/queries';
 import EasCommand from '../../commandUtils/EasCommand';
+import { EasNonInteractiveFlags } from '../../commandUtils/flags';
 import {
   EasPaginatedQueryFlags,
   getLimitFlagWithCustomValues,
@@ -23,6 +24,7 @@ export default class BranchView extends EasCommand {
 
   static override flags = {
     ...EasPaginatedQueryFlags,
+    ...EasNonInteractiveFlags.nonInteractive,
     limit: getLimitFlagWithCustomValues({ defaultTo: 25, limit: 50 }),
   };
 
@@ -59,6 +61,10 @@ export default class BranchView extends EasCommand {
       }));
     }
 
-    await listAndRenderUpdateGroupsOnBranchAsync({ projectId, branchName, paginatedQueryOptions });
+    await listAndRenderUpdateGroupsOnBranchAsync({
+      projectId,
+      branchName,
+      paginatedQueryOptions,
+    });
   }
 }

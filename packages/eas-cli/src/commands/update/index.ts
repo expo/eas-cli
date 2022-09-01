@@ -11,7 +11,8 @@ import { selectBranchOnAppAsync } from '../../branch/queries';
 import { getDefaultBranchNameAsync } from '../../branch/utils';
 import { getUpdateGroupUrl } from '../../build/utils/url';
 import EasCommand from '../../commandUtils/EasCommand';
-import { EasPaginatedQueryFlags, getPaginatedQueryOptions } from '../../commandUtils/pagination';
+import { EasNonInteractiveFlags } from '../../commandUtils/flags';
+import { getPaginatedQueryOptions } from '../../commandUtils/pagination';
 import fetch from '../../fetch';
 import {
   PublishUpdateGroupInput,
@@ -170,8 +171,7 @@ export default class UpdatePublish extends EasCommand {
       description: `File containing the PEM-encoded private key corresponding to the certificate in expo-updates' configuration. Defaults to a file named "private-key.pem" in the certificate's directory.`,
       required: false,
     }),
-    'non-interactive': EasPaginatedQueryFlags['non-interactive'],
-    json: EasPaginatedQueryFlags.json,
+    ...EasNonInteractiveFlags.nonInteractive,
   };
 
   async runAsync(): Promise<void> {

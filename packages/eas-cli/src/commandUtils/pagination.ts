@@ -1,13 +1,20 @@
 import { Flags } from '@oclif/core';
 
+import { EasNonInteractiveFlags } from './flags';
+
 export const getPaginatedQueryOptions = (
-  flags: Partial<Record<keyof typeof EasPaginatedQueryFlags, any>>
+  flags: Partial<
+    Record<
+      keyof typeof EasPaginatedQueryFlags | keyof typeof EasNonInteractiveFlags['nonInteractive'],
+      any
+    >
+  >
 ): PaginatedQueryOptions => {
   return {
-    json: flags.json ?? false,
+    ...('limit' in flags && { limit: flags.limit }),
     offset: flags.offset ?? 0,
     nonInteractive: flags['non-interactive'] ?? false,
-    ...('limit' in flags && { limit: flags.limit }),
+    json: flags.json ?? false,
   };
 };
 
@@ -48,12 +55,6 @@ export const EasPaginatedQueryFlags = {
       parseFlagInputStringAsInteger(input, 'offset', 0, Number.MAX_SAFE_INTEGER),
   }),
   limit: getLimitFlagWithCustomValues({ defaultTo: 50, limit: 100 }),
-  json: Flags.boolean({
-    description: 'Enable JSON output, non-JSON messages will be printed to stderr.',
-  }),
-  'non-interactive': Flags.boolean({
-    description: 'Run the command in non-interactive mode.',
-  }),
 };
 
 // options required to control a paginated query

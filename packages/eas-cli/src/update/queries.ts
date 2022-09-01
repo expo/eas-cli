@@ -47,7 +47,7 @@ export async function listAndRenderUpdatesGroupsOnAppAsync({
       queryToPerform: (limit, offset) =>
         queryUpdateGroupsOnAppAsync({ limit, offset, appId: projectId }),
       promptOptions: {
-        title: 'Load more branches?',
+        title: 'Load more update groups?',
         renderListItems: updateGroup =>
           renderUpdateGroupsAsTableWithBranchColumn(updateGroup, paginatedQueryOptions),
       },
@@ -79,7 +79,7 @@ export async function listAndRenderUpdateGroupsOnBranchAsync({
       queryToPerform: (limit, offset) =>
         queryUpdateGroupsOnBranchAsync({ limit, offset, appId: projectId, branchName }),
       promptOptions: {
-        title: 'Load more branches?',
+        title: 'Load more update groups?',
         renderListItems: updates => renderUpdateGroupsAsTable(updates, paginatedQueryOptions),
       },
     });
@@ -104,7 +104,7 @@ export async function selectUpdateGroupOnBranchAsync({
       queryToPerform: (limit, offset) =>
         queryUpdateGroupsOnBranchAsync({ appId: projectId, branchName, limit, offset }),
       promptOptions: {
-        title: 'Load more updates?',
+        title: 'Load more update groups?',
         createDisplayTextForSelectionPromptListItem: updateGroup =>
           formatUpdateTitle(updateGroup[0]),
         getIdentifierForQueryItem: updateGroup => updateGroup[0].group,

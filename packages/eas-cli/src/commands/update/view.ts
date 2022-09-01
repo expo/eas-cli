@@ -2,7 +2,7 @@ import chalk from 'chalk';
 import Table from 'cli-table3';
 
 import EasCommand from '../../commandUtils/EasCommand';
-import { EasPaginatedQueryFlags } from '../../commandUtils/pagination';
+import { EasNonInteractiveFlags } from '../../commandUtils/flags';
 import { UpdateQuery } from '../../graphql/queries/UpdateQuery';
 import Log from '../../log';
 import { UPDATE_COLUMNS, getUpdateGroupDescriptions } from '../../update/utils';
@@ -21,7 +21,7 @@ export default class UpdateView extends EasCommand {
   ];
 
   static override flags = {
-    json: EasPaginatedQueryFlags.json,
+    ...EasNonInteractiveFlags.jsonOnly,
   };
 
   async runAsync(): Promise<void> {

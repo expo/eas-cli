@@ -1,5 +1,6 @@
 import { listAndRenderBranchesOnAppAsync } from '../../branch/queries';
 import EasCommand from '../../commandUtils/EasCommand';
+import { EasNonInteractiveFlags } from '../../commandUtils/flags';
 import { EasPaginatedQueryFlags, getPaginatedQueryOptions } from '../../commandUtils/pagination';
 import { getExpoConfig } from '../../project/expoConfig';
 import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUtils';
@@ -10,6 +11,7 @@ export default class BranchList extends EasCommand {
 
   static override flags = {
     ...EasPaginatedQueryFlags,
+    ...EasNonInteractiveFlags.nonInteractive,
   };
 
   async runAsync(): Promise<void> {
