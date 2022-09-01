@@ -6,8 +6,6 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🛠 Breaking changes
 
-- Fix typo in `cli.promptToConfigurePushNotifications` field in **eas.json**. EAS CLI will throw an error if the old field name is in **eas.json**. ([#1332](https://github.com/expo/eas-cli/pull/1332) by [@dsokal](https://github.com/dsokal))
-
 ### 🎉 New features
 
 ### 🐛 Bug fixes
@@ -15,6 +13,16 @@ This is the log of notable changes to EAS CLI and related packages.
 - Fix dynamic config update warning. ([#1322](https://github.com/expo/eas-cli/pull/1322) by [@wschurman](https://github.com/wschurman))
 
 ### 🧹 Chores
+
+## [2.0.0](https://github.com/expo/eas-cli/releases/tag/v2.0.0) - 2022-09-01
+
+### 🛠 Breaking changes
+
+- Fix typo in `cli.promptToConfigurePushNotifications` field in **eas.json**. EAS CLI will throw an error if the old field name is in **eas.json**. ([#1332](https://github.com/expo/eas-cli/pull/1332) by [@dsokal](https://github.com/dsokal))
+
+### 🐛 Bug fixes
+
+- Fix dynamic config update warning. ([#1322](https://github.com/expo/eas-cli/pull/1322) by [@wschurman](https://github.com/wschurman))
 
 ## [1.2.0](https://github.com/expo/eas-cli/releases/tag/v1.2.0) - 2022-08-29
 
