@@ -1,8 +1,9 @@
 import { IosAppBuildCredentialsFragment, IosDistributionType } from '../../../graphql/generated';
 import Log, { learnMore } from '../../../log';
 import { promptAsync } from '../../../prompts';
-import { TargetCredentialsContext } from '../../context';
+import { CredentialsContext } from '../../context';
 import { AppLookupParams } from '../api/GraphqlClient';
+import { Target } from '../types';
 import { getAllBuildCredentialsAsync } from './BuildCredentialsUtils';
 import { SetUpAdhocProvisioningProfile } from './SetUpAdhocProvisioningProfile';
 import { SetUpProvisioningProfile } from './SetUpProvisioningProfile';
@@ -14,11 +15,17 @@ import { SetUpProvisioningProfile } from './SetUpProvisioningProfile';
  * to choose if they want to set up an adhoc or universal distribution provisioning profile. Otherwise, always
  * set up an adhoc provisioning profile.
  */
-export class SetUpInternalProvisioningProfile {
-  constructor(private app: AppLookupParams) {}
 
-  async runAsync(ctx: TargetCredentialsContext): Promise<IosAppBuildCredentialsFragment> {
-    const buildCredentials = await getAllBuildCredentialsAsync(ctx, this.app);
+interface Options {
+  app: AppLookupParams;
+  target: Target;
+}
+
+export class SetUpInternalProvisioningProfile {
+  constructor(private options: Options) {}
+
+  async runAsync(ctx: CredentialsContext): Promise<IosAppBuildCredentialsFragment> {
+    const buildCredentials = await getAllBuildCredentialsAsync(ctx, this.options.app);
 
     const adhocBuildCredentialsExist =
       buildCredentials.filter(
@@ -85,21 +92,24 @@ export class SetUpInternalProvisioningProfile {
   }
 
   private async setupAdhocProvisioningProfileAsync(
-    ctx: TargetCredentialsContext
+    ctx: CredentialsContext
   ): Promise<IosAppBuildCredentialsFragment> {
-    return await new SetUpAdhocProvisioningProfile(this.app).runAsync(ctx);
+    const { app, target } = this.options;
+    return await new SetUpAdhocProvisioningProfile({ app, target }).runAsync(ctx);
   }
 
   private async setupUniversalProvisioningProfileAsync(
-    ctx: TargetCredentialsContext
+    ctx: CredentialsContext
   ): Promise<IosAppBuildCredentialsFragment> {
-    return await new SetUpProvisioningProfile(this.app, IosDistributionType.Enterprise).runAsync(
-      ctx
-    );
+    return await new SetUpProvisioningProfile(
+      this.options.app,
+      this.options.target,
+      IosDistributionType.Enterprise
+    ).runAsync(ctx);
   }
 
   private async askForDistributionTypeAndSetupAsync(
-    ctx: TargetCredentialsContext,
+    ctx: CredentialsContext,
     message: string
   ): Promise<IosAppBuildCredentialsFragment> {
     const { distributionType } = await promptAsync({

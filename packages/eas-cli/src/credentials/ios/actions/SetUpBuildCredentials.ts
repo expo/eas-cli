@@ -47,17 +47,18 @@ export class SetUpBuildCredentials {
       } else {
         Log.newLine();
       }
-      const targetCtx = ctx.createTargetContext(target);
       const action = new SetUpTargetBuildCredentials({
         enterpriseProvisioning: this.options.enterpriseProvisioning,
         distribution: this.options.distribution,
+        entitlements: target.entitlements,
+        target,
         app: {
           ...this.options.app,
           bundleIdentifier: target.bundleIdentifier,
           parentBundleIdentifier: target.parentBundleIdentifier,
         },
       });
-      iosAppBuildCredentialsMap[target.targetName] = await action.runAsync(targetCtx);
+      iosAppBuildCredentialsMap[target.targetName] = await action.runAsync(ctx);
     }
 
     const appInfo = formatAppInfo(this.options.app, this.options.targets);

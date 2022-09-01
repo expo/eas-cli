@@ -1,13 +1,13 @@
 import chalk from 'chalk';
 
 import { getApplePlatformFromSdkRoot } from '../../../project/ios/target';
-import { TargetCredentialsContext } from '../../context';
+import { CredentialsContext } from '../../context';
 import {
   DistributionCertificate,
   ProvisioningProfile,
   ProvisioningProfileStoreInfo,
 } from '../appstore/Credentials.types';
-import { ApplePlatform } from '../appstore/constants';
+import { Target } from '../types';
 
 export function formatProvisioningProfileFromApple(
   appleInfo: ProvisioningProfileStoreInfo
@@ -21,14 +21,15 @@ export function formatProvisioningProfileFromApple(
 }
 
 export async function generateProvisioningProfileAsync(
-  ctx: TargetCredentialsContext,
+  ctx: CredentialsContext,
+  target: Target,
   bundleIdentifier: string,
   distCert: DistributionCertificate
 ): Promise<ProvisioningProfile> {
   const appleAuthCtx = await ctx.appStore.ensureAuthenticatedAsync();
   const type = appleAuthCtx.team.inHouse ? 'Enterprise ' : 'AppStore';
   const profileName = `*[expo] ${bundleIdentifier} ${type} ${new Date().toISOString()}`; // Apple drops [ if its the first char (!!)
-  const applePlatform = await getApplePlatformFromSdkRoot(ctx.target);
+  const applePlatform = await getApplePlatformFromSdkRoot(target);
   return await ctx.appStore.createProvisioningProfileAsync(
     bundleIdentifier,
     distCert,

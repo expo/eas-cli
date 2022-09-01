@@ -8,23 +8,24 @@ import {
 import Log from '../../../log';
 import { ora } from '../../../ora';
 import { getApplePlatformFromSdkRoot } from '../../../project/ios/target';
-import { CredentialsContext, TargetCredentialsContext } from '../../context';
+import { CredentialsContext } from '../../context';
 import { MissingCredentialsNonInteractiveError } from '../../errors';
 import { AppLookupParams } from '../api/GraphqlClient';
 import { AppleProvisioningProfileMutationResult } from '../api/graphql/mutations/AppleProvisioningProfileMutation';
 import { ProvisioningProfileStoreInfo } from '../appstore/Credentials.types';
 import { AuthCtx } from '../appstore/authenticateTypes';
-import { ApplePlatform } from '../appstore/constants';
+import { Target } from '../types';
 
 export class ConfigureProvisioningProfile {
   constructor(
     private app: AppLookupParams,
+    private target: Target,
     private distributionCertificate: AppleDistributionCertificateFragment,
     private originalProvisioningProfile: AppleProvisioningProfileFragment
   ) {}
 
   public async runAsync(
-    ctx: TargetCredentialsContext
+    ctx: CredentialsContext
   ): Promise<AppleProvisioningProfileMutationResult | null> {
     if (ctx.nonInteractive) {
       throw new MissingCredentialsNonInteractiveError(
@@ -45,7 +46,7 @@ export class ConfigureProvisioningProfile {
       return null;
     }
 
-    const applePlatform = await getApplePlatformFromSdkRoot(ctx.target);
+    const applePlatform = await getApplePlatformFromSdkRoot(this.target);
     const profilesFromApple = await ctx.appStore.listProvisioningProfilesAsync(
       this.app.bundleIdentifier,
       applePlatform

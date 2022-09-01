@@ -12,16 +12,6 @@ import * as AndroidGraphqlClient from './android/api/GraphqlClient';
 import * as IosGraphqlClient from './ios/api/GraphqlClient';
 import AppStoreApi from './ios/appstore/AppStoreApi';
 import { AuthenticationMode } from './ios/appstore/authenticateTypes';
-import { Target } from './ios/types';
-
-type CredentialsContextOptions = {
-  exp?: ExpoConfig;
-  easJsonCliConfig?: EasJson['cli'];
-  nonInteractive?: boolean;
-  projectDir: string;
-  user: Actor;
-  env?: Env;
-};
 
 export class CredentialsContext {
   public readonly android = AndroidGraphqlClient;
@@ -35,7 +25,16 @@ export class CredentialsContext {
   private shouldAskAuthenticateAppStore: boolean = true;
   private resolvedExp?: ExpoConfig;
 
-  constructor(private options: CredentialsContextOptions) {
+  constructor(
+    private options: {
+      exp?: ExpoConfig;
+      easJsonCliConfig?: EasJson['cli'];
+      nonInteractive?: boolean;
+      projectDir: string;
+      user: Actor;
+      env?: Env;
+    }
+  ) {
     this.easJsonCliConfig = options.easJsonCliConfig;
     this.projectDir = options.projectDir;
     this.user = options.user;
@@ -95,10 +94,6 @@ export class CredentialsContext {
     }
   }
 
-  public createTargetContext(target: Target): TargetCredentialsContext {
-    return new TargetCredentialsContext(target, this.options);
-  }
-
   async bestEffortAppStoreAuthenticateAsync(): Promise<void> {
     if (this.appStore.authCtx || !this.shouldAskAuthenticateAppStore) {
       // skip prompts if already have apple ctx or already asked about it
@@ -137,14 +132,5 @@ export class CredentialsContext {
       );
     }
     this.shouldAskAuthenticateAppStore = false;
-  }
-}
-
-/**
- * Credentials context for a specific XCode target.
- * */
-export class TargetCredentialsContext extends CredentialsContext {
-  constructor(public target: Target, options: CredentialsContextOptions) {
-    super(options);
   }
 }

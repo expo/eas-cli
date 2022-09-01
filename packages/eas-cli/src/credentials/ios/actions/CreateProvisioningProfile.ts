@@ -3,7 +3,7 @@ import nullthrows from 'nullthrows';
 
 import { AppleDistributionCertificateFragment } from '../../../graphql/generated';
 import Log from '../../../log';
-import { TargetCredentialsContext } from '../../context';
+import { CredentialsContext } from '../../context';
 import { MissingCredentialsNonInteractiveError } from '../../errors';
 import { askForUserProvidedAsync } from '../../utils/promptForCredentials';
 import { AppLookupParams } from '../api/GraphqlClient';
@@ -11,16 +11,18 @@ import { AppleProvisioningProfileMutationResult } from '../api/graphql/mutations
 import { ProvisioningProfile } from '../appstore/Credentials.types';
 import { AuthCtx } from '../appstore/authenticateTypes';
 import { provisioningProfileSchema } from '../credentials';
+import { Target } from '../types';
 import { resolveAppleTeamIfAuthenticatedAsync } from './AppleTeamUtils';
 import { generateProvisioningProfileAsync } from './ProvisioningProfileUtils';
 
 export class CreateProvisioningProfile {
   constructor(
     private app: AppLookupParams,
+    private target: Target,
     private distributionCertificate: AppleDistributionCertificateFragment
   ) {}
 
-  async runAsync(ctx: TargetCredentialsContext): Promise<AppleProvisioningProfileMutationResult> {
+  async runAsync(ctx: CredentialsContext): Promise<AppleProvisioningProfileMutationResult> {
     if (ctx.nonInteractive) {
       throw new MissingCredentialsNonInteractiveError(
         'Creating Provisioning Profiles is only supported in interactive mode.'
@@ -46,7 +48,7 @@ export class CreateProvisioningProfile {
   }
 
   private async provideOrGenerateAsync(
-    ctx: TargetCredentialsContext,
+    ctx: CredentialsContext,
     appleAuthCtx: AuthCtx
   ): Promise<ProvisioningProfile> {
     const userProvided = await askForUserProvidedAsync(provisioningProfileSchema);
@@ -63,7 +65,7 @@ export class CreateProvisioningProfile {
       this.distributionCertificate.certificatePassword,
       'Distribution Certificate must have certificate password'
     );
-    return await generateProvisioningProfileAsync(ctx, this.app.bundleIdentifier, {
+    return await generateProvisioningProfileAsync(ctx, this.target, this.app.bundleIdentifier, {
       certId: this.distributionCertificate.developerPortalIdentifier ?? undefined,
       certP12: this.distributionCertificate.certificateP12,
       certPassword: this.distributionCertificate.certificatePassword,

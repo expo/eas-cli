@@ -1,12 +1,14 @@
 import { DistributionType, IosEnterpriseProvisioning } from '@expo/eas-json';
+import { JSONObject } from '@expo/json-file';
 
 import {
   IosDistributionType as GraphQLIosDistributionType,
   IosAppBuildCredentialsFragment,
 } from '../../../graphql/generated';
 import Log from '../../../log';
-import { TargetCredentialsContext } from '../../context';
+import { CredentialsContext } from '../../context';
 import { AppLookupParams as GraphQLAppLookupParams } from '../api/GraphqlClient';
+import { Target } from '../types';
 import { SetUpAdhocProvisioningProfile } from './SetUpAdhocProvisioningProfile';
 import { SetUpInternalProvisioningProfile } from './SetUpInternalProvisioningProfile';
 import { SetUpProvisioningProfile } from './SetUpProvisioningProfile';
@@ -15,12 +17,14 @@ interface Options {
   app: GraphQLAppLookupParams;
   distribution: DistributionType;
   enterpriseProvisioning?: IosEnterpriseProvisioning;
+  entitlements: JSONObject;
+  target: Target;
 }
 export class SetUpTargetBuildCredentials {
   constructor(private options: Options) {}
 
-  async runAsync(ctx: TargetCredentialsContext): Promise<IosAppBuildCredentialsFragment> {
-    const { app } = this.options;
+  async runAsync(ctx: CredentialsContext): Promise<IosAppBuildCredentialsFragment> {
+    const { app, entitlements } = this.options;
 
     await ctx.bestEffortAppStoreAuthenticateAsync();
 
@@ -31,7 +35,7 @@ export class SetUpTargetBuildCredentials {
           bundleIdentifier: app.bundleIdentifier,
           projectName: app.projectName,
         },
-        { entitlements: ctx.target.entitlements }
+        { entitlements }
       );
     }
     try {
@@ -43,24 +47,27 @@ export class SetUpTargetBuildCredentials {
   }
 
   async setupBuildCredentialsAsync(
-    ctx: TargetCredentialsContext
+    ctx: CredentialsContext
   ): Promise<IosAppBuildCredentialsFragment> {
-    const { app, distribution, enterpriseProvisioning } = this.options;
+    const { app, distribution, enterpriseProvisioning, target } = this.options;
     if (distribution === 'internal') {
       if (enterpriseProvisioning === 'adhoc') {
-        return await new SetUpAdhocProvisioningProfile(app).runAsync(ctx);
+        return await new SetUpAdhocProvisioningProfile({ app, target }).runAsync(ctx);
       } else if (enterpriseProvisioning === 'universal') {
         return await new SetUpProvisioningProfile(
           app,
+          target,
           GraphQLIosDistributionType.Enterprise
         ).runAsync(ctx);
       } else {
-        return await new SetUpInternalProvisioningProfile(app).runAsync(ctx);
+        return await new SetUpInternalProvisioningProfile({ app, target }).runAsync(ctx);
       }
     } else {
-      return await new SetUpProvisioningProfile(app, GraphQLIosDistributionType.AppStore).runAsync(
-        ctx
-      );
+      return await new SetUpProvisioningProfile(
+        app,
+        target,
+        GraphQLIosDistributionType.AppStore
+      ).runAsync(ctx);
     }
   }
 }

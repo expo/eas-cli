@@ -15,7 +15,7 @@ import { getProjectAccountName, getProjectIdAsync } from '../../project/projectU
 import { confirmAsync, promptAsync, selectAsync } from '../../prompts';
 import { Account, findAccountByName } from '../../user/Account';
 import { ensureActorHasUsername, ensureLoggedInAsync } from '../../user/actions';
-import { CredentialsContext, TargetCredentialsContext } from '../context';
+import { CredentialsContext } from '../context';
 import {
   AppStoreApiKeyPurpose,
   selectAscApiKeysFromAccountAsync,
@@ -250,7 +250,6 @@ export class ManageIos {
 
     const target = await this.selectTargetAsync(targets);
     const appLookupParams = getAppLookupParamsFromContext(ctx, target);
-    const targetCtx = ctx.createTargetContext(target);
     switch (action) {
       case IosActionType.UseExistingDistributionCertificate: {
         const distCert = await selectValidDistributionCertificateAsync(ctx, appLookupParams);
@@ -258,7 +257,8 @@ export class ManageIos {
           return;
         }
         await this.setupProvisioningProfileWithSpecificDistCertAsync(
-          targetCtx,
+          ctx,
+          target,
           appLookupParams,
           distCert,
           distributionType
@@ -274,7 +274,8 @@ export class ManageIos {
         });
         if (confirm) {
           await this.setupProvisioningProfileWithSpecificDistCertAsync(
-            targetCtx,
+            ctx,
+            target,
             appLookupParams,
             distCert,
             distributionType
@@ -377,7 +378,8 @@ export class ManageIos {
   }
 
   private async setupProvisioningProfileWithSpecificDistCertAsync(
-    ctx: TargetCredentialsContext,
+    ctx: CredentialsContext,
+    target: Target,
     appLookupParams: AppLookupParams,
     distCert: AppleDistributionCertificateFragment,
     distributionType: IosDistributionTypeGraphql
@@ -385,12 +387,14 @@ export class ManageIos {
     Log.log(`Setting up ${appLookupParams.projectName} to use Distribution Certificate`);
     Log.log(`Creating provisioning profile...`);
     if (distributionType === IosDistributionTypeGraphql.AdHoc) {
-      return await new SetUpAdhocProvisioningProfile(
-        appLookupParams
-      ).runWithDistributionCertificateAsync(ctx, distCert);
+      return await new SetUpAdhocProvisioningProfile({
+        app: appLookupParams,
+        target,
+      }).runWithDistributionCertificateAsync(ctx, distCert);
     } else {
       return await new SetUpProvisioningProfile(
         appLookupParams,
+        target,
         distributionType
       ).createAndAssignProfileAsync(ctx, distCert);
     }

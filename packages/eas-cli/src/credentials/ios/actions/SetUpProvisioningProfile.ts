@@ -8,11 +8,11 @@ import {
 } from '../../../graphql/generated';
 import { getApplePlatformFromSdkRoot } from '../../../project/ios/target';
 import { confirmAsync } from '../../../prompts';
-import { TargetCredentialsContext } from '../../context';
+import { CredentialsContext } from '../../context';
 import { MissingCredentialsNonInteractiveError } from '../../errors';
 import { AppLookupParams } from '../api/GraphqlClient';
 import { ProvisioningProfileStoreInfo } from '../appstore/Credentials.types';
-import { ApplePlatform } from '../appstore/constants';
+import { Target } from '../types';
 import { validateProvisioningProfileAsync } from '../validators/validateProvisioningProfile';
 import {
   assignBuildCredentialsAsync,
@@ -28,15 +28,19 @@ import { SetUpDistributionCertificate } from './SetUpDistributionCertificate';
  * Sets up either APP_STORE or ENTERPRISE provisioning profiles
  */
 export class SetUpProvisioningProfile {
-  constructor(private app: AppLookupParams, private distributionType: IosDistributionType) {}
+  constructor(
+    private app: AppLookupParams,
+    private target: Target,
+    private distributionType: IosDistributionType
+  ) {}
 
-  async areBuildCredentialsSetupAsync(ctx: TargetCredentialsContext): Promise<boolean> {
+  async areBuildCredentialsSetupAsync(ctx: CredentialsContext): Promise<boolean> {
     const buildCredentials = await getBuildCredentialsAsync(ctx, this.app, this.distributionType);
-    return await validateProvisioningProfileAsync(ctx, this.app, buildCredentials);
+    return await validateProvisioningProfileAsync(ctx, this.target, this.app, buildCredentials);
   }
 
   async assignNewAndDeleteOldProfileAsync(
-    ctx: TargetCredentialsContext,
+    ctx: CredentialsContext,
     distCert: AppleDistributionCertificateFragment,
     currentProfile: AppleProvisioningProfileFragment
   ): Promise<IosAppBuildCredentialsFragment> {
@@ -47,12 +51,14 @@ export class SetUpProvisioningProfile {
   }
 
   async createAndAssignProfileAsync(
-    ctx: TargetCredentialsContext,
+    ctx: CredentialsContext,
     distCert: AppleDistributionCertificateFragment
   ): Promise<IosAppBuildCredentialsFragment> {
-    const provisioningProfile = await new CreateProvisioningProfile(this.app, distCert).runAsync(
-      ctx
-    );
+    const provisioningProfile = await new CreateProvisioningProfile(
+      this.app,
+      this.target,
+      distCert
+    ).runAsync(ctx);
     return await assignBuildCredentialsAsync(
       ctx,
       this.app,
@@ -63,12 +69,13 @@ export class SetUpProvisioningProfile {
   }
 
   async configureAndAssignProfileAsync(
-    ctx: TargetCredentialsContext,
+    ctx: CredentialsContext,
     distCert: AppleDistributionCertificateFragment,
     originalProvisioningProfile: AppleProvisioningProfileFragment
   ): Promise<IosAppBuildCredentialsFragment | null> {
     const profileConfigurator = new ConfigureProvisioningProfile(
       this.app,
+      this.target,
       distCert,
       originalProvisioningProfile
     );
@@ -85,7 +92,7 @@ export class SetUpProvisioningProfile {
     );
   }
 
-  async runAsync(ctx: TargetCredentialsContext): Promise<IosAppBuildCredentialsFragment> {
+  async runAsync(ctx: CredentialsContext): Promise<IosAppBuildCredentialsFragment> {
     const distCert = await new SetUpDistributionCertificate(
       this.app,
       this.distributionType
@@ -107,7 +114,7 @@ export class SetUpProvisioningProfile {
     }
 
     // See if the profile we have exists on the Apple Servers
-    const applePlatform = await getApplePlatformFromSdkRoot(ctx.target);
+    const applePlatform = await getApplePlatformFromSdkRoot(this.target);
     const existingProfiles = await ctx.appStore.listProvisioningProfilesAsync(
       this.app.bundleIdentifier,
       applePlatform
