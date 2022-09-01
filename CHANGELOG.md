@@ -10,7 +10,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
-- Fix dynamic config update warning. ([#1322](https://github.com/expo/eas-cli/pull/1322) by [@wschurman](https://github.com/wschurman))
+- Typo fixes
 
 ### 🧹 Chores
 
