@@ -33,7 +33,7 @@ export async function getDistributionCertificateAsync(
   const certificates = await Certificate.getAsync(context, {
     query: {
       filter: {
-        certificateType: CertificateType.IOS_DISTRIBUTION,
+        certificateType: [CertificateType.IOS_DISTRIBUTION, CertificateType.DISTRIBUTION],
       },
     },
   });

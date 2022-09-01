@@ -17,6 +17,7 @@ jest.mock('fs');
 jest.mock('../validators/validateProvisioningProfile', () => ({
   validateProvisioningProfileAsync: async (
     _ctx: any,
+    _target: any,
     _app: any,
     buildCredentials: Partial<IosAppBuildCredentialsFragment> | null
   ): Promise<boolean> => {

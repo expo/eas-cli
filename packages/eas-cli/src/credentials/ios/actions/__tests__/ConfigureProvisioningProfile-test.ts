@@ -6,6 +6,7 @@ import {
   testDistCertFragmentNoDependencies,
   testProvisioningProfile,
   testProvisioningProfileFragment,
+  testTarget,
   testTargets,
 } from '../../../__tests__/fixtures-ios';
 import { MissingCredentialsNonInteractiveError } from '../../../errors';
@@ -36,6 +37,7 @@ describe('ConfigureProvisioningProfile', () => {
     const appLookupParams = getAppLookupParamsFromContext(ctx, findApplicationTarget(testTargets));
     const provProfConfigurator = new ConfigureProvisioningProfile(
       appLookupParams,
+      testTarget,
       testDistCertFragmentNoDependencies,
       testProvisioningProfileFragment
     );
@@ -53,6 +55,7 @@ describe('ConfigureProvisioningProfile', () => {
     const appLookupParams = getAppLookupParamsFromContext(ctx, findApplicationTarget(testTargets));
     const provProfConfigurator = new ConfigureProvisioningProfile(
       appLookupParams,
+      testTarget,
       testDistCertFragmentNoDependencies,
       testProvisioningProfileFragment
     );

@@ -93,11 +93,13 @@ async function findUnregisteredPortalDevicesAsync(
     return acc;
   }, {} as Record<string, AppleDeviceFragmentWithAppleTeam>);
 
-  const portalDevices = await Device.getAllIOSProfileDevicesAsync(getRequestContext(appleAuthCtx));
+  const portalDevices = await Device.getAsync(getRequestContext(appleAuthCtx));
   return portalDevices.filter(
     portalDevice =>
       !(portalDevice.attributes.udid in expoRegisteredDevicesByUdid) &&
-      [DeviceClass.IPAD, DeviceClass.IPHONE].includes(portalDevice.attributes.deviceClass)
+      [DeviceClass.IPAD, DeviceClass.IPHONE, DeviceClass.APPLE_TV].includes(
+        portalDevice.attributes.deviceClass
+      )
   );
 }
 

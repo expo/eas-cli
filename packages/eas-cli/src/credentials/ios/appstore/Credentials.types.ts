@@ -1,21 +1,5 @@
 import { UserRole } from '@expo/apple-utils';
 
-export interface Device {
-  id: string;
-  teamId: string;
-  identifier: string;
-  name?: string;
-  model?: string;
-  deviceClass?: DeviceClass;
-  softwareVersion?: string;
-  enabled: boolean;
-}
-
-export enum DeviceClass {
-  IPHONE = 'iphone',
-  IPAD = 'ipad',
-}
-
 export interface DistributionCertificateStoreInfo {
   id: string;
   name: string;

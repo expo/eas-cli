@@ -11,12 +11,14 @@ import { AppleProvisioningProfileMutationResult } from '../api/graphql/mutations
 import { ProvisioningProfile } from '../appstore/Credentials.types';
 import { AuthCtx } from '../appstore/authenticateTypes';
 import { provisioningProfileSchema } from '../credentials';
+import { Target } from '../types';
 import { resolveAppleTeamIfAuthenticatedAsync } from './AppleTeamUtils';
 import { generateProvisioningProfileAsync } from './ProvisioningProfileUtils';
 
 export class CreateProvisioningProfile {
   constructor(
     private app: AppLookupParams,
+    private target: Target,
     private distributionCertificate: AppleDistributionCertificateFragment
   ) {}
 
@@ -63,7 +65,7 @@ export class CreateProvisioningProfile {
       this.distributionCertificate.certificatePassword,
       'Distribution Certificate must have certificate password'
     );
-    return await generateProvisioningProfileAsync(ctx, this.app.bundleIdentifier, {
+    return await generateProvisioningProfileAsync(ctx, this.target, this.app.bundleIdentifier, {
       certId: this.distributionCertificate.developerPortalIdentifier ?? undefined,
       certP12: this.distributionCertificate.certificateP12,
       certPassword: this.distributionCertificate.certificatePassword,

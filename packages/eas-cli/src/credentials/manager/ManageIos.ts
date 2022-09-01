@@ -258,6 +258,7 @@ export class ManageIos {
         }
         await this.setupProvisioningProfileWithSpecificDistCertAsync(
           ctx,
+          target,
           appLookupParams,
           distCert,
           distributionType
@@ -274,6 +275,7 @@ export class ManageIos {
         if (confirm) {
           await this.setupProvisioningProfileWithSpecificDistCertAsync(
             ctx,
+            target,
             appLookupParams,
             distCert,
             distributionType
@@ -377,6 +379,7 @@ export class ManageIos {
 
   private async setupProvisioningProfileWithSpecificDistCertAsync(
     ctx: CredentialsContext,
+    target: Target,
     appLookupParams: AppLookupParams,
     distCert: AppleDistributionCertificateFragment,
     distributionType: IosDistributionTypeGraphql
@@ -384,12 +387,14 @@ export class ManageIos {
     Log.log(`Setting up ${appLookupParams.projectName} to use Distribution Certificate`);
     Log.log(`Creating provisioning profile...`);
     if (distributionType === IosDistributionTypeGraphql.AdHoc) {
-      return await new SetUpAdhocProvisioningProfile(
-        appLookupParams
-      ).runWithDistributionCertificateAsync(ctx, distCert);
+      return await new SetUpAdhocProvisioningProfile({
+        app: appLookupParams,
+        target,
+      }).runWithDistributionCertificateAsync(ctx, distCert);
     } else {
       return await new SetUpProvisioningProfile(
         appLookupParams,
+        target,
         distributionType
       ).createAndAssignProfileAsync(ctx, distCert);
     }

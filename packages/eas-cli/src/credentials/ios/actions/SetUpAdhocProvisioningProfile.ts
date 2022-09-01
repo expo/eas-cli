@@ -1,3 +1,4 @@
+import { ProfileType } from '@expo/apple-utils';
 import assert from 'assert';
 import chalk from 'chalk';
 import nullthrows from 'nullthrows';
@@ -12,11 +13,14 @@ import {
   IosDistributionType,
 } from '../../../graphql/generated';
 import Log from '../../../log';
+import { getApplePlatformFromSdkRoot } from '../../../project/ios/target';
 import { confirmAsync, pressAnyKeyToContinueAsync, promptAsync } from '../../../prompts';
 import differenceBy from '../../../utils/expodash/differenceBy';
 import { CredentialsContext } from '../../context';
 import { MissingCredentialsNonInteractiveError } from '../../errors';
 import { AppLookupParams } from '../api/GraphqlClient';
+import { ApplePlatform } from '../appstore/constants';
+import { Target } from '../types';
 import { validateProvisioningProfileAsync } from '../validators/validateProvisioningProfile';
 import { resolveAppleTeamIfAuthenticatedAsync } from './AppleTeamUtils';
 import { assignBuildCredentialsAsync, getBuildCredentialsAsync } from './BuildCredentialsUtils';
@@ -29,12 +33,18 @@ enum ReuseAction {
   No,
 }
 
+interface Options {
+  app: AppLookupParams;
+  target: Target;
+}
+
 export class SetUpAdhocProvisioningProfile {
-  constructor(private app: AppLookupParams) {}
+  constructor(private options: Options) {}
 
   async runAsync(ctx: CredentialsContext): Promise<IosAppBuildCredentialsFragment> {
+    const { app } = this.options;
     const distCert = await new SetUpDistributionCertificate(
-      this.app,
+      app,
       IosDistributionType.AdHoc
     ).runAsync(ctx);
 
@@ -42,7 +52,7 @@ export class SetUpAdhocProvisioningProfile {
 
     if (ctx.nonInteractive) {
       if (areBuildCredentialsSetup) {
-        return nullthrows(await getBuildCredentialsAsync(ctx, this.app, IosDistributionType.AdHoc));
+        return nullthrows(await getBuildCredentialsAsync(ctx, app, IosDistributionType.AdHoc));
       } else {
         throw new MissingCredentialsNonInteractiveError(
           'Provisioning profile is not configured correctly. Run this command again in interactive mode.'
@@ -52,7 +62,7 @@ export class SetUpAdhocProvisioningProfile {
 
     const currentBuildCredentials = await getBuildCredentialsAsync(
       ctx,
-      this.app,
+      app,
       IosDistributionType.AdHoc
     );
     if (areBuildCredentialsSetup) {
@@ -69,9 +79,11 @@ export class SetUpAdhocProvisioningProfile {
     ctx: CredentialsContext,
     distCert: AppleDistributionCertificateFragment
   ): Promise<IosAppBuildCredentialsFragment> {
+    const { app, target } = this.options;
+
     const currentBuildCredentials = await getBuildCredentialsAsync(
       ctx,
-      this.app,
+      app,
       IosDistributionType.AdHoc
     );
 
@@ -80,12 +92,12 @@ export class SetUpAdhocProvisioningProfile {
       distCert.appleTeam ?? currentBuildCredentials?.provisioningProfile?.appleTeam ?? null;
     if (!appleTeam) {
       await ctx.appStore.ensureAuthenticatedAsync();
-      appleTeam = await resolveAppleTeamIfAuthenticatedAsync(ctx, this.app);
+      appleTeam = await resolveAppleTeamIfAuthenticatedAsync(ctx, app);
     }
     assert(appleTeam, 'Apple Team must be defined here');
 
     // 2. Fetch devices registered on EAS servers
-    let registeredAppleDevices = await ctx.ios.getDevicesForAppleTeamAsync(this.app, appleTeam);
+    let registeredAppleDevices = await ctx.ios.getDevicesForAppleTeamAsync(app, appleTeam);
     if (registeredAppleDevices.length === 0) {
       const shouldRegisterDevices = await confirmAsync({
         message: `You don't have any registered devices yet. Would you like to register them now?`,
@@ -109,16 +121,22 @@ export class SetUpAdhocProvisioningProfile {
     );
 
     // 4. Reuse or create the profile on Apple Developer Portal
+    const applePlatform = await getApplePlatformFromSdkRoot(target);
+    const profileType =
+      applePlatform === ApplePlatform.TV_OS
+        ? ProfileType.TVOS_APP_ADHOC
+        : ProfileType.IOS_APP_ADHOC;
     const provisioningProfileStoreInfo =
       await ctx.appStore.createOrReuseAdhocProvisioningProfileAsync(
         chosenDevices.map(({ identifier }) => identifier),
-        this.app.bundleIdentifier,
-        distCert.serialNumber
+        app.bundleIdentifier,
+        distCert.serialNumber,
+        profileType
       );
 
     // 5. Create or update the profile on servers
     const appleAppIdentifier = await ctx.ios.createOrGetExistingAppleAppIdentifierAsync(
-      this.app,
+      app,
       appleTeam
     );
     let appleProvisioningProfile: AppleProvisioningProfileFragment | null = null;
@@ -131,7 +149,7 @@ export class SetUpAdhocProvisioningProfile {
           currentBuildCredentials.provisioningProfile.id,
         ]);
         appleProvisioningProfile = await ctx.ios.createProvisioningProfileAsync(
-          this.app,
+          app,
           appleAppIdentifier,
           {
             appleProvisioningProfile: provisioningProfileStoreInfo.provisioningProfile,
@@ -143,7 +161,7 @@ export class SetUpAdhocProvisioningProfile {
       }
     } else {
       appleProvisioningProfile = await ctx.ios.createProvisioningProfileAsync(
-        this.app,
+        app,
         appleAppIdentifier,
         {
           appleProvisioningProfile: provisioningProfileStoreInfo.provisioningProfile,
@@ -156,7 +174,7 @@ export class SetUpAdhocProvisioningProfile {
     assert(appleProvisioningProfile);
     return await assignBuildCredentialsAsync(
       ctx,
-      this.app,
+      app,
       IosDistributionType.AdHoc,
       distCert,
       appleProvisioningProfile,
@@ -165,22 +183,20 @@ export class SetUpAdhocProvisioningProfile {
   }
 
   private async areBuildCredentialsSetupAsync(ctx: CredentialsContext): Promise<boolean> {
-    const buildCredentials = await getBuildCredentialsAsync(
-      ctx,
-      this.app,
-      IosDistributionType.AdHoc
-    );
-    return await validateProvisioningProfileAsync(ctx, this.app, buildCredentials);
+    const { app, target } = this.options;
+    const buildCredentials = await getBuildCredentialsAsync(ctx, app, IosDistributionType.AdHoc);
+    return await validateProvisioningProfileAsync(ctx, target, app, buildCredentials);
   }
 
   private async shouldUseExistingProfileAsync(
     ctx: CredentialsContext,
     buildCredentials: IosAppBuildCredentialsFragment
   ): Promise<boolean> {
+    const { app } = this.options;
     const provisioningProfile = nullthrows(buildCredentials.provisioningProfile);
 
     const appleTeam = nullthrows(provisioningProfile.appleTeam);
-    const registeredAppleDevices = await ctx.ios.getDevicesForAppleTeamAsync(this.app, appleTeam);
+    const registeredAppleDevices = await ctx.ios.getDevicesForAppleTeamAsync(app, appleTeam);
 
     const provisionedDevices = provisioningProfile.appleDevices;
 
@@ -254,7 +270,8 @@ export class SetUpAdhocProvisioningProfile {
     ctx: CredentialsContext,
     appleTeam: AppleTeamFragment
   ): Promise<AppleDeviceFragment[]> {
-    const action = new DeviceCreateAction(ctx.appStore, this.app.account, appleTeam);
+    const { app } = this.options;
+    const action = new DeviceCreateAction(ctx.appStore, app.account, appleTeam);
     const method = await action.runAsync();
 
     while (true) {
@@ -265,7 +282,7 @@ export class SetUpAdhocProvisioningProfile {
       }
       Log.newLine();
 
-      const devices = await ctx.ios.getDevicesForAppleTeamAsync(this.app, appleTeam, {
+      const devices = await ctx.ios.getDevicesForAppleTeamAsync(app, appleTeam, {
         useCache: false,
       });
       if (devices.length === 0) {

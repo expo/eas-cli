@@ -89,9 +89,10 @@ export default class DeviceDelete extends EasCommand {
     Log.addNewLineIfNone();
     const removeAppleSpinner = ora('Disabling devices on Apple').start();
     try {
-      let realDevices = await Device.getAllIOSProfileDevicesAsync(context);
-      realDevices = realDevices.filter(d =>
-        chosenDevices.map(cd => cd.identifier).includes(d.attributes.udid)
+      const chosenDeviceIdentifiers = chosenDevices.map(cd => cd.identifier);
+      const allDevices = await Device.getAsync(context);
+      const realDevices = allDevices.filter(d =>
+        chosenDeviceIdentifiers.includes(d.attributes.udid)
       );
 
       for (const device of realDevices) {
