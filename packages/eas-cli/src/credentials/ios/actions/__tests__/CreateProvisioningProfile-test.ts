@@ -5,6 +5,7 @@ import { createCtxMock } from '../../../__tests__/fixtures-context';
 import {
   testDistCertFragmentNoDependencies,
   testProvisioningProfile,
+  testTarget,
   testTargets,
 } from '../../../__tests__/fixtures-ios';
 import { MissingCredentialsNonInteractiveError } from '../../../errors';
@@ -28,6 +29,7 @@ describe('CreateProvisioningProfile', () => {
     const appLookupParams = getAppLookupParamsFromContext(ctx, findApplicationTarget(testTargets));
     const createProvProfAction = new CreateProvisioningProfile(
       appLookupParams,
+      testTarget,
       testDistCertFragmentNoDependencies
     );
     await createProvProfAction.runAsync(ctx);
@@ -44,6 +46,7 @@ describe('CreateProvisioningProfile', () => {
     const appLookupParams = getAppLookupParamsFromContext(ctx, findApplicationTarget(testTargets));
     const createProvProfAction = new CreateProvisioningProfile(
       appLookupParams,
+      testTarget,
       testDistCertFragmentNoDependencies
     );
     await expect(createProvProfAction.runAsync(ctx)).rejects.toThrowError(

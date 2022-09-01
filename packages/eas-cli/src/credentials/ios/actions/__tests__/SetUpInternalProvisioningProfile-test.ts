@@ -2,6 +2,7 @@ import { IosAppBuildCredentialsFragment, IosDistributionType } from '../../../..
 import { promptAsync } from '../../../../prompts';
 import { getAppstoreMock, testAuthCtx } from '../../../__tests__/fixtures-appstore';
 import { createCtxMock } from '../../../__tests__/fixtures-context';
+import { testTarget } from '../../../__tests__/fixtures-ios';
 import { getAllBuildCredentialsAsync } from '../BuildCredentialsUtils';
 import { SetUpAdhocProvisioningProfile } from '../SetUpAdhocProvisioningProfile';
 import { SetUpInternalProvisioningProfile } from '../SetUpInternalProvisioningProfile';
@@ -41,9 +42,12 @@ describe(SetUpInternalProvisioningProfile, () => {
           return buildCredentials;
         });
         const action = new SetUpInternalProvisioningProfile({
-          account: { id: 'account-id', name: 'account-name' },
-          bundleIdentifier: 'com.expo.test',
-          projectName: 'testproject',
+          app: {
+            account: { id: 'account-id', name: 'account-name' },
+            bundleIdentifier: 'com.expo.test',
+            projectName: 'testproject',
+          },
+          target: testTarget,
         });
         const ctx = createCtxMock({
           nonInteractive: false,
@@ -72,9 +76,12 @@ describe(SetUpInternalProvisioningProfile, () => {
         });
 
         const action = new SetUpInternalProvisioningProfile({
-          account: { id: 'account-id', name: 'account-name' },
-          bundleIdentifier: 'com.expo.test',
-          projectName: 'testproject',
+          app: {
+            account: { id: 'account-id', name: 'account-name' },
+            bundleIdentifier: 'com.expo.test',
+            projectName: 'testproject',
+          },
+          target: testTarget,
         });
         const ctx = createCtxMock({
           nonInteractive: false,
@@ -110,9 +117,12 @@ describe(SetUpInternalProvisioningProfile, () => {
         });
 
         const action = new SetUpInternalProvisioningProfile({
-          account: { id: 'account-id', name: 'account-name' },
-          bundleIdentifier: 'com.expo.test',
-          projectName: 'testproject',
+          app: {
+            account: { id: 'account-id', name: 'account-name' },
+            bundleIdentifier: 'com.expo.test',
+            projectName: 'testproject',
+          },
+          target: testTarget,
         });
         const ctx = createCtxMock({
           nonInteractive: false,
@@ -141,9 +151,12 @@ describe(SetUpInternalProvisioningProfile, () => {
         });
 
         const action = new SetUpInternalProvisioningProfile({
-          account: { id: 'account-id', name: 'account-name' },
-          bundleIdentifier: 'com.expo.test',
-          projectName: 'testproject',
+          app: {
+            account: { id: 'account-id', name: 'account-name' },
+            bundleIdentifier: 'com.expo.test',
+            projectName: 'testproject',
+          },
+          target: testTarget,
         });
         const ctx = createCtxMock({
           nonInteractive: false,
@@ -174,9 +187,12 @@ describe(SetUpInternalProvisioningProfile, () => {
         });
 
         const action = new SetUpInternalProvisioningProfile({
-          account: { id: 'account-id', name: 'account-name' },
-          bundleIdentifier: 'com.expo.test',
-          projectName: 'testproject',
+          app: {
+            account: { id: 'account-id', name: 'account-name' },
+            bundleIdentifier: 'com.expo.test',
+            projectName: 'testproject',
+          },
+          target: testTarget,
         });
         const ctx = createCtxMock({
           nonInteractive: false,
@@ -205,9 +221,12 @@ describe(SetUpInternalProvisioningProfile, () => {
         });
 
         const action = new SetUpInternalProvisioningProfile({
-          account: { id: 'account-id', name: 'account-name' },
-          bundleIdentifier: 'com.expo.test',
-          projectName: 'testproject',
+          app: {
+            account: { id: 'account-id', name: 'account-name' },
+            bundleIdentifier: 'com.expo.test',
+            projectName: 'testproject',
+          },
+          target: testTarget,
         });
         const ctx = createCtxMock({
           nonInteractive: false,
@@ -235,9 +254,12 @@ describe(SetUpInternalProvisioningProfile, () => {
         return buildCredentials;
       });
       const action = new SetUpInternalProvisioningProfile({
-        account: { id: 'account-id', name: 'account-name' },
-        bundleIdentifier: 'com.expo.test',
-        projectName: 'testproject',
+        app: {
+          account: { id: 'account-id', name: 'account-name' },
+          bundleIdentifier: 'com.expo.test',
+          projectName: 'testproject',
+        },
+        target: testTarget,
       });
       const ctx = createCtxMock({
         nonInteractive: true,
@@ -253,9 +275,12 @@ describe(SetUpInternalProvisioningProfile, () => {
         return buildCredentials;
       });
       const action = new SetUpInternalProvisioningProfile({
-        account: { id: 'account-id', name: 'account-name' },
-        bundleIdentifier: 'com.expo.test',
-        projectName: 'testproject',
+        app: {
+          account: { id: 'account-id', name: 'account-name' },
+          bundleIdentifier: 'com.expo.test',
+          projectName: 'testproject',
+        },
+        target: testTarget,
       });
       const ctx = createCtxMock({
         nonInteractive: true,
@@ -269,9 +294,12 @@ describe(SetUpInternalProvisioningProfile, () => {
         return buildCredentials;
       });
       const action = new SetUpInternalProvisioningProfile({
-        account: { id: 'account-id', name: 'account-name' },
-        bundleIdentifier: 'com.expo.test',
-        projectName: 'testproject',
+        app: {
+          account: { id: 'account-id', name: 'account-name' },
+          bundleIdentifier: 'com.expo.test',
+          projectName: 'testproject',
+        },
+        target: testTarget,
       });
       const ctx = createCtxMock({
         nonInteractive: true,
@@ -291,9 +319,12 @@ describe(SetUpInternalProvisioningProfile, () => {
         return buildCredentials;
       });
       const action = new SetUpInternalProvisioningProfile({
-        account: { id: 'account-id', name: 'account-name' },
-        bundleIdentifier: 'com.expo.test',
-        projectName: 'testproject',
+        app: {
+          account: { id: 'account-id', name: 'account-name' },
+          bundleIdentifier: 'com.expo.test',
+          projectName: 'testproject',
+        },
+        target: testTarget,
       });
       const ctx = createCtxMock({
         nonInteractive: true,
