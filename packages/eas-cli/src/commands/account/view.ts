@@ -5,11 +5,11 @@ import Log from '../../log';
 import { getActorDisplayName, getUserAsync } from '../../user/User';
 
 export default class AccountView extends EasCommand {
-  static description = 'show the username you are logged in as';
-  static aliases = ['whoami'];
+  static override description = 'show the username you are logged in as';
+  static override aliases = ['whoami'];
 
-  protected mustBeRunInsideProject = false;
-  protected requiresAuthentication = false;
+  protected override mustBeRunInsideProject = false;
+  protected override requiresAuthentication = false;
 
   async runAsync(): Promise<void> {
     const user = await getUserAsync();

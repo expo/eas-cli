@@ -14,9 +14,9 @@ import { promptAsync, toggleConfirmAsync } from '../../prompts';
 import { formatWebhook } from '../../webhooks/formatWebhook';
 
 export default class WebhookDelete extends EasCommand {
-  static description = 'delete a webhook';
+  static override description = 'delete a webhook';
 
-  static args = [
+  static override args = [
     {
       name: 'ID',
       required: false,

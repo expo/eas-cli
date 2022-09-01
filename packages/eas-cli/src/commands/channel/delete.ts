@@ -21,17 +21,17 @@ import { promptAsync, toggleConfirmAsync } from '../../prompts';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
 export default class ChannelDelete extends EasCommand {
-  static hidden = true;
-  static description = 'Delete a channel';
+  static override hidden = true;
+  static override description = 'Delete a channel';
 
-  static args = [
+  static override args = [
     {
       name: 'name',
       required: false,
       description: 'Name of the channel to delete',
     },
   ];
-  static flags = {
+  static override flags = {
     json: Flags.boolean({
       description: 'print output as a JSON object',
       default: false,

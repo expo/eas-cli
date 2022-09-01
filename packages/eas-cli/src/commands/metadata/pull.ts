@@ -14,9 +14,9 @@ import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUt
 import { ensureLoggedInAsync } from '../../user/actions';
 
 export default class MetadataPull extends EasCommand {
-  static description = 'generate the local store configuration from the app stores';
+  static override description = 'generate the local store configuration from the app stores';
 
-  static flags = {
+  static override flags = {
     profile: Flags.string({
       description:
         'Name of the submit profile from eas.json. Defaults to "production" if defined in eas.json.',

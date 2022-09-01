@@ -52,9 +52,9 @@ async function renameUpdateBranchOnAppAsync({
 }
 
 export default class BranchRename extends EasCommand {
-  static description = 'rename a branch';
+  static override description = 'rename a branch';
 
-  static flags = {
+  static override flags = {
     from: Flags.string({
       description: 'current name of the branch.',
       required: false,

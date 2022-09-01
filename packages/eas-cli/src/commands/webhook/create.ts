@@ -9,9 +9,9 @@ import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUt
 import { prepareInputParamsAsync } from '../../webhooks/input';
 
 export default class WebhookCreate extends EasCommand {
-  static description = 'create a webhook';
+  static override description = 'create a webhook';
 
-  static flags = {
+  static override flags = {
     event: Flags.enum({
       description: 'Event type that triggers the webhook',
       options: [WebhookType.Build, WebhookType.Submit],

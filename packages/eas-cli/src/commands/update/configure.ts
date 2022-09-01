@@ -24,9 +24,9 @@ const DEFAULT_MANAGED_RUNTIME_VERSION = { policy: 'sdkVersion' } as const;
 const DEFAULT_BARE_RUNTIME_VERSION = '1.0.0' as const;
 
 export default class UpdateConfigure extends EasCommand {
-  static description = 'configure the project to support EAS Update';
+  static override description = 'configure the project to support EAS Update';
 
-  static flags = {
+  static override flags = {
     platform: Flags.enum({
       description: 'Platform to configure',
       char: 'p',

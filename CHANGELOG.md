@@ -14,6 +14,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Add noImplicitOverride to tsconfigs. ([#1327](https://github.com/expo/eas-cli/pull/1327) by [@wschurman](https://github.com/wschurman))
+
 ## [2.0.0](https://github.com/expo/eas-cli/releases/tag/v2.0.0) - 2022-09-01
 
 ### 🛠 Breaking changes

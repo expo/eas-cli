@@ -25,10 +25,10 @@ const STAGE_DESCRIPTION = `Stage of the build you want to inspect.
     post-build - builds the native project and leaves the output directory for inspection`;
 
 export default class BuildInspect extends EasCommand {
-  static description =
+  static override description =
     'inspect the state of the project at specific build stages, useful for troubleshooting';
 
-  static flags = {
+  static override flags = {
     platform: Flags.enum({
       char: 'p',
       options: [RequestedPlatform.Android, RequestedPlatform.Ios],

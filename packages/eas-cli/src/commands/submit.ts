@@ -47,10 +47,10 @@ interface CommandFlags {
 }
 
 export default class Submit extends EasCommand {
-  static description = 'submit app binary to App Store and/or Play Store';
-  static aliases = ['build:submit'];
+  static override description = 'submit app binary to App Store and/or Play Store';
+  static override aliases = ['build:submit'];
 
-  static flags = {
+  static override flags = {
     platform: Flags.enum({
       char: 'p',
       options: ['android', 'ios', 'all'],

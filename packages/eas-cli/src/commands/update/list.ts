@@ -20,9 +20,9 @@ import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 import { getVcsClient } from '../../vcs';
 
 export default class BranchView extends EasCommand {
-  static description = 'view the recent updates for a branch';
+  static override description = 'view the recent updates for a branch';
 
-  static flags = {
+  static override flags = {
     branch: Flags.string({
       description: 'List all updates on this branch',
       exclusive: ['all'],

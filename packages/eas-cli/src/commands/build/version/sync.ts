@@ -40,9 +40,10 @@ interface SyncContext<T extends Platform> {
 }
 
 export default class BuildVersionSyncView extends EasCommand {
-  public static description = 'Update a version in native code with a value stored on EAS servers';
+  public static override description =
+    'Update a version in native code with a value stored on EAS servers';
 
-  public static flags = {
+  public static override flags = {
     platform: Flags.enum({
       char: 'p',
       options: ['android', 'ios', 'all'],

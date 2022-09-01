@@ -5,7 +5,7 @@ import DeviceManager from '../../devices/manager';
 import { ensureLoggedInAsync } from '../../user/actions';
 
 export default class DeviceCreate extends EasCommand {
-  static description = 'register new Apple Devices to use for internal distribution';
+  static override description = 'register new Apple Devices to use for internal distribution';
 
   async runAsync(): Promise<void> {
     const user = await ensureLoggedInAsync();

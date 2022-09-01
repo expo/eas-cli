@@ -3,11 +3,11 @@ import Log from '../../log';
 import { logoutAsync } from '../../user/User';
 
 export default class AccountLogout extends EasCommand {
-  static description = 'log out';
-  static aliases = ['logout'];
+  static override description = 'log out';
+  static override aliases = ['logout'];
 
-  protected mustBeRunInsideProject = false;
-  protected requiresAuthentication = false;
+  protected override mustBeRunInsideProject = false;
+  protected override requiresAuthentication = false;
 
   async runAsync(): Promise<void> {
     await logoutAsync();

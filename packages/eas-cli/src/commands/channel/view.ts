@@ -138,9 +138,9 @@ export function logChannelDetails(channel: {
 }
 
 export default class ChannelView extends EasCommand {
-  static description = 'view a channel';
+  static override description = 'view a channel';
 
-  static args = [
+  static override args = [
     {
       name: 'name',
       required: false,
@@ -148,7 +148,7 @@ export default class ChannelView extends EasCommand {
     },
   ];
 
-  static flags = {
+  static override flags = {
     json: Flags.boolean({
       description: 'print output as a JSON object with the channel ID, name and branch mapping.',
       default: false,

@@ -27,9 +27,9 @@ import {
 import { promptAsync } from '../../../prompts';
 
 export default class BuildVersionSetView extends EasCommand {
-  static description = 'Update version of an app.';
+  static override description = 'Update version of an app.';
 
-  static flags = {
+  static override flags = {
     platform: Flags.enum({
       char: 'p',
       options: ['android', 'ios'],

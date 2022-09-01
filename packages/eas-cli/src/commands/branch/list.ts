@@ -6,9 +6,9 @@ import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUt
 import { enableJsonOutput } from '../../utils/json';
 
 export default class BranchList extends EasCommand {
-  static description = 'list all branches';
+  static override description = 'list all branches';
 
-  static flags = {
+  static override flags = {
     ...EasPaginatedQueryFlags,
   };
 

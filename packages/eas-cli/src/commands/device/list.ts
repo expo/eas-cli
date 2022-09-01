@@ -13,9 +13,9 @@ import { findProjectRootAsync, getProjectAccountNameAsync } from '../../project/
 import { promptAsync } from '../../prompts';
 
 export default class BuildList extends EasCommand {
-  static description = 'list all registered devices for your account';
+  static override description = 'list all registered devices for your account';
 
-  static flags = {
+  static override flags = {
     'apple-team-id': Flags.string(),
   };
 

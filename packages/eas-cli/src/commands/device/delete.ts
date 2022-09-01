@@ -21,9 +21,9 @@ import { findProjectRootAsync, getProjectAccountNameAsync } from '../../project/
 import { promptAsync, toggleConfirmAsync } from '../../prompts';
 
 export default class DeviceDelete extends EasCommand {
-  static description = 'remove a registered device from your account';
+  static override description = 'remove a registered device from your account';
 
-  static flags = {
+  static override flags = {
     'apple-team-id': Flags.string(),
     udid: Flags.string({ multiple: true }),
   };

@@ -43,7 +43,7 @@ beforeEach(() => {
 
 const createTestEasCommand = (authValue: boolean): typeof EasCommand => {
   class TestEasCommand extends EasCommand {
-    requiresAuthentication = authValue;
+    override requiresAuthentication = authValue;
 
     async runAsync(): Promise<void> {}
   }

@@ -77,16 +77,16 @@ async function deleteBranchOnAppAsync({
 }
 
 export default class BranchDelete extends EasCommand {
-  static description = 'delete a branch';
+  static override description = 'delete a branch';
 
-  static args = [
+  static override args = [
     {
       name: 'name',
       required: false,
       description: 'Name of the branch to delete',
     },
   ];
-  static flags = {
+  static override flags = {
     json: Flags.boolean({
       description: `return JSON with the edited branch's ID and name.`,
       default: false,
