@@ -38,7 +38,7 @@
             "When using remote, the `autoIncrement` is based on the values stored on EAS servers."
           ]
         },
-        "promptToConfigurePushNotfications" : {
+        "promptToConfigurePushNotifications" : {
           "type": "boolean",
           "description": "Specifies where EAS CLI should prompt to configure Push Notifications credentials. Defaults to true.",
           "default": true
