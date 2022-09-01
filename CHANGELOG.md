@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Use discriminated union type for BuildContext. ([#1330](https://github.com/expo/eas-cli/pull/1330) by [@wschurman](https://github.com/wschurman))
+
 ## [1.2.0](https://github.com/expo/eas-cli/releases/tag/v1.2.0) - 2022-08-29
 
 ### 🎉 New features
