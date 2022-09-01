@@ -10,7 +10,7 @@ export const EasJsonSchema = Joi.object({
     requireCommit: Joi.boolean(),
     appVersionSource: Joi.string().valid(...Object.values(AppVersionSource)),
     promptToConfigurePushNotifications: Joi.boolean(),
-  }).rename('promptToConfigurePushNotfications', 'promptToConfigurePushNotifications'),
+  }),
   build: Joi.object().pattern(Joi.string(), BuildProfileSchema),
   submit: Joi.object().pattern(Joi.string(), SubmitProfileSchema),
 });
