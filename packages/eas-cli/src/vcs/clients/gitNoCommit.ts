@@ -23,8 +23,8 @@ export default class GitNoCommitClient extends GitClient {
 
   public override async isFileIgnoredAsync(filePath: string): Promise<boolean> {
     // normalize converts C:/some/path to C:\some\path on windows
-    const srcPath = path.normalize(await this.getRootPathAsync());
-    const ignore = new Ignore(srcPath);
+    const rootPath = path.normalize(await this.getRootPathAsync());
+    const ignore = new Ignore(rootPath);
     await ignore.initIgnoreAsync();
     return ignore.ignores(filePath);
   }
