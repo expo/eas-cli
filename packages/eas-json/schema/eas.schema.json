@@ -168,7 +168,7 @@
           "markdownDescription": "When enabled, for iOS, bumps the last component of `expo.ios.buildNumber` (e.g. `1.2.3.39` -> `1.2.3.40`) and for Android, bumps `expo.android.versionCode` (e.g. `3` -> `4`).",
           "default": false
         },
-        "buildArtifactsPaths": {
+        "buildArtifactPaths": {
           "type": "array",
           "items": {
             "type": "string"

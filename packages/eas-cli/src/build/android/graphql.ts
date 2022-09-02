@@ -16,7 +16,7 @@ export function transformJob(job: Android.Job): AndroidJobInput {
     version: job.version?.versionCode ? { versionCode: job.version.versionCode } : undefined,
     gradleCommand: job.gradleCommand,
     applicationArchivePath: job.applicationArchivePath,
-    buildArtifactsPaths: job.buildArtifactsPaths,
+    buildArtifactPaths: job.buildArtifactPaths,
     username: job.username,
     buildType: job.buildType && transformBuildType(job.buildType),
     developmentClient: job.developmentClient,

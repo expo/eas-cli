@@ -5008,7 +5008,7 @@
           },
           {
             "name": "artifactPath",
-            "description": "",
+            "description": "@deprecated",
             "type": {
               "kind": "SCALAR",
               "name": "String",
@@ -5019,7 +5019,7 @@
             "deprecationReason": null
           },
           {
-            "name": "buildArtifactsPaths",
+            "name": "buildArtifactPaths",
             "description": "",
             "type": {
               "kind": "LIST",
@@ -5314,7 +5314,7 @@
           },
           {
             "name": "artifactPath",
-            "description": "",
+            "description": "@deprecated",
             "type": {
               "kind": "SCALAR",
               "name": "String",
@@ -5325,7 +5325,7 @@
             "deprecationReason": null
           },
           {
-            "name": "buildArtifactsPaths",
+            "name": "buildArtifactPaths",
             "description": "",
             "type": {
               "kind": "LIST",
@@ -12535,6 +12535,30 @@
         "description": "",
         "fields": [
           {
+            "name": "applicationArchiveUrl",
+            "description": "",
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "buildArtifactsUrl",
+            "description": "",
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "buildUrl",
             "description": "",
             "args": [],
@@ -19062,7 +19086,7 @@
             "deprecationReason": null
           },
           {
-            "name": "buildArtifactsPaths",
+            "name": "buildArtifactPaths",
             "description": "",
             "type": {
               "kind": "LIST",
@@ -19333,7 +19357,7 @@
             "deprecationReason": null
           },
           {
-            "name": "buildArtifactsPaths",
+            "name": "buildArtifactPaths",
             "description": "",
             "type": {
               "kind": "LIST",
@@ -21613,6 +21637,18 @@
         "description": "",
         "fields": [
           {
+            "name": "applicationArchiveUrl",
+            "description": "",
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "buildUrl",
             "description": "",
             "args": [],
@@ -23737,7 +23773,7 @@
                   "name": null,
                   "ofType": {
                     "kind": "SCALAR",
-                    "name": "String",
+                    "name": "ID",
                     "ofType": null
                   }
                 },

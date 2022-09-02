@@ -73,7 +73,7 @@ export async function prepareJobAsync(
     developmentClient: buildProfile.developmentClient,
     gradleCommand: buildProfile.gradleCommand,
     applicationArchivePath: buildProfile.applicationArchivePath ?? buildProfile.artifactPath,
-    buildArtifactsPaths: buildProfile.buildArtifactsPaths,
+    buildArtifactPaths: buildProfile.buildArtifactPaths,
     buildType,
     username,
     ...(ctx.android.versionCodeOverride && {

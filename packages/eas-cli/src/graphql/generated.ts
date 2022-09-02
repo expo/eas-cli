@@ -780,8 +780,9 @@ export type AndroidJobBuildCredentialsInput = {
 
 export type AndroidJobInput = {
   applicationArchivePath?: InputMaybe<Scalars['String']>;
+  /** @deprecated */
   artifactPath?: InputMaybe<Scalars['String']>;
-  buildArtifactsPaths?: InputMaybe<Array<Scalars['String']>>;
+  buildArtifactPaths?: InputMaybe<Array<Scalars['String']>>;
   buildType?: InputMaybe<AndroidBuildType>;
   builderEnvironment?: InputMaybe<AndroidBuilderEnvironmentInput>;
   cache?: InputMaybe<BuildCacheInput>;
@@ -807,8 +808,9 @@ export type AndroidJobKeystoreInput = {
 
 export type AndroidJobOverridesInput = {
   applicationArchivePath?: InputMaybe<Scalars['String']>;
+  /** @deprecated */
   artifactPath?: InputMaybe<Scalars['String']>;
-  buildArtifactsPaths?: InputMaybe<Array<Scalars['String']>>;
+  buildArtifactPaths?: InputMaybe<Array<Scalars['String']>>;
   buildType?: InputMaybe<AndroidBuildType>;
   builderEnvironment?: InputMaybe<AndroidBuilderEnvironmentInput>;
   cache?: InputMaybe<BuildCacheInput>;
@@ -1796,6 +1798,8 @@ export type BuildArtifact = {
 
 export type BuildArtifacts = {
   __typename?: 'BuildArtifacts';
+  applicationArchiveUrl?: Maybe<Scalars['String']>;
+  buildArtifactsUrl?: Maybe<Scalars['String']>;
   buildUrl?: Maybe<Scalars['String']>;
   xcodeBuildLogsUrl?: Maybe<Scalars['String']>;
 };
@@ -2745,7 +2749,7 @@ export type IosJobInput = {
   applicationArchivePath?: InputMaybe<Scalars['String']>;
   /** @deprecated */
   artifactPath?: InputMaybe<Scalars['String']>;
-  buildArtifactsPaths?: InputMaybe<Array<Scalars['String']>>;
+  buildArtifactPaths?: InputMaybe<Array<Scalars['String']>>;
   buildConfiguration?: InputMaybe<Scalars['String']>;
   /** @deprecated */
   buildType?: InputMaybe<IosBuildType>;
@@ -2771,7 +2775,7 @@ export type IosJobOverridesInput = {
   applicationArchivePath?: InputMaybe<Scalars['String']>;
   /** @deprecated */
   artifactPath?: InputMaybe<Scalars['String']>;
-  buildArtifactsPaths?: InputMaybe<Array<Scalars['String']>>;
+  buildArtifactPaths?: InputMaybe<Array<Scalars['String']>>;
   buildConfiguration?: InputMaybe<Scalars['String']>;
   /** @deprecated */
   buildType?: InputMaybe<IosBuildType>;
@@ -3112,6 +3116,7 @@ export type ProjectQueryByUsernameAndSlugArgs = {
 
 export type PublicArtifacts = {
   __typename?: 'PublicArtifacts';
+  applicationArchiveUrl?: Maybe<Scalars['String']>;
   buildUrl?: Maybe<Scalars['String']>;
 };
 
@@ -3442,7 +3447,7 @@ export type ServerlessFunctionMutation = {
 
 
 export type ServerlessFunctionMutationCreateDeploymentArgs = {
-  appId: Scalars['String'];
+  appId: Scalars['ID'];
   serverlessFunctionIdentifierInput: ServerlessFunctionIdentifierInput;
 };
 

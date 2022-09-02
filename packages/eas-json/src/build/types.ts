@@ -22,7 +22,7 @@ export interface CommonBuildProfile {
   developmentClient?: boolean;
   prebuildCommand?: string;
   autoIncrement?: boolean;
-  buildArtifactsPaths?: string[];
+  buildArtifactPaths?: string[];
 
   node?: string;
   yarn?: string;
