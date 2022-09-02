@@ -32,6 +32,7 @@
     "@urql/core": "2.6.1",
     "@urql/exchange-retry": "0.3.3",
     "ajv": "^6.12.6",
+    "better-opn": "3.0.2",
     "chalk": "4.1.2",
     "cli-progress": "3.11.2",
     "cli-table3": "0.6.2",
