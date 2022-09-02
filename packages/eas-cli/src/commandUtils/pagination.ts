@@ -1,13 +1,10 @@
 import { Flags } from '@oclif/core';
 
-import { EasNonInteractiveFlags } from './flags';
+import { EasNonInteractiveAndJsonFlags } from './flags';
 
 export const getPaginatedQueryOptions = (
   flags: Partial<
-    Record<
-      keyof typeof EasPaginatedQueryFlags | keyof typeof EasNonInteractiveFlags['nonInteractive'],
-      any
-    >
+    Record<keyof typeof EasPaginatedQueryFlags | keyof typeof EasNonInteractiveAndJsonFlags, any>
   >
 ): PaginatedQueryOptions => {
   return {

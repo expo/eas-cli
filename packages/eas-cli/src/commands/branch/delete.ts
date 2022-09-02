@@ -3,7 +3,8 @@ import gql from 'graphql-tag';
 
 import { selectBranchOnAppAsync } from '../../branch/queries';
 import EasCommand from '../../commandUtils/EasCommand';
-import { EasPaginatedQueryFlags, getPaginatedQueryOptions } from '../../commandUtils/pagination';
+import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
+import { getPaginatedQueryOptions } from '../../commandUtils/pagination';
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
 import {
   DeleteUpdateBranchMutation,
@@ -89,8 +90,7 @@ export default class BranchDelete extends EasCommand {
   ];
 
   static override flags = {
-    json: EasPaginatedQueryFlags.json,
-    'non-interactive': EasPaginatedQueryFlags['non-interactive'],
+    ...EasNonInteractiveAndJsonFlags,
   };
 
   async runAsync(): Promise<void> {

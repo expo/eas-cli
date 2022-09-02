@@ -42,14 +42,14 @@ export const UPDATE_COLUMNS = [
 export const UPDATE_COLUMNS_WITH_BRANCH = ['Branch', ...UPDATE_COLUMNS];
 
 export function getPlatformsForGroup({
-  group = '',
+  group,
   updates = [],
 }: {
   group: string | undefined;
   updates: { group: string; platform: string }[] | undefined;
 }): string {
   const groupedUpdates = groupBy(updates, update => update.group);
-  return formatPlatformForUpdateGroup(groupedUpdates[group]);
+  return formatPlatformForUpdateGroup(group ? groupedUpdates[group] : undefined);
 }
 
 export function formatPlatformForUpdateGroup(

@@ -1,6 +1,6 @@
 import { selectBranchOnAppAsync } from '../../branch/queries';
 import EasCommand from '../../commandUtils/EasCommand';
-import { EasNonInteractiveFlags } from '../../commandUtils/flags';
+import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import {
   EasPaginatedQueryFlags,
   getLimitFlagWithCustomValues,
@@ -24,7 +24,7 @@ export default class BranchView extends EasCommand {
 
   static override flags = {
     ...EasPaginatedQueryFlags,
-    ...EasNonInteractiveFlags.nonInteractive,
+    ...EasNonInteractiveAndJsonFlags,
     limit: getLimitFlagWithCustomValues({ defaultTo: 25, limit: 50 }),
   };
 

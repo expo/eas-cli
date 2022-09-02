@@ -11,7 +11,7 @@ import { selectBranchOnAppAsync } from '../../branch/queries';
 import { getDefaultBranchNameAsync } from '../../branch/utils';
 import { getUpdateGroupUrl } from '../../build/utils/url';
 import EasCommand from '../../commandUtils/EasCommand';
-import { EasNonInteractiveFlags } from '../../commandUtils/flags';
+import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import { getPaginatedQueryOptions } from '../../commandUtils/pagination';
 import fetch from '../../fetch';
 import {
@@ -171,7 +171,7 @@ export default class UpdatePublish extends EasCommand {
       description: `File containing the PEM-encoded private key corresponding to the certificate in expo-updates' configuration. Defaults to a file named "private-key.pem" in the certificate's directory.`,
       required: false,
     }),
-    ...EasNonInteractiveFlags.nonInteractive,
+    ...EasNonInteractiveAndJsonFlags,
   };
 
   async runAsync(): Promise<void> {
@@ -197,7 +197,7 @@ export default class UpdatePublish extends EasCommand {
 
     const platformFlag = platform as PublishPlatformFlag;
     // If a group was specified, that means we are republishing it.
-    republish = group ? true : republish;
+    republish = republish || !!group;
 
     const projectDir = await findProjectRootAsync();
     const exp = getExpoConfig(projectDir, {
@@ -251,7 +251,9 @@ export default class UpdatePublish extends EasCommand {
         try {
           const branch = await selectBranchOnAppAsync({
             projectId,
-            promptTitle: 'Which branch would you like to publish on?',
+            promptTitle: `Which branch would you like to ${
+              republish ? 'republish' : 'publish'
+            } on?`,
             displayTextForListItem: updateBranch =>
               `${updateBranch.name} ${chalk.grey(
                 `- current update: ${formatUpdateMessage(updateBranch.updates[0])}`
