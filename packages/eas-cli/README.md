@@ -32,7 +32,7 @@ An example of **eas.json** that enforces `eas-cli` in version `1.0.0` or newer:
   },
   "build": {
     // build profiles
-  }
+  },
   "submit": {
     // submit profiles
   }
