@@ -2,38 +2,31 @@ import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../client';
 import {
-  ViewAllUpdatesQuery,
-  ViewAllUpdatesQueryVariables,
-  ViewBranchUpdatesQuery,
-  ViewBranchUpdatesQueryVariables,
-  ViewUpdateGroupsForAppQuery,
-  ViewUpdateGroupsForAppQueryVariables,
-  ViewUpdateGroupsOnBranchForAppQuery,
-  ViewUpdateGroupsOnBranchForAppQueryVariables,
+  UpdateBranchFragment,
+  ViewUpdateGroupsOnAppQuery,
+  ViewUpdateGroupsOnAppQueryVariables,
+  ViewUpdateGroupsOnBranchQuery,
+  ViewUpdateGroupsOnBranchQueryVariables,
   ViewUpdatesByGroupQuery,
   ViewUpdatesByGroupQueryVariables,
 } from '../generated';
 
-export type BranchUpdateObject = Exclude<
-  ViewBranchUpdatesQuery['app']['byId']['updateBranchByName'],
-  null | undefined
->['updates'][number];
+export type BranchUpdateObject = UpdateBranchFragment['updates'][number];
 
 export type BranchUpdateGroupObject = Exclude<
-  ViewUpdateGroupsOnBranchForAppQuery['app']['byId']['updateBranchByName'],
+  ViewUpdateGroupsOnBranchQuery['app']['byId']['updateBranchByName'],
   null | undefined
 >['updateGroups'][number];
 
 export type AppUpdateGroupObject = Exclude<
-  ViewUpdateGroupsForAppQuery['app']['byId'],
+  ViewUpdateGroupsOnAppQuery['app']['byId'],
   null | undefined
 >['updateGroups'][number];
 
-export type UpdateByGroupObject = ViewUpdatesByGroupQuery['updatesByGroup'];
-
-export type AppUpdateObject = ViewAllUpdatesQuery['app']['byId']['updates'][number];
-
-export type UpdateObject = BranchUpdateObject | AppUpdateObject;
+export type UpdateByGroupObject = Exclude<
+  ViewUpdatesByGroupQuery['updatesByGroup'],
+  null | undefined
+>;
 
 export type UpdateGroupObject =
   | UpdateByGroupObject
@@ -41,102 +34,8 @@ export type UpdateGroupObject =
   | BranchUpdateGroupObject;
 
 export const UpdateQuery = {
-  async viewAllAsync({ appId, limit, offset }: ViewAllUpdatesQueryVariables) {
-    return withErrorHandlingAsync(
-      graphqlClient
-        .query<ViewAllUpdatesQuery, ViewAllUpdatesQueryVariables>(
-          gql`
-            query ViewAllUpdates($appId: String!, $limit: Int!, $offset: Int!) {
-              app {
-                byId(appId: $appId) {
-                  id
-                  updates(limit: $limit, offset: $offset) {
-                    id
-                    group
-                    message
-                    createdAt
-                    runtimeVersion
-                    platform
-                    actor {
-                      id
-                      ... on User {
-                        username
-                      }
-                      ... on Robot {
-                        firstName
-                      }
-                    }
-                    branch {
-                      id
-                      name
-                    }
-                  }
-                }
-              }
-            }
-          `,
-          {
-            appId,
-            limit,
-            offset,
-          },
-          { additionalTypenames: ['UpdateBranch', 'Update'] }
-        )
-        .toPromise()
-    );
-  },
-  async viewBranchAsync({ appId, name, limit, offset }: ViewBranchUpdatesQueryVariables) {
-    return withErrorHandlingAsync(
-      graphqlClient
-        .query<ViewBranchUpdatesQuery, ViewBranchUpdatesQueryVariables>(
-          gql`
-            query ViewBranchUpdates($appId: String!, $name: String!, $limit: Int!, $offset: Int!) {
-              app {
-                byId(appId: $appId) {
-                  id
-                  updateBranchByName(name: $name) {
-                    id
-                    name
-                    updates(limit: $limit, offset: $offset) {
-                      id
-                      group
-                      message
-                      createdAt
-                      runtimeVersion
-                      platform
-                      manifestFragment
-                      actor {
-                        id
-                        ... on User {
-                          username
-                        }
-                        ... on Robot {
-                          firstName
-                        }
-                      }
-                      branch {
-                        id
-                        name
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          `,
-          {
-            appId,
-            name,
-            limit,
-            offset,
-          },
-          { additionalTypenames: ['UpdateBranch', 'Update'] }
-        )
-        .toPromise()
-    );
-  },
-  async viewUpdateGroupAsync({ groupId }: { groupId: string }): Promise<ViewUpdatesByGroupQuery> {
-    return await withErrorHandlingAsync(
+  async viewUpdateGroupAsync({ groupId }: { groupId: string }): Promise<UpdateByGroupObject> {
+    const { updatesByGroup } = await withErrorHandlingAsync(
       graphqlClient
         .query<ViewUpdatesByGroupQuery, ViewUpdatesByGroupQueryVariables>(
           gql`
@@ -150,6 +49,7 @@ export const UpdateQuery = {
                 createdAt
                 manifestFragment
                 actor {
+                  __typename
                   id
                   ... on User {
                     username
@@ -172,6 +72,12 @@ export const UpdateQuery = {
         )
         .toPromise()
     );
+
+    if (updatesByGroup.length === 0) {
+      throw new Error(`Could not find any updates with group ID: "${groupId}"`);
+    }
+
+    return updatesByGroup;
   },
   async viewUpdateGroupsOnBranchAsync({
     limit,
@@ -179,12 +85,12 @@ export const UpdateQuery = {
     appId,
     branchName,
     filter,
-  }: ViewUpdateGroupsOnBranchForAppQueryVariables): Promise<ViewUpdateGroupsOnBranchForAppQuery> {
-    return await withErrorHandlingAsync(
+  }: ViewUpdateGroupsOnBranchQueryVariables): Promise<BranchUpdateGroupObject[]> {
+    const response = await withErrorHandlingAsync(
       graphqlClient
-        .query<ViewUpdateGroupsOnBranchForAppQuery, ViewUpdateGroupsOnBranchForAppQueryVariables>(
+        .query<ViewUpdateGroupsOnBranchQuery, ViewUpdateGroupsOnBranchQueryVariables>(
           gql`
-            query ViewUpdateGroupsOnBranchForApp(
+            query ViewUpdateGroupsOnBranch(
               $appId: String!
               $branchName: String!
               $limit: Int!
@@ -204,6 +110,16 @@ export const UpdateQuery = {
                       runtimeVersion
                       platform
                       manifestFragment
+                      actor {
+                        __typename
+                        id
+                        ... on User {
+                          username
+                        }
+                        ... on Robot {
+                          firstName
+                        }
+                      }
                       branch {
                         id
                         name
@@ -225,18 +141,25 @@ export const UpdateQuery = {
         )
         .toPromise()
     );
+    const branch = response.app.byId.updateBranchByName;
+
+    if (!branch) {
+      throw new Error(`Could not find branch "${branchName}"`);
+    }
+
+    return branch.updateGroups;
   },
-  async viewUpdateGroupsAsync({
+  async viewUpdateGroupsOnAppAsync({
     limit,
     offset,
     appId,
     filter,
-  }: ViewUpdateGroupsForAppQueryVariables): Promise<ViewUpdateGroupsForAppQuery> {
-    return await withErrorHandlingAsync(
+  }: ViewUpdateGroupsOnAppQueryVariables): Promise<AppUpdateGroupObject[]> {
+    const response = await withErrorHandlingAsync(
       graphqlClient
-        .query<ViewUpdateGroupsForAppQuery, ViewUpdateGroupsForAppQueryVariables>(
+        .query<ViewUpdateGroupsOnAppQuery, ViewUpdateGroupsOnAppQueryVariables>(
           gql`
-            query ViewUpdateGroupsForApp(
+            query ViewUpdateGroupsOnApp(
               $appId: String!
               $limit: Int!
               $offset: Int!
@@ -253,6 +176,16 @@ export const UpdateQuery = {
                     runtimeVersion
                     platform
                     manifestFragment
+                    actor {
+                      __typename
+                      id
+                      ... on User {
+                        username
+                      }
+                      ... on Robot {
+                        firstName
+                      }
+                    }
                     branch {
                       id
                       name
@@ -272,5 +205,11 @@ export const UpdateQuery = {
         )
         .toPromise()
     );
+
+    if (!response) {
+      throw new Error(`Could not find app with id "${appId}"`);
+    }
+
+    return response.app.byId.updateGroups;
   },
 };

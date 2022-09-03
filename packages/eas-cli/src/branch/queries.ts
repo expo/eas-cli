@@ -97,16 +97,23 @@ function renderPageOfBranches(
     });
 
     table.push(
-      ...currentPage.map(branch => [
-        branch.name,
-        formatUpdateMessage(branch.updates[0]),
-        branch.updates[0]?.runtimeVersion ?? 'N/A',
-        branch.updates[0]?.group ?? 'N/A',
-        getPlatformsForGroup({
-          group: branch.updates[0]?.group,
-          updates: branch.updates,
-        }),
-      ])
+      ...currentPage.map(branch => {
+        if (branch.updates.length === 0) {
+          return [branch.name, 'N/A', 'N/A', 'N/A', 'N/A'];
+        }
+
+        const latestUpdateOnBranch = branch.updates[0];
+        return [
+          branch.name,
+          formatUpdateMessage(latestUpdateOnBranch),
+          latestUpdateOnBranch.runtimeVersion,
+          latestUpdateOnBranch.group,
+          getPlatformsForGroup({
+            group: latestUpdateOnBranch.group,
+            updates: branch.updates,
+          }),
+        ];
+      })
     );
 
     Log.addNewLineIfNone();

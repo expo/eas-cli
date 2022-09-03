@@ -33,11 +33,7 @@ export default class UpdateView extends EasCommand {
       enableJsonOutput();
     }
 
-    const { updatesByGroup } = await UpdateQuery.viewUpdateGroupAsync({ groupId });
-    if (updatesByGroup.length === 0) {
-      throw new Error(`Could not find any updates with group ID: "${groupId}"`);
-    }
-
+    const updatesByGroup = await UpdateQuery.viewUpdateGroupAsync({ groupId });
     const [updateGroupDescription] = getUpdateGroupDescriptions([updatesByGroup]);
 
     if (jsonFlag) {

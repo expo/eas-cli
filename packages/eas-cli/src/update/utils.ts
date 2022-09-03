@@ -4,7 +4,7 @@ import chalk from 'chalk';
 import dateFormat from 'dateformat';
 
 import { Maybe, Robot, Update, User } from '../graphql/generated';
-import { UpdateGroupObject, UpdateObject } from '../graphql/queries/UpdateQuery';
+import { BranchUpdateObject, UpdateGroupObject } from '../graphql/queries/UpdateQuery';
 import { learnMore } from '../log';
 import { RequestedPlatform } from '../platform';
 import { getActorDisplayName } from '../user/User';
@@ -114,7 +114,7 @@ export function ensureValidVersions(exp: ExpoConfig, platform: RequestedPlatform
   }
 }
 
-export function formatUpdateTitle(update: UpdateObject): string {
+export function formatUpdateTitle(update: UpdateGroupObject[number] | BranchUpdateObject): string {
   const { message, createdAt, actor, runtimeVersion } = update;
 
   let actorName: string;

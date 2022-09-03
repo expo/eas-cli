@@ -1,8 +1,12 @@
+import assert from 'assert';
 import chalk from 'chalk';
 import CliTable from 'cli-table3';
 
 import { PaginatedQueryOptions } from '../commandUtils/pagination';
-import { ViewUpdateGroupsOnBranchForAppQueryVariables } from '../graphql/generated';
+import {
+  ViewUpdateGroupsOnAppQueryVariables,
+  ViewUpdateGroupsOnBranchQueryVariables,
+} from '../graphql/generated';
 import {
   AppUpdateGroupObject,
   BranchUpdateGroupObject,
@@ -26,7 +30,7 @@ import {
 export const UPDATES_LIMIT = 50;
 export const UPDATE_GROUPS_LIMIT = 25;
 
-export async function listAndRenderUpdatesGroupsOnAppAsync({
+export async function listAndRenderUpdateGroupsOnAppAsync({
   projectId,
   paginatedQueryOptions,
 }: {
@@ -39,7 +43,7 @@ export async function listAndRenderUpdatesGroupsOnAppAsync({
       offset: paginatedQueryOptions.offset,
       appId: projectId,
     });
-    renderUpdateGroupsAsTableWithBranchColumn(updateGroups, paginatedQueryOptions);
+    renderUpdateGroupsOnAppAsTable(updateGroups, paginatedQueryOptions);
   } else {
     await paginatedQueryWithConfirmPromptAsync({
       limit: paginatedQueryOptions.limit ?? UPDATE_GROUPS_LIMIT,
@@ -48,8 +52,8 @@ export async function listAndRenderUpdatesGroupsOnAppAsync({
         queryUpdateGroupsOnAppAsync({ limit, offset, appId: projectId }),
       promptOptions: {
         title: 'Load more update groups?',
-        renderListItems: updateGroup =>
-          renderUpdateGroupsAsTableWithBranchColumn(updateGroup, paginatedQueryOptions),
+        renderListItems: updateGroups =>
+          renderUpdateGroupsOnAppAsTable(updateGroups, paginatedQueryOptions),
       },
     });
   }
@@ -71,7 +75,7 @@ export async function listAndRenderUpdateGroupsOnBranchAsync({
       appId: projectId,
       branchName,
     });
-    renderUpdateGroupsAsTable(updateGroups, paginatedQueryOptions);
+    renderUpdateGroupsOnBranchAsTable({ updateGroups, branchName, paginatedQueryOptions });
   } else {
     await paginatedQueryWithConfirmPromptAsync({
       limit: paginatedQueryOptions.limit ?? UPDATE_GROUPS_LIMIT,
@@ -80,7 +84,8 @@ export async function listAndRenderUpdateGroupsOnBranchAsync({
         queryUpdateGroupsOnBranchAsync({ limit, offset, appId: projectId, branchName }),
       promptOptions: {
         title: 'Load more update groups?',
-        renderListItems: updates => renderUpdateGroupsAsTable(updates, paginatedQueryOptions),
+        renderListItems: updateGroups =>
+          renderUpdateGroupsOnBranchAsTable({ updateGroups, branchName, paginatedQueryOptions }),
       },
     });
   }
@@ -97,70 +102,59 @@ export async function selectUpdateGroupOnBranchAsync({
 }): Promise<BranchUpdateGroupObject> {
   if (painatedQueryOptions.nonInteractive) {
     throw new Error('Unable to select an update in non-interactive mode.');
-  } else {
-    const updateGroup = await paginatedQueryWithSelectPromptAsync({
-      limit: painatedQueryOptions.limit ?? UPDATE_GROUPS_LIMIT,
-      offset: painatedQueryOptions.offset,
-      queryToPerform: (limit, offset) =>
-        queryUpdateGroupsOnBranchAsync({ appId: projectId, branchName, limit, offset }),
-      promptOptions: {
-        title: 'Load more update groups?',
-        createDisplayTextForSelectionPromptListItem: updateGroup =>
-          formatUpdateTitle(updateGroup[0]),
-        getIdentifierForQueryItem: updateGroup => updateGroup[0].group,
-      },
-    });
-
-    if (!updateGroup || updateGroup.length === 0) {
-      throw new Error(`Could not find any branches for project "${projectId}"`);
-    }
-
-    return updateGroup;
   }
+
+  const updateGroup = await paginatedQueryWithSelectPromptAsync({
+    limit: painatedQueryOptions.limit ?? UPDATE_GROUPS_LIMIT,
+    offset: painatedQueryOptions.offset,
+    queryToPerform: (limit, offset) =>
+      queryUpdateGroupsOnBranchAsync({ appId: projectId, branchName, limit, offset }),
+    promptOptions: {
+      title: 'Load more update groups?',
+      createDisplayTextForSelectionPromptListItem: updateGroup => formatUpdateTitle(updateGroup[0]),
+      getIdentifierForQueryItem: updateGroup => updateGroup[0].group,
+    },
+  });
+
+  if (!updateGroup || updateGroup.length === 0) {
+    throw new Error(`Could not find any branches for project "${projectId}"`);
+  }
+
+  return updateGroup;
 }
 
 async function queryUpdateGroupsOnBranchAsync(
-  args: ViewUpdateGroupsOnBranchForAppQueryVariables
+  args: ViewUpdateGroupsOnBranchQueryVariables
 ): Promise<BranchUpdateGroupObject[]> {
-  const { app } = await UpdateQuery.viewUpdateGroupsOnBranchAsync(args);
-
-  const { updateBranchByName } = app.byId;
-  if (!updateBranchByName) {
-    throw new Error(`Could not find branch "${args.branchName}"`);
-  }
-
-  return updateBranchByName.updateGroups;
+  return await UpdateQuery.viewUpdateGroupsOnBranchAsync(args);
 }
 
-async function queryUpdateGroupsOnAppAsync({
-  limit,
-  offset,
-  appId,
+async function queryUpdateGroupsOnAppAsync(
+  args: ViewUpdateGroupsOnAppQueryVariables
+): Promise<AppUpdateGroupObject[]> {
+  return await UpdateQuery.viewUpdateGroupsOnAppAsync(args);
+}
+
+function renderUpdateGroupsOnBranchAsTable({
+  updateGroups,
+  branchName,
+  paginatedQueryOptions: { json },
 }: {
-  limit: number;
-  offset: number;
-  appId: string;
-}): Promise<AppUpdateGroupObject[]> {
-  const { app } = await UpdateQuery.viewUpdateGroupsAsync({
-    appId,
-    limit,
-    offset,
-  });
+  updateGroups: BranchUpdateGroupObject[];
+  branchName: string;
+  paginatedQueryOptions: PaginatedQueryOptions;
+}): void {
+  const branchNames = updateGroups.flatMap(updateGroup =>
+    updateGroup.map(update => update.branch.name)
+  );
+  assert(
+    branchNames.every(name => name === branchName),
+    'Each update must belong to the same branch.'
+  );
 
-  if (!app) {
-    throw new Error(`Could not find app with id "${appId}"`);
-  }
-
-  return app.byId.updateGroups;
-}
-
-function renderUpdateGroupsAsTable(
-  updateGroups: (BranchUpdateGroupObject | AppUpdateGroupObject)[],
-  { json }: PaginatedQueryOptions
-): void {
   const branch = {
-    name: updateGroups[0]?.[0]?.branch.name ?? 'N/A',
-    id: updateGroups[0]?.[0]?.branch.id ?? 'N/A',
+    name: branchName,
+    id: updateGroups[0]?.[0].branch.id ?? 'N/A',
   };
 
   const updateGroupDescriptions = getUpdateGroupDescriptions(updateGroups);
@@ -190,19 +184,14 @@ function renderUpdateGroupsAsTable(
   }
 }
 
-function renderUpdateGroupsAsTableWithBranchColumn(
+function renderUpdateGroupsOnAppAsTable(
   updateGroups: (BranchUpdateGroupObject | AppUpdateGroupObject)[],
   { json }: PaginatedQueryOptions
 ): void {
-  const branch = {
-    name: updateGroups[0]?.[0]?.branch.name ?? 'N/A',
-    id: updateGroups[0]?.[0]?.branch.id ?? 'N/A',
-  };
-
   const updateGroupDescriptions = getUpdateGroupDescriptionsWithBranch(updateGroups);
 
   if (json) {
-    printJsonOnlyOutput({ ...branch, currentPage: updateGroupDescriptions });
+    printJsonOnlyOutput({ currentPage: updateGroupDescriptions });
   } else {
     const updateGroupsTable = new CliTable({
       head: UPDATE_COLUMNS_WITH_BRANCH,

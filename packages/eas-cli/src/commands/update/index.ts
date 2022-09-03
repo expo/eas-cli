@@ -20,9 +20,10 @@ import {
   Update,
   UpdateInfoGroup,
   UpdatePublishMutation,
-  ViewBranchUpdatesQuery,
+  ViewBranchQueryVariables,
 } from '../../graphql/generated';
 import { PublishMutation } from '../../graphql/mutations/PublishMutation';
+import { BranchQuery } from '../../graphql/queries/BranchQuery';
 import { UpdateQuery } from '../../graphql/queries/UpdateQuery';
 import Log, { learnMore, link } from '../../log';
 import { ora } from '../../ora';
@@ -94,37 +95,24 @@ async function ensureChannelExistsAsync({
 export async function ensureBranchExistsAsync({
   appId,
   name: branchName,
-  limit,
-  offset,
-}: {
-  appId: string;
-  name: string;
-  limit: number;
-  offset: number;
-}): Promise<{
-  id: string;
-  updates: Exclude<
-    Exclude<ViewBranchUpdatesQuery['app'], null | undefined>['byId']['updateBranchByName'],
-    null | undefined
-  >['updates'];
+}: ViewBranchQueryVariables): Promise<{
+  branchId: string;
 }> {
-  const { app } = await UpdateQuery.viewBranchAsync({
+  const updateBranch = await BranchQuery.getBranchByNameAsync({
     appId,
     name: branchName,
-    limit,
-    offset,
   });
-  const updateBranch = app?.byId.updateBranchByName;
+
   if (updateBranch) {
-    const { id, updates } = updateBranch;
+    const { id } = updateBranch;
     await ensureChannelExistsAsync({ appId, branchId: id, channelName: branchName });
-    return { id, updates };
+    return { branchId: id };
   }
 
   const newUpdateBranch = await createUpdateBranchOnAppAsync({ appId, name: branchName });
   Log.withTick(`Created branch: ${chalk.bold(branchName)}`);
   await ensureChannelExistsAsync({ appId, branchId: newUpdateBranch.id, channelName: branchName });
-  return { id: newUpdateBranch.id, updates: [] };
+  return { branchId: newUpdateBranch.id };
 }
 
 export default class UpdatePublish extends EasCommand {
@@ -289,10 +277,7 @@ export default class UpdatePublish extends EasCommand {
         'group' | 'message' | 'runtimeVersion' | 'manifestFragment' | 'platform'
       >[];
       if (group) {
-        const { updatesByGroup } = await UpdateQuery.viewUpdateGroupAsync({ groupId: group });
-        if (updatesByGroup.length === 0) {
-          throw new Error(`There are no updates published with a group id of ${group}.`);
-        }
+        const updatesByGroup = await UpdateQuery.viewUpdateGroupAsync({ groupId: group });
         updatesToRepublish = updatesByGroup;
       } else {
         if (nonInteractiveFlag) {
@@ -429,11 +414,9 @@ export default class UpdatePublish extends EasCommand {
         .map(pair => pair[0]);
     }
 
-    const { id: branchId } = await ensureBranchExistsAsync({
+    const { branchId } = await ensureBranchExistsAsync({
       appId: projectId,
       name: branchName,
-      limit: 0,
-      offset: 0,
     });
 
     // Sort the updates into different groups based on their platform specific runtime versions

@@ -2,6 +2,7 @@ import { Flags } from '@oclif/core';
 
 import { selectBranchOnAppAsync } from '../../branch/queries';
 import EasCommand from '../../commandUtils/EasCommand';
+import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import {
   EasPaginatedQueryFlags,
   getLimitFlagWithCustomValues,
@@ -10,8 +11,8 @@ import {
 import { getExpoConfig } from '../../project/expoConfig';
 import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUtils';
 import {
+  listAndRenderUpdateGroupsOnAppAsync,
   listAndRenderUpdateGroupsOnBranchAsync,
-  listAndRenderUpdatesGroupsOnAppAsync,
 } from '../../update/queries';
 import { enableJsonOutput } from '../../utils/json';
 
@@ -30,6 +31,7 @@ export default class UpdateList extends EasCommand {
     }),
     ...EasPaginatedQueryFlags,
     limit: getLimitFlagWithCustomValues({ defaultTo: 25, limit: 50 }),
+    ...EasNonInteractiveAndJsonFlags,
   };
 
   async runAsync(): Promise<void> {
@@ -46,7 +48,7 @@ export default class UpdateList extends EasCommand {
     const projectId = await getProjectIdAsync(exp);
 
     if (all) {
-      listAndRenderUpdatesGroupsOnAppAsync({ projectId, paginatedQueryOptions });
+      listAndRenderUpdateGroupsOnAppAsync({ projectId, paginatedQueryOptions });
     } else {
       if (branchFlag) {
         listAndRenderUpdateGroupsOnBranchAsync({
