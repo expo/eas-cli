@@ -16,6 +16,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - Fix viewing branch list when a branch has no associated platforms. ([#1326](https://github.com/expo/eas-cli/pull/1326) by [@hbiede](https://github.com/hbiede))
 - Fix description of `help` command in help prompt. ([#1341](https://github.com/expo/eas-cli/pull/1341) by [@Simek](https://github.com/Simek))
+- Resolve paths from the root when checking for gitignored values. ([#1336](https://github.com/expo/eas-cli/pull/1336) by [@wkozyra95](https://github.com/wkozyra95))
 
 ### 🧹 Chores
 

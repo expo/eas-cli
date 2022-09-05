@@ -2,6 +2,7 @@ import * as PackageManagerUtils from '@expo/package-manager';
 import spawnAsync from '@expo/spawn-async';
 import { Errors } from '@oclif/core';
 import chalk from 'chalk';
+import path from 'path';
 
 import Log, { learnMore } from '../../log';
 import { ora } from '../../ora';
@@ -188,7 +189,9 @@ export default class GitClient extends Client {
 
   public override async isFileIgnoredAsync(filePath: string): Promise<boolean> {
     try {
-      await spawnAsync('git', ['check-ignore', '-q', filePath]);
+      await spawnAsync('git', ['check-ignore', '-q', filePath], {
+        cwd: path.normalize(await this.getRootPathAsync()),
+      });
       return true;
     } catch {
       return false;
