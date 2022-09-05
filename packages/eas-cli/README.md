@@ -314,19 +314,22 @@ start a build
 
 ```
 USAGE
-  $ eas build [-p android|ios|all] [--json] [-e <value>] [--non-interactive] [--local] [--output <value>] [--wait] [--clear-cache] [--auto-submit | --auto-submit-with-profile <value>] [-m <value>]
+  $ eas build [-p android|ios|all] [--json] [--profile <value>] [--non-interactive] [--local] [--output
+    <value>] [--wait] [--clear-cache] [--auto-submit | --auto-submit-with-profile <value>] [-m <value>]
 
 FLAGS
-  -e, --profile=PROFILE_NAME               Name of the build profile from eas.json. Defaults to "production" if defined in eas.json.
   -m, --message=<value>                    A short message describing the build
   -p, --platform=(android|ios|all)
-  --auto-submit                            Submit on build complete using the submit profile with the same name as the build profile
+  --auto-submit                            Submit on build complete using the submit profile with the same name as the
+                                           build profile
   --auto-submit-with-profile=PROFILE_NAME  Submit on build complete using the submit profile with provided name
   --clear-cache                            Clear cache before the build
   --json                                   Enable JSON output, non-JSON messages will be printed to stderr
   --local                                  Run build locally [experimental]
   --non-interactive                        Run command in non-interactive mode
   --output=<value>                         Output path for local build
+  --profile=PROFILE_NAME                   Name of the build profile from eas.json. Defaults to "production" if defined
+                                           in eas.json.
   --[no-]wait                              Wait for build(s) to complete
 
 DESCRIPTION
@@ -372,18 +375,28 @@ inspect the state of the project at specific build stages, useful for troublesho
 
 ```
 USAGE
-  $ eas build:inspect -p android|ios -s archive|pre-build|post-build -o <value> [-e <value>] [--force] [-v]
+  $ eas build:inspect -p android|ios -s archive|pre-build|post-build -o <value> [--profile <value>] [--force] [-v]
 
 FLAGS
-  -e, --profile=PROFILE_NAME                  Name of the build profile from eas.json. Defaults to "production" if defined in eas.json.
-  -o, --output=OUTPUT_DIRECTORY               (required) Output directory.
-  -p, --platform=(android|ios)                (required)
-  -s, --stage=(archive|pre-build|post-build)  (required) Stage of the build you want to inspect.
-                                              archive - builds the project archive that would be uploaded to EAS when building
-                                              pre-build - prepares the project to be built with Gradle/Xcode. Does not run the native build.
-                                              post-build - builds the native project and leaves the output directory for inspection
+  -o, --output=OUTPUT_DIRECTORY
+      (required) Output directory.
+
+  -p, --platform=(android|ios)
+      (required)
+
+  -s, --stage=(archive|pre-build|post-build)
+      (required) Stage of the build you want to inspect.
+      archive - builds the project archive that would be uploaded to EAS when building
+      pre-build - prepares the project to be built with Gradle/Xcode. Does not run the native build.
+      post-build - builds the native project and leaves the output directory for inspection
+
   -v, --verbose
-  --force                                     Delete OUTPUT_DIRECTORY if it already exists.
+
+  --force
+      Delete OUTPUT_DIRECTORY if it already exists.
+
+  --profile=PROFILE_NAME
+      Name of the build profile from eas.json. Defaults to "production" if defined in eas.json.
 
 DESCRIPTION
   inspect the state of the project at specific build stages, useful for troubleshooting
@@ -430,15 +443,17 @@ submit app binary to App Store and/or Play Store
 
 ```
 USAGE
-  $ eas build:submit [-p android|ios|all] [-e <value>] [--latest | --id <value> | --path <value> | --url <value>] [--verbose] [--wait] [--non-interactive]
+  $ eas build:submit [-p android|ios|all] [--profile <value>] [--latest | --id <value> | --path <value> | --url
+    <value>] [--verbose] [--wait] [--non-interactive]
 
 FLAGS
-  -e, --profile=<value>             Name of the submit profile from eas.json. Defaults to "production" if defined in eas.json.
   -p, --platform=(android|ios|all)
   --id=<value>                      ID of the build to submit
   --latest                          Submit the latest build for specified platform
   --non-interactive                 Run command in non-interactive mode
   --path=<value>                    Path to the .apk/.aab/.ipa file
+  --profile=<value>                 Name of the submit profile from eas.json. Defaults to "production" if defined in
+                                    eas.json.
   --url=<value>                     App archive url
   --verbose                         Always print logs from Submission Service
   --[no-]wait                       Wait for submission to complete
@@ -456,11 +471,12 @@ Update version of an app.
 
 ```
 USAGE
-  $ eas build:version:set [-p android|ios] [-e <value>]
+  $ eas build:version:set [-p android|ios] [--profile <value>]
 
 FLAGS
-  -e, --profile=PROFILE_NAME    Name of the build profile from eas.json. Defaults to "production" if defined in eas.json.
   -p, --platform=(android|ios)
+  --profile=PROFILE_NAME        Name of the build profile from eas.json. Defaults to "production" if defined in
+                                eas.json.
 
 DESCRIPTION
   Update version of an app.
@@ -474,11 +490,12 @@ Update a version in native code with a value stored on EAS servers
 
 ```
 USAGE
-  $ eas build:version:sync [-p android|ios|all] [-e <value>]
+  $ eas build:version:sync [-p android|ios|all] [--profile <value>]
 
 FLAGS
-  -e, --profile=PROFILE_NAME        Name of the build profile from eas.json. Defaults to "production" if defined in eas.json.
   -p, --platform=(android|ios|all)
+  --profile=PROFILE_NAME            Name of the build profile from eas.json. Defaults to "production" if defined in
+                                    eas.json.
 
 DESCRIPTION
   Update a version in native code with a value stored on EAS servers
@@ -587,11 +604,11 @@ display project configuration (app.json + eas.json)
 
 ```
 USAGE
-  $ eas config [-p android|ios] [-e <value>]
+  $ eas config [-p android|ios] [--profile <value>]
 
 FLAGS
-  -e, --profile=<value>
   -p, --platform=(android|ios)
+  --profile=<value>
 
 DESCRIPTION
   display project configuration (app.json + eas.json)
@@ -764,10 +781,10 @@ generate the local store configuration from the app stores
 
 ```
 USAGE
-  $ eas metadata:pull [-e <value>]
+  $ eas metadata:pull [--profile <value>]
 
 FLAGS
-  -e, --profile=<value>  Name of the submit profile from eas.json. Defaults to "production" if defined in eas.json.
+  --profile=<value>  Name of the submit profile from eas.json. Defaults to "production" if defined in eas.json.
 
 DESCRIPTION
   generate the local store configuration from the app stores
@@ -781,10 +798,10 @@ sync the local store configuration to the app stores
 
 ```
 USAGE
-  $ eas metadata:push [-e <value>]
+  $ eas metadata:push [--profile <value>]
 
 FLAGS
-  -e, --profile=<value>  Name of the submit profile from eas.json. Defaults to "production" if defined in eas.json.
+  --profile=<value>  Name of the submit profile from eas.json. Defaults to "production" if defined in eas.json.
 
 DESCRIPTION
   sync the local store configuration to the app stores
@@ -894,15 +911,17 @@ submit app binary to App Store and/or Play Store
 
 ```
 USAGE
-  $ eas submit [-p android|ios|all] [-e <value>] [--latest | --id <value> | --path <value> | --url <value>] [--verbose] [--wait] [--non-interactive]
+  $ eas submit [-p android|ios|all] [--profile <value>] [--latest | --id <value> | --path <value> | --url
+    <value>] [--verbose] [--wait] [--non-interactive]
 
 FLAGS
-  -e, --profile=<value>             Name of the submit profile from eas.json. Defaults to "production" if defined in eas.json.
   -p, --platform=(android|ios|all)
   --id=<value>                      ID of the build to submit
   --latest                          Submit the latest build for specified platform
   --non-interactive                 Run command in non-interactive mode
   --path=<value>                    Path to the .apk/.aab/.ipa file
+  --profile=<value>                 Name of the submit profile from eas.json. Defaults to "production" if defined in
+                                    eas.json.
   --url=<value>                     App archive url
   --verbose                         Always print logs from Submission Service
   --[no-]wait                       Wait for submission to complete
