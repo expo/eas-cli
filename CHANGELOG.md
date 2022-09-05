@@ -13,6 +13,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 - Fix viewing branch list when a branch has no associated platforms
+- Resolve paths from the root when checking for gitignored values. ([#1336](https://github.com/expo/eas-cli/pull/1336) by [@wkozyra95](https://github.com/wkozyra95))
 
 ### 🧹 Chores
 
