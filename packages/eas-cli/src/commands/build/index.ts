@@ -259,7 +259,9 @@ async function handleDeprecatedEasJsonAsync(
       `See ${link('https://docs.expo.dev/build-reference/eas-json/')} for more information.`
     );
     Log.warn(
-      'This warning will become an error in a future EAS CLI release. This build will continue to use the ${chalk.bold('artifactPath')} setting.'
+      `This warning will become an error in a future EAS CLI release. This build will continue to use the ${chalk.bold(
+        'artifactPath'
+      )} setting.`
     );
     return;
   }
