@@ -22,6 +22,7 @@ export interface CommonBuildProfile {
   developmentClient?: boolean;
   prebuildCommand?: string;
   autoIncrement?: boolean;
+  buildArtifactPaths?: string[];
 
   node?: string;
   yarn?: string;
@@ -38,7 +39,11 @@ export interface AndroidBuildProfile extends Omit<CommonBuildProfile, 'autoIncre
   buildType?: Android.BuildType.APK | Android.BuildType.APP_BUNDLE;
 
   gradleCommand?: string;
+  /**
+   * @deprecated use applicationArchivePath
+   */
   artifactPath?: string;
+  applicationArchivePath?: string;
 }
 
 export interface IosBuildProfile extends Omit<CommonBuildProfile, 'autoIncrement'> {
@@ -50,7 +55,11 @@ export interface IosBuildProfile extends Omit<CommonBuildProfile, 'autoIncrement
   fastlane?: string;
   cocoapods?: string;
 
+  /**
+   * @deprecated use applicationArchivePath
+   */
   artifactPath?: string;
+  applicationArchivePath?: string;
   scheme?: string;
   buildConfiguration?: string;
 }
