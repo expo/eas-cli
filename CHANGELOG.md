@@ -9,6 +9,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🎉 New features
 
 - Add tvOS credentials compatibility for Adhoc and App store builds. ([#1325](https://github.com/expo/eas-cli/pull/1325) by [@quinlanj](https://github.com/quinlanj))
+- Add `eas open` command for opening project page in web browser. ([#1337](https://github.com/expo/eas-cli/pull/1337) by [@dsokal](https://github.com/dsokal))
 
 ### 🐛 Bug fixes
 
