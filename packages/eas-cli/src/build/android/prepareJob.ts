@@ -72,7 +72,8 @@ export async function prepareJobAsync(
     updates: { channel: ctx.buildProfile.channel },
     developmentClient: buildProfile.developmentClient,
     gradleCommand: buildProfile.gradleCommand,
-    artifactPath: buildProfile.artifactPath,
+    applicationArchivePath: buildProfile.applicationArchivePath ?? buildProfile.artifactPath,
+    buildArtifactPaths: buildProfile.buildArtifactPaths,
     buildType,
     username,
     ...(ctx.android.versionCodeOverride && {
