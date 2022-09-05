@@ -21,7 +21,7 @@
     "@expo/pkcs12": "0.0.8",
     "@expo/plist": "0.0.18",
     "@expo/plugin-autocomplete": "1.4.0",
-    "@expo/plugin-help": "5.2.0",
+    "@expo/plugin-help": "5.3.0",
     "@expo/plugin-warn-if-update-available": "2.3.0",
     "@expo/prebuild-config": "5.0.3",
     "@expo/results": "1.0.0",
