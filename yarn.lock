@@ -1428,10 +1428,10 @@
     debug "^4.3.4"
     fs-extra "^10.1.0"
 
-"@expo/plugin-help@5.2.0":
-  version "5.2.0"
-  resolved "https://registry.yarnpkg.com/@expo/plugin-help/-/plugin-help-5.2.0.tgz#c73dab76c7e95f82efc0ed8055c6ad1c291f82a2"
-  integrity sha512-YOI+D93hqAQHxOhlbGXXeQZX8FwWE338vk22GQNmVdVEBafrBHqvCWm0uEQKorf1mNwl8p0hcb/9NrGov5p5Lw==
+"@expo/plugin-help@5.3.0":
+  version "5.3.0"
+  resolved "https://registry.yarnpkg.com/@expo/plugin-help/-/plugin-help-5.3.0.tgz#e6ca5acc63c7fb5248c3a74bf70c50efd9a3d69f"
+  integrity sha512-dgh5zo2E2hOQ+5vCRWdrPRDp/omnDdTWpMcxFmco5CkCaRX21FRzMFEZdJVhoLlEeavDgX98VyzqWslJxXHn3w==
   dependencies:
     "@oclif/core" "^1.9.0"
 
