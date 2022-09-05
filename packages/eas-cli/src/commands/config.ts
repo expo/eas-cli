@@ -17,7 +17,7 @@ export default class Config extends EasCommand {
 
   static override flags = {
     platform: Flags.enum({ char: 'p', options: ['android', 'ios'] }),
-    profile: Flags.string(),
+    profile: Flags.string({ char: 'e' }),
   };
 
   protected override requiresAuthentication = false;

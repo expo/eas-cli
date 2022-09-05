@@ -18,6 +18,7 @@ export default class MetadataPull extends EasCommand {
 
   static override flags = {
     profile: Flags.string({
+      char: 'e',
       description:
         'Name of the submit profile from eas.json. Defaults to "production" if defined in eas.json.',
     }),

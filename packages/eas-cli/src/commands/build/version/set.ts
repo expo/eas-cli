@@ -35,6 +35,7 @@ export default class BuildVersionSetView extends EasCommand {
       options: ['android', 'ios'],
     }),
     profile: Flags.string({
+      char: 'e',
       description:
         'Name of the build profile from eas.json. Defaults to "production" if defined in eas.json.',
       helpValue: 'PROFILE_NAME',

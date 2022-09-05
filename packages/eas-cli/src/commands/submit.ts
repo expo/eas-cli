@@ -56,6 +56,7 @@ export default class Submit extends EasCommand {
       options: ['android', 'ios', 'all'],
     }),
     profile: Flags.string({
+      char: 'e',
       description:
         'Name of the submit profile from eas.json. Defaults to "production" if defined in eas.json.',
     }),
