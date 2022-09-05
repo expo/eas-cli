@@ -10,6 +10,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - Add tvOS credentials compatibility for Adhoc and App store builds. ([#1325](https://github.com/expo/eas-cli/pull/1325) by [@quinlanj](https://github.com/quinlanj))
 - Add `eas open` command for opening project page in web browser. ([#1337](https://github.com/expo/eas-cli/pull/1337) by [@dsokal](https://github.com/dsokal))
+- Add support for buildArtifactPaths. Rename artifactPath to applicationArchivePath. ([#1321](https://github.com/expo/eas-cli/pull/1321) by [@dsokal](https://github.com/dsokal))
 
 ### 🐛 Bug fixes
 
