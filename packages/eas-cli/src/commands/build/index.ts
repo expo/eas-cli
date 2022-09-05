@@ -243,7 +243,7 @@ async function handleDeprecatedEasJsonAsync(
   }
 
   const deprecatedProfileNames = uniq(deprecatedProfiles.map(([, profileName]) => profileName));
-  Log.warn(`Some of your build profiles use deprecated ${chalk.bold('artifactPath')} field:`);
+  Log.warn(`Some of your build profiles use deprecated field ${chalk.bold('artifactPath')}:`);
   for (const profileName of deprecatedProfileNames) {
     Log.warn(`- ${profileName}`);
   }
@@ -259,14 +259,14 @@ async function handleDeprecatedEasJsonAsync(
       `See ${link('https://docs.expo.dev/build-reference/eas-json/')} for more information.`
     );
     Log.warn(
-      'This warning will become an error in an upcoming EAS CLI release. For now, we will proceed to avoid disruption of your builds.'
+      'This warning will become an error in a future EAS CLI release. This build will continue to use the ${chalk.bold('artifactPath')} setting.'
     );
     return;
   }
 
-  const rename = await selectAsync('Do you want to handle renaming the field for you?', [
+  const rename = await selectAsync('Do you want us to handle renaming the field for you?', [
     { title: 'Yes', value: true },
-    { title: 'No, I will edit eas.json on my own (EAS CLI exits)', value: false },
+    { title: 'No, I will edit eas.json manually (EAS CLI exits)', value: false },
   ]);
 
   if (!rename) {
