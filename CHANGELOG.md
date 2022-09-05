@@ -12,11 +12,12 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
-- Fix viewing branch list when a branch has no associated platforms
+- Fix viewing branch list when a branch has no associated platforms. ([#1326](https://github.com/expo/eas-cli/pull/1326) by [@hbiede](https://github.com/hbiede))
 
 ### 🧹 Chores
 
 - Add noImplicitOverride to tsconfigs. ([#1327](https://github.com/expo/eas-cli/pull/1327) by [@wschurman](https://github.com/wschurman))
+- Fix typos. ([#1340](https://github.com/expo/eas-cli/pull/1340) by [@hbiede](https://github.com/hbiede))
 
 ## [2.0.0](https://github.com/expo/eas-cli/releases/tag/v2.0.0) - 2022-09-01
 
