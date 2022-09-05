@@ -57,7 +57,7 @@ export default class WebhookDelete extends EasCommand {
     Log.addNewLineIfNone();
     Log.log(formatWebhook(webhook));
     Log.newLine();
-    Log.warn(`You are about to permamently delete this webhook.\nThis action is irreversible.`);
+    Log.warn(`You are about to permanently delete this webhook.\nThis action is irreversible.`);
     Log.newLine();
     const confirmed = await toggleConfirmAsync({
       message: 'Are you sure you wish to proceed?',

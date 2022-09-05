@@ -129,7 +129,7 @@ export default class BranchDelete extends EasCommand {
     if (!jsonFlag) {
       Log.addNewLineIfNone();
       Log.warn(
-        `You are about to permamently delete branch: "${name}" and all of the updates published on it.` +
+        `You are about to permanently delete branch: "${name}" and all of the updates published on it.` +
           `\nThis action is irreversible.`
       );
       Log.newLine();
