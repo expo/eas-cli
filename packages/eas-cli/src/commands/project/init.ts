@@ -10,8 +10,8 @@ import {
 } from '../../project/projectUtils';
 
 export default class ProjectInit extends EasCommand {
-  static description = 'create or link an EAS project';
-  static aliases = ['init'];
+  static override description = 'create or link an EAS project';
+  static override aliases = ['init'];
 
   async runAsync(): Promise<void> {
     const projectDir = await findProjectRootAsync();

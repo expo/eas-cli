@@ -12,9 +12,9 @@ import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUt
 import { ensureLoggedInAsync } from '../../user/actions';
 
 export default class MetadataPush extends EasCommand {
-  static description = 'sync the local store configuration to the app stores';
+  static override description = 'sync the local store configuration to the app stores';
 
-  static flags = {
+  static override flags = {
     profile: Flags.string({
       description:
         'Name of the submit profile from eas.json. Defaults to "production" if defined in eas.json.',

@@ -1,11 +1,11 @@
 {
   "name": "@expo/eas-json",
   "description": "A library for interacting with eas.json",
-  "version": "1.2.0",
+  "version": "2.1.0",
   "author": "Expo <support@expo.dev>",
   "bugs": "https://github.com/expo/eas-cli/issues",
   "dependencies": {
-    "@expo/eas-build-job": "0.2.85",
+    "@expo/eas-build-job": "0.2.90",
     "@expo/json-file": "8.2.36",
     "chalk": "4.1.2",
     "env-string": "1.0.1",

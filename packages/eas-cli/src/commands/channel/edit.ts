@@ -93,9 +93,9 @@ export async function updateChannelBranchMappingAsync({
 }
 
 export default class ChannelEdit extends EasCommand {
-  static description = 'point a channel at a new branch';
+  static override description = 'point a channel at a new branch';
 
-  static args = [
+  static override args = [
     {
       name: 'name',
       required: false,
@@ -103,7 +103,7 @@ export default class ChannelEdit extends EasCommand {
     },
   ];
 
-  static flags = {
+  static override flags = {
     branch: Flags.string({
       description: 'Name of the branch to point to',
     }),

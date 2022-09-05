@@ -22,10 +22,12 @@ export async function resolveWorkflowAsync(
     return Workflow.MANAGED;
   }
 
+  const vcsClient = getVcsClient();
+  const vcsRootPath = path.normalize(await vcsClient.getRootPathAsync());
   for (const marker of platformWorkflowMarkers) {
     if (
       (await fs.pathExists(marker)) &&
-      !(await getVcsClient().isFileIgnoredAsync(path.relative(projectDir, marker)))
+      !(await vcsClient.isFileIgnoredAsync(path.relative(vcsRootPath, marker)))
     ) {
       return Workflow.GENERIC;
     }

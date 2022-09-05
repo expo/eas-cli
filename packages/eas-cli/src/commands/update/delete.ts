@@ -36,9 +36,9 @@ async function deleteUpdateGroupAsync({
 }
 
 export default class UpdateDelete extends EasCommand {
-  static description = 'delete all the updates in an update group';
+  static override description = 'delete all the updates in an update group';
 
-  static args = [
+  static override args = [
     {
       name: 'groupId',
       required: true,
@@ -46,7 +46,7 @@ export default class UpdateDelete extends EasCommand {
     },
   ];
 
-  static flags = {
+  static override flags = {
     json: Flags.boolean({
       description: `Return a json with the group ID of the deleted updates.`,
       default: false,
@@ -69,7 +69,7 @@ export default class UpdateDelete extends EasCommand {
             'This is a permanent operation.'
           )}\n\n` +
           `If you want to revert to a previous publish, you should use 'update --republish' targeted at the last working update group instead.\n\n` +
-          `An update group should only be deleted in an emergency like an accidental publish of a secret. In this case user 'update --republish' to revert to the last working update group first and then proceed with the deletion. Deleting an update group when it is the latest publish can lead to inconsistent cacheing behavior by clients.\n\n` +
+          `An update group should only be deleted in an emergency like an accidental publish of a secret. In this case user 'update --republish' to revert to the last working update group first and then proceed with the deletion. Deleting an update group when it is the latest publish can lead to inconsistent caching behavior by clients.\n\n` +
           `Would you like to abort?`,
       });
 

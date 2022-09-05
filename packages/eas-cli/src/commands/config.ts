@@ -13,14 +13,14 @@ import { findProjectRootAsync } from '../project/projectUtils';
 import { selectAsync } from '../prompts';
 
 export default class Config extends EasCommand {
-  static description = 'display project configuration (app.json + eas.json)';
+  static override description = 'display project configuration (app.json + eas.json)';
 
-  static flags = {
+  static override flags = {
     platform: Flags.enum({ char: 'p', options: ['android', 'ios'] }),
     profile: Flags.string(),
   };
 
-  protected requiresAuthentication = false;
+  protected override requiresAuthentication = false;
 
   async runAsync(): Promise<void> {
     const { flags } = await this.parse(Config);

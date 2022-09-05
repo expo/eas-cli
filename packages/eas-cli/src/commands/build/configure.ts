@@ -16,9 +16,9 @@ import { syncUpdatesConfigurationAsync as syncIosUpdatesConfigurationAsync } fro
 import { getVcsClient } from '../../vcs';
 
 export default class BuildConfigure extends EasCommand {
-  static description = 'configure the project to support EAS Build';
+  static override description = 'configure the project to support EAS Build';
 
-  static flags = {
+  static override flags = {
     platform: Flags.enum({
       description: 'Platform to configure',
       char: 'p',

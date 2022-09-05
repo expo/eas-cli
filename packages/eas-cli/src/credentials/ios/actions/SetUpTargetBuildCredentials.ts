@@ -8,6 +8,7 @@ import {
 import Log from '../../../log';
 import { CredentialsContext } from '../../context';
 import { AppLookupParams as GraphQLAppLookupParams } from '../api/GraphqlClient';
+import { Target } from '../types';
 import { SetUpAdhocProvisioningProfile } from './SetUpAdhocProvisioningProfile';
 import { SetUpInternalProvisioningProfile } from './SetUpInternalProvisioningProfile';
 import { SetUpProvisioningProfile } from './SetUpProvisioningProfile';
@@ -17,6 +18,7 @@ interface Options {
   distribution: DistributionType;
   enterpriseProvisioning?: IosEnterpriseProvisioning;
   entitlements: JSONObject;
+  target: Target;
 }
 export class SetUpTargetBuildCredentials {
   constructor(private options: Options) {}
@@ -47,22 +49,25 @@ export class SetUpTargetBuildCredentials {
   async setupBuildCredentialsAsync(
     ctx: CredentialsContext
   ): Promise<IosAppBuildCredentialsFragment> {
-    const { app, distribution, enterpriseProvisioning } = this.options;
+    const { app, distribution, enterpriseProvisioning, target } = this.options;
     if (distribution === 'internal') {
       if (enterpriseProvisioning === 'adhoc') {
-        return await new SetUpAdhocProvisioningProfile(app).runAsync(ctx);
+        return await new SetUpAdhocProvisioningProfile({ app, target }).runAsync(ctx);
       } else if (enterpriseProvisioning === 'universal') {
         return await new SetUpProvisioningProfile(
           app,
+          target,
           GraphQLIosDistributionType.Enterprise
         ).runAsync(ctx);
       } else {
-        return await new SetUpInternalProvisioningProfile(app).runAsync(ctx);
+        return await new SetUpInternalProvisioningProfile({ app, target }).runAsync(ctx);
       }
     } else {
-      return await new SetUpProvisioningProfile(app, GraphQLIosDistributionType.AppStore).runAsync(
-        ctx
-      );
+      return await new SetUpProvisioningProfile(
+        app,
+        target,
+        GraphQLIosDistributionType.AppStore
+      ).runAsync(ctx);
     }
   }
 }

@@ -7,28 +7,29 @@ import { Ignore, makeShallowCopyAsync } from '../local';
 import GitClient from './git';
 
 export default class GitNoCommitClient extends GitClient {
-  public async isCommitRequiredAsync(): Promise<boolean> {
+  public override async isCommitRequiredAsync(): Promise<boolean> {
     return false;
   }
 
-  public async getRootPathAsync(): Promise<string> {
+  public override async getRootPathAsync(): Promise<string> {
     return (await spawnAsync('git', ['rev-parse', '--show-toplevel'])).stdout.trim();
   }
 
-  public async makeShallowCopyAsync(destinationPath: string): Promise<void> {
+  public override async makeShallowCopyAsync(destinationPath: string): Promise<void> {
     // normalize converts C:/some/path to C:\some\path on windows
     const srcPath = path.normalize(await this.getRootPathAsync());
     await makeShallowCopyAsync(srcPath, destinationPath);
   }
 
-  public async isFileIgnoredAsync(filePath: string): Promise<boolean> {
+  public override async isFileIgnoredAsync(filePath: string): Promise<boolean> {
     // normalize converts C:/some/path to C:\some\path on windows
-    const ignore = new Ignore(await this.getRootPathAsync());
+    const rootPath = path.normalize(await this.getRootPathAsync());
+    const ignore = new Ignore(rootPath);
     await ignore.initIgnoreAsync();
     return ignore.ignores(filePath);
   }
 
-  public async trackFileAsync(file: string): Promise<void> {
+  public override async trackFileAsync(file: string): Promise<void> {
     try {
       await super.trackFileAsync(file);
     } catch {

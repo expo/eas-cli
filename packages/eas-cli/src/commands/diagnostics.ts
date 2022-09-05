@@ -8,9 +8,9 @@ import { resolveWorkflowAsync } from '../project/workflow';
 import { easCliVersion } from '../utils/easCli';
 
 export default class Diagnostics extends EasCommand {
-  static description = 'display environment info';
+  static override description = 'display environment info';
 
-  protected requiresAuthentication = false;
+  protected override requiresAuthentication = false;
 
   async runAsync(): Promise<void> {
     const info = await envinfo.run(

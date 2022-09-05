@@ -77,16 +77,16 @@ async function deleteBranchOnAppAsync({
 }
 
 export default class BranchDelete extends EasCommand {
-  static description = 'delete a branch';
+  static override description = 'delete a branch';
 
-  static args = [
+  static override args = [
     {
       name: 'name',
       required: false,
       description: 'Name of the branch to delete',
     },
   ];
-  static flags = {
+  static override flags = {
     json: Flags.boolean({
       description: `return JSON with the edited branch's ID and name.`,
       default: false,
@@ -129,7 +129,7 @@ export default class BranchDelete extends EasCommand {
     if (!jsonFlag) {
       Log.addNewLineIfNone();
       Log.warn(
-        `You are about to permamently delete branch: "${name}" and all of the updates published on it.` +
+        `You are about to permanently delete branch: "${name}" and all of the updates published on it.` +
           `\nThis action is irreversible.`
       );
       Log.newLine();

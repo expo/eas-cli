@@ -161,9 +161,9 @@ export async function ensureBranchExistsAsync({
 }
 
 export default class UpdatePublish extends EasCommand {
-  static description = 'publish an update group';
+  static override description = 'publish an update group';
 
-  static flags = {
+  static override flags = {
     branch: Flags.string({
       description: 'Branch to publish the update group on',
       required: false,

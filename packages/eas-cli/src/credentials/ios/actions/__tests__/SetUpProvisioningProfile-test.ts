@@ -10,6 +10,7 @@ import {
   testAppleAppIdentifierFragment,
   testCommonIosAppCredentialsFragment,
   testIosAppBuildCredentialsFragment,
+  testTarget,
   testTargets,
 } from '../../../__tests__/fixtures-ios';
 import { MissingCredentialsNonInteractiveError } from '../../../errors';
@@ -55,6 +56,7 @@ describe('SetUpProvisioningProfile', () => {
     const appLookupParams = getAppLookupParamsFromContext(ctx, findApplicationTarget(testTargets));
     const setupProvisioningProfileAction = new SetUpProvisioningProfile(
       appLookupParams,
+      testTarget,
       IosDistributionType.AppStore
     );
     await setupProvisioningProfileAction.runAsync(ctx);
@@ -87,6 +89,7 @@ describe('SetUpProvisioningProfile', () => {
     const appLookupParams = getAppLookupParamsFromContext(ctx, findApplicationTarget(testTargets));
     const setupProvisioningProfileAction = new SetUpProvisioningProfile(
       appLookupParams,
+      testTarget,
       IosDistributionType.AppStore
     );
     await setupProvisioningProfileAction.runAsync(ctx);
@@ -119,6 +122,7 @@ describe('SetUpProvisioningProfile', () => {
     const appLookupParams = getAppLookupParamsFromContext(ctx, findApplicationTarget(testTargets));
     const setupProvisioningProfileAction = new SetUpProvisioningProfile(
       appLookupParams,
+      testTarget,
       IosDistributionType.AppStore
     );
     await setupProvisioningProfileAction.runAsync(ctx);
@@ -147,6 +151,7 @@ describe('SetUpProvisioningProfile', () => {
     const appLookupParams = getAppLookupParamsFromContext(ctx, findApplicationTarget(testTargets));
     const setupProvisioningProfileAction = new SetUpProvisioningProfile(
       appLookupParams,
+      testTarget,
       IosDistributionType.AppStore
     );
     await setupProvisioningProfileAction.runAsync(ctx);
@@ -166,6 +171,7 @@ describe('SetUpProvisioningProfile', () => {
     const appLookupParams = getAppLookupParamsFromContext(ctx, findApplicationTarget(testTargets));
     const setupProvisioningProfileAction = new SetUpProvisioningProfile(
       appLookupParams,
+      testTarget,
       IosDistributionType.AppStore
     );
     await expect(setupProvisioningProfileAction.runAsync(ctx)).rejects.toThrowError(

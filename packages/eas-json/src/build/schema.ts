@@ -17,6 +17,7 @@ const CommonBuildProfileSchema = Joi.object({
   channel: Joi.string().regex(/^[a-z\d][a-z\d._-]*$/),
   developmentClient: Joi.boolean(),
   prebuildCommand: Joi.string(),
+  buildArtifactPaths: Joi.array().items(Joi.string()),
 
   node: Joi.string().empty(null).custom(semverCheck),
   yarn: Joi.string().empty(null).custom(semverCheck),
@@ -39,10 +40,12 @@ const AndroidBuildProfileSchema = CommonBuildProfileSchema.concat(
     ),
 
     artifactPath: Joi.string(),
+    applicationArchivePath: Joi.string(),
+    buildArtifactPaths: Joi.array().items(Joi.string()),
     gradleCommand: Joi.string(),
 
     buildType: Joi.string().valid('apk', 'app-bundle'),
-  })
+  }).oxor('artifactPath', 'applicationArchivePath')
 );
 
 const IosBuildProfileSchema = CommonBuildProfileSchema.concat(
@@ -62,9 +65,11 @@ const IosBuildProfileSchema = CommonBuildProfileSchema.concat(
     cocoapods: Joi.string().empty(null).custom(semverCheck),
 
     artifactPath: Joi.string(),
+    applicationArchivePath: Joi.string(),
+    buildArtifactPaths: Joi.array().items(Joi.string()),
     scheme: Joi.string(),
     buildConfiguration: Joi.string(),
-  })
+  }).oxor('artifactPath', 'applicationArchivePath')
 );
 
 export const BuildProfileSchema = CommonBuildProfileSchema.concat(

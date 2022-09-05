@@ -1343,10 +1343,10 @@
     slugify "^1.3.4"
     sucrase "^3.20.0"
 
-"@expo/eas-build-job@0.2.85":
-  version "0.2.85"
-  resolved "https://registry.yarnpkg.com/@expo/eas-build-job/-/eas-build-job-0.2.85.tgz#b5dd12a23943b67139dc47322428b9e1958f6804"
-  integrity sha512-iPvj8ntlevBwaHw00Qj+36L1MDZk6GygjPcV8QldaWeDVjdypu9ZcX+UqYoFmQFiLZYEfwm2s89MDEwQJvNn+A==
+"@expo/eas-build-job@0.2.90":
+  version "0.2.90"
+  resolved "https://registry.yarnpkg.com/@expo/eas-build-job/-/eas-build-job-0.2.90.tgz#9d2b25a79d44cb9532b08a67caa13cb9529a9deb"
+  integrity sha512-gCWcfSsg4O+Ua1xt6JA2Himzlj1LBes8mEhbcm1vu1kgg15QP62Aer4ck/B2vxiox9ZqYxK2ZvEdyZ7SI+GNGQ==
   dependencies:
     joi "^17.4.2"
     semver "^7.3.5"
@@ -1428,10 +1428,10 @@
     debug "^4.3.4"
     fs-extra "^10.1.0"
 
-"@expo/plugin-help@5.2.0":
-  version "5.2.0"
-  resolved "https://registry.yarnpkg.com/@expo/plugin-help/-/plugin-help-5.2.0.tgz#c73dab76c7e95f82efc0ed8055c6ad1c291f82a2"
-  integrity sha512-YOI+D93hqAQHxOhlbGXXeQZX8FwWE338vk22GQNmVdVEBafrBHqvCWm0uEQKorf1mNwl8p0hcb/9NrGov5p5Lw==
+"@expo/plugin-help@5.3.0":
+  version "5.3.0"
+  resolved "https://registry.yarnpkg.com/@expo/plugin-help/-/plugin-help-5.3.0.tgz#e6ca5acc63c7fb5248c3a74bf70c50efd9a3d69f"
+  integrity sha512-dgh5zo2E2hOQ+5vCRWdrPRDp/omnDdTWpMcxFmco5CkCaRX21FRzMFEZdJVhoLlEeavDgX98VyzqWslJxXHn3w==
   dependencies:
     "@oclif/core" "^1.9.0"
 
@@ -4642,6 +4642,13 @@ before-after-hook@^2.2.0:
   resolved "https://registry.yarnpkg.com/before-after-hook/-/before-after-hook-2.2.2.tgz#a6e8ca41028d90ee2c24222f201c90956091613e"
   integrity sha512-3pZEU3NT5BFUo/AD5ERPWOgQOCZITni6iavr5AUw5AUwQjMlI0kzu5btnyD39AF0gUEsDPwJT+oY1ORBJijPjQ==
 
+better-opn@3.0.2:
+  version "3.0.2"
+  resolved "https://registry.yarnpkg.com/better-opn/-/better-opn-3.0.2.tgz#f96f35deaaf8f34144a4102651babcf00d1d8817"
+  integrity sha512-aVNobHnJqLiUelTaHat9DZ1qM2w0C0Eym4LPI/3JxOnSokGVdsl1T1kN7TFvsEAD8G47A6VKQ0TVHqbBnYMJlQ==
+  dependencies:
+    open "^8.0.4"
+
 big-integer@1.6.x:
   version "1.6.51"
   resolved "https://registry.yarnpkg.com/big-integer/-/big-integer-1.6.51.tgz#0df92a5d9880560d3ff2d5fd20245c889d130686"
@@ -5739,6 +5746,11 @@ defaults@^1.0.3:
   integrity sha1-xlYFHpgX2f8I7YgUd/P+QBnz730=
   dependencies:
     clone "^1.0.2"
+
+define-lazy-prop@^2.0.0:
+  version "2.0.0"
+  resolved "https://registry.yarnpkg.com/define-lazy-prop/-/define-lazy-prop-2.0.0.tgz#3f7ae421129bcaaac9bc74905c98a0009ec9ee7f"
+  integrity sha512-Ds09qNh8yw3khSjiJjiUInaGX9xlqZDY7JVryGxdxV7NPeuqQfplOpQ66yJFZut3jLa5zOwkXw1g9EI2uKh4Og==
 
 define-properties@^1.1.3:
   version "1.1.3"
@@ -7788,6 +7800,11 @@ is-docker@^2.0.0:
   version "2.1.1"
   resolved "https://registry.yarnpkg.com/is-docker/-/is-docker-2.1.1.tgz#4125a88e44e450d384e09047ede71adc2d144156"
   integrity sha512-ZOoqiXfEwtGknTiuDEy8pN2CfE3TxMHprvNer1mXiqwkOT77Rw3YVrUQ52EqAOU3QAWDQ+bQdx7HJzrv7LS2Hw==
+
+is-docker@^2.1.1:
+  version "2.2.1"
+  resolved "https://registry.yarnpkg.com/is-docker/-/is-docker-2.2.1.tgz#33eeabe23cfe86f14bde4408a02c0cfb853acdaa"
+  integrity sha512-F+i2BKsFrH66iaUFc0woD8sLy8getkwTwtOBjvs56Cx4CgJDeKQeqfz8wAYiSb8JOprWhHH5p77PbmYCvvUuXQ==
 
 is-extglob@^2.1.1:
   version "2.1.1"
@@ -10090,6 +10107,15 @@ onetime@^5.1.0, onetime@^5.1.2:
   integrity sha512-kbpaSSGJTWdAY5KPVeMOKXSrPtr8C8C7wodJbcsd51jRnmD+GZu8Y0VoU6Dm5Z4vWr0Ig/1NKuWRKf7j5aaYSg==
   dependencies:
     mimic-fn "^2.1.0"
+
+open@^8.0.4:
+  version "8.4.0"
+  resolved "https://registry.yarnpkg.com/open/-/open-8.4.0.tgz#345321ae18f8138f82565a910fdc6b39e8c244f8"
+  integrity sha512-XgFPPM+B28FtCCgSb9I+s9szOC1vZRSwgWsRUA5ylIxRTgKozqjOCrVOqGsYABPYK5qnfqClxZTFBa8PKt2v6Q==
+  dependencies:
+    define-lazy-prop "^2.0.0"
+    is-docker "^2.1.1"
+    is-wsl "^2.2.0"
 
 optionator@^0.9.1:
   version "0.9.1"

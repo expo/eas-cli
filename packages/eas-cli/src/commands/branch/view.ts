@@ -7,9 +7,9 @@ import { listAndRenderUpdatesOnBranchByNameAsync } from '../../update/queries';
 import { enableJsonOutput } from '../../utils/json';
 
 export default class BranchView extends EasCommand {
-  static description = 'view a branch';
+  static override description = 'view a branch';
 
-  static args = [
+  static override args = [
     {
       name: 'name',
       required: false,
@@ -17,7 +17,7 @@ export default class BranchView extends EasCommand {
     },
   ];
 
-  static flags = {
+  static override flags = {
     ...EasPaginatedQueryFlags,
   };
 

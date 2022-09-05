@@ -56,7 +56,7 @@ export default abstract class EasCommand extends Command {
   }
 
   // eslint-disable-next-line async-protect/async-suffix
-  async finally(err: Error): Promise<any> {
+  override async finally(err: Error): Promise<any> {
     await flushAnalyticsAsync();
     return super.finally(err);
   }

@@ -32,7 +32,7 @@ async function projectInfoByIdAsync(appId: string): Promise<AppInfoQuery> {
 }
 
 export default class ProjectInfo extends EasCommand {
-  static description = 'information about the current project';
+  static override description = 'information about the current project';
 
   async runAsync(): Promise<void> {
     const projectDir = await findProjectRootAsync();

@@ -73,17 +73,17 @@ describe(bumpVersionAsync, () => {
 
     await bumpVersionAsync({
       bumpStrategy: BumpStrategy.VERSION_CODE,
-      projectDir: '/repo',
+      projectDir: '/app',
       exp: fakeExp,
     });
 
-    const appJSON = await fs.readJSON('/repo/app.json');
+    const appJSON = await fs.readJSON('/app/app.json');
     expect(fakeExp.version).toBe('3.0.0');
     expect(fakeExp.android?.versionCode).toBe(124);
     expect(appJSON.expo.version).toBe('3.0.0');
     expect(appJSON.expo.android.versionCode).toBe(124);
 
-    const buildGradle = await getAppBuildGradleAsync('/repo');
+    const buildGradle = await getAppBuildGradleAsync('/app');
     assert(buildGradle);
     expect(resolveConfigValue(buildGradle, 'versionCode')).toBe('124');
     expect(resolveConfigValue(buildGradle, 'versionName')).toBe('3.0.0');
@@ -95,17 +95,17 @@ describe(bumpVersionAsync, () => {
 
     await bumpVersionAsync({
       bumpStrategy: BumpStrategy.APP_VERSION,
-      projectDir: '/repo',
+      projectDir: '/app',
       exp: fakeExp,
     });
 
-    const appJSON = await fs.readJSON('/repo/app.json');
+    const appJSON = await fs.readJSON('/app/app.json');
     expect(fakeExp.version).toBe('3.0.1');
     expect(fakeExp.android?.versionCode).toBe(123);
     expect(appJSON.expo.version).toBe('3.0.1');
     expect(appJSON.expo.android.versionCode).toBe(123);
 
-    const buildGradle = await getAppBuildGradleAsync('/repo');
+    const buildGradle = await getAppBuildGradleAsync('/app');
     assert(buildGradle);
     expect(resolveConfigValue(buildGradle, 'versionCode')).toBe('123');
     expect(resolveConfigValue(buildGradle, 'versionName')).toBe('3.0.1');
@@ -116,17 +116,17 @@ describe(bumpVersionAsync, () => {
 
     await bumpVersionAsync({
       bumpStrategy: BumpStrategy.NOOP,
-      projectDir: '/repo',
+      projectDir: '/app',
       exp: fakeExp,
     });
 
-    const appJSON = await fs.readJSON('/repo/app.json');
+    const appJSON = await fs.readJSON('/app/app.json');
     expect(fakeExp.version).toBe('3.0.0');
     expect(fakeExp.android?.versionCode).toBe(123);
     expect(appJSON.expo.version).toBe('3.0.0');
     expect(appJSON.expo.android.versionCode).toBe(123);
 
-    const buildGradle = await getAppBuildGradleAsync('/repo');
+    const buildGradle = await getAppBuildGradleAsync('/app');
     assert(buildGradle);
     expect(resolveConfigValue(buildGradle, 'versionCode')).toBe('123');
     expect(resolveConfigValue(buildGradle, 'versionName')).toBe('3.0.0');
@@ -140,11 +140,11 @@ describe(bumpVersionInAppJsonAsync, () => {
 
     await bumpVersionInAppJsonAsync({
       bumpStrategy: BumpStrategy.VERSION_CODE,
-      projectDir: '/repo',
+      projectDir: '/app',
       exp: fakeExp,
     });
 
-    const appJSON = await fs.readJSON('/repo/app.json');
+    const appJSON = await fs.readJSON('/app/app.json');
     expect(fakeExp.version).toBe('5.0.0');
     expect(fakeExp.android?.versionCode).toBe(127);
     expect(appJSON.expo.version).toBe('5.0.0');
@@ -156,11 +156,11 @@ describe(bumpVersionInAppJsonAsync, () => {
 
     await bumpVersionInAppJsonAsync({
       bumpStrategy: BumpStrategy.APP_VERSION,
-      projectDir: '/repo',
+      projectDir: '/app',
       exp: fakeExp,
     });
 
-    const appJSON = await fs.readJSON('/repo/app.json');
+    const appJSON = await fs.readJSON('/app/app.json');
     expect(fakeExp.version).toBe('5.0.1');
     expect(fakeExp.android?.versionCode).toBe(126);
     expect(appJSON.expo.version).toBe('5.0.1');
@@ -172,11 +172,11 @@ describe(bumpVersionInAppJsonAsync, () => {
 
     await bumpVersionInAppJsonAsync({
       bumpStrategy: BumpStrategy.NOOP,
-      projectDir: '/repo',
+      projectDir: '/app',
       exp: fakeExp,
     });
 
-    const appJSON = await fs.readJSON('/repo/app.json');
+    const appJSON = await fs.readJSON('/app/app.json');
     expect(fakeExp.version).toBe('5.0.0');
     expect(fakeExp.android?.versionCode).toBe(126);
     expect(appJSON.expo.version).toBe('5.0.0');
@@ -189,7 +189,7 @@ describe(maybeResolveVersionsAsync, () => {
     it('reads the versions from native code', async () => {
       const exp = initBareWorkflowProject();
       const { appVersion, appBuildVersion } = await maybeResolveVersionsAsync(
-        '/repo',
+        '/app',
         exp,
         {} as BuildProfile<Platform.ANDROID>
       );
@@ -201,7 +201,7 @@ describe(maybeResolveVersionsAsync, () => {
     it('reads the versions from expo config', async () => {
       const exp = initManagedProject();
       const { appVersion, appBuildVersion } = await maybeResolveVersionsAsync(
-        '/repo',
+        '/app',
         exp,
         {} as BuildProfile<Platform.ANDROID>
       );
@@ -240,7 +240,7 @@ function initBareWorkflowProject({
 }`,
       './android/app/src/main/AndroidManifest.xml': 'fake',
     },
-    '/repo'
+    '/app'
   );
 
   return fakeExp;
@@ -261,7 +261,7 @@ function initManagedProject(): ExpoConfig {
         expo: fakeExp,
       }),
     },
-    '/repo'
+    '/app'
   );
 
   return fakeExp;

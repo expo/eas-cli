@@ -51,6 +51,7 @@ export class SetUpBuildCredentials {
         enterpriseProvisioning: this.options.enterpriseProvisioning,
         distribution: this.options.distribution,
         entitlements: target.entitlements,
+        target,
         app: {
           ...this.options.app,
           bundleIdentifier: target.bundleIdentifier,

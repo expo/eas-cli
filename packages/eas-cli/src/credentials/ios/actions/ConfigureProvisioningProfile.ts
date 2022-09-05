@@ -7,16 +7,19 @@ import {
 } from '../../../graphql/generated';
 import Log from '../../../log';
 import { ora } from '../../../ora';
+import { getApplePlatformFromSdkRoot } from '../../../project/ios/target';
 import { CredentialsContext } from '../../context';
 import { MissingCredentialsNonInteractiveError } from '../../errors';
 import { AppLookupParams } from '../api/GraphqlClient';
 import { AppleProvisioningProfileMutationResult } from '../api/graphql/mutations/AppleProvisioningProfileMutation';
 import { ProvisioningProfileStoreInfo } from '../appstore/Credentials.types';
 import { AuthCtx } from '../appstore/authenticateTypes';
+import { Target } from '../types';
 
 export class ConfigureProvisioningProfile {
   constructor(
     private app: AppLookupParams,
+    private target: Target,
     private distributionCertificate: AppleDistributionCertificateFragment,
     private originalProvisioningProfile: AppleProvisioningProfileFragment
   ) {}
@@ -43,8 +46,10 @@ export class ConfigureProvisioningProfile {
       return null;
     }
 
+    const applePlatform = await getApplePlatformFromSdkRoot(this.target);
     const profilesFromApple = await ctx.appStore.listProvisioningProfilesAsync(
-      this.app.bundleIdentifier
+      this.app.bundleIdentifier,
+      applePlatform
     );
     const [matchingProfile] = profilesFromApple.filter(appleInfo =>
       developerPortalIdentifier

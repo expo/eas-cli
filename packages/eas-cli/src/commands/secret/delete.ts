@@ -17,9 +17,9 @@ import {
 import { promptAsync, toggleConfirmAsync } from '../../prompts';
 
 export default class EnvironmentSecretDelete extends EasCommand {
-  static description = 'delete an environment secret by ID';
+  static override description = 'delete an environment secret by ID';
 
-  static flags = {
+  static override flags = {
     id: Flags.string({
       description: 'ID of the secret to delete',
     }),
@@ -60,7 +60,7 @@ export default class EnvironmentSecretDelete extends EasCommand {
 
     Log.addNewLineIfNone();
     Log.warn(
-      `You are about to permamently delete secret${
+      `You are about to permanently delete secret${
         secret?.name ? ` "${secret?.name}"` : ''
       } with id: "${id}".\nThis action is irreversible.`
     );

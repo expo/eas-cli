@@ -4,9 +4,9 @@ import EasCommand from '../commandUtils/EasCommand';
 import { SelectPlatform } from '../credentials/manager/SelectPlatform';
 
 export default class Credentials extends EasCommand {
-  static description = 'manage credentials';
+  static override description = 'manage credentials';
 
-  static flags = {
+  static override flags = {
     platform: Flags.enum({ char: 'p', options: ['android', 'ios'] }),
   };
 

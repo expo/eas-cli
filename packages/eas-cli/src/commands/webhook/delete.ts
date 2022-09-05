@@ -14,9 +14,9 @@ import { promptAsync, toggleConfirmAsync } from '../../prompts';
 import { formatWebhook } from '../../webhooks/formatWebhook';
 
 export default class WebhookDelete extends EasCommand {
-  static description = 'delete a webhook';
+  static override description = 'delete a webhook';
 
-  static args = [
+  static override args = [
     {
       name: 'ID',
       required: false,
@@ -57,7 +57,7 @@ export default class WebhookDelete extends EasCommand {
     Log.addNewLineIfNone();
     Log.log(formatWebhook(webhook));
     Log.newLine();
-    Log.warn(`You are about to permamently delete this webhook.\nThis action is irreversible.`);
+    Log.warn(`You are about to permanently delete this webhook.\nThis action is irreversible.`);
     Log.newLine();
     const confirmed = await toggleConfirmAsync({
       message: 'Are you sure you wish to proceed?',

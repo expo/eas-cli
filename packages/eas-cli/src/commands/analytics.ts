@@ -3,11 +3,11 @@ import Log from '../log';
 import UserSettings from '../user/UserSettings';
 
 export default class AnalyticsView extends EasCommand {
-  static description = 'display or change analytics settings';
+  static override description = 'display or change analytics settings';
 
-  static args = [{ name: 'STATUS', options: ['on', 'off'] }];
+  static override args = [{ name: 'STATUS', options: ['on', 'off'] }];
 
-  protected requiresAuthentication = false;
+  protected override requiresAuthentication = false;
 
   async runAsync(): Promise<void> {
     const { STATUS: status } = (await this.parse(AnalyticsView)).args;
