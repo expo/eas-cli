@@ -49,7 +49,11 @@ import {
 } from '../../project/publish';
 import { resolveWorkflowAsync } from '../../project/workflow';
 import { confirmAsync, promptAsync, selectAsync } from '../../prompts';
-import { formatUpdate } from '../../update/utils';
+import {
+  checkDeprecatedChannelConfigurationAsync,
+  ensureEASUpdateURLIsSetAsync,
+  formatUpdate,
+} from '../../update/utils';
 import { ensureLoggedInAsync } from '../../user/actions';
 import {
   checkManifestBodyAgainstUpdateInfoGroup,
@@ -280,7 +284,7 @@ export default class UpdatePublish extends EasCommand {
 
     const runtimeVersions = await getRuntimeVersionObjectAsync(exp, platformFlag, projectDir);
     const projectId = await getProjectIdAsync(exp);
-    await checkEASUpdateURLIsSetAsync(exp);
+    await ensureEASUpdateURLIsSetAsync(exp);
 
     if (!branchName && autoFlag) {
       branchName =
@@ -328,6 +332,13 @@ export default class UpdatePublish extends EasCommand {
       }
       assert(branchName, 'Branch name must be specified.');
     }
+
+    const { id: branchId, updates } = await ensureBranchExistsAsync({
+      appId: projectId,
+      name: branchName,
+    });
+
+    await checkDeprecatedChannelConfigurationAsync(projectDir);
 
     let unsortedUpdateInfoGroups: UpdateInfoGroup = {};
     let oldMessage: string, oldRuntimeVersion: string;
@@ -754,6 +765,8 @@ function formatUpdateTitle(
     'mmm dd HH:MM'
   )} by ${actorName}, runtimeVersion: ${runtimeVersion}] ${message}`;
 }
+<<<<<<< HEAD
+=======
 
 async function checkEASUpdateURLIsSetAsync(exp: ExpoConfig): Promise<void> {
   const configuredURL = exp.updates?.url;

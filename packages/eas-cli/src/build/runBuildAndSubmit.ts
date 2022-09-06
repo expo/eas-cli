@@ -40,6 +40,7 @@ import {
   waitToCompleteAsync as waitForSubmissionsToCompleteAsync,
 } from '../submit/submit';
 import { printSubmissionDetailsUrls } from '../submit/utils/urls';
+import { checkBuildProfileConfigMatchesProjectConfigAsync } from '../update/utils';
 import { printJsonOnlyOutput } from '../utils/json';
 import { ProfileData, getProfilesAsync } from '../utils/profiles';
 import { getVcsClient } from '../vcs';
@@ -120,6 +121,12 @@ export async function runBuildAndSubmitAsync(projectDir: string, flags: BuildFla
     buildProfile: ProfileData<'build'>;
   }[] = [];
   const buildCtxByPlatform: { [p in AppPlatform]?: BuildContext<Platform> } = {};
+
+  // Check only first buildprofile (there should be only one unique one)
+  // Warn only once
+  if (buildProfiles.length > 0) {
+    await checkBuildProfileConfigMatchesProjectConfigAsync(projectDir, buildProfiles[0]);
+  }
 
   for (const buildProfile of buildProfiles) {
     const { build: maybeBuild, buildCtx } = await prepareAndStartBuildAsync({
