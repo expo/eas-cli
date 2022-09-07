@@ -1,4 +1,5 @@
 import { Flags } from '@oclif/core';
+import { print } from 'graphql';
 import gql from 'graphql-tag';
 
 import EasCommand from '../../commandUtils/EasCommand';
@@ -7,6 +8,7 @@ import {
   GetAllChannelsForAppQuery,
   GetAllChannelsForAppQueryVariables,
 } from '../../graphql/generated';
+import { UpdateFragmentNode } from '../../graphql/types/Update';
 import Log from '../../log';
 import { getExpoConfig } from '../../project/expoConfig';
 import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUtils';
@@ -38,26 +40,14 @@ async function getAllUpdateChannelForAppAsync({
                     name
                     updates(offset: 0, limit: 10) {
                       id
-                      group
-                      message
-                      runtimeVersion
-                      createdAt
-                      platform
-                      actor {
-                        id
-                        ... on User {
-                          username
-                        }
-                        ... on Robot {
-                          firstName
-                        }
-                      }
+                      ...UpdateFragment
                     }
                   }
                 }
               }
             }
           }
+          ${print(UpdateFragmentNode)}
         `,
         { appId, offset: 0, limit: CHANNEL_LIMIT },
         { additionalTypenames: ['UpdateChannel', 'UpdateBranch', 'Update'] }

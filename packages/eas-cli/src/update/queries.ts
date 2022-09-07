@@ -4,14 +4,11 @@ import CliTable from 'cli-table3';
 
 import { PaginatedQueryOptions } from '../commandUtils/pagination';
 import {
+  UpdateFragment,
   ViewUpdateGroupsOnAppQueryVariables,
   ViewUpdateGroupsOnBranchQueryVariables,
 } from '../graphql/generated';
-import {
-  AppUpdateGroupObject,
-  BranchUpdateGroupObject,
-  UpdateQuery,
-} from '../graphql/queries/UpdateQuery';
+import { UpdateQuery } from '../graphql/queries/UpdateQuery';
 import Log from '../log';
 import formatFields from '../utils/formatFields';
 import { printJsonOnlyOutput } from '../utils/json';
@@ -99,7 +96,7 @@ export async function selectUpdateGroupOnBranchAsync({
   projectId: string;
   branchName: string;
   paginatedQueryOptions: PaginatedQueryOptions;
-}): Promise<BranchUpdateGroupObject> {
+}): Promise<UpdateFragment[]> {
   if (painatedQueryOptions.nonInteractive) {
     throw new Error('Unable to select an update in non-interactive mode.');
   }
@@ -125,13 +122,13 @@ export async function selectUpdateGroupOnBranchAsync({
 
 async function queryUpdateGroupsOnBranchAsync(
   args: ViewUpdateGroupsOnBranchQueryVariables
-): Promise<BranchUpdateGroupObject[]> {
+): Promise<UpdateFragment[][]> {
   return await UpdateQuery.viewUpdateGroupsOnBranchAsync(args);
 }
 
 async function queryUpdateGroupsOnAppAsync(
   args: ViewUpdateGroupsOnAppQueryVariables
-): Promise<AppUpdateGroupObject[]> {
+): Promise<UpdateFragment[][]> {
   return await UpdateQuery.viewUpdateGroupsOnAppAsync(args);
 }
 
@@ -140,7 +137,7 @@ function renderUpdateGroupsOnBranchAsTable({
   branchName,
   paginatedQueryOptions: { json },
 }: {
-  updateGroups: BranchUpdateGroupObject[];
+  updateGroups: UpdateFragment[][];
   branchName: string;
   paginatedQueryOptions: PaginatedQueryOptions;
 }): void {
@@ -185,7 +182,7 @@ function renderUpdateGroupsOnBranchAsTable({
 }
 
 function renderUpdateGroupsOnAppAsTable(
-  updateGroups: (BranchUpdateGroupObject | AppUpdateGroupObject)[],
+  updateGroups: UpdateFragment[][],
   { json }: PaginatedQueryOptions
 ): void {
   const updateGroupDescriptions = getUpdateGroupDescriptionsWithBranch(updateGroups);

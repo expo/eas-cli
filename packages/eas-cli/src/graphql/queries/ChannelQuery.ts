@@ -1,7 +1,9 @@
+import { print } from 'graphql';
 import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../client';
 import { GetChannelByNameForAppQuery, GetChannelByNameForAppQueryVariables } from '../generated';
+import { UpdateFragmentNode } from '../types/Update';
 
 export const ChannelQuery = {
   async getUpdateChannelByNameForAppAsync({
@@ -32,26 +34,14 @@ export const ChannelQuery = {
                       name
                       updates(offset: 0, limit: 10) {
                         id
-                        group
-                        message
-                        runtimeVersion
-                        createdAt
-                        platform
-                        actor {
-                          id
-                          ... on User {
-                            username
-                          }
-                          ... on Robot {
-                            firstName
-                          }
-                        }
+                        ...UpdateFragment
                       }
                     }
                   }
                 }
               }
             }
+            ${print(UpdateFragmentNode)}
           `,
           { appId, channelName },
           { additionalTypenames: ['UpdateChannel', 'UpdateBranch', 'Update'] }

@@ -3,8 +3,7 @@ import { format } from '@expo/timeago.js';
 import chalk from 'chalk';
 import dateFormat from 'dateformat';
 
-import { Maybe, Robot, Update, User } from '../graphql/generated';
-import { BranchUpdateObject, UpdateGroupObject } from '../graphql/queries/UpdateQuery';
+import { Maybe, Robot, Update, UpdateFragment, User } from '../graphql/generated';
 import { learnMore } from '../log';
 import { RequestedPlatform } from '../platform';
 import { getActorDisplayName } from '../user/User';
@@ -114,7 +113,7 @@ export function ensureValidVersions(exp: ExpoConfig, platform: RequestedPlatform
   }
 }
 
-export function formatUpdateTitle(update: UpdateGroupObject[number] | BranchUpdateObject): string {
+export function formatUpdateTitle(update: UpdateFragment): string {
   const { message, createdAt, actor, runtimeVersion } = update;
 
   let actorName: string;
@@ -138,7 +137,7 @@ export function formatUpdateTitle(update: UpdateGroupObject[number] | BranchUpda
 }
 
 export function getUpdateGroupDescriptions(
-  updateGroups: UpdateGroupObject[]
+  updateGroups: UpdateFragment[][]
 ): FormattedUpdateGroupDescription[] {
   return updateGroups.map(updateGroup => ({
     message: formatUpdateMessage(updateGroup[0]),
@@ -149,7 +148,7 @@ export function getUpdateGroupDescriptions(
 }
 
 export function getUpdateGroupDescriptionsWithBranch(
-  updateGroups: UpdateGroupObject[]
+  updateGroups: UpdateFragment[][]
 ): FormattedUpdateGroupDescriptionWithBranch[] {
   return updateGroups.map(updateGroup => ({
     branch: updateGroup[0].branch.name,
