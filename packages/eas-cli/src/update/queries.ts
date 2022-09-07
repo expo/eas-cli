@@ -91,19 +91,19 @@ export async function listAndRenderUpdateGroupsOnBranchAsync({
 export async function selectUpdateGroupOnBranchAsync({
   projectId,
   branchName,
-  paginatedQueryOptions: painatedQueryOptions,
+  paginatedQueryOptions,
 }: {
   projectId: string;
   branchName: string;
   paginatedQueryOptions: PaginatedQueryOptions;
 }): Promise<UpdateFragment[]> {
-  if (painatedQueryOptions.nonInteractive) {
+  if (paginatedQueryOptions.nonInteractive) {
     throw new Error('Unable to select an update in non-interactive mode.');
   }
 
   const updateGroup = await paginatedQueryWithSelectPromptAsync({
-    limit: painatedQueryOptions.limit ?? UPDATE_GROUPS_LIMIT,
-    offset: painatedQueryOptions.offset,
+    limit: paginatedQueryOptions.limit ?? UPDATE_GROUPS_LIMIT,
+    offset: paginatedQueryOptions.offset,
     queryToPerform: (limit, offset) =>
       queryUpdateGroupsOnBranchAsync({ appId: projectId, branchName, limit, offset }),
     promptOptions: {

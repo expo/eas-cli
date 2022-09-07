@@ -2,25 +2,32 @@ import { print } from 'graphql';
 import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../client';
-import { GetChannelByNameForAppQuery, GetChannelByNameForAppQueryVariables } from '../generated';
+import {
+  ViewUpdateChannelOnAppQuery,
+  ViewUpdateChannelOnAppQueryVariables,
+  ViewUpdateChannelsOnAppQuery,
+  ViewUpdateChannelsOnAppQueryVariables,
+} from '../generated';
 import { UpdateFragmentNode } from '../types/Update';
 
+export type UpdateChannelObject = NonNullable<
+  ViewUpdateChannelsOnAppQuery['app']['byId']['updateChannels']
+>[number];
+
+export type UpdateChannelByNameObject = NonNullable<
+  ViewUpdateChannelOnAppQuery['app']['byId']['updateChannelByName']
+>;
+
 export const ChannelQuery = {
-  async getUpdateChannelByNameForAppAsync({
+  async viewUpdateChannelAsync({
     appId,
     channelName,
-  }: GetChannelByNameForAppQueryVariables): Promise<
-    GetChannelByNameForAppQuery['app']['byId']['updateChannelByName']
-  > {
-    const {
-      app: {
-        byId: { updateChannelByName },
-      },
-    } = await withErrorHandlingAsync(
+  }: ViewUpdateChannelOnAppQueryVariables): Promise<UpdateChannelByNameObject> {
+    const response = await withErrorHandlingAsync(
       graphqlClient
-        .query<GetChannelByNameForAppQuery, GetChannelByNameForAppQueryVariables>(
+        .query<ViewUpdateChannelOnAppQuery, ViewUpdateChannelOnAppQueryVariables>(
           gql`
-            query GetChannelByNameForApp($appId: String!, $channelName: String!) {
+            query ViewUpdateChannelOnApp($appId: String!, $channelName: String!) {
               app {
                 byId(appId: $appId) {
                   id
@@ -29,10 +36,10 @@ export const ChannelQuery = {
                     name
                     createdAt
                     branchMapping
-                    updateBranches(offset: 0, limit: 1000) {
+                    updateBranches(offset: 0, limit: 5) {
                       id
                       name
-                      updates(offset: 0, limit: 10) {
+                      updateGroups(offset: 0, limit: 1) {
                         id
                         ...UpdateFragment
                       }
@@ -48,6 +55,56 @@ export const ChannelQuery = {
         )
         .toPromise()
     );
+
+    const { updateChannelByName } = response.app.byId;
+    if (!updateChannelByName) {
+      throw new Error(`Could not find channel with the name ${channelName}`);
+    }
+
     return updateChannelByName;
+  },
+  async viewUpdateChannelsOnAppAsync({
+    appId,
+    limit,
+    offset,
+  }: ViewUpdateChannelsOnAppQueryVariables): Promise<UpdateChannelObject[]> {
+    const response = await withErrorHandlingAsync(
+      graphqlClient
+        .query<ViewUpdateChannelsOnAppQuery, ViewUpdateChannelsOnAppQueryVariables>(
+          gql`
+            query ViewUpdateChannelsOnApp($appId: String!, $offset: Int!, $limit: Int!) {
+              app {
+                byId(appId: $appId) {
+                  id
+                  updateChannels(offset: $offset, limit: $limit) {
+                    id
+                    name
+                    branchMapping
+                    updateBranches(offset: 0, limit: 5) {
+                      id
+                      name
+                      updateGroups(offset: 0, limit: 1) {
+                        id
+                        ...UpdateFragment
+                      }
+                    }
+                  }
+                }
+              }
+            }
+            ${print(UpdateFragmentNode)}
+          `,
+          { appId, offset, limit },
+          { additionalTypenames: ['UpdateChannel', 'UpdateBranch', 'Update'] }
+        )
+        .toPromise()
+    );
+    const { updateChannels } = response.app.byId;
+
+    if (!updateChannels) {
+      throw new Error(`Could not find channels on project with id ${appId}`);
+    }
+
+    return updateChannels;
   },
 };

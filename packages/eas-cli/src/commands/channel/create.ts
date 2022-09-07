@@ -1,8 +1,9 @@
-import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 import gql from 'graphql-tag';
 
+import { BranchNotFoundError } from '../../branch/utils';
 import EasCommand from '../../commandUtils/EasCommand';
+import { EasJsonOnlyFlag } from '../../commandUtils/flags';
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
 import {
   CreateUpdateChannelOnAppMutation,
@@ -71,11 +72,7 @@ export default class ChannelCreate extends EasCommand {
   ];
 
   static override flags = {
-    json: Flags.boolean({
-      description:
-        'print output as a JSON object with the new channel ID, name and branch mapping.',
-      default: false,
-    }),
+    ...EasJsonOnlyFlag,
   };
 
   async runAsync(): Promise<void> {
@@ -106,21 +103,25 @@ export default class ChannelCreate extends EasCommand {
 
     let branchId: string;
     let branchMessage: string;
-    const existingBranch = await BranchQuery.getBranchByNameAsync({
-      appId: projectId,
-      name: channelName,
-    });
 
-    if (existingBranch) {
-      branchId = existingBranch.id;
-      branchMessage = `We found a branch with the same name`;
-    } else {
-      const newBranch = await createUpdateBranchOnAppAsync({
+    try {
+      const branch = await BranchQuery.getBranchByNameAsync({
         appId: projectId,
         name: channelName,
       });
-      branchId = newBranch.id;
-      branchMessage = `We also went ahead and made a branch with the same name`;
+      branchId = branch.id;
+      branchMessage = `We found a branch with the same name`;
+    } catch (error) {
+      if (error instanceof BranchNotFoundError) {
+        const newBranch = await createUpdateBranchOnAppAsync({
+          appId: projectId,
+          name: channelName,
+        });
+        branchId = newBranch.id;
+        branchMessage = `We also went ahead and made a branch with the same name`;
+      } else {
+        throw error;
+      }
     }
 
     const {
@@ -133,7 +134,7 @@ export default class ChannelCreate extends EasCommand {
 
     if (!newChannel) {
       throw new Error(
-        `Could not create channel with name ${channelName} on app with id ${projectId}`
+        `Could not create channel with name ${channelName} on project with id ${projectId}`
       );
     }
 

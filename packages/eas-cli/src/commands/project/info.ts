@@ -40,7 +40,7 @@ export default class ProjectInfo extends EasCommand {
     const projectId = await getProjectIdAsync(exp);
     const { app } = await projectInfoByIdAsync(projectId);
     if (!app) {
-      throw new Error(`Could not find project with ID: ${projectId}`);
+      throw new Error(`Could not find project with id: ${projectId}`);
     }
 
     Log.addNewLineIfNone();

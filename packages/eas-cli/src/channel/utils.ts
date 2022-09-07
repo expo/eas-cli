@@ -1,0 +1,112 @@
+import assert from 'assert';
+import CliTable from 'cli-table3';
+
+import { UpdateChannelObject } from '../graphql/queries/ChannelQuery';
+import Log from '../log';
+import { UPDATE_COLUMNS, getUpdateGroupDescriptionsWithBranch } from '../update/utils';
+
+export type BranchMapping = {
+  version: number;
+  data: {
+    branchId: string;
+    branchMappingLogic: {
+      operand: number;
+      clientKey: string;
+      branchMappingOperator: string;
+    } & string;
+  }[];
+};
+
+/**
+ * Get the branch mapping and determine whether it is a rollout.
+ * Ensure that the branch mapping is properly formatted.
+ */
+export function getBranchMapping(branchMappingString?: string): {
+  branchMapping: BranchMapping;
+  isRollout: boolean;
+  rolloutPercent?: number;
+} {
+  if (!branchMappingString) {
+    throw new Error('Missing branch mapping.');
+  }
+  let branchMapping: BranchMapping;
+  try {
+    branchMapping = JSON.parse(branchMappingString);
+  } catch {
+    throw new Error(`Could not parse branchMapping string into a JSON: "${branchMappingString}"`);
+  }
+  assert(branchMapping, 'Branch Mapping must be defined.');
+
+  if (branchMapping.version !== 0) {
+    throw new Error('Branch mapping must be version 0.');
+  }
+
+  const isRollout = branchMapping.data.length === 2;
+  const rolloutPercent = branchMapping.data[0].branchMappingLogic.operand;
+
+  switch (branchMapping.data.length) {
+    case 0:
+      break;
+    case 1:
+      if (branchMapping.data[0].branchMappingLogic !== 'true') {
+        throw new Error('Branch mapping logic for a single branch must be "true"');
+      }
+      break;
+    case 2:
+      if (branchMapping.data[0].branchMappingLogic.clientKey !== 'rolloutToken') {
+        throw new Error('Client key of initial branch mapping must be "rolloutToken"');
+      }
+      if (branchMapping.data[0].branchMappingLogic.branchMappingOperator !== 'hash_lt') {
+        throw new Error('Branch mapping operator of initial branch mapping must be "hash_lt"');
+      }
+      if (rolloutPercent == null) {
+        throw new Error('Branch mapping is missing a "rolloutPercent"');
+      }
+      if (branchMapping.data[1].branchMappingLogic !== 'true') {
+        throw new Error('Branch mapping logic for a the second branch of a rollout must be "true"');
+      }
+      break;
+    default:
+      throw new Error('Branch mapping data must have length less than or equal to 2.');
+  }
+
+  return { branchMapping, isRollout, rolloutPercent };
+}
+
+export function logChannelDetails(channel: UpdateChannelObject): void {
+  const { branchMapping, isRollout, rolloutPercent } = getBranchMapping(channel.branchMapping);
+
+  const updateChannelsTable = new CliTable({
+    head: ['branch', ...(isRollout ? ['rollout percent'] : []), ...UPDATE_COLUMNS],
+    wordWrap: true,
+  });
+
+  if (branchMapping.data.length > 2) {
+    throw new Error('Branch Mapping data must have length less than or equal to 2.');
+  }
+
+  const rolloutBranchIds = branchMapping.data.map(data => data.branchId);
+
+  for (const currentBranch of channel.updateBranches) {
+    const updateGroupDescriptions = getUpdateGroupDescriptionsWithBranch(
+      currentBranch.updateGroups
+    );
+
+    const isRolloutBranch = isRollout && rolloutBranchIds.includes(currentBranch.id);
+    const isBaseBranch = rolloutBranchIds.length > 0 && rolloutBranchIds[0] === currentBranch.id;
+
+    updateGroupDescriptions.forEach(({ branch, message, runtimeVersion, group, platforms }) => {
+      updateChannelsTable.push([
+        branch,
+        ...(isRolloutBranch
+          ? [isBaseBranch ? `${rolloutPercent! * 100}%` : `${(1 - rolloutPercent!) * 100}%`]
+          : []),
+        message,
+        runtimeVersion,
+        group,
+        platforms,
+      ]);
+    });
+  }
+  Log.log(updateChannelsTable.toString());
+}

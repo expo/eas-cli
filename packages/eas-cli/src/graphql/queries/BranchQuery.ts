@@ -1,6 +1,7 @@
 import { print } from 'graphql';
 import gql from 'graphql-tag';
 
+import { BranchNotFoundError } from '../../branch/utils';
 import { graphqlClient, withErrorHandlingAsync } from '../client';
 import {
   BranchesByAppQuery,
@@ -8,22 +9,24 @@ import {
   UpdateBranchFragment,
   ViewBranchQuery,
   ViewBranchQueryVariables,
+  ViewBranchesOnUpdateChannelQuery,
+  ViewBranchesOnUpdateChannelQueryVariables,
 } from '../generated';
+import { UpdateFragmentNode } from '../types/Update';
 import { UpdateBranchFragmentNode } from '../types/UpdateBranch';
+
+export type UpdateBranchOnChannelObject = NonNullable<
+  ViewBranchesOnUpdateChannelQuery['app']['byId']['updateChannelByName']
+>['updateBranches'][number];
 
 export const BranchQuery = {
   async getBranchByNameAsync({
     appId,
     name,
-  }: {
-    appId: string;
-    name: string;
-  }): Promise<ViewBranchQuery['app']['byId']['updateBranchByName']> {
-    const {
-      app: {
-        byId: { updateBranchByName: branch },
-      },
-    } = await withErrorHandlingAsync<ViewBranchQuery>(
+  }: ViewBranchQueryVariables): Promise<
+    NonNullable<ViewBranchQuery['app']['byId']['updateBranchByName']>
+  > {
+    const response = await withErrorHandlingAsync<ViewBranchQuery>(
       graphqlClient
         .query<ViewBranchQuery, ViewBranchQueryVariables>(
           gql`
@@ -47,9 +50,13 @@ export const BranchQuery = {
         )
         .toPromise()
     );
-    return branch;
+    const { updateBranchByName } = response.app.byId;
+    if (!updateBranchByName) {
+      throw new BranchNotFoundError(`Could not find a branch named "${name}".`);
+    }
+    return updateBranchByName;
   },
-  async listBranchesAsync({
+  async listBranchesOnAppAsync({
     appId,
     limit,
     offset,
@@ -82,5 +89,53 @@ export const BranchQuery = {
     );
 
     return data?.app?.byId.updateBranches ?? [];
+  },
+  async listBranchesOnChannelAsync({
+    appId,
+    channelName,
+    offset,
+    limit,
+  }: ViewBranchesOnUpdateChannelQueryVariables): Promise<UpdateBranchOnChannelObject[]> {
+    const response = await withErrorHandlingAsync(
+      graphqlClient
+        .query<ViewBranchesOnUpdateChannelQuery, ViewBranchesOnUpdateChannelQueryVariables>(
+          gql`
+            query ViewBranchesOnUpdateChannel(
+              $appId: String!
+              $channelName: String!
+              $offset: Int!
+              $limit: Int!
+            ) {
+              app {
+                byId(appId: $appId) {
+                  id
+                  updateChannelByName(name: $channelName) {
+                    id
+                    updateBranches(offset: $offset, limit: $limit) {
+                      id
+                      name
+                      updateGroups(offset: 0, limit: 1) {
+                        id
+                        ...UpdateFragment
+                      }
+                    }
+                  }
+                }
+              }
+            }
+            ${print(UpdateFragmentNode)}
+          `,
+          { appId, channelName, offset, limit },
+          { additionalTypenames: ['UpdateChannel', 'UpdateBranch', 'Update'] }
+        )
+        .toPromise()
+    );
+
+    const { updateChannelByName } = response.app.byId;
+    if (!updateChannelByName) {
+      throw new Error(`Could not find channels with the name ${channelName}`);
+    }
+
+    return updateChannelByName.updateBranches;
   },
 };

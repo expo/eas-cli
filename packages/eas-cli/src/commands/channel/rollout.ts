@@ -1,10 +1,11 @@
 import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 
+import { BranchMapping, getBranchMapping } from '../../channel/utils';
 import EasCommand from '../../commandUtils/EasCommand';
-import { GetChannelByNameForAppQuery, UpdateBranch } from '../../graphql/generated';
+import { UpdateBranch } from '../../graphql/generated';
 import { BranchQuery } from '../../graphql/queries/BranchQuery';
-import { ChannelQuery } from '../../graphql/queries/ChannelQuery';
+import { ChannelQuery, UpdateChannelByNameObject } from '../../graphql/queries/ChannelQuery';
 import Log from '../../log';
 import { getExpoConfig } from '../../project/expoConfig';
 import {
@@ -15,7 +16,6 @@ import {
 import { promptAsync, selectAsync } from '../../prompts';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 import { updateChannelBranchMappingAsync } from './edit';
-import { BranchMapping, getBranchMapping } from './view';
 
 async function promptForRolloutPercentAsync({
   promptMessage,
@@ -40,9 +40,7 @@ async function promptForRolloutPercentAsync({
   return rolloutPercent;
 }
 
-function getRolloutInfo(
-  channel: NonNullable<GetChannelByNameForAppQuery['app']['byId']['updateChannelByName']>
-): {
+function getRolloutInfo(channel: UpdateChannelByNameObject): {
   newBranch: Pick<UpdateBranch, 'name' | 'id'>;
   oldBranch: Pick<UpdateBranch, 'name' | 'id'>;
   currentPercent: number;
@@ -77,7 +75,7 @@ async function startRolloutAsync({
   projectId: string;
   fullName: string;
   currentBranchMapping: BranchMapping;
-  channel: NonNullable<GetChannelByNameForAppQuery['app']['byId']['updateChannelByName']>;
+  channel: UpdateChannelByNameObject;
 }): Promise<{
   newChannelInfo: {
     id: string;
@@ -90,13 +88,6 @@ async function startRolloutAsync({
     appId: projectId,
     name: branchName,
   });
-  if (!branch) {
-    throw new Error(
-      `Could not find a branch named "${branchName}". Check which branches exist on this project with ${chalk.bold(
-        'eas branch:list'
-      )}.`
-    );
-  }
 
   const oldBranchId = currentBranchMapping.data[0].branchId;
   if (branch.id === oldBranchId) {
@@ -163,7 +154,7 @@ async function editRolloutAsync({
   percent?: number;
   jsonFlag: boolean;
   currentBranchMapping: BranchMapping;
-  channel: NonNullable<GetChannelByNameForAppQuery['app']['byId']['updateChannelByName']>;
+  channel: UpdateChannelByNameObject;
 }): Promise<{
   newChannelInfo: {
     id: string;
@@ -218,7 +209,7 @@ async function endRolloutAsync({
   branchName?: string;
   jsonFlag: boolean;
   projectId: string;
-  channel: NonNullable<GetChannelByNameForAppQuery['app']['byId']['updateChannelByName']>;
+  channel: UpdateChannelByNameObject;
 }): Promise<{
   newChannelInfo: {
     id: string;
@@ -236,13 +227,6 @@ async function endRolloutAsync({
       appId: projectId,
       name: branchName,
     });
-    if (!branch) {
-      throw new Error(
-        `Could not find a branch named "${branchName}". Check which branches exist on this project with ${chalk.bold(
-          'eas branch:list'
-        )}.`
-      );
-    }
 
     switch (branch.id) {
       case newBranch.id:
@@ -348,7 +332,7 @@ export default class ChannelRollout extends EasCommand {
     const fullName = await getProjectFullNameAsync(exp);
     const projectId = await getProjectIdAsync(exp);
 
-    const channel = await ChannelQuery.getUpdateChannelByNameForAppAsync({
+    const channel = await ChannelQuery.viewUpdateChannelAsync({
       appId: projectId,
       channelName: channelName!,
     });

@@ -2,71 +2,28 @@ import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 import gql from 'graphql-tag';
 
+import { selectBranchOnAppAsync } from '../../branch/queries';
+import { selectChannelOnAppAsync } from '../../channel/queries';
 import EasCommand from '../../commandUtils/EasCommand';
+import { EasJsonOnlyFlag } from '../../commandUtils/flags';
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
 import {
-  GetChannelByNameToEditQuery,
-  GetChannelByNameToEditQueryVariables,
-  UpdateBranch,
-  UpdateChannel,
   UpdateChannelBranchMappingMutation,
   UpdateChannelBranchMappingMutationVariables,
 } from '../../graphql/generated';
 import { BranchQuery } from '../../graphql/queries/BranchQuery';
+import { ChannelQuery } from '../../graphql/queries/ChannelQuery';
 import Log from '../../log';
 import { getExpoConfig } from '../../project/expoConfig';
 import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUtils';
-import { promptAsync } from '../../prompts';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
-
-async function getChannelByNameForAppAsync({
-  appId,
-  channelName,
-}: GetChannelByNameToEditQueryVariables): Promise<
-  Pick<UpdateChannel, 'id' | 'name'> & {
-    updateBranches: Pick<UpdateBranch, 'id' | 'name'>[];
-  }
-> {
-  const data = await withErrorHandlingAsync(
-    graphqlClient
-      .query<GetChannelByNameToEditQuery, GetChannelByNameToEditQueryVariables>(
-        gql`
-          query GetChannelByNameToEdit($appId: String!, $channelName: String!) {
-            app {
-              byId(appId: $appId) {
-                id
-                updateChannelByName(name: $channelName) {
-                  id
-                  name
-                  updateBranches(offset: 0, limit: 1) {
-                    id
-                    name
-                  }
-                }
-              }
-            }
-          }
-        `,
-        { appId, channelName },
-        { additionalTypenames: ['UpdateChannel', 'UpdateBranch'] }
-      )
-      .toPromise()
-  );
-  const updateChannelByNameResult = data.app?.byId.updateChannelByName;
-  if (!updateChannelByNameResult) {
-    throw new Error(`Could not find a channel named ${channelName} on app with id ${appId}`);
-  }
-  return updateChannelByNameResult;
-}
 
 export async function updateChannelBranchMappingAsync({
   channelId,
   branchMapping,
-}: UpdateChannelBranchMappingMutationVariables): Promise<{
-  id: string;
-  name: string;
-  branchMapping: string;
-}> {
+}: UpdateChannelBranchMappingMutationVariables): Promise<
+  UpdateChannelBranchMappingMutation['updateChannel']['editUpdateChannel']
+> {
   const data = await withErrorHandlingAsync(
     graphqlClient
       .mutation<UpdateChannelBranchMappingMutation, UpdateChannelBranchMappingMutationVariables>(
@@ -89,7 +46,7 @@ export async function updateChannelBranchMappingAsync({
   if (!channel) {
     throw new Error(`Could not find a channel with id: ${channelId}`);
   }
-  return data.updateChannel.editUpdateChannel!;
+  return channel;
 }
 
 export default class ChannelEdit extends EasCommand {
@@ -107,10 +64,7 @@ export default class ChannelEdit extends EasCommand {
     branch: Flags.string({
       description: 'Name of the branch to point to',
     }),
-    json: Flags.boolean({
-      description: 'Print output as a JSON object with the channel ID, name and branch mapping',
-      default: false,
-    }),
+    ...EasJsonOnlyFlag,
   };
 
   async runAsync(): Promise<void> {
@@ -123,26 +77,34 @@ export default class ChannelEdit extends EasCommand {
     const exp = getExpoConfig(projectDir);
     const projectId = await getProjectIdAsync(exp);
 
-    const channelName = args.name ?? (await promptForChannelAsync());
+    const existingChannel = args.name
+      ? await ChannelQuery.viewUpdateChannelAsync({ appId: projectId, channelName: args.name })
+      : await selectChannelOnAppAsync({
+          projectId,
+          selectionPromptTitle: 'Select a channel to edit',
+          paginatedQueryOptions: { json: flags.json, nonInteractive: flags.json, offset: 0 },
+        });
 
-    const existingChannel = await getChannelByNameForAppAsync({ appId: projectId, channelName });
     if (existingChannel.updateBranches.length > 1) {
       throw new Error('There is a rollout in progress. Manage it with "channel:rollout" instead.');
     }
 
-    const branchName = flags.branch ?? (await promptForBranchAsync());
+    const branch = flags.branch
+      ? await BranchQuery.getBranchByNameAsync({
+          appId: projectId,
+          name: flags.branch,
+        })
+      : await selectBranchOnAppAsync({
+          projectId,
+          promptTitle: `Which branch would you like ${existingChannel.name} to point at?`,
+          displayTextForListItem: updateBranch => updateBranch.name,
+          paginatedQueryOptions: {
+            json: flags.json,
+            nonInteractive: flags.json,
+            offset: 0,
+          },
+        });
 
-    const branch = await BranchQuery.getBranchByNameAsync({
-      appId: projectId,
-      name: branchName,
-    });
-    if (!branch) {
-      throw new Error(
-        `Could not find a branch named "${branchName}". Check what branches exist on this project with ${chalk.bold(
-          'eas branch:list'
-        )}.`
-      );
-    }
     const channel = await updateChannelBranchMappingAsync({
       channelId: existingChannel.id,
       // todo: move branch mapping logic to utility
@@ -164,26 +126,4 @@ export default class ChannelEdit extends EasCommand {
       );
     }
   }
-}
-
-async function promptForChannelAsync(): Promise<string> {
-  Log.addNewLineIfNone();
-  const { name } = await promptAsync({
-    type: 'text',
-    name: 'name',
-    message: 'Provide the name of the channel to edit:',
-    validate: value => (value ? true : 'The channel name may not be empty.'),
-  });
-  return name;
-}
-
-async function promptForBranchAsync(): Promise<string> {
-  Log.addNewLineIfNone();
-  const { name } = await promptAsync({
-    type: 'text',
-    name: 'name',
-    message: `To which branch should the channel link?`,
-    validate: value => (value ? true : 'The branch name may not be empty.'),
-  });
-  return name;
 }

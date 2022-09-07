@@ -8,7 +8,7 @@ import nullthrows from 'nullthrows';
 
 import { getEASUpdateURL } from '../../api';
 import { selectBranchOnAppAsync } from '../../branch/queries';
-import { getDefaultBranchNameAsync } from '../../branch/utils';
+import { BranchNotFoundError, getDefaultBranchNameAsync } from '../../branch/utils';
 import { getUpdateGroupUrl } from '../../build/utils/url';
 import EasCommand from '../../commandUtils/EasCommand';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
@@ -98,21 +98,29 @@ export async function ensureBranchExistsAsync({
 }: ViewBranchQueryVariables): Promise<{
   branchId: string;
 }> {
-  const updateBranch = await BranchQuery.getBranchByNameAsync({
-    appId,
-    name: branchName,
-  });
+  try {
+    const updateBranch = await BranchQuery.getBranchByNameAsync({
+      appId,
+      name: branchName,
+    });
 
-  if (updateBranch) {
     const { id } = updateBranch;
     await ensureChannelExistsAsync({ appId, branchId: id, channelName: branchName });
     return { branchId: id };
+  } catch (error) {
+    if (error instanceof BranchNotFoundError) {
+      const newUpdateBranch = await createUpdateBranchOnAppAsync({ appId, name: branchName });
+      Log.withTick(`Created branch: ${chalk.bold(branchName)}`);
+      await ensureChannelExistsAsync({
+        appId,
+        branchId: newUpdateBranch.id,
+        channelName: branchName,
+      });
+      return { branchId: newUpdateBranch.id };
+    } else {
+      throw error;
+    }
   }
-
-  const newUpdateBranch = await createUpdateBranchOnAppAsync({ appId, name: branchName });
-  Log.withTick(`Created branch: ${chalk.bold(branchName)}`);
-  await ensureChannelExistsAsync({ appId, branchId: newUpdateBranch.id, channelName: branchName });
-  return { branchId: newUpdateBranch.id };
 }
 
 export default class UpdatePublish extends EasCommand {
