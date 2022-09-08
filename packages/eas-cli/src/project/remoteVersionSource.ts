@@ -8,10 +8,9 @@ import { confirmAsync } from '../prompts';
 import { ProfileData } from '../utils/profiles';
 
 export async function ensureVersionSourceIsRemoteAsync(
-  projectDir: string,
-  easJsonUtils: EasJsonUtils
+  easJsonAccessor: EasJsonAccessor
 ): Promise<void> {
-  const easJsonCliConfig = await easJsonUtils.getCliConfigAsync();
+  const easJsonCliConfig = await EasJsonUtils.getCliConfigAsync(easJsonAccessor);
   if (easJsonCliConfig?.appVersionSource === AppVersionSource.REMOTE) {
     return;
   }
@@ -29,7 +28,6 @@ export async function ensureVersionSourceIsRemoteAsync(
     throw new Error('Aborting...');
   }
 
-  const easJsonAccessor = new EasJsonAccessor(projectDir);
   await easJsonAccessor.readRawJSONAsync();
   easJsonAccessor.patch(easJsonRawObject => {
     easJsonRawObject.cli = { ...easJsonRawObject?.cli, appVersionSource: AppVersionSource.REMOTE };

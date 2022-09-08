@@ -222,8 +222,7 @@ async function handleDeprecatedEasJsonAsync(
   nonInteractive: boolean
 ): Promise<void> {
   const easJsonAccessor = new EasJsonAccessor(projectDir);
-  const easJsonUtils = new EasJsonUtils(easJsonAccessor);
-  const profileNames = await easJsonUtils.getBuildProfileNamesAsync();
+  const profileNames = await EasJsonUtils.getBuildProfileNamesAsync(easJsonAccessor);
   const platformAndProfileNames: [Platform, string][] = profileNames.flatMap(profileName => [
     [Platform.ANDROID, profileName],
     [Platform.IOS, profileName],
@@ -232,7 +231,11 @@ async function handleDeprecatedEasJsonAsync(
   const deprecatedProfiles: [Platform, string][] = [];
 
   for (const [platform, profileName] of platformAndProfileNames) {
-    const buildProfile = await easJsonUtils.getBuildProfileAsync(platform, profileName);
+    const buildProfile = await EasJsonUtils.getBuildProfileAsync(
+      easJsonAccessor,
+      platform,
+      profileName
+    );
     if (buildProfile.artifactPath) {
       deprecatedProfiles.push([platform, profileName]);
     }

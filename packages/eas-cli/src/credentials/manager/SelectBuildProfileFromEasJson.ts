@@ -5,21 +5,25 @@ import Log from '../../log';
 import { promptAsync } from '../../prompts';
 
 export class SelectBuildProfileFromEasJson<T extends Platform> {
-  private easJsonUtils: EasJsonUtils;
+  private easJsonAccessor: EasJsonAccessor;
 
   constructor(projectDir: string, private platform: T) {
-    this.easJsonUtils = new EasJsonUtils(new EasJsonAccessor(projectDir));
+    this.easJsonAccessor = new EasJsonAccessor(projectDir);
   }
 
   async runAsync(): Promise<BuildProfile<T>> {
     const profileName = await this.getProfileNameFromEasConfigAsync();
-    const easConfig = await this.easJsonUtils.getBuildProfileAsync<T>(this.platform, profileName);
+    const easConfig = await EasJsonUtils.getBuildProfileAsync<T>(
+      this.easJsonAccessor,
+      this.platform,
+      profileName
+    );
     Log.succeed(`Using build profile: ${profileName}`);
     return easConfig;
   }
 
   async getProfileNameFromEasConfigAsync(): Promise<string> {
-    const buildProfileNames = await this.easJsonUtils.getBuildProfileNamesAsync();
+    const buildProfileNames = await EasJsonUtils.getBuildProfileNamesAsync(this.easJsonAccessor);
     if (buildProfileNames.length === 0) {
       throw new Error(
         'You need at least one iOS build profile declared in eas.json. Go to https://docs.expo.dev/build/eas-json/ for more details'

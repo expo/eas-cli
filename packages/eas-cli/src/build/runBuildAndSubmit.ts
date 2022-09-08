@@ -96,13 +96,13 @@ export async function runBuildAndSubmitAsync(projectDir: string, flags: BuildFla
     nonInteractive: flags.nonInteractive,
   });
   const easJsonAccessor = new EasJsonAccessor(projectDir);
-  const easJsonUtils = new EasJsonUtils(easJsonAccessor);
-  const easJsonCliConfig: EasJson['cli'] = (await easJsonUtils.getCliConfigAsync()) ?? {};
+  const easJsonCliConfig: EasJson['cli'] =
+    (await EasJsonUtils.getCliConfigAsync(easJsonAccessor)) ?? {};
 
   const platforms = toPlatforms(flags.requestedPlatform);
   const buildProfiles = await getProfilesAsync({
     type: 'build',
-    easJsonUtils,
+    easJsonAccessor,
     platforms,
     profileName: flags.profile ?? undefined,
   });
@@ -152,7 +152,7 @@ export async function runBuildAndSubmitAsync(projectDir: string, flags: BuildFla
   const submissions: SubmissionFragment[] = [];
   if (flags.autoSubmit) {
     const submitProfiles = await getProfilesAsync({
-      easJsonUtils,
+      easJsonAccessor,
       platforms,
       profileName: flags.submitProfile,
       type: 'submit',

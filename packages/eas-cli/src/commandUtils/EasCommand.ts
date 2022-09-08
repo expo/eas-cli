@@ -62,8 +62,8 @@ export default abstract class EasCommand extends Command {
   }
 
   private async applyCliConfigAsync(projectDir: string): Promise<void> {
-    const easJsonUtils = new EasJsonUtils(new EasJsonAccessor(projectDir));
-    const config = await easJsonUtils.getCliConfigAsync();
+    const easJsonAccessor = new EasJsonAccessor(projectDir);
+    const config = await EasJsonUtils.getCliConfigAsync(easJsonAccessor);
     if (config?.version && !semver.satisfies(easCliVersion, config.version)) {
       throw new Error(
         `You are on eas-cli@${easCliVersion} which does not satisfy the CLI version constraint in eas.json (${config.version})`

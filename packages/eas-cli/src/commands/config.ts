@@ -31,13 +31,13 @@ export default class Config extends EasCommand {
 
     const projectDir = await findProjectRootAsync();
 
-    const reader = new EasJsonUtils(new EasJsonAccessor(projectDir));
+    const accessor = new EasJsonAccessor(projectDir);
     const profileName =
       maybeProfile ??
       (await selectAsync(
         'Select build profile',
         (
-          await reader.getBuildProfileNamesAsync()
+          await EasJsonUtils.getBuildProfileNamesAsync(accessor)
         ).map(profileName => ({
           title: profileName,
           value: profileName,
@@ -56,7 +56,7 @@ export default class Config extends EasCommand {
         },
       ]));
 
-    const profile = await reader.getBuildProfileAsync(platform, profileName);
+    const profile = await EasJsonUtils.getBuildProfileAsync(accessor, platform, profileName);
     const config = getExpoConfig(projectDir, { env: profile.env, isPublicConfig: true });
 
     Log.addNewLineIfNone();

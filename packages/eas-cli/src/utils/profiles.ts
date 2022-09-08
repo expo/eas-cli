@@ -1,5 +1,11 @@
 import { Platform } from '@expo/eas-build-job';
-import { BuildProfile, EasJsonUtils, ProfileType, SubmitProfile } from '@expo/eas-json';
+import {
+  BuildProfile,
+  EasJsonAccessor,
+  EasJsonUtils,
+  ProfileType,
+  SubmitProfile,
+} from '@expo/eas-json';
 
 type EasProfile<T extends ProfileType> = T extends 'build'
   ? BuildProfile<Platform>
@@ -12,19 +18,19 @@ export type ProfileData<T extends ProfileType> = {
 };
 
 export async function getProfilesAsync<T extends ProfileType>({
-  easJsonUtils,
+  easJsonAccessor,
   platforms,
   profileName,
   type,
 }: {
-  easJsonUtils: EasJsonUtils;
+  easJsonAccessor: EasJsonAccessor;
   platforms: Platform[];
   profileName?: string;
   type: T;
 }): Promise<ProfileData<T>[]> {
   const results = platforms.map(async function (platform) {
     const profile = await readProfileAsync({
-      easJsonUtils,
+      easJsonAccessor,
       platform,
       type,
       profileName,
@@ -40,19 +46,27 @@ export async function getProfilesAsync<T extends ProfileType>({
 }
 
 async function readProfileAsync<T extends ProfileType>({
-  easJsonUtils,
+  easJsonAccessor,
   platform,
   type,
   profileName,
 }: {
-  easJsonUtils: EasJsonUtils;
+  easJsonAccessor: EasJsonAccessor;
   platform: Platform;
   type: T;
   profileName?: string;
 }): Promise<EasProfile<T>> {
   if (type === 'build') {
-    return (await easJsonUtils.getBuildProfileAsync(platform, profileName)) as EasProfile<T>;
+    return (await EasJsonUtils.getBuildProfileAsync(
+      easJsonAccessor,
+      platform,
+      profileName
+    )) as EasProfile<T>;
   } else {
-    return (await easJsonUtils.getSubmitProfileAsync(platform, profileName)) as EasProfile<T>;
+    return (await EasJsonUtils.getSubmitProfileAsync(
+      easJsonAccessor,
+      platform,
+      profileName
+    )) as EasProfile<T>;
   }
 }
