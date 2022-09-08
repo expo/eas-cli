@@ -129,7 +129,7 @@ export default class IosCredentialsProvider {
     ctx: CredentialsContext
   ): Promise<void> {
     const easJsonAccessor = new EasJsonAccessor(ctx.projectDir);
-    await easJsonAccessor.readRawJSONAsync();
+    await easJsonAccessor.readRawJsonAsync();
     easJsonAccessor.patch(easJsonRawObject => {
       easJsonRawObject.cli = {
         ...easJsonRawObject?.cli,

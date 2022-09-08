@@ -278,7 +278,7 @@ async function handleDeprecatedEasJsonAsync(
     Errors.exit(1);
   }
 
-  await easJsonAccessor.readRawJSONAsync();
+  await easJsonAccessor.readRawJsonAsync();
   for (const [platform, profileName] of deprecatedProfiles) {
     easJsonAccessor.patch(easJsonRawObject => {
       easJsonRawObject.build[profileName][platform].applicationArchivePath =

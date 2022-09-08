@@ -28,7 +28,7 @@ export async function ensureVersionSourceIsRemoteAsync(
     throw new Error('Aborting...');
   }
 
-  await easJsonAccessor.readRawJSONAsync();
+  await easJsonAccessor.readRawJsonAsync();
   easJsonAccessor.patch(easJsonRawObject => {
     easJsonRawObject.cli = { ...easJsonRawObject?.cli, appVersionSource: AppVersionSource.REMOTE };
     return easJsonRawObject;
