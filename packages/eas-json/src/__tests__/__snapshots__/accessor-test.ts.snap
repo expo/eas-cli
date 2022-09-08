@@ -6,7 +6,7 @@ exports[`EasJsonAccessor patching JSON file 1`] = `
     \\"production\\": {
       \\"env\\": {
         \\"TEST\\": \\"123\\",
-        ABC: \\"456\\"
+        \\"ABC\\": \\"456\\"
       }
     }
   }
