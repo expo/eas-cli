@@ -1,6 +1,6 @@
 import { ExpoConfig } from '@expo/config';
 import { Platform, Workflow } from '@expo/eas-build-job';
-import { BuildProfile, EasJsonReader } from '@expo/eas-json';
+import { BuildProfile, EasJsonAccessor, EasJsonUtils } from '@expo/eas-json';
 import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 
@@ -60,13 +60,13 @@ export default class BuildVersionSyncView extends EasCommand {
     const projectDir = await findProjectRootAsync();
 
     const requestedPlatform = await selectRequestedPlatformAsync(flags.platform);
-    const easJsonReader = new EasJsonReader(projectDir);
-    await ensureVersionSourceIsRemoteAsync(projectDir, easJsonReader);
+    const easJsonUtils = new EasJsonUtils(new EasJsonAccessor(projectDir));
+    await ensureVersionSourceIsRemoteAsync(projectDir, easJsonUtils);
 
     const platforms = toPlatforms(requestedPlatform);
     const buildProfiles = await getProfilesAsync({
       type: 'build',
-      easJsonReader,
+      easJsonUtils,
       platforms,
       profileName: flags.profile ?? undefined,
     });

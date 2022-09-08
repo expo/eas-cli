@@ -1,6 +1,6 @@
 import { getProjectConfigDescription } from '@expo/config';
 import { Platform } from '@expo/eas-build-job';
-import { EasJsonReader } from '@expo/eas-json';
+import { EasJsonAccessor, EasJsonUtils } from '@expo/eas-json';
 import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 
@@ -31,7 +31,7 @@ export default class Config extends EasCommand {
 
     const projectDir = await findProjectRootAsync();
 
-    const reader = new EasJsonReader(projectDir);
+    const reader = new EasJsonUtils(new EasJsonAccessor(projectDir));
     const profileName =
       maybeProfile ??
       (await selectAsync(

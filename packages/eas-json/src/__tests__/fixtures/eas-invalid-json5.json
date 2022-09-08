@@ -1,0 +1,10 @@
+{
+  "build": {
+    "production": {
+      "env": {
+        "TEST": "123",
+        THIS IS BROKEN: "456",
+      }
+    }
+  }
+}

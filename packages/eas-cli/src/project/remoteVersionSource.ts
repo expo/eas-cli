@@ -1,8 +1,7 @@
 import { ExpoConfig } from '@expo/config';
 import { Platform } from '@expo/eas-build-job';
-import { AppVersionSource, EasJson, EasJsonReader } from '@expo/eas-json';
+import { AppVersionSource, EasJson, EasJsonAccessor, EasJsonUtils } from '@expo/eas-json';
 import chalk from 'chalk';
-import fs from 'fs-extra';
 
 import Log from '../log';
 import { confirmAsync } from '../prompts';
@@ -10,9 +9,9 @@ import { ProfileData } from '../utils/profiles';
 
 export async function ensureVersionSourceIsRemoteAsync(
   projectDir: string,
-  easJsonReader: EasJsonReader
+  easJsonUtils: EasJsonUtils
 ): Promise<void> {
-  const easJsonCliConfig = await easJsonReader.getCliConfigAsync();
+  const easJsonCliConfig = await easJsonUtils.getCliConfigAsync();
   if (easJsonCliConfig?.appVersionSource === AppVersionSource.REMOTE) {
     return;
   }
@@ -30,10 +29,13 @@ export async function ensureVersionSourceIsRemoteAsync(
     throw new Error('Aborting...');
   }
 
-  const easJsonPath = EasJsonReader.formatEasJsonPath(projectDir);
-  const easJson = await fs.readJSON(easJsonPath);
-  easJson.cli = { ...easJson?.cli, appVersionSource: AppVersionSource.REMOTE };
-  await fs.writeFile(easJsonPath, `${JSON.stringify(easJson, null, 2)}\n`);
+  const easJsonAccessor = new EasJsonAccessor(projectDir);
+  await easJsonAccessor.readRawJSONAsync();
+  easJsonAccessor.patch(easJsonRawObject => {
+    easJsonRawObject.cli = { ...easJsonRawObject?.cli, appVersionSource: AppVersionSource.REMOTE };
+    return easJsonRawObject;
+  });
+  await easJsonAccessor.writeAsync();
   Log.withTick('Updated eas.json');
 }
 

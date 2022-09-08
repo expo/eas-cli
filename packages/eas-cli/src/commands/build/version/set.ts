@@ -1,6 +1,6 @@
 import { getRuntimeVersionNullable } from '@expo/config-plugins/build/utils/Updates';
 import { Platform } from '@expo/eas-build-job';
-import { EasJsonReader } from '@expo/eas-json';
+import { EasJsonAccessor, EasJsonUtils } from '@expo/eas-json';
 import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 
@@ -47,9 +47,9 @@ export default class BuildVersionSetView extends EasCommand {
     const projectDir = await findProjectRootAsync();
 
     const platform = await selectPlatformAsync(flags.platform);
-    const easJsonReader = new EasJsonReader(projectDir);
-    await ensureVersionSourceIsRemoteAsync(projectDir, easJsonReader);
-    const profile = await easJsonReader.getBuildProfileAsync(platform, flags.profile ?? undefined);
+    const easJsonUtils = new EasJsonUtils(new EasJsonAccessor(projectDir));
+    await ensureVersionSourceIsRemoteAsync(projectDir, easJsonUtils);
+    const profile = await easJsonUtils.getBuildProfileAsync(platform, flags.profile ?? undefined);
 
     const exp = getExpoConfig(projectDir, { env: profile.env });
     const projectId = await getProjectIdAsync(exp);

@@ -2,10 +2,9 @@ import { Platform } from '@expo/eas-build-job';
 import {
   CredentialsSource,
   DistributionType,
-  EasJsonReader,
+  EasJsonAccessor,
   IosEnterpriseProvisioning,
 } from '@expo/eas-json';
-import fs from 'fs-extra';
 
 import { CommonIosAppCredentialsFragment } from '../../graphql/generated';
 import Log from '../../log';
@@ -129,10 +128,16 @@ export default class IosCredentialsProvider {
   private async disablePushNotificationsSetupInEasJsonAsync(
     ctx: CredentialsContext
   ): Promise<void> {
-    const easJsonPath = EasJsonReader.formatEasJsonPath(ctx.projectDir);
-    const easJson = await fs.readJSON(easJsonPath);
-    easJson.cli = { ...easJson?.cli, promptToConfigurePushNotifications: false };
-    await fs.writeFile(easJsonPath, `${JSON.stringify(easJson, null, 2)}\n`);
+    const easJsonAccessor = new EasJsonAccessor(ctx.projectDir);
+    await easJsonAccessor.readRawJSONAsync();
+    easJsonAccessor.patch(easJsonRawObject => {
+      easJsonRawObject.cli = {
+        ...easJsonRawObject?.cli,
+        promptToConfigurePushNotifications: false,
+      };
+      return easJsonRawObject;
+    });
+    await easJsonAccessor.writeAsync();
     Log.withTick('Updated eas.json');
   }
 

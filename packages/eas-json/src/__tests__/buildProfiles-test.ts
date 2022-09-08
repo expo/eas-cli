@@ -2,7 +2,8 @@ import { Platform } from '@expo/eas-build-job';
 import fs from 'fs-extra';
 import { vol } from 'memfs';
 
-import { EasJsonReader } from '../reader';
+import { EasJsonAccessor } from '../accessor';
+import { EasJsonUtils } from '../utils';
 
 jest.mock('fs');
 
@@ -18,9 +19,9 @@ test('minimal valid eas.json for both platforms', async () => {
     },
   });
 
-  const reader = new EasJsonReader('/project');
-  const iosProfile = await reader.getBuildProfileAsync(Platform.IOS, 'production');
-  const androidProfile = await reader.getBuildProfileAsync(Platform.ANDROID, 'production');
+  const utils = new EasJsonUtils(new EasJsonAccessor('/project'));
+  const iosProfile = await utils.getBuildProfileAsync(Platform.IOS, 'production');
+  const androidProfile = await utils.getBuildProfileAsync(Platform.ANDROID, 'production');
 
   expect(androidProfile).toEqual({
     distribution: 'store',
@@ -46,9 +47,9 @@ test('valid eas.json for development client builds', async () => {
     },
   });
 
-  const reader = new EasJsonReader('/project');
-  const iosProfile = await reader.getBuildProfileAsync(Platform.IOS, 'debug');
-  const androidProfile = await reader.getBuildProfileAsync(Platform.ANDROID, 'debug');
+  const utils = new EasJsonUtils(new EasJsonAccessor('/project'));
+  const iosProfile = await utils.getBuildProfileAsync(Platform.IOS, 'debug');
+  const androidProfile = await utils.getBuildProfileAsync(Platform.ANDROID, 'debug');
   expect(androidProfile).toEqual({
     credentialsSource: 'remote',
     distribution: 'store',
@@ -72,9 +73,9 @@ test(`valid eas.json with autoIncrement flag at build profile root`, async () =>
     },
   });
 
-  const reader = new EasJsonReader('/project');
-  const iosProfile = await reader.getBuildProfileAsync(Platform.IOS, 'production');
-  const androidProfile = await reader.getBuildProfileAsync(Platform.ANDROID, 'production');
+  const utils = new EasJsonUtils(new EasJsonAccessor('/project'));
+  const iosProfile = await utils.getBuildProfileAsync(Platform.IOS, 'production');
+  const androidProfile = await utils.getBuildProfileAsync(Platform.ANDROID, 'production');
   expect(androidProfile).toEqual({
     autoIncrement: true,
     credentialsSource: 'remote',
@@ -97,8 +98,8 @@ test('valid profile for internal distribution on Android', async () => {
     },
   });
 
-  const reader = new EasJsonReader('/project');
-  const profile = await reader.getBuildProfileAsync(Platform.ANDROID, 'internal');
+  const utils = new EasJsonUtils(new EasJsonAccessor('/project'));
+  const profile = await utils.getBuildProfileAsync(Platform.ANDROID, 'internal');
   expect(profile).toEqual({
     distribution: 'internal',
     credentialsSource: 'remote',
@@ -119,9 +120,9 @@ test('valid profile extending other profile', async () => {
     },
   });
 
-  const reader = new EasJsonReader('/project');
-  const baseProfile = await reader.getBuildProfileAsync(Platform.ANDROID, 'base');
-  const extendedProfile = await reader.getBuildProfileAsync(Platform.ANDROID, 'extension');
+  const utils = new EasJsonUtils(new EasJsonAccessor('/project'));
+  const baseProfile = await utils.getBuildProfileAsync(Platform.ANDROID, 'base');
+  const extendedProfile = await utils.getBuildProfileAsync(Platform.ANDROID, 'extension');
   expect(baseProfile).toEqual({
     distribution: 'store',
     credentialsSource: 'remote',
@@ -158,10 +159,10 @@ test('valid profile extending other profile with platform specific envs', async 
     },
   });
 
-  const reader = new EasJsonReader('/project');
-  const baseProfile = await reader.getBuildProfileAsync(Platform.ANDROID, 'base');
-  const extendedAndroidProfile = await reader.getBuildProfileAsync(Platform.ANDROID, 'extension');
-  const extendedIosProfile = await reader.getBuildProfileAsync(Platform.IOS, 'extension');
+  const utils = new EasJsonUtils(new EasJsonAccessor('/project'));
+  const baseProfile = await utils.getBuildProfileAsync(Platform.ANDROID, 'base');
+  const extendedAndroidProfile = await utils.getBuildProfileAsync(Platform.ANDROID, 'extension');
+  const extendedIosProfile = await utils.getBuildProfileAsync(Platform.IOS, 'extension');
   expect(baseProfile).toEqual({
     distribution: 'store',
     credentialsSource: 'remote',
@@ -212,10 +213,10 @@ test('valid profile extending other profile with platform specific caching', asy
     },
   });
 
-  const reader = new EasJsonReader('/project');
-  const baseProfile = await reader.getBuildProfileAsync(Platform.ANDROID, 'base');
-  const extendedAndroidProfile = await reader.getBuildProfileAsync(Platform.ANDROID, 'extension');
-  const extendedIosProfile = await reader.getBuildProfileAsync(Platform.IOS, 'extension');
+  const utils = new EasJsonUtils(new EasJsonAccessor('/project'));
+  const baseProfile = await utils.getBuildProfileAsync(Platform.ANDROID, 'base');
+  const extendedAndroidProfile = await utils.getBuildProfileAsync(Platform.ANDROID, 'extension');
+  const extendedIosProfile = await utils.getBuildProfileAsync(Platform.IOS, 'extension');
   expect(baseProfile).toEqual({
     distribution: 'store',
     credentialsSource: 'remote',
@@ -248,8 +249,8 @@ test('valid eas.json with missing profile', async () => {
     },
   });
 
-  const reader = new EasJsonReader('/project');
-  const promise = reader.getBuildProfileAsync(Platform.ANDROID, 'debug');
+  const utils = new EasJsonUtils(new EasJsonAccessor('/project'));
+  const promise = utils.getBuildProfileAsync(Platform.ANDROID, 'debug');
   await expect(promise).rejects.toThrowError('Missing build profile in eas.json: debug');
 });
 
@@ -260,8 +261,8 @@ test('invalid eas.json when using wrong buildType', async () => {
     },
   });
 
-  const reader = new EasJsonReader('/project');
-  const promise = reader.getBuildProfileAsync(Platform.ANDROID, 'production');
+  const utils = new EasJsonUtils(new EasJsonAccessor('/project'));
+  const promise = utils.getBuildProfileAsync(Platform.ANDROID, 'production');
   await expect(promise).rejects.toThrowError(
     'eas.json is not valid [ValidationError: "build.production.android.buildType" must be one of [apk, app-bundle]]'
   );
@@ -270,8 +271,8 @@ test('invalid eas.json when using wrong buildType', async () => {
 test('empty json', async () => {
   await fs.writeJson('/project/eas.json', {});
 
-  const reader = new EasJsonReader('/project');
-  const promise = reader.getBuildProfileAsync(Platform.ANDROID, 'production');
+  const utils = new EasJsonUtils(new EasJsonAccessor('/project'));
+  const promise = utils.getBuildProfileAsync(Platform.ANDROID, 'production');
   await expect(promise).rejects.toThrowError('Missing build profile in eas.json: production');
 });
 
@@ -282,8 +283,8 @@ test('invalid semver value', async () => {
     },
   });
 
-  const reader = new EasJsonReader('/project');
-  const promise = reader.getBuildProfileAsync(Platform.ANDROID, 'production');
+  const utils = new EasJsonUtils(new EasJsonAccessor('/project'));
+  const promise = utils.getBuildProfileAsync(Platform.ANDROID, 'production');
   await expect(promise).rejects.toThrowError(
     'eas.json is not valid [ValidationError: "build.production.node" failed custom validation because alpha is not a valid version]'
   );
@@ -296,8 +297,8 @@ test('invalid release channel', async () => {
     },
   });
 
-  const reader = new EasJsonReader('/project');
-  const promise = reader.getBuildProfileAsync(Platform.ANDROID, 'production');
+  const utils = new EasJsonUtils(new EasJsonAccessor('/project'));
+  const promise = utils.getBuildProfileAsync(Platform.ANDROID, 'production');
   await expect(promise).rejects.toThrowError(/fails to match the required pattern/);
 });
 
@@ -309,7 +310,7 @@ test('get profile names', async () => {
     },
   });
 
-  const reader = new EasJsonReader('/project');
-  const allProfileNames = await reader.getBuildProfileNamesAsync();
+  const utils = new EasJsonUtils(new EasJsonAccessor('/project'));
+  const allProfileNames = await utils.getBuildProfileNamesAsync();
   expect(allProfileNames.sort()).toEqual(['blah', 'production'].sort());
 });
