@@ -1,7 +1,6 @@
-import { Flags } from '@oclif/core';
-
 import { formatGraphQLBuild } from '../../build/utils/formatBuild';
 import EasCommand from '../../commandUtils/EasCommand';
+import { EasJsonOnlyFlag } from '../../commandUtils/flags';
 import { BuildFragment } from '../../graphql/generated';
 import { BuildQuery } from '../../graphql/queries/BuildQuery';
 import Log from '../../log';
@@ -20,9 +19,7 @@ export default class BuildView extends EasCommand {
   static override args = [{ name: 'BUILD_ID' }];
 
   static override flags = {
-    json: Flags.boolean({
-      description: 'Enable JSON output, non-JSON messages will be printed to stderr',
-    }),
+    ...EasJsonOnlyFlag,
   };
 
   async runAsync(): Promise<void> {
@@ -47,7 +44,11 @@ export default class BuildView extends EasCommand {
       if (buildId) {
         build = await BuildQuery.byIdAsync(buildId);
       } else {
-        const builds = await BuildQuery.allForAppAsync(projectId, { limit: 1 });
+        const builds = await BuildQuery.viewBuildsOnAppAsync({
+          appId: projectId,
+          offset: 0,
+          limit: 1,
+        });
         if (builds.length === 0) {
           spinner.fail(`Couldn't find any builds for the project ${projectName}`);
           return;

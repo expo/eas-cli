@@ -3,37 +3,16 @@ import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../client';
 import {
-  AppPlatform,
   BuildFragment,
-  BuildStatus,
   BuildWithSubmissionsFragment,
   BuildsByIdQuery,
   BuildsByIdQueryVariables,
   BuildsWithSubmissionsByIdQuery,
   BuildsWithSubmissionsByIdQueryVariables,
-  DistributionType,
-  GetAllBuildsForAppQuery,
-  GetAllBuildsForAppQueryVariables,
+  ViewBuildsOnAppQuery,
+  ViewBuildsOnAppQueryVariables,
 } from '../generated';
 import { BuildFragmentNode, BuildFragmentWithSubmissionsNode } from '../types/Build';
-
-type BuildsQuery = {
-  offset?: number;
-  limit?: number;
-  filter?: {
-    platform?: AppPlatform;
-    status?: BuildStatus;
-    distribution?: DistributionType;
-    channel?: string;
-    appVersion?: string;
-    appBuildVersion?: string;
-    sdkVersion?: string;
-    runtimeVersion?: string;
-    appIdentifier?: string;
-    buildProfile?: string;
-    gitCommitHash?: string;
-  };
-};
 
 export const BuildQuery = {
   async byIdAsync(
@@ -65,7 +44,6 @@ export const BuildQuery = {
 
     return data.builds.byId;
   },
-
   async withSubmissionsByIdAsync(
     buildId: string,
     { useCache = true }: { useCache?: boolean } = {}
@@ -95,16 +73,18 @@ export const BuildQuery = {
 
     return data.builds.byId;
   },
-  async allForAppAsync(
-    appId: string,
-    { limit = 10, offset = 0, filter }: BuildsQuery
-  ): Promise<BuildFragment[]> {
+  async viewBuildsOnAppAsync({
+    appId,
+    limit,
+    offset,
+    filter,
+  }: ViewBuildsOnAppQueryVariables): Promise<BuildFragment[]> {
     const data = await withErrorHandlingAsync(
       graphqlClient
-        .query<GetAllBuildsForAppQuery, GetAllBuildsForAppQueryVariables>(
+        .query<ViewBuildsOnAppQuery, ViewBuildsOnAppQueryVariables>(
           // TODO: Change $appId: String! to ID! when fixed server-side schema
           gql`
-            query GetAllBuildsForApp(
+            query ViewBuildsOnApp(
               $appId: String!
               $offset: Int!
               $limit: Int!

@@ -8,6 +8,7 @@ import path from 'path';
 import { BuildFlags, runBuildAndSubmitAsync } from '../../build/runBuildAndSubmit';
 import { UserInputResourceClass } from '../../build/types';
 import EasCommand from '../../commandUtils/EasCommand';
+import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import { StatuspageServiceName } from '../../graphql/generated';
 import Log, { link } from '../../log';
 import { RequestedPlatform, selectRequestedPlatformAsync } from '../../platform';
@@ -46,10 +47,6 @@ export default class Build extends EasCommand {
       default: false,
       hidden: true,
     }),
-    json: Flags.boolean({
-      description: 'Enable JSON output, non-JSON messages will be printed to stderr',
-      default: false,
-    }),
     'skip-project-configuration': Flags.boolean({
       default: false,
       hidden: true,
@@ -59,10 +56,6 @@ export default class Build extends EasCommand {
       description:
         'Name of the build profile from eas.json. Defaults to "production" if defined in eas.json.',
       helpValue: 'PROFILE_NAME',
-    }),
-    'non-interactive': Flags.boolean({
-      default: false,
-      description: 'Run command in non-interactive mode',
     }),
     local: Flags.boolean({
       default: false,
@@ -100,6 +93,7 @@ export default class Build extends EasCommand {
       char: 'm',
       description: 'A short message describing the build',
     }),
+    ...EasNonInteractiveAndJsonFlags,
   };
 
   async runAsync(): Promise<void> {

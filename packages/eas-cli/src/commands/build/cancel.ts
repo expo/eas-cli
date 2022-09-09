@@ -67,9 +67,24 @@ async function selectBuildToCancelAsync(
   let builds;
   try {
     const [newBuilds, inQueueBuilds, inProgressBuilds] = await Promise.all([
-      BuildQuery.allForAppAsync(projectId, { filter: { status: BuildStatus.New } }),
-      BuildQuery.allForAppAsync(projectId, { filter: { status: BuildStatus.InQueue } }),
-      BuildQuery.allForAppAsync(projectId, { filter: { status: BuildStatus.InProgress } }),
+      BuildQuery.viewBuildsOnAppAsync({
+        appId: projectId,
+        offset: 0,
+        limit: 10,
+        filter: { status: BuildStatus.New },
+      }),
+      BuildQuery.viewBuildsOnAppAsync({
+        appId: projectId,
+        offset: 0,
+        limit: 10,
+        filter: { status: BuildStatus.InQueue },
+      }),
+      BuildQuery.viewBuildsOnAppAsync({
+        appId: projectId,
+        offset: 0,
+        limit: 10,
+        filter: { status: BuildStatus.InProgress },
+      }),
     ]);
     spinner.stop();
     builds = [...newBuilds, ...inQueueBuilds, ...inProgressBuilds];

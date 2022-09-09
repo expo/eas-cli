@@ -1,17 +1,19 @@
 import { Flags } from '@oclif/core';
-import chalk from 'chalk';
 
+import { BUILDS_LIMIT, listAndRenderBuildsOnAppAsync } from '../../build/queries';
 import { BuildDistributionType, BuildStatus } from '../../build/types';
-import { formatGraphQLBuild } from '../../build/utils/formatBuild';
 import EasCommand from '../../commandUtils/EasCommand';
+import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
+import {
+  EasPaginatedQueryFlags,
+  getLimitFlagWithCustomValues,
+  getPaginatedQueryOptions,
+} from '../../commandUtils/pagination';
 import {
   AppPlatform,
   DistributionType,
   BuildStatus as GraphQLBuildStatus,
 } from '../../graphql/generated';
-import { BuildQuery } from '../../graphql/queries/BuildQuery';
-import Log from '../../log';
-import { ora } from '../../ora';
 import { RequestedPlatform } from '../../platform';
 import { getExpoConfig } from '../../project/expoConfig';
 import {
@@ -19,7 +21,7 @@ import {
   getProjectFullNameAsync,
   getProjectIdAsync,
 } from '../../project/projectUtils';
-import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
+import { enableJsonOutput } from '../../utils/json';
 
 export default class BuildList extends EasCommand {
   static override description = 'list all builds for your project';
@@ -27,9 +29,6 @@ export default class BuildList extends EasCommand {
   static override flags = {
     platform: Flags.enum({
       options: [RequestedPlatform.All, RequestedPlatform.Android, RequestedPlatform.Ios],
-    }),
-    json: Flags.boolean({
-      description: 'Enable JSON output, non-JSON messages will be printed to stderr',
     }),
     status: Flags.enum({
       options: [
@@ -56,19 +55,21 @@ export default class BuildList extends EasCommand {
     appIdentifier: Flags.string(),
     buildProfile: Flags.string(),
     gitCommitHash: Flags.string(),
-    limit: Flags.integer(),
+    ...EasPaginatedQueryFlags,
+    limit: getLimitFlagWithCustomValues({ defaultTo: 10, limit: BUILDS_LIMIT }),
+    ...EasNonInteractiveAndJsonFlags,
   };
 
   async runAsync(): Promise<void> {
     const { flags } = await this.parse(BuildList);
+    const paginatedQueryOptions = getPaginatedQueryOptions(flags);
     const {
-      json,
+      json: jsonFlag,
       platform: requestedPlatform,
       status: buildStatus,
       distribution: buildDistribution,
-      limit = 10,
     } = flags;
-    if (json) {
+    if (jsonFlag) {
       enableJsonOutput();
     }
 
@@ -81,51 +82,24 @@ export default class BuildList extends EasCommand {
     const projectId = await getProjectIdAsync(exp);
     const projectName = await getProjectFullNameAsync(exp);
 
-    const spinner = ora().start('Fetching the build list for the project…');
-
-    try {
-      const builds = await BuildQuery.allForAppAsync(projectId, {
-        limit,
-        filter: {
-          platform,
-          status: graphqlBuildStatus,
-          distribution: graphqlBuildDistribution,
-          channel: flags.channel,
-          appVersion: flags.appVersion,
-          appBuildVersion: flags.appBuildVersion,
-          sdkVersion: flags.sdkVersion,
-          runtimeVersion: flags.runtimeVersion,
-          appIdentifier: flags.appIdentifier,
-          buildProfile: flags.buildProfile,
-          gitCommitHash: flags.gitCommitHash,
-        },
-      });
-
-      if (builds.length) {
-        if (platform || graphqlBuildStatus) {
-          spinner.succeed(
-            `Showing ${builds.length} matching builds for the project ${projectName}`
-          );
-        } else {
-          spinner.succeed(`Showing last ${builds.length} builds for the project ${projectName}`);
-        }
-
-        if (json) {
-          printJsonOnlyOutput(builds);
-        } else {
-          const list = builds
-            .map(build => formatGraphQLBuild(build))
-            .join(`\n\n${chalk.dim('———')}\n\n`);
-
-          Log.log(`\n${list}`);
-        }
-      } else {
-        spinner.fail(`Couldn't find any builds for the project ${projectName}`);
-      }
-    } catch (e) {
-      spinner.fail(`Something went wrong and we couldn't fetch the build list ${projectName}`);
-      throw e;
-    }
+    await listAndRenderBuildsOnAppAsync({
+      projectId,
+      projectName,
+      filter: {
+        platform,
+        status: graphqlBuildStatus,
+        distribution: graphqlBuildDistribution,
+        channel: flags.channel,
+        appVersion: flags.appVersion,
+        appBuildVersion: flags.appBuildVersion,
+        sdkVersion: flags.sdkVersion,
+        runtimeVersion: flags.runtimeVersion,
+        appIdentifier: flags.appIdentifier,
+        buildProfile: flags.buildProfile,
+        gitCommitHash: flags.gitCommitHash,
+      },
+      paginatedQueryOptions,
+    });
   }
 }
 
