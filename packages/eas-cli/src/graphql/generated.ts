@@ -2215,6 +2215,7 @@ export type CreateBuildResult = {
 
 export type CreateEnvironmentSecretInput = {
   name: Scalars['String'];
+  type?: InputMaybe<EnvironmentSecretType>;
   value: Scalars['String'];
 };
 
@@ -2385,6 +2386,7 @@ export type EnvironmentSecret = {
   createdAt: Scalars['DateTime'];
   id: Scalars['ID'];
   name: Scalars['String'];
+  type: EnvironmentSecretType;
   updatedAt: Scalars['DateTime'];
 };
 
@@ -2414,6 +2416,11 @@ export type EnvironmentSecretMutationCreateEnvironmentSecretForAppArgs = {
 export type EnvironmentSecretMutationDeleteEnvironmentSecretArgs = {
   id: Scalars['String'];
 };
+
+export enum EnvironmentSecretType {
+  FileBase64 = 'FILE_BASE64',
+  String = 'STRING'
+}
 
 export type ExperimentationQuery = {
   __typename?: 'ExperimentationQuery';
