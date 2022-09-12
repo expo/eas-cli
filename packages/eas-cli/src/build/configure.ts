@@ -1,5 +1,5 @@
 import { Platform, Workflow } from '@expo/eas-build-job';
-import { EasJson, EasJsonReader } from '@expo/eas-json';
+import { EasJson, EasJsonAccessor } from '@expo/eas-json';
 import chalk from 'chalk';
 import fs from 'fs-extra';
 
@@ -24,7 +24,7 @@ interface ConfigureParams {
 export async function ensureProjectConfiguredAsync(
   configureParams: ConfigureParams
 ): Promise<boolean> {
-  if (await fs.pathExists(EasJsonReader.formatEasJsonPath(configureParams.projectDir))) {
+  if (await fs.pathExists(EasJsonAccessor.formatEasJsonPath(configureParams.projectDir))) {
     return false;
   }
 
@@ -89,7 +89,7 @@ const EAS_JSON_BARE_DEFAULT: EasJson = {
 };
 
 async function createEasJsonAsync(projectDir: string): Promise<void> {
-  const easJsonPath = EasJsonReader.formatEasJsonPath(projectDir);
+  const easJsonPath = EasJsonAccessor.formatEasJsonPath(projectDir);
 
   const hasAndroidNativeProject =
     (await resolveWorkflowAsync(projectDir, Platform.ANDROID)) === Workflow.GENERIC;

@@ -1,4 +1,4 @@
-import { EasJsonReader } from '@expo/eas-json';
+import { EasJsonAccessor } from '@expo/eas-json';
 import { Errors, Flags } from '@oclif/core';
 import chalk from 'chalk';
 
@@ -107,7 +107,7 @@ export default class Submit extends EasCommand {
     const platforms = toPlatforms(flagsWithPlatform.requestedPlatform);
     const submissionProfiles = await getProfilesAsync({
       type: 'submit',
-      easJsonReader: new EasJsonReader(projectDir),
+      easJsonAccessor: new EasJsonAccessor(projectDir),
       platforms,
       profileName: flagsWithPlatform.profile,
     });

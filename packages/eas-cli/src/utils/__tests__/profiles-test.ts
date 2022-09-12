@@ -1,5 +1,5 @@
 import { Platform } from '@expo/eas-build-job';
-import { EasJsonReader, errors } from '@expo/eas-json';
+import { EasJsonAccessor, EasJsonUtils, errors } from '@expo/eas-json';
 
 import { selectAsync } from '../../prompts';
 import { getProfilesAsync } from '../profiles';
@@ -8,19 +8,18 @@ jest.mock('../../prompts');
 jest.mock('@expo/eas-json', () => {
   const actual = jest.requireActual('@expo/eas-json');
 
-  const EasJsonReaderMock = jest.fn();
-  EasJsonReaderMock.prototype = {
+  const EasJsonUtilsMock = {
     getBuildProfileAsync: jest.fn(),
     getBuildProfileNamesAsync: jest.fn(),
   };
   return {
     ...actual,
-    EasJsonReader: EasJsonReaderMock,
+    EasJsonUtils: EasJsonUtilsMock,
   };
 });
 
-const getBuildProfileAsync = jest.spyOn(EasJsonReader.prototype, 'getBuildProfileAsync');
-const getBuildProfileNamesAsync = jest.spyOn(EasJsonReader.prototype, 'getBuildProfileNamesAsync');
+const getBuildProfileAsync = jest.spyOn(EasJsonUtils, 'getBuildProfileAsync');
+const getBuildProfileNamesAsync = jest.spyOn(EasJsonUtils, 'getBuildProfileNamesAsync');
 
 describe(getProfilesAsync, () => {
   afterEach(() => {
@@ -30,8 +29,9 @@ describe(getProfilesAsync, () => {
   });
 
   it('defaults to production profile', async () => {
+    const easJsonAccessor = new EasJsonAccessor('/fake');
     const result = await getProfilesAsync({
-      easJsonReader: new EasJsonReader('/fake'),
+      easJsonAccessor,
       platforms: [Platform.ANDROID, Platform.IOS],
       profileName: undefined,
       type: 'build',
@@ -39,8 +39,8 @@ describe(getProfilesAsync, () => {
 
     expect(result[0].profileName).toBe('production');
     expect(result[1].profileName).toBe('production');
-    expect(getBuildProfileAsync).toBeCalledWith(Platform.ANDROID, undefined);
-    expect(getBuildProfileAsync).toBeCalledWith(Platform.IOS, undefined);
+    expect(getBuildProfileAsync).toBeCalledWith(easJsonAccessor, Platform.ANDROID, undefined);
+    expect(getBuildProfileAsync).toBeCalledWith(easJsonAccessor, Platform.IOS, undefined);
   });
 
   it('throws an error if there are no profiles in eas.json', async () => {
@@ -51,7 +51,7 @@ describe(getProfilesAsync, () => {
 
     await expect(
       getProfilesAsync({
-        easJsonReader: new EasJsonReader('/fake'),
+        easJsonAccessor: new EasJsonAccessor('/fake'),
         platforms: [Platform.ANDROID],
         profileName: undefined,
         type: 'build',
@@ -60,8 +60,9 @@ describe(getProfilesAsync, () => {
   });
 
   it('gets a specific profile', async () => {
+    const easJsonAccessor = new EasJsonAccessor('/fake');
     const result = await getProfilesAsync({
-      easJsonReader: new EasJsonReader('/fake'),
+      easJsonAccessor,
       platforms: [Platform.ANDROID, Platform.IOS],
       profileName: 'custom-profile',
       type: 'build',
@@ -69,8 +70,12 @@ describe(getProfilesAsync, () => {
 
     expect(result[0].profileName).toBe('custom-profile');
     expect(result[1].profileName).toBe('custom-profile');
-    expect(getBuildProfileAsync).toBeCalledWith(Platform.ANDROID, 'custom-profile');
-    expect(getBuildProfileAsync).toBeCalledWith(Platform.IOS, 'custom-profile');
+    expect(getBuildProfileAsync).toBeCalledWith(
+      easJsonAccessor,
+      Platform.ANDROID,
+      'custom-profile'
+    );
+    expect(getBuildProfileAsync).toBeCalledWith(easJsonAccessor, Platform.IOS, 'custom-profile');
   });
 
   it('throws validation error if eas.json is invalid', async () => {
@@ -80,7 +85,7 @@ describe(getProfilesAsync, () => {
 
     await expect(
       getProfilesAsync({
-        easJsonReader: new EasJsonReader('/fake'),
+        easJsonAccessor: new EasJsonAccessor('/fake'),
         platforms: [Platform.ANDROID, Platform.IOS],
         profileName: undefined,
         type: 'build',

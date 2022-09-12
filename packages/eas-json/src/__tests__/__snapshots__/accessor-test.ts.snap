@@ -1,0 +1,30 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`EasJsonAccessor patching JSON file 1`] = `
+"{
+  \\"build\\": {
+    \\"production\\": {
+      \\"env\\": {
+        \\"TEST\\": \\"123\\",
+        \\"ABC\\": \\"456\\"
+      }
+    }
+  }
+}
+"
+`;
+
+exports[`EasJsonAccessor patching JSON5 file (preserves comments) 1`] = `
+"{
+  \\"build\\": {
+    \\"production\\": {
+      // comment
+      \\"env\\": {
+        \\"TEST\\": \\"123\\",
+        ABC: \\"456\\"
+      }
+    }
+  }
+}
+"
+`;

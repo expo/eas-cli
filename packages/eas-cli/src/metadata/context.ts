@@ -1,7 +1,7 @@
 import { App, Session } from '@expo/apple-utils';
 import { ExpoConfig } from '@expo/config';
 import { Platform } from '@expo/eas-build-job';
-import { EasJsonReader, SubmitProfile } from '@expo/eas-json';
+import { EasJsonAccessor, EasJsonUtils, SubmitProfile } from '@expo/eas-json';
 import assert from 'assert';
 
 import { CredentialsContext } from '../credentials/context';
@@ -47,8 +47,12 @@ export async function createMetadataContextAsync(params: {
   exp?: ExpoConfig;
   profileName?: string;
 }): Promise<MetadataContext> {
-  const easJsonReader = new EasJsonReader(params.projectDir);
-  const submitProfile = await easJsonReader.getSubmitProfileAsync(Platform.IOS, params.profileName);
+  const easJsonAccessor = new EasJsonAccessor(params.projectDir);
+  const submitProfile = await EasJsonUtils.getSubmitProfileAsync(
+    easJsonAccessor,
+    Platform.IOS,
+    params.profileName
+  );
 
   const exp = params.exp ?? getExpoConfig(params.projectDir);
   const user = await ensureLoggedInAsync();

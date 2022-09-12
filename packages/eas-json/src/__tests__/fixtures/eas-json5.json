@@ -1,0 +1,10 @@
+{
+  "build": {
+    "production": {
+      // comment
+      "env": {
+        "TEST": "123"
+      }
+    }
+  }
+}

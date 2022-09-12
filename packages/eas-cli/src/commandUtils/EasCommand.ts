@@ -1,4 +1,4 @@
-import { EasJsonReader } from '@expo/eas-json';
+import { EasJsonAccessor, EasJsonUtils } from '@expo/eas-json';
 import * as PackageManagerUtils from '@expo/package-manager';
 import { Command } from '@oclif/core';
 import chalk from 'chalk';
@@ -62,8 +62,8 @@ export default abstract class EasCommand extends Command {
   }
 
   private async applyCliConfigAsync(projectDir: string): Promise<void> {
-    const easJsonReader = new EasJsonReader(projectDir);
-    const config = await easJsonReader.getCliConfigAsync();
+    const easJsonAccessor = new EasJsonAccessor(projectDir);
+    const config = await EasJsonUtils.getCliConfigAsync(easJsonAccessor);
     if (config?.version && !semver.satisfies(easCliVersion, config.version)) {
       throw new Error(
         `You are on eas-cli@${easCliVersion} which does not satisfy the CLI version constraint in eas.json (${config.version})`

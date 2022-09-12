@@ -1,6 +1,6 @@
 import { getProjectConfigDescription } from '@expo/config';
 import { Platform } from '@expo/eas-build-job';
-import { EasJsonReader } from '@expo/eas-json';
+import { EasJsonAccessor, EasJsonUtils } from '@expo/eas-json';
 import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 
@@ -36,13 +36,13 @@ export default class Config extends EasCommand {
 
     const projectDir = await findProjectRootAsync();
 
-    const reader = new EasJsonReader(projectDir);
+    const accessor = new EasJsonAccessor(projectDir);
     const profileName =
       maybeProfile ??
       (await selectAsync(
         'Select build profile',
         (
-          await reader.getBuildProfileNamesAsync()
+          await EasJsonUtils.getBuildProfileNamesAsync(accessor)
         ).map(profileName => ({
           title: profileName,
           value: profileName,
@@ -61,7 +61,7 @@ export default class Config extends EasCommand {
         },
       ]));
 
-    const profile = await reader.getBuildProfileAsync(platform, profileName);
+    const profile = await EasJsonUtils.getBuildProfileAsync(accessor, platform, profileName);
     const config = getExpoConfig(projectDir, { env: profile.env, isPublicConfig: true });
 
     Log.addNewLineIfNone();

@@ -9,5 +9,6 @@ export {
   IosEnterpriseProvisioning,
   IosVersionAutoIncrement,
 } from './build/types';
-export { EasJsonReader } from './reader';
+export { EasJsonAccessor } from './accessor';
+export { EasJsonUtils } from './utils';
 export * as errors from './errors';

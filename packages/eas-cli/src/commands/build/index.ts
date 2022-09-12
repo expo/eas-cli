@@ -1,9 +1,8 @@
 import { Platform } from '@expo/eas-build-job';
-import { EasJsonReader } from '@expo/eas-json';
+import { EasJsonAccessor, EasJsonUtils } from '@expo/eas-json';
 import { Errors, Flags } from '@oclif/core';
 import chalk from 'chalk';
 import figures from 'figures';
-import fs from 'fs-extra';
 import path from 'path';
 
 import { BuildFlags, runBuildAndSubmitAsync } from '../../build/runBuildAndSubmit';
@@ -223,8 +222,8 @@ async function handleDeprecatedEasJsonAsync(
   projectDir: string,
   nonInteractive: boolean
 ): Promise<void> {
-  const reader = new EasJsonReader(projectDir);
-  const profileNames = await reader.getBuildProfileNamesAsync();
+  const easJsonAccessor = new EasJsonAccessor(projectDir);
+  const profileNames = await EasJsonUtils.getBuildProfileNamesAsync(easJsonAccessor);
   const platformAndProfileNames: [Platform, string][] = profileNames.flatMap(profileName => [
     [Platform.ANDROID, profileName],
     [Platform.IOS, profileName],
@@ -233,7 +232,11 @@ async function handleDeprecatedEasJsonAsync(
   const deprecatedProfiles: [Platform, string][] = [];
 
   for (const [platform, profileName] of platformAndProfileNames) {
-    const buildProfile = await reader.getBuildProfileAsync(platform, profileName);
+    const buildProfile = await EasJsonUtils.getBuildProfileAsync(
+      easJsonAccessor,
+      platform,
+      profileName
+    );
     if (buildProfile.artifactPath) {
       deprecatedProfiles.push([platform, profileName]);
     }
@@ -276,15 +279,16 @@ async function handleDeprecatedEasJsonAsync(
     Errors.exit(1);
   }
 
-  const easJsonPath = EasJsonReader.formatEasJsonPath(projectDir);
-  const easJson = await fs.readJSON(easJsonPath);
-
+  await easJsonAccessor.readRawJsonAsync();
   for (const [platform, profileName] of deprecatedProfiles) {
-    easJson.build[profileName][platform].applicationArchivePath =
-      easJson.build[profileName][platform].artifactPath;
-    delete easJson.build[profileName][platform].artifactPath;
+    easJsonAccessor.patch(easJsonRawObject => {
+      easJsonRawObject.build[profileName][platform].applicationArchivePath =
+        easJsonRawObject.build[profileName][platform].artifactPath;
+      delete easJsonRawObject.build[profileName][platform].artifactPath;
+      return easJsonRawObject;
+    });
   }
+  await easJsonAccessor.writeAsync();
 
-  await fs.writeFile(easJsonPath, `${JSON.stringify(easJson, null, 2)}\n`);
   Log.withTick('Updated eas.json');
 }

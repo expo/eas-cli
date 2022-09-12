@@ -3,7 +3,8 @@ import {
   AppVersionSource,
   BuildProfile,
   EasJson,
-  EasJsonReader,
+  EasJsonAccessor,
+  EasJsonUtils,
   SubmitProfile,
 } from '@expo/eas-json';
 import chalk from 'chalk';
@@ -94,13 +95,14 @@ export async function runBuildAndSubmitAsync(projectDir: string, flags: BuildFla
     projectDir,
     nonInteractive: flags.nonInteractive,
   });
-  const easJsonReader = new EasJsonReader(projectDir);
-  const easJsonCliConfig: EasJson['cli'] = (await easJsonReader.getCliConfigAsync()) ?? {};
+  const easJsonAccessor = new EasJsonAccessor(projectDir);
+  const easJsonCliConfig: EasJson['cli'] =
+    (await EasJsonUtils.getCliConfigAsync(easJsonAccessor)) ?? {};
 
   const platforms = toPlatforms(flags.requestedPlatform);
   const buildProfiles = await getProfilesAsync({
     type: 'build',
-    easJsonReader,
+    easJsonAccessor,
     platforms,
     profileName: flags.profile ?? undefined,
   });
@@ -150,7 +152,7 @@ export async function runBuildAndSubmitAsync(projectDir: string, flags: BuildFla
   const submissions: SubmissionFragment[] = [];
   if (flags.autoSubmit) {
     const submitProfiles = await getProfilesAsync({
-      easJsonReader,
+      easJsonAccessor,
       platforms,
       profileName: flags.submitProfile,
       type: 'submit',
