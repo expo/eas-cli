@@ -1,8 +1,7 @@
-import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 import gql from 'graphql-tag';
 
-import EasCommand from '../../commandUtils/EasCommand';
+import EasCommand, { CommandContext } from '../../commandUtils/EasCommand';
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
 import {
   DeleteUpdateBranchMutation,
@@ -11,15 +10,12 @@ import {
   GetBranchInfoQuery,
   GetBranchInfoQueryVariables,
 } from '../../graphql/generated';
-import Log from '../../log';
 import { getExpoConfig } from '../../project/expoConfig';
 import {
   findProjectRootAsync,
   getProjectFullNameAsync,
   getProjectIdAsync,
 } from '../../project/projectUtils';
-import { promptAsync, toggleConfirmAsync } from '../../prompts';
-import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
 async function getBranchInfoAsync({
   appId,
@@ -86,21 +82,15 @@ export default class BranchDelete extends EasCommand {
       description: 'Name of the branch to delete',
     },
   ];
-  static override flags = {
-    json: Flags.boolean({
-      description: `return JSON with the edited branch's ID and name.`,
-      default: false,
-    }),
-  };
 
-  async runAsync(): Promise<void> {
+  protected async runAsync({
+    nonInteractive,
+    logger,
+    prompts: { promptAsync, toggleConfirmAsync },
+  }: CommandContext): Promise<{ jsonOutput: object }> {
     let {
       args: { name },
-      flags: { json: jsonFlag },
     } = await this.parse(BranchDelete);
-    if (jsonFlag) {
-      enableJsonOutput();
-    }
 
     const projectDir = await findProjectRootAsync();
     const exp = getExpoConfig(projectDir);
@@ -109,7 +99,7 @@ export default class BranchDelete extends EasCommand {
 
     if (!name) {
       const validationMessage = 'branch name may not be empty.';
-      if (jsonFlag) {
+      if (nonInteractive) {
         throw new Error(validationMessage);
       }
       ({ name } = await promptAsync({
@@ -126,16 +116,16 @@ export default class BranchDelete extends EasCommand {
       throw new Error(`Could not find branch ${name} on ${fullName}`);
     }
 
-    if (!jsonFlag) {
-      Log.addNewLineIfNone();
-      Log.warn(
+    if (!nonInteractive) {
+      logger.addNewLineIfNone();
+      logger.warn(
         `You are about to permanently delete branch: "${name}" and all of the updates published on it.` +
           `\nThis action is irreversible.`
       );
-      Log.newLine();
+      logger.newLine();
       const confirmed = await toggleConfirmAsync({ message: 'Are you sure you wish to proceed?' });
       if (!confirmed) {
-        Log.error(`Cancelled deletion of branch: "${name}".`);
+        logger.error(`Cancelled deletion of branch: "${name}".`);
         process.exit(1);
       }
     }
@@ -144,12 +134,10 @@ export default class BranchDelete extends EasCommand {
       branchId,
     });
 
-    if (jsonFlag) {
-      printJsonOnlyOutput(deletionResult);
-    } else {
-      Log.withTick(
-        `️Deleted branch "${name}" and all of its updates on project ${chalk.bold(fullName)}.`
-      );
-    }
+    logger.withTick(
+      `Deleted branch "${name}" and all of its updates on project ${chalk.bold(fullName)}.`
+    );
+
+    return { jsonOutput: deletionResult };
   }
 }

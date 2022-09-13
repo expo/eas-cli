@@ -1,12 +1,15 @@
 import { Flags } from '@oclif/core';
 
-export const getPaginatedQueryOptions = (
-  flags: Record<keyof typeof EasPaginatedQueryFlags, any>
-): PaginatedQueryOptions => {
+export const getPaginatedQueryOptions = (flags: {
+  json: boolean;
+  'non-interactive': boolean;
+  offset: number | undefined;
+  limit: number | undefined;
+}): PaginatedQueryOptions => {
   return {
-    json: flags.json ?? false,
+    json: flags.json,
     offset: flags.offset ?? 0,
-    nonInteractive: flags['non-interactive'] ?? false,
+    nonInteractive: flags['non-interactive'],
     ...('limit' in flags && { limit: flags.limit }),
   };
 };
@@ -39,12 +42,6 @@ export const EasPaginatedQueryFlags = {
       'The number of query items to list at once. The default value is 50 (the maximum is 100). Using a lower value may help increase command speed.',
     // eslint-disable-next-line async-protect/async-suffix
     parse: async input => parseFlagInputStringAsInteger(input, 'limit', 1, 100),
-  }),
-  json: Flags.boolean({
-    description: 'Enable JSON output, non-JSON messages will be printed to stderr.',
-  }),
-  'non-interactive': Flags.boolean({
-    description: 'Run the command in non-interactive mode.',
   }),
 };
 

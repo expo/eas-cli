@@ -9,70 +9,77 @@ type Color = (...text: string[]) => string;
 export default class Log {
   public static readonly isDebug = boolish('EXPO_DEBUG', false);
 
-  public static log(...args: any[]): void {
-    Log.consoleLog(...args);
+  constructor(private readonly jsonOutputMode: boolean) {}
+
+  public log(...args: any[]): void {
+    this.consoleLog(...args);
   }
 
-  public static newLine(): void {
-    Log.consoleLog();
+  public newLine(): void {
+    this.consoleLog();
   }
 
-  public static addNewLineIfNone(): void {
-    if (!Log.isLastLineNewLine) {
-      Log.newLine();
+  public addNewLineIfNone(): void {
+    if (!this.isLastLineNewLine) {
+      this.newLine();
     }
   }
 
-  public static error(...args: any[]): void {
-    Log.consoleLog(...Log.withTextColor(args, chalk.red));
+  public error(...args: any[]): void {
+    this.consoleLog(...this.withTextColor(args, chalk.red));
   }
 
-  public static warn(...args: any[]): void {
-    Log.consoleLog(...Log.withTextColor(args, chalk.yellow));
+  public warn(...args: any[]): void {
+    this.consoleLog(...this.withTextColor(args, chalk.yellow));
   }
 
-  public static debug(...args: any[]): void {
+  public debug(...args: any[]): void {
     if (Log.isDebug) {
-      Log.consoleLog(...args);
+      this.consoleLog(...args);
     }
   }
 
-  public static gray(...args: any[]): void {
-    Log.consoleLog(...Log.withTextColor(args, chalk.gray));
+  public gray(...args: any[]): void {
+    this.consoleLog(...this.withTextColor(args, chalk.gray));
   }
 
-  public static warnDeprecatedFlag(flag: string, message: string): void {
-    Log.warn(`› ${chalk.bold('--' + flag)} flag is deprecated. ${message}`);
+  public warnDeprecatedFlag(flag: string, message: string): void {
+    this.warn(`› ${chalk.bold('--' + flag)} flag is deprecated. ${message}`);
   }
 
-  public static succeed(message: string): void {
-    Log.log(`${chalk.green(logSymbols.success)} ${message}`);
+  public succeed(message: string): void {
+    this.log(`${chalk.green(logSymbols.success)} ${message}`);
   }
 
-  public static withTick(...args: any[]): void {
-    Log.consoleLog(chalk.green(figures.tick), ...args);
+  public withTick(...args: any[]): void {
+    this.consoleLog(chalk.green(figures.tick), ...args);
   }
 
-  private static consoleLog(...args: any[]): void {
-    Log.updateIsLastLineNewLine(args);
-    // eslint-disable-next-line no-console
-    console.log(...args);
+  private consoleLog(...args: any[]): void {
+    this.updateIsLastLineNewLine(args);
+    if (this.jsonOutputMode) {
+      // eslint-disable-next-line no-console
+      console.error(...args);
+    } else {
+      // eslint-disable-next-line no-console
+      console.log(...args);
+    }
   }
 
-  private static withTextColor(args: any[], chalkColor: Color): string[] {
+  private withTextColor(args: any[], chalkColor: Color): string[] {
     return args.map(arg => chalkColor(arg));
   }
 
-  private static isLastLineNewLine = false;
-  private static updateIsLastLineNewLine(args: any[]): void {
+  private isLastLineNewLine = false;
+  private updateIsLastLineNewLine(args: any[]): void {
     if (args.length === 0) {
-      Log.isLastLineNewLine = true;
+      this.isLastLineNewLine = true;
     } else {
       const lastArg = args[args.length - 1];
       if (typeof lastArg === 'string' && (lastArg === '' || lastArg.match(/[\r\n]$/))) {
-        Log.isLastLineNewLine = true;
+        this.isLastLineNewLine = true;
       } else {
-        Log.isLastLineNewLine = false;
+        this.isLastLineNewLine = false;
       }
     }
   }

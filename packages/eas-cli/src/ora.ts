@@ -3,6 +3,28 @@ import oraReal, { Options, Ora } from 'ora';
 
 import Log from './log';
 
+export function nonInteractiveOra(_options?: Options | string): Ora {
+  const stubOra: Ora = {
+    text: '',
+    prefixText: '',
+    color: 'black',
+    spinner: 'arc',
+    indent: 0,
+    isSpinning: false,
+    start: () => stubOra,
+    stop: () => stubOra,
+    succeed: () => stubOra,
+    fail: () => stubOra,
+    warn: () => stubOra,
+    info: () => stubOra,
+    stopAndPersist: () => stubOra,
+    clear: () => stubOra,
+    render: () => stubOra,
+    frame: () => '',
+  };
+  return stubOra;
+}
+
 export { Ora, Options };
 
 // eslint-disable-next-line no-console
@@ -20,7 +42,7 @@ const errorReal = console.error;
  * @param options
  * @returns
  */
-export function ora(options?: Options | string): Ora {
+export function interactiveOra(options?: Options | string): Ora {
   const inputOptions = typeof options === 'string' ? { text: options } : options ?? {};
   const disabled = Log.isDebug || !process.stdin.isTTY;
   const spinner = oraReal({

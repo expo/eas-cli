@@ -2,7 +2,7 @@ import { Device, DeviceStatus } from '@expo/apple-utils';
 import { Flags } from '@oclif/core';
 import assert from 'assert';
 
-import EasCommand from '../../commandUtils/EasCommand';
+import EasCommand, { CommandContext } from '../../commandUtils/EasCommand';
 import { chooseDevicesToDeleteAsync } from '../../credentials/ios/actions/DeviceUtils';
 import { AppleDeviceMutation } from '../../credentials/ios/api/graphql/mutations/AppleDeviceMutation';
 import {
@@ -14,11 +14,8 @@ import { AppleTeamQuery } from '../../credentials/ios/api/graphql/queries/AppleT
 import { authenticateAsync, getRequestContext } from '../../credentials/ios/appstore/authenticate';
 import formatDevice from '../../devices/utils/formatDevice';
 import { AppleDevice, Maybe } from '../../graphql/generated';
-import Log from '../../log';
-import { ora } from '../../ora';
 import { getExpoConfig } from '../../project/expoConfig';
 import { findProjectRootAsync, getProjectAccountNameAsync } from '../../project/projectUtils';
-import { promptAsync, toggleConfirmAsync } from '../../prompts';
 
 export default class DeviceDelete extends EasCommand {
   static override description = 'remove a registered device from your account';
@@ -28,7 +25,7 @@ export default class DeviceDelete extends EasCommand {
     udid: Flags.string({ multiple: true }),
   };
 
-  async runAsync(): Promise<void> {
+  protected async runAsync(commandContext: CommandContext): Promise<{ jsonOutput: object }> {
     let {
       flags: { 'apple-team-id': appleTeamIdentifier, udid: udids },
     } = await this.parse(DeviceDelete);
@@ -38,46 +35,61 @@ export default class DeviceDelete extends EasCommand {
     const accountName = await getProjectAccountNameAsync(exp);
 
     if (!appleTeamIdentifier) {
-      appleTeamIdentifier = await this.askForAppleTeamAsync(accountName);
+      if (commandContext.nonInteractive) {
+        throw new Error('Must supply `apple-team-id` in non-interactive mode');
+      }
+      appleTeamIdentifier = await this.askForAppleTeamAsync(commandContext, accountName);
     }
 
     assert(appleTeamIdentifier, 'No team identifier is specified');
 
-    const appleDevicesResult = await this.getDevicesForTeamAsync(accountName, appleTeamIdentifier);
+    const appleDevicesResult = await this.getDevicesForTeamAsync(
+      commandContext,
+      accountName,
+      appleTeamIdentifier
+    );
 
     if (!appleDevicesResult) {
-      return;
+      return { jsonOutput: [] };
     }
 
     const { appleTeamName, appleDevices } = appleDevicesResult;
 
-    const chosenDevices = await this.chooseDevicesToDeleteAsync(appleDevices, udids);
+    const chosenDevices = await this.chooseDevicesToDeleteAsync(
+      commandContext,
+      appleDevices,
+      udids
+    );
 
     if (chosenDevices.length === 0) {
-      Log.newLine();
-      Log.warn('No devices were chosen to be removed.');
-      return;
+      commandContext.logger.newLine();
+      commandContext.logger.warn('No devices were chosen to be removed.');
+      return { jsonOutput: [] };
     }
 
-    this.logChosenDevices(chosenDevices, appleTeamName, appleTeamIdentifier);
+    this.logChosenDevices(commandContext, chosenDevices, appleTeamName, appleTeamIdentifier);
 
-    const hasRemoved = await this.askAndRemoveFromExpoAsync(chosenDevices);
-
+    const hasRemoved = await this.askAndRemoveFromExpoAsync(commandContext, chosenDevices);
     if (!hasRemoved) {
-      return;
+      return { jsonOutput: [] };
     }
 
-    await this.askAndDisableOnAppleAsync(chosenDevices, appleTeamIdentifier);
+    await this.askAndDisableOnAppleAsync(commandContext, chosenDevices, appleTeamIdentifier);
+
+    return { jsonOutput: chosenDevices.map(it => it.id) };
   }
 
   async askAndDisableOnAppleAsync(
+    { nonInteractive, logger, prompts: { toggleConfirmAsync }, ora }: CommandContext,
     chosenDevices: (AppleDevice | AppleDeviceQueryResult)[],
     appleTeamIdentifier: string
   ): Promise<void> {
-    Log.newLine();
-    const deleteOnApple = await toggleConfirmAsync({
-      message: 'Do you want to disable these devices on your Apple account as well?',
-    });
+    logger.newLine();
+    const deleteOnApple = nonInteractive
+      ? true
+      : await toggleConfirmAsync({
+          message: 'Do you want to disable these devices on your Apple account as well?',
+        });
 
     if (!deleteOnApple) {
       return;
@@ -86,7 +98,7 @@ export default class DeviceDelete extends EasCommand {
     const ctx = await authenticateAsync({ teamId: appleTeamIdentifier });
     const context = getRequestContext(ctx);
 
-    Log.addNewLineIfNone();
+    logger.addNewLineIfNone();
     const removeAppleSpinner = ora('Disabling devices on Apple').start();
     try {
       const chosenDeviceIdentifiers = chosenDevices.map(cd => cd.identifier);
@@ -107,18 +119,21 @@ export default class DeviceDelete extends EasCommand {
   }
 
   async askAndRemoveFromExpoAsync(
+    { nonInteractive, logger, prompts: { toggleConfirmAsync }, ora }: CommandContext,
     chosenDevices: (AppleDevice | AppleDeviceQueryResult)[]
   ): Promise<boolean> {
-    Log.warn(
+    logger.warn(
       `You are about to remove the Apple device${
         chosenDevices.length > 1 ? 's' : ''
       } listed above from your Expo account.`
     );
-    Log.newLine();
+    logger.newLine();
 
-    const confirmed = await toggleConfirmAsync({
-      message: 'Are you sure you wish to proceed?',
-    });
+    const confirmed = nonInteractive
+      ? true
+      : await toggleConfirmAsync({
+          message: 'Are you sure you wish to proceed?',
+        });
 
     if (confirmed) {
       const removalSpinner = ora(`Removing Apple devices on Expo`).start();
@@ -137,49 +152,55 @@ export default class DeviceDelete extends EasCommand {
   }
 
   logChosenDevices(
+    { logger }: CommandContext,
     chosenDevices: (AppleDevice | AppleDeviceQueryResult)[],
     appleTeamName: Maybe<string> | undefined,
     appleTeamIdentifier: string
   ): void {
-    Log.addNewLineIfNone();
+    logger.addNewLineIfNone();
     chosenDevices.forEach(device => {
-      Log.log(
+      logger.log(
         formatDevice(device, {
           appleTeamName,
           appleTeamIdentifier: appleTeamIdentifier!,
         })
       );
-      Log.newLine();
+      logger.newLine();
     });
   }
 
   async chooseDevicesToDeleteAsync(
+    { nonInteractive, logger }: CommandContext,
     appleDevices: AppleDeviceQueryResult[],
     udids: string[]
   ): Promise<(AppleDevice | AppleDeviceQueryResult)[]> {
     let chosenDevices: (AppleDeviceQueryResult | AppleDevice)[] = [];
-    Log.newLine();
+    logger.newLine();
     if (udids) {
       udids.forEach(udid => {
         const foundDevice = appleDevices.find(device => device.identifier === udid);
         if (foundDevice) {
           chosenDevices.push(foundDevice);
         } else {
-          Log.warn(`No device found with UDID ${udid}.`);
+          logger.warn(`No device found with UDID ${udid}.`);
         }
       });
     }
 
     if (chosenDevices.length === 0) {
-      Log.addNewLineIfNone();
+      if (nonInteractive) {
+        throw new Error('Must supply `udid` paramter in non-interactive mode');
+      }
+      logger.addNewLineIfNone();
       chosenDevices = await chooseDevicesToDeleteAsync(appleDevices);
-      Log.newLine();
+      logger.newLine();
     }
 
     return chosenDevices;
   }
 
   async getDevicesForTeamAsync(
+    { ora }: CommandContext,
     accountName: string,
     appleTeamIdentifier: string
   ): Promise<AppleDevicesByTeamIdentifierQueryResult | undefined> {
@@ -209,7 +230,10 @@ export default class DeviceDelete extends EasCommand {
     }
   }
 
-  async askForAppleTeamAsync(accountName: string): Promise<string | undefined> {
+  async askForAppleTeamAsync(
+    { prompts: { promptAsync }, ora }: CommandContext,
+    accountName: string
+  ): Promise<string | undefined> {
     const teamSpinner = ora().start('Fetching the list of teams for the project…');
 
     try {
