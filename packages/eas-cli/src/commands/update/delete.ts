@@ -1,8 +1,8 @@
-import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 import gql from 'graphql-tag';
 
 import EasCommand from '../../commandUtils/EasCommand';
+import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
 import {
   DeleteUpdateGroupMutation,
@@ -47,21 +47,20 @@ export default class UpdateDelete extends EasCommand {
   ];
 
   static override flags = {
-    json: Flags.boolean({
-      description: `Return a json with the group ID of the deleted updates.`,
-      default: false,
-    }),
+    ...EasNonInteractiveAndJsonFlags,
   };
 
   async runAsync(): Promise<void> {
     const {
       args: { groupId: group },
-      flags: { json: jsonFlag },
+      flags: { json: jsonFlag, 'non-interactive': nonInteractive },
     } = await this.parse(UpdateDelete);
 
     if (jsonFlag) {
       enableJsonOutput();
-    } else {
+    }
+
+    if (!nonInteractive) {
       const shouldAbort = await confirmAsync({
         message:
           `🚨${chalk.red('CAUTION')}🚨\n\n` +

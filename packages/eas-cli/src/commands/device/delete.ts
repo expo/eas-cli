@@ -35,7 +35,8 @@ export default class DeviceDelete extends EasCommand {
 
     const projectDir = await findProjectRootAsync();
     const exp = getExpoConfig(projectDir);
-    const accountName = await getProjectAccountNameAsync(exp);
+    // this command is interactive by design
+    const accountName = await getProjectAccountNameAsync(exp, { nonInteractive: false });
 
     if (!appleTeamIdentifier) {
       appleTeamIdentifier = await this.askForAppleTeamAsync(accountName);

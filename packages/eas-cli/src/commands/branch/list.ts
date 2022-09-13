@@ -24,7 +24,9 @@ export default class BranchList extends EasCommand {
 
     const projectDir = await findProjectRootAsync();
     const exp = getExpoConfig(projectDir);
-    const projectId = await getProjectIdAsync(exp);
+    const projectId = await getProjectIdAsync(exp, {
+      nonInteractive: flags['non-interactive'],
+    });
     await listAndRenderBranchesOnAppAsync({ projectId, paginatedQueryOptions });
   }
 }

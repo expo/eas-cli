@@ -9,12 +9,13 @@ import semver from 'semver';
 
 import { AppPrivacy } from '../graphql/generated';
 import Log from '../log';
+import { ora } from '../ora';
 import { Actor } from '../user/User';
 import { ensureLoggedInAsync } from '../user/actions';
 import { expoCommandAsync } from '../utils/expoCli';
 import { getVcsClient } from '../vcs';
-import { ensureProjectExistsAsync } from './ensureProjectExists';
 import { getExpoConfig } from './expoConfig';
+import { fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync } from './fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync';
 
 export function getProjectAccountName(exp: ExpoConfig, user: Actor): string {
   switch (user.__typename) {
@@ -46,8 +47,11 @@ export function getUsername(exp: ExpoConfig, user: Actor): string | undefined {
   }
 }
 
-export async function getProjectAccountNameAsync(exp: ExpoConfig): Promise<string> {
-  const user = await ensureLoggedInAsync();
+export async function getProjectAccountNameAsync(
+  exp: ExpoConfig,
+  { nonInteractive }: { nonInteractive: boolean }
+): Promise<string> {
+  const user = await ensureLoggedInAsync({ nonInteractive });
   return getProjectAccountName(exp, user);
 }
 
@@ -82,7 +86,7 @@ export async function findProjectRootAsync({
 /**
  * Save an EAS project ID to the appropriate field in the app config.
  */
-export async function saveProjectIdToAppConfigAsync(
+async function saveProjectIdToAppConfigAsync(
   projectDir: string,
   projectId: string,
   options: { env?: Env } = {}
@@ -124,27 +128,14 @@ export async function saveProjectIdToAppConfigAsync(
 }
 
 /**
- * Use the owner/slug to identify an EAS project on the server.
- *
- * @returns the EAS project ID from the server
- */
-export async function fetchProjectIdFromServerAsync(exp: ExpoConfig): Promise<string> {
-  const privacy = toAppPrivacy(exp.privacy);
-  return await ensureProjectExistsAsync({
-    accountName: getProjectAccountName(exp, await ensureLoggedInAsync()),
-    projectName: exp.slug,
-    privacy,
-  });
-}
-
-/**
- * Get the EAS project ID from the app config. If the project ID is not set in the config.
- * use the owner/slug to identify an EAS project on the server, and attempt to save the
- * EAS project ID to the appropriate field in the app config.
+ * Get the EAS project ID from the app config. If the project ID is not set in the config,
+ * use the owner/slug to identify an EAS project on the server (asking for confirmation first),
+ * and attempt to save the EAS project ID to the appropriate field in the app config. If unable to
+ * save to the app config, throw an error.
  */
 export async function getProjectIdAsync(
   exp: ExpoConfig,
-  options: { env?: Env } = {},
+  options: { env?: Env; nonInteractive: boolean },
   findProjectRootOptions: {
     cwd?: string;
     defaultToProcessCwd?: boolean;
@@ -157,18 +148,32 @@ export async function getProjectIdAsync(
 
   const projectDir = await findProjectRootAsync(findProjectRootOptions);
   if (!projectDir) {
-    throw new Error('Run this command inside a project directory.');
+    throw new Error('This command must be run inside a project directory.');
   }
 
-  const projectId = await fetchProjectIdFromServerAsync(exp);
+  Log.warn('EAS project not configured.');
 
+  const projectId = await fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync(
+    {
+      accountName: getProjectAccountName(
+        exp,
+        await ensureLoggedInAsync({ nonInteractive: options.nonInteractive })
+      ),
+      projectName: exp.slug,
+      privacy: toAppPrivacy(exp.privacy),
+    },
+    {
+      nonInteractive: options.nonInteractive,
+    }
+  );
+
+  const spinner = ora(`Linking local project to EAS project ${projectId}`).start();
   try {
     await saveProjectIdToAppConfigAsync(projectDir, projectId, options);
+    spinner.succeed(`Linked local project to EAS project ${projectId}`);
   } catch (e: any) {
-    // saveProjectIdToAppConfigAsync already printed out a set of detailed errors and
-    // instructions on how to fix it. To mimic throwing the error but not halting
-    // execution, just warn here with the error message.
-    Log.warn(e.message);
+    spinner.fail();
+    throw e;
   }
 
   return projectId;
@@ -184,8 +189,11 @@ const toAppPrivacy = (privacy: ExpoConfig['privacy']): AppPrivacy => {
   }
 };
 
-export async function getProjectFullNameAsync(exp: ExpoConfig): Promise<string> {
-  const accountName = await getProjectAccountNameAsync(exp);
+export async function getProjectFullNameAsync(
+  exp: ExpoConfig,
+  { nonInteractive }: { nonInteractive: boolean }
+): Promise<string> {
+  const accountName = await getProjectAccountNameAsync(exp, { nonInteractive });
   return `@${accountName}/${exp.slug}`;
 }
 

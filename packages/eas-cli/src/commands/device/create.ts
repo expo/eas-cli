@@ -8,7 +8,8 @@ export default class DeviceCreate extends EasCommand {
   static override description = 'register new Apple Devices to use for internal distribution';
 
   async runAsync(): Promise<void> {
-    const user = await ensureLoggedInAsync();
+    // this command is interactive by design
+    const user = await ensureLoggedInAsync({ nonInteractive: false });
 
     const ctx = await createContextAsync({ appStore: new AppStoreApi(), user });
     const manager = new DeviceManager(ctx);

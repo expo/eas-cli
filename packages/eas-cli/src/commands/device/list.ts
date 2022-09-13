@@ -24,7 +24,9 @@ export default class BuildList extends EasCommand {
 
     const projectDir = await findProjectRootAsync();
     const exp = getExpoConfig(projectDir);
-    const accountName = await getProjectAccountNameAsync(exp);
+
+    // this command is interactive by design
+    const accountName = await getProjectAccountNameAsync(exp, { nonInteractive: false });
 
     let spinner: Ora;
 

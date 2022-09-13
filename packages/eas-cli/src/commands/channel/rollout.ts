@@ -3,6 +3,7 @@ import chalk from 'chalk';
 
 import { BranchMapping, getBranchMapping } from '../../channel/utils';
 import EasCommand from '../../commandUtils/EasCommand';
+import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import { UpdateBranch } from '../../graphql/generated';
 import { BranchQuery } from '../../graphql/queries/BranchQuery';
 import { ChannelQuery, UpdateChannelByNameObject } from '../../graphql/queries/ChannelQuery';
@@ -62,20 +63,20 @@ async function startRolloutAsync({
   channelName,
   branchName,
   percent,
-  jsonFlag,
   projectId,
   fullName,
   currentBranchMapping,
   channel,
+  nonInteractive,
 }: {
   channelName?: string;
   branchName: string;
   percent?: number;
-  jsonFlag: boolean;
   projectId: string;
   fullName: string;
   currentBranchMapping: BranchMapping;
   channel: UpdateChannelByNameObject;
+  nonInteractive: boolean;
 }): Promise<{
   newChannelInfo: {
     id: string;
@@ -97,9 +98,9 @@ async function startRolloutAsync({
   }
 
   if (percent == null) {
-    if (jsonFlag) {
+    if (nonInteractive) {
       throw new Error(
-        'You must specify a percent with the --percent flag when initiating a rollout with the --json flag.'
+        'You must specify a percent with the --percent flag when initiating a rollout with the --non-interactive flag.'
       );
     }
     const promptMessage = `What percent of users should be directed to the branch "${branchName}"?`;
@@ -146,13 +147,13 @@ async function startRolloutAsync({
 async function editRolloutAsync({
   channelName,
   percent,
-  jsonFlag,
+  nonInteractive,
   currentBranchMapping,
   channel,
 }: {
   channelName?: string;
   percent?: number;
-  jsonFlag: boolean;
+  nonInteractive: boolean;
   currentBranchMapping: BranchMapping;
   channel: UpdateChannelByNameObject;
 }): Promise<{
@@ -166,7 +167,7 @@ async function editRolloutAsync({
   const { newBranch, oldBranch, currentPercent } = getRolloutInfo(channel);
 
   if (percent == null) {
-    if (jsonFlag) {
+    if (nonInteractive) {
       throw new Error(
         'A rollout is already in progress. If you wish to modify it you must use specify the new rollout percentage with the --percent flag.'
       );
@@ -201,13 +202,13 @@ async function editRolloutAsync({
 async function endRolloutAsync({
   channelName,
   branchName,
-  jsonFlag,
+  nonInteractive,
   projectId,
   channel,
 }: {
   channelName?: string;
   branchName?: string;
-  jsonFlag: boolean;
+  nonInteractive: boolean;
   projectId: string;
   channel: UpdateChannelByNameObject;
 }): Promise<{
@@ -241,9 +242,9 @@ async function endRolloutAsync({
         );
     }
   } else {
-    if (jsonFlag) {
+    if (nonInteractive) {
       throw new Error(
-        'Branch name must be specified with the --branch flag when both the --end and --json flag are true.'
+        'Branch name must be specified with the --branch flag when both the --end and --non-interactive flag are true.'
       );
     }
     endOnNewBranch = await selectAsync<boolean>(
@@ -312,16 +313,19 @@ export default class ChannelRollout extends EasCommand {
       description: 'end the rollout',
       default: false,
     }),
-    json: Flags.boolean({
-      description: 'print output as a JSON object with the new channel ID, name and branch mapping',
-      default: false,
-    }),
+    ...EasNonInteractiveAndJsonFlags,
   };
 
   async runAsync(): Promise<void> {
     const {
       args: { channel: channelName },
-      flags: { json: jsonFlag, end: endFlag, branch: branchName, percent },
+      flags: {
+        json: jsonFlag,
+        end: endFlag,
+        branch: branchName,
+        percent,
+        'non-interactive': nonInteractive,
+      },
     } = await this.parse(ChannelRollout);
     if (jsonFlag) {
       enableJsonOutput();
@@ -329,8 +333,8 @@ export default class ChannelRollout extends EasCommand {
 
     const projectDir = await findProjectRootAsync();
     const exp = getExpoConfig(projectDir);
-    const fullName = await getProjectFullNameAsync(exp);
-    const projectId = await getProjectIdAsync(exp);
+    const fullName = await getProjectFullNameAsync(exp, { nonInteractive });
+    const projectId = await getProjectIdAsync(exp, { nonInteractive });
 
     const channel = await ChannelQuery.viewUpdateChannelAsync({
       appId: projectId,
@@ -379,9 +383,9 @@ export default class ChannelRollout extends EasCommand {
     if (!isRollout) {
       rolloutMutationResult = await startRolloutAsync({
         channelName,
-        branchName: branchName ?? (await promptForBranchNameAsync(channelName)),
+        branchName: branchName ?? (await promptForBranchNameAsync(channelName, nonInteractive)),
         percent,
-        jsonFlag,
+        nonInteractive,
         projectId,
         fullName,
         currentBranchMapping,
@@ -391,7 +395,7 @@ export default class ChannelRollout extends EasCommand {
       rolloutMutationResult = await endRolloutAsync({
         channelName,
         branchName,
-        jsonFlag,
+        nonInteractive,
         projectId,
         channel,
       });
@@ -399,7 +403,7 @@ export default class ChannelRollout extends EasCommand {
       rolloutMutationResult = await editRolloutAsync({
         channelName,
         percent,
-        jsonFlag,
+        nonInteractive,
         currentBranchMapping,
         channel,
       });
@@ -416,7 +420,13 @@ export default class ChannelRollout extends EasCommand {
   }
 }
 
-async function promptForBranchNameAsync(channelName: string): Promise<string> {
+async function promptForBranchNameAsync(
+  channelName: string,
+  nonInteractive: boolean
+): Promise<string> {
+  if (nonInteractive) {
+    throw new Error('Must supply branch flag in non-interactive mode');
+  }
   const { name } = await promptAsync({
     type: 'text',
     name: 'name',

@@ -98,7 +98,7 @@ export default class Submit extends EasCommand {
 
     const projectDir = await findProjectRootAsync();
     const exp = getExpoConfig(projectDir);
-    const projectId = await getProjectIdAsync(exp);
+    const projectId = await getProjectIdAsync(exp, { nonInteractive: flags.nonInteractive });
 
     await maybeWarnAboutEasOutagesAsync([StatuspageServiceName.EasSubmit]);
 

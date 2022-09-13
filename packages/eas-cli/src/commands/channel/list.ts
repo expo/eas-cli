@@ -22,14 +22,14 @@ export default class ChannelList extends EasCommand {
   async runAsync(): Promise<void> {
     const { flags } = await this.parse(ChannelList);
     const paginatedQueryOptions = getPaginatedQueryOptions(flags);
-    const { json: jsonFlag } = flags;
+    const { json: jsonFlag, 'non-interactive': nonInteractive } = flags;
     if (jsonFlag) {
       enableJsonOutput();
     }
 
     const projectDir = await findProjectRootAsync();
     const exp = getExpoConfig(projectDir);
-    const projectId = await getProjectIdAsync(exp);
+    const projectId = await getProjectIdAsync(exp, { nonInteractive });
 
     await listAndRenderChannelsOnAppAsync({
       projectId,

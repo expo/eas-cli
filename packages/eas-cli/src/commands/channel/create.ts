@@ -3,7 +3,7 @@ import gql from 'graphql-tag';
 
 import { BranchNotFoundError } from '../../branch/utils';
 import EasCommand from '../../commandUtils/EasCommand';
-import { EasJsonOnlyFlag } from '../../commandUtils/flags';
+import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
 import {
   CreateUpdateChannelOnAppMutation,
@@ -72,13 +72,13 @@ export default class ChannelCreate extends EasCommand {
   ];
 
   static override flags = {
-    ...EasJsonOnlyFlag,
+    ...EasNonInteractiveAndJsonFlags,
   };
 
   async runAsync(): Promise<void> {
     let {
       args: { name: channelName },
-      flags: { json: jsonFlag },
+      flags: { json: jsonFlag, 'non-interactive': nonInteractive },
     } = await this.parse(ChannelCreate);
     if (jsonFlag) {
       enableJsonOutput();
@@ -86,11 +86,11 @@ export default class ChannelCreate extends EasCommand {
 
     const projectDir = await findProjectRootAsync();
     const exp = getExpoConfig(projectDir);
-    const projectId = await getProjectIdAsync(exp);
+    const projectId = await getProjectIdAsync(exp, { nonInteractive });
 
     if (!channelName) {
       const validationMessage = 'Channel name may not be empty.';
-      if (jsonFlag) {
+      if (nonInteractive) {
         throw new Error(validationMessage);
       }
       ({ name: channelName } = await promptAsync({
@@ -143,7 +143,9 @@ export default class ChannelCreate extends EasCommand {
     } else {
       Log.addNewLineIfNone();
       Log.withTick(
-        `Created a new channel on project ${chalk.bold(await getProjectFullNameAsync(exp))}`
+        `Created a new channel on project ${chalk.bold(
+          await getProjectFullNameAsync(exp, { nonInteractive })
+        )}`
       );
       Log.log(
         formatFields([

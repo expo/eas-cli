@@ -24,7 +24,6 @@ jest.mock('../../../graphql/mutations/SubmissionMutation', () => ({
     createAndroidSubmissionAsync: jest.fn(),
   },
 }));
-jest.mock('../../../project/ensureProjectExists');
 jest.mock('../../utils/builds');
 jest.mock('../../../user/User', () => ({
   getUserAsync: jest.fn(() => mockJester),

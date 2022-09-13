@@ -58,7 +58,11 @@ export async function showLoginPromptAsync({
   }
 }
 
-export async function ensureLoggedInAsync({ nonInteractive = false } = {}): Promise<Actor> {
+export async function ensureLoggedInAsync({
+  nonInteractive,
+}: {
+  nonInteractive: boolean;
+}): Promise<Actor> {
   let user: Actor | undefined;
   try {
     user = await getUserAsync();

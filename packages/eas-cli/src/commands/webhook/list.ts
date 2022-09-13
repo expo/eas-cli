@@ -31,8 +31,10 @@ export default class WebhookList extends EasCommand {
 
     const projectDir = await findProjectRootAsync();
     const exp = getExpoConfig(projectDir);
-    const projectId = await getProjectIdAsync(exp);
-    const projectFullName = await getProjectFullNameAsync(exp);
+
+    // this command is non-interactive by design
+    const projectId = await getProjectIdAsync(exp, { nonInteractive: true });
+    const projectFullName = await getProjectFullNameAsync(exp, { nonInteractive: true });
 
     const spinner = ora(`Fetching the list of webhook on project ${projectFullName}`).start();
     try {

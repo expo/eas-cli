@@ -16,7 +16,6 @@ jest.mock('../../../graphql/mutations/SubmissionMutation', () => ({
     createIosSubmissionAsync: jest.fn(),
   },
 }));
-jest.mock('../../../project/ensureProjectExists');
 jest.mock('../../../user/User', () => ({
   getUserAsync: jest.fn(() => mockJester),
 }));

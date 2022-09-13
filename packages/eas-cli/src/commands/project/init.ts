@@ -3,11 +3,7 @@ import chalk from 'chalk';
 import EasCommand from '../../commandUtils/EasCommand';
 import Log from '../../log';
 import { getExpoConfig } from '../../project/expoConfig';
-import {
-  fetchProjectIdFromServerAsync,
-  findProjectRootAsync,
-  saveProjectIdToAppConfigAsync,
-} from '../../project/projectUtils';
+import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUtils';
 
 export default class ProjectInit extends EasCommand {
   static override description = 'create or link an EAS project';
@@ -24,9 +20,8 @@ export default class ProjectInit extends EasCommand {
       return;
     }
 
-    const projectId = await fetchProjectIdFromServerAsync(exp);
-    await saveProjectIdToAppConfigAsync(projectDir, projectId);
-
+    // this command is interactive by nature
+    const projectId = await getProjectIdAsync(exp, { nonInteractive: false });
     Log.withTick(`Linked app.json to project with id ${chalk.bold(projectId)}`);
   }
 }

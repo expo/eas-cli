@@ -5,9 +5,9 @@ import EasCommand from '../commandUtils/EasCommand';
 import { ora } from '../ora';
 import { getExpoConfig } from '../project/expoConfig';
 import {
-  fetchProjectIdFromServerAsync,
   findProjectRootAsync,
   getProjectAccountName,
+  getProjectIdAsync,
 } from '../project/projectUtils';
 import { ensureLoggedInAsync } from '../user/actions';
 
@@ -18,10 +18,11 @@ export default class Open extends EasCommand {
     const projectDir = await findProjectRootAsync();
     const exp = getExpoConfig(projectDir);
 
-    // this ensures the project exists
-    await fetchProjectIdFromServerAsync(exp);
+    // this command is interactive by nature (only really run by humans in a terminal)
+    // this ensures the project exists before opening the browser
+    await getProjectIdAsync(exp, { nonInteractive: false });
 
-    const user = await ensureLoggedInAsync();
+    const user = await ensureLoggedInAsync({ nonInteractive: false });
     const accountName = getProjectAccountName(exp, user);
     const projectName = exp.slug;
 

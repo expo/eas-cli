@@ -3,6 +3,7 @@ import chalk from 'chalk';
 import gql from 'graphql-tag';
 
 import EasCommand from '../../commandUtils/EasCommand';
+import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
 import {
   EditUpdateBranchInput,
@@ -63,15 +64,12 @@ export default class BranchRename extends EasCommand {
       description: 'new name of the branch.',
       required: false,
     }),
-    json: Flags.boolean({
-      description: `return a json with the edited branch's ID and name.`,
-      default: false,
-    }),
+    ...EasNonInteractiveAndJsonFlags,
   };
 
   async runAsync(): Promise<void> {
     let {
-      flags: { json: jsonFlag, from: currentName, to: newName },
+      flags: { json: jsonFlag, from: currentName, to: newName, 'non-interactive': nonInteractive },
     } = await this.parse(BranchRename);
     if (jsonFlag) {
       enableJsonOutput();
@@ -79,12 +77,12 @@ export default class BranchRename extends EasCommand {
 
     const projectDir = await findProjectRootAsync();
     const exp = getExpoConfig(projectDir);
-    const fullName = await getProjectFullNameAsync(exp);
-    const projectId = await getProjectIdAsync(exp);
+    const fullName = await getProjectFullNameAsync(exp, { nonInteractive });
+    const projectId = await getProjectIdAsync(exp, { nonInteractive });
 
     if (!currentName) {
       const validationMessage = 'current name may not be empty.';
-      if (jsonFlag) {
+      if (nonInteractive) {
         throw new Error(validationMessage);
       }
       ({ currentName } = await promptAsync({
@@ -97,7 +95,7 @@ export default class BranchRename extends EasCommand {
 
     if (!newName) {
       const validationMessage = 'new name may not be empty.';
-      if (jsonFlag) {
+      if (nonInteractive) {
         throw new Error(validationMessage);
       }
       ({ newName } = await promptAsync({

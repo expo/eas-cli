@@ -19,8 +19,11 @@ export default class EnvironmentSecretList extends EasCommand {
   async runAsync(): Promise<void> {
     const projectDir = await findProjectRootAsync();
     const exp = getExpoConfig(projectDir);
-    const projectId = await getProjectIdAsync(exp);
-    const projectAccountName = await getProjectAccountNameAsync(exp);
+
+    // this command is non-interacive by design
+    const projectId = await getProjectIdAsync(exp, { nonInteractive: true });
+
+    const projectAccountName = await getProjectAccountNameAsync(exp, { nonInteractive: true });
 
     if (!projectDir) {
       throw new Error("Run this command inside your project's directory");

@@ -33,6 +33,7 @@ export default class BranchView extends EasCommand {
       args: { name: branchName },
       flags,
     } = await this.parse(BranchView);
+    const { 'non-interactive': nonInteractive } = flags;
     const paginatedQueryOptions = getPaginatedQueryOptions(flags);
 
     if (paginatedQueryOptions.json) {
@@ -41,10 +42,10 @@ export default class BranchView extends EasCommand {
 
     const projectDir = await findProjectRootAsync();
     const exp = getExpoConfig(projectDir);
-    const projectId = await getProjectIdAsync(exp);
+    const projectId = await getProjectIdAsync(exp, { nonInteractive });
 
     if (!branchName) {
-      if (paginatedQueryOptions.nonInteractive) {
+      if (nonInteractive) {
         throw new Error('Branch name may not be empty.');
       }
 
@@ -55,7 +56,7 @@ export default class BranchView extends EasCommand {
         // discard limit and offset because this query is not their intended target
         paginatedQueryOptions: {
           json: paginatedQueryOptions.json,
-          nonInteractive: paginatedQueryOptions.nonInteractive,
+          nonInteractive,
           offset: 0,
         },
       }));

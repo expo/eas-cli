@@ -30,13 +30,15 @@ export default class MetadataPull extends EasCommand {
     const { flags } = await this.parse(MetadataPull);
     const projectDir = await findProjectRootAsync();
     const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
-    await getProjectIdAsync(exp);
+
+    // this command is interactive (all nonInteractive flags passed to utility functions are false)
+    await getProjectIdAsync(exp, { nonInteractive: false });
     await ensureProjectConfiguredAsync({ projectDir, nonInteractive: false });
 
     const credentialsCtx = new CredentialsContext({
       exp,
       projectDir,
-      user: await ensureLoggedInAsync(),
+      user: await ensureLoggedInAsync({ nonInteractive: false }),
       nonInteractive: false,
     });
 

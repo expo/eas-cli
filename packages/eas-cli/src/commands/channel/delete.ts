@@ -34,19 +34,15 @@ export default class ChannelDelete extends EasCommand {
   async runAsync(): Promise<void> {
     const {
       args: { name: nameArg },
-      flags,
+      flags: { json: jsonFlag, 'non-interactive': nonInteractive },
     } = await this.parse(ChannelDelete);
-    const { json: jsonFlag, 'non-interactive': nonInteractiveFlag } = flags;
-    if (jsonFlag && !nonInteractiveFlag) {
-      throw new Error('--json is allowed only in non-interactive mode');
-    }
     if (jsonFlag) {
       enableJsonOutput();
     }
 
     const projectDir = await findProjectRootAsync();
     const exp = getExpoConfig(projectDir);
-    const projectId = await getProjectIdAsync(exp);
+    const projectId = await getProjectIdAsync(exp, { nonInteractive });
 
     let channelId, channelName;
     if (nameArg) {
@@ -57,7 +53,7 @@ export default class ChannelDelete extends EasCommand {
       channelId = id;
       channelName = name;
     } else {
-      if (nonInteractiveFlag) {
+      if (nonInteractive) {
         throw new Error('Channel name must be set when running in non-interactive mode');
       }
       const { id, name } = await selectChannelOnAppAsync({
@@ -65,7 +61,7 @@ export default class ChannelDelete extends EasCommand {
         selectionPromptTitle: 'Select a channel to delete',
         paginatedQueryOptions: {
           json: jsonFlag,
-          nonInteractive: nonInteractiveFlag,
+          nonInteractive,
           offset: 0,
         },
       });
@@ -73,7 +69,7 @@ export default class ChannelDelete extends EasCommand {
       channelName = name;
     }
 
-    if (!nonInteractiveFlag) {
+    if (!nonInteractive) {
       Log.addNewLineIfNone();
       Log.warn(
         `You are about to permanently delete channel: "${channelName}".\nThis action is irreversible.`

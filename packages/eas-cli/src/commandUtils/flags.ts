@@ -10,6 +10,12 @@ export const EasNonInteractiveAndJsonFlags = {
   }),
 };
 
+export const EASNonInteractiveFlag = {
+  'non-interactive': Flags.boolean({
+    description: 'Run the command in non-interactive mode.',
+  }),
+};
+
 export const EasJsonOnlyFlag = {
   json: Flags.boolean({
     description: 'Enable JSON output, non-JSON messages will be printed to stderr.',

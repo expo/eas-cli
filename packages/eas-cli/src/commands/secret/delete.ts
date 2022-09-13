@@ -1,6 +1,7 @@
 import { Flags } from '@oclif/core';
 
 import EasCommand from '../../commandUtils/EasCommand';
+import { EASNonInteractiveFlag } from '../../commandUtils/flags';
 import { EnvironmentSecretMutation } from '../../graphql/mutations/EnvironmentSecretMutation';
 import {
   EnvironmentSecretScope,
@@ -23,21 +24,25 @@ export default class EnvironmentSecretDelete extends EasCommand {
     id: Flags.string({
       description: 'ID of the secret to delete',
     }),
+    ...EASNonInteractiveFlag,
   };
 
   async runAsync(): Promise<void> {
-    const projectDir = await findProjectRootAsync();
-    const exp = getExpoConfig(projectDir);
-    const projectId = await getProjectIdAsync(exp);
-    const projectAccountName = await getProjectAccountNameAsync(exp);
-
     let {
-      flags: { id },
+      flags: { id, 'non-interactive': nonInteractive },
     } = await this.parse(EnvironmentSecretDelete);
     let secret: EnvironmentSecretWithScope | undefined;
 
+    const projectDir = await findProjectRootAsync();
+    const exp = getExpoConfig(projectDir);
+    const projectId = await getProjectIdAsync(exp, { nonInteractive });
+    const projectAccountName = await getProjectAccountNameAsync(exp, { nonInteractive });
+
     if (!id) {
       const validationMessage = 'You must select which secret to delete.';
+      if (nonInteractive) {
+        throw new Error(validationMessage);
+      }
 
       const secrets = await EnvironmentSecretsQuery.allAsync(projectAccountName, projectId);
 
@@ -58,25 +63,27 @@ export default class EnvironmentSecretDelete extends EasCommand {
       }
     }
 
-    Log.addNewLineIfNone();
-    Log.warn(
-      `You are about to permanently delete secret${
-        secret?.name ? ` "${secret?.name}"` : ''
-      } with id: "${id}".\nThis action is irreversible.`
-    );
-    Log.newLine();
-    const confirmed = await toggleConfirmAsync({
-      message: `Are you sure you wish to proceed?${
-        secret?.scope === EnvironmentSecretScope.ACCOUNT
-          ? ' This secret is applied across your whole account and may affect multiple apps.'
-          : ''
-      }`,
-    });
-    if (!confirmed) {
-      Log.error(
-        `Canceled deletion of secret${secret?.name ? ` "${secret?.name}"` : ''} with id: "${id}".`
+    if (!nonInteractive) {
+      Log.addNewLineIfNone();
+      Log.warn(
+        `You are about to permanently delete secret${
+          secret?.name ? ` "${secret?.name}"` : ''
+        } with id: "${id}".\nThis action is irreversible.`
       );
-      process.exit(1);
+      Log.newLine();
+      const confirmed = await toggleConfirmAsync({
+        message: `Are you sure you wish to proceed?${
+          secret?.scope === EnvironmentSecretScope.ACCOUNT
+            ? ' This secret is applied across your whole account and may affect multiple apps.'
+            : ''
+        }`,
+      });
+      if (!confirmed) {
+        Log.error(
+          `Canceled deletion of secret${secret?.name ? ` "${secret?.name}"` : ''} with id: "${id}".`
+        );
+        process.exit(1);
+      }
     }
 
     await EnvironmentSecretMutation.deleteAsync(id);

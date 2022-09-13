@@ -46,10 +46,13 @@ export async function createBuildContextAsync<T extends Platform>({
 }): Promise<BuildContext<T>> {
   const exp = getExpoConfig(projectDir, { env: buildProfile.env });
 
-  const user = await ensureLoggedInAsync();
+  const user = await ensureLoggedInAsync({ nonInteractive });
   const accountName = getProjectAccountName(exp, user);
   const projectName = exp.slug;
-  const projectId = await getProjectIdAsync(exp, { env: buildProfile.env });
+  const projectId = await getProjectIdAsync(exp, {
+    env: buildProfile.env,
+    nonInteractive,
+  });
   const workflow = await resolveWorkflowAsync(projectDir, platform);
   const accountId = findAccountByName(user.accounts, accountName)?.id;
   const runFromCI = getenv.boolish('CI', false);

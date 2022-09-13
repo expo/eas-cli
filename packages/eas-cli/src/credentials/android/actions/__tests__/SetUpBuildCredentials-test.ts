@@ -11,7 +11,6 @@ import { getAppLookupParamsFromContextAsync } from '../BuildCredentialsUtils';
 import { SetUpBuildCredentials } from '../SetUpBuildCredentials';
 
 jest.mock('../../../../ora');
-jest.mock('../../../../project/ensureProjectExists');
 jest.mock('../../../../user/actions', () => ({ ensureLoggedInAsync: jest.fn(() => mockJester) }));
 jest.mock('../../../../prompts', () => ({ confirmAsync: jest.fn(() => true) }));
 jest.mock('../../utils/keystore', () => ({ generateRandomKeystoreAsync: jest.fn() }));

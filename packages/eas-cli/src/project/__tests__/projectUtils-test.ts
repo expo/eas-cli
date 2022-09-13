@@ -2,7 +2,7 @@ import { getConfig, modifyConfigAsync } from '@expo/config';
 import { vol } from 'memfs';
 
 import { Actor, getUserAsync } from '../../user/User';
-import { ensureProjectExistsAsync } from '../ensureProjectExists';
+import { fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync } from '../fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync';
 import {
   findProjectRootAsync,
   getProjectAccountName,
@@ -13,9 +13,14 @@ import {
 jest.mock('@expo/config');
 jest.mock('fs');
 
+jest.mock('../fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync');
 jest.mock('../../prompts');
 jest.mock('../../user/User');
-jest.mock('../ensureProjectExists');
+jest.mock('../../ora', () => ({
+  ora: () => ({
+    start: () => ({ succeed: () => {}, fail: () => {} }),
+  }),
+}));
 
 beforeEach(() => {
   jest.resetAllMocks();
@@ -140,7 +145,9 @@ describe(getProjectAccountNameAsync, () => {
       })
     );
 
-    const projectAccountName = await getProjectAccountNameAsync(expWithOwner);
+    const projectAccountName = await getProjectAccountNameAsync(expWithOwner, {
+      nonInteractive: true,
+    });
     expect(projectAccountName).toBe('dominik');
   });
 
@@ -158,7 +165,9 @@ describe(getProjectAccountNameAsync, () => {
       })
     );
 
-    const projectAccountName = await getProjectAccountNameAsync(expWithoutOwner);
+    const projectAccountName = await getProjectAccountNameAsync(expWithoutOwner, {
+      nonInteractive: true,
+    });
     expect(projectAccountName).toBe('notnotbrent');
   });
 
@@ -175,9 +184,11 @@ describe(getProjectAccountNameAsync, () => {
         isExpoAdmin: false,
       })
     );
-    await expect(getProjectAccountNameAsync(expWithoutOwner)).rejects.toThrow(
-      'manifest property is required'
-    );
+    await expect(
+      getProjectAccountNameAsync(expWithoutOwner, {
+        nonInteractive: true,
+      })
+    ).rejects.toThrow('manifest property is required');
   });
 });
 
@@ -199,7 +210,10 @@ describe(getProjectIdAsync, () => {
 
   it('gets the project ID from app config if exists', async () => {
     await expect(
-      getProjectIdAsync({ name: 'test', slug: 'test', extra: { eas: { projectId: '1234' } } })
+      getProjectIdAsync(
+        { name: 'test', slug: 'test', extra: { eas: { projectId: '1234' } } },
+        { nonInteractive: false }
+      )
     ).resolves.toEqual('1234');
   });
 
@@ -209,9 +223,15 @@ describe(getProjectIdAsync, () => {
       type: 'success',
       config: { expo: { name: 'test', slug: 'test', extra: { eas: { projectId: '2345' } } } },
     });
-    jest.mocked(ensureProjectExistsAsync).mockImplementation(async () => '2345');
+    jest
+      .mocked(fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync)
+      .mockImplementation(async () => '2345');
 
-    const projectId = await getProjectIdAsync({ name: 'test', slug: 'test' }, {}, { cwd: '/app' });
+    const projectId = await getProjectIdAsync(
+      { name: 'test', slug: 'test' },
+      { nonInteractive: false },
+      { cwd: '/app' }
+    );
     expect(projectId).toBe('2345');
 
     expect(modifyConfigAsync).toHaveBeenCalledTimes(1);
@@ -220,15 +240,18 @@ describe(getProjectIdAsync, () => {
     });
   });
 
-  it('does not throw if writing the ID back to the config fails', async () => {
+  it('throws if writing the ID back to the config fails', async () => {
     jest.mocked(getConfig).mockReturnValue({ exp: { name: 'test', slug: 'test' } } as any);
     jest.mocked(modifyConfigAsync).mockResolvedValue({
       type: 'fail',
       config: null,
     });
-    jest.mocked(ensureProjectExistsAsync).mockImplementation(async () => '4567');
+    jest
+      .mocked(fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync)
+      .mockImplementation(async () => '4567');
 
-    const projectId = await getProjectIdAsync({ name: 'test', slug: 'test' }, {}, { cwd: '/app' });
-    expect(projectId).toBe('4567');
+    await expect(
+      getProjectIdAsync({ name: 'test', slug: 'test' }, { nonInteractive: false }, { cwd: '/app' })
+    ).rejects.toThrow();
   });
 });

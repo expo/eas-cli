@@ -33,8 +33,10 @@ export default class BuildView extends EasCommand {
 
     const projectDir = await findProjectRootAsync();
     const exp = getExpoConfig(projectDir);
-    const projectId = await getProjectIdAsync(exp);
-    const projectName = await getProjectFullNameAsync(exp);
+
+    // this command is always non-interactive
+    const projectId = await getProjectIdAsync(exp, { nonInteractive: true });
+    const projectName = await getProjectFullNameAsync(exp, { nonInteractive: true });
 
     const spinner = ora().start('Fetching the build…');
 
