@@ -4850,7 +4850,7 @@ export type CreateEnvironmentSecretForAccountMutationVariables = Exact<{
 }>;
 
 
-export type CreateEnvironmentSecretForAccountMutation = { __typename?: 'RootMutation', environmentSecret: { __typename?: 'EnvironmentSecretMutation', createEnvironmentSecretForAccount: { __typename?: 'EnvironmentSecret', id: string, name: string, createdAt: any } } };
+export type CreateEnvironmentSecretForAccountMutation = { __typename?: 'RootMutation', environmentSecret: { __typename?: 'EnvironmentSecretMutation', createEnvironmentSecretForAccount: { __typename?: 'EnvironmentSecret', id: string, name: string, type: EnvironmentSecretType, createdAt: any } } };
 
 export type CreateEnvironmentSecretForAppMutationVariables = Exact<{
   input: CreateEnvironmentSecretInput;
@@ -4858,7 +4858,7 @@ export type CreateEnvironmentSecretForAppMutationVariables = Exact<{
 }>;
 
 
-export type CreateEnvironmentSecretForAppMutation = { __typename?: 'RootMutation', environmentSecret: { __typename?: 'EnvironmentSecretMutation', createEnvironmentSecretForApp: { __typename?: 'EnvironmentSecret', id: string, name: string, createdAt: any } } };
+export type CreateEnvironmentSecretForAppMutation = { __typename?: 'RootMutation', environmentSecret: { __typename?: 'EnvironmentSecretMutation', createEnvironmentSecretForApp: { __typename?: 'EnvironmentSecret', id: string, name: string, type: EnvironmentSecretType, createdAt: any } } };
 
 export type DeleteEnvironmentSecretMutationVariables = Exact<{
   id: Scalars['String'];
@@ -5012,14 +5012,14 @@ export type EnvironmentSecretsByAccountNameQueryVariables = Exact<{
 }>;
 
 
-export type EnvironmentSecretsByAccountNameQuery = { __typename?: 'RootQuery', account: { __typename?: 'AccountQuery', byName: { __typename?: 'Account', id: string, environmentSecrets: Array<{ __typename?: 'EnvironmentSecret', id: string, name: string, createdAt: any }> } } };
+export type EnvironmentSecretsByAccountNameQuery = { __typename?: 'RootQuery', account: { __typename?: 'AccountQuery', byName: { __typename?: 'Account', id: string, environmentSecrets: Array<{ __typename?: 'EnvironmentSecret', id: string, name: string, type: EnvironmentSecretType, createdAt: any }> } } };
 
 export type EnvironmentSecretsByAppIdQueryVariables = Exact<{
   appId: Scalars['String'];
 }>;
 
 
-export type EnvironmentSecretsByAppIdQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, environmentSecrets: Array<{ __typename?: 'EnvironmentSecret', id: string, name: string, createdAt: any }> } } };
+export type EnvironmentSecretsByAppIdQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, environmentSecrets: Array<{ __typename?: 'EnvironmentSecret', id: string, name: string, type: EnvironmentSecretType, createdAt: any }> } } };
 
 export type GetAssetMetadataQueryVariables = Exact<{
   storageKeys: Array<Scalars['String']> | Scalars['String'];
@@ -5114,7 +5114,7 @@ export type BuildFragment = { __typename?: 'Build', id: string, status: BuildSta
 
 export type BuildWithSubmissionsFragment = { __typename?: 'Build', id: string, status: BuildStatus, platform: AppPlatform, channel?: string | null, releaseChannel?: string | null, distribution?: DistributionType | null, iosEnterpriseProvisioning?: BuildIosEnterpriseProvisioning | null, buildProfile?: string | null, sdkVersion?: string | null, appVersion?: string | null, appBuildVersion?: string | null, runtimeVersion?: string | null, gitCommitHash?: string | null, initialQueuePosition?: number | null, queuePosition?: number | null, estimatedWaitTimeLeftSeconds?: number | null, priority: BuildPriority, createdAt: any, updatedAt: any, submissions: Array<{ __typename?: 'Submission', id: string, status: SubmissionStatus, platform: AppPlatform, logsUrl?: string | null, app: { __typename?: 'App', id: string, name: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } }, androidConfig?: { __typename?: 'AndroidSubmissionConfig', applicationIdentifier?: string | null, track: SubmissionAndroidTrack, releaseStatus?: SubmissionAndroidReleaseStatus | null } | null, iosConfig?: { __typename?: 'IosSubmissionConfig', ascAppIdentifier: string, appleIdUsername?: string | null } | null, error?: { __typename?: 'SubmissionError', errorCode?: string | null, message?: string | null } | null }>, error?: { __typename?: 'BuildError', errorCode: string, message: string, docsUrl?: string | null } | null, artifacts?: { __typename?: 'BuildArtifacts', buildUrl?: string | null, xcodeBuildLogsUrl?: string | null } | null, initiatingActor?: { __typename: 'Robot', id: string, displayName: string } | { __typename: 'User', id: string, displayName: string } | null, project: { __typename: 'App', id: string, name: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } } | { __typename: 'Snack', id: string, name: string, slug: string } };
 
-export type EnvironmentSecretFragment = { __typename?: 'EnvironmentSecret', id: string, name: string, createdAt: any };
+export type EnvironmentSecretFragment = { __typename?: 'EnvironmentSecret', id: string, name: string, type: EnvironmentSecretType, createdAt: any };
 
 export type StatuspageServiceFragment = { __typename?: 'StatuspageService', id: string, name: StatuspageServiceName, status: StatuspageServiceStatus, incidents: Array<{ __typename?: 'StatuspageIncident', id: string, status: StatuspageIncidentStatus, name: string, impact: StatuspageIncidentImpact, shortlink: string }> };
 

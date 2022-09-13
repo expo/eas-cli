@@ -4,6 +4,7 @@ import dateFormat from 'dateformat';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import { EnvironmentSecretsQuery } from '../../graphql/queries/EnvironmentSecretsQuery';
+import { EnvironmentSecretTypeToSecretType } from '../../graphql/types/EnvironmentSecret';
 import Log from '../../log';
 import { getExpoConfig } from '../../project/expoConfig';
 import {
@@ -28,13 +29,19 @@ export default class EnvironmentSecretList extends EasCommand {
     const secrets = await EnvironmentSecretsQuery.allAsync(projectAccountName, projectId);
 
     const table = new Table({
-      head: ['Name', 'Scope', 'ID', 'Updated at'],
+      head: ['Name', 'Type', 'Scope', 'ID', 'Updated at'],
       wordWrap: true,
     });
 
     for (const secret of secrets) {
-      const { name, createdAt: updatedAt, scope, id } = secret;
-      table.push([name, scope, id, dateFormat(updatedAt, 'mmm dd HH:MM:ss')]);
+      const { name, createdAt: updatedAt, scope, id, type } = secret;
+      table.push([
+        name,
+        EnvironmentSecretTypeToSecretType[type],
+        scope,
+        id,
+        dateFormat(updatedAt, 'mmm dd HH:MM:ss'),
+      ]);
     }
 
     Log.log(chalk`{bold Secrets for this account and project:}`);

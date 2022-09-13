@@ -7,12 +7,13 @@ import {
   CreateEnvironmentSecretForAppMutation,
   DeleteEnvironmentSecretMutation,
   EnvironmentSecretFragment,
+  EnvironmentSecretType,
 } from '../generated';
 import { EnvironmentSecretFragmentNode } from '../types/EnvironmentSecret';
 
 export const EnvironmentSecretMutation = {
   async createForAccountAsync(
-    input: { name: string; value: string },
+    input: { name: string; value: string; type: EnvironmentSecretType },
     accountId: string
   ): Promise<EnvironmentSecretFragment> {
     const data = await withErrorHandlingAsync(
@@ -43,7 +44,7 @@ export const EnvironmentSecretMutation = {
     return data.environmentSecret.createEnvironmentSecretForAccount;
   },
   async createForAppAsync(
-    input: { name: string; value: string },
+    input: { name: string; value: string; type: EnvironmentSecretType },
     appId: string
   ): Promise<EnvironmentSecretFragment> {
     const data = await withErrorHandlingAsync(

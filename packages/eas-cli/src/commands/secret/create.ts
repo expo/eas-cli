@@ -1,5 +1,8 @@
 import { Flags } from '@oclif/core';
+import assert from 'assert';
 import chalk from 'chalk';
+import fs from 'fs-extra';
+import path from 'path';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import { EnvironmentSecretMutation } from '../../graphql/mutations/EnvironmentSecretMutation';
@@ -7,6 +10,10 @@ import {
   EnvironmentSecretScope,
   EnvironmentSecretsQuery,
 } from '../../graphql/queries/EnvironmentSecretsQuery';
+import {
+  SecretType,
+  SecretTypeToEnvironmentSecretType,
+} from '../../graphql/types/EnvironmentSecret';
 import Log from '../../log';
 import { getExpoConfig } from '../../project/expoConfig';
 import {
@@ -33,7 +40,11 @@ export default class EnvironmentSecretCreate extends EasCommand {
       description: 'Name of the secret',
     }),
     value: Flags.string({
-      description: 'Value of the secret',
+      description: 'Value of the secret / local path to the secret file',
+    }),
+    type: Flags.enum({
+      description: 'Type of the secret (use to force the type)',
+      options: [SecretType.STRING, SecretType.FILE],
     }),
     force: Flags.boolean({
       description: 'Delete and recreate existing secrets',
@@ -44,7 +55,7 @@ export default class EnvironmentSecretCreate extends EasCommand {
   async runAsync(): Promise<void> {
     const actor = await ensureLoggedInAsync();
     let {
-      flags: { name, value: secretValue, scope, force },
+      flags: { name, value: secretValue, scope, force, type },
     } = await this.parse(EnvironmentSecretCreate);
 
     const projectDir = await findProjectRootAsync();
@@ -95,17 +106,38 @@ export default class EnvironmentSecretCreate extends EasCommand {
     }
 
     if (!secretValue) {
-      const validationMessage = 'Secret value may not be empty.';
-
       ({ secretValue } = await promptAsync({
         type: 'text',
         name: 'secretValue',
-        message: 'Secret value:',
-        validate: value => (value ? true : validationMessage),
+        message: 'Secret value (or local secret file path):',
+        // eslint-disable-next-line async-protect/async-suffix
+        validate: async secretValue => {
+          if (!secretValue) {
+            return 'Secret value may not be empty.';
+          }
+          if (type === SecretType.FILE) {
+            const secretFilePath = path.resolve(secretValue);
+            if (!(await fs.pathExists(secretFilePath))) {
+              return 'Secret file does not exist.';
+            }
+          }
+          return true;
+        },
       }));
+    }
 
-      if (!secretValue) {
-        throw new Error(validationMessage);
+    assert(secretValue);
+
+    if (type !== SecretType.STRING) {
+      const secretFilePath = path.resolve(secretValue);
+      if (!(await fs.pathExists(secretFilePath))) {
+        if (type === SecretType.FILE) {
+          throw new Error(`File "${secretValue}" does not exist`);
+        }
+        type = SecretType.STRING;
+      } else {
+        type = SecretType.FILE;
+        secretValue = await fs.readFile(secretFilePath, 'base64');
       }
     }
 
@@ -125,7 +157,7 @@ export default class EnvironmentSecretCreate extends EasCommand {
       }
 
       const secret = await EnvironmentSecretMutation.createForAppAsync(
-        { name, value: secretValue },
+        { name, value: secretValue, type: SecretTypeToEnvironmentSecretType[type] },
         projectId
       );
       if (!secret) {
@@ -167,7 +199,7 @@ export default class EnvironmentSecretCreate extends EasCommand {
       }
 
       const secret = await EnvironmentSecretMutation.createForAccountAsync(
-        { name, value: secretValue },
+        { name, value: secretValue, type: SecretTypeToEnvironmentSecretType[type] },
         ownerAccount.id
       );
 
