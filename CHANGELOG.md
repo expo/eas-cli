@@ -16,6 +16,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Standardize the GQL 'Update' schema using UpdateFragmentNode. ([#1348](https://github.com/expo/eas-cli/pull/1348) by [@kgc00](https://github.com/kgc00))
+
 ## [2.1.0](https://github.com/expo/eas-cli/releases/tag/v2.1.0) - 2022-09-05
 
 ### 🎉 New features
