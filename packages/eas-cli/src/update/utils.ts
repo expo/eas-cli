@@ -1,8 +1,10 @@
 import { ExpoConfig } from '@expo/config';
 import { format } from '@expo/timeago.js';
 import chalk from 'chalk';
+import dateFormat from 'dateformat';
 
 import { Maybe, Robot, Update, User } from '../graphql/generated';
+import { BranchUpdateObject, UpdateGroupObject } from '../graphql/queries/UpdateQuery';
 import { learnMore } from '../log';
 import { RequestedPlatform } from '../platform';
 import { getActorDisplayName } from '../user/User';
@@ -19,6 +21,17 @@ export type UpdateGroupDescription = FormatUpdateParameter & {
   runtimeVersion: string;
 };
 
+export type FormattedUpdateGroupDescription = {
+  message: string;
+  group: string;
+  platforms: string;
+  runtimeVersion: string;
+};
+
+export type FormattedUpdateGroupDescriptionWithBranch = FormattedUpdateGroupDescription & {
+  branch: string;
+};
+
 export const UPDATE_COLUMNS = [
   'Update message',
   'Update runtime version',
@@ -26,33 +39,28 @@ export const UPDATE_COLUMNS = [
   'Update platforms',
 ];
 
-export function getUpdateGroupsWithPlatforms<
-  UpdateFragment extends Pick<Update, 'platform' | 'group'>
->(updates: UpdateFragment[]): (UpdateFragment & { platforms: string })[] {
-  return Object.values(groupBy(updates, updates => updates.group)).map(updateGroup => ({
-    ...updateGroup[0],
-    platforms: formatPlatformForUpdateGroup(updateGroup),
-  }));
-}
+export const UPDATE_COLUMNS_WITH_BRANCH = ['Branch', ...UPDATE_COLUMNS];
 
 export function getPlatformsForGroup({
   group,
-  updates,
+  updates = [],
 }: {
-  group: string;
-  updates: { group: string; platform: string }[];
+  group: string | undefined;
+  updates: { group: string; platform: string }[] | undefined;
 }): string {
   const groupedUpdates = groupBy(updates, update => update.group);
-  return formatPlatformForUpdateGroup(groupedUpdates[group]);
+  return formatPlatformForUpdateGroup(group ? groupedUpdates[group] : undefined);
 }
 
 export function formatPlatformForUpdateGroup(
-  updateGroup: {
-    group: string;
-    platform: string;
-  }[]
+  updateGroup:
+    | {
+        group: string;
+        platform: string;
+      }[]
+    | undefined
 ): string {
-  return updateGroup.length === 0
+  return !updateGroup || updateGroup.length === 0
     ? 'N/A'
     : updateGroup
         .map(update => update.platform)
@@ -67,7 +75,7 @@ export function truncateString(originalMessage: string, length: number = 512): s
   return originalMessage;
 }
 
-export function formatUpdate(update: FormatUpdateParameter): string {
+export function formatUpdateMessage(update: FormatUpdateParameter): string {
   if (!update) {
     return 'N/A';
   }
@@ -104,4 +112,50 @@ export function ensureValidVersions(exp: ExpoConfig, platform: RequestedPlatform
   ) {
     throw error;
   }
+}
+
+export function formatUpdateTitle(update: UpdateGroupObject[number] | BranchUpdateObject): string {
+  const { message, createdAt, actor, runtimeVersion } = update;
+
+  let actorName: string;
+  switch (actor?.__typename) {
+    case 'User': {
+      actorName = (actor as Pick<User, 'username' | 'id'>).username;
+      break;
+    }
+    case 'Robot': {
+      const { firstName, id } = actor as Pick<Robot, 'firstName' | 'id'>;
+      actorName = firstName ?? `robot: ${id.slice(0, 4)}...`;
+      break;
+    }
+    default:
+      actorName = 'unknown';
+  }
+  return `[${dateFormat(
+    createdAt,
+    'mmm dd HH:MM'
+  )} by ${actorName}, runtimeVersion: ${runtimeVersion}] ${message}`;
+}
+
+export function getUpdateGroupDescriptions(
+  updateGroups: UpdateGroupObject[]
+): FormattedUpdateGroupDescription[] {
+  return updateGroups.map(updateGroup => ({
+    message: formatUpdateMessage(updateGroup[0]),
+    runtimeVersion: updateGroup[0].runtimeVersion,
+    group: updateGroup[0].group,
+    platforms: formatPlatformForUpdateGroup(updateGroup),
+  }));
+}
+
+export function getUpdateGroupDescriptionsWithBranch(
+  updateGroups: UpdateGroupObject[]
+): FormattedUpdateGroupDescriptionWithBranch[] {
+  return updateGroups.map(updateGroup => ({
+    branch: updateGroup[0].branch.name,
+    message: formatUpdateMessage(updateGroup[0]),
+    runtimeVersion: updateGroup[0].runtimeVersion,
+    group: updateGroup[0].group,
+    platforms: formatPlatformForUpdateGroup(updateGroup),
+  }));
 }

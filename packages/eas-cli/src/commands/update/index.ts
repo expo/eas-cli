@@ -4,27 +4,23 @@ import { Platform, Workflow } from '@expo/eas-build-job';
 import { Errors, Flags } from '@oclif/core';
 import assert from 'assert';
 import chalk from 'chalk';
-import dateFormat from 'dateformat';
-import gql from 'graphql-tag';
 import nullthrows from 'nullthrows';
 
 import { getEASUpdateURL } from '../../api';
-import { BRANCHES_LIMIT } from '../../branch/queries';
+import { selectBranchOnAppAsync } from '../../branch/queries';
+import { getDefaultBranchNameAsync } from '../../branch/utils';
 import { getUpdateGroupUrl } from '../../build/utils/url';
 import EasCommand from '../../commandUtils/EasCommand';
+import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
+import { getPaginatedQueryOptions } from '../../commandUtils/pagination';
 import fetch from '../../fetch';
-import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
 import {
-  GetUpdateGroupAsyncQuery,
   PublishUpdateGroupInput,
-  Robot,
-  RootQueryUpdatesByGroupArgs,
   StatuspageServiceName,
   Update,
   UpdateInfoGroup,
   UpdatePublishMutation,
-  User,
-  ViewBranchUpdatesQuery,
+  ViewBranchQueryVariables,
 } from '../../graphql/generated';
 import { PublishMutation } from '../../graphql/mutations/PublishMutation';
 import { BranchQuery } from '../../graphql/queries/BranchQuery';
@@ -48,8 +44,9 @@ import {
   uploadAssetsAsync,
 } from '../../project/publish';
 import { resolveWorkflowAsync } from '../../project/workflow';
-import { confirmAsync, promptAsync, selectAsync } from '../../prompts';
-import { formatUpdate } from '../../update/utils';
+import { confirmAsync, promptAsync } from '../../prompts';
+import { selectUpdateGroupOnBranchAsync } from '../../update/queries';
+import { formatUpdateMessage } from '../../update/utils';
 import { ensureLoggedInAsync } from '../../user/actions';
 import {
   checkManifestBodyAgainstUpdateInfoGroup,
@@ -57,7 +54,6 @@ import {
   getManifestBodyAsync,
   signManifestBody,
 } from '../../utils/code-signing';
-import uniqBy from '../../utils/expodash/uniqBy';
 import formatFields from '../../utils/formatFields';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 import { maybeWarnAboutEasOutagesAsync } from '../../utils/statuspageService';
@@ -67,34 +63,6 @@ import { createUpdateChannelOnAppAsync } from '../channel/create';
 
 export const defaultPublishPlatforms: PublishPlatform[] = ['android', 'ios'];
 export type PublishPlatformFlag = PublishPlatform | 'all';
-
-async function getUpdateGroupAsync({
-  group,
-}: RootQueryUpdatesByGroupArgs): Promise<GetUpdateGroupAsyncQuery['updatesByGroup']> {
-  const { updatesByGroup } = await withErrorHandlingAsync(
-    graphqlClient
-      .query<GetUpdateGroupAsyncQuery, RootQueryUpdatesByGroupArgs>(
-        gql`
-          query getUpdateGroupAsync($group: ID!) {
-            updatesByGroup(group: $group) {
-              id
-              group
-              runtimeVersion
-              manifestFragment
-              platform
-              message
-            }
-          }
-        `,
-        {
-          group,
-        },
-        { additionalTypenames: ['Update'] }
-      )
-      .toPromise()
-  );
-  return updatesByGroup;
-}
 
 async function ensureChannelExistsAsync({
   appId,
@@ -127,37 +95,24 @@ async function ensureChannelExistsAsync({
 export async function ensureBranchExistsAsync({
   appId,
   name: branchName,
-  limit,
-  offset,
-}: {
-  appId: string;
-  name: string;
-  limit: number;
-  offset: number;
-}): Promise<{
-  id: string;
-  updates: Exclude<
-    Exclude<ViewBranchUpdatesQuery['app'], null | undefined>['byId']['updateBranchByName'],
-    null | undefined
-  >['updates'];
+}: ViewBranchQueryVariables): Promise<{
+  branchId: string;
 }> {
-  const { app } = await UpdateQuery.viewBranchAsync({
+  const updateBranch = await BranchQuery.getBranchByNameAsync({
     appId,
     name: branchName,
-    limit,
-    offset,
   });
-  const updateBranch = app?.byId.updateBranchByName;
+
   if (updateBranch) {
-    const { id, updates } = updateBranch;
+    const { id } = updateBranch;
     await ensureChannelExistsAsync({ appId, branchId: id, channelName: branchName });
-    return { id, updates };
+    return { branchId: id };
   }
 
   const newUpdateBranch = await createUpdateBranchOnAppAsync({ appId, name: branchName });
   Log.withTick(`Created branch: ${chalk.bold(branchName)}`);
   await ensureChannelExistsAsync({ appId, branchId: newUpdateBranch.id, channelName: branchName });
-  return { id: newUpdateBranch.id, updates: [] };
+  return { branchId: newUpdateBranch.id };
 }
 
 export default class UpdatePublish extends EasCommand {
@@ -195,10 +150,6 @@ export default class UpdatePublish extends EasCommand {
       default: 'all',
       required: false,
     }),
-    json: Flags.boolean({
-      description: 'Enable JSON output, non-JSON messages will be printed to stderr',
-      default: false,
-    }),
     auto: Flags.boolean({
       description:
         'Use the current git branch and commit message for the EAS branch and update message',
@@ -208,28 +159,25 @@ export default class UpdatePublish extends EasCommand {
       description: `File containing the PEM-encoded private key corresponding to the certificate in expo-updates' configuration. Defaults to a file named "private-key.pem" in the certificate's directory.`,
       required: false,
     }),
-    'non-interactive': Flags.boolean({
-      default: false,
-      description: 'Run command in non-interactive mode',
-    }),
+    ...EasNonInteractiveAndJsonFlags,
   };
 
   async runAsync(): Promise<void> {
+    const { flags } = await this.parse(UpdatePublish);
+    const paginatedQueryOptions = getPaginatedQueryOptions(flags);
     let {
-      flags: {
-        branch: branchName,
-        json: jsonFlag,
-        auto: autoFlag,
-        message,
-        republish,
-        group,
-        'input-dir': inputDir,
-        'skip-bundler': skipBundler,
-        platform,
-        'private-key-path': privateKeyPath,
-        'non-interactive': nonInteractive,
-      },
-    } = await this.parse(UpdatePublish);
+      branch: branchName,
+      auto: autoFlag,
+      message,
+      republish,
+      group,
+      'input-dir': inputDir,
+      'skip-bundler': skipBundler,
+      platform,
+      'private-key-path': privateKeyPath,
+      'non-interactive': nonInteractiveFlag,
+      json: jsonFlag,
+    } = flags;
 
     if (jsonFlag) {
       enableJsonOutput();
@@ -237,7 +185,7 @@ export default class UpdatePublish extends EasCommand {
 
     const platformFlag = platform as PublishPlatformFlag;
     // If a group was specified, that means we are republishing it.
-    republish = group ? true : republish;
+    republish = republish || !!group;
 
     const projectDir = await findProjectRootAsync();
     const exp = getExpoConfig(projectDir, {
@@ -253,7 +201,7 @@ export default class UpdatePublish extends EasCommand {
     const codeSigningInfo = await getCodeSigningInfoAsync(expPrivate, privateKeyPath);
 
     const hasExpoUpdates = isExpoUpdatesInstalledOrAvailable(projectDir, exp.sdkVersion);
-    if (!hasExpoUpdates && nonInteractive) {
+    if (!hasExpoUpdates && nonInteractiveFlag) {
       Errors.error(
         `${chalk.bold(
           'expo-updates'
@@ -282,51 +230,38 @@ export default class UpdatePublish extends EasCommand {
     const projectId = await getProjectIdAsync(exp);
     await checkEASUpdateURLIsSetAsync(exp);
 
-    if (!branchName && autoFlag) {
-      branchName =
-        (await getVcsClient().getBranchNameAsync()) ||
-        `branch-${Math.random().toString(36).substr(2, 4)}`;
-    }
-
     if (!branchName) {
-      if (nonInteractive) {
+      if (autoFlag) {
+        branchName = await getDefaultBranchNameAsync();
+      } else if (nonInteractiveFlag) {
         throw new Error('Must supply --branch or use --auto when in non-interactive mode');
-      }
-
-      const validationMessage = 'Branch name may not be empty.';
-      if (jsonFlag) {
-        throw new Error(validationMessage);
-      }
-
-      const branches = await BranchQuery.listBranchesAsync({
-        appId: projectId,
-        limit: BRANCHES_LIMIT,
-        offset: 0,
-      });
-      if (branches.length === 0) {
-        ({ name: branchName } = await promptAsync({
-          type: 'text',
-          name: 'name',
-          message: 'No branches found. Provide a branch name:',
-          initial:
-            (await getVcsClient().getBranchNameAsync()) ||
-            `branch-${Math.random().toString(36).substr(2, 4)}`,
-          validate: value => (value ? true : validationMessage),
-        }));
       } else {
-        branchName = await selectAsync<string>(
-          'Which branch would you like to publish on?',
-          branches.map(branch => {
-            return {
-              title: `${branch.name} ${chalk.grey(
-                `- current update: ${formatUpdate(branch.updates[0])}`
+        try {
+          const branch = await selectBranchOnAppAsync({
+            projectId,
+            promptTitle: `Which branch would you like to ${
+              republish ? 'republish' : 'publish'
+            } on?`,
+            displayTextForListItem: updateBranch =>
+              `${updateBranch.name} ${chalk.grey(
+                `- current update: ${formatUpdateMessage(updateBranch.updates[0])}`
               )}`,
-              value: branch.name,
-            };
-          })
-        );
+            paginatedQueryOptions,
+          });
+          branchName = branch.name;
+        } catch {
+          // unable to select a branch (network error or no branches for project)
+          ({ name: branchName } = await promptAsync({
+            type: 'text',
+            name: 'name',
+            message: 'No branches found. Provide a branch name:',
+            initial: await getDefaultBranchNameAsync(),
+            validate: value => (value ? true : 'Branch name may not be empty.'),
+          }));
+        }
+
+        assert(branchName, 'Branch name must be specified.');
       }
-      assert(branchName, 'Branch name must be specified.');
     }
 
     let unsortedUpdateInfoGroups: UpdateInfoGroup = {};
@@ -342,23 +277,18 @@ export default class UpdatePublish extends EasCommand {
         'group' | 'message' | 'runtimeVersion' | 'manifestFragment' | 'platform'
       >[];
       if (group) {
-        updatesToRepublish = await getUpdateGroupAsync({ group });
+        const updatesByGroup = await UpdateQuery.viewUpdateGroupAsync({ groupId: group });
+        updatesToRepublish = updatesByGroup;
       } else {
-        if (nonInteractive) {
+        if (nonInteractiveFlag) {
           throw new Error('Must supply --group when in non-interactive mode');
         }
 
-        // Drop into interactive mode if the user has not specified an update group to republish.
-        if (jsonFlag) {
-          throw new Error('You must specify the update group to republish.');
-        }
-
-        updatesToRepublish = await getUpdatesToRepublishInteractiveAsync(
+        updatesToRepublish = await selectUpdateGroupOnBranchAsync({
           projectId,
           branchName,
-          platformFlag,
-          50
-        );
+          paginatedQueryOptions,
+        });
       }
       const updatesToRepublishFilteredByPlatform = updatesToRepublish.filter(
         // Only republish to the specified platforms
@@ -398,7 +328,7 @@ export default class UpdatePublish extends EasCommand {
       oldRuntimeVersion = updatesToRepublishFilteredByPlatform[0].runtimeVersion;
 
       if (!message) {
-        if (nonInteractive) {
+        if (nonInteractiveFlag) {
           throw new Error('Must supply --message when in non-interactive mode');
         }
 
@@ -420,7 +350,7 @@ export default class UpdatePublish extends EasCommand {
       }
 
       if (!message) {
-        if (nonInteractive) {
+        if (nonInteractiveFlag) {
           throw new Error('Must supply --message or use --auto when in non-interactive mode');
         }
 
@@ -484,11 +414,9 @@ export default class UpdatePublish extends EasCommand {
         .map(pair => pair[0]);
     }
 
-    const { id: branchId } = await ensureBranchExistsAsync({
+    const { branchId } = await ensureBranchExistsAsync({
       appId: projectId,
       name: branchName,
-      limit: 0,
-      offset: 0,
     });
 
     // Sort the updates into different groups based on their platform specific runtime versions
@@ -630,73 +558,6 @@ export default class UpdatePublish extends EasCommand {
   }
 }
 
-export async function getUpdatesToRepublishInteractiveAsync(
-  projectId: string,
-  branchName: string,
-  platformFlag: string,
-  pageSize: number,
-  offset: number = 0,
-  cumulativeUpdates: Exclude<
-    Exclude<ViewBranchUpdatesQuery['app'], null | undefined>['byId']['updateBranchByName'],
-    null | undefined
-  >['updates'] = []
-): Promise<
-  Exclude<
-    Exclude<ViewBranchUpdatesQuery['app'], null | undefined>['byId']['updateBranchByName'],
-    null | undefined
-  >['updates']
-> {
-  const fetchMoreValue = '_fetchMore';
-
-  const { updates } = await ensureBranchExistsAsync({
-    appId: projectId,
-    name: branchName,
-    limit: pageSize + 1, // fetch an extra item so we know if there are additional pages
-    offset,
-  });
-  cumulativeUpdates = [
-    ...cumulativeUpdates,
-    // drop that extra item used for pagination from our render logic
-    ...updates.slice(0, updates.length - 1),
-  ];
-  const cumulativeUpdatesForTargetPlatforms =
-    platformFlag === 'all'
-      ? cumulativeUpdates
-      : cumulativeUpdates.filter(update => {
-          // Only show groups that have updates on the specified platform(s).
-          return update.platform === platformFlag;
-        });
-  const updateGroups = uniqBy(cumulativeUpdatesForTargetPlatforms, u => u.group).map(update => ({
-    title: formatUpdateTitle(update),
-    value: update.group,
-  }));
-  if (updateGroups.length === 0) {
-    throw new Error(
-      `There are no updates on branch "${branchName}" published for the platform(s) ${platformFlag}. Did you mean to publish a new update instead?`
-    );
-  }
-
-  if (updates.length > pageSize) {
-    updateGroups.push({ title: 'Next page...', value: fetchMoreValue });
-  }
-
-  const selectedUpdateGroup = await selectAsync<string>(
-    'Which update would you like to republish?',
-    updateGroups
-  );
-  if (selectedUpdateGroup === fetchMoreValue) {
-    return await getUpdatesToRepublishInteractiveAsync(
-      projectId,
-      branchName,
-      platformFlag,
-      pageSize,
-      offset + pageSize,
-      cumulativeUpdates
-    );
-  }
-  return cumulativeUpdates.filter(update => update.group === selectedUpdateGroup);
-}
-
 async function getRuntimeVersionObjectAsync(
   exp: ExpoConfig,
   platformFlag: PublishPlatformFlag,
@@ -725,34 +586,6 @@ async function getRuntimeVersionObjectAsync(
       ),
     ])
   );
-}
-
-function formatUpdateTitle(
-  update: Exclude<
-    Exclude<ViewBranchUpdatesQuery['app'], null | undefined>['byId']['updateBranchByName'],
-    null | undefined
-  >['updates'][number]
-): string {
-  const { message, createdAt, actor, runtimeVersion } = update;
-
-  let actorName: string;
-  switch (actor?.__typename) {
-    case 'User': {
-      actorName = (actor as Pick<User, 'username' | 'id'>).username;
-      break;
-    }
-    case 'Robot': {
-      const { firstName, id } = actor as Pick<Robot, 'firstName' | 'id'>;
-      actorName = firstName ?? `robot: ${id.slice(0, 4)}...`;
-      break;
-    }
-    default:
-      actorName = 'unknown';
-  }
-  return `[${dateFormat(
-    createdAt,
-    'mmm dd HH:MM'
-  )} by ${actorName}, runtimeVersion: ${runtimeVersion}] ${message}`;
 }
 
 async function checkEASUpdateURLIsSetAsync(exp: ExpoConfig): Promise<void> {

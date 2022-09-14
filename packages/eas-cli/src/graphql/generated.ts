@@ -4392,20 +4392,6 @@ export type DeleteUpdateGroupMutationVariables = Exact<{
 
 export type DeleteUpdateGroupMutation = { __typename?: 'RootMutation', update: { __typename?: 'UpdateMutation', deleteUpdateGroup: { __typename?: 'DeleteUpdateGroupResult', group: string } } };
 
-export type GetUpdateGroupAsyncQueryVariables = Exact<{
-  group: Scalars['ID'];
-}>;
-
-
-export type GetUpdateGroupAsyncQuery = { __typename?: 'RootQuery', updatesByGroup: Array<{ __typename?: 'Update', id: string, group: string, runtimeVersion: string, manifestFragment: string, platform: string, message?: string | null }> };
-
-export type UpdatesByGroupQueryVariables = Exact<{
-  groupId: Scalars['ID'];
-}>;
-
-
-export type UpdatesByGroupQuery = { __typename?: 'RootQuery', updatesByGroup: Array<{ __typename?: 'Update', id: string, group: string, runtimeVersion: string, platform: string, message?: string | null, createdAt: any, actor?: { __typename?: 'Robot', firstName?: string | null, id: string } | { __typename?: 'User', username: string, id: string } | null }> };
-
 export type CreateAndroidAppBuildCredentialsMutationVariables = Exact<{
   androidAppBuildCredentialsInput: AndroidAppBuildCredentialsInput;
   androidAppCredentialsId: Scalars['ID'];
@@ -5027,24 +5013,33 @@ export type GetAllSubmissionsForAppQueryVariables = Exact<{
 
 export type GetAllSubmissionsForAppQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, submissions: Array<{ __typename?: 'Submission', id: string, status: SubmissionStatus, platform: AppPlatform, logsUrl?: string | null, app: { __typename?: 'App', id: string, name: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } }, androidConfig?: { __typename?: 'AndroidSubmissionConfig', applicationIdentifier?: string | null, track: SubmissionAndroidTrack, releaseStatus?: SubmissionAndroidReleaseStatus | null } | null, iosConfig?: { __typename?: 'IosSubmissionConfig', ascAppIdentifier: string, appleIdUsername?: string | null } | null, error?: { __typename?: 'SubmissionError', errorCode?: string | null, message?: string | null } | null }> } } };
 
-export type ViewAllUpdatesQueryVariables = Exact<{
-  appId: Scalars['String'];
-  limit: Scalars['Int'];
-  offset: Scalars['Int'];
+export type ViewUpdatesByGroupQueryVariables = Exact<{
+  groupId: Scalars['ID'];
 }>;
 
 
-export type ViewAllUpdatesQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, updates: Array<{ __typename?: 'Update', id: string, group: string, message?: string | null, createdAt: any, runtimeVersion: string, platform: string, actor?: { __typename?: 'Robot', firstName?: string | null, id: string } | { __typename?: 'User', username: string, id: string } | null, branch: { __typename?: 'UpdateBranch', id: string, name: string } }> } } };
+export type ViewUpdatesByGroupQuery = { __typename?: 'RootQuery', updatesByGroup: Array<{ __typename?: 'Update', id: string, group: string, runtimeVersion: string, platform: string, message?: string | null, createdAt: any, manifestFragment: string, actor?: { __typename: 'Robot', firstName?: string | null, id: string } | { __typename: 'User', username: string, id: string } | null, branch: { __typename?: 'UpdateBranch', id: string, name: string } }> };
 
-export type ViewBranchUpdatesQueryVariables = Exact<{
+export type ViewUpdateGroupsOnBranchQueryVariables = Exact<{
   appId: Scalars['String'];
-  name: Scalars['String'];
+  branchName: Scalars['String'];
   limit: Scalars['Int'];
   offset: Scalars['Int'];
+  filter?: InputMaybe<UpdatesFilter>;
 }>;
 
 
-export type ViewBranchUpdatesQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, updateBranchByName?: { __typename?: 'UpdateBranch', id: string, name: string, updates: Array<{ __typename?: 'Update', id: string, group: string, message?: string | null, createdAt: any, runtimeVersion: string, platform: string, manifestFragment: string, actor?: { __typename?: 'Robot', firstName?: string | null, id: string } | { __typename?: 'User', username: string, id: string } | null, branch: { __typename?: 'UpdateBranch', id: string, name: string } }> } | null } } };
+export type ViewUpdateGroupsOnBranchQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, updateBranchByName?: { __typename?: 'UpdateBranch', id: string, updateGroups: Array<Array<{ __typename?: 'Update', id: string, group: string, message?: string | null, createdAt: any, runtimeVersion: string, platform: string, manifestFragment: string, actor?: { __typename: 'Robot', firstName?: string | null, id: string } | { __typename: 'User', username: string, id: string } | null, branch: { __typename?: 'UpdateBranch', id: string, name: string } }>> } | null } } };
+
+export type ViewUpdateGroupsOnAppQueryVariables = Exact<{
+  appId: Scalars['String'];
+  limit: Scalars['Int'];
+  offset: Scalars['Int'];
+  filter?: InputMaybe<UpdatesFilter>;
+}>;
+
+
+export type ViewUpdateGroupsOnAppQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, updateGroups: Array<Array<{ __typename?: 'Update', id: string, group: string, message?: string | null, createdAt: any, runtimeVersion: string, platform: string, manifestFragment: string, actor?: { __typename: 'Robot', firstName?: string | null, id: string } | { __typename: 'User', username: string, id: string } | null, branch: { __typename?: 'UpdateBranch', id: string, name: string } }>> } } };
 
 export type CurrentUserQueryVariables = Exact<{ [key: string]: never; }>;
 

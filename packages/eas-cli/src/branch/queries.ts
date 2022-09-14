@@ -5,7 +5,7 @@ import { PaginatedQueryOptions } from '../commandUtils/pagination';
 import { UpdateBranchFragment } from '../graphql/generated';
 import { BranchQuery } from '../graphql/queries/BranchQuery';
 import Log from '../log';
-import { UPDATE_COLUMNS, formatUpdate, getPlatformsForGroup } from '../update/utils';
+import { UPDATE_COLUMNS, formatUpdateMessage, getPlatformsForGroup } from '../update/utils';
 import { printJsonOnlyOutput } from '../utils/json';
 import {
   paginatedQueryWithConfirmPromptAsync,
@@ -14,24 +14,29 @@ import {
 
 export const BRANCHES_LIMIT = 50;
 
-export async function selectBranchFromPaginatedQueryAsync(
-  projectId: string,
-  promptTitle: string,
-  options: PaginatedQueryOptions
-): Promise<UpdateBranchFragment> {
-  if (options.nonInteractive) {
+export async function selectBranchOnAppAsync({
+  projectId,
+  promptTitle,
+  displayTextForListItem,
+  paginatedQueryOptions,
+}: {
+  projectId: string;
+  displayTextForListItem: (queryItem: UpdateBranchFragment) => string;
+  promptTitle: string;
+  paginatedQueryOptions: PaginatedQueryOptions;
+}): Promise<UpdateBranchFragment> {
+  if (paginatedQueryOptions.nonInteractive) {
     throw new Error('Unable to select a branch in non-interactive mode.');
   }
 
   const selectedBranch = await paginatedQueryWithSelectPromptAsync({
-    limit: options.limit ?? BRANCHES_LIMIT,
-    offset: options.offset,
-    queryToPerform: (limit, offset) => queryBranchesForProjectAsync(limit, offset, projectId),
+    limit: paginatedQueryOptions.limit ?? BRANCHES_LIMIT,
+    offset: paginatedQueryOptions.offset,
+    queryToPerform: (limit, offset) => queryBranchesOnProjectAsync(limit, offset, projectId),
     promptOptions: {
       title: promptTitle,
       getIdentifierForQueryItem: updateBranchFragment => updateBranchFragment.id,
-      createDisplayTextForSelectionPromptListItem: updateBranchFragment =>
-        updateBranchFragment.name,
+      createDisplayTextForSelectionPromptListItem: displayTextForListItem,
     },
   });
   if (!selectedBranch) {
@@ -40,31 +45,34 @@ export async function selectBranchFromPaginatedQueryAsync(
   return selectedBranch;
 }
 
-export async function listAndRenderPaginatedBranchesAsync(
-  projectId: string,
-  options: PaginatedQueryOptions
-): Promise<void> {
-  if (options.nonInteractive) {
-    const branches = await queryBranchesForProjectAsync(
-      options.limit ?? BRANCHES_LIMIT,
-      options.offset,
+export async function listAndRenderBranchesOnAppAsync({
+  projectId,
+  paginatedQueryOptions,
+}: {
+  projectId: string;
+  paginatedQueryOptions: PaginatedQueryOptions;
+}): Promise<void> {
+  if (paginatedQueryOptions.nonInteractive) {
+    const branches = await queryBranchesOnProjectAsync(
+      paginatedQueryOptions.limit ?? BRANCHES_LIMIT,
+      paginatedQueryOptions.offset,
       projectId
     );
-    renderPageOfBranches(branches, options);
+    renderPageOfBranches(branches, paginatedQueryOptions);
   } else {
     await paginatedQueryWithConfirmPromptAsync({
-      limit: options.limit ?? BRANCHES_LIMIT,
-      offset: options.offset,
-      queryToPerform: (limit, offset) => queryBranchesForProjectAsync(limit, offset, projectId),
+      limit: paginatedQueryOptions.limit ?? BRANCHES_LIMIT,
+      offset: paginatedQueryOptions.offset,
+      queryToPerform: (limit, offset) => queryBranchesOnProjectAsync(limit, offset, projectId),
       promptOptions: {
         title: 'Load more branches?',
-        renderListItems: branches => renderPageOfBranches(branches, options),
+        renderListItems: branches => renderPageOfBranches(branches, paginatedQueryOptions),
       },
     });
   }
 }
 
-async function queryBranchesForProjectAsync(
+async function queryBranchesOnProjectAsync(
   limit: number,
   offset: number,
   projectId: string
@@ -90,18 +98,20 @@ function renderPageOfBranches(
 
     table.push(
       ...currentPage.map(branch => {
-        const update: UpdateBranchFragment['updates'][0] | undefined = branch.updates[0];
+        if (branch.updates.length === 0) {
+          return [branch.name, 'N/A', 'N/A', 'N/A', 'N/A'];
+        }
+
+        const latestUpdateOnBranch = branch.updates[0];
         return [
           branch.name,
-          formatUpdate(update),
-          update?.runtimeVersion ?? 'N/A',
-          update?.group ?? 'N/A',
-          update?.group
-            ? getPlatformsForGroup({
-                updates: branch.updates,
-                group: update.group,
-              })
-            : 'N/A',
+          formatUpdateMessage(latestUpdateOnBranch),
+          latestUpdateOnBranch.runtimeVersion,
+          latestUpdateOnBranch.group,
+          getPlatformsForGroup({
+            group: latestUpdateOnBranch.group,
+            updates: branch.updates,
+          }),
         ];
       })
     );

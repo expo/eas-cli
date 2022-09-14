@@ -1,8 +1,10 @@
-import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 import gql from 'graphql-tag';
 
+import { selectBranchOnAppAsync } from '../../branch/queries';
 import EasCommand from '../../commandUtils/EasCommand';
+import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
+import { getPaginatedQueryOptions } from '../../commandUtils/pagination';
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
 import {
   DeleteUpdateBranchMutation,
@@ -18,7 +20,7 @@ import {
   getProjectFullNameAsync,
   getProjectIdAsync,
 } from '../../project/projectUtils';
-import { promptAsync, toggleConfirmAsync } from '../../prompts';
+import { toggleConfirmAsync } from '../../prompts';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
 async function getBranchInfoAsync({
@@ -86,18 +88,18 @@ export default class BranchDelete extends EasCommand {
       description: 'Name of the branch to delete',
     },
   ];
+
   static override flags = {
-    json: Flags.boolean({
-      description: `return JSON with the edited branch's ID and name.`,
-      default: false,
-    }),
+    ...EasNonInteractiveAndJsonFlags,
   };
 
   async runAsync(): Promise<void> {
     let {
-      args: { name },
-      flags: { json: jsonFlag },
+      args: { name: branchName },
+      flags,
     } = await this.parse(BranchDelete);
+    const paginatedQueryOptions = getPaginatedQueryOptions(flags);
+    const { json: jsonFlag, 'non-interactive': nonInteractiveFlag } = flags;
     if (jsonFlag) {
       enableJsonOutput();
     }
@@ -107,35 +109,35 @@ export default class BranchDelete extends EasCommand {
     const fullName = await getProjectFullNameAsync(exp);
     const projectId = await getProjectIdAsync(exp);
 
-    if (!name) {
+    if (!branchName) {
       const validationMessage = 'branch name may not be empty.';
-      if (jsonFlag) {
+      if (nonInteractiveFlag) {
         throw new Error(validationMessage);
       }
-      ({ name } = await promptAsync({
-        type: 'text',
-        name: 'name',
-        message: 'Provide the name of the branch to delete:',
-        validate: value => (value ? true : validationMessage),
+      ({ name: branchName } = await selectBranchOnAppAsync({
+        projectId,
+        displayTextForListItem: updateBranch => updateBranch.name,
+        promptTitle: 'Which branch would you like to delete?',
+        paginatedQueryOptions,
       }));
     }
 
-    const data = await getBranchInfoAsync({ appId: projectId, name });
+    const data = await getBranchInfoAsync({ appId: projectId, name: branchName });
     const branchId = data.app?.byId.updateBranchByName?.id;
     if (!branchId) {
-      throw new Error(`Could not find branch ${name} on ${fullName}`);
+      throw new Error(`Could not find branch ${branchName} on ${fullName}`);
     }
 
     if (!jsonFlag) {
       Log.addNewLineIfNone();
       Log.warn(
-        `You are about to permanently delete branch: "${name}" and all of the updates published on it.` +
+        `You are about to permanently delete branch: "${branchName}" and all of the updates published on it.` +
           `\nThis action is irreversible.`
       );
       Log.newLine();
       const confirmed = await toggleConfirmAsync({ message: 'Are you sure you wish to proceed?' });
       if (!confirmed) {
-        Log.error(`Cancelled deletion of branch: "${name}".`);
+        Log.error(`Cancelled deletion of branch: "${branchName}".`);
         process.exit(1);
       }
     }
@@ -148,7 +150,7 @@ export default class BranchDelete extends EasCommand {
       printJsonOnlyOutput(deletionResult);
     } else {
       Log.withTick(
-        `️Deleted branch "${name}" and all of its updates on project ${chalk.bold(fullName)}.`
+        `️Deleted branch "${branchName}" and all of its updates on project ${chalk.bold(fullName)}.`
       );
     }
   }

@@ -10,6 +10,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - Add `-e` as a shortcut for `--profile` flag. ([#1342](https://github.com/expo/eas-cli/pull/1342) by [@szdziedzic](https://github.com/szdziedzic))
 - Support JSON5 in **eas.json**. ([#1350](https://github.com/expo/eas-cli/pull/1350) by [@dsokal](https://github.com/dsokal))
+- Add pagination and interactivity to update commands. ([#1323](https://github.com/expo/eas-cli/pull/1323) by [@kgc00](https://github.com/kgc00))
 
 ### 🐛 Bug fixes
 

@@ -12,7 +12,7 @@ import { promptAsync } from '../../prompts';
 import {
   FormatUpdateParameter,
   UPDATE_COLUMNS,
-  formatUpdate,
+  formatUpdateMessage,
   getPlatformsForGroup,
 } from '../../update/utils';
 import formatFields from '../../utils/formatFields';
@@ -125,7 +125,7 @@ export function logChannelDetails(channel: {
               : `${(1 - rolloutPercent!) * 100}%`,
           ]
         : []),
-      formatUpdate(update),
+      formatUpdateMessage(update),
       update?.runtimeVersion ?? 'N/A',
       update?.group ?? 'N/A',
       getPlatformsForGroup({

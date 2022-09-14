@@ -2,6 +2,7 @@ import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 import gql from 'graphql-tag';
 
+import { getDefaultBranchNameAsync } from '../../branch/utils';
 import EasCommand from '../../commandUtils/EasCommand';
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
 import {
@@ -18,7 +19,6 @@ import {
 } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
-import { getVcsClient } from '../../vcs';
 
 export async function createUpdateBranchOnAppAsync({
   appId,
@@ -72,9 +72,9 @@ export default class BranchCreate extends EasCommand {
   async runAsync(): Promise<void> {
     let {
       args: { name },
-      flags,
+      flags: { json: jsonFlag },
     } = await this.parse(BranchCreate);
-    if (flags.json) {
+    if (jsonFlag) {
       enableJsonOutput();
     }
 
@@ -85,23 +85,21 @@ export default class BranchCreate extends EasCommand {
 
     if (!name) {
       const validationMessage = 'Branch name may not be empty.';
-      if (flags.json) {
+      if (jsonFlag) {
         throw new Error(validationMessage);
       }
       ({ name } = await promptAsync({
         type: 'text',
         name: 'name',
         message: 'Provide a branch name:',
-        initial:
-          (await getVcsClient().getBranchNameAsync()) ||
-          `branch-${Math.random().toString(36).substr(2, 4)}`,
+        initial: await getDefaultBranchNameAsync(),
         validate: value => (value ? true : validationMessage),
       }));
     }
 
     const newBranch = await createUpdateBranchOnAppAsync({ appId: projectId, name });
 
-    if (flags.json) {
+    if (jsonFlag) {
       printJsonOnlyOutput(newBranch);
     } else {
       Log.withTick(
