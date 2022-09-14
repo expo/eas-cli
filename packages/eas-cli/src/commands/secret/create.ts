@@ -21,7 +21,7 @@ import {
   getProjectAccountNameAsync,
   getProjectIdAsync,
 } from '../../project/projectUtils';
-import { promptAsync } from '../../prompts';
+import { confirmAsync, promptAsync } from '../../prompts';
 import { findAccountByName } from '../../user/Account';
 import { getActorDisplayName } from '../../user/User';
 import { ensureLoggedInAsync } from '../../user/actions';
@@ -40,7 +40,7 @@ export default class EnvironmentSecretCreate extends EasCommand {
       description: 'Name of the secret',
     }),
     value: Flags.string({
-      description: 'Value of the secret / local path to the secret file',
+      description: 'Text value or path to a file to store in the secret',
     }),
     type: Flags.enum({
       description: 'Type of the secret (use to force the type)',
@@ -109,7 +109,7 @@ export default class EnvironmentSecretCreate extends EasCommand {
       ({ secretValue } = await promptAsync({
         type: 'text',
         name: 'secretValue',
-        message: 'Secret value (or local secret file path):',
+        message: 'Secret value (or local file path):',
         // eslint-disable-next-line async-protect/async-suffix
         validate: async secretValue => {
           if (!secretValue) {
@@ -136,8 +136,15 @@ export default class EnvironmentSecretCreate extends EasCommand {
         }
         type = SecretType.STRING;
       } else {
-        type = SecretType.FILE;
-        secretValue = await fs.readFile(secretFilePath, 'base64');
+        const confirmed = await confirmAsync({
+          message: `This will create a file secret with the current contents of ${secretValue}. Do you want to continue?`,
+        });
+        if (confirmed) {
+          type = SecretType.FILE;
+          secretValue = await fs.readFile(secretFilePath, 'base64');
+        } else {
+          type = SecretType.STRING;
+        }
       }
     }
 
