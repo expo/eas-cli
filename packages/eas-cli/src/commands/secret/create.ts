@@ -128,8 +128,9 @@ export default class EnvironmentSecretCreate extends EasCommand {
 
     assert(secretValue);
 
+    let secretFilePath: string | undefined;
     if (type !== SecretType.STRING) {
-      const secretFilePath = path.resolve(secretValue);
+      secretFilePath = path.resolve(secretValue);
       if (!(await fs.pathExists(secretFilePath))) {
         if (type === SecretType.FILE) {
           throw new Error(`File "${secretValue}" does not exist`);
@@ -173,11 +174,19 @@ export default class EnvironmentSecretCreate extends EasCommand {
         );
       }
 
-      Log.withTick(
-        `️Created a new secret ${chalk.bold(name)} on project ${chalk.bold(
-          `@${accountName}/${slug}`
-        )}.`
-      );
+      if (type === SecretType.STRING) {
+        Log.withTick(
+          `️Created a new secret ${chalk.bold(name)} with value ${chalk.bold(
+            secretValue
+          )} on project ${chalk.bold(`@${accountName}/${slug}`)}.`
+        );
+      } else {
+        Log.withTick(
+          `️Created a new secret ${chalk.bold(name)} from file ${chalk.bold(
+            secretFilePath
+          )} on project ${chalk.bold(`@${accountName}/${slug}`)}.`
+        );
+      }
     } else if (scope === EnvironmentSecretScope.ACCOUNT) {
       const ownerAccount = findAccountByName(actor.accounts, accountName);
 
@@ -216,9 +225,19 @@ export default class EnvironmentSecretCreate extends EasCommand {
         );
       }
 
-      Log.withTick(
-        `️Created a new secret ${chalk.bold(name)} on account ${chalk.bold(ownerAccount.name)}.`
-      );
+      if (type === SecretType.STRING) {
+        Log.withTick(
+          `️Created a new secret ${chalk.bold(name)} with value ${chalk.bold(
+            secretValue
+          )} on account ${chalk.bold(ownerAccount.name)}.`
+        );
+      } else {
+        Log.withTick(
+          `️Created a new secret ${chalk.bold(name)} from file ${chalk.bold(
+            secretFilePath
+          )} on account ${chalk.bold(ownerAccount.name)}.`
+        );
+      }
     }
   }
 }
