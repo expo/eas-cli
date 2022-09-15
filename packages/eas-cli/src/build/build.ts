@@ -18,7 +18,7 @@ import {
 } from '../graphql/generated';
 import { BuildResult } from '../graphql/mutations/BuildMutation';
 import { BuildQuery } from '../graphql/queries/BuildQuery';
-import Log, { learnMore, link } from '../log';
+import Log, { learnMore } from '../log';
 import { Ora, ora } from '../ora';
 import {
   appPlatformDisplayNames,
@@ -180,9 +180,10 @@ async function uploadProjectAsync<TPlatform extends Platform>(
 
         if (projectTarball.size > 1024 * 1024 * 500) {
           Log.warn(
-            'Your archive size is over 500 MB. You can reduce its size by excluding files unnecessary for the build using .easignore file.'
+            `Your archive size is over 500 MB. You can reduce its size by excluding files unnecessary for the build using .easignore file. ${learnMore(
+              'https://expo.fyi/eas-build-archive'
+            )}`
           );
-          Log.warn(`Learn more: ${link('https://expo.fyi/eas-build-archive')}`);
         }
 
         projectTarballPath = projectTarball.path;
