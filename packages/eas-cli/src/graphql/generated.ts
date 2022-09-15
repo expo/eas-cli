@@ -930,6 +930,7 @@ export type App = Project & {
   /** Environment secrets for an app */
   environmentSecrets: Array<EnvironmentSecret>;
   fullName: Scalars['String'];
+  githubRepository?: Maybe<GitHubRepository>;
   /** githubUrl field from most recent classic update manifest */
   githubUrl?: Maybe<Scalars['String']>;
   /** Info about the icon specified in the most recent classic update manifest */
@@ -1724,6 +1725,7 @@ export type Billing = {
   /** History of invoices */
   charges?: Maybe<Array<Maybe<Charge>>>;
   id: Scalars['ID'];
+  /** @deprecated No longer used */
   payment?: Maybe<PaymentDetails>;
   subscription?: Maybe<SubscriptionDetails>;
 };
@@ -2224,6 +2226,12 @@ export type CreateGitHubAppInstallationInput = {
   installationIdentifier: Scalars['Int'];
 };
 
+export type CreateGitHubRepositoryInput = {
+  appId: Scalars['ID'];
+  githubAppInstallationId: Scalars['ID'];
+  githubRepositoryIdentifier: Scalars['Int'];
+};
+
 export type CreateIosSubmissionInput = {
   appId: Scalars['ID'];
   archiveUrl?: InputMaybe<Scalars['String']>;
@@ -2535,6 +2543,44 @@ export type GitHubAppQuery = {
   __typename?: 'GitHubAppQuery';
   appIdentifier: Scalars['String'];
   clientIdentifier: Scalars['String'];
+};
+
+export type GitHubRepository = {
+  __typename?: 'GitHubRepository';
+  app: App;
+  githubAppInstallation: GitHubAppInstallation;
+  githubRepositoryIdentifier: Scalars['Int'];
+  id: Scalars['ID'];
+  metadata?: Maybe<GitHubRepositoryMetadata>;
+};
+
+export type GitHubRepositoryMetadata = {
+  __typename?: 'GitHubRepositoryMetadata';
+  githubRepoDescription?: Maybe<Scalars['String']>;
+  githubRepoName: Scalars['String'];
+  githubRepoOwnerName: Scalars['String'];
+  githubRepoUrl: Scalars['String'];
+  lastPushed: Scalars['DateTime'];
+  lastUpdated: Scalars['DateTime'];
+  private: Scalars['Boolean'];
+};
+
+export type GitHubRepositoryMutation = {
+  __typename?: 'GitHubRepositoryMutation';
+  /** Create a GitHub repository for an App */
+  createGitHubRepository: GitHubRepository;
+  /** Delete a GitHub repository by ID */
+  deleteGitHubRepository: GitHubRepository;
+};
+
+
+export type GitHubRepositoryMutationCreateGitHubRepositoryArgs = {
+  githubRepositoryData: CreateGitHubRepositoryInput;
+};
+
+
+export type GitHubRepositoryMutationDeleteGitHubRepositoryArgs = {
+  githubRepositoryId: Scalars['ID'];
 };
 
 export type GitHubRepositoryOwner = {
@@ -3299,6 +3345,8 @@ export type RootMutation = {
   environmentSecret: EnvironmentSecretMutation;
   /** Mutations for GitHub App installations */
   githubAppInstallation: GitHubAppInstallationMutation;
+  /** Mutations for GitHub repositories */
+  githubRepository: GitHubRepositoryMutation;
   /** Mutations that modify a Google Service Account Key */
   googleServiceAccountKey: GoogleServiceAccountKeyMutation;
   /** Mutations that modify the build credentials for an iOS app */
