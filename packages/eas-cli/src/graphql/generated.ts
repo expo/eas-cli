@@ -2468,10 +2468,36 @@ export type GetSignedAssetUploadSpecificationsResult = {
 
 export type GitHubAppInstallation = {
   __typename?: 'GitHubAppInstallation';
+  accessibleRepositories: Array<GitHubAppInstallationAccessibleRepository>;
   account: Account;
   actor?: Maybe<Actor>;
   id: Scalars['ID'];
   installationIdentifier: Scalars['Int'];
+  metadata: GitHubAppInstallationMetadata;
+};
+
+
+export type GitHubAppInstallationAccessibleRepositoriesArgs = {
+  page?: InputMaybe<Scalars['Int']>;
+  perPage?: InputMaybe<Scalars['Int']>;
+};
+
+export type GitHubAppInstallationAccessibleRepository = {
+  __typename?: 'GitHubAppInstallationAccessibleRepository';
+  defaultBranch: Scalars['String'];
+  description?: Maybe<Scalars['String']>;
+  id: Scalars['Int'];
+  name: Scalars['String'];
+  owner: GitHubRepositoryOwner;
+  private: Scalars['Boolean'];
+  url: Scalars['String'];
+};
+
+export type GitHubAppInstallationMetadata = {
+  __typename?: 'GitHubAppInstallationMetadata';
+  githubAccountAvatarUrl?: Maybe<Scalars['String']>;
+  githubAccountName?: Maybe<Scalars['String']>;
+  installationStatus: GitHubAppInstallationStatus;
 };
 
 export type GitHubAppInstallationMutation = {
@@ -2492,10 +2518,24 @@ export type GitHubAppInstallationMutationDeleteGitHubAppInstallationArgs = {
   githubAppInstallationId: Scalars['ID'];
 };
 
+export enum GitHubAppInstallationStatus {
+  Active = 'ACTIVE',
+  NotInstalled = 'NOT_INSTALLED',
+  Suspended = 'SUSPENDED'
+}
+
 export type GitHubAppQuery = {
   __typename?: 'GitHubAppQuery';
   appIdentifier: Scalars['String'];
   clientIdentifier: Scalars['String'];
+};
+
+export type GitHubRepositoryOwner = {
+  __typename?: 'GitHubRepositoryOwner';
+  avatarUrl: Scalars['String'];
+  id: Scalars['Int'];
+  login: Scalars['String'];
+  url: Scalars['String'];
 };
 
 export type GoogleServiceAccountKey = {
@@ -4376,7 +4416,7 @@ export type GetAllChannelsForAppQueryVariables = Exact<{
 }>;
 
 
-export type GetAllChannelsForAppQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, updateChannels: Array<{ __typename?: 'UpdateChannel', id: string, name: string, branchMapping: string, updateBranches: Array<{ __typename?: 'UpdateBranch', id: string, name: string, updates: Array<{ __typename?: 'Update', id: string, group: string, message?: string | null, runtimeVersion: string, createdAt: any, platform: string, actor?: { __typename?: 'Robot', firstName?: string | null, id: string } | { __typename?: 'User', username: string, id: string } | null }> }> }> } } };
+export type GetAllChannelsForAppQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, updateChannels: Array<{ __typename?: 'UpdateChannel', id: string, name: string, branchMapping: string, updateBranches: Array<{ __typename?: 'UpdateBranch', id: string, name: string, updates: Array<{ __typename?: 'Update', id: string, group: string, message?: string | null, createdAt: any, runtimeVersion: string, platform: string, manifestFragment: string, actor?: { __typename: 'Robot', firstName?: string | null, id: string } | { __typename: 'User', username: string, id: string } | null, branch: { __typename?: 'UpdateBranch', id: string, name: string } }> }> }> } } };
 
 export type AppInfoQueryVariables = Exact<{
   appId: Scalars['String'];
@@ -4926,7 +4966,7 @@ export type BranchesByAppQueryVariables = Exact<{
 }>;
 
 
-export type BranchesByAppQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, updateBranches: Array<{ __typename?: 'UpdateBranch', id: string, name: string, updates: Array<{ __typename?: 'Update', id: string, createdAt: any, message?: string | null, runtimeVersion: string, group: string, platform: string, actor?: { __typename: 'Robot', firstName?: string | null, id: string } | { __typename: 'User', username: string, id: string } | null }> }> } } };
+export type BranchesByAppQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, updateBranches: Array<{ __typename?: 'UpdateBranch', id: string, name: string, updates: Array<{ __typename?: 'Update', id: string, group: string, message?: string | null, createdAt: any, runtimeVersion: string, platform: string, manifestFragment: string, actor?: { __typename: 'Robot', firstName?: string | null, id: string } | { __typename: 'User', username: string, id: string } | null, branch: { __typename?: 'UpdateBranch', id: string, name: string } }> }> } } };
 
 export type BuildsByIdQueryVariables = Exact<{
   buildId: Scalars['ID'];
@@ -4958,7 +4998,7 @@ export type GetChannelByNameForAppQueryVariables = Exact<{
 }>;
 
 
-export type GetChannelByNameForAppQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, updateChannelByName?: { __typename?: 'UpdateChannel', id: string, name: string, createdAt: any, branchMapping: string, updateBranches: Array<{ __typename?: 'UpdateBranch', id: string, name: string, updates: Array<{ __typename?: 'Update', id: string, group: string, message?: string | null, runtimeVersion: string, createdAt: any, platform: string, actor?: { __typename?: 'Robot', firstName?: string | null, id: string } | { __typename?: 'User', username: string, id: string } | null }> }> } | null } } };
+export type GetChannelByNameForAppQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, updateChannelByName?: { __typename?: 'UpdateChannel', id: string, name: string, createdAt: any, branchMapping: string, updateBranches: Array<{ __typename?: 'UpdateBranch', id: string, name: string, updates: Array<{ __typename?: 'Update', id: string, group: string, message?: string | null, createdAt: any, runtimeVersion: string, platform: string, manifestFragment: string, actor?: { __typename: 'Robot', firstName?: string | null, id: string } | { __typename: 'User', username: string, id: string } | null, branch: { __typename?: 'UpdateBranch', id: string, name: string } }> }> } | null } } };
 
 export type EnvironmentSecretsByAccountNameQueryVariables = Exact<{
   accountName: Scalars['String'];
@@ -5018,7 +5058,7 @@ export type ViewUpdatesByGroupQueryVariables = Exact<{
 }>;
 
 
-export type ViewUpdatesByGroupQuery = { __typename?: 'RootQuery', updatesByGroup: Array<{ __typename?: 'Update', id: string, group: string, runtimeVersion: string, platform: string, message?: string | null, createdAt: any, manifestFragment: string, actor?: { __typename: 'Robot', firstName?: string | null, id: string } | { __typename: 'User', username: string, id: string } | null, branch: { __typename?: 'UpdateBranch', id: string, name: string } }> };
+export type ViewUpdatesByGroupQuery = { __typename?: 'RootQuery', updatesByGroup: Array<{ __typename?: 'Update', id: string, group: string, message?: string | null, createdAt: any, runtimeVersion: string, platform: string, manifestFragment: string, actor?: { __typename: 'Robot', firstName?: string | null, id: string } | { __typename: 'User', username: string, id: string } | null, branch: { __typename?: 'UpdateBranch', id: string, name: string } }> };
 
 export type ViewUpdateGroupsOnBranchQueryVariables = Exact<{
   appId: Scalars['String'];
@@ -5073,7 +5113,9 @@ export type StatuspageServiceFragment = { __typename?: 'StatuspageService', id: 
 
 export type SubmissionFragment = { __typename?: 'Submission', id: string, status: SubmissionStatus, platform: AppPlatform, logsUrl?: string | null, app: { __typename?: 'App', id: string, name: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } }, androidConfig?: { __typename?: 'AndroidSubmissionConfig', applicationIdentifier?: string | null, track: SubmissionAndroidTrack, releaseStatus?: SubmissionAndroidReleaseStatus | null } | null, iosConfig?: { __typename?: 'IosSubmissionConfig', ascAppIdentifier: string, appleIdUsername?: string | null } | null, error?: { __typename?: 'SubmissionError', errorCode?: string | null, message?: string | null } | null };
 
-export type UpdateBranchFragment = { __typename?: 'UpdateBranch', id: string, name: string, updates: Array<{ __typename?: 'Update', id: string, createdAt: any, message?: string | null, runtimeVersion: string, group: string, platform: string, actor?: { __typename: 'Robot', firstName?: string | null, id: string } | { __typename: 'User', username: string, id: string } | null }> };
+export type UpdateFragment = { __typename?: 'Update', id: string, group: string, message?: string | null, createdAt: any, runtimeVersion: string, platform: string, manifestFragment: string, actor?: { __typename: 'Robot', firstName?: string | null, id: string } | { __typename: 'User', username: string, id: string } | null, branch: { __typename?: 'UpdateBranch', id: string, name: string } };
+
+export type UpdateBranchFragment = { __typename?: 'UpdateBranch', id: string, name: string, updates: Array<{ __typename?: 'Update', id: string, group: string, message?: string | null, createdAt: any, runtimeVersion: string, platform: string, manifestFragment: string, actor?: { __typename: 'Robot', firstName?: string | null, id: string } | { __typename: 'User', username: string, id: string } | null, branch: { __typename?: 'UpdateBranch', id: string, name: string } }> };
 
 export type WebhookFragment = { __typename?: 'Webhook', id: string, event: WebhookType, url: string, createdAt: any, updatedAt: any };
 
