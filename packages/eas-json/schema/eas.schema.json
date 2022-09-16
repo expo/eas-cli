@@ -313,7 +313,6 @@
               ],
               "markdownEnumDescriptions": [
                 "- Expo SDK `>=45` - `macos-monterey-12.3-xcode-13.3`\n- Expo SDK `<45` - `macos-big-sur-11.4-xcode-13.0`",
-                "`macos-monterey-12.6-xcode-14.0`",
                 "`macos-monterey-12.4-xcode-13.4`",
                 "`macos-monterey-12.3-xcode-13.3`"
               ]
