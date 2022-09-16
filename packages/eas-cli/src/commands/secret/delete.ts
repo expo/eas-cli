@@ -10,11 +10,7 @@ import {
 } from '../../graphql/queries/EnvironmentSecretsQuery';
 import Log from '../../log';
 import { getExpoConfig } from '../../project/expoConfig';
-import {
-  findProjectRootAsync,
-  getProjectAccountNameAsync,
-  getProjectIdAsync,
-} from '../../project/projectUtils';
+import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUtils';
 import { promptAsync, toggleConfirmAsync } from '../../prompts';
 
 export default class EnvironmentSecretDelete extends EasCommand {
@@ -36,7 +32,6 @@ export default class EnvironmentSecretDelete extends EasCommand {
     const projectDir = await findProjectRootAsync();
     const exp = getExpoConfig(projectDir);
     const projectId = await getProjectIdAsync(exp, { nonInteractive });
-    const projectAccountName = await getProjectAccountNameAsync(exp, { nonInteractive });
 
     if (!id) {
       const validationMessage = 'You must select which secret to delete.';
@@ -44,8 +39,7 @@ export default class EnvironmentSecretDelete extends EasCommand {
         throw new Error(validationMessage);
       }
 
-      const secrets = await EnvironmentSecretsQuery.allAsync(projectAccountName, projectId);
-
+      const secrets = await EnvironmentSecretsQuery.allAsync(projectId);
       ({ secret } = await promptAsync({
         type: 'autocomplete',
         name: 'secret',

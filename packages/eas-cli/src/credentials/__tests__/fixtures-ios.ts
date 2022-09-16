@@ -55,6 +55,10 @@ export const testAppFragment: AppFragment = {
   id: 'test-app-id',
   fullName: '@testuser/testapp',
   slug: 'testapp',
+  ownerAccount: {
+    id: 'test-account-id',
+    name: 'testuser',
+  },
 };
 
 export const testAscApiKeyFragment: AppStoreConnectApiKeyFragment = {
