@@ -43,7 +43,7 @@ export default class EnvironmentSecretCreate extends EasCommand {
       description: 'Text value or path to a file to store in the secret',
     }),
     type: Flags.enum({
-      description: 'Type of the secret (use to force the type)',
+      description: 'The type of secret (string is the default type)',
       options: [SecretType.STRING, SecretType.FILE],
     }),
     force: Flags.boolean({
