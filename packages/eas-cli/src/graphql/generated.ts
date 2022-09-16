@@ -930,6 +930,7 @@ export type App = Project & {
   /** Environment secrets for an app */
   environmentSecrets: Array<EnvironmentSecret>;
   fullName: Scalars['String'];
+  githubRepository?: Maybe<GitHubRepository>;
   /** githubUrl field from most recent classic update manifest */
   githubUrl?: Maybe<Scalars['String']>;
   /** Info about the icon specified in the most recent classic update manifest */
@@ -1724,6 +1725,7 @@ export type Billing = {
   /** History of invoices */
   charges?: Maybe<Array<Maybe<Charge>>>;
   id: Scalars['ID'];
+  /** @deprecated No longer used */
   payment?: Maybe<PaymentDetails>;
   subscription?: Maybe<SubscriptionDetails>;
 };
@@ -2215,12 +2217,19 @@ export type CreateBuildResult = {
 
 export type CreateEnvironmentSecretInput = {
   name: Scalars['String'];
+  type?: InputMaybe<EnvironmentSecretType>;
   value: Scalars['String'];
 };
 
 export type CreateGitHubAppInstallationInput = {
   accountId: Scalars['ID'];
   installationIdentifier: Scalars['Int'];
+};
+
+export type CreateGitHubRepositoryInput = {
+  appId: Scalars['ID'];
+  githubAppInstallationId: Scalars['ID'];
+  githubRepositoryIdentifier: Scalars['Int'];
 };
 
 export type CreateIosSubmissionInput = {
@@ -2385,6 +2394,7 @@ export type EnvironmentSecret = {
   createdAt: Scalars['DateTime'];
   id: Scalars['ID'];
   name: Scalars['String'];
+  type: EnvironmentSecretType;
   updatedAt: Scalars['DateTime'];
 };
 
@@ -2414,6 +2424,11 @@ export type EnvironmentSecretMutationCreateEnvironmentSecretForAppArgs = {
 export type EnvironmentSecretMutationDeleteEnvironmentSecretArgs = {
   id: Scalars['String'];
 };
+
+export enum EnvironmentSecretType {
+  FileBase64 = 'FILE_BASE64',
+  String = 'STRING'
+}
 
 export type ExperimentationQuery = {
   __typename?: 'ExperimentationQuery';
@@ -2528,6 +2543,44 @@ export type GitHubAppQuery = {
   __typename?: 'GitHubAppQuery';
   appIdentifier: Scalars['String'];
   clientIdentifier: Scalars['String'];
+};
+
+export type GitHubRepository = {
+  __typename?: 'GitHubRepository';
+  app: App;
+  githubAppInstallation: GitHubAppInstallation;
+  githubRepositoryIdentifier: Scalars['Int'];
+  id: Scalars['ID'];
+  metadata?: Maybe<GitHubRepositoryMetadata>;
+};
+
+export type GitHubRepositoryMetadata = {
+  __typename?: 'GitHubRepositoryMetadata';
+  githubRepoDescription?: Maybe<Scalars['String']>;
+  githubRepoName: Scalars['String'];
+  githubRepoOwnerName: Scalars['String'];
+  githubRepoUrl: Scalars['String'];
+  lastPushed: Scalars['DateTime'];
+  lastUpdated: Scalars['DateTime'];
+  private: Scalars['Boolean'];
+};
+
+export type GitHubRepositoryMutation = {
+  __typename?: 'GitHubRepositoryMutation';
+  /** Create a GitHub repository for an App */
+  createGitHubRepository: GitHubRepository;
+  /** Delete a GitHub repository by ID */
+  deleteGitHubRepository: GitHubRepository;
+};
+
+
+export type GitHubRepositoryMutationCreateGitHubRepositoryArgs = {
+  githubRepositoryData: CreateGitHubRepositoryInput;
+};
+
+
+export type GitHubRepositoryMutationDeleteGitHubRepositoryArgs = {
+  githubRepositoryId: Scalars['ID'];
 };
 
 export type GitHubRepositoryOwner = {
@@ -3292,6 +3345,8 @@ export type RootMutation = {
   environmentSecret: EnvironmentSecretMutation;
   /** Mutations for GitHub App installations */
   githubAppInstallation: GitHubAppInstallationMutation;
+  /** Mutations for GitHub repositories */
+  githubRepository: GitHubRepositoryMutation;
   /** Mutations that modify a Google Service Account Key */
   googleServiceAccountKey: GoogleServiceAccountKeyMutation;
   /** Mutations that modify the build credentials for an iOS app */
@@ -4843,7 +4898,7 @@ export type CreateEnvironmentSecretForAccountMutationVariables = Exact<{
 }>;
 
 
-export type CreateEnvironmentSecretForAccountMutation = { __typename?: 'RootMutation', environmentSecret: { __typename?: 'EnvironmentSecretMutation', createEnvironmentSecretForAccount: { __typename?: 'EnvironmentSecret', id: string, name: string, createdAt: any } } };
+export type CreateEnvironmentSecretForAccountMutation = { __typename?: 'RootMutation', environmentSecret: { __typename?: 'EnvironmentSecretMutation', createEnvironmentSecretForAccount: { __typename?: 'EnvironmentSecret', id: string, name: string, type: EnvironmentSecretType, createdAt: any } } };
 
 export type CreateEnvironmentSecretForAppMutationVariables = Exact<{
   input: CreateEnvironmentSecretInput;
@@ -4851,7 +4906,7 @@ export type CreateEnvironmentSecretForAppMutationVariables = Exact<{
 }>;
 
 
-export type CreateEnvironmentSecretForAppMutation = { __typename?: 'RootMutation', environmentSecret: { __typename?: 'EnvironmentSecretMutation', createEnvironmentSecretForApp: { __typename?: 'EnvironmentSecret', id: string, name: string, createdAt: any } } };
+export type CreateEnvironmentSecretForAppMutation = { __typename?: 'RootMutation', environmentSecret: { __typename?: 'EnvironmentSecretMutation', createEnvironmentSecretForApp: { __typename?: 'EnvironmentSecret', id: string, name: string, type: EnvironmentSecretType, createdAt: any } } };
 
 export type DeleteEnvironmentSecretMutationVariables = Exact<{
   id: Scalars['String'];
@@ -5005,14 +5060,14 @@ export type EnvironmentSecretsByAccountNameQueryVariables = Exact<{
 }>;
 
 
-export type EnvironmentSecretsByAccountNameQuery = { __typename?: 'RootQuery', account: { __typename?: 'AccountQuery', byName: { __typename?: 'Account', id: string, environmentSecrets: Array<{ __typename?: 'EnvironmentSecret', id: string, name: string, createdAt: any }> } } };
+export type EnvironmentSecretsByAccountNameQuery = { __typename?: 'RootQuery', account: { __typename?: 'AccountQuery', byName: { __typename?: 'Account', id: string, environmentSecrets: Array<{ __typename?: 'EnvironmentSecret', id: string, name: string, type: EnvironmentSecretType, createdAt: any }> } } };
 
 export type EnvironmentSecretsByAppIdQueryVariables = Exact<{
   appId: Scalars['String'];
 }>;
 
 
-export type EnvironmentSecretsByAppIdQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, environmentSecrets: Array<{ __typename?: 'EnvironmentSecret', id: string, name: string, createdAt: any }> } } };
+export type EnvironmentSecretsByAppIdQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, environmentSecrets: Array<{ __typename?: 'EnvironmentSecret', id: string, name: string, type: EnvironmentSecretType, createdAt: any }> } } };
 
 export type GetAssetMetadataQueryVariables = Exact<{
   storageKeys: Array<Scalars['String']> | Scalars['String'];
@@ -5107,7 +5162,7 @@ export type BuildFragment = { __typename?: 'Build', id: string, status: BuildSta
 
 export type BuildWithSubmissionsFragment = { __typename?: 'Build', id: string, status: BuildStatus, platform: AppPlatform, channel?: string | null, releaseChannel?: string | null, distribution?: DistributionType | null, iosEnterpriseProvisioning?: BuildIosEnterpriseProvisioning | null, buildProfile?: string | null, sdkVersion?: string | null, appVersion?: string | null, appBuildVersion?: string | null, runtimeVersion?: string | null, gitCommitHash?: string | null, initialQueuePosition?: number | null, queuePosition?: number | null, estimatedWaitTimeLeftSeconds?: number | null, priority: BuildPriority, createdAt: any, updatedAt: any, submissions: Array<{ __typename?: 'Submission', id: string, status: SubmissionStatus, platform: AppPlatform, logsUrl?: string | null, app: { __typename?: 'App', id: string, name: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } }, androidConfig?: { __typename?: 'AndroidSubmissionConfig', applicationIdentifier?: string | null, track: SubmissionAndroidTrack, releaseStatus?: SubmissionAndroidReleaseStatus | null } | null, iosConfig?: { __typename?: 'IosSubmissionConfig', ascAppIdentifier: string, appleIdUsername?: string | null } | null, error?: { __typename?: 'SubmissionError', errorCode?: string | null, message?: string | null } | null }>, error?: { __typename?: 'BuildError', errorCode: string, message: string, docsUrl?: string | null } | null, artifacts?: { __typename?: 'BuildArtifacts', buildUrl?: string | null, xcodeBuildLogsUrl?: string | null } | null, initiatingActor?: { __typename: 'Robot', id: string, displayName: string } | { __typename: 'User', id: string, displayName: string } | null, project: { __typename: 'App', id: string, name: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } } | { __typename: 'Snack', id: string, name: string, slug: string } };
 
-export type EnvironmentSecretFragment = { __typename?: 'EnvironmentSecret', id: string, name: string, createdAt: any };
+export type EnvironmentSecretFragment = { __typename?: 'EnvironmentSecret', id: string, name: string, type: EnvironmentSecretType, createdAt: any };
 
 export type StatuspageServiceFragment = { __typename?: 'StatuspageService', id: string, name: StatuspageServiceName, status: StatuspageServiceStatus, incidents: Array<{ __typename?: 'StatuspageIncident', id: string, status: StatuspageIncidentStatus, name: string, impact: StatuspageIncidentImpact, shortlink: string }> };
 
