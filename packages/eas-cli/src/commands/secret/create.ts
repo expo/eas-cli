@@ -5,6 +5,7 @@ import fs from 'fs-extra';
 import path from 'path';
 
 import EasCommand from '../../commandUtils/EasCommand';
+import { EASNonInteractiveFlag } from '../../commandUtils/flags';
 import { EnvironmentSecretMutation } from '../../graphql/mutations/EnvironmentSecretMutation';
 import {
   EnvironmentSecretScope,
@@ -50,23 +51,34 @@ export default class EnvironmentSecretCreate extends EasCommand {
       description: 'Delete and recreate existing secrets',
       default: false,
     }),
+    ...EASNonInteractiveFlag,
   };
 
   async runAsync(): Promise<void> {
-    const actor = await ensureLoggedInAsync();
     let {
-      flags: { name, value: secretValue, scope, force, type: secretType },
+      flags: {
+        name,
+        value: secretValue,
+        scope,
+        force,
+        type: secretType,
+        'non-interactive': nonInteractive,
+      },
     } = await this.parse(EnvironmentSecretCreate);
 
+    const actor = await ensureLoggedInAsync({ nonInteractive });
     const projectDir = await findProjectRootAsync();
     const exp = getExpoConfig(projectDir);
-    const accountName = await getProjectAccountNameAsync(exp);
+    const accountName = await getProjectAccountNameAsync(exp, { nonInteractive });
 
     const { slug } = exp;
-    const projectId = await getProjectIdAsync(exp);
+    const projectId = await getProjectIdAsync(exp, { nonInteractive });
 
     if (!scope) {
       const validationMessage = 'Secret scope may not be empty.';
+      if (nonInteractive) {
+        throw new Error(validationMessage);
+      }
 
       ({ scope } = await promptAsync({
         type: 'select',
@@ -81,13 +93,18 @@ export default class EnvironmentSecretCreate extends EasCommand {
     }
 
     if (!name) {
+      const validationMessage = 'Secret name may not be empty.';
+      if (nonInteractive) {
+        throw new Error(validationMessage);
+      }
+
       ({ name } = await promptAsync({
         type: 'text',
         name: 'name',
         message: `Secret name:`,
         validate: value => {
           if (!value) {
-            return 'Secret name may not be empty.';
+            return validationMessage;
           }
 
           // this validation regex here is just to shorten the feedback loop
@@ -101,11 +118,15 @@ export default class EnvironmentSecretCreate extends EasCommand {
       }));
 
       if (!name) {
-        throw new Error('Secret name may not be empty.');
+        throw new Error(validationMessage);
       }
     }
 
     if (!secretType) {
+      if (nonInteractive) {
+        throw new Error('Secret type may not be empty in non-interactive mode');
+      }
+
       secretType = await selectAsync('Select secret type', [
         {
           title: 'string',
@@ -119,6 +140,11 @@ export default class EnvironmentSecretCreate extends EasCommand {
     }
 
     if (!secretValue) {
+      const validationMessage = 'Secret value may not be empty.';
+      if (nonInteractive) {
+        throw new Error(validationMessage);
+      }
+
       ({ secretValue } = await promptAsync({
         type: 'text',
         name: 'secretValue',

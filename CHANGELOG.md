@@ -6,6 +6,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🛠 Breaking changes
 
+- Prompt before configuring EAS project. ([#1356](https://github.com/expo/eas-cli/pull/1356) by [@wschurman](https://github.com/wschurman))
+
 ### 🎉 New features
 
 - Add `-e` as a shortcut for `--profile` flag. ([#1342](https://github.com/expo/eas-cli/pull/1342) by [@szdziedzic](https://github.com/szdziedzic))

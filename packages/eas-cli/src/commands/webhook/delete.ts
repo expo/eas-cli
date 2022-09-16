@@ -3,6 +3,7 @@ import chalk from 'chalk';
 import nullthrows from 'nullthrows';
 
 import EasCommand from '../../commandUtils/EasCommand';
+import { EASNonInteractiveFlag } from '../../commandUtils/flags';
 import { WebhookFragment } from '../../graphql/generated';
 import { WebhookMutation } from '../../graphql/mutations/WebhookMutation';
 import { WebhookQuery } from '../../graphql/queries/WebhookQuery';
@@ -24,14 +25,19 @@ export default class WebhookDelete extends EasCommand {
     },
   ];
 
+  static override flags = {
+    ...EASNonInteractiveFlag,
+  };
+
   async runAsync(): Promise<void> {
     let {
       args: { ID: webhookId },
+      flags: { 'non-interactive': nonInteractive },
     } = await this.parse(WebhookDelete);
 
     const projectDir = await findProjectRootAsync();
     const exp = getExpoConfig(projectDir);
-    const projectId = await getProjectIdAsync(exp);
+    const projectId = await getProjectIdAsync(exp, { nonInteractive });
 
     let webhook: WebhookFragment | undefined =
       webhookId && (await WebhookQuery.byIdAsync(webhookId));
@@ -40,6 +46,11 @@ export default class WebhookDelete extends EasCommand {
       if (webhooks.length === 0) {
         process.exit(1);
       }
+
+      if (nonInteractive) {
+        throw new Error('Must supply ID argument in non-interactive mode');
+      }
+
       ({ webhook } = await promptAsync({
         type: 'autocomplete',
         name: 'webhook',
@@ -57,15 +68,17 @@ export default class WebhookDelete extends EasCommand {
     Log.addNewLineIfNone();
     Log.log(formatWebhook(webhook));
     Log.newLine();
-    Log.warn(`You are about to permanently delete this webhook.\nThis action is irreversible.`);
-    Log.newLine();
-    const confirmed = await toggleConfirmAsync({
-      message: 'Are you sure you wish to proceed?',
-    });
 
-    if (!confirmed) {
-      Log.error(`Canceled deletion of the webhook`);
-      process.exit(1);
+    if (!nonInteractive) {
+      Log.warn(`You are about to permanently delete this webhook.\nThis action is irreversible.`);
+      Log.newLine();
+      const confirmed = await toggleConfirmAsync({
+        message: 'Are you sure you wish to proceed?',
+      });
+      if (!confirmed) {
+        Log.error(`Canceled deletion of the webhook`);
+        process.exit(1);
+      }
     }
 
     const spinner = ora('Deleting the webhook').start();

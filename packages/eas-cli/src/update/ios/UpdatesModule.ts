@@ -10,10 +10,11 @@ import { ensureValidVersions } from '../utils';
 
 export async function syncUpdatesConfigurationAsync(
   projectDir: string,
-  exp: ExpoConfig
+  exp: ExpoConfig,
+  { nonInteractive }: { nonInteractive: boolean }
 ): Promise<void> {
   ensureValidVersions(exp, RequestedPlatform.Ios);
-  const accountName = getProjectAccountName(exp, await ensureLoggedInAsync());
+  const accountName = getProjectAccountName(exp, await ensureLoggedInAsync({ nonInteractive }));
   const expoPlist = await readExpoPlistAsync(projectDir);
   const updatedExpoPlist = IOSConfig.Updates.setUpdatesConfig(
     projectDir,

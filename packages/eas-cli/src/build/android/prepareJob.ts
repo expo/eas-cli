@@ -24,7 +24,10 @@ export async function prepareJobAsync(
   ctx: BuildContext<Platform.ANDROID>,
   jobData: JobData
 ): Promise<Job> {
-  const username = getUsername(ctx.exp, await ensureLoggedInAsync());
+  const username = getUsername(
+    ctx.exp,
+    await ensureLoggedInAsync({ nonInteractive: ctx.nonInteractive })
+  );
   const buildProfile: BuildProfile<Platform.ANDROID> = ctx.buildProfile;
   const projectRootDirectory =
     slash(path.relative(await getVcsClient().getRootPathAsync(), ctx.projectDir)) || '.';

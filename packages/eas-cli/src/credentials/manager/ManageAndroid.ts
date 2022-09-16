@@ -57,7 +57,8 @@ export class ManageAndroid {
       : null;
     const ctx = new CredentialsContext({
       projectDir: process.cwd(),
-      user: await ensureLoggedInAsync(),
+      // this command is interactive by design
+      user: await ensureLoggedInAsync({ nonInteractive: false }),
       env: buildProfile?.env,
     });
     const accountName = ctx.hasProjectContext
@@ -149,7 +150,7 @@ export class ManageAndroid {
     assert(ctx.hasProjectContext, 'createProjectContextAsync: must have project context.');
 
     // ensure the project exists on the EAS server
-    await getProjectIdAsync(ctx.exp);
+    await getProjectIdAsync(ctx.exp, { nonInteractive: ctx.nonInteractive });
 
     return await resolveGradleBuildContextAsync(ctx.projectDir, buildProfile);
   }

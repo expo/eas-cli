@@ -172,7 +172,8 @@ async function getSuggestedBundleIdentifierAsync(exp: ExpoConfig): Promise<strin
   if (maybeAndroidPackage && isBundleIdentifierValid(maybeAndroidPackage)) {
     return maybeAndroidPackage;
   } else {
-    const username = getUsername(exp, await ensureLoggedInAsync());
+    // the only callsite is heavily interactive
+    const username = getUsername(exp, await ensureLoggedInAsync({ nonInteractive: false }));
     // It's common to use dashes in your node project name, strip them from the suggested package name.
     const possibleId = `com.${username}.${exp.slug}`.split('-').join('');
     if (isBundleIdentifierValid(possibleId)) {

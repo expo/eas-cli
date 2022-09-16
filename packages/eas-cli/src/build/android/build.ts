@@ -92,6 +92,7 @@ export async function prepareAndroidBuildAsync(
           ctx.easJsonCliConfig?.appVersionSource === AppVersionSource.REMOTE
             ? false
             : ctx.buildProfile.autoIncrement,
+        nonInteractive: ctx.nonInteractive,
       });
     },
     prepareJobAsync: async (

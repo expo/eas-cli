@@ -2,6 +2,7 @@ import chalk from 'chalk';
 import gql from 'graphql-tag';
 
 import EasCommand from '../../commandUtils/EasCommand';
+import { EASNonInteractiveFlag } from '../../commandUtils/flags';
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
 import {
   Build,
@@ -129,21 +130,36 @@ export default class BuildCancel extends EasCommand {
 
   static override args = [{ name: 'BUILD_ID' }];
 
+  static override flags = {
+    ...EASNonInteractiveFlag,
+  };
+
   async runAsync(): Promise<void> {
-    const { BUILD_ID: buildIdFromArg } = (await this.parse(BuildCancel)).args;
+    const {
+      args: { BUILD_ID: buildIdFromArg },
+      flags: { 'non-interactive': nonInteractive },
+    } = await this.parse(BuildCancel);
 
     const projectDir = await findProjectRootAsync();
     const exp = getExpoConfig(projectDir);
-    const projectId = await getProjectIdAsync(exp);
-    const projectFullName = await getProjectFullNameAsync(exp);
+    const projectId = await getProjectIdAsync(exp, { nonInteractive });
+
+    const projectFullName = await getProjectFullNameAsync(exp, { nonInteractive });
 
     if (buildIdFromArg) {
       await ensureBuildExistsAsync(buildIdFromArg);
     }
 
-    const buildId = buildIdFromArg || (await selectBuildToCancelAsync(projectId, projectFullName));
+    let buildId: string | null = buildIdFromArg;
     if (!buildId) {
-      return;
+      if (nonInteractive) {
+        throw new Error('BUILD_ID must not be empty in non-interactive mode');
+      }
+
+      buildId = await selectBuildToCancelAsync(projectId, projectFullName);
+      if (!buildId) {
+        return;
+      }
     }
 
     const spinner = ora().start('Canceling the build…');

@@ -1,6 +1,7 @@
 import { Flags } from '@oclif/core';
 
 import EasCommand from '../../commandUtils/EasCommand';
+import { EASNonInteractiveFlag } from '../../commandUtils/flags';
 import { WebhookType } from '../../graphql/generated';
 import { WebhookMutation } from '../../graphql/mutations/WebhookMutation';
 import { WebhookQuery } from '../../graphql/queries/WebhookQuery';
@@ -27,6 +28,7 @@ export default class WebhookUpdate extends EasCommand {
       description:
         "Secret used to create a hash signature of the request payload, provided in the 'Expo-Signature' header.",
     }),
+    ...EASNonInteractiveFlag,
   };
 
   async runAsync(): Promise<void> {
@@ -36,7 +38,7 @@ export default class WebhookUpdate extends EasCommand {
 
     const webhook = await WebhookQuery.byIdAsync(webhookId);
     const webhookInputParams = await prepareInputParamsAsync(
-      pick(flags, ['event', 'url', 'secret']),
+      pick(flags, ['event', 'url', 'secret', 'non-interactive']),
       webhook
     );
 

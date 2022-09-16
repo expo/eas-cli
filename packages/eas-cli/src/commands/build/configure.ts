@@ -60,14 +60,14 @@ export default class BuildConfigure extends EasCommand {
       if ([RequestedPlatform.Android, RequestedPlatform.All].includes(platform)) {
         const workflow = await resolveWorkflowAsync(projectDir, Platform.ANDROID);
         if (workflow === Workflow.GENERIC) {
-          await syncAndroidUpdatesConfigurationAsync(projectDir, exp);
+          await syncAndroidUpdatesConfigurationAsync(projectDir, exp, { nonInteractive: false });
         }
       }
 
       if ([RequestedPlatform.Ios, RequestedPlatform.All].includes(platform)) {
         const workflow = await resolveWorkflowAsync(projectDir, Platform.IOS);
         if (workflow === Workflow.GENERIC) {
-          await syncIosUpdatesConfigurationAsync(projectDir, exp);
+          await syncIosUpdatesConfigurationAsync(projectDir, exp, { nonInteractive: false });
         }
       }
     }

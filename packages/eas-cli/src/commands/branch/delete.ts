@@ -99,19 +99,19 @@ export default class BranchDelete extends EasCommand {
       flags,
     } = await this.parse(BranchDelete);
     const paginatedQueryOptions = getPaginatedQueryOptions(flags);
-    const { json: jsonFlag, 'non-interactive': nonInteractiveFlag } = flags;
+    const { json: jsonFlag, 'non-interactive': nonInteractive } = flags;
     if (jsonFlag) {
       enableJsonOutput();
     }
 
     const projectDir = await findProjectRootAsync();
     const exp = getExpoConfig(projectDir);
-    const fullName = await getProjectFullNameAsync(exp);
-    const projectId = await getProjectIdAsync(exp);
+    const fullName = await getProjectFullNameAsync(exp, { nonInteractive });
+    const projectId = await getProjectIdAsync(exp, { nonInteractive });
 
     if (!branchName) {
       const validationMessage = 'branch name may not be empty.';
-      if (nonInteractiveFlag) {
+      if (nonInteractive) {
         throw new Error(validationMessage);
       }
       ({ name: branchName } = await selectBranchOnAppAsync({
@@ -128,7 +128,7 @@ export default class BranchDelete extends EasCommand {
       throw new Error(`Could not find branch ${branchName} on ${fullName}`);
     }
 
-    if (!jsonFlag) {
+    if (!nonInteractive) {
       Log.addNewLineIfNone();
       Log.warn(
         `You are about to permanently delete branch: "${branchName}" and all of the updates published on it.` +

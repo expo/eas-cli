@@ -64,7 +64,8 @@ export class ManageIos {
       : null;
     const ctx = new CredentialsContext({
       projectDir: process.cwd(),
-      user: await ensureLoggedInAsync(),
+      // this command is interactive by design
+      user: await ensureLoggedInAsync({ nonInteractive: false }),
       env: buildProfile?.env,
     });
     const buildCredentialsActions = getBuildCredentialsActions(ctx);
@@ -174,7 +175,7 @@ export class ManageIos {
     assert(ctx.hasProjectContext, 'createProjectContextAsync: must have project context.');
 
     // ensure the project exists on the EAS server
-    await getProjectIdAsync(ctx.exp);
+    await getProjectIdAsync(ctx.exp, { nonInteractive: ctx.nonInteractive });
 
     const app = { account, projectName: ctx.exp.slug };
     const xcodeBuildContext = await resolveXcodeBuildContextAsync(

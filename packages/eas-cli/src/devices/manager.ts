@@ -60,7 +60,10 @@ export class AccountResolver {
   private async resolveProjectAccountAsync(): Promise<Account | undefined> {
     assert(this.exp, 'expo config is not set');
 
-    const projectAccountName = await getProjectAccountNameAsync(this.exp);
+    // this command is interactive by design
+    const projectAccountName = await getProjectAccountNameAsync(this.exp, {
+      nonInteractive: false,
+    });
     const projectAccount = findAccountByName(this.user.accounts, projectAccountName);
     if (!projectAccount) {
       Log.warn(

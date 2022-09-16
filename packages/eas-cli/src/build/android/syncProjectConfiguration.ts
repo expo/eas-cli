@@ -16,10 +16,12 @@ export async function syncProjectConfigurationAsync({
   projectDir,
   exp,
   localAutoIncrement,
+  nonInteractive,
 }: {
   projectDir: string;
   exp: ExpoConfig;
   localAutoIncrement?: AndroidVersionAutoIncrement;
+  nonInteractive: boolean;
 }): Promise<void> {
   const workflow = await resolveWorkflowAsync(projectDir, Platform.ANDROID);
   const versionBumpStrategy = resolveVersionBumpStrategy(localAutoIncrement ?? false);
@@ -27,7 +29,7 @@ export async function syncProjectConfigurationAsync({
   if (workflow === Workflow.GENERIC) {
     await cleanUpOldEasBuildGradleScriptAsync(projectDir);
     if (isExpoUpdatesInstalled(projectDir)) {
-      await syncUpdatesConfigurationAsync(projectDir, exp);
+      await syncUpdatesConfigurationAsync(projectDir, exp, { nonInteractive });
     }
     await bumpVersionAsync({ projectDir, exp, bumpStrategy: versionBumpStrategy });
   } else {

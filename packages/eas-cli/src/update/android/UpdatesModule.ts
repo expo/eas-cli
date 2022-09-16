@@ -8,10 +8,11 @@ import { ensureValidVersions } from '../utils';
 
 export async function syncUpdatesConfigurationAsync(
   projectDir: string,
-  exp: ExpoConfig
+  exp: ExpoConfig,
+  { nonInteractive }: { nonInteractive: boolean }
 ): Promise<void> {
   ensureValidVersions(exp, RequestedPlatform.Android);
-  const accountName = getProjectAccountName(exp, await ensureLoggedInAsync());
+  const accountName = getProjectAccountName(exp, await ensureLoggedInAsync({ nonInteractive }));
 
   const androidManifestPath = await AndroidConfig.Paths.getAndroidManifestAsync(projectDir);
   const androidManifest = await getAndroidManifestAsync(projectDir);

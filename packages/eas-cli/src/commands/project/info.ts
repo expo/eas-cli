@@ -37,7 +37,10 @@ export default class ProjectInfo extends EasCommand {
   async runAsync(): Promise<void> {
     const projectDir = await findProjectRootAsync();
     const exp = getExpoConfig(projectDir);
-    const projectId = await getProjectIdAsync(exp);
+
+    // this command is non-interactive by design
+    const projectId = await getProjectIdAsync(exp, { nonInteractive: true });
+
     const { app } = await projectInfoByIdAsync(projectId);
     if (!app) {
       throw new Error(`Could not find project with id: ${projectId}`);

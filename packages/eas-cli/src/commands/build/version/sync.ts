@@ -73,7 +73,10 @@ export default class BuildVersionSyncView extends EasCommand {
     });
     for (const profileInfo of buildProfiles) {
       const exp = getExpoConfig(projectDir, { env: profileInfo.profile.env });
-      const projectId = await getProjectIdAsync(exp);
+
+      // this command is always non-interactive
+      const projectId = await getProjectIdAsync(exp, { nonInteractive: true });
+
       validateAppConfigForRemoteVersionSource(exp, profileInfo.platform);
       const platformDisplayName = appPlatformDisplayNames[toAppPlatform(profileInfo.platform)];
 

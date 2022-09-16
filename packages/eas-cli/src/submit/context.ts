@@ -49,7 +49,7 @@ export async function createSubmissionContextAsync<T extends Platform>(params: {
   const { applicationIdentifier, projectDir, nonInteractive } = params;
   const exp = getExpoConfig(projectDir, { env: params.env });
   const { env, ...rest } = params;
-  const user = await ensureLoggedInAsync();
+  const user = await ensureLoggedInAsync({ nonInteractive });
   const projectName = exp.slug;
   const accountName = getProjectAccountName(exp, user);
   const accountId = findAccountByName(user.accounts, accountName)?.id;

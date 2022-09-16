@@ -69,14 +69,14 @@ export default class UpdateConfigure extends EasCommand {
       [RequestedPlatform.Android, RequestedPlatform.All].includes(platform) &&
       androidWorkflow === Workflow.GENERIC
     ) {
-      await syncAndroidUpdatesConfigurationAsync(projectDir, updatedExp);
+      await syncAndroidUpdatesConfigurationAsync(projectDir, updatedExp, { nonInteractive: true });
       Log.withTick(`Configured ${chalk.bold('AndroidManifest.xml')} for EAS Update`);
     }
     if (
       [RequestedPlatform.Ios, RequestedPlatform.All].includes(platform) &&
       iosWorkflow === Workflow.GENERIC
     ) {
-      await syncIosUpdatesConfigurationAsync(projectDir, updatedExp);
+      await syncIosUpdatesConfigurationAsync(projectDir, updatedExp, { nonInteractive: true });
       Log.withTick(`Configured ${chalk.bold('Expo.plist')} for EAS Update`);
     }
 
@@ -98,7 +98,8 @@ async function configureAppJSONForEASUpdateAsync({
     [key in RequestedPlatform.Android | RequestedPlatform.Ios]: Workflow;
   };
 }): Promise<ExpoConfig> {
-  const projectId = await getProjectIdAsync(exp);
+  // this command is non-interactive in the way it was designed
+  const projectId = await getProjectIdAsync(exp, { nonInteractive: true });
   const easUpdateURL = getEASUpdateURL(projectId);
   const updates = { ...exp.updates, url: easUpdateURL };
 

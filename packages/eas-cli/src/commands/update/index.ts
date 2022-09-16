@@ -183,7 +183,7 @@ export default class UpdatePublish extends EasCommand {
       'skip-bundler': skipBundler,
       platform,
       'private-key-path': privateKeyPath,
-      'non-interactive': nonInteractiveFlag,
+      'non-interactive': nonInteractive,
       json: jsonFlag,
     } = flags;
 
@@ -209,7 +209,7 @@ export default class UpdatePublish extends EasCommand {
     const codeSigningInfo = await getCodeSigningInfoAsync(expPrivate, privateKeyPath);
 
     const hasExpoUpdates = isExpoUpdatesInstalledOrAvailable(projectDir, exp.sdkVersion);
-    if (!hasExpoUpdates && nonInteractiveFlag) {
+    if (!hasExpoUpdates && nonInteractive) {
       Errors.error(
         `${chalk.bold(
           'expo-updates'
@@ -235,13 +235,13 @@ export default class UpdatePublish extends EasCommand {
     }
 
     const runtimeVersions = await getRuntimeVersionObjectAsync(exp, platformFlag, projectDir);
-    const projectId = await getProjectIdAsync(exp);
-    await checkEASUpdateURLIsSetAsync(exp);
+    const projectId = await getProjectIdAsync(exp, { nonInteractive });
+    await checkEASUpdateURLIsSetAsync(exp, projectId);
 
     if (!branchName) {
       if (autoFlag) {
         branchName = await getDefaultBranchNameAsync();
-      } else if (nonInteractiveFlag) {
+      } else if (nonInteractive) {
         throw new Error('Must supply --branch or use --auto when in non-interactive mode');
       } else {
         try {
@@ -288,7 +288,7 @@ export default class UpdatePublish extends EasCommand {
         const updatesByGroup = await UpdateQuery.viewUpdateGroupAsync({ groupId: group });
         updatesToRepublish = updatesByGroup;
       } else {
-        if (nonInteractiveFlag) {
+        if (nonInteractive) {
           throw new Error('Must supply --group when in non-interactive mode');
         }
 
@@ -336,7 +336,7 @@ export default class UpdatePublish extends EasCommand {
       oldRuntimeVersion = updatesToRepublishFilteredByPlatform[0].runtimeVersion;
 
       if (!message) {
-        if (nonInteractiveFlag) {
+        if (nonInteractive) {
           throw new Error('Must supply --message when in non-interactive mode');
         }
 
@@ -358,7 +358,7 @@ export default class UpdatePublish extends EasCommand {
       }
 
       if (!message) {
-        if (nonInteractiveFlag) {
+        if (nonInteractive) {
           throw new Error('Must supply --message or use --auto when in non-interactive mode');
         }
 
@@ -530,7 +530,10 @@ export default class UpdatePublish extends EasCommand {
         const updateGroupId = newUpdatesForRuntimeVersion[0].group;
 
         const projectName = exp.slug;
-        const accountName = getProjectAccountName(exp, await ensureLoggedInAsync());
+        const accountName = getProjectAccountName(
+          exp,
+          await ensureLoggedInAsync({ nonInteractive })
+        );
         const updateGroupUrl = getUpdateGroupUrl(accountName, projectName, updateGroupId);
         const updateGroupLink = link(updateGroupUrl, { dim: false });
 
@@ -596,9 +599,8 @@ async function getRuntimeVersionObjectAsync(
   );
 }
 
-async function checkEASUpdateURLIsSetAsync(exp: ExpoConfig): Promise<void> {
+async function checkEASUpdateURLIsSetAsync(exp: ExpoConfig, projectId: string): Promise<void> {
   const configuredURL = exp.updates?.url;
-  const projectId = await getProjectIdAsync(exp);
   const expectedURL = getEASUpdateURL(projectId);
 
   if (configuredURL !== expectedURL) {

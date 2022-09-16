@@ -5,7 +5,7 @@ import gql from 'graphql-tag';
 import { selectBranchOnAppAsync } from '../../branch/queries';
 import { selectChannelOnAppAsync } from '../../channel/queries';
 import EasCommand from '../../commandUtils/EasCommand';
-import { EasJsonOnlyFlag } from '../../commandUtils/flags';
+import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
 import {
   UpdateChannelBranchMappingMutation,
@@ -64,43 +64,46 @@ export default class ChannelEdit extends EasCommand {
     branch: Flags.string({
       description: 'Name of the branch to point to',
     }),
-    ...EasJsonOnlyFlag,
+    ...EasNonInteractiveAndJsonFlags,
   };
 
   async runAsync(): Promise<void> {
-    const { args, flags } = await this.parse(ChannelEdit);
-    if (flags.json) {
+    const {
+      args,
+      flags: { branch: branchFlag, json, 'non-interactive': nonInteractive },
+    } = await this.parse(ChannelEdit);
+    if (json) {
       enableJsonOutput();
     }
 
     const projectDir = await findProjectRootAsync();
     const exp = getExpoConfig(projectDir);
-    const projectId = await getProjectIdAsync(exp);
+    const projectId = await getProjectIdAsync(exp, { nonInteractive });
 
     const existingChannel = args.name
       ? await ChannelQuery.viewUpdateChannelAsync({ appId: projectId, channelName: args.name })
       : await selectChannelOnAppAsync({
           projectId,
           selectionPromptTitle: 'Select a channel to edit',
-          paginatedQueryOptions: { json: flags.json, nonInteractive: flags.json, offset: 0 },
+          paginatedQueryOptions: { json, nonInteractive, offset: 0 },
         });
 
     if (existingChannel.updateBranches.length > 1) {
       throw new Error('There is a rollout in progress. Manage it with "channel:rollout" instead.');
     }
 
-    const branch = flags.branch
+    const branch = branchFlag
       ? await BranchQuery.getBranchByNameAsync({
           appId: projectId,
-          name: flags.branch,
+          name: branchFlag,
         })
       : await selectBranchOnAppAsync({
           projectId,
           promptTitle: `Which branch would you like ${existingChannel.name} to point at?`,
           displayTextForListItem: updateBranch => updateBranch.name,
           paginatedQueryOptions: {
-            json: flags.json,
-            nonInteractive: flags.json,
+            json,
+            nonInteractive,
             offset: 0,
           },
         });
@@ -114,7 +117,7 @@ export default class ChannelEdit extends EasCommand {
       }),
     });
 
-    if (flags.json) {
+    if (json) {
       printJsonOnlyOutput(channel);
     } else {
       Log.withTick(

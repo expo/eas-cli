@@ -40,7 +40,7 @@ export default class ChannelView extends EasCommand {
 
     const projectDir = await findProjectRootAsync();
     const exp = getExpoConfig(projectDir);
-    const projectId = await getProjectIdAsync(exp);
+    const projectId = await getProjectIdAsync(exp, { nonInteractive });
 
     if (!channelName) {
       const validationMessage = 'A channel name is required to view a specific channel.';
@@ -51,8 +51,8 @@ export default class ChannelView extends EasCommand {
         projectId,
         selectionPromptTitle: 'Select a channel to view',
         paginatedQueryOptions: {
-          json: paginatedQueryOptions.json,
-          nonInteractive: paginatedQueryOptions.nonInteractive,
+          json: jsonFlag,
+          nonInteractive,
           offset: 0,
         },
       });

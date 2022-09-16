@@ -10,10 +10,12 @@ export async function prepareInputParamsAsync(
     event: maybeEvent,
     url: maybeUrl,
     secret: maybeSecret,
+    'non-interactive': nonInteractive,
   }: {
     event?: WebhookType;
     url?: string;
     secret?: string;
+    'non-interactive': boolean;
   },
   existingWebhook?: WebhookFragment
 ): Promise<WebhookInput> {
@@ -22,6 +24,10 @@ export async function prepareInputParamsAsync(
   let secret: string | undefined = maybeSecret;
 
   if (!event) {
+    if (nonInteractive) {
+      throw new Error('Must supply event flag in non-interative mode');
+    }
+
     const choices = [
       { title: 'Build', value: WebhookType.Build },
       { title: 'Submit', value: WebhookType.Submit },
@@ -43,6 +49,11 @@ export async function prepareInputParamsAsync(
     if (url && !validateURL(url)) {
       Log.error(urlValidationMessage);
     }
+
+    if (nonInteractive) {
+      throw new Error('Must supply url flag in non-interative mode');
+    }
+
     ({ url } = await promptAsync({
       type: 'text',
       name: 'url',
@@ -58,6 +69,11 @@ export async function prepareInputParamsAsync(
     if (secret && !validateSecret(secret)) {
       Log.error(secretValidationMessage);
     }
+
+    if (nonInteractive) {
+      throw new Error('Must supply secret flag in non-interative mode');
+    }
+
     ({ secret } = await promptAsync({
       type: 'text',
       name: 'secret',

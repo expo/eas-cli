@@ -30,7 +30,9 @@ If you are not sure what is the UDID of the device you are looking for, run:
 
     const projectDir = await findProjectRootAsync();
     const exp = getExpoConfig(projectDir);
-    const accountName = await getProjectAccountNameAsync(exp);
+
+    // this command is non-interactive by design
+    const accountName = await getProjectAccountNameAsync(exp, { nonInteractive: true });
 
     const spinner = ora().start(`Fetching device details for ${UDID}…`);
 

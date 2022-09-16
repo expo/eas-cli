@@ -57,8 +57,11 @@ export default class BuildVersionSetView extends EasCommand {
     );
 
     const exp = getExpoConfig(projectDir, { env: profile.env });
-    const projectId = await getProjectIdAsync(exp);
-    const projectFullName = await getProjectFullNameAsync(exp);
+
+    // this command is always interactive (see prompt below)
+    const projectId = await getProjectIdAsync(exp, { nonInteractive: false });
+
+    const projectFullName = await getProjectFullNameAsync(exp, { nonInteractive: false });
     validateAppConfigForRemoteVersionSource(exp, platform);
 
     const applicationIdentifier = await getApplicationIdentifierAsync(

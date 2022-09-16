@@ -1,6 +1,7 @@
 import { Flags } from '@oclif/core';
 
 import EasCommand from '../../commandUtils/EasCommand';
+import { EASNonInteractiveFlag } from '../../commandUtils/flags';
 import { WebhookType } from '../../graphql/generated';
 import { WebhookMutation } from '../../graphql/mutations/WebhookMutation';
 import { ora } from '../../ora';
@@ -23,6 +24,7 @@ export default class WebhookCreate extends EasCommand {
       description:
         "Secret used to create a hash signature of the request payload, provided in the 'Expo-Signature' header.",
     }),
+    ...EASNonInteractiveFlag,
   };
 
   async runAsync(): Promise<void> {
@@ -31,7 +33,8 @@ export default class WebhookCreate extends EasCommand {
 
     const projectDir = await findProjectRootAsync();
     const exp = getExpoConfig(projectDir);
-    const projectId = await getProjectIdAsync(exp);
+
+    const projectId = await getProjectIdAsync(exp, { nonInteractive: flags['non-interactive'] });
 
     const spinner = ora('Creating a webhook').start();
     try {

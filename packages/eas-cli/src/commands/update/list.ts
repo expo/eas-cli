@@ -36,7 +36,7 @@ export default class UpdateList extends EasCommand {
 
   async runAsync(): Promise<void> {
     const { flags } = await this.parse(UpdateList);
-    const { branch: branchFlag, all, json: jsonFlag } = flags;
+    const { branch: branchFlag, all, json: jsonFlag, 'non-interactive': nonInteractive } = flags;
     const paginatedQueryOptions = getPaginatedQueryOptions(flags);
 
     if (jsonFlag) {
@@ -45,7 +45,7 @@ export default class UpdateList extends EasCommand {
 
     const projectDir = await findProjectRootAsync();
     const exp = getExpoConfig(projectDir);
-    const projectId = await getProjectIdAsync(exp);
+    const projectId = await getProjectIdAsync(exp, { nonInteractive });
 
     if (all) {
       listAndRenderUpdateGroupsOnAppAsync({ projectId, paginatedQueryOptions });
@@ -58,7 +58,7 @@ export default class UpdateList extends EasCommand {
         });
       } else {
         const validationMessage = 'Branch name may not be empty.';
-        if (paginatedQueryOptions.nonInteractive) {
+        if (nonInteractive) {
           throw new Error(validationMessage);
         }
 

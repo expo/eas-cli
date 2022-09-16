@@ -68,6 +68,7 @@ export default class BuildList extends EasCommand {
       platform: requestedPlatform,
       status: buildStatus,
       distribution: buildDistribution,
+      'non-interactive': nonInteractive,
     } = flags;
     if (jsonFlag) {
       enableJsonOutput();
@@ -79,8 +80,8 @@ export default class BuildList extends EasCommand {
 
     const projectDir = await findProjectRootAsync();
     const exp = getExpoConfig(projectDir);
-    const projectId = await getProjectIdAsync(exp);
-    const projectName = await getProjectFullNameAsync(exp);
+    const projectId = await getProjectIdAsync(exp, { nonInteractive });
+    const projectName = await getProjectFullNameAsync(exp, { nonInteractive });
 
     await listAndRenderBuildsOnAppAsync({
       projectId,

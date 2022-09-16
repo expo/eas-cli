@@ -1,9 +1,9 @@
-import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 import gql from 'graphql-tag';
 
 import { getDefaultBranchNameAsync } from '../../branch/utils';
 import EasCommand from '../../commandUtils/EasCommand';
+import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
 import {
   CreateUpdateBranchForAppMutation,
@@ -63,16 +63,13 @@ export default class BranchCreate extends EasCommand {
   ];
 
   static override flags = {
-    json: Flags.boolean({
-      description: 'return a json with the new branch ID and name.',
-      default: false,
-    }),
+    ...EasNonInteractiveAndJsonFlags,
   };
 
   async runAsync(): Promise<void> {
     let {
       args: { name },
-      flags: { json: jsonFlag },
+      flags: { json: jsonFlag, 'non-interactive': nonInteractive },
     } = await this.parse(BranchCreate);
     if (jsonFlag) {
       enableJsonOutput();
@@ -80,12 +77,12 @@ export default class BranchCreate extends EasCommand {
 
     const projectDir = await findProjectRootAsync();
     const exp = getExpoConfig(projectDir);
-    const fullName = await getProjectFullNameAsync(exp);
-    const projectId = await getProjectIdAsync(exp);
+    const fullName = await getProjectFullNameAsync(exp, { nonInteractive });
+    const projectId = await getProjectIdAsync(exp, { nonInteractive });
 
     if (!name) {
       const validationMessage = 'Branch name may not be empty.';
-      if (jsonFlag) {
+      if (nonInteractive) {
         throw new Error(validationMessage);
       }
       ({ name } = await promptAsync({
