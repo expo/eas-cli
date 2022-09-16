@@ -6,8 +6,10 @@ export async function getRecentBuildsForSubmissionAsync(
   appId: string,
   { limit = 1 }: { limit?: number } = {}
 ): Promise<BuildFragment[]> {
-  return await BuildQuery.allForAppAsync(appId, {
+  return await BuildQuery.viewBuildsOnAppAsync({
+    appId,
     limit,
+    offset: 0,
     filter: {
       platform,
       distribution: DistributionType.Store,
