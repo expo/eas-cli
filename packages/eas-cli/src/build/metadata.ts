@@ -5,7 +5,7 @@ import fs from 'fs-extra';
 import resolveFrom from 'resolve-from';
 
 import Log from '../log';
-import { getUsername, isExpoUpdatesInstalled } from '../project/projectUtils';
+import { getUsernameForActor, isExpoUpdatesInstalled } from '../project/projectUtils';
 import {
   readChannelSafelyAsync as readAndroidChannelSafelyAsync,
   readReleaseChannelSafelyAsync as readAndroidReleaseChannelSafelyAsync,
@@ -49,8 +49,7 @@ export async function collectMetadataAsync<T extends Platform>(
       (await vcsClient.getLastCommitMessageAsync()) ?? undefined
     ),
     isGitWorkingTreeDirty: await vcsClient.hasUncommittedChangesAsync(),
-    username: getUsername(
-      ctx.exp,
+    username: getUsernameForActor(
       await ensureLoggedInAsync({ nonInteractive: ctx.nonInteractive })
     ),
     message: ctx.message,

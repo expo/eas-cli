@@ -18,17 +18,11 @@ import { getVcsClient } from '../vcs';
 import { getExpoConfig } from './expoConfig';
 import { fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync } from './fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync';
 
-export function getUsername(exp: ExpoConfig, user: Actor): string | undefined {
+export function getUsernameForActor(user: Actor): string | undefined {
   switch (user.__typename) {
     case 'User':
       return user.username;
     case 'Robot':
-      // owner field is necessary to run `expo prebuild`
-      if (!exp.owner) {
-        throw new Error(
-          'The "owner" manifest property is required when using robot users. See: https://docs.expo.dev/versions/latest/config/app/#owner'
-        );
-      }
       // robot users don't have usernames
       return undefined;
   }

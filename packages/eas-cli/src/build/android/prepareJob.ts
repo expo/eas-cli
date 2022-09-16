@@ -4,7 +4,7 @@ import path from 'path';
 import slash from 'slash';
 
 import { AndroidCredentials } from '../../credentials/android/AndroidCredentialsProvider';
-import { getUsername } from '../../project/projectUtils';
+import { getUsernameForActor } from '../../project/projectUtils';
 import { ensureLoggedInAsync } from '../../user/actions';
 import { getVcsClient } from '../../vcs';
 import { BuildContext } from '../context';
@@ -24,8 +24,7 @@ export async function prepareJobAsync(
   ctx: BuildContext<Platform.ANDROID>,
   jobData: JobData
 ): Promise<Job> {
-  const username = getUsername(
-    ctx.exp,
+  const username = getUsernameForActor(
     await ensureLoggedInAsync({ nonInteractive: ctx.nonInteractive })
   );
   const buildProfile: BuildProfile<Platform.ANDROID> = ctx.buildProfile;

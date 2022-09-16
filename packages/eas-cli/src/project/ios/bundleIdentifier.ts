@@ -9,7 +9,7 @@ import { readAppJson } from '../../build/utils/appJson';
 import Log, { learnMore } from '../../log';
 import { promptAsync } from '../../prompts';
 import { ensureLoggedInAsync } from '../../user/actions';
-import { getProjectConfigDescription, getUsername } from '../projectUtils';
+import { getProjectConfigDescription, getUsernameForActor } from '../projectUtils';
 import { resolveWorkflowAsync } from '../workflow';
 
 export const INVALID_BUNDLE_IDENTIFIER_MESSAGE = `Invalid format of iOS bundle identifier. Only alphanumeric characters, '.' and '-' are allowed, and each '.' must be followed by a letter.`;
@@ -173,7 +173,7 @@ async function getSuggestedBundleIdentifierAsync(exp: ExpoConfig): Promise<strin
     return maybeAndroidPackage;
   } else {
     // the only callsite is heavily interactive
-    const username = getUsername(exp, await ensureLoggedInAsync({ nonInteractive: false }));
+    const username = getUsernameForActor(await ensureLoggedInAsync({ nonInteractive: false }));
     // It's common to use dashes in your node project name, strip them from the suggested package name.
     const possibleId = `com.${username}.${exp.slug}`.split('-').join('');
     if (isBundleIdentifierValid(possibleId)) {

@@ -9,7 +9,7 @@ import nullthrows from 'nullthrows';
 import { readAppJson } from '../../build/utils/appJson';
 import env from '../../env';
 import Log, { learnMore } from '../../log';
-import { getProjectConfigDescription, getUsername } from '../../project/projectUtils';
+import { getProjectConfigDescription, getUsernameForActor } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
 import { ensureLoggedInAsync } from '../../user/actions';
 import { resolveWorkflowAsync } from '../workflow';
@@ -175,7 +175,7 @@ async function getSuggestedApplicationIdAsync(exp: ExpoConfig): Promise<string |
     return maybeBundleId;
   } else {
     // the only callsite is heavily interactive
-    const username = getUsername(exp, await ensureLoggedInAsync({ nonInteractive: false }));
+    const username = getUsernameForActor(await ensureLoggedInAsync({ nonInteractive: false }));
     // It's common to use dashes in your node project name, strip them from the suggested package name.
     const possibleId = `com.${username}.${exp.slug}`.split('-').join('');
     if (isApplicationIdValid(possibleId)) {
