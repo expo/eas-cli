@@ -19,7 +19,7 @@ export default class ProjectInit extends EasCommand {
 
     if (exp.extra?.eas?.projectId) {
       Log.error(
-        `app.json is already linked to project with ID: ${chalk.bold(exp.extra?.eas?.projectId)}`
+        `app.json is already linked to project with id: ${chalk.bold(exp.extra?.eas?.projectId)}`
       );
       return;
     }
@@ -27,6 +27,6 @@ export default class ProjectInit extends EasCommand {
     const projectId = await fetchProjectIdFromServerAsync(exp);
     await saveProjectIdToAppConfigAsync(projectDir, projectId);
 
-    Log.withTick(`Linked app.json to project with ID ${chalk.bold(projectId)}`);
+    Log.withTick(`Linked app.json to project with id ${chalk.bold(projectId)}`);
   }
 }

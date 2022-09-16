@@ -77,7 +77,7 @@ async function queryBranchesOnProjectAsync(
   offset: number,
   projectId: string
 ): Promise<UpdateBranchFragment[]> {
-  return await BranchQuery.listBranchesAsync({
+  return await BranchQuery.listBranchesOnAppAsync({
     appId: projectId,
     limit,
     offset,

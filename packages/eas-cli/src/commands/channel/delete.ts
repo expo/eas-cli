@@ -1,23 +1,19 @@
-import { Flags } from '@oclif/core';
 import gql from 'graphql-tag';
 
+import { selectChannelOnAppAsync } from '../../channel/queries';
 import EasCommand from '../../commandUtils/EasCommand';
+import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
 import {
   DeleteUpdateChannelMutation,
   DeleteUpdateChannelMutationVariables,
   DeleteUpdateChannelResult,
-  GetChannelInfoQuery,
-  GetChannelInfoQueryVariables,
 } from '../../graphql/generated';
+import { ChannelQuery } from '../../graphql/queries/ChannelQuery';
 import Log from '../../log';
 import { getExpoConfig } from '../../project/expoConfig';
-import {
-  findProjectRootAsync,
-  getProjectFullNameAsync,
-  getProjectIdAsync,
-} from '../../project/projectUtils';
-import { promptAsync, toggleConfirmAsync } from '../../prompts';
+import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUtils';
+import { toggleConfirmAsync } from '../../prompts';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
 export default class ChannelDelete extends EasCommand {
@@ -32,21 +28,15 @@ export default class ChannelDelete extends EasCommand {
     },
   ];
   static override flags = {
-    json: Flags.boolean({
-      description: 'print output as a JSON object',
-      default: false,
-    }),
-    'non-interactive': Flags.boolean({
-      default: false,
-      description: 'Run command in non-interactive mode',
-    }),
+    ...EasNonInteractiveAndJsonFlags,
   };
 
   async runAsync(): Promise<void> {
     const {
       args: { name: nameArg },
-      flags: { json: jsonFlag, 'non-interactive': nonInteractiveFlag },
+      flags,
     } = await this.parse(ChannelDelete);
+    const { json: jsonFlag, 'non-interactive': nonInteractiveFlag } = flags;
     if (jsonFlag && !nonInteractiveFlag) {
       throw new Error('--json is allowed only in non-interactive mode');
     }
@@ -56,41 +46,42 @@ export default class ChannelDelete extends EasCommand {
 
     const projectDir = await findProjectRootAsync();
     const exp = getExpoConfig(projectDir);
-    const fullName = await getProjectFullNameAsync(exp);
     const projectId = await getProjectIdAsync(exp);
 
-    let name;
+    let channelId, channelName;
     if (nameArg) {
-      name = nameArg;
+      const { id, name } = await ChannelQuery.viewUpdateChannelAsync({
+        appId: projectId,
+        channelName: nameArg,
+      });
+      channelId = id;
+      channelName = name;
     } else {
       if (nonInteractiveFlag) {
         throw new Error('Channel name must be set when running in non-interactive mode');
       }
-      name = (
-        await promptAsync({
-          type: 'text',
-          name: 'name',
-          message: 'Provide the name of the channel to delete:',
-          validate: (value: any) => (value ? true : 'Channel name may not be empty.'),
-        })
-      ).name;
-    }
-
-    const data = await getChannelInfoAsync({ appId: projectId, name });
-    const channelId = data.app?.byId.updateChannelByName?.id;
-    if (!channelId) {
-      throw new Error(`Could not find channel ${name} on ${fullName}`);
+      const { id, name } = await selectChannelOnAppAsync({
+        projectId,
+        selectionPromptTitle: 'Select a channel to delete',
+        paginatedQueryOptions: {
+          json: jsonFlag,
+          nonInteractive: nonInteractiveFlag,
+          offset: 0,
+        },
+      });
+      channelId = id;
+      channelName = name;
     }
 
     if (!nonInteractiveFlag) {
       Log.addNewLineIfNone();
       Log.warn(
-        `You are about to permanently delete channel: "${name}".\nThis action is irreversible.`
+        `You are about to permanently delete channel: "${channelName}".\nThis action is irreversible.`
       );
       Log.newLine();
       const confirmed = await toggleConfirmAsync({ message: 'Are you sure you wish to proceed?' });
       if (!confirmed) {
-        Log.error(`Canceled deletion of channel: "${name}".`);
+        Log.error(`Canceled deletion of channel: "${channelName}".`);
         process.exit(1);
       }
     }
@@ -102,40 +93,9 @@ export default class ChannelDelete extends EasCommand {
     if (jsonFlag) {
       printJsonOnlyOutput(deletionResult);
     } else {
-      Log.withTick(`️Deleted channel "${name}".`);
+      Log.withTick(`️Deleted channel "${channelName}".`);
     }
   }
-}
-
-async function getChannelInfoAsync({
-  appId,
-  name,
-}: GetChannelInfoQueryVariables): Promise<GetChannelInfoQuery> {
-  const data = await withErrorHandlingAsync(
-    graphqlClient
-      .query<GetChannelInfoQuery, GetChannelInfoQueryVariables>(
-        gql`
-          query GetChannelInfo($appId: String!, $name: String!) {
-            app {
-              byId(appId: $appId) {
-                id
-                updateChannelByName(name: $name) {
-                  id
-                  name
-                }
-              }
-            }
-          }
-        `,
-        {
-          appId,
-          name,
-        },
-        { additionalTypenames: ['UpdateChannel'] }
-      )
-      .toPromise()
-  );
-  return data;
 }
 
 async function deleteChannelOnAppAsync({

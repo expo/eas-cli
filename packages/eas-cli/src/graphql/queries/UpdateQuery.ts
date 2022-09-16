@@ -14,7 +14,9 @@ import {
 import { UpdateFragmentNode } from '../types/Update';
 
 export const UpdateQuery = {
-  async viewUpdateGroupAsync({ groupId }: { groupId: string }): Promise<UpdateFragment[]> {
+  async viewUpdateGroupAsync({
+    groupId,
+  }: ViewUpdatesByGroupQueryVariables): Promise<UpdateFragment[]> {
     const { updatesByGroup } = await withErrorHandlingAsync(
       graphqlClient
         .query<ViewUpdatesByGroupQuery, ViewUpdatesByGroupQueryVariables>(
@@ -133,7 +135,7 @@ export const UpdateQuery = {
     );
 
     if (!response) {
-      throw new Error(`Could not find app with id "${appId}"`);
+      throw new Error(`Could not find project with id "${appId}"`);
     }
 
     return response.app.byId.updateGroups;
