@@ -1,9 +1,11 @@
 import nullthrows from 'nullthrows';
 
 import { IosDistributionType } from '../../../../graphql/generated';
+import { AppQuery } from '../../../../graphql/queries/AppQuery';
 import { findApplicationTarget } from '../../../../project/ios/target';
 import { confirmAsync } from '../../../../prompts';
 import { getAppstoreMock, testAuthCtx } from '../../../__tests__/fixtures-appstore';
+import { testAppQueryByIdResponse } from '../../../__tests__/fixtures-constants';
 import { createCtxMock } from '../../../__tests__/fixtures-context';
 import {
   getNewIosApiMock,
@@ -15,7 +17,7 @@ import {
 } from '../../../__tests__/fixtures-ios';
 import { MissingCredentialsNonInteractiveError } from '../../../errors';
 import { validateProvisioningProfileAsync } from '../../validators/validateProvisioningProfile';
-import { getAppLookupParamsFromContext } from '../BuildCredentialsUtils';
+import { getAppLookupParamsFromContextAsync } from '../BuildCredentialsUtils';
 import { SetUpProvisioningProfile } from '../SetUpProvisioningProfile';
 
 jest.mock('../../../../prompts');
@@ -24,8 +26,12 @@ jest.mock('../SetUpDistributionCertificate');
 jest.mock('../ConfigureProvisioningProfile');
 jest.mock('../CreateProvisioningProfile');
 jest.mock('../../validators/validateProvisioningProfile');
+jest.mock('../../../../graphql/queries/AppQuery');
 
 describe('SetUpProvisioningProfile', () => {
+  beforeEach(() => {
+    jest.mocked(AppQuery.byIdAsync).mockResolvedValue(testAppQueryByIdResponse);
+  });
   it('repairs existing Provisioning Profile with bad build credentials in Interactive Mode', async () => {
     jest.mocked(validateProvisioningProfileAsync).mockImplementation(async () => false);
     const ctx = createCtxMock({
@@ -53,7 +59,10 @@ describe('SetUpProvisioningProfile', () => {
         ),
       },
     });
-    const appLookupParams = getAppLookupParamsFromContext(ctx, findApplicationTarget(testTargets));
+    const appLookupParams = await getAppLookupParamsFromContextAsync(
+      ctx,
+      findApplicationTarget(testTargets)
+    );
     const setupProvisioningProfileAction = new SetUpProvisioningProfile(
       appLookupParams,
       testTarget,
@@ -86,7 +95,10 @@ describe('SetUpProvisioningProfile', () => {
         createOrGetExistingAppleAppIdentifierAsync: jest.fn(() => testAppleAppIdentifierFragment),
       },
     });
-    const appLookupParams = getAppLookupParamsFromContext(ctx, findApplicationTarget(testTargets));
+    const appLookupParams = await getAppLookupParamsFromContextAsync(
+      ctx,
+      findApplicationTarget(testTargets)
+    );
     const setupProvisioningProfileAction = new SetUpProvisioningProfile(
       appLookupParams,
       testTarget,
@@ -119,7 +131,10 @@ describe('SetUpProvisioningProfile', () => {
         createOrGetExistingAppleAppIdentifierAsync: jest.fn(() => testAppleAppIdentifierFragment),
       },
     });
-    const appLookupParams = getAppLookupParamsFromContext(ctx, findApplicationTarget(testTargets));
+    const appLookupParams = await getAppLookupParamsFromContextAsync(
+      ctx,
+      findApplicationTarget(testTargets)
+    );
     const setupProvisioningProfileAction = new SetUpProvisioningProfile(
       appLookupParams,
       testTarget,
@@ -148,7 +163,10 @@ describe('SetUpProvisioningProfile', () => {
         createOrGetExistingAppleAppIdentifierAsync: jest.fn(() => testAppleAppIdentifierFragment),
       },
     });
-    const appLookupParams = getAppLookupParamsFromContext(ctx, findApplicationTarget(testTargets));
+    const appLookupParams = await getAppLookupParamsFromContextAsync(
+      ctx,
+      findApplicationTarget(testTargets)
+    );
     const setupProvisioningProfileAction = new SetUpProvisioningProfile(
       appLookupParams,
       testTarget,
@@ -168,7 +186,10 @@ describe('SetUpProvisioningProfile', () => {
     const ctx = createCtxMock({
       nonInteractive: true,
     });
-    const appLookupParams = getAppLookupParamsFromContext(ctx, findApplicationTarget(testTargets));
+    const appLookupParams = await getAppLookupParamsFromContextAsync(
+      ctx,
+      findApplicationTarget(testTargets)
+    );
     const setupProvisioningProfileAction = new SetUpProvisioningProfile(
       appLookupParams,
       testTarget,

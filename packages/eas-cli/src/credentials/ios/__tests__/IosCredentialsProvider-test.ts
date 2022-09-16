@@ -2,8 +2,10 @@ import { CredentialsSource } from '@expo/eas-json';
 import { vol } from 'memfs';
 
 import { IosAppBuildCredentialsFragment } from '../../../graphql/generated';
+import { AppQuery } from '../../../graphql/queries/AppQuery';
 import { findApplicationTarget } from '../../../project/ios/target';
 import { getAppstoreMock } from '../../__tests__/fixtures-appstore';
+import { testAppQueryByIdResponse } from '../../__tests__/fixtures-constants';
 import { createCtxMock } from '../../__tests__/fixtures-context';
 import {
   getNewIosApiMock,
@@ -11,7 +13,7 @@ import {
   testTargets,
 } from '../../__tests__/fixtures-ios';
 import IosCredentialsProvider from '../IosCredentialsProvider';
-import { getAppLookupParamsFromContext } from '../actions/BuildCredentialsUtils';
+import { getAppLookupParamsFromContextAsync } from '../actions/BuildCredentialsUtils';
 
 jest.mock('fs');
 jest.mock('../validators/validateProvisioningProfile', () => ({
@@ -29,12 +31,16 @@ jest.mock('../validators/validateProvisioningProfile', () => ({
   },
 }));
 jest.mock('../../../project/ios/bundleIdentifier');
+jest.mock('../../../graphql/queries/AppQuery');
 
 beforeEach(() => {
   vol.reset();
 });
 
 describe(IosCredentialsProvider, () => {
+  beforeEach(() => {
+    jest.mocked(AppQuery.byIdAsync).mockResolvedValue(testAppQueryByIdResponse);
+  });
   describe('#getCredentialsAsync', () => {
     describe('remote credentials', () => {
       it('throws an error if credentials do not exist', async () => {
@@ -47,7 +53,7 @@ describe(IosCredentialsProvider, () => {
             getIosAppCredentialsWithBuildCredentialsAsync: jest.fn(() => null),
           },
         });
-        const appLookupParams = getAppLookupParamsFromContext(
+        const appLookupParams = await getAppLookupParamsFromContextAsync(
           ctx,
           findApplicationTarget(testTargets)
         );
@@ -90,7 +96,7 @@ describe(IosCredentialsProvider, () => {
             ),
           },
         });
-        const appLookupParams = getAppLookupParamsFromContext(
+        const appLookupParams = await getAppLookupParamsFromContextAsync(
           ctx,
           findApplicationTarget(testTargets)
         );

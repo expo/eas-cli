@@ -2,8 +2,7 @@ import { ExpoConfig } from '@expo/config';
 import { AndroidConfig, AndroidManifest } from '@expo/config-plugins';
 
 import { RequestedPlatform } from '../../platform';
-import { getProjectAccountName } from '../../project/projectUtils';
-import { ensureLoggedInAsync } from '../../user/actions';
+import { getOwnerAccountForProjectIdAsync, getProjectIdAsync } from '../../project/projectUtils';
 import { ensureValidVersions } from '../utils';
 
 export async function syncUpdatesConfigurationAsync(
@@ -12,7 +11,8 @@ export async function syncUpdatesConfigurationAsync(
   { nonInteractive }: { nonInteractive: boolean }
 ): Promise<void> {
   ensureValidVersions(exp, RequestedPlatform.Android);
-  const accountName = getProjectAccountName(exp, await ensureLoggedInAsync({ nonInteractive }));
+  const projectId = await getProjectIdAsync(exp, { nonInteractive });
+  const accountName = (await getOwnerAccountForProjectIdAsync(projectId)).name;
 
   const androidManifestPath = await AndroidConfig.Paths.getAndroidManifestAsync(projectDir);
   const androidManifest = await getAndroidManifestAsync(projectDir);

@@ -19,10 +19,9 @@ import { getExpoConfig } from './expoConfig';
 import { fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync } from './fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync';
 
 /**
- * @deprecated - prefer using the account that definitively owns the project by
- *               fetching it via the App.ownerAccount GraphQL field.
+ * @deprecated - Do not use outside of projectUtils
  */
-export function getProjectAccountName(exp: ExpoConfig, user: Actor): string {
+function getProjectAccountName(exp: ExpoConfig, user: Actor): string {
   switch (user.__typename) {
     case 'User':
       return exp.owner || user.username;

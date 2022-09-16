@@ -2,10 +2,13 @@ import { Platform } from '@expo/eas-build-job';
 import { vol } from 'memfs';
 import { v4 as uuidv4 } from 'uuid';
 
-import { jester as mockJester } from '../../../credentials/__tests__/fixtures-constants';
+import {
+  jester as mockJester,
+  testProjectId,
+} from '../../../credentials/__tests__/fixtures-constants';
 import { SubmissionMutation } from '../../../graphql/mutations/SubmissionMutation';
 import { createTestProject } from '../../../project/__tests__/project-utils';
-import { getProjectIdAsync } from '../../../project/projectUtils';
+import { getOwnerAccountForProjectIdAsync, getProjectIdAsync } from '../../../project/projectUtils';
 import { createSubmissionContextAsync } from '../../context';
 import IosSubmitCommand from '../IosSubmitCommand';
 
@@ -25,7 +28,7 @@ jest.mock('../../../user/actions', () => ({
 jest.mock('../../../project/projectUtils');
 
 describe(IosSubmitCommand, () => {
-  const testProject = createTestProject(mockJester, {});
+  const testProject = createTestProject(testProjectId, mockJester.accounts[0].name, {});
 
   const fakeFiles: Record<string, string> = {
     '/artifacts/fake.ipa': 'fake ipa',
@@ -45,6 +48,10 @@ describe(IosSubmitCommand, () => {
   afterAll(() => {
     vol.reset();
     jest.unmock('@expo/config');
+  });
+
+  beforeEach(() => {
+    jest.mocked(getOwnerAccountForProjectIdAsync).mockResolvedValue(mockJester.accounts[0]);
   });
 
   afterEach(() => {

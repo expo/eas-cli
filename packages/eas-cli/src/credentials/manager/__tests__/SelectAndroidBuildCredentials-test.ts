@@ -1,8 +1,10 @@
+import { AppQuery } from '../../../graphql/queries/AppQuery';
 import { promptAsync } from '../../../prompts';
 import {
   getNewAndroidApiMock,
   testAndroidBuildCredentialsFragment,
 } from '../../__tests__/fixtures-android';
+import { testAppQueryByIdResponse } from '../../__tests__/fixtures-constants';
 import { createCtxMock } from '../../__tests__/fixtures-context';
 import { getAppLookupParamsFromContextAsync } from '../../android/actions/BuildCredentialsUtils';
 import {
@@ -12,9 +14,11 @@ import {
 
 const TEST_STRING = 'TEST_STRING';
 jest.mock('../../../prompts');
+jest.mock('../../../graphql/queries/AppQuery');
 
 beforeEach(() => {
   jest.mocked(promptAsync).mockReset();
+  jest.mocked(AppQuery.byIdAsync).mockResolvedValue(testAppQueryByIdResponse);
 });
 
 describe(SelectAndroidBuildCredentials, () => {

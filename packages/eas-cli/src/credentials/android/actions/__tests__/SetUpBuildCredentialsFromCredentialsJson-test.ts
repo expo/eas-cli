@@ -1,12 +1,14 @@
 import { vol } from 'memfs';
 
 import { AndroidKeystoreType } from '../../../../graphql/generated';
+import { AppQuery } from '../../../../graphql/queries/AppQuery';
 import { confirmAsync } from '../../../../prompts';
 import {
   getNewAndroidApiMock,
   testAndroidBuildCredentialsFragment,
   testJksAndroidKeystoreFragment,
 } from '../../../__tests__/fixtures-android';
+import { testAppQueryByIdResponse } from '../../../__tests__/fixtures-constants';
 import { createCtxMock } from '../../../__tests__/fixtures-context';
 import {
   SelectAndroidBuildCredentials,
@@ -21,12 +23,16 @@ jest.mock('fs');
 jest.mock('../../../../prompts');
 jest.mocked(confirmAsync).mockImplementation(async () => true);
 jest.mock('../../../manager/SelectAndroidBuildCredentials');
+jest.mock('../../../../graphql/queries/AppQuery');
 
 beforeEach(() => {
   vol.reset();
 });
 
 describe(SetUpBuildCredentialsFromCredentialsJson, () => {
+  beforeEach(() => {
+    jest.mocked(AppQuery.byIdAsync).mockResolvedValue(testAppQueryByIdResponse);
+  });
   it('sets up a new build configuration from credentials.json upon user request', async () => {
     jest.mocked(SelectAndroidBuildCredentials).mockImplementation((() => {
       return {

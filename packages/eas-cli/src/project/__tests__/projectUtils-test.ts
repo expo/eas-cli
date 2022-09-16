@@ -3,7 +3,7 @@ import { vol } from 'memfs';
 
 import { Actor, getUserAsync } from '../../user/User';
 import { fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync } from '../fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync';
-import { findProjectRootAsync, getProjectAccountName, getProjectIdAsync } from '../projectUtils';
+import { findProjectRootAsync, getProjectIdAsync } from '../projectUtils';
 
 jest.mock('@expo/config');
 jest.mock('fs');
@@ -65,56 +65,6 @@ describe(findProjectRootAsync, () => {
     );
     const projectRoot = await findProjectRootAsync({ cwd: '/app/src' });
     expect(projectRoot).toBe('/app');
-  });
-});
-
-describe(getProjectAccountName, () => {
-  const expWithOwner: any = { owner: 'dominik' };
-  const expWithoutOwner: any = {};
-
-  it('returns owner for user actor', () => {
-    const projectAccountName = getProjectAccountName(expWithOwner, {
-      __typename: 'User',
-      id: 'userId',
-      username: 'notbrent',
-      accounts: [],
-      isExpoAdmin: false,
-    });
-    expect(projectAccountName).toBe(expWithOwner.owner);
-  });
-
-  it('returns owner for robot actor', () => {
-    const projectAccountName = getProjectAccountName(expWithOwner, {
-      __typename: 'Robot',
-      id: 'userId',
-      firstName: 'notauser',
-      accounts: [],
-      isExpoAdmin: false,
-    });
-    expect(projectAccountName).toBe(expWithOwner.owner);
-  });
-
-  it('returns username for user actor when owner is undefined', () => {
-    const projectAccountName = getProjectAccountName(expWithoutOwner, {
-      __typename: 'User',
-      id: 'userId',
-      username: 'dominik',
-      accounts: [],
-      isExpoAdmin: false,
-    });
-    expect(projectAccountName).toBe('dominik');
-  });
-
-  it('throws for robot actor when owner is undefined', () => {
-    const resolveProjectAccountName = (): string =>
-      getProjectAccountName(expWithoutOwner, {
-        __typename: 'Robot',
-        id: 'userId',
-        firstName: 'notauser',
-        accounts: [],
-        isExpoAdmin: false,
-      });
-    expect(resolveProjectAccountName).toThrow('manifest property is required');
   });
 });
 

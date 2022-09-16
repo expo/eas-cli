@@ -1,15 +1,25 @@
+import { AppQuery } from '../../../../graphql/queries/AppQuery';
 import { findApplicationTarget } from '../../../../project/ios/target';
+import { testAppQueryByIdResponse } from '../../../__tests__/fixtures-constants';
 import { createCtxMock } from '../../../__tests__/fixtures-context';
 import { testPushKey, testTargets } from '../../../__tests__/fixtures-ios';
 import { AssignPushKey } from '../AssignPushKey';
-import { getAppLookupParamsFromContext } from '../BuildCredentialsUtils';
+import { getAppLookupParamsFromContextAsync } from '../BuildCredentialsUtils';
+
+jest.mock('../../../../graphql/queries/AppQuery');
 
 describe(AssignPushKey, () => {
+  beforeEach(() => {
+    jest.mocked(AppQuery.byIdAsync).mockResolvedValue(testAppQueryByIdResponse);
+  });
   it('assigns a push key in Interactive Mode', async () => {
     const ctx = createCtxMock({
       nonInteractive: false,
     });
-    const appLookupParams = getAppLookupParamsFromContext(ctx, findApplicationTarget(testTargets));
+    const appLookupParams = await getAppLookupParamsFromContextAsync(
+      ctx,
+      findApplicationTarget(testTargets)
+    );
     const assignPushKeyAction = new AssignPushKey(appLookupParams);
     await assignPushKeyAction.runAsync(ctx, testPushKey);
 
@@ -21,7 +31,10 @@ describe(AssignPushKey, () => {
     const ctx = createCtxMock({
       nonInteractive: true,
     });
-    const appLookupParams = getAppLookupParamsFromContext(ctx, findApplicationTarget(testTargets));
+    const appLookupParams = await getAppLookupParamsFromContextAsync(
+      ctx,
+      findApplicationTarget(testTargets)
+    );
     const assignPushKeyAction = new AssignPushKey(appLookupParams);
     await assignPushKeyAction.runAsync(ctx, testPushKey);
 

@@ -10,9 +10,8 @@ import { Analytics, BuildEvent } from '../analytics/events';
 import { CredentialsContext } from '../credentials/context';
 import { BuildResourceClass } from '../graphql/generated';
 import { getExpoConfig } from '../project/expoConfig';
-import { getProjectAccountName, getProjectIdAsync } from '../project/projectUtils';
+import { getOwnerAccountForProjectIdAsync, getProjectIdAsync } from '../project/projectUtils';
 import { resolveWorkflowAsync } from '../project/workflow';
-import { findAccountByName } from '../user/Account';
 import { ensureLoggedInAsync } from '../user/actions';
 import { createAndroidContextAsync } from './android/build';
 import { BuildContext, CommonContext } from './context';
@@ -47,14 +46,14 @@ export async function createBuildContextAsync<T extends Platform>({
   const exp = getExpoConfig(projectDir, { env: buildProfile.env });
 
   const user = await ensureLoggedInAsync({ nonInteractive });
-  const accountName = getProjectAccountName(exp, user);
   const projectName = exp.slug;
   const projectId = await getProjectIdAsync(exp, {
     env: buildProfile.env,
     nonInteractive,
   });
+  const account = await getOwnerAccountForProjectIdAsync(projectId);
   const workflow = await resolveWorkflowAsync(projectDir, platform);
-  const accountId = findAccountByName(user.accounts, accountName)?.id;
+  const accountId = account.id;
   const runFromCI = getenv.boolish('CI', false);
 
   const credentialsCtx = new CredentialsContext({
@@ -84,7 +83,7 @@ export async function createBuildContextAsync<T extends Platform>({
   Analytics.logEvent(BuildEvent.BUILD_COMMAND, trackingCtx);
 
   const commonContext: CommonContext<T> = {
-    accountName,
+    accountName: account.name,
     buildProfile,
     buildProfileName,
     resourceClass,

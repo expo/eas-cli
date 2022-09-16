@@ -1,12 +1,19 @@
+import { AppQuery } from '../../../../graphql/queries/AppQuery';
 import { promptAsync } from '../../../../prompts';
+import { testAppQueryByIdResponse } from '../../../__tests__/fixtures-constants';
 import { createCtxMock } from '../../../__tests__/fixtures-context';
 import { getAppLookupParamsFromContextAsync } from '../BuildCredentialsUtils';
 import { CreateFcm } from '../CreateFcm';
 
 jest.mock('../../../../prompts');
 jest.mocked(promptAsync).mockImplementation(async () => ({ fcmApiKey: 'blah' }));
+jest.mock('../../../../graphql/queries/AppQuery');
 
 describe(CreateFcm, () => {
+  beforeEach(() => {
+    jest.mocked(AppQuery.byIdAsync).mockResolvedValue(testAppQueryByIdResponse);
+  });
+
   it('creates an fcm api key in Interactive Mode', async () => {
     const ctx = createCtxMock({ nonInteractive: false });
     const appLookupParams = await getAppLookupParamsFromContextAsync(ctx);

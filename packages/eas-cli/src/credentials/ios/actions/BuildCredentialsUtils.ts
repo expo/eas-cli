@@ -7,8 +7,7 @@ import {
   IosDistributionType as GraphQLIosDistributionType,
   IosAppBuildCredentialsFragment,
 } from '../../../graphql/generated';
-import { getProjectAccountName } from '../../../project/projectUtils';
-import { findAccountByName } from '../../../user/Account';
+import { getOwnerAccountForProjectIdAsync, getProjectIdAsync } from '../../../project/projectUtils';
 import { CredentialsContext } from '../../context';
 import { AppLookupParams } from '../api/GraphqlClient';
 import { App, Target } from '../types';
@@ -82,24 +81,21 @@ export async function assignBuildCredentialsAsync(
   });
 }
 
-export function getAppFromContext(ctx: CredentialsContext): App {
+export async function getAppFromContextAsync(ctx: CredentialsContext): Promise<App> {
   ctx.ensureProjectContext();
   const projectName = ctx.exp.slug;
-  const accountName = getProjectAccountName(ctx.exp, ctx.user);
-  const account = findAccountByName(ctx.user.accounts, accountName);
-  if (!account) {
-    throw new Error(`You do not have access to account: ${accountName}`);
-  }
+  const projectId = await getProjectIdAsync(ctx.exp, { nonInteractive: ctx.nonInteractive });
+  const account = await getOwnerAccountForProjectIdAsync(projectId);
   return {
     account,
     projectName,
   };
 }
 
-export function getAppLookupParamsFromContext(
+export async function getAppLookupParamsFromContextAsync(
   ctx: CredentialsContext,
   target: Target
-): AppLookupParams {
-  const app = getAppFromContext(ctx);
+): Promise<AppLookupParams> {
+  const app = await getAppFromContextAsync(ctx);
   return { ...app, bundleIdentifier: target.bundleIdentifier };
 }

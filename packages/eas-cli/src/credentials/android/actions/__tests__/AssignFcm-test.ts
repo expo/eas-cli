@@ -1,9 +1,16 @@
+import { AppQuery } from '../../../../graphql/queries/AppQuery';
 import { testLegacyAndroidFcmFragment } from '../../../__tests__/fixtures-android';
+import { testAppQueryByIdResponse } from '../../../__tests__/fixtures-constants';
 import { createCtxMock } from '../../../__tests__/fixtures-context';
 import { AssignFcm } from '../AssignFcm';
 import { getAppLookupParamsFromContextAsync } from '../BuildCredentialsUtils';
 
+jest.mock('../../../../graphql/queries/AppQuery');
+
 describe(AssignFcm, () => {
+  beforeEach(() => {
+    jest.mocked(AppQuery.byIdAsync).mockResolvedValue(testAppQueryByIdResponse);
+  });
   it('assigns an fcm api key in Interactive Mode', async () => {
     const ctx = createCtxMock({
       nonInteractive: false,

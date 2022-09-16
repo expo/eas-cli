@@ -1,6 +1,8 @@
+import { AppQuery } from '../../../../graphql/queries/AppQuery';
 import { findApplicationTarget } from '../../../../project/ios/target';
 import { confirmAsync, promptAsync } from '../../../../prompts';
 import { getAppstoreMock, testAuthCtx } from '../../../__tests__/fixtures-appstore';
+import { testAppQueryByIdResponse } from '../../../__tests__/fixtures-constants';
 import { createCtxMock } from '../../../__tests__/fixtures-context';
 import {
   getNewIosApiMock,
@@ -10,13 +12,17 @@ import {
   testTargets,
 } from '../../../__tests__/fixtures-ios';
 import { AppStoreApiKeyPurpose } from '../AscApiKeyUtils';
-import { getAppLookupParamsFromContext } from '../BuildCredentialsUtils';
+import { getAppLookupParamsFromContextAsync } from '../BuildCredentialsUtils';
 import { SetUpAscApiKey, SetupAscApiKeyChoice } from '../SetUpAscApiKey';
 
 jest.mock('../../../../prompts');
 jest.mocked(confirmAsync).mockImplementation(async () => true);
+jest.mock('../../../../graphql/queries/AppQuery');
 
 describe(SetUpAscApiKey, () => {
+  beforeEach(() => {
+    jest.mocked(AppQuery.byIdAsync).mockResolvedValue(testAppQueryByIdResponse);
+  });
   it('skips setting up a ASC API Key if it is already configured', async () => {
     const ctx = createCtxMock({
       nonInteractive: false,
@@ -27,7 +33,10 @@ describe(SetUpAscApiKey, () => {
         ),
       },
     });
-    const appLookupParams = getAppLookupParamsFromContext(ctx, findApplicationTarget(testTargets));
+    const appLookupParams = await getAppLookupParamsFromContextAsync(
+      ctx,
+      findApplicationTarget(testTargets)
+    );
     const setupAscApiKeyAction = new SetUpAscApiKey(
       appLookupParams,
       AppStoreApiKeyPurpose.SUBMISSION_SERVICE
@@ -52,7 +61,10 @@ describe(SetUpAscApiKey, () => {
         createAscApiKeyAsync: jest.fn(() => testAscApiKeyFragment),
       },
     });
-    const appLookupParams = getAppLookupParamsFromContext(ctx, findApplicationTarget(testTargets));
+    const appLookupParams = await getAppLookupParamsFromContextAsync(
+      ctx,
+      findApplicationTarget(testTargets)
+    );
     const setupAscApiKeyAction = new SetUpAscApiKey(
       appLookupParams,
       AppStoreApiKeyPurpose.SUBMISSION_SERVICE
@@ -78,7 +90,10 @@ describe(SetUpAscApiKey, () => {
         getAscApiKeysForAccountAsync: jest.fn(() => [testAscApiKeyFragment]),
       },
     });
-    const appLookupParams = getAppLookupParamsFromContext(ctx, findApplicationTarget(testTargets));
+    const appLookupParams = await getAppLookupParamsFromContextAsync(
+      ctx,
+      findApplicationTarget(testTargets)
+    );
     const setupAscApiKeyAction = new SetUpAscApiKey(
       appLookupParams,
       AppStoreApiKeyPurpose.SUBMISSION_SERVICE
@@ -102,7 +117,10 @@ describe(SetUpAscApiKey, () => {
       choice: SetupAscApiKeyChoice.USE_EXISTING,
       chosenAscApiKey: testAscApiKeyFragment,
     }));
-    const appLookupParams = getAppLookupParamsFromContext(ctx, findApplicationTarget(testTargets));
+    const appLookupParams = await getAppLookupParamsFromContextAsync(
+      ctx,
+      findApplicationTarget(testTargets)
+    );
     const setupAscApiKeyAction = new SetUpAscApiKey(
       appLookupParams,
       AppStoreApiKeyPurpose.SUBMISSION_SERVICE
@@ -124,7 +142,10 @@ describe(SetUpAscApiKey, () => {
         ),
       },
     });
-    const appLookupParams = getAppLookupParamsFromContext(ctx, findApplicationTarget(testTargets));
+    const appLookupParams = await getAppLookupParamsFromContextAsync(
+      ctx,
+      findApplicationTarget(testTargets)
+    );
     const setupAscApiKeyAction = new SetUpAscApiKey(
       appLookupParams,
       AppStoreApiKeyPurpose.SUBMISSION_SERVICE
@@ -135,7 +156,10 @@ describe(SetUpAscApiKey, () => {
     const ctx = createCtxMock({
       nonInteractive: true,
     });
-    const appLookupParams = getAppLookupParamsFromContext(ctx, findApplicationTarget(testTargets));
+    const appLookupParams = await getAppLookupParamsFromContextAsync(
+      ctx,
+      findApplicationTarget(testTargets)
+    );
     const createAscApiKeyAction = new SetUpAscApiKey(
       appLookupParams,
       AppStoreApiKeyPurpose.SUBMISSION_SERVICE

@@ -3,7 +3,10 @@ import { AndroidReleaseStatus, AndroidReleaseTrack } from '@expo/eas-json';
 import { vol } from 'memfs';
 import { v4 as uuidv4 } from 'uuid';
 
-import { jester as mockJester } from '../../../credentials/__tests__/fixtures-constants';
+import {
+  jester as mockJester,
+  testProjectId,
+} from '../../../credentials/__tests__/fixtures-constants';
 import {
   AppPlatform,
   BuildFragment,
@@ -12,7 +15,7 @@ import {
 } from '../../../graphql/generated';
 import { SubmissionMutation } from '../../../graphql/mutations/SubmissionMutation';
 import { createTestProject } from '../../../project/__tests__/project-utils';
-import { getProjectIdAsync } from '../../../project/projectUtils';
+import { getOwnerAccountForProjectIdAsync, getProjectIdAsync } from '../../../project/projectUtils';
 import { createSubmissionContextAsync } from '../../context';
 import { getRecentBuildsForSubmissionAsync } from '../../utils/builds';
 import AndroidSubmitCommand from '../AndroidSubmitCommand';
@@ -34,7 +37,7 @@ jest.mock('../../../user/actions', () => ({
 jest.mock('../../../project/projectUtils');
 
 describe(AndroidSubmitCommand, () => {
-  const testProject = createTestProject(mockJester, {
+  const testProject = createTestProject(testProjectId, mockJester.accounts[0].name, {
     android: {
       package: 'com.expo.test.project',
     },
@@ -69,6 +72,10 @@ describe(AndroidSubmitCommand, () => {
   });
   afterAll(() => {
     vol.reset();
+  });
+
+  beforeEach(() => {
+    jest.mocked(getOwnerAccountForProjectIdAsync).mockResolvedValue(mockJester.accounts[0]);
   });
 
   afterEach(() => {

@@ -1,5 +1,3 @@
-import { Actor } from '../../user/User';
-
 interface MockProject {
   projectRoot: string;
   projectTree: Record<string, string>;
@@ -26,7 +24,8 @@ interface AppJSON {
 }
 
 export function createTestProject(
-  user: Actor,
+  projectId: string,
+  ownerAccountName: string,
   appJSONExtraData?: Record<string, object | string>
 ): MockProject {
   const projectRoot = '/test-project';
@@ -37,14 +36,18 @@ export function createTestProject(
     main: 'index.js',
   };
 
-  const owner = appJSONExtraData?.owner as string | undefined;
   const appJSON: AppJSON = {
     expo: {
       name: 'testing 123',
       version: '0.1.0',
       slug: 'testing-123',
       sdkVersion: '33.0.0',
-      owner: owner ?? (user.__typename === 'User' ? user.username : undefined),
+      owner: ownerAccountName,
+      extra: {
+        eas: {
+          projectId,
+        },
+      },
       ...appJSONExtraData,
     },
   };

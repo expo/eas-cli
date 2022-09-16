@@ -1,21 +1,30 @@
+import { AppQuery } from '../../../../graphql/queries/AppQuery';
 import { findApplicationTarget } from '../../../../project/ios/target';
 import { confirmAsync } from '../../../../prompts';
+import { testAppQueryByIdResponse } from '../../../__tests__/fixtures-constants';
 import { createCtxMock } from '../../../__tests__/fixtures-context';
 import {
   testDistCertFragmentNoDependencies,
   testDistCertFragmentOneDependency,
   testTargets,
 } from '../../../__tests__/fixtures-ios';
-import { getAppLookupParamsFromContext } from '../BuildCredentialsUtils';
+import { getAppLookupParamsFromContextAsync } from '../BuildCredentialsUtils';
 import { RemoveDistributionCertificate } from '../RemoveDistributionCertificate';
 
 jest.mock('../../../../prompts');
 jest.mocked(confirmAsync).mockImplementation(async () => true);
+jest.mock('../../../../graphql/queries/AppQuery');
 
 describe('RemoveDistributionCertificate', () => {
+  beforeEach(() => {
+    jest.mocked(AppQuery.byIdAsync).mockResolvedValue(testAppQueryByIdResponse);
+  });
   it('deletes the distribution certificate on Expo and Apple servers when there are no App Dependencies in Interactive Mode', async () => {
     const ctx = createCtxMock({ nonInteractive: false });
-    const appLookupParams = getAppLookupParamsFromContext(ctx, findApplicationTarget(testTargets));
+    const appLookupParams = await getAppLookupParamsFromContextAsync(
+      ctx,
+      findApplicationTarget(testTargets)
+    );
     const removeDistCertAction = new RemoveDistributionCertificate(
       appLookupParams.account,
       testDistCertFragmentNoDependencies
@@ -31,7 +40,10 @@ describe('RemoveDistributionCertificate', () => {
   });
   it('deletes the distribution certificate on Expo servers when there are no App Dependencies in Non-Interactive Mode', async () => {
     const ctx = createCtxMock({ nonInteractive: true });
-    const appLookupParams = getAppLookupParamsFromContext(ctx, findApplicationTarget(testTargets));
+    const appLookupParams = await getAppLookupParamsFromContextAsync(
+      ctx,
+      findApplicationTarget(testTargets)
+    );
     const removeDistCertAction = new RemoveDistributionCertificate(
       appLookupParams.account,
       testDistCertFragmentNoDependencies
@@ -47,7 +59,10 @@ describe('RemoveDistributionCertificate', () => {
   });
   it('deletes the distribution certificate and its provisioning profile on Expo and Apple servers when there are App Dependencies in Interactive Mode', async () => {
     const ctx = createCtxMock({ nonInteractive: false });
-    const appLookupParams = getAppLookupParamsFromContext(ctx, findApplicationTarget(testTargets));
+    const appLookupParams = await getAppLookupParamsFromContextAsync(
+      ctx,
+      findApplicationTarget(testTargets)
+    );
     const removeDistCertAction = new RemoveDistributionCertificate(
       appLookupParams.account,
       testDistCertFragmentOneDependency
@@ -63,7 +78,10 @@ describe('RemoveDistributionCertificate', () => {
   });
   it('errors when the distribution certificate has App Dependencies in Non-Interactive Mode', async () => {
     const ctx = createCtxMock({ nonInteractive: true });
-    const appLookupParams = getAppLookupParamsFromContext(ctx, findApplicationTarget(testTargets));
+    const appLookupParams = await getAppLookupParamsFromContextAsync(
+      ctx,
+      findApplicationTarget(testTargets)
+    );
     const removeDistCertAction = new RemoveDistributionCertificate(
       appLookupParams.account,
       testDistCertFragmentOneDependency

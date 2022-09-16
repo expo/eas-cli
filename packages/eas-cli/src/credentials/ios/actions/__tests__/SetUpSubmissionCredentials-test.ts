@@ -1,12 +1,14 @@
+import { AppQuery } from '../../../../graphql/queries/AppQuery';
 import { findApplicationTarget } from '../../../../project/ios/target';
 import { confirmAsync, promptAsync } from '../../../../prompts';
+import { testAppQueryByIdResponse } from '../../../__tests__/fixtures-constants';
 import { createCtxMock } from '../../../__tests__/fixtures-context';
 import {
   getNewIosApiMock,
   testCommonIosAppCredentialsFragment,
   testTargets,
 } from '../../../__tests__/fixtures-ios';
-import { getAppLookupParamsFromContext } from '../BuildCredentialsUtils';
+import { getAppLookupParamsFromContextAsync } from '../BuildCredentialsUtils';
 import { SetUpAscApiKey } from '../SetUpAscApiKey';
 import {
   PROMPT_FOR_APP_SPECIFIC_PASSWORD,
@@ -15,8 +17,12 @@ import {
 
 jest.mock('../../../../prompts');
 jest.mocked(confirmAsync).mockImplementation(async () => true);
+jest.mock('../../../../graphql/queries/AppQuery');
 
 describe(SetUpSubmissionCredentials, () => {
+  beforeEach(() => {
+    jest.mocked(AppQuery.byIdAsync).mockResolvedValue(testAppQueryByIdResponse);
+  });
   it('allows user to enter an App Specific Password', async () => {
     jest
       .mocked(promptAsync)
@@ -32,7 +38,10 @@ describe(SetUpSubmissionCredentials, () => {
         ...getNewIosApiMock(),
       },
     });
-    const appLookupParams = getAppLookupParamsFromContext(ctx, findApplicationTarget(testTargets));
+    const appLookupParams = await getAppLookupParamsFromContextAsync(
+      ctx,
+      findApplicationTarget(testTargets)
+    );
     const setupAscApiKeyAction = new SetUpSubmissionCredentials(appLookupParams);
     const asp = await setupAscApiKeyAction.runAsync(ctx);
 
@@ -46,7 +55,7 @@ describe(SetUpSubmissionCredentials, () => {
         .spyOn(SetUpAscApiKey.prototype, 'runAsync')
         .mockImplementation(async _ctx => testCommonIosAppCredentialsFragment);
       const ctx = createCtxMock();
-      const appLookupParams = getAppLookupParamsFromContext(
+      const appLookupParams = await getAppLookupParamsFromContextAsync(
         ctx,
         findApplicationTarget(testTargets)
       );

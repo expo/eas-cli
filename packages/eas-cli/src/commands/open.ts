@@ -6,10 +6,9 @@ import { ora } from '../ora';
 import { getExpoConfig } from '../project/expoConfig';
 import {
   findProjectRootAsync,
-  getProjectAccountName,
+  getOwnerAccountForProjectIdAsync,
   getProjectIdAsync,
 } from '../project/projectUtils';
-import { ensureLoggedInAsync } from '../user/actions';
 
 export default class Open extends EasCommand {
   static override description = 'open the project page in a web browser';
@@ -20,13 +19,12 @@ export default class Open extends EasCommand {
 
     // this command is interactive by nature (only really run by humans in a terminal)
     // this ensures the project exists before opening the browser
-    await getProjectIdAsync(exp, { nonInteractive: false });
+    const projectId = await getProjectIdAsync(exp, { nonInteractive: false });
+    const account = await getOwnerAccountForProjectIdAsync(projectId);
 
-    const user = await ensureLoggedInAsync({ nonInteractive: false });
-    const accountName = getProjectAccountName(exp, user);
     const projectName = exp.slug;
 
-    const projectDashboardUrl = getProjectDashboardUrl(accountName, projectName);
+    const projectDashboardUrl = getProjectDashboardUrl(account.name, projectName);
     const failedMessage = `Unable to open a web browser. Project page is available at: ${projectDashboardUrl}`;
     const spinner = ora(`Opening ${projectDashboardUrl}`).start();
     try {

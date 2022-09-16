@@ -2,8 +2,7 @@ import { ExpoConfig } from '@expo/config';
 import { IOSConfig } from '@expo/config-plugins';
 
 import { RequestedPlatform } from '../../platform';
-import { getProjectAccountName } from '../../project/projectUtils';
-import { ensureLoggedInAsync } from '../../user/actions';
+import { getOwnerAccountForProjectIdAsync, getProjectIdAsync } from '../../project/projectUtils';
 import { readPlistAsync, writePlistAsync } from '../../utils/plist';
 import { getVcsClient } from '../../vcs';
 import { ensureValidVersions } from '../utils';
@@ -14,7 +13,8 @@ export async function syncUpdatesConfigurationAsync(
   { nonInteractive }: { nonInteractive: boolean }
 ): Promise<void> {
   ensureValidVersions(exp, RequestedPlatform.Ios);
-  const accountName = getProjectAccountName(exp, await ensureLoggedInAsync({ nonInteractive }));
+  const projectId = await getProjectIdAsync(exp, { nonInteractive });
+  const accountName = (await getOwnerAccountForProjectIdAsync(projectId)).name;
   const expoPlist = await readExpoPlistAsync(projectDir);
   const updatedExpoPlist = IOSConfig.Updates.setUpdatesConfig(
     projectDir,
