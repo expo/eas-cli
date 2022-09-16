@@ -3,12 +3,7 @@ import { vol } from 'memfs';
 
 import { Actor, getUserAsync } from '../../user/User';
 import { fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync } from '../fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync';
-import {
-  findProjectRootAsync,
-  getProjectAccountName,
-  getProjectAccountNameAsync,
-  getProjectIdAsync,
-} from '../projectUtils';
+import { findProjectRootAsync, getProjectAccountName, getProjectIdAsync } from '../projectUtils';
 
 jest.mock('@expo/config');
 jest.mock('fs');
@@ -120,75 +115,6 @@ describe(getProjectAccountName, () => {
         isExpoAdmin: false,
       });
     expect(resolveProjectAccountName).toThrow('manifest property is required');
-  });
-});
-
-describe(getProjectAccountNameAsync, () => {
-  const expWithOwner: any = { owner: 'dominik' };
-  const expWithoutOwner: any = {};
-
-  beforeEach(() => {
-    jest.mocked(getUserAsync).mockReset();
-  });
-
-  it(`returns the owner field's value from app.json / app.config.js`, async () => {
-    jest.mocked(getUserAsync).mockImplementation(
-      async (): Promise<Actor> => ({
-        __typename: 'User',
-        id: 'user_id',
-        username: 'notnotbrent',
-        accounts: [
-          { id: 'account_id_1', name: 'notnotbrent' },
-          { id: 'account_id_2', name: 'dominik' },
-        ],
-        isExpoAdmin: false,
-      })
-    );
-
-    const projectAccountName = await getProjectAccountNameAsync(expWithOwner, {
-      nonInteractive: true,
-    });
-    expect(projectAccountName).toBe('dominik');
-  });
-
-  it(`returns the username if owner field is not set in app.json / app.config.js`, async () => {
-    jest.mocked(getUserAsync).mockImplementation(
-      async (): Promise<Actor> => ({
-        __typename: 'User',
-        id: 'user_id',
-        username: 'notnotbrent',
-        accounts: [
-          { id: 'account_id_1', name: 'notnotbrent' },
-          { id: 'account_id_2', name: 'dominik' },
-        ],
-        isExpoAdmin: false,
-      })
-    );
-
-    const projectAccountName = await getProjectAccountNameAsync(expWithoutOwner, {
-      nonInteractive: true,
-    });
-    expect(projectAccountName).toBe('notnotbrent');
-  });
-
-  it(`throws when project owner is undefined for robot actors`, async () => {
-    jest.mocked(getUserAsync).mockImplementation(
-      async (): Promise<Actor> => ({
-        __typename: 'Robot',
-        id: 'user_id',
-        firstName: 'GLaDOS',
-        accounts: [
-          { id: 'account_id_1', name: 'notnotbrent' },
-          { id: 'account_id_2', name: 'dominik' },
-        ],
-        isExpoAdmin: false,
-      })
-    );
-    await expect(
-      getProjectAccountNameAsync(expWithoutOwner, {
-        nonInteractive: true,
-      })
-    ).rejects.toThrow('manifest property is required');
   });
 });
 

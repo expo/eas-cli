@@ -17,7 +17,11 @@ import { AppleDevice, Maybe } from '../../graphql/generated';
 import Log from '../../log';
 import { ora } from '../../ora';
 import { getExpoConfig } from '../../project/expoConfig';
-import { findProjectRootAsync, getProjectAccountNameAsync } from '../../project/projectUtils';
+import {
+  findProjectRootAsync,
+  getOwnerAccountForProjectIdAsync,
+  getProjectIdAsync,
+} from '../../project/projectUtils';
 import { promptAsync, toggleConfirmAsync } from '../../prompts';
 
 export default class DeviceDelete extends EasCommand {
@@ -36,15 +40,16 @@ export default class DeviceDelete extends EasCommand {
     const projectDir = await findProjectRootAsync();
     const exp = getExpoConfig(projectDir);
     // this command is interactive by design
-    const accountName = await getProjectAccountNameAsync(exp, { nonInteractive: false });
+    const projectId = await getProjectIdAsync(exp, { nonInteractive: false });
+    const account = await getOwnerAccountForProjectIdAsync(projectId);
 
     if (!appleTeamIdentifier) {
-      appleTeamIdentifier = await this.askForAppleTeamAsync(accountName);
+      appleTeamIdentifier = await this.askForAppleTeamAsync(account.name);
     }
 
     assert(appleTeamIdentifier, 'No team identifier is specified');
 
-    const appleDevicesResult = await this.getDevicesForTeamAsync(accountName, appleTeamIdentifier);
+    const appleDevicesResult = await this.getDevicesForTeamAsync(account.name, appleTeamIdentifier);
 
     if (!appleDevicesResult) {
       return;

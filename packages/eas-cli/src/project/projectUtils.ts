@@ -52,18 +52,6 @@ export function getUsername(exp: ExpoConfig, user: Actor): string | undefined {
   }
 }
 
-/**
- * @deprecated - prefer using the account that definitively owns the project by
- *               fetching it via the App.ownerAccount GraphQL field.
- */
-export async function getProjectAccountNameAsync(
-  exp: ExpoConfig,
-  { nonInteractive }: { nonInteractive: boolean }
-): Promise<string> {
-  const user = await ensureLoggedInAsync({ nonInteractive });
-  return getProjectAccountName(exp, user);
-}
-
 export async function findProjectRootAsync({
   cwd,
   defaultToProcessCwd = false,
@@ -202,7 +190,8 @@ export async function getProjectFullNameAsync(
   exp: ExpoConfig,
   { nonInteractive }: { nonInteractive: boolean }
 ): Promise<string> {
-  const accountName = await getProjectAccountNameAsync(exp, { nonInteractive });
+  const user = await ensureLoggedInAsync({ nonInteractive });
+  const accountName = getProjectAccountName(exp, user);
   return `@${accountName}/${exp.slug}`;
 }
 

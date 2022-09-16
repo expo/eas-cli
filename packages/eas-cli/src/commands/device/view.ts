@@ -4,7 +4,11 @@ import formatDevice from '../../devices/utils/formatDevice';
 import Log from '../../log';
 import { ora } from '../../ora';
 import { getExpoConfig } from '../../project/expoConfig';
-import { findProjectRootAsync, getProjectAccountNameAsync } from '../../project/projectUtils';
+import {
+  findProjectRootAsync,
+  getOwnerAccountForProjectIdAsync,
+  getProjectIdAsync,
+} from '../../project/projectUtils';
 
 export default class DeviceView extends EasCommand {
   static override description = 'view a device for your project';
@@ -32,12 +36,13 @@ If you are not sure what is the UDID of the device you are looking for, run:
     const exp = getExpoConfig(projectDir);
 
     // this command is non-interactive by design
-    const accountName = await getProjectAccountNameAsync(exp, { nonInteractive: true });
+    const projectId = await getProjectIdAsync(exp, { nonInteractive: true });
+    const account = await getOwnerAccountForProjectIdAsync(projectId);
 
     const spinner = ora().start(`Fetching device details for ${UDID}…`);
 
     try {
-      const device = await AppleDeviceQuery.getByDeviceIdentifierAsync(accountName, UDID);
+      const device = await AppleDeviceQuery.getByDeviceIdentifierAsync(account.name, UDID);
 
       if (device) {
         spinner.succeed('Fetched device details');
