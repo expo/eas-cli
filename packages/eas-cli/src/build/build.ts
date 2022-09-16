@@ -178,11 +178,11 @@ async function uploadProjectAsync<TPlatform extends Platform>(
         );
         const projectTarball = await makeProjectTarballAsync();
 
-        if (projectTarball.size > 1024 * 1024 * 500) {
+        if (projectTarball.size > 1024 * 1024 * 100) {
           Log.warn(
-            `Your archive size is over 500 MB. You can reduce its size by excluding files unnecessary for the build using .easignore file. ${learnMore(
-              'https://expo.fyi/eas-build-archive'
-            )}`
+            `Your project size is over 100 MB. You can reduce its size by excluding files unnecessary for the build process using ${chalk.bold(
+              '.easignore'
+            )} file. ${learnMore('https://expo.fyi/eas-build-archive')}`
           );
         }
 
