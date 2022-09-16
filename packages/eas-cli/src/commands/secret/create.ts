@@ -106,13 +106,13 @@ export default class EnvironmentSecretCreate extends EasCommand {
     }
 
     if (!secretType) {
-      secretType = await selectAsync('Select type', [
+      secretType = await selectAsync('Select secret type', [
         {
-          title: 'String',
+          title: 'string',
           value: SecretType.STRING,
         },
         {
-          title: 'File',
+          title: 'file',
           value: SecretType.FILE,
         },
       ]);
@@ -122,7 +122,7 @@ export default class EnvironmentSecretCreate extends EasCommand {
       ({ secretValue } = await promptAsync({
         type: 'text',
         name: 'secretValue',
-        message: 'Secret value (or local file path):',
+        message: secretType === SecretType.STRING ? 'Secret value:' : 'Local file path:',
         // eslint-disable-next-line async-protect/async-suffix
         validate: async secretValue => {
           if (!secretValue) {
@@ -131,7 +131,7 @@ export default class EnvironmentSecretCreate extends EasCommand {
           if (secretType === SecretType.FILE) {
             const secretFilePath = path.resolve(secretValue);
             if (!(await fs.pathExists(secretFilePath))) {
-              return 'Secret file does not exist.';
+              return `File "${secretValue}" does not exist.`;
             }
           }
           return true;
