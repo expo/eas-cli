@@ -29,7 +29,7 @@ export class CredentialsContext {
     private options: {
       exp?: ExpoConfig;
       easJsonCliConfig?: EasJson['cli'];
-      nonInteractive?: boolean;
+      nonInteractive: boolean;
       projectDir: string;
       user: Actor;
       env?: Env;

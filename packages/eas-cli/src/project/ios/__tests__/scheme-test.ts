@@ -29,7 +29,7 @@ describe(selectSchemeAsync, () => {
         },
         projectDir
       );
-      const scheme = await selectSchemeAsync({ projectDir });
+      const scheme = await selectSchemeAsync({ projectDir, nonInteractive: true });
       expect(scheme).toBe('scheme1');
       expect(promptAsync).not.toHaveBeenCalled();
     });
@@ -61,7 +61,7 @@ describe(selectSchemeAsync, () => {
         selectedScheme: 'scheme3',
       }));
 
-      const scheme = await selectSchemeAsync({ projectDir });
+      const scheme = await selectSchemeAsync({ projectDir, nonInteractive: false });
       expect(scheme).toBe('scheme3');
       expect(promptAsync).toHaveBeenCalled();
     });

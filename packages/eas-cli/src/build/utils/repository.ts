@@ -70,7 +70,11 @@ export async function commitPromptAsync({
     initial: initialCommitMessage,
     validate: (input: string) => input !== '',
   });
-  await getVcsClient().commitAsync({ commitAllFiles, commitMessage: message });
+  await getVcsClient().commitAsync({
+    commitAllFiles,
+    commitMessage: message,
+    nonInteractive: false,
+  });
 }
 
 export async function makeProjectTarballAsync(): Promise<{ path: string; size: number }> {
