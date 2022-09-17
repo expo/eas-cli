@@ -8,7 +8,7 @@ import { ora } from '../../ora';
 import { getExpoConfig } from '../../project/expoConfig';
 import {
   findProjectRootAsync,
-  getProjectFullNameAsync,
+  getDisplayNameForProjectIdAsync,
   getProjectIdAsync,
 } from '../../project/projectUtils';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
@@ -36,7 +36,7 @@ export default class BuildView extends EasCommand {
 
     // this command is always non-interactive
     const projectId = await getProjectIdAsync(exp, { nonInteractive: true });
-    const projectName = await getProjectFullNameAsync(exp, { nonInteractive: true });
+    const displayName = await getDisplayNameForProjectIdAsync(projectId);
 
     const spinner = ora().start('Fetching the build…');
 
@@ -52,16 +52,16 @@ export default class BuildView extends EasCommand {
           limit: 1,
         });
         if (builds.length === 0) {
-          spinner.fail(`Couldn't find any builds for the project ${projectName}`);
+          spinner.fail(`Couldn't find any builds for the project ${displayName}`);
           return;
         }
         build = builds[0];
       }
 
       if (buildId) {
-        spinner.succeed(`Found a matching build for the project ${projectName}`);
+        spinner.succeed(`Found a matching build for the project ${displayName}`);
       } else {
-        spinner.succeed(`Showing the last build for the project ${projectName}`);
+        spinner.succeed(`Showing the last build for the project ${displayName}`);
       }
 
       if (flags.json) {
@@ -74,7 +74,7 @@ export default class BuildView extends EasCommand {
         spinner.fail(`Something went wrong and we couldn't fetch the build with id ${buildId}`);
       } else {
         spinner.fail(
-          `Something went wrong and we couldn't fetch the last build for the project ${projectName}`
+          `Something went wrong and we couldn't fetch the last build for the project ${displayName}`
         );
       }
 

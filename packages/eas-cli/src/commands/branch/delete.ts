@@ -17,7 +17,7 @@ import Log from '../../log';
 import { getExpoConfig } from '../../project/expoConfig';
 import {
   findProjectRootAsync,
-  getProjectFullNameAsync,
+  getDisplayNameForProjectIdAsync,
   getProjectIdAsync,
 } from '../../project/projectUtils';
 import { toggleConfirmAsync } from '../../prompts';
@@ -106,8 +106,8 @@ export default class BranchDelete extends EasCommand {
 
     const projectDir = await findProjectRootAsync();
     const exp = getExpoConfig(projectDir);
-    const fullName = await getProjectFullNameAsync(exp, { nonInteractive });
     const projectId = await getProjectIdAsync(exp, { nonInteractive });
+    const projectDisplayName = await getDisplayNameForProjectIdAsync(projectId);
 
     if (!branchName) {
       const validationMessage = 'branch name may not be empty.';
@@ -125,7 +125,7 @@ export default class BranchDelete extends EasCommand {
     const data = await getBranchInfoAsync({ appId: projectId, name: branchName });
     const branchId = data.app?.byId.updateBranchByName?.id;
     if (!branchId) {
-      throw new Error(`Could not find branch ${branchName} on ${fullName}`);
+      throw new Error(`Could not find branch ${branchName} on ${projectDisplayName}`);
     }
 
     if (!nonInteractive) {
@@ -150,7 +150,9 @@ export default class BranchDelete extends EasCommand {
       printJsonOnlyOutput(deletionResult);
     } else {
       Log.withTick(
-        `️Deleted branch "${branchName}" and all of its updates on project ${chalk.bold(fullName)}.`
+        `️Deleted branch "${branchName}" and all of its updates on project ${chalk.bold(
+          projectDisplayName
+        )}.`
       );
     }
   }

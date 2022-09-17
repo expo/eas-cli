@@ -16,7 +16,7 @@ import { getExpoConfig } from '../../../project/expoConfig';
 import { BUILD_NUMBER_REQUIREMENTS, isValidBuildNumber } from '../../../project/ios/versions';
 import {
   findProjectRootAsync,
-  getProjectFullNameAsync,
+  getDisplayNameForProjectIdAsync,
   getProjectIdAsync,
 } from '../../../project/projectUtils';
 import {
@@ -60,8 +60,8 @@ export default class BuildVersionSetView extends EasCommand {
 
     // this command is always interactive (see prompt below)
     const projectId = await getProjectIdAsync(exp, { nonInteractive: false });
+    const displayName = await getDisplayNameForProjectIdAsync(projectId);
 
-    const projectFullName = await getProjectFullNameAsync(exp, { nonInteractive: false });
     validateAppConfigForRemoteVersionSource(exp, platform);
 
     const applicationIdentifier = await getApplicationIdentifierAsync(
@@ -76,12 +76,12 @@ export default class BuildVersionSetView extends EasCommand {
       applicationIdentifier
     );
     const currentStateMessage = remoteVersions?.buildVersion
-      ? `Project ${chalk.bold(projectFullName)} with ${getApplicationIdentifierName(
+      ? `Project ${chalk.bold(displayName)} with ${getApplicationIdentifierName(
           platform
         )} "${applicationIdentifier}" is configured with ${getBuildVersionName(platform)} ${
           remoteVersions.buildVersion
         }.`
-      : `Project ${chalk.bold(projectFullName)} with ${getApplicationIdentifierName(
+      : `Project ${chalk.bold(displayName)} with ${getApplicationIdentifierName(
           platform
         )} "${applicationIdentifier}" does not have any ${getBuildVersionName(
           platform

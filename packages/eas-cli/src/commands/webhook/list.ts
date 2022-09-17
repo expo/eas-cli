@@ -9,7 +9,7 @@ import { ora } from '../../ora';
 import { getExpoConfig } from '../../project/expoConfig';
 import {
   findProjectRootAsync,
-  getProjectFullNameAsync,
+  getDisplayNameForProjectIdAsync,
   getProjectIdAsync,
 } from '../../project/projectUtils';
 import { formatWebhook } from '../../webhooks/formatWebhook';
@@ -34,15 +34,15 @@ export default class WebhookList extends EasCommand {
 
     // this command is non-interactive by design
     const projectId = await getProjectIdAsync(exp, { nonInteractive: true });
-    const projectFullName = await getProjectFullNameAsync(exp, { nonInteractive: true });
+    const projectDisplayName = await getDisplayNameForProjectIdAsync(projectId);
 
-    const spinner = ora(`Fetching the list of webhook on project ${projectFullName}`).start();
+    const spinner = ora(`Fetching the list of webhook on project ${projectDisplayName}`).start();
     try {
       const webhooks = await WebhookQuery.byAppIdAsync(projectId, event && { event });
       if (webhooks.length === 0) {
-        spinner.fail(`There are no webhooks on project ${projectFullName}`);
+        spinner.fail(`There are no webhooks on project ${projectDisplayName}`);
       } else {
-        spinner.succeed(`Found ${webhooks.length} webhooks on project ${projectFullName}`);
+        spinner.succeed(`Found ${webhooks.length} webhooks on project ${projectDisplayName}`);
         const list = webhooks
           .map(webhook => formatWebhook(webhook))
           .join(`\n\n${chalk.dim('———')}\n\n`);
@@ -50,7 +50,7 @@ export default class WebhookList extends EasCommand {
       }
     } catch (err) {
       spinner.fail(
-        `Something went wrong and we couldn't fetch the webhook list for the project ${projectFullName}`
+        `Something went wrong and we couldn't fetch the webhook list for the project ${projectDisplayName}`
       );
       throw err;
     }

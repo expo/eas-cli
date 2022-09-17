@@ -15,7 +15,7 @@ import Log from '../../log';
 import { getExpoConfig } from '../../project/expoConfig';
 import {
   findProjectRootAsync,
-  getProjectFullNameAsync,
+  getDisplayNameForProjectIdAsync,
   getProjectIdAsync,
 } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
@@ -77,8 +77,8 @@ export default class BranchRename extends EasCommand {
 
     const projectDir = await findProjectRootAsync();
     const exp = getExpoConfig(projectDir);
-    const fullName = await getProjectFullNameAsync(exp, { nonInteractive });
     const projectId = await getProjectIdAsync(exp, { nonInteractive });
+    const projectDisplayName = await getDisplayNameForProjectIdAsync(projectId);
 
     if (!currentName) {
       const validationMessage = 'current name may not be empty.';
@@ -118,7 +118,7 @@ export default class BranchRename extends EasCommand {
       Log.withTick(
         `️Renamed branch from ${currentName} to ${chalk.bold(
           editedBranch.name
-        )} on project ${chalk.bold(fullName)}.`
+        )} on project ${chalk.bold(projectDisplayName)}.`
       );
     }
   }

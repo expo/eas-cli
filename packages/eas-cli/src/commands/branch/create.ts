@@ -14,7 +14,7 @@ import Log from '../../log';
 import { getExpoConfig } from '../../project/expoConfig';
 import {
   findProjectRootAsync,
-  getProjectFullNameAsync,
+  getDisplayNameForProjectIdAsync,
   getProjectIdAsync,
 } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
@@ -77,8 +77,8 @@ export default class BranchCreate extends EasCommand {
 
     const projectDir = await findProjectRootAsync();
     const exp = getExpoConfig(projectDir);
-    const fullName = await getProjectFullNameAsync(exp, { nonInteractive });
     const projectId = await getProjectIdAsync(exp, { nonInteractive });
+    const projectDisplayName = await getDisplayNameForProjectIdAsync(projectId);
 
     if (!name) {
       const validationMessage = 'Branch name may not be empty.';
@@ -100,7 +100,9 @@ export default class BranchCreate extends EasCommand {
       printJsonOnlyOutput(newBranch);
     } else {
       Log.withTick(
-        `️Created a new branch: ${chalk.bold(newBranch.name)} on project ${chalk.bold(fullName)}.`
+        `️Created a new branch: ${chalk.bold(newBranch.name)} on project ${chalk.bold(
+          projectDisplayName
+        )}.`
       );
     }
   }
