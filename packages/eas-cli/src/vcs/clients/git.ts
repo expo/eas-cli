@@ -56,7 +56,7 @@ export default class GitClient extends Client {
       initial: 'Initial commit',
       validate: (input: string) => input !== '',
     });
-    await this.commitAsync({ commitAllFiles: true, commitMessage: message });
+    await this.commitAsync({ commitAllFiles: true, commitMessage: message, nonInteractive: false });
   }
 
   public override async commitAsync({
@@ -66,7 +66,7 @@ export default class GitClient extends Client {
   }: {
     commitMessage: string;
     commitAllFiles?: boolean;
-    nonInteractive?: boolean;
+    nonInteractive: boolean;
   }): Promise<void> {
     await ensureGitConfiguredAsync({ nonInteractive });
 

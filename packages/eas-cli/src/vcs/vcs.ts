@@ -37,7 +37,7 @@ export abstract class Client {
   public async commitAsync(_arg: {
     commitMessage: string;
     commitAllFiles?: boolean;
-    nonInteractive?: boolean;
+    nonInteractive: boolean;
   }): Promise<void> {
     // it should not be called unless hasUncommittedChangesAsync is implemented
     throw new Error('commitAsync is not implemented');

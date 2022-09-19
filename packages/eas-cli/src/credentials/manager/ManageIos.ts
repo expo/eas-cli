@@ -67,6 +67,7 @@ export class ManageIos {
       // this command is interactive by design
       user: await ensureLoggedInAsync({ nonInteractive: false }),
       env: buildProfile?.env,
+      nonInteractive: false,
     });
     const buildCredentialsActions = getBuildCredentialsActions(ctx);
     const pushKeyActions = getPushKeyActions(ctx);

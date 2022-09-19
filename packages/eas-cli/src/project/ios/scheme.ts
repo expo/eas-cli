@@ -59,7 +59,7 @@ export async function selectSchemeAsync({
   nonInteractive = false,
 }: {
   projectDir: string;
-  nonInteractive?: boolean;
+  nonInteractive: boolean;
 }): Promise<string> {
   const schemes = IOSConfig.BuildScheme.getSchemesFromXcodeproj(projectDir);
   if (schemes.length === 0) {
