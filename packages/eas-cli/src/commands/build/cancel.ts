@@ -60,11 +60,12 @@ function formatUnfinishedBuild(
   return `${platform} Started at: ${startTime}, Status: ${status}, Id: ${build.id}`;
 }
 
-async function selectBuildToCancelAsync(
+export async function selectBuildToCancelAsync(
   projectId: string,
   projectFullName: string
 ): Promise<string | null> {
   const spinner = ora().start('Fetching the uncompleted builds…');
+
   let builds;
   try {
     const [newBuilds, inQueueBuilds, inProgressBuilds] = await Promise.all([
@@ -98,13 +99,6 @@ async function selectBuildToCancelAsync(
   if (builds.length === 0) {
     Log.warn(`There aren't any uncompleted builds for the project ${projectFullName}.`);
     return null;
-  } else if (builds.length === 1) {
-    Log.log('Found one build');
-    Log.log(formatUnfinishedBuild(builds[0]));
-    await confirmAsync({
-      message: 'Do you want to cancel it?',
-    });
-    return builds[0].id;
   } else {
     const buildId = await selectAsync<string>(
       'Which build do you want to cancel?',
@@ -113,7 +107,12 @@ async function selectBuildToCancelAsync(
         value: build.id,
       }))
     );
-    return buildId;
+
+    return (await confirmAsync({
+      message: 'Are you sure you want to cancel it?',
+    }))
+      ? buildId
+      : null;
   }
 }
 
