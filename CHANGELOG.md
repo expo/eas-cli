@@ -16,6 +16,7 @@ This is the log of notable changes to EAS CLI and related packages.
 - Add support for uploading files to EAS Secret. ([#1354](https://github.com/expo/eas-cli/pull/1354) by [@dsokal](https://github.com/dsokal))
 - Add pagination to channel commands. ([#1352](https://github.com/expo/eas-cli/pull/1352) by [@kgc00](https://github.com/kgc00))
 - Add pagination to build commands. ([#1353](https://github.com/expo/eas-cli/pull/1353) by [@kgc00](https://github.com/kgc00))
+- Provide suggestions for developers when archive size is large. ([#1363](https://github.com/expo/eas-cli/pull/1363) by [@szdziedzic](https://github.com/szdziedzic))
 
 ### 🐛 Bug fixes
 

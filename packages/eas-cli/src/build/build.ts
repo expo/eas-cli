@@ -177,6 +177,17 @@ async function uploadProjectAsync<TPlatform extends Platform>(
           )}`
         );
         const projectTarball = await makeProjectTarballAsync();
+
+        if (projectTarball.size > 1024 * 1024 * 100) {
+          Log.warn(
+            `Your project archive is ${formatBytes(
+              projectTarball.size
+            )}. You can reduce its size and the time it takes to upload by excluding files that are unnecessary for the build process in ${chalk.bold(
+              '.easignore'
+            )} file. ${learnMore('https://expo.fyi/eas-build-archive')}`
+          );
+        }
+
         projectTarballPath = projectTarball.path;
 
         const { bucketKey } = await uploadFileAtPathToS3Async(
