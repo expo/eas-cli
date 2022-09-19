@@ -18,23 +18,6 @@ import { getVcsClient } from '../vcs';
 import { getExpoConfig } from './expoConfig';
 import { fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync } from './fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync';
 
-/**
- * @deprecated - Do not use outside of projectUtils
- */
-function getProjectAccountName(exp: ExpoConfig, user: Actor): string {
-  switch (user.__typename) {
-    case 'User':
-      return exp.owner || user.username;
-    case 'Robot':
-      if (!exp.owner) {
-        throw new Error(
-          'The "owner" manifest property is required when using robot users. See: https://docs.expo.dev/versions/latest/config/app/#owner'
-        );
-      }
-      return exp.owner;
-  }
-}
-
 export function getUsername(exp: ExpoConfig, user: Actor): string | undefined {
   switch (user.__typename) {
     case 'User':
@@ -149,9 +132,23 @@ export async function getProjectIdAsync(
 
   Log.warn('EAS project not configured.');
 
+  const getAccountNameForEASProjectSync = (exp: ExpoConfig, user: Actor): string => {
+    if (exp.owner) {
+      return exp.owner;
+    }
+    switch (user.__typename) {
+      case 'User':
+        return user.username;
+      case 'Robot':
+        throw new Error(
+          'The "owner" manifest property is required when using robot users. See: https://docs.expo.dev/versions/latest/config/app/#owner'
+        );
+    }
+  };
+
   const projectId = await fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync(
     {
-      accountName: getProjectAccountName(
+      accountName: getAccountNameForEASProjectSync(
         exp,
         await ensureLoggedInAsync({ nonInteractive: options.nonInteractive })
       ),
