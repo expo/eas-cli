@@ -1,3 +1,4 @@
+import { AppQuery } from '../../../../graphql/queries/AppQuery';
 import { confirmAsync, promptAsync } from '../../../../prompts';
 import {
   getNewAndroidApiMock,
@@ -7,6 +8,7 @@ import {
   testLegacyAndroidBuildCredentialsFragment,
   testLegacyAndroidFcmFragment,
 } from '../../../__tests__/fixtures-android';
+import { testAppQueryByIdResponse } from '../../../__tests__/fixtures-constants';
 import { createCtxMock } from '../../../__tests__/fixtures-context';
 import {
   canCopyLegacyCredentialsAsync,
@@ -17,8 +19,12 @@ import {
 jest.mock('../../../../ora');
 jest.mock('../../../../prompts');
 jest.mocked(confirmAsync).mockImplementation(async () => true);
+jest.mock('../../../../graphql/queries/AppQuery');
 
 describe('BuildCredentialsUtils', () => {
+  beforeEach(() => {
+    jest.mocked(AppQuery.byIdAsync).mockResolvedValue(testAppQueryByIdResponse);
+  });
   describe(canCopyLegacyCredentialsAsync, () => {
     it('returns true if the user has legacy credentials and no modern ones', async () => {
       const ctx = createCtxMock({

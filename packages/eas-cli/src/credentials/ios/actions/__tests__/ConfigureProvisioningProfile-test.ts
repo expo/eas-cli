@@ -1,6 +1,8 @@
+import { AppQuery } from '../../../../graphql/queries/AppQuery';
 import { findApplicationTarget } from '../../../../project/ios/target';
 import { confirmAsync } from '../../../../prompts';
 import { getAppstoreMock, testAuthCtx } from '../../../__tests__/fixtures-appstore';
+import { testAppQueryByIdResponse } from '../../../__tests__/fixtures-constants';
 import { createCtxMock } from '../../../__tests__/fixtures-context';
 import {
   testDistCertFragmentNoDependencies,
@@ -10,14 +12,18 @@ import {
   testTargets,
 } from '../../../__tests__/fixtures-ios';
 import { MissingCredentialsNonInteractiveError } from '../../../errors';
-import { getAppLookupParamsFromContext } from '../BuildCredentialsUtils';
+import { getAppLookupParamsFromContextAsync } from '../BuildCredentialsUtils';
 import { ConfigureProvisioningProfile } from '../ConfigureProvisioningProfile';
 
 jest.mock('../../../../ora');
 jest.mock('../../../../prompts');
 jest.mocked(confirmAsync).mockImplementation(async () => true);
+jest.mock('../../../../graphql/queries/AppQuery');
 
 describe('ConfigureProvisioningProfile', () => {
+  beforeEach(() => {
+    jest.mocked(AppQuery.byIdAsync).mockResolvedValue(testAppQueryByIdResponse);
+  });
   it('configures a Provisioning Profile in Interactive Mode', async () => {
     const mockProvisioningProfileFromApple = {
       provisioningProfileId: testProvisioningProfileFragment.developerPortalIdentifier,
@@ -34,7 +40,10 @@ describe('ConfigureProvisioningProfile', () => {
         useExistingProvisioningProfileAsync: jest.fn(() => mockProvisioningProfileFromApple),
       },
     });
-    const appLookupParams = getAppLookupParamsFromContext(ctx, findApplicationTarget(testTargets));
+    const appLookupParams = await getAppLookupParamsFromContextAsync(
+      ctx,
+      findApplicationTarget(testTargets)
+    );
     const provProfConfigurator = new ConfigureProvisioningProfile(
       appLookupParams,
       testTarget,
@@ -52,7 +61,10 @@ describe('ConfigureProvisioningProfile', () => {
     const ctx = createCtxMock({
       nonInteractive: true,
     });
-    const appLookupParams = getAppLookupParamsFromContext(ctx, findApplicationTarget(testTargets));
+    const appLookupParams = await getAppLookupParamsFromContextAsync(
+      ctx,
+      findApplicationTarget(testTargets)
+    );
     const provProfConfigurator = new ConfigureProvisioningProfile(
       appLookupParams,
       testTarget,

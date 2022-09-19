@@ -11,7 +11,7 @@ import {
 import Log, { learnMore } from '../../log';
 import { resolveXcodeBuildContextAsync } from '../../project/ios/scheme';
 import { resolveTargetsAsync } from '../../project/ios/target';
-import { getProjectAccountName, getProjectIdAsync } from '../../project/projectUtils';
+import { getOwnerAccountForProjectIdAsync, getProjectIdAsync } from '../../project/projectUtils';
 import { confirmAsync, promptAsync, selectAsync } from '../../prompts';
 import { Account, findAccountByName } from '../../user/Account';
 import { ensureActorHasUsername, ensureLoggedInAsync } from '../../user/actions';
@@ -22,7 +22,7 @@ import {
 } from '../ios/actions/AscApiKeyUtils';
 import { AssignAscApiKey } from '../ios/actions/AssignAscApiKey';
 import { AssignPushKey } from '../ios/actions/AssignPushKey';
-import { getAppLookupParamsFromContext } from '../ios/actions/BuildCredentialsUtils';
+import { getAppLookupParamsFromContextAsync } from '../ios/actions/BuildCredentialsUtils';
 import { CreateAscApiKey } from '../ios/actions/CreateAscApiKey';
 import { CreateDistributionCertificate } from '../ios/actions/CreateDistributionCertificate';
 import { CreatePushKey } from '../ios/actions/CreatePushKey';
@@ -74,8 +74,14 @@ export class ManageIos {
     const ascApiKeyActions = getAscApiKeyActions(ctx);
 
     await ctx.bestEffortAppStoreAuthenticateAsync();
+
+    const getAccountNameForProjectAsync = async (): Promise<string> => {
+      const projectId = await getProjectIdAsync(ctx.exp, { nonInteractive: false });
+      return (await getOwnerAccountForProjectIdAsync(projectId)).name;
+    };
+
     const accountName = ctx.hasProjectContext
-      ? getProjectAccountName(ctx.exp, ctx.user)
+      ? await getAccountNameForProjectAsync()
       : ensureActorHasUsername(ctx.user);
 
     const account = findAccountByName(ctx.user.accounts, accountName);
@@ -98,7 +104,7 @@ export class ManageIos {
           assert(targets && app);
           const iosAppCredentialsMap: IosAppCredentialsMap = {};
           for (const target of targets) {
-            const appLookupParams = getAppLookupParamsFromContext(ctx, target);
+            const appLookupParams = await getAppLookupParamsFromContextAsync(ctx, target);
             iosAppCredentialsMap[target.targetName] =
               await ctx.ios.getIosAppCredentialsWithCommonFieldsAsync(appLookupParams);
           }
@@ -251,7 +257,7 @@ export class ManageIos {
     }
 
     const target = await this.selectTargetAsync(targets);
-    const appLookupParams = getAppLookupParamsFromContext(ctx, target);
+    const appLookupParams = await getAppLookupParamsFromContextAsync(ctx, target);
     switch (action) {
       case IosActionType.UseExistingDistributionCertificate: {
         const distCert = await selectValidDistributionCertificateAsync(ctx, appLookupParams);

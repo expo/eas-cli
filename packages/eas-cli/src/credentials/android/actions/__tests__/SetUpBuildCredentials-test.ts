@@ -1,9 +1,13 @@
+import { AppQuery } from '../../../../graphql/queries/AppQuery';
 import {
   getNewAndroidApiMock,
   testAndroidBuildCredentialsFragment,
   testJksAndroidKeystoreFragment,
 } from '../../../__tests__/fixtures-android';
-import { jester as mockJester } from '../../../__tests__/fixtures-constants';
+import {
+  jester as mockJester,
+  testAppQueryByIdResponse,
+} from '../../../__tests__/fixtures-constants';
 import { createCtxMock } from '../../../__tests__/fixtures-context';
 import { MissingCredentialsNonInteractiveError } from '../../../errors';
 import { generateRandomKeystoreAsync } from '../../utils/keystore';
@@ -14,10 +18,12 @@ jest.mock('../../../../ora');
 jest.mock('../../../../user/actions', () => ({ ensureLoggedInAsync: jest.fn(() => mockJester) }));
 jest.mock('../../../../prompts', () => ({ confirmAsync: jest.fn(() => true) }));
 jest.mock('../../utils/keystore', () => ({ generateRandomKeystoreAsync: jest.fn() }));
+jest.mock('../../../../graphql/queries/AppQuery');
 
 describe('SetUpBuildCredentials', () => {
   beforeEach(() => {
     jest.mocked(generateRandomKeystoreAsync).mockReset();
+    jest.mocked(AppQuery.byIdAsync).mockResolvedValue(testAppQueryByIdResponse);
   });
 
   it('skips setup when there are prior credentials', async () => {

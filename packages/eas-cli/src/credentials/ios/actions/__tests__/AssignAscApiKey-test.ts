@@ -1,16 +1,25 @@
+import { AppQuery } from '../../../../graphql/queries/AppQuery';
 import { findApplicationTarget } from '../../../../project/ios/target';
+import { testAppQueryByIdResponse } from '../../../__tests__/fixtures-constants';
 import { createCtxMock } from '../../../__tests__/fixtures-context';
 import { testAscApiKeyFragment, testTargets } from '../../../__tests__/fixtures-ios';
 import { AppStoreApiKeyPurpose } from '../AscApiKeyUtils';
 import { AssignAscApiKey } from '../AssignAscApiKey';
-import { getAppLookupParamsFromContext } from '../BuildCredentialsUtils';
+import { getAppLookupParamsFromContextAsync } from '../BuildCredentialsUtils';
+jest.mock('../../../../graphql/queries/AppQuery');
 
 describe(AssignAscApiKey, () => {
+  beforeEach(() => {
+    jest.mocked(AppQuery.byIdAsync).mockResolvedValue(testAppQueryByIdResponse);
+  });
   it('assigns an App Store Connect API Key in Interactive Mode for EAS Submit', async () => {
     const ctx = createCtxMock({
       nonInteractive: false,
     });
-    const appLookupParams = getAppLookupParamsFromContext(ctx, findApplicationTarget(testTargets));
+    const appLookupParams = await getAppLookupParamsFromContextAsync(
+      ctx,
+      findApplicationTarget(testTargets)
+    );
     const assignAscApiKeyAction = new AssignAscApiKey(appLookupParams);
     await assignAscApiKeyAction.runAsync(
       ctx,
@@ -26,7 +35,10 @@ describe(AssignAscApiKey, () => {
     const ctx = createCtxMock({
       nonInteractive: true,
     });
-    const appLookupParams = getAppLookupParamsFromContext(ctx, findApplicationTarget(testTargets));
+    const appLookupParams = await getAppLookupParamsFromContextAsync(
+      ctx,
+      findApplicationTarget(testTargets)
+    );
     const assignAscApiKeyAction = new AssignAscApiKey(appLookupParams);
     await assignAscApiKeyAction.runAsync(
       ctx,

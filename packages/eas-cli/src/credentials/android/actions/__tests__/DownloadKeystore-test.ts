@@ -1,13 +1,19 @@
 import fs from 'fs-extra';
 
+import { AppQuery } from '../../../../graphql/queries/AppQuery';
 import { testAndroidBuildCredentialsFragment } from '../../../__tests__/fixtures-android';
+import { testAppQueryByIdResponse } from '../../../__tests__/fixtures-constants';
 import { createCtxMock } from '../../../__tests__/fixtures-context';
 import { getAppLookupParamsFromContextAsync } from '../BuildCredentialsUtils';
 import { DownloadKeystore } from '../DownloadKeystore';
 
 jest.mock('fs-extra');
+jest.mock('../../../../graphql/queries/AppQuery');
 
 describe(DownloadKeystore, () => {
+  beforeEach(() => {
+    jest.mocked(AppQuery.byIdAsync).mockResolvedValue(testAppQueryByIdResponse);
+  });
   it('downloads a keystore', async () => {
     const fsWriteFileSpy = jest.spyOn(fs, 'writeFile');
     const ctx = createCtxMock({

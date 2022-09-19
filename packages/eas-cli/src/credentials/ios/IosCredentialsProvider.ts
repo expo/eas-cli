@@ -13,7 +13,7 @@ import { selectAsync } from '../../prompts';
 import { CredentialsContext } from '../context';
 import * as credentialsJsonReader from '../credentialsJson/read';
 import { ensureAllTargetsAreConfigured } from '../credentialsJson/utils';
-import { getAppFromContext } from './actions/BuildCredentialsUtils';
+import { getAppFromContextAsync } from './actions/BuildCredentialsUtils';
 import { SetUpBuildCredentials } from './actions/SetUpBuildCredentials';
 import { SetUpPushKey } from './actions/SetUpPushKey';
 import { App, IosCredentials, Target } from './types';
@@ -84,7 +84,7 @@ export default class IosCredentialsProvider {
     }
 
     const applicationTarget = findApplicationTarget(targets);
-    const app = getAppFromContext(ctx);
+    const app = await getAppFromContextAsync(ctx);
     const appLookupParams = {
       ...app,
       bundleIdentifier: applicationTarget.bundleIdentifier,

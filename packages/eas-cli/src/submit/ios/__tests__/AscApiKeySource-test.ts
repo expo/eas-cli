@@ -2,8 +2,13 @@ import { Platform } from '@expo/eas-build-job';
 import { vol } from 'memfs';
 import { v4 as uuidv4 } from 'uuid';
 
-import { jester as mockJester } from '../../../credentials/__tests__/fixtures-constants';
+import {
+  jester as mockJester,
+  testAppQueryByIdResponse,
+  testProjectId,
+} from '../../../credentials/__tests__/fixtures-constants';
 import { getCredentialsFromUserAsync } from '../../../credentials/utils/promptForCredentials';
+import { AppQuery } from '../../../graphql/queries/AppQuery';
 import { createTestProject } from '../../../project/__tests__/project-utils';
 import { promptAsync } from '../../../prompts';
 import { SubmissionContext, createSubmissionContextAsync } from '../../context';
@@ -23,8 +28,9 @@ jest.mock('../../../user/User', () => ({
 jest.mock('../../../user/Account', () => ({
   findAccountByName: jest.fn(() => mockJester.accounts[0]),
 }));
+jest.mock('../../../graphql/queries/AppQuery');
 
-const testProject = createTestProject(mockJester, {
+const testProject = createTestProject(testProjectId, mockJester.accounts[0].name, {
   android: {
     package: 'com.expo.test.project',
   },
@@ -59,6 +65,10 @@ beforeAll(() => {
 });
 afterAll(() => {
   vol.reset();
+});
+
+beforeEach(() => {
+  jest.mocked(AppQuery.byIdAsync).mockResolvedValue(testAppQueryByIdResponse);
 });
 
 afterEach(() => {

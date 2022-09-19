@@ -30,7 +30,7 @@ import { ora } from '../../ora';
 import { getExpoConfig } from '../../project/expoConfig';
 import {
   findProjectRootAsync,
-  getProjectAccountName,
+  getOwnerAccountForProjectIdAsync,
   getProjectIdAsync,
   installExpoUpdatesAsync,
   isExpoUpdatesInstalledOrAvailable,
@@ -47,7 +47,6 @@ import { resolveWorkflowAsync } from '../../project/workflow';
 import { confirmAsync, promptAsync } from '../../prompts';
 import { selectUpdateGroupOnBranchAsync } from '../../update/queries';
 import { formatUpdateMessage } from '../../update/utils';
-import { ensureLoggedInAsync } from '../../user/actions';
 import {
   checkManifestBodyAgainstUpdateInfoGroup,
   getCodeSigningInfoAsync,
@@ -530,10 +529,7 @@ export default class UpdatePublish extends EasCommand {
         const updateGroupId = newUpdatesForRuntimeVersion[0].group;
 
         const projectName = exp.slug;
-        const accountName = getProjectAccountName(
-          exp,
-          await ensureLoggedInAsync({ nonInteractive })
-        );
+        const accountName = (await getOwnerAccountForProjectIdAsync(projectId)).name;
         const updateGroupUrl = getUpdateGroupUrl(accountName, projectName, updateGroupId);
         const updateGroupLink = link(updateGroupUrl, { dim: false });
 

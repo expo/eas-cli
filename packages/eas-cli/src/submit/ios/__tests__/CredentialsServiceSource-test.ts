@@ -1,9 +1,14 @@
 import { Platform } from '@expo/eas-build-job';
 import { v4 as uuidv4 } from 'uuid';
 
-import { jester as mockJester } from '../../../credentials/__tests__/fixtures-constants';
+import {
+  jester as mockJester,
+  testAppQueryByIdResponse,
+  testProjectId,
+} from '../../../credentials/__tests__/fixtures-constants';
 import { testCommonIosAppCredentialsFragment } from '../../../credentials/__tests__/fixtures-ios';
 import { SetUpSubmissionCredentials } from '../../../credentials/ios/actions/SetUpSubmissionCredentials';
+import { AppQuery } from '../../../graphql/queries/AppQuery';
 import { createTestProject } from '../../../project/__tests__/project-utils';
 import { getBundleIdentifierAsync } from '../../../project/ios/bundleIdentifier';
 import { promptAsync } from '../../../prompts';
@@ -23,8 +28,9 @@ jest.mock('../../../user/Account', () => ({
   findAccountByName: jest.fn(() => mockJester.accounts[0]),
 }));
 jest.mock('../../../project/ios/bundleIdentifier');
+jest.mock('../../../graphql/queries/AppQuery');
 
-const testProject = createTestProject(mockJester, {
+const testProject = createTestProject(testProjectId, mockJester.accounts[0].name, {
   android: {
     package: 'com.expo.test.project',
   },
@@ -40,6 +46,10 @@ beforeEach(() => {
 });
 
 describe(getFromCredentialsServiceAsync, () => {
+  beforeEach(() => {
+    jest.mocked(AppQuery.byIdAsync).mockResolvedValue(testAppQueryByIdResponse);
+  });
+
   it('returns an App Specific Password from the credentialService source', async () => {
     const ctx = await createSubmissionContextAsync({
       platform: Platform.IOS,

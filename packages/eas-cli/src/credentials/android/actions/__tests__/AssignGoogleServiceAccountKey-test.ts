@@ -1,9 +1,16 @@
+import { AppQuery } from '../../../../graphql/queries/AppQuery';
 import { testGoogleServiceAccountKeyFragment } from '../../../__tests__/fixtures-android';
+import { testAppQueryByIdResponse } from '../../../__tests__/fixtures-constants';
 import { createCtxMock } from '../../../__tests__/fixtures-context';
 import { AssignGoogleServiceAccountKey } from '../AssignGoogleServiceAccountKey';
 import { getAppLookupParamsFromContextAsync } from '../BuildCredentialsUtils';
 
+jest.mock('../../../../graphql/queries/AppQuery');
+
 describe(AssignGoogleServiceAccountKey, () => {
+  beforeEach(() => {
+    jest.mocked(AppQuery.byIdAsync).mockResolvedValue(testAppQueryByIdResponse);
+  });
   it('assigns a Google Service Account key in Interactive Mode', async () => {
     const ctx = createCtxMock({
       nonInteractive: false,

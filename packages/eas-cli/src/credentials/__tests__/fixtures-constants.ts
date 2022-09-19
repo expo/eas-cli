@@ -1,3 +1,4 @@
+import { AppFragment } from '../../graphql/generated';
 import { Actor } from '../../user/User';
 
 export const jester: Actor = {
@@ -46,4 +47,11 @@ export const testAppJson = {
 export const testAppJsonWithDifferentOwner = {
   ...testAppJson,
   owner: jester2.username,
+};
+
+export const testAppQueryByIdResponse: AppFragment = {
+  id: testProjectId,
+  slug: testSlug,
+  fullName: testExperienceName,
+  ownerAccount: jester.accounts[0],
 };

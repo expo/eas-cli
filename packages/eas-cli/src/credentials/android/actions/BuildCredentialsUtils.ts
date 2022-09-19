@@ -5,9 +5,12 @@ import { AndroidAppBuildCredentialsFragment } from '../../../graphql/generated';
 import { ora } from '../../../ora';
 import { getApplicationIdAsync } from '../../../project/android/applicationId';
 import { GradleBuildContext } from '../../../project/android/gradle';
-import { getProjectAccountName, getProjectConfigDescription } from '../../../project/projectUtils';
+import {
+  getOwnerAccountForProjectIdAsync,
+  getProjectConfigDescription,
+  getProjectIdAsync,
+} from '../../../project/projectUtils';
 import { promptAsync } from '../../../prompts';
-import { findAccountByName } from '../../../user/Account';
 import { CredentialsContext } from '../../context';
 import { AppLookupParams } from '../api/GraphqlClient';
 
@@ -90,11 +93,8 @@ export async function getAppLookupParamsFromContextAsync(
 ): Promise<AppLookupParams> {
   ctx.ensureProjectContext();
   const projectName = ctx.exp.slug;
-  const accountName = getProjectAccountName(ctx.exp, ctx.user);
-  const account = findAccountByName(ctx.user.accounts, accountName);
-  if (!account) {
-    throw new Error(`You do not have access to account: ${accountName}`);
-  }
+  const projectId = await getProjectIdAsync(ctx.exp, { nonInteractive: ctx.nonInteractive });
+  const account = await getOwnerAccountForProjectIdAsync(projectId);
 
   const androidApplicationIdentifier = await getApplicationIdAsync(
     ctx.projectDir,

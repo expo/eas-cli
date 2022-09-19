@@ -1,6 +1,8 @@
 import { IosDistributionType } from '../../../../graphql/generated';
+import { AppQuery } from '../../../../graphql/queries/AppQuery';
 import { findApplicationTarget } from '../../../../project/ios/target';
 import { confirmAsync } from '../../../../prompts';
+import { testAppQueryByIdResponse } from '../../../__tests__/fixtures-constants';
 import { createCtxMock } from '../../../__tests__/fixtures-context';
 import {
   getNewIosApiMock,
@@ -13,11 +15,12 @@ import {
   testTargets,
 } from '../../../__tests__/fixtures-ios';
 import { IosTargetCredentials } from '../../../credentialsJson/types';
-import { getAppLookupParamsFromContext } from '../BuildCredentialsUtils';
+import { getAppLookupParamsFromContextAsync } from '../BuildCredentialsUtils';
 import { SetUpTargetBuildCredentialsFromCredentialsJson } from '../SetUpTargetBuildCredentialsFromCredentialsJson';
 
 jest.mock('../../../../prompts');
 jest.mock('../../../credentialsJson/read');
+jest.mock('../../../../graphql/queries/AppQuery');
 
 beforeEach(() => {
   jest.mocked(confirmAsync).mockReset();
@@ -25,6 +28,9 @@ beforeEach(() => {
 });
 
 describe('SetUpTargetBuildCredentialsFromCredentialsJson', () => {
+  beforeEach(() => {
+    jest.mocked(AppQuery.byIdAsync).mockResolvedValue(testAppQueryByIdResponse);
+  });
   const targetCredentials: IosTargetCredentials = {
     distributionCertificate: {
       certificateP12: testDistCert.certP12,
@@ -50,7 +56,10 @@ describe('SetUpTargetBuildCredentialsFromCredentialsJson', () => {
         createOrUpdateIosAppBuildCredentialsAsync: jest.fn(() => testBuildCreds),
       },
     });
-    const appLookupParams = getAppLookupParamsFromContext(ctx, findApplicationTarget(testTargets));
+    const appLookupParams = await getAppLookupParamsFromContextAsync(
+      ctx,
+      findApplicationTarget(testTargets)
+    );
     const setupBuildCredentialsFromCredentialsJsonAction =
       new SetUpTargetBuildCredentialsFromCredentialsJson(
         appLookupParams,
@@ -81,7 +90,10 @@ describe('SetUpTargetBuildCredentialsFromCredentialsJson', () => {
         ),
       },
     });
-    const appLookupParams = getAppLookupParamsFromContext(ctx, findApplicationTarget(testTargets));
+    const appLookupParams = await getAppLookupParamsFromContextAsync(
+      ctx,
+      findApplicationTarget(testTargets)
+    );
     const setupBuildCredentialsFromCredentialsJsonAction =
       new SetUpTargetBuildCredentialsFromCredentialsJson(
         appLookupParams,
@@ -116,7 +128,10 @@ describe('SetUpTargetBuildCredentialsFromCredentialsJson', () => {
         createOrUpdateIosAppBuildCredentialsAsync: jest.fn(() => testBuildCreds),
       },
     });
-    const appLookupParams = getAppLookupParamsFromContext(ctx, findApplicationTarget(testTargets));
+    const appLookupParams = await getAppLookupParamsFromContextAsync(
+      ctx,
+      findApplicationTarget(testTargets)
+    );
     const setupBuildCredentialsFromCredentialsJsonAction =
       new SetUpTargetBuildCredentialsFromCredentialsJson(
         appLookupParams,
@@ -152,7 +167,10 @@ describe('SetUpTargetBuildCredentialsFromCredentialsJson', () => {
         createOrUpdateIosAppBuildCredentialsAsync: jest.fn(() => testBuildCreds),
       },
     });
-    const appLookupParams = getAppLookupParamsFromContext(ctx, findApplicationTarget(testTargets));
+    const appLookupParams = await getAppLookupParamsFromContextAsync(
+      ctx,
+      findApplicationTarget(testTargets)
+    );
     const setupBuildCredentialsFromCredentialsJsonAction =
       new SetUpTargetBuildCredentialsFromCredentialsJson(
         appLookupParams,

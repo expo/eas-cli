@@ -5,9 +5,8 @@ import chalk from 'chalk';
 
 import Log from '../log';
 import { getExpoConfig } from '../project/expoConfig';
-import { getProjectAccountName } from '../project/projectUtils';
 import { confirmAsync } from '../prompts';
-import { Actor, getActorDisplayName } from '../user/User';
+import { Actor } from '../user/User';
 import * as AndroidGraphqlClient from './android/api/GraphqlClient';
 import * as IosGraphqlClient from './ios/api/GraphqlClient';
 import AppStoreApi from './ios/appstore/AppStoreApi';
@@ -75,23 +74,6 @@ export class CredentialsContext {
     }
     // trigger getConfig error
     getExpoConfig(this.options.projectDir);
-  }
-
-  public logOwnerAndProject(): void {
-    const { user } = this.options;
-    if (this.hasProjectContext) {
-      const owner = getProjectAccountName(this.exp, user);
-      // Figure out if User A is configuring credentials as admin for User B's project
-      const isProxyUser = user.__typename === 'Robot' || owner !== user.username;
-
-      Log.log(
-        `Accessing credentials ${isProxyUser ? 'on behalf of' : 'for'} ${owner} in project ${
-          this.exp.slug
-        }`
-      );
-    } else {
-      Log.log(`Accessing credentials for ${this.exp.owner ?? getActorDisplayName(user)}`);
-    }
   }
 
   async bestEffortAppStoreAuthenticateAsync(): Promise<void> {

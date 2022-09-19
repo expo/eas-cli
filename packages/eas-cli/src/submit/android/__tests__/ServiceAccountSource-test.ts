@@ -4,9 +4,13 @@ import { vol } from 'memfs';
 import { v4 as uuidv4 } from 'uuid';
 
 import { testAndroidAppCredentialsFragment } from '../../../credentials/__tests__/fixtures-android';
-import { jester as mockJester } from '../../../credentials/__tests__/fixtures-constants';
+import {
+  jester as mockJester,
+  testProjectId,
+} from '../../../credentials/__tests__/fixtures-constants';
 import { SetUpGoogleServiceAccountKey } from '../../../credentials/android/actions/SetUpGoogleServiceAccountKey';
 import { createTestProject } from '../../../project/__tests__/project-utils';
+import { getOwnerAccountForProjectIdAsync } from '../../../project/projectUtils';
 import { promptAsync } from '../../../prompts';
 import { createSubmissionContextAsync } from '../../context';
 import {
@@ -26,7 +30,8 @@ jest.mock('../../../user/User', () => ({
 jest.mock('../../../user/Account', () => ({
   findAccountByName: jest.fn(() => mockJester.accounts[0]),
 }));
-const testProject = createTestProject(mockJester, {
+
+const testProject = createTestProject(testProjectId, mockJester.accounts[0].name, {
   android: {
     package: 'com.expo.test.project',
   },
@@ -56,6 +61,10 @@ beforeAll(() => {
 });
 afterAll(() => {
   vol.reset();
+});
+
+beforeEach(() => {
+  jest.mocked(getOwnerAccountForProjectIdAsync).mockResolvedValue(mockJester.accounts[0]);
 });
 
 afterEach(() => {

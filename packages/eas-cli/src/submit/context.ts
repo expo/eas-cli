@@ -7,8 +7,7 @@ import { TrackingContext } from '../analytics/common';
 import { Analytics, SubmissionEvent } from '../analytics/events';
 import { CredentialsContext } from '../credentials/context';
 import { getExpoConfig } from '../project/expoConfig';
-import { getProjectAccountName } from '../project/projectUtils';
-import { findAccountByName } from '../user/Account';
+import { getOwnerAccountForProjectIdAsync } from '../project/projectUtils';
 import { Actor } from '../user/User';
 import { ensureLoggedInAsync } from '../user/actions';
 
@@ -51,8 +50,8 @@ export async function createSubmissionContextAsync<T extends Platform>(params: {
   const { env, ...rest } = params;
   const user = await ensureLoggedInAsync({ nonInteractive });
   const projectName = exp.slug;
-  const accountName = getProjectAccountName(exp, user);
-  const accountId = findAccountByName(user.accounts, accountName)?.id;
+  const account = await getOwnerAccountForProjectIdAsync(params.projectId);
+  const accountId = account.id;
   let credentialsCtx: CredentialsContext | undefined = params.credentialsCtx;
   if (!credentialsCtx) {
     credentialsCtx = new CredentialsContext({ projectDir, user, exp, nonInteractive });
@@ -69,7 +68,7 @@ export async function createSubmissionContextAsync<T extends Platform>(params: {
 
   return {
     ...rest,
-    accountName,
+    accountName: account.name,
     credentialsCtx,
     exp,
     projectName,
