@@ -19,8 +19,8 @@ import Log from '../../log';
 import { getExpoConfig } from '../../project/expoConfig';
 import {
   findProjectRootAsync,
+  getDisplayNameForProjectIdAsync,
   getOwnerAccountForProjectIdAsync,
-  getProjectFullNameAsync,
   getProjectIdAsync,
 } from '../../project/projectUtils';
 import { promptAsync, selectAsync } from '../../prompts';
@@ -66,8 +66,8 @@ export default class EnvironmentSecretCreate extends EasCommand {
 
     const projectDir = await findProjectRootAsync();
     const exp = getExpoConfig(projectDir);
-    const projectFullName = await getProjectFullNameAsync(exp, { nonInteractive });
     const projectId = await getProjectIdAsync(exp, { nonInteractive });
+    const projectDisplayName = await getDisplayNameForProjectIdAsync(projectId);
     const ownerAccount = await getOwnerAccountForProjectIdAsync(projectId);
 
     if (!scope) {
@@ -182,7 +182,7 @@ export default class EnvironmentSecretCreate extends EasCommand {
           await EnvironmentSecretMutation.deleteAsync(existingSecret.id);
           Log.withTick(
             `Deleting existing secret ${chalk.bold(name)} on project ${chalk.bold(
-              projectFullName
+              projectDisplayName
             )}.`
           );
         }
@@ -202,13 +202,13 @@ export default class EnvironmentSecretCreate extends EasCommand {
         Log.withTick(
           `️Created a new secret ${chalk.bold(name)} with value ${chalk.bold(
             secretValue
-          )} on project ${chalk.bold(projectFullName)}.`
+          )} on project ${chalk.bold(projectDisplayName)}.`
         );
       } else {
         Log.withTick(
           `️Created a new secret ${chalk.bold(name)} from file ${chalk.bold(
             secretFilePath
-          )} on project ${chalk.bold(projectFullName)}.`
+          )} on project ${chalk.bold(projectDisplayName)}.`
         );
       }
     } else if (scope === EnvironmentSecretScope.ACCOUNT) {

@@ -18,7 +18,7 @@ import { RequestedPlatform } from '../../platform';
 import { getExpoConfig } from '../../project/expoConfig';
 import {
   findProjectRootAsync,
-  getProjectFullNameAsync,
+  getDisplayNameForProjectIdAsync,
   getProjectIdAsync,
 } from '../../project/projectUtils';
 import { enableJsonOutput } from '../../utils/json';
@@ -81,11 +81,11 @@ export default class BuildList extends EasCommand {
     const projectDir = await findProjectRootAsync();
     const exp = getExpoConfig(projectDir);
     const projectId = await getProjectIdAsync(exp, { nonInteractive });
-    const projectName = await getProjectFullNameAsync(exp, { nonInteractive });
+    const displayName = await getDisplayNameForProjectIdAsync(projectId);
 
     await listAndRenderBuildsOnAppAsync({
       projectId,
-      projectName,
+      projectDisplayName: displayName,
       filter: {
         platform,
         status: graphqlBuildStatus,

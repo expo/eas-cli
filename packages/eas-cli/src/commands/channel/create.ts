@@ -14,7 +14,7 @@ import Log from '../../log';
 import { getExpoConfig } from '../../project/expoConfig';
 import {
   findProjectRootAsync,
-  getProjectFullNameAsync,
+  getDisplayNameForProjectIdAsync,
   getProjectIdAsync,
 } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
@@ -144,7 +144,7 @@ export default class ChannelCreate extends EasCommand {
       Log.addNewLineIfNone();
       Log.withTick(
         `Created a new channel on project ${chalk.bold(
-          await getProjectFullNameAsync(exp, { nonInteractive })
+          await getDisplayNameForProjectIdAsync(projectId)
         )}`
       );
       Log.log(

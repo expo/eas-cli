@@ -185,15 +185,6 @@ const toAppPrivacy = (privacy: ExpoConfig['privacy']): AppPrivacy => {
   }
 };
 
-export async function getProjectFullNameAsync(
-  exp: ExpoConfig,
-  { nonInteractive }: { nonInteractive: boolean }
-): Promise<string> {
-  const user = await ensureLoggedInAsync({ nonInteractive });
-  const accountName = getProjectAccountName(exp, user);
-  return `@${accountName}/${exp.slug}`;
-}
-
 /**
  * Return a useful name describing the project config.
  * - dynamic: app.config.js
@@ -266,4 +257,9 @@ export async function getOwnerAccountForProjectIdAsync(
 ): Promise<AccountFragment> {
   const app = await AppQuery.byIdAsync(projectId);
   return app.ownerAccount;
+}
+
+export async function getDisplayNameForProjectIdAsync(projectId: string): Promise<string> {
+  const app = await AppQuery.byIdAsync(projectId);
+  return app.fullName;
 }

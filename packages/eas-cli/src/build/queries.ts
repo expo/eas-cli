@@ -12,12 +12,12 @@ export const BUILDS_LIMIT = 50;
 
 export async function listAndRenderBuildsOnAppAsync({
   projectId,
-  projectName,
+  projectDisplayName,
   filter,
   paginatedQueryOptions,
 }: {
   projectId: string;
-  projectName: string;
+  projectDisplayName: string;
   filter?: BuildFilter;
   paginatedQueryOptions: PaginatedQueryOptions;
 }): Promise<void> {
@@ -28,7 +28,7 @@ export async function listAndRenderBuildsOnAppAsync({
       offset: paginatedQueryOptions.offset,
       filter,
     });
-    renderPageOfBuilds({ builds, projectName, paginatedQueryOptions });
+    renderPageOfBuilds({ builds, projectDisplayName, paginatedQueryOptions });
   } else {
     await paginatedQueryWithConfirmPromptAsync({
       limit: paginatedQueryOptions.limit ?? BUILDS_LIMIT,
@@ -43,7 +43,7 @@ export async function listAndRenderBuildsOnAppAsync({
       promptOptions: {
         title: 'Load more builds?',
         renderListItems: builds =>
-          renderPageOfBuilds({ builds, projectName, paginatedQueryOptions }),
+          renderPageOfBuilds({ builds, projectDisplayName, paginatedQueryOptions }),
       },
     });
   }
@@ -51,11 +51,11 @@ export async function listAndRenderBuildsOnAppAsync({
 
 function renderPageOfBuilds({
   builds,
-  projectName,
+  projectDisplayName,
   paginatedQueryOptions,
 }: {
   builds: BuildFragment[];
-  projectName: string;
+  projectDisplayName: string;
   paginatedQueryOptions: PaginatedQueryOptions;
 }): void {
   if (paginatedQueryOptions.json) {
@@ -64,7 +64,7 @@ function renderPageOfBuilds({
     const list = builds.map(build => formatGraphQLBuild(build)).join(`\n\n${chalk.dim('———')}\n\n`);
 
     Log.addNewLineIfNone();
-    Log.log(chalk.bold(`Builds for ${projectName}:`));
+    Log.log(chalk.bold(`Builds for ${projectDisplayName}:`));
     Log.log(`\n${list}`);
   }
 }

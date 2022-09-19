@@ -11,7 +11,7 @@ import Log from '../../log';
 import { getExpoConfig } from '../../project/expoConfig';
 import {
   findProjectRootAsync,
-  getProjectFullNameAsync,
+  getDisplayNameForProjectIdAsync,
   getProjectIdAsync,
 } from '../../project/projectUtils';
 import { promptAsync, selectAsync } from '../../prompts';
@@ -64,7 +64,7 @@ async function startRolloutAsync({
   branchName,
   percent,
   projectId,
-  fullName,
+  displayName,
   currentBranchMapping,
   channel,
   nonInteractive,
@@ -73,7 +73,7 @@ async function startRolloutAsync({
   branchName: string;
   percent?: number;
   projectId: string;
-  fullName: string;
+  displayName: string;
   currentBranchMapping: BranchMapping;
   channel: UpdateChannelByNameObject;
   nonInteractive: boolean;
@@ -129,7 +129,7 @@ async function startRolloutAsync({
   const oldBranch = channel.updateBranches.filter(branch => branch.id === oldBranchId)[0];
   if (!oldBranch) {
     throw new Error(
-      `Branch mapping is missing its only branch for channel "${channelName}" on app "${fullName}"`
+      `Branch mapping is missing its only branch for channel "${channelName}" on app "${displayName}"`
     );
   }
 
@@ -333,8 +333,8 @@ export default class ChannelRollout extends EasCommand {
 
     const projectDir = await findProjectRootAsync();
     const exp = getExpoConfig(projectDir);
-    const fullName = await getProjectFullNameAsync(exp, { nonInteractive });
     const projectId = await getProjectIdAsync(exp, { nonInteractive });
+    const projectDisplayName = await getDisplayNameForProjectIdAsync(projectId);
 
     const channel = await ChannelQuery.viewUpdateChannelAsync({
       appId: projectId,
@@ -387,7 +387,7 @@ export default class ChannelRollout extends EasCommand {
         percent,
         nonInteractive,
         projectId,
-        fullName,
+        displayName: projectDisplayName,
         currentBranchMapping,
         channel,
       });

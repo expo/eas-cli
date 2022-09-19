@@ -17,7 +17,7 @@ import { appPlatformEmojis } from '../../platform';
 import { getExpoConfig } from '../../project/expoConfig';
 import {
   findProjectRootAsync,
-  getProjectFullNameAsync,
+  getDisplayNameForProjectIdAsync,
   getProjectIdAsync,
 } from '../../project/projectUtils';
 import { confirmAsync, selectAsync } from '../../prompts';
@@ -62,7 +62,7 @@ function formatUnfinishedBuild(
 
 export async function selectBuildToCancelAsync(
   projectId: string,
-  projectFullName: string
+  projectDisplayName: string
 ): Promise<string | null> {
   const spinner = ora().start('Fetching the uncompleted builds…');
 
@@ -92,12 +92,12 @@ export async function selectBuildToCancelAsync(
     builds = [...newBuilds, ...inQueueBuilds, ...inProgressBuilds];
   } catch (error) {
     spinner.fail(
-      `Something went wrong and we couldn't fetch the builds for the project ${projectFullName}.`
+      `Something went wrong and we couldn't fetch the builds for the project ${projectDisplayName}.`
     );
     throw error;
   }
   if (builds.length === 0) {
-    Log.warn(`There aren't any uncompleted builds for the project ${projectFullName}.`);
+    Log.warn(`There aren't any uncompleted builds for the project ${projectDisplayName}.`);
     return null;
   } else {
     const buildId = await selectAsync<string>(
@@ -142,8 +142,7 @@ export default class BuildCancel extends EasCommand {
     const projectDir = await findProjectRootAsync();
     const exp = getExpoConfig(projectDir);
     const projectId = await getProjectIdAsync(exp, { nonInteractive });
-
-    const projectFullName = await getProjectFullNameAsync(exp, { nonInteractive });
+    const displayName = await getDisplayNameForProjectIdAsync(projectId);
 
     if (buildIdFromArg) {
       await ensureBuildExistsAsync(buildIdFromArg);
@@ -155,7 +154,7 @@ export default class BuildCancel extends EasCommand {
         throw new Error('BUILD_ID must not be empty in non-interactive mode');
       }
 
-      buildId = await selectBuildToCancelAsync(projectId, projectFullName);
+      buildId = await selectBuildToCancelAsync(projectId, displayName);
       if (!buildId) {
         return;
       }
