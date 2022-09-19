@@ -3,10 +3,36 @@ import { print } from 'graphql';
 import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../client';
-import { AppByFullNameQuery, AppFragment } from '../generated';
+import { AppByFullNameQuery, AppByIdQuery, AppFragment } from '../generated';
 import { AppFragmentNode } from '../types/App';
 
 export const AppQuery = {
+  async byIdAsync(projectId: string): Promise<AppFragment> {
+    const data = await withErrorHandlingAsync(
+      graphqlClient
+        .query<AppByIdQuery>(
+          gql`
+            query AppByIdQuery($appId: String!) {
+              app {
+                byId(appId: $appId) {
+                  id
+                  ...AppFragment
+                }
+              }
+            }
+            ${print(AppFragmentNode)}
+          `,
+          { appId: projectId },
+          {
+            additionalTypenames: ['App'],
+          }
+        )
+        .toPromise()
+    );
+
+    assert(data.app, 'GraphQL: `app` not defined in server response');
+    return data.app.byId;
+  },
   async byFullNameAsync(fullName: string): Promise<AppFragment> {
     const data = await withErrorHandlingAsync(
       graphqlClient

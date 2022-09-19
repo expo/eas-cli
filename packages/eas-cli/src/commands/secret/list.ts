@@ -7,29 +7,22 @@ import { EnvironmentSecretsQuery } from '../../graphql/queries/EnvironmentSecret
 import { EnvironmentSecretTypeToSecretType } from '../../graphql/types/EnvironmentSecret';
 import Log from '../../log';
 import { getExpoConfig } from '../../project/expoConfig';
-import {
-  findProjectRootAsync,
-  getProjectAccountNameAsync,
-  getProjectIdAsync,
-} from '../../project/projectUtils';
+import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUtils';
 
 export default class EnvironmentSecretList extends EasCommand {
   static override description = 'list environment secrets available for your current app';
 
   async runAsync(): Promise<void> {
     const projectDir = await findProjectRootAsync();
-    const exp = getExpoConfig(projectDir);
-
-    // this command is non-interacive by design
-    const projectId = await getProjectIdAsync(exp, { nonInteractive: true });
-
-    const projectAccountName = await getProjectAccountNameAsync(exp, { nonInteractive: true });
-
     if (!projectDir) {
       throw new Error("Run this command inside your project's directory");
     }
 
-    const secrets = await EnvironmentSecretsQuery.allAsync(projectAccountName, projectId);
+    const exp = getExpoConfig(projectDir);
+
+    // this command is non-interacive by design
+    const projectId = await getProjectIdAsync(exp, { nonInteractive: true });
+    const secrets = await EnvironmentSecretsQuery.allAsync(projectId);
 
     const table = new Table({
       head: ['Name', 'Type', 'Scope', 'ID', 'Updated at'],

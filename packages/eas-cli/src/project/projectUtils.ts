@@ -7,7 +7,8 @@ import pkgDir from 'pkg-dir';
 import resolveFrom from 'resolve-from';
 import semver from 'semver';
 
-import { AppPrivacy } from '../graphql/generated';
+import { AccountFragment, AppPrivacy } from '../graphql/generated';
+import { AppQuery } from '../graphql/queries/AppQuery';
 import Log from '../log';
 import { ora } from '../ora';
 import { Actor } from '../user/User';
@@ -17,6 +18,10 @@ import { getVcsClient } from '../vcs';
 import { getExpoConfig } from './expoConfig';
 import { fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync } from './fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync';
 
+/**
+ * @deprecated - prefer using the account that definitively owns the project by
+ *               fetching it via the App.ownerAccount GraphQL field.
+ */
 export function getProjectAccountName(exp: ExpoConfig, user: Actor): string {
   switch (user.__typename) {
     case 'User':
@@ -47,6 +52,10 @@ export function getUsername(exp: ExpoConfig, user: Actor): string | undefined {
   }
 }
 
+/**
+ * @deprecated - prefer using the account that definitively owns the project by
+ *               fetching it via the App.ownerAccount GraphQL field.
+ */
 export async function getProjectAccountNameAsync(
   exp: ExpoConfig,
   { nonInteractive }: { nonInteractive: boolean }
@@ -262,4 +271,11 @@ export async function installExpoUpdatesAsync(projectDir: string): Promise<void>
   Log.newLine();
   await expoCommandAsync(projectDir, ['install', 'expo-updates']);
   Log.newLine();
+}
+
+export async function getOwnerAccountForProjectIdAsync(
+  projectId: string
+): Promise<AccountFragment> {
+  const app = await AppQuery.byIdAsync(projectId);
+  return app.ownerAccount;
 }

@@ -19,13 +19,11 @@ import Log from '../../log';
 import { getExpoConfig } from '../../project/expoConfig';
 import {
   findProjectRootAsync,
-  getProjectAccountNameAsync,
+  getOwnerAccountForProjectIdAsync,
+  getProjectFullNameAsync,
   getProjectIdAsync,
 } from '../../project/projectUtils';
 import { promptAsync, selectAsync } from '../../prompts';
-import { findAccountByName } from '../../user/Account';
-import { getActorDisplayName } from '../../user/User';
-import { ensureLoggedInAsync } from '../../user/actions';
 
 export default class EnvironmentSecretCreate extends EasCommand {
   static override description =
@@ -66,13 +64,11 @@ export default class EnvironmentSecretCreate extends EasCommand {
       },
     } = await this.parse(EnvironmentSecretCreate);
 
-    const actor = await ensureLoggedInAsync({ nonInteractive });
     const projectDir = await findProjectRootAsync();
     const exp = getExpoConfig(projectDir);
-    const accountName = await getProjectAccountNameAsync(exp, { nonInteractive });
-
-    const { slug } = exp;
+    const projectFullName = await getProjectFullNameAsync(exp, { nonInteractive });
     const projectId = await getProjectIdAsync(exp, { nonInteractive });
+    const ownerAccount = await getOwnerAccountForProjectIdAsync(projectId);
 
     if (!scope) {
       const validationMessage = 'Secret scope may not be empty.';
@@ -177,14 +173,16 @@ export default class EnvironmentSecretCreate extends EasCommand {
 
     if (scope === EnvironmentSecretScope.PROJECT) {
       if (force) {
-        const existingSecrets = await EnvironmentSecretsQuery.byAppIdAsync(projectId);
+        const { appSecrets: existingSecrets } = await EnvironmentSecretsQuery.byAppIdAsync(
+          projectId
+        );
         const existingSecret = existingSecrets.find(secret => secret.name === name);
 
         if (existingSecret) {
           await EnvironmentSecretMutation.deleteAsync(existingSecret.id);
           Log.withTick(
             `Deleting existing secret ${chalk.bold(name)} on project ${chalk.bold(
-              `@${accountName}/${slug}`
+              projectFullName
             )}.`
           );
         }
@@ -204,29 +202,20 @@ export default class EnvironmentSecretCreate extends EasCommand {
         Log.withTick(
           `️Created a new secret ${chalk.bold(name)} with value ${chalk.bold(
             secretValue
-          )} on project ${chalk.bold(`@${accountName}/${slug}`)}.`
+          )} on project ${chalk.bold(projectFullName)}.`
         );
       } else {
         Log.withTick(
           `️Created a new secret ${chalk.bold(name)} from file ${chalk.bold(
             secretFilePath
-          )} on project ${chalk.bold(`@${accountName}/${slug}`)}.`
+          )} on project ${chalk.bold(projectFullName)}.`
         );
       }
     } else if (scope === EnvironmentSecretScope.ACCOUNT) {
-      const ownerAccount = findAccountByName(actor.accounts, accountName);
-
-      if (!ownerAccount) {
-        Log.warn(
-          `Your account (${getActorDisplayName(actor)}) doesn't have access to the ${chalk.bold(
-            accountName
-          )} account`
-        );
-        return;
-      }
-
       if (force) {
-        const existingSecrets = await EnvironmentSecretsQuery.byAccountNameAsync(ownerAccount.name);
+        const { accountSecrets: existingSecrets } = await EnvironmentSecretsQuery.byAppIdAsync(
+          projectId
+        );
         const existingSecret = existingSecrets.find(secret => secret.name === name);
 
         if (existingSecret) {
