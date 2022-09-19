@@ -65,7 +65,7 @@ export async function findProjectRootAsync({
 /**
  * Save an EAS project ID to the appropriate field in the app config.
  */
-async function saveProjectIdToAppConfigAsync(
+export async function saveProjectIdToAppConfigAsync(
   projectDir: string,
   projectId: string,
   options: { env?: Env } = {}
@@ -172,7 +172,7 @@ export async function getProjectIdAsync(
   return projectId;
 }
 
-const toAppPrivacy = (privacy: ExpoConfig['privacy']): AppPrivacy => {
+export const toAppPrivacy = (privacy: ExpoConfig['privacy']): AppPrivacy => {
   if (privacy === 'public') {
     return AppPrivacy.Public;
   } else if (privacy === 'hidden') {

@@ -2,7 +2,7 @@ import chalk from 'chalk';
 import terminalLink from 'terminal-link';
 
 import { getProjectDashboardUrl } from '../build/utils/url';
-import { AppPrivacy } from '../graphql/generated';
+import { AppPrivacy, Role } from '../graphql/generated';
 import { AppMutation } from '../graphql/mutations/AppMutation';
 import { AppQuery } from '../graphql/queries/AppQuery';
 import { ora } from '../ora';
@@ -36,7 +36,13 @@ export async function fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsyn
   }
 
   const actor = await ensureLoggedInAsync({ nonInteractive: options.nonInteractive });
-  const account = findAccountByName(actor.accounts, accountName);
+  const allAccounts = actor.accounts;
+  const accountNamesWhereUserHasSufficientPublishPermissions = new Set(
+    allAccounts
+      .filter(a => a.users.find(it => it.actor.id === actor.id)?.role !== Role.ViewOnly)
+      .map(it => it.name)
+  );
+  const account = findAccountByName(allAccounts, accountName);
   if (!account) {
     throw new Error(
       `You must have access to the ${accountName} account to configure this EAS project.`
@@ -57,6 +63,12 @@ export async function fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsyn
       );
     }
     return projectIdOnServer;
+  }
+
+  if (!accountNamesWhereUserHasSufficientPublishPermissions.has(accountName)) {
+    throw new Error(
+      `You don't have permission to create a new project on the ${accountName} account and no matching project already exists on the account.`
+    );
   }
 
   const affirmedCreate = await confirmAsync({
@@ -95,7 +107,7 @@ export async function fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsyn
  * @param slug project slug
  * @returns A promise resolving to Project ID, null if it doesn't exist
  */
-async function findProjectIdByAccountNameAndSlugNullableAsync(
+export async function findProjectIdByAccountNameAndSlugNullableAsync(
   accountName: string,
   slug: string
 ): Promise<string | null> {

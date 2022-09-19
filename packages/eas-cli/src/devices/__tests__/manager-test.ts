@@ -1,5 +1,6 @@
 import prompts from 'prompts';
 
+import { Role } from '../../graphql/generated';
 import { AppQuery } from '../../graphql/queries/AppQuery';
 import { Actor } from '../../user/User';
 import { AccountResolver } from '../manager';
@@ -23,8 +24,16 @@ describe(AccountResolver, () => {
       id: 'user_id_666',
       username: 'dominik',
       accounts: [
-        { id: 'account_id_777', name: 'dominik' },
-        { id: 'account_id_888', name: 'foo' },
+        {
+          id: 'account_id_777',
+          name: 'dominik',
+          users: [{ role: Role.Owner, actor: { id: 'user_id_666' } }],
+        },
+        {
+          id: 'account_id_888',
+          name: 'foo',
+          users: [{ role: Role.Owner, actor: { id: 'user_id_666' } }],
+        },
       ],
       isExpoAdmin: false,
     };
@@ -56,7 +65,7 @@ describe(AccountResolver, () => {
 
         const resolver = new AccountResolver(exp, user);
         const account = await resolver.resolveAccountAsync();
-        expect(account).toEqual(user.accounts[1]);
+        expect(account).toEqual({ id: user.accounts[1].id, name: user.accounts[1].name });
       });
 
       it('asks the user to choose the account from his account list if he rejects to use the one defined in app.json / app.config.js', async () => {

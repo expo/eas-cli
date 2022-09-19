@@ -1,6 +1,7 @@
 import { getConfig, modifyConfigAsync } from '@expo/config';
 import { vol } from 'memfs';
 
+import { Role } from '../../graphql/generated';
 import { Actor, getUserAsync } from '../../user/User';
 import { fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync } from '../fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync';
 import { findProjectRootAsync, getProjectIdAsync } from '../projectUtils';
@@ -76,8 +77,16 @@ describe(getProjectIdAsync, () => {
         id: 'user_id',
         username: 'notnotbrent',
         accounts: [
-          { id: 'account_id_1', name: 'notnotbrent' },
-          { id: 'account_id_2', name: 'dominik' },
+          {
+            id: 'account_id_1',
+            name: 'notnotbrent',
+            users: [{ role: Role.Owner, actor: { id: 'user_id' } }],
+          },
+          {
+            id: 'account_id_2',
+            name: 'dominik',
+            users: [{ role: Role.ViewOnly, actor: { id: 'user_id' } }],
+          },
         ],
         isExpoAdmin: false,
       })
