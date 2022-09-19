@@ -180,7 +180,9 @@ async function uploadProjectAsync<TPlatform extends Platform>(
 
         if (projectTarball.size > 1024 * 1024 * 100) {
           Log.warn(
-            `Your project size is over 100 MB. You can reduce its size by excluding files unnecessary for the build process using ${chalk.bold(
+            `Your project archive is ${formatBytes(
+              projectTarball.size
+            )}. You can reduce its size and the time it takes to upload by excluding files that are unnecessary for the build process in ${chalk.bold(
               '.easignore'
             )} file. ${learnMore('https://expo.fyi/eas-build-archive')}`
           );
