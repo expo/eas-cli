@@ -9,7 +9,11 @@ import formatDevice from '../../devices/utils/formatDevice';
 import Log from '../../log';
 import { Ora, ora } from '../../ora';
 import { getExpoConfig } from '../../project/expoConfig';
-import { findProjectRootAsync, getProjectAccountNameAsync } from '../../project/projectUtils';
+import {
+  findProjectRootAsync,
+  getOwnerAccountForProjectIdAsync,
+  getProjectIdAsync,
+} from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
 
 export default class BuildList extends EasCommand {
@@ -26,7 +30,8 @@ export default class BuildList extends EasCommand {
     const exp = getExpoConfig(projectDir);
 
     // this command is interactive by design
-    const accountName = await getProjectAccountNameAsync(exp, { nonInteractive: false });
+    const projectId = await getProjectIdAsync(exp, { nonInteractive: false });
+    const account = await getOwnerAccountForProjectIdAsync(projectId);
 
     let spinner: Ora;
 
@@ -34,7 +39,7 @@ export default class BuildList extends EasCommand {
       spinner = ora().start('Fetching the list of teams for the project…');
 
       try {
-        const teams = await AppleTeamQuery.getAllForAccountAsync(accountName);
+        const teams = await AppleTeamQuery.getAllForAccountAsync(account.name);
 
         if (teams.length > 0) {
           spinner.succeed();
@@ -57,7 +62,7 @@ export default class BuildList extends EasCommand {
             appleTeamIdentifier = result.appleTeamIdentifier;
           }
         } else {
-          spinner.fail(`Couldn't find any teams for the account ${accountName}`);
+          spinner.fail(`Couldn't find any teams for the account ${account.name}`);
         }
       } catch (e) {
         spinner.fail(`Something went wrong and we couldn't fetch the list of teams`);
@@ -71,7 +76,7 @@ export default class BuildList extends EasCommand {
 
     try {
       const result = await AppleDeviceQuery.getAllForAppleTeamAsync(
-        accountName,
+        account.name,
         appleTeamIdentifier
       );
 

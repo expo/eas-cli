@@ -6,10 +6,10 @@ import { AppleTeamMutation } from '../credentials/ios/api/graphql/mutations/Appl
 import { AppleTeamQuery } from '../credentials/ios/api/graphql/queries/AppleTeamQuery';
 import { AppleTeamFragment } from '../graphql/generated';
 import Log from '../log';
-import { getProjectAccountNameAsync } from '../project/projectUtils';
+import { getOwnerAccountForProjectIdAsync, getProjectIdAsync } from '../project/projectUtils';
 import { Choice, confirmAsync, promptAsync } from '../prompts';
-import { Account, findAccountByName } from '../user/Account';
-import { Actor, getActorDisplayName } from '../user/User';
+import { Account } from '../user/Account';
+import { Actor } from '../user/User';
 import DeviceCreateAction from './actions/create/action';
 import { DeviceManagerContext } from './context';
 
@@ -61,26 +61,16 @@ export class AccountResolver {
     assert(this.exp, 'expo config is not set');
 
     // this command is interactive by design
-    const projectAccountName = await getProjectAccountNameAsync(this.exp, {
-      nonInteractive: false,
-    });
-    const projectAccount = findAccountByName(this.user.accounts, projectAccountName);
-    if (!projectAccount) {
-      Log.warn(
-        `Your account (${getActorDisplayName(this.user)}) doesn't have access to the ${chalk.bold(
-          projectAccountName
-        )} account`
-      );
-      return;
-    }
+    const projectId = await getProjectIdAsync(this.exp, { nonInteractive: false });
+    const account = await getOwnerAccountForProjectIdAsync(projectId);
 
     const useProjectAccount = await confirmAsync({
       message: `You're inside the project directory. Would you like to use the ${chalk.underline(
-        projectAccountName
+        account.name
       )} account?`,
     });
 
-    return useProjectAccount ? projectAccount : undefined;
+    return useProjectAccount ? account : undefined;
   }
 
   private async promptForAccountAsync(): Promise<Account> {
