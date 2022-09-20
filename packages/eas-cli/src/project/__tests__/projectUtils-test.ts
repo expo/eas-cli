@@ -76,6 +76,11 @@ describe(getProjectIdAsync, () => {
         __typename: 'User',
         id: 'user_id',
         username: 'notnotbrent',
+        primaryAccount: {
+          id: 'account_id_1',
+          name: 'notnotbrent',
+          users: [{ role: Role.Owner, actor: { id: 'user_id' } }],
+        },
         accounts: [
           {
             id: 'account_id_1',

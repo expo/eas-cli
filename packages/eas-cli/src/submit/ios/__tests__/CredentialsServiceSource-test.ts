@@ -24,9 +24,6 @@ jest.mock('../../../credentials/utils/promptForCredentials');
 jest.mock('../../../user/User', () => ({
   getUserAsync: jest.fn(() => mockJester),
 }));
-jest.mock('../../../user/Account', () => ({
-  findAccountByName: jest.fn(() => mockJester.accounts[0]),
-}));
 jest.mock('../../../project/ios/bundleIdentifier');
 jest.mock('../../../graphql/queries/AppQuery');
 

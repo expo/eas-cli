@@ -23,6 +23,11 @@ describe(AccountResolver, () => {
       __typename: 'User',
       id: 'user_id_666',
       username: 'dominik',
+      primaryAccount: {
+        id: 'account_id_777',
+        name: 'dominik',
+        users: [{ role: Role.Owner, actor: { id: 'user_id_666' } }],
+      },
       accounts: [
         {
           id: 'account_id_777',
@@ -54,7 +59,11 @@ describe(AccountResolver, () => {
           id: 'test-project-id',
           fullName: '@foo/wat',
           slug: 'wat',
-          ownerAccount: { id: 'account_id_888', name: 'foo' },
+          ownerAccount: {
+            id: 'account_id_888',
+            name: 'foo',
+            users: [{ role: Role.Owner, actor: { id: 'user_id_666' } }],
+          },
         });
       });
 
@@ -65,7 +74,11 @@ describe(AccountResolver, () => {
 
         const resolver = new AccountResolver(exp, user);
         const account = await resolver.resolveAccountAsync();
-        expect(account).toEqual({ id: user.accounts[1].id, name: user.accounts[1].name });
+        expect(account).toEqual({
+          id: user.accounts[1].id,
+          name: user.accounts[1].name,
+          users: user.accounts[1].users,
+        });
       });
 
       it('asks the user to choose the account from his account list if he rejects to use the one defined in app.json / app.config.js', async () => {

@@ -4,6 +4,7 @@ import assert from 'assert';
 import nullthrows from 'nullthrows';
 
 import {
+  AccountFragment,
   AppleDistributionCertificateFragment,
   IosAppBuildCredentialsFragment,
   IosDistributionType as IosDistributionTypeGraphql,
@@ -13,8 +14,8 @@ import { resolveXcodeBuildContextAsync } from '../../project/ios/scheme';
 import { resolveTargetsAsync } from '../../project/ios/target';
 import { getOwnerAccountForProjectIdAsync, getProjectIdAsync } from '../../project/projectUtils';
 import { confirmAsync, promptAsync, selectAsync } from '../../prompts';
-import { Account, findAccountByName } from '../../user/Account';
-import { ensureActorHasUsername, ensureLoggedInAsync } from '../../user/actions';
+import { Account } from '../../user/Account';
+import { ensureActorHasPrimaryAccount, ensureLoggedInAsync } from '../../user/actions';
 import { CredentialsContext } from '../context';
 import {
   AppStoreApiKeyPurpose,
@@ -75,19 +76,14 @@ export class ManageIos {
 
     await ctx.bestEffortAppStoreAuthenticateAsync();
 
-    const getAccountNameForProjectAsync = async (): Promise<string> => {
+    const getAccountForProjectAsync = async (): Promise<AccountFragment> => {
       const projectId = await getProjectIdAsync(ctx.exp, { nonInteractive: false });
-      return (await getOwnerAccountForProjectIdAsync(projectId)).name;
+      return await getOwnerAccountForProjectIdAsync(projectId);
     };
 
-    const accountName = ctx.hasProjectContext
-      ? await getAccountNameForProjectAsync()
-      : ensureActorHasUsername(ctx.user);
-
-    const account = findAccountByName(ctx.user.accounts, accountName);
-    if (!account) {
-      throw new Error(`You do not have access to account: ${accountName}`);
-    }
+    const account = ctx.hasProjectContext
+      ? await getAccountForProjectAsync()
+      : ensureActorHasPrimaryAccount(ctx.user);
 
     let app = null;
     let targets = null;

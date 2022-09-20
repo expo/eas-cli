@@ -1,7 +1,9 @@
+import { print } from 'graphql';
 import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../client';
 import { CurrentUserQuery } from '../generated';
+import { AccountFragmentNode } from '../types/Account';
 
 export const UserQuery = {
   async currentUserAsync(): Promise<CurrentUserQuery['meActor']> {
@@ -15,23 +17,22 @@ export const UserQuery = {
                 id
                 ... on User {
                   username
+                  primaryAccount {
+                    id
+                    ...AccountFragment
+                  }
                 }
                 ... on Robot {
                   firstName
                 }
                 accounts {
                   id
-                  name
-                  users {
-                    actor {
-                      id
-                    }
-                    role
-                  }
+                  ...AccountFragment
                 }
                 isExpoAdmin
               }
             }
+            ${print(AccountFragmentNode)}
           `,
           /* variables */ undefined,
           {

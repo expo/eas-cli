@@ -17,7 +17,6 @@ import {
   toAppPrivacy,
 } from '../../project/projectUtils';
 import { confirmAsync, promptAsync } from '../../prompts';
-import { findAccountByName } from '../../user/Account';
 import { ensureLoggedInAsync } from '../../user/actions';
 
 type InitializeMethodOptions = {
@@ -193,7 +192,7 @@ export default class ProjectInit extends EasCommand {
       fallback: () => `${projectFullName} (${projectDashboardUrl})`,
     });
 
-    const account = nullthrows(findAccountByName(allAccounts, accountName));
+    const account = nullthrows(allAccounts.find(a => a.name === accountName));
 
     const spinner = ora(`Creating ${chalk.bold(projectFullName)}`).start();
     let createdProjectId: string;

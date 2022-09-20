@@ -12,6 +12,7 @@ import {
   CommonIosAppCredentialsFragment,
   IosAppBuildCredentialsFragment,
   IosDistributionType,
+  Role,
 } from '../../graphql/generated';
 import * as IosGraphqlClient from '../ios/api/GraphqlClient';
 import {
@@ -58,6 +59,14 @@ export const testAppFragment: AppFragment = {
   ownerAccount: {
     id: 'test-account-id',
     name: 'testuser',
+    users: [
+      {
+        role: Role.Owner,
+        actor: {
+          id: 'test-user-id',
+        },
+      },
+    ],
   },
 };
 

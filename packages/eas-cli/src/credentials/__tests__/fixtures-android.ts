@@ -7,6 +7,7 @@ import {
   AppFragment,
   CommonAndroidAppCredentialsFragment,
   GoogleServiceAccountKeyFragment,
+  Role,
 } from '../../graphql/generated';
 import * as AndroidGraphqlClient from '../android/api/GraphqlClient';
 import { Keystore } from '../android/credentials';
@@ -58,6 +59,14 @@ export const testAppFragment: AppFragment = {
   ownerAccount: {
     id: 'test-account-id',
     name: 'testuser',
+    users: [
+      {
+        role: Role.Owner,
+        actor: {
+          id: 'test-user-id',
+        },
+      },
+    ],
   },
 };
 

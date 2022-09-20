@@ -8,7 +8,6 @@ import {
   isBundleIdentifierValid,
 } from '../../project/ios/bundleIdentifier';
 import { promptAsync } from '../../prompts';
-import { findAccountByName } from '../../user/Account';
 import { SubmissionContext } from '../context';
 import {
   AppSpecificPasswordCredentials,
@@ -47,7 +46,7 @@ export async function getFromCredentialsServiceAsync(
 
   const appLookupParams = {
     account: nullthrows(
-      findAccountByName(ctx.user.accounts, ctx.accountName),
+      ctx.user.accounts.find(a => a.name === ctx.accountName),
       `You do not have access to account: ${ctx.accountName}`
     ),
     projectName: ctx.projectName,
