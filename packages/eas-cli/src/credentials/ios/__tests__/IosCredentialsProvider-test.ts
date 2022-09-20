@@ -62,6 +62,7 @@ describe(IosCredentialsProvider, () => {
             account: {
               id: `id-${appLookupParams.account.name}`,
               name: appLookupParams.account.name,
+              users: [],
             },
             projectName: appLookupParams.projectName,
           },
@@ -105,6 +106,7 @@ describe(IosCredentialsProvider, () => {
             account: {
               id: `id-${appLookupParams.account.name}`,
               name: appLookupParams.account.name,
+              users: [],
             },
             projectName: appLookupParams.projectName,
           },

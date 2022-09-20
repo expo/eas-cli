@@ -1,7 +1,7 @@
-import { Account } from '../../../../../user/Account';
+import { AccountFragment } from '../../../../../graphql/generated';
 
 export interface AppLookupParams {
-  account: Account;
+  account: AccountFragment;
   projectName: string;
   bundleIdentifier: string;
   parentBundleIdentifier?: string;

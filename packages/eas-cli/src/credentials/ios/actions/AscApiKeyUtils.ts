@@ -3,10 +3,9 @@ import fs from 'fs-extra';
 import { nanoid } from 'nanoid';
 import path from 'path';
 
-import { AppStoreConnectApiKeyFragment } from '../../../graphql/generated';
+import { AccountFragment, AppStoreConnectApiKeyFragment } from '../../../graphql/generated';
 import Log, { learnMore } from '../../../log';
 import { confirmAsync, promptAsync } from '../../../prompts';
-import { Account } from '../../../user/Account';
 import { fromNow } from '../../../utils/date';
 import { CredentialsContext } from '../../context';
 import {
@@ -167,7 +166,7 @@ async function getBestEffortIssuerIdAsync(
 
 export async function getAscApiKeysFromAccountAsync(
   ctx: CredentialsContext,
-  account: Account,
+  account: AccountFragment,
   { filterDifferentAppleTeam }: { filterDifferentAppleTeam?: boolean } = {}
 ): Promise<AppStoreConnectApiKeyFragment[]> {
   const ascApiKeysForAccount = await ctx.ios.getAscApiKeysForAccountAsync(account);
@@ -181,7 +180,7 @@ export async function getAscApiKeysFromAccountAsync(
 
 export async function selectAscApiKeysFromAccountAsync(
   ctx: CredentialsContext,
-  account: Account,
+  account: AccountFragment,
   { filterDifferentAppleTeam }: { filterDifferentAppleTeam?: boolean } = {}
 ): Promise<AppStoreConnectApiKeyFragment | null> {
   const ascApiKeysForAccount = await getAscApiKeysFromAccountAsync(ctx, account, {

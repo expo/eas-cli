@@ -1,17 +1,17 @@
 import {
+  AccountFragment,
   AppleDistributionCertificateFragment,
   AppleProvisioningProfileIdentifiersFragment,
 } from '../../../graphql/generated';
 import Log from '../../../log';
 import { confirmAsync } from '../../../prompts';
-import { Account } from '../../../user/Account';
 import { CredentialsContext } from '../../context';
 import { AppLookupParams } from '../api/graphql/types/AppLookupParams';
 import { selectDistributionCertificateWithDependenciesAsync } from './DistributionCertificateUtils';
 import { RemoveProvisioningProfiles } from './RemoveProvisioningProfile';
 
 export class SelectAndRemoveDistributionCertificate {
-  constructor(private account: Account) {}
+  constructor(private account: AccountFragment) {}
 
   async runAsync(ctx: CredentialsContext): Promise<void> {
     const selected = await selectDistributionCertificateWithDependenciesAsync(ctx, this.account);
@@ -25,7 +25,7 @@ export class SelectAndRemoveDistributionCertificate {
 
 export class RemoveDistributionCertificate {
   constructor(
-    private account: Account,
+    private account: AccountFragment,
     private distributionCertificate: AppleDistributionCertificateFragment
   ) {}
 

@@ -2,6 +2,7 @@ import { UserRole } from '@expo/apple-utils';
 import nullthrows from 'nullthrows';
 
 import {
+  AccountFragment,
   AppFragment,
   AppStoreConnectApiKeyFragment,
   AppStoreConnectUserRole,
@@ -16,7 +17,6 @@ import {
 } from '../../../graphql/generated';
 import { AppQuery } from '../../../graphql/queries/AppQuery';
 import { isWildcardBundleIdentifier } from '../../../project/ios/bundleIdentifier';
-import { Account } from '../../../user/Account';
 import { DistributionCertificate, PushKey } from '../appstore/Credentials.types';
 import { MinimalAscApiKey } from '../credentials';
 import { AppleTeamMissingError } from '../errors';
@@ -225,7 +225,7 @@ async function createOrGetExistingIosAppCredentialsWithBuildCredentialsAsync(
 }
 
 export async function createOrGetExistingAppleTeamAsync(
-  account: Account,
+  account: AccountFragment,
   { appleTeamIdentifier, appleTeamName }: { appleTeamIdentifier: string; appleTeamName?: string }
 ): Promise<AppleTeamFragment> {
   const appleTeam = await AppleTeamQuery.getByAppleTeamIdentifierAsync(
@@ -354,13 +354,13 @@ export async function getDistributionCertificateForAppAsync(
 }
 
 export async function getDistributionCertificatesForAccountAsync(
-  account: Account
+  account: AccountFragment
 ): Promise<AppleDistributionCertificateFragment[]> {
   return await AppleDistributionCertificateQuery.getAllForAccountAsync(account.name);
 }
 
 export async function createDistributionCertificateAsync(
-  account: Account,
+  account: AccountFragment,
   distCert: DistributionCertificate
 ): Promise<AppleDistributionCertificateMutationResult> {
   const appleTeam = await createOrGetExistingAppleTeamAsync(account, {
@@ -388,7 +388,7 @@ export async function deleteDistributionCertificateAsync(
 }
 
 export async function createPushKeyAsync(
-  account: Account,
+  account: AccountFragment,
   pushKey: PushKey
 ): Promise<ApplePushKeyFragment> {
   const appleTeam = await createOrGetExistingAppleTeamAsync(account, {
@@ -406,7 +406,7 @@ export async function createPushKeyAsync(
 }
 
 export async function getPushKeysForAccountAsync(
-  account: Account
+  account: AccountFragment
 ): Promise<ApplePushKeyFragment[]> {
   return await ApplePushKeyQuery.getAllForAccountAsync(account.name);
 }
@@ -423,7 +423,7 @@ export async function deletePushKeyAsync(pushKeyId: string): Promise<void> {
 }
 
 export async function createAscApiKeyAsync(
-  account: Account,
+  account: AccountFragment,
   ascApiKey: MinimalAscApiKey
 ): Promise<AppStoreConnectApiKeyFragment> {
   const maybeAppleTeam = ascApiKey.teamId
@@ -446,7 +446,7 @@ export async function createAscApiKeyAsync(
 }
 
 export async function getAscApiKeysForAccountAsync(
-  account: Account
+  account: AccountFragment
 ): Promise<AppStoreConnectApiKeyFragment[]> {
   return await AppStoreConnectApiKeyQuery.getAllForAccountAsync(account.name);
 }

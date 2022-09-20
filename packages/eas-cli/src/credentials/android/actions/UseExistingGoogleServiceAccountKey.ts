@@ -1,11 +1,10 @@
-import { GoogleServiceAccountKeyFragment } from '../../../graphql/generated';
+import { AccountFragment, GoogleServiceAccountKeyFragment } from '../../../graphql/generated';
 import Log from '../../../log';
-import { Account } from '../../../user/Account';
 import { CredentialsContext } from '../../context';
 import { selectGoogleServiceAccountKeyAsync } from '../utils/googleServiceAccountKey';
 
 export class UseExistingGoogleServiceAccountKey {
-  constructor(private account: Account) {}
+  constructor(private account: AccountFragment) {}
 
   public async runAsync(ctx: CredentialsContext): Promise<GoogleServiceAccountKeyFragment | null> {
     if (ctx.nonInteractive) {

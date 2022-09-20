@@ -43,7 +43,7 @@ describe(SetUpInternalProvisioningProfile, () => {
         });
         const action = new SetUpInternalProvisioningProfile({
           app: {
-            account: { id: 'account-id', name: 'account-name' },
+            account: { id: 'account-id', name: 'account-name', users: [] },
             bundleIdentifier: 'com.expo.test',
             projectName: 'testproject',
           },
@@ -77,7 +77,7 @@ describe(SetUpInternalProvisioningProfile, () => {
 
         const action = new SetUpInternalProvisioningProfile({
           app: {
-            account: { id: 'account-id', name: 'account-name' },
+            account: { id: 'account-id', name: 'account-name', users: [] },
             bundleIdentifier: 'com.expo.test',
             projectName: 'testproject',
           },
@@ -118,7 +118,7 @@ describe(SetUpInternalProvisioningProfile, () => {
 
         const action = new SetUpInternalProvisioningProfile({
           app: {
-            account: { id: 'account-id', name: 'account-name' },
+            account: { id: 'account-id', name: 'account-name', users: [] },
             bundleIdentifier: 'com.expo.test',
             projectName: 'testproject',
           },
@@ -152,7 +152,7 @@ describe(SetUpInternalProvisioningProfile, () => {
 
         const action = new SetUpInternalProvisioningProfile({
           app: {
-            account: { id: 'account-id', name: 'account-name' },
+            account: { id: 'account-id', name: 'account-name', users: [] },
             bundleIdentifier: 'com.expo.test',
             projectName: 'testproject',
           },
@@ -188,7 +188,7 @@ describe(SetUpInternalProvisioningProfile, () => {
 
         const action = new SetUpInternalProvisioningProfile({
           app: {
-            account: { id: 'account-id', name: 'account-name' },
+            account: { id: 'account-id', name: 'account-name', users: [] },
             bundleIdentifier: 'com.expo.test',
             projectName: 'testproject',
           },
@@ -222,7 +222,7 @@ describe(SetUpInternalProvisioningProfile, () => {
 
         const action = new SetUpInternalProvisioningProfile({
           app: {
-            account: { id: 'account-id', name: 'account-name' },
+            account: { id: 'account-id', name: 'account-name', users: [] },
             bundleIdentifier: 'com.expo.test',
             projectName: 'testproject',
           },
@@ -255,7 +255,7 @@ describe(SetUpInternalProvisioningProfile, () => {
       });
       const action = new SetUpInternalProvisioningProfile({
         app: {
-          account: { id: 'account-id', name: 'account-name' },
+          account: { id: 'account-id', name: 'account-name', users: [] },
           bundleIdentifier: 'com.expo.test',
           projectName: 'testproject',
         },
@@ -276,7 +276,7 @@ describe(SetUpInternalProvisioningProfile, () => {
       });
       const action = new SetUpInternalProvisioningProfile({
         app: {
-          account: { id: 'account-id', name: 'account-name' },
+          account: { id: 'account-id', name: 'account-name', users: [] },
           bundleIdentifier: 'com.expo.test',
           projectName: 'testproject',
         },
@@ -295,7 +295,7 @@ describe(SetUpInternalProvisioningProfile, () => {
       });
       const action = new SetUpInternalProvisioningProfile({
         app: {
-          account: { id: 'account-id', name: 'account-name' },
+          account: { id: 'account-id', name: 'account-name', users: [] },
           bundleIdentifier: 'com.expo.test',
           projectName: 'testproject',
         },
@@ -320,7 +320,7 @@ describe(SetUpInternalProvisioningProfile, () => {
       });
       const action = new SetUpInternalProvisioningProfile({
         app: {
-          account: { id: 'account-id', name: 'account-name' },
+          account: { id: 'account-id', name: 'account-name', users: [] },
           bundleIdentifier: 'com.expo.test',
           projectName: 'testproject',
         },

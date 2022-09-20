@@ -4720,7 +4720,7 @@ export type CreateAppleTeamMutationVariables = Exact<{
 }>;
 
 
-export type CreateAppleTeamMutation = { __typename?: 'RootMutation', appleTeam: { __typename?: 'AppleTeamMutation', createAppleTeam: { __typename?: 'AppleTeam', id: string, appleTeamIdentifier: string, appleTeamName?: string | null, account: { __typename?: 'Account', id: string, name: string } } } };
+export type CreateAppleTeamMutation = { __typename?: 'RootMutation', appleTeam: { __typename?: 'AppleTeamMutation', createAppleTeam: { __typename?: 'AppleTeam', id: string, appleTeamIdentifier: string, appleTeamName?: string | null, account: { __typename?: 'Account', id: string, name: string, users: Array<{ __typename?: 'UserPermission', role?: Role | null, actor: { __typename?: 'Robot', id: string } | { __typename?: 'User', id: string } }> } } } };
 
 export type CreateIosAppBuildCredentialsMutationVariables = Exact<{
   iosAppBuildCredentialsInput: IosAppBuildCredentialsInput;

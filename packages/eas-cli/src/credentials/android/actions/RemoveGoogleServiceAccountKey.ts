@@ -1,12 +1,11 @@
-import { GoogleServiceAccountKeyFragment } from '../../../graphql/generated';
+import { AccountFragment, GoogleServiceAccountKeyFragment } from '../../../graphql/generated';
 import Log from '../../../log';
 import { confirmAsync } from '../../../prompts';
-import { Account } from '../../../user/Account';
 import { CredentialsContext } from '../../context';
 import { selectGoogleServiceAccountKeyAsync } from '../utils/googleServiceAccountKey';
 
 export class SelectAndRemoveGoogleServiceAccountKey {
-  constructor(private account: Account) {}
+  constructor(private account: AccountFragment) {}
 
   async runAsync(ctx: CredentialsContext): Promise<void> {
     if (ctx.nonInteractive) {

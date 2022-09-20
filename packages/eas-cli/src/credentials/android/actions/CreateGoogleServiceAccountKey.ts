@@ -1,10 +1,9 @@
 import chalk from 'chalk';
 import fs from 'fs-extra';
 
-import { GoogleServiceAccountKeyFragment } from '../../../graphql/generated';
+import { AccountFragment, GoogleServiceAccountKeyFragment } from '../../../graphql/generated';
 import Log, { learnMore } from '../../../log';
 import { promptAsync } from '../../../prompts';
-import { Account } from '../../../user/Account';
 import { CredentialsContext } from '../../context';
 import { GoogleServiceAccountKey } from '../credentials';
 import {
@@ -13,7 +12,7 @@ import {
 } from '../utils/googleServiceAccountKey';
 
 export class CreateGoogleServiceAccountKey {
-  constructor(private account: Account) {}
+  constructor(private account: AccountFragment) {}
 
   public async runAsync(ctx: CredentialsContext): Promise<GoogleServiceAccountKeyFragment> {
     if (ctx.nonInteractive) {

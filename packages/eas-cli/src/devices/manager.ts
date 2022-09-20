@@ -4,11 +4,10 @@ import chalk from 'chalk';
 
 import { AppleTeamMutation } from '../credentials/ios/api/graphql/mutations/AppleTeamMutation';
 import { AppleTeamQuery } from '../credentials/ios/api/graphql/queries/AppleTeamQuery';
-import { AppleTeamFragment } from '../graphql/generated';
+import { AccountFragment, AppleTeamFragment } from '../graphql/generated';
 import Log from '../log';
 import { getOwnerAccountForProjectIdAsync, getProjectIdAsync } from '../project/projectUtils';
 import { Choice, confirmAsync, promptAsync } from '../prompts';
-import { Account } from '../user/Account';
 import { Actor } from '../user/User';
 import DeviceCreateAction from './actions/create/action';
 import { DeviceManagerContext } from './context';
@@ -38,7 +37,7 @@ export default class DeviceManager {
     await action.runAsync();
   }
 
-  private async resolveAccountAsync(): Promise<Account> {
+  private async resolveAccountAsync(): Promise<AccountFragment> {
     const resolver = new AccountResolver(this.ctx.exp, this.ctx.user);
     return await resolver.resolveAccountAsync();
   }
@@ -47,7 +46,7 @@ export default class DeviceManager {
 export class AccountResolver {
   constructor(private exp: ExpoConfig | null, private user: Actor) {}
 
-  public async resolveAccountAsync(): Promise<Account> {
+  public async resolveAccountAsync(): Promise<AccountFragment> {
     if (this.exp) {
       const account = await this.resolveProjectAccountAsync();
       if (account) {
@@ -57,7 +56,7 @@ export class AccountResolver {
     return await this.promptForAccountAsync();
   }
 
-  private async resolveProjectAccountAsync(): Promise<Account | undefined> {
+  private async resolveProjectAccountAsync(): Promise<AccountFragment | undefined> {
     assert(this.exp, 'expo config is not set');
 
     // this command is interactive by design
@@ -73,7 +72,7 @@ export class AccountResolver {
     return useProjectAccount ? account : undefined;
   }
 
-  private async promptForAccountAsync(): Promise<Account> {
+  private async promptForAccountAsync(): Promise<AccountFragment> {
     const choices: Choice[] = this.user.accounts.map(account => ({
       title: account.name,
       value: account,
