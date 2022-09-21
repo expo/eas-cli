@@ -55,7 +55,22 @@ export async function selectAsync<T>(
   );
   return value ?? null;
 }
-
+export async function multiselectAsync<T>(
+  message: string,
+  choices: ExpoChoice<T>[],
+  options?: Options
+): Promise<T[]> {
+  const { value } = await promptAsync(
+    {
+      message,
+      choices,
+      name: 'value',
+      type: 'multiselect',
+    },
+    options
+  );
+  return value ?? null;
+}
 /**
  * Create a more dynamic yes/no confirmation that can be cancelled.
  *

@@ -1,11 +1,13 @@
-import { confirmAsync, selectAsync } from '../../prompts';
+import { confirmAsync, multiselectAsync, selectAsync } from '../../prompts';
 import {
   paginatedQueryWithConfirmPromptAsync,
+  paginatedQueryWithMultiSelectPromptAsync,
   paginatedQueryWithSelectPromptAsync,
 } from '../queries';
 
 jest.mock('../../prompts', () => ({
   selectAsync: jest.fn(),
+  multiselectAsync: jest.fn(),
   confirmAsync: jest.fn(),
 }));
 
@@ -129,7 +131,7 @@ describe(paginatedQueryWithSelectPromptAsync.name, () => {
         promptOptions: {
           title: '',
           getIdentifierForQueryItem: item => item.id,
-          createDisplayTextForSelectionPromptListItem: item => 'item: ' + item.value,
+          createDisplayTextForSelectionPromptListItem: jest.fn(),
         },
       });
 
@@ -184,5 +186,98 @@ describe(paginatedQueryWithSelectPromptAsync.name, () => {
     });
 
     expect(result).toBeFalsy();
+  });
+});
+
+describe(paginatedQueryWithMultiSelectPromptAsync.name, () => {
+  const mockHandleEmptySelectList = jest.fn();
+
+  beforeEach(() => {
+    mockQuery.mockClear();
+    mockRenderMethod.mockClear();
+    mockHandleEmptySelectList.mockClear();
+    jest.mocked(multiselectAsync).mockClear();
+  });
+
+  it('carries over user selections to new pages', async () => {
+    const selectionStates = [
+      ['first-2', 'first-3', selectMoreObject.value],
+      ['first-2', 'second-1', selectMoreObject.value],
+      ['first-2', 'second-1', 'third-3'],
+    ];
+    const limit = 5;
+    const offset = 0;
+
+    mockQuery
+      .mockResolvedValueOnce(createPaginatedQueryResponse(limit + 1, 'first'))
+      // we need to insert the last item from the previous query
+      // as the first item in the following query.
+      // the id is used for grouping items, so it must match an id in the previous query
+      .mockResolvedValueOnce(
+        createPaginatedQueryResponse(limit + 1, 'second', {
+          id: `first-${limit}`,
+          value: `first-${limit}`,
+        })
+      )
+      .mockResolvedValueOnce(
+        createPaginatedQueryResponse(4, 'third', {
+          id: `second-${limit}`,
+          value: `second-${limit}`,
+        })
+      );
+    jest
+      .mocked(multiselectAsync)
+      .mockResolvedValueOnce(selectionStates[0])
+      .mockResolvedValueOnce(selectionStates[1])
+      .mockResolvedValueOnce(selectionStates[2]);
+
+    const selectedQueryItems = await paginatedQueryWithMultiSelectPromptAsync({
+      limit,
+      offset,
+      queryToPerform: mockQuery,
+      promptOptions: {
+        title: '',
+        getIdentifierForQueryItem: item => item.id,
+        createDisplayTextForSelectionPromptListItem: jest.fn(),
+      },
+    });
+
+    expect(selectedQueryItems).toEqual(
+      selectionStates[2].map(selection => ({ id: selection, value: selection }))
+    );
+  });
+
+  it('does not fetch additional pages when "Next page..." is not selected', async () => {
+    const limit = 5;
+    const offset = 0;
+
+    mockQuery
+      .mockResolvedValueOnce(createPaginatedQueryResponse(limit + 1, 'first'))
+      // we need to insert the last item from the previous query
+      // as the first item in the following query.
+      // the id is used for grouping items, so it must match an id in the previous query
+      .mockResolvedValueOnce(
+        createPaginatedQueryResponse(limit + 1, 'second', {
+          id: `first-${limit}`,
+          value: `first-${limit}`,
+        })
+      );
+    jest
+      .mocked(multiselectAsync)
+      .mockResolvedValueOnce([`first-0`])
+      .mockResolvedValueOnce([`Fail this test`]);
+
+    const selectedQueryItems = await paginatedQueryWithMultiSelectPromptAsync({
+      limit,
+      offset,
+      queryToPerform: mockQuery,
+      promptOptions: {
+        title: '',
+        getIdentifierForQueryItem: item => item.id,
+        createDisplayTextForSelectionPromptListItem: jest.fn(),
+      },
+    });
+
+    expect(selectedQueryItems).toEqual([{ id: `first-0`, value: `first-0` }]);
   });
 });

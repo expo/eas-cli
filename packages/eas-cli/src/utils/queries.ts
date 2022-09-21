@@ -1,4 +1,4 @@
-import { confirmAsync, selectAsync } from '../prompts';
+import { ExpoChoice, confirmAsync, multiselectAsync, selectAsync } from '../prompts';
 import uniqBy from './expodash/uniqBy';
 
 const fetchMoreValue = '_fetchMore';
@@ -69,10 +69,6 @@ async function paginatedQueryWithConfirmPromptInternalAsync<
   }
 }
 
-/**
- * Returns an array of item(s) where the id is equal to the id of the user's selected item
- * If no items are available for a user to select, this will return an empty array.
- */
 export async function paginatedQueryWithSelectPromptAsync<
   QueryReturnType extends Record<string, any>
 >(queryArgs: PaginatedQueryWithSelectPromptArgs<QueryReturnType>): Promise<QueryReturnType | void> {
@@ -99,7 +95,7 @@ async function paginatedQueryWithSelectPromptInternalAsync<
 
   const selectionPromptListItems = uniqBy(newAccumulator, queryItem =>
     promptOptions.getIdentifierForQueryItem(queryItem)
-  ).map(queryItem => ({
+  ).map<ExpoChoice<string>>(queryItem => ({
     title: promptOptions.createDisplayTextForSelectionPromptListItem(queryItem),
     value: promptOptions.getIdentifierForQueryItem(queryItem),
   }));
@@ -129,5 +125,72 @@ async function paginatedQueryWithSelectPromptInternalAsync<
 
   return newAccumulator.find(
     items => promptOptions.getIdentifierForQueryItem(items) === valueOfUserSelectedListItem
+  );
+}
+
+export async function paginatedQueryWithMultiSelectPromptAsync<
+  QueryReturnType extends Record<string, any>
+>(
+  queryArgs: PaginatedQueryWithSelectPromptArgs<QueryReturnType>
+): Promise<QueryReturnType[] | void> {
+  return await paginatedQueryWithMultiSelectPromptInternalAsync(queryArgs, [], []);
+}
+
+async function paginatedQueryWithMultiSelectPromptInternalAsync<
+  QueryReturnType extends Record<string, any>
+>(
+  {
+    limit,
+    offset,
+    queryToPerform,
+    promptOptions,
+  }: PaginatedQueryWithSelectPromptArgs<QueryReturnType>,
+  queryItemAccumulator: QueryReturnType[],
+  selectedIdsAccumulator: string[]
+): Promise<QueryReturnType[] | void> {
+  // query an extra item to determine if there are more pages left
+  const paginatedItems = await queryToPerform(limit + 1, offset);
+  const areMorePagesAvailable = paginatedItems.length > limit;
+  // drop that extra item used for pagination from our render logic
+  const currentPage = paginatedItems.slice(0, limit);
+  const newQueryItemAccumulator = [...queryItemAccumulator, ...currentPage];
+
+  const selectionPromptListItems = uniqBy(newQueryItemAccumulator, queryItem =>
+    promptOptions.getIdentifierForQueryItem(queryItem)
+  ).map<ExpoChoice<string>>(queryItem => ({
+    title: promptOptions.createDisplayTextForSelectionPromptListItem(queryItem),
+    value: promptOptions.getIdentifierForQueryItem(queryItem),
+    selected: selectedIdsAccumulator.includes(promptOptions.getIdentifierForQueryItem(queryItem)),
+  }));
+  if (areMorePagesAvailable) {
+    selectionPromptListItems.push({ title: 'Next page...', value: fetchMoreValue });
+  }
+  if (selectionPromptListItems.length === 0) {
+    return;
+  }
+
+  const valueOfUserSelectedListItems = await multiselectAsync<string>(
+    promptOptions.title,
+    selectionPromptListItems
+  );
+  const newSelectedIdsAccumulator = valueOfUserSelectedListItems.filter(
+    id => id !== fetchMoreValue
+  );
+
+  if (valueOfUserSelectedListItems.includes(fetchMoreValue)) {
+    return await paginatedQueryWithMultiSelectPromptInternalAsync(
+      {
+        limit,
+        offset: offset + limit,
+        queryToPerform,
+        promptOptions,
+      },
+      newQueryItemAccumulator,
+      newSelectedIdsAccumulator
+    );
+  }
+
+  return newQueryItemAccumulator.filter(queryItem =>
+    newSelectedIdsAccumulator.includes(promptOptions.getIdentifierForQueryItem(queryItem))
   );
 }
