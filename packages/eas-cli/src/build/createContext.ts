@@ -12,7 +12,7 @@ import { BuildResourceClass } from '../graphql/generated';
 import { getExpoConfig } from '../project/expoConfig';
 import { getOwnerAccountForProjectIdAsync, getProjectIdAsync } from '../project/projectUtils';
 import { resolveWorkflowAsync } from '../project/workflow';
-import { ensureLoggedInAsync } from '../user/actions';
+import { Actor } from '../user/User';
 import { createAndroidContextAsync } from './android/build';
 import { BuildContext, CommonContext } from './context';
 import { createIosContextAsync } from './ios/build';
@@ -30,6 +30,7 @@ export async function createBuildContextAsync<T extends Platform>({
   projectDir,
   resourceClass,
   message,
+  actor,
 }: {
   buildProfileName: string;
   buildProfile: BuildProfile<T>;
@@ -42,10 +43,10 @@ export async function createBuildContextAsync<T extends Platform>({
   projectDir: string;
   resourceClass: BuildResourceClass;
   message?: string;
+  actor: Actor;
 }): Promise<BuildContext<T>> {
   const exp = getExpoConfig(projectDir, { env: buildProfile.env });
 
-  const user = await ensureLoggedInAsync({ nonInteractive });
   const projectName = exp.slug;
   const projectId = await getProjectIdAsync(exp, {
     env: buildProfile.env,
@@ -60,7 +61,7 @@ export async function createBuildContextAsync<T extends Platform>({
     exp,
     nonInteractive,
     projectDir,
-    user,
+    user: actor,
     env: buildProfile.env,
     easJsonCliConfig,
   });
@@ -99,7 +100,7 @@ export async function createBuildContextAsync<T extends Platform>({
     projectId,
     projectName,
     trackingCtx,
-    user,
+    user: actor,
     workflow,
     message,
     runFromCI,

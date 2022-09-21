@@ -14,7 +14,7 @@ import { resolveXcodeBuildContextAsync } from '../../project/ios/scheme';
 import { resolveTargetsAsync } from '../../project/ios/target';
 import { getOwnerAccountForProjectIdAsync, getProjectIdAsync } from '../../project/projectUtils';
 import { confirmAsync, promptAsync, selectAsync } from '../../prompts';
-import { ensureActorHasPrimaryAccount, ensureLoggedInAsync } from '../../user/actions';
+import { ensureActorHasPrimaryAccount } from '../../user/actions';
 import { CredentialsContext } from '../context';
 import {
   AppStoreApiKeyPurpose,
@@ -64,8 +64,7 @@ export class ManageIos {
       : null;
     const ctx = new CredentialsContext({
       projectDir: process.cwd(),
-      // this command is interactive by design
-      user: await ensureLoggedInAsync({ nonInteractive: false }),
+      user: this.callingAction.actor,
       env: buildProfile?.env,
       nonInteractive: false,
     });

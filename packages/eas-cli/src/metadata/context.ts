@@ -9,7 +9,6 @@ import { getRequestContext } from '../credentials/ios/appstore/authenticate';
 import { getExpoConfig } from '../project/expoConfig';
 import { getBundleIdentifierAsync } from '../project/ios/bundleIdentifier';
 import { Actor } from '../user/User';
-import { ensureLoggedInAsync } from '../user/actions';
 
 export type MetadataContext = {
   /** Submission profile platform to use */
@@ -55,7 +54,7 @@ export async function createMetadataContextAsync(params: {
   );
 
   const exp = params.exp ?? getExpoConfig(params.projectDir);
-  const user = await ensureLoggedInAsync({ nonInteractive: params.credentialsCtx.nonInteractive });
+  const user = params.credentialsCtx.user;
   const bundleIdentifier =
     submitProfile.bundleIdentifier ?? (await getBundleIdentifierAsync(params.projectDir, exp));
 

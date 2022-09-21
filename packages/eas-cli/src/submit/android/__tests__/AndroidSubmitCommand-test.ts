@@ -99,6 +99,7 @@ describe(AndroidSubmitCommand, () => {
           changesNotSentForReview: false,
         },
         nonInteractive: true,
+        actor: mockJester,
       });
       const command = new AndroidSubmitCommand(ctx);
       await expect(command.runAsync()).rejects.toThrowError();
@@ -123,6 +124,7 @@ describe(AndroidSubmitCommand, () => {
           changesNotSentForReview: false,
         },
         nonInteractive: false,
+        actor: mockJester,
       });
       const command = new AndroidSubmitCommand(ctx);
       await command.runAsync();
@@ -159,6 +161,7 @@ describe(AndroidSubmitCommand, () => {
           changesNotSentForReview: false,
         },
         nonInteractive: false,
+        actor: mockJester,
       });
       const command = new AndroidSubmitCommand(ctx);
       await command.runAsync();

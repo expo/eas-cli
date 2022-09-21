@@ -59,6 +59,7 @@ describe(getFromCredentialsServiceAsync, () => {
         language: 'en-US',
       },
       nonInteractive: false,
+      actor: mockJester,
     });
     jest
       .spyOn(SetUpSubmissionCredentials.prototype, 'runAsync')
@@ -86,6 +87,7 @@ describe(getFromCredentialsServiceAsync, () => {
         language: 'en-US',
       },
       nonInteractive: true,
+      actor: mockJester,
     });
     jest
       .spyOn(SetUpSubmissionCredentials.prototype, 'runAsync')

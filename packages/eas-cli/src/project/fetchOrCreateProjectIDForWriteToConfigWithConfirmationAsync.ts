@@ -7,7 +7,7 @@ import { AppMutation } from '../graphql/mutations/AppMutation';
 import { AppQuery } from '../graphql/queries/AppQuery';
 import { ora } from '../ora';
 import { confirmAsync } from '../prompts';
-import { ensureLoggedInAsync } from '../user/actions';
+import { Actor } from '../user/User';
 
 /**
  * 1. Looks for an existing project on EAS servers. If found, ask the user whether this is the
@@ -23,7 +23,8 @@ export async function fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsyn
   },
   options: {
     nonInteractive: boolean;
-  }
+  },
+  actor: Actor
 ): Promise<string> {
   const { accountName, projectName } = projectInfo;
   const projectFullName = `@${accountName}/${projectName}`;
@@ -34,7 +35,6 @@ export async function fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsyn
     );
   }
 
-  const actor = await ensureLoggedInAsync({ nonInteractive: options.nonInteractive });
   const allAccounts = actor.accounts;
   const accountNamesWhereUserHasSufficientPublishPermissions = new Set(
     allAccounts

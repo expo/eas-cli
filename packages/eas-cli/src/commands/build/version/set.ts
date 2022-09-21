@@ -4,7 +4,10 @@ import { EasJsonAccessor, EasJsonUtils } from '@expo/eas-json';
 import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 
-import EasCommand from '../../../commandUtils/EasCommand';
+import EasCommand, {
+  EASCommandLoggedInContext,
+  EASCommandProjectIdContext,
+} from '../../../commandUtils/EasCommand';
 import { AppVersionMutation } from '../../../graphql/mutations/AppVersionMutation';
 import { AppVersionQuery } from '../../../graphql/queries/AppVersionQuery';
 import { toAppPlatform } from '../../../graphql/types/AppPlatform';
@@ -17,7 +20,6 @@ import { BUILD_NUMBER_REQUIREMENTS, isValidBuildNumber } from '../../../project/
 import {
   findProjectRootAsync,
   getDisplayNameForProjectIdAsync,
-  getProjectIdAsync,
 } from '../../../project/projectUtils';
 import {
   ensureVersionSourceIsRemoteAsync,
@@ -42,8 +44,16 @@ export default class BuildVersionSetView extends EasCommand {
     }),
   };
 
+  static override contextDefinition = {
+    ...EASCommandLoggedInContext,
+    ...EASCommandProjectIdContext,
+  };
+
   public async runAsync(): Promise<void> {
     const { flags } = await this.parse(BuildVersionSetView);
+    const { actor, projectId } = await this.getContextAsync(BuildVersionSetView, {
+      nonInteractive: false,
+    });
 
     const projectDir = await findProjectRootAsync();
 
@@ -57,9 +67,6 @@ export default class BuildVersionSetView extends EasCommand {
     );
 
     const exp = getExpoConfig(projectDir, { env: profile.env });
-
-    // this command is always interactive (see prompt below)
-    const projectId = await getProjectIdAsync(exp, { nonInteractive: false });
     const displayName = await getDisplayNameForProjectIdAsync(projectId);
 
     validateAppConfigForRemoteVersionSource(exp, platform);
@@ -68,7 +75,8 @@ export default class BuildVersionSetView extends EasCommand {
       projectDir,
       exp,
       profile,
-      platform
+      platform,
+      actor
     );
     const remoteVersions = await AppVersionQuery.latestVersionAsync(
       projectId,
