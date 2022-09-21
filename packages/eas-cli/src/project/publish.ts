@@ -147,9 +147,11 @@ export async function buildUnsortedUpdateInfoGroupAsync(
 export async function buildBundlesAsync({
   projectDir,
   inputDir,
+  platform = 'all',
 }: {
   projectDir: string;
   inputDir: string;
+  platform?: PublishPlatform | 'all';
 }): Promise<void> {
   const packageJSON = JsonFile.read(path.resolve(projectDir, 'package.json'));
   if (!packageJSON) {
@@ -160,6 +162,8 @@ export async function buildBundlesAsync({
     'export',
     '--output-dir',
     inputDir,
+    '--platform',
+    platform,
     '--experimental-bundle',
     '--non-interactive',
     '--dump-sourcemap',
