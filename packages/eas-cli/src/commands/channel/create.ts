@@ -2,7 +2,7 @@ import chalk from 'chalk';
 import gql from 'graphql-tag';
 
 import { BranchNotFoundError } from '../../branch/utils';
-import EasCommand from '../../commandUtils/EasCommand';
+import EasCommand, { EASCommandProjectIdContext } from '../../commandUtils/EasCommand';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
 import {
@@ -11,12 +11,7 @@ import {
 } from '../../graphql/generated';
 import { BranchQuery } from '../../graphql/queries/BranchQuery';
 import Log from '../../log';
-import { getExpoConfig } from '../../project/expoConfig';
-import {
-  findProjectRootAsync,
-  getDisplayNameForProjectIdAsync,
-  getProjectIdAsync,
-} from '../../project/projectUtils';
+import { getDisplayNameForProjectIdAsync } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
 import formatFields from '../../utils/formatFields';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
@@ -75,18 +70,21 @@ export default class ChannelCreate extends EasCommand {
     ...EasNonInteractiveAndJsonFlags,
   };
 
+  static override contextDefinition = {
+    ...EASCommandProjectIdContext,
+  };
+
   async runAsync(): Promise<void> {
     let {
       args: { name: channelName },
       flags: { json: jsonFlag, 'non-interactive': nonInteractive },
     } = await this.parse(ChannelCreate);
+    const { projectId } = await this.getContextAsync(ChannelCreate, {
+      nonInteractive,
+    });
     if (jsonFlag) {
       enableJsonOutput();
     }
-
-    const projectDir = await findProjectRootAsync();
-    const exp = getExpoConfig(projectDir);
-    const projectId = await getProjectIdAsync(exp, { nonInteractive });
 
     if (!channelName) {
       const validationMessage = 'Channel name may not be empty.';

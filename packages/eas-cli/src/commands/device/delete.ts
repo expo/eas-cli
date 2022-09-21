@@ -2,7 +2,7 @@ import { Device, DeviceStatus } from '@expo/apple-utils';
 import { Flags } from '@oclif/core';
 import assert from 'assert';
 
-import EasCommand from '../../commandUtils/EasCommand';
+import EasCommand, { EASCommandProjectIdContext } from '../../commandUtils/EasCommand';
 import { chooseDevicesToDeleteAsync } from '../../credentials/ios/actions/DeviceUtils';
 import { AppleDeviceMutation } from '../../credentials/ios/api/graphql/mutations/AppleDeviceMutation';
 import {
@@ -16,12 +16,7 @@ import formatDevice from '../../devices/utils/formatDevice';
 import { AppleDevice, Maybe } from '../../graphql/generated';
 import Log from '../../log';
 import { ora } from '../../ora';
-import { getExpoConfig } from '../../project/expoConfig';
-import {
-  findProjectRootAsync,
-  getOwnerAccountForProjectIdAsync,
-  getProjectIdAsync,
-} from '../../project/projectUtils';
+import { getOwnerAccountForProjectIdAsync } from '../../project/projectUtils';
 import { promptAsync, toggleConfirmAsync } from '../../prompts';
 
 export default class DeviceDelete extends EasCommand {
@@ -32,15 +27,18 @@ export default class DeviceDelete extends EasCommand {
     udid: Flags.string({ multiple: true }),
   };
 
+  static override contextDefinition = {
+    ...EASCommandProjectIdContext,
+  };
+
   async runAsync(): Promise<void> {
     let {
       flags: { 'apple-team-id': appleTeamIdentifier, udid: udids },
     } = await this.parse(DeviceDelete);
+    const { projectId } = await this.getContextAsync(DeviceDelete, {
+      nonInteractive: false,
+    });
 
-    const projectDir = await findProjectRootAsync();
-    const exp = getExpoConfig(projectDir);
-    // this command is interactive by design
-    const projectId = await getProjectIdAsync(exp, { nonInteractive: false });
     const account = await getOwnerAccountForProjectIdAsync(projectId);
 
     if (!appleTeamIdentifier) {

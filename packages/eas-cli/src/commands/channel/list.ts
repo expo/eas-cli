@@ -1,13 +1,11 @@
 import { CHANNELS_LIMIT, listAndRenderChannelsOnAppAsync } from '../../channel/queries';
-import EasCommand from '../../commandUtils/EasCommand';
+import EasCommand, { EASCommandProjectIdContext } from '../../commandUtils/EasCommand';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import {
   EasPaginatedQueryFlags,
   getLimitFlagWithCustomValues,
   getPaginatedQueryOptions,
 } from '../../commandUtils/pagination';
-import { getExpoConfig } from '../../project/expoConfig';
-import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUtils';
 import { enableJsonOutput } from '../../utils/json';
 
 export default class ChannelList extends EasCommand {
@@ -19,17 +17,20 @@ export default class ChannelList extends EasCommand {
     ...EasNonInteractiveAndJsonFlags,
   };
 
+  static override contextDefinition = {
+    ...EASCommandProjectIdContext,
+  };
+
   async runAsync(): Promise<void> {
     const { flags } = await this.parse(ChannelList);
     const paginatedQueryOptions = getPaginatedQueryOptions(flags);
     const { json: jsonFlag, 'non-interactive': nonInteractive } = flags;
+    const { projectId } = await this.getContextAsync(ChannelList, {
+      nonInteractive,
+    });
     if (jsonFlag) {
       enableJsonOutput();
     }
-
-    const projectDir = await findProjectRootAsync();
-    const exp = getExpoConfig(projectDir);
-    const projectId = await getProjectIdAsync(exp, { nonInteractive });
 
     await listAndRenderChannelsOnAppAsync({
       projectId,
