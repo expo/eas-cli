@@ -4,7 +4,7 @@ import { EasJsonAccessor, EasJsonUtils } from '@expo/eas-json';
 import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 
-import EasCommand from '../commandUtils/EasCommand';
+import EasCommand, { CommandConfiguration } from '../commandUtils/EasCommand';
 import { toAppPlatform } from '../graphql/types/AppPlatform';
 import Log from '../log';
 import { appPlatformEmojis } from '../platform';
@@ -25,7 +25,9 @@ export default class Config extends EasCommand {
     }),
   };
 
-  protected override requiresAuthentication = false;
+  protected override commandConfiguration: CommandConfiguration = {
+    allowUnauthenticated: true,
+  };
 
   async runAsync(): Promise<void> {
     const { flags } = await this.parse(Config);

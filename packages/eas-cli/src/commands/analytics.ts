@@ -1,4 +1,4 @@
-import EasCommand from '../commandUtils/EasCommand';
+import EasCommand, { CommandConfiguration } from '../commandUtils/EasCommand';
 import Log from '../log';
 import UserSettings from '../user/UserSettings';
 
@@ -7,7 +7,9 @@ export default class AnalyticsView extends EasCommand {
 
   static override args = [{ name: 'STATUS', options: ['on', 'off'] }];
 
-  protected override requiresAuthentication = false;
+  protected override commandConfiguration: CommandConfiguration = {
+    allowUnauthenticated: true,
+  };
 
   async runAsync(): Promise<void> {
     const { STATUS: status } = (await this.parse(AnalyticsView)).args;

@@ -1,7 +1,7 @@
 import { Platform } from '@expo/eas-build-job';
 import envinfo from 'envinfo';
 
-import EasCommand from '../commandUtils/EasCommand';
+import EasCommand, { CommandConfiguration } from '../commandUtils/EasCommand';
 import Log from '../log';
 import { findProjectRootAsync } from '../project/projectUtils';
 import { resolveWorkflowAsync } from '../project/workflow';
@@ -10,7 +10,9 @@ import { easCliVersion } from '../utils/easCli';
 export default class Diagnostics extends EasCommand {
   static override description = 'display environment info';
 
-  protected override requiresAuthentication = false;
+  protected override commandConfiguration: CommandConfiguration = {
+    allowUnauthenticated: true,
+  };
 
   async runAsync(): Promise<void> {
     const info = await envinfo.run(

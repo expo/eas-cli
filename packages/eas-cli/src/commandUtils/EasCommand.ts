@@ -13,20 +13,97 @@ import {
   logEvent,
 } from '../analytics/rudderstackClient';
 import { learnMore } from '../log';
-import { findProjectRootAsync } from '../project/projectUtils';
-import { getUserAsync } from '../user/User';
+import { getExpoConfig } from '../project/expoConfig';
+import { findProjectRootAsync, getProjectIdAsync } from '../project/projectUtils';
+import { Actor, getUserAsync } from '../user/User';
 import { ensureLoggedInAsync } from '../user/actions';
 import { easCliVersion } from '../utils/easCli';
 import { setVcsClient } from '../vcs';
 import GitClient from '../vcs/clients/git';
 
-export default abstract class EasCommand extends Command {
+export interface CommandConfiguration {
   /**
    * When user data is unavailable locally, determines if the command will
-   * force the user to log in
+   * force the user to log in. By default, all commands require authentication.
    */
-  protected requiresAuthentication = true;
-  protected mustBeRunInsideProject = true;
+  allowUnauthenticated?: boolean;
+
+  /**
+   * Whether a command can be run outside of an Expo project directory.
+   * By default, all commands must be run inside an Expo project directory.
+   */
+  canRunOutsideProject?: boolean;
+}
+
+export interface ContextOptions {
+  nonInteractive: boolean;
+}
+
+export abstract class ContextField<T> {
+  abstract getValueAsync(options: ContextOptions): Promise<T>;
+}
+
+export class ProjectIdContextField extends ContextField<string> {
+  async getValueAsync({ nonInteractive }: ContextOptions): Promise<string> {
+    const projectDir = await findProjectRootAsync();
+    const exp = getExpoConfig(projectDir);
+    return await getProjectIdAsync(exp, { nonInteractive });
+  }
+}
+
+export class ActorContextField extends ContextField<Actor> {
+  async getValueAsync({ nonInteractive }: ContextOptions): Promise<Actor> {
+    return await ensureLoggedInAsync({ nonInteractive });
+  }
+}
+
+export const EASCommandProjectIdContext = {
+  projectId: new ProjectIdContextField(),
+};
+
+export const EASCommandLoggedInContext = {
+  actor: new ActorContextField(),
+};
+
+type ContextInput<
+  T extends {
+    [name: string]: any;
+  } = object
+> = {
+  [P in keyof T]: ContextField<T[P]>;
+};
+
+type ContextOutput<
+  T extends {
+    [name: string]: any;
+  } = object
+> = {
+  [P in keyof T]: T[P];
+};
+
+export default abstract class EasCommand extends Command {
+  static contextDefinition: ContextInput = {};
+
+  protected commandConfiguration: CommandConfiguration = {};
+
+  protected async getContextAsync<
+    C extends {
+      [name: string]: any;
+    } = object
+  >(
+    commandClass: { contextDefinition: ContextInput<C> },
+    { nonInteractive }: { nonInteractive: boolean }
+  ): Promise<ContextOutput<C>> {
+    const contextDefinition = commandClass.contextDefinition;
+
+    const contextValuePairs = await Promise.all(
+      Object.keys(contextDefinition).map(async contextKey => {
+        return [contextKey, await contextDefinition[contextKey].getValueAsync({ nonInteractive })];
+      })
+    );
+
+    return Object.fromEntries(contextValuePairs);
+  }
 
   protected abstract runAsync(): Promise<any>;
 
@@ -34,24 +111,26 @@ export default abstract class EasCommand extends Command {
   async run(): Promise<any> {
     await initAnalyticsAsync();
 
-    if (this.mustBeRunInsideProject) {
+    if (!this.commandConfiguration.canRunOutsideProject) {
       const projectDir = await findProjectRootAsync();
       await this.applyCliConfigAsync(projectDir);
       await this.ensureEasCliIsNotInDependenciesAsync(projectDir);
     }
 
-    if (this.requiresAuthentication) {
+    if (!this.commandConfiguration.allowUnauthenticated) {
       const { flags } = await this.parse();
       const nonInteractive = (flags as any)['non-interactive'] ?? false;
       await ensureLoggedInAsync({ nonInteractive });
     } else {
       await getUserAsync();
     }
+
     logEvent(AnalyticsEvent.ACTION, {
       // id is assigned by oclif in constructor based on the filepath:
       // commands/submit === submit, commands/build/list === build:list
       action: `eas ${this.id}`,
     });
+
     return this.runAsync();
   }
 
