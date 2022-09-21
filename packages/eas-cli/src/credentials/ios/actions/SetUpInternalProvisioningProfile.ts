@@ -2,7 +2,7 @@ import { IosAppBuildCredentialsFragment, IosDistributionType } from '../../../gr
 import Log, { learnMore } from '../../../log';
 import { promptAsync } from '../../../prompts';
 import { CredentialsContext } from '../../context';
-import { AppLookupParams } from '../api/GraphqlClient';
+import { AppLookupParams } from '../api/graphql/types/AppLookupParams';
 import { Target } from '../types';
 import { getAllBuildCredentialsAsync } from './BuildCredentialsUtils';
 import { SetUpAdhocProvisioningProfile } from './SetUpAdhocProvisioningProfile';

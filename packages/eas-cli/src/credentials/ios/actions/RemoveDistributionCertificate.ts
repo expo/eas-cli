@@ -6,7 +6,7 @@ import Log from '../../../log';
 import { confirmAsync } from '../../../prompts';
 import { Account } from '../../../user/Account';
 import { CredentialsContext } from '../../context';
-import { AppLookupParams } from '../api/GraphqlClient';
+import { AppLookupParams } from '../api/graphql/types/AppLookupParams';
 import { selectDistributionCertificateWithDependenciesAsync } from './DistributionCertificateUtils';
 import { RemoveProvisioningProfiles } from './RemoveProvisioningProfile';
 

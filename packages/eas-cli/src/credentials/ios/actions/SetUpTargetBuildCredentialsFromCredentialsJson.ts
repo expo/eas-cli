@@ -12,7 +12,7 @@ import Log from '../../../log';
 import { confirmAsync } from '../../../prompts';
 import { CredentialsContext } from '../../context';
 import { IosTargetCredentials } from '../../credentialsJson/types';
-import { AppLookupParams } from '../api/GraphqlClient';
+import { AppLookupParams } from '../api/graphql/types/AppLookupParams';
 import { displayProjectCredentials } from '../utils/printCredentials';
 import { readAppleTeam } from '../utils/provisioningProfile';
 import {

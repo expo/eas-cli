@@ -39,7 +39,7 @@ import { SetUpBuildCredentialsFromCredentialsJson } from '../ios/actions/SetUpBu
 import { SetUpProvisioningProfile } from '../ios/actions/SetUpProvisioningProfile';
 import { SetUpPushKey } from '../ios/actions/SetUpPushKey';
 import { UpdateCredentialsJson } from '../ios/actions/UpdateCredentialsJson';
-import { AppLookupParams } from '../ios/api/GraphqlClient';
+import { AppLookupParams } from '../ios/api/graphql/types/AppLookupParams';
 import { App, IosAppCredentialsMap, Target } from '../ios/types';
 import { displayIosCredentials } from '../ios/utils/printCredentials';
 import { ActionInfo, IosActionType, Scope } from './Actions';

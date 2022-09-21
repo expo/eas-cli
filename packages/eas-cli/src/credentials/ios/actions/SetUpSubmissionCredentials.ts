@@ -7,7 +7,7 @@ import Log, { learnMore } from '../../../log';
 import { promptAsync } from '../../../prompts';
 import { CredentialsContext } from '../../context';
 import { UnsupportedCredentialsChoiceError } from '../../errors';
-import { AppLookupParams } from '../api/GraphqlClient';
+import { AppLookupParams } from '../api/graphql/types/AppLookupParams';
 import { AppStoreApiKeyPurpose } from './AscApiKeyUtils';
 import { SetUpAscApiKey } from './SetUpAscApiKey';
 

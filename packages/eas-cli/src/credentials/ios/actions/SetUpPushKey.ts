@@ -5,7 +5,7 @@ import { ApplePushKeyFragment, CommonIosAppCredentialsFragment } from '../../../
 import Log from '../../../log';
 import { confirmAsync, promptAsync } from '../../../prompts';
 import { CredentialsContext } from '../../context';
-import { AppLookupParams } from '../api/GraphqlClient';
+import { AppLookupParams } from '../api/graphql/types/AppLookupParams';
 import { AssignPushKey } from './AssignPushKey';
 import { CreatePushKey } from './CreatePushKey';
 import {

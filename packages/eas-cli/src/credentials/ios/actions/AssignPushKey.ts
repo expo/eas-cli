@@ -1,7 +1,7 @@
 import { ApplePushKeyFragment, CommonIosAppCredentialsFragment } from '../../../graphql/generated';
 import Log from '../../../log';
 import { CredentialsContext } from '../../context';
-import { AppLookupParams } from '../api/GraphqlClient';
+import { AppLookupParams } from '../api/graphql/types/AppLookupParams';
 import { resolveAppleTeamIfAuthenticatedAsync } from './AppleTeamUtils';
 
 export class AssignPushKey {

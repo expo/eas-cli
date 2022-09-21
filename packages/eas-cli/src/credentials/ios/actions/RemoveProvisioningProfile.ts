@@ -3,7 +3,7 @@ import assert from 'assert';
 import { AppleProvisioningProfileIdentifiersFragment } from '../../../graphql/generated';
 import Log from '../../../log';
 import { CredentialsContext } from '../../context';
-import { AppLookupParams } from '../api/GraphqlClient';
+import { AppLookupParams } from '../api/graphql/types/AppLookupParams';
 
 export class RemoveProvisioningProfiles {
   constructor(
