@@ -51,6 +51,18 @@ export class ProjectIdContextField extends ContextField<string> {
   }
 }
 
+export class OptionalProjectIdContextField extends ContextField<string | undefined> {
+  async getValueAsync({ nonInteractive }: ContextOptions): Promise<string | undefined> {
+    const projectDir = await findProjectRootAsync();
+    if (!projectDir) {
+      return undefined;
+    }
+
+    const exp = getExpoConfig(projectDir);
+    return await getProjectIdAsync(exp, { nonInteractive });
+  }
+}
+
 export class ActorContextField extends ContextField<Actor> {
   async getValueAsync({ nonInteractive }: ContextOptions): Promise<Actor> {
     return await ensureLoggedInAsync({ nonInteractive });
@@ -59,6 +71,10 @@ export class ActorContextField extends ContextField<Actor> {
 
 export const EASCommandProjectIdContext = {
   projectId: new ProjectIdContextField(),
+};
+
+export const EASCommandProjectIdIfProjectDirContext = {
+  projectId: new OptionalProjectIdContextField(),
 };
 
 export const EASCommandLoggedInContext = {

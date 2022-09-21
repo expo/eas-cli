@@ -7,7 +7,7 @@ import {
   IosDistributionType as GraphQLIosDistributionType,
   IosAppBuildCredentialsFragment,
 } from '../../../graphql/generated';
-import { getOwnerAccountForProjectIdAsync, getProjectIdAsync } from '../../../project/projectUtils';
+import { getOwnerAccountForProjectIdAsync } from '../../../project/projectUtils';
 import { CredentialsContext } from '../../context';
 import { AppLookupParams } from '../api/graphql/types/AppLookupParams';
 import { App, Target } from '../types';
@@ -84,7 +84,7 @@ export async function assignBuildCredentialsAsync(
 export async function getAppFromContextAsync(ctx: CredentialsContext): Promise<App> {
   ctx.ensureProjectContext();
   const projectName = ctx.exp.slug;
-  const projectId = await getProjectIdAsync(ctx.exp, { nonInteractive: ctx.nonInteractive });
+  const projectId = ctx.projectId;
   const account = await getOwnerAccountForProjectIdAsync(projectId);
   return {
     account,

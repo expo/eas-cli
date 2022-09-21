@@ -76,14 +76,14 @@ export default class UpdateConfigure extends EasCommand {
       [RequestedPlatform.Android, RequestedPlatform.All].includes(platform) &&
       androidWorkflow === Workflow.GENERIC
     ) {
-      await syncAndroidUpdatesConfigurationAsync(projectDir, updatedExp, { nonInteractive: true });
+      await syncAndroidUpdatesConfigurationAsync(projectDir, updatedExp, projectId);
       Log.withTick(`Configured ${chalk.bold('AndroidManifest.xml')} for EAS Update`);
     }
     if (
       [RequestedPlatform.Ios, RequestedPlatform.All].includes(platform) &&
       iosWorkflow === Workflow.GENERIC
     ) {
-      await syncIosUpdatesConfigurationAsync(projectDir, updatedExp, { nonInteractive: true });
+      await syncIosUpdatesConfigurationAsync(projectDir, updatedExp, projectId);
       Log.withTick(`Configured ${chalk.bold('Expo.plist')} for EAS Update`);
     }
 

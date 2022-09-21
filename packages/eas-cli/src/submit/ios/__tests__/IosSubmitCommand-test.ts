@@ -8,7 +8,7 @@ import {
 } from '../../../credentials/__tests__/fixtures-constants';
 import { SubmissionMutation } from '../../../graphql/mutations/SubmissionMutation';
 import { createTestProject } from '../../../project/__tests__/project-utils';
-import { getOwnerAccountForProjectIdAsync, getProjectIdAsync } from '../../../project/projectUtils';
+import { getOwnerAccountForProjectIdAsync } from '../../../project/projectUtils';
 import { createSubmissionContextAsync } from '../../context';
 import IosSubmitCommand from '../IosSubmitCommand';
 
@@ -52,10 +52,6 @@ describe(IosSubmitCommand, () => {
 
   beforeEach(() => {
     jest.mocked(getOwnerAccountForProjectIdAsync).mockResolvedValue(mockJester.accounts[0]);
-  });
-
-  afterEach(() => {
-    jest.mocked(getProjectIdAsync).mockClear();
   });
 
   describe('non-interactive mode', () => {

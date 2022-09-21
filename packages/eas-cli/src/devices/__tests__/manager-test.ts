@@ -44,16 +44,6 @@ describe(AccountResolver, () => {
     };
 
     describe('when inside project dir', () => {
-      const exp = {
-        name: 'wat',
-        slug: 'wat',
-        extra: {
-          eas: {
-            projectId: '1234',
-          },
-        },
-      };
-
       beforeEach(() => {
         jest.mocked(AppQuery.byIdAsync).mockResolvedValue({
           id: 'test-project-id',
@@ -72,7 +62,7 @@ describe(AccountResolver, () => {
           value: true,
         }));
 
-        const resolver = new AccountResolver(exp, user);
+        const resolver = new AccountResolver('1234', user);
         const account = await resolver.resolveAccountAsync();
         expect(account).toEqual({
           id: user.accounts[1].id,
@@ -89,7 +79,7 @@ describe(AccountResolver, () => {
           account: user.accounts[0],
         }));
 
-        const resolver = new AccountResolver(exp, user);
+        const resolver = new AccountResolver('1234', user);
         const account = await resolver.resolveAccountAsync();
         expect(account).toEqual(user.accounts[0]);
       });

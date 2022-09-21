@@ -1,6 +1,10 @@
 import { Flags } from '@oclif/core';
 
-import EasCommand, { EASCommandLoggedInContext } from '../commandUtils/EasCommand';
+import EasCommand, {
+  EASCommandLoggedInContext,
+  EASCommandProjectIdIfProjectDirContext,
+} from '../commandUtils/EasCommand';
+import { CredentialsContext } from '../credentials/context';
 import { SelectPlatform } from '../credentials/manager/SelectPlatform';
 
 export default class Credentials extends EasCommand {
@@ -12,12 +16,19 @@ export default class Credentials extends EasCommand {
 
   static override contextDefinition = {
     ...EASCommandLoggedInContext,
+    ...EASCommandProjectIdIfProjectDirContext,
   };
 
   async runAsync(): Promise<void> {
     const { flags } = await this.parse(Credentials);
-    const { actor } = await this.getContextAsync(Credentials, { nonInteractive: false });
+    const { actor, projectId } = await this.getContextAsync(Credentials, { nonInteractive: false });
 
-    await new SelectPlatform(actor, flags.platform).runAsync();
+    const exp = CredentialsContext.getExpoConfigInProject(process.cwd());
+
+    await new SelectPlatform(
+      actor,
+      projectId && exp ? { projectId, exp } : null,
+      flags.platform
+    ).runAsync();
   }
 }

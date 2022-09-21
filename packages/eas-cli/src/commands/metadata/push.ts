@@ -33,7 +33,9 @@ export default class MetadataPush extends EasCommand {
     Log.warn('EAS Metadata is in beta and subject to breaking changes.');
 
     const { flags } = await this.parse(MetadataPush);
-    const { actor } = await this.getContextAsync(MetadataPush, { nonInteractive: false });
+    const { actor, projectId } = await this.getContextAsync(MetadataPush, {
+      nonInteractive: false,
+    });
 
     const projectDir = await findProjectRootAsync();
     const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
@@ -42,7 +44,7 @@ export default class MetadataPush extends EasCommand {
     await ensureProjectConfiguredAsync({ projectDir, nonInteractive: false });
 
     const credentialsCtx = new CredentialsContext({
-      exp,
+      projectInfo: { exp, projectId },
       projectDir,
       user: actor,
       nonInteractive: false,

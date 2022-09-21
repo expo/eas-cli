@@ -12,7 +12,7 @@ import {
 import Log, { learnMore } from '../../log';
 import { resolveXcodeBuildContextAsync } from '../../project/ios/scheme';
 import { resolveTargetsAsync } from '../../project/ios/target';
-import { getOwnerAccountForProjectIdAsync, getProjectIdAsync } from '../../project/projectUtils';
+import { getOwnerAccountForProjectIdAsync } from '../../project/projectUtils';
 import { confirmAsync, promptAsync, selectAsync } from '../../prompts';
 import { ensureActorHasPrimaryAccount } from '../../user/actions';
 import { CredentialsContext } from '../context';
@@ -58,12 +58,12 @@ export class ManageIos {
   constructor(private callingAction: Action, private projectDir: string) {}
 
   async runAsync(currentActions: ActionInfo[] = highLevelActions): Promise<void> {
-    const hasProjectContext = !!CredentialsContext.getExpoConfigInProject(this.projectDir);
-    const buildProfile = hasProjectContext
+    const buildProfile = this.callingAction.projectInfo
       ? await new SelectBuildProfileFromEasJson(this.projectDir, Platform.IOS).runAsync()
       : null;
     const ctx = new CredentialsContext({
       projectDir: process.cwd(),
+      projectInfo: this.callingAction.projectInfo,
       user: this.callingAction.actor,
       env: buildProfile?.env,
       nonInteractive: false,
@@ -74,13 +74,12 @@ export class ManageIos {
 
     await ctx.bestEffortAppStoreAuthenticateAsync();
 
-    const getAccountForProjectAsync = async (): Promise<AccountFragment> => {
-      const projectId = await getProjectIdAsync(ctx.exp, { nonInteractive: false });
+    const getAccountForProjectAsync = async (projectId: string): Promise<AccountFragment> => {
       return await getOwnerAccountForProjectIdAsync(projectId);
     };
 
     const account = ctx.hasProjectContext
-      ? await getAccountForProjectAsync()
+      ? await getAccountForProjectAsync(ctx.projectId)
       : ensureActorHasPrimaryAccount(ctx.user);
 
     let app = null;
@@ -174,9 +173,6 @@ export class ManageIos {
     targets: Target[];
   }> {
     assert(ctx.hasProjectContext, 'createProjectContextAsync: must have project context.');
-
-    // ensure the project exists on the EAS server
-    await getProjectIdAsync(ctx.exp, { nonInteractive: ctx.nonInteractive });
 
     const app = { account, projectName: ctx.exp.slug };
     const xcodeBuildContext = await resolveXcodeBuildContextAsync(

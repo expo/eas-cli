@@ -53,7 +53,12 @@ export async function createSubmissionContextAsync<T extends Platform>(params: {
   const accountId = account.id;
   let credentialsCtx: CredentialsContext | undefined = params.credentialsCtx;
   if (!credentialsCtx) {
-    credentialsCtx = new CredentialsContext({ projectDir, user: actor, exp, nonInteractive });
+    credentialsCtx = new CredentialsContext({
+      projectDir,
+      user: actor,
+      projectInfo: { exp, projectId: params.projectId },
+      nonInteractive,
+    });
   }
 
   const trackingCtx = {

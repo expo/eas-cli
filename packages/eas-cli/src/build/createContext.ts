@@ -56,7 +56,7 @@ export async function createBuildContextAsync<T extends Platform>({
   const runFromCI = getenv.boolish('CI', false);
 
   const credentialsCtx = new CredentialsContext({
-    exp,
+    projectInfo: { exp, projectId },
     nonInteractive,
     projectDir,
     user: actor,

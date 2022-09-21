@@ -1,10 +1,15 @@
 import { selectPlatformAsync } from '../../platform';
 import { Actor } from '../../user/User';
+import { CredentialsContextProjectInfo } from '../context';
 import { ManageAndroid } from './ManageAndroid';
 import { ManageIos } from './ManageIos';
 
 export class SelectPlatform {
-  constructor(public readonly actor: Actor, private readonly flagPlatform?: string) {}
+  constructor(
+    public readonly actor: Actor,
+    public readonly projectInfo: CredentialsContextProjectInfo | null,
+    private readonly flagPlatform?: string
+  ) {}
 
   async runAsync(): Promise<void> {
     const platform = await selectPlatformAsync(this.flagPlatform);

@@ -1,4 +1,3 @@
-import { ExpoConfig } from '@expo/config';
 import assert from 'assert';
 import chalk from 'chalk';
 
@@ -6,7 +5,7 @@ import { AppleTeamMutation } from '../credentials/ios/api/graphql/mutations/Appl
 import { AppleTeamQuery } from '../credentials/ios/api/graphql/queries/AppleTeamQuery';
 import { AccountFragment, AppleTeamFragment } from '../graphql/generated';
 import Log from '../log';
-import { getOwnerAccountForProjectIdAsync, getProjectIdAsync } from '../project/projectUtils';
+import { getOwnerAccountForProjectIdAsync } from '../project/projectUtils';
 import { Choice, confirmAsync, promptAsync } from '../prompts';
 import { Actor } from '../user/User';
 import DeviceCreateAction from './actions/create/action';
@@ -38,16 +37,16 @@ export default class DeviceManager {
   }
 
   private async resolveAccountAsync(): Promise<AccountFragment> {
-    const resolver = new AccountResolver(this.ctx.exp, this.ctx.user);
+    const resolver = new AccountResolver(this.ctx.projectId, this.ctx.user);
     return await resolver.resolveAccountAsync();
   }
 }
 
 export class AccountResolver {
-  constructor(private exp: ExpoConfig | null, private user: Actor) {}
+  constructor(private projectId: string | null, private user: Actor) {}
 
   public async resolveAccountAsync(): Promise<AccountFragment> {
-    if (this.exp) {
+    if (this.projectId) {
       const account = await this.resolveProjectAccountAsync();
       if (account) {
         return account;
@@ -57,11 +56,8 @@ export class AccountResolver {
   }
 
   private async resolveProjectAccountAsync(): Promise<AccountFragment | undefined> {
-    assert(this.exp, 'expo config is not set');
-
-    // this command is interactive by design
-    const projectId = await getProjectIdAsync(this.exp, { nonInteractive: false });
-    const account = await getOwnerAccountForProjectIdAsync(projectId);
+    assert(this.projectId, 'expo config is not set');
+    const account = await getOwnerAccountForProjectIdAsync(this.projectId);
 
     const useProjectAccount = await confirmAsync({
       message: `You're inside the project directory. Would you like to use the ${chalk.underline(
