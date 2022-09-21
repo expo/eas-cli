@@ -1,13 +1,11 @@
 import { selectBranchOnAppAsync } from '../../branch/queries';
-import EasCommand from '../../commandUtils/EasCommand';
+import EasCommand, { EASCommandProjectIdContext } from '../../commandUtils/EasCommand';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import {
   EasPaginatedQueryFlags,
   getLimitFlagWithCustomValues,
   getPaginatedQueryOptions,
 } from '../../commandUtils/pagination';
-import { getExpoConfig } from '../../project/expoConfig';
-import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUtils';
 import { listAndRenderUpdateGroupsOnBranchAsync } from '../../update/queries';
 import { enableJsonOutput } from '../../utils/json';
 
@@ -28,21 +26,24 @@ export default class BranchView extends EasCommand {
     limit: getLimitFlagWithCustomValues({ defaultTo: 25, limit: 50 }),
   };
 
+  static override contextDefinition = {
+    ...EASCommandProjectIdContext,
+  };
+
   async runAsync(): Promise<void> {
     let {
       args: { name: branchName },
       flags,
     } = await this.parse(BranchView);
     const { 'non-interactive': nonInteractive } = flags;
+    const { projectId } = await this.getContextAsync(BranchView, {
+      nonInteractive,
+    });
     const paginatedQueryOptions = getPaginatedQueryOptions(flags);
 
     if (paginatedQueryOptions.json) {
       enableJsonOutput();
     }
-
-    const projectDir = await findProjectRootAsync();
-    const exp = getExpoConfig(projectDir);
-    const projectId = await getProjectIdAsync(exp, { nonInteractive });
 
     if (!branchName) {
       if (nonInteractive) {

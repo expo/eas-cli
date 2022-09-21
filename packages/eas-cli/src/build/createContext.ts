@@ -10,7 +10,7 @@ import { Analytics, BuildEvent } from '../analytics/events';
 import { CredentialsContext } from '../credentials/context';
 import { BuildResourceClass } from '../graphql/generated';
 import { getExpoConfig } from '../project/expoConfig';
-import { getOwnerAccountForProjectIdAsync, getProjectIdAsync } from '../project/projectUtils';
+import { getOwnerAccountForProjectIdAsync } from '../project/projectUtils';
 import { resolveWorkflowAsync } from '../project/workflow';
 import { Actor } from '../user/User';
 import { createAndroidContextAsync } from './android/build';
@@ -31,6 +31,7 @@ export async function createBuildContextAsync<T extends Platform>({
   resourceClass,
   message,
   actor,
+  projectId,
 }: {
   buildProfileName: string;
   buildProfile: BuildProfile<T>;
@@ -44,14 +45,11 @@ export async function createBuildContextAsync<T extends Platform>({
   resourceClass: BuildResourceClass;
   message?: string;
   actor: Actor;
+  projectId: string;
 }): Promise<BuildContext<T>> {
   const exp = getExpoConfig(projectDir, { env: buildProfile.env });
 
   const projectName = exp.slug;
-  const projectId = await getProjectIdAsync(exp, {
-    env: buildProfile.env,
-    nonInteractive,
-  });
   const account = await getOwnerAccountForProjectIdAsync(projectId);
   const workflow = await resolveWorkflowAsync(projectDir, platform);
   const accountId = account.id;

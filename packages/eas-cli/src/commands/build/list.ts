@@ -2,7 +2,7 @@ import { Flags } from '@oclif/core';
 
 import { BUILDS_LIMIT, listAndRenderBuildsOnAppAsync } from '../../build/queries';
 import { BuildDistributionType, BuildStatus } from '../../build/types';
-import EasCommand from '../../commandUtils/EasCommand';
+import EasCommand, { EASCommandProjectIdContext } from '../../commandUtils/EasCommand';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import {
   EasPaginatedQueryFlags,
@@ -15,12 +15,7 @@ import {
   BuildStatus as GraphQLBuildStatus,
 } from '../../graphql/generated';
 import { RequestedPlatform } from '../../platform';
-import { getExpoConfig } from '../../project/expoConfig';
-import {
-  findProjectRootAsync,
-  getDisplayNameForProjectIdAsync,
-  getProjectIdAsync,
-} from '../../project/projectUtils';
+import { getDisplayNameForProjectIdAsync } from '../../project/projectUtils';
 import { enableJsonOutput } from '../../utils/json';
 
 export default class BuildList extends EasCommand {
@@ -60,6 +55,10 @@ export default class BuildList extends EasCommand {
     ...EasNonInteractiveAndJsonFlags,
   };
 
+  static override contextDefinition = {
+    ...EASCommandProjectIdContext,
+  };
+
   async runAsync(): Promise<void> {
     const { flags } = await this.parse(BuildList);
     const paginatedQueryOptions = getPaginatedQueryOptions(flags);
@@ -70,6 +69,9 @@ export default class BuildList extends EasCommand {
       distribution: buildDistribution,
       'non-interactive': nonInteractive,
     } = flags;
+    const { projectId } = await this.getContextAsync(BuildList, {
+      nonInteractive,
+    });
     if (jsonFlag) {
       enableJsonOutput();
     }
@@ -77,10 +79,6 @@ export default class BuildList extends EasCommand {
     const platform = toAppPlatform(requestedPlatform);
     const graphqlBuildStatus = toGraphQLBuildStatus(buildStatus);
     const graphqlBuildDistribution = toGraphQLBuildDistribution(buildDistribution);
-
-    const projectDir = await findProjectRootAsync();
-    const exp = getExpoConfig(projectDir);
-    const projectId = await getProjectIdAsync(exp, { nonInteractive });
     const displayName = await getDisplayNameForProjectIdAsync(projectId);
 
     await listAndRenderBuildsOnAppAsync({

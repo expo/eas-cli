@@ -10,7 +10,7 @@ import { getEASUpdateURL } from '../../api';
 import { selectBranchOnAppAsync } from '../../branch/queries';
 import { BranchNotFoundError, getDefaultBranchNameAsync } from '../../branch/utils';
 import { getUpdateGroupUrl } from '../../build/utils/url';
-import EasCommand from '../../commandUtils/EasCommand';
+import EasCommand, { EASCommandProjectIdContext } from '../../commandUtils/EasCommand';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import { getPaginatedQueryOptions } from '../../commandUtils/pagination';
 import fetch from '../../fetch';
@@ -31,7 +31,6 @@ import { getExpoConfig } from '../../project/expoConfig';
 import {
   findProjectRootAsync,
   getOwnerAccountForProjectIdAsync,
-  getProjectIdAsync,
   installExpoUpdatesAsync,
   isExpoUpdatesInstalledOrAvailable,
 } from '../../project/projectUtils';
@@ -169,6 +168,10 @@ export default class UpdatePublish extends EasCommand {
     ...EasNonInteractiveAndJsonFlags,
   };
 
+  static override contextDefinition = {
+    ...EASCommandProjectIdContext,
+  };
+
   async runAsync(): Promise<void> {
     const { flags } = await this.parse(UpdatePublish);
     const paginatedQueryOptions = getPaginatedQueryOptions(flags);
@@ -185,6 +188,9 @@ export default class UpdatePublish extends EasCommand {
       'non-interactive': nonInteractive,
       json: jsonFlag,
     } = flags;
+    const { projectId } = await this.getContextAsync(UpdatePublish, {
+      nonInteractive,
+    });
 
     if (jsonFlag) {
       enableJsonOutput();
@@ -234,7 +240,6 @@ export default class UpdatePublish extends EasCommand {
     }
 
     const runtimeVersions = await getRuntimeVersionObjectAsync(exp, platformFlag, projectDir);
-    const projectId = await getProjectIdAsync(exp, { nonInteractive });
     await checkEASUpdateURLIsSetAsync(exp, projectId);
 
     if (!branchName) {

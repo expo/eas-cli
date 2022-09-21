@@ -1,7 +1,7 @@
 import chalk from 'chalk';
 import gql from 'graphql-tag';
 
-import EasCommand from '../../commandUtils/EasCommand';
+import EasCommand, { EASCommandProjectIdContext } from '../../commandUtils/EasCommand';
 import { EASNonInteractiveFlag } from '../../commandUtils/flags';
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
 import {
@@ -14,12 +14,7 @@ import { BuildQuery } from '../../graphql/queries/BuildQuery';
 import Log from '../../log';
 import { ora } from '../../ora';
 import { appPlatformEmojis } from '../../platform';
-import { getExpoConfig } from '../../project/expoConfig';
-import {
-  findProjectRootAsync,
-  getDisplayNameForProjectIdAsync,
-  getProjectIdAsync,
-} from '../../project/projectUtils';
+import { getDisplayNameForProjectIdAsync } from '../../project/projectUtils';
 import { confirmAsync, selectAsync } from '../../prompts';
 
 async function cancelBuildAsync(buildId: string): Promise<Pick<Build, 'id' | 'status'>> {
@@ -133,15 +128,19 @@ export default class BuildCancel extends EasCommand {
     ...EASNonInteractiveFlag,
   };
 
+  static override contextDefinition = {
+    ...EASCommandProjectIdContext,
+  };
+
   async runAsync(): Promise<void> {
     const {
       args: { BUILD_ID: buildIdFromArg },
       flags: { 'non-interactive': nonInteractive },
     } = await this.parse(BuildCancel);
+    const { projectId } = await this.getContextAsync(BuildCancel, {
+      nonInteractive,
+    });
 
-    const projectDir = await findProjectRootAsync();
-    const exp = getExpoConfig(projectDir);
-    const projectId = await getProjectIdAsync(exp, { nonInteractive });
     const displayName = await getDisplayNameForProjectIdAsync(projectId);
 
     if (buildIdFromArg) {

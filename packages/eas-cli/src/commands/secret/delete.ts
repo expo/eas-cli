@@ -1,6 +1,6 @@
 import { Flags } from '@oclif/core';
 
-import EasCommand from '../../commandUtils/EasCommand';
+import EasCommand, { EASCommandProjectIdContext } from '../../commandUtils/EasCommand';
 import { EASNonInteractiveFlag } from '../../commandUtils/flags';
 import { EnvironmentSecretMutation } from '../../graphql/mutations/EnvironmentSecretMutation';
 import {
@@ -9,8 +9,6 @@ import {
   EnvironmentSecretsQuery,
 } from '../../graphql/queries/EnvironmentSecretsQuery';
 import Log from '../../log';
-import { getExpoConfig } from '../../project/expoConfig';
-import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUtils';
 import { promptAsync, toggleConfirmAsync } from '../../prompts';
 
 export default class EnvironmentSecretDelete extends EasCommand {
@@ -23,15 +21,18 @@ export default class EnvironmentSecretDelete extends EasCommand {
     ...EASNonInteractiveFlag,
   };
 
+  static override contextDefinition = {
+    ...EASCommandProjectIdContext,
+  };
+
   async runAsync(): Promise<void> {
     let {
       flags: { id, 'non-interactive': nonInteractive },
     } = await this.parse(EnvironmentSecretDelete);
+    const { projectId } = await this.getContextAsync(EnvironmentSecretDelete, {
+      nonInteractive,
+    });
     let secret: EnvironmentSecretWithScope | undefined;
-
-    const projectDir = await findProjectRootAsync();
-    const exp = getExpoConfig(projectDir);
-    const projectId = await getProjectIdAsync(exp, { nonInteractive });
 
     if (!id) {
       const validationMessage = 'You must select which secret to delete.';

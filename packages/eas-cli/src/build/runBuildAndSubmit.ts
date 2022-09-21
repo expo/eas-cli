@@ -92,7 +92,8 @@ const platformToGraphQLResourceClassMapping: Record<
 export async function runBuildAndSubmitAsync(
   projectDir: string,
   flags: BuildFlags,
-  actor: Actor
+  actor: Actor,
+  projectId: string
 ): Promise<void> {
   await getVcsClient().ensureRepoExistsAsync();
   await ensureRepoIsCleanAsync(flags.nonInteractive);
@@ -141,6 +142,7 @@ export async function runBuildAndSubmitAsync(
         ],
       easJsonCliConfig,
       actor,
+      projectId,
     });
     if (maybeBuild) {
       startedBuilds.push({ build: maybeBuild, buildProfile });
@@ -235,6 +237,7 @@ async function prepareAndStartBuildAsync({
   resourceClass,
   easJsonCliConfig,
   actor,
+  projectId,
 }: {
   projectDir: string;
   flags: BuildFlags;
@@ -243,6 +246,7 @@ async function prepareAndStartBuildAsync({
   resourceClass: BuildResourceClass;
   easJsonCliConfig: EasJson['cli'];
   actor: Actor;
+  projectId: string;
 }): Promise<{ build: BuildFragment | undefined; buildCtx: BuildContext<Platform> }> {
   const buildCtx = await createBuildContextAsync({
     buildProfileName: buildProfile.profileName,
@@ -257,6 +261,7 @@ async function prepareAndStartBuildAsync({
     easJsonCliConfig,
     message: flags.message,
     actor,
+    projectId,
   });
 
   if (moreBuilds) {

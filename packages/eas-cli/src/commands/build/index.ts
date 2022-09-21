@@ -7,7 +7,10 @@ import path from 'path';
 
 import { BuildFlags, runBuildAndSubmitAsync } from '../../build/runBuildAndSubmit';
 import { UserInputResourceClass } from '../../build/types';
-import EasCommand, { EASCommandLoggedInContext } from '../../commandUtils/EasCommand';
+import EasCommand, {
+  EASCommandLoggedInContext,
+  EASCommandProjectIdContext,
+} from '../../commandUtils/EasCommand';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import { StatuspageServiceName } from '../../graphql/generated';
 import Log, { link } from '../../log';
@@ -98,6 +101,7 @@ export default class Build extends EasCommand {
 
   static override contextDefinition = {
     ...EASCommandLoggedInContext,
+    ...EASCommandProjectIdContext,
   };
 
   async runAsync(): Promise<void> {
@@ -108,7 +112,7 @@ export default class Build extends EasCommand {
     }
     const flags = this.sanitizeFlags(rawFlags);
 
-    const { actor } = await this.getContextAsync(Build, {
+    const { actor, projectId } = await this.getContextAsync(Build, {
       nonInteractive: flags.nonInteractive,
     });
 
@@ -126,7 +130,7 @@ export default class Build extends EasCommand {
 
     const flagsWithPlatform = await this.ensurePlatformSelectedAsync(flags);
 
-    await runBuildAndSubmitAsync(projectDir, flagsWithPlatform, actor);
+    await runBuildAndSubmitAsync(projectDir, flagsWithPlatform, actor, projectId);
   }
 
   private sanitizeFlags(

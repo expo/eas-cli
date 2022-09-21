@@ -4,11 +4,9 @@ import {
   listAndRenderBranchesAndUpdatesOnChannelAsync,
   selectChannelOnAppAsync,
 } from '../../channel/queries';
-import EasCommand from '../../commandUtils/EasCommand';
+import EasCommand, { EASCommandProjectIdContext } from '../../commandUtils/EasCommand';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import { EasPaginatedQueryFlags, getPaginatedQueryOptions } from '../../commandUtils/pagination';
-import { getExpoConfig } from '../../project/expoConfig';
-import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUtils';
 import { enableJsonOutput } from '../../utils/json';
 
 export default class ChannelView extends EasCommand {
@@ -27,6 +25,10 @@ export default class ChannelView extends EasCommand {
     ...EasPaginatedQueryFlags,
   };
 
+  static override contextDefinition = {
+    ...EASCommandProjectIdContext,
+  };
+
   async runAsync(): Promise<void> {
     let {
       args: { name: channelName },
@@ -34,13 +36,12 @@ export default class ChannelView extends EasCommand {
     } = await this.parse(ChannelView);
     const paginatedQueryOptions = getPaginatedQueryOptions(flags);
     const { json: jsonFlag, 'non-interactive': nonInteractive } = flags;
+    const { projectId } = await this.getContextAsync(ChannelView, {
+      nonInteractive,
+    });
     if (jsonFlag) {
       enableJsonOutput();
     }
-
-    const projectDir = await findProjectRootAsync();
-    const exp = getExpoConfig(projectDir);
-    const projectId = await getProjectIdAsync(exp, { nonInteractive });
 
     if (!channelName) {
       const validationMessage = 'A channel name is required to view a specific channel.';
