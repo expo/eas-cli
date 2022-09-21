@@ -9,7 +9,6 @@ import { CredentialsContext } from '../credentials/context';
 import { getExpoConfig } from '../project/expoConfig';
 import { getOwnerAccountForProjectIdAsync } from '../project/projectUtils';
 import { Actor } from '../user/User';
-import { ensureLoggedInAsync } from '../user/actions';
 
 export interface SubmissionContext<T extends Platform> {
   accountName: string;
@@ -44,17 +43,17 @@ export async function createSubmissionContextAsync<T extends Platform>(params: {
   projectDir: string;
   projectId: string;
   applicationIdentifier?: string;
+  actor: Actor;
 }): Promise<SubmissionContext<T>> {
-  const { applicationIdentifier, projectDir, nonInteractive } = params;
+  const { applicationIdentifier, projectDir, nonInteractive, actor } = params;
   const exp = getExpoConfig(projectDir, { env: params.env });
   const { env, ...rest } = params;
-  const user = await ensureLoggedInAsync({ nonInteractive });
   const projectName = exp.slug;
   const account = await getOwnerAccountForProjectIdAsync(params.projectId);
   const accountId = account.id;
   let credentialsCtx: CredentialsContext | undefined = params.credentialsCtx;
   if (!credentialsCtx) {
-    credentialsCtx = new CredentialsContext({ projectDir, user, exp, nonInteractive });
+    credentialsCtx = new CredentialsContext({ projectDir, user: actor, exp, nonInteractive });
   }
 
   const trackingCtx = {
@@ -72,7 +71,7 @@ export async function createSubmissionContextAsync<T extends Platform>(params: {
     credentialsCtx,
     exp,
     projectName,
-    user,
+    user: actor,
     trackingCtx,
     applicationIdentifierOverride: applicationIdentifier,
   };

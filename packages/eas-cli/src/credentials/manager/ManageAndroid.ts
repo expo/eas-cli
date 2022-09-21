@@ -6,7 +6,6 @@ import Log, { learnMore } from '../../log';
 import { GradleBuildContext, resolveGradleBuildContextAsync } from '../../project/android/gradle';
 import { getProjectIdAsync } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
-import { ensureLoggedInAsync } from '../../user/actions';
 import { AssignFcm } from '../android/actions/AssignFcm';
 import { AssignGoogleServiceAccountKey } from '../android/actions/AssignGoogleServiceAccountKey';
 import {
@@ -57,7 +56,7 @@ export class ManageAndroid {
     const ctx = new CredentialsContext({
       projectDir: process.cwd(),
       // this command is interactive by design
-      user: await ensureLoggedInAsync({ nonInteractive: false }),
+      user: this.callingAction.actor,
       env: buildProfile?.env,
       nonInteractive: false,
     });

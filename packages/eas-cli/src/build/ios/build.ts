@@ -23,7 +23,7 @@ export async function createIosContextAsync(
   const { buildProfile } = ctx;
 
   if (ctx.workflow === Workflow.MANAGED) {
-    await ensureBundleIdentifierIsDefinedForManagedProjectAsync(ctx.projectDir, ctx.exp);
+    await ensureBundleIdentifierIsDefinedForManagedProjectAsync(ctx.projectDir, ctx.exp, ctx.user);
   }
 
   checkNodeEnvVariable(ctx);

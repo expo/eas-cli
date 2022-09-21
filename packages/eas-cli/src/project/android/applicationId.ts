@@ -11,7 +11,7 @@ import env from '../../env';
 import Log, { learnMore } from '../../log';
 import { getProjectConfigDescription, getUsername } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
-import { ensureLoggedInAsync } from '../../user/actions';
+import { Actor } from '../../user/User';
 import { resolveWorkflowAsync } from '../workflow';
 import { GradleBuildContext } from './gradle';
 import * as gradleUtils from './gradleUtils';
@@ -20,7 +20,8 @@ export const INVALID_APPLICATION_ID_MESSAGE = `Invalid format of Android applica
 
 export async function ensureApplicationIdIsDefinedForManagedProjectAsync(
   projectDir: string,
-  exp: ExpoConfig
+  exp: ExpoConfig,
+  actor: Actor
 ): Promise<string> {
   const workflow = await resolveWorkflowAsync(projectDir, Platform.ANDROID);
   assert(workflow === Workflow.MANAGED, 'This function should be called only for managed projects');
@@ -30,7 +31,7 @@ export async function ensureApplicationIdIsDefinedForManagedProjectAsync(
       moduleName: gradleUtils.DEFAULT_MODULE_NAME,
     });
   } catch {
-    return await configureApplicationIdAsync(projectDir, exp);
+    return await configureApplicationIdAsync(projectDir, exp, actor);
   }
 }
 
@@ -109,7 +110,11 @@ export async function getApplicationIdAsync(
   }
 }
 
-async function configureApplicationIdAsync(projectDir: string, exp: ExpoConfig): Promise<string> {
+async function configureApplicationIdAsync(
+  projectDir: string,
+  exp: ExpoConfig,
+  actor: Actor
+): Promise<string> {
   const paths = getConfigFilePaths(projectDir);
   // we can't automatically update app.config.js
   if (paths.dynamicConfigPath) {
@@ -127,7 +132,7 @@ async function configureApplicationIdAsync(projectDir: string, exp: ExpoConfig):
     )}`
   );
 
-  const suggestedAndroidApplicationId = await getSuggestedApplicationIdAsync(exp);
+  const suggestedAndroidApplicationId = await getSuggestedApplicationIdAsync(exp, actor);
   const { packageName } = await promptAsync({
     name: 'packageName',
     type: 'text',
@@ -168,14 +173,17 @@ export function warnIfAndroidPackageDefinedInAppConfigForBareWorkflowProject(
   }
 }
 
-async function getSuggestedApplicationIdAsync(exp: ExpoConfig): Promise<string | undefined> {
+async function getSuggestedApplicationIdAsync(
+  exp: ExpoConfig,
+  actor: Actor
+): Promise<string | undefined> {
   // Attempt to use the ios bundle id first since it's convenient to have them aligned.
   const maybeBundleId = IOSConfig.BundleIdentifier.getBundleIdentifier(exp);
   if (maybeBundleId && isApplicationIdValid(maybeBundleId)) {
     return maybeBundleId;
   } else {
     // the only callsite is heavily interactive
-    const username = getUsername(exp, await ensureLoggedInAsync({ nonInteractive: false }));
+    const username = getUsername(exp, actor);
     // It's common to use dashes in your node project name, strip them from the suggested package name.
     const possibleId = `com.${username}.${exp.slug}`.split('-').join('');
     if (isApplicationIdValid(possibleId)) {

@@ -5,7 +5,7 @@ import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 
 import { runBuildAndSubmitAsync } from '../../build/runBuildAndSubmit';
-import EasCommand from '../../commandUtils/EasCommand';
+import EasCommand, { EASCommandLoggedInContext } from '../../commandUtils/EasCommand';
 import Log from '../../log';
 import { ora } from '../../ora';
 import { RequestedPlatform } from '../../platform';
@@ -62,8 +62,16 @@ export default class BuildInspect extends EasCommand {
     }),
   };
 
+  static override contextDefinition = {
+    ...EASCommandLoggedInContext,
+  };
+
   async runAsync(): Promise<void> {
     const { flags } = await this.parse(BuildInspect);
+    const { actor } = await this.getContextAsync(BuildInspect, {
+      nonInteractive: false,
+    });
+
     const outputDirectory = path.resolve(process.cwd(), flags.output);
     const tmpWorkingdir = path.join(getTmpDirectory(), uuidv4());
 
@@ -83,23 +91,27 @@ export default class BuildInspect extends EasCommand {
     } else {
       const projectDir = await findProjectRootAsync();
       try {
-        await runBuildAndSubmitAsync(projectDir, {
-          nonInteractive: false,
-          wait: true,
-          clearCache: false,
-          json: false,
-          autoSubmit: false,
-          requestedPlatform: flags.platform,
-          profile: flags.profile,
-          localBuildOptions: {
-            enable: true,
-            ...(flags.stage === InspectStage.PRE_BUILD ? { skipNativeBuild: true } : {}),
-            ...(flags.stage === InspectStage.POST_BUILD ? { skipCleanup: true } : {}),
-            verbose: flags.verbose,
-            workingdir: tmpWorkingdir,
-            artifactsDir: path.join(tmpWorkingdir, 'artifacts'),
+        await runBuildAndSubmitAsync(
+          projectDir,
+          {
+            nonInteractive: false,
+            wait: true,
+            clearCache: false,
+            json: false,
+            autoSubmit: false,
+            requestedPlatform: flags.platform,
+            profile: flags.profile,
+            localBuildOptions: {
+              enable: true,
+              ...(flags.stage === InspectStage.PRE_BUILD ? { skipNativeBuild: true } : {}),
+              ...(flags.stage === InspectStage.POST_BUILD ? { skipCleanup: true } : {}),
+              verbose: flags.verbose,
+              workingdir: tmpWorkingdir,
+              artifactsDir: path.join(tmpWorkingdir, 'artifacts'),
+            },
           },
-        });
+          actor
+        );
         if (!flags.verbose) {
           Log.log(chalk.green('Build successful'));
         }

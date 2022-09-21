@@ -4,7 +4,7 @@ import nullthrows from 'nullthrows';
 import terminalLink from 'terminal-link';
 
 import { getProjectDashboardUrl } from '../../build/utils/url';
-import EasCommand from '../../commandUtils/EasCommand';
+import EasCommand, { EASCommandLoggedInContext } from '../../commandUtils/EasCommand';
 import { AppPrivacy, Role } from '../../graphql/generated';
 import { AppMutation } from '../../graphql/mutations/AppMutation';
 import Log from '../../log';
@@ -17,7 +17,7 @@ import {
   toAppPrivacy,
 } from '../../project/projectUtils';
 import { confirmAsync, promptAsync } from '../../prompts';
-import { ensureLoggedInAsync } from '../../user/actions';
+import { Actor } from '../../user/User';
 
 type InitializeMethodOptions = {
   force: boolean;
@@ -41,6 +41,10 @@ export default class ProjectInit extends EasCommand {
       description: 'Run the command in non-interactive mode.',
       dependsOn: ['id'],
     }),
+  };
+
+  static override contextDefinition = {
+    ...EASCommandLoggedInContext,
   };
 
   private static async saveProjectIdAndLogSuccessAsync(
@@ -97,7 +101,7 @@ export default class ProjectInit extends EasCommand {
     }
   }
 
-  private static async initializeWithInteractiveSelectionAsync(): Promise<void> {
+  private static async initializeWithInteractiveSelectionAsync(actor: Actor): Promise<void> {
     const projectDir = await findProjectRootAsync();
     const exp = getExpoConfig(projectDir);
     const existingProjectId = exp.extra?.eas?.projectId;
@@ -111,7 +115,6 @@ export default class ProjectInit extends EasCommand {
       return;
     }
 
-    const actor = await ensureLoggedInAsync({ nonInteractive: false });
     const allAccounts = actor.accounts;
     const accountNamesWhereUserHasSufficientPermissionsToCreateApp = new Set(
       allAccounts
@@ -215,11 +218,12 @@ export default class ProjectInit extends EasCommand {
     const {
       flags: { id, force, 'non-interactive': nonInteractive },
     } = await this.parse(ProjectInit);
+    const { actor } = await this.getContextAsync(ProjectInit, { nonInteractive });
 
     if (id) {
       await ProjectInit.initializeWithExplicitIDAsync(id, { force, nonInteractive });
     } else {
-      await ProjectInit.initializeWithInteractiveSelectionAsync();
+      await ProjectInit.initializeWithInteractiveSelectionAsync(actor);
     }
   }
 }

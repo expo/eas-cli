@@ -2,6 +2,7 @@ import { ExpoConfig } from '@expo/config';
 import { Platform, Workflow } from '@expo/eas-build-job';
 import { BuildProfile } from '@expo/eas-json';
 
+import { Actor } from '../user/User';
 import {
   ensureApplicationIdIsDefinedForManagedProjectAsync,
   getApplicationIdAsync,
@@ -16,7 +17,8 @@ export async function getApplicationIdentifierAsync(
   projectDir: string,
   exp: ExpoConfig,
   buildProfile: BuildProfile,
-  platform: Platform
+  platform: Platform,
+  actor: Actor
 ): Promise<string> {
   if (platform === Platform.ANDROID) {
     const profile = buildProfile as BuildProfile<Platform.ANDROID>;
@@ -24,7 +26,7 @@ export async function getApplicationIdentifierAsync(
     const gradleContext = await resolveGradleBuildContextAsync(projectDir, profile);
 
     if (workflow === Workflow.MANAGED) {
-      await ensureApplicationIdIsDefinedForManagedProjectAsync(projectDir, exp);
+      await ensureApplicationIdIsDefinedForManagedProjectAsync(projectDir, exp, actor);
     }
 
     return await getApplicationIdAsync(projectDir, exp, gradleContext);

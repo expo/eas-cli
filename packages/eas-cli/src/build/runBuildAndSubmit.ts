@@ -41,6 +41,7 @@ import {
   waitToCompleteAsync as waitForSubmissionsToCompleteAsync,
 } from '../submit/submit';
 import { printSubmissionDetailsUrls } from '../submit/utils/urls';
+import { Actor } from '../user/User';
 import { printJsonOnlyOutput } from '../utils/json';
 import { ProfileData, getProfilesAsync } from '../utils/profiles';
 import { getVcsClient } from '../vcs';
@@ -87,7 +88,11 @@ const platformToGraphQLResourceClassMapping: Record<
   },
 };
 
-export async function runBuildAndSubmitAsync(projectDir: string, flags: BuildFlags): Promise<void> {
+export async function runBuildAndSubmitAsync(
+  projectDir: string,
+  flags: BuildFlags,
+  actor: Actor
+): Promise<void> {
   await getVcsClient().ensureRepoExistsAsync();
   await ensureRepoIsCleanAsync(flags.nonInteractive);
 
@@ -134,6 +139,7 @@ export async function runBuildAndSubmitAsync(projectDir: string, flags: BuildFla
           flags.userInputResourceClass ?? UserInputResourceClass.DEFAULT
         ],
       easJsonCliConfig,
+      actor,
     });
     if (maybeBuild) {
       startedBuilds.push({ build: maybeBuild, buildProfile });
@@ -227,6 +233,7 @@ async function prepareAndStartBuildAsync({
   buildProfile,
   resourceClass,
   easJsonCliConfig,
+  actor,
 }: {
   projectDir: string;
   flags: BuildFlags;
@@ -234,6 +241,7 @@ async function prepareAndStartBuildAsync({
   buildProfile: ProfileData<'build'>;
   resourceClass: BuildResourceClass;
   easJsonCliConfig: EasJson['cli'];
+  actor: Actor;
 }): Promise<{ build: BuildFragment | undefined; buildCtx: BuildContext<Platform> }> {
   const buildCtx = await createBuildContextAsync({
     buildProfileName: buildProfile.profileName,
@@ -247,6 +255,7 @@ async function prepareAndStartBuildAsync({
     localBuildOptions: flags.localBuildOptions,
     easJsonCliConfig,
     message: flags.message,
+    actor,
   });
 
   if (moreBuilds) {
@@ -318,6 +327,7 @@ async function prepareAndStartSubmissionAsync({
     env: buildProfile.env,
     credentialsCtx: buildCtx.credentialsCtx,
     applicationIdentifier: buildCtx.android?.applicationId ?? buildCtx.ios?.bundleIdentifier,
+    actor: buildCtx.user,
   });
 
   if (moreBuilds) {

@@ -14,7 +14,6 @@ import {
   readChannelSafelyAsync as readIosChannelSafelyAsync,
   readReleaseChannelSafelyAsync as readIosReleaseChannelSafelyAsync,
 } from '../update/ios/UpdatesModule';
-import { ensureLoggedInAsync } from '../user/actions';
 import { easCliVersion } from '../utils/easCli';
 import { getVcsClient } from '../vcs';
 import { maybeResolveVersionsAsync as maybeResolveAndroidVersionsAsync } from './android/version';
@@ -49,10 +48,7 @@ export async function collectMetadataAsync<T extends Platform>(
       (await vcsClient.getLastCommitMessageAsync()) ?? undefined
     ),
     isGitWorkingTreeDirty: await vcsClient.hasUncommittedChangesAsync(),
-    username: getUsername(
-      ctx.exp,
-      await ensureLoggedInAsync({ nonInteractive: ctx.nonInteractive })
-    ),
+    username: getUsername(ctx.exp, ctx.user),
     message: ctx.message,
     ...(ctx.platform === Platform.IOS && {
       iosEnterpriseProvisioning: resolveIosEnterpriseProvisioning(

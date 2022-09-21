@@ -8,7 +8,7 @@ import fs from 'fs-extra';
 import { readAppJson } from '../../build/utils/appJson';
 import Log, { learnMore } from '../../log';
 import { promptAsync } from '../../prompts';
-import { ensureLoggedInAsync } from '../../user/actions';
+import { Actor } from '../../user/User';
 import { getProjectConfigDescription, getUsername } from '../projectUtils';
 import { resolveWorkflowAsync } from '../workflow';
 
@@ -16,7 +16,8 @@ export const INVALID_BUNDLE_IDENTIFIER_MESSAGE = `Invalid format of iOS bundle i
 
 export async function ensureBundleIdentifierIsDefinedForManagedProjectAsync(
   projectDir: string,
-  exp: ExpoConfig
+  exp: ExpoConfig,
+  actor: Actor
 ): Promise<string> {
   const workflow = await resolveWorkflowAsync(projectDir, Platform.IOS);
   assert(workflow === Workflow.MANAGED, 'This function should be called only for managed projects');
@@ -24,7 +25,7 @@ export async function ensureBundleIdentifierIsDefinedForManagedProjectAsync(
   try {
     return await getBundleIdentifierAsync(projectDir, exp);
   } catch {
-    return await configureBundleIdentifierAsync(projectDir, exp);
+    return await configureBundleIdentifierAsync(projectDir, exp, actor);
   }
 }
 
@@ -101,7 +102,8 @@ export async function getBundleIdentifierAsync(
 
 async function configureBundleIdentifierAsync(
   projectDir: string,
-  exp: ExpoConfig
+  exp: ExpoConfig,
+  actor: Actor
 ): Promise<string> {
   const paths = getConfigFilePaths(projectDir);
   // we can't automatically update app.config.js
@@ -120,7 +122,7 @@ async function configureBundleIdentifierAsync(
     )}`
   );
 
-  const suggestedBundleIdentifier = await getSuggestedBundleIdentifierAsync(exp);
+  const suggestedBundleIdentifier = await getSuggestedBundleIdentifierAsync(exp, actor);
   const { bundleIdentifier } = await promptAsync({
     name: 'bundleIdentifier',
     type: 'text',
@@ -166,14 +168,17 @@ export function isWildcardBundleIdentifier(bundleIdentifier: string): boolean {
   return wildcardRegex.test(bundleIdentifier);
 }
 
-async function getSuggestedBundleIdentifierAsync(exp: ExpoConfig): Promise<string | undefined> {
+async function getSuggestedBundleIdentifierAsync(
+  exp: ExpoConfig,
+  actor: Actor
+): Promise<string | undefined> {
   // Attempt to use the android package name first since it's convenient to have them aligned.
   const maybeAndroidPackage = AndroidConfig.Package.getPackage(exp);
   if (maybeAndroidPackage && isBundleIdentifierValid(maybeAndroidPackage)) {
     return maybeAndroidPackage;
   } else {
     // the only callsite is heavily interactive
-    const username = getUsername(exp, await ensureLoggedInAsync({ nonInteractive: false }));
+    const username = getUsername(exp, actor);
     // It's common to use dashes in your node project name, strip them from the suggested package name.
     const possibleId = `com.${username}.${exp.slug}`.split('-').join('');
     if (isBundleIdentifierValid(possibleId)) {

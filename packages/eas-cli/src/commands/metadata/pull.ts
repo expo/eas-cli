@@ -4,14 +4,16 @@ import chalk from 'chalk';
 import path from 'path';
 
 import { ensureProjectConfiguredAsync } from '../../build/configure';
-import EasCommand from '../../commandUtils/EasCommand';
+import EasCommand, {
+  EASCommandLoggedInContext,
+  EASCommandProjectIdContext,
+} from '../../commandUtils/EasCommand';
 import { CredentialsContext } from '../../credentials/context';
 import Log, { learnMore } from '../../log';
 import { createMetadataContextAsync } from '../../metadata/context';
 import { downloadMetadataAsync } from '../../metadata/download';
 import { handleMetadataError } from '../../metadata/errors';
-import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUtils';
-import { ensureLoggedInAsync } from '../../user/actions';
+import { findProjectRootAsync } from '../../project/projectUtils';
 
 export default class MetadataPull extends EasCommand {
   static override description = 'generate the local store configuration from the app stores';
@@ -24,21 +26,27 @@ export default class MetadataPull extends EasCommand {
     }),
   };
 
+  static override contextDefinition = {
+    ...EASCommandProjectIdContext,
+    ...EASCommandLoggedInContext,
+  };
+
   async runAsync(): Promise<void> {
     Log.warn('EAS Metadata is in beta and subject to breaking changes.');
 
     const { flags } = await this.parse(MetadataPull);
+    const { actor } = await this.getContextAsync(MetadataPull, { nonInteractive: false });
+
     const projectDir = await findProjectRootAsync();
     const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
 
     // this command is interactive (all nonInteractive flags passed to utility functions are false)
-    await getProjectIdAsync(exp, { nonInteractive: false });
     await ensureProjectConfiguredAsync({ projectDir, nonInteractive: false });
 
     const credentialsCtx = new CredentialsContext({
       exp,
       projectDir,
-      user: await ensureLoggedInAsync({ nonInteractive: false }),
+      user: actor,
       nonInteractive: false,
     });
 

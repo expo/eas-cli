@@ -5,7 +5,6 @@ import slash from 'slash';
 
 import { AndroidCredentials } from '../../credentials/android/AndroidCredentialsProvider';
 import { getUsername } from '../../project/projectUtils';
-import { ensureLoggedInAsync } from '../../user/actions';
 import { getVcsClient } from '../../vcs';
 import { BuildContext } from '../context';
 
@@ -24,10 +23,7 @@ export async function prepareJobAsync(
   ctx: BuildContext<Platform.ANDROID>,
   jobData: JobData
 ): Promise<Job> {
-  const username = getUsername(
-    ctx.exp,
-    await ensureLoggedInAsync({ nonInteractive: ctx.nonInteractive })
-  );
+  const username = getUsername(ctx.exp, ctx.user);
   const buildProfile: BuildProfile<Platform.ANDROID> = ctx.buildProfile;
   const projectRootDirectory =
     slash(path.relative(await getVcsClient().getRootPathAsync(), ctx.projectDir)) || '.';
