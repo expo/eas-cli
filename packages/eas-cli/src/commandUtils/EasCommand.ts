@@ -76,6 +76,35 @@ export class DynamicProjectConfigContextField extends ContextField<DynamicConfig
   }
 }
 
+export class OptionalProjectConfigContextField extends ContextField<
+  | {
+      projectId: string;
+      exp: ExpoConfig;
+    }
+  | undefined
+> {
+  async getValueAsync({ nonInteractive }: ContextOptions): Promise<
+    | {
+        projectId: string;
+        exp: ExpoConfig;
+      }
+    | undefined
+  > {
+    let projectDir: string;
+    try {
+      projectDir = await findProjectRootAsync();
+      if (!projectDir) {
+        return undefined;
+      }
+    } catch {
+      return undefined;
+    }
+
+    const exp = getExpoConfig(projectDir);
+    return { exp, projectId: await getProjectIdAsync(exp, { nonInteractive }) };
+  }
+}
+
 export class ActorContextField extends ContextField<Actor> {
   async getValueAsync({ nonInteractive }: ContextOptions): Promise<Actor> {
     return await ensureLoggedInAsync({ nonInteractive });
@@ -89,6 +118,10 @@ export const EASCommandProjectConfigContext = {
 export const EASCommandDynamicProjectConfigContext = {
   // eslint-disable-next-line async-protect/async-suffix
   getDynamicProjectConfigAsync: new DynamicProjectConfigContextField(),
+};
+
+export const EASCommandOptionalProjectConfigContext = {
+  projectConfig: new OptionalProjectConfigContextField(),
 };
 
 export const EASCommandLoggedInContext = {
