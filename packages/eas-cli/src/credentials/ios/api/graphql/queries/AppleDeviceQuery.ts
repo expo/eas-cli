@@ -2,6 +2,7 @@ import assert from 'assert';
 import { print } from 'graphql';
 import gql from 'graphql-tag';
 
+import { DeviceNotFoundError } from '../../../../../devices/utils/errors';
 import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
 import {
   AppleDevice,
@@ -9,10 +10,12 @@ import {
   AppleDevicesByAppleTeamQuery,
   AppleDevicesByIdentifierQuery,
   AppleDevicesByTeamIdentifierQuery,
+  AppleDevicesByTeamIdentifierQueryVariables,
   AppleTeamFragment,
 } from '../../../../../graphql/generated';
 import { AppleDeviceFragmentNode } from '../../../../../graphql/types/credentials/AppleDevice';
 import { AppleTeamFragmentNode } from '../../../../../graphql/types/credentials/AppleTeam';
+import { formatAppleTeam } from '../../../actions/AppleTeamUtils';
 
 export type AppleDeviceFragmentWithAppleTeam = AppleDeviceFragment & {
   appleTeam: AppleTeamFragment;
@@ -80,10 +83,12 @@ export const AppleDeviceQuery = {
     return appleDevices;
   },
 
-  async getAllForAppleTeamAsync(
-    accountName: string,
-    appleTeamIdentifier: string
-  ): Promise<AppleDevicesByTeamIdentifierQueryResult | null> {
+  async getAllForAppleTeamAsync({
+    accountName,
+    appleTeamIdentifier,
+    offset,
+    limit,
+  }: AppleDevicesByTeamIdentifierQueryVariables): Promise<AppleDeviceFragment[]> {
     const data = await withErrorHandlingAsync(
       graphqlClient
         .query<AppleDevicesByTeamIdentifierQuery>(
@@ -91,6 +96,8 @@ export const AppleDeviceQuery = {
             query AppleDevicesByTeamIdentifier(
               $accountName: String!
               $appleTeamIdentifier: String!
+              $offset: Int
+              $limit: Int
             ) {
               account {
                 byName(accountName: $accountName) {
@@ -99,7 +106,7 @@ export const AppleDeviceQuery = {
                     id
                     appleTeamIdentifier
                     appleTeamName
-                    appleDevices {
+                    appleDevices(offset: $offset, limit: $limit) {
                       id
                       identifier
                       name
@@ -111,21 +118,25 @@ export const AppleDeviceQuery = {
               }
             }
           `,
-          { accountName, appleTeamIdentifier },
+          { accountName, appleTeamIdentifier, offset, limit },
           {
             additionalTypenames: ['AppleDevice', 'AppleTeam'],
           }
         )
         .toPromise()
     );
-
-    return data.account.byName.appleTeams[0];
+    const [appleTeam] = data.account.byName.appleTeams;
+    const { appleDevices } = appleTeam;
+    if (!appleDevices) {
+      throw new Error(`Could not find devices on apple team -- ${formatAppleTeam(appleTeam)}`);
+    }
+    return appleDevices;
   },
 
   async getByDeviceIdentifierAsync(
     accountName: string,
     identifier: string
-  ): Promise<AppleDevicesByIdentifierQueryResult | null> {
+  ): Promise<AppleDevicesByIdentifierQueryResult> {
     const data = await withErrorHandlingAsync(
       graphqlClient
         .query<AppleDevicesByIdentifierQuery>(
@@ -158,6 +169,12 @@ export const AppleDeviceQuery = {
         .toPromise()
     );
 
-    return data.account.byName.appleDevices[0] ?? null;
+    const device = data.account.byName.appleDevices[0];
+    if (!device) {
+      throw new DeviceNotFoundError(
+        `Device [${identifier}] not found on account [${accountName}].`
+      );
+    }
+    return device;
   },
 };
