@@ -7,7 +7,6 @@ export default class AccountLogin extends EasCommand {
   static override aliases = ['login'];
 
   protected override commandConfiguration: CommandConfiguration = {
-    allowUnauthenticated: true,
     canRunOutsideProject: true,
   };
 

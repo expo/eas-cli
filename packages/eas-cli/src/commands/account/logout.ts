@@ -7,7 +7,6 @@ export default class AccountLogout extends EasCommand {
   static override aliases = ['logout'];
 
   protected override commandConfiguration: CommandConfiguration = {
-    allowUnauthenticated: true,
     canRunOutsideProject: true,
   };
 

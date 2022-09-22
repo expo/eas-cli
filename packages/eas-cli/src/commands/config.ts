@@ -4,7 +4,7 @@ import { EasJsonAccessor, EasJsonUtils } from '@expo/eas-json';
 import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 
-import EasCommand, { CommandConfiguration } from '../commandUtils/EasCommand';
+import EasCommand from '../commandUtils/EasCommand';
 import { toAppPlatform } from '../graphql/types/AppPlatform';
 import Log from '../log';
 import { appPlatformEmojis } from '../platform';
@@ -23,10 +23,6 @@ export default class Config extends EasCommand {
         'Name of the build profile from eas.json. Defaults to "production" if defined in eas.json.',
       helpValue: 'PROFILE_NAME',
     }),
-  };
-
-  protected override commandConfiguration: CommandConfiguration = {
-    allowUnauthenticated: true,
   };
 
   async runAsync(): Promise<void> {

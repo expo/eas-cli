@@ -9,7 +9,6 @@ export default class AccountView extends EasCommand {
   static override aliases = ['whoami'];
 
   protected override commandConfiguration: CommandConfiguration = {
-    allowUnauthenticated: true,
     canRunOutsideProject: true,
   };
 
