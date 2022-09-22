@@ -46,11 +46,9 @@ export class AccountResolver {
   constructor(private projectId: string | null, private user: Actor) {}
 
   public async resolveAccountAsync(): Promise<AccountFragment> {
-    if (this.projectId) {
-      const account = await this.resolveProjectAccountAsync();
-      if (account) {
-        return account;
-      }
+    const account = await this.resolveProjectAccountAsync();
+    if (account) {
+      return account;
     }
     return await this.promptForAccountAsync();
   }

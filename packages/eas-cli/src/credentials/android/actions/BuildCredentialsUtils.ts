@@ -90,7 +90,6 @@ export async function getAppLookupParamsFromContextAsync(
   ctx: CredentialsContext,
   gradleContext?: GradleBuildContext
 ): Promise<AppLookupParams> {
-  ctx.ensureProjectContext();
   const projectName = ctx.exp.slug;
   const projectId = ctx.projectId;
   const account = await getOwnerAccountForProjectIdAsync(projectId);

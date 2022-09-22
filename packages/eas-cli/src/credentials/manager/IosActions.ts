@@ -1,4 +1,3 @@
-import { CredentialsContext } from '../context';
 import { ActionInfo, IosActionType, Scope } from './Actions';
 
 export const highLevelActions: ActionInfo[] = [
@@ -47,7 +46,7 @@ export const credentialsJsonActions: ActionInfo[] = [
   },
 ];
 
-export function getPushKeyActions(ctx: CredentialsContext): ActionInfo[] {
+export function getPushKeyActions(): ActionInfo[] {
   return [
     {
       value: IosActionType.SetUpPushKey,
@@ -57,7 +56,7 @@ export function getPushKeyActions(ctx: CredentialsContext): ActionInfo[] {
     {
       value: IosActionType.CreatePushKey,
       title: 'Add a new push key',
-      scope: ctx.hasProjectContext ? Scope.Project : Scope.Account,
+      scope: Scope.Project,
     },
     {
       value: IosActionType.UseExistingPushKey,
@@ -77,7 +76,7 @@ export function getPushKeyActions(ctx: CredentialsContext): ActionInfo[] {
   ];
 }
 
-export function getAscApiKeyActions(ctx: CredentialsContext): ActionInfo[] {
+export function getAscApiKeyActions(): ActionInfo[] {
   return [
     {
       value: IosActionType.SetUpAscApiKeyForSubmissions,
@@ -92,7 +91,7 @@ export function getAscApiKeyActions(ctx: CredentialsContext): ActionInfo[] {
     {
       value: IosActionType.CreateAscApiKeyForSubmissions,
       title: 'Add a new API Key For EAS Submit',
-      scope: ctx.hasProjectContext ? Scope.Project : Scope.Account,
+      scope: Scope.Project,
     },
     {
       value: IosActionType.RemoveAscApiKey,
@@ -107,7 +106,7 @@ export function getAscApiKeyActions(ctx: CredentialsContext): ActionInfo[] {
   ];
 }
 
-export function getBuildCredentialsActions(ctx: CredentialsContext): ActionInfo[] {
+export function getBuildCredentialsActions(): ActionInfo[] {
   return [
     {
       // This command will be triggered during build to ensure all credentials are ready
@@ -124,7 +123,7 @@ export function getBuildCredentialsActions(ctx: CredentialsContext): ActionInfo[
     {
       value: IosActionType.CreateDistributionCertificate,
       title: `Distribution Certificate: Add a new one to your account`,
-      scope: ctx.hasProjectContext ? Scope.Project : Scope.Account,
+      scope: Scope.Project,
     },
     {
       value: IosActionType.RemoveDistributionCertificate,

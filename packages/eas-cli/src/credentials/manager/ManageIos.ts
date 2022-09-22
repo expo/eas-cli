@@ -14,7 +14,6 @@ import { resolveXcodeBuildContextAsync } from '../../project/ios/scheme';
 import { resolveTargetsAsync } from '../../project/ios/target';
 import { getOwnerAccountForProjectIdAsync } from '../../project/projectUtils';
 import { confirmAsync, promptAsync, selectAsync } from '../../prompts';
-import { ensureActorHasPrimaryAccount } from '../../user/actions';
 import { CredentialsContext } from '../context';
 import {
   AppStoreApiKeyPurpose,
@@ -68,41 +67,31 @@ export class ManageIos {
       env: buildProfile?.env,
       nonInteractive: false,
     });
-    const buildCredentialsActions = getBuildCredentialsActions(ctx);
-    const pushKeyActions = getPushKeyActions(ctx);
-    const ascApiKeyActions = getAscApiKeyActions(ctx);
+    const buildCredentialsActions = getBuildCredentialsActions();
+    const pushKeyActions = getPushKeyActions();
+    const ascApiKeyActions = getAscApiKeyActions();
 
     await ctx.bestEffortAppStoreAuthenticateAsync();
 
-    const getAccountForProjectAsync = async (projectId: string): Promise<AccountFragment> => {
-      return await getOwnerAccountForProjectIdAsync(projectId);
-    };
+    const account = await getOwnerAccountForProjectIdAsync(
+      this.callingAction.projectInfo.projectId
+    );
 
-    const account = ctx.hasProjectContext
-      ? await getAccountForProjectAsync(ctx.projectId)
-      : ensureActorHasPrimaryAccount(ctx.user);
-
-    let app = null;
-    let targets = null;
-    if (ctx.hasProjectContext) {
-      assert(buildProfile, 'buildProfile must be defined in project context');
-      const projectContext = await this.createProjectContextAsync(ctx, account, buildProfile);
-      app = projectContext.app;
-      targets = projectContext.targets;
-    }
+    assert(buildProfile, 'buildProfile must be defined in project context');
+    const projectContext = await this.createProjectContextAsync(ctx, account, buildProfile);
+    const app = projectContext.app;
+    const targets = projectContext.targets;
 
     while (true) {
       try {
-        if (ctx.hasProjectContext) {
-          assert(targets && app);
-          const iosAppCredentialsMap: IosAppCredentialsMap = {};
-          for (const target of targets) {
-            const appLookupParams = await getAppLookupParamsFromContextAsync(ctx, target);
-            iosAppCredentialsMap[target.targetName] =
-              await ctx.ios.getIosAppCredentialsWithCommonFieldsAsync(appLookupParams);
-          }
-          displayIosCredentials(app, iosAppCredentialsMap, targets);
+        assert(targets && app);
+        const iosAppCredentialsMap: IosAppCredentialsMap = {};
+        for (const target of targets) {
+          const appLookupParams = await getAppLookupParamsFromContextAsync(ctx, target);
+          iosAppCredentialsMap[target.targetName] =
+            await ctx.ios.getIosAppCredentialsWithCommonFieldsAsync(appLookupParams);
         }
+        displayIosCredentials(app, iosAppCredentialsMap, targets);
 
         const { action: chosenAction } = await promptAsync({
           type: 'select',
@@ -137,10 +126,6 @@ export class ManageIos {
             return await this.callingAction.runAsync(ctx);
           }
         } else if (actionInfo.scope === Scope.Project) {
-          assert(
-            ctx.hasProjectContext,
-            'You must be in your project directory in order to perform this action'
-          );
           await this.runProjectSpecificActionAsync(
             ctx,
             nullthrows(app, 'app must be defined in project context'),
@@ -172,8 +157,6 @@ export class ManageIos {
     app: App;
     targets: Target[];
   }> {
-    assert(ctx.hasProjectContext, 'createProjectContextAsync: must have project context.');
-
     const app = { account, projectName: ctx.exp.slug };
     const xcodeBuildContext = await resolveXcodeBuildContextAsync(
       {

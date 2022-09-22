@@ -4,7 +4,6 @@ import { EasJson } from '@expo/eas-json';
 import chalk from 'chalk';
 
 import Log from '../log';
-import { getExpoConfig } from '../project/expoConfig';
 import { confirmAsync } from '../prompts';
 import { Actor } from '../user/User';
 import * as AndroidGraphqlClient from './android/api/GraphqlClient';
@@ -28,19 +27,16 @@ export class CredentialsContext {
 
   private shouldAskAuthenticateAppStore: boolean = true;
 
-  private projectInfo: CredentialsContextProjectInfo | null;
+  private projectInfo: CredentialsContextProjectInfo;
 
-  constructor(
-    private options: {
-      // if null, this implies not running in a project context
-      projectInfo: CredentialsContextProjectInfo | null;
-      easJsonCliConfig?: EasJson['cli'];
-      nonInteractive: boolean;
-      projectDir: string;
-      user: Actor;
-      env?: Env;
-    }
-  ) {
+  constructor(options: {
+    projectInfo: CredentialsContextProjectInfo;
+    easJsonCliConfig?: EasJson['cli'];
+    nonInteractive: boolean;
+    projectDir: string;
+    user: Actor;
+    env?: Env;
+  }) {
     this.easJsonCliConfig = options.easJsonCliConfig;
     this.projectDir = options.projectDir;
     this.user = options.user;
@@ -48,38 +44,12 @@ export class CredentialsContext {
     this.projectInfo = options.projectInfo;
   }
 
-  static getExpoConfigInProject(
-    projectDir: string,
-    { env }: { env?: Env } = {}
-  ): ExpoConfig | null {
-    try {
-      return getExpoConfig(projectDir, { env });
-    } catch {
-      // ignore error, context might be created outside of expo project
-      return null;
-    }
-  }
-
-  get hasProjectContext(): boolean {
-    return !!this.projectInfo;
-  }
-
   get exp(): ExpoConfig {
-    this.ensureProjectContext();
     return this.projectInfo!.exp;
   }
 
   get projectId(): string {
-    this.ensureProjectContext();
     return this.projectInfo!.projectId;
-  }
-
-  public ensureProjectContext(): void {
-    if (this.hasProjectContext) {
-      return;
-    }
-    // trigger getConfig error
-    getExpoConfig(this.options.projectDir);
   }
 
   async bestEffortAppStoreAuthenticateAsync(): Promise<void> {

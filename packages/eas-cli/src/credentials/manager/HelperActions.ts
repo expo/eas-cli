@@ -5,7 +5,7 @@ import { CredentialsContext, CredentialsContextProjectInfo } from '../context';
 
 export interface Action<T = void> {
   actor: Actor;
-  projectInfo: CredentialsContextProjectInfo | null;
+  projectInfo: CredentialsContextProjectInfo;
   runAsync(ctx: CredentialsContext): Promise<T>;
 }
 

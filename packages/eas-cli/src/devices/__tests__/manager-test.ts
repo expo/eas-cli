@@ -84,17 +84,5 @@ describe(AccountResolver, () => {
         expect(account).toEqual(user.accounts[0]);
       });
     });
-
-    describe('when outside project dir', () => {
-      it('asks the user to choose the account from his account list', async () => {
-        jest.mocked(prompts).mockImplementationOnce(async () => ({
-          account: user.accounts[0],
-        }));
-
-        const resolver = new AccountResolver(null, user);
-        const account = await resolver.resolveAccountAsync();
-        expect(account).toEqual(user.accounts[0]);
-      });
-    });
   });
 });

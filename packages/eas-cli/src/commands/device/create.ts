@@ -1,6 +1,6 @@
 import EasCommand, {
   EASCommandLoggedInContext,
-  EASCommandProjectIdIfProjectDirContext,
+  EASCommandProjectIdContext,
 } from '../../commandUtils/EasCommand';
 import AppStoreApi from '../../credentials/ios/appstore/AppStoreApi';
 import { createContextAsync } from '../../devices/context';
@@ -11,7 +11,7 @@ export default class DeviceCreate extends EasCommand {
 
   static override contextDefinition = {
     ...EASCommandLoggedInContext,
-    ...EASCommandProjectIdIfProjectDirContext,
+    ...EASCommandProjectIdContext,
   };
 
   async runAsync(): Promise<void> {

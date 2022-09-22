@@ -2,10 +2,11 @@ import { Flags } from '@oclif/core';
 
 import EasCommand, {
   EASCommandLoggedInContext,
-  EASCommandProjectIdIfProjectDirContext,
+  EASCommandProjectIdContext,
 } from '../commandUtils/EasCommand';
-import { CredentialsContext } from '../credentials/context';
 import { SelectPlatform } from '../credentials/manager/SelectPlatform';
+import { getExpoConfig } from '../project/expoConfig';
+import { findProjectRootAsync } from '../project/projectUtils';
 
 export default class Credentials extends EasCommand {
   static override description = 'manage credentials';
@@ -16,19 +17,16 @@ export default class Credentials extends EasCommand {
 
   static override contextDefinition = {
     ...EASCommandLoggedInContext,
-    ...EASCommandProjectIdIfProjectDirContext,
+    ...EASCommandProjectIdContext,
   };
 
   async runAsync(): Promise<void> {
     const { flags } = await this.parse(Credentials);
     const { actor, projectId } = await this.getContextAsync(Credentials, { nonInteractive: false });
 
-    const exp = CredentialsContext.getExpoConfigInProject(process.cwd());
+    const projectDir = await findProjectRootAsync();
+    const exp = getExpoConfig(projectDir);
 
-    await new SelectPlatform(
-      actor,
-      projectId && exp ? { projectId, exp } : null,
-      flags.platform
-    ).runAsync();
+    await new SelectPlatform(actor, { projectId, exp }, flags.platform).runAsync();
   }
 }

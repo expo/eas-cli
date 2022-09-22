@@ -82,7 +82,6 @@ export async function assignBuildCredentialsAsync(
 }
 
 export async function getAppFromContextAsync(ctx: CredentialsContext): Promise<App> {
-  ctx.ensureProjectContext();
   const projectName = ctx.exp.slug;
   const projectId = ctx.projectId;
   const account = await getOwnerAccountForProjectIdAsync(projectId);

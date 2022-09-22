@@ -4,7 +4,7 @@ import { Actor } from '../user/User';
 export interface DeviceManagerContext {
   appStore: AppStoreApi;
   user: Actor;
-  projectId: string | null;
+  projectId: string;
 }
 
 export async function createContextAsync({
@@ -14,11 +14,11 @@ export async function createContextAsync({
 }: {
   appStore: AppStoreApi;
   user: Actor;
-  projectId: string | undefined;
+  projectId: string;
 }): Promise<DeviceManagerContext> {
   return {
     appStore,
     user,
-    projectId: projectId ?? null,
+    projectId,
   };
 }

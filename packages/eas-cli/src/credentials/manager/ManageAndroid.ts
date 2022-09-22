@@ -60,34 +60,27 @@ export class ManageAndroid {
       nonInteractive: false,
     });
 
-    let gradleContext;
-    if (ctx.hasProjectContext) {
-      assert(buildProfile, 'buildProfile must be defined in a project context');
-      gradleContext = await this.createProjectContextAsync(ctx, buildProfile);
-    }
+    assert(buildProfile, 'buildProfile must be defined in a project context');
+    const gradleContext = await this.createProjectContextAsync(ctx, buildProfile);
 
     while (true) {
       try {
-        if (ctx.hasProjectContext) {
-          const appLookupParams = await getAppLookupParamsFromContextAsync(ctx, gradleContext);
-          const appCredentials = await ctx.android.getAndroidAppCredentialsWithCommonFieldsAsync(
-            appLookupParams
-          );
-          if (!appCredentials) {
-            displayEmptyAndroidCredentials(appLookupParams);
-          } else {
-            displayAndroidAppCredentials({ appLookupParams, appCredentials });
-          }
-
-          // copy legacy credentials if user is new to EAS and has legacy credentials
-          const canCopyLegacyCredentials = await canCopyLegacyCredentialsAsync(
-            ctx,
-            appLookupParams
-          );
-          if (canCopyLegacyCredentials) {
-            await promptUserAndCopyLegacyCredentialsAsync(ctx, appLookupParams);
-          }
+        const appLookupParams = await getAppLookupParamsFromContextAsync(ctx, gradleContext);
+        const appCredentials = await ctx.android.getAndroidAppCredentialsWithCommonFieldsAsync(
+          appLookupParams
+        );
+        if (!appCredentials) {
+          displayEmptyAndroidCredentials(appLookupParams);
+        } else {
+          displayAndroidAppCredentials({ appLookupParams, appCredentials });
         }
+
+        // copy legacy credentials if user is new to EAS and has legacy credentials
+        const canCopyLegacyCredentials = await canCopyLegacyCredentialsAsync(ctx, appLookupParams);
+        if (canCopyLegacyCredentials) {
+          await promptUserAndCopyLegacyCredentialsAsync(ctx, appLookupParams);
+        }
+
         const { action: chosenAction } = await promptAsync({
           type: 'select',
           name: 'action',
@@ -138,7 +131,6 @@ export class ManageAndroid {
     ctx: CredentialsContext,
     buildProfile: BuildProfile<Platform.ANDROID>
   ): Promise<GradleBuildContext | undefined> {
-    assert(ctx.hasProjectContext, 'createProjectContextAsync: must have project context.');
     return await resolveGradleBuildContextAsync(ctx.projectDir, buildProfile);
   }
 
@@ -147,10 +139,6 @@ export class ManageAndroid {
     action: AndroidActionType,
     gradleContext?: GradleBuildContext
   ): Promise<void> {
-    assert(
-      ctx.hasProjectContext,
-      'You must be in your project directory in order to perform this action'
-    );
     const appLookupParams = await getAppLookupParamsFromContextAsync(ctx, gradleContext);
     if (action === AndroidActionType.CreateKeystore) {
       const selectBuildCredentialsResult = await new SelectAndroidBuildCredentials(

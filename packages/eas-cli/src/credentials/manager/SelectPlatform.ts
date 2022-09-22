@@ -7,7 +7,7 @@ import { ManageIos } from './ManageIos';
 export class SelectPlatform {
   constructor(
     public readonly actor: Actor,
-    public readonly projectInfo: CredentialsContextProjectInfo | null,
+    public readonly projectInfo: CredentialsContextProjectInfo,
     private readonly flagPlatform?: string
   ) {}
 
