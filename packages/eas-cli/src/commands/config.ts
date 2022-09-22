@@ -4,10 +4,7 @@ import { EasJsonAccessor, EasJsonUtils } from '@expo/eas-json';
 import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 
-import EasCommand, {
-  CommandConfiguration,
-  EASCommandDynamicProjectConfigContext,
-} from '../commandUtils/EasCommand';
+import EasCommand, { EASCommandDynamicProjectConfigContext } from '../commandUtils/EasCommand';
 import { toAppPlatform } from '../graphql/types/AppPlatform';
 import Log from '../log';
 import { appPlatformEmojis } from '../platform';
@@ -29,10 +26,6 @@ export default class Config extends EasCommand {
 
   static override contextDefinition = {
     ...EASCommandDynamicProjectConfigContext,
-  };
-
-  protected override commandConfiguration: CommandConfiguration = {
-    allowUnauthenticated: true,
   };
 
   async runAsync(): Promise<void> {
