@@ -9,7 +9,7 @@ import {
 } from '../../../graphql/generated';
 import { getOwnerAccountForProjectIdAsync, getProjectIdAsync } from '../../../project/projectUtils';
 import { CredentialsContext } from '../../context';
-import { AppLookupParams } from '../api/GraphqlClient';
+import { AppLookupParams } from '../api/graphql/types/AppLookupParams';
 import { App, Target } from '../types';
 import { resolveAppleTeamIfAuthenticatedAsync } from './AppleTeamUtils';
 

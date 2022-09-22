@@ -9,7 +9,7 @@ import { Account } from '../../../user/Account';
 import { fromNow } from '../../../utils/date';
 import { CredentialsContext } from '../../context';
 import { askForUserProvidedAsync } from '../../utils/promptForCredentials';
-import { AppLookupParams } from '../api/GraphqlClient';
+import { AppLookupParams } from '../api/graphql/types/AppLookupParams';
 import {
   DistributionCertificate,
   DistributionCertificateStoreInfo,

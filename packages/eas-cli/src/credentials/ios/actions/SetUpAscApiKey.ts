@@ -12,7 +12,7 @@ import {
   MissingCredentialsNonInteractiveError,
   UnsupportedCredentialsChoiceError,
 } from '../../errors';
-import { AppLookupParams } from '../api/GraphqlClient';
+import { AppLookupParams } from '../api/graphql/types/AppLookupParams';
 import { getValidAndTrackedAscApiKeysAsync } from '../validators/validateAscApiKey';
 import {
   AppStoreApiKeyPurpose,

@@ -18,7 +18,7 @@ import { confirmAsync, pressAnyKeyToContinueAsync, promptAsync } from '../../../
 import differenceBy from '../../../utils/expodash/differenceBy';
 import { CredentialsContext } from '../../context';
 import { MissingCredentialsNonInteractiveError } from '../../errors';
-import { AppLookupParams } from '../api/GraphqlClient';
+import { AppLookupParams } from '../api/graphql/types/AppLookupParams';
 import { ApplePlatform } from '../appstore/constants';
 import { Target } from '../types';
 import { validateProvisioningProfileAsync } from '../validators/validateProvisioningProfile';

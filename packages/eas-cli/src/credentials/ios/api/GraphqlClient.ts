@@ -45,13 +45,7 @@ import {
 import { ApplePushKeyQuery } from './graphql/queries/ApplePushKeyQuery';
 import { AppleTeamQuery } from './graphql/queries/AppleTeamQuery';
 import { IosAppCredentialsQuery } from './graphql/queries/IosAppCredentialsQuery';
-
-export interface AppLookupParams {
-  account: Account;
-  projectName: string;
-  bundleIdentifier: string;
-  parentBundleIdentifier?: string;
-}
+import { AppLookupParams } from './graphql/types/AppLookupParams';
 
 async function getAppAsync(appLookupParams: AppLookupParams): Promise<AppFragment> {
   const projectFullName = formatProjectFullName(appLookupParams);

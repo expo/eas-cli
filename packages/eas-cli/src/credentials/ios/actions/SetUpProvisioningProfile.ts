@@ -10,7 +10,7 @@ import { getApplePlatformFromSdkRoot } from '../../../project/ios/target';
 import { confirmAsync } from '../../../prompts';
 import { CredentialsContext } from '../../context';
 import { MissingCredentialsNonInteractiveError } from '../../errors';
-import { AppLookupParams } from '../api/GraphqlClient';
+import { AppLookupParams } from '../api/graphql/types/AppLookupParams';
 import { ProvisioningProfileStoreInfo } from '../appstore/Credentials.types';
 import { Target } from '../types';
 import { validateProvisioningProfileAsync } from '../validators/validateProvisioningProfile';

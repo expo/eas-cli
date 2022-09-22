@@ -8,7 +8,7 @@ import { IosAppBuildCredentialsFragment, IosDistributionType } from '../../../gr
 import Log from '../../../log';
 import { getApplePlatformFromSdkRoot } from '../../../project/ios/target';
 import { CredentialsContext } from '../../context';
-import { AppLookupParams } from '../api/GraphqlClient';
+import { AppLookupParams } from '../api/graphql/types/AppLookupParams';
 import { ProfileClass } from '../appstore/provisioningProfile';
 import { Target } from '../types';
 import { getP12CertFingerprint } from '../utils/p12Certificate';

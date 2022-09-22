@@ -7,7 +7,7 @@ import {
 } from '../../../graphql/generated';
 import Log from '../../../log';
 import { CredentialsContext } from '../../context';
-import { AppLookupParams as GraphQLAppLookupParams } from '../api/GraphqlClient';
+import { AppLookupParams as GraphQLAppLookupParams } from '../api/graphql/types/AppLookupParams';
 import { Target } from '../types';
 import { SetUpAdhocProvisioningProfile } from './SetUpAdhocProvisioningProfile';
 import { SetUpInternalProvisioningProfile } from './SetUpInternalProvisioningProfile';
