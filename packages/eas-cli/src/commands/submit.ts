@@ -5,6 +5,7 @@ import chalk from 'chalk';
 import EasCommand, {
   EASCommandDynamicProjectConfigContext,
   EASCommandLoggedInContext,
+  EASCommandProjectDirContext,
 } from '../commandUtils/EasCommand';
 import { StatuspageServiceName, SubmissionFragment } from '../graphql/generated';
 import { toAppPlatform } from '../graphql/types/AppPlatform';
@@ -16,7 +17,6 @@ import {
   selectRequestedPlatformAsync,
   toPlatforms,
 } from '../platform';
-import { findProjectRootAsync } from '../project/projectUtils';
 import { SubmitArchiveFlags, createSubmissionContextAsync } from '../submit/context';
 import {
   exitWithNonZeroCodeIfSomeSubmissionsDidntFinish,
@@ -96,17 +96,16 @@ export default class Submit extends EasCommand {
   static override contextDefinition = {
     ...EASCommandLoggedInContext,
     ...EASCommandDynamicProjectConfigContext,
+    ...EASCommandProjectDirContext,
   };
 
   async runAsync(): Promise<void> {
     const { flags: rawFlags } = await this.parse(Submit);
-    const { actor, getDynamicProjectConfigAsync } = await this.getContextAsync(Submit, {
+    const { actor, getDynamicProjectConfigAsync, projectDir } = await this.getContextAsync(Submit, {
       nonInteractive: false,
     });
 
     const flags = this.sanitizeFlags(rawFlags);
-
-    const projectDir = await findProjectRootAsync();
 
     await maybeWarnAboutEasOutagesAsync([StatuspageServiceName.EasSubmit]);
 

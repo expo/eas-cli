@@ -28,7 +28,6 @@ import { UpdateQuery } from '../../graphql/queries/UpdateQuery';
 import Log, { learnMore, link } from '../../log';
 import { ora } from '../../ora';
 import {
-  findProjectRootAsync,
   getOwnerAccountForProjectIdAsync,
   installExpoUpdatesAsync,
   isExpoUpdatesInstalledOrAvailable,
@@ -199,8 +198,7 @@ export default class UpdatePublish extends EasCommand {
     // If a group was specified, that means we are republishing it.
     republish = republish || !!group;
 
-    const projectDir = await findProjectRootAsync();
-    const { exp, projectId } = await getDynamicProjectConfigAsync({
+    const { exp, projectId, projectDir } = await getDynamicProjectConfigAsync({
       isPublicConfig: true,
     });
 

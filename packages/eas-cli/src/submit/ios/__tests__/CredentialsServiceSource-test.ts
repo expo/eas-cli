@@ -55,7 +55,11 @@ describe(getFromCredentialsServiceAsync, () => {
       },
       nonInteractive: false,
       actor: mockJester,
-      getDynamicProjectConfigAsync: async () => ({ exp: testProject.appJSON.expo, projectId }),
+      getDynamicProjectConfigAsync: async () => ({
+        exp: testProject.appJSON.expo,
+        projectId,
+        projectDir: testProject.projectRoot,
+      }),
     });
     jest
       .spyOn(SetUpSubmissionCredentials.prototype, 'runAsync')
@@ -83,7 +87,11 @@ describe(getFromCredentialsServiceAsync, () => {
       },
       nonInteractive: true,
       actor: mockJester,
-      getDynamicProjectConfigAsync: async () => ({ exp: testProject.appJSON.expo, projectId }),
+      getDynamicProjectConfigAsync: async () => ({
+        exp: testProject.appJSON.expo,
+        projectId,
+        projectDir: testProject.projectRoot,
+      }),
     });
     jest
       .spyOn(SetUpSubmissionCredentials.prototype, 'runAsync')

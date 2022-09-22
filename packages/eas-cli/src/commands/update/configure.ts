@@ -5,12 +5,14 @@ import assert from 'assert';
 import chalk from 'chalk';
 
 import { getEASUpdateURL } from '../../api';
-import EasCommand, { EASCommandProjectConfigContext } from '../../commandUtils/EasCommand';
+import EasCommand, {
+  EASCommandProjectConfigContext,
+  EASCommandProjectDirContext,
+} from '../../commandUtils/EasCommand';
 import { AppPlatform } from '../../graphql/generated';
 import Log, { learnMore } from '../../log';
 import { RequestedPlatform, appPlatformDisplayNames } from '../../platform';
 import {
-  findProjectRootAsync,
   installExpoUpdatesAsync,
   isExpoUpdatesInstalledOrAvailable,
 } from '../../project/projectUtils';
@@ -35,6 +37,7 @@ export default class UpdateConfigure extends EasCommand {
 
   static override contextDefinition = {
     ...EASCommandProjectConfigContext,
+    ...EASCommandProjectDirContext,
   };
 
   async runAsync(): Promise<void> {
@@ -44,11 +47,11 @@ export default class UpdateConfigure extends EasCommand {
     const { flags } = await this.parse(UpdateConfigure);
     const {
       projectConfig: { projectId, exp },
+      projectDir,
     } = await this.getContextAsync(UpdateConfigure, {
       nonInteractive: true,
     });
     const platform = flags.platform as RequestedPlatform;
-    const projectDir = await findProjectRootAsync();
 
     if (!isExpoUpdatesInstalledOrAvailable(projectDir, exp.sdkVersion)) {
       await installExpoUpdatesAsync(projectDir);
