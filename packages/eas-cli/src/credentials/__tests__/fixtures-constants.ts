@@ -1,10 +1,14 @@
 import { AppFragment, Role } from '../../graphql/generated';
-import { Actor } from '../../user/User';
 
-export const jester: Actor = {
-  __typename: 'User',
+export const jester = {
+  __typename: 'User' as const,
   id: 'jester-id',
   username: 'jester',
+  primaryAccount: {
+    id: 'jester-account-id',
+    name: 'jester',
+    users: [{ role: Role.Admin, actor: { id: 'jester-id' } }],
+  },
   accounts: [
     {
       id: 'jester-account-id',
@@ -20,7 +24,7 @@ export const jester: Actor = {
   isExpoAdmin: false,
 };
 
-export const jester2: Actor = {
+export const jester2 = {
   __typename: 'User',
   id: 'jester2-id',
   username: 'jester2',

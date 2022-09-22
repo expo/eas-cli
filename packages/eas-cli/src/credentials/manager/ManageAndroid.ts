@@ -4,10 +4,9 @@ import assert from 'assert';
 
 import Log, { learnMore } from '../../log';
 import { GradleBuildContext, resolveGradleBuildContextAsync } from '../../project/android/gradle';
-import { getOwnerAccountForProjectIdAsync, getProjectIdAsync } from '../../project/projectUtils';
+import { getProjectIdAsync } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
-import { findAccountByName } from '../../user/Account';
-import { ensureActorHasUsername, ensureLoggedInAsync } from '../../user/actions';
+import { ensureLoggedInAsync } from '../../user/actions';
 import { AssignFcm } from '../android/actions/AssignFcm';
 import { AssignGoogleServiceAccountKey } from '../android/actions/AssignGoogleServiceAccountKey';
 import {
@@ -62,19 +61,6 @@ export class ManageAndroid {
       env: buildProfile?.env,
       nonInteractive: false,
     });
-
-    const getAccountNameForProjectAsync = async (): Promise<string> => {
-      const projectId = await getProjectIdAsync(ctx.exp, { nonInteractive: false });
-      return (await getOwnerAccountForProjectIdAsync(projectId)).name;
-    };
-
-    const accountName = ctx.hasProjectContext
-      ? await getAccountNameForProjectAsync()
-      : ensureActorHasUsername(ctx.user);
-    const account = findAccountByName(ctx.user.accounts, accountName);
-    if (!account) {
-      throw new Error(`You do not have access to account: ${accountName}`);
-    }
 
     let gradleContext;
     if (ctx.hasProjectContext) {

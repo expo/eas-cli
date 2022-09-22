@@ -1,6 +1,7 @@
 import fs from 'fs-extra';
 import { vol } from 'memfs';
 
+import { Role } from '../../graphql/generated';
 import { getStateJsonPath } from '../../utils/paths';
 import {
   Actor,
@@ -42,7 +43,18 @@ const userStub: Actor = {
   __typename: 'User',
   id: 'userId',
   username: 'username',
-  accounts: [],
+  primaryAccount: {
+    id: 'account_id_777',
+    name: 'username',
+    users: [{ role: Role.Owner, actor: { id: 'userId' } }],
+  },
+  accounts: [
+    {
+      id: 'account_id_777',
+      name: 'username',
+      users: [{ role: Role.Owner, actor: { id: 'userId' } }],
+    },
+  ],
   isExpoAdmin: false,
 };
 

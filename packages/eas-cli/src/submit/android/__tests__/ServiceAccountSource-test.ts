@@ -27,9 +27,6 @@ jest.mock('../../../credentials/android/actions/SetUpGoogleServiceAccountKey');
 jest.mock('../../../user/User', () => ({
   getUserAsync: jest.fn(() => mockJester),
 }));
-jest.mock('../../../user/Account', () => ({
-  findAccountByName: jest.fn(() => mockJester.accounts[0]),
-}));
 
 const testProject = createTestProject(testProjectId, mockJester.accounts[0].name, {
   android: {

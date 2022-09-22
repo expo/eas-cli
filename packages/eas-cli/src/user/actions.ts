@@ -3,6 +3,7 @@ import chalk from 'chalk';
 import nullthrows from 'nullthrows';
 
 import { ApiV2Error } from '../api';
+import { AccountFragment } from '../graphql/generated';
 import Log, { learnMore } from '../log';
 import { promptAsync } from '../prompts';
 import { Actor, getUserAsync, loginAsync } from './User';
@@ -77,9 +78,9 @@ export async function ensureLoggedInAsync({
   return nullthrows(user);
 }
 
-export function ensureActorHasUsername(user: Actor): string {
+export function ensureActorHasPrimaryAccount(user: Actor): AccountFragment {
   if (user.__typename === 'User') {
-    return user.username;
+    return user.primaryAccount;
   }
   throw new Error('This action is not supported for robot users.');
 }

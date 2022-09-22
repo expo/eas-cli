@@ -15,7 +15,6 @@ import {
 } from '../../project/android/applicationId';
 import { resolveGradleBuildContextAsync } from '../../project/android/gradle';
 import { toggleConfirmAsync } from '../../prompts';
-import { findAccountByName } from '../../user/Account';
 import {
   BuildRequestSender,
   CredentialsResult,
@@ -137,7 +136,7 @@ async function ensureAndroidCredentialsAsync(
   const provider = new AndroidCredentialsProvider(ctx.credentialsCtx, {
     app: {
       account: nullthrows(
-        findAccountByName(ctx.user.accounts, ctx.accountName),
+        ctx.user.accounts.find(a => a.name === ctx.accountName),
         `You do not have access to account: ${ctx.accountName}`
       ),
       projectName: ctx.projectName,

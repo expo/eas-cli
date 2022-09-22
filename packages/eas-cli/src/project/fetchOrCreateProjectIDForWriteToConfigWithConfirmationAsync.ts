@@ -7,7 +7,6 @@ import { AppMutation } from '../graphql/mutations/AppMutation';
 import { AppQuery } from '../graphql/queries/AppQuery';
 import { ora } from '../ora';
 import { confirmAsync } from '../prompts';
-import { findAccountByName } from '../user/Account';
 import { ensureLoggedInAsync } from '../user/actions';
 
 /**
@@ -42,7 +41,7 @@ export async function fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsyn
       .filter(a => a.users.find(it => it.actor.id === actor.id)?.role !== Role.ViewOnly)
       .map(it => it.name)
   );
-  const account = findAccountByName(allAccounts, accountName);
+  const account = allAccounts.find(a => a.name === accountName);
   if (!account) {
     throw new Error(
       `You must have access to the ${accountName} account to configure this EAS project.`
