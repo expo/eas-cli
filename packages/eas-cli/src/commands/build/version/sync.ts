@@ -8,6 +8,7 @@ import { updateNativeVersionsAsync as updateAndroidNativeVersionsAsync } from '.
 import { updateNativeVersionsAsync as updateIosNativeVersionsAsync } from '../../../build/ios/version';
 import EasCommand, {
   EASCommandLoggedInContext,
+  EASCommandProjectDirContext,
   EASCommandProjectIdContext,
 } from '../../../commandUtils/EasCommand';
 import { AppVersionQuery } from '../../../graphql/queries/AppVersionQuery';
@@ -25,7 +26,6 @@ import { getExpoConfig } from '../../../project/expoConfig';
 import { resolveXcodeBuildContextAsync } from '../../../project/ios/scheme';
 import { resolveTargetsAsync } from '../../../project/ios/target';
 import { BUILD_NUMBER_REQUIREMENTS, isValidBuildNumber } from '../../../project/ios/versions';
-import { findProjectRootAsync } from '../../../project/projectUtils';
 import {
   ensureVersionSourceIsRemoteAsync,
   getBuildVersionName,
@@ -62,14 +62,14 @@ export default class BuildVersionSyncView extends EasCommand {
   static override contextDefinition = {
     ...EASCommandLoggedInContext,
     ...EASCommandProjectIdContext,
+    ...EASCommandProjectDirContext,
   };
 
   public async runAsync(): Promise<void> {
     const { flags } = await this.parse(BuildVersionSyncView);
-    const { actor, projectId } = await this.getContextAsync(BuildVersionSyncView, {
+    const { actor, projectId, projectDir } = await this.getContextAsync(BuildVersionSyncView, {
       nonInteractive: true,
     });
-    const projectDir = await findProjectRootAsync();
 
     const requestedPlatform = await selectRequestedPlatformAsync(flags.platform);
     const easJsonAccessor = new EasJsonAccessor(projectDir);

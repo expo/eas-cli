@@ -6,6 +6,7 @@ import path from 'path';
 import { ensureProjectConfiguredAsync } from '../../build/configure';
 import EasCommand, {
   EASCommandLoggedInContext,
+  EASCommandProjectDirContext,
   EASCommandProjectIdContext,
 } from '../../commandUtils/EasCommand';
 import { CredentialsContext } from '../../credentials/context';
@@ -13,7 +14,6 @@ import Log, { learnMore } from '../../log';
 import { createMetadataContextAsync } from '../../metadata/context';
 import { downloadMetadataAsync } from '../../metadata/download';
 import { handleMetadataError } from '../../metadata/errors';
-import { findProjectRootAsync } from '../../project/projectUtils';
 
 export default class MetadataPull extends EasCommand {
   static override description = 'generate the local store configuration from the app stores';
@@ -29,17 +29,17 @@ export default class MetadataPull extends EasCommand {
   static override contextDefinition = {
     ...EASCommandProjectIdContext,
     ...EASCommandLoggedInContext,
+    ...EASCommandProjectDirContext,
   };
 
   async runAsync(): Promise<void> {
     Log.warn('EAS Metadata is in beta and subject to breaking changes.');
 
     const { flags } = await this.parse(MetadataPull);
-    const { actor, projectId } = await this.getContextAsync(MetadataPull, {
+    const { actor, projectId, projectDir } = await this.getContextAsync(MetadataPull, {
       nonInteractive: false,
     });
 
-    const projectDir = await findProjectRootAsync();
     const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
 
     // this command is interactive (all nonInteractive flags passed to utility functions are false)

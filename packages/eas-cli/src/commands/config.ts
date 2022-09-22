@@ -4,12 +4,11 @@ import { EasJsonAccessor, EasJsonUtils } from '@expo/eas-json';
 import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 
-import EasCommand from '../commandUtils/EasCommand';
+import EasCommand, { EASCommandProjectDirContext } from '../commandUtils/EasCommand';
 import { toAppPlatform } from '../graphql/types/AppPlatform';
 import Log from '../log';
 import { appPlatformEmojis } from '../platform';
 import { getExpoConfig } from '../project/expoConfig';
-import { findProjectRootAsync } from '../project/projectUtils';
 import { selectAsync } from '../prompts';
 
 export default class Config extends EasCommand {
@@ -25,14 +24,19 @@ export default class Config extends EasCommand {
     }),
   };
 
+  static override contextDefinition = {
+    ...EASCommandProjectDirContext,
+  };
+
   async runAsync(): Promise<void> {
     const { flags } = await this.parse(Config);
+    const { projectDir } = await this.getContextAsync(Config, {
+      nonInteractive: false,
+    });
     const { platform: maybePlatform, profile: maybeProfile } = flags as {
       platform?: Platform;
       profile?: string;
     };
-
-    const projectDir = await findProjectRootAsync();
 
     const accessor = new EasJsonAccessor(projectDir);
     const profileName =

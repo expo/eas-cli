@@ -7,12 +7,12 @@ import { v4 as uuidv4 } from 'uuid';
 import { runBuildAndSubmitAsync } from '../../build/runBuildAndSubmit';
 import EasCommand, {
   EASCommandLoggedInContext,
+  EASCommandProjectDirContext,
   EASCommandProjectIdContext,
 } from '../../commandUtils/EasCommand';
 import Log from '../../log';
 import { ora } from '../../ora';
 import { RequestedPlatform } from '../../platform';
-import { findProjectRootAsync } from '../../project/projectUtils';
 import { getTmpDirectory } from '../../utils/paths';
 import { getVcsClient } from '../../vcs';
 
@@ -68,11 +68,12 @@ export default class BuildInspect extends EasCommand {
   static override contextDefinition = {
     ...EASCommandLoggedInContext,
     ...EASCommandProjectIdContext,
+    ...EASCommandProjectDirContext,
   };
 
   async runAsync(): Promise<void> {
     const { flags } = await this.parse(BuildInspect);
-    const { actor, projectId } = await this.getContextAsync(BuildInspect, {
+    const { actor, projectId, projectDir } = await this.getContextAsync(BuildInspect, {
       nonInteractive: false,
     });
 
@@ -93,7 +94,6 @@ export default class BuildInspect extends EasCommand {
       await vcs.makeShallowCopyAsync(tmpWorkingdir);
       await this.copyToOutputDirAsync(tmpWorkingdir, outputDirectory);
     } else {
-      const projectDir = await findProjectRootAsync();
       try {
         await runBuildAndSubmitAsync(
           projectDir,

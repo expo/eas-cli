@@ -10,7 +10,10 @@ import { getEASUpdateURL } from '../../api';
 import { selectBranchOnAppAsync } from '../../branch/queries';
 import { BranchNotFoundError, getDefaultBranchNameAsync } from '../../branch/utils';
 import { getUpdateGroupUrl } from '../../build/utils/url';
-import EasCommand, { EASCommandProjectIdContext } from '../../commandUtils/EasCommand';
+import EasCommand, {
+  EASCommandProjectDirContext,
+  EASCommandProjectIdContext,
+} from '../../commandUtils/EasCommand';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import { getPaginatedQueryOptions } from '../../commandUtils/pagination';
 import fetch from '../../fetch';
@@ -29,7 +32,6 @@ import Log, { learnMore, link } from '../../log';
 import { ora } from '../../ora';
 import { getExpoConfig } from '../../project/expoConfig';
 import {
-  findProjectRootAsync,
   getOwnerAccountForProjectIdAsync,
   installExpoUpdatesAsync,
   isExpoUpdatesInstalledOrAvailable,
@@ -170,6 +172,7 @@ export default class UpdatePublish extends EasCommand {
 
   static override contextDefinition = {
     ...EASCommandProjectIdContext,
+    ...EASCommandProjectDirContext,
   };
 
   async runAsync(): Promise<void> {
@@ -188,7 +191,7 @@ export default class UpdatePublish extends EasCommand {
       'non-interactive': nonInteractive,
       json: jsonFlag,
     } = flags;
-    const { projectId } = await this.getContextAsync(UpdatePublish, {
+    const { projectId, projectDir } = await this.getContextAsync(UpdatePublish, {
       nonInteractive,
     });
 
@@ -200,7 +203,6 @@ export default class UpdatePublish extends EasCommand {
     // If a group was specified, that means we are republishing it.
     republish = republish || !!group;
 
-    const projectDir = await findProjectRootAsync();
     const exp = getExpoConfig(projectDir, {
       isPublicConfig: true,
     });

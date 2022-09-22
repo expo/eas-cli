@@ -21,12 +21,70 @@ import { easCliVersion } from '../utils/easCli';
 import { setVcsClient } from '../vcs';
 import GitClient from '../vcs/clients/git';
 
-export interface CommandConfiguration {
-  /**
-   * Whether a command can be run outside of an Expo project directory.
-   * By default, all commands must be run inside an Expo project directory.
-   */
-  canRunOutsideProject?: boolean;
+async function applyCliConfigAsync(projectDir: string): Promise<void> {
+  const easJsonAccessor = new EasJsonAccessor(projectDir);
+  const config = await EasJsonUtils.getCliConfigAsync(easJsonAccessor);
+  if (config?.version && !semver.satisfies(easCliVersion, config.version)) {
+    throw new Error(
+      `You are on eas-cli@${easCliVersion} which does not satisfy the CLI version constraint in eas.json (${config.version})`
+    );
+  }
+  if (config?.requireCommit) {
+    setVcsClient(new GitClient());
+  }
+}
+
+async function ensureEasCliIsNotInDependenciesAsync(projectDir: string): Promise<void> {
+  let printCliVersionWarning = false;
+
+  const consoleWarn = (msg?: string): void => {
+    if (msg) {
+      // eslint-disable-next-line no-console
+      console.warn(chalk.yellow(msg));
+    } else {
+      // eslint-disable-next-line no-console
+      console.warn();
+    }
+  };
+
+  if (await isEasCliInDependenciesAsync(projectDir)) {
+    printCliVersionWarning = true;
+    consoleWarn(`Found ${chalk.bold('eas-cli')} in your project dependencies.`);
+  }
+
+  const maybeRepoRoot = PackageManagerUtils.findWorkspaceRoot(projectDir) ?? projectDir;
+  if (maybeRepoRoot !== projectDir && (await isEasCliInDependenciesAsync(maybeRepoRoot))) {
+    printCliVersionWarning = true;
+    consoleWarn(`Found ${chalk.bold('eas-cli')} in your monorepo dependencies.`);
+  }
+
+  if (printCliVersionWarning) {
+    consoleWarn(
+      `It's recommended to use the ${chalk.bold(
+        '"cli.version"'
+      )} field in eas.json to enforce the ${chalk.bold('eas-cli')} version for your project.`
+    );
+    consoleWarn(
+      learnMore('https://github.com/expo/eas-cli#enforcing-eas-cli-version-for-your-project')
+    );
+    consoleWarn();
+  }
+}
+
+async function isEasCliInDependenciesAsync(dir: string): Promise<boolean> {
+  const packageJsonPath = path.join(dir, 'package.json');
+  const packageJson = JSON.parse(await fs.readFile(packageJsonPath, 'utf8'));
+  return (
+    packageJson?.dependencies?.['eas-cli'] !== undefined ||
+    packageJson?.devDependencies?.['eas-cli'] !== undefined
+  );
+}
+
+async function findProjectDirAndVerifyProjectSetupAsync(): Promise<string> {
+  const projectDir = await findProjectRootAsync();
+  await applyCliConfigAsync(projectDir);
+  await ensureEasCliIsNotInDependenciesAsync(projectDir);
+  return projectDir;
 }
 
 export interface ContextOptions {
@@ -37,9 +95,15 @@ export abstract class ContextField<T> {
   abstract getValueAsync(options: ContextOptions): Promise<T>;
 }
 
+export class ProjectDirContextField extends ContextField<string> {
+  async getValueAsync(): Promise<string> {
+    return await findProjectDirAndVerifyProjectSetupAsync();
+  }
+}
+
 export class ProjectIdContextField extends ContextField<string> {
   async getValueAsync({ nonInteractive }: ContextOptions): Promise<string> {
-    const projectDir = await findProjectRootAsync();
+    const projectDir = await findProjectDirAndVerifyProjectSetupAsync();
     const exp = getExpoConfig(projectDir);
     return await getProjectIdAsync(exp, { nonInteractive });
   }
@@ -47,7 +111,7 @@ export class ProjectIdContextField extends ContextField<string> {
 
 export class OptionalProjectIdContextField extends ContextField<string | undefined> {
   async getValueAsync({ nonInteractive }: ContextOptions): Promise<string | undefined> {
-    const projectDir = await findProjectRootAsync();
+    const projectDir = await findProjectDirAndVerifyProjectSetupAsync();
     if (!projectDir) {
       return undefined;
     }
@@ -62,6 +126,10 @@ export class ActorContextField extends ContextField<Actor> {
     return await ensureLoggedInAsync({ nonInteractive });
   }
 }
+
+export const EASCommandProjectDirContext = {
+  projectDir: new ProjectDirContextField(),
+};
 
 export const EASCommandProjectIdContext = {
   projectId: new ProjectIdContextField(),
@@ -94,8 +162,6 @@ type ContextOutput<
 export default abstract class EasCommand extends Command {
   static contextDefinition: ContextInput = {};
 
-  protected commandConfiguration: CommandConfiguration = {};
-
   protected async getContextAsync<
     C extends {
       [name: string]: any;
@@ -121,12 +187,6 @@ export default abstract class EasCommand extends Command {
   async run(): Promise<any> {
     await initAnalyticsAsync();
 
-    if (!this.commandConfiguration.canRunOutsideProject) {
-      const projectDir = await findProjectRootAsync();
-      await this.applyCliConfigAsync(projectDir);
-      await this.ensureEasCliIsNotInDependenciesAsync(projectDir);
-    }
-
     // this is needed for logEvent call below as it identifies the user in the analytics system
     await getUserAsync();
     logEvent(AnalyticsEvent.ACTION, {
@@ -142,64 +202,5 @@ export default abstract class EasCommand extends Command {
   override async finally(err: Error): Promise<any> {
     await flushAnalyticsAsync();
     return super.finally(err);
-  }
-
-  private async applyCliConfigAsync(projectDir: string): Promise<void> {
-    const easJsonAccessor = new EasJsonAccessor(projectDir);
-    const config = await EasJsonUtils.getCliConfigAsync(easJsonAccessor);
-    if (config?.version && !semver.satisfies(easCliVersion, config.version)) {
-      throw new Error(
-        `You are on eas-cli@${easCliVersion} which does not satisfy the CLI version constraint in eas.json (${config.version})`
-      );
-    }
-    if (config?.requireCommit) {
-      setVcsClient(new GitClient());
-    }
-  }
-
-  private async ensureEasCliIsNotInDependenciesAsync(projectDir: string): Promise<void> {
-    let printCliVersionWarning = false;
-
-    const consoleWarn = (msg?: string): void => {
-      if (msg) {
-        // eslint-disable-next-line no-console
-        console.warn(chalk.yellow(msg));
-      } else {
-        // eslint-disable-next-line no-console
-        console.warn();
-      }
-    };
-
-    if (await this.isEasCliInDependenciesAsync(projectDir)) {
-      printCliVersionWarning = true;
-      consoleWarn(`Found ${chalk.bold('eas-cli')} in your project dependencies.`);
-    }
-
-    const maybeRepoRoot = PackageManagerUtils.findWorkspaceRoot(projectDir) ?? projectDir;
-    if (maybeRepoRoot !== projectDir && (await this.isEasCliInDependenciesAsync(maybeRepoRoot))) {
-      printCliVersionWarning = true;
-      consoleWarn(`Found ${chalk.bold('eas-cli')} in your monorepo dependencies.`);
-    }
-
-    if (printCliVersionWarning) {
-      consoleWarn(
-        `It's recommended to use the ${chalk.bold(
-          '"cli.version"'
-        )} field in eas.json to enforce the ${chalk.bold('eas-cli')} version for your project.`
-      );
-      consoleWarn(
-        learnMore('https://github.com/expo/eas-cli#enforcing-eas-cli-version-for-your-project')
-      );
-      consoleWarn();
-    }
-  }
-
-  private async isEasCliInDependenciesAsync(dir: string): Promise<boolean> {
-    const packageJsonPath = path.join(dir, 'package.json');
-    const packageJson = JSON.parse(await fs.readFile(packageJsonPath, 'utf8'));
-    return (
-      packageJson?.dependencies?.['eas-cli'] !== undefined ||
-      packageJson?.devDependencies?.['eas-cli'] !== undefined
-    );
   }
 }

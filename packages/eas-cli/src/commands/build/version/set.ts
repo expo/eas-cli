@@ -6,6 +6,7 @@ import chalk from 'chalk';
 
 import EasCommand, {
   EASCommandLoggedInContext,
+  EASCommandProjectDirContext,
   EASCommandProjectIdContext,
 } from '../../../commandUtils/EasCommand';
 import { AppVersionMutation } from '../../../graphql/mutations/AppVersionMutation';
@@ -17,10 +18,7 @@ import { VERSION_CODE_REQUIREMENTS, isValidVersionCode } from '../../../project/
 import { getApplicationIdentifierAsync } from '../../../project/applicationIdentifier';
 import { getExpoConfig } from '../../../project/expoConfig';
 import { BUILD_NUMBER_REQUIREMENTS, isValidBuildNumber } from '../../../project/ios/versions';
-import {
-  findProjectRootAsync,
-  getDisplayNameForProjectIdAsync,
-} from '../../../project/projectUtils';
+import { getDisplayNameForProjectIdAsync } from '../../../project/projectUtils';
 import {
   ensureVersionSourceIsRemoteAsync,
   getBuildVersionName,
@@ -47,15 +45,14 @@ export default class BuildVersionSetView extends EasCommand {
   static override contextDefinition = {
     ...EASCommandLoggedInContext,
     ...EASCommandProjectIdContext,
+    ...EASCommandProjectDirContext,
   };
 
   public async runAsync(): Promise<void> {
     const { flags } = await this.parse(BuildVersionSetView);
-    const { actor, projectId } = await this.getContextAsync(BuildVersionSetView, {
+    const { actor, projectId, projectDir } = await this.getContextAsync(BuildVersionSetView, {
       nonInteractive: false,
     });
-
-    const projectDir = await findProjectRootAsync();
 
     const platform = await selectPlatformAsync(flags.platform);
     const easJsonAccessor = new EasJsonAccessor(projectDir);
