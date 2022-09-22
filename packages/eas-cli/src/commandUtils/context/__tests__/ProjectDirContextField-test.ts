@@ -1,9 +1,11 @@
 import { vol } from 'memfs';
+import pkgDir from 'pkg-dir';
 
 import ProjectDirContextField from '../ProjectDirContextField';
 
 jest.mock('@expo/config');
 jest.mock('fs');
+jest.mock('pkg-dir');
 
 jest.mock('../../../prompts');
 
@@ -23,31 +25,13 @@ describe(ProjectDirContextField['findProjectRootAsync'], () => {
       },
       '/app'
     );
-    await expect(ProjectDirContextField['findProjectRootAsync']({ cwd: '/app' })).rejects.toThrow(
+    await expect(ProjectDirContextField['findProjectRootAsync']()).rejects.toThrow(
       'Run this command inside a project directory.'
     );
   });
 
-  it('defaults to process.cwd() if defaultToProcessCwd = true', async () => {
-    const spy = jest.spyOn(process, 'cwd').mockReturnValue('/this/is/fake/process/cwd');
-    try {
-      vol.fromJSON(
-        {
-          './README.md': '1',
-        },
-        '/app'
-      );
-      const projectDir = await ProjectDirContextField['findProjectRootAsync']({
-        cwd: '/app',
-        defaultToProcessCwd: true,
-      });
-      expect(projectDir).toBe('/this/is/fake/process/cwd');
-    } finally {
-      spy.mockRestore();
-    }
-  });
-
   it('returns the root directory of the project', async () => {
+    jest.mocked(pkgDir).mockResolvedValue('/app');
     vol.fromJSON(
       {
         './README.md': '1',
@@ -56,7 +40,7 @@ describe(ProjectDirContextField['findProjectRootAsync'], () => {
       },
       '/app'
     );
-    const projectRoot = await ProjectDirContextField['findProjectRootAsync']({ cwd: '/app/src' });
+    const projectRoot = await ProjectDirContextField['findProjectRootAsync']();
     expect(projectRoot).toBe('/app');
   });
 });

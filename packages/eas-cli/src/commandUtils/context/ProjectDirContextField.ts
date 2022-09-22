@@ -79,20 +79,10 @@ export default class ProjectDirContextField extends ContextField<string> {
   /**
    * Get the project root directory.
    */
-  private static async findProjectRootAsync({
-    cwd,
-    defaultToProcessCwd = false,
-  }: {
-    cwd?: string;
-    defaultToProcessCwd?: boolean;
-  } = {}): Promise<string> {
-    const projectRootDir = await pkgDir(cwd);
+  private static async findProjectRootAsync(): Promise<string> {
+    const projectRootDir = await pkgDir();
     if (!projectRootDir) {
-      if (!defaultToProcessCwd) {
-        throw new Error('Run this command inside a project directory.');
-      } else {
-        return process.cwd();
-      }
+      throw new Error('Run this command inside a project directory.');
     } else {
       let vcsRoot;
       try {
@@ -100,7 +90,7 @@ export default class ProjectDirContextField extends ContextField<string> {
       } catch {}
       if (vcsRoot && vcsRoot.startsWith(projectRootDir) && vcsRoot !== projectRootDir) {
         throw new Error(
-          `package.json is outside of the current git repository (project root: ${projectRootDir}, git root: ${vcsRoot}.`
+          `package.json is outside of the current git repository (project root: ${projectRootDir}, git root: ${vcsRoot}).`
         );
       }
       return projectRootDir;

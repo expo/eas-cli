@@ -1,6 +1,5 @@
 import { getProjectConfigDescription, modifyConfigAsync } from '@expo/config';
 import { ExpoConfig } from '@expo/config-types';
-import { Env } from '@expo/eas-build-job';
 import chalk from 'chalk';
 
 import Log from '../../log';
@@ -25,10 +24,9 @@ export default class ProjectIdContextField extends ContextField<string> {
    */
   private static async saveProjectIdToAppConfigAsync(
     projectDir: string,
-    projectId: string,
-    options: { env?: Env } = {}
+    projectId: string
   ): Promise<void> {
-    const exp = getExpoConfig(projectDir, options);
+    const exp = getExpoConfig(projectDir);
     const result = await modifyConfigAsync(projectDir, {
       extra: { ...exp.extra, eas: { ...exp.extra?.eas, projectId } },
     });
@@ -72,7 +70,7 @@ export default class ProjectIdContextField extends ContextField<string> {
    */
   private static async getProjectIdAsync(
     exp: ExpoConfig,
-    options: { env?: Env; nonInteractive: boolean }
+    options: { nonInteractive: boolean }
   ): Promise<string> {
     const localProjectId = exp.extra?.eas?.projectId;
     if (localProjectId) {
@@ -117,7 +115,7 @@ export default class ProjectIdContextField extends ContextField<string> {
 
     const spinner = ora(`Linking local project to EAS project ${projectId}`).start();
     try {
-      await this.saveProjectIdToAppConfigAsync(projectDir, projectId, options);
+      await this.saveProjectIdToAppConfigAsync(projectDir, projectId);
       spinner.succeed(`Linked local project to EAS project ${projectId}`);
     } catch (e: any) {
       spinner.fail();
