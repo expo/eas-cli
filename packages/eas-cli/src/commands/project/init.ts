@@ -8,13 +8,14 @@ import EasCommand, {
   EASCommandLoggedInContext,
   EASCommandProjectDirContext,
 } from '../../commandUtils/EasCommand';
+import ProjectIdContextField from '../../commandUtils/context/ProjectIdContextField';
 import { AppPrivacy, Role } from '../../graphql/generated';
 import { AppMutation } from '../../graphql/mutations/AppMutation';
 import Log from '../../log';
 import { ora } from '../../ora';
 import { getExpoConfig } from '../../project/expoConfig';
 import { findProjectIdByAccountNameAndSlugNullableAsync } from '../../project/fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync';
-import { saveProjectIdToAppConfigAsync, toAppPrivacy } from '../../project/projectUtils';
+import { toAppPrivacy } from '../../project/projectUtils';
 import { confirmAsync, promptAsync } from '../../prompts';
 import { Actor } from '../../user/User';
 
@@ -51,7 +52,7 @@ export default class ProjectInit extends EasCommand {
     projectDir: string,
     projectId: string
   ): Promise<void> {
-    await saveProjectIdToAppConfigAsync(projectDir, projectId);
+    await ProjectIdContextField['saveProjectIdToAppConfigAsync'](projectDir, projectId);
     Log.withTick(`Project successfully linked (ID: ${chalk.bold(projectId)}) (modified app.json)`);
   }
 
