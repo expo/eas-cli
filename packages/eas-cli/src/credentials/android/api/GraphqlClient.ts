@@ -1,4 +1,5 @@
 import {
+  AccountFragment,
   AndroidAppBuildCredentialsFragment,
   AndroidFcmFragment,
   AndroidFcmVersion,
@@ -8,7 +9,6 @@ import {
   GoogleServiceAccountKeyFragment,
 } from '../../../graphql/generated';
 import { AppQuery } from '../../../graphql/queries/AppQuery';
-import { Account } from '../../../user/Account';
 import { GoogleServiceAccountKey, KeystoreWithType } from '../credentials';
 import { AndroidAppBuildCredentialsMutation } from './graphql/mutations/AndroidAppBuildCredentialsMutation';
 import { AndroidAppCredentialsMutation } from './graphql/mutations/AndroidAppCredentialsMutation';
@@ -19,7 +19,7 @@ import { AndroidAppCredentialsQuery } from './graphql/queries/AndroidAppCredenti
 import { GoogleServiceAccountKeyQuery } from './graphql/queries/GoogleServiceAccountKeyQuery';
 
 export interface AppLookupParams {
-  account: Account;
+  account: AccountFragment;
   projectName: string;
   androidApplicationIdentifier: string; // 'android.package' field in app.json
 }
@@ -208,7 +208,7 @@ export async function createOrUpdateDefaultIosAppBuildCredentialsAsync(): Promis
 }
 
 export async function createKeystoreAsync(
-  account: Account,
+  account: AccountFragment,
   keystore: KeystoreWithType
 ): Promise<AndroidKeystoreFragment> {
   return await AndroidKeystoreMutation.createAndroidKeystoreAsync(
@@ -228,7 +228,7 @@ export async function deleteKeystoreAsync(keystore: AndroidKeystoreFragment): Pr
 }
 
 export async function createFcmAsync(
-  account: Account,
+  account: AccountFragment,
   fcmApiKey: string,
   version: AndroidFcmVersion
 ): Promise<AndroidFcmFragment> {
@@ -243,7 +243,7 @@ export async function deleteFcmAsync(fcm: AndroidFcmFragment): Promise<void> {
 }
 
 export async function createGoogleServiceAccountKeyAsync(
-  account: Account,
+  account: AccountFragment,
   jsonKey: GoogleServiceAccountKey
 ): Promise<GoogleServiceAccountKeyFragment> {
   return await GoogleServiceAccountKeyMutation.createGoogleServiceAccountKeyAsync(
@@ -261,7 +261,7 @@ export async function deleteGoogleServiceAccountKeyAsync(
 }
 
 export async function getGoogleServiceAccountKeysForAccountAsync(
-  account: Account
+  account: AccountFragment
 ): Promise<GoogleServiceAccountKeyFragment[]> {
   return await GoogleServiceAccountKeyQuery.getAllForAccountAsync(account.name);
 }

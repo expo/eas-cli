@@ -2,7 +2,7 @@ import prompts from 'prompts';
 import { instance, mock } from 'ts-mockito';
 
 import AppStoreApi from '../../../../credentials/ios/appstore/AppStoreApi';
-import { Account } from '../../../../user/Account';
+import { AccountFragment, Role } from '../../../../graphql/generated';
 import DeviceCreateAction, { RegistrationMethod } from '../action';
 import { runDeveloperPortalMethodAsync } from '../developerPortalMethod';
 import { runInputMethodAsync } from '../inputMethod';
@@ -32,9 +32,17 @@ describe(DeviceCreateAction, () => {
       const appStoreApiMock = mock<AppStoreApi>();
       const appStoreApi = instance(appStoreApiMock);
 
-      const account: Account = {
+      const account: AccountFragment = {
         id: 'account_id',
         name: 'foobar',
+        users: [
+          {
+            role: Role.Owner,
+            actor: {
+              id: 'user_id',
+            },
+          },
+        ],
       };
       const appleTeam = {
         id: 'apple-team-id',
@@ -54,9 +62,17 @@ describe(DeviceCreateAction, () => {
       const appStoreApiMock = mock<AppStoreApi>();
       const appStoreApi = instance(appStoreApiMock);
 
-      const account: Account = {
+      const account: AccountFragment = {
         id: 'account_id',
         name: 'foobar',
+        users: [
+          {
+            role: Role.Owner,
+            actor: {
+              id: 'user_id',
+            },
+          },
+        ],
       };
       const appleTeam = {
         id: 'apple-team-id',
@@ -76,9 +92,17 @@ describe(DeviceCreateAction, () => {
       const appStoreApiMock = mock<AppStoreApi>();
       const appStoreApi = instance(appStoreApiMock);
 
-      const account: Account = {
+      const account: AccountFragment = {
         id: 'account_id',
         name: 'foobar',
+        users: [
+          {
+            role: Role.Owner,
+            actor: {
+              id: 'user_id',
+            },
+          },
+        ],
       };
       const appleTeam = {
         id: 'apple-team-id',

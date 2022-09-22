@@ -1,9 +1,8 @@
 import chalk from 'chalk';
 
-import { ApplePushKeyFragment } from '../../../graphql/generated';
+import { AccountFragment, ApplePushKeyFragment } from '../../../graphql/generated';
 import Log, { learnMore } from '../../../log';
 import { confirmAsync, promptAsync } from '../../../prompts';
-import { Account } from '../../../user/Account';
 import { fromNow } from '../../../utils/date';
 import { CredentialsContext } from '../../context';
 import { askForUserProvidedAsync } from '../../utils/promptForCredentials';
@@ -114,7 +113,7 @@ function formatPushKeyFromApple(pushKey: PushKeyStoreInfo): string {
  * */
 export async function selectPushKeyAsync(
   ctx: CredentialsContext,
-  account: Account
+  account: AccountFragment
 ): Promise<ApplePushKeyFragment | null> {
   const pushKeysForAccount = await ctx.ios.getPushKeysForAccountAsync(account);
   if (pushKeysForAccount.length === 0) {

@@ -1,7 +1,6 @@
-import { AndroidKeystoreFragment } from '../../../graphql/generated';
+import { AccountFragment, AndroidKeystoreFragment } from '../../../graphql/generated';
 import Log from '../../../log';
 import { getProjectIdAsync } from '../../../project/projectUtils';
-import { Account } from '../../../user/Account';
 import { CredentialsContext } from '../../context';
 import { askForUserProvidedAsync } from '../../utils/promptForCredentials';
 import { KeystoreWithType, keystoreSchema } from '../credentials';
@@ -9,7 +8,7 @@ import { generateRandomKeystoreAsync } from '../utils/keystore';
 import { getKeystoreWithType, validateKeystore } from '../utils/keystoreNew';
 
 export class CreateKeystore {
-  constructor(private account: Account) {}
+  constructor(private account: AccountFragment) {}
 
   public async runAsync(ctx: CredentialsContext): Promise<AndroidKeystoreFragment> {
     if (ctx.nonInteractive) {

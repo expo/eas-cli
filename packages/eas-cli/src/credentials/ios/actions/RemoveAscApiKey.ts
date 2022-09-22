@@ -1,12 +1,11 @@
-import { AppStoreConnectApiKeyFragment } from '../../../graphql/generated';
+import { AccountFragment, AppStoreConnectApiKeyFragment } from '../../../graphql/generated';
 import Log from '../../../log';
 import { confirmAsync } from '../../../prompts';
-import { Account } from '../../../user/Account';
 import { CredentialsContext } from '../../context';
 import { selectAscApiKeysFromAccountAsync } from './AscApiKeyUtils';
 
 export class SelectAndRemoveAscApiKey {
-  constructor(private account: Account) {}
+  constructor(private account: AccountFragment) {}
 
   async runAsync(ctx: CredentialsContext): Promise<void> {
     const selected = await selectAscApiKeysFromAccountAsync(ctx, this.account);

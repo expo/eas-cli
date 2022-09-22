@@ -1,10 +1,9 @@
 import chalk from 'chalk';
 
 import AppStoreApi from '../../../credentials/ios/appstore/AppStoreApi';
-import { AppleTeam } from '../../../graphql/generated';
+import { AccountFragment, AppleTeam } from '../../../graphql/generated';
 import Log from '../../../log';
 import { promptAsync } from '../../../prompts';
-import { Account } from '../../../user/Account';
 import { runDeveloperPortalMethodAsync } from './developerPortalMethod';
 import { runInputMethodAsync } from './inputMethod';
 import { runRegistrationUrlMethodAsync } from './registrationUrlMethod';
@@ -19,7 +18,7 @@ export enum RegistrationMethod {
 export default class DeviceCreateAction {
   constructor(
     private appStoreApi: AppStoreApi,
-    private account: Account,
+    private account: AccountFragment,
     private appleTeam: Pick<AppleTeam, 'appleTeamIdentifier' | 'appleTeamName' | 'id'>
   ) {}
 

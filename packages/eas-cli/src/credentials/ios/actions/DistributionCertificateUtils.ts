@@ -2,10 +2,9 @@ import assert from 'assert';
 import chalk from 'chalk';
 import dateformat from 'dateformat';
 
-import { AppleDistributionCertificateFragment } from '../../../graphql/generated';
+import { AccountFragment, AppleDistributionCertificateFragment } from '../../../graphql/generated';
 import Log, { learnMore } from '../../../log';
 import { promptAsync } from '../../../prompts';
-import { Account } from '../../../user/Account';
 import { fromNow } from '../../../utils/date';
 import { CredentialsContext } from '../../context';
 import { askForUserProvidedAsync } from '../../utils/promptForCredentials';
@@ -85,7 +84,7 @@ async function selectDistributionCertificateAsync(
  * */
 export async function selectDistributionCertificateWithDependenciesAsync(
   ctx: CredentialsContext,
-  account: Account
+  account: AccountFragment
 ): Promise<AppleDistributionCertificateFragment | null> {
   const distCertsForAccount = await ctx.ios.getDistributionCertificatesForAccountAsync(account);
   if (distCertsForAccount.length === 0) {

@@ -14,7 +14,6 @@ import { resolveXcodeBuildContextAsync } from '../../project/ios/scheme';
 import { resolveTargetsAsync } from '../../project/ios/target';
 import { getOwnerAccountForProjectIdAsync, getProjectIdAsync } from '../../project/projectUtils';
 import { confirmAsync, promptAsync, selectAsync } from '../../prompts';
-import { Account } from '../../user/Account';
 import { ensureActorHasPrimaryAccount, ensureLoggedInAsync } from '../../user/actions';
 import { CredentialsContext } from '../context';
 import {
@@ -169,7 +168,7 @@ export class ManageIos {
 
   private async createProjectContextAsync(
     ctx: CredentialsContext,
-    account: Account,
+    account: AccountFragment,
     buildProfile: BuildProfile<Platform.IOS>
   ): Promise<{
     app: App;
@@ -203,7 +202,7 @@ export class ManageIos {
 
   private async runAccountSpecificActionAsync(
     ctx: CredentialsContext,
-    account: Account,
+    account: AccountFragment,
     action: IosActionType
   ): Promise<void> {
     if (action === IosActionType.RemoveDistributionCertificate) {

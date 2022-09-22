@@ -1,11 +1,10 @@
-import { AndroidFcmFragment, AndroidFcmVersion } from '../../../graphql/generated';
+import { AccountFragment, AndroidFcmFragment, AndroidFcmVersion } from '../../../graphql/generated';
 import Log from '../../../log';
 import { promptAsync } from '../../../prompts';
-import { Account } from '../../../user/Account';
 import { CredentialsContext } from '../../context';
 
 export class CreateFcm {
-  constructor(private account: Account) {}
+  constructor(private account: AccountFragment) {}
 
   public async runAsync(ctx: CredentialsContext): Promise<AndroidFcmFragment> {
     if (ctx.nonInteractive) {

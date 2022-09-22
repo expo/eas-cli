@@ -18,6 +18,7 @@ describe('print credentials', () => {
       account: {
         id: 'account-id',
         name: 'quinlanj',
+        users: [],
       },
       projectName: 'test52',
     };

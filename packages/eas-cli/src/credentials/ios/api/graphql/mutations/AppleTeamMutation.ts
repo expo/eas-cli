@@ -3,15 +3,16 @@ import gql from 'graphql-tag';
 
 import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
 import {
+  AccountFragment,
   AppleTeamFragment,
   AppleTeamInput,
   CreateAppleTeamMutation,
 } from '../../../../../graphql/generated';
+import { AccountFragmentNode } from '../../../../../graphql/types/Account';
 import { AppleTeamFragmentNode } from '../../../../../graphql/types/credentials/AppleTeam';
-import { Account } from '../../../../../user/Account';
 
 export type AppleTeamMutationResult = AppleTeamFragment & {
-  account: Account;
+  account: AccountFragment;
 };
 
 export const AppleTeamMutation = {
@@ -30,12 +31,13 @@ export const AppleTeamMutation = {
                   ...AppleTeamFragment
                   account {
                     id
-                    name
+                    ...AccountFragment
                   }
                 }
               }
             }
             ${print(AppleTeamFragmentNode)}
+            ${print(AccountFragmentNode)}
           `,
           {
             appleTeamInput,
