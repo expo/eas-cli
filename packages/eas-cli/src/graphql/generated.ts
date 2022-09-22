@@ -931,6 +931,7 @@ export type App = Project & {
   environmentSecrets: Array<EnvironmentSecret>;
   fullName: Scalars['String'];
   githubRepository?: Maybe<GitHubRepository>;
+  githubRepositorySettings?: Maybe<GitHubRepositorySettings>;
   /** githubUrl field from most recent classic update manifest */
   githubUrl?: Maybe<Scalars['String']>;
   /** Info about the icon specified in the most recent classic update manifest */
@@ -2232,6 +2233,12 @@ export type CreateGitHubRepositoryInput = {
   githubRepositoryIdentifier: Scalars['Int'];
 };
 
+export type CreateGitHubRepositorySettingsInput = {
+  appId: Scalars['ID'];
+  /** The base directory is the directory to change to before starting a build. This string should be a properly formatted Unix path starting with '/', './', or the name of the directory relative to the root of the repository. Valid examples include: '/apps/expo-app', './apps/expo-app', and 'apps/expo-app'. This is intended for monorepos or apps that live in a subdirectory of a repository. */
+  baseDirectory: Scalars['String'];
+};
+
 export type CreateIosSubmissionInput = {
   appId: Scalars['ID'];
   archiveUrl?: InputMaybe<Scalars['String']>;
@@ -2589,6 +2596,39 @@ export type GitHubRepositoryOwner = {
   id: Scalars['Int'];
   login: Scalars['String'];
   url: Scalars['String'];
+};
+
+export type GitHubRepositorySettings = {
+  __typename?: 'GitHubRepositorySettings';
+  app: App;
+  baseDirectory: Scalars['String'];
+  id: Scalars['ID'];
+};
+
+export type GitHubRepositorySettingsMutation = {
+  __typename?: 'GitHubRepositorySettingsMutation';
+  /** Create GitHub repository settings for an App */
+  createGitHubRepositorySettings: GitHubRepositorySettings;
+  /** Delete GitHub repository settings by ID */
+  deleteGitHubRepositorySettings: GitHubRepositorySettings;
+  /** Update GitHub repository settings */
+  updateGitHubRepositorySettings: GitHubRepositorySettings;
+};
+
+
+export type GitHubRepositorySettingsMutationCreateGitHubRepositorySettingsArgs = {
+  githubRepositorySettingsData: CreateGitHubRepositorySettingsInput;
+};
+
+
+export type GitHubRepositorySettingsMutationDeleteGitHubRepositorySettingsArgs = {
+  githubRepositorySettingsId: Scalars['ID'];
+};
+
+
+export type GitHubRepositorySettingsMutationUpdateGitHubRepositorySettingsArgs = {
+  githubRepositorySettingsData: UpdateGitHubRepositorySettingsInput;
+  githubRepositorySettingsId: Scalars['ID'];
 };
 
 export type GoogleServiceAccountKey = {
@@ -3347,6 +3387,8 @@ export type RootMutation = {
   githubAppInstallation: GitHubAppInstallationMutation;
   /** Mutations for GitHub repositories */
   githubRepository: GitHubRepositoryMutation;
+  /** Mutations for GitHub repository settings */
+  githubRepositorySettings: GitHubRepositorySettingsMutation;
   /** Mutations that modify a Google Service Account Key */
   googleServiceAccountKey: GoogleServiceAccountKeyMutation;
   /** Mutations that modify the build credentials for an iOS app */
@@ -3977,6 +4019,10 @@ export type UpdateChannelMutationDeleteUpdateChannelArgs = {
 export type UpdateChannelMutationEditUpdateChannelArgs = {
   branchMapping: Scalars['String'];
   channelId: Scalars['ID'];
+};
+
+export type UpdateGitHubRepositorySettingsInput = {
+  baseDirectory: Scalars['String'];
 };
 
 export type UpdateInfoGroup = {
@@ -5133,7 +5179,7 @@ export type ViewUpdateGroupsOnAppQuery = { __typename?: 'RootQuery', app: { __ty
 export type CurrentUserQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type CurrentUserQuery = { __typename?: 'RootQuery', meActor?: { __typename: 'Robot', firstName?: string | null, id: string, isExpoAdmin: boolean, accounts: Array<{ __typename?: 'Account', id: string, name: string }> } | { __typename: 'User', username: string, id: string, isExpoAdmin: boolean, accounts: Array<{ __typename?: 'Account', id: string, name: string }> } | null };
+export type CurrentUserQuery = { __typename?: 'RootQuery', meActor?: { __typename: 'Robot', firstName?: string | null, id: string, isExpoAdmin: boolean, accounts: Array<{ __typename?: 'Account', id: string, name: string, users: Array<{ __typename?: 'UserPermission', role?: Role | null, actor: { __typename?: 'Robot', id: string } | { __typename?: 'User', id: string } }> }> } | { __typename: 'User', username: string, id: string, isExpoAdmin: boolean, accounts: Array<{ __typename?: 'Account', id: string, name: string, users: Array<{ __typename?: 'UserPermission', role?: Role | null, actor: { __typename?: 'Robot', id: string } | { __typename?: 'User', id: string } }> }> } | null };
 
 export type WebhooksByAppIdQueryVariables = Exact<{
   appId: Scalars['String'];

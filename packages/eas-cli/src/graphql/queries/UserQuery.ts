@@ -22,6 +22,12 @@ export const UserQuery = {
                 accounts {
                   id
                   name
+                  users {
+                    actor {
+                      id
+                    }
+                    role
+                  }
                 }
                 isExpoAdmin
               }
