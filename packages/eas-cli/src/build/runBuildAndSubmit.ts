@@ -29,7 +29,10 @@ import {
 } from '../platform';
 import { checkExpoSdkIsSupportedAsync } from '../project/expoSdk';
 import { validateMetroConfigForManagedWorkflowAsync } from '../project/metroConfig';
-import { validateAppVersionRuntimePolicySupportAsync } from '../project/projectUtils';
+import {
+  getProjectIdAsync,
+  validateAppVersionRuntimePolicySupportAsync,
+} from '../project/projectUtils';
 import {
   validateAppConfigForRemoteVersionSource,
   validateBuildProfileVersionSettings,
@@ -41,6 +44,7 @@ import {
   waitToCompleteAsync as waitForSubmissionsToCompleteAsync,
 } from '../submit/submit';
 import { printSubmissionDetailsUrls } from '../submit/utils/urls';
+import { validateBuildProfileConfigMatchesProjectConfigAsync } from '../update/utils';
 import { printJsonOnlyOutput } from '../utils/json';
 import { ProfileData, getProfilesAsync } from '../utils/profiles';
 import { getVcsClient } from '../vcs';
@@ -258,6 +262,15 @@ async function prepareAndStartBuildAsync({
       )}`
     );
   }
+
+  const projectId = await getProjectIdAsync(buildCtx.exp, { nonInteractive: flags.nonInteractive });
+  await validateBuildProfileConfigMatchesProjectConfigAsync(
+    buildCtx.exp,
+    buildProfile,
+    projectId,
+    flags.nonInteractive
+  );
+
   await validateAppVersionRuntimePolicySupportAsync(buildCtx.projectDir, buildCtx.exp);
   if (easJsonCliConfig?.appVersionSource === AppVersionSource.REMOTE) {
     validateAppConfigForRemoteVersionSource(buildCtx.exp, buildProfile.platform);
