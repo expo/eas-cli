@@ -1,7 +1,6 @@
 import { ExpoChoice, confirmAsync, multiselectAsync, selectAsync } from '../prompts';
 import uniqBy from './expodash/uniqBy';
-
-const fetchMoreValue = '_fetchMore';
+import { PAGINATION_FETCH_MORE_VALUE } from './queryConstants';
 
 type BasePaginatedQueryArgs<QueryReturnType extends Record<string, any>> = {
   limit: number;
@@ -100,18 +99,18 @@ async function paginatedQueryWithSelectPromptInternalAsync<
     value: promptOptions.getIdentifierForQueryItem(queryItem),
   }));
   if (areMorePagesAvailable) {
-    selectionPromptListItems.push({ title: 'Next page...', value: fetchMoreValue });
+    selectionPromptListItems.push({ title: 'Next page...', value: PAGINATION_FETCH_MORE_VALUE });
   }
   if (selectionPromptListItems.length === 0) {
     return;
   }
 
-  const valueOfUserSelectedListItem = await selectAsync<string>(
+  const valueOfUserSelectedListItem = await selectAsync(
     promptOptions.title,
     selectionPromptListItems
   );
 
-  if (valueOfUserSelectedListItem === fetchMoreValue) {
+  if (valueOfUserSelectedListItem === PAGINATION_FETCH_MORE_VALUE) {
     return await paginatedQueryWithSelectPromptInternalAsync(
       {
         limit,
@@ -163,21 +162,21 @@ async function paginatedQueryWithMultiSelectPromptInternalAsync<
     selected: selectedIdsAccumulator.includes(promptOptions.getIdentifierForQueryItem(queryItem)),
   }));
   if (areMorePagesAvailable) {
-    selectionPromptListItems.push({ title: 'Next page...', value: fetchMoreValue });
+    selectionPromptListItems.push({ title: 'Next page...', value: PAGINATION_FETCH_MORE_VALUE });
   }
   if (selectionPromptListItems.length === 0) {
     return;
   }
 
-  const valueOfUserSelectedListItems = await multiselectAsync<string>(
+  const valueOfUserSelectedListItems = await multiselectAsync(
     promptOptions.title,
     selectionPromptListItems
   );
   const newSelectedIdsAccumulator = valueOfUserSelectedListItems.filter(
-    id => id !== fetchMoreValue
+    id => id !== PAGINATION_FETCH_MORE_VALUE
   );
 
-  if (valueOfUserSelectedListItems.includes(fetchMoreValue)) {
+  if (valueOfUserSelectedListItems.includes(PAGINATION_FETCH_MORE_VALUE)) {
     return await paginatedQueryWithMultiSelectPromptInternalAsync(
       {
         limit,

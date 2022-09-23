@@ -4,6 +4,7 @@ import {
   paginatedQueryWithMultiSelectPromptAsync,
   paginatedQueryWithSelectPromptAsync,
 } from '../queries';
+import { PAGINATION_FETCH_MORE_VALUE } from '../queryConstants';
 
 jest.mock('../../prompts', () => ({
   selectAsync: jest.fn(),
@@ -21,7 +22,7 @@ const mockRenderMethod = jest.fn();
 
 const selectMoreObject = {
   title: 'Next page...',
-  value: '_fetchMore',
+  value: PAGINATION_FETCH_MORE_VALUE,
 };
 
 function createPaginatedQueryResponse(
@@ -120,8 +121,8 @@ describe(paginatedQueryWithSelectPromptAsync.name, () => {
         );
       jest
         .mocked(selectAsync)
-        .mockResolvedValueOnce(selectMoreObject.value)
-        .mockResolvedValueOnce(selectMoreObject.value)
+        .mockResolvedValueOnce(PAGINATION_FETCH_MORE_VALUE)
+        .mockResolvedValueOnce(PAGINATION_FETCH_MORE_VALUE)
         .mockResolvedValueOnce(selectedItem.value);
 
       const selectedQueryItem = await paginatedQueryWithSelectPromptAsync({
@@ -201,8 +202,8 @@ describe(paginatedQueryWithMultiSelectPromptAsync.name, () => {
 
   it('carries over user selections to new pages', async () => {
     const selectionStates = [
-      ['first-2', 'first-3', selectMoreObject.value],
-      ['first-2', 'second-1', selectMoreObject.value],
+      ['first-2', 'first-3', PAGINATION_FETCH_MORE_VALUE],
+      ['first-2', 'second-1', PAGINATION_FETCH_MORE_VALUE],
       ['first-2', 'second-1', 'third-3'],
     ];
     const limit = 5;
