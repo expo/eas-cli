@@ -1,7 +1,7 @@
 import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 
-import EasCommand, { EASCommandProjectIdContext } from '../../commandUtils/EasCommand';
+import EasCommand, { EASCommandProjectConfigContext } from '../../commandUtils/EasCommand';
 import { WebhookType } from '../../graphql/generated';
 import { WebhookQuery } from '../../graphql/queries/WebhookQuery';
 import Log from '../../log';
@@ -20,14 +20,16 @@ export default class WebhookList extends EasCommand {
   };
 
   static override contextDefinition = {
-    ...EASCommandProjectIdContext,
+    ...EASCommandProjectConfigContext,
   };
 
   async runAsync(): Promise<void> {
     const {
       flags: { event },
     } = await this.parse(WebhookList);
-    const { projectId } = await this.getContextAsync(WebhookList, {
+    const {
+      projectConfig: { projectId },
+    } = await this.getContextAsync(WebhookList, {
       nonInteractive: true,
     });
 

@@ -1,7 +1,7 @@
 import chalk from 'chalk';
 import gql from 'graphql-tag';
 
-import EasCommand, { EASCommandProjectIdContext } from '../../commandUtils/EasCommand';
+import EasCommand, { EASCommandProjectConfigContext } from '../../commandUtils/EasCommand';
 import { EASNonInteractiveFlag } from '../../commandUtils/flags';
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
 import {
@@ -129,7 +129,7 @@ export default class BuildCancel extends EasCommand {
   };
 
   static override contextDefinition = {
-    ...EASCommandProjectIdContext,
+    ...EASCommandProjectConfigContext,
   };
 
   async runAsync(): Promise<void> {
@@ -137,7 +137,9 @@ export default class BuildCancel extends EasCommand {
       args: { BUILD_ID: buildIdFromArg },
       flags: { 'non-interactive': nonInteractive },
     } = await this.parse(BuildCancel);
-    const { projectId } = await this.getContextAsync(BuildCancel, {
+    const {
+      projectConfig: { projectId },
+    } = await this.getContextAsync(BuildCancel, {
       nonInteractive,
     });
 

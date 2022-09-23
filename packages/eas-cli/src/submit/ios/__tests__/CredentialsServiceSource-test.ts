@@ -32,10 +32,6 @@ const testProject = createTestProject(testProjectId, mockJester.accounts[0].name
     package: 'com.expo.test.project',
   },
 });
-const mockManifest = { exp: testProject.appJSON.expo };
-jest.mock('@expo/config', () => ({
-  getConfig: jest.fn(() => mockManifest),
-}));
 const projectId = uuidv4();
 
 beforeEach(() => {
@@ -51,7 +47,6 @@ describe(getFromCredentialsServiceAsync, () => {
     const ctx = await createSubmissionContextAsync({
       platform: Platform.IOS,
       projectDir: testProject.projectRoot,
-      projectId,
       archiveFlags: {
         url: 'http://expo.dev/fake.apk',
       },
@@ -60,6 +55,7 @@ describe(getFromCredentialsServiceAsync, () => {
       },
       nonInteractive: false,
       actor: mockJester,
+      getDynamicProjectConfigAsync: async () => ({ exp: testProject.appJSON.expo, projectId }),
     });
     jest
       .spyOn(SetUpSubmissionCredentials.prototype, 'runAsync')
@@ -79,7 +75,6 @@ describe(getFromCredentialsServiceAsync, () => {
     const ctx = await createSubmissionContextAsync({
       platform: Platform.IOS,
       projectDir: testProject.projectRoot,
-      projectId,
       archiveFlags: {
         url: 'http://expo.dev/fake.apk',
       },
@@ -88,6 +83,7 @@ describe(getFromCredentialsServiceAsync, () => {
       },
       nonInteractive: true,
       actor: mockJester,
+      getDynamicProjectConfigAsync: async () => ({ exp: testProject.appJSON.expo, projectId }),
     });
     jest
       .spyOn(SetUpSubmissionCredentials.prototype, 'runAsync')

@@ -1,5 +1,5 @@
 import { CHANNELS_LIMIT, listAndRenderChannelsOnAppAsync } from '../../channel/queries';
-import EasCommand, { EASCommandProjectIdContext } from '../../commandUtils/EasCommand';
+import EasCommand, { EASCommandProjectConfigContext } from '../../commandUtils/EasCommand';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import {
   EasPaginatedQueryFlags,
@@ -18,14 +18,16 @@ export default class ChannelList extends EasCommand {
   };
 
   static override contextDefinition = {
-    ...EASCommandProjectIdContext,
+    ...EASCommandProjectConfigContext,
   };
 
   async runAsync(): Promise<void> {
     const { flags } = await this.parse(ChannelList);
     const paginatedQueryOptions = getPaginatedQueryOptions(flags);
     const { json: jsonFlag, 'non-interactive': nonInteractive } = flags;
-    const { projectId } = await this.getContextAsync(ChannelList, {
+    const {
+      projectConfig: { projectId },
+    } = await this.getContextAsync(ChannelList, {
       nonInteractive,
     });
     if (jsonFlag) {

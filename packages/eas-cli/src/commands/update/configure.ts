@@ -5,11 +5,10 @@ import assert from 'assert';
 import chalk from 'chalk';
 
 import { getEASUpdateURL } from '../../api';
-import EasCommand, { EASCommandProjectIdContext } from '../../commandUtils/EasCommand';
+import EasCommand, { EASCommandProjectConfigContext } from '../../commandUtils/EasCommand';
 import { AppPlatform } from '../../graphql/generated';
 import Log, { learnMore } from '../../log';
 import { RequestedPlatform, appPlatformDisplayNames } from '../../platform';
-import { getExpoConfig } from '../../project/expoConfig';
 import {
   findProjectRootAsync,
   installExpoUpdatesAsync,
@@ -35,7 +34,7 @@ export default class UpdateConfigure extends EasCommand {
   };
 
   static override contextDefinition = {
-    ...EASCommandProjectIdContext,
+    ...EASCommandProjectConfigContext,
   };
 
   async runAsync(): Promise<void> {
@@ -43,12 +42,13 @@ export default class UpdateConfigure extends EasCommand {
       '💡 The following process will configure your project to run EAS Update. These changes only apply to your local project files and you can safely revert them at any time.'
     );
     const { flags } = await this.parse(UpdateConfigure);
-    const { projectId } = await this.getContextAsync(UpdateConfigure, {
+    const {
+      projectConfig: { projectId, exp },
+    } = await this.getContextAsync(UpdateConfigure, {
       nonInteractive: true,
     });
     const platform = flags.platform as RequestedPlatform;
     const projectDir = await findProjectRootAsync();
-    const exp = getExpoConfig(projectDir);
 
     if (!isExpoUpdatesInstalledOrAvailable(projectDir, exp.sdkVersion)) {
       await installExpoUpdatesAsync(projectDir);

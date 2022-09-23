@@ -1,7 +1,7 @@
 import { Flags } from '@oclif/core';
 
 import { selectBranchOnAppAsync } from '../../branch/queries';
-import EasCommand, { EASCommandProjectIdContext } from '../../commandUtils/EasCommand';
+import EasCommand, { EASCommandProjectConfigContext } from '../../commandUtils/EasCommand';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import {
   EasPaginatedQueryFlags,
@@ -33,13 +33,15 @@ export default class UpdateList extends EasCommand {
   };
 
   static override contextDefinition = {
-    ...EASCommandProjectIdContext,
+    ...EASCommandProjectConfigContext,
   };
 
   async runAsync(): Promise<void> {
     const { flags } = await this.parse(UpdateList);
     const { branch: branchFlag, all, json: jsonFlag, 'non-interactive': nonInteractive } = flags;
-    const { projectId } = await this.getContextAsync(UpdateList, {
+    const {
+      projectConfig: { projectId },
+    } = await this.getContextAsync(UpdateList, {
       nonInteractive,
     });
     const paginatedQueryOptions = getPaginatedQueryOptions(flags);

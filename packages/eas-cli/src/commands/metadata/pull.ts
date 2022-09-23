@@ -1,4 +1,3 @@
-import { getConfig } from '@expo/config';
 import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 import path from 'path';
@@ -6,7 +5,7 @@ import path from 'path';
 import { ensureProjectConfiguredAsync } from '../../build/configure';
 import EasCommand, {
   EASCommandLoggedInContext,
-  EASCommandProjectIdContext,
+  EASCommandProjectConfigContext,
 } from '../../commandUtils/EasCommand';
 import { CredentialsContext } from '../../credentials/context';
 import Log, { learnMore } from '../../log';
@@ -27,7 +26,7 @@ export default class MetadataPull extends EasCommand {
   };
 
   static override contextDefinition = {
-    ...EASCommandProjectIdContext,
+    ...EASCommandProjectConfigContext,
     ...EASCommandLoggedInContext,
   };
 
@@ -35,10 +34,14 @@ export default class MetadataPull extends EasCommand {
     Log.warn('EAS Metadata is in beta and subject to breaking changes.');
 
     const { flags } = await this.parse(MetadataPull);
-    const { actor } = await this.getContextAsync(MetadataPull, { nonInteractive: false });
+    const {
+      actor,
+      projectConfig: { exp },
+    } = await this.getContextAsync(MetadataPull, {
+      nonInteractive: false,
+    });
 
     const projectDir = await findProjectRootAsync();
-    const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
 
     // this command is interactive (all nonInteractive flags passed to utility functions are false)
     await ensureProjectConfiguredAsync({ projectDir, nonInteractive: false });

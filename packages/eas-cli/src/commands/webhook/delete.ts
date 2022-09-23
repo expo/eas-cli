@@ -2,7 +2,7 @@ import assert from 'assert';
 import chalk from 'chalk';
 import nullthrows from 'nullthrows';
 
-import EasCommand, { EASCommandProjectIdContext } from '../../commandUtils/EasCommand';
+import EasCommand, { EASCommandProjectConfigContext } from '../../commandUtils/EasCommand';
 import { EASNonInteractiveFlag } from '../../commandUtils/flags';
 import { WebhookFragment } from '../../graphql/generated';
 import { WebhookMutation } from '../../graphql/mutations/WebhookMutation';
@@ -28,7 +28,7 @@ export default class WebhookDelete extends EasCommand {
   };
 
   static override contextDefinition = {
-    ...EASCommandProjectIdContext,
+    ...EASCommandProjectConfigContext,
   };
 
   async runAsync(): Promise<void> {
@@ -36,7 +36,9 @@ export default class WebhookDelete extends EasCommand {
       args: { ID: webhookId },
       flags: { 'non-interactive': nonInteractive },
     } = await this.parse(WebhookDelete);
-    const { projectId } = await this.getContextAsync(WebhookDelete, {
+    const {
+      projectConfig: { projectId },
+    } = await this.getContextAsync(WebhookDelete, {
       nonInteractive,
     });
 

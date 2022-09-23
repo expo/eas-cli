@@ -5,8 +5,8 @@ import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 
 import EasCommand, {
+  EASCommandDynamicProjectConfigContext,
   EASCommandLoggedInContext,
-  EASCommandProjectIdContext,
 } from '../../../commandUtils/EasCommand';
 import { AppVersionMutation } from '../../../graphql/mutations/AppVersionMutation';
 import { AppVersionQuery } from '../../../graphql/queries/AppVersionQuery';
@@ -15,7 +15,6 @@ import Log from '../../../log';
 import { selectPlatformAsync } from '../../../platform';
 import { VERSION_CODE_REQUIREMENTS, isValidVersionCode } from '../../../project/android/versions';
 import { getApplicationIdentifierAsync } from '../../../project/applicationIdentifier';
-import { getExpoConfig } from '../../../project/expoConfig';
 import { BUILD_NUMBER_REQUIREMENTS, isValidBuildNumber } from '../../../project/ios/versions';
 import {
   findProjectRootAsync,
@@ -46,14 +45,17 @@ export default class BuildVersionSetView extends EasCommand {
 
   static override contextDefinition = {
     ...EASCommandLoggedInContext,
-    ...EASCommandProjectIdContext,
+    ...EASCommandDynamicProjectConfigContext,
   };
 
   public async runAsync(): Promise<void> {
     const { flags } = await this.parse(BuildVersionSetView);
-    const { actor, projectId } = await this.getContextAsync(BuildVersionSetView, {
-      nonInteractive: false,
-    });
+    const { actor, getDynamicProjectConfigAsync } = await this.getContextAsync(
+      BuildVersionSetView,
+      {
+        nonInteractive: false,
+      }
+    );
 
     const projectDir = await findProjectRootAsync();
 
@@ -66,7 +68,7 @@ export default class BuildVersionSetView extends EasCommand {
       flags.profile ?? undefined
     );
 
-    const exp = getExpoConfig(projectDir, { env: profile.env });
+    const { exp, projectId } = await getDynamicProjectConfigAsync({ env: profile.env });
     const displayName = await getDisplayNameForProjectIdAsync(projectId);
 
     validateAppConfigForRemoteVersionSource(exp, platform);

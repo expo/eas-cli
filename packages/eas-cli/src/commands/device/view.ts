@@ -1,4 +1,4 @@
-import EasCommand, { EASCommandProjectIdContext } from '../../commandUtils/EasCommand';
+import EasCommand, { EASCommandProjectConfigContext } from '../../commandUtils/EasCommand';
 import { AppleDeviceQuery } from '../../credentials/ios/api/graphql/queries/AppleDeviceQuery';
 import formatDevice from '../../devices/utils/formatDevice';
 import Log from '../../log';
@@ -11,7 +11,7 @@ export default class DeviceView extends EasCommand {
   static override args = [{ name: 'UDID' }];
 
   static override contextDefinition = {
-    ...EASCommandProjectIdContext,
+    ...EASCommandProjectConfigContext,
   };
 
   async runAsync(): Promise<void> {
@@ -30,7 +30,9 @@ If you are not sure what is the UDID of the device you are looking for, run:
       );
       throw new Error('Device UDID is missing');
     }
-    const { projectId } = await this.getContextAsync(DeviceView, {
+    const {
+      projectConfig: { projectId },
+    } = await this.getContextAsync(DeviceView, {
       nonInteractive: true,
     });
     const account = await getOwnerAccountForProjectIdAsync(projectId);

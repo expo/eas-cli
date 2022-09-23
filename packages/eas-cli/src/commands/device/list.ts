@@ -2,7 +2,7 @@ import { Flags } from '@oclif/core';
 import assert from 'assert';
 import chalk from 'chalk';
 
-import EasCommand, { EASCommandProjectIdContext } from '../../commandUtils/EasCommand';
+import EasCommand, { EASCommandProjectConfigContext } from '../../commandUtils/EasCommand';
 import { AppleDeviceQuery } from '../../credentials/ios/api/graphql/queries/AppleDeviceQuery';
 import { AppleTeamQuery } from '../../credentials/ios/api/graphql/queries/AppleTeamQuery';
 import formatDevice from '../../devices/utils/formatDevice';
@@ -19,12 +19,14 @@ export default class BuildList extends EasCommand {
   };
 
   static override contextDefinition = {
-    ...EASCommandProjectIdContext,
+    ...EASCommandProjectConfigContext,
   };
 
   async runAsync(): Promise<void> {
     let appleTeamIdentifier = (await this.parse(BuildList)).flags['apple-team-id'];
-    const { projectId } = await this.getContextAsync(BuildList, {
+    const {
+      projectConfig: { projectId },
+    } = await this.getContextAsync(BuildList, {
       nonInteractive: false,
     });
 

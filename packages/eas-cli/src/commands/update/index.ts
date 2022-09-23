@@ -10,7 +10,7 @@ import { getEASUpdateURL } from '../../api';
 import { selectBranchOnAppAsync } from '../../branch/queries';
 import { BranchNotFoundError, getDefaultBranchNameAsync } from '../../branch/utils';
 import { getUpdateGroupUrl } from '../../build/utils/url';
-import EasCommand, { EASCommandProjectIdContext } from '../../commandUtils/EasCommand';
+import EasCommand, { EASCommandDynamicProjectConfigContext } from '../../commandUtils/EasCommand';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import { getPaginatedQueryOptions } from '../../commandUtils/pagination';
 import fetch from '../../fetch';
@@ -27,7 +27,6 @@ import { BranchQuery } from '../../graphql/queries/BranchQuery';
 import { UpdateQuery } from '../../graphql/queries/UpdateQuery';
 import Log, { learnMore, link } from '../../log';
 import { ora } from '../../ora';
-import { getExpoConfig } from '../../project/expoConfig';
 import {
   findProjectRootAsync,
   getOwnerAccountForProjectIdAsync,
@@ -169,7 +168,7 @@ export default class UpdatePublish extends EasCommand {
   };
 
   static override contextDefinition = {
-    ...EASCommandProjectIdContext,
+    ...EASCommandDynamicProjectConfigContext,
   };
 
   async runAsync(): Promise<void> {
@@ -188,7 +187,7 @@ export default class UpdatePublish extends EasCommand {
       'non-interactive': nonInteractive,
       json: jsonFlag,
     } = flags;
-    const { projectId } = await this.getContextAsync(UpdatePublish, {
+    const { getDynamicProjectConfigAsync } = await this.getContextAsync(UpdatePublish, {
       nonInteractive,
     });
 
@@ -201,11 +200,11 @@ export default class UpdatePublish extends EasCommand {
     republish = republish || !!group;
 
     const projectDir = await findProjectRootAsync();
-    const exp = getExpoConfig(projectDir, {
+    const { exp, projectId } = await getDynamicProjectConfigAsync({
       isPublicConfig: true,
     });
 
-    const expPrivate = getExpoConfig(projectDir, {
+    const { exp: expPrivate } = await getDynamicProjectConfigAsync({
       isPublicConfig: false,
     });
 

@@ -1,25 +1,24 @@
 import openBrowserAsync from 'better-opn';
 
 import { getProjectDashboardUrl } from '../build/utils/url';
-import EasCommand, { EASCommandProjectIdContext } from '../commandUtils/EasCommand';
+import EasCommand, { EASCommandProjectConfigContext } from '../commandUtils/EasCommand';
 import { ora } from '../ora';
-import { getExpoConfig } from '../project/expoConfig';
-import { findProjectRootAsync, getOwnerAccountForProjectIdAsync } from '../project/projectUtils';
+import { getOwnerAccountForProjectIdAsync } from '../project/projectUtils';
 
 export default class Open extends EasCommand {
   static override description = 'open the project page in a web browser';
 
   static override contextDefinition = {
-    ...EASCommandProjectIdContext,
+    ...EASCommandProjectConfigContext,
   };
 
   async runAsync(): Promise<void> {
     // this command is interactive by nature (only really run by humans in a terminal)
-    const { projectId } = await this.getContextAsync(Open, {
+    const {
+      projectConfig: { projectId, exp },
+    } = await this.getContextAsync(Open, {
       nonInteractive: false,
     });
-    const projectDir = await findProjectRootAsync();
-    const exp = getExpoConfig(projectDir);
 
     const account = await getOwnerAccountForProjectIdAsync(projectId);
 

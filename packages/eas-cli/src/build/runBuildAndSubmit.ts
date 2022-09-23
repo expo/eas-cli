@@ -10,6 +10,7 @@ import {
 import chalk from 'chalk';
 import nullthrows from 'nullthrows';
 
+import { DynamicConfigContextFn } from '../commandUtils/EasCommand';
 import {
   AppPlatform,
   BuildFragment,
@@ -93,7 +94,7 @@ export async function runBuildAndSubmitAsync(
   projectDir: string,
   flags: BuildFlags,
   actor: Actor,
-  projectId: string
+  getDynamicProjectConfigAsync: DynamicConfigContextFn
 ): Promise<void> {
   await getVcsClient().ensureRepoExistsAsync();
   await ensureRepoIsCleanAsync(flags.nonInteractive);
@@ -142,7 +143,7 @@ export async function runBuildAndSubmitAsync(
         ],
       easJsonCliConfig,
       actor,
-      projectId,
+      getDynamicProjectConfigAsync,
     });
     if (maybeBuild) {
       startedBuilds.push({ build: maybeBuild, buildProfile });
@@ -180,6 +181,7 @@ export async function runBuildAndSubmitAsync(
         buildProfile: startedBuild.buildProfile.profile,
         submitProfile,
         nonInteractive: flags.nonInteractive,
+        getDynamicProjectConfigAsync,
       });
       startedBuild.build = await BuildQuery.withSubmissionsByIdAsync(startedBuild.build.id);
       submissions.push(submission);
@@ -237,7 +239,7 @@ async function prepareAndStartBuildAsync({
   resourceClass,
   easJsonCliConfig,
   actor,
-  projectId,
+  getDynamicProjectConfigAsync,
 }: {
   projectDir: string;
   flags: BuildFlags;
@@ -246,7 +248,7 @@ async function prepareAndStartBuildAsync({
   resourceClass: BuildResourceClass;
   easJsonCliConfig: EasJson['cli'];
   actor: Actor;
-  projectId: string;
+  getDynamicProjectConfigAsync: DynamicConfigContextFn;
 }): Promise<{ build: BuildFragment | undefined; buildCtx: BuildContext<Platform> }> {
   const buildCtx = await createBuildContextAsync({
     buildProfileName: buildProfile.profileName,
@@ -261,7 +263,7 @@ async function prepareAndStartBuildAsync({
     easJsonCliConfig,
     message: flags.message,
     actor,
-    projectId,
+    getDynamicProjectConfigAsync,
   });
 
   if (moreBuilds) {
@@ -321,6 +323,7 @@ async function prepareAndStartSubmissionAsync({
   buildProfile,
   submitProfile,
   nonInteractive,
+  getDynamicProjectConfigAsync,
 }: {
   build: BuildFragment;
   buildCtx: BuildContext<Platform>;
@@ -329,12 +332,12 @@ async function prepareAndStartSubmissionAsync({
   buildProfile: BuildProfile;
   submitProfile: SubmitProfile;
   nonInteractive: boolean;
+  getDynamicProjectConfigAsync: DynamicConfigContextFn;
 }): Promise<SubmissionFragment> {
   const platform = toPlatform(build.platform);
   const submissionCtx = await createSubmissionContextAsync({
     platform,
     projectDir,
-    projectId: build.project.id,
     profile: submitProfile,
     archiveFlags: { id: build.id },
     nonInteractive,
@@ -342,6 +345,7 @@ async function prepareAndStartSubmissionAsync({
     credentialsCtx: buildCtx.credentialsCtx,
     applicationIdentifier: buildCtx.android?.applicationId ?? buildCtx.ios?.bundleIdentifier,
     actor: buildCtx.user,
+    getDynamicProjectConfigAsync,
   });
 
   if (moreBuilds) {

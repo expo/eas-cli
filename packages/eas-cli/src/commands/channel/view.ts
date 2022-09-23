@@ -4,7 +4,7 @@ import {
   listAndRenderBranchesAndUpdatesOnChannelAsync,
   selectChannelOnAppAsync,
 } from '../../channel/queries';
-import EasCommand, { EASCommandProjectIdContext } from '../../commandUtils/EasCommand';
+import EasCommand, { EASCommandProjectConfigContext } from '../../commandUtils/EasCommand';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import { EasPaginatedQueryFlags, getPaginatedQueryOptions } from '../../commandUtils/pagination';
 import { enableJsonOutput } from '../../utils/json';
@@ -26,7 +26,7 @@ export default class ChannelView extends EasCommand {
   };
 
   static override contextDefinition = {
-    ...EASCommandProjectIdContext,
+    ...EASCommandProjectConfigContext,
   };
 
   async runAsync(): Promise<void> {
@@ -36,7 +36,9 @@ export default class ChannelView extends EasCommand {
     } = await this.parse(ChannelView);
     const paginatedQueryOptions = getPaginatedQueryOptions(flags);
     const { json: jsonFlag, 'non-interactive': nonInteractive } = flags;
-    const { projectId } = await this.getContextAsync(ChannelView, {
+    const {
+      projectConfig: { projectId },
+    } = await this.getContextAsync(ChannelView, {
       nonInteractive,
     });
     if (jsonFlag) {

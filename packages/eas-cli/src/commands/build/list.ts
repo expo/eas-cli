@@ -2,7 +2,7 @@ import { Flags } from '@oclif/core';
 
 import { BUILDS_LIMIT, listAndRenderBuildsOnAppAsync } from '../../build/queries';
 import { BuildDistributionType, BuildStatus } from '../../build/types';
-import EasCommand, { EASCommandProjectIdContext } from '../../commandUtils/EasCommand';
+import EasCommand, { EASCommandProjectConfigContext } from '../../commandUtils/EasCommand';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import {
   EasPaginatedQueryFlags,
@@ -56,7 +56,7 @@ export default class BuildList extends EasCommand {
   };
 
   static override contextDefinition = {
-    ...EASCommandProjectIdContext,
+    ...EASCommandProjectConfigContext,
   };
 
   async runAsync(): Promise<void> {
@@ -69,7 +69,9 @@ export default class BuildList extends EasCommand {
       distribution: buildDistribution,
       'non-interactive': nonInteractive,
     } = flags;
-    const { projectId } = await this.getContextAsync(BuildList, {
+    const {
+      projectConfig: { projectId },
+    } = await this.getContextAsync(BuildList, {
       nonInteractive,
     });
     if (jsonFlag) {

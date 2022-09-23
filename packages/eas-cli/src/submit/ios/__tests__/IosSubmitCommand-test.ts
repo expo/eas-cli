@@ -39,11 +39,6 @@ describe(IosSubmitCommand, () => {
       ...testProject.projectTree,
       ...fakeFiles,
     });
-
-    const mockManifest = { exp: testProject.appJSON.expo };
-    jest.mock('@expo/config', () => ({
-      getConfig: jest.fn(() => mockManifest),
-    }));
   });
   afterAll(() => {
     vol.reset();
@@ -65,7 +60,6 @@ describe(IosSubmitCommand, () => {
       const ctx = await createSubmissionContextAsync({
         platform: Platform.IOS,
         projectDir: testProject.projectRoot,
-        projectId,
         archiveFlags: {
           url: 'http://expo.dev/fake.ipa',
         },
@@ -74,6 +68,7 @@ describe(IosSubmitCommand, () => {
         },
         nonInteractive: true,
         actor: mockJester,
+        getDynamicProjectConfigAsync: async () => ({ exp: testProject.appJSON.expo, projectId }),
       });
       const command = new IosSubmitCommand(ctx);
       await expect(command.runAsync()).rejects.toThrowError();
@@ -89,7 +84,6 @@ describe(IosSubmitCommand, () => {
       const ctx = await createSubmissionContextAsync({
         platform: Platform.IOS,
         projectDir: testProject.projectRoot,
-        projectId,
         archiveFlags: {
           url: 'http://expo.dev/fake.ipa',
         },
@@ -100,6 +94,7 @@ describe(IosSubmitCommand, () => {
         },
         nonInteractive: false,
         actor: mockJester,
+        getDynamicProjectConfigAsync: async () => ({ exp: testProject.appJSON.expo, projectId }),
       });
       const command = new IosSubmitCommand(ctx);
       await command.runAsync();

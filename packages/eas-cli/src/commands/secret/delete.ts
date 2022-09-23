@@ -1,6 +1,6 @@
 import { Flags } from '@oclif/core';
 
-import EasCommand, { EASCommandProjectIdContext } from '../../commandUtils/EasCommand';
+import EasCommand, { EASCommandProjectConfigContext } from '../../commandUtils/EasCommand';
 import { EASNonInteractiveFlag } from '../../commandUtils/flags';
 import { EnvironmentSecretMutation } from '../../graphql/mutations/EnvironmentSecretMutation';
 import {
@@ -22,14 +22,16 @@ export default class EnvironmentSecretDelete extends EasCommand {
   };
 
   static override contextDefinition = {
-    ...EASCommandProjectIdContext,
+    ...EASCommandProjectConfigContext,
   };
 
   async runAsync(): Promise<void> {
     let {
       flags: { id, 'non-interactive': nonInteractive },
     } = await this.parse(EnvironmentSecretDelete);
-    const { projectId } = await this.getContextAsync(EnvironmentSecretDelete, {
+    const {
+      projectConfig: { projectId },
+    } = await this.getContextAsync(EnvironmentSecretDelete, {
       nonInteractive,
     });
     let secret: EnvironmentSecretWithScope | undefined;

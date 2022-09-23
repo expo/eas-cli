@@ -4,7 +4,7 @@ import chalk from 'chalk';
 import fs from 'fs-extra';
 import path from 'path';
 
-import EasCommand, { EASCommandProjectIdContext } from '../../commandUtils/EasCommand';
+import EasCommand, { EASCommandProjectConfigContext } from '../../commandUtils/EasCommand';
 import { EASNonInteractiveFlag } from '../../commandUtils/flags';
 import { EnvironmentSecretMutation } from '../../graphql/mutations/EnvironmentSecretMutation';
 import {
@@ -50,7 +50,7 @@ export default class EnvironmentSecretCreate extends EasCommand {
   };
 
   static override contextDefinition = {
-    ...EASCommandProjectIdContext,
+    ...EASCommandProjectConfigContext,
   };
 
   async runAsync(): Promise<void> {
@@ -64,7 +64,9 @@ export default class EnvironmentSecretCreate extends EasCommand {
         'non-interactive': nonInteractive,
       },
     } = await this.parse(EnvironmentSecretCreate);
-    const { projectId } = await this.getContextAsync(EnvironmentSecretCreate, {
+    const {
+      projectConfig: { projectId },
+    } = await this.getContextAsync(EnvironmentSecretCreate, {
       nonInteractive,
     });
 

@@ -1,5 +1,5 @@
 import { selectBranchOnAppAsync } from '../../branch/queries';
-import EasCommand, { EASCommandProjectIdContext } from '../../commandUtils/EasCommand';
+import EasCommand, { EASCommandProjectConfigContext } from '../../commandUtils/EasCommand';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import {
   EasPaginatedQueryFlags,
@@ -27,7 +27,7 @@ export default class BranchView extends EasCommand {
   };
 
   static override contextDefinition = {
-    ...EASCommandProjectIdContext,
+    ...EASCommandProjectConfigContext,
   };
 
   async runAsync(): Promise<void> {
@@ -36,7 +36,9 @@ export default class BranchView extends EasCommand {
       flags,
     } = await this.parse(BranchView);
     const { 'non-interactive': nonInteractive } = flags;
-    const { projectId } = await this.getContextAsync(BranchView, {
+    const {
+      projectConfig: { projectId },
+    } = await this.getContextAsync(BranchView, {
       nonInteractive,
     });
     const paginatedQueryOptions = getPaginatedQueryOptions(flags);

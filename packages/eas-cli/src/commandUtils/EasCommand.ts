@@ -1,3 +1,4 @@
+import { ExpoConfig } from '@expo/config-types';
 import { EasJsonAccessor, EasJsonUtils } from '@expo/eas-json';
 import * as PackageManagerUtils from '@expo/package-manager';
 import { Command } from '@oclif/core';
@@ -13,7 +14,7 @@ import {
   logEvent,
 } from '../analytics/rudderstackClient';
 import { learnMore } from '../log';
-import { getExpoConfig } from '../project/expoConfig';
+import { ExpoConfigOptions, getExpoConfig } from '../project/expoConfig';
 import { findProjectRootAsync, getProjectIdAsync } from '../project/projectUtils';
 import { Actor, getUserAsync } from '../user/User';
 import { ensureLoggedInAsync } from '../user/actions';
@@ -43,11 +44,35 @@ export abstract class ContextField<T> {
   abstract getValueAsync(options: ContextOptions): Promise<T>;
 }
 
-export class ProjectIdContextField extends ContextField<string> {
-  async getValueAsync({ nonInteractive }: ContextOptions): Promise<string> {
+export class ProjectConfigContextField extends ContextField<{
+  projectId: string;
+  exp: ExpoConfig;
+}> {
+  async getValueAsync({ nonInteractive }: ContextOptions): Promise<{
+    projectId: string;
+    exp: ExpoConfig;
+  }> {
     const projectDir = await findProjectRootAsync();
     const exp = getExpoConfig(projectDir);
-    return await getProjectIdAsync(exp, { nonInteractive });
+    return { projectId: await getProjectIdAsync(exp, { nonInteractive }), exp };
+  }
+}
+
+export type DynamicConfigContextFn = (options?: ExpoConfigOptions) => Promise<{
+  projectId: string;
+  exp: ExpoConfig;
+}>;
+
+export class DynamicProjectConfigContextField extends ContextField<DynamicConfigContextFn> {
+  async getValueAsync({ nonInteractive }: ContextOptions): Promise<DynamicConfigContextFn> {
+    return async (options?: ExpoConfigOptions) => {
+      const projectDir = await findProjectRootAsync();
+      const exp = getExpoConfig(projectDir, options);
+      return {
+        exp,
+        projectId: await getProjectIdAsync(exp, { nonInteractive, env: options?.env }),
+      };
+    };
   }
 }
 
@@ -57,8 +82,13 @@ export class ActorContextField extends ContextField<Actor> {
   }
 }
 
-export const EASCommandProjectIdContext = {
-  projectId: new ProjectIdContextField(),
+export const EASCommandProjectConfigContext = {
+  projectConfig: new ProjectConfigContextField(),
+};
+
+export const EASCommandDynamicProjectConfigContext = {
+  // eslint-disable-next-line async-protect/async-suffix
+  getDynamicProjectConfigAsync: new DynamicProjectConfigContextField(),
 };
 
 export const EASCommandLoggedInContext = {

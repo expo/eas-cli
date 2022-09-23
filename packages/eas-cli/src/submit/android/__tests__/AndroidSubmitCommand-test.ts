@@ -64,11 +64,6 @@ describe(AndroidSubmitCommand, () => {
       ...testProject.projectTree,
       ...fakeFiles,
     });
-
-    const mockManifest = { exp: testProject.appJSON.expo };
-    jest.mock('@expo/config', () => ({
-      getConfig: jest.fn(() => mockManifest),
-    }));
   });
   afterAll(() => {
     vol.reset();
@@ -89,7 +84,6 @@ describe(AndroidSubmitCommand, () => {
       const ctx = await createSubmissionContextAsync({
         platform: Platform.ANDROID,
         projectDir: testProject.projectRoot,
-        projectId,
         archiveFlags: {
           url: 'http://expo.dev/fake.apk',
         },
@@ -100,6 +94,7 @@ describe(AndroidSubmitCommand, () => {
         },
         nonInteractive: true,
         actor: mockJester,
+        getDynamicProjectConfigAsync: async () => ({ exp: testProject.appJSON.expo, projectId }),
       });
       const command = new AndroidSubmitCommand(ctx);
       await expect(command.runAsync()).rejects.toThrowError();
@@ -113,7 +108,6 @@ describe(AndroidSubmitCommand, () => {
       const ctx = await createSubmissionContextAsync({
         platform: Platform.ANDROID,
         projectDir: testProject.projectRoot,
-        projectId,
         archiveFlags: {
           url: 'http://expo.dev/fake.apk',
         },
@@ -125,6 +119,7 @@ describe(AndroidSubmitCommand, () => {
         },
         nonInteractive: false,
         actor: mockJester,
+        getDynamicProjectConfigAsync: async () => ({ exp: testProject.appJSON.expo, projectId }),
       });
       const command = new AndroidSubmitCommand(ctx);
       await command.runAsync();
@@ -150,7 +145,6 @@ describe(AndroidSubmitCommand, () => {
       const ctx = await createSubmissionContextAsync({
         platform: Platform.ANDROID,
         projectDir: testProject.projectRoot,
-        projectId,
         archiveFlags: {
           latest: true,
         },
@@ -162,6 +156,7 @@ describe(AndroidSubmitCommand, () => {
         },
         nonInteractive: false,
         actor: mockJester,
+        getDynamicProjectConfigAsync: async () => ({ exp: testProject.appJSON.expo, projectId }),
       });
       const command = new AndroidSubmitCommand(ctx);
       await command.runAsync();

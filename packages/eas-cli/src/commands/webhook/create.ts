@@ -1,6 +1,6 @@
 import { Flags } from '@oclif/core';
 
-import EasCommand, { EASCommandProjectIdContext } from '../../commandUtils/EasCommand';
+import EasCommand, { EASCommandProjectConfigContext } from '../../commandUtils/EasCommand';
 import { EASNonInteractiveFlag } from '../../commandUtils/flags';
 import { WebhookType } from '../../graphql/generated';
 import { WebhookMutation } from '../../graphql/mutations/WebhookMutation';
@@ -26,12 +26,14 @@ export default class WebhookCreate extends EasCommand {
   };
 
   static override contextDefinition = {
-    ...EASCommandProjectIdContext,
+    ...EASCommandProjectConfigContext,
   };
 
   async runAsync(): Promise<void> {
     const { flags } = await this.parse(WebhookCreate);
-    const { projectId } = await this.getContextAsync(WebhookCreate, {
+    const {
+      projectConfig: { projectId },
+    } = await this.getContextAsync(WebhookCreate, {
       nonInteractive: flags['non-interactive'],
     });
     const webhookInputParams = await prepareInputParamsAsync(flags);

@@ -2,7 +2,7 @@ import chalk from 'chalk';
 import gql from 'graphql-tag';
 
 import { getDefaultBranchNameAsync } from '../../branch/utils';
-import EasCommand, { EASCommandProjectIdContext } from '../../commandUtils/EasCommand';
+import EasCommand, { EASCommandProjectConfigContext } from '../../commandUtils/EasCommand';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
 import {
@@ -62,7 +62,7 @@ export default class BranchCreate extends EasCommand {
   };
 
   static override contextDefinition = {
-    ...EASCommandProjectIdContext,
+    ...EASCommandProjectConfigContext,
   };
 
   async runAsync(): Promise<void> {
@@ -70,7 +70,9 @@ export default class BranchCreate extends EasCommand {
       args: { name },
       flags: { json: jsonFlag, 'non-interactive': nonInteractive },
     } = await this.parse(BranchCreate);
-    const { projectId } = await this.getContextAsync(BranchCreate, {
+    const {
+      projectConfig: { projectId },
+    } = await this.getContextAsync(BranchCreate, {
       nonInteractive,
     });
 

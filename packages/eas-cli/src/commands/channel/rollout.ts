@@ -2,7 +2,7 @@ import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 
 import { BranchMapping, getBranchMapping } from '../../channel/utils';
-import EasCommand, { EASCommandProjectIdContext } from '../../commandUtils/EasCommand';
+import EasCommand, { EASCommandProjectConfigContext } from '../../commandUtils/EasCommand';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import { UpdateBranch } from '../../graphql/generated';
 import { BranchQuery } from '../../graphql/queries/BranchQuery';
@@ -312,7 +312,7 @@ export default class ChannelRollout extends EasCommand {
   };
 
   static override contextDefinition = {
-    ...EASCommandProjectIdContext,
+    ...EASCommandProjectConfigContext,
   };
 
   async runAsync(): Promise<void> {
@@ -326,7 +326,9 @@ export default class ChannelRollout extends EasCommand {
         'non-interactive': nonInteractive,
       },
     } = await this.parse(ChannelRollout);
-    const { projectId } = await this.getContextAsync(ChannelRollout, {
+    const {
+      projectConfig: { projectId },
+    } = await this.getContextAsync(ChannelRollout, {
       nonInteractive,
     });
     if (jsonFlag) {

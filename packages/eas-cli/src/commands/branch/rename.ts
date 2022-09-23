@@ -2,7 +2,7 @@ import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 import gql from 'graphql-tag';
 
-import EasCommand, { EASCommandProjectIdContext } from '../../commandUtils/EasCommand';
+import EasCommand, { EASCommandProjectConfigContext } from '../../commandUtils/EasCommand';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
 import {
@@ -63,14 +63,16 @@ export default class BranchRename extends EasCommand {
   };
 
   static override contextDefinition = {
-    ...EASCommandProjectIdContext,
+    ...EASCommandProjectConfigContext,
   };
 
   async runAsync(): Promise<void> {
     let {
       flags: { json: jsonFlag, from: currentName, to: newName, 'non-interactive': nonInteractive },
     } = await this.parse(BranchRename);
-    const { projectId } = await this.getContextAsync(BranchRename, {
+    const {
+      projectConfig: { projectId },
+    } = await this.getContextAsync(BranchRename, {
       nonInteractive,
     });
     if (jsonFlag) {

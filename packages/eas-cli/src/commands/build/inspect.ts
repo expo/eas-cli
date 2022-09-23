@@ -6,8 +6,8 @@ import { v4 as uuidv4 } from 'uuid';
 
 import { runBuildAndSubmitAsync } from '../../build/runBuildAndSubmit';
 import EasCommand, {
+  EASCommandDynamicProjectConfigContext,
   EASCommandLoggedInContext,
-  EASCommandProjectIdContext,
 } from '../../commandUtils/EasCommand';
 import Log from '../../log';
 import { ora } from '../../ora';
@@ -67,12 +67,12 @@ export default class BuildInspect extends EasCommand {
 
   static override contextDefinition = {
     ...EASCommandLoggedInContext,
-    ...EASCommandProjectIdContext,
+    ...EASCommandDynamicProjectConfigContext,
   };
 
   async runAsync(): Promise<void> {
     const { flags } = await this.parse(BuildInspect);
-    const { actor, projectId } = await this.getContextAsync(BuildInspect, {
+    const { actor, getDynamicProjectConfigAsync } = await this.getContextAsync(BuildInspect, {
       nonInteractive: false,
     });
 
@@ -115,7 +115,7 @@ export default class BuildInspect extends EasCommand {
             },
           },
           actor,
-          projectId
+          getDynamicProjectConfigAsync
         );
         if (!flags.verbose) {
           Log.log(chalk.green('Build successful'));

@@ -4,7 +4,7 @@ import gql from 'graphql-tag';
 
 import { selectBranchOnAppAsync } from '../../branch/queries';
 import { selectChannelOnAppAsync } from '../../channel/queries';
-import EasCommand, { EASCommandProjectIdContext } from '../../commandUtils/EasCommand';
+import EasCommand, { EASCommandProjectConfigContext } from '../../commandUtils/EasCommand';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
 import {
@@ -66,7 +66,7 @@ export default class ChannelEdit extends EasCommand {
   };
 
   static override contextDefinition = {
-    ...EASCommandProjectIdContext,
+    ...EASCommandProjectConfigContext,
   };
 
   async runAsync(): Promise<void> {
@@ -74,7 +74,9 @@ export default class ChannelEdit extends EasCommand {
       args,
       flags: { branch: branchFlag, json, 'non-interactive': nonInteractive },
     } = await this.parse(ChannelEdit);
-    const { projectId } = await this.getContextAsync(ChannelEdit, {
+    const {
+      projectConfig: { projectId },
+    } = await this.getContextAsync(ChannelEdit, {
       nonInteractive,
     });
     if (json) {

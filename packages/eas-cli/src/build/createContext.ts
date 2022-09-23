@@ -7,9 +7,9 @@ import { v4 as uuidv4 } from 'uuid';
 
 import { TrackingContext } from '../analytics/common';
 import { Analytics, BuildEvent } from '../analytics/events';
+import { DynamicConfigContextFn } from '../commandUtils/EasCommand';
 import { CredentialsContext } from '../credentials/context';
 import { BuildResourceClass } from '../graphql/generated';
-import { getExpoConfig } from '../project/expoConfig';
 import { getOwnerAccountForProjectIdAsync } from '../project/projectUtils';
 import { resolveWorkflowAsync } from '../project/workflow';
 import { Actor } from '../user/User';
@@ -31,7 +31,7 @@ export async function createBuildContextAsync<T extends Platform>({
   resourceClass,
   message,
   actor,
-  projectId,
+  getDynamicProjectConfigAsync,
 }: {
   buildProfileName: string;
   buildProfile: BuildProfile<T>;
@@ -45,9 +45,9 @@ export async function createBuildContextAsync<T extends Platform>({
   resourceClass: BuildResourceClass;
   message?: string;
   actor: Actor;
-  projectId: string;
+  getDynamicProjectConfigAsync: DynamicConfigContextFn;
 }): Promise<BuildContext<T>> {
-  const exp = getExpoConfig(projectDir, { env: buildProfile.env });
+  const { exp, projectId } = await getDynamicProjectConfigAsync({ env: buildProfile.env });
 
   const projectName = exp.slug;
   const account = await getOwnerAccountForProjectIdAsync(projectId);

@@ -6,7 +6,6 @@ import assert from 'assert';
 
 import { CredentialsContext } from '../credentials/context';
 import { getRequestContext } from '../credentials/ios/appstore/authenticate';
-import { getExpoConfig } from '../project/expoConfig';
 import { getBundleIdentifierAsync } from '../project/ios/bundleIdentifier';
 import { Actor } from '../user/User';
 
@@ -43,7 +42,7 @@ export type MetadataAppStoreAuthentication = {
 export async function createMetadataContextAsync(params: {
   projectDir: string;
   credentialsCtx: CredentialsContext;
-  exp?: ExpoConfig;
+  exp: ExpoConfig;
   profileName?: string;
 }): Promise<MetadataContext> {
   const easJsonAccessor = new EasJsonAccessor(params.projectDir);
@@ -53,7 +52,7 @@ export async function createMetadataContextAsync(params: {
     params.profileName
   );
 
-  const exp = params.exp ?? getExpoConfig(params.projectDir);
+  const exp = params.exp;
   const user = params.credentialsCtx.user;
   const bundleIdentifier =
     submitProfile.bundleIdentifier ?? (await getBundleIdentifierAsync(params.projectDir, exp));

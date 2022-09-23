@@ -2,7 +2,7 @@ import { Device, DeviceStatus } from '@expo/apple-utils';
 import { Flags } from '@oclif/core';
 import assert from 'assert';
 
-import EasCommand, { EASCommandProjectIdContext } from '../../commandUtils/EasCommand';
+import EasCommand, { EASCommandProjectConfigContext } from '../../commandUtils/EasCommand';
 import { chooseDevicesToDeleteAsync } from '../../credentials/ios/actions/DeviceUtils';
 import { AppleDeviceMutation } from '../../credentials/ios/api/graphql/mutations/AppleDeviceMutation';
 import {
@@ -28,14 +28,16 @@ export default class DeviceDelete extends EasCommand {
   };
 
   static override contextDefinition = {
-    ...EASCommandProjectIdContext,
+    ...EASCommandProjectConfigContext,
   };
 
   async runAsync(): Promise<void> {
     let {
       flags: { 'apple-team-id': appleTeamIdentifier, udid: udids },
     } = await this.parse(DeviceDelete);
-    const { projectId } = await this.getContextAsync(DeviceDelete, {
+    const {
+      projectConfig: { projectId },
+    } = await this.getContextAsync(DeviceDelete, {
       nonInteractive: false,
     });
 

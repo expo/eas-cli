@@ -32,17 +32,12 @@ const testProject = createTestProject(testProjectId, mockJester.accounts[0].name
     package: 'com.expo.test.project',
   },
 });
-const mockManifest = { exp: testProject.appJSON.expo };
-jest.mock('@expo/config', () => ({
-  getConfig: jest.fn(() => mockManifest),
-}));
 const projectId = uuidv4();
 
 async function getIosSubmissionContextAsync(): Promise<SubmissionContext<Platform.IOS>> {
   return await createSubmissionContextAsync({
     platform: Platform.IOS,
     projectDir: testProject.projectRoot,
-    projectId,
     archiveFlags: {
       url: 'http://expo.dev/fake.apk',
     },
@@ -51,6 +46,7 @@ async function getIosSubmissionContextAsync(): Promise<SubmissionContext<Platfor
     },
     nonInteractive: true,
     actor: mockJester,
+    getDynamicProjectConfigAsync: async () => ({ exp: testProject.appJSON.expo, projectId }),
   });
 }
 

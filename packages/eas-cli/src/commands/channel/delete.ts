@@ -1,7 +1,7 @@
 import gql from 'graphql-tag';
 
 import { selectChannelOnAppAsync } from '../../channel/queries';
-import EasCommand, { EASCommandProjectIdContext } from '../../commandUtils/EasCommand';
+import EasCommand, { EASCommandProjectConfigContext } from '../../commandUtils/EasCommand';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
 import {
@@ -30,7 +30,7 @@ export default class ChannelDelete extends EasCommand {
   };
 
   static override contextDefinition = {
-    ...EASCommandProjectIdContext,
+    ...EASCommandProjectConfigContext,
   };
 
   async runAsync(): Promise<void> {
@@ -38,7 +38,9 @@ export default class ChannelDelete extends EasCommand {
       args: { name: nameArg },
       flags: { json: jsonFlag, 'non-interactive': nonInteractive },
     } = await this.parse(ChannelDelete);
-    const { projectId } = await this.getContextAsync(ChannelDelete, {
+    const {
+      projectConfig: { projectId },
+    } = await this.getContextAsync(ChannelDelete, {
       nonInteractive,
     });
     if (jsonFlag) {

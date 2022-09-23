@@ -4,10 +4,9 @@ import chalk from 'chalk';
 
 import { cleanUpOldEasBuildGradleScriptAsync } from '../../build/android/syncProjectConfiguration';
 import { ensureProjectConfiguredAsync } from '../../build/configure';
-import EasCommand from '../../commandUtils/EasCommand';
+import EasCommand, { EASCommandProjectConfigContext } from '../../commandUtils/EasCommand';
 import Log, { learnMore } from '../../log';
 import { RequestedPlatform } from '../../platform';
-import { getExpoConfig } from '../../project/expoConfig';
 import { findProjectRootAsync, isExpoUpdatesInstalled } from '../../project/projectUtils';
 import { resolveWorkflowAsync } from '../../project/workflow';
 import { promptAsync } from '../../prompts';
@@ -26,8 +25,17 @@ export default class BuildConfigure extends EasCommand {
     }),
   };
 
+  static override contextDefinition = {
+    ...EASCommandProjectConfigContext,
+  };
+
   async runAsync(): Promise<void> {
     const { flags } = await this.parse(BuildConfigure);
+    const {
+      projectConfig: { exp },
+    } = await this.getContextAsync(BuildConfigure, {
+      nonInteractive: false,
+    });
 
     Log.log(
       '💡 The following process will configure your iOS and/or Android project to be compatible with EAS Build. These changes only apply to your local project files and you can safely revert them at any time.'
@@ -55,8 +63,6 @@ export default class BuildConfigure extends EasCommand {
 
     // configure expo-updates
     if (expoUpdatesIsInstalled) {
-      const exp = getExpoConfig(projectDir);
-
       if ([RequestedPlatform.Android, RequestedPlatform.All].includes(platform)) {
         const workflow = await resolveWorkflowAsync(projectDir, Platform.ANDROID);
         if (workflow === Workflow.GENERIC) {
