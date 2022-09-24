@@ -29,10 +29,7 @@ import {
 } from '../platform';
 import { checkExpoSdkIsSupportedAsync } from '../project/expoSdk';
 import { validateMetroConfigForManagedWorkflowAsync } from '../project/metroConfig';
-import {
-  getProjectIdAsync,
-  validateAppVersionRuntimePolicySupportAsync,
-} from '../project/projectUtils';
+import { validateAppVersionRuntimePolicySupportAsync } from '../project/projectUtils';
 import {
   validateAppConfigForRemoteVersionSource,
   validateBuildProfileVersionSettings,
@@ -263,11 +260,10 @@ async function prepareAndStartBuildAsync({
     );
   }
 
-  const projectId = await getProjectIdAsync(buildCtx.exp, { nonInteractive: flags.nonInteractive });
   await validateBuildProfileConfigMatchesProjectConfigAsync(
     buildCtx.exp,
     buildProfile,
-    projectId,
+    buildCtx.projectId,
     flags.nonInteractive
   );
 

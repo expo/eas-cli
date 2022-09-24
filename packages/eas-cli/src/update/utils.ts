@@ -7,6 +7,7 @@ import { getEASUpdateURL } from '../api';
 import { Maybe, Robot, Update, UpdateFragment, User } from '../graphql/generated';
 import Log, { learnMore } from '../log';
 import { RequestedPlatform } from '../platform';
+import { confirmAsync } from '../prompts';
 import { getActorDisplayName } from '../user/User';
 import groupBy from '../utils/expodash/groupBy';
 import { ProfileData } from '../utils/profiles';
@@ -178,13 +179,6 @@ export async function validateBuildProfileConfigMatchesProjectConfigAsync(
   nonInteractive: boolean
 ): Promise<void> {
   if ((await checkEASUpdateURLIsSetAsync(exp, projectId)) && buildProfile.profile.releaseChannel) {
-    const error = `Your project is configured for EAS Update, but build profile "${
-      buildProfile.profileName
-    }" in ${chalk.bold('eas.json')} specifies the \`releaseChannel\` property.
-For EAS Update, you need to specify the \`channel\` property, or your build will not be able to receive any updates
-
-${learnMore('https://docs.expo.dev/eas-update/getting-started/#configure-your-project')}`;
-
     const warning = `» Your project is configured for EAS Update, but build profile "${
       buildProfile.profileName
     }" in ${chalk.bold('eas.json')} specifies the \`releaseChannel\` property.
@@ -192,10 +186,16 @@ ${learnMore('https://docs.expo.dev/eas-update/getting-started/#configure-your-pr
 
   ${learnMore('https://docs.expo.dev/eas-update/getting-started/#configure-your-project')}`;
 
-    if (nonInteractive) {
-      Log.warn(warning);
-    } else {
-      throw new Error(error);
+    Log.warn(warning);
+    if (!nonInteractive) {
+      const answer = await confirmAsync({
+        message: `Would you like to proceed?`,
+      });
+
+      if (!answer) {
+        Log.log('Aborting...');
+        process.exit(1);
+      }
     }
   }
 }
